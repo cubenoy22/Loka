@@ -27,7 +27,10 @@ void testNullTextLayoutWordAndCharacterWrapProduceDifferentGeometry()
   const int wordResultY = platform.projectLayoutForTesting(&wordText, state);
   const int characterResultY = platform.projectLayoutForTesting(&characterText, state);
 
+  (void)noneResultY;
+  (void)wordResultY;
   assert(noneResultY != wordResultY);
+  (void)characterResultY;
   assert(noneResultY != characterResultY);
   assert(wordResultY != characterResultY);
   assert(noneResultY == 15);
@@ -47,6 +50,7 @@ namespace
 
 void testNullTextLayoutTruncationModesProduceDifferentWidths()
 {
+  (void)&measurementFor;
   loka::app::TextProps noneProps("abcdefghij");
   noneProps.attr(loka::app::TextAttr().truncation(loka::app::TEXT_TRUNCATION_NONE));
   loka::app::TextNode noneText(noneProps);
@@ -86,9 +90,11 @@ void testNullTextLayoutHonorsExplicitBreaksAndForceBreaksLongWords()
   const int breakResultY = platform.projectLayoutForTesting(&breakText, state);
   const int longWordResultY = platform.projectLayoutForTesting(&longWordText, state);
 
+  (void)breakResultY;
   assert(breakResultY == 20);
   assert(measurementFor(breakText).width() == 4);
   assert(measurementFor(breakText).lineCount() == 2);
+  (void)longWordResultY;
   assert(longWordResultY == 20);
   assert(measurementFor(longWordText).width() == 16);
   assert(measurementFor(longWordText).lineCount() == 2);
@@ -120,6 +126,7 @@ void testNullTextLayoutPreservesNegativeStartY()
 
   const int resultY = platform.projectLayoutForTesting(&text, state);
 
+  (void)resultY;
   assert(resultY == -10);
   assert(measurementFor(text).height() == 10);
 }
@@ -140,7 +147,9 @@ void testNullTextLayoutWrapsAtPositiveSubGlyphWidth()
   const int wordResultY = platform.projectLayoutForTesting(&wordText, state);
   const int characterResultY = platform.projectLayoutForTesting(&characterText, state);
 
+  (void)wordResultY;
   assert(wordResultY == 20);
+  (void)characterResultY;
   assert(characterResultY == 20);
   assert(measurementFor(wordText).width() == 4);
   assert(measurementFor(characterText).width() == 4);
@@ -160,6 +169,7 @@ void testNullTextLayoutWordWrapMeasuresStandaloneSpaces()
 
   const int resultY = platform.projectLayoutForTesting(&text, state);
 
+  (void)resultY;
   assert(resultY == 20);
   assert(measurementFor(text).width() == 8);
   assert(measurementFor(text).lineCount() == 2);

@@ -1,4 +1,5 @@
 #include "PackManifestTests.hpp"
+#include "support/TestVerify.hpp"
 
 #include <cassert>
 #include <cstdio>
@@ -30,7 +31,7 @@ void testPackManifestParsesRecordsAndRefusesMalformedLines()
 {
   PackManifest manifest;
   std::size_t line = 0;
-  assert(Parse("# a comment\n"
+  LOKA_VERIFY(Parse("# a comment\n"
                "bag Main\n"
                "asset 1001 image  Splash/Logo    logo.pict   # trailing comment\n"
                "\n"
@@ -57,33 +58,33 @@ void testPackManifestParsesRecordsAndRefusesMalformedLines()
 
   // Every refusal reports the 1-based line, because a build tool that says
   // only "bad manifest" makes the author bisect the file by hand.
-  assert(Refusal("bag Main\nasset 1 image N s\nbogus x\n", line) ==
+  LOKA_VERIFY(Refusal("bag Main\nasset 1 image N s\nbogus x\n", line) ==
          loka::lrpc::MANIFEST_UNKNOWN_DIRECTIVE);
   assert(line == 3);
-  assert(Refusal("bag Main\nasset 1 image N\n", line) == loka::lrpc::MANIFEST_BAD_FIELD_COUNT);
+  LOKA_VERIFY(Refusal("bag Main\nasset 1 image N\n", line) == loka::lrpc::MANIFEST_BAD_FIELD_COUNT);
   assert(line == 2);
-  assert(Refusal("bag Main\nasset 0x10 image N s\n", line) == loka::lrpc::MANIFEST_BAD_ID);
+  LOKA_VERIFY(Refusal("bag Main\nasset 0x10 image N s\n", line) == loka::lrpc::MANIFEST_BAD_ID);
   assert(line == 2);
-  assert(Refusal("bag Main\nasset 4294967296 image N s\n", line) == loka::lrpc::MANIFEST_BAD_ID);
+  LOKA_VERIFY(Refusal("bag Main\nasset 4294967296 image N s\n", line) == loka::lrpc::MANIFEST_BAD_ID);
   assert(line == 2);
   // ASSET_KIND_UNKNOWN has no spelling: the writer refuses that row, so the
   // manifest must not be able to ask for it.
-  assert(Refusal("bag Main\nasset 1 unknown N s\n", line) == loka::lrpc::MANIFEST_BAD_KIND);
+  LOKA_VERIFY(Refusal("bag Main\nasset 1 unknown N s\n", line) == loka::lrpc::MANIFEST_BAD_KIND);
   assert(line == 2);
-  assert(Refusal("asset 1 image N s\n", line) == loka::lrpc::MANIFEST_ASSET_BEFORE_BAG);
+  LOKA_VERIFY(Refusal("asset 1 image N s\n", line) == loka::lrpc::MANIFEST_ASSET_BEFORE_BAG);
   assert(line == 1);
-  assert(Refusal("bag Main\nasset 1 image A a\nasset 1 string B b\n", line) ==
+  LOKA_VERIFY(Refusal("bag Main\nasset 1 image A a\nasset 1 string B b\n", line) ==
          loka::lrpc::MANIFEST_DUPLICATE_ID);
   assert(line == 3);
-  assert(Refusal("bag Main\nbag Main\n", line) == loka::lrpc::MANIFEST_DUPLICATE_BAG);
+  LOKA_VERIFY(Refusal("bag Main\nbag Main\n", line) == loka::lrpc::MANIFEST_DUPLICATE_BAG);
   assert(line == 2);
-  assert(Refusal("bag Main\n", line) == loka::lrpc::MANIFEST_EMPTY);
-  assert(Refusal("", line) == loka::lrpc::MANIFEST_EMPTY);
+  LOKA_VERIFY(Refusal("bag Main\n", line) == loka::lrpc::MANIFEST_EMPTY);
+  LOKA_VERIFY(Refusal("", line) == loka::lrpc::MANIFEST_EMPTY);
 
   // Two rows cannot share a symbolic name: the name-to-id association has to
   // be a function for a header to be generated from it, and the stamp hashes
   // that association.
-  assert(Refusal("bag Main\nasset 1 image Same a\nasset 2 image Same b\n", line) ==
+  LOKA_VERIFY(Refusal("bag Main\nasset 1 image Same a\nasset 2 image Same b\n", line) ==
          loka::lrpc::MANIFEST_DUPLICATE_NAME);
   assert(line == 3);
 
@@ -96,7 +97,7 @@ void testPackManifestParsesRecordsAndRefusesMalformedLines()
     const char nulManifest[] = "bag Main\nasset 1 image A payload\0suffix\n";
     PackManifest ignored;
     std::size_t nulLine = 0;
-    assert(ParseManifest(nulManifest, sizeof(nulManifest) - 1, ignored, nulLine) ==
+    LOKA_VERIFY(ParseManifest(nulManifest, sizeof(nulManifest) - 1, ignored, nulLine) ==
            loka::lrpc::MANIFEST_EMBEDDED_NUL);
   }
 
@@ -108,9 +109,9 @@ void testPackManifestStampFollowsTheIdSpaceNotTheListing()
   PackManifest listedOneWay;
   PackManifest listedTheOther;
   std::size_t line = 0;
-  assert(Parse("bag Main\nasset 1001 image A a\nasset 2001 string B b\n", listedOneWay, line) ==
+  LOKA_VERIFY(Parse("bag Main\nasset 1001 image A a\nasset 2001 string B b\n", listedOneWay, line) ==
          loka::lrpc::MANIFEST_OK);
-  assert(Parse("bag Main\nasset 2001 string B b\nasset 1001 image A a\n", listedTheOther, line) ==
+  LOKA_VERIFY(Parse("bag Main\nasset 2001 string B b\nasset 1001 image A a\n", listedTheOther, line) ==
          loka::lrpc::MANIFEST_OK);
   // Reordering the manifest does not move an id, so it must not restamp the
   // package -- otherwise every reshuffle would look like a rebuild to the
@@ -121,7 +122,7 @@ void testPackManifestStampFollowsTheIdSpaceNotTheListing()
   // a renumbered id must change it, or the mismatch it exists to catch stays
   // silent while every lookup has moved.
   PackManifest renumbered;
-  assert(Parse("bag Main\nasset 1002 image A a\nasset 2001 string B b\n", renumbered, line) ==
+  LOKA_VERIFY(Parse("bag Main\nasset 1002 image A a\nasset 2001 string B b\n", renumbered, line) ==
          loka::lrpc::MANIFEST_OK);
   assert(DeriveIdSpaceStamp(renumbered) != DeriveIdSpaceStamp(listedOneWay));
 
@@ -129,14 +130,14 @@ void testPackManifestStampFollowsTheIdSpaceNotTheListing()
   // an image is a different header, and the application would read the wrong
   // accessor type against a package that otherwise passed every check.
   PackManifest retyped;
-  assert(Parse("bag Main\nasset 1001 string A a\nasset 2001 string B b\n", retyped, line) ==
+  LOKA_VERIFY(Parse("bag Main\nasset 1001 string A a\nasset 2001 string B b\n", retyped, line) ==
          loka::lrpc::MANIFEST_OK);
   assert(DeriveIdSpaceStamp(retyped) != DeriveIdSpaceStamp(listedOneWay));
 
   // Source paths are build-side bookkeeping and never reach the application,
   // so renaming a file on disk must not invalidate every header.
   PackManifest resourced;
-  assert(Parse("bag Main\nasset 1001 image A other.pict\nasset 2001 string B b\n",
+  LOKA_VERIFY(Parse("bag Main\nasset 1001 image A other.pict\nasset 2001 string B b\n",
                resourced,
                line) == loka::lrpc::MANIFEST_OK);
   assert(DeriveIdSpaceStamp(resourced) == DeriveIdSpaceStamp(listedOneWay));
@@ -144,7 +145,7 @@ void testPackManifestStampFollowsTheIdSpaceNotTheListing()
   // The symbolic name is part of the association the stamp guards, so renaming
   // a symbol restamps.
   PackManifest renamed;
-  assert(Parse("bag Main\nasset 1001 image Renamed a\nasset 2001 string B b\n",
+  LOKA_VERIFY(Parse("bag Main\nasset 1001 image Renamed a\nasset 2001 string B b\n",
                renamed,
                line) == loka::lrpc::MANIFEST_OK);
   assert(DeriveIdSpaceStamp(renamed) != DeriveIdSpaceStamp(listedOneWay));
@@ -156,10 +157,10 @@ void testPackManifestStampFollowsTheIdSpaceNotTheListing()
   // passes every check and draws the wrong asset.
   PackManifest straight;
   PackManifest swapped;
-  assert(Parse("bag Main\nasset 1001 image Splash/Logo l.pict\nasset 2001 image Icons/Gear g.pict\n",
+  LOKA_VERIFY(Parse("bag Main\nasset 1001 image Splash/Logo l.pict\nasset 2001 image Icons/Gear g.pict\n",
                straight,
                line) == loka::lrpc::MANIFEST_OK);
-  assert(Parse("bag Main\nasset 2001 image Splash/Logo l.pict\nasset 1001 image Icons/Gear g.pict\n",
+  LOKA_VERIFY(Parse("bag Main\nasset 2001 image Splash/Logo l.pict\nasset 1001 image Icons/Gear g.pict\n",
                swapped,
                line) == loka::lrpc::MANIFEST_OK);
   assert(DeriveIdSpaceStamp(straight) != DeriveIdSpaceStamp(swapped));
@@ -167,9 +168,9 @@ void testPackManifestStampFollowsTheIdSpaceNotTheListing()
   // Length-prefixing, so two names cannot be re-cut into the same byte stream.
   PackManifest cutOneWay;
   PackManifest cutTheOther;
-  assert(Parse("bag Main\nasset 1 image AB a\nasset 2 image C b\n", cutOneWay, line) ==
+  LOKA_VERIFY(Parse("bag Main\nasset 1 image AB a\nasset 2 image C b\n", cutOneWay, line) ==
          loka::lrpc::MANIFEST_OK);
-  assert(Parse("bag Main\nasset 1 image A a\nasset 2 image BC b\n", cutTheOther, line) ==
+  LOKA_VERIFY(Parse("bag Main\nasset 1 image A a\nasset 2 image BC b\n", cutTheOther, line) ==
          loka::lrpc::MANIFEST_OK);
   assert(DeriveIdSpaceStamp(cutOneWay) != DeriveIdSpaceStamp(cutTheOther));
 

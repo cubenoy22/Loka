@@ -1,4 +1,5 @@
 #include "AttrDslTests.hpp"
+#include "support/TestVerify.hpp"
 
 #include <cassert>
 #include <cstdio>
@@ -586,6 +587,7 @@ void testLokaAttrDslV1Core()
     loka::app::TextAttr a;
     loka::app::TextAttr b = a;
     a.fontSize(14);
+    (void)b;
     assert(!b.hasFontSizeValue_);
     assert(a.hasFontSizeValue_);
     assert(a.fontSizeValue_ == 14);
@@ -668,13 +670,13 @@ void testPlatformNodeHandlerRegistration()
   {
     loka::app::scene::PlatformNodeHandlerRegistry registry;
     assert(registry.find(&node) == 0);
-    assert(registry.registerHandler(&handler));
+    LOKA_VERIFY(registry.registerHandler(&handler));
     assert(registry.find(&node) == &handler);
   }
 
   AttrDslDummyRegistrationPlatformController controller;
   loka::app::scene::IPlatformController &platform = controller;
-  assert(platform.registerNodeHandler(&handler));
+  LOKA_VERIFY(platform.registerNodeHandler(&handler));
   assert(controller.findHandler(&node) == &handler);
 
   loka::app::scene::LayoutState state;
@@ -685,6 +687,7 @@ void testPlatformNodeHandlerRegistration()
   loka::app::scene::IPlatformNodeHandler *resolved = controller.findHandler(&node);
   assert(resolved != 0);
   loka::app::scene::NodeContext *context = resolved->ensureContext(&node, &platform, state);
+  (void)context;
   assert(context != 0);
   assert(node.getContext() == context);
   assert(handler.ensureCalls_ == 1);
@@ -705,9 +708,9 @@ void testPlatformNodeHandlerReplacement()
   AttrDslSecondExternalHandler second;
 
   loka::app::scene::PlatformNodeHandlerRegistry registry;
-  assert(registry.registerHandler(&first));
+  LOKA_VERIFY(registry.registerHandler(&first));
   assert(registry.find(&node) == &first);
-  assert(registry.registerHandler(&second));
+  LOKA_VERIFY(registry.registerHandler(&second));
   assert(registry.find(&node) == &second);
 
   printf("==== [testPlatformNodeHandlerReplacement] end ====\n");
@@ -721,7 +724,7 @@ void testPlatformNodeHandlerRejectsInvalidTypeKey()
   AttrDslInvalidExternalHandler invalid;
   loka::app::scene::PlatformNodeHandlerRegistry registry;
 
-  assert(!registry.registerHandler(&invalid));
+  LOKA_VERIFY(!registry.registerHandler(&invalid));
   assert(registry.find(&node) == 0);
 
   printf("==== [testPlatformNodeHandlerRejectsInvalidTypeKey] end ====\n");
@@ -743,7 +746,7 @@ void testPlatformLayoutHandlerRegistration()
     AttrDslCustomLayoutHandler *handler = new AttrDslCustomLayoutHandler();
     assert(handler != 0);
     assert(registry.find(&node) == 0);
-    assert(registry.registerHandler(handler));
+    LOKA_VERIFY(registry.registerHandler(handler));
     assert(registry.find(&node) == handler);
 
     loka::app::scene::LayoutState state;
@@ -755,6 +758,7 @@ void testPlatformLayoutHandlerRegistration()
     loka::app::scene::IPlatformLayoutHandler *resolved = registry.find(&node);
     assert(resolved != 0);
     const int resultY = resolved->layoutNode(&node, state, &traversal);
+    (void)resultY;
     assert(resultY == 73);
     assert(handler->layoutCalls_ == 1);
     assert(handler->lastState_.x == 10);
@@ -785,7 +789,7 @@ void testPlatformLayoutTraversalResultY()
   loka::app::scene::PlatformLayoutHandlerRegistry registry;
   AttrDslTraversalResultYLayoutHandler *handler = new AttrDslTraversalResultYLayoutHandler();
   assert(handler != 0);
-  assert(registry.registerHandler(handler));
+  LOKA_VERIFY(registry.registerHandler(handler));
 
   loka::app::scene::LayoutState state;
   state.x = 1;
@@ -800,6 +804,7 @@ void testPlatformLayoutTraversalResultY()
   assert(traversal.lastChild_ == child);
   assert(traversal.lastState_.y == 6);
   assert(traversal.layoutResultY() == 37);
+  (void)resultY;
   assert(resultY == 37);
 
   printf("==== [testPlatformLayoutTraversalResultY] end ====\n");
@@ -818,9 +823,9 @@ void testPlatformLayoutHandlerReplacement()
   assert(second != 0);
   second->result_ = 91;
 
-  assert(registry.registerHandler(first));
+  LOKA_VERIFY(registry.registerHandler(first));
   assert(registry.find(&node) == first);
-  assert(registry.registerHandler(second));
+  LOKA_VERIFY(registry.registerHandler(second));
   assert(registry.find(&node) == second);
 
   AttrDslDummyLayoutTraversal traversal;
@@ -831,6 +836,7 @@ void testPlatformLayoutHandlerReplacement()
   state.height = 11;
 
   loka::app::scene::IPlatformLayoutHandler *resolved = registry.find(&node);
+  (void)resolved;
   assert(resolved != 0);
   assert(resolved->layoutNode(&node, state, &traversal) == 91);
   assert(second->calls_ == 1);
@@ -848,14 +854,15 @@ void testPlatformLayoutHandlerSamePointerReregister()
   assert(handler != 0);
   handler->result_ = 41;
 
-  assert(registry.registerHandler(handler));
+  LOKA_VERIFY(registry.registerHandler(handler));
   assert(registry.find(&node) == handler);
-  assert(registry.registerHandler(handler));
+  LOKA_VERIFY(registry.registerHandler(handler));
   assert(registry.find(&node) == handler);
 
   AttrDslDummyLayoutTraversal traversal;
   loka::app::scene::LayoutState state;
   const int resultY = handler->layoutNode(&node, state, &traversal);
+  (void)resultY;
   assert(resultY == 41);
   assert(handler->calls_ == 1);
 
@@ -871,7 +878,7 @@ void testPlatformLayoutHandlerRejectsInvalidTypeKey()
   AttrDslInvalidLayoutHandler *invalid = new AttrDslInvalidLayoutHandler();
   assert(invalid != 0);
 
-  assert(!registry.registerHandler(invalid));
+  LOKA_VERIFY(!registry.registerHandler(invalid));
   assert(registry.find(&node) == 0);
 
   printf("==== [testPlatformLayoutHandlerRejectsInvalidTypeKey] end ====\n");
@@ -892,6 +899,7 @@ void testPrepareProjectedLayoutDelegation()
   state.height = 24;
 
   const short resultY = node.layoutProjected(&controller, state);
+  (void)resultY;
   assert(resultY == 21);
   assert(node.projectedCalls_ == 1);
   assert(controller.prepareProjectedCalls_ == 1);
@@ -902,7 +910,7 @@ void testPrepareProjectedLayoutDelegation()
   assert(controller.lastPreparedState_.height == 24);
 
   controller.prepareProjectedResult_ = false;
-  assert(loka::app::scene::PrepareProjectedLayout(&controller, &node, state) == false);
+  LOKA_VERIFY(loka::app::scene::PrepareProjectedLayout(&controller, &node, state) == false);
   assert(controller.prepareProjectedCalls_ == 2);
 
   printf("==== [testPrepareProjectedLayoutDelegation] end ====\n");
@@ -923,6 +931,7 @@ void testProjectedLayoutUsesActiveBoundaryModel()
   state.height = 22;
 
   const short resultY = simulateProjectedLayoutWithActiveBoundary(&node, &controller, &activeBoundary, state);
+  (void)resultY;
   assert(resultY == 14);
   assert(node.projectedCalls_ == 1);
   assert(controller.prepareCalls_ == 1);
@@ -947,7 +956,7 @@ void testPrepareProjectedLayoutRejectsNullController()
   state.width = 3;
   state.height = 4;
 
-  assert(!loka::app::scene::PrepareProjectedLayout(0, &node, state));
+  LOKA_VERIFY(!loka::app::scene::PrepareProjectedLayout(0, &node, state));
 
   printf("==== [testPrepareProjectedLayoutRejectsNullController] end ====\n");
 }
@@ -970,6 +979,7 @@ void testContainerLayoutHelpersAdvanceResultY()
     AttrDslLayoutCallRecorder recorder;
     const int resultY = loka::app::layout::computeBoxLayoutResultY(&box, state, &recorder, &recordLayoutChild);
     assert(recorder.count == 0);
+    (void)resultY;
     assert(resultY == 32);
   }
 
@@ -989,6 +999,7 @@ void testContainerLayoutHelpersAdvanceResultY()
     assert(recorder.calls[0].state.y == 24);
     assert(recorder.calls[0].state.width == 92);
     assert(recorder.calls[0].state.height == 52);
+    (void)resultY;
     assert(recorder.calls[1].state.y == recorder.calls[0].resultY);
     assert(resultY == recorder.calls[1].resultY + 4);
   }
@@ -1006,6 +1017,7 @@ void testContainerLayoutHelpersAdvanceResultY()
     const int resultY = loka::app::layout::computeColumnLayoutResultY(&column, state, &recorder, &recordLayoutChild);
     assert(recorder.count == 2);
     assert(recorder.calls[0].state.y == 20);
+    (void)resultY;
     assert(recorder.calls[1].state.y == recorder.calls[0].resultY);
     assert(resultY == recorder.calls[1].resultY);
   }
@@ -1024,6 +1036,7 @@ void testContainerLayoutHelpersAdvanceResultY()
     assert(recorder.count == 1);
     assert(recorder.calls[0].state.x == 45);
     assert(recorder.calls[0].state.width == 30);
+    (void)resultY;
     assert(resultY == recorder.calls[0].resultY);
   }
 
@@ -1041,6 +1054,7 @@ void testContainerLayoutHelpersAdvanceResultY()
     assert(recorder.count == 1);
     assert(recorder.calls[0].state.x == 80);
     assert(recorder.calls[0].state.width == 30);
+    (void)resultY;
     assert(resultY == recorder.calls[0].resultY);
   }
 
@@ -1058,6 +1072,7 @@ void testContainerLayoutHelpersAdvanceResultY()
     assert(recorder.count == 2);
     assert(recorder.calls[0].state.y == 20);
     assert(recorder.calls[1].state.y == 20);
+    (void)resultY;
     assert(recorder.calls[0].resultY == 81);
     assert(recorder.calls[1].resultY == 87);
     assert(resultY == recorder.calls[1].resultY);
@@ -1092,6 +1107,7 @@ void testContainerLayoutHelpersAdvanceResultY()
     assert(recorder.calls[2].state.y == 20 + recorder.calls[0].state.height + 5);
     assert(recorder.calls[3].state.x == 10 + recorder.calls[2].state.width + 3);
     assert(recorder.calls[3].state.y == recorder.calls[2].state.y);
+    (void)resultY;
     assert(resultY == recorder.calls[2].resultY);
   }
 
@@ -1116,6 +1132,7 @@ void testContainerLayoutHelpersAdvanceResultY()
     assert(recorder.count == 2);
     assert(recorder.calls[0].node == first);
     assert(recorder.calls[1].node == second);
+    (void)resultY;
     assert(resultY == recorder.calls[0].resultY);
   }
 
@@ -1151,6 +1168,7 @@ void testContainerLayoutHelpersAdvanceResultY()
     assert(recorder.calls[0].state.x == 10);
     assert(recorder.calls[1].state.x == 44);
     assert(recorder.calls[2].state.x == 78);
+    (void)resultY;
     assert(resultY == recorder.calls[2].resultY);
   }
 
@@ -1185,6 +1203,7 @@ void testContainerLayoutHelpersAdvanceResultY()
     assert(recorder.calls[0].state.x == 10);
     assert(recorder.calls[1].state.x == 45);
     assert(recorder.calls[2].state.x == 79);
+    (void)resultY;
     assert(resultY == recorder.calls[2].resultY);
   }
 
@@ -1217,6 +1236,7 @@ void testContainerLayoutHelpersAdvanceResultY()
     assert(recorder.calls[0].state.y == 28);
     assert(recorder.calls[1].state.height == 24);
     assert(recorder.calls[1].state.y == 20);
+    (void)resultY;
     assert(resultY == recorder.calls[1].resultY);
   }
 

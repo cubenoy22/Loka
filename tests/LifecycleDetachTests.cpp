@@ -1,4 +1,5 @@
 #include "LifecycleDetachTests.hpp"
+#include "support/TestVerify.hpp"
 
 #include <cassert>
 
@@ -630,7 +631,7 @@ namespace
       plan.entries.push_back(
           BoundaryLocalRebuildPlanEntry::retire(subtree, subtree->nodeTag()));
       std::vector<Node *> retainedChildren;
-      assert(this->applyLocalRebuildPlan(context, root, plan, retainedChildren));
+      LOKA_VERIFY(this->applyLocalRebuildPlan(context, root, plan, retainedChildren));
       assert(retainedChildren.empty());
     }
 
@@ -1429,7 +1430,7 @@ namespace
       std::vector<Node *> retainedChildren;
       INestable *root = this->compositionRootNestable();
       assert(root != 0);
-      assert(this->applyLocalRebuildPlan(context, *root, plan, retainedChildren));
+      LOKA_VERIFY(this->applyLocalRebuildPlan(context, *root, plan, retainedChildren));
       return retired;
     }
   };
@@ -1538,7 +1539,7 @@ void testBoundaryLocalRebuildNotifiesCompositionDetachedOnce()
   ComponentContext context;
   LocalRebuildProbeBoundary boundary;
 
-  assert(boundary.applyProbeLocalRebuildPlan(context, root, plan, retainedChildren));
+  LOKA_VERIFY(boundary.applyProbeLocalRebuildPlan(context, root, plan, retainedChildren));
   assert(detachCalls == 1);
 }
 
@@ -1617,13 +1618,14 @@ void testConditionalBranchSwapDestroysRetiredArenaNodeOnNextTrackerRun()
 
     assert(g_conditionalArenaRetireProbe != 0);
     Node *retiringBranch = g_conditionalArenaRetireProbe->activeBranchNode();
+    (void)retiringBranch;
     assert(retiringBranch != 0);
     assert(retiringBranch->isArenaAllocated() &&
            "conditional retire test must exercise an arena-allocated branch");
     assert(destructorCalls == 0);
 
     g_conditionalArenaRetireProbe->showAlternate();
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
 
     assert(g_conditionalArenaRetireProbe->activeBranchNode() != retiringBranch &&
            "conditional tag swap must replace the retiring branch");
@@ -1632,7 +1634,7 @@ void testConditionalBranchSwapDestroysRetiredArenaNodeOnNextTrackerRun()
     assert(destructorCalls == 0 &&
            "retired arena node must remain alive through the retiring apply");
 
-    assert(!scene.flushInvalidation() &&
+    LOKA_VERIFY(!scene.flushInvalidation() &&
            "a drain-only tracker run must not report a refresh snapshot");
 
     assert(destructorCalls == 1 &&
@@ -1669,6 +1671,7 @@ void testRootUpdateFallbackDestroysRetiredArenaNodeOnNextTrackerRun()
     BoundaryNode *rootBoundary = scene.rootBoundary();
     assert(rootBoundary != 0);
     Node *retiringRoot = rootBoundary->childrenHead();
+    (void)retiringRoot;
     assert(retiringRoot != 0);
     assert(retiringRoot->isArenaAllocated() &&
            "root fallback retire test must exercise an arena-allocated root");
@@ -1676,7 +1679,7 @@ void testRootUpdateFallbackDestroysRetiredArenaNodeOnNextTrackerRun()
 
     useAlternate = true;
     scene.requestInvalidate(NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
 
     assert(rootBoundary->childrenHead() != retiringRoot &&
            "root shape swap must replace the retiring root");
@@ -1685,7 +1688,7 @@ void testRootUpdateFallbackDestroysRetiredArenaNodeOnNextTrackerRun()
     assert(scene.hasPendingInvalidation() &&
            "root arena retirement must schedule a later tracker run");
 
-    assert(!scene.flushInvalidation() &&
+    LOKA_VERIFY(!scene.flushInvalidation() &&
            "a drain-only tracker run must not report a refresh snapshot");
     assert(destructorCalls == 1 &&
            "retired root arena node destructor must run at the next tracker run");
@@ -1719,29 +1722,32 @@ void testRootUpdateFallbackReservesFreshArenaGeneration()
     BoundaryNode *rootBoundary = scene.rootBoundary();
     assert(rootBoundary != 0);
     Node *initialRoot = rootBoundary->childrenHead();
+    (void)initialRoot;
     assert(initialRoot != 0 && initialRoot->isArenaAllocated());
 
     useAlternate = true;
     scene.requestInvalidate(NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
 
     Node *alternateRoot = rootBoundary->childrenHead();
+    (void)alternateRoot;
     assert(alternateRoot != 0 && alternateRoot != initialRoot);
     assert(alternateRoot->isArenaAllocated() &&
            "root fallback must reserve a fresh arena generation");
     assert(destructorCalls == 0);
     assert(alternateDestroyOrder.empty());
 
-    assert(!scene.flushInvalidation());
+    LOKA_VERIFY(!scene.flushInvalidation());
     assert(destructorCalls == 1 &&
            "the first retired generation must be reclaimed exactly once at the next run");
     assert(alternateDestroyOrder.empty());
 
     useAlternate = false;
     scene.requestInvalidate(NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
 
     Node *secondRoot = rootBoundary->childrenHead();
+    (void)secondRoot;
     assert(secondRoot != 0 && secondRoot != alternateRoot);
     assert(secondRoot->isArenaAllocated() &&
            "every root fallback must reserve a fresh arena generation");
@@ -1749,7 +1755,7 @@ void testRootUpdateFallbackReservesFreshArenaGeneration()
     assert(alternateDestroyOrder.empty() &&
            "the second retired generation must remain alive through the retiring apply");
 
-    assert(!scene.flushInvalidation());
+    LOKA_VERIFY(!scene.flushInvalidation());
     assert(destructorCalls == 1 &&
            "draining the second retired generation must not revisit the first");
     assert(alternateDestroyOrder.size() == 1 && alternateDestroyOrder[0] == 2 &&
@@ -1774,6 +1780,7 @@ void testRetiredGenerationSubsumesQueuedArenaSubtreeExactlyOnce()
     Node *queued = boundary.createProbeNode(&queuedDestructorCalls);
     Node *ledgerOnly = boundary.createProbeNode(&ledgerDestructorCalls);
     assert(queued->isArenaAllocated());
+    (void)ledgerOnly;
     assert(ledgerOnly->isArenaAllocated());
 
     boundary.queueSubtreeThenRetireGeneration(queued);
@@ -1828,14 +1835,14 @@ void testRootUpdateFallbackReleasesNativeContextBeforeNodeOwnedStateReclaim()
 
     useAlternate = true;
     scene.requestInvalidate(NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
 
     assert(unboundWhileStateAlive &&
            "root fallback must release native context before node-owned state reclaim");
     assert(!nodeDestroyed &&
            "root fallback arena node must remain alive through the retiring apply");
 
-    assert(!scene.flushInvalidation() &&
+    LOKA_VERIFY(!scene.flushInvalidation() &&
            "native-context retire drain must not report a refresh snapshot");
     assert(nodeDestroyed &&
            "root fallback arena node must be reclaimed at the next tracker run");
@@ -1861,6 +1868,7 @@ void testRootReplacementDestroysRetiredArenaNodeOnNextTrackerRun()
 
     assert(g_rootReplacementArenaRetireBoundary != 0);
     Node *retiringRoot = g_rootReplacementArenaRetireBoundary->activeRootNode();
+    (void)retiringRoot;
     assert(retiringRoot != 0);
     assert(retiringRoot->asNestable() == 0 &&
            "root replacement retire test must exercise a non-nestable root");
@@ -1869,14 +1877,14 @@ void testRootReplacementDestroysRetiredArenaNodeOnNextTrackerRun()
     assert(retiredDestructorCalls == 0);
 
     g_rootReplacementArenaRetireBoundary->showReplacement();
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
 
     assert(g_rootReplacementArenaRetireBoundary->activeRootNode() != retiringRoot &&
            "incompatible root definition type must replace the retiring root");
     assert(retiredDestructorCalls == 0 &&
            "retired arena root must remain alive through the retiring apply");
 
-    assert(!scene.flushInvalidation() &&
+    LOKA_VERIFY(!scene.flushInvalidation() &&
            "a drain-only tracker run must not report a refresh snapshot");
 
     assert(retiredDestructorCalls == 1 &&
@@ -1910,7 +1918,7 @@ void testRetiringNativeContextUnbindsBeforeNodeOwnedStateReclaim()
     assert(g_nativeBindingStateBoundary->getContext() != 0);
 
     g_conditionalArenaRetireProbe->showAlternate();
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(unboundWhileStateAlive &&
            "retiring native context must unbind before its node-owned state is reclaimed");
   }
@@ -1958,10 +1966,11 @@ void testSceneTeardownDrainsNonEmptyRetiredArenaSubtreeExactlyOnce()
 
     assert(g_conditionalArenaRetireProbe != 0);
     Node *retiringBranch = g_conditionalArenaRetireProbe->activeBranchNode();
+    (void)retiringBranch;
     assert(retiringBranch != 0 && retiringBranch->isArenaAllocated());
 
     g_conditionalArenaRetireProbe->showAlternate();
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(scene.hasPendingInvalidation() &&
            "retirement must leave a later drain pending at Scene teardown");
     assert(destroyOrder.empty() &&
@@ -1999,11 +2008,12 @@ void testSceneTeardownDrainsPendingRetiredGenerationExactlyOnce()
     BoundaryNode *rootBoundary = scene.rootBoundary();
     assert(rootBoundary != 0);
     Node *retiringRoot = rootBoundary->childrenHead();
+    (void)retiringRoot;
     assert(retiringRoot != 0 && retiringRoot->isArenaAllocated());
 
     useAlternate = true;
     scene.requestInvalidate(NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
 
     assert(rootBoundary->childrenHead() != retiringRoot);
     assert(rootBoundary->childrenHead() != 0 &&
@@ -2033,16 +2043,17 @@ void testConditionalBranchSwapDestroysRetiredArenaSubtreeChildrenFirst()
 
     assert(g_conditionalArenaRetireProbe != 0);
     Node *retiringBranch = g_conditionalArenaRetireProbe->activeBranchNode();
+    (void)retiringBranch;
     assert(retiringBranch != 0 && retiringBranch->isArenaAllocated());
 
     g_conditionalArenaRetireProbe->showAlternate();
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(scene.hasPendingInvalidation() &&
            "arena subtree retirement must schedule a later tracker run");
     assert(destroyOrder.empty() &&
            "retired arena subtree must remain alive through the retiring apply");
 
-    assert(!scene.flushInvalidation() &&
+    LOKA_VERIFY(!scene.flushInvalidation() &&
            "a drain-only tracker run must not report a refresh snapshot");
     assert(destroyOrder.size() == 2);
     assert(destroyOrder[0] == 1 &&
@@ -2080,16 +2091,17 @@ void testRetiredArenaParentDestroysHeapChildExactlyOnceAtDrain()
     INestable *retiringParent = retiringBranch ? retiringBranch->asNestable() : 0;
     Node *heapChild = retiringParent ? retiringParent->childrenHead() : 0;
     assert(retiringBranch != 0 && retiringBranch->isArenaAllocated());
+    (void)heapChild;
     assert(heapChild != 0 && !heapChild->isArenaAllocated() &&
            "drain test must place a heap child under the retired arena parent");
 
     g_conditionalArenaRetireProbe->showAlternate();
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(scene.hasPendingInvalidation());
     assert(parentDestructorCalls == 0);
     assert(heapChildDestructorCalls == 0);
 
-    assert(!scene.flushInvalidation() &&
+    LOKA_VERIFY(!scene.flushInvalidation() &&
            "heap-child reclamation alone must not report a refresh snapshot");
     assert(parentDestructorCalls == 1);
     assert(heapChildDestructorCalls == 1);
@@ -2121,23 +2133,25 @@ void testConditionalBranchSwapBackDestroysRetiredHeapNodeOnNextTrackerRun()
 
     assert(g_conditionalArenaRetireProbe != 0);
     Node *initialBranch = g_conditionalArenaRetireProbe->activeBranchNode();
+    (void)initialBranch;
     assert(initialBranch != 0 && initialBranch->isArenaAllocated());
 
     g_conditionalArenaRetireProbe->showAlternate();
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     Node *heapBranch = g_conditionalArenaRetireProbe->activeBranchNode();
+    (void)heapBranch;
     assert(heapBranch != 0 && heapBranch != initialBranch);
     assert(!heapBranch->isArenaAllocated() &&
            "the swapped-in branch must land on the heap once the slab is consumed");
-    assert(!scene.flushInvalidation());
+    LOKA_VERIFY(!scene.flushInvalidation());
     assert(retireCalls == 1 && activeCalls == 0);
 
     g_conditionalArenaRetireProbe->setAlternate(false);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(activeCalls == 0 &&
            "the retired heap branch must remain alive through the retiring apply");
 
-    assert(!scene.flushInvalidation() &&
+    LOKA_VERIFY(!scene.flushInvalidation() &&
            "a drain-only tracker run must not report a refresh snapshot");
     assert(activeCalls == 1 &&
            "the retired heap branch destructor must run at the next tracker run");
@@ -2172,8 +2186,8 @@ void testPendingChildBoundaryUpdateSurvivesHeapSubtreeReplacement()
 
     assert(g_conditionalArenaRetireProbe != 0);
     g_conditionalArenaRetireProbe->showAlternate();
-    assert(scene.flushInvalidation());
-    assert(!scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
+    LOKA_VERIFY(!scene.flushInvalidation());
 
     Node *outer = g_conditionalArenaRetireProbe->activeBranchNode();
     assert(outer != 0 && !outer->isArenaAllocated() &&
@@ -2188,12 +2202,12 @@ void testPendingChildBoundaryUpdateSurvivesHeapSubtreeReplacement()
            "the nested boundary must be a pending update target before the swap");
 
     g_conditionalArenaRetireProbe->setAlternate(false);
-    assert(scene.flushInvalidation() &&
+    LOKA_VERIFY(scene.flushInvalidation() &&
            "the flush that replaces the pending target's subtree must complete");
     assert(nestedBoundaryDestructorCalls == 0 && outerDestructorCalls == 0 &&
            "the replaced heap subtree must remain alive through the flush that walks its pending entry");
 
-    assert(!scene.flushInvalidation());
+    LOKA_VERIFY(!scene.flushInvalidation());
     assert(nestedBoundaryDestructorCalls == 1 && outerDestructorCalls == 1 &&
            "the replaced heap subtree must be reclaimed at the next tracker run");
   }
@@ -2304,17 +2318,18 @@ void testRetiredSubtreeDestroysNestedBoundaryArenaExactlyOnce()
     Node *innerArenaChild = nested ? nested->innerArenaChild() : 0;
     assert(retiringBranch != 0 && retiringBranch->isArenaAllocated());
     assert(nested != 0 && nested->isArenaAllocated());
+    (void)innerArenaChild;
     assert(innerArenaChild != 0 && innerArenaChild->isArenaAllocated() &&
            "nested boundary test must exercise the nested Boundary's own node arena");
 
     g_conditionalArenaRetireProbe->showAlternate();
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(scene.hasPendingInvalidation());
     assert(outerDestructorCalls == 0);
     assert(nestedBoundaryDestructorCalls == 0);
     assert(innerArenaChildDestructorCalls == 0);
 
-    assert(!scene.flushInvalidation() &&
+    LOKA_VERIFY(!scene.flushInvalidation() &&
            "nested arena reclamation alone must not report a refresh snapshot");
     assert(outerDestructorCalls == 1);
     assert(nestedBoundaryDestructorCalls == 1);
@@ -2353,12 +2368,12 @@ void testRetiredBoundaryOwnedStateMutationIsQuiescent()
            "corpse quiescence test requires state owned by the retired Boundary");
 
     g_conditionalArenaRetireProbe->showAlternate();
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(scene.hasPendingInvalidation());
     assert(destructorCalls == 0);
 
     retired->mutateOwnedStateDuringCorpse();
-    assert(!scene.flushInvalidation() &&
+    LOKA_VERIFY(!scene.flushInvalidation() &&
            "owned state mutation on a detached Boundary must not produce a refresh snapshot");
     assert(destructorCalls == 1);
   }
@@ -2387,16 +2402,17 @@ void testRetiredBoundaryIsQuiescentBeforeNextTrackerRun()
 
     assert(g_corpseRetireHarness != 0);
     ObservedCorpseBoundaryNode *retired = g_corpseRetireHarness->observedBranch();
+    (void)retired;
     assert(retired != 0);
     assert(retired->isArenaAllocated());
-    assert(g_corpseRetireHarness->retireObservedBranch(scene, platform) == retired);
+    LOKA_VERIFY(g_corpseRetireHarness->retireObservedBranch(scene, platform) == retired);
     assert(destructorCalls == 0);
 
     externalState.set(1);
     assert(!scene.director().hasPendingBoundary(retired) &&
            "detached observed boundary must not enqueue projection work while awaiting reclaim");
 
-    assert(!scene.flushInvalidation() &&
+    LOKA_VERIFY(!scene.flushInvalidation() &&
            "quiescent corpse reclamation alone must not report a refresh snapshot");
   }
 
@@ -2478,7 +2494,7 @@ void testSceneTeardownReleasesBothConditionalBranchContextsOnce()
 
     condition.set(true);
     scene.requestInvalidate(NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(trueCounts.attachCalls == 1);
     assert(falseCounts.detachCalls == 1 &&
            "a retained detach must deliver the detach fact to the branch's contexts");
@@ -2525,7 +2541,7 @@ void testConditionalConditionWriteDuringDetachDoesNotMaterializeBranch()
 
     showEmptyRoot = true;
     scene.requestInvalidate(NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
 
     assert(condition.get());
     assert(trueCounts.attachCalls == 0 &&
@@ -2533,7 +2549,7 @@ void testConditionalConditionWriteDuringDetachDoesNotMaterializeBranch()
     assert(falseCounts.detachCalls == 1);
     if (scene.hasPendingInvalidation())
     {
-      assert(!scene.flushInvalidation());
+      LOKA_VERIFY(!scene.flushInvalidation());
     }
   }
 

@@ -63,6 +63,7 @@ namespace
         probe->tracker->committedDirtyStates();
     if (probe->invalidations == 1)
     {
+      (void)committed;
       assert(containsState(committed, probe->initialState));
       assert(!containsState(committed, probe->commitWindowState));
       probe->commitWindowState->set(1);
@@ -181,6 +182,7 @@ namespace
 
 void testStateTrackerCommitQueuesNextTransaction()
 {
+  (void)&containsState;
   printf("\n==== [testStateTrackerCommitQueuesNextTransaction] start ====\n");
   // #60: a state write from invalidate belongs to a distinct next commit.
   loka::core::MutableState<int> initialState(0);
@@ -199,6 +201,7 @@ void testStateTrackerCommitQueuesNextTransaction()
   initialState.set(1);
   const bool settled = tracker.end();
 
+  (void)settled;
   assert(settled);
   assert(probe.invalidations == 2);
   assert(probe.deferredCalls == 1);
@@ -227,6 +230,7 @@ void testStateTrackerCommitWriteReachesNextSceneApply()
   assert(!platform.toggleOnNextChange);
   assert(platform.nestedCallsDuringToggle == 0);
   assert(CommitWindowBoundaryNode::updatesDuringApply == 0);
+  (void)callsBeforeWrite;
   assert(platform.onChangeCalls == callsBeforeWrite + 2);
 
   scene.updateAttached(false);
@@ -248,6 +252,7 @@ void testStateTrackerCommitChainReportsIterationLimit()
   state.set(1);
   const bool settled = tracker.end();
 
+  (void)settled;
   assert(!settled);
   assert(probe.invalidations == 1000);
   assert(state.get() == 1001);

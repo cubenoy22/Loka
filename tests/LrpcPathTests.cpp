@@ -1,4 +1,5 @@
 #include "LrpcPathTests.hpp"
+#include "support/TestVerify.hpp"
 
 #include <cassert>
 #include <climits>
@@ -20,13 +21,13 @@ void testLrpcConvertsManifestUtf8PathsToWide()
   expected += L".png";
 
   std::wstring wide;
-  assert(loka::lrpc::Utf8PathToWide(utf8, wide));
+  LOKA_VERIFY(loka::lrpc::Utf8PathToWide(utf8, wide));
   assert(wide == expected);
 
   // U+10FFFF itself is valid: the ceiling rejects what is above it, not the
   // last codepoint under it.
   std::wstring atMax;
-  assert(loka::lrpc::Utf8PathToWide("\xF4\x8F\xBF\xBF", atMax));
+  LOKA_VERIFY(loka::lrpc::Utf8PathToWide("\xF4\x8F\xBF\xBF", atMax));
 #if WCHAR_MAX <= 0xFFFF
   assert(atMax.size() == 2);
   assert(atMax[0] == static_cast<wchar_t>(0xDBFF));
@@ -37,7 +38,7 @@ void testLrpcConvertsManifestUtf8PathsToWide()
 #endif
 
   std::wstring empty(L"cleared");
-  assert(loka::lrpc::Utf8PathToWide("", empty));
+  LOKA_VERIFY(loka::lrpc::Utf8PathToWide("", empty));
   assert(empty.empty());
 
   const char *invalid[] = {
@@ -52,7 +53,7 @@ void testLrpcConvertsManifestUtf8PathsToWide()
   for (std::size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); ++i)
   {
     wide = L"preserved";
-    assert(!loka::lrpc::Utf8PathToWide(invalid[i], wide));
+    LOKA_VERIFY(!loka::lrpc::Utf8PathToWide(invalid[i], wide));
     assert(wide == L"preserved");
   }
 

@@ -1,4 +1,5 @@
 #include "LrpkFormatTests.hpp"
+#include "support/TestVerify.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -318,12 +319,12 @@ namespace
                                    Reader::OpenResult expected)
   {
     Reader verified;
-    assert(verified.openBorrowedBytes(&package[0],
+    LOKA_VERIFY(verified.openBorrowedBytes(&package[0],
                                       package.size(),
                                       kStamp,
                                       Reader::VERIFY_INTEGRITY) == expected);
     Reader unchecked;
-    assert(unchecked.openBorrowedBytes(&package[0],
+    LOKA_VERIFY(unchecked.openBorrowedBytes(&package[0],
                                        package.size(),
                                        kStamp,
                                        Reader::SKIP_INTEGRITY) == expected);
@@ -331,7 +332,7 @@ namespace
     MemoryByteSource verifiedSource(package);
     std::vector<unsigned char> verifiedIndex;
     Reader verifiedStream;
-    assert(OpenThroughStream(verifiedStream,
+    LOKA_VERIFY(OpenThroughStream(verifiedStream,
                              verifiedSource,
                              kStamp,
                              Reader::VERIFY_INTEGRITY,
@@ -339,7 +340,7 @@ namespace
     MemoryByteSource uncheckedSource(package);
     std::vector<unsigned char> uncheckedIndex;
     Reader uncheckedStream;
-    assert(OpenThroughStream(uncheckedStream,
+    LOKA_VERIFY(OpenThroughStream(uncheckedStream,
                              uncheckedSource,
                              kStamp,
                              Reader::SKIP_INTEGRITY,
@@ -466,7 +467,7 @@ namespace
                                       std::vector<unsigned char> &buffer)
   {
     std::size_t stored = 0;
-    assert(reader.bagStoredSize(bagIndex, stored));
+    LOKA_VERIFY(reader.bagStoredSize(bagIndex, stored));
     buffer.assign(stored, 0);
     if (stored == 0)
     {
@@ -481,11 +482,11 @@ namespace
   void OpenOneBag(Reader &reader,
                   const std::vector<unsigned char> &package)
   {
-    assert(reader.openBorrowedBytes(&package[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&package[0],
                                     package.size(),
                                     kStamp,
                                     Reader::VERIFY_INTEGRITY) == Reader::OPEN_OK);
-    assert(reader.openBag(0) == Reader::BAG_OK);
+    LOKA_VERIFY(reader.openBag(0) == Reader::BAG_OK);
   }
 
   void ExpectSelection(const std::vector<unsigned char> &package,
@@ -496,23 +497,27 @@ namespace
     Reader reader;
     OpenOneBag(reader, package);
     Asset asset;
-    assert(reader.get(42, facts, asset) == Reader::GET_OK);
+    LOKA_VERIFY(reader.get(42, facts, asset) == Reader::GET_OK);
+    (void)bytes;
+    (void)length;
     assert(AssetEquals(asset, bytes, length));
   }
 } // namespace
 
 void testLrpkRoundTripsThroughTheIndex()
 {
+  (void)&AssetEquals;
   printf("\n==== [testLrpkRoundTripsThroughTheIndex] start ====\n");
 
   std::vector<unsigned char> package;
-  assert(BuildDepthScalePackage(package, true) == Writer::BUILD_OK);
+  LOKA_VERIFY(BuildDepthScalePackage(package, true) == Writer::BUILD_OK);
   assert(package.size() % kPayloadAlign == 0);
 
   // Byte-level writer/reader cross-check for the ruled HEAD and AXES layout.
   const unsigned char *head = &package[kHeadPayloadOffset];
   assert(ReadU32BE(&package[0]) == FourCC('L', 'R', 'P', 'K'));
   assert(ReadU32BE(&package[kFormHeaderBytes]) == FourCC('H', 'E', 'A', 'D'));
+  (void)head;
   assert(ReadU32BE(head + kHeadCrc) != 0 && "headCrc is the first HEAD field");
   assert(ReadU32BE(head + kHeadVersion) == kFormatVersion);
   assert(ReadU32BE(head + kHeadTotalBytes) == package.size());
@@ -529,6 +534,7 @@ void testLrpkRoundTripsThroughTheIndex()
   const std::size_t axesHeader =
       FindChunkHeader(package, FourCC('A', 'X', 'E', 'S'), axesSize);
   const std::size_t axesPayload = axesHeader + kChunkHeaderBytes;
+  (void)axesPayload;
   assert(package[axesPayload] == 2);
   assert(package[axesPayload + 4 + kAxisPrecedenceRank] == 0);
   assert(package[axesPayload + 4 + kAxisEntryBytes + kAxisPrecedenceRank] == 1);
@@ -538,16 +544,18 @@ void testLrpkRoundTripsThroughTheIndex()
   std::size_t indexSize = 0;
   const std::size_t indexHeader =
       FindChunkHeader(package, FourCC('I', 'N', 'D', 'X'), indexSize);
+  (void)indexHeader;
   assert(Crc32::Of(&package[indexHeader], kChunkHeaderBytes + indexSize) ==
          ReadU32BE(head + kHeadIndexCrc));
   std::size_t dataSize = 0;
   const std::size_t dataHeader =
       FindChunkHeader(package, FourCC('D', 'A', 'T', 'A'), dataSize);
+  (void)dataHeader;
   assert(Crc32::Of(&package[dataHeader], kChunkHeaderBytes) ==
          ReadU32BE(head + kHeadDataHeaderCrc));
 
   Reader reader;
-  assert(reader.openBorrowedBytes(&package[0],
+  LOKA_VERIFY(reader.openBorrowedBytes(&package[0],
                                   package.size(),
                                   kStamp,
                                   Reader::VERIFY_INTEGRITY) == Reader::OPEN_OK);
@@ -557,18 +565,18 @@ void testLrpkRoundTripsThroughTheIndex()
 
   Facts facts;
   Asset asset;
-  assert(reader.get(42, facts, asset) == Reader::GET_BAG_NOT_OPEN);
-  assert(reader.get(999, facts, asset) == Reader::GET_NO_SUCH_ID);
-  assert(reader.openBag(0) == Reader::BAG_OK);
-  assert(reader.get(42, facts, asset) == Reader::GET_OK);
+  LOKA_VERIFY(reader.get(42, facts, asset) == Reader::GET_BAG_NOT_OPEN);
+  LOKA_VERIFY(reader.get(999, facts, asset) == Reader::GET_NO_SUCH_ID);
+  LOKA_VERIFY(reader.openBag(0) == Reader::BAG_OK);
+  LOKA_VERIFY(reader.get(42, facts, asset) == Reader::GET_OK);
   assert(AssetEquals(asset, kDefault, sizeof(kDefault)));
   assert(asset.kind == ASSET_KIND_IMAGE);
-  assert(reader.get(43, facts, asset) == Reader::GET_OK);
+  LOKA_VERIFY(reader.get(43, facts, asset) == Reader::GET_OK);
   assert(AssetEquals(asset, kFile, sizeof(kFile)));
   assert(asset.bytes > &package[0] &&
          asset.bytes < &package[0] + package.size());
   reader.closeBag(0);
-  assert(reader.get(42, facts, asset) == Reader::GET_BAG_NOT_OPEN);
+  LOKA_VERIFY(reader.get(42, facts, asset) == Reader::GET_BAG_NOT_OPEN);
 
   printf("==== [testLrpkRoundTripsThroughTheIndex] end ====\n");
 }
@@ -579,8 +587,8 @@ void testLrpkSelectsByPackagePrecedence()
 
   std::vector<unsigned char> depthFirst;
   std::vector<unsigned char> scaleFirst;
-  assert(BuildDepthScalePackage(depthFirst, true) == Writer::BUILD_OK);
-  assert(BuildDepthScalePackage(scaleFirst, false) == Writer::BUILD_OK);
+  LOKA_VERIFY(BuildDepthScalePackage(depthFirst, true) == Writer::BUILD_OK);
+  LOKA_VERIFY(BuildDepthScalePackage(scaleFirst, false) == Writer::BUILD_OK);
 
   // Frozen acceptance truth table: depth=bw, scale=150.
   Facts bw150;
@@ -637,8 +645,8 @@ void testLrpkSelectsByPackagePrecedence()
   // Appearance versus scale uses the same package-owned policy mechanism.
   std::vector<unsigned char> appearanceFirst;
   std::vector<unsigned char> appearanceScaleFirst;
-  assert(BuildAppearanceScalePackage(appearanceFirst, true) == Writer::BUILD_OK);
-  assert(BuildAppearanceScalePackage(appearanceScaleFirst, false) == Writer::BUILD_OK);
+  LOKA_VERIFY(BuildAppearanceScalePackage(appearanceFirst, true) == Writer::BUILD_OK);
+  LOKA_VERIFY(BuildAppearanceScalePackage(appearanceScaleFirst, false) == Writer::BUILD_OK);
   Facts dark150;
   dark150.present[kAxisAppearance] = true;
   dark150.value[kAxisAppearance] = 1;
@@ -648,14 +656,14 @@ void testLrpkSelectsByPackagePrecedence()
     Reader reader;
     OpenOneBag(reader, appearanceFirst);
     Asset asset;
-    assert(reader.get(7, dark150, asset) == Reader::GET_OK);
+    LOKA_VERIFY(reader.get(7, dark150, asset) == Reader::GET_OK);
     assert(AssetEquals(asset, kDark, sizeof(kDark)));
   }
   {
     Reader reader;
     OpenOneBag(reader, appearanceScaleFirst);
     Asset asset;
-    assert(reader.get(7, dark150, asset) == Reader::GET_OK);
+    LOKA_VERIFY(reader.get(7, dark150, asset) == Reader::GET_OK);
     assert(AssetEquals(asset, k2x, sizeof(k2x)));
   }
 
@@ -664,18 +672,18 @@ void testLrpkSelectsByPackagePrecedence()
   {
     std::vector<unsigned char> selectedValueFirst;
     std::vector<unsigned char> selectedValueSecond;
-    assert(BuildEnumVocabularyPackage(selectedValueFirst, true) == Writer::BUILD_OK);
-    assert(BuildEnumVocabularyPackage(selectedValueSecond, false) == Writer::BUILD_OK);
+    LOKA_VERIFY(BuildEnumVocabularyPackage(selectedValueFirst, true) == Writer::BUILD_OK);
+    LOKA_VERIFY(BuildEnumVocabularyPackage(selectedValueSecond, false) == Writer::BUILD_OK);
     Facts declaredTen;
     declaredTen.present[0] = true;
     declaredTen.value[0] = 10;
     Reader reader;
     OpenOneBag(reader, selectedValueFirst);
     Asset asset;
-    assert(reader.get(81, declaredTen, asset) == Reader::GET_OK);
+    LOKA_VERIFY(reader.get(81, declaredTen, asset) == Reader::GET_OK);
     assert(AssetEquals(asset, kDark, sizeof(kDark)));
     OpenOneBag(reader, selectedValueSecond);
-    assert(reader.get(81, declaredTen, asset) == Reader::GET_OK);
+    LOKA_VERIFY(reader.get(81, declaredTen, asset) == Reader::GET_OK);
     assert(AssetEquals(asset, kDark, sizeof(kDark)));
   }
   {
@@ -691,7 +699,7 @@ void testLrpkSelectsByPackagePrecedence()
     axes[kAxisDepth] = 2;
     writer.addAsset(AssetLayoutKey(""), 82, bag, ASSET_KIND_IMAGE, axes, kFourBit, sizeof(kFourBit));
     std::vector<unsigned char> package;
-    assert(writer.build(kStamp, package) == Writer::BUILD_OK);
+    LOKA_VERIFY(writer.build(kStamp, package) == Writer::BUILD_OK);
 
     Reader reader;
     OpenOneBag(reader, package);
@@ -699,20 +707,20 @@ void testLrpkSelectsByPackagePrecedence()
     Facts depth1;
     depth1.present[kAxisDepth] = true;
     depth1.value[kAxisDepth] = 1;
-    assert(reader.get(82, depth1, asset) == Reader::GET_OK);
+    LOKA_VERIFY(reader.get(82, depth1, asset) == Reader::GET_OK);
     assert(AssetEquals(asset, kBw, sizeof(kBw)));
     Facts depth4;
     depth4.present[kAxisDepth] = true;
     depth4.value[kAxisDepth] = 4;
-    assert(reader.get(82, depth4, asset) == Reader::GET_OK);
+    LOKA_VERIFY(reader.get(82, depth4, asset) == Reader::GET_OK);
     assert(AssetEquals(asset, kFourBit, sizeof(kFourBit)));
     Facts depth2;
     depth2.present[kAxisDepth] = true;
     depth2.value[kAxisDepth] = 2;
-    assert(reader.get(82, depth2, asset) == Reader::GET_OK);
+    LOKA_VERIFY(reader.get(82, depth2, asset) == Reader::GET_OK);
     assert(AssetEquals(asset, kDefault, sizeof(kDefault)));
     Facts noDepthFact;
-    assert(reader.get(82, noDepthFact, asset) == Reader::GET_OK);
+    LOKA_VERIFY(reader.get(82, noDepthFact, asset) == Reader::GET_OK);
     assert(AssetEquals(asset, kDefault, sizeof(kDefault)));
   }
 
@@ -749,7 +757,7 @@ void testLrpkSelectsByPackagePrecedence()
     OpenOneBag(reader, duplicateRows);
     Asset asset;
     Facts noFacts;
-    assert(reader.get(42, noFacts, asset) == Reader::GET_NO_MATCHING_REP);
+    LOKA_VERIFY(reader.get(42, noFacts, asset) == Reader::GET_NO_MATCHING_REP);
   }
 
   printf("==== [testLrpkSelectsByPackagePrecedence] end ====\n");
@@ -760,9 +768,9 @@ void testLrpkRefusesEveryCheckValueFailure()
   printf("\n==== [testLrpkRefusesEveryCheckValueFailure] start ====\n");
 
   std::vector<unsigned char> good;
-  assert(BuildDepthScalePackage(good, true) == Writer::BUILD_OK);
+  LOKA_VERIFY(BuildDepthScalePackage(good, true) == Writer::BUILD_OK);
   Reader reader;
-  assert(reader.openBorrowedBytes(&good[0],
+  LOKA_VERIFY(reader.openBorrowedBytes(&good[0],
                                   good.size(),
                                   kStamp + 1,
                                   Reader::VERIFY_INTEGRITY) ==
@@ -771,12 +779,12 @@ void testLrpkRefusesEveryCheckValueFailure()
   {
     std::vector<unsigned char> shortened(good.begin(),
                                          good.end() - kPayloadAlign);
-    assert(reader.openBorrowedBytes(&shortened[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&shortened[0],
                                     shortened.size(),
                                     kStamp,
                                     Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_TRUNCATED);
-    assert(StreamOpenResult(shortened, Reader::VERIFY_INTEGRITY) ==
+    LOKA_VERIFY(StreamOpenResult(shortened, Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_TRUNCATED);
   }
   {
@@ -785,12 +793,12 @@ void testLrpkRefusesEveryCheckValueFailure()
     const std::size_t indexAt =
         FindChunkPayload(rotted, FourCC('I', 'N', 'D', 'X'), indexSize);
     rotted[indexAt + indexSize - 1] ^= 0xFF;
-    assert(reader.openBorrowedBytes(&rotted[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&rotted[0],
                                     rotted.size(),
                                     kStamp,
                                     Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_INDEX_CORRUPT);
-    assert(StreamOpenResult(rotted, Reader::VERIFY_INTEGRITY) ==
+    LOKA_VERIFY(StreamOpenResult(rotted, Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_INDEX_CORRUPT);
   }
   {
@@ -799,33 +807,33 @@ void testLrpkRefusesEveryCheckValueFailure()
     const std::size_t dataAt =
         FindChunkPayload(rotted, FourCC('D', 'A', 'T', 'A'), dataSize);
     rotted[dataAt] ^= 0xFF;
-    assert(reader.openBorrowedBytes(&rotted[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&rotted[0],
                                     rotted.size(),
                                     kStamp,
                                     Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_OK);
-    assert(reader.openBag(0) == Reader::BAG_CONTENTS_CORRUPT);
+    LOKA_VERIFY(reader.openBag(0) == Reader::BAG_CONTENTS_CORRUPT);
     // A rotted payload is past the file-backed slice, so the open agrees and
     // the disagreement waits for the bag read.
-    assert(StreamOpenResult(rotted, Reader::VERIFY_INTEGRITY) ==
+    LOKA_VERIFY(StreamOpenResult(rotted, Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_OK);
   }
   {
     std::vector<unsigned char> badHeader(good);
     AppendUnindexedDataWord(badHeader);
-    assert(reader.openBorrowedBytes(&badHeader[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&badHeader[0],
                                     badHeader.size(),
                                     kStamp,
                                     Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_INDEX_CORRUPT);
-    assert(reader.openBorrowedBytes(&badHeader[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&badHeader[0],
                                     badHeader.size(),
                                     kStamp,
                                     Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_OK);
-    assert(StreamOpenResult(badHeader, Reader::VERIFY_INTEGRITY) ==
+    LOKA_VERIFY(StreamOpenResult(badHeader, Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_INDEX_CORRUPT);
-    assert(StreamOpenResult(badHeader, Reader::SKIP_INTEGRITY) ==
+    LOKA_VERIFY(StreamOpenResult(badHeader, Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_OK);
   }
   {
@@ -838,12 +846,12 @@ void testLrpkRefusesEveryCheckValueFailure()
   }
   {
     std::vector<unsigned char> junk(kFixedHeadBytes, 0);
-    assert(reader.openBorrowedBytes(&junk[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&junk[0],
                                     junk.size(),
                                     kStamp,
                                     Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_NOT_A_PACKAGE);
-    assert(StreamOpenResult(junk, Reader::VERIFY_INTEGRITY) ==
+    LOKA_VERIFY(StreamOpenResult(junk, Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_NOT_A_PACKAGE);
   }
 
@@ -855,7 +863,7 @@ void testLrpkOpenControlsIntegrityVerification()
   printf("\n==== [testLrpkOpenControlsIntegrityVerification] start ====\n");
 
   std::vector<unsigned char> package;
-  assert(BuildDepthScalePackage(package, true) == Writer::BUILD_OK);
+  LOKA_VERIFY(BuildDepthScalePackage(package, true) == Writer::BUILD_OK);
   std::vector<unsigned char> rotted(package);
   std::size_t dataSize = 0;
   const std::size_t dataAt =
@@ -863,16 +871,16 @@ void testLrpkOpenControlsIntegrityVerification()
   rotted[dataAt] ^= 0xFF;
 
   Reader unchecked;
-  assert(unchecked.openBorrowedBytes(&rotted[0],
+  LOKA_VERIFY(unchecked.openBorrowedBytes(&rotted[0],
                                      rotted.size(),
                                      kStamp,
                                      Reader::SKIP_INTEGRITY) ==
          Reader::OPEN_OK);
   assert(!unchecked.verifiesIntegrity());
-  assert(unchecked.openBag(0) == Reader::BAG_OK);
+  LOKA_VERIFY(unchecked.openBag(0) == Reader::BAG_OK);
 
   Reader wrongBuild;
-  assert(wrongBuild.openBorrowedBytes(&package[0],
+  LOKA_VERIFY(wrongBuild.openBorrowedBytes(&package[0],
                                       package.size(),
                                       kStamp + 1,
                                       Reader::SKIP_INTEGRITY) ==
@@ -887,16 +895,16 @@ void testLrpkOpenControlsIntegrityVerification()
         static_cast<unsigned char>(CODEC_RLE);
     RestampChunk(unsupportedCodec, FourCC('I', 'N', 'D', 'X'), kHeadIndexCrc);
     Reader reader;
-    assert(reader.openBorrowedBytes(&unsupportedCodec[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&unsupportedCodec[0],
                                     unsupportedCodec.size(),
                                     kStamp,
                                     Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_OK);
-    assert(reader.openBag(0) == Reader::BAG_UNSUPPORTED_CODEC);
+    LOKA_VERIFY(reader.openBag(0) == Reader::BAG_UNSUPPORTED_CODEC);
   }
 
   Reader noBag;
-  assert(noBag.openBag(0) == Reader::BAG_NO_SUCH_BAG);
+  LOKA_VERIFY(noBag.openBag(0) == Reader::BAG_NO_SUCH_BAG);
 
   printf("==== [testLrpkOpenControlsIntegrityVerification] end ====\n");
 }
@@ -914,7 +922,7 @@ void testLrpcRefusesPackagesThatWouldMakeSelectionPartial()
     DeclareDepthScale(writer, true);
     const std::size_t bag = writer.addBag();
     writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, specialized, kBw, sizeof(kBw));
-    assert(writer.build(kStamp, out) ==
+    LOKA_VERIFY(writer.build(kStamp, out) ==
            Writer::BUILD_ASSET_WITHOUT_DEFAULT_ROW);
   }
   {
@@ -923,7 +931,7 @@ void testLrpcRefusesPackagesThatWouldMakeSelectionPartial()
     const std::size_t bag = writer.addBag();
     writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
     writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, k2x, sizeof(k2x));
-    assert(writer.build(kStamp, out) ==
+    LOKA_VERIFY(writer.build(kStamp, out) ==
            Writer::BUILD_SELECTOR_AMBIGUOUS);
   }
 
@@ -935,19 +943,19 @@ void testLrpcRefusesPackagesThatWouldMakeSelectionPartial()
     const std::size_t en = writer.addBag();
     writer.addAsset(AssetLayoutKey(""), 100, ja, ASSET_KIND_STRING, plain, kFile, sizeof(kFile));
     writer.addAsset(AssetLayoutKey(""), 100, en, ASSET_KIND_STRING, plain, kDefault, sizeof(kDefault));
-    assert(writer.build(kStamp, out) == Writer::BUILD_OK);
+    LOKA_VERIFY(writer.build(kStamp, out) == Writer::BUILD_OK);
     Reader reader;
-    assert(reader.openBorrowedBytes(&out[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&out[0],
                                     out.size(),
                                     kStamp,
                                     Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_OK);
-    assert(reader.openBag(ja) == Reader::BAG_OK);
-    assert(reader.openBag(en) == Reader::BAG_ASSET_ID_CONFLICT);
+    LOKA_VERIFY(reader.openBag(ja) == Reader::BAG_OK);
+    LOKA_VERIFY(reader.openBag(en) == Reader::BAG_ASSET_ID_CONFLICT);
     assert(!reader.isBagOpen(en));
     Facts facts;
     Asset asset;
-    assert(reader.get(100, facts, asset) == Reader::GET_OK);
+    LOKA_VERIFY(reader.get(100, facts, asset) == Reader::GET_OK);
     assert(AssetEquals(asset, kFile, sizeof(kFile)));
   }
 
@@ -969,7 +977,7 @@ void testLrpcRefusesRowsThatWouldNotBeReachable()
     const std::size_t en = writer.addBag();
     writer.addAsset(AssetLayoutKey(""), 100, ja, ASSET_KIND_STRING, plain, kFile, sizeof(kFile));
     writer.addAsset(AssetLayoutKey(""), 100, en, ASSET_KIND_STRING, specialized, kBw, sizeof(kBw));
-    assert(writer.build(kStamp, out) ==
+    LOKA_VERIFY(writer.build(kStamp, out) ==
            Writer::BUILD_ASSET_WITHOUT_DEFAULT_ROW);
   }
   {
@@ -978,7 +986,7 @@ void testLrpcRefusesRowsThatWouldNotBeReachable()
     const std::size_t bag = writer.addBag();
     writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
     writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_STRING, specialized, kBw, sizeof(kBw));
-    assert(writer.build(kStamp, out) ==
+    LOKA_VERIFY(writer.build(kStamp, out) ==
            Writer::BUILD_ASSET_KIND_MISMATCH);
   }
   {
@@ -986,7 +994,7 @@ void testLrpcRefusesRowsThatWouldNotBeReachable()
     DeclareDepthScale(writer, true);
     writer.addBag();
     writer.addAsset(AssetLayoutKey(""), 7, 4, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
-    assert(writer.build(kStamp, out) == Writer::BUILD_BAD_BAG_REFERENCE);
+    LOKA_VERIFY(writer.build(kStamp, out) == Writer::BUILD_BAD_BAG_REFERENCE);
   }
   {
     Writer writer;
@@ -994,7 +1002,7 @@ void testLrpcRefusesRowsThatWouldNotBeReachable()
     writer.declareAxis(AXIS_KIND_SCALAR, 100, scale, 1);
     const std::size_t bag = writer.addBag();
     writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
-    assert(writer.build(kStamp, out) ==
+    LOKA_VERIFY(writer.build(kStamp, out) ==
            Writer::BUILD_BAD_AXIS_VOCABULARY);
   }
 
@@ -1006,7 +1014,7 @@ void testLrpcRefusesRowsThatWouldNotBeReachable()
     missing.declareAxis(AXIS_KIND_ENUM, 0, one, 1);
     const std::size_t bag = missing.addBag();
     missing.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
-    assert(missing.build(kStamp, out) == Writer::BUILD_BAD_PRECEDENCE);
+    LOKA_VERIFY(missing.build(kStamp, out) == Writer::BUILD_BAD_PRECEDENCE);
   }
   {
     Writer duplicate;
@@ -1017,7 +1025,7 @@ void testLrpcRefusesRowsThatWouldNotBeReachable()
     duplicate.setRepresentationPrecedence(bad, 2);
     const std::size_t bag = duplicate.addBag();
     duplicate.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
-    assert(duplicate.build(kStamp, out) == Writer::BUILD_BAD_PRECEDENCE);
+    LOKA_VERIFY(duplicate.build(kStamp, out) == Writer::BUILD_BAD_PRECEDENCE);
   }
   {
     Writer incomplete;
@@ -1028,7 +1036,7 @@ void testLrpcRefusesRowsThatWouldNotBeReachable()
     incomplete.setRepresentationPrecedence(onlyOne, 1);
     const std::size_t bag = incomplete.addBag();
     incomplete.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
-    assert(incomplete.build(kStamp, out) == Writer::BUILD_BAD_PRECEDENCE);
+    LOKA_VERIFY(incomplete.build(kStamp, out) == Writer::BUILD_BAD_PRECEDENCE);
   }
   {
     Writer unknown;
@@ -1039,7 +1047,7 @@ void testLrpcRefusesRowsThatWouldNotBeReachable()
     unknown.setRepresentationPrecedence(bad, 2);
     const std::size_t bag = unknown.addBag();
     unknown.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
-    assert(unknown.build(kStamp, out) == Writer::BUILD_BAD_PRECEDENCE);
+    LOKA_VERIFY(unknown.build(kStamp, out) == Writer::BUILD_BAD_PRECEDENCE);
   }
 
   printf("==== [testLrpcRefusesRowsThatWouldNotBeReachable] end ====\n");
@@ -1050,7 +1058,7 @@ void testLrpkRefusesIndexGeometryThatWouldReadOutOfBounds()
   printf("\n==== [testLrpkRefusesIndexGeometryThatWouldReadOutOfBounds] start ====\n");
 
   std::vector<unsigned char> good;
-  assert(BuildDepthScalePackage(good, true) == Writer::BUILD_OK);
+  LOKA_VERIFY(BuildDepthScalePackage(good, true) == Writer::BUILD_OK);
   std::size_t indexSize = 0;
   const std::size_t indexAt =
       FindChunkPayload(good, FourCC('I', 'N', 'D', 'X'), indexSize);
@@ -1061,12 +1069,12 @@ void testLrpkRefusesIndexGeometryThatWouldReadOutOfBounds()
     std::vector<unsigned char> bad(good);
     WriteU32BE(&bad[bagRow + kBagExpandedSize],
                ReadU32BE(&bad[bagRow + kBagExpandedSize]) + 4096);
-    assert(reader.openBorrowedBytes(&bad[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&bad[0],
                                     bad.size(),
                                     kStamp,
                                     Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX);
-    assert(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
+    LOKA_VERIFY(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX);
   }
   {
@@ -1074,12 +1082,12 @@ void testLrpkRefusesIndexGeometryThatWouldReadOutOfBounds()
     WriteU32BE(&bad[bagRow + kBagDataOffset], 0xFFFFFF00UL);
     WriteU32BE(&bad[bagRow + kBagStoredSize], 0x00000200UL);
     WriteU32BE(&bad[bagRow + kBagExpandedSize], 0x00000200UL);
-    assert(reader.openBorrowedBytes(&bad[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&bad[0],
                                     bad.size(),
                                     kStamp,
                                     Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX);
-    assert(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
+    LOKA_VERIFY(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX);
   }
 
@@ -1092,6 +1100,7 @@ void testLrpkRefusesForgedCountsAndUnsortedRows()
 
   {
     const std::size_t maximum = ~static_cast<std::size_t>(0);
+    (void)maximum;
     assert(!ExtentFits(100, maximum, 2));
     assert(!ProductFits(100, (maximum / 16) + 1, 16));
 
@@ -1119,7 +1128,7 @@ void testLrpkRefusesForgedCountsAndUnsortedRows()
       assert(!SizeFitsU32(tooLarge));
       const unsigned char borrowedByte = 0;
       Reader oversized;
-      assert(oversized.openBorrowedBytes(&borrowedByte,
+      LOKA_VERIFY(oversized.openBorrowedBytes(&borrowedByte,
                                          tooLarge,
                                          kStamp,
                                          Reader::VERIFY_INTEGRITY) ==
@@ -1128,7 +1137,7 @@ void testLrpkRefusesForgedCountsAndUnsortedRows()
   }
 
   std::vector<unsigned char> good;
-  assert(BuildDepthScalePackage(good, true) == Writer::BUILD_OK);
+  LOKA_VERIFY(BuildDepthScalePackage(good, true) == Writer::BUILD_OK);
   std::size_t indexSize = 0;
   const std::size_t indexAt =
       FindChunkPayload(good, FourCC('I', 'N', 'D', 'X'), indexSize);
@@ -1164,37 +1173,37 @@ void testLrpkRefusesForgedCountsAndUnsortedRows()
     std::vector<unsigned char> bad(good);
     WriteU32BE(&bad[indexAt + 4], 0x10000000UL);
     WriteU32BE(&bad[kHeadPayloadOffset + kHeadAssetCount], 0x10000000UL);
-    assert(reader.openBorrowedBytes(&bad[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&bad[0],
                                     bad.size(),
                                     kStamp,
                                     Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX);
-    assert(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
+    LOKA_VERIFY(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX);
   }
   {
     std::vector<unsigned char> bad(good);
     const std::size_t rowsAt = indexAt + 8 + kBagRowBytes;
     WriteU32BE(&bad[rowsAt + 4 * kAssetRowBytes + kRowId], 1);
-    assert(reader.openBorrowedBytes(&bad[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&bad[0],
                                     bad.size(),
                                     kStamp,
                                     Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX);
-    assert(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
+    LOKA_VERIFY(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX);
   }
   {
     std::vector<unsigned char> bad(good);
     const std::size_t rowsAt = indexAt + 8 + kBagRowBytes;
     bad[rowsAt + kRowBag] = static_cast<unsigned char>(kMaxBags);
-    assert(reader.openBorrowedBytes(&bad[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&bad[0],
                                     bad.size(),
                                     kStamp,
                                     Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX &&
            "a nonexistent bag is malformed data, not GET_BAG_NOT_OPEN");
-    assert(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
+    LOKA_VERIFY(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX);
   }
 
@@ -1220,7 +1229,7 @@ void testLrpcValidatesBeforeItPacks()
     U32 outOfRange[kMaxAxes] = {16, 0, 0, 0};
     writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
     writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, outOfRange, kBw, sizeof(kBw));
-    assert(writer.build(kStamp, out) == Writer::BUILD_BAD_AXIS_REFERENCE);
+    LOKA_VERIFY(writer.build(kStamp, out) == Writer::BUILD_BAD_AXIS_REFERENCE);
   }
   {
     Writer writer;
@@ -1232,7 +1241,7 @@ void testLrpcValidatesBeforeItPacks()
     writer.declareAxis(invalidKind, 0, one, 1);
     const std::size_t bag = writer.addBag();
     writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
-    assert(writer.build(kStamp, out) == Writer::BUILD_BAD_AXIS_KIND);
+    LOKA_VERIFY(writer.build(kStamp, out) == Writer::BUILD_BAD_AXIS_KIND);
   }
   {
     Writer writer;
@@ -1242,7 +1251,7 @@ void testLrpcValidatesBeforeItPacks()
     std::memcpy(&invalidKind, &invalidKindBits, sizeof(invalidKind));
     const std::size_t bag = writer.addBag();
     writer.addAsset(AssetLayoutKey(""), 7, bag, invalidKind, plain, kDefault, sizeof(kDefault));
-    assert(writer.build(kStamp, out) == Writer::BUILD_BAD_ASSET_KIND);
+    LOKA_VERIFY(writer.build(kStamp, out) == Writer::BUILD_BAD_ASSET_KIND);
   }
   {
     Writer writer;
@@ -1251,7 +1260,7 @@ void testLrpcValidatesBeforeItPacks()
     {
       writer.declareAxis(AXIS_KIND_ENUM, 0, one, 1);
     }
-    assert(writer.build(kStamp, out) == Writer::BUILD_TOO_MANY_AXES);
+    LOKA_VERIFY(writer.build(kStamp, out) == Writer::BUILD_TOO_MANY_AXES);
   }
   {
     Writer writer;
@@ -1261,7 +1270,7 @@ void testLrpcValidatesBeforeItPacks()
       values[i] = static_cast<U32>(i + 1);
     }
     writer.declareAxis(AXIS_KIND_ENUM, 0, values, kMaxAxisValues + 1);
-    assert(writer.build(kStamp, out) == Writer::BUILD_TOO_MANY_AXIS_VALUES);
+    LOKA_VERIFY(writer.build(kStamp, out) == Writer::BUILD_TOO_MANY_AXIS_VALUES);
   }
   {
     Writer writer;
@@ -1269,7 +1278,7 @@ void testLrpcValidatesBeforeItPacks()
     writer.declareAxis(AXIS_KIND_SCALAR, 100, huge, 1);
     const std::size_t bag = writer.addBag();
     writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
-    assert(writer.build(kStamp, out) ==
+    LOKA_VERIFY(writer.build(kStamp, out) ==
            Writer::BUILD_AXIS_VALUE_OUT_OF_RANGE);
   }
   const bool hostU32Wider = sizeof(U32) > 4;
@@ -1286,7 +1295,7 @@ void testLrpcValidatesBeforeItPacks()
                       plain,
                       kDefault,
                       sizeof(kDefault));
-    assert(badStamp.build(tooLarge, out) == Writer::BUILD_SIZE_OUT_OF_RANGE);
+    LOKA_VERIFY(badStamp.build(tooLarge, out) == Writer::BUILD_SIZE_OUT_OF_RANGE);
 
     Writer badId;
     const std::size_t idBag = badId.addBag();
@@ -1296,7 +1305,7 @@ void testLrpcValidatesBeforeItPacks()
                    plain,
                    kDefault,
                    sizeof(kDefault));
-    assert(badId.build(kStamp, out) == Writer::BUILD_SIZE_OUT_OF_RANGE);
+    LOKA_VERIFY(badId.build(kStamp, out) == Writer::BUILD_SIZE_OUT_OF_RANGE);
 
     Writer badBaseline;
     const U32 scale[1] = {200};
@@ -1308,7 +1317,7 @@ void testLrpcValidatesBeforeItPacks()
                          plain,
                          kDefault,
                          sizeof(kDefault));
-    assert(badBaseline.build(kStamp, out) == Writer::BUILD_SIZE_OUT_OF_RANGE);
+    LOKA_VERIFY(badBaseline.build(kStamp, out) == Writer::BUILD_SIZE_OUT_OF_RANGE);
   }
   // A trailing empty bag used to form &data[data.size()] while computing its
   // zero-length CRC. The package must build and the empty bag must verify.
@@ -1317,14 +1326,14 @@ void testLrpcValidatesBeforeItPacks()
     const std::size_t full = writer.addBag();
     const std::size_t empty = writer.addBag();
     writer.addAsset(AssetLayoutKey(""), 7, full, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
-    assert(writer.build(kStamp, out) == Writer::BUILD_OK);
+    LOKA_VERIFY(writer.build(kStamp, out) == Writer::BUILD_OK);
     Reader reader;
-    assert(reader.openBorrowedBytes(&out[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&out[0],
                                     out.size(),
                                     kStamp,
                                     Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_OK);
-    assert(reader.openBag(empty) == Reader::BAG_OK);
+    LOKA_VERIFY(reader.openBag(empty) == Reader::BAG_OK);
   }
 
   // kMaxBags has one named home shared by storage and validation.
@@ -1335,19 +1344,19 @@ void testLrpcValidatesBeforeItPacks()
       writer.addBag();
     }
     writer.addAsset(AssetLayoutKey(""), 7, 0, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
-    assert(writer.build(kStamp, out) == Writer::BUILD_OK);
+    LOKA_VERIFY(writer.build(kStamp, out) == Writer::BUILD_OK);
     writer.addBag();
-    assert(writer.build(kStamp, out) == Writer::BUILD_TOO_MANY_BAGS);
+    LOKA_VERIFY(writer.build(kStamp, out) == Writer::BUILD_TOO_MANY_BAGS);
   }
 
   {
     std::vector<unsigned char> reused;
-    assert(BuildDepthScalePackage(reused, true) == Writer::BUILD_OK);
+    LOKA_VERIFY(BuildDepthScalePackage(reused, true) == Writer::BUILD_OK);
     const std::vector<unsigned char> before(reused);
     Writer writer;
     writer.addBag();
     writer.addAsset(AssetLayoutKey(""), 7, 9, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
-    assert(writer.build(kStamp, reused) == Writer::BUILD_BAD_BAG_REFERENCE);
+    LOKA_VERIFY(writer.build(kStamp, reused) == Writer::BUILD_BAD_BAG_REFERENCE);
     assert(reused == before);
   }
 
@@ -1380,22 +1389,22 @@ void testLrpcRoundTripsExactlySizedSelectors()
   delete[] selector;
 
   std::vector<unsigned char> package;
-  assert(writer.build(kStamp, package) == Writer::BUILD_OK);
+  LOKA_VERIFY(writer.build(kStamp, package) == Writer::BUILD_OK);
 
   Reader reader;
-  assert(reader.openBorrowedBytes(&package[0],
+  LOKA_VERIFY(reader.openBorrowedBytes(&package[0],
                                   package.size(),
                                   kStamp,
                                   Reader::VERIFY_INTEGRITY) ==
          Reader::OPEN_OK);
-  assert(reader.openBag(bag) == Reader::BAG_OK);
+  LOKA_VERIFY(reader.openBag(bag) == Reader::BAG_OK);
   Facts facts;
   facts.present[kAxisDepth] = true;
   facts.value[kAxisDepth] = 1;
   facts.present[kAxisScale] = true;
   facts.value[kAxisScale] = 300;
   Asset asset;
-  assert(reader.get(42, facts, asset) == Reader::GET_OK);
+  LOKA_VERIFY(reader.get(42, facts, asset) == Reader::GET_OK);
   assert(AssetEquals(asset, k3x, sizeof(k3x)));
 
   printf("==== [testLrpcRoundTripsExactlySizedSelectors] end ====\n");
@@ -1416,7 +1425,7 @@ void testLrpcRefusesAxisDeclarationAfterAsset()
   const U32 depth[1] = {1};
   writer.declareAxis(AXIS_KIND_ENUM, 0, depth, 1);
   std::vector<unsigned char> out;
-  assert(writer.build(kStamp, out) == Writer::BUILD_AXIS_AFTER_ASSET);
+  LOKA_VERIFY(writer.build(kStamp, out) == Writer::BUILD_AXIS_AFTER_ASSET);
 
   printf("==== [testLrpcRefusesAxisDeclarationAfterAsset] end ====\n");
 }
@@ -1426,12 +1435,12 @@ void testLrpkReaderKeepsItsPackageWhenAReloadIsRefused()
   printf("\n==== [testLrpkReaderKeepsItsPackageWhenAReloadIsRefused] start ====\n");
 
   std::vector<unsigned char> good;
-  assert(BuildDepthScalePackage(good, true) == Writer::BUILD_OK);
+  LOKA_VERIFY(BuildDepthScalePackage(good, true) == Writer::BUILD_OK);
   Reader reader;
   OpenOneBag(reader, good);
 
   std::vector<unsigned char> junk(kFixedHeadBytes, 0);
-  assert(reader.openBorrowedBytes(&junk[0],
+  LOKA_VERIFY(reader.openBorrowedBytes(&junk[0],
                                   junk.size(),
                                   kStamp,
                                   Reader::VERIFY_INTEGRITY) ==
@@ -1440,10 +1449,10 @@ void testLrpkReaderKeepsItsPackageWhenAReloadIsRefused()
   assert(reader.isBagOpen(0));
   Facts facts;
   Asset asset;
-  assert(reader.get(42, facts, asset) == Reader::GET_OK);
+  LOKA_VERIFY(reader.get(42, facts, asset) == Reader::GET_OK);
   assert(AssetEquals(asset, kDefault, sizeof(kDefault)));
 
-  assert(reader.openBorrowedBytes(&good[0],
+  LOKA_VERIFY(reader.openBorrowedBytes(&good[0],
                                   good.size(),
                                   kStamp + 1,
                                   Reader::VERIFY_INTEGRITY) ==
@@ -1458,7 +1467,7 @@ void testLrpkChecksTheChunkThatDecidesSelection()
   printf("\n==== [testLrpkChecksTheChunkThatDecidesSelection] start ====\n");
 
   std::vector<unsigned char> good;
-  assert(BuildDepthScalePackage(good, true) == Writer::BUILD_OK);
+  LOKA_VERIFY(BuildDepthScalePackage(good, true) == Writer::BUILD_OK);
   std::size_t axesSize = 0;
   const std::size_t axesAt =
       FindChunkPayload(good, FourCC('A', 'X', 'E', 'S'), axesSize);
@@ -1467,12 +1476,12 @@ void testLrpkChecksTheChunkThatDecidesSelection()
   {
     std::vector<unsigned char> rotted(good);
     rotted[axesAt + 4 + kAxisBaseline] ^= 0xFF;
-    assert(reader.openBorrowedBytes(&rotted[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&rotted[0],
                                     rotted.size(),
                                     kStamp,
                                     Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_INDEX_CORRUPT);
-    assert(StreamOpenResult(rotted, Reader::VERIFY_INTEGRITY) ==
+    LOKA_VERIFY(StreamOpenResult(rotted, Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_INDEX_CORRUPT);
   }
   {
@@ -1484,13 +1493,13 @@ void testLrpkChecksTheChunkThatDecidesSelection()
   {
     std::vector<unsigned char> bad(good);
     bad[axesAt + 4 + kAxisEntryBytes + kAxisPrecedenceRank] = 0;
-    assert(reader.openBorrowedBytes(&bad[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&bad[0],
                                     bad.size(),
                                     kStamp,
                                     Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX &&
            "precedence is structural even when CRC verification is skipped");
-    assert(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
+    LOKA_VERIFY(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX);
   }
   {
@@ -1524,7 +1533,7 @@ void testLrpkChecksTheChunkThatDecidesSelection()
     U32 plain[kMaxAxes] = {0, 0, 0, 0};
     writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
     std::vector<unsigned char> bad;
-    assert(writer.build(kStamp, bad) == Writer::BUILD_OK);
+    LOKA_VERIFY(writer.build(kStamp, bad) == Writer::BUILD_OK);
     std::size_t axesPayloadSize = 0;
     const std::size_t axesPayload =
         FindChunkPayload(bad, FourCC('A', 'X', 'E', 'S'), axesPayloadSize);
@@ -1571,19 +1580,19 @@ void testLrpkChecksTheChunkThatDecidesSelection()
   {
     std::vector<unsigned char> bad(good);
     bad[kHeadPayloadOffset + kHeadFlags + 3] = 1;
-    assert(reader.openBorrowedBytes(&bad[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&bad[0],
                                     bad.size(),
                                     kStamp,
                                     Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_HEAD_CORRUPT);
-    assert(reader.openBorrowedBytes(&bad[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&bad[0],
                                     bad.size(),
                                     kStamp,
                                     Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX);
-    assert(StreamOpenResult(bad, Reader::VERIFY_INTEGRITY) ==
+    LOKA_VERIFY(StreamOpenResult(bad, Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_HEAD_CORRUPT);
-    assert(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
+    LOKA_VERIFY(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX);
   }
   {
@@ -1592,7 +1601,7 @@ void testLrpkChecksTheChunkThatDecidesSelection()
     const std::size_t axesHeader =
         FindChunkHeader(bad, FourCC('A', 'X', 'E', 'S'), ignored);
     bad[axesHeader] = 'a';
-    assert(reader.openBorrowedBytes(&bad[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&bad[0],
                                     bad.size(),
                                     kStamp,
                                     Reader::SKIP_INTEGRITY) ==
@@ -1606,7 +1615,7 @@ void testLrpkChecksTheChunkThatDecidesSelection()
     const std::size_t bag = writer.addBag();
     writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
     std::vector<unsigned char> noAxes;
-    assert(writer.build(kStamp, noAxes) == Writer::BUILD_OK);
+    LOKA_VERIFY(writer.build(kStamp, noAxes) == Writer::BUILD_OK);
     std::size_t payloadSize = 0;
     const std::size_t axesHeader =
         FindChunkHeader(noAxes, FourCC('A', 'X', 'E', 'S'), payloadSize);
@@ -1619,12 +1628,12 @@ void testLrpkChecksTheChunkThatDecidesSelection()
     WriteU32BE(&noAxes[kHeadPayloadOffset + kHeadTotalBytes],
                static_cast<U32>(noAxes.size()));
     RestampHead(noAxes);
-    assert(reader.openBorrowedBytes(&noAxes[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&noAxes[0],
                                     noAxes.size(),
                                     kStamp,
                                     Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX);
-    assert(StreamOpenResult(noAxes, Reader::VERIFY_INTEGRITY) ==
+    LOKA_VERIFY(StreamOpenResult(noAxes, Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX);
   }
 
@@ -1640,7 +1649,7 @@ void testLrpkRequiresCanonicalChunkOrder()
   const U32 data = FourCC('D', 'A', 'T', 'A');
 
   std::vector<unsigned char> good;
-  assert(BuildDepthScalePackage(good, true) == Writer::BUILD_OK);
+  LOKA_VERIFY(BuildDepthScalePackage(good, true) == Writer::BUILD_OK);
 
   // Control: reassembling in the canonical order reproduces the writer's
   // bytes exactly, so the refusals below can only come from the order rule.
@@ -1650,7 +1659,7 @@ void testLrpkRequiresCanonicalChunkOrder()
     assert(canonical == good &&
            "the writer already emits the canonical order");
     Reader reader;
-    assert(reader.openBorrowedBytes(&canonical[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&canonical[0],
                                     canonical.size(),
                                     kStamp,
                                     Reader::VERIFY_INTEGRITY) ==
@@ -1684,7 +1693,7 @@ void testLrpkEnforcesPayloadAlignment()
   printf("\n==== [testLrpkEnforcesPayloadAlignment] start ====\n");
 
   std::vector<unsigned char> good;
-  assert(BuildDepthScalePackage(good, true) == Writer::BUILD_OK);
+  LOKA_VERIFY(BuildDepthScalePackage(good, true) == Writer::BUILD_OK);
   assert(reinterpret_cast<std::size_t>(&good[0]) % kPayloadAlign == 0);
 
   {
@@ -1692,13 +1701,13 @@ void testLrpkEnforcesPayloadAlignment()
     assert(reinterpret_cast<std::size_t>(&shifted[0]) % kPayloadAlign == 0);
     std::copy(good.begin(), good.end(), shifted.begin() + 1);
     Reader verified;
-    assert(verified.openBorrowedBytes(&shifted[1],
+    LOKA_VERIFY(verified.openBorrowedBytes(&shifted[1],
                                       good.size(),
                                       kStamp,
                                       Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_MISALIGNED_BUFFER);
     Reader unchecked;
-    assert(unchecked.openBorrowedBytes(&shifted[1],
+    LOKA_VERIFY(unchecked.openBorrowedBytes(&shifted[1],
                                        good.size(),
                                        kStamp,
                                        Reader::SKIP_INTEGRITY) ==
@@ -1710,7 +1719,7 @@ void testLrpkEnforcesPayloadAlignment()
   U32 plain[kMaxAxes] = {0, 0, 0, 0};
   writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
   std::vector<unsigned char> single;
-  assert(writer.build(kStamp, single) == Writer::BUILD_OK);
+  LOKA_VERIFY(writer.build(kStamp, single) == Writer::BUILD_OK);
   std::size_t indexSize = 0;
   const std::size_t indexAt =
       FindChunkPayload(single, FourCC('I', 'N', 'D', 'X'), indexSize);
@@ -1744,11 +1753,11 @@ void testLrpkEnforcesPayloadAlignment()
   }
 
   Reader reader;
-  assert(reader.openBorrowedBytes(&good[0],
+  LOKA_VERIFY(reader.openBorrowedBytes(&good[0],
                                   good.size(),
                                   kStamp,
                                   Reader::VERIFY_INTEGRITY) == Reader::OPEN_OK);
-  assert(reader.openBag(0) == Reader::BAG_OK);
+  LOKA_VERIFY(reader.openBag(0) == Reader::BAG_OK);
   Facts cases[4];
   cases[1].present[kAxisDepth] = true;
   cases[1].value[kAxisDepth] = 1;
@@ -1762,12 +1771,14 @@ void testLrpkEnforcesPayloadAlignment()
   for (std::size_t i = 0; i < 4; ++i)
   {
     Asset asset;
-    assert(reader.get(42, cases[i], asset) == Reader::GET_OK);
+    LOKA_VERIFY(reader.get(42, cases[i], asset) == Reader::GET_OK);
+    (void)expected;
+    (void)expectedLength;
     assert(AssetEquals(asset, expected[i], expectedLength[i]));
     assert(reinterpret_cast<std::size_t>(asset.bytes) % kPayloadAlign == 0);
   }
   Asset file;
-  assert(reader.get(43, cases[0], file) == Reader::GET_OK);
+  LOKA_VERIFY(reader.get(43, cases[0], file) == Reader::GET_OK);
   assert(AssetEquals(file, kFile, sizeof(kFile)));
   assert(reinterpret_cast<std::size_t>(file.bytes) % kPayloadAlign == 0);
 
@@ -1784,14 +1795,14 @@ void testLrpcPreservesNullPayloadFailure()
     const std::size_t bag = writer.addBag();
     writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, 0, 1);
     std::vector<unsigned char> out;
-    assert(writer.build(kStamp, out) == Writer::BUILD_NULL_PAYLOAD);
+    LOKA_VERIFY(writer.build(kStamp, out) == Writer::BUILD_NULL_PAYLOAD);
   }
   {
     Writer writer;
     const std::size_t bag = writer.addBag();
     writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, 0, 0);
     std::vector<unsigned char> out;
-    assert(writer.build(kStamp, out) == Writer::BUILD_OK);
+    LOKA_VERIFY(writer.build(kStamp, out) == Writer::BUILD_OK);
   }
 
   printf("==== [testLrpcPreservesNullPayloadFailure] end ====\n");
@@ -1847,7 +1858,7 @@ void testLrpcCanonicalBuildBytesStayStable()
                   id200Bag1Scale1, sizeof(id200Bag1Scale1) - 1);
 
   std::vector<unsigned char> package;
-  assert(writer.build(kStamp, package) == Writer::BUILD_OK);
+  LOKA_VERIFY(writer.build(kStamp, package) == Writer::BUILD_OK);
   assert(package.size() == 940);
   assert(Crc32::Of(&package[0], package.size()) == 0xB0EE89E7UL);
 
@@ -1874,7 +1885,7 @@ void testLrpcBuildHandlesFiftyThousandAssets()
   }
 
   std::vector<unsigned char> package;
-  assert(writer.build(kStamp, package) == Writer::BUILD_OK);
+  LOKA_VERIFY(writer.build(kStamp, package) == Writer::BUILD_OK);
   assert(ReadU32BE(&package[kHeadPayloadOffset + kHeadAssetCount]) ==
          static_cast<U32>(assetCount));
 
@@ -1886,15 +1897,15 @@ void testLrpkStreamOpenMatchesMemoryOpen()
   printf("\n==== [testLrpkStreamOpenMatchesMemoryOpen] start ====\n");
 
   std::vector<unsigned char> package;
-  assert(BuildTwoBagPackage(package) == Writer::BUILD_OK);
+  LOKA_VERIFY(BuildTwoBagPackage(package) == Writer::BUILD_OK);
 
   Reader memory;
-  assert(memory.openBorrowedBytes(&package[0],
+  LOKA_VERIFY(memory.openBorrowedBytes(&package[0],
                                   package.size(),
                                   kStamp,
                                   Reader::VERIFY_INTEGRITY) == Reader::OPEN_OK);
-  assert(memory.openBag(0) == Reader::BAG_OK);
-  assert(memory.openBag(1) == Reader::BAG_OK);
+  LOKA_VERIFY(memory.openBag(0) == Reader::BAG_OK);
+  LOKA_VERIFY(memory.openBag(1) == Reader::BAG_OK);
 
   // Declared before the reader that borrows them: the source and the index
   // buffer must outlive it, and a test that gets that backwards is not
@@ -1905,7 +1916,7 @@ void testLrpkStreamOpenMatchesMemoryOpen()
   std::vector<unsigned char> secondBag;
   Reader stream;
   std::size_t need = 0;
-  assert(stream.beginOpen(source,
+  LOKA_VERIFY(stream.beginOpen(source,
                           kStamp,
                           Reader::VERIFY_INTEGRITY,
                           need) == Reader::OPEN_OK);
@@ -1923,7 +1934,7 @@ void testLrpkStreamOpenMatchesMemoryOpen()
   assert(stream.bagCount() == 0);
 
   index.assign(need, 0);
-  assert(stream.finishOpen(&index[0], need) == Reader::OPEN_OK);
+  LOKA_VERIFY(stream.finishOpen(&index[0], need) == Reader::OPEN_OK);
   assert(stream.isOpen());
   assert(stream.verifiesIntegrity());
   assert(stream.bagCount() == memory.bagCount());
@@ -1932,10 +1943,10 @@ void testLrpkStreamOpenMatchesMemoryOpen()
 
   std::size_t storedFirst = 0;
   std::size_t storedSecond = 0;
-  assert(memory.bagStoredSize(0, storedFirst));
-  assert(memory.bagStoredSize(1, storedSecond));
-  assert(ReadBagIntoVector(stream, 0, firstBag) == Reader::BAG_OK);
-  assert(ReadBagIntoVector(stream, 1, secondBag) == Reader::BAG_OK);
+  LOKA_VERIFY(memory.bagStoredSize(0, storedFirst));
+  LOKA_VERIFY(memory.bagStoredSize(1, storedSecond));
+  LOKA_VERIFY(ReadBagIntoVector(stream, 0, firstBag) == Reader::BAG_OK);
+  LOKA_VERIFY(ReadBagIntoVector(stream, 1, secondBag) == Reader::BAG_OK);
   assert(firstBag.size() == storedFirst && secondBag.size() == storedSecond);
 
   // Same assets, same truth (bag, offsetInBag, length), same bytes -- from
@@ -1947,7 +1958,7 @@ void testLrpkStreamOpenMatchesMemoryOpen()
   {
     Asset fromMemory;
     Asset fromStream;
-    assert(memory.get(ids[i], facts, fromMemory) == Reader::GET_OK);
+    LOKA_VERIFY(memory.get(ids[i], facts, fromMemory) == Reader::GET_OK);
     assert(stream.get(ids[i], facts, fromStream) == Reader::GET_OK);
     assert(fromStream.kind == fromMemory.kind);
     assert(fromStream.length == fromMemory.length);
@@ -1972,12 +1983,12 @@ void testLrpkStreamOpenMatchesMemoryOpen()
         FindChunkHeader(bad, FourCC('A', 'X', 'E', 'S'), ignored);
     bad[axesHeader] = 'a';
     Reader reader;
-    assert(reader.openBorrowedBytes(&bad[0],
+    LOKA_VERIFY(reader.openBorrowedBytes(&bad[0],
                                     bad.size(),
                                     kStamp,
                                     Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_UNKNOWN_CHUNK);
-    assert(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
+    LOKA_VERIFY(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_UNKNOWN_CHUNK);
   }
   {
@@ -2007,7 +2018,7 @@ void testLrpkStreamOpenMatchesMemoryOpen()
     MemoryByteSource badSource(bad);
     Reader reader;
     std::size_t badNeed = 1;
-    assert(reader.beginOpen(badSource,
+    LOKA_VERIFY(reader.beginOpen(badSource,
                             kStamp,
                             Reader::VERIFY_INTEGRITY,
                             badNeed) == Reader::OPEN_MALFORMED_INDEX);
@@ -2039,7 +2050,7 @@ void testLrpkStreamOpenMatchesMemoryOpen()
     MemoryByteSource badSource(bad);
     Reader reader;
     std::size_t badNeed = 1;
-    assert(reader.beginOpen(badSource,
+    LOKA_VERIFY(reader.beginOpen(badSource,
                             kStamp,
                             Reader::VERIFY_INTEGRITY,
                             badNeed) == Reader::OPEN_MALFORMED_INDEX);
@@ -2076,7 +2087,7 @@ void testLrpkStreamOpenMatchesMemoryOpen()
     MemoryByteSource badSource(bad);
     Reader reader;
     std::size_t badNeed = 1;
-    assert(reader.beginOpen(badSource,
+    LOKA_VERIFY(reader.beginOpen(badSource,
                             kStamp,
                             Reader::VERIFY_INTEGRITY,
                             badNeed) == Reader::OPEN_MALFORMED_INDEX);
@@ -2125,7 +2136,7 @@ void testLrpkStreamOpenMatchesMemoryOpen()
       lying.reportSize(tooLarge);
       Reader reader;
       std::size_t lyingNeed = 0;
-      assert(reader.beginOpen(lying,
+      LOKA_VERIFY(reader.beginOpen(lying,
                               kStamp,
                               Reader::VERIFY_INTEGRITY,
                               lyingNeed) == Reader::OPEN_SIZE_OUT_OF_RANGE);
@@ -2141,7 +2152,7 @@ void testLrpkStreamOpenIsFailureAtomic()
   printf("\n==== [testLrpkStreamOpenIsFailureAtomic] start ====\n");
 
   std::vector<unsigned char> package;
-  assert(BuildTwoBagPackage(package) == Writer::BUILD_OK);
+  LOKA_VERIFY(BuildTwoBagPackage(package) == Writer::BUILD_OK);
   std::size_t dataHeaderAt = 0;
   std::size_t dataPayloadAt = 0;
   LocateDataChunk(package, dataHeaderAt, dataPayloadAt);
@@ -2151,18 +2162,18 @@ void testLrpkStreamOpenIsFailureAtomic()
   std::vector<unsigned char> firstBag;
   std::vector<unsigned char> secondBag;
   Reader reader;
-  assert(OpenThroughStream(reader,
+  LOKA_VERIFY(OpenThroughStream(reader,
                            committedSource,
                            kStamp,
                            Reader::VERIFY_INTEGRITY,
                            committedIndex) == Reader::OPEN_OK);
   // Bag 1 is deliberately left unread: it is the thing a source swap would
   // destroy, and destroying it is the v2 hole this whole test exists for.
-  assert(ReadBagIntoVector(reader, 0, firstBag) == Reader::BAG_OK);
+  LOKA_VERIFY(ReadBagIntoVector(reader, 0, firstBag) == Reader::BAG_OK);
 
   Facts facts;
   Asset asset;
-  assert(reader.get(11, facts, asset) == Reader::GET_OK);
+  LOKA_VERIFY(reader.get(11, facts, asset) == Reader::GET_OK);
   assert(AssetEquals(asset, kDefault, sizeof(kDefault)));
 
   // A reload refused in the first half.
@@ -2171,13 +2182,13 @@ void testLrpkStreamOpenIsFailureAtomic()
     corrupt[kHeadPayloadOffset + kHeadVersion + 3] ^= 0xFF;
     MemoryByteSource badSource(corrupt);
     std::size_t need = 0;
-    assert(reader.beginOpen(badSource,
+    LOKA_VERIFY(reader.beginOpen(badSource,
                             kStamp,
                             Reader::VERIFY_INTEGRITY,
                             need) == Reader::OPEN_HEAD_CORRUPT);
     assert(need == 0);
     assert(reader.isOpen() && reader.bagCount() == 2 && reader.isBagOpen(0));
-    assert(reader.get(11, facts, asset) == Reader::GET_OK);
+    LOKA_VERIFY(reader.get(11, facts, asset) == Reader::GET_OK);
     assert(AssetEquals(asset, kDefault, sizeof(kDefault)));
   }
 
@@ -2190,24 +2201,24 @@ void testLrpkStreamOpenIsFailureAtomic()
     MemoryByteSource halfLyingSource(package);
     halfLyingSource.failReadsOver(dataHeaderAt, dataHeaderAt + kChunkHeaderBytes);
     std::size_t need = 0;
-    assert(reader.beginOpen(halfLyingSource,
+    LOKA_VERIFY(reader.beginOpen(halfLyingSource,
                             kStamp,
                             Reader::VERIFY_INTEGRITY,
                             need) == Reader::OPEN_OK);
     // Mid-window: the committed package is still the only one observable.
     assert(reader.isOpen() && reader.bagCount() == 2 && reader.isBagOpen(0));
-    assert(reader.get(11, facts, asset) == Reader::GET_OK);
+    LOKA_VERIFY(reader.get(11, facts, asset) == Reader::GET_OK);
     assert(AssetEquals(asset, kDefault, sizeof(kDefault)));
 
     std::vector<unsigned char> index(need, 0);
-    assert(reader.finishOpen(&index[0], need) == Reader::OPEN_SOURCE_FAILED);
+    LOKA_VERIFY(reader.finishOpen(&index[0], need) == Reader::OPEN_SOURCE_FAILED);
     assert(reader.isOpen() && reader.bagCount() == 2 && reader.isBagOpen(0));
-    assert(reader.get(11, facts, asset) == Reader::GET_OK);
+    LOKA_VERIFY(reader.get(11, facts, asset) == Reader::GET_OK);
     assert(AssetEquals(asset, kDefault, sizeof(kDefault)));
 
     // One shot: the pending was consumed by the refusal, so the retry is not
     // a second finishOpen.
-    assert(reader.finishOpen(&index[0], need) == Reader::OPEN_NO_PENDING);
+    LOKA_VERIFY(reader.finishOpen(&index[0], need) == Reader::OPEN_NO_PENDING);
   }
 
   // The buffer is not a hint. A size the reader did not ask for is refused
@@ -2215,21 +2226,21 @@ void testLrpkStreamOpenIsFailureAtomic()
   {
     MemoryByteSource source(package);
     std::size_t need = 0;
-    assert(reader.beginOpen(source,
+    LOKA_VERIFY(reader.beginOpen(source,
                             kStamp,
                             Reader::VERIFY_INTEGRITY,
                             need) == Reader::OPEN_OK);
     std::vector<unsigned char> tooBig(need + 1, 0);
-    assert(reader.finishOpen(&tooBig[0], need + 1) ==
+    LOKA_VERIFY(reader.finishOpen(&tooBig[0], need + 1) ==
            Reader::OPEN_INDEX_BUFFER_SIZE_MISMATCH);
     assert(reader.isOpen() && reader.isBagOpen(0));
 
-    assert(reader.beginOpen(source,
+    LOKA_VERIFY(reader.beginOpen(source,
                             kStamp,
                             Reader::VERIFY_INTEGRITY,
                             need) == Reader::OPEN_OK);
     std::vector<unsigned char> tooSmall(need - 1, 0);
-    assert(reader.finishOpen(&tooSmall[0], need - 1) ==
+    LOKA_VERIFY(reader.finishOpen(&tooSmall[0], need - 1) ==
            Reader::OPEN_INDEX_BUFFER_SIZE_MISMATCH);
     assert(reader.isOpen() && reader.isBagOpen(0));
   }
@@ -2239,7 +2250,7 @@ void testLrpkStreamOpenIsFailureAtomic()
   {
     Reader fresh;
     std::vector<unsigned char> nothing(8, 0);
-    assert(fresh.finishOpen(&nothing[0], nothing.size()) ==
+    LOKA_VERIFY(fresh.finishOpen(&nothing[0], nothing.size()) ==
            Reader::OPEN_NO_PENDING);
     assert(!fresh.isOpen());
   }
@@ -2247,8 +2258,8 @@ void testLrpkStreamOpenIsFailureAtomic()
   // The point of all of it: the surviving package can still reach the bytes
   // it never loaded. A reader that had handed its source to a refused reload
   // would fail here.
-  assert(ReadBagIntoVector(reader, 1, secondBag) == Reader::BAG_OK);
-  assert(reader.get(22, facts, asset) == Reader::GET_OK);
+  LOKA_VERIFY(ReadBagIntoVector(reader, 1, secondBag) == Reader::BAG_OK);
+  LOKA_VERIFY(reader.get(22, facts, asset) == Reader::GET_OK);
   assert(AssetEquals(asset, kFile, sizeof(kFile)));
 
   printf("==== [testLrpkStreamOpenIsFailureAtomic] end ====\n");
@@ -2259,7 +2270,7 @@ void testLrpkStreamRefusesSourceLies()
   printf("\n==== [testLrpkStreamRefusesSourceLies] start ====\n");
 
   std::vector<unsigned char> package;
-  assert(BuildTwoBagPackage(package) == Writer::BUILD_OK);
+  LOKA_VERIFY(BuildTwoBagPackage(package) == Writer::BUILD_OK);
   std::size_t dataHeaderAt = 0;
   std::size_t dataPayloadAt = 0;
   LocateDataChunk(package, dataHeaderAt, dataPayloadAt);
@@ -2272,7 +2283,7 @@ void testLrpkStreamRefusesSourceLies()
     source.failSize();
     Reader reader;
     std::size_t need = 0;
-    assert(reader.beginOpen(source,
+    LOKA_VERIFY(reader.beginOpen(source,
                             kStamp,
                             Reader::VERIFY_INTEGRITY,
                             need) == Reader::OPEN_SOURCE_FAILED);
@@ -2284,7 +2295,7 @@ void testLrpkStreamRefusesSourceLies()
     source.failReadsOver(0, kFixedHeadBytes);
     Reader reader;
     std::size_t need = 0;
-    assert(reader.beginOpen(source,
+    LOKA_VERIFY(reader.beginOpen(source,
                             kStamp,
                             Reader::VERIFY_INTEGRITY,
                             need) == Reader::OPEN_SOURCE_FAILED);
@@ -2296,7 +2307,7 @@ void testLrpkStreamRefusesSourceLies()
     MemoryByteSource source(stub);
     Reader reader;
     std::size_t need = 0;
-    assert(reader.beginOpen(source,
+    LOKA_VERIFY(reader.beginOpen(source,
                             kStamp,
                             Reader::VERIFY_INTEGRITY,
                             need) == Reader::OPEN_NOT_A_PACKAGE);
@@ -2325,23 +2336,23 @@ void testLrpkStreamRefusesSourceLies()
     std::vector<unsigned char> index;
     std::vector<unsigned char> bag;
     Reader reader;
-    assert(OpenThroughStream(reader,
+    LOKA_VERIFY(OpenThroughStream(reader,
                              source,
                              kStamp,
                              Reader::VERIFY_INTEGRITY,
                              index) == Reader::OPEN_OK);
-    assert(ReadBagIntoVector(reader, 0, bag) == Reader::BAG_SOURCE_FAILED);
+    LOKA_VERIFY(ReadBagIntoVector(reader, 0, bag) == Reader::BAG_SOURCE_FAILED);
     assert(!reader.isBagOpen(0));
     Facts facts;
     Asset asset;
-    assert(reader.get(11, facts, asset) == Reader::GET_BAG_NOT_OPEN);
+    LOKA_VERIFY(reader.get(11, facts, asset) == Reader::GET_BAG_NOT_OPEN);
 
     // The same buffer may simply be retried once the source stops lying,
     // because success rewrites every byte of it.
     source.failReadsOver(0, 0);
-    assert(reader.readBagInto(0, &bag[0], bag.size()) == Reader::BAG_OK);
+    LOKA_VERIFY(reader.readBagInto(0, &bag[0], bag.size()) == Reader::BAG_OK);
     assert(reader.isBagOpen(0));
-    assert(reader.get(11, facts, asset) == Reader::GET_OK);
+    LOKA_VERIFY(reader.get(11, facts, asset) == Reader::GET_OK);
     assert(AssetEquals(asset, kDefault, sizeof(kDefault)));
   }
 
@@ -2366,7 +2377,7 @@ void testLrpkStreamRefusesSourceLies()
     TwoFacedByteSource source(package, lyingSlice);
     std::vector<unsigned char> index;
     Reader reader;
-    assert(OpenThroughStream(reader,
+    LOKA_VERIFY(OpenThroughStream(reader,
                              source,
                              kStamp,
                              Reader::SKIP_INTEGRITY,
@@ -2382,20 +2393,20 @@ void testLrpkReadBagIntoWalksTheSameRefusalOrder()
   printf("\n==== [testLrpkReadBagIntoWalksTheSameRefusalOrder] start ====\n");
 
   std::vector<unsigned char> package;
-  assert(BuildTwoBagPackage(package) == Writer::BUILD_OK);
+  LOKA_VERIFY(BuildTwoBagPackage(package) == Writer::BUILD_OK);
 
   // The wrong door, from either side.
   {
     Reader memory;
-    assert(memory.openBorrowedBytes(&package[0],
+    LOKA_VERIFY(memory.openBorrowedBytes(&package[0],
                                     package.size(),
                                     kStamp,
                                     Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_OK);
     std::size_t stored = 0;
-    assert(memory.bagStoredSize(0, stored) && stored > 0);
+    LOKA_VERIFY(memory.bagStoredSize(0, stored) && stored > 0);
     std::vector<unsigned char> buffer(stored, 0);
-    assert(memory.readBagInto(0, &buffer[0], stored) ==
+    LOKA_VERIFY(memory.readBagInto(0, &buffer[0], stored) ==
            Reader::BAG_WRONG_BACKING);
   }
 
@@ -2403,36 +2414,36 @@ void testLrpkReadBagIntoWalksTheSameRefusalOrder()
   std::vector<unsigned char> index;
   std::vector<unsigned char> bag;
   Reader reader;
-  assert(OpenThroughStream(reader,
+  LOKA_VERIFY(OpenThroughStream(reader,
                            source,
                            kStamp,
                            Reader::VERIFY_INTEGRITY,
                            index) == Reader::OPEN_OK);
-  assert(reader.openBag(0) == Reader::BAG_WRONG_BACKING);
+  LOKA_VERIFY(reader.openBag(0) == Reader::BAG_WRONG_BACKING);
 
   std::size_t stored = 0;
-  assert(reader.bagStoredSize(0, stored) && stored > 0);
+  LOKA_VERIFY(reader.bagStoredSize(0, stored) && stored > 0);
   std::size_t missing = 0;
-  assert(!reader.bagStoredSize(2, missing) && missing == 0 &&
+  LOKA_VERIFY(!reader.bagStoredSize(2, missing) && missing == 0 &&
          "the size query doubles as existence");
 
   // Refusal 2: an index no bag has, and a reader with no package at all.
   {
     std::vector<unsigned char> buffer(stored, 0);
-    assert(reader.readBagInto(2, &buffer[0], stored) ==
+    LOKA_VERIFY(reader.readBagInto(2, &buffer[0], stored) ==
            Reader::BAG_NO_SUCH_BAG);
     Reader unopened;
-    assert(unopened.readBagInto(0, &buffer[0], stored) ==
+    LOKA_VERIFY(unopened.readBagInto(0, &buffer[0], stored) ==
            Reader::BAG_NO_SUCH_BAG);
   }
 
   // Refusal 6, from both sides, before any read happens.
   {
     std::vector<unsigned char> tooBig(stored + 1, 0);
-    assert(reader.readBagInto(0, &tooBig[0], stored + 1) ==
+    LOKA_VERIFY(reader.readBagInto(0, &tooBig[0], stored + 1) ==
            Reader::BAG_BUFFER_SIZE_MISMATCH);
     std::vector<unsigned char> tooSmall(stored - 1, 0);
-    assert(reader.readBagInto(0, &tooSmall[0], stored - 1) ==
+    LOKA_VERIFY(reader.readBagInto(0, &tooSmall[0], stored - 1) ==
            Reader::BAG_BUFFER_SIZE_MISMATCH);
     assert(!reader.isBagOpen(0));
   }
@@ -2442,7 +2453,7 @@ void testLrpkReadBagIntoWalksTheSameRefusalOrder()
   {
     std::vector<unsigned char> shifted(stored + 1, 0);
     assert(reinterpret_cast<std::size_t>(&shifted[0]) % kPayloadAlign == 0);
-    assert(reader.readBagInto(0, &shifted[1], stored) ==
+    LOKA_VERIFY(reader.readBagInto(0, &shifted[1], stored) ==
            Reader::BAG_MISALIGNED_BUFFER);
     assert(!reader.isBagOpen(0));
   }
@@ -2451,15 +2462,15 @@ void testLrpkReadBagIntoWalksTheSameRefusalOrder()
   // swap the bag's base under every pointer already handed out, so it is
   // refused; closing the bag withdraws those pointers and lets the same
   // buffer be used again.
-  assert(ReadBagIntoVector(reader, 0, bag) == Reader::BAG_OK);
+  LOKA_VERIFY(ReadBagIntoVector(reader, 0, bag) == Reader::BAG_OK);
   {
     std::vector<unsigned char> other(stored, 0);
-    assert(reader.readBagInto(0, &other[0], stored) ==
+    LOKA_VERIFY(reader.readBagInto(0, &other[0], stored) ==
            Reader::BAG_ALREADY_OPEN);
   }
   reader.closeBag(0);
   assert(!reader.isBagOpen(0));
-  assert(reader.readBagInto(0, &bag[0], bag.size()) == Reader::BAG_OK);
+  LOKA_VERIFY(reader.readBagInto(0, &bag[0], bag.size()) == Reader::BAG_OK);
   assert(reader.isBagOpen(0));
 
   // Refusal 9: the bytes arrive and disagree with the check value.
@@ -2471,12 +2482,12 @@ void testLrpkReadBagIntoWalksTheSameRefusalOrder()
     std::vector<unsigned char> rottedIndex;
     std::vector<unsigned char> buffer;
     Reader rottedReader;
-    assert(OpenThroughStream(rottedReader,
+    LOKA_VERIFY(OpenThroughStream(rottedReader,
                              rottedSource,
                              kStamp,
                              Reader::VERIFY_INTEGRITY,
                              rottedIndex) == Reader::OPEN_OK);
-    assert(ReadBagIntoVector(rottedReader, 0, buffer) ==
+    LOKA_VERIFY(ReadBagIntoVector(rottedReader, 0, buffer) ==
            Reader::BAG_CONTENTS_CORRUPT);
     assert(!rottedReader.isBagOpen(0));
 
@@ -2486,12 +2497,12 @@ void testLrpkReadBagIntoWalksTheSameRefusalOrder()
     std::vector<unsigned char> uncheckedIndex;
     std::vector<unsigned char> loaded;
     Reader unchecked;
-    assert(OpenThroughStream(unchecked,
+    LOKA_VERIFY(OpenThroughStream(unchecked,
                              uncheckedSource,
                              kStamp,
                              Reader::SKIP_INTEGRITY,
                              uncheckedIndex) == Reader::OPEN_OK);
-    assert(ReadBagIntoVector(unchecked, 0, loaded) == Reader::BAG_OK);
+    LOKA_VERIFY(ReadBagIntoVector(unchecked, 0, loaded) == Reader::BAG_OK);
   }
 
   // Refusals 4 and 5, the two the shared commit-time helper owns, reached
@@ -2504,20 +2515,20 @@ void testLrpkReadBagIntoWalksTheSameRefusalOrder()
     writer.addAsset(AssetLayoutKey(""), 100, ja, ASSET_KIND_STRING, plain, kFile, sizeof(kFile));
     writer.addAsset(AssetLayoutKey(""), 100, en, ASSET_KIND_STRING, plain, kDefault, sizeof(kDefault));
     std::vector<unsigned char> shared;
-    assert(writer.build(kStamp, shared) == Writer::BUILD_OK);
+    LOKA_VERIFY(writer.build(kStamp, shared) == Writer::BUILD_OK);
 
     MemoryByteSource sharedSource(shared);
     std::vector<unsigned char> sharedIndex;
     std::vector<unsigned char> first;
     std::vector<unsigned char> second;
     Reader sharedReader;
-    assert(OpenThroughStream(sharedReader,
+    LOKA_VERIFY(OpenThroughStream(sharedReader,
                              sharedSource,
                              kStamp,
                              Reader::VERIFY_INTEGRITY,
                              sharedIndex) == Reader::OPEN_OK);
-    assert(ReadBagIntoVector(sharedReader, ja, first) == Reader::BAG_OK);
-    assert(ReadBagIntoVector(sharedReader, en, second) ==
+    LOKA_VERIFY(ReadBagIntoVector(sharedReader, ja, first) == Reader::BAG_OK);
+    LOKA_VERIFY(ReadBagIntoVector(sharedReader, en, second) ==
            Reader::BAG_ASSET_ID_CONFLICT);
     assert(!sharedReader.isBagOpen(en));
   }
@@ -2533,12 +2544,12 @@ void testLrpkReadBagIntoWalksTheSameRefusalOrder()
     std::vector<unsigned char> codecIndex;
     std::vector<unsigned char> buffer;
     Reader codecReader;
-    assert(OpenThroughStream(codecReader,
+    LOKA_VERIFY(OpenThroughStream(codecReader,
                              codecSource,
                              kStamp,
                              Reader::VERIFY_INTEGRITY,
                              codecIndex) == Reader::OPEN_OK);
-    assert(ReadBagIntoVector(codecReader, 0, buffer) ==
+    LOKA_VERIFY(ReadBagIntoVector(codecReader, 0, buffer) ==
            Reader::BAG_UNSUPPORTED_CODEC);
   }
 
@@ -2546,7 +2557,7 @@ void testLrpkReadBagIntoWalksTheSameRefusalOrder()
   // takes it away.
   reader.close();
   std::size_t afterClose = 1;
-  assert(!reader.bagStoredSize(0, afterClose) && afterClose == 0);
+  LOKA_VERIFY(!reader.bagStoredSize(0, afterClose) && afterClose == 0);
   assert(!reader.isOpen());
 
   printf("==== [testLrpkReadBagIntoWalksTheSameRefusalOrder] end ====\n");
@@ -2557,31 +2568,31 @@ void testLrpkStreamOpensEmptyAndZeroLengthBags()
   printf("\n==== [testLrpkStreamOpensEmptyAndZeroLengthBags] start ====\n");
 
   std::vector<unsigned char> package;
-  assert(BuildEmptyBagPackage(package) == Writer::BUILD_OK);
+  LOKA_VERIFY(BuildEmptyBagPackage(package) == Writer::BUILD_OK);
 
   Reader memory;
-  assert(memory.openBorrowedBytes(&package[0],
+  LOKA_VERIFY(memory.openBorrowedBytes(&package[0],
                                   package.size(),
                                   kStamp,
                                   Reader::VERIFY_INTEGRITY) == Reader::OPEN_OK);
   assert(memory.bagCount() == 2);
-  assert(memory.openBag(0) == Reader::BAG_OK);
-  assert(memory.openBag(1) == Reader::BAG_OK);
+  LOKA_VERIFY(memory.openBag(0) == Reader::BAG_OK);
+  LOKA_VERIFY(memory.openBag(1) == Reader::BAG_OK);
 
   MemoryByteSource source(package);
   std::vector<unsigned char> index;
   std::vector<unsigned char> full;
   Reader stream;
-  assert(OpenThroughStream(stream,
+  LOKA_VERIFY(OpenThroughStream(stream,
                            source,
                            kStamp,
                            Reader::VERIFY_INTEGRITY,
                            index) == Reader::OPEN_OK);
   std::size_t emptyStored = 1;
-  assert(stream.bagStoredSize(1, emptyStored) && emptyStored == 0 &&
+  LOKA_VERIFY(stream.bagStoredSize(1, emptyStored) && emptyStored == 0 &&
          "a zero-sized bag is a bag, not a missing one");
 
-  assert(ReadBagIntoVector(stream, 0, full) == Reader::BAG_OK);
+  LOKA_VERIFY(ReadBagIntoVector(stream, 0, full) == Reader::BAG_OK);
   // The empty bag's whole call is (0, 0): there is no buffer to align and
   // none to size-check, but its transport read is still a refusal step.
   std::size_t indexSize = 0;
@@ -2596,10 +2607,10 @@ void testLrpkStreamOpensEmptyAndZeroLengthBags()
       static_cast<std::size_t>(
           ReadU32BE(&package[emptyBagRow + kBagDataOffset]));
   source.failReadsOver(emptyBagFileOffset, emptyBagFileOffset + 1);
-  assert(stream.readBagInto(1, 0, 0) == Reader::BAG_SOURCE_FAILED);
+  LOKA_VERIFY(stream.readBagInto(1, 0, 0) == Reader::BAG_SOURCE_FAILED);
   assert(!stream.isBagOpen(1));
   source.failReadsOver(0, 0);
-  assert(stream.readBagInto(1, 0, 0) == Reader::BAG_OK);
+  LOKA_VERIFY(stream.readBagInto(1, 0, 0) == Reader::BAG_OK);
   assert(stream.isBagOpen(1));
 
   // A zero-length asset is a legal row the writer emits, and it reports no
@@ -2609,10 +2620,10 @@ void testLrpkStreamOpensEmptyAndZeroLengthBags()
   {
     Reader &reader = transport == 0 ? memory : stream;
     Asset present;
-    assert(reader.get(11, facts, present) == Reader::GET_OK);
+    LOKA_VERIFY(reader.get(11, facts, present) == Reader::GET_OK);
     assert(AssetEquals(present, kDefault, sizeof(kDefault)));
     Asset zeroLength;
-    assert(reader.get(12, facts, zeroLength) == Reader::GET_OK);
+    LOKA_VERIFY(reader.get(12, facts, zeroLength) == Reader::GET_OK);
     assert(zeroLength.length == 0 && zeroLength.bytes == 0 &&
            "a zero-length asset does no arithmetic on a base it has none of");
     assert(zeroLength.bag == 0);
@@ -2633,22 +2644,22 @@ void testLrpkStreamOpensEmptyAndZeroLengthBags()
     RestampChunk(forged, FourCC('I', 'N', 'D', 'X'), kHeadIndexCrc);
 
     Reader forgedMemory;
-    assert(forgedMemory.openBorrowedBytes(&forged[0],
+    LOKA_VERIFY(forgedMemory.openBorrowedBytes(&forged[0],
                                           forged.size(),
                                           kStamp,
                                           Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_OK);
-    assert(forgedMemory.openBag(1) == Reader::BAG_CONTENTS_CORRUPT);
+    LOKA_VERIFY(forgedMemory.openBag(1) == Reader::BAG_CONTENTS_CORRUPT);
 
     MemoryByteSource forgedSource(forged);
     std::vector<unsigned char> forgedIndex;
     Reader forgedStream;
-    assert(OpenThroughStream(forgedStream,
+    LOKA_VERIFY(OpenThroughStream(forgedStream,
                              forgedSource,
                              kStamp,
                              Reader::VERIFY_INTEGRITY,
                              forgedIndex) == Reader::OPEN_OK);
-    assert(forgedStream.readBagInto(1, 0, 0) == Reader::BAG_CONTENTS_CORRUPT);
+    LOKA_VERIFY(forgedStream.readBagInto(1, 0, 0) == Reader::BAG_CONTENTS_CORRUPT);
     assert(!forgedStream.isBagOpen(1));
   }
 
@@ -2660,7 +2671,7 @@ void testBlobSealBytesFreezesSizeAndCompletion()
   printf("\n==== [testBlobSealBytesFreezesSizeAndCompletion] start ====\n");
 
   std::vector<unsigned char> package;
-  assert(BuildEmptyBagPackage(package) == Writer::BUILD_OK);
+  LOKA_VERIFY(BuildEmptyBagPackage(package) == Writer::BUILD_OK);
 
   MemoryByteSource source(package);
   std::vector<unsigned char> index;
@@ -2669,7 +2680,7 @@ void testBlobSealBytesFreezesSizeAndCompletion()
   Blob loaded = Blob::Create();
   Blob empty = Blob::Create();
   Reader reader;
-  assert(OpenThroughStream(reader,
+  LOKA_VERIFY(OpenThroughStream(reader,
                            source,
                            kStamp,
                            Reader::VERIFY_INTEGRITY,
@@ -2678,7 +2689,7 @@ void testBlobSealBytesFreezesSizeAndCompletion()
   // The application's whole sequence: create, size, fill in place, seal.
   // Nothing is copied -- the reason sealBytes exists rather than setBytes.
   std::size_t stored = 0;
-  assert(reader.bagStoredSize(0, stored) && stored > 0);
+  LOKA_VERIFY(reader.bagStoredSize(0, stored) && stored > 0);
   // Mutable while it is being filled, so the seal's withdrawal of that is a
   // transition and not a value that happened to already be there.
   loaded.setMutable(true);
@@ -2687,7 +2698,7 @@ void testBlobSealBytesFreezesSizeAndCompletion()
   assert(reinterpret_cast<std::size_t>(&loaded.mutableBytes()[0]) %
              kPayloadAlign ==
          0);
-  assert(reader.readBagInto(0, &loaded.mutableBytes()[0], stored) ==
+  LOKA_VERIFY(reader.readBagInto(0, &loaded.mutableBytes()[0], stored) ==
          Reader::BAG_OK);
   assert(loaded.size() == 0 && "the size is announced by the seal, not the fill");
   loaded.sealBytes();
@@ -2700,7 +2711,7 @@ void testBlobSealBytesFreezesSizeAndCompletion()
   // asset range lies inside the bytes it now reports.
   Facts facts;
   Asset asset;
-  assert(reader.get(11, facts, asset) == Reader::GET_OK);
+  LOKA_VERIFY(reader.get(11, facts, asset) == Reader::GET_OK);
   assert(loaded.isValid());
   assert(BlobRangeIsUsable(loaded.bytes().size(),
                            asset.offsetInBag,
@@ -2712,11 +2723,11 @@ void testBlobSealBytesFreezesSizeAndCompletion()
   // The empty bag takes the same path with nothing in it, and seals to a
   // completed, immutable, zero-length blob rather than to an invalid one.
   std::size_t emptyStored = 1;
-  assert(reader.bagStoredSize(1, emptyStored) && emptyStored == 0);
+  LOKA_VERIFY(reader.bagStoredSize(1, emptyStored) && emptyStored == 0);
   empty.setMutable(true);
   assert(empty.isMutable() && !empty.isCompleted());
   empty.mutableBytes().resize(emptyStored);
-  assert(reader.readBagInto(1, 0, 0) == Reader::BAG_OK);
+  LOKA_VERIFY(reader.readBagInto(1, 0, 0) == Reader::BAG_OK);
   empty.sealBytes();
   assert(empty.isValid());
   assert(empty.size() == 0 && empty.bytes().size() == 0);
@@ -2725,7 +2736,7 @@ void testBlobSealBytesFreezesSizeAndCompletion()
   // A zero-length asset is not a decodable range, which is the image seam's
   // own rule and not a defect in the bag that carries it.
   Asset zeroLength;
-  assert(reader.get(12, facts, zeroLength) == Reader::GET_OK);
+  LOKA_VERIFY(reader.get(12, facts, zeroLength) == Reader::GET_OK);
   assert(!BlobRangeIsUsable(loaded.bytes().size(),
                             zeroLength.offsetInBag,
                             zeroLength.length));

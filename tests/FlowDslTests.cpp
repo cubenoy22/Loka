@@ -1,4 +1,5 @@
 #include "FlowDslTests.hpp"
+#include "support/TestVerify.hpp"
 
 #include <cassert>
 #include <cstring>
@@ -573,6 +574,7 @@ namespace
     {
       const LocalApplyInfo info = this->localApplyInfo(plan);
       ++g_pendingApplyCallCount;
+      (void)info;
       assert(info.hasAnyWork());
       assert(info.hasRootedWork());
       assert(plan.hasAnyLocalWork(this));
@@ -631,6 +633,7 @@ namespace
     virtual void applyPendingStructureInfo(const LocalApplyInfo &info, const loka::app::scene::PlatformApplyPlan &plan)
     {
       (void)plan;
+      (void)info;
       assert(info.hasStructureWork);
       assert(info.isLocalStructureRoot);
       ++g_defaultApplyStructureCalls;
@@ -649,6 +652,7 @@ namespace
     virtual void applyPendingLocalPaintInfo(const LocalApplyInfo &info, const loka::app::scene::PlatformApplyPlan &plan)
     {
       (void)plan;
+      (void)info;
       assert(info.hasPaintWork());
       assert(info.hasBoundsHint());
       assert(info.hasPaintSpecificBoundsHint);
@@ -663,6 +667,7 @@ namespace
                                              const loka::app::scene::PlatformApplyPlan &plan)
     {
       (void)plan;
+      (void)info;
       assert(info.hasPaintWork());
       assert(info.hasBoundsHint());
       assert(info.hasPaintSpecificBoundsHint);
@@ -767,6 +772,7 @@ namespace
       ++g_pendingApplySiblingACalls;
       g_pendingApplySiblingALayoutRoot = plan.layoutRoot;
       g_pendingApplySiblingAPaintRoot = plan.paintRoot;
+      (void)info;
       assert(info.isLocalLayoutRoot || !plan.hasLayoutWork());
       assert(info.isLocalPaintRoot);
       assert(plan.layoutRoot == this);
@@ -1251,6 +1257,7 @@ namespace
       ++g_pendingApplySiblingBCalls;
       g_pendingApplySiblingBLayoutRoot = plan.layoutRoot;
       g_pendingApplySiblingBPaintRoot = plan.paintRoot;
+      (void)info;
       assert(info.isLocalLayoutRoot || !plan.hasLayoutWork());
       assert(info.isLocalPaintRoot);
       assert(plan.layoutRoot == this);
@@ -1300,6 +1307,7 @@ namespace
     virtual void applyPendingUpdate(const loka::app::scene::PlatformApplyPlan &plan)
     {
       ++g_pendingApplyDefersSiblingACalls;
+      (void)plan;
       assert(plan.paintRoot == this);
       if (!g_pendingApplyDefersSiblingAQueuedSiblingB)
       {
@@ -1334,6 +1342,7 @@ namespace
     virtual void applyPendingUpdate(const loka::app::scene::PlatformApplyPlan &plan)
     {
       ++g_pendingApplyDefersSiblingBCalls;
+      (void)plan;
       assert(plan.paintRoot == this);
     }
   };
@@ -1979,13 +1988,13 @@ void testLokaFlowDslV1Core()
     using namespace loka::app::scene;
 
     Node node;
-    assert(node.resolveChildComposeEvent(COMPOSE_EVENT_UPDATE) == COMPOSE_EVENT_UPDATE);
+    LOKA_VERIFY(node.resolveChildComposeEvent(COMPOSE_EVENT_UPDATE) == COMPOSE_EVENT_UPDATE);
     node.markPendingAttachForCompose();
-    assert(node.resolveChildComposeEvent(COMPOSE_EVENT_UPDATE) == COMPOSE_EVENT_ATTACH);
-    assert(node.resolveChildComposeEvent(COMPOSE_EVENT_UPDATE) == COMPOSE_EVENT_UPDATE);
+    LOKA_VERIFY(node.resolveChildComposeEvent(COMPOSE_EVENT_UPDATE) == COMPOSE_EVENT_ATTACH);
+    LOKA_VERIFY(node.resolveChildComposeEvent(COMPOSE_EVENT_UPDATE) == COMPOSE_EVENT_UPDATE);
     node.markPendingAttachForCompose();
-    assert(node.resolveChildComposeEvent(COMPOSE_EVENT_ATTACH) == COMPOSE_EVENT_ATTACH);
-    assert(node.resolveChildComposeEvent(COMPOSE_EVENT_DETACH) == COMPOSE_EVENT_DETACH);
+    LOKA_VERIFY(node.resolveChildComposeEvent(COMPOSE_EVENT_ATTACH) == COMPOSE_EVENT_ATTACH);
+    LOKA_VERIFY(node.resolveChildComposeEvent(COMPOSE_EVENT_DETACH) == COMPOSE_EVENT_DETACH);
   }
 
   {
@@ -2039,7 +2048,7 @@ void testLokaFlowDslV1Core()
 
     loka::app::TextNode *lightChild = 0;
     loka::dsl::FlowError lookupError;
-    assert(
+    LOKA_VERIFY(
         loka::dsl::testing::LookupNodeById<loka::app::TextNode>(&scene, "TypedDslLightChild", lightChild, lookupError)
         != loka::dsl::FLOW_STEP_FAILED);
     assert(lightChild != 0);
@@ -2112,8 +2121,10 @@ void testLokaFlowDslV1Core()
     loka::core::MutableState<int> sharedCountState(34);
     loka::app::scene::BorrowedState<int> borrowedCount = PendingLayoutBoundaryProps::borrowed<int>(&countState);
     loka::app::scene::BorrowedState<int> sharedCount = PendingLayoutBoundaryProps::borrowed<int>(&sharedCountState);
+    (void)borrowedCount;
     assert(borrowedCount.isValid());
     assert(borrowedCount.get() == 21);
+    (void)sharedCount;
     assert(sharedCount.isValid());
     assert(sharedCount.get() == 34);
   }
@@ -2131,6 +2142,7 @@ void testLokaFlowDslV1Core()
     composition.setContext(&context);
 
     const loka::app::scene::NodeComposition::CurrentBoundary current = composition.currentBoundary();
+    (void)current;
     assert(!current.isValid());
   }
 
@@ -2153,6 +2165,7 @@ void testLokaFlowDslV1Core()
 
     loka::app::scene::NodeComposition::FoundBoundary<BoundaryLookupTestApi> foundParent =
         composition.findBoundary<BoundaryLookupTestApi>();
+    (void)foundParent;
     assert(foundParent.isValid());
     assert(foundParent.facade().id() == 2);
   }
@@ -2168,6 +2181,7 @@ void testLokaFlowDslV1Core()
 
     const loka::app::scene::NodeComposition::FoundBoundary<BoundaryLookupTestApi> foundParent =
         composition.findBoundary<BoundaryLookupTestApi>();
+    (void)foundParent;
     assert(!foundParent.isValid());
   }
 
@@ -2190,6 +2204,7 @@ void testLokaFlowDslV1Core()
 
     const loka::app::scene::NodeComposition::FoundBoundary<BoundaryLookupStateApi> foundParent =
         composition.findBoundary<BoundaryLookupStateApi>();
+    (void)foundParent;
     assert(foundParent.isValid());
     assert(foundParent.facade().countState().isValid());
     assert(foundParent.facade().countState().get() == 9);
@@ -2218,6 +2233,7 @@ void testLokaFlowDslV1Core()
 
     loka::app::scene::NodeComposition::FoundBoundary<BoundaryLookupTestApi> foundGrandparent =
         composition.findBoundary<BoundaryLookupTestApi>();
+    (void)foundGrandparent;
     assert(!foundGrandparent.isValid());
   }
 
@@ -2255,6 +2271,7 @@ void testLokaFlowDslV1Core()
 
     loka::app::scene::NodeComposition::CurrentBoundary::CurrentState<int> foundForeignState =
         composition.currentBoundary().state(foreignNodeState);
+    (void)foundForeignState;
     assert(!foundForeignState.isValid());
   }
 
@@ -2286,6 +2303,7 @@ void testLokaFlowDslV1Core()
     chain.onFinally(&FlowTestMarker::onStepFinally, &ff);
 
     const bool ok = chain.run();
+    (void)ok;
     assert(ok);
     assert(captured == 6);
     assert(order.size() == 7);
@@ -2328,6 +2346,7 @@ void testLokaFlowDslV1Core()
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
     const bool ok = chain.run();
+    (void)ok;
     assert(ok);
     assert(order.size() == 6);
     assert(order[0] == 110);
@@ -2351,8 +2370,11 @@ void testLokaFlowDslV1Core()
       if (order[i] == 140)
         hasStep3Success = true;
     }
+    (void)hasFlowFailure;
     assert(hasFlowFailure);
+    (void)hasDefaultStepFailure;
     assert(!hasDefaultStepFailure);
+    (void)hasStep3Success;
     assert(!hasStep3Success);
   }
 
@@ -2382,6 +2404,7 @@ void testLokaFlowDslV1Core()
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
     const bool resumedOk = chain.resume(2);
+    (void)resumedOk;
     assert(resumedOk);
     assert(captured == 42);
     assert(order.size() == 3);
@@ -2390,6 +2413,7 @@ void testLokaFlowDslV1Core()
     assert(order[2] == 299);
 
     const bool missing = chain.resume(9999);
+    (void)missing;
     assert(!missing);
   }
 
@@ -2407,6 +2431,7 @@ void testLokaFlowDslV1Core()
 
     assert(loading == false);
     const bool ok = chain.run();
+    (void)ok;
     assert(ok);
     assert(loading == false);
     assert(order.size() == 1);
@@ -2427,6 +2452,7 @@ void testLokaFlowDslV1Core()
 
     assert(loading == false);
     const bool ok = chain.run();
+    (void)ok;
     assert(!ok);
     assert(loading == false);
     assert(order.size() == 1);
@@ -2452,6 +2478,7 @@ void testLokaFlowDslV1Core()
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
     const loka::dsl::FlowRunResult first = chain.runResult();
+    (void)first;
     assert(first == loka::dsl::FLOW_RUN_PENDING);
     assert(calls == 1);
     assert(loading == true);
@@ -2459,6 +2486,7 @@ void testLokaFlowDslV1Core()
 
     ready = true;
     const loka::dsl::FlowRunResult resumed = chain.resumeResult(1);
+    (void)resumed;
     assert(resumed == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(calls == 2);
     assert(captured == 123);
@@ -2482,6 +2510,7 @@ void testLokaFlowDslV1Core()
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
     const loka::dsl::FlowRunResult first = chain.runResult();
+    (void)first;
     assert(first == loka::dsl::FLOW_RUN_PENDING);
     assert(calls == 1);
     assert(captured == 0);
@@ -2490,6 +2519,7 @@ void testLokaFlowDslV1Core()
     chain.cancel();
     ready = true;
     const loka::dsl::FlowRunResult canceled = chain.resumeResult(1);
+    (void)canceled;
     assert(canceled == loka::dsl::FLOW_RUN_CANCELED);
     assert(calls == 1);
     assert(captured == 0);
@@ -2512,11 +2542,11 @@ void testLokaFlowDslV1Core()
                                                  .onFailure(&FlowTestMarker::captureFailure, &capture);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
-    assert(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
+    LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
     assert(calls == 1);
     assert(capture.calls == 0);
 
-    assert(chain.resumeResult(1) == loka::dsl::FLOW_RUN_SUCCEEDED);
+    LOKA_VERIFY(chain.resumeResult(1) == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(calls == 2);
     assert(capture.calls == 1);
     assert(capture.kind == loka::dsl::FLOW_ERROR_KIND_FLOW);
@@ -2538,7 +2568,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(1, FlowTestPendingThenSuccessAdapter(&ready, &calls)).input(&input).onSuccess(&captured);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
-    assert(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
+    LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
     assert(calls == 1);
 
     chain.cancel();
@@ -2546,6 +2576,7 @@ void testLokaFlowDslV1Core()
     ready = true;
 
     const loka::dsl::FlowRunResult resumed = chain.resumeResult(1);
+    (void)resumed;
     assert(resumed == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(calls == 2);
     assert(captured == 141);
@@ -2565,6 +2596,7 @@ void testLokaFlowDslV1Core()
     chain.cancel();
 
     const loka::dsl::FlowRunResult canceled = chain.runResult();
+    (void)canceled;
     assert(canceled == loka::dsl::FLOW_RUN_CANCELED);
     assert(out == 0);
     assert(order.size() == 1);
@@ -2590,6 +2622,7 @@ void testLokaFlowDslV1Core()
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
     const bool ok = chain.run();
+    (void)ok;
     assert(ok);
     assert(out == 9);
     assert(order.size() == 3);
@@ -2614,6 +2647,7 @@ void testLokaFlowDslV1Core()
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
     const bool ok = chain.run();
+    (void)ok;
     assert(ok);
     assert(out == 10);
     assert(order.size() == 3);
@@ -2631,7 +2665,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(2, loka::dsl::AssertPredicate<int>(&FlowTestPredicates::greaterThan10, 0))
         | loka::dsl::Step(3, FlowTestAdd1Adapter()).onSuccess(&output);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(output == 15);
   }
 
@@ -2645,7 +2679,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(2, loka::dsl::AssertPredicate<int>(&FlowTestPredicates::equalsExpected, &expected))
               .onFailure(&FlowTestMarker::captureFailure, &capture);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(capture.calls == 1);
     assert(capture.kind == loka::dsl::FLOW_ERROR_KIND_FLOW);
     assert(capture.code == loka::dsl::FLOW_ERROR_CODE_ASSERT_PREDICATE_FAILED);
@@ -2665,6 +2699,7 @@ void testLokaFlowDslV1Core()
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
     const bool ok = chain.run();
+    (void)ok;
     assert(ok);
     assert(callsA == 1);
     assert(callsB == 1);
@@ -2687,6 +2722,7 @@ void testLokaFlowDslV1Core()
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
     const bool ok = chain.run();
+    (void)ok;
     assert(!ok);
     assert(flowMarks.size() == 1);
     assert(out == 21);
@@ -2716,6 +2752,7 @@ void testLokaFlowDslV1Core()
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
     const loka::dsl::FlowRunResult result = chain.runResult();
+    (void)result;
     assert(result == loka::dsl::FLOW_RUN_FAILED); // rerun of step 2 fails unhandled
     assert(flowMarks.size() == 1);
     assert(resumeCalls == 2);
@@ -2738,7 +2775,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(2, FlowTestAdd1Adapter()).onFinally(&FlowTestMarker::onStepFinally, &step2Final);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(order.size() == 3);
     assert(order[0] == 1001);
     assert(order[1] == 1002);
@@ -2760,7 +2797,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(3, FlowTestAdd1Adapter()).onFinally(&FlowTestMarker::onStepFinally, &step3Final);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
-    assert(!chain.run());
+    LOKA_VERIFY(!chain.run());
     assert(order.size() == 3);
     assert(order[0] == 1101);
     assert(order[1] == 1102);
@@ -2782,7 +2819,7 @@ void testLokaFlowDslV1Core()
               .onFailure(&FlowTestMarker::onStepFailureHandled, &stepDefault);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
-    assert(!chain.run());
+    LOKA_VERIFY(!chain.run());
     assert(order.size() == 2);
     assert(order[0] == 1201);
     assert(order[1] == 1299);
@@ -2801,7 +2838,7 @@ void testLokaFlowDslV1Core()
     chain.onFailure(&FlowTestMarker::onFlowFailureHandled, &flowDefault);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
-    assert(!chain.run());
+    LOKA_VERIFY(!chain.run());
     assert(order.size() == 2);
     assert(order[0] == 1301);
     assert(order[1] == 1399);
@@ -2820,7 +2857,7 @@ void testLokaFlowDslV1Core()
     chain.onFailure(&FlowTestMarker::is500, &FlowTestMarker::onStepFailureUnhandled, &flowNoMatch);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(order.size() == 2);
     assert(order[0] == 1402);
     assert(order[1] == 1499);
@@ -2847,11 +2884,11 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(2, loka::dsl::testing::CaptureNode<TextNode>("SceneFlow", "capture-text", 1, 1))
               .onSuccess(&capture);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     std::string capturedText;
-    assert(capture.get("node", capturedText));
+    LOKA_VERIFY(capture.get("node", capturedText));
     assert(capturedText == "MainText");
-    assert(capture.get("text.value", capturedText));
+    LOKA_VERIFY(capture.get("text.value", capturedText));
     assert(capturedText == "Hello Flow");
 
     scene.unmount();
@@ -2911,7 +2948,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&showState, true)).input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::CheckText("ShowOnText", "On"));
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
 
@@ -2977,7 +3014,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(2, loka::dsl::testing::CheckText("ShowFirstText", "First"))
         | loka::dsl::Step(3, loka::dsl::testing::CheckText("ShowSecondText", "Second"));
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
 
@@ -3006,11 +3043,12 @@ void testLokaFlowDslV1Core()
               .input(&scenePtr)
               .onSuccess(&captured);
 
-    assert(okChain.run());
+    LOKA_VERIFY(okChain.run());
     std::string value;
     assert(captured.get("text.value", value));
     assert(value == "Hello SnapText");
     long dirtyMask = -1;
+    (void)dirtyMask;
     assert(captured.getInt("dirty.mask", dirtyMask));
     assert(dirtyMask == 0);
     assert(captured.get("dirty.flags", value));
@@ -3023,7 +3061,7 @@ void testLokaFlowDslV1Core()
               .input(&scenePtr)
               .onFailure(&FlowTestMarker::captureFailure, &failCapture);
 
-    assert(failChain.run());
+    LOKA_VERIFY(failChain.run());
     assert(failCapture.calls == 1);
     assert(failCapture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO);
     assert(failCapture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_NODE_NOT_FOUND);
@@ -3051,7 +3089,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(1, loka::dsl::testing::CheckTextDirtyEquals("MainText", loka::app::scene::NODE_DIRTY_NONE))
               .input(&scenePtr);
 
-    assert(okChain.run());
+    LOKA_VERIFY(okChain.run());
 
     FlowErrorCapture failCapture = {0, 0, 0};
     loka::dsl::FlowChain<Scene *, Scene *> failChain =
@@ -3060,7 +3098,7 @@ void testLokaFlowDslV1Core()
               .input(&scenePtr)
               .onFailure(&FlowTestMarker::captureFailure, &failCapture);
 
-    assert(failChain.run());
+    LOKA_VERIFY(failChain.run());
     assert(failCapture.calls == 1);
     assert(failCapture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT);
     assert(failCapture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED);
@@ -3082,7 +3120,7 @@ void testLokaFlowDslV1Core()
     scene.updateAttached(true);
     loka::app::scene::Node *actionButton = 0;
     loka::dsl::FlowError lookupError;
-    assert(loka::dsl::testing::LookupNodeById<loka::app::scene::Node>(
+    LOKA_VERIFY(loka::dsl::testing::LookupNodeById<loka::app::scene::Node>(
                &scene, std::string("ActionButton"), actionButton, lookupError)
            == loka::dsl::FLOW_STEP_SUCCEEDED);
     assert(actionButton);
@@ -3096,7 +3134,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(2, loka::dsl::testing::CaptureViewBitmap(&FlowTestViewBitmapCaptureHelpers::capture, 0))
               .onSuccess(&bitmap);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(bitmap.captured);
     assert(bitmap.image.isValid());
     assert(bitmap.width == 64);
@@ -3119,7 +3157,7 @@ void testLokaFlowDslV1Core()
     scene.updateAttached(true);
     loka::app::scene::Node *actionButton = 0;
     loka::dsl::FlowError lookupError;
-    assert(loka::dsl::testing::LookupNodeById<loka::app::scene::Node>(
+    LOKA_VERIFY(loka::dsl::testing::LookupNodeById<loka::app::scene::Node>(
                &scene, std::string("ActionButton"), actionButton, lookupError)
            == loka::dsl::FLOW_STEP_SUCCEEDED);
     assert(actionButton);
@@ -3132,7 +3170,7 @@ void testLokaFlowDslV1Core()
         loka::dsl::Flow() | loka::dsl::Step(1, loka::dsl::testing::CaptureViewTarget("ActionButton")).input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::CaptureViewBitmapFromPlatform()).onSuccess(&bitmap);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(bitmap.captured);
     assert(bitmap.image.isValid());
     assert(bitmap.width == 80);
@@ -3167,7 +3205,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(6, loka::dsl::testing::AssertSnapIntEquals("view.bitmap.width", 64))
         | loka::dsl::Step(7, loka::dsl::testing::AssertSnapIntEquals("view.bitmap.height", 32));
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
 
     scene.unmount();
   }
@@ -3186,7 +3224,7 @@ void testLokaFlowDslV1Core()
         loka::dsl::Flow()
         | loka::dsl::Step(1, loka::dsl::testing::ClickButtonByIdAndFlush("HelloWorld.LeftPanel.AddButton"))
               .input(&scenePtr);
-    assert(addChain.run());
+    LOKA_VERIFY(addChain.run());
 
     loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> addSnapChain =
         loka::dsl::Flow()
@@ -3195,13 +3233,13 @@ void testLokaFlowDslV1Core()
                               "HelloWorld.LeftPanel.Message", "HelloWorldFlow", "message-after-add", 61, 1))
               .input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::AssertSnapStringEquals("text.value", "Hello, Loka! +Loka"));
-    assert(addSnapChain.run());
+    LOKA_VERIFY(addSnapChain.run());
 
     loka::dsl::FlowChain<Scene *, Scene *> probeChain =
         loka::dsl::Flow()
         | loka::dsl::Step(1, loka::dsl::testing::ClickButtonByIdAndFlush("HelloWorld.LeftPanel.ProbeButton"))
               .input(&scenePtr);
-    assert(probeChain.run());
+    LOKA_VERIFY(probeChain.run());
 
     loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> probeSnapChain =
         loka::dsl::Flow()
@@ -3211,13 +3249,13 @@ void testLokaFlowDslV1Core()
               .input(&scenePtr)
         | loka::dsl::Step(2,
                           loka::dsl::testing::AssertSnapStringEquals("text.value", "Button enabled: yes / clicks: 1"));
-    assert(probeSnapChain.run());
+    LOKA_VERIFY(probeSnapChain.run());
 
     loka::dsl::FlowChain<Scene *, Scene *> disableChain =
         loka::dsl::Flow()
         | loka::dsl::Step(1, loka::dsl::testing::ClickButtonByIdAndFlush("HelloWorld.LeftPanel.ToggleEnabledButton"))
               .input(&scenePtr);
-    assert(disableChain.run());
+    LOKA_VERIFY(disableChain.run());
 
     loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> disableSnapChain =
         loka::dsl::Flow()
@@ -3227,7 +3265,7 @@ void testLokaFlowDslV1Core()
               .input(&scenePtr)
         | loka::dsl::Step(2,
                           loka::dsl::testing::AssertSnapStringEquals("text.value", "Button enabled: no / clicks: 1"));
-    assert(disableSnapChain.run());
+    LOKA_VERIFY(disableSnapChain.run());
 
     scene.unmount();
   }
@@ -3254,8 +3292,9 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(3, loka::dsl::testing::AssertSnapIntEquals("view.target.present", 1))
         | loka::dsl::Step(4, loka::dsl::testing::AssertSnapStringEquals("view.node.test_id", "ActionButton"));
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     long contextPresent = 1;
+    (void)contextPresent;
     assert(captured.getInt("view.context.present", contextPresent));
     assert(contextPresent == 0);
 
@@ -3287,7 +3326,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(3, loka::dsl::testing::AssertSnapIntEquals("scene.root_boundary.present", 1))
         | loka::dsl::Step(4, loka::dsl::testing::AssertSnapIntGreaterEqual("scene.root.kind", 0));
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
 
     scene.unmount();
   }
@@ -3316,7 +3355,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(2, loka::dsl::testing::SetStringStateAndFlush(&textState, "After"))
         | loka::dsl::Step(3, loka::dsl::testing::CheckText("MainText", "After"));
 
-    assert(okChain.run());
+    LOKA_VERIFY(okChain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
 
     scene.unmount();
@@ -3345,7 +3384,7 @@ void testLokaFlowDslV1Core()
               .input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::CheckText("WrapText", "A longer wrapped line"));
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
 
@@ -3375,7 +3414,7 @@ void testLokaFlowDslV1Core()
         loka::dsl::Flow()
         | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&enabledState, true)).input(&scenePtr);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_LAYOUT) == 0);
 
@@ -3407,7 +3446,7 @@ void testLokaFlowDslV1Core()
         loka::dsl::Flow()
         | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&enabledState, true)).input(&scenePtr);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) == 0);
 
@@ -3431,7 +3470,7 @@ void testLokaFlowDslV1Core()
         loka::dsl::Flow()
         | loka::dsl::Step(1, loka::dsl::testing::CheckText("SameBoundaryOffText", "Off")).input(&scenePtr);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(g_sameBoundaryConditionalProbe != 0);
 
     g_sameBoundaryConditionalProbe->emitToggle();
@@ -3440,7 +3479,7 @@ void testLokaFlowDslV1Core()
         loka::dsl::Flow()
         | loka::dsl::Step(1, loka::dsl::testing::CheckText("SameBoundaryOnText", "On")).input(&scenePtr);
 
-    assert(postToggleChain.run());
+    LOKA_VERIFY(postToggleChain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
 
     scene.unmount();
@@ -3467,7 +3506,7 @@ void testLokaFlowDslV1Core()
     loka::dsl::FlowChain<Scene *, Scene *> initialChain =
         loka::dsl::Flow() | loka::dsl::Step(1, CheckText("HeadlessSummaryText", "Headless 0")).input(&scenePtr);
 
-    assert(initialChain.run());
+    LOKA_VERIFY(initialChain.run());
     assert(g_headlessScopeProbe != 0);
     assert(g_headlessScopeHost != 0);
     assert(g_headlessScopeAttachCount == 1);
@@ -3479,7 +3518,7 @@ void testLokaFlowDslV1Core()
     loka::dsl::FlowChain<Scene *, Scene *> incrementedChain =
         loka::dsl::Flow() | loka::dsl::Step(1, CheckText("HeadlessSummaryText", "Headless 1")).input(&scenePtr);
 
-    assert(incrementedChain.run());
+    LOKA_VERIFY(incrementedChain.run());
 
     g_headlessScopeHost->setShown(false);
     (void)SceneTestAccess::flushInvalidation(scene);
@@ -3488,13 +3527,14 @@ void testLokaFlowDslV1Core()
     hiddenLookupError.kind = 0;
     hiddenLookupError.code = 0;
     loka::app::TextNode *hiddenNode = 0;
-    assert(LookupNodeById<loka::app::TextNode>(&scene, "HeadlessSummaryText", hiddenNode, hiddenLookupError)
+    LOKA_VERIFY(LookupNodeById<loka::app::TextNode>(&scene, "HeadlessSummaryText", hiddenNode, hiddenLookupError)
            == loka::dsl::FLOW_STEP_FAILED);
     assert(hiddenLookupError.kind == FLOW_ERROR_KIND_SCENE_SCENARIO);
     assert(hiddenLookupError.code == FLOW_ERROR_SCENE_TEST_NODE_NOT_FOUND);
     assert(g_headlessScopeAttachCount == 1);
     assert(g_headlessScopeDetachCount == 0);
 
+    (void)firstProbe;
     assert(g_headlessScopeProbe == firstProbe);
 
     scene.unmount();
@@ -3530,6 +3570,7 @@ void testLokaFlowDslV1Core()
     g_headlessOwnedHost->setShown(false);
     (void)SceneTestAccess::flushInvalidation(scene);
     assert(g_headlessOwnedDestroyCount == 0);
+    (void)firstOwnedProbe;
     assert(g_headlessOwnedProbe == firstOwnedProbe);
     assert(firstOwnedProbe != 0);
 
@@ -3562,6 +3603,7 @@ void testLokaFlowDslV1Core()
     scene.updateAttached(true);
 
     HeadlessOwnedProbeNode *firstOwnedProbe = g_headlessOwnedProbe;
+    (void)firstOwnedProbe;
     assert(firstOwnedProbe != 0);
     assert(g_headlessOwnedAttachCount == 1);
     assert(g_headlessOwnedDestroyCount == 0);
@@ -3610,7 +3652,9 @@ void testLokaFlowDslV1Core()
 
     g_headlessOwnedMultiHost->setShown(false);
     (void)SceneTestAccess::flushInvalidation(scene);
+    (void)firstProbeA;
     assert(g_headlessOwnedMultiProbeA == firstProbeA);
+    (void)firstProbeB;
     assert(g_headlessOwnedMultiProbeB == firstProbeB);
     assert(g_headlessOwnedMultiDestroyCountA == 0);
     assert(g_headlessOwnedMultiDestroyCountB == 0);
@@ -3665,9 +3709,11 @@ void testLokaFlowDslV1Core()
 
     static_cast<HeadlessOwnedMixedHostBoundaryNode *>(SceneTestAccess::rootBoundary(scene))->setShown(false);
     (void)SceneTestAccess::flushInvalidation(scene);
+    (void)persistentProbe;
     assert(g_headlessOwnedPersistentProbe == persistentProbe);
     assert(g_headlessOwnedPersistentAttachCount == 1);
     assert(g_headlessOwnedPersistentDestroyCount == 0);
+    (void)ownedProbe;
     assert(g_headlessOwnedProbe == ownedProbe);
     assert(g_headlessOwnedDestroyCount == 0);
 
@@ -3706,7 +3752,7 @@ void testLokaFlowDslV1Core()
         loka::dsl::Flow()
         | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&enabledState, true)).input(&scenePtr);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
 
     scene.unmount();
@@ -3739,16 +3785,19 @@ void testLokaFlowDslV1Core()
             3, loka::dsl::testing::AssertSnapIntMaskHasBits("platform.dirty.mask", loka::app::scene::NODE_DIRTY_PROPS))
         | loka::dsl::Step(4, loka::dsl::testing::AssertSnapIntEquals("platform.materialized", 1));
 
-    assert(okChain.run());
+    LOKA_VERIFY(okChain.run());
     long dirtyMask = 0;
+    (void)dirtyMask;
     assert(captured.getInt("platform.dirty.mask", dirtyMask));
     assert((dirtyMask & loka::app::scene::NODE_DIRTY_PROPS) != 0);
     assert((dirtyMask & loka::app::scene::NODE_DIRTY_LAYOUT) == 0);
     assert((dirtyMask & loka::app::scene::NODE_DIRTY_CHILD) == 0);
     long fullRebuild = 1;
+    (void)fullRebuild;
     assert(captured.getInt("platform.full_rebuild", fullRebuild));
     assert(fullRebuild == 0);
     long platformCalls = 0;
+    (void)platformCalls;
     assert(captured.getInt("platform.calls", platformCalls));
     assert(platformCalls >= 1);
 
@@ -3795,6 +3844,7 @@ void testLokaFlowDslV1Core()
     scene.updateAttached(true);
 
     BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
+    (void)rootBoundary;
     assert(rootBoundary != 0);
 
     scene.requestInvalidate(NODE_DIRTY_PROPS);
@@ -3811,8 +3861,9 @@ void testLokaFlowDslV1Core()
     const unsigned long firstGeneration = SceneTestAccess::projectionTransactionGeneration(scene);
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == rootBoundary);
 
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     const SceneDirector::SceneUpdateSnapshot &observationAfterFlush = SceneTestAccess::updateSnapshot(scene);
+    (void)observationAfterFlush;
     assert(SceneTestAccess::snapshotGeneration(observationAfterFlush) == 0);
     assert(SceneTestAccess::snapshotRequestedDirtyFlags(observationAfterFlush) == NODE_DIRTY_NONE);
     assert(SceneTestAccess::snapshotTransactionDirtyFlags(observationAfterFlush) == NODE_DIRTY_NONE);
@@ -3828,6 +3879,8 @@ void testLokaFlowDslV1Core()
     assert(SceneTestAccess::snapshotOpaqueLocalPaintRequired(observationAfterFlush) == false);
     assert(SceneTestAccess::snapshotLocalCompositionDiffApplicable(observationAfterFlush) == false);
     const SceneDirector::SceneUpdateSnapshot &lastObservationAfterFlush = SceneTestAccess::lastUpdateSnapshot(scene);
+    (void)firstGeneration;
+    (void)lastObservationAfterFlush;
     assert(SceneTestAccess::snapshotGeneration(lastObservationAfterFlush) == firstGeneration);
     assert((SceneTestAccess::snapshotRequestedDirtyFlags(lastObservationAfterFlush) & NODE_DIRTY_PROPS) != 0);
     assert((SceneTestAccess::snapshotTransactionDirtyFlags(lastObservationAfterFlush) & NODE_DIRTY_PROPS) != 0);
@@ -3846,6 +3899,7 @@ void testLokaFlowDslV1Core()
 
     scene.requestInvalidate(static_cast<NodeDirtyFlags>(NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT));
     const unsigned long secondGeneration = SceneTestAccess::projectionTransactionGeneration(scene);
+    (void)secondGeneration;
     assert(secondGeneration != 0);
     assert(secondGeneration != firstGeneration);
     assert(SceneTestAccess::hasRequestedInput(scene));
@@ -3853,11 +3907,13 @@ void testLokaFlowDslV1Core()
     assert((SceneTestAccess::effectiveRequestedDirtyFlags(scene) & NODE_DIRTY_LAYOUT) != 0);
     assert(SceneTestAccess::requestedFullRebuild(scene) == false);
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == rootBoundary);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     const PlatformApplyPlan &plan = SceneTestAccess::lastApplyPlan(scene);
+    (void)plan;
     assert(plan.layoutRoot == rootBoundary);
     assert(plan.paintRoot == rootBoundary);
     const SceneDirector::SceneUpdateSnapshot &lastLayoutObservation = SceneTestAccess::lastUpdateSnapshot(scene);
+    (void)lastLayoutObservation;
     assert(SceneTestAccess::snapshotGeneration(lastLayoutObservation) == secondGeneration);
     assert((SceneTestAccess::snapshotRequestedDirtyFlags(lastLayoutObservation) & NODE_DIRTY_LAYOUT) != 0);
     assert((SceneTestAccess::snapshotEffectiveDirtyFlags(lastLayoutObservation) & NODE_DIRTY_LAYOUT) != 0);
@@ -3871,12 +3927,14 @@ void testLokaFlowDslV1Core()
 
     scene.unmount();
     const SceneDirector::SceneUpdateSnapshot &observationAfterUnmount = SceneTestAccess::updateSnapshot(scene);
+    (void)observationAfterUnmount;
     assert(SceneTestAccess::snapshotGeneration(observationAfterUnmount) == 0);
     assert(SceneTestAccess::snapshotEffectiveDirtyFlags(observationAfterUnmount) == NODE_DIRTY_NONE);
     assert(SceneTestAccess::snapshotFirstPendingRoot(observationAfterUnmount) == 0);
     assert(SceneTestAccess::snapshotRootBoundary(observationAfterUnmount) == 0);
     assert(SceneTestAccess::snapshotPrimaryRoot(observationAfterUnmount) == 0);
     const SceneDirector::SceneUpdateSnapshot &lastObservationAfterUnmount = SceneTestAccess::lastUpdateSnapshot(scene);
+    (void)lastObservationAfterUnmount;
     assert(SceneTestAccess::snapshotGeneration(lastObservationAfterUnmount) == 0);
     assert(SceneTestAccess::snapshotEffectiveDirtyFlags(lastObservationAfterUnmount) == NODE_DIRTY_NONE);
     assert(SceneTestAccess::snapshotFirstPendingRoot(lastObservationAfterUnmount) == 0);
@@ -3896,6 +3954,7 @@ void testLokaFlowDslV1Core()
     scene.updateAttached(true);
 
     BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
+    (void)rootBoundary;
     assert(rootBoundary != 0);
 
     scene.requestInvalidate(NODE_DIRTY_PROPS);
@@ -3915,7 +3974,7 @@ void testLokaFlowDslV1Core()
     assert((SceneTestAccess::projectionTransactionFirstTargetDirtyFlags(scene) & NODE_DIRTY_PROPS) != 0);
     assert((SceneTestAccess::projectionTransactionFirstTargetDirtyFlags(scene) & NODE_DIRTY_LAYOUT) != 0);
 
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(!SceneTestAccess::projectionTransactionHasPending(scene));
     assert(SceneTestAccess::projectionTransactionTargetCount(scene) == 0);
     assert(SceneTestAccess::projectionTransactionAggregateDirtyFlags(scene) == NODE_DIRTY_NONE);
@@ -3936,11 +3995,13 @@ void testLokaFlowDslV1Core()
     scene.updateAttached(true);
 
     BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
+    (void)rootBoundary;
     assert(rootBoundary != 0);
     scene.requestInvalidate(NODE_DIRTY_PROPS);
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == rootBoundary);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     const PlatformApplyPlan &plan = SceneTestAccess::lastApplyPlan(scene);
+    (void)plan;
     assert(plan.paintKind == PlatformApplyPlan::PAINT_COMPOSITED);
     assert(plan.paintRoot == rootBoundary);
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
@@ -3969,9 +4030,10 @@ void testLokaFlowDslV1Core()
 
     scene.requestInvalidate(static_cast<NodeDirtyFlags>(NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT));
     BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
+    (void)rootBoundary;
     assert(rootBoundary != 0);
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == rootBoundary);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(g_defaultApplyLayoutCalls == 1);
     assert(g_defaultApplyCompositedPaintCalls == 1);
     assert(g_defaultApplyLocalPaintCalls == 0);
@@ -3991,7 +4053,7 @@ void testLokaFlowDslV1Core()
 
     scene.requestInvalidate(NODE_DIRTY_CHILD);
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == rootBoundary);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(g_defaultApplyStructureCalls == 0);
     assert(g_defaultApplyLayoutCalls == 1);
     assert(g_defaultApplyCompositedPaintCalls == 1);
@@ -4016,6 +4078,7 @@ void testLokaFlowDslV1Core()
 
     scene.requestBoundaryUpdate(rootBoundary, NODE_DIRTY_NONE, true);
 
+    (void)baselineCalls;
     assert(platform.calls_ > baselineCalls);
     assert((SceneTestAccess::lastApplyPlan(scene).paintKind == PlatformApplyPlan::PAINT_COMPOSITED)
            || (SceneTestAccess::lastApplyPlan(scene).paintKind == PlatformApplyPlan::PAINT_LOCAL_OPAQUE)
@@ -4097,15 +4160,17 @@ void testLokaFlowDslV1Core()
 
     scene.requestInvalidate(NODE_DIRTY_PROPS);
     BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
+    (void)rootBoundary;
     assert(rootBoundary != 0);
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == rootBoundary);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(g_pendingApplyCallCount == 1);
     assert(g_pendingApplyWhileApplyingCount == 1);
     assert(platform.boundaryApplyCalls_ == 1);
     assert(platform.lastBoundaryApplyRoot_ == SceneTestAccess::rootNode(scene));
     assert(platform.lastBoundaryApplyBoundary_ == rootBoundary);
     const PlatformApplyPlan &plan = SceneTestAccess::lastApplyPlan(scene);
+    (void)plan;
     assert(plan.paintKind == PlatformApplyPlan::PAINT_LOCAL);
     assert(plan.layoutRoot == rootBoundary);
     assert(plan.paintRoot == rootBoundary);
@@ -4133,7 +4198,7 @@ void testLokaFlowDslV1Core()
     assert(rootBoundary != 0);
     rootBoundary->noteOpaquePaintCoverage(true);
     scene.requestInvalidate(NODE_DIRTY_PROPS);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(SceneTestAccess::lastApplyPlan(scene).paintKind == PlatformApplyPlan::PAINT_LOCAL_OPAQUE);
 
     scene.unmount();
@@ -4176,8 +4241,9 @@ void testLokaFlowDslV1Core()
     siblingB->markViewDirty(NODE_DIRTY_PROPS);
 
     const SceneDirector &director = SceneTestAccess::director(scene);
+    (void)director;
     assert(director.firstPendingBoundary() != 0);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(g_pendingApplySiblingACalls == 1);
     assert(g_pendingApplySiblingBCalls == 1);
     assert(platform.boundaryApplyCalls_ == 2);
@@ -4227,13 +4293,13 @@ void testLokaFlowDslV1Core()
 
     siblingA->markViewDirty(NODE_DIRTY_PROPS);
 
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(g_pendingApplyDefersSiblingACalls == 1);
     assert(g_pendingApplyDefersSiblingBCalls == 0);
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == siblingB);
     assert(scene.hasPendingInvalidation());
 
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(g_pendingApplyDefersSiblingACalls == 1);
     assert(g_pendingApplyDefersSiblingBCalls == 1);
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
@@ -4265,7 +4331,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(2, loka::dsl::testing::SetBoolStateAndFlush(&showState, true))
         | loka::dsl::Step(3, loka::dsl::testing::CheckText("OnText", "On"));
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
 
     scene.unmount();
@@ -4304,14 +4370,17 @@ void testLokaFlowDslV1Core()
                                                                             | loka::app::scene::NODE_DIRTY_LAYOUT)))
         | loka::dsl::Step(6, loka::dsl::testing::AssertSnapIntEquals("platform.materialized", 1));
 
-    assert(okChain.run());
+    LOKA_VERIFY(okChain.run());
     long dirtyMask = 0;
+    (void)dirtyMask;
     assert(captured.getInt("platform.dirty.mask", dirtyMask));
     assert((dirtyMask & loka::app::scene::NODE_DIRTY_CHILD) != 0);
     assert((dirtyMask & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
     long fullRebuild = 0;
+    (void)fullRebuild;
     assert(captured.getInt("platform.full_rebuild", fullRebuild));
     long platformCalls = 0;
+    (void)platformCalls;
     assert(captured.getInt("platform.calls", platformCalls));
     assert(platformCalls >= 1);
 
@@ -4346,14 +4415,17 @@ void testLokaFlowDslV1Core()
             4, loka::dsl::testing::AssertSnapIntMaskHasBits("platform.dirty.mask", loka::app::scene::NODE_DIRTY_LAYOUT))
         | loka::dsl::Step(5, loka::dsl::testing::AssertSnapIntEquals("platform.materialized", 1));
 
-    assert(okChain.run());
+    LOKA_VERIFY(okChain.run());
     long dirtyMask = 0;
+    (void)dirtyMask;
     assert(captured.getInt("platform.dirty.mask", dirtyMask));
     assert((dirtyMask & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
     long fullRebuild = 1;
+    (void)fullRebuild;
     assert(captured.getInt("platform.full_rebuild", fullRebuild));
     assert(fullRebuild == 0);
     long platformCalls = 0;
+    (void)platformCalls;
     assert(captured.getInt("platform.calls", platformCalls));
     assert(platformCalls >= 1);
 
@@ -4382,7 +4454,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(1, loka::dsl::testing::SetIntStateAndFlush(&fontSizeState, 20)).input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::CheckText("SizedText", "Sized"));
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
 
     scene.unmount();
@@ -4412,7 +4484,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(3, loka::dsl::testing::FlushSceneInvalidation())
         | loka::dsl::Step(4, loka::dsl::testing::CheckText("MixedText", "After"));
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
 
     scene.unmount();
@@ -4430,7 +4502,7 @@ void testLokaFlowDslV1Core()
               .input(&input)
         | loka::dsl::Step(2, loka::dsl::testing::CheckDirtyHasBits(loka::app::scene::NODE_DIRTY_LAYOUT));
 
-    assert(okChain.run());
+    LOKA_VERIFY(okChain.run());
 
     FlowErrorCapture failCapture = {0, 0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failChain =
@@ -4440,7 +4512,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(2, loka::dsl::testing::CheckDirtyHasBits(loka::app::scene::NODE_DIRTY_LAYOUT))
               .onFailure(&FlowTestMarker::captureFailure, &failCapture);
 
-    assert(failChain.run());
+    LOKA_VERIFY(failChain.run());
     assert(failCapture.calls == 1);
     assert(failCapture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT);
     assert(failCapture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED);
@@ -4453,7 +4525,7 @@ void testLokaFlowDslV1Core()
         loka::dsl::Flow() | loka::dsl::Step(1, FlowTestSnapDirtyMaskAdapter("dirty-equals-ok", 0, 14)).input(&input)
         | loka::dsl::Step(2, loka::dsl::testing::CheckDirtyEquals(0));
 
-    assert(okChain.run());
+    LOKA_VERIFY(okChain.run());
 
     FlowErrorCapture failCapture = {0, 0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failChain =
@@ -4463,7 +4535,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(2, loka::dsl::testing::CheckDirtyEquals(0))
               .onFailure(&FlowTestMarker::captureFailure, &failCapture);
 
-    assert(failChain.run());
+    LOKA_VERIFY(failChain.run());
     assert(failCapture.calls == 1);
     assert(failCapture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT);
     assert(failCapture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED);
@@ -4477,7 +4549,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(1, FlowTestSnapTextValueAdapter("snap-check-ok", "Hello Flow", 2)).input(&input)
         | loka::dsl::Step(2, loka::dsl::testing::CheckSnapStringEquals("text.value", "Hello Flow"));
 
-    assert(okChain.run());
+    LOKA_VERIFY(okChain.run());
 
     FlowErrorCapture failCapture = {0, 0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failChain =
@@ -4486,7 +4558,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(2, loka::dsl::testing::CheckSnapStringEquals("text.value", "Mismatch"))
               .onFailure(&FlowTestMarker::captureFailure, &failCapture);
 
-    assert(failChain.run());
+    LOKA_VERIFY(failChain.run());
     assert(failCapture.calls == 1);
     assert(failCapture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT);
     assert(failCapture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED);
@@ -4502,8 +4574,9 @@ void testLokaFlowDslV1Core()
               .input(&input)
         | loka::dsl::Step(2, loka::dsl::testing::AssertSnapIntLessEqual("timing.flush_ms", 5)).onSuccess(&captured);
 
-    assert(okChain.run());
+    LOKA_VERIFY(okChain.run());
     long flushMs = 0;
+    (void)flushMs;
     assert(captured.getInt("timing.flush_ms", flushMs));
     assert(flushMs == 4);
 
@@ -4515,7 +4588,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(2, loka::dsl::testing::AssertSnapIntLessEqual("timing.flush_ms", 5))
               .onFailure(&FlowTestMarker::captureFailure, &failCapture);
 
-    assert(failChain.run());
+    LOKA_VERIFY(failChain.run());
     assert(failCapture.calls == 1);
     assert(failCapture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT);
     assert(failCapture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED);
@@ -4530,7 +4603,7 @@ void testLokaFlowDslV1Core()
               .input(&input)
         | loka::dsl::Step(2, loka::dsl::testing::CheckSnapIntGreaterEqual("timing.layout_ms", 10));
 
-    assert(okChain.run());
+    LOKA_VERIFY(okChain.run());
 
     FlowErrorCapture failCapture = {0, 0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failChain =
@@ -4540,7 +4613,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(2, loka::dsl::testing::CheckSnapIntGreaterEqual("timing.layout_ms", 10))
               .onFailure(&FlowTestMarker::captureFailure, &failCapture);
 
-    assert(failChain.run());
+    LOKA_VERIFY(failChain.run());
     assert(failCapture.calls == 1);
     assert(failCapture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT);
     assert(failCapture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED);
@@ -4555,7 +4628,7 @@ void testLokaFlowDslV1Core()
               .input(&input)
         | loka::dsl::Step(2, loka::dsl::testing::CheckTimingLessEqual("timing.flush_ms", 5));
 
-    assert(okChain.run());
+    LOKA_VERIFY(okChain.run());
 
     FlowErrorCapture failCapture = {0, 0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failChain =
@@ -4565,7 +4638,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(2, loka::dsl::testing::CheckTimingLessEqual("timing.flush_ms", 5))
               .onFailure(&FlowTestMarker::captureFailure, &failCapture);
 
-    assert(failChain.run());
+    LOKA_VERIFY(failChain.run());
     assert(failCapture.calls == 1);
     assert(failCapture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT);
     assert(failCapture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED);
@@ -4593,7 +4666,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(3, loka::dsl::testing::AssertSnapStringEquals("text.value", "Hello Flow"))
               .onSuccess(&captured);
 
-    assert(okChain.run());
+    LOKA_VERIFY(okChain.run());
     std::string value;
     assert(captured.get("text.value", value));
     assert(value == "Hello Flow");
@@ -4605,7 +4678,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(3, loka::dsl::testing::AssertSnapStringEquals("text.value", "Mismatch"))
               .onFailure(&FlowTestMarker::captureFailure, &failCapture);
 
-    assert(failChain.run());
+    LOKA_VERIFY(failChain.run());
     assert(failCapture.calls == 1);
     assert(failCapture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT);
     assert(failCapture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED);
@@ -4635,7 +4708,7 @@ void testLokaFlowDslV1Core()
               .input(&scenePtr)
               .onSuccess(&sameScene);
 
-    assert(okChain.run());
+    LOKA_VERIFY(okChain.run());
     assert(sameScene == scenePtr);
 
     FlowErrorCapture failCapture = {0, 0, 0};
@@ -4645,7 +4718,7 @@ void testLokaFlowDslV1Core()
               .input(&scenePtr)
               .onFailure(&FlowTestMarker::captureFailure, &failCapture);
 
-    assert(failChain.run());
+    LOKA_VERIFY(failChain.run());
     assert(failCapture.calls == 1);
     assert(failCapture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT);
     assert(failCapture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED);
@@ -4673,7 +4746,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(1, loka::dsl::testing::FindNodeById<TextNode>("StatusText")).input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::AssertTextEquals("Ready"));
 
-    assert(okChain.run());
+    LOKA_VERIFY(okChain.run());
 
     FlowErrorCapture capture = {0, 0, 0};
     loka::dsl::FlowChain<Scene *, TextNode *> failChain =
@@ -4682,7 +4755,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(2, loka::dsl::testing::AssertTextEquals("Busy"))
               .onFailure(&FlowTestMarker::captureFailure, &capture);
 
-    assert(failChain.run());
+    LOKA_VERIFY(failChain.run());
     assert(capture.calls == 1);
     assert(capture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT);
     assert(capture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED);
@@ -4712,7 +4785,7 @@ void testLokaFlowDslV1Core()
               .input(&scenePtr)
               .onFailure(&FlowTestMarker::captureFailure, &capture);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(capture.calls == 1);
     assert(capture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO);
     assert(capture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_NODE_TYPE_MISMATCH);
@@ -4743,7 +4816,7 @@ void testLokaFlowDslV1Core()
               .input(&scenePtr)
               .onFailure(&FlowTestMarker::captureFailure, &capture);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(capture.calls == 1);
     assert(capture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO);
     assert(capture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_DUPLICATE_TEST_ID);
@@ -4763,7 +4836,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter()).input(&fileResult).onSuccess(&context)
         | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter()).onSuccess(&projection);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(projection.request.source == loka::core::resource::BLOB_SOURCE_FILE);
     assert(!projection.request.filePath.empty());
     assert(projection.request.tag.equals(loka::core::String::Literal("image-file")));
@@ -4781,7 +4854,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter()).input(&canceled).onSuccess(&context)
         | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter()).onSuccess(&projection);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(projection.request.source == loka::core::resource::BLOB_SOURCE_NONE);
     assert(projection.message.equals(loka::core::String::Literal("Canceled")));
   }
@@ -4797,7 +4870,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter()).input(&folder).onSuccess(&context)
         | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter()).onSuccess(&projection);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(projection.request.source == loka::core::resource::BLOB_SOURCE_NONE);
     assert(projection.request.filePath.empty());
     assert(projection.message.equals(loka::core::String::Literal("Loka folder: C:/tmp/images")));
@@ -4813,7 +4886,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter()).input(&errorResult).onSuccess(&context)
         | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter()).onSuccess(&projection);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(projection.request.source == loka::core::resource::BLOB_SOURCE_NONE);
     assert(projection.request.filePath.empty());
     assert(projection.message.equals(loka::core::String::Literal("Error 42")));
@@ -4830,7 +4903,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter()).input(&fileEmptyPath).onSuccess(&context)
         | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter()).onSuccess(&projection);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(projection.request.source == loka::core::resource::BLOB_SOURCE_NONE);
     assert(projection.request.filePath.empty());
     assert(projection.request.tag.empty());
@@ -4851,7 +4924,7 @@ void testLokaFlowDslV1Core()
               .onFailure(&FlowTestMarker::captureFailure, &capture)
         | loka::dsl::Step(2, simpleviewer::DecodeAttemptToImageAdapter()).onSuccess(&image);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(!image.isValid());
     assert(capture.calls == 1);
     assert(capture.kind == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_DECODE);
@@ -4874,7 +4947,7 @@ void testLokaFlowDslV1Core()
               .onFailure(&FlowTestMarker::captureFailure, &capture)
         | loka::dsl::Step(2, simpleviewer::DecodeAttemptToImageAdapter()).onSuccess(&image);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(ctx.createImageCalls_ == 1);
     assert(image.isValid());
     assert(image.width() == 16);
@@ -4898,7 +4971,7 @@ void testLokaFlowDslV1Core()
               .onFailure(&FlowTestMarker::captureFailure, &capture)
         | loka::dsl::Step(2, simpleviewer::DecodeAttemptToImageAdapter()).onSuccess(&image);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(ctx.createImageCalls_ == 1);
     assert(!image.isValid());
     assert(capture.calls == 1);
@@ -4917,11 +4990,13 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(2, FlowTestPendingThenSuccessAdapter(&ready, &calls)).onSuccess(&captured);
 
     const loka::dsl::FlowRunResult first = chain.runResult();
+    (void)first;
     assert(first == loka::dsl::FLOW_RUN_PENDING);
     assert(calls == 1);
 
     ready = true;
     const loka::dsl::FlowRunResult resumed = chain.resumeResult(2);
+    (void)resumed;
     assert(resumed == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(calls == 2);
     assert(captured == 120);
@@ -4944,6 +5019,7 @@ void testLokaFlowDslV1Core()
     chain.cancel();
     ready = true;
     const loka::dsl::FlowRunResult canceled = chain.resumeResult(1);
+    (void)canceled;
     assert(canceled == loka::dsl::FLOW_RUN_CANCELED);
     assert(calls == 1);
     assert(captured == 0);
@@ -4964,7 +5040,7 @@ void testLokaFlowDslV1Core()
     loka::dsl::FlowChain<int, int> chain =
         loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input).onSuccess(&result, &tracker);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(result.get() == 10);
     assert(resultNotifications == 1);
   }
@@ -4980,7 +5056,7 @@ void testLokaFlowDslV1Core()
     loka::dsl::FlowChain<int, int> chain =
         loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input).onSuccess(&result, &tracker);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(result.get() == 14);
     assert(observation.calls == 1);
     assert(observation.phase == loka::core::TRACKER_PRECOMMIT);
@@ -4998,6 +5074,7 @@ void testLokaFlowDslV1Core()
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
     const loka::dsl::FlowRunResult result = chain.runResult();
+    (void)result;
     assert(result == loka::dsl::FLOW_RUN_FAILED);
     assert(callsA <= 1024);
     assert(order.size() == 1);
@@ -5018,7 +5095,7 @@ void testLokaFlowDslV1Core()
               .onFailure(&FlowTestMarker::captureFailure, &capture)
               .onSuccess(&blob);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(capture.calls == 1);
     assert(capture.kind == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_BLOB_LOAD);
     assert(capture.code == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_CODE_NO_FILE_SELECTED);
@@ -5032,8 +5109,9 @@ void testLokaFlowDslV1Core()
       FILE *out = std::fopen(tmpPath, "wb");
       assert(out != 0);
       const std::size_t written = std::fwrite(data, 1, sizeof(data), out);
+      (void)written;
       assert(written == sizeof(data));
-      assert(std::fclose(out) == 0);
+      LOKA_VERIFY(std::fclose(out) == 0);
     }
 
     simpleviewer::ChooserProjection projection;
@@ -5049,7 +5127,7 @@ void testLokaFlowDslV1Core()
               .onSuccess(&blob)
               .onFailure(&FlowTestMarker::captureFailure, &capture);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(capture.calls == 0);
     assert(blob.isValid());
     assert(blob.bytes().size() == 4);
@@ -5077,7 +5155,7 @@ void testLokaFlowDslV1Core()
               .onFailure(&FlowTestMarker::captureFailure, &capture)
               .onSuccess(&blob);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(capture.calls == 1);
     assert(capture.kind == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_BLOB_LOAD);
     assert(capture.code == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_OPEN_FAILED);
@@ -5091,8 +5169,9 @@ void testLokaFlowDslV1Core()
       FILE *out = std::fopen(tmpPath, "wb");
       assert(out != 0);
       const std::size_t written = std::fwrite(data, 1, sizeof(data), out);
+      (void)written;
       assert(written == sizeof(data));
-      assert(std::fclose(out) == 0);
+      LOKA_VERIFY(std::fclose(out) == 0);
     }
 
     FlowTestPlatformContext ctx;
@@ -5113,7 +5192,7 @@ void testLokaFlowDslV1Core()
               .onFailure(&FlowTestMarker::captureFailure, &capture)
         | loka::dsl::Step(5, simpleviewer::DecodeAttemptToImageAdapter()).onSuccess(&image);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(capture.calls == 0);
     assert(ctx.createImageCalls_ == 1);
     assert(image.isValid());
@@ -5143,7 +5222,7 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(5, simpleviewer::DecodeAttemptToImageAdapter()).onSuccess(&image);
     chain.onFailure(&FlowTestMarker::captureFailure, &capture);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(!image.isValid());
     assert(capture.calls == 1);
     assert(capture.kind == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_BLOB_LOAD);
@@ -5171,7 +5250,7 @@ void testLokaFlowDslV1Core()
                                                                             &tracker,
                                                                             &FlowTestFieldOutput::extra);
 
-    assert(chain.run());
+    LOKA_VERIFY(chain.run());
     assert(valueState.get() == 50); // 5 * 10
     assert(extraState.get() == 6);  // 5 + 1
     assert(observation.calls == 1);
@@ -5209,7 +5288,7 @@ void testLokaFlowDslV1Core()
     assert(!slot.isValid());
     slot.set(directChain);
     assert(slot.isValid());
-    assert(slot.run());
+    LOKA_VERIFY(slot.run());
     assert(directResult == 16);
 
     loka::core::MutableState<int> trigger;
@@ -5241,11 +5320,11 @@ void testLokaFlowDslV1Core()
         | loka::dsl::Step(1, FlowTestPendingThenSuccessAdapter(&ready, &calls)).input(&input).onSuccess(&captured);
 
     slot.set(chain);
-    assert(slot.runResult() == loka::dsl::FLOW_RUN_PENDING);
+    LOKA_VERIFY(slot.runResult() == loka::dsl::FLOW_RUN_PENDING);
     assert(calls == 1);
     slot.cancel();
     ready = true;
-    assert(slot.resumeResult(1) == loka::dsl::FLOW_RUN_CANCELED);
+    LOKA_VERIFY(slot.resumeResult(1) == loka::dsl::FLOW_RUN_CANCELED);
     assert(captured == 0);
 
     slot.clear();
@@ -5286,11 +5365,11 @@ void testLokaFlowDslV1Core()
                    .input(&input)
                    .onSuccess(&SetDuringRunHelper::replaceFlow, &ctx)
                    .onSuccess(&oldResult));
-    assert(slot.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+    LOKA_VERIFY(slot.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(replaceCalls == 1);
     assert(oldResult == 8);
     assert(slot.isValid());
-    assert(slot.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+    LOKA_VERIFY(slot.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(replacementResult == 11);
 
     slot.clear();
@@ -5326,7 +5405,7 @@ void testLokaFlowDslV1Core()
                    .input(&input)
                    .onSuccess(&ClearDuringRunHelper::clearFlow, &ctx)
                    .onSuccess(&oldResult));
-    assert(slot.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+    LOKA_VERIFY(slot.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(clearCalls == 1);
     assert(oldResult == 10);
     assert(!slot.isValid());
@@ -5347,13 +5426,13 @@ void testLokaFlowDslV1Core()
       loka::app::scene::FlowSlot<SlotFlowChain> slot;
       slot.set(loka::dsl::Flow()
                | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input).onSuccess(&result));
-      assert(slot.run());
+      LOKA_VERIFY(slot.run());
       assert(result == 12);
       escaped = new SlotFlowChain(slot.dangerouslyUnwrap()); // shares the hooked impl
     } // slot destroyed: its run state is freed with the slot
 
     result = 0;
-    assert(escaped->run()); // pre-fix: hooks fire into the freed run state (ASan UAF)
+    LOKA_VERIFY(escaped->run()); // pre-fix: hooks fire into the freed run state (ASan UAF)
     assert(result == 12);
     delete escaped;
   }
@@ -5372,7 +5451,7 @@ void testLokaFlowDslV1Core()
                                   | loka::dsl::Step(2, FlowTestAdd1Adapter()).onSuccess(&result));
     }
 
-    assert(escaped->run());
+    LOKA_VERIFY(escaped->run());
     assert(result == 13);
     delete escaped;
   }
@@ -5404,7 +5483,7 @@ void testLokaFlowDslV1Core()
     CancelDuringFlowSuccess::Context ctx = {&chain, &cancelCalls};
     chain.onSuccess(&CancelDuringFlowSuccess::cancelSelf, &ctx, 1);
 
-    assert(chain.runResult() == loka::dsl::FLOW_RUN_CANCELED);
+    LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_CANCELED);
     assert(stepCalls == 1);
     assert(cancelCalls == 1);
   }
@@ -5580,7 +5659,7 @@ void testSimpleViewerClosesDialogFromChooserCompletion()
   openDialogEvent.emit();
   if (scene.hasPendingInvalidation())
   {
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
   }
   dialog = findSimpleViewerOpenFileDialog(scene);
   assert(dialog && dialog->props.result_);
@@ -5588,7 +5667,7 @@ void testSimpleViewerClosesDialogFromChooserCompletion()
   deliverSimpleViewerOpenFileDialogResult(dialog, loka::app::FileChooserResult());
   if (scene.hasPendingInvalidation())
   {
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
   }
   dialog = findSimpleViewerOpenFileDialog(scene);
   assert(dialog && "RESULT_NONE is not a delivered completion and must leave the dialog shown");
@@ -5608,7 +5687,7 @@ void testSimpleViewerClosesDialogFromChooserCompletion()
       openDialogEvent.emit();
       if (scene.hasPendingInvalidation())
       {
-        assert(scene.flushInvalidation());
+        LOKA_VERIFY(scene.flushInvalidation());
       }
       dialog = findSimpleViewerOpenFileDialog(scene);
       assert(dialog);
@@ -6022,6 +6101,7 @@ void testFlowChainRunPinDefersImplementationDeletion()
   assert(probe.liveAdapters == 1);
 
   const loka::dsl::FlowRunResult result = first->runResult();
+  (void)result;
   assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
   assert(first == 0);
   assert(second == 0);
@@ -6043,6 +6123,7 @@ void testFlowSlotClearDefersRunningFlowDeletion()
   assert(probe.liveAdapters == 1);
 
   const loka::dsl::FlowRunResult result = slot.runResult();
+  (void)result;
   assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
   assert(!slot.isValid());
   assert(probe.runCalls == 1);
@@ -6065,6 +6146,7 @@ void testFlowSlotSetDefersRunningFlowDeletion()
   assert(runningProbe.liveAdapters == 1);
 
   const loka::dsl::FlowRunResult firstResult = slot.runResult();
+  (void)firstResult;
   assert(firstResult == loka::dsl::FLOW_RUN_SUCCEEDED);
   assert(slot.isValid());
   assert(runningProbe.runCalls == 1);
@@ -6072,6 +6154,7 @@ void testFlowSlotSetDefersRunningFlowDeletion()
   assert(replacementProbe.liveAdapters == 1);
 
   const loka::dsl::FlowRunResult replacementResult = slot.runResult();
+  (void)replacementResult;
   assert(replacementResult == loka::dsl::FLOW_RUN_SUCCEEDED);
   assert(replacementProbe.runCalls == 1);
   slot.clear();
@@ -6092,6 +6175,7 @@ void testFlowSlotOwnerDestructionDefersRunningFlowDeletion()
   assert(probe.liveAdapters == 1);
 
   const loka::dsl::FlowRunResult result = owner->runFlow();
+  (void)result;
   assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
   assert(owner == 0);
   assert(probe.runCalls == 1);
@@ -6123,7 +6207,7 @@ void testFlowOwnerDestructionReleasesPendingFlow()
       owner->setFlow(flow);
     }
     assert(pendingProbe.liveAdapters == 1);
-    assert(owner->runFlow() == loka::dsl::FLOW_RUN_PENDING);
+    LOKA_VERIFY(owner->runFlow() == loka::dsl::FLOW_RUN_PENDING);
     assert(pendingProbe.runCalls == 1);
     delete owner;
   }

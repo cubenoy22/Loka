@@ -1,4 +1,5 @@
 #include "PictParserTests.hpp"
+#include "support/TestVerify.hpp"
 
 #include <cassert>
 #include <cstdio>
@@ -61,7 +62,7 @@ void testPictParserKeepsRawRangeAtItsBase()
   PutVersion1Pict(bytes, rangeBase);
 
   loka::toolbox::pict::PictParseResult result;
-  assert(loka::toolbox::pict::ParsePict(
+  LOKA_VERIFY(loka::toolbox::pict::ParsePict(
       bytes, rangeBase, bytes.size(), result));
   assert(result.pictureOffset == rangeBase);
   assert(result.pictureSize == 14);
@@ -77,7 +78,7 @@ void testPictParserAcceptsOrdinaryHeaderedFile()
   PutVersion2Pict(bytes, 512);
 
   loka::toolbox::pict::PictParseResult result;
-  assert(loka::toolbox::pict::ParsePict(
+  LOKA_VERIFY(loka::toolbox::pict::ParsePict(
       bytes, 0, bytes.size(), result));
   assert(result.pictureOffset == 512);
   assert(result.pictureSize == 16);
@@ -94,14 +95,14 @@ void testPictParserCorroboratesDeceptiveHeaderBeforeChoosingOffset()
   PutVersion2Pict(bytes, 512);
 
   loka::toolbox::pict::PictParseResult result;
-  assert(loka::toolbox::pict::ParsePict(
+  LOKA_VERIFY(loka::toolbox::pict::ParsePict(
       bytes, 0, bytes.size(), result));
   assert(result.pictureOffset == 512);
 
   // If the application header also happens to carry a version opcode, the
   // headered-file candidate wins the corroborated tie.
   PutVersion2Pict(bytes, 0);
-  assert(loka::toolbox::pict::ParsePict(
+  LOKA_VERIFY(loka::toolbox::pict::ParsePict(
       bytes, 0, bytes.size(), result));
   assert(result.pictureOffset == 512);
 
@@ -109,14 +110,14 @@ void testPictParserCorroboratesDeceptiveHeaderBeforeChoosingOffset()
   // merely plausible candidate 512 bytes later.
   PutVersion1Pict(bytes, 0);
   PutPlausibleHeader(bytes, 512, 16);
-  assert(loka::toolbox::pict::ParsePict(
+  LOKA_VERIFY(loka::toolbox::pict::ParsePict(
       bytes, 0, bytes.size(), result));
   assert(result.pictureOffset == 0);
 
   // Plausible frame bytes alone are never sufficient corroboration.
   std::vector<unsigned char> unversioned(16, 0);
   PutPlausibleHeader(unversioned, 0, 16);
-  assert(!loka::toolbox::pict::ParsePict(
+  LOKA_VERIFY(!loka::toolbox::pict::ParsePict(
       unversioned, 0, unversioned.size(), result));
 
   std::printf(

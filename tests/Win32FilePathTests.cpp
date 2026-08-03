@@ -1,4 +1,5 @@
 #include "Win32FilePathTests.hpp"
+#include "support/TestVerify.hpp"
 
 #include <windows.h>
 
@@ -74,18 +75,18 @@ void testWin32OpenReadAcceptsFullWidthPath()
 
   FILE *seed = _wfopen(fileWide.c_str(), L"wb");
   assert(seed && "fixture write must use the wide CRT: the narrow one is the thing under test");
-  assert(fwrite(kPayload, 1, sizeof(kPayload), seed) == sizeof(kPayload));
+  LOKA_VERIFY(fwrite(kPayload, 1, sizeof(kPayload), seed) == sizeof(kPayload));
   fclose(seed);
 
   std::string utf8Path;
-  assert(WideToUtf8(fileWide, utf8Path));
+  LOKA_VERIFY(WideToUtf8(fileWide, utf8Path));
   const loka::core::String logicalPath((std::string(utf8Path)));
 
   // The fix: the seam names the file the way Windows names files.
   FILE *opened = loka::platform::file::OpenRead(logicalPath);
   assert(opened && "OpenRead must reach a path containing full-width characters (#15)");
   unsigned char read[sizeof(kPayload)] = {0};
-  assert(fread(read, 1, sizeof(read), opened) == sizeof(read));
+  LOKA_VERIFY(fread(read, 1, sizeof(read), opened) == sizeof(read));
   fclose(opened);
   for (std::size_t i = 0; i < sizeof(kPayload); ++i)
   {
@@ -101,7 +102,7 @@ void testWin32OpenReadAcceptsFullWidthPath()
   if (GetACP() != CP_UTF8)
   {
     std::string flattened;
-    assert(loka::platform::CollectUtf8(logicalPath, flattened));
+    LOKA_VERIFY(loka::platform::CollectUtf8(logicalPath, flattened));
     assert(flattened == utf8Path && "the logical path must survive as UTF-8; the defect is in the open, not the String");
     FILE *narrow = std::fopen(flattened.c_str(), "rb");
     assert(!narrow && "the narrow open must still fail on a full-width path; that is why the seam exists");
@@ -140,7 +141,7 @@ void testWin32FileFromWidePathSurvivesToOpen()
 
   FILE *seed = _wfopen(fileWide.c_str(), L"wb");
   assert(seed);
-  assert(fwrite(kPayload, 1, sizeof(kPayload), seed) == sizeof(kPayload));
+  LOKA_VERIFY(fwrite(kPayload, 1, sizeof(kPayload), seed) == sizeof(kPayload));
   fclose(seed);
 
   // The producer under test: what a `W` Win32 entry point hands us must reach
@@ -152,7 +153,7 @@ void testWin32FileFromWidePathSurvivesToOpen()
   FILE *opened = loka::platform::file::OpenRead(item.toString());
   assert(opened && "a File built from a UTF-16 path must still name that path at the open");
   unsigned char read[sizeof(kPayload)] = {0};
-  assert(fread(read, 1, sizeof(read), opened) == sizeof(read));
+  LOKA_VERIFY(fread(read, 1, sizeof(read), opened) == sizeof(read));
   fclose(opened);
   for (std::size_t i = 0; i < sizeof(kPayload); ++i)
   {

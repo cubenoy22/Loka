@@ -1,4 +1,5 @@
 #include "LrpkGoldenBytesTests.hpp"
+#include "support/TestVerify.hpp"
 
 #include <cassert>
 #include <cstdio>
@@ -206,7 +207,7 @@ namespace
     for (std::size_t i = 0; i < 3; ++i)
     {
       Asset asset;
-      assert(reader.get(kExpected[i].id, facts, asset) == Reader::GET_OK);
+      LOKA_VERIFY(reader.get(kExpected[i].id, facts, asset) == Reader::GET_OK);
       assert(asset.kind == kExpected[i].kind);
       assert(asset.length == kExpected[i].length);
       assert(asset.bag == kExpected[i].bag);
@@ -226,25 +227,25 @@ namespace
                             std::vector<unsigned char> &secondBag)
   {
     std::size_t need = 0;
-    assert(reader.beginOpen(source, kStamp, Reader::VERIFY_INTEGRITY, need) ==
+    LOKA_VERIFY(reader.beginOpen(source, kStamp, Reader::VERIFY_INTEGRITY, need) ==
            Reader::OPEN_OK);
     // 512 + 8 + alignUp(4) + 8 + alignUp(56) + 8 = 636, the DATA payload
     // start. The spec's worked example, pinned as a number rather than as a
     // recomputation of the same formula.
     assert(need == 124);
     index.assign(need, 0);
-    assert(reader.finishOpen(&index[0], need) == Reader::OPEN_OK);
+    LOKA_VERIFY(reader.finishOpen(&index[0], need) == Reader::OPEN_OK);
 
     std::size_t stored = 0;
-    assert(reader.bagStoredSize(0, stored) && stored == kFirstBagBytes);
+    LOKA_VERIFY(reader.bagStoredSize(0, stored) && stored == kFirstBagBytes);
     firstBag.assign(stored, 0);
     assert(reinterpret_cast<std::size_t>(&firstBag[0]) % kPayloadAlign == 0);
-    assert(reader.readBagInto(0, &firstBag[0], stored) == Reader::BAG_OK);
+    LOKA_VERIFY(reader.readBagInto(0, &firstBag[0], stored) == Reader::BAG_OK);
 
-    assert(reader.bagStoredSize(1, stored) && stored == kSecondBagBytes);
+    LOKA_VERIFY(reader.bagStoredSize(1, stored) && stored == kSecondBagBytes);
     secondBag.assign(stored, 0);
     assert(reinterpret_cast<std::size_t>(&secondBag[0]) % kPayloadAlign == 0);
-    assert(reader.readBagInto(1, &secondBag[0], stored) == Reader::BAG_OK);
+    LOKA_VERIFY(reader.readBagInto(1, &secondBag[0], stored) == Reader::BAG_OK);
   }
 
   bool WriteWholeFile(const char *path, const std::vector<unsigned char> &bytes)
@@ -274,7 +275,7 @@ void testLrpkWireFormatMatchesAnIndependentlyAssembledPackage()
   writer.addAsset(AssetLayoutKey(""), 2, first, ASSET_KIND_STRING, 0, kSilver, sizeof(kSilver));
   writer.addAsset(AssetLayoutKey(""), 3, second, ASSET_KIND_IMAGE, 0, kBronze, sizeof(kBronze));
   std::vector<unsigned char> built;
-  assert(writer.build(kStamp, built) == Writer::BUILD_OK);
+  LOKA_VERIFY(writer.build(kStamp, built) == Writer::BUILD_OK);
   assert(built.size() == golden.size());
   assert(std::memcmp(&built[0], &golden[0], golden.size()) == 0);
 
@@ -286,28 +287,28 @@ void testLrpkWireFormatMatchesAnIndependentlyAssembledPackage()
   const unsigned char *bytes = AlignedCopy(golden, backing);
 
   Reader reader;
-  assert(reader.openBorrowedBytes(bytes, golden.size(), kStamp, Reader::VERIFY_INTEGRITY) ==
+  LOKA_VERIFY(reader.openBorrowedBytes(bytes, golden.size(), kStamp, Reader::VERIFY_INTEGRITY) ==
          Reader::OPEN_OK);
   assert(reader.bagCount() == 2);
   assert(reader.assetCount() == 3);
   assert(reader.idSpaceStamp() == kStamp);
-  assert(reader.openBag(0) == Reader::BAG_OK);
-  assert(reader.openBag(1) == Reader::BAG_OK);
+  LOKA_VERIFY(reader.openBag(0) == Reader::BAG_OK);
+  LOKA_VERIFY(reader.openBag(1) == Reader::BAG_OK);
 
   Facts facts;
   Asset asset;
-  assert(reader.get(1, facts, asset) == Reader::GET_OK);
+  LOKA_VERIFY(reader.get(1, facts, asset) == Reader::GET_OK);
   assert(asset.kind == ASSET_KIND_IMAGE && asset.length == sizeof(kGold));
   assert(std::memcmp(asset.bytes, kGold, sizeof(kGold)) == 0);
 
   // Reached through a non-zero row offset inside the first bag.
-  assert(reader.get(2, facts, asset) == Reader::GET_OK);
+  LOKA_VERIFY(reader.get(2, facts, asset) == Reader::GET_OK);
   assert(asset.kind == ASSET_KIND_STRING && asset.length == sizeof(kSilver));
   assert(std::memcmp(asset.bytes, kSilver, sizeof(kSilver)) == 0);
 
   // And this one through a non-zero *bag* offset, so a reader that confused
   // the two bases would fail here rather than pass by coincidence.
-  assert(reader.get(3, facts, asset) == Reader::GET_OK);
+  LOKA_VERIFY(reader.get(3, facts, asset) == Reader::GET_OK);
   assert(asset.kind == ASSET_KIND_IMAGE && asset.length == sizeof(kBronze));
   assert(std::memcmp(asset.bytes, kBronze, sizeof(kBronze)) == 0);
 
@@ -327,22 +328,22 @@ void testLrpkDataLayoutFollowsSourcePathInsteadOfId()
                   1, bag, ASSET_KIND_IMAGE, 0, &zPayload, 1);
 
   std::vector<unsigned char> package;
-  assert(writer.build(kStamp, package) == Writer::BUILD_OK);
+  LOKA_VERIFY(writer.build(kStamp, package) == Writer::BUILD_OK);
   std::vector<unsigned char> backing;
   const unsigned char *bytes = AlignedCopy(package, backing);
 
   Reader reader;
-  assert(reader.openBorrowedBytes(bytes,
+  LOKA_VERIFY(reader.openBorrowedBytes(bytes,
                                   package.size(),
                                   kStamp,
                                   Reader::VERIFY_INTEGRITY) == Reader::OPEN_OK);
-  assert(reader.openBag(bag) == Reader::BAG_OK);
+  LOKA_VERIFY(reader.openBag(bag) == Reader::BAG_OK);
 
   Facts facts;
   Asset asset;
-  assert(reader.get(2, facts, asset) == Reader::GET_OK);
+  LOKA_VERIFY(reader.get(2, facts, asset) == Reader::GET_OK);
   assert(asset.offsetInBag == 0);
-  assert(reader.get(1, facts, asset) == Reader::GET_OK);
+  LOKA_VERIFY(reader.get(1, facts, asset) == Reader::GET_OK);
   assert(asset.offsetInBag == kPayloadAlign);
 
   // An explicit declaration order is stronger than the path fallback.
@@ -353,18 +354,18 @@ void testLrpkDataLayoutFollowsSourcePathInsteadOfId()
   orderedWriter.addAsset(AssetLayoutKey(0, "Assets/Z.bin"),
                          1, orderedBag, ASSET_KIND_IMAGE, 0, &zPayload, 1);
   std::vector<unsigned char> orderedPackage;
-  assert(orderedWriter.build(kStamp, orderedPackage) == Writer::BUILD_OK);
+  LOKA_VERIFY(orderedWriter.build(kStamp, orderedPackage) == Writer::BUILD_OK);
   std::vector<unsigned char> orderedBacking;
   const unsigned char *orderedBytes = AlignedCopy(orderedPackage, orderedBacking);
   Reader orderedReader;
-  assert(orderedReader.openBorrowedBytes(orderedBytes,
+  LOKA_VERIFY(orderedReader.openBorrowedBytes(orderedBytes,
                                          orderedPackage.size(),
                                          kStamp,
                                          Reader::VERIFY_INTEGRITY) == Reader::OPEN_OK);
-  assert(orderedReader.openBag(orderedBag) == Reader::BAG_OK);
-  assert(orderedReader.get(1, facts, asset) == Reader::GET_OK);
+  LOKA_VERIFY(orderedReader.openBag(orderedBag) == Reader::BAG_OK);
+  LOKA_VERIFY(orderedReader.get(1, facts, asset) == Reader::GET_OK);
   assert(asset.offsetInBag == 0);
-  assert(orderedReader.get(2, facts, asset) == Reader::GET_OK);
+  LOKA_VERIFY(orderedReader.get(2, facts, asset) == Reader::GET_OK);
   assert(asset.offsetInBag == kPayloadAlign);
 
   std::printf("testLrpkDataLayoutFollowsSourcePathInsteadOfId passed\n");
@@ -384,12 +385,12 @@ void testLrpkGoldenBytesReadTheSameThroughEveryTransport()
   std::vector<unsigned char> backing;
   const unsigned char *bytes = AlignedCopy(golden, backing);
   Reader memory;
-  assert(memory.openBorrowedBytes(bytes,
+  LOKA_VERIFY(memory.openBorrowedBytes(bytes,
                                   golden.size(),
                                   kStamp,
                                   Reader::VERIFY_INTEGRITY) == Reader::OPEN_OK);
-  assert(memory.openBag(0) == Reader::BAG_OK);
-  assert(memory.openBag(1) == Reader::BAG_OK);
+  LOKA_VERIFY(memory.openBag(0) == Reader::BAG_OK);
+  LOKA_VERIFY(memory.openBag(1) == Reader::BAG_OK);
   ExpectGoldenContents(memory);
 
   // The source and every buffer are declared ahead of the reader that
@@ -411,11 +412,12 @@ void testLrpkGoldenBytesReadTheSameThroughEveryTransport()
   // Each registered test runs in its own working directory, so a bare
   // relative name cannot collide with another test's fixture.
   const char *path = "golden.lrpk";
-  assert(WriteWholeFile(path, golden));
+  LOKA_VERIFY(WriteWholeFile(path, golden));
   StdioByteSource file;
-  assert(file.open(loka::core::String::Literal(path)));
+  LOKA_VERIFY(file.open(loka::core::String::Literal(path)));
   assert(file.isOpen());
   std::size_t fileSize = 0;
+  (void)fileSize;
   assert(file.size(fileSize) && fileSize == golden.size());
 
   std::vector<unsigned char> fileIndex;
@@ -431,7 +433,7 @@ void testLrpkGoldenBytesReadTheSameThroughEveryTransport()
   // A source asked for bytes past the end of the file answers false rather
   // than short, because the reader has no partial-read concept to receive.
   unsigned char past[4];
-  assert(!file.readAt(golden.size() - 2, past, sizeof(past)));
+  LOKA_VERIFY(!file.readAt(golden.size() - 2, past, sizeof(past)));
   file.close();
   assert(!file.isOpen());
 

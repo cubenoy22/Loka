@@ -1,4 +1,5 @@
 #include "Win32NodeHandlerEnsureTests.hpp"
+#include "support/TestVerify.hpp"
 #include <cassert>
 #include <cstdio>
 #include <windows.h>
@@ -65,7 +66,7 @@ void testWin32NodeHandlerEnsureContract()
     state.y = 20;
     state.width = 100;
     state.height = 30;
-    assert(controller.prepareProjectedLayout(&button, state));
+    LOKA_VERIFY(controller.prepareProjectedLayout(&button, state));
 
     Win32ButtonContext *ctx = static_cast<Win32ButtonContext *>(button.getContext());
     assert(ctx && "ensure must publish the created context through setContext");
@@ -81,7 +82,7 @@ void testWin32NodeHandlerEnsureContract()
     state.y = 50;
     state.width = 120;
     state.height = 40;
-    assert(controller.prepareProjectedLayout(&button, state));
+    LOKA_VERIFY(controller.prepareProjectedLayout(&button, state));
     assert(button.getContext() == ctx && "re-ensure must reuse the existing context, not recreate it");
     assert(countChildWindows(root) == childrenAfterFirstEnsure &&
            "re-ensure must not materialize another native window");
@@ -97,12 +98,12 @@ void testWin32NodeHandlerEnsureContract()
     state.y = 100;
     state.width = 200;
     state.height = 16;
-    assert(controller.prepareProjectedLayout(&text, state));
+    LOKA_VERIFY(controller.prepareProjectedLayout(&text, state));
     loka::app::scene::NodeContext *textCtx = text.getContext();
     assert(textCtx && "ensure must publish the created context through setContext");
     const int childrenWithText = countChildWindows(root);
     assert(childrenWithText == childrenAfterFirstEnsure + 1);
-    assert(controller.prepareProjectedLayout(&text, state));
+    LOKA_VERIFY(controller.prepareProjectedLayout(&text, state));
     assert(text.getContext() == textCtx);
     assert(countChildWindows(root) == childrenWithText);
 
@@ -117,7 +118,7 @@ void testWin32NodeHandlerEnsureContract()
     state.y = 130;
     state.width = 120;
     state.height = 16;
-    assert(!controller.prepareProjectedLayout(&scrollBar, state) &&
+    LOKA_VERIFY(!controller.prepareProjectedLayout(&scrollBar, state) &&
            "an unsupported kind must refuse, not project");
     assert(!scrollBar.getContext());
     assert(countChildWindows(root) == childrenWithText &&

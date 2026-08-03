@@ -1,4 +1,5 @@
 #include "NullPlatformContractTests.hpp"
+#include "support/TestVerify.hpp"
 
 #include <cassert>
 
@@ -419,6 +420,7 @@ namespace
 
   void assertParkedTransitionTable(const ParkedFactRecord &record)
   {
+    (void)record;
     assert(record.constructionCount == 1);
     assert(record.attachReads == 1);
     assert(record.transitions.size() == 1);
@@ -1480,6 +1482,7 @@ namespace
 
   void assertParkedRetirementTransitionTable(const ParkedFactRecord &record)
   {
+    (void)record;
     assert(record.constructionCount == 1);
     assert(record.attachReads == 1);
     assert(record.transitions.size() == 2);
@@ -1492,7 +1495,7 @@ namespace
   void requestChildPump(loka::app::scene::Scene &scene)
   {
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
   }
 
   void mountAndAttach(loka::app::scene::Scene &scene, NullScenePlatformController &platform)
@@ -1530,6 +1533,7 @@ namespace
         assert(safePointDepth > 0);
         if (lastDisposeSequence != 0)
         {
+          (void)activeSafePointSequence;
           assert(activeSafePointSequence < lastDisposeSequence);
           assert(lastDisposeSequence < events[i].sequence);
         }
@@ -1559,7 +1563,7 @@ void testNullNodeHandlerRefusalIsTypedObservableAndContextless()
   state.width = 100;
   state.height = 20;
 
-  assert(!platform.prepareProjectedLayout(&cell, state));
+  LOKA_VERIFY(!platform.prepareProjectedLayout(&cell, state));
   assert(!cell.getContext());
   assert(platform.cellRefusalCount() == 1);
 }
@@ -1572,7 +1576,7 @@ void testNullNodeHandlerRealKindStillProjects()
   state.width = 100;
   state.height = 20;
 
-  assert(platform.prepareProjectedLayout(&button, state));
+  LOKA_VERIFY(platform.prepareProjectedLayout(&button, state));
   assert(button.getContext());
 }
 
@@ -1590,7 +1594,7 @@ void testNullNodeHandlerRegistryMissEducatesInDiagnosticBuilds()
     _exit(0);
   }
   int status = 0;
-  assert(waitpid(child, &status, 0) == child);
+  LOKA_VERIFY(waitpid(child, &status, 0) == child);
   assert(WIFSIGNALED(status));
   assert(WTERMSIG(status) == SIGABRT &&
          "a registry miss must educate instead of sharing the typed-refusal path");
@@ -1653,6 +1657,7 @@ void testNullPlatformContract_A3_intakeConsistencyFailureLeaksWithoutPooling()
 
   assert(platform.intakeCheckFailCount() == 1);
   assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 0);
+  (void)handle;
   assert(!handle->disposed);
   assert(handle->leakedDeliberately);
   assert(platform.disposedCount() == 0);
@@ -1685,6 +1690,7 @@ void testNullPlatformContract_B2_retainedDetachHidesAndKeepsRow()
   requestChildPump(scene);
 
   assert(platform.ledger().size() == 1);
+  (void)handleId;
   assert(platform.ledger()[0].handle->id == handleId);
   assert(!platform.ledger()[0].visible);
   assert(platform.eventCount(NullScenePlatformController::EVENT_CONTROL_HIDDEN) == 1);
@@ -1706,6 +1712,7 @@ void testNullPlatformContract_B3_reattachKeepsHandleIdentity()
   requestChildPump(scene);
 
   assert(platform.ledger().size() == 1);
+  (void)handleId;
   assert(platform.ledger()[0].handle->id == handleId);
   assert(platform.ledger()[0].visible);
   assert(platform.eventCount(NullScenePlatformController::EVENT_CONTROL_SHOWN) == 2);
@@ -1749,9 +1756,13 @@ void testNullPlatformContract_B5_hiddenAncestorSwapIsSilent()
   innerCondition.set(false);
   requestChildPump(scene);
 
+  (void)shownBefore;
   assert(platform.eventCount(NullScenePlatformController::EVENT_CONTROL_SHOWN) == shownBefore);
+  (void)hiddenBefore;
   assert(platform.eventCount(NullScenePlatformController::EVENT_CONTROL_HIDDEN) == hiddenBefore);
+  (void)createdBefore;
   assert(platform.eventCount(NullScenePlatformController::EVENT_CONTROL_CREATED) == createdBefore);
+  (void)disposedBefore;
   assert(platform.eventCount(NullScenePlatformController::EVENT_CONTROL_DISPOSED) == disposedBefore);
   g_hiddenAncestorVisible = 0;
   g_hiddenInnerCondition = 0;
@@ -1845,6 +1856,8 @@ void testNullPlatformContract_D1_exactMatchBucketsStaySeparated()
   requestChildPump(scene);
   assert(platform.ledger().size() == 1);
   const int editTextId = platform.ledger()[0].handle->id;
+  (void)buttonId;
+  (void)editTextId;
   assert(editTextId != buttonId);
   assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 1);
   assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT).missCount == 1);
@@ -1898,6 +1911,7 @@ void testNullPlatformContract_D3_depthCapRefusalCountsEvict()
 
   NullScenePlatformController::BucketStats stats =
       platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
+  (void)stats;
   assert(stats.depth == 1);
   assert(stats.evictCount == 1);
   assert(platform.disposedCount() == 1);
@@ -1935,7 +1949,9 @@ void testNullPlatformContract_D4_controllerDrainPrecedesWindowDispose()
       windowSequence = events[i].sequence;
     }
   }
+  (void)drainSequence;
   assert(drainSequence != 0);
+  (void)windowSequence;
   assert(windowSequence > drainSequence);
   assertDisposalsAreInsideSafePoints(platform);
   scene.unmount();
@@ -1954,7 +1970,8 @@ void testNullPlatformContract_E1_reclaimOnlyFlushIsSilent()
   visible.set(false);
   requestChildPump(scene);
   const std::size_t eventCountBeforeReclaim = platform.eventLog().size();
-  assert(!scene.flushInvalidation());
+  LOKA_VERIFY(!scene.flushInvalidation());
+  (void)eventCountBeforeReclaim;
   assert(platform.eventLog().size() == eventCountBeforeReclaim);
   g_toggleVisible = 0;
 }
@@ -1998,7 +2015,8 @@ void testNullPlatformContract_E3_parkedBranchRetiresAtTheDoorNotAtReclaim()
   // handed over at the door.
   inner.set(false);
   std::size_t eventsBeforeDrain = platform.eventLog().size();
-  assert(!scene.flushInvalidation());
+  LOKA_VERIFY(!scene.flushInvalidation());
+  (void)eventsBeforeDrain;
   assert(platform.eventLog().size() == eventsBeforeDrain &&
          "reclamation is silent — no fact reaches a context from the drain");
   assert(platform.retiredCount() == 0);
@@ -2010,7 +2028,7 @@ void testNullPlatformContract_E3_parkedBranchRetiresAtTheDoorNotAtReclaim()
   assert(platform.retiredCount() == 0);
 
   eventsBeforeDrain = platform.eventLog().size();
-  assert(!scene.flushInvalidation());
+  LOKA_VERIFY(!scene.flushInvalidation());
   assert(platform.eventLog().size() == eventsBeforeDrain &&
          "the final drain is silent too");
   assert(platform.retiredCount() == 0);
@@ -2037,7 +2055,7 @@ void testNullPlatformContract_H1_conditionalSeatSurvivesUnrelatedRecompose()
 
   condition.set(true);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assertParkedTransitionTable(probeRecord);
   const int constructionsBefore = probeRecord.constructionCount;
   const std::size_t transitionsBefore = probeRecord.transitions.size();
@@ -2045,7 +2063,7 @@ void testNullPlatformContract_H1_conditionalSeatSurvivesUnrelatedRecompose()
 
   unrelated.set(1);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
 
   const NativeContextCallCounts callsAfter(platform);
   const bool parkedProbeSurvived =
@@ -2055,6 +2073,8 @@ void testNullPlatformContract_H1_conditionalSeatSurvivesUnrelatedRecompose()
                             transitionsBefore);
   const bool nativeContextCallsStayedEqual = callsAfter == callsBefore;
 
+  (void)parkedProbeSurvived;
+  (void)nativeContextCallsStayedEqual;
   assert(parkedProbeSurvived && nativeContextCallsStayedEqual &&
          "the retained Conditional seat preserves its parked branch and native pairs");
 
@@ -2081,7 +2101,7 @@ void testNullPlatformContract_H2_parkedDraftBranchSurvivesUnrelatedRecompose()
 
   condition.set(true);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assertParkedTransitionTable(probeRecord);
   const int constructionsBefore = probeRecord.constructionCount;
   const std::size_t transitionsBefore = probeRecord.transitions.size();
@@ -2089,7 +2109,7 @@ void testNullPlatformContract_H2_parkedDraftBranchSurvivesUnrelatedRecompose()
 
   unrelated.set(1);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
 
   const NativeContextCallCounts callsAfter(platform);
   const bool parkedDraftSurvived =
@@ -2100,6 +2120,7 @@ void testNullPlatformContract_H2_parkedDraftBranchSurvivesUnrelatedRecompose()
       callsAfter == callsBefore &&
       draft.get().equals(loka::core::String::Literal("unfinished draft"));
 
+  (void)parkedDraftSurvived;
   assert(parkedDraftSurvived &&
          "the retained Conditional seat preserves parked branch state");
 
@@ -2132,13 +2153,13 @@ void testConditionalSeatRepointsBranchDefinitionsAfterUnrelatedRecompose()
 
   unrelated.set(1);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assert(NativeContextCallCounts(platform) == callsBefore &&
          "an unrelated recompose retains the Conditional seat and its native pair");
 
   condition.set(false);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assert(oldBranchRecord.constructionCount == 0 &&
          "the retained seat no longer reads the previous arena's branch definition");
   assert(currentBranchRecord.constructionCount == 1 &&
@@ -2202,18 +2223,24 @@ void testNullPlatformContract_H3_conditionFlipIsProjectedAtNextScheduledApply()
       (!buttonAfterWrite || buttonAfterWrite->visible == buttonVisibleBefore) &&
       (!editTextAfterWrite || editTextAfterWrite->visible == editTextVisibleBefore);
 
+  (void)probeFactsStayedUnchanged;
+  (void)nativeContextCallsStayedEqual;
+  (void)nativeEventLogStayedEqual;
+  (void)nativeLedgerStayedEqual;
   assert(probeFactsStayedUnchanged &&
          nativeContextCallsStayedEqual &&
          nativeEventLogStayedEqual &&
          nativeLedgerStayedEqual &&
          "a condition flip remains unobservable until the next scheduled apply");
 
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   const NullScenePlatformController::LedgerRow *button =
       platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
   const NullScenePlatformController::LedgerRow *editText =
       platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
+  (void)button;
   assert(button && !button->visible);
+  (void)editText;
   assert(editText && editText->visible);
 
   scene.unmount();
@@ -2242,12 +2269,12 @@ void testNullPlatformContract_H4_retiringBoundaryReportsEveryParkedBranchRetired
   assert(secondRecord.constructionCount == 1);
   secondCondition.set(true);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assertParkedTransitionTable(secondRecord);
 
   firstCondition.set(true);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assertParkedTransitionTable(firstRecord);
   assert(firstRecord.transitions.size() == secondRecord.transitions.size());
 
@@ -2284,7 +2311,7 @@ void testNullPlatformContract_H5_taggedSeatAmongSiblingsSurvivesUnrelatedRecompo
 
   condition.set(true);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assertParkedTransitionTable(probeRecord);
   const int constructionsBefore = probeRecord.constructionCount;
   const std::size_t transitionsBefore = probeRecord.transitions.size();
@@ -2292,7 +2319,7 @@ void testNullPlatformContract_H5_taggedSeatAmongSiblingsSurvivesUnrelatedRecompo
 
   unrelated.set(1);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
 
   const bool taggedSeatSurvived =
       probeRecord.constructionCount == constructionsBefore &&
@@ -2300,6 +2327,7 @@ void testNullPlatformContract_H5_taggedSeatAmongSiblingsSurvivesUnrelatedRecompo
                             loka::app::scene::NODE_FACT_RETIRED,
                             transitionsBefore) &&
       NativeContextCallCounts(platform) == callsBefore;
+  (void)taggedSeatSurvived;
   assert(taggedSeatSurvived &&
          "the tagged Conditional seat preserves its parked branch and native pairs");
 
@@ -2325,14 +2353,14 @@ void testNullPlatformContract_H6_activeBranchContentIsFreshAfterRecompose()
 
   condition.set(true);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assertParkedTransitionTable(parkedRecord);
   const int constructionsBefore = parkedRecord.constructionCount;
   const std::size_t transitionsBefore = parkedRecord.transitions.size();
 
   revision.set(1);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
 
   const NullScenePlatformController::LedgerRow *buttonAfter =
       platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
@@ -2346,9 +2374,11 @@ void testNullPlatformContract_H6_activeBranchContentIsFreshAfterRecompose()
       buttonAfter->handle->owner &&
       buttonAfter->handle->owner->lifetimeHint() ==
           loka::app::scene::NATIVE_HINT_DESIRE_STAY;
+  (void)seatRetained;
   assert(seatRetained &&
          "the Conditional seat remains present across active-branch content recompose");
 
+  (void)contentFresh;
   assert(seatRetained && contentFresh &&
          "the active branch exposes recomposed constant content after the pump settles");
 
@@ -2371,18 +2401,19 @@ void testNullPlatformContract_H7_reenteredBranchContentIsFreshAfterRecompose()
 
   const NullScenePlatformController::LedgerRow *parkedBefore =
       platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
+  (void)parkedBefore;
   assert(parkedBefore && parkedBefore->visible);
 
   condition.set(true);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assertParkedTransitionTable(parkedRecord);
   const int activeConstructionsBefore = activeRecord.constructionCount;
   const std::size_t activeTransitionsBefore = activeRecord.transitions.size();
 
   revision.set(1);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   const bool seatRetainedThroughRecompose =
       activeRecord.constructionCount == activeConstructionsBefore &&
       !recordedTransitionTo(activeRecord,
@@ -2393,7 +2424,7 @@ void testNullPlatformContract_H7_reenteredBranchContentIsFreshAfterRecompose()
 
   condition.set(false);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
 
   const NullScenePlatformController::LedgerRow *parkedAfter =
       platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
@@ -2408,9 +2439,11 @@ void testNullPlatformContract_H7_reenteredBranchContentIsFreshAfterRecompose()
       parkedAfter->handle->owner &&
       parkedAfter->handle->owner->lifetimeHint() ==
           loka::app::scene::NATIVE_HINT_DESIRE_STAY;
+  (void)seatRetained;
   assert(seatRetained &&
          "the Conditional seat remains present through branch re-entry");
 
+  (void)contentFresh;
   assert(seatRetained && contentFresh &&
          "the re-entered Conditional branch exposes current content in the same apply");
 
@@ -2440,19 +2473,19 @@ void testNestedConditionalSeatRepointsDefinitionsAtOuterReentry()
 
   outerCondition.set(true);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
 
   revision.set(1);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
 
   outerCondition.set(false);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
 
   innerCondition.set(true);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
 
   assert(oldSourceRecord.constructionCount == 0);
   assert(expiredSourceRecord.constructionCount == 0);
@@ -2483,24 +2516,25 @@ void testShowDslParkedBranchIsCurrentAtReentry()
 
   revision.set(1);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assert(oldSourceRecord.constructionCount == 1);
   loka::app::scene::Node *branchBeforeHide = currentSourceRecord.node;
+  (void)branchBeforeHide;
   assert(branchBeforeHide &&
          "Show exposes its active branch before the ledger round-trip");
 
   condition.set(false);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assertParkedTransitionTable(oldSourceRecord);
 
   revision.set(2);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
 
   condition.set(true);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
 
   const NullScenePlatformController::LedgerRow *control =
       platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
@@ -2512,6 +2546,7 @@ void testShowDslParkedBranchIsCurrentAtReentry()
   assert(currentSourceRecord.attachReads > 0 &&
          expiredSourceRecord.attachReads == 0 &&
          "Show reentry applies the current definition generation");
+  (void)control;
   assert(control && control->visible && control->handle && control->handle->owner &&
          control->handle->owner->lifetimeHint() == loka::app::scene::NATIVE_HINT_DESIRE_STAY &&
          "Show exposes current branch content in the reentry apply");
@@ -2542,19 +2577,19 @@ void testDepth2NestedConditionalSeatRepointsDefinitionsAtOuterReentry()
 
   outerCondition.set(true);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
 
   revision.set(1);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
 
   outerCondition.set(false);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
 
   innerCondition.set(true);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
 
   assert(oldSourceRecord.constructionCount == 0);
   assert(expiredSourceRecord.constructionCount == 0);
@@ -2585,12 +2620,12 @@ void testFullRebuildSubsumesParkedBranchLedgerGeneration()
   assert(record.constructionCount == 1);
   condition.set(true);
   scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assertParkedTransitionTable(record);
 
   useReplacement = true;
   scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assertParkedRetirementTransitionTable(record);
 
   scene.unmount();
@@ -2628,7 +2663,7 @@ void testIncompatibleParkedBranchRootsRetireAndRecreateAtReentry()
 
   visible.set(true);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assertParkedTransitionTable(directOldRoot);
   assertParkedTransitionTable(nestedOldRoot);
   assertParkedTransitionTable(failedApplyOldRoot);
@@ -2636,11 +2671,11 @@ void testIncompatibleParkedBranchRootsRetireAndRecreateAtReentry()
 
   revision.set(1);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
 
   visible.set(false);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
 
   std::size_t visibleEditRoots = 0;
   const std::vector<NullScenePlatformController::LedgerRow> &ledger = platform.ledger();
@@ -2705,7 +2740,7 @@ void testNullPlatformContract_H8_taggedSeatBuildsBranchFromLiveDefinition()
   currentCondition.set(false);
   if (scene.hasPendingInvalidation())
   {
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
   }
   assert(liveSourceRecord.constructionCount == 1 &&
          expiredSourceRecord.constructionCount == 0 &&
@@ -2748,6 +2783,8 @@ void testNullPlatformContract_H9_retainedSeatUsesReplacementCondition()
   inputs.condition = &replacementCondition;
   requestChildPump(scene);
 
+  (void)parkedConstructionsBefore;
+  (void)parkedTransitionsBefore;
   assert(parkedRecord.constructionCount == parkedConstructionsBefore &&
          parkedRecord.transitions.size() == parkedTransitionsBefore &&
          NativeContextCallCounts(platform) == callsBeforeRebind &&
@@ -2763,7 +2800,7 @@ void testNullPlatformContract_H9_retainedSeatUsesReplacementCondition()
   replacementCondition.set(true);
   if (scene.hasPendingInvalidation())
   {
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
   }
   const NullScenePlatformController::LedgerRow *button =
       platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
@@ -2771,7 +2808,9 @@ void testNullPlatformContract_H9_retainedSeatUsesReplacementCondition()
       platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
   assert(activeRecord.constructionCount == 1);
   assertParkedTransitionTable(parkedRecord);
+  (void)button;
   assert(button && button->visible);
+  (void)editText;
   assert(editText && !editText->visible);
 
   const int activeConstructionsBefore = activeRecord.constructionCount;
@@ -2780,10 +2819,12 @@ void testNullPlatformContract_H9_retainedSeatUsesReplacementCondition()
   replacementCondition.set(false);
   if (scene.hasPendingInvalidation())
   {
+    (void)activeConstructionsBefore;
+    (void)activeTransitionsBefore;
     assert(activeRecord.constructionCount == activeConstructionsBefore &&
            activeRecord.transitions.size() == activeTransitionsBefore &&
            NativeContextCallCounts(platform) == callsBeforeSecondFlip);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
   }
   assert(button && !button->visible);
   assert(editText && editText->visible);
@@ -2899,7 +2940,7 @@ void testNullPlatformContract_G6_materializedChildIsVisibleInSameRun()
 
   visible.set(true);
   scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
 
   assert(platform.ledger().size() == 1);
   assert(platform.ledger()[0].visible);
@@ -3062,14 +3103,15 @@ void testStdCompositionBoundaryShowFlipPreservesSiblings()
   mountAndAttach(scene, platform);
   const NullScenePlatformController::LedgerRow *button =
       platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
+  (void)button;
   assert(button && button->visible);
-  assert(!platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT));
+  LOKA_VERIFY(!platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT));
   assert(g_stdCompositionShowShapeNode);
 
   g_stdCompositionShowShapeNode->openDialog();
   if (scene.hasPendingInvalidation())
   {
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
   }
 
   button = platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
@@ -3077,6 +3119,7 @@ void testStdCompositionBoundaryShowFlipPreservesSiblings()
       platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
   assert(button && button->visible &&
          "siblings survive a Show flip inside a compose-once boundary");
+  (void)dialog;
   assert(dialog && dialog->visible &&
          "the shown branch materializes at the scheduled apply");
   scene.unmount();
@@ -3092,19 +3135,21 @@ void testComposeOnceBranchAtRootSeatSurvivesSnapshotRebuild()
   mountAndAttach(scene, platform);
   const NullScenePlatformController::LedgerRow *button =
       platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
+  (void)button;
   assert(button && button->visible);
 
   condition.set(true);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   const NullScenePlatformController::LedgerRow *edit =
       platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
+  (void)edit;
   assert(edit && edit->visible &&
          "root-seat rebuild attaches the selected compose-once branch");
 
   condition.set(false);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   button = platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
   assert(button && button->visible &&
          "root-seat rebuild reenters the retained compose-once branch");
@@ -3133,20 +3178,20 @@ void testGenerationRetirementDoesNotLeaveStaleConditionalSeatMapping()
 
   condition.set(true);
   scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assertParkedTransitionTable(record);
 
   useReplacement = true;
   scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assertParkedRetirementTransitionTable(record);
 
   useReplacement = false;
   scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   condition.set(false);
   scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assert(record.constructionCount == 2 && record.node &&
          record.node->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
          "post-generation flip resolves only the recreated seat mapping");
@@ -3511,6 +3556,7 @@ namespace
       const DialogPresentationRecord &defaultRecord,
       const DialogPresentationRecord &destroyRecord)
   {
+    (void)defaultRecord;
     assert(defaultRecord.constructionCount == 1 &&
            defaultRecord.destructionCount == 0 &&
            defaultRecord.presentCount == 1 &&
@@ -3518,6 +3564,7 @@ namespace
            defaultRecord.node &&
            defaultRecord.node->branchValue() == 17 &&
            "default Show constructs and presents one retained dialog instance");
+    (void)destroyRecord;
     assert(destroyRecord.constructionCount == 1 &&
            destroyRecord.destructionCount == 0 &&
            destroyRecord.presentCount == 1 &&
@@ -3539,6 +3586,9 @@ namespace
       const DialogPresentationRecord &destroyRecord,
       DialogPresentationProbeNode *defaultInstance)
   {
+    (void)&dialogRecordedTransitionTo;
+    (void)defaultRecord;
+    (void)defaultInstance;
     assert(defaultRecord.sessionDisposeCount == 1 &&
            defaultRecord.destructionCount == 0 &&
            defaultRecord.node == defaultInstance &&
@@ -3547,6 +3597,7 @@ namespace
                                       loka::app::scene::NODE_FACT_DETACHED_RETAINED,
                                       0) &&
            "default Show disposes its native session but retains node, context, and state");
+    (void)destroyRecord;
     assert(destroyRecord.sessionDisposeCount == 1 &&
            dialogRecordedTransitionTo(destroyRecord,
                                       loka::app::scene::NODE_FACT_RETIRED,
@@ -3561,6 +3612,9 @@ namespace
       int defaultInstanceId,
       int destroyInstanceId)
   {
+    (void)defaultRecord;
+    (void)defaultInstance;
+    (void)defaultInstanceId;
     assert(defaultRecord.constructionCount == 1 &&
            defaultRecord.destructionCount == 0 &&
            defaultRecord.presentCount == 2 &&
@@ -3572,6 +3626,8 @@ namespace
                                       loka::app::scene::NODE_FACT_ATTACHED,
                                       1) &&
            "default Show reuses its retained instance and branch-local state");
+    (void)destroyRecord;
+    (void)destroyInstanceId;
     assert(destroyRecord.constructionCount == 2 &&
            destroyRecord.destructionCount == 1 &&
            destroyRecord.presentCount == 2 &&
@@ -4206,6 +4262,7 @@ void testPolicyScopeIsDefinitionOnlyAndPreservesContentNativeHint()
          "PolicyScope folds into the seat plan without a runtime node");
   const NullScenePlatformController::LedgerRow *content =
       platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
+  (void)content;
   assert(content && content->handle && content->handle->owner &&
          content->handle->owner->lifetimeHint() ==
              loka::app::scene::NATIVE_HINT_DESIRE_STAY &&
@@ -4239,7 +4296,7 @@ void testPolicyScopeHandlesNonBranchRootPlacementGracefully()
     condition.set(false);
   }
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assertParkedTransitionTable(contentRecord);
 
   {
@@ -4247,7 +4304,7 @@ void testPolicyScopeHandlesNonBranchRootPlacementGracefully()
     condition.set(true);
   }
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assert(contentRecord.constructionCount == 1 &&
          contentRecord.node->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
          "a misplaced PolicyScope ignores destroyOnDetach and uses default parking");
@@ -4274,7 +4331,7 @@ void testMisplacedPolicyScopeRetainsInnerContentAcrossRecomposes()
     revision.set(1);
   }
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   const int constructionsAfterFirstRecompose = contentRecord.constructionCount;
   loka::app::scene::Node *const nodeAfterFirstRecompose = contentRecord.node;
 
@@ -4283,8 +4340,12 @@ void testMisplacedPolicyScopeRetainsInnerContentAcrossRecomposes()
     revision.set(2);
   }
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   const int constructionsAfterSecondRecompose = contentRecord.constructionCount;
+  (void)mountedNode;
+  (void)constructionsAfterFirstRecompose;
+  (void)nodeAfterFirstRecompose;
+  (void)constructionsAfterSecondRecompose;
   assert(constructionsAfterFirstRecompose == 1 &&
          constructionsAfterSecondRecompose == 1 &&
          nodeAfterFirstRecompose == mountedNode &&
@@ -4303,16 +4364,16 @@ void testMisplacedPolicyScopeReconcilesReplacedInnerContent()
   loka::app::scene::Scene scene(
       (loka::app::scene::Boundary<PolicyMisplacedReplacementBoundaryNode>()));
   mountAndAttach(scene, platform);
-  assert(platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON));
-  assert(!platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT));
+  LOKA_VERIFY(platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON));
+  LOKA_VERIFY(!platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT));
 
   {
     loka::core::StateTrackerGuard guard(revision.trackerOwner());
     revision.set(1);
   }
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
-  assert(platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT) &&
+  LOKA_VERIFY(scene.flushInvalidation());
+  LOKA_VERIFY(platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT) &&
          !platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON) &&
          "a misplaced PolicyScope reconciles changed content inside a retained Fragment");
 
@@ -4321,8 +4382,8 @@ void testMisplacedPolicyScopeReconcilesReplacedInnerContent()
     revision.set(2);
   }
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
-  assert(platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON) &&
+  LOKA_VERIFY(scene.flushInvalidation());
+  LOKA_VERIFY(platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON) &&
          !platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT));
 
   {
@@ -4330,8 +4391,8 @@ void testMisplacedPolicyScopeReconcilesReplacedInnerContent()
     revision.set(3);
   }
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
-  assert(platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT) &&
+  LOKA_VERIFY(scene.flushInvalidation());
+  LOKA_VERIFY(platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT) &&
          !platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON) &&
          "an incompatible node replaced by PolicyScope content retires exactly once");
 
@@ -4363,10 +4424,11 @@ void testPolicyScopeDestroyOnDetachContrastsWithDefaultInRecomposingBoundary()
 
   defaultCondition.set(false);
   scopedCondition.set(false);
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assertParkedTransitionTable(defaultRecord);
   assert(scopedRecord.constructionCount == 1 &&
          recordedTransitionTo(scopedRecord, loka::app::scene::NODE_FACT_RETIRED, 0));
+  (void)rowsBefore;
   assert(platform.ledger().size() == 1 &&
          platform.teardownCounters().rowRemoved == rowsBefore + 1 &&
          "destroyOnDetach retires native ownership while default parks it");
@@ -4375,13 +4437,14 @@ void testPolicyScopeDestroyOnDetachContrastsWithDefaultInRecomposingBoundary()
   assert(scene.hasPendingInvalidation());
   scene.flushInvalidation();
   scopedCondition.set(true);
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   const NullScenePlatformController::LedgerRow *rebuilt =
       platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
   assert(scopedRecord.constructionCount == 1 &&
          "destroyOnDetach does not reconstruct the expired branch definition");
   assert(scopedCurrentRecord.constructionCount == 1 &&
          "destroyOnDetach reshow constructs the current branch definition");
+  (void)rebuilt;
   assert(rebuilt && rebuilt->visible && rebuilt->handle && rebuilt->handle->owner &&
          "destroyOnDetach reshow projects the fresh branch");
   scene.unmount();
@@ -4407,16 +4470,18 @@ void testPolicyScopeDeliverWhileDetachedContrastsWithDefaultInRecomposingBoundar
   mountAndAttach(scene, platform);
   defaultCondition.set(false);
   scopedCondition.set(false);
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   const int defaultAppliesBefore = defaultRecord.applies;
   const int scopedAppliesBefore = scopedRecord.applies;
 
   revision.set(1);
   assert(scene.hasPendingInvalidation());
   scene.flushInvalidation();
+  (void)defaultAppliesBefore;
   assert(defaultRecord.value == 0 &&
          defaultRecord.applies == defaultAppliesBefore &&
          "default policy defers parked-child reconciliation");
+  (void)scopedAppliesBefore;
   assert(scopedRecord.value == 1 &&
          scopedRecord.applies > scopedAppliesBefore &&
          "deliverWhileDetached brings parked children current while hidden");
@@ -4448,6 +4513,7 @@ void testPolicyScopeDestroyOnDetachWorksInComposeOnceBoundary()
   }
   assertParkedTransitionTable(defaultRecord);
   assert(recordedTransitionTo(scopedRecord, loka::app::scene::NODE_FACT_RETIRED, 0));
+  (void)rowsBefore;
   assert(platform.ledger().size() == 1 &&
          platform.teardownCounters().rowRemoved == rowsBefore + 1);
 
@@ -4490,8 +4556,10 @@ void testPolicyScopeDeliverWhileDetachedWorksInComposeOnceBoundary()
   {
     scene.flushInvalidation();
   }
+  (void)defaultAppliesBefore;
   assert(defaultRecord.value == 0 &&
          defaultRecord.applies == defaultAppliesBefore);
+  (void)scopedAppliesBefore;
   assert(scopedRecord.value == 1 &&
          scopedRecord.applies > scopedAppliesBefore &&
          "compose-once delivery reconciles the parked child at the door");
@@ -4517,7 +4585,7 @@ void testOpenFileDialogPresentationPoliciesInRecomposingBoundary()
 
   defaultShown.set(true);
   destroyShown.set(true);
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assertDialogPresentationPolicyInitialShow(defaultRecord, destroyRecord);
   DialogPresentationProbeNode *defaultInstance = defaultRecord.node;
   const int defaultInstanceId = defaultRecord.node->instanceId();
@@ -4527,7 +4595,7 @@ void testOpenFileDialogPresentationPoliciesInRecomposingBoundary()
 
   defaultShown.set(false);
   destroyShown.set(false);
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assertDialogPresentationPolicyDetached(defaultRecord,
                                          destroyRecord,
                                          defaultInstance);
@@ -4538,7 +4606,7 @@ void testOpenFileDialogPresentationPoliciesInRecomposingBoundary()
 
   defaultShown.set(true);
   destroyShown.set(true);
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assertDialogPresentationPolicyReentered(defaultRecord,
                                           destroyRecord,
                                           defaultInstance,
@@ -4625,7 +4693,7 @@ void testOpenFileDialogRequiresCompletionBinding()
     _exit(0);
   }
   int status = 0;
-  assert(waitpid(child, &status, 0) == child);
+  LOKA_VERIFY(waitpid(child, &status, 0) == child);
   assert(WIFSIGNALED(status));
   assert(WTERMSIG(status) == SIGABRT && "OpenFileDialog requires result or onResult completion delivery");
 #endif
@@ -4716,7 +4784,7 @@ void testStep4ShapeSettlesAfterShowFlip()
   g_step4ShapeNode->toggleSummary(true);
   if (scene.hasPendingInvalidation())
   {
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
   }
   assert(!scene.hasPendingInvalidation() &&
          "a single Show flip settles in one scheduled apply");
@@ -4735,7 +4803,7 @@ void testStep4ShapeSettlesAfterShowFlip()
   g_step4ShapeNode->toggleSummary(false);
   if (scene.hasPendingInvalidation())
   {
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
   }
   NativeContextCallCounts afterHide(platform);
   for (int i = 0; i < 4; ++i)
@@ -4749,7 +4817,7 @@ void testStep4ShapeSettlesAfterShowFlip()
   g_step4ShapeNode->toggleSummary(true);
   if (scene.hasPendingInvalidation())
   {
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
   }
   scene.unmount();
 }
@@ -4873,17 +4941,17 @@ void testRemovedConditionalSeatReaddsFreshRuntimeAndBranches()
 
   condition.set(false);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   condition.set(true);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assert(whenTrue.constructionCount == 1 &&
          whenFalse.constructionCount == 1 &&
          "both pre-removal branches materialize exactly once");
 
   revision.set(1);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   if (scene.hasPendingInvalidation())
   {
     scene.flushInvalidation();
@@ -4893,14 +4961,14 @@ void testRemovedConditionalSeatReaddsFreshRuntimeAndBranches()
 
   revision.set(2);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assert(whenTrue.constructionCount == 2 && whenTrue.node &&
          whenTrue.node->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
          "re-adding a dead seat must materialize a fresh active branch");
 
   condition.set(false);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assert(whenFalse.constructionCount == 2 && whenFalse.node &&
          whenFalse.node->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
          "seat death must also discard the old parked branch");
@@ -4969,21 +5037,21 @@ void testConditionalSeatInitiallyNullCanMaterialize()
 
   condition.set(true);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assert(shown.constructionCount == 1 && shown.node &&
          shown.node->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
          "a seat mounted on its null side must materialize when shown");
 
   condition.set(false);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assert(shown.node->lifecycleFact() ==
              loka::app::scene::NODE_FACT_DETACHED_RETAINED &&
          "the materialized branch parks when returning to the null side");
 
   condition.set(true);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assert(shown.constructionCount == 1 && shown.node->lifecycleFact() ==
                                              loka::app::scene::NODE_FACT_ATTACHED &&
          "the initially-null seat remains live across later flips");
@@ -5007,14 +5075,15 @@ void testNullConditionalBranchParksAndReentersShownBranch()
 
   condition.set(false);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
+  (void)original;
   assert(original->lifecycleFact() ==
              loka::app::scene::NODE_FACT_DETACHED_RETAINED &&
          "flipping to a null branch must park the shown branch");
 
   condition.set(true);
   assert(scene.hasPendingInvalidation());
-  assert(scene.flushInvalidation());
+  LOKA_VERIFY(scene.flushInvalidation());
   assert(shown.constructionCount == 1 && shown.node == original &&
          original->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
          "the shown branch must reenter from the null side without reconstruction");
@@ -5060,13 +5129,14 @@ void testWindowWithoutDisplayFactsDeclinesEveryAxis()
   // return value would otherwise read a value the platform never supplied,
   // which is the failure this shape exists to prevent.
   int scalePercent = -1;
-  assert(!window.queryDisplayScalePercent(scalePercent));
+  LOKA_VERIFY(!window.queryDisplayScalePercent(scalePercent));
   assert(scalePercent == -1);
   int depth = -1;
-  assert(!window.queryDisplayDepth(depth));
+  LOKA_VERIFY(!window.queryDisplayDepth(depth));
   assert(depth == -1);
   Window::DisplayAppearance appearance = Window::DISPLAY_APPEARANCE_DARK;
-  assert(!window.queryDisplayAppearance(appearance));
+  (void)appearance;
+  LOKA_VERIFY(!window.queryDisplayAppearance(appearance));
   assert(appearance == Window::DISPLAY_APPEARANCE_DARK && "a declined appearance query must not be answered as light");
 
   for (int i = 0; i < Window::DISPLAY_FEATURE_COUNT; ++i)
@@ -5088,10 +5158,10 @@ void testDisplayFeatureAvailabilityFollowsTheQueriesThatAnswer()
   assert(!window.hasDisplayFeature(Window::DISPLAY_FEATURE_APPEARANCE));
 
   int scalePercent = 0;
-  assert(window.queryDisplayScalePercent(scalePercent));
+  LOKA_VERIFY(window.queryDisplayScalePercent(scalePercent));
   assert(scalePercent == 200);
   int depth = 0;
-  assert(window.queryDisplayDepth(depth));
+  LOKA_VERIFY(window.queryDisplayDepth(depth));
   assert(depth == 8);
 
   // The sentinel is not an axis and must not report as one.
@@ -5372,6 +5442,7 @@ void testNullPlatformContract_S5_recomposedRangeClampsTheDisplayWithoutWritingBa
   loka::app::scene::Scene scene((loka::app::scene::Boundary<ScrollBarBoundaryNode>()));
   mountAndAttach(scene, platform);
   NullScrollBarContext *context = findScrollBarContext(platform);
+  (void)context;
   assert(context);
   assert(context->maximum() == 20);
   assert(context->displayedValue() == 9);

@@ -1,4 +1,5 @@
 #include "Win32EditTextBridgeTests.hpp"
+#include "support/TestVerify.hpp"
 #include <cassert>
 #include <cstdio>
 #include <string>
@@ -30,7 +31,7 @@ void testWin32EditTextBridgeRoundTripsUtf16()
   SendMessageW(edit, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(kJapanesePayload));
   loka::core::String read = loka::win32::ReadEditTextString(edit);
   std::string readUtf8;
-  assert(loka::platform::CollectUtf8(read, readUtf8));
+  LOKA_VERIFY(loka::platform::CollectUtf8(read, readUtf8));
   assert(readUtf8 == kJapanesePayloadUtf8 &&
          "readback must not reinterpret native UTF-16 through the ANSI codepage or as UTF-8 bytes");
 

@@ -1,4 +1,5 @@
 #include "DefinitionCloneTests.hpp"
+#include "support/TestVerify.hpp"
 #include <cassert>
 #include <cstdio>
 #include "core/State.hpp"
@@ -258,6 +259,8 @@ namespace
 
 void testOwnedDefOwnership()
 {
+  (void)&hasSingleMenuNamed;
+  (void)&hasSingleItemLabeled;
   printf("\n==== [testOwnedDefOwnership] start ====\n");
 
   int baseline = g_probePropsAlive;
@@ -265,6 +268,7 @@ void testOwnedDefOwnership()
     loka::core::OwnedDef<CloneProbeDefinition> owned(new CloneProbeDefinition());
     assert(owned.isSet());
     assert(owned.get() != 0);
+    (void)baseline;
     assert(g_probePropsAlive == baseline + 1);
 
     CloneProbeDefinition *taken = owned.take();
@@ -324,6 +328,7 @@ void testConditionalDefinitionCloneOwnership()
     assert(copiedSeat);
     loka::app::scene::Node *node = copiedSeat->branchDefinition(true)->create();
     assert(node != 0);
+    (void)createdBefore;
     assert(g_probeNodesCreated > createdBefore); // true branch materialized from the owned clone
     loka::app::scene::DestroyHeapNode(node);
     delete copy;
@@ -383,12 +388,16 @@ void testConditionalDefinitionAssignmentPreservesPairOnSecondCloneFailure()
 
     assert(g_limitedCloneCalls == 2);
     assert(target.props.condition == &oldCondition);
+    (void)oldOwnedTrueDef;
     assert(target.ownedTrueDef == oldOwnedTrueDef);
+    (void)oldOwnedFalseDef;
     assert(target.ownedFalseDef == oldOwnedFalseDef);
     assert(target.props.trueDef == target.ownedTrueDef);
     assert(target.props.falseDef == target.ownedFalseDef);
+    (void)aliveBeforeAssignment;
     assert(g_probePropsAlive == aliveBeforeAssignment);
   }
+  (void)baseline;
   assert(g_probePropsAlive == baseline);
   assert(g_probeNodesAlive == 0);
 
@@ -416,9 +425,12 @@ void testConditionalDefinitionCloneReturnsNullOnSecondBranchFailure()
     g_limitedCloneBudget = -1;
 
     assert(g_limitedCloneCalls == 2);
+    (void)copy;
     assert(copy == 0);
+    (void)aliveBeforeClone;
     assert(g_probePropsAlive == aliveBeforeClone);
   }
+  (void)baseline;
   assert(g_probePropsAlive == baseline);
   assert(g_probeNodesAlive == 0);
 
@@ -461,6 +473,7 @@ void testNestableDefinitionCloneReturnsNullOnOomChildClone()
   sourceWithBadChild << new OomCloneProbeDefinition();
 
   loka::app::scene::NodeDefinitionBase *copy = sourceWithBadChild.clone();
+  (void)copy;
   assert(copy == 0);
 
   printf("==== [testNestableDefinitionCloneReturnsNullOnOomChildClone] end ====\n");
@@ -507,6 +520,7 @@ void testNodeCompositionSkipsOomClones()
 
     composition.declare(stableRoot);
     loka::app::scene::NodeDefinitionBase *storedRoot = composition.root();
+    (void)storedRoot;
     assert(storedRoot != 0);
 
     loka::app::scene::NodeDefinitionBase *grouped = composition.group(failingDefinition);
@@ -515,10 +529,15 @@ void testNodeCompositionSkipsOomClones()
     loka::app::scene::NodeDefinitionBase &taggedResult = composition.declareTagged(42, failingBase);
     OomCloneProbeDefinition &typedTaggedResult = composition.declareTagged(42, failingDefinition);
 
+    (void)grouped;
     assert(grouped == 0);
+    (void)typedResult;
     assert(&typedResult == &failingDefinition);
+    (void)baseResult;
     assert(&baseResult == &failingBase);
+    (void)taggedResult;
     assert(&taggedResult == &failingBase);
+    (void)typedTaggedResult;
     assert(&typedTaggedResult == &failingDefinition);
     assert(composition.root() == storedRoot);
   }
@@ -558,6 +577,7 @@ void testWindowDefinitionCreateReturnsNullOnOomRootClone()
   NullWindowPlatformContext context;
   Window *window = def.create(&context);
 
+  (void)window;
   assert(window == 0);
   assert(context.createWindowCalls == 0);
 
@@ -577,6 +597,7 @@ void testWindowDefinitionCreateTransfersSingleRootClone()
   Window *window = def.create(&context);
   g_limitedCloneBudget = -1;
 
+  (void)window;
   assert(window == 0);
   assert(g_limitedCloneCalls == 1);
   assert(context.createWindowCalls == 1);
@@ -628,6 +649,7 @@ void testMenuControllerPreservesRefreshedMenuBarOnOomClone()
   controller.requestInvalidation();
   bool refreshed = controller.flushInvalidation(0);
 
+  (void)refreshed;
   assert(!refreshed);
   assert(hasSingleMenuNamed(controller.defaultMenuBar(), "Stable"));
   assert(!controller.diff().valid);
@@ -645,21 +667,22 @@ void testMenuControllerRequeuesDirtyMenusAfterOomClone()
   int applyCount = 0;
   MenuController controller(&config, &CountMenuApply, &applyCount);
   controller.requestInvalidation();
-  assert(controller.flushInvalidation(0));
+  LOKA_VERIFY(controller.flushInvalidation(0));
   assert(hasSingleItemLabeled(controller.defaultMenuBar(), "Before"));
   int appliesAfterInitial = applyCount;
 
   config.boundary.requestAfter = true;
   loka::app::testing::failMenuBarDefinitionClones(2);
   controller.requestInvalidation();
-  assert(!controller.flushInvalidation(0));
+  LOKA_VERIFY(!controller.flushInvalidation(0));
   assert(hasSingleItemLabeled(controller.defaultMenuBar(), "Before"));
   assert(config.boundary.tracker()->asPushTracker()->peekDirty());
   loka::app::testing::allowMenuBarDefinitionClones();
 
-  assert(controller.flushInvalidation(0));
+  LOKA_VERIFY(controller.flushInvalidation(0));
   assert(hasSingleItemLabeled(controller.defaultMenuBar(), "After"));
   assert(!config.boundary.tracker()->asPushTracker()->peekDirty());
+  (void)appliesAfterInitial;
   assert(applyCount > appliesAfterInitial);
 
   printf("==== [testMenuControllerRequeuesDirtyMenusAfterOomClone] end ====\n");
@@ -673,20 +696,20 @@ void testMenuControllerSchedulesRetryAfterDirectRefreshFailure()
   int applyCount = 0;
   MenuController controller(&config, &CountMenuApply, &applyCount);
   controller.requestInvalidation();
-  assert(controller.flushInvalidation(0));
+  LOKA_VERIFY(controller.flushInvalidation(0));
   assert(controller.defaultMenuBar() && controller.defaultMenuBar()->menusCount() == 1);
 
   // Structural change with no boundary dirt: a direct refresh failure must
   // schedule its own retry, because no invalidation was requested by compose.
   config.includeSecondMenu = true;
   loka::app::testing::failNextMenuBarDefinitionClone();
-  assert(!controller.refreshDefaultMenuBar());
+  LOKA_VERIFY(!controller.refreshDefaultMenuBar());
   assert(controller.defaultMenuBar() && controller.defaultMenuBar()->menusCount() == 1);
   loka::app::testing::allowMenuBarDefinitionClones();
 
   // No explicit requestInvalidation here: the failed direct refresh must
   // have queued the retry itself.
-  assert(controller.flushInvalidation(0));
+  LOKA_VERIFY(controller.flushInvalidation(0));
   assert(controller.defaultMenuBar() && controller.defaultMenuBar()->menusCount() == 2);
 
   printf("==== [testMenuControllerSchedulesRetryAfterDirectRefreshFailure] end ====\n");
@@ -719,6 +742,7 @@ void testConditionalDefinitionCopyDegradesToEmptyOnCloneFailure()
     assert(copy.ownedTrueDef == 0);
     assert(copy.ownedFalseDef == 0);
   }
+  (void)baseline;
   assert(g_probePropsAlive == baseline);
   assert(g_probeNodesAlive == 0);
 
