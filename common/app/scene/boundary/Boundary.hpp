@@ -25,6 +25,14 @@
 
 namespace loka
 {
+  namespace dsl
+  {
+    namespace testing
+    {
+      class OwnershipDump;
+    }
+  } // namespace dsl
+
   namespace app
   {
     namespace scene
@@ -1957,6 +1965,8 @@ namespace loka
         Node *retiredSubtreesTail_;
         std::vector<detail::NodeArena::RetiredNodeGeneration> retiredGenerations_;
         bool drainingRetiredSubtrees_;
+
+        friend class ::loka::dsl::testing::OwnershipDump;
 
       };
 
