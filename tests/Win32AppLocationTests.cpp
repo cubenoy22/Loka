@@ -85,7 +85,7 @@ void testWin32ApplicationItemNamesExecutableDirectory()
   assert(resolved);
 
   std::wstring resolvedPath;
-  assert(loka::win32::MaterializeWideString(handle.displayPath, resolvedPath));
+  LOKA_VERIFY(loka::win32::MaterializeWideString(handle.displayPath, resolvedPath));
   const std::wstring::size_type resolvedSeparator = resolvedPath.find_last_of(L'\\');
   assert(resolvedSeparator != std::wstring::npos);
   assert(resolvedPath.substr(0, resolvedSeparator) == executableDirectory);
@@ -101,5 +101,5 @@ void testWin32ApplicationItemNamesExecutableDirectory()
     assert(actual[i] == expected[i]);
   }
 
-  assert(DeleteFileW(fixturePath.c_str()));
+  LOKA_VERIFY(DeleteFileW(fixturePath.c_str()));
 }

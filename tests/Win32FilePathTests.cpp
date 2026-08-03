@@ -79,7 +79,7 @@ void testWin32OpenReadAcceptsFullWidthPath()
   fclose(seed);
 
   std::string utf8Path;
-  assert(WideToUtf8(fileWide, utf8Path));
+  LOKA_VERIFY(WideToUtf8(fileWide, utf8Path));
   const loka::core::String logicalPath((std::string(utf8Path)));
 
   // The fix: the seam names the file the way Windows names files.
