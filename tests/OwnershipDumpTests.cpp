@@ -35,8 +35,11 @@ namespace
         : held(),
           arenaState(),
           dirtySource(0),
+          parkedCondition(true),
           creatorOwner(0),
           showCreator(true),
+          useConditional(false),
+          createHeld(true),
           showFirstHolder(true),
           showSecondHolder(false),
           createStates(true),
@@ -47,8 +50,11 @@ namespace
     loka::core::Held<OwnershipDumpPayload> held;
     loka::app::scene::NodeState<int> arenaState;
     loka::core::MutableState<int> dirtySource;
+    loka::core::MutableState<bool> parkedCondition;
     loka::app::scene::IStateOwner *creatorOwner;
     bool showCreator;
+    bool useConditional;
+    bool createHeld;
     bool showFirstHolder;
     bool showSecondHolder;
     bool createStates;
@@ -154,7 +160,7 @@ namespace
           context.stateOwner()->adoptState(
               new loka::core::MutableState<int>(23));
         }
-        if (!scenario.held.isValid())
+        if (scenario.createHeld && !scenario.held.isValid())
         {
           scenario.held = composition.hold(
               new OwnershipDumpPayload(),
@@ -220,7 +226,18 @@ namespace
               OwnershipDumpProbeProps(OwnershipDumpProbeProps::ROLE_HOLD));
           creator << holder;
         }
-        root << creator;
+        if (scenario.useConditional)
+        {
+          loka::app::FragmentDefinition emptyBranch;
+          loka::app::scene::ConditionalDefinition conditional(
+              (loka::app::scene::ConditionalProps(
+                  &scenario.parkedCondition, &creator, &emptyBranch)));
+          root << conditional;
+        }
+        else
+        {
+          root << creator;
+        }
       }
       composition.declare(root);
     }
@@ -412,6 +429,43 @@ void testOwnershipDumpIsDeterministic()
     delete scene;
   }
   assert(scenario.releaseCount == 1);
+  g_ownershipDumpScenario = 0;
+}
+
+void testOwnershipDumpWalksParkedBranches()
+{
+  OwnershipDumpScenario scenario;
+  scenario.useConditional = true;
+  scenario.showFirstHolder = false;
+  // Holds stay out of this fixture: a parked Section currently keeps its
+  // Held slots, which the reclaim wall then rejects at teardown -- that is
+  // the open S3 x parking defect this test's first draft exposed (filed
+  // separately). This pin covers the walk itself: a parked branch's owned
+  // states must not render as unowned.
+  scenario.createHeld = false;
+  g_ownershipDumpScenario = &scenario;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene *scene = createFixtureScene(platform);
+
+    // Flip the condition: the section-bearing branch parks. It is alive,
+    // it still owns its states, and it is not a child -- a dump that only
+    // walked childrenHead() would render those states as unowned, which is
+    // the exact lie this tool exists to remove.
+    scenario.parkedCondition.set(false);
+    requestFixtureRecompose(*scene);
+
+    const std::string expected(
+        "scene\n"
+        "  boundary \"MainView\"\n"
+        "    observed: 2\n"
+        "    parked\n"
+        "      section(4101)\n"
+        "        states: 2 (arena 1, heap 1)\n");
+    verifyOwnershipDump(
+        loka::dsl::testing::OwnershipDump::dump(*scene), expected);
+    delete scene;
+  }
   g_ownershipDumpScenario = 0;
 }
 

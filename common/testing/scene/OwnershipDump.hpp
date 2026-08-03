@@ -140,6 +140,17 @@ namespace loka
           {
             this->indexNode(child);
           }
+          // Parked branches are alive and can own residents and holds, but
+          // they are not children. A dump that skipped them would render a
+          // parked branch's resources as unowned -- the exact lie this tool
+          // exists to remove.
+          for (unsigned i = 0;
+               ::loka::app::scene::Node *branch =
+                   node->retainedLifecycleBranch(i);
+               ++i)
+          {
+            this->indexNode(branch);
+          }
         }
 
         void renderApp(const ::App &app)
@@ -211,6 +222,14 @@ namespace loka
                child = child->nextInComposition)
           {
             this->renderNode(child, childDepth);
+          }
+          for (unsigned i = 0;
+               ::loka::app::scene::Node *branch =
+                   node->retainedLifecycleBranch(i);
+               ++i)
+          {
+            this->line(childDepth, "parked");
+            this->renderNode(branch, childDepth + 1);
           }
         }
 
