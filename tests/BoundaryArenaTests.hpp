@@ -29,5 +29,16 @@ void testBoundarySectionOwnedStateInvalidatesEnclosingBoundary();
 void testBoundarySectionRetireWhileDirtySourceDeregistersAncestorEdges();
 void testConditionalBranchFlipInsideSectionKeepsSectionOwner();
 void testCurrentBoundaryStateRequiresResolvedOwnerMatchBothDirections();
+void testHeldCreationStartsWithSectionOwnerSlot();
+void testHeldDescendantAndRepeatedOwnerHoldsShareOneBlock();
+void testHeldDescendantDetachDropsOnlyItsOwnerSlot();
+void testHeldLastDropDefersReleaserToRetirePoolDrain();
+void testHeldLastDropCannotReleaseInsideInFlightCallback();
+void testHeldFifthOwnerRefusalIsFailureAtomic();
+void testHeldCrossBranchHoldIsRefusedBySubtreeWall();
+void testHeldHandleCopiesDoNotChangeOwnerSlots();
+void testHeldNestedBoundaryRetireReleasesAtParentDrain();
+void testHeldStorageRefusalReleasesPayloadInsteadOfLeaking();
+void testHeldBlockUsesEnclosingBoundaryArenaWithoutHeapControlBlock();
 
 #endif // LOKA_BOUNDARY_ARENA_TESTS_HPP

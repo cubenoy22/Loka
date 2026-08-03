@@ -114,6 +114,33 @@ namespace loka
         }
       }
 
+      void BoundaryNode::retireHeldBlock(
+          loka::core::detail::HeldBlockBase *block)
+      {
+        if (!block)
+        {
+          return;
+        }
+        assert(block->releaseQueued() && !block->released() &&
+               "Boundary retire pool accepts only newly unowned Held blocks");
+        block->setRetireNext(0);
+        if (this->pendingHeldReleasesTail_)
+        {
+          this->pendingHeldReleasesTail_->setRetireNext(block);
+        }
+        else
+        {
+          this->pendingHeldReleasesHead_ = block;
+        }
+        this->pendingHeldReleasesTail_ = block;
+
+        Scene *scene = this->getScene();
+        if (scene)
+        {
+          scene->requestRetiredSubtreeDrainAfterRun();
+        }
+      }
+
       void BoundaryNode::destroyRetiredSubtree(Node *node)
       {
         if (!node)
@@ -122,6 +149,15 @@ namespace loka
         }
 
         BoundaryNode *nestedBoundary = node->asBoundary();
+        if (nestedBoundary && nestedBoundary != this)
+        {
+          // This drain runs at the retiring parent's tick boundary, which is
+          // the clock the deferral was queued for. A retired Boundary is no
+          // longer in the live tree, so nothing else will reach its queue —
+          // and running the releaser from its destructor instead would put
+          // observable app code on the reclaim path.
+          nestedBoundary->drainPendingHeldReleases();
+        }
         if (!nestedBoundary || nestedBoundary == this)
         {
           INestable *nestable = node->asNestable();
@@ -155,7 +191,9 @@ namespace loka
       void BoundaryNode::drainRetiredSubtreesAtNextTrackerRun()
       {
         if (this->drainingRetiredSubtrees_ ||
-            (!this->retiredSubtreesHead_ && this->retiredGenerations_.empty()))
+            (!this->retiredSubtreesHead_ &&
+             this->retiredGenerations_.empty() &&
+             !this->pendingHeldReleasesHead_))
         {
           return;
         }
@@ -165,6 +203,10 @@ namespace loka
         this->retiredSubtreesTail_ = 0;
         std::vector<detail::NodeArena::RetiredNodeGeneration> generationSnapshot;
         generationSnapshot.swap(this->retiredGenerations_);
+        loka::core::detail::HeldBlockBase *heldSnapshot =
+            this->pendingHeldReleasesHead_;
+        this->pendingHeldReleasesHead_ = 0;
+        this->pendingHeldReleasesTail_ = 0;
         this->drainingRetiredSubtrees_ = true;
         while (snapshot)
         {
@@ -178,12 +220,37 @@ namespace loka
           detail::NodeArena::destroyRetiredGeneration(generationSnapshot[i]);
         }
         generationSnapshot.clear();
+        while (heldSnapshot)
+        {
+          loka::core::detail::HeldBlockBase *next =
+              heldSnapshot->retireNext();
+          heldSnapshot->setRetireNext(0);
+          heldSnapshot->runReleaser();
+          heldSnapshot = next;
+        }
         this->drainingRetiredSubtrees_ = false;
+      }
+
+      void BoundaryNode::drainPendingHeldReleases()
+      {
+        loka::core::detail::HeldBlockBase *snapshot =
+            this->pendingHeldReleasesHead_;
+        this->pendingHeldReleasesHead_ = 0;
+        this->pendingHeldReleasesTail_ = 0;
+        while (snapshot)
+        {
+          loka::core::detail::HeldBlockBase *next = snapshot->retireNext();
+          snapshot->setRetireNext(0);
+          snapshot->runReleaser();
+          snapshot = next;
+        }
       }
 
       void BoundaryNode::drainAllRetiredSubtrees()
       {
-        while (this->retiredSubtreesHead_ || !this->retiredGenerations_.empty())
+        while (this->retiredSubtreesHead_ ||
+               !this->retiredGenerations_.empty() ||
+               this->pendingHeldReleasesHead_)
         {
           this->drainRetiredSubtreesAtNextTrackerRun();
         }

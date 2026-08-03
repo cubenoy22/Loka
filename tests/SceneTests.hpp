@@ -330,7 +330,8 @@ namespace SceneTests
   public:
     NodeLocalReleaseOwner()
         : tracker_(),
-          states_()
+          states_(),
+          holdLedger_(this)
     {
     }
     ~NodeLocalReleaseOwner()
@@ -392,6 +393,20 @@ namespace SceneTests
       return 0;
     }
     virtual void registerStateMemory(loka::core::StateBase *, void (*)(loka::core::StateBase *)) {}
+    virtual loka::core::HoldLedger *holdLedger()
+    {
+      return &this->holdLedger_;
+    }
+    virtual void reserveHeldArena(size_t) {}
+    virtual void *allocateHeldMemory(size_t, size_t)
+    {
+      return 0;
+    }
+    virtual void registerHeldMemory(loka::core::detail::HeldBlockBase *) {}
+    virtual void retireHeldBlock(loka::core::detail::HeldBlockBase *)
+    {
+      assert(false && "NodeLocalReleaseOwner has no retire pool");
+    }
     virtual loka::core::StateTracker *tracker()
     {
       return &tracker_;
@@ -404,6 +419,7 @@ namespace SceneTests
   private:
     loka::core::PushStateTracker tracker_;
     std::vector<loka::core::StateBase *> states_;
+    loka::core::HoldLedger holdLedger_;
   };
 
   void test_Node_composition_state_batch_pages_overflow_declarations()

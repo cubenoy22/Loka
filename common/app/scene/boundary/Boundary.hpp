@@ -51,6 +51,9 @@ namespace loka
               observedState_(),
               parkedBranches_(),
               branchSeats_(),
+              holdLedger_(this),
+              pendingHeldReleasesHead_(0),
+              pendingHeldReleasesTail_(0),
               retiredSubtreesHead_(0),
               retiredSubtreesTail_(0),
               retiredGenerations_(),
@@ -60,6 +63,11 @@ namespace loka
         }
         virtual ~BoundaryNode()
         {
+          this->holdLedger_.auditEmptyBeforeReclaim();
+#ifdef LOKA_LIFECYCLE_AUDIT
+          assert(!this->pendingHeldReleasesHead_ &&
+                 "a Boundary must drain its Held releasers before reclamation");
+#endif
           clearObservedStateEntries();
           this->releaseOwnedNodeStorage();
           releaseNodeStateRegistrations();
@@ -490,6 +498,29 @@ namespace loka
             the next tracker run. Retirees added while draining wait for a
             later tracker run. */
         void drainRetiredSubtreesAtNextTrackerRun();
+        /** Runs the queued releasers of blocks this Boundary is the last
+            dropping owner for. Reclamation paths call it before destroying
+            the Boundary so no releaser ever runs from a destructor. */
+        void drainPendingHeldReleases();
+        virtual loka::core::HoldLedger *holdLedger()
+        {
+          return &this->holdLedger_;
+        }
+        virtual void reserveHeldArena(size_t totalSize)
+        {
+          stateArena_.reserve(totalSize);
+        }
+        virtual void *allocateHeldMemory(size_t size, size_t align)
+        {
+          return stateArena_.allocate(size, align);
+        }
+        virtual void registerHeldMemory(
+            loka::core::detail::HeldBlockBase *block)
+        {
+          stateArena_.registerHeld(block);
+        }
+        virtual void retireHeldBlock(
+            loka::core::detail::HeldBlockBase *block);
         virtual void *allocateStateMemory(size_t size, size_t align)
         {
           return stateArena_.allocate(size, align);
@@ -1692,6 +1723,11 @@ namespace loka
           {
             nodeStateOwner->attachEnclosingBoundary(currentBoundary);
           }
+          if (nodeStateOwner && event != COMPOSE_EVENT_DETACH)
+          {
+            nodeStateOwner->attachEnclosingHoldOwner(
+                parentContext.stateOwner());
+          }
 
           if (boundary && event == COMPOSE_EVENT_DETACH)
           {
@@ -1803,6 +1839,10 @@ namespace loka
           }
           if (!nestable)
           {
+            if (event == COMPOSE_EVENT_DETACH && nodeStateOwner)
+            {
+              nodeStateOwner->detachHeldResources();
+            }
             return;
           }
           loka::dsl::CompositionCursor<Node> it(nestable->childrenHead(), nestable->childrenCount());
@@ -1810,6 +1850,10 @@ namespace loka
           {
             ComposeEvent childEvent = child->resolveChildComposeEvent(event);
             composeTree(child, *contextForChildren, childEvent, nextBoundary);
+          }
+          if (event == COMPOSE_EVENT_DETACH && nodeStateOwner)
+          {
+            nodeStateOwner->detachHeldResources();
           }
         }
 
@@ -1906,6 +1950,9 @@ namespace loka
         BoundaryBranchSeatState branchSeats_;
         NodeArena nodeArena_;
         StateArena stateArena_;
+        loka::core::HoldLedger holdLedger_;
+        loka::core::detail::HeldBlockBase *pendingHeldReleasesHead_;
+        loka::core::detail::HeldBlockBase *pendingHeldReleasesTail_;
         Node *retiredSubtreesHead_;
         Node *retiredSubtreesTail_;
         std::vector<detail::NodeArena::RetiredNodeGeneration> retiredGenerations_;

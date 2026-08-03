@@ -6,6 +6,7 @@
 #include <vector>
 #include "app/scene/Node.hpp"
 #include "app/scene/detail/ArenaMath.hpp"
+#include "core/Held.hpp"
 #include "core/LokaAlloc.hpp"
 #include "core/State.hpp"
 
@@ -238,7 +239,8 @@ namespace loka
         StateArena()
             : first_(0),
               tail_(0),
-              states_()
+              states_(),
+              heldBlocks_(0)
         {
         }
         ~StateArena()
@@ -326,6 +328,21 @@ namespace loka
           }
         }
 
+        /** Registers a Held block without allocating a second ledger row.
+            The block itself carries the intrusive arena link, so all control
+            metadata remains inside the creating owner's resident bytes. */
+        void registerHeld(loka::core::detail::HeldBlockBase *block)
+        {
+          if (!block)
+          {
+            return;
+          }
+          assert(!block->arenaNext() &&
+                 "a Held block may have only one arena landlord");
+          block->setArenaNext(this->heldBlocks_);
+          this->heldBlocks_ = block;
+        }
+
         void clear()
         {
           for (size_t i = 0; i < states_.size(); ++i)
@@ -336,6 +353,15 @@ namespace loka
             }
           }
           states_.clear();
+          while (this->heldBlocks_)
+          {
+            loka::core::detail::HeldBlockBase *block = this->heldBlocks_;
+            this->heldBlocks_ = block->arenaNext();
+            block->setArenaNext(0);
+            // Block audit precedes slab release: live slots or a missing
+            // retire-pool releaser fail while the bytes are still readable.
+            block->destroyStorage();
+          }
           clearBlocks();
         }
 
@@ -459,6 +485,7 @@ namespace loka
         Block *first_;
         Block *tail_;
         std::vector<StateEntry> states_;
+        loka::core::detail::HeldBlockBase *heldBlocks_;
       };
     } // namespace scene
   } // namespace app

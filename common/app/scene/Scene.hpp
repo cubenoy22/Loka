@@ -884,6 +884,10 @@ namespace loka
               {
                 BoundaryNode::composeSubtree(child, rootContext, event, boundary);
               }
+              // The direct-root path bypasses composeTree for the Boundary
+              // itself. Its owner slots still cross the same synchronous
+              // detach line, after descendant owners have dropped theirs.
+              boundary->detachHeldResources();
             }
             completeRootBoundaryCompose(boundary);
           }
@@ -1013,6 +1017,11 @@ namespace loka
             return;
           }
           Node::MarkSubtreeLifecycleFact(rootNode_, NODE_FACT_RETIRED);
+          // Teardown drains its own queues first: the detach line has already
+          // dropped every owner slot, and a queued Held releaser is observable
+          // app code. Running it here keeps reclamation callback-free instead
+          // of firing it from a Boundary destructor.
+          drainLiveBoundaryRetireQueues(rootNode_);
           if (platformController_)
           {
             platformController_->releaseNodeContexts(rootNode_);

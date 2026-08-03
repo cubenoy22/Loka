@@ -371,7 +371,8 @@ namespace
   {
   public:
     DummyStateOwner()
-        : tracker_(0)
+        : tracker_(0),
+          holdLedger_(this)
     {
     }
     virtual ~DummyStateOwner()
@@ -431,6 +432,20 @@ namespace
       return 0;
     }
     virtual void registerStateMemory(loka::core::StateBase *, void (*)(loka::core::StateBase *)) {}
+    virtual loka::core::HoldLedger *holdLedger()
+    {
+      return &this->holdLedger_;
+    }
+    virtual void reserveHeldArena(size_t) {}
+    virtual void *allocateHeldMemory(size_t, size_t)
+    {
+      return 0;
+    }
+    virtual void registerHeldMemory(loka::core::detail::HeldBlockBase *) {}
+    virtual void retireHeldBlock(loka::core::detail::HeldBlockBase *)
+    {
+      assert(false && "DummyStateOwner has no retire pool");
+    }
     virtual loka::core::StateTracker *tracker()
     {
       return tracker_;
@@ -439,6 +454,7 @@ namespace
   private:
     loka::core::StateTracker *tracker_;
     std::vector<loka::core::StateBase *> owned_;
+    loka::core::HoldLedger holdLedger_;
   };
 
   class PendingApplyProbeBoundaryNode;
@@ -5803,7 +5819,8 @@ namespace
         : tracker_(),
           owned_(),
           borrowed_(),
-          releaseCalls_(0)
+          releaseCalls_(0),
+          holdLedger_(this)
     {
     }
 
@@ -5882,6 +5899,21 @@ namespace
 
     virtual void registerStateMemory(loka::core::StateBase *, void (*)(loka::core::StateBase *)) {}
 
+    virtual loka::core::HoldLedger *holdLedger()
+    {
+      return &this->holdLedger_;
+    }
+    virtual void reserveHeldArena(size_t) {}
+    virtual void *allocateHeldMemory(size_t, size_t)
+    {
+      return 0;
+    }
+    virtual void registerHeldMemory(loka::core::detail::HeldBlockBase *) {}
+    virtual void retireHeldBlock(loka::core::detail::HeldBlockBase *)
+    {
+      assert(false && "CharacterizationStateOwner has no retire pool");
+    }
+
     virtual loka::core::StateTracker *tracker()
     {
       return &this->tracker_;
@@ -5908,6 +5940,7 @@ namespace
     std::vector<loka::core::StateBase *> owned_;
     std::vector<loka::core::StateBase *> borrowed_;
     int releaseCalls_;
+    loka::core::HoldLedger holdLedger_;
   };
 
   struct CharacterizationAddOneMapper

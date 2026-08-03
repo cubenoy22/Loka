@@ -650,6 +650,68 @@ namespace loka
           return StateBatch(owner);
         }
 
+        /** Creates a passive payload block in the currently resolved owner
+            (nearest Section, otherwise Boundary) and fills that owner's first
+            slot at birth. The payload is handed over either way: a refused
+            creation returns an invalid handle and releases it, so the caller
+            never has to decide whether it still owns what it passed. */
+        template <typename T>
+        loka::core::Held<T> hold(
+            T *value,
+            typename loka::core::Held<T>::ReleaserFn releaser)
+        {
+          assert(context_ && "NodeComposition::hold requires ComponentContext");
+          IStateOwner *owner = context_->stateOwner();
+          assert(owner && "NodeComposition::hold requires IStateOwner");
+          return loka::core::Held<T>::Create(owner, value, releaser);
+        }
+
+        /** Silent nullable owner-slot acquisition used when refusal is part of
+            the caller's plan (fixed-slot overflow or an audit subtree wall). */
+        template <typename T>
+        loka::core::Held<T> tryHold(const loka::core::Held<T> &held)
+        {
+          if (!context_ || !held.block_)
+          {
+            return loka::core::Held<T>();
+          }
+          IStateOwner *owner = context_->stateOwner();
+          if (!owner)
+          {
+            return loka::core::Held<T>();
+          }
+          const loka::core::detail::HoldAttempt result =
+              owner->tryHoldBlock(held.block_);
+          return result == loka::core::detail::HOLD_ATTEMPT_ACCEPTED
+                     ? held
+                     : loka::core::Held<T>();
+        }
+
+        /** Teaching form: a fifth owner scope is a seam anomaly. Cross-branch
+            audit refusal remains nullable so the subtree wall can be probed. */
+        template <typename T>
+        loka::core::Held<T> hold(const loka::core::Held<T> &held)
+        {
+          if (!context_ || !held.block_)
+          {
+            return loka::core::Held<T>();
+          }
+          IStateOwner *owner = context_->stateOwner();
+          if (!owner)
+          {
+            return loka::core::Held<T>();
+          }
+          const loka::core::detail::HoldAttempt result =
+              owner->tryHoldBlock(held.block_);
+#ifdef LOKA_LIFECYCLE_AUDIT
+          assert(result != loka::core::detail::HOLD_ATTEMPT_SLOT_OVERFLOW &&
+                 "more than four scopes holding one resource is a seam anomaly");
+#endif
+          return result == loka::core::detail::HOLD_ATTEMPT_ACCEPTED
+                     ? held
+                     : loka::core::Held<T>();
+        }
+
         template <typename T> NodeState<T> dangerouslyUseState()
         {
           return dangerouslyUseState(T());

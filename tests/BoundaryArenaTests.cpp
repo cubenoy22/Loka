@@ -28,6 +28,71 @@
 #include "support/RecordingPlatformController.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 
+namespace loka
+{
+  namespace core
+  {
+    namespace testing
+    {
+      struct HeldTestAccess
+      {
+        template <typename T>
+        static unsigned slotCount(const loka::core::Held<T> &held)
+        {
+          return held.block_ ? held.block_->activeSlotCount() : 0;
+        }
+
+        template <typename T>
+        static unsigned holdCountForOwner(
+            const loka::core::Held<T> &held,
+            loka::app::scene::IStateOwner *owner)
+        {
+          if (!held.block_)
+          {
+            return 0;
+          }
+          for (unsigned i = 0;
+               i < loka::core::detail::HeldBlockBase::kSlotCapacity;
+               ++i)
+          {
+            if (held.block_->slotOwner(i) == owner)
+            {
+              return held.block_->slotHoldCount(i);
+            }
+          }
+          return 0;
+        }
+
+        template <typename T>
+        static unsigned slotHoldCount(const loka::core::Held<T> &held,
+                                      unsigned index)
+        {
+          return held.block_ ? held.block_->slotHoldCount(index) : 0;
+        }
+
+        template <typename T>
+        static loka::app::scene::IStateOwner *creator(
+            const loka::core::Held<T> &held)
+        {
+          return held.block_ ? held.block_->creator() : 0;
+        }
+
+        template <typename T>
+        static const void *blockAddress(const loka::core::Held<T> &held)
+        {
+          return held.block_;
+        }
+
+        template <typename T>
+        static bool released(const loka::core::Held<T> &held)
+        {
+          return held.block_ && held.block_->released();
+        }
+      };
+    } // namespace testing
+  } // namespace core
+} // namespace loka
+
 namespace
 {
 
@@ -98,7 +163,8 @@ namespace
     TestStateOwner()
         : tracker_(),
           ownedStates_(),
-          arena_()
+          arena_(),
+          holdLedger_(this)
     {
     }
 
@@ -181,6 +247,27 @@ namespace
       arena_.registerState(state, destroy);
     }
 
+    virtual loka::core::HoldLedger *holdLedger()
+    {
+      return &this->holdLedger_;
+    }
+    virtual void reserveHeldArena(size_t totalSize)
+    {
+      this->arena_.reserve(totalSize);
+    }
+    virtual void *allocateHeldMemory(size_t size, size_t align)
+    {
+      return this->arena_.allocate(size, align);
+    }
+    virtual void registerHeldMemory(loka::core::detail::HeldBlockBase *block)
+    {
+      this->arena_.registerHeld(block);
+    }
+    virtual void retireHeldBlock(loka::core::detail::HeldBlockBase *)
+    {
+      assert(false && "TestStateOwner has no retire pool");
+    }
+
     virtual loka::core::StateTracker *tracker()
     {
       return &tracker_;
@@ -209,6 +296,7 @@ namespace
     loka::core::PushStateTracker tracker_;
     std::vector<loka::core::StateBase *> ownedStates_;
     loka::app::scene::StateArena arena_;
+    loka::core::HoldLedger holdLedger_;
   };
 
   static void testNodeArenaAlignmentAndCapacity()
@@ -1927,6 +2015,286 @@ namespace
     }
   };
 
+  struct HeldOwnerSlotScenario;
+
+  struct HeldOwnerSlotPayload
+  {
+    explicit HeldOwnerSlotPayload(HeldOwnerSlotScenario *owner)
+        : scenario(owner)
+    {
+    }
+
+    HeldOwnerSlotScenario *scenario;
+  };
+
+  struct HeldOwnerSlotScenario
+  {
+    enum Mode
+    {
+      MODE_BASIC = 0,
+      MODE_FIVE_OWNERS,
+      MODE_CROSS_BRANCH
+    };
+
+    explicit HeldOwnerSlotScenario(Mode value = MODE_BASIC)
+        : mode(value),
+          held(),
+          refused(),
+          creatorOwner(0),
+          descendantOwner(0),
+          showCreator(true),
+          showDescendant(false),
+          repeatCreatorHold(false),
+          releaseCount(0),
+          order(0),
+          detachCallbackReturnOrder(0),
+          releaseOrder(0),
+          releaseSawCallbackInFlight(false),
+          callbackInFlight(false),
+          refusalWasFailureAtomic(false)
+    {
+    }
+
+    Mode mode;
+    loka::core::Held<HeldOwnerSlotPayload> held;
+    loka::core::Held<HeldOwnerSlotPayload> refused;
+    loka::app::scene::IStateOwner *creatorOwner;
+    loka::app::scene::IStateOwner *descendantOwner;
+    bool showCreator;
+    bool showDescendant;
+    bool repeatCreatorHold;
+    int releaseCount;
+    int order;
+    int detachCallbackReturnOrder;
+    int releaseOrder;
+    bool releaseSawCallbackInFlight;
+    bool callbackInFlight;
+    bool refusalWasFailureAtomic;
+  };
+
+  HeldOwnerSlotScenario *g_heldOwnerSlotScenario = 0;
+
+  void releaseHeldOwnerSlotPayload(HeldOwnerSlotPayload *payload)
+  {
+    assert(payload && payload->scenario);
+    HeldOwnerSlotScenario *scenario = payload->scenario;
+    ++scenario->releaseCount;
+    scenario->releaseSawCallbackInFlight = scenario->callbackInFlight;
+    scenario->releaseOrder = ++scenario->order;
+    delete payload;
+  }
+
+  struct HeldOwnerSlotProbeTypeTag
+  {
+  };
+
+  class HeldOwnerSlotProbeNode;
+
+  struct HeldOwnerSlotProbeProps
+      : public loka::app::scene::NodePropsBase<HeldOwnerSlotProbeProps>
+  {
+    typedef HeldOwnerSlotProbeTypeTag TypeTag;
+    typedef HeldOwnerSlotProbeNode NodeType;
+
+    enum Role
+    {
+      ROLE_CREATE = 0,
+      ROLE_HOLD,
+      ROLE_TRY_HOLD
+    };
+
+    explicit HeldOwnerSlotProbeProps(Role value = ROLE_HOLD)
+        : role(value)
+    {
+    }
+
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      if (rhs.propsTypeId() != this->propsTypeId())
+      {
+        return false;
+      }
+      const HeldOwnerSlotProbeProps &other =
+          static_cast<const HeldOwnerSlotProbeProps &>(rhs);
+      return this->role < other.role;
+    }
+
+    Role role;
+  };
+
+  class HeldOwnerSlotProbeNode : public loka::app::scene::ComposableNode
+  {
+  public:
+    typedef HeldOwnerSlotProbeTypeTag TypeTag;
+    HeldOwnerSlotProbeProps props;
+
+    explicit HeldOwnerSlotProbeNode(const HeldOwnerSlotProbeProps &value)
+        : loka::app::scene::ComposableNode(),
+          props(value)
+    {
+    }
+
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<HeldOwnerSlotProbeNode>();
+    }
+
+  protected:
+    virtual void composeWithContext(loka::app::scene::ComponentContext &context,
+                                    loka::app::scene::ComposeEvent event)
+    {
+      assert(g_heldOwnerSlotScenario);
+      HeldOwnerSlotScenario &scenario = *g_heldOwnerSlotScenario;
+      if (event == loka::app::scene::COMPOSE_EVENT_DETACH)
+      {
+        this->detachCallback(scenario);
+        return;
+      }
+      if (event != loka::app::scene::COMPOSE_EVENT_ATTACH)
+      {
+        return;
+      }
+
+      loka::app::scene::NodeComposition composition;
+      composition.setContext(&context);
+      switch (this->props.role)
+      {
+      case HeldOwnerSlotProbeProps::ROLE_CREATE:
+        if (!scenario.held.isValid())
+        {
+          scenario.held = composition.hold(
+              new HeldOwnerSlotPayload(&scenario),
+              &releaseHeldOwnerSlotPayload);
+          scenario.creatorOwner = context.stateOwner();
+          if (scenario.repeatCreatorHold)
+          {
+            assert(composition.hold(scenario.held).isValid());
+          }
+        }
+        break;
+      case HeldOwnerSlotProbeProps::ROLE_HOLD:
+        assert(composition.hold(scenario.held).isValid());
+        scenario.descendantOwner = context.stateOwner();
+        break;
+      case HeldOwnerSlotProbeProps::ROLE_TRY_HOLD:
+        {
+          const unsigned slotsBefore =
+              loka::core::testing::HeldTestAccess::slotCount(scenario.held);
+          scenario.refused = composition.tryHold(scenario.held);
+          scenario.refusalWasFailureAtomic =
+              !scenario.refused.isValid() &&
+              loka::core::testing::HeldTestAccess::slotCount(scenario.held) ==
+                  slotsBefore;
+        }
+        break;
+      }
+    }
+
+  private:
+    void detachCallback(HeldOwnerSlotScenario &scenario)
+    {
+      if (this->props.role == HeldOwnerSlotProbeProps::ROLE_CREATE)
+      {
+        scenario.detachCallbackReturnOrder = ++scenario.order;
+      }
+    }
+  };
+
+  typedef loka::app::scene::NodeDefinition<HeldOwnerSlotProbeProps,
+                                           HeldOwnerSlotProbeNode>
+      HeldOwnerSlotProbeDefinition;
+
+  class HeldOwnerSlotRootNode;
+  typedef loka::app::scene::BoundaryPropsFor<HeldOwnerSlotRootNode>
+      HeldOwnerSlotRootProps;
+
+  class HeldOwnerSlotRootNode
+      : public SceneTestSupport::RecomposingBoundaryNode<HeldOwnerSlotRootNode,
+                                                         HeldOwnerSlotRootProps>
+  {
+  public:
+    explicit HeldOwnerSlotRootNode(const HeldOwnerSlotRootProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<HeldOwnerSlotRootNode,
+                                                    HeldOwnerSlotRootProps>(props)
+    {
+      assert(g_heldOwnerSlotScenario);
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      assert(g_heldOwnerSlotScenario);
+      HeldOwnerSlotScenario &scenario = *g_heldOwnerSlotScenario;
+      loka::app::Fragment root;
+      switch (scenario.mode)
+      {
+      case HeldOwnerSlotScenario::MODE_BASIC:
+        if (scenario.showCreator)
+        {
+          loka::app::Section creator(5101);
+          creator << HeldOwnerSlotProbeDefinition(
+              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_CREATE));
+          if (scenario.showDescendant)
+          {
+            loka::app::Section descendant(5102);
+            descendant << HeldOwnerSlotProbeDefinition(
+                HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_HOLD));
+            creator << descendant;
+          }
+          root << creator;
+        }
+        break;
+      case HeldOwnerSlotScenario::MODE_FIVE_OWNERS:
+        {
+          loka::app::Section fifth(5205);
+          fifth << HeldOwnerSlotProbeDefinition(
+              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_TRY_HOLD));
+          loka::app::Section fourth(5204);
+          fourth << HeldOwnerSlotProbeDefinition(
+              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_HOLD));
+          fourth << fifth;
+          loka::app::Section third(5203);
+          third << HeldOwnerSlotProbeDefinition(
+              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_HOLD));
+          third << fourth;
+          loka::app::Section second(5202);
+          second << HeldOwnerSlotProbeDefinition(
+              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_HOLD));
+          second << third;
+          loka::app::Section creator(5201);
+          creator << HeldOwnerSlotProbeDefinition(
+              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_CREATE));
+          creator << second;
+          root << creator;
+        }
+        break;
+      case HeldOwnerSlotScenario::MODE_CROSS_BRANCH:
+        {
+          loka::app::Section creator(5301);
+          creator << HeldOwnerSlotProbeDefinition(
+              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_CREATE));
+          loka::app::Section sibling(5302);
+          sibling << HeldOwnerSlotProbeDefinition(
+              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_TRY_HOLD));
+          root << creator;
+          root << sibling;
+        }
+        break;
+      }
+      composition.declare(root);
+    }
+  };
+
+  void runHeldInFlightDetachCallback(
+      loka::app::scene::BoundaryNode &owner,
+      HeldOwnerSlotScenario &scenario)
+  {
+    scenario.callbackInFlight = true;
+    owner.detachHeldResources();
+    assert(scenario.releaseCount == 0 &&
+           "the drop site must not run a passive payload releaser inline");
+    scenario.callbackInFlight = false;
+  }
+
 } // namespace
 
 
@@ -3288,4 +3656,421 @@ void testCurrentBoundaryStateRequiresResolvedOwnerMatchBothDirections()
            "Section-owned state is foreign at Boundary scope");
   }
   g_sectionOwnerResolutionScenario = 0;
+}
+
+namespace
+{
+  bool g_heldNestedBoundaryVisible = true;
+
+  class HeldNestedBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<HeldNestedBoundaryNode>
+      HeldNestedBoundaryProps;
+
+  class HeldNestedBoundaryNode
+      : public SceneTestSupport::RecomposingBoundaryNode<HeldNestedBoundaryNode,
+                                                         HeldNestedBoundaryProps>
+  {
+  public:
+    explicit HeldNestedBoundaryNode(const HeldNestedBoundaryProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<HeldNestedBoundaryNode,
+                                                    HeldNestedBoundaryProps>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::Fragment root;
+      root << HeldOwnerSlotProbeDefinition(
+          HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_CREATE));
+      composition.declare(root);
+    }
+  };
+
+  class HeldNestedRootNode;
+  typedef loka::app::scene::BoundaryPropsFor<HeldNestedRootNode>
+      HeldNestedRootProps;
+
+  class HeldNestedRootNode
+      : public SceneTestSupport::RecomposingBoundaryNode<HeldNestedRootNode,
+                                                         HeldNestedRootProps>
+  {
+  public:
+    explicit HeldNestedRootNode(const HeldNestedRootProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<HeldNestedRootNode,
+                                                    HeldNestedRootProps>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::Fragment root;
+      if (g_heldNestedBoundaryVisible)
+      {
+        loka::app::scene::BoundaryDefinition<HeldNestedBoundaryProps,
+                                             HeldNestedBoundaryNode>
+            nested = loka::app::scene::Boundary<HeldNestedBoundaryNode>();
+        root << nested;
+      }
+      composition.declare(root);
+    }
+  };
+} // namespace
+
+void testHeldNestedBoundaryRetireReleasesAtParentDrain()
+{
+  HeldOwnerSlotScenario scenario;
+  g_heldOwnerSlotScenario = &scenario;
+  g_heldNestedBoundaryVisible = true;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<HeldNestedRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    assert(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    assert(scenario.held.isValid());
+    assert(scenario.releaseCount == 0);
+
+    // A retired Boundary leaves the live tree carrying its own queue. The
+    // releaser must still ride a tick boundary — the retiring parent's drain —
+    // and never run from the retired Boundary's destructor.
+    g_heldNestedBoundaryVisible = false;
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+    assert(scenario.releaseCount == 0 &&
+           "retiring a Boundary must only queue its Held releasers");
+    assert(scene.hasPendingInvalidation());
+
+    assert(!scene.flushInvalidation());
+    assert(scenario.releaseCount == 1);
+    // The handle is only a view into the creator's storage. This creator was
+    // the retired Boundary itself, so its arena went with it; only the
+    // observer's own record is readable now. Reading the block here is the
+    // upward-borrow rule broken from the test side (ASan sees it).
+  }
+  assert(scenario.releaseCount == 1);
+  g_heldOwnerSlotScenario = 0;
+  g_heldNestedBoundaryVisible = true;
+}
+
+void testHeldCreationStartsWithSectionOwnerSlot()
+{
+  HeldOwnerSlotScenario scenario;
+  g_heldOwnerSlotScenario = &scenario;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<HeldOwnerSlotRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    loka::app::scene::BoundaryNode *root =
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    loka::app::BoundarySectionNode *creator =
+        findSectionByKey(root, 5101);
+    assert(root && creator);
+    assert(scenario.held.isValid());
+    assert(scenario.releaseCount == 0);
+    assert(scenario.creatorOwner == creator);
+    assert(loka::core::testing::HeldTestAccess::creator(scenario.held) ==
+           creator);
+    assert(loka::core::testing::HeldTestAccess::slotCount(scenario.held) == 1);
+    assert(loka::core::testing::HeldTestAccess::holdCountForOwner(
+               scenario.held, creator) == 1);
+  }
+  assert(scenario.releaseCount == 1);
+  g_heldOwnerSlotScenario = 0;
+}
+
+void testHeldDescendantAndRepeatedOwnerHoldsShareOneBlock()
+{
+  HeldOwnerSlotScenario scenario;
+  scenario.showDescendant = true;
+  scenario.repeatCreatorHold = true;
+  g_heldOwnerSlotScenario = &scenario;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<HeldOwnerSlotRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    loka::app::scene::BoundaryNode *root =
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    loka::app::BoundarySectionNode *creator =
+        findSectionByKey(root, 5101);
+    loka::app::BoundarySectionNode *descendant =
+        findSectionByKey(root, 5102);
+    assert(creator && descendant && creator != descendant);
+    assert(scenario.held.isValid() && scenario.held.get()->scenario == &scenario);
+    assert(loka::core::testing::HeldTestAccess::slotCount(scenario.held) == 2);
+    assert(loka::core::testing::HeldTestAccess::holdCountForOwner(
+               scenario.held, creator) == 2);
+    assert(loka::core::testing::HeldTestAccess::holdCountForOwner(
+               scenario.held, descendant) == 1);
+  }
+  assert(scenario.releaseCount == 1);
+  g_heldOwnerSlotScenario = 0;
+}
+
+void testHeldDescendantDetachDropsOnlyItsOwnerSlot()
+{
+  HeldOwnerSlotScenario scenario;
+  scenario.showDescendant = true;
+  g_heldOwnerSlotScenario = &scenario;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<HeldOwnerSlotRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    HeldOwnerSlotRootNode *root = static_cast<HeldOwnerSlotRootNode *>(
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    loka::app::BoundarySectionNode *creator =
+        findSectionByKey(root, 5101);
+    assert(root && creator && findSectionByKey(root, 5102));
+    assert(loka::core::testing::HeldTestAccess::slotCount(scenario.held) == 2);
+
+    scenario.showDescendant = false;
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+    assert(!findSectionByKey(root, 5102));
+    assert(loka::core::testing::HeldTestAccess::slotCount(scenario.held) == 1);
+    assert(loka::core::testing::HeldTestAccess::holdCountForOwner(
+               scenario.held, creator) == 1);
+    assert(scenario.releaseCount == 0 && scenario.held.isValid());
+    assert(scene.hasPendingInvalidation());
+    assert(!scene.flushInvalidation());
+    assert(scenario.releaseCount == 0 && scenario.held.isValid());
+  }
+  assert(scenario.releaseCount == 1);
+  g_heldOwnerSlotScenario = 0;
+}
+
+void testHeldLastDropDefersReleaserToRetirePoolDrain()
+{
+  HeldOwnerSlotScenario scenario;
+  g_heldOwnerSlotScenario = &scenario;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<HeldOwnerSlotRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    HeldOwnerSlotRootNode *root = static_cast<HeldOwnerSlotRootNode *>(
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    assert(root && findSectionByKey(root, 5101));
+
+    scenario.showCreator = false;
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+    assert(!findSectionByKey(root, 5101));
+    assert(scenario.detachCallbackReturnOrder > 0);
+    assert(scenario.releaseCount == 0 &&
+           "last drop must only queue the releaser");
+    assert(loka::core::testing::HeldTestAccess::slotCount(scenario.held) == 0);
+    assert(scene.hasPendingInvalidation());
+
+    assert(!scene.flushInvalidation());
+    assert(scenario.releaseCount == 1);
+    assert(scenario.releaseOrder > scenario.detachCallbackReturnOrder);
+    assert(loka::core::testing::HeldTestAccess::released(scenario.held));
+  }
+  assert(scenario.releaseCount == 1);
+  g_heldOwnerSlotScenario = 0;
+}
+
+void testHeldLastDropCannotReleaseInsideInFlightCallback()
+{
+  HeldOwnerSlotScenario scenario;
+  loka::app::scene::StdCompositionBoundaryNode owner(
+      (loka::app::scene::StdCompositionProps()));
+  loka::app::scene::ComponentContext context;
+  context.setStateOwner(&owner);
+  loka::app::scene::NodeComposition composition;
+  composition.setContext(&context);
+  scenario.held = composition.hold(
+      new HeldOwnerSlotPayload(&scenario),
+      &releaseHeldOwnerSlotPayload);
+  assert(scenario.held.isValid());
+
+  runHeldInFlightDetachCallback(owner, scenario);
+  assert(!scenario.releaseSawCallbackInFlight);
+  owner.drainRetiredSubtreesAtNextTrackerRun();
+  assert(scenario.releaseCount == 1);
+  assert(!scenario.releaseSawCallbackInFlight &&
+         "the in-flight callback must return before the releaser runs");
+}
+
+void testHeldFifthOwnerRefusalIsFailureAtomic()
+{
+  HeldOwnerSlotScenario scenario(HeldOwnerSlotScenario::MODE_FIVE_OWNERS);
+  g_heldOwnerSlotScenario = &scenario;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<HeldOwnerSlotRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    assert(scenario.held.isValid());
+    assert(!scenario.refused.isValid());
+    assert(scenario.refusalWasFailureAtomic);
+    assert(loka::core::testing::HeldTestAccess::slotCount(scenario.held) == 4);
+    for (unsigned i = 0;
+         i < loka::core::detail::HeldBlockBase::kSlotCapacity;
+         ++i)
+    {
+      assert(loka::core::testing::HeldTestAccess::slotHoldCount(
+                 scenario.held, i) == 1);
+    }
+    assert(scenario.releaseCount == 0);
+  }
+  assert(scenario.releaseCount == 1);
+  g_heldOwnerSlotScenario = 0;
+}
+
+void testHeldCrossBranchHoldIsRefusedBySubtreeWall()
+{
+  HeldOwnerSlotScenario scenario(HeldOwnerSlotScenario::MODE_CROSS_BRANCH);
+  g_heldOwnerSlotScenario = &scenario;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<HeldOwnerSlotRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    assert(scenario.held.isValid());
+    assert(!scenario.refused.isValid());
+    assert(scenario.refusalWasFailureAtomic);
+    assert(loka::core::testing::HeldTestAccess::slotCount(scenario.held) == 1);
+  }
+  assert(scenario.releaseCount == 1);
+  g_heldOwnerSlotScenario = 0;
+}
+
+void testHeldHandleCopiesDoNotChangeOwnerSlots()
+{
+  HeldOwnerSlotScenario scenario;
+  g_heldOwnerSlotScenario = &scenario;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<HeldOwnerSlotRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    loka::app::scene::IStateOwner *creator = scenario.creatorOwner;
+    assert(creator);
+    const unsigned slotsBefore =
+        loka::core::testing::HeldTestAccess::slotCount(scenario.held);
+    const unsigned countBefore =
+        loka::core::testing::HeldTestAccess::holdCountForOwner(
+            scenario.held, creator);
+    {
+      loka::core::Held<HeldOwnerSlotPayload> first(scenario.held);
+      loka::core::Held<HeldOwnerSlotPayload> second;
+      second = first;
+      loka::core::Held<HeldOwnerSlotPayload> third(second);
+      assert(first == second && second == third);
+      assert(first.get() == scenario.held.get());
+    }
+    assert(loka::core::testing::HeldTestAccess::slotCount(scenario.held) ==
+           slotsBefore);
+    assert(loka::core::testing::HeldTestAccess::holdCountForOwner(
+               scenario.held, creator) == countBefore);
+    assert(scenario.releaseCount == 0);
+  }
+  assert(scenario.releaseCount == 1);
+  g_heldOwnerSlotScenario = 0;
+}
+
+void testHeldStorageRefusalReleasesPayloadInsteadOfLeaking()
+{
+  HeldOwnerSlotScenario scenario;
+  loka::core::LokaAllocSetBackend(&sectionFailureBackendAlloc,
+                                  &delegatingBackendFree);
+  {
+    loka::app::scene::StdCompositionBoundaryNode owner(
+        (loka::app::scene::StdCompositionProps()));
+    loka::app::scene::ComponentContext context;
+    context.setStateOwner(&owner);
+    loka::app::scene::NodeComposition composition;
+    composition.setContext(&context);
+
+    // The arena refuses, so no block is created. Passing the payload and its
+    // releaser handed the payload over, so the refusal must release it rather
+    // than leave a pointer nobody owns.
+    loka::core::Held<HeldOwnerSlotPayload> held = composition.hold(
+        new HeldOwnerSlotPayload(&scenario),
+        &releaseHeldOwnerSlotPayload);
+    assert(!held.isValid());
+    assert(scenario.releaseCount == 1 &&
+           "a refused creation must release the payload it was handed");
+    assert(!scenario.releaseSawCallbackInFlight);
+  }
+  loka::core::LokaAllocSetBackend(0, 0);
+  assert(scenario.releaseCount == 1);
+}
+
+void testHeldBlockUsesEnclosingBoundaryArenaWithoutHeapControlBlock()
+{
+  resetSectionAllocationCounts();
+  loka::core::LokaAllocSetBackend(&sectionCountingBackendAlloc,
+                                  &sectionCountingBackendFree);
+  HeldOwnerSlotScenario scenario;
+  g_heldOwnerSlotScenario = &scenario;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<HeldOwnerSlotRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    loka::app::scene::BoundaryNode *root =
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    loka::app::BoundarySectionNode *creator =
+        findSectionByKey(root, 5101);
+    assert(creator && scenario.creatorOwner == creator);
+    assert(g_sectionStateArenaBlockAllocs == 1);
+    assert(g_sectionStateArenaSlabAllocs == 1);
+    assert(g_sectionHeapStateAllocs == 0 &&
+           "Held control blocks must not use the heap-state fallback door");
+  }
+  assert(scenario.releaseCount == 1);
+  g_heldOwnerSlotScenario = 0;
+  loka::core::LokaAllocSetBackend(0, 0);
+  assert(g_sectionStateArenaBlockFrees == g_sectionStateArenaBlockAllocs);
+  assert(g_sectionStateArenaSlabFrees == g_sectionStateArenaSlabAllocs);
+  assert(g_sectionHeapStateFrees == 0);
+
+  // The releaser clock does not reclaim the block bytes. They remain readable
+  // in the landlord arena and cannot be reused by a later block before the
+  // Boundary itself reclaims its StateArena (M3 / audit-before-free pin).
+  HeldOwnerSlotScenario firstScenario;
+  HeldOwnerSlotScenario secondScenario;
+  loka::app::scene::StdCompositionBoundaryNode owner(
+      (loka::app::scene::StdCompositionProps()));
+  loka::app::scene::ComponentContext context;
+  context.setStateOwner(&owner);
+  loka::app::scene::NodeComposition composition;
+  composition.setContext(&context);
+  firstScenario.held = composition.hold(
+      new HeldOwnerSlotPayload(&firstScenario),
+      &releaseHeldOwnerSlotPayload);
+  const void *firstAddress =
+      loka::core::testing::HeldTestAccess::blockAddress(firstScenario.held);
+  owner.detachHeldResources();
+  owner.drainRetiredSubtreesAtNextTrackerRun();
+  assert(firstScenario.releaseCount == 1);
+  assert(loka::core::testing::HeldTestAccess::released(firstScenario.held));
+  assert(loka::core::testing::HeldTestAccess::slotCount(firstScenario.held) == 0);
+
+  secondScenario.held = composition.hold(
+      new HeldOwnerSlotPayload(&secondScenario),
+      &releaseHeldOwnerSlotPayload);
+  assert(secondScenario.held.isValid());
+  assert(loka::core::testing::HeldTestAccess::blockAddress(secondScenario.held) !=
+         firstAddress);
+  assert(loka::core::testing::HeldTestAccess::released(firstScenario.held));
+  owner.detachHeldResources();
+  owner.drainRetiredSubtreesAtNextTrackerRun();
+  assert(secondScenario.releaseCount == 1);
 }
