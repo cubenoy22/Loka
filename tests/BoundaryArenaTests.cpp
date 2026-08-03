@@ -1441,6 +1441,333 @@ namespace
     int populatedSections_;
   };
 
+  struct SectionOwnerProbeObservation
+  {
+    SectionOwnerProbeObservation()
+        : state(),
+          owner(0),
+          tracker(0),
+          mutableState(0),
+          currentStateValid(false),
+          foreignStateValid(false),
+          composeCount(0)
+    {
+    }
+
+    loka::app::scene::NodeState<int> state;
+    loka::app::scene::IStateOwner *owner;
+    loka::core::StateTracker *tracker;
+    loka::core::MutableState<int> *mutableState;
+    bool currentStateValid;
+    bool foreignStateValid;
+    int composeCount;
+  };
+
+  struct SectionOwnerProbeTypeTag
+  {
+  };
+
+  class SectionOwnerProbeNode;
+
+  struct SectionOwnerProbeProps
+      : public loka::app::scene::NodePropsBase<SectionOwnerProbeProps>
+  {
+    typedef SectionOwnerProbeTypeTag TypeTag;
+    typedef SectionOwnerProbeNode NodeType;
+
+    SectionOwnerProbeProps()
+        : observation(0),
+          foreignObservation(0),
+          dirtySource(false)
+    {
+    }
+
+    SectionOwnerProbeProps(SectionOwnerProbeObservation *value,
+                           SectionOwnerProbeObservation *foreignValue,
+                           bool declaresDirtySource)
+        : observation(value),
+          foreignObservation(foreignValue),
+          dirtySource(declaresDirtySource)
+    {
+    }
+
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      if (rhs.propsTypeId() != this->propsTypeId())
+      {
+        return this->propsTypeId() < rhs.propsTypeId();
+      }
+      const SectionOwnerProbeProps &other =
+          static_cast<const SectionOwnerProbeProps &>(rhs);
+      if (this->observation != other.observation)
+      {
+        return this->observation < other.observation;
+      }
+      if (this->foreignObservation != other.foreignObservation)
+      {
+        return this->foreignObservation < other.foreignObservation;
+      }
+      return this->dirtySource < other.dirtySource;
+    }
+
+    SectionOwnerProbeObservation *observation;
+    SectionOwnerProbeObservation *foreignObservation;
+    bool dirtySource;
+  };
+
+  class SectionOwnerProbeNode : public loka::app::scene::ComposableNode
+  {
+  public:
+    typedef SectionOwnerProbeTypeTag TypeTag;
+    SectionOwnerProbeProps props;
+
+    explicit SectionOwnerProbeNode(const SectionOwnerProbeProps &p)
+        : loka::app::scene::ComposableNode(),
+          props(p)
+    {
+    }
+
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      if (this->props.dirtySource && this->props.observation &&
+          this->props.observation->state.isValid())
+      {
+        registrar.markDirtyOnChange(
+            this->props.observation->state.state(),
+            loka::app::scene::NODE_DIRTY_PROPS);
+      }
+    }
+
+  protected:
+    virtual void composeWithContext(loka::app::scene::ComponentContext &context,
+                                    loka::app::scene::ComposeEvent event)
+    {
+      if (event == loka::app::scene::COMPOSE_EVENT_DETACH ||
+          !this->props.observation)
+      {
+        return;
+      }
+
+      loka::app::scene::NodeComposition composition;
+      composition.setContext(&context);
+      if (!this->props.observation->state.isValid())
+      {
+        composition.declareStates().state(this->props.observation->state, 17);
+      }
+      SectionOwnerProbeObservation &observation = *this->props.observation;
+      observation.owner = observation.state.dangerouslyOwner();
+      observation.tracker = observation.state.dangerouslyTracker();
+      observation.mutableState = observation.state.dangerouslyMutableState();
+      observation.currentStateValid =
+          composition.currentBoundary().state(observation.state).isValid();
+      observation.foreignStateValid =
+          this->props.foreignObservation &&
+          composition.currentBoundary()
+              .state(this->props.foreignObservation->state)
+              .isValid();
+      ++observation.composeCount;
+    }
+  };
+
+  typedef loka::app::scene::NodeDefinition<SectionOwnerProbeProps,
+                                           SectionOwnerProbeNode>
+      SectionOwnerProbeDefinition;
+
+  struct SectionOwnerResolutionScenario
+  {
+    enum Mode
+    {
+      MODE_FALLBACK = 0,
+      MODE_NEAREST,
+      MODE_INNERMOST,
+      MODE_INVALIDATION,
+      MODE_RETIRE_WHILE_DIRTY_SOURCE,
+      MODE_CONDITIONAL,
+      MODE_OWNER_MATCH
+    };
+
+    explicit SectionOwnerResolutionScenario(Mode value)
+        : mode(value),
+          primary(),
+          secondary(),
+          boundary()
+    {
+    }
+
+    Mode mode;
+    SectionOwnerProbeObservation primary;
+    SectionOwnerProbeObservation secondary;
+    SectionOwnerProbeObservation boundary;
+  };
+
+  SectionOwnerResolutionScenario *g_sectionOwnerResolutionScenario = 0;
+
+  class SectionOwnerResolutionRootNode;
+  typedef loka::app::scene::BoundaryPropsFor<SectionOwnerResolutionRootNode>
+      SectionOwnerResolutionRootProps;
+
+  class SectionOwnerResolutionRootNode
+      : public SceneTestSupport::RecomposingBoundaryNode<
+            SectionOwnerResolutionRootNode,
+            SectionOwnerResolutionRootProps>
+  {
+  public:
+    explicit SectionOwnerResolutionRootNode(
+        const SectionOwnerResolutionRootProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<
+              SectionOwnerResolutionRootNode,
+              SectionOwnerResolutionRootProps>(props),
+          condition_(),
+          boundaryPulse_(),
+          showSection_(true),
+          initialized_(false)
+    {
+      assert(g_sectionOwnerResolutionScenario);
+    }
+
+    virtual void attachNode(loka::app::scene::NodeComposition &composition)
+    {
+      if (this->initialized_)
+      {
+        return;
+      }
+      composition.declareStates()
+          .state(this->condition_, true)
+          .state(this->boundaryPulse_, 0);
+      this->initialized_ = true;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      assert(g_sectionOwnerResolutionScenario);
+      SectionOwnerResolutionScenario &scenario =
+          *g_sectionOwnerResolutionScenario;
+      loka::app::Fragment root;
+      SectionOwnerProbeDefinition primary(
+          SectionOwnerProbeProps(&scenario.primary,
+                                 scenario.mode == SectionOwnerResolutionScenario::MODE_OWNER_MATCH
+                                     ? &scenario.boundary
+                                     : 0,
+                                 scenario.mode == SectionOwnerResolutionScenario::MODE_INVALIDATION ||
+                                     scenario.mode == SectionOwnerResolutionScenario::MODE_RETIRE_WHILE_DIRTY_SOURCE));
+
+      switch (scenario.mode)
+      {
+      case SectionOwnerResolutionScenario::MODE_FALLBACK:
+        root << primary;
+        break;
+      case SectionOwnerResolutionScenario::MODE_NEAREST:
+      case SectionOwnerResolutionScenario::MODE_INVALIDATION:
+        {
+          loka::app::Section section(4101);
+          section << primary;
+          root << section;
+        }
+        break;
+      case SectionOwnerResolutionScenario::MODE_INNERMOST:
+        {
+          loka::app::Section inner(4102);
+          inner << primary;
+          loka::app::Section outer(4101);
+          outer << inner;
+          root << outer;
+        }
+        break;
+      case SectionOwnerResolutionScenario::MODE_RETIRE_WHILE_DIRTY_SOURCE:
+        if (this->showSection_)
+        {
+          loka::app::Section section(4101);
+          section << primary;
+          root << section;
+        }
+        break;
+      case SectionOwnerResolutionScenario::MODE_CONDITIONAL:
+        {
+          SectionOwnerProbeDefinition secondary(
+              SectionOwnerProbeProps(&scenario.secondary, 0, false));
+          loka::app::scene::ConditionalDefinition conditional(
+              loka::app::scene::ConditionalProps(
+                  this->condition_.state(), &primary, &secondary));
+          loka::app::Section section(4101);
+          section << conditional;
+          root << section;
+        }
+        break;
+      case SectionOwnerResolutionScenario::MODE_OWNER_MATCH:
+        {
+          loka::app::Section section(4101);
+          section << primary;
+          root << section;
+          root << SectionOwnerProbeDefinition(
+              SectionOwnerProbeProps(&scenario.boundary,
+                                     &scenario.primary,
+                                     false));
+        }
+        break;
+      }
+      composition.declare(root);
+    }
+
+    void flipCondition()
+    {
+      this->condition_.set(false);
+    }
+
+    void retireSection()
+    {
+      this->showSection_ = false;
+    }
+
+    void mutateBoundaryPulse()
+    {
+      this->boundaryPulse_.set(this->boundaryPulse_.get() + 1);
+    }
+
+    virtual void declareDirtySources(
+        loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      if (this->boundaryPulse_.isValid())
+      {
+        registrar.markDirtyOnChange(this->boundaryPulse_.state(),
+                                    loka::app::scene::NODE_DIRTY_PROPS);
+      }
+    }
+
+  private:
+    loka::app::scene::NodeState<bool> condition_;
+    loka::app::scene::NodeState<int> boundaryPulse_;
+    bool showSection_;
+    bool initialized_;
+  };
+
+  loka::app::BoundarySectionNode *findSectionByKey(
+      loka::app::scene::Node *node,
+      loka::app::scene::NodeTag key)
+  {
+    if (!node)
+    {
+      return 0;
+    }
+    loka::app::BoundarySectionNode *section = node->asBoundarySectionNode();
+    if (section && section->props.key() == key)
+    {
+      return section;
+    }
+    loka::app::scene::INestable *nestable = node->asNestable();
+    loka::dsl::CompositionCursor<loka::app::scene::Node> it(
+        nestable ? nestable->childrenHead() : 0,
+        nestable ? nestable->childrenCount() : 0);
+    for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+    {
+      section = findSectionByKey(child, key);
+      if (section)
+      {
+        return section;
+      }
+    }
+    return 0;
+  }
+
   int g_sectionStateArenaBlockAllocs = 0;
   int g_sectionStateArenaSlabAllocs = 0;
   int g_sectionHeapStateAllocs = 0;
@@ -2760,4 +3087,205 @@ void testBoundarySectionGridUsesEnclosingStateArenaEconomically()
   loka::core::LokaAllocAuditCheckpoint(
       "testBoundarySectionGridUsesEnclosingStateArenaEconomically");
 #endif
+}
+
+void testNodeCompositionFallsBackToBoundaryOwnerWithoutSection()
+{
+  SectionOwnerResolutionScenario scenario(
+      SectionOwnerResolutionScenario::MODE_FALLBACK);
+  g_sectionOwnerResolutionScenario = &scenario;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<SectionOwnerResolutionRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    SectionOwnerResolutionRootNode *root =
+        static_cast<SectionOwnerResolutionRootNode *>(
+            loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    assert(root);
+    assert(scenario.primary.owner == root);
+    assert(scenario.primary.currentStateValid);
+  }
+  g_sectionOwnerResolutionScenario = 0;
+}
+
+void testNodeCompositionResolvesNearestSectionOwner()
+{
+  resetSectionAllocationCounts();
+  loka::core::LokaAllocSetBackend(&sectionCountingBackendAlloc,
+                                  &sectionCountingBackendFree);
+  SectionOwnerResolutionScenario scenario(
+      SectionOwnerResolutionScenario::MODE_NEAREST);
+  g_sectionOwnerResolutionScenario = &scenario;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<SectionOwnerResolutionRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    loka::app::scene::BoundaryNode *root =
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    loka::app::BoundarySectionNode *section = findSectionByKey(root, 4101);
+    assert(section);
+    assert(scenario.primary.owner == section);
+    assert(scenario.primary.currentStateValid);
+    assert(scenario.primary.mutableState &&
+           scenario.primary.mutableState->isArenaAllocated());
+    assert(g_sectionStateArenaSlabAllocs > 0);
+    assert(g_sectionHeapStateAllocs == 0);
+  }
+  g_sectionOwnerResolutionScenario = 0;
+  loka::core::LokaAllocSetBackend(0, 0);
+  assert(g_sectionStateArenaBlockFrees == g_sectionStateArenaBlockAllocs);
+  assert(g_sectionStateArenaSlabFrees == g_sectionStateArenaSlabAllocs);
+  assert(g_sectionHeapStateFrees == g_sectionHeapStateAllocs);
+}
+
+void testNodeCompositionResolvesInnermostSectionOwner()
+{
+  SectionOwnerResolutionScenario scenario(
+      SectionOwnerResolutionScenario::MODE_INNERMOST);
+  g_sectionOwnerResolutionScenario = &scenario;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<SectionOwnerResolutionRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    loka::app::scene::BoundaryNode *root =
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    loka::app::BoundarySectionNode *outer = findSectionByKey(root, 4101);
+    loka::app::BoundarySectionNode *inner = findSectionByKey(root, 4102);
+    assert(outer && inner && outer != inner);
+    assert(scenario.primary.owner == inner);
+    assert(scenario.primary.owner != outer);
+  }
+  g_sectionOwnerResolutionScenario = 0;
+}
+
+void testBoundarySectionOwnedStateInvalidatesEnclosingBoundary()
+{
+  SectionOwnerResolutionScenario scenario(
+      SectionOwnerResolutionScenario::MODE_INVALIDATION);
+  g_sectionOwnerResolutionScenario = &scenario;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<SectionOwnerResolutionRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    loka::app::scene::BoundaryNode *root =
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    assert(findSectionByKey(root, 4101));
+
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
+    assert(scene.flushInvalidation());
+    platform.clearChanges();
+    assert(scenario.primary.tracker && scenario.primary.mutableState);
+    {
+      loka::core::StateTrackerGuard guard(scenario.primary.tracker);
+      scenario.primary.mutableState->set(23);
+    }
+    assert(platform.changeCount() == 1);
+    assert(platform.changeCountForNode(root) == 1);
+    assert(platform.flagsSeenForNode(root) ==
+           loka::app::scene::NODE_DIRTY_PROPS);
+  }
+  g_sectionOwnerResolutionScenario = 0;
+}
+
+void testBoundarySectionRetireWhileDirtySourceDeregistersAncestorEdges()
+{
+  g_sectionFailureHeapPosition = 0;
+  g_sectionFailureHeapCalls = 0;
+  loka::core::LokaAllocSetBackend(&sectionFailureBackendAlloc,
+                                  &delegatingBackendFree);
+  SectionOwnerResolutionScenario scenario(
+      SectionOwnerResolutionScenario::MODE_RETIRE_WHILE_DIRTY_SOURCE);
+  g_sectionOwnerResolutionScenario = &scenario;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<SectionOwnerResolutionRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    SectionOwnerResolutionRootNode *root =
+        static_cast<SectionOwnerResolutionRootNode *>(
+            loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    assert(root && findSectionByKey(root, 4101));
+
+    // The second compose registers the now-materialized Section-owned state as
+    // both a boundary tracker source and an observed-state ledger entry.
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
+    assert(scene.flushInvalidation());
+    assert(scenario.primary.mutableState &&
+           !scenario.primary.mutableState->isArenaAllocated());
+    root->retireSection();
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+    assert(!findSectionByKey(root, 4101));
+    assert(scene.hasPendingInvalidation());
+    assert(!scene.flushInvalidation());
+
+    platform.clearChanges();
+    root->mutateBoundaryPulse();
+    assert(platform.changeCount() == 1 &&
+           "the surviving boundary tracker and observed ledger must remain usable");
+  }
+  g_sectionOwnerResolutionScenario = 0;
+  loka::core::LokaAllocSetBackend(0, 0);
+}
+
+void testConditionalBranchFlipInsideSectionKeepsSectionOwner()
+{
+  SectionOwnerResolutionScenario scenario(
+      SectionOwnerResolutionScenario::MODE_CONDITIONAL);
+  g_sectionOwnerResolutionScenario = &scenario;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<SectionOwnerResolutionRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    SectionOwnerResolutionRootNode *root =
+        static_cast<SectionOwnerResolutionRootNode *>(
+            loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    loka::app::BoundarySectionNode *section = findSectionByKey(root, 4101);
+    assert(root && section);
+    assert(scenario.primary.owner == section);
+    root->flipCondition();
+    assert(scenario.secondary.composeCount > 0);
+    assert(scenario.secondary.owner == section);
+    assert(scenario.secondary.mutableState &&
+           scenario.secondary.mutableState->isArenaAllocated());
+  }
+  g_sectionOwnerResolutionScenario = 0;
+}
+
+void testCurrentBoundaryStateRequiresResolvedOwnerMatchBothDirections()
+{
+  SectionOwnerResolutionScenario scenario(
+      SectionOwnerResolutionScenario::MODE_OWNER_MATCH);
+  g_sectionOwnerResolutionScenario = &scenario;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<SectionOwnerResolutionRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    loka::app::scene::BoundaryNode *root =
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    loka::app::BoundarySectionNode *section = findSectionByKey(root, 4101);
+    assert(section);
+    assert(scenario.primary.owner == section);
+    assert(scenario.primary.currentStateValid);
+    assert(!scenario.primary.foreignStateValid &&
+           "Boundary-owned state is foreign under a Section");
+    assert(scenario.boundary.owner == root);
+    assert(scenario.boundary.currentStateValid);
+    assert(!scenario.boundary.foreignStateValid &&
+           "Section-owned state is foreign at Boundary scope");
+  }
+  g_sectionOwnerResolutionScenario = 0;
 }

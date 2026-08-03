@@ -38,6 +38,11 @@ namespace loka
           this->tracker_.setInvalidateCallback(fn, userData);
         }
 
+        void setInvalidateTarget(const void *target)
+        {
+          this->tracker_.setInvalidateTarget(target);
+        }
+
         virtual loka::core::StateTracker *tracker()
         {
           return &this->tracker_;
@@ -91,6 +96,7 @@ namespace loka
               ++i;
             }
           }
+          this->detachOwnedStateFromAncestors(state);
           this->tracker_.removeState(state);
           this->destroyOwnedStateStorage(state);
         }
@@ -130,6 +136,7 @@ namespace loka
             loka::core::StateBase *state = this->ownedStates_[i];
             if (state)
             {
+              this->detachOwnedStateFromAncestors(state);
               this->tracker_.removeState(state);
               this->destroyOwnedStateStorage(state);
             }
@@ -141,6 +148,15 @@ namespace loka
         BoundaryNode *enclosingBoundary() const
         {
           return this->enclosingBoundary_;
+        }
+
+        /** Synchronous detach door for edges held by owners outside this
+            inner scope. It runs before the local tracker row and storage are
+            released; owners without ancestor registrations keep the no-op. */
+        virtual void detachOwnedStateFromAncestors(
+            loka::core::StateBase *state)
+        {
+          (void)state;
         }
 
         /** Storage door for one state after this owner's row and tracker edge

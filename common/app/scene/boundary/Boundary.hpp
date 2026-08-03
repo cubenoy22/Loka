@@ -365,6 +365,31 @@ namespace loka
         {
           observedState_.registerState(this, state, flags, &BoundaryNode::ObservedStateChangedThunk);
         }
+        /** Removes both ancestor edges held for one state owned by an inner
+            scope. Safe during Boundary teardown after the observed ledger has
+            already been cleared. */
+        void forgetInnerOwnedState(loka::core::StateBase *state)
+        {
+          this->tracker_.removeState(state);
+          this->observedState_.forgetState(
+              state, &BoundaryNode::ObservedStateChangedThunk);
+        }
+        /** Receives a committed transaction from an attached inner owner
+            without exposing the Boundary's observed-state ledger. */
+        void noteInnerTrackerCommit(
+            const loka::core::PushStateTracker *innerTracker)
+        {
+          NodeDirtyFlags flags =
+              this->observedState_.dirtyFlagsForCommittedStates(innerTracker);
+          if (flags == NODE_DIRTY_NONE)
+          {
+            flags = this->observedDirtyFlags();
+          }
+          if (flags != NODE_DIRTY_NONE)
+          {
+            this->markViewDirty(flags);
+          }
+        }
         void registerBranchSeatConditionSources()
         {
           const std::vector<BoundaryBranchSeatPlanEntry> &plans = this->branchSeats_.plans();
@@ -1736,11 +1761,15 @@ namespace loka
             nextBoundary->noteLocalPaintWork();
             declareBoundaryDirtySources(node, nextBoundary);
           }
+          const bool routesInnerStateOwner =
+              nodeStateOwner && nodeStateOwner != boundary;
           ComponentContext *contextForChildren = &parentContext;
           ComponentContext nodeContext(&parentContext);
           {
             PROFILE_SECTION("ctx");
-            nodeContext.setStateOwner(parentContext.stateOwner());
+            nodeContext.setStateOwner(routesInnerStateOwner
+                                          ? nodeStateOwner
+                                          : parentContext.stateOwner());
             nodeContext.setBoundary(nextBoundary);
             nodeContext.setPlatformController(parentContext.platformController());
             Scene *scene = nextBoundary ? nextBoundary->getScene() : 0;
@@ -1766,6 +1795,10 @@ namespace loka
             {
               boundary->completeComposeResult(boundary->canPreserveNativeContexts());
             }
+            contextForChildren = &nodeContext;
+          }
+          else if (routesInnerStateOwner)
+          {
             contextForChildren = &nodeContext;
           }
           if (!nestable)

@@ -89,6 +89,18 @@ namespace loka
         return this;
       }
 
+      virtual void attachEnclosingBoundary(scene::BoundaryNode *boundary)
+      {
+        scene::BoundaryInnerStateOwner::attachEnclosingBoundary(boundary);
+        if (boundary)
+        {
+          this->setInvalidateTarget(boundary);
+          this->setInvalidateCallback(
+              &BoundarySectionNode::InvalidateEnclosingBoundaryThunk,
+              this);
+        }
+      }
+
       virtual BoundarySectionNode *asBoundarySectionNode()
       {
         return this;
@@ -158,6 +170,16 @@ namespace loka
       }
 
     protected:
+      virtual void detachOwnedStateFromAncestors(
+          loka::core::StateBase *state)
+      {
+        scene::BoundaryNode *boundary = this->enclosingBoundary();
+        if (boundary)
+        {
+          boundary->forgetInnerOwnedState(state);
+        }
+      }
+
       virtual void destroyOwnedStateStorage(loka::core::StateBase *state)
       {
         if (!state)
@@ -177,6 +199,20 @@ namespace loka
       }
 
     private:
+      static void InvalidateEnclosingBoundaryThunk(void *userData)
+      {
+        BoundarySectionNode *self =
+            static_cast<BoundarySectionNode *>(userData);
+        scene::BoundaryNode *boundary =
+            self ? self->enclosingBoundary() : 0;
+        loka::core::PushStateTracker *tracker =
+            self ? self->tracker()->asPushTracker() : 0;
+        if (boundary && tracker)
+        {
+          boundary->noteInnerTrackerCommit(tracker);
+        }
+      }
+
       scene::BoundaryNode *requireEnclosingBoundary() const
       {
         scene::BoundaryNode *boundary = this->enclosingBoundary();
