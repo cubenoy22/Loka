@@ -3890,6 +3890,34 @@ void testHeldHandleCopiesDoNotChangeOwnerSlots()
   g_heldOwnerSlotScenario = 0;
 }
 
+void testHeldStorageRefusalReleasesPayloadInsteadOfLeaking()
+{
+  HeldOwnerSlotScenario scenario;
+  loka::core::LokaAllocSetBackend(&sectionFailureBackendAlloc,
+                                  &delegatingBackendFree);
+  {
+    loka::app::scene::StdCompositionBoundaryNode owner(
+        (loka::app::scene::StdCompositionProps()));
+    loka::app::scene::ComponentContext context;
+    context.setStateOwner(&owner);
+    loka::app::scene::NodeComposition composition;
+    composition.setContext(&context);
+
+    // The arena refuses, so no block is created. Passing the payload and its
+    // releaser handed the payload over, so the refusal must release it rather
+    // than leave a pointer nobody owns.
+    loka::core::Held<HeldOwnerSlotPayload> held = composition.hold(
+        new HeldOwnerSlotPayload(&scenario),
+        &releaseHeldOwnerSlotPayload);
+    assert(!held.isValid());
+    assert(scenario.releaseCount == 1 &&
+           "a refused creation must release the payload it was handed");
+    assert(!scenario.releaseSawCallbackInFlight);
+  }
+  loka::core::LokaAllocSetBackend(0, 0);
+  assert(scenario.releaseCount == 1);
+}
+
 void testHeldBlockUsesEnclosingBoundaryArenaWithoutHeapControlBlock()
 {
   resetSectionAllocationCounts();

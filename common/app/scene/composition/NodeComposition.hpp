@@ -652,7 +652,9 @@ namespace loka
 
         /** Creates a passive payload block in the currently resolved owner
             (nearest Section, otherwise Boundary) and fills that owner's first
-            slot at birth. */
+            slot at birth. The payload is handed over either way: a refused
+            creation returns an invalid handle and releases it, so the caller
+            never has to decide whether it still owns what it passed. */
         template <typename T>
         loka::core::Held<T> hold(
             T *value,

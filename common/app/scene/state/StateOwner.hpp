@@ -268,8 +268,18 @@ namespace loka
                             T *value,
                             ReleaserFn releaser)
     {
-      if (!owner || !value || !releaser)
+      // Passing a payload and its releaser hands the payload over. A refused
+      // creation therefore releases it rather than returning a null handle
+      // over a payload nobody owns. Running the releaser here is not the
+      // banned inline release: no owner ever held this payload and no
+      // callback can be in flight over a block that was never created.
+      if (!value || !releaser)
       {
+        return Held<T>();
+      }
+      if (!owner)
+      {
+        releaser(value);
         return Held<T>();
       }
       typedef detail::HeldBlock<T> Block;
@@ -279,6 +289,7 @@ namespace loka
       void *storage = owner->allocateHeldMemory(sizeof(Block), align);
       if (!storage)
       {
+        releaser(value);
         return Held<T>();
       }
       Block *block = new (storage) Block(owner, value, releaser);
@@ -288,6 +299,7 @@ namespace loka
       if (result != detail::HOLD_ATTEMPT_ACCEPTED)
       {
         block->~Block();
+        releaser(value);
         return Held<T>();
       }
       owner->registerHeldMemory(block);

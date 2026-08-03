@@ -37,6 +37,7 @@ void testHeldLastDropCannotReleaseInsideInFlightCallback();
 void testHeldFifthOwnerRefusalIsFailureAtomic();
 void testHeldCrossBranchHoldIsRefusedByAuditSubtreeWall();
 void testHeldHandleCopiesDoNotChangeOwnerSlots();
+void testHeldStorageRefusalReleasesPayloadInsteadOfLeaking();
 void testHeldBlockUsesEnclosingBoundaryArenaWithoutHeapControlBlock();
 
 #endif // LOKA_BOUNDARY_ARENA_TESTS_HPP
