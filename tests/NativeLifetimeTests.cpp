@@ -1,4 +1,5 @@
 #include "NativeLifetimeTests.hpp"
+#include "support/TestVerify.hpp"
 
 #include <cassert>
 
@@ -95,6 +96,7 @@ void testDefinitionCloneAndApplyPreserveNativeLifetimeHint()
   HintProbeDefinition updated;
   updated.lifetimeHint(loka::app::scene::NATIVE_HINT_DESIRE_STAY);
   bool applied = updated.applyPropsToNode(node);
+  (void)applied;
   assert(applied);
   assert(node->nativeLifetimeHint() == loka::app::scene::NATIVE_HINT_DESIRE_STAY);
 
@@ -189,7 +191,7 @@ void testExactMatchBucketCountsHitsMissesEvictsAndDepth()
   loka::app::scene::ExactMatchHandleBucket<int> bucket;
   int handle = 0;
 
-  assert(!bucket.tryAcquire(handle));
+  LOKA_VERIFY(!bucket.tryAcquire(handle));
   assert(bucket.missCount() == 1);
   assert(bucket.hitCount() == 0);
   assert(bucket.depth() == 0);
@@ -198,7 +200,7 @@ void testExactMatchBucketCountsHitsMissesEvictsAndDepth()
   bucket.offer(9);
   assert(bucket.depth() == 2);
 
-  assert(bucket.tryAcquire(handle));
+  LOKA_VERIFY(bucket.tryAcquire(handle));
   assert(handle == 9);
   assert(bucket.hitCount() == 1);
   assert(bucket.depth() == 1);
@@ -209,7 +211,7 @@ void testExactMatchBucketCountsHitsMissesEvictsAndDepth()
   assert(bucket.evictCount() == 1);
   assert(bucket.depth() == 0);
 
-  assert(!bucket.tryAcquire(handle));
+  LOKA_VERIFY(!bucket.tryAcquire(handle));
   assert(bucket.missCount() == 2);
 }
 
@@ -217,15 +219,15 @@ void testExactMatchBucketDepthCapRefusesAndCountsEvicts()
 {
   loka::app::scene::ExactMatchHandleBucket<int> bucket(2);
 
-  assert(bucket.offer(1));
-  assert(bucket.offer(2));
-  assert(!bucket.offer(3));
+  LOKA_VERIFY(bucket.offer(1));
+  LOKA_VERIFY(bucket.offer(2));
+  LOKA_VERIFY(!bucket.offer(3));
   assert(bucket.depth() == 2);
   assert(bucket.evictCount() == 1);
 
   int handle = 0;
-  assert(bucket.tryAcquire(handle));
-  assert(bucket.offer(3));
+  LOKA_VERIFY(bucket.tryAcquire(handle));
+  LOKA_VERIFY(bucket.offer(3));
   assert(bucket.depth() == 2);
   assert(bucket.evictCount() == 1);
 }
@@ -237,10 +239,10 @@ void testExactMatchBucketInstancesStayIsolatedAndReusableAfterDrain()
   int handle = 0;
 
   bucketA.offer(5);
-  assert(!bucketB.tryAcquire(handle));
+  LOKA_VERIFY(!bucketB.tryAcquire(handle));
   assert(bucketB.missCount() == 1);
   assert(bucketA.missCount() == 0);
-  assert(bucketA.tryAcquire(handle));
+  LOKA_VERIFY(bucketA.tryAcquire(handle));
   assert(handle == 5);
 
   // An empty drain touches nothing and counts nothing.
@@ -254,7 +256,7 @@ void testExactMatchBucketInstancesStayIsolatedAndReusableAfterDrain()
   bucketA.drainWith(recordDisposedHandle);
   assert(g_disposedHandleSum == 11);
   assert(bucketA.evictCount() == 1);
-  assert(bucketA.tryAcquire(handle) == false);
+  LOKA_VERIFY(bucketA.tryAcquire(handle) == false);
   assert(bucketA.hitCount() == 1);
   assert(bucketA.missCount() == 1);
 
@@ -266,7 +268,7 @@ void testExactMatchBucketInstancesStayIsolatedAndReusableAfterDrain()
   assert(bucketA.missCount() == 0);
   assert(bucketA.evictCount() == 0);
   assert(bucketA.depth() == 1);
-  assert(bucketA.tryAcquire(handle));
+  LOKA_VERIFY(bucketA.tryAcquire(handle));
   assert(handle == 13);
   assert(bucketA.hitCount() == 1);
 }

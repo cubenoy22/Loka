@@ -1,4 +1,5 @@
 #include "ApplicationFileTests.hpp"
+#include "support/TestVerify.hpp"
 
 #include <cassert>
 #include <cstdio>
@@ -41,8 +42,8 @@ namespace
   {
     std::FILE *file = std::fopen(path, "wb");
     assert(file);
-    assert(std::fwrite(bytes, 1, size, file) == size);
-    assert(std::fclose(file) == 0);
+    LOKA_VERIFY(std::fwrite(bytes, 1, size, file) == size);
+    LOKA_VERIFY(std::fclose(file) == 0);
   }
 } // namespace
 
@@ -77,7 +78,7 @@ void testApplicationRelativePredicateEnforcesSingleSegment()
 
 #if !defined(_WIN32) && !defined(__APPLE__) && !defined(LOKA_RETRO68)
   loka::platform::file::FileHandle handle;
-  assert(!loka::platform::file::ResolveApplicationItem(
+  LOKA_VERIFY(!loka::platform::file::ResolveApplicationItem(
       loka::file::File::Application() << loka::file::File("ASSETS.LRP"), handle));
 #endif
 }
@@ -93,31 +94,31 @@ void testNullApplicationFileUsesOnlyInjectedDirectory()
   std::remove(injectedPath);
   RemoveDirectoryForTest(directory);
   std::remove(name);
-  assert(CreateDirectoryForTest(directory));
+  LOKA_VERIFY(CreateDirectoryForTest(directory));
   WriteBytes(name, cwdBytes, sizeof(cwdBytes));
   WriteBytes(injectedPath, injectedBytes, sizeof(injectedBytes));
 
   const loka::file::File item = loka::file::File::Application() << loka::file::File(name);
   NullPlatformContext noInjection;
   loka::platform::file::FileHandle handle;
-  assert(!noInjection.openFile(item, handle));
+  LOKA_VERIFY(!noInjection.openFile(item, handle));
 
   NullPlatformContext context;
   context.setApplicationDirectory(loka::core::String::Literal(directory));
-  assert(!context.openFile(loka::file::File::Application(), handle));
-  assert(!context.openFile(loka::file::File::Application() << loka::file::File("a/b"), handle));
-  assert(!context.openFile(loka::file::File::Application() << loka::file::File(".."), handle));
-  assert(context.openFile(item, handle));
+  LOKA_VERIFY(!context.openFile(loka::file::File::Application(), handle));
+  LOKA_VERIFY(!context.openFile(loka::file::File::Application() << loka::file::File("a/b"), handle));
+  LOKA_VERIFY(!context.openFile(loka::file::File::Application() << loka::file::File(".."), handle));
+  LOKA_VERIFY(context.openFile(item, handle));
   assert(handle.displayPath.equals(loka::core::String::Literal(injectedPath)));
 
   std::FILE *opened = loka::platform::file::OpenRead(handle.displayPath);
   assert(opened);
   unsigned char actual[sizeof(injectedBytes)] = {0};
-  assert(std::fread(actual, 1, sizeof(actual), opened) == sizeof(actual));
-  assert(std::fclose(opened) == 0);
+  LOKA_VERIFY(std::fread(actual, 1, sizeof(actual), opened) == sizeof(actual));
+  LOKA_VERIFY(std::fclose(opened) == 0);
   assert(std::memcmp(actual, injectedBytes, sizeof(actual)) == 0);
 
-  assert(std::remove(injectedPath) == 0);
-  assert(RemoveDirectoryForTest(directory));
-  assert(std::remove(name) == 0);
+  LOKA_VERIFY(std::remove(injectedPath) == 0);
+  LOKA_VERIFY(RemoveDirectoryForTest(directory));
+  LOKA_VERIFY(std::remove(name) == 0);
 }

@@ -1,4 +1,5 @@
 #include "BoundaryArenaTests.hpp"
+#include "support/TestVerify.hpp"
 #include <cassert>
 #include <cstddef>
 #include <cstdio>
@@ -302,39 +303,44 @@ namespace
   static void testNodeArenaAlignmentAndCapacity()
   {
     const size_t minAlign = loka::app::scene::detail::NormalizeArenaAlign(1);
+    (void)minAlign;
     assert(minAlign >= sizeof(void *));
     assert(isPowerOfTwo(minAlign));
 
     const size_t roundedAlign = loka::app::scene::detail::NormalizeArenaAlign(3);
+    (void)roundedAlign;
     assert(roundedAlign >= 3);
     assert(isPowerOfTwo(roundedAlign));
 
     loka::app::scene::NodeArena arena;
     assert(!arena.hasCapacity());
-    assert(arena.allocate(4, 4) == 0);
+    LOKA_VERIFY(arena.allocate(4, 4) == 0);
 
     arena.reserve(32);
     assert(arena.hasCapacity());
 
     void *first = arena.allocate(4, 4);
+    (void)first;
     assert(first != 0);
     assert(isAligned(first, loka::app::scene::detail::NormalizeArenaAlign(4)));
 
     void *second = arena.allocate(8, 8);
+    (void)second;
     assert(second != 0);
     assert(isAligned(second, loka::app::scene::detail::NormalizeArenaAlign(8)));
     assert(second != first);
 
-    assert(arena.allocate(1024, 4) == 0);
+    LOKA_VERIFY(arena.allocate(1024, 4) == 0);
 
     arena.reserve(16);
     assert(arena.hasCapacity());
     void *afterReserve = arena.allocate(16, 4);
+    (void)afterReserve;
     assert(afterReserve != 0);
 
     arena.clear();
     assert(!arena.hasCapacity());
-    assert(arena.allocate(4, 4) == 0);
+    LOKA_VERIFY(arena.allocate(4, 4) == 0);
   }
 
   static void testNodeArenaRegistrationStampsOwner()
@@ -501,7 +507,7 @@ namespace
           new (secondMemory) NodeArenaDestroyCountProbe(&secondDestructorCalls);
       arena.registerNode(second);
 
-      assert(arena.releaseNode(first));
+      LOKA_VERIFY(arena.releaseNode(first));
       assert(firstDestructorCalls == 1);
       assert(secondDestructorCalls == 0);
 
@@ -582,20 +588,20 @@ namespace
     arena.registerNode(parent);
     parent->addChild(new NodeArenaDestroyCountProbe(&heapChildDestructorCalls));
 
-    assert(arena.releaseNode(tombstone));
+    LOKA_VERIFY(arena.releaseNode(tombstone));
     assert(tombstoneDestructorCalls == 1);
 
     loka::app::scene::NodeArena::RetiredNodeGeneration generation;
-    assert(arena.detachRetiredGeneration(generation));
+    LOKA_VERIFY(arena.detachRetiredGeneration(generation));
     assert(!arena.hasCapacity());
-    assert(arena.allocate(4, 4) == 0);
+    LOKA_VERIFY(arena.allocate(4, 4) == 0);
     assert(generation.nodes.size() == 2);
     assert(generation.nodes[0] == 0 &&
            "detaching a generation must preserve arena ledger tombstones");
 
     arena.reserve(32);
     assert(arena.hasCapacity());
-    assert(arena.allocate(4, 4) != 0 &&
+    LOKA_VERIFY(arena.allocate(4, 4) != 0 &&
            "an emptied arena must accept a fresh reservation while its old generation is retired");
 
     loka::app::scene::NodeArena::destroyRetiredGeneration(generation);
@@ -615,32 +621,35 @@ namespace
   {
     loka::app::scene::StateArena arena;
     assert(!arena.hasBlocks());
-    assert(arena.allocate(4, 4) == 0);
+    LOKA_VERIFY(arena.allocate(4, 4) == 0);
 
     arena.reserve(32);
     assert(arena.hasBlocks());
 
     void *first = arena.allocate(4, 4);
+    (void)first;
     assert(first != 0);
     assert(isAligned(first, loka::app::scene::detail::NormalizeArenaAlign(4)));
 
     void *second = arena.allocate(8, 8);
+    (void)second;
     assert(second != 0);
     assert(isAligned(second, loka::app::scene::detail::NormalizeArenaAlign(8)));
     assert(second != first);
 
     // Allocation may consume reserved capacity, but only reserve() may grow the
     // owner-lifetime arena. Unreserved state can then fall back to the heap.
-    assert(arena.allocate(1024, 4) == 0);
+    LOKA_VERIFY(arena.allocate(1024, 4) == 0);
 
     arena.reserve(1024);
     void *grown = arena.allocate(1024, 4);
+    (void)grown;
     assert(grown != 0);
     assert(isAligned(grown, loka::app::scene::detail::NormalizeArenaAlign(4)));
 
     arena.clear();
     assert(!arena.hasBlocks());
-    assert(arena.allocate(4, 4) == 0);
+    LOKA_VERIFY(arena.allocate(4, 4) == 0);
   }
 
   static void testStateArenaReleaseAndClear()
@@ -682,6 +691,7 @@ namespace
     {
       void *mem = arena.allocate(sizeof(MutableStateType),
                                  loka::app::scene::detail::AlignOf<MutableStateType>::value);
+      (void)mem;
       assert(mem != 0);
     }
   }
@@ -2168,12 +2178,12 @@ namespace
           scenario.creatorOwner = context.stateOwner();
           if (scenario.repeatCreatorHold)
           {
-            assert(composition.hold(scenario.held).isValid());
+            LOKA_VERIFY(composition.hold(scenario.held).isValid());
           }
         }
         break;
       case HeldOwnerSlotProbeProps::ROLE_HOLD:
-        assert(composition.hold(scenario.held).isValid());
+        LOKA_VERIFY(composition.hold(scenario.held).isValid());
         scenario.descendantOwner = context.stateOwner();
         break;
       case HeldOwnerSlotProbeProps::ROLE_TRY_HOLD:
@@ -2300,6 +2310,8 @@ namespace
 
 void testBoundaryArenaContracts()
 {
+  (void)&isPowerOfTwo;
+  (void)&isAligned;
   printf("\n==== [testBoundaryArenaContracts] start ====\n");
   testNodeArenaAlignmentAndCapacity();
   testNodeArenaRegistrationStampsOwner();
@@ -2464,7 +2476,7 @@ namespace
     }
 
     int status = 0;
-    assert(waitpid(child, &status, 0) == child);
+    LOKA_VERIFY(waitpid(child, &status, 0) == child);
     assert(WIFSIGNALED(status));
     assert(WTERMSIG(status) == SIGABRT);
   }
@@ -2496,10 +2508,12 @@ void testComposeAllocationWhiteFlagDefersFullRebuildToNextExternalTick()
 
     WhiteFlagRecomposeRootNode *root = static_cast<WhiteFlagRecomposeRootNode *>(
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    (void)root;
     assert(root);
     assert(root->first_.isValid());
     assert(root->second_.isValid());
     const size_t appliedBefore = platform.changeCount();
+    (void)appliedBefore;
     assert(appliedBefore > 0);
 
     // Externally driven recompose while the backend refuses every gate
@@ -2530,14 +2544,14 @@ void testComposeAllocationWhiteFlagDefersFullRebuildToNextExternalTick()
     // ... and the failure path did not self-schedule a tick. Without an
     // external drive the tracker stays silent: no second refresh cycle runs.
     assert(!scene.hasPendingInvalidation());
-    assert(!scene.flushInvalidation());
+    LOKA_VERIFY(!scene.flushInvalidation());
     assert(platform.changeCount() == appliedBefore);
 
     // One externally caused tick with the default backend restored: the
     // recorded full rebuild rides it, recomposes from a clean slate, and the
     // healed content reaches the platform as a full-rebuild projection.
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(root->first_.isValid());
     assert(root->second_.isValid());
     assert(root->composeResult().composed);
@@ -2637,7 +2651,7 @@ void testSceneRootAllocationRefusalArmsWhiteFlagAndHealsOnRefresh()
     // The failure path did not self-schedule a tick: a driverless flush does
     // nothing and the scene stays uncomposed, waiting for an external drive.
     assert(!scene.hasPendingInvalidation());
-    assert(!scene.flushInvalidation());
+    LOKA_VERIFY(!scene.flushInvalidation());
     assert(!loka::dsl::testing::SceneTestAccess::composed(scene));
     assert(platform.changeCount() == 0);
 
@@ -2698,9 +2712,11 @@ void testLocalRebuildNodeRefusalDefersFullRebuildToNextExternalTick()
 
     LocalRebuildRefusalRootNode *root = static_cast<LocalRebuildRefusalRootNode *>(
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    (void)root;
     assert(root);
     assert(root->composeResult().composed);
     const size_t appliedBefore = platform.changeCount();
+    (void)appliedBefore;
     assert(appliedBefore > 0);
 
     // Externally driven recompose that introduces a fresh child. The child's
@@ -2730,14 +2746,14 @@ void testLocalRebuildNodeRefusalDefersFullRebuildToNextExternalTick()
     assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
     // ... and the failure path did not self-schedule a tick.
     assert(!scene.hasPendingInvalidation());
-    assert(!scene.flushInvalidation());
+    LOKA_VERIFY(!scene.flushInvalidation());
     assert(platform.changeCount() == appliedBefore);
 
     // One externally caused tick with the child now creatable: the recorded
     // full rebuild rides it, recomposes from a clean slate, and the healed
     // content reaches the platform as a full-rebuild projection.
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(root->composeResult().composed);
     assert(!root->composeResult().allocationFailed);
     assert(!loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
@@ -2784,6 +2800,7 @@ void testLocalRebuildLaterChildRefusalDoesNotLeakEarlierChild()
 
     TwoChildLocalRebuildRootNode *root = static_cast<TwoChildLocalRebuildRootNode *>(
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    (void)root;
     assert(root);
     assert(root->composeResult().composed);
 
@@ -2805,7 +2822,7 @@ void testLocalRebuildLaterChildRefusalDoesNotLeakEarlierChild()
     // the scene ends in a clean, ledger-balanced state and only the earlier
     // abort's orphan (if any) remains outstanding.
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(root->composeResult().composed);
   }
   g_twoChildLocalRebuildShow = false;
@@ -2860,6 +2877,7 @@ void testNestedLocalRebuildChildRefusalDefersFullRebuildToNextExternalTick()
         loka::app::scene::testing::NodeCompositionTestAccess::
             createNodeFromDefinitionResult(composition, &definition);
     g_nestedGrandchildRefuse = false;
+    (void)result;
     assert(result.root != 0);
     assert(result.allocationFailed);
   }
@@ -2874,9 +2892,11 @@ void testNestedLocalRebuildChildRefusalDefersFullRebuildToNextExternalTick()
 
     NestedLocalRebuildRefusalRootNode *root = static_cast<NestedLocalRebuildRefusalRootNode *>(
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    (void)root;
     assert(root);
     assert(root->composeResult().composed);
     const size_t appliedBefore = platform.changeCount();
+    (void)appliedBefore;
     assert(appliedBefore > 0);
 
     // Externally driven recompose that introduces a nested subtree (inner
@@ -2905,14 +2925,14 @@ void testNestedLocalRebuildChildRefusalDefersFullRebuildToNextExternalTick()
     assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
     // ... and the failure path did not self-schedule a tick.
     assert(!scene.hasPendingInvalidation());
-    assert(!scene.flushInvalidation());
+    LOKA_VERIFY(!scene.flushInvalidation());
     assert(platform.changeCount() == appliedBefore);
 
     // One externally caused tick with the grandchild now creatable: the
     // recorded full rebuild rides it, recomposes from a clean slate, and the
     // healed content reaches the platform as a full-rebuild projection.
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(root->composeResult().composed);
     assert(!root->composeResult().allocationFailed);
     assert(!loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
@@ -2992,11 +3012,12 @@ void testNestedConditionalSeatDefersProjectionAndRecoversThroughRootBoundaryWrap
     assert(!root->composeResult().allocationFailed);
     assert(!root->composeResult().boundaryPlanRequired);
     const size_t appliedBefore = platform.changeCount();
+    (void)appliedBefore;
     assert(appliedBefore > 0);
 
     useReplacement = true;
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
 
     assert(!root->composeResult().composed);
     assert(root->composeResult().boundaryPlanRequired);
@@ -3010,7 +3031,7 @@ void testNestedConditionalSeatDefersProjectionAndRecoversThroughRootBoundaryWrap
     // one clock-boundary reclamation run, not a compose retry: draining it is
     // silent, leaves the white flag armed, and publishes nothing.
     assert(scene.hasPendingInvalidation());
-    assert(!scene.flushInvalidation());
+    LOKA_VERIFY(!scene.flushInvalidation());
     assert(!scene.hasPendingInvalidation());
     assert(!root->composeResult().composed);
     assert(root->composeResult().boundaryPlanRequired);
@@ -3019,7 +3040,7 @@ void testNestedConditionalSeatDefersProjectionAndRecoversThroughRootBoundaryWrap
     assert(platform.changeCount() == appliedBefore);
 
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(root->composeResult().composed);
     assert(!root->composeResult().boundaryPlanRequired);
     assert(!root->composeResult().allocationFailed);
@@ -3038,6 +3059,7 @@ void testNestedConditionalSeatDefersProjectionAndRecoversThroughRootBoundaryWrap
         innerFragment ? innerFragment->childrenHead() : 0;
     assert(rootFragment && rootFragment->childrenCount() == 1);
     assert(innerFragment && innerFragment->childrenCount() == 1);
+    (void)activeBranch;
     assert(activeBranch &&
            activeBranch->propsTypeId() == GateProbeProps::staticTypeId());
 
@@ -3101,7 +3123,7 @@ void testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry()
     assert(platform.changeCount() == 0);
     // No self-scheduled tick: a driverless flush does nothing.
     assert(!scene.hasPendingInvalidation());
-    assert(!scene.flushInvalidation());
+    LOKA_VERIFY(!scene.flushInvalidation());
     assert(!loka::dsl::testing::SceneTestAccess::composed(scene));
     assert(platform.changeCount() == 0);
 
@@ -3115,6 +3137,7 @@ void testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry()
     assert(!loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
     AttachRefusalRootNode *healedRoot = static_cast<AttachRefusalRootNode *>(
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    (void)healedRoot;
     assert(healedRoot && healedRoot->composeResult().composed);
     assert(!healedRoot->composeResult().allocationFailed);
     // The previously refused state is now live: the content healed.
@@ -3168,7 +3191,7 @@ void testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement()
 
     // Same key retains the runtime seat and its adopted state.
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(root->section(1101) == original);
     assert(oldValueAlive == 1);
     assert(oldState.dangerouslyMutableState()->get().value == 41);
@@ -3176,14 +3199,14 @@ void testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement()
     // The existing tag diff also retains keyed Sections across sibling reorder.
     root->reverseSections();
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(root->section(1101) == original);
     assert(oldValueAlive == 1);
 
     // A different value key creates a fresh Section and retires the old one.
     root->replaceFirstSection();
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     loka::app::BoundarySectionNode *fresh = root->section(1103);
     assert(fresh && fresh != original);
     assert(root->section(1101) == 0);
@@ -3203,7 +3226,7 @@ void testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement()
     assert(freshState.dangerouslyMutableState() !=
            oldState.dangerouslyMutableState());
 
-    assert(!scene.flushInvalidation() &&
+    LOKA_VERIFY(!scene.flushInvalidation() &&
            "Section reclamation must be a silent drain-only tracker run");
     assert(oldValueAlive == 0 &&
            "the retired Section must release its state at the drain");
@@ -3242,6 +3265,7 @@ void testBoundarySectionRetainedKeyReconcilesReplacedChild()
     loka::app::BoundarySectionNode *section = root->section(1101);
     assert(section);
     loka::app::scene::Node *originalChild = section->childrenHead();
+    (void)originalChild;
     assert(originalChild &&
            originalChild->propsTypeId() == SectionOrderingChildProps::staticTypeId());
 
@@ -3256,7 +3280,7 @@ void testBoundarySectionRetainedKeyReconcilesReplacedChild()
 
     root->replaceFirstChild();
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
 
     assert(root->section(1101) == section &&
            "the keyed Section instance must survive child replacement");
@@ -3264,6 +3288,7 @@ void testBoundarySectionRetainedKeyReconcilesReplacedChild()
            ownedState.dangerouslyMutableState()->get().value == 41 &&
            "the retained Section must preserve its adopted state value");
     loka::app::scene::Node *replacementChild = section->childrenHead();
+    (void)replacementChild;
     assert(replacementChild && replacementChild != originalChild &&
            replacementChild->propsTypeId() == GateProbeProps::staticTypeId() &&
            "the retained Section must install the replacement child");
@@ -3273,7 +3298,7 @@ void testBoundarySectionRetainedKeyReconcilesReplacedChild()
            "the old child must remain allocated until the reclaim drain");
     assert(scene.hasPendingInvalidation());
 
-    assert(!scene.flushInvalidation() &&
+    LOKA_VERIFY(!scene.flushInvalidation() &&
            "child reclamation must be a silent drain-only tracker run");
     assert(g_sectionOrderingChildDestructions == 1 &&
            "the old child must reclaim at the owning clock boundary");
@@ -3308,11 +3333,12 @@ void testBoundarySectionRetainedKeyAppliesChangedChildPropsInPlace()
     loka::app::BoundarySectionNode *section = root->section(1101);
     SectionOrderingChildNode *child = static_cast<SectionOrderingChildNode *>(
         section ? section->childrenHead() : 0);
+    (void)child;
     assert(section && child && child->props.revision == 0);
 
     root->setFirstChildRevision(7);
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
 
     assert(root->section(1101) == section);
     assert(section->childrenHead() == child &&
@@ -3356,7 +3382,7 @@ void testBoundarySectionRejectsMissingAndDuplicateSiblingKeys()
     }
 
     int status = 0;
-    assert(waitpid(child, &status, 0) == child);
+    LOKA_VERIFY(waitpid(child, &status, 0) == child);
     assert(WIFSIGNALED(status));
     assert(WTERMSIG(status) == SIGABRT);
   }
@@ -3394,6 +3420,7 @@ void testBoundarySectionAllocationFailureKeepsBoundaryRefusalAtomic()
       assert(root->composeResult().allocationFailed);
       assert(root->previousCompositionSnapshot().empty());
       assert(root->currentCompositionSnapshot().empty());
+      (void)appliedBefore;
       assert(platform.changeCount() == appliedBefore &&
              "Section-local allocation failure must refuse boundary publish");
       assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
@@ -3431,12 +3458,13 @@ void testBoundarySectionGridUsesEnclosingStateArenaEconomically()
 
     root->populateOnNextCompose();
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(root->populatedSections() == SectionGridRootNode::kSectionCount);
     assert(g_sectionHeapStateAllocs == 0);
     assert(g_sectionStateArenaSlabAllocs > 0);
     const int stateStorageAllocations =
         g_sectionStateArenaSlabAllocs + g_sectionHeapStateAllocs;
+    (void)stateStorageAllocations;
     assert(stateStorageAllocations < 150 &&
            "200 Section states must use far fewer than 200 storage allocations");
     std::printf("BoundarySection grid: sections=%d states=%d arena-blocks=%d arena-slabs=%d heap-states=%d\n",
@@ -3471,6 +3499,7 @@ void testNodeCompositionFallsBackToBoundaryOwnerWithoutSection()
     SectionOwnerResolutionRootNode *root =
         static_cast<SectionOwnerResolutionRootNode *>(
             loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    (void)root;
     assert(root);
     assert(scenario.primary.owner == root);
     assert(scenario.primary.currentStateValid);
@@ -3495,6 +3524,7 @@ void testNodeCompositionResolvesNearestSectionOwner()
     loka::app::scene::BoundaryNode *root =
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
     loka::app::BoundarySectionNode *section = findSectionByKey(root, 4101);
+    (void)section;
     assert(section);
     assert(scenario.primary.owner == section);
     assert(scenario.primary.currentStateValid);
@@ -3525,6 +3555,8 @@ void testNodeCompositionResolvesInnermostSectionOwner()
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
     loka::app::BoundarySectionNode *outer = findSectionByKey(root, 4101);
     loka::app::BoundarySectionNode *inner = findSectionByKey(root, 4102);
+    (void)outer;
+    (void)inner;
     assert(outer && inner && outer != inner);
     assert(scenario.primary.owner == inner);
     assert(scenario.primary.owner != outer);
@@ -3545,10 +3577,11 @@ void testBoundarySectionOwnedStateInvalidatesEnclosingBoundary()
     scene.updateAttached(true);
     loka::app::scene::BoundaryNode *root =
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    (void)root;
     assert(findSectionByKey(root, 4101));
 
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     platform.clearChanges();
     assert(scenario.primary.tracker && scenario.primary.mutableState);
     {
@@ -3586,15 +3619,15 @@ void testBoundarySectionRetireWhileDirtySourceDeregistersAncestorEdges()
     // The second compose registers the now-materialized Section-owned state as
     // both a boundary tracker source and an observed-state ledger entry.
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(scenario.primary.mutableState &&
            !scenario.primary.mutableState->isArenaAllocated());
     root->retireSection();
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(!findSectionByKey(root, 4101));
     assert(scene.hasPendingInvalidation());
-    assert(!scene.flushInvalidation());
+    LOKA_VERIFY(!scene.flushInvalidation());
 
     platform.clearChanges();
     root->mutateBoundaryPulse();
@@ -3620,6 +3653,7 @@ void testConditionalBranchFlipInsideSectionKeepsSectionOwner()
         static_cast<SectionOwnerResolutionRootNode *>(
             loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     loka::app::BoundarySectionNode *section = findSectionByKey(root, 4101);
+    (void)section;
     assert(root && section);
     assert(scenario.primary.owner == section);
     root->flipCondition();
@@ -3645,6 +3679,7 @@ void testCurrentBoundaryStateRequiresResolvedOwnerMatchBothDirections()
     loka::app::scene::BoundaryNode *root =
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
     loka::app::BoundarySectionNode *section = findSectionByKey(root, 4101);
+    (void)section;
     assert(section);
     assert(scenario.primary.owner == section);
     assert(scenario.primary.currentStateValid);
@@ -3736,12 +3771,12 @@ void testHeldNestedBoundaryRetireReleasesAtParentDrain()
     // and never run from the retired Boundary's destructor.
     g_heldNestedBoundaryVisible = false;
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(scenario.releaseCount == 0 &&
            "retiring a Boundary must only queue its Held releasers");
     assert(scene.hasPendingInvalidation());
 
-    assert(!scene.flushInvalidation());
+    LOKA_VERIFY(!scene.flushInvalidation());
     assert(scenario.releaseCount == 1);
     // The handle is only a view into the creator's storage. This creator was
     // the retired Boundary itself, so its arena went with it; only the
@@ -3768,6 +3803,7 @@ void testHeldCreationStartsWithSectionOwnerSlot()
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
     loka::app::BoundarySectionNode *creator =
         findSectionByKey(root, 5101);
+    (void)creator;
     assert(root && creator);
     assert(scenario.held.isValid());
     assert(scenario.releaseCount == 0);
@@ -3801,6 +3837,8 @@ void testHeldDescendantAndRepeatedOwnerHoldsShareOneBlock()
         findSectionByKey(root, 5101);
     loka::app::BoundarySectionNode *descendant =
         findSectionByKey(root, 5102);
+    (void)creator;
+    (void)descendant;
     assert(creator && descendant && creator != descendant);
     assert(scenario.held.isValid() && scenario.held.get()->scenario == &scenario);
     assert(loka::core::testing::HeldTestAccess::slotCount(scenario.held) == 2);
@@ -3828,19 +3866,20 @@ void testHeldDescendantDetachDropsOnlyItsOwnerSlot()
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     loka::app::BoundarySectionNode *creator =
         findSectionByKey(root, 5101);
+    (void)creator;
     assert(root && creator && findSectionByKey(root, 5102));
     assert(loka::core::testing::HeldTestAccess::slotCount(scenario.held) == 2);
 
     scenario.showDescendant = false;
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(!findSectionByKey(root, 5102));
     assert(loka::core::testing::HeldTestAccess::slotCount(scenario.held) == 1);
     assert(loka::core::testing::HeldTestAccess::holdCountForOwner(
                scenario.held, creator) == 1);
     assert(scenario.releaseCount == 0 && scenario.held.isValid());
     assert(scene.hasPendingInvalidation());
-    assert(!scene.flushInvalidation());
+    LOKA_VERIFY(!scene.flushInvalidation());
     assert(scenario.releaseCount == 0 && scenario.held.isValid());
   }
   assert(scenario.releaseCount == 1);
@@ -3859,11 +3898,12 @@ void testHeldLastDropDefersReleaserToRetirePoolDrain()
     scene.updateAttached(true);
     HeldOwnerSlotRootNode *root = static_cast<HeldOwnerSlotRootNode *>(
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    (void)root;
     assert(root && findSectionByKey(root, 5101));
 
     scenario.showCreator = false;
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    assert(scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(!findSectionByKey(root, 5101));
     assert(scenario.detachCallbackReturnOrder > 0);
     assert(scenario.releaseCount == 0 &&
@@ -3871,7 +3911,7 @@ void testHeldLastDropDefersReleaserToRetirePoolDrain()
     assert(loka::core::testing::HeldTestAccess::slotCount(scenario.held) == 0);
     assert(scene.hasPendingInvalidation());
 
-    assert(!scene.flushInvalidation());
+    LOKA_VERIFY(!scene.flushInvalidation());
     assert(scenario.releaseCount == 1);
     assert(scenario.releaseOrder > scenario.detachCallbackReturnOrder);
     assert(loka::core::testing::HeldTestAccess::released(scenario.held));
@@ -3973,8 +4013,10 @@ void testHeldHandleCopiesDoNotChangeOwnerSlots()
       assert(first == second && second == third);
       assert(first.get() == scenario.held.get());
     }
+    (void)slotsBefore;
     assert(loka::core::testing::HeldTestAccess::slotCount(scenario.held) ==
            slotsBefore);
+    (void)countBefore;
     assert(loka::core::testing::HeldTestAccess::holdCountForOwner(
                scenario.held, creator) == countBefore);
     assert(scenario.releaseCount == 0);
@@ -4002,6 +4044,7 @@ void testHeldStorageRefusalReleasesPayloadInsteadOfLeaking()
     loka::core::Held<HeldOwnerSlotPayload> held = composition.hold(
         new HeldOwnerSlotPayload(&scenario),
         &releaseHeldOwnerSlotPayload);
+    (void)held;
     assert(!held.isValid());
     assert(scenario.releaseCount == 1 &&
            "a refused creation must release the payload it was handed");
@@ -4028,6 +4071,7 @@ void testHeldBlockUsesEnclosingBoundaryArenaWithoutHeapControlBlock()
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
     loka::app::BoundarySectionNode *creator =
         findSectionByKey(root, 5101);
+    (void)creator;
     assert(creator && scenario.creatorOwner == creator);
     assert(g_sectionStateArenaBlockAllocs == 1);
     assert(g_sectionStateArenaSlabAllocs == 1);
@@ -4067,6 +4111,7 @@ void testHeldBlockUsesEnclosingBoundaryArenaWithoutHeapControlBlock()
       new HeldOwnerSlotPayload(&secondScenario),
       &releaseHeldOwnerSlotPayload);
   assert(secondScenario.held.isValid());
+  (void)firstAddress;
   assert(loka::core::testing::HeldTestAccess::blockAddress(secondScenario.held) !=
          firstAddress);
   assert(loka::core::testing::HeldTestAccess::released(firstScenario.held));

@@ -1,4 +1,5 @@
 #include "StartupRedrawTests.hpp"
+#include "support/TestVerify.hpp"
 #include <cassert>
 #include <cstdio>
 
@@ -305,6 +306,8 @@ void testToolboxAutoControlIdsNeverReissueLiveIds()
 
   ids.raiseBaseAbove(0); // frame 2: cached contexts skip allocation
   const short revealedAdd = ids.allocate(); // Show reveal
+  (void)toggle;
+  (void)revealedAdd;
   assert(revealedAdd != outerAdd && revealedAdd != toggle &&
          "a control revealed after re-announcing the base must not receive a live id");
 
@@ -313,6 +316,7 @@ void testToolboxAutoControlIdsNeverReissueLiveIds()
   const short reused = ids.allocate();
   assert(reused == outerAdd);
   const short another = ids.allocate();
+  (void)another;
   assert(another != toggle && another != reused && "live ids stay reserved");
 
   // A late explicit tag lifts the base; freed ids below it are discarded.
@@ -321,7 +325,7 @@ void testToolboxAutoControlIdsNeverReissueLiveIds()
   const short afterRaise = ids.allocate();
   assert(afterRaise >= 1001 && "freed ids below a raised base are not reissued");
   ids.release(afterRaise);
-  assert(ids.allocate() == afterRaise);
+  LOKA_VERIFY(ids.allocate() == afterRaise);
 }
 
 void testToolboxAutoControlIdsSaturateAtShortMax()
@@ -334,21 +338,21 @@ void testToolboxAutoControlIdsSaturateAtShortMax()
   const short exhausted = ids.allocate();
   assert(exhausted == 0 &&
          "an exhausted fresh range saturates to the never-live sentinel");
-  assert(ids.allocate() == 0 &&
+  LOKA_VERIFY(ids.allocate() == 0 &&
          "saturation never wraps the counter back into the live range");
 
   // Recycling keeps working past exhaustion; the sentinel never enters the pool.
   ids.release(exhausted);
   ids.release(last);
-  assert(ids.allocate() == last && "released live ids are still recycled");
-  assert(ids.allocate() == 0 && "the sentinel is not recycled as an id");
+  LOKA_VERIFY(ids.allocate() == last && "released live ids are still recycled");
+  LOKA_VERIFY(ids.allocate() == 0 && "the sentinel is not recycled as an id");
 
   // An explicit tag at SHRT_MAX exhausts immediately and never lowers the base.
   ToolboxControlIdAllocator edge(128);
   edge.raiseBaseAbove(32767);
-  assert(edge.allocate() == 0 && "no fresh ids above an explicit SHRT_MAX tag");
+  LOKA_VERIFY(edge.allocate() == 0 && "no fresh ids above an explicit SHRT_MAX tag");
   edge.raiseBaseAbove(32767);
-  assert(edge.allocate() == 0 && "re-announcing SHRT_MAX never lowers the base");
+  LOKA_VERIFY(edge.allocate() == 0 && "re-announcing SHRT_MAX never lowers the base");
 }
 
 void testToolboxFocusedEditSurvivesLowerBindingErase()
@@ -385,6 +389,7 @@ void testToolboxEditControlDetachRetiresExactContext()
 
   std::size_t retiringIndex = 0;
   const bool retiredExactContext = editControls.find(&retiringContext, retiringIndex);
+  (void)retiredExactContext;
   assert(retiredExactContext && editControls[retiringIndex].handle == 101 &&
          "detach must synchronously retire the exact context's native edit binding");
   editControls.erase(retiringIndex);
@@ -418,6 +423,7 @@ void testToolboxEditControlSharedStateChangeFansOut()
   const std::size_t synchronizedCount = editControls.forEachTextBinding(
       &sharedTextState, &sync, &ToolboxEditSyncProbe::synchronize);
 
+  (void)synchronizedCount;
   assert(synchronizedCount == 2 && sync.count == 2 && sync.firstHandle == 101 && sync.secondHandle == 202 &&
          "a shared text state change must synchronize every live native edit binding");
 }

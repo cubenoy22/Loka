@@ -29,7 +29,9 @@ void testLokaValueCore()
     const loka::core::Value *firstValue = first.find(loka::core::String::Literal("count"));
     const loka::core::Value *secondValue = second.find(loka::core::String::Literal("count"));
 
+    (void)firstValue;
     assert(firstValue != 0);
+    (void)secondValue;
     assert(secondValue != 0);
     assert(firstValue->asInt(0) == 1);
     assert(secondValue->asInt(0) == 2);

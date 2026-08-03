@@ -1,4 +1,5 @@
 #include "SceneOwnershipTests.hpp"
+#include "support/TestVerify.hpp"
 #include <cassert>
 #include <cstdio>
 #include "app/PlatformContext.hpp"
@@ -492,7 +493,7 @@ namespace
     }
 
     int status = 0;
-    assert(waitpid(child, &status, 0) == child);
+    LOKA_VERIFY(waitpid(child, &status, 0) == child);
     assert(WIFSIGNALED(status));
     assert(WTERMSIG(status) == SIGABRT);
   }

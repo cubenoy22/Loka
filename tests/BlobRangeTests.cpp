@@ -38,6 +38,7 @@ void testBlobRangeRefusesWhatWouldReadOutsideTheBuffer()
   // The reason the predicate subtracts instead of adding. `offset + length`
   // wraps here to a small number, so a check written that way would accept a
   // range asking for the entire address space and hand it to a decoder.
+  (void)kMax;
   assert(!BlobRangeIsUsable(10, 4, kMax));
   assert(!BlobRangeIsUsable(10, kMax, 4));
   assert(!BlobRangeIsUsable(10, kMax, kMax));

@@ -1,4 +1,5 @@
 #include "SnapFormatTests.hpp"
+#include "support/TestVerify.hpp"
 #include <cassert>
 #include <cerrno>
 #include <cstdio>
@@ -156,10 +157,10 @@ void testSnapFormatV1()
   assert(serialized == expected);
 
   const char *path = "snap_format_test.tmp";
-  assert(loka::dsl::SnapFileWriter::appendRecord(path, record));
+  LOKA_VERIFY(loka::dsl::SnapFileWriter::appendRecord(path, record));
 
   std::string fileContent;
-  assert(readFileBinary(path, fileContent));
+  LOKA_VERIFY(readFileBinary(path, fileContent));
   assert(fileContent == expected);
   std::remove(path);
 
@@ -195,9 +196,10 @@ void testSnapFlowWriteAdapter()
         loka::dsl::Flow() | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&input)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(okPath));
     const loka::dsl::FlowRunResult result = chain.runResult();
+    (void)result;
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
     std::string content;
-    assert(readFileBinary(okPath, content));
+    LOKA_VERIFY(readFileBinary(okPath, content));
     assert(content.find("format_version\t1\n") != std::string::npos);
     std::remove(okPath);
   }
@@ -208,11 +210,12 @@ void testSnapFlowWriteAdapter()
         loka::dsl::Flow() | loka::dsl::Step(1, BuildSnapRecordAdapter(false, true)).input(&input)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(badPath)).onFailure(&captureSnapFlowError, &capture);
     const loka::dsl::FlowRunResult result = chain.runResult();
+    (void)result;
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(capture.kind == loka::dsl::FLOW_ERROR_KIND_SNAP);
     assert(capture.code == loka::dsl::FLOW_ERROR_SNAP_MISSING_REQUIRED_KEY);
     std::string content;
-    assert(!readFileBinary(badPath, content));
+    LOKA_VERIFY(!readFileBinary(badPath, content));
     std::remove(badPath);
   }
 
@@ -223,6 +226,7 @@ void testSnapFlowWriteAdapter()
         loka::dsl::Flow() | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&input)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(invalidPath)).onFailure(&captureSnapFlowError, &capture);
     const loka::dsl::FlowRunResult result = chain.runResult();
+    (void)result;
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(capture.kind == loka::dsl::FLOW_ERROR_KIND_SNAP);
     assert(capture.code == loka::dsl::FLOW_ERROR_SNAP_INVALID_OUTPUT_PATH);
@@ -245,6 +249,7 @@ void testSnapFlowWriteAdapter()
               .onFailure(&loka::dsl::captureSnapFlowErrorWithDetail, &context);
 
     const loka::dsl::FlowRunResult failingResult = failingChain.runResult();
+    (void)failingResult;
     assert(failingResult == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(snapshot.kind == loka::dsl::FLOW_ERROR_KIND_SNAP);
     assert(snapshot.code == loka::dsl::FLOW_ERROR_SNAP_INVALID_OUTPUT_PATH);
@@ -258,10 +263,11 @@ void testSnapFlowWriteAdapter()
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(relayPath));
 
     const loka::dsl::FlowRunResult relayResult = relayChain.runResult();
+    (void)relayResult;
     assert(relayResult == loka::dsl::FLOW_RUN_SUCCEEDED);
 
     std::string content;
-    assert(readFileBinary(relayPath, content));
+    LOKA_VERIFY(readFileBinary(relayPath, content));
     assert(content.find("status\terror\n") != std::string::npos);
     assert(content.find("error_code\tSNAP_INVALID_OUTPUT_PATH\n") != std::string::npos);
     assert(content.find("error_msg\tsnap output path is invalid\n") != std::string::npos);
@@ -283,10 +289,11 @@ void testSnapFlowWriteAdapter()
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(relayPath2));
 
     const loka::dsl::FlowRunResult relayResult2 = relayChain2.runResult();
+    (void)relayResult2;
     assert(relayResult2 == loka::dsl::FLOW_RUN_SUCCEEDED);
 
     std::string content2;
-    assert(readFileBinary(relayPath2, content2));
+    LOKA_VERIFY(readFileBinary(relayPath2, content2));
     assert(content2.find("step\trelay-adapter\n") != std::string::npos);
     assert(content2.find("status\terror\n") != std::string::npos);
     assert(content2.find("error_code\tSNAP_INVALID_OUTPUT_PATH\n") != std::string::npos);
@@ -308,10 +315,11 @@ void testSnapFlowWriteAdapter()
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(relayPath3));
 
     const loka::dsl::FlowRunResult relayResult3 = relayChain3.runResult();
+    (void)relayResult3;
     assert(relayResult3 == loka::dsl::FLOW_RUN_SUCCEEDED);
 
     std::string content3;
-    assert(readFileBinary(relayPath3, content3));
+    LOKA_VERIFY(readFileBinary(relayPath3, content3));
     assert(content3.find("step\trelay-partial\n") != std::string::npos);
     assert(content3.find("status\tpartial\n") != std::string::npos);
     assert(content3.find("timing.flush_ms\tna\n") != std::string::npos);
@@ -338,6 +346,7 @@ void testSnapFlowWriteAdapter()
               .onFailure(&loka::dsl::captureSnapFlowErrorWithDetailBuilder, &context);
 
     const loka::dsl::FlowRunResult failingResult = failingChain.runResult();
+    (void)failingResult;
     assert(failingResult == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(snapshot.code == loka::dsl::FLOW_ERROR_SNAP_INVALID_OUTPUT_PATH);
 
@@ -348,10 +357,11 @@ void testSnapFlowWriteAdapter()
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(relayPath));
 
     const loka::dsl::FlowRunResult relayResult = relayChain.runResult();
+    (void)relayResult;
     assert(relayResult == loka::dsl::FLOW_RUN_SUCCEEDED);
 
     std::string content;
-    assert(readFileBinary(relayPath, content));
+    LOKA_VERIFY(readFileBinary(relayPath, content));
     assert(content.find("error_detail\terror_kind=1001;error_code=4;extra=") != std::string::npos);
     assert(content.find("platform\\\\=Toolbox") != std::string::npos);
     assert(content.find("errno\\\\=28") != std::string::npos);
@@ -365,7 +375,7 @@ void testSnapFlowWriteAdapter()
     const char *cfgPath = "LokaTest-io.cfg";
     const char *relativeBadDir = "missing_dir/subdir";
     const char *ioPath = "snap_io_error.tmp";
-    assert(writeFileBinary(cfgPath, std::string("capture_dir = ") + relativeBadDir + "\n"));
+    LOKA_VERIFY(writeFileBinary(cfgPath, std::string("capture_dir = ") + relativeBadDir + "\n"));
 
     SnapFlowErrorCapture capture = {0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
@@ -374,6 +384,7 @@ void testSnapFlowWriteAdapter()
               .onFailure(&captureSnapFlowError, &capture);
 
     const loka::dsl::FlowRunResult result = chain.runResult();
+    (void)result;
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(capture.kind == loka::dsl::FLOW_ERROR_KIND_SNAP);
     assert(capture.code == loka::dsl::FLOW_ERROR_SNAP_IO_ERROR);
@@ -387,9 +398,10 @@ void testSnapFlowWriteAdapter()
         loka::dsl::Flow() | loka::dsl::Step(1, BuildSnapRecordAdapter(true, false)).input(&input)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(autoNodePath, true, "FallbackNode"));
     const loka::dsl::FlowRunResult result = chain.runResult();
+    (void)result;
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
     std::string content;
-    assert(readFileBinary(autoNodePath, content));
+    LOKA_VERIFY(readFileBinary(autoNodePath, content));
     assert(content.find("node\tFallbackNode\n") != std::string::npos);
     std::remove(autoNodePath);
   }
@@ -400,7 +412,7 @@ void testSnapFlowWriteAdapter()
     const char *captureFile = "snap_cfg_capture.tmp";
     const char *cfgOutputPath = "snap_cfg_adapter.tmp";
 
-    assert(writeFileBinary(cfgPath,
+    LOKA_VERIFY(writeFileBinary(cfgPath,
                            std::string("# Loka test config\n") + "scenario open-first-page\n"
                                + "capture_dir = " + captureDir + "\n" + "max_files = 120\n" + "max_total_bytes = 4096\n"
                                + "linger_seconds 120\n" + "max_files_bad = x\n"));
@@ -408,7 +420,7 @@ void testSnapFlowWriteAdapter()
     (void)createDirectoryIfMissing(captureDir);
 
     loka::dsl::SnapTestConfig::Settings settings;
-    assert(loka::dsl::SnapTestConfig::load(cfgPath, settings));
+    LOKA_VERIFY(loka::dsl::SnapTestConfig::load(cfgPath, settings));
     assert(settings.hasScenario);
     assert(settings.scenario == std::string("open-first-page"));
     assert(settings.hasCaptureDir);
@@ -434,11 +446,12 @@ void testSnapFlowWriteAdapter()
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(cfgOutputPath, true, 0, cfgPath));
 
     const loka::dsl::FlowRunResult result = chain.runResult();
+    (void)result;
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
 
     const std::string expectedOutput = std::string(captureDir) + "/" + cfgOutputPath;
     std::string content;
-    assert(readFileBinary(expectedOutput.c_str(), content));
+    LOKA_VERIFY(readFileBinary(expectedOutput.c_str(), content));
 
     std::remove(expectedOutput.c_str());
     std::remove(cfgPath);
@@ -453,12 +466,12 @@ void testSnapFlowWriteAdapter()
     const char *cfgPath = "LokaTest-invalid.cfg";
     const char *captureDir = "snap_capture_invalid_dir";
     const char *invalidCfgPath = "snap_cfg_invalid.tmp";
-    assert(writeFileBinary(
+    LOKA_VERIFY(writeFileBinary(
         cfgPath, std::string("capture_dir = ") + captureDir + "\n" + "max_files = -1\n" + "max_total_bytes = 128\n"));
     (void)createDirectoryIfMissing(captureDir);
 
     loka::dsl::SnapTestConfig::Settings settings;
-    assert(!loka::dsl::SnapTestConfig::load(cfgPath, settings));
+    LOKA_VERIFY(!loka::dsl::SnapTestConfig::load(cfgPath, settings));
     assert(settings.hasParseError);
     assert(loka::dsl::SnapTestConfig::resolveCapturePath(invalidCfgPath, cfgPath) == std::string(invalidCfgPath));
 
@@ -469,13 +482,14 @@ void testSnapFlowWriteAdapter()
               .onFailure(&captureSnapFlowError, &capture);
 
     const loka::dsl::FlowRunResult result = chain.runResult();
+    (void)result;
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(capture.kind == loka::dsl::FLOW_ERROR_KIND_SNAP);
     assert(capture.code == loka::dsl::FLOW_ERROR_SNAP_INVALID_CONFIG);
 
     const std::string expectedOutput = std::string(captureDir) + "/" + invalidCfgPath;
     std::string content;
-    assert(!readFileBinary(expectedOutput.c_str(), content));
+    LOKA_VERIFY(!readFileBinary(expectedOutput.c_str(), content));
 
     std::remove(expectedOutput.c_str());
     std::remove(cfgPath);
@@ -491,7 +505,7 @@ void testSnapFlowWriteAdapter()
     const char *captureDir = "snap_capture_limit_dir";
     const char *limitedPath = "snap_cfg_limit.tmp";
 
-    assert(writeFileBinary(cfgPath, std::string("capture_dir = ") + captureDir + "\n" + "max_total_bytes = 10\n"));
+    LOKA_VERIFY(writeFileBinary(cfgPath, std::string("capture_dir = ") + captureDir + "\n" + "max_total_bytes = 10\n"));
 
     (void)createDirectoryIfMissing(captureDir);
 
@@ -502,13 +516,14 @@ void testSnapFlowWriteAdapter()
               .onFailure(&captureSnapFlowError, &capture);
 
     const loka::dsl::FlowRunResult result = chain.runResult();
+    (void)result;
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(capture.kind == loka::dsl::FLOW_ERROR_KIND_SNAP);
     assert(capture.code == loka::dsl::FLOW_ERROR_SNAP_LIMIT_EXCEEDED);
 
     const std::string expectedOutput = std::string(captureDir) + "/" + limitedPath;
     std::string content;
-    assert(!readFileBinary(expectedOutput.c_str(), content));
+    LOKA_VERIFY(!readFileBinary(expectedOutput.c_str(), content));
 
     std::remove(expectedOutput.c_str());
     std::remove(cfgPath);
@@ -525,7 +540,7 @@ void testSnapFlowWriteAdapter()
     const char *path = "snap_cfg_max_files.tmp";
     const int inputForMaxFiles = 0;
 
-    assert(writeFileBinary(cfgPath, std::string("capture_dir = ") + captureDir + "\n" + "max_files = 1\n"));
+    LOKA_VERIFY(writeFileBinary(cfgPath, std::string("capture_dir = ") + captureDir + "\n" + "max_files = 1\n"));
 
     (void)createDirectoryIfMissing(captureDir);
 
@@ -534,7 +549,7 @@ void testSnapFlowWriteAdapter()
           loka::dsl::Flow()
           | loka::dsl::Step(1, loka::dsl::SnapV1("SnapFlow", "first", "NodeA", 1, 2)).input(&inputForMaxFiles)
           | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(path, true, 0, cfgPath));
-      assert(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+      LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
     }
 
     {
@@ -542,12 +557,12 @@ void testSnapFlowWriteAdapter()
           loka::dsl::Flow()
           | loka::dsl::Step(1, loka::dsl::SnapV1("SnapFlow", "second", "NodeA", 2, 2)).input(&inputForMaxFiles)
           | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(path, true, 0, cfgPath));
-      assert(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+      LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
     }
 
     const std::string outputPath = std::string(captureDir) + "/" + path;
     std::string content;
-    assert(readFileBinary(outputPath.c_str(), content));
+    LOKA_VERIFY(readFileBinary(outputPath.c_str(), content));
     assert(content.find("step\tsecond\n") != std::string::npos);
     assert(content.find("step\tfirst\n") == std::string::npos);
 
@@ -586,13 +601,13 @@ void testSnapFlowWriteAdapter()
     const long singleBytes = static_cast<long>(r1.serialize(true).size());
     const long maxTotalBytes = singleBytes + 8;
 
-    assert(loka::dsl::SnapFileWriter::appendRecordStatusWithLimits(path, r1, maxTotalBytes, 0)
+    LOKA_VERIFY(loka::dsl::SnapFileWriter::appendRecordStatusWithLimits(path, r1, maxTotalBytes, 0)
            == loka::dsl::SNAP_WRITE_OK);
-    assert(loka::dsl::SnapFileWriter::appendRecordStatusWithLimits(path, r2, maxTotalBytes, 0)
+    LOKA_VERIFY(loka::dsl::SnapFileWriter::appendRecordStatusWithLimits(path, r2, maxTotalBytes, 0)
            == loka::dsl::SNAP_WRITE_OK);
 
     std::string content;
-    assert(readFileBinary(path, content));
+    LOKA_VERIFY(readFileBinary(path, content));
     assert(content.find("step\ttwo\n") != std::string::npos);
     assert(content.find("step\tone\n") == std::string::npos);
     std::remove(path);
@@ -635,15 +650,15 @@ void testSnapFlowWriteAdapter()
     const long maxTotalBytes = singleBytes * 2 + 8;
     const long maxRecords = 2;
 
-    assert(loka::dsl::SnapFileWriter::appendRecordStatusWithLimits(path, r1, maxTotalBytes, maxRecords)
+    LOKA_VERIFY(loka::dsl::SnapFileWriter::appendRecordStatusWithLimits(path, r1, maxTotalBytes, maxRecords)
            == loka::dsl::SNAP_WRITE_OK);
-    assert(loka::dsl::SnapFileWriter::appendRecordStatusWithLimits(path, r2, maxTotalBytes, maxRecords)
+    LOKA_VERIFY(loka::dsl::SnapFileWriter::appendRecordStatusWithLimits(path, r2, maxTotalBytes, maxRecords)
            == loka::dsl::SNAP_WRITE_OK);
-    assert(loka::dsl::SnapFileWriter::appendRecordStatusWithLimits(path, r3, maxTotalBytes, maxRecords)
+    LOKA_VERIFY(loka::dsl::SnapFileWriter::appendRecordStatusWithLimits(path, r3, maxTotalBytes, maxRecords)
            == loka::dsl::SNAP_WRITE_OK);
 
     std::string content;
-    assert(readFileBinary(path, content));
+    LOKA_VERIFY(readFileBinary(path, content));
     // Both limits are configured; max_files(=2) must drop oldest even if bytes may still fit.
     assert(content.find("step\tc\n") != std::string::npos);
     assert(content.find("step\tb\n") != std::string::npos);
@@ -665,9 +680,10 @@ void testSnapFlowWriteAdapter()
               .input(&inputForBuilder)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(builderPath));
     const loka::dsl::FlowRunResult result = chain.runResult();
+    (void)result;
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
     std::string content;
-    assert(readFileBinary(builderPath, content));
+    LOKA_VERIFY(readFileBinary(builderPath, content));
     assert(content.find("test\tSnapFlow\n") != std::string::npos);
     assert(content.find("step\tbuilder\n") != std::string::npos);
     assert(content.find("node\tBuilderNode\n") != std::string::npos);
@@ -690,10 +706,10 @@ void testSnapFlowWriteAdapter()
               .input(&inputForNullStatus)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(nullStatusPath));
 
-    assert(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+    LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
 
     std::string content;
-    assert(readFileBinary(nullStatusPath, content));
+    LOKA_VERIFY(readFileBinary(nullStatusPath, content));
     assert(content.find("status\tok\n") != std::string::npos);
     std::remove(nullStatusPath);
   }
@@ -706,7 +722,7 @@ void testSnapFlowWriteAdapter()
               .input(&inputForTiming)
         | loka::dsl::Step(2, loka::dsl::AssertTimingLessEqual("timing.flush_ms", 5));
 
-    assert(okChain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+    LOKA_VERIFY(okChain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
 
     SnapFlowErrorCapture thresholdCapture = {0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failChain =
@@ -716,7 +732,7 @@ void testSnapFlowWriteAdapter()
         | loka::dsl::Step(2, loka::dsl::AssertTimingLessEqual("timing.flush_ms", 5))
               .onFailure(&captureSnapFlowError, &thresholdCapture);
 
-    assert(failChain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+    LOKA_VERIFY(failChain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(thresholdCapture.kind == loka::dsl::FLOW_ERROR_KIND_SNAP);
     assert(thresholdCapture.code == loka::dsl::FLOW_ERROR_SNAP_TIMING_THRESHOLD_EXCEEDED);
 
@@ -728,7 +744,7 @@ void testSnapFlowWriteAdapter()
         | loka::dsl::Step(2, loka::dsl::AssertTimingLessEqual("timing.flush_ms", 5))
               .onFailure(&captureSnapFlowError, &invalidValueCapture);
 
-    assert(invalidValueChain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+    LOKA_VERIFY(invalidValueChain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(invalidValueCapture.kind == loka::dsl::FLOW_ERROR_KIND_SNAP);
     assert(invalidValueCapture.code == loka::dsl::FLOW_ERROR_SNAP_INVALID_TIMING_VALUE);
   }
@@ -746,10 +762,11 @@ void testSnapFlowWriteAdapter()
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(errorPath));
 
     const loka::dsl::FlowRunResult result = chain.runResult();
+    (void)result;
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
 
     std::string content;
-    assert(readFileBinary(errorPath, content));
+    LOKA_VERIFY(readFileBinary(errorPath, content));
     assert(content.find("status\terror\n") != std::string::npos);
     assert(content.find("error_code\tE_TIMEOUT\n") != std::string::npos);
     assert(content.find("error_msg\twait-next-tick timeout\n") != std::string::npos);
@@ -768,10 +785,11 @@ void testSnapFlowWriteAdapter()
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(errorAutoPath));
 
     const loka::dsl::FlowRunResult result = chain.runResult();
+    (void)result;
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
 
     std::string content;
-    assert(readFileBinary(errorAutoPath, content));
+    LOKA_VERIFY(readFileBinary(errorAutoPath, content));
     assert(content.find("status\terror\n") != std::string::npos);
     assert(content.find("error_code\tSNAP_LIMIT_EXCEEDED\n") != std::string::npos);
     assert(content.find("error_msg\tsnap write exceeds configured limits\n") != std::string::npos);
@@ -789,10 +807,11 @@ void testSnapFlowWriteAdapter()
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(errorUnknownPath));
 
     const loka::dsl::FlowRunResult result = chain.runResult();
+    (void)result;
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
 
     std::string content;
-    assert(readFileBinary(errorUnknownPath, content));
+    LOKA_VERIFY(readFileBinary(errorUnknownPath, content));
     assert(content.find("error_code\tSNAP_UNKNOWN_ERROR\n") != std::string::npos);
     assert(content.find("error_msg\tunknown snap error\n") != std::string::npos);
     std::remove(errorUnknownPath);
@@ -810,10 +829,11 @@ void testSnapFlowWriteAdapter()
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(errorInvalidConfigPath));
 
     const loka::dsl::FlowRunResult result = chain.runResult();
+    (void)result;
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
 
     std::string content;
-    assert(readFileBinary(errorInvalidConfigPath, content));
+    LOKA_VERIFY(readFileBinary(errorInvalidConfigPath, content));
     assert(content.find("error_code\tSNAP_INVALID_CONFIG\n") != std::string::npos);
     assert(content.find("error_msg\tsnap config contains invalid values\n") != std::string::npos);
     std::remove(errorInvalidConfigPath);
@@ -834,10 +854,11 @@ void testSnapFlowWriteAdapter()
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(partialPath));
 
     const loka::dsl::FlowRunResult result = chain.runResult();
+    (void)result;
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
 
     std::string content;
-    assert(readFileBinary(partialPath, content));
+    LOKA_VERIFY(readFileBinary(partialPath, content));
     assert(content.find("status\tpartial\n") != std::string::npos);
     assert(content.find("timing.flush_ms\tna\n") != std::string::npos);
     assert(content.find("timing.recompose_ms\tna\n") != std::string::npos);

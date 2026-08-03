@@ -1,4 +1,5 @@
 #include "Win32AppLocationTests.hpp"
+#include "support/TestVerify.hpp"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -49,7 +50,7 @@ void testWin32ApplicationItemNamesExecutableDirectory()
   const unsigned char expected[] = {0x19, 0x9A, 0x01};
 
   std::wstring modulePath;
-  assert(ReadModulePath(modulePath));
+  LOKA_VERIFY(ReadModulePath(modulePath));
   const std::wstring::size_type separator = modulePath.find_last_of(L'\\');
   assert(separator != std::wstring::npos);
   const std::wstring executableDirectory = modulePath.substr(0, separator);
@@ -58,8 +59,8 @@ void testWin32ApplicationItemNamesExecutableDirectory()
   DeleteFileW(fixturePath.c_str());
   std::FILE *seed = _wfopen(fixturePath.c_str(), L"wb");
   assert(seed);
-  assert(std::fwrite(expected, 1, sizeof(expected), seed) == sizeof(expected));
-  assert(std::fclose(seed) == 0);
+  LOKA_VERIFY(std::fwrite(expected, 1, sizeof(expected), seed) == sizeof(expected));
+  LOKA_VERIFY(std::fclose(seed) == 0);
 
   wchar_t originalDirectory[32768];
   const DWORD originalLength = GetCurrentDirectoryW(32768, originalDirectory);
@@ -73,14 +74,14 @@ void testWin32ApplicationItemNamesExecutableDirectory()
   const BOOL madeAlternate = CreateDirectoryW(alternateDirectory.c_str(), NULL);
   assert(madeAlternate || GetLastError() == ERROR_ALREADY_EXISTS);
   assert(alternateDirectory != executableDirectory);
-  assert(SetCurrentDirectoryW(alternateDirectory.c_str()));
+  LOKA_VERIFY(SetCurrentDirectoryW(alternateDirectory.c_str()));
 
   const loka::file::File item = loka::file::File::Application()
                                 << loka::file::File(loka::core::String::Utf8(fileNameUtf8, sizeof(fileNameUtf8) - 1));
   loka::platform::file::FileHandle handle;
   const bool resolved = loka::platform::file::ResolveApplicationItem(item, handle);
-  assert(SetCurrentDirectoryW(originalDirectory));
-  assert(RemoveDirectoryW(alternateDirectory.c_str()));
+  LOKA_VERIFY(SetCurrentDirectoryW(originalDirectory));
+  LOKA_VERIFY(RemoveDirectoryW(alternateDirectory.c_str()));
   assert(resolved);
 
   std::wstring resolvedPath;
@@ -93,8 +94,8 @@ void testWin32ApplicationItemNamesExecutableDirectory()
   std::FILE *opened = loka::platform::file::OpenRead(handle.displayPath);
   assert(opened);
   unsigned char actual[sizeof(expected)] = {0};
-  assert(std::fread(actual, 1, sizeof(actual), opened) == sizeof(actual));
-  assert(std::fclose(opened) == 0);
+  LOKA_VERIFY(std::fread(actual, 1, sizeof(actual), opened) == sizeof(actual));
+  LOKA_VERIFY(std::fclose(opened) == 0);
   for (std::size_t i = 0; i < sizeof(expected); ++i)
   {
     assert(actual[i] == expected[i]);

@@ -102,6 +102,7 @@ void testDerivedStateCore()
     tracker.begin();
     a.set(10);
     bool settled = tracker.end();
+    (void)settled;
     assert(settled);
     assert(sum.get() == 12);
     assert(notifications == 1);
@@ -131,6 +132,7 @@ void testDerivedStateCore()
     tracker.begin();
     a.set(5); // unchanged value still enters the transaction
     bool settled = tracker.end();
+    (void)settled;
     assert(settled);
     assert(sum.get() == 5);
     assert(notifications == 0);
@@ -153,6 +155,7 @@ void testDerivedStateCore()
     tracker.begin();
     a.set(3);
     bool settled = tracker.end();
+    (void)settled;
     assert(settled);
     assert(twice.get() == 6);
     assert(fourTimes.get() == 12);
@@ -185,6 +188,7 @@ void testDerivedStateCore()
     tracker.begin();
     a.set(2);
     bool settled = tracker.end();
+    (void)settled;
     assert(settled);
     assert(twice->get() == 4);
 

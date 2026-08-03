@@ -64,9 +64,11 @@ void testLokaAllocDefaultBackendRoundTrip()
   GateProbe *probe = loka::core::LokaNew<GateProbe>(gateProbeSite(), 7);
   assert(probe != 0);
   assert(probe->value == 7);
+  (void)constructedBefore;
   assert(gGateProbeConstructed == constructedBefore + 1);
 
   loka::core::LokaDelete(probe, gateProbeSite());
+  (void)destroyedBefore;
   assert(gGateProbeDestroyed == destroyedBefore + 1);
 
   // LokaDelete is null-safe: releasing an OOM white flag runs no destructor.
@@ -90,9 +92,11 @@ void testLokaNewReturnsNullWhenBackendRefusesNthAllocation()
   GateProbe *first = loka::core::LokaNew<GateProbe>(gateProbeSite(), 1);
   assert(first != 0);
   assert(gFakeBackendAllocCalls == 1);
+  (void)constructedBefore;
   assert(gGateProbeConstructed == constructedBefore + 1);
 
   GateProbe *second = loka::core::LokaNew<GateProbe>(gateProbeSite(), 2);
+  (void)second;
   assert(second == 0);
   assert(gFakeBackendAllocCalls == 2);
   // The white flag constructs nothing: only the first probe ever existed.
@@ -104,6 +108,7 @@ void testLokaNewReturnsNullWhenBackendRefusesNthAllocation()
 
   loka::core::LokaDelete(first, gateProbeSite());
   assert(gFakeBackendFreeCalls == 1);
+  (void)destroyedBefore;
   assert(gGateProbeDestroyed == destroyedBefore + 1);
 #ifdef LOKA_LIFECYCLE_AUDIT
   assert(loka::core::LokaAllocAuditLiveCount(gateProbeSite()) == liveBefore);

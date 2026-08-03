@@ -71,11 +71,16 @@ namespace
                       short width,
                       short height)
   {
+    (void)probe;
     assert(probe);
     assert(probe->wasLaidOut());
+    (void)x;
     assert(probe->geometry().x == x);
+    (void)y;
     assert(probe->geometry().y == y);
+    (void)width;
     assert(probe->geometry().width == width);
+    (void)height;
     assert(probe->geometry().height == height);
   }
 } // namespace
@@ -93,6 +98,7 @@ void testNullLayoutRowProducesFixedChildGeometry()
 
   assertGeometry(first, 10, 20, 49, 30);
   assertGeometry(second, 63, 20, 48, 30);
+  (void)resultY;
   assert(resultY == 31);
 }
 
@@ -109,6 +115,7 @@ void testNullLayoutColumnProducesFixedChildGeometry()
 
   assertGeometry(first, 10, 20, 80, 40);
   assertGeometry(second, 10, 27, 80, 33);
+  (void)resultY;
   assert(resultY == 38);
 }
 
@@ -125,6 +132,7 @@ void testNullLayoutFragmentAdvancesAcrossChildren()
 
   assertGeometry(first, 10, 20, 80, 40);
   assertGeometry(second, 10, 27, 80, 40);
+  (void)resultY;
   assert(resultY == 38);
 }
 
@@ -143,6 +151,7 @@ void testNullLayoutBoxProducesFixedChildGeometry()
 
   assertGeometry(first, 15, 25, 70, 30);
   assertGeometry(second, 15, 32, 70, 30);
+  (void)resultY;
   assert(resultY == 48);
 }
 
@@ -165,6 +174,7 @@ void testNullLayoutGridProducesFixedChildGeometry()
   assertGeometry(second, 52, 20, 40, 20);
   assertGeometry(third, 10, 44, 40, 20);
   assertGeometry(fourth, 52, 44, 40, 20);
+  (void)resultY;
   assert(resultY == 61);
 }
 
@@ -181,6 +191,7 @@ void testNullLayoutZStackProducesFixedChildGeometry()
 
   assertGeometry(back, 10, 20, 80, 40);
   assertGeometry(front, 10, 20, 80, 40);
+  (void)resultY;
   assert(resultY == 33);
 }
 
@@ -201,6 +212,7 @@ void testNullLayoutNestedBoxAndRowProduceFixedChildGeometry()
 
   assertGeometry(first, 12, 22, 46, 36);
   assertGeometry(second, 62, 22, 46, 36);
+  (void)resultY;
   assert(resultY == 35);
 }
 
