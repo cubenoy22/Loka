@@ -113,6 +113,28 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/common/*.cpp
   )
 
+  # The shipping compile. Every Linux target above defines TEST_BUILD, so the
+  # branches that only exist without it -- MenuBarDefinition::clone()'s
+  # failure-injection gate, the TEST_ID paths -- were never compiled on this
+  # platform at all. This object library compiles common/ the way a shipped
+  # binary sees it, under the same warnings-as-errors floor. It is never
+  # linked; the point is that the code is seen by a compiler.
+  add_library(LokaCommonShippingCompileTest OBJECT
+    ${LOKA_COMMON_SOURCES}
+  )
+  loka_enable_warnings(LokaCommonShippingCompileTest)
+  # add_definitions(-DTEST_BUILD) is directory-scoped, so this target has to
+  # take the define back off to be the shipping compile it claims to be.
+  target_compile_options(LokaCommonShippingCompileTest PRIVATE -UTEST_BUILD)
+  target_include_directories(LokaCommonShippingCompileTest PRIVATE
+    ${PROJECT_SOURCE_DIR}/common
+    ${PROJECT_SOURCE_DIR}/tools
+  )
+  set_target_properties(LokaCommonShippingCompileTest PROPERTIES
+    CXX_STANDARD 98
+    CXX_STANDARD_REQUIRED YES
+  )
+
   add_library(LokaCommonTesting STATIC
     ${LOKA_COMMON_SOURCES}
   )
