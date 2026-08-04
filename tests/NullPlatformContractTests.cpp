@@ -15,6 +15,7 @@
 #include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/controls/ScrollBar.hpp"
 #include "app/OpenFileDialog.hpp"
+#include "app/nodes/nestable/BoundarySection.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
 #include "app/nodes/nestable/PolicyScope.hpp"
 #include "app/nodes/nestable/Show.hpp"
@@ -2945,6 +2946,275 @@ void testNullPlatformContract_G6_materializedChildIsVisibleInSameRun()
   assert(platform.ledger().size() == 1);
   assert(platform.ledger()[0].visible);
   g_toggleVisible = 0;
+}
+
+namespace
+{
+  int g_bankedSectionBank = 0;
+
+  class BankedSectionBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<BankedSectionBoundaryNode>
+      BankedSectionBoundaryProps;
+
+  /** MineSweeper's New Game shape reduced to the mechanism: a boundary whose
+      declaration swaps every Section value key on recompose (identity change,
+      #277). The controls live inside the sections; a fresh bank must present
+      fresh native controls. */
+  class BankedSectionBoundaryNode
+      : public SceneTestSupport::RecomposingBoundaryNode<BankedSectionBoundaryNode,
+                                                         BankedSectionBoundaryProps>
+  {
+  public:
+    explicit BankedSectionBoundaryNode(const BankedSectionBoundaryProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<BankedSectionBoundaryNode,
+                                                    BankedSectionBoundaryProps>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::FragmentDefinition root;
+      for (int i = 0; i < 2; ++i)
+      {
+        loka::app::Section section(static_cast<loka::app::scene::NodeTag>(
+            9000 + g_bankedSectionBank * 2 + i));
+        loka::app::ButtonDefinition cell("cell");
+        section << cell;
+        root << section;
+      }
+      composition.declare(root);
+    }
+  };
+} // namespace
+
+void testBankedSectionSwapPresentsFreshControls()
+{
+  g_bankedSectionBank = 0;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<BankedSectionBoundaryNode>()));
+  mountAndAttach(scene, platform);
+
+  size_t visibleAfterMount = 0;
+  for (size_t i = 0; i < platform.ledger().size(); ++i)
+  {
+    if (platform.ledger()[i].visible)
+    {
+      ++visibleAfterMount;
+    }
+  }
+  assert(visibleAfterMount == 2 &&
+         "both section-hosted controls must be visible after mount");
+
+  // The identity change: every Section key swaps, the plan retires the old
+  // boxes and materializes fresh ones. The platform must end up presenting
+  // exactly the fresh controls.
+  g_bankedSectionBank = 1;
+  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+  LOKA_VERIFY(scene.flushInvalidation());
+  for (int i = 0; scene.hasPendingInvalidation() && i < 4; ++i)
+  {
+    scene.flushInvalidation();
+  }
+
+  size_t visibleAfterSwap = 0;
+  for (size_t i = 0; i < platform.ledger().size(); ++i)
+  {
+    if (platform.ledger()[i].visible)
+    {
+      ++visibleAfterSwap;
+    }
+  }
+  if (visibleAfterSwap != 2)
+  {
+    std::fprintf(stderr,
+                 "banked section swap: %lu visible controls after swap "
+                 "(expected 2); ledger rows %lu, retired %lu\n",
+                 static_cast<unsigned long>(visibleAfterSwap),
+                 static_cast<unsigned long>(platform.ledger().size()),
+                 static_cast<unsigned long>(platform.retiredCount()));
+    std::abort();
+  }
+}
+
+namespace
+{
+  struct BankedClickTypeTag
+  {
+  };
+  class BankedClickBoundaryNode;
+  struct BankedClickProps
+      : public loka::app::scene::NodePropsBase<BankedClickProps>
+  {
+    typedef BankedClickTypeTag TypeTag;
+    typedef BankedClickBoundaryNode NodeType;
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      return this->propsTypeId() < rhs.propsTypeId();
+    }
+  };
+
+  BankedClickBoundaryNode *g_bankedClickNode = 0;
+
+  /** The full MineSweeper New Game drive: a compose-once StdComposition
+      boundary that re-declares only on NODE_DIRTY_CHILD, flips its Section
+      key bank inside a button click handler, and marks itself dirty from
+      there (markViewDirty flushes synchronously mid-dispatch). */
+  class BankedClickBoundaryNode
+      : public loka::app::scene::StdCompositionBoundaryNodeBase<BankedClickProps>
+  {
+  public:
+    explicit BankedClickBoundaryNode(const BankedClickProps &props)
+        : loka::app::scene::StdCompositionBoundaryNodeBase<BankedClickProps>(props),
+          bank_(0),
+          newGameClicks_(0)
+    {
+      g_bankedClickNode = this;
+    }
+    virtual ~BankedClickBoundaryNode()
+    {
+      if (g_bankedClickNode == this)
+      {
+        g_bankedClickNode = 0;
+      }
+    }
+
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
+      (void)c;
+      this->bindUi();
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::FragmentDefinition root;
+      loka::app::ButtonDefinition game("game", &this->newGameClick_);
+      root << game;
+      for (int i = 0; i < 2; ++i)
+      {
+        loka::app::Section section(static_cast<loka::app::scene::NodeTag>(
+            9100 + this->bank_ * 2 + i));
+        loka::app::ButtonDefinition cell("cell");
+        section << cell;
+        root << section;
+      }
+      composition.declare(root);
+    }
+
+    void startNewGame()
+    {
+      ++this->newGameClicks_;
+      this->bank_ = 1 - this->bank_;
+      this->markViewDirty(loka::app::scene::NODE_DIRTY_CHILD);
+    }
+
+    int newGameClicks() const
+    {
+      return this->newGameClicks_;
+    }
+
+    loka::core::EmitterState &newGameClick()
+    {
+      return this->newGameClick_;
+    }
+
+  protected:
+    virtual void declareLocalRecomposition(loka::app::scene::NodeComposition &composition)
+    {
+      this->composeNode(composition);
+    }
+
+    virtual void composeWithContext(loka::app::scene::ComponentContext &context,
+                                    loka::app::scene::ComposeEvent event)
+    {
+      typedef loka::app::scene::StdCompositionBoundaryNodeBase<BankedClickProps> BaseType;
+      if (event == loka::app::scene::COMPOSE_EVENT_UPDATE &&
+          (context.dirtyFlags() & loka::app::scene::NODE_DIRTY_CHILD))
+      {
+        this->recomposeLocalComposition(context, event,
+                                        this->LOCAL_RECOMPOSE_APPLY_SNAPSHOT);
+        this->bindUi();
+        return;
+      }
+      BaseType::composeWithContext(context, event);
+    }
+
+  private:
+    void bindUi()
+    {
+      this->bindForUi(this->newGameClick_, this, &BankedClickBoundaryNode::startNewGame);
+    }
+
+    int bank_;
+    int newGameClicks_;
+    loka::core::EmitterState newGameClick_;
+  };
+} // namespace
+
+void testBankedSectionClickHandlerSwapPresentsFreshControls()
+{
+  NullScenePlatformController platform;
+  loka::app::scene::NodeDefinition<BankedClickProps, BankedClickBoundaryNode>
+      mainDefinition;
+  loka::app::scene::Scene scene(mainDefinition.clone());
+  mountAndAttach(scene, platform);
+  BankedClickBoundaryNode *board = g_bankedClickNode;
+  assert(board);
+
+  size_t visibleAfterMount = 0;
+  for (size_t i = 0; i < platform.ledger().size(); ++i)
+  {
+    if (platform.ledger()[i].visible)
+    {
+      ++visibleAfterMount;
+    }
+  }
+  assert(visibleAfterMount == 3 &&
+         "the game button and both section-hosted cells must be visible");
+
+  // Drive New Game exactly the way the app does: the emitter fires from a
+  // click, the handler flips the bank and marks the view dirty, and the
+  // flush happens synchronously inside the dispatch.
+  {
+    loka::core::StateTrackerGuard guard(board->tracker());
+    board->newGameClick().emit();
+  }
+  LOKA_VERIFY(board->newGameClicks() == 1);
+  for (int i = 0; scene.hasPendingInvalidation() && i < 4; ++i)
+  {
+    scene.flushInvalidation();
+  }
+
+  size_t visibleAfterSwap = 0;
+  for (size_t i = 0; i < platform.ledger().size(); ++i)
+  {
+    if (platform.ledger()[i].visible)
+    {
+      ++visibleAfterSwap;
+    }
+  }
+  if (visibleAfterSwap != 3)
+  {
+    std::fprintf(stderr,
+                 "click-driven bank swap: %lu visible controls after swap "
+                 "(expected 3); ledger rows %lu, retired %lu\n",
+                 static_cast<unsigned long>(visibleAfterSwap),
+                 static_cast<unsigned long>(platform.ledger().size()),
+                 static_cast<unsigned long>(platform.retiredCount()));
+    std::abort();
+  }
+
+  // The second click is the Toolbox/Win32 kill scenario: the rebound handler
+  // must fire and the world must still present three controls.
+  {
+    loka::core::StateTrackerGuard guard(board->tracker());
+    board->newGameClick().emit();
+  }
+  LOKA_VERIFY(board->newGameClicks() == 2);
+  for (int i = 0; scene.hasPendingInvalidation() && i < 4; ++i)
+  {
+    scene.flushInvalidation();
+  }
 }
 
 namespace
