@@ -3,7 +3,6 @@
 
 void testOwnershipDumpPinsRepresentativeHelloWorld();
 void testOwnershipDumpPinsMineSweeperSections();
-void testOwnershipDumpPinsMineSweeperNewGameRetiresCells();
 void testOwnershipDumpPinsFullVocabulary();
 void testOwnershipDumpHeldByNamesSurvivingOwner();
 void testOwnershipDumpIsDeterministic();

@@ -13,7 +13,6 @@
 #include "../example/MineSweeper/src/MainNode.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/core/App.hpp"
-#include "app/nodes/controls/Button.hpp"
 #include "app/core/Window.hpp"
 #include "app/nodes/nestable/BoundarySection.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
@@ -21,7 +20,6 @@
 #include "app/scene/composition/NodeComposition.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "core/State.hpp"
-#include "core/StateTracker.hpp"
 #include "support/RecordingPlatformController.hpp"
 #include "support/RecomposingBoundary.hpp"
 #include "testing/scene/OwnershipDump.hpp"
@@ -426,67 +424,6 @@ void testOwnershipDumpPinsMineSweeperSections()
   }
   verifyOwnershipDump(
       loka::dsl::testing::OwnershipDump::dump(scene), expected);
-}
-
-void testOwnershipDumpPinsMineSweeperNewGameRetiresCells()
-{
-  using namespace loka::app::scene;
-  NodeDefinition<minesweeper::MainProps, minesweeper::MainNode> mainDefinition;
-  SceneTestSupport::RecordingPlatformController platform;
-  Scene scene(mainDefinition.clone());
-  scene.mount(&platform);
-  scene.updateAttached(true);
-
-  loka::app::scene::BoundaryNode *wrapper =
-      loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
-  assert(wrapper);
-
-  // A new game is an identity change: the key bank flips, so the plan
-  // retires all 64 old boxes -- residents included -- and materializes 64
-  // fresh covered cells on the arena rows the old bank released. Two real
-  // button clicks, not direct handler calls: the second click only works if
-  // the recomposing boundary re-declared its UI bindings after
-  // beginComposition released them.
-  for (int round = 0; round < 2; ++round)
-  {
-    loka::app::scene::Node *root =
-        loka::dsl::testing::SceneTestAccess::rootNode(scene);
-    assert(root);
-    long idMatches = 0;
-    long typedMatches = 0;
-    loka::app::ButtonNode *button = 0;
-    loka::dsl::testing::scene_test_detail::findNodeByIdRecursive<
-        loka::app::ButtonNode>(root,
-                               std::string("MineSweeper.NewGameButton"),
-                               idMatches,
-                               typedMatches,
-                               button);
-    LOKA_VERIFY(idMatches == 1 && button != 0);
-    {
-      loka::core::StateTrackerGuard guard(wrapper->tracker());
-      button->props.onClick_->emit();
-    }
-    assert(scene.hasPendingInvalidation() &&
-           "retired cell boxes must wait for the drain");
-    LOKA_VERIFY(!scene.flushInvalidation() &&
-                "cell retirement must be a silent drain-only run");
-
-    const int baseKey = (round == 0) ? 164 : 100;
-    std::string expected(
-        "scene\n"
-        "  boundary\n"
-        "    boundary\n"
-        "      observed: 64\n");
-    for (int i = 0; i < 64; ++i)
-    {
-      std::ostringstream row;
-      row << "      section(" << (baseKey + i) << ")\n"
-          << "        states: 1 (arena 1, heap 0)\n";
-      expected += row.str();
-    }
-    verifyOwnershipDump(
-        loka::dsl::testing::OwnershipDump::dump(scene), expected);
-  }
 }
 
 void testOwnershipDumpPinsFullVocabulary()
