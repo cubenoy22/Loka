@@ -1454,6 +1454,41 @@ namespace loka
                                  parkedBranch);
         }
 
+        /** The retained-detach line, as one door. Parking keeps a branch's
+            states warm for re-entry, but detach removes Held slots (axiom 14,
+            R3): a parked branch is a cross-tick retention, and cross-tick
+            retention re-acquires through the owner at its next ATTACH. The
+            fact walk and the slot drop travel together so no park site can
+            take one without the other; the last drop queues the releaser on
+            the owner's existing pool, never firing here. Children only, like
+            the fact walk: a nested parked branch already crossed this line
+            when it parked. */
+        static void DetachRetainedSubtree(Node *node)
+        {
+          NotifySubtreeNodeDetached(node);
+          DropRetainedHeldSlots(node);
+        }
+
+        static void DropRetainedHeldSlots(Node *node)
+        {
+          if (!node)
+          {
+            return;
+          }
+          IStateOwner *owner = node->asStateOwner();
+          if (owner)
+          {
+            owner->detachHeldResources();
+          }
+          INestable *nestable = node->asNestable();
+          for (Node *child = nestable ? nestable->childrenHead() : 0;
+               child;
+               child = child->nextInComposition)
+          {
+            DropRetainedHeldSlots(child);
+          }
+        }
+
         bool replaceSeatBranch(ComponentContext &context,
                                const BoundaryBranchSeatPlanEntry &plan,
                                BoundaryBranchSeatRuntimeEntry &runtime,
@@ -1498,7 +1533,7 @@ namespace loka
           {
             if (parkOutgoing)
             {
-              NotifySubtreeNodeDetached(outgoing);
+              DetachRetainedSubtree(outgoing);
               this->parkBranch(plan.key, outgoing, outgoingCondition);
             }
             else
