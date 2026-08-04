@@ -625,7 +625,8 @@ void testComponentRefusesBranchSeatWholeBox()
     LOKA_VERIFY(scenario.observation.composeChildrenCalls == 1);
     loka::app::scene::INestable *nestable = component->asNestable();
     LOKA_VERIFY(nestable != 0);
-    LOKA_VERIFY(nestable->childrenCount() == 0);
+    const size_t childCount = nestable->childrenCount();
+    LOKA_VERIFY(childCount == 0);
   }
 #elif defined(__linux__) && !defined(__SANITIZE_ADDRESS__)
   // Debug: the seat wall is an educational assert deep in materialization
