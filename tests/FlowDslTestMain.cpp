@@ -27,6 +27,7 @@
 #include "SceneTests.hpp"
 #include "StartupRedrawTests.hpp"
 #include "BoundaryArenaTests.hpp"
+#include "ComponentNodeTests.hpp"
 #include "ValueTests.hpp"
 #include "SceneOwnershipTests.hpp"
 #include "PhaseGuardTests.hpp"

@@ -589,6 +589,11 @@ namespace loka
 
         // Create node tree
         Node *createNodeTree() const;
+        /** Same materialization and boundary-refusal routing as
+            createNodeTree(), but hands the completed result back so the
+            caller can keep failure atomicity: a partial root must not be
+            published (#150's guard is the plan-side precedent). */
+        NodeMaterializationResult createNodeTreeCompleted() const;
         void assignCompositionSeatSlots();
 
         NodeDefinitionBase *root() const

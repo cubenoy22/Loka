@@ -287,6 +287,11 @@ namespace loka
 
       Node *NodeComposition::createNodeTree() const
       {
+        return this->createNodeTreeCompleted().root;
+      }
+
+      NodeMaterializationResult NodeComposition::createNodeTreeCompleted() const
+      {
         assert(context_ && context_->boundary() &&
                "NodeComposition::createNodeTree requires BoundaryNode context");
         NodeMaterializationResult result =
@@ -299,7 +304,7 @@ namespace loka
         {
           context_->boundary()->noteComposeAllocationFailure();
         }
-        return result.root;
+        return result;
       }
 
       static void assignDefinitionSeatSlots(NodeDefinitionBase *definition, int &nextSlot)
