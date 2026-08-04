@@ -426,6 +426,53 @@ void testOwnershipDumpPinsMineSweeperSections()
       loka::dsl::testing::OwnershipDump::dump(scene), expected);
 }
 
+void testOwnershipDumpPinsMineSweeperNewGameRetiresCells()
+{
+  using namespace loka::app::scene;
+  NodeDefinition<minesweeper::MainProps, minesweeper::MainNode> mainDefinition;
+  SceneTestSupport::RecordingPlatformController platform;
+  Scene scene(mainDefinition.clone());
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  // The scene wraps the app definition in its root boundary wrapper; the
+  // MineSweeper board is the wrapper's child (the second "boundary" line in
+  // the dump).
+  loka::app::scene::BoundaryNode *wrapper =
+      loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  assert(wrapper);
+  minesweeper::MainNode *board =
+      static_cast<minesweeper::MainNode *>(wrapper->childrenHead());
+  assert(board);
+
+  // A new game is an identity change: the key bank flips, so the plan
+  // retires all 64 old boxes -- residents included -- and materializes 64
+  // fresh covered cells. markViewDirty flushes the recompose synchronously;
+  // the retired boxes then wait for the drain. After the drain the dump
+  // shows only the new bank, with every resident back on the arena rows the
+  // old bank released.
+  board->startNewGame();
+  assert(scene.hasPendingInvalidation() &&
+         "retired cell boxes must wait for the drain");
+  LOKA_VERIFY(!scene.flushInvalidation() &&
+              "cell retirement must be a silent drain-only run");
+
+  std::string expected(
+      "scene\n"
+      "  boundary\n"
+      "    boundary\n"
+      "      observed: 64\n");
+  for (int i = 0; i < 64; ++i)
+  {
+    std::ostringstream row;
+    row << "      section(" << (164 + i) << ")\n"
+        << "        states: 1 (arena 1, heap 0)\n";
+    expected += row.str();
+  }
+  verifyOwnershipDump(
+      loka::dsl::testing::OwnershipDump::dump(scene), expected);
+}
+
 void testOwnershipDumpPinsFullVocabulary()
 {
   OwnershipDumpScenario scenario;

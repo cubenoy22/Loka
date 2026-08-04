@@ -2,9 +2,11 @@
 #define LOKA_MINESWEEPER_MAIN_NODE_HPP
 
 #include "app/nodes/boundary/StdComposition.hpp"
+#include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/Cell.hpp"
 #include "app/nodes/nestable/BoundarySection.hpp"
 #include "app/nodes/nestable/Grid.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
 #include "app/scene/node/ComponentNode.hpp"
 #include <cstdlib>
 #include <ctime>
@@ -19,10 +21,7 @@ namespace minesweeper
 
   /** Immutable per-game facts a cell reads from the board: the mine layout
       and adjacency never change within one game, so they travel as plain
-      values. A new game would be a new identity (Section key), not new
-      props -- the runtime New Game trigger is parked on the
-      newgame-277-acceptance branch until the platform apply seam it needs
-      is fixed (#277). */
+      values. A new game is a new identity (Section key), not new props. */
   struct MineCellProps : public loka::app::scene::NodePropsBase<MineCellProps>
   {
     typedef MineCellTypeTag TypeTag;
@@ -61,7 +60,7 @@ namespace minesweeper
   /** One cell's box. It owns the presentation resident (text) and the click
       writer; whether the cell has been revealed is a node member that lives
       and dies with the box. The board never writes into this box -- reveal
-      is the cell's own doing. */
+      is the cell's own doing, and a new game retires the box wholesale. */
   class MineCellNode : public loka::app::scene::ComponentNode
   {
   public:
@@ -126,7 +125,8 @@ namespace minesweeper
   public:
     MainNode(const MainProps &p)
         : loka::app::scene::StdCompositionNodeFor<MainNode>(MainProps(p)),
-          initialized_(false)
+          initialized_(false),
+          bank_(0)
     {
     }
 
@@ -138,26 +138,64 @@ namespace minesweeper
         return;
       }
       this->initialized_ = true;
-      std::srand(static_cast<unsigned int>(std::time(0)));
+      this->bindForUi(this->newGameClick_, this, &MainNode::startNewGame);
       this->resetBoard();
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       using namespace loka::app;
+      Column content;
+      content << Button("New Game", &this->newGameClick_);
       Grid grid;
       grid.rows(kRows).cols(kCols);
       for (int i = 0; i < kCellCount; ++i)
       {
         // One owner-scope box per cell, and the cell's presentation
-        // resident lives inside it (#274's parent-declared arrays are
-        // gone). Removing a cell's box retires exactly that cell's state.
+        // resident now lives inside it (#274's parent-declared arrays are
+        // gone). A new game swaps the key bank, so the plan retires each
+        // old box -- residents included -- and materializes fresh covered
+        // cells.
         Section cell(static_cast<loka::app::scene::NodeTag>(
-            kCellSectionKeyBase + i));
+            kCellSectionKeyBase + this->bank_ * kCellCount + i));
         cell << MineCell(MineCellProps(this->mines_[i], this->countAdjacent(i)));
         grid << cell;
       }
-      c.declare(grid);
+      content << grid;
+      c.declare(content);
+    }
+
+    void startNewGame()
+    {
+      this->resetBoard();
+      this->bank_ = 1 - this->bank_;
+      this->markViewDirty(loka::app::scene::NODE_DIRTY_CHILD);
+    }
+
+  protected:
+    // MineSweeper is the first app whose declaration itself recomposes (the
+    // key bank changes on New Game); window boundaries do not re-declare on
+    // UPDATE by default. This mirrors the test-support recomposing boundary
+    // and the Scene root wrapper's dirty-flag check until the scene-update
+    // redesign (WR-4) promotes a shared production form. Reveal clicks stay
+    // on the ordinary update path: only NODE_DIRTY_CHILD re-declares.
+    virtual void declareLocalRecomposition(loka::app::scene::NodeComposition &composition)
+    {
+      this->composeNode(composition);
+    }
+
+    virtual void composeWithContext(loka::app::scene::ComponentContext &context,
+                                    loka::app::scene::ComposeEvent event)
+    {
+      typedef loka::app::scene::StdCompositionNodeFor<MainNode> BaseType;
+      if (event == loka::app::scene::COMPOSE_EVENT_UPDATE &&
+          (context.dirtyFlags() & loka::app::scene::NODE_DIRTY_CHILD))
+      {
+        this->recomposeLocalComposition(context, event,
+                                        this->LOCAL_RECOMPOSE_APPLY_SNAPSHOT);
+        return;
+      }
+      BaseType::composeWithContext(context, event);
     }
 
   private:
@@ -171,7 +209,9 @@ namespace minesweeper
     };
 
     bool initialized_;
+    int bank_;
     bool mines_[kCellCount];
+    loka::core::EmitterState newGameClick_;
 
     void resetBoard()
     {
