@@ -1,0 +1,11 @@
+#ifndef LOKA_TESTS_COMPONENT_NODE_TESTS_HPP
+#define LOKA_TESTS_COMPONENT_NODE_TESTS_HPP
+
+void testComponentComposesChildrenOnceAfterStatesConnect();
+void testComponentStatesResolveNearestSectionOwner();
+void testComponentStatesFallBackToBoundaryOwnerWithoutSection();
+void testComponentPropsReapplyWithoutTouchingSubtree();
+void testComponentParkedReentryKeepsSubtreeSingular();
+void testComponentKeySwapRetiresResidentsTwoPhase();
+
+#endif // LOKA_TESTS_COMPONENT_NODE_TESTS_HPP
