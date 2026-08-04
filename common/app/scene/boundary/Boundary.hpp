@@ -1454,6 +1454,78 @@ namespace loka
                                  parkedBranch);
         }
 
+        /** The retained-detach line, as one door. Parking keeps a branch's
+            states warm for re-entry, but detach removes Held slots (axiom 14,
+            R3): a parked branch is a cross-tick retention, and cross-tick
+            retention re-acquires through the owner at its next ATTACH. The
+            fact walk and the slot drop travel together so no park site can
+            take one without the other; the last drop queues the releaser on
+            the owner's existing pool, never firing here. Children only, like
+            the fact walk: a nested parked branch already crossed this line
+            when it parked. */
+        void detachRetainedSubtree(Node *node)
+        {
+          NotifySubtreeNodeDetached(node);
+          DropRetainedHeldSlots(node);
+          // A last drop inside the branch queues its releaser on the nearest
+          // enclosing Boundary -- which may itself be inside the branch being
+          // parked, where the live-tree drain walk will never reach it again.
+          // The queue must ride a clock that is still live, so the parking
+          // boundary adopts it; the entries run at this boundary's next
+          // drain, which is the tick boundary the drop was aimed at.
+          AdoptParkedPendingReleases(node, *this);
+        }
+
+        static void AdoptParkedPendingReleases(Node *node, BoundaryNode &pool)
+        {
+          if (!node)
+          {
+            return;
+          }
+          BoundaryNode *nested = node->asBoundary();
+          if (nested && nested != &pool)
+          {
+            while (loka::core::detail::HeldBlockBase *block =
+                       nested->pendingHeldReleasesHead_)
+            {
+              nested->pendingHeldReleasesHead_ = block->retireNext();
+              if (!nested->pendingHeldReleasesHead_)
+              {
+                nested->pendingHeldReleasesTail_ = 0;
+              }
+              block->setRetireNext(0);
+              pool.retireHeldBlock(block);
+            }
+          }
+          INestable *nestable = node->asNestable();
+          for (Node *child = nestable ? nestable->childrenHead() : 0;
+               child;
+               child = child->nextInComposition)
+          {
+            AdoptParkedPendingReleases(child, pool);
+          }
+        }
+
+        static void DropRetainedHeldSlots(Node *node)
+        {
+          if (!node)
+          {
+            return;
+          }
+          IStateOwner *owner = node->asStateOwner();
+          if (owner)
+          {
+            owner->detachHeldResources();
+          }
+          INestable *nestable = node->asNestable();
+          for (Node *child = nestable ? nestable->childrenHead() : 0;
+               child;
+               child = child->nextInComposition)
+          {
+            DropRetainedHeldSlots(child);
+          }
+        }
+
         bool replaceSeatBranch(ComponentContext &context,
                                const BoundaryBranchSeatPlanEntry &plan,
                                BoundaryBranchSeatRuntimeEntry &runtime,
@@ -1498,7 +1570,7 @@ namespace loka
           {
             if (parkOutgoing)
             {
-              NotifySubtreeNodeDetached(outgoing);
+              this->detachRetainedSubtree(outgoing);
               this->parkBranch(plan.key, outgoing, outgoingCondition);
             }
             else

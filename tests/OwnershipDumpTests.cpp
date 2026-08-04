@@ -39,6 +39,7 @@ namespace
           creatorOwner(0),
           showCreator(true),
           useConditional(false),
+          nestedBoundaryBranch(false),
           createHeld(true),
           showFirstHolder(true),
           showSecondHolder(false),
@@ -54,6 +55,7 @@ namespace
     loka::app::scene::IStateOwner *creatorOwner;
     bool showCreator;
     bool useConditional;
+    bool nestedBoundaryBranch;
     bool createHeld;
     bool showFirstHolder;
     bool showSecondHolder;
@@ -185,6 +187,35 @@ namespace
                                            OwnershipDumpProbeNode>
       OwnershipDumpProbeDefinition;
 
+  class OwnershipDumpNestedBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<OwnershipDumpNestedBoundaryNode>
+      OwnershipDumpNestedBoundaryProps;
+
+  class OwnershipDumpNestedBoundaryNode
+      : public SceneTestSupport::RecomposingBoundaryNode<
+            OwnershipDumpNestedBoundaryNode,
+            OwnershipDumpNestedBoundaryProps>
+  {
+  public:
+    explicit OwnershipDumpNestedBoundaryNode(
+        const OwnershipDumpNestedBoundaryProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<
+              OwnershipDumpNestedBoundaryNode,
+              OwnershipDumpNestedBoundaryProps>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::Fragment root;
+      loka::app::Section creator(4111);
+      creator << OwnershipDumpProbeDefinition(
+          OwnershipDumpProbeProps(OwnershipDumpProbeProps::ROLE_CREATE));
+      root << creator;
+      composition.declare(root);
+    }
+  };
+
   class OwnershipDumpRootNode;
   typedef loka::app::scene::BoundaryPropsFor<OwnershipDumpRootNode>
       OwnershipDumpRootProps;
@@ -229,10 +260,23 @@ namespace
         if (scenario.useConditional)
         {
           loka::app::FragmentDefinition emptyBranch;
-          loka::app::scene::ConditionalDefinition conditional(
-              (loka::app::scene::ConditionalProps(
-                  &scenario.parkedCondition, &creator, &emptyBranch)));
-          root << conditional;
+          if (scenario.nestedBoundaryBranch)
+          {
+            loka::app::FragmentDefinition trueBranch;
+            trueBranch << loka::app::scene::Boundary<
+                OwnershipDumpNestedBoundaryNode>();
+            loka::app::scene::ConditionalDefinition conditional(
+                (loka::app::scene::ConditionalProps(
+                    &scenario.parkedCondition, &trueBranch, &emptyBranch)));
+            root << conditional;
+          }
+          else
+          {
+            loka::app::scene::ConditionalDefinition conditional(
+                (loka::app::scene::ConditionalProps(
+                    &scenario.parkedCondition, &creator, &emptyBranch)));
+            root << conditional;
+          }
         }
         else
         {
@@ -437,35 +481,90 @@ void testOwnershipDumpWalksParkedBranches()
   OwnershipDumpScenario scenario;
   scenario.useConditional = true;
   scenario.showFirstHolder = false;
-  // Holds stay out of this fixture: a parked Section currently keeps its
-  // Held slots, which the reclaim wall then rejects at teardown -- that is
-  // the open S3 x parking defect this test's first draft exposed (filed
-  // separately). This pin covers the walk itself: a parked branch's owned
-  // states must not render as unowned.
-  scenario.createHeld = false;
+
   g_ownershipDumpScenario = &scenario;
   {
     SceneTestSupport::RecordingPlatformController platform;
     loka::app::scene::Scene *scene = createFixtureScene(platform);
 
-    // Flip the condition: the section-bearing branch parks. It is alive,
-    // it still owns its states, and it is not a child -- a dump that only
-    // walked childrenHead() would render those states as unowned, which is
-    // the exact lie this tool exists to remove.
+    // Flip the condition: the section-bearing branch parks. Parking is a
+    // retained detach, and detach removes slots (axiom 14) -- the branch
+    // keeps its states warm for re-entry, but its hold drops, the last drop
+    // queues the releaser, and cross-tick retention re-acquires through the
+    // owner. A dump that only walked childrenHead() would render the parked
+    // states as unowned, which is the exact lie this tool exists to remove.
+    // The condition is a registered branch-seat source, so set() itself
+    // drives the recompose that parks the branch; the park-time drop queues
+    // the releaser on the boundary pool inside that same run.
     scenario.parkedCondition.set(false);
-    requestFixtureRecompose(*scene);
+    assert(scenario.releaseCount == 0 &&
+           "the drop queues the releaser; nothing may fire at the park site");
 
-    const std::string expected(
+    const std::string parkedExpected(
         "scene\n"
         "  boundary \"MainView\"\n"
+        "    pending-releases: 1\n"
         "    observed: 2\n"
         "    parked\n"
         "      section(4101)\n"
         "        states: 2 (arena 1, heap 1)\n");
     verifyOwnershipDump(
-        loka::dsl::testing::OwnershipDump::dump(*scene), expected);
+        loka::dsl::testing::OwnershipDump::dump(*scene), parkedExpected);
+
+    LOKA_VERIFY(!scene->flushInvalidation());
+    assert(scenario.releaseCount == 1 &&
+           "the queued releaser runs at the drain, on the owner's clock");
+
+    // Re-entry (set(true)) is deliberately not exercised here: flipping back
+    // currently loses the seat's branch entirely -- the parked section is
+    // taken, reconciliation fails, and the replacement never materializes --
+    // independent of the park-time drop. That is a branch-seat defect in the
+    // frozen scene-update area, filed separately with this fixture named as
+    // the reproducer.
     delete scene;
   }
+  assert(scenario.releaseCount == 1 &&
+         "the parked payload released exactly once, at the drain");
+  g_ownershipDumpScenario = 0;
+}
+
+void testOwnershipDumpAdoptsParkedNestedBoundaryReleases()
+{
+  OwnershipDumpScenario scenario;
+  scenario.useConditional = true;
+  scenario.nestedBoundaryBranch = true;
+  scenario.showFirstHolder = false;
+  g_ownershipDumpScenario = &scenario;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene *scene = createFixtureScene(platform);
+    assert(scenario.held.isValid());
+
+    // The last drop happens inside the branch being parked, so the releaser
+    // first lands on the nested Boundary's pool -- a clock the live-tree
+    // drain walk will never reach again. The parking boundary must adopt it.
+    scenario.parkedCondition.set(false);
+    assert(scenario.releaseCount == 0 &&
+           "adoption re-queues; nothing may fire at the park site");
+
+    const std::string parkedExpected(
+        "scene\n"
+        "  boundary \"MainView\"\n"
+        "    pending-releases: 1\n"
+        "    observed: 2\n"
+        "    parked\n"
+        "      boundary\n"
+        "        section(4111)\n"
+        "          states: 2 (arena 1, heap 1)\n");
+    verifyOwnershipDump(
+        loka::dsl::testing::OwnershipDump::dump(*scene), parkedExpected);
+
+    LOKA_VERIFY(!scene->flushInvalidation());
+    assert(scenario.releaseCount == 1 &&
+           "the adopted releaser runs at the live boundary's drain");
+    delete scene;
+  }
+  assert(scenario.releaseCount == 1);
   g_ownershipDumpScenario = 0;
 }
 

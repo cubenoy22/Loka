@@ -6,6 +6,7 @@ void testOwnershipDumpPinsFullVocabulary();
 void testOwnershipDumpHeldByNamesSurvivingOwner();
 void testOwnershipDumpIsDeterministic();
 void testOwnershipDumpWalksParkedBranches();
+void testOwnershipDumpAdoptsParkedNestedBoundaryReleases();
 void testOwnershipDumpShowsPendingReleaseUntilDrain();
 
 #endif // LOKA_TESTS_OWNERSHIP_DUMP_TESTS_HPP
