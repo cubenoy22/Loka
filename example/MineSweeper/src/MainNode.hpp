@@ -3,6 +3,7 @@
 
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/controls/Cell.hpp"
+#include "app/nodes/nestable/BoundarySection.hpp"
 #include "app/nodes/nestable/Grid.hpp"
 #include <cstdlib>
 #include <ctime>
@@ -51,7 +52,13 @@ namespace minesweeper
       grid.rows(kRows).cols(kCols);
       for (int i = 0; i < kCellCount; ++i)
       {
-        grid << Cell(this->cellText_[i].state()).onClick(&this->cellClick_[i]);
+        // One owner-scope box per cell (#36 R4's motivating example). The
+        // cell states themselves stay parent-declared for now: moving them
+        // under the sections means the cell owns its presentation and reads
+        // the board upward, which is the #38 For-per-item design track.
+        Section cell(static_cast<loka::app::scene::NodeTag>(kCellSectionKeyBase + i));
+        cell << Cell(this->cellText_[i].state()).onClick(&this->cellClick_[i]);
+        grid << cell;
       }
       c.declare(grid);
     }
@@ -62,7 +69,8 @@ namespace minesweeper
       kRows = 8,
       kCols = 8,
       kCellCount = kRows * kCols,
-      kMineCount = 10
+      kMineCount = 10,
+      kCellSectionKeyBase = 100
     };
 
     struct CellClickProxy
