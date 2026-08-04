@@ -90,11 +90,26 @@ namespace loka
             NodeComposition::CompositionScope scope(composition);
             this->composeChildren(composition);
           }
-          Node *child = composition.createNodeTree();
-          if (child)
+          NodeMaterializationResult result =
+              composition.createNodeTreeCompleted();
+          if (result.allocationFailed || result.requiresBoundaryPlan ||
+              !result.root)
           {
-            this->addChild(child);
+            // Failure atomicity: a partial subtree must never become
+            // childrenHead(), or the re-attach guard would publish it
+            // permanently. Heap-provenance roots return through their own
+            // door; arena candidates stay ledger-owned and are reclaimed by
+            // the generation retire (#150's plan-side guard is the
+            // precedent). requiresBoundaryPlan is a branch seat declared
+            // under a component -- seats materialize only through Boundary
+            // plan application, so the whole box refuses.
+            if (result.root && result.root->arenaOwner() == 0)
+            {
+              DestroyHeapNode(result.root);
+            }
+            return;
           }
+          this->addChild(result.root);
         }
       };
     } // namespace scene

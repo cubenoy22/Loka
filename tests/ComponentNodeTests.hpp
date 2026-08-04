@@ -5,6 +5,7 @@ void testComponentComposesChildrenOnceAfterStatesConnect();
 void testComponentStatesResolveNearestSectionOwner();
 void testComponentStatesFallBackToBoundaryOwnerWithoutSection();
 void testComponentPropsReapplyWithoutTouchingSubtree();
+void testComponentRefusesBranchSeatWholeBox();
 void testComponentParkedReentryKeepsSubtreeSingular();
 void testComponentKeySwapRetiresResidentsTwoPhase();
 

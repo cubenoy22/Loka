@@ -2,6 +2,12 @@
 #include "support/TestVerify.hpp"
 #include <cassert>
 #include <cstddef>
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
 
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/controls/Button.hpp"
@@ -10,6 +16,7 @@
 #include "app/nodes/nestable/Fragment.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/node/ComponentNode.hpp"
+#include "app/nodes/nestable/Show.hpp"
 #include "app/scene/node/Conditional.hpp"
 #include "core/LokaAlloc.hpp"
 #include "support/RecomposingBoundary.hpp"
@@ -192,9 +199,83 @@ namespace
                                            TestCellComponentNode>
       TestCellComponentDefinition;
 
+  loka::core::MutableState<bool> *g_componentSeatCondition = 0;
+
+  struct TestSeatComponentTypeTag
+  {
+  };
+
+  class TestSeatComponentNode;
+
+  struct TestSeatComponentProps
+      : public loka::app::scene::NodePropsBase<TestSeatComponentProps>
+  {
+    typedef TestSeatComponentTypeTag TypeTag;
+    typedef TestSeatComponentNode NodeType;
+
+    explicit TestSeatComponentProps(ComponentProbeObservation *value = 0)
+        : observation(value)
+    {
+    }
+
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      if (rhs.propsTypeId() != this->propsTypeId())
+      {
+        return this->propsTypeId() < rhs.propsTypeId();
+      }
+      const TestSeatComponentProps &other =
+          static_cast<const TestSeatComponentProps &>(rhs);
+      return this->observation < other.observation;
+    }
+
+    ComponentProbeObservation *observation;
+  };
+
+  /** Misuse probe: declares a branch seat under the component. Seats
+      materialize only through Boundary plan application, so the whole box
+      must refuse -- and refuse atomically: the Fragment and Cell that
+      materialized before the seat must not be published either. */
+  class TestSeatComponentNode : public loka::app::scene::ComponentNode
+  {
+  public:
+    typedef TestSeatComponentTypeTag TypeTag;
+    TestSeatComponentProps props;
+
+    explicit TestSeatComponentNode(const TestSeatComponentProps &p)
+        : loka::app::scene::ComponentNode(),
+          props(p),
+          text_()
+    {
+      this->state(this->text_, loka::core::String::Literal("."));
+    }
+
+  protected:
+    virtual void composeChildren(loka::app::scene::NodeComposition &c)
+    {
+      if (this->props.observation)
+      {
+        ++this->props.observation->composeChildrenCalls;
+      }
+      loka::app::Fragment content;
+      content << loka::app::Cell(this->text_.state());
+      content << loka::app::ShowDefinition(
+          static_cast<loka::core::State<bool> *>(g_componentSeatCondition));
+      c.declare(content);
+    }
+
+  private:
+    loka::app::scene::NodeState<loka::core::String> text_;
+  };
+
+  typedef loka::app::scene::NodeDefinition<TestSeatComponentProps,
+                                           TestSeatComponentNode>
+      TestSeatComponentDefinition;
+
   ComponentProbeObservation *g_componentObservation = 0;
   int *g_componentTrackedAlive = 0;
   bool g_componentHostUseSection = true;
+  bool g_componentHostUseSeatComponent = false;
   loka::core::MutableState<bool> *g_componentHostCondition = 0;
 
   class ComponentHostRootNode;
@@ -225,6 +306,16 @@ namespace
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
       loka::app::Fragment root;
+      if (g_componentHostUseSeatComponent)
+      {
+        TestSeatComponentDefinition seatComponent(
+            (TestSeatComponentProps(g_componentObservation)));
+        loka::app::Section section(this->key_);
+        section << seatComponent;
+        root << section;
+        composition.declare(root);
+        return;
+      }
       TestCellComponentDefinition component(
           TestCellComponentProps(g_componentObservation,
                                  g_componentTrackedAlive,
@@ -501,6 +592,65 @@ void testComponentPropsReapplyWithoutTouchingSubtree()
   assert(component->props.revision == 7);
   assert(component->asNestable()->childrenHead() == child);
   assert(scenario.observation.composeChildrenCalls == 1);
+}
+
+void testComponentRefusesBranchSeatWholeBox()
+{
+#if defined(NDEBUG)
+  // Release: the seat materialization refuses, and failure atomicity
+  // demands the Fragment and Cell that materialized before it are not
+  // published either -- the box is childless, not partial (a published
+  // partial subtree would survive re-attach behind the childrenHead
+  // guard).
+  {
+    ComponentScenario scenario;
+    loka::core::MutableState<bool> condition(true);
+    g_componentSeatCondition = &condition;
+    g_componentHostUseSeatComponent = true;
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<ComponentHostRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    g_componentHostUseSeatComponent = false;
+    g_componentSeatCondition = 0;
+
+    ComponentHostRootNode *root = static_cast<ComponentHostRootNode *>(
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    LOKA_VERIFY(root != 0);
+    loka::app::BoundarySectionNode *section = root->section(6001);
+    LOKA_VERIFY(section != 0);
+    loka::app::scene::Node *component = section->childrenHead();
+    LOKA_VERIFY(component != 0);
+    LOKA_VERIFY(scenario.observation.composeChildrenCalls == 1);
+    loka::app::scene::INestable *nestable = component->asNestable();
+    LOKA_VERIFY(nestable != 0);
+    LOKA_VERIFY(nestable->childrenCount() == 0);
+  }
+#elif defined(__linux__) && !defined(__SANITIZE_ADDRESS__)
+  // Debug: the seat wall is an educational assert deep in materialization
+  // ("a boundary-backed compose must have captured this seat's plan"), so
+  // the misuse is a death test, same shape as the Section key misuse pin.
+  const pid_t child = fork();
+  assert(child >= 0);
+  if (child == 0)
+  {
+    ComponentScenario scenario;
+    loka::core::MutableState<bool> condition(true);
+    g_componentSeatCondition = &condition;
+    g_componentHostUseSeatComponent = true;
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<ComponentHostRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    _exit(0);
+  }
+  int status = 0;
+  LOKA_VERIFY(waitpid(child, &status, 0) == child);
+  assert(WIFSIGNALED(status));
+  assert(WTERMSIG(status) == SIGABRT);
+#endif
 }
 
 void testComponentParkedReentryKeepsSubtreeSingular()
