@@ -349,6 +349,7 @@ namespace loka
             Entry &entry = block_->entries[block_->count++];
             entry.out = &out;
             entry.connect = &ConnectState<T>;
+            entry.pendingArenaBytes = &PendingArenaBytes<T>;
             entry.disconnect = &DisconnectState<T>;
             entry.matches = &MatchesState<T>;
             entry.destroyInitial = &DestroyInitial<T>;
@@ -370,6 +371,7 @@ namespace loka
                   disconnect(0),
                   matches(0),
                   destroyInitial(0),
+                  pendingArenaBytes(0),
                   storage()
             {
             }
@@ -380,6 +382,7 @@ namespace loka
             void (*disconnect)(Entry &);
             bool (*matches)(const Entry &, const void *);
             void (*destroyInitial)(Entry &);
+            size_t (*pendingArenaBytes)(const Entry &);
             Storage storage;
           };
 
@@ -444,6 +447,14 @@ namespace loka
           template <typename T> static bool MatchesState(const Entry &entry, const void *out)
           {
             return entry.out == out;
+          }
+
+          /** Bytes this entry will take from the arena when it materializes;
+              zero once it is connected, so a recompose reserves nothing. */
+          template <typename T> static size_t PendingArenaBytes(const Entry &entry)
+          {
+            const NodeState<T> *out = static_cast<const NodeState<T> *>(entry.out);
+            return (out && !out->isValid()) ? ArenaBytesForState<T>() : 0;
           }
 
           template <typename T> static void ConnectState(Entry &entry, IStateOwner *owner)
@@ -582,6 +593,9 @@ namespace loka
           virtual bool matches(const void *out) const = 0;
           virtual void connect(IStateOwner *owner) = 0;
           virtual void disconnect() = 0;
+          /** Arena bytes the next connect() will consume; zero once
+              materialized, so recomposes reserve nothing. */
+          virtual size_t pendingArenaBytes() const = 0;
         };
 
         template <typename T> struct NodeStateRegistration : public NodeStateRegistrationBase
@@ -615,6 +629,13 @@ namespace loka
             StateBatchBase::CreateStateFromInitial<T>(owner, *out_, initial_);
             owner_ = out_->dangerouslyOwner();
             state_ = out_->dangerouslyMutableState();
+          }
+
+          size_t pendingArenaBytes() const
+          {
+            return (out_ && !out_->isValid())
+                       ? StateBatchBase::ArenaBytesForState<T>()
+                       : 0;
           }
 
           void disconnect()
@@ -682,6 +703,19 @@ namespace loka
             }
           }
 
+          size_t pendingArenaBytes() const
+          {
+            size_t total = 0;
+            for (size_t i = 0; i < count_; ++i)
+            {
+              if (entries_[i].pendingArenaBytes)
+              {
+                total += entries_[i].pendingArenaBytes(entries_[i]);
+              }
+            }
+            return total;
+          }
+
           void disconnect()
           {
             for (size_t i = 0; i < count_; ++i)
@@ -714,14 +748,45 @@ namespace loka
           {
             return;
           }
+          // Reserve is the arena's only growth door; allocate never grows.
+          // Without this, every node-local state silently took the gate heap
+          // fallback (#267). pendingArenaBytes() is zero once materialized,
+          // so recomposes reserve nothing.
+          const size_t arenaBytes = entry->pendingArenaBytes();
+          if (arenaBytes != 0)
+          {
+            nodeStateOwner_->reserveStateArena(arenaBytes);
+          }
           entry->connect(nodeStateOwner_);
         }
 
         void connectNodeStateRegistrations()
         {
+          if (!nodeStateOwner_)
+          {
+            return;
+          }
+          // One reservation for the whole attach batch: per-entry reserves
+          // would cut one tiny slab per state, which is the same economy as
+          // the heap fallback with extra bookkeeping.
+          size_t arenaBytes = 0;
           for (size_t i = 0; i < nodeStates_.size(); ++i)
           {
-            this->connectNodeStateRegistration(nodeStates_[i]);
+            if (nodeStates_[i])
+            {
+              arenaBytes += nodeStates_[i]->pendingArenaBytes();
+            }
+          }
+          if (arenaBytes != 0)
+          {
+            nodeStateOwner_->reserveStateArena(arenaBytes);
+          }
+          for (size_t i = 0; i < nodeStates_.size(); ++i)
+          {
+            if (nodeStates_[i])
+            {
+              nodeStates_[i]->connect(nodeStateOwner_);
+            }
           }
         }
 

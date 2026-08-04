@@ -293,6 +293,8 @@ namespace SceneTests
       }
       assert(this->late_.isValid());
       assert(this->late_.get() == 11);
+      assert(this->late_.dangerouslyMutableState()->isArenaAllocated() &&
+             "a mid-compose declaration reserves before it materializes (#267)");
       ++g_lateNodeLocalAttachCount;
     }
 
