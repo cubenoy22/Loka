@@ -5,10 +5,12 @@
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "../example/HelloWorld/src/MainNode.hpp"
+#include "../example/MineSweeper/src/MainNode.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/core/App.hpp"
 #include "app/core/Window.hpp"
@@ -391,6 +393,35 @@ void testOwnershipDumpPinsRepresentativeHelloWorld()
       "    boundary\n"
       "      states: 9 (arena 9, heap 0)\n"
       "      observed: 8\n");
+  verifyOwnershipDump(
+      loka::dsl::testing::OwnershipDump::dump(scene), expected);
+}
+
+void testOwnershipDumpPinsMineSweeperSections()
+{
+  using namespace loka::app::scene;
+  NodeDefinition<minesweeper::MainProps, minesweeper::MainNode> mainDefinition;
+  SceneTestSupport::RecordingPlatformController platform;
+  Scene scene(mainDefinition.clone());
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  // 64 owner-scope boxes, one per cell -- and all 64 cell states still at
+  // the enclosing boundary, because ownership has not moved yet: the parent
+  // still writes them, and a parent writing section-owned state would be a
+  // downward borrow. Moving them is the #38 For-per-item track (#270).
+  std::string expected(
+      "scene\n"
+      "  boundary\n"
+      "    boundary\n"
+      "      states: 64 (arena 64, heap 0)\n"
+      "      observed: 64\n");
+  for (int i = 0; i < 64; ++i)
+  {
+    std::ostringstream row;
+    row << "      section(" << (100 + i) << ")\n";
+    expected += row.str();
+  }
   verifyOwnershipDump(
       loka::dsl::testing::OwnershipDump::dump(scene), expected);
 }
