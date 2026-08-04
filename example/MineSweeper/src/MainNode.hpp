@@ -138,7 +138,10 @@ namespace minesweeper
         return;
       }
       this->initialized_ = true;
-      this->bindForUi(this->newGameClick_, this, &MainNode::startNewGame);
+      this->bindUi();
+      // Seed once; every reset advances the same generator, so two games
+      // started within one clock second still differ.
+      std::srand(static_cast<unsigned int>(std::time(0)));
       this->resetBoard();
     }
 
@@ -146,7 +149,8 @@ namespace minesweeper
     {
       using namespace loka::app;
       Column content;
-      content << Button("New Game", &this->newGameClick_);
+      content << Button("New Game", &this->newGameClick_)
+                     .TEST_ID("MineSweeper.NewGameButton");
       Grid grid;
       grid.rows(kRows).cols(kCols);
       for (int i = 0; i < kCellCount; ++i)
@@ -193,6 +197,10 @@ namespace minesweeper
       {
         this->recomposeLocalComposition(context, event,
                                         this->LOCAL_RECOMPOSE_APPLY_SNAPSHOT);
+        // beginComposition released this node's callbacks; a recomposing
+        // boundary must re-declare its UI bindings or the second New Game
+        // click emits into nothing (another WR-4 wrinkle to fold).
+        this->bindUi();
         return;
       }
       BaseType::composeWithContext(context, event);
@@ -213,14 +221,17 @@ namespace minesweeper
     bool mines_[kCellCount];
     loka::core::EmitterState newGameClick_;
 
+    void bindUi()
+    {
+      this->bindForUi(this->newGameClick_, this, &MainNode::startNewGame);
+    }
+
     void resetBoard()
     {
       for (int i = 0; i < kCellCount; ++i)
       {
         this->mines_[i] = false;
       }
-      unsigned int seed = static_cast<unsigned int>(std::time(0));
-      std::srand(seed);
       int placed = 0;
       while (placed < kMineCount)
       {
