@@ -121,6 +121,15 @@ public:
   virtual void onChange(loka::app::scene::Node *rootNode,
                         loka::app::scene::NodeDirtyFlags flags,
                         bool fullRebuild);
+  /** Real platforms (Win32, Toolbox, macOS) opt into skipping the global
+      onChange for applies that claim to be boundary-local paint-only. The
+      wall contract must exercise the same skip, or an apply that lies about
+      its structure work presents correctly here while every real platform
+      goes dark (#277). */
+  virtual bool canSkipGlobalChangeForBoundaryLocalPaint() const
+  {
+    return true;
+  }
   virtual void synchronize();
   virtual bool hasPendingSync() const;
   virtual void destroy();
