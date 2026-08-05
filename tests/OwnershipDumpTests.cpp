@@ -406,20 +406,20 @@ void testOwnershipDumpPinsMineSweeperSections()
   scene.mount(&platform);
   scene.updateAttached(true);
 
-  // 64 owner-scope boxes, one per cell -- and all 64 cell states still at
-  // the enclosing boundary, because ownership has not moved yet: the parent
-  // still writes them, and a parent writing section-owned state would be a
-  // downward borrow. Moving them is the #38 For-per-item track (#270).
+  // The #270 ownership flip: each cell's presentation resident now lives in
+  // its own owner-scope box, and the boundary itself owns nothing -- the
+  // parent's four hand-declared arrays are gone. Every box holds exactly one
+  // arena-allocated resident.
   std::string expected(
       "scene\n"
       "  boundary\n"
       "    boundary\n"
-      "      states: 64 (arena 64, heap 0)\n"
       "      observed: 64\n");
   for (int i = 0; i < 64; ++i)
   {
     std::ostringstream row;
-    row << "      section(" << (100 + i) << ")\n";
+    row << "      section(" << (100 + i) << ")\n"
+        << "        states: 1 (arena 1, heap 0)\n";
     expected += row.str();
   }
   verifyOwnershipDump(
