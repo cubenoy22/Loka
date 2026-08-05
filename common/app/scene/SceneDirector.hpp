@@ -206,7 +206,8 @@ namespace loka
                 requiresStructure(false),
                 requiresCompositedPaint(false),
                 hasOpaqueLocalPaint(false),
-                canApplyLocalCompositionDiff(false)
+                canApplyLocalCompositionDiff(false),
+                localStructureWork(false)
           {
           }
 
@@ -217,6 +218,7 @@ namespace loka
             requiresCompositedPaint = false;
             hasOpaqueLocalPaint = false;
             canApplyLocalCompositionDiff = false;
+            localStructureWork = false;
           }
 
           void setRequirements(
@@ -254,12 +256,29 @@ namespace loka
             return canApplyLocalCompositionDiff;
           }
 
+          /** Ground truth from plan application: a boundary-local rebuild
+              materialized or retired nodes this cycle. Unlike the
+              conservative root-decision structure requirement, this fact is
+              not gated on the request's dirty flags -- a PROPS-driven update
+              that replaced nodes still needs the platform layout/ensure
+              pass (#277). */
+          void noteLocalStructureWork()
+          {
+            localStructureWork = true;
+          }
+
+          bool localStructureWorkReported() const
+          {
+            return localStructureWork;
+          }
+
         private:
           bool requiresLayout;
           bool requiresStructure;
           bool requiresCompositedPaint;
           bool hasOpaqueLocalPaint;
           bool canApplyLocalCompositionDiff;
+          bool localStructureWork;
         };
 
         struct SceneUpdateSnapshot
@@ -288,6 +307,7 @@ namespace loka
           bool requiresStructureChange() const
           {
             return requestValue.hasEffectiveDirtyFlag(NODE_DIRTY_INITIAL)
+                   || applyValue.localStructureWorkReported()
                    || (requestValue.hasEffectiveDirtyFlag(NODE_DIRTY_CHILD)
                        && (requestValue.effectiveFullRebuildRequired() || applyValue.structureRequired()));
           }

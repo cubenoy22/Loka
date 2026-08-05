@@ -342,10 +342,25 @@ namespace loka
           compositionState_.clearResult();
           updateState_.clearResult();
         }
+        /** The structure self-report is a per-cycle fact. The walk path
+            clears the whole phase result at cycle entry, but the direct-root
+            UPDATE path deliberately preserves its results across cycles --
+            there, only the structure bit may be reset, or a single rebuild
+            would escalate every later paint-only update through the
+            layout/ensure pass forever (#279 review). */
+        void clearStructureWorkForCycle()
+        {
+          updateState_.clearStructureWork();
+        }
         void noteLocalPaintWork()
         {
           assert(updateState_.canMutateLocalPaintMetadata());
           updateState_.noteLocalPaintWork();
+        }
+        void noteLocalStructureWork()
+        {
+          assert(updateState_.canMutateLocalPaintMetadata());
+          updateState_.noteLocalStructureWork();
         }
         void noteCompositedPaint()
         {
@@ -1189,6 +1204,19 @@ namespace loka
                                    BoundaryLocalRebuildPlan &plan,
                                    std::vector<Node *> &retainedChildren)
         {
+          // Structure self-report: the root-level diff cannot see what this
+          // plan is about to do, so any entry that materializes or retires a
+          // node must be declared here or the cycle's apply claims paint-only
+          // and skip-capable platforms never run the ensure pass (#277).
+          for (size_t i = 0; i < plan.entries.size(); ++i)
+          {
+            if (plan.entries[i].requiresAttachCompose() ||
+                plan.entries[i].detachedNode())
+            {
+              this->noteLocalStructureWork();
+              break;
+            }
+          }
           std::vector<Node *> detachedChildren;
           root.detachChildrenTo(detachedChildren);
           for (size_t i = 0; i < plan.entries.size(); ++i)

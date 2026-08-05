@@ -121,7 +121,26 @@ public:
   virtual void onChange(loka::app::scene::Node *rootNode,
                         loka::app::scene::NodeDirtyFlags flags,
                         bool fullRebuild);
+  /** Real platforms (Win32, Toolbox, macOS) opt into skipping the global
+      onChange for applies that claim to be boundary-local paint-only. The
+      wall contract must exercise the same skip, or an apply that lies about
+      its structure work presents correctly here while every real platform
+      goes dark (#277). */
+  virtual bool canSkipGlobalChangeForBoundaryLocalPaint() const
+  {
+    return true;
+  }
   virtual void synchronize();
+  /** The null arm's paint channel. Toolbox re-applies scroll-bar props at
+      draw (ensureScrollBarControl inside ToolboxScrollBarContext::draw), so
+      a paint-only apply legitimately refreshes displayed values there. The
+      wall contract needs the same channel or value/range flows that ride
+      paint on real platforms are only observable through the projection
+      sweep here. */
+  virtual void onBoundaryApply(loka::app::scene::Node *rootNode,
+                               loka::app::scene::BoundaryNode *boundary,
+                               const loka::app::scene::BoundaryLocalApplyInfo &info,
+                               const loka::app::scene::PlatformApplyPlan &plan);
   virtual bool hasPendingSync() const;
   virtual void destroy();
   virtual bool prepareProjectedLayout(loka::app::scene::Node *node,
@@ -134,6 +153,14 @@ public:
                               const loka::app::scene::LayoutState &state);
 
   const std::vector<LedgerRow> &ledger() const;
+  loka::app::scene::NodeDirtyFlags lastOnChangeFlags() const
+  {
+    return lastOnChangeFlags_;
+  }
+  unsigned long onChangeCallCount() const
+  {
+    return onChangeCallCount_;
+  }
   const std::vector<FakeControlHandle *> &allHandles() const;
   const std::vector<EventRecord> &eventLog() const;
   std::size_t retiredCount() const;
@@ -227,6 +254,8 @@ private:
   loka::app::scene::PlatformNodeHandlerRegistry nodeHandlers_;
   loka::app::scene::Node *rootNode_;
   std::vector<LedgerRow> ledger_;
+  loka::app::scene::NodeDirtyFlags lastOnChangeFlags_;
+  unsigned long onChangeCallCount_;
   std::vector<RetiredEntry> retired_;
   std::vector<FakeControlHandle *> allHandles_;
   loka::app::scene::ExactMatchHandleBucket<FakeControlHandle *> buttonBucket_;

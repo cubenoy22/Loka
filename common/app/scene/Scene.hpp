@@ -915,6 +915,10 @@ namespace loka
           {
             boundary->clearPhaseResults();
           }
+          else
+          {
+            boundary->clearStructureWorkForCycle();
+          }
           if (event != COMPOSE_EVENT_DETACH)
           {
             boundary->beginObservedStatePass();
@@ -1338,7 +1342,8 @@ namespace loka
                 hasOpaqueLocalPaint(true),
                 canApplyLocalCompositionDiff(true),
                 sawPaintWork(false),
-                sawRoot(false)
+                sawRoot(false),
+                localStructureWork(false)
           {
           }
 
@@ -1349,6 +1354,10 @@ namespace loka
 
           void observeUpdateResult(const BoundaryUpdateResult &updateResult)
           {
+            if (updateResult.hasStructureWork())
+            {
+              localStructureWork = true;
+            }
             if (updateResult.actualBoundsChanged || updateResult.affectsAncestorLayout)
             {
               layoutRequired = true;
@@ -1391,6 +1400,10 @@ namespace loka
             bool localCompositionDiff = canApplyLocalCompositionDiff && sawRoot;
             snapshot.setRequirements(
                 layoutRequired, structureRequired, requiresCompositedPaint, opaqueLocalPaint, localCompositionDiff);
+            if (localStructureWork)
+            {
+              snapshot.noteLocalStructureWork();
+            }
             return snapshot;
           }
 
@@ -1401,6 +1414,7 @@ namespace loka
           bool canApplyLocalCompositionDiff;
           bool sawPaintWork;
           bool sawRoot;
+          bool localStructureWork;
         };
 
         struct RootStructureDecision
@@ -1566,7 +1580,16 @@ namespace loka
         applyPendingBoundaryUpdates(rootNode, plan);
         if (shouldApplyGlobalChange(platformController, plan) && platformController)
         {
-          platformController->onChange(rootNode, globalDirtyFlags, fullRebuild);
+          // A structure-bearing apply is a child-grade change even when the
+          // request only carried PROPS: platforms gate their layout/ensure
+          // pass on the flags, and new nodes need that pass to exist
+          // natively (#277).
+          NodeDirtyFlags effectiveFlags = globalDirtyFlags;
+          if (plan.structureChanged)
+          {
+            effectiveFlags = static_cast<NodeDirtyFlags>(effectiveFlags | NODE_DIRTY_CHILD);
+          }
+          platformController->onChange(rootNode, effectiveFlags, fullRebuild);
         }
       }
 

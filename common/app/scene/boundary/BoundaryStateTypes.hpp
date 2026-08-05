@@ -272,6 +272,7 @@ namespace loka
         BoundaryUpdateResult()
             : actualBoundsChanged(false),
               affectsAncestorLayout(false),
+              structureWork(false),
               bounds(),
               paintBounds(),
               paint()
@@ -282,6 +283,7 @@ namespace loka
         {
           actualBoundsChanged = false;
           affectsAncestorLayout = false;
+          structureWork = false;
           bounds.clear();
           paintBounds.clear();
           paint.clear();
@@ -289,6 +291,13 @@ namespace loka
 
         bool actualBoundsChanged;
         bool affectsAncestorLayout;
+        /** A boundary-local rebuild materialized or retired runtime nodes
+            this cycle. Self-reported by plan application, because the
+            root-level diff cannot see boundary-local structure: without this
+            report the apply claims paint-only and platforms that skip the
+            global change for local paint never run the layout/ensure pass
+            that gives new nodes their native contexts (#277). */
+        bool structureWork;
         BoundsHint bounds;
         BoundsHint paintBounds;
         PaintMetadata paint;
@@ -296,6 +305,21 @@ namespace loka
         void noteLocalPaintWork()
         {
           paint.hasPaintWork = true;
+        }
+
+        void noteLocalStructureWork()
+        {
+          structureWork = true;
+        }
+
+        void clearStructureWork()
+        {
+          structureWork = false;
+        }
+
+        bool hasStructureWork() const
+        {
+          return structureWork;
         }
 
         void noteCompositedPaint()
@@ -426,6 +450,16 @@ namespace loka
         void noteLocalPaintWork()
         {
           result.noteLocalPaintWork();
+        }
+
+        void noteLocalStructureWork()
+        {
+          result.noteLocalStructureWork();
+        }
+
+        void clearStructureWork()
+        {
+          result.clearStructureWork();
         }
 
         void noteCompositedPaint()
