@@ -10,6 +10,8 @@
 #include "platform/null/context/NullButtonContext.hpp"
 #include "platform/null/context/NullEditTextContext.hpp"
 #include "platform/null/context/NullScrollBarContext.hpp"
+#include "app/scene/projection/PlatformApplyPlan.hpp"
+#include "app/scene/boundary/Boundary.hpp"
 #include "platform/null/context/NullTextContext.hpp"
 
 class NullScenePlatformController::LayoutTraversal
@@ -77,6 +79,7 @@ NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepth
       nodeHandlers_(),
       rootNode_(0),
       ledger_(),
+      lastOnChangeFlags_(loka::app::scene::NODE_DIRTY_NONE),
       retired_(),
       allHandles_(),
       buttonBucket_(bucketDepthCap),
@@ -127,8 +130,8 @@ void NullScenePlatformController::onChange(loka::app::scene::Node *rootNode,
                                            loka::app::scene::NodeDirtyFlags flags,
                                            bool fullRebuild)
 {
-  (void)flags;
   (void)fullRebuild;
+  this->lastOnChangeFlags_ = flags;
   this->rootNode_ = rootNode;
 
   // Context retirement happens before the global apply callback. Flush first
@@ -146,6 +149,45 @@ void NullScenePlatformController::onChange(loka::app::scene::Node *rootNode,
   state.height = 20;
   state.lineHeight = 20;
   this->layoutNode(rootNode, state);
+}
+
+namespace
+{
+  void syncScrollBarsInSubtree(loka::app::scene::Node *node)
+  {
+    if (!node)
+    {
+      return;
+    }
+    if (node->kind() == loka::app::scene::NODE_KIND_SCROLL_BAR && node->getContext())
+    {
+      static_cast<NullScrollBarContext *>(node->getContext())->syncFromNode();
+    }
+    loka::app::scene::INestable *nestable = node->asNestable();
+    if (!nestable)
+    {
+      return;
+    }
+    loka::dsl::CompositionCursor<loka::app::scene::Node> it(
+        nestable->childrenHead(), nestable->childrenCount());
+    for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+    {
+      syncScrollBarsInSubtree(child);
+    }
+  }
+} // namespace
+
+void NullScenePlatformController::onBoundaryApply(loka::app::scene::Node *rootNode,
+                                                  loka::app::scene::BoundaryNode *boundary,
+                                                  const loka::app::scene::BoundaryLocalApplyInfo &info,
+                                                  const loka::app::scene::PlatformApplyPlan &plan)
+{
+  (void)rootNode;
+  if (!boundary || !plan.hasBoundaryApplyWork(boundary) || !info.hasPaintWork())
+  {
+    return;
+  }
+  syncScrollBarsInSubtree(static_cast<loka::app::scene::Node *>(boundary));
 }
 
 void NullScenePlatformController::synchronize()

@@ -347,6 +347,11 @@ namespace loka
           assert(updateState_.canMutateLocalPaintMetadata());
           updateState_.noteLocalPaintWork();
         }
+        void noteLocalStructureWork()
+        {
+          assert(updateState_.canMutateLocalPaintMetadata());
+          updateState_.noteLocalStructureWork();
+        }
         void noteCompositedPaint()
         {
           assert(updateState_.canMutateLocalPaintMetadata());
@@ -1189,6 +1194,19 @@ namespace loka
                                    BoundaryLocalRebuildPlan &plan,
                                    std::vector<Node *> &retainedChildren)
         {
+          // Structure self-report: the root-level diff cannot see what this
+          // plan is about to do, so any entry that materializes or retires a
+          // node must be declared here or the cycle's apply claims paint-only
+          // and skip-capable platforms never run the ensure pass (#277).
+          for (size_t i = 0; i < plan.entries.size(); ++i)
+          {
+            if (plan.entries[i].requiresAttachCompose() ||
+                plan.entries[i].detachedNode())
+            {
+              this->noteLocalStructureWork();
+              break;
+            }
+          }
           std::vector<Node *> detachedChildren;
           root.detachChildrenTo(detachedChildren);
           for (size_t i = 0; i < plan.entries.size(); ++i)

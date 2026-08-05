@@ -4376,6 +4376,11 @@ void testMisplacedPolicyScopeReconcilesReplacedInnerContent()
   LOKA_VERIFY(platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT) &&
          !platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON) &&
          "a misplaced PolicyScope reconciles changed content inside a retained Fragment");
+  // The request only carried PROPS; the structure-bearing apply must reach
+  // the platform as a child-grade change, because real platforms gate their
+  // layout/ensure pass on the flags (#277).
+  assert((platform.lastOnChangeFlags() & loka::app::scene::NODE_DIRTY_CHILD) != 0 &&
+         "a structure-bearing apply is a child-grade change even from a PROPS request");
 
   {
     loka::core::StateTrackerGuard guard(revision.trackerOwner());
