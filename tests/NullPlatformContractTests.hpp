@@ -73,5 +73,6 @@ void testStep4ShapeSettlesAfterShowFlip();
 void testRemovedConditionalSeatReaddsFreshRuntimeAndBranches();
 void testConditionalSeatInitiallyNullCanMaterialize();
 void testNullConditionalBranchParksAndReentersShownBranch();
+void testStructureReportDoesNotStickOnDirectRoot();
 void testBankedSectionSwapPresentsFreshControls();
 void testBankedSectionClickHandlerSwapPresentsFreshControls();

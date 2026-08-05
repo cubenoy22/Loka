@@ -915,6 +915,10 @@ namespace loka
           {
             boundary->clearPhaseResults();
           }
+          else
+          {
+            boundary->clearStructureWorkForCycle();
+          }
           if (event != COMPOSE_EVENT_DETACH)
           {
             boundary->beginObservedStatePass();

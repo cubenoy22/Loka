@@ -157,6 +157,10 @@ public:
   {
     return lastOnChangeFlags_;
   }
+  unsigned long onChangeCallCount() const
+  {
+    return onChangeCallCount_;
+  }
   const std::vector<FakeControlHandle *> &allHandles() const;
   const std::vector<EventRecord> &eventLog() const;
   std::size_t retiredCount() const;
@@ -251,6 +255,7 @@ private:
   loka::app::scene::Node *rootNode_;
   std::vector<LedgerRow> ledger_;
   loka::app::scene::NodeDirtyFlags lastOnChangeFlags_;
+  unsigned long onChangeCallCount_;
   std::vector<RetiredEntry> retired_;
   std::vector<FakeControlHandle *> allHandles_;
   loka::app::scene::ExactMatchHandleBucket<FakeControlHandle *> buttonBucket_;

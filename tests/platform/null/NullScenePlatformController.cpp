@@ -80,6 +80,7 @@ NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepth
       rootNode_(0),
       ledger_(),
       lastOnChangeFlags_(loka::app::scene::NODE_DIRTY_NONE),
+      onChangeCallCount_(0),
       retired_(),
       allHandles_(),
       buttonBucket_(bucketDepthCap),
@@ -132,6 +133,7 @@ void NullScenePlatformController::onChange(loka::app::scene::Node *rootNode,
 {
   (void)fullRebuild;
   this->lastOnChangeFlags_ = flags;
+  ++this->onChangeCallCount_;
   this->rootNode_ = rootNode;
 
   // Context retirement happens before the global apply callback. Flush first

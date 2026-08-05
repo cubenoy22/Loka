@@ -2987,6 +2987,35 @@ namespace
   };
 } // namespace
 
+void testStructureReportDoesNotStickOnDirectRoot()
+{
+  loka::core::MutableState<bool> visible(false);
+  g_toggleVisible = &visible;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<ToggleControlBoundaryNode>()));
+  mountAndAttach(scene, platform);
+
+  // Structural cycle: the toggle materializes a control, the self-report
+  // escalates it to the platform layout pass.
+  visible.set(true);
+  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+  LOKA_VERIFY(scene.flushInvalidation());
+  assert(platform.ledger().size() == 1);
+
+  // A direct-root boundary keeps its phase results across UPDATE cycles,
+  // so the structure report must be reset per cycle there specifically: a
+  // sticky report would deliver every later paint-only update as a
+  // child-grade change and defeat the skip forever (#279 review).
+  const unsigned long afterStructural = platform.onChangeCallCount();
+  (void)afterStructural;
+  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
+  scene.flushInvalidation();
+  assert(platform.onChangeCallCount() == afterStructural &&
+         "a paint-only cycle on a direct root must not inherit the previous cycle's structure report");
+  g_toggleVisible = 0;
+}
+
 void testBankedSectionSwapPresentsFreshControls()
 {
   g_bankedSectionBank = 0;
@@ -3215,6 +3244,16 @@ void testBankedSectionClickHandlerSwapPresentsFreshControls()
   {
     scene.flushInvalidation();
   }
+
+  // The structure report is a per-cycle fact: after the structural cycles
+  // above, a paint-only cycle must still ride the skip -- a sticky report
+  // would escalate every later update through layout/ensure (#279 review).
+  const unsigned long onChangeAfterSwaps = platform.onChangeCallCount();
+  (void)onChangeAfterSwaps;
+  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
+  scene.flushInvalidation();
+  assert(platform.onChangeCallCount() == onChangeAfterSwaps &&
+         "a paint-only cycle after a structural one must not escalate");
 }
 
 namespace

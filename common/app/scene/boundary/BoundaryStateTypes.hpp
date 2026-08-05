@@ -312,6 +312,11 @@ namespace loka
           structureWork = true;
         }
 
+        void clearStructureWork()
+        {
+          structureWork = false;
+        }
+
         bool hasStructureWork() const
         {
           return structureWork;
@@ -450,6 +455,11 @@ namespace loka
         void noteLocalStructureWork()
         {
           result.noteLocalStructureWork();
+        }
+
+        void clearStructureWork()
+        {
+          result.clearStructureWork();
         }
 
         void noteCompositedPaint()
