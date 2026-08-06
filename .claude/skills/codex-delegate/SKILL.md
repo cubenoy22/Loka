@@ -35,9 +35,13 @@ checkout; sync goes through origin only.
 
 ## Always ask for the smell list (required deliverable)
 
-Every implementation brief must require, as a delivery item alongside the code
-and the PR body, a `.<slice>-smells.md` naming the places the delivered shape
-reads as bolted-on. Word it so the list cannot come back empty by default:
+Every implementation brief must require, **as a section of the PR body**, a
+ranked list naming the places the delivered shape reads as bolted-on. AGENTS.md
+"Shape Review Gates" gate 2 item 5 puts the findings in the PR body; a scratch
+file while working is fine but **must not be committed** — say so in the brief.
+Asking for a `.<slice>-smells.md` deliverable without that caveat put four
+stray markdown files on the ScrapbookUI stack and cost a rebuild to remove
+them. Word the requirement so the list cannot come back empty by default:
 
 > List at least three places where this change reads as bolted-on, ranked, with
 > the reasoning for each: a door or field that duplicates the shape of an
