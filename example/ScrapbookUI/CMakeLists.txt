@@ -19,12 +19,7 @@ if(WIN32)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../win32 ${CMAKE_CURRENT_BINARY_DIR}/win32)
   endif()
 
-  option(USE_CONSOLE_SUBSYSTEM "Use console subsystem for debugging" OFF)
-  if(USE_CONSOLE_SUBSYSTEM)
-    add_executable(ScrapbookUIWin32 ${SCRAPBOOK_COMMON_SOURCES})
-  else()
-    add_executable(ScrapbookUIWin32 WIN32 ${SCRAPBOOK_COMMON_SOURCES})
-  endif()
+  add_executable(ScrapbookUIWin32 WIN32 ${SCRAPBOOK_COMMON_SOURCES})
   loka_enable_warnings(ScrapbookUIWin32)
 
   target_include_directories(ScrapbookUIWin32 PRIVATE
