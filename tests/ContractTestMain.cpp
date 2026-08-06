@@ -16,6 +16,7 @@
 #include "PackManifestTests.hpp"
 #include "LrpcPathTests.hpp"
 #include "LrpkGoldenBytesTests.hpp"
+#include "ScrapbookNavigationTests.hpp"
 #include "BlobRangeTests.hpp"
 #include "PictParserTests.hpp"
 #include "SceneTests.hpp"

@@ -132,6 +132,10 @@ namespace scrapbook
       {
         page = static_cast<int>(kPageCount - 1);
       }
+      if (page == this->selectedPage_)
+      {
+        return;
+      }
       this->selectedPage_ = page;
       if (this->initialized_)
       {

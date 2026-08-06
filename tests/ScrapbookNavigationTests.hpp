@@ -1,0 +1,6 @@
+#ifndef LOKA_TESTS_SCRAPBOOK_NAVIGATION_TESTS_HPP
+#define LOKA_TESTS_SCRAPBOOK_NAVIGATION_TESTS_HPP
+
+void testScrapbookRenderedNavigationButtonsMoveAndStopAtEndpoints();
+
+#endif // LOKA_TESTS_SCRAPBOOK_NAVIGATION_TESTS_HPP
