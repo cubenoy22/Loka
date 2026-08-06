@@ -576,6 +576,11 @@ loka::core::Held<PreviewData> preview =
 ここで lifetime edge になるのは handle のコピー数ではなく、
 `Boundary` または `Section` の owner slot です。
 
+`Held<T>` が管理するのは lifetime であり、payload の mutation authority ではありません。
+`get()` / `operator->()` / `operator*()` は mutable な `T` を返せるため、
+payload を変更する場合は別途 meaningful owner、facade、または State update path を
+明示する必要があります。
+
 - `Held<T>` の copy / assignment は payload を retain しない
 - `hold(held)` は現在の owner scope を ledger に登録する
 - `tryHold(held)` は slot overflow などを nullable result として扱う
@@ -2364,7 +2369,7 @@ Rust の感覚に近づけると、
 
 - `Boundary` は local owner を持つ単位
 - `NodeState<T>` はその owner に結びついた handle
-- `Held<T>` は owner scope が支える passive payload の read-only view
+- `Held<T>` は owner scope が支える passive payload の inert, non-retaining handle
 
 と考えると近いです。
 
@@ -2382,7 +2387,7 @@ payload の lifetime を延ばしません。lifetime edge は owner ledger に�
 ```text
 Boundary / Section owner slot ---> Held block ---> passive payload
 
-Held<T> copy ---------------------> read-only view
+Held<T> copy ---------------------> inert, non-retaining alias
 ```
 
 同じ owner が複数回 hold した場合は同じ slot の count にまとまり、

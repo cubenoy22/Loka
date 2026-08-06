@@ -385,13 +385,15 @@ the stronger answer whenever ownership participates in application lifecycle.
 
 `Held<T>` is the app-facing form of that rule for passive payloads. A
 `Boundary` or `Section` takes an owner slot in the payload's ledger. Copying the
-handle copies only a read-only view and does not retain the payload; the owner
-slot is the lifetime edge. A copied view must not be used after the holding
-scope or creator's storage landlord is gone. A scope outside the creator's
-ownership subtree may not acquire a slot, because allowing it would turn the
-creator's storage lifetime into a dangling foreign hold. Sharing across
-unrelated branches belongs in a meaningful common owner, repository, or
-immutable global cache instead.
+handle creates only an inert, non-retaining alias; the owner slot is the
+lifetime edge. `Held<T>` governs lifetime, not payload mutation authority: it
+does not make `T` immutable, and mutable operations still need an explicit
+owner, facade, or State update path. A copied view must not be used after the
+holding scope or creator's storage landlord is gone. A scope outside the
+creator's ownership subtree may not acquire a slot, because allowing it would
+turn the creator's storage lifetime into a dangling foreign hold. Sharing
+across unrelated branches belongs in a meaningful common owner, repository,
+or immutable global cache instead.
 
 The last owner-slot drop crosses the detach line synchronously, but it does not
 run the payload releaser there. Release is queued on the owning clock after the

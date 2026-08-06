@@ -325,6 +325,10 @@ not be used after its holding scope or creator landlord is gone. Values shared
 across unrelated branches belong in a meaningful common owner, repository, or
 immutable global cache instead.
 
+`Held<T>` governs lifetime, not payload mutation authority. It does not make
+`T` immutable; mutable operations still need an explicit owner, facade, or
+State update path.
+
 `Managed<T>` remains useful inside value plumbing such as String, Blob, and
 Image payloads. It is not the normal app-facing answer for state or resource
 ownership.

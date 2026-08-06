@@ -258,7 +258,8 @@ namespace loka
       loka::app::scene::IStateOwner *enclosingOwner_;
     };
 
-    /** Read-only view of a passive payload held by explicit owner scopes.
+    /** Inert, non-retaining handle to a passive payload held by explicit owner
+        scopes. Held governs lifetime edges, not payload mutation authority.
         Copying this handle never changes ownership; the holding owner's slot
         is the lifetime edge. */
     template <typename T> class Held
