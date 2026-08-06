@@ -366,8 +366,8 @@ possible. A `Boundary` is not only an update scope; it is the place where state,
 trackers, flows, composition snapshots, and local resources become accountable.
 
 When data is shared across boundaries, the owner should still be obvious. A
-pointer, handle, `NodeState<T>`, `Managed<T>`, repository, or future resource
-facade should make it inspectable which boundary or higher-level owner keeps the
+pointer, handle, `NodeState<T>`, `Held<T>`, repository, or resource facade
+should make it inspectable which boundary or higher-level owner keeps the
 payload alive. That makes leaks and premature cleanup easier to debug: the
 question becomes "which owner is still holding this?" rather than "which hidden
 runtime retained this?"
@@ -375,6 +375,39 @@ runtime retained this?"
 Loka cannot assume ARC, tracing GC, exceptions, or modern smart-pointer-heavy
 code on every target. That is not a weakness. It is a reason to make ownership
 visible, centralized, and lifecycle-aware instead of accidental.
+
+## Ownership Is Named, Not Counted
+
+An anonymous reference count answers how many owning aliases remain. It does
+not answer which application scope gives the value its lifetime meaning, why
+that scope still needs it, or which clock may release it. Loka should prefer
+the stronger answer whenever ownership participates in application lifecycle.
+
+`Held<T>` is the app-facing form of that rule for passive payloads. A
+`Boundary` or `Section` takes an owner slot in the payload's ledger. Copying the
+handle copies only a read-only view and does not retain the payload; the owner
+slot is the lifetime edge. A copied view must not be used after the holding
+scope or creator's storage landlord is gone. A scope outside the creator's
+ownership subtree may not acquire a slot, because allowing it would turn the
+creator's storage lifetime into a dangling foreign hold. Sharing across
+unrelated branches belongs in a meaningful common owner, repository, or
+immutable global cache instead.
+
+The last owner-slot drop crosses the detach line synchronously, but it does not
+run the payload releaser there. Release is queued on the owning clock after the
+drop-site callback returns, and the control-block bytes remain with their arena
+landlord until reclamation. Handle destruction therefore cannot introduce an
+observable callback or reclamation into an arbitrary rebuild stack frame.
+
+The diagnostic should preserve this meaning. `use_count() == 1` says only that
+one anonymous retain remains; `held-by [section(4103)]` names the declarative
+scope responsible for the lifetime. Inspection is not a separate model added
+for tests. It is a rendering of ownership facts the runtime already carries.
+
+Small internal value plumbing may still use hidden reference counts when
+release is truly unobservable and no application lifecycle meaning is lost.
+That mechanism must not escape upward and become the default answer for state,
+chain residents, or app-facing resources.
 
 ## Lifetime Has Two Lines
 
@@ -423,11 +456,12 @@ clone. They participate in lifetime through their owner, never independently.
   (Owning edges and bounded downward traversal within a pass are not borrows
   and are unaffected.) A value that must outlive its scope is declared in a
   higher scope, not smuggled upward.
-- **Passive shared values** (strings, blobs, plain memory payloads):
-  reference counted with a releaser, legal precisely because release is
-  unobservable — no identity, no callbacks into the chain, no back-pointers.
-  When a value's releaser has a native side effect, it is not passive; its
-  release belongs behind the platform clock.
+- **Passive shared values and resources** (strings, blobs, plain memory
+  payloads): small internal value plumbing may use reference counting when
+  release is unobservable and carries no application identity. App-facing
+  payload lifetime follows explicit owner scopes through `Held<T>` when the
+  holding scope matters. When a value's releaser has a native side effect, it
+  is not passive; its release belongs behind the platform clock.
 - **Edge services** (sockets, decoders, future realtime I/O): own their own
   concurrency and lifetime, and meet the chain only as sealed values handed
   over at a tick boundary. Threads never enter the chain.

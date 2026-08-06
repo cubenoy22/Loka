@@ -1,5 +1,13 @@
 # Boundary Memory Draft
 
+> **Status:** The owner-slot `Held<T>`, `BoundarySection`, nearest-owner state
+> resolution, and ownership-dump portions were implemented by
+> [#36](https://github.com/cubenoy22/Loka/issues/36). This file preserves the
+> broader design history and still-open directions; it is not the current API
+> contract. See [PHILOSOPHY.md](../PHILOSOPHY.md) and the
+> [English Programming Guide](ProgrammingGuide.en.md) for the canonical
+> ownership model.
+
 This draft captures the intended direction for Loka's more complete memory and
 resource ownership model. It is not a stable API contract yet.
 
@@ -242,24 +250,19 @@ scope. Boundary ownership should describe the logical lifetime; heavyweight
 native storage should not leak into ordinary DSL state unless the API makes that
 cost explicit.
 
-## Managed Handles
+## Owner-Aware Handles (Implemented As `Held<T>`)
 
-`Managed<T>` should probably remain available because it is useful as a small
-handle for shared domain roots, decoded media, image records, and future
-document-like objects. However, it should not become an anonymous reference
-counting box.
+This section records the design precursor to the shipped `Held<T>` name and
+contract. `Managed<T>` remains internal value plumbing; it is not the
+app-facing owner model described here.
 
-Preferred direction:
+The implemented shape is:
 
-- `Managed<T>` stores or points to a small control block.
-- The control block tracks which Boundaries or owner tokens currently hold the
-  payload.
-- A small fixed owner-slot count is likely enough for most UI/document cases;
-  overflow behavior must be explicit.
-- `WeakRef<T>` can observe the payload without keeping it alive.
-- `StrongRef<T>` or equivalent may exist, but its relationship to owner slots
-  must be clear. Copying a strong handle must not silently create confusing
-  ownership.
+- `Held<T>` points to a small control block with four inline owner slots.
+- The slots record which Boundaries or Sections currently hold the payload.
+- Overflow is nullable; the teaching `hold(held)` form asserts in audit builds.
+- Copying a `Held<T>` handle never changes ownership.
+- No general `StrongRef<T>` / `WeakRef<T>` surface is part of this contract.
 
 For debugging, the important question should be "which owner is still holding
 this?" rather than "why is the count nonzero?"
@@ -287,24 +290,22 @@ Repository-style owners.
 A boundary hold API should make the owner relationship visible without exposing
 raw Boundary internals to ordinary app code.
 
-Possible shape:
+Implemented shape:
 
 ```cpp
-Managed<Movie> movie = holdInBoundary(new Movie(), UntilUnownedNextTick);
+loka::core::Held<Movie> movie =
+    c.hold(new Movie(), &ReleaseMovie);
 ```
-
-The exact naming is open. `Hold` currently reads better than `Keep` because it
-implies an explicit owner relationship rather than cache-like persistence.
 
 Important semantics:
 
-- A hold belongs to a Boundary or owner token.
-- Releasing one Boundary's hold does not dispose the payload if another owner
+- A hold belongs to a Boundary or Section owner scope.
+- Detaching one scope does not dispose the payload if another owner
   still holds it.
-- The payload is disposed only after it becomes unowned, then according to the
-  selected release timing.
-- Boundary pointers, if stored internally, are owner identity only. Managed code
-  should not traverse Boundary graphs through those pointers.
+- The last slot drop queues the payload releaser on the Boundary retire pool;
+  it never runs inline from the detach stack.
+- Owner pointers are ledger identity and ancestry facts only. `Held<T>` does not
+  expose Boundary traversal through them.
 
 ## Actions And Event Bindings
 
