@@ -1,0 +1,6 @@
+#ifndef LOKA_TESTS_SCRAPBOOKPACKAGETESTS_HPP
+#define LOKA_TESTS_SCRAPBOOKPACKAGETESTS_HPP
+
+void testScrapbookModernPackageMatchesItsManifestAndCarriesPngImages();
+
+#endif // LOKA_TESTS_SCRAPBOOKPACKAGETESTS_HPP

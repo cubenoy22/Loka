@@ -1,0 +1,19 @@
+# The UI bag stays resident; each page bag remains independently verifiable.
+# Its id space must remain identical to manifest.txt; regen-assets.sh enforces it.
+bag ui
+asset 9001 image UI/RefusedBadge ngbadge.png
+
+bag page-1
+asset 1001 image SCRAPBOOK_PAGE_1 page1.png
+
+bag page-2
+asset 1002 image SCRAPBOOK_PAGE_2 page2.png
+
+bag page-3
+asset 1003 image SCRAPBOOK_PAGE_3 page3.png
+
+bag page-4
+asset 1004 image SCRAPBOOK_PAGE_4 page4.png
+
+bag page-5
+asset 1005 string SCRAPBOOK_PAGE_5_TEXT page5.txt

@@ -23,6 +23,7 @@
 #include "LrpcPathTests.hpp"
 #include "LrpkGoldenBytesTests.hpp"
 #include "ScrapbookNavigationTests.hpp"
+#include "ScrapbookPackageTests.hpp"
 #include "BlobRangeTests.hpp"
 #include "PictParserTests.hpp"
 #include "SceneTests.hpp"
