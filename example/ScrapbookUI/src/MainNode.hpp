@@ -8,7 +8,7 @@
 #include "app/nodes/ImageView.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
-#include "app/nodes/controls/ScrollBar.hpp"
+#include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/nestable/Show.hpp"
 #include "app/nodes/nestable/ZStack.hpp"
@@ -68,7 +68,6 @@ namespace scrapbook
           initialized_(false),
           selectedPage_(0),
           package_(),
-          page_(),
           refusedPage_(),
           refusedBadgeVisible_(),
           refusedPageNumber_(),
@@ -80,10 +79,10 @@ namespace scrapbook
           caption_(),
           badge_(),
           pageBackdrop_(),
-          pageFlip_(),
+          previousPage_(),
+          nextPage_(),
           pageFlow_()
     {
-      this->state(this->page_, 0);
       this->state(this->refusedPage_, -1);
       this->state(this->refusedBadgeVisible_, false);
       this->state(this->refusedPageNumber_, loka::core::String());
@@ -122,7 +121,7 @@ namespace scrapbook
     }
 
     /** Programmatically selects and loads a page through the same path as the
-        page scrollbar. Values outside the package range clamp to an endpoint. */
+        page navigation controls. Values outside the package range clamp to an endpoint. */
     void selectPage(int page)
     {
       if (page < 0)
@@ -133,7 +132,7 @@ namespace scrapbook
       {
         page = static_cast<int>(kPageCount - 1);
       }
-      this->page_.set(page);
+      this->selectedPage_ = page;
       if (this->initialized_)
       {
         this->loadSelectedPage();
@@ -143,7 +142,7 @@ namespace scrapbook
     /** Returns the selector's current zero-based page. */
     int selectedPage() const
     {
-      return this->page_.get();
+      return this->selectedPage_;
     }
 
     /** Returns the last refused zero-based page, or -1 when none is shown. */
@@ -170,7 +169,8 @@ namespace scrapbook
       this->package_.open(this->props.platformContext_);
       this->refusedBadgeImage_.set(this->package_.refusedBadgeImage());
       this->pageFlow_.set(buildFlow(*this)).withTracker(static_cast<loka::core::PushStateTracker *>(this->tracker()));
-      this->bindActionForUi(this->pageFlip_, &MainNode::loadSelectedPage);
+      this->bindActionForUi(this->previousPage_, &MainNode::showPreviousPage);
+      this->bindActionForUi(this->nextPage_, &MainNode::showNextPage);
       this->initialized_ = true;
       this->loadSelectedPage();
     }
@@ -206,10 +206,7 @@ namespace scrapbook
                          .size(16, 16)
                          .attr(ImageViewAttr().sizePolicy(IMAGE_VIEW_SIZE_INTRINSIC).fit(IMAGE_FIT_CONTAIN))
                   << Text(this->refusedPageNumber_.state()).attr(TextAttr().weight(TEXT_WEIGHT_BOLD))))
-          << ScrollBar(this->page_.state())
-                 .horizontal()
-                 .range(0, static_cast<int>(kPageCount - 1))
-                 .onChange(&this->pageFlip_));
+          << (HStack() << Button("Previous", &this->previousPage_) << Button("Next", &this->nextPage_)));
     }
 
   private:
@@ -219,8 +216,17 @@ namespace scrapbook
 
     void loadSelectedPage()
     {
-      this->selectedPage_ = this->page_.get();
       this->pageFlow_.runResult();
+    }
+
+    void showPreviousPage()
+    {
+      this->selectPage(this->selectedPage_ - 1);
+    }
+
+    void showNextPage()
+    {
+      this->selectPage(this->selectedPage_ + 1);
     }
 
     void publishPage(const PagePresentation &page)
@@ -260,7 +266,6 @@ namespace scrapbook
     bool initialized_;
     int selectedPage_;
     ScrapbookPackage package_;
-    loka::app::scene::NodeState<int> page_;
     loka::app::scene::NodeState<int> refusedPage_;
     loka::app::scene::NodeState<bool> refusedBadgeVisible_;
     loka::app::scene::NodeState<loka::core::String> refusedPageNumber_;
@@ -272,7 +277,8 @@ namespace scrapbook
     loka::app::scene::NodeState<loka::core::String> caption_;
     loka::app::scene::NodeState<loka::core::String> badge_;
     loka::app::scene::NodeState<loka::app::RectSurfaceModel> pageBackdrop_;
-    loka::core::EmitterState pageFlip_;
+    loka::core::EmitterState previousPage_;
+    loka::core::EmitterState nextPage_;
     loka::app::scene::FlowSlot<PageFlowChain> pageFlow_;
   };
 } // namespace scrapbook

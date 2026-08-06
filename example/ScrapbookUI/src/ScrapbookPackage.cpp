@@ -175,7 +175,7 @@ namespace scrapbook
     next.bagBlob = blob;
     next.caption = loka::core::String::FromInt(page + 1) + loka::core::String::Literal(" / ")
                    + loka::core::String::FromInt(static_cast<int>(kPageCount));
-    next.badge = loka::core::String::Literal(imagePage ? "PICT" : "TEXT");
+    next.badge = loka::core::String::Literal(imagePage ? "IMAGE" : "TEXT");
     next.isImage = imagePage;
 
     if (imagePage)
