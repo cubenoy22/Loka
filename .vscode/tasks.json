@@ -153,6 +153,20 @@
       "problemMatcher": "$msCompile"
     },
     {
+      "label": "Build: Win32 ScrapbookUI",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "win32-debug",
+        "--target",
+        "ScrapbookUIWin32"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
       "label": "Build: Win32 FloppyBird",
       "type": "shell",
       "command": "cmake",
