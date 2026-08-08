@@ -39,11 +39,15 @@ namespace scrapbook
 
     const loka::file::File item = loka::file::File::Application() << loka::file::File("ASSETS.LRP");
     loka::platform::file::FileHandle handle;
-    if (!context->openFile(item, handle) || !handle.hasSpec)
+    if (!context->openFile(item, handle))
     {
       return false;
     }
-    if (!this->source_.open(handle.spec))
+#if defined(LOKA_RETRO68)
+    if (!handle.hasSpec || !this->source_.open(handle.spec))
+#else
+    if (handle.displayPath.empty() || !this->source_.open(handle.displayPath))
+#endif
     {
       return false;
     }

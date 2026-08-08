@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Generate the deterministic, 1-bit-friendly Scrapbook PICT assets."""
+"""Generate deterministic Scrapbook images for classic and modern packages."""
 
 from pathlib import Path
 import struct
+import zlib
 
 
 FRAME = (0, 0, 150, 200)
@@ -13,6 +14,15 @@ PAGES = (
     ("3", "BLOCKS", bytes.fromhex("cc33cc33cc33cc33")),
     ("4", "DIAGONAL", bytes.fromhex("8040201008040201")),
 )
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+PNG_WIDTH = FRAME[3] - FRAME[1]
+PNG_HEIGHT = FRAME[2] - FRAME[0]
+DIGITS = {
+    "1": (0b00100, 0b01100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110),
+    "2": (0b01110, 0b10001, 0b00001, 0b00010, 0b00100, 0b01000, 0b11111),
+    "3": (0b11110, 0b00001, 0b00001, 0b01110, 0b00001, 0b00001, 0b11110),
+    "4": (0b00010, 0b00110, 0b01010, 0b10010, 0b11111, 0b00010, 0b00010),
+}
 
 
 def word(value):
@@ -75,6 +85,90 @@ def finish_picture(frame, operations):
     return bytes(512) + picture
 
 
+def png_chunk(kind, payload):
+    return (
+        struct.pack(">I", len(payload))
+        + kind
+        + payload
+        + struct.pack(">I", zlib.crc32(kind + payload) & 0xFFFFFFFF)
+    )
+
+
+def encode_rgb_png(width, height, pixels):
+    if len(pixels) != width * height * 3:
+        raise ValueError("RGB payload does not match the PNG dimensions")
+    scanlines = bytearray()
+    stride = width * 3
+    for vertical in range(height):
+        scanlines.append(0)
+        start = vertical * stride
+        scanlines.extend(pixels[start : start + stride])
+    header = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+    return (
+        PNG_SIGNATURE
+        + png_chunk(b"IHDR", header)
+        + png_chunk(b"IDAT", zlib.compress(bytes(scanlines), 9))
+        + png_chunk(b"IEND", b"")
+    )
+
+
+def set_rgb(pixels, width, horizontal, vertical, value):
+    offset = (vertical * width + horizontal) * 3
+    pixels[offset : offset + 3] = bytes((value, value, value))
+
+
+def build_png_page(number, pattern):
+    pixels = bytearray(PNG_WIDTH * PNG_HEIGHT * 3)
+    for vertical in range(PNG_HEIGHT):
+        for horizontal in range(PNG_WIDTH):
+            patterned = pattern[vertical % 8] & (1 << (7 - horizontal % 8))
+            value = 45 if patterned else 225
+            if horizontal in (0, PNG_WIDTH - 1) or vertical in (0, PNG_HEIGHT - 1):
+                value = 0
+            set_rgb(pixels, PNG_WIDTH, horizontal, vertical, value)
+
+    # A generated five-by-seven digit keeps every page identifiable without
+    # importing a font or third-party artwork into the repository.
+    scale = 10
+    glyph = DIGITS[number]
+    glyph_left = (PNG_WIDTH - 5 * scale) // 2
+    glyph_top = (PNG_HEIGHT - 7 * scale) // 2
+    for vertical in range(glyph_top - 8, glyph_top + 7 * scale + 8):
+        for horizontal in range(glyph_left - 8, glyph_left + 5 * scale + 8):
+            set_rgb(pixels, PNG_WIDTH, horizontal, vertical, 255)
+    for row, bits in enumerate(glyph):
+        for column in range(5):
+            if bits & (1 << (4 - column)):
+                for dy in range(scale):
+                    for dx in range(scale):
+                        set_rgb(
+                            pixels,
+                            PNG_WIDTH,
+                            glyph_left + column * scale + dx,
+                            glyph_top + row * scale + dy,
+                            0,
+                        )
+    return encode_rgb_png(PNG_WIDTH, PNG_HEIGHT, pixels)
+
+
+def build_png_refused_badge():
+    width = BADGE_FRAME[3] - BADGE_FRAME[1]
+    height = BADGE_FRAME[2] - BADGE_FRAME[0]
+    pixels = bytearray([255] * (width * height * 3))
+    for vertical in range(height):
+        for horizontal in range(width):
+            dx = horizontal - (width - 1) / 2.0
+            dy = vertical - (height - 1) / 2.0
+            if dx * dx + dy * dy <= 7.0 * 7.0:
+                set_rgb(pixels, width, horizontal, vertical, 0)
+            if 3 <= horizontal <= 12 and (
+                abs(horizontal - vertical) <= 1
+                or abs((width - 1 - horizontal) - vertical) <= 1
+            ):
+                set_rgb(pixels, width, horizontal, vertical, 255)
+    return encode_rgb_png(width, height, pixels)
+
+
 def build_picture(number, label, pattern):
     # The identifying sequence for a version 2 picture, followed by the
     # extended header carrying 72 dpi resolution and the source rectangle.
@@ -120,9 +214,15 @@ def main():
         payload = build_picture(number, label, pattern)
         (output_dir / f"page{index}.pict").write_bytes(payload)
         print(f"page{index}.pict: {len(payload)} bytes")
+        png_payload = build_png_page(number, pattern)
+        (output_dir / f"page{index}.png").write_bytes(png_payload)
+        print(f"page{index}.png: {len(png_payload)} bytes")
     badge = build_refused_badge()
     (output_dir / "ngbadge.pict").write_bytes(badge)
     print(f"ngbadge.pict: {len(badge)} bytes")
+    png_badge = build_png_refused_badge()
+    (output_dir / "ngbadge.png").write_bytes(png_badge)
+    print(f"ngbadge.png: {len(png_badge)} bytes")
 
 
 if __name__ == "__main__":

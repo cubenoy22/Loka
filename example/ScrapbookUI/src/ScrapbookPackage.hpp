@@ -4,12 +4,16 @@
 #include <cstddef>
 #include <vector>
 
-#include "ToolboxByteSource.hpp"
 #include "app/PlatformContext.hpp"
 #include "core/String.hpp"
 #include "core/resource/Blob.hpp"
 #include "core/resource/Image.hpp"
 #include "core/resource/lrpk/LrpkReader.hpp"
+#if defined(LOKA_RETRO68)
+#include "ToolboxByteSource.hpp"
+#else
+#include "core/resource/lrpk/LrpkStdioByteSource.hpp"
+#endif
 
 namespace scrapbook
 {
@@ -25,6 +29,12 @@ namespace scrapbook
   const AssetId kRefusedBadgeAssetId = 9001UL;
   const std::size_t kUiBagIndex = 0;
   const std::size_t kFirstPageBagIndex = 1;
+
+#if defined(LOKA_RETRO68)
+  typedef loka::toolbox::ToolboxByteSource ScrapbookByteSource;
+#else
+  typedef loka::core::resource::lrpk::StdioByteSource ScrapbookByteSource;
+#endif
 
 #if defined(LOKA_SCRAPBOOK_ID_SPACE_STAMP)
   const AssetId kIdSpaceStamp = LOKA_SCRAPBOOK_ID_SPACE_STAMP;
@@ -102,7 +112,7 @@ namespace scrapbook
     void rollbackPreparedBag(std::size_t bag, bool openedNew);
 
     PlatformContext *context_;
-    loka::toolbox::ToolboxByteSource source_;
+    ScrapbookByteSource source_;
     loka::core::resource::lrpk::Reader reader_;
     std::vector<unsigned char> indexBytes_;
     loka::core::resource::Blob uiBlob_;
