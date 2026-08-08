@@ -153,8 +153,8 @@ handle. It should represent completed bytes.
 
 Open questions:
 
-- Should `Blob` own bytes directly, use shared payload, or wrap a future
-  `Managed<T>`-style resource handle?
+- Should `Blob` own bytes directly, use hidden shared-value plumbing, or use an
+  owner-scoped `Held<T>` payload when application lifecycle meaning matters?
 - Should `BlobBuilder` be the only append/write path?
 - Should `MutableBlob` exist separately from `BlobBuilder`, or is a builder
   enough for the first use cases?

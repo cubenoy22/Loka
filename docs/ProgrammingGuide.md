@@ -535,7 +535,7 @@ Loka では、Boundary をまたぐ値はできるだけ次に寄せます。
 - plain value
 - read-only `State<T>*`
 - `BorrowedState<T>`
-- `Managed<T>`
+- receiving scope が明示的に hold する passive payload の `Held<T>`
 - narrow facade
 
 逆に、通常ルートでは避けるべきものがあります。
@@ -562,30 +562,52 @@ owner-side local state に限る、と考えるのが基本です。
 
 という線引きです。
 
-### `Managed<T>` は explicit shared access
+### `Held<T>` は owner-scoped shared access
 
-大きい scope から小さい scope へ、
-明示的に shared resource/state を配りたい場合は `Managed<T>` を使います。
+passive resource の寿命を UI の lifecycle scope に結びつけたい場合は、
+`NodeComposition::hold()` で `Held<T>` を作るか、既存の `Held<T>` を
+現在の owner scope に hold します。
 
-ここで大切なのは、
-`Managed<T>` は ownership transfer ではない、という点です。
+```cpp
+loka::core::Held<PreviewData> preview =
+    c.hold(new PreviewData(), &ReleasePreviewData);
+```
 
-Loka の考え方では、
+ここで lifetime edge になるのは handle のコピー数ではなく、
+`Boundary` または `Section` の owner slot です。
 
-- owner は大きい側にいる
-- 小さい側は explicit shared access を受け取る
-- child が親の lifecycle を逆向きに支えない
+`Held<T>` が管理するのは lifetime であり、payload の mutation authority ではありません。
+`get()` / `operator->()` / `operator*()` は mutable な `T` を返せるため、
+payload を変更する場合は別途 meaningful owner、facade、または State update path を
+明示する必要があります。
 
-という重力を保ちます。
+- `Held<T>` の copy / assignment は payload を retain しない
+- `hold(held)` は現在の owner scope を ledger に登録する
+- `tryHold(held)` は slot overflow などを nullable result として扱う
+- copied view は holding scope / creator landlord の寿命を越えて使わない
+- creator の subtree 外からの hold は release build でも拒否される
+- 最後の slot は detach で外れるが、releaser は owner clock まで延期される
 
-したがって `Managed<T>` は便利な抜け道ではなく、
-cross-boundary sharing を explicit にするための手段です。
+つまり `Held<T>` は汎用 smart pointer ではありません。
+creator subtree 内の passive payload を、意味のある lifecycle owner が支えるための型です。
+unrelated branch や複数 Window から広く共有する値は、共通の上位 owner、
+Repository、または immutable global cache に置きます。
+
+`Managed<T>` は String、Blob、Image payload などの内部 value plumbing では
+引き続き使われます。ただし、app-facing な state/resource ownership を
+匿名の参照カウントで表す正規ルートではありません。
 
 ### Owner-aware lifecycle management
 
 Loka の memory management は、単なる参照カウントや smart pointer の代替ではありません。
 重要なのは、「誰が参照しているか」だけではなく、
 「どの Boundary / Node の lifecycle に属する resource なのか」を追えることです。
+
+`Held<T>` はこの違いを resource sharing にも適用します。
+参照カウントが alias の数だけを表すのに対し、Held ledger は
+payload を支える owner scope を記録します。testing build では
+`OwnershipDump` により `held-by [section(...)]`、owner ごとの state 数、
+pending release、observation entry を同じ ownership tree 上で確認できます。
 
 たとえば、Node-local な state と flow は次のように扱います。
 
@@ -686,7 +708,7 @@ This needs explicit owner/tracker/lifetime dependency design.
 ```
 
 Image や cache も同じです。
-今の `Image` は `Managed<ImageRecord>` で native handle を安全に共有しますが、
+今の `Image` は内部の `Managed<ImageRecord>` value plumbing で payload を共有しますが、
 将来の CacheRepository / disk cache / reload Flow では、
 「メモリ上の画像を誰が保持しているか」だけでなく、
 「ディスクから再生成できるか」
@@ -752,7 +774,7 @@ Loka には `dangerouslyUseState()` や `dangerously*` な内部面が残って�
 - 大量の Node-local state や 68k-friendly な batch registration では `declareStates(count)` を検討する
 - `currentBoundary()` を owner path として使う
 - `findBoundary()` は borrowed/read-only に留める
-- cross-boundary sharing は `Managed<T>` か narrow facade にする
+- passive resource の scope sharing は `Held<T>`、広域共有は meaningful owner / Repository / narrow facade にする
 
 `dangerously*` を使いたくなったら、
 「本当に state ownership の設計がずれていないか」を一度疑ってください。
@@ -2311,7 +2333,7 @@ Loka の State ownership と共有について次のような疑問を持ちや�
 - State はどこまで共有してよいのか
 - Node ローカル state を外へ渡してよいのか
 - グローバル共有はどう表現するのか
-- `Managed<T>` は Rust の `Arc<T>` に近いのか
+- `Held<T>` は Rust の `Arc<T>` に近いのか
 
 ここでは、その感覚に寄せて整理します。
 
@@ -2322,8 +2344,8 @@ Loka の State ownership と共有について次のような疑問を持ちや�
 - Node ローカル state は、その Node と attached Boundary owner に閉じる
 - 親子共有したい事実は、親が持って Props で渡す
 - Window / Scene をまたいで共有したいものは、より長寿命な owner が持つ
-- 共有対象の寿命管理には `Managed<T>` が有効
-- ただし `Managed<T>` が解決するのは主に共有対象の寿命であり、State ownership 全体ではない
+- subtree 内の passive payload は、必要な scope が `Held<T>` の owner slot を取る
+- unrelated scope 間の共有は Repository や immutable global cache などの meaningful owner に置く
 
 ### React 的に見ると
 
@@ -2347,7 +2369,7 @@ Rust の感覚に近づけると、
 
 - `Boundary` は local owner を持つ単位
 - `NodeState<T>` はその owner に結びついた handle
-- `Managed<T>` は共有対象の寿命を参照カウントで安定化する手段
+- `Held<T>` は owner scope が支える passive payload の inert, non-retaining handle
 
 と考えると近いです。
 
@@ -2356,52 +2378,61 @@ Rust の感覚に近づけると、
 「共有できるから共有する」のではなく、
 「誰が owner で、どこまで共有するのが自然か」を設計で守る必要があります。
 
-### `State<Managed<T>>` は何に向いているか
+### `Held<T>` が数えるもの
 
-`State<Managed<T> >` は、共有対象を複数の場所から安全寄りに読むための有力な形です。
+`Held<T>` は anonymous reference count ではありません。
+handle の copy / assignment は block pointer をコピーするだけで、
+payload の lifetime を延ばしません。lifetime edge は owner ledger にあります。
 
-特に次のような用途に向いています。
+```text
+Boundary / Section owner slot ---> Held block ---> passive payload
 
-- グローバルキャッシュを複数 Window から参照する
-- 画像やモデルなどの共有リソースを複数 Scene で使う
-- 長寿命なモデルを別 Window に渡す
+Held<T> copy ---------------------> inert, non-retaining alias
+```
 
-この形の利点は、
-共有対象 `T` の寿命を `Managed<T>` で吸収しつつ、
-その参照自体を State として通知可能にできることです。
+同じ owner が複数回 hold した場合は同じ slot の count にまとまり、
+異なる owner scope は最大四つの inline slot に記録されます。
+owner が detach すると、その scope の slot は count ごと外れます。
+五つ目の scope は新しい allocation に逃げず拒否されます。
+この上限は単なる省メモリ策ではなく、広すぎる sharing seam を見つける wall でもあります。
 
-### ただし `Managed<T>` だけでは十分ではない
+### payload と block bytes は別の clock で終わる
 
-ここが重要です。
+最後の owner slot が detach で外れても、releaser はその stack 上で走りません。
 
-`Managed<T>` が守るのは、主に `T` 自体の寿命です。
-それだけで次の問題が自動的に解決するわけではありません。
+1. detach は owner slot を同期的に外し、last drop を Boundary retire pool に queue する
+2. owner clock の drain が、drop-site callback の終了後に releaser を実行する
+3. Held block の bytes は arena landlord の reclaim まで残る
 
-- その State は誰が owner なのか
-- どの Window / Scene が更新責任を持つのか
-- UI ローカルなものまで共有していないか
-- State の寿命と利用者の寿命が一致しているか
+この分離により、handle destructor や rebuild/apply の途中へ
+observable cleanup が入り込むことを防ぎます。
 
-たとえば、
-ある Node ローカル state に `Managed<T>` を入れて、
-それを別 Window にそのまま渡す設計は、
-`T` の寿命は安定しても State ownership は不自然になりやすいです。
+### 共有範囲には subtree wall がある
+
+既存の Held payload を別 scope が支えるには、creator owner から見て
+descendant の scope でなければなりません。sibling や unrelated branch の hold は、
+creator の arena が先に reclaim されると foreign ledger が dangling になるため、
+release build でも拒否されます。
+
+複数 Window や unrelated Scene で共有したい事実は、Held の wall を迂回せず、
+より長寿命な owner、Repository、または immutable global cache へ昇格させます。
 
 ### 自然な共有の形
 
 Loka で自然なのは、次のような構造です。
 
-1. 長寿命 owner が `MutableState<Managed<T> >` を持つ
-2. 各 Window / Scene はそれを `State<Managed<T> >*` として受け取る
-3. UI はそれを読む
-4. 更新は Main Thread で owner 側が行う
+1. mutable fact は意味のある owner が State として持つ
+2. child は read-only `State<T>*` または narrow facade を受け取る
+3. subtree-local passive payload は必要な `Boundary` / `Section` が hold する
+4. unrelated scope で共有する immutable payload は Repository / cache が持つ
+5. 更新は Main Thread で fact の owner が行う
 
 この構造だと、
 
 - owner が明確
 - 寿命の基準が明確
-- 複数 Window から読める
-- 共有対象 `T` の破棄タイミングも安定しやすい
+- mutation の入口が明確
+- payload を保持している declarative scope を診断できる
 
 という利点があります。
 
@@ -2410,7 +2441,9 @@ Loka で自然なのは、次のような構造です。
 次のような共有は注意が必要です。
 
 - Node ローカル state をそのまま他 Window へ配る
-- `Managed<T>` の中に Window 固有や Node 固有の文脈を入れる
+- `Held<T>` の handle copy が lifetime を延ばすと思い込む
+- holding scope の detach 後に copied handle を読む
+- subtree wall を避けるために creator 不明の payload を作る
 - 一時的に作った owner 不明の State を広域共有する
 - 共有モデルと UI ローカル状態を同じ器で持つ
 
@@ -2424,7 +2457,7 @@ Loka で自然なのは、次のような構造です。
 - ローカル state は Node member として持ち、`this->state(...)` で登録する
 - 親子共有は `親 owner -> 子 reader` を基本にする
 - Window / Scene をまたぐ共有は長寿命 owner に寄せる
-- 共有対象の寿命安定化には `Managed<T>` を使う
+- subtree-local passive resource は `hold()` で owner scope に登録する
 - `NodeState<T>` は Boundary 外へ広域共有しない
 - 更新は必ず Main Thread へ戻して行う
 
@@ -2455,48 +2488,49 @@ Loka では、State の置き場所に迷ったとき、
 
 といった要件が出ることがあります。
 
-このとき、Window ローカルな state そのものを延命するのではなく、
-共有価値のある画像データや decode 済みリソースだけを `Managed<T>` として
-長寿命なストアへ昇格させるのが自然です。
+このとき、Window ローカルな state や Held handle のコピーを延命するのではなく、
+共有価値のある画像データや decode 済みリソースだけを
+長寿命な Repository / cache へ昇格させるのが自然です。
 
 Loka では、ライフサイクルをまたいで保持したいものは
 Node ローカル state に留めず、
 より長寿命な owner に明示的に持たせるほうが、
 ownership と lifecycle の整合性を保ちやすくなります。
 
-### 良い例: 長寿命 owner が共有 state を持つ
+### 良い例: 長寿命 owner が共有 fact を持つ
 
 次のように、長寿命 owner が共有 state を持ち、
 各 Window / Scene はそれを読むだけにする形は自然です。
 
-```cpp
-struct SharedImageModel
-{
-  loka::core::Managed<MyImage> image;
-};
+```text
+ApplicationRepository
++-- immutable decoded image payload
++-- MutableState<ImageId> selectedImage
 
-class AppSharedState
-{
-public:
-  loka::core::MutableState<loka::core::Managed<SharedImageModel> > sharedImage_;
-};
-
-struct ViewerProps : public loka::app::scene::NodePropsBase<ViewerProps>
-{
-  typedef ViewerNode NodeType;
-  typedef ViewerTypeTag TypeTag;
-
-  loka::core::State<loka::core::Managed<SharedImageModel> > *sharedImage_;
-};
+Window / Scene
++-- borrows State<ImageId>
++-- asks the repository for immutable payload data
 ```
 
 この形なら、
 
 - 共有 state の owner が明確
 - 複数 Window から読める
-- 共有対象の寿命も `Managed<T>` で安定しやすい
+- UI-local lifecycle を逆向きに延命しない
 
-という利点があります。
+### 良い例: subtree-local resource を hold する
+
+resource が一つの declarative subtree に閉じるなら、nearest `Section` または
+`Boundary` に hold します。
+
+```cpp
+loka::core::Held<PreviewData> preview =
+    c.hold(new PreviewData(), &ReleasePreviewData);
+```
+
+descendant scope が独立して lifetime を支える必要がある場合は、
+その scope の composition で `c.hold(preview)` を呼びます。
+単に handle をコピーするだけでは owner slot は増えません。
 
 ### 良い例: ローカル state は Node に閉じる
 
