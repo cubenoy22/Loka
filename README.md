@@ -19,6 +19,14 @@ Loka's core idea is to keep the cast of concepts small and meaningful. `Node`, `
 
 That consistency is intentional. A `Boundary` is also a kind of `Node`; `NodeState<T>` is the state handle a node uses while storage and tracking remain attached to a lifecycle owner; `FlowSlot<T>` gives long-lived flows the same kind of owner-aware lifetime. The goal is code that feels modern and declarative while still making ownership, cleanup, and update routing explicit.
 
+Loka also treats ownership as information, not merely bookkeeping. A copied
+`Held<T>` handle does not anonymously extend a payload's lifetime. The
+`Boundary` or `Section` scopes that hold it are the lifetime edges, detach and
+reclamation happen on explicit clocks, and testing tools can report
+`held-by [section(...)]` instead of only an unexplained reference count. This
+keeps sophisticated lifecycle behavior inspectable while remaining bounded
+enough for 68k-class targets.
+
 ## How does it work?
 
 Loka uses a modern statically typed DSL built in C++98 to declaratively define UI and application structure, then projects it onto each target OS.
@@ -27,6 +35,7 @@ Loka uses a modern statically typed DSL built in C++98 to declaratively define U
 - Application logic stays in portable C++98 code.
 - The public API tries to avoid exposing manual memory management in ordinary app code.
 - Strong types carry meaning: node-owned state, borrowed state, props input, flow lifetime, and platform projection are distinct.
+- Owner-scoped resource holds record which declarative scopes keep a payload alive; handle copies are inert views rather than hidden retains.
 - The core depends on only a small subset of the STL, helping it stay highly portable across old and new toolchains.
 - Each target maps that structure onto native windowing and drawing APIs.
 - The core stays neutral while platform layers stay thin.

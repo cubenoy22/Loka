@@ -315,11 +315,23 @@ surface:
 - a facade
 - a command/event emitter
 - immutable props
+- a `Held<T>` view when the receiving scope explicitly holds a passive payload
 
-Use `Managed<T>` only when stabilizing payload lifetime is the actual problem.
-`Managed<T>` does not replace ownership design. It can keep an object alive, but
-it does not explain who conceptually owns the value, who may mutate it, or when
-the application should consider it obsolete.
+`Held<T>` is not an anonymous smart pointer. Copying its handle does not retain
+the payload. A `Boundary` or `Section` acquires an owner slot through
+`NodeComposition::hold()`, and that slot is the lifetime edge. A scope outside
+the creator's ownership subtree cannot acquire a slot, and a copied view must
+not be used after its holding scope or creator landlord is gone. Values shared
+across unrelated branches belong in a meaningful common owner, repository, or
+immutable global cache instead.
+
+`Held<T>` governs lifetime, not payload mutation authority. It does not make
+`T` immutable; mutable operations still need an explicit owner, facade, or
+State update path.
+
+`Managed<T>` remains useful inside value plumbing such as String, Blob, and
+Image payloads. It is not the normal app-facing answer for state or resource
+ownership.
 
 ## 7. Dangerous APIs Are Escape Hatches
 
@@ -554,11 +566,16 @@ The intended direction is:
 - resources have explicit owners
 - temporary resources can be released on the next tick
 - UI-owned resources can be retained by the owning Boundary
+- passive subtree resources can be held by named `Boundary` or `Section` scopes
 - shared immutable resources can live in caches or repositories
 - mutable resources expose a clear mutable phase and cleanup path
 
-Avoid designs where `Managed<T>` or reference counting becomes the only answer.
-Reference stability is useful, but it should not erase ownership meaning.
+Avoid designs where anonymous reference counting becomes the only answer.
+`Held<T>` records which owner scopes keep a passive payload alive, while handle
+copies remain inert views. The last slot drop queues its releaser on the owning
+clock instead of running observable cleanup from an arbitrary handle destructor.
+Testing can render those facts as `held-by [section(...)]` rather than only an
+unexplained count.
 
 ## 17. Mutability
 
@@ -669,9 +686,11 @@ to make ownership visible in the API shape:
 - mutable state should not be passed around casually
 - Node-local state should not escape as a foreign mutation channel
 
-`State<Managed<T>>` can be useful for shared payloads, but it is not a complete
-ownership model. Use it when stable payload lifetime is the requirement, not as
-a substitute for deciding who owns the resource.
+`Held<T>` is deliberately narrower than Rust's `Arc<T>`. It records owner scopes,
+not alias count: copies do not retain, holds are limited to the creator subtree,
+and the owning clock controls release. Mutable facts still belong to a meaningful
+State owner; unrelated shared immutable payloads belong in repositories or
+caches.
 
 ## 21. First Instincts To Build
 
