@@ -35,8 +35,11 @@ cmake --build --preset win32-tests || exit /b 1
 
 ## Test evidence rules
 
-- Run the suite with the exit code captured:
-  `LokaTestsWin32.exe > test-log.txt 2>&1` then `echo TESTEXIT=%ERRORLEVEL%`.
+- Run the suite with the exit code captured, by its generated path (the CI
+  workflow's invocation; a bare `LokaTestsWin32.exe` from the worktree root
+  finds nothing):
+  `build\win32\Debug\example\HelloWorld\LokaTestsWin32.exe > test-log.txt 2>&1`
+  then `echo TESTEXIT=%ERRORLEVEL%`.
 - **Evidence for "test N exists and runs" is `--list` plus a single-test
   run**, never a grep of the output banner (banners are each test's own
   printf and prove nothing).

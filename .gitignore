@@ -1,4 +1,8 @@
 # CUSTOM
+# Local planning notes and session handoffs (Japanese, machine-specific paths).
+# The handoff skill relies on this being ignored in every clone, not just ones
+# with a hand-edited .git/info/exclude.
+/plans/
 /agent/pilot.md
 **/build
 compile_commands.json
