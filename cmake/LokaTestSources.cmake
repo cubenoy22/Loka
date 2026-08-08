@@ -32,6 +32,7 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/PackManifestTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/LrpcPathTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/LrpkGoldenBytesTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/ScrapbookNavigationTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/BlobRangeTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/apple/toolbox/src/PictParser.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/PictParserTests.cpp

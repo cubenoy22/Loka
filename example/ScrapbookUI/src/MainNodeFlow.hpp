@@ -24,7 +24,6 @@ namespace scrapbook
         // rather than replacing good content with a refusal card.
         self->setRefusedPage(self->selectedPage_);
         self->selectedPage_ = self->package_.currentPage();
-        self->page_.set(self->selectedPage_);
       }
       else
       {
