@@ -1,4 +1,8 @@
 # CUSTOM
+# Local planning notes and session handoffs (Japanese, machine-specific paths).
+# The handoff skill relies on this being ignored in every clone, not just ones
+# with a hand-edited .git/info/exclude.
+/plans/
 /agent/pilot.md
 **/build
 compile_commands.json
@@ -218,12 +222,15 @@ win32/DesktopApp/*.suo
 win32/DesktopApp/*.VC.db
 win32/DesktopApp/*.VC.VC.opendb
 
-# Claude Code working directory. Ignored wholesale rather than per-file:
+# Claude Code working directory. Ignored per-entry rather than wholesale:
 # alongside settings.local.json it also collects settings.json and runtime
 # scratch such as scheduled_tasks.lock, none of which describe this project.
-# If a team-shared permission set is ever wanted, un-ignore that one file
-# deliberately rather than letting whatever lands here follow a git add -A.
-.claude/
+# skills/ is the deliberate exception — those procedures (fleet delegation,
+# Win32 verification, handoff format) must travel with every clone; their
+# absence from the fleet clone stalled a delegation once. Un-ignore further
+# entries deliberately rather than letting them follow a git add -A.
+.claude/*
+!.claude/skills/
 
 # End of https://www.toptal.com/developers/gitignore/api/node,macos,linux
 /Testing/
