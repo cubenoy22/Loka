@@ -71,6 +71,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32Profiler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32ScenePlatformController.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32BuiltInSupport.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32Window.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32ButtonContext.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32CellContext.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32TextContext.cpp
@@ -84,6 +85,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32EditTextBridgeTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32FilePathTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32AppLocationTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32WindowClientSizeTests.cpp
   )
   loka_enable_warnings(LokaTestsWin32)
 

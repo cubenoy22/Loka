@@ -17,6 +17,41 @@ namespace
 {
   static bool g_classRegistered = false;
   static const wchar_t *kWndClassName = L"DevWndClass";
+  static const DWORD kWindowStyle = WS_OVERLAPPEDWINDOW;
+  static const DWORD kWindowExStyle = WS_EX_CONTROLPARENT;
+
+  bool CalculateOuterSizeForClient(int clientWidth,
+                                   int clientHeight,
+                                   DWORD style,
+                                   DWORD exStyle,
+                                   BOOL hasMenu,
+                                   int &outerWidth,
+                                   int &outerHeight)
+  {
+    RECT rect = {0, 0, clientWidth, clientHeight};
+    if (!AdjustWindowRectEx(&rect, style, hasMenu, exStyle))
+    {
+      return false;
+    }
+    outerWidth = rect.right - rect.left;
+    outerHeight = rect.bottom - rect.top;
+    return true;
+  }
+
+  bool ReadContentFrame(HWND hwnd, loka::core::Frame &out)
+  {
+    RECT windowRect;
+    RECT clientRect;
+    if (!GetWindowRect(hwnd, &windowRect) || !GetClientRect(hwnd, &clientRect))
+    {
+      return false;
+    }
+    out = loka::core::Frame(windowRect.left,
+                            windowRect.top,
+                            clientRect.right - clientRect.left,
+                            clientRect.bottom - clientRect.top);
+    return true;
+  }
 } // namespace
 
 Win32Window::Win32Window(PlatformContext *context, const WindowProps &props)
@@ -100,13 +135,29 @@ void Win32Window::FrameChangedThunk(void *userData)
   {
     return;
   }
-  RECT rc;
-  GetWindowRect(self->hwnd_, &rc);
-  int x = frame.x >= 0 ? frame.x : rc.left;
-  int y = frame.y >= 0 ? frame.y : rc.top;
-  int width = frame.width > 0 ? frame.width : (rc.right - rc.left);
-  int height = frame.height > 0 ? frame.height : (rc.bottom - rc.top);
-  MoveWindow(self->hwnd_, x, y, width, height, TRUE);
+  RECT windowRect;
+  if (!GetWindowRect(self->hwnd_, &windowRect))
+  {
+    return;
+  }
+  int outerWidth = 0;
+  int outerHeight = 0;
+  DWORD style = static_cast<DWORD>(GetWindowLongPtrW(self->hwnd_, GWL_STYLE));
+  DWORD exStyle = static_cast<DWORD>(GetWindowLongPtrW(self->hwnd_, GWL_EXSTYLE));
+  if (!CalculateOuterSizeForClient(frame.width,
+                                   frame.height,
+                                   style,
+                                   exStyle,
+                                   GetMenu(self->hwnd_) ? TRUE : FALSE,
+                                   outerWidth,
+                                   outerHeight))
+  {
+    assert(false && "Win32 client size must convert to an outer window size");
+    return;
+  }
+  int x = frame.x >= 0 ? frame.x : windowRect.left;
+  int y = frame.y >= 0 ? frame.y : windowRect.top;
+  MoveWindow(self->hwnd_, x, y, outerWidth, outerHeight, TRUE);
 }
 
 LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -186,10 +237,9 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       }
       if (self->hwnd_)
       {
-        RECT rc;
-        if (GetWindowRect(self->hwnd_, &rc))
+        loka::core::Frame frame;
+        if (ReadContentFrame(self->hwnd_, frame))
         {
-          loka::core::Frame frame(rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top);
           self->frameState().set(frame);
         }
       }
@@ -236,14 +286,24 @@ void Win32Window::createNativeWindow()
     RegisterClassW(&wc);
     g_classRegistered = true;
   }
-  HWND hwnd = CreateWindowExW(WS_EX_CONTROLPARENT,
+  const int clientWidth = this->hasSize() ? this->width() : 300;
+  const int clientHeight = this->hasSize() ? this->height() : 300;
+  int outerWidth = 0;
+  int outerHeight = 0;
+  if (!CalculateOuterSizeForClient(
+          clientWidth, clientHeight, kWindowStyle, kWindowExStyle, FALSE, outerWidth, outerHeight))
+  {
+    assert(false && "Win32 client size must convert to an outer window size");
+    return;
+  }
+  HWND hwnd = CreateWindowExW(kWindowExStyle,
                               kWndClassName,
                               L"",
-                              WS_OVERLAPPEDWINDOW,
+                              kWindowStyle,
                               this->hasPosition() ? this->positionX() : 50,
                               this->hasPosition() ? this->positionY() : 50,
-                              this->hasSize() ? this->width() : 300,
-                              this->hasSize() ? this->height() : 300,
+                              outerWidth,
+                              outerHeight,
                               NULL,
                               NULL,
                               GetModuleHandle(NULL),
@@ -251,10 +311,9 @@ void Win32Window::createNativeWindow()
   if (hwnd)
   {
     this->hwnd_ = hwnd;
-    RECT rc;
-    if (GetWindowRect(hwnd, &rc))
+    loka::core::Frame frame;
+    if (ReadContentFrame(hwnd, frame))
     {
-      loka::core::Frame frame(rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top);
       this->frameState().set(frame);
     }
     if (this->app_)
