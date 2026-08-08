@@ -1,18 +1,52 @@
 cmake_minimum_required(VERSION 3.15)
 project(ScrapbookUI LANGUAGES CXX)
 
-if(NOT CMAKE_SYSTEM_NAME MATCHES "^Retro68$")
+if(NOT WIN32 AND NOT (CMAKE_SYSTEM_NAME MATCHES "^Retro68$"))
   add_custom_target(ScrapbookUI ALL
     COMMAND ${CMAKE_COMMAND} -E echo
-      "ScrapbookUI is Retro68-only. No app is built for this platform."
+      "ScrapbookUI has no supported platform target here."
   )
+  return()
+endif()
+
+set(SCRAPBOOK_COMMON_SOURCES
+  src/main.cpp
+  src/ScrapbookPackage.cpp
+)
+
+if(WIN32)
+  if(NOT TARGET LokaWin32Core)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../win32 ${CMAKE_CURRENT_BINARY_DIR}/win32)
+  endif()
+
+  add_executable(ScrapbookUIWin32 WIN32 ${SCRAPBOOK_COMMON_SOURCES})
+  loka_enable_warnings(ScrapbookUIWin32)
+
+  target_include_directories(ScrapbookUIWin32 PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../common
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src
+  )
+  target_link_libraries(ScrapbookUIWin32 PRIVATE LokaWin32Core)
+  set_target_properties(ScrapbookUIWin32 PROPERTIES
+    CXX_STANDARD 98
+    CXX_STANDARD_REQUIRED YES
+  )
+  if(MSVC)
+    target_compile_options(ScrapbookUIWin32 PRIVATE /utf-8)
+  endif()
+
+  # The source package is environment-specific; the runtime contract is not.
+  configure_file(assets/ASSETS-modern.LRP ASSETS.LRP COPYONLY)
+endif()
+
+if(NOT CMAKE_SYSTEM_NAME MATCHES "^Retro68$")
   return()
 endif()
 
 set(SCRAPBOOK_CLASSIC_TARGET "ScrapbookUI${LOKA_CLASSIC_TARGET_SUFFIX}")
 set(SCRAPBOOK_SOURCES
-  src/main.cpp
-  src/ScrapbookPackage.cpp
+  ${SCRAPBOOK_COMMON_SOURCES}
   Size.r
 )
 
