@@ -18,6 +18,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Car
 endif()
 
 if(WIN32)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/LokaWin32VisualStyles.cmake)
   set(HELLOWORLD_SOURCES
     src/main.cpp
     src/MainNode.cpp
@@ -36,6 +37,7 @@ if(WIN32)
     add_executable(LokaHelloWin32 WIN32 ${HELLOWORLD_SOURCES})
   endif()
   loka_enable_warnings(LokaHelloWin32)
+  loka_enable_win32_visual_styles(LokaHelloWin32)
 
   target_include_directories(LokaHelloWin32 PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common

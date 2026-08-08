@@ -14,6 +14,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Car
 endif()
 
 if(WIN32)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/LokaWin32VisualStyles.cmake)
   set(MINESWEEPER_SOURCES
     src/main.cpp
   )
@@ -30,6 +31,7 @@ if(WIN32)
     add_executable(LokaMineWin32 WIN32 ${MINESWEEPER_SOURCES})
   endif()
   loka_enable_warnings(LokaMineWin32)
+  loka_enable_win32_visual_styles(LokaMineWin32)
 
   target_include_directories(LokaMineWin32 PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
