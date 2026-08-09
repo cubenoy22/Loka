@@ -304,8 +304,9 @@ void Win32Window::createNativeWindow()
     RegisterClassW(&wc);
     g_classRegistered = true;
   }
-  const int clientWidth = this->hasSize() ? this->width() : 300;
-  const int clientHeight = this->hasSize() ? this->height() : 300;
+  const loka::core::Frame defaultFrame = Window::defaultFrame();
+  const int clientWidth = this->hasSize() ? this->width() : defaultFrame.width;
+  const int clientHeight = this->hasSize() ? this->height() : defaultFrame.height;
   int outerWidth = 0;
   int outerHeight = 0;
   if (!CalculateOuterSizeForClient(
@@ -318,8 +319,8 @@ void Win32Window::createNativeWindow()
                               kWndClassName,
                               L"",
                               kWindowStyle,
-                              this->hasPosition() ? this->positionX() : 50,
-                              this->hasPosition() ? this->positionY() : 50,
+                              this->hasPosition() ? this->positionX() : defaultFrame.x,
+                              this->hasPosition() ? this->positionY() : defaultFrame.y,
                               outerWidth,
                               outerHeight,
                               NULL,
