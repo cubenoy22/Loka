@@ -1,4 +1,5 @@
 #include "context/ToolboxTextContext.hpp"
+#include "ToolboxLayoutMetrics.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
@@ -315,7 +316,11 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
     if (wrapWord || wrapChar)
     {
       effectiveLineHeight =
-          MeasureWrappedTextHeight(value, maxWidth_, state.lineHeight > 0 ? state.lineHeight : 12, wrapChar);
+          MeasureWrappedTextHeight(value,
+                                   maxWidth_,
+                                   state.lineHeight > 0 ? state.lineHeight
+                                                        : ToolboxLayoutMetrics::kDefaultLineHeight,
+                                   wrapChar);
     }
     width = maxWidth_;
   }

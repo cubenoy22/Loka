@@ -1,5 +1,6 @@
 #include "Win32ButtonContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
+#include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "core/resource/Image.hpp"
@@ -8,9 +9,6 @@
 
 namespace
 {
-  const int kButtonHeight = 32;
-  const int kVerticalSpacing = 12;
-
   class Win32ButtonNodeHandler
       : public loka::app::scene::RetainedNodeHandler<Win32ButtonNodeHandler,
                                                      loka::app::ButtonNode,
@@ -191,9 +189,10 @@ bool Win32ButtonContext::captureBitmap(loka::core::resource::Image &out) const
 
 short Win32ButtonContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
-  this->relayout(state.x, state.y, state.width, kButtonHeight);
-  state.height = static_cast<short>(kButtonHeight);
-  return static_cast<short>(state.y + kButtonHeight + kVerticalSpacing);
+  this->relayout(state.x, state.y, state.width, loka::app::layout::FallbackControlMetrics::kButtonHeight);
+  state.height = static_cast<short>(loka::app::layout::FallbackControlMetrics::kButtonHeight);
+  return static_cast<short>(state.y + loka::app::layout::FallbackControlMetrics::kButtonHeight
+                            + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
 }
 
 bool Win32ButtonContext::handleCommand(WPARAM, LPARAM)

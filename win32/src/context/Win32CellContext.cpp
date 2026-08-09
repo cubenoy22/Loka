@@ -1,5 +1,6 @@
 #include "Win32CellContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
+#include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "app/nodes/controls/Cell.hpp"
 #include "core/State.hpp"
@@ -8,8 +9,6 @@
 namespace
 {
   const char *kCellClassName = "LOKA_CELL";
-  const int kDefaultCellHeight = 20;
-  const int kVerticalSpacing = 12;
 
   class Win32CellNodeHandler
       : public loka::app::scene::RetainedNodeHandler<Win32CellNodeHandler,
@@ -105,13 +104,14 @@ void Win32CellContext::applyDetachedPresentation()
 short Win32CellContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
   const short requestedHeight = state.height;
-  const int cellHeight = requestedHeight > 0 ? requestedHeight : kDefaultCellHeight;
+  const int cellHeight = requestedHeight > 0 ? requestedHeight
+                                             : loka::app::layout::FallbackControlMetrics::kCellHeight;
   this->relayout(state.x, state.y, state.width, cellHeight);
   state.height = static_cast<short>(cellHeight);
   short result = static_cast<short>(state.y + cellHeight);
   if (requestedHeight <= 0)
   {
-    result = static_cast<short>(result + kVerticalSpacing);
+    result = static_cast<short>(result + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
   }
   return result;
 }

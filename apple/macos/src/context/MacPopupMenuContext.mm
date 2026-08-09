@@ -1,6 +1,7 @@
 #include "MacPopupMenuContext.hpp"
 #include "../MacScenePlatformController.hpp"
 #include "MacObjCCompat.hpp"
+#include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
@@ -8,9 +9,6 @@
 
 namespace
 {
-  const int kPopupMenuHeight = 26;
-  const int kVerticalSpacing = 12;
-
   class MacPopupMenuNodeHandler
       : public loka::app::scene::RetainedNodeHandler<MacPopupMenuNodeHandler,
                                                      loka::app::PopupMenuNode,
@@ -158,9 +156,10 @@ void MacPopupMenuContext::applyDetachedPresentation()
 
 short MacPopupMenuContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
-  this->relayout(state.x, state.y, state.width, kPopupMenuHeight);
-  state.height = static_cast<short>(kPopupMenuHeight);
-  return static_cast<short>(state.y + kPopupMenuHeight + kVerticalSpacing);
+  this->relayout(state.x, state.y, state.width, loka::app::layout::FallbackControlMetrics::kPopupMenuHeight);
+  state.height = static_cast<short>(loka::app::layout::FallbackControlMetrics::kPopupMenuHeight);
+  return static_cast<short>(state.y + loka::app::layout::FallbackControlMetrics::kPopupMenuHeight
+                            + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
 }
 
 void MacPopupMenuContext::handleSelectionChange()

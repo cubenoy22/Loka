@@ -1,6 +1,7 @@
 #include "MacImageViewContext.hpp"
 #include "../MacScenePlatformController.hpp"
 #include "../MacObjCCompat.hpp"
+#include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include <AppKit/AppKit.h>
 
@@ -15,8 +16,6 @@
 
 namespace
 {
-  const int kVerticalSpacing = 12;
-
   int ResolveImageLayoutWidth(const loka::app::ImageViewNode *node, int fallbackWidth)
   {
     if (!node)
@@ -315,7 +314,7 @@ short MacImageViewContext::layout(loka::app::scene::IPlatformController *, loka:
   this->relayout(state.x, state.y, imageWidth, imageHeight);
   state.width = static_cast<short>(imageWidth);
   state.height = static_cast<short>(imageHeight);
-  return static_cast<short>(state.y + imageHeight + kVerticalSpacing);
+  return static_cast<short>(state.y + imageHeight + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
 }
 
 void MacImageViewContext::relayout(int x, int y, int width, int height)
