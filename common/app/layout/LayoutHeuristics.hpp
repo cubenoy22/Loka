@@ -2,6 +2,7 @@
 #define LOKA_APP_LAYOUT_HEURISTICS_HPP
 
 #include "app/nodes/ImageView.hpp"
+#include "app/nodes/nestable/Box.hpp"
 #include "app/scene/Node.hpp"
 
 namespace loka
@@ -42,6 +43,13 @@ namespace loka
           if (image->props.width_ > 0)
           {
             return clampToAvailable(image->props.width_, availableWidth);
+          }
+        }
+        if (loka::app::BoxNode *box = child->asBoxNode())
+        {
+          if (box->props.hasFixedSize())
+          {
+            return clampToAvailable(box->props.width, availableWidth);
           }
         }
         return clampToAvailable(availableWidth, availableWidth);

@@ -72,6 +72,8 @@ namespace scrapbook_navigation_test
       out.caption = loka::core::String::FromInt(page + 1)
                     + loka::core::String::Literal(" / 5");
       out.badge = loka::core::String::Literal("TEXT");
+      out.text = loka::core::String::Literal("Sized text page");
+      out.isImage = page != static_cast<int>(kPageCount - 1);
       return true;
     }
 
@@ -192,6 +194,87 @@ namespace
     LOKA_VERIFY(scrapbook_navigation_test::ScrapbookPackage::prepareCount()
                 == expectedPrepareCount);
   }
+
+  loka::app::BoxNode *FindSizedPageBox(loka::app::scene::Node *node,
+                                       int &matches)
+  {
+    if (!node)
+    {
+      return 0;
+    }
+
+    loka::app::BoxNode *result = 0;
+    loka::app::BoxNode *box = node->asBoxNode();
+    if (box && box->props.width == 300 && box->props.height == 170)
+    {
+      ++matches;
+      result = box;
+    }
+
+    loka::app::scene::INestable *nestable = node->asNestable();
+    for (loka::app::scene::Node *child = nestable ? nestable->childrenHead() : 0;
+         child;
+         child = child->nextInComposition)
+    {
+      loka::app::BoxNode *childResult = FindSizedPageBox(child, matches);
+      if (childResult)
+      {
+        result = childResult;
+      }
+    }
+    return result;
+  }
+
+  loka::app::BoxNode *RequireSizedPageBox(loka::app::scene::Scene &scene)
+  {
+    int matches = 0;
+    loka::app::BoxNode *box = FindSizedPageBox(
+        loka::dsl::testing::SceneTestAccess::rootNode(scene), matches);
+    LOKA_VERIFY(matches == 1);
+    LOKA_VERIFY(box != 0);
+    LOKA_VERIFY(box->props.hasFixedSize());
+    return box;
+  }
+
+  int CountPresentationNodes(loka::app::scene::Node *node,
+                             bool countImages,
+                             bool countText,
+                             bool countSurfaces)
+  {
+    if (!node)
+    {
+      return 0;
+    }
+
+    int count = 0;
+    if ((countImages && node->asImageViewNode())
+        || (countText && node->asTextNode())
+        || (countSurfaces && node->asRectSurfaceNode()))
+    {
+      ++count;
+    }
+    loka::app::scene::INestable *nestable = node->asNestable();
+    for (loka::app::scene::Node *child = nestable ? nestable->childrenHead() : 0;
+         child;
+         child = child->nextInComposition)
+    {
+      count += CountPresentationNodes(child, countImages, countText, countSurfaces);
+    }
+    return count;
+  }
+
+  void VerifySizedExtent(NullScenePlatformController &platform,
+                         loka::app::BoxNode *pageBox)
+  {
+    loka::app::scene::LayoutState state;
+    state.x = 11;
+    state.y = 13;
+    state.width = 500;
+    state.height = 400;
+    state.lineHeight = 20;
+    const int resultY = platform.projectLayoutForTesting(pageBox, state);
+    LOKA_VERIFY(resultY == 183);
+  }
 } // namespace
 
 void testScrapbookRenderedNavigationButtonsMoveAndStopAtEndpoints()
@@ -235,4 +318,46 @@ void testScrapbookRenderedNavigationButtonsMoveAndStopAtEndpoints()
   VerifyPage(*mainNode, 4, 7);
 
   std::printf("testScrapbookRenderedNavigationButtonsMoveAndStopAtEndpoints passed\n");
+}
+
+void testScrapbookSizedPageContainerOwnsBothPresentations()
+{
+  scrapbook_navigation_test::ScrapbookPackage::resetPrepareCount();
+  NullPlatformContext context;
+  scrapbook_navigation_test::MainProps props;
+  props.platformContext(&context);
+  loka::app::scene::NodeDefinition<scrapbook_navigation_test::MainProps,
+                                   scrapbook_navigation_test::MainNode>
+      mainDefinition(props);
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(mainDefinition.clone());
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  scrapbook_navigation_test::MainNode *mainNode =
+      static_cast<scrapbook_navigation_test::MainNode *>(
+          loka::dsl::testing::SceneTestAccess::rootNode(scene));
+  LOKA_VERIFY(mainNode != 0);
+  loka::app::BoxNode *pageBox = RequireSizedPageBox(scene);
+  LOKA_VERIFY(CountPresentationNodes(pageBox, true, false, false) == 1);
+  LOKA_VERIFY(CountPresentationNodes(pageBox, false, true, false) == 0);
+  LOKA_VERIFY(CountPresentationNodes(
+                  loka::dsl::testing::SceneTestAccess::rootNode(scene), false, false, true)
+              == 0);
+  VerifySizedExtent(platform, pageBox);
+
+  loka::app::ButtonNode *next = RequireRenderedButton(scene, "Next");
+  for (int page = 1; page < static_cast<int>(scrapbook_navigation_test::kPageCount); ++page)
+  {
+    ClickRenderedButton(*mainNode, *next);
+  }
+
+  VerifyPage(*mainNode, 4, 5);
+  pageBox = RequireSizedPageBox(scene);
+  LOKA_VERIFY(CountPresentationNodes(pageBox, true, false, false) == 0);
+  LOKA_VERIFY(CountPresentationNodes(pageBox, false, true, false) == 1);
+  LOKA_VERIFY(CountPresentationNodes(pageBox, false, false, true) == 0);
+  VerifySizedExtent(platform, pageBox);
+
+  std::printf("testScrapbookSizedPageContainerOwnsBothPresentations passed\n");
 }

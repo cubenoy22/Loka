@@ -184,6 +184,22 @@ void testNullLayoutBoxProducesFixedChildGeometry()
   assert(resultY == 48);
 }
 
+void testNullLayoutFixedBoxOwnsDeclaredExtent()
+{
+  loka::app::BoxProps props;
+  props.setPadding(5).setSize(300, 170);
+  loka::app::BoxNode box(props);
+  FixedLayoutProbeNode *child = new FixedLayoutProbeNode(7);
+  box.addChild(child);
+  NullScenePlatformController platform;
+
+  const int resultY = platform.projectLayoutForTesting(&box, makeState(10, 20, 80, 40));
+
+  assertGeometry(child, 15, 25, 290, 160);
+  (void)resultY;
+  assert(resultY == 190);
+}
+
 void testNullLayoutGridProducesFixedChildGeometry()
 {
   loka::app::GridNode grid((loka::app::GridProps(2, 2)));

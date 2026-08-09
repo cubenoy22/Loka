@@ -803,7 +803,7 @@ void testPlatformLayoutTraversalResultY()
   assert(traversal.calls_ == 1);
   assert(traversal.lastChild_ == child);
   assert(traversal.lastState_.y == 6);
-  assert(traversal.layoutResultY() == 37);
+  LOKA_VERIFY(traversal.layoutResultY() == 37);
   (void)resultY;
   assert(resultY == 37);
 
