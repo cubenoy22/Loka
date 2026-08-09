@@ -71,6 +71,13 @@ if(APPLE)
   )
   loka_enable_warnings(ScrapbookUIMacOS)
 
+  set_target_properties(ScrapbookUIMacOS PROPERTIES
+    CXX_STANDARD 98
+    CXX_STANDARD_REQUIRED YES
+    OBJCXX_STANDARD 98
+    OBJCXX_STANDARD_REQUIRED YES
+  )
+
   target_include_directories(ScrapbookUIMacOS PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
     ${CMAKE_CURRENT_SOURCE_DIR}/src
