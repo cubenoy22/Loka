@@ -8,6 +8,7 @@
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/scene/Scene.hpp"
+#include "testing/app/SceneManagerTestAccess.hpp"
 
 // LeakSanitizer cannot complete its process scan after fork-based death checks.
 #if defined(LOKA_LIFECYCLE_AUDIT) && defined(__linux__) && !defined(__SANITIZE_ADDRESS__)
@@ -610,6 +611,46 @@ void testWindowRetiresDetachedSceneAtFlushBoundary()
   assert(g_sceneOwnershipScenesAlive == 0);
 
   printf("==== [testWindowRetiresDetachedSceneAtFlushBoundary] end ====\n");
+}
+
+void testWindowRecommittingCurrentSceneIsNoOp()
+{
+  printf("\n==== [testWindowRecommittingCurrentSceneIsNoOp] start ====\n");
+
+  assert(g_sceneOwnershipScenesAlive == 0);
+  WindowCreatingPlatformContext context;
+  WindowProps props;
+  SceneOwnershipProbe *scene = new SceneOwnershipProbe();
+  props.scene(scene);
+  Window *window = new Window(&context, props);
+
+  loka::app::scene::Scene *installed = window->scene();
+  LOKA_VERIFY(installed == scene);
+  LOKA_VERIFY(loka::app::testing::SceneManagerTestAccess::pendingTransactionCount(
+                  *window->sceneManager()) == 0);
+
+  window->sceneManager()->commitTransaction(scene, scene);
+
+  LOKA_VERIFY(loka::app::testing::SceneManagerTestAccess::pendingTransactionCount(
+                  *window->sceneManager()) == 0);
+  installed = window->scene();
+  LOKA_VERIFY(installed == scene);
+  LOKA_VERIFY(g_sceneOwnershipScenesAlive == 1);
+
+  window->flushSceneInvalidation();
+
+  installed = window->scene();
+  const bool attached = installed->getAttachedState()->get();
+  Window *owner = installed->getWindow();
+  LOKA_VERIFY(installed == scene);
+  LOKA_VERIFY(attached);
+  LOKA_VERIFY(owner == window);
+  LOKA_VERIFY(g_sceneOwnershipScenesAlive == 1);
+
+  delete window;
+  LOKA_VERIFY(g_sceneOwnershipScenesAlive == 0);
+
+  printf("==== [testWindowRecommittingCurrentSceneIsNoOp] end ====\n");
 }
 
 void testWindowDefersSceneRetiredDuringDrainUntilNextFlush()

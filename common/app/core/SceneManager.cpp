@@ -39,12 +39,12 @@ SceneManager::~SceneManager()
   }
 }
 
-void SceneManager::commitTransaction(loka::app::scene::Scene *from, loka::app::scene::Scene *to)
+void SceneManager::commitTransaction(loka::app::scene::Scene *, loka::app::scene::Scene *to)
 {
   tracker_.begin();
   const SceneTransactionList &current = pendingTransactions_.getRef();
   SceneTransactionList txns = current;
-  txns.push(from, to);
+  txns.push(to);
   pendingTransactions_.set(txns);
   tracker_.end();
   handleNextTransaction(); // Apply the queued transition immediately.
@@ -74,9 +74,6 @@ void SceneManager::handleNextTransaction()
   nextTxns.popFront();
   pendingTransactions_.set(nextTxns);
   tracker_.end();
-  // Reclamation cannot become visible until every synchronous detach and
-  // transaction notification has finished using the old Scene.
-  retiredScenes_.retire(oldScene);
 }
 
 void SceneManager::swapScene(loka::app::scene::Scene *oldScene, loka::app::scene::Scene *newScene)

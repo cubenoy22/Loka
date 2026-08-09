@@ -13,6 +13,11 @@ namespace loka
 {
   namespace app
   {
+    namespace testing
+    {
+      class SceneManagerTestAccess;
+    }
+
     namespace detail
     {
       /** Owns detached scenes until the enclosing Window flush cycle closes. */
@@ -100,22 +105,19 @@ public:
   struct SceneTransaction
   {
     SceneTransaction()
-        : from(0),
-          to(0),
+        : to(0),
           nextInComposition(0)
     {
     }
 
-    SceneTransaction(loka::app::scene::Scene *fromScene, loka::app::scene::Scene *toScene)
-        : from(fromScene),
-          to(toScene),
+    explicit SceneTransaction(loka::app::scene::Scene *toScene)
+        : to(toScene),
           nextInComposition(0)
     {
     }
 
     SceneTransaction(const SceneTransaction &other)
-        : from(other.from),
-          to(other.to),
+        : to(other.to),
           nextInComposition(0)
     {
     }
@@ -124,9 +126,8 @@ public:
     {
       if (this == &other)
         return *this;
-      from = other.from;
-      to = other.to;
-      nextInComposition = 0;
+      this->to = other.to;
+      this->nextInComposition = 0;
       return *this;
     }
 
@@ -135,7 +136,6 @@ public:
       return new SceneTransaction(*this);
     }
 
-    loka::app::scene::Scene *from;
     loka::app::scene::Scene *to;
     SceneTransaction *nextInComposition;
   };
@@ -178,9 +178,9 @@ public:
       return id_ == other.id_;
     }
 
-    void push(loka::app::scene::Scene *from, loka::app::scene::Scene *to)
+    void push(loka::app::scene::Scene *to)
     {
-      list_.appendOwned(new SceneTransaction(from, to));
+      list_.appendOwned(new SceneTransaction(to));
       id_ = nextId();
     }
 
@@ -232,8 +232,10 @@ public:
   SceneManager();
   ~SceneManager();
 
-  // Queue and apply a scene transition immediately.
-  void commitTransaction(loka::app::scene::Scene *from, loka::app::scene::Scene *to);
+  /** Queue and apply a scene transition immediately. The installed scene is
+      authoritative; ignoredFrom is retained only for source compatibility. */
+  void commitTransaction(loka::app::scene::Scene *ignoredFrom,
+                         loka::app::scene::Scene *to);
   // Return the currently attached scene state.
   const loka::core::State<loka::app::scene::Scene *> &getCurrentScene() const;
   bool hasRetiredScenes() const
@@ -264,6 +266,8 @@ public:
   }
 
 private:
+  friend class loka::app::testing::SceneManagerTestAccess;
+
   loka::core::MutableState<loka::app::scene::Scene *> currentScene_;
   loka::core::MutableState<SceneTransactionList> pendingTransactions_;
   loka::core::PushStateTracker tracker_;
