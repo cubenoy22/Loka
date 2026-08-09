@@ -5,6 +5,7 @@ void testNullLayoutRowProducesFixedChildGeometry();
 void testNullLayoutColumnProducesFixedChildGeometry();
 void testNullLayoutFragmentAdvancesAcrossChildren();
 void testNullLayoutBoxProducesFixedChildGeometry();
+void testNullLayoutFixedBoxOwnsDeclaredExtent();
 void testNullLayoutGridProducesFixedChildGeometry();
 void testNullLayoutZStackProducesFixedChildGeometry();
 void testNullLayoutNestedBoxAndRowProduceFixedChildGeometry();

@@ -4,14 +4,13 @@
 #include <cassert>
 
 #include "ScrapbookFlowAdapters.hpp"
-#include "app/RectSurface.hpp"
 #include "app/nodes/ImageView.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/controls/Button.hpp"
+#include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/nestable/Show.hpp"
-#include "app/nodes/nestable/ZStack.hpp"
 #include "app/scene/state/FlowSlot.hpp"
 #include "app/scene/state/NodeState.hpp"
 
@@ -78,7 +77,6 @@ namespace scrapbook
           pageText_(),
           caption_(),
           badge_(),
-          pageBackdrop_(),
           previousPage_(),
           nextPage_(),
           pageFlow_()
@@ -93,7 +91,6 @@ namespace scrapbook
       this->state(this->pageText_, loka::core::String::Literal("Loading package..."));
       this->state(this->caption_, loka::core::String::Literal("-- / 5"));
       this->state(this->badge_, loka::core::String::Literal("TEXT"));
-      this->state(this->pageBackdrop_, loka::app::RectSurfaceModel());
     }
 
     /** Reports presence and index together so a refused presentation cannot
@@ -193,15 +190,14 @@ namespace scrapbook
       this->props.assertInitialized();
       composition.declare(
           VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_LEADING)
-          << (Show(*this->showImage_.state())
-              << ImageView()
-                     .image(this->image_.state())
-                     .size(300, 170)
-                     .attr(ImageViewAttr().sizePolicy(IMAGE_VIEW_SIZE_FILL_PARENT).fit(IMAGE_FIT_CONTAIN)))
-          << (Show(*this->showText_.state())
-              << (ZStack() << RectSurface(this->pageBackdrop_.state()).size(300, 170)
-                           << Text(this->pageText_.state())
-                                  .attr(TextAttr().fontSize(18).wrap(TEXT_WRAP_WORD).truncation(TEXT_TRUNCATION_NONE))))
+          << (Box().size(300, 170)
+              << (Show(*this->showImage_.state())
+                  << ImageView()
+                         .image(this->image_.state())
+                         .attr(ImageViewAttr().sizePolicy(IMAGE_VIEW_SIZE_FILL_PARENT).fit(IMAGE_FIT_CONTAIN)))
+              << (Show(*this->showText_.state())
+                  << Text(this->pageText_.state())
+                         .attr(TextAttr().fontSize(18).wrap(TEXT_WRAP_WORD).truncation(TEXT_TRUNCATION_NONE))))
           << (HStack().alignVertical(VERTICAL_ALIGNMENT_CENTER)
               << Text(this->caption_.state()) << Text(this->badge_.state()).attr(TextAttr().weight(TEXT_WEIGHT_BOLD))
               << (Show(*this->refusedBadgeVisible_.state())
@@ -280,7 +276,6 @@ namespace scrapbook
     loka::app::scene::NodeState<loka::core::String> pageText_;
     loka::app::scene::NodeState<loka::core::String> caption_;
     loka::app::scene::NodeState<loka::core::String> badge_;
-    loka::app::scene::NodeState<loka::app::RectSurfaceModel> pageBackdrop_;
     loka::core::EmitterState previousPage_;
     loka::core::EmitterState nextPage_;
     loka::app::scene::FlowSlot<PageFlowChain> pageFlow_;

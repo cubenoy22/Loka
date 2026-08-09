@@ -96,35 +96,6 @@ namespace
     DrawString(text);
   }
 
-  short ClampToAvailable(short value, short available)
-  {
-    if (value < 0)
-    {
-      return 0;
-    }
-    if (available >= 0 && value > available)
-    {
-      return available;
-    }
-    return value;
-  }
-
-  short PreferredChildWidthForColumn(loka::app::scene::Node *child, short availableWidth)
-  {
-    if (!child)
-    {
-      return ClampToAvailable(availableWidth, availableWidth);
-    }
-    if (loka::app::ImageViewNode *image = child->asImageViewNode())
-    {
-      if (image->props.width_ > 0)
-      {
-        return ClampToAvailable(static_cast<short>(image->props.width_), availableWidth);
-      }
-    }
-    return ClampToAvailable(availableWidth, availableWidth);
-  }
-
   short PreferredChildHeightForRow(loka::app::scene::Node *child, short fallbackHeight)
   {
     if (!child)
@@ -550,7 +521,8 @@ namespace
           short childOffset = 0;
           if (column->props.hasHorizontalAlignment_)
           {
-            childWidth = PreferredChildWidthForColumn(child, state.width);
+            childWidth = static_cast<short>(
+                loka::app::layout::preferredChildWidthForColumn(child, state.width));
             short remain = static_cast<short>(state.width - childWidth);
             if (remain > 0)
             {
