@@ -62,6 +62,23 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Build: macOS ScrapbookUI",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "macos-debug",
+        "--target",
+        "ScrapbookUIMacOS"
+      ],
+      "dependsOn": [
+        "Configure: macOS Native"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Build: macOS FloppyBird",
       "type": "shell",
       "command": "cmake",

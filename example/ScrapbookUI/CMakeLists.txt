@@ -1,7 +1,12 @@
 cmake_minimum_required(VERSION 3.15)
 project(ScrapbookUI LANGUAGES CXX)
 
-if(NOT WIN32 AND NOT (CMAKE_SYSTEM_NAME MATCHES "^Retro68$"))
+if(APPLE)
+  enable_language(OBJCXX)
+  loka_suppress_arclite_link()
+endif()
+
+if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME MATCHES "^Retro68$"))
   add_custom_target(ScrapbookUI ALL
     COMMAND ${CMAKE_COMMAND} -E echo
       "ScrapbookUI has no supported platform target here."
@@ -38,6 +43,51 @@ if(WIN32)
 
   # The source package is environment-specific; the runtime contract is not.
   configure_file(assets/ASSETS-modern.LRP ASSETS.LRP COPYONLY)
+endif()
+
+if(APPLE)
+  set(SCRAPBOOK_MACOS_RESOURCE_DIR
+    ${CMAKE_CURRENT_BINARY_DIR}/macos-resources
+  )
+  file(MAKE_DIRECTORY ${SCRAPBOOK_MACOS_RESOURCE_DIR})
+  configure_file(
+    assets/ASSETS-modern.LRP
+    ${SCRAPBOOK_MACOS_RESOURCE_DIR}/ASSETS.LRP
+    COPYONLY
+  )
+  set_source_files_properties(
+    ${SCRAPBOOK_MACOS_RESOURCE_DIR}/ASSETS.LRP
+    PROPERTIES
+      GENERATED TRUE
+      MACOSX_PACKAGE_LOCATION Resources
+  )
+
+  file(GLOB_RECURSE SCRAPBOOK_MACOS_HEADERS src/*.hpp)
+  add_executable(ScrapbookUIMacOS MACOSX_BUNDLE
+    src/MacOSMain.mm
+    src/ScrapbookPackage.cpp
+    ${SCRAPBOOK_MACOS_HEADERS}
+    ${SCRAPBOOK_MACOS_RESOURCE_DIR}/ASSETS.LRP
+  )
+  loka_enable_warnings(ScrapbookUIMacOS)
+
+  set_target_properties(ScrapbookUIMacOS PROPERTIES
+    CXX_STANDARD 98
+    CXX_STANDARD_REQUIRED YES
+    OBJCXX_STANDARD 98
+    OBJCXX_STANDARD_REQUIRED YES
+  )
+
+  target_include_directories(ScrapbookUIMacOS PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../common
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../apple/macos/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../apple/macos/src/context
+  )
+  target_link_libraries(ScrapbookUIMacOS PRIVATE LokaMacOSCore)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS)
+    target_compile_options(ScrapbookUIMacOS PRIVATE "-fno-objc-arc")
+  endif()
 endif()
 
 if(NOT CMAKE_SYSTEM_NAME MATCHES "^Retro68$")
