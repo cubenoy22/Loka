@@ -1126,13 +1126,15 @@ void testLrpkRefusesForgedCountsAndUnsortedRows()
         tooLarge <<= 8;
       }
       assert(!SizeFitsU32(tooLarge));
-      const unsigned char borrowedByte = 0;
+      // Keep the buffer valid so its alignment cannot mask the size failure.
+      std::vector<unsigned char> borrowedBytes(kPayloadAlign, 0);
+      assert(reinterpret_cast<std::size_t>(&borrowedBytes[0]) % kPayloadAlign == 0);
       Reader oversized;
-      LOKA_VERIFY(oversized.openBorrowedBytes(&borrowedByte,
-                                         tooLarge,
-                                         kStamp,
-                                         Reader::VERIFY_INTEGRITY) ==
-             Reader::OPEN_SIZE_OUT_OF_RANGE);
+      LOKA_VERIFY(oversized.openBorrowedBytes(&borrowedBytes[0],
+                                              tooLarge,
+                                              kStamp,
+                                              Reader::VERIFY_INTEGRITY) ==
+                  Reader::OPEN_SIZE_OUT_OF_RANGE);
     }
   }
 
