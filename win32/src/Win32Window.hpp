@@ -38,6 +38,9 @@ public:
     return hwnd_;
   }
 
+  /** Reads the native window position and client size as one content frame. */
+  bool queryNativeContentFrame(loka::core::Frame &out) const;
+
   static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
   virtual void onShow();

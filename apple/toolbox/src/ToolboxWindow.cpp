@@ -108,16 +108,17 @@ void ToolboxWindow::open()
   {
     return;
   }
+  const loka::core::Frame defaultFrame = Window::defaultFrame();
   Rect bounds;
-  short left = static_cast<short>(this->hasPosition() ? this->positionX() : 50);
-  short top = static_cast<short>(this->hasPosition() ? this->positionY() : 50);
+  short left = static_cast<short>(this->hasPosition() ? this->positionX() : defaultFrame.x);
+  short top = static_cast<short>(this->hasPosition() ? this->positionY() : defaultFrame.y);
   short menuHeight = GetMBarHeight();
   if (menuHeight > 0)
   {
     top = static_cast<short>(top + menuHeight + 1);
   }
-  short width = static_cast<short>(this->hasSize() ? this->width() : 300);
-  short height = static_cast<short>(this->hasSize() ? this->height() : 300);
+  short width = static_cast<short>(this->hasSize() ? this->width() : defaultFrame.width);
+  short height = static_cast<short>(this->hasSize() ? this->height() : defaultFrame.height);
   SetRect(&bounds, left, top, static_cast<short>(left + width), static_cast<short>(top + height));
 
   loka::core::String titleValue = this->titleState().get();
