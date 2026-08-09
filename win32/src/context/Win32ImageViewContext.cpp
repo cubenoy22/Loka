@@ -150,7 +150,7 @@ namespace
   {
     if (!node)
     {
-      return fallbackHeight > 0 ? fallbackHeight : 160;
+      return fallbackHeight > 0 ? fallbackHeight : loka::app::layout::FallbackControlMetrics::kImageFallbackHeight;
     }
     int sizePolicy = loka::app::IMAGE_VIEW_SIZE_AUTO;
     if (node->props.hasAttr_ && node->props.attr_.hasSizePolicyValue_)
@@ -186,7 +186,7 @@ namespace
     {
       return fallbackHeight;
     }
-    return 160;
+    return loka::app::layout::FallbackControlMetrics::kImageFallbackHeight;
   }
 } // namespace
 
