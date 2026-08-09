@@ -242,7 +242,29 @@ bool ToolboxWindow::hasPendingInvalidate() const
 
 void ToolboxWindow::refreshFrame()
 {
-  FrameChangedThunk(this);
+  if (!this->window_)
+  {
+    return;
+  }
+
+  Rect actualContentBounds = this->window_->portRect;
+  GrafPtr oldPort;
+  GetPort(&oldPort);
+  SetPort(this->window_);
+  LocalToGlobal(reinterpret_cast<Point *>(&actualContentBounds.top));
+  LocalToGlobal(reinterpret_cast<Point *>(&actualContentBounds.bottom));
+  SetPort(oldPort);
+
+  MoveWindow(this->window_, actualContentBounds.left, actualContentBounds.top, false);
+
+  const loka::core::Frame declaredFrame = this->frameState().get();
+  if (declaredFrame.hasSize())
+  {
+    SizeWindow(this->window_,
+               static_cast<short>(declaredFrame.width),
+               static_cast<short>(declaredFrame.height),
+               true);
+  }
 }
 
 void ToolboxWindow::FrameChangedThunk(void *userData)
