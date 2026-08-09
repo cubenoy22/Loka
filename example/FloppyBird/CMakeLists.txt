@@ -17,10 +17,12 @@ endif()
 
 # ---- Win32 ----------------------------------------------------------------
 if(WIN32)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/LokaWin32VisualStyles.cmake)
   add_executable(LokaFloppyBirdWin32 WIN32
     src/main.cpp
   )
   loka_enable_warnings(LokaFloppyBirdWin32)
+  loka_enable_win32_visual_styles(LokaFloppyBirdWin32)
 
   set_target_properties(LokaFloppyBirdWin32 PROPERTIES
     CXX_STANDARD 98

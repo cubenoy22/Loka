@@ -18,6 +18,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Car
 endif()
 
 if(WIN32)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/LokaWin32VisualStyles.cmake)
   set(HELLOWORLD_SOURCES
     src/main.cpp
     src/MainNode.cpp
@@ -36,6 +37,7 @@ if(WIN32)
     add_executable(LokaHelloWin32 WIN32 ${HELLOWORLD_SOURCES})
   endif()
   loka_enable_warnings(LokaHelloWin32)
+  loka_enable_win32_visual_styles(LokaHelloWin32)
 
   target_include_directories(LokaHelloWin32 PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
@@ -71,6 +73,8 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32Profiler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32ScenePlatformController.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32BuiltInSupport.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32App.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32Window.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32ButtonContext.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32CellContext.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32TextContext.cpp
@@ -85,6 +89,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32FilePathTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32AppLocationTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32RectSurfacePaintTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32WindowClientSizeTests.cpp
   )
   loka_enable_warnings(LokaTestsWin32)
 

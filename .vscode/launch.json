@@ -26,6 +26,14 @@
       "preLaunchTask": "Build: macOS SimpleViewer"
     },
     {
+      "name": "Run (macOS ScrapbookUI)",
+      "type": "lldb-dap",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/macos/Debug/example/ScrapbookUI/ScrapbookUIMacOS.app/Contents/MacOS/ScrapbookUIMacOS",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Build: macOS ScrapbookUI"
+    },
+    {
       "name": "Run (macOS FloppyBird)",
       "type": "lldb-dap",
       "request": "launch",

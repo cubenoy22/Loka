@@ -1,0 +1,7 @@
+#ifndef LOKA_WIN32_WINDOW_CLIENT_SIZE_TESTS_HPP
+#define LOKA_WIN32_WINDOW_CLIENT_SIZE_TESTS_HPP
+
+void testWin32DeclaredWindowSizeMeansClientArea();
+void testWin32AppOnlyMenuWindowSettles();
+
+#endif // LOKA_WIN32_WINDOW_CLIENT_SIZE_TESTS_HPP
