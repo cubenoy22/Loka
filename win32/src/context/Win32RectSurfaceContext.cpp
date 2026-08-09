@@ -5,6 +5,7 @@
 namespace
 {
   const char *kRectSurfaceClassName = "LOKA_RECT_SURFACE";
+  const COLORREF kRectSurfaceClearColor = RGB(255, 255, 255);
 }
 
 Win32RectSurfaceContext::Win32RectSurfaceContext(
@@ -203,7 +204,7 @@ void Win32RectSurfaceContext::draw(HDC hdc, const RECT &rect)
 {
   if (node_ && node_->props.clearBackground_)
   {
-    HBRUSH backgroundBrush = CreateSolidBrush(RGB(255, 255, 255));
+    HBRUSH backgroundBrush = CreateSolidBrush(kRectSurfaceClearColor);
     if (backgroundBrush)
     {
       FillRect(hdc, &rect, backgroundBrush);

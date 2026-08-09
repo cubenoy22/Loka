@@ -6,6 +6,7 @@ namespace
 {
   const char *kImageViewClassName = "LOKA_IMAGE_VIEW";
   const int kVerticalSpacing = 12;
+  const COLORREF kImageViewFillColor = RGB(240, 240, 240);
 
   class Win32ImageViewNodeHandler
       : public loka::app::scene::RetainedNodeHandler<Win32ImageViewNodeHandler,
@@ -366,7 +367,7 @@ void Win32ImageViewContext::applyImage()
 
 void Win32ImageViewContext::drawImage(HDC hdc, const RECT &rect)
 {
-  HBRUSH fill = CreateSolidBrush(RGB(240, 240, 240));
+  HBRUSH fill = CreateSolidBrush(kImageViewFillColor);
   FillRect(hdc, &rect, fill);
   DeleteObject(fill);
 

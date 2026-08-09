@@ -17,6 +17,11 @@ namespace
 {
   const int kVerticalSpacing = 12;
 
+  NSColor *MacImageViewFillColor()
+  {
+    return [NSColor colorWithCalibratedWhite:0.94 alpha:1.0];
+  }
+
   int ResolveImageLayoutWidth(const loka::app::ImageViewNode *node, int fallbackWidth)
   {
     if (!node)
@@ -170,7 +175,7 @@ namespace
 - (void)drawRect:(NSRect)dirtyRect
 {
   (void)dirtyRect;
-  [[NSColor colorWithCalibratedWhite:0.94 alpha:1.0] setFill];
+  [MacImageViewFillColor() setFill];
   NSRectFill([self bounds]);
   if (image_)
   {
