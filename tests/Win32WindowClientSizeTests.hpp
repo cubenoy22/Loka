@@ -3,5 +3,6 @@
 
 void testWin32DeclaredWindowSizeMeansClientArea();
 void testWin32AppOnlyMenuWindowSettles();
+void testWin32MenuRebuildPreservesMovedWindowFrame();
 
 #endif // LOKA_WIN32_WINDOW_CLIENT_SIZE_TESTS_HPP
