@@ -154,7 +154,9 @@ bool Win32ScenePlatformController::prepareProjectedLayout(loka::app::scene::Node
   loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(node);
   if (!handler)
   {
-    assert(false && "no node handler registered for this node type -- register the handler or an explicit RefusedNodeHandler");
+    assert(
+        false
+        && "no node handler registered for this node type -- register the handler or an explicit RefusedNodeHandler");
     return false;
   }
   return handler->ensureContext(node, this, handlerState) != 0;
@@ -274,6 +276,7 @@ void Win32ScenePlatformController::onChange(loka::app::scene::Node *rootNode,
                                             loka::app::scene::NodeDirtyFlags flags,
                                             bool fullRebuild)
 {
+  (void)fullRebuild;
   ++this->redrawStats_.onChangeCalls;
   this->redrawStats_.lastOnChangeFlags = flags;
   this->redrawStats_.lastOnChangeFullRebuild = fullRebuild;
@@ -299,7 +302,7 @@ void Win32ScenePlatformController::onChange(loka::app::scene::Node *rootNode,
     clientWidth_ = rc.right - rc.left;
     clientHeight_ = rc.bottom - rc.top;
   }
-  performLayout(clientWidth_, clientHeight_, fullRebuild);
+  performLayout(clientWidth_, clientHeight_);
 }
 
 void Win32ScenePlatformController::onBoundaryApply(loka::app::scene::Node *rootNode,
@@ -585,12 +588,11 @@ void Win32ScenePlatformController::relayout(int clientWidth, int clientHeight)
   }
   clientWidth_ = clientWidth;
   clientHeight_ = clientHeight;
-  performLayout(clientWidth_, clientHeight_, false);
+  performLayout(clientWidth_, clientHeight_);
 }
 
-void Win32ScenePlatformController::performLayout(int clientWidth, int clientHeight, bool rebuildContexts)
+void Win32ScenePlatformController::performLayout(int clientWidth, int clientHeight)
 {
-  (void)rebuildContexts;
   pendingInvalidations_.clear();
   if (!rootNode_ || !rootHwnd_)
   {
