@@ -1,6 +1,6 @@
 #include "context/ToolboxRectSurfaceContext.hpp"
 
-void EnsureToolboxRectSurfaceContext(loka::app::RectSurfaceNode *node)
+void EnsureToolboxRectSurfaceContext(loka::app::RectSurfaceNode *node, ToolboxScenePlatformController *controller)
 {
   if (!node)
   {
@@ -9,13 +9,15 @@ void EnsureToolboxRectSurfaceContext(loka::app::RectSurfaceNode *node)
   ToolboxRectSurfaceContext *ctx = static_cast<ToolboxRectSurfaceContext *>(node->getContext());
   if (!ctx)
   {
-    ctx = new ToolboxRectSurfaceContext(node);
+    ctx = new ToolboxRectSurfaceContext(node, controller);
     node->setContext(ctx);
   }
 }
 
-ToolboxRectSurfaceContext::ToolboxRectSurfaceContext(loka::app::RectSurfaceNode *node)
-    : node_(node),
+ToolboxRectSurfaceContext::ToolboxRectSurfaceContext(loka::app::RectSurfaceNode *node,
+                                                     ToolboxScenePlatformController *controller)
+    : ToolboxProjectedNodeContext(controller),
+      node_(node),
       rect_(),
       previousModel_(),
       hasPreviousModel_(false),

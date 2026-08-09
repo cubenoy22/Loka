@@ -2,6 +2,7 @@
 #define LOKA_WIN32_IMAGE_VIEW_CONTEXT_HPP
 
 #include <windows.h>
+#include "Win32RetirableContext.hpp"
 #include "app/nodes/ImageView.hpp"
 #include "core/State.hpp"
 #include "core/resource/Image.hpp"
@@ -17,10 +18,18 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-class Win32ImageViewContext : public loka::app::scene::NodeContext
+class Win32ScenePlatformController;
+
+class Win32ImageViewContext : public Win32RetirableContext
 {
 public:
-  Win32ImageViewContext(HWND parent, int x, int y, int width, int height, loka::app::ImageViewNode *node);
+  Win32ImageViewContext(Win32ScenePlatformController *controller,
+                        HWND parent,
+                        int x,
+                        int y,
+                        int width,
+                        int height,
+                        loka::app::ImageViewNode *node);
   virtual ~Win32ImageViewContext();
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   /** Attach-time read (late-subscriber rule): presentation from the current

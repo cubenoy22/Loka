@@ -47,10 +47,19 @@ namespace loka
         virtual void synchronize() = 0;
         virtual bool hasPendingSync() const = 0;
 
+        /** Destroys native handles queued by terminal context delivery. This
+            runs only at the platform safe point, after native callbacks have
+            unwound and immediately before the App reclaim boundary. */
+        virtual void drainNativeRetirements() {}
+
         // Destroy platform-owned UI resources.
         virtual void destroy() = 0;
 
-        /** Releases every context owned by a retired subtree without forcing a full scene rebuild. */
+        /** Completes the detach line for every context owned by a retired
+            subtree without forcing a full scene rebuild. Terminal fact
+            delivery must hide, unbind, remove native event routes, and queue
+            native destruction before the context object is deleted here;
+            actual native destruction is forbidden on this path. */
         virtual void releaseNodeContexts(Node *node)
         {
           if (!node)

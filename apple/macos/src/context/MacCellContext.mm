@@ -1,4 +1,5 @@
 #include "MacCellContext.hpp"
+#include <cassert>
 #include "../MacScenePlatformController.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "Utf8String.hpp"
@@ -30,7 +31,7 @@ namespace
                                   const loka::app::scene::LayoutState &state)
     {
       MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      return new MacCellContext(mac->rootView(), state.x, state.y, state.width, state.height, cell);
+      return new MacCellContext(mac, mac->rootView(), state.x, state.y, state.width, state.height, cell);
     }
 
     static void refresh(MacCellContext *ctx, const loka::app::scene::LayoutState &state)
@@ -120,8 +121,15 @@ namespace
 }
 @end
 
-MacCellContext::MacCellContext(void *parentView, int x, int y, int width, int height, loka::app::CellNode *node)
-    : node_(node),
+MacCellContext::MacCellContext(MacScenePlatformController *controller,
+                               void *parentView,
+                               int x,
+                               int y,
+                               int width,
+                               int height,
+                               loka::app::CellNode *node)
+    : MacRetirableContext(controller),
+      node_(node),
       view_(0),
       textState_(0),
       textStateBound_(false)
@@ -145,18 +153,7 @@ MacCellContext::MacCellContext(void *parentView, int x, int y, int width, int he
 
 MacCellContext::~MacCellContext()
 {
-  unbindText();
-  LokaCellView *view = (LokaCellView *)view_;
-  if (view)
-  {
-    [view setContext:0];
-    [view removeFromSuperview];
-  }
-  if (view_)
-  {
-    [(id)view_ release];
-  }
-  view_ = 0;
+  assert(!view_ && "terminal fact delivery must queue the native view before context reclaim");
 }
 
 void MacCellContext::readLifecycleFactOnAttach()
@@ -180,6 +177,15 @@ void MacCellContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
     // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
     // (hide before the ritual destroys the native pair).
     this->applyDetachedPresentation();
+    if (next == loka::app::scene::NODE_FACT_RETIRED)
+    {
+      this->unbindText();
+      LokaCellView *view = (LokaCellView *)this->view_;
+      [view setContext:0];
+      [view removeFromSuperview];
+      this->retireNativeObject(this->view_);
+      this->node_ = 0;
+    }
   }
 }
 

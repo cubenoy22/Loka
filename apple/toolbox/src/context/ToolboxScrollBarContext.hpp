@@ -48,10 +48,10 @@ public:
   }
 
 private:
+  virtual void retireNativeProjection();
   loka::app::ScrollBarNode *node_;
   Rect rect_;
   short resourceId_;
-  ToolboxScenePlatformController *controller_;
 };
 
 bool RegisterToolboxScrollBarNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);

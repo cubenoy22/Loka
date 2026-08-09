@@ -2,7 +2,7 @@
 #define LOKA_WIN32_POPUP_MENU_CONTEXT_HPP
 
 #include <windows.h>
-#include "app/scene/projection/NativeNodeContext.hpp"
+#include "Win32RetirableContext.hpp"
 #include "app/nodes/controls/PopupMenu.hpp"
 
 namespace loka
@@ -16,10 +16,18 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-class Win32PopupMenuContext : public loka::app::scene::NativeNodeContext
+class Win32ScenePlatformController;
+
+class Win32PopupMenuContext : public Win32RetirableContext
 {
 public:
-  Win32PopupMenuContext(HWND parent, int x, int y, int width, int height, loka::app::PopupMenuNode *node);
+  Win32PopupMenuContext(Win32ScenePlatformController *controller,
+                        HWND parent,
+                        int x,
+                        int y,
+                        int width,
+                        int height,
+                        loka::app::PopupMenuNode *node);
   virtual ~Win32PopupMenuContext();
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   /** Attach-time read (late-subscriber rule): presentation from the current

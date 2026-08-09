@@ -1,7 +1,7 @@
 #ifndef LOKA_MAC_OPEN_FILE_DIALOG_CONTEXT_HPP
 #define LOKA_MAC_OPEN_FILE_DIALOG_CONTEXT_HPP
 
-#include "app/scene/projection/NativeNodeContext.hpp"
+#include "MacRetirableContext.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "core/String.hpp"
 
@@ -16,10 +16,14 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-class MacOpenFileDialogContext : public loka::app::scene::NativeNodeContext
+class MacScenePlatformController;
+
+class MacOpenFileDialogContext : public MacRetirableContext
 {
 public:
-  MacOpenFileDialogContext(void *parentView, loka::app::OpenFileDialogNode *node);
+  MacOpenFileDialogContext(MacScenePlatformController *controller,
+                           void *parentView,
+                           loka::app::OpenFileDialogNode *node);
   virtual ~MacOpenFileDialogContext();
   /** Attach-time read (late-subscriber rule): presentation from the current
       fact, called by the installing handler right after setContext. */

@@ -1,7 +1,7 @@
 #ifndef LOKA_MAC_TEXT_CONTEXT_HPP
 #define LOKA_MAC_TEXT_CONTEXT_HPP
 
-#include "app/scene/projection/NativeNodeContext.hpp"
+#include "MacRetirableContext.hpp"
 #include "core/State.hpp"
 #include "core/String.hpp"
 
@@ -17,10 +17,18 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-class MacTextContext : public loka::app::scene::NativeNodeContext, public loka::app::scene::ICapturableBitmap
+class MacScenePlatformController;
+
+class MacTextContext : public MacRetirableContext, public loka::app::scene::ICapturableBitmap
 {
 public:
-  MacTextContext(void *parentView, int x, int y, int width, int height, loka::app::TextNode *node);
+  MacTextContext(MacScenePlatformController *controller,
+                 void *parentView,
+                 int x,
+                 int y,
+                 int width,
+                 int height,
+                 loka::app::TextNode *node);
   virtual ~MacTextContext();
   virtual loka::app::scene::ICapturableBitmap *asCapturableBitmap()
   {

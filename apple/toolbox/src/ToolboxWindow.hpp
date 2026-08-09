@@ -39,6 +39,7 @@ public:
   void refreshFrame();
   virtual bool hasPendingScenePlatformSync() const;
   virtual void synchronizeScenePlatform();
+  virtual void drainNativeRetirements();
   virtual bool dumpDebugStatsToTimestampedFile();
   virtual void resetDebugStats();
   virtual void requestDeferredDebugDump();

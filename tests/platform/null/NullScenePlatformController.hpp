@@ -29,6 +29,7 @@ public:
     FakeControlHandle(int identity, loka::app::scene::NodeContext *contextOwner)
         : id(identity),
           owner(contextOwner),
+          hitOwner(contextOwner),
           disposed(false),
           leakedDeliberately(false)
     {
@@ -36,6 +37,7 @@ public:
 
     int id;
     loka::app::scene::NodeContext *owner;
+    loka::app::scene::NodeContext *hitOwner;
     bool disposed;
     bool leakedDeliberately;
   };
@@ -89,14 +91,16 @@ public:
   {
     TeardownCounters()
         : backPointerCleared(0),
-          rowRemoved(0),
-          handedToPool(0)
+          hitRouteRemoved(0),
+          queuedForNativeRetirement(0),
+          ledgerRowRemovedAtSafePoint(0)
     {
     }
 
     unsigned long backPointerCleared;
-    unsigned long rowRemoved;
-    unsigned long handedToPool;
+    unsigned long hitRouteRemoved;
+    unsigned long queuedForNativeRetirement;
+    unsigned long ledgerRowRemovedAtSafePoint;
   };
 
   struct BucketStats
@@ -142,6 +146,7 @@ public:
                                const loka::app::scene::BoundaryLocalApplyInfo &info,
                                const loka::app::scene::PlatformApplyPlan &plan);
   virtual bool hasPendingSync() const;
+  virtual void drainNativeRetirements();
   virtual void destroy();
   virtual bool prepareProjectedLayout(loka::app::scene::Node *node,
                                       loka::app::scene::LayoutState &state);
@@ -172,6 +177,9 @@ public:
   BucketStats bucketStats(ControlRecipe recipe) const;
   unsigned long eventCount(EventKind kind) const;
   const LedgerRow *findLedgerRow(ControlRecipe recipe) const;
+  bool hasHitTarget(ControlRecipe recipe) const;
+  bool injectNotification(ControlRecipe recipe);
+  unsigned long injectedDeliveryCount() const;
 
   /** Test injection: leaves the next retiring handle's owner set so the
       intake consistency check can exercise its deliberate-release arm. */
@@ -265,6 +273,7 @@ private:
   unsigned long intakeCheckFailCount_;
   unsigned long createdCount_;
   unsigned long disposedCount_;
+  unsigned long injectedDeliveryCount_;
   unsigned long nextEventSequence_;
   int nextHandleId_;
   bool preserveNextRetiredOwner_;

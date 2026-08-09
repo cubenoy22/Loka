@@ -1,4 +1,5 @@
 #include "MacImageViewContext.hpp"
+#include <cassert>
 #include "../MacScenePlatformController.hpp"
 #include "../MacObjCCompat.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
@@ -109,7 +110,7 @@ namespace
                                        const loka::app::scene::LayoutState &state)
     {
       MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      return new MacImageViewContext(mac->rootView(), state.x, state.y, state.width, state.height, image);
+      return new MacImageViewContext(mac, mac->rootView(), state.x, state.y, state.width, state.height, image);
     }
 
     static void refresh(MacImageViewContext *ctx, const loka::app::scene::LayoutState &state)
@@ -234,9 +235,15 @@ namespace
 }
 @end
 
-MacImageViewContext::MacImageViewContext(
-    void *parentView, int x, int y, int width, int height, loka::app::ImageViewNode *node)
-    : node_(node),
+MacImageViewContext::MacImageViewContext(MacScenePlatformController *controller,
+                                         void *parentView,
+                                         int x,
+                                         int y,
+                                         int width,
+                                         int height,
+                                         loka::app::ImageViewNode *node)
+    : MacRetirableContext(controller),
+      node_(node),
       imageView_(0),
       imageState_(0),
       image_()
@@ -253,17 +260,7 @@ MacImageViewContext::MacImageViewContext(
 
 MacImageViewContext::~MacImageViewContext()
 {
-  unbindImage();
-  LokaImageView *view = (LokaImageView *)imageView_;
-  if (view)
-  {
-    [view removeFromSuperview];
-  }
-  if (imageView_)
-  {
-    [(id)imageView_ release];
-  }
-  imageView_ = 0;
+  assert(!imageView_ && "terminal fact delivery must queue the native view before context reclaim");
 }
 
 void MacImageViewContext::readLifecycleFactOnAttach()
@@ -287,6 +284,13 @@ void MacImageViewContext::onFactChanged(loka::app::scene::NodeLifecycleFact prev
     // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
     // (hide before the ritual destroys the native pair).
     this->applyDetachedPresentation();
+    if (next == loka::app::scene::NODE_FACT_RETIRED)
+    {
+      this->unbindImage();
+      [(LokaImageView *)this->imageView_ removeFromSuperview];
+      this->retireNativeObject(this->imageView_);
+      this->node_ = 0;
+    }
   }
 }
 

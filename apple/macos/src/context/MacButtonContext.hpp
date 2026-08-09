@@ -1,7 +1,7 @@
 #ifndef LOKA_MAC_BUTTON_CONTEXT_HPP
 #define LOKA_MAC_BUTTON_CONTEXT_HPP
 
-#include "app/scene/projection/NativeNodeContext.hpp"
+#include "MacRetirableContext.hpp"
 #include "core/State.hpp"
 #include "core/String.hpp"
 
@@ -17,10 +17,18 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-class MacButtonContext : public loka::app::scene::NativeNodeContext, public loka::app::scene::ICapturableBitmap
+class MacScenePlatformController;
+
+class MacButtonContext : public MacRetirableContext, public loka::app::scene::ICapturableBitmap
 {
 public:
-  MacButtonContext(void *parentView, int x, int y, int width, int height, loka::app::ButtonNode *node);
+  MacButtonContext(MacScenePlatformController *controller,
+                   void *parentView,
+                   int x,
+                   int y,
+                   int width,
+                   int height,
+                   loka::app::ButtonNode *node);
   virtual ~MacButtonContext();
   virtual loka::app::scene::ICapturableBitmap *asCapturableBitmap()
   {

@@ -519,6 +519,7 @@ public:
     return false;
   }
   virtual void synchronizeScenePlatform() {}
+  virtual void drainNativeRetirements() {}
 
   loka::core::MutableState<bool> &visibilityState()
   {

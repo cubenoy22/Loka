@@ -1,6 +1,7 @@
 #ifndef LOKA_MAC_SCENE_PLATFORM_CONTROLLER_HPP
 #define LOKA_MAC_SCENE_PLATFORM_CONTROLLER_HPP
 
+#include <vector>
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
@@ -81,6 +82,7 @@ public:
   }
   virtual void synchronize();
   virtual bool hasPendingSync() const;
+  virtual void drainNativeRetirements();
   virtual void destroy();
   virtual void releaseNodeContexts(loka::app::scene::Node *node);
   virtual bool prepareProjectedLayout(loka::app::scene::Node *node, loka::app::scene::LayoutState &state);
@@ -95,6 +97,7 @@ public:
   static MacScenePlatformController *findForRootView(void *rootView);
   static void flushPendingRelayouts();
   void *rootView() const { return rootView_; }
+  void queueNativeRetirement(void *primary, void *auxiliary = 0);
 
 private:
   friend class ::loka::dsl::testing::MacScenePlatformTestAccess;
@@ -225,6 +228,18 @@ private:
   void *focusedEditTextState_;
   int focusedEditTextControlTag_;
   bool relayoutPending_;
+  struct NativeRetirement
+  {
+    NativeRetirement(void *primaryObject, void *auxiliaryObject)
+        : primary(primaryObject),
+          auxiliary(auxiliaryObject)
+    {
+    }
+
+    void *primary;
+    void *auxiliary;
+  };
+  std::vector<NativeRetirement> nativeRetirements_;
 };
 
 #endif // LOKA_MAC_SCENE_PLATFORM_CONTROLLER_HPP

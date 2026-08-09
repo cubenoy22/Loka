@@ -1,4 +1,5 @@
 #include "MacButtonContext.hpp"
+#include <cassert>
 #include "../MacScenePlatformController.hpp"
 #include "../MacObjCCompat.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
@@ -67,7 +68,7 @@ namespace
                                     const loka::app::scene::LayoutState &state)
     {
       MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      return new MacButtonContext(mac->rootView(), state.x, state.y, state.width, state.height, button);
+      return new MacButtonContext(mac, mac->rootView(), state.x, state.y, state.width, state.height, button);
     }
 
     static void refresh(MacButtonContext *ctx, const loka::app::scene::LayoutState &state)
@@ -99,8 +100,15 @@ namespace
 }
 @end
 
-MacButtonContext::MacButtonContext(void *parentView, int x, int y, int width, int height, loka::app::ButtonNode *node)
-    : node_(node),
+MacButtonContext::MacButtonContext(MacScenePlatformController *controller,
+                                   void *parentView,
+                                   int x,
+                                   int y,
+                                   int width,
+                                   int height,
+                                   loka::app::ButtonNode *node)
+    : MacRetirableContext(controller),
+      node_(node),
       button_(0),
       target_(0),
       textState_(0),
@@ -130,26 +138,7 @@ MacButtonContext::MacButtonContext(void *parentView, int x, int y, int width, in
 
 MacButtonContext::~MacButtonContext()
 {
-  unbindText();
-  unbindEnabled();
-  NSButton *button = (NSButton *)button_;
-  if (button)
-  {
-    [button setTarget:nil];
-    [button setAction:nil];
-    [button removeFromSuperview];
-  }
-  if (target_)
-  {
-    [(LokaButtonTarget *)target_ setOwner:0];
-    [(id)target_ release];
-    target_ = 0;
-  }
-  if (button_)
-  {
-    [(id)button_ release];
-  }
-  button_ = 0;
+  assert(!button_ && !target_ && "terminal fact delivery must queue native objects before context reclaim");
 }
 
 void MacButtonContext::readLifecycleFactOnAttach()
@@ -173,6 +162,18 @@ void MacButtonContext::onFactChanged(loka::app::scene::NodeLifecycleFact previou
     // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
     // (hide before the ritual destroys the native pair).
     this->applyDetachedPresentation();
+    if (next == loka::app::scene::NODE_FACT_RETIRED)
+    {
+      this->unbindText();
+      this->unbindEnabled();
+      NSButton *button = (NSButton *)this->button_;
+      [button setTarget:nil];
+      [button setAction:nil];
+      [button removeFromSuperview];
+      [(LokaButtonTarget *)this->target_ setOwner:0];
+      this->retireNativeObjects(this->button_, this->target_);
+      this->node_ = 0;
+    }
   }
 }
 

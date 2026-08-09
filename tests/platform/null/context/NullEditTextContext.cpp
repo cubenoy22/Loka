@@ -46,10 +46,7 @@ NullEditTextContext::NullEditTextContext(loka::app::EditTextNode *node,
 
 NullEditTextContext::~NullEditTextContext()
 {
-  if (this->controller_)
-  {
-    this->controller_->completeContextTeardown(this->handle_);
-  }
+  assert(!this->handle_ && "terminal fact delivery must detach the native before context reclaim");
   this->handle_ = 0;
   this->controller_ = 0;
   this->node_ = 0;
@@ -73,6 +70,13 @@ void NullEditTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact prev
   {
     this->controller_->setVisible(this->handle_, next == loka::app::scene::NODE_FACT_ATTACHED);
     this->controller_->observeHint(this->handle_, this->lifetimeHint());
+    if (next == loka::app::scene::NODE_FACT_RETIRED)
+    {
+      this->controller_->completeContextTeardown(this->handle_);
+      this->handle_ = 0;
+      this->controller_ = 0;
+      this->node_ = 0;
+    }
   }
 }
 

@@ -41,7 +41,7 @@ namespace loka
 class ToolboxEditTextContext : public ToolboxProjectedNodeContext
 {
 public:
-  explicit ToolboxEditTextContext(loka::app::EditTextNode *node);
+  ToolboxEditTextContext(loka::app::EditTextNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxEditTextContext();
 
   void updateData(loka::core::State<loka::core::String> *text);

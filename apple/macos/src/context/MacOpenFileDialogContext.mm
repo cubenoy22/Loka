@@ -1,4 +1,5 @@
 #include "MacOpenFileDialogContext.hpp"
+#include <cassert>
 #include "../MacScenePlatformController.hpp"
 #include "MacObjCCompat.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
@@ -14,6 +15,7 @@
 - (id)initWithOwner:(MacOpenFileDialogContext *)owner;
 - (void)schedulePresent;
 - (void)cancelPresent;
+- (void)detachOwner;
 - (void)onTimer:(NSTimer *)timer;
 @end
 
@@ -57,6 +59,11 @@
   [timer_ invalidate];
   [timer_ release];
   timer_ = nil;
+}
+
+- (void)detachOwner
+{
+  owner_ = 0;
 }
 
 - (void)onTimer:(NSTimer *)timer
@@ -122,7 +129,7 @@ namespace
     {
       (void)state;
       MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      return new MacOpenFileDialogContext(mac->rootView(), dialog);
+      return new MacOpenFileDialogContext(mac, mac->rootView(), dialog);
     }
 
     static void afterAttach(MacOpenFileDialogContext *ctx)
@@ -139,8 +146,11 @@ struct MacOpenFileDialogContext::NativeDialogSession : public MacOpenNativeDialo
 {
 };
 
-MacOpenFileDialogContext::MacOpenFileDialogContext(void *parentView, loka::app::OpenFileDialogNode *node)
-    : node_(node),
+MacOpenFileDialogContext::MacOpenFileDialogContext(MacScenePlatformController *controller,
+                                                   void *parentView,
+                                                   loka::app::OpenFileDialogNode *node)
+    : MacRetirableContext(controller),
+      node_(node),
       resultState_(0),
       onResult_(0),
       presentation_(),
@@ -155,13 +165,7 @@ MacOpenFileDialogContext::MacOpenFileDialogContext(void *parentView, loka::app::
 
 MacOpenFileDialogContext::~MacOpenFileDialogContext()
 {
-  if (deferredPresenter_)
-  {
-    [(LokaMacOpenFileDialogDeferredPresenter *)deferredPresenter_ cancelPresent];
-    [(LokaMacOpenFileDialogDeferredPresenter *)deferredPresenter_ release];
-    deferredPresenter_ = 0;
-  }
-  this->disposeDialog();
+  assert(!deferredPresenter_ && !dialog_ && "terminal fact delivery must queue the presenter before context reclaim");
 }
 
 void MacOpenFileDialogContext::readLifecycleFactOnAttach()
@@ -185,6 +189,14 @@ void MacOpenFileDialogContext::onFactChanged(loka::app::scene::NodeLifecycleFact
     // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
     // (hide before the ritual destroys the native pair).
     this->applyDetachedPresentation();
+    if (next == loka::app::scene::NODE_FACT_RETIRED)
+    {
+      [(LokaMacOpenFileDialogDeferredPresenter *)this->deferredPresenter_ detachOwner];
+      this->retireNativeObject(this->deferredPresenter_);
+      this->node_ = 0;
+      this->resultState_ = 0;
+      this->onResult_ = 0;
+    }
   }
 }
 

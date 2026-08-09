@@ -1,7 +1,7 @@
 #ifndef LOKA_MAC_POPUP_MENU_CONTEXT_HPP
 #define LOKA_MAC_POPUP_MENU_CONTEXT_HPP
 
-#include "app/scene/projection/NativeNodeContext.hpp"
+#include "MacRetirableContext.hpp"
 #include "app/nodes/controls/PopupMenu.hpp"
 
 namespace loka
@@ -15,10 +15,18 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-class MacPopupMenuContext : public loka::app::scene::NativeNodeContext
+class MacScenePlatformController;
+
+class MacPopupMenuContext : public MacRetirableContext
 {
 public:
-  MacPopupMenuContext(void *parentView, int x, int y, int width, int height, loka::app::PopupMenuNode *node);
+  MacPopupMenuContext(MacScenePlatformController *controller,
+                      void *parentView,
+                      int x,
+                      int y,
+                      int width,
+                      int height,
+                      loka::app::PopupMenuNode *node);
   virtual ~MacPopupMenuContext();
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   /** Attach-time read (late-subscriber rule): presentation from the current

@@ -22,9 +22,8 @@ namespace
                                            loka::app::scene::IPlatformController *controller,
                                            const loka::app::scene::LayoutState &state)
     {
-      (void)controller;
       (void)state;
-      return new ToolboxPopupMenuContext(node);
+      return new ToolboxPopupMenuContext(node, static_cast<ToolboxScenePlatformController *>(controller));
     }
   };
 
@@ -53,8 +52,10 @@ namespace
   }
 } // namespace
 
-ToolboxPopupMenuContext::ToolboxPopupMenuContext(loka::app::PopupMenuNode *node)
-    : node_(node),
+ToolboxPopupMenuContext::ToolboxPopupMenuContext(loka::app::PopupMenuNode *node,
+                                                 ToolboxScenePlatformController *controller)
+    : ToolboxProjectedNodeContext(controller),
+      node_(node),
       rect_(),
       lineHeight_(0),
       items_(0),

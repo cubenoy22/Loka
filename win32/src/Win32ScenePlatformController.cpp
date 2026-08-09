@@ -111,6 +111,7 @@ Win32ScenePlatformController::~Win32ScenePlatformController()
     }
   }
   clearContexts();
+  this->drainNativeRetirements();
 }
 
 void Win32ScenePlatformController::requestDirtyRect(HWND targetHwnd, const RECT *rect, BOOL eraseBackground)
@@ -391,13 +392,34 @@ void Win32ScenePlatformController::synchronize()
 
 bool Win32ScenePlatformController::hasPendingSync() const
 {
-  return !pendingInvalidations_.empty();
+  return !pendingInvalidations_.empty() || !retiredWindows_.empty();
+}
+
+void Win32ScenePlatformController::queueNativeRetirement(HWND hwnd)
+{
+  if (hwnd)
+  {
+    this->retiredWindows_.push_back(hwnd);
+  }
+}
+
+void Win32ScenePlatformController::drainNativeRetirements()
+{
+  for (size_t i = 0; i < this->retiredWindows_.size(); ++i)
+  {
+    if (this->retiredWindows_[i])
+    {
+      DestroyWindow(this->retiredWindows_[i]);
+    }
+  }
+  this->retiredWindows_.clear();
 }
 
 void Win32ScenePlatformController::destroy()
 {
   pendingInvalidations_.clear();
   clearContexts();
+  this->drainNativeRetirements();
   rootNode_ = 0;
   clientWidth_ = 0;
   clientHeight_ = 0;
@@ -568,11 +590,8 @@ void Win32ScenePlatformController::relayout(int clientWidth, int clientHeight)
 
 void Win32ScenePlatformController::performLayout(int clientWidth, int clientHeight, bool rebuildContexts)
 {
+  (void)rebuildContexts;
   pendingInvalidations_.clear();
-  if (rebuildContexts)
-  {
-    clearNodeContexts(rootNode_);
-  }
   if (!rootNode_ || !rootHwnd_)
   {
     return;
@@ -617,7 +636,7 @@ Win32ScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *
   else
   {
     ctx = new Win32RectSurfaceContext(
-        rootHwnd_, state.x, state.y, surface->props.width_, surface->props.height_, surface);
+        this, rootHwnd_, state.x, state.y, surface->props.width_, surface->props.height_, surface);
     surface->setContext(ctx);
     ctx->readLifecycleFactOnAttach();
   }

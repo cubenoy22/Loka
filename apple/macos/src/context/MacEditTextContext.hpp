@@ -1,7 +1,7 @@
 #ifndef LOKA_MAC_EDIT_TEXT_CONTEXT_HPP
 #define LOKA_MAC_EDIT_TEXT_CONTEXT_HPP
 
-#include "app/scene/projection/NativeNodeContext.hpp"
+#include "MacRetirableContext.hpp"
 #include "core/State.hpp"
 #include "core/String.hpp"
 
@@ -17,10 +17,18 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-class MacEditTextContext : public loka::app::scene::NativeNodeContext
+class MacScenePlatformController;
+
+class MacEditTextContext : public MacRetirableContext
 {
 public:
-  MacEditTextContext(void *parentView, int x, int y, int width, int height, loka::app::EditTextNode *node);
+  MacEditTextContext(MacScenePlatformController *controller,
+                     void *parentView,
+                     int x,
+                     int y,
+                     int width,
+                     int height,
+                     loka::app::EditTextNode *node);
   virtual ~MacEditTextContext();
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   /** Attach-time read (late-subscriber rule): presentation from the current

@@ -1,4 +1,5 @@
 #include "Win32ImageViewContext.hpp"
+#include <cassert>
 #include "../Win32ScenePlatformController.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 
@@ -23,7 +24,7 @@ namespace
                                          const loka::app::scene::LayoutState &state)
     {
       Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
-      return new Win32ImageViewContext(win32->rootHwnd(), state.x, state.y, state.width, state.height, image);
+      return new Win32ImageViewContext(win32, win32->rootHwnd(), state.x, state.y, state.width, state.height, image);
     }
 
     static void refresh(Win32ImageViewContext *ctx, const loka::app::scene::LayoutState &state)
@@ -190,9 +191,15 @@ namespace
   }
 } // namespace
 
-Win32ImageViewContext::Win32ImageViewContext(
-    HWND parent, int x, int y, int width, int height, loka::app::ImageViewNode *node)
-    : node_(node),
+Win32ImageViewContext::Win32ImageViewContext(Win32ScenePlatformController *controller,
+                                             HWND parent,
+                                             int x,
+                                             int y,
+                                             int width,
+                                             int height,
+                                             loka::app::ImageViewNode *node)
+    : Win32RetirableContext(controller),
+      node_(node),
       hwnd_(0),
       imageState_(0),
       image_()
@@ -205,13 +212,7 @@ Win32ImageViewContext::Win32ImageViewContext(
 
 Win32ImageViewContext::~Win32ImageViewContext()
 {
-  unbindImage();
-  if (hwnd_)
-  {
-    SetWindowLongPtr(hwnd_, GWLP_USERDATA, 0);
-    DestroyWindow(hwnd_);
-    hwnd_ = 0;
-  }
+  assert(!hwnd_ && "terminal fact delivery must queue the HWND before context reclaim");
 }
 
 void Win32ImageViewContext::readLifecycleFactOnAttach()
@@ -235,6 +236,12 @@ void Win32ImageViewContext::onFactChanged(loka::app::scene::NodeLifecycleFact pr
     // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
     // (hide before the ritual destroys the native pair).
     this->applyDetachedPresentation();
+    if (next == loka::app::scene::NODE_FACT_RETIRED)
+    {
+      this->unbindImage();
+      this->retireWindow(this->hwnd_);
+      this->node_ = 0;
+    }
   }
 }
 

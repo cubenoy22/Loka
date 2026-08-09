@@ -47,6 +47,7 @@ public:
   virtual bool registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler);
   virtual void synchronize();
   virtual bool hasPendingSync() const;
+  virtual void drainNativeRetirements();
   virtual void destroy();
   virtual void releaseNodeContexts(loka::app::scene::Node *node);
 
@@ -107,6 +108,7 @@ public:
                               loka::app::scene::NativeLifetimeHint lifetimeHint =
                                   loka::app::scene::NATIVE_HINT_DEFAULT);
   void destroyScrollBarControl(short resourceId, loka::app::scene::NativeLifetimeHint lifetimeHint);
+  void retireNodeContext(loka::app::scene::NodeContext *context, loka::app::scene::NativeLifetimeHint lifetimeHint);
   void drawFallbackControl(const Rect &rect);
   TEHandle ensureEditTextControl(loka::app::scene::NodeContext *ownerContext,
                                  const Rect &rect,

@@ -1,4 +1,5 @@
 #include "MacEditTextContext.hpp"
+#include <cassert>
 #include "../MacScenePlatformController.hpp"
 #include "MacObjCCompat.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
@@ -29,7 +30,7 @@ namespace
                                       const loka::app::scene::LayoutState &state)
     {
       MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      return new MacEditTextContext(mac->rootView(), state.x, state.y, state.width, state.height, edit);
+      return new MacEditTextContext(mac, mac->rootView(), state.x, state.y, state.width, state.height, edit);
     }
 
     static void refresh(MacEditTextContext *ctx, const loka::app::scene::LayoutState &state)
@@ -60,9 +61,15 @@ namespace
 }
 @end
 
-MacEditTextContext::MacEditTextContext(
-    void *parentView, int x, int y, int width, int height, loka::app::EditTextNode *node)
-    : node_(node),
+MacEditTextContext::MacEditTextContext(MacScenePlatformController *controller,
+                                       void *parentView,
+                                       int x,
+                                       int y,
+                                       int width,
+                                       int height,
+                                       loka::app::EditTextNode *node)
+    : MacRetirableContext(controller),
+      node_(node),
       field_(0),
       delegate_(0),
       textState_(0),
@@ -96,24 +103,7 @@ MacEditTextContext::MacEditTextContext(
 
 MacEditTextContext::~MacEditTextContext()
 {
-  unbindText();
-  NSTextField *field = (NSTextField *)field_;
-  if (field)
-  {
-    [field setDelegate:nil];
-    [field removeFromSuperview];
-  }
-  if (delegate_)
-  {
-    [(LokaTextFieldDelegate *)delegate_ setOwner:0];
-    [(id)delegate_ release];
-    delegate_ = 0;
-  }
-  if (field_)
-  {
-    [(id)field_ release];
-  }
-  field_ = 0;
+  assert(!field_ && !delegate_ && "terminal fact delivery must queue native objects before context reclaim");
 }
 
 void MacEditTextContext::readLifecycleFactOnAttach()
@@ -137,6 +127,16 @@ void MacEditTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previ
     // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
     // (hide before the ritual destroys the native pair).
     this->applyDetachedPresentation();
+    if (next == loka::app::scene::NODE_FACT_RETIRED)
+    {
+      this->unbindText();
+      NSTextField *field = (NSTextField *)this->field_;
+      [field setDelegate:nil];
+      [field removeFromSuperview];
+      [(LokaTextFieldDelegate *)this->delegate_ setOwner:0];
+      this->retireNativeObjects(this->field_, this->delegate_);
+      this->node_ = 0;
+    }
   }
 }
 

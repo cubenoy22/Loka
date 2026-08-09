@@ -53,6 +53,7 @@ set(LOKA_MACOS_CORE_SOURCES
   src/MacWindow.mm
   src/platform/MacAppLocation.mm
   src/context/MacButtonContext.mm
+  src/context/MacRetirableContext.mm
   src/context/MacCellContext.mm
   src/context/MacEditTextContext.mm
   src/context/MacOpenFileDialogContext.mm

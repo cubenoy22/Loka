@@ -3,7 +3,7 @@
 
 #include <windows.h>
 #include "app/RectSurface.hpp"
-#include "app/scene/projection/NativeNodeContext.hpp"
+#include "Win32RetirableContext.hpp"
 
 namespace loka
 {
@@ -13,10 +13,18 @@ namespace loka
   }
 } // namespace loka
 
-class Win32RectSurfaceContext : public loka::app::scene::NativeNodeContext
+class Win32ScenePlatformController;
+
+class Win32RectSurfaceContext : public Win32RetirableContext
 {
 public:
-  Win32RectSurfaceContext(HWND parent, int x, int y, int width, int height, loka::app::RectSurfaceNode *node);
+  Win32RectSurfaceContext(Win32ScenePlatformController *controller,
+                          HWND parent,
+                          int x,
+                          int y,
+                          int width,
+                          int height,
+                          loka::app::RectSurfaceNode *node);
   virtual ~Win32RectSurfaceContext();
   /** Attach-time read (late-subscriber rule): presentation from the current
       fact, called by the installing handler right after setContext. */

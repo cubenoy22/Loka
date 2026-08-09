@@ -42,7 +42,7 @@ namespace loka
 class ToolboxPopupMenuContext : public ToolboxProjectedNodeContext
 {
 public:
-  explicit ToolboxPopupMenuContext(loka::app::PopupMenuNode *node);
+  ToolboxPopupMenuContext(loka::app::PopupMenuNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxPopupMenuContext();
 
   void updateData(const loka::Vector<loka::core::String> *items,
