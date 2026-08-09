@@ -1,0 +1,15 @@
+onChange flags=0x100 fullRebuild=1
+drain: pending=0
+after drain: childHwnds=65 visible=65
+BN_CLICKED target=00000000001B087E ctx=000002C1E714D1B0
+onBoundaryApply structure=1 layout=0 paint=1
+onChange flags=0x2 fullRebuild=0
+after BN_CLICKED dispatch: handled=1 childHwnds=130 visible=65
+drain: pending=65
+after drain: childHwnds=65 visible=65
+BN_CLICKED target=00000000001004F6 ctx=000002C1E714DB40
+onBoundaryApply structure=1 layout=0 paint=1
+onChange flags=0x2 fullRebuild=0
+after BN_CLICKED dispatch: handled=1 childHwnds=130 visible=65
+drain: pending=65
+after drain: childHwnds=65 visible=65
