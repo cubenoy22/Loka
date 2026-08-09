@@ -52,6 +52,14 @@ namespace
                             clientRect.bottom - clientRect.top);
     return true;
   }
+
+  void StoreContentFrameIfChanged(Win32Window *window, const loka::core::Frame &frame)
+  {
+    if (window && window->frameState().get() != frame)
+    {
+      window->frameState().set(frame);
+    }
+  }
 } // namespace
 
 Win32Window::Win32Window(PlatformContext *context, const WindowProps &props)
@@ -157,6 +165,12 @@ void Win32Window::FrameChangedThunk(void *userData)
   }
   int x = frame.x >= 0 ? frame.x : windowRect.left;
   int y = frame.y >= 0 ? frame.y : windowRect.top;
+  if (x == windowRect.left && y == windowRect.top &&
+      outerWidth == windowRect.right - windowRect.left &&
+      outerHeight == windowRect.bottom - windowRect.top)
+  {
+    return;
+  }
   MoveWindow(self->hwnd_, x, y, outerWidth, outerHeight, TRUE);
 }
 
@@ -240,7 +254,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         loka::core::Frame frame;
         if (ReadContentFrame(self->hwnd_, frame))
         {
-          self->frameState().set(frame);
+          StoreContentFrameIfChanged(self, frame);
         }
       }
       return 0;
@@ -314,7 +328,7 @@ void Win32Window::createNativeWindow()
     loka::core::Frame frame;
     if (ReadContentFrame(hwnd, frame))
     {
-      this->frameState().set(frame);
+      StoreContentFrameIfChanged(this, frame);
     }
     if (this->app_)
     {

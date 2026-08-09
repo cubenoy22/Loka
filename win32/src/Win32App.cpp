@@ -327,6 +327,18 @@ void Win32App::applyMenuBar(Window *activeWindow)
     AppendMenuW(menuBarHandle, MF_STRING | MF_POPUP, reinterpret_cast<UINT_PTR>(subMenu), titleWide.c_str());
   }
 
+  // AppMenu is platform-reserved and skipped above. An empty HMENU draws no
+  // menu row, so attaching one would disagree with the frame conversion.
+  if (GetMenuItemCount(menuBarHandle) == 0)
+  {
+    DestroyMenu(menuBarHandle);
+    if (ApplyWindowMenuPreservingContentFrame(win, NULL))
+    {
+      clearMenuDiff();
+    }
+    return;
+  }
+
   if (!ApplyWindowMenuPreservingContentFrame(win, menuBarHandle))
   {
     DestroyMenu(menuBarHandle);

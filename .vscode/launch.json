@@ -26,6 +26,14 @@
       "preLaunchTask": "Build: macOS SimpleViewer"
     },
     {
+      "name": "Run (macOS ScrapbookUI)",
+      "type": "lldb-dap",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/macos/Debug/example/ScrapbookUI/ScrapbookUIMacOS.app/Contents/MacOS/ScrapbookUIMacOS",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Build: macOS ScrapbookUI"
+    },
+    {
       "name": "Run (macOS FloppyBird)",
       "type": "lldb-dap",
       "request": "launch",
@@ -67,6 +75,15 @@
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "preLaunchTask": "Build: Win32 SimpleViewer"
+    },
+    {
+      "name": "Run (Windows ScrapbookUI)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/win32/Debug/example/ScrapbookUI/ScrapbookUIWin32.exe",
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "preLaunchTask": "Build: Win32 ScrapbookUI"
     },
     {
       "name": "Run (Windows FloppyBird)",
