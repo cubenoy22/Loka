@@ -19,7 +19,8 @@ PNG_WIDTH = FRAME[3] - FRAME[1]
 PNG_HEIGHT = FRAME[2] - FRAME[0]
 PICT_WIDTH = FRAME[3] - FRAME[1]
 PICT_HEIGHT = FRAME[2] - FRAME[0]
-PICT_ROW_BYTES = (PICT_WIDTH + 7) // 8
+PICT_PIXEL_BYTES = (PICT_WIDTH + 7) // 8
+PICT_ROW_BYTES = (PICT_PIXEL_BYTES + 1) & ~1
 NUMBER_FIELD = (35, 65, 100, 135)
 LABEL_FIELD = (105, 35, 138, 165)
 PACK_BITS_RECT_OFFSET = 614
@@ -326,6 +327,8 @@ def check_prerasterized_picture(picture, bitmap):
         packed = picture[cursor : cursor + packed_length]
         cursor += packed_length
         expected = bitmap[row_start : row_start + PICT_ROW_BYTES]
+        if expected[PICT_PIXEL_BYTES:] != bytes(PICT_ROW_BYTES - PICT_PIXEL_BYTES):
+            raise AssertionError("PackBits scanline padding bits are not zero")
         if unpack_pack_bits(packed) != expected:
             raise AssertionError("PackBits scanline does not round-trip")
     if cursor & 1:

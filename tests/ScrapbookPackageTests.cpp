@@ -20,9 +20,11 @@ namespace
 {
   const loka::core::resource::lrpk::U32 kScrapbookStamp = 3579051217UL;
   const unsigned char kPngSignature[] = {0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'};
+  const std::size_t kPrerasterizedPictureHeight = 150;
+  const std::size_t kPrerasterizedPictureRowBytes = 26;
   const unsigned char kPrerasterizedPictureHeader[] = {
       0x00, 0x98,                                     // PackBitsRect
-      0x00, 0x19,                                     // 25 bytes per 200-pixel scanline
+      0x00, 0x1a,                                     // 26-byte word-aligned scanline stride
       0x00, 0x00, 0x00, 0x00, 0x00, 0x96, 0x00, 0xc8, // bitmap bounds
       0x00, 0x00, 0x00, 0x00, 0x00, 0x96, 0x00, 0xc8, // source rect
       0x00, 0x00, 0x00, 0x00, 0x00, 0x96, 0x00, 0xc8, // destination rect
@@ -137,6 +139,42 @@ namespace
     return std::memcmp(actual, expected, length) == 0;
   }
 
+  bool UnpackBitsRow(const unsigned char *packed,
+                     std::size_t packedLength,
+                     unsigned char *decoded,
+                     std::size_t decodedCapacity,
+                     std::size_t &decodedLength)
+  {
+    std::size_t packedOffset = 0;
+    decodedLength = 0;
+    while (packedOffset < packedLength)
+    {
+      const unsigned int control = packed[packedOffset++];
+      if (control <= 127)
+      {
+        const std::size_t count = control + 1;
+        if (count > packedLength - packedOffset || count > decodedCapacity - decodedLength)
+        {
+          return false;
+        }
+        std::memcpy(decoded + decodedLength, packed + packedOffset, count);
+        packedOffset += count;
+        decodedLength += count;
+      }
+      else if (control >= 129)
+      {
+        const std::size_t count = 257 - control;
+        if (packedOffset >= packedLength || count > decodedCapacity - decodedLength)
+        {
+          return false;
+        }
+        std::memset(decoded + decodedLength, packed[packedOffset++], count);
+        decodedLength += count;
+      }
+    }
+    return true;
+  }
+
   bool HasScrapbookStamp(const loka::lrpc::PackManifest &manifest)
   {
     return loka::lrpc::DeriveIdSpaceStamp(manifest) == kScrapbookStamp;
@@ -167,7 +205,28 @@ namespace
     LOKA_VERIFY(ReadBigEndianWord(bytes + 604) == 0x0032); // EraseRect
     LOKA_VERIFY(BytesMatch(
         bytes + kPrerasterizedPictureHeaderOffset, kPrerasterizedPictureHeader, sizeof(kPrerasterizedPictureHeader)));
-    LOKA_VERIFY(ReadBigEndianWord(bytes + length - 2) == 0x00ff);
+
+    const unsigned char *cursor = bytes + kPrerasterizedPictureHeaderOffset + sizeof(kPrerasterizedPictureHeader);
+    const unsigned char *const endPic = bytes + length - 2;
+    for (std::size_t row = 0; row < kPrerasterizedPictureHeight; ++row)
+    {
+      LOKA_VERIFY(cursor < endPic);
+      const std::size_t packedLength = *cursor++;
+      LOKA_VERIFY(packedLength <= static_cast<std::size_t>(endPic - cursor));
+      unsigned char decoded[kPrerasterizedPictureRowBytes];
+      std::size_t decodedLength = 0;
+      LOKA_VERIFY(UnpackBitsRow(cursor, packedLength, decoded, kPrerasterizedPictureRowBytes, decodedLength));
+      LOKA_VERIFY(decodedLength == kPrerasterizedPictureRowBytes);
+      LOKA_VERIFY(decoded[kPrerasterizedPictureRowBytes - 1] == 0);
+      cursor += packedLength;
+    }
+    if ((cursor - bytes) & 1)
+    {
+      LOKA_VERIFY(cursor < endPic);
+      LOKA_VERIFY(*cursor++ == 0);
+    }
+    LOKA_VERIFY(cursor == endPic);
+    LOKA_VERIFY(ReadBigEndianWord(endPic) == 0x00ff);
   }
 
   void CheckPackageManifestAndImages(const char *manifestRelative,
