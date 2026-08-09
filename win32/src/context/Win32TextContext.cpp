@@ -1,5 +1,6 @@
 #include "Win32TextContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
+#include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "app/nodes/Text.hpp"
 #include "core/resource/Image.hpp"
@@ -8,9 +9,6 @@
 
 namespace
 {
-  const int kDefaultTextHeight = 20;
-  const int kVerticalSpacing = 12;
-
   class Win32TextNodeHandler
       : public loka::app::scene::RetainedNodeHandler<Win32TextNodeHandler,
                                                      loka::app::TextNode,
@@ -251,10 +249,11 @@ bool Win32TextContext::captureBitmap(loka::core::resource::Image &out) const
 
 short Win32TextContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
-  const int textHeight = MeasureTextHeightForWidth(this->hwnd_, this->node_, state.width, kDefaultTextHeight);
+  const int textHeight = MeasureTextHeightForWidth(
+      this->hwnd_, this->node_, state.width, loka::app::layout::FallbackControlMetrics::kTextHeight);
   this->relayout(state.x, state.y, state.width, textHeight);
   state.height = static_cast<short>(textHeight);
-  return static_cast<short>(state.y + textHeight + kVerticalSpacing);
+  return static_cast<short>(state.y + textHeight + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
 }
 
 void Win32TextContext::relayout(int x, int y, int width, int height)

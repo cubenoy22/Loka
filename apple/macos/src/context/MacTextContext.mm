@@ -1,6 +1,7 @@
 #include "MacTextContext.hpp"
 #include "../MacScenePlatformController.hpp"
 #include "../MacObjCCompat.hpp"
+#include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
@@ -11,9 +12,6 @@
 
 namespace
 {
-  const int kDefaultTextHeight = 20;
-  const int kVerticalSpacing = 12;
-
   int MeasureTextHeightForWidth(const loka::app::TextNode *text, int width, int defaultHeight)
   {
     if (!text || !text->props.text_)
@@ -263,10 +261,11 @@ bool MacTextContext::captureBitmap(loka::core::resource::Image &out) const
 
 short MacTextContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
-  const int textHeight = MeasureTextHeightForWidth(this->node_, state.width, kDefaultTextHeight);
+  const int textHeight = MeasureTextHeightForWidth(
+      this->node_, state.width, loka::app::layout::FallbackControlMetrics::kTextHeight);
   this->relayout(state.x, state.y, state.width, textHeight);
   state.height = static_cast<short>(textHeight);
-  return static_cast<short>(state.y + textHeight + kVerticalSpacing);
+  return static_cast<short>(state.y + textHeight + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
 }
 
 void MacTextContext::relayout(int x, int y, int width, int height)

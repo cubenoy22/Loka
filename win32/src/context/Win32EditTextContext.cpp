@@ -1,5 +1,6 @@
 #include "Win32EditTextContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
+#include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include <vector>
 #include "app/nodes/controls/EditText.hpp"
@@ -8,9 +9,6 @@
 
 namespace
 {
-  const int kEditTextHeight = 24;
-  const int kVerticalSpacing = 12;
-
   class Win32EditTextNodeHandler
       : public loka::app::scene::RetainedNodeHandler<Win32EditTextNodeHandler,
                                                      loka::app::EditTextNode,
@@ -122,9 +120,10 @@ bool Win32EditTextContext::handleCommand(WPARAM wParam, LPARAM)
 
 short Win32EditTextContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
-  this->relayout(state.x, state.y, state.width, kEditTextHeight);
-  state.height = static_cast<short>(kEditTextHeight);
-  return static_cast<short>(state.y + kEditTextHeight + kVerticalSpacing);
+  this->relayout(state.x, state.y, state.width, loka::app::layout::FallbackControlMetrics::kEditTextHeight);
+  state.height = static_cast<short>(loka::app::layout::FallbackControlMetrics::kEditTextHeight);
+  return static_cast<short>(state.y + loka::app::layout::FallbackControlMetrics::kEditTextHeight
+                            + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
 }
 
 void Win32EditTextContext::relayout(int x, int y, int width, int height)

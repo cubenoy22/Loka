@@ -1,6 +1,7 @@
 #include "MacButtonContext.hpp"
 #include "../MacScenePlatformController.hpp"
 #include "../MacObjCCompat.hpp"
+#include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
@@ -11,9 +12,6 @@
 
 namespace
 {
-  const int kButtonHeight = 32;
-  const int kVerticalSpacing = 12;
-
   static void ReleaseCapturedButtonBitmap(void *handle, void *)
   {
     NSBitmapImageRep *bitmap = (NSBitmapImageRep *)handle;
@@ -201,9 +199,10 @@ bool MacButtonContext::captureBitmap(loka::core::resource::Image &out) const
 
 short MacButtonContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
-  this->relayout(state.x, state.y, state.width, kButtonHeight);
-  state.height = static_cast<short>(kButtonHeight);
-  return static_cast<short>(state.y + kButtonHeight + kVerticalSpacing);
+  this->relayout(state.x, state.y, state.width, loka::app::layout::FallbackControlMetrics::kButtonHeight);
+  state.height = static_cast<short>(loka::app::layout::FallbackControlMetrics::kButtonHeight);
+  return static_cast<short>(state.y + loka::app::layout::FallbackControlMetrics::kButtonHeight
+                            + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
 }
 
 void MacButtonContext::handlePress()
