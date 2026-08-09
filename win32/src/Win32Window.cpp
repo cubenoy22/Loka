@@ -38,21 +38,6 @@ namespace
     return true;
   }
 
-  bool ReadContentFrame(HWND hwnd, loka::core::Frame &out)
-  {
-    RECT windowRect;
-    RECT clientRect;
-    if (!GetWindowRect(hwnd, &windowRect) || !GetClientRect(hwnd, &clientRect))
-    {
-      return false;
-    }
-    out = loka::core::Frame(windowRect.left,
-                            windowRect.top,
-                            clientRect.right - clientRect.left,
-                            clientRect.bottom - clientRect.top);
-    return true;
-  }
-
   void StoreContentFrameIfChanged(Win32Window *window, const loka::core::Frame &frame)
   {
     if (window && window->frameState().get() != frame)
@@ -77,6 +62,25 @@ Win32Window::Win32Window(PlatformContext *context, const WindowProps &props)
 Win32Window::~Win32Window()
 {
   teardownScene();
+}
+
+bool Win32Window::queryNativeContentFrame(loka::core::Frame &out) const
+{
+  if (!this->hwnd_)
+  {
+    return false;
+  }
+  RECT windowRect;
+  RECT clientRect;
+  if (!GetWindowRect(this->hwnd_, &windowRect) || !GetClientRect(this->hwnd_, &clientRect))
+  {
+    return false;
+  }
+  out = loka::core::Frame(windowRect.left,
+                          windowRect.top,
+                          clientRect.right - clientRect.left,
+                          clientRect.bottom - clientRect.top);
+  return true;
 }
 
 void Win32Window::setApp(App *app)
@@ -252,7 +256,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       if (self->hwnd_)
       {
         loka::core::Frame frame;
-        if (ReadContentFrame(self->hwnd_, frame))
+        if (self->queryNativeContentFrame(frame))
         {
           StoreContentFrameIfChanged(self, frame);
         }
@@ -326,7 +330,7 @@ void Win32Window::createNativeWindow()
   {
     this->hwnd_ = hwnd;
     loka::core::Frame frame;
-    if (ReadContentFrame(hwnd, frame))
+    if (this->queryNativeContentFrame(frame))
     {
       StoreContentFrameIfChanged(this, frame);
     }
