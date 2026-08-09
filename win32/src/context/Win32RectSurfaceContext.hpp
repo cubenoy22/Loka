@@ -35,6 +35,7 @@ private:
   void bindModel();
   void unbindModel();
   void applyModel();
+  bool queryBoundsInParent(HWND &parent, RECT &rect) const;
   void draw(HDC hdc, const RECT &rect);
 
   loka::app::RectSurfaceNode *node_;

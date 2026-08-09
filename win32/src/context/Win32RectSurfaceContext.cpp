@@ -77,15 +77,11 @@ void Win32RectSurfaceContext::relayout(int x, int y, int width, int height)
     return;
   }
   MoveWindow(hwnd_, x, y, width, height, TRUE);
-  HWND parent = GetParent(hwnd_);
-  if (parent)
+  HWND parent = 0;
+  RECT rect;
+  if (this->queryBoundsInParent(parent, rect))
   {
-    RECT rect;
-    if (GetWindowRect(hwnd_, &rect))
-    {
-      MapWindowPoints(NULL, parent, reinterpret_cast<POINT *>(&rect), 2);
-      Win32ScenePlatformController::redrawDirtySubtreeNow(parent, &rect, TRUE);
-    }
+    Win32ScenePlatformController::redrawDirtySubtreeNow(parent, &rect, TRUE);
   }
 }
 
@@ -173,7 +169,25 @@ void Win32RectSurfaceContext::applyModel()
   {
     return;
   }
+  HWND parent = 0;
+  RECT rect;
+  if (this->queryBoundsInParent(parent, rect))
+  {
+    Win32ScenePlatformController::requestDirtySubtree(parent, &rect, TRUE);
+    return;
+  }
   Win32ScenePlatformController::requestDirtyRect(hwnd_, NULL, TRUE);
+}
+
+bool Win32RectSurfaceContext::queryBoundsInParent(HWND &parent, RECT &rect) const
+{
+  parent = this->hwnd_ ? GetParent(this->hwnd_) : 0;
+  if (!parent || !GetWindowRect(this->hwnd_, &rect))
+  {
+    return false;
+  }
+  MapWindowPoints(NULL, parent, reinterpret_cast<POINT *>(&rect), 2);
+  return true;
 }
 
 void Win32RectSurfaceContext::ModelChangedThunk(void *userData)

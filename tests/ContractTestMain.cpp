@@ -7,6 +7,7 @@
 #include "Win32EditTextBridgeTests.hpp"
 #include "Win32FilePathTests.hpp"
 #include "Win32AppLocationTests.hpp"
+#include "Win32RectSurfacePaintTests.hpp"
 #include "Win32WindowClientSizeTests.hpp"
 #endif
 #include "DerivedStateTests.hpp"
