@@ -3,7 +3,30 @@
 #include <windows.h>
 #include <commdlg.h>
 #include "app/core/App.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "platform/Win32String.hpp"
+
+namespace
+{
+  bool ApplyWindowMenuPreservingContentFrame(Win32Window *window, HMENU menu)
+  {
+    if (!window || !window->hwnd())
+    {
+      return false;
+    }
+    const loka::core::Frame contentFrame = window->frameState().get();
+    if (!SetMenu(window->hwnd(), menu))
+    {
+      return false;
+    }
+    {
+      loka::core::StateTrackerGuard guard(window->getTracker());
+      window->frameState().set(contentFrame, true);
+    }
+    DrawMenuBar(window->hwnd());
+    return true;
+  }
+} // namespace
 
 Win32App::Win32App(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow)
     : App(config),
@@ -280,8 +303,7 @@ void Win32App::applyMenuBar(Window *activeWindow)
   const loka::app::MenuBarDefinition *menuBar = resolveMenuBar(activeWindow);
   if (!menuBar)
   {
-    SetMenu(hwnd, NULL);
-    DrawMenuBar(hwnd);
+    ApplyWindowMenuPreservingContentFrame(win, NULL);
     return;
   }
 
@@ -305,8 +327,23 @@ void Win32App::applyMenuBar(Window *activeWindow)
     AppendMenuW(menuBarHandle, MF_STRING | MF_POPUP, reinterpret_cast<UINT_PTR>(subMenu), titleWide.c_str());
   }
 
-  SetMenu(hwnd, menuBarHandle);
-  DrawMenuBar(hwnd);
+  // AppMenu is platform-reserved and skipped above. An empty HMENU draws no
+  // menu row, so attaching one would disagree with the frame conversion.
+  if (GetMenuItemCount(menuBarHandle) == 0)
+  {
+    DestroyMenu(menuBarHandle);
+    if (ApplyWindowMenuPreservingContentFrame(win, NULL))
+    {
+      clearMenuDiff();
+    }
+    return;
+  }
+
+  if (!ApplyWindowMenuPreservingContentFrame(win, menuBarHandle))
+  {
+    DestroyMenu(menuBarHandle);
+    return;
+  }
   activeMenu_ = menuBarHandle;
   clearMenuDiff();
 }
