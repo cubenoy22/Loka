@@ -12,6 +12,24 @@ namespace loka
       class Win32ScenePlatformTestAccess
       {
       public:
+        struct PendingInvalidationSnapshot
+        {
+          PendingInvalidationSnapshot()
+              : hwnd(0),
+                eraseBackground(FALSE),
+                fullWindow(false),
+                includeChildren(false)
+          {
+            rect.left = rect.top = rect.right = rect.bottom = 0;
+          }
+
+          HWND hwnd;
+          RECT rect;
+          BOOL eraseBackground;
+          bool fullWindow;
+          bool includeChildren;
+        };
+
         static void resetRedrawStats(::Win32ScenePlatformController &controller)
         {
           controller.redrawStats_.reset();
@@ -96,6 +114,23 @@ namespace loka
         static int clientHeight(const ::Win32ScenePlatformController &controller)
         {
           return controller.clientHeight_;
+        }
+
+        static bool queryPendingInvalidation(const ::Win32ScenePlatformController &controller,
+                                             std::size_t index,
+                                             PendingInvalidationSnapshot &out)
+        {
+          if (index >= controller.pendingInvalidations_.size())
+          {
+            return false;
+          }
+          const ::Win32ScenePlatformController::PendingInvalidate &entry = controller.pendingInvalidations_[index];
+          out.hwnd = entry.hwnd;
+          out.rect = entry.rect;
+          out.eraseBackground = entry.eraseBackground;
+          out.fullWindow = entry.fullWindow;
+          out.includeChildren = entry.includeChildren;
+          return true;
         }
       };
     } // namespace testing
