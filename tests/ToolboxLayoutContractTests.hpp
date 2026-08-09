@@ -1,0 +1,7 @@
+#ifndef LOKA_TESTS_TOOLBOX_LAYOUT_CONTRACT_TESTS_HPP
+#define LOKA_TESTS_TOOLBOX_LAYOUT_CONTRACT_TESTS_HPP
+
+void testToolboxFixedBoxLayoutCommitsDeclaredExtent();
+void testToolboxEmptyFixedBoxLayoutCommitsDeclaredExtent();
+
+#endif // LOKA_TESTS_TOOLBOX_LAYOUT_CONTRACT_TESTS_HPP

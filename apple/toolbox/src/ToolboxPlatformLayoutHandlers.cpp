@@ -108,15 +108,9 @@ namespace
           currentY = traversal->layoutResultY();
         }
       }
-      traversal->setLayoutResultY(
-          hasFixedSize ? static_cast<short>(state.y + box->props.height) : currentY);
+      traversal->setLayoutResultY(hasFixedSize ? static_cast<short>(state.y + box->props.height) : currentY);
 
-      short width = hasFixedSize ? box->props.width : static_cast<short>(childWidth + padding * 2);
-      if (childWidth == 0 && box->childrenCount() == 0)
-      {
-        width = static_cast<short>(padding * 2);
-      }
-      return width;
+      return hasFixedSize ? box->props.width : static_cast<short>(childWidth + padding * 2);
     }
   };
 
@@ -221,6 +215,7 @@ namespace
         }
         currentY = traversal->layoutResultY();
       }
+      traversal->setLayoutResultY(currentY);
       return width;
     }
   };
@@ -401,6 +396,23 @@ namespace
     }
   };
 } // namespace
+
+bool ApplyToolboxPlatformLayoutHandler(
+    loka::app::scene::PlatformLayoutHandlerRegistry &registry,
+    loka::app::scene::Node &node,
+    loka::app::scene::LayoutState &state,
+    loka::app::scene::IPlatformLayoutTraversal &traversal,
+    short &width)
+{
+  loka::app::scene::IPlatformLayoutHandler *handler = registry.find(&node);
+  if (!handler)
+  {
+    return false;
+  }
+  width = static_cast<short>(handler->layoutNode(&node, state, &traversal));
+  state.y = traversal.layoutResultY();
+  return true;
+}
 
 void RegisterToolboxPlatformLayoutHandlers(loka::app::scene::PlatformLayoutHandlerRegistry &registry)
 {
