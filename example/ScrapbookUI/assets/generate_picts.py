@@ -17,11 +17,37 @@ PAGES = (
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 PNG_WIDTH = FRAME[3] - FRAME[1]
 PNG_HEIGHT = FRAME[2] - FRAME[0]
-DIGITS = {
-    "1": (0b00100, 0b01100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110),
-    "2": (0b01110, 0b10001, 0b00001, 0b00010, 0b00100, 0b01000, 0b11111),
-    "3": (0b11110, 0b00001, 0b00001, 0b01110, 0b00001, 0b00001, 0b11110),
-    "4": (0b00010, 0b00110, 0b01010, 0b10010, 0b11111, 0b00010, 0b00010),
+PICT_WIDTH = FRAME[3] - FRAME[1]
+PICT_HEIGHT = FRAME[2] - FRAME[0]
+PICT_ROW_BYTES = (PICT_WIDTH + 7) // 8
+NUMBER_FIELD = (35, 65, 100, 135)
+LABEL_FIELD = (105, 35, 138, 165)
+PACK_BITS_RECT_OFFSET = 614
+
+# Original, deliberately stylized five-by-seven glyphs for these generated
+# pages. They extend the blocky DIGITS aesthetic used by the PNG pages; each
+# entry pairs seven rows with its grid-cell advance.
+PAGE_GLYPHS = {
+    "1": ((0b00100, 0b01100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110), 6),
+    "2": ((0b01110, 0b10001, 0b00001, 0b00010, 0b00100, 0b01000, 0b11111), 6),
+    "3": ((0b11110, 0b00001, 0b00001, 0b01110, 0b00001, 0b00001, 0b11110), 6),
+    "4": ((0b00010, 0b00110, 0b01010, 0b10010, 0b11111, 0b00010, 0b00010), 6),
+    "A": ((0b01110, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001), 6),
+    "B": ((0b11110, 0b10001, 0b10001, 0b11110, 0b10001, 0b10001, 0b11110), 6),
+    "C": ((0b01111, 0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b01111), 6),
+    "D": ((0b11110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b11110), 6),
+    "E": ((0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b11111), 6),
+    "G": ((0b01111, 0b10000, 0b10000, 0b10111, 0b10001, 0b10001, 0b01110), 6),
+    "H": ((0b10001, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001), 6),
+    "I": ((0b11100, 0b01000, 0b01000, 0b01000, 0b01000, 0b01000, 0b11100), 4),
+    "K": ((0b10001, 0b10010, 0b10100, 0b11000, 0b10100, 0b10010, 0b10001), 6),
+    "L": ((0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b11111), 6),
+    "N": ((0b10001, 0b11001, 0b11001, 0b10101, 0b10011, 0b10011, 0b10001), 6),
+    "O": ((0b01110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110), 6),
+    "P": ((0b11110, 0b10001, 0b10001, 0b11110, 0b10000, 0b10000, 0b10000), 6),
+    "R": ((0b11110, 0b10001, 0b10001, 0b11110, 0b10100, 0b10010, 0b10001), 6),
+    "S": ((0b01111, 0b10000, 0b10000, 0b01110, 0b00001, 0b00001, 0b11110), 6),
+    "T": ((0b11111, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100), 6),
 }
 
 
@@ -38,16 +64,6 @@ def padded_op(opcode, payload=b""):
     if len(encoded) & 1:
         encoded += b"\0"
     return encoded
-
-
-def long_text(vertical, horizontal, text):
-    encoded = text.encode("ascii")
-    if len(encoded) > 255:
-        raise ValueError("PICT text is limited to 255 bytes")
-    return padded_op(
-        0x0028,
-        struct.pack(">hhB", vertical, horizontal, len(encoded)) + encoded,
-    )
 
 
 def picture_preamble(frame):
@@ -130,7 +146,7 @@ def build_png_page(number, pattern):
     # A generated five-by-seven digit keeps every page identifiable without
     # importing a font or third-party artwork into the repository.
     scale = 10
-    glyph = DIGITS[number]
+    glyph = PAGE_GLYPHS[number][0]
     glyph_left = (PNG_WIDTH - 5 * scale) // 2
     glyph_top = (PNG_HEIGHT - 7 * scale) // 2
     for vertical in range(glyph_top - 8, glyph_top + 7 * scale + 8):
@@ -149,6 +165,177 @@ def build_png_page(number, pattern):
                             0,
                         )
     return encode_rgb_png(PNG_WIDTH, PNG_HEIGHT, pixels)
+
+
+def pack_bits(row):
+    """Encode one scanline with Apple PackBits.
+
+    This deliberately mirrors the development-only PICT mechanism in
+    make_pmonsprite_lrp.py. Each generator keeps its decoder beside its encoder
+    so its own output is checked without sharing the producer implementation.
+    """
+    packed = bytearray()
+    cursor = 0
+    while cursor < len(row):
+        run = 1
+        while (
+            cursor + run < len(row)
+            and row[cursor + run] == row[cursor]
+            and run < 128
+        ):
+            run += 1
+        if run >= 3:
+            packed.append((1 - run) & 0xFF)
+            packed.append(row[cursor])
+            cursor += run
+            continue
+
+        literal_start = cursor
+        cursor += run
+        while cursor < len(row) and cursor - literal_start < 128:
+            run = 1
+            while (
+                cursor + run < len(row)
+                and row[cursor + run] == row[cursor]
+                and run < 128
+            ):
+                run += 1
+            if run >= 3:
+                break
+            cursor += run
+        if cursor - literal_start > 128:
+            cursor = literal_start + 128
+        packed.append(cursor - literal_start - 1)
+        packed += row[literal_start:cursor]
+    return bytes(packed)
+
+
+def unpack_pack_bits(packed):
+    """Decode one scanline for the generation-time round-trip check."""
+    row = bytearray()
+    cursor = 0
+    while cursor < len(packed):
+        control = packed[cursor]
+        cursor += 1
+        if control <= 127:
+            count = control + 1
+            if cursor + count > len(packed):
+                raise ValueError("truncated PackBits literal")
+            row += packed[cursor : cursor + count]
+            cursor += count
+        elif control >= 129:
+            count = 257 - control
+            if cursor >= len(packed):
+                raise ValueError("truncated PackBits repeat")
+            row.extend([packed[cursor]] * count)
+            cursor += 1
+    return bytes(row)
+
+
+def glyph_width(rows):
+    rightmost = 0
+    for bits in rows:
+        for column in range(5):
+            if bits & (1 << (4 - column)):
+                rightmost = max(rightmost, column + 1)
+    return rightmost
+
+
+def line_width(text, scale):
+    width = 0
+    for index, character in enumerate(text):
+        rows, advance = PAGE_GLYPHS[character]
+        if index + 1 == len(text):
+            width += glyph_width(rows) * scale
+        else:
+            width += advance * scale
+    return width
+
+
+def draw_glyph_line(bitmap, text, scale, field):
+    top, left, bottom, right = field
+    horizontal = left + (right - left - line_width(text, scale)) // 2
+    glyph_top = top + (bottom - top - 7 * scale) // 2
+    for character in text:
+        rows, advance = PAGE_GLYPHS[character]
+        for row, bits in enumerate(rows):
+            for column in range(5):
+                if not bits & (1 << (4 - column)):
+                    continue
+                for dy in range(scale):
+                    for dx in range(scale):
+                        x = horizontal + column * scale + dx
+                        y = glyph_top + row * scale + dy
+                        bitmap[y * PICT_ROW_BYTES + x // 8] |= 1 << (7 - x % 8)
+        horizontal += advance * scale
+
+
+def build_glyph_plane(number, label):
+    bitmap = bytearray(PICT_HEIGHT * PICT_ROW_BYTES)
+    draw_glyph_line(bitmap, number, 4, NUMBER_FIELD)
+    draw_glyph_line(bitmap, label, 2, LABEL_FIELD)
+    return bytes(bitmap)
+
+
+def pack_bits_rect(bitmap):
+    packed_rows = bytearray()
+    for row_start in range(0, len(bitmap), PICT_ROW_BYTES):
+        packed = pack_bits(bitmap[row_start : row_start + PICT_ROW_BYTES])
+        if len(packed) > 250:
+            raise AssertionError("packed scanline exceeds a 1-byte length")
+        packed_rows.append(len(packed))
+        packed_rows += packed
+    return (
+        word(PICT_ROW_BYTES)
+        + rect(FRAME)
+        + rect(FRAME)
+        + rect(FRAME)
+        + word(1)  # srcOr
+        + packed_rows
+    )
+
+
+def check_prerasterized_picture(picture, bitmap):
+    if picture[:512] != bytes(512):
+        raise AssertionError("PICT file header must be 512 zero bytes")
+    if struct.unpack(">H", picture[512:514])[0] != len(picture) - 512:
+        raise AssertionError("PICT picSize does not match the encoded picture")
+    if picture[514:522] != rect(FRAME):
+        raise AssertionError("PICT picFrame is incorrect")
+    if picture[522:526] != word(0x0011) + word(0x02FF):
+        raise AssertionError("PICT version opcode is incorrect")
+    if picture[552:564] != word(0x0001) + word(10) + rect(FRAME):
+        raise AssertionError("PICT initial clip opcode is missing or malformed")
+
+    expected_header = (
+        word(0x0098)
+        + word(PICT_ROW_BYTES)
+        + rect(FRAME)
+        + rect(FRAME)
+        + rect(FRAME)
+        + word(1)
+    )
+    header_end = PACK_BITS_RECT_OFFSET + len(expected_header)
+    if picture[PACK_BITS_RECT_OFFSET:header_end] != expected_header:
+        raise AssertionError("prerasterized PackBitsRect header is malformed")
+
+    cursor = header_end
+    for row_start in range(0, len(bitmap), PICT_ROW_BYTES):
+        packed_length = picture[cursor]
+        cursor += 1
+        packed = picture[cursor : cursor + packed_length]
+        cursor += packed_length
+        expected = bitmap[row_start : row_start + PICT_ROW_BYTES]
+        if unpack_pack_bits(packed) != expected:
+            raise AssertionError("PackBits scanline does not round-trip")
+    if cursor & 1:
+        if picture[cursor] != 0:
+            raise AssertionError("PackBitsRect padding byte is not zero")
+        cursor += 1
+    if picture[cursor:] != word(0x00FF):
+        raise AssertionError("PackBitsRect must be followed by OpEndPic")
+    if len(picture) & 1:
+        raise AssertionError("PICT file is not word-aligned")
 
 
 def build_png_refused_badge():
@@ -178,16 +365,14 @@ def build_picture(number, label, pattern):
     operations += padded_op(0x0034, rect((5, 5, 145, 195)))  # FillRect
     operations += padded_op(0x0030, rect(FRAME))  # FrameRect
 
-    # Clear two small fields so the black text remains legible over every
-    # pattern on a 1-bit display.
-    operations += padded_op(0x0032, rect((35, 65, 100, 135)))  # EraseRect
-    operations += padded_op(0x0032, rect((105, 35, 138, 165)))
-    operations += padded_op(0x0003, word(0))  # TxFont: system font
-    operations += padded_op(0x000D, word(48))  # TxSize
-    operations += long_text(88, 85, number)
-    operations += padded_op(0x000D, word(18))
-    operations += long_text(130, 55, label)
-    return finish_picture(FRAME, operations)
+    # Clear the two fields before compositing the generated black glyph plane.
+    operations += padded_op(0x0032, rect(NUMBER_FIELD))  # EraseRect
+    operations += padded_op(0x0032, rect(LABEL_FIELD))
+    bitmap = build_glyph_plane(number, label)
+    operations += padded_op(0x0098, pack_bits_rect(bitmap))  # PackBitsRect
+    picture = finish_picture(FRAME, operations)
+    check_prerasterized_picture(picture, bitmap)
+    return picture
 
 
 def build_refused_badge():

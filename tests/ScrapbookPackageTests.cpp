@@ -20,6 +20,20 @@ namespace
 {
   const loka::core::resource::lrpk::U32 kScrapbookStamp = 3579051217UL;
   const unsigned char kPngSignature[] = {0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'};
+  const unsigned char kPrerasterizedPictureHeader[] = {
+      0x00, 0x98,                                     // PackBitsRect
+      0x00, 0x19,                                     // 25 bytes per 200-pixel scanline
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x96, 0x00, 0xc8, // bitmap bounds
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x96, 0x00, 0xc8, // source rect
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x96, 0x00, 0xc8, // destination rect
+      0x00, 0x01};                                    // srcOr
+  const std::size_t kPrerasterizedPictureHeaderOffset = 614;
+
+  enum PackageImageContract
+  {
+    PACKAGE_IMAGES_ARE_PICT,
+    PACKAGE_IMAGES_ARE_PNG
+  };
 
   class PackagePathContext : public PlatformContext
   {
@@ -112,63 +126,127 @@ namespace
     }
     return read;
   }
-} // namespace
 
-void testScrapbookModernPackageMatchesItsManifestAndCarriesPngImages()
-{
-  const std::string manifestPath = SourcePath("example/ScrapbookUI/assets/manifest-modern.txt");
-  const std::string packagePath = SourcePath("example/ScrapbookUI/assets/ASSETS-modern.LRP");
-
-  std::vector<unsigned char> manifestBytes;
-  LOKA_VERIFY(ReadWholeFile(manifestPath, manifestBytes));
-  loka::lrpc::PackManifest manifest;
-  std::size_t errorLine = 0;
-  LOKA_VERIFY(loka::lrpc::ParseManifest(manifestBytes.empty() ? "" : reinterpret_cast<const char *>(&manifestBytes[0]),
-                                        manifestBytes.size(),
-                                        manifest,
-                                        errorLine)
-              == loka::lrpc::MANIFEST_OK);
-  assert(loka::lrpc::DeriveIdSpaceStamp(manifest) == kScrapbookStamp);
-
-  loka::core::resource::lrpk::StdioByteSource source;
-  LOKA_VERIFY(source.open(loka::core::String::Utf8(packagePath.data(), packagePath.size())));
-  loka::core::resource::lrpk::Reader reader;
-  std::size_t indexBytesNeeded = 0;
-  LOKA_VERIFY(
-      reader.beginOpen(source, kScrapbookStamp, loka::core::resource::lrpk::Reader::VERIFY_INTEGRITY, indexBytesNeeded)
-      == loka::core::resource::lrpk::Reader::OPEN_OK);
-  std::vector<unsigned char> index(indexBytesNeeded);
-  LOKA_VERIFY(reader.finishOpen(index.empty() ? 0 : &index[0], index.size())
-              == loka::core::resource::lrpk::Reader::OPEN_OK);
-  assert(reader.bagCount() == manifest.bags.size());
-  assert(reader.assetCount() == manifest.assets.size());
-
-  for (std::size_t i = 0; i < manifest.assets.size(); ++i)
+  unsigned int ReadBigEndianWord(const unsigned char *bytes)
   {
-    const loka::lrpc::ManifestAsset &expected = manifest.assets[i];
-    std::size_t bagSize = 0;
-    LOKA_VERIFY(reader.bagStoredSize(expected.bag, bagSize));
-    std::vector<unsigned char> bag(bagSize);
-    LOKA_VERIFY(reader.readBagInto(expected.bag, bag.empty() ? 0 : &bag[0], bag.size())
-                == loka::core::resource::lrpk::Reader::BAG_OK);
-
-    loka::core::resource::lrpk::Facts facts;
-    loka::core::resource::lrpk::Asset asset;
-    LOKA_VERIFY(reader.get(expected.id, facts, asset) == loka::core::resource::lrpk::Reader::GET_OK);
-    assert(asset.bag == expected.bag);
-    assert(asset.kind == expected.kind);
-    assert(asset.offsetInBag <= bag.size());
-    assert(asset.length <= bag.size() - asset.offsetInBag);
-    if (expected.kind == loka::core::resource::lrpk::ASSET_KIND_IMAGE)
-    {
-      assert(asset.length >= sizeof(kPngSignature));
-      assert(std::memcmp(&bag[asset.offsetInBag], kPngSignature, sizeof(kPngSignature)) == 0);
-    }
-    reader.closeBag(expected.bag);
+    return static_cast<unsigned int>(bytes[0]) << 8 | bytes[1];
   }
 
-  reader.close();
-  source.close();
+  bool BytesMatch(const void *actual, const void *expected, std::size_t length)
+  {
+    return std::memcmp(actual, expected, length) == 0;
+  }
+
+  bool HasScrapbookStamp(const loka::lrpc::PackManifest &manifest)
+  {
+    return loka::lrpc::DeriveIdSpaceStamp(manifest) == kScrapbookStamp;
+  }
+
+  bool PackageCountsMatchManifest(const loka::core::resource::lrpk::Reader &reader,
+                                  const loka::lrpc::PackManifest &manifest)
+  {
+    return reader.bagCount() == manifest.bags.size() && reader.assetCount() == manifest.assets.size();
+  }
+
+  void CheckPrerasterizedPicture(const unsigned char *bytes, std::size_t length)
+  {
+    LOKA_VERIFY(length >= kPrerasterizedPictureHeaderOffset + sizeof(kPrerasterizedPictureHeader) + 2);
+    for (std::size_t i = 0; i < 512; ++i)
+    {
+      LOKA_VERIFY(bytes[i] == 0);
+    }
+    LOKA_VERIFY(length - 512 <= 0xffff);
+    LOKA_VERIFY(ReadBigEndianWord(bytes + 512) == length - 512);
+    LOKA_VERIFY(ReadBigEndianWord(bytes + 522) == 0x0011);
+    LOKA_VERIFY(ReadBigEndianWord(bytes + 524) == 0x02ff);
+    LOKA_VERIFY(ReadBigEndianWord(bytes + 552) == 0x0001); // Clip
+    LOKA_VERIFY(ReadBigEndianWord(bytes + 564) == 0x000a); // FillPat
+    LOKA_VERIFY(ReadBigEndianWord(bytes + 574) == 0x0034); // FillRect
+    LOKA_VERIFY(ReadBigEndianWord(bytes + 584) == 0x0030); // FrameRect
+    LOKA_VERIFY(ReadBigEndianWord(bytes + 594) == 0x0032); // EraseRect
+    LOKA_VERIFY(ReadBigEndianWord(bytes + 604) == 0x0032); // EraseRect
+    LOKA_VERIFY(BytesMatch(
+        bytes + kPrerasterizedPictureHeaderOffset, kPrerasterizedPictureHeader, sizeof(kPrerasterizedPictureHeader)));
+    LOKA_VERIFY(ReadBigEndianWord(bytes + length - 2) == 0x00ff);
+  }
+
+  void CheckPackageManifestAndImages(const char *manifestRelative,
+                                     const char *packageRelative,
+                                     PackageImageContract imageContract)
+  {
+    const std::string manifestPath = SourcePath(manifestRelative);
+    const std::string packagePath = SourcePath(packageRelative);
+
+    std::vector<unsigned char> manifestBytes;
+    LOKA_VERIFY(ReadWholeFile(manifestPath, manifestBytes));
+    loka::lrpc::PackManifest manifest;
+    std::size_t errorLine = 0;
+    LOKA_VERIFY(
+        loka::lrpc::ParseManifest(manifestBytes.empty() ? "" : reinterpret_cast<const char *>(&manifestBytes[0]),
+                                  manifestBytes.size(),
+                                  manifest,
+                                  errorLine)
+        == loka::lrpc::MANIFEST_OK);
+    LOKA_VERIFY(HasScrapbookStamp(manifest));
+
+    loka::core::resource::lrpk::StdioByteSource source;
+    LOKA_VERIFY(source.open(loka::core::String::Utf8(packagePath.data(), packagePath.size())));
+    loka::core::resource::lrpk::Reader reader;
+    std::size_t indexBytesNeeded = 0;
+    LOKA_VERIFY(reader.beginOpen(
+                    source, kScrapbookStamp, loka::core::resource::lrpk::Reader::VERIFY_INTEGRITY, indexBytesNeeded)
+                == loka::core::resource::lrpk::Reader::OPEN_OK);
+    std::vector<unsigned char> index(indexBytesNeeded);
+    LOKA_VERIFY(reader.finishOpen(index.empty() ? 0 : &index[0], index.size())
+                == loka::core::resource::lrpk::Reader::OPEN_OK);
+    LOKA_VERIFY(PackageCountsMatchManifest(reader, manifest));
+
+    for (std::size_t i = 0; i < manifest.assets.size(); ++i)
+    {
+      const loka::lrpc::ManifestAsset &expected = manifest.assets[i];
+      std::size_t bagSize = 0;
+      LOKA_VERIFY(reader.bagStoredSize(expected.bag, bagSize));
+      std::vector<unsigned char> bag(bagSize);
+      LOKA_VERIFY(reader.readBagInto(expected.bag, bag.empty() ? 0 : &bag[0], bag.size())
+                  == loka::core::resource::lrpk::Reader::BAG_OK);
+
+      loka::core::resource::lrpk::Facts facts;
+      loka::core::resource::lrpk::Asset asset;
+      LOKA_VERIFY(reader.get(expected.id, facts, asset) == loka::core::resource::lrpk::Reader::GET_OK);
+      LOKA_VERIFY(asset.bag == expected.bag);
+      LOKA_VERIFY(asset.kind == expected.kind);
+      LOKA_VERIFY(asset.offsetInBag <= bag.size());
+      LOKA_VERIFY(asset.length <= bag.size() - asset.offsetInBag);
+      if (expected.kind == loka::core::resource::lrpk::ASSET_KIND_IMAGE)
+      {
+        const unsigned char *bytes = &bag[asset.offsetInBag];
+        if (imageContract == PACKAGE_IMAGES_ARE_PNG)
+        {
+          LOKA_VERIFY(asset.length >= sizeof(kPngSignature));
+          LOKA_VERIFY(BytesMatch(bytes, kPngSignature, sizeof(kPngSignature)));
+        }
+        else if (expected.id >= 1001 && expected.id <= 1004)
+        {
+          CheckPrerasterizedPicture(bytes, asset.length);
+        }
+      }
+      reader.closeBag(expected.bag);
+    }
+
+    reader.close();
+    source.close();
+  }
+} // namespace
+
+void testScrapbookPackagesMatchTheirManifestsAndCarryNativeImages()
+{
+  CheckPackageManifestAndImages(
+      "example/ScrapbookUI/assets/manifest.txt", "example/ScrapbookUI/ASSETS.LRP", PACKAGE_IMAGES_ARE_PICT);
+  CheckPackageManifestAndImages("example/ScrapbookUI/assets/manifest-modern.txt",
+                                "example/ScrapbookUI/assets/ASSETS-modern.LRP",
+                                PACKAGE_IMAGES_ARE_PNG);
+
+  const std::string packagePath = SourcePath("example/ScrapbookUI/assets/ASSETS-modern.LRP");
 
   const loka::core::String packageString = loka::core::String::Utf8(packagePath.data(), packagePath.size());
   PackagePathContext context(packageString);
@@ -184,5 +262,5 @@ void testScrapbookModernPackageMatchesItsManifestAndCarriesPngImages()
   assert(package.currentPage() == 4);
   package.close();
 
-  std::printf("testScrapbookModernPackageMatchesItsManifestAndCarriesPngImages passed\n");
+  std::printf("testScrapbookPackagesMatchTheirManifestsAndCarryNativeImages passed\n");
 }

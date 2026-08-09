@@ -1,6 +1,6 @@
 #ifndef LOKA_TESTS_SCRAPBOOKPACKAGETESTS_HPP
 #define LOKA_TESTS_SCRAPBOOKPACKAGETESTS_HPP
 
-void testScrapbookModernPackageMatchesItsManifestAndCarriesPngImages();
+void testScrapbookPackagesMatchTheirManifestsAndCarryNativeImages();
 
 #endif // LOKA_TESTS_SCRAPBOOKPACKAGETESTS_HPP
