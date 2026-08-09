@@ -20,12 +20,14 @@ set(SCRAPBOOK_COMMON_SOURCES
 )
 
 if(WIN32)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/LokaWin32VisualStyles.cmake)
   if(NOT TARGET LokaWin32Core)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../win32 ${CMAKE_CURRENT_BINARY_DIR}/win32)
   endif()
 
   add_executable(ScrapbookUIWin32 WIN32 ${SCRAPBOOK_COMMON_SOURCES})
   loka_enable_warnings(ScrapbookUIWin32)
+  loka_enable_win32_visual_styles(ScrapbookUIWin32)
 
   target_include_directories(ScrapbookUIWin32 PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
