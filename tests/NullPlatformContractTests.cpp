@@ -25,11 +25,13 @@
 #include "app/scene/node/Conditional.hpp"
 #include "core/State.hpp"
 #include "core/util/StateTrackerGuard.hpp"
+#include "testing/scene/SceneTestFlow.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
 #include "platform/null/NullWindow.hpp"
 #include "platform/null/context/NullScrollBarContext.hpp"
 #include "support/FullRebuildLedgerDefinition.hpp"
+#include "support/LifecycleFactTestAccess.hpp"
 #include "support/RecomposingBoundary.hpp"
 
 namespace
@@ -1505,6 +1507,17 @@ namespace
     scene.updateAttached(true);
   }
 
+  void retireProjectedContextsWithoutApply(loka::app::scene::Scene &scene,
+                                           NullScenePlatformController &platform)
+  {
+    // Stop at the detach line: unlike onChange()/destroy(), these two doors
+    // queue native intake without flushing it before synchronize() can run.
+    loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+    assert(root && "a mounted scene must have a root before native context retirement");
+    loka::app::scene::LifecycleFactTestAccess::MarkSubtreeRetired(root);
+    platform.releaseNodeContexts(root);
+  }
+
   void assertDisposalsAreInsideSafePoints(const NullScenePlatformController &platform)
   {
     const std::vector<NullScenePlatformController::EventRecord> &events = platform.eventLog();
@@ -1631,8 +1644,8 @@ void testNullPlatformContract_A1_synchronizePumpsTeardownIntoPool()
   loka::app::scene::Scene scene((loka::app::scene::Boundary<ToggleControlBoundaryNode>()));
   mountAndAttach(scene, platform);
 
-  visible.set(false);
-  requestChildPump(scene);
+  retireProjectedContextsWithoutApply(scene, platform);
+  assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
   platform.synchronize();
 
   assert(platform.ledger().empty());
@@ -1700,8 +1713,8 @@ void testNullPlatformContract_A3_synchronizePumpsIntakeRefusal()
   (void)handle;
 
   platform.preserveNextRetiredOwnerForTesting();
-  visible.set(false);
-  requestChildPump(scene);
+  retireProjectedContextsWithoutApply(scene, platform);
+  assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
   platform.synchronize();
 
   assert(platform.intakeCheckFailCount() == 1);
@@ -1867,8 +1880,8 @@ void testNullPlatformContract_C2_synchronizePumpsHintPolicy()
     NullScenePlatformController platform;
     loka::app::scene::Scene scene((loka::app::scene::Boundary<ToggleControlBoundaryNode>()));
     mountAndAttach(scene, platform);
-    visible.set(false);
-    requestChildPump(scene);
+    retireProjectedContextsWithoutApply(scene, platform);
+    assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
     platform.synchronize();
     assert(platform.disposedCount() == 1);
     assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 0);
@@ -1880,8 +1893,8 @@ void testNullPlatformContract_C2_synchronizePumpsHintPolicy()
     NullScenePlatformController platform;
     loka::app::scene::Scene scene((loka::app::scene::Boundary<ToggleControlBoundaryNode>()));
     mountAndAttach(scene, platform);
-    visible.set(false);
-    requestChildPump(scene);
+    retireProjectedContextsWithoutApply(scene, platform);
+    assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
     platform.synchronize();
     assert(platform.disposedCount() == 0);
     assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 1);
@@ -1893,8 +1906,8 @@ void testNullPlatformContract_C2_synchronizePumpsHintPolicy()
     NullScenePlatformController platform;
     loka::app::scene::Scene scene((loka::app::scene::Boundary<ToggleControlBoundaryNode>()));
     mountAndAttach(scene, platform);
-    visible.set(false);
-    requestChildPump(scene);
+    retireProjectedContextsWithoutApply(scene, platform);
+    assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
     platform.synchronize();
     assert(platform.disposedCount() == 0);
     assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 1);
@@ -1946,8 +1959,8 @@ void testNullPlatformContract_C3_synchronizePumpsFreshHint()
 
   g_toggleHint = loka::app::scene::NATIVE_HINT_EAGER_RELEASE;
   requestChildPump(scene);
-  visible.set(false);
-  requestChildPump(scene);
+  retireProjectedContextsWithoutApply(scene, platform);
+  assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
   platform.synchronize();
 
   assert(platform.disposedCount() >= 1);
@@ -2042,8 +2055,8 @@ void testNullPlatformContract_D3_synchronizePumpsDepthCapEviction()
   mountAndAttach(scene, platform);
   assert(platform.ledger().size() == 2);
 
-  visible.set(false);
-  requestChildPump(scene);
+  retireProjectedContextsWithoutApply(scene, platform);
+  assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
   platform.synchronize();
 
   NullScenePlatformController::BucketStats stats =
@@ -2107,8 +2120,8 @@ void testNullPlatformContract_D4_synchronizePumpsBeforeWindowDrain()
     WindowProps props;
     NullWindow window(&context, props, &platform);
     mountAndAttach(scene, platform);
-    visible.set(false);
-    requestChildPump(scene);
+    retireProjectedContextsWithoutApply(scene, platform);
+    assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
     platform.synchronize();
     assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 1);
   }
@@ -2178,9 +2191,9 @@ void testNullPlatformContract_E2_synchronizeIsADisposalSafePoint()
   NullScenePlatformController platform;
   loka::app::scene::Scene scene((loka::app::scene::Boundary<ToggleControlBoundaryNode>()));
   mountAndAttach(scene, platform);
-  visible.set(false);
-  requestChildPump(scene);
 
+  retireProjectedContextsWithoutApply(scene, platform);
+  assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
   platform.synchronize();
   assert(platform.eventCount(NullScenePlatformController::EVENT_CONTROL_DISPOSED) == 1);
   assertDisposalsAreInsideSafePoints(platform);
@@ -2247,6 +2260,8 @@ void testNullPlatformContract_E3_synchronizeSettlesRetireDoorIntake()
   assert(platform.ledger().size() == 1);
 
   inner.set(false);
+  retireProjectedContextsWithoutApply(scene, platform);
+  assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
   platform.synchronize();
   std::size_t eventsBeforeDrain = platform.eventLog().size();
   (void)eventsBeforeDrain;
@@ -2254,9 +2269,6 @@ void testNullPlatformContract_E3_synchronizeSettlesRetireDoorIntake()
   assert(platform.eventLog().size() == eventsBeforeDrain);
   assert(platform.retiredCount() == 0);
 
-  visible.set(false);
-  requestChildPump(scene);
-  platform.synchronize();
   assert(platform.ledger().empty());
   assert(platform.retiredCount() == 0);
 
@@ -3085,9 +3097,9 @@ void testNullPlatformContract_F1_synchronizeEmptiesRetiredQueue()
   NullScenePlatformController platform;
   loka::app::scene::Scene scene((loka::app::scene::Boundary<ToggleControlBoundaryNode>()));
   mountAndAttach(scene, platform);
-  visible.set(false);
-  requestChildPump(scene);
 
+  retireProjectedContextsWithoutApply(scene, platform);
+  assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
   platform.synchronize();
   assert(platform.retiredCount() == 0);
   g_toggleVisible = 0;
@@ -5886,9 +5898,8 @@ void testNullPlatformContract_S1_synchronizePumpsScrollBarIntoItsOwnBucket()
   loka::app::scene::Scene scene((loka::app::scene::Boundary<ScrollBarBoundaryNode>()));
   mountAndAttach(scene, platform);
 
-  g_scrollBarPresent = false;
-  revision.set(1);
-  requestChildPump(scene);
+  retireProjectedContextsWithoutApply(scene, platform);
+  assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
   platform.synchronize();
 
   assert(platform.ledger().empty());
