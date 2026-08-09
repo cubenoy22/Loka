@@ -14,7 +14,11 @@ namespace
     {
       return false;
     }
-    const loka::core::Frame contentFrame = window->frameState().get();
+    loka::core::Frame contentFrame;
+    if (!window->queryNativeContentFrame(contentFrame))
+    {
+      return false;
+    }
     if (!SetMenu(window->hwnd(), menu))
     {
       return false;

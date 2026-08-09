@@ -1,4 +1,5 @@
 #include "context/ToolboxImageViewContext.hpp"
+#include "ToolboxLayoutMetrics.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxNativeImage.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
@@ -246,7 +247,7 @@ short ToolboxImageViewContext::layout(loka::app::scene::IPlatformController *, l
 {
   int sizePolicy = loka::app::IMAGE_VIEW_SIZE_AUTO;
   int width = state.width;
-  int height = state.lineHeight > 0 ? state.lineHeight : 80;
+  int height = state.lineHeight > 0 ? state.lineHeight : ToolboxLayoutMetrics::kImageFallbackHeight;
   if (node_)
   {
     const bool hasExplicitWidth = node_->props.width_ > 0;

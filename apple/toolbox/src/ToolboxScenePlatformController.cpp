@@ -1,4 +1,5 @@
 #include "ToolboxScenePlatformController.hpp"
+#include "ToolboxLayoutMetrics.hpp"
 #include "ToolboxBuiltInSupport.hpp"
 #include "ToolboxPlatformLayoutHandlers.hpp"
 #include "ToolboxWindow.hpp"
@@ -72,7 +73,6 @@ namespace
 #endif
 
   static const short kAutoControlBaseId = 128;
-  static const short kImageFallbackHeightToolbox = 80;
 
   void DrawStringAt(short x, short y, const loka::core::String &value)
   {
@@ -112,7 +112,7 @@ namespace
       {
         return fallbackHeight;
       }
-      return kImageFallbackHeightToolbox;
+      return ToolboxLayoutMetrics::kImageFallbackHeight;
     }
     return fallbackHeight;
   }
@@ -730,7 +730,8 @@ namespace
       {
         short rowStartX = state.x;
         short maxHeight = 0;
-        short rowHeight = state.lineHeight > 0 ? state.lineHeight : 12;
+        short rowHeight =
+            state.lineHeight > 0 ? state.lineHeight : ToolboxLayoutMetrics::kDefaultLineHeight;
         const size_t childCount = row->childrenCount();
         if (row->props.hasVerticalAlignment_)
         {
@@ -738,7 +739,8 @@ namespace
           loka::dsl::CompositionCursor<loka::app::scene::Node> measure(row->childrenHead(), row->childrenCount());
           for (loka::app::scene::Node *child = measure.next(); child; child = measure.next())
           {
-            short h = PreferredChildHeightForRow(child, state.lineHeight > 0 ? state.lineHeight : 12);
+            short h = PreferredChildHeightForRow(
+                child, state.lineHeight > 0 ? state.lineHeight : ToolboxLayoutMetrics::kDefaultLineHeight);
             if (h > rowHeight)
             {
               rowHeight = h;
@@ -746,7 +748,7 @@ namespace
           }
           if (rowHeight <= 0)
           {
-            rowHeight = 12;
+            rowHeight = ToolboxLayoutMetrics::kDefaultLineHeight;
           }
         }
         loka::dsl::CompositionCursor<loka::app::scene::Node> it(row->childrenHead(), row->childrenCount());

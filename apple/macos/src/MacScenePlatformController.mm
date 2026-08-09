@@ -10,6 +10,7 @@
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/nestable/ZStack.hpp"
 #include "app/RectSurface.hpp"
+#include "app/layout/FallbackControlMetrics.hpp"
 #include "app/layout/BoxLayout.hpp"
 #include "app/layout/ColumnLayout.hpp"
 #include "app/layout/GridLayout.hpp"
@@ -28,14 +29,6 @@
 namespace
 {
   static std::map<void *, MacScenePlatformController *> gControllerByRootView;
-
-  const int kButtonHeight = 32;
-  const int kEditTextHeight = 24;
-  const int kPopupMenuHeight = 26;
-  const int kTextHeight = 20;
-  const int kVerticalSpacing = 12;
-  const int kHorizontalSpacing = 12;
-  const int kImageFallbackHeightModern = 160;
 
 } // namespace
 
@@ -130,7 +123,7 @@ bool MacScenePlatformController::prepareProjectedLayout(loka::app::scene::Node *
   loka::app::scene::LayoutState handlerState = state;
   if (handlerState.height <= 0)
   {
-    handlerState.height = static_cast<short>(kTextHeight);
+    handlerState.height = static_cast<short>(loka::app::layout::FallbackControlMetrics::kTextHeight);
   }
   loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(node);
   if (!handler)
@@ -357,7 +350,8 @@ MacScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *su
     surface->setContext(ctx);
     ctx->readLifecycleFactOnAttach();
   }
-  return LayoutNodeResult(state.width, state.y + surface->props.height_ + kVerticalSpacing);
+  return LayoutNodeResult(
+      state.width, state.y + surface->props.height_ + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
 }
 
 int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const LayoutState &state)
@@ -410,14 +404,8 @@ MacScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, co
     }
     else
     {
-      loka::app::layout::RowLayoutMetrics metrics;
-      metrics.gap = kHorizontalSpacing;
-      metrics.fallbackHeight = kTextHeight;
-      metrics.buttonHeight = kButtonHeight;
-      metrics.editTextHeight = kEditTextHeight;
-      metrics.popupMenuHeight = kPopupMenuHeight;
-      metrics.textHeight = kTextHeight;
-      metrics.imageFallbackHeight = kImageFallbackHeightModern;
+      const loka::app::layout::RowLayoutMetrics metrics =
+          loka::app::layout::FallbackControlMetrics::rowLayout();
       maxY = loka::app::layout::computeRowLayoutResultY(
           row, state, metrics, this, &MacScenePlatformController::layoutContainerChild);
     }

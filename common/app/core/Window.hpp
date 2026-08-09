@@ -414,6 +414,13 @@ class Window : public AppComponent LOKA_AUDITED_AS(Window)
 {
 public:
   typedef WindowTypeTag TypeTag;
+
+  /** Returns the common frame used when WindowProps leaves it unspecified. */
+  static loka::core::Frame defaultFrame()
+  {
+    return loka::core::Frame(50, 50, 300, 300);
+  }
+
   Window(PlatformContext *context, const WindowProps &props = WindowProps())
       : context_(context),
         tracker_(0),

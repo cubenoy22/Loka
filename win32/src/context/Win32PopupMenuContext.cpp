@@ -1,5 +1,6 @@
 #include "Win32PopupMenuContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
+#include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "platform/Win32String.hpp"
 #include <string>
@@ -7,9 +8,6 @@
 
 namespace
 {
-  const int kPopupMenuHeight = 26;
-  const int kVerticalSpacing = 12;
-
   class Win32PopupMenuNodeHandler
       : public loka::app::scene::RetainedNodeHandler<Win32PopupMenuNodeHandler,
                                                      loka::app::PopupMenuNode,
@@ -137,9 +135,10 @@ bool Win32PopupMenuContext::handleCommand(WPARAM, LPARAM)
 
 short Win32PopupMenuContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
-  this->relayout(state.x, state.y, state.width, kPopupMenuHeight);
-  state.height = static_cast<short>(kPopupMenuHeight);
-  return static_cast<short>(state.y + kPopupMenuHeight + kVerticalSpacing);
+  this->relayout(state.x, state.y, state.width, loka::app::layout::FallbackControlMetrics::kPopupMenuHeight);
+  state.height = static_cast<short>(loka::app::layout::FallbackControlMetrics::kPopupMenuHeight);
+  return static_cast<short>(state.y + loka::app::layout::FallbackControlMetrics::kPopupMenuHeight
+                            + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
 }
 
 void Win32PopupMenuContext::relayout(int x, int y, int width, int height)

@@ -1,4 +1,5 @@
 #include "ToolboxPlatformLayoutHandlers.hpp"
+#include "ToolboxLayoutMetrics.hpp"
 
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/nestable/Grid.hpp"
@@ -10,8 +11,6 @@
 
 namespace
 {
-  static const short kToolboxLayoutImageFallbackHeight = 80;
-
   inline short PreferredChildHeightForRow(loka::app::scene::Node *child, short fallbackHeight)
   {
     if (!child)
@@ -28,7 +27,7 @@ namespace
       {
         return fallbackHeight;
       }
-      return kToolboxLayoutImageFallbackHeight;
+      return ToolboxLayoutMetrics::kImageFallbackHeight;
     }
     return fallbackHeight;
   }
@@ -240,7 +239,8 @@ namespace
 
       short rowStartX = state.x;
       short maxHeight = 0;
-      short rowHeight = state.lineHeight > 0 ? state.lineHeight : 12;
+      short rowHeight =
+          state.lineHeight > 0 ? state.lineHeight : ToolboxLayoutMetrics::kDefaultLineHeight;
       const size_t childCount = row->childrenCount();
       if (row->props.hasVerticalAlignment_)
       {
@@ -248,7 +248,8 @@ namespace
         loka::dsl::CompositionCursor<loka::app::scene::Node> measure(row->childrenHead(), row->childrenCount());
         for (loka::app::scene::Node *child = measure.next(); child; child = measure.next())
         {
-          short height = PreferredChildHeightForRow(child, state.lineHeight > 0 ? state.lineHeight : 12);
+          short height = PreferredChildHeightForRow(
+              child, state.lineHeight > 0 ? state.lineHeight : ToolboxLayoutMetrics::kDefaultLineHeight);
           if (height > rowHeight)
           {
             rowHeight = height;
@@ -256,7 +257,7 @@ namespace
         }
         if (rowHeight <= 0)
         {
-          rowHeight = 12;
+          rowHeight = ToolboxLayoutMetrics::kDefaultLineHeight;
         }
       }
 
