@@ -106,6 +106,7 @@ MacScenePlatformController::~MacScenePlatformController()
     }
   }
   clearContexts();
+  this->drainNativeRetirements();
 }
 
 bool MacScenePlatformController::registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler)
@@ -225,12 +226,38 @@ void MacScenePlatformController::synchronize()
 
 bool MacScenePlatformController::hasPendingSync() const
 {
-  return false;
+  return !this->nativeRetirements_.empty();
+}
+
+void MacScenePlatformController::queueNativeRetirement(void *primary, void *auxiliary)
+{
+  if (primary || auxiliary)
+  {
+    this->nativeRetirements_.push_back(NativeRetirement(primary, auxiliary));
+  }
+}
+
+void MacScenePlatformController::drainNativeRetirements()
+{
+  for (size_t i = 0; i < this->nativeRetirements_.size(); ++i)
+  {
+    NativeRetirement &entry = this->nativeRetirements_[i];
+    if (entry.auxiliary)
+    {
+      [(id)entry.auxiliary release];
+    }
+    if (entry.primary)
+    {
+      [(id)entry.primary release];
+    }
+  }
+  this->nativeRetirements_.clear();
 }
 
 void MacScenePlatformController::destroy()
 {
   clearContexts();
+  this->drainNativeRetirements();
   rootNode_ = 0;
   lastChangeFlags_ = loka::app::scene::NODE_DIRTY_NONE;
   clientWidth_ = 0;
@@ -345,8 +372,8 @@ MacScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *su
   }
   else
   {
-    ctx =
-        new MacRectSurfaceContext(rootView_, state.x, state.y, surface->props.width_, surface->props.height_, surface);
+    ctx = new MacRectSurfaceContext(
+        this, rootView_, state.x, state.y, surface->props.width_, surface->props.height_, surface);
     surface->setContext(ctx);
     ctx->readLifecycleFactOnAttach();
   }

@@ -682,9 +682,11 @@ namespace loka
           // Terminal delivery: the retire door has already written RETIRED
           // and the context is severed from the node (context == 0), so the
           // observer cannot route back into the tree. One onFactChanged(->R),
-          // then the ritual (context destruction). A release while the fact
-          // is not RETIRED (context replacement on a live node) is silent —
-          // the context's own destructor is its terminal signal.
+          // then the detach ritual and synchronous context-object deletion.
+          // Native destruction belongs to the controller queue and its App
+          // safe point, never to the context destructor. A release while the
+          // fact is not RETIRED (context replacement on a live node) is silent;
+          // native-owning platform contexts must use the retire door instead.
           released->deliverFact(this, lifecycleFact_);
           delete released;
         }

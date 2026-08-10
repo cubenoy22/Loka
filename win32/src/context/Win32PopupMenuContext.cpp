@@ -1,4 +1,5 @@
 #include "Win32PopupMenuContext.hpp"
+#include <cassert>
 #include "../Win32ScenePlatformController.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
@@ -24,7 +25,7 @@ namespace
                                          const loka::app::scene::LayoutState &state)
     {
       Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
-      return new Win32PopupMenuContext(win32->rootHwnd(), state.x, state.y, state.width, state.height, popup);
+      return new Win32PopupMenuContext(win32, win32->rootHwnd(), state.x, state.y, state.width, state.height, popup);
     }
 
     static void refresh(Win32PopupMenuContext *ctx, const loka::app::scene::LayoutState &state)
@@ -36,9 +37,15 @@ namespace
   Win32PopupMenuNodeHandler gWin32PopupMenuNodeHandler;
 } // namespace
 
-Win32PopupMenuContext::Win32PopupMenuContext(
-    HWND parent, int x, int y, int width, int height, loka::app::PopupMenuNode *node)
-    : node_(node),
+Win32PopupMenuContext::Win32PopupMenuContext(Win32ScenePlatformController *controller,
+                                             HWND parent,
+                                             int x,
+                                             int y,
+                                             int width,
+                                             int height,
+                                             loka::app::PopupMenuNode *node)
+    : Win32RetirableContext(controller),
+      node_(node),
       hwnd_(0),
       selectionState_(0),
       enabledState_(0),
@@ -74,14 +81,7 @@ Win32PopupMenuContext::Win32PopupMenuContext(
 
 Win32PopupMenuContext::~Win32PopupMenuContext()
 {
-  unbindSelection();
-  unbindEnabled();
-  if (hwnd_)
-  {
-    SetWindowLongPtr(hwnd_, GWLP_USERDATA, 0);
-    DestroyWindow(hwnd_);
-    hwnd_ = 0;
-  }
+  assert(!hwnd_ && "terminal fact delivery must queue the HWND before context reclaim");
 }
 
 void Win32PopupMenuContext::readLifecycleFactOnAttach()
@@ -105,6 +105,13 @@ void Win32PopupMenuContext::onFactChanged(loka::app::scene::NodeLifecycleFact pr
     // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
     // (hide before the ritual destroys the native pair).
     this->applyDetachedPresentation();
+    if (next == loka::app::scene::NODE_FACT_RETIRED)
+    {
+      this->unbindSelection();
+      this->unbindEnabled();
+      this->retireWindow(this->hwnd_);
+      this->node_ = 0;
+    }
   }
 }
 

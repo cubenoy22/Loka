@@ -16,6 +16,7 @@ set(SOURCES
   src/Win32ScenePlatformController.cpp
   src/Win32PlatformContext.cpp
   src/context/Win32ButtonContext.cpp
+  src/context/Win32RetirableContext.cpp
   src/context/Win32CellContext.cpp
   src/context/Win32TextContext.cpp
   src/context/Win32EditTextContext.cpp

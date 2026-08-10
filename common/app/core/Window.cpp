@@ -9,6 +9,7 @@ bool Window::flushSceneInvalidation()
   {
     this->synchronizeScenePlatform();
   }
+  this->drainNativeRetirements();
   this->sceneManager_.reclaimRetiredScenes();
   return changed;
 }

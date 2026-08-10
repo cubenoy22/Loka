@@ -1,4 +1,5 @@
 #include "Win32RectSurfaceContext.hpp"
+#include <cassert>
 #include "../Win32ScenePlatformController.hpp"
 #include "app/RectSurface.hpp"
 
@@ -8,9 +9,15 @@ namespace
   const COLORREF kRectSurfaceClearColor = RGB(255, 255, 255);
 }
 
-Win32RectSurfaceContext::Win32RectSurfaceContext(
-    HWND parent, int x, int y, int width, int height, loka::app::RectSurfaceNode *node)
-    : node_(node),
+Win32RectSurfaceContext::Win32RectSurfaceContext(Win32ScenePlatformController *controller,
+                                                 HWND parent,
+                                                 int x,
+                                                 int y,
+                                                 int width,
+                                                 int height,
+                                                 loka::app::RectSurfaceNode *node)
+    : Win32RetirableContext(controller),
+      node_(node),
       hwnd_(0),
       modelState_(0)
 {
@@ -22,13 +29,7 @@ Win32RectSurfaceContext::Win32RectSurfaceContext(
 
 Win32RectSurfaceContext::~Win32RectSurfaceContext()
 {
-  unbindModel();
-  if (hwnd_)
-  {
-    SetWindowLongPtr(hwnd_, GWLP_USERDATA, 0);
-    DestroyWindow(hwnd_);
-    hwnd_ = 0;
-  }
+  assert(!hwnd_ && "terminal fact delivery must queue the HWND before context reclaim");
 }
 
 void Win32RectSurfaceContext::readLifecycleFactOnAttach()
@@ -52,6 +53,12 @@ void Win32RectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact 
     // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
     // (hide before the ritual destroys the native pair).
     this->applyDetachedPresentation();
+    if (next == loka::app::scene::NODE_FACT_RETIRED)
+    {
+      this->unbindModel();
+      this->retireWindow(this->hwnd_);
+      this->node_ = 0;
+    }
   }
 }
 

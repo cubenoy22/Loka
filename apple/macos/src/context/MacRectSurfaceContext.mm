@@ -1,4 +1,5 @@
 #include "MacRectSurfaceContext.hpp"
+#include <cassert>
 #include "../MacObjCCompat.hpp"
 #include "app/RectSurface.hpp"
 #include <AppKit/AppKit.h>
@@ -45,9 +46,15 @@ namespace
 }
 @end
 
-MacRectSurfaceContext::MacRectSurfaceContext(
-    void *parentView, int x, int y, int width, int height, loka::app::RectSurfaceNode *node)
-    : node_(node),
+MacRectSurfaceContext::MacRectSurfaceContext(MacScenePlatformController *controller,
+                                             void *parentView,
+                                             int x,
+                                             int y,
+                                             int width,
+                                             int height,
+                                             loka::app::RectSurfaceNode *node)
+    : MacRetirableContext(controller),
+      node_(node),
       modelState_(0),
       view_(0)
 {
@@ -64,15 +71,7 @@ MacRectSurfaceContext::MacRectSurfaceContext(
 
 MacRectSurfaceContext::~MacRectSurfaceContext()
 {
-  unbindModel();
-  LokaRectSurfaceView *view = (LokaRectSurfaceView *)view_;
-  if (view)
-  {
-    [view setContext:0];
-    [view removeFromSuperview];
-    [view release];
-  }
-  view_ = 0;
+  assert(!view_ && "terminal fact delivery must queue the native view before context reclaim");
 }
 
 void MacRectSurfaceContext::readLifecycleFactOnAttach()
@@ -96,6 +95,15 @@ void MacRectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact pr
     // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
     // (hide before the ritual destroys the native pair).
     this->applyDetachedPresentation();
+    if (next == loka::app::scene::NODE_FACT_RETIRED)
+    {
+      this->unbindModel();
+      LokaRectSurfaceView *view = (LokaRectSurfaceView *)this->view_;
+      [view setContext:0];
+      [view removeFromSuperview];
+      this->retireNativeObject(this->view_);
+      this->node_ = 0;
+    }
   }
 }
 

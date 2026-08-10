@@ -2,7 +2,7 @@
 #define LOKA_WIN32_BUTTON_CONTEXT_HPP
 
 #include <windows.h>
-#include "app/scene/projection/NativeNodeContext.hpp"
+#include "Win32RetirableContext.hpp"
 #include "core/String.hpp"
 
 namespace loka
@@ -26,10 +26,18 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-class Win32ButtonContext : public loka::app::scene::NativeNodeContext, public loka::app::scene::ICapturableBitmap
+class Win32ScenePlatformController;
+
+class Win32ButtonContext : public Win32RetirableContext, public loka::app::scene::ICapturableBitmap
 {
 public:
-  Win32ButtonContext(HWND parent, int x, int y, int width, int height, loka::app::ButtonNode *node);
+  Win32ButtonContext(Win32ScenePlatformController *controller,
+                     HWND parent,
+                     int x,
+                     int y,
+                     int width,
+                     int height,
+                     loka::app::ButtonNode *node);
   virtual ~Win32ButtonContext();
   virtual loka::app::scene::ICapturableBitmap *asCapturableBitmap()
   {

@@ -2,6 +2,7 @@
 #define LOKA_MAC_IMAGE_VIEW_CONTEXT_HPP
 
 #include "app/nodes/ImageView.hpp"
+#include "MacRetirableContext.hpp"
 #include "core/State.hpp"
 #include "core/resource/Image.hpp"
 
@@ -16,10 +17,18 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-class MacImageViewContext : public loka::app::scene::NodeContext
+class MacScenePlatformController;
+
+class MacImageViewContext : public MacRetirableContext
 {
 public:
-  MacImageViewContext(void *parentView, int x, int y, int width, int height, loka::app::ImageViewNode *node);
+  MacImageViewContext(MacScenePlatformController *controller,
+                      void *parentView,
+                      int x,
+                      int y,
+                      int width,
+                      int height,
+                      loka::app::ImageViewNode *node);
   virtual ~MacImageViewContext();
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   /** Attach-time read (late-subscriber rule): presentation from the current

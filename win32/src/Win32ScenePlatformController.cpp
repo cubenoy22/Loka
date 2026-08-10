@@ -104,6 +104,7 @@ Win32ScenePlatformController::~Win32ScenePlatformController()
     }
   }
   clearContexts();
+  this->drainNativeRetirements();
 }
 
 void Win32ScenePlatformController::requestDirtyRect(HWND targetHwnd, const RECT *rect, BOOL eraseBackground)
@@ -146,7 +147,9 @@ bool Win32ScenePlatformController::prepareProjectedLayout(loka::app::scene::Node
   loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(node);
   if (!handler)
   {
-    assert(false && "no node handler registered for this node type -- register the handler or an explicit RefusedNodeHandler");
+    assert(
+        false
+        && "no node handler registered for this node type -- register the handler or an explicit RefusedNodeHandler");
     return false;
   }
   return handler->ensureContext(node, this, handlerState) != 0;
@@ -266,6 +269,7 @@ void Win32ScenePlatformController::onChange(loka::app::scene::Node *rootNode,
                                             loka::app::scene::NodeDirtyFlags flags,
                                             bool fullRebuild)
 {
+  (void)fullRebuild;
   ++this->redrawStats_.onChangeCalls;
   this->redrawStats_.lastOnChangeFlags = flags;
   this->redrawStats_.lastOnChangeFullRebuild = fullRebuild;
@@ -291,7 +295,7 @@ void Win32ScenePlatformController::onChange(loka::app::scene::Node *rootNode,
     clientWidth_ = rc.right - rc.left;
     clientHeight_ = rc.bottom - rc.top;
   }
-  performLayout(clientWidth_, clientHeight_, fullRebuild);
+  performLayout(clientWidth_, clientHeight_);
 }
 
 void Win32ScenePlatformController::onBoundaryApply(loka::app::scene::Node *rootNode,
@@ -384,13 +388,34 @@ void Win32ScenePlatformController::synchronize()
 
 bool Win32ScenePlatformController::hasPendingSync() const
 {
-  return !pendingInvalidations_.empty();
+  return !pendingInvalidations_.empty() || !retiredWindows_.empty();
+}
+
+void Win32ScenePlatformController::queueNativeRetirement(HWND hwnd)
+{
+  if (hwnd)
+  {
+    this->retiredWindows_.push_back(hwnd);
+  }
+}
+
+void Win32ScenePlatformController::drainNativeRetirements()
+{
+  for (size_t i = 0; i < this->retiredWindows_.size(); ++i)
+  {
+    if (this->retiredWindows_[i])
+    {
+      DestroyWindow(this->retiredWindows_[i]);
+    }
+  }
+  this->retiredWindows_.clear();
 }
 
 void Win32ScenePlatformController::destroy()
 {
   pendingInvalidations_.clear();
   clearContexts();
+  this->drainNativeRetirements();
   rootNode_ = 0;
   clientWidth_ = 0;
   clientHeight_ = 0;
@@ -556,16 +581,12 @@ void Win32ScenePlatformController::relayout(int clientWidth, int clientHeight)
   }
   clientWidth_ = clientWidth;
   clientHeight_ = clientHeight;
-  performLayout(clientWidth_, clientHeight_, false);
+  performLayout(clientWidth_, clientHeight_);
 }
 
-void Win32ScenePlatformController::performLayout(int clientWidth, int clientHeight, bool rebuildContexts)
+void Win32ScenePlatformController::performLayout(int clientWidth, int clientHeight)
 {
   pendingInvalidations_.clear();
-  if (rebuildContexts)
-  {
-    clearNodeContexts(rootNode_);
-  }
   if (!rootNode_ || !rootHwnd_)
   {
     return;
@@ -610,7 +631,7 @@ Win32ScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *
   else
   {
     ctx = new Win32RectSurfaceContext(
-        rootHwnd_, state.x, state.y, surface->props.width_, surface->props.height_, surface);
+        this, rootHwnd_, state.x, state.y, surface->props.width_, surface->props.height_, surface);
     surface->setContext(ctx);
     ctx->readLifecycleFactOnAttach();
   }

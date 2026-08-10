@@ -15,6 +15,7 @@ set(LOKA_TOOLBOX_SOURCES
   src/ToolboxBuiltInSupport.cpp
   src/debug/ToolboxSceneDebugStats.cpp
   src/context/ToolboxButtonContext.cpp
+  src/context/ToolboxProjectedNodeContext.cpp
   src/context/ToolboxCellContext.cpp
   src/context/ToolboxEditTextContext.cpp
   src/context/ToolboxOpenFileDialogContext.cpp

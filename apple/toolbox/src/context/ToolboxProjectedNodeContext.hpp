@@ -3,6 +3,8 @@
 
 #include "app/scene/projection/NativeNodeContext.hpp"
 
+class ToolboxScenePlatformController;
+
 /** Base for projected Toolbox contexts. boundary_ is the non-owning
     "which window/root am I in" tag used when recording hits and text runs
     into the controller ledgers. The wall
@@ -12,9 +14,10 @@ class ToolboxProjectedNodeContext : public loka::app::scene::NativeNodeContext,
                                     public loka::app::scene::IBoundaryTaggedContext
 {
 public:
-  ToolboxProjectedNodeContext()
+  explicit ToolboxProjectedNodeContext(ToolboxScenePlatformController *controller)
       : loka::app::scene::NativeNodeContext(),
-        boundary_(0)
+        boundary_(0),
+        controller_(controller)
   {
   }
 
@@ -40,8 +43,19 @@ public:
     return this->boundary_;
   }
 
+  virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous, loka::app::scene::NodeLifecycleFact next);
+
 protected:
+  virtual void retireNativeProjection() {}
+  ToolboxScenePlatformController *controller() const
+  {
+    return this->controller_;
+  }
+
   loka::app::scene::BoundaryNode *boundary_;
+
+private:
+  ToolboxScenePlatformController *controller_;
 };
 
 #endif // LOKA_TOOLBOX_PROJECTED_NODE_CONTEXT_HPP

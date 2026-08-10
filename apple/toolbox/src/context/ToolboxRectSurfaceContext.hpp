@@ -8,7 +8,7 @@
 class ToolboxRectSurfaceContext : public ToolboxProjectedNodeContext
 {
 public:
-  explicit ToolboxRectSurfaceContext(loka::app::RectSurfaceNode *node);
+  ToolboxRectSurfaceContext(loka::app::RectSurfaceNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxRectSurfaceContext();
 
   virtual short layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state);
@@ -39,6 +39,6 @@ private:
   RgnHandle savedClipRgn_;
 };
 
-void EnsureToolboxRectSurfaceContext(loka::app::RectSurfaceNode *node);
+void EnsureToolboxRectSurfaceContext(loka::app::RectSurfaceNode *node, ToolboxScenePlatformController *controller);
 
 #endif

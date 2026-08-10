@@ -2,7 +2,7 @@
 #define LOKA_WIN32_CELL_CONTEXT_HPP
 
 #include <windows.h>
-#include "app/scene/projection/NativeNodeContext.hpp"
+#include "Win32RetirableContext.hpp"
 #include "core/String.hpp"
 #include <string>
 
@@ -26,10 +26,18 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-class Win32CellContext : public loka::app::scene::NativeNodeContext
+class Win32ScenePlatformController;
+
+class Win32CellContext : public Win32RetirableContext
 {
 public:
-  Win32CellContext(HWND parent, int x, int y, int width, int height, loka::app::CellNode *node);
+  Win32CellContext(Win32ScenePlatformController *controller,
+                   HWND parent,
+                   int x,
+                   int y,
+                   int width,
+                   int height,
+                   loka::app::CellNode *node);
   virtual ~Win32CellContext();
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   /** Attach-time read (late-subscriber rule): presentation from the current

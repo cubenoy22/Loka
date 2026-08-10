@@ -385,6 +385,14 @@ void Win32Window::synchronizeScenePlatform()
   }
 }
 
+void Win32Window::drainNativeRetirements()
+{
+  if (this->scenePlatformController_)
+  {
+    this->scenePlatformController_->drainNativeRetirements();
+  }
+}
+
 bool Win32Window::hasPendingScenePlatformSync() const
 {
   return scenePlatformController_ ? scenePlatformController_->hasPendingSync() : false;

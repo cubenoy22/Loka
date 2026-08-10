@@ -1,4 +1,5 @@
 #include "Win32ButtonContext.hpp"
+#include <cassert>
 #include "../Win32ScenePlatformController.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
@@ -25,7 +26,7 @@ namespace
                                       const loka::app::scene::LayoutState &state)
     {
       Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
-      return new Win32ButtonContext(win32->rootHwnd(), state.x, state.y, state.width, state.height, button);
+      return new Win32ButtonContext(win32, win32->rootHwnd(), state.x, state.y, state.width, state.height, button);
     }
 
     static void refresh(Win32ButtonContext *ctx, const loka::app::scene::LayoutState &state)
@@ -101,8 +102,15 @@ namespace
   }
 } // namespace
 
-Win32ButtonContext::Win32ButtonContext(HWND parent, int x, int y, int width, int height, loka::app::ButtonNode *node)
-    : node_(node),
+Win32ButtonContext::Win32ButtonContext(Win32ScenePlatformController *controller,
+                                       HWND parent,
+                                       int x,
+                                       int y,
+                                       int width,
+                                       int height,
+                                       loka::app::ButtonNode *node)
+    : Win32RetirableContext(controller),
+      node_(node),
       hwnd_(NULL),
       textState_(0),
       enabledState_(0)
@@ -132,14 +140,7 @@ Win32ButtonContext::Win32ButtonContext(HWND parent, int x, int y, int width, int
 
 Win32ButtonContext::~Win32ButtonContext()
 {
-  unbindText();
-  unbindEnabled();
-  if (hwnd_)
-  {
-    SetWindowLongPtr(hwnd_, GWLP_USERDATA, 0);
-    DestroyWindow(hwnd_);
-    hwnd_ = NULL;
-  }
+  assert(!hwnd_ && "terminal fact delivery must queue the HWND before context reclaim");
 }
 
 void Win32ButtonContext::readLifecycleFactOnAttach()
@@ -163,6 +164,13 @@ void Win32ButtonContext::onFactChanged(loka::app::scene::NodeLifecycleFact previ
     // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
     // (hide before the ritual destroys the native pair).
     this->applyDetachedPresentation();
+    if (next == loka::app::scene::NODE_FACT_RETIRED)
+    {
+      this->unbindText();
+      this->unbindEnabled();
+      this->retireWindow(this->hwnd_);
+      this->node_ = 0;
+    }
   }
 }
 

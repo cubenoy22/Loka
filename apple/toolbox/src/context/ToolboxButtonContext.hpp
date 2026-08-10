@@ -56,13 +56,13 @@ public:
   bool handleMouseDown(const Point &point, ToolboxScenePlatformController *controller);
 
 private:
+  virtual void retireNativeProjection();
   loka::app::ButtonNode *node_;
   Rect rect_;
   loka::core::String label_;
   loka::core::EmitterState *emitter_;
   loka::core::State<bool> *enabled_;
   short resourceId_;
-  ToolboxScenePlatformController *controller_;
 };
 
 bool RegisterToolboxButtonNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);

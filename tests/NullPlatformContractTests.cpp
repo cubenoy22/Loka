@@ -274,8 +274,8 @@ namespace
         : created(platform.createdCount()),
           disposed(platform.disposedCount()),
           backPointerCleared(platform.teardownCounters().backPointerCleared),
-          rowRemoved(platform.teardownCounters().rowRemoved),
-          handedToPool(platform.teardownCounters().handedToPool),
+          hitRouteRemoved(platform.teardownCounters().hitRouteRemoved),
+          queuedForNativeRetirement(platform.teardownCounters().queuedForNativeRetirement),
           shown(platform.eventCount(NullScenePlatformController::EVENT_CONTROL_SHOWN)),
           hidden(platform.eventCount(NullScenePlatformController::EVENT_CONTROL_HIDDEN))
     {
@@ -283,20 +283,17 @@ namespace
 
     bool operator==(const NativeContextCallCounts &other) const
     {
-      return this->created == other.created &&
-             this->disposed == other.disposed &&
-             this->backPointerCleared == other.backPointerCleared &&
-             this->rowRemoved == other.rowRemoved &&
-             this->handedToPool == other.handedToPool &&
-             this->shown == other.shown &&
-             this->hidden == other.hidden;
+      return this->created == other.created && this->disposed == other.disposed
+             && this->backPointerCleared == other.backPointerCleared && this->hitRouteRemoved == other.hitRouteRemoved
+             && this->queuedForNativeRetirement == other.queuedForNativeRetirement && this->shown == other.shown
+             && this->hidden == other.hidden;
     }
 
     unsigned long created;
     unsigned long disposed;
     unsigned long backPointerCleared;
-    unsigned long rowRemoved;
-    unsigned long handedToPool;
+    unsigned long hitRouteRemoved;
+    unsigned long queuedForNativeRetirement;
     unsigned long shown;
     unsigned long hidden;
   };
@@ -1495,10 +1492,18 @@ namespace
     assert(record.transitions[1].next == loka::app::scene::NODE_FACT_RETIRED);
   }
 
-  void requestChildPump(loka::app::scene::Scene &scene)
+  void requestChildPump(loka::app::scene::Scene &scene, NullScenePlatformController &platform)
   {
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
     LOKA_VERIFY(scene.flushInvalidation());
+    platform.drainNativeRetirements();
+  }
+
+  void synchronizeThenDrainAtSafePoint(NullScenePlatformController &platform)
+  {
+    platform.synchronize();
+    assert(platform.hasPendingSync() && "native retirement waits for the App safe point, not projection sync");
+    platform.drainNativeRetirements();
   }
 
   void mountAndAttach(loka::app::scene::Scene &scene, NullScenePlatformController &platform)
@@ -1615,7 +1620,7 @@ void testNullNodeHandlerRegistryMissEducatesInDiagnosticBuilds()
 #endif
 }
 
-void testNullPlatformContract_A1_contextDestructorRunsTeardownSequence()
+void testNullPlatformContract_A1_terminalFactRunsTeardownSequence()
 {
   loka::core::MutableState<bool> visible(true);
   g_toggleVisible = &visible;
@@ -1625,17 +1630,17 @@ void testNullPlatformContract_A1_contextDestructorRunsTeardownSequence()
   mountAndAttach(scene, platform);
 
   visible.set(false);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
 
   assert(platform.ledger().empty());
   assert(platform.teardownCounters().backPointerCleared == 1);
-  assert(platform.teardownCounters().rowRemoved == 1);
-  assert(platform.teardownCounters().handedToPool == 1);
+  assert(platform.teardownCounters().hitRouteRemoved == 1);
+  assert(platform.teardownCounters().queuedForNativeRetirement == 1);
   assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 1);
   g_toggleVisible = 0;
 }
 
-void testNullPlatformContract_A1_synchronizePumpsTeardownIntoPool()
+void testNullPlatformContract_A1_safePointDrainsTeardownIntoPool()
 {
   loka::core::MutableState<bool> visible(true);
   g_toggleVisible = &visible;
@@ -1646,12 +1651,12 @@ void testNullPlatformContract_A1_synchronizePumpsTeardownIntoPool()
 
   retireProjectedContextsWithoutApply(scene, platform);
   assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
-  platform.synchronize();
+  synchronizeThenDrainAtSafePoint(platform);
 
   assert(platform.ledger().empty());
   assert(platform.teardownCounters().backPointerCleared == 1);
-  assert(platform.teardownCounters().rowRemoved == 1);
-  assert(platform.teardownCounters().handedToPool == 1);
+  assert(platform.teardownCounters().hitRouteRemoved == 1);
+  assert(platform.teardownCounters().queuedForNativeRetirement == 1);
   assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 1);
   g_toggleVisible = 0;
 }
@@ -1665,13 +1670,13 @@ void testNullPlatformContract_A2_retainedDetachRunsNoTeardown()
   mountAndAttach(scene, platform);
 
   condition.set(false);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
 
   assert(platform.ledger().size() == 1);
   assert(!platform.ledger()[0].visible);
   assert(platform.teardownCounters().backPointerCleared == 0);
-  assert(platform.teardownCounters().rowRemoved == 0);
-  assert(platform.teardownCounters().handedToPool == 0);
+  assert(platform.teardownCounters().hitRouteRemoved == 0);
+  assert(platform.teardownCounters().queuedForNativeRetirement == 0);
   g_retainedCondition = 0;
 }
 
@@ -1688,7 +1693,7 @@ void testNullPlatformContract_A3_intakeConsistencyFailureLeaksWithoutPooling()
 
   platform.preserveNextRetiredOwnerForTesting();
   visible.set(false);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
 
   assert(platform.intakeCheckFailCount() == 1);
   assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 0);
@@ -1700,7 +1705,7 @@ void testNullPlatformContract_A3_intakeConsistencyFailureLeaksWithoutPooling()
   g_toggleVisible = 0;
 }
 
-void testNullPlatformContract_A3_synchronizePumpsIntakeRefusal()
+void testNullPlatformContract_A3_safePointDrainsIntakeRefusal()
 {
   loka::core::MutableState<bool> visible(true);
   g_toggleVisible = &visible;
@@ -1715,7 +1720,7 @@ void testNullPlatformContract_A3_synchronizePumpsIntakeRefusal()
   platform.preserveNextRetiredOwnerForTesting();
   retireProjectedContextsWithoutApply(scene, platform);
   assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
-  platform.synchronize();
+  synchronizeThenDrainAtSafePoint(platform);
 
   assert(platform.intakeCheckFailCount() == 1);
   assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 0);
@@ -1724,6 +1729,91 @@ void testNullPlatformContract_A3_synchronizePumpsIntakeRefusal()
   assert(platform.disposedCount() == 0);
   assert(platform.eventCount(NullScenePlatformController::EVENT_CONTROL_DISPOSED) == 0);
   g_toggleVisible = 0;
+}
+
+namespace
+{
+  void assertNullControlDetachWindow(loka::app::scene::Node &node, NullScenePlatformController::ControlRecipe recipe)
+  {
+    NullScenePlatformController platform;
+    loka::app::scene::LayoutState state;
+    state.width = 100;
+    state.height = 20;
+    LOKA_VERIFY(platform.prepareProjectedLayout(&node, state));
+
+    const NullScenePlatformController::LedgerRow *attached = platform.findLedgerRow(recipe);
+    (void)attached;
+    assert(attached && attached->visible);
+    assert(platform.hasHitTarget(recipe));
+    LOKA_VERIFY(platform.injectNotification(recipe));
+    const unsigned long deliveriesBeforeRetire = platform.injectedDeliveryCount();
+    (void)deliveriesBeforeRetire;
+
+    loka::app::scene::LifecycleFactTestAccess::MarkSubtreeRetired(&node);
+    platform.releaseNodeContexts(&node);
+
+    const NullScenePlatformController::LedgerRow *detached = platform.findLedgerRow(recipe);
+    (void)detached;
+    assert(detached && !detached->visible && "the native stays ledger-visible but hidden throughout the detach window");
+    assert(!platform.hasHitTarget(recipe) && "terminal delivery removes the native from hit routing synchronously");
+    LOKA_VERIFY(!platform.injectNotification(recipe) && platform.injectedDeliveryCount() == deliveriesBeforeRetire
+                && "an injected notification reaches nothing in Loka after detach");
+    assert(platform.hasPendingSync() && "the detached native remains queued until the platform safe point");
+    assert(platform.retiredCount() == 1);
+    assert(platform.disposedCount() == 0);
+
+    platform.drainNativeRetirements();
+    assert(!platform.hasPendingSync());
+    assert(platform.ledger().empty());
+    assert(platform.bucketStats(recipe).depth == 1);
+    assertDisposalsAreInsideSafePoints(platform);
+  }
+} // namespace
+
+void testNullPlatformContract_A4_buttonDetachWindowIsSilentUntilSafePoint()
+{
+  loka::app::ButtonNode button((loka::app::ButtonProps()));
+  assertNullControlDetachWindow(button, NullScenePlatformController::CONTROL_RECIPE_BUTTON);
+}
+
+void testNullPlatformContract_A4_editTextDetachWindowIsSilentUntilSafePoint()
+{
+  loka::app::EditTextNode editText((loka::app::EditTextProps()));
+  assertNullControlDetachWindow(editText, NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
+}
+
+void testNullPlatformContract_A4_scrollBarDetachWindowIsSilentUntilSafePoint()
+{
+  loka::app::ScrollBarNode scrollBar((loka::app::ScrollBarProps()));
+  assertNullControlDetachWindow(scrollBar, NullScenePlatformController::CONTROL_RECIPE_SCROLL_BAR);
+}
+
+void testNullPlatformContract_A5_windowFlushDrainsNativeRetirementsAtReclaimBoundary()
+{
+  loka::core::MutableState<bool> visible(true);
+  g_toggleVisible = &visible;
+  g_toggleHint = loka::app::scene::NATIVE_HINT_EAGER_RELEASE;
+  NullPlatformContext context;
+  NullScenePlatformController platform;
+  WindowProps props;
+  props.scene(new loka::app::scene::Scene((loka::app::scene::Boundary<ToggleControlBoundaryNode>())));
+  {
+    NullWindow window(&context, props, &platform);
+    loka::app::scene::Scene *scene = window.scene();
+    assert(scene);
+    scene->updateAttached(true);
+    visible.set(false);
+    scene->requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+
+    LOKA_VERIFY(window.flushSceneInvalidation());
+
+    assert(!platform.hasPendingSync() && "Window drains native retirement beside scene reclaim");
+    assert(platform.disposedCount() == 1);
+    assert(platform.ledger().empty());
+    assertDisposalsAreInsideSafePoints(platform);
+  }
+  g_toggleVisible = 0;
+  g_toggleHint = loka::app::scene::NATIVE_HINT_DEFAULT;
 }
 
 void testNullPlatformContract_B1_attachShowsControl()
@@ -1748,7 +1838,7 @@ void testNullPlatformContract_B2_retainedDetachHidesAndKeepsRow()
   const int handleId = platform.ledger()[0].handle->id;
 
   condition.set(false);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
 
   assert(platform.ledger().size() == 1);
   (void)handleId;
@@ -1768,9 +1858,9 @@ void testNullPlatformContract_B3_reattachKeepsHandleIdentity()
   const int handleId = platform.ledger()[0].handle->id;
 
   condition.set(false);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
   condition.set(true);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
 
   assert(platform.ledger().size() == 1);
   (void)handleId;
@@ -1790,10 +1880,10 @@ void testNullPlatformContract_B4_retireRemovesLedgerRow()
   assert(platform.ledger().size() == 1);
 
   visible.set(false);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
 
   assert(platform.ledger().empty());
-  assert(platform.teardownCounters().rowRemoved == 1);
+  assert(platform.teardownCounters().hitRouteRemoved == 1);
   g_toggleVisible = 0;
 }
 
@@ -1808,14 +1898,14 @@ void testNullPlatformContract_B5_hiddenAncestorSwapIsSilent()
   mountAndAttach(scene, platform);
 
   ancestorVisible.set(false);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
   const unsigned long shownBefore = platform.eventCount(NullScenePlatformController::EVENT_CONTROL_SHOWN);
   const unsigned long hiddenBefore = platform.eventCount(NullScenePlatformController::EVENT_CONTROL_HIDDEN);
   const unsigned long createdBefore = platform.eventCount(NullScenePlatformController::EVENT_CONTROL_CREATED);
   const unsigned long disposedBefore = platform.eventCount(NullScenePlatformController::EVENT_CONTROL_DISPOSED);
 
   innerCondition.set(false);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
 
   (void)shownBefore;
   assert(platform.eventCount(NullScenePlatformController::EVENT_CONTROL_SHOWN) == shownBefore);
@@ -1839,7 +1929,7 @@ void testNullPlatformContract_C2_hintControlsFlushPolicy()
     loka::app::scene::Scene scene((loka::app::scene::Boundary<ToggleControlBoundaryNode>()));
     mountAndAttach(scene, platform);
     visible.set(false);
-    requestChildPump(scene);
+    requestChildPump(scene, platform);
     assert(platform.disposedCount() == 1);
     assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 0);
   }
@@ -1851,7 +1941,7 @@ void testNullPlatformContract_C2_hintControlsFlushPolicy()
     loka::app::scene::Scene scene((loka::app::scene::Boundary<ToggleControlBoundaryNode>()));
     mountAndAttach(scene, platform);
     visible.set(false);
-    requestChildPump(scene);
+    requestChildPump(scene, platform);
     assert(platform.disposedCount() == 0);
     assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 1);
   }
@@ -1863,7 +1953,7 @@ void testNullPlatformContract_C2_hintControlsFlushPolicy()
     loka::app::scene::Scene scene((loka::app::scene::Boundary<ToggleControlBoundaryNode>()));
     mountAndAttach(scene, platform);
     visible.set(false);
-    requestChildPump(scene);
+    requestChildPump(scene, platform);
     assert(platform.disposedCount() == 0);
     assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 1);
   }
@@ -1871,7 +1961,7 @@ void testNullPlatformContract_C2_hintControlsFlushPolicy()
   g_toggleHint = loka::app::scene::NATIVE_HINT_DEFAULT;
 }
 
-void testNullPlatformContract_C2_synchronizePumpsHintPolicy()
+void testNullPlatformContract_C2_safePointDrainsHintPolicy()
 {
   {
     loka::core::MutableState<bool> visible(true);
@@ -1882,7 +1972,7 @@ void testNullPlatformContract_C2_synchronizePumpsHintPolicy()
     mountAndAttach(scene, platform);
     retireProjectedContextsWithoutApply(scene, platform);
     assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
-    platform.synchronize();
+    synchronizeThenDrainAtSafePoint(platform);
     assert(platform.disposedCount() == 1);
     assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 0);
   }
@@ -1895,7 +1985,7 @@ void testNullPlatformContract_C2_synchronizePumpsHintPolicy()
     mountAndAttach(scene, platform);
     retireProjectedContextsWithoutApply(scene, platform);
     assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
-    platform.synchronize();
+    synchronizeThenDrainAtSafePoint(platform);
     assert(platform.disposedCount() == 0);
     assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 1);
   }
@@ -1908,7 +1998,7 @@ void testNullPlatformContract_C2_synchronizePumpsHintPolicy()
     mountAndAttach(scene, platform);
     retireProjectedContextsWithoutApply(scene, platform);
     assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
-    platform.synchronize();
+    synchronizeThenDrainAtSafePoint(platform);
     assert(platform.disposedCount() == 0);
     assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 1);
   }
@@ -1934,10 +2024,10 @@ void testNullPlatformContract_C3_hintChangesReachNextObservation()
          "the attach-time read carries the declare-time hint");
 
   g_toggleHint = loka::app::scene::NATIVE_HINT_EAGER_RELEASE;
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
 
   visible.set(false);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
   assert(platform.disposedCount() >= 1 &&
          "the retire flush honors the runtime hint change: EAGER_RELEASE disposes");
   assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 0 &&
@@ -1948,7 +2038,7 @@ void testNullPlatformContract_C3_hintChangesReachNextObservation()
   g_toggleHint = loka::app::scene::NATIVE_HINT_DEFAULT;
 }
 
-void testNullPlatformContract_C3_synchronizePumpsFreshHint()
+void testNullPlatformContract_C3_safePointDrainsFreshHint()
 {
   loka::core::MutableState<bool> visible(true);
   g_toggleVisible = &visible;
@@ -1958,10 +2048,10 @@ void testNullPlatformContract_C3_synchronizePumpsFreshHint()
   mountAndAttach(scene, platform);
 
   g_toggleHint = loka::app::scene::NATIVE_HINT_EAGER_RELEASE;
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
   retireProjectedContextsWithoutApply(scene, platform);
   assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
-  platform.synchronize();
+  synchronizeThenDrainAtSafePoint(platform);
 
   assert(platform.disposedCount() >= 1);
   assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 0);
@@ -1981,7 +2071,7 @@ void testNullPlatformContract_D1_exactMatchBucketsStaySeparated()
   const int buttonId = platform.ledger()[0].handle->id;
 
   mode.set(2);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
   assert(platform.ledger().size() == 1);
   const int editTextId = platform.ledger()[0].handle->id;
   (void)buttonId;
@@ -1991,12 +2081,12 @@ void testNullPlatformContract_D1_exactMatchBucketsStaySeparated()
   assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT).missCount == 1);
 
   mode.set(1);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
   assert(platform.ledger()[0].handle->id == buttonId);
   assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).hitCount == 1);
 
   mode.set(2);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
   assert(platform.ledger()[0].handle->id == editTextId);
   assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT).hitCount == 1);
   g_recipeMode = 0;
@@ -2015,9 +2105,9 @@ void testNullPlatformContract_D2_churnProducesPoolHits()
   for (int i = 0; i < churnCount; ++i)
   {
     visible.set(false);
-    requestChildPump(scene);
+    requestChildPump(scene, platform);
     visible.set(true);
-    requestChildPump(scene);
+    requestChildPump(scene, platform);
   }
 
   assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).hitCount >=
@@ -2035,7 +2125,7 @@ void testNullPlatformContract_D3_depthCapRefusalCountsEvict()
   assert(platform.ledger().size() == 2);
 
   visible.set(false);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
 
   NullScenePlatformController::BucketStats stats =
       platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
@@ -2046,7 +2136,7 @@ void testNullPlatformContract_D3_depthCapRefusalCountsEvict()
   g_multipleVisible = 0;
 }
 
-void testNullPlatformContract_D3_synchronizePumpsDepthCapEviction()
+void testNullPlatformContract_D3_safePointDrainsDepthCapEviction()
 {
   loka::core::MutableState<bool> visible(true);
   g_multipleVisible = &visible;
@@ -2057,7 +2147,7 @@ void testNullPlatformContract_D3_synchronizePumpsDepthCapEviction()
 
   retireProjectedContextsWithoutApply(scene, platform);
   assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
-  platform.synchronize();
+  synchronizeThenDrainAtSafePoint(platform);
 
   NullScenePlatformController::BucketStats stats =
       platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
@@ -2081,7 +2171,7 @@ void testNullPlatformContract_D4_controllerDrainPrecedesWindowDispose()
     NullWindow window(&context, props, &platform);
     mountAndAttach(scene, platform);
     visible.set(false);
-    requestChildPump(scene);
+    requestChildPump(scene, platform);
     assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 1);
   }
 
@@ -2108,7 +2198,7 @@ void testNullPlatformContract_D4_controllerDrainPrecedesWindowDispose()
   g_toggleVisible = 0;
 }
 
-void testNullPlatformContract_D4_synchronizePumpsBeforeWindowDrain()
+void testNullPlatformContract_D4_safePointDrainPrecedesWindowDrain()
 {
   loka::core::MutableState<bool> visible(true);
   g_toggleVisible = &visible;
@@ -2122,7 +2212,7 @@ void testNullPlatformContract_D4_synchronizePumpsBeforeWindowDrain()
     mountAndAttach(scene, platform);
     retireProjectedContextsWithoutApply(scene, platform);
     assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
-    platform.synchronize();
+    synchronizeThenDrainAtSafePoint(platform);
     assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 1);
   }
 
@@ -2159,7 +2249,7 @@ void testNullPlatformContract_E1_reclaimOnlyFlushIsSilent()
   mountAndAttach(scene, platform);
 
   visible.set(false);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
   const std::size_t eventCountBeforeReclaim = platform.eventLog().size();
   LOKA_VERIFY(!scene.flushInvalidation());
   (void)eventCountBeforeReclaim;
@@ -2176,14 +2266,14 @@ void testNullPlatformContract_E2_disposeOccursOnlyAtSafePoints()
   loka::app::scene::Scene scene((loka::app::scene::Boundary<ToggleControlBoundaryNode>()));
   mountAndAttach(scene, platform);
   visible.set(false);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
   assert(platform.eventCount(NullScenePlatformController::EVENT_CONTROL_DISPOSED) == 1);
   assertDisposalsAreInsideSafePoints(platform);
   g_toggleVisible = 0;
   g_toggleHint = loka::app::scene::NATIVE_HINT_DEFAULT;
 }
 
-void testNullPlatformContract_E2_synchronizeIsADisposalSafePoint()
+void testNullPlatformContract_E2_nativeRetirementDrainIsDisposalSafePoint()
 {
   loka::core::MutableState<bool> visible(true);
   g_toggleVisible = &visible;
@@ -2194,7 +2284,7 @@ void testNullPlatformContract_E2_synchronizeIsADisposalSafePoint()
 
   retireProjectedContextsWithoutApply(scene, platform);
   assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
-  platform.synchronize();
+  synchronizeThenDrainAtSafePoint(platform);
   assert(platform.eventCount(NullScenePlatformController::EVENT_CONTROL_DISPOSED) == 1);
   assertDisposalsAreInsideSafePoints(platform);
   g_toggleVisible = 0;
@@ -2231,7 +2321,7 @@ void testNullPlatformContract_E3_parkedBranchRetiresAtTheDoorNotAtReclaim()
   assert(platform.retiredCount() == 0);
 
   visible.set(false);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
   assert(platform.ledger().empty() &&
          "every native pair is handed over at a retire door, not parked past it");
   assert(platform.retiredCount() == 0);
@@ -2248,7 +2338,7 @@ void testNullPlatformContract_E3_parkedBranchRetiresAtTheDoorNotAtReclaim()
   g_parkedInnerCondition = 0;
 }
 
-void testNullPlatformContract_E3_synchronizeSettlesRetireDoorIntake()
+void testNullPlatformContract_E3_safePointSettlesRetireDoorIntake()
 {
   loka::core::MutableState<bool> visible(true);
   loka::core::MutableState<bool> inner(true);
@@ -2262,7 +2352,7 @@ void testNullPlatformContract_E3_synchronizeSettlesRetireDoorIntake()
   inner.set(false);
   retireProjectedContextsWithoutApply(scene, platform);
   assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
-  platform.synchronize();
+  synchronizeThenDrainAtSafePoint(platform);
   std::size_t eventsBeforeDrain = platform.eventLog().size();
   (void)eventsBeforeDrain;
   LOKA_VERIFY(!scene.flushInvalidation());
@@ -2978,9 +3068,9 @@ void testNullPlatformContract_H8_taggedSeatBuildsBranchFromLiveDefinition()
   // Each changed condition pointer drives RootBoundaryWrapper's tagged-child
   // props apply and turns over the snapshot generation without swapping seats.
   inputs.condition = &secondCondition;
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
   inputs.condition = &currentCondition;
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
 
   currentCondition.set(false);
   if (scene.hasPendingInvalidation())
@@ -3026,7 +3116,7 @@ void testNullPlatformContract_H9_retainedSeatUsesReplacementCondition()
   const NativeContextCallCounts callsBeforeRebind(platform);
 
   inputs.condition = &replacementCondition;
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
 
   (void)parkedConstructionsBefore;
   (void)parkedTransitionsBefore;
@@ -3085,12 +3175,12 @@ void testNullPlatformContract_F1_retiredQueueIsEmptyAfterFlush()
   loka::app::scene::Scene scene((loka::app::scene::Boundary<ToggleControlBoundaryNode>()));
   mountAndAttach(scene, platform);
   visible.set(false);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
   assert(platform.retiredCount() == 0);
   g_toggleVisible = 0;
 }
 
-void testNullPlatformContract_F1_synchronizeEmptiesRetiredQueue()
+void testNullPlatformContract_F1_safePointEmptiesRetiredQueue()
 {
   loka::core::MutableState<bool> visible(true);
   g_toggleVisible = &visible;
@@ -3100,7 +3190,7 @@ void testNullPlatformContract_F1_synchronizeEmptiesRetiredQueue()
 
   retireProjectedContextsWithoutApply(scene, platform);
   assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
-  platform.synchronize();
+  synchronizeThenDrainAtSafePoint(platform);
   assert(platform.retiredCount() == 0);
   g_toggleVisible = 0;
 }
@@ -3137,14 +3227,14 @@ void testNullPlatformContract_G4_retireBeforeContextAttachIsSilent()
   assert(platform.ledger().empty());
 
   visible.set(false);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
 
   assert(platform.ledger().empty());
   assert(platform.eventCount(NullScenePlatformController::EVENT_CONTROL_CREATED) == 0);
   assert(platform.eventCount(NullScenePlatformController::EVENT_CONTROL_SHOWN) == 0);
   assert(platform.eventCount(NullScenePlatformController::EVENT_CONTROL_HIDDEN) == 0);
   assert(platform.eventCount(NullScenePlatformController::EVENT_CONTROL_DISPOSED) == 0);
-  assert(platform.teardownCounters().rowRemoved == 0);
+  assert(platform.teardownCounters().hitRouteRemoved == 0);
   g_toggleVisible = 0;
 }
 
@@ -4941,6 +5031,7 @@ void testMisplacedPolicyScopeReconcilesReplacedInnerContent()
   }
   assert(scene.hasPendingInvalidation());
   LOKA_VERIFY(scene.flushInvalidation());
+  platform.drainNativeRetirements();
   LOKA_VERIFY(platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT) &&
          !platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON) &&
          "a misplaced PolicyScope reconciles changed content inside a retained Fragment");
@@ -4956,6 +5047,7 @@ void testMisplacedPolicyScopeReconcilesReplacedInnerContent()
   }
   assert(scene.hasPendingInvalidation());
   LOKA_VERIFY(scene.flushInvalidation());
+  platform.drainNativeRetirements();
   LOKA_VERIFY(platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON) &&
          !platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT));
 
@@ -4965,6 +5057,7 @@ void testMisplacedPolicyScopeReconcilesReplacedInnerContent()
   }
   assert(scene.hasPendingInvalidation());
   LOKA_VERIFY(scene.flushInvalidation());
+  platform.drainNativeRetirements();
   LOKA_VERIFY(platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT) &&
          !platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON) &&
          "an incompatible node replaced by PolicyScope content retires exactly once");
@@ -4993,18 +5086,18 @@ void testPolicyScopeDestroyOnDetachContrastsWithDefaultInRecomposingBoundary()
       (loka::app::scene::Boundary<PolicyDestroyHarnessBoundaryNode>()));
   mountAndAttach(scene, platform);
   assert(platform.ledger().size() == 2);
-  const unsigned long rowsBefore = platform.teardownCounters().rowRemoved;
+  const unsigned long rowsBefore = platform.teardownCounters().hitRouteRemoved;
 
   defaultCondition.set(false);
   scopedCondition.set(false);
   LOKA_VERIFY(scene.flushInvalidation());
+  platform.drainNativeRetirements();
   assertParkedTransitionTable(defaultRecord);
   assert(scopedRecord.constructionCount == 1 &&
          recordedTransitionTo(scopedRecord, loka::app::scene::NODE_FACT_RETIRED, 0));
   (void)rowsBefore;
-  assert(platform.ledger().size() == 1 &&
-         platform.teardownCounters().rowRemoved == rowsBefore + 1 &&
-         "destroyOnDetach retires native ownership while default parks it");
+  assert(platform.ledger().size() == 1 && platform.teardownCounters().hitRouteRemoved == rowsBefore + 1
+         && "destroyOnDetach retires native ownership while default parks it");
 
   revision.set(1);
   assert(scene.hasPendingInvalidation());
@@ -5077,18 +5170,18 @@ void testPolicyScopeDestroyOnDetachWorksInComposeOnceBoundary()
   loka::app::scene::Scene scene(root);
   mountAndAttach(scene, platform);
   assert(g_policyDestroyStdNode);
-  const unsigned long rowsBefore = platform.teardownCounters().rowRemoved;
+  const unsigned long rowsBefore = platform.teardownCounters().hitRouteRemoved;
 
   g_policyDestroyStdNode->hideBoth();
   if (scene.hasPendingInvalidation())
   {
     scene.flushInvalidation();
+    platform.drainNativeRetirements();
   }
   assertParkedTransitionTable(defaultRecord);
   assert(recordedTransitionTo(scopedRecord, loka::app::scene::NODE_FACT_RETIRED, 0));
   (void)rowsBefore;
-  assert(platform.ledger().size() == 1 &&
-         platform.teardownCounters().rowRemoved == rowsBefore + 1);
+  assert(platform.ledger().size() == 1 && platform.teardownCounters().hitRouteRemoved == rowsBefore + 1);
 
   g_policyDestroyStdNode->reshowScoped();
   if (scene.hasPendingInvalidation())
@@ -5365,7 +5458,7 @@ void testStep4ShapeSettlesAfterShowFlip()
   NativeContextCallCounts afterShow(platform);
   for (int i = 0; i < 4; ++i)
   {
-    requestChildPump(scene);
+    requestChildPump(scene, platform);
     assert(!scene.hasPendingInvalidation() &&
            "a re-pump with no state change must not re-arm invalidation");
     NativeContextCallCounts rePumped(platform);
@@ -5381,7 +5474,7 @@ void testStep4ShapeSettlesAfterShowFlip()
   NativeContextCallCounts afterHide(platform);
   for (int i = 0; i < 4; ++i)
   {
-    requestChildPump(scene);
+    requestChildPump(scene, platform);
     NativeContextCallCounts rePumped(platform);
     assert(rePumped == afterHide &&
            "re-pumps while hidden must not churn native structure");
@@ -5874,7 +5967,7 @@ void testNullPlatformContract_S1_scrollBarProjectsAndRetiresIntoItsOwnBucket()
 
   g_scrollBarPresent = false;
   revision.set(1);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
 
   // A retired scroll bar must not be paid back out as a button or an edit
   // field: the recipe is the exact-match key.
@@ -5885,7 +5978,7 @@ void testNullPlatformContract_S1_scrollBarProjectsAndRetiresIntoItsOwnBucket()
   resetScrollBarFixture();
 }
 
-void testNullPlatformContract_S1_synchronizePumpsScrollBarIntoItsOwnBucket()
+void testNullPlatformContract_S1_safePointDrainsScrollBarIntoOwnBucket()
 {
   resetScrollBarFixture();
   loka::core::MutableState<int> value(0);
@@ -5900,7 +5993,7 @@ void testNullPlatformContract_S1_synchronizePumpsScrollBarIntoItsOwnBucket()
 
   retireProjectedContextsWithoutApply(scene, platform);
   assert(platform.hasPendingSync() && "synchronize must receive pending retired-handle intake");
-  platform.synchronize();
+  synchronizeThenDrainAtSafePoint(platform);
 
   assert(platform.ledger().empty());
   assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_SCROLL_BAR).depth == 1);
@@ -5930,7 +6023,7 @@ void testNullPlatformContract_S2_heldArrowSettlesExactlyOnceAfterTheStateWrite()
 
   // App -> control: a write to the binding moves what the control shows.
   value.set(3);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
   assert(context->displayedValue() == 3);
   assert(witness.emitCount == 0 && "an app-side write is not a user change");
 
@@ -5995,11 +6088,11 @@ void testNullPlatformContract_S3_declaredOrientationAndStepsDriveTheControl()
 
   context->simulatePress(NullScrollBarContext::PART_LINE_UP, 1);
   assert(value.get() == 4);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
 
   context->simulatePress(NullScrollBarContext::PART_PAGE_DOWN, 1);
   assert(value.get() == 9);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
 
   context->simulateThumbDragTo(17);
   assert(value.get() == 17);
@@ -6036,13 +6129,13 @@ void testNullPlatformContract_S4_unscrollableAndDisabledBarsAreInactive()
   // Widening the range revives it through the same recompose path.
   g_scrollBarMax = 4;
   revision.set(1);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
   context = findScrollBarContext(platform);
   assert(context && context->active());
 
   // enabled is the other reason for the same inactive presentation.
   enabled.set(false);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
   assert(!context->active());
   context->simulatePress(NullScrollBarContext::PART_LINE_DOWN, 1);
   assert(value.get() == 0);
@@ -6071,7 +6164,7 @@ void testNullPlatformContract_S5_recomposedRangeClampsTheDisplayWithoutWritingBa
   // range() is static prop data, so a narrower range arrives by recompose.
   g_scrollBarMax = 4;
   revision.set(1);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
   context = findScrollBarContext(platform);
   assert(context);
   assert(context->maximum() == 4);
@@ -6250,7 +6343,7 @@ void testNullPlatformContract_S8_rangeEdgesClampTheDisplayAndOnlyTheDisplay()
   g_scrollBarMin = -10;
   g_scrollBarMax = -2;
   revision.set(1);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
   context = findScrollBarContext(platform);
   assert(context);
   assert(context->displayedValue() == -2 && "2 clamps to the negative ceiling");
@@ -6263,7 +6356,7 @@ void testNullPlatformContract_S8_rangeEdgesClampTheDisplayAndOnlyTheDisplay()
   g_scrollBarMin = 5;
   g_scrollBarMax = 2;
   revision.set(2);
-  requestChildPump(scene);
+  requestChildPump(scene, platform);
   context = findScrollBarContext(platform);
   assert(context);
   assert(!context->active());

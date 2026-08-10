@@ -811,7 +811,7 @@ namespace
       loka::app::RectSurfaceNode *surface = static_cast<loka::app::RectSurfaceNode *>(node);
       if (controller)
       {
-        EnsureToolboxRectSurfaceContext(surface);
+        EnsureToolboxRectSurfaceContext(surface, controller);
       }
       if (surface->getContext())
       {
@@ -1118,7 +1118,13 @@ void ToolboxScenePlatformController::synchronize()
 
 bool ToolboxScenePlatformController::hasPendingSync() const
 {
-  return false;
+  return !this->retiredControls_.empty() || !this->retiredScrollBarControls_.empty()
+         || !this->retiredTextEdits_.empty();
+}
+
+void ToolboxScenePlatformController::drainNativeRetirements()
+{
+  this->flushRetiredNativeHandles();
 }
 
 void ToolboxScenePlatformController::destroy()
@@ -1151,13 +1157,18 @@ void ToolboxScenePlatformController::releaseNodeContexts(loka::app::scene::Node 
     }
   }
 
-  loka::app::scene::NodeContext *context = node->getContext();
+  node->setContext(0);
+}
+
+void ToolboxScenePlatformController::retireNodeContext(loka::app::scene::NodeContext *context,
+                                                       loka::app::scene::NativeLifetimeHint lifetimeHint)
+{
   if (context)
   {
     std::vector<loka::core::State<loka::core::String> *> retiredTextStates;
     std::vector<loka::core::State<bool> *> retiredEnabledStates;
 
-    this->retireEditTextControl(context, context->lifetimeHint());
+    this->retireEditTextControl(context, lifetimeHint);
     assert(!editControls_.contains(context) &&
            "detach must strip the context's native edit binding before context reclaim");
 
@@ -1243,7 +1254,6 @@ void ToolboxScenePlatformController::releaseNodeContexts(loka::app::scene::Node 
       }
     }
   }
-  node->setContext(0);
 }
 
 void ToolboxScenePlatformController::render()

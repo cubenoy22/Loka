@@ -53,27 +53,28 @@ namespace
   }
 } // namespace
 
-ToolboxButtonContext::ToolboxButtonContext(loka::app::ButtonNode *node,
-                                           ToolboxScenePlatformController *controller)
-    : node_(node),
+ToolboxButtonContext::ToolboxButtonContext(loka::app::ButtonNode *node, ToolboxScenePlatformController *controller)
+    : ToolboxProjectedNodeContext(controller),
+      node_(node),
       rect_(),
       label_(loka::core::String::Literal("Button")),
       emitter_(0),
       enabled_(0),
-      resourceId_(0),
-      controller_(controller)
+      resourceId_(0)
 {
 }
 
-ToolboxButtonContext::~ToolboxButtonContext()
+ToolboxButtonContext::~ToolboxButtonContext() {}
+
+void ToolboxButtonContext::retireNativeProjection()
 {
-  if (controller_)
+  if (this->controller())
   {
     // The terminal fact delivery just refreshed the hint snapshot, so the
     // retire flush decides on the freshest value — not the last render's.
-    controller_->destroyButtonControl(resourceId_, this->lifetimeHint());
+    this->controller()->destroyButtonControl(resourceId_, this->lifetimeHint());
   }
-  controller_ = 0;
+  this->node_ = 0;
 }
 
 void ToolboxButtonContext::updateData(const loka::core::String &label,

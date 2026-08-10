@@ -26,9 +26,8 @@ namespace
                                            loka::app::scene::IPlatformController *controller,
                                            const loka::app::scene::LayoutState &state)
     {
-      (void)controller;
       (void)state;
-      return new ToolboxImageViewContext(node);
+      return new ToolboxImageViewContext(node, static_cast<ToolboxScenePlatformController *>(controller));
     }
   };
 
@@ -233,8 +232,10 @@ namespace
   }
 } // namespace
 
-ToolboxImageViewContext::ToolboxImageViewContext(loka::app::ImageViewNode *node)
-    : node_(node),
+ToolboxImageViewContext::ToolboxImageViewContext(loka::app::ImageViewNode *node,
+                                                 ToolboxScenePlatformController *controller)
+    : ToolboxProjectedNodeContext(controller),
+      node_(node),
       rect_(),
       image_()
 {

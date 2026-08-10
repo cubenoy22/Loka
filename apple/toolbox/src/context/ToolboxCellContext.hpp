@@ -32,7 +32,7 @@ namespace loka
 class ToolboxCellContext : public ToolboxProjectedNodeContext
 {
 public:
-  explicit ToolboxCellContext(loka::app::CellNode *node);
+  ToolboxCellContext(loka::app::CellNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxCellContext();
 
   void updateData(loka::core::State<loka::core::String> *text);

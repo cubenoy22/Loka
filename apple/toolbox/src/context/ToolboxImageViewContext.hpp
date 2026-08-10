@@ -21,7 +21,7 @@ namespace loka
 class ToolboxImageViewContext : public ToolboxProjectedNodeContext
 {
 public:
-  explicit ToolboxImageViewContext(loka::app::ImageViewNode *node);
+  ToolboxImageViewContext(loka::app::ImageViewNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxImageViewContext();
 
   virtual short layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state);

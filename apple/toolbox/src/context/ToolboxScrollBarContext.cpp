@@ -29,22 +29,24 @@ namespace
 
 ToolboxScrollBarContext::ToolboxScrollBarContext(loka::app::ScrollBarNode *node,
                                                  ToolboxScenePlatformController *controller)
-    : node_(node),
+    : ToolboxProjectedNodeContext(controller),
+      node_(node),
       rect_(),
-      resourceId_(0),
-      controller_(controller)
+      resourceId_(0)
 {
 }
 
-ToolboxScrollBarContext::~ToolboxScrollBarContext()
+ToolboxScrollBarContext::~ToolboxScrollBarContext() {}
+
+void ToolboxScrollBarContext::retireNativeProjection()
 {
-  if (controller_)
+  if (this->controller())
   {
     // The terminal fact delivery just refreshed the hint snapshot, so the
     // retire flush decides on the freshest value -- not the last render's.
-    controller_->destroyScrollBarControl(resourceId_, this->lifetimeHint());
+    this->controller()->destroyScrollBarControl(resourceId_, this->lifetimeHint());
   }
-  controller_ = 0;
+  this->node_ = 0;
 }
 
 void ToolboxScrollBarContext::updateRect(const Rect &rect)

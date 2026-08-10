@@ -1,4 +1,5 @@
 #include "MacTextContext.hpp"
+#include <cassert>
 #include "../MacScenePlatformController.hpp"
 #include "../MacObjCCompat.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
@@ -128,7 +129,7 @@ namespace
                                   const loka::app::scene::LayoutState &state)
     {
       MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      return new MacTextContext(mac->rootView(), state.x, state.y, state.width, state.height, text);
+      return new MacTextContext(mac, mac->rootView(), state.x, state.y, state.width, state.height, text);
     }
 
     static void refresh(MacTextContext *ctx, const loka::app::scene::LayoutState &state)
@@ -140,8 +141,15 @@ namespace
   MacTextNodeHandler gMacTextNodeHandler;
 } // namespace
 
-MacTextContext::MacTextContext(void *parentView, int x, int y, int width, int height, loka::app::TextNode *node)
-    : node_(node),
+MacTextContext::MacTextContext(MacScenePlatformController *controller,
+                               void *parentView,
+                               int x,
+                               int y,
+                               int width,
+                               int height,
+                               loka::app::TextNode *node)
+    : MacRetirableContext(controller),
+      node_(node),
       parentView_(parentView),
       label_(0),
       textState_(0),
@@ -199,17 +207,7 @@ MacTextContext::MacTextContext(void *parentView, int x, int y, int width, int he
 
 MacTextContext::~MacTextContext()
 {
-  unbindText();
-  NSTextField *label = (NSTextField *)label_;
-  if (label)
-  {
-    [label removeFromSuperview];
-  }
-  if (label_)
-  {
-    [(id)label_ release];
-  }
-  label_ = 0;
+  assert(!label_ && "terminal fact delivery must queue the native view before context reclaim");
 }
 
 void MacTextContext::readLifecycleFactOnAttach()
@@ -233,6 +231,14 @@ void MacTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
     // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
     // (hide before the ritual destroys the native pair).
     this->applyDetachedPresentation();
+    if (next == loka::app::scene::NODE_FACT_RETIRED)
+    {
+      this->unbindText();
+      [(NSTextField *)this->label_ removeFromSuperview];
+      this->retireNativeObject(this->label_);
+      this->node_ = 0;
+      this->parentView_ = 0;
+    }
   }
 }
 

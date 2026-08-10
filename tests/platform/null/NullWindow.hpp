@@ -72,6 +72,27 @@ public:
     return this->controller_;
   }
 
+  virtual bool hasPendingScenePlatformSync() const
+  {
+    return this->controller_ ? this->controller_->hasPendingSync() : false;
+  }
+
+  virtual void synchronizeScenePlatform()
+  {
+    if (this->controller_)
+    {
+      this->controller_->synchronize();
+    }
+  }
+
+  virtual void drainNativeRetirements()
+  {
+    if (this->controller_)
+    {
+      this->controller_->drainNativeRetirements();
+    }
+  }
+
 private:
   NullScenePlatformController *controller_;
   bool ownsController_;

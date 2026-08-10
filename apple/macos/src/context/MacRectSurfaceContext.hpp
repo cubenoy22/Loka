@@ -2,7 +2,7 @@
 #define LOKA_MAC_RECT_SURFACE_CONTEXT_HPP
 
 #include "app/RectSurface.hpp"
-#include "app/scene/projection/NativeNodeContext.hpp"
+#include "MacRetirableContext.hpp"
 
 namespace loka
 {
@@ -12,10 +12,18 @@ namespace loka
   }
 } // namespace loka
 
-class MacRectSurfaceContext : public loka::app::scene::NativeNodeContext
+class MacScenePlatformController;
+
+class MacRectSurfaceContext : public MacRetirableContext
 {
 public:
-  MacRectSurfaceContext(void *parentView, int x, int y, int width, int height, loka::app::RectSurfaceNode *node);
+  MacRectSurfaceContext(MacScenePlatformController *controller,
+                        void *parentView,
+                        int x,
+                        int y,
+                        int width,
+                        int height,
+                        loka::app::RectSurfaceNode *node);
   virtual ~MacRectSurfaceContext();
   /** Attach-time read (late-subscriber rule): presentation from the current
       fact, called by the installing handler right after setContext. */

@@ -90,6 +90,7 @@ NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepth
       intakeCheckFailCount_(0),
       createdCount_(0),
       disposedCount_(0),
+      injectedDeliveryCount_(0),
       nextEventSequence_(1),
       nextHandleId_(1),
       preserveNextRetiredOwner_(false),
@@ -136,11 +137,6 @@ void NullScenePlatformController::onChange(loka::app::scene::Node *rootNode,
   ++this->onChangeCallCount_;
   this->rootNode_ = rootNode;
 
-  // Context retirement happens before the global apply callback. Flush first
-  // so the live projection can draw from the just-completed exact-match bag.
-  this->appendEvent(EVENT_FLUSH_BEGIN, 0);
-  this->flushRetired();
-  this->appendEvent(EVENT_FLUSH_END, 0);
   if (this->skipNextProjection_)
   {
     this->skipNextProjection_ = false;
@@ -192,7 +188,9 @@ void NullScenePlatformController::onBoundaryApply(loka::app::scene::Node *rootNo
   syncScrollBarsInSubtree(static_cast<loka::app::scene::Node *>(boundary));
 }
 
-void NullScenePlatformController::synchronize()
+void NullScenePlatformController::synchronize() {}
+
+void NullScenePlatformController::drainNativeRetirements()
 {
   if (this->retired_.empty())
   {
@@ -353,6 +351,27 @@ NullScenePlatformController::findLedgerRow(ControlRecipe recipe) const
   return 0;
 }
 
+bool NullScenePlatformController::hasHitTarget(ControlRecipe recipe) const
+{
+  const LedgerRow *row = this->findLedgerRow(recipe);
+  return row && row->handle && row->handle->hitOwner;
+}
+
+bool NullScenePlatformController::injectNotification(ControlRecipe recipe)
+{
+  if (!this->hasHitTarget(recipe))
+  {
+    return false;
+  }
+  ++this->injectedDeliveryCount_;
+  return true;
+}
+
+unsigned long NullScenePlatformController::injectedDeliveryCount() const
+{
+  return this->injectedDeliveryCount_;
+}
+
 void NullScenePlatformController::preserveNextRetiredOwnerForTesting()
 {
   this->preserveNextRetiredOwner_ = true;
@@ -382,6 +401,7 @@ NullScenePlatformController::createLedgerRow(ControlRecipe recipe,
     this->appendEvent(EVENT_CONTROL_CREATED, handle->id);
   }
   handle->owner = owner;
+  handle->hitOwner = owner;
   handle->disposed = false;
   handle->leakedDeliberately = false;
   this->ledger_.push_back(LedgerRow(handle, recipe, hint));
@@ -411,19 +431,14 @@ void NullScenePlatformController::completeContextTeardown(FakeControlHandle *han
     handle->owner = 0;
     ++this->teardownCounters_.backPointerCleared;
   }
-
-  for (std::size_t i = 0; i < this->ledger_.size(); ++i)
+  if (handle->hitOwner)
   {
-    if (this->ledger_[i].handle == handle)
-    {
-      this->ledger_.erase(this->ledger_.begin() + i);
-      ++this->teardownCounters_.rowRemoved;
-      break;
-    }
+    handle->hitOwner = 0;
+    ++this->teardownCounters_.hitRouteRemoved;
   }
 
   this->retired_.push_back(RetiredEntry(handle, recipe, hint));
-  ++this->teardownCounters_.handedToPool;
+  ++this->teardownCounters_.queuedForNativeRetirement;
 }
 
 void NullScenePlatformController::setVisible(FakeControlHandle *handle, bool visible)
@@ -503,6 +518,15 @@ void NullScenePlatformController::flushRetired()
     if (!handle)
     {
       continue;
+    }
+    for (std::size_t rowIndex = 0; rowIndex < this->ledger_.size(); ++rowIndex)
+    {
+      if (this->ledger_[rowIndex].handle == handle)
+      {
+        this->ledger_.erase(this->ledger_.begin() + rowIndex);
+        ++this->teardownCounters_.ledgerRowRemovedAtSafePoint;
+        break;
+      }
     }
     if (entry.hint == loka::app::scene::NATIVE_HINT_EAGER_RELEASE)
     {

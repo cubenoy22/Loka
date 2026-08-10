@@ -102,6 +102,7 @@ public:
   virtual void beginApplyCycle();
   virtual void synchronize();
   virtual bool hasPendingSync() const;
+  virtual void drainNativeRetirements();
   virtual void destroy();
   virtual void releaseNodeContexts(loka::app::scene::Node *node);
   virtual bool prepareProjectedLayout(loka::app::scene::Node *node, loka::app::scene::LayoutState &state);
@@ -109,7 +110,11 @@ public:
 
   bool handleCommand(WPARAM wParam, LPARAM lParam);
   void relayout(int clientWidth, int clientHeight);
-  HWND rootHwnd() const { return rootHwnd_; }
+  HWND rootHwnd() const
+  {
+    return rootHwnd_;
+  }
+  void queueNativeRetirement(HWND hwnd);
 
 private:
   friend class ::loka::dsl::testing::Win32ScenePlatformTestAccess;
@@ -307,7 +312,7 @@ private:
   LayoutNodeResult computeLayoutResult(loka::app::scene::Node *node, const LayoutState &state);
   int applyBoundaryLayoutResult(loka::app::scene::BoundaryNode *boundary, int x, int y, const LayoutNodeResult &result);
   LayoutNodeResult layoutRectSurfaceNode(loka::app::RectSurfaceNode *surface, const LayoutState &state);
-  void performLayout(int clientWidth, int clientHeight, bool rebuildContexts);
+  void performLayout(int clientWidth, int clientHeight);
   void clearContexts();
   void clearNodeContexts(loka::app::scene::Node *node);
   int measureClientWidth(int requestedWidth) const;
@@ -323,6 +328,7 @@ private:
   int clientWidth_;
   int clientHeight_;
   std::vector<PendingInvalidate> pendingInvalidations_;
+  std::vector<HWND> retiredWindows_;
   RedrawStats redrawStats_;
 };
 

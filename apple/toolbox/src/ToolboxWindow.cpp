@@ -461,6 +461,14 @@ void ToolboxWindow::synchronizeScenePlatform()
   }
 }
 
+void ToolboxWindow::drainNativeRetirements()
+{
+  if (scenePlatformController_)
+  {
+    scenePlatformController_->drainNativeRetirements();
+  }
+}
+
 bool ToolboxWindow::hasPendingScenePlatformSync() const
 {
   return scenePlatformController_ ? scenePlatformController_->hasPendingSync() : false;

@@ -1,4 +1,5 @@
 #include "Win32CellContext.hpp"
+#include <cassert>
 #include "../Win32ScenePlatformController.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
@@ -27,7 +28,7 @@ namespace
                                     const loka::app::scene::LayoutState &state)
     {
       Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
-      return new Win32CellContext(win32->rootHwnd(), state.x, state.y, state.width, state.height, cell);
+      return new Win32CellContext(win32, win32->rootHwnd(), state.x, state.y, state.width, state.height, cell);
     }
 
     static void refresh(Win32CellContext *ctx, const loka::app::scene::LayoutState &state)
@@ -39,8 +40,15 @@ namespace
   Win32CellNodeHandler gWin32CellNodeHandler;
 } // namespace
 
-Win32CellContext::Win32CellContext(HWND parent, int x, int y, int width, int height, loka::app::CellNode *node)
-    : node_(node),
+Win32CellContext::Win32CellContext(Win32ScenePlatformController *controller,
+                                   HWND parent,
+                                   int x,
+                                   int y,
+                                   int width,
+                                   int height,
+                                   loka::app::CellNode *node)
+    : Win32RetirableContext(controller),
+      node_(node),
       hwnd_(0),
       textState_(0),
       text_()
@@ -53,13 +61,7 @@ Win32CellContext::Win32CellContext(HWND parent, int x, int y, int width, int hei
 
 Win32CellContext::~Win32CellContext()
 {
-  unbindText();
-  if (hwnd_)
-  {
-    SetWindowLongPtr(hwnd_, GWLP_USERDATA, 0);
-    DestroyWindow(hwnd_);
-    hwnd_ = 0;
-  }
+  assert(!hwnd_ && "terminal fact delivery must queue the HWND before context reclaim");
 }
 
 void Win32CellContext::readLifecycleFactOnAttach()
@@ -83,6 +85,12 @@ void Win32CellContext::onFactChanged(loka::app::scene::NodeLifecycleFact previou
     // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
     // (hide before the ritual destroys the native pair).
     this->applyDetachedPresentation();
+    if (next == loka::app::scene::NODE_FACT_RETIRED)
+    {
+      this->unbindText();
+      this->retireWindow(this->hwnd_);
+      this->node_ = 0;
+    }
   }
 }
 

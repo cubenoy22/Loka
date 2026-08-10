@@ -1,4 +1,5 @@
 #include "Win32TextContext.hpp"
+#include <cassert>
 #include "../Win32ScenePlatformController.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
@@ -25,7 +26,7 @@ namespace
                                     const loka::app::scene::LayoutState &state)
     {
       Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
-      return new Win32TextContext(win32->rootHwnd(), state.x, state.y, state.width, state.height, text);
+      return new Win32TextContext(win32, win32->rootHwnd(), state.x, state.y, state.width, state.height, text);
     }
 
     static void refresh(Win32TextContext *ctx, const loka::app::scene::LayoutState &state)
@@ -150,8 +151,15 @@ namespace
   }
 } // namespace
 
-Win32TextContext::Win32TextContext(HWND parent, int x, int y, int width, int height, loka::app::TextNode *node)
-    : node_(node),
+Win32TextContext::Win32TextContext(Win32ScenePlatformController *controller,
+                                   HWND parent,
+                                   int x,
+                                   int y,
+                                   int width,
+                                   int height,
+                                   loka::app::TextNode *node)
+    : Win32RetirableContext(controller),
+      node_(node),
       hwnd_(NULL),
       textState_(0),
       didInitialApply_(false)
@@ -194,12 +202,7 @@ Win32TextContext::Win32TextContext(HWND parent, int x, int y, int width, int hei
 
 Win32TextContext::~Win32TextContext()
 {
-  unbindText();
-  if (hwnd_)
-  {
-    DestroyWindow(hwnd_);
-    hwnd_ = NULL;
-  }
+  assert(!hwnd_ && "terminal fact delivery must queue the HWND before context reclaim");
 }
 
 void Win32TextContext::readLifecycleFactOnAttach()
@@ -223,6 +226,12 @@ void Win32TextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previou
     // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
     // (hide before the ritual destroys the native pair).
     this->applyDetachedPresentation();
+    if (next == loka::app::scene::NODE_FACT_RETIRED)
+    {
+      this->unbindText();
+      this->retireWindow(this->hwnd_);
+      this->node_ = 0;
+    }
   }
 }
 

@@ -1,4 +1,5 @@
 #include "MacPopupMenuContext.hpp"
+#include <cassert>
 #include "../MacScenePlatformController.hpp"
 #include "MacObjCCompat.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
@@ -25,7 +26,7 @@ namespace
                                        const loka::app::scene::LayoutState &state)
     {
       MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      return new MacPopupMenuContext(mac->rootView(), state.x, state.y, state.width, state.height, popup);
+      return new MacPopupMenuContext(mac, mac->rootView(), state.x, state.y, state.width, state.height, popup);
     }
 
     static void refresh(MacPopupMenuContext *ctx, const loka::app::scene::LayoutState &state)
@@ -57,9 +58,15 @@ namespace
 }
 @end
 
-MacPopupMenuContext::MacPopupMenuContext(
-    void *parentView, int x, int y, int width, int height, loka::app::PopupMenuNode *node)
-    : node_(node),
+MacPopupMenuContext::MacPopupMenuContext(MacScenePlatformController *controller,
+                                         void *parentView,
+                                         int x,
+                                         int y,
+                                         int width,
+                                         int height,
+                                         loka::app::PopupMenuNode *node)
+    : MacRetirableContext(controller),
+      node_(node),
       popup_(0),
       target_(0),
       selectionState_(0),
@@ -90,26 +97,7 @@ MacPopupMenuContext::MacPopupMenuContext(
 
 MacPopupMenuContext::~MacPopupMenuContext()
 {
-  unbindSelection();
-  unbindEnabled();
-  NSPopUpButton *popup = (NSPopUpButton *)popup_;
-  if (popup)
-  {
-    [popup setTarget:nil];
-    [popup setAction:nil];
-    [popup removeFromSuperview];
-  }
-  if (target_)
-  {
-    [(LokaPopupMenuTarget *)target_ setOwner:0];
-    [(id)target_ release];
-    target_ = 0;
-  }
-  if (popup_)
-  {
-    [(id)popup_ release];
-  }
-  popup_ = 0;
+  assert(!popup_ && !target_ && "terminal fact delivery must queue native objects before context reclaim");
 }
 
 void MacPopupMenuContext::readLifecycleFactOnAttach()
@@ -133,6 +121,18 @@ void MacPopupMenuContext::onFactChanged(loka::app::scene::NodeLifecycleFact prev
     // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
     // (hide before the ritual destroys the native pair).
     this->applyDetachedPresentation();
+    if (next == loka::app::scene::NODE_FACT_RETIRED)
+    {
+      this->unbindSelection();
+      this->unbindEnabled();
+      NSPopUpButton *popup = (NSPopUpButton *)this->popup_;
+      [popup setTarget:nil];
+      [popup setAction:nil];
+      [popup removeFromSuperview];
+      [(LokaPopupMenuTarget *)this->target_ setOwner:0];
+      this->retireNativeObjects(this->popup_, this->target_);
+      this->node_ = 0;
+    }
   }
 }
 

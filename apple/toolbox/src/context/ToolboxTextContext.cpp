@@ -24,9 +24,8 @@ namespace
                                       loka::app::scene::IPlatformController *controller,
                                       const loka::app::scene::LayoutState &state)
     {
-      (void)controller;
       (void)state;
-      return new ToolboxTextContext(node);
+      return new ToolboxTextContext(node, static_cast<ToolboxScenePlatformController *>(controller));
     }
   };
 
@@ -199,8 +198,9 @@ namespace
   }
 } // namespace
 
-ToolboxTextContext::ToolboxTextContext(loka::app::TextNode *node)
-    : node_(node),
+ToolboxTextContext::ToolboxTextContext(loka::app::TextNode *node, ToolboxScenePlatformController *controller)
+    : ToolboxProjectedNodeContext(controller),
+      node_(node),
       rect_(),
       textX_(0),
       textY_(0),

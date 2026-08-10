@@ -416,6 +416,14 @@ void MacWindow::synchronizeScenePlatform()
   }
 }
 
+void MacWindow::drainNativeRetirements()
+{
+  if (this->scenePlatformController_)
+  {
+    this->scenePlatformController_->drainNativeRetirements();
+  }
+}
+
 bool MacWindow::hasPendingScenePlatformSync() const
 {
   return scenePlatformController_ ? scenePlatformController_->hasPendingSync() : false;
