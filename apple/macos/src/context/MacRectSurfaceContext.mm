@@ -3,6 +3,19 @@
 #include "app/RectSurface.hpp"
 #include <AppKit/AppKit.h>
 
+namespace
+{
+  NSColor *MacRectSurfaceClearColor()
+  {
+    return [NSColor whiteColor];
+  }
+
+  NSColor *MacRectSurfaceContentColor()
+  {
+    return [NSColor blackColor];
+  }
+} // namespace
+
 @interface LokaRectSurfaceView : NSView
 {
   MacRectSurfaceContext *context_;
@@ -162,7 +175,7 @@ void MacRectSurfaceContext::draw(void *viewBounds)
   NSRect bounds = *(NSRect *)viewBounds;
   if (node_ && node_->props.clearBackground_)
   {
-    [[NSColor whiteColor] setFill];
+    [MacRectSurfaceClearColor() setFill];
     NSRectFill(bounds);
   }
   if (!node_ || !node_->props.model_)
@@ -170,7 +183,7 @@ void MacRectSurfaceContext::draw(void *viewBounds)
     return;
   }
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
-  [[NSColor blackColor] setFill];
+  [MacRectSurfaceContentColor() setFill];
   for (short i = 0; i < model.rectCount; ++i)
   {
     NSRectFill(NSMakeRect((CGFloat)model.rects[i].x,

@@ -9,6 +9,7 @@
 namespace
 {
   const char *kCellClassName = "LOKA_CELL";
+  const COLORREF kCellFillColor = RGB(235, 235, 235);
 
   class Win32CellNodeHandler
       : public loka::app::scene::RetainedNodeHandler<Win32CellNodeHandler,
@@ -226,7 +227,7 @@ void Win32CellContext::applyText()
 
 void Win32CellContext::drawCell(HDC hdc, const RECT &rect)
 {
-  HBRUSH fill = CreateSolidBrush(RGB(235, 235, 235));
+  HBRUSH fill = CreateSolidBrush(kCellFillColor);
   FillRect(hdc, &rect, fill);
   DeleteObject(fill);
   FrameRect(hdc, &rect, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));

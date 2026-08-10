@@ -12,6 +12,21 @@ class MacCellContext;
 
 namespace
 {
+  NSColor *MacCellFillColor()
+  {
+    return [NSColor colorWithCalibratedWhite:0.92 alpha:1.0];
+  }
+
+  NSColor *MacCellBorderColor()
+  {
+    return [NSColor colorWithCalibratedWhite:0.45 alpha:1.0];
+  }
+
+  NSColor *MacCellTextColor()
+  {
+    return [NSColor blackColor];
+  }
+
   class MacCellNodeHandler
       : public loka::app::scene::RetainedNodeHandler<MacCellNodeHandler,
                                                      loka::app::CellNode,
@@ -86,16 +101,16 @@ namespace
 - (void)drawRect:(NSRect)dirtyRect
 {
   [super drawRect:dirtyRect];
-  [[NSColor colorWithCalibratedWhite:0.92 alpha:1.0] setFill];
+  [MacCellFillColor() setFill];
   NSRectFill(self.bounds);
-  [[NSColor colorWithCalibratedWhite:0.45 alpha:1.0] setStroke];
+  [MacCellBorderColor() setStroke];
   NSFrameRect(self.bounds);
 
   if ([self text])
   {
     NSDictionary *attrs = [NSDictionary dictionaryWithObjectsAndKeys:[NSFont systemFontOfSize:12.0],
                                                                      NSFontAttributeName,
-                                                                     [NSColor blackColor],
+                                                                     MacCellTextColor(),
                                                                      NSForegroundColorAttributeName,
                                                                      nil];
     NSSize textSize = [[self text] sizeWithAttributes:attrs];
