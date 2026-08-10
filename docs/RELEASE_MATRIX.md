@@ -16,6 +16,13 @@ capture is settled only after the scenario completion marker and two consecutive
 frames with the same hash; the pixel comparison is limited to the SnapRecord crop
 bounds.
 
+Today's Classic runner satisfies only part of this contract: its verdict parses
+`status` and the crop fields without comparing the rest of the SnapRecord to a
+tracked expected record, and its capture waits a fixed interval for a single
+snapshot instead of the marker-plus-two-identical-hashes rule. Until
+[#314](https://github.com/cubenoy22/Loka/issues/314) upgrades it, a Classic ✅
+requires attaching the SnapRecord to the evidence link and reviewing it by hand.
+
 The release gate is:
 
 - L0 + L1: every applicable cell is automated and passes.
@@ -104,8 +111,8 @@ host must satisfy that preset's toolchain requirements.
 | L0 macOS | `cmake --preset macos-debug && cmake --build --preset macos-debug` |
 | L0 Classic Mac 68K | `cmake --preset retro68-68k-release && cmake --build --preset retro68-68k-release` |
 | L0 Classic Mac PPC | `cmake --preset retro68-ppc-release && cmake --build --preset retro68-ppc-release` |
-| L1 Classic `ScrapbookUI` | `tests/toolbox/run-scenario.sh open-first-page` |
-| L2 Classic `ScrapbookUI` | `tests/toolbox/run-scenario.sh <scenario>` |
+| L1 Classic `ScrapbookUI` | `tests/toolbox/run-scenario.sh open-first-page` — status/crop verdict and fixed-wait single snapshot today; full-record comparison and settled capture are tracked in [#314](https://github.com/cubenoy22/Loka/issues/314) |
+| L2 Classic `ScrapbookUI` | `tests/toolbox/run-scenario.sh <scenario>` — same [#314](https://github.com/cubenoy22/Loka/issues/314) caveat |
 | L1/L2 Win32 | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
 | L1/L2 macOS | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
 | L1/L2 Classic examples other than `ScrapbookUI` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
