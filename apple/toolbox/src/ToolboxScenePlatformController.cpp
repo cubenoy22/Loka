@@ -1389,9 +1389,15 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     }
     redrawPopupHit(hit);
   }
-  for (size_t i = 0; i < cellHits_.size(); ++i)
+  // Replay over a frozen prefix, by value: registration belongs to the render
+  // walk (#315), so the registry must not change under this loop. The frozen
+  // bound and the copied entry keep a regressed registrar from turning this
+  // into an unbounded loop or a dangling reference even where the assert is
+  // compiled out; the assert makes the contract loud where it is not.
+  const size_t cellReplayCount = cellHits_.size();
+  for (size_t i = 0; i < cellReplayCount; ++i)
   {
-    CellHit &hit = cellHits_[i];
+    CellHit hit = cellHits_[i];
     if (!hit.context)
     {
       continue;
@@ -1401,6 +1407,8 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
       continue;
     }
     hit.context->draw(this);
+    assert(cellHits_.size() == cellReplayCount
+           && "cell hits register on the render walk; the dirty replay must not grow the registry it iterates (#315)");
   }
   for (size_t i = 0; i < textHits_.size(); ++i)
   {
