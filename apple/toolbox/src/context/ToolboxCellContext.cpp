@@ -73,13 +73,10 @@ void ToolboxCellContext::updateRect(const Rect &rect)
 
 void ToolboxCellContext::draw(ToolboxScenePlatformController *controller)
 {
+  (void)controller;
   Rect drawRect = rect_;
   EraseRect(&drawRect);
   FrameRect(&drawRect);
-  if (controller)
-  {
-    controller->recordCellHit(rect_, node_ ? node_->props.onClick_ : 0, boundary_, this, text_);
-  }
   if (!text_)
   {
     return;
@@ -136,6 +133,14 @@ short ToolboxCellContext::layout(loka::app::scene::IPlatformController *, loka::
 void ToolboxCellContext::render(loka::app::scene::IPlatformController *controller)
 {
   ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
+  // Registration happens here, on the tree-walk render, and only here. The
+  // dirty replay re-invokes draw() on already-registered entries; a painter
+  // that also registers would grow the very vector the replay iterates
+  // (unbounded redraw + a dangling reference on reallocation).
+  if (toolbox)
+  {
+    toolbox->recordCellHit(rect_, node_ ? node_->props.onClick_ : 0, boundary_, this, text_);
+  }
   draw(toolbox);
 }
 
