@@ -38,14 +38,26 @@ namespace loka
       {
         if (!value_)
           return true;
-        CFIndex length = CFStringGetLength(value_);
+        const CFIndex length = CFStringGetLength(value_);
         if (length == 0)
           return true;
-        CFIndex maxBytes = CFStringGetMaximumSizeForEncoding(length, kCFStringEncodingUTF8) + 1;
-        std::vector<char> buffer(static_cast<std::size_t>(maxBytes));
-        if (!CFStringGetCString(value_, &buffer[0], maxBytes, kCFStringEncodingUTF8))
+        const CFIndex maxBytes = CFStringGetMaximumSizeForEncoding(length, kCFStringEncodingUTF8);
+        if (maxBytes <= 0)
           return false;
-        out.append(&buffer[0]);
+        std::vector<char> buffer(static_cast<std::size_t>(maxBytes));
+        CFIndex usedBytes = 0;
+        const CFIndex converted =
+            CFStringGetBytes(value_,
+                             CFRangeMake(0, length),
+                             kCFStringEncodingUTF8,
+                             0,
+                             false,
+                             reinterpret_cast<UInt8 *>(&buffer[0]),
+                             maxBytes,
+                             &usedBytes);
+        if (converted != length)
+          return false;
+        out.append(&buffer[0], static_cast<std::size_t>(usedBytes));
         return true;
       }
 
