@@ -40,6 +40,22 @@ jobs:
       - run: cmake --build --preset testing-release
       - run: ctest --preset testing-release --output-on-failure
 
+  macos:
+    runs-on: macos-15
+    # A failing assert in a Debug GUI-adjacent test can leave an unattended
+    # dialog waiting forever. Bound the job so that failure cannot hang the
+    # hosted runner for the workflow's maximum duration.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - run: cmake --preset macos-debug
+      # As on Win32, the production build excludes the test executable and
+      # the test target covers only a slice of the platform layer. Build both
+      # target sets so CI proves the application and the tests still build.
+      - run: cmake --build --preset macos-debug
+      - run: cmake --build --preset macos-tests
+      - run: ctest --preset macos-tests --output-on-failure
+
   win32:
     runs-on: windows-latest
     # A failing assert in an MSVC Debug build raises an abort dialog, which on
