@@ -904,6 +904,7 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       focusedRect_(),
       hasFocusedRect_(false),
       inBatchUpdate_(false),
+      replayingCellHits_(false),
       pendingFullInvalidate_(false),
       pendingInvalidateFlags_(loka::app::scene::NODE_DIRTY_NONE),
       forceFullRedraw_(false),
@@ -1389,6 +1390,7 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     }
     redrawPopupHit(hit);
   }
+  replayingCellHits_ = true;
   for (size_t i = 0; i < cellHits_.size(); ++i)
   {
     CellHit &hit = cellHits_[i];
@@ -1402,6 +1404,7 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     }
     hit.context->draw(this);
   }
+  replayingCellHits_ = false;
   for (size_t i = 0; i < textHits_.size(); ++i)
   {
     TextHit &hit = textHits_[i];
@@ -1549,6 +1552,8 @@ void ToolboxScenePlatformController::recordCellHit(const Rect &rect,
                                                    ToolboxCellContext *context,
                                                    loka::core::State<loka::core::String> *text)
 {
+  assert(!replayingCellHits_
+         && "cell hits register on the render walk; the dirty replay must not grow the registry it iterates (#315)");
   CellHit hit;
   hit.rect = rect;
   hit.emitter = emitter;

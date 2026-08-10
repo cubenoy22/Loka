@@ -276,6 +276,11 @@ private:
   std::vector<loka::core::State<bool> *> boundEnabledStates_;
   std::vector<EnabledBinding *> enabledBindings_;
   bool inBatchUpdate_;
+  /** Wall for the #315 family: cell hits register on the render walk only.
+      True while renderDirty replays cellHits_; recordCellHit asserts against
+      it, because a painter that registers during the replay grows the vector
+      the replay iterates (unbounded redraw + dangling reference). */
+  bool replayingCellHits_;
   bool pendingFullInvalidate_;
   loka::app::scene::NodeDirtyFlags pendingInvalidateFlags_;
   bool forceFullRedraw_;
