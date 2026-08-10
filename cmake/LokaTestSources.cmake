@@ -11,6 +11,7 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/platform/null/context/NullScrollBarContext.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/platform/null/context/NullTextContext.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/NullLayoutTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/ToolboxLayoutContractTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/NullTextLayoutTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/NullPlatformContractTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/LifecycleFactTests.cpp
@@ -37,6 +38,7 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/example/ScrapbookUI/src/ScrapbookPackage.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/BlobRangeTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/apple/toolbox/src/PictParser.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/apple/toolbox/src/ToolboxPlatformLayoutHandlers.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/PictParserTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/FlowDslTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/OwnershipDumpTests.cpp

@@ -23,15 +23,18 @@ namespace loka
         }
 
         const int padding = box->props.padding;
+        const bool hasFixedSize = box->props.hasFixedSize();
         LayoutStateT childState = state;
         childState.x = layoutCoordinate<LayoutStateT>(state.x + padding);
         childState.y = layoutCoordinate<LayoutStateT>(state.y + padding);
-        childState.width = layoutCoordinate<LayoutStateT>(state.width - padding * 2);
+        childState.width = layoutCoordinate<LayoutStateT>(
+            (hasFixedSize ? box->props.width : state.width) - padding * 2);
         if (childState.width < 0)
         {
           childState.width = 0;
         }
-        childState.height = layoutCoordinate<LayoutStateT>(state.height - padding * 2);
+        childState.height = layoutCoordinate<LayoutStateT>(
+            (hasFixedSize ? box->props.height : state.height) - padding * 2);
         if (childState.height < 0)
         {
           childState.height = 0;
@@ -51,7 +54,7 @@ namespace loka
         {
           resultY = state.y + padding * 2;
         }
-        return resultY;
+        return hasFixedSize ? state.y + box->props.height : resultY;
       }
     } // namespace layout
   } // namespace app

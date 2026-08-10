@@ -1,4 +1,5 @@
 #include "ToolboxScenePlatformController.hpp"
+#include "ToolboxLayoutMetrics.hpp"
 #include "ToolboxBuiltInSupport.hpp"
 #include "ToolboxPlatformLayoutHandlers.hpp"
 #include "ToolboxWindow.hpp"
@@ -72,7 +73,6 @@ namespace
 #endif
 
   static const short kAutoControlBaseId = 128;
-  static const short kImageFallbackHeightToolbox = 80;
 
   void DrawStringAt(short x, short y, const loka::core::String &value)
   {
@@ -96,35 +96,6 @@ namespace
     DrawString(text);
   }
 
-  short ClampToAvailable(short value, short available)
-  {
-    if (value < 0)
-    {
-      return 0;
-    }
-    if (available >= 0 && value > available)
-    {
-      return available;
-    }
-    return value;
-  }
-
-  short PreferredChildWidthForColumn(loka::app::scene::Node *child, short availableWidth)
-  {
-    if (!child)
-    {
-      return ClampToAvailable(availableWidth, availableWidth);
-    }
-    if (loka::app::ImageViewNode *image = child->asImageViewNode())
-    {
-      if (image->props.width_ > 0)
-      {
-        return ClampToAvailable(static_cast<short>(image->props.width_), availableWidth);
-      }
-    }
-    return ClampToAvailable(availableWidth, availableWidth);
-  }
-
   short PreferredChildHeightForRow(loka::app::scene::Node *child, short fallbackHeight)
   {
     if (!child)
@@ -141,7 +112,7 @@ namespace
       {
         return fallbackHeight;
       }
-      return kImageFallbackHeightToolbox;
+      return ToolboxLayoutMetrics::kImageFallbackHeight;
     }
     return fallbackHeight;
   }
@@ -429,7 +400,6 @@ namespace
     ToolboxLayoutTraversal(ToolboxScenePlatformController *controller, loka::app::scene::BoundaryNode *currentBoundary)
         : controller_(controller),
           currentBoundary_(currentBoundary),
-          lastY_(0),
           layoutResultY_(0)
     {
     }
@@ -438,7 +408,6 @@ namespace
     {
       loka::app::scene::LayoutState childState = state;
       const short width = LayoutNode(child, childState, controller_, currentBoundary_);
-      lastY_ = childState.y;
       layoutResultY_ = childState.y;
       return width;
     }
@@ -453,15 +422,9 @@ namespace
       return layoutResultY_;
     }
 
-    short lastY() const
-    {
-      return lastY_;
-    }
-
   private:
     ToolboxScenePlatformController *controller_;
     loka::app::scene::BoundaryNode *currentBoundary_;
-    short lastY_;
     short layoutResultY_;
   };
 
@@ -524,14 +487,9 @@ namespace
       bool usedHandler = false;
       if (controller && controller->layoutHandlerRegistry())
       {
-        loka::app::scene::IPlatformLayoutHandler *handler = controller->layoutHandlerRegistry()->find(column);
-        if (handler)
-        {
-          ToolboxLayoutTraversal traversal(controller, activeBoundary);
-          width = static_cast<short>(handler->layoutNode(column, state, &traversal));
-          state.y = traversal.lastY();
-          usedHandler = true;
-        }
+        ToolboxLayoutTraversal traversal(controller, activeBoundary);
+        usedHandler = ApplyToolboxPlatformLayoutHandler(
+            *controller->layoutHandlerRegistry(), *column, state, traversal, width);
       }
       if (!usedHandler)
       {
@@ -550,7 +508,8 @@ namespace
           short childOffset = 0;
           if (column->props.hasHorizontalAlignment_)
           {
-            childWidth = PreferredChildWidthForColumn(child, state.width);
+            childWidth = static_cast<short>(
+                loka::app::layout::preferredChildWidthForColumn(child, state.width));
             short remain = static_cast<short>(state.width - childWidth);
             if (remain > 0)
             {
@@ -586,23 +545,24 @@ namespace
       loka::app::BoxNode *box = static_cast<loka::app::BoxNode *>(node);
       short width = 0;
       bool usedHandler = false;
-      if (controller && controller->layoutHandlerRegistry() && box->childrenCount() > 0)
+      if (controller && controller->layoutHandlerRegistry())
       {
-        loka::app::scene::IPlatformLayoutHandler *handler = controller->layoutHandlerRegistry()->find(box);
-        if (handler)
-        {
-          ToolboxLayoutTraversal traversal(controller, activeBoundary);
-          width = static_cast<short>(handler->layoutNode(box, state, &traversal));
-          state.y = static_cast<short>(traversal.lastY() + box->props.padding);
-          usedHandler = true;
-        }
+        ToolboxLayoutTraversal traversal(controller, activeBoundary);
+        usedHandler = ApplyToolboxPlatformLayoutHandler(
+            *controller->layoutHandlerRegistry(), *box, state, traversal, width);
       }
       if (!usedHandler)
       {
         short padding = static_cast<short>(box->props.padding);
+        const bool hasFixedSize = box->props.hasFixedSize();
         loka::app::scene::LayoutState childState = state;
         childState.x = static_cast<short>(state.x + padding);
         childState.y = static_cast<short>(state.y + padding);
+        if (hasFixedSize)
+        {
+          childState.width = box->props.width;
+          childState.height = box->props.height;
+        }
         if (childState.width > 0)
         {
           childState.width = static_cast<short>(childState.width - padding * 2);
@@ -620,12 +580,9 @@ namespace
           }
         }
         short childWidth = LayoutChildren(box->asNestable(), childState, controller, activeBoundary);
-        width = static_cast<short>(childWidth + padding * 2);
-        if (childWidth == 0 && box->childrenCount() == 0)
-        {
-          width = static_cast<short>(padding * 2);
-        }
-        state.y = static_cast<short>(childState.y + padding);
+        width = hasFixedSize ? box->props.width : static_cast<short>(childWidth + padding * 2);
+        state.y = hasFixedSize ? static_cast<short>(state.y + box->props.height)
+                               : static_cast<short>(childState.y + padding);
       }
       if (boundary)
       {
@@ -641,13 +598,12 @@ namespace
       bool usedHandler = false;
       if (controller && controller->layoutHandlerRegistry())
       {
-        loka::app::scene::IPlatformLayoutHandler *handler = controller->layoutHandlerRegistry()->find(stack);
-        if (handler)
+        ToolboxLayoutTraversal traversal(controller, activeBoundary);
+        usedHandler = ApplyToolboxPlatformLayoutHandler(
+            *controller->layoutHandlerRegistry(), *stack, state, traversal, maxWidth);
+        if (usedHandler)
         {
-          ToolboxLayoutTraversal traversal(controller, activeBoundary);
-          maxWidth = static_cast<short>(handler->layoutNode(stack, state, &traversal));
-          maxY = traversal.lastY();
-          usedHandler = true;
+          maxY = state.y;
         }
       }
       if (!usedHandler)
@@ -685,14 +641,9 @@ namespace
       bool usedHandler = false;
       if (controller && controller->layoutHandlerRegistry())
       {
-        loka::app::scene::IPlatformLayoutHandler *handler = controller->layoutHandlerRegistry()->find(grid);
-        if (handler)
-        {
-          ToolboxLayoutTraversal traversal(controller, activeBoundary);
-          maxWidth = static_cast<short>(handler->layoutNode(grid, state, &traversal));
-          state.y = traversal.layoutResultY();
-          usedHandler = true;
-        }
+        ToolboxLayoutTraversal traversal(controller, activeBoundary);
+        usedHandler = ApplyToolboxPlatformLayoutHandler(
+            *controller->layoutHandlerRegistry(), *grid, state, traversal, maxWidth);
       }
       if (!usedHandler)
       {
@@ -771,20 +722,16 @@ namespace
       bool usedHandler = false;
       if (controller && controller->layoutHandlerRegistry())
       {
-        loka::app::scene::IPlatformLayoutHandler *handler = controller->layoutHandlerRegistry()->find(row);
-        if (handler)
-        {
-          ToolboxLayoutTraversal traversal(controller, activeBoundary);
-          width = static_cast<short>(handler->layoutNode(row, state, &traversal));
-          state.y = traversal.layoutResultY();
-          usedHandler = true;
-        }
+        ToolboxLayoutTraversal traversal(controller, activeBoundary);
+        usedHandler = ApplyToolboxPlatformLayoutHandler(
+            *controller->layoutHandlerRegistry(), *row, state, traversal, width);
       }
       if (!usedHandler)
       {
         short rowStartX = state.x;
         short maxHeight = 0;
-        short rowHeight = state.lineHeight > 0 ? state.lineHeight : 12;
+        short rowHeight =
+            state.lineHeight > 0 ? state.lineHeight : ToolboxLayoutMetrics::kDefaultLineHeight;
         const size_t childCount = row->childrenCount();
         if (row->props.hasVerticalAlignment_)
         {
@@ -792,7 +739,8 @@ namespace
           loka::dsl::CompositionCursor<loka::app::scene::Node> measure(row->childrenHead(), row->childrenCount());
           for (loka::app::scene::Node *child = measure.next(); child; child = measure.next())
           {
-            short h = PreferredChildHeightForRow(child, state.lineHeight > 0 ? state.lineHeight : 12);
+            short h = PreferredChildHeightForRow(
+                child, state.lineHeight > 0 ? state.lineHeight : ToolboxLayoutMetrics::kDefaultLineHeight);
             if (h > rowHeight)
             {
               rowHeight = h;
@@ -800,7 +748,7 @@ namespace
           }
           if (rowHeight <= 0)
           {
-            rowHeight = 12;
+            rowHeight = ToolboxLayoutMetrics::kDefaultLineHeight;
           }
         }
         loka::dsl::CompositionCursor<loka::app::scene::Node> it(row->childrenHead(), row->childrenCount());

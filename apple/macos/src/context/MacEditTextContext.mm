@@ -1,6 +1,7 @@
 #include "MacEditTextContext.hpp"
 #include "../MacScenePlatformController.hpp"
 #include "MacObjCCompat.hpp"
+#include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
@@ -10,9 +11,6 @@
 
 namespace
 {
-  const int kEditTextHeight = 24;
-  const int kVerticalSpacing = 12;
-
   class MacEditTextNodeHandler
       : public loka::app::scene::RetainedNodeHandler<MacEditTextNodeHandler,
                                                      loka::app::EditTextNode,
@@ -160,9 +158,10 @@ void MacEditTextContext::applyDetachedPresentation()
 
 short MacEditTextContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
-  this->relayout(state.x, state.y, state.width, kEditTextHeight);
-  state.height = static_cast<short>(kEditTextHeight);
-  return static_cast<short>(state.y + kEditTextHeight + kVerticalSpacing);
+  this->relayout(state.x, state.y, state.width, loka::app::layout::FallbackControlMetrics::kEditTextHeight);
+  state.height = static_cast<short>(loka::app::layout::FallbackControlMetrics::kEditTextHeight);
+  return static_cast<short>(state.y + loka::app::layout::FallbackControlMetrics::kEditTextHeight
+                            + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
 }
 
 void MacEditTextContext::handleTextDidChange()

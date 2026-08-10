@@ -1,6 +1,7 @@
 #include "MacImageViewContext.hpp"
 #include "../MacScenePlatformController.hpp"
 #include "../MacObjCCompat.hpp"
+#include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include <AppKit/AppKit.h>
 
@@ -15,8 +16,6 @@
 
 namespace
 {
-  const int kVerticalSpacing = 12;
-
   NSColor *MacImageViewFillColor()
   {
     return [NSColor colorWithCalibratedWhite:0.94 alpha:1.0];
@@ -59,7 +58,7 @@ namespace
   {
     if (!node)
     {
-      return fallbackHeight > 0 ? fallbackHeight : 160;
+      return fallbackHeight > 0 ? fallbackHeight : loka::app::layout::FallbackControlMetrics::kImageFallbackHeight;
     }
     int sizePolicy = loka::app::IMAGE_VIEW_SIZE_AUTO;
     if (node->props.hasAttr_ && node->props.attr_.hasSizePolicyValue_)
@@ -95,7 +94,7 @@ namespace
     {
       return fallbackHeight;
     }
-    return 160;
+    return loka::app::layout::FallbackControlMetrics::kImageFallbackHeight;
   }
 
   class MacImageViewNodeHandler
@@ -320,7 +319,7 @@ short MacImageViewContext::layout(loka::app::scene::IPlatformController *, loka:
   this->relayout(state.x, state.y, imageWidth, imageHeight);
   state.width = static_cast<short>(imageWidth);
   state.height = static_cast<short>(imageHeight);
-  return static_cast<short>(state.y + imageHeight + kVerticalSpacing);
+  return static_cast<short>(state.y + imageHeight + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
 }
 
 void MacImageViewContext::relayout(int x, int y, int width, int height)

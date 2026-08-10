@@ -163,3 +163,68 @@ void testWin32AppOnlyMenuWindowSettles()
   setWindowVisibility(window, false);
   printf("==== [testWin32AppOnlyMenuWindowSettles] PASSED ====\n");
 }
+
+void testWin32MenuRebuildPreservesMovedWindowFrame()
+{
+  printf("\n==== [testWin32MenuRebuildPreservesMovedWindowFrame] start ====\n");
+  const int declaredX = 40;
+  const int declaredY = 40;
+  const int declaredWidth = 257;
+  const int declaredHeight = 163;
+  const int movedX = 233;
+  const int movedY = 177;
+  loka::app::MenuBarDefinition initialMenuBar;
+  initialMenuBar << (loka::app::Menu("File") << loka::app::MenuItem("Initial"));
+  loka::app::MenuBarDefinition rebuiltMenuBar;
+  rebuiltMenuBar << (loka::app::Menu("File") << loka::app::MenuItem("Rebuilt"));
+  WindowProps props;
+  props.frame(declaredX, declaredY, declaredWidth, declaredHeight).visible(false);
+  NullPlatformContext context;
+  Win32Window window(&context, props);
+
+  setWindowVisibility(window, true);
+  HWND hwnd = window.hwnd();
+  assert(hwnd && IsWindow(hwnd));
+
+  MenuApplyingWin32App app;
+  app.setActiveWindow(&window);
+  app.setDefaultMenuBar(&initialMenuBar);
+  assert(GetMenu(hwnd) && "the production menu path must attach the initial menu");
+  LOKA_VERIFY(SetWindowPos(hwnd,
+                           NULL,
+                           movedX,
+                           movedY,
+                           0,
+                           0,
+                           SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE));
+  const RECT movedOuterRect = readWindowRect(hwnd);
+  RECT movedClientRect;
+  LOKA_VERIFY(GetClientRect(hwnd, &movedClientRect));
+
+  app.setDefaultMenuBar(&rebuiltMenuBar);
+
+  const RECT rebuiltOuterRect = readWindowRect(hwnd);
+  RECT rebuiltClientRect;
+  LOKA_VERIFY(GetClientRect(hwnd, &rebuiltClientRect));
+  printf("  declared origin=%d,%d moved origin=%ld,%ld rebuilt origin=%ld,%ld client=%ldx%ld -> %ldx%ld\n",
+         declaredX,
+         declaredY,
+         movedOuterRect.left,
+         movedOuterRect.top,
+         rebuiltOuterRect.left,
+         rebuiltOuterRect.top,
+         movedClientRect.right - movedClientRect.left,
+         movedClientRect.bottom - movedClientRect.top,
+         rebuiltClientRect.right - rebuiltClientRect.left,
+         rebuiltClientRect.bottom - rebuiltClientRect.top);
+  fflush(stdout);
+  assert(rebuiltOuterRect.left == movedOuterRect.left &&
+         rebuiltOuterRect.top == movedOuterRect.top &&
+         "menu rebuild must preserve the actual Win32 window position");
+  assert(sameRect(movedClientRect, rebuiltClientRect) &&
+         "menu rebuild must preserve the Win32 client size");
+
+  app.setActiveWindow(0);
+  setWindowVisibility(window, false);
+  printf("==== [testWin32MenuRebuildPreservesMovedWindowFrame] PASSED ====\n");
+}

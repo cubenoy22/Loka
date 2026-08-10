@@ -1,7 +1,9 @@
 #include "NullLayoutTests.hpp"
+#include "support/TestVerify.hpp"
 
 #include <cassert>
 
+#include "app/layout/FallbackControlMetrics.hpp"
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
 #include "app/nodes/nestable/Grid.hpp"
@@ -83,7 +85,34 @@ namespace
     (void)height;
     assert(probe->geometry().height == height);
   }
+
+  void verifyMetric(int actual, int expected)
+  {
+    LOKA_VERIFY(actual == expected);
+  }
 } // namespace
+
+void testFallbackControlMetricsContract()
+{
+  typedef loka::app::layout::FallbackControlMetrics Metrics;
+  verifyMetric(Metrics::kButtonHeight, 32);
+  verifyMetric(Metrics::kEditTextHeight, 24);
+  verifyMetric(Metrics::kPopupMenuHeight, 26);
+  verifyMetric(Metrics::kTextHeight, 20);
+  verifyMetric(Metrics::kCellHeight, 20);
+  verifyMetric(Metrics::kVerticalSpacing, 12);
+  verifyMetric(Metrics::kHorizontalSpacing, 12);
+  verifyMetric(Metrics::kImageFallbackHeight, 160);
+
+  const loka::app::layout::RowLayoutMetrics row = Metrics::rowLayout();
+  LOKA_VERIFY(row.gap == Metrics::kHorizontalSpacing);
+  LOKA_VERIFY(row.fallbackHeight == Metrics::kTextHeight);
+  LOKA_VERIFY(row.buttonHeight == Metrics::kButtonHeight);
+  LOKA_VERIFY(row.editTextHeight == Metrics::kEditTextHeight);
+  LOKA_VERIFY(row.popupMenuHeight == Metrics::kPopupMenuHeight);
+  LOKA_VERIFY(row.textHeight == Metrics::kTextHeight);
+  LOKA_VERIFY(row.imageFallbackHeight == Metrics::kImageFallbackHeight);
+}
 
 void testNullLayoutRowProducesFixedChildGeometry()
 {
@@ -153,6 +182,22 @@ void testNullLayoutBoxProducesFixedChildGeometry()
   assertGeometry(second, 15, 32, 70, 30);
   (void)resultY;
   assert(resultY == 48);
+}
+
+void testNullLayoutFixedBoxOwnsDeclaredExtent()
+{
+  loka::app::BoxProps props;
+  props.setPadding(5).setSize(300, 170);
+  loka::app::BoxNode box(props);
+  FixedLayoutProbeNode *child = new FixedLayoutProbeNode(7);
+  box.addChild(child);
+  NullScenePlatformController platform;
+
+  const int resultY = platform.projectLayoutForTesting(&box, makeState(10, 20, 80, 40));
+
+  assertGeometry(child, 15, 25, 290, 160);
+  (void)resultY;
+  assert(resultY == 190);
 }
 
 void testNullLayoutGridProducesFixedChildGeometry()

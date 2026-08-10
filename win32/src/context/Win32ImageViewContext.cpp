@@ -1,11 +1,11 @@
 #include "Win32ImageViewContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
+#include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 
 namespace
 {
   const char *kImageViewClassName = "LOKA_IMAGE_VIEW";
-  const int kVerticalSpacing = 12;
   const COLORREF kImageViewFillColor = RGB(240, 240, 240);
 
   class Win32ImageViewNodeHandler
@@ -151,7 +151,7 @@ namespace
   {
     if (!node)
     {
-      return fallbackHeight > 0 ? fallbackHeight : 160;
+      return fallbackHeight > 0 ? fallbackHeight : loka::app::layout::FallbackControlMetrics::kImageFallbackHeight;
     }
     int sizePolicy = loka::app::IMAGE_VIEW_SIZE_AUTO;
     if (node->props.hasAttr_ && node->props.attr_.hasSizePolicyValue_)
@@ -187,7 +187,7 @@ namespace
     {
       return fallbackHeight;
     }
-    return 160;
+    return loka::app::layout::FallbackControlMetrics::kImageFallbackHeight;
   }
 } // namespace
 
@@ -262,7 +262,7 @@ short Win32ImageViewContext::layout(loka::app::scene::IPlatformController *, lok
   this->relayout(state.x, state.y, imageWidth, imageHeight);
   state.width = static_cast<short>(imageWidth);
   state.height = static_cast<short>(imageHeight);
-  return static_cast<short>(state.y + imageHeight + kVerticalSpacing);
+  return static_cast<short>(state.y + imageHeight + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
 }
 
 void Win32ImageViewContext::relayout(int x, int y, int width, int height)

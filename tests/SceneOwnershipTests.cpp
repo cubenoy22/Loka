@@ -536,6 +536,12 @@ namespace
   }
 } // namespace
 
+void testWindowDefaultFrameContract()
+{
+  const loka::core::Frame frame = Window::defaultFrame();
+  LOKA_VERIFY(frame == loka::core::Frame(50, 50, 300, 300));
+}
+
 void testWindowDefinitionTransfersSceneOwnershipToWindow()
 {
   printf("\n==== [testWindowDefinitionTransfersSceneOwnershipToWindow] start ====\n");

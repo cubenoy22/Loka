@@ -1,4 +1,5 @@
 #include "ToolboxPlatformLayoutHandlers.hpp"
+#include "ToolboxLayoutMetrics.hpp"
 
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/nestable/Grid.hpp"
@@ -10,37 +11,6 @@
 
 namespace
 {
-  static const short kToolboxLayoutImageFallbackHeight = 80;
-
-  inline short ClampToAvailable(short value, short available)
-  {
-    if (value < 0)
-    {
-      return 0;
-    }
-    if (available >= 0 && value > available)
-    {
-      return available;
-    }
-    return value;
-  }
-
-  inline short PreferredChildWidthForColumn(loka::app::scene::Node *child, short availableWidth)
-  {
-    if (!child)
-    {
-      return ClampToAvailable(availableWidth, availableWidth);
-    }
-    if (loka::app::ImageViewNode *image = child->asImageViewNode())
-    {
-      if (image->props.width_ > 0)
-      {
-        return ClampToAvailable(static_cast<short>(image->props.width_), availableWidth);
-      }
-    }
-    return ClampToAvailable(availableWidth, availableWidth);
-  }
-
   inline short PreferredChildHeightForRow(loka::app::scene::Node *child, short fallbackHeight)
   {
     if (!child)
@@ -57,7 +27,7 @@ namespace
       {
         return fallbackHeight;
       }
-      return kToolboxLayoutImageFallbackHeight;
+      return ToolboxLayoutMetrics::kImageFallbackHeight;
     }
     return fallbackHeight;
   }
@@ -92,10 +62,18 @@ namespace
         return 0;
       }
 
+      // Keep this fixed-size arm mirror-shaped with computeBoxLayoutResultY;
+      // Toolbox reports width and result-Y through separate return channels.
       const short padding = static_cast<short>(box->props.padding);
+      const bool hasFixedSize = box->props.hasFixedSize();
       loka::app::scene::LayoutState childState = state;
       childState.x = static_cast<short>(state.x + padding);
       childState.y = static_cast<short>(state.y + padding);
+      if (hasFixedSize)
+      {
+        childState.width = box->props.width;
+        childState.height = box->props.height;
+      }
       if (childState.width > 0)
       {
         childState.width = static_cast<short>(childState.width - padding * 2);
@@ -129,14 +107,9 @@ namespace
           currentY = traversal->layoutResultY();
         }
       }
-      traversal->setLayoutResultY(currentY);
+      traversal->setLayoutResultY(hasFixedSize ? static_cast<short>(state.y + box->props.height) : currentY);
 
-      short width = static_cast<short>(childWidth + padding * 2);
-      if (childWidth == 0 && box->childrenCount() == 0)
-      {
-        width = static_cast<short>(padding * 2);
-      }
-      return width;
+      return hasFixedSize ? box->props.width : static_cast<short>(childWidth + padding * 2);
     }
   };
 
@@ -217,7 +190,8 @@ namespace
         short childOffset = 0;
         if (column->props.hasHorizontalAlignment_)
         {
-          childWidth = PreferredChildWidthForColumn(child, state.width);
+          childWidth = static_cast<short>(
+              loka::app::layout::preferredChildWidthForColumn(child, state.width));
           short remain = static_cast<short>(state.width - childWidth);
           if (remain > 0)
           {
@@ -240,6 +214,7 @@ namespace
         }
         currentY = traversal->layoutResultY();
       }
+      traversal->setLayoutResultY(currentY);
       return width;
     }
   };
@@ -264,7 +239,8 @@ namespace
 
       short rowStartX = state.x;
       short maxHeight = 0;
-      short rowHeight = state.lineHeight > 0 ? state.lineHeight : 12;
+      short rowHeight =
+          state.lineHeight > 0 ? state.lineHeight : ToolboxLayoutMetrics::kDefaultLineHeight;
       const size_t childCount = row->childrenCount();
       if (row->props.hasVerticalAlignment_)
       {
@@ -272,7 +248,8 @@ namespace
         loka::dsl::CompositionCursor<loka::app::scene::Node> measure(row->childrenHead(), row->childrenCount());
         for (loka::app::scene::Node *child = measure.next(); child; child = measure.next())
         {
-          short height = PreferredChildHeightForRow(child, state.lineHeight > 0 ? state.lineHeight : 12);
+          short height = PreferredChildHeightForRow(
+              child, state.lineHeight > 0 ? state.lineHeight : ToolboxLayoutMetrics::kDefaultLineHeight);
           if (height > rowHeight)
           {
             rowHeight = height;
@@ -280,7 +257,7 @@ namespace
         }
         if (rowHeight <= 0)
         {
-          rowHeight = 12;
+          rowHeight = ToolboxLayoutMetrics::kDefaultLineHeight;
         }
       }
 
@@ -420,6 +397,23 @@ namespace
     }
   };
 } // namespace
+
+bool ApplyToolboxPlatformLayoutHandler(
+    loka::app::scene::PlatformLayoutHandlerRegistry &registry,
+    loka::app::scene::Node &node,
+    loka::app::scene::LayoutState &state,
+    loka::app::scene::IPlatformLayoutTraversal &traversal,
+    short &width)
+{
+  loka::app::scene::IPlatformLayoutHandler *handler = registry.find(&node);
+  if (!handler)
+  {
+    return false;
+  }
+  width = static_cast<short>(handler->layoutNode(&node, state, &traversal));
+  state.y = traversal.layoutResultY();
+  return true;
+}
 
 void RegisterToolboxPlatformLayoutHandlers(loka::app::scene::PlatformLayoutHandlerRegistry &registry)
 {

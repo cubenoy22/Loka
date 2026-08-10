@@ -11,6 +11,7 @@
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/nestable/ZStack.hpp"
 #include "app/RectSurface.hpp"
+#include "app/layout/FallbackControlMetrics.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
 #include "app/layout/PlatformBuiltinLayoutHandlers.hpp"
 #include "app/layout/BoxLayout.hpp"
@@ -32,14 +33,6 @@ namespace
 {
   typedef std::map<HWND, Win32ScenePlatformController *> Win32ControllerMap;
   Win32ControllerMap gControllersByRootHwnd;
-
-  const int kButtonHeight = 32;
-  const int kEditTextHeight = 24;
-  const int kPopupMenuHeight = 26;
-  const int kTextHeight = 20;
-  const int kVerticalSpacing = 12;
-  const int kHorizontalSpacing = 12;
-  const int kImageFallbackHeightModern = 160;
 
 } // namespace
 
@@ -148,7 +141,7 @@ bool Win32ScenePlatformController::prepareProjectedLayout(loka::app::scene::Node
   loka::app::scene::LayoutState handlerState = state;
   if (handlerState.height <= 0)
   {
-    handlerState.height = static_cast<short>(kTextHeight);
+    handlerState.height = static_cast<short>(loka::app::layout::FallbackControlMetrics::kTextHeight);
   }
   loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(node);
   if (!handler)
@@ -621,7 +614,8 @@ Win32ScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *
     surface->setContext(ctx);
     ctx->readLifecycleFactOnAttach();
   }
-  return LayoutNodeResult(state.width, state.y + surface->props.height_ + kVerticalSpacing);
+  return LayoutNodeResult(
+      state.width, state.y + surface->props.height_ + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
 }
 
 int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const LayoutState &state)
@@ -674,14 +668,8 @@ Win32ScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, 
     }
     else
     {
-      loka::app::layout::RowLayoutMetrics metrics;
-      metrics.gap = kHorizontalSpacing;
-      metrics.fallbackHeight = kTextHeight;
-      metrics.buttonHeight = kButtonHeight;
-      metrics.editTextHeight = kEditTextHeight;
-      metrics.popupMenuHeight = kPopupMenuHeight;
-      metrics.textHeight = kTextHeight;
-      metrics.imageFallbackHeight = kImageFallbackHeightModern;
+      const loka::app::layout::RowLayoutMetrics metrics =
+          loka::app::layout::FallbackControlMetrics::rowLayout();
       maxY = loka::app::layout::computeRowLayoutResultY(
           row, state, metrics, this, &Win32ScenePlatformController::layoutContainerChild);
     }

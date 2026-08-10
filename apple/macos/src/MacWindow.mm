@@ -260,10 +260,11 @@ void MacWindow::createNativeWindow()
     return;
   }
   closing_ = false;
-  CGFloat x = this->hasPosition() ? this->positionX() : 50;
-  CGFloat y = this->hasPosition() ? this->positionY() : 50;
-  CGFloat width = this->hasSize() ? this->width() : 300;
-  CGFloat height = this->hasSize() ? this->height() : 300;
+  const loka::core::Frame defaultFrame = Window::defaultFrame();
+  CGFloat x = this->hasPosition() ? this->positionX() : defaultFrame.x;
+  CGFloat y = this->hasPosition() ? this->positionY() : defaultFrame.y;
+  CGFloat width = this->hasSize() ? this->width() : defaultFrame.width;
+  CGFloat height = this->hasSize() ? this->height() : defaultFrame.height;
   NSUInteger style = LOKA_MAC_WINDOW_STYLE_TITLED | LOKA_MAC_WINDOW_STYLE_CLOSABLE
                      | LOKA_MAC_WINDOW_STYLE_RESIZABLE | LOKA_MAC_WINDOW_STYLE_MINIATURIZABLE;
   NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0.0, 0.0, width, height)

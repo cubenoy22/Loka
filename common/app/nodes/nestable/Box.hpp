@@ -18,25 +18,45 @@ namespace loka
       typedef BoxTypeTag TypeTag;
       typedef BoxNode NodeType;
       int padding;
+      short width;
+      short height;
       BoxProps()
-          : padding(0)
+          : padding(0),
+            width(0),
+            height(0)
       {
       }
       int hash() const
       {
-        return padding;
+        return padding + width + height;
       }
       BoxProps &setPadding(int value)
       {
         padding = value;
         return *this;
       }
+      /** Declares the fixed outer area owned by this container. */
+      BoxProps &setSize(short fixedWidth, short fixedHeight)
+      {
+        width = fixedWidth;
+        height = fixedHeight;
+        return *this;
+      }
+      /** True when this container owns an explicit outer layout extent. */
+      bool hasFixedSize() const
+      {
+        return width > 0 && height > 0;
+      }
       bool operator<(const scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
         const BoxProps &other = static_cast<const BoxProps &>(rhs);
-        return padding < other.padding;
+        if (padding != other.padding)
+          return padding < other.padding;
+        if (width != other.width)
+          return width < other.width;
+        return height < other.height;
       }
     };
 
@@ -85,6 +105,12 @@ namespace loka
       BoxDefinition &padding(int value)
       {
         this->props.setPadding(value);
+        return *this;
+      }
+      /** Declares the fixed outer area owned by this container. */
+      BoxDefinition &size(short width, short height)
+      {
+        this->props.setSize(width, height);
         return *this;
       }
     };

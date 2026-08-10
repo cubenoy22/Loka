@@ -108,16 +108,17 @@ void ToolboxWindow::open()
   {
     return;
   }
+  const loka::core::Frame defaultFrame = Window::defaultFrame();
   Rect bounds;
-  short left = static_cast<short>(this->hasPosition() ? this->positionX() : 50);
-  short top = static_cast<short>(this->hasPosition() ? this->positionY() : 50);
+  short left = static_cast<short>(this->hasPosition() ? this->positionX() : defaultFrame.x);
+  short top = static_cast<short>(this->hasPosition() ? this->positionY() : defaultFrame.y);
   short menuHeight = GetMBarHeight();
   if (menuHeight > 0)
   {
     top = static_cast<short>(top + menuHeight + 1);
   }
-  short width = static_cast<short>(this->hasSize() ? this->width() : 300);
-  short height = static_cast<short>(this->hasSize() ? this->height() : 300);
+  short width = static_cast<short>(this->hasSize() ? this->width() : defaultFrame.width);
+  short height = static_cast<short>(this->hasSize() ? this->height() : defaultFrame.height);
   SetRect(&bounds, left, top, static_cast<short>(left + width), static_cast<short>(top + height));
 
   loka::core::String titleValue = this->titleState().get();
@@ -241,7 +242,29 @@ bool ToolboxWindow::hasPendingInvalidate() const
 
 void ToolboxWindow::refreshFrame()
 {
-  FrameChangedThunk(this);
+  if (!this->window_)
+  {
+    return;
+  }
+
+  Rect actualContentBounds = this->window_->portRect;
+  GrafPtr oldPort;
+  GetPort(&oldPort);
+  SetPort(this->window_);
+  LocalToGlobal(reinterpret_cast<Point *>(&actualContentBounds.top));
+  LocalToGlobal(reinterpret_cast<Point *>(&actualContentBounds.bottom));
+  SetPort(oldPort);
+
+  MoveWindow(this->window_, actualContentBounds.left, actualContentBounds.top, false);
+
+  const loka::core::Frame declaredFrame = this->frameState().get();
+  if (declaredFrame.hasSize())
+  {
+    SizeWindow(this->window_,
+               static_cast<short>(declaredFrame.width),
+               static_cast<short>(declaredFrame.height),
+               true);
+  }
 }
 
 void ToolboxWindow::FrameChangedThunk(void *userData)
