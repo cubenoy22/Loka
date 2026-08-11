@@ -5,6 +5,7 @@ import argparse
 from collections import namedtuple
 from pathlib import Path
 import re
+import shutil
 import struct
 import subprocess
 import sys
@@ -529,8 +530,13 @@ def ensure_sprite(path, index):
 def manifest_contents(depth):
     if depth not in (1, 256):
         raise ValueError("unsupported manifest depth")
+    # Bag 0 must be ui because ScrapbookPackage.hpp pins
+    # kUiBagIndex = 0 / kFirstPageBagIndex = 1.
     lines = [
-        "# One sprite per bag: a page flip reads exactly one independently verifiable bag."
+        "# One sprite per bag: a page flip reads exactly one independently verifiable bag.",
+        "",
+        "bag ui",
+        "asset 9001 image UI/RefusedBadge ngbadge.pict",
     ]
     for index in range(1, SPRITE_COUNT + 1):
         lines.extend(
@@ -673,6 +679,10 @@ def main():
     manifest = output_dir / "manifest.txt"
     package = output_dir / "ASSETS.LRP"
     stamp_path = output_dir / "stamp.txt"
+    shutil.copyfile(
+        Path(__file__).resolve().with_name("ngbadge.pict"),
+        output_dir / "ngbadge.pict",
+    )
     write_manifest(manifest, arguments.depth)
     stamp = pack_assets(arguments.lrpc, manifest, package, stamp_path)
     # The build step reads these instead of hardcoding the values, so a
