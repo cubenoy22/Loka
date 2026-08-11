@@ -8,14 +8,17 @@ BAKE_DIR=$(mktemp -d "${TMPDIR:-/tmp}/loka-scrapbook-bake.XXXXXX")
 trap 'rm -rf "$BAKE_DIR"' EXIT HUP INT TERM
 
 python3 "$SCRIPT_DIR/assets/generate_picts.py"
+# Keep literal 5 aligned with ScrapbookPackage.hpp's kPageCount default.
 "$LRPC" pack "$SCRIPT_DIR/assets/manifest.txt" \
   -o "$BAKE_DIR/ASSETS-classic.LRP" \
   --stamp "$BAKE_DIR/ASSETS-classic.stamp" \
-  --require "$SCRIPT_DIR/assets/scrapbook.pkgreq"
+  --require "$SCRIPT_DIR/assets/scrapbook.pkgreq" \
+  --require-pages 5
 "$LRPC" pack "$SCRIPT_DIR/assets/manifest-modern.txt" \
   -o "$BAKE_DIR/ASSETS-modern.LRP" \
   --stamp "$BAKE_DIR/ASSETS-modern.stamp" \
-  --require "$SCRIPT_DIR/assets/scrapbook.pkgreq"
+  --require "$SCRIPT_DIR/assets/scrapbook.pkgreq" \
+  --require-pages 5
 
 if ! cmp -s "$BAKE_DIR/ASSETS-classic.stamp" "$BAKE_DIR/ASSETS-modern.stamp"; then
   echo "ScrapbookUI manifests derived different id-space stamps" >&2
@@ -28,8 +31,10 @@ fi
 "$LRPC" pack "$SCRIPT_DIR/assets/manifest.txt" \
   -o "$SCRIPT_DIR/ASSETS.LRP" \
   --stamp "$SCRIPT_DIR/ASSETS.stamp" \
-  --require "$SCRIPT_DIR/assets/scrapbook.pkgreq"
+  --require "$SCRIPT_DIR/assets/scrapbook.pkgreq" \
+  --require-pages 5
 "$LRPC" pack "$SCRIPT_DIR/assets/manifest-modern.txt" \
   -o "$SCRIPT_DIR/assets/ASSETS-modern.LRP" \
   --stamp "$SCRIPT_DIR/assets/ASSETS-modern.stamp" \
-  --require "$SCRIPT_DIR/assets/scrapbook.pkgreq"
+  --require "$SCRIPT_DIR/assets/scrapbook.pkgreq" \
+  --require-pages 5

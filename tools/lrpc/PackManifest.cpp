@@ -102,6 +102,39 @@ namespace loka
         return false;
       }
 
+      unsigned int KindBit(AssetKind kind)
+      {
+        return 1u << static_cast<unsigned int>(kind);
+      }
+
+      bool ParseKindList(const std::string &text, unsigned int &out)
+      {
+        out = 0;
+        std::size_t begin = 0;
+        while (begin < text.size())
+        {
+          const std::size_t comma = text.find(',', begin);
+          const std::size_t end = comma == std::string::npos ? text.size() : comma;
+          AssetKind kind = core::resource::lrpk::ASSET_KIND_UNKNOWN;
+          if (end == begin || !ParseKind(text.substr(begin, end - begin), kind))
+          {
+            return false;
+          }
+          const unsigned int bit = KindBit(kind);
+          if ((out & bit) != 0)
+          {
+            return false;
+          }
+          out |= bit;
+          if (comma == std::string::npos)
+          {
+            return true;
+          }
+          begin = comma + 1;
+        }
+        return false;
+      }
+
       const char *KindName(AssetKind kind)
       {
         switch (kind)
@@ -166,6 +199,7 @@ namespace loka
       void CheckAssetRequirement(std::size_t line,
                                  U32 id,
                                  AssetKind kind,
+                                 const std::string &bagName,
                                  const PackManifest &manifest,
                                  std::vector<RequirementViolation> &violations)
       {
@@ -184,48 +218,57 @@ namespace loka
                   << "; found kind " << KindName(asset->kind);
           AddViolation(line, message.str(), violations);
         }
+        else if (manifest.bags[asset->bag] != bagName)
+        {
+          std::ostringstream message;
+          message << "asset " << id << " must be in bag \"" << bagName
+                  << "\"; found bag " << asset->bag << " (\""
+                  << manifest.bags[asset->bag] << "\")";
+          AddViolation(line, message.str(), violations);
+        }
       }
 
       void CheckPagesRequirement(std::size_t line,
                                  U32 firstId,
                                  std::size_t firstBag,
+                                 std::size_t pageCount,
+                                 unsigned int allowedKinds,
+                                 const std::string &kindList,
                                  const PackManifest &manifest,
                                  std::vector<RequirementViolation> &violations)
       {
-        std::size_t pageCount = 0;
-        while (pageCount < manifest.assets.size() &&
-               pageCount <= static_cast<std::size_t>(0xFFFFFFFFu - firstId) &&
-               FindAsset(manifest, firstId + static_cast<U32>(pageCount)))
-        {
-          ++pageCount;
-        }
         const std::size_t bagCount = firstBag < manifest.bags.size()
                                          ? manifest.bags.size() - firstBag
                                          : 0;
 
         std::ostringstream message;
         message << "pages from asset " << firstId
-                << " must occupy bags from " << firstBag
+                << " must occupy " << pageCount << " bags from " << firstBag
                 << " one per bag; found ";
-        if (pageCount == 0)
-        {
-          message << "no asset " << firstId;
-          AddViolation(line, message.str(), violations);
-          return;
-        }
         if (pageCount != bagCount)
         {
-          message << pageCount << " consecutive page assets but " << bagCount
-                  << " bags from index " << firstBag;
+          message << bagCount << " bags from index " << firstBag;
           AddViolation(line, message.str(), violations);
           return;
         }
 
         for (std::size_t page = 0; page < pageCount; ++page)
         {
+          if (page > static_cast<std::size_t>(0xFFFFFFFFu - firstId))
+          {
+            message << "asset id range exceeds 4294967295";
+            AddViolation(line, message.str(), violations);
+            return;
+          }
           const U32 id = firstId + static_cast<U32>(page);
           const ManifestAsset *asset = FindAsset(manifest, id);
           const std::size_t expectedBag = firstBag + page;
+          if (!asset)
+          {
+            message << "no asset " << id;
+            AddViolation(line, message.str(), violations);
+            return;
+          }
           if (asset->bag != expectedBag)
           {
             message << "asset " << id << " in bag " << asset->bag
@@ -233,6 +276,14 @@ namespace loka
                     << "\"), expected bag " << expectedBag << " (\""
                     << manifest.bags[expectedBag] << "\")";
             AddViolation(line, message.str(), violations);
+            return;
+          }
+          if ((allowedKinds & KindBit(asset->kind)) == 0)
+          {
+            std::ostringstream kindMessage;
+            kindMessage << "page asset " << id << " must have one of kinds "
+                        << kindList << "; found kind " << KindName(asset->kind);
+            AddViolation(line, kindMessage.str(), violations);
             return;
           }
         }
@@ -398,12 +449,16 @@ namespace loka
         const char *text,
         std::size_t length,
         const PackManifest &manifest,
+        const std::size_t *requiredPageCount,
         std::vector<RequirementViolation> &violations,
         std::size_t &errorLine)
     {
       errorLine = 0;
       violations.clear();
       std::size_t requirementCount = 0;
+      std::size_t assetRequirementCount = 0;
+      std::size_t closureLine = 0;
+      std::size_t pageAssetCount = 0;
 
       for (std::size_t i = 0; i < length; ++i)
       {
@@ -441,6 +496,7 @@ namespace loka
 
         errorLine = lineNumber;
         ++requirementCount;
+        closureLine = lineNumber;
         if (fields[0] == "bag")
         {
           if (fields.size() != 3)
@@ -460,9 +516,13 @@ namespace loka
         }
         else if (fields[0] == "asset")
         {
-          if (fields.size() != 3)
+          if (fields.size() != 5)
           {
             return REQUIREMENTS_BAD_FIELD_COUNT;
+          }
+          if (fields[3] != "in")
+          {
+            return REQUIREMENTS_BAD_ASSET_FORM;
           }
           U32 id = 0;
           if (!ParseU32(fields[1], id))
@@ -474,17 +534,24 @@ namespace loka
           {
             return REQUIREMENTS_BAD_KIND;
           }
-          CheckAssetRequirement(lineNumber, id, kind, manifest, violations);
+          ++assetRequirementCount;
+          CheckAssetRequirement(
+              lineNumber, id, kind, fields[4], manifest, violations);
         }
         else if (fields[0] == "pages")
         {
-          if (fields.size() != 5)
+          if (fields.size() != 7)
           {
             return REQUIREMENTS_BAD_FIELD_COUNT;
           }
-          if (fields[2] != "count-from" || fields[3] != "bag")
+          if (fields[2] != "count-from" || fields[3] != "bag"
+              || fields[5] != "kinds")
           {
             return REQUIREMENTS_BAD_PAGES_FORM;
+          }
+          if (!requiredPageCount)
+          {
+            return REQUIREMENTS_PAGE_COUNT_REQUIRED;
           }
           U32 firstId = 0;
           if (!ParseU32(fields[1], firstId))
@@ -496,9 +563,18 @@ namespace loka
           {
             return REQUIREMENTS_BAD_INDEX;
           }
+          unsigned int allowedKinds = 0;
+          if (!ParseKindList(fields[6], allowedKinds))
+          {
+            return REQUIREMENTS_BAD_KIND;
+          }
+          pageAssetCount = *requiredPageCount;
           CheckPagesRequirement(lineNumber,
                                 firstId,
                                 static_cast<std::size_t>(firstBag),
+                                *requiredPageCount,
+                                allowedKinds,
+                                fields[6],
                                 manifest,
                                 violations);
         }
@@ -519,6 +595,18 @@ namespace loka
         return REQUIREMENTS_EMPTY;
       }
 
+      const std::size_t requiredAssetCount =
+          pageAssetCount + assetRequirementCount;
+      if (requiredAssetCount != manifest.assets.size())
+      {
+        std::ostringstream message;
+        message << "package must contain exactly " << requiredAssetCount
+                << " assets (" << pageAssetCount << " pages plus "
+                << assetRequirementCount << " listed asset); found "
+                << manifest.assets.size();
+        AddViolation(closureLine, message.str(), violations);
+      }
+
       errorLine = 0;
       return REQUIREMENTS_OK;
     }
@@ -526,6 +614,7 @@ namespace loka
     RequirementResult CheckPackageRequirementsFile(
         const char *path,
         const PackManifest &manifest,
+        const std::size_t *requiredPageCount,
         std::vector<RequirementViolation> &violations,
         std::size_t &errorLine)
     {
@@ -539,6 +628,7 @@ namespace loka
           bytes.empty() ? "" : reinterpret_cast<const char *>(&bytes[0]),
           bytes.size(),
           manifest,
+          requiredPageCount,
           violations,
           errorLine);
     }
@@ -547,6 +637,7 @@ namespace loka
     RequirementResult CheckPackageRequirementsFile(
         const wchar_t *path,
         const PackManifest &manifest,
+        const std::size_t *requiredPageCount,
         std::vector<RequirementViolation> &violations,
         std::size_t &errorLine)
     {
@@ -560,6 +651,7 @@ namespace loka
           bytes.empty() ? "" : reinterpret_cast<const char *>(&bytes[0]),
           bytes.size(),
           manifest,
+          requiredPageCount,
           violations,
           errorLine);
     }

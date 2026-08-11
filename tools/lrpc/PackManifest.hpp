@@ -69,7 +69,9 @@ namespace loka
       REQUIREMENTS_BAD_INDEX,
       REQUIREMENTS_BAD_ID,
       REQUIREMENTS_BAD_KIND,
+      REQUIREMENTS_BAD_ASSET_FORM,
       REQUIREMENTS_BAD_PAGES_FORM,
+      REQUIREMENTS_PAGE_COUNT_REQUIRED,
       REQUIREMENTS_EMBEDDED_NUL,
       REQUIREMENTS_EMPTY
     };
@@ -123,17 +125,22 @@ namespace loka
     /** Checks the three supported structural requirements in source order:
 
             bag <index> <name>
-            asset <id> <image|string|audio>
-            pages <first-id> count-from bag <first-bag>
+            asset <id> <image|string|audio> in <bag-name>
+            pages <first-id> count-from bag <first-bag> kinds <kind-list>
 
-        The `pages` count is the contiguous id run beginning at `first-id`.
-        That count must equal the number of bags beginning at `first-bag`, and
-        each id must occupy its corresponding bag. Every valid but violated
-        line is appended to `violations`; malformed input is a hard error. */
+        `kind-list` is comma-separated. `requiredPageCount` supplies the
+        producer-owned count for every `pages` line; omitting it when one is
+        present is a hard error. That count must equal the number of bags
+        beginning at `first-bag`, and each id must occupy its corresponding
+        bag with an allowed kind. The package is closed to unlisted assets:
+        its total asset count must equal the page count plus the number of
+        `asset` lines. Every valid but violated rule is appended to
+        `violations`; malformed input is a hard error. */
     RequirementResult CheckPackageRequirements(
         const char *text,
         std::size_t length,
         const PackManifest &manifest,
+        const std::size_t *requiredPageCount,
         std::vector<RequirementViolation> &violations,
         std::size_t &errorLine);
 
@@ -141,12 +148,14 @@ namespace loka
     RequirementResult CheckPackageRequirementsFile(
         const char *path,
         const PackManifest &manifest,
+        const std::size_t *requiredPageCount,
         std::vector<RequirementViolation> &violations,
         std::size_t &errorLine);
 #if defined(_WIN32)
     RequirementResult CheckPackageRequirementsFile(
         const wchar_t *path,
         const PackManifest &manifest,
+        const std::size_t *requiredPageCount,
         std::vector<RequirementViolation> &violations,
         std::size_t &errorLine);
 #endif

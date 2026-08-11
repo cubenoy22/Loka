@@ -1,5 +1,8 @@
 # Keep these duplicated structural expectations aligned with
 # ../src/ScrapbookPackage.hpp; #185's generated R.hpp will retire this file.
+# With the producer's --require-pages value, satisfying this file also
+# satisfies ScrapbookPackage::open()/buildPresentation() count, kind, and
+# layout checks; the runtime stamp check remains the only later gate.
 bag 0 ui
-asset 9001 image
-pages 1001 count-from bag 1
+asset 9001 image in ui
+pages 1001 count-from bag 1 kinds image,string

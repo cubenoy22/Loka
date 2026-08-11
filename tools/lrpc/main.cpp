@@ -55,6 +55,31 @@ namespace
     return 1;
   }
 
+  bool ParseNativeU32(const NativePath &text, std::size_t &out)
+  {
+    if (text.empty() || text.size() > 10)
+    {
+      return false;
+    }
+    U32 value = 0;
+    for (std::size_t i = 0; i < text.size(); ++i)
+    {
+      const NativeChar c = text[i];
+      if (c < LRPC_NATIVE_TEXT('0') || c > LRPC_NATIVE_TEXT('9'))
+      {
+        return false;
+      }
+      const U32 digit = static_cast<U32>(c - LRPC_NATIVE_TEXT('0'));
+      if (value > (0xFFFFFFFFu - digit) / 10u)
+      {
+        return false;
+      }
+      value = value * 10u + digit;
+    }
+    out = static_cast<std::size_t>(value);
+    return true;
+  }
+
   std::FILE *OpenFile(const NativePath &path, const NativeChar *mode)
   {
 #if defined(_WIN32)
@@ -401,15 +426,19 @@ namespace
       case loka::lrpc::REQUIREMENTS_UNKNOWN_DIRECTIVE:
         return LRPC_NATIVE_TEXT("unknown requirement (expected 'bag', 'asset', or 'pages')");
       case loka::lrpc::REQUIREMENTS_BAD_FIELD_COUNT:
-        return LRPC_NATIVE_TEXT("wrong field count (bag <index> <name> | asset <id> <kind> | pages <id> count-from bag <index>)");
+        return LRPC_NATIVE_TEXT("wrong field count (bag <index> <name> | asset <id> <kind> in <bag-name> | pages <id> count-from bag <index> kinds <kind-list>)");
       case loka::lrpc::REQUIREMENTS_BAD_INDEX:
         return LRPC_NATIVE_TEXT("bag index is not a decimal 32-bit number");
       case loka::lrpc::REQUIREMENTS_BAD_ID:
         return LRPC_NATIVE_TEXT("asset id is not a decimal 32-bit number");
       case loka::lrpc::REQUIREMENTS_BAD_KIND:
         return LRPC_NATIVE_TEXT("asset kind is not one of image, string, audio");
+      case loka::lrpc::REQUIREMENTS_BAD_ASSET_FORM:
+        return LRPC_NATIVE_TEXT("asset requirement must say 'in <bag-name>'");
       case loka::lrpc::REQUIREMENTS_BAD_PAGES_FORM:
-        return LRPC_NATIVE_TEXT("pages requirement must say 'count-from bag'");
+        return LRPC_NATIVE_TEXT("pages requirement must say 'count-from bag <index> kinds <kind-list>'");
+      case loka::lrpc::REQUIREMENTS_PAGE_COUNT_REQUIRED:
+        return LRPC_NATIVE_TEXT("pages requirement needs --require-pages <N>");
       case loka::lrpc::REQUIREMENTS_EMBEDDED_NUL:
         return LRPC_NATIVE_TEXT("the requirements file contains a NUL byte");
       case loka::lrpc::REQUIREMENTS_EMPTY:
@@ -627,7 +656,7 @@ namespace
   int Usage()
   {
     std::fprintf(stderr,
-                 "usage: lrpc pack <manifest> -o <package> [--stamp <file>] [--require <file>]\n"
+                 "usage: lrpc pack <manifest> -o <package> [--stamp <file>] [--require <file> --require-pages <N>]\n"
                  "\n"
                  "  Packs canonical, package-ready asset records into an LRPK\n"
                  "  package. No format conversion happens here: payload bytes\n"
@@ -636,7 +665,8 @@ namespace
                  "  --stamp writes the derived id-space stamp as one decimal\n"
                  "  line, for the application build to check its header against.\n"
                  "  --require checks the manifest against the app's structural\n"
-                 "  package expectations before writing either output.\n");
+                 "  package expectations before writing either output. A file\n"
+                 "  with a pages rule also requires --require-pages.\n");
     return 2;
   }
 } // namespace
@@ -656,6 +686,8 @@ int main(int argc, char **argv)
   NativePath outputPath;
   NativePath stampPath;
   NativePath requirementPath;
+  std::size_t requiredPageCount = 0;
+  bool hasRequiredPageCount = false;
   for (int i = 2; i < argc; ++i)
   {
     const NativePath arg = argv[i];
@@ -683,6 +715,15 @@ int main(int argc, char **argv)
       }
       requirementPath = argv[i];
     }
+    else if (arg == LRPC_NATIVE_TEXT("--require-pages"))
+    {
+      if (++i >= argc || hasRequiredPageCount
+          || !ParseNativeU32(argv[i], requiredPageCount))
+      {
+        return Usage();
+      }
+      hasRequiredPageCount = true;
+    }
     else if (manifestPath.empty())
     {
       manifestPath = arg;
@@ -692,7 +733,8 @@ int main(int argc, char **argv)
       return Usage();
     }
   }
-  if (manifestPath.empty() || outputPath.empty())
+  if (manifestPath.empty() || outputPath.empty()
+      || (hasRequiredPageCount && requirementPath.empty()))
   {
     return Usage();
   }
@@ -720,7 +762,11 @@ int main(int argc, char **argv)
     std::vector<loka::lrpc::RequirementViolation> violations;
     const loka::lrpc::RequirementResult loaded =
         loka::lrpc::CheckPackageRequirementsFile(
-            requirementPath.c_str(), manifest, violations, errorLine);
+            requirementPath.c_str(),
+            manifest,
+            hasRequiredPageCount ? &requiredPageCount : 0,
+            violations,
+            errorLine);
     if (loaded != loka::lrpc::REQUIREMENTS_OK)
     {
       return FailRequirementFile(requirementPath, errorLine, loaded);
