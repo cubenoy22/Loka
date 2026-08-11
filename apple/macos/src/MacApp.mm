@@ -5,6 +5,7 @@
 #include <AppKit/AppKit.h>
 #include <ApplicationServices/ApplicationServices.h>
 #include <mach/mach_time.h>
+#include <cstdio>
 #include "app/core/AppComponent.hpp"
 #include "platform/StringUTF8.hpp"
 
@@ -135,12 +136,21 @@ void MacApp::run()
 
   startInvalidationFlushTimer();
   [NSApp activateIgnoringOtherApps:YES];
+#ifdef TEST_BUILD
+  std::fprintf(stderr, "MacApp::run entering NSApplication run\n");
+#endif
   [NSApp run];
+#ifdef TEST_BUILD
+  std::fprintf(stderr, "MacApp::run returned from NSApplication run\n");
+#endif
   stopInvalidationFlushTimer();
 }
 
 void MacApp::quit()
 {
+#ifdef TEST_BUILD
+  std::fprintf(stderr, "MacApp::quit stopping NSApplication run\n");
+#endif
   stopInvalidationFlushTimer();
   // Avoid terminate: here. On Leopard/PPC and earlier AppKit shutdown paths,
   // terminate: may synchronously drain autorelease pools inside AppKit while
@@ -162,6 +172,9 @@ void MacApp::quit()
   {
     [NSApp postEvent:event atStart:NO];
   }
+#endif
+#ifdef TEST_BUILD
+  std::fprintf(stderr, "MacApp::quit posted wake event\n");
 #endif
 }
 

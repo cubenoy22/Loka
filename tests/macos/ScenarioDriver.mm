@@ -334,10 +334,12 @@ namespace loka
         void finish(App *app)
         {
           this->phase_ = PHASE_FINISHED;
+          std::fprintf(stderr, "macos scenario: artifacts ready; requesting quit\n");
           if (app)
           {
             app->quit();
           }
+          std::fprintf(stderr, "macos scenario: quit request returned\n");
         }
 
         void fail(const char *message, App *app)
@@ -498,6 +500,7 @@ namespace loka
       assert(app.get() && "App is required");
       config.setApp(app.get());
       app->run();
+      std::fprintf(stderr, "macos scenario: App::run returned\n");
       return 0;
     }
   } // namespace macos_scenario_tests
