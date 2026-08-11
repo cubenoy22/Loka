@@ -62,7 +62,7 @@ printf 'scenario %s\ncapture_dir %s\n' "$SCENARIO" "$WORK" >"$WORK/LokaTest.cfg"
 
 (
   cd "$WORK"
-  "$BINARY" >runner.log 2>&1
+  exec "$BINARY" >runner.log 2>&1
 ) &
 APP_PID=$!
 

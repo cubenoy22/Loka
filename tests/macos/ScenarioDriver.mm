@@ -118,6 +118,7 @@ namespace loka
         NSView *view = (NSView *)dsl::testing::MacWindowTestAccess::contentView(window);
         if (!view || !path || !*path)
         {
+          std::fprintf(stderr, "macos scenario capture: missing view or output path\n");
           return false;
         }
 
@@ -127,6 +128,10 @@ namespace loka
         NSBitmapImageRep *bitmap = [view bitmapImageRepForCachingDisplayInRect:bounds];
         if (!bitmap)
         {
+          std::fprintf(stderr,
+                       "macos scenario capture: bitmapImageRepForCachingDisplayInRect returned nil"
+                       " (bounds %.0fx%.0f, window=%s)\n",
+                       bounds.size.width, bounds.size.height, [view window] ? "present" : "missing");
           [pool drain];
           return false;
         }
@@ -141,6 +146,11 @@ namespace loka
         if (!pixels || [bitmap isPlanar] || bytesPerRow <= 0 || pixelBytesPerRow <= 0
             || pixelBytesPerRow > bytesPerRow || pixelHeight <= 0)
         {
+          std::fprintf(stderr,
+                       "macos scenario capture: invalid bitmap layout"
+                       " (pixels=%s planar=%d row=%ld pixel-row=%ld size=%ldx%ld bpp=%ld)\n",
+                       pixels ? "present" : "missing", [bitmap isPlanar] ? 1 : 0, (long)bytesPerRow,
+                       (long)pixelBytesPerRow, (long)pixelWidth, (long)pixelHeight, (long)bitsPerPixel);
           [pool drain];
           return false;
         }
@@ -160,6 +170,11 @@ namespace loka
                                            properties:[NSDictionary dictionary]];
         NSString *outputPath = [NSString stringWithUTF8String:path];
         const bool wrote = png && outputPath && [png writeToFile:outputPath atomically:YES];
+        if (!wrote)
+        {
+          std::fprintf(stderr, "macos scenario capture: PNG encode/write failed (png=%s path=%s)\n",
+                       png ? "present" : "missing", outputPath ? "present" : "missing");
+        }
         if (wrote)
         {
           outHash = hash;
