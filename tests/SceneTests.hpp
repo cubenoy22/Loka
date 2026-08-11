@@ -12,6 +12,7 @@
 #include "app/nodes/Text.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "support/RecordingPlatformController.hpp"
+#include "support/TestVerify.hpp"
 
 namespace SceneTests
 {
@@ -109,7 +110,9 @@ namespace SceneTests
     composition.declare(loka::app::Text(&textState));
     assert(composition.root() != 0);
 
-    Scene scene(composition.root()->clone());
+    loka::app::scene::NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     SceneTestSupport::RecordingPlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);

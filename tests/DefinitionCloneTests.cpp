@@ -321,6 +321,7 @@ void testConditionalDefinitionCloneOwnership()
     // trueBranch is gone. Clone the conditional, then destroy the original:
     // the clone must own its own independent branch copy.
     loka::app::scene::NodeDefinitionBase *copy = conditional->clone();
+    LOKA_VERIFY(copy != 0);
     delete conditional;
 
     int createdBefore = g_probeNodesCreated;
