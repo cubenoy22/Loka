@@ -176,7 +176,9 @@ void MacApp::quit()
                                          data2:0];
   if (event)
   {
-    [NSApp postEvent:event atStart:NO];
+    // stop: only takes effect after NSApplication dispatches a real event.
+    // Put the wake event first so timer-driven quit cannot wait behind later work.
+    [NSApp postEvent:event atStart:YES];
   }
 #endif
 #ifdef TEST_BUILD
