@@ -323,11 +323,7 @@ namespace loka
             this->settle(window, app);
             return;
           case PHASE_ARTIFACTS_READY:
-            this->phase_ = PHASE_FINISHED;
-            if (app)
-            {
-              app->quit();
-            }
+            this->finish(app);
             return;
           case PHASE_FINISHED:
             return;
@@ -335,6 +331,15 @@ namespace loka
         }
 
       private:
+        void finish(App *app)
+        {
+          this->phase_ = PHASE_FINISHED;
+          if (app)
+          {
+            app->quit();
+          }
+        }
+
         void fail(const char *message, App *app)
         {
           std::fprintf(stderr, "macos scenario: %s\n", message ? message : "failed");
@@ -390,7 +395,10 @@ namespace loka
           long pixelHeight = 0;
           if (!CaptureContentFrame(*macWindow, framePath.c_str(), hash, pixelWidth, pixelHeight))
           {
-            this->fail("content capture failed", app);
+            if (this->settleFrames_ >= kMaximumSettleFrames)
+            {
+              this->fail("settle timeout while content capture remained unavailable", app);
+            }
             return;
           }
           if (this->hasPreviousHash_ && hash == this->previousHash_)
@@ -406,6 +414,7 @@ namespace loka
               return;
             }
             this->phase_ = PHASE_ARTIFACTS_READY;
+            this->finish(app);
             return;
           }
           this->hasPreviousHash_ = true;
