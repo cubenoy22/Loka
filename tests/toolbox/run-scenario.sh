@@ -98,6 +98,7 @@ DEV="$WORK/LokaDev.hd"
 CONFIG="$WORK/LokaTest.cfg"
 LAUNCHER="$WORK/mame-launch.lua"
 MAME_OUT="$WORK/mame.out"
+LAUNCH_LOG="$WORK/mame-launch.log"
 RECORD="$WORK/LokaTestsToolbox.snap"
 CAPTURE_RECORD="$WORK/LokaTestsToolbox.capture.snap"
 EXPECTED_RECORD="$PROJECT_DIR/tests/scenarios/expected/scrapbook/$SCENARIO.snap"
@@ -159,13 +160,13 @@ if ! MAME_DEV_HDA="$DEV" MAME_CONTROL_DIR="$WORK/hfs-ctl" \
   fail_stage mame "development disk creation failed; see $WORK/dev-disk.out"
 fi
 
-export LOKA_SNAP_LOG; LOKA_SNAP_LOG="$(winpath "$WORK/mame-launch.log")"
+export LOKA_SNAP_LOG; LOKA_SNAP_LOG="$(winpath "$LAUNCH_LOG")"
 FORWARD="LOKA_SNAP_LOG"
 if [ -n "${LOKA_LAUNCH_WAIT:-}" ]; then
   FORWARD="$FORWARD:LOKA_LAUNCH_WAIT"
 fi
-if [ -n "${LOKA_SETTLE_WAIT:-}" ]; then
-  FORWARD="$FORWARD:LOKA_SETTLE_WAIT"
+if [ -n "${LOKA_SETTLE_TIMEOUT:-}" ]; then
+  FORWARD="$FORWARD:LOKA_SETTLE_TIMEOUT"
 fi
 if [ -n "${LOKA_TAB_COUNT:-}" ]; then
   FORWARD="$FORWARD:LOKA_TAB_COUNT"
@@ -197,6 +198,11 @@ else
     fail_stage mame "timed out after 480 seconds; see $MAME_OUT"
   fi
   fail_stage mame "MAME exited with status $mame_status; see $MAME_OUT"
+fi
+SETTLE_REACHED=1
+if [ ! -f "$LAUNCH_LOG" ] \
+  || ! grep -q '^LOKA-SNAP: settled after ' "$LAUNCH_LOG"; then
+  SETTLE_REACHED=0
 fi
 
 find_retro68_tool() {
@@ -285,6 +291,9 @@ for coordinate in "$crop_left" "$crop_top" "$crop_right" "$crop_bottom"; do
     fail_stage verdict "record contains an invalid crop rectangle; see $RECORD"
   fi
 done
+if [ "$SETTLE_REACHED" -ne 1 ]; then
+  fail_stage settle "pixel stability was not reached; see $LAUNCH_LOG"
+fi
 
 newest_snapshot=""
 while IFS= read -r -d '' candidate; do
