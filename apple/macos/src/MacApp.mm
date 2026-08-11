@@ -168,7 +168,6 @@ void MacApp::quit()
 #ifdef TEST_BUILD
   std::fprintf(stderr, "MacApp::quit stop returned (running=%d)\n", [NSApp isRunning] ? 1 : 0);
 #endif
-#if defined(NSApplicationDefined)
   NSEvent *event = [NSEvent otherEventWithType:NSApplicationDefined
                                       location:NSMakePoint(0.0, 0.0)
                                  modifierFlags:0
@@ -184,7 +183,6 @@ void MacApp::quit()
     // Put the wake event first so timer-driven quit cannot wait behind later work.
     [NSApp postEvent:event atStart:YES];
   }
-#endif
 #ifdef TEST_BUILD
   std::fprintf(stderr, "MacApp::quit posted wake event (running=%d)\n", [NSApp isRunning] ? 1 : 0);
 #endif
