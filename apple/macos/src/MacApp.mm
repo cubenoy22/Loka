@@ -148,8 +148,12 @@ void MacApp::quit()
   // or releaseAllPools. Stopping the run loop lets App::run() return and keeps
   // cleanup in our normal C++ object lifetime instead.
   [NSApp stop:nil];
-#if defined(NSApplicationDefined)
-  NSEvent *event = [NSEvent otherEventWithType:NSApplicationDefined
+#if defined(MAC_OS_X_VERSION_MAX_ALLOWED) && (MAC_OS_X_VERSION_MAX_ALLOWED >= 101200)
+  const NSEventType wakeEventType = NSEventTypeApplicationDefined;
+#else
+  const NSEventType wakeEventType = NSApplicationDefined;
+#endif
+  NSEvent *event = [NSEvent otherEventWithType:wakeEventType
                                       location:NSMakePoint(0.0, 0.0)
                                  modifierFlags:0
                                      timestamp:0.0
@@ -160,9 +164,10 @@ void MacApp::quit()
                                          data2:0];
   if (event)
   {
-    [NSApp postEvent:event atStart:NO];
+    // stop: only takes effect after NSApplication dispatches a real event.
+    // Put the wake event first so timer-driven quit cannot wait behind later work.
+    [NSApp postEvent:event atStart:YES];
   }
-#endif
 }
 
 void MacApp::flushInvalidationsTick()
