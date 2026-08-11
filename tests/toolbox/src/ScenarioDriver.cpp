@@ -156,6 +156,61 @@ namespace loka
         return result;
       }
 
+      /** Owns the crop-external native marker used by MAME's live screen
+          completion seam. */
+      class HostCompletionSignal
+      {
+      public:
+        HostCompletionSignal()
+            : window_(0)
+        {
+        }
+
+        ~HostCompletionSignal()
+        {
+          if (this->window_)
+          {
+            DisposeWindow(this->window_);
+            this->window_ = 0;
+          }
+        }
+
+        bool publish()
+        {
+          if (this->window_)
+          {
+            return true;
+          }
+          Rect bounds = qd.screenBits.bounds;
+          if (bounds.right - bounds.left < 16 || bounds.bottom - bounds.top < 16)
+          {
+            return false;
+          }
+          SetRect(&bounds, static_cast<short>(bounds.right - 12), static_cast<short>(bounds.bottom - 12),
+                  static_cast<short>(bounds.right - 4), static_cast<short>(bounds.bottom - 4));
+          Str255 title;
+          title[0] = 0;
+          this->window_ = NewWindow(0, &bounds, title, true, plainDBox, reinterpret_cast<WindowPtr>(-1L), false, 0);
+          if (!this->window_)
+          {
+            return false;
+          }
+          GrafPtr previousPort = 0;
+          GetPort(&previousPort);
+          BeginUpdate(this->window_);
+          SetPort(this->window_);
+          FillRect(&this->window_->portRect, &qd.black);
+          EndUpdate(this->window_);
+          SetPort(previousPort);
+          return true;
+        }
+
+      private:
+        HostCompletionSignal(const HostCompletionSignal &);
+        HostCompletionSignal &operator=(const HostCompletionSignal &);
+        WindowPtr window_;
+      };
+
       std::string CapturePath()
       {
         return dsl::SnapTestConfig::resolveCapturePath(kCaptureFile, kConfigPath);
@@ -277,6 +332,7 @@ namespace loka
             {
               (void)WriteRecord(this->settings_, record);
               this->recorded_ = true;
+              (void)this->hostCompletionSignal_.publish();
             }
           }
           if (!this->recorded_)
@@ -300,6 +356,7 @@ namespace loka
         bool recorded_;
         long tickCount_;
         double lingerRemaining_;
+        HostCompletionSignal hostCompletionSignal_;
       };
     } // namespace
 
