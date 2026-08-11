@@ -125,6 +125,16 @@ namespace loka
         NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
         [view displayIfNeeded];
         const NSRect bounds = [view bounds];
+        const NSRect viewFrame = [view frame];
+        NSWindow *nativeWindow = (NSWindow *)dsl::testing::MacWindowTestAccess::nativeWindow(window);
+        const NSRect windowFrame = nativeWindow ? [nativeWindow frame] : NSZeroRect;
+        const NSRect contentRect = nativeWindow ? [nativeWindow contentRectForFrameRect:windowFrame] : NSZeroRect;
+        std::fprintf(stderr,
+                     "macos scenario capture geometry: bounds=(%.3f,%.3f %.3fx%.3f)"
+                     " view-frame=(%.3f,%.3f %.3fx%.3f) window-frame=%.3fx%.3f content=%.3fx%.3f\n",
+                     bounds.origin.x, bounds.origin.y, bounds.size.width, bounds.size.height, viewFrame.origin.x,
+                     viewFrame.origin.y, viewFrame.size.width, viewFrame.size.height, windowFrame.size.width,
+                     windowFrame.size.height, contentRect.size.width, contentRect.size.height);
         NSBitmapImageRep *bitmap = [view bitmapImageRepForCachingDisplayInRect:bounds];
         if (!bitmap)
         {
