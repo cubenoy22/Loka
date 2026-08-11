@@ -1,6 +1,8 @@
 # Loka Programming Guide
 
-Target version: Loka `0.0.2`
+Target version: current development source (v0.0.2 and later contracts,
+e.g. `Held`). For the guide matching the published v0.0.2 artifact, read
+this file at the `v0.0.2` tag.
 
 English version: [ProgrammingGuide.en.md](ProgrammingGuide.en.md)
 

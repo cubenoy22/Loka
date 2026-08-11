@@ -35,6 +35,8 @@ Before applying the matrix, complete the release-provenance check:
   documentation, and GitHub release metadata agree; `git cat-file -t <tag>`
   reports `tag` (an annotated tag, not `commit`); the annotation contains the
   release notes; and every cited issue or pull request was verified as shipped.
+  The annotated-tag requirement applies to releases after v0.0.2; the published
+  v0.0.2 lightweight tag is grandfathered and stays as it is.
 
 The OS columns come from `CMakePresets.json` and `.github/workflows/ci.yml`.
 Linux is a headless host-validation leg and has no GUI example targets. The
