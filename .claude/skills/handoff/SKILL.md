@@ -1,6 +1,6 @@
 ---
 name: handoff
-description: Write the end-of-session handoff document (plans/HANDOFF-YYYY-MM-DD.md) so the next session can resume without re-derivation. Use when the user asks for a handoff or the session is wrapping up.
+description: Write the end-of-session handoff document (plans/HANDOFF-YYYY-MM-DD.md) so the next session can resume without re-derivation, then mirror it to the Loka Handoff Archive in Notion when available. Use when the user asks for a handoff or the session is wrapping up.
 ---
 
 # Session handoff document
@@ -34,3 +34,34 @@ local document, written in Japanese (the user reads it directly).
 - State what was NOT done or NOT verified as plainly as what was.
 - If cleanup was performed (worktrees, temp scripts, branches), list it so
   the next session doesn't hunt for ghosts; if cleanup remains, say so.
+
+## Notion mirror
+
+Run this phase only after the local file is complete. The local file is the
+completion boundary — a Notion outage or missing connector must not
+invalidate the handoff. On any failure, report `Notion mirror: pending` with
+the exact reason and stop; a later session can retry by Handoff Key.
+
+The archive lives in the user's personal Notion workspace. Do not record its
+URL or IDs in this repository — locate it by name on every run.
+
+1. Search Notion for the `Loka Handoff Archive` database (it sits under the
+   handoff hub page inside `Loka Plans`), then fetch it to get the current
+   schema and data source. Do not assume either from memory.
+2. Query the data source for an exact `Handoff Key` match — the key is the
+   local filename including `.md` (e.g. `HANDOFF-2026-08-12.md`). No match:
+   create one record. Exactly one: update its properties and replace its
+   body. Multiple: change nothing and report the duplicate-key problem.
+3. Properties: `Title` = `YYYY-MM-DD — <concise topic>`; `Session Date`;
+   `Agent` = `Claude`; `Handoff Key` as above; `Topic` = concise search
+   terms; `Summary` = one sentence (done-state + continuation point);
+   `Branch`/`HEAD`/`Base Commit` = verified Git facts (recorded main SHA for
+   Base Commit); `Working Tree` = clean/dirty/unknown; `Evidence` = only
+   applicable values of runtime-verified / build-verified / red-green /
+   not-verified; `Status` = Ready/Partial/Blocked; `Local File` =
+   repo-relative `plans/...` path.
+4. Page body = the local handoff minus its title line (the `Title` property
+   supplies it). Do not upload secrets, tokens, PII, or LAN addresses —
+   refer to rigs by their logical names (e.g. `tahoe`, `mavericks-legacy`).
+5. Verify: fetch the resulting record back, and report its URL (in the
+   session conversation only — never into a tracked file).
