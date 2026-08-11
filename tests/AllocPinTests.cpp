@@ -17,6 +17,7 @@
 // for the full census table and family breakdown.
 
 #include "support/AllocCensus.hpp"
+#include "support/TestVerify.hpp"
 
 #include "MainNode.hpp"
 
@@ -156,7 +157,7 @@ namespace allocpin
 
     NodeDefinition<helloworld::MainProps, helloworld::MainNode> mainDef;
     loka::app::scene::NodeDefinitionBase *rootDefinition = mainDef.clone();
-    assert(rootDefinition != 0);
+    LOKA_VERIFY(rootDefinition != 0);
     Scene scene(rootDefinition);
     AllocPinPlatformController platform;
     scene.mount(&platform);
