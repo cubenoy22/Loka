@@ -46,7 +46,7 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "^Retro(PPC|Carbon)$")
 endif()
 
 if(TEST_BUILD)
-  add_definitions(-DTEST_BUILD)
+  add_definitions(-DTEST_BUILD -DLOKA_DIAG=1)
 endif()
 
 if(LOKA_LIFECYCLE_AUDIT)
@@ -125,7 +125,10 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   loka_enable_warnings(LokaCommonShippingCompileTest)
   # add_definitions(-DTEST_BUILD) is directory-scoped, so this target has to
   # take the define back off to be the shipping compile it claims to be.
-  target_compile_options(LokaCommonShippingCompileTest PRIVATE -UTEST_BUILD)
+  target_compile_options(LokaCommonShippingCompileTest PRIVATE
+    -UTEST_BUILD
+    -ULOKA_DIAG
+  )
   target_include_directories(LokaCommonShippingCompileTest PRIVATE
     ${PROJECT_SOURCE_DIR}/common
     ${PROJECT_SOURCE_DIR}/tools
@@ -242,6 +245,9 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/toolbox/pngcrop.py selftest)
     add_test(NAME scriptBuild104Guard
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/Build104GuardTest.sh)
+    add_test(NAME scriptPmonSpriteGenerator
+      COMMAND python3
+        ${PROJECT_SOURCE_DIR}/tests/scripts/PmonSpriteGeneratorTest.py)
 
     if(LOKA_MAME_SCENARIOS)
       foreach(_loka_mame_scenario

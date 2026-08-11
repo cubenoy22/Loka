@@ -37,7 +37,14 @@ namespace scrapbook
 #endif
 
 #if defined(LOKA_SCRAPBOOK_ID_SPACE_STAMP)
-  const AssetId kIdSpaceStamp = LOKA_SCRAPBOOK_ID_SPACE_STAMP;
+// Injected stamps are full 32-bit values; under -Werror gnu++98, bare decimal
+// literals above the signed 31-bit range are rejected. Expand before adding UL.
+#define LOKA_SCRAPBOOK_STAMP_LITERAL_IMPL(value) value##UL
+#define LOKA_SCRAPBOOK_STAMP_LITERAL(value) LOKA_SCRAPBOOK_STAMP_LITERAL_IMPL(value)
+  const AssetId kIdSpaceStamp =
+      LOKA_SCRAPBOOK_STAMP_LITERAL(LOKA_SCRAPBOOK_ID_SPACE_STAMP);
+#undef LOKA_SCRAPBOOK_STAMP_LITERAL
+#undef LOKA_SCRAPBOOK_STAMP_LITERAL_IMPL
 #else
   const AssetId kIdSpaceStamp = 3579051217UL;
 #endif

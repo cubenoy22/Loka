@@ -2,9 +2,12 @@
 
 #include <cassert>
 #include <cstddef>
+#include <cstdio>
+#include <cstring>
 #include <new>
 
 #include "core/LokaAlloc.hpp"
+#include "support/TestVerify.hpp"
 
 namespace
 {
@@ -54,6 +57,51 @@ namespace
     ++gFakeBackendFreeCalls;
     delete[] static_cast<char *>(ptr);
   }
+
+#if defined(LOKA_DIAG) || defined(LOKA_RETRO68_DIAGNOSTICS)
+  struct CensusSnapshot
+  {
+    CensusSnapshot()
+        : entryCount(0),
+          overflowCount(0),
+          overflowBytes(0)
+    {
+    }
+
+    unsigned long entryCount;
+    unsigned long overflowCount;
+    unsigned long overflowBytes;
+  };
+
+  bool readCensusSnapshot(CensusSnapshot &snapshot)
+  {
+    std::FILE *dump = std::tmpfile();
+    if (!dump)
+      return false;
+
+    loka::core::LokaAllocCensusDump(dump);
+    std::rewind(dump);
+
+    char line[160];
+    while (std::fgets(line, sizeof(line), dump))
+    {
+      unsigned long count = 0;
+      unsigned long bytes = 0;
+      if (std::sscanf(line, "alloc.site.overflow=%lu,%lu", &count, &bytes) == 2)
+      {
+        snapshot.overflowCount = count;
+        snapshot.overflowBytes = bytes;
+      }
+      else if (std::strncmp(line, "alloc.site.", 11) == 0)
+      {
+        ++snapshot.entryCount;
+      }
+    }
+
+    std::fclose(dump);
+    return true;
+  }
+#endif
 } // namespace
 
 void testLokaAllocDefaultBackendRoundTrip()
@@ -154,4 +202,45 @@ void testLokaAllocAuditBalancedUseCountsToZero()
 
   loka::core::LokaAllocAuditCheckpoint("testLokaAllocAuditBalancedUseCountsToZero");
 #endif
+}
+
+void testLokaAllocCensusAccumulatesSitesAndLabelsOverflow()
+{
+#if defined(LOKA_DIAG) || defined(LOKA_RETRO68_DIAGNOSTICS)
+  static const char *typeTags[] = {
+      "Conservation00", "Conservation01", "Conservation02", "Conservation03", "Conservation04", "Conservation05",
+      "Conservation06", "Conservation07", "Conservation08", "Conservation09", "Conservation10", "Conservation11",
+      "Conservation12", "Conservation13", "Conservation14", "Conservation15", "Conservation16", "Conservation17",
+      "Conservation18", "Conservation19", "Conservation20", "Conservation21", "Conservation22", "Conservation23",
+      "Conservation24", "Conservation25", "Conservation26", "Conservation27", "Conservation28", "Conservation29",
+      "Conservation30", "Conservation31", "Conservation32", "Conservation33"};
+  const std::size_t siteCount = sizeof(typeTags) / sizeof(typeTags[0]);
+  CensusSnapshot before;
+  LOKA_VERIFY(readCensusSnapshot(before));
+
+  for (std::size_t i = 0; i < siteCount; ++i)
+  {
+    const loka::core::LokaAllocationSite site("CensusProbe", typeTags[i]);
+    void *storage = loka::core::LokaAllocRaw(i + 1, site);
+    LOKA_VERIFY(storage != 0);
+    loka::core::LokaFreeRaw(storage, site);
+  }
+
+  CensusSnapshot after;
+  LOKA_VERIFY(readCensusSnapshot(after));
+  LOKA_VERIFY(after.entryCount >= before.entryCount);
+  LOKA_VERIFY(after.overflowCount >= before.overflowCount);
+  LOKA_VERIFY(after.overflowBytes >= before.overflowBytes);
+
+  const unsigned long entriesGained = after.entryCount - before.entryCount;
+  const unsigned long overflowCountGained = after.overflowCount - before.overflowCount;
+  LOKA_VERIFY(overflowCountGained != 0);
+  LOKA_VERIFY(entriesGained + overflowCountGained == siteCount);
+
+  unsigned long expectedOverflowBytes = 0;
+  for (std::size_t i = entriesGained; i < siteCount; ++i)
+    expectedOverflowBytes += static_cast<unsigned long>(i + 1);
+  LOKA_VERIFY(after.overflowBytes - before.overflowBytes == expectedOverflowBytes);
+#endif
+  std::printf("==== [testLokaAllocCensusAccumulatesSitesAndLabelsOverflow] PASSED ====\n");
 }

@@ -5,6 +5,7 @@ import argparse
 from collections import namedtuple
 from pathlib import Path
 import re
+import shutil
 import struct
 import subprocess
 import sys
@@ -526,13 +527,18 @@ def ensure_sprite(path, index):
         )
 
 
-def manifest_contents(depth):
+def manifest_contents(depth, sprite_count=SPRITE_COUNT):
     if depth not in (1, 256):
         raise ValueError("unsupported manifest depth")
+    # Bag 0 must be ui because ScrapbookPackage.hpp pins
+    # kUiBagIndex = 0 / kFirstPageBagIndex = 1.
     lines = [
-        "# One sprite per bag: a page flip reads exactly one independently verifiable bag."
+        "# One sprite per bag: a page flip reads exactly one independently verifiable bag.",
+        "",
+        "bag ui",
+        "asset 9001 image UI/RefusedBadge ngbadge.pict",
     ]
-    for index in range(1, SPRITE_COUNT + 1):
+    for index in range(1, sprite_count + 1):
         lines.extend(
             [
                 "",
@@ -545,8 +551,8 @@ def manifest_contents(depth):
     return "\n".join(lines) + "\n"
 
 
-def write_manifest(path, depth):
-    path.write_text(manifest_contents(depth), encoding="ascii")
+def write_manifest(path, depth, sprite_count=SPRITE_COUNT):
+    path.write_text(manifest_contents(depth, sprite_count), encoding="ascii")
 
 
 def pack_assets(lrpc, manifest, package, stamp_path, requirements):
@@ -603,7 +609,18 @@ def parse_arguments(repo_root):
         "--sprites-dir",
         type=Path,
         default=repo_root / "build" / "pmonsprite-staging",
-        help="directory containing 1.png through 12.png",
+        help="directory containing consecutively numbered PNGs starting at 1",
+    )
+    parser.add_argument(
+        "--sprite-count",
+        type=int,
+        default=SPRITE_COUNT,
+        help="number of consecutively numbered sprite PNGs (default: 12)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        help="output directory (default: the depth-specific repository build dir)",
     )
     parser.add_argument(
         "--lrpc",
@@ -632,13 +649,15 @@ def parse_arguments(repo_root):
 def main():
     repo_root = Path(__file__).resolve().parents[3]
     arguments = parse_arguments(repo_root)
+    if arguments.sprite_count < 1:
+        raise ValueError("sprite count must be positive")
     output_dir_name = (
         "pmonsprite-lrp" if arguments.depth == 1 else "pmonsprite-lrp-256"
     )
-    output_dir = repo_root / "build" / output_dir_name
+    output_dir = arguments.output_dir or repo_root / "build" / output_dir_name
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    for index in range(1, SPRITE_COUNT + 1):
+    for index in range(1, arguments.sprite_count + 1):
         sprite_path = arguments.sprites_dir / "{}.png".format(index)
         ensure_sprite(sprite_path, index)
         decoded = decode_palette_png(sprite_path)
@@ -659,7 +678,9 @@ def main():
         print("{}: {} bytes".format(output_path, len(picture)))
 
     if arguments.check:
-        if manifest_contents(1) != manifest_contents(256):
+        if manifest_contents(1, arguments.sprite_count) != manifest_contents(
+            256, arguments.sprite_count
+        ):
             raise AssertionError("depth-specific manifests must remain identical")
         if arguments.depth == 1:
             detail = "1-bit PackBitsRect rowBytes/bounds"
@@ -675,7 +696,11 @@ def main():
     manifest = output_dir / "manifest.txt"
     package = output_dir / "ASSETS.LRP"
     stamp_path = output_dir / "stamp.txt"
-    write_manifest(manifest, arguments.depth)
+    shutil.copyfile(
+        Path(__file__).resolve().with_name("ngbadge.pict"),
+        output_dir / "ngbadge.pict",
+    )
+    write_manifest(manifest, arguments.depth, arguments.sprite_count)
     requirements = Path(__file__).resolve().with_name("scrapbook.pkgreq")
     stamp = pack_assets(
         arguments.lrpc, manifest, package, stamp_path, requirements
@@ -684,30 +709,37 @@ def main():
     # changed sprite roster cannot leave the app compiled against a package
     # its open() checks are guaranteed to reject.
     (output_dir / "page-count.txt").write_text(
-        "{}\n".format(SPRITE_COUNT), encoding="ascii"
+        "{}\n".format(arguments.sprite_count), encoding="ascii"
     )
 
     if arguments.check:
         other_depth = 256 if arguments.depth == 1 else 1
-        if manifest.read_text(encoding="ascii") != manifest_contents(other_depth):
-            raise AssertionError("written manifests differ between depths")
-        other_output = repo_root / "build" / (
-            "pmonsprite-lrp-256" if arguments.depth == 1 else "pmonsprite-lrp"
-        )
-        other_manifest_path = other_output / "manifest.txt"
-        if (
-            other_manifest_path.is_file()
-            and other_manifest_path.read_text(encoding="ascii")
-            != manifest.read_text(encoding="ascii")
+        if manifest.read_text(encoding="ascii") != manifest_contents(
+            other_depth, arguments.sprite_count
         ):
-            raise AssertionError("generated manifests differ between depths")
-        other_stamp_path = other_output / "stamp.txt"
-        if other_stamp_path.is_file():
-            other_stamp = other_stamp_path.read_text(encoding="ascii").strip()
-            if other_stamp != stamp:
-                raise AssertionError(
-                    "depth stamps differ: {} versus {}".format(stamp, other_stamp)
-                )
+            raise AssertionError("written manifests differ between depths")
+        if arguments.output_dir is None:
+            other_output = repo_root / "build" / (
+                "pmonsprite-lrp-256"
+                if arguments.depth == 1
+                else "pmonsprite-lrp"
+            )
+            other_manifest_path = other_output / "manifest.txt"
+            if (
+                other_manifest_path.is_file()
+                and other_manifest_path.read_text(encoding="ascii")
+                != manifest.read_text(encoding="ascii")
+            ):
+                raise AssertionError("generated manifests differ between depths")
+            other_stamp_path = other_output / "stamp.txt"
+            if other_stamp_path.is_file():
+                other_stamp = other_stamp_path.read_text(encoding="ascii").strip()
+                if other_stamp != stamp:
+                    raise AssertionError(
+                        "depth stamps differ: {} versus {}".format(
+                            stamp, other_stamp
+                        )
+                    )
         print(
             "Depth-independent manifest/stamp self-check: OK "
             "(depth 1 = depth 256 = {})".format(stamp)
@@ -715,14 +747,20 @@ def main():
 
     print("Package: {}".format(package))
     print("Stamp: {}".format(stamp))
-    print("Build the 12-page ScrapbookUI app from the repository root with:")
+    print(
+        "Build the {}-page ScrapbookUI app from the repository root with:".format(
+            arguments.sprite_count
+        )
+    )
     print(
         "  cmake -S . -B build/retro68-pmon -G Ninja "
         "-DCMAKE_BUILD_TYPE=Release "
         "-DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/Retro68.cmake "
         "-DRETRO68_CPU=m68k -DLOKA_WARNINGS_AS_ERRORS=ON "
-        "-DLOKA_SCRAPBOOK_PAGE_COUNT=12 "
-        "-DLOKA_SCRAPBOOK_ID_SPACE_STAMP={}".format(stamp)
+        "-DLOKA_SCRAPBOOK_PAGE_COUNT={} "
+        "-DLOKA_SCRAPBOOK_ID_SPACE_STAMP={}".format(
+            arguments.sprite_count, stamp
+        )
     )
     print(
         "  cmake --build build/retro68-pmon "

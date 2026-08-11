@@ -233,7 +233,18 @@ void ToolboxApp::run()
     {
       ToolboxWindow *active = activeWindow() ? activeWindow()->asToolboxWindow() : 0;
       char key = static_cast<char>(event.message & charCodeMask);
-      bool handled = active && active->handleKeyDown(key);
+      bool handled = false;
+#if LOKA_RETRO68_DIAGNOSTICS
+      if (active && (event.modifiers & cmdKey) && (key == 'd' || key == 'D'))
+      {
+        active->requestDeferredDebugDump();
+        handled = true;
+      }
+#endif
+      if (!handled)
+      {
+        handled = active && active->handleKeyDown(key);
+      }
       if (!handled)
       {
         handled = this->handleKeyPress(key);
