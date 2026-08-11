@@ -155,7 +155,8 @@ void MacApp::quit()
 {
   this->quitRequested_ = true;
 #ifdef TEST_BUILD
-  std::fprintf(stderr, "MacApp::quit stopping NSApplication run\n");
+  std::fprintf(stderr, "MacApp::quit stopping NSApplication run (running=%d current-event=%s)\n",
+               [NSApp isRunning] ? 1 : 0, [NSApp currentEvent] ? "present" : "missing");
 #endif
   stopInvalidationFlushTimer();
   // Avoid terminate: here. On Leopard/PPC and earlier AppKit shutdown paths,
@@ -164,6 +165,9 @@ void MacApp::quit()
   // or releaseAllPools. Stopping the run loop lets App::run() return and keeps
   // cleanup in our normal C++ object lifetime instead.
   [NSApp stop:nil];
+#ifdef TEST_BUILD
+  std::fprintf(stderr, "MacApp::quit stop returned (running=%d)\n", [NSApp isRunning] ? 1 : 0);
+#endif
 #if defined(NSApplicationDefined)
   NSEvent *event = [NSEvent otherEventWithType:NSApplicationDefined
                                       location:NSMakePoint(0.0, 0.0)
@@ -182,7 +186,7 @@ void MacApp::quit()
   }
 #endif
 #ifdef TEST_BUILD
-  std::fprintf(stderr, "MacApp::quit posted wake event\n");
+  std::fprintf(stderr, "MacApp::quit posted wake event (running=%d)\n", [NSApp isRunning] ? 1 : 0);
 #endif
 }
 
