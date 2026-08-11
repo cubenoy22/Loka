@@ -14,9 +14,15 @@ Versioning follows a pragmatic pre-1.0 scheme:
 ### Release provenance
 
 The version in the top-level CMake `project(Loka VERSION ... LANGUAGES CXX)`
-call is the canonical source version. Current-release statements in the
-documentation and published release metadata mirror that value and must agree
-with it when a release is cut.
+call is the canonical source version, and it names the release **under
+development**: the source tree on `main` always carries the next version
+(currently `0.0.3`), so a build from source never claims to be a published
+artifact it has drifted from. Cutting a release means bringing the
+documentation and release metadata into agreement with that version and
+freezing it with the annotated tag; immediately after tagging, the source
+version is bumped to the next release. The README's current-release statement
+names the newest published tag and therefore lags the source version between
+releases by design.
 
 The published `v0.0.2` tag is a lightweight tag that resolves directly to its
 release commit; it remains unchanged. Future release tags must be annotated,

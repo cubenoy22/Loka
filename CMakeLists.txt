@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(Loka VERSION 0.0.2 LANGUAGES CXX)
+project(Loka VERSION 0.0.3 LANGUAGES CXX)
 
 option(LOKA_ENABLE_APPLE "Enable Apple platform targets" ON)
 option(LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS "Add explicit -fno-objc-arc flags to macOS example targets" ON)
