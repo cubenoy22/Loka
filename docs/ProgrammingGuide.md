@@ -1,6 +1,8 @@
 # Loka Programming Guide
 
-Target version: Loka `0.0.1`
+Target version: current development source, heading to `0.0.3` (includes
+contracts added after v0.0.2, e.g. `Held`). For the guide matching the
+published v0.0.2 artifact, read this file at the `v0.0.2` tag.
 
 English version: [ProgrammingGuide.en.md](ProgrammingGuide.en.md)
 
@@ -648,10 +650,10 @@ state が連鎖しても、どの owner / tracker の上で動いているかを
 ただしその場合でも、注意点は memory lifetime だけではありません。
 Tracker がどちらの owner に属するかが重要です。
 
-0.0.1 での基本パターンは、次のように考えます。
+0.0.2 での基本パターンは、次のように考えます。
 
 ```text
-Safe 0.0.1 pattern
+Safe 0.0.2 pattern
 
 Node / Boundary owner
 +-- NodeState<T> source
@@ -694,10 +696,10 @@ Flow result
   onSuccess(...) -> owner updates output state
 ```
 
-逆に、次の形は 0.0.1 の通常ルートではありません。
+逆に、次の形は 0.0.2 の通常ルートではありません。
 
 ```text
-Not the default 0.0.1 pattern
+Not the default 0.0.2 pattern
 
 Parent owner                  Child owner
 +-- State<T> source  ----->   +-- FlowSlot<StateStream<U>>
@@ -1335,7 +1337,7 @@ UI と処理パイプラインを一貫した考え方で扱える基盤にな�
 Flow は、State と event handler を集約する処理パイプラインです。
 そのため、Flow 自体の lifetime も Node / Boundary の lifetime と切り離して考えないでください。
 
-Loka `0.0.1` では、Node に紐づく Flow は Node member として保持し、
+Loka `0.0.2` では、Node に紐づく Flow は Node member として保持し、
 必要なら `FlowSlot<T>` のような小さな owner slot に入れる方針を取ります。
 これにより、Node の destructor で Flow が確実に破棄され、
 Flow 内部の binding や trigger も同じ寿命で解放できます。
@@ -1735,7 +1737,7 @@ reuse algorithm や redraw 戦略まで含めた実装コストが非常に大�
 `Show()` は「毎回 child を破棄して作り直す」仕組みではなく、
 基本的には retained な child を attach / detach する仕組みとして考えます。
 
-つまり、現在の `0.0.1` スコープでは次のように理解してください。
+つまり、現在の `0.0.2` スコープでは次のように理解してください。
 
 - `Show(false)` で child は active projection から外れる
 - child の論理 identity は保持される
@@ -2079,7 +2081,7 @@ Menu DSL でも考え方は同じです。
 - 必要なら event や attr を積む
 - 最終的な反映は各 OS の menu system へ投影される
 
-ただし、Loka `0.0.1` の `MenuComposition` は、
+ただし、Loka `0.0.2` の `MenuComposition` は、
 Scene node の `StdComposition` とは更新モデルが異なります。
 
 `StdComposition` の `composeNode()` は attach 時に一度だけ構造を宣言し、
