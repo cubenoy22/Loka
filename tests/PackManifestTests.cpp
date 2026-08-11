@@ -12,6 +12,8 @@ using loka::lrpc::DeriveIdSpaceStamp;
 using loka::lrpc::ManifestResult;
 using loka::lrpc::PackManifest;
 using loka::lrpc::ParseManifest;
+using loka::lrpc::RequirementResult;
+using loka::lrpc::RequirementViolation;
 
 namespace
 {
@@ -24,6 +26,14 @@ namespace
   {
     PackManifest ignored;
     return Parse(text, ignored, line);
+  }
+
+  PackManifest Manifest(const char *text)
+  {
+    PackManifest manifest;
+    std::size_t line = 0;
+    LOKA_VERIFY(Parse(text, manifest, line) == loka::lrpc::MANIFEST_OK);
+    return manifest;
   }
 } // namespace
 
@@ -175,4 +185,81 @@ void testPackManifestStampFollowsTheIdSpaceNotTheListing()
   assert(DeriveIdSpaceStamp(cutOneWay) != DeriveIdSpaceStamp(cutTheOther));
 
   std::printf("testPackManifestStampFollowsTheIdSpaceNotTheListing passed\n");
+}
+
+void testPackageRequirementsCheckEveryScrapbookExpectation()
+{
+  std::vector<RequirementViolation> violations;
+
+  const char *all =
+      "bag 0 ui\n"
+      "asset 9001 image\n"
+      "pages 1001 count-from bag 1\n";
+  const PackManifest satisfied = Manifest(
+      "bag ui\n"
+      "asset 9001 image UI/Badge badge\n"
+      "bag page-1\n"
+      "asset 1001 image Page/One one\n"
+      "bag page-2\n"
+      "asset 1002 string Page/Two two\n");
+  std::size_t line = 0;
+  LOKA_VERIFY(loka::lrpc::CheckPackageRequirements(
+                  all, std::strlen(all), satisfied, violations, line) ==
+              loka::lrpc::REQUIREMENTS_OK);
+  assert(violations.empty());
+
+  const PackManifest allWrong = Manifest(
+      "bag pages\n"
+      "asset 1001 image Page/One one\n"
+      "bag page-1\n");
+  LOKA_VERIFY(loka::lrpc::CheckPackageRequirements(
+                  all, std::strlen(all), allWrong, violations, line) ==
+              loka::lrpc::REQUIREMENTS_OK);
+  assert(violations.size() == 3);
+  assert(violations[0].line == 1);
+  assert(violations[0].message ==
+         "bag 0 must be named \"ui\"; found bag 0 named \"pages\"");
+  assert(violations[1].line == 2);
+  assert(violations[1].message ==
+         "asset 9001 must have kind image; found no asset with that id");
+  assert(violations[2].line == 3);
+  assert(violations[2].message ==
+         "pages from asset 1001 must occupy bags from 1 one per bag; "
+         "found asset 1001 in bag 0 (\"pages\"), expected bag 1 (\"page-1\")");
+
+  const char *asset = "asset 9001 image\n";
+  const PackManifest wrongKind = Manifest(
+      "bag ui\n"
+      "asset 9001 string UI/Badge badge\n");
+  LOKA_VERIFY(loka::lrpc::CheckPackageRequirements(
+                  asset, std::strlen(asset), wrongKind, violations, line) ==
+              loka::lrpc::REQUIREMENTS_OK);
+  assert(violations.size() == 1);
+  assert(violations[0].line == 1);
+  assert(violations[0].message ==
+         "asset 9001 must have kind image; found kind string");
+
+  std::printf("testPackageRequirementsCheckEveryScrapbookExpectation passed\n");
+}
+
+void testPackageRequirementsUnreadableFileIsAHardError()
+{
+  const PackManifest manifest = Manifest(
+      "bag ui\n"
+      "asset 1 image Any any\n");
+  std::vector<RequirementViolation> violations;
+  std::size_t line = 99;
+#if defined(_WIN32)
+  const RequirementResult result =
+      loka::lrpc::CheckPackageRequirementsFile(
+          L".", manifest, violations, line);
+#else
+  const RequirementResult result =
+      loka::lrpc::CheckPackageRequirementsFile(
+          ".", manifest, violations, line);
+#endif
+  LOKA_VERIFY(result == loka::lrpc::REQUIREMENTS_CANNOT_READ);
+  assert(line == 0);
+
+  std::printf("testPackageRequirementsUnreadableFileIsAHardError passed\n");
 }

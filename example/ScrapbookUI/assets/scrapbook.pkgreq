@@ -1,0 +1,5 @@
+# Keep these duplicated structural expectations aligned with
+# ../src/ScrapbookPackage.hpp; #185's generated R.hpp will retire this file.
+bag 0 ui
+asset 9001 image
+pages 1001 count-from bag 1

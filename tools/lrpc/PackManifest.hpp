@@ -49,6 +49,31 @@ namespace loka
       std::vector<ManifestAsset> assets;
     };
 
+    struct RequirementViolation
+    {
+      RequirementViolation()
+          : line(0), message()
+      {
+      }
+
+      std::size_t line;
+      std::string message;
+    };
+
+    enum RequirementResult
+    {
+      REQUIREMENTS_OK = 0,
+      REQUIREMENTS_CANNOT_READ,
+      REQUIREMENTS_UNKNOWN_DIRECTIVE,
+      REQUIREMENTS_BAD_FIELD_COUNT,
+      REQUIREMENTS_BAD_INDEX,
+      REQUIREMENTS_BAD_ID,
+      REQUIREMENTS_BAD_KIND,
+      REQUIREMENTS_BAD_PAGES_FORM,
+      REQUIREMENTS_EMBEDDED_NUL,
+      REQUIREMENTS_EMPTY
+    };
+
     enum ManifestResult
     {
       MANIFEST_OK = 0,
@@ -94,6 +119,37 @@ namespace loka
                                  std::size_t length,
                                  PackManifest &out,
                                  std::size_t &errorLine);
+
+    /** Checks the three supported structural requirements in source order:
+
+            bag <index> <name>
+            asset <id> <image|string|audio>
+            pages <first-id> count-from bag <first-bag>
+
+        The `pages` count is the contiguous id run beginning at `first-id`.
+        That count must equal the number of bags beginning at `first-bag`, and
+        each id must occupy its corresponding bag. Every valid but violated
+        line is appended to `violations`; malformed input is a hard error. */
+    RequirementResult CheckPackageRequirements(
+        const char *text,
+        std::size_t length,
+        const PackManifest &manifest,
+        std::vector<RequirementViolation> &violations,
+        std::size_t &errorLine);
+
+    /** Reads and checks a requirements file without flattening Win32 paths. */
+    RequirementResult CheckPackageRequirementsFile(
+        const char *path,
+        const PackManifest &manifest,
+        std::vector<RequirementViolation> &violations,
+        std::size_t &errorLine);
+#if defined(_WIN32)
+    RequirementResult CheckPackageRequirementsFile(
+        const wchar_t *path,
+        const PackManifest &manifest,
+        std::vector<RequirementViolation> &violations,
+        std::size_t &errorLine);
+#endif
 
     /** Derives the id-space stamp from the id assignment itself.
 

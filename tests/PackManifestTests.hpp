@@ -3,5 +3,7 @@
 
 void testPackManifestParsesRecordsAndRefusesMalformedLines();
 void testPackManifestStampFollowsTheIdSpaceNotTheListing();
+void testPackageRequirementsCheckEveryScrapbookExpectation();
+void testPackageRequirementsUnreadableFileIsAHardError();
 
 #endif // LOKA_TESTS_PACKMANIFESTTESTS_HPP
