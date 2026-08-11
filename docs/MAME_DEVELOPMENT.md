@@ -195,6 +195,20 @@ local function clickAt(h, v)
 end
 ```
 
+**Never warp the cursor away in the same instant as the release.** Classic
+push buttons track the mouse and fire only if the up lands inside the
+control, and the warp takes effect within a VBL tick — so
+`btn:clear_value(); warp(320, 20)` with no wait between them displaces the
+release off the button and silently cancels the click. The press highlight
+still shows, which makes the resulting non-action read as an application bug:
+issue #324 was filed, investigated on two fronts, and closed over exactly
+this. The `clickAt` above already pauses after release; keep that shape, and
+if a scenario must park the cursor somewhere neutral afterwards, wait at
+least 0.2 emulated seconds after `clear_value()` before warping. (MineSweeper's
+New Game happened to fire even with a release-instant warp — see the TODO on
+button release semantics — so a scenario that "works" in one app is not
+evidence the shape is safe in another.)
+
 The button still goes through the ADB ioport field, which is reliable; only
 the axes were ever the problem. Verified on `maciix` under KanjiTalk 7
 (#182): `warp(200, 150)` puts the arrow at exactly that pixel in the snapshot,
