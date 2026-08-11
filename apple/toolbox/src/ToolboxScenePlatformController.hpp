@@ -109,6 +109,9 @@ public:
                                   loka::app::scene::NATIVE_HINT_DEFAULT);
   void destroyScrollBarControl(short resourceId, loka::app::scene::NativeLifetimeHint lifetimeHint);
   void retireNodeContext(loka::app::scene::NodeContext *context, loka::app::scene::NativeLifetimeHint lifetimeHint);
+  /** Escalates recorded dirty rectangles because the projected structure
+      changed since the last present. */
+  void requestStructurePresent();
   void drawFallbackControl(const Rect &rect);
   TEHandle ensureEditTextControl(loka::app::scene::NodeContext *ownerContext,
                                  const Rect &rect,
@@ -318,7 +321,7 @@ private:
                                   bool fullRebuild);
   void redrawTextHit(TextHit &hit);
   void redrawPopupHit(const PopupHit &hit);
-  void redrawTextFor(loka::core::State<loka::core::String> *text);
+  void requestInvalidateForText(loka::core::State<loka::core::String> *text);
   void clearTextBindings();
   void clearEnabledBindings();
   void clearControls();
