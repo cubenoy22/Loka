@@ -93,3 +93,6 @@ void testNullConditionalBranchParksAndReentersShownBranch();
 void testStructureReportDoesNotStickOnDirectRoot();
 void testBankedSectionSwapPresentsFreshControls();
 void testBankedSectionClickHandlerSwapPresentsFreshControls();
+void testToolboxPresentPointPaintsFreshBankedSectionChildren();
+void testToolboxStructureSwapCollapsesToOneFullPresent();
+void testToolboxPlainContentUpdateUsesDirtyPresent();

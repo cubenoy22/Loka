@@ -1,4 +1,5 @@
 #include "context/ToolboxRectSurfaceContext.hpp"
+#include "ToolboxScenePlatformController.hpp"
 
 void EnsureToolboxRectSurfaceContext(loka::app::RectSurfaceNode *node, ToolboxScenePlatformController *controller)
 {
@@ -11,6 +12,10 @@ void EnsureToolboxRectSurfaceContext(loka::app::RectSurfaceNode *node, ToolboxSc
   {
     ctx = new ToolboxRectSurfaceContext(node, controller);
     node->setContext(ctx);
+    if (ctx && controller)
+    {
+      controller->requestStructurePresent();
+    }
   }
 }
 

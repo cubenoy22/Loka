@@ -960,10 +960,15 @@ bool ToolboxScenePlatformController::prepareProjectedLayout(loka::app::scene::No
     assert(false && "no node handler registered for this node type -- register the handler or an explicit RefusedNodeHandler");
     return false;
   }
+  loka::app::scene::NodeContext *previousContext = node->getContext();
   loka::app::scene::NodeContext *context = handler->ensureContext(node, this, state);
   if (!context)
   {
     return false;
+  }
+  if (context != previousContext)
+  {
+    this->requestStructurePresent();
   }
   // Type-safe hookup: only contexts that opt in through asBoundaryTagged
   // receive the tag, so a foreign handler returning a plain NodeContext (the
@@ -1157,7 +1162,19 @@ void ToolboxScenePlatformController::releaseNodeContexts(loka::app::scene::Node 
     }
   }
 
+  if (node->getContext())
+  {
+    this->requestStructurePresent();
+  }
   node->setContext(0);
+}
+
+void ToolboxScenePlatformController::requestStructurePresent()
+{
+  if (window_)
+  {
+    window_->requestInvalidateWithReason("structure-swap");
+  }
 }
 
 void ToolboxScenePlatformController::retireNodeContext(loka::app::scene::NodeContext *context,
@@ -1866,7 +1883,7 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
       else
       {
         ++debugStats_.textChangedImmediateInvalidateCount;
-        window_->drawDirty(hit.rect);
+        window_->requestInvalidateRect(hit.rect);
       }
       return;
     }
@@ -1928,7 +1945,7 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
       else
       {
         ++debugStats_.textChangedImmediateInvalidateCount;
-        window_->drawDirty(dirtyRect);
+        window_->requestInvalidateRect(dirtyRect);
       }
       return;
     }
@@ -1947,7 +1964,7 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
       else
       {
         ++debugStats_.textChangedImmediateInvalidateCount;
-        window_->drawDirty(hit.rect);
+        window_->requestInvalidateRect(hit.rect);
       }
       return;
     }
@@ -1984,7 +2001,7 @@ void ToolboxScenePlatformController::refreshEditTextBindingForStateChange(EditTe
     return;
   }
   ++debugStats_.textChangedImmediateInvalidateCount;
-  window_->drawDirty(binding.rect);
+  window_->requestInvalidateRect(binding.rect);
 }
 
 void ToolboxScenePlatformController::handleEnabledChanged(loka::core::State<bool> *enabled)
@@ -2004,7 +2021,7 @@ void ToolboxScenePlatformController::handleEnabledChanged(loka::core::State<bool
       }
       else
       {
-        window_->drawDirty(hit.rect);
+        window_->requestInvalidateRect(hit.rect);
       }
       return;
     }
@@ -2055,7 +2072,7 @@ void ToolboxScenePlatformController::handleEnabledChanged(loka::core::State<bool
       }
       else
       {
-        window_->drawDirty(hit.rect);
+        window_->requestInvalidateRect(hit.rect);
       }
       return;
     }
@@ -2090,24 +2107,19 @@ void ToolboxScenePlatformController::endBatchUpdate()
     const bool hasChildDirty = (pendingInvalidateFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0;
     const bool skipFollowupInvalidate =
         !pendingFullInvalidate_ && !hasChildDirty && (handledLocalDirty || handledLocalText);
-    // Draw pending dirty rects without forcing full render
-    // The textHits_ from previous render should still be valid for positions
+    // Record pending dirty rects; the app presents them after dispatch.
     for (size_t i = 0; i < pendingDirtyRects_.size(); ++i)
     {
-      window_->drawDirty(pendingDirtyRects_[i]);
+      window_->requestInvalidateRect(pendingDirtyRects_[i]);
     }
     for (size_t i = 0; i < pendingTextStates_.size(); ++i)
     {
-      redrawTextFor(pendingTextStates_[i]);
+      requestInvalidateForText(pendingTextStates_[i]);
     }
     if (!skipFollowupInvalidate)
     {
       requestInvalidateForChange(
           pendingRootNode_ ? pendingRootNode_ : rootNode_, pendingInvalidateFlags_, pendingFullInvalidate_);
-    }
-    if (window_->hasPendingInvalidate())
-    {
-      window_->flushInvalidate();
     }
   }
   pendingDirtyRects_.clear();
@@ -2381,9 +2393,9 @@ void ToolboxScenePlatformController::redrawPopupHit(const PopupHit &hit)
   SetPort(oldPort);
 }
 
-void ToolboxScenePlatformController::redrawTextFor(loka::core::State<loka::core::String> *text)
+void ToolboxScenePlatformController::requestInvalidateForText(loka::core::State<loka::core::String> *text)
 {
-  if (!text)
+  if (!window_ || !text)
   {
     return;
   }
@@ -2391,7 +2403,7 @@ void ToolboxScenePlatformController::redrawTextFor(loka::core::State<loka::core:
   {
     if (textHits_[i].text == text)
     {
-      redrawTextHit(textHits_[i]);
+      window_->requestInvalidateRect(textHits_[i].rect);
       return;
     }
   }

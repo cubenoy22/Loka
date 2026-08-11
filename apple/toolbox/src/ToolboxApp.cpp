@@ -57,7 +57,6 @@ void ToolboxApp::run()
         toolboxWindow->setApp(this);
         toolboxWindow->open();
         toolboxWindow->ensureSceneMounted();
-        toolboxWindow->flushInvalidate();
       }
     }
     if (!activeWindow() && firstWindow)
@@ -69,20 +68,6 @@ void ToolboxApp::run()
   while (running_)
   {
     this->flushMenuInvalidation();
-    this->flushWindowInvalidations();
-    if (group_)
-    {
-      const std::vector<AppComponent *> &comps = group_->getComponents();
-      for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
-      {
-        Window *w = (*it)->asWindow();
-        ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
-        if (toolboxWindow && toolboxWindow->hasPendingInvalidate())
-        {
-          toolboxWindow->flushInvalidate();
-        }
-      }
-    }
     EventRecord event;
     WaitNextEvent(everyEvent, &event, 1, 0);
     if (event.what == nullEvent && group_)
@@ -95,24 +80,6 @@ void ToolboxApp::run()
         if (toolboxWindow)
         {
           toolboxWindow->dispatchDeferredDebugDumpCompletion();
-        }
-      }
-      for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
-      {
-        Window *w = (*it)->asWindow();
-        ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
-        if (toolboxWindow)
-        {
-          toolboxWindow->flushInvalidate();
-        }
-      }
-      for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
-      {
-        Window *w = (*it)->asWindow();
-        ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
-        if (toolboxWindow)
-        {
-          toolboxWindow->flushDeferredDebugDump();
         }
       }
     }
@@ -151,6 +118,8 @@ void ToolboxApp::run()
             {
               toolboxWindow->scenePlatformController()->noteWindowUpdateEvtDraw();
             }
+            // An OS update event is the presentation itself, so draw while
+            // its update clip is active. Mutation-driven paints stay deferred.
             BeginUpdate(target);
             toolboxWindow->draw();
             EndUpdate(target);
@@ -173,7 +142,6 @@ void ToolboxApp::run()
           handleMenuCommand(menuId, item);
           HiliteMenu(0);
         }
-        continue;
       }
       if (part == inGoAway && target)
       {
@@ -219,27 +187,21 @@ void ToolboxApp::run()
         }
         if (clicked)
         {
-          if (clicked->hasPendingInvalidate())
+          if (!clicked->hasPendingInvalidate())
           {
-            continue;
-          }
-          bool inEdit = clicked->handleMouseDown(event.where);
-          this->flushWindowInvalidations();
-          if (clicked->hasPendingInvalidate())
-          {
-            clicked->flushInvalidate();
-          }
-          if (inEdit)
-          {
-            CursHandle ibeam = GetCursor(iBeamCursor);
-            if (ibeam)
+            bool inEdit = clicked->handleMouseDown(event.where);
+            if (inEdit)
             {
-              SetCursor(*ibeam);
+              CursHandle ibeam = GetCursor(iBeamCursor);
+              if (ibeam)
+              {
+                SetCursor(*ibeam);
+              }
             }
-          }
-          else
-          {
-            InitCursor();
+            else
+            {
+              InitCursor();
+            }
           }
         }
       }
@@ -271,31 +233,32 @@ void ToolboxApp::run()
     {
       ToolboxWindow *active = activeWindow() ? activeWindow()->asToolboxWindow() : 0;
       char key = static_cast<char>(event.message & charCodeMask);
+      bool handled = false;
 #if LOKA_RETRO68_DIAGNOSTICS
       if (active && (event.modifiers & cmdKey) && (key == 'd' || key == 'D'))
       {
         active->requestDeferredDebugDump();
-        continue;
+        handled = true;
       }
 #endif
-      if (active)
+      if (!handled)
       {
-        if (active->handleKeyDown(key))
+        handled = active && active->handleKeyDown(key);
+      }
+      if (!handled)
+      {
+        handled = this->handleKeyPress(key);
+      }
+      if (!handled)
+      {
+        long choice = MenuKey(static_cast<char>(event.message & charCodeMask));
+        if (choice != 0)
         {
-          continue;
+          short menuId = static_cast<short>(choice >> 16);
+          short item = static_cast<short>(choice & 0xFFFF);
+          handleMenuCommand(menuId, item);
+          HiliteMenu(0);
         }
-      }
-      if (this->handleKeyPress(key))
-      {
-        continue;
-      }
-      long choice = MenuKey(static_cast<char>(event.message & charCodeMask));
-      if (choice != 0)
-      {
-        short menuId = static_cast<short>(choice >> 16);
-        short item = static_cast<short>(choice & 0xFFFF);
-        handleMenuCommand(menuId, item);
-        HiliteMenu(0);
       }
     }
     static unsigned long lastTick = TickCount();
@@ -310,6 +273,39 @@ void ToolboxApp::run()
     if (this->consumeIdle(elapsedSeconds, dispatchElapsedSeconds))
     {
       this->handleIdle(dispatchElapsedSeconds);
+    }
+    this->present();
+    if (event.what == nullEvent && group_)
+    {
+      const std::vector<AppComponent *> &comps = group_->getComponents();
+      for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+      {
+        Window *w = (*it)->asWindow();
+        ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
+        if (toolboxWindow)
+        {
+          toolboxWindow->flushDeferredDebugDump();
+        }
+      }
+    }
+  }
+}
+
+void ToolboxApp::present()
+{
+  this->flushWindowInvalidations();
+  if (!group_)
+  {
+    return;
+  }
+  const std::vector<AppComponent *> &comps = group_->getComponents();
+  for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+  {
+    Window *w = (*it)->asWindow();
+    ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
+    if (toolboxWindow)
+    {
+      toolboxWindow->flushInvalidate();
     }
   }
 }
