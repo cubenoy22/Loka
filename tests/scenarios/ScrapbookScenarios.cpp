@@ -5,16 +5,18 @@
 
 namespace loka
 {
-  namespace toolbox_tests
+  namespace scenario_tests
   {
     namespace
     {
+      const char *kStartup = "startup";
       const char *kOpenFirstPage = "open-first-page";
       const char *kOpenFirstPageRefused = "open-first-page-refused";
       const char *kFlipForwardBack = "flip-forward-back";
       const char *kRefusedFlipKeepsPage = "refused-flip-keeps-page";
       const char *kOpenTextPage = "open-text-page";
       const char *kOpenTextPageRefused = "open-text-page-refused";
+      const long kInitialPresentationTick = 2;
       const long kStepSpacingTicks = 30;
 
       // The exact bytes of Assets/page5.txt as lrpc packed them, trailing
@@ -28,7 +30,7 @@ namespace loka
         record.setInt("format_version", 1);
         record.setInt("schema_version", 1);
         record.setInt("scenario_version", 1);
-        record.set("test", "LokaTestsToolbox");
+        record.set("test", "ScrapbookUI");
         record.set("step", scenario ? scenario : "startup");
         record.set("node", "MainNode");
         record.setInt("tick", tick);
@@ -40,7 +42,7 @@ namespace loka
         record.set(key, value ? "true" : "false");
       }
 
-      void SetContentBounds(dsl::SnapRecord &record, const ContentBounds &bounds)
+      void SetContentBounds(dsl::SnapRecord &record, const CaptureContentBounds &bounds)
       {
         if (!bounds.available)
         {
@@ -54,17 +56,6 @@ namespace loka
         record.setInt("crop_top", bounds.top);
         record.setInt("crop_right", bounds.right);
         record.setInt("crop_bottom", bounds.bottom);
-      }
-
-      void SetObservedString(dsl::SnapRecord &record, const char *key, const core::String &value, std::string &out)
-      {
-        out.clear();
-        if (!platform::CollectUtf8(value, out))
-        {
-          record.set(key, "na");
-          return;
-        }
-        record.set(key, out.c_str());
       }
 
       void SetVerdict(dsl::SnapRecord &record, bool ok)
@@ -85,7 +76,11 @@ namespace loka
           step1_(),
           step2_()
     {
-      if (name == kOpenFirstPage)
+      if (name == kStartup)
+      {
+        this->kind_ = KIND_STARTUP;
+      }
+      else if (name == kOpenFirstPage)
       {
         this->kind_ = KIND_OPEN_FIRST_PAGE;
       }
@@ -112,13 +107,17 @@ namespace loka
     }
 
     bool
-    ScrapbookScenario::step(long tick, scrapbook::MainNode &mainNode, const ContentBounds &bounds, dsl::SnapRecord &out)
+    ScrapbookScenario::step(long tick,
+                            scrapbook::MainNode &mainNode,
+                            const CaptureContentBounds &bounds,
+                            dsl::SnapRecord &out)
     {
       switch (this->kind_)
       {
       case KIND_INVALID:
         out = MakeDriverErrorRecord(this->name_.c_str(), 2302, "scenario is not registered");
         return true;
+      case KIND_STARTUP:
       case KIND_OPEN_FIRST_PAGE:
       case KIND_OPEN_FIRST_PAGE_REFUSED:
         return this->runOpenScenario(tick, mainNode, bounds, out);
@@ -159,9 +158,13 @@ namespace loka
 
     bool ScrapbookScenario::runOpenScenario(long tick,
                                             const scrapbook::MainNode &mainNode,
-                                            const ContentBounds &bounds,
+                                            const CaptureContentBounds &bounds,
                                             dsl::SnapRecord &out)
     {
+      if (tick < kInitialPresentationTick)
+      {
+        return false;
+      }
       out = MakeBaseRecord(this->name_.c_str(), tick);
       const PageObservation page = observePage(mainNode);
       SetBool(out, "page_published", page.published);
@@ -176,19 +179,26 @@ namespace loka
 
       std::string text;
       out.set("caption", page.captionAvailable ? page.caption.c_str() : "na");
-      SetObservedString(out, "text", mainNode.displayedPageText(), text);
-      const bool refusalReached = text == "Package refused.";
+      const bool textAvailable = platform::CollectUtf8(mainNode.displayedPageText(), text);
+      SetBool(out, "text_available", textAvailable);
+      SetBool(out, "text_empty", textAvailable && text.empty());
+      if (textAvailable && !text.empty())
+      {
+        out.set("text", text.c_str());
+      }
+      const bool refusalReached = textAvailable && text == "Package refused.";
       SetBool(out, "refusal_reached", refusalReached);
       SetContentBounds(out, bounds);
 
       bool ok = false;
-      if (this->kind_ == KIND_OPEN_FIRST_PAGE)
+      if (this->kind_ == KIND_STARTUP || this->kind_ == KIND_OPEN_FIRST_PAGE)
       {
-        ok = bounds.available && page.published && page.page == 0 && !refusalReached && page.caption == "1 / 5";
+        ok = bounds.available && page.published && page.page == 0 && textAvailable && !refusalReached
+             && page.caption == "1 / 5";
       }
       else
       {
-        ok = bounds.available && !page.published && refusalReached && page.caption == "-- / 5";
+        ok = bounds.available && !page.published && textAvailable && refusalReached && page.caption == "-- / 5";
       }
       SetVerdict(out, ok);
       return true;
@@ -196,7 +206,7 @@ namespace loka
 
     bool ScrapbookScenario::runFlipForwardBack(long tick,
                                                scrapbook::MainNode &mainNode,
-                                               const ContentBounds &bounds,
+                                               const CaptureContentBounds &bounds,
                                                dsl::SnapRecord &out)
     {
       if (this->stage_ == 0)
@@ -238,7 +248,7 @@ namespace loka
 
     bool ScrapbookScenario::runRefusedFlipKeepsPage(long tick,
                                                     scrapbook::MainNode &mainNode,
-                                                    const ContentBounds &bounds,
+                                                    const CaptureContentBounds &bounds,
                                                     dsl::SnapRecord &out)
     {
       if (this->stage_ == 0)
@@ -286,7 +296,7 @@ namespace loka
 
     bool ScrapbookScenario::runOpenTextPage(long tick,
                                             scrapbook::MainNode &mainNode,
-                                            const ContentBounds &bounds,
+                                            const CaptureContentBounds &bounds,
                                             dsl::SnapRecord &out)
     {
       if (this->stage_ == 0)
@@ -340,7 +350,7 @@ namespace loka
 
     bool IsRegisteredScenario(const std::string &name)
     {
-      return name == kOpenFirstPage || name == kOpenFirstPageRefused || name == kFlipForwardBack
+      return name == kStartup || name == kOpenFirstPage || name == kOpenFirstPageRefused || name == kFlipForwardBack
              || name == kRefusedFlipKeepsPage || name == kOpenTextPage || name == kOpenTextPageRefused;
     }
 
@@ -353,5 +363,5 @@ namespace loka
       record.set("error_msg", message ? message : "scenario driver error");
       return record;
     }
-  } // namespace toolbox_tests
+  } // namespace scenario_tests
 } // namespace loka

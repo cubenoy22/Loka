@@ -242,7 +242,9 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     add_test(NAME scriptMameDebugLaunch
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MameDebugLaunchTest.sh)
     add_test(NAME scriptPngCropSelftest
-      COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/toolbox/pngcrop.py selftest)
+      COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/scenarios/pngtool.py selftest)
+    add_test(NAME scriptScenarioTools
+      COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/scripts/ScenarioToolsTest.py)
     add_test(NAME scriptBuild104Guard
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/Build104GuardTest.sh)
     add_test(NAME scriptPmonSpriteGenerator
@@ -251,6 +253,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
 
     if(LOKA_MAME_SCENARIOS)
       foreach(_loka_mame_scenario
+          startup
           open-first-page
           open-first-page-refused
           flip-forward-back
