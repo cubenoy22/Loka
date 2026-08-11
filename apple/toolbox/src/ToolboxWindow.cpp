@@ -154,6 +154,10 @@ void ToolboxWindow::requestInvalidate()
 
 void ToolboxWindow::requestInvalidateWithReason(const char *reason)
 {
+  if (needsInvalidate_)
+  {
+    return;
+  }
   if (scenePlatformController_)
   {
     scenePlatformController_->noteWindowFullRequest(reason);
@@ -217,9 +221,12 @@ void ToolboxWindow::flushInvalidate()
     {
       scenePlatformController_->noteWindowFlushFull();
     }
+    // Projected contexts are materialized during the tree walk and request a
+    // structure present themselves. This draw already includes them, so
+    // consume that request only after the walk completes.
+    this->draw();
     needsInvalidate_ = false;
     pendingInvalidateRects_.clear();
-    this->draw();
     return;
   }
   needsInvalidate_ = false;

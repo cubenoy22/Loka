@@ -3417,6 +3417,187 @@ void testBankedSectionSwapPresentsFreshControls()
 
 namespace
 {
+  /** Host-side paint record for Toolbox's retained dirty replay. A dirty
+      present can repaint only contexts registered by the preceding full tree
+      walk; a full present replaces that record from the current projection. */
+  class ToolboxPresentPaintRecord : public NullScenePlatformController
+  {
+  public:
+    ToolboxPresentPaintRecord()
+        : fullRequested_(true),
+          dirtyRequested_(false),
+          flushFullCount_(0),
+          flushDirtyCount_(0),
+          paintedHandleIds_()
+    {
+    }
+
+    void requestDirty()
+    {
+      if (!this->fullRequested_)
+      {
+        this->dirtyRequested_ = true;
+      }
+    }
+
+    virtual void releaseNodeContexts(loka::app::scene::Node *node)
+    {
+      if (node)
+      {
+        this->fullRequested_ = true;
+        this->dirtyRequested_ = false;
+      }
+      NullScenePlatformController::releaseNodeContexts(node);
+    }
+
+    void present()
+    {
+      if (this->fullRequested_)
+      {
+        ++this->flushFullCount_;
+        this->paintedHandleIds_.clear();
+        for (size_t i = 0; i < this->ledger().size(); ++i)
+        {
+          const LedgerRow &row = this->ledger()[i];
+          if (row.visible && row.handle)
+          {
+            this->paintedHandleIds_.push_back(row.handle->id);
+          }
+        }
+      }
+      else if (this->dirtyRequested_)
+      {
+        ++this->flushDirtyCount_;
+      }
+      this->fullRequested_ = false;
+      this->dirtyRequested_ = false;
+    }
+
+    void resetFlushCounts()
+    {
+      this->flushFullCount_ = 0;
+      this->flushDirtyCount_ = 0;
+    }
+
+    bool freshlyMaterializedChildrenPainted() const
+    {
+      for (size_t i = 0; i < this->ledger().size(); ++i)
+      {
+        const LedgerRow &row = this->ledger()[i];
+        if (!row.visible || !row.handle)
+        {
+          continue;
+        }
+        bool found = false;
+        for (size_t j = 0; j < this->paintedHandleIds_.size(); ++j)
+        {
+          if (this->paintedHandleIds_[j] == row.handle->id)
+          {
+            found = true;
+            break;
+          }
+        }
+        if (!found)
+        {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    int flushFullCount() const
+    {
+      return this->flushFullCount_;
+    }
+
+    int flushDirtyCount() const
+    {
+      return this->flushDirtyCount_;
+    }
+
+  private:
+    bool fullRequested_;
+    bool dirtyRequested_;
+    int flushFullCount_;
+    int flushDirtyCount_;
+    std::vector<int> paintedHandleIds_;
+  };
+} // namespace
+
+void testToolboxPresentPointPaintsFreshBankedSectionChildren()
+{
+  g_bankedSectionBank = 0;
+  ToolboxPresentPaintRecord platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<BankedSectionBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  platform.present();
+  LOKA_VERIFY(platform.freshlyMaterializedChildrenPainted());
+
+  g_bankedSectionBank = 1;
+  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+  LOKA_VERIFY(scene.flushInvalidation());
+  for (int i = 0; scene.hasPendingInvalidation() && i < 4; ++i)
+  {
+    scene.flushInvalidation();
+  }
+
+  // Per-cell dirties are recorded during the swap episode. Retirement must
+  // override them with a tree-walk present, replacing the retired paint
+  // record with the freshly materialized bank.
+  platform.requestDirty();
+  platform.present();
+
+  LOKA_VERIFY(platform.freshlyMaterializedChildrenPainted());
+}
+
+void testToolboxStructureSwapCollapsesToOneFullPresent()
+{
+  g_bankedSectionBank = 0;
+  ToolboxPresentPaintRecord platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<BankedSectionBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  platform.present();
+  platform.resetFlushCounts();
+
+  g_bankedSectionBank = 1;
+  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+  LOKA_VERIFY(scene.flushInvalidation());
+  for (int i = 0; scene.hasPendingInvalidation() && i < 4; ++i)
+  {
+    scene.flushInvalidation();
+  }
+  platform.requestDirty();
+  platform.present();
+
+  LOKA_VERIFY(platform.flushFullCount() == 1);
+  LOKA_VERIFY(platform.flushDirtyCount() == 0);
+}
+
+void testToolboxPlainContentUpdateUsesDirtyPresent()
+{
+  g_bankedSectionBank = 0;
+  ToolboxPresentPaintRecord platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<BankedSectionBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  platform.present();
+  platform.resetFlushCounts();
+
+  // A content-only update does not retire or create a context. Its ordinary
+  // dirty request therefore stays on the retained replay path.
+  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
+  scene.flushInvalidation();
+  platform.requestDirty();
+  platform.present();
+
+  LOKA_VERIFY(platform.flushFullCount() == 0);
+  LOKA_VERIFY(platform.flushDirtyCount() == 1);
+}
+
+namespace
+{
   struct BankedClickTypeTag
   {
   };
