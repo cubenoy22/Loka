@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Crop and compare 8-bit RGB/RGBA PNG files using only the standard library."""
+"""Crop, compare, and diff 8-bit RGB/RGBA PNGs using the standard library."""
 
 import argparse
 import os
@@ -235,6 +235,34 @@ def compare_images(first, second, report=True):
     return False
 
 
+def difference_image(expected, actual):
+    width = max(expected.width, actual.width)
+    height = max(expected.height, actual.height)
+    pixels = bytearray(width * height * 4)
+    for y in range(height):
+        for x in range(width):
+            output = (y * width + x) * 4
+            expected_offset = (y * expected.width + x) * 4
+            actual_offset = (y * actual.width + x) * 4
+            expected_pixel = (
+                expected.rgba[expected_offset : expected_offset + 4]
+                if x < expected.width and y < expected.height
+                else None
+            )
+            actual_pixel = (
+                actual.rgba[actual_offset : actual_offset + 4]
+                if x < actual.width and y < actual.height
+                else None
+            )
+            if expected_pixel == actual_pixel and actual_pixel is not None:
+                red, green, blue, _ = actual_pixel
+                gray = (red * 30 + green * 59 + blue * 11) // 100
+                pixels[output : output + 4] = bytes((gray, gray, gray, 255))
+            else:
+                pixels[output : output + 4] = bytes((255, 0, 255, 255))
+    return Image(width, height, pixels)
+
+
 def _filtered_scanline(row, previous, channels, filter_type):
     filtered = bytearray(len(row))
     for column, value in enumerate(row):
@@ -298,8 +326,12 @@ def selftest():
 
         changed = bytearray(decoded_crop.rgba)
         changed[0] ^= 1
-        if compare_images(decoded_crop, Image(decoded_crop.width, decoded_crop.height, changed), report=False):
+        changed_image = Image(decoded_crop.width, decoded_crop.height, changed)
+        if compare_images(decoded_crop, changed_image, report=False):
             raise PngError("compare mismatch selftest failed")
+        difference = difference_image(decoded_crop, changed_image)
+        if difference.rgba[:4] != bytes((255, 0, 255, 255)):
+            raise PngError("difference image mismatch selftest failed")
 
     print("pngcrop selftest: ok")
     return 0
@@ -321,6 +353,11 @@ def main(argv=None):
     compare_parser.add_argument("first")
     compare_parser.add_argument("second")
 
+    diff_parser = subparsers.add_parser("diff", help="write a visual exact-pixel diff")
+    diff_parser.add_argument("expected")
+    diff_parser.add_argument("actual")
+    diff_parser.add_argument("output")
+
     subparsers.add_parser("selftest", help="exercise decode, crop, write, and compare")
     arguments = parser.parse_args(argv)
 
@@ -334,9 +371,15 @@ def main(argv=None):
             return 0
         if arguments.command == "compare":
             return 0 if compare_images(read_png(arguments.first), read_png(arguments.second)) else 1
+        if arguments.command == "diff":
+            expected = read_png(arguments.expected)
+            actual = read_png(arguments.actual)
+            equal = compare_images(expected, actual)
+            write_png(arguments.output, difference_image(expected, actual))
+            return 0 if equal else 1
         return selftest()
     except (OSError, PngError, struct.error, zlib.error) as error:
-        print("pngcrop: error: {}".format(error), file=sys.stderr)
+        print("pngtool: error: {}".format(error), file=sys.stderr)
         return 1
 
 

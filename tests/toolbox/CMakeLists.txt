@@ -13,7 +13,7 @@ set(LOKA_TESTS_TOOLBOX_TARGET "LokaTestsToolbox${LOKA_CLASSIC_TARGET_SUFFIX}")
 set(LOKA_TESTS_TOOLBOX_SOURCES
   src/main.cpp
   src/ScenarioDriver.cpp
-  src/ScrapbookScenarios.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScrapbookScenarios.cpp
   ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/src/ScrapbookPackage.cpp
   ${CMAKE_SOURCE_DIR}/common/testing/snap/SnapFormat.cpp
   ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/Size.r
@@ -24,6 +24,7 @@ loka_enable_warnings(${LOKA_TESTS_TOOLBOX_TARGET})
 
 target_include_directories(${LOKA_TESTS_TOOLBOX_TARGET} PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
+  ${CMAKE_SOURCE_DIR}/tests/scenarios
   ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/src
   ${CMAKE_SOURCE_DIR}/common
   ${CMAKE_SOURCE_DIR}/apple/toolbox/src
