@@ -330,7 +330,9 @@ void testScrapbookRenderedNextButtonAdvancesOnTwoConsecutiveClicks()
                                    scrapbook_navigation_test::MainNode>
       mainDefinition(props);
   NullScenePlatformController platform;
-  loka::app::scene::Scene scene(mainDefinition.clone());
+  loka::app::scene::NodeDefinitionBase *rootDefinition = mainDefinition.clone();
+  LOKA_VERIFY(rootDefinition != 0);
+  loka::app::scene::Scene scene(rootDefinition);
   scene.mount(&platform);
   scene.updateAttached(true);
 
