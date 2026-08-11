@@ -118,8 +118,10 @@ void ToolboxApp::run()
             {
               toolboxWindow->scenePlatformController()->noteWindowUpdateEvtDraw();
             }
+            // An OS update event is the presentation itself, so draw while
+            // its update clip is active. Mutation-driven paints stay deferred.
             BeginUpdate(target);
-            toolboxWindow->requestInvalidateWithReason("update-event");
+            toolboxWindow->draw();
             EndUpdate(target);
             break;
           }

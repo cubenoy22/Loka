@@ -3549,6 +3549,7 @@ void testToolboxPresentPointPaintsFreshBankedSectionChildren()
   platform.present();
 
   LOKA_VERIFY(platform.freshlyMaterializedChildrenPainted());
+  printf("==== [testToolboxPresentPointPaintsFreshBankedSectionChildren] PASSED ====\n");
 }
 
 void testToolboxStructureSwapCollapsesToOneFullPresent()
@@ -3573,6 +3574,7 @@ void testToolboxStructureSwapCollapsesToOneFullPresent()
 
   LOKA_VERIFY(platform.flushFullCount() == 1);
   LOKA_VERIFY(platform.flushDirtyCount() == 0);
+  printf("==== [testToolboxStructureSwapCollapsesToOneFullPresent] PASSED ====\n");
 }
 
 void testToolboxPlainContentUpdateUsesDirtyPresent()
@@ -3594,6 +3596,7 @@ void testToolboxPlainContentUpdateUsesDirtyPresent()
 
   LOKA_VERIFY(platform.flushFullCount() == 0);
   LOKA_VERIFY(platform.flushDirtyCount() == 1);
+  printf("==== [testToolboxPlainContentUpdateUsesDirtyPresent] PASSED ====\n");
 }
 
 namespace
