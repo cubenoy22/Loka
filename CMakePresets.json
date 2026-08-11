@@ -257,6 +257,18 @@
       }
     },
     {
+      "name": "macos-scenarios",
+      "configurePreset": "macos-debug",
+      "targets": [
+        "LokaScrapbookScenarioMacOS"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      }
+    },
+    {
       "name": "win32-debug",
       "configurePreset": "win32-debug",
       "condition": {
