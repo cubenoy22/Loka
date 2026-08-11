@@ -27,6 +27,7 @@ namespace loka
     {
       const char *kConfigPath = "LokaTest.cfg";
       const char *kCaptureFile = "LokaTestsToolbox.snap";
+      const char *kCaptureMetadataFile = "LokaTestsToolbox.capture.snap";
 
       struct BoundaryAuditCounts
       {
@@ -115,9 +116,9 @@ namespace loka
         scrapbook::MainNode **observed_;
       };
 
-      ContentBounds QueryContentBounds(Window *window)
+      scenario_tests::CaptureContentBounds QueryContentBounds(Window *window)
       {
-        ContentBounds result;
+        scenario_tests::CaptureContentBounds result;
         ToolboxWindow *toolboxWindow = window ? window->asToolboxWindow() : 0;
         WindowPtr nativeWindow = toolboxWindow ? toolboxWindow->window() : 0;
         if (!nativeWindow)
@@ -141,6 +142,20 @@ namespace loka
         return result;
       }
 
+      scenario_tests::CaptureContentBounds
+      ContentLocalBounds(const scenario_tests::CaptureContentBounds &screenBounds)
+      {
+        scenario_tests::CaptureContentBounds result;
+        if (!screenBounds.available || screenBounds.right <= screenBounds.left || screenBounds.bottom <= screenBounds.top)
+        {
+          return result;
+        }
+        result.available = true;
+        result.right = screenBounds.right - screenBounds.left;
+        result.bottom = screenBounds.bottom - screenBounds.top;
+        return result;
+      }
+
       std::string CapturePath()
       {
         return dsl::SnapTestConfig::resolveCapturePath(kCaptureFile, kConfigPath);
@@ -152,6 +167,33 @@ namespace loka
         const long maxBytes = settings.hasMaxTotalBytes ? settings.maxTotalBytes : 0;
         const long maxRecords = settings.hasMaxFiles ? settings.maxFiles : 0;
         return dsl::SnapFileWriter::appendRecordStatusWithLimits(path.c_str(), record, maxBytes, maxRecords);
+      }
+
+      dsl::SnapWriteStatus WriteCaptureMetadata(const dsl::SnapTestConfig::Settings &settings,
+                                                const char *scenario,
+                                                long tick,
+                                                const scenario_tests::CaptureContentBounds &bounds)
+      {
+        dsl::SnapRecord record;
+        record.setInt("format_version", 1);
+        record.setInt("schema_version", 1);
+        record.setInt("scenario_version", 1);
+        record.set("test", "ScrapbookUI.capture.toolbox");
+        record.set("step", scenario ? scenario : "startup");
+        record.set("node", "ToolboxWindow");
+        record.setInt("tick", tick);
+        record.set("status", bounds.available ? dsl::SnapStatusOk() : dsl::SnapStatusError());
+        if (bounds.available)
+        {
+          record.setInt("crop_left", bounds.left);
+          record.setInt("crop_top", bounds.top);
+          record.setInt("crop_right", bounds.right);
+          record.setInt("crop_bottom", bounds.bottom);
+        }
+        const std::string path = dsl::SnapTestConfig::resolveCapturePath(kCaptureMetadataFile, kConfigPath);
+        return dsl::SnapFileWriter::appendRecordStatusWithLimits(
+            path.c_str(), record, settings.hasMaxTotalBytes ? settings.maxTotalBytes : 0,
+            settings.hasMaxFiles ? settings.maxFiles : 0);
       }
 
       class ScenarioAppConfig : public AppConfigurable
@@ -206,13 +248,20 @@ namespace loka
             bool done = false;
             if (!this->borrowedMainNode_)
             {
-              record = MakeDriverErrorRecord(this->settings_.scenario.c_str(), 2303, "MainNode was not mounted");
+              record = scenario_tests::MakeDriverErrorRecord(
+                  this->settings_.scenario.c_str(), 2303, "MainNode was not mounted");
               done = true;
             }
             else
             {
-              done =
-                  this->scenario_.step(this->tickCount_, *this->borrowedMainNode_, QueryContentBounds(window), record);
+              const scenario_tests::CaptureContentBounds captureBounds = QueryContentBounds(window);
+              done = this->scenario_.step(
+                  this->tickCount_, *this->borrowedMainNode_, ContentLocalBounds(captureBounds), record);
+              if (done)
+              {
+                (void)WriteCaptureMetadata(
+                    this->settings_, this->settings_.scenario.c_str(), this->tickCount_, captureBounds);
+              }
             }
             if (done && this->borrowedMainNode_)
             {
@@ -220,8 +269,8 @@ namespace loka
               AuditProjectedTextBoundaries(this->borrowedMainNode_, 0, counts);
               if (counts.untagged != 0 || counts.tagged == 0)
               {
-                record = MakeDriverErrorRecord(this->settings_.scenario.c_str(), 2304,
-                                               "projected text context lost its boundary tag");
+                record = scenario_tests::MakeDriverErrorRecord(
+                    this->settings_.scenario.c_str(), 2304, "projected text context lost its boundary tag");
               }
             }
             if (done)
@@ -245,7 +294,7 @@ namespace loka
         }
 
         const dsl::SnapTestConfig::Settings settings_;
-        ScrapbookScenario scenario_;
+        scenario_tests::ScrapbookScenario scenario_;
         App *borrowedApp_;
         scrapbook::MainNode *borrowedMainNode_;
         bool recorded_;
@@ -267,18 +316,19 @@ namespace loka
       dsl::SnapTestConfig::Settings settings;
       if (!dsl::SnapTestConfig::load(kConfigPath, settings))
       {
-        (void)WriteRecord(settings, MakeDriverErrorRecord("startup", 2300, "LokaTest.cfg is missing or invalid"));
+        (void)WriteRecord(
+            settings, scenario_tests::MakeDriverErrorRecord("startup", 2300, "LokaTest.cfg is missing or invalid"));
         return 0;
       }
       if (!settings.hasScenario)
       {
-        (void)WriteRecord(settings, MakeDriverErrorRecord("startup", 2301, "scenario is missing"));
+        (void)WriteRecord(settings, scenario_tests::MakeDriverErrorRecord("startup", 2301, "scenario is missing"));
         return 0;
       }
-      if (!IsRegisteredScenario(settings.scenario))
+      if (!scenario_tests::IsRegisteredScenario(settings.scenario))
       {
-        (void)WriteRecord(settings,
-                          MakeDriverErrorRecord(settings.scenario.c_str(), 2302, "scenario is not registered"));
+        (void)WriteRecord(settings, scenario_tests::MakeDriverErrorRecord(
+                                        settings.scenario.c_str(), 2302, "scenario is not registered"));
         return 0;
       }
 

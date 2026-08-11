@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 usage() {
-  echo "Usage: $0 <open-first-page|open-first-page-refused|flip-forward-back|refused-flip-keeps-page|open-text-page|open-text-page-refused> [--update-golden]" >&2
+  echo "Usage: $0 <startup|open-first-page|open-first-page-refused|flip-forward-back|refused-flip-keeps-page|open-text-page|open-text-page-refused> [--update-golden]" >&2
 }
 
 fail_stage() {
@@ -25,7 +25,7 @@ fi
 SCENARIO="$1"
 UPDATE_GOLDEN=0
 case "$SCENARIO" in
-  open-first-page|open-first-page-refused|flip-forward-back|refused-flip-keeps-page|open-text-page|open-text-page-refused)
+  startup|open-first-page|open-first-page-refused|flip-forward-back|refused-flip-keeps-page|open-text-page|open-text-page-refused)
     ;;
   *)
     usage
@@ -99,6 +99,8 @@ CONFIG="$WORK/LokaTest.cfg"
 LAUNCHER="$WORK/mame-launch.lua"
 MAME_OUT="$WORK/mame.out"
 RECORD="$WORK/LokaTestsToolbox.snap"
+CAPTURE_RECORD="$WORK/LokaTestsToolbox.capture.snap"
+EXPECTED_RECORD="$PROJECT_DIR/tests/scenarios/expected/scrapbook/$SCENARIO.snap"
 CROPPED="$WORK/$SCENARIO.png"
 # Goldens are rig-local, not tracked: the pixels depend on the local boot
 # image's System resources (fonts, control chrome) and contain Apple-rendered
@@ -133,83 +135,19 @@ ASSETS="$PROJECT_DIR/example/ScrapbookUI/ASSETS.LRP"
 if [ ! -f "$ASSETS" ]; then
   fail_stage mame "package not found: $ASSETS"
 fi
-STAGED_ASSETS="$ASSETS"
+STAGED_ASSETS="$WORK/ASSETS.LRP"
 CORRUPT_BAG=""
 case "$SCENARIO" in
   open-first-page-refused) CORRUPT_BAG=1 ;;
   refused-flip-keeps-page) CORRUPT_BAG=3 ;;
   open-text-page-refused) CORRUPT_BAG=5 ;;
 esac
+STAGE_ARGUMENTS=("$ASSETS" "$STAGED_ASSETS")
 if [ -n "$CORRUPT_BAG" ]; then
-  STAGED_ASSETS="$WORK/ASSETS.LRP"
-  if ! cp -f "$ASSETS" "$STAGED_ASSETS"; then
-    fail_stage mame "could not stage the package for corruption"
-  fi
-  if ! python3 - "$STAGED_ASSETS" "$CORRUPT_BAG" <<'PY'
-import struct
-import sys
-
-path = sys.argv[1]
-target_bag = int(sys.argv[2])
-package = bytearray(open(path, "rb").read())
-if len(package) < 512 or package[:4] != b"LRPK" or package[8:12] != b"HEAD":
-    raise SystemExit("not an LRPK package with a fixed 512-byte HEAD")
-if struct.unpack_from(">I", package, 4)[0] + 8 != len(package):
-    raise SystemExit("LRPK form length does not match the staged file")
-
-index = None
-data_start = None
-data_size = None
-cursor = 512
-while cursor < len(package):
-    if cursor + 8 > len(package):
-        raise SystemExit("truncated LRPK chunk header")
-    tag = bytes(package[cursor : cursor + 4])
-    payload_size = struct.unpack_from(">I", package, cursor + 4)[0]
-    payload_start = cursor + 8
-    padded_size = (payload_size + 3) & ~3
-    if payload_start + padded_size > len(package):
-        raise SystemExit("truncated LRPK chunk payload")
-    if tag == b"INDX":
-        index = bytes(package[payload_start : payload_start + payload_size])
-    elif tag == b"DATA":
-        data_start = payload_start
-        data_size = payload_size
-    cursor = payload_start + padded_size
-
-if index is None or data_start is None or data_size is None:
-    raise SystemExit("LRPK is missing INDX or DATA")
-if len(index) < 8:
-    raise SystemExit("LRPK INDX is too short")
-bag_count, asset_count = struct.unpack_from(">II", index, 0)
-expected_index_size = 8 + bag_count * 20 + asset_count * 16
-if len(index) != expected_index_size:
-    raise SystemExit("LRPK INDX row counts do not match its size")
-if target_bag < 0 or target_bag >= bag_count:
-    raise SystemExit("requested bag is outside the LRPK bag table")
-
-row = 8 + target_bag * 20
-data_offset, stored_size = struct.unpack_from(">II", index, row)
-if data_offset % 4 != 0 or stored_size == 0 or stored_size > data_size - data_offset:
-    raise SystemExit("target bag has invalid stored payload bounds")
-payload_start = data_start + data_offset
-payload_end = payload_start + stored_size
-flip_offset = payload_start + stored_size // 2
-if not (data_start <= payload_start <= flip_offset < payload_end <= data_start + data_size <= len(package)):
-    raise SystemExit("computed corruption byte is outside the target bag payload")
-
-package[flip_offset] ^= 0x01
-with open(path, "wb") as output:
-    output.write(package)
-print(
-    "bag {} payload [{}, {}), flipped offset {}".format(
-        target_bag, payload_start, payload_end, flip_offset
-    )
-)
-PY
-  then
-    fail_stage mame "could not corrupt bag $CORRUPT_BAG in the staged package"
-  fi
+  STAGE_ARGUMENTS+=(--corrupt-bag "$CORRUPT_BAG")
+fi
+if ! python3 "$PROJECT_DIR/tests/scenarios/stage-scrapbook-package.py" "${STAGE_ARGUMENTS[@]}"; then
+  fail_stage mame "could not stage the scenario package"
 fi
 
 # A scenario-local control dir keeps mame-dev-disk.sh's hfsutils state
@@ -307,34 +245,40 @@ if ! HOME="$HFS_HOME" "$HCOPY" -t ":LokaTestsToolbox.snap" "$RECORD" >"$WORK/hco
   HOME="$HFS_HOME" "$HUMOUNT" >/dev/null 2>&1 || true
   fail_stage extract "could not copy LokaTestsToolbox.snap; see $WORK/hcopy.out"
 fi
+CAPTURE_EXTRACTED=0
+if HOME="$HFS_HOME" "$HCOPY" -t ":LokaTestsToolbox.capture.snap" "$CAPTURE_RECORD" \
+  >"$WORK/hcopy-capture.out" 2>&1; then
+  CAPTURE_EXTRACTED=1
+fi
 if ! HOME="$HFS_HOME" "$HUMOUNT" >"$WORK/humount.out" 2>&1; then
   fail_stage extract "could not unmount the development disk; see $WORK/humount.out"
 fi
 
-status=""
-crop_left=""
-crop_top=""
-crop_right=""
-crop_bottom=""
-status_count=0
-while IFS=$'\t' read -r key value; do
-  case "$key" in
-    status)
-      status="$value"
-      status_count=$((status_count + 1))
-      ;;
-    crop_left) crop_left="$value" ;;
-    crop_top) crop_top="$value" ;;
-    crop_right) crop_right="$value" ;;
-    crop_bottom) crop_bottom="$value" ;;
-  esac
-done <"$RECORD"
-
-if [ "$status_count" -ne 1 ]; then
-  fail_stage verdict "record must contain exactly one status line; see $RECORD"
+SNAP_TOOL="$PROJECT_DIR/tests/scenarios/snaprecord.py"
+if ! status="$(python3 "$SNAP_TOOL" get "$RECORD" status)"; then
+  fail_stage verdict "record is not a valid SnapRecord; see $RECORD"
 fi
 if [ "$status" != "ok" ]; then
   fail_stage verdict "guest reported status '$status'; see $RECORD"
+fi
+if [ ! -f "$EXPECTED_RECORD" ]; then
+  fail_stage verdict "missing tracked SnapRecord $EXPECTED_RECORD"
+fi
+if ! python3 "$SNAP_TOOL" compare "$EXPECTED_RECORD" "$RECORD"; then
+  fail_stage verdict "SnapRecord differs from $EXPECTED_RECORD; see $RECORD"
+fi
+if [ "$CAPTURE_EXTRACTED" -ne 1 ]; then
+  fail_stage verdict "guest did not publish $CAPTURE_RECORD; see $WORK/hcopy-capture.out"
+fi
+if ! capture_status="$(python3 "$SNAP_TOOL" get "$CAPTURE_RECORD" status)" \
+  || ! crop_left="$(python3 "$SNAP_TOOL" get "$CAPTURE_RECORD" crop_left)" \
+  || ! crop_top="$(python3 "$SNAP_TOOL" get "$CAPTURE_RECORD" crop_top)" \
+  || ! crop_right="$(python3 "$SNAP_TOOL" get "$CAPTURE_RECORD" crop_right)" \
+  || ! crop_bottom="$(python3 "$SNAP_TOOL" get "$CAPTURE_RECORD" crop_bottom)"; then
+  fail_stage verdict "capture metadata is incomplete; see $CAPTURE_RECORD"
+fi
+if [ "$capture_status" != "ok" ]; then
+  fail_stage verdict "guest could not project capture bounds; see $CAPTURE_RECORD"
 fi
 for coordinate in "$crop_left" "$crop_top" "$crop_right" "$crop_bottom"; do
   if [[ ! "$coordinate" =~ ^[0-9]+$ ]]; then
@@ -351,7 +295,8 @@ done < <(find "$SNAPSHOT_DIR" -type f -name '*.png' -print0)
 if [ -z "$newest_snapshot" ]; then
   fail_stage crop "MAME did not write a snapshot PNG under $SNAPSHOT_DIR"
 fi
-if ! python3 "$SCRIPT_DIR/pngcrop.py" crop "$newest_snapshot" \
+PNG_TOOL="$PROJECT_DIR/tests/scenarios/pngtool.py"
+if ! python3 "$PNG_TOOL" crop "$newest_snapshot" \
     "$crop_left" "$crop_top" "$crop_right" "$crop_bottom" "$CROPPED"; then
   fail_stage crop "could not crop $newest_snapshot"
 fi
@@ -371,7 +316,8 @@ fi
 if [ ! -f "$GOLDEN" ]; then
   fail_stage golden "missing $GOLDEN; rerun with --update-golden to create it"
 fi
-if ! python3 "$SCRIPT_DIR/pngcrop.py" compare "$CROPPED" "$GOLDEN"; then
+if ! python3 "$PNG_TOOL" compare "$CROPPED" "$GOLDEN"; then
+  python3 "$PNG_TOOL" diff "$GOLDEN" "$CROPPED" "$DIFF_DIR/$SCENARIO.png" || true
   fail_stage golden "cropped snapshot differs from $GOLDEN"
 fi
 

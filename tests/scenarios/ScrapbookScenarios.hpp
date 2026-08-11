@@ -1,5 +1,5 @@
-#ifndef LOKA_TESTS_TOOLBOX_SCRAPBOOK_SCENARIOS_HPP
-#define LOKA_TESTS_TOOLBOX_SCRAPBOOK_SCENARIOS_HPP
+#ifndef LOKA_TESTS_SCENARIOS_SCRAPBOOK_SCENARIOS_HPP
+#define LOKA_TESTS_SCENARIOS_SCRAPBOOK_SCENARIOS_HPP
 
 #include <string>
 
@@ -12,11 +12,12 @@ namespace scrapbook
 
 namespace loka
 {
-  namespace toolbox_tests
+  namespace scenario_tests
   {
-    struct ContentBounds
+    /** Half-open content rectangle in the captured content's local coordinates. */
+    struct CaptureContentBounds
     {
-      ContentBounds()
+      CaptureContentBounds()
           : available(false),
             left(0),
             top(0),
@@ -40,12 +41,14 @@ namespace loka
 
       /** Drives one scenario step. Returns true only when out contains the
           final record and the driver may begin its post-record linger. */
-      bool step(long tick, scrapbook::MainNode &mainNode, const ContentBounds &bounds, dsl::SnapRecord &out);
+      bool
+      step(long tick, scrapbook::MainNode &mainNode, const CaptureContentBounds &bounds, dsl::SnapRecord &out);
 
     private:
       enum Kind
       {
         KIND_INVALID = 0,
+        KIND_STARTUP,
         KIND_OPEN_FIRST_PAGE,
         KIND_OPEN_FIRST_PAGE_REFUSED,
         KIND_FLIP_FORWARD_BACK,
@@ -72,16 +75,22 @@ namespace loka
 
       bool runOpenScenario(long tick,
                            const scrapbook::MainNode &mainNode,
-                           const ContentBounds &bounds,
+                           const CaptureContentBounds &bounds,
                            dsl::SnapRecord &out);
       bool
-      runFlipForwardBack(long tick, scrapbook::MainNode &mainNode, const ContentBounds &bounds, dsl::SnapRecord &out);
+      runFlipForwardBack(long tick,
+                         scrapbook::MainNode &mainNode,
+                         const CaptureContentBounds &bounds,
+                         dsl::SnapRecord &out);
       bool runRefusedFlipKeepsPage(long tick,
                                    scrapbook::MainNode &mainNode,
-                                   const ContentBounds &bounds,
+                                   const CaptureContentBounds &bounds,
                                    dsl::SnapRecord &out);
       bool
-      runOpenTextPage(long tick, scrapbook::MainNode &mainNode, const ContentBounds &bounds, dsl::SnapRecord &out);
+      runOpenTextPage(long tick,
+                      scrapbook::MainNode &mainNode,
+                      const CaptureContentBounds &bounds,
+                      dsl::SnapRecord &out);
       static PageObservation observePage(const scrapbook::MainNode &mainNode);
       static void setPageObservation(dsl::SnapRecord &record,
                                      const char *pageKey,
@@ -97,7 +106,7 @@ namespace loka
 
     bool IsRegisteredScenario(const std::string &name);
     dsl::SnapRecord MakeDriverErrorRecord(const char *scenario, long errorCode, const char *message);
-  } // namespace toolbox_tests
+  } // namespace scenario_tests
 } // namespace loka
 
-#endif // LOKA_TESTS_TOOLBOX_SCRAPBOOK_SCENARIOS_HPP
+#endif // LOKA_TESTS_SCENARIOS_SCRAPBOOK_SCENARIOS_HPP
