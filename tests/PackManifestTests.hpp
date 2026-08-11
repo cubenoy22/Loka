@@ -3,5 +3,11 @@
 
 void testPackManifestParsesRecordsAndRefusesMalformedLines();
 void testPackManifestStampFollowsTheIdSpaceNotTheListing();
+void testPackageRequirementsCheckEveryScrapbookExpectation();
+void testPackageRequirementsRejectWrongPageCount();
+void testPackageRequirementsRejectExtraAsset();
+void testPackageRequirementsRejectBadPageKind();
+void testPackageRequirementsRejectAssetOutsideNamedBag();
+void testPackageRequirementsUnreadableFileIsAHardError();
 
 #endif // LOKA_TESTS_PACKMANIFESTTESTS_HPP

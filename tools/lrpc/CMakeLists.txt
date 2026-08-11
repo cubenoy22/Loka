@@ -15,6 +15,7 @@ project(Lrpc LANGUAGES CXX)
 
 add_executable(lrpc
   main.cpp
+  HostFile.cpp
   PackManifest.cpp
   LrpkWriter.cpp
   Utf8Path.cpp

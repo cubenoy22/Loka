@@ -555,7 +555,7 @@ def write_manifest(path, depth, sprite_count=SPRITE_COUNT):
     path.write_text(manifest_contents(depth, sprite_count), encoding="ascii")
 
 
-def pack_assets(lrpc, manifest, package, stamp_path):
+def pack_assets(lrpc, manifest, package, stamp_path, requirements, page_count):
     command = [
         str(lrpc),
         "pack",
@@ -564,6 +564,10 @@ def pack_assets(lrpc, manifest, package, stamp_path):
         str(package),
         "--stamp",
         str(stamp_path),
+        "--require",
+        str(requirements),
+        "--require-pages",
+        str(page_count),
     ]
     completed = subprocess.run(command, text=True, capture_output=True)
     if completed.stdout:
@@ -699,12 +703,21 @@ def main():
         output_dir / "ngbadge.pict",
     )
     write_manifest(manifest, arguments.depth, arguments.sprite_count)
-    stamp = pack_assets(arguments.lrpc, manifest, package, stamp_path)
+    requirements = Path(__file__).resolve().with_name("scrapbook.pkgreq")
+    page_count = arguments.sprite_count
+    stamp = pack_assets(
+        arguments.lrpc,
+        manifest,
+        package,
+        stamp_path,
+        requirements,
+        page_count,
+    )
     # The build step reads these instead of hardcoding the values, so a
     # changed sprite roster cannot leave the app compiled against a package
     # its open() checks are guaranteed to reject.
     (output_dir / "page-count.txt").write_text(
-        "{}\n".format(arguments.sprite_count), encoding="ascii"
+        "{}\n".format(page_count), encoding="ascii"
     )
 
     if arguments.check:
