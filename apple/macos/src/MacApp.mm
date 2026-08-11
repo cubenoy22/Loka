@@ -84,6 +84,7 @@ MacApp::MacApp(AppConfigurable *config)
       menuTarget_(0),
       flushTarget_(0),
       flushTimer_(0),
+      quitRequested_(false),
       lastIdleTick_(0),
       idleTimebase_()
 {
@@ -117,6 +118,10 @@ void MacApp::run()
   }
 
   App::run();
+  if (this->quitRequested_)
+  {
+    return;
+  }
   mach_timebase_info(&idleTimebase_);
   lastIdleTick_ = mach_absolute_time();
 
@@ -148,6 +153,7 @@ void MacApp::run()
 
 void MacApp::quit()
 {
+  this->quitRequested_ = true;
 #ifdef TEST_BUILD
   std::fprintf(stderr, "MacApp::quit stopping NSApplication run\n");
 #endif
@@ -194,6 +200,10 @@ void MacApp::flushInvalidationsTick()
   if (this->consumeIdle(elapsedSeconds, dispatchElapsedSeconds))
   {
     this->handleIdle(dispatchElapsedSeconds);
+    if (this->quitRequested_)
+    {
+      return;
+    }
   }
   if (!IsEventTrackingRunLoopMode())
   {
