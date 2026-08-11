@@ -2,6 +2,7 @@
 #define LOKA_TESTS_SCRAPBOOK_NAVIGATION_TESTS_HPP
 
 void testScrapbookRenderedNavigationButtonsMoveAndStopAtEndpoints();
+void testScrapbookRenderedNextButtonAdvancesOnTwoConsecutiveClicks();
 void testScrapbookSizedPageContainerOwnsBothPresentations();
 
 #endif // LOKA_TESTS_SCRAPBOOK_NAVIGATION_TESTS_HPP
