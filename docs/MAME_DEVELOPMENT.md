@@ -572,6 +572,22 @@ gdb-multiarch -q >"$OUT" 2>&1 <"$FIFO" &
 GDB_PID=$!; exec 3>"$FIFO"
 send() { printf '%s\n' "$1" >&3; }
 
+# Breakpoint-free attach. scripts/mame-attach.gdb is not reusable here: it
+# arms a breakpoint at attach time, and this leg requires none armed.
+send "set confirm off"
+send "set pagination off"
+send "set height 0"
+send "set architecture m68k"
+send "set endian big"
+send "set remotetimeout 120"
+send "target remote 192.168.0.1:23946"   # host address, not loopback (step 6)
+send "add-symbol-file $ELF -o $BASE"     # base from the find phase (step 2)
+send "continue"                           # free-run toward the scenario event
+
+until [ -f "$RT/click-1.flag" ]; do sleep 1; done   # marker file, not a breakpoint
+kill -INT "$GDB_PID"                 # first stop: the window of interest is open
+sleep 0.7
+
 sample() {                           # <label> <run-seconds>
   send "echo \\n--- $1 ---\\n"
   send "continue"
