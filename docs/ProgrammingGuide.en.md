@@ -1,6 +1,6 @@
 # Loka Programming Guide
 
-Target version: Loka `0.0.1`
+Target version: Loka `0.0.2`
 
 Japanese version: [ProgrammingGuide.md](ProgrammingGuide.md)
 

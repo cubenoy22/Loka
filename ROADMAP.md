@@ -11,6 +11,17 @@ Versioning follows a pragmatic pre-1.0 scheme:
 * `0.2.x` — `loka::app` stabilizes
 * `0.3.x` — platform and ecosystem expansion
 
+### Release provenance
+
+The version in the top-level CMake `project(Loka VERSION ... LANGUAGES CXX)`
+call is the canonical source version. Current-release statements in the
+documentation and published release metadata mirror that value and must agree
+with it when a release is cut.
+
+The published `v0.0.2` tag is a lightweight tag that resolves directly to its
+release commit; it remains unchanged. Future release tags must be annotated,
+created with `git tag -a`, with the release notes recorded in the tag message.
+
 ---
 
 ## v0.0.2 (current)

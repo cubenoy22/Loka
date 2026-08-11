@@ -29,6 +29,13 @@ The release gate is:
 - L2: one representative scenario per example passes on every applicable OS.
 - L3: one example cell is sampled on each applicable OS for every release.
 
+Before applying the matrix, complete the release-provenance check:
+
+- [ ] The top-level CMake source version, tag name, current-release
+  documentation, and GitHub release metadata agree; `git cat-file -t <tag>`
+  reports `tag` (an annotated tag, not `commit`); the annotation contains the
+  release notes; and every cited issue or pull request was verified as shipped.
+
 The OS columns come from `CMakePresets.json` and `.github/workflows/ci.yml`.
 Linux is a headless host-validation leg and has no GUI example targets. The
 Classic Mac column is one OS leg: L0 covers both configured Retro68 architectures

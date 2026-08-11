@@ -7,7 +7,13 @@
 </picture>
 
 > [!IMPORTANT]
-> This framework is still in the proof-of-concept stage. The core is already usable, but broader component coverage, platform support, and some refactoring work are still in progress. Please also see [ROADMAP.md](ROADMAP.md).
+> The current release is
+> [v0.0.2](https://github.com/cubenoy22/Loka/releases/tag/v0.0.2), a
+> reliability milestone focused on lifecycle, ownership, allocation-failure
+> handling, verification, and Win32 UI text. This framework is still in the
+> proof-of-concept stage: the core is already usable, but broader component
+> coverage, platform support, and some refactoring work are still in progress.
+> Please also see [ROADMAP.md](ROADMAP.md).
 
 ## Why Loka?
 
@@ -85,7 +91,7 @@ Status terms:
 | Modern Windows / Win32 | `active` | Native Win32 projection path. Windows XP-class compatibility is tracked as a legacy build target. |
 | macOS / Cocoa | `active` | Native macOS projection path. Mac OS X 10.4 Tiger or newer and PowerPC G3 or newer are supported targets. |
 | Classic Mac OS / Toolbox | `active` | Built through Retro68 for System 7 or later on 68k and PowerPC-style Classic targets.<br>Practical mainstream target: 68030-class systems and later (and PPC601 / 603e-class PowerPC Macs). Low-end 68k (68000 / 68020) stays an important constraint and validation path.<br>All bundled examples are runtime-verified on a 68030 PowerBook 180c (33 MHz, 4 MB RAM) with no 68k-specific optimization pass. |
-| Linux / WSL | `headless` | Used today for core and Flow DSL tests. Full native UI projection is planned, not part of `0.0.1`. |
+| Linux / WSL | `headless` | Used today for core and Flow DSL tests. Full native UI projection is planned, not part of `0.0.2`. |
 | iOS / iPadOS, Linux desktop UI, Windows Mobile-class systems, game-oriented backends | `planned` | Future ports should reuse the same Node / Boundary / State / Flow model rather than adding platform-specific application models. |
 
 For exact build and workflow details, see [docs/environments.md](docs/environments.md). Classic Mac OS and Retro68-specific notes are in [docs/retro68.md](docs/retro68.md).
