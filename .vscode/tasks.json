@@ -942,19 +942,21 @@
       "type": "shell",
       "command": "python3",
       "args": [
-        "example/ScrapbookUI/assets/make_pmonsprite_lrp.py"
+        "example/ScrapbookUI/assets/make_pmonsprite_lrp.py",
+        "--depth",
+        "256"
       ],
       "dependsOn": [
         "Build: Host lrpc"
       ],
-      "detail": "Downloads sprites when missing; output stays under build/pmonsprite-lrp (never committed)",
+      "detail": "Generates the default color package under build/pmonsprite-lrp-256; the 1-bit variant remains available via the script's --depth 1 CLI",
       "problemMatcher": []
     },
     {
       "label": "PMonSprite: Configure ScrapbookUI",
       "type": "shell",
-      "command": "cmake -S . -B build/retro68-pmon -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/Retro68.cmake -DRETRO68_CPU=m68k -DLOKA_WARNINGS_AS_ERRORS=ON -DLOKA_SCRAPBOOK_PAGE_COUNT=$(cat build/pmonsprite-lrp/page-count.txt) -DLOKA_SCRAPBOOK_ID_SPACE_STAMP=$(cat build/pmonsprite-lrp/stamp.txt)",
-      "detail": "Page count and stamp come from the generated package metadata, not hardcoded values",
+      "command": "cmake -S . -B build/retro68-pmon -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/Retro68.cmake -DRETRO68_CPU=m68k -DLOKA_WARNINGS_AS_ERRORS=ON -DLOKA_SCRAPBOOK_PAGE_COUNT=$(cat build/pmonsprite-lrp-256/page-count.txt) -DLOKA_SCRAPBOOK_ID_SPACE_STAMP=$(cat build/pmonsprite-lrp-256/stamp.txt)",
+      "detail": "Reads metadata from the default color package; the 1-bit variant remains available via the script's --depth 1 CLI",
       "problemMatcher": "$gcc",
       "dependsOn": [
         "PMonSprite: Generate LRP"
@@ -982,7 +984,7 @@
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
       "args": [
         "${workspaceFolder}/build/retro68-pmon/example/ScrapbookUI/ScrapbookUI68K.bin",
-        "${workspaceFolder}/build/pmonsprite-lrp/ASSETS.LRP"
+        "${workspaceFolder}/build/pmonsprite-lrp-256/ASSETS.LRP"
       ],
       "problemMatcher": []
     },
