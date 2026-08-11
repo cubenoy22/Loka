@@ -1493,7 +1493,9 @@ void testSceneUnmountNotifiesPlainNodeContextDetached()
 
   DetachHookCounts counts;
   PlainDetachProbeDefinition definition((PlainDetachProbeProps(&counts)));
-  loka::app::scene::Scene scene(definition.clone());
+  loka::app::scene::NodeDefinitionBase *rootDefinition = definition.clone();
+  LOKA_VERIFY(rootDefinition != 0);
+  loka::app::scene::Scene scene(rootDefinition);
   DetachProbePlatformController platform;
 
   scene.mount(&platform);
@@ -1511,7 +1513,9 @@ void testSceneUpdateAttachedFalseNotifiesPlainNodeContextDetachedOnce()
 
   DetachHookCounts counts;
   PlainDetachProbeDefinition definition((PlainDetachProbeProps(&counts)));
-  loka::app::scene::Scene scene(definition.clone());
+  loka::app::scene::NodeDefinitionBase *rootDefinition = definition.clone();
+  LOKA_VERIFY(rootDefinition != 0);
+  loka::app::scene::Scene scene(rootDefinition);
   DetachProbePlatformController platform;
 
   scene.mount(&platform);

@@ -2041,7 +2041,9 @@ void testLokaFlowDslV1Core()
   {
     using namespace loka::app::scene;
 
-    Scene scene(BoundaryDefinition<TypedDslLightHostProps, TypedDslLightHostNode>().clone());
+    NodeDefinitionBase *rootDefinition = BoundaryDefinition<TypedDslLightHostProps, TypedDslLightHostNode>().clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -2871,7 +2873,9 @@ void testLokaFlowDslV1Core()
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << Text("Hello Flow").testId("MainText");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -2936,7 +2940,9 @@ void testLokaFlowDslV1Core()
     assert(root.childrenHead() != 0);
     assert(root.childrenHead()->asNestableDefinition() == 0);
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -2968,7 +2974,9 @@ void testLokaFlowDslV1Core()
     BoxDefinition &root = composition.declare(Box().testId("ConditionalProjectedRoot"));
     root << (Show(showState) << ConditionalProjectedProbeDefinition());
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     ConditionalProjectedProbeController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -3001,7 +3009,9 @@ void testLokaFlowDslV1Core()
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << (Show(showState) << Text("First").testId("ShowFirstText") << Text("Second").testId("ShowSecondText"));
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -3029,7 +3039,9 @@ void testLokaFlowDslV1Core()
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << Text("Hello SnapText").testId("MainText");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -3077,7 +3089,9 @@ void testLokaFlowDslV1Core()
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << Text("Hello Dirty").testId("MainText");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -3114,7 +3128,9 @@ void testLokaFlowDslV1Core()
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << Button("Press").testId("ActionButton");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -3151,7 +3167,9 @@ void testLokaFlowDslV1Core()
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << Button("Press").testId("ActionButton");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -3187,7 +3205,9 @@ void testLokaFlowDslV1Core()
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << Button("Press").testId("ActionButton");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -3214,7 +3234,9 @@ void testLokaFlowDslV1Core()
     using namespace loka::app::scene;
 
     NodeDefinition<helloworld::MainProps, helloworld::MainNode> mainDef;
-    Scene scene(mainDef.clone());
+    NodeDefinitionBase *rootDefinition = mainDef.clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -3278,7 +3300,9 @@ void testLokaFlowDslV1Core()
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << Button("Press").testId("ActionButton");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -3309,7 +3333,9 @@ void testLokaFlowDslV1Core()
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << Text("Ready").testId("StatusText");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -3341,7 +3367,9 @@ void testLokaFlowDslV1Core()
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << Text(&textState).testId("MainText");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -3371,7 +3399,9 @@ void testLokaFlowDslV1Core()
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << Text(&textState).attr(TextAttr().wrap(TEXT_WRAP_WORD)).testId("WrapText");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -3403,7 +3433,9 @@ void testLokaFlowDslV1Core()
     root << Text(&textState).attr(TextAttr().wrap(TEXT_WRAP_WORD)).testId("WrapText");
     root << Button("Run").enabled(&enabledState).testId("MainButton");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -3435,7 +3467,9 @@ void testLokaFlowDslV1Core()
     root << composition.conditional(showState, trueText, falseText);
     root << Button("Run").enabled(&enabledState).testId("MainButton");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -3459,7 +3493,9 @@ void testLokaFlowDslV1Core()
 
     g_sameBoundaryConditionalProbe = 0;
 
-    Scene scene(BoundaryDefinition<SameBoundaryConditionalProbeProps, SameBoundaryConditionalProbeNode>().clone());
+    NodeDefinitionBase *rootDefinition = BoundaryDefinition<SameBoundaryConditionalProbeProps, SameBoundaryConditionalProbeNode>().clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -3496,7 +3532,9 @@ void testLokaFlowDslV1Core()
     g_headlessScopeAttachCount = 0;
     g_headlessScopeDetachCount = 0;
 
-    Scene scene(BoundaryDefinition<HeadlessScopeHostProps, HeadlessScopeHostBoundaryNode>().clone());
+    NodeDefinitionBase *rootDefinition = BoundaryDefinition<HeadlessScopeHostProps, HeadlessScopeHostBoundaryNode>().clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -3552,7 +3590,9 @@ void testLokaFlowDslV1Core()
     g_headlessOwnedAttachCount = 0;
     g_headlessOwnedDestroyCount = 0;
 
-    Scene scene(BoundaryDefinition<HeadlessOwnedHostProps, HeadlessOwnedHostBoundaryNode>().clone());
+    NodeDefinitionBase *rootDefinition = BoundaryDefinition<HeadlessOwnedHostProps, HeadlessOwnedHostBoundaryNode>().clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -3597,7 +3637,9 @@ void testLokaFlowDslV1Core()
     g_headlessOwnedAttachCount = 0;
     g_headlessOwnedDestroyCount = 0;
 
-    Scene scene(BoundaryDefinition<HeadlessOwnedHostProps, HeadlessOwnedHostBoundaryNode>().clone());
+    NodeDefinitionBase *rootDefinition = BoundaryDefinition<HeadlessOwnedHostProps, HeadlessOwnedHostBoundaryNode>().clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -3632,7 +3674,9 @@ void testLokaFlowDslV1Core()
     g_headlessOwnedMultiDestroyCountA = 0;
     g_headlessOwnedMultiDestroyCountB = 0;
 
-    Scene scene(BoundaryDefinition<HeadlessOwnedMultiHostProps, HeadlessOwnedMultiHostBoundaryNode>().clone());
+    NodeDefinitionBase *rootDefinition = BoundaryDefinition<HeadlessOwnedMultiHostProps, HeadlessOwnedMultiHostBoundaryNode>().clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -3692,7 +3736,9 @@ void testLokaFlowDslV1Core()
     g_headlessOwnedPersistentAttachCount = 0;
     g_headlessOwnedPersistentDestroyCount = 0;
 
-    Scene scene(BoundaryDefinition<HeadlessOwnedMixedHostProps, HeadlessOwnedMixedHostBoundaryNode>().clone());
+    NodeDefinitionBase *rootDefinition = BoundaryDefinition<HeadlessOwnedMixedHostProps, HeadlessOwnedMixedHostBoundaryNode>().clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -3741,7 +3787,9 @@ void testLokaFlowDslV1Core()
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << Button("Run").enabled(&enabledState).testId("MainButton");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -3768,7 +3816,9 @@ void testLokaFlowDslV1Core()
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << Button("Run").enabled(&enabledState).testId("MainButton");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -4319,7 +4369,9 @@ void testLokaFlowDslV1Core()
     TextDefinition trueText = Text("On").testId("OnText");
     root << composition.conditional(showState, trueText, falseText);
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -4349,7 +4401,9 @@ void testLokaFlowDslV1Core()
     TextDefinition trueText = Text("On").testId("OnText");
     root << composition.conditional(showState, trueText, falseText);
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -4397,7 +4451,9 @@ void testLokaFlowDslV1Core()
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << Text("Sized").attr(TextAttr().fontSize(&fontSizeState)).testId("SizedText");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -4442,7 +4498,9 @@ void testLokaFlowDslV1Core()
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << Text("Sized").attr(TextAttr().fontSize(&fontSizeState)).testId("SizedText");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -4471,7 +4529,9 @@ void testLokaFlowDslV1Core()
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << Text(&textState).attr(TextAttr().fontSize(&fontSizeState)).testId("MixedText");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -4652,7 +4712,9 @@ void testLokaFlowDslV1Core()
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << Text("Hello Flow").testId("MainText");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -4694,7 +4756,9 @@ void testLokaFlowDslV1Core()
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << Text("Ready").testId("StatusText");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -4734,7 +4798,9 @@ void testLokaFlowDslV1Core()
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << Text("Ready").testId("StatusText");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -4771,7 +4837,9 @@ void testLokaFlowDslV1Core()
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << Button("Press").testId("ActionButton");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
@@ -4802,7 +4870,9 @@ void testLokaFlowDslV1Core()
     root << Text("A").testId("DupText");
     root << Text("B").testId("DupText");
 
-    Scene scene(composition.root()->clone());
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);

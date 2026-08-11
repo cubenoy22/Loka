@@ -155,7 +155,9 @@ namespace allocpin
     using loka::app::scene::NodeDefinition;
 
     NodeDefinition<helloworld::MainProps, helloworld::MainNode> mainDef;
-    Scene scene(mainDef.clone());
+    loka::app::scene::NodeDefinitionBase *rootDefinition = mainDef.clone();
+    assert(rootDefinition != 0);
+    Scene scene(rootDefinition);
     AllocPinPlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);

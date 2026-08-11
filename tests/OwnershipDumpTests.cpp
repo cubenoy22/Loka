@@ -385,7 +385,9 @@ void testOwnershipDumpPinsRepresentativeHelloWorld()
   using namespace loka::app::scene;
   NodeDefinition<helloworld::MainProps, helloworld::MainNode> mainDefinition;
   SceneTestSupport::RecordingPlatformController platform;
-  Scene scene(mainDefinition.clone());
+  loka::app::scene::NodeDefinitionBase *rootDefinition = mainDefinition.clone();
+  LOKA_VERIFY(rootDefinition != 0);
+  Scene scene(rootDefinition);
   scene.mount(&platform);
   scene.updateAttached(true);
 
@@ -404,7 +406,9 @@ void testOwnershipDumpPinsMineSweeperSections()
   using namespace loka::app::scene;
   NodeDefinition<minesweeper::MainProps, minesweeper::MainNode> mainDefinition;
   SceneTestSupport::RecordingPlatformController platform;
-  Scene scene(mainDefinition.clone());
+  loka::app::scene::NodeDefinitionBase *rootDefinition = mainDefinition.clone();
+  LOKA_VERIFY(rootDefinition != 0);
+  Scene scene(rootDefinition);
   scene.mount(&platform);
   scene.updateAttached(true);
 
@@ -433,7 +437,9 @@ void testOwnershipDumpPinsMineSweeperNewGameRetiresCells()
   using namespace loka::app::scene;
   NodeDefinition<minesweeper::MainProps, minesweeper::MainNode> mainDefinition;
   SceneTestSupport::RecordingPlatformController platform;
-  Scene scene(mainDefinition.clone());
+  loka::app::scene::NodeDefinitionBase *rootDefinition = mainDefinition.clone();
+  LOKA_VERIFY(rootDefinition != 0);
+  Scene scene(rootDefinition);
   scene.mount(&platform);
   scene.updateAttached(true);
 

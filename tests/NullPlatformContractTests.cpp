@@ -1820,7 +1820,9 @@ void testNullPlatformContract_B1_attachShowsControl()
 {
   loka::app::ButtonDefinition button("shown");
   NullScenePlatformController platform;
-  loka::app::scene::Scene scene(button.clone());
+  loka::app::scene::NodeDefinitionBase *rootDefinition = button.clone();
+  LOKA_VERIFY(rootDefinition != 0);
+  loka::app::scene::Scene scene(rootDefinition);
   mountAndAttach(scene, platform);
 
   assert(platform.ledger().size() == 1);
@@ -3200,7 +3202,9 @@ void testNullPlatformContract_F2_createdHandlesAreDisposedAtTeardown()
   loka::app::FragmentDefinition controls;
   controls << loka::app::Button("button") << loka::app::EditText();
   NullScenePlatformController platform;
-  loka::app::scene::Scene scene(controls.clone());
+  loka::app::scene::NodeDefinitionBase *rootDefinition = controls.clone();
+  LOKA_VERIFY(rootDefinition != 0);
+  loka::app::scene::Scene scene(rootDefinition);
   mountAndAttach(scene, platform);
   assert(platform.createdCount() == 2);
 
@@ -3248,7 +3252,9 @@ void testNullWindowScenePathMountsAndTearsDownBeforeControllerDelete()
     NullScenePlatformController platform;
     loka::app::ButtonDefinition button("window-path");
     WindowProps props;
-    props.scene(new loka::app::scene::Scene(button.clone()));
+    loka::app::scene::NodeDefinitionBase *rootDefinition = button.clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    props.scene(new loka::app::scene::Scene(rootDefinition));
     NullWindow *window = new NullWindow(&platformContext, props, &platform);
     loka::app::scene::Scene *scene = window->scene();
     assert(scene);
@@ -3271,7 +3277,9 @@ void testNullWindowScenePathMountsAndTearsDownBeforeControllerDelete()
     NullPlatformContext platformContext;
     loka::app::ButtonDefinition button("window-path-owned");
     WindowProps props;
-    props.scene(new loka::app::scene::Scene(button.clone()));
+    loka::app::scene::NodeDefinitionBase *rootDefinition = button.clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    props.scene(new loka::app::scene::Scene(rootDefinition));
     Window *window = platformContext.createWindow(props);
     assert(window->scene());
     window->scene()->updateAttached(true);
@@ -3718,7 +3726,9 @@ void testBankedSectionClickHandlerSwapPresentsFreshControls()
   NullScenePlatformController platform;
   loka::app::scene::NodeDefinition<BankedClickProps, BankedClickBoundaryNode>
       mainDefinition;
-  loka::app::scene::Scene scene(mainDefinition.clone());
+  loka::app::scene::NodeDefinitionBase *rootDefinition = mainDefinition.clone();
+  LOKA_VERIFY(rootDefinition != 0);
+  loka::app::scene::Scene scene(rootDefinition);
   mountAndAttach(scene, platform);
   BankedClickBoundaryNode *board = g_bankedClickNode;
   assert(board);
