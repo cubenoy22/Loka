@@ -171,7 +171,6 @@ if(NOT LOKA_MAC_OS_10_4)
   target_compile_definitions(LokaScrapbookScenarioMacOS PRIVATE TEST_BUILD)
   target_compile_options(LokaScrapbookScenarioMacOS PRIVATE
     -fno-exceptions
-    -fno-rtti
   )
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS)
     target_compile_options(LokaScrapbookScenarioMacOS PRIVATE "-fno-objc-arc")
