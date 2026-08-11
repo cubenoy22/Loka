@@ -153,6 +153,7 @@ if(NOT LOKA_MAC_OS_10_4)
   add_executable(LokaScrapbookScenarioMacOS EXCLUDE_FROM_ALL MACOSX_BUNDLE
     ${PROJECT_SOURCE_DIR}/tests/macos/ScenarioDriver.mm
     ${PROJECT_SOURCE_DIR}/tests/scenarios/ScrapbookScenarios.cpp
+    ${PROJECT_SOURCE_DIR}/tests/TestingHooks.cpp
     ${PROJECT_SOURCE_DIR}/example/ScrapbookUI/src/ScrapbookPackage.cpp
     ${LOKA_MACOS_CORE_SOURCES}
     ${COMMON_SOURCES}
