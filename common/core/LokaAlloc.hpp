@@ -3,6 +3,9 @@
 
 #include <cstddef>
 #include <new>
+#if defined(LOKA_DIAG) || defined(LOKA_RETRO68_DIAGNOSTICS)
+#include <cstdio>
+#endif
 
 namespace loka
 {
@@ -58,6 +61,11 @@ namespace loka
      * under the same site. Null is ignored and never reaches the backend.
      */
     void LokaFreeRaw(void *ptr, const LokaAllocationSite &site);
+
+#if defined(LOKA_DIAG) || defined(LOKA_RETRO68_DIAGNOSTICS)
+    /** Appends the cumulative default-backend allocation census to fp. */
+    void LokaAllocCensusDump(std::FILE *fp);
+#endif
 
 #ifdef LOKA_LIFECYCLE_AUDIT
     /** Gate allocations currently live against this site's tags, 0 if never seen. */
