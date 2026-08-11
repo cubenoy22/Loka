@@ -540,6 +540,94 @@ neither mode pays the single-step penalty.
   therefore corrupt silently rather than announce themselves, which is an
   argument for watchpoints (`wpset`) over waiting for a crash to locate them.
 
+### The sampling leg: attributing a busy window
+
+The stub also supports a time-sampling profiler: interrupt the free-running
+guest on a wall-clock cadence, read the interrupted PC, resume, repeat. No
+instrumentation goes into the build, so the workload under measurement is the
+shipping code. This is what attributed the first-launch cost on a 68030
+machine to the ROM Memory Manager zone-scan loop (14 of 14 samples, with
+`LokaAllocRaw`/`_NewPtr` frames on the raw stack) — an answer neither
+breakpoints nor watchpoints could have produced, because nothing was known to
+break on.
+
+Two session shapes work; pick by whether the window of interest starts at a
+place a breakpoint can name.
+
+**Batch shape** — when the window opens at a known function (e.g. sampling
+startup from `main`): a plain `gdb -x` script alternating
+`continue &` / `shell sleep 0.5` / `interrupt` / `bt 16`. Simple, but the
+pacing is fixed at script-writing time and the session cannot react to the
+guest.
+
+**FIFO driver shape** — when the window opens at a scenario event and the run
+must stay unperturbed until then. The driver creates a FIFO, starts
+`gdb-multiarch` reading commands from it with output to a log file, pumps
+commands with `printf`, and synchronizes by grepping the log for `echo`
+markers it planted:
+
+```sh
+mkfifo "$FIFO"                       # must live on ext4 — mkfifo fails on DrvFs (/mnt/c)
+gdb-multiarch -q >"$OUT" 2>&1 <"$FIFO" &
+GDB_PID=$!; exec 3>"$FIFO"
+send() { printf '%s\n' "$1" >&3; }
+
+# Breakpoint-free attach. scripts/mame-attach.gdb is not reusable here: it
+# arms a breakpoint at attach time, and this leg requires none armed.
+send "set confirm off"
+send "set pagination off"
+send "set height 0"
+send "set architecture m68k"
+send "set endian big"
+send "set remotetimeout 120"
+send "target remote 192.168.0.1:23946"   # host address, not loopback (step 6)
+send "add-symbol-file $ELF -o $BASE"     # base from the find phase (step 2)
+send "continue"                           # free-run toward the scenario event
+
+until [ -f "$RT/click-1.flag" ]; do sleep 1; done   # marker file, not a breakpoint
+kill -INT "$GDB_PID"                 # first stop: the window of interest is open
+sleep 0.7
+
+sample() {                           # <label> <run-seconds>
+  send "echo \\n--- $1 ---\\n"
+  send "continue"
+  sleep "$2"
+  kill -INT "$GDB_PID"               # SIGINT to gdb stops the guest through the stub
+  sleep 0.7
+  send "x/1wx \$sp+2"                # the interrupted PC (see below)
+  send "x/64wx \$sp"                 # raw stack for offline reading
+  send "echo \\n--- $1 end ---\\n"
+  # ...grep "$OUT" for the end marker before the next sample
+}
+```
+
+Hard-won mechanics, each paid for in lost sessions:
+
+- **The interrupted PC is the longword at `$sp+2`.** A SIGINT stop lands in
+  the 68k interrupt exception frame (status register word at `$sp`, pushed PC
+  at `$sp+2`), and `bt` at such a stop frequently unwinds the interrupt
+  context rather than the interrupted code. Read `$sp+2` for the PC and dump
+  `x/64wx $sp` raw; pick return-address candidates out of the words offline.
+- **Resolve addresses offline, not in the session.** Subtract the runtime
+  load base and feed `addr2line -f -C` against the DWARF ELF; classify
+  `>= 0x40000000` as ROM and anything outside `[base, base+image)` as
+  other-RAM. The base changes with every build — re-run the find phase from
+  step 2 whenever the ELF changed.
+- **Align the sampling window with marker files, not breakpoints.** A
+  software breakpoint planted while the target is stopped from a SIGINT does
+  not fire after resume (two sessions lost to this before it was understood).
+  Instead, have the scenario Lua touch a marker file when the event of
+  interest happens, and let the driver free-run — no breakpoints armed at
+  all — polling for the file before it starts sampling.
+- **Sampling answers "where", never "how long".** Every stop/resume delivers
+  a backlog of guest events that lands as real work once resumed — update
+  events become paints — and the sampler will then catch work of its own
+  making. One investigation reported a 13-second busy window that a
+  free-running A/B run showed did not exist. Duration claims come only from
+  free-running measurements — a scenario Lua taking `screen:snapshot` on a
+  fixed cadence with no debugger attached — and the sampler's role is limited
+  to attributing a window whose duration was established without it.
+
 ## Verification status
 
 - macOS Tahoe: runtime-verified on Intel and Apple silicon (A18 Pro) with MAME
