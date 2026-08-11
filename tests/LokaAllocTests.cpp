@@ -2,9 +2,12 @@
 
 #include <cassert>
 #include <cstddef>
+#include <cstdio>
+#include <cstring>
 #include <new>
 
 #include "core/LokaAlloc.hpp"
+#include "support/TestVerify.hpp"
 
 namespace
 {
@@ -154,4 +157,57 @@ void testLokaAllocAuditBalancedUseCountsToZero()
 
   loka::core::LokaAllocAuditCheckpoint("testLokaAllocAuditBalancedUseCountsToZero");
 #endif
+}
+
+void testLokaAllocCensusAccumulatesSitesAndLabelsOverflow()
+{
+#if defined(LOKA_DIAG) || defined(LOKA_RETRO68_DIAGNOSTICS)
+  static const char *overflowTypeTags[] = {
+      "Overflow00", "Overflow01", "Overflow02", "Overflow03",
+      "Overflow04", "Overflow05", "Overflow06", "Overflow07",
+      "Overflow08", "Overflow09", "Overflow10", "Overflow11",
+      "Overflow12", "Overflow13", "Overflow14", "Overflow15",
+      "Overflow16", "Overflow17", "Overflow18", "Overflow19",
+      "Overflow20", "Overflow21", "Overflow22", "Overflow23",
+      "Overflow24", "Overflow25", "Overflow26", "Overflow27",
+      "Overflow28", "Overflow29", "Overflow30", "Overflow31",
+      "Overflow32", "Overflow33"};
+  const loka::core::LokaAllocationSite primarySite("CensusProbe", "Primary");
+
+  void *first = loka::core::LokaAllocRaw(7, primarySite);
+  void *second = loka::core::LokaAllocRaw(11, primarySite);
+  LOKA_VERIFY(first != 0);
+  LOKA_VERIFY(second != 0);
+  loka::core::LokaFreeRaw(first, primarySite);
+  loka::core::LokaFreeRaw(second, primarySite);
+
+  for (std::size_t i = 0; i < sizeof(overflowTypeTags) / sizeof(overflowTypeTags[0]); ++i)
+  {
+    const loka::core::LokaAllocationSite overflowSite("CensusProbe", overflowTypeTags[i]);
+    void *storage = loka::core::LokaAllocRaw(1, overflowSite);
+    LOKA_VERIFY(storage != 0);
+    loka::core::LokaFreeRaw(storage, overflowSite);
+  }
+
+  std::FILE *dump = std::tmpfile();
+  LOKA_VERIFY(dump != 0);
+  loka::core::LokaAllocCensusDump(dump);
+  std::rewind(dump);
+
+  char line[160];
+  bool foundPrimary = false;
+  bool foundOverflow = false;
+  while (std::fgets(line, sizeof(line), dump))
+  {
+    if (std::strcmp(line, "alloc.site.CensusProbe.Primary=2,18\n") == 0)
+      foundPrimary = true;
+    if (std::strcmp(line, "alloc.site.overflow=3,3\n") == 0)
+      foundOverflow = true;
+  }
+  std::fclose(dump);
+
+  LOKA_VERIFY(foundPrimary);
+  LOKA_VERIFY(foundOverflow);
+#endif
+  std::printf("==== [testLokaAllocCensusAccumulatesSitesAndLabelsOverflow] PASSED ====\n");
 }

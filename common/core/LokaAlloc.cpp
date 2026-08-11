@@ -1,11 +1,14 @@
 #include "core/LokaAlloc.hpp"
 
-#ifdef LOKA_LIFECYCLE_AUDIT
-#include <cassert>
+#if defined(LOKA_LIFECYCLE_AUDIT) || defined(LOKA_DIAG) || defined(LOKA_RETRO68_DIAGNOSTICS)
 #include <climits>
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
+#endif
+
+#ifdef LOKA_LIFECYCLE_AUDIT
+#include <cassert>
+#include <cstdlib>
 #endif
 
 namespace loka
@@ -14,10 +17,128 @@ namespace loka
   {
     namespace
     {
+#if defined(LOKA_LIFECYCLE_AUDIT) || defined(LOKA_DIAG) || defined(LOKA_RETRO68_DIAGNOSTICS)
+      // Tags match by content, not pointer identity, because equal literals
+      // are not guaranteed to be pooled across translation units.
+      bool LokaAllocationTagsEqual(const char *lhs, const char *rhs)
+      {
+        if (lhs == rhs)
+          return true;
+        if (!lhs || !rhs)
+          return false;
+        return std::strcmp(lhs, rhs) == 0;
+      }
+#endif
+
+#if defined(LOKA_DIAG) || defined(LOKA_RETRO68_DIAGNOSTICS)
+      struct LokaAllocCensusEntry
+      {
+        const char *ownerTag;
+        const char *typeTag;
+        unsigned long count;
+        unsigned long bytes;
+      };
+
+      class LokaAllocCensus
+      {
+      public:
+        LokaAllocCensus()
+            : entryCount_(0),
+              overflowCount_(0),
+              overflowBytes_(0)
+        {
+        }
+
+        void record(const LokaAllocationSite &site, std::size_t size)
+        {
+          LokaAllocCensusEntry *entry = this->find(site);
+          if (!entry && this->entryCount_ < kMaxSites)
+          {
+            entry = &this->entries_[this->entryCount_++];
+            entry->ownerTag = site.ownerTag;
+            entry->typeTag = site.typeTag;
+            entry->count = 0;
+            entry->bytes = 0;
+          }
+          if (!entry)
+          {
+            add(this->overflowCount_, 1);
+            add(this->overflowBytes_, size);
+            return;
+          }
+          add(entry->count, 1);
+          add(entry->bytes, size);
+        }
+
+        void dump(std::FILE *fp) const
+        {
+          if (!fp)
+            return;
+          for (int i = 0; i < this->entryCount_; ++i)
+          {
+            const LokaAllocCensusEntry &entry = this->entries_[i];
+            std::fprintf(fp, "alloc.site.%s.%s=%lu,%lu\n",
+                         entry.ownerTag ? entry.ownerTag : "(null)",
+                         entry.typeTag ? entry.typeTag : "(null)",
+                         entry.count, entry.bytes);
+          }
+          if (this->overflowCount_ != 0)
+          {
+            std::fprintf(fp, "alloc.site.overflow=%lu,%lu\n",
+                         this->overflowCount_,
+                         this->overflowBytes_);
+          }
+        }
+
+      private:
+        enum
+        {
+          kMaxSites = 32
+        };
+
+        static void add(unsigned long &total, std::size_t value)
+        {
+          if (value > static_cast<std::size_t>(ULONG_MAX) ||
+              total > ULONG_MAX - static_cast<unsigned long>(value))
+          {
+            total = ULONG_MAX;
+            return;
+          }
+          total += static_cast<unsigned long>(value);
+        }
+
+        LokaAllocCensusEntry *find(const LokaAllocationSite &site)
+        {
+          for (int i = 0; i < this->entryCount_; ++i)
+          {
+            LokaAllocCensusEntry &entry = this->entries_[i];
+            if (LokaAllocationTagsEqual(entry.ownerTag, site.ownerTag) &&
+                LokaAllocationTagsEqual(entry.typeTag, site.typeTag))
+              return &entry;
+          }
+          return 0;
+        }
+
+        LokaAllocCensusEntry entries_[kMaxSites];
+        int entryCount_;
+        unsigned long overflowCount_;
+        unsigned long overflowBytes_;
+      };
+
+      LokaAllocCensus gLokaAllocCensus;
+#endif
+
       void *LokaAllocDefaultBackendAlloc(std::size_t size, const LokaAllocationSite &site)
       {
+#if defined(LOKA_DIAG) || defined(LOKA_RETRO68_DIAGNOSTICS)
+        void *storage = new (std::nothrow) char[size];
+        if (storage)
+          gLokaAllocCensus.record(site, size);
+        return storage;
+#else
         (void)site;
         return new (std::nothrow) char[size];
+#endif
       }
 
       void LokaAllocDefaultBackendFree(void *ptr, const LokaAllocationSite &site)
@@ -48,23 +169,12 @@ namespace loka
       int gLokaAllocAuditEntryCount = 0;
       int gLokaAllocAuditTotalLive = 0;
 
-      // Tags match by content, not pointer identity, because equal literals
-      // are not guaranteed to be pooled across translation units.
-      bool LokaAllocAuditTagsEqual(const char *lhs, const char *rhs)
-      {
-        if (lhs == rhs)
-          return true;
-        if (!lhs || !rhs)
-          return false;
-        return std::strcmp(lhs, rhs) == 0;
-      }
-
       LokaAllocAuditEntry *FindLokaAllocAuditEntry(const LokaAllocationSite &site)
       {
         for (int i = 0; i < gLokaAllocAuditEntryCount; ++i)
         {
-          if (LokaAllocAuditTagsEqual(gLokaAllocAuditEntries[i].ownerTag, site.ownerTag) &&
-              LokaAllocAuditTagsEqual(gLokaAllocAuditEntries[i].typeTag, site.typeTag))
+          if (LokaAllocationTagsEqual(gLokaAllocAuditEntries[i].ownerTag, site.ownerTag) &&
+              LokaAllocationTagsEqual(gLokaAllocAuditEntries[i].typeTag, site.typeTag))
             return &gLokaAllocAuditEntries[i];
         }
         return 0;
@@ -149,6 +259,13 @@ namespace loka
 #endif
       gLokaAllocBackendFree(ptr, site);
     }
+
+#if defined(LOKA_DIAG) || defined(LOKA_RETRO68_DIAGNOSTICS)
+    void LokaAllocCensusDump(std::FILE *fp)
+    {
+      gLokaAllocCensus.dump(fp);
+    }
+#endif
 
 #ifdef LOKA_LIFECYCLE_AUDIT
     int LokaAllocAuditLiveCount(const LokaAllocationSite &site)

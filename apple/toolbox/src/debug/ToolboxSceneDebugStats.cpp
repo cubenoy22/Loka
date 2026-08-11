@@ -1,4 +1,5 @@
 #include "debug/ToolboxSceneDebugStats.hpp"
+#include "core/LokaAlloc.hpp"
 #include <cstdio>
 #if LOKA_RETRO68_DIAGNOSTICS
 #include <ctime>
@@ -364,6 +365,7 @@ bool ToolboxSceneDebugStats::dumpToTimestampedFile() const
   std::fprintf(fp, "pool.edit.evicts=%lu\n", this->editPoolEvictCount);
   std::fprintf(fp, "pool.edit.depth=%d\n", this->editPoolDepth);
   std::fprintf(fp, "pool.intake_audit_fails=%d\n", this->poolIntakeAuditFailCount);
+  loka::core::LokaAllocCensusDump(fp);
   std::fclose(fp);
   return true;
 }
