@@ -55,6 +55,19 @@ jobs:
       - run: cmake --build --preset macos-debug
       - run: cmake --build --preset macos-tests
       - run: ctest --preset macos-tests --output-on-failure
+      # Hosted runners have no persistent display-profile golden. They still
+      # prove the real AppKit runner, bounded settle, exact record, profile,
+      # and atomic completion contract; Tahoe owns the pixel verdict.
+      - run: cmake --build --preset macos-scenarios
+      - run: tests/macos/run-scenario.sh startup --ci-structural
+      - run: tests/macos/run-scenario.sh flip-forward-back --ci-structural
+      - name: Upload macOS scenario failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: macos-scenario-artifacts
+          path: build/macos-scenario/
+          if-no-files-found: ignore
 
   win32:
     runs-on: windows-latest
