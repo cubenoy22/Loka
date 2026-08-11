@@ -17,11 +17,6 @@ namespace loka
         {
           return window.contentView_;
         }
-
-        static void *nativeWindow(const ::MacWindow &window)
-        {
-          return window.window_;
-        }
       };
     } // namespace testing
   } // namespace dsl

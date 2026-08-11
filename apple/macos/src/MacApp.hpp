@@ -45,7 +45,6 @@ private:
   void *menuTarget_;
   void *flushTarget_;
   void *flushTimer_;
-  bool quitRequested_;
   unsigned long long lastIdleTick_;
   mach_timebase_info_data_t idleTimebase_;
 };

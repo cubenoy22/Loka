@@ -5,7 +5,6 @@
 #include <AppKit/AppKit.h>
 #include <ApplicationServices/ApplicationServices.h>
 #include <mach/mach_time.h>
-#include <cstdio>
 #include "app/core/AppComponent.hpp"
 #include "platform/StringUTF8.hpp"
 
@@ -84,7 +83,6 @@ MacApp::MacApp(AppConfigurable *config)
       menuTarget_(0),
       flushTarget_(0),
       flushTimer_(0),
-      quitRequested_(false),
       lastIdleTick_(0),
       idleTimebase_()
 {
@@ -118,10 +116,6 @@ void MacApp::run()
   }
 
   App::run();
-  if (this->quitRequested_)
-  {
-    return;
-  }
   mach_timebase_info(&idleTimebase_);
   lastIdleTick_ = mach_absolute_time();
 
@@ -141,23 +135,12 @@ void MacApp::run()
 
   startInvalidationFlushTimer();
   [NSApp activateIgnoringOtherApps:YES];
-#ifdef TEST_BUILD
-  std::fprintf(stderr, "MacApp::run entering NSApplication run\n");
-#endif
   [NSApp run];
-#ifdef TEST_BUILD
-  std::fprintf(stderr, "MacApp::run returned from NSApplication run\n");
-#endif
   stopInvalidationFlushTimer();
 }
 
 void MacApp::quit()
 {
-  this->quitRequested_ = true;
-#ifdef TEST_BUILD
-  std::fprintf(stderr, "MacApp::quit stopping NSApplication run (running=%d current-event=%s)\n",
-               [NSApp isRunning] ? 1 : 0, [NSApp currentEvent] ? "present" : "missing");
-#endif
   stopInvalidationFlushTimer();
   // Avoid terminate: here. On Leopard/PPC and earlier AppKit shutdown paths,
   // terminate: may synchronously drain autorelease pools inside AppKit while
@@ -165,9 +148,6 @@ void MacApp::quit()
   // or releaseAllPools. Stopping the run loop lets App::run() return and keeps
   // cleanup in our normal C++ object lifetime instead.
   [NSApp stop:nil];
-#ifdef TEST_BUILD
-  std::fprintf(stderr, "MacApp::quit stop returned (running=%d)\n", [NSApp isRunning] ? 1 : 0);
-#endif
 #if defined(MAC_OS_X_VERSION_MAX_ALLOWED) && (MAC_OS_X_VERSION_MAX_ALLOWED >= 101200)
   const NSEventType wakeEventType = NSEventTypeApplicationDefined;
 #else
@@ -188,9 +168,6 @@ void MacApp::quit()
     // Put the wake event first so timer-driven quit cannot wait behind later work.
     [NSApp postEvent:event atStart:YES];
   }
-#ifdef TEST_BUILD
-  std::fprintf(stderr, "MacApp::quit posted wake event (running=%d)\n", [NSApp isRunning] ? 1 : 0);
-#endif
 }
 
 void MacApp::flushInvalidationsTick()
@@ -209,10 +186,6 @@ void MacApp::flushInvalidationsTick()
   if (this->consumeIdle(elapsedSeconds, dispatchElapsedSeconds))
   {
     this->handleIdle(dispatchElapsedSeconds);
-    if (this->quitRequested_)
-    {
-      return;
-    }
   }
   if (!IsEventTrackingRunLoopMode())
   {
