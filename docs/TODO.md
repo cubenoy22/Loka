@@ -28,6 +28,7 @@ These items address recurring bug patterns and structural risks identified durin
 
 ## Open
 
+- Toolbox button release semantics differ between examples (#324 close-out): ScrapbookUI's Next fires only when the mouse-up lands inside the control (release-inside tracking), while MineSweeper's New Game fired even when a scenario warped the cursor away in the release instant. Both go through the same ButtonNode path, so something downstream diverges. Benign today, but worth locating the divergence before more Toolbox controls are added.
 - Define Modifier system (Text style + Window sizing) and wire through WindowProps/Layout.
 - Decide default window size (macOS/Win32/Toolbox) and unify hardcoded values.
 - Sample: MyTracker (editable device spec catalog).

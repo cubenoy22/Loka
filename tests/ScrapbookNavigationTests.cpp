@@ -320,6 +320,38 @@ void testScrapbookRenderedNavigationButtonsMoveAndStopAtEndpoints()
   std::printf("testScrapbookRenderedNavigationButtonsMoveAndStopAtEndpoints passed\n");
 }
 
+void testScrapbookRenderedNextButtonAdvancesOnTwoConsecutiveClicks()
+{
+  scrapbook_navigation_test::ScrapbookPackage::resetPrepareCount();
+  NullPlatformContext context;
+  scrapbook_navigation_test::MainProps props;
+  props.platformContext(&context);
+  loka::app::scene::NodeDefinition<scrapbook_navigation_test::MainProps,
+                                   scrapbook_navigation_test::MainNode>
+      mainDefinition(props);
+  NullScenePlatformController platform;
+  loka::app::scene::NodeDefinitionBase *rootDefinition = mainDefinition.clone();
+  LOKA_VERIFY(rootDefinition != 0);
+  loka::app::scene::Scene scene(rootDefinition);
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  scrapbook_navigation_test::MainNode *mainNode =
+      static_cast<scrapbook_navigation_test::MainNode *>(
+          loka::dsl::testing::SceneTestAccess::rootNode(scene));
+  LOKA_VERIFY(mainNode != 0);
+
+  loka::app::ButtonNode *next = RequireRenderedButton(scene, "Next");
+  ClickRenderedButton(*mainNode, *next);
+  VerifyPage(*mainNode, 1, 2);
+
+  next = RequireRenderedButton(scene, "Next");
+  ClickRenderedButton(*mainNode, *next);
+  VerifyPage(*mainNode, 2, 3);
+
+  std::printf("testScrapbookRenderedNextButtonAdvancesOnTwoConsecutiveClicks passed\n");
+}
+
 void testScrapbookSizedPageContainerOwnsBothPresentations()
 {
   scrapbook_navigation_test::ScrapbookPackage::resetPrepareCount();
