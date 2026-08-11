@@ -8,6 +8,13 @@ class MacScenePlatformController;
 
 namespace loka
 {
+  namespace dsl
+  {
+    namespace testing
+    {
+      class MacWindowTestAccess;
+    }
+  } // namespace dsl
   namespace core
   {
     namespace scene
@@ -47,6 +54,8 @@ protected:
   virtual void onCreate();
 
 private:
+  friend class ::loka::dsl::testing::MacWindowTestAccess;
+
   void createNativeWindow();
   void destroyNativeWindow();
   static void VisibilityChangedThunk(void *userData);
