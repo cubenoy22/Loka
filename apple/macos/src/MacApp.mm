@@ -168,7 +168,12 @@ void MacApp::quit()
 #ifdef TEST_BUILD
   std::fprintf(stderr, "MacApp::quit stop returned (running=%d)\n", [NSApp isRunning] ? 1 : 0);
 #endif
-  NSEvent *event = [NSEvent otherEventWithType:NSApplicationDefined
+#if defined(MAC_OS_X_VERSION_MAX_ALLOWED) && (MAC_OS_X_VERSION_MAX_ALLOWED >= 101200)
+  const NSEventType wakeEventType = NSEventTypeApplicationDefined;
+#else
+  const NSEventType wakeEventType = NSApplicationDefined;
+#endif
+  NSEvent *event = [NSEvent otherEventWithType:wakeEventType
                                       location:NSMakePoint(0.0, 0.0)
                                  modifierFlags:0
                                      timestamp:0.0
