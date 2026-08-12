@@ -91,6 +91,9 @@ The command reruns every registered scenario and publishes
 `build/mame-scenario/presentation/<run-id>/` only after all machine-verdict
 checks pass and all captures have been hashed. A failed run retains its
 `<run-id>.incomplete` directory and the scenario work directories for diagnosis.
+Because those scenario work directories are shared, the presentation command
+requires `flock` and serializes complete rails. A second invocation waits until
+the first has collected and published its evidence before entering a scenario.
 
 ### Isolate the emulator state
 

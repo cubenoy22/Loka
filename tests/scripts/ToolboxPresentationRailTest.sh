@@ -65,6 +65,54 @@ cat >"$SANDBOX/repo/tests/toolbox/run-scenario.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 scenario="$1"
+run_id="${LOKA_TOOLBOX_PRESENTATION_RUN_ID:?}"
+state="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/build/test-rail-state"
+mkdir -p "$state"
+touch "$state/$run_id-entered"
+if [ "$run_id" = "parallel-owner" ]; then
+  while [ ! -f "$state/release-owner" ]; do sleep 0.02; done
+fi
+output="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/build/mame-scenario/$scenario"
+mkdir -p "$output"
+printf 'capture-%s-%s\n' "$run_id" "$scenario" >"$output/$scenario.png"
+EOF
+chmod +x "$SANDBOX/repo/tests/toolbox/run-scenario.sh"
+LOKA_TOOLBOX_PRESENTATION_RUN_ID=parallel-owner \
+  bash "$SANDBOX/repo/tests/toolbox/run-presentation-rail.sh" >/dev/null &
+owner_pid=$!
+STATE="$SANDBOX/repo/build/test-rail-state"
+deadline=$((SECONDS + 5))
+while [ ! -f "$STATE/parallel-owner-entered" ]; do
+  if [ "$SECONDS" -ge "$deadline" ]; then
+    kill "$owner_pid" 2>/dev/null || true
+    wait "$owner_pid" 2>/dev/null || true
+    fail "first concurrent rail did not enter its scenario runner"
+  fi
+  sleep 0.02
+done
+LOKA_TOOLBOX_PRESENTATION_RUN_ID=parallel-contender \
+  bash "$SANDBOX/repo/tests/toolbox/run-presentation-rail.sh" >/dev/null &
+contender_pid=$!
+contender_entered_while_owner_active=0
+for _ in {1..50}; do
+  if [ -f "$STATE/parallel-contender-entered" ]; then
+    contender_entered_while_owner_active=1
+    break
+  fi
+  if ! kill -0 "$contender_pid" 2>/dev/null; then break; fi
+  sleep 0.02
+done
+touch "$STATE/release-owner"
+wait "$owner_pid" || fail "first concurrent rail failed"
+wait "$contender_pid" || fail "second concurrent rail failed"
+[ "$contender_entered_while_owner_active" -eq 0 ] \
+  || fail "concurrent presentation rails entered shared scenario work directories"
+
+make_fixture
+cat >"$SANDBOX/repo/tests/toolbox/run-scenario.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+scenario="$1"
 if [ "$scenario" = "beta" ]; then exit 7; fi
 output="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/build/mame-scenario/$scenario"
 mkdir -p "$output"

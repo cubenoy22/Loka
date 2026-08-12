@@ -66,10 +66,11 @@ settle, crop, and rig-local golden remain the machine-verdict authority.
 
 ## Complexity gate
 
-One risk flag: multi-scenario tooling now has an explicit failure-atomic publish
-boundary. There are no new shipping lifecycle paths, State/Flow changes,
-cross-boundary pointers, callbacks, platform handles, mutable flags, or
-`dangerously*` APIs.
+Two risk flags: multi-scenario tooling now has an explicit failure-atomic
+publish boundary, and complete rails serialize access to the existing shared
+scenario work directories. There are no new shipping lifecycle paths,
+State/Flow changes, cross-boundary pointers, callbacks, platform handles,
+mutable flags, or `dangerously*` APIs.
 
 ## Shape Review — Gate 2
 
@@ -92,7 +93,7 @@ cross-boundary pointers, callbacks, platform handles, mutable flags, or
   replace the future common rig manifest.
 - `ToolboxPresentationRailTest.sh` parallels the existing script-level harnesses
   and pins success, hash content, completed-run preservation, scenario failure,
-  missing capture, and inherited-stdin isolation.
+  missing capture, inherited-stdin isolation, and whole-rail serialization.
 - CMake adds one script test, reads the registry for MAME test registration, and
   marks the registry as a configure dependency. No virtual, member field,
   shipping API, guest state, or native call site is added.
@@ -109,6 +110,10 @@ cross-boundary pointers, callbacks, platform handles, mutable flags, or
   non-Classic test-tooling gate. In configurations where it is absent, no
   shipping safety check disappears; direct scripts keep their fail-closed
   validation.
+- `flock` owns one presentation-wide lock from before run-ID inspection through
+  final publication. The shell's file descriptor is the lifetime edge, so
+  normal exit and failure exit both release it without a separate stale-lock
+  cleanup path. Missing `flock` fails before any run directory is created.
 
 ### Claims and evidence audit
 
@@ -132,3 +137,21 @@ cross-boundary pointers, callbacks, platform handles, mutable flags, or
 - The presentation manifest deliberately does not assert which Git SHA produced
   an already-built Retro68 binary. PR E's outer orchestrator is the correct
   owner for build/SHA provenance and the common run manifest.
+
+## Review follow-up
+
+The review found that distinct run IDs protected only archive publication: two
+rails could still enter the fixed `build/mame-scenario/<scenario>/` work
+directories concurrently. Per-run scenario work paths were considered, but
+would widen the existing single-scenario procedure and every tool path it
+passes to MAME. A presentation-wide lock is the smaller existing-owner wall:
+one rail already owns the complete seven-scenario sequence and collection.
+
+The pre-fix concurrency test started one held rail and observed a second rail
+enter the shared scenario runner before release:
+
+`ToolboxPresentationRailTest failed: concurrent presentation rails entered shared scenario work directories`
+
+With the lock, the second rail does not enter until the first has collected and
+published its captures; both then complete successfully. The lock adds no
+shipping API, guest state, mutable flag, or manual cleanup path.

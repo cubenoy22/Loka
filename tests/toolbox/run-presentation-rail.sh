@@ -29,6 +29,23 @@ if [[ ! "$RUN_ID" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
   exit 2
 fi
 
+if ! command -v flock >/dev/null 2>&1; then
+  echo "presentation stage failed: flock is required to serialize presentation rails" >&2
+  exit 1
+fi
+if ! mkdir -p "$PRESENTATION_ROOT"; then
+  echo "presentation stage failed: could not create $PRESENTATION_ROOT" >&2
+  exit 1
+fi
+# Every scenario uses build/mame-scenario/<scenario> as its live work
+# directory. Keep one owner across the full rail so another run cannot wipe or
+# collect those directories between scenario execution and archive collection.
+exec 9>"$PRESENTATION_ROOT/.rail.lock"
+if ! flock -x 9; then
+  echo "presentation stage failed: could not acquire the presentation rail lock" >&2
+  exit 1
+fi
+
 INCOMPLETE="$PRESENTATION_ROOT/$RUN_ID.incomplete"
 FINAL="$PRESENTATION_ROOT/$RUN_ID"
 if [ -e "$INCOMPLETE" ] || [ -e "$FINAL" ]; then
