@@ -20,6 +20,7 @@
 #include "OwnershipDumpTests.hpp"
 #include "AttrDslTests.hpp"
 #include "SnapFormatTests.hpp"
+#include "ScenarioProfileTests.hpp"
 #include "LrpkFormatTests.hpp"
 #include "PackManifestTests.hpp"
 #include "LrpcPathTests.hpp"

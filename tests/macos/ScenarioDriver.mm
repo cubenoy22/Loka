@@ -8,9 +8,11 @@
 #include <new>
 #include <string>
 
+#include "MacObjCCompat.hpp"
 #include "MacWindow.hpp"
 #include "MainNode.hpp"
 #include "ScrapbookScenarios.hpp"
+#include "ScenarioProfile.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
 #include "app/core/App.hpp"
@@ -85,6 +87,22 @@ namespace loka
         }
         std::fclose(input);
         return ok;
+      }
+
+      bool WriteFile(const char *path, const std::string &content)
+      {
+        if (!path || !*path)
+        {
+          return false;
+        }
+        FILE *output = std::fopen(path, "wb");
+        if (!output)
+        {
+          return false;
+        }
+        const bool wrote = std::fwrite(content.data(), 1, content.size(), output) == content.size();
+        const bool closed = std::fclose(output) == 0;
+        return wrote && closed;
       }
 
       bool ReadSysctlString(const char *name, std::string &out)
@@ -166,7 +184,7 @@ namespace loka
           }
         }
 
-        NSData *png = [bitmap representationUsingType:NSBitmapImageFileTypePNG
+        NSData *png = [bitmap representationUsingType:LOKA_MAC_BITMAP_PNG_FILE_TYPE
                                            properties:[NSDictionary dictionary]];
         NSString *outputPath = [NSString stringWithUTF8String:path];
         const bool wrote = png && outputPath && [png writeToFile:outputPath atomically:YES];
@@ -200,31 +218,26 @@ namespace loka
         const bool hasScale = window.queryDisplayScalePercent(scalePercent);
         const bool hasDepth = window.queryDisplayDepth(depth);
         const bool hasAppearance = window.queryDisplayAppearance(appearance);
-        if (!ReadSysctlString("kern.osversion", osBuild) || !hasMachine || !hasScale || !hasDepth || !hasAppearance)
+        if (!ReadSysctlString("kern.osversion", osBuild) || !hasMachine)
         {
           return false;
         }
-
-        FILE *output = std::fopen(path, "wb");
-        if (!output)
-        {
-          return false;
-        }
-        const int result = std::fprintf(output,
-                                        "profile_version=1\n"
-                                        "os_build=%s\n"
-                                        "arch=%s\n"
-                                        "scale_percent=%d\n"
-                                        "depth=%d\n"
-                                        "appearance=%s\n"
-                                        "capture_api=NSView.cacheDisplayInRect.v1\n"
-                                        "pixel_width=%ld\n"
-                                        "pixel_height=%ld\n",
-                                        osBuild.c_str(), machine.machine, scalePercent, depth,
-                                        appearance == Window::DISPLAY_APPEARANCE_DARK ? "dark" : "light", pixelWidth,
-                                        pixelHeight);
-        const bool ok = result > 0 && std::fclose(output) == 0;
-        return ok;
+        typedef scenario_tests::ProfileFact<int> IntFact;
+        typedef scenario_tests::ProfileFact<std::string> StringFact;
+        const IntFact scaleFact = hasScale ? IntFact::available(scalePercent) : IntFact::unavailable();
+        const IntFact depthFact = hasDepth ? IntFact::available(depth) : IntFact::unavailable();
+        const StringFact appearanceFact =
+            hasAppearance ? StringFact::available(appearance == Window::DISPLAY_APPEARANCE_DARK ? "dark" : "light")
+                          : StringFact::unavailable();
+        const scenario_tests::ScenarioProfile profile(osBuild,
+                                                      machine.machine,
+                                                      scaleFact,
+                                                      depthFact,
+                                                      appearanceFact,
+                                                      "NSView.cacheDisplayInRect.v1",
+                                                      pixelWidth,
+                                                      pixelHeight);
+        return WriteFile(path, profile.render());
       }
 
       bool PublishCompletion(const char *path)

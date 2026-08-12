@@ -1,0 +1,6 @@
+#ifndef LOKA_SCENARIO_PROFILE_TESTS_HPP
+#define LOKA_SCENARIO_PROFILE_TESTS_HPP
+
+void testScenarioProfileV2CarriesAvailabilityWithoutInventingValues();
+
+#endif // LOKA_SCENARIO_PROFILE_TESTS_HPP
