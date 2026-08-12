@@ -426,7 +426,7 @@ class MacOSRigRun:
             "/Developer/SDKs/MacOSX10.6.sdk",
         )
         for path in required:
-            self._target_ssh(("/usr/bin/test", "-e", path), "toolchain-preflight")
+            self._target_ssh(("/bin/test", "-e", path), "toolchain-preflight")
 
     def _prepare_checkout(self) -> None:
         result = self._run(
@@ -547,7 +547,7 @@ class MacOSRigRun:
 
     def _remote_file_exists(self, path: pathlib.PurePosixPath) -> bool:
         result = subprocess.run(
-            self._target_ssh_args() + (remote_command(("/usr/bin/test", "-f", str(path))),),
+            self._target_ssh_args() + (remote_command(("/bin/test", "-f", str(path))),),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
