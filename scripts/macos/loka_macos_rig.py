@@ -21,13 +21,14 @@ import subprocess
 import sys
 import tempfile
 import time
-from typing import Callable, Iterable, Optional, Sequence
+from typing import Callable, Iterable, Optional, Sequence, TypeVar
 
 
 SUPPORTED_DESCRIPTOR_VERSION = "1"
 SUPPORTED_ARTIFACT_CONTRACT_VERSION = "1"
 SUPPORTED_MODES = frozenset(("flow", "inspect"))
 RIG_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9.-]*$")
+RetryResult = TypeVar("RetryResult")
 
 
 class RigError(RuntimeError):
@@ -388,12 +389,13 @@ class MacOSRigRun:
             kwargs["stderr"] = subprocess.PIPE
         return self._run(self._target_ssh_args() + (remote_command(arguments),), stage, **kwargs)
 
-    def _retry(self, stage: str, operation: str, action: Callable[[], None]) -> None:
+    def _retry(
+        self, stage: str, operation: str, action: Callable[[], RetryResult]
+    ) -> RetryResult:
         last_error: Optional[RigError] = None
         for attempt in range(1, 4):
             try:
-                action()
-                return
+                return action()
             except RigError as error:
                 last_error = error
                 if self.command_log:
@@ -409,6 +411,15 @@ class MacOSRigRun:
             stage,
             "rsync",
             lambda: self._run(("rsync", "--partial", "--timeout=30") + tuple(arguments), stage),
+        )
+
+    def _target_query(
+        self, arguments: Sequence[str], stage: str
+    ) -> subprocess.CompletedProcess[str]:
+        return self._retry(
+            stage,
+            "read-only query",
+            lambda: self._target_ssh(arguments, stage),
         )
 
     def _vm_state(self) -> str:
@@ -447,20 +458,20 @@ class MacOSRigRun:
             time.sleep(2)
 
     def _preflight_target(self) -> None:
-        product = self._target_ssh(("/usr/bin/sw_vers", "-productVersion"), "target-preflight")
-        build = self._target_ssh(("/usr/bin/sw_vers", "-buildVersion"), "target-preflight")
-        machine = self._target_ssh(("/usr/bin/uname", "-m"), "target-preflight")
+        product = self._target_query(("/usr/bin/sw_vers", "-productVersion"), "target-preflight")
+        build = self._target_query(("/usr/bin/sw_vers", "-buildVersion"), "target-preflight")
+        machine = self._target_query(("/usr/bin/uname", "-m"), "target-preflight")
         facts = (product.stdout.strip(), build.stdout.strip(), machine.stdout.strip())
         expected = (self.descriptor.os_version, self.descriptor.os_build, self.descriptor.machine)
         if facts != expected:
             raise RigError("target-preflight", f"descriptor facts {expected} do not match target {facts}")
-        console = self._target_ssh(
+        console = self._target_query(
             ("/usr/bin/stat", "-f", "%Su", "/dev/console"),
             "aqua-preflight",
         ).stdout.strip()
         if console in ("", "root", "loginwindow"):
             raise RigError("aqua-preflight", "no active Aqua console user")
-        self._target_ssh(("/usr/bin/pgrep", "-x", "WindowServer"), "aqua-preflight")
+        self._target_query(("/usr/bin/pgrep", "-x", "WindowServer"), "aqua-preflight")
         required = (
             "/opt/local/bin/cmake",
             "/opt/local/bin/ninja",
@@ -469,7 +480,7 @@ class MacOSRigRun:
             "/Developer/SDKs/MacOSX10.6.sdk",
         )
         for path in required:
-            self._target_ssh(("/bin/test", "-e", path), "toolchain-preflight")
+            self._target_query(("/bin/test", "-e", path), "toolchain-preflight")
 
     def _prepare_checkout(self) -> None:
         result = self._run(
