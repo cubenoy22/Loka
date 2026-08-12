@@ -118,8 +118,8 @@ tests and one real run through each adapter are required before PR publication.
   scenario source; failure-atomic `golden.tmp` staging commits only after every
   rig-local golden is present and regular.
 - The CMake `scriptLokaRig` call site parallels existing script protocol tests.
-  Documentation call sites now point ordinary users at the common entry point;
-  adapter-direct controls remain test-only.
+  The top-level README and platform workflow notes point ordinary users at the
+  common entry point; adapter-direct controls remain test-only.
 
 No virtual C++ doors, app-facing fields, State/Flow/Boundary edges, native
 handles, callbacks, or `dangerously*` calls were added.
