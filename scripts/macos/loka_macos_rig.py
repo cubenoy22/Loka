@@ -312,6 +312,8 @@ class MacOSRigRun:
             return subprocess.run(args, check=True, text=True, **kwargs)
         except subprocess.CalledProcessError as error:
             raise RigError(stage, f"{args[0]} command exited {error.returncode}") from error
+        except subprocess.TimeoutExpired as error:
+            raise RigError(stage, f"{args[0]} command timed out") from error
         except OSError as error:
             raise RigError(stage, f"could not execute {args[0]}: {error}") from error
 
