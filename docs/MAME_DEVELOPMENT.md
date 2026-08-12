@@ -80,6 +80,18 @@ Lua autoboot script. Keep scenario launchers, copied disks, logs, and snapshots
 under a purpose-named directory such as `build/runtime-103/`; they are test
 artifacts, not application sources.
 
+To rerun the complete Scrapbook presentation rail and collect the seven settled
+MAME-owned captures into one immutable run directory:
+
+```sh
+bash tests/toolbox/run-presentation-rail.sh
+```
+
+The command reruns every registered scenario and publishes
+`build/mame-scenario/presentation/<run-id>/` only after all machine-verdict
+checks pass and all captures have been hashed. A failed run retains its
+`<run-id>.incomplete` directory and the scenario work directories for diagnosis.
+
 ### Isolate the emulator state
 
 Automated runs must not use the installed boot disk as a writable runtime
