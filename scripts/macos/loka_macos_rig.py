@@ -381,7 +381,7 @@ class MacOSRigRun:
         last_error: Optional[RigError] = None
         for attempt in range(1, 4):
             try:
-                self._run(("rsync",) + tuple(arguments), stage)
+                self._run(("rsync", "--partial", "--timeout=30") + tuple(arguments), stage)
                 return
             except RigError as error:
                 last_error = error
@@ -711,6 +711,8 @@ class MacOSRigRun:
             subprocess.run(
                 (
                     "rsync",
+                    "--partial",
+                    "--timeout=15",
                     "--archive",
                     "-e",
                     self._target_remote_shell(),
@@ -771,6 +773,12 @@ class MacOSRigRun:
             self.failure_message = str(error)
             if self.command_log:
                 self.command_log.write(f"FAILED at {error.stage}: {error}")
+            self._best_effort_collect()
+        except KeyboardInterrupt:
+            self.failure_stage = "interrupted"
+            self.failure_message = "run interrupted by operator"
+            if self.command_log:
+                self.command_log.write("FAILED at interrupted: run interrupted by operator")
             self._best_effort_collect()
         finally:
             self.ended_at = utc_now()
