@@ -123,6 +123,20 @@ class MacOSRigProtocolTest(unittest.TestCase):
             query.side_effect = subprocess.TimeoutExpired(("ssh",), 15)
             self.assertIsNone(run._remote_file_exists(marker))
 
+    def test_transport_retry_is_bounded_and_can_recover(self):
+        run = object.__new__(rig.MacOSRigRun)
+        run.command_log = None
+        attempts = []
+
+        def action():
+            attempts.append(len(attempts) + 1)
+            if len(attempts) < 3:
+                raise rig.RigError("transfer", "transient failure")
+
+        with mock.patch.object(rig.time, "sleep"):
+            run._retry("transfer", "test operation", action)
+        self.assertEqual(attempts, [1, 2, 3])
+
 
 if __name__ == "__main__":
     unittest.main()

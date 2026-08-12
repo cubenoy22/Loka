@@ -21,7 +21,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from typing import Iterable, Optional, Sequence
+from typing import Callable, Iterable, Optional, Sequence
 
 
 SUPPORTED_DESCRIPTOR_VERSION = "1"
@@ -388,20 +388,28 @@ class MacOSRigRun:
             kwargs["stderr"] = subprocess.PIPE
         return self._run(self._target_ssh_args() + (remote_command(arguments),), stage, **kwargs)
 
-    def _rsync(self, arguments: Sequence[str], stage: str) -> None:
+    def _retry(self, stage: str, operation: str, action: Callable[[], None]) -> None:
         last_error: Optional[RigError] = None
         for attempt in range(1, 4):
             try:
-                self._run(("rsync", "--partial", "--timeout=30") + tuple(arguments), stage)
+                action()
                 return
             except RigError as error:
                 last_error = error
                 if self.command_log:
-                    self.command_log.write(f"{stage} rsync attempt {attempt}/3 failed")
+                    self.command_log.write(f"{stage} {operation} attempt {attempt}/3 failed")
                 if attempt < 3:
                     time.sleep(2)
-        assert last_error is not None
+        if last_error is None:
+            raise RigError(stage, f"{operation} retry did not execute")
         raise last_error
+
+    def _rsync(self, arguments: Sequence[str], stage: str) -> None:
+        self._retry(
+            stage,
+            "rsync",
+            lambda: self._run(("rsync", "--partial", "--timeout=30") + tuple(arguments), stage),
+        )
 
     def _vm_state(self) -> str:
         result = self._ssh_alias(
@@ -626,17 +634,26 @@ class MacOSRigRun:
             temporary = pathlib.Path(output.name)
         remote_temporary = pathlib.PurePosixPath(str(self.target_artifacts / "release.tmp"))
         try:
-            self._run(
-                tuple(("scp", "-q") + tuple(self._target_transport_options("10")))
-                + (str(temporary), f"{self.target_destination}:{remote_temporary}"),
+            self._retry(
                 "inspect-release",
-            )
-            self._target_ssh(
-                ("/bin/mv", str(remote_temporary), str(self.target_artifacts / "release")),
-                "inspect-release",
+                "atomic publication",
+                lambda: self._publish_release_attempt(temporary, remote_temporary),
             )
         finally:
             temporary.unlink(missing_ok=True)
+
+    def _publish_release_attempt(
+        self, temporary: pathlib.Path, remote_temporary: pathlib.PurePosixPath
+    ) -> None:
+        self._run(
+            tuple(("scp", "-q") + tuple(self._target_transport_options("10")))
+            + (str(temporary), f"{self.target_destination}:{remote_temporary}"),
+            "inspect-release",
+        )
+        self._target_ssh(
+            ("/bin/mv", str(remote_temporary), str(self.target_artifacts / "release")),
+            "inspect-release",
+        )
 
     def _launch(self) -> None:
         assert self.archive is not None
