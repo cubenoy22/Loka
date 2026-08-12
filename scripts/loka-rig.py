@@ -10,6 +10,8 @@ import pathlib
 import sys
 from typing import Optional, Sequence
 
+sys.dont_write_bytecode = True
+
 from loka_rig_common import RIG_ID_PATTERN, RigError, SUPPORTED_PUBLIC_MODES
 
 

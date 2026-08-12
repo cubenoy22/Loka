@@ -21,6 +21,7 @@ import time
 from typing import Callable, Optional, Sequence, TypeVar
 
 
+sys.dont_write_bytecode = True
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from loka_rig_common import (

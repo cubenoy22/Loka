@@ -86,3 +86,95 @@ Two risk flags: cross-platform tooling boundary and public tooling vocabulary.
 The change does not touch shipping State/Flow/Boundary/Platform code, target UI
 lifecycle, or cross-boundary mutable state. Focused lifecycle/order/failure
 tests and one real run through each adapter are required before PR publication.
+
+## Shape Review — Gate 2
+
+### Added doors, fields, and call sites
+
+- `scripts/loka-rig.py` adds `AdapterRegistration`, `find_adapter`, and
+  `run_adapter`. They parallel the two existing adapter descriptor directories
+  and direct `run_rig` doors; they add only exact-one discovery and dispatch.
+- `RigAdapter` adds the common `prepare`, `build`, `run_runtime`, `collect`,
+  `best_effort_collect`, `note_failure`, `finalize_manifest`, and
+  `cleanup_success` doors. Each door parallels one existing macOS private stage
+  and one existing Toolbox presentation-rail phase. The common executor is the
+  only call site that orders them.
+- `RunProgress` adds the mutable per-run fields `started_at`, `ended_at`,
+  `failure_stage`, `failure_message`, `build_passed`, `runtime_passed`,
+  `presentation_collected`, and `manifest_finalized`. They replace the former
+  loose macOS bookkeeping fields and are owned by exactly one adapter run.
+- Immutable `RunResult` adds the common manifest facts. It parallels the former
+  macOS manifest vocabulary, separates presentation from machine evidence, and
+  is constructed only at adapter manifest-finalization doors.
+- `ToolboxRigRun` adds repository, descriptor, local mapping, requested ref,
+  mode, progress, resolved SHA/run ID, archive, checkout, retention state,
+  scenarios, and command-log fields. These parallel `MacOSRigRun`; checkout and
+  archive ownership remain explicit and adapter-local.
+- `RigDescriptor` and `LocalMapping` for Toolbox parallel the macOS split
+  between tracked facts and machine-local paths. They intentionally do not
+  share one platform-agnostic descriptor schema.
+- `stage_goldens` and `_read_scenarios` parallel the existing presentation
+  rail's registry/golden inputs. The detached checkout's registry is the single
+  scenario source; failure-atomic `golden.tmp` staging commits only after every
+  rig-local golden is present and regular.
+- The CMake `scriptLokaRig` call site parallels existing script protocol tests.
+  Documentation call sites now point ordinary users at the common entry point;
+  adapter-direct controls remain test-only.
+
+No virtual C++ doors, app-facing fields, State/Flow/Boundary edges, native
+handles, callbacks, or `dangerously*` calls were added.
+
+### Reclamation and failure-path review
+
+- Success reaches cleanup only after runtime, presentation collection, and a
+  first finalized manifest. Both adapters then rewrite the manifest with the
+  observed removed target state.
+- Prepare, build, runtime, and collection failures retain any created target or
+  checkout and attempt incomplete artifact collection. They never call cleanup.
+- First-manifest failure never calls cleanup. This is pinned by
+  `test_manifest_failure_prevents_cleanup`.
+- Cleanup failure records `result=failed`, retains the target fact, and rewrites
+  the manifest without erasing completed machine or presentation evidence. This
+  is pinned by
+  `test_cleanup_failure_rewrites_result_without_erasing_completed_evidence`.
+- Toolbox has one removal path: common success calls adapter
+  `cleanup_success`, which calls `git worktree remove`; no build/runtime loop
+  removes a checkout. macOS retains its one existing success release path.
+- Manifest files are failure-atomic (`run-manifest.txt.tmp` then replace), are
+  excluded from their own hash census, refuse duplicate fields, and refuse
+  symlink artifacts.
+
+### Configuration and claim audit
+
+- This is host inspection tooling; it does not ship and does not alter any
+  target-language build configuration. Python bytecode creation was observed
+  during real public-entry runs and disabled in all three entry doors so the
+  repository remains clean.
+- Pre-fix characterization failed with
+  `ModuleNotFoundError: No module named 'loka_rig_common'`. The final focused
+  tests report 10 common/Toolbox tests, 13 macOS protocol tests, and the Toolbox
+  presentation-rail shell test passing.
+- The full configured suite reports 349/349 passed.
+- Toolbox runtime verification used commit
+  `efd29d6186f6f51fca9992df27fc9b3dd3e0126e` and archive
+  `build/loka-rig/archive/toolbox-maciix/20260812T050332Z-efd29d6186f6-flow-scrapbook`.
+  Seven presentation PNGs were hashed and visually inspected; the success
+  checkout was removed.
+- Mavericks runtime verification used the same commit and archive
+  `build/autopilot-pr-b-evidence/mavericks-10.9/20260812T050727Z-efd29d6186f6-flow-startup`.
+  The atomic marker, settled app capture, desktop-after capture, and success
+  cleanup were verified.
+- A direct comparison confirmed both manifests contain the same 18 common
+  result fields. Both report build/runtime/machine/presentation passed and
+  `target_retained=0`.
+
+### Deliberately left outside PR E
+
+- Toolbox recording remains `manual`; automated MAME/QuickTime video is not a
+  machine-verdict prerequisite.
+- PR C remains parked. This PR does not add disposable input automation beyond
+  the proved flow mode.
+- Adapter registration is a small explicit table. A plugin/config discovery
+  abstraction would add mechanism without deleting a present decision.
+- Pre-existing retained macOS diagnostic worktrees are not owned by this PR and
+  were not removed.
