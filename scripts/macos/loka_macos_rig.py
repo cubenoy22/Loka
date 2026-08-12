@@ -342,7 +342,7 @@ class MacOSRigRun:
             **kwargs,
         )
 
-    def _discover_target(self) -> None:
+    def _discover_target(self) -> bool:
         host = self.mapping.target_host
         if host == "auto":
             result = self._ssh_alias(
@@ -352,9 +352,10 @@ class MacOSRigRun:
             )
             discovered = parse_parallels_ipv4(result.stdout or "")
             if not discovered:
-                raise RigError("target-discovery", "Parallels did not report a target IPv4 address")
+                return False
             host = discovered
         self.target_destination = f"{self.mapping.target_user}@{host}"
+        return True
 
     def _target_transport_options(self, timeout: str) -> list[str]:
         options = [
@@ -443,17 +444,20 @@ class MacOSRigRun:
                 ("/usr/local/bin/prlctl", "start", self.mapping.vm_name),
                 "vm-start",
             )
-        self._discover_target()
         deadline = time.monotonic() + 120
         while True:
-            attempt = subprocess.run(
-                self._target_ssh_args("5") + ("true",),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            if attempt.returncode == 0:
-                return
+            discovered = self._discover_target()
+            if discovered:
+                attempt = subprocess.run(
+                    self._target_ssh_args("5") + ("true",),
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                if attempt.returncode == 0:
+                    return
             if time.monotonic() >= deadline:
+                if not discovered:
+                    raise RigError("target-discovery", "Parallels did not report a target IPv4 address")
                 raise RigError("target-preflight", "target SSH did not become ready")
             time.sleep(2)
 
@@ -821,11 +825,27 @@ class MacOSRigRun:
             pass
 
     def _cleanup_success(self) -> None:
+        # Keep the reproducible checkout until every remote cleanup step has
+        # succeeded, so a cleanup failure always leaves diagnostic source.
         self._target_ssh(
             ("/bin/rm", "-rf", str(self.target_run_root)),
             "cleanup",
         )
         self.target_state = "removed"
+        if self.vm_lease:
+            action = self.vm_lease.success_action()
+            if action == "stop":
+                self._ssh_alias(
+                    self.mapping.vm_host_ssh,
+                    ("/usr/local/bin/prlctl", "stop", self.mapping.vm_name),
+                    "cleanup",
+                )
+            elif action == "suspend":
+                self._ssh_alias(
+                    self.mapping.vm_host_ssh,
+                    ("/usr/local/bin/prlctl", "suspend", self.mapping.vm_name),
+                    "cleanup",
+                )
         assert self.checkout is not None
         self._run(
             ("git", "-C", str(self.repo), "worktree", "remove", "--force", str(self.checkout)),
@@ -833,21 +853,6 @@ class MacOSRigRun:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        if not self.vm_lease:
-            return
-        action = self.vm_lease.success_action()
-        if action == "stop":
-            self._ssh_alias(
-                self.mapping.vm_host_ssh,
-                ("/usr/local/bin/prlctl", "stop", self.mapping.vm_name),
-                "cleanup",
-            )
-        elif action == "suspend":
-            self._ssh_alias(
-                self.mapping.vm_host_ssh,
-                ("/usr/local/bin/prlctl", "suspend", self.mapping.vm_name),
-                "cleanup",
-            )
 
     def execute(self) -> pathlib.Path:
         result = "failed"

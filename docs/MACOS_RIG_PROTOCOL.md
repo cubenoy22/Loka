@@ -19,8 +19,11 @@ common sequence.
 If the VM was already running, the orchestrator borrows it and leaves it
 running after a successful run. If the orchestrator started or resumed the VM,
 it restores the prior stopped or suspended state only after artifact collection
-and manifest finalization succeed. Failure leaves the VM, target work directory,
-and source checkout available for diagnosis.
+and manifest finalization succeed. A failure before cleanup leaves the VM,
+target work directory, and source checkout available for diagnosis. During
+cleanup, the source checkout is removed last, so any cleanup failure retains it
+along with the finalized local evidence archive; the manifest reports whether
+the target work directory was retained or had already been removed.
 
 ## Inspect hold and release
 

@@ -40,6 +40,7 @@ BINARY="$APP/Contents/MacOS/LokaScrapbookScenarioMacOS"
 EXPECTED="$PROJECT_DIR/tests/scenarios/expected/scrapbook/$SCENARIO.snap"
 SNAP_TOOL="$PROJECT_DIR/tests/scenarios/snaprecord.py"
 PNG_TOOL="$PROJECT_DIR/tests/scenarios/pngtool.py"
+WORK_DIR_TOOL="$PROJECT_DIR/tests/macos/validate-work-dir.py"
 PYTHON3="${PYTHON3:-python3}"
 SCREENCAPTURE="${SCREENCAPTURE:-/usr/sbin/screencapture}"
 
@@ -62,10 +63,9 @@ fi
 if [ ! -f "$EXPECTED" ]; then
   fail_stage record "missing tracked SnapRecord $EXPECTED"
 fi
-case "$WORK" in
-  "$PROJECT_DIR"/build/*) ;;
-  *) fail_stage setup "work directory must stay under $PROJECT_DIR/build" ;;
-esac
+if ! WORK="$("$PYTHON3" "$WORK_DIR_TOOL" "$PROJECT_DIR/build" "$WORK")"; then
+  fail_stage setup "work directory must resolve strictly below $PROJECT_DIR/build"
+fi
 
 if [ -d "$WORK" ]; then
   rm -rf "$WORK"
