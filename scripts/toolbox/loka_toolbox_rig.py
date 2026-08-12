@@ -216,11 +216,18 @@ class ToolboxRigRun:
 
     def _configured_machine(self) -> str:
         command = (
-            "set -a; . \"$1\"; set +a; printf '%s\\n' \"${MAME_MACHINE:-maciici}\""
+            "set -a; . \"$1\"; set +a; printf '%s\\n' \"${MAME_MACHINE:-$2}\""
         )
         try:
             result = subprocess.run(
-                ("/bin/bash", "-c", command, "loka-rig-machine", str(self.mapping.mame_env_file)),
+                (
+                    "/bin/bash",
+                    "-c",
+                    command,
+                    "loka-rig-machine",
+                    str(self.mapping.mame_env_file),
+                    self.descriptor.machine,
+                ),
                 check=True,
                 text=True,
                 stdout=subprocess.PIPE,
@@ -286,6 +293,7 @@ class ToolboxRigRun:
         assert self.checkout is not None
         environment = os.environ.copy()
         environment["MAME_ENV_FILE"] = str(self.mapping.mame_env_file)
+        environment["MAME_MACHINE"] = self.descriptor.machine
         environment["LOKA_TOOLBOX_PRESENTATION_RUN_ID"] = self.run_id
         self._logged_run(
             ("/bin/bash", "tests/toolbox/run-presentation-rail.sh"),

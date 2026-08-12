@@ -259,6 +259,19 @@ class ToolboxRigAdapterTest(unittest.TestCase):
             self.assertEqual(mapping.mame_env_file, root / "mame.env")
             self.assertEqual(mapping.golden_root, root / "golden")
 
+    def test_missing_mame_machine_uses_the_presentation_rail_default(self):
+        descriptor = toolbox.load_descriptor(
+            ROOT / "scripts" / "toolbox" / "rigs" / "toolbox-maciix.ini"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            environment = root / "mame.env"
+            environment.write_text("MAME_EXECUTABLE=/bin/false\n", encoding="utf-8")
+            mapping = toolbox.LocalMapping(root / "archive", environment, root / "golden")
+            run = toolbox.ToolboxRigRun(ROOT, descriptor, mapping, "HEAD", "flow")
+
+            self.assertEqual(run._configured_machine(), "maciix")
+
     def test_golden_staging_uses_the_checkout_registry_and_fails_on_absence(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
