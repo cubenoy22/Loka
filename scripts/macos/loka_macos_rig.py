@@ -619,6 +619,14 @@ class MacOSRigRun:
             verified = self.target_artifacts / "verified"
             while not self._remote_file_exists(verified):
                 if process.poll() is not None:
+                    observed_after_exit = False
+                    for _ in range(5):
+                        time.sleep(1)
+                        if self._remote_file_exists(verified):
+                            observed_after_exit = True
+                            break
+                    if observed_after_exit:
+                        break
                     raise RigError("runtime", "scenario command exited before runner verification")
                 if time.monotonic() >= deadline:
                     raise RigError("runtime", "timed out waiting for runner verification")
