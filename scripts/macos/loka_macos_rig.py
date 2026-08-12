@@ -603,8 +603,8 @@ class MacOSRigRun:
             stderr=subprocess.STDOUT,
         )
         try:
+            deadline = time.monotonic() + 140
             if self.mode == "inspect":
-                deadline = time.monotonic() + 120
                 ready = self.target_artifacts / "ready"
                 while not self._remote_file_exists(ready):
                     if process.poll() is not None:
@@ -616,12 +616,14 @@ class MacOSRigRun:
                 if not self.release_after_ready:
                     input("Inspect the target, then press Enter to release it: ")
                 self._publish_release()
-            try:
-                result = process.wait(timeout=140)
-            except subprocess.TimeoutExpired as error:
-                raise RigError("runtime", "scenario process timed out") from error
-            if result != 0:
-                raise RigError("runtime", f"scenario command exited {result}")
+            verified = self.target_artifacts / "verified"
+            while not self._remote_file_exists(verified):
+                if process.poll() is not None:
+                    raise RigError("runtime", "scenario command exited before runner verification")
+                if time.monotonic() >= deadline:
+                    raise RigError("runtime", "timed out waiting for runner verification")
+                time.sleep(2)
+            self.command_log.write("Atomic runner verification marker observed")
         finally:
             if process.poll() is None:
                 process.terminate()
@@ -656,6 +658,7 @@ class MacOSRigRun:
             "orchestrator.log",
             "runner-command.log",
             "runner.log",
+            "verified",
         }
         if self.mode == "inspect":
             required.update(("ready", "release"))

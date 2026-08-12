@@ -51,6 +51,11 @@ fail_stage() {
   exit 1
 }
 
+publish_verified() {
+  printf 'runner-verified\n' >"$WORK/verified.tmp"
+  mv -f "$WORK/verified.tmp" "$WORK/verified"
+}
+
 if [ ! -x "$BINARY" ]; then
   fail_stage build "missing $BINARY; run: cmake --preset macos-debug && cmake --build --preset macos-scenarios"
 fi
@@ -140,12 +145,14 @@ if [ "$MODE" = "inspect" ]; then
   fi
   echo "Scenario inspect pass: $SCENARIO"
   echo "Pixel verdict: not evaluated (inspect uses human presentation evidence)"
+  publish_verified
   exit 0
 fi
 
 if [ "$MODE" = "structural" ]; then
   echo "Scenario structural pass: $SCENARIO"
   echo "Pixel verdict: not evaluated (hosted CI has no persistent rig golden)"
+  publish_verified
   exit 0
 fi
 
@@ -169,3 +176,4 @@ if ! "$PYTHON3" "$PNG_TOOL" compare "$WORK/actual.png" "$GOLDEN"; then
 fi
 
 echo "Scenario passed: $SCENARIO"
+publish_verified

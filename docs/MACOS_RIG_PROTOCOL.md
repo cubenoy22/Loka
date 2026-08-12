@@ -35,6 +35,9 @@ Release uses one target-local marker in the run directory:
    atomically renames it to `release` on the target.
 3. The TEST-only runner polls for `release` from its existing Main Thread idle
    callback, publishes the ordinary atomic `complete` marker, and quits.
+4. After the target-side runner has checked the finalized artifacts, it
+   publishes atomic `verified`. The host treats `verified`, rather than an SSH
+   channel close, as the machine-verdict handoff.
 
 The release marker is a control request, not an artifact handoff. It is never
 read through a shared folder, does not add a shipping API, and does not install
