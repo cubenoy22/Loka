@@ -522,16 +522,19 @@ class MacOSRigRun:
             )
             try:
                 deadline = time.monotonic() + 1800
-                while not self._remote_file_exists(marker, stage):
+                while self._remote_file_exists(marker) is not True:
                     result = process.poll()
                     if result is not None:
                         time.sleep(1)
-                        if self._remote_file_exists(marker, stage):
+                        if self._remote_file_exists(marker) is True:
                             break
                         raise RigError(stage, f"remote command exited {result}; see {log_path}")
                     if time.monotonic() >= deadline:
-                        if self._remote_file_exists(marker, stage):
+                        observed = self._remote_file_exists(marker)
+                        if observed is True:
                             break
+                        if observed is None:
+                            raise RigError(stage, f"target marker query unavailable; see {log_path}")
                         raise RigError(stage, f"remote command timed out; see {log_path}")
                     time.sleep(2)
             finally:
@@ -599,7 +602,7 @@ class MacOSRigRun:
             environment,
         )
 
-    def _remote_file_exists(self, path: pathlib.PurePosixPath, stage: str) -> bool:
+    def _remote_file_exists(self, path: pathlib.PurePosixPath) -> Optional[bool]:
         try:
             result = subprocess.run(
                 self._target_ssh_args() + (remote_command(("/bin/test", "-f", str(path))),),
@@ -607,15 +610,15 @@ class MacOSRigRun:
                 stderr=subprocess.DEVNULL,
                 timeout=15,
             )
-        except subprocess.TimeoutExpired as error:
-            raise RigError(stage, "target marker query timed out") from error
-        except OSError as error:
-            raise RigError(stage, f"could not query target marker: {error}") from error
+        except subprocess.TimeoutExpired:
+            return None
+        except OSError:
+            return None
         if result.returncode == 0:
             return True
         if result.returncode == 1:
             return False
-        raise RigError(stage, f"target marker query exited {result.returncode}")
+        return None
 
     def _publish_release(self) -> None:
         with tempfile.NamedTemporaryFile("w", encoding="ascii", delete=False) as output:
@@ -647,12 +650,15 @@ class MacOSRigRun:
             deadline = time.monotonic() + 140
             if self.mode == "inspect":
                 ready = self.target_artifacts / "ready"
-                while not self._remote_file_exists(ready, "inspect-ready"):
+                while self._remote_file_exists(ready) is not True:
                     if process.poll() is not None:
                         raise RigError("inspect-ready", "scenario exited before publishing ready")
                     if time.monotonic() >= deadline:
-                        if self._remote_file_exists(ready, "inspect-ready"):
+                        observed = self._remote_file_exists(ready)
+                        if observed is True:
                             break
+                        if observed is None:
+                            raise RigError("inspect-ready", "target ready-marker query unavailable")
                         raise RigError("inspect-ready", "timed out waiting for ready")
                     time.sleep(0.5)
                 self.command_log.write("Inspect ready marker observed; app is held")
@@ -661,20 +667,23 @@ class MacOSRigRun:
                 self._publish_release()
                 deadline = time.monotonic() + 140
             verified = self.target_artifacts / "verified"
-            while not self._remote_file_exists(verified, "runtime"):
+            while self._remote_file_exists(verified) is not True:
                 if process.poll() is not None:
                     observed_after_exit = False
                     for _ in range(5):
                         time.sleep(1)
-                        if self._remote_file_exists(verified, "runtime"):
+                        if self._remote_file_exists(verified) is True:
                             observed_after_exit = True
                             break
                     if observed_after_exit:
                         break
                     raise RigError("runtime", "scenario command exited before runner verification")
                 if time.monotonic() >= deadline:
-                    if self._remote_file_exists(verified, "runtime"):
+                    observed = self._remote_file_exists(verified)
+                    if observed is True:
                         break
+                    if observed is None:
+                        raise RigError("runtime", "target verification-marker query unavailable")
                     raise RigError("runtime", "timed out waiting for runner verification")
                 time.sleep(2)
             self.command_log.write("Atomic runner verification marker observed")

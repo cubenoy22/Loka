@@ -115,17 +115,13 @@ class MacOSRigProtocolTest(unittest.TestCase):
         marker = pathlib.PurePosixPath("/tmp/ready")
         with mock.patch.object(rig.subprocess, "run") as query:
             query.return_value = subprocess.CompletedProcess(("ssh",), 0)
-            self.assertTrue(run._remote_file_exists(marker, "inspect-ready"))
+            self.assertTrue(run._remote_file_exists(marker))
             query.return_value = subprocess.CompletedProcess(("ssh",), 1)
-            self.assertFalse(run._remote_file_exists(marker, "inspect-ready"))
+            self.assertFalse(run._remote_file_exists(marker))
             query.return_value = subprocess.CompletedProcess(("ssh",), 255)
-            with self.assertRaises(rig.RigError) as caught:
-                run._remote_file_exists(marker, "inspect-ready")
-            self.assertEqual(caught.exception.stage, "inspect-ready")
+            self.assertIsNone(run._remote_file_exists(marker))
             query.side_effect = subprocess.TimeoutExpired(("ssh",), 15)
-            with self.assertRaises(rig.RigError) as caught:
-                run._remote_file_exists(marker, "runtime")
-            self.assertEqual(caught.exception.stage, "runtime")
+            self.assertIsNone(run._remote_file_exists(marker))
 
 
 if __name__ == "__main__":
