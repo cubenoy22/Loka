@@ -3,9 +3,11 @@
 import hashlib
 import importlib.util
 import pathlib
+import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 sys.dont_write_bytecode = True
@@ -106,6 +108,24 @@ class MacOSRigProtocolTest(unittest.TestCase):
             {"MODE": "inspect"},
         )
         self.assertEqual(command, "cd '/tmp/run path' && MODE=inspect exec /bin/echo 'hello world'")
+
+    def test_remote_marker_query_distinguishes_absence_from_transport_failure(self):
+        run = object.__new__(rig.MacOSRigRun)
+        run._target_ssh_args = lambda: ("ssh", "target")
+        marker = pathlib.PurePosixPath("/tmp/ready")
+        with mock.patch.object(rig.subprocess, "run") as query:
+            query.return_value = subprocess.CompletedProcess(("ssh",), 0)
+            self.assertTrue(run._remote_file_exists(marker, "inspect-ready"))
+            query.return_value = subprocess.CompletedProcess(("ssh",), 1)
+            self.assertFalse(run._remote_file_exists(marker, "inspect-ready"))
+            query.return_value = subprocess.CompletedProcess(("ssh",), 255)
+            with self.assertRaises(rig.RigError) as caught:
+                run._remote_file_exists(marker, "inspect-ready")
+            self.assertEqual(caught.exception.stage, "inspect-ready")
+            query.side_effect = subprocess.TimeoutExpired(("ssh",), 15)
+            with self.assertRaises(rig.RigError) as caught:
+                run._remote_file_exists(marker, "runtime")
+            self.assertEqual(caught.exception.stage, "runtime")
 
 
 if __name__ == "__main__":
