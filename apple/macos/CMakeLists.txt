@@ -152,6 +152,7 @@ if(NOT LOKA_MAC_OS_10_4)
   # uniform TEST_BUILD definition rather than linking the shipping core.
   add_executable(LokaScrapbookScenarioMacOS EXCLUDE_FROM_ALL MACOSX_BUNDLE
     ${PROJECT_SOURCE_DIR}/tests/macos/ScenarioDriver.mm
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioProfile.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/ScrapbookScenarios.cpp
     ${PROJECT_SOURCE_DIR}/tests/TestingHooks.cpp
     ${PROJECT_SOURCE_DIR}/example/ScrapbookUI/src/ScrapbookPackage.cpp

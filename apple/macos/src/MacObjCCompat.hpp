@@ -32,6 +32,12 @@ typedef float CGFloat;
 #define NSRunLoopCommonModes ((NSString *)kCFRunLoopCommonModes)
 #endif
 
+// Legacy AssertMacros.h exports this common member name as a function-like
+// macro. Do not let AppKit's native namespace leak into portable C++ headers.
+#ifdef verify
+#undef verify
+#endif
+
 // AppKit's modern constant names are enum values, not preprocessor macros.
 // Select by SDK version so current SDKs stay warning-clean while the legacy
 // 10.5 SDK used for the 10.4 deployment target keeps the original spellings.
@@ -63,14 +69,26 @@ typedef float CGFloat;
 #define LOKA_MAC_MODAL_RESPONSE_OK NSOKButton
 #endif
 
+// NSBitmapImageRep's PNG enum was renamed in the macOS 10.10 SDK. These are
+// enum values rather than macros, so select the spelling from the SDK surface.
+#if defined(MAC_OS_X_VERSION_MAX_ALLOWED) && (MAC_OS_X_VERSION_MAX_ALLOWED >= 101000)
+#define LOKA_MAC_BITMAP_PNG_FILE_TYPE NSBitmapImageFileTypePNG
+#else
+#define LOKA_MAC_BITMAP_PNG_FILE_TYPE NSPNGFileType
+#endif
+
 #if !defined(MAC_OS_X_VERSION_MAX_ALLOWED) || (MAC_OS_X_VERSION_MAX_ALLOWED < 1050)
 @interface NSString (LokaTigerStringDrawingCompat)
 - (NSSize)sizeWithFont:(NSFont *)font;
 - (NSSize)sizeWithFont:(NSFont *)font constrainedToSize:(NSSize)size;
 - (NSSize)sizeWithFont:(NSFont *)font constrainedToSize:(NSSize)size lineBreakMode:(NSLineBreakMode)mode;
 @end
+#endif
 
-@interface NSTextField (LokaTigerTextFieldCompat)
+// The 10.6 SDK declares setUsesSingleLineMode: on NSCell but not on the
+// NSTextField forwarding surface used by the capability-guarded call site.
+#if !defined(MAC_OS_X_VERSION_MAX_ALLOWED) || (MAC_OS_X_VERSION_MAX_ALLOWED < 1070)
+@interface NSTextField (LokaSingleLineModeCompat)
 - (void)setUsesSingleLineMode:(BOOL)flag;
 @end
 #endif
@@ -89,6 +107,14 @@ typedef float CGFloat;
 #if !defined(MAC_OS_X_VERSION_MAX_ALLOWED) || (MAC_OS_X_VERSION_MAX_ALLOWED < 1070)
 @interface NSWindow (LokaBackingScaleCompat)
 - (CGFloat)backingScaleFactor;
+@end
+#endif
+
+// effectiveAppearance arrived in 10.9. As above, this declaration only gives
+// Objective-C++ the return type; respondsToSelector: remains the runtime wall.
+#if !defined(MAC_OS_X_VERSION_MAX_ALLOWED) || (MAC_OS_X_VERSION_MAX_ALLOWED < 1090)
+@interface NSWindow (LokaEffectiveAppearanceCompat)
+- (id)effectiveAppearance;
 @end
 #endif
 
