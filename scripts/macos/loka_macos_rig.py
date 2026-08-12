@@ -345,7 +345,14 @@ class MacOSRigRun:
         self.target_destination = f"{self.mapping.target_user}@{host}"
 
     def _target_transport_options(self, timeout: str) -> list[str]:
-        options = ["-o", "BatchMode=yes", "-o", f"ConnectTimeout={timeout}"]
+        options = [
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            f"ConnectTimeout={timeout}",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+        ]
         if self.mapping.target_legacy_rsa:
             options.extend(("-o", "HostKeyAlgorithms=+ssh-rsa", "-o", "PubkeyAcceptedAlgorithms=+ssh-rsa"))
         options.extend(("-o", "IdentitiesOnly=yes", "-i", str(self.mapping.target_identity_file)))
