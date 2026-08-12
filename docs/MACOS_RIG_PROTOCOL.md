@@ -63,3 +63,18 @@ capture remain the machine lane.
 Every failure writes the last known stage and a next diagnostic command into
 the local manifest when possible. Cleanup is success-only. A collection or
 manifest failure is still a run failure, even if the scenario itself completed.
+The manifest records whether the target work directory was never created,
+retained, or removed; it does not infer retention from the overall result.
+
+## Invocation
+
+Run one exact commit through the tracked descriptor and a machine-local mapping:
+
+```sh
+python3 scripts/macos/loka_macos_rig.py run mavericks-10.9 \
+  --ref <commit-sha> --mode flow --local-config <local.ini>
+```
+
+Use `--mode inspect` for the host-owned hold/release path. Automated protocol
+verification may add `--release-after-ready`; ordinary human inspection omits
+that flag and releases only after the operator presses Enter.

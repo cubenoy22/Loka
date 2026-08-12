@@ -64,6 +64,14 @@ class MacOSRigProtocolTest(unittest.TestCase):
         self.assertFalse(rig.cleanup_allowed("passed", True, False))
         self.assertTrue(rig.cleanup_allowed("passed", True, True))
 
+    def test_target_retention_reports_observed_lifecycle_state(self):
+        self.assertEqual(rig.target_retained_value("not-created"), "not-created")
+        self.assertEqual(rig.target_retained_value("retained"), "1")
+        self.assertEqual(rig.target_retained_value("removed"), "0")
+        with self.assertRaises(rig.RigError) as caught:
+            rig.target_retained_value("unknown")
+        self.assertEqual(caught.exception.stage, "manifest")
+
     def test_parallels_address_discovery_declines_missing_fact(self):
         self.assertEqual(rig.parse_parallels_ipv4("IP Addresses: 192.0.2.17\n"), "192.0.2.17")
         self.assertIsNone(rig.parse_parallels_ipv4("IP Addresses: -\n"))

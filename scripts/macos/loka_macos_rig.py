@@ -250,6 +250,16 @@ def cleanup_allowed(result: str, artifacts_collected: bool, manifest_finalized: 
     return result == "passed" and artifacts_collected and manifest_finalized
 
 
+def target_retained_value(target_state: str) -> str:
+    if target_state == "not-created":
+        return "not-created"
+    if target_state == "retained":
+        return "1"
+    if target_state == "removed":
+        return "0"
+    raise RigError("manifest", f"unknown target state: {target_state}")
+
+
 def parse_parallels_ipv4(output: str) -> Optional[str]:
     match = re.search(r"IP Addresses:\s+([0-9]+(?:\.[0-9]+){3})", output)
     return match.group(1) if match else None
@@ -296,6 +306,7 @@ class MacOSRigRun:
         self.target_source = pathlib.PurePosixPath("/")
         self.target_artifacts = pathlib.PurePosixPath("/")
         self.target_destination = ""
+        self.target_state = "not-created"
         self.vm_lease: Optional[VmLease] = None
         self.started_at = utc_now()
         self.ended_at = ""
@@ -483,6 +494,7 @@ class MacOSRigRun:
             ("/bin/mkdir", "-p", str(self.target_source)),
             "source-transfer",
         )
+        self.target_state = "retained"
         self._rsync(
             (
                 "--archive",
@@ -694,7 +706,6 @@ class MacOSRigRun:
 
     def _write_manifest(self, result: str) -> None:
         vm_action = self.vm_lease.success_action() if self.vm_lease else "not-acquired"
-        target_retained = "0" if result == "passed" else "1"
         fields = (
             ("rig_id", self.descriptor.rig_id),
             ("descriptor_version", SUPPORTED_DESCRIPTOR_VERSION),
@@ -722,7 +733,7 @@ class MacOSRigRun:
             ("runtime_verification", "passed" if self.runtime_passed else "failed-or-not-reached"),
             ("machine_verdict", "passed" if result == "passed" else "failed"),
             ("recording_status", "not-requested"),
-            ("target_retained", target_retained),
+            ("target_retained", target_retained_value(self.target_state)),
             ("target_workdir", str(self.target_run_root)),
             ("next_diagnostic_command", "use configured target SSH mapping" if result != "passed" else "none"),
         )
@@ -760,6 +771,7 @@ class MacOSRigRun:
             ("/bin/rm", "-rf", str(self.target_run_root)),
             "cleanup",
         )
+        self.target_state = "removed"
         assert self.checkout is not None
         self._run(
             ("git", "-C", str(self.repo), "worktree", "remove", "--force", str(self.checkout)),
@@ -824,8 +836,13 @@ class MacOSRigRun:
                     self.failure_stage = error.stage
                     self.failure_message = str(error)
                     result = "failed"
-                    self.manifest_finalized = False
+                self.manifest_finalized = False
+                try:
                     self._write_manifest(result)
+                except (OSError, RigError) as error:
+                    self.failure_stage = "manifest"
+                    self.failure_message = str(error)
+                    result = "failed"
         if result != "passed":
             raise RigError(self.failure_stage or "run", self.failure_message or "run failed")
         assert self.archive is not None
