@@ -2,8 +2,8 @@
 
 This note fixes the ownership and transport decisions for the first macOS rig
 vertical slice. It is intentionally macOS-specific. The shared `loka-rig`
-outer vocabulary remains PR E work, after both macOS and Toolbox have proved a
-common sequence.
+executor owns only the cross-platform run sequence and result vocabulary;
+VM, SSH, Aqua, and target transport remain here.
 
 ## Owner boxes
 
@@ -74,10 +74,11 @@ retained, or removed; it does not infer retention from the overall result.
 Run one exact commit through the tracked descriptor and a machine-local mapping:
 
 ```sh
-python3 scripts/macos/loka_macos_rig.py run mavericks-10.9 \
+python3 scripts/loka-rig.py run mavericks-10.9 \
   --ref <commit-sha> --mode flow --local-config <local.ini>
 ```
 
 Use `--mode inspect` for the host-owned hold/release path. Automated protocol
-verification may add `--release-after-ready`; ordinary human inspection omits
-that flag and releases only after the operator presses Enter.
+verification may call the direct macOS adapter with `--release-after-ready`;
+ordinary public runs omit that test-only adapter control and release only after
+the operator presses Enter.
