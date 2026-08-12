@@ -377,6 +377,21 @@ class MacOSRigRun:
             kwargs["stderr"] = subprocess.PIPE
         return self._run(self._target_ssh_args() + (remote_command(arguments),), stage, **kwargs)
 
+    def _rsync(self, arguments: Sequence[str], stage: str) -> None:
+        last_error: Optional[RigError] = None
+        for attempt in range(1, 4):
+            try:
+                self._run(("rsync",) + tuple(arguments), stage)
+                return
+            except RigError as error:
+                last_error = error
+                if self.command_log:
+                    self.command_log.write(f"{stage} rsync attempt {attempt}/3 failed")
+                if attempt < 3:
+                    time.sleep(2)
+        assert last_error is not None
+        raise last_error
+
     def _vm_state(self) -> str:
         result = self._ssh_alias(
             self.mapping.vm_host_ssh,
@@ -468,9 +483,8 @@ class MacOSRigRun:
             ("/bin/mkdir", "-p", str(self.target_source)),
             "source-transfer",
         )
-        self._run(
+        self._rsync(
             (
-                "rsync",
                 "--archive",
                 "--delete",
                 "-e",
@@ -621,9 +635,8 @@ class MacOSRigRun:
 
     def _collect(self) -> None:
         assert self.archive is not None
-        self._run(
+        self._rsync(
             (
-                "rsync",
                 "--archive",
                 "-e",
                 self._target_remote_shell(),
