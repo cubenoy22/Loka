@@ -500,17 +500,34 @@ class MacOSRigRun:
     def _run_logged_ssh(self, command: str, log_name: str, stage: str) -> None:
         assert self.archive is not None
         log_path = self.archive / log_name
+        marker = self.target_run_root / f".{stage}-passed"
+        wrapped = f"/bin/sh -c {shlex.quote(command)} && /usr/bin/touch {shlex.quote(str(marker))}"
         with log_path.open("ab") as output:
+            process = subprocess.Popen(
+                self._target_ssh_args() + (wrapped,),
+                stdout=output,
+                stderr=subprocess.STDOUT,
+            )
             try:
-                subprocess.run(
-                    self._target_ssh_args() + (command,),
-                    check=True,
-                    stdout=output,
-                    stderr=subprocess.STDOUT,
-                    timeout=1800,
-                )
-            except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
-                raise RigError(stage, f"remote command failed; see {log_path}: {error}") from error
+                deadline = time.monotonic() + 1800
+                while not self._remote_file_exists(marker):
+                    result = process.poll()
+                    if result is not None:
+                        time.sleep(1)
+                        if self._remote_file_exists(marker):
+                            break
+                        raise RigError(stage, f"remote command exited {result}; see {log_path}")
+                    if time.monotonic() >= deadline:
+                        raise RigError(stage, f"remote command timed out; see {log_path}")
+                    time.sleep(2)
+            finally:
+                if process.poll() is None:
+                    process.terminate()
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait()
 
     def _build(self) -> None:
         build_dir = self.target_source / "build" / "loka-rig-macos"
