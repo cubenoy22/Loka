@@ -67,6 +67,8 @@ class MacOSRigProtocolTest(unittest.TestCase):
     def test_parallels_address_discovery_declines_missing_fact(self):
         self.assertEqual(rig.parse_parallels_ipv4("IP Addresses: 192.0.2.17\n"), "192.0.2.17")
         self.assertIsNone(rig.parse_parallels_ipv4("IP Addresses: -\n"))
+        self.assertEqual(rig.parse_parallels_state("State: running\n"), "running")
+        self.assertIsNone(rig.parse_parallels_state("Status unavailable\n"))
 
     def test_manifest_hashes_finalized_artifacts_in_stable_order(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -255,6 +255,11 @@ def parse_parallels_ipv4(output: str) -> Optional[str]:
     return match.group(1) if match else None
 
 
+def parse_parallels_state(output: str) -> Optional[str]:
+    match = re.search(r"^State:\s+(running|suspended|stopped)\s*$", output, re.MULTILINE | re.IGNORECASE)
+    return match.group(1).lower() if match else None
+
+
 class CommandLog:
     def __init__(self, path: pathlib.Path):
         self._path = path
@@ -366,14 +371,13 @@ class MacOSRigRun:
     def _vm_state(self) -> str:
         result = self._ssh_alias(
             self.mapping.vm_host_ssh,
-            ("/usr/local/bin/prlctl", "status", self.mapping.vm_name),
+            ("/usr/local/bin/prlctl", "list", "-i", self.mapping.vm_name),
             "vm-preflight",
         )
-        output = (result.stdout or "").lower()
-        for state in ("running", "suspended", "stopped"):
-            if state in output:
-                return state
-        raise RigError("vm-preflight", "could not determine VM state")
+        state = parse_parallels_state(result.stdout or "")
+        if not state:
+            raise RigError("vm-preflight", "could not determine VM state")
+        return state
 
     def _prepare_vm(self) -> None:
         initial = self._vm_state()
