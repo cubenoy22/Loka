@@ -318,7 +318,8 @@ void testScenarioAuditFileWritesReadableRecords()
     loka::platform::file::FileHandle destination;
     destination.displayPath = loka::core::String::Literal(path);
     loka::dsl::testing::ScenarioAuditFile audit(destination, "standalone-tour");
-    LOKA_VERIFY(audit.isValid());
+    const bool auditIsValid = audit.isValid();
+    LOKA_VERIFY(auditIsValid);
     loka::dsl::FlowError error;
     const loka::dsl::testing::ScenarioStepTerminal step(
         3, "verify page\t2", 17, 18, loka::dsl::FLOW_STEP_FAILED, error);

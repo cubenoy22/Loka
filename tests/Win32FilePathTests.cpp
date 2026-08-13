@@ -200,7 +200,8 @@ void testWin32OpenWriteTruncateAcceptsFullWidthPath()
   dirWide += kDirNameWide;
   RemoveDirectoryW(dirWide.c_str());
   const BOOL made = CreateDirectoryW(dirWide.c_str(), NULL);
-  LOKA_VERIFY(made || GetLastError() == ERROR_ALREADY_EXISTS);
+  const DWORD createError = made ? ERROR_SUCCESS : GetLastError();
+  LOKA_VERIFY(made || createError == ERROR_ALREADY_EXISTS);
 
   std::wstring fileWide = dirWide;
   fileWide += L"\\";
