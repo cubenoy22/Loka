@@ -74,8 +74,8 @@ This is the environment where binaries are actually built.
   there for a hardware check. The staged verifier derives the architecture
   from its sibling PE, starts the presentation, waits for the exact audit,
   stops the final-scene hold, and leaves `LOG.TXT` as the target-local runtime
-  verdict. A VAIO P uses the x86/i386 option from a VS2017 `x64_x86 Cross
-  Tools` session.
+  verdict. For a VAIO P, start VS Code from a VS2017 `x64_x86 Cross Tools`
+  session; the task inherits that session's x86 target.
 - Some endpoint scanners flag freshly linked unsigned test executables,
   particularly 32-bit ones.
   This workflow deliberately does not add an antivirus exclusion; use the
