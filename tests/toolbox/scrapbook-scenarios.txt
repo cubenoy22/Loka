@@ -1,0 +1,7 @@
+startup
+open-first-page
+open-first-page-refused
+flip-forward-back
+refused-flip-keeps-page
+open-text-page
+open-text-page-refused

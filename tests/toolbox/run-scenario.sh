@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 usage() {
-  echo "Usage: $0 <startup|open-first-page|open-first-page-refused|flip-forward-back|refused-flip-keeps-page|open-text-page|open-text-page-refused> [--update-golden]" >&2
+  echo "Usage: $0 <scenario from scrapbook-scenarios.txt> [--update-golden]" >&2
 }
 
 fail_stage() {
@@ -23,15 +23,13 @@ if [ $# -lt 1 ] || [ $# -gt 2 ]; then
 fi
 
 SCENARIO="$1"
+SCENARIO_REGISTRY="$SCRIPT_DIR/scrapbook-scenarios.txt"
 UPDATE_GOLDEN=0
-case "$SCENARIO" in
-  startup|open-first-page|open-first-page-refused|flip-forward-back|refused-flip-keeps-page|open-text-page|open-text-page-refused)
-    ;;
-  *)
-    usage
-    exit 2
-    ;;
-esac
+if [[ ! "$SCENARIO" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
+  || ! grep -Fxq -- "$SCENARIO" "$SCENARIO_REGISTRY"; then
+  usage
+  exit 2
+fi
 if [ $# -eq 2 ]; then
   if [ "$2" != "--update-golden" ]; then
     usage

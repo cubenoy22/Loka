@@ -247,6 +247,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/scripts/ScenarioToolsTest.py)
     add_test(NAME scriptMacOSRigProtocol
       COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/scripts/MacOSRigProtocolTest.py)
+    add_test(NAME scriptToolboxPresentationRail
+      COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/ToolboxPresentationRailTest.sh)
     add_test(NAME scriptBuild104Guard
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/Build104GuardTest.sh)
     add_test(NAME scriptPmonSpriteGenerator
@@ -254,14 +256,11 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
         ${PROJECT_SOURCE_DIR}/tests/scripts/PmonSpriteGeneratorTest.py)
 
     if(LOKA_MAME_SCENARIOS)
-      foreach(_loka_mame_scenario
-          startup
-          open-first-page
-          open-first-page-refused
-          flip-forward-back
-          refused-flip-keeps-page
-          open-text-page
-          open-text-page-refused)
+      file(STRINGS
+        ${PROJECT_SOURCE_DIR}/tests/toolbox/scrapbook-scenarios.txt
+        _loka_mame_scenarios
+        REGEX "^[a-z0-9][a-z0-9-]*$")
+      foreach(_loka_mame_scenario IN LISTS _loka_mame_scenarios)
         add_test(NAME "mameScenario-${_loka_mame_scenario}"
           COMMAND bash ${PROJECT_SOURCE_DIR}/tests/toolbox/run-scenario.sh
             "${_loka_mame_scenario}")
@@ -286,6 +285,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     ${PROJECT_SOURCE_DIR}/tests/ContractTestRegistry.inc
     ${PROJECT_SOURCE_DIR}/tests/ScenarioTestRegistry.inc
+    ${PROJECT_SOURCE_DIR}/tests/toolbox/scrapbook-scenarios.txt
   )
 
   file(STRINGS ${PROJECT_SOURCE_DIR}/tests/ContractTestRegistry.inc
