@@ -13,6 +13,10 @@
 #include "app/core/WindowDefinition.hpp"
 #include "app/scene/boundary/Boundary.hpp"
 #include "core/util/ScopedPtr.hpp"
+#include "core/io/File.hpp"
+#include "platform/file/AppLocation.hpp"
+#include "platform/file/FileHandle.hpp"
+#include "testing/scene/ScenarioAudit.hpp"
 
 namespace loka
 {
@@ -38,16 +42,38 @@ namespace loka
         return result;
       }
 
+      platform::file::FileHandle ResolveAuditFile()
+      {
+        platform::file::FileHandle result;
+        if (!platform::file::ResolveApplicationItem(
+                file::File::Application() << file::File("LOG.TXT"), result))
+        {
+          return platform::file::FileHandle();
+        }
+        return result;
+      }
+
       /** Owns the presentation scenario for exactly the App run lifetime. */
       class StandaloneFlowAppConfig : public AppConfigurable
       {
       public:
         explicit StandaloneFlowAppConfig(PlatformContext *context)
             : AppConfigurable(context),
-              scenario_(scenario_tests::ScenarioLaunchPlan::StandaloneTour()),
+              audit_(ResolveAuditFile(), "standalone-tour"),
+              scenario_(scenario_tests::ScenarioLaunchPlan::StandaloneTour(), &this->audit_),
               borrowedMainNode_(0),
               tick_(0)
         {
+        }
+
+        virtual ~StandaloneFlowAppConfig()
+        {
+          this->scenario_.stop();
+        }
+
+        bool isValid() const
+        {
+          return this->audit_.isValid();
         }
 
         virtual void compose(AppComposition &composition)
@@ -93,6 +119,7 @@ namespace loka
           }
         }
 
+        dsl::testing::ScenarioAuditFile audit_;
         scenario_tests::ScrapbookScenario scenario_;
         scrapbook::MainNode *borrowedMainNode_;
         long tick_;
@@ -109,6 +136,10 @@ namespace loka
         return 1;
       }
       StandaloneFlowAppConfig config(platformContext.get());
+      if (!config.isValid())
+      {
+        return 1;
+      }
       core::ScopedPtr<App> app(platformContext->createApp(&config, 0, 0));
       assert(app.get() && "App is required");
       if (!app.get())

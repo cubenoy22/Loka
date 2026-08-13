@@ -30,6 +30,7 @@ set(LOKA_TOOLBOX_SOURCES
   src/ToolboxWindowContext.cpp
   src/ToolboxPlatformContext.cpp
   src/platform/ToolboxAppLocation.cpp
+  src/platform/ToolboxFileIO.cpp
   src/platform/ToolboxHfsName.cpp
 )
 

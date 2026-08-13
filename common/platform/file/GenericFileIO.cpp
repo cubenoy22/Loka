@@ -24,6 +24,23 @@ namespace loka
           return 0;
         return std::fopen(bytes.c_str(), "rb");
       }
+
+#if !defined(LOKA_RETRO68)
+      std::FILE *OpenWriteTruncate(const FileHandle &file)
+      {
+        std::string bytes;
+        if (!loka::platform::CollectUtf8(file.displayPath, bytes))
+          return 0;
+        if (bytes.empty())
+          return 0;
+        return std::fopen(bytes.c_str(), "wb");
+      }
+
+      bool FlushWrite(std::FILE *stream, const FileHandle &)
+      {
+        return stream != 0 && std::fflush(stream) == 0;
+      }
+#endif
     } // namespace file
   } // namespace platform
 } // namespace loka

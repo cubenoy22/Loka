@@ -96,7 +96,11 @@ namespace loka
     class ScrapbookScenario
     {
     public:
-      explicit ScrapbookScenario(const ScenarioLaunchPlan &plan);
+      explicit ScrapbookScenario(const ScenarioLaunchPlan &plan
+#ifdef TEST_BUILD
+                                 , dsl::testing::ScenarioAuditSink *audit = 0
+#endif
+      );
 
       /** Drives one scenario step and names who owns the terminal state. */
       ScenarioAdvance
@@ -108,6 +112,12 @@ namespace loka
 
       /** Returns the immutable scenario selection owned by this run. */
       const std::string &name() const;
+
+#ifdef TEST_BUILD
+      /** Records an orderly canceled terminal when the presentation owner
+          stops while its Flow is still pending. Idempotent. */
+      void stop();
+#endif
 
     private:
       enum Kind
@@ -167,16 +177,19 @@ namespace loka
       class StandaloneTourState
       {
       public:
-        StandaloneTourState();
+        explicit StandaloneTourState(dsl::testing::ScenarioAuditSink *audit);
 
-        void start();
+        void start(dsl::testing::ScenarioAuditSink *audit);
         dsl::FlowRunResult run(long tick, app::scene::Scene *scene);
+        bool finish(dsl::testing::ScenarioAuditTerminalStatus status);
+        void stop();
         const dsl::SnapRecord &record() const;
 
       private:
         dsl::testing::ScenarioClock clock_;
         app::scene::Scene *scene_;
         dsl::SnapRecord record_;
+        dsl::testing::scenario_audit_detail::TerminalEmitter terminalAudit_;
         app::scene::FlowSlot<StandaloneTourFlowChain> flow_;
 
         StandaloneTourState(const StandaloneTourState &);

@@ -12,6 +12,7 @@
 #include "core/io/File.hpp"
 #include "platform/Win32PathBridge.hpp"
 #include "platform/StringUTF8.hpp"
+#include "platform/file/FileHandle.hpp"
 #include "platform/file/FileIO.hpp"
 
 namespace
@@ -184,4 +185,48 @@ void testWin32FileFromWidePathSurvivesToOpen()
   RemoveDirectoryW(dirWide.c_str());
 
   printf("==== [testWin32FileFromWidePathSurvivesToOpen] end ====\n");
+}
+
+void testWin32OpenWriteTruncateAcceptsFullWidthPath()
+{
+  printf("\n==== [testWin32OpenWriteTruncateAcceptsFullWidthPath] start ====\n");
+
+  wchar_t tempDir[MAX_PATH];
+  const DWORD tempLen = GetTempPathW(MAX_PATH, tempDir);
+  LOKA_VERIFY(tempLen > 0 && tempLen < MAX_PATH);
+
+  std::wstring dirWide(tempDir, tempDir + tempLen);
+  dirWide += L"loka-write-";
+  dirWide += kDirNameWide;
+  RemoveDirectoryW(dirWide.c_str());
+  const BOOL made = CreateDirectoryW(dirWide.c_str(), NULL);
+  LOKA_VERIFY(made || GetLastError() == ERROR_ALREADY_EXISTS);
+
+  std::wstring fileWide = dirWide;
+  fileWide += L"\\";
+  fileWide += kFileNameWide;
+  std::string utf8Path;
+  LOKA_VERIFY(WideToUtf8(fileWide, utf8Path));
+  loka::platform::file::FileHandle destination;
+  destination.displayPath = loka::core::String((std::string(utf8Path)));
+
+  FILE *output = loka::platform::file::OpenWriteTruncate(destination);
+  LOKA_VERIFY(output != 0);
+  LOKA_VERIFY(fwrite(kPayload, 1, sizeof(kPayload), output) == sizeof(kPayload));
+  LOKA_VERIFY(loka::platform::file::FlushWrite(output, destination));
+  LOKA_VERIFY(fclose(output) == 0);
+
+  FILE *input = _wfopen(fileWide.c_str(), L"rb");
+  LOKA_VERIFY(input != 0);
+  unsigned char read[sizeof(kPayload)] = {0};
+  LOKA_VERIFY(fread(read, 1, sizeof(read), input) == sizeof(read));
+  fclose(input);
+  for (std::size_t i = 0; i < sizeof(kPayload); ++i)
+  {
+    LOKA_VERIFY(read[i] == kPayload[i]);
+  }
+
+  DeleteFileW(fileWide.c_str());
+  RemoveDirectoryW(dirWide.c_str());
+  printf("==== [testWin32OpenWriteTruncateAcceptsFullWidthPath] end ====\n");
 }

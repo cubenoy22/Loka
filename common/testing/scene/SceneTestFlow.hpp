@@ -10,6 +10,7 @@
 #include "app/scene/Scene.hpp"
 #include "core/resource/Image.hpp"
 #include "core/util/StateTrackerGuard.hpp"
+#include "testing/scene/ScenarioAudit.hpp"
 #include "testing/snap/SnapFlow.hpp"
 #include "platform/StringUTF8.hpp"
 
@@ -281,10 +282,16 @@ namespace loka
         typedef typename AdapterT::In In;
         typedef typename AdapterT::Out Out;
 
-        AtTickAdapter(const ScenarioClock &clock, long dueTick, const AdapterT &adapter)
+        AtTickAdapter(const ScenarioClock &clock,
+                      long dueTick,
+                      const AdapterT &adapter,
+                      int stepId = 0,
+                      const char *name = 0,
+                      ScenarioAuditSink *audit = 0)
             : clock_(&clock),
               dueTick_(dueTick),
               adapter_(adapter),
+              audit_(audit, stepId, name, dueTick),
               completed_(false),
               completedOut_()
         {
@@ -303,6 +310,11 @@ namespace loka
             return FLOW_STEP_PENDING;
           }
           const StepRunStatus status = this->adapter_.run(in, out, error);
+          if (status != FLOW_STEP_PENDING
+              && !this->audit_.emit(this->clock_->currentTick(), status, error))
+          {
+            return FLOW_STEP_FAILED;
+          }
           if (status == FLOW_STEP_SUCCEEDED)
           {
             this->completedOut_ = out;
@@ -315,6 +327,7 @@ namespace loka
         const ScenarioClock *clock_;
         long dueTick_;
         AdapterT adapter_;
+        mutable scenario_audit_detail::StepTerminalEmitter audit_;
         mutable bool completed_;
         mutable Out completedOut_;
       };
@@ -331,6 +344,7 @@ namespace loka
         AtTickSpec(long dueTick, const AdapterT &adapter)
             : dueTick_(dueTick),
               adapter_(adapter),
+              name_(),
               successTarget_(0)
         {
         }
@@ -338,6 +352,13 @@ namespace loka
         AtTickSpec &onSuccess(typename AdapterT::Out *target)
         {
           this->successTarget_ = target;
+          return *this;
+        }
+
+        /** Gives this scheduled action an owned audit identity. */
+        AtTickSpec &named(const char *name)
+        {
+          this->name_ = name ? name : "";
           return *this;
         }
 
@@ -351,6 +372,11 @@ namespace loka
           return this->adapter_;
         }
 
+        const char *name() const
+        {
+          return this->name_.c_str();
+        }
+
         typename AdapterT::Out *successTarget() const
         {
           return this->successTarget_;
@@ -359,6 +385,7 @@ namespace loka
       private:
         long dueTick_;
         AdapterT adapter_;
+        std::string name_;
         typename AdapterT::Out *successTarget_;
       };
 
@@ -372,10 +399,14 @@ namespace loka
       template <class InT, class OutT> class ScenarioFlowChain
       {
       public:
-        ScenarioFlowChain(const ScenarioClock &clock, const FlowChain<InT, OutT> &flow, int nextStepId)
+        ScenarioFlowChain(const ScenarioClock &clock,
+                          const FlowChain<InT, OutT> &flow,
+                          int nextStepId,
+                          ScenarioAuditSink *audit)
             : clock_(&clock),
               flow_(flow),
-              nextStepId_(nextStepId)
+              nextStepId_(nextStepId),
+              audit_(audit)
         {
         }
 
@@ -387,13 +418,16 @@ namespace loka
           typedef char LokaScenarioFlowStepTypeMismatch[(flow_detail::IsSame<OutT, NextIn>::value) ? 1 : -1];
           (void)sizeof(LokaScenarioFlowStepTypeMismatch);
           StepSpec<AtTickAdapter<AdapterT> > scheduled(
-              this->nextStepId_, AtTick(*this->clock_, step.dueTick(), step.adapter()));
+              this->nextStepId_,
+              AtTickAdapter<AdapterT>(
+                  *this->clock_, step.dueTick(), step.adapter(), this->nextStepId_, step.name(), this->audit_));
           if (step.successTarget())
           {
             scheduled.onSuccess(step.successTarget());
           }
           const FlowChain<InT, NextOut> next = this->flow_ | scheduled;
-          return ScenarioFlowChain<InT, NextOut>(*this->clock_, next, this->nextStepId_ + 1);
+          return ScenarioFlowChain<InT, NextOut>(
+              *this->clock_, next, this->nextStepId_ + 1, this->audit_);
         }
 
         FlowChain<InT, OutT> flow() const
@@ -405,6 +439,7 @@ namespace loka
         const ScenarioClock *clock_;
         FlowChain<InT, OutT> flow_;
         int nextStepId_;
+        ScenarioAuditSink *audit_;
       };
 
       template <class InT> class ScenarioFlowStart
@@ -412,9 +447,19 @@ namespace loka
       public:
         ScenarioFlowStart(const ScenarioClock &clock, const InT *input)
             : clock_(&clock),
-              input_(input)
+              input_(input),
+              audit_(0)
         {
           assert(input != 0 && "ScenarioFlow requires a borrowed input");
+        }
+
+        /** Returns a scheduled-flow start that borrows one audit sink for the
+            lifetime of the completed Flow. */
+        ScenarioFlowStart auditTo(ScenarioAuditSink *audit) const
+        {
+          ScenarioFlowStart result(*this);
+          result.audit_ = audit;
+          return result;
         }
 
         template <class AdapterT>
@@ -425,19 +470,20 @@ namespace loka
           typedef char LokaScenarioFlowInputTypeMismatch[(flow_detail::IsSame<InT, FirstIn>::value) ? 1 : -1];
           (void)sizeof(LokaScenarioFlowInputTypeMismatch);
           StepSpec<AtTickAdapter<AdapterT> > scheduled(
-              1, AtTick(*this->clock_, step.dueTick(), step.adapter()));
+              1, AtTickAdapter<AdapterT>(*this->clock_, step.dueTick(), step.adapter(), 1, step.name(), this->audit_));
           scheduled.input(this->input_);
           if (step.successTarget())
           {
             scheduled.onSuccess(step.successTarget());
           }
           const FlowChain<InT, FirstOut> first = Flow() | scheduled;
-          return ScenarioFlowChain<InT, FirstOut>(*this->clock_, first, 2);
+          return ScenarioFlowChain<InT, FirstOut>(*this->clock_, first, 2, this->audit_);
         }
 
       private:
         const ScenarioClock *clock_;
         const InT *input_;
+        ScenarioAuditSink *audit_;
       };
 
       /** Starts a typed scheduled scenario over one borrowed Flow input. */

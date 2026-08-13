@@ -86,27 +86,40 @@ namespace loka
       dsl::FlowChain<app::scene::Scene *, dsl::SnapRecord>
       BuildStandaloneTourFlow(dsl::testing::ScenarioClock &clock,
                               app::scene::Scene **sceneInput,
-                              dsl::SnapRecord *recordOut)
+                              dsl::SnapRecord *recordOut,
+                              dsl::testing::ScenarioAuditSink *audit)
       {
         using namespace dsl::testing;
         const long page2Tick = kInitialPresentationTick + kTourStepSpacingTicks;
         const long page3Tick = page2Tick + kTourStepSpacingTicks;
         const long page4Tick = page3Tick + kTourStepSpacingTicks;
         const long finalTick = page4Tick + kTourStepSpacingTicks;
-        return (ScenarioFlow(clock, sceneInput)
+        return (ScenarioFlow(clock, sceneInput).auditTo(audit)
                 | AtTick(kInitialPresentationTick,
                          CheckText(scrapbook::scene_ids::PageCaption(), "1 / 5"))
+                      .named("verify-page-1")
                 | AtTick(kInitialPresentationTick, ClickButton(scrapbook::scene_ids::NextButton()))
+                      .named("advance-to-page-2")
                 | AtTick(page2Tick, CheckText(scrapbook::scene_ids::PageCaption(), "2 / 5"))
+                      .named("verify-page-2")
                 | AtTick(page2Tick, ClickButton(scrapbook::scene_ids::NextButton()))
+                      .named("advance-to-page-3")
                 | AtTick(page3Tick, CheckText(scrapbook::scene_ids::PageCaption(), "3 / 5"))
+                      .named("verify-page-3")
                 | AtTick(page3Tick, ClickButton(scrapbook::scene_ids::NextButton()))
+                      .named("advance-to-page-4")
                 | AtTick(page4Tick, CheckText(scrapbook::scene_ids::PageCaption(), "4 / 5"))
+                      .named("verify-page-4")
                 | AtTick(page4Tick, ClickButton(scrapbook::scene_ids::NextButton()))
+                      .named("advance-to-page-5")
                 | AtTick(finalTick, CheckText(scrapbook::scene_ids::PageCaption(), "5 / 5"))
+                      .named("verify-page-5")
                 | AtTick(finalTick, CheckText(scrapbook::scene_ids::PageText(), kPage5Text))
+                      .named("verify-final-text")
                 | AtTick(finalTick, CaptureViewTarget(scrapbook::scene_ids::PageText()))
+                      .named("select-final-capture")
                 | AtTick(finalTick, CaptureView("ScrapbookUI", "standalone-tour", finalTick, 1))
+                      .named("capture-final-page")
                       .onSuccess(recordOut))
             .flow();
       }
@@ -134,18 +147,19 @@ namespace loka
       return ScenarioLaunchPlan(kStandaloneTour, SCENARIO_COMPLETION_HOLD_FINAL_SCENE);
     }
 
-    ScrapbookScenario::StandaloneTourState::StandaloneTourState()
+    ScrapbookScenario::StandaloneTourState::StandaloneTourState(dsl::testing::ScenarioAuditSink *audit)
         : clock_(),
           scene_(0),
           record_(),
+          terminalAudit_(audit),
           flow_()
     {
     }
 
-    void ScrapbookScenario::StandaloneTourState::start()
+    void ScrapbookScenario::StandaloneTourState::start(dsl::testing::ScenarioAuditSink *audit)
     {
       assert(!this->flow_.isValid() && "StandaloneTourState starts once");
-      this->flow_.set(BuildStandaloneTourFlow(this->clock_, &this->scene_, &this->record_));
+      this->flow_.set(BuildStandaloneTourFlow(this->clock_, &this->scene_, &this->record_, audit));
     }
 
     dsl::FlowRunResult ScrapbookScenario::StandaloneTourState::run(long tick, app::scene::Scene *scene)
@@ -153,6 +167,24 @@ namespace loka
       this->clock_.advanceTo(tick);
       this->scene_ = scene;
       return this->flow_.runResult();
+    }
+
+    bool ScrapbookScenario::StandaloneTourState::finish(dsl::testing::ScenarioAuditTerminalStatus status)
+    {
+      return this->terminalAudit_.emit(status);
+    }
+
+    void ScrapbookScenario::StandaloneTourState::stop()
+    {
+      if (this->terminalAudit_.isSettled())
+      {
+        return;
+      }
+      this->flow_.cancel();
+      const dsl::FlowRunResult result = this->flow_.runResult();
+      assert(result == dsl::FLOW_RUN_CANCELED && "Standalone tour cancellation must be terminal");
+      (void)result;
+      this->terminalAudit_.emit(dsl::testing::SCENARIO_AUDIT_CANCELED);
     }
 
     const dsl::SnapRecord &ScrapbookScenario::StandaloneTourState::record() const
@@ -190,7 +222,11 @@ namespace loka
       return true;
     }
 
-    ScrapbookScenario::ScrapbookScenario(const ScenarioLaunchPlan &plan)
+    ScrapbookScenario::ScrapbookScenario(const ScenarioLaunchPlan &plan
+#ifdef TEST_BUILD
+                                         , dsl::testing::ScenarioAuditSink *audit
+#endif
+    )
         : plan_(plan),
           kind_(KIND_INVALID),
           terminalState_(SCENARIO_ADVANCE_PENDING),
@@ -198,7 +234,7 @@ namespace loka
           step1_(),
           step2_()
 #ifdef TEST_BUILD
-          , standaloneTour_()
+          , standaloneTour_(audit)
 #endif
     {
       assert(plan.isValid() && "ScenarioLaunchPlan is required");
@@ -235,7 +271,7 @@ namespace loka
       else if (name == kStandaloneTour)
       {
         this->kind_ = KIND_STANDALONE_TOUR;
-        this->standaloneTour_.start();
+        this->standaloneTour_.start(audit);
       }
 #endif
     }
@@ -302,6 +338,17 @@ namespace loka
     {
       return this->plan_.scenario();
     }
+
+#ifdef TEST_BUILD
+    void ScrapbookScenario::stop()
+    {
+      if (this->kind_ == KIND_STANDALONE_TOUR && this->terminalState_ == SCENARIO_ADVANCE_PENDING)
+      {
+        this->standaloneTour_.stop();
+        this->terminalState_ = SCENARIO_ADVANCE_FINAL_SCENE_HELD;
+      }
+    }
+#endif
 
     ScrapbookScenario::PageObservation ScrapbookScenario::observePage(const scrapbook::MainNode &mainNode)
     {
@@ -534,6 +581,10 @@ namespace loka
       if (result != dsl::FLOW_RUN_SUCCEEDED)
       {
         out = MakeDriverErrorRecord(this->plan_.scenario().c_str(), 2305, "standalone Flow failed");
+        if (!this->standaloneTour_.finish(dsl::testing::SCENARIO_AUDIT_FAILED))
+        {
+          out = MakeDriverErrorRecord(this->plan_.scenario().c_str(), 2306, "standalone audit write failed");
+        }
         return true;
       }
       const PageObservation finalPage = observePage(mainNode);
@@ -548,6 +599,11 @@ namespace loka
       const bool ok = bounds.available && finalPage.published && finalPage.page == 4
                       && finalPage.caption == "5 / 5" && textMatches;
       SetVerdict(out, ok);
+      if (!this->standaloneTour_.finish(ok ? dsl::testing::SCENARIO_AUDIT_SUCCEEDED
+                                           : dsl::testing::SCENARIO_AUDIT_FAILED))
+      {
+        out = MakeDriverErrorRecord(this->plan_.scenario().c_str(), 2306, "standalone audit write failed");
+      }
       return true;
     }
 #endif
