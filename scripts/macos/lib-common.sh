@@ -156,6 +156,9 @@ loka_target_rel_path() {
     LokaHelloMacOS) echo "example/HelloWorld/LokaHelloMacOS" ;;
     LokaMineMacOS) echo "example/MineSweeper/LokaMineMacOS" ;;
     LokaSimpleViewerMacOS) echo "example/SimpleViewer/LokaSimpleViewerMacOS" ;;
+    LokaScrapbookStandaloneFlowMacOS)
+      echo "apple/macos/LokaScrapbookStandaloneFlowMacOS.app/Contents/MacOS/LokaScrapbookStandaloneFlowMacOS"
+      ;;
     LokaTutorialMacOS) echo "example/Tutorial/LokaTutorialMacOS" ;;
     *) return 1 ;;
   esac

@@ -70,9 +70,10 @@ namespace
     {
       return;
     }
-    if ([label respondsToSelector:@selector(setUsesSingleLineMode:)])
+    NSCell *cell = [label cell];
+    if ([cell respondsToSelector:@selector(setUsesSingleLineMode:)])
     {
-      [label setUsesSingleLineMode:value];
+      [cell setUsesSingleLineMode:value];
     }
   }
 

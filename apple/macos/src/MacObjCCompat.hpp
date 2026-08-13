@@ -85,10 +85,10 @@ typedef float CGFloat;
 @end
 #endif
 
-// The 10.6 SDK declares setUsesSingleLineMode: on NSCell but not on the
-// NSTextField forwarding surface used by the capability-guarded call site.
-#if !defined(MAC_OS_X_VERSION_MAX_ALLOWED) || (MAC_OS_X_VERSION_MAX_ALLOWED < 1070)
-@interface NSTextField (LokaSingleLineModeCompat)
+// The 10.6 SDK declares setUsesSingleLineMode: on NSCell. Older SDKs need the
+// declaration so the capability-guarded cell call remains type-correct.
+#if !defined(MAC_OS_X_VERSION_MAX_ALLOWED) || (MAC_OS_X_VERSION_MAX_ALLOWED < 1060)
+@interface NSCell (LokaSingleLineModeCompat)
 - (void)setUsesSingleLineMode:(BOOL)flag;
 @end
 #endif
