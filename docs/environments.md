@@ -61,19 +61,23 @@ This is the environment where binaries are actually built.
   scene hold. `Stage: macOS Standalone Flow Release` prepares the same portable
   directory without launching it; `ASSETS.LRP` remains owned by the bundle at
   `Contents/Resources`.
-- For a VAIO P-class x86 presentation build, start VS Code from the Visual
-  Studio 2017 `x64_x86 Cross Tools` prompt, then run the
-  `Verify: Win32 Standalone Flow x86 Release` task. The task configures and
-  builds the static-CRT Release target, refuses a non-x86 PE, stages the
-  executable with `ASSETS.LRP` under
-  `build/presentation/win32-x86-release`, launches it, waits for the exact
-  twelve-step success audit, and stops the final-scene hold. Copy the staged
-  directory to the target machine and run
+- For a standalone presentation Release, start VS Code from the Visual Studio
+  Command Line Tools session for the desired target, then run
+  `Verify: Win32 Standalone Flow Release` and choose ARM64, x64, or x86/i386.
+  The task requires the selected architecture to match the inherited compiler
+  environment, uses a separate CMake cache for each architecture, verifies the
+  resulting PE header, and stages the executable with `ASSETS.LRP` under
+  `build/presentation/win32-<architecture>-release`. It then launches the app,
+  waits for the exact twelve-step success audit, and stops the final-scene
+  hold. Copy the staged directory to the target machine and run
   `powershell -ExecutionPolicy Bypass -File .\Verify-StandaloneFlow.ps1`
-  there for a hardware check. It starts the presentation, waits for the exact
-  audit, stops the final-scene hold, and leaves `LOG.TXT` as the target-local
-  runtime verdict.
-- Some endpoint scanners flag freshly linked unsigned x86 test executables.
+  there for a hardware check. The staged verifier derives the architecture
+  from its sibling PE, starts the presentation, waits for the exact audit,
+  stops the final-scene hold, and leaves `LOG.TXT` as the target-local runtime
+  verdict. A VAIO P uses the x86/i386 option from a VS2017 `x64_x86 Cross
+  Tools` session.
+- Some endpoint scanners flag freshly linked unsigned test executables,
+  particularly 32-bit ones.
   This workflow deliberately does not add an antivirus exclusion; use the
   machine's normal review/allow procedure or an approved target environment
   when local policy blocks the launch.

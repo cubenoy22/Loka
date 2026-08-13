@@ -257,32 +257,25 @@
       "problemMatcher": "$msCompile"
     },
     {
-      "label": "Configure: Win32 x86 Release",
+      "label": "Build: Win32 Standalone Flow Release",
       "type": "shell",
-      "command": "cmake",
+      "command": "powershell.exe",
       "args": [
-        "--preset",
-        "win32-x86-release"
-      ],
-      "problemMatcher": "$msCompile"
-    },
-    {
-      "label": "Build: Win32 Standalone Flow x86 Release",
-      "type": "shell",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "--preset",
-        "win32-standalone-flow-x86-release"
-      ],
-      "dependsOn": [
-        "Configure: Win32 x86 Release"
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/win32-standalone-flow.ps1",
+        "-Action",
+        "Build",
+        "-Architecture",
+        "${input:win32StandaloneArchitecture}"
       ],
       "group": "build",
       "problemMatcher": "$msCompile"
     },
     {
-      "label": "Stage: Win32 Standalone Flow for VAIO P",
+      "label": "Stage: Win32 Standalone Flow Release",
       "type": "shell",
       "command": "powershell.exe",
       "args": [
@@ -292,15 +285,14 @@
         "-File",
         "scripts/win32-standalone-flow.ps1",
         "-Action",
-        "Stage"
+        "Stage",
+        "-Architecture",
+        "${input:win32StandaloneArchitecture}"
       ],
-      "dependsOn": [
-        "Build: Win32 Standalone Flow x86 Release"
-      ],
-      "problemMatcher": []
+      "problemMatcher": "$msCompile"
     },
     {
-      "label": "Verify: Win32 Standalone Flow x86 Release",
+      "label": "Verify: Win32 Standalone Flow Release",
       "type": "shell",
       "command": "powershell.exe",
       "args": [
@@ -310,12 +302,11 @@
         "-File",
         "scripts/win32-standalone-flow.ps1",
         "-Action",
-        "Verify"
+        "Verify",
+        "-Architecture",
+        "${input:win32StandaloneArchitecture}"
       ],
-      "dependsOn": [
-        "Stage: Win32 Standalone Flow for VAIO P"
-      ],
-      "problemMatcher": []
+      "problemMatcher": "$msCompile"
     },
     {
       "label": "Configure: Win32 XP",
@@ -1162,6 +1153,26 @@
     }
   ],
   "inputs": [
+    {
+      "id": "win32StandaloneArchitecture",
+      "type": "pickString",
+      "description": "Select the architecture of the Visual Studio Command Line Tools session",
+      "options": [
+        {
+          "label": "x86 / i386",
+          "value": "x86"
+        },
+        {
+          "label": "x64",
+          "value": "x64"
+        },
+        {
+          "label": "ARM64",
+          "value": "arm64"
+        }
+      ],
+      "default": "x86"
+    },
     {
       "id": "retro68DskPath",
       "type": "pickString",
