@@ -96,12 +96,12 @@ requires `flock` and serializes complete rails. A second invocation waits until
 the first has collected and published its evidence before entering a scenario.
 
 For an exact-commit release-preflight run, copy
-`scripts/toolbox/rigs/local.example.ini` to a machine-local path, point it at
+`scripts/rig/toolbox/rigs/local.example.ini` to a machine-local path, point it at
 the existing `.env-mame` and rig-local golden directory, then use the common
 entry point:
 
 ```sh
-python3 scripts/loka-rig.py run toolbox-maciix \
+python3 scripts/rig/loka-rig.py run toolbox-maciix \
   --ref <commit-sha> --mode flow --local-config <toolbox-local.ini>
 ```
 

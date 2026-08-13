@@ -74,7 +74,7 @@ retained, or removed; it does not infer retention from the overall result.
 Run one exact commit through the tracked descriptor and a machine-local mapping:
 
 ```sh
-python3 scripts/loka-rig.py run mavericks-10.9 \
+python3 scripts/rig/loka-rig.py run mavericks-10.9 \
   --ref <commit-sha> --mode flow --local-config <local.ini>
 ```
 

@@ -1,15 +1,15 @@
 # Loka rig orchestration
 
-`scripts/loka-rig.py` is the public host-side entry point for release-preflight
+`scripts/rig/loka-rig.py` is the public host-side entry point for release-preflight
 rigs. It resolves one requested ref to an exact commit, delegates platform
 mechanisms to one registered adapter, and applies the shared result and cleanup
 contract.
 
 ```sh
-python3 scripts/loka-rig.py run mavericks-10.9 \
+python3 scripts/rig/loka-rig.py run mavericks-10.9 \
   --ref <commit-sha> --mode flow --local-config <macos-local.ini>
 
-python3 scripts/loka-rig.py run toolbox-maciix \
+python3 scripts/rig/loka-rig.py run toolbox-maciix \
   --ref <commit-sha> --mode flow --local-config <toolbox-local.ini>
 ```
 
@@ -21,8 +21,8 @@ scenario internals, and test-only controls remain adapter-owned.
 
 | Adapter | Tracked descriptor | Local mapping example | Runtime mechanism |
 | --- | --- | --- | --- |
-| macOS | `scripts/macos/rigs/mavericks-10.9.ini` | `scripts/macos/rigs/local.example.ini` | Parallels VM, target-local build and scenario |
-| Toolbox | `scripts/toolbox/rigs/toolbox-maciix.ini` | `scripts/toolbox/rigs/local.example.ini` | detached checkout, Retro68 build, MAME seven-scenario rail |
+| macOS | `scripts/rig/macos/rigs/mavericks-10.9.ini` | `scripts/rig/macos/rigs/local.example.ini` | Parallels VM, target-local build and scenario |
+| Toolbox | `scripts/rig/toolbox/rigs/toolbox-maciix.ini` | `scripts/rig/toolbox/rigs/local.example.ini` | detached checkout, Retro68 build, MAME seven-scenario rail |
 
 The dispatcher identifies a rig only when exactly one adapter directory contains
 its descriptor. An unknown or duplicate registration fails closed. Each adapter
