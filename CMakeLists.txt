@@ -165,8 +165,6 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   loka_enable_warnings(LokaContractTests)
   target_include_directories(LokaContractTests PRIVATE
     ${PROJECT_SOURCE_DIR}/tests
-    ${PROJECT_SOURCE_DIR}/tests/scenarios
-    ${PROJECT_SOURCE_DIR}/example/ScrapbookUI/src
     ${PROJECT_SOURCE_DIR}/tools
   )
   set_target_properties(LokaContractTests PROPERTIES

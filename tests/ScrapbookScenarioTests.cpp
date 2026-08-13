@@ -76,6 +76,20 @@ namespace
     LOKA_VERIFY(actual == expected);
   }
 
+  void VerifyPlanValidity(const loka::scenario_tests::ScenarioLaunchPlan &plan, bool expected)
+  {
+    const bool actual = plan.isValid();
+    LOKA_VERIFY(actual == expected);
+  }
+
+  void VerifyRecordInt(const loka::dsl::SnapRecord &record, const char *key, long expected)
+  {
+    long actual = -1;
+    const bool available = record.getInt(key, actual);
+    LOKA_VERIFY(available);
+    LOKA_VERIFY(actual == expected);
+  }
+
   loka::scenario_tests::ScenarioAdvance Advance(loka::scenario_tests::ScrapbookScenario &scenario,
                                                 long tick,
                                                 scrapbook::MainNode &mainNode,
@@ -98,16 +112,16 @@ void testScrapbookRigLaunchRequiresConfigAndRefusesStandaloneTour()
 
   loka::scenario_tests::ScenarioLaunchPlan plan;
   LOKA_VERIFY(!loka::scenario_tests::QueryRigLaunchPlan(loaded, settings, plan));
-  LOKA_VERIFY(!plan.isValid());
+  VerifyPlanValidity(plan, false);
 
   settings.hasScenario = true;
   settings.scenario = "standalone-tour";
   LOKA_VERIFY(!loka::scenario_tests::QueryRigLaunchPlan(true, settings, plan));
-  LOKA_VERIFY(!plan.isValid());
+  VerifyPlanValidity(plan, false);
 
   settings.scenario = "startup";
   LOKA_VERIFY(loka::scenario_tests::QueryRigLaunchPlan(true, settings, plan));
-  LOKA_VERIFY(plan.isValid());
+  VerifyPlanValidity(plan, true);
   LOKA_VERIFY(plan.scenario() == "startup");
   LOKA_VERIFY(plan.completionPolicy() == loka::scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED);
 
@@ -122,7 +136,7 @@ void testScrapbookRigLaunchRequiresConfigAndRefusesStandaloneTour()
 void testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene()
 {
   const loka::scenario_tests::ScenarioLaunchPlan plan = loka::scenario_tests::ScenarioLaunchPlan::StandaloneTour();
-  LOKA_VERIFY(plan.isValid());
+  VerifyPlanValidity(plan, true);
   LOKA_VERIFY(plan.scenario() == "standalone-tour");
   LOKA_VERIFY(plan.completionPolicy() == loka::scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE);
 
@@ -157,11 +171,10 @@ void testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene()
   LOKA_VERIFY(Advance(scenario, 62, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
   VerifyCurrentPage(*mainNode, 4);
 
-  long observed = -1;
   std::string text;
-  LOKA_VERIFY(record.getInt("step1_page", observed) && observed == 0);
-  LOKA_VERIFY(record.getInt("step2_page", observed) && observed == 1);
-  LOKA_VERIFY(record.getInt("final_page", observed) && observed == 4);
+  VerifyRecordInt(record, "step1_page", 0);
+  VerifyRecordInt(record, "step2_page", 1);
+  VerifyRecordInt(record, "final_page", 4);
   LOKA_VERIFY(record.get("text_matches_package_asset", text) && text == "true");
   LOKA_VERIFY(record.get("status", text) && text == loka::dsl::SnapStatusOk());
 

@@ -2,7 +2,7 @@
 
 #include <cassert>
 
-#include "MainNode.hpp"
+#include "../../example/ScrapbookUI/src/MainNode.hpp"
 #include "platform/StringUTF8.hpp"
 
 namespace loka
