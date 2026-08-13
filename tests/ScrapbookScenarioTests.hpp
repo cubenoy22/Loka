@@ -1,0 +1,7 @@
+#ifndef LOKA_TESTS_SCRAPBOOK_SCENARIO_TESTS_HPP
+#define LOKA_TESTS_SCRAPBOOK_SCENARIO_TESTS_HPP
+
+void testScrapbookRigLaunchRequiresConfigAndRefusesStandaloneTour();
+void testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene();
+
+#endif // LOKA_TESTS_SCRAPBOOK_SCENARIO_TESTS_HPP

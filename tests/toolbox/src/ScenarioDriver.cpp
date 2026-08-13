@@ -254,10 +254,12 @@ namespace loka
       class ScenarioAppConfig : public AppConfigurable
       {
       public:
-        ScenarioAppConfig(PlatformContext *context, const dsl::SnapTestConfig::Settings &settings)
+        ScenarioAppConfig(PlatformContext *context,
+                          const dsl::SnapTestConfig::Settings &settings,
+                          const scenario_tests::ScenarioLaunchPlan &launchPlan)
             : AppConfigurable(context),
               settings_(settings),
-              scenario_(settings.scenario),
+              scenario_(launchPlan),
               borrowedApp_(0),
               borrowedMainNode_(0),
               recorded_(false),
@@ -304,18 +306,25 @@ namespace loka
             if (!this->borrowedMainNode_)
             {
               record = scenario_tests::MakeDriverErrorRecord(
-                  this->settings_.scenario.c_str(), 2303, "MainNode was not mounted");
+                  this->scenario_.name().c_str(), 2303, "MainNode was not mounted");
               done = true;
             }
             else
             {
               const scenario_tests::CaptureContentBounds captureBounds = QueryContentBounds(window);
-              done = this->scenario_.step(
+              const scenario_tests::ScenarioAdvance advance = this->scenario_.step(
                   this->tickCount_, *this->borrowedMainNode_, ContentLocalBounds(captureBounds), record);
-              if (done)
+              switch (advance)
               {
+              case scenario_tests::SCENARIO_ADVANCE_PENDING:
+                break;
+              case scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY:
+                done = true;
                 (void)WriteCaptureMetadata(
-                    this->settings_, this->settings_.scenario.c_str(), this->tickCount_, captureBounds);
+                    this->settings_, this->scenario_.name().c_str(), this->tickCount_, captureBounds);
+                break;
+              case scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD:
+                return;
               }
             }
             if (done && this->borrowedMainNode_)
@@ -325,7 +334,7 @@ namespace loka
               if (counts.untagged != 0 || counts.tagged == 0)
               {
                 record = scenario_tests::MakeDriverErrorRecord(
-                    this->settings_.scenario.c_str(), 2304, "projected text context lost its boundary tag");
+                    this->scenario_.name().c_str(), 2304, "projected text context lost its boundary tag");
               }
             }
             if (done)
@@ -371,7 +380,8 @@ namespace loka
     int RunScenarioApplication()
     {
       dsl::SnapTestConfig::Settings settings;
-      if (!dsl::SnapTestConfig::load(kConfigPath, settings))
+      const bool configLoaded = dsl::SnapTestConfig::load(kConfigPath, settings);
+      if (!configLoaded)
       {
         (void)WriteRecord(
             settings, scenario_tests::MakeDriverErrorRecord("startup", 2300, "LokaTest.cfg is missing or invalid"));
@@ -382,7 +392,8 @@ namespace loka
         (void)WriteRecord(settings, scenario_tests::MakeDriverErrorRecord("startup", 2301, "scenario is missing"));
         return 0;
       }
-      if (!scenario_tests::IsRegisteredScenario(settings.scenario))
+      scenario_tests::ScenarioLaunchPlan launchPlan;
+      if (!scenario_tests::QueryRigLaunchPlan(configLoaded, settings, launchPlan))
       {
         (void)WriteRecord(settings, scenario_tests::MakeDriverErrorRecord(
                                         settings.scenario.c_str(), 2302, "scenario is not registered"));
@@ -393,7 +404,7 @@ namespace loka
       {
         core::ScopedPtr<PlatformContext> platformContext(platform::CreatePlatformContext());
         assert(platformContext.get() && "PlatformContext is required");
-        ScenarioAppConfig config(platformContext.get(), settings);
+        ScenarioAppConfig config(platformContext.get(), settings, launchPlan);
         core::ScopedPtr<App> app(platformContext->createApp(&config, 0, 0));
         assert(app.get() && "App is required");
         config.setApp(app.get());
