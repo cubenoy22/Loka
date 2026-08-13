@@ -8,10 +8,7 @@ orchestrator. Machine-specific names and paths come only from a local mapping.
 from __future__ import annotations
 
 import argparse
-import configparser
 import dataclasses
-import datetime
-import hashlib
 import os
 import pathlib
 import re
@@ -21,20 +18,37 @@ import subprocess
 import sys
 import tempfile
 import time
-from typing import Callable, Iterable, Optional, Sequence, TypeVar
+from typing import Callable, Optional, Sequence, TypeVar
 
 
-SUPPORTED_DESCRIPTOR_VERSION = "1"
-SUPPORTED_ARTIFACT_CONTRACT_VERSION = "1"
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+
+from loka_rig_common import (
+    RIG_ID_PATTERN,
+    SUPPORTED_ARTIFACT_CONTRACT_VERSION,
+    SUPPORTED_DESCRIPTOR_VERSION,
+    CommandLog,
+    RigError,
+    RunProgress,
+    RunResult,
+    artifact_hashes,
+    cleanup_allowed,
+    execute_adapter,
+    make_run_id,
+    parse_bool,
+    read_single_section,
+    render_manifest,
+    require_keys,
+    resolve_commit,
+    target_retained_value,
+    utc_now,
+    write_manifest,
+)
+
+
 SUPPORTED_MODES = frozenset(("flow", "inspect"))
-RIG_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9.-]*$")
 RetryResult = TypeVar("RetryResult")
-
-
-class RigError(RuntimeError):
-    def __init__(self, stage: str, message: str):
-        super().__init__(message)
-        self.stage = stage
 
 
 @dataclasses.dataclass(frozen=True)
@@ -79,42 +93,8 @@ class VmLease:
         return "leave-running"
 
 
-def _read_single_section(path: pathlib.Path, section: str) -> configparser.SectionProxy:
-    parser = configparser.ConfigParser(interpolation=None)
-    try:
-        with path.open("r", encoding="utf-8") as source:
-            parser.read_file(source)
-    except (OSError, configparser.Error) as error:
-        raise RigError("configuration", f"cannot read {path}: {error}") from error
-    if parser.sections() != [section]:
-        raise RigError("configuration", f"{path} must contain only [{section}]")
-    return parser[section]
-
-
-def _require_keys(section: configparser.SectionProxy, expected: set[str], path: pathlib.Path) -> None:
-    actual = set(section.keys())
-    missing = sorted(expected - actual)
-    unknown = sorted(actual - expected)
-    if missing or unknown:
-        detail = []
-        if missing:
-            detail.append("missing " + ", ".join(missing))
-        if unknown:
-            detail.append("unknown " + ", ".join(unknown))
-        raise RigError("configuration", f"{path}: {'; '.join(detail)}")
-
-
-def _parse_bool(value: str, field: str, path: pathlib.Path) -> bool:
-    lowered = value.strip().lower()
-    if lowered == "true":
-        return True
-    if lowered == "false":
-        return False
-    raise RigError("configuration", f"{path}: {field} must be true or false")
-
-
 def load_descriptor(path: pathlib.Path) -> RigDescriptor:
-    section = _read_single_section(path, "rig")
+    section = read_single_section(path, "rig")
     expected = {
         "descriptor_version",
         "rig_id",
@@ -129,7 +109,7 @@ def load_descriptor(path: pathlib.Path) -> RigDescriptor:
         "recording_adapter",
         "artifact_contract_version",
     }
-    _require_keys(section, expected, path)
+    require_keys(section, expected, path)
     if section["descriptor_version"] != SUPPORTED_DESCRIPTOR_VERSION:
         raise RigError("configuration", f"{path}: unsupported descriptor_version")
     if section["artifact_contract_version"] != SUPPORTED_ARTIFACT_CONTRACT_VERSION:
@@ -150,7 +130,7 @@ def load_descriptor(path: pathlib.Path) -> RigDescriptor:
         build_architecture=section["build_architecture"].strip(),
         build_profile=section["build_profile"].strip(),
         supported_modes=modes,
-        disposable_for_input=_parse_bool(section["disposable_for_input"], "disposable_for_input", path),
+        disposable_for_input=parse_bool(section["disposable_for_input"], "disposable_for_input", path),
         capture_adapter=section["capture_adapter"].strip(),
         recording_adapter=section["recording_adapter"].strip(),
         artifact_contract_version=section["artifact_contract_version"].strip(),
@@ -158,7 +138,7 @@ def load_descriptor(path: pathlib.Path) -> RigDescriptor:
 
 
 def load_local_mapping(path: pathlib.Path) -> LocalMapping:
-    section = _read_single_section(path, "local")
+    section = read_single_section(path, "local")
     required = {
         "vm_host_ssh",
         "vm_name",
@@ -200,16 +180,12 @@ def load_local_mapping(path: pathlib.Path) -> LocalMapping:
         target_user=section["target_user"].strip(),
         target_identity_file=identity_file,
         target_proxy_ssh=section["target_proxy_ssh"].strip(),
-        target_legacy_rsa=_parse_bool(section["target_legacy_rsa"], "target_legacy_rsa", path),
+        target_legacy_rsa=parse_bool(section["target_legacy_rsa"], "target_legacy_rsa", path),
         target_root=target_root,
         archive_root=archive_root,
         vm_snapshot=section.get("vm_snapshot", "").strip(),
         target_python=section.get("target_python", "/usr/bin/python3").strip(),
     )
-
-
-def utc_now() -> str:
-    return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def remote_command(arguments: Sequence[str]) -> str:
@@ -227,40 +203,6 @@ def remote_in_directory(directory: pathlib.PurePosixPath, arguments: Sequence[st
     return f"cd {shlex.quote(str(directory))} && {environment_prefix}exec {command}"
 
 
-def artifact_hashes(directory: pathlib.Path) -> list[tuple[str, str]]:
-    hashes = []
-    for path in sorted(directory.rglob("*")):
-        if not path.is_file() or path.name == "run-manifest.txt":
-            continue
-        digest = hashlib.sha256(path.read_bytes()).hexdigest()
-        hashes.append((path.relative_to(directory).as_posix(), digest))
-    return hashes
-
-
-def render_manifest(fields: Iterable[tuple[str, str]], hashes: Iterable[tuple[str, str]]) -> str:
-    lines = ["manifest_version=1"]
-    for key, value in fields:
-        clean = value.replace("\r", " ").replace("\n", " ")
-        lines.append(f"{key}={clean}")
-    for path, digest in sorted(hashes):
-        lines.append(f"artifact_sha256={digest}  {path}")
-    return "\n".join(lines) + "\n"
-
-
-def cleanup_allowed(result: str, artifacts_collected: bool, manifest_finalized: bool) -> bool:
-    return result == "passed" and artifacts_collected and manifest_finalized
-
-
-def target_retained_value(target_state: str) -> str:
-    if target_state == "not-created":
-        return "not-created"
-    if target_state == "retained":
-        return "1"
-    if target_state == "removed":
-        return "0"
-    raise RigError("manifest", f"unknown target state: {target_state}")
-
-
 def parse_parallels_ipv4(output: str) -> Optional[str]:
     match = re.search(r"IP Addresses:\s+([0-9]+(?:\.[0-9]+){3})", output)
     return match.group(1) if match else None
@@ -269,16 +211,6 @@ def parse_parallels_ipv4(output: str) -> Optional[str]:
 def parse_parallels_state(output: str) -> Optional[str]:
     match = re.search(r"^State:\s+(running|suspended|stopped)\s*$", output, re.MULTILINE | re.IGNORECASE)
     return match.group(1).lower() if match else None
-
-
-class CommandLog:
-    def __init__(self, path: pathlib.Path):
-        self._path = path
-
-    def write(self, message: str) -> None:
-        with self._path.open("a", encoding="utf-8") as output:
-            output.write(f"[{utc_now()}] {message}\n")
-        print(message, flush=True)
 
 
 class MacOSRigRun:
@@ -309,14 +241,7 @@ class MacOSRigRun:
         self.target_destination = ""
         self.target_state = "not-created"
         self.vm_lease: Optional[VmLease] = None
-        self.started_at = utc_now()
-        self.ended_at = ""
-        self.failure_stage = ""
-        self.failure_message = ""
-        self.artifacts_collected = False
-        self.manifest_finalized = False
-        self.build_passed = False
-        self.runtime_passed = False
+        self.progress = RunProgress()
         self.command_log: Optional[CommandLog] = None
 
     def _run(self, args: Sequence[str], stage: str, **kwargs: object) -> subprocess.CompletedProcess[str]:
@@ -487,15 +412,8 @@ class MacOSRigRun:
             self._target_query(("/bin/test", "-e", path), "toolchain-preflight")
 
     def _prepare_checkout(self) -> None:
-        result = self._run(
-            ("git", "-C", str(self.repo), "rev-parse", "--verify", f"{self.requested_ref}^{{commit}}"),
-            "checkout",
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        self.commit_sha = result.stdout.strip()
-        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        self.run_id = f"{timestamp}-{self.commit_sha[:12]}-{self.mode}-{self.scenario}"
+        self.commit_sha = resolve_commit(self.repo, self.requested_ref)
+        self.run_id = make_run_id(self.commit_sha, self.mode, self.scenario)
         self.archive = self.mapping.archive_root / self.descriptor.rig_id / self.run_id
         self.checkout = self.repo / "build" / "loka-rig" / "checkouts" / self.run_id
         self.target_run_root = self.mapping.target_root / self.run_id
@@ -606,7 +524,6 @@ class MacOSRigRun:
         )
         self._run_logged_ssh(configure, "build.log", "configure")
         self._run_logged_ssh(build, "build.log", "build")
-        self.build_passed = True
 
     def _runner_command(self) -> str:
         app = self.target_source / "build" / "loka-rig-macos" / "apple" / "macos" / "LokaScrapbookScenarioMacOS.app"
@@ -728,7 +645,6 @@ class MacOSRigRun:
                     process.kill()
                     process.wait()
             runner_log.close()
-        self.runtime_passed = True
 
     def _collect(self) -> None:
         assert self.archive is not None
@@ -760,16 +676,26 @@ class MacOSRigRun:
         missing = sorted(name for name in required if not (self.archive / name).is_file())
         if missing:
             raise RigError("artifact-collection", "missing artifacts: " + ", ".join(missing))
-        self.artifacts_collected = True
 
-    def _write_manifest(self, result: str) -> None:
+    def finalize_manifest(self, result: str) -> None:
+        assert self.archive is not None
         vm_action = self.vm_lease.success_action() if self.vm_lease else "not-acquired"
-        fields = (
-            ("rig_id", self.descriptor.rig_id),
+        common_result = RunResult.from_progress(
+            adapter="macos",
+            rig_id=self.descriptor.rig_id,
+            requested_ref=self.requested_ref,
+            commit_sha=self.commit_sha,
+            mode=self.mode,
+            result=result,
+            progress=self.progress,
+            recording_status="not-requested",
+            target_retained=target_retained_value(self.target_state),
+            target_workdir=str(self.target_run_root),
+            next_diagnostic_command="use configured target SSH mapping" if result != "passed" else "none",
+        )
+        adapter_fields = (
             ("descriptor_version", SUPPORTED_DESCRIPTOR_VERSION),
             ("artifact_contract_version", self.descriptor.artifact_contract_version),
-            ("requested_ref", self.requested_ref),
-            ("commit_sha", self.commit_sha),
             ("os_version", self.descriptor.os_version),
             ("os_build", self.descriptor.os_build),
             ("machine", self.descriptor.machine),
@@ -778,28 +704,11 @@ class MacOSRigRun:
             ("vm_snapshot", self.mapping.vm_snapshot or "not-configured"),
             ("vm_initial_state", self.vm_lease.initial_state if self.vm_lease else "not-acquired"),
             ("vm_success_action", vm_action),
-            ("mode", self.mode),
             ("scenario", self.scenario),
             ("capture_adapter", self.descriptor.capture_adapter),
             ("recording_adapter", self.descriptor.recording_adapter),
-            ("started_at", self.started_at),
-            ("ended_at", self.ended_at or utc_now()),
-            ("result", result),
-            ("failure_stage", self.failure_stage or "none"),
-            ("failure_message", self.failure_message or "none"),
-            ("build_verification", "passed" if self.build_passed else "failed-or-not-reached"),
-            ("runtime_verification", "passed" if self.runtime_passed else "failed-or-not-reached"),
-            ("machine_verdict", "passed" if result == "passed" else "failed"),
-            ("recording_status", "not-requested"),
-            ("target_retained", target_retained_value(self.target_state)),
-            ("target_workdir", str(self.target_run_root)),
-            ("next_diagnostic_command", "use configured target SSH mapping" if result != "passed" else "none"),
         )
-        manifest = render_manifest(fields, artifact_hashes(self.archive))
-        temporary = self.archive / "run-manifest.txt.tmp"
-        temporary.write_text(manifest, encoding="utf-8")
-        temporary.replace(self.archive / "run-manifest.txt")
-        self.manifest_finalized = True
+        write_manifest(self.archive, common_result, adapter_fields)
 
     def _best_effort_collect(self) -> None:
         if str(self.target_artifacts) == "/" or self.archive is None:
@@ -854,58 +763,37 @@ class MacOSRigRun:
             stderr=subprocess.PIPE,
         )
 
+    def prepare(self) -> None:
+        self._prepare_checkout()
+        if self.mode not in self.descriptor.supported_modes:
+            raise RigError("configuration", f"{self.descriptor.rig_id} does not support {self.mode}")
+        self._prepare_vm()
+        self._preflight_target()
+        self._transfer_source()
+
+    def build(self) -> None:
+        self._build()
+
+    def run_runtime(self) -> None:
+        self._launch()
+
+    def collect(self) -> None:
+        self._collect()
+
+    def best_effort_collect(self) -> None:
+        self._best_effort_collect()
+
+    def note_failure(self) -> None:
+        if self.command_log:
+            self.command_log.write(
+                f"FAILED at {self.progress.failure_stage}: {self.progress.failure_message}"
+            )
+
+    def cleanup_success(self) -> None:
+        self._cleanup_success()
+
     def execute(self) -> pathlib.Path:
-        result = "failed"
-        try:
-            self._prepare_checkout()
-            if self.mode not in self.descriptor.supported_modes:
-                raise RigError("configuration", f"{self.descriptor.rig_id} does not support {self.mode}")
-            self._prepare_vm()
-            self._preflight_target()
-            self._transfer_source()
-            self._build()
-            self._launch()
-            self._collect()
-            result = "passed"
-        except RigError as error:
-            self.failure_stage = error.stage
-            self.failure_message = str(error)
-            if self.command_log:
-                self.command_log.write(f"FAILED at {error.stage}: {error}")
-            self._best_effort_collect()
-        except KeyboardInterrupt:
-            self.failure_stage = "interrupted"
-            self.failure_message = "run interrupted by operator"
-            if self.command_log:
-                self.command_log.write("FAILED at interrupted: run interrupted by operator")
-            self._best_effort_collect()
-        finally:
-            self.ended_at = utc_now()
-            if self.archive is not None:
-                try:
-                    self._write_manifest(result)
-                except (OSError, RigError) as error:
-                    self.failure_stage = "manifest"
-                    self.failure_message = str(error)
-                    result = "failed"
-            if cleanup_allowed(result, self.artifacts_collected, self.manifest_finalized):
-                try:
-                    self._cleanup_success()
-                except RigError as error:
-                    self.failure_stage = error.stage
-                    self.failure_message = str(error)
-                    result = "failed"
-                self.manifest_finalized = False
-                try:
-                    self._write_manifest(result)
-                except (OSError, RigError) as error:
-                    self.failure_stage = "manifest"
-                    self.failure_message = str(error)
-                    result = "failed"
-        if result != "passed":
-            raise RigError(self.failure_stage or "run", self.failure_message or "run failed")
-        assert self.archive is not None
-        return self.archive
+        return execute_adapter(self)
 
 
 def parse_args(arguments: Sequence[str]) -> argparse.Namespace:
@@ -921,28 +809,50 @@ def parse_args(arguments: Sequence[str]) -> argparse.Namespace:
     return parser.parse_args(arguments)
 
 
+def run_rig(
+    *,
+    repo: pathlib.Path,
+    rig_id: str,
+    requested_ref: str,
+    mode: str,
+    local_config: Optional[pathlib.Path],
+    scenario: str = "startup",
+    release_after_ready: bool = False,
+) -> pathlib.Path:
+    script = pathlib.Path(__file__).resolve()
+    descriptor_path = script.parent / "rigs" / f"{rig_id}.ini"
+    local_path = local_config
+    if local_path is None:
+        configured = os.environ.get("LOKA_RIG_LOCAL_CONFIG")
+        local_path = pathlib.Path(configured) if configured else pathlib.Path.home() / ".config" / "loka" / "rigs" / f"{rig_id}.ini"
+    descriptor = load_descriptor(descriptor_path)
+    mapping = load_local_mapping(local_path)
+    run = MacOSRigRun(
+        repo=repo,
+        descriptor=descriptor,
+        mapping=mapping,
+        requested_ref=requested_ref,
+        mode=mode,
+        scenario=scenario,
+        release_after_ready=release_after_ready,
+    )
+    return run.execute()
+
+
 def main(arguments: Sequence[str]) -> int:
     args = parse_args(arguments)
     script = pathlib.Path(__file__).resolve()
     repo = script.parents[2]
-    descriptor_path = script.parent / "rigs" / f"{args.rig_id}.ini"
-    local_path = args.local_config
-    if local_path is None:
-        configured = os.environ.get("LOKA_RIG_LOCAL_CONFIG")
-        local_path = pathlib.Path(configured) if configured else pathlib.Path.home() / ".config" / "loka" / "rigs" / f"{args.rig_id}.ini"
     try:
-        descriptor = load_descriptor(descriptor_path)
-        mapping = load_local_mapping(local_path)
-        run = MacOSRigRun(
+        archive = run_rig(
             repo=repo,
-            descriptor=descriptor,
-            mapping=mapping,
+            rig_id=args.rig_id,
             requested_ref=args.ref,
             mode=args.mode,
+            local_config=args.local_config,
             scenario=args.scenario,
             release_after_ready=args.release_after_ready,
         )
-        archive = run.execute()
     except RigError as error:
         print(f"{error.stage} stage failed: {error}", file=sys.stderr)
         return 1

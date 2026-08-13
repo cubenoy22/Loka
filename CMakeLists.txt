@@ -247,6 +247,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/scripts/ScenarioToolsTest.py)
     add_test(NAME scriptMacOSRigProtocol
       COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/scripts/MacOSRigProtocolTest.py)
+    add_test(NAME scriptLokaRig
+      COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/scripts/LokaRigTest.py)
     add_test(NAME scriptToolboxPresentationRail
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/ToolboxPresentationRailTest.sh)
     add_test(NAME scriptBuild104Guard
