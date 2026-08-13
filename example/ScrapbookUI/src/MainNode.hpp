@@ -4,6 +4,7 @@
 #include <cassert>
 
 #include "ScrapbookFlowAdapters.hpp"
+#include "ScrapbookSceneIds.hpp"
 #include "app/nodes/ImageView.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
@@ -189,24 +190,27 @@ namespace scrapbook
       using namespace loka::app;
       this->props.assertInitialized();
       composition.declare(
-          VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_LEADING)
-          << (Box().size(300, 170)
+          VStack().TEST_ID(scene_ids::Root()).alignHorizontal(HORIZONTAL_ALIGNMENT_LEADING)
+          << (Box().TEST_ID(scene_ids::PageContent()).size(300, 170)
               << (Show(*this->showImage_.state())
                   << ImageView()
                          .image(this->image_.state())
                          .attr(ImageViewAttr().sizePolicy(IMAGE_VIEW_SIZE_FILL_PARENT).fit(IMAGE_FIT_CONTAIN)))
               << (Show(*this->showText_.state())
                   << Text(this->pageText_.state())
+                         .TEST_ID(scene_ids::PageText())
                          .attr(TextAttr().fontSize(18).wrap(TEXT_WRAP_WORD).truncation(TEXT_TRUNCATION_NONE))))
           << (HStack().alignVertical(VERTICAL_ALIGNMENT_CENTER)
-              << Text(this->caption_.state()) << Text(this->badge_.state()).attr(TextAttr().weight(TEXT_WEIGHT_BOLD))
+              << Text(this->caption_.state()).TEST_ID(scene_ids::PageCaption())
+              << Text(this->badge_.state()).attr(TextAttr().weight(TEXT_WEIGHT_BOLD))
               << (Show(*this->refusedBadgeVisible_.state())
                   << ImageView()
                          .image(this->refusedBadgeImage_.state())
                          .size(16, 16)
                          .attr(ImageViewAttr().sizePolicy(IMAGE_VIEW_SIZE_INTRINSIC).fit(IMAGE_FIT_CONTAIN))
                   << Text(this->refusedPageNumber_.state()).attr(TextAttr().weight(TEXT_WEIGHT_BOLD))))
-          << (HStack() << Button("Previous", &this->previousPage_) << Button("Next", &this->nextPage_)));
+          << (HStack() << Button("Previous", &this->previousPage_).TEST_ID(scene_ids::PreviousButton())
+                       << Button("Next", &this->nextPage_).TEST_ID(scene_ids::NextButton())));
     }
 
   private:

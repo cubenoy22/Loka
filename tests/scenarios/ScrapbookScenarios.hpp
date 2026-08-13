@@ -5,6 +5,11 @@
 
 #include "testing/snap/SnapFormat.hpp"
 
+#ifdef TEST_BUILD
+#include "app/scene/state/FlowSlot.hpp"
+#include "testing/scene/SceneTestFlow.hpp"
+#endif
+
 namespace scrapbook
 {
   class MainNode;
@@ -12,6 +17,14 @@ namespace scrapbook
 
 namespace loka
 {
+  namespace app
+  {
+    namespace scene
+    {
+      class Scene;
+    }
+  } // namespace app
+
   namespace scenario_tests
   {
     enum ScenarioCompletionPolicy
@@ -33,8 +46,10 @@ namespace loka
     public:
       ScenarioLaunchPlan();
 
-      /** Builds the presentation-only tour compiled into standalone targets. */
+#ifdef TEST_BUILD
+      /** Builds the presentation-only tour compiled into TEST-only targets. */
       static ScenarioLaunchPlan StandaloneTour();
+#endif
 
       bool isValid() const;
       const std::string &scenario() const;
@@ -85,7 +100,11 @@ namespace loka
 
       /** Drives one scenario step and names who owns the terminal state. */
       ScenarioAdvance
-      step(long tick, scrapbook::MainNode &mainNode, const CaptureContentBounds &bounds, dsl::SnapRecord &out);
+      step(long tick,
+           app::scene::Scene *scene,
+           scrapbook::MainNode &mainNode,
+           const CaptureContentBounds &bounds,
+           dsl::SnapRecord &out);
 
       /** Returns the immutable scenario selection owned by this run. */
       const std::string &name() const;
@@ -100,8 +119,11 @@ namespace loka
         KIND_FLIP_FORWARD_BACK,
         KIND_REFUSED_FLIP_KEEPS_PAGE,
         KIND_OPEN_TEXT_PAGE,
-        KIND_OPEN_TEXT_PAGE_REFUSED,
+        KIND_OPEN_TEXT_PAGE_REFUSED
+#ifdef TEST_BUILD
+        ,
         KIND_STANDALONE_TOUR
+#endif
       };
 
       struct PageObservation
@@ -138,10 +160,37 @@ namespace loka
                       scrapbook::MainNode &mainNode,
                       const CaptureContentBounds &bounds,
                       dsl::SnapRecord &out);
+#ifdef TEST_BUILD
+      typedef dsl::FlowChain<app::scene::Scene *, dsl::SnapRecord> StandaloneTourFlowChain;
+
+      /** Owns the scheduled tour and its borrowed input slot as one lifecycle. */
+      class StandaloneTourState
+      {
+      public:
+        StandaloneTourState();
+
+        void start();
+        dsl::FlowRunResult run(long tick, app::scene::Scene *scene);
+        const dsl::SnapRecord &record() const;
+
+      private:
+        dsl::testing::ScenarioClock clock_;
+        app::scene::Scene *scene_;
+        dsl::SnapRecord record_;
+        app::scene::FlowSlot<StandaloneTourFlowChain> flow_;
+
+        StandaloneTourState(const StandaloneTourState &);
+        StandaloneTourState &operator=(const StandaloneTourState &);
+      };
+#endif
+
+#ifdef TEST_BUILD
       bool runStandaloneTour(long tick,
+                             app::scene::Scene *scene,
                              scrapbook::MainNode &mainNode,
                              const CaptureContentBounds &bounds,
                              dsl::SnapRecord &out);
+#endif
       static PageObservation observePage(const scrapbook::MainNode &mainNode);
       static void setPageObservation(dsl::SnapRecord &record,
                                      const char *pageKey,
@@ -154,6 +203,12 @@ namespace loka
       int stage_;
       PageObservation step1_;
       PageObservation step2_;
+#ifdef TEST_BUILD
+      StandaloneTourState standaloneTour_;
+#endif
+
+      ScrapbookScenario(const ScrapbookScenario &);
+      ScrapbookScenario &operator=(const ScrapbookScenario &);
     };
 
     dsl::SnapRecord MakeDriverErrorRecord(const char *scenario, long errorCode, const char *message);

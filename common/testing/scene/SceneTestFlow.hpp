@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <string>
 
+#include "app/nodes/controls/Button.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/scene/Scene.hpp"
 #include "core/resource/Image.hpp"
@@ -246,6 +247,205 @@ namespace loka
           observedState.entries[0].observedGeneration = observedState.pass.generation;
         }
       };
+
+      /** Owner-updated monotonic clock borrowed by scheduled scenario steps. */
+      class ScenarioClock
+      {
+      public:
+        ScenarioClock()
+            : tick_(0)
+        {
+        }
+
+        void advanceTo(long tick)
+        {
+          assert(tick >= this->tick_ && "ScenarioClock cannot move backwards");
+          this->tick_ = tick;
+        }
+
+        long currentTick() const
+        {
+          return this->tick_;
+        }
+
+      private:
+        long tick_;
+      };
+
+      /** Schedules one typed Flow action at or after a scenario tick. The
+          completed output is replayed on later chain runs without repeating
+          the action. The clock owner must outlive this adapter. */
+      template <class AdapterT> class AtTickAdapter
+      {
+      public:
+        typedef typename AdapterT::In In;
+        typedef typename AdapterT::Out Out;
+
+        AtTickAdapter(const ScenarioClock &clock, long dueTick, const AdapterT &adapter)
+            : clock_(&clock),
+              dueTick_(dueTick),
+              adapter_(adapter),
+              completed_(false),
+              completedOut_()
+        {
+          assert(dueTick >= 0 && "AtTick requires a non-negative scenario tick");
+        }
+
+        StepRunStatus run(const In &in, Out &out, FlowError &error) const
+        {
+          if (this->completed_)
+          {
+            out = this->completedOut_;
+            return FLOW_STEP_SUCCEEDED;
+          }
+          if (this->clock_->currentTick() < this->dueTick_)
+          {
+            return FLOW_STEP_PENDING;
+          }
+          const StepRunStatus status = this->adapter_.run(in, out, error);
+          if (status == FLOW_STEP_SUCCEEDED)
+          {
+            this->completedOut_ = out;
+            this->completed_ = true;
+          }
+          return status;
+        }
+
+      private:
+        const ScenarioClock *clock_;
+        long dueTick_;
+        AdapterT adapter_;
+        mutable bool completed_;
+        mutable Out completedOut_;
+      };
+
+      template <class AdapterT>
+      inline AtTickAdapter<AdapterT> AtTick(const ScenarioClock &clock, long dueTick, const AdapterT &adapter)
+      {
+        return AtTickAdapter<AdapterT>(clock, dueTick, adapter);
+      }
+
+      template <class AdapterT> class AtTickSpec
+      {
+      public:
+        AtTickSpec(long dueTick, const AdapterT &adapter)
+            : dueTick_(dueTick),
+              adapter_(adapter),
+              successTarget_(0)
+        {
+        }
+
+        AtTickSpec &onSuccess(typename AdapterT::Out *target)
+        {
+          this->successTarget_ = target;
+          return *this;
+        }
+
+        long dueTick() const
+        {
+          return this->dueTick_;
+        }
+
+        const AdapterT &adapter() const
+        {
+          return this->adapter_;
+        }
+
+        typename AdapterT::Out *successTarget() const
+        {
+          return this->successTarget_;
+        }
+
+      private:
+        long dueTick_;
+        AdapterT adapter_;
+        typename AdapterT::Out *successTarget_;
+      };
+
+      /** Declares when one scenario action becomes eligible. ScenarioFlow
+          supplies the clock, input, and mechanical Flow step identity. */
+      template <class AdapterT> inline AtTickSpec<AdapterT> AtTick(long dueTick, const AdapterT &adapter)
+      {
+        return AtTickSpec<AdapterT>(dueTick, adapter);
+      }
+
+      template <class InT, class OutT> class ScenarioFlowChain
+      {
+      public:
+        ScenarioFlowChain(const ScenarioClock &clock, const FlowChain<InT, OutT> &flow, int nextStepId)
+            : clock_(&clock),
+              flow_(flow),
+              nextStepId_(nextStepId)
+        {
+        }
+
+        template <class AdapterT>
+        ScenarioFlowChain<InT, typename AdapterT::Out> operator|(const AtTickSpec<AdapterT> &step) const
+        {
+          typedef typename AdapterT::In NextIn;
+          typedef typename AdapterT::Out NextOut;
+          typedef char LokaScenarioFlowStepTypeMismatch[(flow_detail::IsSame<OutT, NextIn>::value) ? 1 : -1];
+          (void)sizeof(LokaScenarioFlowStepTypeMismatch);
+          StepSpec<AtTickAdapter<AdapterT> > scheduled(
+              this->nextStepId_, AtTick(*this->clock_, step.dueTick(), step.adapter()));
+          if (step.successTarget())
+          {
+            scheduled.onSuccess(step.successTarget());
+          }
+          const FlowChain<InT, NextOut> next = this->flow_ | scheduled;
+          return ScenarioFlowChain<InT, NextOut>(*this->clock_, next, this->nextStepId_ + 1);
+        }
+
+        FlowChain<InT, OutT> flow() const
+        {
+          return this->flow_;
+        }
+
+      private:
+        const ScenarioClock *clock_;
+        FlowChain<InT, OutT> flow_;
+        int nextStepId_;
+      };
+
+      template <class InT> class ScenarioFlowStart
+      {
+      public:
+        ScenarioFlowStart(const ScenarioClock &clock, const InT *input)
+            : clock_(&clock),
+              input_(input)
+        {
+          assert(input != 0 && "ScenarioFlow requires a borrowed input");
+        }
+
+        template <class AdapterT>
+        ScenarioFlowChain<InT, typename AdapterT::Out> operator|(const AtTickSpec<AdapterT> &step) const
+        {
+          typedef typename AdapterT::In FirstIn;
+          typedef typename AdapterT::Out FirstOut;
+          typedef char LokaScenarioFlowInputTypeMismatch[(flow_detail::IsSame<InT, FirstIn>::value) ? 1 : -1];
+          (void)sizeof(LokaScenarioFlowInputTypeMismatch);
+          StepSpec<AtTickAdapter<AdapterT> > scheduled(
+              1, AtTick(*this->clock_, step.dueTick(), step.adapter()));
+          scheduled.input(this->input_);
+          if (step.successTarget())
+          {
+            scheduled.onSuccess(step.successTarget());
+          }
+          const FlowChain<InT, FirstOut> first = Flow() | scheduled;
+          return ScenarioFlowChain<InT, FirstOut>(*this->clock_, first, 2);
+        }
+
+      private:
+        const ScenarioClock *clock_;
+        const InT *input_;
+      };
+
+      /** Starts a typed scheduled scenario over one borrowed Flow input. */
+      template <class InT>
+      inline ScenarioFlowStart<InT> ScenarioFlow(const ScenarioClock &clock, const InT *input)
+      {
+        return ScenarioFlowStart<InT>(clock, input);
+      }
 
       enum SceneTestFlowErrorKind
       {
@@ -1764,6 +1964,13 @@ namespace loka
       inline ClickButtonByIdAndFlushAdapter ClickButtonByIdAndFlush(const char *testId)
       {
         return ClickButtonByIdAndFlushAdapter(testId);
+      }
+
+      /** Scenario-facing button action. A click includes the resulting Scene
+          flush so the following action observes the completed projection. */
+      inline ClickButtonByIdAndFlushAdapter ClickButton(const char *testId)
+      {
+        return ClickButtonByIdAndFlush(testId);
       }
 
       class CheckTimingLessEqualAdapter

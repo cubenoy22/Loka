@@ -93,6 +93,7 @@ namespace
 
   loka::scenario_tests::ScenarioAdvance Advance(loka::scenario_tests::ScrapbookScenario &scenario,
                                                 long tick,
+                                                loka::app::scene::Scene &scene,
                                                 scrapbook::MainNode &mainNode,
                                                 loka::dsl::SnapRecord &record)
   {
@@ -101,7 +102,7 @@ namespace
     bounds.right = 300;
     bounds.bottom = 170;
     loka::core::StateTrackerGuard guard(mainNode.tracker());
-    return scenario.step(tick, mainNode, bounds, record);
+    return scenario.step(tick, &scene, mainNode, bounds, record);
   }
 } // namespace
 
@@ -157,31 +158,46 @@ void testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene()
   scrapbook::MainNode *mainNode =
       static_cast<scrapbook::MainNode *>(loka::dsl::testing::SceneTestAccess::rootNode(scene));
   LOKA_VERIFY(mainNode != 0);
+  loka::app::ButtonNode *nextButton = 0;
+  loka::dsl::FlowError lookupError;
+  LOKA_VERIFY(loka::dsl::testing::LookupNodeById<loka::app::ButtonNode>(
+                 &scene, std::string(scrapbook::scene_ids::NextButton()), nextButton, lookupError)
+              == loka::dsl::FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(nextButton != 0);
   VerifyCurrentPage(*mainNode, 0);
 
   loka::scenario_tests::ScrapbookScenario scenario(plan);
   loka::dsl::SnapRecord record;
-  LOKA_VERIFY(Advance(scenario, 1, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(Advance(scenario, 1, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
   VerifyCurrentPage(*mainNode, 0);
-  LOKA_VERIFY(Advance(scenario, 2, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(Advance(scenario, 2, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
   VerifyCurrentPage(*mainNode, 1);
-  LOKA_VERIFY(Advance(scenario, 31, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(Advance(scenario, 16, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
   VerifyCurrentPage(*mainNode, 1);
-  LOKA_VERIFY(Advance(scenario, 32, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(Advance(scenario, 17, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  VerifyCurrentPage(*mainNode, 2);
+  LOKA_VERIFY(Advance(scenario, 31, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  VerifyCurrentPage(*mainNode, 2);
+  LOKA_VERIFY(Advance(scenario, 32, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  VerifyCurrentPage(*mainNode, 3);
+  LOKA_VERIFY(Advance(scenario, 46, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  VerifyCurrentPage(*mainNode, 3);
+  LOKA_VERIFY(Advance(scenario, 47, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
   VerifyCurrentPage(*mainNode, 4);
-  LOKA_VERIFY(Advance(scenario, 61, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(Advance(scenario, 61, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
   VerifyCurrentPage(*mainNode, 4);
-  LOKA_VERIFY(Advance(scenario, 62, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
+  LOKA_VERIFY(Advance(scenario, 62, scene, *mainNode, record)
+              == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
   VerifyCurrentPage(*mainNode, 4);
 
   std::string text;
-  VerifyRecordInt(record, "step1_page", 0);
-  VerifyRecordInt(record, "step2_page", 1);
   VerifyRecordInt(record, "final_page", 4);
+  VerifyRecordInt(record, "view.target.present", 1);
   LOKA_VERIFY(record.get("text_matches_package_asset", text) && text == "true");
   LOKA_VERIFY(record.get("status", text) && text == loka::dsl::SnapStatusOk());
 
-  LOKA_VERIFY(Advance(scenario, 63, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
+  LOKA_VERIFY(Advance(scenario, 63, scene, *mainNode, record)
+              == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
   VerifyCurrentPage(*mainNode, 4);
 
   std::printf("testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene passed\n");

@@ -14,5 +14,6 @@ void testStateStreamAssignmentTransfersOwnedState();
 void testStateStreamDestructionReleasesOwnedState();
 void testStateStreamDestructionUnbindsSources();
 void testBoundaryBorrowDirectionsRejectSiblingAndDescendant();
+void testSceneFlowAtTickRunsEachActionOnceInOrder();
 
 #endif // LOKA_FLOW_DSL_TESTS_HPP
