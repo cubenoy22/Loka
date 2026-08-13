@@ -9,11 +9,10 @@
 
 namespace
 {
-  bool ResolveApplicationItemInPool(const loka::file::File &item,
-                                    loka::platform::file::FileHandle &out)
+  bool
+  ResolveFromDirectoryInPool(NSString *directory, const loka::file::File &item, loka::platform::file::FileHandle &out)
   {
-    NSString *resourcePath = [[NSBundle mainBundle] resourcePath];
-    if (!resourcePath)
+    if (!directory)
     {
       return false;
     }
@@ -31,7 +30,7 @@ namespace
       return false;
     }
 
-    NSString *resolvedPath = [[resourcePath stringByAppendingString:@"/"] stringByAppendingString:relative];
+    NSString *resolvedPath = [directory stringByAppendingPathComponent:relative];
     const char *utf8 = [resolvedPath UTF8String];
     if (!utf8)
     {
@@ -43,8 +42,14 @@ namespace
     {
       return false;
     }
-    out.displayPath = displayPath;
-    out.kind = item.kind();
+    loka::platform::file::FileHandle completed;
+    completed.displayPath = displayPath;
+    completed.kind = item.kind();
+    if (completed.displayPath.empty())
+    {
+      return false;
+    }
+    out = completed;
     return true;
   }
 } // namespace
@@ -64,7 +69,21 @@ namespace loka
         }
 
         NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-        const bool resolved = ResolveApplicationItemInPool(item, out);
+        const bool resolved = ResolveFromDirectoryInPool([[NSBundle mainBundle] resourcePath], item, out);
+        [pool drain];
+        return resolved;
+      }
+
+      bool ResolveApplicationSidecar(const loka::file::File &item, FileHandle &out)
+      {
+        out = FileHandle();
+        if (!ApplicationRelativeIsOpenable(item))
+        {
+          return false;
+        }
+        NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+        NSString *bundlePath = [[NSBundle mainBundle] bundlePath];
+        const bool resolved = ResolveFromDirectoryInPool([bundlePath stringByDeletingLastPathComponent], item, out);
         [pool drain];
         return resolved;
       }

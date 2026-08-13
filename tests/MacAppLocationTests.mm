@@ -48,3 +48,19 @@ void testMacApplicationItemNamesResourceDirectory()
   LOKA_VERIFY([[NSFileManager defaultManager] removeItemAtPath:fixturePath error:nil]);
   [pool drain];
 }
+
+void testMacApplicationSidecarNamesBundleParent()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  NSString *bundlePath = [[NSBundle mainBundle] bundlePath];
+  assert(bundlePath);
+  NSString *expected = [[bundlePath stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"LOG.TXT"];
+
+  loka::platform::file::FileHandle handle;
+  LOKA_VERIFY(loka::platform::file::ResolveApplicationSidecar(
+      loka::file::File::Application() << loka::file::File("LOG.TXT"), handle));
+  const char *expectedUtf8 = [expected UTF8String];
+  assert(expectedUtf8);
+  assert(handle.displayPath.equals(loka::core::String::Utf8(expectedUtf8, std::strlen(expectedUtf8))));
+  [pool drain];
+}

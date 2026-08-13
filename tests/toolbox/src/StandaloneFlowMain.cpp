@@ -1,4 +1,4 @@
-#include "StandaloneFlowDriver.hpp"
+#include "StandaloneFlowApplication.hpp"
 
 #if !defined(LOKA_RETRO68)
 #error LokaScrapbookStandaloneFlow is a Retro68-only application
@@ -12,5 +12,5 @@ int main(int argc, char **argv)
 {
   (void)argc;
   (void)argv;
-  return loka::toolbox_tests::RunStandaloneFlowApplication();
+  return loka::standalone_tests::RunStandaloneFlowApplication();
 }

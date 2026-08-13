@@ -28,7 +28,7 @@ set(LOKA_STANDALONE_FLOW_TOOLBOX_TARGET
 )
 set(LOKA_STANDALONE_FLOW_TOOLBOX_SOURCES
   src/StandaloneFlowMain.cpp
-  src/StandaloneFlowDriver.cpp
+  ${CMAKE_SOURCE_DIR}/tests/standalone/StandaloneFlowApplication.cpp
   ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/ScrapbookScenarios.cpp
   ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/src/ScrapbookPackage.cpp
@@ -61,6 +61,7 @@ target_link_libraries(${LOKA_TESTS_TOOLBOX_TARGET} PRIVATE
 target_include_directories(${LOKA_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${CMAKE_SOURCE_DIR}/tests/scenarios
+  ${CMAKE_SOURCE_DIR}/tests/standalone
   ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/src
   ${CMAKE_SOURCE_DIR}/common
   ${CMAKE_SOURCE_DIR}/apple/toolbox/src

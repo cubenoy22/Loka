@@ -3,3 +3,4 @@
 LOKA_TEST(testMacDisplayAppearanceDeclinesWithoutMatchingCapability)
 LOKA_TEST(testMacDisplayAppearanceUsesNativeBestMatch)
 LOKA_TEST(testMacApplicationItemNamesResourceDirectory)
+LOKA_TEST(testMacApplicationSidecarNamesBundleParent)
