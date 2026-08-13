@@ -17,6 +17,7 @@ SUPPORTED_DESCRIPTOR_VERSION = "1"
 SUPPORTED_ARTIFACT_CONTRACT_VERSION = "1"
 SUPPORTED_PUBLIC_MODES = frozenset(("flow", "input", "inspect"))
 RIG_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9.-]*$")
+REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
 class RigError(RuntimeError):

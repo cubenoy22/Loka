@@ -13,7 +13,7 @@ from unittest import mock
 
 sys.dont_write_bytecode = True
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-MODULE_PATH = ROOT / "scripts" / "macos" / "loka_macos_rig.py"
+MODULE_PATH = ROOT / "scripts" / "rig" / "macos" / "loka_macos_rig.py"
 SPEC = importlib.util.spec_from_file_location("loka_macos_rig", MODULE_PATH)
 assert SPEC and SPEC.loader
 rig = importlib.util.module_from_spec(SPEC)
@@ -23,7 +23,7 @@ SPEC.loader.exec_module(rig)
 
 class MacOSRigProtocolTest(unittest.TestCase):
     def test_tracked_descriptor_separates_machine_local_mapping(self):
-        descriptor = rig.load_descriptor(ROOT / "scripts" / "macos" / "rigs" / "mavericks-10.9.ini")
+        descriptor = rig.load_descriptor(ROOT / "scripts" / "rig" / "macos" / "rigs" / "mavericks-10.9.ini")
         self.assertEqual(descriptor.rig_id, "mavericks-10.9")
         self.assertEqual(descriptor.supported_modes, frozenset(("flow", "inspect")))
         self.assertFalse(descriptor.disposable_for_input)
@@ -50,7 +50,7 @@ class MacOSRigProtocolTest(unittest.TestCase):
     def test_unknown_descriptor_vocabulary_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "rig.ini"
-            text = (ROOT / "scripts" / "macos" / "rigs" / "mavericks-10.9.ini").read_text(encoding="utf-8")
+            text = (ROOT / "scripts" / "rig" / "macos" / "rigs" / "mavericks-10.9.ini").read_text(encoding="utf-8")
             path.write_text(text + "unexpected = value\n", encoding="utf-8")
             with self.assertRaises(rig.RigError) as caught:
                 rig.load_descriptor(path)

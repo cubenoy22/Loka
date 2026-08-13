@@ -171,16 +171,16 @@ Maintainers can build and run one exact commit through a configured macOS VM
 or Toolbox MAME rig with the common host-side entry point:
 
 ```sh
-python3 scripts/loka-rig.py run mavericks-10.9 \
+python3 scripts/rig/loka-rig.py run mavericks-10.9 \
   --ref <commit-sha> --mode flow --local-config <macos-local.ini>
 
-python3 scripts/loka-rig.py run toolbox-maciix \
+python3 scripts/rig/loka-rig.py run toolbox-maciix \
   --ref <commit-sha> --mode flow --local-config <toolbox-local.ini>
 ```
 
 Machine-local mappings contain VM, SSH, archive, MAME, and golden paths and
 must remain untracked. Start from the matching `local.example.ini` under
-`scripts/macos/rigs/` or `scripts/toolbox/rigs/`. Successful runs produce a
+`scripts/rig/macos/rigs/` or `scripts/rig/toolbox/rigs/`. Successful runs produce a
 hashed manifest and presentation artifacts; failed runs retain diagnostic state
 when possible. See [docs/LOKA_RIG.md](docs/LOKA_RIG.md) for the lifecycle,
 result vocabulary, and adapter-specific setup links.

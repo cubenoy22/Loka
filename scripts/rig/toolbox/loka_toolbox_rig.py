@@ -18,6 +18,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from loka_rig_common import (
+    REPOSITORY_ROOT,
     RIG_ID_PATTERN,
     SUPPORTED_ARTIFACT_CONTRACT_VERSION,
     SUPPORTED_DESCRIPTOR_VERSION,
@@ -407,10 +408,9 @@ def parse_args(arguments: Sequence[str]) -> argparse.Namespace:
 
 def main(arguments: Sequence[str]) -> int:
     args = parse_args(arguments)
-    repo = pathlib.Path(__file__).resolve().parents[2]
     try:
         archive = run_rig(
-            repo=repo,
+            repo=REPOSITORY_ROOT,
             rig_id=args.rig_id,
             requested_ref=args.ref,
             mode=args.mode,

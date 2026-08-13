@@ -12,7 +12,7 @@ from typing import Optional, Sequence
 
 sys.dont_write_bytecode = True
 
-from loka_rig_common import RIG_ID_PATTERN, RigError, SUPPORTED_PUBLIC_MODES
+from loka_rig_common import REPOSITORY_ROOT, RIG_ID_PATTERN, RigError, SUPPORTED_PUBLIC_MODES
 
 
 @dataclasses.dataclass(frozen=True)
@@ -23,8 +23,8 @@ class AdapterRegistration:
 
 
 ADAPTERS = (
-    AdapterRegistration("macos", pathlib.PurePosixPath("scripts/macos/rigs"), "macos.loka_macos_rig"),
-    AdapterRegistration("toolbox", pathlib.PurePosixPath("scripts/toolbox/rigs"), "toolbox.loka_toolbox_rig"),
+    AdapterRegistration("macos", pathlib.PurePosixPath("scripts/rig/macos/rigs"), "macos.loka_macos_rig"),
+    AdapterRegistration("toolbox", pathlib.PurePosixPath("scripts/rig/toolbox/rigs"), "toolbox.loka_toolbox_rig"),
 )
 
 
@@ -74,11 +74,10 @@ def run_adapter(
 
 def main(arguments: Sequence[str]) -> int:
     args = parse_args(arguments)
-    repo = pathlib.Path(__file__).resolve().parent.parent
     try:
-        registration = find_adapter(repo, args.rig_id)
+        registration = find_adapter(REPOSITORY_ROOT, args.rig_id)
         archive = run_adapter(
-            repo,
+            REPOSITORY_ROOT,
             registration,
             args.rig_id,
             args.requested_ref,

@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Run one specified Loka commit on a macOS Parallels rig.
+"""Run one specified Loka commit through the macOS Parallels rig adapter.
 
-This is the macOS vertical slice, not the future cross-platform loka-rig
-orchestrator. Machine-specific names and paths come only from a local mapping.
+Machine-specific names and paths come only from a local mapping.
 """
 
 from __future__ import annotations
@@ -25,6 +24,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from loka_rig_common import (
+    REPOSITORY_ROOT,
     RIG_ID_PATTERN,
     SUPPORTED_ARTIFACT_CONTRACT_VERSION,
     SUPPORTED_DESCRIPTOR_VERSION,
@@ -841,11 +841,9 @@ def run_rig(
 
 def main(arguments: Sequence[str]) -> int:
     args = parse_args(arguments)
-    script = pathlib.Path(__file__).resolve()
-    repo = script.parents[2]
     try:
         archive = run_rig(
-            repo=repo,
+            repo=REPOSITORY_ROOT,
             rig_id=args.rig_id,
             requested_ref=args.ref,
             mode=args.mode,

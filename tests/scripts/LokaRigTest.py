@@ -8,16 +8,16 @@ import unittest
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-SCRIPTS = ROOT / "scripts"
+RIG_SCRIPTS = ROOT / "scripts" / "rig"
 sys.dont_write_bytecode = True
-sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(RIG_SCRIPTS))
 
 import loka_rig_common as common
 from toolbox import loka_toolbox_rig as toolbox
 
 
 def load_cli():
-    path = SCRIPTS / "loka-rig.py"
+    path = RIG_SCRIPTS / "loka-rig.py"
     spec = importlib.util.spec_from_file_location("loka_rig_cli_test", path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
@@ -64,6 +64,9 @@ class FakeAdapter:
 
 
 class LokaRigCommonTest(unittest.TestCase):
+    def test_common_module_owns_the_rig_repository_root(self):
+        self.assertEqual(common.REPOSITORY_ROOT, ROOT)
+
     def test_common_executor_owns_the_success_sequence(self):
         with tempfile.TemporaryDirectory() as directory:
             adapter = FakeAdapter(directory)
@@ -213,8 +216,8 @@ class LokaRigCliTest(unittest.TestCase):
         cli = load_cli()
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
-            macos = root / "scripts" / "macos" / "rigs"
-            toolbox = root / "scripts" / "toolbox" / "rigs"
+            macos = root / "scripts" / "rig" / "macos" / "rigs"
+            toolbox = root / "scripts" / "rig" / "toolbox" / "rigs"
             macos.mkdir(parents=True)
             toolbox.mkdir(parents=True)
             (toolbox / "toolbox-maciix.ini").write_text("[rig]\n", encoding="utf-8")
@@ -239,7 +242,7 @@ class LokaRigCliTest(unittest.TestCase):
 class ToolboxRigAdapterTest(unittest.TestCase):
     def test_tracked_descriptor_and_local_mapping_stay_separate(self):
         descriptor = toolbox.load_descriptor(
-            ROOT / "scripts" / "toolbox" / "rigs" / "toolbox-maciix.ini"
+            ROOT / "scripts" / "rig" / "toolbox" / "rigs" / "toolbox-maciix.ini"
         )
         self.assertEqual(descriptor.rig_id, "toolbox-maciix")
         self.assertEqual(descriptor.supported_modes, frozenset(("flow",)))
@@ -261,7 +264,7 @@ class ToolboxRigAdapterTest(unittest.TestCase):
 
     def test_missing_mame_machine_uses_the_presentation_rail_default(self):
         descriptor = toolbox.load_descriptor(
-            ROOT / "scripts" / "toolbox" / "rigs" / "toolbox-maciix.ini"
+            ROOT / "scripts" / "rig" / "toolbox" / "rigs" / "toolbox-maciix.ini"
         )
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
