@@ -56,27 +56,38 @@ function Assert-ExecutableArchitecture([string]$Path, [string]$Expected) {
     $actual = Get-PeArchitecture $Path
     if ($actual -ne $Expected) {
         throw (("Expected a {0} PE executable, but the selected compiler produced {1}. " +
-            "Start VS Code from matching Visual Studio Command Line Tools and use a fresh architecture-specific preset.") -f
+            "Start VS Code from the Visual Studio Command Line Tools for the intended target and use a fresh architecture-specific preset.") -f
             $Expected, $actual)
     }
 }
 
-function Assert-CompilerEnvironment([string]$Expected) {
+function Get-CompilerEnvironmentArchitecture {
     $compiler = Get-Command cl.exe -ErrorAction SilentlyContinue
     if (-not $compiler) {
-        throw "cl.exe is not available. Start VS Code from Visual Studio Command Line Tools for $Expected."
+        throw "cl.exe is not available. Start VS Code from Visual Studio Command Line Tools for the intended target."
     }
 
-    if ($env:VSCMD_ARG_TGT_ARCH) {
-        $target = $env:VSCMD_ARG_TGT_ARCH.ToLowerInvariant()
-        if ($target -eq "i386") {
-            $target = "x86"
-        }
-        if ($target -ne $Expected) {
-            throw (("The selected architecture is {0}, but this Visual Studio environment targets {1}. " +
-                "Choose the matching task option or restart VS Code from the matching Command Line Tools.") -f
-                $Expected, $target)
-        }
+    if (-not $env:VSCMD_ARG_TGT_ARCH) {
+        throw ("The Visual Studio target architecture is unavailable. " +
+            "Start VS Code from ARM64, x64, or x86 Visual Studio Command Line Tools.")
+    }
+
+    $target = $env:VSCMD_ARG_TGT_ARCH.ToLowerInvariant()
+    if ($target -eq "i386") {
+        $target = "x86"
+    }
+    if ($target -notin @("arm64", "x64", "x86")) {
+        throw "Unsupported Visual Studio target architecture: $target"
+    }
+    return $target
+}
+
+function Assert-CompilerEnvironment([string]$Expected) {
+    $target = Get-CompilerEnvironmentArchitecture
+    if ($target -ne $Expected) {
+        throw (("The requested architecture is {0}, but this Visual Studio environment targets {1}. " +
+            "Restart VS Code from the intended Visual Studio Command Line Tools or omit -Architecture to use the inherited target.") -f
+            $Expected, $target)
     }
 }
 
@@ -110,10 +121,11 @@ function Assert-SuccessAudit([string]$Content) {
 }
 
 if (-not $Architecture) {
-    if (-not $isPackagedVerifier) {
-        throw "Architecture is required when running from the repository."
+    if ($isPackagedVerifier) {
+        $Architecture = Get-PeArchitecture $packagedExecutable
+    } else {
+        $Architecture = Get-CompilerEnvironmentArchitecture
     }
-    $Architecture = Get-PeArchitecture $packagedExecutable
 }
 
 if ($isPackagedVerifier -and $Action -ne "Verify") {

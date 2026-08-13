@@ -267,9 +267,7 @@
         "-File",
         "scripts/win32-standalone-flow.ps1",
         "-Action",
-        "Build",
-        "-Architecture",
-        "${input:win32StandaloneArchitecture}"
+        "Build"
       ],
       "group": "build",
       "problemMatcher": "$msCompile"
@@ -285,9 +283,7 @@
         "-File",
         "scripts/win32-standalone-flow.ps1",
         "-Action",
-        "Stage",
-        "-Architecture",
-        "${input:win32StandaloneArchitecture}"
+        "Stage"
       ],
       "problemMatcher": "$msCompile"
     },
@@ -302,9 +298,7 @@
         "-File",
         "scripts/win32-standalone-flow.ps1",
         "-Action",
-        "Verify",
-        "-Architecture",
-        "${input:win32StandaloneArchitecture}"
+        "Verify"
       ],
       "problemMatcher": "$msCompile"
     },
@@ -1153,26 +1147,6 @@
     }
   ],
   "inputs": [
-    {
-      "id": "win32StandaloneArchitecture",
-      "type": "pickString",
-      "description": "Select the architecture of the Visual Studio Command Line Tools session",
-      "options": [
-        {
-          "label": "x86 / i386",
-          "value": "x86"
-        },
-        {
-          "label": "x64",
-          "value": "x64"
-        },
-        {
-          "label": "ARM64",
-          "value": "arm64"
-        }
-      ],
-      "default": "x86"
-    },
     {
       "id": "retro68DskPath",
       "type": "pickString",

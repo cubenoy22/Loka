@@ -63,10 +63,10 @@ This is the environment where binaries are actually built.
   `Contents/Resources`.
 - For a standalone presentation Release, start VS Code from the Visual Studio
   Command Line Tools session for the desired target, then run
-  `Verify: Win32 Standalone Flow Release` and choose ARM64, x64, or x86/i386.
-  The task requires the selected architecture to match the inherited compiler
-  environment, uses a separate CMake cache for each architecture, verifies the
-  resulting PE header, and stages the executable with `ASSETS.LRP` under
+  `Verify: Win32 Standalone Flow Release`. The task derives ARM64, x64, or
+  x86/i386 from the inherited compiler environment. It uses a separate CMake
+  cache for each architecture, verifies the resulting PE header, and stages
+  the executable with `ASSETS.LRP` under
   `build/presentation/win32-<architecture>-release`. It then launches the app,
   waits for the exact twelve-step success audit, and stops the final-scene
   hold. Copy the staged directory to the target machine and run
