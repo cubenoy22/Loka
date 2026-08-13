@@ -313,7 +313,8 @@ namespace loka
             {
               const scenario_tests::CaptureContentBounds captureBounds = QueryContentBounds(window);
               const scenario_tests::ScenarioAdvance advance = this->scenario_.step(
-                  this->tickCount_, *this->borrowedMainNode_, ContentLocalBounds(captureBounds), record);
+                  this->tickCount_, window ? window->scene() : 0, *this->borrowedMainNode_,
+                  ContentLocalBounds(captureBounds), record);
               switch (advance)
               {
               case scenario_tests::SCENARIO_ADVANCE_PENDING:

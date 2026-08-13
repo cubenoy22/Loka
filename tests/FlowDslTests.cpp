@@ -126,6 +126,35 @@ namespace
     int calls;
   };
 
+  struct CountSceneAction
+  {
+    typedef loka::app::scene::Scene *In;
+    typedef loka::app::scene::Scene *Out;
+
+    CountSceneAction(int *calls, int expectedPreviousCalls)
+        : calls_(calls),
+          expectedPreviousCalls_(expectedPreviousCalls)
+    {
+    }
+
+    loka::dsl::StepRunStatus
+    run(loka::app::scene::Scene *const &in, loka::app::scene::Scene *&out, loka::dsl::FlowError &error) const
+    {
+      out = in;
+      if (!this->calls_ || *this->calls_ != this->expectedPreviousCalls_)
+      {
+        error.kind = loka::dsl::FLOW_ERROR_KIND_FLOW;
+        error.code = loka::dsl::FLOW_ERROR_CODE_ASSERT_PREDICATE_FAILED;
+        return loka::dsl::FLOW_STEP_FAILED;
+      }
+      ++(*this->calls_);
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+
+    int *calls_;
+    int expectedPreviousCalls_;
+  };
+
   class ConditionalProjectedProbeNode;
   struct ConditionalProjectedProbeTypeTag
   {
@@ -6420,4 +6449,32 @@ void testBoundaryBorrowDirectionsRejectSiblingAndDescendant()
   assert(composition.currentBoundary().isValid());
   assert(!composition.findBoundary<BorrowDirectionApi>().isValid());
   assert(!composition.currentBoundary().state(siblingState).isValid());
+}
+
+void testSceneFlowAtTickRunsEachActionOnceInOrder()
+{
+  loka::dsl::testing::ScenarioClock clock;
+  loka::app::scene::Scene *scene = 0;
+  int calls = 0;
+  loka::dsl::FlowChain<loka::app::scene::Scene *, loka::app::scene::Scene *> chain =
+      (loka::dsl::testing::ScenarioFlow(clock, &scene)
+       | loka::dsl::testing::AtTick(2, CountSceneAction(&calls, 0))
+       | loka::dsl::testing::AtTick(4, CountSceneAction(&calls, 1)))
+          .flow();
+
+  clock.advanceTo(1);
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
+  LOKA_VERIFY(calls == 0);
+  clock.advanceTo(2);
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
+  LOKA_VERIFY(calls == 1);
+  clock.advanceTo(3);
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
+  LOKA_VERIFY(calls == 1);
+  clock.advanceTo(4);
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(calls == 2);
+  clock.advanceTo(5);
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(calls == 2);
 }

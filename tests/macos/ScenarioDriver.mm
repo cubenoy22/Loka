@@ -416,7 +416,7 @@ namespace loka
           }
           dsl::SnapRecord record;
           const scenario_tests::ScenarioAdvance advance =
-              this->scenario_.step(this->tick_, *mainNode, bounds, record);
+              this->scenario_.step(this->tick_, window->scene(), *mainNode, bounds, record);
           switch (advance)
           {
           case scenario_tests::SCENARIO_ADVANCE_PENDING:

@@ -3,6 +3,7 @@
 #include <cassert>
 
 #include "../../example/ScrapbookUI/src/MainNode.hpp"
+#include "../../example/ScrapbookUI/src/ScrapbookSceneIds.hpp"
 #include "platform/StringUTF8.hpp"
 
 namespace loka
@@ -18,9 +19,12 @@ namespace loka
       const char *kRefusedFlipKeepsPage = "refused-flip-keeps-page";
       const char *kOpenTextPage = "open-text-page";
       const char *kOpenTextPageRefused = "open-text-page-refused";
-      const char *kStandaloneTour = "standalone-tour";
       const long kInitialPresentationTick = 2;
       const long kStepSpacingTicks = 30;
+#ifdef TEST_BUILD
+      const char *kStandaloneTour = "standalone-tour";
+      const long kTourStepSpacingTicks = 15;
+#endif
 
       // The exact bytes of Assets/page5.txt as lrpc packed them, trailing
       // newline included. Matching against this pins that the on-screen text
@@ -77,6 +81,36 @@ namespace loka
                || name == kFlipForwardBack || name == kRefusedFlipKeepsPage
                || name == kOpenTextPage || name == kOpenTextPageRefused;
       }
+
+#ifdef TEST_BUILD
+      dsl::FlowChain<app::scene::Scene *, dsl::SnapRecord>
+      BuildStandaloneTourFlow(dsl::testing::ScenarioClock &clock,
+                              app::scene::Scene **sceneInput,
+                              dsl::SnapRecord *recordOut)
+      {
+        using namespace dsl::testing;
+        const long page2Tick = kInitialPresentationTick + kTourStepSpacingTicks;
+        const long page3Tick = page2Tick + kTourStepSpacingTicks;
+        const long page4Tick = page3Tick + kTourStepSpacingTicks;
+        const long finalTick = page4Tick + kTourStepSpacingTicks;
+        return (ScenarioFlow(clock, sceneInput)
+                | AtTick(kInitialPresentationTick,
+                         CheckText(scrapbook::scene_ids::PageCaption(), "1 / 5"))
+                | AtTick(kInitialPresentationTick, ClickButton(scrapbook::scene_ids::NextButton()))
+                | AtTick(page2Tick, CheckText(scrapbook::scene_ids::PageCaption(), "2 / 5"))
+                | AtTick(page2Tick, ClickButton(scrapbook::scene_ids::NextButton()))
+                | AtTick(page3Tick, CheckText(scrapbook::scene_ids::PageCaption(), "3 / 5"))
+                | AtTick(page3Tick, ClickButton(scrapbook::scene_ids::NextButton()))
+                | AtTick(page4Tick, CheckText(scrapbook::scene_ids::PageCaption(), "4 / 5"))
+                | AtTick(page4Tick, ClickButton(scrapbook::scene_ids::NextButton()))
+                | AtTick(finalTick, CheckText(scrapbook::scene_ids::PageCaption(), "5 / 5"))
+                | AtTick(finalTick, CheckText(scrapbook::scene_ids::PageText(), kPage5Text))
+                | AtTick(finalTick, CaptureViewTarget(scrapbook::scene_ids::PageText()))
+                | AtTick(finalTick, CaptureView("ScrapbookUI", "standalone-tour", finalTick, 1))
+                      .onSuccess(recordOut))
+            .flow();
+      }
+#endif
     } // namespace
 
     ScenarioLaunchPlan::ScenarioLaunchPlan()
@@ -94,10 +128,38 @@ namespace loka
     {
     }
 
+#ifdef TEST_BUILD
     ScenarioLaunchPlan ScenarioLaunchPlan::StandaloneTour()
     {
       return ScenarioLaunchPlan(kStandaloneTour, SCENARIO_COMPLETION_HOLD_FINAL_SCENE);
     }
+
+    ScrapbookScenario::StandaloneTourState::StandaloneTourState()
+        : clock_(),
+          scene_(0),
+          record_(),
+          flow_()
+    {
+    }
+
+    void ScrapbookScenario::StandaloneTourState::start()
+    {
+      assert(!this->flow_.isValid() && "StandaloneTourState starts once");
+      this->flow_.set(BuildStandaloneTourFlow(this->clock_, &this->scene_, &this->record_));
+    }
+
+    dsl::FlowRunResult ScrapbookScenario::StandaloneTourState::run(long tick, app::scene::Scene *scene)
+    {
+      this->clock_.advanceTo(tick);
+      this->scene_ = scene;
+      return this->flow_.runResult();
+    }
+
+    const dsl::SnapRecord &ScrapbookScenario::StandaloneTourState::record() const
+    {
+      return this->record_;
+    }
+#endif
 
     bool ScenarioLaunchPlan::isValid() const
     {
@@ -135,6 +197,9 @@ namespace loka
           stage_(0),
           step1_(),
           step2_()
+#ifdef TEST_BUILD
+          , standaloneTour_()
+#endif
     {
       assert(plan.isValid() && "ScenarioLaunchPlan is required");
       const std::string &name = this->plan_.scenario();
@@ -166,18 +231,25 @@ namespace loka
       {
         this->kind_ = KIND_OPEN_TEXT_PAGE_REFUSED;
       }
+#ifdef TEST_BUILD
       else if (name == kStandaloneTour)
       {
         this->kind_ = KIND_STANDALONE_TOUR;
+        this->standaloneTour_.start();
       }
+#endif
     }
 
     ScenarioAdvance
     ScrapbookScenario::step(long tick,
+                            app::scene::Scene *scene,
                             scrapbook::MainNode &mainNode,
                             const CaptureContentBounds &bounds,
                             dsl::SnapRecord &out)
     {
+#ifndef TEST_BUILD
+      (void)scene;
+#endif
       if (this->terminalState_ != SCENARIO_ADVANCE_PENDING)
       {
         return this->terminalState_;
@@ -204,9 +276,11 @@ namespace loka
       case KIND_OPEN_TEXT_PAGE_REFUSED:
         complete = this->runOpenTextPage(tick, mainNode, bounds, out);
         break;
+#ifdef TEST_BUILD
       case KIND_STANDALONE_TOUR:
-        complete = this->runStandaloneTour(tick, mainNode, bounds, out);
+        complete = this->runStandaloneTour(tick, scene, mainNode, bounds, out);
         break;
+#endif
       }
       if (!complete)
       {
@@ -445,58 +519,38 @@ namespace loka
       return true;
     }
 
+#ifdef TEST_BUILD
     bool ScrapbookScenario::runStandaloneTour(long tick,
+                                              app::scene::Scene *scene,
                                               scrapbook::MainNode &mainNode,
                                               const CaptureContentBounds &bounds,
                                               dsl::SnapRecord &out)
     {
-      if (tick < kInitialPresentationTick)
+      const dsl::FlowRunResult result = this->standaloneTour_.run(tick, scene);
+      if (result == dsl::FLOW_RUN_PENDING)
       {
         return false;
       }
-      if (this->stage_ == 0)
+      if (result != dsl::FLOW_RUN_SUCCEEDED)
       {
-        this->step1_ = observePage(mainNode);
-        mainNode.selectPage(1);
-        this->stage_ = 1;
-        return false;
+        out = MakeDriverErrorRecord(this->plan_.scenario().c_str(), 2305, "standalone Flow failed");
+        return true;
       }
-      if (this->stage_ == 1)
-      {
-        if (tick < kInitialPresentationTick + kStepSpacingTicks)
-        {
-          return false;
-        }
-        this->step2_ = observePage(mainNode);
-        mainNode.selectPage(4);
-        this->stage_ = 2;
-        return false;
-      }
-      if (tick < kInitialPresentationTick + 2 * kStepSpacingTicks)
-      {
-        return false;
-      }
-
       const PageObservation finalPage = observePage(mainNode);
       std::string text;
       const bool textAvailable = platform::CollectUtf8(mainNode.displayedPageText(), text);
       const bool textMatches = textAvailable && text == kPage5Text;
-      out = MakeBaseRecord(this->plan_.scenario().c_str(), tick);
-      setPageObservation(out, "step1_page", "step1_caption", this->step1_);
-      setPageObservation(out, "step2_page", "step2_caption", this->step2_);
+      out = this->standaloneTour_.record();
       setPageObservation(out, "final_page", "final_caption", finalPage);
       SetBool(out, "text_matches_package_asset", textMatches);
       out.setInt("text_length", textAvailable ? static_cast<long>(text.size()) : -1);
       SetContentBounds(out, bounds);
-      const bool ok = bounds.available && this->step1_.published
-                      && this->step1_.page == 0 && this->step1_.caption == "1 / 5"
-                      && this->step2_.published && this->step2_.page == 1
-                      && this->step2_.caption == "2 / 5" && finalPage.published
-                      && finalPage.page == 4 && finalPage.caption == "5 / 5"
-                      && textMatches;
+      const bool ok = bounds.available && finalPage.published && finalPage.page == 4
+                      && finalPage.caption == "5 / 5" && textMatches;
       SetVerdict(out, ok);
       return true;
     }
+#endif
 
     dsl::SnapRecord MakeDriverErrorRecord(const char *scenario, long errorCode, const char *message)
     {
