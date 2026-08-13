@@ -5,6 +5,7 @@
 #include <Quickdraw.h>
 
 #include "MainNode.hpp"
+#include "ObservedScrapbookMainDefinition.hpp"
 #include "ScrapbookScenarios.hpp"
 #include "ToolboxWindow.hpp"
 #include "app/PlatformContext.hpp"
@@ -83,38 +84,6 @@ namespace loka
           }
         }
       }
-
-      typedef app::scene::BoundaryDefinition<scrapbook::MainProps, scrapbook::MainNode> MainDefinitionBase;
-
-      class ObservedMainDefinition : public MainDefinitionBase
-      {
-      public:
-        ObservedMainDefinition(const scrapbook::MainProps &props, scrapbook::MainNode **observed)
-            : MainDefinitionBase(props),
-              observed_(observed)
-        {
-        }
-
-        virtual app::scene::NodeDefinitionBase *clone() const
-        {
-          return new ObservedMainDefinition(*this);
-        }
-
-        virtual app::scene::Node *create() const
-        {
-          app::scene::Node *node = MainDefinitionBase::create();
-          if (this->observed_)
-          {
-            // The scenario config borrows this node only while App::run owns
-            // the window and its Scene; it records before asking App to quit.
-            *this->observed_ = node ? static_cast<scrapbook::MainNode *>(node) : 0;
-          }
-          return node;
-        }
-
-      private:
-        scrapbook::MainNode **observed_;
-      };
 
       scenario_tests::CaptureContentBounds QueryContentBounds(Window *window)
       {
@@ -275,8 +244,8 @@ namespace loka
 
         virtual void compose(AppComposition &composition)
         {
-          ObservedMainDefinition mainDefinition(scrapbook::MainProps().platformContext(this->getPlatformContext()),
-                                                &this->borrowedMainNode_);
+          ObservedScrapbookMainDefinition mainDefinition(
+              scrapbook::MainProps().platformContext(this->getPlatformContext()), &this->borrowedMainNode_);
           composition << WindowDef(WindowProps()
                                        .frame(40, 40, 340, 250)
                                        .scene(mainDefinition)
