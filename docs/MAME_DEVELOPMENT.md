@@ -65,6 +65,20 @@ LRPK package beside the application:
 
 The PowerShell twin accepts the same positional arguments.
 
+### Scrapbook standalone Flow
+
+The TEST-only `LokaScrapbookStandaloneFlow68K_APPL` target launches a
+compiled presentation plan without `LokaTest.cfg`, Snap artifacts, or a host
+scenario controller. It advances through the Scrapbook pages using stable
+TEST_ID selectors and real Button actions, then holds the final page until the
+user quits.
+
+In VS Code, run **Build & Start in MAME via SCSI: Scrapbook Standalone Flow**.
+The task builds the excluded target and puts its MacBinary plus `ASSETS.LRP` on
+the generated `LokaDev` disk. Open the application from that disk after Classic
+Mac OS boots. This presentation target is for human observation; it does not
+replace the config-required machine-verdict scenarios described below.
+
 ## Floppy workflow
 
 Run `MAME: Start` once, then use `MAME: Mount .dsk (pick app)` or one of the

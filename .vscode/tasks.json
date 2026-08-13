@@ -558,6 +558,23 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Build: Retro68 68K Scrapbook Standalone Flow",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "retro68-68k-release",
+        "--target",
+        "LokaScrapbookStandaloneFlow68K_APPL"
+      ],
+      "dependsOn": [
+        "Configure: Retro68 68K"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Prepare SCSI Dev Disk: HelloWorld",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
@@ -675,6 +692,28 @@
           "scripts/mame-dev-disk.ps1",
           "build/retro68/68k/Release/example/ScrapbookUI/ScrapbookUI68K.bin",
           "build/retro68/68k/Release/example/ScrapbookUI/ASSETS.LRP"
+        ]
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Prepare SCSI Dev Disk: Scrapbook Standalone Flow",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
+      "args": [
+        "${workspaceFolder}/build/retro68/68k/Release/tests/toolbox/LokaScrapbookStandaloneFlow68K.bin",
+        "${workspaceFolder}/build/retro68/68k/Release/tests/toolbox/ASSETS.LRP"
+      ],
+      "windows": {
+        "command": "powershell.exe",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-dev-disk.ps1",
+          "build/retro68/68k/Release/tests/toolbox/LokaScrapbookStandaloneFlow68K.bin",
+          "build/retro68/68k/Release/tests/toolbox/ASSETS.LRP"
         ]
       },
       "problemMatcher": []
@@ -925,6 +964,16 @@
       "dependsOn": [
         "Build: Retro68 68K ScrapbookUI",
         "Prepare SCSI Dev Disk: ScrapbookUI",
+        "MAME: Start"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Start in MAME via SCSI: Scrapbook Standalone Flow",
+      "dependsOn": [
+        "Build: Retro68 68K Scrapbook Standalone Flow",
+        "Prepare SCSI Dev Disk: Scrapbook Standalone Flow",
         "MAME: Start"
       ],
       "dependsOrder": "sequence",
