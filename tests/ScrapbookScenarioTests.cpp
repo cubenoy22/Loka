@@ -148,7 +148,7 @@ void testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene()
   props.platformContext(&context);
   loka::app::scene::BoundaryDefinition<scrapbook::MainProps, scrapbook::MainNode> definition(props);
   loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> root(definition.clone());
-  LOKA_VERIFY(root.isSet());
+  LOKA_VERIFY(root.get() != 0);
   NullScenePlatformController platform;
   loka::app::scene::Scene scene(root.take());
   scene.mount(&platform);
