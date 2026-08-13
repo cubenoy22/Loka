@@ -31,6 +31,11 @@ The release gate is:
 
 Before applying the matrix, complete the release-provenance check:
 
+- [ ] Every attached archive and adjacent content manifest was produced by
+  `scripts/release/assemble.py` at the release tag from an explicit allowlist;
+  each listed file's hash and provenance was reviewed, and each listed
+  `.LRP`/`.LRPK` passed the tracked-package-file gate plus the manual
+  tracked-input review documented in `scripts/release/README.md`.
 - [ ] The top-level CMake source version, tag name, current-release
   documentation, and GitHub release metadata agree; `git cat-file -t <tag>`
   reports `tag` (an annotated tag, not `commit`); the annotation contains the
