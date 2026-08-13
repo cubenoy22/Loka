@@ -346,9 +346,11 @@ namespace loka
           PHASE_FINISHED
         };
 
-        ScenarioRunState(const dsl::SnapTestConfig::Settings &settings, ScenarioRunMode mode)
+        ScenarioRunState(const dsl::SnapTestConfig::Settings &settings,
+                         const scenario_tests::ScenarioLaunchPlan &launchPlan,
+                         ScenarioRunMode mode)
             : settings_(settings),
-              scenario_(settings.scenario),
+              scenario_(launchPlan),
               mode_(mode),
               phase_(PHASE_DRIVING),
               tick_(0),
@@ -413,9 +415,16 @@ namespace loka
             bounds.bottom = frame.height;
           }
           dsl::SnapRecord record;
-          if (!this->scenario_.step(this->tick_, *mainNode, bounds, record))
+          const scenario_tests::ScenarioAdvance advance =
+              this->scenario_.step(this->tick_, *mainNode, bounds, record);
+          switch (advance)
           {
+          case scenario_tests::SCENARIO_ADVANCE_PENDING:
             return;
+          case scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD:
+            return;
+          case scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY:
+            break;
           }
           const std::string recordPath = ArtifactPath(this->settings_, kActualRecord);
           if (dsl::SnapFileWriter::appendRecordStatus(recordPath.c_str(), record) != dsl::SNAP_WRITE_OK)
@@ -515,9 +524,12 @@ namespace loka
       class ScenarioAppConfig : public AppConfigurable
       {
       public:
-        ScenarioAppConfig(PlatformContext *context, const dsl::SnapTestConfig::Settings &settings, ScenarioRunMode mode)
+        ScenarioAppConfig(PlatformContext *context,
+                          const dsl::SnapTestConfig::Settings &settings,
+                          const scenario_tests::ScenarioLaunchPlan &launchPlan,
+                          ScenarioRunMode mode)
             : AppConfigurable(context),
-              runState_(settings, mode),
+              runState_(settings, launchPlan, mode),
               borrowedApp_(0),
               borrowedMainNode_(0)
         {
@@ -562,8 +574,10 @@ namespace loka
     {
       dsl::SnapTestConfig::Settings settings;
       ScenarioRunMode mode = SCENARIO_RUN_MODE_FLOW;
-      if (!dsl::SnapTestConfig::load(kConfigPath, settings) || !settings.hasScenario || !settings.hasCaptureDir
-          || !scenario_tests::IsRegisteredScenario(settings.scenario) || !ResolveRunMode(mode))
+      const bool configLoaded = dsl::SnapTestConfig::load(kConfigPath, settings);
+      scenario_tests::ScenarioLaunchPlan launchPlan;
+      if (!scenario_tests::QueryRigLaunchPlan(configLoaded, settings, launchPlan)
+          || !settings.hasCaptureDir || !ResolveRunMode(mode))
       {
         std::fprintf(stderr, "macos scenario: LokaTest.cfg is missing or invalid\n");
         return 2;
@@ -572,7 +586,7 @@ namespace loka
       platform::InitPlatformRuntime();
       core::ScopedPtr<PlatformContext> platformContext(platform::CreatePlatformContext());
       assert(platformContext.get() && "PlatformContext is required");
-      ScenarioAppConfig config(platformContext.get(), settings, mode);
+      ScenarioAppConfig config(platformContext.get(), settings, launchPlan, mode);
       core::ScopedPtr<App> app(platformContext->createApp(&config, 0, 0));
       assert(app.get() && "App is required");
       config.setApp(app.get());

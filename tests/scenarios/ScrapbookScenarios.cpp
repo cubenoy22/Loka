@@ -1,6 +1,8 @@
 #include "ScrapbookScenarios.hpp"
 
-#include "MainNode.hpp"
+#include <cassert>
+
+#include "../../example/ScrapbookUI/src/MainNode.hpp"
 #include "platform/StringUTF8.hpp"
 
 namespace loka
@@ -16,6 +18,7 @@ namespace loka
       const char *kRefusedFlipKeepsPage = "refused-flip-keeps-page";
       const char *kOpenTextPage = "open-text-page";
       const char *kOpenTextPageRefused = "open-text-page-refused";
+      const char *kStandaloneTour = "standalone-tour";
       const long kInitialPresentationTick = 2;
       const long kStepSpacingTicks = 30;
 
@@ -67,15 +70,74 @@ namespace loka
           record.set("error_msg", "scenario expectations were not met");
         }
       }
+
+      bool IsRigScenario(const std::string &name)
+      {
+        return name == kStartup || name == kOpenFirstPage || name == kOpenFirstPageRefused
+               || name == kFlipForwardBack || name == kRefusedFlipKeepsPage
+               || name == kOpenTextPage || name == kOpenTextPageRefused;
+      }
     } // namespace
 
-    ScrapbookScenario::ScrapbookScenario(const std::string &name)
-        : kind_(KIND_INVALID),
-          name_(name),
+    ScenarioLaunchPlan::ScenarioLaunchPlan()
+        : valid_(false),
+          scenario_(),
+          completionPolicy_(SCENARIO_COMPLETION_DRIVER_OWNED)
+    {
+    }
+
+    ScenarioLaunchPlan::ScenarioLaunchPlan(const std::string &scenario,
+                                           ScenarioCompletionPolicy completionPolicy)
+        : valid_(true),
+          scenario_(scenario),
+          completionPolicy_(completionPolicy)
+    {
+    }
+
+    ScenarioLaunchPlan ScenarioLaunchPlan::StandaloneTour()
+    {
+      return ScenarioLaunchPlan(kStandaloneTour, SCENARIO_COMPLETION_HOLD_FINAL_SCENE);
+    }
+
+    bool ScenarioLaunchPlan::isValid() const
+    {
+      return this->valid_;
+    }
+
+    const std::string &ScenarioLaunchPlan::scenario() const
+    {
+      return this->scenario_;
+    }
+
+    ScenarioCompletionPolicy ScenarioLaunchPlan::completionPolicy() const
+    {
+      return this->completionPolicy_;
+    }
+
+    bool QueryRigLaunchPlan(bool configLoaded,
+                            const dsl::SnapTestConfig::Settings &settings,
+                            ScenarioLaunchPlan &out)
+    {
+      if (!configLoaded || !settings.hasScenario || !IsRigScenario(settings.scenario))
+      {
+        return false;
+      }
+      const ScenarioLaunchPlan completed(
+          settings.scenario, SCENARIO_COMPLETION_DRIVER_OWNED);
+      out = completed;
+      return true;
+    }
+
+    ScrapbookScenario::ScrapbookScenario(const ScenarioLaunchPlan &plan)
+        : plan_(plan),
+          kind_(KIND_INVALID),
+          terminalState_(SCENARIO_ADVANCE_PENDING),
           stage_(0),
           step1_(),
           step2_()
     {
+      assert(plan.isValid() && "ScenarioLaunchPlan is required");
+      const std::string &name = this->plan_.scenario();
       if (name == kStartup)
       {
         this->kind_ = KIND_STARTUP;
@@ -104,32 +166,67 @@ namespace loka
       {
         this->kind_ = KIND_OPEN_TEXT_PAGE_REFUSED;
       }
+      else if (name == kStandaloneTour)
+      {
+        this->kind_ = KIND_STANDALONE_TOUR;
+      }
     }
 
-    bool
+    ScenarioAdvance
     ScrapbookScenario::step(long tick,
                             scrapbook::MainNode &mainNode,
                             const CaptureContentBounds &bounds,
                             dsl::SnapRecord &out)
     {
+      if (this->terminalState_ != SCENARIO_ADVANCE_PENDING)
+      {
+        return this->terminalState_;
+      }
+      bool complete = false;
       switch (this->kind_)
       {
       case KIND_INVALID:
-        out = MakeDriverErrorRecord(this->name_.c_str(), 2302, "scenario is not registered");
-        return true;
+        out = MakeDriverErrorRecord(this->plan_.scenario().c_str(), 2302, "scenario is not registered");
+        complete = true;
+        break;
       case KIND_STARTUP:
       case KIND_OPEN_FIRST_PAGE:
       case KIND_OPEN_FIRST_PAGE_REFUSED:
-        return this->runOpenScenario(tick, mainNode, bounds, out);
+        complete = this->runOpenScenario(tick, mainNode, bounds, out);
+        break;
       case KIND_FLIP_FORWARD_BACK:
-        return this->runFlipForwardBack(tick, mainNode, bounds, out);
+        complete = this->runFlipForwardBack(tick, mainNode, bounds, out);
+        break;
       case KIND_REFUSED_FLIP_KEEPS_PAGE:
-        return this->runRefusedFlipKeepsPage(tick, mainNode, bounds, out);
+        complete = this->runRefusedFlipKeepsPage(tick, mainNode, bounds, out);
+        break;
       case KIND_OPEN_TEXT_PAGE:
       case KIND_OPEN_TEXT_PAGE_REFUSED:
-        return this->runOpenTextPage(tick, mainNode, bounds, out);
+        complete = this->runOpenTextPage(tick, mainNode, bounds, out);
+        break;
+      case KIND_STANDALONE_TOUR:
+        complete = this->runStandaloneTour(tick, mainNode, bounds, out);
+        break;
       }
-      return false;
+      if (!complete)
+      {
+        return SCENARIO_ADVANCE_PENDING;
+      }
+      switch (this->plan_.completionPolicy())
+      {
+      case SCENARIO_COMPLETION_DRIVER_OWNED:
+        this->terminalState_ = SCENARIO_ADVANCE_DRIVER_COMPLETION_READY;
+        break;
+      case SCENARIO_COMPLETION_HOLD_FINAL_SCENE:
+        this->terminalState_ = SCENARIO_ADVANCE_FINAL_SCENE_HELD;
+        break;
+      }
+      return this->terminalState_;
+    }
+
+    const std::string &ScrapbookScenario::name() const
+    {
+      return this->plan_.scenario();
     }
 
     ScrapbookScenario::PageObservation ScrapbookScenario::observePage(const scrapbook::MainNode &mainNode)
@@ -165,7 +262,7 @@ namespace loka
       {
         return false;
       }
-      out = MakeBaseRecord(this->name_.c_str(), tick);
+      out = MakeBaseRecord(this->plan_.scenario().c_str(), tick);
       const PageObservation page = observePage(mainNode);
       SetBool(out, "page_published", page.published);
       if (page.published)
@@ -233,7 +330,7 @@ namespace loka
       }
 
       const PageObservation step3 = observePage(mainNode);
-      out = MakeBaseRecord(this->name_.c_str(), tick);
+      out = MakeBaseRecord(this->plan_.scenario().c_str(), tick);
       setPageObservation(out, "step1_page", "step1_caption", this->step1_);
       setPageObservation(out, "step2_page", "step2_caption", this->step2_);
       setPageObservation(out, "step3_page", "step3_caption", step3);
@@ -278,7 +375,7 @@ namespace loka
       const int selectorPage = mainNode.selectedPage();
       const int refusedPage = mainNode.refusedPage();
       const bool badgeVisible = mainNode.isRefusedBadgeVisible();
-      out = MakeBaseRecord(this->name_.c_str(), tick);
+      out = MakeBaseRecord(this->plan_.scenario().c_str(), tick);
       setPageObservation(out, "step1_page", "step1_caption", this->step1_);
       setPageObservation(out, "step2_page", "step2_caption", this->step2_);
       setPageObservation(out, "kept_page", "kept_caption", keptPage);
@@ -317,7 +414,7 @@ namespace loka
       const bool textMatches = textAvailable && text == kPage5Text;
       const int refusedPage = mainNode.refusedPage();
       const bool badgeVisible = mainNode.isRefusedBadgeVisible();
-      out = MakeBaseRecord(this->name_.c_str(), tick);
+      out = MakeBaseRecord(this->plan_.scenario().c_str(), tick);
       setPageObservation(out, "step1_page", "step1_caption", this->step1_);
       setPageObservation(out, "text_page", "text_caption", textPage);
       // The text itself holds a newline, which a snap value cannot carry;
@@ -348,10 +445,57 @@ namespace loka
       return true;
     }
 
-    bool IsRegisteredScenario(const std::string &name)
+    bool ScrapbookScenario::runStandaloneTour(long tick,
+                                              scrapbook::MainNode &mainNode,
+                                              const CaptureContentBounds &bounds,
+                                              dsl::SnapRecord &out)
     {
-      return name == kStartup || name == kOpenFirstPage || name == kOpenFirstPageRefused || name == kFlipForwardBack
-             || name == kRefusedFlipKeepsPage || name == kOpenTextPage || name == kOpenTextPageRefused;
+      if (tick < kInitialPresentationTick)
+      {
+        return false;
+      }
+      if (this->stage_ == 0)
+      {
+        this->step1_ = observePage(mainNode);
+        mainNode.selectPage(1);
+        this->stage_ = 1;
+        return false;
+      }
+      if (this->stage_ == 1)
+      {
+        if (tick < kInitialPresentationTick + kStepSpacingTicks)
+        {
+          return false;
+        }
+        this->step2_ = observePage(mainNode);
+        mainNode.selectPage(4);
+        this->stage_ = 2;
+        return false;
+      }
+      if (tick < kInitialPresentationTick + 2 * kStepSpacingTicks)
+      {
+        return false;
+      }
+
+      const PageObservation finalPage = observePage(mainNode);
+      std::string text;
+      const bool textAvailable = platform::CollectUtf8(mainNode.displayedPageText(), text);
+      const bool textMatches = textAvailable && text == kPage5Text;
+      out = MakeBaseRecord(this->plan_.scenario().c_str(), tick);
+      setPageObservation(out, "step1_page", "step1_caption", this->step1_);
+      setPageObservation(out, "step2_page", "step2_caption", this->step2_);
+      setPageObservation(out, "final_page", "final_caption", finalPage);
+      SetBool(out, "text_matches_package_asset", textMatches);
+      out.setInt("text_length", textAvailable ? static_cast<long>(text.size()) : -1);
+      SetContentBounds(out, bounds);
+      const bool ok = bounds.available && this->step1_.published
+                      && this->step1_.page == 0 && this->step1_.caption == "1 / 5"
+                      && this->step2_.published && this->step2_.page == 1
+                      && this->step2_.caption == "2 / 5" && finalPage.published
+                      && finalPage.page == 4 && finalPage.caption == "5 / 5"
+                      && textMatches;
+      SetVerdict(out, ok);
+      return true;
     }
 
     dsl::SnapRecord MakeDriverErrorRecord(const char *scenario, long errorCode, const char *message)
