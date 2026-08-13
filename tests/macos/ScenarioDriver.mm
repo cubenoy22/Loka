@@ -5,14 +5,16 @@
 
 #include <cassert>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <new>
 #include <string>
 
 #include "MacObjCCompat.hpp"
 #include "MacWindow.hpp"
 #include "MainNode.hpp"
-#include "ScrapbookScenarios.hpp"
 #include "ScenarioProfile.hpp"
+#include "ScrapbookScenarios.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
 #include "app/core/App.hpp"
@@ -32,8 +34,32 @@ namespace loka
       const char *kActualRecord = "actual.snap";
       const char *kActualImage = "actual.png";
       const char *kActualProfile = "actual.profile";
+      const char *kReadyMarker = "ready";
+      const char *kReleaseMarker = "release";
       const char *kCompletionMarker = "complete";
       const long kMaximumSettleFrames = 120;
+
+      enum ScenarioRunMode
+      {
+        SCENARIO_RUN_MODE_FLOW,
+        SCENARIO_RUN_MODE_INSPECT
+      };
+
+      bool ResolveRunMode(ScenarioRunMode &out)
+      {
+        const char *value = std::getenv("LOKA_MACOS_SCENARIO_MODE");
+        if (!value || !*value || std::strcmp(value, "flow") == 0)
+        {
+          out = SCENARIO_RUN_MODE_FLOW;
+          return true;
+        }
+        if (std::strcmp(value, "inspect") == 0)
+        {
+          out = SCENARIO_RUN_MODE_INSPECT;
+          return true;
+        }
+        return false;
+      }
 
       std::string JoinPath(const std::string &base, const char *leaf)
       {
@@ -127,11 +153,8 @@ namespace loka
         return ok;
       }
 
-      bool CaptureContentFrame(MacWindow &window,
-                               const char *path,
-                               unsigned long long &outHash,
-                               long &outPixelWidth,
-                               long &outPixelHeight)
+      bool CaptureContentFrame(
+          MacWindow &window, const char *path, unsigned long long &outHash, long &outPixelWidth, long &outPixelHeight)
       {
         NSView *view = (NSView *)dsl::testing::MacWindowTestAccess::contentView(window);
         if (!view || !path || !*path)
@@ -147,9 +170,12 @@ namespace loka
         if (!bitmap)
         {
           std::fprintf(stderr,
-                       "macos scenario capture: bitmapImageRepForCachingDisplayInRect returned nil"
+                       "macos scenario capture: "
+                       "bitmapImageRepForCachingDisplayInRect returned nil"
                        " (bounds %.0fx%.0f, window=%s)\n",
-                       bounds.size.width, bounds.size.height, [view window] ? "present" : "missing");
+                       bounds.size.width,
+                       bounds.size.height,
+                       [view window] ? "present" : "missing");
           [pool drain];
           return false;
         }
@@ -159,16 +185,20 @@ namespace loka
         const NSInteger bitsPerPixel = [bitmap bitsPerPixel];
         const NSInteger pixelWidth = [bitmap pixelsWide];
         const NSInteger pixelHeight = [bitmap pixelsHigh];
-        const NSInteger pixelBytesPerRow =
-            bitsPerPixel > 0 && pixelWidth > 0 ? (pixelWidth * bitsPerPixel + 7) / 8 : 0;
-        if (!pixels || [bitmap isPlanar] || bytesPerRow <= 0 || pixelBytesPerRow <= 0
-            || pixelBytesPerRow > bytesPerRow || pixelHeight <= 0)
+        const NSInteger pixelBytesPerRow = bitsPerPixel > 0 && pixelWidth > 0 ? (pixelWidth * bitsPerPixel + 7) / 8 : 0;
+        if (!pixels || [bitmap isPlanar] || bytesPerRow <= 0 || pixelBytesPerRow <= 0 || pixelBytesPerRow > bytesPerRow
+            || pixelHeight <= 0)
         {
           std::fprintf(stderr,
                        "macos scenario capture: invalid bitmap layout"
                        " (pixels=%s planar=%d row=%ld pixel-row=%ld size=%ldx%ld bpp=%ld)\n",
-                       pixels ? "present" : "missing", [bitmap isPlanar] ? 1 : 0, (long)bytesPerRow,
-                       (long)pixelBytesPerRow, (long)pixelWidth, (long)pixelHeight, (long)bitsPerPixel);
+                       pixels ? "present" : "missing",
+                       [bitmap isPlanar] ? 1 : 0,
+                       (long)bytesPerRow,
+                       (long)pixelBytesPerRow,
+                       (long)pixelWidth,
+                       (long)pixelHeight,
+                       (long)bitsPerPixel);
           [pool drain];
           return false;
         }
@@ -190,8 +220,10 @@ namespace loka
         const bool wrote = png && outputPath && [png writeToFile:outputPath atomically:YES];
         if (!wrote)
         {
-          std::fprintf(stderr, "macos scenario capture: PNG encode/write failed (png=%s path=%s)\n",
-                       png ? "present" : "missing", outputPath ? "present" : "missing");
+          std::fprintf(stderr,
+                       "macos scenario capture: PNG encode/write failed (png=%s path=%s)\n",
+                       png ? "present" : "missing",
+                       outputPath ? "present" : "missing");
         }
         if (wrote)
         {
@@ -240,9 +272,9 @@ namespace loka
         return WriteFile(path, profile.render());
       }
 
-      bool PublishCompletion(const char *path)
+      bool PublishMarker(const char *path, const char *content)
       {
-        if (!path || !*path)
+        if (!path || !*path || !content)
         {
           return false;
         }
@@ -252,14 +284,25 @@ namespace loka
         {
           return false;
         }
-        const char marker[] = "artifacts-ready\n";
-        const bool wrote = std::fwrite(marker, 1, sizeof(marker) - 1, output) == sizeof(marker) - 1;
+        const size_t size = std::strlen(content);
+        const bool wrote = std::fwrite(content, 1, size, output) == size;
         const bool closed = std::fclose(output) == 0;
         if (!wrote || !closed)
         {
           return false;
         }
         return std::rename(temporary.c_str(), path) == 0;
+      }
+
+      bool FileExists(const std::string &path)
+      {
+        FILE *input = std::fopen(path.c_str(), "rb");
+        if (!input)
+        {
+          return false;
+        }
+        std::fclose(input);
+        return true;
       }
 
       typedef app::scene::BoundaryDefinition<scrapbook::MainProps, scrapbook::MainNode> MainDefinitionBase;
@@ -299,13 +342,14 @@ namespace loka
         {
           PHASE_DRIVING,
           PHASE_SETTLING,
-          PHASE_ARTIFACTS_READY,
+          PHASE_HOLDING,
           PHASE_FINISHED
         };
 
-        explicit ScenarioRunState(const dsl::SnapTestConfig::Settings &settings)
+        ScenarioRunState(const dsl::SnapTestConfig::Settings &settings, ScenarioRunMode mode)
             : settings_(settings),
               scenario_(settings.scenario),
+              mode_(mode),
               phase_(PHASE_DRIVING),
               tick_(0),
               settleFrames_(0),
@@ -325,8 +369,8 @@ namespace loka
           case PHASE_SETTLING:
             this->settle(window, app);
             return;
-          case PHASE_ARTIFACTS_READY:
-            this->finish(app);
+          case PHASE_HOLDING:
+            this->hold(app);
             return;
           case PHASE_FINISHED:
             return;
@@ -382,6 +426,22 @@ namespace loka
           this->phase_ = PHASE_SETTLING;
         }
 
+        void hold(App *app)
+        {
+          const std::string releasePath = ArtifactPath(this->settings_, kReleaseMarker);
+          if (!FileExists(releasePath))
+          {
+            return;
+          }
+          const std::string completionPath = ArtifactPath(this->settings_, kCompletionMarker);
+          if (!PublishMarker(completionPath.c_str(), "artifacts-ready\n"))
+          {
+            this->fail("could not publish completion after inspect release", app);
+            return;
+          }
+          this->finish(app);
+        }
+
         void settle(Window *window, App *app)
         {
           MacWindow *macWindow = window ? window->asMacWindow() : 0;
@@ -408,15 +468,29 @@ namespace loka
           {
             const std::string actualPath = ArtifactPath(this->settings_, kActualImage);
             const std::string profilePath = ArtifactPath(this->settings_, kActualProfile);
-            const std::string completionPath = ArtifactPath(this->settings_, kCompletionMarker);
             if (!CopyFile(framePath.c_str(), actualPath.c_str())
-                || !WriteProfile(profilePath.c_str(), *window, pixelWidth, pixelHeight)
-                || !PublishCompletion(completionPath.c_str()))
+                || !WriteProfile(profilePath.c_str(), *window, pixelWidth, pixelHeight))
             {
               this->fail("could not publish settled artifacts", app);
               return;
             }
-            this->phase_ = PHASE_ARTIFACTS_READY;
+            if (this->mode_ == SCENARIO_RUN_MODE_INSPECT)
+            {
+              const std::string readyPath = ArtifactPath(this->settings_, kReadyMarker);
+              if (!PublishMarker(readyPath.c_str(), "inspection-ready\n"))
+              {
+                this->fail("could not publish inspect ready marker", app);
+                return;
+              }
+              this->phase_ = PHASE_HOLDING;
+              return;
+            }
+            const std::string completionPath = ArtifactPath(this->settings_, kCompletionMarker);
+            if (!PublishMarker(completionPath.c_str(), "artifacts-ready\n"))
+            {
+              this->fail("could not publish completion", app);
+              return;
+            }
             this->finish(app);
             return;
           }
@@ -430,6 +504,7 @@ namespace loka
 
         const dsl::SnapTestConfig::Settings settings_;
         scenario_tests::ScrapbookScenario scenario_;
+        const ScenarioRunMode mode_;
         Phase phase_;
         long tick_;
         long settleFrames_;
@@ -440,9 +515,9 @@ namespace loka
       class ScenarioAppConfig : public AppConfigurable
       {
       public:
-        ScenarioAppConfig(PlatformContext *context, const dsl::SnapTestConfig::Settings &settings)
+        ScenarioAppConfig(PlatformContext *context, const dsl::SnapTestConfig::Settings &settings, ScenarioRunMode mode)
             : AppConfigurable(context),
-              runState_(settings),
+              runState_(settings, mode),
               borrowedApp_(0),
               borrowedMainNode_(0)
         {
@@ -486,8 +561,9 @@ namespace loka
     int RunScenarioApplication()
     {
       dsl::SnapTestConfig::Settings settings;
-      if (!dsl::SnapTestConfig::load(kConfigPath, settings) || !settings.hasScenario
-          || !settings.hasCaptureDir || !scenario_tests::IsRegisteredScenario(settings.scenario))
+      ScenarioRunMode mode = SCENARIO_RUN_MODE_FLOW;
+      if (!dsl::SnapTestConfig::load(kConfigPath, settings) || !settings.hasScenario || !settings.hasCaptureDir
+          || !scenario_tests::IsRegisteredScenario(settings.scenario) || !ResolveRunMode(mode))
       {
         std::fprintf(stderr, "macos scenario: LokaTest.cfg is missing or invalid\n");
         return 2;
@@ -496,7 +572,7 @@ namespace loka
       platform::InitPlatformRuntime();
       core::ScopedPtr<PlatformContext> platformContext(platform::CreatePlatformContext());
       assert(platformContext.get() && "PlatformContext is required");
-      ScenarioAppConfig config(platformContext.get(), settings);
+      ScenarioAppConfig config(platformContext.get(), settings, mode);
       core::ScopedPtr<App> app(platformContext->createApp(&config, 0, 0));
       assert(app.get() && "App is required");
       config.setApp(app.get());
