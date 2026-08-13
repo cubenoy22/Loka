@@ -10,6 +10,7 @@
 #include "app/scene/Scene.hpp"
 #include "core/io/File.hpp"
 #include "core/resource/Image.hpp"
+#include "core/util/OwnedDef.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
@@ -146,8 +147,10 @@ void testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene()
   scrapbook::MainProps props;
   props.platformContext(&context);
   loka::app::scene::BoundaryDefinition<scrapbook::MainProps, scrapbook::MainNode> definition(props);
+  loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> root(definition.clone());
+  LOKA_VERIFY(root.isSet());
   NullScenePlatformController platform;
-  loka::app::scene::Scene scene(definition.clone());
+  loka::app::scene::Scene scene(root.take());
   scene.mount(&platform);
   scene.updateAttached(true);
 
