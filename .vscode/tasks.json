@@ -257,6 +257,67 @@
       "problemMatcher": "$msCompile"
     },
     {
+      "label": "Configure: Win32 x86 Release",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--preset",
+        "win32-x86-release"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Build: Win32 Standalone Flow x86 Release",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "win32-standalone-flow-x86-release"
+      ],
+      "dependsOn": [
+        "Configure: Win32 x86 Release"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Stage: Win32 Standalone Flow for VAIO P",
+      "type": "shell",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/win32-standalone-flow.ps1",
+        "-Action",
+        "Stage"
+      ],
+      "dependsOn": [
+        "Build: Win32 Standalone Flow x86 Release"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Verify: Win32 Standalone Flow x86 Release",
+      "type": "shell",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/win32-standalone-flow.ps1",
+        "-Action",
+        "Verify"
+      ],
+      "dependsOn": [
+        "Stage: Win32 Standalone Flow for VAIO P"
+      ],
+      "problemMatcher": []
+    },
+    {
       "label": "Configure: Win32 XP",
       "type": "shell",
       "command": "cmake",

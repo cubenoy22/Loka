@@ -108,6 +108,12 @@
       }
     },
     {
+      "name": "win32-x86-release",
+      "displayName": "Win32 x86 Release (Ninja, static CRT)",
+      "inherits": "win32-xp-release",
+      "binaryDir": "build/win32/x86/Release"
+    },
+    {
       "name": "retro68-release-base",
       "hidden": true,
       "generator": "Ninja",
@@ -325,6 +331,18 @@
     {
       "name": "win32-standalone-flow",
       "configurePreset": "win32-debug",
+      "targets": [
+        "LokaScrapbookStandaloneFlowWin32"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "win32-standalone-flow-x86-release",
+      "configurePreset": "win32-x86-release",
       "targets": [
         "LokaScrapbookStandaloneFlowWin32"
       ],
