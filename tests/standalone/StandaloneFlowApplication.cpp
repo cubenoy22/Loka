@@ -153,7 +153,7 @@ namespace loka
       };
     } // namespace
 
-    int RunStandaloneFlowApplication()
+    int RunStandaloneFlowApplication(HINSTANCE hInstance, int nCmdShow)
     {
       platform::InitPlatformRuntime();
       core::ScopedPtr<PlatformContext> platformContext(platform::CreatePlatformContext());
@@ -167,7 +167,7 @@ namespace loka
       {
         return 1;
       }
-      core::ScopedPtr<App> app(platformContext->createApp(&config, 0, 0));
+      core::ScopedPtr<App> app(platformContext->createApp(&config, hInstance, nCmdShow));
       assert(app.get() && "App is required");
       if (!app.get())
       {

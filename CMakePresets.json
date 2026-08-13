@@ -323,6 +323,18 @@
       }
     },
     {
+      "name": "win32-standalone-flow",
+      "configurePreset": "win32-debug",
+      "targets": [
+        "LokaScrapbookStandaloneFlowWin32"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
       "name": "win32-xp-debug",
       "configurePreset": "win32-xp-debug",
       "configuration": "Debug",
