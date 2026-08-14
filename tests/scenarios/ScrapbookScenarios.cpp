@@ -23,7 +23,7 @@ namespace loka
       const long kStepSpacingTicks = 30;
 #ifdef TEST_BUILD
       const char *kStandaloneTour = "standalone-tour";
-      const long kTourStepSpacingTicks = 15;
+      const long kTourPageHoldTicks = 15;
 #endif
 
       // The exact bytes of Assets/page5.txt as lrpc packed them, trailing
@@ -90,15 +90,15 @@ namespace loka
                               dsl::testing::ScenarioAuditSink *audit)
       {
         using namespace dsl::testing;
-        const long page2Tick = kInitialPresentationTick + kTourStepSpacingTicks;
-        const long page3Tick = page2Tick + kTourStepSpacingTicks;
-        const long page4Tick = page3Tick + kTourStepSpacingTicks;
-        const long finalTick = page4Tick + kTourStepSpacingTicks;
+        const long page1Tick = kTourPageHoldTicks;
+        const long page2Tick = page1Tick + kTourPageHoldTicks;
+        const long page3Tick = page2Tick + kTourPageHoldTicks;
+        const long page4Tick = page3Tick + kTourPageHoldTicks;
+        const long finalTick = page4Tick + kTourPageHoldTicks;
         return (ScenarioFlow(clock, sceneInput).auditTo(audit)
-                | AtTick(kInitialPresentationTick,
-                         CheckText(scrapbook::scene_ids::PageCaption(), "1 / 5"))
+                | AtTick(page1Tick, CheckText(scrapbook::scene_ids::PageCaption(), "1 / 5"))
                       .named("verify-page-1")
-                | AtTick(kInitialPresentationTick, ClickButton(scrapbook::scene_ids::NextButton()))
+                | AtTick(page1Tick, ClickButton(scrapbook::scene_ids::NextButton()))
                       .named("advance-to-page-2")
                 | AtTick(page2Tick, CheckText(scrapbook::scene_ids::PageCaption(), "2 / 5"))
                       .named("verify-page-2")

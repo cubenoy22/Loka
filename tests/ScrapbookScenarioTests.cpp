@@ -218,32 +218,35 @@ void testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene()
   LOKA_VERIFY(Advance(scenario, 1, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
   LOKA_VERIFY(audit.steps.empty());
   VerifyCurrentPage(*mainNode, 0);
-  LOKA_VERIFY(Advance(scenario, 2, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(Advance(scenario, 14, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(audit.steps.empty());
+  VerifyCurrentPage(*mainNode, 0);
+  LOKA_VERIFY(Advance(scenario, 15, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
   LOKA_VERIFY(audit.steps.size() == 2);
   LOKA_VERIFY(audit.steps[0].stepId() == 1);
   LOKA_VERIFY(audit.steps[0].name() == "verify-page-1");
-  LOKA_VERIFY(audit.steps[0].dueTick() == 2);
-  LOKA_VERIFY(audit.steps[0].tick() == 2);
+  LOKA_VERIFY(audit.steps[0].dueTick() == 15);
+  LOKA_VERIFY(audit.steps[0].tick() == 15);
   LOKA_VERIFY(audit.steps[0].status() == loka::dsl::FLOW_STEP_SUCCEEDED);
   LOKA_VERIFY(audit.steps[1].stepId() == 2);
   LOKA_VERIFY(audit.steps[1].name() == "advance-to-page-2");
   VerifyCurrentPage(*mainNode, 1);
-  LOKA_VERIFY(Advance(scenario, 16, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(Advance(scenario, 29, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
   LOKA_VERIFY(audit.steps.size() == 2);
   VerifyCurrentPage(*mainNode, 1);
-  LOKA_VERIFY(Advance(scenario, 17, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(Advance(scenario, 30, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
   VerifyCurrentPage(*mainNode, 2);
-  LOKA_VERIFY(Advance(scenario, 31, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(Advance(scenario, 44, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
   VerifyCurrentPage(*mainNode, 2);
-  LOKA_VERIFY(Advance(scenario, 32, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(Advance(scenario, 45, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
   VerifyCurrentPage(*mainNode, 3);
-  LOKA_VERIFY(Advance(scenario, 46, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(Advance(scenario, 59, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
   VerifyCurrentPage(*mainNode, 3);
-  LOKA_VERIFY(Advance(scenario, 47, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(Advance(scenario, 60, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
   VerifyCurrentPage(*mainNode, 4);
-  LOKA_VERIFY(Advance(scenario, 61, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(Advance(scenario, 74, scene, *mainNode, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
   VerifyCurrentPage(*mainNode, 4);
-  LOKA_VERIFY(Advance(scenario, 62, scene, *mainNode, record)
+  LOKA_VERIFY(Advance(scenario, 75, scene, *mainNode, record)
               == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
   LOKA_VERIFY(audit.steps.size() == 12);
   LOKA_VERIFY(audit.steps[11].name() == "capture-final-page");
@@ -257,7 +260,7 @@ void testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene()
   LOKA_VERIFY(record.get("text_matches_package_asset", text) && text == "true");
   LOKA_VERIFY(record.get("status", text) && text == loka::dsl::SnapStatusOk());
 
-  LOKA_VERIFY(Advance(scenario, 63, scene, *mainNode, record)
+  LOKA_VERIFY(Advance(scenario, 76, scene, *mainNode, record)
               == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
   LOKA_VERIFY(audit.steps.size() == 12);
   LOKA_VERIFY(audit.terminals.size() == 1);
@@ -266,18 +269,18 @@ void testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene()
   mainNode->selectPage(0);
   RecordingScenarioAudit failedAudit;
   loka::scenario_tests::ScrapbookScenario failedScenario(plan, &failedAudit);
-  LOKA_VERIFY(Advance(failedScenario, 2, scene, *mainNode, record)
+  LOKA_VERIFY(Advance(failedScenario, 15, scene, *mainNode, record)
               == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
   LOKA_VERIFY(failedAudit.steps.size() == 2);
   mainNode->selectPage(0);
-  LOKA_VERIFY(Advance(failedScenario, 17, scene, *mainNode, record)
+  LOKA_VERIFY(Advance(failedScenario, 30, scene, *mainNode, record)
               == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
   LOKA_VERIFY(failedAudit.steps.size() == 3);
   LOKA_VERIFY(failedAudit.steps[2].name() == "verify-page-2");
   LOKA_VERIFY(failedAudit.steps[2].status() == loka::dsl::FLOW_STEP_FAILED);
   LOKA_VERIFY(failedAudit.terminals.size() == 1);
   LOKA_VERIFY(failedAudit.terminals[0] == loka::dsl::testing::SCENARIO_AUDIT_FAILED);
-  LOKA_VERIFY(Advance(failedScenario, 18, scene, *mainNode, record)
+  LOKA_VERIFY(Advance(failedScenario, 31, scene, *mainNode, record)
               == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
   LOKA_VERIFY(failedAudit.steps.size() == 3);
   LOKA_VERIFY(failedAudit.terminals.size() == 1);
@@ -289,7 +292,7 @@ void testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene()
   LOKA_VERIFY(canceledAudit.steps.empty());
   LOKA_VERIFY(canceledAudit.terminals.size() == 1);
   LOKA_VERIFY(canceledAudit.terminals[0] == loka::dsl::testing::SCENARIO_AUDIT_CANCELED);
-  LOKA_VERIFY(Advance(canceledScenario, 62, scene, *mainNode, record)
+  LOKA_VERIFY(Advance(canceledScenario, 75, scene, *mainNode, record)
               == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
   LOKA_VERIFY(canceledAudit.steps.empty());
   LOKA_VERIFY(canceledAudit.terminals.size() == 1);
@@ -297,12 +300,12 @@ void testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene()
   mainNode->selectPage(0);
   RefusingScenarioAudit refusingAudit;
   loka::scenario_tests::ScrapbookScenario refusedScenario(plan, &refusingAudit);
-  LOKA_VERIFY(Advance(refusedScenario, 2, scene, *mainNode, record)
+  LOKA_VERIFY(Advance(refusedScenario, 15, scene, *mainNode, record)
               == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
   VerifyRecordInt(record, "error_code", 2306);
   LOKA_VERIFY(refusingAudit.stepCalls == 1);
   LOKA_VERIFY(refusingAudit.terminalCalls == 1);
-  LOKA_VERIFY(Advance(refusedScenario, 3, scene, *mainNode, record)
+  LOKA_VERIFY(Advance(refusedScenario, 16, scene, *mainNode, record)
               == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
   LOKA_VERIFY(refusingAudit.stepCalls == 1);
   LOKA_VERIFY(refusingAudit.terminalCalls == 1);
