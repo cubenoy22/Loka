@@ -61,6 +61,16 @@ function Assert-ExecutableArchitecture([string]$Path, [string]$Expected) {
     }
 }
 
+function Assert-FileCopy([string]$Source, [string]$Destination) {
+    $sourceFile = Get-Item -LiteralPath $Source
+    $destinationFile = Get-Item -LiteralPath $Destination
+    if ($sourceFile.Length -ne $destinationFile.Length `
+        -or (Get-FileHash -LiteralPath $Source -Algorithm SHA256).Hash `
+            -ne (Get-FileHash -LiteralPath $Destination -Algorithm SHA256).Hash) {
+        throw "Staged file does not match its source: $Destination"
+    }
+}
+
 function Get-CompilerEnvironmentArchitecture {
     $compiler = Get-Command cl.exe -ErrorAction SilentlyContinue
     if (-not $compiler) {
@@ -179,11 +189,24 @@ if (-not $isPackagedVerifier) {
         exit 0
     }
 
-    New-Item -ItemType Directory -Path $stageRoot -Force | Out-Null
-    Copy-Item -LiteralPath $builtExecutable -Destination $stagedExecutable -Force
-    Copy-Item -LiteralPath $builtAssets -Destination $stagedAssets -Force
-    Copy-Item -LiteralPath $MyInvocation.MyCommand.Path -Destination $stagedVerifier -Force
-    Remove-Item -LiteralPath $auditPath -Force -ErrorAction SilentlyContinue
+    $presentationStageHelper = Join-Path $ScriptDirectory "presentation-stage.ps1"
+    . $presentationStageHelper
+    $sourceVerifier = $MyInvocation.MyCommand.Path
+    $populateStage = {
+        param([string]$Destination)
+
+        $destinationExecutable = Join-Path $Destination "LokaScrapbookStandaloneFlowWin32.exe"
+        $destinationAssets = Join-Path $Destination "ASSETS.LRP"
+        $destinationVerifier = Join-Path $Destination "Verify-StandaloneFlow.ps1"
+        Copy-Item -LiteralPath $builtExecutable -Destination $destinationExecutable
+        Copy-Item -LiteralPath $builtAssets -Destination $destinationAssets
+        Copy-Item -LiteralPath $sourceVerifier -Destination $destinationVerifier
+        Assert-ExecutableArchitecture $destinationExecutable $Architecture
+        Assert-FileCopy $builtExecutable $destinationExecutable
+        Assert-FileCopy $builtAssets $destinationAssets
+        Assert-FileCopy $sourceVerifier $destinationVerifier
+    }.GetNewClosure()
+    Install-LokaPresentationStageDirectory -StageRoot $stageRoot -Populate $populateStage
 
     if ($Action -eq "Stage") {
         Write-Output "Staged $Architecture presentation: $stageRoot"

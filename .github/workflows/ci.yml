@@ -93,3 +93,4 @@ jobs:
       # Hosted CI does not cover the local rig's ARM64 build or ACP=932
       # full-width-path behavior; those remain manually verified per #172.
       - run: build/win32/Debug/example/HelloWorld/LokaTestsWin32.exe
+      - run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/scripts/Win32PresentationStageTest.ps1
