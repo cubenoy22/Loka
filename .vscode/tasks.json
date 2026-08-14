@@ -130,6 +130,37 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Build: macOS Standalone Flow Release",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "scripts/macos-standalone-flow.sh",
+        "Build"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Stage: macOS Standalone Flow Release",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "scripts/macos-standalone-flow.sh",
+        "Stage"
+      ],
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Verify: macOS Standalone Flow Release",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "scripts/macos-standalone-flow.sh",
+        "Verify"
+      ],
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Build: Win32 App",
       "type": "shell",
       "command": "cmake",

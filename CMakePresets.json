@@ -281,6 +281,18 @@
       }
     },
     {
+      "name": "macos-standalone-flow-release",
+      "configurePreset": "macos-release",
+      "targets": [
+        "LokaScrapbookStandaloneFlowMacOS"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      }
+    },
+    {
       "name": "win32-debug",
       "configurePreset": "win32-debug",
       "condition": {
