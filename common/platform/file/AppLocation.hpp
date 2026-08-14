@@ -44,8 +44,14 @@ namespace loka
        */
       bool ResolveApplicationItem(const loka::file::File &item, FileHandle &out);
 
-      /** Resolves a writable peer of the application rather than packaged
-          application content. The query declines when no peer is available. */
+      /**
+       * Resolves a peer intended for writable sidecar data rather than
+       * packaged application content.
+       *
+       * The query declines when the platform cannot identify a currently
+       * writable peer location. OpenWriteTruncate remains the authoritative
+       * write boundary because availability can change after resolution.
+       */
       bool ResolveApplicationSidecar(const loka::file::File &item, FileHandle &out);
     } // namespace file
   } // namespace platform

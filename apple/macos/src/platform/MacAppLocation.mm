@@ -83,7 +83,12 @@ namespace loka
         }
         NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
         NSString *bundlePath = [[NSBundle mainBundle] bundlePath];
-        const bool resolved = ResolveFromDirectoryInPool([bundlePath stringByDeletingLastPathComponent], item, out);
+        NSString *directory = [bundlePath stringByDeletingLastPathComponent];
+        NSFileManager *manager = [NSFileManager defaultManager];
+        BOOL isDirectory = NO;
+        const bool available = directory && [manager fileExistsAtPath:directory isDirectory:&isDirectory] && isDirectory
+                               && [manager isWritableFileAtPath:directory];
+        const bool resolved = available && ResolveFromDirectoryInPool(directory, item, out);
         [pool drain];
         return resolved;
       }
