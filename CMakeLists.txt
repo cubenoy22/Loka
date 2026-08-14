@@ -245,6 +245,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/scenarios/pngtool.py selftest)
     add_test(NAME scriptScenarioTools
       COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/scripts/ScenarioToolsTest.py)
+    add_test(NAME scriptReleaseAssembler
+      COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/scripts/ReleaseAssemblerTest.py)
     add_test(NAME scriptMacOSRigProtocol
       COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/scripts/MacOSRigProtocolTest.py)
     add_test(NAME scriptLokaRig
