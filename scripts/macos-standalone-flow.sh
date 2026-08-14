@@ -12,6 +12,7 @@ case "$ACTION" in
 esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$SCRIPT_DIR/presentation-stage.sh"
 APP_NAME="LokaScrapbookStandaloneFlowMacOS.app"
 BINARY_NAME="LokaScrapbookStandaloneFlowMacOS"
 PACKAGED_APP="$SCRIPT_DIR/$APP_NAME"
@@ -111,47 +112,20 @@ else
     exit 0
   fi
 
-  mkdir -p "$PRESENTATION_ROOT"
-  STAGING_ROOT="$PRESENTATION_ROOT/.${STAGE_NAME}.staging.$$"
-  BACKUP_ROOT="$PRESENTATION_ROOT/.${STAGE_NAME}.previous.$$"
-  restore_stage_on_exit() {
-    local exit_code=$?
-    if [[ -e "$BACKUP_ROOT" ]]; then
-      if [[ -e "$STAGE_ROOT" ]]; then
-        rm -rf "$BACKUP_ROOT"
-      else
-        mv "$BACKUP_ROOT" "$STAGE_ROOT"
-      fi
+  populate_macos_stage() {
+    local destination="$1"
+    /usr/bin/ditto "$BUILT_APP" "$destination/$APP_NAME"
+    cp "$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")" "$destination/Verify-StandaloneFlow.sh"
+    cp "$SCRIPT_DIR/presentation-stage.sh" "$destination/presentation-stage.sh"
+    chmod +x "$destination/Verify-StandaloneFlow.sh"
+    if [[ ! -x "$destination/$APP_NAME/Contents/MacOS/$BINARY_NAME" || \
+          ! -f "$destination/$APP_NAME/Contents/Resources/ASSETS.LRP" ]]; then
+      echo "The staged application bundle is incomplete." >&2
+      return 1
     fi
-    if [[ -e "$STAGING_ROOT" ]]; then
-      rm -rf "$STAGING_ROOT"
-    fi
-    return "$exit_code"
   }
-  trap restore_stage_on_exit EXIT
-  rm -rf "$STAGING_ROOT" "$BACKUP_ROOT"
-  mkdir -p "$STAGING_ROOT"
-  /usr/bin/ditto "$BUILT_APP" "$STAGING_ROOT/$APP_NAME"
-  cp "$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")" "$STAGING_ROOT/Verify-StandaloneFlow.sh"
-  chmod +x "$STAGING_ROOT/Verify-StandaloneFlow.sh"
-  if [[ ! -x "$STAGING_ROOT/$APP_NAME/Contents/MacOS/$BINARY_NAME" || \
-        ! -f "$STAGING_ROOT/$APP_NAME/Contents/Resources/ASSETS.LRP" ]]; then
-    rm -rf "$STAGING_ROOT"
-    echo "The staged application bundle is incomplete." >&2
-    exit 1
-  fi
 
-  if [[ -e "$STAGE_ROOT" ]]; then
-    mv "$STAGE_ROOT" "$BACKUP_ROOT"
-  fi
-  if ! mv "$STAGING_ROOT" "$STAGE_ROOT"; then
-    if [[ -e "$BACKUP_ROOT" ]]; then
-      mv "$BACKUP_ROOT" "$STAGE_ROOT"
-    fi
-    exit 1
-  fi
-  rm -rf "$BACKUP_ROOT"
-  trap - EXIT
+  loka_replace_stage_directory "$STAGE_ROOT" populate_macos_stage
 
   if [[ "$ACTION" == "Stage" ]]; then
     echo "Staged $HOST_ARCH presentation: $STAGE_ROOT"

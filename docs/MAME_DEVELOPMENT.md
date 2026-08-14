@@ -73,11 +73,22 @@ scenario controller. It advances through the Scrapbook pages using stable
 TEST_ID selectors and real Button actions, then holds the final page until the
 user quits.
 
-In VS Code, run **Build & Start in MAME via SCSI: Scrapbook Standalone Flow**.
-The task builds the excluded target and puts its MacBinary plus `ASSETS.LRP` on
-the generated `LokaDev` disk. Open the application from that disk after Classic
-Mac OS boots. This presentation target is for human observation; it does not
-replace the config-required machine-verdict scenarios described below.
+In VS Code, run **Stage & Start in MAME via SCSI: Scrapbook Standalone Flow**.
+The task builds and stages the excluded target, then puts the staged MacBinary
+plus `ASSETS.LRP` on the generated `LokaDev` disk. Open the application from
+that disk after Classic Mac OS boots. This presentation target is for human
+observation; it does not replace the config-required machine-verdict scenarios
+described below.
+
+For a transportable artifact without changing the configured MAME disks, run
+**Stage: Toolbox 68K Standalone Flow Release**. It builds the same target and
+failure-atomically publishes its MacBinary, `ASSETS.LRP`, instructions, and a
+self-contained HFS `.dsk` under `build/presentation/toolbox-68k-release`. The
+`.dsk` contains both the application and assets and can be transferred to real
+hardware or mounted live in MAME. The MacBinary and separate assets remain the
+inputs for copying to an existing HFS volume or generating a local MAME SCSI
+development disk. See the staged `README.md` (sourced from
+`docs/TOOLBOX_STANDALONE_FLOW.md`) for both routes.
 
 ## Floppy workflow
 
@@ -85,6 +96,12 @@ Run `MAME: Start` once, then use `MAME: Mount .dsk (pick app)` or one of the
 app-specific mount tasks. A small MAME Lua service accepts mount and eject
 requests through files under `MAME_CONTROL_DIR`. The combined `Build & Mount`
 tasks eject before rebuilding so Retro68 never rewrites a mounted `.dsk`.
+
+For the standalone presentation, run **Stage & Mount in Running MAME:
+Scrapbook Standalone Flow**. It ejects the current floppy, rebuilds the
+failure-atomic stage, and inserts the staged self-contained `.dsk`. The same
+image is also available as **Scrapbook Standalone Flow (staged)** in the disk
+picker.
 
 ## Automated runtime verification
 
