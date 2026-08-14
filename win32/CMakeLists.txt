@@ -55,10 +55,11 @@ get_filename_component(LOKA_WIN32_REPOSITORY_ROOT
 if(CMAKE_SOURCE_DIR STREQUAL LOKA_WIN32_REPOSITORY_ROOT)
   include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/LokaWin32VisualStyles.cmake)
 
-  configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/../example/ScrapbookUI/assets/ASSETS-modern.LRP
-    ${CMAKE_CURRENT_BINARY_DIR}/ASSETS.LRP
-    COPYONLY
+  set(LOKA_STANDALONE_FLOW_ASSETS
+    "${CMAKE_CURRENT_SOURCE_DIR}/../example/ScrapbookUI/assets/ASSETS-modern.LRP"
+  )
+  set(LOKA_STANDALONE_FLOW_OUTPUT_DIRECTORY
+    "${CMAKE_BINARY_DIR}/example/ScrapbookUI/standalone-flow"
   )
 
   # TEST-only presentation target. Compile common/platform sources uniformly
@@ -88,11 +89,41 @@ if(CMAKE_SOURCE_DIR STREQUAL LOKA_WIN32_REPOSITORY_ROOT)
   set_target_properties(LokaScrapbookStandaloneFlowWin32 PROPERTIES
     CXX_STANDARD 98
     CXX_STANDARD_REQUIRED YES
+    RUNTIME_OUTPUT_DIRECTORY "${LOKA_STANDALONE_FLOW_OUTPUT_DIRECTORY}"
+  )
+
+  set(LOKA_STANDALONE_FLOW_ASSET_OUTPUT_DIRECTORY
+    "${LOKA_STANDALONE_FLOW_OUTPUT_DIRECTORY}"
+  )
+  if(CMAKE_CONFIGURATION_TYPES)
+    # Multi-config generators append the selected configuration to the
+    # runtime directory. Keep the sidecar on the same target-owned path.
+    set(LOKA_STANDALONE_FLOW_ASSET_OUTPUT_DIRECTORY
+      "${LOKA_STANDALONE_FLOW_OUTPUT_DIRECTORY}/$<CONFIG>"
+    )
+  endif()
+
+  add_custom_target(LokaScrapbookStandaloneFlowWin32Assets
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+      "${LOKA_STANDALONE_FLOW_ASSET_OUTPUT_DIRECTORY}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${LOKA_STANDALONE_FLOW_ASSETS}"
+      "${LOKA_STANDALONE_FLOW_ASSET_OUTPUT_DIRECTORY}/ASSETS.LRP"
+    DEPENDS "${LOKA_STANDALONE_FLOW_ASSETS}"
+    VERBATIM
+  )
+  add_dependencies(
+    LokaScrapbookStandaloneFlowWin32
+    LokaScrapbookStandaloneFlowWin32Assets
   )
 
   if(MSVC)
     target_compile_options(LokaScrapbookStandaloneFlowWin32 PRIVATE /utf-8)
   endif()
+
+  unset(LOKA_STANDALONE_FLOW_OUTPUT_DIRECTORY)
+  unset(LOKA_STANDALONE_FLOW_ASSET_OUTPUT_DIRECTORY)
+  unset(LOKA_STANDALONE_FLOW_ASSETS)
 endif()
 
 unset(LOKA_WIN32_REPOSITORY_ROOT)

@@ -143,8 +143,8 @@ if (-not $StageDirectory) {
 
 $buildRoot = Resolve-ProjectPath $BuildDirectory
 $stageRoot = if ($isPackagedVerifier) { $ScriptDirectory } else { Resolve-ProjectPath $StageDirectory }
-$builtExecutable = Join-Path $buildRoot "win32/LokaScrapbookStandaloneFlowWin32.exe"
-$builtAssets = Join-Path $buildRoot "win32/ASSETS.LRP"
+$builtExecutable = Join-Path $buildRoot "example/ScrapbookUI/standalone-flow/LokaScrapbookStandaloneFlowWin32.exe"
+$builtAssets = Join-Path $buildRoot "example/ScrapbookUI/standalone-flow/ASSETS.LRP"
 $stagedExecutable = Join-Path $stageRoot "LokaScrapbookStandaloneFlowWin32.exe"
 $stagedAssets = Join-Path $stageRoot "ASSETS.LRP"
 $stagedVerifier = Join-Path $stageRoot "Verify-StandaloneFlow.ps1"
