@@ -119,6 +119,72 @@ pathlib.Path("tracked.txt").write_text("modified by build\\n", encoding="utf-8")
             self.assertFalse(archive.exists())
             self.assertFalse(pathlib.Path(str(archive) + ".manifest.txt").exists())
 
+    def test_partial_worktree_add_failure_is_cleaned_for_next_run(self):
+        with tempfile.TemporaryDirectory(prefix="release-partial-worktree-") as directory:
+            root, script = self.make_repository(directory)
+            allowlist = root / "allowlist.txt"
+            archive = root / "out" / "release.zip"
+            allowlist.write_text("git\ttracked.txt\n", encoding="utf-8")
+            hooks = root / "test-hooks"
+            hooks.mkdir()
+            post_checkout = hooks / "post-checkout"
+            post_checkout.write_text(
+                "#!/bin/sh\necho intentional post-checkout failure >&2\nexit 1\n",
+                encoding="utf-8",
+            )
+            post_checkout.chmod(0o755)
+            configured = run("git", "config", "core.hooksPath", str(hooks), cwd=root)
+            self.assertEqual(configured.returncode, 0, configured.stderr)
+
+            try:
+                failed = self.invoke(root, script, allowlist, archive)
+                self.assertNotEqual(failed.returncode, 0)
+                self.assertIn("intentional post-checkout failure", failed.stderr)
+                post_checkout.unlink()
+
+                retried = self.invoke(root, script, allowlist, archive)
+                self.assertEqual(retried.returncode, 0, retried.stderr)
+            finally:
+                run(
+                    "git",
+                    "worktree",
+                    "remove",
+                    "--force",
+                    "/tmp/loka-release-assembly-worktree",
+                    cwd=root,
+                )
+                run("git", "worktree", "prune", cwd=root)
+                shutil.rmtree("/tmp/loka-release-assembly-worktree", ignore_errors=True)
+
+    def test_tracked_file_mislabeled_as_build_output_is_refused(self):
+        with tempfile.TemporaryDirectory(prefix="release-mislabeled-build-") as directory:
+            root, script = self.make_repository(directory)
+            allowlist = root / "allowlist.txt"
+            archive = root / "out" / "release.zip"
+            allowlist.write_text("build\ttracked.txt\n", encoding="utf-8")
+            result = self.invoke(
+                root,
+                script,
+                allowlist,
+                archive,
+                "--build-command",
+                ":",
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("build output exists before build commands", result.stderr)
+            self.assertFalse(archive.exists())
+
+    def test_build_output_without_build_commands_is_refused(self):
+        with tempfile.TemporaryDirectory(prefix="release-build-without-command-") as directory:
+            root, script = self.make_repository(directory)
+            allowlist = root / "allowlist.txt"
+            archive = root / "out" / "release.zip"
+            allowlist.write_text("build\tbuild/stage/release.bin\n", encoding="utf-8")
+            result = self.invoke(root, script, allowlist, archive)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("build entries require at least one build command", result.stderr)
+            self.assertFalse(archive.exists())
+
     def test_only_allowlisted_build_output_enters_archive(self):
         with tempfile.TemporaryDirectory(prefix="release-dev-disk-") as directory:
             root, script = self.make_repository(directory)
@@ -154,6 +220,7 @@ pathlib.Path("tracked.txt").write_text("modified by build\\n", encoding="utf-8")
                 "provenance=build-output:build/stage/release.bin  bin/release.bin",
                 manifest,
             )
+            self.assertIn("build_command_count=1", manifest)
             self.assertEqual(manifest.count("artifact_sha256="), 3)
 
     def test_git_provenance_refuses_file_modified_by_build(self):

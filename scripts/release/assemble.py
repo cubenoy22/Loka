@@ -128,6 +128,31 @@ def path_is_within(path, parent):
         return False
 
 
+def cleanup_worktree(checkout):
+    removed = run_git("worktree", "remove", "--force", str(checkout), check=False)
+    pruned = run_git("worktree", "prune", check=False)
+    listed = run_git("worktree", "list", "--porcelain", check=False)
+    registered = any(
+        line == f"worktree {checkout}" for line in listed.stdout.splitlines()
+    )
+    checkout_exists = checkout.exists() or checkout.is_symlink()
+    if not checkout_exists and listed.returncode == 0 and not registered:
+        return
+    details = []
+    for result in (removed, pruned, listed):
+        detail = result.stderr.strip() or result.stdout.strip()
+        if result.returncode != 0 and detail:
+            details.append(detail)
+    if checkout_exists:
+        details.append(f"checkout path remains: {checkout}")
+    if registered:
+        details.append(f"worktree registration remains: {checkout}")
+    raise ReleaseError(
+        "cannot remove canonical release checkout: "
+        + ("; ".join(details) if details else "unknown error")
+    )
+
+
 def require_regular_source(checkout, relative):
     candidate = checkout.joinpath(*pathlib.PurePosixPath(relative).parts)
     current = checkout
@@ -250,6 +275,7 @@ def render_manifest(
 
 def assemble(tag, allowlist, archive, build_commands):
     entries, allowlist_sha256 = read_allowlist(allowlist)
+    build_entries = tuple(entry for entry in entries if entry.kind == "build")
     tag_sha, commit_sha = resolve_tag(tag)
     checkout = CANONICAL_CHECKOUT
     archive = archive.resolve()
@@ -265,14 +291,14 @@ def assemble(tag, allowlist, archive, build_commands):
     for command in build_commands:
         if not command or "\n" in command or "\r" in command:
             raise ReleaseError("build commands must be non-empty single lines")
+    if build_entries and not build_commands:
+        raise ReleaseError("build entries require at least one build command")
 
-    created = False
     temporary_archive = None
     temporary_manifest = None
     try:
         try:
             run_git("worktree", "add", "--detach", str(checkout), commit_sha)
-            created = True
             actual_commit = run_git("rev-parse", "HEAD", cwd=checkout).stdout.strip()
             if actual_commit != commit_sha:
                 raise ReleaseError(f"fresh checkout is at {actual_commit}, expected {commit_sha}")
@@ -284,6 +310,12 @@ def assemble(tag, allowlist, archive, build_commands):
             ).stdout
             if status:
                 raise ReleaseError("fresh release checkout is not clean")
+            for entry in build_entries:
+                source = checkout.joinpath(*pathlib.PurePosixPath(entry.source).parts)
+                if source.exists() or source.is_symlink():
+                    raise ReleaseError(
+                        f"listed build output exists before build commands: {entry.source}"
+                    )
             for command in build_commands:
                 result = subprocess.run(
                     ["/bin/sh", "-eu", "-c", command],
@@ -328,11 +360,7 @@ def assemble(tag, allowlist, archive, build_commands):
             temporary_archive.chmod(0o644)
             temporary_manifest.chmod(0o644)
         finally:
-            if created:
-                removed = run_git("worktree", "remove", "--force", str(checkout), check=False)
-                if removed.returncode != 0:
-                    detail = removed.stderr.strip() or removed.stdout.strip() or "unknown error"
-                    raise ReleaseError(f"cannot remove canonical release checkout: {detail}")
+            cleanup_worktree(checkout)
 
         archive_published = False
         try:
