@@ -249,6 +249,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/scripts/ReleaseAssemblerTest.py)
     add_test(NAME scriptPresentationStage
       COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/scripts/PresentationStageTest.py)
+    add_test(NAME scriptToolboxStandaloneStage
+      COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/scripts/ToolboxStandaloneStageTest.py)
     add_test(NAME scriptMacOSRigProtocol
       COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/scripts/MacOSRigProtocolTest.py)
     add_test(NAME scriptLokaRig
