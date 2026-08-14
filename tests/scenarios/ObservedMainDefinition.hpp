@@ -5,7 +5,7 @@
 
 namespace loka
 {
-  namespace toolbox_tests
+  namespace scenario_tests
   {
     /** Creates one typed main Boundary and optionally publishes a borrowed
         view while the App-owned Window and Scene remain alive. */
@@ -39,7 +39,7 @@ namespace loka
     private:
       NodeT **observed_;
     };
-  } // namespace toolbox_tests
+  } // namespace scenario_tests
 } // namespace loka
 
 #endif // LOKA_TESTS_TOOLBOX_OBSERVED_MAIN_DEFINITION_HPP

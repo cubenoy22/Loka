@@ -1,12 +1,11 @@
-#include "StandaloneFlowApplication.hpp"
+#include "HelloWorldStandaloneFlowApplication.hpp"
 
 #include <cassert>
 
+#include "HelloWorldScenarios.hpp"
 #include "MainNode.hpp"
 #include "ScenarioWindow.hpp"
-#include "ScrapbookScenarios.hpp"
 #include "StandaloneScenarioSupport.hpp"
-#include "app/PlatformContext.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
 #include "app/core/App.hpp"
 #include "app/core/AppComposition.hpp"
@@ -21,19 +20,18 @@ namespace loka
   {
     namespace
     {
-      class StandaloneFlowAppConfig : public AppConfigurable
+      class HelloWorldStandaloneFlowAppConfig : public AppConfigurable
       {
       public:
-        explicit StandaloneFlowAppConfig(PlatformContext *context)
+        explicit HelloWorldStandaloneFlowAppConfig(PlatformContext *context)
             : AppConfigurable(context),
-              audit_(ResolveStandaloneAuditFile(), "standalone-tour"),
-              scenario_(scenario_tests::ScenarioLaunchPlan::StandaloneTour(), &this->audit_),
-              borrowedMainNode_(0),
+              audit_(ResolveStandaloneAuditFile(), "toggle-action-probe"),
+              scenario_(scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &this->audit_),
               tick_(0)
         {
         }
 
-        virtual ~StandaloneFlowAppConfig()
+        virtual ~HelloWorldStandaloneFlowAppConfig()
         {
           this->scenario_.stop();
         }
@@ -45,14 +43,14 @@ namespace loka
 
         virtual void compose(AppComposition &composition)
         {
-          composition << scenario_tests::MakeScenarioWindow<scrapbook::MainProps, scrapbook::MainNode>(
-              scrapbook::MainProps().platformContext(this->getPlatformContext()),
-              &this->borrowedMainNode_,
-              340,
-              250,
-              "Loka Scrapbook Standalone Flow",
+          composition << scenario_tests::MakeScenarioWindow<helloworld::MainProps, helloworld::MainNode>(
+              helloworld::MainProps(),
+              0,
+              420,
+              300,
+              "Loka HelloWorld Standalone Flow",
               app::IdlePolicy::interval(0.1),
-              &StandaloneFlowAppConfig::OnWindowIdle,
+              &HelloWorldStandaloneFlowAppConfig::OnWindowIdle,
               this);
         }
 
@@ -60,7 +58,7 @@ namespace loka
         static void OnWindowIdle(Window *window, double elapsedSeconds, void *userData)
         {
           (void)elapsedSeconds;
-          StandaloneFlowAppConfig *self = static_cast<StandaloneFlowAppConfig *>(userData);
+          HelloWorldStandaloneFlowAppConfig *self = static_cast<HelloWorldStandaloneFlowAppConfig *>(userData);
           if (self)
           {
             self->tick(window);
@@ -70,13 +68,13 @@ namespace loka
         void tick(Window *window)
         {
           ++this->tick_;
-          if (!window || !this->borrowedMainNode_)
+          if (!window || !window->scene())
           {
             return;
           }
           dsl::SnapRecord record;
-          const scenario_tests::ScenarioAdvance advance = this->scenario_.step(
-              this->tick_, window->scene(), *this->borrowedMainNode_, StandaloneContentBounds(window), record);
+          const scenario_tests::ScenarioAdvance advance =
+              this->scenario_.step(this->tick_, window->scene(), StandaloneContentBounds(window), record);
           switch (advance)
           {
           case scenario_tests::SCENARIO_ADVANCE_PENDING:
@@ -87,13 +85,12 @@ namespace loka
         }
 
         dsl::testing::ScenarioAuditFile audit_;
-        scenario_tests::ScrapbookScenario scenario_;
-        scrapbook::MainNode *borrowedMainNode_;
+        scenario_tests::HelloWorldScenario scenario_;
         long tick_;
       };
     } // namespace
 
-    int RunStandaloneFlowApplication(HINSTANCE hInstance, int nCmdShow)
+    int RunHelloWorldStandaloneFlowApplication(HINSTANCE hInstance, int nCmdShow)
     {
       platform::InitPlatformRuntime();
       core::ScopedPtr<PlatformContext> platformContext(platform::CreatePlatformContext());
@@ -102,7 +99,7 @@ namespace loka
       {
         return 1;
       }
-      StandaloneFlowAppConfig config(platformContext.get());
+      HelloWorldStandaloneFlowAppConfig config(platformContext.get());
       if (!config.isValid())
       {
         return 1;

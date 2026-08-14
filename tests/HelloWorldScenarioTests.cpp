@@ -106,3 +106,37 @@ void testHelloWorldToggleActionProbeDrivesOwnerCommands()
   scene.unmount();
   std::printf("testHelloWorldToggleActionProbeDrivesOwnerCommands passed\n");
 }
+
+void testHelloWorldToggleActionProbeHoldsFinalScene()
+{
+  helloworld::MainProps props;
+  loka::app::scene::BoundaryDefinition<helloworld::MainProps, helloworld::MainNode> definition(props);
+  loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> root(definition.clone());
+  LOKA_VERIFY(root.get() != 0);
+  HelloWorldScenarioPlatform platform;
+  loka::app::scene::Scene scene(root.take());
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  RecordingHelloWorldAudit audit;
+  loka::scenario_tests::HelloWorldScenario scenario(loka::scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &audit);
+  loka::scenario_tests::CaptureContentBounds bounds;
+  bounds.available = true;
+  bounds.right = 420;
+  bounds.bottom = 300;
+  loka::dsl::SnapRecord record;
+
+  LOKA_VERIFY(scenario.step(2, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(scenario.step(32, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(scenario.step(62, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(scenario.step(92, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
+  LOKA_VERIFY(scenario.step(93, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
+
+  std::string value;
+  LOKA_VERIFY(record.get("text.value", value) && value == "Button enabled: no / clicks: 1");
+  LOKA_VERIFY(audit.terminals.size() == 1);
+  LOKA_VERIFY(audit.terminals[0] == loka::dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
+
+  scene.unmount();
+  std::printf("testHelloWorldToggleActionProbeHoldsFinalScene passed\n");
+}

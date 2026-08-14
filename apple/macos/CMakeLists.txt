@@ -200,6 +200,7 @@ endif()
 add_executable(LokaScrapbookStandaloneFlowMacOS EXCLUDE_FROM_ALL MACOSX_BUNDLE
   ${PROJECT_SOURCE_DIR}/tests/macos/StandaloneFlowMain.mm
   ${PROJECT_SOURCE_DIR}/tests/standalone/StandaloneFlowApplication.cpp
+  ${PROJECT_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
   ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
   ${PROJECT_SOURCE_DIR}/tests/scenarios/ScrapbookScenarios.cpp
   ${PROJECT_SOURCE_DIR}/tests/TestingHooks.cpp

@@ -90,6 +90,23 @@ inputs for copying to an existing HFS volume or generating a local MAME SCSI
 development disk. See the staged `README.md` (sourced from
 `docs/TOOLBOX_STANDALONE_FLOW.md`) for both routes.
 
+### HelloWorld standalone Flow
+
+The TEST-only `LokaHelloStandaloneFlow68K_APPL` target presents the same typed
+`toggle-action-probe` used by the machine-verdict rail without requiring
+`LokaTest.cfg` or a host scenario controller. It presses the enabled probe,
+disables it through the rendered toggle action, verifies that a disabled probe
+is ignored, and then holds the final `Button enabled: no / clicks: 1` scene
+until the user quits. Terminal step results are written to the application-side
+`LOG.TXT` audit file; no Snap artifact or completion marker is published.
+
+In VS Code, run **Build & Start in MAME via SCSI: HelloWorld Standalone Flow**.
+The task builds the excluded target, puts its MacBinary on the generated
+`LokaDev` disk, and starts MAME. Open `LokaHelloStandaloneFlow68K` from that
+disk after Classic Mac OS boots. This is a human-facing presentation path; the
+config-required `tests/toolbox/run-scenario.sh helloworld toggle-action-probe`
+command remains the machine verdict.
+
 ## Floppy workflow
 
 Run `MAME: Start` once, then use `MAME: Mount .dsk (pick app)` or one of the
