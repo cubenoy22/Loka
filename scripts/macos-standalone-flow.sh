@@ -114,6 +114,21 @@ else
   mkdir -p "$PRESENTATION_ROOT"
   STAGING_ROOT="$PRESENTATION_ROOT/.${STAGE_NAME}.staging.$$"
   BACKUP_ROOT="$PRESENTATION_ROOT/.${STAGE_NAME}.previous.$$"
+  restore_stage_on_exit() {
+    local exit_code=$?
+    if [[ -e "$BACKUP_ROOT" ]]; then
+      if [[ -e "$STAGE_ROOT" ]]; then
+        rm -rf "$BACKUP_ROOT"
+      else
+        mv "$BACKUP_ROOT" "$STAGE_ROOT"
+      fi
+    fi
+    if [[ -e "$STAGING_ROOT" ]]; then
+      rm -rf "$STAGING_ROOT"
+    fi
+    return "$exit_code"
+  }
+  trap restore_stage_on_exit EXIT
   rm -rf "$STAGING_ROOT" "$BACKUP_ROOT"
   mkdir -p "$STAGING_ROOT"
   /usr/bin/ditto "$BUILT_APP" "$STAGING_ROOT/$APP_NAME"
@@ -136,6 +151,7 @@ else
     exit 1
   fi
   rm -rf "$BACKUP_ROOT"
+  trap - EXIT
 
   if [[ "$ACTION" == "Stage" ]]; then
     echo "Staged $HOST_ARCH presentation: $STAGE_ROOT"
