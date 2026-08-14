@@ -3,5 +3,6 @@
 
 void testWin32OpenReadAcceptsFullWidthPath();
 void testWin32FileFromWidePathSurvivesToOpen();
+void testWin32OpenWriteTruncateAcceptsFullWidthPath();
 
 #endif // LOKA_WIN32_FILE_PATH_TESTS_HPP

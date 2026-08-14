@@ -4,6 +4,7 @@
 #include <cstdio>
 
 #include "core/String.hpp"
+#include "platform/file/FileHandle.hpp"
 
 namespace loka
 {
@@ -29,6 +30,14 @@ namespace loka
        * @return An open read-only handle, or NULL if the file cannot be opened.
        */
       std::FILE *OpenRead(const loka::core::String &path);
+
+      /** Opens an already platform-resolved file destination for binary
+          write. This preserves native location data such as a Classic FSSpec. */
+      std::FILE *OpenWriteTruncate(const FileHandle &file);
+
+      /** Commits one stdio record through the platform's durability boundary.
+          The stream remains open; false means the caller must fail closed. */
+      bool FlushWrite(std::FILE *stream, const FileHandle &file);
     } // namespace file
   } // namespace platform
 } // namespace loka

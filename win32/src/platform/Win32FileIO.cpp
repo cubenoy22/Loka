@@ -6,6 +6,7 @@
 #include "platform/file/FileIO.hpp"
 
 #include <string>
+#include <io.h>
 
 #include "platform/Win32String.hpp"
 
@@ -26,6 +27,21 @@ namespace loka
         if (wide.empty())
           return 0;
         return _wfopen(wide.c_str(), L"rb");
+      }
+
+      std::FILE *OpenWriteTruncate(const FileHandle &file)
+      {
+        std::wstring wide;
+        if (!loka::win32::MaterializeWideString(file.displayPath, wide))
+          return 0;
+        if (wide.empty())
+          return 0;
+        return _wfopen(wide.c_str(), L"wb");
+      }
+
+      bool FlushWrite(std::FILE *stream, const FileHandle &)
+      {
+        return stream != 0 && std::fflush(stream) == 0 && _commit(_fileno(stream)) == 0;
       }
     } // namespace file
   } // namespace platform

@@ -51,6 +51,7 @@ LOKA_TEST(testScrapbookSizedPageContainerOwnsBothPresentations)
 LOKA_TEST(testScrapbookPackagesMatchTheirManifestsAndCarryNativeImages)
 LOKA_TEST(testScrapbookRigLaunchRequiresConfigAndRefusesStandaloneTour)
 LOKA_TEST(testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene)
+LOKA_TEST(testScenarioAuditFileWritesReadableRecords)
 LOKA_TEST(testBlobSealBytesFreezesSizeAndCompletion)
 LOKA_TEST(testStateNotify)
 LOKA_TEST(testStateTrackerCommitQueuesNextTransaction)
@@ -59,6 +60,7 @@ LOKA_TEST(testStateTrackerCommitChainReportsIterationLimit)
 LOKA_TEST(testApplicationFileCompositionKeepsExplicitBase)
 LOKA_TEST(testApplicationRelativePredicateEnforcesSingleSegment)
 LOKA_TEST(testNullApplicationFileUsesOnlyInjectedDirectory)
+LOKA_TEST(testGenericFlushWriteRefusesClosedDurabilityDoor)
 #ifdef _WIN32
 // Win32-only entries live in a nested registry: the CMake per-test
 // enumeration reads this file textually (preprocessor-blind), so a guarded
