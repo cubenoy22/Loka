@@ -97,8 +97,9 @@ emu.wait(5)
 -- romaji into its kana window and the Finder never sees it. Tab is immune;
 -- it cycles the Finder selection. Empirically (per-tab snapshot diagnostics,
 -- 2026-07-31) the first Tab in the freshly opened LokaDev window lands on
--- LokaTestsToolbox68K, then cycles ASSETS.LRP -> LokaTest.cfg -> app again,
--- so the default is one press with run-scenario.sh's three-item staging.
+-- LokaTestsToolbox68K, then cycles ASSETS.LRP -> LokaTest.cfg -> app again.
+-- The shared runner keeps the application first for both its two-item and
+-- three-item example layouts, so the default remains one press.
 local tabKey = keyByName("Tab")
 local tabCount = tonumber(os.getenv("LOKA_TAB_COUNT") or "1")
 for _ = 1, tabCount do

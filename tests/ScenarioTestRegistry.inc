@@ -1,6 +1,7 @@
 // Flow scenario tests in their established execution order.
 LOKA_TEST(testLokaFlowDslV1Core)
 LOKA_TEST(testSceneFlowAtTickRunsEachActionOnceInOrder)
+LOKA_TEST(testHelloWorldToggleActionProbeDrivesOwnerCommands)
 LOKA_TEST(testSimpleViewerClosesDialogFromChooserCompletion)
 LOKA_TEST(testFlowChainHandleCopiesShareImplementationLifetime)
 LOKA_TEST(testFlowChainRunPinDefersImplementationDeletion)

@@ -28,6 +28,7 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/SnapFormatTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ScenarioProfileTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/scenarios/ScenarioProfile.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/scenarios/ScenarioTypes.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/LrpkFormatTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tools/lrpc/LrpkWriter.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tools/lrpc/HostFile.cpp
@@ -40,6 +41,8 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ScrapbookPackageTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ScrapbookScenarioTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/scenarios/ScrapbookScenarios.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/HelloWorldScenarioTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/scenarios/HelloWorldScenarios.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/example/ScrapbookUI/src/ScrapbookPackage.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/BlobRangeTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/apple/toolbox/src/PictParser.cpp

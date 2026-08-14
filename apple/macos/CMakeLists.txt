@@ -181,6 +181,7 @@ if(NOT LOKA_MAC_OS_10_4)
   add_executable(LokaScrapbookScenarioMacOS EXCLUDE_FROM_ALL MACOSX_BUNDLE
     ${PROJECT_SOURCE_DIR}/tests/macos/ScenarioDriver.mm
     ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioProfile.cpp
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/ScrapbookScenarios.cpp
     ${PROJECT_SOURCE_DIR}/tests/TestingHooks.cpp
     ${PROJECT_SOURCE_DIR}/example/ScrapbookUI/src/ScrapbookPackage.cpp
@@ -199,6 +200,7 @@ endif()
 add_executable(LokaScrapbookStandaloneFlowMacOS EXCLUDE_FROM_ALL MACOSX_BUNDLE
   ${PROJECT_SOURCE_DIR}/tests/macos/StandaloneFlowMain.mm
   ${PROJECT_SOURCE_DIR}/tests/standalone/StandaloneFlowApplication.cpp
+  ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
   ${PROJECT_SOURCE_DIR}/tests/scenarios/ScrapbookScenarios.cpp
   ${PROJECT_SOURCE_DIR}/tests/TestingHooks.cpp
   ${PROJECT_SOURCE_DIR}/example/ScrapbookUI/src/ScrapbookPackage.cpp

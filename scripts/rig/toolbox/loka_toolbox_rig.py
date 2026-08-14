@@ -118,32 +118,40 @@ def load_local_mapping(path: pathlib.Path) -> LocalMapping:
     )
 
 
-def _read_scenarios(checkout: pathlib.Path) -> tuple[str, ...]:
-    registry = checkout / "tests" / "toolbox" / "scrapbook-scenarios.txt"
+def _read_scenarios(checkout: pathlib.Path) -> tuple[tuple[str, str], ...]:
+    registry = checkout / "tests" / "toolbox" / "scenarios.txt"
     try:
-        scenarios = tuple(registry.read_text(encoding="utf-8").splitlines())
+        rows = tuple(line.split() for line in registry.read_text(encoding="utf-8").splitlines())
     except OSError as error:
         raise RigError("golden-preflight", f"cannot read scenario registry: {registry}") from error
-    if not scenarios or any(not SCENARIO_PATTERN.fullmatch(scenario) for scenario in scenarios):
+    if not rows or any(
+        len(row) != 2
+        or not SCENARIO_PATTERN.fullmatch(row[0])
+        or not SCENARIO_PATTERN.fullmatch(row[1])
+        for row in rows
+    ):
         raise RigError("golden-preflight", f"invalid or empty scenario registry: {registry}")
+    scenarios = tuple((row[0], row[1]) for row in rows)
     if len(set(scenarios)) != len(scenarios):
         raise RigError("golden-preflight", f"duplicate scenario registry entry: {registry}")
     return scenarios
 
 
-def stage_goldens(checkout: pathlib.Path, golden_root: pathlib.Path) -> tuple[str, ...]:
+def stage_goldens(checkout: pathlib.Path, golden_root: pathlib.Path) -> tuple[tuple[str, str], ...]:
     scenarios = _read_scenarios(checkout)
     destination = checkout / "build" / "mame-scenario" / "golden"
     temporary = destination.with_name("golden.tmp")
     try:
-        for scenario in scenarios:
-            source = golden_root / f"{scenario}.png"
+        for example, scenario in scenarios:
+            source = golden_root / example / f"{scenario}.png"
             if not source.is_file() or source.is_symlink():
                 raise RigError("golden-preflight", f"missing finalized rig-local golden: {source}")
         temporary.mkdir(parents=True, exist_ok=False)
-        for scenario in scenarios:
-            source = golden_root / f"{scenario}.png"
-            shutil.copy2(source, temporary / source.name)
+        for example, scenario in scenarios:
+            source = golden_root / example / f"{scenario}.png"
+            destination_dir = temporary / example
+            destination_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination_dir / source.name)
         temporary.replace(destination)
     except RigError:
         raise
@@ -172,7 +180,7 @@ class ToolboxRigRun:
         self.archive: Optional[pathlib.Path] = None
         self.checkout: Optional[pathlib.Path] = None
         self.target_state = "not-created"
-        self.scenarios: tuple[str, ...] = ()
+        self.scenarios: tuple[tuple[str, str], ...] = ()
         self.command_log: Optional[CommandLog] = None
 
     def _run(
@@ -241,7 +249,7 @@ class ToolboxRigRun:
 
     def prepare(self) -> None:
         self.commit_sha = resolve_commit(self.repo, self.requested_ref)
-        self.run_id = make_run_id(self.commit_sha, self.mode, "scrapbook")
+        self.run_id = make_run_id(self.commit_sha, self.mode, "examples")
         self.archive = self.mapping.archive_root / self.descriptor.rig_id / self.run_id
         self.checkout = self.repo / "build" / "loka-rig" / "checkouts" / self.run_id
         try:
@@ -283,6 +291,7 @@ class ToolboxRigRun:
                 self.descriptor.build_profile,
                 "--target",
                 "LokaTestsToolbox68K_APPL",
+                "LokaHelloWorldTestsToolbox68K_APPL",
                 "--parallel",
                 "2",
             ),
@@ -310,13 +319,17 @@ class ToolboxRigRun:
         assert self.archive is not None
         assert self.checkout is not None
         presentation = self.checkout / "build" / "mame-scenario" / "presentation" / self.run_id
-        required = ("presentation-manifest.txt",) + tuple(f"{scenario}.png" for scenario in self.scenarios)
+        required = ("presentation-manifest.txt",) + tuple(
+            f"{example}/{scenario}.png" for example, scenario in self.scenarios
+        )
         missing = [name for name in required if not (presentation / name).is_file()]
         if missing:
             raise RigError("artifact-collection", "missing artifacts: " + ", ".join(missing))
         try:
             for name in required:
-                shutil.copy2(presentation / name, self.archive / name)
+                destination = self.archive / name
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(presentation / name, destination)
         except OSError as error:
             raise RigError("artifact-collection", f"could not collect Toolbox artifacts: {error}") from error
 

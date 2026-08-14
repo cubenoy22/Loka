@@ -1,0 +1,8 @@
+scrapbook startup
+scrapbook open-first-page
+scrapbook open-first-page-refused
+scrapbook flip-forward-back
+scrapbook refused-flip-keeps-page
+scrapbook open-text-page
+scrapbook open-text-page-refused
+helloworld toggle-action-probe

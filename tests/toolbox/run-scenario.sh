@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 usage() {
-  echo "Usage: $0 <scenario from scrapbook-scenarios.txt> [--update-golden]" >&2
+  echo "Usage: $0 <example> <scenario from scenarios.txt> [--update-golden]" >&2
 }
 
 fail_stage() {
@@ -17,28 +17,30 @@ fail_stage() {
   exit 1
 }
 
-if [ $# -lt 1 ] || [ $# -gt 2 ]; then
+if [ $# -lt 2 ] || [ $# -gt 3 ]; then
   usage
   exit 2
 fi
 
-SCENARIO="$1"
-SCENARIO_REGISTRY="$SCRIPT_DIR/scrapbook-scenarios.txt"
+EXAMPLE="$1"
+SCENARIO="$2"
+SCENARIO_REGISTRY="$SCRIPT_DIR/scenarios.txt"
 UPDATE_GOLDEN=0
-if [[ ! "$SCENARIO" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
-  || ! grep -Fxq -- "$SCENARIO" "$SCENARIO_REGISTRY"; then
+if [[ ! "$EXAMPLE" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
+  || [[ ! "$SCENARIO" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
+  || ! grep -Fxq -- "$EXAMPLE $SCENARIO" "$SCENARIO_REGISTRY"; then
   usage
   exit 2
 fi
-if [ $# -eq 2 ]; then
-  if [ "$2" != "--update-golden" ]; then
+if [ $# -eq 3 ]; then
+  if [ "$3" != "--update-golden" ]; then
     usage
     exit 2
   fi
   UPDATE_GOLDEN=1
 fi
 
-WORK="$PROJECT_DIR/build/mame-scenario/$SCENARIO"
+WORK="$PROJECT_DIR/build/mame-scenario/$EXAMPLE/$SCENARIO"
 if [ -d "$WORK" ]; then
   if ! rm -rf "$WORK"; then
     fail_stage mame "could not wipe the previous work directory"
@@ -56,10 +58,22 @@ if [ -f "$ENV_FILE" ]; then
   set +a
 fi
 
-APPL="$PROJECT_DIR/build/retro68/68k/Release/tests/toolbox/LokaTestsToolbox68K.bin"
+case "$EXAMPLE" in
+  scrapbook)
+    APPL="$PROJECT_DIR/build/retro68/68k/Release/tests/toolbox/LokaTestsToolbox68K.bin"
+    TARGET="LokaTestsToolbox68K_APPL"
+    ;;
+  helloworld)
+    APPL="$PROJECT_DIR/build/retro68/68k/Release/tests/toolbox/LokaHelloWorldTestsToolbox68K.bin"
+    TARGET="LokaHelloWorldTestsToolbox68K_APPL"
+    ;;
+  *)
+    fail_stage mame "unsupported example '$EXAMPLE'"
+    ;;
+esac
 if [ ! -f "$APPL" ]; then
   fail_stage mame \
-    "missing $APPL; build it with: cmake --preset retro68-68k-release && cmake --build --preset retro68-68k-release --target LokaTestsToolbox68K_APPL"
+    "missing $APPL; build it with: cmake --preset retro68-68k-release && cmake --build --preset retro68-68k-release --target $TARGET"
 fi
 if [ -z "${MAME_EXECUTABLE:-}" ]; then
   fail_stage mame "set MAME_EXECUTABLE in .env-mame"
@@ -99,14 +113,14 @@ MAME_OUT="$WORK/mame.out"
 LAUNCH_LOG="$WORK/mame-launch.log"
 RECORD="$WORK/LokaTestsToolbox.snap"
 CAPTURE_RECORD="$WORK/LokaTestsToolbox.capture.snap"
-EXPECTED_RECORD="$PROJECT_DIR/tests/scenarios/expected/scrapbook/$SCENARIO.snap"
+EXPECTED_RECORD="$PROJECT_DIR/tests/scenarios/expected/$EXAMPLE/$SCENARIO.snap"
 CROPPED="$WORK/$SCENARIO.png"
 # Goldens are rig-local, not tracked: the pixels depend on the local boot
 # image's System resources (fonts, control chrome) and contain Apple-rendered
 # glyphs, which the licensing rule keeps out of the tree. They survive work
 # directory wipes and regenerate with --update-golden; reviewers see the
 # captures through the pr-assets evidence branch instead.
-GOLDEN="$PROJECT_DIR/build/mame-scenario/golden/$SCENARIO.png"
+GOLDEN="$PROJECT_DIR/build/mame-scenario/golden/$EXAMPLE/$SCENARIO.png"
 HOME_DIR="$WORK/home"
 CFG_DIR="$WORK/cfg"
 NVRAM_DIR="$WORK/nvram"
@@ -130,31 +144,36 @@ if ! cp -f "$SCRIPT_DIR/mame-launch.lua" "$LAUNCHER"; then
   fail_stage mame "could not stage mame-launch.lua"
 fi
 
-ASSETS="$PROJECT_DIR/example/ScrapbookUI/ASSETS.LRP"
-if [ ! -f "$ASSETS" ]; then
-  fail_stage mame "package not found: $ASSETS"
+DEV_DISK_ARGUMENTS=("$APPL")
+if [ "$EXAMPLE" = "scrapbook" ]; then
+  ASSETS="$PROJECT_DIR/example/ScrapbookUI/ASSETS.LRP"
+  if [ ! -f "$ASSETS" ]; then
+    fail_stage mame "package not found: $ASSETS"
+  fi
+  STAGED_ASSETS="$WORK/ASSETS.LRP"
+  CORRUPT_BAG=""
+  case "$SCENARIO" in
+    open-first-page-refused) CORRUPT_BAG=1 ;;
+    refused-flip-keeps-page) CORRUPT_BAG=3 ;;
+    open-text-page-refused) CORRUPT_BAG=5 ;;
+  esac
+  STAGE_ARGUMENTS=("$ASSETS" "$STAGED_ASSETS")
+  if [ -n "$CORRUPT_BAG" ]; then
+    STAGE_ARGUMENTS+=(--corrupt-bag "$CORRUPT_BAG")
+  fi
+  if ! python3 "$PROJECT_DIR/tests/scenarios/stage-scrapbook-package.py" "${STAGE_ARGUMENTS[@]}"; then
+    fail_stage mame "could not stage the scenario package"
+  fi
+  DEV_DISK_ARGUMENTS+=("$STAGED_ASSETS")
 fi
-STAGED_ASSETS="$WORK/ASSETS.LRP"
-CORRUPT_BAG=""
-case "$SCENARIO" in
-  open-first-page-refused) CORRUPT_BAG=1 ;;
-  refused-flip-keeps-page) CORRUPT_BAG=3 ;;
-  open-text-page-refused) CORRUPT_BAG=5 ;;
-esac
-STAGE_ARGUMENTS=("$ASSETS" "$STAGED_ASSETS")
-if [ -n "$CORRUPT_BAG" ]; then
-  STAGE_ARGUMENTS+=(--corrupt-bag "$CORRUPT_BAG")
-fi
-if ! python3 "$PROJECT_DIR/tests/scenarios/stage-scrapbook-package.py" "${STAGE_ARGUMENTS[@]}"; then
-  fail_stage mame "could not stage the scenario package"
-fi
+DEV_DISK_ARGUMENTS+=("$CONFIG")
 
 # A scenario-local control dir keeps mame-dev-disk.sh's hfsutils state
 # (current mounted volume) isolated, so parallel ctest runs of the two
 # scenarios cannot cross-mount each other's development disks.
 if ! MAME_DEV_HDA="$DEV" MAME_CONTROL_DIR="$WORK/hfs-ctl" \
     "$PROJECT_DIR/scripts/mame-dev-disk.sh" \
-    "$APPL" "$STAGED_ASSETS" "$CONFIG" >"$WORK/dev-disk.out" 2>&1; then
+    "${DEV_DISK_ARGUMENTS[@]}" >"$WORK/dev-disk.out" 2>&1; then
   fail_stage mame "development disk creation failed; see $WORK/dev-disk.out"
 fi
 
@@ -328,4 +347,4 @@ if ! python3 "$PNG_TOOL" compare "$CROPPED" "$GOLDEN"; then
   fail_stage golden "cropped snapshot differs from $GOLDEN"
 fi
 
-echo "Scenario passed: $SCENARIO"
+echo "Scenario passed: $EXAMPLE/$SCENARIO"

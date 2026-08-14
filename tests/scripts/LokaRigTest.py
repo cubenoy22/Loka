@@ -279,20 +279,28 @@ class ToolboxRigAdapterTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             checkout = root / "checkout"
-            registry = checkout / "tests" / "toolbox" / "scrapbook-scenarios.txt"
+            registry = checkout / "tests" / "toolbox" / "scenarios.txt"
             registry.parent.mkdir(parents=True)
-            registry.write_text("alpha\nbeta\n", encoding="utf-8")
+            registry.write_text("first alpha\nsecond beta\n", encoding="utf-8")
             golden = root / "golden"
-            golden.mkdir()
-            (golden / "alpha.png").write_bytes(b"alpha")
+            (golden / "first").mkdir(parents=True)
+            (golden / "second").mkdir()
+            (golden / "first" / "alpha.png").write_bytes(b"alpha")
             with self.assertRaises(common.RigError) as caught:
                 toolbox.stage_goldens(checkout, golden)
             self.assertEqual(caught.exception.stage, "golden-preflight")
-            (golden / "beta.png").write_bytes(b"beta")
+            (golden / "second" / "beta.png").write_bytes(b"beta")
             staged = toolbox.stage_goldens(checkout, golden)
-            self.assertEqual(staged, ("alpha", "beta"))
+            self.assertEqual(staged, (("first", "alpha"), ("second", "beta")))
             self.assertEqual(
-                (checkout / "build" / "mame-scenario" / "golden" / "beta.png").read_bytes(),
+                (
+                    checkout
+                    / "build"
+                    / "mame-scenario"
+                    / "golden"
+                    / "second"
+                    / "beta.png"
+                ).read_bytes(),
                 b"beta",
             )
 

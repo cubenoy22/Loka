@@ -1,0 +1,6 @@
+#ifndef LOKA_TESTS_HELLO_WORLD_SCENARIO_TESTS_HPP
+#define LOKA_TESTS_HELLO_WORLD_SCENARIO_TESTS_HPP
+
+void testHelloWorldToggleActionProbeDrivesOwnerCommands();
+
+#endif // LOKA_TESTS_HELLO_WORLD_SCENARIO_TESTS_HPP

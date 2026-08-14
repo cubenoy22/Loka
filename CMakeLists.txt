@@ -157,6 +157,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/OwnershipDumpTests\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/FlowDslTestMain\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/example/HelloWorld/src/MainNode\\.cpp$")
+  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/HelloWorldScenarioTests\\.cpp$")
+  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/HelloWorldScenarios\\.cpp$")
 
   add_executable(LokaContractTests
     ${PROJECT_SOURCE_DIR}/tests/ContractTestMain.cpp
@@ -179,6 +181,9 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/TestingHooks.cpp
     ${PROJECT_SOURCE_DIR}/tests/FlowDslTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/OwnershipDumpTests.cpp
+    ${PROJECT_SOURCE_DIR}/tests/HelloWorldScenarioTests.cpp
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/HelloWorldScenarios.cpp
     ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
   )
   loka_enable_warnings(LokaScenarioTests)
@@ -265,14 +270,18 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
 
     if(LOKA_MAME_SCENARIOS)
       file(STRINGS
-        ${PROJECT_SOURCE_DIR}/tests/toolbox/scrapbook-scenarios.txt
+        ${PROJECT_SOURCE_DIR}/tests/toolbox/scenarios.txt
         _loka_mame_scenarios
-        REGEX "^[a-z0-9][a-z0-9-]*$")
-      foreach(_loka_mame_scenario IN LISTS _loka_mame_scenarios)
-        add_test(NAME "mameScenario-${_loka_mame_scenario}"
+        REGEX "^[a-z0-9][a-z0-9-]* [a-z0-9][a-z0-9-]*$")
+      foreach(_loka_mame_entry IN LISTS _loka_mame_scenarios)
+        string(REGEX REPLACE "^([^ ]+) ([^ ]+)$" "\\1"
+          _loka_mame_example "${_loka_mame_entry}")
+        string(REGEX REPLACE "^([^ ]+) ([^ ]+)$" "\\2"
+          _loka_mame_scenario "${_loka_mame_entry}")
+        add_test(NAME "mameScenario-${_loka_mame_example}-${_loka_mame_scenario}"
           COMMAND bash ${PROJECT_SOURCE_DIR}/tests/toolbox/run-scenario.sh
-            "${_loka_mame_scenario}")
-        set_tests_properties("mameScenario-${_loka_mame_scenario}"
+            "${_loka_mame_example}" "${_loka_mame_scenario}")
+        set_tests_properties("mameScenario-${_loka_mame_example}-${_loka_mame_scenario}"
           PROPERTIES LABELS "mame")
       endforeach()
 
@@ -293,7 +302,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     ${PROJECT_SOURCE_DIR}/tests/ContractTestRegistry.inc
     ${PROJECT_SOURCE_DIR}/tests/ScenarioTestRegistry.inc
-    ${PROJECT_SOURCE_DIR}/tests/toolbox/scrapbook-scenarios.txt
+    ${PROJECT_SOURCE_DIR}/tests/toolbox/scenarios.txt
   )
 
   file(STRINGS ${PROJECT_SOURCE_DIR}/tests/ContractTestRegistry.inc

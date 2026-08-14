@@ -125,17 +125,18 @@ host must satisfy that preset's toolchain requirements.
 | L0 macOS | `cmake --preset macos-debug && cmake --build --preset macos-debug` |
 | L0 Classic Mac 68K | `cmake --preset retro68-68k-release && cmake --build --preset retro68-68k-release` |
 | L0 Classic Mac PPC | `cmake --preset retro68-ppc-release && cmake --build --preset retro68-ppc-release` |
-| L1 Classic `ScrapbookUI` | `tests/toolbox/run-scenario.sh open-first-page` — status/crop verdict and fixed-wait single snapshot today; full-record comparison and settled capture are tracked in [#314](https://github.com/cubenoy22/Loka/issues/314) |
-| L2 Classic `ScrapbookUI` | `tests/toolbox/run-scenario.sh <scenario>` — same [#314](https://github.com/cubenoy22/Loka/issues/314) caveat |
+| L1 Classic `ScrapbookUI` | `tests/toolbox/run-scenario.sh scrapbook startup` — tracked full SnapRecord plus settled rig-local crop golden |
+| L2 Classic `ScrapbookUI` | `tests/toolbox/run-scenario.sh scrapbook flip-forward-back` — tracked full SnapRecord plus settled rig-local crop golden |
+| L2 Classic `HelloWorld` | `tests/toolbox/run-scenario.sh helloworld toggle-action-probe` — typed TEST_ID actions drive MainNode-owned Emitters; tracked full SnapRecord plus settled rig-local crop golden |
 | L1/L2 Win32 | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
 | L1/L2 macOS | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
-| L1/L2 Classic examples other than `ScrapbookUI` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
+| L1 Classic examples other than `ScrapbookUI` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
+| L2 Classic examples other than `ScrapbookUI` and `HelloWorld` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
 | L3 all OSes | n/a — manual by definition; record the rig/hardware and evidence in the selected matrix cell |
 
 The Classic scenario command requires an already configured local MAME rig and
-the `LokaTestsToolbox68K_APPL` build artifact; if the artifact is absent, the
-runner prints the exact Retro68 build command. Its accepted scenario names today
-are `open-first-page`, `open-first-page-refused`, `flip-forward-back`,
-`refused-flip-keeps-page`, `open-text-page`, and
-`open-text-page-refused`. `--update-golden` regenerates the rig-local golden; it
-does not create release evidence or a tracked repository file.
+the example's Toolbox test application; if the artifact is absent, the runner
+prints the exact Retro68 target. `tests/toolbox/scenarios.txt` is the shared
+`<example> <scenario>` registry. `--update-golden` regenerates the rig-local
+golden under that same per-example layout; it does not create release evidence
+or a tracked repository file.

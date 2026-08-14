@@ -137,6 +137,22 @@ class ExpectedRecordPinsTest(unittest.TestCase):
             self.assertEqual(step.returncode, 0, step.stderr)
             self.assertEqual(step.stdout, scenario + "\n")
 
+    def test_expected_records_cover_every_registered_example_scenario(self):
+        registry = os.path.join(PROJECT_DIR, "tests", "toolbox", "scenarios.txt")
+        with open(registry, "r", encoding="utf-8") as handle:
+            entries = [line.split() for line in handle.read().splitlines()]
+        self.assertTrue(entries)
+        self.assertEqual(len(entries), len({tuple(entry) for entry in entries}))
+        for entry in entries:
+            self.assertEqual(len(entry), 2)
+            example, scenario = entry
+            path = os.path.join(SCENARIO_DIR, "expected", example, scenario + ".snap")
+            identity = run_tool(SNAP_TOOL, "get", path, "test")
+            step = run_tool(SNAP_TOOL, "get", path, "step")
+            self.assertEqual(identity.returncode, 0, identity.stderr)
+            self.assertEqual(step.returncode, 0, step.stderr)
+            self.assertEqual(step.stdout, scenario + "\n")
+
 
 class PngToolTest(unittest.TestCase):
     def test_exact_compare_and_diff_pin_one_pixel_change(self):

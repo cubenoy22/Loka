@@ -4,7 +4,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-SCENARIO_REGISTRY="$SCRIPT_DIR/scrapbook-scenarios.txt"
+SCENARIO_REGISTRY="$SCRIPT_DIR/scenarios.txt"
 SCENARIO_RUNNER="$SCRIPT_DIR/run-scenario.sh"
 PRESENTATION_ROOT="$PROJECT_DIR/build/mame-scenario/presentation"
 
@@ -63,21 +63,24 @@ if ! printf 'presentation_version=1\nrun_id=%s\n' "$RUN_ID" >"$MANIFEST_TMP"; th
 fi
 
 scenario_count=0
-while IFS= read -r scenario || [ -n "$scenario" ]; do
-  if [[ ! "$scenario" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
-    fail_stage "invalid scenario registry entry: '$scenario'"
+while read -r example scenario extra || [ -n "${example:-}" ]; do
+  if [[ ! "${example:-}" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
+    || [[ ! "${scenario:-}" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
+    || [ -n "${extra:-}" ]; then
+    fail_stage "invalid scenario registry entry: '${example:-} ${scenario:-} ${extra:-}'"
   fi
-  if ! "$SCENARIO_RUNNER" "$scenario" </dev/null; then
-    fail_stage "scenario failed: $scenario"
+  if ! "$SCENARIO_RUNNER" "$example" "$scenario" </dev/null; then
+    fail_stage "scenario failed: $example/$scenario"
   fi
 
-  source_capture="$PROJECT_DIR/build/mame-scenario/$scenario/$scenario.png"
-  destination_name="$scenario.png"
+  source_capture="$PROJECT_DIR/build/mame-scenario/$example/$scenario/$scenario.png"
+  destination_name="$example/$scenario.png"
   destination_capture="$INCOMPLETE/$destination_name"
   if [ ! -f "$source_capture" ]; then
     fail_stage "scenario did not finalize its capture: $source_capture"
   fi
-  if ! cp -f "$source_capture" "$destination_capture"; then
+  if ! mkdir -p "$(dirname "$destination_capture")" \
+    || ! cp -f "$source_capture" "$destination_capture"; then
     fail_stage "could not collect $source_capture"
   fi
   if ! digest="$(python3 -c 'import hashlib, pathlib, sys; print(hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest())' "$destination_capture")"; then

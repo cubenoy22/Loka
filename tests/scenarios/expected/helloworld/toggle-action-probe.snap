@@ -1,0 +1,16 @@
+crop_bottom	300
+crop_left	0
+crop_right	420
+crop_top	0
+dirty.flags	NONE
+dirty.mask	0
+disabled_probe_ignored	true
+format_version	1
+node	HelloWorld.LeftPanel.ActionSummary
+scenario_version	1
+schema_version	1
+status	ok
+step	toggle-action-probe
+test	HelloWorld
+text.value	Button enabled: no / clicks: 1
+tick	92
