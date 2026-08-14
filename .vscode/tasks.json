@@ -652,6 +652,16 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Stage: Toolbox 68K Standalone Flow Release",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "scripts/toolbox-standalone-flow.sh",
+        "Stage"
+      ],
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Prepare SCSI Dev Disk: HelloWorld",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",

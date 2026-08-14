@@ -79,6 +79,14 @@ the generated `LokaDev` disk. Open the application from that disk after Classic
 Mac OS boots. This presentation target is for human observation; it does not
 replace the config-required machine-verdict scenarios described below.
 
+For a transportable artifact without changing the configured MAME disks, run
+**Stage: Toolbox 68K Standalone Flow Release**. It builds the same target and
+failure-atomically publishes its MacBinary plus `ASSETS.LRP` under
+`build/presentation/toolbox-68k-release`. Keep both files in the same HFS
+directory when copying them to a Classic target. This is a portable stage, not
+a runtime verdict or a ready-made boot/SCSI disk; use the existing MAME task
+above for interactive runtime observation.
+
 ## Floppy workflow
 
 Run `MAME: Start` once, then use `MAME: Mount .dsk (pick app)` or one of the
