@@ -134,7 +134,8 @@ void testMacApplicationSidecarDeclinesWhenParentReportsReadOnly()
   ScopedMethodExchange exchange([manager class],
                                 @selector(isWritableFileAtPath:),
                                 @selector(loka_testRefuseWritableFileAtPath:));
-  LOKA_VERIFY(exchange.active());
+  const bool exchangeInstalled = exchange.active();
+  LOKA_VERIFY(exchangeInstalled);
 
   loka::platform::file::FileHandle handle;
   LOKA_VERIFY(!loka::platform::file::ResolveApplicationSidecar(
