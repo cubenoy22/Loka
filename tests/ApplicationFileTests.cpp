@@ -122,3 +122,23 @@ void testNullApplicationFileUsesOnlyInjectedDirectory()
   LOKA_VERIFY(RemoveDirectoryForTest(directory));
   LOKA_VERIFY(std::remove(name) == 0);
 }
+
+void testGenericFlushWriteRefusesClosedDurabilityDoor()
+{
+#if !defined(_WIN32) && !defined(LOKA_RETRO68)
+  std::FILE *stream = std::tmpfile();
+  LOKA_VERIFY(stream != 0);
+  LOKA_VERIFY(std::fputs("durable", stream) >= 0);
+  LOKA_VERIFY(std::fflush(stream) == 0);
+  const int descriptor = fileno(stream);
+  LOKA_VERIFY(descriptor >= 0);
+  LOKA_VERIFY(close(descriptor) == 0);
+
+  // A second stdio flush has no buffered bytes and succeeds, but the closed
+  // descriptor cannot cross the platform durability boundary. This is the
+  // pre-fix loss mechanism: fflush alone incorrectly reported success.
+  loka::platform::file::FileHandle destination;
+  LOKA_VERIFY(!loka::platform::file::FlushWrite(stream, destination));
+  std::fclose(stream);
+#endif
+}

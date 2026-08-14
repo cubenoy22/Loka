@@ -4,5 +4,6 @@
 void testApplicationFileCompositionKeepsExplicitBase();
 void testApplicationRelativePredicateEnforcesSingleSegment();
 void testNullApplicationFileUsesOnlyInjectedDirectory();
+void testGenericFlushWriteRefusesClosedDurabilityDoor();
 
 #endif // LOKA_APPLICATION_FILE_TESTS_HPP

@@ -6,6 +6,7 @@
 #include "platform/file/FileIO.hpp"
 
 #include <string>
+#include <unistd.h>
 
 #include "platform/StringUTF8.hpp"
 
@@ -38,7 +39,10 @@ namespace loka
 
       bool FlushWrite(std::FILE *stream, const FileHandle &)
       {
-        return stream != 0 && std::fflush(stream) == 0;
+        if (stream == 0 || std::fflush(stream) != 0)
+          return false;
+        const int descriptor = fileno(stream);
+        return descriptor >= 0 && fsync(descriptor) == 0;
       }
 #endif
     } // namespace file
