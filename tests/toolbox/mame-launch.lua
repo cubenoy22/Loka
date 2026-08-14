@@ -98,10 +98,13 @@ emu.wait(5)
 -- it cycles the Finder selection. Empirically (per-tab snapshot diagnostics,
 -- 2026-07-31) the first Tab in the freshly opened LokaDev window lands on
 -- LokaTestsToolbox68K, then cycles ASSETS.LRP -> LokaTest.cfg -> app again.
--- The shared runner keeps the application first for both its two-item and
--- three-item example layouts, so the default remains one press.
+-- The scenario runner owns the per-example navigation fact beside the files
+-- it stages and exports LOKA_TAB_COUNT; callers may override it for diagnosis.
 local tabKey = keyByName("Tab")
-local tabCount = tonumber(os.getenv("LOKA_TAB_COUNT") or "1")
+local tabCount = assert(tonumber(os.getenv("LOKA_TAB_COUNT")),
+    "LOKA_TAB_COUNT must be set by the scenario runner")
+assert(tabCount > 0 and tabCount == math.floor(tabCount),
+    "LOKA_TAB_COUNT must be a positive integer")
 for _ = 1, tabCount do
     tap(tabKey)
 end

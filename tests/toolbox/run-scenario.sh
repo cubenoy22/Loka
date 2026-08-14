@@ -62,10 +62,12 @@ case "$EXAMPLE" in
   scrapbook)
     APPL="$PROJECT_DIR/build/retro68/68k/Release/tests/toolbox/LokaTestsToolbox68K.bin"
     TARGET="LokaTestsToolbox68K_APPL"
+    FINDER_TAB_COUNT=1
     ;;
   helloworld)
     APPL="$PROJECT_DIR/build/retro68/68k/Release/tests/toolbox/LokaHelloWorldTestsToolbox68K.bin"
     TARGET="LokaHelloWorldTestsToolbox68K_APPL"
+    FINDER_TAB_COUNT=2
     ;;
   *)
     fail_stage mame "unsupported example '$EXAMPLE'"
@@ -177,16 +179,17 @@ if ! MAME_DEV_HDA="$DEV" MAME_CONTROL_DIR="$WORK/hfs-ctl" \
   fail_stage mame "development disk creation failed; see $WORK/dev-disk.out"
 fi
 
+if [ -z "${LOKA_TAB_COUNT:-}" ]; then
+  LOKA_TAB_COUNT="$FINDER_TAB_COUNT"
+fi
+export LOKA_TAB_COUNT
 export LOKA_SNAP_LOG; LOKA_SNAP_LOG="$(winpath "$LAUNCH_LOG")"
-FORWARD="LOKA_SNAP_LOG"
+FORWARD="LOKA_SNAP_LOG:LOKA_TAB_COUNT"
 if [ -n "${LOKA_LAUNCH_WAIT:-}" ]; then
   FORWARD="$FORWARD:LOKA_LAUNCH_WAIT"
 fi
 if [ -n "${LOKA_SETTLE_TIMEOUT:-}" ]; then
   FORWARD="$FORWARD:LOKA_SETTLE_TIMEOUT"
-fi
-if [ -n "${LOKA_TAB_COUNT:-}" ]; then
-  FORWARD="$FORWARD:LOKA_TAB_COUNT"
 fi
 # WSL hands nothing to a Windows process unless it is named here.
 export WSLENV="${WSLENV:+$WSLENV:}$FORWARD"
