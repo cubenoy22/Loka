@@ -2,6 +2,7 @@
 #include "support/TestVerify.hpp"
 
 #include <Foundation/Foundation.h>
+#include <objc/runtime.h>
 
 #include <cassert>
 #include <cstdio>
@@ -10,6 +11,53 @@
 #include "core/io/File.hpp"
 #include "platform/file/AppLocation.hpp"
 #include "platform/file/FileIO.hpp"
+
+@interface NSFileManager (LokaSidecarTests)
+- (BOOL)loka_testRefuseWritableFileAtPath:(NSString *)path;
+@end
+
+@implementation NSFileManager (LokaSidecarTests)
+- (BOOL)loka_testRefuseWritableFileAtPath:(NSString *)path
+{
+  (void)path;
+  return NO;
+}
+@end
+
+namespace
+{
+  class ScopedMethodExchange
+  {
+  public:
+    ScopedMethodExchange(Class owner, SEL first, SEL second)
+        : first_(class_getInstanceMethod(owner, first)), second_(class_getInstanceMethod(owner, second)), active_(false)
+    {
+      if (this->first_ && this->second_)
+      {
+        method_exchangeImplementations(this->first_, this->second_);
+        this->active_ = true;
+      }
+    }
+
+    ~ScopedMethodExchange()
+    {
+      if (this->active_)
+      {
+        method_exchangeImplementations(this->first_, this->second_);
+      }
+    }
+
+    bool active() const { return this->active_; }
+
+  private:
+    ScopedMethodExchange(const ScopedMethodExchange &);
+    ScopedMethodExchange &operator=(const ScopedMethodExchange &);
+
+    Method first_;
+    Method second_;
+    bool active_;
+  };
+} // namespace
 
 void testMacApplicationItemNamesResourceDirectory()
 {
@@ -54,13 +102,43 @@ void testMacApplicationSidecarNamesBundleParent()
   NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
   NSString *bundlePath = [[NSBundle mainBundle] bundlePath];
   assert(bundlePath);
-  NSString *expected = [[bundlePath stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"LOG.TXT"];
+  NSString *name = @"_loka-sidecar-write-test.tmp";
+  NSString *expected = [[bundlePath stringByDeletingLastPathComponent] stringByAppendingPathComponent:name];
+  [[NSFileManager defaultManager] removeItemAtPath:expected error:nil];
 
   loka::platform::file::FileHandle handle;
   LOKA_VERIFY(loka::platform::file::ResolveApplicationSidecar(
-      loka::file::File::Application() << loka::file::File("LOG.TXT"), handle));
+      loka::file::File::Application() << loka::file::File("_loka-sidecar-write-test.tmp"), handle));
   const char *expectedUtf8 = [expected UTF8String];
   assert(expectedUtf8);
   assert(handle.displayPath.equals(loka::core::String::Utf8(expectedUtf8, std::strlen(expectedUtf8))));
+
+  const unsigned char payload[] = {0x4C, 0x4F, 0x4B, 0x41};
+  std::FILE *opened = loka::platform::file::OpenWriteTruncate(handle);
+  assert(opened);
+  LOKA_VERIFY(std::fwrite(payload, 1, sizeof(payload), opened) == sizeof(payload));
+  LOKA_VERIFY(loka::platform::file::FlushWrite(opened, handle));
+  LOKA_VERIFY(std::fclose(opened) == 0);
+  NSData *actual = [NSData dataWithContentsOfFile:expected];
+  assert(actual);
+  assert([actual length] == sizeof(payload));
+  assert(std::memcmp([actual bytes], payload, sizeof(payload)) == 0);
+  LOKA_VERIFY([[NSFileManager defaultManager] removeItemAtPath:expected error:nil]);
+  [pool drain];
+}
+
+void testMacApplicationSidecarDeclinesWhenParentReportsReadOnly()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  NSFileManager *manager = [NSFileManager defaultManager];
+  ScopedMethodExchange exchange([manager class],
+                                @selector(isWritableFileAtPath:),
+                                @selector(loka_testRefuseWritableFileAtPath:));
+  LOKA_VERIFY(exchange.active());
+
+  loka::platform::file::FileHandle handle;
+  LOKA_VERIFY(!loka::platform::file::ResolveApplicationSidecar(
+      loka::file::File::Application() << loka::file::File("LOG.TXT"), handle));
+  assert(handle.displayPath.empty());
   [pool drain];
 }
