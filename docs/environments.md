@@ -61,6 +61,26 @@ This is the environment where binaries are actually built.
   scene hold. `Stage: macOS Standalone Flow Release` prepares the same portable
   directory without launching it; `ASSETS.LRP` remains owned by the bundle at
   `Contents/Resources`.
+- For a standalone presentation Release, start VS Code from the Visual Studio
+  Command Line Tools session for the desired target, then run
+  `Verify: Win32 Standalone Flow Release`. The task derives ARM64, x64, or
+  x86/i386 from the inherited compiler environment. It uses a separate CMake
+  cache for each architecture, verifies the resulting PE header, and stages
+  the executable with `ASSETS.LRP` under
+  `build/presentation/win32-<architecture>-release`. It then launches the app,
+  waits for the exact twelve-step success audit, and stops the final-scene
+  hold. Copy the staged directory to the target machine and run
+  `powershell -ExecutionPolicy Bypass -File .\Verify-StandaloneFlow.ps1`
+  there for a hardware check. The staged verifier derives the architecture
+  from its sibling PE, starts the presentation, waits for the exact audit,
+  stops the final-scene hold, and leaves `LOG.TXT` as the target-local runtime
+  verdict. For a VAIO P, start VS Code from a VS2017 `x64_x86 Cross Tools`
+  session; the task inherits that session's x86 target.
+- Some endpoint scanners flag freshly linked unsigned test executables,
+  particularly 32-bit ones.
+  This workflow deliberately does not add an antivirus exclusion; use the
+  machine's normal review/allow procedure or an approved target environment
+  when local policy blocks the launch.
 - Classic Toolbox targets are currently built through Retro68.
 - Retro68 keeps the core portable while allowing modern host-side tooling for Classic builds.
 - Retro68 workflows are not limited to Parallels Desktop. Docker, colima, WSL, and other Linux-oriented environments are also recommended.

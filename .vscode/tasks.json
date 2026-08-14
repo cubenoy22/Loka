@@ -257,6 +257,52 @@
       "problemMatcher": "$msCompile"
     },
     {
+      "label": "Build: Win32 Standalone Flow Release",
+      "type": "shell",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/win32-standalone-flow.ps1",
+        "-Action",
+        "Build"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Stage: Win32 Standalone Flow Release",
+      "type": "shell",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/win32-standalone-flow.ps1",
+        "-Action",
+        "Stage"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Verify: Win32 Standalone Flow Release",
+      "type": "shell",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/win32-standalone-flow.ps1",
+        "-Action",
+        "Verify"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
       "label": "Configure: Win32 XP",
       "type": "shell",
       "command": "cmake",
