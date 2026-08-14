@@ -1,9 +1,8 @@
-#include "StandaloneFlowDriver.hpp"
+#include "StandaloneFlowApplication.hpp"
 
 #include <cassert>
 
 #include "MainNode.hpp"
-#include "ObservedScrapbookMainDefinition.hpp"
 #include "ScrapbookScenarios.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
@@ -12,18 +11,48 @@
 #include "app/core/AppConfigurable.hpp"
 #include "app/core/WindowDefinition.hpp"
 #include "app/scene/boundary/Boundary.hpp"
-#include "core/util/ScopedPtr.hpp"
 #include "core/io/File.hpp"
+#include "core/util/ScopedPtr.hpp"
 #include "platform/file/AppLocation.hpp"
 #include "platform/file/FileHandle.hpp"
 #include "testing/scene/ScenarioAudit.hpp"
 
 namespace loka
 {
-  namespace toolbox_tests
+  namespace standalone_tests
   {
     namespace
     {
+      typedef app::scene::BoundaryDefinition<scrapbook::MainProps, scrapbook::MainNode> MainDefinitionBase;
+
+      class ObservedMainDefinition : public MainDefinitionBase
+      {
+      public:
+        ObservedMainDefinition(const scrapbook::MainProps &props, scrapbook::MainNode **observed)
+            : MainDefinitionBase(props),
+              observed_(observed)
+        {
+        }
+
+        virtual app::scene::NodeDefinitionBase *clone() const
+        {
+          return new ObservedMainDefinition(*this);
+        }
+
+        virtual app::scene::Node *create() const
+        {
+          app::scene::Node *node = MainDefinitionBase::create();
+          if (this->observed_)
+          {
+            *this->observed_ = node ? static_cast<scrapbook::MainNode *>(node) : 0;
+          }
+          return node;
+        }
+
+      private:
+        scrapbook::MainNode **observed_;
+      };
+
       scenario_tests::CaptureContentBounds ContentBounds(Window *window)
       {
         scenario_tests::CaptureContentBounds result;
@@ -45,15 +74,13 @@ namespace loka
       platform::file::FileHandle ResolveAuditFile()
       {
         platform::file::FileHandle result;
-        if (!platform::file::ResolveApplicationItem(
-                file::File::Application() << file::File("LOG.TXT"), result))
+        if (!platform::file::ResolveApplicationSidecar(file::File::Application() << file::File("LOG.TXT"), result))
         {
           return platform::file::FileHandle();
         }
         return result;
       }
 
-      /** Owns the presentation scenario for exactly the App run lifetime. */
       class StandaloneFlowAppConfig : public AppConfigurable
       {
       public:
@@ -78,8 +105,8 @@ namespace loka
 
         virtual void compose(AppComposition &composition)
         {
-          ObservedScrapbookMainDefinition mainDefinition(
-              scrapbook::MainProps().platformContext(this->getPlatformContext()), &this->borrowedMainNode_);
+          ObservedMainDefinition mainDefinition(scrapbook::MainProps().platformContext(this->getPlatformContext()),
+                                                &this->borrowedMainNode_);
           composition << WindowDef(WindowProps()
                                        .frame(40, 40, 340, 250)
                                        .scene(mainDefinition)
@@ -149,5 +176,5 @@ namespace loka
       app->run();
       return 0;
     }
-  } // namespace toolbox_tests
+  } // namespace standalone_tests
 } // namespace loka

@@ -132,22 +132,50 @@ if(NOT LOKA_MAC_OS_10_4)
   enable_testing()
   add_test(NAME LokaTestsMacOS COMMAND LokaTestsMacOS)
 
-  set(LOKA_SCRAPBOOK_SCENARIO_RESOURCE_DIR
-    ${CMAKE_CURRENT_BINARY_DIR}/scenario-resources
-  )
-  file(MAKE_DIRECTORY ${LOKA_SCRAPBOOK_SCENARIO_RESOURCE_DIR})
-  configure_file(
-    ${PROJECT_SOURCE_DIR}/example/ScrapbookUI/assets/ASSETS-modern.LRP
-    ${LOKA_SCRAPBOOK_SCENARIO_RESOURCE_DIR}/ASSETS.LRP
-    COPYONLY
-  )
-  set_source_files_properties(
-    ${LOKA_SCRAPBOOK_SCENARIO_RESOURCE_DIR}/ASSETS.LRP
-    PROPERTIES
-      GENERATED TRUE
-      MACOSX_PACKAGE_LOCATION Resources
-  )
+endif()
 
+set(LOKA_SCRAPBOOK_SCENARIO_RESOURCE_DIR
+  ${CMAKE_CURRENT_BINARY_DIR}/scenario-resources
+)
+file(MAKE_DIRECTORY ${LOKA_SCRAPBOOK_SCENARIO_RESOURCE_DIR})
+configure_file(
+  ${PROJECT_SOURCE_DIR}/example/ScrapbookUI/assets/ASSETS-modern.LRP
+  ${LOKA_SCRAPBOOK_SCENARIO_RESOURCE_DIR}/ASSETS.LRP
+  COPYONLY
+)
+set_source_files_properties(
+  ${LOKA_SCRAPBOOK_SCENARIO_RESOURCE_DIR}/ASSETS.LRP
+  PROPERTIES
+    GENERATED TRUE
+    MACOSX_PACKAGE_LOCATION Resources
+)
+
+function(loka_configure_scrapbook_test_bundle target bundle_id)
+  loka_enable_warnings(${target})
+  target_include_directories(${target} PRIVATE
+    ${PROJECT_SOURCE_DIR}/common
+    ${PROJECT_SOURCE_DIR}/tests/scenarios
+    ${PROJECT_SOURCE_DIR}/tests/standalone
+    ${PROJECT_SOURCE_DIR}/example/ScrapbookUI/src
+    ${CMAKE_CURRENT_LIST_DIR}/src
+    ${CMAKE_CURRENT_LIST_DIR}/src/context
+  )
+  target_compile_definitions(${target} PRIVATE TEST_BUILD)
+  target_compile_options(${target} PRIVATE -fno-exceptions)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS)
+    target_compile_options(${target} PRIVATE "-fno-objc-arc")
+  endif()
+  target_link_libraries(${target} PRIVATE LokaAppleMacOSAppKit)
+  set_target_properties(${target} PROPERTIES
+    CXX_STANDARD 98
+    CXX_STANDARD_REQUIRED YES
+    OBJCXX_STANDARD 98
+    OBJCXX_STANDARD_REQUIRED YES
+    MACOSX_BUNDLE_GUI_IDENTIFIER "${bundle_id}"
+  )
+endfunction()
+
+if(NOT LOKA_MAC_OS_10_4)
   # TEST-only vertical slice. It compiles common and platform sources with one
   # uniform TEST_BUILD definition rather than linking the shipping core.
   add_executable(LokaScrapbookScenarioMacOS EXCLUDE_FROM_ALL MACOSX_BUNDLE
@@ -162,27 +190,25 @@ if(NOT LOKA_MAC_OS_10_4)
     ${LOKA_MACOS_CORE_HEADERS}
     ${LOKA_SCRAPBOOK_SCENARIO_RESOURCE_DIR}/ASSETS.LRP
   )
-  loka_enable_warnings(LokaScrapbookScenarioMacOS)
-  target_include_directories(LokaScrapbookScenarioMacOS PRIVATE
-    ${PROJECT_SOURCE_DIR}/common
-    ${PROJECT_SOURCE_DIR}/tests/scenarios
-    ${PROJECT_SOURCE_DIR}/example/ScrapbookUI/src
-    ${CMAKE_CURRENT_LIST_DIR}/src
-    ${CMAKE_CURRENT_LIST_DIR}/src/context
-  )
-  target_compile_definitions(LokaScrapbookScenarioMacOS PRIVATE TEST_BUILD)
-  target_compile_options(LokaScrapbookScenarioMacOS PRIVATE
-    -fno-exceptions
-  )
-  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS)
-    target_compile_options(LokaScrapbookScenarioMacOS PRIVATE "-fno-objc-arc")
-  endif()
-  target_link_libraries(LokaScrapbookScenarioMacOS PRIVATE LokaAppleMacOSAppKit)
-  set_target_properties(LokaScrapbookScenarioMacOS PROPERTIES
-    CXX_STANDARD 98
-    CXX_STANDARD_REQUIRED YES
-    OBJCXX_STANDARD 98
-    OBJCXX_STANDARD_REQUIRED YES
-    MACOSX_BUNDLE_GUI_IDENTIFIER "com.cubenoy22.loka.scrapbook-scenario"
+  loka_configure_scrapbook_test_bundle(
+    LokaScrapbookScenarioMacOS
+    "com.cubenoy22.loka.scrapbook-scenario"
   )
 endif()
+
+add_executable(LokaScrapbookStandaloneFlowMacOS EXCLUDE_FROM_ALL MACOSX_BUNDLE
+  ${PROJECT_SOURCE_DIR}/tests/macos/StandaloneFlowMain.mm
+  ${PROJECT_SOURCE_DIR}/tests/standalone/StandaloneFlowApplication.cpp
+  ${PROJECT_SOURCE_DIR}/tests/scenarios/ScrapbookScenarios.cpp
+  ${PROJECT_SOURCE_DIR}/tests/TestingHooks.cpp
+  ${PROJECT_SOURCE_DIR}/example/ScrapbookUI/src/ScrapbookPackage.cpp
+  ${LOKA_MACOS_CORE_SOURCES}
+  ${COMMON_SOURCES}
+  ${COMMON_HEADERS}
+  ${LOKA_MACOS_CORE_HEADERS}
+  ${LOKA_SCRAPBOOK_SCENARIO_RESOURCE_DIR}/ASSETS.LRP
+)
+loka_configure_scrapbook_test_bundle(
+  LokaScrapbookStandaloneFlowMacOS
+  "com.cubenoy22.loka.scrapbook-standalone-flow"
+)

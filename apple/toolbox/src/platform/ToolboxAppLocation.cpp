@@ -66,6 +66,11 @@ namespace loka
         return true;
 #endif
       }
+
+      bool ResolveApplicationSidecar(const loka::file::File &item, FileHandle &out)
+      {
+        return ResolveApplicationItem(item, out);
+      }
     } // namespace file
   } // namespace platform
 } // namespace loka

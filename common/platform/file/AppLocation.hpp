@@ -31,10 +31,9 @@ namespace loka
         {
           return false;
         }
-        return !relative.empty() && relative.find('/') == std::string::npos
-               && relative.find('\\') == std::string::npos && relative.find(':') == std::string::npos
-               && relative.find('\0') == std::string::npos
-               && relative != "." && relative != "..";
+        return !relative.empty() && relative.find('/') == std::string::npos && relative.find('\\') == std::string::npos
+               && relative.find(':') == std::string::npos && relative.find('\0') == std::string::npos && relative != "."
+               && relative != "..";
       }
 
       /**
@@ -44,6 +43,16 @@ namespace loka
        *         name is refused, or the platform cannot locate the application.
        */
       bool ResolveApplicationItem(const loka::file::File &item, FileHandle &out);
+
+      /**
+       * Resolves a peer intended for writable sidecar data rather than
+       * packaged application content.
+       *
+       * The query declines when the platform cannot identify a currently
+       * writable peer location. OpenWriteTruncate remains the authoritative
+       * write boundary because availability can change after resolution.
+       */
+      bool ResolveApplicationSidecar(const loka::file::File &item, FileHandle &out);
     } // namespace file
   } // namespace platform
 } // namespace loka

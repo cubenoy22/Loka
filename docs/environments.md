@@ -53,6 +53,14 @@ This is the environment where binaries are actually built.
 - On older macOS systems such as Snow Leopard, CMake and Ninja can be installed through MacPorts.
 - On Windows, VS Code should usually be launched from an appropriate Visual Studio Developer Command Prompt so that MSVC environment variables match the intended target architecture.
 - On Windows on ARM, use the ARM64 Native Tools Command Prompt for native ARM64 builds, or ARM64_x86 / ARM64_x64 Cross Tools prompts for x86-family builds.
+- For a host-native macOS standalone presentation, run
+  `Verify: macOS Standalone Flow Release` in VS Code. The task configures and
+  builds Release without pinning `CMAKE_OSX_ARCHITECTURES`, stages the complete
+  application bundle under `build/presentation/macos-<host>-release`, launches
+  it, requires the exact fourteen-record success audit, and stops the final
+  scene hold. `Stage: macOS Standalone Flow Release` prepares the same portable
+  directory without launching it; `ASSETS.LRP` remains owned by the bundle at
+  `Contents/Resources`.
 - Classic Toolbox targets are currently built through Retro68.
 - Retro68 keeps the core portable while allowing modern host-side tooling for Classic builds.
 - Retro68 workflows are not limited to Parallels Desktop. Docker, colima, WSL, and other Linux-oriented environments are also recommended.
