@@ -101,6 +101,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/../Tutorial/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/../MineSweeper/src
   )
 
   target_compile_definitions(LokaTestsWin32 PRIVATE TEST_BUILD)

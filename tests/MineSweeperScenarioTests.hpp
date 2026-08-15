@@ -1,0 +1,8 @@
+#ifndef LOKA_TESTS_MINESWEEPER_SCENARIO_TESTS_HPP
+#define LOKA_TESTS_MINESWEEPER_SCENARIO_TESTS_HPP
+
+void testMineSweeperNewGameTwiceDrivesOwnerEmitter();
+void testMineSweeperNewGameTwiceHoldsFinalSceneAndMatchesAudit();
+void testMineSweeperDifferentSeedRefusesFixedBoardAudit();
+
+#endif // LOKA_TESTS_MINESWEEPER_SCENARIO_TESTS_HPP

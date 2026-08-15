@@ -2,6 +2,7 @@
 #include "OwnershipDumpTests.hpp"
 #include "HelloWorldScenarioTests.hpp"
 #include "TutorialScenarioTests.hpp"
+#include "MineSweeperScenarioTests.hpp"
 
 #define LOKA_TEST_RUNNER_SCENARIO
 #define LOKA_TEST_RUNNER_FINAL_CHECKPOINT "ScenarioTestMain final"

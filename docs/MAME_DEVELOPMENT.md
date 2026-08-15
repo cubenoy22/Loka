@@ -160,7 +160,7 @@ Lua autoboot script. Keep scenario launchers, copied disks, logs, and snapshots
 under a purpose-named directory such as `build/runtime-103/`; they are test
 artifacts, not application sources.
 
-To rerun the complete cross-example presentation rail and collect the eight settled
+To rerun the complete cross-example presentation rail and collect the ten settled
 MAME-owned captures into one immutable run directory:
 
 ```sh
@@ -187,7 +187,7 @@ python3 scripts/rig/loka-rig.py run toolbox-maciix \
 
 The Toolbox adapter creates a detached checkout, configures and builds the
 Retro68 scenario applications, stages the finalized per-example rig-local
-goldens, runs the shared nine-scenario rail, and collects the nine PNGs plus both the presentation and
+goldens, runs the shared ten-scenario rail, and collects the ten PNGs plus both the presentation and
 common run manifests. Adapter failure retains the checkout for diagnosis;
 success removes it only after manifest finalization.
 

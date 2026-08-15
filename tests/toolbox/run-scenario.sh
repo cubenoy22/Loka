@@ -74,6 +74,11 @@ case "$EXAMPLE" in
     TARGET="LokaTutorialTestsToolbox68K_APPL"
     FINDER_TAB_COUNT=3
     ;;
+  minesweeper)
+    APPL="$PROJECT_DIR/build/retro68/68k/Release/tests/toolbox/LokaMineSweeperTestsToolbox68K.bin"
+    TARGET="LokaMineSweeperTestsToolbox68K_APPL"
+    FINDER_TAB_COUNT=4
+    ;;
   *)
     fail_stage mame "unsupported example '$EXAMPLE'"
     ;;

@@ -1,0 +1,26 @@
+loka_scenario_audit version=1 scenario=new-game-twice
+step id=1 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=verify-initial-board
+step id=2 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=start-first-new-game
+step id=3 due_tick=32 tick=32 status=succeeded error_kind=0 error_code=0 name=verify-first-new-game-board
+step id=4 due_tick=32 tick=32 status=succeeded error_kind=0 error_code=0 name=start-second-new-game
+step id=5 due_tick=62 tick=62 status=succeeded error_kind=0 error_code=0 name=verify-second-new-game-board
+step id=6 due_tick=62 tick=62 status=succeeded error_kind=0 error_code=0 name=capture-second-new-game-board
+board.after_new_game_1_mines	1,6,16,23,27,30,34,44,45,53
+board.after_new_game_2_mines	3,26,42,49,50,56,59,60,62,63
+board.initial_mines	3,4,20,22,37,45,50,55,56,59
+board.mines	3,26,42,49,50,56,59,60,62,63
+crop_bottom	240
+crop_left	0
+crop_right	220
+crop_top	0
+format_version	1
+new_game_count	2
+node	MineSweeper.Board
+scenario_version	1
+schema_version	1
+seed	324508639
+status	ok
+step	new-game-twice
+test	MineSweeper
+tick	62
+terminal status=succeeded
