@@ -87,9 +87,15 @@ that jailbreak state alone did not make the provisioning-based IPA path valid.
 The successful route copied the signed bundle over USB-tunneled OpenSSH to
 `/Applications`, set the executable mode to 0755, and restarted SpringBoard.
 
-SpringBoard then enumerated bundle identifier
+SpringBoard then enumerated the verification artifact under bundle identifier
 `com.cubenoy22.loka.legacy-hello-world`, version 0.0.3, with display name
 `Loka 3.1.3 Hello`. Touch launch and the full-screen white UIKit view containing
 `Hello, iPhone OS 3.1.3!` were visually confirmed on the physical device while
 USB syslog capture was active. This profile is therefore both `build-verified`
 and `runtime-verified`; no Simulator result is used as ARMv6 runtime evidence.
+
+The checked-in Info.plist now uses
+`io.lo-ka.loka.legacy-hello-world`, following the project's `lo-ka.io` bundle
+namespace decision after that run. The executable and UIKit view source are
+unchanged, but deployment under the renamed identifier has not yet been
+`runtime-verified` on the device.

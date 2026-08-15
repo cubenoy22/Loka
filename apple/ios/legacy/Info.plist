@@ -9,7 +9,7 @@
   <key>CFBundleExecutable</key>
   <string>LokaLegacyHelloWorld</string>
   <key>CFBundleIdentifier</key>
-  <string>com.cubenoy22.loka.legacy-hello-world</string>
+  <string>io.lo-ka.loka.legacy-hello-world</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>

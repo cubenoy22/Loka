@@ -60,4 +60,7 @@ The direct UIKit application is `build-verified` as ARMv6 with C++98 /
 Objective-C 1 manual reference counting, exceptions disabled, and RTTI
 disabled. It is also `runtime-verified` on a first-generation iPod touch
 running iPhone OS 3.1.3; the legacy README records the physical-device route
-and evidence separately from the build result.
+and evidence separately from the build result. That run used the original
+`com.cubenoy22` bundle identifier. The checked-in profile now uses the
+`io.lo-ka.loka` namespace; deployment under the renamed identifier remains a
+separate runtime acceptance point.
