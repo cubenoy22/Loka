@@ -14,8 +14,6 @@ PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."
 SCENARIO_DIR = os.path.join(PROJECT_DIR, "tests", "scenarios")
 SNAP_TOOL = os.path.join(SCENARIO_DIR, "snaprecord.py")
 PNG_TOOL = os.path.join(SCENARIO_DIR, "pngtool.py")
-PACKAGE_TOOL = os.path.join(SCENARIO_DIR, "stage-scrapbook-package.py")
-ASSETS = os.path.join(PROJECT_DIR, "example", "ScrapbookUI", "ASSETS.LRP")
 
 
 def run_tool(*arguments):
@@ -172,37 +170,6 @@ class PngToolTest(unittest.TestCase):
             self.assertEqual(diffed.returncode, 1)
             self.assertTrue(os.path.isfile(difference))
             self.assertGreater(os.path.getsize(difference), 0)
-
-
-class PackageStagingToolTest(unittest.TestCase):
-    def test_stage_copy_and_validated_corruption_leave_source_unchanged(self):
-        with tempfile.TemporaryDirectory(prefix="scenario-package-") as directory:
-            plain = os.path.join(directory, "plain.LRP")
-            corrupt = os.path.join(directory, "corrupt.LRP")
-            with open(ASSETS, "rb") as handle:
-                original = handle.read()
-
-            copied = run_tool(PACKAGE_TOOL, ASSETS, plain)
-            changed = run_tool(PACKAGE_TOOL, ASSETS, corrupt, "--corrupt-bag", "1")
-            self.assertEqual(copied.returncode, 0, copied.stderr)
-            self.assertEqual(changed.returncode, 0, changed.stderr)
-            with open(plain, "rb") as handle:
-                self.assertEqual(handle.read(), original)
-            with open(corrupt, "rb") as handle:
-                self.assertNotEqual(handle.read(), original)
-            with open(ASSETS, "rb") as handle:
-                self.assertEqual(handle.read(), original)
-
-    def test_invalid_package_is_refused_even_without_corruption(self):
-        with tempfile.TemporaryDirectory(prefix="scenario-package-") as directory:
-            source = os.path.join(directory, "invalid.LRP")
-            destination = os.path.join(directory, "staged.LRP")
-            with open(source, "wb") as handle:
-                handle.write(b"not an LRPK")
-            result = run_tool(PACKAGE_TOOL, source, destination)
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn("not an LRPK", result.stderr)
-            self.assertFalse(os.path.exists(destination))
 
 
 if __name__ == "__main__":

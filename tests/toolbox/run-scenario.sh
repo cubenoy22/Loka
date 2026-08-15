@@ -77,6 +77,11 @@ if [ ! -f "$APPL" ]; then
   fail_stage mame \
     "missing $APPL; build it with: cmake --preset retro68-68k-release && cmake --build --preset retro68-68k-release --target $TARGET"
 fi
+LRPC="$PROJECT_DIR/build/host/lrpc/lrpc"
+if [ "$EXAMPLE" = "scrapbook" ] && [ ! -x "$LRPC" ]; then
+  fail_stage mame \
+    "missing $LRPC; build it with: cmake -S tools/lrpc -B build/host/lrpc && cmake --build build/host/lrpc"
+fi
 if [ -z "${MAME_EXECUTABLE:-}" ]; then
   fail_stage mame "set MAME_EXECUTABLE in .env-mame"
 fi
@@ -159,11 +164,11 @@ if [ "$EXAMPLE" = "scrapbook" ]; then
     refused-flip-keeps-page) CORRUPT_BAG=3 ;;
     open-text-page-refused) CORRUPT_BAG=5 ;;
   esac
-  STAGE_ARGUMENTS=("$ASSETS" "$STAGED_ASSETS")
+  STAGE_ARGUMENTS=(stage "$ASSETS" -o "$STAGED_ASSETS")
   if [ -n "$CORRUPT_BAG" ]; then
     STAGE_ARGUMENTS+=(--corrupt-bag "$CORRUPT_BAG")
   fi
-  if ! python3 "$PROJECT_DIR/tests/scenarios/stage-scrapbook-package.py" "${STAGE_ARGUMENTS[@]}"; then
+  if ! "$LRPC" "${STAGE_ARGUMENTS[@]}"; then
     fail_stage mame "could not stage the scenario package"
   fi
   DEV_DISK_ARGUMENTS+=("$STAGED_ASSETS")

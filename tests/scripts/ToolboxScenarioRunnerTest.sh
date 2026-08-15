@@ -32,12 +32,13 @@ touch \
   "$SANDBOX/repo/example/ScrapbookUI/ASSETS.LRP" \
   "$SANDBOX/BootTemplate.hd"
 
-cat >"$SANDBOX/repo/tests/scenarios/stage-scrapbook-package.py" <<'PY'
-import shutil
-import sys
-
-shutil.copyfile(sys.argv[1], sys.argv[2])
-PY
+mkdir -p "$SANDBOX/repo/build/host/lrpc"
+cat >"$SANDBOX/repo/build/host/lrpc/lrpc" <<'SH'
+#!/usr/bin/env bash
+# fake lrpc: stage <source> -o <destination> [--corrupt-bag N]
+cp -f "$2" "$4"
+SH
+chmod +x "$SANDBOX/repo/build/host/lrpc/lrpc"
 
 cat >"$SANDBOX/repo/scripts/mame-dev-disk.sh" <<'SH'
 #!/usr/bin/env bash

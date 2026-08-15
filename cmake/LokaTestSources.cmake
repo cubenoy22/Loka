@@ -30,6 +30,8 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/scenarios/ScenarioProfile.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/scenarios/ScenarioTypes.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/LrpkFormatTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/LrpkStagerTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tools/lrpc/LrpkStager.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tools/lrpc/LrpkWriter.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tools/lrpc/HostFile.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tools/lrpc/PackManifest.cpp
