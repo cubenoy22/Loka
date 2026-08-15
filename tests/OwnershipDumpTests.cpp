@@ -9,7 +9,8 @@
 #include <string>
 #include <vector>
 
-#include "../example/HelloWorld/src/MainNode.hpp"
+#include "../example/HelloWorld/src/MyAppConfig.hpp"
+#include "../example/HelloWorld/src/ProductionAppConfig.hpp"
 #include "../example/MineSweeper/src/MainNode.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/core/App.hpp"
@@ -491,11 +492,90 @@ namespace
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
     LOKA_VERIFY(scene.flushInvalidation());
   }
+
+  std::vector<int> captureHelloWorldRandomMenu(MyAppConfig &config)
+  {
+    loka::app::MenuBarDefinition bar;
+    loka::app::MenuComposition composition(&bar);
+    config.composeMenu(composition);
+    composition.finish();
+
+    loka::app::MenuDefinition *randomMenu = 0;
+    for (loka::app::MenuDefinition *menu = bar.menusHead();
+         menu;
+         menu = menu->nextInComposition)
+    {
+      if (menu->title.equals(loka::core::String::Literal("Random")))
+      {
+        randomMenu = menu;
+        break;
+      }
+    }
+    LOKA_VERIFY(randomMenu != 0);
+
+    std::vector<int> order;
+    for (loka::app::MenuItemDefinition *item = randomMenu->itemsHead();
+         item;
+         item = item->nextInComposition)
+    {
+      for (int label = 1; label <= 6; ++label)
+      {
+        const loka::core::String expected =
+            loka::core::String::Literal("Random ") +
+            loka::core::String::FromInt(label);
+        if (item->title.equals(expected))
+        {
+          order.push_back(label);
+          break;
+        }
+      }
+    }
+    LOKA_VERIFY(order.size() == 6);
+    return order;
+  }
+
+  std::vector<std::vector<int> > captureHelloWorldRandomMenuSequence(
+      unsigned long seed,
+      int menuCount)
+  {
+    MyAppConfig config(0, seed);
+    std::vector<std::vector<int> > sequence;
+    for (int i = 0; i < menuCount; ++i)
+    {
+      sequence.push_back(captureHelloWorldRandomMenu(config));
+    }
+    return sequence;
+  }
+
+  void verifyHelloWorldMenuOrder(const std::vector<int> &actual,
+                                 const int *expected)
+  {
+    LOKA_VERIFY(actual.size() == 6);
+    for (std::size_t i = 0; i < actual.size(); ++i)
+    {
+      LOKA_VERIFY(actual[i] == expected[i]);
+    }
+  }
 } // namespace
 
 void testOwnershipDumpPinsRepresentativeHelloWorld()
 {
   using namespace loka::app::scene;
+  const std::vector<std::vector<int> > firstSequence =
+      captureHelloWorldRandomMenuSequence(0x13579BDFUL, 3);
+  const std::vector<std::vector<int> > repeatedSequence =
+      captureHelloWorldRandomMenuSequence(0x13579BDFUL, 3);
+  const std::vector<std::vector<int> > differentSeedSequence =
+      captureHelloWorldRandomMenuSequence(0x2468ACE0UL, 1);
+  LOKA_VERIFY(firstSequence == repeatedSequence);
+  LOKA_VERIFY(firstSequence[0] != differentSeedSequence[0]);
+  const int expectedFirst[6] = {3, 5, 4, 1, 6, 2};
+  const int expectedSecond[6] = {1, 3, 5, 4, 2, 6};
+  const int expectedThird[6] = {5, 6, 2, 3, 4, 1};
+  verifyHelloWorldMenuOrder(firstSequence[0], expectedFirst);
+  verifyHelloWorldMenuOrder(firstSequence[1], expectedSecond);
+  verifyHelloWorldMenuOrder(firstSequence[2], expectedThird);
+
   NodeDefinition<helloworld::MainProps, helloworld::MainNode> mainDefinition;
   SceneTestSupport::RecordingPlatformController platform;
   loka::app::scene::NodeDefinitionBase *rootDefinition = mainDefinition.clone();
@@ -512,6 +592,23 @@ void testOwnershipDumpPinsRepresentativeHelloWorld()
       "      observed: 8\n");
   verifyOwnershipDump(
       loka::dsl::testing::OwnershipDump::dump(scene), expected);
+}
+
+void testHelloWorldProductionSeedAdapterPassesDerivedSeed()
+{
+  const std::time_t wallClockSeconds =
+      static_cast<std::time_t>(0x13579BDFUL);
+  const HelloWorldMenuSeed seed =
+      HelloWorldMenuSeed::FromWallClock(wallClockSeconds);
+  LOKA_VERIFY(seed.value() == 0x13579BDFUL);
+
+  HelloWorldProductionAppConfig production(0, seed);
+  MyAppConfig expected(0, seed.value());
+  for (int i = 0; i < 3; ++i)
+  {
+    LOKA_VERIFY(captureHelloWorldRandomMenu(production) ==
+                captureHelloWorldRandomMenu(expected));
+  }
 }
 
 void testOwnershipDumpPinsMineSweeperSections()

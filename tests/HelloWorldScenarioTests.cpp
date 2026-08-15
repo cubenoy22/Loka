@@ -151,7 +151,7 @@ void testHelloWorldToggleActionProbeHoldsFinalScene()
 
 void testHelloWorldStandaloneMenuMatchesExample()
 {
-  MyAppConfig example(0);
+  MyAppConfig example(0, 0x13579BDFUL);
   loka::standalone_tests::HelloWorldStandaloneFlowAppConfig standalone(0);
   loka::app::MenuBarDefinition exampleMenu;
   loka::app::MenuBarDefinition standaloneMenu;
