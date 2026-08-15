@@ -159,12 +159,11 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/example/HelloWorld/src/MainNode\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/HelloWorldScenarioTests\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/HelloWorldScenarios\\.cpp$")
+  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/standalone/HelloWorldStandaloneFlowAppConfig\\.cpp$")
 
   add_executable(LokaContractTests
     ${PROJECT_SOURCE_DIR}/tests/ContractTestMain.cpp
     ${LOKA_CONTRACT_TEST_SOURCES}
-    ${PROJECT_SOURCE_DIR}/tests/standalone/ScrapbookStandaloneFlowAppConfig.cpp
-    ${PROJECT_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
   )
   loka_enable_warnings(LokaContractTests)
   target_include_directories(LokaContractTests PRIVATE

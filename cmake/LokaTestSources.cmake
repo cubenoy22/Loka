@@ -43,6 +43,9 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/scenarios/ScrapbookScenarios.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/HelloWorldScenarioTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/scenarios/HelloWorldScenarios.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/standalone/HelloWorldStandaloneFlowAppConfig.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/standalone/ScrapbookStandaloneFlowAppConfig.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/standalone/StandaloneScenarioSupport.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/example/ScrapbookUI/src/ScrapbookPackage.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/BlobRangeTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/apple/toolbox/src/PictParser.cpp
