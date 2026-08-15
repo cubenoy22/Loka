@@ -80,7 +80,8 @@ namespace
   void VerifyRecordInt(const loka::dsl::SnapRecord &record, const char *key, long expected)
   {
     long actual = -1;
-    LOKA_VERIFY(record.getInt(key, actual));
+    const bool found = record.getInt(key, actual);
+    LOKA_VERIFY(found);
     LOKA_VERIFY(actual == expected);
   }
 
@@ -164,7 +165,8 @@ void testTutorialIncrementSummaryToggleHoldsFinalSceneAndMatchesAudit()
     loka::platform::file::FileHandle destination;
     destination.displayPath = loka::core::String::Utf8(actualPath, std::strlen(actualPath));
     loka::dsl::testing::ScenarioAuditFile audit(destination, "increment-summary-toggle");
-    LOKA_VERIFY(audit.isValid());
+    const bool auditValid = audit.isValid();
+    LOKA_VERIFY(auditValid);
     loka::scenario_tests::TutorialScenario scenario(loka::scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE,
                                                      &audit);
     loka::scenario_tests::CaptureContentBounds bounds;
