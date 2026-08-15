@@ -2010,73 +2010,97 @@ void ToolboxScenePlatformController::handleEnabledChanged(loka::core::State<bool
   {
     return;
   }
-  for (size_t i = 0; i < popupHits_.size(); ++i)
+  DispatchToolboxEnabledChange(
+      *this,
+      enabled,
+      &ToolboxScenePlatformController::applyEnabledChangeForKind);
+}
+
+bool ToolboxScenePlatformController::applyEnabledChangeForKind(
+    ToolboxEnabledControlKind kind,
+    loka::core::State<bool> *enabled)
+{
+  switch (kind)
   {
-    PopupHit &hit = popupHits_[i];
-    if (hit.enabled == enabled)
+  case TOOLBOX_ENABLED_POPUP_HIT:
+    for (size_t i = 0; i < popupHits_.size(); ++i)
     {
-      if (inBatchUpdate_)
+      PopupHit &hit = popupHits_[i];
+      if (hit.enabled == enabled)
       {
-        addPendingDirty(hit.rect);
-      }
-      else
-      {
-        window_->requestInvalidateRect(hit.rect);
-      }
-      return;
-    }
-  }
-  for (size_t i = 0; i < buttonControls_.size(); ++i)
-  {
-    ButtonControlBinding &binding = buttonControls_[i];
-    if (binding.enabled == enabled)
-    {
-      if (binding.control)
-      {
-        if (enabled->get())
+        if (inBatchUpdate_)
         {
-          HiliteControl(binding.control, 0);
+          addPendingDirty(hit.rect);
         }
         else
         {
-          HiliteControl(binding.control, 255);
+          window_->requestInvalidateRect(hit.rect);
         }
+        return true;
       }
-      return;
     }
-  }
-  for (size_t i = 0; i < scrollBarControls_.size(); ++i)
-  {
-    ScrollBarControlBinding &binding = scrollBarControls_[i];
-    if (binding.enabled != enabled)
+    return false;
+  case TOOLBOX_ENABLED_BUTTON_CONTROL:
+    for (size_t i = 0; i < buttonControls_.size(); ++i)
     {
-      continue;
-    }
-    // A disabled bar and an unscrollable one share the inactive
-    // presentation, so re-derive from both rather than from enabled alone.
-    binding.active = enabled->get() && loka::app::ScrollBarIsScrollable(binding.minimum, binding.maximum);
-    if (binding.control)
-    {
-      HiliteControl(binding.control, binding.active ? 0 : 255);
-    }
-    return;
-  }
-  for (size_t i = 0; i < buttonHits_.size(); ++i)
-  {
-    ButtonHit &hit = buttonHits_[i];
-    if (hit.enabled == enabled)
-    {
-      if (inBatchUpdate_)
+      ButtonControlBinding &binding = buttonControls_[i];
+      if (binding.enabled == enabled)
       {
-        addPendingDirty(hit.rect);
+        if (binding.control)
+        {
+          if (enabled->get())
+          {
+            HiliteControl(binding.control, 0);
+          }
+          else
+          {
+            HiliteControl(binding.control, 255);
+          }
+        }
+        return true;
       }
-      else
-      {
-        window_->requestInvalidateRect(hit.rect);
-      }
-      return;
     }
+    return false;
+  case TOOLBOX_ENABLED_SCROLL_BAR_CONTROL:
+    for (size_t i = 0; i < scrollBarControls_.size(); ++i)
+    {
+      ScrollBarControlBinding &binding = scrollBarControls_[i];
+      if (binding.enabled != enabled)
+      {
+        continue;
+      }
+      // A disabled bar and an unscrollable one share the inactive
+      // presentation, so re-derive from both rather than from enabled alone.
+      binding.active = enabled->get() && loka::app::ScrollBarIsScrollable(binding.minimum, binding.maximum);
+      if (binding.control)
+      {
+        HiliteControl(binding.control, binding.active ? 0 : 255);
+      }
+      return true;
+    }
+    return false;
+  case TOOLBOX_ENABLED_BUTTON_HIT:
+    for (size_t i = 0; i < buttonHits_.size(); ++i)
+    {
+      ButtonHit &hit = buttonHits_[i];
+      if (hit.enabled == enabled)
+      {
+        if (inBatchUpdate_)
+        {
+          addPendingDirty(hit.rect);
+        }
+        else
+        {
+          window_->requestInvalidateRect(hit.rect);
+        }
+        return true;
+      }
+    }
+    return false;
+  case TOOLBOX_ENABLED_CONTROL_KIND_COUNT:
+    return false;
   }
+  return false;
 }
 
 void ToolboxScenePlatformController::beginBatchUpdate()

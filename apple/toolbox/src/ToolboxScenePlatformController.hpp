@@ -4,6 +4,7 @@
 #include "app/scene/projection/PlatformController.hpp"
 #include "ToolboxControlIdAllocator.hpp"
 #include "ToolboxEditControlLedger.hpp"
+#include "ToolboxEnabledChangeDispatch.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "app/scene/projection/NativeHandlePool.hpp"
 #include "core/State.hpp"
@@ -311,6 +312,8 @@ private:
   bool hasLiveBinding(loka::core::State<bool> *enabled) const;
   void handleTextChanged(loka::core::State<loka::core::String> *text);
   void handleEnabledChanged(loka::core::State<bool> *enabled);
+  bool applyEnabledChangeForKind(ToolboxEnabledControlKind kind,
+                                 loka::core::State<bool> *enabled);
   void beginBatchUpdate();
   void endBatchUpdate();
   void addPendingDirty(const Rect &rect);
