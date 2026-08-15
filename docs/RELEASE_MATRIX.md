@@ -126,7 +126,7 @@ host must satisfy that preset's toolchain requirements.
 | Standalone Classic `Tutorial` | `LokaTutorialStandaloneFlow68K_APPL` presents the same typed scenario without host config; after target execution, `tests/toolbox/verify-standalone-audit.sh tutorial increment-summary-toggle <LOG.TXT>` byte-compares the complete durable audit |
 | L1/L2 Win32 | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
 | L1/L2 macOS | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
-| L1 Classic examples other than `ScrapbookUI`, `HelloWorld`, `Tutorial`, and `MineSweeper` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
+| L1 Classic examples other than `ScrapbookUI` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
 | L2 Classic examples other than `ScrapbookUI`, `HelloWorld`, `Tutorial`, and `MineSweeper` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
 | L3 all OSes | n/a — manual by definition; record the rig/hardware and evidence in the selected matrix cell |
 
