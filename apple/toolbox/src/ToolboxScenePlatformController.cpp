@@ -903,6 +903,7 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       focusedText_(0),
       focusedRect_(),
       hasFocusedRect_(false),
+      enabledStateBindingPath_(this),
       inBatchUpdate_(false),
       pendingFullInvalidate_(false),
       pendingInvalidateFlags_(loka::app::scene::NODE_DIRTY_NONE),
@@ -1737,23 +1738,7 @@ void ToolboxScenePlatformController::bindTextState(loka::core::State<loka::core:
 
 void ToolboxScenePlatformController::bindEnabledState(loka::core::State<bool> *enabled)
 {
-  if (!enabled)
-  {
-    return;
-  }
-  for (size_t i = 0; i < boundEnabledStates_.size(); ++i)
-  {
-    if (boundEnabledStates_[i] == enabled)
-    {
-      return;
-    }
-  }
-  boundEnabledStates_.push_back(enabled);
-  EnabledBinding *binding = new EnabledBinding();
-  binding->state = enabled;
-  binding->controller = this;
-  enabledBindings_.push_back(binding);
-  enabled->bind(&ToolboxScenePlatformController::EnabledStateChangedThunk, binding, false, false, 0);
+  this->enabledStateBindingPath_.bind(enabled);
 }
 
 void ToolboxScenePlatformController::unbindTextState(loka::core::State<loka::core::String> *text)
@@ -1786,30 +1771,7 @@ void ToolboxScenePlatformController::unbindTextState(loka::core::State<loka::cor
 
 void ToolboxScenePlatformController::unbindEnabledState(loka::core::State<bool> *enabled)
 {
-  for (size_t i = 0; i < boundEnabledStates_.size(); ++i)
-  {
-    if (boundEnabledStates_[i] != enabled)
-    {
-      continue;
-    }
-    EnabledBinding *binding = i < enabledBindings_.size() ? enabledBindings_[i] : 0;
-    if (binding)
-    {
-      if (binding->state)
-      {
-        binding->state->unbind(&ToolboxScenePlatformController::EnabledStateChangedThunk, binding);
-      }
-      binding->state = 0;
-      binding->controller = 0;
-      delete binding;
-    }
-    boundEnabledStates_.erase(boundEnabledStates_.begin() + i);
-    if (i < enabledBindings_.size())
-    {
-      enabledBindings_.erase(enabledBindings_.begin() + i);
-    }
-    return;
-  }
+  this->enabledStateBindingPath_.unbind(enabled);
 }
 
 bool ToolboxScenePlatformController::hasLiveBinding(loka::core::State<loka::core::String> *text) const
@@ -2002,18 +1964,6 @@ void ToolboxScenePlatformController::refreshEditTextBindingForStateChange(EditTe
   }
   ++debugStats_.textChangedImmediateInvalidateCount;
   window_->requestInvalidateRect(binding.rect);
-}
-
-void ToolboxScenePlatformController::handleEnabledChanged(loka::core::State<bool> *enabled)
-{
-  if (!window_ || !enabled)
-  {
-    return;
-  }
-  DispatchToolboxEnabledChange(
-      *this,
-      enabled,
-      &ToolboxScenePlatformController::applyEnabledChangeForKind);
 }
 
 bool ToolboxScenePlatformController::applyEnabledChangeForKind(
@@ -2456,22 +2406,7 @@ void ToolboxScenePlatformController::clearTextBindings()
 
 void ToolboxScenePlatformController::clearEnabledBindings()
 {
-  for (size_t i = 0; i < enabledBindings_.size(); ++i)
-  {
-    EnabledBinding *binding = enabledBindings_[i];
-    if (binding)
-    {
-      if (binding->state)
-      {
-        binding->state->unbind(&ToolboxScenePlatformController::EnabledStateChangedThunk, binding);
-      }
-      binding->state = 0;
-      binding->controller = 0;
-      delete binding;
-    }
-  }
-  enabledBindings_.clear();
-  boundEnabledStates_.clear();
+  this->enabledStateBindingPath_.clear();
 }
 
 void ToolboxScenePlatformController::clearControls()
@@ -3340,14 +3275,4 @@ void ToolboxScenePlatformController::TextStateChangedThunk(void *userData)
     return;
   }
   binding->controller->handleTextChanged(binding->state);
-}
-
-void ToolboxScenePlatformController::EnabledStateChangedThunk(void *userData)
-{
-  EnabledBinding *binding = static_cast<EnabledBinding *>(userData);
-  if (!binding || !binding->controller || !binding->state)
-  {
-    return;
-  }
-  binding->controller->handleEnabledChanged(binding->state);
 }

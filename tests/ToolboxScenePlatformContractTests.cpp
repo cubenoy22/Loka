@@ -11,6 +11,7 @@ namespace
   {
   public:
     ToolboxEnabledChangeProbe()
+        : bindingPath_(this)
     {
       for (int i = 0; i < TOOLBOX_ENABLED_CONTROL_KIND_COUNT; ++i)
       {
@@ -19,8 +20,18 @@ namespace
       }
     }
 
-    bool apply(ToolboxEnabledControlKind kind,
-               loka::core::State<bool> *enabled)
+    void bind(loka::core::State<bool> *enabled)
+    {
+      this->bindingPath_.bind(enabled);
+    }
+
+    bool enabledChangeDispatchReady() const
+    {
+      return true;
+    }
+
+    bool applyEnabledChangeForKind(ToolboxEnabledControlKind kind,
+                                   loka::core::State<bool> *enabled)
     {
       if (this->bindings_[kind] != enabled)
       {
@@ -32,6 +43,10 @@ namespace
 
     loka::core::State<bool> *bindings_[TOOLBOX_ENABLED_CONTROL_KIND_COUNT];
     bool updated_[TOOLBOX_ENABLED_CONTROL_KIND_COUNT];
+
+  private:
+    ToolboxEnabledStateBindingPath<ToolboxEnabledChangeProbe,
+                                   loka::core::State<bool> > bindingPath_;
   };
 } // namespace
 
@@ -42,11 +57,8 @@ void testToolboxEnabledChangeUpdatesEveryMatchingControlKind()
   ToolboxEnabledChangeProbe probe;
   probe.bindings_[TOOLBOX_ENABLED_POPUP_HIT] = enabledState;
   probe.bindings_[TOOLBOX_ENABLED_BUTTON_CONTROL] = enabledState;
-
-  DispatchToolboxEnabledChange(
-      probe,
-      enabledState,
-      &ToolboxEnabledChangeProbe::apply);
+  probe.bind(enabledState);
+  enabled.set(false);
 
   LOKA_VERIFY(probe.updated_[TOOLBOX_ENABLED_POPUP_HIT]);
   LOKA_VERIFY(probe.updated_[TOOLBOX_ENABLED_BUTTON_CONTROL]);
