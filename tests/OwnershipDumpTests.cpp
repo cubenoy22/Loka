@@ -83,6 +83,119 @@ namespace
     std::abort();
   }
 
+  void collectMineSweeperMineCoordinates(
+      loka::app::scene::Node *node,
+      int &cellIndex,
+      std::vector<int> &coordinates)
+  {
+    if (!node)
+    {
+      return;
+    }
+    if (node->propsTypeId() == minesweeper::MineCellProps::staticTypeId())
+    {
+      minesweeper::MineCellNode *cell =
+          static_cast<minesweeper::MineCellNode *>(node);
+      if (cell->props.isMine)
+      {
+        coordinates.push_back(cellIndex);
+      }
+      ++cellIndex;
+    }
+    loka::app::scene::INestable *nestable = node->asNestable();
+    if (!nestable)
+    {
+      return;
+    }
+    for (loka::app::scene::Node *child = nestable->childrenHead();
+         child;
+         child = child->nextInComposition)
+    {
+      collectMineSweeperMineCoordinates(child, cellIndex, coordinates);
+    }
+  }
+
+  std::vector<int> captureMineSweeperMineCoordinates(
+      loka::app::scene::Scene &scene)
+  {
+    std::vector<int> coordinates;
+    int cellIndex = 0;
+    collectMineSweeperMineCoordinates(
+        loka::dsl::testing::SceneTestAccess::rootNode(scene),
+        cellIndex,
+        coordinates);
+    LOKA_VERIFY(cellIndex == 64);
+    LOKA_VERIFY(coordinates.size() == 10);
+    return coordinates;
+  }
+
+  void findMineSweeperNewGameButton(loka::app::scene::Node *node,
+                                    loka::app::ButtonNode *&button,
+                                    int &matches)
+  {
+    if (!node)
+    {
+      return;
+    }
+    if (node->nodeTypeKey() ==
+        loka::app::scene::NodeTypeToken<loka::app::ButtonNode>())
+    {
+      button = static_cast<loka::app::ButtonNode *>(node);
+      ++matches;
+    }
+    loka::app::scene::INestable *nestable = node->asNestable();
+    for (loka::app::scene::Node *child =
+             nestable ? nestable->childrenHead() : 0;
+         child;
+         child = child->nextInComposition)
+    {
+      findMineSweeperNewGameButton(child, button, matches);
+    }
+  }
+
+  std::vector<std::vector<int> > captureMineSweeperGameSequence(
+      unsigned long seed,
+      int gameCount)
+  {
+    using namespace loka::app::scene;
+    const minesweeper::MainProps mainProps(seed);
+    NodeDefinition<minesweeper::MainProps, minesweeper::MainNode>
+        mainDefinition(mainProps);
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::NodeDefinitionBase *rootDefinition =
+        mainDefinition.clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    std::vector<std::vector<int> > games;
+    for (int game = 0; game < gameCount; ++game)
+    {
+      games.push_back(captureMineSweeperMineCoordinates(scene));
+      if (game + 1 == gameCount)
+      {
+        continue;
+      }
+
+      BoundaryNode *wrapper =
+          loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+      assert(wrapper);
+      Node *root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+      assert(root);
+      loka::app::ButtonNode *button = 0;
+      int buttonMatches = 0;
+      findMineSweeperNewGameButton(root, button, buttonMatches);
+      LOKA_VERIFY(buttonMatches == 1 && button != 0);
+      {
+        loka::core::StateTrackerGuard guard(wrapper->tracker());
+        button->props.onClick_->emit();
+      }
+      LOKA_VERIFY(!scene.flushInvalidation());
+    }
+    return games;
+  }
+
   void releaseOwnershipDumpPayload(OwnershipDumpPayload *payload)
   {
     assert(g_ownershipDumpScenario);
@@ -404,7 +517,19 @@ void testOwnershipDumpPinsRepresentativeHelloWorld()
 void testOwnershipDumpPinsMineSweeperSections()
 {
   using namespace loka::app::scene;
-  NodeDefinition<minesweeper::MainProps, minesweeper::MainNode> mainDefinition;
+  // The seed is a complete input fact: it pins both the initial mine
+  // coordinates and every board reached by the owned New Game sequence.
+  const std::vector<std::vector<int> > firstSequence =
+      captureMineSweeperGameSequence(0x13579BDFU, 3);
+  const std::vector<std::vector<int> > repeatedSequence =
+      captureMineSweeperGameSequence(0x13579BDFU, 3);
+  const std::vector<std::vector<int> > differentSeedSequence =
+      captureMineSweeperGameSequence(0x2468ACE0U, 1);
+  LOKA_VERIFY(firstSequence == repeatedSequence);
+  LOKA_VERIFY(firstSequence[0] != differentSeedSequence[0]);
+
+  NodeDefinition<minesweeper::MainProps, minesweeper::MainNode> mainDefinition(
+      minesweeper::MainProps(0x13579BDFU));
   SceneTestSupport::RecordingPlatformController platform;
   loka::app::scene::NodeDefinitionBase *rootDefinition = mainDefinition.clone();
   LOKA_VERIFY(rootDefinition != 0);
@@ -435,7 +560,8 @@ void testOwnershipDumpPinsMineSweeperSections()
 void testOwnershipDumpPinsMineSweeperNewGameRetiresCells()
 {
   using namespace loka::app::scene;
-  NodeDefinition<minesweeper::MainProps, minesweeper::MainNode> mainDefinition;
+  NodeDefinition<minesweeper::MainProps, minesweeper::MainNode> mainDefinition(
+      minesweeper::MainProps(0x13579BDFU));
   SceneTestSupport::RecordingPlatformController platform;
   loka::app::scene::NodeDefinitionBase *rootDefinition = mainDefinition.clone();
   LOKA_VERIFY(rootDefinition != 0);

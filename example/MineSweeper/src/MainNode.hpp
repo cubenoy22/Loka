@@ -8,8 +8,6 @@
 #include "app/nodes/nestable/Grid.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/scene/node/ComponentNode.hpp"
-#include <cstdlib>
-#include <ctime>
 
 namespace minesweeper
 {
@@ -117,16 +115,48 @@ namespace minesweeper
 
   typedef loka::app::scene::NodeDefinition<MineCellProps, MineCellNode> MineCell;
 
-  class MainNode;
-  typedef loka::app::scene::StdCompositionPropsFor<MainNode> MainProps;
+  struct MainTypeTag
+  {
+  };
 
-  class MainNode : public loka::app::scene::StdCompositionNodeFor<MainNode>
+  class MainNode;
+
+  /** Completed startup input for a MineSweeper board sequence. The caller
+      chooses the seed; the node owns only the generator state derived from
+      this value and never consults an ambient clock or random generator. */
+  struct MainProps : public loka::app::scene::NodePropsBase<MainProps>
+  {
+    typedef MainTypeTag TypeTag;
+    typedef MainNode NodeType;
+
+    explicit MainProps(unsigned long seed)
+        : seed_(seed)
+    {
+    }
+
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      if (rhs.propsTypeId() != this->propsTypeId())
+      {
+        return false;
+      }
+      const MainProps &other = static_cast<const MainProps &>(rhs);
+      return this->seed_ < other.seed_;
+    }
+
+    unsigned long seed_;
+  };
+
+  class MainNode : public loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>
   {
   public:
+    typedef MainTypeTag TypeTag;
+
     MainNode(const MainProps &p)
-        : loka::app::scene::StdCompositionNodeFor<MainNode>(MainProps(p)),
+        : loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>(p),
           initialized_(false),
-          bank_(0)
+          bank_(0),
+          boardRandom_(p.seed_)
     {
     }
 
@@ -139,9 +169,6 @@ namespace minesweeper
       }
       this->initialized_ = true;
       this->bindUi();
-      // Seed once; every reset advances the same generator, so two games
-      // started within one clock second still differ.
-      std::srand(static_cast<unsigned int>(std::time(0)));
       this->resetBoard();
     }
 
@@ -191,7 +218,7 @@ namespace minesweeper
     virtual void composeWithContext(loka::app::scene::ComponentContext &context,
                                     loka::app::scene::ComposeEvent event)
     {
-      typedef loka::app::scene::StdCompositionNodeFor<MainNode> BaseType;
+      typedef loka::app::scene::StdCompositionBoundaryNodeBase<MainProps> BaseType;
       if (event == loka::app::scene::COMPOSE_EVENT_UPDATE &&
           (context.dirtyFlags() & loka::app::scene::NODE_DIRTY_CHILD))
       {
@@ -207,6 +234,28 @@ namespace minesweeper
     }
 
   private:
+    class BoardRandom
+    {
+    public:
+      explicit BoardRandom(unsigned long seed)
+          : state_(seed)
+      {
+      }
+
+      int nextIndex(int upperBound)
+      {
+        // Fixed C++98 arithmetic keeps a seed's board sequence independent
+        // of platform C-library rand() implementations and other app code.
+        this->state_ =
+            (this->state_ * 1664525UL + 1013904223UL) & 0xFFFFFFFFUL;
+        return static_cast<int>((this->state_ >> 16) %
+                                static_cast<unsigned long>(upperBound));
+      }
+
+    private:
+      unsigned long state_;
+    };
+
     enum
     {
       kRows = 8,
@@ -218,6 +267,7 @@ namespace minesweeper
 
     bool initialized_;
     int bank_;
+    BoardRandom boardRandom_;
     bool mines_[kCellCount];
     loka::core::EmitterState newGameClick_;
 
@@ -235,7 +285,7 @@ namespace minesweeper
       int placed = 0;
       while (placed < kMineCount)
       {
-        int index = std::rand() % kCellCount;
+        int index = this->boardRandom_.nextIndex(kCellCount);
         if (!this->mines_[index])
         {
           this->mines_[index] = true;

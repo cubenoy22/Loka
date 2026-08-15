@@ -9,8 +9,9 @@
 class MyAppConfig : public AppConfigurable
 {
 public:
-  explicit MyAppConfig(PlatformContext *ctx)
-      : AppConfigurable(ctx)
+  MyAppConfig(PlatformContext *ctx, const minesweeper::MainProps &mainProps)
+      : AppConfigurable(ctx),
+        mainProps_(mainProps)
   {
   }
 
@@ -18,10 +19,14 @@ public:
   {
     c << WindowDef(WindowProps()
                        .frame(20, 20, 220, 240)
-                       .scene(loka::app::scene::NodeDefinition<minesweeper::MainProps, minesweeper::MainNode>())
+                       .scene(loka::app::scene::NodeDefinition<minesweeper::MainProps, minesweeper::MainNode>(
+                           this->mainProps_))
                        .title("LokaMine")
                        .visible(true));
   }
+
+private:
+  minesweeper::MainProps mainProps_;
 };
 
 #endif // LOKA_MINESWEEPER_APP_CONFIG_HPP
