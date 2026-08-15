@@ -45,7 +45,9 @@ namespace loka
       {
       }
       ButtonProps(const ButtonProps &other)
-          : text_(other.text_),
+          : loka::app::scene::NodePropsBase<ButtonProps>(other),
+            IButtonProps(other),
+            text_(other.text_),
             ownedText_(other.ownedText_),
             ownsText_(other.ownsText_),
             enabled_(other.enabled_),

@@ -1249,7 +1249,8 @@ namespace loka
         {
         }
         NestableDefinitionBase(const NestableDefinitionBase &other)
-            : children_()
+            : INestableDefinition(other),
+              children_()
         {
           this->replaceChildrenFrom(other);
         }

@@ -31,7 +31,8 @@ namespace loka
       {
       }
       CellProps(const CellProps &other)
-          : text_(other.text_),
+          : scene::NodePropsBase<CellProps>(other),
+            text_(other.text_),
             ownedText_(other.ownedText_),
             ownsText_(other.ownsText_),
             onClick_(other.onClick_)

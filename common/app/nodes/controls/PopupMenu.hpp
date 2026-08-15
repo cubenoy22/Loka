@@ -50,7 +50,9 @@ namespace loka
       {
       }
       PopupMenuProps(const PopupMenuProps &other)
-          : items_(other.items_),
+          : loka::app::scene::NodePropsBase<PopupMenuProps>(other),
+            IPopupMenuProps(other),
+            items_(other.items_),
             ownedItems_(other.ownedItems_),
             ownsItems_(other.ownsItems_),
             selectedIndex_(other.selectedIndex_),
