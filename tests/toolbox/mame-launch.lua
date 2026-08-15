@@ -116,9 +116,8 @@ local baselineSignal = completionSignalPixels(baselineFrame, baselineWidth, base
 commandKey:set_value(1); tap(oKey); commandKey:clear_value()
 
 -- Completion transport: reading a marker from the development HFS disk while
--- the guest owns it would add unsafe cross-mount coordination. After both
--- synchronous record writes return, the test app opens an owned black marker
--- outside the capture crop.
+-- the guest owns it would add unsafe cross-mount coordination. After the
+-- durable audit write returns, the test app opens an owned black marker.
 -- MAME observes that signal through its existing live-screen seam, then waits
 -- for consecutive identical full-screen samples. This is bounded and fails
 -- closed; it never falls back to a fixed capture delay.

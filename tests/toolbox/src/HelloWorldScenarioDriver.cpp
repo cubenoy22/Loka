@@ -12,6 +12,7 @@
 #include "app/core/AppComposition.hpp"
 #include "app/core/AppConfigurable.hpp"
 #include "core/util/ScopedPtr.hpp"
+#include "testing/scene/ScenarioAudit.hpp"
 
 namespace loka
 {
@@ -26,8 +27,8 @@ namespace loka
       public:
         HelloWorldScenarioAppConfig(PlatformContext *context, const dsl::SnapTestConfig::Settings &settings)
             : AppConfigurable(context),
-              settings_(settings),
-              scenario_(scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED),
+              audit_(ResolveScenarioAuditFile(), "toggle-action-probe"),
+              scenario_(scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED, &this->audit_),
               borrowedApp_(0),
               recorded_(false),
               tickCount_(0),
@@ -92,11 +93,6 @@ namespace loka
                 break;
               case scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY:
                 done = true;
-                (void)WriteCaptureMetadata(this->settings_,
-                                           "HelloWorld.capture.toolbox",
-                                           this->scenario_.name().c_str(),
-                                           this->tickCount_,
-                                           captureBounds);
                 break;
               case scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD:
                 return;
@@ -104,7 +100,7 @@ namespace loka
             }
             if (done)
             {
-              (void)WriteScenarioRecord(this->settings_, record);
+              (void)this->scenario_.publishVerdict(record);
               this->recorded_ = true;
               (void)this->hostCompletionSignal_.publish();
             }
@@ -120,7 +116,7 @@ namespace loka
           }
         }
 
-        const dsl::SnapTestConfig::Settings settings_;
+        dsl::testing::ScenarioAuditFile audit_;
         scenario_tests::HelloWorldScenario scenario_;
         App *borrowedApp_;
         bool recorded_;
@@ -136,14 +132,16 @@ namespace loka
       const bool configLoaded = dsl::SnapTestConfig::load(kConfigPath, settings);
       if (!configLoaded)
       {
-        (void)WriteScenarioRecord(
-            settings, scenario_tests::MakeHelloWorldDriverErrorRecord(2400, "LokaTest.cfg is missing or invalid"));
+        (void)WriteScenarioErrorAudit(
+            "toggle-action-probe",
+            scenario_tests::MakeHelloWorldDriverErrorRecord(2400, "LokaTest.cfg is missing or invalid"));
         return 0;
       }
       if (!settings.hasScenario || !scenario_tests::IsHelloWorldScenario(settings.scenario))
       {
-        (void)WriteScenarioRecord(
-            settings, scenario_tests::MakeHelloWorldDriverErrorRecord(2401, "scenario is missing or not registered"));
+        (void)WriteScenarioErrorAudit(
+            "toggle-action-probe",
+            scenario_tests::MakeHelloWorldDriverErrorRecord(2401, "scenario is missing or not registered"));
         return 0;
       }
 

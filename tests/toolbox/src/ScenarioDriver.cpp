@@ -17,6 +17,7 @@
 #include "context/ToolboxProjectedNodeContext.hpp"
 #include "dsl/composition/CompositionList.hpp"
 #include "core/util/ScopedPtr.hpp"
+#include "testing/scene/ScenarioAudit.hpp"
 
 namespace loka
 {
@@ -88,8 +89,8 @@ namespace loka
                           const dsl::SnapTestConfig::Settings &settings,
                           const scenario_tests::ScenarioLaunchPlan &launchPlan)
             : AppConfigurable(context),
-              settings_(settings),
-              scenario_(launchPlan),
+              audit_(ResolveScenarioAuditFile(), launchPlan.scenario().c_str()),
+              scenario_(launchPlan, &this->audit_),
               borrowedApp_(0),
               borrowedMainNode_(0),
               recorded_(false),
@@ -153,11 +154,6 @@ namespace loka
                 break;
               case scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY:
                 done = true;
-                (void)WriteCaptureMetadata(this->settings_,
-                                           "ScrapbookUI.capture.toolbox",
-                                           this->scenario_.name().c_str(),
-                                           this->tickCount_,
-                                           captureBounds);
                 break;
               case scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD:
                 return;
@@ -175,7 +171,7 @@ namespace loka
             }
             if (done)
             {
-              (void)WriteScenarioRecord(this->settings_, record);
+              (void)this->scenario_.publishVerdict(record);
               this->recorded_ = true;
               (void)this->hostCompletionSignal_.publish();
             }
@@ -194,7 +190,7 @@ namespace loka
           }
         }
 
-        const dsl::SnapTestConfig::Settings settings_;
+        dsl::testing::ScenarioAuditFile audit_;
         scenario_tests::ScrapbookScenario scenario_;
         App *borrowedApp_;
         scrapbook::MainNode *borrowedMainNode_;
@@ -219,21 +215,21 @@ namespace loka
       const bool configLoaded = dsl::SnapTestConfig::load(kConfigPath, settings);
       if (!configLoaded)
       {
-        (void)WriteScenarioRecord(
-            settings, scenario_tests::MakeDriverErrorRecord("startup", 2300, "LokaTest.cfg is missing or invalid"));
+        (void)WriteScenarioErrorAudit(
+            "startup", scenario_tests::MakeDriverErrorRecord("startup", 2300, "LokaTest.cfg is missing or invalid"));
         return 0;
       }
       if (!settings.hasScenario)
       {
-        (void)WriteScenarioRecord(settings,
-                                  scenario_tests::MakeDriverErrorRecord("startup", 2301, "scenario is missing"));
+        (void)WriteScenarioErrorAudit(
+            "startup", scenario_tests::MakeDriverErrorRecord("startup", 2301, "scenario is missing"));
         return 0;
       }
       scenario_tests::ScenarioLaunchPlan launchPlan;
       if (!scenario_tests::QueryRigLaunchPlan(configLoaded, settings, launchPlan))
       {
-        (void)WriteScenarioRecord(
-            settings,
+        (void)WriteScenarioErrorAudit(
+            settings.scenario.c_str(),
             scenario_tests::MakeDriverErrorRecord(settings.scenario.c_str(), 2302, "scenario is not registered"));
         return 0;
       }

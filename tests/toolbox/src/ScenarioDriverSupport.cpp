@@ -2,7 +2,9 @@
 
 #include "ToolboxWindow.hpp"
 #include "app/core/Window.hpp"
-#include "testing/snap/SnapFormat.hpp"
+#include "core/io/File.hpp"
+#include "platform/file/AppLocation.hpp"
+#include "testing/scene/ScenarioAudit.hpp"
 
 namespace loka
 {
@@ -10,9 +12,7 @@ namespace loka
   {
     namespace
     {
-      const char *kConfigPath = "LokaTest.cfg";
-      const char *kCaptureFile = "LokaTestsToolbox.snap";
-      const char *kCaptureMetadataFile = "LokaTestsToolbox.capture.snap";
+      const char *kAuditFile = "LokaTestsToolbox.audit";
     } // namespace
 
     scenario_tests::CaptureContentBounds QueryCaptureContentBounds(Window *window)
@@ -54,43 +54,22 @@ namespace loka
       return result;
     }
 
-    dsl::SnapWriteStatus WriteScenarioRecord(const dsl::SnapTestConfig::Settings &settings,
-                                             const dsl::SnapRecord &record)
+    platform::file::FileHandle ResolveScenarioAuditFile()
     {
-      const std::string path = dsl::SnapTestConfig::resolveCapturePath(kCaptureFile, kConfigPath);
-      return dsl::SnapFileWriter::appendRecordStatusWithLimits(path.c_str(),
-                                                               record,
-                                                               settings.hasMaxTotalBytes ? settings.maxTotalBytes : 0,
-                                                               settings.hasMaxFiles ? settings.maxFiles : 0);
+      platform::file::FileHandle destination;
+      if (!platform::file::ResolveApplicationSidecar(
+              file::File::Application() << file::File(kAuditFile), destination))
+      {
+        return platform::file::FileHandle();
+      }
+      return destination;
     }
 
-    dsl::SnapWriteStatus WriteCaptureMetadata(const dsl::SnapTestConfig::Settings &settings,
-                                              const char *test,
-                                              const char *scenario,
-                                              long tick,
-                                              const scenario_tests::CaptureContentBounds &bounds)
+    bool WriteScenarioErrorAudit(const char *scenario, const dsl::SnapRecord &record)
     {
-      dsl::SnapRecord record;
-      record.setInt("format_version", 1);
-      record.setInt("schema_version", 1);
-      record.setInt("scenario_version", 1);
-      record.set("test", test ? test : "Scenario.capture.toolbox");
-      record.set("step", scenario ? scenario : "startup");
-      record.set("node", "ToolboxWindow");
-      record.setInt("tick", tick);
-      record.set("status", bounds.available ? dsl::SnapStatusOk() : dsl::SnapStatusError());
-      if (bounds.available)
-      {
-        record.setInt("crop_left", bounds.left);
-        record.setInt("crop_top", bounds.top);
-        record.setInt("crop_right", bounds.right);
-        record.setInt("crop_bottom", bounds.bottom);
-      }
-      const std::string path = dsl::SnapTestConfig::resolveCapturePath(kCaptureMetadataFile, kConfigPath);
-      return dsl::SnapFileWriter::appendRecordStatusWithLimits(path.c_str(),
-                                                               record,
-                                                               settings.hasMaxTotalBytes ? settings.maxTotalBytes : 0,
-                                                               settings.hasMaxFiles ? settings.maxFiles : 0);
+      dsl::testing::ScenarioAuditFile audit(ResolveScenarioAuditFile(), scenario);
+      dsl::testing::scenario_audit_detail::TerminalEmitter terminal(&audit);
+      return audit.isValid() && terminal.emit(dsl::testing::SCENARIO_AUDIT_FAILED, record);
     }
 
     HostCompletionSignal::HostCompletionSignal()

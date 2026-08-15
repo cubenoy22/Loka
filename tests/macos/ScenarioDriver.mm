@@ -22,7 +22,9 @@
 #include "app/core/AppConfigurable.hpp"
 #include "app/core/WindowDefinition.hpp"
 #include "core/util/ScopedPtr.hpp"
+#include "platform/file/FileHandle.hpp"
 #include "testing/MacWindowTestAccess.hpp"
+#include "testing/scene/ScenarioAudit.hpp"
 
 namespace loka
 {
@@ -31,7 +33,7 @@ namespace loka
     namespace
     {
       const char *kConfigPath = "LokaTest.cfg";
-      const char *kActualRecord = "actual.snap";
+      const char *kActualAudit = "actual.audit";
       const char *kActualImage = "actual.png";
       const char *kActualProfile = "actual.profile";
       const char *kReadyMarker = "ready";
@@ -77,6 +79,14 @@ namespace loka
       std::string ArtifactPath(const dsl::SnapTestConfig::Settings &settings, const char *leaf)
       {
         return JoinPath(settings.hasCaptureDir ? settings.captureDir : std::string("."), leaf);
+      }
+
+      platform::file::FileHandle ArtifactFile(const dsl::SnapTestConfig::Settings &settings, const char *leaf)
+      {
+        const std::string path = ArtifactPath(settings, leaf);
+        platform::file::FileHandle result;
+        result.displayPath = core::String::Utf8(path.data(), path.size());
+        return result;
       }
 
       bool CopyFile(const char *source, const char *destination)
@@ -350,7 +360,8 @@ namespace loka
                          const scenario_tests::ScenarioLaunchPlan &launchPlan,
                          ScenarioRunMode mode)
             : settings_(settings),
-              scenario_(launchPlan),
+              audit_(ArtifactFile(settings, kActualAudit), launchPlan.scenario().c_str()),
+              scenario_(launchPlan, &this->audit_),
               mode_(mode),
               phase_(PHASE_DRIVING),
               tick_(0),
@@ -426,10 +437,10 @@ namespace loka
           case scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY:
             break;
           }
-          const std::string recordPath = ArtifactPath(this->settings_, kActualRecord);
-          if (dsl::SnapFileWriter::appendRecordStatus(recordPath.c_str(), record) != dsl::SNAP_WRITE_OK)
+          (void)this->scenario_.publishVerdict(record);
+          if (!this->audit_.isValid())
           {
-            this->fail("could not write actual.snap", app);
+            this->fail("could not write actual.audit", app);
             return;
           }
           this->phase_ = PHASE_SETTLING;
@@ -512,6 +523,7 @@ namespace loka
         }
 
         const dsl::SnapTestConfig::Settings settings_;
+        dsl::testing::ScenarioAuditFile audit_;
         scenario_tests::ScrapbookScenario scenario_;
         const ScenarioRunMode mode_;
         Phase phase_;
