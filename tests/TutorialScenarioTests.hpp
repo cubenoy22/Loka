@@ -1,0 +1,7 @@
+#ifndef LOKA_TESTS_TUTORIAL_SCENARIO_TESTS_HPP
+#define LOKA_TESTS_TUTORIAL_SCENARIO_TESTS_HPP
+
+void testTutorialIncrementSummaryToggleDrivesUiCommands();
+void testTutorialIncrementSummaryToggleHoldsFinalSceneAndMatchesAudit();
+
+#endif // LOKA_TESTS_TUTORIAL_SCENARIO_TESTS_HPP

@@ -160,6 +160,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/HelloWorldScenarioTests\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/HelloWorldScenarios\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/standalone/HelloWorldStandaloneFlowAppConfig\\.cpp$")
+  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/TutorialScenarioTests\\.cpp$")
+  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/TutorialScenarios\\.cpp$")
 
   add_executable(LokaContractTests
     ${PROJECT_SOURCE_DIR}/tests/ContractTestMain.cpp
@@ -185,6 +187,13 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/HelloWorldScenarioTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/HelloWorldScenarios.cpp
+    ${PROJECT_SOURCE_DIR}/tests/TutorialScenarioTests.cpp
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/TutorialScenarios.cpp
+    ${PROJECT_SOURCE_DIR}/tests/platform/null/NullScenePlatformController.cpp
+    ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullButtonContext.cpp
+    ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullEditTextContext.cpp
+    ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullScrollBarContext.cpp
+    ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullTextContext.cpp
     ${PROJECT_SOURCE_DIR}/tests/standalone/HelloWorldStandaloneFlowAppConfig.cpp
     ${PROJECT_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
     ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
@@ -194,6 +203,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests
     ${PROJECT_SOURCE_DIR}/example/SimpleViewer/src
     ${PROJECT_SOURCE_DIR}/example/HelloWorld/src
+    ${PROJECT_SOURCE_DIR}/example/Tutorial/src
     ${PROJECT_SOURCE_DIR}/tools
   )
   set_target_properties(LokaScenarioTests PROPERTIES

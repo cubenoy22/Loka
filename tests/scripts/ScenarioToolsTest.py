@@ -53,7 +53,7 @@ class ExpectedAuditPinsTest(unittest.TestCase):
         registry = os.path.join(PROJECT_DIR, "tests", "toolbox", "scenarios.txt")
         with open(registry, "r", encoding="utf-8") as handle:
             entries = [line.split() for line in handle.read().splitlines()]
-        self.assertEqual(len(entries), 8)
+        self.assertEqual(len(entries), 9)
         self.assertEqual(len(entries), len({tuple(entry) for entry in entries}))
         for entry in entries:
             self.assertEqual(len(entry), 2)
@@ -69,7 +69,12 @@ class ExpectedAuditPinsTest(unittest.TestCase):
                 "loka_scenario_audit version=1 scenario={}\n".format(scenario).encode("ascii"),
             )
             self.assertEqual(lines[-1], b"terminal status=succeeded\n")
-            identity = b"HelloWorld" if example == "helloworld" else b"ScrapbookUI"
+            identities = {
+                "helloworld": b"HelloWorld",
+                "scrapbook": b"ScrapbookUI",
+                "tutorial": b"Tutorial",
+            }
+            identity = identities[example]
             self.assertIn(b"test\t" + identity + b"\n", audit)
             self.assertIn(b"step\t" + scenario.encode("ascii") + b"\n", audit)
             self.assertIn(b"status\tok\n", audit)

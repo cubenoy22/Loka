@@ -65,12 +65,15 @@ namespace tutorial
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       using namespace loka::app;
-      c.declare(VStack()                                    //
-                << TutorialTitle("Step 4")                  //
-                << Button("Add item", &this->addItemEvent_) //
-                << Button("Show/Hide map", &this->toggleSummaryEvent_)
+      c.declare(VStack()                                                      //
+                << TutorialTitle("Step 4")                                    //
+                << Button("Add item", &this->addItemEvent_)                   //
+                       .TEST_ID("Tutorial.Step4.AddItemButton")               //
+                << Button("Show/Hide map", &this->toggleSummaryEvent_)        //
+                       .TEST_ID("Tutorial.Step4.ToggleSummaryButton")
                 << (Show(*this->showSummary_.state())   //
                     << Text(this->itemSummary_.state()) //
+                           .TEST_ID("Tutorial.Step4.Summary")
                     << (Show(*this->showItem1_.state()) << this->item1_)
                     << (Show(*this->showItem2_.state()) << this->item2_)
                     << (Show(*this->showItem3_.state()) << this->item3_))

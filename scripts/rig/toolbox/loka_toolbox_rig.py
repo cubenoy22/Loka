@@ -292,6 +292,7 @@ class ToolboxRigRun:
                 "--target",
                 "LokaTestsToolbox68K_APPL",
                 "LokaHelloWorldTestsToolbox68K_APPL",
+                "LokaTutorialTestsToolbox68K_APPL",
                 "--parallel",
                 "2",
             ),

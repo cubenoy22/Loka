@@ -30,6 +30,7 @@
 #include "ScrapbookPackageTests.hpp"
 #include "ScrapbookScenarioTests.hpp"
 #include "HelloWorldScenarioTests.hpp"
+#include "TutorialScenarioTests.hpp"
 #include "BlobRangeTests.hpp"
 #include "PictParserTests.hpp"
 #include "SceneTests.hpp"
