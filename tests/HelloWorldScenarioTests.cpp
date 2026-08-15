@@ -52,7 +52,14 @@ namespace
       return true;
     }
 
+    virtual bool recordVerdict(const loka::dsl::SnapRecord &record)
+    {
+      this->verdicts.push_back(record);
+      return true;
+    }
+
     std::vector<loka::dsl::testing::ScenarioStepTerminal> steps;
+    std::vector<loka::dsl::SnapRecord> verdicts;
     std::vector<loka::dsl::testing::ScenarioAuditTerminalStatus> terminals;
   };
 
@@ -90,6 +97,7 @@ void testHelloWorldToggleActionProbeDrivesOwnerCommands()
   LOKA_VERIFY(scenario.step(62, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
   LOKA_VERIFY(scenario.step(92, &scene, bounds, record)
               == loka::scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY);
+  LOKA_VERIFY(scenario.publishVerdict(record));
   LOKA_VERIFY(scenario.step(93, &scene, bounds, record)
               == loka::scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY);
 
@@ -110,6 +118,7 @@ void testHelloWorldToggleActionProbeDrivesOwnerCommands()
   LOKA_VERIFY(audit.steps[5].name() == "probe-disabled-action");
   LOKA_VERIFY(audit.terminals.size() == 1);
   LOKA_VERIFY(audit.terminals[0] == loka::dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
+  LOKA_VERIFY(audit.verdicts.size() == 1);
 
   scene.unmount();
   std::printf("testHelloWorldToggleActionProbeDrivesOwnerCommands passed\n");
@@ -144,6 +153,7 @@ void testHelloWorldToggleActionProbeHoldsFinalScene()
   LOKA_VERIFY(record.get("text.value", value) && value == "Button enabled: no / clicks: 1");
   LOKA_VERIFY(audit.terminals.size() == 1);
   LOKA_VERIFY(audit.terminals[0] == loka::dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
+  LOKA_VERIFY(audit.verdicts.size() == 1);
 
   scene.unmount();
   std::printf("testHelloWorldToggleActionProbeHoldsFinalScene passed\n");

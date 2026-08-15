@@ -11,6 +11,8 @@ namespace loka
 {
   namespace dsl
   {
+    class SnapRecord;
+
     namespace testing
     {
       enum ScenarioAuditTerminalStatus
@@ -61,6 +63,7 @@ namespace loka
       public:
         virtual ~ScenarioAuditSink() {}
         virtual bool recordStep(const ScenarioStepTerminal &record) = 0;
+        virtual bool recordVerdict(const SnapRecord &record) = 0;
         virtual bool recordTerminal(ScenarioAuditTerminalStatus status) = 0;
       };
 
@@ -111,17 +114,20 @@ namespace loka
           OnceEmissionState emission_;
         };
 
-        /** Keeps the scenario's one logical terminal record coherent across
-            cached result reads and orderly teardown. */
+        /** Keeps the scenario's one logical verdict/terminal transition
+            coherent across cached result reads and orderly teardown. */
         class TerminalEmitter
         {
         public:
           explicit TerminalEmitter(ScenarioAuditSink *sink);
 
+          bool emit(ScenarioAuditTerminalStatus status, const SnapRecord &record) const;
           bool emit(ScenarioAuditTerminalStatus status) const;
           bool isSettled() const;
 
         private:
+          bool emit(ScenarioAuditTerminalStatus status, const SnapRecord *record) const;
+
           ScenarioAuditSink *sink_;
           OnceEmissionState emission_;
         };
@@ -138,6 +144,7 @@ namespace loka
 
         bool isValid() const;
         virtual bool recordStep(const ScenarioStepTerminal &record);
+        virtual bool recordVerdict(const SnapRecord &record);
         virtual bool recordTerminal(ScenarioAuditTerminalStatus status);
 
       private:

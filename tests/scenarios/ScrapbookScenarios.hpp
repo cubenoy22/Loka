@@ -3,6 +3,7 @@
 
 #include <string>
 
+#include "testing/scene/ScenarioAudit.hpp"
 #include "testing/snap/SnapFormat.hpp"
 #include "ScenarioTypes.hpp"
 
@@ -65,11 +66,8 @@ namespace loka
     class ScrapbookScenario
     {
     public:
-      explicit ScrapbookScenario(const ScenarioLaunchPlan &plan
-#ifdef TEST_BUILD
-                                 , dsl::testing::ScenarioAuditSink *audit = 0
-#endif
-      );
+      explicit ScrapbookScenario(const ScenarioLaunchPlan &plan,
+                                 dsl::testing::ScenarioAuditSink *audit = 0);
 
       /** Drives one scenario step and names who owns the terminal state. */
       ScenarioAdvance
@@ -78,6 +76,9 @@ namespace loka
            scrapbook::MainNode &mainNode,
            const CaptureContentBounds &bounds,
            dsl::SnapRecord &out);
+
+      /** Publishes the completed driver-owned verdict after rail-local checks. */
+      bool publishVerdict(const dsl::SnapRecord &record);
 
       /** Returns the immutable scenario selection owned by this run. */
       const std::string &name() const;
@@ -146,11 +147,10 @@ namespace loka
       class StandaloneTourState
       {
       public:
-        explicit StandaloneTourState(dsl::testing::ScenarioAuditSink *audit);
+        StandaloneTourState();
 
         void start(dsl::testing::ScenarioAuditSink *audit);
         dsl::FlowRunResult run(long tick, app::scene::Scene *scene);
-        bool finish(dsl::testing::ScenarioAuditTerminalStatus status);
         void stop();
         const dsl::SnapRecord &record() const;
 
@@ -158,7 +158,6 @@ namespace loka
         dsl::testing::ScenarioClock clock_;
         app::scene::Scene *scene_;
         dsl::SnapRecord record_;
-        dsl::testing::scenario_audit_detail::TerminalEmitter terminalAudit_;
         app::scene::FlowSlot<StandaloneTourFlowChain> flow_;
 
         StandaloneTourState(const StandaloneTourState &);
@@ -185,6 +184,7 @@ namespace loka
       int stage_;
       PageObservation step1_;
       PageObservation step2_;
+      dsl::testing::scenario_audit_detail::TerminalEmitter terminalAudit_;
 #ifdef TEST_BUILD
       StandaloneTourState standaloneTour_;
 #endif

@@ -43,8 +43,8 @@ assert_success_audit() {
   local nonempty_lines=0
 
   nonempty_lines="$(grep -cve '^[[:space:]]*$' "$AUDIT_PATH" || true)"
-  if [[ "$nonempty_lines" -ne 14 ]]; then
-    echo "Expected 14 audit lines, found $nonempty_lines." >&2
+  if [[ "$nonempty_lines" -ne 34 ]]; then
+    echo "Expected 34 audit lines, found $nonempty_lines." >&2
     return 1
   fi
   if [[ "$(read_audit_line 1)" != "loka_scenario_audit version=1 scenario=standalone-tour" ]]; then
@@ -59,8 +59,8 @@ assert_success_audit() {
       return 1
     fi
   done
-  if [[ "$(read_audit_line 14)" != "terminal status=succeeded" ]]; then
-    echo "Unexpected audit terminal: $(read_audit_line 14)" >&2
+  if [[ "$(read_audit_line 34)" != "terminal status=succeeded" ]]; then
+    echo "Unexpected audit terminal: $(read_audit_line 34)" >&2
     return 1
   fi
 }

@@ -1,0 +1,20 @@
+loka_scenario_audit version=1 scenario=flip-forward-back
+crop_bottom	250
+crop_left	0
+crop_right	340
+crop_top	0
+format_version	1
+node	MainNode
+scenario_version	1
+schema_version	1
+status	ok
+step	flip-forward-back
+step1_caption	1 / 5
+step1_page	0
+step2_caption	2 / 5
+step2_page	1
+step3_caption	1 / 5
+step3_page	0
+test	ScrapbookUI
+tick	61
+terminal status=succeeded

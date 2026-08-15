@@ -44,7 +44,14 @@ namespace
       return true;
     }
 
+    virtual bool recordVerdict(const loka::dsl::SnapRecord &record)
+    {
+      this->verdicts.push_back(record);
+      return true;
+    }
+
     std::vector<loka::dsl::testing::ScenarioStepTerminal> steps;
+    std::vector<loka::dsl::SnapRecord> verdicts;
     std::vector<loka::dsl::testing::ScenarioAuditTerminalStatus> terminals;
   };
 
@@ -53,6 +60,7 @@ namespace
   public:
     RefusingScenarioAudit()
         : stepCalls(0),
+          verdictCalls(0),
           terminalCalls(0)
     {
     }
@@ -69,7 +77,14 @@ namespace
       return false;
     }
 
+    virtual bool recordVerdict(const loka::dsl::SnapRecord &)
+    {
+      ++this->verdictCalls;
+      return false;
+    }
+
     int stepCalls;
+    int verdictCalls;
     int terminalCalls;
   };
 
@@ -121,6 +136,25 @@ namespace
     }
     assert(marker != std::string::npos);
     return sourceFile.substr(0, marker) + "/" + (relative ? relative : "");
+  }
+
+  std::string ReadBytes(const char *path)
+  {
+    std::string content;
+    FILE *input = std::fopen(path, "rb");
+    LOKA_VERIFY(input != 0);
+    if (!input)
+    {
+      return content;
+    }
+    char buffer[512];
+    std::size_t count = 0;
+    while ((count = std::fread(buffer, 1, sizeof(buffer), input)) != 0)
+    {
+      content.append(buffer, count);
+    }
+    LOKA_VERIFY(std::fclose(input) == 0);
+    return content;
   }
 
   void VerifyCurrentPage(const scrapbook::MainNode &mainNode, int expected)
@@ -259,6 +293,17 @@ void testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene()
   LOKA_VERIFY(audit.steps[11].name() == "capture-final-page");
   LOKA_VERIFY(audit.terminals.size() == 1);
   LOKA_VERIFY(audit.terminals[0] == loka::dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
+  LOKA_VERIFY(audit.verdicts.size() == 1);
+  const std::string serializedVerdict = audit.verdicts[0].serialize(false);
+  long verdictLines = 0;
+  for (std::string::const_iterator it = serializedVerdict.begin(); it != serializedVerdict.end(); ++it)
+  {
+    if (*it == '\n')
+    {
+      ++verdictLines;
+    }
+  }
+  LOKA_VERIFY(verdictLines == 20);
   VerifyCurrentPage(*mainNode, 4);
 
   std::string text;
@@ -271,6 +316,7 @@ void testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene()
               == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
   LOKA_VERIFY(audit.steps.size() == 12);
   LOKA_VERIFY(audit.terminals.size() == 1);
+  LOKA_VERIFY(audit.verdicts.size() == 1);
   VerifyCurrentPage(*mainNode, 4);
 
   mainNode->selectPage(0);
@@ -287,21 +333,25 @@ void testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene()
   LOKA_VERIFY(failedAudit.steps[2].status() == loka::dsl::FLOW_STEP_FAILED);
   LOKA_VERIFY(failedAudit.terminals.size() == 1);
   LOKA_VERIFY(failedAudit.terminals[0] == loka::dsl::testing::SCENARIO_AUDIT_FAILED);
+  LOKA_VERIFY(failedAudit.verdicts.size() == 1);
   LOKA_VERIFY(Advance(failedScenario, 31, scene, *mainNode, record)
               == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
   LOKA_VERIFY(failedAudit.steps.size() == 3);
   LOKA_VERIFY(failedAudit.terminals.size() == 1);
+  LOKA_VERIFY(failedAudit.verdicts.size() == 1);
 
   RecordingScenarioAudit canceledAudit;
   loka::scenario_tests::ScrapbookScenario canceledScenario(plan, &canceledAudit);
   canceledScenario.stop();
   canceledScenario.stop();
   LOKA_VERIFY(canceledAudit.steps.empty());
+  LOKA_VERIFY(canceledAudit.verdicts.empty());
   LOKA_VERIFY(canceledAudit.terminals.size() == 1);
   LOKA_VERIFY(canceledAudit.terminals[0] == loka::dsl::testing::SCENARIO_AUDIT_CANCELED);
   LOKA_VERIFY(Advance(canceledScenario, 75, scene, *mainNode, record)
               == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
   LOKA_VERIFY(canceledAudit.steps.empty());
+  LOKA_VERIFY(canceledAudit.verdicts.empty());
   LOKA_VERIFY(canceledAudit.terminals.size() == 1);
 
   mainNode->selectPage(0);
@@ -311,11 +361,13 @@ void testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene()
               == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
   VerifyRecordInt(record, "error_code", 2306);
   LOKA_VERIFY(refusingAudit.stepCalls == 1);
-  LOKA_VERIFY(refusingAudit.terminalCalls == 1);
+  LOKA_VERIFY(refusingAudit.verdictCalls == 1);
+  LOKA_VERIFY(refusingAudit.terminalCalls == 0);
   LOKA_VERIFY(Advance(refusedScenario, 16, scene, *mainNode, record)
               == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
   LOKA_VERIFY(refusingAudit.stepCalls == 1);
-  LOKA_VERIFY(refusingAudit.terminalCalls == 1);
+  LOKA_VERIFY(refusingAudit.verdictCalls == 1);
+  LOKA_VERIFY(refusingAudit.terminalCalls == 0);
 
   std::printf("testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene passed\n");
 }
@@ -334,6 +386,10 @@ void testScenarioAuditFileWritesReadableRecords()
     const loka::dsl::testing::ScenarioStepTerminal step(
         3, "verify page\t2", 17, 18, loka::dsl::FLOW_STEP_FAILED, error);
     LOKA_VERIFY(audit.recordStep(step));
+    loka::dsl::SnapRecord verdict;
+    verdict.setInt("format_version", 1);
+    verdict.set("status", loka::dsl::SnapStatusError());
+    LOKA_VERIFY(audit.recordVerdict(verdict));
     LOKA_VERIFY(audit.recordTerminal(loka::dsl::testing::SCENARIO_AUDIT_FAILED));
   }
 
@@ -351,9 +407,72 @@ void testScenarioAuditFileWritesReadableRecords()
 
   LOKA_VERIFY(content == "loka_scenario_audit version=1 scenario=standalone-tour\n"
                          "step id=3 due_tick=17 tick=18 status=failed error_kind=0 error_code=0 name=verify%20page%092\n"
+                         "format_version\t1\n"
+                         "status\terror\n"
                          "terminal status=failed\n");
 
   std::printf("testScenarioAuditFileWritesReadableRecords passed\n");
+}
+
+void testScrapbookObservedStringAuditMatchesTrackedExpectation()
+{
+  const char *actualPath = "_loka_scrapbook_open_text_page.audit";
+  std::remove(actualPath);
+  const std::string packagePath = SourcePath("example/ScrapbookUI/assets/ASSETS-modern.LRP");
+  ScrapbookTourPlatformContext context(loka::core::String::Utf8(packagePath.data(), packagePath.size()));
+
+  scrapbook::MainProps props;
+  props.platformContext(&context);
+  loka::app::scene::BoundaryDefinition<scrapbook::MainProps, scrapbook::MainNode> definition(props);
+  loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> root(definition.clone());
+  LOKA_VERIFY(root.get() != 0);
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(root.take());
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  scrapbook::MainNode *mainNode =
+      static_cast<scrapbook::MainNode *>(loka::dsl::testing::SceneTestAccess::rootNode(scene));
+  LOKA_VERIFY(mainNode != 0);
+
+  loka::dsl::SnapTestConfig::Settings settings;
+  settings.hasScenario = true;
+  settings.scenario = "open-text-page";
+  loka::scenario_tests::ScenarioLaunchPlan plan;
+  LOKA_VERIFY(loka::scenario_tests::QueryRigLaunchPlan(true, settings, plan));
+  {
+    loka::platform::file::FileHandle destination;
+    destination.displayPath = loka::core::String::Literal(actualPath);
+    loka::dsl::testing::ScenarioAuditFile audit(destination, settings.scenario.c_str());
+    const bool auditIsValid = audit.isValid();
+    LOKA_VERIFY(auditIsValid);
+    loka::scenario_tests::ScrapbookScenario scenario(plan, &audit);
+    loka::dsl::SnapRecord record;
+    loka::scenario_tests::CaptureContentBounds bounds;
+    bounds.available = true;
+    bounds.right = 340;
+    bounds.bottom = 250;
+    {
+      loka::core::StateTrackerGuard guard(mainNode->tracker());
+      LOKA_VERIFY(scenario.step(1, &scene, *mainNode, bounds, record)
+                  == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+    }
+    {
+      loka::core::StateTrackerGuard guard(mainNode->tracker());
+      LOKA_VERIFY(scenario.step(31, &scene, *mainNode, bounds, record)
+                  == loka::scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY);
+    }
+    LOKA_VERIFY(scenario.publishVerdict(record));
+  }
+  scene.unmount();
+
+  const std::string actual = ReadBytes(actualPath);
+  const std::string expectedPath =
+      SourcePath("tests/scenarios/expected/scrapbook/open-text-page.audit");
+  const std::string expected = ReadBytes(expectedPath.c_str());
+  std::remove(actualPath);
+  LOKA_VERIFY(actual == expected);
+
+  std::printf("testScrapbookObservedStringAuditMatchesTrackedExpectation passed\n");
 }
 
 void testScrapbookStandaloneMenuMatchesExample()

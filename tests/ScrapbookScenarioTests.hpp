@@ -6,5 +6,6 @@ void testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene();
 void testScrapbookStandaloneMenuMatchesExample();
 void testScrapbookStandaloneMountRefusalFailsClosed();
 void testScenarioAuditFileWritesReadableRecords();
+void testScrapbookObservedStringAuditMatchesTrackedExpectation();
 
 #endif // LOKA_TESTS_SCRAPBOOK_SCENARIO_TESTS_HPP

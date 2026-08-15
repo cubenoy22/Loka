@@ -24,6 +24,8 @@ namespace loka
 
       ScenarioAdvance
       step(long tick, app::scene::Scene *scene, const CaptureContentBounds &bounds, dsl::SnapRecord &out);
+      /** Publishes the completed driver-owned verdict after rail-local checks. */
+      bool publishVerdict(const dsl::SnapRecord &record);
       const std::string &name() const;
       void stop();
 
@@ -36,7 +38,6 @@ namespace loka
         explicit ToggleActionProbeState(dsl::testing::ScenarioAuditSink *audit);
 
         dsl::FlowRunResult run(long tick, app::scene::Scene *scene);
-        bool finish(dsl::testing::ScenarioAuditTerminalStatus status);
         void stop();
         const dsl::SnapRecord &record() const;
 
@@ -44,7 +45,6 @@ namespace loka
         dsl::testing::ScenarioClock clock_;
         app::scene::Scene *scene_;
         dsl::SnapRecord record_;
-        dsl::testing::scenario_audit_detail::TerminalEmitter terminalAudit_;
         app::scene::FlowSlot<ToggleActionProbeFlowChain> flow_;
 
         ToggleActionProbeState(const ToggleActionProbeState &);
@@ -54,6 +54,7 @@ namespace loka
       const std::string name_;
       const ScenarioCompletionPolicy completionPolicy_;
       ScenarioAdvance terminalState_;
+      dsl::testing::scenario_audit_detail::TerminalEmitter terminalAudit_;
       ToggleActionProbeState probe_;
 
       HelloWorldScenario(const HelloWorldScenario &);

@@ -114,8 +114,8 @@ function Read-SharedText([string]$Path) {
 
 function Assert-SuccessAudit([string]$Content) {
     $lines = @($Content -split "`r?`n" | Where-Object { $_ -ne "" })
-    if ($lines.Count -ne 14) {
-        throw "Expected 14 audit lines, found $($lines.Count)."
+    if ($lines.Count -ne 34) {
+        throw "Expected 34 audit lines, found $($lines.Count)."
     }
     if ($lines[0] -ne "loka_scenario_audit version=1 scenario=standalone-tour") {
         throw "Unexpected audit header: $($lines[0])"
@@ -125,8 +125,8 @@ function Assert-SuccessAudit([string]$Content) {
             throw "Unexpected audit step ${step}: $($lines[$step])"
         }
     }
-    if ($lines[13] -ne "terminal status=succeeded") {
-        throw "Unexpected audit terminal: $($lines[13])"
+    if ($lines[33] -ne "terminal status=succeeded") {
+        throw "Unexpected audit terminal: $($lines[33])"
     }
 }
 
