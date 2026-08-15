@@ -91,9 +91,27 @@ set(LOKA_STANDALONE_FLOW_TOOLBOX_TARGET
   # Keep the generated application name within Classic HFS's 31-character limit.
   "LokaScrapbookStandaloneFlow${LOKA_CLASSIC_TARGET_SUFFIX}"
 )
+
+set(LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_TARGET
+  # Keep the generated application name within Classic HFS's 31-character limit.
+  "LokaHelloStandaloneFlow${LOKA_CLASSIC_TARGET_SUFFIX}"
+)
+set(LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_SOURCES
+  src/HelloWorldStandaloneFlowMain.cpp
+  ${CMAKE_SOURCE_DIR}/tests/standalone/HelloWorldStandaloneFlowApplication.cpp
+  ${CMAKE_SOURCE_DIR}/tests/standalone/HelloWorldStandaloneFlowAppConfig.cpp
+  ${CMAKE_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
+  ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/HelloWorldScenarios.cpp
+  ${CMAKE_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/HelloWorldStandaloneSize.r
+)
 set(LOKA_STANDALONE_FLOW_TOOLBOX_SOURCES
   src/StandaloneFlowMain.cpp
   ${CMAKE_SOURCE_DIR}/tests/standalone/StandaloneFlowApplication.cpp
+  ${CMAKE_SOURCE_DIR}/tests/standalone/ScrapbookStandaloneFlowAppConfig.cpp
+  ${CMAKE_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
   ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/ScrapbookScenarios.cpp
@@ -122,6 +140,31 @@ target_include_directories(${LOKA_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVATE
 )
 
 target_compile_definitions(${LOKA_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVATE
+  TEST_BUILD
+  LOKA_DIAG=1
+)
+
+configure_file(
+  ${CMAKE_SOURCE_DIR}/example/HelloWorld/Size.r
+  ${CMAKE_CURRENT_BINARY_DIR}/HelloWorldStandaloneSize.r
+  COPYONLY
+)
+loka_add_toolbox_test_application(
+  ${LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_TARGET}
+  LokaAppleToolboxTestCore
+  ${LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_SOURCES}
+)
+set_property(TARGET ${LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_TARGET}
+  PROPERTY EXCLUDE_FROM_ALL TRUE
+)
+set_property(TARGET ${LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_TARGET}_APPL
+  PROPERTY EXCLUDE_FROM_ALL TRUE
+)
+target_include_directories(${LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/tests/standalone
+  ${CMAKE_SOURCE_DIR}/example/HelloWorld/src
+)
+target_compile_definitions(${LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVATE
   TEST_BUILD
   LOKA_DIAG=1
 )

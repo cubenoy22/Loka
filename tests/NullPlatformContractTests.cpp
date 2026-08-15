@@ -3281,7 +3281,7 @@ void testNullWindowScenePathMountsAndTearsDownBeforeControllerDelete()
     LOKA_VERIFY(rootDefinition != 0);
     props.scene(new loka::app::scene::Scene(rootDefinition));
     Window *window = platformContext.createWindow(props);
-    assert(window->scene());
+    LOKA_VERIFY(window->scene());
     window->scene()->updateAttached(true);
     delete window;
   }

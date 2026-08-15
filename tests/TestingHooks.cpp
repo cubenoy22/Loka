@@ -1,9 +1,10 @@
 // Implementations of TEST_BUILD-only failure-injection hooks declared in
-// library headers (loka::app::testing). They live in a test translation unit
+// library and scenario-test headers. They live in a test translation unit
 // on purpose: platform core libraries (LokaWin32Core etc.) are built without
 // TEST_BUILD and must stay hook-free, while every test executable compiles
 // this file via LOKA_SHARED_TEST_SOURCES.
 #include "app/Menu.hpp"
+#include "scenarios/ObservedMainDefinition.hpp"
 
 #ifdef TEST_BUILD
 
@@ -44,6 +45,37 @@ namespace loka
       }
     } // namespace testing
   } // namespace app
+
+  namespace scenario_tests
+  {
+    namespace testing
+    {
+      namespace
+      {
+        int g_observedMainDefinitionCloneFailures = 0;
+      }
+
+      void failObservedMainDefinitionClones(int count)
+      {
+        g_observedMainDefinitionCloneFailures = count;
+      }
+
+      void allowObservedMainDefinitionClones()
+      {
+        g_observedMainDefinitionCloneFailures = 0;
+      }
+
+      bool shouldCloneObservedMainDefinition()
+      {
+        if (g_observedMainDefinitionCloneFailures > 0)
+        {
+          --g_observedMainDefinitionCloneFailures;
+          return false;
+        }
+        return true;
+      }
+    } // namespace testing
+  } // namespace scenario_tests
 } // namespace loka
 
 #endif // TEST_BUILD

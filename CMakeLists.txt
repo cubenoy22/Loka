@@ -159,6 +159,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/example/HelloWorld/src/MainNode\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/HelloWorldScenarioTests\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/HelloWorldScenarios\\.cpp$")
+  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/standalone/HelloWorldStandaloneFlowAppConfig\\.cpp$")
 
   add_executable(LokaContractTests
     ${PROJECT_SOURCE_DIR}/tests/ContractTestMain.cpp
@@ -184,6 +185,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/HelloWorldScenarioTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/HelloWorldScenarios.cpp
+    ${PROJECT_SOURCE_DIR}/tests/standalone/HelloWorldStandaloneFlowAppConfig.cpp
+    ${PROJECT_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
     ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
   )
   loka_enable_warnings(LokaScenarioTests)

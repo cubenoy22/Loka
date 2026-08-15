@@ -105,12 +105,13 @@ namespace loka
 
         virtual void compose(AppComposition &composition)
         {
-          composition << MakeScenarioWindow<scrapbook::MainProps, scrapbook::MainNode>(
+          composition << scenario_tests::MakeScenarioWindow<scrapbook::MainProps, scrapbook::MainNode>(
               scrapbook::MainProps().platformContext(this->getPlatformContext()),
               &this->borrowedMainNode_,
               340,
               250,
               "LokaTestsToolbox",
+              app::IdlePolicy::everyTick(),
               &ScenarioAppConfig::OnWindowIdle,
               this);
         }

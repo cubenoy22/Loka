@@ -1,9 +1,8 @@
-#include "StandaloneFlowApplication.hpp"
+#include "HelloWorldStandaloneFlowApplication.hpp"
 
 #include <cassert>
 
-#include "ScrapbookStandaloneFlowAppConfig.hpp"
-#include "app/PlatformContext.hpp"
+#include "HelloWorldStandaloneFlowAppConfig.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
 #include "app/core/App.hpp"
 #include "core/util/ScopedPtr.hpp"
@@ -12,7 +11,7 @@ namespace loka
 {
   namespace standalone_tests
   {
-    int RunStandaloneFlowApplication(HINSTANCE hInstance, int nCmdShow)
+    int RunHelloWorldStandaloneFlowApplication(HINSTANCE hInstance, int nCmdShow)
     {
       platform::InitPlatformRuntime();
       core::ScopedPtr<PlatformContext> platformContext(platform::CreatePlatformContext());
@@ -21,7 +20,7 @@ namespace loka
       {
         return 1;
       }
-      ScrapbookStandaloneFlowAppConfig config(platformContext.get());
+      HelloWorldStandaloneFlowAppConfig config(platformContext.get());
       if (config.exitCode() != 0)
       {
         return config.exitCode();

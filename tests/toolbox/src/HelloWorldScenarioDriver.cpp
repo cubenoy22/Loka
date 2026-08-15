@@ -48,12 +48,13 @@ namespace loka
 
         virtual void compose(AppComposition &composition)
         {
-          composition << MakeScenarioWindow<helloworld::MainProps, helloworld::MainNode>(
+          composition << scenario_tests::MakeScenarioWindow<helloworld::MainProps, helloworld::MainNode>(
               helloworld::MainProps(),
               0,
               420,
               300,
               "LokaHelloWorldTestsToolbox",
+              app::IdlePolicy::everyTick(),
               &HelloWorldScenarioAppConfig::OnWindowIdle,
               this);
         }

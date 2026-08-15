@@ -5,8 +5,17 @@
 
 namespace loka
 {
-  namespace toolbox_tests
+  namespace scenario_tests
   {
+#ifdef TEST_BUILD
+    namespace testing
+    {
+      void failObservedMainDefinitionClones(int count);
+      void allowObservedMainDefinitionClones();
+      bool shouldCloneObservedMainDefinition();
+    } // namespace testing
+#endif
+
     /** Creates one typed main Boundary and optionally publishes a borrowed
         view while the App-owned Window and Scene remain alive. */
     template <class PropsT, class NodeT>
@@ -23,6 +32,12 @@ namespace loka
 
       virtual app::scene::NodeDefinitionBase *clone() const
       {
+#ifdef TEST_BUILD
+        if (!testing::shouldCloneObservedMainDefinition())
+        {
+          return 0;
+        }
+#endif
         return new ObservedMainDefinition(*this);
       }
 
@@ -39,7 +54,7 @@ namespace loka
     private:
       NodeT **observed_;
     };
-  } // namespace toolbox_tests
+  } // namespace scenario_tests
 } // namespace loka
 
 #endif // LOKA_TESTS_TOOLBOX_OBSERVED_MAIN_DEFINITION_HPP
