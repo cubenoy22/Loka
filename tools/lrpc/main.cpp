@@ -14,6 +14,8 @@
 
 #if defined(_WIN32)
 #include <direct.h>
+#include <fcntl.h>
+#include <io.h>
 #else
 #include <fcntl.h>
 #include <sys/types.h>
@@ -81,15 +83,6 @@ namespace
     return true;
   }
 
-  std::FILE *OpenFile(const NativePath &path, const NativeChar *mode)
-  {
-#if defined(_WIN32)
-    return _wfopen(path.c_str(), mode);
-#else
-    return std::fopen(path.c_str(), mode);
-#endif
-  }
-
   int RemoveFile(const NativePath &path)
   {
 #if defined(_WIN32)
@@ -108,20 +101,6 @@ namespace
 #endif
   }
 
-  bool WriteWholeFile(const NativePath &path,
-                      const unsigned char *bytes,
-                      std::size_t length)
-  {
-    std::FILE *file = OpenFile(path, LRPC_NATIVE_TEXT("wb"));
-    if (!file)
-    {
-      return false;
-    }
-    const bool written = length == 0 || std::fwrite(bytes, 1, length, file) == length;
-    const bool closed = std::fclose(file) == 0;
-    return written && closed;
-  }
-
   /** Creates a file that did not exist, and fails if anything is already
       there -- including a dangling symlink, which is the case that made this
       necessary. `fopen("wb")` follows such a link and writes through it, so a
@@ -131,16 +110,19 @@ namespace
 
       Creating exclusively removes the whole class rather than that instance:
       the staging file is one this run made, so it cannot be an alias for
-      anything. POSIX keeps the exclusive create; the Windows wide CRT has no
-      equivalent mode in the compiler baselines this host tool supports. */
+      anything. Once created, this helper also owns failure cleanup so callers
+      cannot strand a partial file after a write or close failure. */
   bool WriteNewFile(const NativePath &path,
                     const unsigned char *bytes,
                     std::size_t length)
   {
 #if defined(_WIN32)
-    return WriteWholeFile(path, bytes, length);
+    const int fd = _wopen(path.c_str(),
+                          _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY,
+                          _S_IREAD | _S_IWRITE);
 #else
     const int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0666);
+#endif
     if (fd < 0)
     {
       return false;
@@ -149,7 +131,16 @@ namespace
     std::size_t written = 0;
     while (ok && written < length)
     {
+#if defined(_WIN32)
+      const std::size_t remaining = length - written;
+      const unsigned int requested =
+          remaining > static_cast<std::size_t>(0x7FFFFFFFu)
+              ? 0x7FFFFFFFu
+              : static_cast<unsigned int>(remaining);
+      const int got = _write(fd, bytes + written, requested);
+#else
       const ssize_t got = write(fd, bytes + written, length - written);
+#endif
       if (got <= 0)
       {
         ok = false;
@@ -157,12 +148,19 @@ namespace
       }
       written += static_cast<std::size_t>(got);
     }
+#if defined(_WIN32)
+    if (_close(fd) != 0)
+#else
     if (close(fd) != 0)
+#endif
     {
       ok = false;
     }
+    if (!ok)
+    {
+      RemoveFile(path);
+    }
     return ok;
-#endif
   }
 
   /** True when the path exists and is a directory. An output that names one is

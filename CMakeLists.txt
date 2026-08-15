@@ -231,6 +231,27 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     target_link_options(LokaAllocPinTests PRIVATE -rdynamic)
   endif()
 
+  # Host-command regression fixture. This is the production lrpc entry point,
+  # built only into the native test graph so scriptLrpcStageWriteFailure can
+  # exercise create/write/cleanup/rename rather than a duplicated file helper.
+  add_executable(LokaLrpcStageTestTool
+    ${PROJECT_SOURCE_DIR}/tools/lrpc/main.cpp
+    ${PROJECT_SOURCE_DIR}/tools/lrpc/HostFile.cpp
+    ${PROJECT_SOURCE_DIR}/tools/lrpc/LrpkStager.cpp
+    ${PROJECT_SOURCE_DIR}/tools/lrpc/PackManifest.cpp
+    ${PROJECT_SOURCE_DIR}/tools/lrpc/LrpkWriter.cpp
+    ${PROJECT_SOURCE_DIR}/tools/lrpc/Utf8Path.cpp
+  )
+  loka_enable_warnings(LokaLrpcStageTestTool)
+  target_include_directories(LokaLrpcStageTestTool PRIVATE
+    ${PROJECT_SOURCE_DIR}/common
+    ${PROJECT_SOURCE_DIR}/tools
+  )
+  set_target_properties(LokaLrpcStageTestTool PROPERTIES
+    CXX_STANDARD 98
+    CXX_STANDARD_REQUIRED YES
+  )
+
   function(loka_add_registered_test test_line target)
     string(REGEX REPLACE
       "^[ \t]*LOKA_TEST\\(([A-Za-z_][A-Za-z0-9_:]*)\\)[ \t]*$"
@@ -272,6 +293,11 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     add_test(NAME scriptPmonSpriteGenerator
       COMMAND python3
         ${PROJECT_SOURCE_DIR}/tests/scripts/PmonSpriteGeneratorTest.py)
+    add_test(NAME scriptLrpcStageWriteFailure
+      COMMAND python3
+        ${PROJECT_SOURCE_DIR}/tests/scripts/LrpcStageWriteFailureTest.py
+        $<TARGET_FILE:LokaLrpcStageTestTool>
+        ${PROJECT_SOURCE_DIR}/example/ScrapbookUI/ASSETS.LRP)
 
     if(LOKA_MAME_SCENARIOS)
       file(STRINGS
