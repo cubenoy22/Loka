@@ -22,7 +22,7 @@ namespace loka
       const char *kFirstNewGameMines = "1,6,16,23,27,30,34,44,45,53";
       const char *kSecondNewGameMines = "3,26,42,49,50,56,59,60,62,63";
       const long kInitialTick = 2;
-      const long kStepSpacingTicks = 30;
+      const long kStepSpacingTicks = 5;
 
       void CollectMineCoordinates(app::scene::Node *node,
                                   int &cellIndex,

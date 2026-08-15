@@ -91,8 +91,8 @@ namespace
                            loka::scenario_tests::ScenarioAdvance expected)
   {
     LOKA_VERIFY(scenario.step(2, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
-    LOKA_VERIFY(scenario.step(32, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
-    LOKA_VERIFY(scenario.step(62, &scene, bounds, record) == expected);
+    LOKA_VERIFY(scenario.step(7, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+    LOKA_VERIFY(scenario.step(12, &scene, bounds, record) == expected);
   }
 
   void VerifyRecordString(const loka::dsl::SnapRecord &record, const char *key, const char *expected)

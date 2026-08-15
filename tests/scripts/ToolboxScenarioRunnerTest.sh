@@ -66,6 +66,7 @@ cat >"$SANDBOX/fake-mame" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' "${LOKA_TAB_COUNT-unset}" >"$SANDBOX/tab-count"
+printf '%s\n' "${LOKA_SETTLE_TIMEOUT-unset}" >"$SANDBOX/settle-timeout"
 if [ "${FAKE_MAME_RESULT:-failure}" = "success" ]; then
   snapshot_directory=""
   while [ "$#" -gt 0 ]; do
@@ -121,10 +122,12 @@ run_case() {
   local example="$1"
   local scenario="$2"
   local expected_tab_count="$3"
-  local override="${4:-}"
+  local expected_settle_timeout="$4"
+  local override="${5:-}"
   local actual_tab_count
+  local actual_settle_timeout
 
-  rm -f "$SANDBOX/tab-count" "$SANDBOX/dev-disk-arguments"
+  rm -f "$SANDBOX/tab-count" "$SANDBOX/settle-timeout" "$SANDBOX/dev-disk-arguments"
   if [ -n "$override" ]; then
     if MAME_ENV_FILE="$SANDBOX/mame.env" LOKA_TAB_COUNT="$override" \
         env -u WSL_INTEROP \
@@ -146,13 +149,16 @@ run_case() {
   actual_tab_count="$(cat "$SANDBOX/tab-count")"
   [ "$actual_tab_count" = "$expected_tab_count" ] \
     || fail "$example forwarded tab count '$actual_tab_count', expected '$expected_tab_count'"
+  actual_settle_timeout="$(cat "$SANDBOX/settle-timeout")"
+  [ "$actual_settle_timeout" = "$expected_settle_timeout" ] \
+    || fail "$example forwarded settle timeout '$actual_settle_timeout', expected '$expected_settle_timeout'"
 }
 
-run_case scrapbook startup 1
-run_case helloworld toggle-action-probe 2
-run_case tutorial increment-summary-toggle 3
-run_case minesweeper new-game-twice 4
-run_case helloworld toggle-action-probe 9 9
+run_case scrapbook startup 1 unset
+run_case helloworld toggle-action-probe 2 unset
+run_case tutorial increment-summary-toggle 3 unset
+run_case minesweeper new-game-twice 4 120
+run_case helloworld toggle-action-probe 9 unset 9
 
 mkdir -p "$SANDBOX/repo/build/mame-scenario/golden/scrapbook"
 cp "$SANDBOX/snapshot.png" "$SANDBOX/repo/build/mame-scenario/golden/scrapbook/startup.png"
