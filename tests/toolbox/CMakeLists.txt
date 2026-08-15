@@ -160,6 +160,10 @@ set(LOKA_TUTORIAL_STANDALONE_FLOW_TOOLBOX_TARGET
   # Keep the generated application name within Classic HFS's 31-character limit.
   "LokaTutorialStandaloneFlow${LOKA_CLASSIC_TARGET_SUFFIX}"
 )
+set(LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_TARGET
+  # Keep the generated application name within Classic HFS's 31-character limit.
+  "LokaMineStandaloneFlow${LOKA_CLASSIC_TARGET_SUFFIX}"
+)
 set(LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_SOURCES
   src/HelloWorldStandaloneFlowMain.cpp
   ${CMAKE_SOURCE_DIR}/tests/standalone/HelloWorldStandaloneFlowApplication.cpp
@@ -180,6 +184,16 @@ set(LOKA_TUTORIAL_STANDALONE_FLOW_TOOLBOX_SOURCES
   ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/TutorialScenarios.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/TutorialStandaloneSize.r
+)
+set(LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_SOURCES
+  src/MineSweeperStandaloneFlowMain.cpp
+  ${CMAKE_SOURCE_DIR}/tests/standalone/MineSweeperStandaloneFlowApplication.cpp
+  ${CMAKE_SOURCE_DIR}/tests/standalone/MineSweeperStandaloneFlowAppConfig.cpp
+  ${CMAKE_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
+  ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/MineSweeperScenarios.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/MineSweeperStandaloneSize.r
 )
 set(LOKA_STANDALONE_FLOW_TOOLBOX_SOURCES
   src/StandaloneFlowMain.cpp
@@ -264,6 +278,31 @@ target_include_directories(${LOKA_TUTORIAL_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVA
   ${CMAKE_SOURCE_DIR}/example/Tutorial/src
 )
 target_compile_definitions(${LOKA_TUTORIAL_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVATE
+  TEST_BUILD
+  LOKA_DIAG=1
+)
+
+configure_file(
+  ${CMAKE_SOURCE_DIR}/example/MineSweeper/Size.r
+  ${CMAKE_CURRENT_BINARY_DIR}/MineSweeperStandaloneSize.r
+  COPYONLY
+)
+loka_add_toolbox_test_application(
+  ${LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_TARGET}
+  LokaAppleToolboxTestCore
+  ${LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_SOURCES}
+)
+set_property(TARGET ${LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_TARGET}
+  PROPERTY EXCLUDE_FROM_ALL TRUE
+)
+set_property(TARGET ${LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_TARGET}_APPL
+  PROPERTY EXCLUDE_FROM_ALL TRUE
+)
+target_include_directories(${LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/tests/standalone
+  ${CMAKE_SOURCE_DIR}/example/MineSweeper/src
+)
+target_compile_definitions(${LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVATE
   TEST_BUILD
   LOKA_DIAG=1
 )

@@ -4,5 +4,7 @@
 void testMineSweeperNewGameTwiceDrivesOwnerEmitter();
 void testMineSweeperNewGameTwiceHoldsFinalSceneAndMatchesAudit();
 void testMineSweeperDifferentSeedRefusesFixedBoardAudit();
+void testMineSweeperStandaloneFlowWritesExpectedAudit();
+void testMineSweeperStandaloneMountRefusalFailsClosed();
 
 #endif // LOKA_TESTS_MINESWEEPER_SCENARIO_TESTS_HPP
