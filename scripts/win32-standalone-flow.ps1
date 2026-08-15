@@ -16,6 +16,7 @@ $ErrorActionPreference = "Stop"
 
 $ScriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDirectory = Split-Path -Parent $ScriptDirectory
+$expectedAuditName = "standalone-tour.audit"
 $packagedExecutable = Join-Path $ScriptDirectory "LokaScrapbookStandaloneFlowWin32.exe"
 $isPackagedVerifier = Test-Path -LiteralPath $packagedExecutable
 
@@ -112,21 +113,35 @@ function Read-SharedText([string]$Path) {
     }
 }
 
-function Assert-SuccessAudit([string]$Content) {
-    $lines = @($Content -split "`r?`n" | Where-Object { $_ -ne "" })
-    if ($lines.Count -ne 14) {
-        throw "Expected 14 audit lines, found $($lines.Count)."
-    }
-    if ($lines[0] -ne "loka_scenario_audit version=1 scenario=standalone-tour") {
-        throw "Unexpected audit header: $($lines[0])"
-    }
-    for ($step = 1; $step -le 12; ++$step) {
-        if ($lines[$step] -notmatch "^step id=$step .* status=succeeded(?: |$)") {
-            throw "Unexpected audit step ${step}: $($lines[$step])"
+function Read-SharedBytes([string]$Path) {
+    $stream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Open,
+        [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+    try {
+        $bytes = New-Object byte[] $stream.Length
+        $offset = 0
+        while ($offset -lt $bytes.Length) {
+            $read = $stream.Read($bytes, $offset, $bytes.Length - $offset)
+            if ($read -eq 0) {
+                throw "Unexpected end of audit while reading: $Path"
+            }
+            $offset += $read
         }
+        return ,$bytes
+    } finally {
+        $stream.Dispose()
     }
-    if ($lines[13] -ne "terminal status=succeeded") {
-        throw "Unexpected audit terminal: $($lines[13])"
+}
+
+function Assert-SuccessAudit([string]$Path, [string]$ExpectedPath) {
+    $actual = Read-SharedBytes $Path
+    $expected = [System.IO.File]::ReadAllBytes($ExpectedPath)
+    if ($actual.Length -ne $expected.Length) {
+        throw "Standalone audit does not match the tracked expected audit: $ExpectedPath"
+    }
+    for ($index = 0; $index -lt $expected.Length; ++$index) {
+        if ($actual[$index] -ne $expected[$index]) {
+            throw "Standalone audit does not match the tracked expected audit: $ExpectedPath"
+        }
     }
 }
 
@@ -158,6 +173,7 @@ $builtAssets = Join-Path $buildRoot "example/ScrapbookUI/standalone-flow/ASSETS.
 $stagedExecutable = Join-Path $stageRoot "LokaScrapbookStandaloneFlowWin32.exe"
 $stagedAssets = Join-Path $stageRoot "ASSETS.LRP"
 $stagedVerifier = Join-Path $stageRoot "Verify-StandaloneFlow.ps1"
+$expectedAuditPath = Join-Path $stageRoot $expectedAuditName
 $auditPath = Join-Path $stageRoot "LOG.TXT"
 
 if (-not $isPackagedVerifier) {
@@ -198,13 +214,17 @@ if (-not $isPackagedVerifier) {
         $destinationExecutable = Join-Path $Destination "LokaScrapbookStandaloneFlowWin32.exe"
         $destinationAssets = Join-Path $Destination "ASSETS.LRP"
         $destinationVerifier = Join-Path $Destination "Verify-StandaloneFlow.ps1"
+        $sourceExpectedAudit = Join-Path $ProjectDirectory "tests/scenarios/expected/scrapbook/$expectedAuditName"
+        $destinationExpectedAudit = Join-Path $Destination $expectedAuditName
         Copy-Item -LiteralPath $builtExecutable -Destination $destinationExecutable
         Copy-Item -LiteralPath $builtAssets -Destination $destinationAssets
         Copy-Item -LiteralPath $sourceVerifier -Destination $destinationVerifier
+        Copy-Item -LiteralPath $sourceExpectedAudit -Destination $destinationExpectedAudit
         Assert-ExecutableArchitecture $destinationExecutable $Architecture
         Assert-FileCopy $builtExecutable $destinationExecutable
         Assert-FileCopy $builtAssets $destinationAssets
         Assert-FileCopy $sourceVerifier $destinationVerifier
+        Assert-FileCopy $sourceExpectedAudit $destinationExpectedAudit
     }.GetNewClosure()
     Install-LokaPresentationStageDirectory -StageRoot $stageRoot -Populate $populateStage
 
@@ -220,6 +240,9 @@ if (-not (Test-Path -LiteralPath $stagedExecutable)) {
 if (-not (Test-Path -LiteralPath $stagedAssets)) {
     throw "Staged assets not found: $stagedAssets."
 }
+if (-not (Test-Path -LiteralPath $expectedAuditPath)) {
+    throw "Staged expected audit not found: $expectedAuditPath."
+}
 Assert-ExecutableArchitecture $stagedExecutable $Architecture
 Remove-Item -LiteralPath $auditPath -Force -ErrorAction SilentlyContinue
 
@@ -234,7 +257,7 @@ try {
                 throw "Standalone Flow reported terminal status $($Matches[1])."
             }
             if ($content -match "(?m)^terminal status=succeeded\r?$") {
-                Assert-SuccessAudit $content
+                Assert-SuccessAudit $auditPath $expectedAuditPath
                 Write-Output "Runtime-verified $Architecture Standalone Flow: $auditPath"
                 exit 0
             }

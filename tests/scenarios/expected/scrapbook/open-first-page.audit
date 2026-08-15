@@ -1,0 +1,20 @@
+loka_scenario_audit version=1 scenario=open-first-page
+caption	1 / 5
+crop_bottom	250
+crop_left	0
+crop_right	340
+crop_top	0
+format_version	1
+node	MainNode
+page_index	0
+page_published	true
+refusal_reached	false
+scenario_version	1
+schema_version	1
+status	ok
+step	open-first-page
+test	ScrapbookUI
+text_available	true
+text_empty	true
+tick	2
+terminal status=succeeded

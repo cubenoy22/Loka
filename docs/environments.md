@@ -57,18 +57,22 @@ This is the environment where binaries are actually built.
   `Verify: macOS Standalone Flow Release` in VS Code. The task configures and
   builds Release without pinning `CMAKE_OSX_ARCHITECTURES`, stages the complete
   application bundle under `build/presentation/macos-<host>-release`, launches
-  it, requires the exact fourteen-record success audit, and stops the final
+  it, requires the exact twelve-step success audit with its embedded
+  deterministic verdict body, and stops the final
   scene hold. `Stage: macOS Standalone Flow Release` prepares the same portable
-  directory without launching it; `ASSETS.LRP` remains owned by the bundle at
-  `Contents/Resources`.
+  directory without launching it; the tracked `standalone-tour.audit` byte
+  authority is staged beside the verifier, while `ASSETS.LRP` remains owned by
+  the bundle at `Contents/Resources`.
 - For a standalone presentation Release, start VS Code from the Visual Studio
   Command Line Tools session for the desired target, then run
   `Verify: Win32 Standalone Flow Release`. The task derives ARM64, x64, or
   x86/i386 from the inherited compiler environment. It uses a separate CMake
   cache for each architecture, verifies the resulting PE header, and stages
-  the executable with `ASSETS.LRP` under
+  the executable with `ASSETS.LRP` and the tracked `standalone-tour.audit`
+  byte authority under
   `build/presentation/win32-<architecture>-release`. It then launches the app,
-  waits for the exact twelve-step success audit, and stops the final-scene
+  waits for the exact twelve-step success audit with its embedded deterministic
+  verdict, and stops the final-scene
   hold. Copy the staged directory to the target machine and run
   `powershell -ExecutionPolicy Bypass -File .\Verify-StandaloneFlow.ps1`
   there for a hardware check. The staged verifier derives the architecture

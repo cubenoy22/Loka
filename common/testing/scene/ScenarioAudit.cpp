@@ -4,6 +4,7 @@
 #include <cctype>
 
 #include "platform/file/FileIO.hpp"
+#include "testing/snap/SnapFormat.hpp"
 
 namespace loka
 {
@@ -167,6 +168,18 @@ namespace loka
 
       bool scenario_audit_detail::TerminalEmitter::emit(ScenarioAuditTerminalStatus status) const
       {
+        return this->emit(status, 0);
+      }
+
+      bool scenario_audit_detail::TerminalEmitter::emit(ScenarioAuditTerminalStatus status,
+                                                         const SnapRecord &record) const
+      {
+        return this->emit(status, &record);
+      }
+
+      bool scenario_audit_detail::TerminalEmitter::emit(ScenarioAuditTerminalStatus status,
+                                                         const SnapRecord *record) const
+      {
         const OnceEmissionState::Decision decision = this->emission_.next();
         if (decision == OnceEmissionState::ALREADY_REFUSED)
         {
@@ -176,7 +189,8 @@ namespace loka
         {
           return true;
         }
-        if (this->sink_ != 0 && !this->sink_->recordTerminal(status))
+        if (this->sink_ != 0
+            && ((record != 0 && !this->sink_->recordVerdict(*record)) || !this->sink_->recordTerminal(status)))
         {
           return this->emission_.settle(false);
         }
@@ -262,6 +276,17 @@ namespace loka
           return false;
         }
         const bool written = std::fprintf(this->file_, "terminal status=%s\n", TerminalStatusName(status)) >= 0;
+        return this->finishRecord(written);
+      }
+
+      bool ScenarioAuditFile::recordVerdict(const SnapRecord &record)
+      {
+        if (!this->isValid())
+        {
+          return false;
+        }
+        const std::string serialized = record.serialize(false);
+        const bool written = std::fwrite(serialized.data(), 1, serialized.size(), this->file_) == serialized.size();
         return this->finishRecord(written);
       }
 

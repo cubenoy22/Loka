@@ -2,6 +2,8 @@ $ErrorActionPreference = "Stop"
 
 $ProjectDirectory = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $Subject = Join-Path $ProjectDirectory "scripts/win32-standalone-flow.ps1"
+$ExpectedAudit = Join-Path $ProjectDirectory `
+    "tests/scenarios/expected/scrapbook/standalone-tour.audit"
 $TestRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("loka-win32-stage-" + [Guid]::NewGuid())
 $BuildRoot = Join-Path $TestRoot "build"
 $StageRoot = Join-Path $TestRoot "completed stage"
@@ -41,14 +43,17 @@ try {
     $oldExecutable = Join-Path $TestRoot "old.exe"
     $oldAssets = Join-Path $TestRoot "old-assets.lrp"
     $oldVerifier = Join-Path $TestRoot "old-verifier.ps1"
+    $oldExpectedAudit = Join-Path $TestRoot "old-standalone-tour.audit"
     New-TestPe $builtExecutable 0x22
     New-TestPe $oldExecutable 0x11
     [System.IO.File]::WriteAllText($builtAssets, "new assets")
     [System.IO.File]::WriteAllText($oldAssets, "old assets")
     [System.IO.File]::WriteAllText($oldVerifier, "old verifier")
+    [System.IO.File]::WriteAllText($oldExpectedAudit, "old expected audit")
     Copy-Item $oldExecutable (Join-Path $StageRoot "LokaScrapbookStandaloneFlowWin32.exe")
     Copy-Item $oldAssets (Join-Path $StageRoot "ASSETS.LRP")
     Copy-Item $oldVerifier (Join-Path $StageRoot "Verify-StandaloneFlow.ps1")
+    Copy-Item $oldExpectedAudit (Join-Path $StageRoot "standalone-tour.audit")
 
     Set-Content -LiteralPath (Join-Path $ToolRoot "cmake.cmd") -Value "@exit /b 0"
     Copy-Item -LiteralPath (Join-Path $env:SystemRoot "System32/where.exe") `
@@ -87,6 +92,8 @@ try {
         "A failed Stage replaced the completed assets."
     Assert-BytesEqual $oldVerifier (Join-Path $StageRoot "Verify-StandaloneFlow.ps1") `
         "A failed Stage replaced the completed verifier."
+    Assert-BytesEqual $oldExpectedAudit (Join-Path $StageRoot "standalone-tour.audit") `
+        "A failed Stage replaced the completed expected audit."
 
     $transactionResidue = @(Get-ChildItem -LiteralPath $TestRoot -Force | Where-Object {
         $_.Name -like ".completed stage.*"
@@ -116,6 +123,8 @@ try {
         "Completed Stage did not install the built assets."
     Assert-BytesEqual $Subject (Join-Path $StageRoot "Verify-StandaloneFlow.ps1") `
         "Completed Stage did not install its verifier."
+    Assert-BytesEqual $ExpectedAudit (Join-Path $StageRoot "standalone-tour.audit") `
+        "Completed Stage did not install the tracked expected audit."
 
     $transactionResidue = @(Get-ChildItem -LiteralPath $TestRoot -Force | Where-Object {
         $_.Name -like ".completed stage.*"

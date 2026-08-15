@@ -59,7 +59,6 @@ namespace loka
         : clock_(),
           scene_(0),
           record_(),
-          terminalAudit_(audit),
           flow_()
     {
       this->flow_.set(BuildToggleActionProbeFlow(this->clock_, &this->scene_, &this->record_, audit));
@@ -72,22 +71,12 @@ namespace loka
       return this->flow_.runResult();
     }
 
-    bool HelloWorldScenario::ToggleActionProbeState::finish(dsl::testing::ScenarioAuditTerminalStatus status)
-    {
-      return this->terminalAudit_.emit(status);
-    }
-
     void HelloWorldScenario::ToggleActionProbeState::stop()
     {
-      if (this->terminalAudit_.isSettled())
-      {
-        return;
-      }
       this->flow_.cancel();
       const dsl::FlowRunResult result = this->flow_.runResult();
       assert(result == dsl::FLOW_RUN_CANCELED && "HelloWorld scenario cancellation must be terminal");
       (void)result;
-      (void)this->terminalAudit_.emit(dsl::testing::SCENARIO_AUDIT_CANCELED);
     }
 
     const dsl::SnapRecord &HelloWorldScenario::ToggleActionProbeState::record() const
@@ -100,6 +89,7 @@ namespace loka
         : name_(kToggleActionProbe),
           completionPolicy_(completionPolicy),
           terminalState_(SCENARIO_ADVANCE_PENDING),
+          terminalAudit_(audit),
           probe_(audit)
     {
     }
@@ -120,12 +110,10 @@ namespace loka
       }
       if (result != dsl::FLOW_RUN_SUCCEEDED)
       {
-        (void)this->probe_.finish(dsl::testing::SCENARIO_AUDIT_FAILED);
         out = MakeHelloWorldDriverErrorRecord(2401, "scenario expectations were not met");
       }
       else
       {
-        (void)this->probe_.finish(dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
         out = this->probe_.record();
         out.set("disabled_probe_ignored", "true");
         SetContentBounds(out, bounds);
@@ -136,10 +124,24 @@ namespace loka
         this->terminalState_ = SCENARIO_ADVANCE_DRIVER_COMPLETION_READY;
         break;
       case SCENARIO_COMPLETION_HOLD_FINAL_SCENE:
+        if (!this->publishVerdict(out))
+        {
+          out = MakeHelloWorldDriverErrorRecord(2403, "scenario audit write failed");
+        }
         this->terminalState_ = SCENARIO_ADVANCE_FINAL_SCENE_HELD;
         break;
       }
       return this->terminalState_;
+    }
+
+    bool HelloWorldScenario::publishVerdict(const dsl::SnapRecord &record)
+    {
+      std::string verdict;
+      const dsl::testing::ScenarioAuditTerminalStatus status =
+          record.get("status", verdict) && verdict == dsl::SnapStatusOk()
+              ? dsl::testing::SCENARIO_AUDIT_SUCCEEDED
+              : dsl::testing::SCENARIO_AUDIT_FAILED;
+      return this->terminalAudit_.emit(status, record);
     }
 
     const std::string &HelloWorldScenario::name() const
@@ -152,6 +154,7 @@ namespace loka
       if (this->terminalState_ == SCENARIO_ADVANCE_PENDING)
       {
         this->probe_.stop();
+        (void)this->terminalAudit_.emit(dsl::testing::SCENARIO_AUDIT_CANCELED);
         this->terminalState_ = SCENARIO_ADVANCE_FINAL_SCENE_HELD;
       }
     }

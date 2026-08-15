@@ -1,0 +1,26 @@
+loka_scenario_audit version=1 scenario=toggle-action-probe
+step id=1 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=verify-initial-action-summary
+step id=2 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=probe-enabled-action
+step id=3 due_tick=32 tick=32 status=succeeded error_kind=0 error_code=0 name=verify-enabled-probe
+step id=4 due_tick=32 tick=32 status=succeeded error_kind=0 error_code=0 name=toggle-probe-disabled
+step id=5 due_tick=62 tick=62 status=succeeded error_kind=0 error_code=0 name=verify-disabled-action-summary
+step id=6 due_tick=62 tick=62 status=succeeded error_kind=0 error_code=0 name=probe-disabled-action
+step id=7 due_tick=92 tick=92 status=succeeded error_kind=0 error_code=0 name=verify-disabled-probe-was-ignored
+step id=8 due_tick=92 tick=92 status=succeeded error_kind=0 error_code=0 name=capture-action-summary
+crop_bottom	300
+crop_left	0
+crop_right	420
+crop_top	0
+dirty.flags	NONE
+dirty.mask	0
+disabled_probe_ignored	true
+format_version	1
+node	HelloWorld.LeftPanel.ActionSummary
+scenario_version	1
+schema_version	1
+status	ok
+step	toggle-action-probe
+test	HelloWorld
+text.value	Button enabled: no / clicks: 1
+tick	92
+terminal status=succeeded

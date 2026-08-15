@@ -131,11 +131,10 @@ namespace loka
       return ScenarioLaunchPlan(kStandaloneTour, SCENARIO_COMPLETION_HOLD_FINAL_SCENE);
     }
 
-    ScrapbookScenario::StandaloneTourState::StandaloneTourState(dsl::testing::ScenarioAuditSink *audit)
+    ScrapbookScenario::StandaloneTourState::StandaloneTourState()
         : clock_(),
           scene_(0),
           record_(),
-          terminalAudit_(audit),
           flow_()
     {
     }
@@ -153,22 +152,12 @@ namespace loka
       return this->flow_.runResult();
     }
 
-    bool ScrapbookScenario::StandaloneTourState::finish(dsl::testing::ScenarioAuditTerminalStatus status)
-    {
-      return this->terminalAudit_.emit(status);
-    }
-
     void ScrapbookScenario::StandaloneTourState::stop()
     {
-      if (this->terminalAudit_.isSettled())
-      {
-        return;
-      }
       this->flow_.cancel();
       const dsl::FlowRunResult result = this->flow_.runResult();
       assert(result == dsl::FLOW_RUN_CANCELED && "Standalone tour cancellation must be terminal");
       (void)result;
-      this->terminalAudit_.emit(dsl::testing::SCENARIO_AUDIT_CANCELED);
     }
 
     const dsl::SnapRecord &ScrapbookScenario::StandaloneTourState::record() const
@@ -206,19 +195,17 @@ namespace loka
       return true;
     }
 
-    ScrapbookScenario::ScrapbookScenario(const ScenarioLaunchPlan &plan
-#ifdef TEST_BUILD
-                                         , dsl::testing::ScenarioAuditSink *audit
-#endif
-    )
+    ScrapbookScenario::ScrapbookScenario(const ScenarioLaunchPlan &plan,
+                                         dsl::testing::ScenarioAuditSink *audit)
         : plan_(plan),
           kind_(KIND_INVALID),
           terminalState_(SCENARIO_ADVANCE_PENDING),
           stage_(0),
           step1_(),
-          step2_()
+          step2_(),
+          terminalAudit_(audit)
 #ifdef TEST_BUILD
-          , standaloneTour_(audit)
+          , standaloneTour_()
 #endif
     {
       assert(plan.isValid() && "ScenarioLaunchPlan is required");
@@ -312,10 +299,24 @@ namespace loka
         this->terminalState_ = SCENARIO_ADVANCE_DRIVER_COMPLETION_READY;
         break;
       case SCENARIO_COMPLETION_HOLD_FINAL_SCENE:
+        if (!this->publishVerdict(out))
+        {
+          out = MakeDriverErrorRecord(this->plan_.scenario().c_str(), 2306, "scenario audit write failed");
+        }
         this->terminalState_ = SCENARIO_ADVANCE_FINAL_SCENE_HELD;
         break;
       }
       return this->terminalState_;
+    }
+
+    bool ScrapbookScenario::publishVerdict(const dsl::SnapRecord &record)
+    {
+      std::string verdict;
+      const dsl::testing::ScenarioAuditTerminalStatus status =
+          record.get("status", verdict) && verdict == dsl::SnapStatusOk()
+              ? dsl::testing::SCENARIO_AUDIT_SUCCEEDED
+              : dsl::testing::SCENARIO_AUDIT_FAILED;
+      return this->terminalAudit_.emit(status, record);
     }
 
     const std::string &ScrapbookScenario::name() const
@@ -329,6 +330,7 @@ namespace loka
       if (this->kind_ == KIND_STANDALONE_TOUR && this->terminalState_ == SCENARIO_ADVANCE_PENDING)
       {
         this->standaloneTour_.stop();
+        (void)this->terminalAudit_.emit(dsl::testing::SCENARIO_AUDIT_CANCELED);
         this->terminalState_ = SCENARIO_ADVANCE_FINAL_SCENE_HELD;
       }
     }
@@ -565,10 +567,6 @@ namespace loka
       if (result != dsl::FLOW_RUN_SUCCEEDED)
       {
         out = MakeDriverErrorRecord(this->plan_.scenario().c_str(), 2305, "standalone Flow failed");
-        if (!this->standaloneTour_.finish(dsl::testing::SCENARIO_AUDIT_FAILED))
-        {
-          out = MakeDriverErrorRecord(this->plan_.scenario().c_str(), 2306, "standalone audit write failed");
-        }
         return true;
       }
       const PageObservation finalPage = observePage(mainNode);
@@ -583,11 +581,6 @@ namespace loka
       const bool ok = bounds.available && finalPage.published && finalPage.page == 4
                       && finalPage.caption == "5 / 5" && textMatches;
       SetVerdict(out, ok);
-      if (!this->standaloneTour_.finish(ok ? dsl::testing::SCENARIO_AUDIT_SUCCEEDED
-                                           : dsl::testing::SCENARIO_AUDIT_FAILED))
-      {
-        out = MakeDriverErrorRecord(this->plan_.scenario().c_str(), 2306, "standalone audit write failed");
-      }
       return true;
     }
 #endif
