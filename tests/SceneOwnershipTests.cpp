@@ -458,7 +458,7 @@ namespace
     notification->app->requestWindowClose(notification->window);
     assert(g_windowRetirementWindowsAlive == 1);
     assert(g_sceneOwnershipScenesAlive == 1);
-    assert(notification->window->scene() == notification->scene);
+    LOKA_VERIFY(notification->window->scene() == notification->scene);
     assert(notification->scene->getWindow() == notification->window);
   }
 
@@ -578,8 +578,8 @@ void testWindowPropsSceneHandoffIsOneShotAcrossCopies()
 
   Window *firstWindow = new Window(&context, first);
   Window *secondWindow = new Window(&context, second);
-  assert(firstWindow->scene() == scene);
-  assert(secondWindow->scene() == 0);
+  LOKA_VERIFY(firstWindow->scene() == scene);
+  LOKA_VERIFY(secondWindow->scene() == 0);
 
   delete firstWindow;
   delete secondWindow;
@@ -601,7 +601,7 @@ void testWindowRetiresDetachedSceneAtFlushBoundary()
   Window *window = new Window(&context, props);
 
   window->sceneManager()->commitTransaction(first, second);
-  assert(window->scene() == second);
+  LOKA_VERIFY(window->scene() == second);
   assert(g_sceneOwnershipScenesAlive == 2);
 
   window->flushSceneInvalidation();
@@ -609,7 +609,7 @@ void testWindowRetiresDetachedSceneAtFlushBoundary()
 
   SceneOwnershipProbe *third = new SceneOwnershipProbe();
   window->sceneManager()->commitTransaction(second, third);
-  assert(window->scene() == third);
+  LOKA_VERIFY(window->scene() == third);
   assert(g_sceneOwnershipScenesAlive == 2);
 
   // Window teardown drains both the still-retired Scene and the current Scene.
@@ -679,7 +679,7 @@ void testWindowDefersSceneRetiredDuringDrainUntilNextFlush()
   window->flushSceneInvalidation();
   assert(scenesAliveAfterNestedFlush == 3);
   assert(g_sceneOwnershipScenesAlive == 2);
-  assert(window->scene() == third);
+  LOKA_VERIFY(window->scene() == third);
   assert(window->hasPendingSceneInvalidation());
 
   window->flushSceneInvalidation();
