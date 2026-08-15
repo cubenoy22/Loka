@@ -1,0 +1,34 @@
+loka_scenario_audit version=1 scenario=standalone-tour
+step id=1 due_tick=15 tick=15 status=succeeded error_kind=0 error_code=0 name=verify-page-1
+step id=2 due_tick=15 tick=15 status=succeeded error_kind=0 error_code=0 name=advance-to-page-2
+step id=3 due_tick=30 tick=30 status=succeeded error_kind=0 error_code=0 name=verify-page-2
+step id=4 due_tick=30 tick=30 status=succeeded error_kind=0 error_code=0 name=advance-to-page-3
+step id=5 due_tick=45 tick=45 status=succeeded error_kind=0 error_code=0 name=verify-page-3
+step id=6 due_tick=45 tick=45 status=succeeded error_kind=0 error_code=0 name=advance-to-page-4
+step id=7 due_tick=60 tick=60 status=succeeded error_kind=0 error_code=0 name=verify-page-4
+step id=8 due_tick=60 tick=60 status=succeeded error_kind=0 error_code=0 name=advance-to-page-5
+step id=9 due_tick=75 tick=75 status=succeeded error_kind=0 error_code=0 name=verify-page-5
+step id=10 due_tick=75 tick=75 status=succeeded error_kind=0 error_code=0 name=verify-final-text
+step id=11 due_tick=75 tick=75 status=succeeded error_kind=0 error_code=0 name=select-final-capture
+step id=12 due_tick=75 tick=75 status=succeeded error_kind=0 error_code=0 name=capture-final-page
+crop_bottom	250
+crop_left	0
+crop_right	340
+crop_top	0
+final_caption	5 / 5
+final_page	4
+format_version	1
+node	Scrapbook.PageText
+scenario_version	1
+schema_version	1
+status	ok
+step	standalone-tour
+test	ScrapbookUI
+text_length	51
+text_matches_package_asset	true
+tick	75
+view.context.present	1
+view.node.kind	7
+view.node.test_id	Scrapbook.PageText
+view.target.present	1
+terminal status=succeeded

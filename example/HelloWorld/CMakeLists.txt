@@ -108,7 +108,21 @@ if(WIN32)
     target_compile_options(LokaTestsWin32 PRIVATE /utf-8)
   endif()
 
+  add_executable(LokaWin32StandaloneAuditFixture EXCLUDE_FROM_ALL
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/scripts/Win32StandaloneAuditFixture.cpp)
+  loka_enable_warnings(LokaWin32StandaloneAuditFixture)
+  set_target_properties(LokaWin32StandaloneAuditFixture PROPERTIES
+    CXX_STANDARD 98
+    CXX_STANDARD_REQUIRED YES
+  )
+  add_dependencies(LokaTestsWin32 LokaWin32StandaloneAuditFixture)
+
   add_test(NAME LokaTestsWin32 COMMAND LokaTestsWin32)
+  add_test(NAME scriptWin32StandaloneAuditVerifier
+    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
+      -File
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/scripts/Win32StandaloneAuditVerifierTest.ps1
+      -FixtureExecutable $<TARGET_FILE:LokaWin32StandaloneAuditFixture>)
 
 endif()
 

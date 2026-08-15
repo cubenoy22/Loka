@@ -15,6 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/presentation-stage.sh"
 APP_NAME="LokaScrapbookStandaloneFlowMacOS.app"
 BINARY_NAME="LokaScrapbookStandaloneFlowMacOS"
+EXPECTED_AUDIT_NAME="standalone-tour.audit"
 PACKAGED_APP="$SCRIPT_DIR/$APP_NAME"
 
 find_cmake() {
@@ -32,35 +33,10 @@ find_cmake() {
   return 1
 }
 
-read_audit_line() {
-  sed -n "${1}p" "$AUDIT_PATH" | tr -d '\r'
-}
-
 assert_success_audit() {
-  local line=""
-  local line_number=0
-  local step=0
-  local nonempty_lines=0
-
-  nonempty_lines="$(grep -cve '^[[:space:]]*$' "$AUDIT_PATH" || true)"
-  if [[ "$nonempty_lines" -ne 34 ]]; then
-    echo "Expected 34 audit lines, found $nonempty_lines." >&2
-    return 1
-  fi
-  if [[ "$(read_audit_line 1)" != "loka_scenario_audit version=1 scenario=standalone-tour" ]]; then
-    echo "Unexpected audit header: $(read_audit_line 1)" >&2
-    return 1
-  fi
-  for step in $(seq 1 12); do
-    line_number=$((step + 1))
-    line="$(read_audit_line "$line_number")"
-    if ! printf '%s\n' "$line" | grep -Eq "^step id=${step} .* status=succeeded( |$)"; then
-      echo "Unexpected audit step $step: $line" >&2
-      return 1
-    fi
-  done
-  if [[ "$(read_audit_line 34)" != "terminal status=succeeded" ]]; then
-    echo "Unexpected audit terminal: $(read_audit_line 34)" >&2
+  if ! cmp -s "$EXPECTED_AUDIT_PATH" "$AUDIT_PATH"; then
+    echo "Standalone audit does not match the tracked expected audit: $EXPECTED_AUDIT_PATH" >&2
+    cmp "$EXPECTED_AUDIT_PATH" "$AUDIT_PATH" >&2 || true
     return 1
   fi
 }
@@ -82,6 +58,7 @@ else
   BUILT_APP="$BUILD_ROOT/apple/macos/$APP_NAME"
   BUILT_BINARY="$BUILT_APP/Contents/MacOS/$BINARY_NAME"
   BUILT_ASSETS="$BUILT_APP/Contents/Resources/ASSETS.LRP"
+  EXPECTED_AUDIT_SOURCE="$PROJECT_DIR/tests/scenarios/expected/scrapbook/$EXPECTED_AUDIT_NAME"
   PRESENTATION_ROOT="$PROJECT_DIR/build/presentation"
   STAGE_NAME="macos-${HOST_ARCH}-release"
   STAGE_ROOT="$PRESENTATION_ROOT/$STAGE_NAME"
@@ -117,9 +94,11 @@ else
     /usr/bin/ditto "$BUILT_APP" "$destination/$APP_NAME"
     cp "$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")" "$destination/Verify-StandaloneFlow.sh"
     cp "$SCRIPT_DIR/presentation-stage.sh" "$destination/presentation-stage.sh"
+    cp "$EXPECTED_AUDIT_SOURCE" "$destination/$EXPECTED_AUDIT_NAME"
     chmod +x "$destination/Verify-StandaloneFlow.sh"
     if [[ ! -x "$destination/$APP_NAME/Contents/MacOS/$BINARY_NAME" || \
-          ! -f "$destination/$APP_NAME/Contents/Resources/ASSETS.LRP" ]]; then
+          ! -f "$destination/$APP_NAME/Contents/Resources/ASSETS.LRP" || \
+          ! -f "$destination/$EXPECTED_AUDIT_NAME" ]]; then
       echo "The staged application bundle is incomplete." >&2
       return 1
     fi
@@ -140,6 +119,7 @@ fi
 
 STAGED_BINARY="$STAGED_APP/Contents/MacOS/$BINARY_NAME"
 STAGED_ASSETS="$STAGED_APP/Contents/Resources/ASSETS.LRP"
+EXPECTED_AUDIT_PATH="$STAGE_ROOT/$EXPECTED_AUDIT_NAME"
 AUDIT_PATH="$STAGE_ROOT/LOG.TXT"
 RUNNER_LOG="$STAGE_ROOT/runner.log"
 if [[ ! -x "$STAGED_BINARY" ]]; then
@@ -148,6 +128,10 @@ if [[ ! -x "$STAGED_BINARY" ]]; then
 fi
 if [[ ! -f "$STAGED_ASSETS" ]]; then
   echo "Staged assets not found: $STAGED_ASSETS" >&2
+  exit 1
+fi
+if [[ ! -f "$EXPECTED_AUDIT_PATH" ]]; then
+  echo "Staged expected audit not found: $EXPECTED_AUDIT_PATH" >&2
   exit 1
 fi
 

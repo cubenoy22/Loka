@@ -3,6 +3,7 @@
 #include "support/TestVerify.hpp"
 
 #include <cassert>
+#include <cstring>
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -186,8 +187,8 @@ namespace
   {
     loka::scenario_tests::CaptureContentBounds bounds;
     bounds.available = true;
-    bounds.right = 300;
-    bounds.bottom = 170;
+    bounds.right = 340;
+    bounds.bottom = 250;
     loka::core::StateTrackerGuard guard(mainNode.tracker());
     return scenario.step(tick, &scene, mainNode, bounds, record);
   }
@@ -368,6 +369,34 @@ void testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene()
   LOKA_VERIFY(refusingAudit.stepCalls == 1);
   LOKA_VERIFY(refusingAudit.verdictCalls == 1);
   LOKA_VERIFY(refusingAudit.terminalCalls == 0);
+
+  const char *actualPath = "_loka_scrapbook_standalone_tour.audit";
+  std::remove(actualPath);
+  mainNode->selectPage(0);
+  {
+    loka::platform::file::FileHandle destination;
+    destination.displayPath = loka::core::String::Utf8(actualPath, std::strlen(actualPath));
+    loka::dsl::testing::ScenarioAuditFile fileAudit(destination, "standalone-tour");
+    const bool fileAuditIsValid = fileAudit.isValid();
+    LOKA_VERIFY(fileAuditIsValid);
+    loka::scenario_tests::ScrapbookScenario fileScenario(plan, &fileAudit);
+    LOKA_VERIFY(Advance(fileScenario, 15, scene, *mainNode, record)
+                == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+    LOKA_VERIFY(Advance(fileScenario, 30, scene, *mainNode, record)
+                == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+    LOKA_VERIFY(Advance(fileScenario, 45, scene, *mainNode, record)
+                == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+    LOKA_VERIFY(Advance(fileScenario, 60, scene, *mainNode, record)
+                == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+    LOKA_VERIFY(Advance(fileScenario, 75, scene, *mainNode, record)
+                == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
+  }
+  const std::string actual = ReadBytes(actualPath);
+  const std::string expectedPath =
+      SourcePath("tests/scenarios/expected/scrapbook/standalone-tour.audit");
+  const std::string expected = ReadBytes(expectedPath.c_str());
+  LOKA_VERIFY(actual == expected);
+  std::remove(actualPath);
 
   std::printf("testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene passed\n");
 }
