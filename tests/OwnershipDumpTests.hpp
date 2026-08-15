@@ -2,6 +2,7 @@
 #define LOKA_TESTS_OWNERSHIP_DUMP_TESTS_HPP
 
 void testOwnershipDumpPinsRepresentativeHelloWorld();
+void testHelloWorldProductionSeedAdapterPassesDerivedSeed();
 void testOwnershipDumpPinsMineSweeperSections();
 void testOwnershipDumpPinsMineSweeperNewGameRetiresCells();
 void testOwnershipDumpPinsFullVocabulary();

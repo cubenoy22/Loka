@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "../example/HelloWorld/src/MyAppConfig.hpp"
+#include "../example/HelloWorld/src/ProductionAppConfig.hpp"
 #include "../example/MineSweeper/src/MainNode.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/core/App.hpp"
@@ -545,6 +546,16 @@ namespace
     }
     return sequence;
   }
+
+  void verifyHelloWorldMenuOrder(const std::vector<int> &actual,
+                                 const int *expected)
+  {
+    LOKA_VERIFY(actual.size() == 6);
+    for (std::size_t i = 0; i < actual.size(); ++i)
+    {
+      LOKA_VERIFY(actual[i] == expected[i]);
+    }
+  }
 } // namespace
 
 void testOwnershipDumpPinsRepresentativeHelloWorld()
@@ -558,6 +569,12 @@ void testOwnershipDumpPinsRepresentativeHelloWorld()
       captureHelloWorldRandomMenuSequence(0x2468ACE0UL, 1);
   LOKA_VERIFY(firstSequence == repeatedSequence);
   LOKA_VERIFY(firstSequence[0] != differentSeedSequence[0]);
+  const int expectedFirst[6] = {3, 5, 4, 1, 6, 2};
+  const int expectedSecond[6] = {1, 3, 5, 4, 2, 6};
+  const int expectedThird[6] = {5, 6, 2, 3, 4, 1};
+  verifyHelloWorldMenuOrder(firstSequence[0], expectedFirst);
+  verifyHelloWorldMenuOrder(firstSequence[1], expectedSecond);
+  verifyHelloWorldMenuOrder(firstSequence[2], expectedThird);
 
   NodeDefinition<helloworld::MainProps, helloworld::MainNode> mainDefinition;
   SceneTestSupport::RecordingPlatformController platform;
@@ -575,6 +592,23 @@ void testOwnershipDumpPinsRepresentativeHelloWorld()
       "      observed: 8\n");
   verifyOwnershipDump(
       loka::dsl::testing::OwnershipDump::dump(scene), expected);
+}
+
+void testHelloWorldProductionSeedAdapterPassesDerivedSeed()
+{
+  const std::time_t wallClockSeconds =
+      static_cast<std::time_t>(0x13579BDFUL);
+  const HelloWorldMenuSeed seed =
+      HelloWorldMenuSeed::FromWallClock(wallClockSeconds);
+  LOKA_VERIFY(seed.value() == 0x13579BDFUL);
+
+  HelloWorldProductionAppConfig production(0, seed);
+  MyAppConfig expected(0, seed.value());
+  for (int i = 0; i < 3; ++i)
+  {
+    LOKA_VERIFY(captureHelloWorldRandomMenu(production) ==
+                captureHelloWorldRandomMenu(expected));
+  }
 }
 
 void testOwnershipDumpPinsMineSweeperSections()
