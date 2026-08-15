@@ -173,7 +173,8 @@ namespace loka
         text_ = &ownedText;
       }
       TextProps(const TextProps &other)
-          : text_(other.text_),
+          : scene::NodePropsBase<TextProps>(other),
+            text_(other.text_),
             ownedText(other.ownedText),
             ownsText(other.ownsText),
             attr_(other.attr_),

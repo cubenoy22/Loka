@@ -37,6 +37,7 @@ namespace loka
 
       ConditionalDefinition::ConditionalDefinition(const ConditionalDefinition &other)
           : NodeDefinitionBase(),
+            IBranchSeatDefinition(other),
             props(other.props),
             ownedTrueDef(0),
             ownedFalseDef(0)

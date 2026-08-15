@@ -21,6 +21,7 @@ namespace loka
       }
       ShowDefinition(const ShowDefinition &other)
           : scene::NodeDefinitionBase(other),
+            scene::IBranchSeatDefinition(other),
             trueBranch_(other.trueBranch_),
             falseBranch_(other.falseBranch_),
             props_(other.props_.condition, &this->trueBranch_, &this->falseBranch_)

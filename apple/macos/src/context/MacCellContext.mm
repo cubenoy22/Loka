@@ -224,7 +224,7 @@ short MacCellContext::layout(loka::app::scene::IPlatformController *, loka::app:
 {
   const short requestedHeight = state.height;
   const int cellHeight = requestedHeight > 0 ? requestedHeight
-                                             : loka::app::layout::FallbackControlMetrics::kCellHeight;
+                                             : static_cast<int>(loka::app::layout::FallbackControlMetrics::kCellHeight);
   this->relayout(state.x, state.y, state.width, cellHeight);
   state.height = static_cast<short>(cellHeight);
   short result = static_cast<short>(state.y + cellHeight);
