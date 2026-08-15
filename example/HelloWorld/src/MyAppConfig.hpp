@@ -8,15 +8,12 @@
 #include "app/Menu.hpp"
 #include "MainNode.hpp"
 
-#include <cstdlib>
-#include <ctime>
-
 class MyAppConfig : public AppConfigurable
 {
 public:
-  explicit MyAppConfig(PlatformContext *ctx)
+  MyAppConfig(PlatformContext *ctx, unsigned long menuSeed)
       : AppConfigurable(ctx),
-        menu_()
+        menu_(menuSeed)
   {
   }
 
@@ -37,12 +34,35 @@ public:
 private:
   class MainMenu : public loka::app::MenuBoundary
   {
-  public:
-    MainMenu()
-        : rebuildBound_(false),
-          rebuildEvent_()
+  private:
+    class MenuRandom
     {
-      std::srand(static_cast<unsigned int>(std::time(0)));
+    public:
+      explicit MenuRandom(unsigned long seed)
+          : state_(seed)
+      {
+      }
+
+      int nextIndex(int upperBound)
+      {
+        // Fixed C++98 arithmetic keeps a seed's menu sequence independent
+        // of platform C-library rand() implementations and other app code.
+        this->state_ =
+            (this->state_ * 1664525UL + 1013904223UL) & 0xFFFFFFFFUL;
+        return static_cast<int>((this->state_ >> 16) %
+                                static_cast<unsigned long>(upperBound));
+      }
+
+    private:
+      unsigned long state_;
+    };
+
+  public:
+    explicit MainMenu(unsigned long seed)
+        : rebuildBound_(false),
+          rebuildEvent_(),
+          random_(seed)
+    {
     }
 
     virtual void composeMenu(loka::app::MenuComposition &c)
@@ -85,7 +105,7 @@ private:
       menu << MenuSeparator();
       for (int i = 5; i > 0; --i)
       {
-        int j = std::rand() % (i + 1);
+        int j = this->random_.nextIndex(i + 1);
         const MenuItemDefinition tmp = labels[i];
         labels[i] = labels[j];
         labels[j] = tmp;
@@ -100,6 +120,7 @@ private:
 
     bool rebuildBound_;
     loka::core::EmitterState rebuildEvent_;
+    MenuRandom random_;
   };
 
   MainMenu menu_;
