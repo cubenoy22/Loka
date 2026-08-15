@@ -12,7 +12,6 @@ import zlib
 
 PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SCENARIO_DIR = os.path.join(PROJECT_DIR, "tests", "scenarios")
-SNAP_TOOL = os.path.join(SCENARIO_DIR, "snaprecord.py")
 PNG_TOOL = os.path.join(SCENARIO_DIR, "pngtool.py")
 
 
@@ -49,107 +48,57 @@ def write_rgb_png(path, width, height, pixels):
         handle.write(payload)
 
 
-def record(**overrides):
-    values = {
-        "format_version": "1",
-        "schema_version": "1",
-        "scenario_version": "1",
-        "test": "ScrapbookUI",
-        "step": "startup",
-        "node": "MainNode",
-        "tick": "1",
-        "status": "ok",
-        "caption": "line\\twith\\\\slash\\nnext",
-    }
-    values.update(overrides)
-    return "".join("{}\t{}\n".format(key, values[key]) for key in sorted(values)) + "\n"
-
-
-class SnapRecordToolTest(unittest.TestCase):
-    def test_full_compare_is_order_independent_and_get_decodes_values(self):
-        with tempfile.TemporaryDirectory(prefix="scenario-snap-") as directory:
-            expected = os.path.join(directory, "expected.snap")
-            actual = os.path.join(directory, "actual.snap")
-            expected_text = record()
-            actual_text = "".join(reversed(expected_text.splitlines(keepends=True)[:-1])) + "\n"
-            with open(expected, "w", encoding="utf-8", newline="") as handle:
-                handle.write(expected_text)
-            with open(actual, "w", encoding="utf-8", newline="") as handle:
-                handle.write(actual_text)
-
-            compared = run_tool(SNAP_TOOL, "compare", expected, actual)
-            self.assertEqual(compared.returncode, 0, compared.stderr)
-            fetched = run_tool(SNAP_TOOL, "get", actual, "caption")
-            self.assertEqual(fetched.returncode, 0, fetched.stderr)
-            self.assertEqual(fetched.stdout, "line\twith\\slash\nnext\n")
-
-    def test_compare_reports_changed_missing_and_extra_keys(self):
-        with tempfile.TemporaryDirectory(prefix="scenario-snap-") as directory:
-            expected = os.path.join(directory, "expected.snap")
-            actual = os.path.join(directory, "actual.snap")
-            with open(expected, "w", encoding="utf-8") as handle:
-                handle.write(record(caption="expected"))
-            with open(actual, "w", encoding="utf-8") as handle:
-                handle.write(record(caption="actual", unexpected="value"))
-
-            compared = run_tool(SNAP_TOOL, "compare", expected, actual)
-            self.assertNotEqual(compared.returncode, 0)
-            self.assertIn("caption", compared.stderr)
-            self.assertIn("unexpected", compared.stderr)
-
-    def test_duplicate_key_and_malformed_escape_are_rejected(self):
-        with tempfile.TemporaryDirectory(prefix="scenario-snap-") as directory:
-            duplicate = os.path.join(directory, "duplicate.snap")
-            malformed = os.path.join(directory, "malformed.snap")
-            with open(duplicate, "w", encoding="utf-8") as handle:
-                handle.write(record().rstrip("\n") + "\nstatus\tok\n\n")
-            with open(malformed, "w", encoding="utf-8") as handle:
-                handle.write(record(caption="bad\\qescape"))
-
-            duplicate_result = run_tool(SNAP_TOOL, "get", duplicate, "status")
-            malformed_result = run_tool(SNAP_TOOL, "get", malformed, "caption")
-            self.assertNotEqual(duplicate_result.returncode, 0)
-            self.assertIn("duplicate", duplicate_result.stderr)
-            self.assertNotEqual(malformed_result.returncode, 0)
-            self.assertIn("escape", malformed_result.stderr)
-
-
-class ExpectedRecordPinsTest(unittest.TestCase):
-    def test_shared_pins_cover_registered_scenarios_and_use_app_identity(self):
-        scenarios = (
-            "startup",
-            "open-first-page",
-            "open-first-page-refused",
-            "flip-forward-back",
-            "refused-flip-keeps-page",
-            "open-text-page",
-            "open-text-page-refused",
-        )
-        expected_dir = os.path.join(SCENARIO_DIR, "expected", "scrapbook")
-        for scenario in scenarios:
-            path = os.path.join(expected_dir, scenario + ".snap")
-            identity = run_tool(SNAP_TOOL, "get", path, "test")
-            step = run_tool(SNAP_TOOL, "get", path, "step")
-            self.assertEqual(identity.returncode, 0, identity.stderr)
-            self.assertEqual(identity.stdout, "ScrapbookUI\n")
-            self.assertEqual(step.returncode, 0, step.stderr)
-            self.assertEqual(step.stdout, scenario + "\n")
-
-    def test_expected_records_cover_every_registered_example_scenario(self):
+class ExpectedAuditPinsTest(unittest.TestCase):
+    def test_expected_audits_cover_registry_and_pin_app_identity(self):
         registry = os.path.join(PROJECT_DIR, "tests", "toolbox", "scenarios.txt")
         with open(registry, "r", encoding="utf-8") as handle:
             entries = [line.split() for line in handle.read().splitlines()]
-        self.assertTrue(entries)
+        self.assertEqual(len(entries), 8)
         self.assertEqual(len(entries), len({tuple(entry) for entry in entries}))
         for entry in entries:
             self.assertEqual(len(entry), 2)
             example, scenario = entry
-            path = os.path.join(SCENARIO_DIR, "expected", example, scenario + ".snap")
-            identity = run_tool(SNAP_TOOL, "get", path, "test")
-            step = run_tool(SNAP_TOOL, "get", path, "step")
-            self.assertEqual(identity.returncode, 0, identity.stderr)
-            self.assertEqual(step.returncode, 0, step.stderr)
-            self.assertEqual(step.stdout, scenario + "\n")
+            audit_path = os.path.join(SCENARIO_DIR, "expected", example, scenario + ".audit")
+            with open(audit_path, "rb") as handle:
+                audit = handle.read()
+
+            self.assertNotIn(b"\r", audit)
+            lines = audit.splitlines(keepends=True)
+            self.assertEqual(
+                lines[0],
+                "loka_scenario_audit version=1 scenario={}\n".format(scenario).encode("ascii"),
+            )
+            self.assertEqual(lines[-1], b"terminal status=succeeded\n")
+            identity = b"HelloWorld" if example == "helloworld" else b"ScrapbookUI"
+            self.assertIn(b"test\t" + identity + b"\n", audit)
+            self.assertIn(b"step\t" + scenario.encode("ascii") + b"\n", audit)
+            self.assertIn(b"status\tok\n", audit)
+            self.assertNotIn(b"/home/", audit)
+            self.assertNotIn(b"/mnt/", audit)
+            self.assertNotIn(b"build/", audit)
+
+    def test_byte_compare_rejects_observed_string_mutation(self):
+        expected = os.path.join(SCENARIO_DIR, "expected", "scrapbook", "open-text-page.audit")
+        with tempfile.TemporaryDirectory(prefix="scenario-audit-") as directory:
+            actual = os.path.join(directory, "actual.audit")
+            with open(expected, "rb") as handle:
+                contents = handle.read()
+            observed = b"text_matches_package_asset\ttrue\n"
+            self.assertIn(observed, contents)
+            with open(actual, "wb") as handle:
+                handle.write(contents)
+            same = subprocess.run(["cmp", expected, actual], check=False)
+            self.assertEqual(same.returncode, 0)
+
+            with open(actual, "wb") as handle:
+                handle.write(contents.replace(observed, b"text_matches_package_asset\tfalse\n", 1))
+            changed = subprocess.run(
+                ["cmp", expected, actual],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+            self.assertNotEqual(changed.returncode, 0)
 
 
 class PngToolTest(unittest.TestCase):

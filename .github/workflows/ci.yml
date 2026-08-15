@@ -56,7 +56,7 @@ jobs:
       - run: cmake --build --preset macos-tests
       - run: ctest --preset macos-tests --output-on-failure
       # Hosted runners have no persistent display-profile golden. They still
-      # prove the real AppKit runner, bounded settle, exact record, profile,
+      # prove the real AppKit runner, bounded settle, exact audit, profile,
       # and atomic completion contract; Tahoe owns the pixel verdict.
       - run: cmake --build --preset macos-scenarios
       - run: tests/macos/run-scenario.sh startup --ci-structural

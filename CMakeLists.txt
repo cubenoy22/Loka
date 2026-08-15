@@ -291,6 +291,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/ToolboxPresentationRailTest.sh)
     add_test(NAME scriptToolboxScenarioRunner
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/ToolboxScenarioRunnerTest.sh)
+    add_test(NAME scriptMacOSScenarioRunner
+      COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MacOSScenarioRunnerTest.sh)
     add_test(NAME scriptBuild104Guard
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/Build104GuardTest.sh)
     add_test(NAME scriptPmonSpriteGenerator

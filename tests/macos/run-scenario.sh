@@ -37,8 +37,7 @@ GOLDEN="$GOLDEN_DIR/$SCENARIO.png"
 GOLDEN_PROFILE="$GOLDEN_DIR/$SCENARIO.profile"
 APP="${LOKA_MACOS_SCENARIO_APP:-$PROJECT_DIR/build/macos/Debug/apple/macos/LokaScrapbookScenarioMacOS.app}"
 BINARY="$APP/Contents/MacOS/LokaScrapbookScenarioMacOS"
-EXPECTED="$PROJECT_DIR/tests/scenarios/expected/scrapbook/$SCENARIO.snap"
-SNAP_TOOL="$PROJECT_DIR/tests/scenarios/snaprecord.py"
+EXPECTED="$PROJECT_DIR/tests/scenarios/expected/scrapbook/$SCENARIO.audit"
 PNG_TOOL="$PROJECT_DIR/tests/scenarios/pngtool.py"
 WORK_DIR_TOOL="$PROJECT_DIR/tests/macos/validate-work-dir.py"
 PYTHON3="${PYTHON3:-python3}"
@@ -61,7 +60,7 @@ if [ ! -x "$BINARY" ]; then
   fail_stage build "missing $BINARY; run: cmake --preset macos-debug && cmake --build --preset macos-scenarios"
 fi
 if [ ! -f "$EXPECTED" ]; then
-  fail_stage record "missing tracked SnapRecord $EXPECTED"
+  fail_stage verdict "missing tracked audit $EXPECTED"
 fi
 if ! WORK="$("$PYTHON3" "$WORK_DIR_TOOL" "$PROJECT_DIR/build" "$WORK")"; then
   fail_stage setup "work directory must resolve strictly below $PROJECT_DIR/build"
@@ -130,13 +129,13 @@ fi
 if [ ! -f "$WORK/complete" ] || [ "$(tr -d '\r\n' <"$WORK/complete")" != "artifacts-ready" ]; then
   fail_stage completion "atomic completion marker is missing or invalid"
 fi
-for artifact in actual.snap actual.png actual.profile settle-a.png settle-b.png runner.log; do
+for artifact in actual.audit actual.png actual.profile settle-a.png settle-b.png runner.log; do
   if [ ! -f "$WORK/$artifact" ]; then
     fail_stage artifacts "missing $artifact"
   fi
 done
-if ! "$PYTHON3" "$SNAP_TOOL" compare "$EXPECTED" "$WORK/actual.snap"; then
-  fail_stage record "actual.snap differs from $EXPECTED"
+if ! cmp "$EXPECTED" "$WORK/actual.audit"; then
+  fail_stage verdict "actual.audit differs from $EXPECTED"
 fi
 
 if [ "$MODE" = "inspect" ]; then

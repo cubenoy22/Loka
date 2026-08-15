@@ -7,21 +7,14 @@ without that evidence. `n/a` means that the repository has no application target
 for that leg, not that verification was skipped.
 
 For capture-bearing grades (L1 and L2), ✅ means that both layers passed: the
-deterministic SnapRecord matched, and the rig-local cropped pixels matched that
-rig's untracked golden. SnapRecord is the cross-platform authority; its V1 schema
-is defined by
-[`common/testing/snap/SnapFormat.hpp`](../common/testing/snap/SnapFormat.hpp).
-Pixel goldens remain local to each rig because system fonts and chrome vary. A
-capture is settled only after the scenario completion marker and two consecutive
-frames with the same hash; the pixel comparison is limited to the SnapRecord crop
-bounds.
-
-Today's Classic runner satisfies only part of this contract: its verdict parses
-`status` and the crop fields without comparing the rest of the SnapRecord to a
-tracked expected record, and its capture waits a fixed interval for a single
-snapshot instead of the marker-plus-two-identical-hashes rule. Until
-[#314](https://github.com/cubenoy22/Loka/issues/314) upgrades it, a Classic ✅
-requires attaching the SnapRecord to the evidence link and reviewing it by hand.
+durable scenario audit matched its tracked expected audit byte-for-byte, and the
+settled pixels matched that rig's untracked golden. The expected audit is the
+cross-platform structural authority. Its verdict body is serialized by
+[`common/testing/snap/SnapFormat.hpp`](../common/testing/snap/SnapFormat.hpp),
+but runners treat the complete audit as opaque bytes: launch, collect, `cmp`,
+then compare pixels. Pixel goldens remain local to each rig because system fonts
+and chrome vary. A capture is settled only after the scenario completion marker
+and consecutive identical frames.
 
 The release gate is:
 
@@ -125,9 +118,9 @@ host must satisfy that preset's toolchain requirements.
 | L0 macOS | `cmake --preset macos-debug && cmake --build --preset macos-debug` |
 | L0 Classic Mac 68K | `cmake --preset retro68-68k-release && cmake --build --preset retro68-68k-release` |
 | L0 Classic Mac PPC | `cmake --preset retro68-ppc-release && cmake --build --preset retro68-ppc-release` |
-| L1 Classic `ScrapbookUI` | `tests/toolbox/run-scenario.sh scrapbook startup` — tracked full SnapRecord plus settled rig-local crop golden |
-| L2 Classic `ScrapbookUI` | `tests/toolbox/run-scenario.sh scrapbook flip-forward-back` — tracked full SnapRecord plus settled rig-local crop golden |
-| L2 Classic `HelloWorld` | `tests/toolbox/run-scenario.sh helloworld toggle-action-probe` — typed TEST_ID actions drive MainNode-owned Emitters; tracked full SnapRecord plus settled rig-local crop golden |
+| L1 Classic `ScrapbookUI` | `tests/toolbox/run-scenario.sh scrapbook startup` — tracked expected audit plus settled rig-local pixel golden |
+| L2 Classic `ScrapbookUI` | `tests/toolbox/run-scenario.sh scrapbook flip-forward-back` — tracked expected audit plus settled rig-local pixel golden |
+| L2 Classic `HelloWorld` | `tests/toolbox/run-scenario.sh helloworld toggle-action-probe` — typed TEST_ID actions drive MainNode-owned Emitters; tracked expected audit plus settled rig-local pixel golden |
 | L1/L2 Win32 | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
 | L1/L2 macOS | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
 | L1 Classic examples other than `ScrapbookUI` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |

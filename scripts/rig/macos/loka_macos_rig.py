@@ -661,7 +661,7 @@ class MacOSRigRun:
         required = {
             "actual.png",
             "actual.profile",
-            "actual.snap",
+            "actual.audit",
             "build.log",
             "complete",
             "desktop-after.png",

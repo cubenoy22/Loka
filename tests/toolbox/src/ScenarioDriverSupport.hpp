@@ -4,6 +4,7 @@
 #include <Quickdraw.h>
 
 #include "ScenarioTypes.hpp"
+#include "platform/file/FileHandle.hpp"
 
 class Window;
 
@@ -20,16 +21,10 @@ namespace loka
     scenario_tests::CaptureContentBounds QueryCaptureContentBounds(Window *window);
     scenario_tests::CaptureContentBounds ContentLocalBounds(const scenario_tests::CaptureContentBounds &screenBounds);
 
-    dsl::SnapWriteStatus WriteScenarioRecord(const dsl::SnapTestConfig::Settings &settings,
-                                             const dsl::SnapRecord &record);
-    dsl::SnapWriteStatus WriteCaptureMetadata(const dsl::SnapTestConfig::Settings &settings,
-                                              const char *test,
-                                              const char *scenario,
-                                              long tick,
-                                              const scenario_tests::CaptureContentBounds &bounds);
+    platform::file::FileHandle ResolveScenarioAuditFile();
+    bool WriteScenarioErrorAudit(const char *scenario, const dsl::SnapRecord &record);
 
-    /** Owns the crop-external native marker used by MAME's live screen
-        completion seam. */
+    /** Owns the native marker used by MAME's live-screen completion seam. */
     class HostCompletionSignal
     {
     public:

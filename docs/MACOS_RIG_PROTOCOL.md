@@ -10,7 +10,7 @@ VM, SSH, Aqua, and target transport remain here.
 - The orchestrator host owns the detached source checkout, VM transition,
   target work directory, local evidence archive, and final manifest.
 - The target VM owns the app process and files while they are being written.
-- The TEST-only scenario runner owns content capture, SnapRecord output, and
+- The TEST-only scenario runner owns content capture, durable audit output, and
   atomic ready/completion publication.
 - Files cross from the target to the host only after the producing process has
   closed or atomically renamed them. A shared or live-mounted directory is not
@@ -58,8 +58,8 @@ held until the host timeout; timeout is a failure and retains the target state.
   run on the orchestrator host desktop.
 
 Machine verdict and presentation evidence stay separate. Desktop captures are
-rig-local human evidence and are not image oracles. SnapRecord and content
-capture remain the machine lane.
+rig-local human evidence and are not image oracles. The tracked expected audit
+is the structural authority; content capture remains the rig-local pixel lane.
 
 ## Failure retention
 

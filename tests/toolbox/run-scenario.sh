@@ -118,10 +118,9 @@ CONFIG="$WORK/LokaTest.cfg"
 LAUNCHER="$WORK/mame-launch.lua"
 MAME_OUT="$WORK/mame.out"
 LAUNCH_LOG="$WORK/mame-launch.log"
-RECORD="$WORK/LokaTestsToolbox.snap"
-CAPTURE_RECORD="$WORK/LokaTestsToolbox.capture.snap"
-EXPECTED_RECORD="$PROJECT_DIR/tests/scenarios/expected/$EXAMPLE/$SCENARIO.snap"
-CROPPED="$WORK/$SCENARIO.png"
+AUDIT="$WORK/LokaTestsToolbox.audit"
+EXPECTED_AUDIT="$PROJECT_DIR/tests/scenarios/expected/$EXAMPLE/$SCENARIO.audit"
+ACTUAL_IMAGE="$WORK/$SCENARIO.png"
 # Goldens are rig-local, not tracked: the pixels depend on the local boot
 # image's System resources (fonts, control chrome) and contain Apple-rendered
 # glyphs, which the licensing rule keeps out of the tree. They survive work
@@ -141,7 +140,7 @@ fi
 if ! cp -f "$MAME_HDA" "$BOOT"; then
   fail_stage mame "could not copy the boot hard disk template"
 fi
-# linger_seconds keeps the scenario window alive after the record is written,
+# linger_seconds keeps the scenario window alive after the audit is written,
 # so the emulator-side snapshot captures the scene instead of the desktop the
 # application would otherwise have quit back to.
 if ! printf 'scenario %s\nlinger_seconds 120\n' "$SCENARIO" >"$CONFIG"; then
@@ -272,50 +271,20 @@ fi
 if ! HOME="$HFS_HOME" "$HMOUNT" "$DEV" 1 >"$WORK/hmount.out" 2>&1; then
   fail_stage extract "could not mount the development disk; see $WORK/hmount.out"
 fi
-if ! HOME="$HFS_HOME" "$HCOPY" -t ":LokaTestsToolbox.snap" "$RECORD" >"$WORK/hcopy.out" 2>&1; then
+if ! HOME="$HFS_HOME" "$HCOPY" -t ":LokaTestsToolbox.audit" "$AUDIT" >"$WORK/hcopy.out" 2>&1; then
   HOME="$HFS_HOME" "$HUMOUNT" >/dev/null 2>&1 || true
-  fail_stage extract "could not copy LokaTestsToolbox.snap; see $WORK/hcopy.out"
-fi
-CAPTURE_EXTRACTED=0
-if HOME="$HFS_HOME" "$HCOPY" -t ":LokaTestsToolbox.capture.snap" "$CAPTURE_RECORD" \
-  >"$WORK/hcopy-capture.out" 2>&1; then
-  CAPTURE_EXTRACTED=1
+  fail_stage extract "could not copy LokaTestsToolbox.audit; see $WORK/hcopy.out"
 fi
 if ! HOME="$HFS_HOME" "$HUMOUNT" >"$WORK/humount.out" 2>&1; then
   fail_stage extract "could not unmount the development disk; see $WORK/humount.out"
 fi
 
-SNAP_TOOL="$PROJECT_DIR/tests/scenarios/snaprecord.py"
-if ! status="$(python3 "$SNAP_TOOL" get "$RECORD" status)"; then
-  fail_stage verdict "record is not a valid SnapRecord; see $RECORD"
+if [ ! -f "$EXPECTED_AUDIT" ]; then
+  fail_stage verdict "missing tracked audit $EXPECTED_AUDIT"
 fi
-if [ "$status" != "ok" ]; then
-  fail_stage verdict "guest reported status '$status'; see $RECORD"
+if ! cmp "$EXPECTED_AUDIT" "$AUDIT"; then
+  fail_stage verdict "audit differs from $EXPECTED_AUDIT; see $AUDIT"
 fi
-if [ ! -f "$EXPECTED_RECORD" ]; then
-  fail_stage verdict "missing tracked SnapRecord $EXPECTED_RECORD"
-fi
-if ! python3 "$SNAP_TOOL" compare "$EXPECTED_RECORD" "$RECORD"; then
-  fail_stage verdict "SnapRecord differs from $EXPECTED_RECORD; see $RECORD"
-fi
-if [ "$CAPTURE_EXTRACTED" -ne 1 ]; then
-  fail_stage verdict "guest did not publish $CAPTURE_RECORD; see $WORK/hcopy-capture.out"
-fi
-if ! capture_status="$(python3 "$SNAP_TOOL" get "$CAPTURE_RECORD" status)" \
-  || ! crop_left="$(python3 "$SNAP_TOOL" get "$CAPTURE_RECORD" crop_left)" \
-  || ! crop_top="$(python3 "$SNAP_TOOL" get "$CAPTURE_RECORD" crop_top)" \
-  || ! crop_right="$(python3 "$SNAP_TOOL" get "$CAPTURE_RECORD" crop_right)" \
-  || ! crop_bottom="$(python3 "$SNAP_TOOL" get "$CAPTURE_RECORD" crop_bottom)"; then
-  fail_stage verdict "capture metadata is incomplete; see $CAPTURE_RECORD"
-fi
-if [ "$capture_status" != "ok" ]; then
-  fail_stage verdict "guest could not project capture bounds; see $CAPTURE_RECORD"
-fi
-for coordinate in "$crop_left" "$crop_top" "$crop_right" "$crop_bottom"; do
-  if [[ ! "$coordinate" =~ ^[0-9]+$ ]]; then
-    fail_stage verdict "record contains an invalid crop rectangle; see $RECORD"
-  fi
-done
 if [ "$SETTLE_REACHED" -ne 1 ]; then
   fail_stage settle "pixel stability was not reached; see $LAUNCH_LOG"
 fi
@@ -330,16 +299,15 @@ if [ -z "$newest_snapshot" ]; then
   fail_stage crop "MAME did not write a snapshot PNG under $SNAPSHOT_DIR"
 fi
 PNG_TOOL="$PROJECT_DIR/tests/scenarios/pngtool.py"
-if ! python3 "$PNG_TOOL" crop "$newest_snapshot" \
-    "$crop_left" "$crop_top" "$crop_right" "$crop_bottom" "$CROPPED"; then
-  fail_stage crop "could not crop $newest_snapshot"
+if ! cp -f "$newest_snapshot" "$ACTUAL_IMAGE"; then
+  fail_stage collect "could not collect $newest_snapshot"
 fi
 
 if [ "$UPDATE_GOLDEN" -eq 1 ]; then
   if ! mkdir -p "$(dirname "$GOLDEN")"; then
     fail_stage golden "could not create the golden directory"
   fi
-  if ! cp -f "$CROPPED" "$GOLDEN"; then
+  if ! cp -f "$ACTUAL_IMAGE" "$GOLDEN"; then
     fail_stage golden "could not update $GOLDEN"
   fi
   echo "Updated golden: $GOLDEN"
@@ -350,9 +318,9 @@ fi
 if [ ! -f "$GOLDEN" ]; then
   fail_stage golden "missing $GOLDEN; rerun with --update-golden to create it"
 fi
-if ! python3 "$PNG_TOOL" compare "$CROPPED" "$GOLDEN"; then
-  python3 "$PNG_TOOL" diff "$GOLDEN" "$CROPPED" "$DIFF_DIR/$SCENARIO.png" || true
-  fail_stage golden "cropped snapshot differs from $GOLDEN"
+if ! python3 "$PNG_TOOL" compare "$ACTUAL_IMAGE" "$GOLDEN"; then
+  python3 "$PNG_TOOL" diff "$GOLDEN" "$ACTUAL_IMAGE" "$DIFF_DIR/$SCENARIO.png" || true
+  fail_stage golden "settled snapshot differs from $GOLDEN"
 fi
 
 echo "Scenario passed: $EXAMPLE/$SCENARIO"
