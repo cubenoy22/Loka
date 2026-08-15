@@ -134,9 +134,9 @@ host must satisfy that preset's toolchain requirements.
 | L2 Classic examples other than `ScrapbookUI` and `HelloWorld` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
 | L3 all OSes | n/a — manual by definition; record the rig/hardware and evidence in the selected matrix cell |
 
-The Classic scenario command requires an already configured local MAME rig and
-the example's Toolbox test application; if the artifact is absent, the runner
-prints the exact Retro68 target. `tests/toolbox/scenarios.txt` is the shared
-`<example> <scenario>` registry. `--update-golden` regenerates the rig-local
-golden under that same per-example layout; it does not create release evidence
-or a tracked repository file.
+The Classic scenario command requires an already configured local MAME rig,
+the example's Toolbox test application, and the host `lrpc` tool; if an
+artifact is absent, the runner prints its exact build command.
+`tests/toolbox/scenarios.txt` is the shared `<example> <scenario>` registry.
+`--update-golden` regenerates the rig-local golden under that same per-example
+layout; it does not create release evidence or a tracked repository file.

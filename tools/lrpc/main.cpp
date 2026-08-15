@@ -14,6 +14,8 @@
 
 #if defined(_WIN32)
 #include <direct.h>
+#include <fcntl.h>
+#include <io.h>
 #else
 #include <fcntl.h>
 #include <sys/types.h>
@@ -22,6 +24,7 @@
 
 #include "lrpc/LrpkWriter.hpp"
 #include "lrpc/HostFile.hpp"
+#include "lrpc/LrpkStager.hpp"
 #include "lrpc/PackManifest.hpp"
 #include "lrpc/Utf8Path.hpp"
 
@@ -80,15 +83,6 @@ namespace
     return true;
   }
 
-  std::FILE *OpenFile(const NativePath &path, const NativeChar *mode)
-  {
-#if defined(_WIN32)
-    return _wfopen(path.c_str(), mode);
-#else
-    return std::fopen(path.c_str(), mode);
-#endif
-  }
-
   int RemoveFile(const NativePath &path)
   {
 #if defined(_WIN32)
@@ -107,20 +101,6 @@ namespace
 #endif
   }
 
-  bool WriteWholeFile(const NativePath &path,
-                      const unsigned char *bytes,
-                      std::size_t length)
-  {
-    std::FILE *file = OpenFile(path, LRPC_NATIVE_TEXT("wb"));
-    if (!file)
-    {
-      return false;
-    }
-    const bool written = length == 0 || std::fwrite(bytes, 1, length, file) == length;
-    const bool closed = std::fclose(file) == 0;
-    return written && closed;
-  }
-
   /** Creates a file that did not exist, and fails if anything is already
       there -- including a dangling symlink, which is the case that made this
       necessary. `fopen("wb")` follows such a link and writes through it, so a
@@ -130,16 +110,19 @@ namespace
 
       Creating exclusively removes the whole class rather than that instance:
       the staging file is one this run made, so it cannot be an alias for
-      anything. POSIX keeps the exclusive create; the Windows wide CRT has no
-      equivalent mode in the compiler baselines this host tool supports. */
+      anything. Once created, this helper also owns failure cleanup so callers
+      cannot strand a partial file after a write or close failure. */
   bool WriteNewFile(const NativePath &path,
                     const unsigned char *bytes,
                     std::size_t length)
   {
 #if defined(_WIN32)
-    return WriteWholeFile(path, bytes, length);
+    const int fd = _wopen(path.c_str(),
+                          _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY,
+                          _S_IREAD | _S_IWRITE);
 #else
     const int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0666);
+#endif
     if (fd < 0)
     {
       return false;
@@ -148,7 +131,16 @@ namespace
     std::size_t written = 0;
     while (ok && written < length)
     {
+#if defined(_WIN32)
+      const std::size_t remaining = length - written;
+      const unsigned int requested =
+          remaining > static_cast<std::size_t>(0x7FFFFFFFu)
+              ? 0x7FFFFFFFu
+              : static_cast<unsigned int>(remaining);
+      const int got = _write(fd, bytes + written, requested);
+#else
       const ssize_t got = write(fd, bytes + written, length - written);
+#endif
       if (got <= 0)
       {
         ok = false;
@@ -156,12 +148,19 @@ namespace
       }
       written += static_cast<std::size_t>(got);
     }
+#if defined(_WIN32)
+    if (_close(fd) != 0)
+#else
     if (close(fd) != 0)
+#endif
     {
       ok = false;
     }
+    if (!ok)
+    {
+      RemoveFile(path);
+    }
     return ok;
-#endif
   }
 
   /** True when the path exists and is a directory. An output that names one is
@@ -475,6 +474,36 @@ namespace
     return "the package could not be built";
   }
 
+  const char *StagePackageMessage(loka::lrpc::StagePackageResult result)
+  {
+    switch (result)
+    {
+      case loka::lrpc::STAGE_PACKAGE_NOT_FIXED_HEAD:
+        return "not an LRPK package with a fixed 512-byte HEAD";
+      case loka::lrpc::STAGE_PACKAGE_FORM_LENGTH_MISMATCH:
+        return "LRPK form length does not match the staged file";
+      case loka::lrpc::STAGE_PACKAGE_TRUNCATED_CHUNK_HEADER:
+        return "truncated LRPK chunk header";
+      case loka::lrpc::STAGE_PACKAGE_TRUNCATED_CHUNK_PAYLOAD:
+        return "truncated LRPK chunk payload";
+      case loka::lrpc::STAGE_PACKAGE_MISSING_INDEX_OR_DATA:
+        return "LRPK is missing INDX or DATA";
+      case loka::lrpc::STAGE_PACKAGE_INDEX_TOO_SHORT:
+        return "LRPK INDX is too short";
+      case loka::lrpc::STAGE_PACKAGE_INDEX_ROW_COUNTS_MISMATCH:
+        return "LRPK INDX row counts do not match its size";
+      case loka::lrpc::STAGE_PACKAGE_BAG_OUT_OF_RANGE:
+        return "requested bag is outside the LRPK bag table";
+      case loka::lrpc::STAGE_PACKAGE_INVALID_BAG_PAYLOAD_BOUNDS:
+        return "target bag has invalid stored payload bounds";
+      case loka::lrpc::STAGE_PACKAGE_CORRUPTION_BYTE_OUT_OF_BOUNDS:
+        return "computed corruption byte is outside the target bag payload";
+      case loka::lrpc::STAGE_PACKAGE_OK:
+        break;
+    }
+    return "the package could not be staged";
+  }
+
   bool ResolveAssetPath(const NativePath &base,
                         const std::string &utf8Source,
                         NativePath &out)
@@ -657,6 +686,7 @@ namespace
   {
     std::fprintf(stderr,
                  "usage: lrpc pack <manifest> -o <package> [--stamp <file>] [--require <file> --require-pages <N>]\n"
+                 "       lrpc stage <package> -o <staged-package> [--corrupt-bag <N>]\n"
                  "\n"
                  "  Packs canonical, package-ready asset records into an LRPK\n"
                  "  package. No format conversion happens here: payload bytes\n"
@@ -666,8 +696,134 @@ namespace
                  "  line, for the application build to check its header against.\n"
                  "  --require checks the manifest against the app's structural\n"
                  "  package expectations before writing either output. A file\n"
-                 "  with a pages rule also requires --require-pages.\n");
+                 "  with a pages rule also requires --require-pages.\n"
+                 "\n"
+                 "  stage validates and copies an LRPK package. --corrupt-bag\n"
+                 "  flips one validated byte in that bag's stored payload.\n");
     return 2;
+  }
+
+  int StageCommand(int argc, NativeChar **argv)
+  {
+    NativePath sourcePath;
+    NativePath outputPath;
+    std::size_t corruptBag = 0;
+    bool hasCorruptBag = false;
+    for (int i = 2; i < argc; ++i)
+    {
+      const NativePath arg = argv[i];
+      if (arg == LRPC_NATIVE_TEXT("-o"))
+      {
+        if (++i >= argc || !outputPath.empty())
+        {
+          return Usage();
+        }
+        outputPath = argv[i];
+      }
+      else if (arg == LRPC_NATIVE_TEXT("--corrupt-bag"))
+      {
+        if (++i >= argc || hasCorruptBag)
+        {
+          return Usage();
+        }
+        const NativePath bagText = argv[i];
+        if (!ParseNativeU32(bagText, corruptBag))
+        {
+          const std::size_t firstDigit =
+              !bagText.empty() && bagText[0] == LRPC_NATIVE_TEXT('-') ? 1 : 0;
+          bool decimalOutOfRange = firstDigit < bagText.size();
+          for (std::size_t c = firstDigit; c < bagText.size(); ++c)
+          {
+            if (bagText[c] < LRPC_NATIVE_TEXT('0') ||
+                bagText[c] > LRPC_NATIVE_TEXT('9'))
+            {
+              decimalOutOfRange = false;
+            }
+          }
+          if (decimalOutOfRange)
+          {
+            return Fail(StagePackageMessage(
+                loka::lrpc::STAGE_PACKAGE_BAG_OUT_OF_RANGE));
+          }
+          return Usage();
+        }
+        hasCorruptBag = true;
+      }
+      else if (sourcePath.empty())
+      {
+        sourcePath = arg;
+      }
+      else
+      {
+        return Usage();
+      }
+    }
+    if (sourcePath.empty() || outputPath.empty())
+    {
+      return Usage();
+    }
+
+    const NativePath temporary = outputPath + LRPC_NATIVE_TEXT(".tmp");
+    const NativePath inputKey = CollisionKey(sourcePath);
+    const NativePath outputKey = CollisionKey(outputPath);
+    const NativePath temporaryKey = CollisionKey(temporary);
+    if (PathIsDirectory(outputPath))
+    {
+      return FailIsDirectory(outputPath);
+    }
+    if (PathIsDirectory(temporary))
+    {
+      return FailIsDirectory(temporary);
+    }
+    if (outputKey == inputKey)
+    {
+      return FailWouldOverwrite(outputPath, sourcePath);
+    }
+    if (temporaryKey == inputKey)
+    {
+      return FailWouldOverwrite(temporary, sourcePath);
+    }
+    if (outputKey == temporaryKey)
+    {
+      return FailSameFile(outputPath, temporary);
+    }
+
+    std::vector<unsigned char> source;
+    if (!loka::lrpc::ReadWholeFile(sourcePath, source))
+    {
+      return FailAt(LRPC_NATIVE_TEXT("cannot read package"), sourcePath);
+    }
+    std::vector<unsigned char> staged;
+    loka::lrpc::CorruptionSite site;
+    const std::size_t *bag = hasCorruptBag ? &corruptBag : 0;
+    const loka::lrpc::StagePackageResult result =
+        loka::lrpc::StagePackageBytes(source, bag, staged, site);
+    if (result != loka::lrpc::STAGE_PACKAGE_OK)
+    {
+      return Fail(StagePackageMessage(result));
+    }
+
+    if (!WriteNewFile(temporary,
+                      staged.empty() ? 0 : &staged[0],
+                      staged.size()))
+    {
+      return FailAt(LRPC_NATIVE_TEXT("cannot create package staging file"),
+                    temporary);
+    }
+    if (!CommitByRename(temporary, outputPath))
+    {
+      RemoveFile(temporary);
+      return FailAt(LRPC_NATIVE_TEXT("cannot commit staged package"), outputPath);
+    }
+    if (hasCorruptBag)
+    {
+      std::printf("lrpc: bag %lu payload [%lu, %lu), flipped offset %lu\n",
+                  static_cast<unsigned long>(corruptBag),
+                  static_cast<unsigned long>(site.payloadStart),
+                  static_cast<unsigned long>(site.payloadEnd),
+                  static_cast<unsigned long>(site.byteOffset));
+    }
+    return 0;
   }
 } // namespace
 
@@ -677,7 +833,15 @@ int wmain(int argc, wchar_t **argv)
 int main(int argc, char **argv)
 #endif
 {
-  if (argc < 2 || NativePath(argv[1]) != LRPC_NATIVE_TEXT("pack"))
+  if (argc < 2)
+  {
+    return Usage();
+  }
+  if (NativePath(argv[1]) == LRPC_NATIVE_TEXT("stage"))
+  {
+    return StageCommand(argc, argv);
+  }
+  if (NativePath(argv[1]) != LRPC_NATIVE_TEXT("pack"))
   {
     return Usage();
   }

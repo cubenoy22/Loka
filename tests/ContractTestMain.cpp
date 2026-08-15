@@ -16,6 +16,7 @@
 #include "SnapFormatTests.hpp"
 #include "ScenarioProfileTests.hpp"
 #include "LrpkFormatTests.hpp"
+#include "LrpkStagerTests.hpp"
 #include "PackManifestTests.hpp"
 #include "LrpcPathTests.hpp"
 #include "LrpkGoldenBytesTests.hpp"
