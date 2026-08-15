@@ -155,7 +155,7 @@ python3 scripts/rig/loka-rig.py run toolbox-maciix \
 
 The Toolbox adapter creates a detached checkout, configures and builds the
 Retro68 scenario applications, stages the finalized per-example rig-local
-goldens, runs the shared eight-scenario rail, and collects the eight PNGs plus both the presentation and
+goldens, runs the shared nine-scenario rail, and collects the nine PNGs plus both the presentation and
 common run manifests. Adapter failure retains the checkout for diagnosis;
 success removes it only after manifest finalization.
 

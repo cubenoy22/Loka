@@ -1,0 +1,29 @@
+loka_scenario_audit version=1 scenario=increment-summary-toggle
+step id=1 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=verify-initial-summary
+step id=2 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=increment-to-one
+step id=3 due_tick=32 tick=32 status=succeeded error_kind=0 error_code=0 name=verify-first-increment
+step id=4 due_tick=32 tick=32 status=succeeded error_kind=0 error_code=0 name=increment-to-two
+step id=5 due_tick=62 tick=62 status=succeeded error_kind=0 error_code=0 name=verify-second-increment
+step id=6 due_tick=62 tick=62 status=succeeded error_kind=0 error_code=0 name=hide-summary
+step id=7 due_tick=92 tick=92 status=succeeded error_kind=0 error_code=0 name=verify-summary-hidden
+step id=8 due_tick=92 tick=92 status=succeeded error_kind=0 error_code=0 name=show-summary
+step id=9 due_tick=122 tick=122 status=succeeded error_kind=0 error_code=0 name=verify-restored-summary
+step id=10 due_tick=122 tick=122 status=succeeded error_kind=0 error_code=0 name=capture-restored-summary
+crop_bottom	280
+crop_left	0
+crop_right	360
+crop_top	0
+dirty.flags	NONE
+dirty.mask	0
+format_version	1
+increment_count	2
+node	Tutorial.Step4.Summary
+scenario_version	1
+schema_version	1
+status	ok
+step	increment-summary-toggle
+summary_toggle_round_trip	true
+test	Tutorial
+text.value	Items: 2
+tick	122
+terminal status=succeeded

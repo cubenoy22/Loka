@@ -6,3 +6,4 @@ scrapbook refused-flip-keeps-page
 scrapbook open-text-page
 scrapbook open-text-page-refused
 helloworld toggle-action-probe
+tutorial increment-summary-toggle
