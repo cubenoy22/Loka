@@ -4,6 +4,7 @@
 #include "app/scene/projection/PlatformController.hpp"
 #include "ToolboxControlIdAllocator.hpp"
 #include "ToolboxEditControlLedger.hpp"
+#include "ToolboxEnabledChangeDispatch.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "app/scene/projection/NativeHandlePool.hpp"
 #include "core/State.hpp"
@@ -137,6 +138,8 @@ public:
 
 private:
   friend bool RegisterToolboxBuiltInSupport(ToolboxScenePlatformController &controller);
+  template <typename Sink, typename StateType>
+  friend class ToolboxEnabledStateBindingPath;
 
   struct ButtonHit
   {
@@ -188,12 +191,6 @@ private:
   struct TextBinding
   {
     loka::core::State<loka::core::String> *state;
-    ToolboxScenePlatformController *controller;
-  };
-
-  struct EnabledBinding
-  {
-    loka::core::State<bool> *state;
     ToolboxScenePlatformController *controller;
   };
 
@@ -276,8 +273,8 @@ private:
   std::vector<TextHit> textHits_;
   std::vector<loka::core::State<loka::core::String> *> boundTextStates_;
   std::vector<TextBinding *> textBindings_;
-  std::vector<loka::core::State<bool> *> boundEnabledStates_;
-  std::vector<EnabledBinding *> enabledBindings_;
+  ToolboxEnabledStateBindingPath<ToolboxScenePlatformController,
+                                 loka::core::State<bool> > enabledStateBindingPath_;
   bool inBatchUpdate_;
   bool pendingFullInvalidate_;
   loka::app::scene::NodeDirtyFlags pendingInvalidateFlags_;
@@ -310,7 +307,12 @@ private:
   bool hasLiveBinding(loka::core::State<loka::core::String> *text) const;
   bool hasLiveBinding(loka::core::State<bool> *enabled) const;
   void handleTextChanged(loka::core::State<loka::core::String> *text);
-  void handleEnabledChanged(loka::core::State<bool> *enabled);
+  bool applyEnabledChangeForKind(ToolboxEnabledControlKind kind,
+                                 loka::core::State<bool> *enabled);
+  bool enabledChangeDispatchReady() const
+  {
+    return this->window_ != 0;
+  }
   void beginBatchUpdate();
   void endBatchUpdate();
   void addPendingDirty(const Rect &rect);
@@ -355,7 +357,6 @@ private:
   void retireEditTextControl(loka::app::scene::NodeContext *ownerContext,
                              loka::app::scene::NativeLifetimeHint lifetimeHint);
   static void TextStateChangedThunk(void *userData);
-  static void EnabledStateChangedThunk(void *userData);
 
 public:
   void flushRetiredNativeHandles();

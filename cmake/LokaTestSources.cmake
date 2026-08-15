@@ -12,6 +12,7 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/platform/null/context/NullTextContext.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/NullLayoutTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ToolboxLayoutContractTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/ToolboxScenePlatformContractTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/NullTextLayoutTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/NullPlatformContractTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/LifecycleFactTests.cpp
