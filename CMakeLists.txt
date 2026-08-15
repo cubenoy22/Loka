@@ -29,6 +29,11 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
   set(LOKA_CLASSIC_MAC ON)
 endif()
 
+set(LOKA_MACOS OFF)
+if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+  set(LOKA_MACOS ON)
+endif()
+
 # Compact vs diagnostic Classic profile (#135). Compact (the default) ships
 # without the function-tick profiler and without the debug-stats dump chain;
 # the diagnostic profile keeps both plus MacsBug names. add_definitions so
@@ -96,7 +101,7 @@ if(LOKA_CLASSIC_MAC)
   add_subdirectory(apple/toolbox)
 endif()
 
-if(WIN32 OR (APPLE AND LOKA_ENABLE_APPLE) OR LOKA_CLASSIC_MAC)
+if(WIN32 OR (LOKA_MACOS AND LOKA_ENABLE_APPLE) OR LOKA_CLASSIC_MAC)
 add_subdirectory(example/HelloWorld)
 add_subdirectory(example/MineSweeper)
 add_subdirectory(example/SimpleViewer)
@@ -105,7 +110,9 @@ add_subdirectory(example/FloppyBird)
 add_subdirectory(example/Tutorial)
 endif()
 
-add_subdirectory(tests/toolbox)
+if(NOT IOS)
+  add_subdirectory(tests/toolbox)
+endif()
 
 # Linux/WSL headless tests.
 if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
