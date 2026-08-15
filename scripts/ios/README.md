@@ -53,10 +53,11 @@ preserved iPhone SDK and an old toolchain that can emit ARMv6 code; the modern
 generator above does not claim to provide either. The checked-in
 `legacy/build-armv6.sh` profile uses Xcode 3.2.6, its iPhoneOS 4.3 SDK, GCC 4.2,
 and deployment target 3.1. Its [legacy README](legacy/README.md) records the
-verified toolchain facts and the remaining provenance and runtime gaps. Do not
+verified toolchain facts and the remaining provenance gaps. Do not
 commit an SDK, installer, or device firmware.
 
 The direct UIKit application is `build-verified` as ARMv6 with C++98 /
 Objective-C 1 manual reference counting, exceptions disabled, and RTTI
-disabled. A launch on the physical iPod touch remains the separate
-`runtime-verified` acceptance point.
+disabled. It is also `runtime-verified` on a first-generation iPod touch
+running iPhone OS 3.1.3; the legacy README records the physical-device route
+and evidence separately from the build result.
