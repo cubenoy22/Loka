@@ -38,13 +38,7 @@ public:
 
   virtual void composeMenu(loka::app::MenuComposition &c)
   {
-    using namespace loka::app;
-    c.declare(AppMenu()                                 //
-              << MenuItem("About")                      //
-                     .actionType(MENU_ACTION_ABOUT_APP) //
-              << MenuSeparator()                        //
-              << MenuItem("Quit")                       //
-                     .actionType(MENU_ACTION_QUIT_APP));
+    tutorial::DeclareTutorialMenu(c);
   }
 };
 

@@ -3,5 +3,8 @@
 
 void testTutorialIncrementSummaryToggleDrivesUiCommands();
 void testTutorialIncrementSummaryToggleHoldsFinalSceneAndMatchesAudit();
+void testTutorialStandaloneMenuUsesExampleDeclaration();
+void testTutorialStandaloneFlowWritesExpectedAudit();
+void testTutorialStandaloneMountRefusalFailsClosed();
 
 #endif // LOKA_TESTS_TUTORIAL_SCENARIO_TESTS_HPP
