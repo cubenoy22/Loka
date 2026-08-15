@@ -43,7 +43,7 @@ namespace loka
               coordinates += ',';
             }
             char indexText[16];
-            std::sprintf(indexText, "%d", cellIndex);
+            ::snprintf(indexText, sizeof(indexText), "%d", cellIndex);
             coordinates += indexText;
             ++mineCount;
           }
