@@ -283,22 +283,31 @@ class ToolboxRigRun:
             "build.log",
             "configure",
         )
+        # Build the whole Retro68 preset: the preset owns the target set, so
+        # a new registered example never requires editing this list again.
         self._logged_run(
             (
                 "cmake",
                 "--build",
                 "--preset",
                 self.descriptor.build_profile,
-                "--target",
-                "LokaTestsToolbox68K_APPL",
-                "LokaHelloWorldTestsToolbox68K_APPL",
-                "LokaTutorialTestsToolbox68K_APPL",
-                "LokaMineSweeperTestsToolbox68K_APPL",
                 "--parallel",
                 "2",
             ),
             "build.log",
             "build",
+        )
+        # The scenario runner stages Scrapbook packages through the host lrpc
+        # tool; a fresh checkout must build it or the runner refuses.
+        self._logged_run(
+            ("cmake", "-S", "tools/lrpc", "-B", "build/host/lrpc"),
+            "build.log",
+            "configure-lrpc",
+        )
+        self._logged_run(
+            ("cmake", "--build", "build/host/lrpc", "--parallel", "2"),
+            "build.log",
+            "build-lrpc",
         )
 
     def run_runtime(self) -> None:
