@@ -179,7 +179,7 @@ namespace minesweeper
       content << Button("New Game", &this->newGameClick_)
                      .TEST_ID("MineSweeper.NewGameButton");
       Grid grid;
-      grid.rows(kRows).cols(kCols);
+      grid.rows(kRows).cols(kCols).TEST_ID("MineSweeper.Board");
       for (int i = 0; i < kCellCount; ++i)
       {
         // One owner-scope box per cell, and the cell's presentation

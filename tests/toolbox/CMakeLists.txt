@@ -16,6 +16,9 @@ set(LOKA_HELLO_WORLD_TESTS_TOOLBOX_TARGET
 set(LOKA_TUTORIAL_TESTS_TOOLBOX_TARGET
   "LokaTutorialTestsToolbox${LOKA_CLASSIC_TARGET_SUFFIX}"
 )
+set(LOKA_MINESWEEPER_TESTS_TOOLBOX_TARGET
+  "LokaMineSweeperTestsToolbox${LOKA_CLASSIC_TARGET_SUFFIX}"
+)
 
 function(loka_add_toolbox_test_application target core_target)
   add_application(${target} ${ARGN})
@@ -113,6 +116,33 @@ target_include_directories(${LOKA_TUTORIAL_TESTS_TOOLBOX_TARGET} PRIVATE
   ${CMAKE_SOURCE_DIR}/example/Tutorial/src
 )
 target_compile_definitions(${LOKA_TUTORIAL_TESTS_TOOLBOX_TARGET} PRIVATE
+  TEST_BUILD
+  LOKA_DIAG=1
+)
+
+set(LOKA_MINESWEEPER_TESTS_TOOLBOX_SOURCES
+  src/MineSweeperScenarioMain.cpp
+  src/MineSweeperScenarioDriver.cpp
+  src/ScenarioDriverSupport.cpp
+  ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/MineSweeperScenarios.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/MineSweeperSize.r
+)
+configure_file(
+  ${CMAKE_SOURCE_DIR}/example/MineSweeper/Size.r
+  ${CMAKE_CURRENT_BINARY_DIR}/MineSweeperSize.r
+  COPYONLY
+)
+loka_add_toolbox_test_application(
+  ${LOKA_MINESWEEPER_TESTS_TOOLBOX_TARGET}
+  LokaAppleToolboxTestCore
+  ${LOKA_MINESWEEPER_TESTS_TOOLBOX_SOURCES}
+)
+target_include_directories(${LOKA_MINESWEEPER_TESTS_TOOLBOX_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/example/MineSweeper/src
+)
+target_compile_definitions(${LOKA_MINESWEEPER_TESTS_TOOLBOX_TARGET} PRIVATE
   TEST_BUILD
   LOKA_DIAG=1
 )

@@ -122,11 +122,12 @@ host must satisfy that preset's toolchain requirements.
 | L2 Classic `ScrapbookUI` | `tests/toolbox/run-scenario.sh scrapbook flip-forward-back` — tracked expected audit plus settled rig-local pixel golden |
 | L2 Classic `HelloWorld` | `tests/toolbox/run-scenario.sh helloworld toggle-action-probe` — typed TEST_ID actions drive MainNode-owned Emitters; tracked expected audit plus settled rig-local pixel golden |
 | L2 Classic `Tutorial` | `tests/toolbox/run-scenario.sh tutorial increment-summary-toggle` — typed TEST_ID actions increment Step 4 twice, hide and restore its derived summary, and pin the full audit plus settled rig-local pixel golden; EditText remains outside Tutorial's runtime path ([#167](https://github.com/cubenoy22/Loka/issues/167)) |
+| L2 Classic `MineSweeper` | `tests/toolbox/run-scenario.sh minesweeper new-game-twice` — fixed caller-owned seed pins the initial board and both MainNode-owned New Game commands; tracked expected audit plus settled rig-local pixel golden |
 | Standalone Classic `Tutorial` | `LokaTutorialStandaloneFlow68K_APPL` presents the same typed scenario without host config; after target execution, `tests/toolbox/verify-standalone-audit.sh tutorial increment-summary-toggle <LOG.TXT>` byte-compares the complete durable audit |
 | L1/L2 Win32 | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
 | L1/L2 macOS | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
-| L1 Classic examples other than `ScrapbookUI`, `HelloWorld`, and `Tutorial` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
-| L2 Classic examples other than `ScrapbookUI`, `HelloWorld`, and `Tutorial` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
+| L1 Classic examples other than `ScrapbookUI` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
+| L2 Classic examples other than `ScrapbookUI`, `HelloWorld`, `Tutorial`, and `MineSweeper` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
 | L3 all OSes | n/a — manual by definition; record the rig/hardware and evidence in the selected matrix cell |
 
 The Classic scenario command requires an already configured local MAME rig,

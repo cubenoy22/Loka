@@ -74,6 +74,12 @@ case "$EXAMPLE" in
     TARGET="LokaTutorialTestsToolbox68K_APPL"
     FINDER_TAB_COUNT=3
     ;;
+  minesweeper)
+    APPL="$PROJECT_DIR/build/retro68/68k/Release/tests/toolbox/LokaMineSweeperTestsToolbox68K.bin"
+    TARGET="LokaMineSweeperTestsToolbox68K_APPL"
+    FINDER_TAB_COUNT=4
+    FINDER_SETTLE_TIMEOUT=120
+    ;;
   *)
     fail_stage mame "unsupported example '$EXAMPLE'"
     ;;
@@ -191,7 +197,13 @@ fi
 if [ -z "${LOKA_TAB_COUNT:-}" ]; then
   LOKA_TAB_COUNT="$FINDER_TAB_COUNT"
 fi
+if [ -z "${LOKA_SETTLE_TIMEOUT:-}" ] && [ -n "${FINDER_SETTLE_TIMEOUT:-}" ]; then
+  LOKA_SETTLE_TIMEOUT="$FINDER_SETTLE_TIMEOUT"
+fi
 export LOKA_TAB_COUNT
+if [ -n "${LOKA_SETTLE_TIMEOUT:-}" ]; then
+  export LOKA_SETTLE_TIMEOUT
+fi
 export LOKA_SNAP_LOG; LOKA_SNAP_LOG="$(winpath "$LAUNCH_LOG")"
 FORWARD="LOKA_SNAP_LOG:LOKA_TAB_COUNT"
 if [ -n "${LOKA_LAUNCH_WAIT:-}" ]; then
