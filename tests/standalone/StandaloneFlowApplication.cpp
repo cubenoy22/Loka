@@ -22,9 +22,9 @@ namespace loka
         return 1;
       }
       ScrapbookStandaloneFlowAppConfig config(platformContext.get());
-      if (!config.isValid())
+      if (config.exitCode() != 0)
       {
-        return 1;
+        return config.exitCode();
       }
       core::ScopedPtr<App> app(platformContext->createApp(&config, hInstance, nCmdShow));
       assert(app.get() && "App is required");
@@ -32,8 +32,9 @@ namespace loka
       {
         return 1;
       }
+      config.setApp(app.get());
       app->run();
-      return 0;
+      return config.exitCode();
     }
   } // namespace standalone_tests
 } // namespace loka

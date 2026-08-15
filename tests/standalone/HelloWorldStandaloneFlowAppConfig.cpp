@@ -2,17 +2,21 @@
 
 #include "../scenarios/ScenarioWindow.hpp"
 #include "StandaloneScenarioSupport.hpp"
+#include "app/core/App.hpp"
 #include "app/core/Window.hpp"
 
 namespace loka
 {
   namespace standalone_tests
   {
-    HelloWorldStandaloneFlowAppConfig::HelloWorldStandaloneFlowAppConfig(PlatformContext *context)
+    HelloWorldStandaloneFlowAppConfig::HelloWorldStandaloneFlowAppConfig(PlatformContext *context,
+                                                                         const platform::file::FileHandle *auditFile,
+                                                                         std::FILE *diagnostics)
         : MyAppConfig(context),
-          audit_(ResolveStandaloneAuditFile(), "toggle-action-probe"),
+          audit_(auditFile ? *auditFile : ResolveStandaloneAuditFile(), "toggle-action-probe"),
           scenario_(scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &this->audit_),
-          tick_(0)
+          borrowedMainNode_(0),
+          mountDeadline_("HelloWorld", diagnostics)
     {
     }
 
@@ -21,16 +25,21 @@ namespace loka
       this->scenario_.stop();
     }
 
-    bool HelloWorldStandaloneFlowAppConfig::isValid() const
+    int HelloWorldStandaloneFlowAppConfig::exitCode() const
     {
-      return this->audit_.isValid();
+      return this->audit_.isValid() && !this->mountDeadline_.failed() ? 0 : 1;
+    }
+
+    void HelloWorldStandaloneFlowAppConfig::setApp(App *app)
+    {
+      this->mountDeadline_.setApp(app);
     }
 
     void HelloWorldStandaloneFlowAppConfig::compose(AppComposition &composition)
     {
       composition << scenario_tests::MakeScenarioWindow<helloworld::MainProps, helloworld::MainNode>(
           helloworld::MainProps(),
-          0,
+          &this->borrowedMainNode_,
           420,
           300,
           "Loka HelloWorld Standalone Flow",
@@ -51,14 +60,22 @@ namespace loka
 
     void HelloWorldStandaloneFlowAppConfig::tick(Window *window)
     {
-      ++this->tick_;
+      const StandaloneMountDeadline::Advance mountAdvance = this->mountDeadline_.advance(this->borrowedMainNode_ != 0);
+      switch (mountAdvance)
+      {
+      case StandaloneMountDeadline::ADVANCE_WAITING:
+      case StandaloneMountDeadline::ADVANCE_FAILED:
+        return;
+      case StandaloneMountDeadline::ADVANCE_MOUNTED:
+        break;
+      }
       if (!window || !window->scene())
       {
         return;
       }
       dsl::SnapRecord record;
       const scenario_tests::ScenarioAdvance advance =
-          this->scenario_.step(this->tick_, window->scene(), StandaloneContentBounds(window), record);
+          this->scenario_.step(this->mountDeadline_.tick(), window->scene(), StandaloneContentBounds(window), record);
       switch (advance)
       {
       case scenario_tests::SCENARIO_ADVANCE_PENDING:

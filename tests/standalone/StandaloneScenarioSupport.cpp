@@ -1,5 +1,8 @@
 #include "StandaloneScenarioSupport.hpp"
 
+#include <cstdio>
+
+#include "app/core/App.hpp"
 #include "app/core/Window.hpp"
 #include "core/io/File.hpp"
 #include "platform/file/AppLocation.hpp"
@@ -34,6 +37,60 @@ namespace loka
         return platform::file::FileHandle();
       }
       return result;
+    }
+
+    StandaloneMountDeadline::StandaloneMountDeadline(const char *applicationName, std::FILE *diagnostics)
+        : borrowedApp_(0),
+          applicationName_(applicationName ? applicationName : "application"),
+          diagnostics_(diagnostics ? diagnostics : stderr),
+          tick_(0),
+          failed_(false)
+    {
+    }
+
+    void StandaloneMountDeadline::setApp(App *app)
+    {
+      this->borrowedApp_ = app;
+    }
+
+    StandaloneMountDeadline::Advance StandaloneMountDeadline::advance(bool mainNodeMounted)
+    {
+      if (this->failed_)
+      {
+        return ADVANCE_FAILED;
+      }
+      ++this->tick_;
+      if (mainNodeMounted)
+      {
+        return ADVANCE_MOUNTED;
+      }
+      if (this->tick_ < MOUNT_DEADLINE_TICKS)
+      {
+        return ADVANCE_WAITING;
+      }
+
+      this->failed_ = true;
+      std::fprintf(this->diagnostics_,
+                   "Loka %s standalone startup failed: "
+                   "MainNode was not mounted after %d idle ticks.\n",
+                   this->applicationName_,
+                   MOUNT_DEADLINE_TICKS);
+      std::fflush(this->diagnostics_);
+      if (this->borrowedApp_)
+      {
+        this->borrowedApp_->quit();
+      }
+      return ADVANCE_FAILED;
+    }
+
+    long StandaloneMountDeadline::tick() const
+    {
+      return this->tick_;
+    }
+
+    bool StandaloneMountDeadline::failed() const
+    {
+      return this->failed_;
     }
   } // namespace standalone_tests
 } // namespace loka

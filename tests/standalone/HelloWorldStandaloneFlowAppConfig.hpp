@@ -1,10 +1,15 @@
 #ifndef LOKA_TESTS_HELLO_WORLD_STANDALONE_FLOW_APP_CONFIG_HPP
 #define LOKA_TESTS_HELLO_WORLD_STANDALONE_FLOW_APP_CONFIG_HPP
 
+#include <cstdio>
+
 #include "../../example/HelloWorld/src/MyAppConfig.hpp"
 #include "../scenarios/HelloWorldScenarios.hpp"
+#include "platform/file/FileHandle.hpp"
+#include "StandaloneScenarioSupport.hpp"
 #include "testing/scene/ScenarioAudit.hpp"
 
+class App;
 class Window;
 
 namespace loka
@@ -15,10 +20,13 @@ namespace loka
     class HelloWorldStandaloneFlowAppConfig : public MyAppConfig
     {
     public:
-      explicit HelloWorldStandaloneFlowAppConfig(PlatformContext *context);
+      explicit HelloWorldStandaloneFlowAppConfig(PlatformContext *context,
+                                                 const platform::file::FileHandle *auditFile = 0,
+                                                 std::FILE *diagnostics = 0);
       virtual ~HelloWorldStandaloneFlowAppConfig();
 
-      bool isValid() const;
+      int exitCode() const;
+      void setApp(App *app);
       virtual void compose(AppComposition &composition);
 
     private:
@@ -27,7 +35,8 @@ namespace loka
 
       dsl::testing::ScenarioAuditFile audit_;
       scenario_tests::HelloWorldScenario scenario_;
-      long tick_;
+      helloworld::MainNode *borrowedMainNode_;
+      StandaloneMountDeadline mountDeadline_;
     };
   } // namespace standalone_tests
 } // namespace loka

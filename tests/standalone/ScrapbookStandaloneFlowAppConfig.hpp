@@ -1,10 +1,15 @@
 #ifndef LOKA_TESTS_SCRAPBOOK_STANDALONE_FLOW_APP_CONFIG_HPP
 #define LOKA_TESTS_SCRAPBOOK_STANDALONE_FLOW_APP_CONFIG_HPP
 
+#include <cstdio>
+
 #include "../../example/ScrapbookUI/src/MyAppConfig.hpp"
 #include "../scenarios/ScrapbookScenarios.hpp"
+#include "platform/file/FileHandle.hpp"
+#include "StandaloneScenarioSupport.hpp"
 #include "testing/scene/ScenarioAudit.hpp"
 
+class App;
 class Window;
 
 namespace loka
@@ -15,10 +20,13 @@ namespace loka
     class ScrapbookStandaloneFlowAppConfig : public ScrapbookAppConfig
     {
     public:
-      explicit ScrapbookStandaloneFlowAppConfig(PlatformContext *context);
+      explicit ScrapbookStandaloneFlowAppConfig(PlatformContext *context,
+                                                const platform::file::FileHandle *auditFile = 0,
+                                                std::FILE *diagnostics = 0);
       virtual ~ScrapbookStandaloneFlowAppConfig();
 
-      bool isValid() const;
+      int exitCode() const;
+      void setApp(App *app);
       virtual void compose(AppComposition &composition);
 
     private:
@@ -28,7 +36,7 @@ namespace loka
       dsl::testing::ScenarioAuditFile audit_;
       scenario_tests::ScrapbookScenario scenario_;
       scrapbook::MainNode *borrowedMainNode_;
-      long tick_;
+      StandaloneMountDeadline mountDeadline_;
     };
   } // namespace standalone_tests
 } // namespace loka
