@@ -1,0 +1,35 @@
+#ifndef LOKA_TESTS_HELLO_WORLD_STANDALONE_FLOW_APP_CONFIG_HPP
+#define LOKA_TESTS_HELLO_WORLD_STANDALONE_FLOW_APP_CONFIG_HPP
+
+#include "../../example/HelloWorld/src/MyAppConfig.hpp"
+#include "../scenarios/HelloWorldScenarios.hpp"
+#include "testing/scene/ScenarioAudit.hpp"
+
+class Window;
+
+namespace loka
+{
+  namespace standalone_tests
+  {
+    /** Owns HelloWorld's standalone presentation composition and scenario. */
+    class HelloWorldStandaloneFlowAppConfig : public MyAppConfig
+    {
+    public:
+      explicit HelloWorldStandaloneFlowAppConfig(PlatformContext *context);
+      virtual ~HelloWorldStandaloneFlowAppConfig();
+
+      bool isValid() const;
+      virtual void compose(AppComposition &composition);
+
+    private:
+      static void OnWindowIdle(Window *window, double elapsedSeconds, void *userData);
+      void tick(Window *window);
+
+      dsl::testing::ScenarioAuditFile audit_;
+      scenario_tests::HelloWorldScenario scenario_;
+      long tick_;
+    };
+  } // namespace standalone_tests
+} // namespace loka
+
+#endif // LOKA_TESTS_HELLO_WORLD_STANDALONE_FLOW_APP_CONFIG_HPP

@@ -1,7 +1,7 @@
 #ifndef LOKA_TESTS_STANDALONE_SCENARIO_SUPPORT_HPP
 #define LOKA_TESTS_STANDALONE_SCENARIO_SUPPORT_HPP
 
-#include "ScenarioTypes.hpp"
+#include "../scenarios/ScenarioTypes.hpp"
 #include "platform/file/FileHandle.hpp"
 
 class Window;

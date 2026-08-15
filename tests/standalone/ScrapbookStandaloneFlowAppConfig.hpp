@@ -1,0 +1,36 @@
+#ifndef LOKA_TESTS_SCRAPBOOK_STANDALONE_FLOW_APP_CONFIG_HPP
+#define LOKA_TESTS_SCRAPBOOK_STANDALONE_FLOW_APP_CONFIG_HPP
+
+#include "../../example/ScrapbookUI/src/MyAppConfig.hpp"
+#include "../scenarios/ScrapbookScenarios.hpp"
+#include "testing/scene/ScenarioAudit.hpp"
+
+class Window;
+
+namespace loka
+{
+  namespace standalone_tests
+  {
+    /** Owns Scrapbook's standalone presentation composition and scenario. */
+    class ScrapbookStandaloneFlowAppConfig : public ScrapbookAppConfig
+    {
+    public:
+      explicit ScrapbookStandaloneFlowAppConfig(PlatformContext *context);
+      virtual ~ScrapbookStandaloneFlowAppConfig();
+
+      bool isValid() const;
+      virtual void compose(AppComposition &composition);
+
+    private:
+      static void OnWindowIdle(Window *window, double elapsedSeconds, void *userData);
+      void tick(Window *window);
+
+      dsl::testing::ScenarioAuditFile audit_;
+      scenario_tests::ScrapbookScenario scenario_;
+      scrapbook::MainNode *borrowedMainNode_;
+      long tick_;
+    };
+  } // namespace standalone_tests
+} // namespace loka
+
+#endif // LOKA_TESTS_SCRAPBOOK_STANDALONE_FLOW_APP_CONFIG_HPP

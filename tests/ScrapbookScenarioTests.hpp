@@ -3,6 +3,7 @@
 
 void testScrapbookRigLaunchRequiresConfigAndRefusesStandaloneTour();
 void testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene();
+void testScrapbookStandaloneMenuMatchesExample();
 void testScenarioAuditFileWritesReadableRecords();
 
 #endif // LOKA_TESTS_SCRAPBOOK_SCENARIO_TESTS_HPP

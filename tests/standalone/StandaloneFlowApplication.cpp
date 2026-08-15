@@ -2,97 +2,16 @@
 
 #include <cassert>
 
-#include "MainNode.hpp"
-#include "ScenarioWindow.hpp"
-#include "ScrapbookScenarios.hpp"
-#include "StandaloneScenarioSupport.hpp"
+#include "ScrapbookStandaloneFlowAppConfig.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
 #include "app/core/App.hpp"
-#include "app/core/AppComposition.hpp"
-#include "app/core/AppConfigurable.hpp"
-#include "app/core/Window.hpp"
 #include "core/util/ScopedPtr.hpp"
-#include "testing/scene/ScenarioAudit.hpp"
 
 namespace loka
 {
   namespace standalone_tests
   {
-    namespace
-    {
-      class StandaloneFlowAppConfig : public AppConfigurable
-      {
-      public:
-        explicit StandaloneFlowAppConfig(PlatformContext *context)
-            : AppConfigurable(context),
-              audit_(ResolveStandaloneAuditFile(), "standalone-tour"),
-              scenario_(scenario_tests::ScenarioLaunchPlan::StandaloneTour(), &this->audit_),
-              borrowedMainNode_(0),
-              tick_(0)
-        {
-        }
-
-        virtual ~StandaloneFlowAppConfig()
-        {
-          this->scenario_.stop();
-        }
-
-        bool isValid() const
-        {
-          return this->audit_.isValid();
-        }
-
-        virtual void compose(AppComposition &composition)
-        {
-          composition << scenario_tests::MakeScenarioWindow<scrapbook::MainProps, scrapbook::MainNode>(
-              scrapbook::MainProps().platformContext(this->getPlatformContext()),
-              &this->borrowedMainNode_,
-              340,
-              250,
-              "Loka Scrapbook Standalone Flow",
-              app::IdlePolicy::interval(0.1),
-              &StandaloneFlowAppConfig::OnWindowIdle,
-              this);
-        }
-
-      private:
-        static void OnWindowIdle(Window *window, double elapsedSeconds, void *userData)
-        {
-          (void)elapsedSeconds;
-          StandaloneFlowAppConfig *self = static_cast<StandaloneFlowAppConfig *>(userData);
-          if (self)
-          {
-            self->tick(window);
-          }
-        }
-
-        void tick(Window *window)
-        {
-          ++this->tick_;
-          if (!window || !this->borrowedMainNode_)
-          {
-            return;
-          }
-          dsl::SnapRecord record;
-          const scenario_tests::ScenarioAdvance advance = this->scenario_.step(
-              this->tick_, window->scene(), *this->borrowedMainNode_, StandaloneContentBounds(window), record);
-          switch (advance)
-          {
-          case scenario_tests::SCENARIO_ADVANCE_PENDING:
-          case scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD:
-          case scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY:
-            return;
-          }
-        }
-
-        dsl::testing::ScenarioAuditFile audit_;
-        scenario_tests::ScrapbookScenario scenario_;
-        scrapbook::MainNode *borrowedMainNode_;
-        long tick_;
-      };
-    } // namespace
-
     int RunStandaloneFlowApplication(HINSTANCE hInstance, int nCmdShow)
     {
       platform::InitPlatformRuntime();
@@ -102,7 +21,7 @@ namespace loka
       {
         return 1;
       }
-      StandaloneFlowAppConfig config(platformContext.get());
+      ScrapbookStandaloneFlowAppConfig config(platformContext.get());
       if (!config.isValid())
       {
         return 1;

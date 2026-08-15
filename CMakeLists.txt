@@ -163,6 +163,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   add_executable(LokaContractTests
     ${PROJECT_SOURCE_DIR}/tests/ContractTestMain.cpp
     ${LOKA_CONTRACT_TEST_SOURCES}
+    ${PROJECT_SOURCE_DIR}/tests/standalone/ScrapbookStandaloneFlowAppConfig.cpp
+    ${PROJECT_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
   )
   loka_enable_warnings(LokaContractTests)
   target_include_directories(LokaContractTests PRIVATE
@@ -184,6 +186,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/HelloWorldScenarioTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/HelloWorldScenarios.cpp
+    ${PROJECT_SOURCE_DIR}/tests/standalone/HelloWorldStandaloneFlowAppConfig.cpp
+    ${PROJECT_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
     ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
   )
   loka_enable_warnings(LokaScenarioTests)

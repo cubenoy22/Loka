@@ -3,5 +3,6 @@
 
 void testHelloWorldToggleActionProbeDrivesOwnerCommands();
 void testHelloWorldToggleActionProbeHoldsFinalScene();
+void testHelloWorldStandaloneMenuMatchesExample();
 
 #endif // LOKA_TESTS_HELLO_WORLD_SCENARIO_TESTS_HPP

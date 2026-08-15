@@ -68,6 +68,7 @@ if(CMAKE_SOURCE_DIR STREQUAL LOKA_WIN32_REPOSITORY_ROOT)
   add_executable(LokaScrapbookStandaloneFlowWin32 WIN32 EXCLUDE_FROM_ALL
     ${CMAKE_CURRENT_SOURCE_DIR}/../tests/win32/StandaloneFlowMain.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../tests/standalone/StandaloneFlowApplication.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/standalone/ScrapbookStandaloneFlowAppConfig.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../tests/standalone/StandaloneScenarioSupport.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/ScenarioTypes.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/ScrapbookScenarios.cpp

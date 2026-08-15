@@ -3,6 +3,7 @@
 #include "support/TestVerify.hpp"
 
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -10,6 +11,8 @@
 #include "app/scene/Scene.hpp"
 #include "core/util/OwnedDef.hpp"
 #include "scenarios/HelloWorldScenarios.hpp"
+#include "standalone/HelloWorldStandaloneFlowAppConfig.hpp"
+#include "support/MenuPresentationVerify.hpp"
 #include "testing/scene/ScenarioAudit.hpp"
 
 namespace
@@ -139,4 +142,22 @@ void testHelloWorldToggleActionProbeHoldsFinalScene()
 
   scene.unmount();
   std::printf("testHelloWorldToggleActionProbeHoldsFinalScene passed\n");
+}
+
+void testHelloWorldStandaloneMenuMatchesExample()
+{
+  MyAppConfig example(0);
+  loka::standalone_tests::HelloWorldStandaloneFlowAppConfig standalone(0);
+  loka::app::MenuBarDefinition exampleMenu;
+  loka::app::MenuBarDefinition standaloneMenu;
+
+  std::srand(1);
+  loka::testing::ComposeMenuBar(example, exampleMenu);
+  std::srand(1);
+  loka::testing::ComposeMenuBar(standalone, standaloneMenu);
+
+  LOKA_VERIFY(!exampleMenu.empty());
+  LOKA_VERIFY(loka::testing::MenuPresentationsEqual(exampleMenu, standaloneMenu));
+
+  std::printf("testHelloWorldStandaloneMenuMatchesExample passed\n");
 }

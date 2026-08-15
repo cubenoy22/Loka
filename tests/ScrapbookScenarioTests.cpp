@@ -17,6 +17,8 @@
 #include "platform/null/NullScenePlatformController.hpp"
 #include "platform/file/FileHandle.hpp"
 #include "scenarios/ScrapbookScenarios.hpp"
+#include "standalone/ScrapbookStandaloneFlowAppConfig.hpp"
+#include "support/MenuPresentationVerify.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 #include "testing/scene/ScenarioAudit.hpp"
 
@@ -347,4 +349,20 @@ void testScenarioAuditFileWritesReadableRecords()
                          "terminal status=failed\n");
 
   std::printf("testScenarioAuditFileWritesReadableRecords passed\n");
+}
+
+void testScrapbookStandaloneMenuMatchesExample()
+{
+  ScrapbookAppConfig example(0);
+  loka::standalone_tests::ScrapbookStandaloneFlowAppConfig standalone(0);
+  loka::app::MenuBarDefinition exampleMenu;
+  loka::app::MenuBarDefinition standaloneMenu;
+
+  loka::testing::ComposeMenuBar(example, exampleMenu);
+  loka::testing::ComposeMenuBar(standalone, standaloneMenu);
+
+  LOKA_VERIFY(!exampleMenu.empty());
+  LOKA_VERIFY(loka::testing::MenuPresentationsEqual(exampleMenu, standaloneMenu));
+
+  std::printf("testScrapbookStandaloneMenuMatchesExample passed\n");
 }

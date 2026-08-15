@@ -99,6 +99,7 @@ set(LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_TARGET
 set(LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_SOURCES
   src/HelloWorldStandaloneFlowMain.cpp
   ${CMAKE_SOURCE_DIR}/tests/standalone/HelloWorldStandaloneFlowApplication.cpp
+  ${CMAKE_SOURCE_DIR}/tests/standalone/HelloWorldStandaloneFlowAppConfig.cpp
   ${CMAKE_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
   ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
@@ -109,6 +110,7 @@ set(LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_SOURCES
 set(LOKA_STANDALONE_FLOW_TOOLBOX_SOURCES
   src/StandaloneFlowMain.cpp
   ${CMAKE_SOURCE_DIR}/tests/standalone/StandaloneFlowApplication.cpp
+  ${CMAKE_SOURCE_DIR}/tests/standalone/ScrapbookStandaloneFlowAppConfig.cpp
   ${CMAKE_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
   ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
