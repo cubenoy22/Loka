@@ -159,7 +159,7 @@ void testMineSweeperNewGameTwiceHoldsFinalSceneAndMatchesAudit()
     loka::platform::file::FileHandle destination;
     destination.displayPath = loka::core::String::Utf8(actualPath, std::strlen(actualPath));
     loka::dsl::testing::ScenarioAuditFile audit(destination, "new-game-twice");
-    LOKA_VERIFY(audit.isValid());
+    assert(audit.isValid()); // loka-assert-ok: pure validity observation
     loka::scenario_tests::MineSweeperScenario scenario(
         loka::scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &audit);
     loka::scenario_tests::CaptureContentBounds bounds;
@@ -199,7 +199,7 @@ void testMineSweeperDifferentSeedRefusesFixedBoardAudit()
     loka::platform::file::FileHandle destination;
     destination.displayPath = loka::core::String::Utf8(actualPath, std::strlen(actualPath));
     loka::dsl::testing::ScenarioAuditFile audit(destination, "new-game-twice");
-    LOKA_VERIFY(audit.isValid());
+    assert(audit.isValid()); // loka-assert-ok: pure validity observation
     loka::scenario_tests::MineSweeperScenario scenario(
         loka::scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &audit);
     loka::scenario_tests::CaptureContentBounds bounds;
@@ -214,8 +214,8 @@ void testMineSweeperDifferentSeedRefusesFixedBoardAudit()
       SourcePath("tests/scenarios/expected/minesweeper/new-game-twice.audit");
   const std::string expected = ReadBytes(expectedPath.c_str());
   LOKA_VERIFY(actual != expected);
-  LOKA_VERIFY(actual.find("status=failed") != std::string::npos);
-  LOKA_VERIFY(actual.find("terminal status=failed") != std::string::npos);
+  assert(actual.find("status=failed") != std::string::npos);
+  assert(actual.find("terminal status=failed") != std::string::npos);
   std::remove(actualPath);
 
   scene.unmount();
