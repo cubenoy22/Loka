@@ -33,6 +33,7 @@
 #include "app/layout/LayoutHeuristics.hpp"
 #include "context/ToolboxProjectedNodeContext.hpp"
 #include "context/ToolboxPopupMenuContext.hpp"
+#include "ToolboxPopupSelectionInput.hpp"
 #include "context/ToolboxButtonContext.hpp"
 #include "context/ToolboxCellContext.hpp"
 #include "context/ToolboxEditTextContext.hpp"
@@ -1668,11 +1669,11 @@ void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
   }
   beginBatchUpdate();
   addPendingDirty(rect);
-  mutableIndex->set(newIndex, true);
-  if (onChange)
-  {
-    onChange->emit();
-  }
+  PublishToolboxPopupSelection(
+      window_ ? window_->getTracker() : 0,
+      *mutableIndex,
+      onChange,
+      newIndex);
   endBatchUpdate();
 }
 
