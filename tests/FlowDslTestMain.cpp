@@ -28,6 +28,7 @@
 #include "ScrapbookNavigationTests.hpp"
 #include "ScrapbookPackageTests.hpp"
 #include "ScrapbookScenarioTests.hpp"
+#include "HelloWorldScenarioTests.hpp"
 #include "BlobRangeTests.hpp"
 #include "PictParserTests.hpp"
 #include "SceneTests.hpp"

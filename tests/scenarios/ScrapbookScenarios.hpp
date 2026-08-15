@@ -4,6 +4,7 @@
 #include <string>
 
 #include "testing/snap/SnapFormat.hpp"
+#include "ScenarioTypes.hpp"
 
 #ifdef TEST_BUILD
 #include "app/scene/state/FlowSlot.hpp"
@@ -27,19 +28,6 @@ namespace loka
 
   namespace scenario_tests
   {
-    enum ScenarioCompletionPolicy
-    {
-      SCENARIO_COMPLETION_DRIVER_OWNED = 0,
-      SCENARIO_COMPLETION_HOLD_FINAL_SCENE
-    };
-
-    enum ScenarioAdvance
-    {
-      SCENARIO_ADVANCE_PENDING = 0,
-      SCENARIO_ADVANCE_DRIVER_COMPLETION_READY,
-      SCENARIO_ADVANCE_FINAL_SCENE_HELD
-    };
-
     /** Immutable selection and terminal ownership for one scenario run. */
     class ScenarioLaunchPlan
     {
@@ -72,25 +60,6 @@ namespace loka
     bool QueryRigLaunchPlan(bool configLoaded,
                             const dsl::SnapTestConfig::Settings &settings,
                             ScenarioLaunchPlan &out);
-
-    /** Half-open content rectangle in the captured content's local coordinates. */
-    struct CaptureContentBounds
-    {
-      CaptureContentBounds()
-          : available(false),
-            left(0),
-            top(0),
-            right(0),
-            bottom(0)
-      {
-      }
-
-      bool available;
-      long left;
-      long top;
-      long right;
-      long bottom;
-    };
 
     /** Owns one step-driven scenario's observations between idle ticks. */
     class ScrapbookScenario
