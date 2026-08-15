@@ -162,6 +162,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/standalone/HelloWorldStandaloneFlowAppConfig\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/TutorialScenarioTests\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/TutorialScenarios\\.cpp$")
+  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/standalone/TutorialStandaloneFlowAppConfig\\.cpp$")
 
   add_executable(LokaContractTests
     ${PROJECT_SOURCE_DIR}/tests/ContractTestMain.cpp
@@ -189,7 +190,9 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/scenarios/HelloWorldScenarios.cpp
     ${PROJECT_SOURCE_DIR}/tests/TutorialScenarioTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/TutorialScenarios.cpp
+    ${PROJECT_SOURCE_DIR}/tests/standalone/TutorialStandaloneFlowAppConfig.cpp
     ${PROJECT_SOURCE_DIR}/tests/platform/null/NullScenePlatformController.cpp
+    ${PROJECT_SOURCE_DIR}/tests/platform/null/NullPlatformContext.cpp
     ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullButtonContext.cpp
     ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullEditTextContext.cpp
     ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullScrollBarContext.cpp
@@ -301,6 +304,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/ToolboxPresentationRailTest.sh)
     add_test(NAME scriptToolboxScenarioRunner
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/ToolboxScenarioRunnerTest.sh)
+    add_test(NAME scriptToolboxStandaloneAuditVerifier
+      COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/ToolboxStandaloneAuditVerifierTest.sh)
     add_test(NAME scriptMacOSScenarioRunner
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MacOSScenarioRunnerTest.sh)
     add_test(NAME scriptBuild104Guard

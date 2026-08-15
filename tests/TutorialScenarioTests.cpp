@@ -10,10 +10,18 @@
 
 #include "../example/Tutorial/src/Step4Node.hpp"
 #include "app/scene/Scene.hpp"
+#include "app/core/AppComposition.hpp"
+#include "app/core/Window.hpp"
 #include "core/util/OwnedDef.hpp"
 #include "platform/file/FileHandle.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
+#include "platform/null/NullApp.hpp"
+#include "platform/null/NullPlatformContext.hpp"
 #include "scenarios/TutorialScenarios.hpp"
+#include "scenarios/ObservedMainDefinition.hpp"
+#include "standalone/TutorialStandaloneFlowAppConfig.hpp"
+#include "support/MenuPresentationVerify.hpp"
+#include "support/StandaloneMountTestSupport.hpp"
 #include "testing/scene/ScenarioAudit.hpp"
 
 namespace
@@ -188,4 +196,119 @@ void testTutorialIncrementSummaryToggleHoldsFinalSceneAndMatchesAudit()
 
   scene.unmount();
   std::printf("testTutorialIncrementSummaryToggleHoldsFinalSceneAndMatchesAudit passed\n");
+}
+
+void testTutorialStandaloneMenuUsesExampleDeclaration()
+{
+  const char *auditPath = "_loka_tutorial_standalone_menu.audit";
+  std::remove(auditPath);
+  {
+    loka::platform::file::FileHandle auditFile;
+    auditFile.displayPath = loka::core::String::Literal(auditPath);
+    loka::standalone_tests::TutorialStandaloneFlowAppConfig standalone(0, &auditFile);
+    loka::app::MenuBarDefinition expectedMenu;
+    loka::app::MenuComposition expectedComposition(&expectedMenu);
+    tutorial::DeclareTutorialMenu(expectedComposition);
+    expectedComposition.finish();
+    loka::app::MenuBarDefinition standaloneMenu;
+    loka::testing::ComposeMenuBar(standalone, standaloneMenu);
+
+    LOKA_VERIFY(!expectedMenu.empty());
+    LOKA_VERIFY(loka::testing::MenuPresentationsEqual(expectedMenu, standaloneMenu));
+  }
+  std::remove(auditPath);
+  std::printf("testTutorialStandaloneMenuUsesExampleDeclaration passed\n");
+}
+
+void testTutorialStandaloneFlowWritesExpectedAudit()
+{
+  const char *actualPath = "_loka_tutorial_standalone_flow.audit";
+  std::remove(actualPath);
+  {
+    loka::platform::file::FileHandle auditFile;
+    auditFile.displayPath = loka::core::String::Literal(actualPath);
+    NullPlatformContext context;
+    loka::standalone_tests::TutorialStandaloneFlowAppConfig config(&context, &auditFile);
+    NullApp app(&config);
+    config.setApp(&app);
+
+    AppComposition composition(&context);
+    config.compose(composition);
+    std::vector<AppComponent *> components = composition.build();
+    LOKA_VERIFY(components.size() == 1);
+    Window *window = components[0] ? components[0]->asWindow() : 0;
+    LOKA_VERIFY(window != 0);
+    LOKA_VERIFY(window->scene() != 0);
+    for (int tick = 0; tick < 125; ++tick)
+    {
+      LOKA_VERIFY(window->handleIdle(0.1));
+    }
+    LOKA_VERIFY(config.exitCode() == 0);
+    LOKA_VERIFY(!app.quitRequested());
+
+    for (std::size_t i = 0; i < components.size(); ++i)
+    {
+      delete components[i];
+    }
+  }
+
+  const std::string actual = ReadBytes(actualPath);
+  const std::string expectedPath =
+      SourcePath("tests/scenarios/expected/tutorial/increment-summary-toggle.audit");
+  const std::string expected = ReadBytes(expectedPath.c_str());
+  LOKA_VERIFY(actual == expected);
+  std::remove(actualPath);
+  std::printf("testTutorialStandaloneFlowWritesExpectedAudit passed\n");
+}
+
+void testTutorialStandaloneMountRefusalFailsClosed()
+{
+  const char *auditPath = "_loka_tutorial_standalone_mount_refusal.audit";
+  std::remove(auditPath);
+  std::FILE *diagnostics = std::tmpfile();
+  LOKA_VERIFY(diagnostics != 0);
+
+  {
+    loka::platform::file::FileHandle auditFile;
+    auditFile.displayPath = loka::core::String::Literal(auditPath);
+    loka::testing::StandaloneMountTestPlatformContext context;
+    loka::standalone_tests::TutorialStandaloneFlowAppConfig config(&context, &auditFile, diagnostics);
+    NullApp app(&config);
+    config.setApp(&app);
+
+    loka::scenario_tests::testing::failObservedMainDefinitionClones(1);
+    AppComposition composition(&context);
+    config.compose(composition);
+    std::vector<AppComponent *> components = composition.build();
+    loka::scenario_tests::testing::allowObservedMainDefinitionClones();
+
+    LOKA_VERIFY(components.size() == 1);
+    Window *window = components[0] ? components[0]->asWindow() : 0;
+    LOKA_VERIFY(window != 0);
+    LOKA_VERIFY(window->scene() == 0);
+    for (int tick = 0; tick < 8; ++tick)
+    {
+      LOKA_VERIFY(window->handleIdle(0.1));
+    }
+
+    LOKA_VERIFY(app.quitRequested());
+    LOKA_VERIFY(config.exitCode() != 0);
+    LOKA_VERIFY(std::fflush(diagnostics) == 0);
+    LOKA_VERIFY(std::fseek(diagnostics, 0, SEEK_SET) == 0);
+    char buffer[256];
+    const std::size_t count = std::fread(buffer, 1, sizeof(buffer), diagnostics);
+    const std::string output(buffer, count);
+    LOKA_VERIFY(output
+                == "Loka Tutorial standalone startup failed: "
+                   "MainNode was not mounted after 5 idle ticks.\n");
+
+    for (std::size_t i = 0; i < components.size(); ++i)
+    {
+      delete components[i];
+    }
+  }
+
+  LOKA_VERIFY(std::fclose(diagnostics) == 0);
+  std::remove(auditPath);
+  std::printf("testTutorialStandaloneMountRefusalFailsClosed passed\n");
 }

@@ -107,6 +107,38 @@ disk after Classic Mac OS boots. This is a human-facing presentation path; the
 config-required `tests/toolbox/run-scenario.sh helloworld toggle-action-probe`
 command remains the machine verdict.
 
+After copying the application-side `LOG.TXT` back to the host, verify the
+complete durable audit (all step terminals plus the embedded verdict) with:
+
+```sh
+tests/toolbox/verify-standalone-audit.sh \
+  helloworld toggle-action-probe <path-to-LOG.TXT>
+```
+
+### Tutorial standalone Flow
+
+The TEST-only `LokaTutorialStandaloneFlow68K_APPL` target presents Tutorial
+Step 4 through the same typed `increment-summary-toggle` scenario used by the
+machine-verdict rail. It increments the derived item summary twice, hides it,
+proves that the conditional node left the scene, restores it, and holds the
+final `Items: 2` scene until the user quits. It exercises no EditText path;
+[#167](https://github.com/cubenoy22/Loka/issues/167) remains untouched.
+
+In VS Code, run **Build & Start in MAME via SCSI: Tutorial Standalone Flow**.
+The task builds the excluded APPL target, puts its MacBinary on `LokaDev`, and
+starts MAME. Open `LokaTutorialStandaloneFlow68K` after Classic Mac OS boots.
+The application writes `LOG.TXT` beside itself. After copying that file back
+to the host, require a byte-for-byte match with the tracked full audit:
+
+```sh
+tests/toolbox/verify-standalone-audit.sh \
+  tutorial increment-summary-toggle <path-to-LOG.TXT>
+```
+
+This is a human-facing presentation path. The config-required
+`tests/toolbox/run-scenario.sh tutorial increment-summary-toggle` command
+remains the automated machine verdict and settled-pixel rail.
+
 ## Floppy workflow
 
 Run `MAME: Start` once, then use `MAME: Mount .dsk (pick app)` or one of the
