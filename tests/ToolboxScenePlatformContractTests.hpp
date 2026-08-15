@@ -2,5 +2,6 @@
 #define LOKA_TESTS_TOOLBOX_SCENE_PLATFORM_CONTRACT_TESTS_HPP
 
 void testToolboxEnabledChangeUpdatesEveryMatchingControlKind();
+void testToolboxPopupSelectionWriteUsesTrackerTransaction();
 
 #endif // LOKA_TESTS_TOOLBOX_SCENE_PLATFORM_CONTRACT_TESTS_HPP
