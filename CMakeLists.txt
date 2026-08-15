@@ -165,6 +165,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/standalone/TutorialStandaloneFlowAppConfig\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/MineSweeperScenarioTests\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/MineSweeperScenarios\\.cpp$")
+  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/standalone/MineSweeperStandaloneFlowAppConfig\\.cpp$")
 
   add_executable(LokaContractTests
     ${PROJECT_SOURCE_DIR}/tests/ContractTestMain.cpp
@@ -195,6 +196,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/standalone/TutorialStandaloneFlowAppConfig.cpp
     ${PROJECT_SOURCE_DIR}/tests/MineSweeperScenarioTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/MineSweeperScenarios.cpp
+    ${PROJECT_SOURCE_DIR}/tests/standalone/MineSweeperStandaloneFlowAppConfig.cpp
     ${PROJECT_SOURCE_DIR}/tests/platform/null/NullScenePlatformController.cpp
     ${PROJECT_SOURCE_DIR}/tests/platform/null/NullPlatformContext.cpp
     ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullButtonContext.cpp

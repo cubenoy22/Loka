@@ -139,6 +139,33 @@ This is a human-facing presentation path. The config-required
 `tests/toolbox/run-scenario.sh tutorial increment-summary-toggle` command
 remains the automated machine verdict and settled-pixel rail.
 
+### MineSweeper standalone Flow
+
+The TEST-only `LokaMineStandaloneFlow68K_APPL` target presents the same typed
+`new-game-twice` scenario used by the machine-verdict rail. Its fixed
+caller-owned seed makes the initial board and both New Game results stable by
+design; the shipping MineSweeper applications continue to derive their seed
+from the clock. The presentation holds the third board until the user quits.
+
+In VS Code, run **Build & Start in MAME via SCSI: MineSweeper Standalone
+Flow**. The task builds the excluded APPL target, puts its MacBinary on
+`LokaDev`, and starts MAME. Open `LokaMineStandaloneFlow68K` after Classic Mac
+OS boots. The application writes `LOG.TXT` beside itself. After copying that
+file back to the host, require a byte-for-byte match with the tracked audit:
+
+```sh
+tests/toolbox/verify-standalone-audit.sh \
+  minesweeper new-game-twice <path-to-LOG.TXT>
+```
+
+This is a human-facing presentation path. The config-required
+`tests/toolbox/run-scenario.sh minesweeper new-game-twice` command remains the
+automated machine verdict and settled-pixel rail.
+
+The MineSweeper runner owns a 120-emulated-second settle deadline because the
+scenario deliberately projects two complete 64-cell replacement boards on a
+68030-class guest. Callers do not need a `LOKA_SETTLE_TIMEOUT` override.
+
 ## Floppy workflow
 
 Run `MAME: Start` once, then use `MAME: Mount .dsk (pick app)` or one of the

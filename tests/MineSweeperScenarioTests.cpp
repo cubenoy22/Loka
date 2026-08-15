@@ -14,6 +14,13 @@
 #include "platform/file/FileHandle.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
 #include "scenarios/MineSweeperScenarios.hpp"
+#include "standalone/MineSweeperStandaloneFlowAppConfig.hpp"
+#include "support/StandaloneMountTestSupport.hpp"
+#include "platform/null/NullApp.hpp"
+#include "platform/null/NullPlatformContext.hpp"
+#include "app/core/AppComposition.hpp"
+#include "app/core/Window.hpp"
+#include "scenarios/ObservedMainDefinition.hpp"
 #include "testing/scene/ScenarioAudit.hpp"
 
 namespace
@@ -220,4 +227,97 @@ void testMineSweeperDifferentSeedRefusesFixedBoardAudit()
 
   scene.unmount();
   std::printf("testMineSweeperDifferentSeedRefusesFixedBoardAudit passed\n");
+}
+
+void testMineSweeperStandaloneFlowWritesExpectedAudit()
+{
+  const char *actualPath = "_loka_minesweeper_standalone_flow.audit";
+  std::remove(actualPath);
+  {
+    loka::platform::file::FileHandle auditFile;
+    auditFile.displayPath = loka::core::String::Literal(actualPath);
+    NullPlatformContext context;
+    loka::standalone_tests::MineSweeperStandaloneFlowAppConfig config(&context, &auditFile);
+    NullApp app(&config);
+    config.setApp(&app);
+
+    AppComposition composition(&context);
+    config.compose(composition);
+    std::vector<AppComponent *> components = composition.build();
+    LOKA_VERIFY(components.size() == 1);
+    Window *window = components[0] ? components[0]->asWindow() : 0;
+    LOKA_VERIFY(window != 0);
+    LOKA_VERIFY(window->scene() != 0);
+    for (int tick = 0; tick < 65; ++tick)
+    {
+      LOKA_VERIFY(window->handleIdle(0.1));
+    }
+    LOKA_VERIFY(config.exitCode() == 0);
+    LOKA_VERIFY(!app.quitRequested());
+
+    for (std::size_t i = 0; i < components.size(); ++i)
+    {
+      delete components[i];
+    }
+  }
+
+  const std::string actual = ReadBytes(actualPath);
+  const std::string expectedPath =
+      SourcePath("tests/scenarios/expected/minesweeper/new-game-twice.audit");
+  const std::string expected = ReadBytes(expectedPath.c_str());
+  LOKA_VERIFY(actual == expected);
+  std::remove(actualPath);
+  std::printf("testMineSweeperStandaloneFlowWritesExpectedAudit passed\n");
+}
+
+void testMineSweeperStandaloneMountRefusalFailsClosed()
+{
+  const char *auditPath = "_loka_minesweeper_standalone_mount_refusal.audit";
+  std::remove(auditPath);
+  std::FILE *diagnostics = std::tmpfile();
+  LOKA_VERIFY(diagnostics != 0);
+
+  {
+    loka::platform::file::FileHandle auditFile;
+    auditFile.displayPath = loka::core::String::Literal(auditPath);
+    loka::testing::StandaloneMountTestPlatformContext context;
+    loka::standalone_tests::MineSweeperStandaloneFlowAppConfig config(&context, &auditFile, diagnostics);
+    NullApp app(&config);
+    config.setApp(&app);
+
+    loka::scenario_tests::testing::failObservedMainDefinitionClones(1);
+    AppComposition composition(&context);
+    config.compose(composition);
+    std::vector<AppComponent *> components = composition.build();
+    loka::scenario_tests::testing::allowObservedMainDefinitionClones();
+
+    LOKA_VERIFY(components.size() == 1);
+    Window *window = components[0] ? components[0]->asWindow() : 0;
+    LOKA_VERIFY(window != 0);
+    LOKA_VERIFY(window->scene() == 0);
+    for (int tick = 0; tick < 8; ++tick)
+    {
+      LOKA_VERIFY(window->handleIdle(0.1));
+    }
+
+    LOKA_VERIFY(app.quitRequested());
+    LOKA_VERIFY(config.exitCode() != 0);
+    LOKA_VERIFY(std::fflush(diagnostics) == 0);
+    LOKA_VERIFY(std::fseek(diagnostics, 0, SEEK_SET) == 0);
+    char buffer[256];
+    const std::size_t count = std::fread(buffer, 1, sizeof(buffer), diagnostics);
+    const std::string output(buffer, count);
+    LOKA_VERIFY(output
+                == "Loka MineSweeper standalone startup failed: "
+                   "MainNode was not mounted after 5 idle ticks.\n");
+
+    for (std::size_t i = 0; i < components.size(); ++i)
+    {
+      delete components[i];
+    }
+  }
+
+  LOKA_VERIFY(std::fclose(diagnostics) == 0);
+  std::remove(auditPath);
+  std::printf("testMineSweeperStandaloneMountRefusalFailsClosed passed\n");
 }
