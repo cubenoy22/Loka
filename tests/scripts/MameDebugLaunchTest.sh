@@ -50,6 +50,7 @@ EOF
 
 cat >"$SANDBOX/fake-mame" <<'EOF'
 #!/usr/bin/env bash
+printf '%s\n' "$@" > "$SANDBOX/mame.argv"
 printf '%s\n' "$$" > "$SANDBOX/mame.pid"
 exec /bin/sleep 300
 EOF
@@ -142,6 +143,19 @@ run_case() {
   assert_mame_dead "$case_name"
 }
 
+# The gdbstub bind address travels as an adjacent "-debugger_host <value>"
+# pair in the emulator argv; newer MAME defaults it to the loopback, which
+# only a same-host debugger can reach.
+assert_stub_host() {
+  local case_name="$1"
+  local expected="$2"
+  [ -f "$SANDBOX/mame.argv" ] ||
+    fail "$case_name" "fake MAME did not record its argv"
+  grep -A1 -Fx -- '-debugger_host' "$SANDBOX/mame.argv" | tail -1 |
+    grep -Fxq -- "$expected" ||
+    fail "$case_name" "expected -debugger_host $expected in the emulator argv"
+}
+
 run_case reap-on-quit 0 0 yes
 assert_argv \
   reap-on-quit \
@@ -149,7 +163,18 @@ assert_argv \
   -q \
   -x \
   "$SANDBOX/scripts/mame-attach.gdb"
+# Outside WSL the loopback default stays: same host, nothing was broken.
+assert_stub_host reap-on-quit 127.0.0.1
 pass reap-on-quit
+
+run_case \
+  stub-host-override \
+  0 \
+  0 \
+  yes \
+  "MAME_DEBUG_HOST=10.9.8.7"
+assert_stub_host stub-host-override 10.9.8.7
+pass stub-host-override
 
 run_case reap-on-gdb-failure 3 3 yes
 pass reap-on-gdb-failure
