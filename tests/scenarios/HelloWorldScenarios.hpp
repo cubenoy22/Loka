@@ -11,7 +11,7 @@ namespace loka
 {
   namespace scenario_tests
   {
-    /** Returns whether name selects HelloWorld's typed owner-command probe. */
+    /** Returns whether name selects a registered HelloWorld scenario. */
     bool IsHelloWorldScenario(const std::string &name);
 
     /** Drives HelloWorld through its rendered Buttons so their MainNode-owned
@@ -21,6 +21,9 @@ namespace loka
     public:
       explicit HelloWorldScenario(ScenarioCompletionPolicy completionPolicy,
                                   dsl::testing::ScenarioAuditSink *audit = 0);
+      HelloWorldScenario(const std::string &name,
+                         ScenarioCompletionPolicy completionPolicy,
+                         dsl::testing::ScenarioAuditSink *audit = 0);
 
       ScenarioAdvance
       step(long tick, app::scene::Scene *scene, const CaptureContentBounds &bounds, dsl::SnapRecord &out);
@@ -30,12 +33,12 @@ namespace loka
       void stop();
 
     private:
-      typedef dsl::FlowChain<app::scene::Scene *, dsl::SnapRecord> ToggleActionProbeFlowChain;
+      typedef dsl::FlowChain<app::scene::Scene *, dsl::SnapRecord> ScenarioFlowChain;
 
-      class ToggleActionProbeState
+      class ScenarioState
       {
       public:
-        explicit ToggleActionProbeState(dsl::testing::ScenarioAuditSink *audit);
+        ScenarioState(const std::string &name, dsl::testing::ScenarioAuditSink *audit);
 
         dsl::FlowRunResult run(long tick, app::scene::Scene *scene);
         void stop();
@@ -45,17 +48,17 @@ namespace loka
         dsl::testing::ScenarioClock clock_;
         app::scene::Scene *scene_;
         dsl::SnapRecord record_;
-        app::scene::FlowSlot<ToggleActionProbeFlowChain> flow_;
+        app::scene::FlowSlot<ScenarioFlowChain> flow_;
 
-        ToggleActionProbeState(const ToggleActionProbeState &);
-        ToggleActionProbeState &operator=(const ToggleActionProbeState &);
+        ScenarioState(const ScenarioState &);
+        ScenarioState &operator=(const ScenarioState &);
       };
 
       const std::string name_;
       const ScenarioCompletionPolicy completionPolicy_;
       ScenarioAdvance terminalState_;
       dsl::testing::scenario_audit_detail::TerminalEmitter terminalAudit_;
-      ToggleActionProbeState probe_;
+      ScenarioState scenarioState_;
 
       HelloWorldScenario(const HelloWorldScenario &);
       HelloWorldScenario &operator=(const HelloWorldScenario &);

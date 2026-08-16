@@ -136,12 +136,7 @@ set(LOKA_MINESWEEPER_TESTS_TOOLBOX_SOURCES
   ${CMAKE_SOURCE_DIR}/tests/scenarios/MineSweeperScenarios.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/StartupScenarios.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/RectSurfaceScenarioObservation.cpp
-  ${CMAKE_CURRENT_BINARY_DIR}/MineSweeperSize.r
-)
-configure_file(
-  ${CMAKE_SOURCE_DIR}/example/MineSweeper/Size.r
-  ${CMAKE_CURRENT_BINARY_DIR}/MineSweeperSize.r
-  COPYONLY
+  ${CMAKE_CURRENT_SOURCE_DIR}/MineSweeperScenarioSize.r
 )
 loka_add_toolbox_test_application(
   ${LOKA_MINESWEEPER_TESTS_TOOLBOX_TARGET}

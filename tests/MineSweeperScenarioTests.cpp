@@ -191,6 +191,50 @@ void testMineSweeperNewGameTwiceHoldsFinalSceneAndMatchesAudit()
   std::printf("testMineSweeperNewGameTwiceHoldsFinalSceneAndMatchesAudit passed\n");
 }
 
+void testMineSweeperSeededRevealDrivesCells()
+{
+  loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> root(
+      CloneMineSweeperRoot(loka::scenario_tests::MineSweeperScenarioSeed()));
+  LOKA_VERIFY(root.get() != 0);
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(root.take());
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  RecordingMineSweeperAudit audit;
+  loka::scenario_tests::MineSweeperScenario scenario(
+      "seeded-reveal", loka::scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED, &audit);
+  loka::scenario_tests::CaptureContentBounds bounds;
+  bounds.available = true;
+  bounds.right = 220;
+  bounds.bottom = 240;
+  loka::dsl::SnapRecord record;
+
+  LOKA_VERIFY(scenario.step(2, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(scenario.step(7, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(scenario.step(12, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(scenario.step(17, &scene, bounds, record)
+              == loka::scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY);
+  LOKA_VERIFY(scenario.publishVerdict(record));
+
+  VerifyRecordString(record, "step", "seeded-reveal");
+  VerifyRecordString(record, "blank_cell", "0,0");
+  VerifyRecordString(record, "blank_value", "space");
+  VerifyRecordString(record, "numbered_cell", "0,2");
+  VerifyRecordString(record, "numbered_value", "1");
+  VerifyRecordString(record, "mine_cell", "0,3");
+  VerifyRecordString(record, "mine_value", "X");
+  LOKA_VERIFY(audit.steps.size() == 8);
+  LOKA_VERIFY(audit.steps[1].name() == "reveal-blank-cell");
+  LOKA_VERIFY(audit.steps[3].name() == "reveal-numbered-cell");
+  LOKA_VERIFY(audit.steps[5].name() == "reveal-mine-cell");
+  LOKA_VERIFY(audit.terminals.size() == 1);
+  LOKA_VERIFY(audit.terminals[0] == loka::dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
+
+  scene.unmount();
+  std::printf("testMineSweeperSeededRevealDrivesCells passed\n");
+}
+
 void testMineSweeperDifferentSeedRefusesFixedBoardAudit()
 {
   const char *actualPath = "_loka_minesweeper_different_seed.audit";

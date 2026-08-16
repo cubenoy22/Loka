@@ -1,0 +1,31 @@
+loka_scenario_audit version=1 scenario=seeded-reveal
+step id=1 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=verify-seeded-board
+step id=2 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=reveal-blank-cell
+step id=3 due_tick=7 tick=7 status=succeeded error_kind=0 error_code=0 name=verify-blank-cell
+step id=4 due_tick=7 tick=7 status=succeeded error_kind=0 error_code=0 name=reveal-numbered-cell
+step id=5 due_tick=12 tick=12 status=succeeded error_kind=0 error_code=0 name=verify-numbered-cell
+step id=6 due_tick=12 tick=12 status=succeeded error_kind=0 error_code=0 name=reveal-mine-cell
+step id=7 due_tick=17 tick=17 status=succeeded error_kind=0 error_code=0 name=verify-mine-cell
+step id=8 due_tick=17 tick=17 status=succeeded error_kind=0 error_code=0 name=capture-seeded-reveal
+blank_cell	0,0
+blank_value	space
+board.initial_mines	3,4,20,22,37,45,50,55,56,59
+crop_bottom	240
+crop_left	0
+crop_right	220
+crop_top	0
+format_version	1
+mine_cell	0,3
+mine_value	X
+new_game_count	0
+node	MineSweeper.Cell.3
+numbered_cell	0,2
+numbered_value	1
+scenario_version	1
+schema_version	1
+seed	324508639
+status	ok
+step	seeded-reveal
+test	MineSweeper
+tick	17
+terminal status=succeeded

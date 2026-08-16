@@ -15,7 +15,7 @@ namespace loka
         rail and standalone presentation. */
     unsigned long MineSweeperScenarioSeed();
 
-    /** Returns whether name selects MineSweeper's two-New-Game scenario. */
+    /** Returns whether name selects a registered MineSweeper scenario. */
     bool IsMineSweeperScenario(const std::string &name);
 
     /** Drives New Game twice through MainNode's rendered Button and observes
@@ -25,6 +25,9 @@ namespace loka
     public:
       explicit MineSweeperScenario(ScenarioCompletionPolicy completionPolicy,
                                    dsl::testing::ScenarioAuditSink *audit = 0);
+      MineSweeperScenario(const std::string &name,
+                          ScenarioCompletionPolicy completionPolicy,
+                          dsl::testing::ScenarioAuditSink *audit = 0);
 
       ScenarioAdvance
       step(long tick, app::scene::Scene *scene, const CaptureContentBounds &bounds, dsl::SnapRecord &out);
@@ -34,12 +37,12 @@ namespace loka
       void stop();
 
     private:
-      typedef dsl::FlowChain<app::scene::Scene *, dsl::SnapRecord> NewGameTwiceFlowChain;
+      typedef dsl::FlowChain<app::scene::Scene *, dsl::SnapRecord> ScenarioFlowChain;
 
-      class NewGameTwiceState
+      class ScenarioState
       {
       public:
-        explicit NewGameTwiceState(dsl::testing::ScenarioAuditSink *audit);
+        ScenarioState(const std::string &name, dsl::testing::ScenarioAuditSink *audit);
 
         dsl::FlowRunResult run(long tick, app::scene::Scene *scene);
         void stop();
@@ -49,17 +52,17 @@ namespace loka
         dsl::testing::ScenarioClock clock_;
         app::scene::Scene *scene_;
         dsl::SnapRecord record_;
-        app::scene::FlowSlot<NewGameTwiceFlowChain> flow_;
+        app::scene::FlowSlot<ScenarioFlowChain> flow_;
 
-        NewGameTwiceState(const NewGameTwiceState &);
-        NewGameTwiceState &operator=(const NewGameTwiceState &);
+        ScenarioState(const ScenarioState &);
+        ScenarioState &operator=(const ScenarioState &);
       };
 
       const std::string name_;
       const ScenarioCompletionPolicy completionPolicy_;
       ScenarioAdvance terminalState_;
       dsl::testing::scenario_audit_detail::TerminalEmitter terminalAudit_;
-      NewGameTwiceState scenarioState_;
+      ScenarioState scenarioState_;
 
       MineSweeperScenario(const MineSweeperScenario &);
       MineSweeperScenario &operator=(const MineSweeperScenario &);

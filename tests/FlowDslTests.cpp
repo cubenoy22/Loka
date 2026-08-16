@@ -9,6 +9,7 @@
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/Cell.hpp"
+#include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
 #include "app/nodes/nestable/Grid.hpp"
@@ -4857,6 +4858,88 @@ void testLokaFlowDslV1Core()
     assert(capture.calls == 1);
     assert(capture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO);
     assert(capture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_DUPLICATE_TEST_ID);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    loka::core::MutableState<loka::core::String> text(loka::core::String::Literal("before"));
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+    root << EditText(&text).testId("ScenarioEditText");
+
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+    loka::dsl::FlowChain<Scene *, Scene *> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::EnterText("ScenarioEditText", "after")).input(&scenePtr);
+
+    LOKA_VERIFY(chain.run());
+    assert(text.get().equals(loka::core::String::Literal("after")));
+
+    FlowErrorCapture capture = {0, 0, 0};
+    loka::dsl::FlowChain<Scene *, Scene *> wrongType =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::EnterText("RootBox", "ignored"))
+              .input(&scenePtr)
+              .onFailure(&FlowTestMarker::captureFailure, &capture);
+
+    LOKA_VERIFY(wrongType.run());
+    assert(capture.calls == 1);
+    assert(capture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO);
+    assert(capture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_NODE_TYPE_MISMATCH);
+    assert(text.get().equals(loka::core::String::Literal("after")));
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    loka::core::EmitterState click;
+    int clickCount = 0;
+    click.bind(&incrementNotificationCount, &clickCount, false);
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+    root << Cell("Covered").onClick(&click).testId("ScenarioCell");
+
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+    loka::dsl::FlowChain<Scene *, Scene *> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::ClickCell("ScenarioCell")).input(&scenePtr);
+
+    LOKA_VERIFY(chain.run());
+    assert(clickCount == 1);
+
+    FlowErrorCapture capture = {0, 0, 0};
+    loka::dsl::FlowChain<Scene *, Scene *> wrongType =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::ClickCell("RootBox"))
+              .input(&scenePtr)
+              .onFailure(&FlowTestMarker::captureFailure, &capture);
+
+    LOKA_VERIFY(wrongType.run());
+    assert(capture.calls == 1);
+    assert(capture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO);
+    assert(capture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_NODE_TYPE_MISMATCH);
+    assert(clickCount == 1);
 
     scene.unmount();
   }

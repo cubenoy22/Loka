@@ -173,6 +173,48 @@ void testHelloWorldToggleActionProbeHoldsFinalScene()
   std::printf("testHelloWorldToggleActionProbeHoldsFinalScene passed\n");
 }
 
+void testHelloWorldBmiRoundtripDrivesEditTextInput()
+{
+  helloworld::MainProps props;
+  loka::app::scene::BoundaryDefinition<helloworld::MainProps, helloworld::MainNode> definition(props);
+  loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> root(definition.clone());
+  LOKA_VERIFY(root.get() != 0);
+  HelloWorldScenarioPlatform platform;
+  loka::app::scene::Scene scene(root.take());
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  RecordingHelloWorldAudit audit;
+  loka::scenario_tests::HelloWorldScenario scenario(
+      "bmi-roundtrip", loka::scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED, &audit);
+  loka::scenario_tests::CaptureContentBounds bounds;
+  bounds.available = true;
+  bounds.right = 420;
+  bounds.bottom = 300;
+  loka::dsl::SnapRecord record;
+
+  LOKA_VERIFY(scenario.step(2, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(scenario.step(32, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(scenario.step(62, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(scenario.step(92, &scene, bounds, record)
+              == loka::scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY);
+  LOKA_VERIFY(scenario.publishVerdict(record));
+
+  std::string value;
+  LOKA_VERIFY(record.get("step", value) && value == "bmi-roundtrip");
+  LOKA_VERIFY(record.get("node", value) && value == "HelloWorld.Bmi.Result");
+  LOKA_VERIFY(record.get("text.value", value) && value == "BMI: 25.00");
+  LOKA_VERIFY(record.get("invalid_input_result", value) && value == "BMI: --");
+  LOKA_VERIFY(audit.steps.size() == 8);
+  LOKA_VERIFY(audit.steps[3].name() == "enter-invalid-height");
+  LOKA_VERIFY(audit.steps[4].name() == "verify-invalid-input");
+  LOKA_VERIFY(audit.terminals.size() == 1);
+  LOKA_VERIFY(audit.terminals[0] == loka::dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
+
+  scene.unmount();
+  std::printf("testHelloWorldBmiRoundtripDrivesEditTextInput passed\n");
+}
+
 void testHelloWorldStandaloneMenuMatchesExample()
 {
   MyAppConfig example(0, 0x13579BDFUL);
