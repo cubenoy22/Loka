@@ -81,13 +81,15 @@ namespace floppybird
       c.declare(VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_LEADING)
                 << RectSurface(&this->props.shared_->surfaceModel_)
                        .useRegionClip(false)
-                       .size(loka_floppy_bird::kWindowWidth, loka_floppy_bird::kWindowHeight));
+                       .size(loka_floppy_bird::kWindowWidth, loka_floppy_bird::kWindowHeight)
+                       .TEST_ID("FloppyBird.Surface"));
 #else
       c.declare(VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_LEADING)
                 << Text(&this->props.shared_->scoreText_)
                 << RectSurface(&this->props.shared_->surfaceModel_)
                        .useRegionClip(false)
-                       .size(loka_floppy_bird::kWindowWidth, loka_floppy_bird::kWindowHeight));
+                       .size(loka_floppy_bird::kWindowWidth, loka_floppy_bird::kWindowHeight)
+                       .TEST_ID("FloppyBird.Surface"));
 #endif
     }
   };

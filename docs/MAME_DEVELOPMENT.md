@@ -166,6 +166,28 @@ The MineSweeper runner owns a 120-emulated-second settle deadline because the
 scenario deliberately projects two complete 64-cell replacement boards on a
 68030-class guest. Callers do not need a `LOKA_SETTLE_TIMEOUT` override.
 
+### FloppyBird standalone Flow
+
+The TEST-only `LokaFloppyStandaloneFlow68K_APPL` target presents the same typed
+`fixed-step-flaps` scenario used by the machine-verdict rail. The caller owns a
+fixed seed, every idle advances exactly one 1/60-second simulation step, and
+the scenario flaps and observes quantized RectSurface output only at named step
+counts. Wall time affects presentation speed but cannot select a checkpoint.
+
+Build the excluded APPL target, put its MacBinary on `LokaDev`, and open
+`LokaFloppyStandaloneFlow68K` after Classic Mac OS boots. The application holds
+the final checkpoint and writes `LOG.TXT` beside itself. After copying that file
+back to the host, require a byte-for-byte match with the tracked audit:
+
+```sh
+tests/toolbox/verify-standalone-audit.sh \
+  floppybird fixed-step-flaps <path-to-LOG.TXT>
+```
+
+The config-required `tests/toolbox/run-scenario.sh floppybird
+fixed-step-flaps` command remains the automated machine verdict and
+settled-pixel rail.
+
 ## Floppy workflow
 
 Run `MAME: Start` once, then use `MAME: Mount .dsk (pick app)` or one of the

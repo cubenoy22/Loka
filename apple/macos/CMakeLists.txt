@@ -122,6 +122,7 @@ if(NOT LOKA_MAC_OS_10_4)
     ${PROJECT_SOURCE_DIR}/example/HelloWorld/src
     ${PROJECT_SOURCE_DIR}/example/Tutorial/src
     ${PROJECT_SOURCE_DIR}/example/MineSweeper/src
+    ${PROJECT_SOURCE_DIR}/example/FloppyBird/src
     ${CMAKE_CURRENT_LIST_DIR}/src
   )
 

@@ -255,7 +255,8 @@ namespace loka_floppy_bird
 
     int nextRandomInt(int range)
     {
-      this->randomState_ = this->randomState_ * 1664525UL + 1013904223UL;
+      this->randomState_ =
+          (this->randomState_ * 1664525UL + 1013904223UL) & 0xFFFFFFFFUL;
       return static_cast<int>(this->randomState_ % static_cast<unsigned long>(range));
     }
 

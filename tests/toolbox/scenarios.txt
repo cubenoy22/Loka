@@ -8,3 +8,4 @@ scrapbook open-text-page-refused
 helloworld toggle-action-probe
 tutorial increment-summary-toggle
 minesweeper new-game-twice
+floppybird fixed-step-flaps
