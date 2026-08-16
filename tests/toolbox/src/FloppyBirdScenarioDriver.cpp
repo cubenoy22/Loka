@@ -2,11 +2,9 @@
 
 #include <cassert>
 
+#include "FloppyBirdClassicScenarioPresentation.hpp"
 #include "FloppyBirdScenarios.hpp"
-#include "GameModel.hpp"
-#include "MyAppConfig.hpp"
 #include "ScenarioDriverSupport.hpp"
-#include "ObservedMainDefinition.hpp"
 #include "StartupScenarios.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
@@ -25,12 +23,14 @@ namespace loka
       const char *kConfigPath = "LokaTest.cfg";
       const char *kDefaultScenarioName = "fixed-step-flaps";
 
-      class FloppyBirdScenarioAppConfig : public MyAppConfig
+      class FloppyBirdScenarioAppConfig : public scenario_tests::FloppyBirdClassicScenarioPresentation
       {
       public:
         FloppyBirdScenarioAppConfig(PlatformContext *context,
                                     const dsl::SnapTestConfig::Settings &settings)
-            : MyAppConfig(context, scenario_tests::FloppyBirdScenarioSeed()),
+            : scenario_tests::FloppyBirdClassicScenarioPresentation(
+                  context,
+                  scenario_tests::FloppyBirdScenarioSeed()),
               startup_(scenario_tests::IsStartupScenario(settings.scenario)),
               audit_(ResolveScenarioAuditFile(), settings.scenario.c_str()),
               startupScenario_(scenario_tests::STARTUP_EXAMPLE_FLOPPY_BIRD,
@@ -62,23 +62,10 @@ namespace loka
           this->borrowedApp_ = app;
         }
 
-        virtual void compose(AppComposition &composition)
-        {
-          scenario_tests::ObservedMainDefinition<floppybird::MainProps, floppybird::MainNode> mainDefinition(
-              floppybird::MainProps(&this->gameModel()), 0);
-          composition << WindowDef(this->productionWindowProps(mainDefinition)
-                                       .idlePolicy(app::IdlePolicy::everyTick())
-                                       .onIdle(&FloppyBirdScenarioAppConfig::OnWindowIdle, this));
-        }
-
       private:
-        static void OnWindowIdle(Window *window, double elapsedSeconds, void *userData)
+        virtual void onScenarioIdle(Window *window, double elapsedSeconds)
         {
-          FloppyBirdScenarioAppConfig *self = static_cast<FloppyBirdScenarioAppConfig *>(userData);
-          if (self)
-          {
-            self->tick(window, elapsedSeconds);
-          }
+          this->tick(window, elapsedSeconds);
         }
 
         void tick(Window *window, double elapsedSeconds)

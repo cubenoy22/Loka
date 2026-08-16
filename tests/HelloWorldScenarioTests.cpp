@@ -16,6 +16,7 @@
 #include "platform/null/NullApp.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "scenarios/ObservedMainDefinition.hpp"
+#include "scenarios/ClassicVehiclePresentationVerify.hpp"
 #include "scenarios/HelloWorldClassicScenarioPresentation.hpp"
 #include "scenarios/HelloWorldScenarios.hpp"
 #include "standalone/HelloWorldStandaloneFlowAppConfig.hpp"
@@ -81,37 +82,7 @@ void testHelloWorldClassicVehiclePresentationUsesExampleDeclaration()
   const HelloWorldMenuSeed menuSeed = HelloWorldMenuSeed::FromWallClock(1234567);
   HelloWorldProductionAppConfig production(&context, menuSeed);
   loka::scenario_tests::HelloWorldClassicScenarioPresentation vehicle(&context, menuSeed);
-  AppComposition productionComposition(&context);
-  AppComposition vehicleComposition(&context);
-  production.compose(productionComposition);
-  vehicle.compose(vehicleComposition);
-  std::vector<AppComponent *> productionComponents = productionComposition.build();
-  std::vector<AppComponent *> vehicleComponents = vehicleComposition.build();
-
-  LOKA_VERIFY(productionComponents.size() == 1);
-  LOKA_VERIFY(vehicleComponents.size() == 1);
-  Window *productionWindow = productionComponents[0] ? productionComponents[0]->asWindow() : 0;
-  Window *vehicleWindow = vehicleComponents[0] ? vehicleComponents[0]->asWindow() : 0;
-  LOKA_VERIFY(productionWindow != 0);
-  LOKA_VERIFY(vehicleWindow != 0);
-  LOKA_VERIFY(vehicleWindow->titleState().get().equals(productionWindow->titleState().get()));
-  LOKA_VERIFY(vehicleWindow->frameState().get() == productionWindow->frameState().get());
-
-  loka::app::MenuBarDefinition productionMenu;
-  loka::app::MenuBarDefinition vehicleMenu;
-  loka::testing::ComposeMenuBar(production, productionMenu);
-  loka::testing::ComposeMenuBar(vehicle, vehicleMenu);
-  LOKA_VERIFY(!productionMenu.empty());
-  LOKA_VERIFY(loka::testing::MenuPresentationsEqual(productionMenu, vehicleMenu));
-
-  for (std::size_t i = 0; i < productionComponents.size(); ++i)
-  {
-    delete productionComponents[i];
-  }
-  for (std::size_t i = 0; i < vehicleComponents.size(); ++i)
-  {
-    delete vehicleComponents[i];
-  }
+  loka::scenario_tests::VerifyClassicVehiclePresentation(&context, production, vehicle, true);
   std::printf("testHelloWorldClassicVehiclePresentationUsesExampleDeclaration passed\n");
 }
 

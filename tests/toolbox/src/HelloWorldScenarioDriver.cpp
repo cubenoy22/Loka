@@ -27,7 +27,9 @@ namespace loka
       {
       public:
         HelloWorldScenarioAppConfig(PlatformContext *context, const dsl::SnapTestConfig::Settings &settings)
-            : scenario_tests::HelloWorldClassicScenarioPresentation(context),
+            : scenario_tests::HelloWorldClassicScenarioPresentation(
+                  context,
+                  HelloWorldMenuSeed::FromWallClock(0x13579BDFUL)),
               startup_(scenario_tests::IsStartupScenario(settings.scenario)),
               audit_(ResolveScenarioAuditFile(), settings.scenario.c_str()),
               startupScenario_(scenario_tests::STARTUP_EXAMPLE_HELLO_WORLD,
