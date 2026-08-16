@@ -55,6 +55,58 @@ get_filename_component(LOKA_WIN32_REPOSITORY_ROOT
 if(CMAKE_SOURCE_DIR STREQUAL LOKA_WIN32_REPOSITORY_ROOT)
   include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/LokaWin32VisualStyles.cmake)
 
+  # TEST-only scenario vehicle. It compiles common/platform sources uniformly
+  # with TEST_BUILD and owns no shipping mode or release-binary branch.
+  add_executable(LokaScrapbookScenarioWin32 WIN32 EXCLUDE_FROM_ALL
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/win32/ScrapbookScenarioMain.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/ScenarioProfile.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/ScenarioTypes.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/ScrapbookScenarios.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/TestingHooks.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../example/ScrapbookUI/src/ScrapbookPackage.cpp
+    ${SOURCES}
+    ${COMMON_SOURCES}
+  )
+  loka_enable_warnings(LokaScrapbookScenarioWin32)
+  loka_enable_win32_visual_styles(LokaScrapbookScenarioWin32)
+  target_include_directories(LokaScrapbookScenarioWin32 PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios
+    ${CMAKE_CURRENT_SOURCE_DIR}/../example/ScrapbookUI/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+  )
+  target_compile_definitions(LokaScrapbookScenarioWin32 PRIVATE TEST_BUILD)
+  target_link_libraries(LokaScrapbookScenarioWin32 PRIVATE windowscodecs ole32)
+  set_target_properties(LokaScrapbookScenarioWin32 PROPERTIES
+    CXX_STANDARD 98
+    CXX_STANDARD_REQUIRED YES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/example/ScrapbookUI"
+  )
+  if(MSVC)
+    target_compile_options(LokaScrapbookScenarioWin32 PRIVATE /utf-8)
+  endif()
+
+  if(LOKA_WIN32_SCENARIOS)
+    set(_LOKA_WIN32_SCENARIO_REGISTRY
+      "${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/scenarios.txt")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+      "${_LOKA_WIN32_SCENARIO_REGISTRY}")
+    file(STRINGS "${_LOKA_WIN32_SCENARIO_REGISTRY}"
+      _loka_win32_scenarios REGEX "^scrapbook [a-z0-9][a-z0-9-]*$")
+    foreach(_loka_win32_entry IN LISTS _loka_win32_scenarios)
+      string(REGEX REPLACE "^scrapbook " "" _loka_win32_scenario
+        "${_loka_win32_entry}")
+      add_test(NAME "win32Scenario-scrapbook-${_loka_win32_scenario}"
+        COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+          ${CMAKE_CURRENT_SOURCE_DIR}/../tests/win32/run-scenario.ps1
+          scrapbook "${_loka_win32_scenario}")
+      set_tests_properties("win32Scenario-scrapbook-${_loka_win32_scenario}"
+        PROPERTIES LABELS "win32-scenario" RUN_SERIAL TRUE)
+    endforeach()
+    unset(_loka_win32_scenarios)
+    unset(_LOKA_WIN32_SCENARIO_REGISTRY)
+  endif()
+
   set(LOKA_STANDALONE_FLOW_ASSETS
     "${CMAKE_CURRENT_SOURCE_DIR}/../example/ScrapbookUI/assets/ASSETS-modern.LRP"
   )

@@ -1,0 +1,3 @@
+open-first-page-refused corrupt-bag=1
+refused-flip-keeps-page corrupt-bag=3
+open-text-page-refused corrupt-bag=5

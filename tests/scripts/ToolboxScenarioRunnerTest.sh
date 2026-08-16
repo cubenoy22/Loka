@@ -28,6 +28,8 @@ mkdir -p \
 cp "$RUNNER" "$SANDBOX/repo/tests/toolbox/run-scenario.sh"
 cp "$LAUNCHER" "$SANDBOX/repo/tests/toolbox/mame-launch.lua"
 cp "$REPO_DIR/tests/scenarios/pngtool.py" "$SANDBOX/repo/tests/scenarios/pngtool.py"
+cp "$REPO_DIR/tests/scenarios/scrapbook-package-fixtures.txt" \
+  "$SANDBOX/repo/tests/scenarios/scrapbook-package-fixtures.txt"
 cp "$REPO_DIR/tests/scenarios/expected/scrapbook/startup.audit" \
   "$SANDBOX/repo/tests/scenarios/expected/scrapbook/startup.audit"
 cp "$REPO_DIR/tests/scenarios/expected/helloworld/startup.audit" \
@@ -47,6 +49,7 @@ cp "$REPO_DIR/tests/scenarios/expected/floppybird/fixed-step-flaps.audit" \
 cp "$REPO_DIR/example/ScrapbookUI/assets/page1.png" "$SANDBOX/snapshot.png"
 printf '%s\n' \
   'scrapbook startup' \
+  'scrapbook open-first-page-refused' \
   'helloworld startup' \
   'helloworld toggle-action-probe' \
   'tutorial startup' \
@@ -69,6 +72,7 @@ mkdir -p "$SANDBOX/repo/build/host/lrpc"
 cat >"$SANDBOX/repo/build/host/lrpc/lrpc" <<'SH'
 #!/usr/bin/env bash
 # fake lrpc: stage <source> -o <destination> [--corrupt-bag N]
+printf '%s\n' "$@" >"$SANDBOX/lrpc-arguments"
 cp -f "$2" "$4"
 SH
 chmod +x "$SANDBOX/repo/build/host/lrpc/lrpc"
@@ -173,6 +177,11 @@ run_case() {
 }
 
 run_case scrapbook startup 1 unset
+run_case scrapbook open-first-page-refused 1 unset
+grep -Fxq -- '--corrupt-bag' "$SANDBOX/lrpc-arguments" \
+  || fail "Scrapbook refusal did not request package corruption"
+grep -Fxq -- '1' "$SANDBOX/lrpc-arguments" \
+  || fail "Scrapbook refusal did not use the neutral bag mapping"
 run_case helloworld startup 2 unset
 run_case helloworld toggle-action-probe 2 unset
 run_case tutorial startup 3 unset

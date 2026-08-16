@@ -131,7 +131,8 @@ host must satisfy that preset's toolchain requirements.
 | Standalone Classic `Tutorial` | `LokaTutorialStandaloneFlow68K_APPL` presents the same typed scenario without host config; after target execution, `tests/toolbox/verify-standalone-audit.sh tutorial increment-summary-toggle <LOG.TXT>` byte-compares the complete durable audit |
 | Standalone Classic `MineSweeper` | `LokaMineStandaloneFlow68K_APPL` presents the fixed-seed two-New-Game tour without host config; after target execution, `tests/toolbox/verify-standalone-audit.sh minesweeper new-game-twice <LOG.TXT>` byte-compares the complete durable audit |
 | Standalone Classic `FloppyBird` | `LokaFloppyStandaloneFlow68K_APPL` presents the fixed-seed fixed-step flap tour without host config; after target execution, `tests/toolbox/verify-standalone-audit.sh floppybird fixed-step-flaps <LOG.TXT>` byte-compares the complete durable audit |
-| L1/L2 Win32 | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
+| L1 Win32 `ScrapbookUI` | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/win32/run-scenario.ps1 scrapbook startup` — shared State-driven scenario, byte-identical tracked audit, two-hash settled `PrintWindow` capture, and rig-local profiled golden |
+| L2 Win32 `ScrapbookUI` | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/win32/run-scenario.ps1 scrapbook flip-forward-back` — shared State-driven scenario, byte-identical tracked audit, two-hash settled `PrintWindow` capture, and rig-local profiled golden |
 | L1/L2 macOS | `tests/macos/run-scenario.sh <example> <scenario>` — tracked expected audit plus settled rig-local pixel golden |
 | L1 Classic `SimpleViewer` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
 | L2 Classic examples other than `ScrapbookUI`, `HelloWorld`, `Tutorial`, `MineSweeper`, and `FloppyBird` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |

@@ -49,6 +49,25 @@ def write_rgb_png(path, width, height, pixels):
 
 
 class ExpectedAuditPinsTest(unittest.TestCase):
+    def test_scrapbook_refusal_fixtures_have_one_neutral_mapping(self):
+        registry = os.path.join(SCENARIO_DIR, "scrapbook-package-fixtures.txt")
+        with open(registry, "r", encoding="ascii") as handle:
+            entries = [line.split() for line in handle.read().splitlines()]
+        self.assertEqual(
+            entries,
+            [
+                ["open-first-page-refused", "corrupt-bag=1"],
+                ["refused-flip-keeps-page", "corrupt-bag=3"],
+                ["open-text-page-refused", "corrupt-bag=5"],
+            ],
+        )
+        registered = os.path.join(SCENARIO_DIR, "scenarios.txt")
+        with open(registered, "r", encoding="ascii") as handle:
+            scenarios = set(handle.read().splitlines())
+        for scenario, fixture in entries:
+            self.assertIn("scrapbook " + scenario, scenarios)
+            self.assertRegex(fixture, r"^corrupt-bag=[0-9]+$")
+
     def test_expected_audits_cover_registry_and_pin_app_identity(self):
         registry = os.path.join(PROJECT_DIR, "tests", "scenarios", "scenarios.txt")
         with open(registry, "r", encoding="utf-8") as handle:

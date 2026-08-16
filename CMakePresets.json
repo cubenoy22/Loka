@@ -344,7 +344,8 @@
       "name": "win32-tests",
       "configurePreset": "win32-debug",
       "targets": [
-        "LokaTestsWin32"
+        "LokaTestsWin32",
+        "LokaScrapbookScenarioWin32"
       ],
       "condition": {
         "type": "equals",
