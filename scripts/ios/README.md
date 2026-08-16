@@ -50,12 +50,17 @@ future checked-in configuration file rather than editing the project by hand.
 
 Treat ARMv6 / iPhone OS 3.1.3 as a separate legacy Apple profile. It requires a
 preserved iPhone SDK and an old toolchain that can emit ARMv6 code; the modern
-generator above does not claim to provide either. Before adding the profile,
-record the installer provenance, version, license handling, SHA-256, SDK path,
-host OS, compiler, linker, signing method, and transfer method outside the
-repository. Do not commit an SDK or device firmware.
+generator above does not claim to provide either. The checked-in
+`legacy/build-armv6.sh` profile uses Xcode 3.2.6, its iPhoneOS 4.3 SDK, GCC 4.2,
+and deployment target 3.1. Its [legacy README](legacy/README.md) records the
+verified toolchain facts and the remaining provenance gaps. Do not
+commit an SDK, installer, or device firmware.
 
-The first acceptance point is a direct UIKit application compiled as C++98 /
-Objective-C 1 with manual reference counting, exceptions disabled, and RTTI
-disabled. Record `build-verified` separately from a launch on the physical
-iPod touch, which is `runtime-verified`.
+The direct UIKit application is `build-verified` as ARMv6 with C++98 /
+Objective-C 1 manual reference counting, exceptions disabled, and RTTI
+disabled. It is also `runtime-verified` on a first-generation iPod touch
+running iPhone OS 3.1.3; the legacy README records the physical-device route
+and evidence separately from the build result. That run used the original
+`com.cubenoy22` bundle identifier. The checked-in profile now uses the
+`io.lo-ka.loka` namespace; deployment under the renamed identifier remains a
+separate runtime acceptance point.
