@@ -33,6 +33,7 @@
 #include "TutorialScenarioTests.hpp"
 #include "MineSweeperScenarioTests.hpp"
 #include "FloppyBirdScenarioTests.hpp"
+#include "StartupScenarioTests.hpp"
 #include "BlobRangeTests.hpp"
 #include "PictParserTests.hpp"
 #include "SceneTests.hpp"

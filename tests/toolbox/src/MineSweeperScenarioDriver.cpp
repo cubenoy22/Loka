@@ -6,6 +6,7 @@
 #include "MineSweeperScenarios.hpp"
 #include "ScenarioDriverSupport.hpp"
 #include "ScenarioWindow.hpp"
+#include "StartupScenarios.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
 #include "app/core/App.hpp"
@@ -21,14 +22,18 @@ namespace loka
     namespace
     {
       const char *kConfigPath = "LokaTest.cfg";
-      const char *kScenarioName = "new-game-twice";
+      const char *kDefaultScenarioName = "new-game-twice";
 
       class MineSweeperScenarioAppConfig : public AppConfigurable
       {
       public:
         MineSweeperScenarioAppConfig(PlatformContext *context, const dsl::SnapTestConfig::Settings &settings)
             : AppConfigurable(context),
-              audit_(ResolveScenarioAuditFile(), kScenarioName),
+              startup_(scenario_tests::IsStartupScenario(settings.scenario)),
+              audit_(ResolveScenarioAuditFile(), settings.scenario.c_str()),
+              startupScenario_(scenario_tests::STARTUP_EXAMPLE_MINESWEEPER,
+                               scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED,
+                               &this->audit_),
               scenario_(scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED, &this->audit_),
               borrowedApp_(0),
               recorded_(false),
@@ -40,7 +45,14 @@ namespace loka
 
         virtual ~MineSweeperScenarioAppConfig()
         {
-          this->scenario_.stop();
+          if (this->startup_)
+          {
+            this->startupScenario_.stop();
+          }
+          else
+          {
+            this->scenario_.stop();
+          }
         }
 
         void setApp(App *app)
@@ -80,14 +92,21 @@ namespace loka
             bool done = false;
             if (!window || !window->scene())
             {
-              record = scenario_tests::MakeMineSweeperDriverErrorRecord(2602, "Scene was not mounted");
+              record = this->startup_
+                           ? scenario_tests::MakeStartupDriverErrorRecord(
+                                 scenario_tests::STARTUP_EXAMPLE_MINESWEEPER, 2802, "Scene was not mounted")
+                           : scenario_tests::MakeMineSweeperDriverErrorRecord(2602, "Scene was not mounted");
               done = true;
             }
             else
             {
               const scenario_tests::CaptureContentBounds captureBounds = QueryCaptureContentBounds(window);
               const scenario_tests::ScenarioAdvance advance =
-                  this->scenario_.step(this->tickCount_, window->scene(), ContentLocalBounds(captureBounds), record);
+                  this->startup_
+                      ? this->startupScenario_.step(
+                            this->tickCount_, window->scene(), ContentLocalBounds(captureBounds), record)
+                      : this->scenario_.step(
+                            this->tickCount_, window->scene(), ContentLocalBounds(captureBounds), record);
               switch (advance)
               {
               case scenario_tests::SCENARIO_ADVANCE_PENDING:
@@ -101,7 +120,14 @@ namespace loka
             }
             if (done)
             {
-              (void)this->scenario_.publishVerdict(record);
+              if (this->startup_)
+              {
+                (void)this->startupScenario_.publishVerdict(record);
+              }
+              else
+              {
+                (void)this->scenario_.publishVerdict(record);
+              }
               this->recorded_ = true;
               (void)this->hostCompletionSignal_.publish();
             }
@@ -117,7 +143,9 @@ namespace loka
           }
         }
 
+        const bool startup_;
         dsl::testing::ScenarioAuditFile audit_;
+        scenario_tests::StartupScenario startupScenario_;
         scenario_tests::MineSweeperScenario scenario_;
         App *borrowedApp_;
         bool recorded_;
@@ -134,14 +162,16 @@ namespace loka
       if (!configLoaded)
       {
         (void)WriteScenarioErrorAudit(
-            kScenarioName,
+            kDefaultScenarioName,
             scenario_tests::MakeMineSweeperDriverErrorRecord(2600, "LokaTest.cfg is missing or invalid"));
         return 0;
       }
-      if (!settings.hasScenario || !scenario_tests::IsMineSweeperScenario(settings.scenario))
+      if (!settings.hasScenario
+          || (!scenario_tests::IsStartupScenario(settings.scenario)
+              && !scenario_tests::IsMineSweeperScenario(settings.scenario)))
       {
         (void)WriteScenarioErrorAudit(
-            kScenarioName,
+            settings.hasScenario ? settings.scenario.c_str() : kDefaultScenarioName,
             scenario_tests::MakeMineSweeperDriverErrorRecord(2601, "scenario is missing or not registered"));
         return 0;
       }

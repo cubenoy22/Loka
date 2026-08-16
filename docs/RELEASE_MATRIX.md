@@ -51,7 +51,7 @@ inapplicable because its shared UI uses Previous/Next buttons.
 | Grade | Meaning | Automation |
 | --- | --- | --- |
 | L0 build | Every example compiles for every applicable OS/architecture. | Existing Win32 and macOS CI application builds, plus local Retro68 builds. Linux CI validates host code but contributes no example cells. |
-| L1 startup smoke | Launch the example and capture its settled initial screen. | Intended for every applicable cell; MAME is present for one Classic `ScrapbookUI` startup path, while the remaining runners are tracked by [#312](https://github.com/cubenoy22/Loka/issues/312). |
+| L1 startup smoke | Launch the example's scene and capture its settled initial screen. Classic cells run the example's `MainNode` inside its TEST scenario vehicle (shipping binaries carry no audit door), so window chrome and menus are the vehicle's, not production's; the compared content crop is the example's own scene. Production-composition forwarding for the vehicles is tracked in [#385](https://github.com/cubenoy22/Loka/issues/386). | Classic MAME startup paths exist for `ScrapbookUI`, `HelloWorld`, `Tutorial`, `MineSweeper`, and `FloppyBird`; the remaining runners are tracked by [#312](https://github.com/cubenoy22/Loka/issues/312). |
 | L2 scenario completion | Drive a representative Flow/State operation sequence to completion and capture its checkpoints. | Direct Flow/State emission, shared across OS runners. Only the Classic `ScrapbookUI` runner exists today; expansion is tracked by [#312](https://github.com/cubenoy22/Loka/issues/312). |
 | L3 real hardware / manual | Exercise hands-on behavior and input feel on a real or manually operated target. | Deliberately manual; real input synthesis belongs here and in input-path PR acceptance, not in the standing L2 release gate. |
 
@@ -70,12 +70,12 @@ inapplicable because its shared UI uses Previous/Next buttons.
 
 | Example | Linux host | Win32 | macOS | Classic Mac (68K rig) |
 | --- | --- | --- | --- | --- |
-| `FloppyBird` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** |
-| `HelloWorld` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** |
-| `MineSweeper` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** |
+| `FloppyBird` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_ (`tests/toolbox/run-scenario.sh floppybird startup`) |
+| `HelloWorld` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_ (`tests/toolbox/run-scenario.sh helloworld startup`) |
+| `MineSweeper` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_ (`tests/toolbox/run-scenario.sh minesweeper startup`) |
 | `ScrapbookUI` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_ (`open-first-page`) |
 | `SimpleViewer` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** |
-| `Tutorial` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** |
+| `Tutorial` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_ (`tests/toolbox/run-scenario.sh tutorial startup`) |
 
 ## L2 — scenario completion
 
@@ -119,6 +119,10 @@ host must satisfy that preset's toolchain requirements.
 | L0 Classic Mac 68K | `cmake --preset retro68-68k-release && cmake --build --preset retro68-68k-release` |
 | L0 Classic Mac PPC | `cmake --preset retro68-ppc-release && cmake --build --preset retro68-ppc-release` |
 | L1 Classic `ScrapbookUI` | `tests/toolbox/run-scenario.sh scrapbook startup` — tracked expected audit plus settled rig-local pixel golden |
+| L1 Classic `HelloWorld` | `tests/toolbox/run-scenario.sh helloworld startup` — settled initial title observation, tracked expected audit, and settled rig-local pixel golden |
+| L1 Classic `Tutorial` | `tests/toolbox/run-scenario.sh tutorial startup` — settled initial tutorial title observation, tracked expected audit, and settled rig-local pixel golden |
+| L1 Classic `MineSweeper` | `tests/toolbox/run-scenario.sh minesweeper startup` — settled initial New Game control observation, tracked expected audit, and settled rig-local pixel golden |
+| L1 Classic `FloppyBird` | `tests/toolbox/run-scenario.sh floppybird startup` — fixed-step initial surface observation, tracked expected audit, and settled rig-local pixel golden |
 | L2 Classic `ScrapbookUI` | `tests/toolbox/run-scenario.sh scrapbook flip-forward-back` — tracked expected audit plus settled rig-local pixel golden |
 | L2 Classic `HelloWorld` | `tests/toolbox/run-scenario.sh helloworld toggle-action-probe` — typed TEST_ID actions drive MainNode-owned Emitters; tracked expected audit plus settled rig-local pixel golden |
 | L2 Classic `Tutorial` | `tests/toolbox/run-scenario.sh tutorial increment-summary-toggle` — typed TEST_ID actions increment Step 4 twice, hide and restore its derived summary, and pin the full audit plus settled rig-local pixel golden; EditText remains outside Tutorial's runtime path ([#167](https://github.com/cubenoy22/Loka/issues/167)) |
@@ -129,7 +133,7 @@ host must satisfy that preset's toolchain requirements.
 | Standalone Classic `FloppyBird` | `LokaFloppyStandaloneFlow68K_APPL` presents the fixed-seed fixed-step flap tour without host config; after target execution, `tests/toolbox/verify-standalone-audit.sh floppybird fixed-step-flaps <LOG.TXT>` byte-compares the complete durable audit |
 | L1/L2 Win32 | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
 | L1/L2 macOS | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
-| L1 Classic examples other than `ScrapbookUI` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
+| L1 Classic `SimpleViewer` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
 | L2 Classic examples other than `ScrapbookUI`, `HelloWorld`, `Tutorial`, `MineSweeper`, and `FloppyBird` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
 | L3 all OSes | n/a — manual by definition; record the rig/hardware and evidence in the selected matrix cell |
 

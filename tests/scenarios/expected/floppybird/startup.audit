@@ -1,0 +1,15 @@
+loka_scenario_audit version=1 scenario=startup
+crop_bottom	340
+crop_left	0
+crop_right	380
+crop_top	0
+format_version	1
+node	FloppyBird.Surface
+scenario_version	1
+schema_version	1
+status	ok
+step	startup
+surface.rects	72,114,18,14
+test	FloppyBird
+tick	2
+terminal status=succeeded

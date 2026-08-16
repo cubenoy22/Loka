@@ -1,0 +1,9 @@
+#ifndef LOKA_TESTS_STARTUP_SCENARIO_TESTS_HPP
+#define LOKA_TESTS_STARTUP_SCENARIO_TESTS_HPP
+
+void testHelloWorldStartupHoldsSettledInitialScreenAndMatchesAudit();
+void testTutorialStartupHoldsSettledInitialScreenAndMatchesAudit();
+void testMineSweeperStartupHoldsSettledInitialScreenAndMatchesAudit();
+void testFloppyBirdStartupHoldsSettledInitialScreenAndMatchesAudit();
+
+#endif // LOKA_TESTS_STARTUP_SCENARIO_TESTS_HPP
