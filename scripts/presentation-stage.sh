@@ -65,3 +65,15 @@ loka_replace_stage_directory() (
   mv "$staging_root" "$stage_root"
   rm -rf "$backup_root"
 )
+
+# Answers whether a Mach-O binary contains the given architecture. `lipo
+# -archs` only exists in the Xcode 10+ cctools, so this reads `lipo -info`,
+# the surface every supported host shares; the architecture list follows the
+# last ": " for both the thin ("is architecture:") and fat ("are:") wordings,
+# including binary paths that themselves contain ": ". LOKA_LIPO_BIN lets
+# tests substitute a scripted lipo.
+loka_binary_contains_arch() {
+  local binary="$1"
+  local arch="$2"
+  "${LOKA_LIPO_BIN:-/usr/bin/lipo}" -info "$binary" | sed 's/^.*: //' | tr ' ' '\n' | grep -Fxq "$arch"
+}
