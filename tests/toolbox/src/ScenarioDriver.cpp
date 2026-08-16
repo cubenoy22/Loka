@@ -3,7 +3,7 @@
 #include <cassert>
 
 #include "ScrapbookScenarios.hpp"
-#include "ScrapbookClassicScenarioPresentation.hpp"
+#include "ScrapbookScenarioPresentation.hpp"
 #include "ScenarioDriverSupport.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
@@ -81,13 +81,13 @@ namespace loka
         }
       }
 
-      class ScenarioAppConfig : public scenario_tests::ScrapbookClassicScenarioPresentation
+      class ScenarioAppConfig : public scenario_tests::ScrapbookScenarioPresentation
       {
       public:
         ScenarioAppConfig(PlatformContext *context,
                           const dsl::SnapTestConfig::Settings &settings,
                           const scenario_tests::ScenarioLaunchPlan &launchPlan)
-            : scenario_tests::ScrapbookClassicScenarioPresentation(context),
+            : scenario_tests::ScrapbookScenarioPresentation(context),
               audit_(ResolveScenarioAuditFile(), launchPlan.scenario().c_str()),
               scenario_(launchPlan, &this->audit_),
               borrowedApp_(0),
@@ -201,8 +201,8 @@ namespace loka
       }
       if (!settings.hasScenario)
       {
-        (void)WriteScenarioErrorAudit(
-            "startup", scenario_tests::MakeDriverErrorRecord("startup", 2301, "scenario is missing"));
+        (void)WriteScenarioErrorAudit("startup",
+                                      scenario_tests::MakeDriverErrorRecord("startup", 2301, "scenario is missing"));
         return 0;
       }
       scenario_tests::ScenarioLaunchPlan launchPlan;

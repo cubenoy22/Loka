@@ -286,7 +286,11 @@
       "name": "macos-scenarios",
       "configurePreset": "macos-debug",
       "targets": [
-        "LokaScrapbookScenarioMacOS"
+        "LokaScrapbookScenarioMacOS",
+        "LokaHelloWorldScenarioMacOS",
+        "LokaTutorialScenarioMacOS",
+        "LokaMineSweeperScenarioMacOS",
+        "LokaFloppyBirdScenarioMacOS"
       ],
       "condition": {
         "type": "equals",

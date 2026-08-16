@@ -6,24 +6,28 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 usage() {
-  echo "Usage: $0 <startup|flip-forward-back> [--update-golden|--ci-structural|--inspect]" >&2
+  echo "Usage: $0 <example> <scenario from scenarios.txt> [--update-golden|--ci-structural|--inspect]" >&2
 }
 
-if [ $# -lt 1 ] || [ $# -gt 2 ]; then
+if [ $# -lt 2 ] || [ $# -gt 3 ]; then
   usage
   exit 2
 fi
 
-SCENARIO="$1"
-case "$SCENARIO" in
-  startup|flip-forward-back) ;;
-  *) usage; exit 2 ;;
-esac
+EXAMPLE="$1"
+SCENARIO="$2"
+SCENARIO_REGISTRY="$PROJECT_DIR/tests/toolbox/scenarios.txt"
+if [[ ! "$EXAMPLE" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
+  || [[ ! "$SCENARIO" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
+  || ! grep -Fxq -- "$EXAMPLE $SCENARIO" "$SCENARIO_REGISTRY"; then
+  usage
+  exit 2
+fi
 
 MODE="verify"
 RUN_MODE="flow"
-if [ $# -eq 2 ]; then
-  case "$2" in
+if [ $# -eq 3 ]; then
+  case "$3" in
     --update-golden) MODE="update" ;;
     --ci-structural) MODE="structural" ;;
     --inspect) MODE="inspect"; RUN_MODE="inspect" ;;
@@ -31,13 +35,21 @@ if [ $# -eq 2 ]; then
   esac
 fi
 
-WORK="${LOKA_MACOS_SCENARIO_WORK:-$PROJECT_DIR/build/macos-scenario/$SCENARIO}"
-GOLDEN_DIR="$PROJECT_DIR/build/macos-scenario/golden"
+WORK="${LOKA_MACOS_SCENARIO_WORK:-$PROJECT_DIR/build/macos-scenario/$EXAMPLE/$SCENARIO}"
+GOLDEN_DIR="$PROJECT_DIR/build/macos-scenario/golden/$EXAMPLE"
 GOLDEN="$GOLDEN_DIR/$SCENARIO.png"
 GOLDEN_PROFILE="$GOLDEN_DIR/$SCENARIO.profile"
-APP="${LOKA_MACOS_SCENARIO_APP:-$PROJECT_DIR/build/macos/Debug/apple/macos/LokaScrapbookScenarioMacOS.app}"
-BINARY="$APP/Contents/MacOS/LokaScrapbookScenarioMacOS"
-EXPECTED="$PROJECT_DIR/tests/scenarios/expected/scrapbook/$SCENARIO.audit"
+case "$EXAMPLE" in
+  scrapbook) TARGET="LokaScrapbookScenarioMacOS" ;;
+  helloworld) TARGET="LokaHelloWorldScenarioMacOS" ;;
+  tutorial) TARGET="LokaTutorialScenarioMacOS" ;;
+  minesweeper) TARGET="LokaMineSweeperScenarioMacOS" ;;
+  floppybird) TARGET="LokaFloppyBirdScenarioMacOS" ;;
+  *) usage; exit 2 ;;
+esac
+APP="${LOKA_MACOS_SCENARIO_APP:-$PROJECT_DIR/build/macos/Debug/apple/macos/$TARGET.app}"
+BINARY="$APP/Contents/MacOS/$TARGET"
+EXPECTED="$PROJECT_DIR/tests/scenarios/expected/$EXAMPLE/$SCENARIO.audit"
 PNG_TOOL="$PROJECT_DIR/tests/scenarios/pngtool.py"
 WORK_DIR_TOOL="$PROJECT_DIR/tests/macos/validate-work-dir.py"
 PYTHON3="${PYTHON3:-python3}"
@@ -142,14 +154,14 @@ if [ "$MODE" = "inspect" ]; then
   if [ "$HELD_CAPTURED" -eq 0 ]; then
     fail_stage ready "inspect run exited without a ready marker"
   fi
-  echo "Scenario inspect pass: $SCENARIO"
+  echo "Scenario inspect pass: $EXAMPLE $SCENARIO"
   echo "Pixel verdict: not evaluated (inspect uses human presentation evidence)"
   publish_verified
   exit 0
 fi
 
 if [ "$MODE" = "structural" ]; then
-  echo "Scenario structural pass: $SCENARIO"
+  echo "Scenario structural pass: $EXAMPLE $SCENARIO"
   echo "Pixel verdict: not evaluated (hosted CI has no persistent rig golden)"
   publish_verified
   exit 0
@@ -174,5 +186,5 @@ if ! "$PYTHON3" "$PNG_TOOL" compare "$WORK/actual.png" "$GOLDEN"; then
   fail_stage golden "actual pixels differ from $GOLDEN"
 fi
 
-echo "Scenario passed: $SCENARIO"
+echo "Scenario passed: $EXAMPLE $SCENARIO"
 publish_verified

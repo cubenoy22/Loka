@@ -1,5 +1,5 @@
-#ifndef LOKA_TESTS_SCENARIOS_CLASSIC_VEHICLE_PRESENTATION_VERIFY_HPP
-#define LOKA_TESTS_SCENARIOS_CLASSIC_VEHICLE_PRESENTATION_VERIFY_HPP
+#ifndef LOKA_TESTS_SCENARIOS_VEHICLE_PRESENTATION_VERIFY_HPP
+#define LOKA_TESTS_SCENARIOS_VEHICLE_PRESENTATION_VERIFY_HPP
 
 #include <cstddef>
 #include <vector>
@@ -13,13 +13,13 @@ namespace loka
 {
   namespace scenario_tests
   {
-    /** Verifies that a Classic scenario presentation forwards the example's
+    /** Verifies that a scenario presentation forwards the example's
         production window and menu declarations without maintaining a twin. */
     template <class ProductionConfig, class VehiclePresentation>
-    void VerifyClassicVehiclePresentation(PlatformContext *context,
-                                          ProductionConfig &production,
-                                          VehiclePresentation &vehicle,
-                                          bool expectProductionMenu)
+    void VerifyVehiclePresentation(PlatformContext *context,
+                                   ProductionConfig &production,
+                                   VehiclePresentation &vehicle,
+                                   bool expectProductionMenu)
     {
       AppComposition productionComposition(context);
       AppComposition vehicleComposition(context);
@@ -57,4 +57,4 @@ namespace loka
   } // namespace scenario_tests
 } // namespace loka
 
-#endif // LOKA_TESTS_SCENARIOS_CLASSIC_VEHICLE_PRESENTATION_VERIFY_HPP
+#endif // LOKA_TESTS_SCENARIOS_VEHICLE_PRESENTATION_VERIFY_HPP

@@ -2,7 +2,7 @@
 
 #include <cassert>
 
-#include "FloppyBirdClassicScenarioPresentation.hpp"
+#include "FloppyBirdScenarioPresentation.hpp"
 #include "FloppyBirdScenarios.hpp"
 #include "ScenarioDriverSupport.hpp"
 #include "StartupScenarios.hpp"
@@ -23,14 +23,11 @@ namespace loka
       const char *kConfigPath = "LokaTest.cfg";
       const char *kDefaultScenarioName = "fixed-step-flaps";
 
-      class FloppyBirdScenarioAppConfig : public scenario_tests::FloppyBirdClassicScenarioPresentation
+      class FloppyBirdScenarioAppConfig : public scenario_tests::FloppyBirdScenarioPresentation
       {
       public:
-        FloppyBirdScenarioAppConfig(PlatformContext *context,
-                                    const dsl::SnapTestConfig::Settings &settings)
-            : scenario_tests::FloppyBirdClassicScenarioPresentation(
-                  context,
-                  scenario_tests::FloppyBirdScenarioSeed()),
+        FloppyBirdScenarioAppConfig(PlatformContext *context, const dsl::SnapTestConfig::Settings &settings)
+            : scenario_tests::FloppyBirdScenarioPresentation(context, scenario_tests::FloppyBirdScenarioSeed()),
               startup_(scenario_tests::IsStartupScenario(settings.scenario)),
               audit_(ResolveScenarioAuditFile(), settings.scenario.c_str()),
               startupScenario_(scenario_tests::STARTUP_EXAMPLE_FLOPPY_BIRD,
@@ -77,10 +74,9 @@ namespace loka
             bool done = false;
             if (!window || !window->scene())
             {
-              record = this->startup_
-                           ? scenario_tests::MakeStartupDriverErrorRecord(
-                                 scenario_tests::STARTUP_EXAMPLE_FLOPPY_BIRD, 2802, "Scene was not mounted")
-                           : scenario_tests::MakeFloppyBirdDriverErrorRecord(2702, "Scene was not mounted");
+              record = this->startup_ ? scenario_tests::MakeStartupDriverErrorRecord(
+                                            scenario_tests::STARTUP_EXAMPLE_FLOPPY_BIRD, 2802, "Scene was not mounted")
+                                      : scenario_tests::MakeFloppyBirdDriverErrorRecord(2702, "Scene was not mounted");
               done = true;
             }
             else
@@ -88,14 +84,13 @@ namespace loka
               this->gameModel().advanceFrame(loka_floppy_bird::kFixedStepSeconds);
               const scenario_tests::CaptureContentBounds captureBounds = QueryCaptureContentBounds(window);
               const scenario_tests::ScenarioAdvance advance =
-                  this->startup_
-                      ? this->startupScenario_.step(
-                            this->tickCount_, window->scene(), ContentLocalBounds(captureBounds), record)
-                      : this->scenario_.step(this->tickCount_,
-                                             window->scene(),
-                                             this->gameModel(),
-                                             ContentLocalBounds(captureBounds),
-                                             record);
+                  this->startup_ ? this->startupScenario_.step(
+                                       this->tickCount_, window->scene(), ContentLocalBounds(captureBounds), record)
+                                 : this->scenario_.step(this->tickCount_,
+                                                        window->scene(),
+                                                        this->gameModel(),
+                                                        ContentLocalBounds(captureBounds),
+                                                        record);
               switch (advance)
               {
               case scenario_tests::SCENARIO_ADVANCE_PENDING:

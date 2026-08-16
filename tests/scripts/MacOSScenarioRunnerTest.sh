@@ -13,14 +13,19 @@ fail() {
 
 mkdir -p \
   "$SANDBOX/repo/tests/macos" \
-  "$SANDBOX/repo/tests/scenarios/expected/scrapbook" \
+  "$SANDBOX/repo/tests/scenarios/expected" \
+  "$SANDBOX/repo/tests/toolbox" \
   "$SANDBOX/repo/build" \
   "$SANDBOX/fake.app/Contents/MacOS"
 cp "$REPO_DIR/tests/macos/run-scenario.sh" "$SANDBOX/repo/tests/macos/run-scenario.sh"
 cp "$REPO_DIR/tests/macos/validate-work-dir.py" "$SANDBOX/repo/tests/macos/validate-work-dir.py"
 cp "$REPO_DIR/tests/scenarios/pngtool.py" "$SANDBOX/repo/tests/scenarios/pngtool.py"
-cp "$REPO_DIR/tests/scenarios/expected/scrapbook/startup.audit" \
-  "$SANDBOX/repo/tests/scenarios/expected/scrapbook/startup.audit"
+cp "$REPO_DIR/tests/toolbox/scenarios.txt" "$SANDBOX/repo/tests/toolbox/scenarios.txt"
+for example in scrapbook helloworld tutorial minesweeper floppybird; do
+  mkdir -p "$SANDBOX/repo/tests/scenarios/expected/$example"
+  cp "$REPO_DIR/tests/scenarios/expected/$example/startup.audit" \
+    "$SANDBOX/repo/tests/scenarios/expected/$example/startup.audit"
+done
 cp "$REPO_DIR/example/ScrapbookUI/assets/page1.png" "$SANDBOX/snapshot.png"
 
 cat >"$SANDBOX/fake.app/Contents/MacOS/LokaScrapbookScenarioMacOS" <<'SH'
@@ -42,21 +47,37 @@ chmod +x \
   "$SANDBOX/repo/tests/macos/run-scenario.sh" \
   "$SANDBOX/fake.app/Contents/MacOS/LokaScrapbookScenarioMacOS"
 
+for target in \
+  LokaHelloWorldScenarioMacOS \
+  LokaTutorialScenarioMacOS \
+  LokaMineSweeperScenarioMacOS \
+  LokaFloppyBirdScenarioMacOS; do
+  cp "$SANDBOX/fake.app/Contents/MacOS/LokaScrapbookScenarioMacOS" \
+    "$SANDBOX/fake.app/Contents/MacOS/$target"
+done
+
+for example in scrapbook helloworld tutorial minesweeper floppybird; do
+  EXPECTED="$SANDBOX/repo/tests/scenarios/expected/$example/startup.audit"
+  WORK="$SANDBOX/repo/build/macos-scenario/$example/startup"
+  if ! LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
+      LOKA_MACOS_SCENARIO_WORK="$WORK" \
+      FAKE_EXPECTED_AUDIT="$EXPECTED" FAKE_SNAPSHOT="$SANDBOX/snapshot.png" \
+      bash "$SANDBOX/repo/tests/macos/run-scenario.sh" \
+        "$example" startup --ci-structural \
+        >"$SANDBOX/runner-$example-success.log" 2>&1; then
+    fail "$example byte-identical audit did not pass structural mode"
+  fi
+done
+
 EXPECTED="$SANDBOX/repo/tests/scenarios/expected/scrapbook/startup.audit"
-WORK="$SANDBOX/repo/build/macos-scenario/startup"
-if ! LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
-    LOKA_MACOS_SCENARIO_WORK="$WORK" \
-    FAKE_EXPECTED_AUDIT="$EXPECTED" FAKE_SNAPSHOT="$SANDBOX/snapshot.png" \
-    bash "$SANDBOX/repo/tests/macos/run-scenario.sh" startup --ci-structural \
-      >"$SANDBOX/runner-success.log" 2>&1; then
-  fail "byte-identical audit did not pass structural mode"
-fi
+WORK="$SANDBOX/repo/build/macos-scenario/scrapbook/startup"
 
 if LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
     LOKA_MACOS_SCENARIO_WORK="$WORK" \
     FAKE_EXPECTED_AUDIT="$EXPECTED" FAKE_SNAPSHOT="$SANDBOX/snapshot.png" \
     FAKE_AUDIT_MUTATION=1 \
-    bash "$SANDBOX/repo/tests/macos/run-scenario.sh" startup --ci-structural \
+    bash "$SANDBOX/repo/tests/macos/run-scenario.sh" \
+      scrapbook startup --ci-structural \
       >"$SANDBOX/runner-mutation.log" 2>&1; then
   fail "observed audit mutation unexpectedly passed"
 fi

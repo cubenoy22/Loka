@@ -3,7 +3,7 @@
 #include <cassert>
 
 #include "HelloWorldScenarios.hpp"
-#include "HelloWorldClassicScenarioPresentation.hpp"
+#include "HelloWorldScenarioPresentation.hpp"
 #include "ScenarioDriverSupport.hpp"
 #include "StartupScenarios.hpp"
 #include "app/PlatformContext.hpp"
@@ -23,13 +23,11 @@ namespace loka
       const char *kConfigPath = "LokaTest.cfg";
       const char *kDefaultScenarioName = "toggle-action-probe";
 
-      class HelloWorldScenarioAppConfig : public scenario_tests::HelloWorldClassicScenarioPresentation
+      class HelloWorldScenarioAppConfig : public scenario_tests::HelloWorldScenarioPresentation
       {
       public:
         HelloWorldScenarioAppConfig(PlatformContext *context, const dsl::SnapTestConfig::Settings &settings)
-            : scenario_tests::HelloWorldClassicScenarioPresentation(
-                  context,
-                  HelloWorldMenuSeed::FromWallClock(0x13579BDFUL)),
+            : scenario_tests::HelloWorldScenarioPresentation(context, HelloWorldMenuSeed::FromWallClock(0x13579BDFUL)),
               startup_(scenario_tests::IsStartupScenario(settings.scenario)),
               audit_(ResolveScenarioAuditFile(), settings.scenario.c_str()),
               startupScenario_(scenario_tests::STARTUP_EXAMPLE_HELLO_WORLD,
@@ -76,21 +74,19 @@ namespace loka
             bool done = false;
             if (!window || !window->scene())
             {
-              record = this->startup_
-                           ? scenario_tests::MakeStartupDriverErrorRecord(
-                                 scenario_tests::STARTUP_EXAMPLE_HELLO_WORLD, 2802, "Scene was not mounted")
-                           : scenario_tests::MakeHelloWorldDriverErrorRecord(2402, "Scene was not mounted");
+              record = this->startup_ ? scenario_tests::MakeStartupDriverErrorRecord(
+                                            scenario_tests::STARTUP_EXAMPLE_HELLO_WORLD, 2802, "Scene was not mounted")
+                                      : scenario_tests::MakeHelloWorldDriverErrorRecord(2402, "Scene was not mounted");
               done = true;
             }
             else
             {
               const scenario_tests::CaptureContentBounds captureBounds = QueryCaptureContentBounds(window);
               const scenario_tests::ScenarioAdvance advance =
-                  this->startup_
-                      ? this->startupScenario_.step(
-                            this->tickCount_, window->scene(), ContentLocalBounds(captureBounds), record)
-                      : this->scenario_.step(
-                            this->tickCount_, window->scene(), ContentLocalBounds(captureBounds), record);
+                  this->startup_ ? this->startupScenario_.step(
+                                       this->tickCount_, window->scene(), ContentLocalBounds(captureBounds), record)
+                                 : this->scenario_.step(
+                                       this->tickCount_, window->scene(), ContentLocalBounds(captureBounds), record);
               switch (advance)
               {
               case scenario_tests::SCENARIO_ADVANCE_PENDING:

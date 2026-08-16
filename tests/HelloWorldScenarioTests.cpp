@@ -16,8 +16,8 @@
 #include "platform/null/NullApp.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "scenarios/ObservedMainDefinition.hpp"
-#include "scenarios/ClassicVehiclePresentationVerify.hpp"
-#include "scenarios/HelloWorldClassicScenarioPresentation.hpp"
+#include "scenarios/VehiclePresentationVerify.hpp"
+#include "scenarios/HelloWorldScenarioPresentation.hpp"
 #include "scenarios/HelloWorldScenarios.hpp"
 #include "standalone/HelloWorldStandaloneFlowAppConfig.hpp"
 #include "support/MenuPresentationVerify.hpp"
@@ -76,14 +76,14 @@ namespace
   }
 } // namespace
 
-void testHelloWorldClassicVehiclePresentationUsesExampleDeclaration()
+void testHelloWorldVehiclePresentationUsesExampleDeclaration()
 {
   NullPlatformContext context;
   const HelloWorldMenuSeed menuSeed = HelloWorldMenuSeed::FromWallClock(1234567);
   HelloWorldProductionAppConfig production(&context, menuSeed);
-  loka::scenario_tests::HelloWorldClassicScenarioPresentation vehicle(&context, menuSeed);
-  loka::scenario_tests::VerifyClassicVehiclePresentation(&context, production, vehicle, true);
-  std::printf("testHelloWorldClassicVehiclePresentationUsesExampleDeclaration passed\n");
+  loka::scenario_tests::HelloWorldScenarioPresentation vehicle(&context, menuSeed);
+  loka::scenario_tests::VerifyVehiclePresentation(&context, production, vehicle, true);
+  std::printf("testHelloWorldVehiclePresentationUsesExampleDeclaration passed\n");
 }
 
 void testHelloWorldToggleActionProbeDrivesOwnerCommands()

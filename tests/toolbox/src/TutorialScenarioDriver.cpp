@@ -4,7 +4,7 @@
 
 #include "ScenarioDriverSupport.hpp"
 #include "StartupScenarios.hpp"
-#include "TutorialClassicScenarioPresentation.hpp"
+#include "TutorialScenarioPresentation.hpp"
 #include "TutorialScenarios.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
@@ -23,13 +23,12 @@ namespace loka
       const char *kConfigPath = "LokaTest.cfg";
       const char *kDefaultScenarioName = "increment-summary-toggle";
 
-      class TutorialScenarioAppConfig : public scenario_tests::TutorialClassicScenarioPresentation
+      class TutorialScenarioAppConfig : public scenario_tests::TutorialScenarioPresentation
       {
       public:
         TutorialScenarioAppConfig(PlatformContext *context, const dsl::SnapTestConfig::Settings &settings)
-            : scenario_tests::TutorialClassicScenarioPresentation(
-                  context,
-                  scenario_tests::IsStartupScenario(settings.scenario)),
+            : scenario_tests::TutorialScenarioPresentation(context,
+                                                           scenario_tests::IsStartupScenario(settings.scenario)),
               audit_(ResolveScenarioAuditFile(), settings.scenario.c_str()),
               startupScenario_(scenario_tests::STARTUP_EXAMPLE_TUTORIAL,
                                scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED,

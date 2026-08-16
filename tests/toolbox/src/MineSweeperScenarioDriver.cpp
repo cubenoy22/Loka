@@ -2,7 +2,7 @@
 
 #include <cassert>
 
-#include "MineSweeperClassicScenarioPresentation.hpp"
+#include "MineSweeperScenarioPresentation.hpp"
 #include "MineSweeperScenarios.hpp"
 #include "ScenarioDriverSupport.hpp"
 #include "StartupScenarios.hpp"
@@ -23,13 +23,12 @@ namespace loka
       const char *kConfigPath = "LokaTest.cfg";
       const char *kDefaultScenarioName = "new-game-twice";
 
-      class MineSweeperScenarioAppConfig : public scenario_tests::MineSweeperClassicScenarioPresentation
+      class MineSweeperScenarioAppConfig : public scenario_tests::MineSweeperScenarioPresentation
       {
       public:
         MineSweeperScenarioAppConfig(PlatformContext *context, const dsl::SnapTestConfig::Settings &settings)
-            : scenario_tests::MineSweeperClassicScenarioPresentation(
-                  context,
-                  minesweeper::MainProps(scenario_tests::MineSweeperScenarioSeed())),
+            : scenario_tests::MineSweeperScenarioPresentation(
+                  context, minesweeper::MainProps(scenario_tests::MineSweeperScenarioSeed())),
               startup_(scenario_tests::IsStartupScenario(settings.scenario)),
               audit_(ResolveScenarioAuditFile(), settings.scenario.c_str()),
               startupScenario_(scenario_tests::STARTUP_EXAMPLE_MINESWEEPER,
@@ -76,21 +75,19 @@ namespace loka
             bool done = false;
             if (!window || !window->scene())
             {
-              record = this->startup_
-                           ? scenario_tests::MakeStartupDriverErrorRecord(
-                                 scenario_tests::STARTUP_EXAMPLE_MINESWEEPER, 2802, "Scene was not mounted")
-                           : scenario_tests::MakeMineSweeperDriverErrorRecord(2602, "Scene was not mounted");
+              record = this->startup_ ? scenario_tests::MakeStartupDriverErrorRecord(
+                                            scenario_tests::STARTUP_EXAMPLE_MINESWEEPER, 2802, "Scene was not mounted")
+                                      : scenario_tests::MakeMineSweeperDriverErrorRecord(2602, "Scene was not mounted");
               done = true;
             }
             else
             {
               const scenario_tests::CaptureContentBounds captureBounds = QueryCaptureContentBounds(window);
               const scenario_tests::ScenarioAdvance advance =
-                  this->startup_
-                      ? this->startupScenario_.step(
-                            this->tickCount_, window->scene(), ContentLocalBounds(captureBounds), record)
-                      : this->scenario_.step(
-                            this->tickCount_, window->scene(), ContentLocalBounds(captureBounds), record);
+                  this->startup_ ? this->startupScenario_.step(
+                                       this->tickCount_, window->scene(), ContentLocalBounds(captureBounds), record)
+                                 : this->scenario_.step(
+                                       this->tickCount_, window->scene(), ContentLocalBounds(captureBounds), record);
               switch (advance)
               {
               case scenario_tests::SCENARIO_ADVANCE_PENDING:

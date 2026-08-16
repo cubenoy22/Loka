@@ -243,7 +243,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   target_compile_definitions(LokaScenarioTests PRIVATE TEST_BUILD)
   target_link_libraries(LokaScenarioTests PRIVATE LokaCommonTesting)
 
-  function(loka_add_classic_vehicle_presentation_test target_name source_file example_include_dir test_name)
+  function(loka_add_vehicle_presentation_test target_name source_file example_include_dir test_name)
     add_executable(${target_name}
       ${PROJECT_SOURCE_DIR}/tests/scenarios/${source_file}
       ${PROJECT_SOURCE_DIR}/tests/TestingHooks.cpp
@@ -269,27 +269,27 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     add_test(NAME ${test_name} COMMAND $<TARGET_FILE:${target_name}>)
   endfunction()
 
-  loka_add_classic_vehicle_presentation_test(
-    LokaTutorialClassicVehiclePresentationTest
-    TutorialClassicVehiclePresentationTest.cpp
+  loka_add_vehicle_presentation_test(
+    LokaTutorialVehiclePresentationTest
+    TutorialVehiclePresentationTest.cpp
     example/Tutorial/src
-    testTutorialClassicVehiclePresentationUsesExampleDeclaration)
-  loka_add_classic_vehicle_presentation_test(
-    LokaMineSweeperClassicVehiclePresentationTest
-    MineSweeperClassicVehiclePresentationTest.cpp
+    testTutorialVehiclePresentationUsesExampleDeclaration)
+  loka_add_vehicle_presentation_test(
+    LokaMineSweeperVehiclePresentationTest
+    MineSweeperVehiclePresentationTest.cpp
     example/MineSweeper/src
-    testMineSweeperClassicVehiclePresentationUsesExampleDeclaration)
-  loka_add_classic_vehicle_presentation_test(
-    LokaFloppyBirdClassicVehiclePresentationTest
-    FloppyBirdClassicVehiclePresentationTest.cpp
+    testMineSweeperVehiclePresentationUsesExampleDeclaration)
+  loka_add_vehicle_presentation_test(
+    LokaFloppyBirdVehiclePresentationTest
+    FloppyBirdVehiclePresentationTest.cpp
     example/FloppyBird/src
-    testFloppyBirdClassicVehiclePresentationUsesExampleDeclaration)
-  loka_add_classic_vehicle_presentation_test(
-    LokaScrapbookClassicVehiclePresentationTest
-    ScrapbookClassicVehiclePresentationTest.cpp
+    testFloppyBirdVehiclePresentationUsesExampleDeclaration)
+  loka_add_vehicle_presentation_test(
+    LokaScrapbookVehiclePresentationTest
+    ScrapbookVehiclePresentationTest.cpp
     example/ScrapbookUI/src
-    testScrapbookClassicVehiclePresentationUsesExampleDeclaration)
-  target_sources(LokaScrapbookClassicVehiclePresentationTest PRIVATE
+    testScrapbookVehiclePresentationUsesExampleDeclaration)
+  target_sources(LokaScrapbookVehiclePresentationTest PRIVATE
     ${PROJECT_SOURCE_DIR}/example/ScrapbookUI/src/ScrapbookPackage.cpp
   )
 

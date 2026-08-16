@@ -3,7 +3,7 @@
 
 void testHelloWorldToggleActionProbeDrivesOwnerCommands();
 void testHelloWorldToggleActionProbeHoldsFinalScene();
-void testHelloWorldClassicVehiclePresentationUsesExampleDeclaration();
+void testHelloWorldVehiclePresentationUsesExampleDeclaration();
 void testHelloWorldStandaloneMenuMatchesExample();
 void testHelloWorldStandaloneMountRefusalFailsClosed();
 
