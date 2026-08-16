@@ -525,7 +525,7 @@ namespace loka
     {
       NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
       const int result = applicationMain ? applicationMain() : 2;
-      [pool drain];
+      (void)pool;
       return result;
     }
   } // namespace macos_scenario_tests
