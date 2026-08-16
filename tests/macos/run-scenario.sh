@@ -16,7 +16,7 @@ fi
 
 EXAMPLE="$1"
 SCENARIO="$2"
-SCENARIO_REGISTRY="$PROJECT_DIR/tests/toolbox/scenarios.txt"
+SCENARIO_REGISTRY="$PROJECT_DIR/tests/scenarios/scenarios.txt"
 if [[ ! "$EXAMPLE" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
   || [[ ! "$SCENARIO" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
   || ! grep -Fxq -- "$EXAMPLE $SCENARIO" "$SCENARIO_REGISTRY"; then

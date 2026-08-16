@@ -9,7 +9,7 @@ namespace loka
   {
     namespace
     {
-      class FloppyBirdScenarioDriver : public ScenarioDriver
+      class FloppyBirdScenarioDriver : public scenario_tests::ScenarioDriver
       {
       public:
         FloppyBirdScenarioDriver(bool startup, floppybird::GameModel &game, dsl::testing::ScenarioAuditSink *audit)

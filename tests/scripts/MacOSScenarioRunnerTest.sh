@@ -14,17 +14,28 @@ fail() {
 mkdir -p \
   "$SANDBOX/repo/tests/macos" \
   "$SANDBOX/repo/tests/scenarios/expected" \
-  "$SANDBOX/repo/tests/toolbox" \
   "$SANDBOX/repo/build" \
   "$SANDBOX/fake.app/Contents/MacOS"
 cp "$REPO_DIR/tests/macos/run-scenario.sh" "$SANDBOX/repo/tests/macos/run-scenario.sh"
 cp "$REPO_DIR/tests/macos/validate-work-dir.py" "$SANDBOX/repo/tests/macos/validate-work-dir.py"
 cp "$REPO_DIR/tests/scenarios/pngtool.py" "$SANDBOX/repo/tests/scenarios/pngtool.py"
-cp "$REPO_DIR/tests/toolbox/scenarios.txt" "$SANDBOX/repo/tests/toolbox/scenarios.txt"
+cp "$REPO_DIR/tests/scenarios/scenarios.txt" "$SANDBOX/repo/tests/scenarios/scenarios.txt"
 for example in scrapbook helloworld tutorial minesweeper floppybird; do
   mkdir -p "$SANDBOX/repo/tests/scenarios/expected/$example"
   cp "$REPO_DIR/tests/scenarios/expected/$example/startup.audit" \
     "$SANDBOX/repo/tests/scenarios/expected/$example/startup.audit"
+done
+
+for invocation in \
+  'scrapbook startup' \
+  'scrapbook flip-forward-back' \
+  'helloworld startup' \
+  'tutorial startup' \
+  'minesweeper startup' \
+  'floppybird startup'; do
+  grep -Fqx "      - run: tests/macos/run-scenario.sh $invocation --ci-structural" \
+    "$REPO_DIR/.github/workflows/ci.yml" \
+    || fail "CI does not run the $invocation structural cell with the three-argument protocol"
 done
 cp "$REPO_DIR/example/ScrapbookUI/assets/page1.png" "$SANDBOX/snapshot.png"
 

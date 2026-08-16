@@ -538,7 +538,7 @@ class MacOSRigRun:
         }
         return remote_in_directory(
             self.target_source,
-            ("/bin/bash", "tests/macos/run-scenario.sh", self.scenario, flag),
+            ("/bin/bash", "tests/macos/run-scenario.sh", "scrapbook", self.scenario, flag),
             environment,
         )
 

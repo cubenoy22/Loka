@@ -9,7 +9,8 @@ namespace loka
   {
     namespace
     {
-      class ScrapbookScenarioAppConfig : public scenario_tests::ScrapbookScenarioPresentation, public ScenarioDriver
+      class ScrapbookScenarioAppConfig : public scenario_tests::ScrapbookScenarioPresentation,
+                                         public scenario_tests::ScenarioDriver
       {
       public:
         ScrapbookScenarioAppConfig(PlatformContext *context,

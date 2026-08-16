@@ -59,8 +59,12 @@ jobs:
       # prove the real AppKit runner, bounded settle, exact audit, profile,
       # and atomic completion contract; Tahoe owns the pixel verdict.
       - run: cmake --build --preset macos-scenarios
-      - run: tests/macos/run-scenario.sh startup --ci-structural
-      - run: tests/macos/run-scenario.sh flip-forward-back --ci-structural
+      - run: tests/macos/run-scenario.sh scrapbook startup --ci-structural
+      - run: tests/macos/run-scenario.sh scrapbook flip-forward-back --ci-structural
+      - run: tests/macos/run-scenario.sh helloworld startup --ci-structural
+      - run: tests/macos/run-scenario.sh tutorial startup --ci-structural
+      - run: tests/macos/run-scenario.sh minesweeper startup --ci-structural
+      - run: tests/macos/run-scenario.sh floppybird startup --ci-structural
       - name: Upload macOS scenario failure artifacts
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

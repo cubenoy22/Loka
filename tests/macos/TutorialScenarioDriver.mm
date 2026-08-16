@@ -40,7 +40,7 @@ namespace loka
         }
 
         ScenarioRunState runState_;
-        SceneScenarioDriver<scenario_tests::TutorialScenario> driver_;
+        scenario_tests::SceneScenarioDriver<scenario_tests::TutorialScenario> driver_;
         App *borrowedApp_;
       };
 

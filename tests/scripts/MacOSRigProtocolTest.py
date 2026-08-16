@@ -110,6 +110,19 @@ class MacOSRigProtocolTest(unittest.TestCase):
         )
         self.assertEqual(command, "cd '/tmp/run path' && MODE=inspect exec /bin/echo 'hello world'")
 
+    def test_runner_command_names_the_scrapbook_example(self):
+        run = object.__new__(rig.MacOSRigRun)
+        run.target_source = pathlib.PurePosixPath("/target/source")
+        run.target_artifacts = pathlib.PurePosixPath("/target/artifacts")
+        run.mode = "flow"
+        run.scenario = "flip-forward-back"
+        run.mapping = types.SimpleNamespace(target_python="/target/python3")
+        command = run._runner_command()
+        self.assertIn(
+            "exec /bin/bash tests/macos/run-scenario.sh scrapbook flip-forward-back --ci-structural",
+            command,
+        )
+
     def test_remote_marker_query_distinguishes_absence_from_transport_failure(self):
         run = object.__new__(rig.MacOSRigRun)
         run._target_ssh_args = lambda: ("ssh", "target")

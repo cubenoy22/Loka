@@ -325,7 +325,7 @@ namespace loka
       {
       }
 
-      void tick(Window *window, App *app, ScenarioDriver &driver)
+      void tick(Window *window, App *app, scenario_tests::ScenarioDriver &driver)
       {
         ++this->tick_;
         switch (this->phase_)
@@ -369,7 +369,7 @@ namespace loka
         }
       }
 
-      void drive(Window *window, App *app, ScenarioDriver &driver)
+      void drive(Window *window, App *app, scenario_tests::ScenarioDriver &driver)
       {
         const loka::core::Frame frame = window ? window->frameState().get() : loka::core::Frame();
         scenario_tests::CaptureContentBounds bounds;
@@ -485,8 +485,6 @@ namespace loka
       unsigned long long previousHash_;
     };
 
-    ScenarioDriver::~ScenarioDriver() {}
-
     ScenarioRunState::ScenarioRunState(const dsl::SnapTestConfig::Settings &settings, ScenarioRunMode mode)
         : impl_(new(std::nothrow) Impl(settings, mode))
     {
@@ -500,7 +498,7 @@ namespace loka
       return this->impl_.get() ? this->impl_->audit() : 0;
     }
 
-    void ScenarioRunState::tick(Window *window, App *app, ScenarioDriver &driver)
+    void ScenarioRunState::tick(Window *window, App *app, scenario_tests::ScenarioDriver &driver)
     {
       if (this->impl_.get())
       {
