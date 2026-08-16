@@ -24,7 +24,7 @@ find_cmake() {
     command -v cmake
     return 0
   fi
-  for candidate in /opt/homebrew/bin/cmake /usr/local/bin/cmake; do
+  for candidate in /opt/homebrew/bin/cmake /usr/local/bin/cmake /opt/local/bin/cmake; do
     if [[ -x "$candidate" ]]; then
       echo "$candidate"
       return 0
@@ -78,7 +78,10 @@ else
     echo "Standalone Flow assets not found: $BUILT_ASSETS" >&2
     exit 1
   fi
-  if ! /usr/bin/lipo -archs "$BUILT_BINARY" | tr ' ' '\n' | grep -Fxq "$HOST_ARCH"; then
+  # `lipo -archs` only exists in the Xcode 10+ cctools; `-info` is the surface
+  # every supported host shares, and its architecture list follows the last
+  # colon for both the thin ("is architecture:") and fat ("are:") wordings.
+  if ! /usr/bin/lipo -info "$BUILT_BINARY" | sed 's/^.*: //' | tr ' ' '\n' | grep -Fxq "$HOST_ARCH"; then
     echo "The standalone executable does not contain the host architecture $HOST_ARCH." >&2
     /usr/bin/lipo -info "$BUILT_BINARY" >&2 || true
     exit 1
