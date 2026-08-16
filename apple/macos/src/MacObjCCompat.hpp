@@ -41,11 +41,20 @@ typedef float CGFloat;
 // AppKit's modern constant names are enum values, not preprocessor macros.
 // Select by SDK version so current SDKs stay warning-clean while the legacy
 // 10.5 SDK used for the 10.4 deployment target keeps the original spellings.
-#if defined(MAC_OS_X_VERSION_MAX_ALLOWED) && (MAC_OS_X_VERSION_MAX_ALLOWED >= 101400)
+// The push-button bezel constant has three SDK spellings: NSRoundedBezelStyle
+// until the 10.14 SDK deprecated it, NSBezelStyleRounded from the 10.14 SDK
+// through the 13.x SDKs, and NSBezelStylePush since the macOS 14 SDK rename.
+#if defined(MAC_OS_X_VERSION_MAX_ALLOWED) && (MAC_OS_X_VERSION_MAX_ALLOWED >= 140000)
 #define LOKA_MAC_BUTTON_BEZEL_STYLE NSBezelStylePush
-#define LOKA_MAC_BUTTON_TYPE_MOMENTARY_PUSH_IN NSButtonTypeMomentaryPushIn
+#elif defined(MAC_OS_X_VERSION_MAX_ALLOWED) && (MAC_OS_X_VERSION_MAX_ALLOWED >= 101400)
+#define LOKA_MAC_BUTTON_BEZEL_STYLE NSBezelStyleRounded
 #else
 #define LOKA_MAC_BUTTON_BEZEL_STYLE NSRoundedBezelStyle
+#endif
+
+#if defined(MAC_OS_X_VERSION_MAX_ALLOWED) && (MAC_OS_X_VERSION_MAX_ALLOWED >= 101400)
+#define LOKA_MAC_BUTTON_TYPE_MOMENTARY_PUSH_IN NSButtonTypeMomentaryPushIn
+#else
 #define LOKA_MAC_BUTTON_TYPE_MOMENTARY_PUSH_IN NSMomentaryPushInButton
 #endif
 
