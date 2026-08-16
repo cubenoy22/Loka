@@ -525,6 +525,10 @@ namespace loka
     {
       NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
       const int result = applicationMain ? applicationMain() : 2;
+      // Draining the outermost process-lifetime pool crashes during shutdown
+      // (hosted-CI SIGSEGV on exactly this line). The process is exiting here
+      // anyway, so let the OS reclaim it, as every other macOS entry point in
+      // this repository does.
       (void)pool;
       return result;
     }
