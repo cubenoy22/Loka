@@ -19,6 +19,7 @@ mkdir -p \
   "$SANDBOX/repo/tests/scenarios/expected/scrapbook" \
   "$SANDBOX/repo/tests/scenarios/expected/tutorial" \
   "$SANDBOX/repo/tests/scenarios/expected/minesweeper" \
+  "$SANDBOX/repo/tests/scenarios/expected/floppybird" \
   "$SANDBOX/repo/scripts" \
   "$SANDBOX/repo/example/ScrapbookUI" \
   "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox" \
@@ -32,18 +33,22 @@ cp "$REPO_DIR/tests/scenarios/expected/tutorial/increment-summary-toggle.audit" 
   "$SANDBOX/repo/tests/scenarios/expected/tutorial/increment-summary-toggle.audit"
 cp "$REPO_DIR/tests/scenarios/expected/minesweeper/new-game-twice.audit" \
   "$SANDBOX/repo/tests/scenarios/expected/minesweeper/new-game-twice.audit"
+cp "$REPO_DIR/tests/scenarios/expected/floppybird/fixed-step-flaps.audit" \
+  "$SANDBOX/repo/tests/scenarios/expected/floppybird/fixed-step-flaps.audit"
 cp "$REPO_DIR/example/ScrapbookUI/assets/page1.png" "$SANDBOX/snapshot.png"
 printf '%s\n' \
   'scrapbook startup' \
   'helloworld toggle-action-probe' \
   'tutorial increment-summary-toggle' \
   'minesweeper new-game-twice' \
+  'floppybird fixed-step-flaps' \
   >"$SANDBOX/repo/tests/toolbox/scenarios.txt"
 touch \
   "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaTestsToolbox68K.bin" \
   "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaHelloWorldTestsToolbox68K.bin" \
   "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaTutorialTestsToolbox68K.bin" \
   "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaMineSweeperTestsToolbox68K.bin" \
+  "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaFloppyBirdTestsToolbox68K.bin" \
   "$SANDBOX/repo/example/ScrapbookUI/ASSETS.LRP" \
   "$SANDBOX/BootTemplate.hd"
 
@@ -158,6 +163,7 @@ run_case scrapbook startup 1 unset
 run_case helloworld toggle-action-probe 2 unset
 run_case tutorial increment-summary-toggle 3 unset
 run_case minesweeper new-game-twice 4 120
+run_case floppybird fixed-step-flaps 4 unset
 run_case helloworld toggle-action-probe 9 unset 9
 
 mkdir -p "$SANDBOX/repo/build/mame-scenario/golden/scrapbook"

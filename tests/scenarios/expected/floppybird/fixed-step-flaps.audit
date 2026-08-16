@@ -1,0 +1,34 @@
+loka_scenario_audit version=1 scenario=fixed-step-flaps
+step id=1 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=verify-waiting-surface
+step id=2 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=flap-1
+step id=3 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=verify-seeded-start
+step id=4 due_tick=40 tick=40 status=succeeded error_kind=0 error_code=0 name=flap-2
+step id=5 due_tick=44 tick=44 status=succeeded error_kind=0 error_code=0 name=verify-seeded-first-pipe
+step id=6 due_tick=78 tick=78 status=succeeded error_kind=0 error_code=0 name=flap-3
+step id=7 due_tick=116 tick=116 status=succeeded error_kind=0 error_code=0 name=flap-4
+step id=8 due_tick=154 tick=154 status=succeeded error_kind=0 error_code=0 name=verify-mid-run
+step id=9 due_tick=154 tick=154 status=succeeded error_kind=0 error_code=0 name=flap-5
+step id=10 due_tick=192 tick=192 status=succeeded error_kind=0 error_code=0 name=verify-final-checkpoint
+step id=11 due_tick=192 tick=192 status=succeeded error_kind=0 error_code=0 name=capture-final-checkpoint
+checkpoint.first_pipe	318,0,24,60;318,132,24,108;72,97,18,14
+checkpoint.mid_run	83,0,24,60;83,132,24,108;256,0,24,39;256,111,24,129;72,105,18,14
+checkpoint.started	72,113,18,14
+checkpoint.waiting	72,114,18,14
+crop_bottom	340
+crop_left	0
+crop_right	380
+crop_top	0
+fixed_step_count	192
+fixed_step_seconds	1/60
+flap_ticks	2,40,78,116,154
+format_version	1
+node	FloppyBird.Surface
+scenario_version	1
+schema_version	1
+seed	324508639
+status	ok
+step	fixed-step-flaps
+surface.rects	2,0,24,60;2,132,24,108;175,0,24,39;175,111,24,129;72,103,18,14
+test	FloppyBird
+tick	192
+terminal status=succeeded

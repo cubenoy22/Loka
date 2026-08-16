@@ -19,6 +19,9 @@ set(LOKA_TUTORIAL_TESTS_TOOLBOX_TARGET
 set(LOKA_MINESWEEPER_TESTS_TOOLBOX_TARGET
   "LokaMineSweeperTestsToolbox${LOKA_CLASSIC_TARGET_SUFFIX}"
 )
+set(LOKA_FLOPPY_BIRD_TESTS_TOOLBOX_TARGET
+  "LokaFloppyBirdTestsToolbox${LOKA_CLASSIC_TARGET_SUFFIX}"
+)
 
 function(loka_add_toolbox_test_application target core_target)
   add_application(${target} ${ARGN})
@@ -147,6 +150,33 @@ target_compile_definitions(${LOKA_MINESWEEPER_TESTS_TOOLBOX_TARGET} PRIVATE
   LOKA_DIAG=1
 )
 
+set(LOKA_FLOPPY_BIRD_TESTS_TOOLBOX_SOURCES
+  src/FloppyBirdScenarioMain.cpp
+  src/FloppyBirdScenarioDriver.cpp
+  src/ScenarioDriverSupport.cpp
+  ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/FloppyBirdScenarios.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/FloppyBirdSize.r
+)
+configure_file(
+  ${CMAKE_SOURCE_DIR}/example/FloppyBird/Size.r
+  ${CMAKE_CURRENT_BINARY_DIR}/FloppyBirdSize.r
+  COPYONLY
+)
+loka_add_toolbox_test_application(
+  ${LOKA_FLOPPY_BIRD_TESTS_TOOLBOX_TARGET}
+  LokaAppleToolboxTestCore
+  ${LOKA_FLOPPY_BIRD_TESTS_TOOLBOX_SOURCES}
+)
+target_include_directories(${LOKA_FLOPPY_BIRD_TESTS_TOOLBOX_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/example/FloppyBird/src
+)
+target_compile_definitions(${LOKA_FLOPPY_BIRD_TESTS_TOOLBOX_TARGET} PRIVATE
+  TEST_BUILD
+  LOKA_DIAG=1
+)
+
 set(LOKA_STANDALONE_FLOW_TOOLBOX_TARGET
   # Keep the generated application name within Classic HFS's 31-character limit.
   "LokaScrapbookStandaloneFlow${LOKA_CLASSIC_TARGET_SUFFIX}"
@@ -163,6 +193,10 @@ set(LOKA_TUTORIAL_STANDALONE_FLOW_TOOLBOX_TARGET
 set(LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_TARGET
   # Keep the generated application name within Classic HFS's 31-character limit.
   "LokaMineStandaloneFlow${LOKA_CLASSIC_TARGET_SUFFIX}"
+)
+set(LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_TARGET
+  # Keep the generated application name within Classic HFS's 31-character limit.
+  "LokaFloppyStandaloneFlow${LOKA_CLASSIC_TARGET_SUFFIX}"
 )
 set(LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_SOURCES
   src/HelloWorldStandaloneFlowMain.cpp
@@ -194,6 +228,16 @@ set(LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_SOURCES
   ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/MineSweeperScenarios.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/MineSweeperStandaloneSize.r
+)
+set(LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_SOURCES
+  src/FloppyBirdStandaloneFlowMain.cpp
+  ${CMAKE_SOURCE_DIR}/tests/standalone/FloppyBirdStandaloneFlowApplication.cpp
+  ${CMAKE_SOURCE_DIR}/tests/standalone/FloppyBirdStandaloneFlowAppConfig.cpp
+  ${CMAKE_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
+  ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/FloppyBirdScenarios.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/FloppyBirdStandaloneSize.r
 )
 set(LOKA_STANDALONE_FLOW_TOOLBOX_SOURCES
   src/StandaloneFlowMain.cpp
@@ -303,6 +347,31 @@ target_include_directories(${LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_TARGET} PR
   ${CMAKE_SOURCE_DIR}/example/MineSweeper/src
 )
 target_compile_definitions(${LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVATE
+  TEST_BUILD
+  LOKA_DIAG=1
+)
+
+configure_file(
+  ${CMAKE_SOURCE_DIR}/example/FloppyBird/Size.r
+  ${CMAKE_CURRENT_BINARY_DIR}/FloppyBirdStandaloneSize.r
+  COPYONLY
+)
+loka_add_toolbox_test_application(
+  ${LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_TARGET}
+  LokaAppleToolboxTestCore
+  ${LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_SOURCES}
+)
+set_property(TARGET ${LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_TARGET}
+  PROPERTY EXCLUDE_FROM_ALL TRUE
+)
+set_property(TARGET ${LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_TARGET}_APPL
+  PROPERTY EXCLUDE_FROM_ALL TRUE
+)
+target_include_directories(${LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/tests/standalone
+  ${CMAKE_SOURCE_DIR}/example/FloppyBird/src
+)
+target_compile_definitions(${LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVATE
   TEST_BUILD
   LOKA_DIAG=1
 )

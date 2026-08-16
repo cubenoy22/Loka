@@ -703,6 +703,23 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Build: Retro68 68K FloppyBird Standalone Flow",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "retro68-68k-release",
+        "--target",
+        "LokaFloppyStandaloneFlow68K_APPL"
+      ],
+      "dependsOn": [
+        "Configure: Retro68 68K"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Stage: Toolbox 68K Standalone Flow Release",
       "type": "shell",
       "command": "bash",
@@ -912,6 +929,26 @@
           "-File",
           "scripts/mame-dev-disk.ps1",
           "build/retro68/68k/Release/tests/toolbox/LokaMineStandaloneFlow68K.bin"
+        ]
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Prepare SCSI Dev Disk: FloppyBird Standalone Flow",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
+      "args": [
+        "${workspaceFolder}/build/retro68/68k/Release/tests/toolbox/LokaFloppyStandaloneFlow68K.bin"
+      ],
+      "windows": {
+        "command": "powershell.exe",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-dev-disk.ps1",
+          "build/retro68/68k/Release/tests/toolbox/LokaFloppyStandaloneFlow68K.bin"
         ]
       },
       "problemMatcher": []
@@ -1172,6 +1209,16 @@
       "dependsOn": [
         "Build: Retro68 68K MineSweeper Standalone Flow",
         "Prepare SCSI Dev Disk: MineSweeper Standalone Flow",
+        "MAME: Start"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Start in MAME via SCSI: FloppyBird Standalone Flow",
+      "dependsOn": [
+        "Build: Retro68 68K FloppyBird Standalone Flow",
+        "Prepare SCSI Dev Disk: FloppyBird Standalone Flow",
         "MAME: Start"
       ],
       "dependsOrder": "sequence",
