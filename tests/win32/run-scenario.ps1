@@ -80,6 +80,43 @@ function Test-FilesEqual([string]$First, [string]$Second) {
     }
 }
 
+function Read-ScenarioProfile([string]$Path) {
+    $values = @{}
+    foreach ($line in [System.IO.File]::ReadAllLines($Path)) {
+        if ($line -notmatch '^([a-z_]+)=(.*)$') {
+            Fail-Stage "profile" "invalid profile line '$line' in $Path"
+        }
+        if ($values.ContainsKey($Matches[1])) {
+            Fail-Stage "profile" "duplicate profile field '$($Matches[1])' in $Path"
+        }
+        $values[$Matches[1]] = $Matches[2]
+    }
+    return $values
+}
+
+function Get-CaptureProfileMismatch($Expected, $Actual) {
+    $captureFields = @(
+        "scale_percent_available",
+        "scale_percent",
+        "depth_available",
+        "depth",
+        "appearance_available",
+        "appearance",
+        "capture_api",
+        "pixel_width",
+        "pixel_height"
+    )
+    foreach ($field in $captureFields) {
+        $expectedHasField = $Expected.ContainsKey($field)
+        $actualHasField = $Actual.ContainsKey($field)
+        if ($expectedHasField -ne $actualHasField `
+            -or ($expectedHasField -and $Expected[$field] -cne $Actual[$field])) {
+            return $field
+        }
+    }
+    return $null
+}
+
 function Read-CaptureBounds([string]$Path) {
     $values = @{}
     foreach ($line in [System.IO.File]::ReadAllLines($Path)) {
@@ -190,6 +227,12 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 
+public enum LokaScenarioCaptureResult {
+    Refused,
+    Uniform,
+    Captured
+}
+
 public static class LokaScenarioNative {
     [StructLayout(LayoutKind.Sequential)]
     private struct RECT { public int Left, Top, Right, Bottom; }
@@ -224,12 +267,12 @@ public static class LokaScenarioNative {
         return result.ToArray();
     }
 
-    public static bool CaptureWindow(IntPtr hwnd, string path) {
+    public static LokaScenarioCaptureResult CaptureWindow(IntPtr hwnd, string path) {
         RECT rect;
-        if (!GetWindowRect(hwnd, out rect)) return false;
+        if (!GetWindowRect(hwnd, out rect)) return LokaScenarioCaptureResult.Refused;
         int width = rect.Right - rect.Left;
         int height = rect.Bottom - rect.Top;
-        if (width <= 0 || height <= 0) return false;
+        if (width <= 0 || height <= 0) return LokaScenarioCaptureResult.Refused;
         using (Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb))
         using (Graphics graphics = Graphics.FromImage(bitmap)) {
             IntPtr hdc = graphics.GetHdc();
@@ -239,7 +282,7 @@ public static class LokaScenarioNative {
             } finally {
                 graphics.ReleaseHdc(hdc);
             }
-            if (!captured) return false;
+            if (!captured) return LokaScenarioCaptureResult.Refused;
             Color first = bitmap.GetPixel(0, 0);
             bool varied = false;
             for (int y = 0; y < height && !varied; ++y) {
@@ -250,10 +293,10 @@ public static class LokaScenarioNative {
                     }
                 }
             }
-            if (!varied) return false;
+            if (!varied) return LokaScenarioCaptureResult.Uniform;
             bitmap.Save(path, ImageFormat.Png);
         }
-        return true;
+        return LokaScenarioCaptureResult.Captured;
     }
 
     public static bool CloseWindow(IntPtr hwnd) {
@@ -329,11 +372,13 @@ try {
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
     $startInfo.CreateNoWindow = $false
-    $ChildProcess = New-Object System.Diagnostics.Process
-    $ChildProcess.StartInfo = $startInfo
-    if (-not $ChildProcess.Start()) {
+    $launchProcess = New-Object System.Diagnostics.Process
+    $launchProcess.StartInfo = $startInfo
+    if (-not $launchProcess.Start()) {
         Fail-Stage "launch" "could not start $StagedExecutable"
     }
+    # The cleanup owner sees only a process that successfully acquired a native handle.
+    $ChildProcess = $launchProcess
     $ChildStdoutTask = $ChildProcess.StandardOutput.ReadToEndAsync()
     $ChildStderrTask = $ChildProcess.StandardError.ReadToEndAsync()
     [System.IO.File]::WriteAllText((Join-Path $Work "child.pid"), [string]$ChildProcess.Id)
@@ -354,6 +399,19 @@ try {
         Fail-Stage "completion" "atomic completion marker is invalid"
     }
 
+    $StageAudit = Join-Path $Stage "actual.audit"
+    $ActualAudit = Join-Path $Work "actual.audit"
+    if (-not (Test-Path -LiteralPath $StageAudit -PathType Leaf)) {
+        Fail-Stage "extract" "scenario process did not write actual.audit"
+    }
+    Copy-Item -LiteralPath $StageAudit -Destination $ActualAudit
+    if (-not (Test-FilesEqual $ExpectedAudit $ActualAudit)) {
+        Fail-Stage "verdict" "actual.audit differs byte-for-byte from $ExpectedAudit"
+    }
+    $expectedHash = (Get-FileHash -LiteralPath $ExpectedAudit -Algorithm SHA256).Hash.ToLowerInvariant()
+    $actualHash = (Get-FileHash -LiteralPath $ActualAudit -Algorithm SHA256).Hash.ToLowerInvariant()
+    Write-Runner "audit verdict: byte-identical expected_sha256=$expectedHash actual_sha256=$actualHash"
+
     $windows = [LokaScenarioNative]::VisibleTopLevelWindows([uint32]$ChildProcess.Id)
     if ($windows.Count -ne 1) {
         Fail-Stage "capture" "expected one visible top-level HWND for PID $($ChildProcess.Id), found $($windows.Count)"
@@ -366,8 +424,15 @@ try {
     $settleDeadline = [DateTime]::UtcNow.AddSeconds(30)
     for ($frame = 1; [DateTime]::UtcNow -lt $settleDeadline; ++$frame) {
         $framePath = Join-Path $Settle ("frame-{0:D3}.png" -f $frame)
-        if (-not [LokaScenarioNative]::CaptureWindow($ChildWindow, $framePath)) {
+        $captureResult = [LokaScenarioNative]::CaptureWindow($ChildWindow, $framePath)
+        if ($captureResult -eq [LokaScenarioCaptureResult]::Refused) {
             Fail-Stage "capture" "PrintWindow(PW_RENDERFULLCONTENT) refused frame $frame"
+        }
+        if ($captureResult -eq [LokaScenarioCaptureResult]::Uniform) {
+            Write-Runner "settle frame $frame is uniform; retrying until the settle deadline"
+            $previousHash = $null
+            Start-Sleep -Milliseconds 250
+            continue
         }
         $hash = (Get-FileHash -LiteralPath $framePath -Algorithm SHA256).Hash.ToLowerInvariant()
         Write-Runner "settle frame $frame sha256=$hash"
@@ -379,7 +444,7 @@ try {
         Start-Sleep -Milliseconds 250
     }
     if ($null -eq $acceptedFrame) {
-        Fail-Stage "settle" "no two consecutive screenshots had identical hashes"
+        Fail-Stage "settle" "no two consecutive non-uniform screenshots had identical hashes before the deadline"
     }
     $WindowActual = Join-Path $Work "window-actual.png"
     Copy-Item -LiteralPath $acceptedFrame -Destination $WindowActual
@@ -402,19 +467,6 @@ try {
     if ($childExitCode -ne 0) {
         Fail-Stage "shutdown" "scenario process exited $childExitCode"
     }
-
-    $StageAudit = Join-Path $Stage "actual.audit"
-    $ActualAudit = Join-Path $Work "actual.audit"
-    if (-not (Test-Path -LiteralPath $StageAudit -PathType Leaf)) {
-        Fail-Stage "extract" "scenario process did not write actual.audit"
-    }
-    Copy-Item -LiteralPath $StageAudit -Destination $ActualAudit
-    if (-not (Test-FilesEqual $ExpectedAudit $ActualAudit)) {
-        Fail-Stage "verdict" "actual.audit differs byte-for-byte from $ExpectedAudit"
-    }
-    $expectedHash = (Get-FileHash -LiteralPath $ExpectedAudit -Algorithm SHA256).Hash.ToLowerInvariant()
-    $actualHash = (Get-FileHash -LiteralPath $ActualAudit -Algorithm SHA256).Hash.ToLowerInvariant()
-    Write-Runner "audit verdict: byte-identical expected_sha256=$expectedHash actual_sha256=$actualHash"
 
     $StageBounds = Join-Path $Stage "capture.bounds"
     $StageProfile = Join-Path $Stage "actual.profile"
@@ -446,8 +498,21 @@ try {
         }
         $WorkGolden = Join-Path $Work "golden.png"
         Copy-Item -LiteralPath $Golden -Destination $WorkGolden
-        if (-not (Test-FilesEqual $ActualProfile $GoldenProfile)) {
-            Fail-Stage "profile" "rig profile differs from $GoldenProfile"
+        $expectedProfile = Read-ScenarioProfile $GoldenProfile
+        $actualProfileFacts = Read-ScenarioProfile $ActualProfile
+        $profileMismatch = Get-CaptureProfileMismatch $expectedProfile $actualProfileFacts
+        if ($null -ne $profileMismatch) {
+            $expectedValue = if ($expectedProfile.ContainsKey($profileMismatch)) {
+                $expectedProfile[$profileMismatch]
+            } else {
+                "<absent>"
+            }
+            $actualValue = if ($actualProfileFacts.ContainsKey($profileMismatch)) {
+                $actualProfileFacts[$profileMismatch]
+            } else {
+                "<absent>"
+            }
+            Fail-Stage "profile" "capture field '$profileMismatch' moved from '$expectedValue' to '$actualValue'"
         }
         Invoke-PngCompare $Actual $WorkGolden *>> $RunnerLog
         if ($PngExitCode -ne 0) {

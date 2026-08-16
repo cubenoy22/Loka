@@ -296,25 +296,31 @@ namespace loka
             }
             return;
           }
-          if (!window || !this->borrowedMainNode_)
-          {
-            return;
-          }
-
           ++this->tick_;
           const scenario_tests::CaptureContentBounds captureBounds = QueryCaptureContentBounds(window);
           dsl::SnapRecord record;
-          const scenario_tests::ScenarioAdvance advance = this->scenario_.step(
-              this->tick_, window->scene(), *this->borrowedMainNode_, ContentLocalBounds(captureBounds), record);
-          switch (advance)
+          if (!this->borrowedMainNode_)
           {
-          case scenario_tests::SCENARIO_ADVANCE_PENDING:
-            return;
-          case scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD:
-            this->fail("rig scenario unexpectedly retained terminal ownership");
-            return;
-          case scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY:
-            break;
+            record =
+                scenario_tests::MakeDriverErrorRecord(this->scenario_.name().c_str(), 2303, "MainNode was not mounted");
+          }
+          else
+          {
+            const scenario_tests::ScenarioAdvance advance = this->scenario_.step(this->tick_,
+                                                                                 window ? window->scene() : 0,
+                                                                                 *this->borrowedMainNode_,
+                                                                                 ContentLocalBounds(captureBounds),
+                                                                                 record);
+            switch (advance)
+            {
+            case scenario_tests::SCENARIO_ADVANCE_PENDING:
+              return;
+            case scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD:
+              this->fail("rig scenario unexpectedly retained terminal ownership");
+              return;
+            case scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY:
+              break;
+            }
           }
 
           if (!this->scenario_.publishVerdict(record))

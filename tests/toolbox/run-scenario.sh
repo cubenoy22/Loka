@@ -179,13 +179,17 @@ if [ "$EXAMPLE" = "scrapbook" ]; then
   if [ ! -f "$FIXTURE_REGISTRY" ]; then
     fail_stage mame "missing $FIXTURE_REGISTRY"
   fi
-  fixture_entry="$(grep -E "^${SCENARIO} corrupt-bag=[0-9]+$" "$FIXTURE_REGISTRY" || true)"
-  if [ "$(printf '%s\n' "$fixture_entry" | grep -c . || true)" -gt 1 ]; then
-    fail_stage mame "duplicate fixture mapping for '$SCENARIO'"
-  fi
-  if [ -n "$fixture_entry" ]; then
-    CORRUPT_BAG="${fixture_entry##*=}"
-  fi
+  while IFS= read -r fixture_entry || [ -n "$fixture_entry" ]; do
+    if [[ ! "$fixture_entry" =~ ^([a-z0-9][a-z0-9-]*)\ corrupt-bag=([0-9]+)$ ]]; then
+      fail_stage mame "invalid Scrapbook fixture registry line '$fixture_entry'"
+    fi
+    if [ "${BASH_REMATCH[1]}" = "$SCENARIO" ]; then
+      if [ -n "$CORRUPT_BAG" ]; then
+        fail_stage mame "duplicate fixture mapping for '$SCENARIO'"
+      fi
+      CORRUPT_BAG="${BASH_REMATCH[2]}"
+    fi
+  done <"$FIXTURE_REGISTRY"
   STAGE_ARGUMENTS=(stage "$ASSETS" -o "$STAGED_ASSETS")
   if [ -n "$CORRUPT_BAG" ]; then
     STAGE_ARGUMENTS+=(--corrupt-bag "$CORRUPT_BAG")
