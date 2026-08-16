@@ -140,6 +140,6 @@ host must satisfy that preset's toolchain requirements.
 The Classic scenario command requires an already configured local MAME rig,
 the example's Toolbox test application, and the host `lrpc` tool; if an
 artifact is absent, the runner prints its exact build command.
-`tests/toolbox/scenarios.txt` is the shared `<example> <scenario>` registry.
+`tests/scenarios/scenarios.txt` is the shared `<example> <scenario>` registry.
 `--update-golden` regenerates the rig-local golden under that same per-example
 layout; it does not create release evidence or a tracked repository file.

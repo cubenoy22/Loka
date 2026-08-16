@@ -19,7 +19,7 @@ SCENARIO="$2"
 ACTUAL="$3"
 if [[ ! "$EXAMPLE" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
   || [[ ! "$SCENARIO" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
-  || ! grep -Fxq -- "$EXAMPLE $SCENARIO" "$SCRIPT_DIR/scenarios.txt"; then
+  || ! grep -Fxq -- "$EXAMPLE $SCENARIO" "$PROJECT_DIR/tests/scenarios/scenarios.txt"; then
   usage
   exit 2
 fi

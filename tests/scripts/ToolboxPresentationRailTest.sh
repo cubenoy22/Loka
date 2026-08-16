@@ -14,9 +14,9 @@ fail() {
 
 make_fixture() {
   rm -rf "$SANDBOX/repo"
-  mkdir -p "$SANDBOX/repo/tests/toolbox"
+  mkdir -p "$SANDBOX/repo/tests/toolbox" "$SANDBOX/repo/tests/scenarios"
   cp "$SUBJECT" "$SANDBOX/repo/tests/toolbox/run-presentation-rail.sh"
-  printf 'first alpha\nsecond beta\n' >"$SANDBOX/repo/tests/toolbox/scenarios.txt"
+  printf 'first alpha\nsecond beta\n' >"$SANDBOX/repo/tests/scenarios/scenarios.txt"
 }
 
 write_success_runner() {

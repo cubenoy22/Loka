@@ -1,1 +1,2 @@
+tests/scenarios/*.txt text eol=lf
 tests/scenarios/expected/*/*.audit text eol=lf
