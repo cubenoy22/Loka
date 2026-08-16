@@ -1,0 +1,19 @@
+Scenario passed: scrapbook/startup
+Scenario passed: scrapbook/open-first-page
+lrpc: bag 1 payload [1420, 2828), flipped offset 2124
+Scenario passed: scrapbook/open-first-page-refused
+Scenario passed: scrapbook/flip-forward-back
+lrpc: bag 3 payload [4252, 5648), flipped offset 4950
+Scenario passed: scrapbook/refused-flip-keeps-page
+Scenario passed: scrapbook/open-text-page
+lrpc: bag 5 payload [7108, 7160), flipped offset 7134
+Scenario passed: scrapbook/open-text-page-refused
+Scenario passed: helloworld/startup
+Scenario passed: helloworld/toggle-action-probe
+Scenario passed: tutorial/startup
+Scenario passed: tutorial/increment-summary-toggle
+Scenario passed: minesweeper/startup
+Scenario passed: minesweeper/new-game-twice
+Scenario passed: floppybird/startup
+Scenario passed: floppybird/fixed-step-flaps
+Toolbox presentation rail passed: /home/cubenoy22/loka-release-003/build/loka-rig/checkouts/20260816T044904Z-224ae6466cd1-flow-examples/build/mame-scenario/presentation/20260816T044904Z-224ae6466cd1-flow-examples

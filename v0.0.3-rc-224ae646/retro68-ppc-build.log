@@ -1,0 +1,90 @@
+[0/2] Re-checking globbed directories...
+[1/1] Cleaning all built files...
+Cleaning... 102 files.
+[0/2] Re-checking globbed directories...
+[1/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxBootstrap.cpp.obj
+[2/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxString.cpp.obj
+[3/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxOperatorNew.cpp.obj
+[4/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxByteSource.cpp.obj
+[5/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxNativeImage.cpp.obj
+[6/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/PictParser.cpp.obj
+[7/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxProfiler.cpp.obj
+[8/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxApp.cpp.obj
+[9/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/debug/ToolboxSceneDebugStats.cpp.obj
+[10/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxBuiltInSupport.cpp.obj
+[11/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxButtonContext.cpp.obj
+[12/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxProjectedNodeContext.cpp.obj
+[13/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxCellContext.cpp.obj
+[14/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxEditTextContext.cpp.obj
+[15/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxOpenFileDialogContext.cpp.obj
+[16/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxPopupMenuContext.cpp.obj
+[17/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxScrollBarContext.cpp.obj
+[18/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxTextContext.cpp.obj
+[19/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxImageViewContext.cpp.obj
+[20/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxRectSurfaceContext.cpp.obj
+[21/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxPlatformLayoutHandlers.cpp.obj
+[22/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxScenePlatformController.cpp.obj
+[23/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxWindowContext.cpp.obj
+[24/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxWindow.cpp.obj
+[25/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/platform/ToolboxAppLocation.cpp.obj
+[26/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/platform/ToolboxFileIO.cpp.obj
+[27/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxPlatformContext.cpp.obj
+[28/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/platform/ToolboxHfsName.cpp.obj
+[29/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/MenuComposition.cpp.obj
+[30/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/App.cpp.obj
+[31/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/MenuController.cpp.obj
+[32/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/AppComposition.cpp.obj
+[33/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/SceneManager.cpp.obj
+[34/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/Window.cpp.obj
+[35/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/BoundaryInnerStateOwner.cpp.obj
+[36/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/composition/NodeComposition.cpp.obj
+[37/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/node/Conditional.cpp.obj
+[38/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/projection/PlatformController.cpp.obj
+[39/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/LokaAlloc.cpp.obj
+[40/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/Profiler.cpp.obj
+[41/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/Boundary.cpp.obj
+[42/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/String.cpp.obj
+[43/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/StateTracker.cpp.obj
+[44/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/StringBuffer.cpp.obj
+[45/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/diag/LifecycleAudit.cpp.obj
+[46/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/Value.cpp.obj
+[47/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/resource/lrpk/LrpkReader.cpp.obj
+[48/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/resource/lrpk/LrpkStdioByteSource.cpp.obj
+[49/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/GenericString.cpp.obj
+[50/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/debug/GenericDebugLog.cpp.obj
+[51/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/file/GenericAppLocation.cpp.obj
+[52/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/StringUTF8.cpp.obj
+[53/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/file/GenericFileIO.cpp.obj
+[54/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/testing/scene/ScenarioAudit.cpp.obj
+[55/84] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/testing/snap/SnapFormat.cpp.obj
+[56/84] Linking CXX static library apple/toolbox/libLokaAppleToolboxCore.a
+[57/84] Building CXX object example/HelloWorld/CMakeFiles/LokaHelloPPC.dir/src/main.cpp.obj
+[58/84] Building CXX object example/HelloWorld/CMakeFiles/LokaHelloPPC.dir/src/MainNode.cpp.obj
+[59/84] Linking CXX executable example/HelloWorld/LokaHelloPPC.xcoff
+[60/84] Generating Size.r.rsrc.bin
+[61/84] Generating LokaHelloPPC.pef
+[62/84] Generating LokaHelloPPC.bin, LokaHelloPPC.APPL, LokaHelloPPC.dsk, LokaHelloPPC.ad, %LokaHelloPPC.ad
+[63/84] Building CXX object example/MineSweeper/CMakeFiles/LokaMinePPC.dir/src/main.cpp.obj
+[64/84] Linking CXX executable example/MineSweeper/LokaMinePPC.xcoff
+[65/84] Generating Size.r.rsrc.bin
+[66/84] Generating LokaMinePPC.pef
+[67/84] Generating LokaMinePPC.bin, LokaMinePPC.APPL, LokaMinePPC.dsk, LokaMinePPC.ad, %LokaMinePPC.ad
+[68/84] cd /home/cubenoy22/loka-release-003/build/retro68/ppc/Release/example/ScrapbookUI && /usr/bin/cmake -E echo ScrapbookUI\ has\ no\ supported\ platform\ target\ here.
+ScrapbookUI has no supported platform target here.
+[69/84] Building CXX object example/FloppyBird/CMakeFiles/LokaFloppyBirdPPC.dir/src/main.cpp.obj
+[70/84] Building CXX object example/SimpleViewer/CMakeFiles/LokaSimpleViewerPPC.dir/src/main.cpp.obj
+[71/84] Linking CXX executable example/FloppyBird/LokaFloppyBirdPPC.xcoff
+[72/84] Generating Size.r.rsrc.bin
+[73/84] Generating LokaFloppyBirdPPC.pef
+[74/84] Generating LokaFloppyBirdPPC.bin, LokaFloppyBirdPPC.APPL, LokaFloppyBirdPPC.dsk, LokaFloppyBirdPPC.ad, %LokaFloppyBirdPPC.ad
+[75/84] Linking CXX executable example/SimpleViewer/LokaSimpleViewerPPC.xcoff
+[76/84] Generating Size.r.rsrc.bin
+[77/84] Generating LokaSimpleViewerPPC.pef
+[78/84] Generating LokaSimpleViewerPPC.bin, LokaSimpleViewerPPC.APPL, LokaSimpleViewerPPC.dsk, LokaSimpleViewerPPC.ad, %LokaSimpleViewerPPC.ad
+[79/84] cd /home/cubenoy22/loka-release-003/build/retro68/ppc/Release/tests/toolbox && /usr/bin/cmake -E echo LokaTestsToolbox\ is\ Retro68-only.\ No\ app\ is\ built\ for\ this\ platform.
+LokaTestsToolbox is Retro68-only. No app is built for this platform.
+[80/84] Building CXX object example/Tutorial/CMakeFiles/LokaTutorialPPC.dir/src/main.cpp.obj
+[81/84] Linking CXX executable example/Tutorial/LokaTutorialPPC.xcoff
+[82/84] Generating LokaTutorialPPC.pef
+[83/84] Generating Size.r.rsrc.bin
+[84/84] Generating LokaTutorialPPC.bin, LokaTutorialPPC.APPL, LokaTutorialPPC.dsk, LokaTutorialPPC.ad, %LokaTutorialPPC.ad

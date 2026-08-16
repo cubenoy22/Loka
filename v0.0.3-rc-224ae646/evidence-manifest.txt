@@ -1,0 +1,39 @@
+manifest_version=1
+release=v0.0.3
+rc_sha=224ae6466cd184e1bb7e8228b5b261c8c2dcce5d
+hosted_ci=https://github.com/cubenoy22/Loka/actions/runs/31927204276
+
+retro68_68k_command=cmake --preset retro68-68k-release && cmake --build --preset retro68-68k-release
+retro68_68k_result=passed
+retro68_68k_evidence=classic-toolbox-maciix-20260816T044904Z.zip
+retro68_ppc_command=cmake --preset retro68-ppc-release && cmake --build --preset retro68-ppc-release
+retro68_ppc_result=passed
+retro68_ppc_evidence=retro68-ppc-build.log
+retro68_ppc_scrapbookui=n/a (no supported PPC target)
+
+classic_command=python3 scripts/rig/loka-rig.py run toolbox-maciix --ref 224ae6466cd184e1bb7e8228b5b261c8c2dcce5d --mode flow --local-config <machine-local-config>
+classic_result=passed
+classic_mame_version=0.289 (mame0289)
+classic_scenario_count=15
+classic_l1_matrix_cells=5
+classic_l2_matrix_cells=5
+classic_verdict_layers=tracked expected audit byte match; settled rig-local pixel golden match
+classic_run_id=20260816T044904Z-224ae6466cd1-flow-examples
+classic_archive_sha256=04abc1d0b367040e320de85c6e4d1b60cf99c03c89464e6412ffe2524718b822
+classic_representative_capture_sha256=98b0b42a35b57dee67f072aeec82177ce865235ac8e8913b431998093abd084b
+
+macos_host=macOS 26.6.1 (25G76), x86_64, scale 200%, depth 24, light appearance
+macos_cmake=4.2.3
+macos_xcode=26.5 (17F42)
+macos_capture_api=NSView.cacheDisplayInRect.v1
+macos_build_command=cmake --preset macos-debug && cmake --build --preset macos-scenarios
+macos_build_result=passed
+macos_startup_command=tests/macos/run-scenario.sh startup
+macos_startup_result=passed
+macos_flip_command=tests/macos/run-scenario.sh flip-forward-back
+macos_flip_result=passed
+macos_verdict_layers=tracked expected audit byte match; settled rig-local pixel golden match
+macos_archive_sha256=94f9018127ecadbbf431af2d78f6dbf5ff4a305d20e31bb75413c50bbf2de105
+macos_startup_audit_sha256=283d22230d899093b0c74693173a47191003791ed45eac66ca7af9efee402e8d
+macos_flip_audit_sha256=501484a0af0017834eb41061a7517c8ac35e85345910708984e17eb145db4d00
+macos_representative_capture_sha256=f5d56bae5eaa02660efc22abde68de908755c0c760f0904d3f4bb13e1a57de15
