@@ -348,7 +348,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
 
     if(LOKA_MAME_SCENARIOS)
       file(STRINGS
-        ${PROJECT_SOURCE_DIR}/tests/toolbox/scenarios.txt
+        ${PROJECT_SOURCE_DIR}/tests/scenarios/scenarios.txt
         _loka_mame_scenarios
         REGEX "^[a-z0-9][a-z0-9-]* [a-z0-9][a-z0-9-]*$")
       foreach(_loka_mame_entry IN LISTS _loka_mame_scenarios)
@@ -380,7 +380,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     ${PROJECT_SOURCE_DIR}/tests/ContractTestRegistry.inc
     ${PROJECT_SOURCE_DIR}/tests/ScenarioTestRegistry.inc
-    ${PROJECT_SOURCE_DIR}/tests/toolbox/scenarios.txt
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/scenarios.txt
   )
 
   file(STRINGS ${PROJECT_SOURCE_DIR}/tests/ContractTestRegistry.inc

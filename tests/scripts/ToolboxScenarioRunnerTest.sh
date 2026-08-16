@@ -55,7 +55,7 @@ printf '%s\n' \
   'minesweeper new-game-twice' \
   'floppybird startup' \
   'floppybird fixed-step-flaps' \
-  >"$SANDBOX/repo/tests/toolbox/scenarios.txt"
+  >"$SANDBOX/repo/tests/scenarios/scenarios.txt"
 touch \
   "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaTestsToolbox68K.bin" \
   "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaHelloWorldTestsToolbox68K.bin" \

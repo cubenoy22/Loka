@@ -119,7 +119,7 @@ def load_local_mapping(path: pathlib.Path) -> LocalMapping:
 
 
 def _read_scenarios(checkout: pathlib.Path) -> tuple[tuple[str, str], ...]:
-    registry = checkout / "tests" / "toolbox" / "scenarios.txt"
+    registry = checkout / "tests" / "scenarios" / "scenarios.txt"
     try:
         rows = tuple(line.split() for line in registry.read_text(encoding="utf-8").splitlines())
     except OSError as error:

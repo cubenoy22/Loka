@@ -50,7 +50,7 @@ def write_rgb_png(path, width, height, pixels):
 
 class ExpectedAuditPinsTest(unittest.TestCase):
     def test_expected_audits_cover_registry_and_pin_app_identity(self):
-        registry = os.path.join(PROJECT_DIR, "tests", "toolbox", "scenarios.txt")
+        registry = os.path.join(PROJECT_DIR, "tests", "scenarios", "scenarios.txt")
         with open(registry, "r", encoding="utf-8") as handle:
             entries = [line.split() for line in handle.read().splitlines()]
         self.assertEqual(len(entries), 15)

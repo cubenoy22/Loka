@@ -279,7 +279,7 @@ class ToolboxRigAdapterTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             checkout = root / "checkout"
-            registry = checkout / "tests" / "toolbox" / "scenarios.txt"
+            registry = checkout / "tests" / "scenarios" / "scenarios.txt"
             registry.parent.mkdir(parents=True)
             registry.write_text("first alpha\nsecond beta\n", encoding="utf-8")
             golden = root / "golden"

@@ -4,7 +4,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-SCENARIO_REGISTRY="$SCRIPT_DIR/scenarios.txt"
+SCENARIO_REGISTRY="$PROJECT_DIR/tests/scenarios/scenarios.txt"
 SCENARIO_RUNNER="$SCRIPT_DIR/run-scenario.sh"
 PRESENTATION_ROOT="$PROJECT_DIR/build/mame-scenario/presentation"
 
