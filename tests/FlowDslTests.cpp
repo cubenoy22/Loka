@@ -4867,6 +4867,8 @@ void testLokaFlowDslV1Core()
     using namespace loka::app::scene;
 
     loka::core::MutableState<loka::core::String> text(loka::core::String::Literal("before"));
+    int textNotificationCount = 0;
+    text.bind(&incrementNotificationCount, &textNotificationCount, false);
     NodeComposition composition;
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << EditText(&text).testId("ScenarioEditText");
@@ -4881,10 +4883,12 @@ void testLokaFlowDslV1Core()
     Scene *scenePtr = &scene;
     loka::dsl::FlowChain<Scene *, Scene *> chain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::EnterText("ScenarioEditText", "after")).input(&scenePtr);
+        | loka::dsl::Step(1, loka::dsl::testing::EnterText("ScenarioEditText", "after")).input(&scenePtr)
+        | loka::dsl::Step(2, loka::dsl::testing::EnterText("ScenarioEditText", "after"));
 
     LOKA_VERIFY(chain.run());
     assert(text.get().equals(loka::core::String::Literal("after")));
+    assert(textNotificationCount == 2);
 
     FlowErrorCapture capture = {0, 0, 0};
     loka::dsl::FlowChain<Scene *, Scene *> wrongType =
@@ -4898,7 +4902,9 @@ void testLokaFlowDslV1Core()
     assert(capture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO);
     assert(capture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_NODE_TYPE_MISMATCH);
     assert(text.get().equals(loka::core::String::Literal("after")));
+    assert(textNotificationCount == 2);
 
+    text.unbind(&incrementNotificationCount, &textNotificationCount);
     scene.unmount();
   }
 

@@ -1984,7 +1984,7 @@ namespace loka
           }
           {
             ::loka::core::StateTrackerGuard guard(boundary->tracker());
-            mutableText->set(::loka::core::String(value_));
+            mutableText->set(::loka::core::String(value_), true);
           }
           return FlushSceneInvalidation().run(out, out, error);
         }
@@ -1994,9 +1994,9 @@ namespace loka
         std::string value_;
       };
 
-      /** Scenario-facing text input. The write enters the EditText's bound
-          mutable state under the Scene tracker, matching native text-change
-          actuation, then flushes the resulting projection. */
+      /** Scenario-facing text input. The forced write enters the EditText's
+          bound mutable state under the Scene tracker, matching native
+          text-change actuation, then flushes the resulting projection. */
       inline EnterTextByIdAndFlushAdapter EnterText(const char *testId, const char *value)
       {
         return EnterTextByIdAndFlushAdapter(testId, value);
