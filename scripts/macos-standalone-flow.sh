@@ -24,7 +24,7 @@ find_cmake() {
     command -v cmake
     return 0
   fi
-  for candidate in /opt/homebrew/bin/cmake /usr/local/bin/cmake; do
+  for candidate in /opt/homebrew/bin/cmake /usr/local/bin/cmake /opt/local/bin/cmake; do
     if [[ -x "$candidate" ]]; then
       echo "$candidate"
       return 0
@@ -78,9 +78,9 @@ else
     echo "Standalone Flow assets not found: $BUILT_ASSETS" >&2
     exit 1
   fi
-  if ! /usr/bin/lipo -archs "$BUILT_BINARY" | tr ' ' '\n' | grep -Fxq "$HOST_ARCH"; then
+  if ! loka_binary_contains_arch "$BUILT_BINARY" "$HOST_ARCH"; then
     echo "The standalone executable does not contain the host architecture $HOST_ARCH." >&2
-    /usr/bin/lipo -info "$BUILT_BINARY" >&2 || true
+    "${LOKA_LIPO_BIN:-/usr/bin/lipo}" -info "$BUILT_BINARY" >&2 || true
     exit 1
   fi
 
