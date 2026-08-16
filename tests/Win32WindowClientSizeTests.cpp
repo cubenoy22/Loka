@@ -92,30 +92,30 @@ void testWin32DeclaredWindowSizeMeansClientArea()
   assert(hwnd && IsWindow(hwnd));
 
   assertClientSize(hwnd, declaredWidth, declaredHeight);
-  assert(window.frameState().get().width == declaredWidth);
-  assert(window.frameState().get().height == declaredHeight);
+  LOKA_VERIFY(window.frameState().get().width == declaredWidth);
+  LOKA_VERIFY(window.frameState().get().height == declaredHeight);
 
   MenuApplyingWin32App app;
   app.setActiveWindow(&window);
   app.setDefaultMenuBar(&menuBar);
   assert(GetMenu(hwnd) && "the production menu path must attach the declared menu");
   assertClientSize(hwnd, declaredWidth, declaredHeight);
-  assert(window.frameState().get().width == declaredWidth);
-  assert(window.frameState().get().height == declaredHeight);
+  LOKA_VERIFY(window.frameState().get().width == declaredWidth);
+  LOKA_VERIFY(window.frameState().get().height == declaredHeight);
 
   app.setDefaultMenuBar(0);
   assert(!GetMenu(hwnd) && "the production menu path must detach a cleared menu");
   assertClientSize(hwnd, declaredWidth, declaredHeight);
-  assert(window.frameState().get().width == declaredWidth);
-  assert(window.frameState().get().height == declaredHeight);
+  LOKA_VERIFY(window.frameState().get().width == declaredWidth);
+  LOKA_VERIFY(window.frameState().get().height == declaredHeight);
   app.setActiveWindow(0);
 
   const int resizedWidth = 311;
   const int resizedHeight = 197;
   setWindowFrame(window, loka::core::Frame(40, 40, resizedWidth, resizedHeight));
   assertClientSize(hwnd, resizedWidth, resizedHeight);
-  assert(window.frameState().get().width == resizedWidth);
-  assert(window.frameState().get().height == resizedHeight);
+  LOKA_VERIFY(window.frameState().get().width == resizedWidth);
+  LOKA_VERIFY(window.frameState().get().height == resizedHeight);
 
   setWindowVisibility(window, false);
   printf("==== [testWin32DeclaredWindowSizeMeansClientArea] PASSED ====\n");
