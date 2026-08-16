@@ -143,6 +143,7 @@ ACTUAL_IMAGE="$WORK/$SCENARIO.png"
 # directory wipes and regenerate with --update-golden; reviewers see the
 # captures through the pr-assets evidence branch instead.
 GOLDEN="$PROJECT_DIR/build/mame-scenario/golden/$EXAMPLE/$SCENARIO.png"
+GOLDEN_MACHINE="$GOLDEN.mame-machine"
 HOME_DIR="$WORK/home"
 CFG_DIR="$WORK/cfg"
 NVRAM_DIR="$WORK/nvram"
@@ -332,13 +333,28 @@ if [ "$UPDATE_GOLDEN" -eq 1 ]; then
   if ! cp -f "$ACTUAL_IMAGE" "$GOLDEN"; then
     fail_stage golden "could not update $GOLDEN"
   fi
+  if ! printf '%s\n' "$MACHINE" >"$GOLDEN_MACHINE"; then
+    fail_stage golden "could not record MAME machine '$MACHINE' in $GOLDEN_MACHINE"
+  fi
   echo "Updated golden: $GOLDEN"
+  echo "Recorded MAME machine: $MACHINE"
   echo "Reminder: attach before/after visual evidence to the PR."
   exit 0
 fi
 
 if [ ! -f "$GOLDEN" ]; then
   fail_stage golden "missing $GOLDEN; rerun with --update-golden to create it"
+fi
+if [ ! -f "$GOLDEN_MACHINE" ]; then
+  fail_stage golden \
+    "missing machine record $GOLDEN_MACHINE for existing $GOLDEN; rerun with --update-golden, or write '$MACHINE' to $GOLDEN_MACHINE if you know the golden's provenance"
+fi
+if ! RECORDED_MACHINE="$(cat "$GOLDEN_MACHINE")"; then
+  fail_stage golden "could not read machine record $GOLDEN_MACHINE"
+fi
+if [ "$RECORDED_MACHINE" != "$MACHINE" ]; then
+  fail_stage golden \
+    "$GOLDEN was recorded on MAME machine '$RECORDED_MACHINE', but the current machine is '$MACHINE'; switch machines or rerun with --update-golden to replace it intentionally"
 fi
 if ! python3 "$PNG_TOOL" compare "$ACTUAL_IMAGE" "$GOLDEN"; then
   python3 "$PNG_TOOL" diff "$GOLDEN" "$ACTUAL_IMAGE" "$DIFF_DIR/$SCENARIO.png" || true
