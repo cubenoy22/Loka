@@ -8,12 +8,16 @@
 #include <vector>
 
 #include "../example/HelloWorld/src/MainNode.hpp"
+#include "../example/HelloWorld/src/ProductionAppConfig.hpp"
 #include "app/core/AppComposition.hpp"
 #include "app/core/Window.hpp"
 #include "app/scene/Scene.hpp"
 #include "core/util/OwnedDef.hpp"
 #include "platform/null/NullApp.hpp"
+#include "platform/null/NullPlatformContext.hpp"
 #include "scenarios/ObservedMainDefinition.hpp"
+#include "scenarios/ClassicVehiclePresentationVerify.hpp"
+#include "scenarios/HelloWorldClassicScenarioPresentation.hpp"
 #include "scenarios/HelloWorldScenarios.hpp"
 #include "standalone/HelloWorldStandaloneFlowAppConfig.hpp"
 #include "support/MenuPresentationVerify.hpp"
@@ -71,6 +75,16 @@ namespace
     LOKA_VERIFY(actual == expected);
   }
 } // namespace
+
+void testHelloWorldClassicVehiclePresentationUsesExampleDeclaration()
+{
+  NullPlatformContext context;
+  const HelloWorldMenuSeed menuSeed = HelloWorldMenuSeed::FromWallClock(1234567);
+  HelloWorldProductionAppConfig production(&context, menuSeed);
+  loka::scenario_tests::HelloWorldClassicScenarioPresentation vehicle(&context, menuSeed);
+  loka::scenario_tests::VerifyClassicVehiclePresentation(&context, production, vehicle, true);
+  std::printf("testHelloWorldClassicVehiclePresentationUsesExampleDeclaration passed\n");
+}
 
 void testHelloWorldToggleActionProbeDrivesOwnerCommands()
 {

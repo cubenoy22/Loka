@@ -19,16 +19,25 @@ public:
 
   virtual void compose(AppComposition &c)
   {
-    c << WindowDef(WindowProps()
-                       .frame(50, 50, 420, 300)
-                       .scene(loka::app::scene::NodeDefinition<helloworld::MainProps, helloworld::MainNode>())
-                       .title("LokaSample")
-                       .visible(true));
+    loka::app::scene::NodeDefinition<helloworld::MainProps, helloworld::MainNode> mainDefinition;
+    c << WindowDef(this->productionWindowProps(mainDefinition));
   }
 
   virtual void composeMenu(loka::app::MenuComposition &c)
   {
     c << menu_;
+  }
+
+protected:
+  /** Declares HelloWorld's production window presentation around a supplied
+      scene so non-production vehicles cannot drift its title or frame. */
+  WindowProps productionWindowProps(const loka::app::scene::NodeDefinitionBase &scene) const
+  {
+    return WindowProps()
+        .frame(50, 50, 420, 300)
+        .scene(scene)
+        .title("LokaSample")
+        .visible(true);
   }
 
 private:

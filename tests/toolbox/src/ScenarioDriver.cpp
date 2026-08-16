@@ -2,10 +2,9 @@
 
 #include <cassert>
 
-#include "MainNode.hpp"
 #include "ScrapbookScenarios.hpp"
+#include "ScrapbookClassicScenarioPresentation.hpp"
 #include "ScenarioDriverSupport.hpp"
-#include "ScenarioWindow.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
 #include "app/core/App.hpp"
@@ -82,17 +81,16 @@ namespace loka
         }
       }
 
-      class ScenarioAppConfig : public AppConfigurable
+      class ScenarioAppConfig : public scenario_tests::ScrapbookClassicScenarioPresentation
       {
       public:
         ScenarioAppConfig(PlatformContext *context,
                           const dsl::SnapTestConfig::Settings &settings,
                           const scenario_tests::ScenarioLaunchPlan &launchPlan)
-            : AppConfigurable(context),
+            : scenario_tests::ScrapbookClassicScenarioPresentation(context),
               audit_(ResolveScenarioAuditFile(), launchPlan.scenario().c_str()),
               scenario_(launchPlan, &this->audit_),
               borrowedApp_(0),
-              borrowedMainNode_(0),
               recorded_(false),
               tickCount_(0),
               lingerRemaining_(settings.hasLingerSeconds ? static_cast<double>(settings.lingerSeconds) : 0.0)
@@ -104,27 +102,10 @@ namespace loka
           this->borrowedApp_ = app;
         }
 
-        virtual void compose(AppComposition &composition)
-        {
-          composition << scenario_tests::MakeScenarioWindow<scrapbook::MainProps, scrapbook::MainNode>(
-              scrapbook::MainProps().platformContext(this->getPlatformContext()),
-              &this->borrowedMainNode_,
-              340,
-              250,
-              "LokaTestsToolbox",
-              app::IdlePolicy::everyTick(),
-              &ScenarioAppConfig::OnWindowIdle,
-              this);
-        }
-
       private:
-        static void OnWindowIdle(Window *window, double elapsedSeconds, void *userData)
+        virtual void onScenarioIdle(Window *window, double elapsedSeconds)
         {
-          ScenarioAppConfig *self = static_cast<ScenarioAppConfig *>(userData);
-          if (self)
-          {
-            self->tick(window, elapsedSeconds);
-          }
+          this->tick(window, elapsedSeconds);
         }
 
         void tick(Window *window, double elapsedSeconds)
@@ -134,7 +115,7 @@ namespace loka
           {
             dsl::SnapRecord record;
             bool done = false;
-            if (!this->borrowedMainNode_)
+            if (!this->observedMainNode())
             {
               record = scenario_tests::MakeDriverErrorRecord(
                   this->scenario_.name().c_str(), 2303, "MainNode was not mounted");
@@ -145,7 +126,7 @@ namespace loka
               const scenario_tests::CaptureContentBounds captureBounds = QueryCaptureContentBounds(window);
               const scenario_tests::ScenarioAdvance advance = this->scenario_.step(this->tickCount_,
                                                                                    window ? window->scene() : 0,
-                                                                                   *this->borrowedMainNode_,
+                                                                                   *this->observedMainNode(),
                                                                                    ContentLocalBounds(captureBounds),
                                                                                    record);
               switch (advance)
@@ -159,10 +140,10 @@ namespace loka
                 return;
               }
             }
-            if (done && this->borrowedMainNode_)
+            if (done && this->observedMainNode())
             {
               BoundaryAuditCounts counts;
-              AuditProjectedTextBoundaries(this->borrowedMainNode_, 0, counts);
+              AuditProjectedTextBoundaries(this->observedMainNode(), 0, counts);
               if (counts.untagged != 0 || counts.tagged == 0)
               {
                 record = scenario_tests::MakeDriverErrorRecord(
@@ -193,7 +174,6 @@ namespace loka
         dsl::testing::ScenarioAuditFile audit_;
         scenario_tests::ScrapbookScenario scenario_;
         App *borrowedApp_;
-        scrapbook::MainNode *borrowedMainNode_;
         bool recorded_;
         long tickCount_;
         double lingerRemaining_;

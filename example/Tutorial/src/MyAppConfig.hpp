@@ -28,17 +28,25 @@ public:
     // typedef tutorial::Step3Node TutorialNode;
     // typedef tutorial::Step4Node TutorialNode;
 
-    c << WindowDef( //
-        WindowProps()
-            .frame(60, 60, 360, 280)
-            .scene(loka::app::scene::Boundary<TutorialNode>())
-            .title("LokaTutorial")
-            .visible(true));
+    loka::app::scene::BoundaryDefinition<TutorialNode::PropsType, TutorialNode> mainDefinition;
+    c << WindowDef(this->productionWindowProps(mainDefinition));
   }
 
   virtual void composeMenu(loka::app::MenuComposition &c)
   {
     tutorial::DeclareTutorialMenu(c);
+  }
+
+protected:
+  /** Declares Tutorial's production window presentation around a supplied
+      scene so non-production vehicles cannot drift its title or frame. */
+  WindowProps productionWindowProps(const loka::app::scene::NodeDefinitionBase &scene) const
+  {
+    return WindowProps()
+        .frame(60, 60, 360, 280)
+        .scene(scene)
+        .title("LokaTutorial")
+        .visible(true);
   }
 };
 

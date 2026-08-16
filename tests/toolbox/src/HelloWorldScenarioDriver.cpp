@@ -3,9 +3,8 @@
 #include <cassert>
 
 #include "HelloWorldScenarios.hpp"
-#include "MainNode.hpp"
+#include "HelloWorldClassicScenarioPresentation.hpp"
 #include "ScenarioDriverSupport.hpp"
-#include "ScenarioWindow.hpp"
 #include "StartupScenarios.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
@@ -24,11 +23,13 @@ namespace loka
       const char *kConfigPath = "LokaTest.cfg";
       const char *kDefaultScenarioName = "toggle-action-probe";
 
-      class HelloWorldScenarioAppConfig : public AppConfigurable
+      class HelloWorldScenarioAppConfig : public scenario_tests::HelloWorldClassicScenarioPresentation
       {
       public:
         HelloWorldScenarioAppConfig(PlatformContext *context, const dsl::SnapTestConfig::Settings &settings)
-            : AppConfigurable(context),
+            : scenario_tests::HelloWorldClassicScenarioPresentation(
+                  context,
+                  HelloWorldMenuSeed::FromWallClock(0x13579BDFUL)),
               startup_(scenario_tests::IsStartupScenario(settings.scenario)),
               audit_(ResolveScenarioAuditFile(), settings.scenario.c_str()),
               startupScenario_(scenario_tests::STARTUP_EXAMPLE_HELLO_WORLD,
@@ -60,27 +61,10 @@ namespace loka
           this->borrowedApp_ = app;
         }
 
-        virtual void compose(AppComposition &composition)
-        {
-          composition << scenario_tests::MakeScenarioWindow<helloworld::MainProps, helloworld::MainNode>(
-              helloworld::MainProps(),
-              0,
-              420,
-              300,
-              "LokaHelloWorldTestsToolbox",
-              app::IdlePolicy::everyTick(),
-              &HelloWorldScenarioAppConfig::OnWindowIdle,
-              this);
-        }
-
       private:
-        static void OnWindowIdle(Window *window, double elapsedSeconds, void *userData)
+        virtual void onScenarioIdle(Window *window, double elapsedSeconds)
         {
-          HelloWorldScenarioAppConfig *self = static_cast<HelloWorldScenarioAppConfig *>(userData);
-          if (self)
-          {
-            self->tick(window, elapsedSeconds);
-          }
+          this->tick(window, elapsedSeconds);
         }
 
         void tick(Window *window, double elapsedSeconds)

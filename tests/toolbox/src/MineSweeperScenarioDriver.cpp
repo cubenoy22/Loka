@@ -2,10 +2,9 @@
 
 #include <cassert>
 
-#include "MainNode.hpp"
+#include "MineSweeperClassicScenarioPresentation.hpp"
 #include "MineSweeperScenarios.hpp"
 #include "ScenarioDriverSupport.hpp"
-#include "ScenarioWindow.hpp"
 #include "StartupScenarios.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
@@ -24,11 +23,13 @@ namespace loka
       const char *kConfigPath = "LokaTest.cfg";
       const char *kDefaultScenarioName = "new-game-twice";
 
-      class MineSweeperScenarioAppConfig : public AppConfigurable
+      class MineSweeperScenarioAppConfig : public scenario_tests::MineSweeperClassicScenarioPresentation
       {
       public:
         MineSweeperScenarioAppConfig(PlatformContext *context, const dsl::SnapTestConfig::Settings &settings)
-            : AppConfigurable(context),
+            : scenario_tests::MineSweeperClassicScenarioPresentation(
+                  context,
+                  minesweeper::MainProps(scenario_tests::MineSweeperScenarioSeed())),
               startup_(scenario_tests::IsStartupScenario(settings.scenario)),
               audit_(ResolveScenarioAuditFile(), settings.scenario.c_str()),
               startupScenario_(scenario_tests::STARTUP_EXAMPLE_MINESWEEPER,
@@ -60,27 +61,10 @@ namespace loka
           this->borrowedApp_ = app;
         }
 
-        virtual void compose(AppComposition &composition)
-        {
-          composition << scenario_tests::MakeScenarioWindow<minesweeper::MainProps, minesweeper::MainNode>(
-              minesweeper::MainProps(scenario_tests::MineSweeperScenarioSeed()),
-              0,
-              220,
-              240,
-              "LokaMineSweeperTestsToolbox",
-              app::IdlePolicy::everyTick(),
-              &MineSweeperScenarioAppConfig::OnWindowIdle,
-              this);
-        }
-
       private:
-        static void OnWindowIdle(Window *window, double elapsedSeconds, void *userData)
+        virtual void onScenarioIdle(Window *window, double elapsedSeconds)
         {
-          MineSweeperScenarioAppConfig *self = static_cast<MineSweeperScenarioAppConfig *>(userData);
-          if (self)
-          {
-            self->tick(window, elapsedSeconds);
-          }
+          this->tick(window, elapsedSeconds);
         }
 
         void tick(Window *window, double elapsedSeconds)

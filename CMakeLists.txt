@@ -243,6 +243,56 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   target_compile_definitions(LokaScenarioTests PRIVATE TEST_BUILD)
   target_link_libraries(LokaScenarioTests PRIVATE LokaCommonTesting)
 
+  function(loka_add_classic_vehicle_presentation_test target_name source_file example_include_dir test_name)
+    add_executable(${target_name}
+      ${PROJECT_SOURCE_DIR}/tests/scenarios/${source_file}
+      ${PROJECT_SOURCE_DIR}/tests/TestingHooks.cpp
+      ${PROJECT_SOURCE_DIR}/tests/platform/null/NullPlatformContext.cpp
+      ${PROJECT_SOURCE_DIR}/tests/platform/null/NullScenePlatformController.cpp
+      ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullButtonContext.cpp
+      ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullEditTextContext.cpp
+      ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullScrollBarContext.cpp
+      ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullTextContext.cpp
+    )
+    loka_enable_warnings(${target_name})
+    target_include_directories(${target_name} PRIVATE
+      ${PROJECT_SOURCE_DIR}/common
+      ${PROJECT_SOURCE_DIR}/tests
+      ${PROJECT_SOURCE_DIR}/${example_include_dir}
+    )
+    set_target_properties(${target_name} PROPERTIES
+      CXX_STANDARD 98
+      CXX_STANDARD_REQUIRED YES
+    )
+    target_compile_definitions(${target_name} PRIVATE TEST_BUILD)
+    target_link_libraries(${target_name} PRIVATE LokaCommonTesting)
+    add_test(NAME ${test_name} COMMAND $<TARGET_FILE:${target_name}>)
+  endfunction()
+
+  loka_add_classic_vehicle_presentation_test(
+    LokaTutorialClassicVehiclePresentationTest
+    TutorialClassicVehiclePresentationTest.cpp
+    example/Tutorial/src
+    testTutorialClassicVehiclePresentationUsesExampleDeclaration)
+  loka_add_classic_vehicle_presentation_test(
+    LokaMineSweeperClassicVehiclePresentationTest
+    MineSweeperClassicVehiclePresentationTest.cpp
+    example/MineSweeper/src
+    testMineSweeperClassicVehiclePresentationUsesExampleDeclaration)
+  loka_add_classic_vehicle_presentation_test(
+    LokaFloppyBirdClassicVehiclePresentationTest
+    FloppyBirdClassicVehiclePresentationTest.cpp
+    example/FloppyBird/src
+    testFloppyBirdClassicVehiclePresentationUsesExampleDeclaration)
+  loka_add_classic_vehicle_presentation_test(
+    LokaScrapbookClassicVehiclePresentationTest
+    ScrapbookClassicVehiclePresentationTest.cpp
+    example/ScrapbookUI/src
+    testScrapbookClassicVehiclePresentationUsesExampleDeclaration)
+  target_sources(LokaScrapbookClassicVehiclePresentationTest PRIVATE
+    ${PROJECT_SOURCE_DIR}/example/ScrapbookUI/src/ScrapbookPackage.cpp
+  )
+
   # Allocation ratchet (tests/alloc-ratchet, grown from probe/zero-alloc-pin).
   # Its own binary because it replaces the global operator new/delete to
   # census heap allocations; that replacement must not perturb the other

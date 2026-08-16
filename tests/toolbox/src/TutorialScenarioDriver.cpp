@@ -3,10 +3,8 @@
 #include <cassert>
 
 #include "ScenarioDriverSupport.hpp"
-#include "ScenarioWindow.hpp"
 #include "StartupScenarios.hpp"
-#include "DoItYourselfNode.hpp"
-#include "Step4Node.hpp"
+#include "TutorialClassicScenarioPresentation.hpp"
 #include "TutorialScenarios.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
@@ -25,12 +23,13 @@ namespace loka
       const char *kConfigPath = "LokaTest.cfg";
       const char *kDefaultScenarioName = "increment-summary-toggle";
 
-      class TutorialScenarioAppConfig : public AppConfigurable
+      class TutorialScenarioAppConfig : public scenario_tests::TutorialClassicScenarioPresentation
       {
       public:
         TutorialScenarioAppConfig(PlatformContext *context, const dsl::SnapTestConfig::Settings &settings)
-            : AppConfigurable(context),
-              startup_(scenario_tests::IsStartupScenario(settings.scenario)),
+            : scenario_tests::TutorialClassicScenarioPresentation(
+                  context,
+                  scenario_tests::IsStartupScenario(settings.scenario)),
               audit_(ResolveScenarioAuditFile(), settings.scenario.c_str()),
               startupScenario_(scenario_tests::STARTUP_EXAMPLE_TUTORIAL,
                                scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED,
@@ -46,7 +45,7 @@ namespace loka
 
         virtual ~TutorialScenarioAppConfig()
         {
-          if (this->startup_)
+          if (this->isStartupPresentation())
           {
             this->startupScenario_.stop();
           }
@@ -61,44 +60,10 @@ namespace loka
           this->borrowedApp_ = app;
         }
 
-        virtual void compose(AppComposition &composition)
-        {
-          if (this->startup_)
-          {
-            composition
-                << scenario_tests::MakeScenarioWindow<tutorial::DoItYourselfNode::PropsType,
-                                                      tutorial::DoItYourselfNode>(
-                       tutorial::DoItYourselfNode::PropsType(),
-                       0,
-                       360,
-                       280,
-                       "LokaTutorialTestsToolbox",
-                       app::IdlePolicy::everyTick(),
-                       &TutorialScenarioAppConfig::OnWindowIdle,
-                       this);
-          }
-          else
-          {
-            composition << scenario_tests::MakeScenarioWindow<tutorial::Step4Node::PropsType, tutorial::Step4Node>(
-                tutorial::Step4Node::PropsType(),
-                0,
-                360,
-                280,
-                "LokaTutorialTestsToolbox",
-                app::IdlePolicy::everyTick(),
-                &TutorialScenarioAppConfig::OnWindowIdle,
-                this);
-          }
-        }
-
       private:
-        static void OnWindowIdle(Window *window, double elapsedSeconds, void *userData)
+        virtual void onScenarioIdle(Window *window, double elapsedSeconds)
         {
-          TutorialScenarioAppConfig *self = static_cast<TutorialScenarioAppConfig *>(userData);
-          if (self)
-          {
-            self->tick(window, elapsedSeconds);
-          }
+          this->tick(window, elapsedSeconds);
         }
 
         void tick(Window *window, double elapsedSeconds)
@@ -110,7 +75,7 @@ namespace loka
             bool done = false;
             if (!window || !window->scene())
             {
-              record = this->startup_
+              record = this->isStartupPresentation()
                            ? scenario_tests::MakeStartupDriverErrorRecord(
                                  scenario_tests::STARTUP_EXAMPLE_TUTORIAL, 2802, "Scene was not mounted")
                            : scenario_tests::MakeTutorialDriverErrorRecord(2502, "Scene was not mounted");
@@ -120,7 +85,7 @@ namespace loka
             {
               const scenario_tests::CaptureContentBounds captureBounds = QueryCaptureContentBounds(window);
               const scenario_tests::ScenarioAdvance advance =
-                  this->startup_
+                  this->isStartupPresentation()
                       ? this->startupScenario_.step(
                             this->tickCount_, window->scene(), ContentLocalBounds(captureBounds), record)
                       : this->scenario_.step(
@@ -138,7 +103,7 @@ namespace loka
             }
             if (done)
             {
-              if (this->startup_)
+              if (this->isStartupPresentation())
               {
                 (void)this->startupScenario_.publishVerdict(record);
               }
@@ -161,7 +126,6 @@ namespace loka
           }
         }
 
-        const bool startup_;
         dsl::testing::ScenarioAuditFile audit_;
         scenario_tests::StartupScenario startupScenario_;
         scenario_tests::TutorialScenario scenario_;
