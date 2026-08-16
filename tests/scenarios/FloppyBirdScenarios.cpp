@@ -1,7 +1,7 @@
 #include "FloppyBirdScenarios.hpp"
 
 #include <cassert>
-#include <cstdio>
+#include "RectSurfaceScenarioObservation.hpp"
 
 #if !defined(TEST_BUILD)
 #error FloppyBird scenarios require TEST_BUILD
@@ -30,53 +30,6 @@ namespace loka
       const long kFlap5Tick = 154;
       const long kFinalTick = 192;
 
-      dsl::StepRunStatus CaptureSurface(app::scene::Scene *scene,
-                                        std::string &rectangles,
-                                        dsl::FlowError &error)
-      {
-        app::scene::Node *surfaceNode = 0;
-        const dsl::StepRunStatus lookup =
-            dsl::testing::LookupNodeById<app::scene::Node>(scene, kSurface, surfaceNode, error);
-        if (lookup != dsl::FLOW_STEP_SUCCEEDED)
-        {
-          return lookup;
-        }
-        app::RectSurfaceNode *surface = surfaceNode ? surfaceNode->asRectSurfaceNode() : 0;
-        if (!surface || !surface->props.model_)
-        {
-          error.kind = dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO;
-          error.code = dsl::testing::FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
-          return dsl::FLOW_STEP_FAILED;
-        }
-        const app::RectSurfaceModel &model = surface->props.model_->get();
-        const short count = app::RectSurfaceModel::clampRectCount(model.rectCount);
-        if (count != model.rectCount)
-        {
-          error.kind = dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO;
-          error.code = dsl::testing::FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
-          return dsl::FLOW_STEP_FAILED;
-        }
-        rectangles.clear();
-        for (short i = 0; i < count; ++i)
-        {
-          if (!rectangles.empty())
-          {
-            rectangles += ';';
-          }
-          const app::RectSprite &rect = model.rects[i];
-          char text[64];
-          ::snprintf(text,
-                     sizeof(text),
-                     "%d,%d,%d,%d",
-                     static_cast<int>(rect.x),
-                     static_cast<int>(rect.y),
-                     static_cast<int>(rect.width),
-                     static_cast<int>(rect.height));
-          rectangles += text;
-        }
-        return dsl::FLOW_STEP_SUCCEEDED;
-      }
-
       class CheckSurfaceAdapter
       {
       public:
@@ -92,7 +45,7 @@ namespace loka
         {
           out = in;
           std::string rectangles;
-          const dsl::StepRunStatus capture = CaptureSurface(in.scene, rectangles, error);
+          const dsl::StepRunStatus capture = CaptureRectSurfaceModel(in.scene, kSurface, rectangles, error);
           if (capture != dsl::FLOW_STEP_SUCCEEDED)
           {
             return capture;
@@ -149,7 +102,7 @@ namespace loka
         dsl::StepRunStatus run(In const &in, Out &out, dsl::FlowError &error) const
         {
           std::string rectangles;
-          const dsl::StepRunStatus capture = CaptureSurface(in.scene, rectangles, error);
+          const dsl::StepRunStatus capture = CaptureRectSurfaceModel(in.scene, kSurface, rectangles, error);
           if (capture != dsl::FLOW_STEP_SUCCEEDED)
           {
             return capture;

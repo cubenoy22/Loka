@@ -176,6 +176,9 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/FloppyBirdScenarioTests\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/FloppyBirdScenarios\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/standalone/FloppyBirdStandaloneFlowAppConfig\\.cpp$")
+  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/StartupScenarioTests\\.cpp$")
+  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/StartupScenarios\\.cpp$")
+  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/RectSurfaceScenarioObservation\\.cpp$")
 
   add_executable(LokaContractTests
     ${PROJECT_SOURCE_DIR}/tests/ContractTestMain.cpp
@@ -209,7 +212,10 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/standalone/MineSweeperStandaloneFlowAppConfig.cpp
     ${PROJECT_SOURCE_DIR}/tests/FloppyBirdScenarioTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/FloppyBirdScenarios.cpp
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/RectSurfaceScenarioObservation.cpp
     ${PROJECT_SOURCE_DIR}/tests/standalone/FloppyBirdStandaloneFlowAppConfig.cpp
+    ${PROJECT_SOURCE_DIR}/tests/StartupScenarioTests.cpp
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/StartupScenarios.cpp
     ${PROJECT_SOURCE_DIR}/tests/platform/null/NullScenePlatformController.cpp
     ${PROJECT_SOURCE_DIR}/tests/platform/null/NullPlatformContext.cpp
     ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullButtonContext.cpp

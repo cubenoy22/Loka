@@ -53,7 +53,10 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/standalone/MineSweeperStandaloneFlowAppConfig.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/FloppyBirdScenarioTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/scenarios/FloppyBirdScenarios.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/scenarios/RectSurfaceScenarioObservation.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/standalone/FloppyBirdStandaloneFlowAppConfig.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/StartupScenarioTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/scenarios/StartupScenarios.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/standalone/TutorialStandaloneFlowAppConfig.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/standalone/HelloWorldStandaloneFlowAppConfig.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/standalone/ScrapbookStandaloneFlowAppConfig.cpp

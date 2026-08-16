@@ -1,0 +1,15 @@
+loka_scenario_audit version=1 scenario=startup
+button.text	New Game
+crop_bottom	240
+crop_left	0
+crop_right	220
+crop_top	0
+format_version	1
+node	MineSweeper.NewGameButton
+scenario_version	1
+schema_version	1
+status	ok
+step	startup
+test	MineSweeper
+tick	2
+terminal status=succeeded

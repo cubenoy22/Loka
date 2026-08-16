@@ -23,7 +23,7 @@ namespace tutorial
       using namespace loka::app;
       c.declare(                                                             //
           VStack()                                                           //
-          << TutorialTitle("Loka Tutorial")                                  //
+          << TutorialTitle("Loka Tutorial").TEST_ID("Tutorial.Startup.Title") //
           << Text("Edit DoItYourselfNode.hpp and build the scene yourself.") //
           << TutorialHint("Then switch TutorialNode in MyAppConfig.hpp to Step1Node ... Step4Node for answers.")
           << Text("Suggested order:")           //

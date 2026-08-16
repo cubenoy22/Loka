@@ -1,0 +1,17 @@
+loka_scenario_audit version=1 scenario=startup
+crop_bottom	280
+crop_left	0
+crop_right	360
+crop_top	0
+dirty.flags	NONE
+dirty.mask	0
+format_version	1
+node	Tutorial.Startup.Title
+scenario_version	1
+schema_version	1
+status	ok
+step	startup
+test	Tutorial
+text.value	Loka Tutorial
+tick	2
+terminal status=succeeded

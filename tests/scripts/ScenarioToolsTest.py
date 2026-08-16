@@ -53,7 +53,7 @@ class ExpectedAuditPinsTest(unittest.TestCase):
         registry = os.path.join(PROJECT_DIR, "tests", "toolbox", "scenarios.txt")
         with open(registry, "r", encoding="utf-8") as handle:
             entries = [line.split() for line in handle.read().splitlines()]
-        self.assertEqual(len(entries), 11)
+        self.assertEqual(len(entries), 15)
         self.assertEqual(len(entries), len({tuple(entry) for entry in entries}))
         for entry in entries:
             self.assertEqual(len(entry), 2)
@@ -106,6 +106,32 @@ class ExpectedAuditPinsTest(unittest.TestCase):
                 check=False,
             )
             self.assertNotEqual(changed.returncode, 0)
+
+    def test_startup_audits_reject_per_example_observation_mutations(self):
+        mutations = {
+            "helloworld": (b"text.value\tLoka Sample\n", b"text.value\tChanged\n"),
+            "tutorial": (b"text.value\tLoka Tutorial\n", b"text.value\tChanged\n"),
+            "minesweeper": (b"button.text\tNew Game\n", b"button.text\tChanged\n"),
+            "floppybird": (b"surface.rects\t72,114,18,14\n", b"surface.rects\t0,0,1,1\n"),
+        }
+        with tempfile.TemporaryDirectory(prefix="startup-audit-") as directory:
+            for example, (observation, mutation) in mutations.items():
+                expected = os.path.join(
+                    SCENARIO_DIR, "expected", example, "startup.audit"
+                )
+                actual = os.path.join(directory, example + ".audit")
+                with open(expected, "rb") as handle:
+                    contents = handle.read()
+                self.assertIn(observation, contents)
+                with open(actual, "wb") as handle:
+                    handle.write(contents.replace(observation, mutation, 1))
+                changed = subprocess.run(
+                    ["cmp", expected, actual],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    check=False,
+                )
+                self.assertNotEqual(changed.returncode, 0, example)
 
 
 class PngToolTest(unittest.TestCase):

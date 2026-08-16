@@ -4,6 +4,8 @@
 
 #include "ScenarioDriverSupport.hpp"
 #include "ScenarioWindow.hpp"
+#include "StartupScenarios.hpp"
+#include "DoItYourselfNode.hpp"
 #include "Step4Node.hpp"
 #include "TutorialScenarios.hpp"
 #include "app/PlatformContext.hpp"
@@ -21,14 +23,18 @@ namespace loka
     namespace
     {
       const char *kConfigPath = "LokaTest.cfg";
-      const char *kScenarioName = "increment-summary-toggle";
+      const char *kDefaultScenarioName = "increment-summary-toggle";
 
       class TutorialScenarioAppConfig : public AppConfigurable
       {
       public:
         TutorialScenarioAppConfig(PlatformContext *context, const dsl::SnapTestConfig::Settings &settings)
             : AppConfigurable(context),
-              audit_(ResolveScenarioAuditFile(), kScenarioName),
+              startup_(scenario_tests::IsStartupScenario(settings.scenario)),
+              audit_(ResolveScenarioAuditFile(), settings.scenario.c_str()),
+              startupScenario_(scenario_tests::STARTUP_EXAMPLE_TUTORIAL,
+                               scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED,
+                               &this->audit_),
               scenario_(scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED, &this->audit_),
               borrowedApp_(0),
               recorded_(false),
@@ -40,7 +46,14 @@ namespace loka
 
         virtual ~TutorialScenarioAppConfig()
         {
-          this->scenario_.stop();
+          if (this->startup_)
+          {
+            this->startupScenario_.stop();
+          }
+          else
+          {
+            this->scenario_.stop();
+          }
         }
 
         void setApp(App *app)
@@ -50,15 +63,32 @@ namespace loka
 
         virtual void compose(AppComposition &composition)
         {
-          composition << scenario_tests::MakeScenarioWindow<tutorial::Step4Node::PropsType, tutorial::Step4Node>(
-              tutorial::Step4Node::PropsType(),
-              0,
-              360,
-              280,
-              "LokaTutorialTestsToolbox",
-              app::IdlePolicy::everyTick(),
-              &TutorialScenarioAppConfig::OnWindowIdle,
-              this);
+          if (this->startup_)
+          {
+            composition
+                << scenario_tests::MakeScenarioWindow<tutorial::DoItYourselfNode::PropsType,
+                                                      tutorial::DoItYourselfNode>(
+                       tutorial::DoItYourselfNode::PropsType(),
+                       0,
+                       360,
+                       280,
+                       "LokaTutorialTestsToolbox",
+                       app::IdlePolicy::everyTick(),
+                       &TutorialScenarioAppConfig::OnWindowIdle,
+                       this);
+          }
+          else
+          {
+            composition << scenario_tests::MakeScenarioWindow<tutorial::Step4Node::PropsType, tutorial::Step4Node>(
+                tutorial::Step4Node::PropsType(),
+                0,
+                360,
+                280,
+                "LokaTutorialTestsToolbox",
+                app::IdlePolicy::everyTick(),
+                &TutorialScenarioAppConfig::OnWindowIdle,
+                this);
+          }
         }
 
       private:
@@ -80,14 +110,21 @@ namespace loka
             bool done = false;
             if (!window || !window->scene())
             {
-              record = scenario_tests::MakeTutorialDriverErrorRecord(2502, "Scene was not mounted");
+              record = this->startup_
+                           ? scenario_tests::MakeStartupDriverErrorRecord(
+                                 scenario_tests::STARTUP_EXAMPLE_TUTORIAL, 2802, "Scene was not mounted")
+                           : scenario_tests::MakeTutorialDriverErrorRecord(2502, "Scene was not mounted");
               done = true;
             }
             else
             {
               const scenario_tests::CaptureContentBounds captureBounds = QueryCaptureContentBounds(window);
               const scenario_tests::ScenarioAdvance advance =
-                  this->scenario_.step(this->tickCount_, window->scene(), ContentLocalBounds(captureBounds), record);
+                  this->startup_
+                      ? this->startupScenario_.step(
+                            this->tickCount_, window->scene(), ContentLocalBounds(captureBounds), record)
+                      : this->scenario_.step(
+                            this->tickCount_, window->scene(), ContentLocalBounds(captureBounds), record);
               switch (advance)
               {
               case scenario_tests::SCENARIO_ADVANCE_PENDING:
@@ -101,7 +138,14 @@ namespace loka
             }
             if (done)
             {
-              (void)this->scenario_.publishVerdict(record);
+              if (this->startup_)
+              {
+                (void)this->startupScenario_.publishVerdict(record);
+              }
+              else
+              {
+                (void)this->scenario_.publishVerdict(record);
+              }
               this->recorded_ = true;
               (void)this->hostCompletionSignal_.publish();
             }
@@ -117,7 +161,9 @@ namespace loka
           }
         }
 
+        const bool startup_;
         dsl::testing::ScenarioAuditFile audit_;
+        scenario_tests::StartupScenario startupScenario_;
         scenario_tests::TutorialScenario scenario_;
         App *borrowedApp_;
         bool recorded_;
@@ -134,14 +180,16 @@ namespace loka
       if (!configLoaded)
       {
         (void)WriteScenarioErrorAudit(
-            kScenarioName,
+            kDefaultScenarioName,
             scenario_tests::MakeTutorialDriverErrorRecord(2500, "LokaTest.cfg is missing or invalid"));
         return 0;
       }
-      if (!settings.hasScenario || !scenario_tests::IsTutorialScenario(settings.scenario))
+      if (!settings.hasScenario
+          || (!scenario_tests::IsStartupScenario(settings.scenario)
+              && !scenario_tests::IsTutorialScenario(settings.scenario)))
       {
         (void)WriteScenarioErrorAudit(
-            kScenarioName,
+            settings.hasScenario ? settings.scenario.c_str() : kDefaultScenarioName,
             scenario_tests::MakeTutorialDriverErrorRecord(2501, "scenario is missing or not registered"));
         return 0;
       }

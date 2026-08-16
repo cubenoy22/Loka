@@ -75,6 +75,8 @@ set(LOKA_HELLO_WORLD_TESTS_TOOLBOX_SOURCES
   ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/HelloWorldScenarios.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/StartupScenarios.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/RectSurfaceScenarioObservation.cpp
   ${CMAKE_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/HelloWorldSize.r
 )
@@ -103,6 +105,8 @@ set(LOKA_TUTORIAL_TESTS_TOOLBOX_SOURCES
   ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/TutorialScenarios.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/StartupScenarios.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/RectSurfaceScenarioObservation.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/TutorialSize.r
 )
 configure_file(
@@ -130,6 +134,8 @@ set(LOKA_MINESWEEPER_TESTS_TOOLBOX_SOURCES
   ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/MineSweeperScenarios.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/StartupScenarios.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/RectSurfaceScenarioObservation.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/MineSweeperSize.r
 )
 configure_file(
@@ -157,6 +163,8 @@ set(LOKA_FLOPPY_BIRD_TESTS_TOOLBOX_SOURCES
   ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/FloppyBirdScenarios.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/StartupScenarios.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/RectSurfaceScenarioObservation.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/FloppyBirdSize.r
 )
 configure_file(
@@ -237,6 +245,7 @@ set(LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_SOURCES
   ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/FloppyBirdScenarios.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/RectSurfaceScenarioObservation.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/FloppyBirdStandaloneSize.r
 )
 set(LOKA_STANDALONE_FLOW_TOOLBOX_SOURCES

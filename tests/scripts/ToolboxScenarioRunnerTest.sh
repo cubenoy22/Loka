@@ -17,6 +17,7 @@ fail() {
 mkdir -p \
   "$SANDBOX/repo/tests/toolbox" \
   "$SANDBOX/repo/tests/scenarios/expected/scrapbook" \
+  "$SANDBOX/repo/tests/scenarios/expected/helloworld" \
   "$SANDBOX/repo/tests/scenarios/expected/tutorial" \
   "$SANDBOX/repo/tests/scenarios/expected/minesweeper" \
   "$SANDBOX/repo/tests/scenarios/expected/floppybird" \
@@ -29,6 +30,14 @@ cp "$LAUNCHER" "$SANDBOX/repo/tests/toolbox/mame-launch.lua"
 cp "$REPO_DIR/tests/scenarios/pngtool.py" "$SANDBOX/repo/tests/scenarios/pngtool.py"
 cp "$REPO_DIR/tests/scenarios/expected/scrapbook/startup.audit" \
   "$SANDBOX/repo/tests/scenarios/expected/scrapbook/startup.audit"
+cp "$REPO_DIR/tests/scenarios/expected/helloworld/startup.audit" \
+  "$SANDBOX/repo/tests/scenarios/expected/helloworld/startup.audit"
+cp "$REPO_DIR/tests/scenarios/expected/tutorial/startup.audit" \
+  "$SANDBOX/repo/tests/scenarios/expected/tutorial/startup.audit"
+cp "$REPO_DIR/tests/scenarios/expected/minesweeper/startup.audit" \
+  "$SANDBOX/repo/tests/scenarios/expected/minesweeper/startup.audit"
+cp "$REPO_DIR/tests/scenarios/expected/floppybird/startup.audit" \
+  "$SANDBOX/repo/tests/scenarios/expected/floppybird/startup.audit"
 cp "$REPO_DIR/tests/scenarios/expected/tutorial/increment-summary-toggle.audit" \
   "$SANDBOX/repo/tests/scenarios/expected/tutorial/increment-summary-toggle.audit"
 cp "$REPO_DIR/tests/scenarios/expected/minesweeper/new-game-twice.audit" \
@@ -38,9 +47,13 @@ cp "$REPO_DIR/tests/scenarios/expected/floppybird/fixed-step-flaps.audit" \
 cp "$REPO_DIR/example/ScrapbookUI/assets/page1.png" "$SANDBOX/snapshot.png"
 printf '%s\n' \
   'scrapbook startup' \
+  'helloworld startup' \
   'helloworld toggle-action-probe' \
+  'tutorial startup' \
   'tutorial increment-summary-toggle' \
+  'minesweeper startup' \
   'minesweeper new-game-twice' \
+  'floppybird startup' \
   'floppybird fixed-step-flaps' \
   >"$SANDBOX/repo/tests/toolbox/scenarios.txt"
 touch \
@@ -103,9 +116,9 @@ cat >"$SANDBOX/retro-tools/hcopy" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 destination="$3"
-expected="$SANDBOX/repo/tests/scenarios/expected/scrapbook/startup.audit"
+expected="$SANDBOX/repo/tests/scenarios/expected/${FAKE_EXAMPLE:-scrapbook}/startup.audit"
 if [ "${FAKE_AUDIT_MUTATION:-0}" = "1" ]; then
-  sed 's/text_empty\ttrue/text_empty\tfalse/' "$expected" >"$destination"
+  sed 's/status\tok/status\terror/' "$expected" >"$destination"
 else
   cp -f "$expected" "$destination"
 fi
@@ -160,32 +173,45 @@ run_case() {
 }
 
 run_case scrapbook startup 1 unset
+run_case helloworld startup 2 unset
 run_case helloworld toggle-action-probe 2 unset
+run_case tutorial startup 3 unset
 run_case tutorial increment-summary-toggle 3 unset
+run_case minesweeper startup 4 120
 run_case minesweeper new-game-twice 4 120
+run_case floppybird startup 4 unset
 run_case floppybird fixed-step-flaps 4 unset
 run_case helloworld toggle-action-probe 9 unset 9
 
-mkdir -p "$SANDBOX/repo/build/mame-scenario/golden/scrapbook"
-cp "$SANDBOX/snapshot.png" "$SANDBOX/repo/build/mame-scenario/golden/scrapbook/startup.png"
-if ! MAME_ENV_FILE="$SANDBOX/mame.env" \
-    RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
-    FAKE_MAME_RESULT=success \
-    env -u WSL_INTEROP -u LOKA_TAB_COUNT \
-    bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" scrapbook startup \
-      >"$SANDBOX/runner-success.log" 2>&1; then
-  fail "byte-identical audit and pixel golden did not pass"
-fi
+verify_startup_verdict() {
+  local example="$1"
+  mkdir -p "$SANDBOX/repo/build/mame-scenario/golden/$example"
+  cp "$SANDBOX/snapshot.png" "$SANDBOX/repo/build/mame-scenario/golden/$example/startup.png"
+  if ! MAME_ENV_FILE="$SANDBOX/mame.env" \
+      RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
+      FAKE_MAME_RESULT=success FAKE_EXAMPLE="$example" \
+      env -u WSL_INTEROP -u LOKA_TAB_COUNT \
+      bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" "$example" startup \
+        >"$SANDBOX/runner-success.log" 2>&1; then
+    fail "$example byte-identical audit and pixel golden did not pass"
+  fi
 
-if MAME_ENV_FILE="$SANDBOX/mame.env" \
-    RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
-    FAKE_MAME_RESULT=success FAKE_AUDIT_MUTATION=1 \
-    env -u WSL_INTEROP -u LOKA_TAB_COUNT \
-    bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" scrapbook startup \
-      >"$SANDBOX/runner-mutation.log" 2>&1; then
-  fail "observed audit mutation unexpectedly passed"
-fi
-grep -Fq 'audit differs from' "$SANDBOX/runner-mutation.log" \
-  || fail "observed audit mutation did not fail at the verdict comparison"
+  if MAME_ENV_FILE="$SANDBOX/mame.env" \
+      RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
+      FAKE_MAME_RESULT=success FAKE_EXAMPLE="$example" FAKE_AUDIT_MUTATION=1 \
+      env -u WSL_INTEROP -u LOKA_TAB_COUNT \
+      bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" "$example" startup \
+        >"$SANDBOX/runner-mutation.log" 2>&1; then
+    fail "$example observed audit mutation unexpectedly passed"
+  fi
+  grep -Fq 'audit differs from' "$SANDBOX/runner-mutation.log" \
+    || fail "$example observed audit mutation did not fail at the verdict comparison"
+}
+
+verify_startup_verdict scrapbook
+verify_startup_verdict helloworld
+verify_startup_verdict tutorial
+verify_startup_verdict minesweeper
+verify_startup_verdict floppybird
 
 echo "Toolbox scenario runner tests passed"

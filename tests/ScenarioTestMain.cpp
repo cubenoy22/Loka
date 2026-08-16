@@ -4,6 +4,7 @@
 #include "TutorialScenarioTests.hpp"
 #include "MineSweeperScenarioTests.hpp"
 #include "FloppyBirdScenarioTests.hpp"
+#include "StartupScenarioTests.hpp"
 
 #define LOKA_TEST_RUNNER_SCENARIO
 #define LOKA_TEST_RUNNER_FINAL_CHECKPOINT "ScenarioTestMain final"

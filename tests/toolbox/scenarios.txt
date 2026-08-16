@@ -5,7 +5,11 @@ scrapbook flip-forward-back
 scrapbook refused-flip-keeps-page
 scrapbook open-text-page
 scrapbook open-text-page-refused
+helloworld startup
 helloworld toggle-action-probe
+tutorial startup
 tutorial increment-summary-toggle
+minesweeper startup
 minesweeper new-game-twice
+floppybird startup
 floppybird fixed-step-flaps
