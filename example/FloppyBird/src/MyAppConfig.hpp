@@ -12,23 +12,20 @@
 class MyAppConfig : public AppConfigurable
 {
 public:
-  explicit MyAppConfig(PlatformContext *ctx)
+  explicit MyAppConfig(PlatformContext *ctx, unsigned long gameSeed = 1UL)
       : AppConfigurable(ctx),
-        game_(1UL)
+        game_(gameSeed)
   {
   }
 
   virtual void compose(AppComposition &c)
   {
-    c << WindowDef(WindowProps()
-                       .frame(50, 50, 380, 340)
+    loka::app::scene::NodeDefinition<floppybird::MainProps, floppybird::MainNode> mainDefinition(
+        floppybird::MainProps(&this->game_));
+    c << WindowDef(this->productionWindowProps(mainDefinition)
                        .idlePolicy(loka::app::IdlePolicy::interval(loka_floppy_bird::kFixedStepSeconds))
                        .onIdle(&MyAppConfig::WindowIdleThunk, this)
-                       .onKeyPress(&MyAppConfig::WindowKeyPressThunk, this)
-                       .scene(loka::app::scene::NodeDefinition<floppybird::MainProps, floppybird::MainNode>(
-                           floppybird::MainProps(&this->game_)))
-                       .title("LokaFloppyBird")
-                       .visible(true));
+                       .onKeyPress(&MyAppConfig::WindowKeyPressThunk, this));
   }
 
   virtual void composeMenu(loka::app::MenuComposition &c)
@@ -53,6 +50,23 @@ public:
     }
     this->game_.flap();
     return true;
+  }
+
+protected:
+  /** Declares FloppyBird's production window presentation around a supplied
+      scene so non-production vehicles cannot drift its title or frame. */
+  WindowProps productionWindowProps(const loka::app::scene::NodeDefinitionBase &scene) const
+  {
+    return WindowProps()
+        .frame(50, 50, 380, 340)
+        .scene(scene)
+        .title("LokaFloppyBird")
+        .visible(true);
+  }
+
+  floppybird::GameModel &gameModel()
+  {
+    return this->game_;
   }
 
 private:

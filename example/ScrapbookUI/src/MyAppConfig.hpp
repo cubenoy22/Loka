@@ -17,12 +17,9 @@ public:
 
   virtual void compose(AppComposition &composition)
   {
-    composition << WindowDef(WindowProps()
-                                 .frame(40, 40, 340, 250)
-                                 .scene(loka::app::scene::NodeDefinition<scrapbook::MainProps, scrapbook::MainNode>(
-                                     scrapbook::MainProps().platformContext(this->getPlatformContext())))
-                                 .title("ScrapbookUI")
-                                 .visible(true));
+    loka::app::scene::NodeDefinition<scrapbook::MainProps, scrapbook::MainNode> mainDefinition(
+        scrapbook::MainProps().platformContext(this->getPlatformContext()));
+    composition << WindowDef(this->productionWindowProps(mainDefinition));
   }
 
   virtual void composeMenu(loka::app::MenuComposition &composition)
@@ -30,6 +27,18 @@ public:
     using namespace loka::app;
     composition.declare(AppMenu() << MenuItem("About").actionType(MENU_ACTION_ABOUT_APP) << MenuSeparator()
                                   << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));
+  }
+
+protected:
+  /** Declares ScrapbookUI's production window presentation around a supplied
+      scene so non-production vehicles cannot drift its title or frame. */
+  WindowProps productionWindowProps(const loka::app::scene::NodeDefinitionBase &scene) const
+  {
+    return WindowProps()
+        .frame(40, 40, 340, 250)
+        .scene(scene)
+        .title("ScrapbookUI")
+        .visible(true);
   }
 };
 

@@ -17,12 +17,26 @@ public:
 
   virtual void compose(AppComposition &c)
   {
-    c << WindowDef(WindowProps()
-                       .frame(20, 20, 220, 240)
-                       .scene(loka::app::scene::NodeDefinition<minesweeper::MainProps, minesweeper::MainNode>(
-                           this->mainProps_))
-                       .title("LokaMine")
-                       .visible(true));
+    loka::app::scene::NodeDefinition<minesweeper::MainProps, minesweeper::MainNode> mainDefinition(
+        this->mainProps_);
+    c << WindowDef(this->productionWindowProps(mainDefinition));
+  }
+
+protected:
+  /** Declares MineSweeper's production window presentation around a supplied
+      scene so non-production vehicles cannot drift its title or frame. */
+  WindowProps productionWindowProps(const loka::app::scene::NodeDefinitionBase &scene) const
+  {
+    return WindowProps()
+        .frame(20, 20, 220, 240)
+        .scene(scene)
+        .title("LokaMine")
+        .visible(true);
+  }
+
+  const minesweeper::MainProps &mainProps() const
+  {
+    return this->mainProps_;
   }
 
 private:

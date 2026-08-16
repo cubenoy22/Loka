@@ -4,8 +4,9 @@
 
 #include "FloppyBirdScenarios.hpp"
 #include "GameModel.hpp"
+#include "MyAppConfig.hpp"
 #include "ScenarioDriverSupport.hpp"
-#include "ScenarioWindow.hpp"
+#include "ObservedMainDefinition.hpp"
 #include "StartupScenarios.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
@@ -24,19 +25,18 @@ namespace loka
       const char *kConfigPath = "LokaTest.cfg";
       const char *kDefaultScenarioName = "fixed-step-flaps";
 
-      class FloppyBirdScenarioAppConfig : public AppConfigurable
+      class FloppyBirdScenarioAppConfig : public MyAppConfig
       {
       public:
         FloppyBirdScenarioAppConfig(PlatformContext *context,
                                     const dsl::SnapTestConfig::Settings &settings)
-            : AppConfigurable(context),
+            : MyAppConfig(context, scenario_tests::FloppyBirdScenarioSeed()),
               startup_(scenario_tests::IsStartupScenario(settings.scenario)),
               audit_(ResolveScenarioAuditFile(), settings.scenario.c_str()),
               startupScenario_(scenario_tests::STARTUP_EXAMPLE_FLOPPY_BIRD,
                                scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED,
                                &this->audit_),
               scenario_(scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED, &this->audit_),
-              game_(scenario_tests::FloppyBirdScenarioSeed()),
               borrowedApp_(0),
               recorded_(false),
               tickCount_(0),
@@ -64,15 +64,11 @@ namespace loka
 
         virtual void compose(AppComposition &composition)
         {
-          composition << scenario_tests::MakeScenarioWindow<floppybird::MainProps, floppybird::MainNode>(
-              floppybird::MainProps(&this->game_),
-              0,
-              380,
-              340,
-              "LokaFloppyBirdTestsToolbox",
-              app::IdlePolicy::everyTick(),
-              &FloppyBirdScenarioAppConfig::OnWindowIdle,
-              this);
+          scenario_tests::ObservedMainDefinition<floppybird::MainProps, floppybird::MainNode> mainDefinition(
+              floppybird::MainProps(&this->gameModel()), 0);
+          composition << WindowDef(this->productionWindowProps(mainDefinition)
+                                       .idlePolicy(app::IdlePolicy::everyTick())
+                                       .onIdle(&FloppyBirdScenarioAppConfig::OnWindowIdle, this));
         }
 
       private:
@@ -102,7 +98,7 @@ namespace loka
             }
             else
             {
-              this->game_.advanceFrame(loka_floppy_bird::kFixedStepSeconds);
+              this->gameModel().advanceFrame(loka_floppy_bird::kFixedStepSeconds);
               const scenario_tests::CaptureContentBounds captureBounds = QueryCaptureContentBounds(window);
               const scenario_tests::ScenarioAdvance advance =
                   this->startup_
@@ -110,7 +106,7 @@ namespace loka
                             this->tickCount_, window->scene(), ContentLocalBounds(captureBounds), record)
                       : this->scenario_.step(this->tickCount_,
                                              window->scene(),
-                                             this->game_,
+                                             this->gameModel(),
                                              ContentLocalBounds(captureBounds),
                                              record);
               switch (advance)
@@ -153,7 +149,6 @@ namespace loka
         dsl::testing::ScenarioAuditFile audit_;
         scenario_tests::StartupScenario startupScenario_;
         scenario_tests::FloppyBirdScenario scenario_;
-        floppybird::GameModel game_;
         App *borrowedApp_;
         bool recorded_;
         long tickCount_;

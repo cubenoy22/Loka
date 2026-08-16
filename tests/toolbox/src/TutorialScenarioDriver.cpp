@@ -3,9 +3,10 @@
 #include <cassert>
 
 #include "ScenarioDriverSupport.hpp"
-#include "ScenarioWindow.hpp"
+#include "ObservedMainDefinition.hpp"
 #include "StartupScenarios.hpp"
 #include "DoItYourselfNode.hpp"
+#include "MyAppConfig.hpp"
 #include "Step4Node.hpp"
 #include "TutorialScenarios.hpp"
 #include "app/PlatformContext.hpp"
@@ -25,11 +26,11 @@ namespace loka
       const char *kConfigPath = "LokaTest.cfg";
       const char *kDefaultScenarioName = "increment-summary-toggle";
 
-      class TutorialScenarioAppConfig : public AppConfigurable
+      class TutorialScenarioAppConfig : public MyAppConfig
       {
       public:
         TutorialScenarioAppConfig(PlatformContext *context, const dsl::SnapTestConfig::Settings &settings)
-            : AppConfigurable(context),
+            : MyAppConfig(context),
               startup_(scenario_tests::IsStartupScenario(settings.scenario)),
               audit_(ResolveScenarioAuditFile(), settings.scenario.c_str()),
               startupScenario_(scenario_tests::STARTUP_EXAMPLE_TUTORIAL,
@@ -65,29 +66,20 @@ namespace loka
         {
           if (this->startup_)
           {
-            composition
-                << scenario_tests::MakeScenarioWindow<tutorial::DoItYourselfNode::PropsType,
-                                                      tutorial::DoItYourselfNode>(
-                       tutorial::DoItYourselfNode::PropsType(),
-                       0,
-                       360,
-                       280,
-                       "LokaTutorialTestsToolbox",
-                       app::IdlePolicy::everyTick(),
-                       &TutorialScenarioAppConfig::OnWindowIdle,
-                       this);
+            scenario_tests::ObservedMainDefinition<tutorial::DoItYourselfNode::PropsType,
+                                                   tutorial::DoItYourselfNode>
+                mainDefinition(tutorial::DoItYourselfNode::PropsType(), 0);
+            composition << WindowDef(this->productionWindowProps(mainDefinition)
+                                         .idlePolicy(app::IdlePolicy::everyTick())
+                                         .onIdle(&TutorialScenarioAppConfig::OnWindowIdle, this));
           }
           else
           {
-            composition << scenario_tests::MakeScenarioWindow<tutorial::Step4Node::PropsType, tutorial::Step4Node>(
-                tutorial::Step4Node::PropsType(),
-                0,
-                360,
-                280,
-                "LokaTutorialTestsToolbox",
-                app::IdlePolicy::everyTick(),
-                &TutorialScenarioAppConfig::OnWindowIdle,
-                this);
+            scenario_tests::ObservedMainDefinition<tutorial::Step4Node::PropsType, tutorial::Step4Node>
+                mainDefinition(tutorial::Step4Node::PropsType(), 0);
+            composition << WindowDef(this->productionWindowProps(mainDefinition)
+                                         .idlePolicy(app::IdlePolicy::everyTick())
+                                         .onIdle(&TutorialScenarioAppConfig::OnWindowIdle, this));
           }
         }
 

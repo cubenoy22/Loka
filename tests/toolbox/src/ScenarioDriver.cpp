@@ -3,9 +3,10 @@
 #include <cassert>
 
 #include "MainNode.hpp"
+#include "MyAppConfig.hpp"
 #include "ScrapbookScenarios.hpp"
 #include "ScenarioDriverSupport.hpp"
-#include "ScenarioWindow.hpp"
+#include "ObservedMainDefinition.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
 #include "app/core/App.hpp"
@@ -82,13 +83,13 @@ namespace loka
         }
       }
 
-      class ScenarioAppConfig : public AppConfigurable
+      class ScenarioAppConfig : public ScrapbookAppConfig
       {
       public:
         ScenarioAppConfig(PlatformContext *context,
                           const dsl::SnapTestConfig::Settings &settings,
                           const scenario_tests::ScenarioLaunchPlan &launchPlan)
-            : AppConfigurable(context),
+            : ScrapbookAppConfig(context),
               audit_(ResolveScenarioAuditFile(), launchPlan.scenario().c_str()),
               scenario_(launchPlan, &this->audit_),
               borrowedApp_(0),
@@ -106,15 +107,11 @@ namespace loka
 
         virtual void compose(AppComposition &composition)
         {
-          composition << scenario_tests::MakeScenarioWindow<scrapbook::MainProps, scrapbook::MainNode>(
-              scrapbook::MainProps().platformContext(this->getPlatformContext()),
-              &this->borrowedMainNode_,
-              340,
-              250,
-              "LokaTestsToolbox",
-              app::IdlePolicy::everyTick(),
-              &ScenarioAppConfig::OnWindowIdle,
-              this);
+          scenario_tests::ObservedMainDefinition<scrapbook::MainProps, scrapbook::MainNode> mainDefinition(
+              scrapbook::MainProps().platformContext(this->getPlatformContext()), &this->borrowedMainNode_);
+          composition << WindowDef(this->productionWindowProps(mainDefinition)
+                                       .idlePolicy(app::IdlePolicy::everyTick())
+                                       .onIdle(&ScenarioAppConfig::OnWindowIdle, this));
         }
 
       private:

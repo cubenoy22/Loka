@@ -3,9 +3,10 @@
 #include <cassert>
 
 #include "MainNode.hpp"
+#include "MyAppConfig.hpp"
 #include "MineSweeperScenarios.hpp"
 #include "ScenarioDriverSupport.hpp"
-#include "ScenarioWindow.hpp"
+#include "ObservedMainDefinition.hpp"
 #include "StartupScenarios.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
@@ -24,11 +25,11 @@ namespace loka
       const char *kConfigPath = "LokaTest.cfg";
       const char *kDefaultScenarioName = "new-game-twice";
 
-      class MineSweeperScenarioAppConfig : public AppConfigurable
+      class MineSweeperScenarioAppConfig : public MyAppConfig
       {
       public:
         MineSweeperScenarioAppConfig(PlatformContext *context, const dsl::SnapTestConfig::Settings &settings)
-            : AppConfigurable(context),
+            : MyAppConfig(context, minesweeper::MainProps(scenario_tests::MineSweeperScenarioSeed())),
               startup_(scenario_tests::IsStartupScenario(settings.scenario)),
               audit_(ResolveScenarioAuditFile(), settings.scenario.c_str()),
               startupScenario_(scenario_tests::STARTUP_EXAMPLE_MINESWEEPER,
@@ -62,15 +63,11 @@ namespace loka
 
         virtual void compose(AppComposition &composition)
         {
-          composition << scenario_tests::MakeScenarioWindow<minesweeper::MainProps, minesweeper::MainNode>(
-              minesweeper::MainProps(scenario_tests::MineSweeperScenarioSeed()),
-              0,
-              220,
-              240,
-              "LokaMineSweeperTestsToolbox",
-              app::IdlePolicy::everyTick(),
-              &MineSweeperScenarioAppConfig::OnWindowIdle,
-              this);
+          scenario_tests::ObservedMainDefinition<minesweeper::MainProps, minesweeper::MainNode> mainDefinition(
+              this->mainProps(), 0);
+          composition << WindowDef(this->productionWindowProps(mainDefinition)
+                                       .idlePolicy(app::IdlePolicy::everyTick())
+                                       .onIdle(&MineSweeperScenarioAppConfig::OnWindowIdle, this));
         }
 
       private:
