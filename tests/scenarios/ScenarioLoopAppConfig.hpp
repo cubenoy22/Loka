@@ -51,6 +51,7 @@ namespace loka
             reel_(cells, startupExample, errorFactory, interactionErrorCode, holdSeconds, cycleBudget),
             borrowedApp_(0)
       {
+        this->presentScenarioReelTitle(this->reel_.operatorTitlePublisher());
       }
 
       void setApp(App *app)
@@ -61,7 +62,7 @@ namespace loka
     protected:
       virtual void onScenarioIdle(Window *window, double elapsedSeconds)
       {
-        this->reel_.tick(window, elapsedSeconds);
+        this->reel_.tick(window, elapsedSeconds, window ? window->getTracker() : 0);
         if (this->reel_.finished() && this->borrowedApp_)
         {
           this->borrowedApp_->quit();

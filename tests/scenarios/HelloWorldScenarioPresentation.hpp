@@ -3,6 +3,7 @@
 
 #include "../../example/HelloWorld/src/ProductionAppConfig.hpp"
 #include "ObservedMainDefinition.hpp"
+#include "ScenarioWindowPresentation.hpp"
 
 namespace loka
 {
@@ -10,7 +11,8 @@ namespace loka
   {
     /** Presents HelloWorld's production window and menu declarations while
         leaving the TEST vehicle responsible for scenario tick handling. */
-    class HelloWorldScenarioPresentation : public HelloWorldProductionAppConfig
+    class HelloWorldScenarioPresentation : public HelloWorldProductionAppConfig,
+                                           protected ScenarioWindowPresentation
     {
     public:
       explicit HelloWorldScenarioPresentation(PlatformContext *context)
@@ -26,8 +28,9 @@ namespace loka
       virtual void compose(AppComposition &composition)
       {
         ObservedMainDefinition<helloworld::MainProps, helloworld::MainNode> mainDefinition(helloworld::MainProps(), 0);
-        composition << WindowDef(this->productionWindowProps(mainDefinition)
-                                     .idlePolicy(app::IdlePolicy::everyTick())
+        WindowProps windowProps = this->productionWindowProps(mainDefinition);
+        this->applyScenarioWindowPresentation(windowProps);
+        composition << WindowDef(windowProps.idlePolicy(app::IdlePolicy::everyTick())
                                      .onIdle(&HelloWorldScenarioPresentation::OnWindowIdle, this));
       }
 

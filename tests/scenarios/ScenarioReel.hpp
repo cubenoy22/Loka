@@ -6,6 +6,7 @@
 #include <string>
 
 #include "ScenarioCellTable.hpp"
+#include "ScenarioReelTitle.hpp"
 #include "ScenarioTypes.hpp"
 #include "SceneScenarioDriver.hpp"
 #include "StartupScenarios.hpp"
@@ -87,6 +88,7 @@ namespace loka
                    double holdSeconds,
                    long cycleBudget)
           : position_(cells, cycleBudget),
+            operatorTitle_(position_.cell(), position_.completedCycles()),
             startupExample_(startupExample),
             errorFactory_(errorFactory),
             interactionErrorCode_(interactionErrorCode),
@@ -100,7 +102,7 @@ namespace loka
       }
 
       /** One idle tick from the platform pump. */
-      void tick(Window *window, double elapsedSeconds)
+      void tick(Window *window, double elapsedSeconds, core::StateTracker *presentationTracker)
       {
         if (this->position_.exhausted() || this->phase_ == REEL_FAILED || !this->driver_.get())
         {
@@ -113,7 +115,7 @@ namespace loka
           {
             return;
           }
-          this->rearm(window);
+          this->rearm(window, presentationTracker);
           return;
         }
         ++this->tick_;
@@ -147,6 +149,24 @@ namespace loka
         return this->position_.cell();
       }
 
+      /** The title fact most recently published by a successful arm. */
+      core::String operatorTitle() const
+      {
+        return this->operatorTitle_.value();
+      }
+
+      /** Adds the example's production title before a loop Window observes
+          the reel-owned publication State. */
+      void decorateOperatorTitle(const core::String &productionTitle)
+      {
+        this->operatorTitle_.decorateBeforeProjection(productionTitle);
+      }
+
+      ScenarioReelTitle *operatorTitlePublisher()
+      {
+        return &this->operatorTitle_;
+      }
+
     private:
       enum ReelPhase
       {
@@ -155,7 +175,7 @@ namespace loka
         REEL_FAILED
       };
 
-      void rearm(Window *window)
+      void rearm(Window *window, core::StateTracker *presentationTracker)
       {
         this->position_.advance();
         // The rail goes first: its Flow observes nodes the teardown destroys.
@@ -177,6 +197,8 @@ namespace loka
         (void)RearmScenarioScene(window);
         this->driver_.reset(replacement.release());
         this->resetDriverClock();
+        this->operatorTitle_.publish(
+            this->position_.cell(), this->position_.completedCycles(), presentationTracker);
       }
 
       void arm()
@@ -220,6 +242,7 @@ namespace loka
       }
 
       ScenarioReelPosition position_;
+      ScenarioReelTitle operatorTitle_;
       const StartupExample startupExample_;
       DriverErrorFactory errorFactory_;
       const long interactionErrorCode_;

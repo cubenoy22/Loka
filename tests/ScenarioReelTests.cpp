@@ -12,6 +12,7 @@
 #include "app/core/Window.hpp"
 #include "app/scene/Scene.hpp"
 #include "core/util/OwnedDef.hpp"
+#include "platform/StringUTF8.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "platform/null/NullWindow.hpp"
 #include "scenarios/HelloWorldScenarios.hpp"
@@ -224,7 +225,8 @@ namespace
   std::vector<std::string> PumpReel(loka::scenario_tests::ScenarioReel<InteractionScenario> &reel,
                                     Window &window,
                                     long maxTicks,
-                                    ReelFrameFn frame)
+                                    ReelFrameFn frame,
+                                    std::vector<std::string> *operatorTitles = 0)
   {
     std::vector<std::string> frames;
     for (long tick = 0; tick < maxTicks && !reel.finished(); ++tick)
@@ -234,7 +236,16 @@ namespace
       {
         frames.push_back(current);
       }
-      reel.tick(&window, 0.1);
+      if (operatorTitles)
+      {
+        std::string operatorTitle;
+        LOKA_VERIFY(loka::platform::CollectUtf8(reel.operatorTitle(), operatorTitle));
+        if (operatorTitles->empty() || (*operatorTitles)[operatorTitles->size() - 1] != operatorTitle)
+        {
+          operatorTitles->push_back(operatorTitle);
+        }
+      }
+      reel.tick(&window, 0.1, window.getTracker());
     }
     return frames;
   }
@@ -414,7 +425,9 @@ void testScenarioReelRunsEveryHelloWorldCellEveryCycle()
       0.05,
       2);
 
-  const std::vector<std::string> visited = PumpReel(reel, window, 4096, &CellFrame);
+  reel.decorateOperatorTitle(loka::core::String::Literal("LokaSample"));
+  std::vector<std::string> operatorTitles;
+  const std::vector<std::string> visited = PumpReel(reel, window, 4096, &CellFrame, &operatorTitles);
 
   LOKA_VERIFY(reel.finished());
   LOKA_VERIFY(reel.completedCycles() == 2);
@@ -425,6 +438,13 @@ void testScenarioReelRunsEveryHelloWorldCellEveryCycle()
   LOKA_VERIFY(visited[3] == "startup");
   LOKA_VERIFY(visited[4] == "toggle-action-probe");
   LOKA_VERIFY(visited[5] == "bmi-roundtrip");
+  LOKA_VERIFY(operatorTitles.size() == 6);
+  LOKA_VERIFY(operatorTitles[0] == "LokaSample - startup (cycle 1)");
+  LOKA_VERIFY(operatorTitles[1] == "LokaSample - toggle-action-probe (cycle 1)");
+  LOKA_VERIFY(operatorTitles[2] == "LokaSample - bmi-roundtrip (cycle 1)");
+  LOKA_VERIFY(operatorTitles[3] == "LokaSample - startup (cycle 2)");
+  LOKA_VERIFY(operatorTitles[4] == "LokaSample - toggle-action-probe (cycle 2)");
+  LOKA_VERIFY(operatorTitles[5] == "LokaSample - bmi-roundtrip (cycle 2)");
   LOKA_VERIFY(window.scene()->liveNodeCount() == mountedNodeCount);
 
   std::printf("testScenarioReelRunsEveryHelloWorldCellEveryCycle passed\n");
@@ -454,7 +474,7 @@ void testScenarioReelDriverAllocationRefusalRetiresInsteadOfWedging()
   loka::scenario_tests::testing::failScenarioReelDriverAllocations(1);
   for (long tick = 0; tick < 512 && !reel.finished(); ++tick)
   {
-    reel.tick(&window, 0.1);
+    reel.tick(&window, 0.1, window.getTracker());
   }
   loka::scenario_tests::testing::allowScenarioReelDriverAllocations();
 
