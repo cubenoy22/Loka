@@ -14,8 +14,14 @@ $ProjectDirectory = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $Registry = Join-Path $ProjectDirectory "tests/scenarios/scenarios.txt"
 $FixtureRegistry = Join-Path $ProjectDirectory "tests/scenarios/scrapbook-package-fixtures.txt"
 $ExpectedAudit = Join-Path $ProjectDirectory "tests/scenarios/expected/$Example/$Scenario.audit"
-$BuiltExecutable = Join-Path $ProjectDirectory `
-    "build/win32/Debug/example/ScrapbookUI/LokaScrapbookScenarioWin32.exe"
+$Vehicles = @{
+    "scrapbook" = @{ Executable = "LokaScrapbookScenarioWin32.exe"; OutputDirectory = "ScrapbookUI" }
+    "helloworld" = @{ Executable = "LokaHelloWorldScenarioWin32.exe"; OutputDirectory = "HelloWorld" }
+    "tutorial" = @{ Executable = "LokaTutorialScenarioWin32.exe"; OutputDirectory = "Tutorial" }
+    "minesweeper" = @{ Executable = "LokaMineSweeperScenarioWin32.exe"; OutputDirectory = "MineSweeper" }
+    "floppybird" = @{ Executable = "LokaFloppyBirdScenarioWin32.exe"; OutputDirectory = "FloppyBird" }
+}
+$BuiltExecutable = $null
 $Lrpc = Join-Path $ProjectDirectory "build/host/lrpc/lrpc.exe"
 $MultiConfigLrpc = Join-Path $ProjectDirectory "build/host/lrpc/Debug/lrpc.exe"
 $SourceAssets = Join-Path $ProjectDirectory "example/ScrapbookUI/assets/ASSETS-modern.LRP"
@@ -315,21 +321,28 @@ try {
         -or -not ([System.IO.File]::ReadAllLines($Registry) -contains "$Example $Scenario")) {
         Fail-Stage "arguments" "scenario '$Example/$Scenario' is not registered"
     }
-    if ($Example -ne "scrapbook") {
-        Fail-Stage "arguments" "the Win32 runner currently supports only ScrapbookUI"
+    if (-not $Vehicles.ContainsKey($Example)) {
+        Fail-Stage "arguments" "the Win32 runner has no vehicle for '$Example'"
     }
+    $Vehicle = $Vehicles[$Example]
+    $VehicleExecutableName = $Vehicle.Executable
+    $VehicleOutputDirectory = $Vehicle.OutputDirectory
+    $BuiltExecutable = Join-Path $ProjectDirectory `
+        "build/win32/Debug/example/$VehicleOutputDirectory/$VehicleExecutableName"
     if (-not (Test-Path -LiteralPath $BuiltExecutable -PathType Leaf)) {
         Fail-Stage "build" "missing $BuiltExecutable; enter vcvarsall.bat arm64, run cmake --preset win32-debug, then cmake --build --preset win32-tests"
     }
-    if (-not (Test-Path -LiteralPath $Lrpc -PathType Leaf)) {
-        if (Test-Path -LiteralPath $MultiConfigLrpc -PathType Leaf) {
-            $Lrpc = $MultiConfigLrpc
-        } else {
-            Fail-Stage "build" "missing native lrpc.exe under build/host/lrpc; run cmake -S tools/lrpc -B build/host/lrpc and cmake --build build/host/lrpc"
+    if ($Example -eq "scrapbook") {
+        if (-not (Test-Path -LiteralPath $Lrpc -PathType Leaf)) {
+            if (Test-Path -LiteralPath $MultiConfigLrpc -PathType Leaf) {
+                $Lrpc = $MultiConfigLrpc
+            } else {
+                Fail-Stage "build" "missing native lrpc.exe under build/host/lrpc; run cmake -S tools/lrpc -B build/host/lrpc and cmake --build build/host/lrpc"
+            }
         }
-    }
-    if (-not (Test-Path -LiteralPath $SourceAssets -PathType Leaf)) {
-        Fail-Stage "stage" "missing $SourceAssets"
+        if (-not (Test-Path -LiteralPath $SourceAssets -PathType Leaf)) {
+            Fail-Stage "stage" "missing $SourceAssets"
+        }
     }
     if (-not (Test-Path -LiteralPath $ExpectedAudit -PathType Leaf)) {
         Fail-Stage "verdict" "missing tracked audit $ExpectedAudit"
@@ -344,17 +357,19 @@ try {
     Write-Runner "stage: build artifact $BuiltExecutable"
     Write-Runner "stage: native directory (no development disk)"
 
-    $StagedExecutable = Join-Path $Stage "LokaScrapbookScenarioWin32.exe"
-    $StagedAssets = Join-Path $Stage "ASSETS.LRP"
+    $StagedExecutable = Join-Path $Stage $VehicleExecutableName
     Copy-Item -LiteralPath $BuiltExecutable -Destination $StagedExecutable
-    $stageArguments = @("stage", $SourceAssets, "-o", $StagedAssets)
-    $corruptBag = Get-CorruptBag $Scenario
-    if ($null -ne $corruptBag) {
-        $stageArguments += @("--corrupt-bag", [string]$corruptBag)
-    }
-    & $Lrpc @stageArguments *>> $RunnerLog
-    if ($LASTEXITCODE -ne 0) {
-        Fail-Stage "stage" "lrpc refused the staged package; see $RunnerLog"
+    if ($Example -eq "scrapbook") {
+        $StagedAssets = Join-Path $Stage "ASSETS.LRP"
+        $stageArguments = @("stage", $SourceAssets, "-o", $StagedAssets)
+        $corruptBag = Get-CorruptBag $Scenario
+        if ($null -ne $corruptBag) {
+            $stageArguments += @("--corrupt-bag", [string]$corruptBag)
+        }
+        & $Lrpc @stageArguments *>> $RunnerLog
+        if ($LASTEXITCODE -ne 0) {
+            Fail-Stage "stage" "lrpc refused the staged package; see $RunnerLog"
+        }
     }
     [System.IO.File]::WriteAllText(
         (Join-Path $Stage "LokaTest.cfg"),

@@ -345,7 +345,11 @@
       "configurePreset": "win32-debug",
       "targets": [
         "LokaTestsWin32",
-        "LokaScrapbookScenarioWin32"
+        "LokaScrapbookScenarioWin32",
+        "LokaHelloWorldScenarioWin32",
+        "LokaTutorialScenarioWin32",
+        "LokaMineSweeperScenarioWin32",
+        "LokaFloppyBirdScenarioWin32"
       ],
       "condition": {
         "type": "equals",
