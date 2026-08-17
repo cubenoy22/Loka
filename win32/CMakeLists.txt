@@ -55,9 +55,7 @@ get_filename_component(LOKA_WIN32_REPOSITORY_ROOT
 if(CMAKE_SOURCE_DIR STREQUAL LOKA_WIN32_REPOSITORY_ROOT)
   include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/LokaWin32VisualStyles.cmake)
 
-  set(LOKA_WIN32_SCENARIO_COMMON_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/win32/ScenarioDriverSupport.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/ScenarioProfile.cpp
+  set(LOKA_WIN32_SCENARIO_PRESENTATION_COMMON_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/ScenarioTypes.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/StartupScenarios.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/RectSurfaceScenarioObservation.cpp
@@ -66,15 +64,14 @@ if(CMAKE_SOURCE_DIR STREQUAL LOKA_WIN32_REPOSITORY_ROOT)
     ${COMMON_SOURCES}
   )
 
-  function(loka_add_win32_scenario_executable
-      target driver example_include_dir output_directory)
-    # TEST-only vertical slices compile common and platform sources with one
-    # uniform TEST_BUILD definition rather than linking the shipping core.
-    add_executable(${target} WIN32 EXCLUDE_FROM_ALL
-      ${CMAKE_CURRENT_SOURCE_DIR}/../tests/win32/${driver}
-      ${LOKA_WIN32_SCENARIO_COMMON_SOURCES}
-      ${ARGN}
-    )
+  set(LOKA_WIN32_SCENARIO_COMMON_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/win32/ScenarioDriverSupport.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/ScenarioProfile.cpp
+    ${LOKA_WIN32_SCENARIO_PRESENTATION_COMMON_SOURCES}
+  )
+
+  function(loka_configure_win32_scenario_executable
+      target example_include_dir output_directory)
     loka_enable_warnings(${target})
     loka_enable_win32_visual_styles(${target})
     target_include_directories(${target} PRIVATE
@@ -94,6 +91,20 @@ if(CMAKE_SOURCE_DIR STREQUAL LOKA_WIN32_REPOSITORY_ROOT)
     if(MSVC)
       target_compile_options(${target} PRIVATE /utf-8)
     endif()
+  endfunction()
+
+  function(loka_add_win32_scenario_executable
+      target driver example_include_dir output_directory)
+    # TEST-only vertical slices compile common and platform sources with one
+    # uniform TEST_BUILD definition rather than linking the shipping core.
+    add_executable(${target} WIN32 EXCLUDE_FROM_ALL
+      ${CMAKE_CURRENT_SOURCE_DIR}/../tests/win32/${driver}
+      ${LOKA_WIN32_SCENARIO_COMMON_SOURCES}
+      ${ARGN}
+    )
+    loka_configure_win32_scenario_executable(
+      ${target} ${example_include_dir} ${output_directory}
+    )
   endfunction()
 
   loka_add_win32_scenario_executable(
@@ -132,6 +143,47 @@ if(CMAKE_SOURCE_DIR STREQUAL LOKA_WIN32_REPOSITORY_ROOT)
     example/FloppyBird/src
     example/FloppyBird
     ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/FloppyBirdScenarios.cpp
+  )
+
+  # Self-contained loop presentations (#402, Win32 leg). These deliberately
+  # omit ScenarioDriverSupport.cpp and ScenarioProfile.cpp: the double-clicked
+  # reel has no host settings, audit publication, completion marker, or linger.
+  function(loka_add_win32_scenario_loop_executable
+      target main example_include_dir output_directory)
+    add_executable(${target} WIN32 EXCLUDE_FROM_ALL
+      ${CMAKE_CURRENT_SOURCE_DIR}/../tests/win32/${main}
+      ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/ScenarioReel.cpp
+      ${LOKA_WIN32_SCENARIO_PRESENTATION_COMMON_SOURCES}
+      ${ARGN}
+    )
+    loka_configure_win32_scenario_executable(
+      ${target} ${example_include_dir} ${output_directory}
+    )
+    if(NOT LOKA_SCENARIO_LOOP_CYCLES STREQUAL "")
+      target_compile_definitions(${target} PRIVATE
+        LOKA_SCENARIO_LOOP_CYCLES=${LOKA_SCENARIO_LOOP_CYCLES}
+      )
+    endif()
+  endfunction()
+
+  set(LOKA_SCENARIO_LOOP_CYCLES "" CACHE STRING
+    "Full reel passes a loop presentation runs before quitting. Empty means never quit."
+  )
+
+  loka_add_win32_scenario_loop_executable(
+    LokaHelloWorldScenarioLoopWin32
+    HelloWorldScenarioLoopMain.cpp
+    example/HelloWorld/src
+    example/HelloWorld/scenario-loop
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/HelloWorldScenarios.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../example/HelloWorld/src/MainNode.cpp
+  )
+  loka_add_win32_scenario_loop_executable(
+    LokaMineSweeperScenarioLoopWin32
+    MineSweeperScenarioLoopMain.cpp
+    example/MineSweeper/src
+    example/MineSweeper/scenario-loop
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/MineSweeperScenarios.cpp
   )
 
   if(LOKA_WIN32_SCENARIOS)

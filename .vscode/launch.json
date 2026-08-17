@@ -68,6 +68,24 @@
       "preLaunchTask": "Build: Win32 MineSweeper"
     },
     {
+      "name": "Run (Windows HelloWorld Scenario Loop)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/win32/Debug/example/HelloWorld/scenario-loop/LokaHelloWorldScenarioLoopWin32.exe",
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "preLaunchTask": "Build: Win32 HelloWorld Scenario Loop"
+    },
+    {
+      "name": "Run (Windows MineSweeper Scenario Loop)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/win32/Debug/example/MineSweeper/scenario-loop/LokaMineSweeperScenarioLoopWin32.exe",
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "preLaunchTask": "Build: Win32 MineSweeper Scenario Loop"
+    },
+    {
       "name": "Run (Windows SimpleViewer)",
       "type": "cppvsdbg",
       "request": "launch",
