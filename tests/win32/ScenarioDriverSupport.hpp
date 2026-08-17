@@ -48,6 +48,32 @@ namespace loka
                                      const char *scenario,
                                      const dsl::SnapRecord &record);
 
+    /** Runs a self-contained presentation config without loading the host
+        scenario protocol. Loop reels use this overload so a double-clicked
+        executable can advance forever without waiting for settings, audit
+        publication, a completion marker, or a host-owned linger. */
+    template <class Config>
+    int RunScenarioApplication(HINSTANCE hInstance, int nCmdShow)
+    {
+      platform::InitPlatformRuntime();
+      core::ScopedPtr<PlatformContext> platformContext(platform::CreatePlatformContext());
+      assert(platformContext.get() && "PlatformContext is required");
+      if (!platformContext.get())
+      {
+        return 1;
+      }
+      Config config(platformContext.get());
+      core::ScopedPtr<App> app(platformContext->createApp(&config, hInstance, nCmdShow));
+      assert(app.get() && "App is required");
+      if (!app.get())
+      {
+        return 1;
+      }
+      config.setApp(app.get());
+      app->run();
+      return 0;
+    }
+
     template <class Config>
     int RunScenarioApplication(HINSTANCE hInstance,
                                int nCmdShow,

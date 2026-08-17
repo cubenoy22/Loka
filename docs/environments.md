@@ -103,6 +103,22 @@ This is the environment where binaries are actually built.
   stops the final-scene hold, and leaves `LOG.TXT` as the target-local runtime
   verdict. For a VAIO P, start VS Code from a VS2017 `x64_x86 Cross Tools`
   session; the task inherits that session's x86 target.
+- For a hands-free Win32 scenario reel, use the architecture-specific Release
+  presentation preset. These TEST-only targets are excluded from default
+  builds and carry no host controller or audit protocol: double-click either
+  executable and it cycles through that example's registered cells until the
+  window is closed. For example, from an ARM64 Native Tools prompt:
+
+  ```bat
+  cmake --preset win32-arm64-release
+  cmake --build --preset win32-scenario-loop-arm64-release
+  start "" build\win32\presentation\arm64\Release\example\MineSweeper\scenario-loop\LokaMineSweeperScenarioLoopWin32.exe
+  ```
+
+  Substitute `x64` or `x86` in both preset names and the output path when using
+  that compiler environment. To make a verification build stop by itself after
+  two full passes, add `-DLOKA_SCENARIO_LOOP_CYCLES=2` to the configure command;
+  omit the definition (or use a fresh cache) for the normal unbounded reel.
 - Some endpoint scanners flag freshly linked unsigned test executables,
   particularly 32-bit ones.
   This workflow deliberately does not add an antivirus exclusion; use the
