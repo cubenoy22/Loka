@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Crop, compare, and diff 8-bit RGB/RGBA PNGs using the standard library."""
+"""Crop, compare, diff, and animate 8-bit RGB/RGBA PNGs using the standard library."""
 
 import argparse
 import os
@@ -263,6 +263,243 @@ def difference_image(expected, actual):
     return Image(width, height, pixels)
 
 
+
+# --- GIF89a writer -------------------------------------------------------
+#
+# MAME captures evidence as a PNG per frame. Turning a capture run into
+# something watchable in a pull request needs an animation, and the rigs this
+# repository is driven from have no ffmpeg, no pip, and no image library --
+# so the assembler has to live here, beside the PNG reader that already
+# decodes those frames with nothing but zlib.
+
+
+GIF_MAX_CODE = 4096
+
+
+class _BitWriter:
+    """LSB-first variable-width code packer, as GIF image data requires."""
+
+    def __init__(self):
+        self._bytes = bytearray()
+        self._bits = 0
+        self._count = 0
+
+    def write(self, code, width):
+        self._bits |= code << self._count
+        self._count += width
+        while self._count >= 8:
+            self._bytes.append(self._bits & 0xFF)
+            self._bits >>= 8
+            self._count -= 8
+
+    def finish(self):
+        if self._count > 0:
+            self._bytes.append(self._bits & 0xFF)
+            self._bits = 0
+            self._count = 0
+        return bytes(self._bytes)
+
+
+def _gif_lzw_encode(indices, min_code_size):
+    clear_code = 1 << min_code_size
+    end_code = clear_code + 1
+    writer = _BitWriter()
+    table = {}
+    next_code = end_code + 1
+    code_size = min_code_size + 1
+    writer.write(clear_code, code_size)
+    if not indices:
+        writer.write(end_code, code_size)
+        return writer.finish()
+
+    prefix = indices[0]
+    for value in indices[1:]:
+        key = (prefix, value)
+        if key in table:
+            prefix = table[key]
+            continue
+        writer.write(prefix, code_size)
+        if next_code < GIF_MAX_CODE:
+            table[key] = next_code
+            next_code += 1
+            # One past the width, not at it: a decoder only adds its entry on
+            # the following code, so it is always one behind the encoder here.
+            # Bumping at (1 << code_size) desynchronises the two by one code.
+            if next_code == (1 << code_size) + 1 and code_size < 12:
+                code_size += 1
+        else:
+            writer.write(clear_code, code_size)
+            table = {}
+            next_code = end_code + 1
+            code_size = min_code_size + 1
+        prefix = value
+    writer.write(prefix, code_size)
+    writer.write(end_code, code_size)
+    return writer.finish()
+
+
+def _gif_lzw_decode(payload, min_code_size):
+    """Decoder used only by selftest: an encoder nothing here can view has to
+    be checked against a reader, not against inspection."""
+    clear_code = 1 << min_code_size
+    end_code = clear_code + 1
+    code_size = min_code_size + 1
+    table = None
+    previous = None
+    output = []
+    bit = 0
+    total_bits = len(payload) * 8
+    while bit + code_size <= total_bits:
+        code = 0
+        for offset in range(code_size):
+            index = bit + offset
+            if payload[index >> 3] & (1 << (index & 7)):
+                code |= 1 << offset
+        bit += code_size
+        if code == clear_code:
+            table = [[i] for i in range(clear_code)] + [[], []]
+            code_size = min_code_size + 1
+            previous = None
+            continue
+        if code == end_code:
+            break
+        if table is None:
+            raise PngError("GIF data did not start with a clear code")
+        if code < len(table):
+            entry = list(table[code])
+        elif previous is not None:
+            entry = list(previous) + [previous[0]]
+        else:
+            raise PngError("GIF data referenced an undefined code")
+        output.extend(entry)
+        if previous is not None:
+            table.append(list(previous) + [entry[0]])
+            if len(table) == (1 << code_size) and code_size < 12:
+                code_size += 1
+        previous = entry
+    return output
+
+
+def _gif_blocks(payload):
+    blocks = bytearray()
+    position = 0
+    while position < len(payload):
+        chunk = payload[position:position + 255]
+        blocks.append(len(chunk))
+        blocks.extend(chunk)
+        position += len(chunk)
+    blocks.append(0)
+    return bytes(blocks)
+
+
+def scale_image(image, factor):
+    """Nearest-neighbour downscale. Averaging would invent colours a 1-bit
+    Classic screen never had and inflate the palette; nearest keeps both the
+    palette and the pixel grid honest."""
+    if factor <= 1:
+        return image
+    width = image.width // factor
+    height = image.height // factor
+    if width <= 0 or height <= 0:
+        raise PngError("scale factor is larger than the image")
+    source = image.rgba
+    scaled = bytearray(width * height * 4)
+    for y in range(height):
+        source_row = (y * factor) * image.width
+        target_row = y * width
+        for x in range(width):
+            source_offset = (source_row + x * factor) * 4
+            target_offset = (target_row + x) * 4
+            scaled[target_offset:target_offset + 4] = source[source_offset:source_offset + 4]
+    return Image(width, height, bytes(scaled))
+
+
+def _palette_for(images):
+    """One palette for every frame, so the animation cannot shift colour
+    between frames. Exact while the capture fits 256 colours; a Classic screen
+    capture always does."""
+    colours = {}
+    for image in images:
+        pixels = image.rgba
+        for offset in range(0, len(pixels), 4):
+            key = pixels[offset:offset + 3]
+            if key not in colours:
+                colours[key] = len(colours)
+                if len(colours) > 256:
+                    return None
+    return colours
+
+
+def _quantized_palette():
+    colours = {}
+    for red in range(8):
+        for green in range(8):
+            for blue in range(4):
+                key = bytes((red * 255 // 7, green * 255 // 7, blue * 255 // 3))
+                colours.setdefault(key, len(colours))
+    return colours
+
+
+def _index_frame(image, colours, quantized):
+    pixels = image.rgba
+    indices = []
+    append = indices.append
+    for offset in range(0, len(pixels), 4):
+        key = pixels[offset:offset + 3]
+        if quantized:
+            key = bytes((
+                (key[0] >> 5) * 255 // 7,
+                (key[1] >> 5) * 255 // 7,
+                (key[2] >> 6) * 255 // 3,
+            ))
+        append(colours[key])
+    return indices
+
+
+def write_gif(path, images, delay_centiseconds):
+    if not images:
+        raise PngError("an animation needs at least one frame")
+    width = images[0].width
+    height = images[0].height
+    for image in images:
+        if image.width != width or image.height != height:
+            raise PngError("every frame must share the animation's dimensions")
+
+    colours = _palette_for(images)
+    quantized = colours is None
+    if quantized:
+        colours = _quantized_palette()
+
+    table_bits = max(1, (max(1, len(colours)) - 1).bit_length())
+    table_size = 1 << table_bits
+    palette = bytearray(table_size * 3)
+    for key, index in colours.items():
+        palette[index * 3:index * 3 + 3] = key
+
+    min_code_size = max(2, table_bits)
+    packed = 0x80 | ((table_bits - 1) << 4) | (table_bits - 1)
+
+    payload = bytearray()
+    payload.extend(b"GIF89a")
+    payload.extend(struct.pack("<HHBBB", width, height, packed, 0, 0))
+    payload.extend(palette)
+    # Loop forever: the reel it records does.
+    payload.extend(b"\x21\xff\x0bNETSCAPE2.0\x03\x01\x00\x00\x00")
+    for image in images:
+        payload.extend(b"\x21\xf9\x04\x04")
+        payload.extend(struct.pack("<HBB", delay_centiseconds, 0, 0))
+        payload.extend(b"\x2c")
+        payload.extend(struct.pack("<HHHHB", 0, 0, width, height, 0))
+        payload.append(min_code_size)
+        indices = _index_frame(image, colours, quantized)
+        payload.extend(_gif_blocks(_gif_lzw_encode(indices, min_code_size)))
+    payload.extend(b"\x3b")
+
+    with open(path, "wb") as handle:
+        handle.write(bytes(payload))
+    return len(payload)
+
+
 def _filtered_scanline(row, previous, channels, filter_type):
     filtered = bytearray(len(row))
     for column, value in enumerate(row):
@@ -333,6 +570,43 @@ def selftest():
         if difference.rgba[:4] != bytes((255, 0, 255, 255)):
             raise PngError("difference image mismatch selftest failed")
 
+    # An encoder whose output nothing on this host can open has to be checked
+    # against a reader, not against inspection.
+    for min_code_size in (2, 4, 8):
+        alphabet = 1 << min_code_size
+        symbols = list(range(alphabet)) * 7
+        # Every symbol must stay inside the alphabet: a value at or above the
+        # clear code is not a pixel index, and emitting one would collide with
+        # the reserved codes rather than exercise the encoder.
+        symbols += [value % alphabet for value in (0, 0, 0, 1, 1, 2, 3, 3, 3, 3, 5)]
+        decoded = _gif_lzw_decode(_gif_lzw_encode(symbols, min_code_size), min_code_size)
+        if decoded != symbols:
+            raise PngError("GIF LZW round-trip failed at min_code_size {}".format(min_code_size))
+
+    # A run long enough to exhaust the 12-bit table and force a mid-stream
+    # clear, which is where an encoder that miscounts code width breaks.
+    long_symbols = [(index * 7 + index // 251) % 256 for index in range(60000)]
+    if _gif_lzw_decode(_gif_lzw_encode(long_symbols, 8), 8) != long_symbols:
+        raise PngError("GIF LZW round-trip failed across a table reset")
+
+    with tempfile.TemporaryDirectory() as directory:
+        frame_a = Image(4, 2, bytes([255, 0, 0, 255] * 4 + [0, 0, 255, 255] * 4))
+        frame_b = Image(4, 2, bytes([0, 0, 255, 255] * 8))
+        gif_path = os.path.join(directory, "selftest.gif")
+        written = write_gif(gif_path, [frame_a, frame_b], 10)
+        with open(gif_path, "rb") as handle:
+            payload = handle.read()
+        if not payload.startswith(b"GIF89a") or not payload.endswith(b"\x3b"):
+            raise PngError("GIF container is malformed")
+        if written != len(payload):
+            raise PngError("GIF byte count disagrees with the file")
+        if payload.count(b"\x21\xf9\x04") != 2:
+            raise PngError("GIF is missing a per-frame graphic control block")
+
+    scaled = scale_image(Image(4, 2, bytes([9, 8, 7, 255] * 8)), 2)
+    if scaled.width != 2 or scaled.height != 1:
+        raise PngError("scale_image produced the wrong dimensions")
+
     print("pngcrop selftest: ok")
     return 0
 
@@ -358,7 +632,17 @@ def main(argv=None):
     diff_parser.add_argument("actual")
     diff_parser.add_argument("output")
 
-    subparsers.add_parser("selftest", help="exercise decode, crop, write, and compare")
+    gif_parser = subparsers.add_parser("gif", help="assemble PNG frames into an animated GIF")
+    gif_parser.add_argument("output")
+    gif_parser.add_argument("inputs", nargs="+")
+    gif_parser.add_argument("--delay", type=int, default=10,
+                            help="frame delay in centiseconds (default 10)")
+    gif_parser.add_argument("--scale", type=int, default=1,
+                            help="integer nearest-neighbour downscale factor (default 1)")
+    gif_parser.add_argument("--stride", type=int, default=1,
+                            help="keep every Nth input frame (default 1)")
+
+    subparsers.add_parser("selftest", help="exercise decode, crop, write, compare, and animate")
     arguments = parser.parse_args(argv)
 
     try:
@@ -377,6 +661,16 @@ def main(argv=None):
             equal = compare_images(expected, actual)
             write_png(arguments.output, difference_image(expected, actual))
             return 0 if equal else 1
+        if arguments.command == "gif":
+            if arguments.stride < 1:
+                raise PngError("--stride must be at least 1")
+            if arguments.delay < 1:
+                raise PngError("--delay must be at least 1")
+            selected = arguments.inputs[::arguments.stride]
+            frames = [scale_image(read_png(path), arguments.scale) for path in selected]
+            written = write_gif(arguments.output, frames, arguments.delay)
+            print("pngtool: wrote {} frames, {} bytes".format(len(frames), written))
+            return 0
         return selftest()
     except (OSError, PngError, struct.error, zlib.error) as error:
         print("pngtool: error: {}".format(error), file=sys.stderr)
