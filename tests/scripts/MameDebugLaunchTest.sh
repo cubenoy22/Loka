@@ -40,12 +40,17 @@ EOF
 
 cat >"$SANDBOX/bin/ss" <<'EOF'
 #!/usr/bin/env bash
+[ -f "$SANDBOX/mame.ready" ] || exit 0
 printf '%s\n' 'LISTEN 0 1 127.0.0.1:12399 0.0.0.0:*'
 EOF
 
+# Not instant: the listener-wait loop calls sleep between ss/netstat polls,
+# and a zero-cost stub would let 120 iterations burn through faster than
+# fake MAME can start under load. 0.05s keeps a full timeout path bounded
+# (~6s) while giving the gate real time.
 cat >"$SANDBOX/bin/sleep" <<'EOF'
 #!/usr/bin/env bash
-exit 0
+exec /bin/sleep 0.05
 EOF
 
 # WSL-branch stand-ins: the launcher consults wslinfo for the networking
@@ -69,14 +74,23 @@ EOF
 
 cat >"$SANDBOX/bin/netstat.exe" <<'EOF'
 #!/usr/bin/env bash
+[ -f "$SANDBOX/mame.ready" ] || exit 0
 printf '%s\n' '  TCP    10.1.2.3:12399  0.0.0.0:0  LISTENING'
 EOF
 
+# The launcher backgrounds the emulator and its EXIT trap kills it as soon
+# as the (stubbed, instant) gdb returns. On a loaded runner that SIGTERM can
+# land before this script has written its observation files — the harness
+# then reports "fake MAME did not record its PID" (seen once on the CI ASan
+# runner). The ready marker plus the gated ss/netstat stubs below turn the
+# launcher's listener wait into a real synchronization point: LISTENING is
+# only reported once every observation file exists.
 cat >"$SANDBOX/fake-mame" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$@" > "$SANDBOX/mame.argv"
 printf '%s\n' "${WSLENV:-}" > "$SANDBOX/mame.wslenv"
 printf '%s\n' "$$" > "$SANDBOX/mame.pid"
+: > "$SANDBOX/mame.ready"
 exec /bin/sleep 300
 EOF
 
@@ -150,6 +164,9 @@ run_case() {
 
   rm -f \
     "$SANDBOX/mame.pid" \
+    "$SANDBOX/mame.argv" \
+    "$SANDBOX/mame.wslenv" \
+    "$SANDBOX/mame.ready" \
     "$SANDBOX/app.code.bin.gdb" \
     "$SANDBOX/devdisk.argv" \
     "$SANDBOX/gdb.argv"
@@ -244,7 +261,8 @@ pass wsl-mirrored-loopback
 # launcher never binds every interface. No run_case here -- the refusal
 # exits before fake MAME records a PID, which run_case would treat as a
 # failure to reap.
-rm -f "$SANDBOX/mame.pid" "$SANDBOX/mame.argv" "$SANDBOX/app.code.bin.gdb"
+rm -f "$SANDBOX/mame.pid" "$SANDBOX/mame.argv" "$SANDBOX/mame.wslenv" \
+  "$SANDBOX/mame.ready" "$SANDBOX/app.code.bin.gdb"
 touch "$SANDBOX/app.code.bin.gdb"
 if MAME_ENV_FILE="$SANDBOX/mame.env" \
     env -u WSL_INTEROP -u LOKA_DEV_DATA -u LOKA_GDB_SCRIPT \
