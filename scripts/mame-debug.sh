@@ -148,7 +148,33 @@ if [ "$MODE" = "find" ]; then
   exit 0
 fi
 
-ARGS+=(-debug -debugger gdbstub -debugger_port "$PORT")
+# Current MAME binds the gdbstub to 127.0.0.1 by default (the older builds
+# this rig was proven on listened on every interface), and WSL2 NAT cannot
+# reach the Windows loopback -- the attach times out with the listener
+# visibly LISTENING. Only in that mode is the Windows host the WSL default
+# gateway (the vEthernet address), so only there is the gateway a valid
+# bind address. WSL1 and WSL2 mirrored networking share the Windows
+# loopback, and their default route is the LAN router, which Windows does
+# not own as a bind address -- keep the loopback default for them. wslinfo
+# is absent on WSL1; any failure therefore reads as "not NAT".
+# MAME_DEBUG_HOST overrides the derivation entirely.
+STUB_HOST="${MAME_DEBUG_HOST:-}"
+if [ -z "$STUB_HOST" ] && [ "$IS_WSL" = "1" ]; then
+  if [ "$(wslinfo --networking-mode 2>/dev/null)" = "nat" ]; then
+    STUB_HOST="$(ip route 2>/dev/null | awk '/^default/{print $3; exit}')"
+  fi
+fi
+STUB_HOST="${STUB_HOST:-127.0.0.1}"
+# The stub is unauthenticated remote control of the emulated machine; a
+# wildcard bind would expose it on every interface, which the docs promise
+# never happens -- including through the override door.
+case "$STUB_HOST" in
+  0.0.0.0 | ::)
+    echo "refusing to bind the gdbstub to every interface ($STUB_HOST); set MAME_DEBUG_HOST to one address" >&2
+    exit 2
+    ;;
+esac
+ARGS+=(-debug -debugger gdbstub -debugger_host "$STUB_HOST" -debugger_port "$PORT")
 "$MAME_EXECUTABLE" "${ARGS[@]}" >"$WORK/mame.out" 2>&1 &
 MAME_PID=$!
 # The stub refuses a second connection (#182), so a MAME that outlives its
@@ -179,5 +205,8 @@ echo "attaching gdb; symbols at $BASE" >&2
 # LOKA_GDB_SCRIPT appends a second command file after the attach script, so
 # a scripted (non-interactive) session can plant its own breakpoints and quit.
 # Not exec: this shell must survive gdb to reap the emulator it started.
-LOKA_ELF="$ELF" LOKA_BASE="$BASE" LOKA_GDB_PORT="$PORT" \
+# Hand gdb the exact address the stub was bound to, so the two sides can
+# never derive different hosts (mame-attach.gdb's own gateway fallback stays
+# for sessions attached by hand).
+LOKA_ELF="$ELF" LOKA_BASE="$BASE" LOKA_GDB_PORT="$PORT" LOKA_GDB_HOST="$STUB_HOST" \
   gdb-multiarch -q -x "$SCRIPT_DIR/mame-attach.gdb" ${LOKA_GDB_SCRIPT:+-x "$LOKA_GDB_SCRIPT"}

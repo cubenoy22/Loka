@@ -662,6 +662,25 @@ different jobs; expecting the second to provide the first will disappoint.
   returns the wrong memory. Function arguments and locals are frame-relative
   and read correctly, so when a global's value has to be observed, break in a
   function that receives it (or a value derived from it) as an argument.
+- **Current MAME binds the stub to the loopback by default.** Older builds
+  listened on every interface; current ones take `-debugger_host` and default
+  it to `127.0.0.1`, which WSL cannot reach across the NAT boundary — the
+  listener shows LISTENING in `netstat.exe` while the attach times out.
+  `mame-debug.sh` now passes the WSL default gateway (the Windows vEthernet
+  address) as the bind host — but only under WSL2 NAT networking, where that
+  gateway *is* the Windows host (`wslinfo --networking-mode`). WSL1 and WSL2
+  mirrored networking share the Windows loopback, and their default route is
+  the LAN router, which Windows does not own as a bind address, so they keep
+  the loopback default. `MAME_DEBUG_HOST` overrides the derivation entirely.
+  The launcher deliberately never binds `0.0.0.0` — including through the
+  override, which refuses wildcard values: the stub is unauthenticated remote
+  control of the machine.
+- **The stub has no 68040 description.** `-debugger gdbstub` on `macqd700`
+  dies at startup with `Fatal error: gdbstub: cpuname m68040 not found in gdb
+  stub descriptions` (probed on #398). 68030 machines (`maciix`) attach fine,
+  so 68040-only investigations have to be reshaped onto a 68030 machine (for
+  #398 the capacity trigger was reproduced by shrinking the SIZE partition
+  instead) or driven with the native debugger rather than gdb.
 - **The stub does not relay guest CPU exceptions.** Probed on #182 with a
   planted `__builtin_trap()` (ILLEGAL, vector 4): without gdb the same build
   bombs on screen (System Error type 11) at exactly that point, while an
