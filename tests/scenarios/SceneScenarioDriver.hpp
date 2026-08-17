@@ -1,6 +1,8 @@
 #ifndef LOKA_TESTS_SCENARIOS_SCENE_SCENARIO_DRIVER_HPP
 #define LOKA_TESTS_SCENARIOS_SCENE_SCENARIO_DRIVER_HPP
 
+#include <string>
+
 #include "ScenarioTypes.hpp"
 #include "StartupScenarios.hpp"
 #include "app/core/Window.hpp"
@@ -39,6 +41,21 @@ namespace loka
             interactionErrorCode_(interactionErrorCode),
             startupScenario_(startupExample, SCENARIO_COMPLETION_DRIVER_OWNED, audit),
             scenario_(SCENARIO_COMPLETION_DRIVER_OWNED, audit)
+      {
+      }
+
+      SceneScenarioDriver(bool startup,
+                          StartupExample startupExample,
+                          const std::string &interactionName,
+                          DriverErrorFactory errorFactory,
+                          long interactionErrorCode,
+                          dsl::testing::ScenarioAuditSink *audit)
+          : startup_(startup),
+            startupExample_(startupExample),
+            errorFactory_(errorFactory),
+            interactionErrorCode_(interactionErrorCode),
+            startupScenario_(startupExample, SCENARIO_COMPLETION_DRIVER_OWNED, audit),
+            scenario_(interactionName, SCENARIO_COMPLETION_DRIVER_OWNED, audit)
       {
       }
 

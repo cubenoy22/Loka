@@ -4,6 +4,7 @@
 void testHelloWorldToggleActionProbeDrivesOwnerCommands();
 void testHelloWorldToggleActionProbeHoldsFinalScene();
 void testHelloWorldVehiclePresentationUsesExampleDeclaration();
+void testHelloWorldBmiRoundtripDrivesEditTextInput();
 void testHelloWorldStandaloneMenuMatchesExample();
 void testHelloWorldStandaloneMountRefusalFailsClosed();
 

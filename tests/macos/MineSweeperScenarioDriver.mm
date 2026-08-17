@@ -20,6 +20,7 @@ namespace loka
               runState_(settings, mode),
               driver_(scenario_tests::IsStartupScenario(settings.scenario),
                       scenario_tests::STARTUP_EXAMPLE_MINESWEEPER,
+                      settings.scenario,
                       &scenario_tests::MakeMineSweeperDriverErrorRecord,
                       2602,
                       this->runState_.audit()),

@@ -1,0 +1,28 @@
+loka_scenario_audit version=1 scenario=bmi-roundtrip
+step id=1 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=enter-height
+step id=2 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=enter-weight
+step id=3 due_tick=32 tick=32 status=succeeded error_kind=0 error_code=0 name=verify-calculated-bmi
+step id=4 due_tick=32 tick=32 status=succeeded error_kind=0 error_code=0 name=enter-invalid-height
+step id=5 due_tick=62 tick=62 status=succeeded error_kind=0 error_code=0 name=verify-invalid-input
+step id=6 due_tick=62 tick=62 status=succeeded error_kind=0 error_code=0 name=restore-valid-height
+step id=7 due_tick=92 tick=92 status=succeeded error_kind=0 error_code=0 name=verify-roundtrip-bmi
+step id=8 due_tick=92 tick=92 status=succeeded error_kind=0 error_code=0 name=capture-bmi-result
+crop_bottom	300
+crop_left	0
+crop_right	420
+crop_top	0
+dirty.flags	NONE
+dirty.mask	0
+format_version	1
+height_cm	180
+invalid_input_result	BMI: --
+node	HelloWorld.Bmi.Result
+scenario_version	1
+schema_version	1
+status	ok
+step	bmi-roundtrip
+test	HelloWorld
+text.value	BMI: 25.00
+tick	92
+weight_kg	81
+terminal status=succeeded

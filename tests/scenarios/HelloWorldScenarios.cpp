@@ -13,6 +13,7 @@ namespace loka
     namespace
     {
       const char *kToggleActionProbe = "toggle-action-probe";
+      const char *kBmiRoundtrip = "bmi-roundtrip";
       const long kInitialTick = 2;
       const long kStepSpacingTicks = 30;
 
@@ -48,30 +49,70 @@ namespace loka
                       .onSuccess(recordOut))
             .flow();
       }
+
+      dsl::FlowChain<app::scene::Scene *, dsl::SnapRecord>
+      BuildBmiRoundtripFlow(dsl::testing::ScenarioClock &clock,
+                            app::scene::Scene **sceneInput,
+                            dsl::SnapRecord *recordOut,
+                            dsl::testing::ScenarioAuditSink *audit)
+      {
+        using namespace dsl::testing;
+        const long calculatedTick = kInitialTick + kStepSpacingTicks;
+        const long invalidTick = calculatedTick + kStepSpacingTicks;
+        const long finalTick = invalidTick + kStepSpacingTicks;
+        return (ScenarioFlow(clock, sceneInput).auditTo(audit)
+                | AtTick(kInitialTick, EnterText("HelloWorld.Bmi.HeightInput", "180"))
+                      .named("enter-height")
+                | AtTick(kInitialTick, EnterText("HelloWorld.Bmi.WeightInput", "81"))
+                      .named("enter-weight")
+                | AtTick(calculatedTick, CheckText("HelloWorld.Bmi.Result", "BMI: 25.00"))
+                      .named("verify-calculated-bmi")
+                | AtTick(calculatedTick, EnterText("HelloWorld.Bmi.HeightInput", "invalid"))
+                      .named("enter-invalid-height")
+                | AtTick(invalidTick, CheckText("HelloWorld.Bmi.Result", "BMI: --"))
+                      .named("verify-invalid-input")
+                | AtTick(invalidTick, EnterText("HelloWorld.Bmi.HeightInput", "180"))
+                      .named("restore-valid-height")
+                | AtTick(finalTick, CheckText("HelloWorld.Bmi.Result", "BMI: 25.00"))
+                      .named("verify-roundtrip-bmi")
+                | AtTick(finalTick,
+                         SnapText("HelloWorld.Bmi.Result", "HelloWorld", kBmiRoundtrip, finalTick, 1))
+                      .named("capture-bmi-result")
+                      .onSuccess(recordOut))
+            .flow();
+      }
     } // namespace
 
     bool IsHelloWorldScenario(const std::string &name)
     {
-      return name == kToggleActionProbe;
+      return name == kToggleActionProbe || name == kBmiRoundtrip;
     }
 
-    HelloWorldScenario::ToggleActionProbeState::ToggleActionProbeState(dsl::testing::ScenarioAuditSink *audit)
+    HelloWorldScenario::ScenarioState::ScenarioState(const std::string &name,
+                                                     dsl::testing::ScenarioAuditSink *audit)
         : clock_(),
           scene_(0),
           record_(),
           flow_()
     {
-      this->flow_.set(BuildToggleActionProbeFlow(this->clock_, &this->scene_, &this->record_, audit));
+      if (name == kBmiRoundtrip)
+      {
+        this->flow_.set(BuildBmiRoundtripFlow(this->clock_, &this->scene_, &this->record_, audit));
+      }
+      else
+      {
+        this->flow_.set(BuildToggleActionProbeFlow(this->clock_, &this->scene_, &this->record_, audit));
+      }
     }
 
-    dsl::FlowRunResult HelloWorldScenario::ToggleActionProbeState::run(long tick, app::scene::Scene *scene)
+    dsl::FlowRunResult HelloWorldScenario::ScenarioState::run(long tick, app::scene::Scene *scene)
     {
       this->clock_.advanceTo(tick);
       this->scene_ = scene;
       return this->flow_.runResult();
     }
 
-    void HelloWorldScenario::ToggleActionProbeState::stop()
+    void HelloWorldScenario::ScenarioState::stop()
     {
       this->flow_.cancel();
       const dsl::FlowRunResult result = this->flow_.runResult();
@@ -79,7 +120,7 @@ namespace loka
       (void)result;
     }
 
-    const dsl::SnapRecord &HelloWorldScenario::ToggleActionProbeState::record() const
+    const dsl::SnapRecord &HelloWorldScenario::ScenarioState::record() const
     {
       return this->record_;
     }
@@ -90,7 +131,18 @@ namespace loka
           completionPolicy_(completionPolicy),
           terminalState_(SCENARIO_ADVANCE_PENDING),
           terminalAudit_(audit),
-          probe_(audit)
+          scenarioState_(name_, audit)
+    {
+    }
+
+    HelloWorldScenario::HelloWorldScenario(const std::string &name,
+                                           ScenarioCompletionPolicy completionPolicy,
+                                           dsl::testing::ScenarioAuditSink *audit)
+        : name_(name),
+          completionPolicy_(completionPolicy),
+          terminalState_(SCENARIO_ADVANCE_PENDING),
+          terminalAudit_(audit),
+          scenarioState_(name_, audit)
     {
     }
 
@@ -103,7 +155,7 @@ namespace loka
       {
         return this->terminalState_;
       }
-      const dsl::FlowRunResult result = this->probe_.run(tick, scene);
+      const dsl::FlowRunResult result = this->scenarioState_.run(tick, scene);
       if (result == dsl::FLOW_RUN_PENDING)
       {
         return SCENARIO_ADVANCE_PENDING;
@@ -111,11 +163,21 @@ namespace loka
       if (result != dsl::FLOW_RUN_SUCCEEDED)
       {
         out = MakeHelloWorldDriverErrorRecord(2401, "scenario expectations were not met");
+        out.set("step", this->name_.c_str());
       }
       else
       {
-        out = this->probe_.record();
-        out.set("disabled_probe_ignored", "true");
+        out = this->scenarioState_.record();
+        if (this->name_ == kToggleActionProbe)
+        {
+          out.set("disabled_probe_ignored", "true");
+        }
+        else
+        {
+          out.set("height_cm", "180");
+          out.set("weight_kg", "81");
+          out.set("invalid_input_result", "BMI: --");
+        }
         SetContentBounds(out, bounds);
       }
       switch (this->completionPolicy_)
@@ -153,7 +215,7 @@ namespace loka
     {
       if (this->terminalState_ == SCENARIO_ADVANCE_PENDING)
       {
-        this->probe_.stop();
+        this->scenarioState_.stop();
         (void)this->terminalAudit_.emit(dsl::testing::SCENARIO_AUDIT_CANCELED);
         this->terminalState_ = SCENARIO_ADVANCE_FINAL_SCENE_HELD;
       }

@@ -16,11 +16,15 @@ namespace loka
     namespace
     {
       const char *kNewGameTwice = "new-game-twice";
+      const char *kSeededReveal = "seeded-reveal";
       const char *kBoard = "MineSweeper.Board";
       const char *kNewGameButton = "MineSweeper.NewGameButton";
       const char *kInitialMines = "3,4,20,22,37,45,50,55,56,59";
       const char *kFirstNewGameMines = "1,6,16,23,27,30,34,44,45,53";
       const char *kSecondNewGameMines = "3,26,42,49,50,56,59,60,62,63";
+      const char *kBlankCell = "MineSweeper.Cell.0";
+      const char *kNumberedCell = "MineSweeper.Cell.2";
+      const char *kMineCell = "MineSweeper.Cell.3";
       const long kInitialTick = 2;
       const long kStepSpacingTicks = 5;
 
@@ -186,6 +190,120 @@ namespace loka
                       .onSuccess(recordOut))
             .flow();
       }
+
+      class CheckMineSweeperCellTextAdapter
+      {
+      public:
+        typedef app::scene::Scene *In;
+        typedef app::scene::Scene *Out;
+
+        CheckMineSweeperCellTextAdapter(const char *testId, const char *expected)
+            : testId_(testId ? testId : ""),
+              expected_(expected ? expected : "")
+        {
+        }
+
+        dsl::StepRunStatus run(In const &in, Out &out, dsl::FlowError &error) const
+        {
+          out = in;
+          app::CellNode *cell = 0;
+          const dsl::StepRunStatus lookup =
+              dsl::testing::LookupNodeById<app::CellNode>(in, this->testId_, cell, error);
+          if (lookup != dsl::FLOW_STEP_SUCCEEDED)
+          {
+            return lookup;
+          }
+          std::string actual;
+          if (!cell->props.text_ || !platform::CollectUtf8(cell->props.text_->get(), actual))
+          {
+            error.kind = dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = dsl::testing::FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
+            return dsl::FLOW_STEP_FAILED;
+          }
+          if (actual != this->expected_)
+          {
+            error.kind = dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT;
+            error.code = dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED;
+            return dsl::FLOW_STEP_FAILED;
+          }
+          return dsl::FLOW_STEP_SUCCEEDED;
+        }
+
+      private:
+        std::string testId_;
+        std::string expected_;
+      };
+
+      class SnapMineSweeperRevealAdapter
+      {
+      public:
+        typedef app::scene::Scene *In;
+        typedef dsl::SnapRecord Out;
+
+        explicit SnapMineSweeperRevealAdapter(long tick)
+            : tick_(tick)
+        {
+        }
+
+        dsl::StepRunStatus run(In const &in, Out &out, dsl::FlowError &error) const
+        {
+          app::CellNode *mine = 0;
+          const dsl::StepRunStatus lookup =
+              dsl::testing::LookupNodeById<app::CellNode>(in, kMineCell, mine, error);
+          if (lookup != dsl::FLOW_STEP_SUCCEEDED)
+          {
+            return lookup;
+          }
+          dsl::BuildSnapV1RecordAdapter base(
+              "MineSweeper", kSeededReveal, kMineCell, this->tick_, 1, dsl::SnapStatusOk());
+          const int unused = 0;
+          dsl::FlowError ignored;
+          if (base.run(unused, out, ignored) != dsl::FLOW_STEP_SUCCEEDED)
+          {
+            error.kind = dsl::FLOW_ERROR_KIND_SNAP;
+            error.code = dsl::FLOW_ERROR_SNAP_WRITE_FAILED;
+            return dsl::FLOW_STEP_FAILED;
+          }
+          out.set("blank_cell", "0,0");
+          out.set("blank_value", "space");
+          out.set("numbered_cell", "0,2");
+          out.set("numbered_value", "1");
+          out.set("mine_cell", "0,3");
+          out.set("mine_value", "X");
+          return dsl::FLOW_STEP_SUCCEEDED;
+        }
+
+      private:
+        long tick_;
+      };
+
+      dsl::FlowChain<app::scene::Scene *, dsl::SnapRecord>
+      BuildSeededRevealFlow(dsl::testing::ScenarioClock &clock,
+                            app::scene::Scene **sceneInput,
+                            dsl::SnapRecord *recordOut,
+                            dsl::testing::ScenarioAuditSink *audit)
+      {
+        using namespace dsl::testing;
+        const long numberedTick = kInitialTick + kStepSpacingTicks;
+        const long mineTick = numberedTick + kStepSpacingTicks;
+        const long finalTick = mineTick + kStepSpacingTicks;
+        return (ScenarioFlow(clock, sceneInput).auditTo(audit)
+                | AtTick(kInitialTick, CheckMineSweeperBoard(kInitialMines))
+                      .named("verify-seeded-board")
+                | AtTick(kInitialTick, ClickCell(kBlankCell)).named("reveal-blank-cell")
+                | AtTick(numberedTick, CheckMineSweeperCellTextAdapter(kBlankCell, " "))
+                      .named("verify-blank-cell")
+                | AtTick(numberedTick, ClickCell(kNumberedCell)).named("reveal-numbered-cell")
+                | AtTick(mineTick, CheckMineSweeperCellTextAdapter(kNumberedCell, "1"))
+                      .named("verify-numbered-cell")
+                | AtTick(mineTick, ClickCell(kMineCell)).named("reveal-mine-cell")
+                | AtTick(finalTick, CheckMineSweeperCellTextAdapter(kMineCell, "X"))
+                      .named("verify-mine-cell")
+                | AtTick(finalTick, SnapMineSweeperRevealAdapter(finalTick))
+                      .named("capture-seeded-reveal")
+                      .onSuccess(recordOut))
+            .flow();
+      }
     } // namespace
 
     unsigned long MineSweeperScenarioSeed()
@@ -195,26 +313,34 @@ namespace loka
 
     bool IsMineSweeperScenario(const std::string &name)
     {
-      return name == kNewGameTwice;
+      return name == kNewGameTwice || name == kSeededReveal;
     }
 
-    MineSweeperScenario::NewGameTwiceState::NewGameTwiceState(dsl::testing::ScenarioAuditSink *audit)
+    MineSweeperScenario::ScenarioState::ScenarioState(const std::string &name,
+                                                      dsl::testing::ScenarioAuditSink *audit)
         : clock_(),
           scene_(0),
           record_(),
           flow_()
     {
-      this->flow_.set(BuildNewGameTwiceFlow(this->clock_, &this->scene_, &this->record_, audit));
+      if (name == kSeededReveal)
+      {
+        this->flow_.set(BuildSeededRevealFlow(this->clock_, &this->scene_, &this->record_, audit));
+      }
+      else
+      {
+        this->flow_.set(BuildNewGameTwiceFlow(this->clock_, &this->scene_, &this->record_, audit));
+      }
     }
 
-    dsl::FlowRunResult MineSweeperScenario::NewGameTwiceState::run(long tick, app::scene::Scene *scene)
+    dsl::FlowRunResult MineSweeperScenario::ScenarioState::run(long tick, app::scene::Scene *scene)
     {
       this->clock_.advanceTo(tick);
       this->scene_ = scene;
       return this->flow_.runResult();
     }
 
-    void MineSweeperScenario::NewGameTwiceState::stop()
+    void MineSweeperScenario::ScenarioState::stop()
     {
       this->flow_.cancel();
       const dsl::FlowRunResult result = this->flow_.runResult();
@@ -222,7 +348,7 @@ namespace loka
       (void)result;
     }
 
-    const dsl::SnapRecord &MineSweeperScenario::NewGameTwiceState::record() const
+    const dsl::SnapRecord &MineSweeperScenario::ScenarioState::record() const
     {
       return this->record_;
     }
@@ -233,7 +359,18 @@ namespace loka
           completionPolicy_(completionPolicy),
           terminalState_(SCENARIO_ADVANCE_PENDING),
           terminalAudit_(audit),
-          scenarioState_(audit)
+          scenarioState_(name_, audit)
+    {
+    }
+
+    MineSweeperScenario::MineSweeperScenario(const std::string &name,
+                                             ScenarioCompletionPolicy completionPolicy,
+                                             dsl::testing::ScenarioAuditSink *audit)
+        : name_(name),
+          completionPolicy_(completionPolicy),
+          terminalState_(SCENARIO_ADVANCE_PENDING),
+          terminalAudit_(audit),
+          scenarioState_(name_, audit)
     {
     }
 
@@ -254,15 +391,19 @@ namespace loka
       if (result != dsl::FLOW_RUN_SUCCEEDED)
       {
         out = MakeMineSweeperDriverErrorRecord(2601, "scenario expectations were not met");
+        out.set("step", this->name_.c_str());
       }
       else
       {
         out = this->scenarioState_.record();
         out.setInt("seed", static_cast<long>(MineSweeperScenarioSeed()));
-        out.setInt("new_game_count", 2);
+        out.setInt("new_game_count", this->name_ == kNewGameTwice ? 2 : 0);
         out.set("board.initial_mines", kInitialMines);
-        out.set("board.after_new_game_1_mines", kFirstNewGameMines);
-        out.set("board.after_new_game_2_mines", kSecondNewGameMines);
+        if (this->name_ == kNewGameTwice)
+        {
+          out.set("board.after_new_game_1_mines", kFirstNewGameMines);
+          out.set("board.after_new_game_2_mines", kSecondNewGameMines);
+        }
         SetContentBounds(out, bounds);
       }
       switch (this->completionPolicy_)

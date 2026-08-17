@@ -6,6 +6,8 @@
 #include <string>
 
 #include "app/nodes/controls/Button.hpp"
+#include "app/nodes/controls/Cell.hpp"
+#include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/scene/Scene.hpp"
 #include "core/resource/Image.hpp"
@@ -546,6 +548,22 @@ namespace loka
         static ::loka::app::ButtonNode *cast(::loka::app::scene::Node *node)
         {
           return node ? node->asButtonNode() : 0;
+        }
+      };
+
+      template <> struct SceneNodeCast< ::loka::app::CellNode>
+      {
+        static ::loka::app::CellNode *cast(::loka::app::scene::Node *node)
+        {
+          return node ? node->asCellNode() : 0;
+        }
+      };
+
+      template <> struct SceneNodeCast< ::loka::app::EditTextNode>
+      {
+        static ::loka::app::EditTextNode *cast(::loka::app::scene::Node *node)
+        {
+          return node ? node->asEditTextNode() : 0;
         }
       };
 
@@ -1924,6 +1942,128 @@ namespace loka
         return SetIntStateAndFlushAdapter(state, value);
       }
 
+      class EnterTextByIdAndFlushAdapter
+      {
+      public:
+        typedef ::loka::app::scene::Scene *In;
+        typedef ::loka::app::scene::Scene *Out;
+
+        EnterTextByIdAndFlushAdapter(const char *testId, const char *value)
+            : testId_(testId ? testId : ""),
+              value_(value ? value : "")
+        {
+        }
+
+        StepRunStatus run(In const &in, Out &out, FlowError &error) const
+        {
+          out = in;
+          ::loka::app::EditTextNode *editText = 0;
+          StepRunStatus lookupStatus =
+              LookupNodeById< ::loka::app::EditTextNode>(in, testId_, editText, error);
+          if (lookupStatus != FLOW_STEP_SUCCEEDED)
+          {
+            return lookupStatus;
+          }
+          ::loka::app::scene::BoundaryNode *boundary = SceneTestAccess::rootBoundary(*in);
+          if (!boundary || !boundary->tracker())
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_ROOT_UNAVAILABLE;
+            return FLOW_STEP_FAILED;
+          }
+          ::loka::core::MutableState< ::loka::core::String> *mutableText =
+              editText->props.text_
+                  ? static_cast< ::loka::core::MutableState< ::loka::core::String> *>(
+                        editText->props.text_->asMutableState())
+                  : 0;
+          if (!mutableText)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
+            return FLOW_STEP_FAILED;
+          }
+          {
+            ::loka::core::StateTrackerGuard guard(boundary->tracker());
+            mutableText->set(::loka::core::String(value_), true);
+          }
+          return FlushSceneInvalidation().run(out, out, error);
+        }
+
+      private:
+        std::string testId_;
+        std::string value_;
+      };
+
+      /** Scenario-facing text input. The forced write enters the EditText's
+          bound mutable state under the Scene tracker, matching native
+          text-change actuation, then flushes the resulting projection. */
+      inline EnterTextByIdAndFlushAdapter EnterText(const char *testId, const char *value)
+      {
+        return EnterTextByIdAndFlushAdapter(testId, value);
+      }
+
+      template <class NodeT> struct SceneClickTraits;
+
+      template <> struct SceneClickTraits< ::loka::app::ButtonNode>
+      {
+        static bool enabled(const ::loka::app::ButtonNode *button)
+        {
+          return !button->props.enabled_ || button->props.enabled_->get();
+        }
+
+        static ::loka::core::EmitterState *emitter(::loka::app::ButtonNode *button)
+        {
+          return button->props.onClick_;
+        }
+      };
+
+      template <> struct SceneClickTraits< ::loka::app::CellNode>
+      {
+        static bool enabled(const ::loka::app::CellNode *)
+        {
+          return true;
+        }
+
+        static ::loka::core::EmitterState *emitter(::loka::app::CellNode *cell)
+        {
+          return cell->props.onClick_;
+        }
+      };
+
+      template <class NodeT>
+      static StepRunStatus EmitNodeClickById(::loka::app::scene::Scene *scene,
+                                             const std::string &testId,
+                                             FlowError &error)
+      {
+        NodeT *node = 0;
+        StepRunStatus lookupStatus = LookupNodeById<NodeT>(scene, testId, node, error);
+        if (lookupStatus != FLOW_STEP_SUCCEEDED)
+        {
+          return lookupStatus;
+        }
+        ::loka::app::scene::BoundaryNode *boundary = SceneTestAccess::rootBoundary(*scene);
+        if (!boundary || !boundary->tracker())
+        {
+          error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+          error.code = FLOW_ERROR_SCENE_TEST_ROOT_UNAVAILABLE;
+          return FLOW_STEP_FAILED;
+        }
+        if (!SceneClickTraits<NodeT>::enabled(node))
+        {
+          return FLOW_STEP_SUCCEEDED;
+        }
+        ::loka::core::EmitterState *emitter = SceneClickTraits<NodeT>::emitter(node);
+        if (!emitter)
+        {
+          error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+          error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
+          return FLOW_STEP_FAILED;
+        }
+        ::loka::core::StateTrackerGuard guard(boundary->tracker());
+        emitter->emit();
+        return FLOW_STEP_SUCCEEDED;
+      }
+
       class ClickButtonByIdAdapter
       {
       public:
@@ -1944,32 +2084,7 @@ namespace loka
             error.code = FLOW_ERROR_SCENE_TEST_NULL_SCENE;
             return FLOW_STEP_FAILED;
           }
-          ::loka::app::ButtonNode *button = 0;
-          StepRunStatus lookupStatus = LookupNodeById< ::loka::app::ButtonNode>(in, testId_, button, error);
-          if (lookupStatus != FLOW_STEP_SUCCEEDED)
-          {
-            return lookupStatus;
-          }
-          ::loka::app::scene::BoundaryNode *boundary = SceneTestAccess::rootBoundary(*in);
-          if (!boundary || !boundary->tracker())
-          {
-            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
-            error.code = FLOW_ERROR_SCENE_TEST_ROOT_UNAVAILABLE;
-            return FLOW_STEP_FAILED;
-          }
-          if (button->props.enabled_ && !button->props.enabled_->get())
-          {
-            return FLOW_STEP_SUCCEEDED;
-          }
-          if (!button->props.onClick_)
-          {
-            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
-            error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
-            return FLOW_STEP_FAILED;
-          }
-          ::loka::core::StateTrackerGuard guard(boundary->tracker());
-          button->props.onClick_->emit();
-          return FLOW_STEP_SUCCEEDED;
+          return EmitNodeClickById< ::loka::app::ButtonNode>(in, testId_, error);
         }
 
       private:
@@ -2017,6 +2132,45 @@ namespace loka
       inline ClickButtonByIdAndFlushAdapter ClickButton(const char *testId)
       {
         return ClickButtonByIdAndFlush(testId);
+      }
+
+      class ClickCellByIdAndFlushAdapter
+      {
+      public:
+        typedef ::loka::app::scene::Scene *In;
+        typedef ::loka::app::scene::Scene *Out;
+
+        explicit ClickCellByIdAndFlushAdapter(const char *testId)
+            : testId_(testId ? testId : "")
+        {
+        }
+
+        StepRunStatus run(In const &in, Out &out, FlowError &error) const
+        {
+          out = in;
+          if (!in)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_NULL_SCENE;
+            return FLOW_STEP_FAILED;
+          }
+          StepRunStatus clickStatus =
+              EmitNodeClickById< ::loka::app::CellNode>(in, testId_, error);
+          if (clickStatus != FLOW_STEP_SUCCEEDED)
+          {
+            return clickStatus;
+          }
+          return FlushSceneInvalidation().run(out, out, error);
+        }
+
+      private:
+        std::string testId_;
+      };
+
+      /** Scenario-facing Cell action through the Cell's ordinary emitter. */
+      inline ClickCellByIdAndFlushAdapter ClickCell(const char *testId)
+      {
+        return ClickCellByIdAndFlushAdapter(testId);
       }
 
       class CheckTimingLessEqualAdapter

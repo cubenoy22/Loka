@@ -7,9 +7,11 @@ scrapbook open-text-page
 scrapbook open-text-page-refused
 helloworld startup
 helloworld toggle-action-probe
+helloworld bmi-roundtrip
 tutorial startup
 tutorial increment-summary-toggle
 minesweeper startup
 minesweeper new-game-twice
+minesweeper seeded-reveal
 floppybird startup
 floppybird fixed-step-flaps

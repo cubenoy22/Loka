@@ -17,10 +17,10 @@ namespace helloworld
     return F()                       //
            << Text("BMI Calculator") //
            << Text("Height (cm)")    //
-           << EditText(heightInput)  //
+           << EditText(heightInput).TEST_ID("HelloWorld.Bmi.HeightInput") //
            << Text("Weight (kg)")    //
-           << EditText(weightInput)  //
-           << Text(bmiResult);
+           << EditText(weightInput).TEST_ID("HelloWorld.Bmi.WeightInput") //
+           << Text(bmiResult).TEST_ID("HelloWorld.Bmi.Result");
   }
 
 } // namespace helloworld

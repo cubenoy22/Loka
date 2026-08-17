@@ -3,6 +3,7 @@
 
 void testMineSweeperNewGameTwiceDrivesOwnerEmitter();
 void testMineSweeperNewGameTwiceHoldsFinalSceneAndMatchesAudit();
+void testMineSweeperSeededRevealDrivesCells();
 void testMineSweeperDifferentSeedRefusesFixedBoardAudit();
 void testMineSweeperStandaloneFlowWritesExpectedAudit();
 void testMineSweeperStandaloneMountRefusalFailsClosed();

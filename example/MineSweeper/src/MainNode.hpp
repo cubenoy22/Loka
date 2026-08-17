@@ -28,13 +28,22 @@ namespace minesweeper
     MineCellProps()
         : isMine(false),
           adjacentCount(0)
+#if defined(TEST_BUILD)
+          , cellIndex(0)
+#endif
     {
     }
 
-    MineCellProps(bool mine, int adjacent)
+    MineCellProps(bool mine, int adjacent, int index)
         : isMine(mine),
           adjacentCount(adjacent)
+#if defined(TEST_BUILD)
+          , cellIndex(index)
+#endif
     {
+#if !defined(TEST_BUILD)
+      (void)index;
+#endif
     }
 
     bool operator<(const loka::app::scene::PropsBase &rhs) const
@@ -48,11 +57,22 @@ namespace minesweeper
       {
         return this->isMine < other.isMine;
       }
-      return this->adjacentCount < other.adjacentCount;
+      if (this->adjacentCount != other.adjacentCount)
+      {
+        return this->adjacentCount < other.adjacentCount;
+      }
+#if defined(TEST_BUILD)
+      return this->cellIndex < other.cellIndex;
+#else
+      return false;
+#endif
     }
 
     bool isMine;
     int adjacentCount;
+#if defined(TEST_BUILD)
+    int cellIndex;
+#endif
   };
 
   /** One cell's box. It owns the presentation resident (text) and the click
@@ -84,10 +104,35 @@ namespace minesweeper
 
     virtual void composeChildren(loka::app::scene::NodeComposition &c)
     {
+#if defined(TEST_BUILD)
+      c.declare(loka::app::Cell(this->text_.state()).onClick(&this->click_).TEST_ID(this->testId()));
+#else
       c.declare(loka::app::Cell(this->text_.state()).onClick(&this->click_));
+#endif
     }
 
   private:
+#if defined(TEST_BUILD)
+    const char *testId() const
+    {
+      // Keep nonempty IDs on the three scenario-actuated cells. On Classic,
+      // assigning all 64 IDs would add an allocation to every test resident.
+      if (this->props.cellIndex == 0)
+      {
+        return "MineSweeper.Cell.0";
+      }
+      if (this->props.cellIndex == 2)
+      {
+        return "MineSweeper.Cell.2";
+      }
+      if (this->props.cellIndex == 3)
+      {
+        return "MineSweeper.Cell.3";
+      }
+      return "";
+    }
+#endif
+
     void handleClick()
     {
       if (this->revealed_)
@@ -189,7 +234,7 @@ namespace minesweeper
         // cells.
         Section cell(static_cast<loka::app::scene::NodeTag>(
             kCellSectionKeyBase + this->bank_ * kCellCount + i));
-        cell << MineCell(MineCellProps(this->mines_[i], this->countAdjacent(i)));
+        cell << MineCell(MineCellProps(this->mines_[i], this->countAdjacent(i), i));
         grid << cell;
       }
       content << grid;
