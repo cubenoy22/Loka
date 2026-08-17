@@ -10,21 +10,52 @@
 #include "../example/HelloWorld/src/MainNode.hpp"
 #include "../example/MineSweeper/src/MainNode.hpp"
 #include "app/core/Window.hpp"
+#include "app/core/AppComposition.hpp"
 #include "app/scene/Scene.hpp"
 #include "core/util/OwnedDef.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "platform/StringUTF8.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "platform/null/NullWindow.hpp"
 #include "scenarios/HelloWorldScenarios.hpp"
+#include "scenarios/HelloWorldScenarioPresentation.hpp"
 #include "scenarios/MineSweeperScenarios.hpp"
 #include "scenarios/ObservedMainDefinition.hpp"
 #include "scenarios/ScenarioReel.hpp"
+#include "scenarios/ScenarioLoopAppConfig.hpp"
 #include "scenarios/StartupScenarios.hpp"
 #include "testing/app/SceneManagerTestAccess.hpp"
 
 namespace
 {
   const char *const kProbeCells[] = {"startup", "first", "second"};
+
+  class NativeTitleObserverProbeWindow : public Window
+  {
+  public:
+    NativeTitleObserverProbeWindow(PlatformContext *context,
+                                   const WindowProps &props,
+                                   int *notifications)
+        : Window(context, props),
+          notifications_(notifications)
+    {
+      this->observeNativeState(
+          this->displayTitleState(), &NativeTitleObserverProbeWindow::TitleChanged, this);
+    }
+
+  private:
+    static void TitleChanged(void *userData)
+    {
+      NativeTitleObserverProbeWindow *self =
+          static_cast<NativeTitleObserverProbeWindow *>(userData);
+      if (self && self->notifications_)
+      {
+        ++*self->notifications_;
+      }
+    }
+
+    int *notifications_;
+  };
 
   struct AttachmentTransactionObservation
   {
@@ -448,6 +479,82 @@ void testScenarioReelRunsEveryHelloWorldCellEveryCycle()
   LOKA_VERIFY(window.scene()->liveNodeCount() == mountedNodeCount);
 
   std::printf("testScenarioReelRunsEveryHelloWorldCellEveryCycle passed\n");
+}
+
+void testScenarioWindowDisplayTitlePreservesLogicalTitleAndDropsNativeObserver()
+{
+  NullPlatformContext context;
+
+  typedef loka::scenario_tests::ScenarioLoopAppConfig<
+      loka::scenario_tests::HelloWorldScenarioPresentation,
+      loka::scenario_tests::HelloWorldScenario>
+      HelloWorldLoopConfig;
+  HelloWorldLoopConfig config(&context,
+                              HelloWorldMenuSeed::FromWallClock(0x13579BDFUL),
+                              loka::scenario_tests::HelloWorldReelCells(),
+                              loka::scenario_tests::STARTUP_EXAMPLE_HELLO_WORLD,
+                              &loka::scenario_tests::MakeHelloWorldDriverErrorRecord,
+                              2402,
+                              10.0,
+                              2);
+  AppComposition composition(&context);
+  config.compose(composition);
+  std::vector<AppComponent *> components = composition.build();
+  LOKA_VERIFY(components.size() == 1);
+  Window *loopWindow = components.empty() ? 0 : components[0]->asWindow();
+  LOKA_VERIFY(loopWindow != 0);
+  if (loopWindow)
+  {
+    LOKA_VERIFY(loopWindow->titleState().get().equals(loka::core::String::Literal("LokaSample")));
+    LOKA_VERIFY(loopWindow->displayTitleState().get().equals(
+        loka::core::String::Literal("LokaSample - startup (cycle 1)")));
+    {
+      loka::core::StateTrackerGuard guard(loopWindow->getTracker());
+      loopWindow->titleState().set(loka::core::String::Literal("LokaSample*"));
+    }
+    LOKA_VERIFY(loopWindow->titleState().get().equals(loka::core::String::Literal("LokaSample*")));
+    LOKA_VERIFY(loopWindow->handleIdle(0.01));
+    LOKA_VERIFY(loopWindow->titleState().get().equals(loka::core::String::Literal("LokaSample*")));
+    LOKA_VERIFY(loopWindow->displayTitleState().get().equals(
+        loka::core::String::Literal("LokaSample* - startup (cycle 1)")));
+  }
+  for (std::size_t i = 0; i < components.size(); ++i)
+  {
+    delete components[i];
+  }
+
+  loka::scenario_tests::ScenarioReelTitle title("startup", 0);
+  title.decorateBeforeProjection(loka::core::String::Literal("LokaSample"));
+
+  WindowProps props;
+  props.title("LokaSample").displayTitleState(title.state());
+  int nativeTitleNotifications = 0;
+  {
+    NativeTitleObserverProbeWindow window(&context, props, &nativeTitleNotifications);
+    LOKA_VERIFY(window.titleState().get().equals(loka::core::String::Literal("LokaSample")));
+    LOKA_VERIFY(window.displayTitleState().get().equals(
+        loka::core::String::Literal("LokaSample - startup (cycle 1)")));
+
+    {
+      loka::core::StateTrackerGuard guard(window.getTracker());
+      window.titleState().set(loka::core::String::Literal("LokaSample*"));
+    }
+    LOKA_VERIFY(window.titleState().get().equals(loka::core::String::Literal("LokaSample*")));
+    LOKA_VERIFY(nativeTitleNotifications == 0);
+
+    title.synchronizeProductionTitle(window.titleState().get(), window.getTracker());
+    LOKA_VERIFY(window.titleState().get().equals(loka::core::String::Literal("LokaSample*")));
+    LOKA_VERIFY(window.displayTitleState().get().equals(
+        loka::core::String::Literal("LokaSample* - startup (cycle 1)")));
+    LOKA_VERIFY(nativeTitleNotifications == 1);
+  }
+
+  // The reel-owned display State outlives the platform Window. Publishing the
+  // next cell must not call the observer whose userData was the retired Window.
+  title.publish("second", 0, 0);
+  LOKA_VERIFY(nativeTitleNotifications == 1);
+
+  std::printf("testScenarioWindowDisplayTitlePreservesLogicalTitleAndDropsNativeObserver passed\n");
 }
 
 void testScenarioReelDriverAllocationRefusalRetiresInsteadOfWedging()

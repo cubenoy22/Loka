@@ -45,6 +45,7 @@ struct WindowProps
   typedef void (*OnIdleFn)(Window *window, double elapsedSeconds, void *userData);
   typedef bool (*OnKeyPressFn)(Window *window, char key, void *userData);
   loka::core::MutableState<loka::core::String> *titleStatePtr;
+  loka::core::State<loka::core::String> *displayTitleStatePtr;
   loka::core::MutableState<bool> *visibilityStatePtr;
   loka::core::MutableState<loka::core::Frame> *frameStatePtr;
   loka::core::String initialTitle;
@@ -131,6 +132,7 @@ private:
 public:
   WindowProps()
       : titleStatePtr(0),
+        displayTitleStatePtr(0),
         visibilityStatePtr(0),
         frameStatePtr(0),
         initialTitle(),
@@ -154,6 +156,7 @@ public:
 
   WindowProps(const WindowProps &rhs)
       : titleStatePtr(rhs.titleStatePtr),
+        displayTitleStatePtr(rhs.displayTitleStatePtr),
         visibilityStatePtr(rhs.visibilityStatePtr),
         frameStatePtr(rhs.frameStatePtr),
         initialTitle(rhs.initialTitle),
@@ -211,6 +214,7 @@ public:
       return *this;
     }
     titleStatePtr = rhs.titleStatePtr;
+    displayTitleStatePtr = rhs.displayTitleStatePtr;
     visibilityStatePtr = rhs.visibilityStatePtr;
     frameStatePtr = rhs.frameStatePtr;
     initialTitle = rhs.initialTitle;
@@ -314,6 +318,15 @@ public:
     return *this;
   }
 
+  /** Supplies a read-only title projection without changing the application's
+      logical title state. Native windows observe this state when present;
+      titleState() remains the application-owned read/write surface. */
+  WindowProps &displayTitleState(loka::core::State<loka::core::String> *state)
+  {
+    displayTitleStatePtr = state;
+    return *this;
+  }
+
   WindowProps &visibilityState(loka::core::MutableState<bool> *state)
   {
     visibilityStatePtr = state;
@@ -412,6 +425,72 @@ public:
 
 class Window : public AppComponent LOKA_AUDITED_AS(Window)
 {
+  /** Owns native State observer registrations for one Window lifetime.
+
+      A native backend registers each logical-to-native door here once. The
+      ledger removes every deferred observer before Window-owned State storage
+      is reclaimed, including when a borrowed State outlives the Window. */
+  class NativeStateObserverLedger
+  {
+  public:
+    NativeStateObserverLedger()
+        : count_(0)
+    {
+    }
+
+    ~NativeStateObserverLedger()
+    {
+      this->detach();
+    }
+
+    void observe(const loka::core::StateBase &state,
+                 loka::core::StateBase::OnChangeFn callback,
+                 void *userData)
+    {
+      assert(this->count_ < MAX_OBSERVERS && "Window native observer ledger capacity exceeded");
+      if (this->count_ >= MAX_OBSERVERS)
+      {
+        return;
+      }
+      Entry &entry = this->entries_[this->count_++];
+      entry.state = &state;
+      entry.callback = callback;
+      entry.userData = userData;
+      state.deferBind(callback, userData);
+    }
+
+    void detach()
+    {
+      while (this->count_ > 0)
+      {
+        Entry &entry = this->entries_[--this->count_];
+        entry.state->deferUnbind(entry.callback, entry.userData);
+        entry.state = 0;
+        entry.callback = 0;
+        entry.userData = 0;
+      }
+    }
+
+  private:
+    enum
+    {
+      MAX_OBSERVERS = 3
+    };
+
+    struct Entry
+    {
+      const loka::core::StateBase *state;
+      loka::core::StateBase::OnChangeFn callback;
+      void *userData;
+    };
+
+    Entry entries_[MAX_OBSERVERS];
+    std::size_t count_;
+
+    NativeStateObserverLedger(const NativeStateObserverLedger &);
+    NativeStateObserverLedger &operator=(const NativeStateObserverLedger &);
+  };
+
 public:
   typedef WindowTypeTag TypeTag;
 
@@ -428,6 +507,7 @@ public:
         visibilityStorage_(true),
         frameState_(),
         title_(&titleStorage_),
+        displayTitle_(&titleStorage_),
         visibility_(&visibilityStorage_),
         frameStatePtr_(&frameState_),
         positionX_(props.positionX),
@@ -445,6 +525,7 @@ public:
     {
       title_ = props.titleStatePtr;
     }
+    displayTitle_ = props.displayTitleStatePtr ? props.displayTitleStatePtr : title_;
     if (props.visibilityStatePtr)
     {
       visibility_ = props.visibilityStatePtr;
@@ -455,6 +536,7 @@ public:
     }
     loka::core::PushStateTracker *pushTracker = new loka::core::PushStateTracker();
     pushTracker->addState(title_);
+    pushTracker->addState(displayTitle_);
     pushTracker->addState(visibility_);
     tracker_ = pushTracker;
     if (props.hasInitialTitle)
@@ -535,6 +617,12 @@ public:
   loka::core::MutableState<loka::core::String> &titleState()
   {
     return *title_;
+  }
+  /** The read-only title projected by native backends. This equals
+      titleState() unless WindowProps supplied an explicit display title. */
+  const loka::core::State<loka::core::String> &displayTitleState() const
+  {
+    return *displayTitle_;
   }
   loka::core::MutableState<loka::core::Frame> &frameState()
   {
@@ -711,6 +799,18 @@ public:
 
 private:
 protected:
+  void observeNativeState(const loka::core::StateBase &state,
+                          loka::core::StateBase::OnChangeFn callback,
+                          void *userData)
+  {
+    this->nativeStateObservers_.observe(state, callback, userData);
+  }
+
+  void detachNativeStateObservers()
+  {
+    this->nativeStateObservers_.detach();
+  }
+
   PlatformContext *context_;
   loka::core::StateTracker *tracker_;
   SceneManager sceneManager_;
@@ -718,6 +818,7 @@ protected:
   loka::core::MutableState<bool> visibilityStorage_;
   loka::core::MutableState<loka::core::Frame> frameState_;
   loka::core::MutableState<loka::core::String> *title_;
+  loka::core::State<loka::core::String> *displayTitle_;
   loka::core::MutableState<bool> *visibility_;
   loka::core::MutableState<loka::core::Frame> *frameStatePtr_;
   int positionX_;
@@ -730,6 +831,7 @@ protected:
   WindowProps::OnKeyPressFn onKeyPressFn_;
   void *onKeyPressUserData_;
   loka::core::OwnedDef<loka::app::MenuBarDefinition> menuBarDefinition_;
+  NativeStateObserverLedger nativeStateObservers_;
 };
 
 #endif // LOKA_WINDOW_HPP

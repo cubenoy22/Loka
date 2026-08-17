@@ -33,9 +33,12 @@ namespace loka
         {
           return;
         }
-        const core::String productionTitle = props.hasInitialTitle ? props.initialTitle : core::String();
+        const core::String productionTitle =
+            props.hasInitialTitle
+                ? props.initialTitle
+                : (props.titleStatePtr ? props.titleStatePtr->get() : core::String());
         this->reelTitle_->decorateBeforeProjection(productionTitle);
-        props.titleState(this->reelTitle_->state()).title(this->reelTitle_->value());
+        props.displayTitleState(this->reelTitle_->state());
       }
 
     private:

@@ -63,6 +63,10 @@ namespace loka
       virtual void onScenarioIdle(Window *window, double elapsedSeconds)
       {
         this->reel_.tick(window, elapsedSeconds, window ? window->getTracker() : 0);
+        if (window)
+        {
+          this->reel_.synchronizeOperatorTitle(window->titleState().get(), window->getTracker());
+        }
         if (this->reel_.finished() && this->borrowedApp_)
         {
           this->borrowedApp_->quit();

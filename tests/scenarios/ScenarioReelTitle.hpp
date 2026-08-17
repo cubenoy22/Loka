@@ -14,9 +14,10 @@ namespace loka
     /** The operator-facing title published by one running reel.
 
         The reel owns the cell and cycle fact. A presentation may add its
-        example-owned production title once, before a Window observes the
-        State. Subsequent publications happen only when the reel successfully
-        re-arms, through the observing Window owner's tracker transaction. */
+        example-owned logical title while keeping the published display title
+        separate. Subsequent publications happen only when the logical title
+        changes or the reel successfully re-arms, through the observing Window
+        owner's tracker transaction. */
     class ScenarioReelTitle
     {
     public:
@@ -37,6 +38,20 @@ namespace loka
       {
         this->productionTitle_ = productionTitle;
         this->state_.setValue(Format(this->productionTitle_, this->cell_, this->cycleNumber_));
+      }
+
+      /** Refreshes the display title after application code changes the
+          Window's logical title. The logical State remains untouched. */
+      void synchronizeProductionTitle(const core::String &productionTitle,
+                                      core::StateTracker *presentationTracker)
+      {
+        if (this->productionTitle_.equals(productionTitle))
+        {
+          return;
+        }
+        this->productionTitle_ = productionTitle;
+        core::StateTrackerGuard guard(presentationTracker);
+        this->state_.set(Format(this->productionTitle_, this->cell_, this->cycleNumber_));
       }
 
       /** Publishes the newly armed cell through the presentation owner's

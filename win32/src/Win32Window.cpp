@@ -53,14 +53,15 @@ Win32Window::Win32Window(PlatformContext *context, const WindowProps &props)
       app_(NULL),
       scenePlatformController_(0)
 {
-  // Track window-owned states and project them into native Win32 state.
-  this->visibilityState().deferBind(&Win32Window::VisibilityChangedThunk, this);
-  this->titleState().deferBind(&Win32Window::TitleChangedThunk, this);
-  this->frameState().deferBind(&Win32Window::FrameChangedThunk, this);
+  // Track logical states and project them into native Win32 state.
+  this->observeNativeState(this->visibilityState(), &Win32Window::VisibilityChangedThunk, this);
+  this->observeNativeState(this->displayTitleState(), &Win32Window::TitleChangedThunk, this);
+  this->observeNativeState(this->frameState(), &Win32Window::FrameChangedThunk, this);
 }
 
 Win32Window::~Win32Window()
 {
+  this->detachNativeStateObservers();
   teardownScene();
 }
 
@@ -124,7 +125,7 @@ void Win32Window::TitleChangedThunk(void *userData)
   if (self && self->hwnd_)
   {
     std::wstring wide;
-    if (loka::win32::MaterializeWideString(self->titleState().get(), wide))
+    if (loka::win32::MaterializeWideString(self->displayTitleState().get(), wide))
     {
       SetWindowTextW(self->hwnd_, wide.c_str());
     }

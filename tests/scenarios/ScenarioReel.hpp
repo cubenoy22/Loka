@@ -167,6 +167,14 @@ namespace loka
         return &this->operatorTitle_;
       }
 
+      /** Preserves an application-authored logical title while refreshing the
+          operator-facing display decoration. */
+      void synchronizeOperatorTitle(const core::String &productionTitle,
+                                    core::StateTracker *presentationTracker)
+      {
+        this->operatorTitle_.synchronizeProductionTitle(productionTitle, presentationTracker);
+      }
+
     private:
       enum ReelPhase
       {
