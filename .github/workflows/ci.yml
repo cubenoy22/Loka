@@ -90,8 +90,8 @@ jobs:
       # Two builds, because neither target set implies the other: win32-debug
       # builds the production targets (the test executable compiles only a
       # slice of the platform layer, so a green test run alone would not mean
-      # the app still builds), while win32-tests builds LokaTestsWin32, which
-      # win32-debug does not.
+      # the app still builds), while win32-tests builds the EXCLUDE_FROM_ALL
+      # unit-test and scenario vehicles, which win32-debug does not.
       - run: cmake --build --preset win32-debug
       - run: cmake --build --preset win32-tests
       # Hosted CI does not cover the local rig's ARM64 build or ACP=932

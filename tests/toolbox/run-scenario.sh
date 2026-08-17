@@ -175,11 +175,21 @@ if [ "$EXAMPLE" = "scrapbook" ]; then
   fi
   STAGED_ASSETS="$WORK/ASSETS.LRP"
   CORRUPT_BAG=""
-  case "$SCENARIO" in
-    open-first-page-refused) CORRUPT_BAG=1 ;;
-    refused-flip-keeps-page) CORRUPT_BAG=3 ;;
-    open-text-page-refused) CORRUPT_BAG=5 ;;
-  esac
+  FIXTURE_REGISTRY="$PROJECT_DIR/tests/scenarios/scrapbook-package-fixtures.txt"
+  if [ ! -f "$FIXTURE_REGISTRY" ]; then
+    fail_stage mame "missing $FIXTURE_REGISTRY"
+  fi
+  while IFS= read -r fixture_entry || [ -n "$fixture_entry" ]; do
+    if [[ ! "$fixture_entry" =~ ^([a-z0-9][a-z0-9-]*)\ corrupt-bag=([0-9]+)$ ]]; then
+      fail_stage mame "invalid Scrapbook fixture registry line '$fixture_entry'"
+    fi
+    if [ "${BASH_REMATCH[1]}" = "$SCENARIO" ]; then
+      if [ -n "$CORRUPT_BAG" ]; then
+        fail_stage mame "duplicate fixture mapping for '$SCENARIO'"
+      fi
+      CORRUPT_BAG="${BASH_REMATCH[2]}"
+    fi
+  done <"$FIXTURE_REGISTRY"
   STAGE_ARGUMENTS=(stage "$ASSETS" -o "$STAGED_ASSETS")
   if [ -n "$CORRUPT_BAG" ]; then
     STAGE_ARGUMENTS+=(--corrupt-bag "$CORRUPT_BAG")

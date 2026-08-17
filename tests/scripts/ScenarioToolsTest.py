@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Characterization tests for the OS-neutral scenario runner tools."""
 
+import json
 import os
 import struct
 import subprocess
@@ -49,6 +50,64 @@ def write_rgb_png(path, width, height, pixels):
 
 
 class ExpectedAuditPinsTest(unittest.TestCase):
+    def test_win32_vehicle_map_covers_the_shared_registry_examples(self):
+        runner_path = os.path.join(PROJECT_DIR, "tests", "win32", "run-scenario.ps1")
+        with open(runner_path, "r", encoding="utf-8") as handle:
+            runner = handle.read()
+        cmake_path = os.path.join(PROJECT_DIR, "win32", "CMakeLists.txt")
+        with open(cmake_path, "r", encoding="utf-8") as handle:
+            cmake = handle.read()
+        with open(os.path.join(PROJECT_DIR, "CMakePresets.json"), "r", encoding="utf-8") as handle:
+            presets = json.load(handle)
+        win32_tests = next(
+            preset
+            for preset in presets["buildPresets"]
+            if preset["name"] == "win32-tests"
+        )
+
+        vehicles = {
+            "scrapbook": ("LokaScrapbookScenarioWin32", "ScrapbookUI"),
+            "helloworld": ("LokaHelloWorldScenarioWin32", "HelloWorld"),
+            "tutorial": ("LokaTutorialScenarioWin32", "Tutorial"),
+            "minesweeper": ("LokaMineSweeperScenarioWin32", "MineSweeper"),
+            "floppybird": ("LokaFloppyBirdScenarioWin32", "FloppyBird"),
+        }
+        for example, (target, output_directory) in vehicles.items():
+            self.assertIn('"{}" = @{{'.format(example), runner)
+            self.assertIn('Executable = "{}.exe"'.format(target), runner)
+            self.assertIn('OutputDirectory = "{}"'.format(output_directory), runner)
+            self.assertIn(target, cmake)
+            self.assertIn(target, win32_tests["targets"])
+
+        self.assertNotIn("currently supports only ScrapbookUI", runner)
+        hello_driver_path = os.path.join(
+            PROJECT_DIR, "tests", "win32", "HelloWorldScenarioDriver.cpp"
+        )
+        with open(hello_driver_path, "r", encoding="utf-8") as handle:
+            hello_driver = handle.read()
+        self.assertIn(
+            "SceneScenarioDriver<scenario_tests::HelloWorldScenario>", hello_driver
+        )
+
+    def test_scrapbook_refusal_fixtures_have_one_neutral_mapping(self):
+        registry = os.path.join(SCENARIO_DIR, "scrapbook-package-fixtures.txt")
+        with open(registry, "r", encoding="ascii") as handle:
+            entries = [line.split() for line in handle.read().splitlines()]
+        self.assertEqual(
+            entries,
+            [
+                ["open-first-page-refused", "corrupt-bag=1"],
+                ["refused-flip-keeps-page", "corrupt-bag=3"],
+                ["open-text-page-refused", "corrupt-bag=5"],
+            ],
+        )
+        registered = os.path.join(SCENARIO_DIR, "scenarios.txt")
+        with open(registered, "r", encoding="ascii") as handle:
+            scenarios = set(handle.read().splitlines())
+        for scenario, fixture in entries:
+            self.assertIn("scrapbook " + scenario, scenarios)
+            self.assertRegex(fixture, r"^corrupt-bag=[0-9]+$")
+
     def test_expected_audits_cover_registry_and_pin_app_identity(self):
         registry = os.path.join(PROJECT_DIR, "tests", "scenarios", "scenarios.txt")
         with open(registry, "r", encoding="utf-8") as handle:
