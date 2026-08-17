@@ -138,7 +138,9 @@ namespace
           out += ',';
         }
         char indexText[16];
-        std::sprintf(indexText, "%d", cellIndex);
+        // snprintf, not sprintf: the macOS toolchain deprecates sprintf and
+        // the warning floor is -Werror. Matches MineSweeperScenarios.cpp.
+        ::snprintf(indexText, sizeof(indexText), "%d", cellIndex);
         out += indexText;
       }
       ++cellIndex;

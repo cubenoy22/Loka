@@ -416,7 +416,6 @@ set(LOKA_MINESWEEPER_SCENARIO_LOOP_TOOLBOX_SOURCES
   src/ScenarioDriverSupport.cpp
   ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
-  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioCellTable.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioReel.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/MineSweeperScenarios.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/StartupScenarios.cpp
@@ -448,7 +447,6 @@ set(LOKA_HELLO_WORLD_SCENARIO_LOOP_TOOLBOX_SOURCES
   src/ScenarioDriverSupport.cpp
   ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
-  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioCellTable.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioReel.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/HelloWorldScenarios.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/StartupScenarios.cpp
