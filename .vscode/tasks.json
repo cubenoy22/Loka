@@ -130,6 +130,40 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Build: macOS HelloWorld Scenario Loop",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "macos-debug",
+        "--target",
+        "LokaHelloWorldScenarioLoopMacOS"
+      ],
+      "dependsOn": [
+        "Configure: macOS Native"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Build: macOS MineSweeper Scenario Loop",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "macos-debug",
+        "--target",
+        "LokaMineSweeperScenarioLoopMacOS"
+      ],
+      "dependsOn": [
+        "Configure: macOS Native"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Build: macOS Standalone Flow Release",
       "type": "shell",
       "command": "bash",
@@ -748,6 +782,40 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Build: Retro68 68K HelloWorld Scenario Loop",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "retro68-68k-release",
+        "--target",
+        "LokaHelloScenarioLoop68K_APPL"
+      ],
+      "dependsOn": [
+        "Configure: Retro68 68K"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Build: Retro68 68K MineSweeper Scenario Loop",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "retro68-68k-release",
+        "--target",
+        "LokaMineScenarioLoop68K_APPL"
+      ],
+      "dependsOn": [
+        "Configure: Retro68 68K"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Stage: Toolbox 68K Standalone Flow Release",
       "type": "shell",
       "command": "bash",
@@ -977,6 +1045,46 @@
           "-File",
           "scripts/mame-dev-disk.ps1",
           "build/retro68/68k/Release/tests/toolbox/LokaFloppyStandaloneFlow68K.bin"
+        ]
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Prepare SCSI Dev Disk: HelloWorld Scenario Loop",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
+      "args": [
+        "${workspaceFolder}/build/retro68/68k/Release/tests/toolbox/LokaHelloScenarioLoop68K.bin"
+      ],
+      "windows": {
+        "command": "powershell.exe",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-dev-disk.ps1",
+          "build/retro68/68k/Release/tests/toolbox/LokaHelloScenarioLoop68K.bin"
+        ]
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Prepare SCSI Dev Disk: MineSweeper Scenario Loop",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
+      "args": [
+        "${workspaceFolder}/build/retro68/68k/Release/tests/toolbox/LokaMineScenarioLoop68K.bin"
+      ],
+      "windows": {
+        "command": "powershell.exe",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-dev-disk.ps1",
+          "build/retro68/68k/Release/tests/toolbox/LokaMineScenarioLoop68K.bin"
         ]
       },
       "problemMatcher": []
@@ -1247,6 +1355,26 @@
       "dependsOn": [
         "Build: Retro68 68K FloppyBird Standalone Flow",
         "Prepare SCSI Dev Disk: FloppyBird Standalone Flow",
+        "MAME: Start"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Start in MAME via SCSI: HelloWorld Scenario Loop",
+      "dependsOn": [
+        "Build: Retro68 68K HelloWorld Scenario Loop",
+        "Prepare SCSI Dev Disk: HelloWorld Scenario Loop",
+        "MAME: Start"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Start in MAME via SCSI: MineSweeper Scenario Loop",
+      "dependsOn": [
+        "Build: Retro68 68K MineSweeper Scenario Loop",
+        "Prepare SCSI Dev Disk: MineSweeper Scenario Loop",
         "MAME: Start"
       ],
       "dependsOrder": "sequence",
