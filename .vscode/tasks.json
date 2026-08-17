@@ -257,6 +257,34 @@
       "problemMatcher": "$msCompile"
     },
     {
+      "label": "Build: Win32 HelloWorld Scenario Loop",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "win32-debug",
+        "--target",
+        "LokaHelloWorldScenarioLoopWin32"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Build: Win32 MineSweeper Scenario Loop",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "win32-debug",
+        "--target",
+        "LokaMineSweeperScenarioLoopWin32"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
       "label": "Build: Win32 Standalone Flow Release",
       "type": "shell",
       "command": "powershell.exe",

@@ -349,8 +349,10 @@
         "LokaTestsWin32",
         "LokaScrapbookScenarioWin32",
         "LokaHelloWorldScenarioWin32",
+        "LokaHelloWorldScenarioLoopWin32",
         "LokaTutorialScenarioWin32",
         "LokaMineSweeperScenarioWin32",
+        "LokaMineSweeperScenarioLoopWin32",
         "LokaFloppyBirdScenarioWin32"
       ],
       "condition": {
@@ -364,19 +366,6 @@
       "configurePreset": "win32-debug",
       "targets": [
         "LokaScrapbookStandaloneFlowWin32"
-      ],
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Windows"
-      }
-    },
-    {
-      "name": "win32-scenario-loop",
-      "configurePreset": "win32-debug",
-      "targets": [
-        "LokaHelloWorldScenarioLoopWin32",
-        "LokaMineSweeperScenarioLoopWin32"
       ],
       "condition": {
         "type": "equals",

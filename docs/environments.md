@@ -63,9 +63,13 @@ This is the environment where binaries are actually built.
   directory without launching it; the tracked `standalone-tour.audit` byte
   authority is staged beside the verifier, while `ASSETS.LRP` remains owned by
   the bundle at `Contents/Resources`.
-- For a macOS presentation that keeps moving without a host controller, build
-  the HelloWorld and MineSweeper loop reels from a Terminal opened at the
-  repository root:
+- For a presentation that keeps moving without a host controller, use the
+  TEST-only HelloWorld and MineSweeper loop reels. Each application shows every
+  registered cell for its example, wraps to the first, and continues until the
+  user closes it. It reads no `LokaTest.cfg` and publishes no audit or capture
+  marker.
+
+  On macOS, build both reels from a Terminal opened at the repository root:
 
   ```sh
   cmake --preset macos-debug
@@ -74,11 +78,22 @@ This is the environment where binaries are actually built.
   open build/macos/Debug/apple/macos/LokaMineSweeperScenarioLoopMacOS.app
   ```
 
-  Each TEST-only application shows every registered cell for its example,
-  wraps to the first, and continues until the user chooses Quit or presses
-  Command-Q. It reads no `LokaTest.cfg` and publishes no audit or capture
-  marker. To make a verification build stop after two complete passes, use a
-  separate build directory so the desk build remains unbounded:
+  The apps stop when the user chooses Quit or presses Command-Q. On Win32, use
+  `Run (Windows HelloWorld Scenario Loop)` or
+  `Run (Windows MineSweeper Scenario Loop)` for a Debug desk build. For a
+  portable Release reel, use the architecture-specific presentation preset;
+  for example, from an ARM64 Native Tools prompt:
+
+  ```bat
+  cmake --preset win32-arm64-release
+  cmake --build --preset win32-scenario-loop-arm64-release
+  start "" build\win32\presentation\arm64\Release\example\MineSweeper\scenario-loop\LokaMineSweeperScenarioLoopWin32.exe
+  ```
+
+  Substitute `x64` or `x86` in both preset names and the output path when using
+  that compiler environment. To make a verification build stop after two
+  complete passes, set `LOKA_SCENARIO_LOOP_CYCLES=2` in a separate build
+  directory or cache so the ordinary desk build remains unbounded. On macOS:
 
   ```sh
   cmake -S . -B build/macos/Loop2 -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLOKA_WARNINGS_AS_ERRORS=ON -DLOKA_SCENARIO_LOOP_CYCLES=2
@@ -86,6 +101,9 @@ This is the environment where binaries are actually built.
   open -W build/macos/Loop2/apple/macos/LokaHelloWorldScenarioLoopMacOS.app
   open -W build/macos/Loop2/apple/macos/LokaMineSweeperScenarioLoopMacOS.app
   ```
+
+  On Win32, pass `-DLOKA_SCENARIO_LOOP_CYCLES=2` to the architecture-specific
+  configure command and build from that separate cache.
 - For a standalone presentation Release, start VS Code from the Visual Studio
   Command Line Tools session for the desired target, then run
   `Verify: Win32 Standalone Flow Release`. The task derives ARM64, x64, or
@@ -103,22 +121,6 @@ This is the environment where binaries are actually built.
   stops the final-scene hold, and leaves `LOG.TXT` as the target-local runtime
   verdict. For a VAIO P, start VS Code from a VS2017 `x64_x86 Cross Tools`
   session; the task inherits that session's x86 target.
-- For a hands-free Win32 scenario reel, use the architecture-specific Release
-  presentation preset. These TEST-only targets are excluded from default
-  builds and carry no host controller or audit protocol: double-click either
-  executable and it cycles through that example's registered cells until the
-  window is closed. For example, from an ARM64 Native Tools prompt:
-
-  ```bat
-  cmake --preset win32-arm64-release
-  cmake --build --preset win32-scenario-loop-arm64-release
-  start "" build\win32\presentation\arm64\Release\example\MineSweeper\scenario-loop\LokaMineSweeperScenarioLoopWin32.exe
-  ```
-
-  Substitute `x64` or `x86` in both preset names and the output path when using
-  that compiler environment. To make a verification build stop by itself after
-  two full passes, add `-DLOKA_SCENARIO_LOOP_CYCLES=2` to the configure command;
-  omit the definition (or use a fresh cache) for the normal unbounded reel.
 - Some endpoint scanners flag freshly linked unsigned test executables,
   particularly 32-bit ones.
   This workflow deliberately does not add an antivirus exclusion; use the
