@@ -1,5 +1,5 @@
-#ifndef LOKA_TESTS_SCENARIOS_SCRAPBOOK_CLASSIC_SCENARIO_PRESENTATION_HPP
-#define LOKA_TESTS_SCENARIOS_SCRAPBOOK_CLASSIC_SCENARIO_PRESENTATION_HPP
+#ifndef LOKA_TESTS_SCENARIOS_SCRAPBOOK_SCENARIO_PRESENTATION_HPP
+#define LOKA_TESTS_SCENARIOS_SCRAPBOOK_SCENARIO_PRESENTATION_HPP
 
 #include "../../example/ScrapbookUI/src/MyAppConfig.hpp"
 #include "ObservedMainDefinition.hpp"
@@ -9,11 +9,11 @@ namespace loka
   namespace scenario_tests
   {
     /** Presents ScrapbookUI's production window and menu declarations while
-        retaining the observed main node required by the Classic rail. */
-    class ScrapbookClassicScenarioPresentation : public ::ScrapbookAppConfig
+        retaining the observed main node required by scenario rails. */
+    class ScrapbookScenarioPresentation : public ::ScrapbookAppConfig
     {
     public:
-      explicit ScrapbookClassicScenarioPresentation(PlatformContext *context)
+      explicit ScrapbookScenarioPresentation(PlatformContext *context)
           : ::ScrapbookAppConfig(context),
             borrowedMainNode_(0)
       {
@@ -25,7 +25,7 @@ namespace loka
             scrapbook::MainProps().platformContext(this->getPlatformContext()), &this->borrowedMainNode_);
         composition << WindowDef(this->productionWindowProps(mainDefinition)
                                      .idlePolicy(app::IdlePolicy::everyTick())
-                                     .onIdle(&ScrapbookClassicScenarioPresentation::OnWindowIdle, this));
+                                     .onIdle(&ScrapbookScenarioPresentation::OnWindowIdle, this));
       }
 
     protected:
@@ -43,7 +43,7 @@ namespace loka
     private:
       static void OnWindowIdle(Window *window, double elapsedSeconds, void *userData)
       {
-        ScrapbookClassicScenarioPresentation *self = static_cast<ScrapbookClassicScenarioPresentation *>(userData);
+        ScrapbookScenarioPresentation *self = static_cast<ScrapbookScenarioPresentation *>(userData);
         if (self)
         {
           self->onScenarioIdle(window, elapsedSeconds);
@@ -55,4 +55,4 @@ namespace loka
   } // namespace scenario_tests
 } // namespace loka
 
-#endif // LOKA_TESTS_SCENARIOS_SCRAPBOOK_CLASSIC_SCENARIO_PRESENTATION_HPP
+#endif // LOKA_TESTS_SCENARIOS_SCRAPBOOK_SCENARIO_PRESENTATION_HPP

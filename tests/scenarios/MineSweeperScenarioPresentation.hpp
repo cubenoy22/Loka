@@ -1,5 +1,5 @@
-#ifndef LOKA_TESTS_SCENARIOS_MINESWEEPER_CLASSIC_SCENARIO_PRESENTATION_HPP
-#define LOKA_TESTS_SCENARIOS_MINESWEEPER_CLASSIC_SCENARIO_PRESENTATION_HPP
+#ifndef LOKA_TESTS_SCENARIOS_MINESWEEPER_SCENARIO_PRESENTATION_HPP
+#define LOKA_TESTS_SCENARIOS_MINESWEEPER_SCENARIO_PRESENTATION_HPP
 
 #include "../../example/MineSweeper/src/MyAppConfig.hpp"
 #include "ObservedMainDefinition.hpp"
@@ -9,11 +9,11 @@ namespace loka
   namespace scenario_tests
   {
     /** Presents MineSweeper's production window declaration around its
-        deterministic Classic scenario scene. */
-    class MineSweeperClassicScenarioPresentation : public ::MyAppConfig
+        deterministic scenario scene. */
+    class MineSweeperScenarioPresentation : public ::MyAppConfig
     {
     public:
-      MineSweeperClassicScenarioPresentation(PlatformContext *context, const minesweeper::MainProps &mainProps)
+      MineSweeperScenarioPresentation(PlatformContext *context, const minesweeper::MainProps &mainProps)
           : ::MyAppConfig(context, mainProps)
       {
       }
@@ -23,7 +23,7 @@ namespace loka
         ObservedMainDefinition<minesweeper::MainProps, minesweeper::MainNode> mainDefinition(this->mainProps(), 0);
         composition << WindowDef(this->productionWindowProps(mainDefinition)
                                      .idlePolicy(app::IdlePolicy::everyTick())
-                                     .onIdle(&MineSweeperClassicScenarioPresentation::OnWindowIdle, this));
+                                     .onIdle(&MineSweeperScenarioPresentation::OnWindowIdle, this));
       }
 
     protected:
@@ -36,7 +36,7 @@ namespace loka
     private:
       static void OnWindowIdle(Window *window, double elapsedSeconds, void *userData)
       {
-        MineSweeperClassicScenarioPresentation *self = static_cast<MineSweeperClassicScenarioPresentation *>(userData);
+        MineSweeperScenarioPresentation *self = static_cast<MineSweeperScenarioPresentation *>(userData);
         if (self)
         {
           self->onScenarioIdle(window, elapsedSeconds);
@@ -46,4 +46,4 @@ namespace loka
   } // namespace scenario_tests
 } // namespace loka
 
-#endif // LOKA_TESTS_SCENARIOS_MINESWEEPER_CLASSIC_SCENARIO_PRESENTATION_HPP
+#endif // LOKA_TESTS_SCENARIOS_MINESWEEPER_SCENARIO_PRESENTATION_HPP

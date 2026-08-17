@@ -153,13 +153,14 @@ set_source_files_properties(
     MACOSX_PACKAGE_LOCATION Resources
 )
 
-function(loka_configure_scrapbook_test_bundle target bundle_id)
+function(loka_configure_scenario_test_bundle target bundle_id example_include_dir)
   loka_enable_warnings(${target})
   target_include_directories(${target} PRIVATE
     ${PROJECT_SOURCE_DIR}/common
+    ${PROJECT_SOURCE_DIR}/tests/macos
     ${PROJECT_SOURCE_DIR}/tests/scenarios
     ${PROJECT_SOURCE_DIR}/tests/standalone
-    ${PROJECT_SOURCE_DIR}/example/ScrapbookUI/src
+    ${PROJECT_SOURCE_DIR}/${example_include_dir}
     ${CMAKE_CURRENT_LIST_DIR}/src
     ${CMAKE_CURRENT_LIST_DIR}/src/context
   )
@@ -179,24 +180,71 @@ function(loka_configure_scrapbook_test_bundle target bundle_id)
 endfunction()
 
 if(NOT LOKA_MAC_OS_10_4)
-  # TEST-only vertical slice. It compiles common and platform sources with one
-  # uniform TEST_BUILD definition rather than linking the shipping core.
-  add_executable(LokaScrapbookScenarioMacOS EXCLUDE_FROM_ALL MACOSX_BUNDLE
-    ${PROJECT_SOURCE_DIR}/tests/macos/ScenarioDriver.mm
+  set(LOKA_MACOS_SCENARIO_COMMON_SOURCES
+    ${PROJECT_SOURCE_DIR}/tests/macos/ScenarioDriverSupport.mm
     ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioProfile.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
-    ${PROJECT_SOURCE_DIR}/tests/scenarios/ScrapbookScenarios.cpp
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/StartupScenarios.cpp
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/RectSurfaceScenarioObservation.cpp
     ${PROJECT_SOURCE_DIR}/tests/TestingHooks.cpp
-    ${PROJECT_SOURCE_DIR}/example/ScrapbookUI/src/ScrapbookPackage.cpp
     ${LOKA_MACOS_CORE_SOURCES}
     ${COMMON_SOURCES}
     ${COMMON_HEADERS}
     ${LOKA_MACOS_CORE_HEADERS}
+  )
+
+  function(loka_add_macos_scenario_bundle target driver bundle_id example_include_dir)
+    # TEST-only vertical slices compile common and platform sources with one
+    # uniform TEST_BUILD definition rather than linking the shipping core.
+    add_executable(${target} EXCLUDE_FROM_ALL MACOSX_BUNDLE
+      ${PROJECT_SOURCE_DIR}/tests/macos/${driver}
+      ${LOKA_MACOS_SCENARIO_COMMON_SOURCES}
+      ${ARGN}
+    )
+    loka_configure_scenario_test_bundle(
+      ${target}
+      "${bundle_id}"
+      "${example_include_dir}"
+    )
+  endfunction()
+
+  loka_add_macos_scenario_bundle(
+    LokaScrapbookScenarioMacOS
+    ScenarioDriver.mm
+    com.cubenoy22.loka.scrapbook-scenario
+    example/ScrapbookUI/src
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/ScrapbookScenarios.cpp
+    ${PROJECT_SOURCE_DIR}/example/ScrapbookUI/src/ScrapbookPackage.cpp
     ${LOKA_SCRAPBOOK_SCENARIO_RESOURCE_DIR}/ASSETS.LRP
   )
-  loka_configure_scrapbook_test_bundle(
-    LokaScrapbookScenarioMacOS
-    "com.cubenoy22.loka.scrapbook-scenario"
+  loka_add_macos_scenario_bundle(
+    LokaHelloWorldScenarioMacOS
+    HelloWorldScenarioDriver.mm
+    com.cubenoy22.loka.helloworld-scenario
+    example/HelloWorld/src
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/HelloWorldScenarios.cpp
+    ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
+  )
+  loka_add_macos_scenario_bundle(
+    LokaTutorialScenarioMacOS
+    TutorialScenarioDriver.mm
+    com.cubenoy22.loka.tutorial-scenario
+    example/Tutorial/src
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/TutorialScenarios.cpp
+  )
+  loka_add_macos_scenario_bundle(
+    LokaMineSweeperScenarioMacOS
+    MineSweeperScenarioDriver.mm
+    com.cubenoy22.loka.minesweeper-scenario
+    example/MineSweeper/src
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/MineSweeperScenarios.cpp
+  )
+  loka_add_macos_scenario_bundle(
+    LokaFloppyBirdScenarioMacOS
+    FloppyBirdScenarioDriver.mm
+    com.cubenoy22.loka.floppybird-scenario
+    example/FloppyBird/src
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/FloppyBirdScenarios.cpp
   )
 endif()
 
@@ -215,7 +263,8 @@ add_executable(LokaScrapbookStandaloneFlowMacOS EXCLUDE_FROM_ALL MACOSX_BUNDLE
   ${LOKA_MACOS_CORE_HEADERS}
   ${LOKA_SCRAPBOOK_SCENARIO_RESOURCE_DIR}/ASSETS.LRP
 )
-loka_configure_scrapbook_test_bundle(
+loka_configure_scenario_test_bundle(
   LokaScrapbookStandaloneFlowMacOS
   "com.cubenoy22.loka.scrapbook-standalone-flow"
+  example/ScrapbookUI/src
 )

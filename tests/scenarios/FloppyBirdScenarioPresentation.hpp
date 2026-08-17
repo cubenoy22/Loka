@@ -1,5 +1,5 @@
-#ifndef LOKA_TESTS_SCENARIOS_FLOPPY_BIRD_CLASSIC_SCENARIO_PRESENTATION_HPP
-#define LOKA_TESTS_SCENARIOS_FLOPPY_BIRD_CLASSIC_SCENARIO_PRESENTATION_HPP
+#ifndef LOKA_TESTS_SCENARIOS_FLOPPY_BIRD_SCENARIO_PRESENTATION_HPP
+#define LOKA_TESTS_SCENARIOS_FLOPPY_BIRD_SCENARIO_PRESENTATION_HPP
 
 #include "../../example/FloppyBird/src/MyAppConfig.hpp"
 #include "ObservedMainDefinition.hpp"
@@ -9,11 +9,11 @@ namespace loka
   namespace scenario_tests
   {
     /** Presents FloppyBird's production window and menu declarations around
-        the deterministic Classic scenario game owner. */
-    class FloppyBirdClassicScenarioPresentation : public ::MyAppConfig
+        the deterministic scenario game owner. */
+    class FloppyBirdScenarioPresentation : public ::MyAppConfig
     {
     public:
-      FloppyBirdClassicScenarioPresentation(PlatformContext *context, unsigned long gameSeed)
+      FloppyBirdScenarioPresentation(PlatformContext *context, unsigned long gameSeed)
           : ::MyAppConfig(context, gameSeed)
       {
       }
@@ -24,7 +24,7 @@ namespace loka
             floppybird::MainProps(&this->gameModel()), 0);
         composition << WindowDef(this->productionWindowProps(mainDefinition)
                                      .idlePolicy(app::IdlePolicy::everyTick())
-                                     .onIdle(&FloppyBirdClassicScenarioPresentation::OnWindowIdle, this));
+                                     .onIdle(&FloppyBirdScenarioPresentation::OnWindowIdle, this));
       }
 
     protected:
@@ -37,7 +37,7 @@ namespace loka
     private:
       static void OnWindowIdle(Window *window, double elapsedSeconds, void *userData)
       {
-        FloppyBirdClassicScenarioPresentation *self = static_cast<FloppyBirdClassicScenarioPresentation *>(userData);
+        FloppyBirdScenarioPresentation *self = static_cast<FloppyBirdScenarioPresentation *>(userData);
         if (self)
         {
           self->onScenarioIdle(window, elapsedSeconds);
@@ -47,4 +47,4 @@ namespace loka
   } // namespace scenario_tests
 } // namespace loka
 
-#endif // LOKA_TESTS_SCENARIOS_FLOPPY_BIRD_CLASSIC_SCENARIO_PRESENTATION_HPP
+#endif // LOKA_TESTS_SCENARIOS_FLOPPY_BIRD_SCENARIO_PRESENTATION_HPP
