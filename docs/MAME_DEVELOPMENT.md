@@ -491,7 +491,9 @@ hardcoding it.
 
 Retro68 links the image contiguously from vaddr 0 (`.code00001` at `0x0`,
 `.code00002` at `0xbff4`, then `.data` and `.bss`), so a single offset is
-usually enough. There is no need to place sections individually:
+usually enough — for sections whose relative layout the Segment Loader
+actually preserved at load time, which the next subsection shows how to
+check before any symbol outside the scanned section is trusted:
 
 ```
 add-symbol-file <elf> -o <base>
@@ -718,7 +720,12 @@ different jobs; expecting the second to provide the first will disappoint.
   (reset stop), make each one terminal (no `continue` in any commands block),
   run exactly one `continue`, dump (`info registers`, `x/`, `bt`) at the
   first stop, and `quit`. One question per boot; ask the next question in the
-  next session. Note that sending SIGINT to a blocked scripted gdb makes the
+  next session. Scope: this was observed in *sourced batch scripts* (`-x`
+  command files). The FIFO-driven sampling recipe below feeds gdb through
+  real stdin — a different execution path, proven on the #318-era build but
+  not re-validated since the current-MAME stub changes; if it starts
+  misbehaving, fall back to single-stop sessions and treat the recipe as due
+  for re-validation. Note that sending SIGINT to a blocked scripted gdb makes the
   *remainder of the script* run against the interrupted target — including
   its `quit`, which reaps the emulator through the launcher's EXIT trap.
 - **Avoid `delete` in scripted stub sessions.** Across the #182 probe runs,
@@ -766,7 +773,12 @@ neither mode pays the single-step penalty.
 ### The sampling leg: attributing a busy window
 
 The stub also supports a time-sampling profiler: interrupt the free-running
-guest on a wall-clock cadence, read the interrupted PC, resume, repeat. No
+guest on a wall-clock cadence, read the interrupted PC, resume, repeat.
+(This recipe drives gdb through real stdin over a FIFO, which is why it may
+repeat stop→continue: the batch-script poisoning documented under Known
+limits was observed in `-x` sourced files. Proven on the #318-era MAME; not
+re-validated since the current stub changes — if it misbehaves, fall back to
+single-stop sessions.) No
 instrumentation goes into the build, so the workload under measurement is the
 shipping code. This is what attributed the first-launch cost on a 68030
 machine to the ROM Memory Manager zone-scan loop (14 of 14 samples, with

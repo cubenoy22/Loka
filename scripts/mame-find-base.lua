@@ -87,6 +87,8 @@ for tag, port in pairs(manager.machine.ioport.ports) do
 end
 assert(tabKey, "no key field named Tab")
 local tabCount = tonumber(os.getenv("LOKA_TAB_COUNT") or "1")
+assert(tabCount and tabCount > 0 and tabCount == math.floor(tabCount),
+    "LOKA_TAB_COUNT must be a positive integer")
 say("selecting the application (%d tabs)", tabCount)
 for _ = 1, tabCount do
     tap(tabKey)
