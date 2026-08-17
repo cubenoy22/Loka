@@ -3,12 +3,29 @@ set -euo pipefail
 
 source "${ROOT_DIR}/scripts/apple/lib-xcode.sh"
 
+loka_target_manifest() {
+  # target | default selection | output shape | executable path
+  printf '%s\n' \
+    "LokaFloppyBirdMacOS|default|executable|example/FloppyBird/LokaFloppyBirdMacOS" \
+    "LokaHelloMacOS|default|executable|example/HelloWorld/LokaHelloMacOS" \
+    "LokaMineMacOS|default|executable|example/MineSweeper/LokaMineMacOS" \
+    "LokaSimpleViewerMacOS|default|executable|example/SimpleViewer/LokaSimpleViewerMacOS" \
+    "ScrapbookUIMacOS|default|bundle|example/ScrapbookUI/ScrapbookUIMacOS.app/Contents/MacOS/ScrapbookUIMacOS" \
+    "LokaTutorialMacOS|default|executable|example/Tutorial/LokaTutorialMacOS" \
+    "LokaScrapbookStandaloneFlowMacOS|explicit|bundle|apple/macos/LokaScrapbookStandaloneFlowMacOS.app/Contents/MacOS/LokaScrapbookStandaloneFlowMacOS"
+}
+
 loka_known_targets() {
-  echo "LokaFloppyBirdMacOS"
-  echo "LokaHelloMacOS"
-  echo "LokaMineMacOS"
-  echo "LokaSimpleViewerMacOS"
-  echo "LokaTutorialMacOS"
+  local target_name
+  local selection
+  local _output_shape
+  local _rel_path
+
+  while IFS='|' read -r target_name selection _output_shape _rel_path; do
+    if [[ "${selection}" == "default" ]]; then
+      echo "${target_name}"
+    fi
+  done < <(loka_target_manifest)
 }
 
 loka_find_selected_tool() {
@@ -72,33 +89,57 @@ loka_find_selected_sdk() {
   return 1
 }
 
+loka_target_record() {
+  local requested_target="$1"
+  local target_name
+  local selection
+  local output_shape
+  local rel_path
+
+  while IFS='|' read -r target_name selection output_shape rel_path; do
+    if [[ "${target_name}" == "${requested_target}" ]]; then
+      printf '%s|%s|%s|%s\n' \
+        "${target_name}" "${selection}" "${output_shape}" "${rel_path}"
+      return 0
+    fi
+  done < <(loka_target_manifest)
+
+  return 1
+}
+
 loka_target_rel_path() {
-  case "$1" in
-    LokaFloppyBirdMacOS) echo "example/FloppyBird/LokaFloppyBirdMacOS" ;;
-    LokaHelloMacOS) echo "example/HelloWorld/LokaHelloMacOS" ;;
-    LokaMineMacOS) echo "example/MineSweeper/LokaMineMacOS" ;;
-    LokaSimpleViewerMacOS) echo "example/SimpleViewer/LokaSimpleViewerMacOS" ;;
-    LokaScrapbookStandaloneFlowMacOS)
-      echo "apple/macos/LokaScrapbookStandaloneFlowMacOS.app/Contents/MacOS/LokaScrapbookStandaloneFlowMacOS"
-      ;;
-    LokaTutorialMacOS) echo "example/Tutorial/LokaTutorialMacOS" ;;
-    *) return 1 ;;
-  esac
+  local requested_target="$1"
+  local record
+
+  record="$(loka_target_record "${requested_target}" || true)"
+  if [[ -z "${record}" ]]; then
+    return 1
+  fi
+  echo "${record##*|}"
 }
 
 loka_cleanup_stale_output_dirs() {
   local build_dir="$1"
+  local target_name
+  local _selection
+  local output_shape
   local rel_path
-  for rel_path in \
-    "example/FloppyBird/LokaFloppyBirdMacOS" \
-    "example/HelloWorld/LokaHelloMacOS" \
-    "example/MineSweeper/LokaMineMacOS" \
-    "example/SimpleViewer/LokaSimpleViewerMacOS" \
-    "example/Tutorial/LokaTutorialMacOS"; do
-    if [[ -d "${build_dir}/${rel_path}" ]]; then
-      rm -rf "${build_dir:?}/${rel_path}"
+  local cleanup_rel_path
+
+  while IFS='|' read -r target_name _selection output_shape rel_path; do
+    case "${output_shape}" in
+      executable) cleanup_rel_path="${rel_path}" ;;
+      bundle) cleanup_rel_path="${rel_path%%/Contents/MacOS/*}" ;;
+      *)
+        echo "error: unknown output shape '${output_shape}' for ${target_name}." >&2
+        return 1
+        ;;
+    esac
+
+    if [[ -d "${build_dir}/${cleanup_rel_path}" ]]; then
+      rm -rf "${build_dir:?}/${cleanup_rel_path}"
     fi
-  done
+  done < <(loka_target_manifest)
 }
 
 loka_build_requested_or_known_targets() {
@@ -122,37 +163,92 @@ loka_merge_requested_or_known_targets_two_arch() {
   local arch_a="$3"
   local arch_b="$4"
   local target_name
-  local rel_path
-  local bin_a
-  local bin_b
-  local out_bin
 
   mkdir -p "${build_root}/universal"
 
   if [[ -n "${TARGET:-}" ]]; then
-    rel_path="$(loka_target_rel_path "${TARGET}" || true)"
-    if [[ -n "${rel_path}" ]]; then
-      bin_a="${build_root}/${build_cfg}-${arch_a}/${rel_path}"
-      bin_b="${build_root}/${build_cfg}-${arch_b}/${rel_path}"
-      out_bin="${build_root}/universal/$(basename "${rel_path}")"
-      if [[ -f "${bin_a}" && -f "${bin_b}" ]]; then
-        lipo -create "${bin_a}" "${bin_b}" -output "${out_bin}"
-        lipo -info "${out_bin}"
-      fi
-    fi
+    loka_merge_target_archs \
+      "${build_root}" "${build_cfg}" "${arch_a};${arch_b}" "${TARGET}"
     return
   fi
 
   for target_name in $(loka_known_targets); do
-    rel_path="$(loka_target_rel_path "${target_name}")"
-    bin_a="${build_root}/${build_cfg}-${arch_a}/${rel_path}"
-    bin_b="${build_root}/${build_cfg}-${arch_b}/${rel_path}"
-    out_bin="${build_root}/universal/$(basename "${rel_path}")"
-    if [[ -f "${bin_a}" && -f "${bin_b}" ]]; then
-      lipo -create "${bin_a}" "${bin_b}" -output "${out_bin}"
-      lipo -info "${out_bin}"
+    loka_merge_target_archs \
+      "${build_root}" "${build_cfg}" "${arch_a};${arch_b}" "${target_name}"
+  done
+}
+
+loka_merge_target_archs() {
+  local build_root="$1"
+  local build_cfg="$2"
+  local archs_csv="$3"
+  local requested_target="$4"
+  local record
+  local target_name
+  local _selection
+  local output_shape
+  local rel_path
+  local bundle_rel_path
+  local source_bundle
+  local out_bundle
+  local out_bin
+  local arch
+  local bin
+  local merge_inputs=()
+  local IFS=';'
+
+  record="$(loka_target_record "${requested_target}" || true)"
+  if [[ -z "${record}" ]]; then
+    return
+  fi
+  IFS='|' read -r target_name _selection output_shape rel_path <<< "${record}"
+  IFS=';'
+
+  for arch in ${archs_csv}; do
+    bin="${build_root}/${build_cfg}-${arch}/${rel_path}"
+    if [[ -f "${bin}" ]]; then
+      merge_inputs+=("${bin}")
     fi
   done
+
+  if [[ "${#merge_inputs[@]}" -eq 0 ]]; then
+    return
+  fi
+
+  case "${output_shape}" in
+    executable)
+      out_bin="${build_root}/universal/$(basename "${rel_path}")"
+      ;;
+    bundle)
+      bundle_rel_path="${rel_path%%/Contents/MacOS/*}"
+      source_bundle=""
+      for arch in ${archs_csv}; do
+        if [[ -d "${build_root}/${build_cfg}-${arch}/${bundle_rel_path}" ]]; then
+          source_bundle="${build_root}/${build_cfg}-${arch}/${bundle_rel_path}"
+          break
+        fi
+      done
+      if [[ -z "${source_bundle}" ]]; then
+        echo "error: no source bundle found for ${target_name}." >&2
+        return 1
+      fi
+      out_bundle="${build_root}/universal/$(basename "${bundle_rel_path}")"
+      rm -rf "${out_bundle}"
+      cp -R "${source_bundle}" "${out_bundle}"
+      out_bin="${out_bundle}/Contents/MacOS/$(basename "${rel_path}")"
+      ;;
+    *)
+      echo "error: unknown output shape '${output_shape}' for ${target_name}." >&2
+      return 1
+      ;;
+  esac
+
+  if [[ "${#merge_inputs[@]}" -ge 2 ]]; then
+    lipo -create "${merge_inputs[@]}" -output "${out_bin}"
+    lipo -info "${out_bin}"
+  else
+    cp -f "${merge_inputs[0]}" "${out_bin}"
+  fi
 }
 
 loka_merge_requested_or_known_targets_multi_arch() {
@@ -160,44 +256,17 @@ loka_merge_requested_or_known_targets_multi_arch() {
   local build_cfg="$2"
   local archs_csv="$3"
   local target_name
-  local rel_path
-  local out_bin
-  local arch
-  local bin
-  local inputs
-  local IFS
 
   mkdir -p "${build_root}/universal"
 
-  merge_one() {
-    local merge_rel_path="$1"
-    local merge_out_bin="${build_root}/universal/$(basename "${merge_rel_path}")"
-    local merge_inputs=()
-    local IFS=';'
-    for arch in ${archs_csv}; do
-      bin="${build_root}/${build_cfg}-${arch}/${merge_rel_path}"
-      if [[ -f "${bin}" ]]; then
-        merge_inputs+=("${bin}")
-      fi
-    done
-    if [[ "${#merge_inputs[@]}" -ge 2 ]]; then
-      lipo -create "${merge_inputs[@]}" -output "${merge_out_bin}"
-      lipo -info "${merge_out_bin}"
-    elif [[ "${#merge_inputs[@]}" -eq 1 ]]; then
-      cp -f "${merge_inputs[0]}" "${merge_out_bin}"
-    fi
-  }
-
   if [[ -n "${TARGET:-}" ]]; then
-    rel_path="$(loka_target_rel_path "${TARGET}" || true)"
-    if [[ -n "${rel_path}" ]]; then
-      merge_one "${rel_path}"
-    fi
+    loka_merge_target_archs \
+      "${build_root}" "${build_cfg}" "${archs_csv}" "${TARGET}"
     return
   fi
 
   for target_name in $(loka_known_targets); do
-    rel_path="$(loka_target_rel_path "${target_name}")"
-    merge_one "${rel_path}"
+    loka_merge_target_archs \
+      "${build_root}" "${build_cfg}" "${archs_csv}" "${target_name}"
   done
 }
