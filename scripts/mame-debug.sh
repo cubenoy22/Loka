@@ -149,17 +149,31 @@ if [ "$MODE" = "find" ]; then
 fi
 
 # Current MAME binds the gdbstub to 127.0.0.1 by default (the older builds
-# this rig was proven on listened on every interface), and WSL cannot reach
-# the Windows loopback across the NAT boundary -- the attach times out with
-# the listener visibly LISTENING. Bind to the WSL-facing vEthernet address
-# (the default gateway as seen from WSL) instead; never 0.0.0.0, so the
-# stub is not exposed beyond the WSL link. MAME_DEBUG_HOST overrides for
-# non-WSL setups, where the loopback default was never broken.
+# this rig was proven on listened on every interface), and WSL2 NAT cannot
+# reach the Windows loopback -- the attach times out with the listener
+# visibly LISTENING. Only in that mode is the Windows host the WSL default
+# gateway (the vEthernet address), so only there is the gateway a valid
+# bind address. WSL1 and WSL2 mirrored networking share the Windows
+# loopback, and their default route is the LAN router, which Windows does
+# not own as a bind address -- keep the loopback default for them. wslinfo
+# is absent on WSL1; any failure therefore reads as "not NAT".
+# MAME_DEBUG_HOST overrides the derivation entirely.
 STUB_HOST="${MAME_DEBUG_HOST:-}"
 if [ -z "$STUB_HOST" ] && [ "$IS_WSL" = "1" ]; then
-  STUB_HOST="$(ip route 2>/dev/null | awk '/^default/{print $3; exit}')"
+  if [ "$(wslinfo --networking-mode 2>/dev/null)" = "nat" ]; then
+    STUB_HOST="$(ip route 2>/dev/null | awk '/^default/{print $3; exit}')"
+  fi
 fi
 STUB_HOST="${STUB_HOST:-127.0.0.1}"
+# The stub is unauthenticated remote control of the emulated machine; a
+# wildcard bind would expose it on every interface, which the docs promise
+# never happens -- including through the override door.
+case "$STUB_HOST" in
+  0.0.0.0 | ::)
+    echo "refusing to bind the gdbstub to every interface ($STUB_HOST); set MAME_DEBUG_HOST to one address" >&2
+    exit 2
+    ;;
+esac
 ARGS+=(-debug -debugger gdbstub -debugger_host "$STUB_HOST" -debugger_port "$PORT")
 "$MAME_EXECUTABLE" "${ARGS[@]}" >"$WORK/mame.out" 2>&1 &
 MAME_PID=$!

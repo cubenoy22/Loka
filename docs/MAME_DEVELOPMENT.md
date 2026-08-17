@@ -667,9 +667,14 @@ different jobs; expecting the second to provide the first will disappoint.
   it to `127.0.0.1`, which WSL cannot reach across the NAT boundary — the
   listener shows LISTENING in `netstat.exe` while the attach times out.
   `mame-debug.sh` now passes the WSL default gateway (the Windows vEthernet
-  address) as the bind host on WSL, keeps the loopback default elsewhere, and
-  honors `MAME_DEBUG_HOST` as an explicit override. It deliberately never
-  binds `0.0.0.0`: the stub is unauthenticated remote control of the machine.
+  address) as the bind host — but only under WSL2 NAT networking, where that
+  gateway *is* the Windows host (`wslinfo --networking-mode`). WSL1 and WSL2
+  mirrored networking share the Windows loopback, and their default route is
+  the LAN router, which Windows does not own as a bind address, so they keep
+  the loopback default. `MAME_DEBUG_HOST` overrides the derivation entirely.
+  The launcher deliberately never binds `0.0.0.0` — including through the
+  override, which refuses wildcard values: the stub is unauthenticated remote
+  control of the machine.
 - **The stub has no 68040 description.** `-debugger gdbstub` on `macqd700`
   dies at startup with `Fatal error: gdbstub: cpuname m68040 not found in gdb
   stub descriptions` (probed on #398). 68030 machines (`maciix`) attach fine,

@@ -48,6 +48,30 @@ cat >"$SANDBOX/bin/sleep" <<'EOF'
 exit 0
 EOF
 
+# WSL-branch stand-ins: the launcher consults wslinfo for the networking
+# mode, ip for the default route, wslpath for path translation, and
+# netstat.exe for the listener wait.
+cat >"$SANDBOX/bin/wslinfo" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "${FAKE_WSL_MODE:-nat}"
+EOF
+
+cat >"$SANDBOX/bin/ip" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' 'default via 10.1.2.3 dev eth0'
+EOF
+
+cat >"$SANDBOX/bin/wslpath" <<'EOF'
+#!/usr/bin/env bash
+shift
+printf '%s' "$1"
+EOF
+
+cat >"$SANDBOX/bin/netstat.exe" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' '  TCP    10.1.2.3:12399  0.0.0.0:0  LISTENING'
+EOF
+
 cat >"$SANDBOX/fake-mame" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$@" > "$SANDBOX/mame.argv"
@@ -61,6 +85,10 @@ chmod +x \
   "$SANDBOX/bin/gdb-multiarch" \
   "$SANDBOX/bin/ss" \
   "$SANDBOX/bin/sleep" \
+  "$SANDBOX/bin/wslinfo" \
+  "$SANDBOX/bin/ip" \
+  "$SANDBOX/bin/wslpath" \
+  "$SANDBOX/bin/netstat.exe" \
   "$SANDBOX/fake-mame"
 
 touch "$SANDBOX/dummy.hda" "$SANDBOX/app.bin"
@@ -175,6 +203,49 @@ run_case \
   "MAME_DEBUG_HOST=10.9.8.7"
 assert_stub_host stub-host-override 10.9.8.7
 pass stub-host-override
+
+# Only WSL2 NAT substitutes the gateway; WSL1 (no wslinfo) and mirrored
+# networking share the Windows loopback and must keep it. The run_case
+# helper unsets WSL_INTEROP, so these cases re-set it to enter the branch.
+run_case \
+  wsl-nat-gateway \
+  0 \
+  0 \
+  yes \
+  "WSL_INTEROP=1" "FAKE_WSL_MODE=nat"
+assert_stub_host wsl-nat-gateway 10.1.2.3
+pass wsl-nat-gateway
+
+run_case \
+  wsl-mirrored-loopback \
+  0 \
+  0 \
+  yes \
+  "WSL_INTEROP=1" "FAKE_WSL_MODE=mirrored"
+assert_stub_host wsl-mirrored-loopback 127.0.0.1
+pass wsl-mirrored-loopback
+
+# A wildcard override must be refused before the emulator ever starts:
+# the stub is unauthenticated remote control, and the docs promise the
+# launcher never binds every interface. No run_case here -- the refusal
+# exits before fake MAME records a PID, which run_case would treat as a
+# failure to reap.
+rm -f "$SANDBOX/mame.pid" "$SANDBOX/mame.argv" "$SANDBOX/app.code.bin.gdb"
+touch "$SANDBOX/app.code.bin.gdb"
+if MAME_ENV_FILE="$SANDBOX/mame.env" \
+    env -u WSL_INTEROP -u LOKA_DEV_DATA -u LOKA_GDB_SCRIPT \
+      MAME_DEBUG_HOST=0.0.0.0 \
+      bash "$SANDBOX/scripts/mame-debug.sh" \
+      attach "$SANDBOX/app.bin" 4feffefc 48e71e30 00029372 0x00700000 \
+      >"$SANDBOX/wildcard-rejected.log" 2>&1; then
+  fail wildcard-rejected "a wildcard bind override was accepted"
+fi
+grep -q "refusing to bind the gdbstub to every interface" \
+  "$SANDBOX/wildcard-rejected.log" ||
+  fail wildcard-rejected "the refusal did not explain itself"
+[ ! -f "$SANDBOX/mame.pid" ] ||
+  fail wildcard-rejected "the emulator was launched despite the refusal"
+pass wildcard-rejected
 
 run_case reap-on-gdb-failure 3 3 yes
 pass reap-on-gdb-failure
