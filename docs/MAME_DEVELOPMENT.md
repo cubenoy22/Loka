@@ -188,6 +188,57 @@ The config-required `tests/toolbox/run-scenario.sh floppybird
 fixed-step-flaps` command remains the automated machine verdict and
 settled-pixel rail.
 
+### Classic scenario loop reels
+
+The TEST-only `LokaHelloScenarioLoop68K_APPL` and
+`LokaMineScenarioLoop68K_APPL` targets present every registered HelloWorld or
+MineSweeper scenario cell in order, wrap to the first cell, and continue until
+the user quits. Like the standalone Flow applications, the reels do not read
+`LokaTest.cfg` or require a host scenario controller. Both targets are
+`EXCLUDE_FROM_ALL`: they are human-facing presentation assets and never part of
+the default build or a gating test run.
+
+Build both excluded APPL targets from the repository root:
+
+```sh
+cmake --preset retro68-68k-release
+cmake --build --preset retro68-68k-release --target \
+  LokaHelloScenarioLoop68K_APPL LokaMineScenarioLoop68K_APPL
+```
+
+For MAME, run **Build & Start in MAME via SCSI: HelloWorld Scenario Loop** or
+**Build & Start in MAME via SCSI: MineSweeper Scenario Loop**. Each task builds
+the selected APPL, passes its MacBinary to `scripts/mame-dev-disk.sh`, and then
+starts MAME with the generated `LokaDev` disk at SCSI ID 5. The equivalent
+manual HelloWorld route is:
+
+```sh
+./scripts/mame-dev-disk.sh \
+  build/retro68/68k/Release/tests/toolbox/LokaHelloScenarioLoop68K.bin
+./scripts/mame-run.sh
+```
+
+For the MineSweeper reel, use:
+
+```sh
+./scripts/mame-dev-disk.sh \
+  build/retro68/68k/Release/tests/toolbox/LokaMineScenarioLoop68K.bin
+./scripts/mame-run.sh
+```
+
+For real Classic hardware, use the self-contained HFS disk images emitted by
+the same build:
+
+```text
+build/retro68/68k/Release/tests/toolbox/LokaHelloScenarioLoop68K.dsk
+build/retro68/68k/Release/tests/toolbox/LokaMineScenarioLoop68K.dsk
+```
+
+Stage the chosen `.dsk` with the SD-SCSI adapter's raw-image workflow, preserving
+the image bytes, then present or mount that image on the Classic Mac and open
+the reel application. This is the same transportable `.dsk` route used by the
+standalone Flow stage; it needs no sidecar assets.
+
 ## Floppy workflow
 
 Run `MAME: Start` once, then use `MAME: Mount .dsk (pick app)` or one of the

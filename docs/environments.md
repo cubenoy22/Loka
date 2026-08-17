@@ -69,7 +69,15 @@ This is the environment where binaries are actually built.
   user closes it. It reads no `LokaTest.cfg` and publishes no audit or capture
   marker.
 
-  On macOS, build both reels from a Terminal opened at the repository root:
+  On Classic, use **Build & Start in MAME via SCSI: HelloWorld Scenario Loop**
+  or **Build & Start in MAME via SCSI: MineSweeper Scenario Loop**. The same
+  build emits self-contained `.dsk` images for real hardware; see
+  [Classic scenario loop reels](MAME_DEVELOPMENT.md#classic-scenario-loop-reels)
+  for the exact build, MAME, and SD-SCSI routes.
+
+  On macOS, use **Run (macOS HelloWorld Scenario Loop)** or **Run (macOS
+  MineSweeper Scenario Loop)** in VS Code. The equivalent Terminal commands
+  from the repository root are:
 
   ```sh
   cmake --preset macos-debug
@@ -78,7 +86,8 @@ This is the environment where binaries are actually built.
   open build/macos/Debug/apple/macos/LokaMineSweeperScenarioLoopMacOS.app
   ```
 
-  The apps stop when the user chooses Quit or presses Command-Q. On Win32, use
+  The macOS apps stop when the user chooses Quit or presses Command-Q. On
+  Win32, use
   `Run (Windows HelloWorld Scenario Loop)` or
   `Run (Windows MineSweeper Scenario Loop)` for a Debug desk build. For a
   portable Release reel, use the architecture-specific presentation preset;

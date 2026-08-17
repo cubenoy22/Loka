@@ -50,6 +50,22 @@
       "preLaunchTask": "Build: macOS Tutorial"
     },
     {
+      "name": "Run (macOS HelloWorld Scenario Loop)",
+      "type": "lldb-dap",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/macos/Debug/apple/macos/LokaHelloWorldScenarioLoopMacOS.app/Contents/MacOS/LokaHelloWorldScenarioLoopMacOS",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Build: macOS HelloWorld Scenario Loop"
+    },
+    {
+      "name": "Run (macOS MineSweeper Scenario Loop)",
+      "type": "lldb-dap",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/macos/Debug/apple/macos/LokaMineSweeperScenarioLoopMacOS.app/Contents/MacOS/LokaMineSweeperScenarioLoopMacOS",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Build: macOS MineSweeper Scenario Loop"
+    },
+    {
       "name": "Run (Windows HelloWorld)",
       "type": "cppvsdbg",
       "request": "launch",
