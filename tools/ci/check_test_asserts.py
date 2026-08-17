@@ -42,6 +42,16 @@ ACCESSOR_NAMES = frozenset(
         "end",
         "c_str",
         "length",
+        # Pure query and constructor names any test may verify against, for the
+        # same reason `sizeof` is skipped as a subject: one correct
+        # `LOKA_VERIFY(text.find(...) == 0)` or `LOKA_VERIFY(std::string(p) ==
+        # "x")` would otherwise teach the corpus a name that appears in
+        # comparisons all over the tree and flag every one of them. A `find`
+        # that really does work -- an overload filling an out-parameter -- is
+        # not protected by this entry and must still use LOKA_VERIFY
+        # (tests/StartupRedrawTests.cpp does, deliberately).
+        "find",
+        "string",
     ]
 )
 

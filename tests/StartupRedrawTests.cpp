@@ -401,7 +401,9 @@ void testToolboxEditControlDetachRetiresExactContext()
          "retiring a lower binding must preserve focus on the surviving control");
 
   std::size_t survivingIndex = 0;
-  assert(editControls.find(&survivingContext, survivingIndex));
+  // find() fills survivingIndex; erased under NDEBUG it would leave the
+  // initial 0 and erase whichever binding happens to sit first.
+  LOKA_VERIFY(editControls.find(&survivingContext, survivingIndex));
   editControls.erase(survivingIndex);
   assert(!editControls.focused() &&
          "retiring the focused context must synchronously clear native edit focus");
