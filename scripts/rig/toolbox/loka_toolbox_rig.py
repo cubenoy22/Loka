@@ -141,17 +141,26 @@ def stage_goldens(checkout: pathlib.Path, golden_root: pathlib.Path) -> tuple[tu
     scenarios = _read_scenarios(checkout)
     destination = checkout / "build" / "mame-scenario" / "golden"
     temporary = destination.with_name("golden.tmp")
+    sources: list[tuple[str, pathlib.Path, pathlib.Path]] = []
+    for example, scenario in scenarios:
+        golden = golden_root / example / f"{scenario}.png"
+        sources.append((example, golden, golden.with_name(f"{golden.name}.mame-machine")))
     try:
-        for example, scenario in scenarios:
-            source = golden_root / example / f"{scenario}.png"
-            if not source.is_file() or source.is_symlink():
-                raise RigError("golden-preflight", f"missing finalized rig-local golden: {source}")
+        for _example, golden, machine_record in sources:
+            if not golden.is_file() or golden.is_symlink():
+                raise RigError("golden-preflight", f"missing finalized rig-local golden: {golden}")
+            if not machine_record.is_file() or machine_record.is_symlink():
+                raise RigError(
+                    "golden-preflight",
+                    f"missing machine record {machine_record} for existing {golden}; "
+                    "re-record via --update-golden, or write the record by hand if provenance is known",
+                )
         temporary.mkdir(parents=True, exist_ok=False)
-        for example, scenario in scenarios:
-            source = golden_root / example / f"{scenario}.png"
+        for example, golden, machine_record in sources:
             destination_dir = temporary / example
             destination_dir.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, destination_dir / source.name)
+            shutil.copy2(golden, destination_dir / golden.name)
+            shutil.copy2(machine_record, destination_dir / machine_record.name)
         temporary.replace(destination)
     except RigError:
         raise

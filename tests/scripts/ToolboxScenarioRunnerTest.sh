@@ -187,6 +187,8 @@ verify_startup_verdict() {
   local example="$1"
   mkdir -p "$SANDBOX/repo/build/mame-scenario/golden/$example"
   cp "$SANDBOX/snapshot.png" "$SANDBOX/repo/build/mame-scenario/golden/$example/startup.png"
+  printf 'maciix\n' \
+    >"$SANDBOX/repo/build/mame-scenario/golden/$example/startup.png.mame-machine"
   if ! MAME_ENV_FILE="$SANDBOX/mame.env" \
       RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
       FAKE_MAME_RESULT=success FAKE_EXAMPLE="$example" \
@@ -213,5 +215,58 @@ verify_startup_verdict helloworld
 verify_startup_verdict tutorial
 verify_startup_verdict minesweeper
 verify_startup_verdict floppybird
+
+verify_golden_machine_guard() {
+  local golden_dir="$SANDBOX/repo/build/mame-scenario/golden/helloworld"
+  local machine_record="$golden_dir/startup.png.mame-machine"
+
+  printf 'maciix\n' >"$machine_record"
+  if MAME_ENV_FILE="$SANDBOX/mame.env" MAME_MACHINE=macqd700 \
+      RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
+      FAKE_MAME_RESULT=success FAKE_EXAMPLE=helloworld \
+      env -u WSL_INTEROP -u LOKA_TAB_COUNT \
+      bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" helloworld startup \
+        >"$SANDBOX/runner-machine-mismatch.log" 2>&1; then
+    fail "golden machine mismatch unexpectedly passed"
+  fi
+  grep -Fq "was recorded on MAME machine 'maciix', but the current machine is 'macqd700'" \
+    "$SANDBOX/runner-machine-mismatch.log" \
+    || fail "golden machine mismatch did not report both machine names"
+
+  rm "$machine_record"
+  if MAME_ENV_FILE="$SANDBOX/mame.env" \
+      RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
+      FAKE_MAME_RESULT=success FAKE_EXAMPLE=helloworld \
+      env -u WSL_INTEROP -u LOKA_TAB_COUNT \
+      bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" helloworld startup \
+        >"$SANDBOX/runner-machine-missing.log" 2>&1; then
+    fail "golden without a machine record unexpectedly passed"
+  fi
+  grep -Fq "rerun with --update-golden, or write 'maciix' to $machine_record" \
+    "$SANDBOX/runner-machine-missing.log" \
+    || fail "missing golden machine record did not explain both recovery paths"
+
+  if ! MAME_ENV_FILE="$SANDBOX/mame.env" MAME_MACHINE=macqd700 \
+      RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
+      FAKE_MAME_RESULT=success FAKE_EXAMPLE=helloworld \
+      env -u WSL_INTEROP -u LOKA_TAB_COUNT \
+      bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" helloworld startup \
+        --update-golden >"$SANDBOX/runner-machine-update.log" 2>&1; then
+    fail "golden update failed while recording its machine"
+  fi
+  [ "$(cat "$machine_record")" = "macqd700" ] \
+    || fail "golden update did not record the current machine"
+
+  if ! MAME_ENV_FILE="$SANDBOX/mame.env" MAME_MACHINE=macqd700 \
+      RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
+      FAKE_MAME_RESULT=success FAKE_EXAMPLE=helloworld \
+      env -u WSL_INTEROP -u LOKA_TAB_COUNT \
+      bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" helloworld startup \
+        >"$SANDBOX/runner-machine-match.log" 2>&1; then
+    fail "golden recorded on the current machine did not pass"
+  fi
+}
+
+verify_golden_machine_guard
 
 echo "Toolbox scenario runner tests passed"

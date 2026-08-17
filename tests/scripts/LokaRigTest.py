@@ -286,10 +286,16 @@ class ToolboxRigAdapterTest(unittest.TestCase):
             (golden / "first").mkdir(parents=True)
             (golden / "second").mkdir()
             (golden / "first" / "alpha.png").write_bytes(b"alpha")
+            (golden / "first" / "alpha.png.mame-machine").write_text(
+                "maciix\n", encoding="utf-8"
+            )
             with self.assertRaises(common.RigError) as caught:
                 toolbox.stage_goldens(checkout, golden)
             self.assertEqual(caught.exception.stage, "golden-preflight")
             (golden / "second" / "beta.png").write_bytes(b"beta")
+            (golden / "second" / "beta.png.mame-machine").write_text(
+                "maciix\n", encoding="utf-8"
+            )
             staged = toolbox.stage_goldens(checkout, golden)
             self.assertEqual(staged, (("first", "alpha"), ("second", "beta")))
             self.assertEqual(
@@ -303,6 +309,37 @@ class ToolboxRigAdapterTest(unittest.TestCase):
                 ).read_bytes(),
                 b"beta",
             )
+
+    def test_golden_staging_requires_and_copies_machine_records(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            checkout = root / "checkout"
+            registry = checkout / "tests" / "scenarios" / "scenarios.txt"
+            registry.parent.mkdir(parents=True)
+            registry.write_text("first alpha\n", encoding="utf-8")
+            golden = root / "golden" / "first" / "alpha.png"
+            golden.parent.mkdir(parents=True)
+            golden.write_bytes(b"alpha")
+
+            with self.assertRaises(common.RigError) as caught:
+                toolbox.stage_goldens(checkout, root / "golden")
+            self.assertEqual(caught.exception.stage, "golden-preflight")
+            self.assertIn("missing machine record", str(caught.exception))
+            self.assertIn("--update-golden", str(caught.exception))
+            self.assertIn("write the record by hand", str(caught.exception))
+
+            machine_record = golden.with_name(f"{golden.name}.mame-machine")
+            machine_record.write_text("maciix\n", encoding="utf-8")
+            toolbox.stage_goldens(checkout, root / "golden")
+            staged_record = (
+                checkout
+                / "build"
+                / "mame-scenario"
+                / "golden"
+                / "first"
+                / "alpha.png.mame-machine"
+            )
+            self.assertEqual(staged_record.read_text(encoding="utf-8"), "maciix\n")
 
 
 if __name__ == "__main__":
