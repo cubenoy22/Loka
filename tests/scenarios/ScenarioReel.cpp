@@ -59,14 +59,11 @@ namespace loka
 
     bool RearmScenarioScene(Window *window)
     {
-      app::scene::Scene *scene = window ? window->scene() : 0;
-      if (!scene)
+      if (!window)
       {
         return false;
       }
-      scene->updateAttached(false);
-      scene->updateAttached(true);
-      return true;
+      return window->sceneManager()->rearmCurrentScene();
     }
   } // namespace scenario_tests
 } // namespace loka

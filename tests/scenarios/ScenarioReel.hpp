@@ -17,6 +17,16 @@ namespace loka
 {
   namespace scenario_tests
   {
+#ifdef TEST_BUILD
+    namespace testing
+    {
+      /** Refuses the next count ScenarioReel driver allocations. */
+      void failScenarioReelDriverAllocations(int count);
+      void allowScenarioReelDriverAllocations();
+      bool shouldAllocateScenarioReelDriver();
+    } // namespace testing
+#endif
+
     /** Where a reel stands and how many full passes it has completed.
 
         Separated from the running machinery because it is the only part with
@@ -84,7 +94,7 @@ namespace loka
             driver_(0),
             tick_(0),
             holdRemaining_(0.0),
-            holding_(false)
+            phase_(REEL_STEPPING)
       {
         this->arm();
       }
@@ -92,11 +102,11 @@ namespace loka
       /** One idle tick from the platform pump. */
       void tick(Window *window, double elapsedSeconds)
       {
-        if (this->position_.exhausted() || !this->driver_.get())
+        if (this->position_.exhausted() || this->phase_ == REEL_FAILED || !this->driver_.get())
         {
           return;
         }
-        if (this->holding_)
+        if (this->phase_ == REEL_HOLDING)
         {
           this->holdRemaining_ -= elapsedSeconds;
           if (this->holdRemaining_ > 0.0)
@@ -115,16 +125,16 @@ namespace loka
           break;
         case SCENARIO_ADVANCE_DRIVER_COMPLETION_READY:
         case SCENARIO_ADVANCE_FINAL_SCENE_HELD:
-          this->holding_ = true;
+          this->phase_ = REEL_HOLDING;
           this->holdRemaining_ = this->holdSeconds_;
           break;
         }
       }
 
-      /** True once a bounded budget is spent; always false for a shipping reel. */
+      /** True once a bounded budget is spent or the reel cannot continue. */
       bool finished() const
       {
-        return this->position_.exhausted();
+        return this->position_.exhausted() || this->phase_ == REEL_FAILED;
       }
 
       long completedCycles() const
@@ -138,6 +148,13 @@ namespace loka
       }
 
     private:
+      enum ReelPhase
+      {
+        REEL_STEPPING = 0,
+        REEL_HOLDING,
+        REEL_FAILED
+      };
+
       void rearm(Window *window)
       {
         this->position_.advance();
@@ -147,27 +164,59 @@ namespace loka
         {
           return;
         }
+        core::ScopedPtr<SceneScenarioDriver<InteractionScenario> > replacement(
+            this->allocateDriver(this->position_.cell()));
+        if (!replacement.get())
+        {
+          // Retire loudly instead of leaving an endless reel idle forever.
+          // The settled scene stays visible until ScenarioLoopAppConfig sees
+          // finished() and quits to the platform's terminal presentation.
+          this->phase_ = REEL_FAILED;
+          return;
+        }
         (void)RearmScenarioScene(window);
-        this->arm();
+        this->driver_.reset(replacement.release());
+        this->resetDriverClock();
       }
 
       void arm()
       {
         const char *name = this->position_.cell();
-        this->tick_ = 0;
-        this->holding_ = false;
-        this->holdRemaining_ = 0.0;
         if (!name)
         {
           return;
         }
-        this->driver_.reset(new (std::nothrow) SceneScenarioDriver<InteractionScenario>(
+        this->driver_.reset(this->allocateDriver(name));
+        if (!this->driver_.get())
+        {
+          this->phase_ = REEL_FAILED;
+          return;
+        }
+        this->resetDriverClock();
+      }
+
+      SceneScenarioDriver<InteractionScenario> *allocateDriver(const char *name) const
+      {
+#ifdef TEST_BUILD
+        if (!testing::shouldAllocateScenarioReelDriver())
+        {
+          return 0;
+        }
+#endif
+        return new (std::nothrow) SceneScenarioDriver<InteractionScenario>(
             IsStartupScenario(name),
             this->startupExample_,
             std::string(name),
             this->errorFactory_,
             this->interactionErrorCode_,
-            0));
+            0);
+      }
+
+      void resetDriverClock()
+      {
+        this->tick_ = 0;
+        this->holdRemaining_ = 0.0;
+        this->phase_ = REEL_STEPPING;
       }
 
       ScenarioReelPosition position_;
@@ -178,7 +227,7 @@ namespace loka
       core::ScopedPtr<SceneScenarioDriver<InteractionScenario> > driver_;
       long tick_;
       double holdRemaining_;
-      bool holding_;
+      ReelPhase phase_;
 
       ScenarioReel(const ScenarioReel &);
       ScenarioReel &operator=(const ScenarioReel &);

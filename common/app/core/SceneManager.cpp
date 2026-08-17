@@ -2,6 +2,7 @@
 #include <cassert>
 #include "app/scene/Scene.hpp"
 #include "core/util/StateUtil.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 
 unsigned long SceneManager::SceneTransactionList::nextId_ = 1;
 
@@ -53,6 +54,20 @@ void SceneManager::commitTransaction(loka::app::scene::Scene *, loka::app::scene
 const loka::core::State<loka::app::scene::Scene *> &SceneManager::getCurrentScene() const
 {
   return currentScene_;
+}
+
+bool SceneManager::rearmCurrentScene()
+{
+  loka::app::scene::Scene *current = currentScene_.get();
+  if (!current)
+  {
+    return false;
+  }
+  // Match swapScene: attachment mutations are one SceneManager transaction.
+  loka::core::StateTrackerGuard guard(&tracker_);
+  current->updateAttached(false);
+  current->updateAttached(true);
+  return true;
 }
 
 SceneManager::SceneTransactionList SceneManager::getPendingTransactions() const

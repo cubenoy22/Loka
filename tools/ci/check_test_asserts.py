@@ -42,15 +42,10 @@ ACCESSOR_NAMES = frozenset(
         "end",
         "c_str",
         "length",
-        # Pure query and constructor names any test may verify against, for the
-        # same reason `sizeof` is skipped as a subject: one correct
-        # `LOKA_VERIFY(text.find(...) == 0)` or `LOKA_VERIFY(std::string(p) ==
-        # "x")` would otherwise teach the corpus a name that appears in
-        # comparisons all over the tree and flag every one of them. A `find`
-        # that really does work -- an overload filling an out-parameter -- is
-        # not protected by this entry and must still use LOKA_VERIFY
-        # (tests/StartupRedrawTests.cpp does, deliberately).
-        "find",
+        # Constructor names any test may verify against, for the same reason
+        # `sizeof` is skipped as a subject: one correct
+        # `LOKA_VERIFY(std::string(p) == "x")` would otherwise teach the corpus
+        # a name that appears in comparisons all over the tree.
         "string",
     ]
 )
@@ -93,16 +88,52 @@ def subject_call(line, macro):
     """
     start = line.find(macro)
     if start < 0:
-        return None
+        return None, ""
     rest = line[start + len(macro):]
     open_paren = rest.find("(")
     if open_paren < 0:
-        return None
+        return None, ""
     expression = rest[open_paren + 1:]
-    for name in CALL_NAME.findall(expression):
+    for match in CALL_NAME.finditer(expression):
+        name = match.group(1)
         if name not in SUBJECT_SKIP:
-            return name
-    return None
+            arguments = expression[match.end():]
+            depth = 1
+            end = 0
+            for end, character in enumerate(arguments):
+                if character == "(":
+                    depth += 1
+                elif character == ")":
+                    depth -= 1
+                    if depth == 0:
+                        break
+            return name, arguments[:end]
+    return None, ""
+
+
+def pure_find_query(name, arguments):
+    """Treat comparison-style find calls as pure unless their shape signals output.
+
+    This is deliberately a line-local heuristic, like the checker itself. It
+    recognizes ordinary `find(&object, out)` overloads by their address-taking
+    input plus a second, top-level argument. A single `registry.find(&key)` is
+    still a pure lookup; wrappers such as `std::addressof(object)` still need
+    LOKA_VERIFY or the escape hatch.
+    """
+    if name != "find":
+        return False
+    takes_address = re.search(r"(?:^|[,\[(])\s*&\s*[A-Za-z_(]", arguments)
+    depth = 0
+    has_second_argument = False
+    for character in arguments:
+        if character == "(":
+            depth += 1
+        elif character == ")":
+            depth -= 1
+        elif character == "," and depth == 0:
+            has_second_argument = True
+            break
+    return not (takes_address and has_second_argument)
 
 
 def main():
@@ -114,7 +145,7 @@ def main():
         with open(path, "r", encoding="utf-8", errors="replace") as handle:
             for line in handle:
                 if VERIFY_LINE.search(line):
-                    name = subject_call(line, "LOKA_VERIFY")
+                    name, _arguments = subject_call(line, "LOKA_VERIFY")
                     if name:
                         load_bearing.add(name)
     load_bearing -= ACCESSOR_NAMES
@@ -132,8 +163,8 @@ def main():
                     continue
                 if VERIFY_LINE.search(line):
                     continue
-                name = subject_call(line, "assert")
-                if name and name in load_bearing:
+                name, arguments = subject_call(line, "assert")
+                if name and name in load_bearing and not pure_find_query(name, arguments):
                     findings.append(
                         (os.path.relpath(path, root), number, [name], line.strip())
                     )

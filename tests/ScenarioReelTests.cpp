@@ -19,10 +19,36 @@
 #include "scenarios/ObservedMainDefinition.hpp"
 #include "scenarios/ScenarioReel.hpp"
 #include "scenarios/StartupScenarios.hpp"
+#include "testing/app/SceneManagerTestAccess.hpp"
 
 namespace
 {
   const char *const kProbeCells[] = {"startup", "first", "second"};
+
+  struct AttachmentTransactionObservation
+  {
+    AttachmentTransactionObservation()
+        : manager(0),
+          calls(0),
+          allCallsWereTransactional(true)
+    {
+    }
+
+    SceneManager *manager;
+    int calls;
+    bool allCallsWereTransactional;
+  };
+
+  void ObserveAttachmentTransaction(void *userData)
+  {
+    AttachmentTransactionObservation *observation =
+        static_cast<AttachmentTransactionObservation *>(userData);
+    ++observation->calls;
+    observation->allCallsWereTransactional =
+        observation->allCallsWereTransactional &&
+        loka::app::testing::SceneManagerTestAccess::trackerPhase(*observation->manager) !=
+            loka::core::TRACKER_IDLE;
+  }
 
   loka::scenario_tests::ScenarioCellTable ProbeCells()
   {
@@ -294,7 +320,15 @@ void testScenarioSceneRearmRebuildsExampleStateFromDefinition()
   // verify-initial-board step instead of reproducing this board.
   const std::string firstBoard = RunMineSweeperBoardCell(window);
 
+  AttachmentTransactionObservation attachmentObservation;
+  attachmentObservation.manager = window.sceneManager();
+  window.scene()->getAttachedState()->bind(
+      &ObserveAttachmentTransaction, &attachmentObservation, false);
   LOKA_VERIFY(loka::scenario_tests::RearmScenarioScene(&window));
+  window.scene()->getAttachedState()->unbind(
+      &ObserveAttachmentTransaction, &attachmentObservation);
+  LOKA_VERIFY(attachmentObservation.calls == 2);
+  LOKA_VERIFY(attachmentObservation.allCallsWereTransactional);
   LOKA_VERIFY(window.scene() != 0);
   LOKA_VERIFY(window.scene()->liveNodeCount() == mountedNodeCount);
 
@@ -394,4 +428,39 @@ void testScenarioReelRunsEveryHelloWorldCellEveryCycle()
   LOKA_VERIFY(window.scene()->liveNodeCount() == mountedNodeCount);
 
   std::printf("testScenarioReelRunsEveryHelloWorldCellEveryCycle passed\n");
+}
+
+void testScenarioReelDriverAllocationRefusalRetiresInsteadOfWedging()
+{
+  loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> root(CloneHelloWorldRoot());
+  LOKA_VERIFY(root.get() != 0);
+  NullPlatformContext context;
+  WindowProps windowProps;
+  windowProps.scene(new loka::app::scene::Scene(root.take()));
+  NullWindow window(&context, windowProps);
+  LOKA_VERIFY(window.scene() != 0);
+  window.scene()->updateAttached(true);
+
+  loka::scenario_tests::ScenarioReel<loka::scenario_tests::HelloWorldScenario> reel(
+      loka::scenario_tests::HelloWorldReelCells(),
+      loka::scenario_tests::STARTUP_EXAMPLE_HELLO_WORLD,
+      &loka::scenario_tests::MakeHelloWorldDriverErrorRecord,
+      2402,
+      0.0,
+      0);
+
+  // The first driver already exists. Refuse its replacement at the first
+  // re-arm; an endless reel can finish only by surfacing this failure.
+  loka::scenario_tests::testing::failScenarioReelDriverAllocations(1);
+  for (long tick = 0; tick < 512 && !reel.finished(); ++tick)
+  {
+    reel.tick(&window, 0.1);
+  }
+  loka::scenario_tests::testing::allowScenarioReelDriverAllocations();
+
+  LOKA_VERIFY(reel.finished());
+  LOKA_VERIFY(window.scene() != 0);
+  LOKA_VERIFY(window.scene()->liveNodeCount() > 0);
+
+  std::printf("testScenarioReelDriverAllocationRefusalRetiresInsteadOfWedging passed\n");
 }

@@ -9,13 +9,18 @@ namespace loka
   {
     namespace testing
     {
-      /** Testing-only reader for SceneManager's transaction queue. */
+      /** Testing-only readers for SceneManager transaction state. */
       class SceneManagerTestAccess
       {
       public:
         static size_t pendingTransactionCount(const SceneManager &manager)
         {
           return manager.pendingTransactions_.getRef().size();
+        }
+
+        static ::loka::core::TrackerPhase trackerPhase(const SceneManager &manager)
+        {
+          return manager.tracker_.phase();
         }
       };
     } // namespace testing
