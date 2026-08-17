@@ -67,7 +67,32 @@ tap(lKey)
 commandKey:set_value(1); tap(oKey); commandKey:clear_value()
 emu.wait(5)
 tap(escapeKey)
-commandKey:set_value(1); tap(aKey); commandKey:clear_value()
+-- Select only the application. Cmd-A would also open the staged data files:
+-- LokaTest.cfg lands in TeachText, which takes the foreground, and a
+-- cannotBackground vehicle then freezes mid-scenario -- a debug session that
+-- looks exactly like the hang or crash under investigation (#398). Tab
+-- cycles the Finder selection the same way mame-launch.lua uses it; the
+-- landing count is a per-boot-image fact the caller owns (LOKA_TAB_COUNT,
+-- default 1). Verify the landing through the heap-size line below: the
+-- wrong application shows the wrong partition size.
+local tabKey
+for tag, port in pairs(manager.machine.ioport.ports) do
+    if tag:find("^:macadb:KEY") then
+        local found = port.fields["Tab"]
+        if found then
+            tabKey = found
+            break
+        end
+    end
+end
+assert(tabKey, "no key field named Tab")
+local tabCount = tonumber(os.getenv("LOKA_TAB_COUNT") or "1")
+assert(tabCount and tabCount > 0 and tabCount == math.floor(tabCount),
+    "LOKA_TAB_COUNT must be a positive integer")
+say("selecting the application (%d tabs)", tabCount)
+for _ = 1, tabCount do
+    tap(tabKey)
+end
 emu.wait(1)
 commandKey:set_value(1); tap(oKey); commandKey:clear_value()
 emu.wait(20)
