@@ -63,6 +63,29 @@ This is the environment where binaries are actually built.
   directory without launching it; the tracked `standalone-tour.audit` byte
   authority is staged beside the verifier, while `ASSETS.LRP` remains owned by
   the bundle at `Contents/Resources`.
+- For a macOS presentation that keeps moving without a host controller, build
+  the HelloWorld and MineSweeper loop reels from a Terminal opened at the
+  repository root:
+
+  ```sh
+  cmake --preset macos-debug
+  cmake --build build/macos/Debug --target LokaHelloWorldScenarioLoopMacOS LokaMineSweeperScenarioLoopMacOS
+  open build/macos/Debug/apple/macos/LokaHelloWorldScenarioLoopMacOS.app
+  open build/macos/Debug/apple/macos/LokaMineSweeperScenarioLoopMacOS.app
+  ```
+
+  Each TEST-only application shows every registered cell for its example,
+  wraps to the first, and continues until the user chooses Quit or presses
+  Command-Q. It reads no `LokaTest.cfg` and publishes no audit or capture
+  marker. To make a verification build stop after two complete passes, use a
+  separate build directory so the desk build remains unbounded:
+
+  ```sh
+  cmake -S . -B build/macos/Loop2 -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLOKA_WARNINGS_AS_ERRORS=ON -DLOKA_SCENARIO_LOOP_CYCLES=2
+  cmake --build build/macos/Loop2 --target LokaHelloWorldScenarioLoopMacOS LokaMineSweeperScenarioLoopMacOS
+  open -W build/macos/Loop2/apple/macos/LokaHelloWorldScenarioLoopMacOS.app
+  open -W build/macos/Loop2/apple/macos/LokaMineSweeperScenarioLoopMacOS.app
+  ```
 - For a standalone presentation Release, start VS Code from the Visual Studio
   Command Line Tools session for the desired target, then run
   `Verify: Win32 Standalone Flow Release`. The task derives ARM64, x64, or

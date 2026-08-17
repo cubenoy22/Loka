@@ -193,18 +193,30 @@ if(NOT LOKA_MAC_OS_10_4)
     ${LOKA_MACOS_CORE_HEADERS}
   )
 
-  function(loka_add_macos_scenario_bundle target driver bundle_id example_include_dir)
+  function(loka_add_macos_scenario_vehicle_bundle
+           target driver bundle_id example_include_dir common_sources)
     # TEST-only vertical slices compile common and platform sources with one
     # uniform TEST_BUILD definition rather than linking the shipping core.
     add_executable(${target} EXCLUDE_FROM_ALL MACOSX_BUNDLE
       ${PROJECT_SOURCE_DIR}/tests/macos/${driver}
-      ${LOKA_MACOS_SCENARIO_COMMON_SOURCES}
+      ${${common_sources}}
       ${ARGN}
     )
     loka_configure_scenario_test_bundle(
       ${target}
       "${bundle_id}"
       "${example_include_dir}"
+    )
+  endfunction()
+
+  function(loka_add_macos_scenario_bundle target driver bundle_id example_include_dir)
+    loka_add_macos_scenario_vehicle_bundle(
+      ${target}
+      ${driver}
+      ${bundle_id}
+      ${example_include_dir}
+      LOKA_MACOS_SCENARIO_COMMON_SOURCES
+      ${ARGN}
     )
   endfunction()
 
@@ -246,6 +258,59 @@ if(NOT LOKA_MAC_OS_10_4)
     example/FloppyBird/src
     ${PROJECT_SOURCE_DIR}/tests/scenarios/FloppyBirdScenarios.cpp
   )
+
+  # Human-facing loop reels share the presentation and scenario rails, but not
+  # the host-controlled ScenarioDriverSupport.mm protocol implementation.
+  set(LOKA_MACOS_SCENARIO_LOOP_COMMON_SOURCES
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioReel.cpp
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/StartupScenarios.cpp
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/RectSurfaceScenarioObservation.cpp
+    ${PROJECT_SOURCE_DIR}/tests/TestingHooks.cpp
+    ${LOKA_MACOS_CORE_SOURCES}
+    ${COMMON_SOURCES}
+    ${COMMON_HEADERS}
+    ${LOKA_MACOS_CORE_HEADERS}
+  )
+
+  function(loka_add_macos_scenario_loop_bundle target driver bundle_id example_include_dir)
+    loka_add_macos_scenario_vehicle_bundle(
+      ${target}
+      ${driver}
+      ${bundle_id}
+      ${example_include_dir}
+      LOKA_MACOS_SCENARIO_LOOP_COMMON_SOURCES
+      ${ARGN}
+    )
+  endfunction()
+
+  loka_add_macos_scenario_loop_bundle(
+    LokaHelloWorldScenarioLoopMacOS
+    HelloWorldScenarioLoop.mm
+    com.cubenoy22.loka.helloworld-scenario-loop
+    example/HelloWorld/src
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/HelloWorldScenarios.cpp
+    ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
+  )
+  loka_add_macos_scenario_loop_bundle(
+    LokaMineSweeperScenarioLoopMacOS
+    MineSweeperScenarioLoop.mm
+    com.cubenoy22.loka.minesweeper-scenario-loop
+    example/MineSweeper/src
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/MineSweeperScenarios.cpp
+  )
+
+  set(LOKA_SCENARIO_LOOP_CYCLES "" CACHE STRING
+    "Full reel passes a loop presentation vehicle runs before quitting. Empty means never quit."
+  )
+  if(NOT LOKA_SCENARIO_LOOP_CYCLES STREQUAL "")
+    target_compile_definitions(LokaHelloWorldScenarioLoopMacOS PRIVATE
+      LOKA_SCENARIO_LOOP_CYCLES=${LOKA_SCENARIO_LOOP_CYCLES}
+    )
+    target_compile_definitions(LokaMineSweeperScenarioLoopMacOS PRIVATE
+      LOKA_SCENARIO_LOOP_CYCLES=${LOKA_SCENARIO_LOOP_CYCLES}
+    )
+  endif()
 endif()
 
 add_executable(LokaScrapbookStandaloneFlowMacOS EXCLUDE_FROM_ALL MACOSX_BUNDLE
