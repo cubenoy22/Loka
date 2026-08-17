@@ -15,8 +15,14 @@ namespace loka
   {
     namespace
     {
-      const char *kNewGameTwice = "new-game-twice";
-      const char *kSeededReveal = "seeded-reveal";
+      // One home for MineSweeper's cell names and their order: the reel runs
+      // this table front to back, and IsMineSweeperScenario answers from the
+      // same array minus the shared startup cell at index 0. Registering a new
+      // cell here is what puts it on the reel.
+      const char *const kMineSweeperCells[] = {"startup", "new-game-twice", "seeded-reveal"};
+      const std::size_t kMineSweeperCellCount = sizeof(kMineSweeperCells) / sizeof(kMineSweeperCells[0]);
+      const char *kNewGameTwice = kMineSweeperCells[1];
+      const char *kSeededReveal = kMineSweeperCells[2];
       const char *kBoard = "MineSweeper.Board";
       const char *kNewGameButton = "MineSweeper.NewGameButton";
       const char *kInitialMines = "3,4,20,22,37,45,50,55,56,59";
@@ -311,9 +317,14 @@ namespace loka
       return 0x13579BDFUL;
     }
 
+    ScenarioCellTable MineSweeperReelCells()
+    {
+      return ScenarioCellTable(kMineSweeperCells, kMineSweeperCellCount);
+    }
+
     bool IsMineSweeperScenario(const std::string &name)
     {
-      return name == kNewGameTwice || name == kSeededReveal;
+      return MineSweeperReelCells().dropFirst(1).contains(name);
     }
 
     MineSweeperScenario::ScenarioState::ScenarioState(const std::string &name,

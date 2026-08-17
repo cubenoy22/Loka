@@ -179,6 +179,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/standalone/FloppyBirdStandaloneFlowAppConfig\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/StartupScenarioTests\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/StartupScenarios\\.cpp$")
+  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/ScenarioReelTests\\.cpp$")
+  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/ScenarioReel\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/RectSurfaceScenarioObservation\\.cpp$")
 
   add_executable(LokaContractTests
@@ -203,7 +205,9 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/FlowDslTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/OwnershipDumpTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/HelloWorldScenarioTests.cpp
+    ${PROJECT_SOURCE_DIR}/tests/ScenarioReelTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioReel.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/HelloWorldScenarios.cpp
     ${PROJECT_SOURCE_DIR}/tests/TutorialScenarioTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/TutorialScenarios.cpp

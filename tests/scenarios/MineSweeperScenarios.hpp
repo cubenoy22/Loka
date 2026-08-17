@@ -3,6 +3,7 @@
 
 #include <string>
 
+#include "ScenarioCellTable.hpp"
 #include "ScenarioTypes.hpp"
 #include "app/scene/state/FlowSlot.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
@@ -14,6 +15,10 @@ namespace loka
     /** The caller-owned input shared by MineSweeper's deterministic scenario
         rail and standalone presentation. */
     unsigned long MineSweeperScenarioSeed();
+
+    /** MineSweeper's registered cells in reel order, opening with the shared
+        startup cell. IsMineSweeperScenario answers from this same table. */
+    ScenarioCellTable MineSweeperReelCells();
 
     /** Returns whether name selects a registered MineSweeper scenario. */
     bool IsMineSweeperScenario(const std::string &name);

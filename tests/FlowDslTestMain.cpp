@@ -34,6 +34,7 @@
 #include "MineSweeperScenarioTests.hpp"
 #include "FloppyBirdScenarioTests.hpp"
 #include "StartupScenarioTests.hpp"
+#include "ScenarioReelTests.hpp"
 #include "BlobRangeTests.hpp"
 #include "PictParserTests.hpp"
 #include "SceneTests.hpp"

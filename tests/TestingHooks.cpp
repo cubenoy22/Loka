@@ -5,6 +5,7 @@
 // this file via LOKA_SHARED_TEST_SOURCES.
 #include "app/Menu.hpp"
 #include "scenarios/ObservedMainDefinition.hpp"
+#include "scenarios/ScenarioReel.hpp"
 
 #ifdef TEST_BUILD
 
@@ -53,6 +54,27 @@ namespace loka
       namespace
       {
         int g_observedMainDefinitionCloneFailures = 0;
+        int g_scenarioReelDriverAllocationFailures = 0;
+      }
+
+      void failScenarioReelDriverAllocations(int count)
+      {
+        g_scenarioReelDriverAllocationFailures = count;
+      }
+
+      void allowScenarioReelDriverAllocations()
+      {
+        g_scenarioReelDriverAllocationFailures = 0;
+      }
+
+      bool shouldAllocateScenarioReelDriver()
+      {
+        if (g_scenarioReelDriverAllocationFailures > 0)
+        {
+          --g_scenarioReelDriverAllocationFailures;
+          return false;
+        }
+        return true;
       }
 
       void failObservedMainDefinitionClones(int count)

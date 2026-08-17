@@ -12,8 +12,14 @@ namespace loka
   {
     namespace
     {
-      const char *kToggleActionProbe = "toggle-action-probe";
-      const char *kBmiRoundtrip = "bmi-roundtrip";
+      // One home for HelloWorld's cell names and their order: the reel runs
+      // this table front to back, and IsHelloWorldScenario answers from the
+      // same array minus the shared startup cell at index 0. Registering a new
+      // cell here is what puts it on the reel.
+      const char *const kHelloWorldCells[] = {"startup", "toggle-action-probe", "bmi-roundtrip"};
+      const std::size_t kHelloWorldCellCount = sizeof(kHelloWorldCells) / sizeof(kHelloWorldCells[0]);
+      const char *kToggleActionProbe = kHelloWorldCells[1];
+      const char *kBmiRoundtrip = kHelloWorldCells[2];
       const long kInitialTick = 2;
       const long kStepSpacingTicks = 30;
 
@@ -83,9 +89,14 @@ namespace loka
       }
     } // namespace
 
+    ScenarioCellTable HelloWorldReelCells()
+    {
+      return ScenarioCellTable(kHelloWorldCells, kHelloWorldCellCount);
+    }
+
     bool IsHelloWorldScenario(const std::string &name)
     {
-      return name == kToggleActionProbe || name == kBmiRoundtrip;
+      return HelloWorldReelCells().dropFirst(1).contains(name);
     }
 
     HelloWorldScenario::ScenarioState::ScenarioState(const std::string &name,

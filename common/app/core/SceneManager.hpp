@@ -238,6 +238,8 @@ public:
                          loka::app::scene::Scene *to);
   // Return the currently attached scene state.
   const loka::core::State<loka::app::scene::Scene *> &getCurrentScene() const;
+  /** Detaches and re-attaches the installed scene in one owner transaction. */
+  bool rearmCurrentScene();
   bool hasRetiredScenes() const
   {
     return !this->retiredScenes_.empty();

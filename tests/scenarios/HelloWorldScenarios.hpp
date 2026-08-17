@@ -3,6 +3,7 @@
 
 #include <string>
 
+#include "ScenarioCellTable.hpp"
 #include "ScenarioTypes.hpp"
 #include "app/scene/state/FlowSlot.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
@@ -11,6 +12,10 @@ namespace loka
 {
   namespace scenario_tests
   {
+    /** HelloWorld's registered cells in reel order, opening with the shared
+        startup cell. IsHelloWorldScenario answers from this same table. */
+    ScenarioCellTable HelloWorldReelCells();
+
     /** Returns whether name selects a registered HelloWorld scenario. */
     bool IsHelloWorldScenario(const std::string &name);
 
