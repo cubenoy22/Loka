@@ -43,11 +43,8 @@ namespace loka
     bool LoadScenarioSettings(dsl::SnapTestConfig::Settings &settings, ScenarioRunMode &mode);
 
     template <class Config>
-    int RunScenarioApplication(PlatformContext *context,
-                               const dsl::SnapTestConfig::Settings &settings,
-                               ScenarioRunMode mode)
+    int RunScenarioApplication(PlatformContext *context, Config &config)
     {
-      Config config(context, settings, mode);
       core::ScopedPtr<App> app(context->createApp(&config, 0, 0));
       assert(app.get() && "App is required");
       if (!app.get())
@@ -57,6 +54,15 @@ namespace loka
       config.setApp(app.get());
       app->run();
       return 0;
+    }
+
+    template <class Config>
+    int RunScenarioApplication(PlatformContext *context,
+                               const dsl::SnapTestConfig::Settings &settings,
+                               ScenarioRunMode mode)
+    {
+      Config config(context, settings, mode);
+      return RunScenarioApplication(context, config);
     }
 
     template <class Config>
@@ -70,6 +76,23 @@ namespace loka
         return 1;
       }
       return RunScenarioApplication<Config>(platformContext.get(), settings, mode);
+    }
+
+    /** Runs a presentation config without loading the macOS host scenario
+        protocol. Loop reels use this path so they can be launched by a person
+        and never wait for config, capture, or completion-marker traffic. */
+    template <class Config>
+    int RunScenarioApplication()
+    {
+      platform::InitPlatformRuntime();
+      core::ScopedPtr<PlatformContext> platformContext(platform::CreatePlatformContext());
+      assert(platformContext.get() && "PlatformContext is required");
+      if (!platformContext.get())
+      {
+        return 1;
+      }
+      Config config(platformContext.get());
+      return RunScenarioApplication(platformContext.get(), config);
     }
 
     typedef int (*ScenarioApplicationMain)();

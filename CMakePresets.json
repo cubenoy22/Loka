@@ -288,8 +288,10 @@
       "targets": [
         "LokaScrapbookScenarioMacOS",
         "LokaHelloWorldScenarioMacOS",
+        "LokaHelloWorldScenarioLoopMacOS",
         "LokaTutorialScenarioMacOS",
         "LokaMineSweeperScenarioMacOS",
+        "LokaMineSweeperScenarioLoopMacOS",
         "LokaFloppyBirdScenarioMacOS"
       ],
       "condition": {
