@@ -487,15 +487,32 @@ seconds. The base was reproducible across independent runs for a given
 binary, but it moves when the binary changes, so read it rather than
 hardcoding it.
 
-### 3. Relocate every section with one offset
+### 3. Relocate every section with one offset — then byte-verify before trusting it
 
 Retro68 links the image contiguously from vaddr 0 (`.code00001` at `0x0`,
 `.code00002` at `0xbff4`, then `.data` and `.bss`), so a single offset is
-enough. There is no need to place sections individually:
+usually enough. There is no need to place sections individually:
 
 ```
 add-symbol-file <elf> -o <base>
 ```
+
+**The single offset is not guaranteed for every section.** The base comes
+from scanning for an application-code (`.code00002`) function, and on a
+multi-segment application the Segment Loader can place `.code00001` — the
+Retro68 runtime: `abort`, `exit`, `_exit`, the `ExitToShell` trap patch — at
+a *different* offset (`+0xAE8` observed on the MineSweeper scenario vehicle,
+#398). A breakpoint planted on a runtime symbol then sits on unrelated bytes
+and simply never fires, which reads as "this path is never taken".
+
+Before trusting any breakpoint outside the scanned section, byte-verify it:
+take the function's first words from the ELF (`xxd` at `section file offset +
+(sym vaddr − section vaddr)`, choosing bytes not covered by a `.rela` entry)
+and compare with `x/` at the relocated address in a live stop. On mismatch,
+locate the real segment by scanning the application heap for those bytes and
+re-derive the section's own offset. gdb's `find` works but can die mid-scan
+with `Dwarf Error: DW_FORM_line_strp` when a hit resolves into a DWARF5 CU —
+computing candidate addresses and `x/`-comparing them is the robust form.
 
 ### 4. Wait for the listener before attaching, without probing it
 
@@ -691,6 +708,19 @@ different jobs; expecting the second to provide the first will disappoint.
   needed, read the exception vectors at runtime (`0x08` bus error, `0x0C`
   address error, `0x10` illegal instruction) and plant an ordinary breakpoint
   on the handler.
+- **Mid-run stop→continue is probabilistically poisoned under current MAME.**
+  The #182-era hazard was `delete`; on the current build the failure widened
+  (#398 probes, 4 of 5 scripted runs): a `continue` inside a breakpoint
+  `commands` block — and once even the script's top-level `continue` — dies
+  with "Cannot execute this command while the target is running", after which
+  the rest of the sourced file is abandoned and the machine sits wherever it
+  was. The surviving session shape is: plant every breakpoint at attach time
+  (reset stop), make each one terminal (no `continue` in any commands block),
+  run exactly one `continue`, dump (`info registers`, `x/`, `bt`) at the
+  first stop, and `quit`. One question per boot; ask the next question in the
+  next session. Note that sending SIGINT to a blocked scripted gdb makes the
+  *remainder of the script* run against the interrupted target — including
+  its `quit`, which reaps the emulator through the launcher's EXIT trap.
 - **Avoid `delete` in scripted stub sessions.** Across the #182 probe runs,
   "Cannot execute this command while the target is running" appeared
   deterministically whenever the batch script executed `delete` — refused

@@ -75,6 +75,7 @@ EOF
 cat >"$SANDBOX/fake-mame" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$@" > "$SANDBOX/mame.argv"
+printf '%s\n' "${WSLENV:-}" > "$SANDBOX/mame.wslenv"
 printf '%s\n' "$$" > "$SANDBOX/mame.pid"
 exec /bin/sleep 300
 EOF
@@ -207,6 +208,19 @@ pass stub-host-override
 # Only WSL2 NAT substitutes the gateway; WSL1 (no wslinfo) and mirrored
 # networking share the Windows loopback and must keep it. The run_case
 # helper unsets WSL_INTEROP, so these cases re-set it to enter the branch.
+# The Finder tab count is a per-disk fact the caller owns; when set it must
+# cross the WSL boundary to the emulator's autoboot Lua, which only happens
+# for names listed in WSLENV.
+run_case \
+  tab-count-forwarded \
+  0 \
+  0 \
+  yes \
+  "LOKA_TAB_COUNT=4"
+grep -q "LOKA_TAB_COUNT" "$SANDBOX/mame.wslenv" ||
+  fail tab-count-forwarded "LOKA_TAB_COUNT did not reach WSLENV"
+pass tab-count-forwarded
+
 run_case \
   wsl-nat-gateway \
   0 \
