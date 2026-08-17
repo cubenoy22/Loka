@@ -192,6 +192,8 @@ loka_merge_target_archs() {
   local source_bundle
   local out_bundle
   local out_bin
+  local staging_root=""
+  local staging_bundle
   local arch
   local bin
   local merge_inputs=()
@@ -206,13 +208,16 @@ loka_merge_target_archs() {
 
   for arch in ${archs_csv}; do
     bin="${build_root}/${build_cfg}-${arch}/${rel_path}"
-    if [[ -f "${bin}" ]]; then
-      merge_inputs+=("${bin}")
+    if [[ ! -f "${bin}" ]]; then
+      echo "error: missing required ${arch} input for ${target_name}: ${bin}" >&2
+      return 1
     fi
+    merge_inputs+=("${bin}")
   done
 
   if [[ "${#merge_inputs[@]}" -eq 0 ]]; then
-    return
+    echo "error: no architectures requested for ${target_name}." >&2
+    return 1
   fi
 
   case "${output_shape}" in
@@ -233,9 +238,17 @@ loka_merge_target_archs() {
         return 1
       fi
       out_bundle="${build_root}/universal/$(basename "${bundle_rel_path}")"
-      rm -rf "${out_bundle}"
-      cp -R "${source_bundle}" "${out_bundle}"
-      out_bin="${out_bundle}/Contents/MacOS/$(basename "${rel_path}")"
+      if ! staging_root="$(mktemp -d \
+        "${build_root}/universal/.${target_name}.XXXXXX")"; then
+        echo "error: could not create a staging directory for ${target_name}." >&2
+        return 1
+      fi
+      staging_bundle="${staging_root}/$(basename "${bundle_rel_path}")"
+      if ! cp -R "${source_bundle}" "${staging_bundle}"; then
+        rm -rf "${staging_root}"
+        return 1
+      fi
+      out_bin="${staging_bundle}/Contents/MacOS/$(basename "${rel_path}")"
       ;;
     *)
       echo "error: unknown output shape '${output_shape}' for ${target_name}." >&2
@@ -244,10 +257,31 @@ loka_merge_target_archs() {
   esac
 
   if [[ "${#merge_inputs[@]}" -ge 2 ]]; then
-    lipo -create "${merge_inputs[@]}" -output "${out_bin}"
-    lipo -info "${out_bin}"
+    if ! lipo -create "${merge_inputs[@]}" -output "${out_bin}"; then
+      [[ -z "${staging_root}" ]] || rm -rf "${staging_root}"
+      return 1
+    fi
+    if ! lipo -info "${out_bin}"; then
+      [[ -z "${staging_root}" ]] || rm -rf "${staging_root}"
+      return 1
+    fi
   else
-    cp -f "${merge_inputs[0]}" "${out_bin}"
+    if ! cp -f "${merge_inputs[0]}" "${out_bin}"; then
+      [[ -z "${staging_root}" ]] || rm -rf "${staging_root}"
+      return 1
+    fi
+  fi
+
+  if [[ -n "${staging_root}" ]]; then
+    if ! rm -rf "${out_bundle}"; then
+      rm -rf "${staging_root}"
+      return 1
+    fi
+    if ! mv "${staging_bundle}" "${out_bundle}"; then
+      rm -rf "${staging_root}"
+      return 1
+    fi
+    rm -rf "${staging_root}"
   fi
 }
 
