@@ -202,7 +202,10 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/FlowDslTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/OwnershipDumpTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/HelloWorldScenarioTests.cpp
+    ${PROJECT_SOURCE_DIR}/tests/ScenarioReelTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioCellTable.cpp
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioReel.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/HelloWorldScenarios.cpp
     ${PROJECT_SOURCE_DIR}/tests/TutorialScenarioTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/TutorialScenarios.cpp

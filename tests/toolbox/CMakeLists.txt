@@ -397,3 +397,94 @@ configure_file(
   ASSETS.LRP
   COPYONLY
 )
+
+# Loop presentation vehicles (#402, Classic leg). Same TEST_BUILD /
+# EXCLUDE_FROM_ALL shape as the standalone Flow applications: they are
+# presentation assets, never part of a default build and never gating.
+set(LOKA_MINESWEEPER_SCENARIO_LOOP_TOOLBOX_TARGET
+  # Keep the generated application name within Classic HFS's 31-character limit.
+  "LokaMineScenarioLoop${LOKA_CLASSIC_TARGET_SUFFIX}"
+)
+set(LOKA_HELLO_WORLD_SCENARIO_LOOP_TOOLBOX_TARGET
+  # Keep the generated application name within Classic HFS's 31-character limit.
+  "LokaHelloScenarioLoop${LOKA_CLASSIC_TARGET_SUFFIX}"
+)
+
+set(LOKA_MINESWEEPER_SCENARIO_LOOP_TOOLBOX_SOURCES
+  src/MineSweeperScenarioLoopMain.cpp
+  src/MineSweeperScenarioLoop.cpp
+  src/ScenarioDriverSupport.cpp
+  ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioCellTable.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioReel.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/MineSweeperScenarios.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/StartupScenarios.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/RectSurfaceScenarioObservation.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/ScenarioLoopSize.r
+)
+loka_add_toolbox_test_application(
+  ${LOKA_MINESWEEPER_SCENARIO_LOOP_TOOLBOX_TARGET}
+  LokaAppleToolboxTestCore
+  ${LOKA_MINESWEEPER_SCENARIO_LOOP_TOOLBOX_SOURCES}
+)
+set_property(TARGET ${LOKA_MINESWEEPER_SCENARIO_LOOP_TOOLBOX_TARGET}
+  PROPERTY EXCLUDE_FROM_ALL TRUE
+)
+set_property(TARGET ${LOKA_MINESWEEPER_SCENARIO_LOOP_TOOLBOX_TARGET}_APPL
+  PROPERTY EXCLUDE_FROM_ALL TRUE
+)
+target_include_directories(${LOKA_MINESWEEPER_SCENARIO_LOOP_TOOLBOX_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/example/MineSweeper/src
+)
+target_compile_definitions(${LOKA_MINESWEEPER_SCENARIO_LOOP_TOOLBOX_TARGET} PRIVATE
+  TEST_BUILD
+  LOKA_DIAG=1
+)
+
+set(LOKA_HELLO_WORLD_SCENARIO_LOOP_TOOLBOX_SOURCES
+  src/HelloWorldScenarioLoopMain.cpp
+  src/HelloWorldScenarioLoop.cpp
+  src/ScenarioDriverSupport.cpp
+  ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioCellTable.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioReel.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/HelloWorldScenarios.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/StartupScenarios.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/RectSurfaceScenarioObservation.cpp
+  ${CMAKE_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/ScenarioLoopSize.r
+)
+loka_add_toolbox_test_application(
+  ${LOKA_HELLO_WORLD_SCENARIO_LOOP_TOOLBOX_TARGET}
+  LokaAppleToolboxTestCore
+  ${LOKA_HELLO_WORLD_SCENARIO_LOOP_TOOLBOX_SOURCES}
+)
+set_property(TARGET ${LOKA_HELLO_WORLD_SCENARIO_LOOP_TOOLBOX_TARGET}
+  PROPERTY EXCLUDE_FROM_ALL TRUE
+)
+set_property(TARGET ${LOKA_HELLO_WORLD_SCENARIO_LOOP_TOOLBOX_TARGET}_APPL
+  PROPERTY EXCLUDE_FROM_ALL TRUE
+)
+target_include_directories(${LOKA_HELLO_WORLD_SCENARIO_LOOP_TOOLBOX_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/example/HelloWorld/src
+)
+target_compile_definitions(${LOKA_HELLO_WORLD_SCENARIO_LOOP_TOOLBOX_TARGET} PRIVATE
+  TEST_BUILD
+  LOKA_DIAG=1
+)
+
+set(LOKA_SCENARIO_LOOP_CYCLES "" CACHE STRING
+  "Full reel passes a loop presentation vehicle runs before quitting. Empty means never quit."
+)
+if(NOT LOKA_SCENARIO_LOOP_CYCLES STREQUAL "")
+  # Bounded verification build: the reel quits after N full passes so a MAME
+  # run can end on its own. Absent, both vehicles loop forever.
+  target_compile_definitions(${LOKA_MINESWEEPER_SCENARIO_LOOP_TOOLBOX_TARGET} PRIVATE
+    LOKA_SCENARIO_LOOP_CYCLES=${LOKA_SCENARIO_LOOP_CYCLES}
+  )
+  target_compile_definitions(${LOKA_HELLO_WORLD_SCENARIO_LOOP_TOOLBOX_TARGET} PRIVATE
+    LOKA_SCENARIO_LOOP_CYCLES=${LOKA_SCENARIO_LOOP_CYCLES}
+  )
+endif()

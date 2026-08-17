@@ -1,0 +1,10 @@
+#ifndef LOKA_TESTS_SCENARIO_REEL_TESTS_HPP
+#define LOKA_TESTS_SCENARIO_REEL_TESTS_HPP
+
+void testScenarioReelPositionWrapsAndCountsCycles();
+void testScenarioReelCellTablesMatchSharedRegistry();
+void testScenarioSceneRearmRebuildsExampleStateFromDefinition();
+void testScenarioReelRunsEveryMineSweeperCellEveryCycle();
+void testScenarioReelRunsEveryHelloWorldCellEveryCycle();
+
+#endif // LOKA_TESTS_SCENARIO_REEL_TESTS_HPP
