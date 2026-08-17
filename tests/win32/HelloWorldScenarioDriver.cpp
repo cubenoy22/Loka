@@ -25,6 +25,7 @@ namespace loka
               runState_(settings, mode),
               driver_(scenario_tests::IsStartupScenario(settings.scenario),
                       scenario_tests::STARTUP_EXAMPLE_HELLO_WORLD,
+                      settings.scenario,
                       &scenario_tests::MakeHelloWorldDriverErrorRecord,
                       2402,
                       this->runState_.audit()),
