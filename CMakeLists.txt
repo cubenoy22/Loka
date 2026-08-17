@@ -388,6 +388,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MacOSScenarioRunnerTest.sh)
     add_test(NAME scriptBuild104Guard
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/Build104GuardTest.sh)
+    add_test(NAME scriptMacOSBuildTargets
+      COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MacOSBuildTargetsTest.sh)
     add_test(NAME scriptPmonSpriteGenerator
       COMMAND python3
         ${PROJECT_SOURCE_DIR}/tests/scripts/PmonSpriteGeneratorTest.py)
