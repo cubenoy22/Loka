@@ -18,9 +18,11 @@
 #include "support/StandaloneMountTestSupport.hpp"
 #include "platform/null/NullApp.hpp"
 #include "platform/null/NullPlatformContext.hpp"
+#include "platform/null/NullWindow.hpp"
 #include "app/core/AppComposition.hpp"
 #include "app/core/Window.hpp"
 #include "scenarios/ObservedMainDefinition.hpp"
+#include "scenarios/SceneScenarioDriver.hpp"
 #include "testing/scene/ScenarioAudit.hpp"
 
 namespace
@@ -196,26 +198,33 @@ void testMineSweeperSeededRevealDrivesCells()
   loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> root(
       CloneMineSweeperRoot(loka::scenario_tests::MineSweeperScenarioSeed()));
   LOKA_VERIFY(root.get() != 0);
-  NullScenePlatformController platform;
-  loka::app::scene::Scene scene(root.take());
-  scene.mount(&platform);
-  scene.updateAttached(true);
+  NullPlatformContext context;
+  WindowProps windowProps;
+  windowProps.scene(new loka::app::scene::Scene(root.take()));
+  NullWindow window(&context, windowProps);
+  LOKA_VERIFY(window.scene() != 0);
+  window.scene()->updateAttached(true);
 
   RecordingMineSweeperAudit audit;
-  loka::scenario_tests::MineSweeperScenario scenario(
-      "seeded-reveal", loka::scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED, &audit);
+  loka::scenario_tests::SceneScenarioDriver<loka::scenario_tests::MineSweeperScenario> driver(
+      false,
+      loka::scenario_tests::STARTUP_EXAMPLE_MINESWEEPER,
+      "seeded-reveal",
+      &loka::scenario_tests::MakeMineSweeperDriverErrorRecord,
+      2602,
+      &audit);
   loka::scenario_tests::CaptureContentBounds bounds;
   bounds.available = true;
   bounds.right = 220;
   bounds.bottom = 240;
   loka::dsl::SnapRecord record;
 
-  LOKA_VERIFY(scenario.step(2, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
-  LOKA_VERIFY(scenario.step(7, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
-  LOKA_VERIFY(scenario.step(12, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
-  LOKA_VERIFY(scenario.step(17, &scene, bounds, record)
+  LOKA_VERIFY(driver.step(2, &window, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(driver.step(7, &window, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(driver.step(12, &window, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(driver.step(17, &window, bounds, record)
               == loka::scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY);
-  LOKA_VERIFY(scenario.publishVerdict(record));
+  LOKA_VERIFY(driver.publishVerdict(record));
 
   VerifyRecordString(record, "step", "seeded-reveal");
   VerifyRecordString(record, "blank_cell", "0,0");
@@ -231,7 +240,6 @@ void testMineSweeperSeededRevealDrivesCells()
   LOKA_VERIFY(audit.terminals.size() == 1);
   LOKA_VERIFY(audit.terminals[0] == loka::dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
 
-  scene.unmount();
   std::printf("testMineSweeperSeededRevealDrivesCells passed\n");
 }
 

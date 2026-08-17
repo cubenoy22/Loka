@@ -15,10 +15,12 @@
 #include "core/util/OwnedDef.hpp"
 #include "platform/null/NullApp.hpp"
 #include "platform/null/NullPlatformContext.hpp"
+#include "platform/null/NullWindow.hpp"
 #include "scenarios/ObservedMainDefinition.hpp"
 #include "scenarios/VehiclePresentationVerify.hpp"
 #include "scenarios/HelloWorldScenarioPresentation.hpp"
 #include "scenarios/HelloWorldScenarios.hpp"
+#include "scenarios/SceneScenarioDriver.hpp"
 #include "standalone/HelloWorldStandaloneFlowAppConfig.hpp"
 #include "support/MenuPresentationVerify.hpp"
 #include "support/StandaloneMountTestSupport.hpp"
@@ -179,26 +181,33 @@ void testHelloWorldBmiRoundtripDrivesEditTextInput()
   loka::app::scene::BoundaryDefinition<helloworld::MainProps, helloworld::MainNode> definition(props);
   loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> root(definition.clone());
   LOKA_VERIFY(root.get() != 0);
-  HelloWorldScenarioPlatform platform;
-  loka::app::scene::Scene scene(root.take());
-  scene.mount(&platform);
-  scene.updateAttached(true);
+  NullPlatformContext context;
+  WindowProps windowProps;
+  windowProps.scene(new loka::app::scene::Scene(root.take()));
+  NullWindow window(&context, windowProps);
+  LOKA_VERIFY(window.scene() != 0);
+  window.scene()->updateAttached(true);
 
   RecordingHelloWorldAudit audit;
-  loka::scenario_tests::HelloWorldScenario scenario(
-      "bmi-roundtrip", loka::scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED, &audit);
+  loka::scenario_tests::SceneScenarioDriver<loka::scenario_tests::HelloWorldScenario> driver(
+      false,
+      loka::scenario_tests::STARTUP_EXAMPLE_HELLO_WORLD,
+      "bmi-roundtrip",
+      &loka::scenario_tests::MakeHelloWorldDriverErrorRecord,
+      2402,
+      &audit);
   loka::scenario_tests::CaptureContentBounds bounds;
   bounds.available = true;
   bounds.right = 420;
   bounds.bottom = 300;
   loka::dsl::SnapRecord record;
 
-  LOKA_VERIFY(scenario.step(2, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
-  LOKA_VERIFY(scenario.step(32, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
-  LOKA_VERIFY(scenario.step(62, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
-  LOKA_VERIFY(scenario.step(92, &scene, bounds, record)
+  LOKA_VERIFY(driver.step(2, &window, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(driver.step(32, &window, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(driver.step(62, &window, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
+  LOKA_VERIFY(driver.step(92, &window, bounds, record)
               == loka::scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY);
-  LOKA_VERIFY(scenario.publishVerdict(record));
+  LOKA_VERIFY(driver.publishVerdict(record));
 
   std::string value;
   LOKA_VERIFY(record.get("step", value) && value == "bmi-roundtrip");
@@ -211,7 +220,6 @@ void testHelloWorldBmiRoundtripDrivesEditTextInput()
   LOKA_VERIFY(audit.terminals.size() == 1);
   LOKA_VERIFY(audit.terminals[0] == loka::dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
 
-  scene.unmount();
   std::printf("testHelloWorldBmiRoundtripDrivesEditTextInput passed\n");
 }
 
