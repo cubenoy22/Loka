@@ -6,7 +6,7 @@ if(APPLE)
   loka_suppress_arclite_link()
 endif()
 
-if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$"))
+if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   add_custom_target(ScrapbookUI ALL
     COMMAND ${CMAKE_COMMAND} -E echo
       "ScrapbookUI has no supported platform target here."
@@ -92,7 +92,7 @@ if(APPLE)
   endif()
 endif()
 
-if(NOT CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
+if(NOT LOKA_CLASSIC_MAC)
   return()
 endif()
 
