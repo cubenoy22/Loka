@@ -62,7 +62,7 @@ inapplicable because its shared UI uses Previous/Next buttons.
 | `FloppyBird` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_ | - [ ] Evidence: _add link_ | 68K: - [ ] Evidence: _add link_<br>PPC: - [ ] Evidence: _add link_ |
 | `HelloWorld` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_ | - [ ] Evidence: _add link_ | 68K: - [ ] Evidence: _add link_<br>PPC: - [ ] Evidence: _add link_ |
 | `MineSweeper` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_ | - [ ] Evidence: _add link_ | 68K: - [ ] Evidence: _add link_<br>PPC: - [ ] Evidence: _add link_ |
-| `ScrapbookUI` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_ | - [ ] Evidence: _add link_ | 68K: - [ ] Evidence: _add link_<br>PPC: n/a — its CMake target is Retro68/68K-only |
+| `ScrapbookUI` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_ | - [ ] Evidence: _add link_ | 68K: - [ ] Evidence: _add link_<br>PPC: - [ ] Evidence: _add link_ |
 | `SimpleViewer` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_ | - [ ] Evidence: _add link_ | 68K: - [ ] Evidence: _add link_<br>PPC: - [ ] Evidence: _add link_ |
 | `Tutorial` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_ | - [ ] Evidence: _add link_ | 68K: - [ ] Evidence: _add link_<br>PPC: - [ ] Evidence: _add link_ |
 

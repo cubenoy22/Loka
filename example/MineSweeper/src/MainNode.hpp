@@ -221,7 +221,7 @@ namespace minesweeper
     {
       using namespace loka::app;
       Column content;
-      content << Button("New Game", &this->newGameClick_)
+      content << loka::app::Button("New Game", &this->newGameClick_)
                      .TEST_ID("MineSweeper.NewGameButton");
       Grid grid;
       grid.rows(kRows).cols(kCols).TEST_ID("MineSweeper.Board");

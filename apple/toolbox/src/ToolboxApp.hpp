@@ -15,7 +15,7 @@ protected:
 public:
   virtual void run();
   virtual void quit();
-  void handleMenuCommand(short menuId, short item);
+  void handleMenuSelection(short menuId, short item);
   static void MenuEnabledChangedThunk(void *userData);
 
 public:
