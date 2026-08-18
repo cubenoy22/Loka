@@ -6,7 +6,7 @@ if(APPLE)
   loka_suppress_arclite_link()
 endif()
 
-if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME MATCHES "^Retro68$"))
+if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$"))
   add_custom_target(ScrapbookUI ALL
     COMMAND ${CMAKE_COMMAND} -E echo
       "ScrapbookUI has no supported platform target here."
@@ -92,7 +92,7 @@ if(APPLE)
   endif()
 endif()
 
-if(NOT CMAKE_SYSTEM_NAME MATCHES "^Retro68$")
+if(NOT CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
   return()
 endif()
 
@@ -152,7 +152,7 @@ target_link_options(${SCRAPBOOK_CLASSIC_TARGET} PRIVATE
   -Wl,--gc-sections
 )
 
-if(NOT LOKA_RETRO68_DIAGNOSTICS)
+if(CMAKE_SYSTEM_NAME STREQUAL "Retro68" AND NOT LOKA_RETRO68_DIAGNOSTICS)
   target_link_options(${SCRAPBOOK_CLASSIC_TARGET} PRIVATE
     -Wl,--mac-strip-macsbug
   )
