@@ -1,19 +1,36 @@
 ---
 name: win32-verify
-description: Build and verify Loka on the local Win32 ARM64 machine from WSL — vcvarsall via bat file, test evidence rules, assert-dialog hang workaround, screenshot capture. Use when a change touches win32/ or needs real-machine Win32 verification.
+description: Build and verify Loka on a local Win32 machine from WSL — vcvarsall via bat file, worktree setup, test evidence rules, assert-dialog hang workaround, screenshot capture. Use when a change touches win32/ or needs real-machine Win32 verification.
 ---
 
-# Win32 real-machine build & verify (WSL → MSVC ARM64)
+# Win32 real-machine build & verify (WSL → MSVC)
 
-The local rig: Windows on ARM64, `ACP=932` (CP932), VS 2022 Community at
-`C:\Program Files\Microsoft Visual Studio\2022\Community`. Hosted CI covers
-x64 Debug only; ARM64 and full-width-path behavior are verified here (#172).
+Hosted CI covers x64 Debug only; the native architecture and full-width-path
+behavior are verified on a real machine here (#172).
 
-## Ground rules
+Never hardcode the Visual Studio path or the target architecture. Both differ
+per rig, the install path does not follow the product year (VS 2026 lives under
+`\18\`), and a wrong guess fails at `call`. Discover both in the bat file — see
+Build below.
 
-- **Work in a worktree on `/mnt/c`** (NTFS), e.g.
-  `/mnt/c/Users/cuben/source/repos/loka-<issue>`. Windows tools cannot see the
-  WSL ext4 clone (`~/loka`); create the worktree from it, `git worktree add`.
+## Checkout layout
+
+- **The WSL ext4 clone is the source of truth.** Clone it with WSL `git`, not
+  Git for Windows: Git for Windows checks out CRLF, WSL `git` has
+  `core.autocrlf` unset, and every tracked file then reads as modified.
+- **Work in a worktree on `/mnt/c`** (NTFS). Windows tools cannot see the ext4
+  clone; create the worktree from it with `git worktree add`.
+- **Silence the `/mnt/c` filemode noise once per worktree.** drvfs reports every
+  file as 0777, so `git status` shows a `100644 => 100755` mode change for the
+  whole tree. `core.filemode` is shared across worktrees, so set it per
+  worktree instead of turning it off in the ext4 clone:
+
+  ```sh
+  git -C <ext4-clone> config extensions.worktreeConfig true   # once per clone
+  cd <mnt-c-worktree>
+  git config --worktree core.filemode false
+  ```
+
 - **Never pass complex arguments to `cmd.exe` directly** — WSL quoting mangles
   them. Write a `.bat` file in the worktree and run
   `cmd.exe /c <name>.bat > log.txt 2>&1` from that directory.
@@ -24,14 +41,20 @@ x64 Debug only; ARM64 and full-width-path behavior are verified here (#172).
 ## Build
 
 `build.bat` (the two builds are both required — neither implies the other,
-see `.github/workflows/ci.yml`):
+see `.github/workflows/ci.yml`). The first two lines resolve the toolchain, so
+the same file works on any rig:
 
 ```bat
-call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" arm64
+for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath`) do set VSPATH=%%i
+if "%PROCESSOR_ARCHITECTURE%"=="ARM64" (set VCARCH=arm64) else (set VCARCH=x64)
+call "%VSPATH%\VC\Auxiliary\Build\vcvarsall.bat" %VCARCH% || exit /b 1
 cmake --preset win32-debug || exit /b 1
 cmake --build --preset win32-debug || exit /b 1
 cmake --build --preset win32-tests || exit /b 1
 ```
+
+The presets are architecture-neutral — they use whatever `cl.exe` and
+`ninja.exe` vcvarsall puts on `PATH`, so nothing below the `call` is per-rig.
 
 ## Test evidence rules
 
@@ -44,7 +67,10 @@ cmake --build --preset win32-tests || exit /b 1
   run**, never a grep of the output banner (banners are each test's own
   printf and prove nothing).
 - Full-width path coverage: single-run the tests that create files like
-  `loka-Ａ.bin` and check `EXIT=0` (this is what ACP=932 is for).
+  `loka-Ａ.bin` (`testWin32OpenReadAcceptsFullWidthPath`,
+  `testWin32OpenWriteTruncateAcceptsFullWidthPath`) and check `EXIT=0`. This
+  only proves anything on a rig whose ACP is 932 — confirm the codepage rather
+  than assuming it.
 
 ## Assert red → dialog hang (#210)
 
@@ -57,7 +83,7 @@ forever. To capture a red run:
 4. Read the assert message (`Assertion failed: ... file:line`) from the log.
 
 This is also the mutation-testing loop: mutate → red assert captured from the
-log → restore → green (precedent: #211, `plans/199-mutation-log.md` in ~/loka).
+log → restore → green (precedent: #211, `plans/199-mutation-log.md`).
 
 ## Screenshots (visual verification)
 
