@@ -61,14 +61,13 @@ ToolboxWindow::ToolboxWindow(PlatformContext *context, const WindowProps &props)
       ToolboxWindowContext::CAP_NONE
 #endif
   );
-  this->titleState().deferBind(&ToolboxWindow::TitleChangedThunk, this);
-  this->frameState().deferBind(&ToolboxWindow::FrameChangedThunk, this);
+  this->observeNativeState(this->displayTitleState(), &ToolboxWindow::TitleChangedThunk, this);
+  this->observeNativeState(this->frameState(), &ToolboxWindow::FrameChangedThunk, this);
 }
 
 ToolboxWindow::~ToolboxWindow()
 {
-  this->titleState().unbind(&ToolboxWindow::TitleChangedThunk, this);
-  this->frameState().unbind(&ToolboxWindow::FrameChangedThunk, this);
+  this->detachNativeStateObservers();
   needsInvalidate_ = false;
   pendingDebugDump_ = false;
   pendingDebugDumpCompletion_ = 0;
@@ -121,7 +120,7 @@ void ToolboxWindow::open()
   short height = static_cast<short>(this->hasSize() ? this->height() : defaultFrame.height);
   SetRect(&bounds, left, top, static_cast<short>(left + width), static_cast<short>(top + height));
 
-  loka::core::String titleValue = this->titleState().get();
+  loka::core::String titleValue = this->displayTitleState().get();
   if (titleValue.empty())
   {
     titleValue = loka::core::String::Literal("Loka");
@@ -309,7 +308,7 @@ void ToolboxWindow::TitleChangedThunk(void *userData)
   {
     return;
   }
-  loka::core::String titleValue = self->titleState().get();
+  loka::core::String titleValue = self->displayTitleState().get();
   if (titleValue.empty())
   {
     titleValue = loka::core::String::Literal("Loka");

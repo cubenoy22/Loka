@@ -3,6 +3,7 @@
 
 #include "../../example/MineSweeper/src/MyAppConfig.hpp"
 #include "ObservedMainDefinition.hpp"
+#include "ScenarioWindowPresentation.hpp"
 
 namespace loka
 {
@@ -10,7 +11,8 @@ namespace loka
   {
     /** Presents MineSweeper's production window declaration around its
         deterministic scenario scene. */
-    class MineSweeperScenarioPresentation : public ::MyAppConfig
+    class MineSweeperScenarioPresentation : public ::MyAppConfig,
+                                            protected ScenarioWindowPresentation
     {
     public:
       MineSweeperScenarioPresentation(PlatformContext *context, const minesweeper::MainProps &mainProps)
@@ -21,8 +23,9 @@ namespace loka
       virtual void compose(AppComposition &composition)
       {
         ObservedMainDefinition<minesweeper::MainProps, minesweeper::MainNode> mainDefinition(this->mainProps(), 0);
-        composition << WindowDef(this->productionWindowProps(mainDefinition)
-                                     .idlePolicy(app::IdlePolicy::everyTick())
+        WindowProps windowProps = this->productionWindowProps(mainDefinition);
+        this->applyScenarioWindowPresentation(windowProps);
+        composition << WindowDef(windowProps.idlePolicy(app::IdlePolicy::everyTick())
                                      .onIdle(&MineSweeperScenarioPresentation::OnWindowIdle, this));
       }
 

@@ -95,16 +95,14 @@ MacWindow::MacWindow(PlatformContext *context, const WindowProps &props)
       closing_(false),
       scenePlatformController_(0)
 {
-  this->visibilityState().deferBind(&MacWindow::VisibilityChangedThunk, this);
-  this->titleState().deferBind(&MacWindow::TitleChangedThunk, this);
-  this->frameState().deferBind(&MacWindow::FrameChangedThunk, this);
+  this->observeNativeState(this->visibilityState(), &MacWindow::VisibilityChangedThunk, this);
+  this->observeNativeState(this->displayTitleState(), &MacWindow::TitleChangedThunk, this);
+  this->observeNativeState(this->frameState(), &MacWindow::FrameChangedThunk, this);
 }
 
 MacWindow::~MacWindow()
 {
-  this->visibilityState().deferUnbind(&MacWindow::VisibilityChangedThunk, this);
-  this->titleState().deferUnbind(&MacWindow::TitleChangedThunk, this);
-  this->frameState().deferUnbind(&MacWindow::FrameChangedThunk, this);
+  this->detachNativeStateObservers();
   teardownScene();
   NSWindow *window = (NSWindow *)window_;
   if (window)
@@ -176,7 +174,7 @@ void MacWindow::TitleChangedThunk(void *userData)
   }
   NSWindow *window = (NSWindow *)self->window_;
   std::string utf8;
-  if (loka::platform::CollectUtf8(self->titleState().get(), utf8))
+  if (loka::platform::CollectUtf8(self->displayTitleState().get(), utf8))
   {
     [window setTitle:loka::macos::CreateNSStringFromUtf8(utf8)];
   }
@@ -275,7 +273,7 @@ void MacWindow::createNativeWindow()
   NSRect frame = FrameRectForContent(x, y, width, height, style, screen);
   [window setFrame:frame display:NO];
   std::string utf8;
-  if (loka::platform::CollectUtf8(this->titleState().get(), utf8))
+  if (loka::platform::CollectUtf8(this->displayTitleState().get(), utf8))
   {
     [window setTitle:loka::macos::CreateNSStringFromUtf8(utf8)];
   }
