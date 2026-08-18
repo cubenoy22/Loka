@@ -139,7 +139,7 @@ void ToolboxApp::run()
         {
           short menuId = static_cast<short>(choice >> 16);
           short item = static_cast<short>(choice & 0xFFFF);
-          handleMenuCommand(menuId, item);
+          this->handleMenuSelection(menuId, item);
           HiliteMenu(0);
         }
       }
@@ -256,7 +256,7 @@ void ToolboxApp::run()
         {
           short menuId = static_cast<short>(choice >> 16);
           short item = static_cast<short>(choice & 0xFFFF);
-          handleMenuCommand(menuId, item);
+          this->handleMenuSelection(menuId, item);
           HiliteMenu(0);
         }
       }
@@ -838,7 +838,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
   clearMenuDiff();
 }
 
-void ToolboxApp::handleMenuCommand(short menuId, short item)
+void ToolboxApp::handleMenuSelection(short menuId, short item)
 {
   if (menuId == 0 || item == 0)
     return;
