@@ -213,5 +213,54 @@ class PngToolTest(unittest.TestCase):
             self.assertGreater(os.path.getsize(difference), 0)
 
 
+class PresetFlagSeedingTest(unittest.TestCase):
+    """Pin the MSVC flag-seeding contract for the win32 preset family.
+
+    Assigning the completed CMAKE_<LANG>_FLAGS / CMAKE_EXE_LINKER_FLAGS cache
+    entries from a preset replaces the platform defaults CMake would otherwise
+    compose (for MSVC that silently drops /EHsc, which /WX then turns into a
+    build break). Presets must seed platform-specific inputs through the
+    *_INIT variables instead. The Linux instrumentation presets
+    (testing-coverage, testing-asan) intentionally own their complete flag
+    sets and are outside this rule.
+    """
+
+    COMPLETED_FORMS = ("CMAKE_C_FLAGS", "CMAKE_CXX_FLAGS", "CMAKE_EXE_LINKER_FLAGS")
+
+    def load_configure_presets(self):
+        with open(os.path.join(PROJECT_DIR, "CMakePresets.json"), "r", encoding="utf-8") as handle:
+            return json.load(handle)["configurePresets"]
+
+    def test_win32_presets_never_replace_completed_flag_sets(self):
+        checked = 0
+        for preset in self.load_configure_presets():
+            if not preset["name"].startswith("win32"):
+                continue
+            checked += 1
+            cache = preset.get("cacheVariables", {})
+            for completed in self.COMPLETED_FORMS:
+                self.assertNotIn(
+                    completed,
+                    cache,
+                    "{} assigns {}; seed it through {}_INIT so MSVC defaults survive".format(
+                        preset["name"], completed, completed
+                    ),
+                )
+        self.assertGreater(checked, 0)
+
+    def test_winxp_presets_seed_the_xp_target_through_init(self):
+        presets = {p["name"]: p for p in self.load_configure_presets()}
+        for name in ("win32-xp-debug", "win32-xp-release"):
+            cache = presets[name].get("cacheVariables", {})
+            for lang_flags in ("CMAKE_C_FLAGS_INIT", "CMAKE_CXX_FLAGS_INIT"):
+                self.assertIn("/D_WIN32_WINNT=0x0501", cache.get(lang_flags, ""), name)
+                self.assertIn("/DWINVER=0x0501", cache.get(lang_flags, ""), name)
+            self.assertIn(
+                "/SUBSYSTEM:WINDOWS,5.01",
+                cache.get("CMAKE_EXE_LINKER_FLAGS_INIT", ""),
+                name,
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
