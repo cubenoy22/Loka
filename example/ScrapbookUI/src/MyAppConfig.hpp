@@ -17,9 +17,9 @@ public:
 
   virtual void compose(AppComposition &composition)
   {
-    loka::app::scene::NodeDefinition<scrapbook::MainProps, scrapbook::MainNode> mainDefinition(
-        scrapbook::MainProps().platformContext(this->getPlatformContext()));
-    composition << WindowDef(this->productionWindowProps(mainDefinition));
+    composition << WindowDef(this->productionWindowProps(
+        loka::app::scene::Boundary<scrapbook::MainNode>(
+            scrapbook::MainProps().platformContext(this->getPlatformContext()))));
   }
 
   virtual void composeMenu(loka::app::MenuComposition &composition)

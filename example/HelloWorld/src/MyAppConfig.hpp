@@ -19,8 +19,8 @@ public:
 
   virtual void compose(AppComposition &c)
   {
-    loka::app::scene::NodeDefinition<helloworld::MainProps, helloworld::MainNode> mainDefinition;
-    c << WindowDef(this->productionWindowProps(mainDefinition));
+    c << WindowDef(this->productionWindowProps(
+        loka::app::scene::Boundary<helloworld::MainNode>()));
   }
 
   virtual void composeMenu(loka::app::MenuComposition &c)

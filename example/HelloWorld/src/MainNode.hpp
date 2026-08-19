@@ -12,9 +12,9 @@
 namespace helloworld
 {
   class MainNode;
-  typedef loka::app::scene::StdCompositionPropsFor<MainNode> MainProps;
+  typedef loka::app::scene::BoundaryPropsFor<MainNode> MainProps;
 
-  class MainNode : public loka::app::scene::StdCompositionNodeFor<MainNode>
+  class MainNode : public loka::app::scene::BoundaryNodeFor<MainNode>
   {
   public:
     MainNode(const MainProps &p);

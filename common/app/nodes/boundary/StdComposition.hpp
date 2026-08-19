@@ -188,6 +188,14 @@ namespace loka
         return BoundaryDefinition<BoundaryPropsFor<NodeT>, NodeT>(p);
       }
 
+      /** Constructs a Boundary definition with custom Props while inferring
+          the Props type from the supplied value. */
+      template <class NodeT, class PropsT>
+      inline BoundaryDefinition<PropsT, NodeT> Boundary(const PropsT &p)
+      {
+        return BoundaryDefinition<PropsT, NodeT>(p);
+      }
+
       // Helper base class for nodes using StdCompositionPropsFor<NodeT>.
       template <class NodeT>
       class StdCompositionNodeFor : public StdCompositionBoundaryNodeBase<StdCompositionPropsFor<NodeT> >
