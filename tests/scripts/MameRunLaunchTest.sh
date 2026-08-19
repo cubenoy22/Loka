@@ -197,8 +197,16 @@ pass missing-template-refused
 # would enter this block and fail on the stub, so gate on powershell.exe alone.
 # Where it is absent the block announces itself rather than passing silently.
 POWERSHELL="$(command -v powershell.exe || true)"
+# Presence is not the condition -- being able to run it is. A WSL sandbox with
+# interop disabled still has powershell.exe on PATH and fails at exec
+# ("UtilBindVsockAnyPort: socket failed"), which reddened this test under a
+# delegated agent while the guard said the host was fine.
+if [ -n "$POWERSHELL" ] &&
+   ! "$POWERSHELL" -NoProfile -NonInteractive -Command exit >/dev/null 2>&1; then
+  POWERSHELL=""
+fi
 if [ -z "$POWERSHELL" ]; then
-  printf '  [skip] no Windows PowerShell here, so mame-run.ps1 was not exercised\n'
+  printf '  [skip] no usable Windows PowerShell here, so mame-run.ps1 was not exercised\n'
   exit 0
 fi
 
