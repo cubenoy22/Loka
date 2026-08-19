@@ -1,0 +1,43 @@
+name: Linux CI
+
+# The platform workflows intentionally share one trigger surface so their
+# status badges describe the same pull requests and main-branch commits.
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-headless:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      # No build can catch a reintroduced side-effect assert: it compiles, and
+      # under NDEBUG it just makes a test check less than it claims (#264).
+      - run: python3 tools/ci/check_test_asserts.py
+      - run: cmake --preset testing
+      - run: cmake --build --preset testing
+      - run: ctest --preset testing --output-on-failure
+
+  linux-asan:
+    runs-on: ubuntu-latest
+    env:
+      ASAN_OPTIONS: detect_leaks=1
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - run: cmake --preset testing-asan
+      - run: cmake --build --preset testing-asan
+      - run: ctest --preset testing-asan --output-on-failure
+
+  linux-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - run: cmake --preset testing-release
+      - run: cmake --build --preset testing-release
+      - run: ctest --preset testing-release --output-on-failure
