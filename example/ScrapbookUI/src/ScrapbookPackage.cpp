@@ -53,7 +53,7 @@ namespace scrapbook
     }
 
     std::size_t indexBytesNeeded = 0;
-    if (this->reader_.beginOpen(this->source_, kIdSpaceStamp, Reader::VERIFY_INTEGRITY, indexBytesNeeded)
+    if (this->reader_.beginOpen(this->source_, R::IdSpaceStamp, Reader::VERIFY_INTEGRITY, indexBytesNeeded)
         != Reader::OPEN_OK)
     {
       this->source_.close();
@@ -63,7 +63,7 @@ namespace scrapbook
     this->indexBytes_.resize(indexBytesNeeded);
     unsigned char *indexBase = this->indexBytes_.empty() ? 0 : &this->indexBytes_[0];
     if (this->reader_.finishOpen(indexBase, this->indexBytes_.size()) != Reader::OPEN_OK
-        || this->reader_.bagCount() != kPageCount + 1 || this->reader_.assetCount() != kPageCount + 1)
+        || this->reader_.bagCount() != R::BagCount || this->reader_.assetCount() != R::AssetCount)
     {
       this->reader_.close();
       this->indexBytes_.clear();
@@ -81,8 +81,9 @@ namespace scrapbook
 
   bool ScrapbookPackage::loadRefusedBadge()
   {
+    const R::AssetRef &resource = R::UI::RefusedBadge;
     std::size_t bagSize = 0;
-    if (!this->reader_.bagStoredSize(kUiBagIndex, bagSize))
+    if (!this->reader_.bagStoredSize(resource.bag, bagSize))
     {
       return false;
     }
@@ -91,7 +92,7 @@ namespace scrapbook
     std::vector<unsigned char> &bytes = blob.mutableBytes();
     bytes.resize(bagSize);
     unsigned char *destination = bytes.empty() ? 0 : &bytes[0];
-    if (this->reader_.readBagInto(kUiBagIndex, destination, bytes.size()) != Reader::BAG_OK)
+    if (this->reader_.readBagInto(resource.bag, destination, bytes.size()) != Reader::BAG_OK)
     {
       return false;
     }
@@ -100,11 +101,11 @@ namespace scrapbook
     Facts facts;
     Asset asset;
     Image image;
-    if (this->reader_.get(kRefusedBadgeAssetId, facts, asset) != Reader::GET_OK || asset.bag != kUiBagIndex
-        || asset.kind != loka::core::resource::lrpk::ASSET_KIND_IMAGE
+    if (this->reader_.get(resource.id, facts, asset) != Reader::GET_OK || asset.bag != resource.bag
+        || asset.kind != resource.kind || resource.kind != loka::core::resource::lrpk::ASSET_KIND_IMAGE
         || !this->context_->createImageFromBlob(blob, asset.offsetInBag, asset.length, image))
     {
-      this->reader_.closeBag(kUiBagIndex);
+      this->reader_.closeBag(resource.bag);
       return false;
     }
 
@@ -121,7 +122,8 @@ namespace scrapbook
       return false;
     }
 
-    const std::size_t bag = PageBagIndex(static_cast<std::size_t>(page));
+    const R::AssetRef &resource = PageResource(static_cast<std::size_t>(page));
+    const std::size_t bag = resource.bag;
     bool openedNew = false;
     Blob blob;
     if (static_cast<int>(bag) == this->currentBag_ && this->reader_.isBagOpen(bag))
@@ -158,10 +160,11 @@ namespace scrapbook
 
   bool ScrapbookPackage::buildPresentation(int page, const Blob &blob, PagePresentation &out)
   {
+    const R::AssetRef &resource = PageResource(static_cast<std::size_t>(page));
     Facts facts;
     Asset asset;
-    if (this->reader_.get(PageAssetId(static_cast<std::size_t>(page)), facts, asset) != Reader::GET_OK
-        || asset.bag != PageBagIndex(static_cast<std::size_t>(page)))
+    if (this->reader_.get(resource.id, facts, asset) != Reader::GET_OK
+        || asset.bag != resource.bag || asset.kind != resource.kind)
     {
       return false;
     }
@@ -218,12 +221,23 @@ namespace scrapbook
 
   bool ScrapbookPackage::hasCurrentPage() const
   {
-    return this->open_ && this->currentBag_ >= static_cast<int>(kFirstPageBagIndex);
+    return this->currentPage() >= 0;
   }
 
   int ScrapbookPackage::currentPage() const
   {
-    return this->hasCurrentPage() ? this->currentBag_ - static_cast<int>(kFirstPageBagIndex) : -1;
+    if (!this->open_ || this->currentBag_ < 0)
+    {
+      return -1;
+    }
+    for (std::size_t page = 0; page < kPageCount; ++page)
+    {
+      if (static_cast<int>(PageResource(page).bag) == this->currentBag_)
+      {
+        return static_cast<int>(page);
+      }
+    }
+    return -1;
   }
 
   Image ScrapbookPackage::refusedBadgeImage() const
@@ -243,9 +257,9 @@ namespace scrapbook
   {
     this->refusedBadgeImage_ = Image::Empty();
     this->uiBlob_ = Blob();
-    if (this->reader_.isBagOpen(kUiBagIndex))
+    if (this->reader_.isBagOpen(R::UI::RefusedBadge.bag))
     {
-      this->reader_.closeBag(kUiBagIndex);
+      this->reader_.closeBag(R::UI::RefusedBadge.bag);
     }
   }
 

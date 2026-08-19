@@ -3,6 +3,9 @@
 
 void testPackManifestParsesRecordsAndRefusesMalformedLines();
 void testPackManifestStampFollowsTheIdSpaceNotTheListing();
+void testResourceHeaderGeneratesTypedNestedSymbols();
+void testResourceHeaderRefusesAmbiguousCppSurfaces();
+void testResourceHeaderHandlesFiftyThousandSymbols();
 void testPackageRequirementsCheckEveryScrapbookExpectation();
 void testPackageRequirementsRejectWrongPageCount();
 void testPackageRequirementsRejectExtraAsset();

@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <vector>
 
+#include <R.hpp>
+
 #include "app/PlatformContext.hpp"
 #include "core/String.hpp"
 #include "core/resource/Blob.hpp"
@@ -17,18 +19,7 @@
 
 namespace scrapbook
 {
-  typedef loka::core::resource::lrpk::U32 AssetId;
-
-#if defined(LOKA_SCRAPBOOK_PAGE_COUNT)
-  const std::size_t kPageCount = LOKA_SCRAPBOOK_PAGE_COUNT;
-#else
-  const std::size_t kPageCount = 5;
-#endif
-
-  const AssetId kFirstPageAssetId = 1001UL;
-  const AssetId kRefusedBadgeAssetId = 9001UL;
-  const std::size_t kUiBagIndex = 0;
-  const std::size_t kFirstPageBagIndex = 1;
+  const std::size_t kPageCount = R::Pages::AssetCount;
 
 #if defined(LOKA_RETRO68)
   typedef loka::toolbox::ToolboxByteSource ScrapbookByteSource;
@@ -36,27 +27,9 @@ namespace scrapbook
   typedef loka::core::resource::lrpk::StdioByteSource ScrapbookByteSource;
 #endif
 
-#if defined(LOKA_SCRAPBOOK_ID_SPACE_STAMP)
-// Injected stamps are full 32-bit values; under -Werror gnu++98, bare decimal
-// literals above the signed 31-bit range are rejected. Expand before adding UL.
-#define LOKA_SCRAPBOOK_STAMP_LITERAL_IMPL(value) value##UL
-#define LOKA_SCRAPBOOK_STAMP_LITERAL(value) LOKA_SCRAPBOOK_STAMP_LITERAL_IMPL(value)
-  const AssetId kIdSpaceStamp =
-      LOKA_SCRAPBOOK_STAMP_LITERAL(LOKA_SCRAPBOOK_ID_SPACE_STAMP);
-#undef LOKA_SCRAPBOOK_STAMP_LITERAL
-#undef LOKA_SCRAPBOOK_STAMP_LITERAL_IMPL
-#else
-  const AssetId kIdSpaceStamp = 3579051217UL;
-#endif
-
-  inline AssetId PageAssetId(std::size_t page)
+  inline const R::AssetRef &PageResource(std::size_t page)
   {
-    return kFirstPageAssetId + static_cast<AssetId>(page);
-  }
-
-  inline std::size_t PageBagIndex(std::size_t page)
-  {
-    return kFirstPageBagIndex + page;
+    return R::Pages::Assets[page];
   }
 
   /** A page that has been fully read and decoded but not yet installed as the

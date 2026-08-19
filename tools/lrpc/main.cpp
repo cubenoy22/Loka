@@ -26,6 +26,7 @@
 #include "lrpc/HostFile.hpp"
 #include "lrpc/LrpkStager.hpp"
 #include "lrpc/PackManifest.hpp"
+#include "lrpc/ResourceHeader.hpp"
 #include "lrpc/Utf8Path.hpp"
 
 namespace
@@ -450,6 +451,22 @@ namespace
     return LRPC_NATIVE_TEXT("requirements file is not valid");
   }
 
+  const NativeChar *ResourceHeaderMessage(loka::lrpc::ResourceHeaderResult result)
+  {
+    switch (result)
+    {
+      case loka::lrpc::RESOURCE_HEADER_BAD_SYMBOL:
+        return LRPC_NATIVE_TEXT("resource name is not a portable C++ symbol path");
+      case loka::lrpc::RESOURCE_HEADER_SYMBOL_COLLISION:
+        return LRPC_NATIVE_TEXT("resource names collide as a C++ value and namespace");
+      case loka::lrpc::RESOURCE_HEADER_RESERVED_SYMBOL:
+        return LRPC_NATIVE_TEXT("resource name collides with generated R.hpp vocabulary");
+      case loka::lrpc::RESOURCE_HEADER_OK:
+        break;
+    }
+    return LRPC_NATIVE_TEXT("cannot generate resource header");
+  }
+
   const char *BuildMessage(loka::lrpc::Writer::BuildResult result)
   {
     switch (result)
@@ -659,6 +676,30 @@ namespace
     return 1;
   }
 
+  int FailHeaderCommit(const NativePath &headerPath,
+                       const NativePath &outputPath,
+                       bool staleRemoved)
+  {
+#if defined(_WIN32)
+    std::fwprintf(stderr,
+                  L"lrpc: cannot commit resource header: %ls\n"
+                  L"lrpc: %ls was written; the header is %ls so the next "
+                  L"compile cannot trust an older id space\n",
+                  headerPath.c_str(),
+                  outputPath.c_str(),
+                  staleRemoved ? L"removed" : L"possibly stale and could not be removed");
+#else
+    std::fprintf(stderr,
+                 "lrpc: cannot commit resource header: %s\n"
+                 "lrpc: %s was written; the header is %s so the next compile "
+                 "cannot trust an older id space\n",
+                 headerPath.c_str(),
+                 outputPath.c_str(),
+                 staleRemoved ? "removed" : "possibly stale and could not be removed");
+#endif
+    return 1;
+  }
+
   void PrintSuccess(const NativePath &outputPath,
                     std::size_t packageSize,
                     std::size_t assetCount,
@@ -685,17 +726,19 @@ namespace
   int Usage()
   {
     std::fprintf(stderr,
-                 "usage: lrpc pack <manifest> -o <package> [--stamp <file>] [--require <file> --require-pages <N>]\n"
+                 "usage: lrpc pack <manifest> -o <package> [--header <R.hpp>] [--stamp <file>] [--require <file> --require-pages <N>]\n"
                  "       lrpc stage <package> -o <staged-package> [--corrupt-bag <N>]\n"
                  "\n"
                  "  Packs canonical, package-ready asset records into an LRPK\n"
                  "  package. No format conversion happens here: payload bytes\n"
                  "  are already in the form the target consumes.\n"
                  "\n"
+                 "  --header writes the typed C++98 resource symbols and the\n"
+                 "  id-space stamp from the same manifest as the package.\n"
                  "  --stamp writes the derived id-space stamp as one decimal\n"
                  "  line, for the application build to check its header against.\n"
                  "  --require checks the manifest against the app's structural\n"
-                 "  package expectations before writing either output. A file\n"
+                 "  package expectations before writing any output. A file\n"
                  "  with a pages rule also requires --require-pages.\n"
                  "\n"
                  "  stage validates and copies an LRPK package. --corrupt-bag\n"
@@ -848,6 +891,7 @@ int main(int argc, char **argv)
 
   NativePath manifestPath;
   NativePath outputPath;
+  NativePath headerPath;
   NativePath stampPath;
   NativePath requirementPath;
   std::size_t requiredPageCount = 0;
@@ -870,6 +914,14 @@ int main(int argc, char **argv)
         return Usage();
       }
       stampPath = argv[i];
+    }
+    else if (arg == LRPC_NATIVE_TEXT("--header"))
+    {
+      if (++i >= argc || !headerPath.empty())
+      {
+        return Usage();
+      }
+      headerPath = argv[i];
     }
     else if (arg == LRPC_NATIVE_TEXT("--require"))
     {
@@ -921,6 +973,18 @@ int main(int argc, char **argv)
     return FailManifest(manifestPath, errorLine, parsed);
   }
 
+  const U32 stamp = loka::lrpc::DeriveIdSpaceStamp(manifest);
+  std::string resourceHeader;
+  if (!headerPath.empty())
+  {
+    const loka::lrpc::ResourceHeaderResult generated =
+        loka::lrpc::GenerateResourceHeader(manifest, resourceHeader);
+    if (generated != loka::lrpc::RESOURCE_HEADER_OK)
+    {
+      return FailAt(ResourceHeaderMessage(generated), manifestPath);
+    }
+  }
+
   if (!requirementPath.empty())
   {
     std::vector<loka::lrpc::RequirementViolation> violations;
@@ -941,8 +1005,8 @@ int main(int argc, char **argv)
     }
   }
 
-  // Both outputs are written after the package is committed, so an output that
-  // names an input destroys it, and an output that names the other output
+  // Outputs are committed only after every input has been consumed, so one that
+  // names an input destroys it, and an output that names another output
   // truncates whichever landed first -- while the command still prints success
   // and exits zero. Refuse before anything is written.
   //
@@ -1028,6 +1092,15 @@ int main(int argc, char **argv)
       outputNames.push_back(LRPC_NATIVE_TEXT("the stamp staging file (") +
                             stampPath + LRPC_NATIVE_TEXT(".tmp)"));
     }
+    if (!headerPath.empty())
+    {
+      outputPaths.push_back(headerPath);
+      outputNames.push_back(LRPC_NATIVE_TEXT("the resource header (") +
+                            headerPath + LRPC_NATIVE_TEXT(")"));
+      outputPaths.push_back(headerPath + LRPC_NATIVE_TEXT(".tmp"));
+      outputNames.push_back(LRPC_NATIVE_TEXT("the resource header staging file (") +
+                            headerPath + LRPC_NATIVE_TEXT(".tmp)"));
+    }
     for (std::size_t i = 0; i < outputPaths.size(); ++i)
     {
       outputs.push_back(CollisionKey(outputPaths[i]));
@@ -1086,7 +1159,6 @@ int main(int argc, char **argv)
                     payloads[i].size());
   }
 
-  const U32 stamp = loka::lrpc::DeriveIdSpaceStamp(manifest);
   std::vector<unsigned char> package;
   const loka::lrpc::Writer::BuildResult built = writer.build(stamp, package);
   if (built != loka::lrpc::Writer::BUILD_OK)
@@ -1094,20 +1166,32 @@ int main(int argc, char **argv)
     return Fail(BuildMessage(built));
   }
 
-  // Both artifacts describe one id space, so neither may replace its previous
-  // version until the other is known to be writable. Committing the package
-  // first and then failing on an unwritable stamp destination left a new
-  // package beside an old or missing stamp -- two artifacts describing
-  // different id spaces, which is the state the stamp exists to make
-  // impossible. AGENTS.md's failure-atomicity policy states the general form:
-  // never destroy the old value before its replacement exists.
+  // These artifacts describe one baked-resource space, so none may replace its
+  // previous version until every requested replacement is known to be writable.
+  // Committing the package first and then failing on a companion destination
+  // leaves artifacts from different runs together, which is the state the
+  // generated stamp exists to make impossible. AGENTS.md's failure-atomicity
+  // policy states the general form: never destroy the old value before its
+  // replacement exists.
   const NativePath temporary = outputPath + LRPC_NATIVE_TEXT(".tmp");
   const NativePath stampTemporary =
       stampPath.empty() ? NativePath() : stampPath + LRPC_NATIVE_TEXT(".tmp");
+  const NativePath headerTemporary =
+      headerPath.empty() ? NativePath() : headerPath + LRPC_NATIVE_TEXT(".tmp");
 
   if (!WriteNewFile(temporary, package.empty() ? 0 : &package[0], package.size()))
   {
     return FailAt(LRPC_NATIVE_TEXT("cannot create package staging file"), temporary);
+  }
+  if (!headerPath.empty() &&
+      !WriteNewFile(headerTemporary,
+                    resourceHeader.empty()
+                        ? 0
+                        : reinterpret_cast<const unsigned char *>(resourceHeader.c_str()),
+                    resourceHeader.size()))
+  {
+    RemoveFile(temporary);
+    return FailAt(LRPC_NATIVE_TEXT("cannot write resource header"), headerTemporary);
   }
   if (!stampPath.empty())
   {
@@ -1118,6 +1202,10 @@ int main(int argc, char **argv)
                       static_cast<std::size_t>(printed)))
     {
       RemoveFile(temporary);
+      if (!headerTemporary.empty())
+      {
+        RemoveFile(headerTemporary);
+      }
       return FailAt(LRPC_NATIVE_TEXT("cannot write stamp"), stampTemporary);
     }
   }
@@ -1129,12 +1217,27 @@ int main(int argc, char **argv)
     {
       RemoveFile(stampTemporary);
     }
+    if (!headerTemporary.empty())
+    {
+      RemoveFile(headerTemporary);
+    }
     return FailAt(LRPC_NATIVE_TEXT("cannot commit package"), outputPath);
+  }
+  if (!headerTemporary.empty() && !CommitByRename(headerTemporary, headerPath))
+  {
+    RemoveFile(headerTemporary);
+    if (!stampTemporary.empty())
+    {
+      RemoveFile(stampTemporary);
+    }
+    const bool staleRemoved =
+        !PathIsDirectory(headerPath) && RemoveFile(headerPath) == 0;
+    return FailHeaderCommit(headerPath, outputPath, staleRemoved);
   }
   if (!stampTemporary.empty() && !CommitByRename(stampTemporary, stampPath))
   {
     // Staging removed every failure that can be seen in advance, so reaching
-    // here means the second rename failed on its own. Two files cannot be
+    // here means the final rename failed on its own. Multiple files cannot be
     // renamed atomically, so the remaining choice is which inconsistent state
     // to leave behind -- and a stale stamp beside a new package is the worse
     // one, because it agrees with a package that no longer exists and the

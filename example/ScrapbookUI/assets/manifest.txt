@@ -1,19 +1,18 @@
 # The UI bag stays resident; each page bag remains independently verifiable.
-# Derived id-space stamp: 3579051217 (also scrapbook::kIdSpaceStamp).
 bag ui
 asset 9001 image UI/RefusedBadge ngbadge.pict
 
 bag page-1
-asset 1001 image SCRAPBOOK_PAGE_1 page1.pict
+asset 1001 image Pages/Page1 page1.pict
 
 bag page-2
-asset 1002 image SCRAPBOOK_PAGE_2 page2.pict
+asset 1002 image Pages/Page2 page2.pict
 
 bag page-3
-asset 1003 image SCRAPBOOK_PAGE_3 page3.pict
+asset 1003 image Pages/Page3 page3.pict
 
 bag page-4
-asset 1004 image SCRAPBOOK_PAGE_4 page4.pict
+asset 1004 image Pages/Page4 page4.pict
 
 bag page-5
-asset 1005 string SCRAPBOOK_PAGE_5_TEXT page5.txt
+asset 1005 string Pages/Page5 page5.txt
