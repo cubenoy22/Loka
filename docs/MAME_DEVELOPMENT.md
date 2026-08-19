@@ -29,9 +29,11 @@ Use Windows paths for the MAME executable, ROMs, and boot HDA in `.env-mame`.
 ## Configuration
 
 Copy `.env-mame.example` to `.env-mame` and set at least `MAME_HDA`. The file
-is local and ignored by Git. `MAME_HDA` is both the boot disk and the template
-used to create `build/mame-dev/LokaDev.hd`; the original image is never
-modified by the development-disk script.
+is local and ignored by Git. `MAME_HDA` is a **template, never a runtime disk**:
+it seeds `build/mame-dev/LokaDev.hd` and the per-run boot copies, and nothing in
+this repository boots it directly. To change what the template contains, work in
+a boot copy and promote it deliberately — an accidental promotion is exactly the
+failure this rule prevents.
 
 Set `RETRO68_BUILD_DIR` in the environment when the Retro68 build is not under
 `~/Retro68-build` or `~/Retro68`. `RETRO68_TOOLCHAIN_BIN` may also be set in
@@ -293,9 +295,15 @@ success removes it only after manifest finalization.
 
 ### Isolate the emulator state
 
-Automated runs must not use the installed boot disk as a writable runtime
-disk. Stop MAME, copy the configured boot HDA into the scenario directory, and
-point `-hard1` at the copy. Generate a scenario-local `LokaDev.hd` with
+No run may use the configured boot HDA as a writable runtime disk — MAME writes
+back to whatever it boots, and the Classic goldens are made of the System fonts
+and control chrome inside that image, so a launch that mutates it silently moves
+the baseline. Stop MAME, copy the configured boot HDA, and point `-hard1` at the
+copy. Every launcher in this repository already does this: the scenario rail
+copies per scenario, `mame-debug.sh` and `mame-run.*` copy once into `build/`
+(`MAME_BOOT_HDA`, default `build/mame-run/Boot.hd`) and reuse it afterwards, so
+an interactive session keeps its state and wiping `build/` resets it to the
+template. Generate a scenario-local `LokaDev.hd` with
 `scripts/mame-dev-disk.sh` or `scripts/mame-dev-disk.ps1`, and attach it as
 `hard2` at SCSI ID 5. The source HDA and MAME installation then remain inputs,
 while all mutable state stays under `build/`.

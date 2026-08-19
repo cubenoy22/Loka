@@ -56,8 +56,25 @@ $controlDirectory = if ($env:MAME_CONTROL_DIR) { $env:MAME_CONTROL_DIR } else {
 $developmentDisk = if ($env:MAME_DEV_HDA) { $env:MAME_DEV_HDA } else {
     Join-Path $ProjectDirectory "build/mame-dev/LokaDev.hd"
 }
+$bootDisk = if ($env:MAME_BOOT_HDA) { $env:MAME_BOOT_HDA } else {
+    Join-Path $ProjectDirectory "build/mame-run/Boot.hd"
+}
 New-Item -ItemType Directory -Path $mameHome -Force | Out-Null
 New-Item -ItemType Directory -Path $controlDirectory -Force | Out-Null
+
+# Mirrors mame-run.sh: MAME writes back to whatever it boots, so never hand it
+# MAME_HDA itself. That image is the Classic rail's template, and the pixels the
+# goldens are made of live inside it. Boot a copy under build/ instead. The copy
+# persists so an interactive session keeps its state; wiping build/ resets it.
+if ($env:MAME_HDA) {
+    if (-not (Test-Path -LiteralPath $env:MAME_HDA -PathType Leaf)) {
+        throw "boot hard disk template not found: $($env:MAME_HDA)"
+    }
+    New-Item -ItemType Directory -Path (Split-Path -Parent $bootDisk) -Force | Out-Null
+    if (-not (Test-Path -LiteralPath $bootDisk -PathType Leaf)) {
+        Copy-Item -LiteralPath $env:MAME_HDA -Destination $bootDisk
+    }
+}
 $env:LOKA_MAME_FLOPPY_REQUEST = Join-Path $controlDirectory "floppy.request"
 $env:LOKA_MAME_FLOPPY_RESPONSE = Join-Path $controlDirectory "floppy.response"
 
@@ -76,7 +93,7 @@ if ($env:MAME_ROMPATH) {
     $mameArguments += @("-rompath", $env:MAME_ROMPATH)
 }
 if ($env:MAME_HDA) {
-    $mameArguments += @("-hard1", $env:MAME_HDA)
+    $mameArguments += @("-hard1", $bootDisk)
 }
 
 $mameArguments += @("-scsi:5", "harddisk")
