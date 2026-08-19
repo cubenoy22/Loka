@@ -48,8 +48,40 @@ MAME_HOMEPATH="${MAME_HOMEPATH:-$HOME/.mame}"
 MAME_EXECUTABLE="${MAME_EXECUTABLE:-mame}"
 MAME_CONTROL_DIR="${MAME_CONTROL_DIR:-$MAME_HOMEPATH/loka}"
 MAME_DEV_HDA="${MAME_DEV_HDA:-$PROJECT_DIR/build/mame-dev/LokaDev.hd}"
+MAME_BOOT_HDA="${MAME_BOOT_HDA:-$PROJECT_DIR/build/mame-run/Boot.hd}"
 
 mkdir -p "$MAME_HOMEPATH" "$MAME_CONTROL_DIR"
+
+# MAME writes back to whatever it boots, so never hand it MAME_HDA itself: that
+# image is the Classic rail's template, and the pixels the goldens are made of
+# live inside it. Boot a copy under build/ instead, the same shape
+# mame-debug.sh uses. The copy persists so an interactive session keeps its
+# state; wiping build/ resets it to the template.
+if [ -n "$MAME_HDA" ]; then
+  if [ ! -f "$MAME_HDA" ]; then
+    echo "boot hard disk template not found: $MAME_HDA" >&2
+    exit 1
+  fi
+  mkdir -p "$(dirname "$MAME_BOOT_HDA")"
+  # An alias defeats the whole point: the existence check would pass and -hard1
+  # would name the template after all. -ef compares device and inode, so a
+  # symlink or hard link is caught as well as the same path spelled twice.
+  if [ -e "$MAME_BOOT_HDA" ] && [ "$MAME_BOOT_HDA" -ef "$MAME_HDA" ]; then
+    echo "MAME_BOOT_HDA resolves to the boot template itself: $MAME_BOOT_HDA" >&2
+    exit 1
+  fi
+  # Copy through a temporary and rename, so an interrupted copy cannot leave a
+  # truncated image behind: this run would exit, but every later run would find
+  # a regular file, skip the copy, and boot the corrupt one.
+  if [ ! -f "$MAME_BOOT_HDA" ]; then
+    if ! cp -f "$MAME_HDA" "$MAME_BOOT_HDA.partial" ||
+       ! mv -f "$MAME_BOOT_HDA.partial" "$MAME_BOOT_HDA"; then
+      rm -f "$MAME_BOOT_HDA.partial"
+      echo "could not copy the boot hard disk template to $MAME_BOOT_HDA" >&2
+      exit 1
+    fi
+  fi
+fi
 export LOKA_MAME_FLOPPY_REQUEST="$MAME_CONTROL_DIR/floppy.request"
 export LOKA_MAME_FLOPPY_RESPONSE="$MAME_CONTROL_DIR/floppy.response"
 
@@ -69,7 +101,7 @@ if [ -n "$MAME_ROMPATH" ]; then
 fi
 
 if [ -n "$MAME_HDA" ]; then
-  MAME_ARGS+=(-hard1 "$MAME_HDA")
+  MAME_ARGS+=(-hard1 "$MAME_BOOT_HDA")
 fi
 
 MAME_ARGS+=(-scsi:5 harddisk)

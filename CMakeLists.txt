@@ -365,6 +365,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   if(NOT WIN32)
     add_test(NAME scriptMameDebugLaunch
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MameDebugLaunchTest.sh)
+    add_test(NAME scriptMameRunLaunch
+      COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MameRunLaunchTest.sh)
     add_test(NAME scriptPngCropSelftest
       COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/scenarios/pngtool.py selftest)
     add_test(NAME scriptScenarioTools
