@@ -34,7 +34,7 @@ for invocation in \
   'minesweeper startup' \
   'floppybird startup'; do
   grep -Fqx "      - run: tests/macos/run-scenario.sh $invocation --ci-structural" \
-    "$REPO_DIR/.github/workflows/ci.yml" \
+    "$REPO_DIR/.github/workflows/macos.yml" \
     || fail "CI does not run the $invocation structural cell with the three-argument protocol"
 done
 cp "$REPO_DIR/example/ScrapbookUI/assets/page1.png" "$SANDBOX/snapshot.png"
