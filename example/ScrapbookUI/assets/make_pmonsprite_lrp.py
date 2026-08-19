@@ -530,8 +530,6 @@ def ensure_sprite(path, index):
 def manifest_contents(depth, sprite_count=SPRITE_COUNT):
     if depth not in (1, 256):
         raise ValueError("unsupported manifest depth")
-    # Bag 0 must be ui because ScrapbookPackage.hpp pins
-    # kUiBagIndex = 0 / kFirstPageBagIndex = 1.
     lines = [
         "# One sprite per bag: a page flip reads exactly one independently verifiable bag.",
         "",
@@ -543,7 +541,7 @@ def manifest_contents(depth, sprite_count=SPRITE_COUNT):
             [
                 "",
                 "bag pmon-{}".format(index),
-                "asset {} image PMON_SPRITE_{} pmon-{}.pict".format(
+                "asset {} image Pages/Sprite{} pmon-{}.pict".format(
                     1000 + index, index, index
                 ),
             ]
@@ -555,19 +553,15 @@ def write_manifest(path, depth, sprite_count=SPRITE_COUNT):
     path.write_text(manifest_contents(depth, sprite_count), encoding="ascii")
 
 
-def pack_assets(lrpc, manifest, package, stamp_path, requirements, page_count):
+def pack_assets(lrpc, manifest, package, header_path):
     command = [
         str(lrpc),
         "pack",
         str(manifest),
         "-o",
         str(package),
-        "--stamp",
-        str(stamp_path),
-        "--require",
-        str(requirements),
-        "--require-pages",
-        str(page_count),
+        "--header",
+        str(header_path),
     ]
     completed = subprocess.run(command, text=True, capture_output=True)
     if completed.stdout:
@@ -581,16 +575,15 @@ def pack_assets(lrpc, manifest, package, stamp_path, requirements, page_count):
     if match is None:
         raise RuntimeError("lrpc output did not report the derived id-space stamp")
     printed_stamp = match.group(1)
-    written_stamp = stamp_path.read_text(encoding="ascii").strip()
-    if written_stamp != printed_stamp:
+    header = header_path.read_text(encoding="ascii")
+    header_stamp = re.search(r"\bIdSpaceStamp = ([0-9]+)UL;", header)
+    if header_stamp is None or header_stamp.group(1) != printed_stamp:
         raise RuntimeError(
-            "lrpc printed stamp {} but wrote {}".format(
-                printed_stamp, written_stamp
+            "lrpc printed stamp {} but generated header reports {}".format(
+                printed_stamp,
+                header_stamp.group(1) if header_stamp is not None else "no stamp",
             )
         )
-    # lrpc staged and atomically committed that file itself; rewriting the
-    # same bytes here could only make things worse (a failed rewrite leaves a
-    # truncated stamp beside a good package).
     return printed_stamp
 
 
@@ -697,27 +690,17 @@ def main():
 
     manifest = output_dir / "manifest.txt"
     package = output_dir / "ASSETS.LRP"
-    stamp_path = output_dir / "stamp.txt"
+    header_path = output_dir / "R.hpp"
     shutil.copyfile(
         Path(__file__).resolve().with_name("ngbadge.pict"),
         output_dir / "ngbadge.pict",
     )
     write_manifest(manifest, arguments.depth, arguments.sprite_count)
-    requirements = Path(__file__).resolve().with_name("scrapbook.pkgreq")
-    page_count = arguments.sprite_count
     stamp = pack_assets(
         arguments.lrpc,
         manifest,
         package,
-        stamp_path,
-        requirements,
-        page_count,
-    )
-    # The build step reads these instead of hardcoding the values, so a
-    # changed sprite roster cannot leave the app compiled against a package
-    # its open() checks are guaranteed to reject.
-    (output_dir / "page-count.txt").write_text(
-        "{}\n".format(page_count), encoding="ascii"
+        header_path,
     )
 
     if arguments.check:
@@ -739,22 +722,20 @@ def main():
                 != manifest.read_text(encoding="ascii")
             ):
                 raise AssertionError("generated manifests differ between depths")
-            other_stamp_path = other_output / "stamp.txt"
-            if other_stamp_path.is_file():
-                other_stamp = other_stamp_path.read_text(encoding="ascii").strip()
-                if other_stamp != stamp:
+            other_header_path = other_output / "R.hpp"
+            if other_header_path.is_file():
+                other_header = other_header_path.read_text(encoding="ascii")
+                if other_header != header_path.read_text(encoding="ascii"):
                     raise AssertionError(
-                        "depth stamps differ: {} versus {}".format(
-                            stamp, other_stamp
-                        )
+                        "depth resource headers differ"
                     )
         print(
-            "Depth-independent manifest/stamp self-check: OK "
+            "Depth-independent manifest/header self-check: OK "
             "(depth 1 = depth 256 = {})".format(stamp)
         )
 
     print("Package: {}".format(package))
-    print("Stamp: {}".format(stamp))
+    print("Header: {}".format(header_path))
     print(
         "Build the {}-page ScrapbookUI app from the repository root with:".format(
             arguments.sprite_count
@@ -765,10 +746,7 @@ def main():
         "-DCMAKE_BUILD_TYPE=Release "
         "-DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/Retro68.cmake "
         "-DRETRO68_CPU=m68k -DLOKA_WARNINGS_AS_ERRORS=ON "
-        "-DLOKA_SCRAPBOOK_PAGE_COUNT={} "
-        "-DLOKA_SCRAPBOOK_ID_SPACE_STAMP={}".format(
-            arguments.sprite_count, stamp
-        )
+        "-DLOKA_SCRAPBOOK_R_HEADER_DIR={}".format(output_dir)
     )
     print(
         "  cmake --build build/retro68-pmon "

@@ -294,12 +294,14 @@ namespace loka
         StampRow()
             : id(0),
               kind(0),
+              bag(0),
               name()
         {
         }
 
         U32 id;
         unsigned char kind;
+        U32 bag;
         std::string name;
 
         bool operator<(const StampRow &other) const
@@ -666,29 +668,35 @@ namespace loka
         StampRow row;
         row.id = manifest.assets[i].id;
         row.kind = static_cast<unsigned char>(manifest.assets[i].kind);
+        row.bag = static_cast<U32>(manifest.assets[i].bag);
         row.name = manifest.assets[i].name;
         rows.push_back(row);
       }
-      // Sorted so the stamp describes the id space itself rather than the
-      // order the manifest happened to list it in. Reordering the manifest
-      // must not restamp a package whose ids did not move.
+      // Sorted so the stamp describes the generated facts rather than the
+      // order the manifest happened to list them in. Reordering records within
+      // the same bags must not restamp an otherwise identical package.
       std::sort(rows.begin(), rows.end());
 
       core::resource::lrpk::Crc32 crc;
+      unsigned char bagCount[4];
+      core::resource::lrpk::WriteU32BE(
+          bagCount, static_cast<U32>(manifest.bags.size()));
+      crc.update(bagCount, sizeof(bagCount));
       for (std::size_t i = 0; i < rows.size(); ++i)
       {
         // The name is part of the association, not decoration. Hashing only
-        // `(id, kind)` leaves two same-kind symbols free to exchange ids
+        // `(id, kind, bag)` leaves two same-kind symbols free to exchange ids
         // without moving the stamp: the row multiset is unchanged while the
         // generated header now points each symbol at the other's bytes, so an
         // old package passes the check and draws the wrong asset. That is the
         // silent mismatch the stamp exists to catch.
-        unsigned char encoded[9];
+        unsigned char encoded[13];
         core::resource::lrpk::WriteU32BE(encoded, rows[i].id);
         encoded[4] = rows[i].kind;
+        core::resource::lrpk::WriteU32BE(encoded + 5, rows[i].bag);
         // Length-prefixed so that adjacent names cannot be re-cut into the
         // same byte stream ("AB" + "C" must not hash as "A" + "BC").
-        core::resource::lrpk::WriteU32BE(encoded + 5,
+        core::resource::lrpk::WriteU32BE(encoded + 9,
                                          static_cast<U32>(rows[i].name.size()));
         crc.update(encoded, sizeof(encoded));
         if (!rows[i].name.empty())

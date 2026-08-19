@@ -30,6 +30,7 @@ if(WIN32)
   loka_enable_win32_visual_styles(ScrapbookUIWin32)
 
   target_include_directories(ScrapbookUIWin32 PRIVATE
+    ${LOKA_SCRAPBOOK_R_HEADER_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src
@@ -81,6 +82,7 @@ if(APPLE)
   )
 
   target_include_directories(ScrapbookUIMacOS PRIVATE
+    ${LOKA_SCRAPBOOK_R_HEADER_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../apple/macos/src
@@ -106,6 +108,7 @@ add_application(${SCRAPBOOK_CLASSIC_TARGET} ${SCRAPBOOK_SOURCES})
 loka_enable_warnings(${SCRAPBOOK_CLASSIC_TARGET})
 
 target_include_directories(${SCRAPBOOK_CLASSIC_TARGET} PRIVATE
+  ${LOKA_SCRAPBOOK_R_HEADER_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/../../common
   ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR}/../../apple/toolbox/src
@@ -118,23 +121,6 @@ target_link_libraries(${SCRAPBOOK_CLASSIC_TARGET} PRIVATE
 target_compile_definitions(${SCRAPBOOK_CLASSIC_TARGET} PRIVATE
   LOKA_RETRO68=1
 )
-
-set(LOKA_SCRAPBOOK_PAGE_COUNT "" CACHE STRING
-  "Override ScrapbookUI's committed package page count")
-set(LOKA_SCRAPBOOK_ID_SPACE_STAMP "" CACHE STRING
-  "Override ScrapbookUI's committed package id-space stamp")
-
-if(NOT LOKA_SCRAPBOOK_PAGE_COUNT STREQUAL "")
-  target_compile_definitions(${SCRAPBOOK_CLASSIC_TARGET} PRIVATE
-    LOKA_SCRAPBOOK_PAGE_COUNT=${LOKA_SCRAPBOOK_PAGE_COUNT}
-  )
-endif()
-
-if(NOT LOKA_SCRAPBOOK_ID_SPACE_STAMP STREQUAL "")
-  target_compile_definitions(${SCRAPBOOK_CLASSIC_TARGET} PRIVATE
-    LOKA_SCRAPBOOK_ID_SPACE_STAMP=${LOKA_SCRAPBOOK_ID_SPACE_STAMP}
-  )
-endif()
 
 set_target_properties(${SCRAPBOOK_CLASSIC_TARGET} PROPERTIES
   CXX_STANDARD 98

@@ -2,7 +2,6 @@
 
 import binascii
 from pathlib import Path
-import re
 import struct
 import subprocess
 import sys
@@ -131,7 +130,7 @@ def main():
             expected = (
                 "pmon-{}".format(index),
                 [
-                    "asset {} image PMON_SPRITE_{} pmon-{}.pict".format(
+                    "asset {} image Pages/Sprite{} pmon-{}.pict".format(
                         1000 + index, index, index
                     )
                 ],
@@ -141,13 +140,11 @@ def main():
 
         if (output_dir / "ngbadge.pict").read_bytes() != badge.read_bytes():
             fail("staged ngbadge.pict differs from the committed source")
-        if (output_dir / "page-count.txt").read_text(encoding="ascii") != "{}\n".format(
-            SPRITE_COUNT
-        ):
-            fail("page-count.txt does not contain the sprite count")
-        stamp = (output_dir / "stamp.txt").read_text(encoding="ascii")
-        if re.fullmatch(r"[0-9]+\n", stamp) is None:
-            fail("stamp.txt is not a single decimal line: {!r}".format(stamp))
+        header = (output_dir / "R.hpp").read_text(encoding="ascii")
+        if "const std::size_t AssetCount = {};".format(SPRITE_COUNT) not in header:
+            fail("R.hpp does not expose the generated Pages asset count")
+        if "const AssetRef Sprite1 = {1001UL, 1," not in header:
+            fail("R.hpp does not expose the first generated sprite")
         if not (output_dir / "ASSETS.LRP").is_file():
             fail("lrpc did not produce ASSETS.LRP")
 

@@ -10,6 +10,9 @@ option(LOKA_WIN32_SCENARIOS "Register the rig-local Win32 scenario tests" OFF)
 option(LOKA_LIFECYCLE_AUDIT "Enable lifecycle alive-counter auditing" OFF)
 option(LOKA_RETRO68_DIAGNOSTICS
   "Diagnostic Retro68 profile: keep MacsBug names, the function-tick profiler, and debug-stats dumps" OFF)
+set(LOKA_SCRAPBOOK_R_HEADER_DIR
+  "${PROJECT_SOURCE_DIR}/example/ScrapbookUI/src" CACHE PATH
+  "Directory containing lrpc's generated ScrapbookUI R.hpp")
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/LokaWarnings.cmake)
 
@@ -189,6 +192,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   )
   loka_enable_warnings(LokaContractTests)
   target_include_directories(LokaContractTests PRIVATE
+    ${LOKA_SCRAPBOOK_R_HEADER_DIR}
     ${PROJECT_SOURCE_DIR}/tests
     ${PROJECT_SOURCE_DIR}/tools
   )
@@ -297,6 +301,9 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   target_sources(LokaScrapbookVehiclePresentationTest PRIVATE
     ${PROJECT_SOURCE_DIR}/example/ScrapbookUI/src/ScrapbookPackage.cpp
   )
+  target_include_directories(LokaScrapbookVehiclePresentationTest BEFORE PRIVATE
+    ${LOKA_SCRAPBOOK_R_HEADER_DIR}
+  )
 
   # Allocation ratchet (tests/alloc-ratchet, grown from probe/zero-alloc-pin).
   # Its own binary because it replaces the global operator new/delete to
@@ -327,24 +334,28 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   endif()
 
   # Host-command regression fixture. This is the production lrpc entry point,
-  # built only into the native test graph so scriptLrpcStageWriteFailure can
-  # exercise create/write/cleanup/rename rather than a duplicated file helper.
-  add_executable(LokaLrpcStageTestTool
+  # built only into the native test graph so command tests exercise the real
+  # create/write/cleanup/rename path rather than a duplicated file helper.
+  add_executable(LokaLrpcTestTool
     ${PROJECT_SOURCE_DIR}/tools/lrpc/main.cpp
     ${PROJECT_SOURCE_DIR}/tools/lrpc/HostFile.cpp
     ${PROJECT_SOURCE_DIR}/tools/lrpc/LrpkStager.cpp
     ${PROJECT_SOURCE_DIR}/tools/lrpc/PackManifest.cpp
+    ${PROJECT_SOURCE_DIR}/tools/lrpc/ResourceHeader.cpp
     ${PROJECT_SOURCE_DIR}/tools/lrpc/LrpkWriter.cpp
     ${PROJECT_SOURCE_DIR}/tools/lrpc/Utf8Path.cpp
   )
-  loka_enable_warnings(LokaLrpcStageTestTool)
-  target_include_directories(LokaLrpcStageTestTool PRIVATE
+  loka_enable_warnings(LokaLrpcTestTool)
+  target_include_directories(LokaLrpcTestTool PRIVATE
     ${PROJECT_SOURCE_DIR}/common
     ${PROJECT_SOURCE_DIR}/tools
   )
-  set_target_properties(LokaLrpcStageTestTool PROPERTIES
+  set_target_properties(LokaLrpcTestTool PROPERTIES
     CXX_STANDARD 98
     CXX_STANDARD_REQUIRED YES
+  )
+  target_compile_definitions(LokaLrpcTestTool PRIVATE
+    LOKA_LRPC_TESTING=1
   )
 
   function(loka_add_registered_test test_line target)
@@ -402,8 +413,12 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     add_test(NAME scriptLrpcStageWriteFailure
       COMMAND python3
         ${PROJECT_SOURCE_DIR}/tests/scripts/LrpcStageWriteFailureTest.py
-        $<TARGET_FILE:LokaLrpcStageTestTool>
+        $<TARGET_FILE:LokaLrpcTestTool>
         ${PROJECT_SOURCE_DIR}/example/ScrapbookUI/ASSETS.LRP)
+    add_test(NAME scriptLrpcResourceHeader
+      COMMAND python3
+        ${PROJECT_SOURCE_DIR}/tests/scripts/LrpcResourceHeaderTest.py
+        $<TARGET_FILE:LokaLrpcTestTool>)
 
     if(LOKA_MAME_SCENARIOS)
       file(STRINGS
