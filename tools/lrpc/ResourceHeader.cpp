@@ -167,11 +167,12 @@ namespace loka
       void AppendAssetValue(std::string &out, const ManifestAsset &asset)
       {
         char numbers[96];
-        std::sprintf(numbers,
-                     "{%luUL, %lu, loka::core::resource::lrpk::%s}",
-                     static_cast<unsigned long>(asset.id),
-                     static_cast<unsigned long>(asset.bag),
-                     KindName(asset.kind));
+        ::snprintf(numbers,
+                   sizeof(numbers),
+                   "{%luUL, %lu, loka::core::resource::lrpk::%s}",
+                   static_cast<unsigned long>(asset.id),
+                   static_cast<unsigned long>(asset.bag),
+                   KindName(asset.kind));
         out += numbers;
       }
 
@@ -219,7 +220,10 @@ namespace loka
         AppendIndent(out, depth);
         out += "};\n";
         char count[48];
-        std::sprintf(count, "const std::size_t AssetCount = %lu;\n", static_cast<unsigned long>(group.symbols.size()));
+        ::snprintf(count,
+                   sizeof(count),
+                   "const std::size_t AssetCount = %lu;\n",
+                   static_cast<unsigned long>(group.symbols.size()));
         AppendIndent(out, depth);
         out += count;
         CloseNamespaces(out, path);
@@ -291,13 +295,14 @@ namespace loka
                    "  };\n\n";
 
       char facts[160];
-      std::sprintf(facts,
-                   "  const AssetId IdSpaceStamp = %luUL;\n"
-                   "  const std::size_t AssetCount = %lu;\n"
-                   "  const std::size_t BagCount = %lu;\n\n",
-                   static_cast<unsigned long>(DeriveIdSpaceStamp(manifest)),
-                   static_cast<unsigned long>(manifest.assets.size()),
-                   static_cast<unsigned long>(manifest.bags.size()));
+      ::snprintf(facts,
+                 sizeof(facts),
+                 "  const AssetId IdSpaceStamp = %luUL;\n"
+                 "  const std::size_t AssetCount = %lu;\n"
+                 "  const std::size_t BagCount = %lu;\n\n",
+                 static_cast<unsigned long>(DeriveIdSpaceStamp(manifest)),
+                 static_cast<unsigned long>(manifest.assets.size()),
+                 static_cast<unsigned long>(manifest.bags.size()));
       generated += facts;
 
       // The named constants remain the ordinary door; Assets[] is the explicit
