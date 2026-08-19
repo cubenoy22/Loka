@@ -13,6 +13,7 @@ namespace loka
     {
       RESOURCE_HEADER_OK = 0,
       RESOURCE_HEADER_BAD_SYMBOL,
+      RESOURCE_HEADER_NEEDS_NAMESPACE,
       RESOURCE_HEADER_SYMBOL_COLLISION,
       RESOURCE_HEADER_RESERVED_SYMBOL
     };
@@ -21,10 +22,11 @@ namespace loka
         manifest. The header and package therefore describe the same immutable
         id, bag, kind, and id-space-stamp facts.
 
-        Symbol names use `/` as a namespace boundary. Every segment must be a
-        portable C++ identifier across the supported language modes; invalid,
-        reserved, and prefix-colliding
-        names are refused rather than rewritten into an ambiguous API.
+        Symbol names use `/` as a namespace boundary and must contain at least
+        one namespace plus the value name. Every segment must be a portable C++
+        identifier across the supported language modes; invalid, reserved, and
+        prefix-colliding names are refused rather than rewritten into an
+        ambiguous API.
 
         `out` is replaced only on success. */
     ResourceHeaderResult GenerateResourceHeader(const PackManifest &manifest, std::string &out);

@@ -354,6 +354,9 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     CXX_STANDARD 98
     CXX_STANDARD_REQUIRED YES
   )
+  target_compile_definitions(LokaLrpcTestTool PRIVATE
+    LOKA_LRPC_TESTING=1
+  )
 
   function(loka_add_registered_test test_line target)
     string(REGEX REPLACE

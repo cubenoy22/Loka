@@ -123,6 +123,11 @@ void testResourceHeaderRefusesAmbiguousCppSurfaces()
 
   std::string preserved("preserved");
   LOKA_VERIFY(loka::lrpc::GenerateResourceHeader(
+                  Manifest("bag Main\nasset 1 image Flat a\n"),
+                  preserved) == loka::lrpc::RESOURCE_HEADER_NEEDS_NAMESPACE);
+  assert(preserved == "preserved");
+
+  LOKA_VERIFY(loka::lrpc::GenerateResourceHeader(
                   Manifest("bag Main\nasset 1 image UI/Badge a\n"
                            "asset 2 image UI/Badge/Small b\n"),
                   preserved) == loka::lrpc::RESOURCE_HEADER_SYMBOL_COLLISION);

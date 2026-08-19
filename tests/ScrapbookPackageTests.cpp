@@ -310,6 +310,9 @@ void testScrapbookPackagesMatchTheirManifestsAndCarryNativeImages()
   PackagePathContext context(packageString);
   scrapbook::ScrapbookPackage package;
   LOKA_VERIFY(package.open(&context));
+  scrapbook::PagePresentation refusedPage;
+  LOKA_VERIFY(!package.preparePage(-1, refusedPage));
+  LOKA_VERIFY(!package.preparePage(static_cast<int>(R::Pages::AssetCount), refusedPage));
   scrapbook::PagePresentation textPage;
   LOKA_VERIFY(package.preparePage(4, textPage));
   assert(!textPage.isImage);

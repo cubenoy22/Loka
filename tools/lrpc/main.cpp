@@ -6,6 +6,8 @@
 // `LOKA_LRPC`. That is what lets the legacy macOS box, whose gcc-4.0 cannot
 // compile modern C++, take part by consuming artifacts only.
 
+#include <cerrno>
+#include <cstdlib>
 #include <cstdio>
 #include <cwchar>
 #include <string>
@@ -178,6 +180,29 @@ namespace
 #endif
   }
 
+  /** Removes a stale companion output or proves that no filesystem entry is
+      left behind. `lstat` matters on POSIX: a dangling symlink is still an
+      entry that a later invocation could follow after its target appears. */
+  bool RemoveOutputOrConfirmAbsent(const NativePath &path)
+  {
+    if (PathIsDirectory(path))
+    {
+      return false;
+    }
+    if (RemoveFile(path) == 0)
+    {
+      return true;
+    }
+    errno = 0;
+#if defined(_WIN32)
+    struct _stat info;
+    return _wstat(path.c_str(), &info) != 0 && errno == ENOENT;
+#else
+    struct stat info;
+    return lstat(path.c_str(), &info) != 0 && errno == ENOENT;
+#endif
+  }
+
   /** #185 §13: pack always rewrites the whole file, so overwriting in place
       can leave a half-written `.LRP` behind. Write beside the target and
       rename. POSIX renames over an existing file atomically; Windows refuses,
@@ -185,6 +210,16 @@ namespace
       never offered it. */
   bool CommitByRename(const NativePath &temporary, const NativePath &target)
   {
+#if defined(LOKA_LRPC_TESTING) && !defined(_WIN32)
+    // The real multi-output failure happens only when the filesystem refuses a
+    // rename after every staging write succeeded. The Linux-only CLI fixture
+    // injects that one door; production lrpc never compiles this path.
+    const char *refusedPath = std::getenv("LOKA_LRPC_TEST_FAIL_COMMIT_PATH");
+    if (refusedPath && target == refusedPath)
+    {
+      return false;
+    }
+#endif
     if (RenameFile(temporary, target) == 0)
     {
       return true;
@@ -457,6 +492,8 @@ namespace
     {
       case loka::lrpc::RESOURCE_HEADER_BAD_SYMBOL:
         return LRPC_NATIVE_TEXT("resource name is not a portable C++ symbol path");
+      case loka::lrpc::RESOURCE_HEADER_NEEDS_NAMESPACE:
+        return LRPC_NATIVE_TEXT("resource name must include a namespace");
       case loka::lrpc::RESOURCE_HEADER_SYMBOL_COLLISION:
         return LRPC_NATIVE_TEXT("resource names collide as a C++ value and namespace");
       case loka::lrpc::RESOURCE_HEADER_RESERVED_SYMBOL:
@@ -654,7 +691,7 @@ namespace
 
   int FailStampCommit(const NativePath &stampPath,
                       const NativePath &outputPath,
-                      bool staleRemoved)
+                      bool stampAbsent)
   {
 #if defined(_WIN32)
     std::fwprintf(stderr,
@@ -663,7 +700,7 @@ namespace
                   L"stamp from the package rather than trusting a stale one\n",
                   stampPath.c_str(),
                   outputPath.c_str(),
-                  staleRemoved ? L"removed" : L"possibly stale and could not be removed");
+                  stampAbsent ? L"absent" : L"possibly stale and could not be removed");
 #else
     std::fprintf(stderr,
                  "lrpc: cannot commit stamp: %s\n"
@@ -671,14 +708,14 @@ namespace
                  "from the package rather than trusting a stale one\n",
                  stampPath.c_str(),
                  outputPath.c_str(),
-                 staleRemoved ? "removed" : "possibly stale and could not be removed");
+                 stampAbsent ? "absent" : "possibly stale and could not be removed");
 #endif
     return 1;
   }
 
   int FailHeaderCommit(const NativePath &headerPath,
                        const NativePath &outputPath,
-                       bool staleRemoved)
+                       bool headerAbsent)
   {
 #if defined(_WIN32)
     std::fwprintf(stderr,
@@ -687,7 +724,7 @@ namespace
                   L"compile cannot trust an older id space\n",
                   headerPath.c_str(),
                   outputPath.c_str(),
-                  staleRemoved ? L"removed" : L"possibly stale and could not be removed");
+                  headerAbsent ? L"absent" : L"possibly stale and could not be removed");
 #else
     std::fprintf(stderr,
                  "lrpc: cannot commit resource header: %s\n"
@@ -695,9 +732,28 @@ namespace
                  "cannot trust an older id space\n",
                  headerPath.c_str(),
                  outputPath.c_str(),
-                 staleRemoved ? "removed" : "possibly stale and could not be removed");
+                 headerAbsent ? "absent" : "possibly stale and could not be removed");
 #endif
     return 1;
+  }
+
+  void ReportCompanionStampState(const NativePath &stampPath, bool stampAbsent)
+  {
+    if (stampPath.empty())
+    {
+      return;
+    }
+#if defined(_WIN32)
+    std::fwprintf(stderr,
+                  L"lrpc: companion stamp %ls is %ls\n",
+                  stampPath.c_str(),
+                  stampAbsent ? L"absent" : L"possibly stale and could not be removed");
+#else
+    std::fprintf(stderr,
+                 "lrpc: companion stamp %s is %s\n",
+                 stampPath.c_str(),
+                 stampAbsent ? "absent" : "possibly stale and could not be removed");
+#endif
   }
 
   void PrintSuccess(const NativePath &outputPath,
@@ -1230,9 +1286,12 @@ int main(int argc, char **argv)
     {
       RemoveFile(stampTemporary);
     }
-    const bool staleRemoved =
-        !PathIsDirectory(headerPath) && RemoveFile(headerPath) == 0;
-    return FailHeaderCommit(headerPath, outputPath, staleRemoved);
+    const bool headerAbsent = RemoveOutputOrConfirmAbsent(headerPath);
+    const bool stampAbsent =
+        stampPath.empty() || RemoveOutputOrConfirmAbsent(stampPath);
+    const int failure = FailHeaderCommit(headerPath, outputPath, headerAbsent);
+    ReportCompanionStampState(stampPath, stampAbsent);
+    return failure;
   }
   if (!stampTemporary.empty() && !CommitByRename(stampTemporary, stampPath))
   {
@@ -1246,9 +1305,8 @@ int main(int argc, char **argv)
     // still carries its own stamp in HEAD, so nothing is lost that cannot be
     // read back out of the artifact itself.
     RemoveFile(stampTemporary);
-    const bool staleRemoved =
-        !PathIsDirectory(stampPath) && RemoveFile(stampPath) == 0;
-    return FailStampCommit(stampPath, outputPath, staleRemoved);
+    const bool stampAbsent = RemoveOutputOrConfirmAbsent(stampPath);
+    return FailStampCommit(stampPath, outputPath, stampAbsent);
   }
 
   PrintSuccess(outputPath,

@@ -11,6 +11,20 @@ namespace scrapbook
   using loka::core::resource::lrpk::Facts;
   using loka::core::resource::lrpk::Reader;
 
+  namespace
+  {
+    bool QueryPageResource(int page, const R::AssetRef *&out)
+    {
+      out = 0;
+      if (page < 0 || static_cast<std::size_t>(page) >= R::Pages::AssetCount)
+      {
+        return false;
+      }
+      out = &R::Pages::Assets[page];
+      return true;
+    }
+  } // namespace
+
   ScrapbookPackage::ScrapbookPackage()
       : context_(0),
         source_(),
@@ -117,13 +131,13 @@ namespace scrapbook
   bool ScrapbookPackage::preparePage(int page, PagePresentation &out)
   {
     out = PagePresentation();
-    if (!this->open_ || page < 0 || static_cast<std::size_t>(page) >= kPageCount)
+    const R::AssetRef *resource = 0;
+    if (!this->open_ || !QueryPageResource(page, resource))
     {
       return false;
     }
 
-    const R::AssetRef &resource = PageResource(static_cast<std::size_t>(page));
-    const std::size_t bag = resource.bag;
+    const std::size_t bag = resource->bag;
     bool openedNew = false;
     Blob blob;
     if (static_cast<int>(bag) == this->currentBag_ && this->reader_.isBagOpen(bag))
@@ -150,7 +164,7 @@ namespace scrapbook
       blob.sealBytes();
     }
 
-    if (!this->buildPresentation(page, blob, out))
+    if (!this->buildPresentation(page, *resource, blob, out))
     {
       this->rollbackPreparedBag(bag, openedNew);
       return false;
@@ -158,9 +172,11 @@ namespace scrapbook
     return true;
   }
 
-  bool ScrapbookPackage::buildPresentation(int page, const Blob &blob, PagePresentation &out)
+  bool ScrapbookPackage::buildPresentation(int page,
+                                           const R::AssetRef &resource,
+                                           const Blob &blob,
+                                           PagePresentation &out)
   {
-    const R::AssetRef &resource = PageResource(static_cast<std::size_t>(page));
     Facts facts;
     Asset asset;
     if (this->reader_.get(resource.id, facts, asset) != Reader::GET_OK
@@ -232,7 +248,7 @@ namespace scrapbook
     }
     for (std::size_t page = 0; page < kPageCount; ++page)
     {
-      if (static_cast<int>(PageResource(page).bag) == this->currentBag_)
+      if (static_cast<int>(R::Pages::Assets[page].bag) == this->currentBag_)
       {
         return static_cast<int>(page);
       }

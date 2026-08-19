@@ -241,6 +241,10 @@ namespace loka
         {
           return parsed;
         }
+        if (symbols[i].path.size() < 2)
+        {
+          return RESOURCE_HEADER_NEEDS_NAMESPACE;
+        }
         symbols[i].asset = &manifest.assets[i];
       }
       std::vector<const HeaderSymbol *> symbolsByPath;

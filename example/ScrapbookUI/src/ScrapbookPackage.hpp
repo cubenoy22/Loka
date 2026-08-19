@@ -27,11 +27,6 @@ namespace scrapbook
   typedef loka::core::resource::lrpk::StdioByteSource ScrapbookByteSource;
 #endif
 
-  inline const R::AssetRef &PageResource(std::size_t page)
-  {
-    return R::Pages::Assets[page];
-  }
-
   /** A page that has been fully read and decoded but not yet installed as the
       package owner's current page. It is a completed value so the node can
       publish it before asking the owner to retire the previous bag. */
@@ -86,7 +81,10 @@ namespace scrapbook
     ScrapbookPackage(const ScrapbookPackage &);
     ScrapbookPackage &operator=(const ScrapbookPackage &);
 
-    bool buildPresentation(int page, const loka::core::resource::Blob &blob, PagePresentation &out);
+    bool buildPresentation(int page,
+                           const R::AssetRef &resource,
+                           const loka::core::resource::Blob &blob,
+                           PagePresentation &out);
     bool loadRefusedBadge();
     void releaseUiBag();
     void rollbackPreparedBag(std::size_t bag, bool openedNew);
