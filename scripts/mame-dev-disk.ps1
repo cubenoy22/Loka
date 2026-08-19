@@ -93,6 +93,9 @@ $humount = Find-Retro68Tool "humount"
 New-Item -ItemType Directory -Path (Split-Path -Parent $developmentDisk) -Force | Out-Null
 New-Item -ItemType Directory -Path $hfsHome -Force | Out-Null
 Copy-Item -LiteralPath $env:MAME_HDA -Destination $temporaryDisk -Force
+# hformat opens the image read-write; Copy-Item reproduced the template's
+# attributes and the template is deliberately read-only.
+Set-ItemProperty -LiteralPath $temporaryDisk -Name IsReadOnly -Value $false
 
 $originalHome = $env:HOME
 try {

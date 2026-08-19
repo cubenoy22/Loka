@@ -149,6 +149,9 @@ TEMPORARY_DISK="$MAME_DEV_HDA.$$"
 
 mkdir -p "$(dirname "$MAME_DEV_HDA")" "$HFS_HOME"
 cp "$MAME_HDA" "$TEMPORARY_DISK"
+# hformat opens the image read-write; cp reproduced the template's mode and the
+# template is deliberately read-only.
+chmod u+w "$TEMPORARY_DISK"
 
 cleanup() {
   HOME="$HFS_HOME" "$HUMOUNT" >/dev/null 2>&1 || true

@@ -296,4 +296,31 @@ verify_golden_machine_guard() {
 
 verify_golden_machine_guard
 
+# A pinned boot template is read-only so that booting it in place fails loudly
+# instead of silently re-baselining the goldens (#425). cp reproduces that mode,
+# so every copy the rail makes for itself arrives read-only unless something
+# clears it -- and the emulator writing to the copy is why the copy exists.
+verify_writable_boot_copy() {
+  local boot="$SANDBOX/repo/build/mame-scenario/helloworld/startup/Boot.hd"
+
+  chmod a-w "$SANDBOX/BootTemplate.hd"
+  rm -rf "$SANDBOX/repo/build/mame-scenario/helloworld/startup"
+  if ! MAME_ENV_FILE="$SANDBOX/mame.env" MAME_MACHINE=macqd700 \
+      RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
+      FAKE_MAME_RESULT=success FAKE_EXAMPLE=helloworld \
+      env -u WSL_INTEROP -u LOKA_TAB_COUNT \
+      bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" helloworld startup \
+        >"$SANDBOX/runner-readonly-template.log" 2>&1; then
+    chmod u+w "$SANDBOX/BootTemplate.hd"
+    fail "a read-only boot template stopped the rail"
+  fi
+  chmod u+w "$SANDBOX/BootTemplate.hd"
+
+  [ -f "$boot" ] || fail "the rail did not leave a boot copy to inspect"
+  [ -w "$boot" ] \
+    || fail "the boot copy inherited the template's read-only mode"
+}
+
+verify_writable_boot_copy
+
 echo "Toolbox scenario runner tests passed"

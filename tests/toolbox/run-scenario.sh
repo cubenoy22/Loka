@@ -157,6 +157,12 @@ fi
 if ! cp -f "$MAME_HDA" "$BOOT"; then
   fail_stage mame "could not copy the boot hard disk template"
 fi
+# cp reproduces the template's mode and the template is deliberately read-only,
+# so the copy has to be made writable: the emulator writing to it is the reason
+# it is a copy.
+if ! chmod u+w "$BOOT"; then
+  fail_stage mame "could not make the boot hard disk copy writable"
+fi
 # linger_seconds keeps the scenario window alive after the audit is written,
 # so the emulator-side snapshot captures the scene instead of the desktop the
 # application would otherwise have quit back to.
