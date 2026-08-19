@@ -66,13 +66,44 @@ New-Item -ItemType Directory -Path $controlDirectory -Force | Out-Null
 # MAME_HDA itself. That image is the Classic rail's template, and the pixels the
 # goldens are made of live inside it. Boot a copy under build/ instead. The copy
 # persists so an interactive session keeps its state; wiping build/ resets it.
+function Resolve-FileIdentity([string]$Path) {
+    # Same path spelled twice, and one symlink hop. NTFS hard links share a file
+    # id that Windows PowerShell cannot read without extra tooling, so that case
+    # is caught by the shell twin's -ef test rather than here.
+    $full = [System.IO.Path]::GetFullPath($Path)
+    $item = Get-Item -LiteralPath $full -Force -ErrorAction SilentlyContinue
+    if ($item -and $item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+        $target = $item.Target
+        if ($target) {
+            $full = [System.IO.Path]::GetFullPath($target)
+        }
+    }
+    return $full
+}
+
 if ($env:MAME_HDA) {
     if (-not (Test-Path -LiteralPath $env:MAME_HDA -PathType Leaf)) {
         throw "boot hard disk template not found: $($env:MAME_HDA)"
     }
     New-Item -ItemType Directory -Path (Split-Path -Parent $bootDisk) -Force | Out-Null
+    # An alias defeats the whole point: the existence check would pass and
+    # -hard1 would name the template after all.
+    if ((Test-Path -LiteralPath $bootDisk) -and
+        ((Resolve-FileIdentity $bootDisk) -ieq (Resolve-FileIdentity $env:MAME_HDA))) {
+        throw "MAME_BOOT_HDA resolves to the boot template itself: $bootDisk"
+    }
+    # Copy through a temporary and rename, so an interrupted copy cannot leave a
+    # truncated image that every later run would find, skip the copy for, and
+    # boot.
     if (-not (Test-Path -LiteralPath $bootDisk -PathType Leaf)) {
-        Copy-Item -LiteralPath $env:MAME_HDA -Destination $bootDisk
+        $partial = "$bootDisk.partial"
+        try {
+            Copy-Item -LiteralPath $env:MAME_HDA -Destination $partial -Force
+            Move-Item -LiteralPath $partial -Destination $bootDisk -Force
+        } catch {
+            Remove-Item -LiteralPath $partial -Force -ErrorAction SilentlyContinue
+            throw
+        }
     }
 }
 $env:LOKA_MAME_FLOPPY_REQUEST = Join-Path $controlDirectory "floppy.request"

@@ -63,9 +63,23 @@ if [ -n "$MAME_HDA" ]; then
     exit 1
   fi
   mkdir -p "$(dirname "$MAME_BOOT_HDA")"
-  if [ ! -f "$MAME_BOOT_HDA" ] && ! cp -f "$MAME_HDA" "$MAME_BOOT_HDA"; then
-    echo "could not copy the boot hard disk template to $MAME_BOOT_HDA" >&2
+  # An alias defeats the whole point: the existence check would pass and -hard1
+  # would name the template after all. -ef compares device and inode, so a
+  # symlink or hard link is caught as well as the same path spelled twice.
+  if [ -e "$MAME_BOOT_HDA" ] && [ "$MAME_BOOT_HDA" -ef "$MAME_HDA" ]; then
+    echo "MAME_BOOT_HDA resolves to the boot template itself: $MAME_BOOT_HDA" >&2
     exit 1
+  fi
+  # Copy through a temporary and rename, so an interrupted copy cannot leave a
+  # truncated image behind: this run would exit, but every later run would find
+  # a regular file, skip the copy, and boot the corrupt one.
+  if [ ! -f "$MAME_BOOT_HDA" ]; then
+    if ! cp -f "$MAME_HDA" "$MAME_BOOT_HDA.partial" ||
+       ! mv -f "$MAME_BOOT_HDA.partial" "$MAME_BOOT_HDA"; then
+      rm -f "$MAME_BOOT_HDA.partial"
+      echo "could not copy the boot hard disk template to $MAME_BOOT_HDA" >&2
+      exit 1
+    fi
   fi
 fi
 export LOKA_MAME_FLOPPY_REQUEST="$MAME_CONTROL_DIR/floppy.request"
