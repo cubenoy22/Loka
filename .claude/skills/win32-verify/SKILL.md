@@ -66,11 +66,21 @@ The presets are architecture-neutral — they use whatever `cl.exe` and
 - **Evidence for "test N exists and runs" is `--list` plus a single-test
   run**, never a grep of the output banner (banners are each test's own
   printf and prove nothing).
-- Full-width path coverage: single-run the tests that create files like
-  `loka-Ａ.bin` (`testWin32OpenReadAcceptsFullWidthPath`,
-  `testWin32OpenWriteTruncateAcceptsFullWidthPath`) and check `EXIT=0`. This
-  only proves anything on a rig whose ACP is 932 — confirm the codepage rather
-  than assuming it.
+- Full-width path coverage: single-run all three and check `EXIT=0`. They cover
+  different seams, so naming a subset understates what a change needs.
+  - `testWin32OpenWriteTruncateAcceptsFullWidthPath` — the write seam. It has no
+    ACP gate at all, so it is positive coverage on any rig.
+  - `testWin32OpenReadAcceptsFullWidthPath` — the read seam, plus a contrast pin
+    that a narrow `fopen` still cannot reach the file.
+  - `testWin32FileFromWidePathSurvivesToOpen` — the producer seam
+    (`win32::FileFromWidePath`), which is where #15 was actually lost. **A change
+    to a `W` entry point or to the open-file dialog needs this one**; the other
+    two open a path we built ourselves and can pass without exercising it.
+  - The two contrast pins skip only on a UTF-8 ACP (`GetACP() != CP_UTF8`,
+    `tests/Win32FilePathTests.cpp:103,169`), so **any non-UTF-8 ACP
+    discriminates** — 932 is one rig's value, not the requirement. Confirm the
+    codepage rather than assuming it: on a UTF-8 ACP the pins print `[skip]` and
+    the run proves less than the exit code suggests.
 
 ## Assert red → dialog hang (#210)
 
