@@ -36,7 +36,8 @@ Before applying the matrix, complete the release-provenance check:
   The annotated-tag requirement applies to releases after v0.0.2; the published
   v0.0.2 lightweight tag is grandfathered and stays as it is.
 
-The OS columns come from `CMakePresets.json` and `.github/workflows/ci.yml`.
+The OS columns come from `CMakePresets.json` and the platform workflows under
+`.github/workflows/` (`linux.yml`, `macos.yml`, and `windows.yml`).
 Linux is a headless host-validation leg and has no GUI example targets. The
 Classic Mac column is one OS leg: L0 covers both configured Retro68 architectures
 (68K and PPC), while L1-L3 use the available 68K MAME or hardware rig. The current

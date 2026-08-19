@@ -1,0 +1,47 @@
+name: macOS CI
+
+# The platform workflows intentionally share one trigger surface so their
+# status badges describe the same pull requests and main-branch commits.
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: macos-15
+    # A failing assert in a Debug GUI-adjacent test can leave an unattended
+    # dialog waiting forever. Bound the job so that failure cannot hang the
+    # hosted runner for the workflow's maximum duration.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - run: cmake --preset macos-debug
+      # As on Win32, the production build excludes the test executable and
+      # the test target covers only a slice of the platform layer. Build both
+      # target sets so CI proves the application and the tests still build.
+      - run: cmake --build --preset macos-debug
+      - run: cmake --build --preset macos-tests
+      - run: ctest --preset macos-tests --output-on-failure
+      # Hosted runners have no persistent display-profile golden. They still
+      # prove the real AppKit runner, bounded settle, exact audit, profile,
+      # and atomic completion contract; Tahoe owns the pixel verdict.
+      - run: cmake --build --preset macos-scenarios
+      - run: tests/macos/run-scenario.sh scrapbook startup --ci-structural
+      - run: tests/macos/run-scenario.sh scrapbook flip-forward-back --ci-structural
+      - run: tests/macos/run-scenario.sh helloworld startup --ci-structural
+      - run: tests/macos/run-scenario.sh tutorial startup --ci-structural
+      - run: tests/macos/run-scenario.sh minesweeper startup --ci-structural
+      - run: tests/macos/run-scenario.sh floppybird startup --ci-structural
+      - name: Upload macOS scenario failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: macos-scenario-artifacts
+          path: build/macos-scenario/
+          if-no-files-found: ignore
