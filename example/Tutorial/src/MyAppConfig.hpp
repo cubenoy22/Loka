@@ -28,8 +28,8 @@ public:
     // typedef tutorial::Step3Node TutorialNode;
     // typedef tutorial::Step4Node TutorialNode;
 
-    loka::app::scene::BoundaryDefinition<TutorialNode::PropsType, TutorialNode> mainDefinition;
-    c << WindowDef(this->productionWindowProps(mainDefinition));
+    c << WindowDef(this->productionWindowProps(
+        loka::app::scene::Boundary<TutorialNode>()));
   }
 
   virtual void composeMenu(loka::app::MenuComposition &c)

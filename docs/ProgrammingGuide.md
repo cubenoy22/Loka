@@ -1073,13 +1073,13 @@ Loka の cross-platform 性を理解するには、
 たとえば UI を構成する Node 側は、次のようにそのまま共通で使えます。
 
 ```cpp
-class HelloNode : public loka::app::scene::StdCompositionNodeFor<HelloNode>
+class HelloNode : public loka::app::scene::BoundaryNodeFor<HelloNode>
 {
 public:
-  typedef loka::app::scene::StdCompositionPropsFor<HelloNode> PropsType;
+  typedef loka::app::scene::BoundaryPropsFor<HelloNode> PropsType;
 
   HelloNode(const PropsType &p)
-      : loka::app::scene::StdCompositionNodeFor<HelloNode>(p)
+      : loka::app::scene::BoundaryNodeFor<HelloNode>(p)
   {
   }
 
@@ -1102,7 +1102,7 @@ virtual void compose(loka::app::AppComposition &c)
                                 .frame(40, 40, 320, 240)
                                 .title("Hello")
                                 .visible(true)
-                                .scene(loka::app::scene::NodeDefinition<HelloProps, HelloNode>()));
+                                .scene(loka::app::scene::Boundary<HelloNode>()));
 }
 ```
 
@@ -2043,7 +2043,7 @@ virtual void compose(loka::app::AppComposition &c)
                                 .frame(50, 50, 420, 300)
                                 .title("LokaSample")
                                 .visible(true)
-                                .scene(loka::app::scene::NodeDefinition<MyProps, MyNode>()));
+                                .scene(loka::app::scene::Boundary<MyNode>()));
 }
 ```
 

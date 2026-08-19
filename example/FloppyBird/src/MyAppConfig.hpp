@@ -20,9 +20,9 @@ public:
 
   virtual void compose(AppComposition &c)
   {
-    loka::app::scene::NodeDefinition<floppybird::MainProps, floppybird::MainNode> mainDefinition(
-        floppybird::MainProps(&this->game_));
-    c << WindowDef(this->productionWindowProps(mainDefinition)
+    c << WindowDef(this->productionWindowProps(
+                       loka::app::scene::Boundary<floppybird::MainNode>(
+                           floppybird::MainProps(&this->game_)))
                        .idlePolicy(loka::app::IdlePolicy::interval(loka_floppy_bird::kFixedStepSeconds))
                        .onIdle(&MyAppConfig::WindowIdleThunk, this)
                        .onKeyPress(&MyAppConfig::WindowKeyPressThunk, this));

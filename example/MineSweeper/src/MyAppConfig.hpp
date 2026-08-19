@@ -17,9 +17,8 @@ public:
 
   virtual void compose(AppComposition &c)
   {
-    loka::app::scene::NodeDefinition<minesweeper::MainProps, minesweeper::MainNode> mainDefinition(
-        this->mainProps_);
-    c << WindowDef(this->productionWindowProps(mainDefinition));
+    c << WindowDef(this->productionWindowProps(
+        loka::app::scene::Boundary<minesweeper::MainNode>(this->mainProps_)));
   }
 
 protected:
