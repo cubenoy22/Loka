@@ -168,6 +168,18 @@ ln -f "$TEMPLATE" "$SANDBOX/hardlink-to-template.hda" 2>/dev/null &&
   } ||
   printf '  [skip] the filesystem refused a hard link\n'
 
+# --- the copy is writable even when the template is not ----------------------
+# A pinned template is read-only so an in-place boot fails loudly (#425). cp
+# reproduces that mode, and MAME writing to the copy is why the copy exists.
+rm -rf "$SANDBOX/build/mame-run"
+chmod a-w "$TEMPLATE"
+run_launcher >"$SANDBOX/writable-copy.log" 2>&1 ||
+  { chmod u+w "$TEMPLATE"; fail writable-copy "a read-only template stopped the launcher"; }
+chmod u+w "$TEMPLATE"
+[ -w "$BOOT_COPY" ] ||
+  fail writable-copy "the boot copy inherited the template's read-only mode"
+pass writable-copy
+
 # --- a missing template refuses before the emulator starts -------------------
 # Letting the launch proceed would have MAME create an empty disk and boot
 # nothing, which reads as a broken image rather than a misconfigured path.

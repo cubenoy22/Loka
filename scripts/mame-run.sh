@@ -75,6 +75,7 @@ if [ -n "$MAME_HDA" ]; then
   # a regular file, skip the copy, and boot the corrupt one.
   if [ ! -f "$MAME_BOOT_HDA" ]; then
     if ! cp -f "$MAME_HDA" "$MAME_BOOT_HDA.partial" ||
+       ! chmod u+w "$MAME_BOOT_HDA.partial" ||
        ! mv -f "$MAME_BOOT_HDA.partial" "$MAME_BOOT_HDA"; then
       rm -f "$MAME_BOOT_HDA.partial"
       echo "could not copy the boot hard disk template to $MAME_BOOT_HDA" >&2

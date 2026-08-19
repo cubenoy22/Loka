@@ -99,7 +99,10 @@ cp -f "$SCRIPT_DIR/mame-find-base.lua" "$WORK/mame-find-base.lua"
 
 # A scenario-local copy of the boot disk; the configured one stays an input.
 BOOT="$WORK/Boot.hd"
-[ -f "$BOOT" ] || cp -f "$MAME_HDA" "$BOOT"
+# cp reproduces the template's mode and the template is deliberately read-only,
+# so the copy has to be made writable: MAME writing to it is the reason it is a
+# copy.
+[ -f "$BOOT" ] || { cp -f "$MAME_HDA" "$BOOT" && chmod u+w "$BOOT"; }
 
 DEV="$WORK/LokaDev.hd"
 # LOKA_DEV_DATA carries one plain data file per non-empty line. Each path
