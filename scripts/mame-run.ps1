@@ -99,16 +99,17 @@ if ($env:MAME_HDA) {
         $partial = "$bootDisk.partial"
         try {
             Copy-Item -LiteralPath $env:MAME_HDA -Destination $partial -Force
-            # Copy-Item reproduces the template's attributes and the template is
-            # deliberately read-only; MAME writing to the copy is the reason it
-            # is a copy.
-            Set-ItemProperty -LiteralPath $partial -Name IsReadOnly -Value $false
             Move-Item -LiteralPath $partial -Destination $bootDisk -Force
         } catch {
             Remove-Item -LiteralPath $partial -Force -ErrorAction SilentlyContinue
             throw
         }
     }
+    # Unconditional, not part of the copy: a copy this run did not make can be
+    # read-only too -- one an earlier launcher left behind, or one restored from
+    # a read-only source. MAME needs to write to it either way, and normalising
+    # the attribute leaves the persisted session state untouched.
+    Set-ItemProperty -LiteralPath $bootDisk -Name IsReadOnly -Value $false
 }
 $env:LOKA_MAME_FLOPPY_REQUEST = Join-Path $controlDirectory "floppy.request"
 $env:LOKA_MAME_FLOPPY_RESPONSE = Join-Path $controlDirectory "floppy.response"

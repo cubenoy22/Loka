@@ -180,6 +180,25 @@ chmod u+w "$TEMPLATE"
   fail writable-copy "the boot copy inherited the template's read-only mode"
 pass writable-copy
 
+# --- an existing read-only copy is normalised, and keeps its state -----------
+# A copy left by an earlier launcher -- one that ran against a pinned template
+# before the mode was handled -- is read-only and is never re-created, because
+# the copy is deliberately persistent. MAME still has to be able to write to it,
+# and normalising the mode must not cost the session state the copy exists to
+# keep.
+rm -rf "$SANDBOX/build/mame-run"
+mkdir -p "$SANDBOX/build/mame-run"
+printf 'STATE-FROM-AN-EARLIER-SESSION' > "$BOOT_COPY"
+chmod a-w "$BOOT_COPY"
+run_launcher >"$SANDBOX/existing-copy.log" 2>&1 ||
+  fail existing-copy "a read-only existing copy stopped the launcher"
+[ -w "$BOOT_COPY" ] ||
+  fail existing-copy "an existing read-only copy was left unwritable"
+grep -Fxq 'WRITTEN-BY-EMULATOR' "$BOOT_COPY" ||
+  fail existing-copy "the emulator could not write to the normalised copy"
+assert_template_pristine existing-copy
+pass existing-copy
+
 # --- a missing template refuses before the emulator starts -------------------
 # Letting the launch proceed would have MAME create an empty disk and boot
 # nothing, which reads as a broken image rather than a misconfigured path.

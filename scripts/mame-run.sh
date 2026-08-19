@@ -75,12 +75,19 @@ if [ -n "$MAME_HDA" ]; then
   # a regular file, skip the copy, and boot the corrupt one.
   if [ ! -f "$MAME_BOOT_HDA" ]; then
     if ! cp -f "$MAME_HDA" "$MAME_BOOT_HDA.partial" ||
-       ! chmod u+w "$MAME_BOOT_HDA.partial" ||
        ! mv -f "$MAME_BOOT_HDA.partial" "$MAME_BOOT_HDA"; then
       rm -f "$MAME_BOOT_HDA.partial"
       echo "could not copy the boot hard disk template to $MAME_BOOT_HDA" >&2
       exit 1
     fi
+  fi
+  # Unconditional, not part of the copy: a copy this run did not make can be
+  # read-only too -- one an earlier launcher left behind, or one restored from
+  # a read-only source. MAME needs to write to it either way, and normalising
+  # the mode leaves the persisted session state untouched.
+  if ! chmod u+w "$MAME_BOOT_HDA"; then
+    echo "could not make the boot hard disk copy writable: $MAME_BOOT_HDA" >&2
+    exit 1
   fi
 fi
 export LOKA_MAME_FLOPPY_REQUEST="$MAME_CONTROL_DIR/floppy.request"
