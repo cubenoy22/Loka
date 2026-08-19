@@ -131,7 +131,7 @@ run_launcher >"$SANDBOX/copy-is-complete.log" 2>&1 ||
   fail copy-is-complete "a partial copy was left behind"
 # The emulator has since written to the copy, so compare what it received
 # against the template by size: a truncated copy is the failure being pinned.
-[ "$(stat -c %s "$BOOT_COPY")" -gt 0 ] ||
+[ "$(wc -c < "$BOOT_COPY")" -gt 0 ] ||
   fail copy-is-complete "the boot copy is empty"
 assert_template_pristine copy-is-complete
 pass copy-is-complete
@@ -189,13 +189,16 @@ grep -q "boot hard disk template not found" "$SANDBOX/missing-template.log" ||
   fail missing-template-refused "the emulator was launched despite the refusal"
 pass missing-template-refused
 
-# --- the PowerShell twin, when this host has one -----------------------------
+# --- the PowerShell twin, on a Windows-hosted rig -----------------------------
 # On WSL the shell launcher re-execs into mame-run.ps1, so the twin is what
-# actually runs on a Windows-hosted rig. It cannot run on the Linux CI, so this
-# block announces its own absence rather than passing silently.
-POWERSHELL="$(command -v powershell.exe || command -v pwsh || true)"
+# actually runs on a Windows-hosted rig. The cases below drive a .cmd stub and
+# translate paths with wslpath, so the requirement is Windows PowerShell
+# specifically -- not any PowerShell. The Linux CI runners ship pwsh, which
+# would enter this block and fail on the stub, so gate on powershell.exe alone.
+# Where it is absent the block announces itself rather than passing silently.
+POWERSHELL="$(command -v powershell.exe || true)"
 if [ -z "$POWERSHELL" ]; then
-  printf '  [skip] no PowerShell on this host, so mame-run.ps1 was not exercised\n'
+  printf '  [skip] no Windows PowerShell here, so mame-run.ps1 was not exercised\n'
   exit 0
 fi
 
