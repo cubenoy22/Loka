@@ -20,6 +20,7 @@ class ToolboxWindow;
 class ToolboxButtonContext;
 class ToolboxPopupMenuContext;
 class ToolboxCellContext;
+class ToolboxEditTextContext;
 
 namespace loka
 {
@@ -114,7 +115,7 @@ public:
       changed since the last present. */
   void requestStructurePresent();
   void drawFallbackControl(const Rect &rect);
-  TEHandle ensureEditTextControl(loka::app::scene::NodeContext *ownerContext,
+  TEHandle ensureEditTextControl(ToolboxEditTextContext *ownerContext,
                                  const Rect &rect,
                                  loka::core::State<loka::core::String> *text,
                                  loka::app::scene::NativeLifetimeHint lifetimeHint = loka::app::scene::NATIVE_HINT_DEFAULT);
@@ -238,7 +239,7 @@ private:
 
   struct EditTextControlBinding
   {
-    loka::app::scene::NodeContext *ownerContext;
+    ToolboxEditTextContext *ownerContext;
     loka::core::State<loka::core::String> *text;
     TEHandle te;
     Rect rect;
