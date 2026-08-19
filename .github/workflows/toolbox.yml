@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      RETRO68_IMAGE: ghcr.io/autc04/retro68:latest
+      RETRO68_IMAGE: ghcr.io/autc04/retro68@sha256:459dd3ea9856262162615527021be7b64f198631dc59cca8cedbf197b7656019
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
@@ -38,8 +38,10 @@ jobs:
             --workdir /workspace \
             "$RETRO68_IMAGE" \
             /bin/bash -ceu '
-              cmake --preset retro68-68k-release -G "Unix Makefiles"
+              cmake --preset retro68-68k-release -G "Unix Makefiles" \
+                -DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON
               cmake --build --preset retro68-68k-release
-              cmake --preset retro68-ppc-release -G "Unix Makefiles"
+              cmake --preset retro68-ppc-release -G "Unix Makefiles" \
+                -DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON
               cmake --build --preset retro68-ppc-release
             '

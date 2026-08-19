@@ -10,6 +10,8 @@ option(LOKA_WIN32_SCENARIOS "Register the rig-local Win32 scenario tests" OFF)
 option(LOKA_LIFECYCLE_AUDIT "Enable lifecycle alive-counter auditing" OFF)
 option(LOKA_RETRO68_DIAGNOSTICS
   "Diagnostic Retro68 profile: keep MacsBug names, the function-tick profiler, and debug-stats dumps" OFF)
+option(LOKA_TOOLBOX_MULTIVERSAL_INTERFACES
+  "Build Toolbox targets against Retro68's redistributable Multiversal Interfaces" OFF)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/LokaWarnings.cmake)
 

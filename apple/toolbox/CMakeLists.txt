@@ -3,6 +3,47 @@ cmake_minimum_required(VERSION 3.15)
 # Toolbox builds are expected to use a separate toolchain (e.g. Retro68).
 add_library(LokaAppleToolbox INTERFACE)
 
+function(loka_configure_multiversal_headers target)
+  set(_loka_multiversal_include_dir
+    "${CMAKE_CURRENT_BINARY_DIR}/multiversal-compat")
+  file(MAKE_DIRECTORY "${_loka_multiversal_include_dir}")
+
+  # Universal Interfaces 3.x renamed the classic Manager headers. Generate
+  # only the aliases Loka consumes so the source keeps one Toolbox vocabulary
+  # while Multiversal remains an explicit build-time dependency.
+  set(_loka_multiversal_header_aliases
+    "Controls.h=ControlMgr.h"
+    "Devices.h=DeviceMgr.h"
+    "Dialogs.h=DialogMgr.h"
+    "Events.h=EventMgr.h"
+    "Files.h=FileMgr.h"
+    "Fonts.h=FontMgr.h"
+    "Memory.h=MemoryMgr.h"
+    "Menus.h=MenuMgr.h"
+    "Processes.h=ProcessMgr.h"
+    "Quickdraw.h=QuickDraw.h"
+    "Sound.h=SoundMgr.h"
+    "StandardFile.h=StdFilePkg.h"
+    "Timer.h=TimeMgr.h"
+    "Windows.h=WindowMgr.h"
+  )
+
+  foreach(_loka_header_alias ${_loka_multiversal_header_aliases})
+    string(REPLACE "=" ";" _loka_header_pair "${_loka_header_alias}")
+    list(GET _loka_header_pair 0 _loka_universal_header)
+    list(GET _loka_header_pair 1 _loka_multiversal_header)
+    file(WRITE "${_loka_multiversal_include_dir}/${_loka_universal_header}"
+      "#include <${_loka_multiversal_header}>\n")
+  endforeach()
+
+  target_include_directories(${target} BEFORE INTERFACE
+    "${_loka_multiversal_include_dir}"
+  )
+  target_compile_definitions(${target} INTERFACE
+    LOKA_TOOLBOX_MULTIVERSAL_INTERFACES=1
+  )
+endfunction()
+
 set(LOKA_TOOLBOX_SOURCES
   src/ToolboxBootstrap.cpp
   src/ToolboxOperatorNew.cpp
@@ -100,3 +141,7 @@ target_link_libraries(LokaAppleToolbox INTERFACE
 target_include_directories(LokaAppleToolbox INTERFACE
   ${CMAKE_CURRENT_LIST_DIR}
 )
+
+if(LOKA_TOOLBOX_MULTIVERSAL_INTERFACES)
+  loka_configure_multiversal_headers(LokaAppleToolbox)
+endif()
