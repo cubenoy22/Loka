@@ -130,19 +130,18 @@ namespace loka
         PropsT props;
       };
 
-    } // namespace scene
+      /** Constructs a class-component definition while inferring its Props
+          type from the supplied value. */
+      template <class NodeT, class PropsT>
+      inline NodeDefinition<PropsT, NodeT> Component(const PropsT &p)
+      {
+        // Keep the casual factory honest without adding a runtime check or a
+        // second component hierarchy: this cast must be valid at compile time.
+        (void)sizeof(static_cast<ComponentNode *>(static_cast<NodeT *>(0)));
+        return NodeDefinition<PropsT, NodeT>(p);
+      }
 
-    /** Constructs a class-component definition while inferring its Props
-        type from the supplied value. */
-    template <class NodeT, class PropsT>
-    inline scene::NodeDefinition<PropsT, NodeT> Component(const PropsT &p)
-    {
-      // Keep the casual factory honest without adding a runtime check or a
-      // second component hierarchy: this cast must be valid at compile time.
-      (void)sizeof(static_cast<scene::ComponentNode *>(
-          static_cast<NodeT *>(0)));
-      return scene::NodeDefinition<PropsT, NodeT>(p);
-    }
+    } // namespace scene
   } // namespace app
 } // namespace loka
 
