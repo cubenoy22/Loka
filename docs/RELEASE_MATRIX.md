@@ -37,7 +37,8 @@ Before applying the matrix, complete the release-provenance check:
   v0.0.2 lightweight tag is grandfathered and stays as it is.
 
 The OS columns come from `CMakePresets.json` and the platform workflows under
-`.github/workflows/` (`linux.yml`, `macos.yml`, and `windows.yml`).
+`.github/workflows/` (`linux.yml`, `macos.yml`, `windows.yml`, and
+`toolbox.yml`).
 Linux is a headless host-validation leg and has no GUI example targets. The
 Classic Mac column is one OS leg: L0 covers both configured Retro68 architectures
 (68K and PPC), while L1-L3 use the available 68K MAME or hardware rig. The current
@@ -51,7 +52,7 @@ inapplicable because its shared UI uses Previous/Next buttons.
 
 | Grade | Meaning | Automation |
 | --- | --- | --- |
-| L0 build | Every example compiles for every applicable OS/architecture. | Existing Win32 and macOS CI application builds, plus local Retro68 builds. Linux CI validates host code but contributes no example cells. |
+| L0 build | Every example compiles for every applicable OS/architecture. | Win32, macOS, and hosted Retro68 CI application builds. Linux CI validates host code but contributes no example cells. |
 | L1 startup smoke | Launch the example's scene and capture its settled initial screen. Classic, macOS, and Win32 cells run the example's `MainNode` inside a TEST scenario vehicle (shipping binaries carry no audit door), while that vehicle forwards the example-owned production window chrome and menus. Host parity pins compose the same platform-neutral presentation classes used by every rail so those declarations cannot drift unnoticed. | Classic MAME, Win32, and macOS startup paths exist for `ScrapbookUI`, `HelloWorld`, `Tutorial`, `MineSweeper`, and `FloppyBird`; the remaining runners are tracked by [#312](https://github.com/cubenoy22/Loka/issues/312). |
 | L2 scenario completion | Drive a representative Flow/State operation sequence to completion and capture its checkpoints. | Direct Flow/State emission, shared across OS runners. Classic, Win32, and macOS runners cover `ScrapbookUI`, `HelloWorld`, `Tutorial`, `MineSweeper`, and `FloppyBird`; expansion is tracked by [#312](https://github.com/cubenoy22/Loka/issues/312). |
 | L3 real hardware / manual | Exercise hands-on behavior and input feel on a real or manually operated target. | Deliberately manual; real input synthesis belongs here and in input-path PR acceptance, not in the standing L2 release gate. |

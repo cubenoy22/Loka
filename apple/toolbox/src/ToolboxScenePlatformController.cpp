@@ -45,7 +45,7 @@
 
 namespace
 {
-#if !defined(pushButProc)
+#if !defined(pushButProc) && !defined(LOKA_TOOLBOX_MULTIVERSAL_INTERFACES)
   enum
   {
     pushButProc = 0
@@ -56,7 +56,7 @@ namespace
   // toolchain's Controls.h does not pull in and which cannot be added here
   // without making the pushButProc fallback above ambiguous. Same idiom,
   // same Universal Interfaces values.
-#if !defined(scrollBarProc)
+#if !defined(scrollBarProc) && !defined(LOKA_TOOLBOX_MULTIVERSAL_INTERFACES)
   enum
   {
     scrollBarProc = 16
@@ -2997,7 +2997,7 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(loka::app::scene:
     {
       // Restore the fresh-created baseline: pooled records keep their last
       // text and rects, and the new binding starts from lastText == "".
-      TESetText("", 0, te);
+      TESetText(static_cast<const void *>(""), 0, te);
       (**te).destRect = rect;
       (**te).viewRect = rect;
       TECalText(te);
@@ -3108,7 +3108,7 @@ void ToolboxScenePlatformController::updateStateFromEdit(EditTextControlBinding 
   if (textHandle && length > 0)
   {
     HLock(reinterpret_cast<Handle>(textHandle));
-    const char *ptr = *textHandle;
+    const char *ptr = reinterpret_cast<const char *>(*textHandle);
     utf8.assign(ptr, static_cast<size_t>(length));
     HUnlock(reinterpret_cast<Handle>(textHandle));
   }
