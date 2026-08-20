@@ -170,6 +170,10 @@ if(CMAKE_SOURCE_DIR STREQUAL LOKA_WIN32_REPOSITORY_ROOT)
     "Full reel passes a loop presentation runs before quitting. Empty means never quit."
   )
 
+  add_test(NAME scriptWin32ScenarioProfile
+    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+      ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scripts/Win32ScenarioProfileTest.ps1)
+
   loka_add_win32_scenario_loop_executable(
     LokaHelloWorldScenarioLoopWin32
     HelloWorldScenarioLoopMain.cpp
