@@ -1437,19 +1437,30 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     }
     redrawTextHit(hit);
   }
-  for (size_t i = 0; i < editControls_.size(); ++i)
+  const size_t editReplayCount = editControls_.size();
+  for (size_t i = 0; i < editReplayCount; ++i)
   {
     EditTextControlBinding &binding = editControls_[i];
-    if (!binding.te || !binding.usedThisFrame)
+    if (!binding.ownerContext || !binding.te || !binding.usedThisFrame)
     {
       continue;
     }
-    if (!RectsIntersect(rect, binding.rect))
+    // binding.rect is the inset text rect that TEUpdate needs; draw() frames
+    // the outer rect, so the region that has to trigger a redraw is the outer
+    // one. Gating on the inner rect would skip a dirty strip covering only the
+    // chrome and leave the frame erased.
+    if (!RectsIntersect(rect, binding.ownerContext->chromeRect()))
     {
       continue;
     }
-    TEUpdate(&binding.rect, binding.te);
-    FrameRect(&binding.rect);
+    // draw() re-enters ensureEditTextControl, which can add to editControls_,
+    // so the owner is read out before the call and the bound is a snapshot:
+    // the binding reference must not survive a reallocation, and the replay
+    // must not iterate entries it created. Same wall as the cell replay above.
+    ToolboxEditTextContext *owner = binding.ownerContext;
+    owner->draw(this);
+    assert(editControls_.size() == editReplayCount
+           && "edit controls register on the render walk; the dirty replay must not grow the registry it iterates (#315)");
   }
   drawControlsInRect(rect);
 }
@@ -2974,7 +2985,7 @@ void ToolboxScenePlatformController::drawFallbackControl(const Rect &rect)
   LineTo(rect.right - 2, rect.top + 2);
 }
 
-TEHandle ToolboxScenePlatformController::ensureEditTextControl(loka::app::scene::NodeContext *ownerContext,
+TEHandle ToolboxScenePlatformController::ensureEditTextControl(ToolboxEditTextContext *ownerContext,
                                                                const Rect &rect,
                                                                loka::core::State<loka::core::String> *text,
                                                                loka::app::scene::NativeLifetimeHint lifetimeHint)
