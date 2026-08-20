@@ -138,6 +138,8 @@ namespace loka
           return text_ < b.text_;
         if (controlTag_ != b.controlTag_)
           return controlTag_ < b.controlTag_;
+        if (onClick_ != b.onClick_)
+          return onClick_ < b.onClick_;
         return enabled_ < b.enabled_;
       }
     };

@@ -7,8 +7,10 @@ namespace SceneTestSupport
 {
   /** A boundary that re-composes its declaration on UPDATE passes, so tests
       can drive composition diffs (children appearing/retiring) from state
-      changes. New tests should use this instead of growing another copy. */
-  template <class NodeT, class PropsT>
+      changes. Set UseRetainFastPaths when the test must exercise retained
+      props application. New tests should use this instead of growing another
+      copy. */
+  template <class NodeT, class PropsT, bool UseRetainFastPaths = false>
   class RecomposingBoundaryNode : public loka::app::scene::BoundaryNodeFor<NodeT>
   {
   public:
@@ -33,7 +35,12 @@ namespace SceneTestSupport
         return;
       }
 
-      this->recomposeLocalComposition(context, event, this->LOCAL_RECOMPOSE_APPLY_SNAPSHOT);
+      this->recomposeLocalComposition(
+          context,
+          event,
+          UseRetainFastPaths
+              ? this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS
+              : this->LOCAL_RECOMPOSE_APPLY_SNAPSHOT);
     }
   };
 } // namespace SceneTestSupport
