@@ -192,10 +192,8 @@ namespace loka
           return pageStep_ < other.pageStep_;
         if (value_ != other.value_)
           return value_ < other.value_;
-        // The emitter is part of the identity, unlike Button and PopupMenu
-        // today (#226): a recompose that swaps only the handler must not be
-        // "equivalent", or the retained fast path keeps gesturing at the
-        // old one.
+        // A recompose that swaps only the handler must not be "equivalent",
+        // or the retained fast path keeps gesturing at the old one.
         if (onChange_ != other.onChange_)
           return onChange_ < other.onChange_;
         return enabled_ < other.enabled_;
