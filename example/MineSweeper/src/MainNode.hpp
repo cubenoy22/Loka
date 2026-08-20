@@ -230,7 +230,7 @@ namespace minesweeper
         // cells.
         Section cell(static_cast<loka::app::scene::NodeTag>(
             kCellSectionKeyBase + this->bank_ * kCellCount + i));
-        cell << scene::Component<MineCellNode>(
+        cell << scene::Component(
             MineCellProps(this->mines_[i], this->countAdjacent(i), i));
         grid << cell;
       }

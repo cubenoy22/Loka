@@ -130,11 +130,17 @@ namespace loka
         PropsT props;
       };
 
-      /** Constructs a class-component definition while inferring its Props
-          type from the supplied value. */
-      template <class NodeT, class PropsT>
-      inline NodeDefinition<PropsT, NodeT> Component(const PropsT &p)
+      /** Constructs a fixed-subtree class-component definition, taking its
+          one canonical node type from PropsT::NodeType.
+
+          Children materialize once per structural lifetime. Replace the
+          enclosing identity when their structure must change, or use a
+          Boundary when the subtree needs independent recomposition. */
+      template <class PropsT>
+      inline NodeDefinition<PropsT, typename PropsT::NodeType>
+      Component(const PropsT &p)
       {
+        typedef typename PropsT::NodeType NodeT;
         // Keep the casual factory honest without adding a runtime check or a
         // second component hierarchy: this cast must be valid at compile time.
         (void)sizeof(static_cast<ComponentNode *>(static_cast<NodeT *>(0)));
