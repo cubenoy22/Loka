@@ -3915,6 +3915,7 @@ namespace
 
       loka::app::scene::Node *original = findHandlerSwapControl(
           loka::dsl::testing::SceneTestAccess::rootNode(scene), kind);
+      (void)original;
       assert(original);
 
       g_handlerSwapEmitter = &currentEmitter;
