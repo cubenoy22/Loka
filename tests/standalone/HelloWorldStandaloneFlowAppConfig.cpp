@@ -12,7 +12,7 @@ namespace loka
     HelloWorldStandaloneFlowAppConfig::HelloWorldStandaloneFlowAppConfig(PlatformContext *context,
                                                                          const platform::file::FileHandle *auditFile,
                                                                          std::FILE *diagnostics)
-        : MyAppConfig(context, 0x13579BDFUL),
+        : HelloWorldAppConfig(context, 0x13579BDFUL),
           audit_(auditFile ? *auditFile : ResolveStandaloneAuditFile(), "toggle-action-probe"),
           scenario_(scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &this->audit_),
           borrowedMainNode_(0),

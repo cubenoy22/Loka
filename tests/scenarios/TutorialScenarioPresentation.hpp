@@ -10,11 +10,11 @@ namespace loka
   {
     /** Presents Tutorial's production window and menu declarations around the
         scene selected by a startup or interaction rail. */
-    class TutorialScenarioPresentation : public ::MyAppConfig
+    class TutorialScenarioPresentation : public ::TutorialAppConfig
     {
     public:
       TutorialScenarioPresentation(PlatformContext *context, bool startup)
-          : ::MyAppConfig(context),
+          : ::TutorialAppConfig(context),
             startup_(startup)
       {
       }

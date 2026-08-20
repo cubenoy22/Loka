@@ -12,10 +12,10 @@
 #include "Step3Node.hpp"
 #include "Step4Node.hpp"
 
-class MyAppConfig : public AppConfigurable
+class TutorialAppConfig : public AppConfigurable
 {
 public:
-  explicit MyAppConfig(PlatformContext *ctx)
+  explicit TutorialAppConfig(PlatformContext *ctx)
       : AppConfigurable(ctx)
   {
   }

@@ -10,11 +10,11 @@ namespace loka
   {
     /** Presents FloppyBird's production window and menu declarations around
         the deterministic scenario game owner. */
-    class FloppyBirdScenarioPresentation : public ::MyAppConfig
+    class FloppyBirdScenarioPresentation : public ::FloppyBirdAppConfig
     {
     public:
       FloppyBirdScenarioPresentation(PlatformContext *context, unsigned long gameSeed)
-          : ::MyAppConfig(context, gameSeed)
+          : ::FloppyBirdAppConfig(context, gameSeed)
       {
       }
 
