@@ -86,42 +86,7 @@ function Test-FilesEqual([string]$First, [string]$Second) {
     }
 }
 
-function Read-ScenarioProfile([string]$Path) {
-    $values = @{}
-    foreach ($line in [System.IO.File]::ReadAllLines($Path)) {
-        if ($line -notmatch '^([a-z_]+)=(.*)$') {
-            Fail-Stage "profile" "invalid profile line '$line' in $Path"
-        }
-        if ($values.ContainsKey($Matches[1])) {
-            Fail-Stage "profile" "duplicate profile field '$($Matches[1])' in $Path"
-        }
-        $values[$Matches[1]] = $Matches[2]
-    }
-    return $values
-}
-
-function Get-CaptureProfileMismatch($Expected, $Actual) {
-    $captureFields = @(
-        "scale_percent_available",
-        "scale_percent",
-        "depth_available",
-        "depth",
-        "appearance_available",
-        "appearance",
-        "capture_api",
-        "pixel_width",
-        "pixel_height"
-    )
-    foreach ($field in $captureFields) {
-        $expectedHasField = $Expected.ContainsKey($field)
-        $actualHasField = $Actual.ContainsKey($field)
-        if ($expectedHasField -ne $actualHasField `
-            -or ($expectedHasField -and $Expected[$field] -cne $Actual[$field])) {
-            return $field
-        }
-    }
-    return $null
-}
+. (Join-Path $PSScriptRoot "ScenarioProfile.ps1")
 
 function Read-CaptureBounds([string]$Path) {
     $values = @{}
