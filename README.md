@@ -77,7 +77,10 @@ Strong static typing, no exceptions, no RTTI, and only a small STL surface.
 - portable application logic with thin platform layers
 - reliance on only a small subset of the STL
 
-For deeper design notes, see [docs/ProgrammingGuide.md](docs/ProgrammingGuide.md) and [docs/environments.md](docs/environments.md).
+Use [DESIGN.md](DESIGN.md) to route a design question to its authoritative
+document, code, and tests. For broader tutorials, see
+[docs/ProgrammingGuide.md](docs/ProgrammingGuide.md) and
+[docs/environments.md](docs/environments.md).
 
 ---
 

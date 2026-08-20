@@ -1,5 +1,9 @@
 # Project rules
 
+Use [DESIGN.md](DESIGN.md) as the routing map for design information. Follow
+only the documents relevant to the question at hand; exact API and behavior
+facts remain authoritative in headers and discriminating tests.
+
 For proposal and design judgment, also follow [PHILOSOPHY.md](PHILOSOPHY.md).
 When choosing between plausible implementations, prefer the option that best
 matches Loka's philosophy of meaningful app-facing code, explicit ownership,
@@ -62,17 +66,15 @@ clear boundaries, and small reusable concepts.
 - Do not hand-roll a class to get type safety a plain `enum` already provides. C++98 has no implicit conversion from an integral type to an enumeration, so a plain `enum` is already safe as a parameter type, while a class of static constants costs Classic binary size and gives up `switch` coverage checking (see PHILOSOPHY "Modern Type Safety Without Modern Assumptions").
 
 ## DSL And Composition
+- For app-facing composition-form selection, Props/Definition conventions, and
+  example style, follow [docs/API_STYLE.md](docs/API_STYLE.md).
 - Loka compose should use DSL-style chaining; avoid local temporary variables when possible.
 - Prefer `this->` for member access; keep it consistent across the codebase.
 - Prefer `deferBind` for UI projection or lazy updates; use `bind` only when immediate recompute is required.
-- DSL design: keep composition owned by Boundary; avoid extra compose layers unless needed. Use `Fragment` or helper functions returning node definitions to inline into the parent composition when you don't need an independent lifecycle.
-- UI props constant-value policy: do not route DSL constant props through shared static `State<T>` helpers. For values such as button/cell text or menu enabled flags, props/definitions should own the constant value directly and only use `State<T>*` when live updates are actually required.
 - Native binding policy: `PlatformController`/`NativeContext` code should bind only states that the logical node layer has classified as live. Avoid re-deciding liveness in platform code except for defensive guards.
 - NativeContext should guard against null/empty state before drawing or binding.
 - RTTI (`dynamic_cast`) is prohibited in DSL/scene code due to severe performance impact on 68k. Use virtual methods (`asXxx()`) or `NodeKind` checks instead. Add new `asXxx()` methods to Node when type-specific access is needed.
 - Attr policy (68k): keep default attr structs as small PODs (target roughly <= 16-32 bytes). Avoid embedding heavy owned data in default attrs; route heavier payloads through explicit extended/pro attr types or external state handles.
-- DSL props API policy: `Props` is the canonical/full API surface. `Definition` setters are optional shorthand only for frequently used fields in DSL call sites.
-- DSL shorthand policy: for common cases, prefer concise `Definition` constructors/factories that accept the most-used inputs; for less common fields, construct `Props` explicitly and pass it through rather than duplicating every setter in both `Props` and `Definition`.
 
 ## Platform Rules
 - UI layers should follow platform-native naming and conventions; core stays neutral.
