@@ -36,7 +36,8 @@ PROBE=0
 # Cells with a probe leg in their scenario driver. --probe on any other cell
 # would write the key, have no reader, and print a green that verified
 # nothing -- a silent skip indistinguishable from coverage.
-PROBE_CELLS="helloworld bmi-roundtrip"
+PROBE_CELLS="helloworld bmi-roundtrip
+helloworld toggle-action-probe"
 if [ $# -eq 3 ]; then
   case "$3" in
     --update-golden) UPDATE_GOLDEN=1 ;;
@@ -180,9 +181,8 @@ fi
 # linger_seconds keeps the scenario window alive after the audit is written,
 # so the emulator-side snapshot captures the scene instead of the desktop the
 # application would otherwise have quit back to.
-# --probe opts the driver into the dirty-replay probe (#436). Off by default:
-# the tracked cells must keep their audits byte-identical, and until #404 the
-# probe's target sits below the window fold.
+# --probe opts the driver into the dirty-replay probes (#436, #412). Off by
+# default so tracked cells keep their audits byte-identical.
 PROBE_LINE=""
 if [ "$PROBE" -eq 1 ]; then
   PROBE_LINE="probe_dirty_replay 1

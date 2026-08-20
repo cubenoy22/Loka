@@ -72,6 +72,23 @@ void ToolboxRectSurfaceContext::render(loka::app::scene::IPlatformController *)
   {
     return;
   }
+  // A walk can run under a clip that excludes this surface entirely (the #412
+  // dirty escalation clips render() to the damaged rect). Painting would be a
+  // no-op there, but rememberCurrentModel() would still overwrite the previous
+  // sprite positions, and the surface's own pending dirty flush then loses the
+  // old rects it must erase. If nothing here can be painted, do not claim a
+  // paint happened. The snapshot stays older, which only widens a later dirty
+  // region -- overpaint, never stale pixels.
+  if (tempRgn_)
+  {
+    GetClip(tempRgn_);
+    const Rect clipBounds = (**tempRgn_).rgnBBox;
+    if (clipBounds.right < rect_.left || clipBounds.left > rect_.right || clipBounds.bottom < rect_.top
+        || clipBounds.top > rect_.bottom)
+    {
+      return;
+    }
+  }
   if (node_->props.clearBackground_)
   {
     EraseRect(&rect_);

@@ -257,6 +257,30 @@ namespace
     return false;
   }
 
+  bool HasZStackNode(loka::app::scene::Node *node)
+  {
+    if (!node)
+    {
+      return false;
+    }
+    if (node->kind() == loka::app::scene::NODE_KIND_ZSTACK)
+    {
+      return true;
+    }
+    if (loka::app::scene::INestable *nestable = node->asNestable())
+    {
+      loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+      {
+        if (HasZStackNode(child))
+        {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   void RenderDirtyRectSurfaces(loka::app::scene::Node *node,
                                ToolboxScenePlatformController *controller,
                                const Rect &dirtyRect)
@@ -1392,6 +1416,45 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     {
       render();
     }
+    return;
+  }
+  bool dirtyIntersectsText = false;
+  for (size_t i = 0; i < textHits_.size(); ++i)
+  {
+    if (RectsIntersect(rect, textHits_[i].rect))
+    {
+      dirtyIntersectsText = true;
+      break;
+    }
+  }
+  if (dirtyIntersectsText && HasZStackNode(rootNode_))
+  {
+    // A ZStack declares shared pixels. Rebuild the registries only before any
+    // replay prefix is frozen (#315), and let the clipped render walk own the
+    // dirty pixels instead of letting one text run erase its siblings.
+    GrafPtr oldPort;
+    GetPort(&oldPort);
+    SetPort(window_->window());
+    // Own the clip save locally: beginClip/endClip share one region and one
+    // flag, and the walk below re-enters them (EditText::draw clips TEUpdate),
+    // so nesting through the shared pair would leave the port clipped to this
+    // dirty rect after the inner endClip consumed the flag. Same shape as
+    // redrawTextHit's save/restore.
+    RgnHandle oldClip = NewRgn();
+    if (oldClip != 0)
+    {
+      GetClip(oldClip);
+      ClipRect(&rect);
+    }
+    EraseRect(&rect);
+    render();
+    if (oldClip != 0)
+    {
+      SetClip(oldClip);
+      DisposeRgn(oldClip);
+    }
+    drawControlsInRect(rect);
+    SetPort(oldPort);
     return;
   }
   if (HasRectSurfaceNode(rootNode_))
