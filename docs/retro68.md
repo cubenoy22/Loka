@@ -32,6 +32,38 @@ For Retro68, use the Release presets directly. Dedicated `Debug` or
 already Release-oriented and the Release flags are the ones we want to keep
 consistent across Classic targets.
 
+### Redistributable interfaces in hosted CI
+
+The `Toolbox Build CI` workflow builds every Toolbox target for both 68K and
+PowerPC in Retro68's official container. It selects the redistributable
+Multiversal Interfaces explicitly and enables Loka's internal compatibility
+boundary with `LOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON`. The container image is
+pinned by digest in `.github/workflows/toolbox.yml` so the compiler and header
+set cannot change silently.
+
+This workflow is **build-verified** only: it proves that the applications
+compile and link without redistributing Apple's Universal Interfaces. Runtime
+and golden verification remain on the named Toolbox rig described in
+`docs/LOKA_RIG.md`.
+
+Universal Interfaces remain the default for existing local Retro68 setups. To
+reproduce the hosted interface choice inside a Retro68 container launched with
+`INTERFACES=multiversal`, run:
+
+```sh
+cmake --preset retro68-68k-release -G "Unix Makefiles" \
+  -DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON
+cmake --build --preset retro68-68k-release
+cmake --preset retro68-ppc-release -G "Unix Makefiles" \
+  -DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON
+cmake --build --preset retro68-ppc-release
+```
+
+The compatibility headers under `apple/toolbox/compat/multiversal` are a
+Toolbox implementation detail. They preserve the Universal-style contracts
+already used by the backend and contain Multiversal's global Toolbox names;
+they are not a second app-facing API.
+
 ### Option A: Use shared presets directly
 
 Use this option when Retro68 is installed at `~/Retro68-build` or `~/Retro68`,

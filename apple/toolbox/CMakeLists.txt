@@ -100,3 +100,12 @@ target_link_libraries(LokaAppleToolbox INTERFACE
 target_include_directories(LokaAppleToolbox INTERFACE
   ${CMAKE_CURRENT_LIST_DIR}
 )
+
+if(LOKA_TOOLBOX_MULTIVERSAL_INTERFACES)
+  target_include_directories(LokaAppleToolbox BEFORE INTERFACE
+    ${CMAKE_CURRENT_LIST_DIR}/compat/multiversal
+  )
+  target_compile_definitions(LokaAppleToolbox INTERFACE
+    LOKA_TOOLBOX_MULTIVERSAL_INTERFACES=1
+  )
+endif()
