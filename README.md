@@ -3,6 +3,7 @@
 [![Linux CI](https://github.com/cubenoy22/Loka/actions/workflows/linux.yml/badge.svg)](https://github.com/cubenoy22/Loka/actions/workflows/linux.yml)
 [![macOS CI](https://github.com/cubenoy22/Loka/actions/workflows/macos.yml/badge.svg)](https://github.com/cubenoy22/Loka/actions/workflows/macos.yml)
 [![Windows CI](https://github.com/cubenoy22/Loka/actions/workflows/windows.yml/badge.svg)](https://github.com/cubenoy22/Loka/actions/workflows/windows.yml)
+[![Toolbox Build CI](https://github.com/cubenoy22/Loka/actions/workflows/toolbox.yml/badge.svg)](https://github.com/cubenoy22/Loka/actions/workflows/toolbox.yml)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/Hero-dark.svg">
