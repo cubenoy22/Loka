@@ -473,6 +473,9 @@ The design goal is that memory and lifecycle are visible from the DSL structure.
 
 ## 12. DSL And Composition
 
+The normative app-facing conventions live in
+[`API_STYLE.md`](API_STYLE.md). This section is their tutorial form.
+
 Loka's DSL declares structure.
 
 It should express application intent:
