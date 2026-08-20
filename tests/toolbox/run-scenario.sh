@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 usage() {
-  echo "Usage: $0 <example> <scenario from scenarios.txt> [--update-golden]" >&2
+  echo "Usage: $0 <example> <scenario from scenarios.txt> [--update-golden | --probe]" >&2
 }
 
 fail_stage() {
@@ -32,12 +32,26 @@ if [[ ! "$EXAMPLE" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
   usage
   exit 2
 fi
+PROBE=0
+# Cells with a probe leg in their scenario driver. --probe on any other cell
+# would write the key, have no reader, and print a green that verified
+# nothing -- a silent skip indistinguishable from coverage.
+PROBE_CELLS="helloworld bmi-roundtrip"
 if [ $# -eq 3 ]; then
-  if [ "$3" != "--update-golden" ]; then
-    usage
-    exit 2
-  fi
-  UPDATE_GOLDEN=1
+  case "$3" in
+    --update-golden) UPDATE_GOLDEN=1 ;;
+    --probe)
+      if ! printf '%s\n' "$PROBE_CELLS" | grep -Fxq -- "$EXAMPLE $SCENARIO"; then
+        echo "no probe leg exists for '$EXAMPLE $SCENARIO'; probe cells: $PROBE_CELLS" >&2
+        exit 2
+      fi
+      PROBE=1
+      ;;
+    *)
+      usage
+      exit 2
+      ;;
+  esac
 fi
 
 WORK="$PROJECT_DIR/build/mame-scenario/$EXAMPLE/$SCENARIO"
@@ -166,7 +180,15 @@ fi
 # linger_seconds keeps the scenario window alive after the audit is written,
 # so the emulator-side snapshot captures the scene instead of the desktop the
 # application would otherwise have quit back to.
-if ! printf 'scenario %s\nlinger_seconds 120\n' "$SCENARIO" >"$CONFIG"; then
+# --probe opts the driver into the dirty-replay probe (#436). Off by default:
+# the tracked cells must keep their audits byte-identical, and until #404 the
+# probe's target sits below the window fold.
+PROBE_LINE=""
+if [ "$PROBE" -eq 1 ]; then
+  PROBE_LINE="probe_dirty_replay 1
+"
+fi
+if ! printf 'scenario %s\nlinger_seconds 120\n%s' "$SCENARIO" "$PROBE_LINE" >"$CONFIG"; then
   fail_stage mame "could not write LokaTest.cfg"
 fi
 if ! cp -f "$SCRIPT_DIR/mame-launch.lua" "$LAUNCHER"; then
