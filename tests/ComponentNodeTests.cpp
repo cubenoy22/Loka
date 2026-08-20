@@ -139,15 +139,15 @@ namespace
 
   /** The primitive under test: residents declared in the constructor, one
       Cell control child wired to a resident's pointer in composeChildren. */
-  class TestCellComponentNode : public loka::app::scene::ComponentNode
+  class TestCellComponentNode
+      : public loka::app::scene::ComponentNodeWithProps<TestCellComponentProps>
   {
-  public:
-    typedef TestCellComponentTypeTag TypeTag;
-    TestCellComponentProps props;
+    typedef loka::app::scene::ComponentNodeWithProps<TestCellComponentProps>
+        Base;
 
+  public:
     explicit TestCellComponentNode(const TestCellComponentProps &p)
-        : loka::app::scene::ComponentNode(),
-          props(p),
+        : Base(p),
           text_(),
           tracked_()
     {

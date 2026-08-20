@@ -112,7 +112,37 @@ namespace loka
           this->addChild(result.root);
         }
       };
+
+      /** Class-component base that keeps its currently applied Props beside
+          the fixed-subtree lifecycle supplied by ComponentNode. */
+      template <class PropsT>
+      class ComponentNodeWithProps : public ComponentNode
+      {
+      public:
+        typedef typename PropsT::TypeTag TypeTag;
+
+        explicit ComponentNodeWithProps(const PropsT &p)
+            : ComponentNode(),
+              props(p)
+        {
+        }
+
+        PropsT props;
+      };
+
     } // namespace scene
+
+    /** Constructs a class-component definition while inferring its Props
+        type from the supplied value. */
+    template <class NodeT, class PropsT>
+    inline scene::NodeDefinition<PropsT, NodeT> Component(const PropsT &p)
+    {
+      // Keep the casual factory honest without adding a runtime check or a
+      // second component hierarchy: this cast must be valid at compile time.
+      (void)sizeof(static_cast<scene::ComponentNode *>(
+          static_cast<NodeT *>(0)));
+      return scene::NodeDefinition<PropsT, NodeT>(p);
+    }
   } // namespace app
 } // namespace loka
 
