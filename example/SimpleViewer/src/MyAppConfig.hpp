@@ -8,10 +8,10 @@
 #include "app/Menu.hpp"
 #include "MainNode.hpp"
 
-class MyAppConfig : public AppConfigurable
+class SimpleViewerAppConfig : public AppConfigurable
 {
 public:
-  explicit MyAppConfig(PlatformContext *ctx)
+  explicit SimpleViewerAppConfig(PlatformContext *ctx)
       : AppConfigurable(ctx),
         openDialogEvent_()
   {

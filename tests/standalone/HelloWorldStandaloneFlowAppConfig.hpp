@@ -17,7 +17,7 @@ namespace loka
   namespace standalone_tests
   {
     /** Owns HelloWorld's standalone presentation composition and scenario. */
-    class HelloWorldStandaloneFlowAppConfig : public MyAppConfig
+    class HelloWorldStandaloneFlowAppConfig : public HelloWorldAppConfig
     {
     public:
       explicit HelloWorldStandaloneFlowAppConfig(PlatformContext *context,

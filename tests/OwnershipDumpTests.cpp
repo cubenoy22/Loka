@@ -493,7 +493,7 @@ namespace
     LOKA_VERIFY(scene.flushInvalidation());
   }
 
-  std::vector<int> captureHelloWorldRandomMenu(MyAppConfig &config)
+  std::vector<int> captureHelloWorldRandomMenu(HelloWorldAppConfig &config)
   {
     loka::app::MenuBarDefinition bar;
     loka::app::MenuComposition composition(&bar);
@@ -538,7 +538,7 @@ namespace
       unsigned long seed,
       int menuCount)
   {
-    MyAppConfig config(0, seed);
+    HelloWorldAppConfig config(0, seed);
     std::vector<std::vector<int> > sequence;
     for (int i = 0; i < menuCount; ++i)
     {
@@ -603,7 +603,7 @@ void testHelloWorldProductionSeedAdapterPassesDerivedSeed()
   LOKA_VERIFY(seed.value() == 0x13579BDFUL);
 
   HelloWorldProductionAppConfig production(0, seed);
-  MyAppConfig expected(0, seed.value());
+  HelloWorldAppConfig expected(0, seed.value());
   for (int i = 0; i < 3; ++i)
   {
     LOKA_VERIFY(captureHelloWorldRandomMenu(production) ==

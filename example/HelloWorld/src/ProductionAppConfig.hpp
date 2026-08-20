@@ -39,11 +39,11 @@ private:
 /** Shared production bootstrap adapter for every HelloWorld platform entry
     point. The overload taking a completed seed keeps the pass-through policy
     directly verifiable without adding a test-only branch. */
-class HelloWorldProductionAppConfig : public MyAppConfig
+class HelloWorldProductionAppConfig : public HelloWorldAppConfig
 {
 public:
   explicit HelloWorldProductionAppConfig(PlatformContext *context)
-      : MyAppConfig(
+      : HelloWorldAppConfig(
             context,
             HelloWorldMenuSeed::ForProductionStartup().value())
   {
@@ -51,7 +51,7 @@ public:
 
   HelloWorldProductionAppConfig(PlatformContext *context,
                                 const HelloWorldMenuSeed &menuSeed)
-      : MyAppConfig(context, menuSeed.value())
+      : HelloWorldAppConfig(context, menuSeed.value())
   {
   }
 };

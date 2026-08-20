@@ -5,11 +5,11 @@
 
 namespace
 {
-  class ProductionAppConfig : public MyAppConfig
+  class ProductionAppConfig : public MineSweeperAppConfig
   {
   public:
     explicit ProductionAppConfig(PlatformContext *context)
-        : MyAppConfig(
+        : MineSweeperAppConfig(
               context,
               minesweeper::MainProps(
                   static_cast<unsigned long>(std::time(0))))

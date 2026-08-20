@@ -8,10 +8,10 @@
 #include "app/Menu.hpp"
 #include "MainNode.hpp"
 
-class MyAppConfig : public AppConfigurable
+class HelloWorldAppConfig : public AppConfigurable
 {
 public:
-  MyAppConfig(PlatformContext *ctx, unsigned long menuSeed)
+  HelloWorldAppConfig(PlatformContext *ctx, unsigned long menuSeed)
       : AppConfigurable(ctx),
         menu_(menuSeed)
   {
