@@ -36,7 +36,8 @@ PROBE=0
 # Cells with a probe leg in their scenario driver. --probe on any other cell
 # would write the key, have no reader, and print a green that verified
 # nothing -- a silent skip indistinguishable from coverage.
-PROBE_CELLS="helloworld bmi-roundtrip"
+PROBE_CELLS="helloworld bmi-roundtrip
+helloworld toggle-action-probe"
 if [ $# -eq 3 ]; then
   case "$3" in
     --update-golden) UPDATE_GOLDEN=1 ;;
