@@ -33,10 +33,20 @@ if [[ ! "$EXAMPLE" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
   exit 2
 fi
 PROBE=0
+# Cells with a probe leg in their scenario driver. --probe on any other cell
+# would write the key, have no reader, and print a green that verified
+# nothing -- a silent skip indistinguishable from coverage.
+PROBE_CELLS="helloworld bmi-roundtrip"
 if [ $# -eq 3 ]; then
   case "$3" in
     --update-golden) UPDATE_GOLDEN=1 ;;
-    --probe) PROBE=1 ;;
+    --probe)
+      if ! printf '%s\n' "$PROBE_CELLS" | grep -Fxq -- "$EXAMPLE $SCENARIO"; then
+        echo "no probe leg exists for '$EXAMPLE $SCENARIO'; probe cells: $PROBE_CELLS" >&2
+        exit 2
+      fi
+      PROBE=1
+      ;;
     *)
       usage
       exit 2
