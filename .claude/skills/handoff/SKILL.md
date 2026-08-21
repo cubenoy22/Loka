@@ -5,9 +5,12 @@ description: Write the end-of-session handoff document (plans/HANDOFF-YYYY-MM-DD
 
 # Session handoff document
 
-Write `plans/HANDOFF-<today>.md` in the user's checkout
-(`/mnt/c/Users/cuben/source/repos/Loka`). `plans/` is gitignored — this is a
-local document, written in Japanese (the user reads it directly).
+Write `plans/HANDOFF-<today>.md` in the fleet clone the session worked in —
+`~/loka` on the current rig. `plans/` is gitignored, so the document exists
+only in the clone that wrote it; write it where the work happened rather than
+in the user's own GitHub Desktop checkout, which agents do not touch. Name the
+clone's path in 作業場所 so the next session can find the file. Written in
+Japanese (the user reads it directly).
 
 ## Required structure (follow the existing files as templates)
 
