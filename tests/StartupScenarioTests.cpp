@@ -116,7 +116,7 @@ void testHelloWorldStartupHoldsSettledInitialScreenAndMatchesAudit()
   RunStartupScenario(loka::scenario_tests::STARTUP_EXAMPLE_HELLO_WORLD,
                      definition.clone(),
                      420,
-                     300,
+                     330,
                      "tests/scenarios/expected/helloworld/startup.audit",
                      0);
   std::printf("testHelloWorldStartupHoldsSettledInitialScreenAndMatchesAudit passed\n");

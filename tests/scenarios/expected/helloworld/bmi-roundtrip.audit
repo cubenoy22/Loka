@@ -7,7 +7,7 @@ step id=5 due_tick=62 tick=62 status=succeeded error_kind=0 error_code=0 name=ve
 step id=6 due_tick=62 tick=62 status=succeeded error_kind=0 error_code=0 name=restore-valid-height
 step id=7 due_tick=92 tick=92 status=succeeded error_kind=0 error_code=0 name=verify-roundtrip-bmi
 step id=8 due_tick=92 tick=92 status=succeeded error_kind=0 error_code=0 name=capture-bmi-result
-crop_bottom	300
+crop_bottom	330
 crop_left	0
 crop_right	420
 crop_top	0
