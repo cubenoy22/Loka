@@ -28,14 +28,7 @@ if(WIN32)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../win32 ${CMAKE_CURRENT_BINARY_DIR}/win32)
   endif()
 
-  # Option to use console subsystem (main) instead of GUI subsystem (WinMain)
-  option(USE_CONSOLE_SUBSYSTEM "Use console subsystem for debugging" OFF)
-
-  if(USE_CONSOLE_SUBSYSTEM)
-    add_executable(LokaHelloWin32 ${HELLOWORLD_SOURCES})
-  else()
-    add_executable(LokaHelloWin32 WIN32 ${HELLOWORLD_SOURCES})
-  endif()
+  add_executable(LokaHelloWin32 WIN32 ${HELLOWORLD_SOURCES})
   loka_enable_warnings(LokaHelloWin32)
   loka_enable_win32_visual_styles(LokaHelloWin32)
 
