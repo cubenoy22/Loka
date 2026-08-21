@@ -16,6 +16,7 @@
 #include "platform/null/NullApp.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "platform/null/NullWindow.hpp"
+#include "scenarios/HelloWorldProductionFrame.hpp"
 #include "scenarios/ObservedMainDefinition.hpp"
 #include "scenarios/VehiclePresentationVerify.hpp"
 #include "scenarios/HelloWorldScenarioPresentation.hpp"
@@ -103,8 +104,9 @@ void testHelloWorldToggleActionProbeDrivesOwnerCommands()
   loka::scenario_tests::HelloWorldScenario scenario(loka::scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED, &audit);
   loka::scenario_tests::CaptureContentBounds bounds;
   bounds.available = true;
-  bounds.right = 420;
-  bounds.bottom = 330;
+  const loka::scenario_tests::HelloWorldProductionFrame productionFrame;
+  bounds.right = productionFrame.width();
+  bounds.bottom = productionFrame.height();
   loka::dsl::SnapRecord record;
 
   LOKA_VERIFY(scenario.step(1, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
@@ -155,8 +157,9 @@ void testHelloWorldToggleActionProbeHoldsFinalScene()
   loka::scenario_tests::HelloWorldScenario scenario(loka::scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &audit);
   loka::scenario_tests::CaptureContentBounds bounds;
   bounds.available = true;
-  bounds.right = 420;
-  bounds.bottom = 330;
+  const loka::scenario_tests::HelloWorldProductionFrame productionFrame;
+  bounds.right = productionFrame.width();
+  bounds.bottom = productionFrame.height();
   loka::dsl::SnapRecord record;
 
   LOKA_VERIFY(scenario.step(2, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
@@ -198,8 +201,9 @@ void testHelloWorldBmiRoundtripDrivesEditTextInput()
       &audit);
   loka::scenario_tests::CaptureContentBounds bounds;
   bounds.available = true;
-  bounds.right = 420;
-  bounds.bottom = 330;
+  const loka::scenario_tests::HelloWorldProductionFrame productionFrame;
+  bounds.right = productionFrame.width();
+  bounds.bottom = productionFrame.height();
   loka::dsl::SnapRecord record;
 
   LOKA_VERIFY(driver.step(2, &window, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
