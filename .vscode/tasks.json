@@ -439,20 +439,18 @@
       "problemMatcher": "$gcc"
     },
     {
-      "label": "Configure HelloWorld (Native-Debug-Console)",
+      "label": "Configure HelloWorld (Native-Debug)",
       "type": "shell",
       "command": "cmake",
       "args": [
         "-S",
         "example/HelloWorld",
         "-B",
-        "example/HelloWorld/build/native",
-        "-DUSE_CONSOLE_SUBSYSTEM=ON",
-        "-DTEST_BUILD=ON"
+        "example/HelloWorld/build/native"
       ]
     },
     {
-      "label": "Build HelloWorld (Native-Debug-Console)",
+      "label": "Build HelloWorld (Native-Debug)",
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -462,55 +460,20 @@
         "Debug"
       ],
       "dependsOn": [
-        "Configure HelloWorld (Native-Debug-Console)"
+        "Configure HelloWorld (Native-Debug)"
       ],
       "group": "build"
     },
     {
-      "label": "Configure HelloWorld (Native-Debug-GUI)",
-      "type": "shell",
-      "command": "cmake",
-      "args": [
-        "-S",
-        "example/HelloWorld",
-        "-B",
-        "example/HelloWorld/build/native",
-        "-DUSE_CONSOLE_SUBSYSTEM=OFF"
-      ]
-    },
-    {
-      "label": "Build HelloWorld (Native-Debug-GUI)",
-      "type": "shell",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "example/HelloWorld/build/native",
-        "--config",
-        "Debug"
-      ],
+      "label": "Config & Build HelloWorld (Native-Debug)",
       "dependsOn": [
-        "Configure HelloWorld (Native-Debug-GUI)"
+        "Configure HelloWorld (Native-Debug)",
+        "Build HelloWorld (Native-Debug)"
       ],
       "group": "build"
     },
     {
-      "label": "Config & Build HelloWorld (Native-Debug-GUI)",
-      "dependsOn": [
-        "Configure HelloWorld (Native-Debug-GUI)",
-        "Build HelloWorld (Native-Debug-GUI)"
-      ],
-      "group": "build"
-    },
-    {
-      "label": "Config & Build HelloWorld (Native-Debug-Console)",
-      "dependsOn": [
-        "Configure HelloWorld (Native-Debug-Console)",
-        "Build HelloWorld (Native-Debug-Console)"
-      ],
-      "group": "build"
-    },
-    {
-      "label": "Configure HelloWorld (Native-Release-Console)",
+      "label": "Configure HelloWorld (Native-Release)",
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -518,13 +481,11 @@
         "example/HelloWorld",
         "-B",
         "example/HelloWorld/build/native-release",
-        "-DUSE_CONSOLE_SUBSYSTEM=ON",
-        "-DTEST_BUILD=ON",
         "-DCMAKE_BUILD_TYPE=Release"
       ]
     },
     {
-      "label": "Build HelloWorld (Native-Release-Console)",
+      "label": "Build HelloWorld (Native-Release)",
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -534,51 +495,15 @@
         "Release"
       ],
       "dependsOn": [
-        "Configure HelloWorld (Native-Release-Console)"
+        "Configure HelloWorld (Native-Release)"
       ],
       "group": "build"
     },
     {
-      "label": "Configure HelloWorld (Native-Release-GUI)",
-      "type": "shell",
-      "command": "cmake",
-      "args": [
-        "-S",
-        "example/HelloWorld",
-        "-B",
-        "example/HelloWorld/build/native-release",
-        "-DUSE_CONSOLE_SUBSYSTEM=OFF",
-        "-DCMAKE_BUILD_TYPE=Release"
-      ]
-    },
-    {
-      "label": "Build HelloWorld (Native-Release-GUI)",
-      "type": "shell",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "example/HelloWorld/build/native-release",
-        "--config",
-        "Release"
-      ],
+      "label": "Config & Build HelloWorld (Native-Release)",
       "dependsOn": [
-        "Configure HelloWorld (Native-Release-GUI)"
-      ],
-      "group": "build"
-    },
-    {
-      "label": "Config & Build HelloWorld (Native-Release-GUI)",
-      "dependsOn": [
-        "Configure HelloWorld (Native-Release-GUI)",
-        "Build HelloWorld (Native-Release-GUI)"
-      ],
-      "group": "build"
-    },
-    {
-      "label": "Config & Build HelloWorld (Native-Release-Console)",
-      "dependsOn": [
-        "Configure HelloWorld (Native-Release-Console)",
-        "Build HelloWorld (Native-Release-Console)"
+        "Configure HelloWorld (Native-Release)",
+        "Build HelloWorld (Native-Release)"
       ],
       "group": "build"
     },
