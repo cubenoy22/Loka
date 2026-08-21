@@ -2,8 +2,10 @@
 
 import importlib.util
 import pathlib
+import shutil
 import sys
 import tempfile
+import types
 import unittest
 
 
@@ -14,6 +16,68 @@ sys.path.insert(0, str(RIG_SCRIPTS))
 
 import loka_rig_common as common
 from toolbox import loka_toolbox_rig as toolbox
+from toolbox import classic_golden_identity as golden_identity
+
+
+def make_toolbox_golden_bundle(root, checkout, scenarios):
+    registry = checkout / "tests" / "scenarios" / "scenarios.txt"
+    registry.parent.mkdir(parents=True, exist_ok=True)
+    registry.write_text(
+        "".join(f"{example} {scenario}\n" for example, scenario in scenarios),
+        encoding="utf-8",
+    )
+    descriptor = checkout / "scripts" / "rig" / "toolbox" / "rigs" / "toolbox-maciix.ini"
+    descriptor.parent.mkdir(parents=True, exist_ok=True)
+    descriptor.write_text(
+        (ROOT / "scripts" / "rig" / "toolbox" / "rigs" / "toolbox-maciix.ini").read_text(
+            encoding="utf-8"
+        ),
+        encoding="utf-8",
+    )
+    identity = {
+        "gcc_version": "fake-gcc",
+        "universal_interfaces_version": "0x0340",
+        "retro68_identity_kind": "toolchain-content-sha256",
+        "retro68_identity": "a" * 64,
+        "mame_executable_sha256": "b" * 64,
+        "mame_rom_identity_kind": "verified-rom-inventory-sha256",
+        "mame_rom_identity": "c" * 64,
+        "ram_size": "8M",
+        "machine": "maciix",
+        "capture_adapter": "mame-screen-snapshot.v1",
+        "boot_hd_sha256": "d" * 64,
+    }
+    current = root / "current-identity.txt"
+    current.write_text(
+        "identity_version=1\n"
+        + "".join(f"{key}={identity[key]}\n" for key in golden_identity.IDENTITY_FIELDS)
+        + f"identity_sha256={golden_identity.identity_sha256(identity)}\n",
+        encoding="utf-8",
+    )
+    bundle = root / "golden"
+    capture = root / "capture.png"
+    capture.write_bytes(b"pixels")
+    for example, scenario in scenarios:
+        golden_identity.stage_capture(
+            types.SimpleNamespace(
+                bundle=bundle,
+                registry=registry,
+                descriptor=descriptor,
+                current_identity=current,
+                capture=capture,
+                example=example,
+                scenario=scenario,
+            )
+        )
+    approved = golden_identity.identity_sha256(identity)
+    descriptor.write_text(
+        descriptor.read_text(encoding="utf-8").replace(
+            "reference_identity_sha256 = unapproved",
+            f"reference_identity_sha256 = {approved}",
+        ),
+        encoding="utf-8",
+    )
+    return bundle
 
 
 def load_cli():
@@ -247,6 +311,7 @@ class ToolboxRigAdapterTest(unittest.TestCase):
         self.assertEqual(descriptor.rig_id, "toolbox-maciix")
         self.assertEqual(descriptor.supported_modes, frozenset(("flow",)))
         self.assertTrue(descriptor.disposable_for_input)
+        self.assertEqual(descriptor.reference_identity_sha256, "unapproved")
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             config = root / "local.ini"
@@ -275,27 +340,47 @@ class ToolboxRigAdapterTest(unittest.TestCase):
 
             self.assertEqual(run._configured_machine(), "maciix")
 
+    def test_toolbox_manifest_preserves_reference_refusal(self):
+        descriptor = toolbox.load_descriptor(
+            ROOT / "scripts" / "rig" / "toolbox" / "rigs" / "toolbox-maciix.ini"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            environment = root / "mame.env"
+            environment.write_text("MAME_EXECUTABLE=/bin/false\n", encoding="utf-8")
+            mapping = toolbox.LocalMapping(root / "archive-root", environment, root / "golden")
+            run = toolbox.ToolboxRigRun(ROOT, descriptor, mapping, "HEAD", "flow")
+            run.archive = root / "archive"
+            run.archive.mkdir()
+            run.checkout = root / "checkout"
+            refusal = run.archive / "presentation.incomplete" / "machine-verdict.txt"
+            refusal.parent.mkdir()
+            refusal.write_text(
+                "machine_verdict=refused\n"
+                "runtime_verification=passed\n"
+                "refusal_reason=identity mismatch\n",
+                encoding="utf-8",
+            )
+            run.progress.fail("runtime", "presentation rail refused the reference")
+            run.progress.finish()
+            run.finalize_manifest("failed")
+            manifest = (run.archive / "run-manifest.txt").read_text(encoding="utf-8")
+            self.assertIn("machine_verdict=refused\n", manifest)
+            self.assertIn("runtime_verification=passed\n", manifest)
+
     def test_golden_staging_uses_the_checkout_registry_and_fails_on_absence(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             checkout = root / "checkout"
-            registry = checkout / "tests" / "scenarios" / "scenarios.txt"
-            registry.parent.mkdir(parents=True)
-            registry.write_text("first alpha\nsecond beta\n", encoding="utf-8")
-            golden = root / "golden"
-            (golden / "first").mkdir(parents=True)
-            (golden / "second").mkdir()
-            (golden / "first" / "alpha.png").write_bytes(b"alpha")
-            (golden / "first" / "alpha.png.mame-machine").write_text(
-                "maciix\n", encoding="utf-8"
+            golden = make_toolbox_golden_bundle(
+                root, checkout, (("first", "alpha"), ("second", "beta"))
             )
+            missing = golden / "second" / "beta.png"
+            missing.unlink()
             with self.assertRaises(common.RigError) as caught:
                 toolbox.stage_goldens(checkout, golden)
             self.assertEqual(caught.exception.stage, "golden-preflight")
-            (golden / "second" / "beta.png").write_bytes(b"beta")
-            (golden / "second" / "beta.png.mame-machine").write_text(
-                "maciix\n", encoding="utf-8"
-            )
+            missing.write_bytes(b"pixels")
             staged = toolbox.stage_goldens(checkout, golden)
             self.assertEqual(staged, (("first", "alpha"), ("second", "beta")))
             self.assertEqual(
@@ -307,39 +392,42 @@ class ToolboxRigAdapterTest(unittest.TestCase):
                     / "second"
                     / "beta.png"
                 ).read_bytes(),
-                b"beta",
+                b"pixels",
             )
 
-    def test_golden_staging_requires_and_copies_machine_records(self):
+    def test_golden_staging_refuses_legacy_sidecars_and_copies_one_manifest(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             checkout = root / "checkout"
             registry = checkout / "tests" / "scenarios" / "scenarios.txt"
             registry.parent.mkdir(parents=True)
             registry.write_text("first alpha\n", encoding="utf-8")
+            descriptor = checkout / "scripts" / "rig" / "toolbox" / "rigs" / "toolbox-maciix.ini"
+            descriptor.parent.mkdir(parents=True)
+            shutil.copy2(
+                ROOT / "scripts" / "rig" / "toolbox" / "rigs" / "toolbox-maciix.ini",
+                descriptor,
+            )
             golden = root / "golden" / "first" / "alpha.png"
             golden.parent.mkdir(parents=True)
             golden.write_bytes(b"alpha")
+            golden.with_name("alpha.png.mame-machine").write_text("maciix\n", encoding="utf-8")
 
             with self.assertRaises(common.RigError) as caught:
                 toolbox.stage_goldens(checkout, root / "golden")
             self.assertEqual(caught.exception.stage, "golden-preflight")
-            self.assertIn("missing machine record", str(caught.exception))
-            self.assertIn("--update-golden", str(caught.exception))
-            self.assertIn("write the record by hand", str(caught.exception))
+            self.assertIn("legacy PNG/.mame-machine baseline", str(caught.exception))
+            self.assertIn("re-bake", str(caught.exception))
 
-            machine_record = golden.with_name(f"{golden.name}.mame-machine")
-            machine_record.write_text("maciix\n", encoding="utf-8")
-            toolbox.stage_goldens(checkout, root / "golden")
-            staged_record = (
-                checkout
-                / "build"
-                / "mame-scenario"
-                / "golden"
-                / "first"
-                / "alpha.png.mame-machine"
+            shutil.rmtree(root / "golden")
+            bundle = make_toolbox_golden_bundle(root, checkout, (("first", "alpha"),))
+            toolbox.stage_goldens(checkout, bundle)
+            staged_root = checkout / "build" / "mame-scenario" / "golden"
+            self.assertTrue((staged_root / "manifest.txt").is_file())
+            self.assertEqual(
+                len(list(staged_root.rglob("manifest.txt"))),
+                1,
             )
-            self.assertEqual(staged_record.read_text(encoding="utf-8"), "maciix\n")
 
 
 if __name__ == "__main__":

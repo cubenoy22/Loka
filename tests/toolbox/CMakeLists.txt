@@ -23,8 +23,37 @@ set(LOKA_FLOPPY_BIRD_TESTS_TOOLBOX_TARGET
   "LokaFloppyBirdTestsToolbox${LOKA_CLASSIC_TARGET_SUFFIX}"
 )
 
+# The pixel rail reads this clean-build artifact instead of asking the running
+# application or reconstructing compiler provenance at verdict time. Retro68
+# exposes no stable build-ID query in the supported tree, so the emitter uses
+# its installed toolchain content digest as the specified fallback identity.
+find_program(LOKA_TOOLBOX_PYTHON3_EXECUTABLE python3 REQUIRED)
+set(LOKA_TOOLBOX_BUILD_PROVENANCE
+  "${CMAKE_CURRENT_BINARY_DIR}/classic-build-provenance.txt"
+)
+set(_loka_retro68_toolchain_root "")
+if(RETRO68_BUILD_DIR AND EXISTS "${RETRO68_BUILD_DIR}/toolchain")
+  set(_loka_retro68_toolchain_root "${RETRO68_BUILD_DIR}/toolchain")
+endif()
+add_custom_command(
+  OUTPUT "${LOKA_TOOLBOX_BUILD_PROVENANCE}"
+  COMMAND "${LOKA_TOOLBOX_PYTHON3_EXECUTABLE}"
+    "${CMAKE_SOURCE_DIR}/scripts/rig/toolbox/classic_golden_identity.py"
+    emit-build-provenance
+    --output "${LOKA_TOOLBOX_BUILD_PROVENANCE}"
+    --compiler "${CMAKE_CXX_COMPILER}"
+    --toolchain-root "${_loka_retro68_toolchain_root}"
+  DEPENDS
+    "${CMAKE_SOURCE_DIR}/scripts/rig/toolbox/classic_golden_identity.py"
+  VERBATIM
+)
+add_custom_target(LokaToolboxBuildProvenance ALL
+  DEPENDS "${LOKA_TOOLBOX_BUILD_PROVENANCE}"
+)
+
 function(loka_add_toolbox_test_application target core_target)
   add_application(${target} ${ARGN})
+  add_dependencies(${target} LokaToolboxBuildProvenance)
   loka_enable_warnings(${target})
   target_include_directories(${target} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src

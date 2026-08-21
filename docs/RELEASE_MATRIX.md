@@ -145,5 +145,10 @@ The Classic scenario command requires an already configured local MAME rig,
 the example's Toolbox test application, and the host `lrpc` tool; if an
 artifact is absent, the runner prints its exact build command.
 `tests/scenarios/scenarios.txt` is the shared `<example> <scenario>` registry.
-`--update-golden` regenerates the rig-local golden under that same per-example
-layout; it does not create release evidence or a tracked repository file.
+`--update-golden` stages the scenario capture for one failure-atomic rig-local
+bundle and publishes only after every registry entry is present under one
+identity. The bake does not create release evidence, edit a tracked repository
+file, or authorize itself; the bundle identity must separately match the digest
+in the tracked Toolbox rig descriptor. `--structural-audit` validates the
+tracked audit and capture structure while explicitly reporting “Pixel verdict:
+not evaluated.”

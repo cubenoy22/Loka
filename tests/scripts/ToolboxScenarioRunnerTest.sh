@@ -22,11 +22,16 @@ mkdir -p \
   "$SANDBOX/repo/tests/scenarios/expected/minesweeper" \
   "$SANDBOX/repo/tests/scenarios/expected/floppybird" \
   "$SANDBOX/repo/scripts" \
+  "$SANDBOX/repo/scripts/rig/toolbox/rigs" \
   "$SANDBOX/repo/example/ScrapbookUI" \
   "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox" \
   "$SANDBOX/retro-tools"
 cp "$RUNNER" "$SANDBOX/repo/tests/toolbox/run-scenario.sh"
 cp "$LAUNCHER" "$SANDBOX/repo/tests/toolbox/mame-launch.lua"
+cp "$REPO_DIR/scripts/rig/toolbox/classic_golden_identity.py" \
+  "$SANDBOX/repo/scripts/rig/toolbox/classic_golden_identity.py"
+cp "$REPO_DIR/scripts/rig/toolbox/rigs/toolbox-maciix.ini" \
+  "$SANDBOX/repo/scripts/rig/toolbox/rigs/toolbox-maciix.ini"
 cp "$REPO_DIR/tests/scenarios/pngtool.py" "$SANDBOX/repo/tests/scenarios/pngtool.py"
 cp "$REPO_DIR/tests/scenarios/scrapbook-package-fixtures.txt" \
   "$SANDBOX/repo/tests/scenarios/scrapbook-package-fixtures.txt"
@@ -67,6 +72,13 @@ touch \
   "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaFloppyBirdTestsToolbox68K.bin" \
   "$SANDBOX/repo/example/ScrapbookUI/ASSETS.LRP" \
   "$SANDBOX/BootTemplate.hd"
+cat >"$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/classic-build-provenance.txt" <<'EOF'
+build_provenance_version=1
+gcc_version=fake-gcc-12.2.0
+universal_interfaces_version=0x0340
+retro68_identity_kind=toolchain-content-sha256
+retro68_identity=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+EOF
 
 mkdir -p "$SANDBOX/repo/build/host/lrpc"
 cat >"$SANDBOX/repo/build/host/lrpc/lrpc" <<'SH'
@@ -87,6 +99,16 @@ SH
 cat >"$SANDBOX/fake-mame" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
+for argument in "$@"; do
+  if [ "$argument" = "-verifyroms" ]; then
+    printf 'romset maciix is good\n'
+    exit 0
+  fi
+  if [ "$argument" = "-listroms" ]; then
+    printf 'ROMs required for driver maciix\nboot.rom  sha1:1111111111111111111111111111111111111111\n'
+    exit 0
+  fi
+done
 printf '%s\n' "${LOKA_TAB_COUNT-unset}" >"$SANDBOX/tab-count"
 printf '%s\n' "${LOKA_SETTLE_TIMEOUT-unset}" >"$SANDBOX/settle-timeout"
 if [ "${FAKE_MAME_RESULT:-failure}" = "success" ]; then
@@ -210,12 +232,41 @@ run_case floppybird startup 4 unset
 run_case floppybird fixed-step-flaps 4 unset
 run_case helloworld toggle-action-probe 9 unset 9
 
+IDENTITY_HELPER="$SANDBOX/repo/scripts/rig/toolbox/classic_golden_identity.py"
+RIG_DESCRIPTOR="$SANDBOX/repo/scripts/rig/toolbox/rigs/toolbox-maciix.ini"
+GOLDEN_BUNDLE="$SANDBOX/repo/build/mame-scenario/golden"
+CURRENT_IDENTITY="$SANDBOX/current-identity.txt"
+
+prepare_authorized_bundle() {
+  python3 "$IDENTITY_HELPER" capture-current \
+    --output "$CURRENT_IDENTITY" \
+    --build-provenance "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/classic-build-provenance.txt" \
+    --descriptor "$RIG_DESCRIPTOR" \
+    --mame-executable "$SANDBOX/fake-mame" \
+    --ram-size 8M --machine maciix \
+    --capture-adapter mame-screen-snapshot.v1 \
+    --boot-hd "$SANDBOX/BootTemplate.hd" \
+    || fail "could not capture the fake reference identity"
+  while read -r example scenario; do
+    python3 "$IDENTITY_HELPER" stage-capture \
+      --bundle "$GOLDEN_BUNDLE" \
+      --registry "$SANDBOX/repo/tests/scenarios/scenarios.txt" \
+      --descriptor "$RIG_DESCRIPTOR" \
+      --current-identity "$CURRENT_IDENTITY" \
+      --capture "$SANDBOX/snapshot.png" \
+      --example "$example" --scenario "$scenario" >/dev/null \
+      || fail "could not stage fake golden $example/$scenario"
+  done <"$SANDBOX/repo/tests/scenarios/scenarios.txt"
+  approved="$(sed -n 's/^identity_sha256=//p' "$GOLDEN_BUNDLE/manifest.txt")"
+  [ -n "$approved" ] || fail "fake bundle omitted identity_sha256"
+  sed -i "s/^reference_identity_sha256 = .*/reference_identity_sha256 = $approved/" \
+    "$RIG_DESCRIPTOR"
+}
+
+prepare_authorized_bundle
+
 verify_startup_verdict() {
   local example="$1"
-  mkdir -p "$SANDBOX/repo/build/mame-scenario/golden/$example"
-  cp "$SANDBOX/snapshot.png" "$SANDBOX/repo/build/mame-scenario/golden/$example/startup.png"
-  printf 'maciix\n' \
-    >"$SANDBOX/repo/build/mame-scenario/golden/$example/startup.png.mame-machine"
   if ! MAME_ENV_FILE="$SANDBOX/mame.env" \
       RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
       FAKE_MAME_RESULT=success FAKE_EXAMPLE="$example" \
@@ -243,58 +294,197 @@ verify_startup_verdict tutorial
 verify_startup_verdict minesweeper
 verify_startup_verdict floppybird
 
-verify_golden_machine_guard() {
-  local golden_dir="$SANDBOX/repo/build/mame-scenario/golden/helloworld"
-  local machine_record="$golden_dir/startup.png.mame-machine"
+assert_refused() {
+  local log="$1"
+  local marker="$SANDBOX/repo/build/mame-scenario/helloworld/startup/machine-verdict.txt"
+  grep -Fq 'machine_verdict=refused' "$log" \
+    || fail "identity refusal did not print its machine-readable verdict"
+  grep -Fxq 'machine_verdict=refused' "$marker" \
+    || fail "identity refusal did not finalize its machine-readable marker"
+  grep -Fxq 'runtime_verification=passed' "$marker" \
+    || fail "identity refusal erased the successful runtime/audit fact"
+}
 
-  printf 'maciix\n' >"$machine_record"
+verify_identity_mismatch_refusal() {
   if MAME_ENV_FILE="$SANDBOX/mame.env" MAME_MACHINE=macqd700 \
       RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
       FAKE_MAME_RESULT=success FAKE_EXAMPLE=helloworld \
       env -u WSL_INTEROP -u LOKA_TAB_COUNT \
       bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" helloworld startup \
         >"$SANDBOX/runner-machine-mismatch.log" 2>&1; then
-    fail "golden machine mismatch unexpectedly passed"
+    fail "golden identity mismatch unexpectedly passed"
   fi
-  grep -Fq "was recorded on MAME machine 'maciix', but the current machine is 'macqd700'" \
+  assert_refused "$SANDBOX/runner-machine-mismatch.log"
+  grep -Fq "identity mismatch for machine: bundle='maciix', current='macqd700'" \
     "$SANDBOX/runner-machine-mismatch.log" \
-    || fail "golden machine mismatch did not report both machine names"
+    || fail "golden identity mismatch did not name both machine values"
+}
 
-  rm "$machine_record"
-  if MAME_ENV_FILE="$SANDBOX/mame.env" \
-      RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
-      FAKE_MAME_RESULT=success FAKE_EXAMPLE=helloworld \
-      env -u WSL_INTEROP -u LOKA_TAB_COUNT \
+verify_identity_mismatch_refusal
+
+verify_strict_manifest_refusals() {
+  local manifest="$GOLDEN_BUNDLE/manifest.txt"
+  cp "$manifest" "$SANDBOX/manifest.valid"
+
+  printf 'unknown_field=surprise\n' >>"$manifest"
+  if MAME_ENV_FILE="$SANDBOX/mame.env" RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
+      FAKE_MAME_RESULT=success FAKE_EXAMPLE=helloworld env -u WSL_INTEROP -u LOKA_TAB_COUNT \
       bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" helloworld startup \
-        >"$SANDBOX/runner-machine-missing.log" 2>&1; then
-    fail "golden without a machine record unexpectedly passed"
+        >"$SANDBOX/runner-manifest-unknown.log" 2>&1; then
+    fail "manifest with an unknown field unexpectedly passed"
   fi
-  grep -Fq "rerun with --update-golden, or write 'maciix' to $machine_record" \
-    "$SANDBOX/runner-machine-missing.log" \
-    || fail "missing golden machine record did not explain both recovery paths"
+  assert_refused "$SANDBOX/runner-manifest-unknown.log"
+  grep -Fq 'unknown unknown_field' "$SANDBOX/runner-manifest-unknown.log" \
+    || fail "unknown manifest field was not diagnosed"
 
-  if ! MAME_ENV_FILE="$SANDBOX/mame.env" MAME_MACHINE=macqd700 \
-      RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
-      FAKE_MAME_RESULT=success FAKE_EXAMPLE=helloworld \
-      env -u WSL_INTEROP -u LOKA_TAB_COUNT \
+  cp "$SANDBOX/manifest.valid" "$manifest"
+  printf 'machine=maciix\n' >>"$manifest"
+  if MAME_ENV_FILE="$SANDBOX/mame.env" RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
+      FAKE_MAME_RESULT=success FAKE_EXAMPLE=helloworld env -u WSL_INTEROP -u LOKA_TAB_COUNT \
       bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" helloworld startup \
-        --update-golden >"$SANDBOX/runner-machine-update.log" 2>&1; then
-    fail "golden update failed while recording its machine"
+        >"$SANDBOX/runner-manifest-duplicate.log" 2>&1; then
+    fail "manifest with a duplicate field unexpectedly passed"
   fi
-  [ "$(cat "$machine_record")" = "macqd700" ] \
-    || fail "golden update did not record the current machine"
+  assert_refused "$SANDBOX/runner-manifest-duplicate.log"
+  grep -Fq 'duplicate manifest field machine' "$SANDBOX/runner-manifest-duplicate.log" \
+    || fail "duplicate manifest field was not diagnosed"
 
-  if ! MAME_ENV_FILE="$SANDBOX/mame.env" MAME_MACHINE=macqd700 \
-      RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
-      FAKE_MAME_RESULT=success FAKE_EXAMPLE=helloworld \
-      env -u WSL_INTEROP -u LOKA_TAB_COUNT \
+  grep -v '^ram_size=' "$SANDBOX/manifest.valid" >"$manifest"
+  if MAME_ENV_FILE="$SANDBOX/mame.env" RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
+      FAKE_MAME_RESULT=success FAKE_EXAMPLE=helloworld env -u WSL_INTEROP -u LOKA_TAB_COUNT \
       bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" helloworld startup \
-        >"$SANDBOX/runner-machine-match.log" 2>&1; then
-    fail "golden recorded on the current machine did not pass"
+        >"$SANDBOX/runner-manifest-missing.log" 2>&1; then
+    fail "manifest with a missing field unexpectedly passed"
+  fi
+  assert_refused "$SANDBOX/runner-manifest-missing.log"
+  grep -Fq 'missing ram_size' "$SANDBOX/runner-manifest-missing.log" \
+    || fail "missing manifest field was not diagnosed"
+  cp "$SANDBOX/manifest.valid" "$manifest"
+}
+
+verify_strict_manifest_refusals
+
+verify_legacy_shape_refusal() {
+  mv "$GOLDEN_BUNDLE/manifest.txt" "$SANDBOX/manifest.valid"
+  printf 'maciix\n' >"$GOLDEN_BUNDLE/helloworld/startup.png.mame-machine"
+  if MAME_ENV_FILE="$SANDBOX/mame.env" RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
+      FAKE_MAME_RESULT=success FAKE_EXAMPLE=helloworld env -u WSL_INTEROP -u LOKA_TAB_COUNT \
+      bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" helloworld startup \
+        >"$SANDBOX/runner-legacy.log" 2>&1; then
+    fail "legacy loose golden unexpectedly produced a pixel verdict"
+  fi
+  assert_refused "$SANDBOX/runner-legacy.log"
+  grep -Fq 're-bake the complete Classic golden bundle with --update-golden' \
+    "$SANDBOX/runner-legacy.log" \
+    || fail "legacy-shape refusal did not name the required re-bake"
+  rm "$GOLDEN_BUNDLE/helloworld/startup.png.mame-machine"
+  mv "$SANDBOX/manifest.valid" "$GOLDEN_BUNDLE/manifest.txt"
+}
+
+verify_legacy_shape_refusal
+
+verify_atomic_bake_and_no_self_authorize() {
+  local bundle="$SANDBOX/atomic-golden"
+  local registry="$SANDBOX/atomic-scenarios.txt"
+  local current="$SANDBOX/arbitrary-identity.txt"
+  printf 'helloworld startup\n' >"$registry"
+  cp -a "$GOLDEN_BUNDLE" "$bundle"
+  original_manifest_hash="$(sha256sum "$bundle/manifest.txt" | awk '{print $1}')"
+  python3 "$IDENTITY_HELPER" capture-current \
+    --output "$current" \
+    --build-provenance "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/classic-build-provenance.txt" \
+    --descriptor "$RIG_DESCRIPTOR" \
+    --mame-executable "$SANDBOX/fake-mame" \
+    --ram-size 8M --machine macqd700 \
+    --capture-adapter mame-screen-snapshot.v1 \
+    --boot-hd "$SANDBOX/BootTemplate.hd" \
+    || fail "could not capture arbitrary bake identity"
+  mkdir "$bundle.previous"
+  if python3 "$IDENTITY_HELPER" stage-capture \
+      --bundle "$bundle" --registry "$registry" --descriptor "$RIG_DESCRIPTOR" \
+      --current-identity "$current" --capture "$SANDBOX/snapshot.png" \
+      --example helloworld --scenario startup \
+      >"$SANDBOX/atomic-failure.log" 2>&1; then
+    fail "blocked pre-publication bake unexpectedly passed"
+  fi
+  [ "$(sha256sum "$bundle/manifest.txt" | awk '{print $1}')" = "$original_manifest_hash" ] \
+    || fail "failed bake changed the visible official bundle"
+  [ -f "$bundle/manifest.txt" ] \
+    || fail "failed bake exposed a partial official bundle"
+  rm -rf "$bundle.incomplete" "$bundle.previous"
+  python3 "$IDENTITY_HELPER" stage-capture \
+    --bundle "$bundle" --registry "$registry" --descriptor "$RIG_DESCRIPTOR" \
+    --current-identity "$current" --capture "$SANDBOX/snapshot.png" \
+    --example helloworld --scenario startup \
+    >"$SANDBOX/arbitrary-bake.log" \
+    || fail "arbitrary environment could not produce a self-consistent bundle"
+  grep -Fq 'Reference eligibility: ineligible' "$SANDBOX/arbitrary-bake.log" \
+    || fail "fresh arbitrary bake did not report its ineligibility"
+  grep -Fq 'A bake cannot self-authorize' "$SANDBOX/arbitrary-bake.log" \
+    || fail "fresh arbitrary bake claimed authority over the tracked digest"
+  if python3 "$IDENTITY_HELPER" verify \
+      --bundle "$bundle" --registry "$registry" --descriptor "$RIG_DESCRIPTOR" \
+      --current-identity "$current" --example helloworld --scenario startup \
+      >"$SANDBOX/arbitrary-verify.log" 2>&1; then
+    fail "arbitrary fresh bake was eligible without a tracked digest match"
   fi
 }
 
-verify_golden_machine_guard
+verify_atomic_bake_and_no_self_authorize
+
+verify_unattestable_retro68_bakes_but_refuses_verdict() {
+  local bundle="$SANDBOX/unattestable-golden"
+  local registry="$SANDBOX/unattestable-scenarios.txt"
+  local provenance="$SANDBOX/unattestable-provenance.txt"
+  local current="$SANDBOX/unattestable-identity.txt"
+  printf 'helloworld startup\n' >"$registry"
+  cat >"$provenance" <<'EOF'
+build_provenance_version=1
+gcc_version=fake-gcc-12.2.0
+universal_interfaces_version=0x0340
+retro68_identity_kind=unattestable
+retro68_identity=unavailable
+EOF
+  python3 "$IDENTITY_HELPER" capture-current \
+    --output "$current" --build-provenance "$provenance" \
+    --descriptor "$RIG_DESCRIPTOR" --mame-executable "$SANDBOX/fake-mame" \
+    --ram-size 8M --machine maciix --capture-adapter mame-screen-snapshot.v1 \
+    --boot-hd "$SANDBOX/BootTemplate.hd" \
+    || fail "unattestable Retro68 provenance prevented current identity capture"
+  python3 "$IDENTITY_HELPER" stage-capture \
+    --bundle "$bundle" --registry "$registry" --descriptor "$RIG_DESCRIPTOR" \
+    --current-identity "$current" --capture "$SANDBOX/snapshot.png" \
+    --example helloworld --scenario startup >/dev/null \
+    || fail "unattestable Retro68 provenance blocked a complete bake"
+  if python3 "$IDENTITY_HELPER" verify \
+      --bundle "$bundle" --registry "$registry" --descriptor "$RIG_DESCRIPTOR" \
+      --current-identity "$current" --example helloworld --scenario startup \
+      >"$SANDBOX/unattestable-verify.log" 2>&1; then
+    fail "unattestable Retro68 provenance became pixel-eligible"
+  fi
+  grep -Fq 'Retro68 identity is unattestable; pixel reference eligibility refused' \
+    "$SANDBOX/unattestable-verify.log" \
+    || fail "unattestable Retro68 refusal was not explicit"
+}
+
+verify_unattestable_retro68_bakes_but_refuses_verdict
+
+verify_structural_audit_wording() {
+  if ! MAME_ENV_FILE="$SANDBOX/mame.env" RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
+      FAKE_MAME_RESULT=success FAKE_EXAMPLE=helloworld env -u WSL_INTEROP -u LOKA_TAB_COUNT \
+      bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" helloworld startup \
+        --structural-audit >"$SANDBOX/runner-structural.log" 2>&1; then
+    fail "structural/audit mode failed"
+  fi
+  grep -Fq 'Scenario structural/audit pass: helloworld/startup' \
+    "$SANDBOX/runner-structural.log" \
+    || fail "structural/audit mode omitted its explicit pass wording"
+  grep -Fq 'Pixel verdict: not evaluated (Classic structural/audit mode does not claim a pixel verdict)' \
+    "$SANDBOX/runner-structural.log" \
+    || fail "structural/audit mode implied a pixel verdict"
+}
+
+verify_structural_audit_wording
 
 # A pinned boot template is read-only so that booting it in place fails loudly
 # instead of silently re-baselining the goldens (#425). cp reproduces that mode,
@@ -305,7 +495,7 @@ verify_writable_boot_copy() {
 
   chmod a-w "$SANDBOX/BootTemplate.hd"
   rm -rf "$SANDBOX/repo/build/mame-scenario/helloworld/startup"
-  if ! MAME_ENV_FILE="$SANDBOX/mame.env" MAME_MACHINE=macqd700 \
+  if ! MAME_ENV_FILE="$SANDBOX/mame.env" MAME_MACHINE=maciix \
       RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
       FAKE_MAME_RESULT=success FAKE_EXAMPLE=helloworld \
       env -u WSL_INTEROP -u LOKA_TAB_COUNT \

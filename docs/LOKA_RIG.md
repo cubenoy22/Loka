@@ -52,8 +52,10 @@ fields can extend the manifest but cannot redefine common facts.
 - `result`: whether the whole requested run, including collection and cleanup,
   succeeded;
 - `build_verification`: whether the requested commit built;
-- `runtime_verification` and `machine_verdict`: whether the deterministic
-  adapter procedure passed;
+- `runtime_verification`: whether the deterministic adapter procedure passed;
+- `machine_verdict`: `passed`, `failed-or-not-reached`, or `refused` when a
+  machine ran successfully but the reference identity was not eligible to
+  authorize a pixel comparison;
 - `presentation_status`: whether finalized human evidence was collected;
 - `recording_status`: `not-requested`, `manual`, `collected`, or `failed`;
 - `target_retained`, `target_workdir`, and `next_diagnostic_command`: observed
@@ -62,6 +64,13 @@ fields can extend the manifest but cannot redefine common facts.
 A presentation, manifest, or cleanup failure after runtime completion reports
 `result=failed` while preserving `machine_verdict=passed`. The later failure
 must not rewrite an already-completed machine fact.
+
+The Toolbox adapter stages one strict, atomic golden bundle. Its sole manifest
+binds the scenario registry, every PNG digest, clean-build compiler/interface
+and Retro68 provenance, and the emulator, verified ROM inventory, RAM, machine,
+capture adapter, and pre-launch Boot.hd digest. The bundle identity is eligible
+only when it matches `reference_identity_sha256` in the tracked rig descriptor;
+`--update-golden` cannot edit or otherwise self-authorize that authority.
 
 Every other manifest field is either immutable run identity, adapter-specific
 description, or a SHA-256 entry for a finalized regular file in the archive.
