@@ -36,11 +36,14 @@ namespace loka
       const char *kZStackDirtyReplayScenarioName = "toggle-action-probe";
       const char *kDirtyReplayProbeKey = "probe_dirty_replay";
 
-      /** The probe is opt-in until #404 widens the window: the BMI fields sit
-          below the 420x300 fold, so on the tracked cell the chrome row is out
-          of port and the probe would red the rail for visibility, not replay.
-          run-scenario.sh --probe writes this key; the tracked cell does not.
-          SnapTestConfig ignores unknown keys, so this stays driver-local. */
+      /** The probe stays opt-in. Its original reason is gone -- the BMI fields
+          no longer sit below the fold, so a probe run can no longer red the
+          rail for visibility rather than replay -- but "the reason went away"
+          is not evidence that the probe still fails when it should. Turning it
+          on by default needs a run that shows it going red on a reintroduced
+          defect; #436 tracks that. run-scenario.sh --probe writes this key;
+          the tracked cell does not. SnapTestConfig ignores unknown keys, so
+          this stays driver-local. */
       bool DirtyReplayProbeRequested(const char *configPath)
       {
         FILE *fp = std::fopen(configPath, "rb");
