@@ -3201,7 +3201,11 @@ bool ToolboxScenePlatformController::queryEditTextValueForTesting(
   {
     return false;
   }
-  CharsHandle textHandle = (**binding.te).hText;
+  // TERec::hText is CharsHandle (unsigned char **) under Apple's Universal
+  // Interfaces and Handle (char **) under Multiversal, and both toolchains are
+  // supported. Reach it as a plain Handle so the declaration this file sees
+  // does not decide whether it compiles.
+  Handle textHandle = reinterpret_cast<Handle>((**binding.te).hText);
   const long length = (**binding.te).teLength;
   if (length < 0 || (length > 0 && !textHandle))
   {
@@ -3209,16 +3213,16 @@ bool ToolboxScenePlatformController::queryEditTextValueForTesting(
   }
   if (length > 0)
   {
-    const char previousHandleState = HGetState(reinterpret_cast<Handle>(textHandle));
-    HLock(reinterpret_cast<Handle>(textHandle));
+    const char previousHandleState = HGetState(textHandle);
+    HLock(textHandle);
     const char *bytes = reinterpret_cast<const char *>(*textHandle);
     if (!bytes)
     {
-      HSetState(reinterpret_cast<Handle>(textHandle), previousHandleState);
+      HSetState(textHandle, previousHandleState);
       return false;
     }
     out.assign(bytes, static_cast<std::string::size_type>(length));
-    HSetState(reinterpret_cast<Handle>(textHandle), previousHandleState);
+    HSetState(textHandle, previousHandleState);
   }
   return true;
 }
