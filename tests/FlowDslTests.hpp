@@ -3,6 +3,9 @@
 
 void testLokaFlowDslV1Core();
 void testSimpleViewerClosesDialogFromChooserCompletion();
+void testSimpleViewerImageLoadSessionPreservesAndReleasesCurrentImage();
+void testSimpleViewerImageLoadStopsWhenCapacityRemainsUnavailable();
+void testSimpleViewerBlobAdapterClearsPreviousOutputBeforeFailure();
 void testFlowChainHandleCopiesShareImplementationLifetime();
 void testFlowChainRunPinDefersImplementationDeletion();
 void testFlowSlotClearDefersRunningFlowDeletion();
