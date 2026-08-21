@@ -5,9 +5,23 @@ description: Write the end-of-session handoff document (plans/HANDOFF-YYYY-MM-DD
 
 # Session handoff document
 
-Write `plans/HANDOFF-<today>.md` in the user's checkout
-(`/mnt/c/Users/cuben/source/repos/Loka`). `plans/` is gitignored — this is a
-local document, written in Japanese (the user reads it directly).
+Write `plans/HANDOFF-<today>.md` in the clone the session worked in. Do not
+type a path from memory — derive it:
+
+```sh
+git rev-parse --path-format=absolute --git-common-dir   # <clone>/.git
+```
+
+Its parent is the clone root; write `plans/HANDOFF-<today>.md` there. Using
+`--git-common-dir` rather than `--show-toplevel` matters when the session ran
+in a worktree: worktrees get removed when their branch merges, and `plans/` is
+gitignored, so a handoff written inside one disappears with it. The common dir
+always points back at the owning clone, which outlives the worktree.
+
+That clone is an agent-side clone, never the human's own checkout (AGENTS.md,
+"Parallel work policy"). Record the resolved path in 作業場所 so the next
+session can open the file without knowing this rule. Written in Japanese (the
+user reads it directly).
 
 ## Required structure (follow the existing files as templates)
 
