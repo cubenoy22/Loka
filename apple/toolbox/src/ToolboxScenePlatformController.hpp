@@ -362,6 +362,14 @@ private:
 public:
   void flushRetiredNativeHandles();
   std::string debugStatsSummary() const;
+#ifdef TEST_BUILD
+  /** Reads the live TextEdit payload without synchronizing it first.
+
+      Scenario probes use this const door to distinguish the native record from
+      its bound State; calling ensureEditTextControl would repair the value and
+      make the probe non-discriminating. */
+  bool queryEditTextValueForTesting(ToolboxEditTextContext *ownerContext, std::string &out) const;
+#endif
   void noteWindowDraw()
   {
     ++debugStats_.drawCalls;
