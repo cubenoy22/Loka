@@ -202,9 +202,9 @@ if [ "$STRUCTURAL_AUDIT" -eq 0 ]; then
       --capture-adapter "$CAPTURE_ADAPTER" \
       --boot-hd "$BOOT" 2>&1)"; then
     refusal_reason="${identity_message//$'\n'/ }"
-    printf 'machine_verdict=refused\nruntime_verification=failed-or-not-reached\nrefusal_reason=%s\n' \
+    printf 'machine_verdict=failed-or-not-reached\nruntime_verification=failed-or-not-reached\nrefusal_reason=%s\n' \
       "$refusal_reason" >"$MACHINE_VERDICT" || true
-    echo "machine_verdict=refused" >&2
+    echo "machine_verdict=failed-or-not-reached" >&2
     echo "$identity_message" >&2
     echo "Work directory left for inspection: $WORK" >&2
     exit 3
@@ -409,6 +409,8 @@ if [ "$UPDATE_GOLDEN" -eq 1 ]; then
       --descriptor "$RIG_DESCRIPTOR" \
       --current-identity "$CURRENT_IDENTITY" \
       --capture "$ACTUAL_IMAGE" \
+      --application "$APPL" \
+      --source-tree "$PROJECT_DIR" \
       --example "$EXAMPLE" \
       --scenario "$SCENARIO"; then
     fail_stage golden "could not stage the complete atomic golden bundle"

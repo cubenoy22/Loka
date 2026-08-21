@@ -64,9 +64,14 @@ fields can extend the manifest but cannot redefine common facts.
 A presentation, manifest, or cleanup failure after runtime completion reports
 `result=failed` while preserving `machine_verdict=passed`. The later failure
 must not rewrite an already-completed machine fact.
+Failures before the machine launches, including missing build provenance or a
+missing emulator executable, keep both runtime and machine verdicts at
+`failed-or-not-reached`; only post-runtime reference verification emits
+`refused`.
 
 The Toolbox adapter stages one strict, atomic golden bundle. Its sole manifest
-binds the scenario registry, every PNG digest, clean-build compiler/interface
+binds the scenario registry, every PNG digest and producing application-binary
+digest, clean-build compiler/interface
 and Retro68 provenance, and the emulator, verified ROM inventory, RAM, machine,
 capture adapter, and pre-launch Boot.hd digest. The bundle identity is eligible
 only when it matches `reference_identity_sha256` in the tracked rig descriptor;

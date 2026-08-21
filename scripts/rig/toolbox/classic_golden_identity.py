@@ -19,8 +19,16 @@ from typing import Mapping, Sequence
 MANIFEST_VERSION = "2"
 IDENTITY_VERSION = "1"
 UNAPPROVED_IDENTITY = "unapproved"
+UNATTESTABLE_SOURCE_IDENTITY = "unattestable"
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+SOURCE_IDENTITY_PATTERN = re.compile(
+    r"^git-head:[0-9a-f]{40,64};status-porcelain-sha256:[0-9a-f]{64}$"
+)
 SCENARIO_PART_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+# These fields describe the reference environment and are intentionally the
+# only facts a future candidate run must match. Bake source identity is a
+# staging-only consistency guard: adding it here would make every new
+# application revision ineligible for comparison with the reference pixels.
 IDENTITY_FIELDS = (
     "gcc_version",
     "universal_interfaces_version",
@@ -50,6 +58,37 @@ def sha256_file(path: pathlib.Path) -> str:
 
 def _sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def source_tree_identity(source_tree: pathlib.Path) -> str:
+    """Return the bake revision plus its exact porcelain-status digest."""
+
+    try:
+        head = subprocess.run(
+            ("git", "-C", str(source_tree), "rev-parse", "--verify", "HEAD"),
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=30,
+        ).stdout.decode("ascii", errors="strict").strip()
+        status = subprocess.run(
+            ("git", "-C", str(source_tree), "status", "--porcelain"),
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=30,
+        ).stdout
+    except (
+        OSError,
+        UnicodeError,
+        subprocess.CalledProcessError,
+        subprocess.TimeoutExpired,
+    ):
+        return UNATTESTABLE_SOURCE_IDENTITY
+    if not re.fullmatch(r"[0-9a-f]{40,64}", head):
+        return UNATTESTABLE_SOURCE_IDENTITY
+    status_digest = hashlib.sha256(status).hexdigest()
+    return f"git-head:{head};status-porcelain-sha256:{status_digest}"
 
 
 def _read_strict_fields(path: pathlib.Path, expected: set[str]) -> dict[str, str]:
@@ -120,6 +159,7 @@ def _manifest_keys(scenario_count: int) -> set[str]:
     for index in range(1, scenario_count + 1):
         keys.add(f"scenario_{index:04d}")
         keys.add(f"golden_sha256_{index:04d}")
+        keys.add(f"application_sha256_{index:04d}")
     return keys
 
 
@@ -157,6 +197,42 @@ def _read_current_identity(path: pathlib.Path) -> dict[str, str]:
     if fields["identity_sha256"] != calculated:
         raise IdentityError(f"{path}: identity_sha256 does not match its recorded fields")
     return identity
+
+
+def _read_bake_partial_identity(path: pathlib.Path) -> tuple[dict[str, str], str]:
+    expected = {
+        "identity_version",
+        "identity_sha256",
+        "bake_source_identity",
+        *IDENTITY_FIELDS,
+    }
+    fields = _read_strict_fields(path, expected)
+    if fields["identity_version"] != IDENTITY_VERSION:
+        raise IdentityError(f"{path}: unsupported identity_version={fields['identity_version']}")
+    identity = {key: fields[key] for key in IDENTITY_FIELDS}
+    if fields["identity_sha256"] != identity_sha256(identity):
+        raise IdentityError(f"{path}: identity_sha256 does not match its recorded fields")
+    source_identity = fields["bake_source_identity"]
+    if (
+        source_identity != UNATTESTABLE_SOURCE_IDENTITY
+        and not SOURCE_IDENTITY_PATTERN.fullmatch(source_identity)
+    ):
+        raise IdentityError(f"{path}: invalid bake_source_identity")
+    return identity, source_identity
+
+
+def _write_bake_partial_identity(
+    path: pathlib.Path, identity: Mapping[str, str], source_identity: str
+) -> None:
+    _write_fields_atomic(
+        path,
+        (
+            ("identity_version", IDENTITY_VERSION),
+            *((key, identity[key]) for key in IDENTITY_FIELDS),
+            ("identity_sha256", identity_sha256(identity)),
+            ("bake_source_identity", source_identity),
+        ),
+    )
 
 
 def _write_fields_atomic(path: pathlib.Path, fields: Sequence[tuple[str, str]]) -> None:
@@ -458,6 +534,8 @@ def _validate_manifest(
         digest = sha256_file(golden)
         if fields[f"golden_sha256_{index:04d}"] != digest:
             raise IdentityError(f"golden digest mismatch: {golden}")
+        if not SHA256_PATTERN.fullmatch(fields[f"application_sha256_{index:04d}"]):
+            raise IdentityError(f"{manifest}: invalid application_sha256_{index:04d}")
     expected_files = {"manifest.txt"} | {
         f"{example}/{scenario}.png" for example, scenario in scenarios
     }
@@ -505,9 +583,24 @@ def _render_bundle_manifest(
     lines.append(f"scenario_count={len(scenarios)}")
     for index, (example, scenario) in enumerate(scenarios, 1):
         relative = f"{example}/{scenario}.png"
+        capture = staging / relative
+        provenance = _read_strict_fields(
+            _capture_provenance_path(capture),
+            {"golden_sha256", "application_sha256"},
+        )
+        golden_digest = sha256_file(capture)
+        if provenance["golden_sha256"] != golden_digest:
+            raise IdentityError(f"staged capture provenance does not match {capture}")
+        if not SHA256_PATTERN.fullmatch(provenance["application_sha256"]):
+            raise IdentityError(f"staged capture has an invalid application digest: {capture}")
         lines.append(f"scenario_{index:04d}={relative}")
-        lines.append(f"golden_sha256_{index:04d}={sha256_file(staging / relative)}")
+        lines.append(f"golden_sha256_{index:04d}={golden_digest}")
+        lines.append(f"application_sha256_{index:04d}={provenance['application_sha256']}")
     return "\n".join(lines) + "\n"
+
+
+def _capture_provenance_path(capture: pathlib.Path) -> pathlib.Path:
+    return capture.with_name(capture.name + ".capture.partial")
 
 
 def _publish_bundle(staging: pathlib.Path, bundle: pathlib.Path) -> None:
@@ -542,32 +635,56 @@ def stage_capture(args: argparse.Namespace) -> bool:
         raise IdentityError(f"scenario is not registered: {args.example} {args.scenario}")
     if not args.capture.is_file() or args.capture.is_symlink():
         raise IdentityError(f"capture is not a finalized regular file: {args.capture}")
+    if not args.application.is_file():
+        raise IdentityError(f"application is not a regular file: {args.application}")
     identity = _read_current_identity(args.current_identity)
+    bake_source_identity = source_tree_identity(args.source_tree)
     staging = args.bundle.with_name(args.bundle.name + ".incomplete")
     identity_partial = staging / "identity.partial"
     if staging.exists() and not staging.is_dir():
         raise IdentityError(f"golden bake staging path is not a directory: {staging}")
     if staging.is_dir() and identity_partial.is_file():
-        staged_identity = _read_current_identity(identity_partial)
+        staged_identity, staged_source_identity = _read_bake_partial_identity(identity_partial)
         for key in IDENTITY_FIELDS:
             if staged_identity[key] != identity[key]:
                 raise IdentityError(
                     f"incomplete bake identity differs for {key}; remove {staging} and restart the bake"
                 )
+        # An unattestable source may complete a from-scratch single-run bake,
+        # but it cannot promise consistency across runs. Refusing its resume is
+        # fail-closed without blocking baking on hosts where Git is unavailable.
+        if staged_source_identity == UNATTESTABLE_SOURCE_IDENTITY:
+            raise IdentityError(
+                f"incomplete bake source identity is unattestable; remove {staging} and restart the bake"
+            )
+        if staged_source_identity != bake_source_identity:
+            raise IdentityError(
+                f"incomplete bake source identity differs; remove {staging} and restart the bake"
+            )
     elif staging.exists():
         raise IdentityError(f"incomplete bake has no strict identity: {staging}")
     else:
         staging.mkdir(parents=True)
-        shutil.copy2(args.current_identity, identity_partial)
+        _write_bake_partial_identity(identity_partial, identity, bake_source_identity)
     destination = staging / args.example / f"{args.scenario}.png"
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary_capture = destination.with_name(destination.name + ".tmp")
     shutil.copy2(args.capture, temporary_capture)
     temporary_capture.replace(destination)
+    _write_fields_atomic(
+        _capture_provenance_path(destination),
+        (
+            ("golden_sha256", sha256_file(destination)),
+            ("application_sha256", sha256_file(args.application)),
+        ),
+    )
     missing = [
         f"{example}/{scenario}.png"
         for example, scenario in scenarios
         if not (staging / example / f"{scenario}.png").is_file()
+        or not _capture_provenance_path(
+            staging / example / f"{scenario}.png"
+        ).is_file()
     ]
     if missing:
         print(
@@ -575,7 +692,6 @@ def stage_capture(args: argparse.Namespace) -> bool:
             f"{len(missing)} registered capture(s) remain before publication"
         )
         return False
-    identity_partial.unlink()
     manifest = staging / "manifest.txt"
     _write_fields_atomic(
         manifest,
@@ -584,6 +700,9 @@ def stage_capture(args: argparse.Namespace) -> bool:
             for line in _render_bundle_manifest(staging, args.registry, scenarios, identity).splitlines()
         ),
     )
+    identity_partial.unlink()
+    for example, scenario in scenarios:
+        _capture_provenance_path(staging / example / f"{scenario}.png").unlink()
     _validate_manifest(
         staging,
         args.registry,
@@ -639,6 +758,8 @@ def _build_parser() -> argparse.ArgumentParser:
     stage.add_argument("--descriptor", required=True, type=pathlib.Path)
     stage.add_argument("--current-identity", required=True, type=pathlib.Path)
     stage.add_argument("--capture", required=True, type=pathlib.Path)
+    stage.add_argument("--application", required=True, type=pathlib.Path)
+    stage.add_argument("--source-tree", required=True, type=pathlib.Path)
     stage.add_argument("--example", required=True)
     stage.add_argument("--scenario", required=True)
     return parser

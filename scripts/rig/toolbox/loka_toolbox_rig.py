@@ -375,11 +375,17 @@ class ToolboxRigRun:
             refusal_fields = marker.read_text(
                 encoding="utf-8", errors="replace"
             ).splitlines()
-            if "machine_verdict=refused" not in refusal_fields:
+            # `refused` is meaningful only after the machine procedure passed;
+            # preflight failures remain failed-or-not-reached in both lanes.
+            if (
+                "machine_verdict=refused" not in refusal_fields
+                or "runtime_verification=passed" not in refusal_fields
+            ):
                 continue
-            replacements = {"machine_verdict": "refused"}
-            if "runtime_verification=passed" in refusal_fields:
-                replacements["runtime_verification"] = "passed"
+            replacements = {
+                "machine_verdict": "refused",
+                "runtime_verification": "passed",
+            }
             common_result = dataclasses.replace(common_result, **replacements)
             break
         adapter_fields = (

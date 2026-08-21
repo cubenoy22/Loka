@@ -35,20 +35,18 @@ set(_loka_retro68_toolchain_root "")
 if(RETRO68_BUILD_DIR AND EXISTS "${RETRO68_BUILD_DIR}/toolchain")
   set(_loka_retro68_toolchain_root "${RETRO68_BUILD_DIR}/toolchain")
 endif()
-add_custom_command(
-  OUTPUT "${LOKA_TOOLBOX_BUILD_PROVENANCE}"
+# This target is deliberately always out of date. Toolchain files can change in
+# place without changing their path, and re-emitting this small artifact before
+# every dependent Toolbox application prevents stale provenance.
+add_custom_target(LokaToolboxBuildProvenance ALL
   COMMAND "${LOKA_TOOLBOX_PYTHON3_EXECUTABLE}"
     "${CMAKE_SOURCE_DIR}/scripts/rig/toolbox/classic_golden_identity.py"
     emit-build-provenance
     --output "${LOKA_TOOLBOX_BUILD_PROVENANCE}"
     --compiler "${CMAKE_CXX_COMPILER}"
     --toolchain-root "${_loka_retro68_toolchain_root}"
-  DEPENDS
-    "${CMAKE_SOURCE_DIR}/scripts/rig/toolbox/classic_golden_identity.py"
+  BYPRODUCTS "${LOKA_TOOLBOX_BUILD_PROVENANCE}"
   VERBATIM
-)
-add_custom_target(LokaToolboxBuildProvenance ALL
-  DEPENDS "${LOKA_TOOLBOX_BUILD_PROVENANCE}"
 )
 
 function(loka_add_toolbox_test_application target core_target)

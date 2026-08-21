@@ -295,7 +295,10 @@ success removes it only after manifest finalization.
 
 Each `--update-golden` scenario capture enters a sibling `.incomplete` bake.
 The official directory changes only when the bake contains every registry
-entry and its one manifest binds every PNG and reference-identity field. A
+entry and its one manifest binds every PNG, its producing application binary
+digest, and every reference-identity field. Resuming an incomplete bake also
+requires the same Git HEAD and `git status --porcelain` digest that started it;
+an unattestable source tree may publish a one-shot bake but cannot resume one. A
 complete bake from a different environment remains ineligible until its
 printed identity digest is reviewed and separately written to the tracked
 `toolbox-maciix.ini`; baking never edits that authority. Use

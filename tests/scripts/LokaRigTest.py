@@ -57,6 +57,8 @@ def make_toolbox_golden_bundle(root, checkout, scenarios):
     bundle = root / "golden"
     capture = root / "capture.png"
     capture.write_bytes(b"pixels")
+    application = root / "application.bin"
+    application.write_bytes(b"application")
     for example, scenario in scenarios:
         golden_identity.stage_capture(
             types.SimpleNamespace(
@@ -65,6 +67,8 @@ def make_toolbox_golden_bundle(root, checkout, scenarios):
                 descriptor=descriptor,
                 current_identity=current,
                 capture=capture,
+                application=application,
+                source_tree=ROOT,
                 example=example,
                 scenario=scenario,
             )
@@ -367,6 +371,37 @@ class ToolboxRigAdapterTest(unittest.TestCase):
             manifest = (run.archive / "run-manifest.txt").read_text(encoding="utf-8")
             self.assertIn("machine_verdict=refused\n", manifest)
             self.assertIn("runtime_verification=passed\n", manifest)
+
+    def test_toolbox_manifest_does_not_promote_preflight_marker_to_refused(self):
+        descriptor = toolbox.load_descriptor(
+            ROOT / "scripts" / "rig" / "toolbox" / "rigs" / "toolbox-maciix.ini"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            environment = root / "mame.env"
+            environment.write_text("MAME_EXECUTABLE=/missing\n", encoding="utf-8")
+            mapping = toolbox.LocalMapping(root / "archive-root", environment, root / "golden")
+            run = toolbox.ToolboxRigRun(ROOT, descriptor, mapping, "HEAD", "flow")
+            run.archive = root / "archive"
+            run.archive.mkdir()
+            run.checkout = root / "checkout"
+            verdict = run.archive / "presentation.incomplete" / "machine-verdict.txt"
+            verdict.parent.mkdir()
+            verdict.write_text(
+                # Pin the adapter's defensive read of an old/malformed marker:
+                # refused is invalid unless runtime verification passed.
+                "machine_verdict=refused\n"
+                "runtime_verification=failed-or-not-reached\n"
+                "refusal_reason=missing provenance\n",
+                encoding="utf-8",
+            )
+            run.progress.fail("runtime", "presentation rail failed before launch")
+            run.progress.finish()
+            run.finalize_manifest("failed")
+            manifest = (run.archive / "run-manifest.txt").read_text(encoding="utf-8")
+            self.assertIn("machine_verdict=failed-or-not-reached\n", manifest)
+            self.assertIn("runtime_verification=failed-or-not-reached\n", manifest)
+            self.assertNotIn("machine_verdict=refused\n", manifest)
 
     def test_golden_staging_uses_the_checkout_registry_and_fails_on_absence(self):
         with tempfile.TemporaryDirectory() as directory:

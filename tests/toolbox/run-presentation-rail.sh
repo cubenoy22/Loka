@@ -70,10 +70,10 @@ while read -r example scenario extra || [ -n "${example:-}" ]; do
     fail_stage "invalid scenario registry entry: '${example:-} ${scenario:-} ${extra:-}'"
   fi
   if ! "$SCENARIO_RUNNER" "$example" "$scenario" </dev/null; then
-    refusal="$PROJECT_DIR/build/mame-scenario/$example/$scenario/machine-verdict.txt"
-    if [ -f "$refusal" ] && grep -Fxq 'machine_verdict=refused' "$refusal"; then
-      if ! cp -f "$refusal" "$INCOMPLETE/machine-verdict.txt"; then
-        fail_stage "could not preserve the scenario refusal: $example/$scenario"
+    verdict="$PROJECT_DIR/build/mame-scenario/$example/$scenario/machine-verdict.txt"
+    if [ -f "$verdict" ]; then
+      if ! cp -f "$verdict" "$INCOMPLETE/machine-verdict.txt"; then
+        fail_stage "could not preserve the scenario verdict: $example/$scenario"
       fi
     fi
     fail_stage "scenario failed: $example/$scenario"

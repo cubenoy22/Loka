@@ -162,6 +162,37 @@ MAME_EXECUTABLE=$SANDBOX/fake-mame
 MAME_HDA=$SANDBOX/BootTemplate.hd
 EOF
 
+verify_preflight_failure_vocabulary() {
+  local provenance="$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/classic-build-provenance.txt"
+  local saved="$SANDBOX/classic-build-provenance.saved"
+  local marker="$SANDBOX/repo/build/mame-scenario/helloworld/startup/machine-verdict.txt"
+  local status
+
+  mv "$provenance" "$saved"
+  rm -f "$SANDBOX/tab-count"
+  set +e
+  MAME_ENV_FILE="$SANDBOX/mame.env" env -u WSL_INTEROP -u LOKA_TAB_COUNT \
+    bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" helloworld startup \
+      >"$SANDBOX/runner-preflight.log" 2>&1
+  status=$?
+  set -e
+  mv "$saved" "$provenance"
+
+  [ "$status" -eq 3 ] || fail "identity preflight failure did not retain its distinct exit code"
+  grep -Fq 'cannot read' "$SANDBOX/runner-preflight.log" \
+    || fail "identity preflight failure did not explain the missing provenance"
+  grep -Fxq 'machine_verdict=failed-or-not-reached' "$marker" \
+    || fail "identity preflight failure recorded the wrong machine verdict"
+  grep -Fxq 'runtime_verification=failed-or-not-reached' "$marker" \
+    || fail "identity preflight failure recorded the wrong runtime fact"
+  if grep -Fq 'machine_verdict=refused' "$marker"; then
+    fail "identity preflight failure was misclassified as a reference refusal"
+  fi
+  [ ! -f "$SANDBOX/tab-count" ] || fail "identity preflight failure launched fake MAME"
+}
+
+verify_preflight_failure_vocabulary
+
 run_case() {
   local example="$1"
   local scenario="$2"
@@ -254,6 +285,8 @@ prepare_authorized_bundle() {
       --descriptor "$RIG_DESCRIPTOR" \
       --current-identity "$CURRENT_IDENTITY" \
       --capture "$SANDBOX/snapshot.png" \
+      --application "$SANDBOX/fake-mame" \
+      --source-tree "$REPO_DIR" \
       --example "$example" --scenario "$scenario" >/dev/null \
       || fail "could not stage fake golden $example/$scenario"
   done <"$SANDBOX/repo/tests/scenarios/scenarios.txt"
@@ -264,6 +297,13 @@ prepare_authorized_bundle() {
 }
 
 prepare_authorized_bundle
+
+expected_application_hash="$(sha256sum "$SANDBOX/fake-mame" | awk '{print $1}')"
+[ "$(grep -c '^application_sha256_' "$GOLDEN_BUNDLE/manifest.txt")" -eq 10 ] \
+  || fail "golden manifest did not name every capture producer"
+[ "$(grep -c "^application_sha256_[0-9][0-9][0-9][0-9]=$expected_application_hash$" \
+    "$GOLDEN_BUNDLE/manifest.txt")" -eq 10 ] \
+  || fail "golden manifest recorded the wrong application binary digest"
 
 verify_startup_verdict() {
   local example="$1"
@@ -359,6 +399,18 @@ verify_strict_manifest_refusals() {
   assert_refused "$SANDBOX/runner-manifest-missing.log"
   grep -Fq 'missing ram_size' "$SANDBOX/runner-manifest-missing.log" \
     || fail "missing manifest field was not diagnosed"
+
+  grep -v '^application_sha256_0001=' "$SANDBOX/manifest.valid" >"$manifest"
+  if MAME_ENV_FILE="$SANDBOX/mame.env" RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
+      FAKE_MAME_RESULT=success FAKE_EXAMPLE=helloworld env -u WSL_INTEROP -u LOKA_TAB_COUNT \
+      bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" helloworld startup \
+        >"$SANDBOX/runner-manifest-missing-application.log" 2>&1; then
+    fail "manifest without per-capture application provenance unexpectedly passed"
+  fi
+  assert_refused "$SANDBOX/runner-manifest-missing-application.log"
+  grep -Fq 'missing application_sha256_0001' \
+    "$SANDBOX/runner-manifest-missing-application.log" \
+    || fail "missing per-capture application digest was not diagnosed"
   cp "$SANDBOX/manifest.valid" "$manifest"
 }
 
@@ -403,6 +455,7 @@ verify_atomic_bake_and_no_self_authorize() {
   if python3 "$IDENTITY_HELPER" stage-capture \
       --bundle "$bundle" --registry "$registry" --descriptor "$RIG_DESCRIPTOR" \
       --current-identity "$current" --capture "$SANDBOX/snapshot.png" \
+      --application "$SANDBOX/fake-mame" --source-tree "$REPO_DIR" \
       --example helloworld --scenario startup \
       >"$SANDBOX/atomic-failure.log" 2>&1; then
     fail "blocked pre-publication bake unexpectedly passed"
@@ -415,6 +468,7 @@ verify_atomic_bake_and_no_self_authorize() {
   python3 "$IDENTITY_HELPER" stage-capture \
     --bundle "$bundle" --registry "$registry" --descriptor "$RIG_DESCRIPTOR" \
     --current-identity "$current" --capture "$SANDBOX/snapshot.png" \
+    --application "$SANDBOX/fake-mame" --source-tree "$REPO_DIR" \
     --example helloworld --scenario startup \
     >"$SANDBOX/arbitrary-bake.log" \
     || fail "arbitrary environment could not produce a self-consistent bundle"
@@ -454,6 +508,7 @@ EOF
   python3 "$IDENTITY_HELPER" stage-capture \
     --bundle "$bundle" --registry "$registry" --descriptor "$RIG_DESCRIPTOR" \
     --current-identity "$current" --capture "$SANDBOX/snapshot.png" \
+    --application "$SANDBOX/fake-mame" --source-tree "$REPO_DIR" \
     --example helloworld --scenario startup >/dev/null \
     || fail "unattestable Retro68 provenance blocked a complete bake"
   if python3 "$IDENTITY_HELPER" verify \
@@ -468,6 +523,91 @@ EOF
 }
 
 verify_unattestable_retro68_bakes_but_refuses_verdict
+
+verify_bake_source_resume_guards() {
+  local registry="$SANDBOX/source-scenarios.txt"
+  local source="$SANDBOX/bake-source"
+  local no_git="$SANDBOX/no-git-source"
+  local bundle="$SANDBOX/source-bound-golden"
+  local unattestable_bundle="$SANDBOX/unattestable-source-golden"
+  local one_shot_bundle="$SANDBOX/unattestable-one-shot-golden"
+
+  printf 'helloworld startup\nhelloworld toggle-action-probe\n' >"$registry"
+  mkdir "$source" "$no_git"
+  git -C "$source" init -q
+  git -C "$source" config user.name 'Loka Test'
+  git -C "$source" config user.email 'loka-test@example.invalid'
+  printf 'first\n' >"$source/revision.txt"
+  git -C "$source" add revision.txt
+  git -C "$source" commit -q -m first
+
+  python3 "$IDENTITY_HELPER" stage-capture \
+    --bundle "$bundle" --registry "$registry" --descriptor "$RIG_DESCRIPTOR" \
+    --current-identity "$CURRENT_IDENTITY" --capture "$SANDBOX/snapshot.png" \
+    --application "$SANDBOX/fake-mame" --source-tree "$source" \
+    --example helloworld --scenario startup >/dev/null \
+    || fail "could not start a source-bound bake"
+  printf 'second\n' >"$source/revision.txt"
+  if python3 "$IDENTITY_HELPER" stage-capture \
+      --bundle "$bundle" --registry "$registry" --descriptor "$RIG_DESCRIPTOR" \
+      --current-identity "$CURRENT_IDENTITY" --capture "$SANDBOX/snapshot.png" \
+      --application "$SANDBOX/fake-mame" --source-tree "$source" \
+      --example helloworld --scenario toggle-action-probe \
+      >"$SANDBOX/source-resume.log" 2>&1; then
+    fail "a differently dirty source tree resumed an existing bake"
+  fi
+  grep -Fq "incomplete bake source identity differs; remove $bundle.incomplete and restart the bake" \
+    "$SANDBOX/source-resume.log" \
+    || fail "source mismatch refusal did not give restart instructions"
+
+  python3 "$IDENTITY_HELPER" stage-capture \
+    --bundle "$unattestable_bundle" --registry "$registry" --descriptor "$RIG_DESCRIPTOR" \
+    --current-identity "$CURRENT_IDENTITY" --capture "$SANDBOX/snapshot.png" \
+    --application "$SANDBOX/fake-mame" --source-tree "$no_git" \
+    --example helloworld --scenario startup >/dev/null \
+    || fail "unattestable source could not start a bake"
+  grep -Fxq 'bake_source_identity=unattestable' \
+    "$unattestable_bundle.incomplete/identity.partial" \
+    || fail "unattestable source was not recorded in identity.partial"
+  if python3 "$IDENTITY_HELPER" stage-capture \
+      --bundle "$unattestable_bundle" --registry "$registry" --descriptor "$RIG_DESCRIPTOR" \
+      --current-identity "$CURRENT_IDENTITY" --capture "$SANDBOX/snapshot.png" \
+      --application "$SANDBOX/fake-mame" --source-tree "$no_git" \
+      --example helloworld --scenario toggle-action-probe \
+      >"$SANDBOX/unattestable-source-resume.log" 2>&1; then
+    fail "an unattestable source resumed an existing bake"
+  fi
+  grep -Fq "incomplete bake source identity is unattestable; remove $unattestable_bundle.incomplete and restart the bake" \
+    "$SANDBOX/unattestable-source-resume.log" \
+    || fail "unattestable source refusal did not give restart instructions"
+
+  printf 'helloworld startup\n' >"$SANDBOX/one-shot-scenarios.txt"
+  python3 "$IDENTITY_HELPER" stage-capture \
+    --bundle "$one_shot_bundle" --registry "$SANDBOX/one-shot-scenarios.txt" \
+    --descriptor "$RIG_DESCRIPTOR" --current-identity "$CURRENT_IDENTITY" \
+    --capture "$SANDBOX/snapshot.png" --application "$SANDBOX/fake-mame" \
+    --source-tree "$no_git" --example helloworld --scenario startup >/dev/null \
+    || fail "unattestable source blocked a from-scratch single-run bake"
+  [ -f "$one_shot_bundle/manifest.txt" ] \
+    || fail "unattestable one-shot bake did not publish"
+  if grep -Fq 'bake_source_identity=' "$one_shot_bundle/manifest.txt"; then
+    fail "staging-only source identity leaked into the candidate-matched manifest"
+  fi
+}
+
+verify_bake_source_resume_guards
+
+verify_provenance_target_is_always_run() {
+  local cmake_file="$REPO_DIR/tests/toolbox/CMakeLists.txt"
+  local block
+  block="$(sed -n '/add_custom_target(LokaToolboxBuildProvenance ALL/,/^)/p' "$cmake_file")"
+  printf '%s\n' "$block" | grep -Fq 'COMMAND "${LOKA_TOOLBOX_PYTHON3_EXECUTABLE}"' \
+    || fail "build provenance emitter is not owned by the always-run target"
+  printf '%s\n' "$block" | grep -Fq 'BYPRODUCTS "${LOKA_TOOLBOX_BUILD_PROVENANCE}"' \
+    || fail "always-run provenance target did not declare its output"
+}
+
+verify_provenance_target_is_always_run
 
 verify_structural_audit_wording() {
   if ! MAME_ENV_FILE="$SANDBOX/mame.env" RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
