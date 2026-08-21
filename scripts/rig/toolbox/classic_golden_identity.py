@@ -16,6 +16,16 @@ import sys
 from typing import Mapping, Sequence
 
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+
+from golden_identity_guard import (
+    GoldenIdentityError,
+    read_cells,
+    verify_candidate_recording,
+    verify_recorded_set,
+)
+
+
 MANIFEST_VERSION = "2"
 IDENTITY_VERSION = "1"
 UNAPPROVED_IDENTITY = "unapproved"
@@ -24,7 +34,6 @@ SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 SOURCE_IDENTITY_PATTERN = re.compile(
     r"^git-head:[0-9a-f]{40,64};status-porcelain-sha256:[0-9a-f]{64}$"
 )
-SCENARIO_PART_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 # These fields describe the reference environment and are intentionally the
 # only facts a future candidate run must match. Bake source identity is a
 # staging-only consistency guard: adding it here would make every new
@@ -120,24 +129,12 @@ def _read_strict_fields(path: pathlib.Path, expected: set[str]) -> dict[str, str
 
 def read_scenarios(registry: pathlib.Path) -> tuple[tuple[str, str], ...]:
     try:
-        raw_lines = registry.read_text(encoding="utf-8").splitlines()
-    except OSError as error:
-        raise IdentityError(f"cannot read scenario registry {registry}: {error}") from error
-    scenarios = []
-    for number, line in enumerate(raw_lines, 1):
-        parts = line.split()
-        if (
-            len(parts) != 2
-            or not SCENARIO_PART_PATTERN.fullmatch(parts[0])
-            or not SCENARIO_PART_PATTERN.fullmatch(parts[1])
-        ):
-            raise IdentityError(f"{registry}:{number}: invalid scenario registry entry")
-        scenarios.append((parts[0], parts[1]))
+        scenarios = read_cells(registry, "scenario registry")
+    except GoldenIdentityError as error:
+        raise IdentityError(str(error)) from error
     if not scenarios:
         raise IdentityError(f"scenario registry is empty: {registry}")
-    if len(set(scenarios)) != len(scenarios):
-        raise IdentityError(f"duplicate scenario registry entry: {registry}")
-    return tuple(scenarios)
+    return scenarios
 
 
 def _identity_payload(fields: Mapping[str, str]) -> str:
@@ -663,7 +660,18 @@ def stage_capture(args: argparse.Namespace) -> bool:
             )
     elif staging.exists():
         raise IdentityError(f"incomplete bake has no strict identity: {staging}")
-    else:
+    try:
+        verify_candidate_recording(
+            args.registry,
+            args.declarations,
+            staging,
+            args.capture,
+            args.example,
+            args.scenario,
+        )
+    except GoldenIdentityError as error:
+        raise IdentityError(str(error)) from error
+    if not staging.exists():
         staging.mkdir(parents=True)
         _write_bake_partial_identity(identity_partial, identity, bake_source_identity)
     destination = staging / args.example / f"{args.scenario}.png"
@@ -692,6 +700,10 @@ def stage_capture(args: argparse.Namespace) -> bool:
             f"{len(missing)} registered capture(s) remain before publication"
         )
         return False
+    try:
+        verify_recorded_set(args.registry, args.declarations, staging)
+    except GoldenIdentityError as error:
+        raise IdentityError(str(error)) from error
     manifest = staging / "manifest.txt"
     _write_fields_atomic(
         manifest,
@@ -755,6 +767,7 @@ def _build_parser() -> argparse.ArgumentParser:
     stage = subparsers.add_parser("stage-capture")
     stage.add_argument("--bundle", required=True, type=pathlib.Path)
     stage.add_argument("--registry", required=True, type=pathlib.Path)
+    stage.add_argument("--declarations", required=True, type=pathlib.Path)
     stage.add_argument("--descriptor", required=True, type=pathlib.Path)
     stage.add_argument("--current-identity", required=True, type=pathlib.Path)
     stage.add_argument("--capture", required=True, type=pathlib.Path)

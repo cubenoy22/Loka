@@ -15,6 +15,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(RIG_SCRIPTS))
 
 import loka_rig_common as common
+import golden_identity_guard
 from toolbox import loka_toolbox_rig as toolbox
 from toolbox import classic_golden_identity as golden_identity
 
@@ -26,6 +27,8 @@ def make_toolbox_golden_bundle(root, checkout, scenarios):
         "".join(f"{example} {scenario}\n" for example, scenario in scenarios),
         encoding="utf-8",
     )
+    declarations = checkout / "tests" / "scenarios" / "startup-golden-identities.txt"
+    declarations.write_text("", encoding="utf-8")
     descriptor = checkout / "scripts" / "rig" / "toolbox" / "rigs" / "toolbox-maciix.ini"
     descriptor.parent.mkdir(parents=True, exist_ok=True)
     descriptor.write_text(
@@ -64,6 +67,7 @@ def make_toolbox_golden_bundle(root, checkout, scenarios):
             types.SimpleNamespace(
                 bundle=bundle,
                 registry=registry,
+                declarations=declarations,
                 descriptor=descriptor,
                 current_identity=current,
                 capture=capture,
@@ -408,16 +412,16 @@ class ToolboxRigAdapterTest(unittest.TestCase):
             root = pathlib.Path(directory)
             checkout = root / "checkout"
             golden = make_toolbox_golden_bundle(
-                root, checkout, (("first", "alpha"), ("second", "beta"))
+                root, checkout, (("first", "startup"), ("second", "startup"))
             )
-            missing = golden / "second" / "beta.png"
+            missing = golden / "second" / "startup.png"
             missing.unlink()
             with self.assertRaises(common.RigError) as caught:
                 toolbox.stage_goldens(checkout, golden)
             self.assertEqual(caught.exception.stage, "golden-preflight")
             missing.write_bytes(b"pixels")
             staged = toolbox.stage_goldens(checkout, golden)
-            self.assertEqual(staged, (("first", "alpha"), ("second", "beta")))
+            self.assertEqual(staged, (("first", "startup"), ("second", "startup")))
             self.assertEqual(
                 (
                     checkout
@@ -425,7 +429,7 @@ class ToolboxRigAdapterTest(unittest.TestCase):
                     / "mame-scenario"
                     / "golden"
                     / "second"
-                    / "beta.png"
+                    / "startup.png"
                 ).read_bytes(),
                 b"pixels",
             )
@@ -455,7 +459,7 @@ class ToolboxRigAdapterTest(unittest.TestCase):
             self.assertIn("re-bake", str(caught.exception))
 
             shutil.rmtree(root / "golden")
-            bundle = make_toolbox_golden_bundle(root, checkout, (("first", "alpha"),))
+            bundle = make_toolbox_golden_bundle(root, checkout, (("first", "startup"),))
             toolbox.stage_goldens(checkout, bundle)
             staged_root = checkout / "build" / "mame-scenario" / "golden"
             self.assertTrue((staged_root / "manifest.txt").is_file())
@@ -463,6 +467,129 @@ class ToolboxRigAdapterTest(unittest.TestCase):
                 len(list(staged_root.rglob("manifest.txt"))),
                 1,
             )
+
+
+class GoldenIdentityGuardTest(unittest.TestCase):
+    def make_contract(self, root):
+        registry = root / "scenarios.txt"
+        registry.write_text(
+            "example startup\nexample interaction\n", encoding="utf-8"
+        )
+        declarations = root / "startup-golden-identities.txt"
+        declarations.write_text("", encoding="utf-8")
+        goldens = root / "golden"
+        startup = goldens / "example" / "startup.png"
+        startup.parent.mkdir(parents=True)
+        startup.write_bytes(b"settled startup bytes")
+        return registry, declarations, goldens
+
+    def test_undeclared_identity_refuses_at_record_time(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            registry, declarations, goldens = self.make_contract(root)
+            capture = root / "capture.png"
+            capture.write_bytes(b"settled startup bytes")
+            with self.assertRaises(golden_identity_guard.GoldenIdentityError) as caught:
+                golden_identity_guard.verify_candidate_recording(
+                    registry,
+                    declarations,
+                    goldens,
+                    capture,
+                    "example",
+                    "interaction",
+                )
+            self.assertIn("byte-identical", str(caught.exception))
+            self.assertIn("not declared", str(caught.exception))
+
+    def test_declared_identity_passes_at_record_time(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            registry, declarations, goldens = self.make_contract(root)
+            declarations.write_text("example interaction\n", encoding="utf-8")
+            capture = root / "capture.png"
+            capture.write_bytes(b"settled startup bytes")
+            golden_identity_guard.verify_candidate_recording(
+                registry,
+                declarations,
+                goldens,
+                capture,
+                "example",
+                "interaction",
+            )
+
+    def test_stale_declaration_refuses_at_record_time(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            registry, declarations, goldens = self.make_contract(root)
+            declarations.write_text("example interaction\n", encoding="utf-8")
+            capture = root / "capture.png"
+            capture.write_bytes(b"different settled bytes")
+            with self.assertRaises(golden_identity_guard.GoldenIdentityError) as caught:
+                golden_identity_guard.verify_candidate_recording(
+                    registry,
+                    declarations,
+                    goldens,
+                    capture,
+                    "example",
+                    "interaction",
+                )
+            self.assertIn("stale startup-identity declaration", str(caught.exception))
+
+    def test_missing_startup_refuses_instead_of_passing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            registry, declarations, goldens = self.make_contract(root)
+            (goldens / "example" / "startup.png").unlink()
+            capture = root / "capture.png"
+            capture.write_bytes(b"settled bytes")
+            with self.assertRaises(golden_identity_guard.GoldenIdentityError) as caught:
+                golden_identity_guard.verify_candidate_recording(
+                    registry,
+                    declarations,
+                    goldens,
+                    capture,
+                    "example",
+                    "interaction",
+                )
+            self.assertIn("record example startup first", str(caught.exception))
+
+    def test_re_recording_startup_checks_existing_declared_siblings(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            registry, declarations, goldens = self.make_contract(root)
+            declarations.write_text("example interaction\n", encoding="utf-8")
+            sibling = goldens / "example" / "interaction.png"
+            sibling.write_bytes(b"settled startup bytes")
+            replacement_startup = root / "replacement-startup.png"
+            replacement_startup.write_bytes(b"changed startup bytes")
+            with self.assertRaises(golden_identity_guard.GoldenIdentityError) as caught:
+                golden_identity_guard.verify_candidate_recording(
+                    registry,
+                    declarations,
+                    goldens,
+                    replacement_startup,
+                    "example",
+                    "startup",
+                )
+            self.assertIn("stale startup-identity declaration", str(caught.exception))
+
+    def test_unregistered_declaration_refuses_the_contract(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            registry, declarations, goldens = self.make_contract(root)
+            declarations.write_text("example absent\n", encoding="utf-8")
+            capture = root / "capture.png"
+            capture.write_bytes(b"different settled bytes")
+            with self.assertRaises(golden_identity_guard.GoldenIdentityError) as caught:
+                golden_identity_guard.verify_candidate_recording(
+                    registry,
+                    declarations,
+                    goldens,
+                    capture,
+                    "example",
+                    "interaction",
+                )
+            self.assertIn("declaration is not registered", str(caught.exception))
 
 
 if __name__ == "__main__":

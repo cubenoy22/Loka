@@ -30,6 +30,8 @@ cp "$RUNNER" "$SANDBOX/repo/tests/toolbox/run-scenario.sh"
 cp "$LAUNCHER" "$SANDBOX/repo/tests/toolbox/mame-launch.lua"
 cp "$REPO_DIR/scripts/rig/toolbox/classic_golden_identity.py" \
   "$SANDBOX/repo/scripts/rig/toolbox/classic_golden_identity.py"
+cp "$REPO_DIR/scripts/rig/golden_identity_guard.py" \
+  "$SANDBOX/repo/scripts/rig/golden_identity_guard.py"
 cp "$REPO_DIR/scripts/rig/toolbox/rigs/toolbox-maciix.ini" \
   "$SANDBOX/repo/scripts/rig/toolbox/rigs/toolbox-maciix.ini"
 cp "$REPO_DIR/tests/scenarios/pngtool.py" "$SANDBOX/repo/tests/scenarios/pngtool.py"
@@ -52,6 +54,7 @@ cp "$REPO_DIR/tests/scenarios/expected/minesweeper/new-game-twice.audit" \
 cp "$REPO_DIR/tests/scenarios/expected/floppybird/fixed-step-flaps.audit" \
   "$SANDBOX/repo/tests/scenarios/expected/floppybird/fixed-step-flaps.audit"
 cp "$REPO_DIR/example/ScrapbookUI/assets/page1.png" "$SANDBOX/snapshot.png"
+cp "$REPO_DIR/example/ScrapbookUI/assets/page2.png" "$SANDBOX/different-snapshot.png"
 printf '%s\n' \
   'scrapbook startup' \
   'scrapbook open-first-page-refused' \
@@ -64,6 +67,15 @@ printf '%s\n' \
   'floppybird startup' \
   'floppybird fixed-step-flaps' \
   >"$SANDBOX/repo/tests/scenarios/scenarios.txt"
+printf '%s\n' \
+  'scrapbook open-first-page-refused' \
+  'helloworld toggle-action-probe' \
+  'tutorial increment-summary-toggle' \
+  'minesweeper new-game-twice' \
+  'floppybird fixed-step-flaps' \
+  >"$SANDBOX/repo/tests/scenarios/startup-golden-identities.txt"
+EMPTY_IDENTITY_DECLARATIONS="$SANDBOX/empty-startup-golden-identities.txt"
+: >"$EMPTY_IDENTITY_DECLARATIONS"
 touch \
   "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaTestsToolbox68K.bin" \
   "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaHelloWorldTestsToolbox68K.bin" \
@@ -121,7 +133,7 @@ if [ "${FAKE_MAME_RESULT:-failure}" = "success" ]; then
     shift
   done
   mkdir -p "$snapshot_directory/maciix"
-  cp -f "$SANDBOX/snapshot.png" "$snapshot_directory/maciix/0000.png"
+  cp -f "${FAKE_SNAPSHOT:-$SANDBOX/snapshot.png}" "$snapshot_directory/maciix/0000.png"
   printf 'LOKA-SNAP: settled after 1.00 emulated seconds (3 stable samples)\n' >"$LOKA_SNAP_LOG"
   exit 0
 fi
@@ -142,7 +154,7 @@ cat >"$SANDBOX/retro-tools/hcopy" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 destination="$3"
-expected="$SANDBOX/repo/tests/scenarios/expected/${FAKE_EXAMPLE:-scrapbook}/startup.audit"
+expected="$SANDBOX/repo/tests/scenarios/expected/${FAKE_EXAMPLE:-scrapbook}/${FAKE_SCENARIO:-startup}.audit"
 if [ "${FAKE_AUDIT_MUTATION:-0}" = "1" ]; then
   sed 's/status\tok/status\terror/' "$expected" >"$destination"
 else
@@ -157,6 +169,12 @@ chmod +x \
   "$SANDBOX/retro-tools/hmount" \
   "$SANDBOX/retro-tools/hcopy" \
   "$SANDBOX/retro-tools/humount"
+printf '/build/\n' >"$SANDBOX/repo/.gitignore"
+git -C "$SANDBOX/repo" init -q
+git -C "$SANDBOX/repo" config user.name 'Loka Test'
+git -C "$SANDBOX/repo" config user.email 'loka-test@example.invalid'
+git -C "$SANDBOX/repo" add .
+git -C "$SANDBOX/repo" commit -q -m fixture
 cat >"$SANDBOX/mame.env" <<EOF
 MAME_EXECUTABLE=$SANDBOX/fake-mame
 MAME_HDA=$SANDBOX/BootTemplate.hd
@@ -267,6 +285,7 @@ IDENTITY_HELPER="$SANDBOX/repo/scripts/rig/toolbox/classic_golden_identity.py"
 RIG_DESCRIPTOR="$SANDBOX/repo/scripts/rig/toolbox/rigs/toolbox-maciix.ini"
 GOLDEN_BUNDLE="$SANDBOX/repo/build/mame-scenario/golden"
 CURRENT_IDENTITY="$SANDBOX/current-identity.txt"
+STARTUP_IDENTITY_DECLARATIONS="$SANDBOX/repo/tests/scenarios/startup-golden-identities.txt"
 
 prepare_authorized_bundle() {
   python3 "$IDENTITY_HELPER" capture-current \
@@ -282,6 +301,7 @@ prepare_authorized_bundle() {
     python3 "$IDENTITY_HELPER" stage-capture \
       --bundle "$GOLDEN_BUNDLE" \
       --registry "$SANDBOX/repo/tests/scenarios/scenarios.txt" \
+      --declarations "$STARTUP_IDENTITY_DECLARATIONS" \
       --descriptor "$RIG_DESCRIPTOR" \
       --current-identity "$CURRENT_IDENTITY" \
       --capture "$SANDBOX/snapshot.png" \
@@ -297,6 +317,66 @@ prepare_authorized_bundle() {
 }
 
 prepare_authorized_bundle
+
+run_golden_update() {
+  local example="$1"
+  local scenario="$2"
+  local log="$3"
+  shift 3
+  MAME_ENV_FILE="$SANDBOX/mame.env" \
+    RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
+    FAKE_MAME_RESULT=success FAKE_EXAMPLE="$example" FAKE_SCENARIO="$scenario" \
+    env -u WSL_INTEROP -u LOKA_TAB_COUNT "$@" \
+    bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" \
+      "$example" "$scenario" --update-golden >"$log" 2>&1
+}
+
+verify_record_time_startup_identity_guard() {
+  local staging="$GOLDEN_BUNDLE.incomplete"
+  local declarations_saved="$SANDBOX/startup-golden-identities.saved"
+
+  cp "$STARTUP_IDENTITY_DECLARATIONS" "$declarations_saved"
+  grep -v '^tutorial increment-summary-toggle$' "$declarations_saved" \
+    >"$STARTUP_IDENTITY_DECLARATIONS"
+  rm -rf "$staging"
+  run_golden_update tutorial startup "$SANDBOX/identity-undeclared-startup.log" \
+    || fail "could not stage the startup reference for the undeclared case"
+  if run_golden_update tutorial increment-summary-toggle \
+      "$SANDBOX/identity-undeclared.log"; then
+    fail "undeclared startup-identical capture recorded"
+  fi
+  grep -Fq 'byte-identical to tutorial startup but the identity is not declared' \
+    "$SANDBOX/identity-undeclared.log" \
+    || fail "undeclared identity refusal did not explain the violated contract"
+  [ ! -e "$staging/tutorial/increment-summary-toggle.png" ] \
+    || fail "undeclared identity was copied into golden.incomplete before refusal"
+
+  cp "$declarations_saved" "$STARTUP_IDENTITY_DECLARATIONS"
+  rm -rf "$staging"
+  run_golden_update minesweeper startup "$SANDBOX/identity-declared-startup.log" \
+    || fail "could not stage the startup reference for the declared case"
+  run_golden_update minesweeper new-game-twice "$SANDBOX/identity-declared.log" \
+    || fail "declared startup identity did not record"
+  [ -f "$staging/minesweeper/new-game-twice.png" ] \
+    || fail "declared identity did not reach golden.incomplete"
+
+  rm -rf "$staging"
+  run_golden_update minesweeper startup "$SANDBOX/identity-stale-startup.log" \
+    || fail "could not stage the startup reference for the stale case"
+  if run_golden_update minesweeper new-game-twice \
+      "$SANDBOX/identity-stale.log" \
+      FAKE_SNAPSHOT="$SANDBOX/different-snapshot.png"; then
+    fail "stale startup-identity declaration recorded different bytes"
+  fi
+  grep -Fq 'stale startup-identity declaration for minesweeper new-game-twice' \
+    "$SANDBOX/identity-stale.log" \
+    || fail "stale declaration refusal did not explain the drift"
+  [ ! -e "$staging/minesweeper/new-game-twice.png" ] \
+    || fail "stale declared identity was copied into golden.incomplete before refusal"
+  rm -rf "$staging"
+}
+
+verify_record_time_startup_identity_guard
 
 expected_application_hash="$(sha256sum "$SANDBOX/fake-mame" | awk '{print $1}')"
 [ "$(grep -c '^application_sha256_' "$GOLDEN_BUNDLE/manifest.txt")" -eq 10 ] \
@@ -453,7 +533,8 @@ verify_atomic_bake_and_no_self_authorize() {
     || fail "could not capture arbitrary bake identity"
   mkdir "$bundle.previous"
   if python3 "$IDENTITY_HELPER" stage-capture \
-      --bundle "$bundle" --registry "$registry" --descriptor "$RIG_DESCRIPTOR" \
+      --bundle "$bundle" --registry "$registry" \
+      --declarations "$EMPTY_IDENTITY_DECLARATIONS" --descriptor "$RIG_DESCRIPTOR" \
       --current-identity "$current" --capture "$SANDBOX/snapshot.png" \
       --application "$SANDBOX/fake-mame" --source-tree "$REPO_DIR" \
       --example helloworld --scenario startup \
@@ -466,7 +547,8 @@ verify_atomic_bake_and_no_self_authorize() {
     || fail "failed bake exposed a partial official bundle"
   rm -rf "$bundle.incomplete" "$bundle.previous"
   python3 "$IDENTITY_HELPER" stage-capture \
-    --bundle "$bundle" --registry "$registry" --descriptor "$RIG_DESCRIPTOR" \
+    --bundle "$bundle" --registry "$registry" \
+    --declarations "$EMPTY_IDENTITY_DECLARATIONS" --descriptor "$RIG_DESCRIPTOR" \
     --current-identity "$current" --capture "$SANDBOX/snapshot.png" \
     --application "$SANDBOX/fake-mame" --source-tree "$REPO_DIR" \
     --example helloworld --scenario startup \
@@ -506,7 +588,8 @@ EOF
     --boot-hd "$SANDBOX/BootTemplate.hd" \
     || fail "unattestable Retro68 provenance prevented current identity capture"
   python3 "$IDENTITY_HELPER" stage-capture \
-    --bundle "$bundle" --registry "$registry" --descriptor "$RIG_DESCRIPTOR" \
+    --bundle "$bundle" --registry "$registry" \
+    --declarations "$EMPTY_IDENTITY_DECLARATIONS" --descriptor "$RIG_DESCRIPTOR" \
     --current-identity "$current" --capture "$SANDBOX/snapshot.png" \
     --application "$SANDBOX/fake-mame" --source-tree "$REPO_DIR" \
     --example helloworld --scenario startup >/dev/null \
@@ -542,14 +625,16 @@ verify_bake_source_resume_guards() {
   git -C "$source" commit -q -m first
 
   python3 "$IDENTITY_HELPER" stage-capture \
-    --bundle "$bundle" --registry "$registry" --descriptor "$RIG_DESCRIPTOR" \
+    --bundle "$bundle" --registry "$registry" \
+    --declarations "$EMPTY_IDENTITY_DECLARATIONS" --descriptor "$RIG_DESCRIPTOR" \
     --current-identity "$CURRENT_IDENTITY" --capture "$SANDBOX/snapshot.png" \
     --application "$SANDBOX/fake-mame" --source-tree "$source" \
     --example helloworld --scenario startup >/dev/null \
     || fail "could not start a source-bound bake"
   printf 'second\n' >"$source/revision.txt"
   if python3 "$IDENTITY_HELPER" stage-capture \
-      --bundle "$bundle" --registry "$registry" --descriptor "$RIG_DESCRIPTOR" \
+      --bundle "$bundle" --registry "$registry" \
+      --declarations "$EMPTY_IDENTITY_DECLARATIONS" --descriptor "$RIG_DESCRIPTOR" \
       --current-identity "$CURRENT_IDENTITY" --capture "$SANDBOX/snapshot.png" \
       --application "$SANDBOX/fake-mame" --source-tree "$source" \
       --example helloworld --scenario toggle-action-probe \
@@ -561,7 +646,8 @@ verify_bake_source_resume_guards() {
     || fail "source mismatch refusal did not give restart instructions"
 
   python3 "$IDENTITY_HELPER" stage-capture \
-    --bundle "$unattestable_bundle" --registry "$registry" --descriptor "$RIG_DESCRIPTOR" \
+    --bundle "$unattestable_bundle" --registry "$registry" \
+    --declarations "$EMPTY_IDENTITY_DECLARATIONS" --descriptor "$RIG_DESCRIPTOR" \
     --current-identity "$CURRENT_IDENTITY" --capture "$SANDBOX/snapshot.png" \
     --application "$SANDBOX/fake-mame" --source-tree "$no_git" \
     --example helloworld --scenario startup >/dev/null \
@@ -570,7 +656,8 @@ verify_bake_source_resume_guards() {
     "$unattestable_bundle.incomplete/identity.partial" \
     || fail "unattestable source was not recorded in identity.partial"
   if python3 "$IDENTITY_HELPER" stage-capture \
-      --bundle "$unattestable_bundle" --registry "$registry" --descriptor "$RIG_DESCRIPTOR" \
+      --bundle "$unattestable_bundle" --registry "$registry" \
+      --declarations "$EMPTY_IDENTITY_DECLARATIONS" --descriptor "$RIG_DESCRIPTOR" \
       --current-identity "$CURRENT_IDENTITY" --capture "$SANDBOX/snapshot.png" \
       --application "$SANDBOX/fake-mame" --source-tree "$no_git" \
       --example helloworld --scenario toggle-action-probe \
@@ -584,6 +671,7 @@ verify_bake_source_resume_guards() {
   printf 'helloworld startup\n' >"$SANDBOX/one-shot-scenarios.txt"
   python3 "$IDENTITY_HELPER" stage-capture \
     --bundle "$one_shot_bundle" --registry "$SANDBOX/one-shot-scenarios.txt" \
+    --declarations "$EMPTY_IDENTITY_DECLARATIONS" \
     --descriptor "$RIG_DESCRIPTOR" --current-identity "$CURRENT_IDENTITY" \
     --capture "$SANDBOX/snapshot.png" --application "$SANDBOX/fake-mame" \
     --source-tree "$no_git" --example helloworld --scenario startup >/dev/null \

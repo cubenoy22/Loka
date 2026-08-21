@@ -50,6 +50,21 @@ def write_rgb_png(path, width, height, pixels):
 
 
 class ExpectedAuditPinsTest(unittest.TestCase):
+    def test_startup_identity_declarations_are_tracked_and_win32_guards_before_copy(self):
+        declarations = os.path.join(
+            SCENARIO_DIR, "startup-golden-identities.txt"
+        )
+        with open(declarations, "r", encoding="ascii") as handle:
+            self.assertEqual(handle.read(), "minesweeper new-game-twice\n")
+
+        runner_path = os.path.join(PROJECT_DIR, "tests", "win32", "run-scenario.ps1")
+        with open(runner_path, "r", encoding="utf-8") as handle:
+            runner = handle.read()
+        guard_call = runner.index("Invoke-GoldenIdentityGuard $Actual")
+        golden_copy = runner.index("Copy-Item -LiteralPath $Actual -Destination $Golden")
+        self.assertLess(guard_call, golden_copy)
+        self.assertIn("--declarations $StartupIdentityDeclarations", runner)
+
     def test_win32_vehicle_map_covers_the_shared_registry_examples(self):
         runner_path = os.path.join(PROJECT_DIR, "tests", "win32", "run-scenario.ps1")
         with open(runner_path, "r", encoding="utf-8") as handle:
