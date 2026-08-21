@@ -1,4 +1,9 @@
 # CUSTOM
+# Python bytecode. The repository ships rig tooling and test harnesses as
+# modules, so any run of them -- or a py_compile syntax check -- leaves these
+# beside the sources.
+__pycache__/
+*.py[cod]
 # Local planning notes and session handoffs (Japanese, machine-specific paths).
 # The handoff skill relies on this being ignored in every clone, not just ones
 # with a hand-edited .git/info/exclude.
