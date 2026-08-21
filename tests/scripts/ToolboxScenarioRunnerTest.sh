@@ -68,11 +68,11 @@ printf '%s\n' \
   'floppybird fixed-step-flaps' \
   >"$SANDBOX/repo/tests/scenarios/scenarios.txt"
 printf '%s\n' \
-  'scrapbook open-first-page-refused' \
-  'helloworld toggle-action-probe' \
-  'tutorial increment-summary-toggle' \
-  'minesweeper new-game-twice' \
-  'floppybird fixed-step-flaps' \
+  'scrapbook open-first-page-refused fake cell, declared so the fixture bundle stages' \
+  'helloworld toggle-action-probe fake cell, declared so the fixture bundle stages' \
+  'tutorial increment-summary-toggle fake cell, declared so the fixture bundle stages' \
+  'minesweeper new-game-twice fake cell, declared so the fixture bundle stages' \
+  'floppybird fixed-step-flaps fake cell, declared so the fixture bundle stages' \
   >"$SANDBOX/repo/tests/scenarios/startup-golden-identities.txt"
 EMPTY_IDENTITY_DECLARATIONS="$SANDBOX/empty-startup-golden-identities.txt"
 : >"$EMPTY_IDENTITY_DECLARATIONS"
@@ -336,7 +336,7 @@ verify_record_time_startup_identity_guard() {
   local declarations_saved="$SANDBOX/startup-golden-identities.saved"
 
   cp "$STARTUP_IDENTITY_DECLARATIONS" "$declarations_saved"
-  grep -v '^tutorial increment-summary-toggle$' "$declarations_saved" \
+  grep -v '^tutorial increment-summary-toggle ' "$declarations_saved" \
     >"$STARTUP_IDENTITY_DECLARATIONS"
   rm -rf "$staging"
   run_golden_update tutorial startup "$SANDBOX/identity-undeclared-startup.log" \

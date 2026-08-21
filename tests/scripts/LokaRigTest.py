@@ -505,7 +505,10 @@ class GoldenIdentityGuardTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             registry, declarations, goldens = self.make_contract(root)
-            declarations.write_text("example interaction\n", encoding="utf-8")
+            declarations.write_text(
+                "example interaction the interaction settles where startup does\n",
+                encoding="utf-8",
+            )
             capture = root / "capture.png"
             capture.write_bytes(b"settled startup bytes")
             golden_identity_guard.verify_candidate_recording(
@@ -521,7 +524,10 @@ class GoldenIdentityGuardTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             registry, declarations, goldens = self.make_contract(root)
-            declarations.write_text("example interaction\n", encoding="utf-8")
+            declarations.write_text(
+                "example interaction the interaction settles where startup does\n",
+                encoding="utf-8",
+            )
             capture = root / "capture.png"
             capture.write_bytes(b"different settled bytes")
             with self.assertRaises(golden_identity_guard.GoldenIdentityError) as caught:
@@ -557,7 +563,10 @@ class GoldenIdentityGuardTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             registry, declarations, goldens = self.make_contract(root)
-            declarations.write_text("example interaction\n", encoding="utf-8")
+            declarations.write_text(
+                "example interaction the interaction settles where startup does\n",
+                encoding="utf-8",
+            )
             sibling = goldens / "example" / "interaction.png"
             sibling.write_bytes(b"settled startup bytes")
             replacement_startup = root / "replacement-startup.png"
@@ -573,11 +582,66 @@ class GoldenIdentityGuardTest(unittest.TestCase):
                 )
             self.assertIn("stale startup-identity declaration", str(caught.exception))
 
+    def test_declaration_without_a_reason_refuses_the_contract(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            registry, declarations, goldens = self.make_contract(root)
+            declarations.write_text("example interaction\n", encoding="utf-8")
+            capture = root / "capture.png"
+            capture.write_bytes(b"settled startup bytes")
+            with self.assertRaises(golden_identity_guard.GoldenIdentityError) as caught:
+                golden_identity_guard.verify_candidate_recording(
+                    registry,
+                    declarations,
+                    goldens,
+                    capture,
+                    "example",
+                    "interaction",
+                )
+            self.assertIn("states no reason", str(caught.exception))
+
+    def test_declaration_reason_is_read_back_with_its_cell(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            _, declarations, _ = self.make_contract(root)
+            declarations.write_text(
+                "example interaction  the interaction settles where startup does  \n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                golden_identity_guard.read_declarations(declarations),
+                ((("example", "interaction"), "the interaction settles where startup does"),),
+            )
+
+    def test_registry_still_refuses_a_trailing_reason(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            registry, declarations, goldens = self.make_contract(root)
+            registry.write_text(
+                "example startup\nexample interaction because we felt like it\n",
+                encoding="utf-8",
+            )
+            capture = root / "capture.png"
+            capture.write_bytes(b"settled startup bytes")
+            with self.assertRaises(golden_identity_guard.GoldenIdentityError) as caught:
+                golden_identity_guard.verify_candidate_recording(
+                    registry,
+                    declarations,
+                    goldens,
+                    capture,
+                    "example",
+                    "interaction",
+                )
+            self.assertIn("invalid scenario registry entry", str(caught.exception))
+
     def test_unregistered_declaration_refuses_the_contract(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             registry, declarations, goldens = self.make_contract(root)
-            declarations.write_text("example absent\n", encoding="utf-8")
+            declarations.write_text(
+                "example absent this cell is not in the registry\n",
+                encoding="utf-8",
+            )
             capture = root / "capture.png"
             capture.write_bytes(b"different settled bytes")
             with self.assertRaises(golden_identity_guard.GoldenIdentityError) as caught:

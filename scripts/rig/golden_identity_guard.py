@@ -38,13 +38,53 @@ def read_cells(path: pathlib.Path, description: str) -> tuple[tuple[str, str], .
     return tuple(cells)
 
 
+def read_declarations(
+    path: pathlib.Path,
+) -> tuple[tuple[tuple[str, str], str], ...]:
+    """Read declared identities, each of which must say why it is expected.
+
+    An identity nobody can explain is the defect this guard exists to catch, so
+    the reason is a field of the entry rather than a comment beside it.
+    """
+    try:
+        raw_lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError as error:
+        raise GoldenIdentityError(
+            f"cannot read startup-identity declaration {path}: {error}"
+        ) from error
+    entries = []
+    for number, line in enumerate(raw_lines, 1):
+        parts = line.split(maxsplit=2)
+        if (
+            len(parts) < 2
+            or not CELL_PART_PATTERN.fullmatch(parts[0])
+            or not CELL_PART_PATTERN.fullmatch(parts[1])
+        ):
+            raise GoldenIdentityError(
+                f"{path}:{number}: invalid startup-identity declaration entry"
+            )
+        reason = parts[2].strip() if len(parts) > 2 else ""
+        if not reason:
+            raise GoldenIdentityError(
+                f"{path}:{number}: startup-identity declaration for "
+                f"{parts[0]} {parts[1]} states no reason"
+            )
+        entries.append(((parts[0], parts[1]), reason))
+    cells = [cell for cell, _ in entries]
+    if len(set(cells)) != len(cells):
+        raise GoldenIdentityError(
+            f"duplicate startup-identity declaration entry: {path}"
+        )
+    return tuple(entries)
+
+
 def read_contract(
     registry: pathlib.Path, declarations: pathlib.Path
 ) -> tuple[tuple[tuple[str, str], ...], frozenset[tuple[str, str]]]:
     scenarios = read_cells(registry, "scenario registry")
     if not scenarios:
         raise GoldenIdentityError(f"scenario registry is empty: {registry}")
-    declared = read_cells(declarations, "startup-identity declaration")
+    declared = tuple(cell for cell, _ in read_declarations(declarations))
     scenario_set = frozenset(scenarios)
     for cell in declared:
         if cell not in scenario_set:
