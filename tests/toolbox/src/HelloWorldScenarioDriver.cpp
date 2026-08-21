@@ -8,6 +8,7 @@
 #include "HelloWorldScenarioPresentation.hpp"
 #include "ScenarioDriverSupport.hpp"
 #include "StartupScenarios.hpp"
+#include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindow.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
@@ -19,6 +20,8 @@
 #include "context/ToolboxEditTextContext.hpp"
 #include "context/ToolboxTextContext.hpp"
 #include "core/util/ScopedPtr.hpp"
+#include "core/util/StateTrackerGuard.hpp"
+#include "platform/StringUTF8.hpp"
 #include "testing/scene/ScenarioAudit.hpp"
 
 namespace loka
@@ -76,6 +79,130 @@ namespace loka
       const char *kLeftPanelTitleTestId = "HelloWorld.LeftPanel.Title";
       const char *kDecorationTestId = "HelloWorld.Decoration";
       const short kDirtyReplayProbeMaxWidth = 256;
+
+      struct ProgrammaticTextChange
+      {
+        core::MutableState<core::String> *state;
+        core::StateTracker *tracker;
+        core::String value;
+
+        ProgrammaticTextChange(core::MutableState<core::String> *stateValue,
+                               core::StateTracker *trackerValue,
+                               const core::String &nextValue)
+            : state(stateValue),
+              tracker(trackerValue),
+              value(nextValue)
+        {
+        }
+
+        static void Apply(void *userData)
+        {
+          ProgrammaticTextChange *change = static_cast<ProgrammaticTextChange *>(userData);
+          if (!change || !change->state || !change->tracker)
+          {
+            return;
+          }
+          core::StateTrackerGuard guard(change->tracker);
+          change->state->set(change->value, true);
+        }
+      };
+
+      bool ProbeBmiHeightStateSync(Window *window, const char *&failureMessage)
+      {
+        failureMessage = "EditText state-sync probe was not run";
+        ToolboxWindow *toolboxWindow = window ? window->asToolboxWindow() : 0;
+        WindowPtr nativeWindow = toolboxWindow ? toolboxWindow->window() : 0;
+        ToolboxScenePlatformController *controller =
+            toolboxWindow ? toolboxWindow->scenePlatformController() : 0;
+        if (!window || !window->scene() || !toolboxWindow || !nativeWindow || !controller)
+        {
+          failureMessage = "EditText state-sync probe window was unavailable";
+          return false;
+        }
+
+        app::EditTextNode *heightInput = 0;
+        dsl::FlowError lookupError;
+        if (dsl::testing::LookupNodeById<app::EditTextNode>(
+                window->scene(), kBmiHeightInputTestId, heightInput, lookupError)
+            != dsl::FLOW_STEP_SUCCEEDED)
+        {
+          failureMessage = "EditText state-sync probe could not find the BMI height input";
+          return false;
+        }
+        ToolboxEditTextContext *editContext =
+            heightInput ? static_cast<ToolboxEditTextContext *>(heightInput->getContext()) : 0;
+        core::MutableState<core::String> *heightState =
+            heightInput && heightInput->props.text_
+                ? static_cast<core::MutableState<core::String> *>(heightInput->props.text_->asMutableState())
+                : 0;
+        app::scene::BoundaryNode *rootBoundary =
+            dsl::testing::SceneTestAccess::rootBoundary(*window->scene());
+        if (!editContext || !heightState || !rootBoundary || !rootBoundary->tracker())
+        {
+          failureMessage = "EditText state-sync probe found no live mutable Toolbox binding";
+          return false;
+        }
+        const Rect chrome = editContext->chromeRect();
+        if (chrome.left < nativeWindow->portRect.left || chrome.top < nativeWindow->portRect.top
+            || chrome.right > nativeWindow->portRect.right || chrome.bottom > nativeWindow->portRect.bottom)
+        {
+          failureMessage = "EditText state-sync probe input was outside the window port";
+          return false;
+        }
+
+        std::string beforeState;
+        std::string beforeNative;
+        if (!platform::CollectUtf8(heightState->get(), beforeState)
+            || !controller->queryEditTextValueForTesting(editContext, beforeNative))
+        {
+          failureMessage = "EditText state-sync probe could not read its positive-control values";
+          return false;
+        }
+        const char *nextBytes = beforeState == "181.5" ? "182.5" : "181.5";
+        ProgrammaticTextChange change(
+            heightState, rootBoundary->tracker(), core::String::Literal(nextBytes));
+        core::EmitterState batchEvent;
+        batchEvent.bind(&ProgrammaticTextChange::Apply, &change, false, false, 0);
+        // emitHitEmitter owns the controller's ordinary begin/end batch pair.
+        // This keeps the probe on the same always-on Release path as a native
+        // batched action without adding a mutable testing door to production.
+        controller->emitHitEmitter(&batchEvent);
+        batchEvent.unbind(&ProgrammaticTextChange::Apply, &change);
+
+        std::string afterState;
+        if (!platform::CollectUtf8(heightState->get(), afterState) || afterState != nextBytes
+            || afterState == beforeState)
+        {
+          failureMessage = "EditText state-sync probe positive control did not change the State";
+          return false;
+        }
+
+        // Read the TE record BEFORE any flush or presentation. The defect's
+        // seam is that a programmatic write must reach TESetText through the
+        // state listener itself: in the reel a batch is open when the walk
+        // runs, so the render-time repair in ensureEditTextControl is gated
+        // off and nothing else heals the record. A read after a flush would
+        // let that healing walk hide the missing listener, and the probe
+        // would pass with the fix reverted.
+        std::string afterNative;
+        if (!controller->queryEditTextValueForTesting(editContext, afterNative))
+        {
+          failureMessage = "EditText state-sync probe could not read the TE record";
+          return false;
+        }
+        if (afterNative != afterState)
+        {
+          failureMessage = "EditText TE text did not match its programmatically changed State";
+          return false;
+        }
+
+        // Then present normally so the screen and any later capture see the
+        // settled scene; this is cleanup, not the assertion.
+        window->flushSceneInvalidation();
+        toolboxWindow->flushInvalidate();
+        failureMessage = 0;
+        return true;
+      }
 
       void CapturePixelRow(const Rect &row, unsigned char *pixels)
       {
@@ -430,6 +557,11 @@ namespace loka
                 {
                   SetDirtyReplayProbeFailure(
                       record, 2404, kBmiRoundtripScenarioName, kBmiHeightInputTestId, probeFailure);
+                }
+                else if (!ProbeBmiHeightStateSync(window, probeFailure))
+                {
+                  SetDirtyReplayProbeFailure(
+                      record, 2406, kBmiRoundtripScenarioName, kBmiHeightInputTestId, probeFailure);
                 }
               }
               if (!this->startup_ && this->scenario_.name() == kZStackDirtyReplayScenarioName

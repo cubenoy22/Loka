@@ -1850,6 +1850,13 @@ void ToolboxScenePlatformController::unbindEnabledState(loka::core::State<bool> 
 
 bool ToolboxScenePlatformController::hasLiveBinding(loka::core::State<loka::core::String> *text) const
 {
+  for (size_t i = 0; i < editControls_.size(); ++i)
+  {
+    if (editControls_[i].text == text)
+    {
+      return true;
+    }
+  }
   for (size_t i = 0; i < cellHits_.size(); ++i)
   {
     if (cellHits_[i].text == text)
@@ -1906,6 +1913,13 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
   {
     return;
   }
+  // Native controls are state mirrors, not paint alternatives. Synchronize
+  // every matching TE record before the first-match paint registries below can
+  // return; a State may legitimately feed both an EditText and a Text/Cell.
+  const size_t editControlMatchCount = editControls_.forEachTextBinding(
+      text,
+      this,
+      &ToolboxScenePlatformController::refreshEditTextBindingForStateChange);
   for (size_t i = 0; i < cellHits_.size(); ++i)
   {
     CellHit &hit = cellHits_[i];
@@ -2005,11 +2019,7 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
       return;
     }
   }
-  if (editControls_.forEachTextBinding(
-          text,
-          this,
-          &ToolboxScenePlatformController::refreshEditTextBindingForStateChange)
-      != 0)
+  if (editControlMatchCount != 0)
   {
     return;
   }
@@ -3058,10 +3068,12 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(ToolboxEditTextCo
     return 0;
   }
   EditTextControlBinding *binding = 0;
+  loka::core::State<loka::core::String> *previousText = 0;
   size_t bindingIndex = 0;
   if (editControls_.find(ownerContext, bindingIndex))
   {
     binding = &editControls_[bindingIndex];
+    previousText = binding->text;
     binding->text = text;
   }
   if (!binding)
@@ -3097,6 +3109,14 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(ToolboxEditTextCo
     syncEditTextFromState(*binding);
     TEAutoView(true, binding->te);
   }
+  // A native EditText is a live String projection just like Text and the
+  // fallback EditHit. Register it at the same seam so programmatic writes can
+  // reach TESetText even when no render walk follows the write.
+  bindTextState(text);
+  if (previousText && previousText != text && !this->hasLiveBinding(previousText))
+  {
+    unbindTextState(previousText);
+  }
   binding->usedThisFrame = true;
   binding->lifetimeHint = lifetimeHint;
   if (binding->rect.left != rect.left || binding->rect.top != rect.top || binding->rect.right != rect.right
@@ -3123,6 +3143,7 @@ void ToolboxScenePlatformController::retireEditTextControlAt(
     loka::app::scene::NativeLifetimeHint lifetimeHint)
 {
   EditTextControlBinding &binding = editControls_[index];
+  loka::core::State<loka::core::String> *retiredText = binding.text;
   if (binding.te)
   {
     TEDeactivate(binding.te);
@@ -3130,6 +3151,10 @@ void ToolboxScenePlatformController::retireEditTextControlAt(
     binding.te = 0;
   }
   editControls_.erase(index);
+  if (retiredText && !this->hasLiveBinding(retiredText))
+  {
+    unbindTextState(retiredText);
+  }
 }
 
 void ToolboxScenePlatformController::retireEditTextControl(
@@ -3159,6 +3184,45 @@ void ToolboxScenePlatformController::syncEditTextFromState(EditTextControlBindin
   TESetSelect(utf8.size(), utf8.size(), binding.te);
   binding.lastText = utf8;
 }
+
+#ifdef TEST_BUILD
+bool ToolboxScenePlatformController::queryEditTextValueForTesting(
+    ToolboxEditTextContext *ownerContext,
+    std::string &out) const
+{
+  out.clear();
+  size_t index = 0;
+  if (!ownerContext || !editControls_.find(ownerContext, index))
+  {
+    return false;
+  }
+  const EditTextControlBinding &binding = editControls_[index];
+  if (!binding.te || !*binding.te)
+  {
+    return false;
+  }
+  CharsHandle textHandle = (**binding.te).hText;
+  const long length = (**binding.te).teLength;
+  if (length < 0 || (length > 0 && !textHandle))
+  {
+    return false;
+  }
+  if (length > 0)
+  {
+    const char previousHandleState = HGetState(reinterpret_cast<Handle>(textHandle));
+    HLock(reinterpret_cast<Handle>(textHandle));
+    const char *bytes = reinterpret_cast<const char *>(*textHandle);
+    if (!bytes)
+    {
+      HSetState(reinterpret_cast<Handle>(textHandle), previousHandleState);
+      return false;
+    }
+    out.assign(bytes, static_cast<std::string::size_type>(length));
+    HSetState(reinterpret_cast<Handle>(textHandle), previousHandleState);
+  }
+  return true;
+}
+#endif
 
 void ToolboxScenePlatformController::updateStateFromEdit(EditTextControlBinding &binding)
 {
