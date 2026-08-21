@@ -23,13 +23,7 @@ if(WIN32)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../win32 ${CMAKE_CURRENT_BINARY_DIR}/win32)
   endif()
 
-  option(USE_CONSOLE_SUBSYSTEM "Use console subsystem for debugging" OFF)
-
-  if(USE_CONSOLE_SUBSYSTEM)
-    add_executable(LokaSimpleViewerWin32 ${SIMPLEVIEWER_SOURCES})
-  else()
-    add_executable(LokaSimpleViewerWin32 WIN32 ${SIMPLEVIEWER_SOURCES})
-  endif()
+  add_executable(LokaSimpleViewerWin32 WIN32 ${SIMPLEVIEWER_SOURCES})
   loka_enable_warnings(LokaSimpleViewerWin32)
   loka_enable_win32_visual_styles(LokaSimpleViewerWin32)
 

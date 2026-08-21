@@ -23,13 +23,7 @@ if(WIN32)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../win32 ${CMAKE_CURRENT_BINARY_DIR}/win32)
   endif()
 
-  option(USE_CONSOLE_SUBSYSTEM "Use console subsystem for debugging" OFF)
-
-  if(USE_CONSOLE_SUBSYSTEM)
-    add_executable(LokaMineWin32 ${MINESWEEPER_SOURCES})
-  else()
-    add_executable(LokaMineWin32 WIN32 ${MINESWEEPER_SOURCES})
-  endif()
+  add_executable(LokaMineWin32 WIN32 ${MINESWEEPER_SOURCES})
   loka_enable_warnings(LokaMineWin32)
   loka_enable_win32_visual_styles(LokaMineWin32)
 
