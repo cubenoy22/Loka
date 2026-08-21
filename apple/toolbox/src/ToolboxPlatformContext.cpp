@@ -12,6 +12,7 @@
 #include "core/resource/Blob.hpp"
 #include "core/resource/Image.hpp"
 #include "ToolboxNativeImage.hpp"
+#include <MacMemory.h>
 #include <vector>
 
 namespace
@@ -79,6 +80,17 @@ bool ToolboxPlatformContext::openFile(const loka::file::File &item, loka::platfo
   }
 #endif
   return !out.displayPath.empty();
+}
+
+bool ToolboxPlatformContext::queryLargestContiguousAllocation(std::size_t &out) const
+{
+  const long largestAllocation = MaxBlock();
+  if (largestAllocation < 0)
+  {
+    return false;
+  }
+  out = static_cast<std::size_t>(largestAllocation);
+  return true;
 }
 
 bool ToolboxPlatformContext::createImageFromBlob(const loka::core::resource::Blob &blob,

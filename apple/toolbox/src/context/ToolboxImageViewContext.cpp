@@ -236,8 +236,7 @@ ToolboxImageViewContext::ToolboxImageViewContext(loka::app::ImageViewNode *node,
                                                  ToolboxScenePlatformController *controller)
     : ToolboxProjectedNodeContext(controller),
       node_(node),
-      rect_(),
-      image_()
+      rect_()
 {
   SetRect(&rect_, 0, 0, 0, 0);
 }
@@ -338,8 +337,8 @@ void ToolboxImageViewContext::draw()
     return;
   }
 
-  image_ = node_->props.image_->get();
-  if (!image_.isValid())
+  const loka::core::resource::Image image = node_->props.image_->get();
+  if (!image.isValid())
   {
     DrawPascalStringAt(static_cast<short>(rect_.left + 6), static_cast<short>(rect_.top + 14), "Image: (empty)");
     return;
@@ -351,11 +350,11 @@ void ToolboxImageViewContext::draw()
     fitMode = static_cast<int>(node_->props.attr_.fitValue_);
   }
 
-  const loka::toolbox::ToolboxNativeImage *native = loka::toolbox::TryGetToolboxNativeImage(image_);
+  const loka::toolbox::ToolboxNativeImage *native = loka::toolbox::TryGetToolboxNativeImage(image);
   if (native && native->kind == loka::toolbox::TOOLBOX_NATIVE_IMAGE_KIND_PICT && native->payload)
   {
     PicHandle picture = static_cast<PicHandle>(native->payload);
-    Rect dstRect = ComputeImageDrawRect(rect_, fitMode, image_.width(), image_.height());
+    Rect dstRect = ComputeImageDrawRect(rect_, fitMode, image.width(), image.height());
     if (fitMode == loka::app::IMAGE_FIT_COVER)
     {
       RgnHandle oldClip = NewRgn();
@@ -383,7 +382,7 @@ void ToolboxImageViewContext::draw()
   {
     const loka::toolbox::ToolboxPictBytesPayload *payload =
         static_cast<const loka::toolbox::ToolboxPictBytesPayload *>(native->payload);
-    Rect dstRect = ComputeImageDrawRect(rect_, fitMode, image_.width(), image_.height());
+    Rect dstRect = ComputeImageDrawRect(rect_, fitMode, image.width(), image.height());
     if (DrawPictBytes(payload, dstRect))
     {
       return;
@@ -396,7 +395,7 @@ void ToolboxImageViewContext::draw()
   LineTo(rect_.left, rect_.bottom);
 
   char label[64];
-  ::snprintf(label, sizeof(label), "Image(native?): %dx%d", image_.width(), image_.height());
+  ::snprintf(label, sizeof(label), "Image(native?): %dx%d", image.width(), image.height());
   DrawPascalStringAt(static_cast<short>(rect_.left + 6), static_cast<short>(rect_.top + 14), label);
 }
 
