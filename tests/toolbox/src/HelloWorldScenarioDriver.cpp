@@ -196,6 +196,33 @@ namespace loka
           return false;
         }
 
+        // Put the completed scenario's value back before anything paints: the
+        // runner captures this scene and compares it against the same golden a
+        // non-probe run produces, so a probe that leaves the field changed
+        // could only pass by replacing a golden the presentation rail then
+        // fails. Restoring is also a second measurement of the same seam --
+        // the listener has to carry this write to the TE record too.
+        ProgrammaticTextChange restore(
+            heightState, rootBoundary->tracker(), core::String::Literal(beforeState.c_str()));
+        core::EmitterState restoreEvent;
+        restoreEvent.bind(&ProgrammaticTextChange::Apply, &restore, false, false, 0);
+        controller->emitHitEmitter(&restoreEvent);
+        restoreEvent.unbind(&ProgrammaticTextChange::Apply, &restore);
+
+        std::string restoredState;
+        std::string restoredNative;
+        if (!platform::CollectUtf8(heightState->get(), restoredState) || restoredState != beforeState)
+        {
+          failureMessage = "EditText state-sync probe could not restore the completed scenario value";
+          return false;
+        }
+        if (!controller->queryEditTextValueForTesting(editContext, restoredNative)
+            || restoredNative != restoredState)
+        {
+          failureMessage = "EditText TE text did not follow the State back to its scenario value";
+          return false;
+        }
+
         // Then present normally so the screen and any later capture see the
         // settled scene; this is cleanup, not the assertion.
         window->flushSceneInvalidation();
