@@ -18,13 +18,22 @@ mkdir -p \
   "$SANDBOX/fake.app/Contents/MacOS"
 cp "$REPO_DIR/tests/macos/run-scenario.sh" "$SANDBOX/repo/tests/macos/run-scenario.sh"
 cp "$REPO_DIR/tests/macos/validate-work-dir.py" "$SANDBOX/repo/tests/macos/validate-work-dir.py"
+mkdir -p "$SANDBOX/repo/scripts/rig"
+cp "$REPO_DIR/scripts/rig/golden_identity_guard.py" \
+  "$SANDBOX/repo/scripts/rig/golden_identity_guard.py"
 cp "$REPO_DIR/tests/scenarios/pngtool.py" "$SANDBOX/repo/tests/scenarios/pngtool.py"
 cp "$REPO_DIR/tests/scenarios/scenarios.txt" "$SANDBOX/repo/tests/scenarios/scenarios.txt"
+cp "$REPO_DIR/tests/scenarios/startup-golden-identities.txt" \
+  "$SANDBOX/repo/tests/scenarios/startup-golden-identities.txt"
 for example in scrapbook helloworld tutorial minesweeper floppybird; do
   mkdir -p "$SANDBOX/repo/tests/scenarios/expected/$example"
   cp "$REPO_DIR/tests/scenarios/expected/$example/startup.audit" \
     "$SANDBOX/repo/tests/scenarios/expected/$example/startup.audit"
 done
+cp "$REPO_DIR/tests/scenarios/expected/helloworld/bmi-roundtrip.audit" \
+  "$SANDBOX/repo/tests/scenarios/expected/helloworld/bmi-roundtrip.audit"
+cp "$REPO_DIR/tests/scenarios/expected/minesweeper/new-game-twice.audit" \
+  "$SANDBOX/repo/tests/scenarios/expected/minesweeper/new-game-twice.audit"
 
 for invocation in \
   'scrapbook startup' \
@@ -38,6 +47,7 @@ for invocation in \
     || fail "CI does not run the $invocation structural cell with the three-argument protocol"
 done
 cp "$REPO_DIR/example/ScrapbookUI/assets/page1.png" "$SANDBOX/snapshot.png"
+cp "$REPO_DIR/example/ScrapbookUI/assets/page2.png" "$SANDBOX/different-snapshot.png"
 
 cat >"$SANDBOX/fake.app/Contents/MacOS/LokaScrapbookScenarioMacOS" <<'SH'
 #!/usr/bin/env bash
@@ -94,5 +104,50 @@ if LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
 fi
 grep -Fq 'actual.audit differs from' "$SANDBOX/runner-mutation.log" \
   || fail "observed audit mutation did not fail at the verdict comparison"
+
+run_macos_update() {
+  local example="$1"
+  local scenario="$2"
+  local snapshot="$3"
+  local expected="$SANDBOX/repo/tests/scenarios/expected/$example/$scenario.audit"
+  local work="$SANDBOX/repo/build/macos-scenario/$example/$scenario"
+  LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
+    LOKA_MACOS_SCENARIO_WORK="$work" \
+    FAKE_EXPECTED_AUDIT="$expected" FAKE_SNAPSHOT="$snapshot" \
+    bash "$SANDBOX/repo/tests/macos/run-scenario.sh" \
+      "$example" "$scenario" --update-golden
+}
+
+run_macos_update helloworld startup "$SANDBOX/snapshot.png" \
+  >"$SANDBOX/identity-undeclared-startup.log" 2>&1 \
+  || fail "could not record the macOS HelloWorld startup reference"
+if run_macos_update helloworld bmi-roundtrip "$SANDBOX/snapshot.png" \
+    >"$SANDBOX/identity-undeclared.log" 2>&1; then
+  fail "macOS recorded an undeclared startup-identical capture"
+fi
+grep -Fq 'byte-identical to helloworld startup but the identity is not declared' \
+  "$SANDBOX/identity-undeclared.log" \
+  || fail "macOS undeclared identity refusal did not name the contract"
+[ ! -e "$SANDBOX/repo/build/macos-scenario/golden/helloworld/bmi-roundtrip.png" ] \
+  || fail "macOS wrote the undeclared identity before refusal"
+
+run_macos_update minesweeper startup "$SANDBOX/snapshot.png" \
+  >"$SANDBOX/identity-declared-startup.log" 2>&1 \
+  || fail "could not record the macOS MineSweeper startup reference"
+run_macos_update minesweeper new-game-twice "$SANDBOX/snapshot.png" \
+  >"$SANDBOX/identity-declared.log" 2>&1 \
+  || fail "macOS refused the declared startup identity"
+DECLARED_GOLDEN="$SANDBOX/repo/build/macos-scenario/golden/minesweeper/new-game-twice.png"
+[ -f "$DECLARED_GOLDEN" ] || fail "macOS did not record the declared identity"
+declared_hash="$(sha256sum "$DECLARED_GOLDEN" | awk '{print $1}')"
+if run_macos_update minesweeper new-game-twice "$SANDBOX/different-snapshot.png" \
+    >"$SANDBOX/identity-stale.log" 2>&1; then
+  fail "macOS recorded a stale declared identity"
+fi
+grep -Fq 'stale startup-identity declaration for minesweeper new-game-twice' \
+  "$SANDBOX/identity-stale.log" \
+  || fail "macOS stale declaration refusal did not name the drift"
+[ "$(sha256sum "$DECLARED_GOLDEN" | awk '{print $1}')" = "$declared_hash" ] \
+  || fail "macOS stale declaration refusal overwrote the prior golden"
 
 echo "macOS scenario runner tests passed"

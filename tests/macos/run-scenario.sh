@@ -17,6 +17,7 @@ fi
 EXAMPLE="$1"
 SCENARIO="$2"
 SCENARIO_REGISTRY="$PROJECT_DIR/tests/scenarios/scenarios.txt"
+STARTUP_IDENTITY_DECLARATIONS="$PROJECT_DIR/tests/scenarios/startup-golden-identities.txt"
 if [[ ! "$EXAMPLE" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
   || [[ ! "$SCENARIO" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
   || ! grep -Fxq -- "$EXAMPLE $SCENARIO" "$SCENARIO_REGISTRY"; then
@@ -51,6 +52,7 @@ APP="${LOKA_MACOS_SCENARIO_APP:-$PROJECT_DIR/build/macos/Debug/apple/macos/$TARG
 BINARY="$APP/Contents/MacOS/$TARGET"
 EXPECTED="$PROJECT_DIR/tests/scenarios/expected/$EXAMPLE/$SCENARIO.audit"
 PNG_TOOL="$PROJECT_DIR/tests/scenarios/pngtool.py"
+GOLDEN_IDENTITY_GUARD="$PROJECT_DIR/scripts/rig/golden_identity_guard.py"
 WORK_DIR_TOOL="$PROJECT_DIR/tests/macos/validate-work-dir.py"
 PYTHON3="${PYTHON3:-python3}"
 SCREENCAPTURE="${SCREENCAPTURE:-/usr/sbin/screencapture}"
@@ -168,6 +170,15 @@ if [ "$MODE" = "structural" ]; then
 fi
 
 if [ "$MODE" = "update" ]; then
+  if ! "$PYTHON3" "$GOLDEN_IDENTITY_GUARD" \
+      --registry "$SCENARIO_REGISTRY" \
+      --declarations "$STARTUP_IDENTITY_DECLARATIONS" \
+      --golden-root "$PROJECT_DIR/build/macos-scenario/golden" \
+      --capture "$WORK/actual.png" \
+      --example "$EXAMPLE" \
+      --scenario "$SCENARIO"; then
+    fail_stage golden "settled capture failed the startup-identity contract"
+  fi
   mkdir -p "$GOLDEN_DIR"
   cp -f "$WORK/actual.png" "$GOLDEN"
   cp -f "$WORK/actual.profile" "$GOLDEN_PROFILE"

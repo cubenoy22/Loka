@@ -25,6 +25,7 @@ fi
 EXAMPLE="$1"
 SCENARIO="$2"
 SCENARIO_REGISTRY="$PROJECT_DIR/tests/scenarios/scenarios.txt"
+STARTUP_IDENTITY_DECLARATIONS="$PROJECT_DIR/tests/scenarios/startup-golden-identities.txt"
 UPDATE_GOLDEN=0
 STRUCTURAL_AUDIT=0
 if [[ ! "$EXAMPLE" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
@@ -406,6 +407,7 @@ if [ "$UPDATE_GOLDEN" -eq 1 ]; then
   if ! python3 "$GOLDEN_IDENTITY_HELPER" stage-capture \
       --bundle "$GOLDEN_BUNDLE" \
       --registry "$SCENARIO_REGISTRY" \
+      --declarations "$STARTUP_IDENTITY_DECLARATIONS" \
       --descriptor "$RIG_DESCRIPTOR" \
       --current-identity "$CURRENT_IDENTITY" \
       --capture "$ACTUAL_IMAGE" \

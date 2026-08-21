@@ -12,6 +12,7 @@ Set-StrictMode -Version 2
 
 $ProjectDirectory = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $Registry = Join-Path $ProjectDirectory "tests/scenarios/scenarios.txt"
+$StartupIdentityDeclarations = Join-Path $ProjectDirectory "tests/scenarios/startup-golden-identities.txt"
 $FixtureRegistry = Join-Path $ProjectDirectory "tests/scenarios/scrapbook-package-fixtures.txt"
 $ExpectedAudit = Join-Path $ProjectDirectory "tests/scenarios/expected/$Example/$Scenario.audit"
 $Vehicles = @{
@@ -32,6 +33,7 @@ $GoldenDirectory = Join-Path $ProjectDirectory "build/win32-scenario/golden/$Exa
 $Golden = Join-Path $GoldenDirectory "$Scenario.png"
 $GoldenProfile = Join-Path $GoldenDirectory "$Scenario.profile"
 $PngTool = Join-Path $ProjectDirectory "tests/scenarios/pngtool.py"
+$GoldenIdentityGuard = Join-Path $ProjectDirectory "scripts/rig/golden_identity_guard.py"
 $RunnerLog = Join-Path $Work "runner.log"
 $ChildProcess = $null
 $ChildWindow = [IntPtr]::Zero
@@ -40,6 +42,7 @@ $ChildStderrTask = $null
 $Python = $null
 $UseWslPython = $false
 $PngExitCode = 0
+$GoldenIdentityExitCode = 0
 $ExitCode = 0
 
 function Fail-Stage([string]$StageName, [string]$Message) {
@@ -189,6 +192,25 @@ function Invoke-PngDiff([string]$Expected, [string]$Actual, [string]$OutputPath)
         & $Python $PngTool diff $Expected $Actual $OutputPath
     }
     $script:PngExitCode = $LASTEXITCODE
+}
+
+function Invoke-GoldenIdentityGuard([string]$Capture) {
+    if ($UseWslPython) {
+        & wsl.exe python3 (Convert-ToWslPath $GoldenIdentityGuard) `
+            --registry (Convert-ToWslPath $Registry) `
+            --declarations (Convert-ToWslPath $StartupIdentityDeclarations) `
+            --golden-root (Convert-ToWslPath (Join-Path $ProjectDirectory "build/win32-scenario/golden")) `
+            --capture (Convert-ToWslPath $Capture) `
+            --example $Example --scenario $Scenario
+    } else {
+        & $Python $GoldenIdentityGuard `
+            --registry $Registry `
+            --declarations $StartupIdentityDeclarations `
+            --golden-root (Join-Path $ProjectDirectory "build/win32-scenario/golden") `
+            --capture $Capture `
+            --example $Example --scenario $Scenario
+    }
+    $script:GoldenIdentityExitCode = $LASTEXITCODE
 }
 
 $nativeSource = @'
@@ -465,6 +487,10 @@ try {
     Copy-Item -LiteralPath $StageProfile -Destination $ActualProfile
 
     if ($UpdateGolden) {
+        Invoke-GoldenIdentityGuard $Actual *>> $RunnerLog
+        if ($GoldenIdentityExitCode -ne 0) {
+            Fail-Stage "golden" "settled capture failed the startup-identity contract; see $RunnerLog"
+        }
         New-Item -ItemType Directory -Path $GoldenDirectory -Force | Out-Null
         Copy-Item -LiteralPath $Actual -Destination $Golden
         Copy-Item -LiteralPath $ActualProfile -Destination $GoldenProfile

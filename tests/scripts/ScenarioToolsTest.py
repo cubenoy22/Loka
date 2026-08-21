@@ -3,6 +3,7 @@
 
 import json
 import os
+import pathlib
 import struct
 import subprocess
 import sys
@@ -14,6 +15,9 @@ import zlib
 PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SCENARIO_DIR = os.path.join(PROJECT_DIR, "tests", "scenarios")
 PNG_TOOL = os.path.join(SCENARIO_DIR, "pngtool.py")
+
+sys.path.insert(0, os.path.join(PROJECT_DIR, "scripts", "rig"))
+import golden_identity_guard  # noqa: E402
 
 
 def run_tool(*arguments):
@@ -50,6 +54,28 @@ def write_rgb_png(path, width, height, pixels):
 
 
 class ExpectedAuditPinsTest(unittest.TestCase):
+    def test_startup_identity_declarations_are_tracked_and_win32_guards_before_copy(self):
+        declarations = os.path.join(
+            SCENARIO_DIR, "startup-golden-identities.txt"
+        )
+        entries = golden_identity_guard.read_declarations(pathlib.Path(declarations))
+        self.assertEqual(
+            [cell for cell, _ in entries],
+            [
+                ("minesweeper", "new-game-twice"),
+                ("scrapbook", "open-first-page"),
+                ("scrapbook", "flip-forward-back"),
+            ],
+        )
+
+        runner_path = os.path.join(PROJECT_DIR, "tests", "win32", "run-scenario.ps1")
+        with open(runner_path, "r", encoding="utf-8") as handle:
+            runner = handle.read()
+        guard_call = runner.index("Invoke-GoldenIdentityGuard $Actual")
+        golden_copy = runner.index("Copy-Item -LiteralPath $Actual -Destination $Golden")
+        self.assertLess(guard_call, golden_copy)
+        self.assertIn("--declarations $StartupIdentityDeclarations", runner)
+
     def test_win32_vehicle_map_covers_the_shared_registry_examples(self):
         runner_path = os.path.join(PROJECT_DIR, "tests", "win32", "run-scenario.ps1")
         with open(runner_path, "r", encoding="utf-8") as handle:

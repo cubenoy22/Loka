@@ -17,6 +17,7 @@ make_fixture() {
   mkdir -p "$SANDBOX/repo/tests/toolbox" "$SANDBOX/repo/tests/scenarios"
   cp "$SUBJECT" "$SANDBOX/repo/tests/toolbox/run-presentation-rail.sh"
   printf 'first alpha\nsecond beta\n' >"$SANDBOX/repo/tests/scenarios/scenarios.txt"
+  : >"$SANDBOX/repo/tests/scenarios/startup-golden-identities.txt"
 }
 
 write_success_runner() {
@@ -26,7 +27,10 @@ set -euo pipefail
 example="$1"
 scenario="$2"
 cat >/dev/null
-output="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/build/mame-scenario/$example/$scenario"
+repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+printf '%s %s %s\n' "$#" "$example" "$scenario" \
+  >>"$repo/build/presentation-runner-invocations"
+output="$repo/build/mame-scenario/$example/$scenario"
 mkdir -p "$output"
 printf 'capture-%s\n' "$scenario" >"$output/$scenario.png"
 EOF
@@ -41,6 +45,10 @@ SUCCESS="$SANDBOX/repo/build/mame-scenario/presentation/success"
 [ -f "$SUCCESS/first/alpha.png" ] || fail "success archive omitted first/alpha.png"
 [ -f "$SUCCESS/second/beta.png" ] || fail "success archive omitted second/beta.png"
 [ ! -e "$SUCCESS.incomplete" ] || fail "success left an incomplete directory"
+if ! awk '$1 != 2 { exit 1 }' \
+    "$SANDBOX/repo/build/presentation-runner-invocations"; then
+  fail "presentation collection entered the record-time --update-golden seam"
+fi
 grep -q '^presentation_version=1$' "$SUCCESS/presentation-manifest.txt" \
   || fail "manifest omitted its version"
 grep -q '^scenario_count=2$' "$SUCCESS/presentation-manifest.txt" \
