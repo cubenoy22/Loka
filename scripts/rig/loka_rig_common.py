@@ -92,7 +92,7 @@ class RunResult:
             raise RigError("manifest", f"invalid build_verification: {self.build_verification}")
         if self.runtime_verification not in verification_values:
             raise RigError("manifest", f"invalid runtime_verification: {self.runtime_verification}")
-        if self.machine_verdict not in verification_values:
+        if self.machine_verdict not in verification_values | {"refused"}:
             raise RigError("manifest", f"invalid machine_verdict: {self.machine_verdict}")
         if self.presentation_status not in ("collected", "failed-or-not-reached"):
             raise RigError("manifest", f"invalid presentation_status: {self.presentation_status}")

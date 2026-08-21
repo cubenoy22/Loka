@@ -116,9 +116,13 @@ cat >"$SANDBOX/repo/tests/toolbox/run-scenario.sh" <<'EOF'
 set -euo pipefail
 example="$1"
 scenario="$2"
-if [ "$scenario" = "beta" ]; then exit 7; fi
 output="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/build/mame-scenario/$example/$scenario"
 mkdir -p "$output"
+if [ "$scenario" = "beta" ]; then
+  printf 'machine_verdict=refused\nruntime_verification=passed\nrefusal_reason=fake mismatch\n' \
+    >"$output/machine-verdict.txt"
+  exit 7
+fi
 printf 'capture-%s\n' "$scenario" >"$output/$scenario.png"
 EOF
 chmod +x "$SANDBOX/repo/tests/toolbox/run-scenario.sh"
@@ -131,6 +135,35 @@ FAILURE_ROOT="$SANDBOX/repo/build/mame-scenario/presentation"
   || fail "scenario failure did not preserve the incomplete directory"
 [ ! -e "$FAILURE_ROOT/runner-failure" ] \
   || fail "scenario failure published a completed directory"
+grep -Fxq 'machine_verdict=refused' \
+  "$FAILURE_ROOT/runner-failure.incomplete/machine-verdict.txt" \
+  || fail "presentation failure did not preserve the machine-readable refusal"
+
+make_fixture
+cat >"$SANDBOX/repo/tests/toolbox/run-scenario.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+example="$1"
+scenario="$2"
+output="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/build/mame-scenario/$example/$scenario"
+mkdir -p "$output"
+printf 'machine_verdict=failed-or-not-reached\nruntime_verification=failed-or-not-reached\nrefusal_reason=missing provenance\n' \
+  >"$output/machine-verdict.txt"
+exit 3
+EOF
+chmod +x "$SANDBOX/repo/tests/toolbox/run-scenario.sh"
+if LOKA_TOOLBOX_PRESENTATION_RUN_ID=preflight-failure \
+    bash "$SANDBOX/repo/tests/toolbox/run-presentation-rail.sh" >/dev/null 2>&1; then
+  fail "preflight failure reported success"
+fi
+PREFLIGHT_MARKER="$SANDBOX/repo/build/mame-scenario/presentation/preflight-failure.incomplete/machine-verdict.txt"
+grep -Fxq 'machine_verdict=failed-or-not-reached' "$PREFLIGHT_MARKER" \
+  || fail "presentation rail did not preserve the preflight machine verdict"
+grep -Fxq 'runtime_verification=failed-or-not-reached' "$PREFLIGHT_MARKER" \
+  || fail "presentation rail did not preserve the preflight runtime fact"
+if grep -Fq 'machine_verdict=refused' "$PREFLIGHT_MARKER"; then
+  fail "presentation rail promoted preflight failure to refused"
+fi
 
 make_fixture
 cat >"$SANDBOX/repo/tests/toolbox/run-scenario.sh" <<'EOF'

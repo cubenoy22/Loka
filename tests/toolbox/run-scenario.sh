@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 usage() {
-  echo "Usage: $0 <example> <scenario from scenarios.txt> [--update-golden | --probe]" >&2
+  echo "Usage: $0 <example> <scenario from scenarios.txt> [--update-golden | --probe | --structural-audit]" >&2
 }
 
 fail_stage() {
@@ -26,6 +26,7 @@ EXAMPLE="$1"
 SCENARIO="$2"
 SCENARIO_REGISTRY="$PROJECT_DIR/tests/scenarios/scenarios.txt"
 UPDATE_GOLDEN=0
+STRUCTURAL_AUDIT=0
 if [[ ! "$EXAMPLE" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
   || [[ ! "$SCENARIO" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
   || ! grep -Fxq -- "$EXAMPLE $SCENARIO" "$SCENARIO_REGISTRY"; then
@@ -41,6 +42,7 @@ helloworld toggle-action-probe"
 if [ $# -eq 3 ]; then
   case "$3" in
     --update-golden) UPDATE_GOLDEN=1 ;;
+    --structural-audit) STRUCTURAL_AUDIT=1 ;;
     --probe)
       if ! printf '%s\n' "$PROBE_CELLS" | grep -Fxq -- "$EXAMPLE $SCENARIO"; then
         echo "no probe leg exists for '$EXAMPLE $SCENARIO'; probe cells: $PROBE_CELLS" >&2
@@ -158,7 +160,13 @@ ACTUAL_IMAGE="$WORK/$SCENARIO.png"
 # directory wipes and regenerate with --update-golden; reviewers see the
 # captures through the pr-assets evidence branch instead.
 GOLDEN="$PROJECT_DIR/build/mame-scenario/golden/$EXAMPLE/$SCENARIO.png"
-GOLDEN_MACHINE="$GOLDEN.mame-machine"
+GOLDEN_BUNDLE="$PROJECT_DIR/build/mame-scenario/golden"
+GOLDEN_IDENTITY_HELPER="$PROJECT_DIR/scripts/rig/toolbox/classic_golden_identity.py"
+RIG_DESCRIPTOR="$PROJECT_DIR/scripts/rig/toolbox/rigs/toolbox-maciix.ini"
+CAPTURE_ADAPTER="${LOKA_TOOLBOX_CAPTURE_ADAPTER:-mame-screen-snapshot.v1}"
+BUILD_PROVENANCE="$(dirname "$APPL")/classic-build-provenance.txt"
+CURRENT_IDENTITY="$WORK/classic-golden-identity.txt"
+MACHINE_VERDICT="$WORK/machine-verdict.txt"
 HOME_DIR="$WORK/home"
 CFG_DIR="$WORK/cfg"
 NVRAM_DIR="$WORK/nvram"
@@ -177,6 +185,30 @@ fi
 # it is a copy.
 if ! chmod u+w "$BOOT"; then
   fail_stage mame "could not make the boot hard disk copy writable"
+fi
+
+# Capture the immutable boot-template content before MAME can write to its
+# private copy. Build provenance comes from the clean Retro68 build artifact;
+# only the emulator/ROM facts are resolved on the host here.
+if [ "$STRUCTURAL_AUDIT" -eq 0 ]; then
+  if ! identity_message="$(python3 "$GOLDEN_IDENTITY_HELPER" capture-current \
+      --output "$CURRENT_IDENTITY" \
+      --build-provenance "$BUILD_PROVENANCE" \
+      --descriptor "$RIG_DESCRIPTOR" \
+      --mame-executable "$MAME_EXECUTABLE" \
+      --rompath "${MAME_ROMPATH:-}" \
+      --ram-size "$RAMSIZE" \
+      --machine "$MACHINE" \
+      --capture-adapter "$CAPTURE_ADAPTER" \
+      --boot-hd "$BOOT" 2>&1)"; then
+    refusal_reason="${identity_message//$'\n'/ }"
+    printf 'machine_verdict=failed-or-not-reached\nruntime_verification=failed-or-not-reached\nrefusal_reason=%s\n' \
+      "$refusal_reason" >"$MACHINE_VERDICT" || true
+    echo "machine_verdict=failed-or-not-reached" >&2
+    echo "$identity_message" >&2
+    echo "Work directory left for inspection: $WORK" >&2
+    exit 3
+  fi
 fi
 # linger_seconds keeps the scenario window alive after the audit is written,
 # so the emulator-side snapshot captures the scene instead of the desktop the
@@ -364,35 +396,43 @@ if ! cp -f "$newest_snapshot" "$ACTUAL_IMAGE"; then
   fail_stage collect "could not collect $newest_snapshot"
 fi
 
+if [ "$STRUCTURAL_AUDIT" -eq 1 ]; then
+  echo "Scenario structural/audit pass: $EXAMPLE/$SCENARIO"
+  echo "Pixel verdict: not evaluated (Classic structural/audit mode does not claim a pixel verdict)"
+  exit 0
+fi
+
 if [ "$UPDATE_GOLDEN" -eq 1 ]; then
-  if ! mkdir -p "$(dirname "$GOLDEN")"; then
-    fail_stage golden "could not create the golden directory"
+  if ! python3 "$GOLDEN_IDENTITY_HELPER" stage-capture \
+      --bundle "$GOLDEN_BUNDLE" \
+      --registry "$SCENARIO_REGISTRY" \
+      --descriptor "$RIG_DESCRIPTOR" \
+      --current-identity "$CURRENT_IDENTITY" \
+      --capture "$ACTUAL_IMAGE" \
+      --application "$APPL" \
+      --source-tree "$PROJECT_DIR" \
+      --example "$EXAMPLE" \
+      --scenario "$SCENARIO"; then
+    fail_stage golden "could not stage the complete atomic golden bundle"
   fi
-  if ! cp -f "$ACTUAL_IMAGE" "$GOLDEN"; then
-    fail_stage golden "could not update $GOLDEN"
-  fi
-  if ! printf '%s\n' "$MACHINE" >"$GOLDEN_MACHINE"; then
-    fail_stage golden "could not record MAME machine '$MACHINE' in $GOLDEN_MACHINE"
-  fi
-  echo "Updated golden: $GOLDEN"
-  echo "Recorded MAME machine: $MACHINE"
   echo "Reminder: attach before/after visual evidence to the PR."
   exit 0
 fi
 
-if [ ! -f "$GOLDEN" ]; then
-  fail_stage golden "missing $GOLDEN; rerun with --update-golden to create it"
-fi
-if [ ! -f "$GOLDEN_MACHINE" ]; then
-  fail_stage golden \
-    "missing machine record $GOLDEN_MACHINE for existing $GOLDEN; rerun with --update-golden, or write '$MACHINE' to $GOLDEN_MACHINE if you know the golden's provenance"
-fi
-if ! RECORDED_MACHINE="$(cat "$GOLDEN_MACHINE")"; then
-  fail_stage golden "could not read machine record $GOLDEN_MACHINE"
-fi
-if [ "$RECORDED_MACHINE" != "$MACHINE" ]; then
-  fail_stage golden \
-    "$GOLDEN was recorded on MAME machine '$RECORDED_MACHINE', but the current machine is '$MACHINE'; switch machines or rerun with --update-golden to replace it intentionally"
+if ! identity_message="$(python3 "$GOLDEN_IDENTITY_HELPER" verify \
+    --bundle "$GOLDEN_BUNDLE" \
+    --registry "$SCENARIO_REGISTRY" \
+    --descriptor "$RIG_DESCRIPTOR" \
+    --current-identity "$CURRENT_IDENTITY" \
+    --example "$EXAMPLE" \
+    --scenario "$SCENARIO" 2>&1)"; then
+  refusal_reason="${identity_message//$'\n'/ }"
+  printf 'machine_verdict=refused\nruntime_verification=passed\nrefusal_reason=%s\n' \
+    "$refusal_reason" >"$MACHINE_VERDICT" || true
+  echo "machine_verdict=refused" >&2
+  echo "$identity_message" >&2
+  echo "Work directory left for inspection: $WORK" >&2
+  exit 3
 fi
 if ! python3 "$PNG_TOOL" compare "$ACTUAL_IMAGE" "$GOLDEN"; then
   python3 "$PNG_TOOL" diff "$GOLDEN" "$ACTUAL_IMAGE" "$DIFF_DIR/$SCENARIO.png" || true

@@ -288,10 +288,22 @@ python3 scripts/rig/loka-rig.py run toolbox-maciix \
 ```
 
 The Toolbox adapter creates a detached checkout, configures and builds the
-Retro68 scenario applications, stages the finalized per-example rig-local
-goldens, runs the shared ten-scenario rail, and collects the ten PNGs plus both the presentation and
-common run manifests. Adapter failure retains the checkout for diagnosis;
+Retro68 scenario applications, validates and atomically stages the strict
+rig-local golden bundle, runs every registered scenario, and collects the PNGs
+plus both the presentation and common run manifests. Adapter failure retains the checkout for diagnosis;
 success removes it only after manifest finalization.
+
+Each `--update-golden` scenario capture enters a sibling `.incomplete` bake.
+The official directory changes only when the bake contains every registry
+entry and its one manifest binds every PNG, its producing application binary
+digest, and every reference-identity field. Resuming an incomplete bake also
+requires the same Git HEAD and `git status --porcelain` digest that started it;
+an unattestable source tree may publish a one-shot bake but cannot resume one. A
+complete bake from a different environment remains ineligible until its
+printed identity digest is reviewed and separately written to the tracked
+`toolbox-maciix.ini`; baking never edits that authority. Use
+`--structural-audit` for contributor runs that validate the tracked audit and
+capture path without claiming a pixel verdict.
 
 ### Isolate the emulator state
 
