@@ -36,7 +36,9 @@ Build below.
   `cmd.exe /c <name>.bat > log.txt 2>&1` from that directory.
 - **Full output to a file, never `| tail`** — piping hides progress and
   truncates the execution evidence.
-- Delete the bat files and the worktree when the PR merges.
+- Delete the worktree when the PR merges. The bat files and the
+  `golden.lrpk` the test binary writes from the worktree root are
+  gitignored, so they cannot reach a commit if you forget.
 
 ## Build
 
