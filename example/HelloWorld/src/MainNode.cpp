@@ -1,6 +1,5 @@
 #include "MainNode.hpp"
 
-#include "BmiCalculatorComponent.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/core/Window.hpp"
 #include "app/nodes/controls/Button.hpp"
@@ -97,8 +96,7 @@ namespace helloworld
                   .enabled(this->actionEnabled_.state())
                   .TEST_ID("HelloWorld.LeftPanel.ProbeButton")
            << Button("Toggle Button Enabled", &this->toggleActionEnabledEvent_)
-                  .TEST_ID("HelloWorld.LeftPanel.ToggleEnabledButton")
-           << BmiCalculator(this->heightInput_.state(), this->weightInput_.state(), this->bmiResult_.state());
+                  .TEST_ID("HelloWorld.LeftPanel.ToggleEnabledButton");
   }
 
   double MainNode::parseBmiValue(const String &value) const
@@ -271,7 +269,12 @@ namespace helloworld
     loka::app::scene::NodeComposition::ParentScope scope(c, root);
     c.declare(HStack().TEST_ID("HelloWorld.MainPanels")
               << this->mainLeftPanel()
-              << MainRightPanel(&this->fruits_, this->fruitIndex_.state(), this->fruitMessage_.state()));
+              << MainRightPanel(&this->fruits_,
+                                this->fruitIndex_.state(),
+                                this->fruitMessage_.state(),
+                                this->heightInput_.state(),
+                                this->weightInput_.state(),
+                                this->bmiResult_.state()));
     c.declare(Text("*").TEST_ID("HelloWorld.Decoration"));
   }
 } // namespace helloworld
