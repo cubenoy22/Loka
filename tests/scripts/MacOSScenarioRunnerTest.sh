@@ -15,6 +15,7 @@ fail() {
 mkdir -p \
   "$SANDBOX/repo/tests/macos" \
   "$SANDBOX/repo/tests/scenarios/expected" \
+  "$SANDBOX/repo/scripts/rig/macos/rigs" \
   "$SANDBOX/repo/example/ScrapbookUI/assets" \
   "$SANDBOX/repo/build/host/lrpc" \
   "$SANDBOX/repo/build" \
@@ -27,6 +28,13 @@ cp "$REPO_DIR/scripts/rig/golden_identity_guard.py" \
   "$SANDBOX/repo/scripts/rig/golden_identity_guard.py"
 cp "$REPO_DIR/scripts/rig/package_fixture_guard.py" \
   "$SANDBOX/repo/scripts/rig/package_fixture_guard.py"
+cp "$REPO_DIR/scripts/rig/capture_profile_guard.py" \
+  "$SANDBOX/repo/scripts/rig/capture_profile_guard.py"
+cp "$REPO_DIR/scripts/rig/macos/rigs/tahoe.ini" \
+  "$SANDBOX/repo/scripts/rig/macos/rigs/tahoe.ini"
+sed 's/appearance = light/appearance = dark/' \
+  "$SANDBOX/repo/scripts/rig/macos/rigs/tahoe.ini" \
+  >"$SANDBOX/repo/scripts/rig/macos/rigs/mismatch.ini"
 cp "$REPO_DIR/tests/scenarios/pngtool.py" "$SANDBOX/repo/tests/scenarios/pngtool.py"
 cp "$REPO_DIR/tests/scenarios/scenarios.txt" "$SANDBOX/repo/tests/scenarios/scenarios.txt"
 cp "$REPO_DIR/tests/scenarios/startup-golden-identities.txt" \
@@ -89,7 +97,20 @@ fi
 cp -f "$FAKE_SNAPSHOT" actual.png
 cp -f "$FAKE_SNAPSHOT" settle-a.png
 cp -f "$FAKE_SNAPSHOT" settle-b.png
-printf 'fake-profile\n' >actual.profile
+printf '%s\n' \
+  'profile_version=2' \
+  'os_build=25G76' \
+  'arch=x86_64' \
+  'scale_percent=200' \
+  'depth=24' \
+  'appearance=light' \
+  'capture_api=NSView.cacheDisplayInRect.v1' \
+  >actual.profile
+if [ "${LOKA_MACOS_SCENARIO_MODE:-flow}" = "inspect" ]; then
+  printf 'inspection-ready\n' >ready.tmp
+  mv -f ready.tmp ready
+  sleep 0.2
+fi
 printf 'artifacts-ready\n' >complete.tmp
 mv -f complete.tmp complete
 SH
@@ -123,7 +144,8 @@ done
 
 EXPECTED="$SANDBOX/repo/tests/scenarios/expected/scrapbook/open-first-page-refused.audit"
 WORK="$SANDBOX/repo/build/macos-scenario/scrapbook/open-first-page-refused"
-if ! LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
+if ! env -u LOKA_MACOS_RIG \
+    LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
     LOKA_MACOS_SCENARIO_WORK="$WORK" FAKE_REQUIRE_STAGED=1 \
     FAKE_EXPECTED_AUDIT="$EXPECTED" FAKE_SNAPSHOT="$SANDBOX/snapshot.png" \
     bash "$SANDBOX/repo/tests/macos/run-scenario.sh" \
@@ -208,6 +230,19 @@ for example in scrapbook helloworld tutorial minesweeper floppybird; do
   fi
 done
 
+if ! env -u LOKA_MACOS_RIG \
+    LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
+    LOKA_MACOS_SCENARIO_WORK="$SANDBOX/repo/build/macos-scenario/helloworld/startup" \
+    FAKE_EXPECTED_AUDIT="$SANDBOX/repo/tests/scenarios/expected/helloworld/startup.audit" \
+    FAKE_SNAPSHOT="$SANDBOX/snapshot.png" \
+    bash "$SANDBOX/repo/tests/macos/run-scenario.sh" \
+      helloworld startup --inspect \
+      >"$SANDBOX/runner-inspect-unset-rig.log" 2>&1; then
+  fail "inspect mode required LOKA_MACOS_RIG"
+fi
+grep -Fq 'Pixel verdict: not evaluated' "$SANDBOX/runner-inspect-unset-rig.log" \
+  || fail "inspect mode did not reach its non-pixel verdict"
+
 EXPECTED="$SANDBOX/repo/tests/scenarios/expected/scrapbook/startup.audit"
 WORK="$SANDBOX/repo/build/macos-scenario/scrapbook/startup"
 
@@ -229,16 +264,104 @@ run_macos_update() {
   local snapshot="$3"
   local expected="$SANDBOX/repo/tests/scenarios/expected/$example/$scenario.audit"
   local work="$SANDBOX/repo/build/macos-scenario/$example/$scenario"
-  LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
+  LOKA_MACOS_RIG=tahoe \
+    LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
     LOKA_MACOS_SCENARIO_WORK="$work" \
     FAKE_EXPECTED_AUDIT="$expected" FAKE_SNAPSHOT="$snapshot" \
     bash "$SANDBOX/repo/tests/macos/run-scenario.sh" \
       "$example" "$scenario" --update-golden
 }
 
+run_macos_verify() {
+  local rig="$1"
+  local example="$2"
+  local scenario="$3"
+  local snapshot="$4"
+  local expected="$SANDBOX/repo/tests/scenarios/expected/$example/$scenario.audit"
+  local work="$SANDBOX/repo/build/macos-scenario/$example/$scenario"
+  LOKA_MACOS_RIG="$rig" \
+    LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
+    LOKA_MACOS_SCENARIO_WORK="$work" \
+    FAKE_EXPECTED_AUDIT="$expected" FAKE_SNAPSHOT="$snapshot" \
+    bash "$SANDBOX/repo/tests/macos/run-scenario.sh" \
+      "$example" "$scenario"
+}
+
+UNSET_GOLDEN="$SANDBOX/repo/build/macos-scenario/golden/floppybird/startup.png"
+if env -u LOKA_MACOS_RIG \
+    LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
+    LOKA_MACOS_SCENARIO_WORK="$SANDBOX/repo/build/macos-scenario/floppybird/startup" \
+    FAKE_EXPECTED_AUDIT="$SANDBOX/repo/tests/scenarios/expected/floppybird/startup.audit" \
+    FAKE_SNAPSHOT="$SANDBOX/snapshot.png" \
+    bash "$SANDBOX/repo/tests/macos/run-scenario.sh" \
+      floppybird startup --update-golden \
+      >"$SANDBOX/rig-unset.log" 2>&1; then
+  fail "macOS update passed without LOKA_MACOS_RIG"
+fi
+grep -Fq 'LOKA_MACOS_RIG is unset; set LOKA_MACOS_RIG=<name>' \
+  "$SANDBOX/rig-unset.log" \
+  || fail "unset rig refusal did not say what to set"
+[ ! -e "$UNSET_GOLDEN" ] || fail "unset rig refusal wrote the golden"
+
+if LOKA_MACOS_RIG=mismatch \
+    LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
+    LOKA_MACOS_SCENARIO_WORK="$SANDBOX/repo/build/macos-scenario/floppybird/startup" \
+    FAKE_EXPECTED_AUDIT="$SANDBOX/repo/tests/scenarios/expected/floppybird/startup.audit" \
+    FAKE_SNAPSHOT="$SANDBOX/snapshot.png" \
+    bash "$SANDBOX/repo/tests/macos/run-scenario.sh" \
+      floppybird startup --update-golden \
+      >"$SANDBOX/rig-mismatch-update.log" 2>&1; then
+  fail "macOS update passed with a mismatched capture descriptor"
+fi
+grep -Fq 'capture environment is not the one' "$SANDBOX/rig-mismatch-update.log" \
+  || fail "update mismatch did not fail at the capture-profile guard"
+grep -Fq "$SANDBOX/repo/scripts/rig/macos/rigs/mismatch.ini" \
+  "$SANDBOX/rig-mismatch-update.log" \
+  || fail "update mismatch refusal did not name its descriptor"
+[ ! -e "$UNSET_GOLDEN" ] || fail "capture-profile refusal wrote the golden"
+
+UNKNOWN_DESCRIPTOR="$SANDBOX/repo/scripts/rig/macos/rigs/unknown-rig.ini"
+if LOKA_MACOS_RIG=unknown-rig \
+    LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
+    LOKA_MACOS_SCENARIO_WORK="$SANDBOX/repo/build/macos-scenario/tutorial/startup" \
+    FAKE_EXPECTED_AUDIT="$SANDBOX/repo/tests/scenarios/expected/tutorial/startup.audit" \
+    FAKE_SNAPSHOT="$SANDBOX/snapshot.png" \
+    bash "$SANDBOX/repo/tests/macos/run-scenario.sh" \
+      tutorial startup --update-golden \
+      >"$SANDBOX/rig-unknown.log" 2>&1; then
+  fail "macOS update passed with an unknown rig name"
+fi
+grep -Fq "no tracked rig descriptor at $UNKNOWN_DESCRIPTOR" "$SANDBOX/rig-unknown.log" \
+  || fail "unknown rig refusal did not name the missing descriptor path"
+grep -Fq 'declaring the [capture] fields this machine reports' "$SANDBOX/rig-unknown.log" \
+  || fail "unknown rig refusal did not say what belongs in the descriptor"
+
+for invalid_rig in 'tahoe/escape' 'tahoe..copy'; do
+  if LOKA_MACOS_RIG="$invalid_rig" \
+      LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
+      LOKA_MACOS_SCENARIO_WORK="$SANDBOX/repo/build/macos-scenario/tutorial/startup" \
+      FAKE_EXPECTED_AUDIT="$SANDBOX/repo/tests/scenarios/expected/tutorial/startup.audit" \
+      FAKE_SNAPSHOT="$SANDBOX/snapshot.png" \
+      bash "$SANDBOX/repo/tests/macos/run-scenario.sh" \
+        tutorial startup --update-golden \
+        >"$SANDBOX/rig-invalid.log" 2>&1; then
+    fail "macOS update passed with invalid rig name '$invalid_rig'"
+  fi
+  grep -Fq "invalid LOKA_MACOS_RIG name '$invalid_rig'" "$SANDBOX/rig-invalid.log" \
+    || fail "invalid rig refusal did not name '$invalid_rig'"
+done
+
 run_macos_update helloworld startup "$SANDBOX/snapshot.png" \
   >"$SANDBOX/identity-undeclared-startup.log" 2>&1 \
   || fail "could not record the macOS HelloWorld startup reference"
+[ -f "$SANDBOX/repo/build/macos-scenario/golden/helloworld/startup.png" ] \
+  || fail "matching capture descriptor did not write the golden"
+if run_macos_verify mismatch helloworld startup "$SANDBOX/snapshot.png" \
+    >"$SANDBOX/rig-mismatch-verify.log" 2>&1; then
+  fail "macOS verify passed with a mismatched capture descriptor"
+fi
+grep -Fq 'capture environment is not the one' "$SANDBOX/rig-mismatch-verify.log" \
+  || fail "verify mismatch did not fail at the capture-profile guard"
 if run_macos_update helloworld bmi-roundtrip "$SANDBOX/snapshot.png" \
     >"$SANDBOX/identity-undeclared.log" 2>&1; then
   fail "macOS recorded an undeclared startup-identical capture"
