@@ -314,4 +314,22 @@ if grep -Fq 'the app wrote nothing' "$SANDBOX/stall-chatty.log"; then
   fail "partial stall refusal claimed the app wrote nothing"
 fi
 
+# A refusal that fires before the work directory is reset must not describe
+# what is in it. Caught on the rig: the build-stage refusal listed the previous
+# run's completion marker as if this run had produced it.
+if LOKA_MACOS_SCENARIO_APP="$SANDBOX/no-such.app" \
+    LOKA_MACOS_SCENARIO_WORK="$STALL_WORK" \
+    FAKE_EXPECTED_AUDIT="$SANDBOX/repo/tests/scenarios/expected/tutorial/startup.audit" \
+    FAKE_SNAPSHOT="$SANDBOX/snapshot.png" \
+    bash "$SANDBOX/repo/tests/macos/run-scenario.sh" \
+      tutorial startup \
+      >"$SANDBOX/stall-preflight.log" 2>&1; then
+  fail "macOS accepted a run whose app does not exist"
+fi
+grep -Fq 'stopped before it reset the work directory' "$SANDBOX/stall-preflight.log" \
+  || fail "preflight refusal did not say the work directory is not this run's"
+if grep -Eq '^(Present|Absent):' "$SANDBOX/stall-preflight.log"; then
+  fail "preflight refusal described a work directory this run never reset"
+fi
+
 echo "macOS scenario runner tests passed"

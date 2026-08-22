@@ -75,9 +75,19 @@ WORK_CENSUS_ENTRIES=(
   complete
 )
 
+# Set once this run has emptied and recreated $WORK. Before that the directory
+# still holds the previous run's artifacts, and reporting those as progress
+# would be worse than saying nothing: a refusal that never launched the app
+# would list a completion marker.
+WORK_IS_THIS_RUNS=0
+
 describe_work_state() {
   if [ ! -d "$WORK" ]; then
     echo "Work state: the work directory does not exist"
+    return
+  fi
+  if [ "$WORK_IS_THIS_RUNS" -eq 0 ]; then
+    echo "Work state: this run stopped before it reset the work directory, so what is in it belongs to the previous run"
     return
   fi
   if [ ! -f "$WORK/runner.log" ]; then
@@ -151,6 +161,7 @@ if [ -d "$WORK" ]; then
   rm -rf "$WORK"
 fi
 mkdir -p "$WORK"
+WORK_IS_THIS_RUNS=1
 if [ "$EXAMPLE" = "scrapbook" ]; then
   if ! mkdir -p "$WORK/stage"; then
     fail_stage stage "could not create $WORK/stage"
