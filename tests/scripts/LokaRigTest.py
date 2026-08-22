@@ -26,6 +26,25 @@ from toolbox import loka_toolbox_rig as toolbox
 from toolbox import classic_golden_identity as golden_identity
 
 
+# Every field tests/macos/ScenarioDriverSupport.mm can put in a capture
+# profile. A descriptor may declare any subset; it may not declare a field the
+# capture never carries, which the guard would refuse on every run.
+MACOS_PROFILE_FIELDS = {
+    "profile_version",
+    "os_build",
+    "arch",
+    "scale_percent_available",
+    "scale_percent",
+    "depth_available",
+    "depth",
+    "appearance_available",
+    "appearance",
+    "capture_api",
+    "pixel_width",
+    "pixel_height",
+}
+
+
 def make_toolbox_golden_bundle(root, checkout, scenarios):
     registry = checkout / "tests" / "scenarios" / "scenarios.txt"
     registry.parent.mkdir(parents=True, exist_ok=True)
@@ -959,36 +978,47 @@ class CaptureProfileGuardTest(unittest.TestCase):
                 "capture_api": "NSView.cacheDisplayInRect.v1",
             },
         )
-        macos_profile_fields = {
-            "profile_version",
-            "os_build",
-            "arch",
-            "scale_percent_available",
-            "scale_percent",
-            "depth_available",
-            "depth",
-            "appearance_available",
-            "appearance",
-            "capture_api",
-            "pixel_width",
-            "pixel_height",
-        }
-        self.assertLessEqual(set(declared), macos_profile_fields)
+        self.assertLessEqual(set(declared), MACOS_PROFILE_FIELDS)
 
-    def test_mavericks_declares_no_capture_section(self):
-        """The Mavericks rig has never had its capture profile recorded.
+    def test_mavericks_declares_the_environment_its_rig_reported(self):
+        """The Mavericks rig captured on 2026-08-22; these are its numbers.
 
-        Any [capture] value there would be invented, and an invented value is
-        worse than none: the guard would pass a bake against a number nobody
-        measured. Until that rig captures once, its descriptor stays without a
-        [capture] section and the guard refuses any pixel-evaluating run that
-        selects it.
+        Until then this descriptor carried no [capture] section on purpose:
+        any value would have been invented, and the guard would have passed a
+        bake against a number nobody measured. The section replaces that
+        absence with what the rig actually reported, so the values are a
+        tracked edit rather than whatever the desktop happened to be.
         """
         descriptor = ROOT / "scripts" / "rig" / "macos" / "rigs" / "mavericks-10.9.ini"
-        with self.assertRaises(capture_profile_guard.CaptureProfileError) as caught:
-            capture_profile_guard.read_declared_capture(descriptor)
-        self.assertIn("declares no [capture] section", str(caught.exception))
+        declared = capture_profile_guard.read_declared_capture(descriptor)
+        self.assertEqual(
+            declared,
+            {
+                "profile_version": "2",
+                "os_build": "13F1911",
+                "arch": "x86_64",
+                "scale_percent": "100",
+                "depth": "24",
+                "appearance_available": "0",
+                "capture_api": "NSView.cacheDisplayInRect.v1",
+            },
+        )
+        self.assertLessEqual(set(declared), MACOS_PROFILE_FIELDS)
 
+    def test_mavericks_declares_no_appearance_value(self):
+        """10.9 predates the appearance API, so there is no value to pin.
+
+        The vehicle reports appearance_available=0 and emits no appearance
+        field at all, so declaring one would name something the capture never
+        carries and the guard would refuse every run. The absence is what is
+        declared instead, which is why a build that later gains appearance
+        reporting is refused rather than silently compared against goldens
+        baked before the desktop theme could reach the capture.
+        """
+        descriptor = ROOT / "scripts" / "rig" / "macos" / "rigs" / "mavericks-10.9.ini"
+        declared = capture_profile_guard.read_declared_capture(descriptor)
+        self.assertNotIn("appearance", declared)
+        self.assertEqual(declared["appearance_available"], "0")
 
 
 class RunnerRigScriptReferenceTest(unittest.TestCase):
