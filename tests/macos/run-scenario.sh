@@ -62,16 +62,20 @@ SCREENCAPTURE="${SCREENCAPTURE:-/usr/sbin/screencapture}"
 # can say how far the app actually got. runner.log is reported separately: its
 # size is the fact that separates "hung before writing anything" from "stopped
 # partway", and neither is visible from a bare deadline message (#466).
-WORK_CENSUS_ENTRIES=(
-  LokaTest.cfg
-  app.pid
-  stage
-  ready
+WORK_REQUIRED_ARTIFACTS=(
   actual.audit
   actual.png
   actual.profile
   settle-a.png
   settle-b.png
+  runner.log
+)
+WORK_CENSUS_ENTRIES=(
+  LokaTest.cfg
+  app.pid
+  stage
+  ready
+  "${WORK_REQUIRED_ARTIFACTS[@]}"
   complete
 )
 
@@ -105,6 +109,10 @@ describe_work_state() {
   fi
   local present=() absent=() entry
   for entry in "${WORK_CENSUS_ENTRIES[@]}"; do
+    if [ "$entry" = "runner.log" ]; then
+      # already reported above, with its size
+      continue
+    fi
     if [ -e "$WORK/$entry" ]; then
       present+=("$entry")
     else
@@ -264,7 +272,7 @@ fi
 if [ ! -f "$WORK/complete" ] || [ "$(tr -d '\r\n' <"$WORK/complete")" != "artifacts-ready" ]; then
   fail_stage completion "atomic completion marker is missing or invalid"
 fi
-for artifact in actual.audit actual.png actual.profile settle-a.png settle-b.png runner.log; do
+for artifact in "${WORK_REQUIRED_ARTIFACTS[@]}"; do
   if [ ! -f "$WORK/$artifact" ]; then
     fail_stage artifacts "missing $artifact"
   fi

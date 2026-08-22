@@ -96,6 +96,9 @@ cp -f "$FAKE_SNAPSHOT" actual.png
 cp -f "$FAKE_SNAPSHOT" settle-a.png
 cp -f "$FAKE_SNAPSHOT" settle-b.png
 printf 'fake-profile\n' >actual.profile
+if [ -n "${FAKE_OMIT:-}" ]; then
+  rm -f "$FAKE_OMIT"
+fi
 printf 'artifacts-ready\n' >complete.tmp
 mv -f complete.tmp complete
 SH
@@ -331,5 +334,23 @@ grep -Fq 'stopped before it reset the work directory' "$SANDBOX/stall-preflight.
 if grep -Eq '^(Present|Absent):' "$SANDBOX/stall-preflight.log"; then
   fail "preflight refusal described a work directory this run never reset"
 fi
+
+# One list names the artifacts a run must leave and the entries the census
+# reports. Shrinking it would quietly narrow both, so a missing artifact has to
+# be refused by name.
+if FAKE_OMIT=settle-b.png \
+    LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
+    LOKA_MACOS_SCENARIO_WORK="$STALL_WORK" \
+    FAKE_EXPECTED_AUDIT="$SANDBOX/repo/tests/scenarios/expected/tutorial/startup.audit" \
+    FAKE_SNAPSHOT="$SANDBOX/snapshot.png" \
+    bash "$SANDBOX/repo/tests/macos/run-scenario.sh" \
+      tutorial startup \
+      >"$SANDBOX/missing-artifact.log" 2>&1; then
+  fail "macOS accepted a run that left out settle-b.png"
+fi
+grep -Fq 'artifacts stage failed: missing settle-b.png' "$SANDBOX/missing-artifact.log" \
+  || fail "missing-artifact refusal did not name the artifact"
+grep -E '^Absent: .*\bsettle-b\.png\b' "$SANDBOX/missing-artifact.log" >/dev/null \
+  || fail "census did not report the missing artifact as absent"
 
 echo "macOS scenario runner tests passed"
