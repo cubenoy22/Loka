@@ -91,8 +91,16 @@ class MacOSRigProtocolTest(unittest.TestCase):
     def test_unknown_descriptor_vocabulary_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "rig.ini"
-            text = (ROOT / "scripts" / "rig" / "macos" / "rigs" / "mavericks-10.9.ini").read_text(encoding="utf-8")
-            path.write_text(text + "unexpected = value\n", encoding="utf-8")
+            source = ROOT / "scripts" / "rig" / "macos" / "rigs" / "mavericks-10.9.ini"
+            lines = source.read_text(encoding="utf-8").splitlines(keepends=True)
+            # The stray key has to land in [rig]; appending it to the file put
+            # it wherever the last section happened to be, so this stopped
+            # testing anything the day the descriptor grew a [capture] section
+            # after it. load_descriptor polices the [rig] vocabulary, and a
+            # stray [capture] field fails closed later, at compare time.
+            after_header = lines.index("[rig]\n") + 1
+            mutated = lines[:after_header] + ["unexpected = value\n"] + lines[after_header:]
+            path.write_text("".join(mutated), encoding="utf-8")
             with self.assertRaises(rig.RigError) as caught:
                 rig.load_descriptor(path)
             self.assertEqual(caught.exception.stage, "configuration")
