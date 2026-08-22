@@ -89,6 +89,12 @@ fi
 if [ -f "$(dirname "$0")/../Resources/ASSETS.LRP" ]; then
   printf 'staged-package-present\n' >"$SANDBOX/launched-package"
 fi
+if [ -n "${FAKE_SAY:-}" ]; then
+  printf '%s\n' "$FAKE_SAY"
+fi
+if [ "${FAKE_STALL:-0}" = "1" ]; then
+  exit 0
+fi
 if [ "${FAKE_AUDIT_MUTATION:-0}" = "1" ]; then
   sed 's/text_empty\ttrue/text_empty\tfalse/' "$FAKE_EXPECTED_AUDIT" >actual.audit
 else
@@ -110,6 +116,9 @@ if [ "${LOKA_MACOS_SCENARIO_MODE:-flow}" = "inspect" ]; then
   printf 'inspection-ready\n' >ready.tmp
   mv -f ready.tmp ready
   sleep 0.2
+fi
+if [ -n "${FAKE_OMIT:-}" ]; then
+  rm -f "$FAKE_OMIT"
 fi
 printf 'artifacts-ready\n' >complete.tmp
 mv -f complete.tmp complete
@@ -390,5 +399,81 @@ grep -Fq 'stale startup-identity declaration for minesweeper new-game-twice' \
   || fail "macOS stale declaration refusal did not name the drift"
 [ "$(sha256sum "$DECLARED_GOLDEN" | awk '{print $1}')" = "$declared_hash" ] \
   || fail "macOS stale declaration refusal overwrote the prior golden"
+
+# A refusal must say how far the app got. #466: a cell timed out with a 0-byte
+# runner.log, and the deadline message alone could not tell "hung before it
+# wrote anything" from "stopped partway". The stall below is not a hang -- the
+# fake app exits early -- but it leaves the same work directory the hang left,
+# which is what the census reads.
+STALL_WORK="$SANDBOX/repo/build/macos-scenario/tutorial/startup"
+if FAKE_STALL=1 \
+    LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
+    LOKA_MACOS_SCENARIO_WORK="$STALL_WORK" \
+    FAKE_EXPECTED_AUDIT="$SANDBOX/repo/tests/scenarios/expected/tutorial/startup.audit" \
+    FAKE_SNAPSHOT="$SANDBOX/snapshot.png" \
+    bash "$SANDBOX/repo/tests/macos/run-scenario.sh" \
+      tutorial startup \
+      >"$SANDBOX/stall-silent.log" 2>&1; then
+  fail "macOS accepted a run that produced no artifacts"
+fi
+grep -Fq 'Work state: runner.log 0 bytes' \
+  "$SANDBOX/stall-silent.log" \
+  || fail "silent stall refusal did not report the empty runner.log"
+grep -E '^Absent: .*\bcomplete\b' "$SANDBOX/stall-silent.log" >/dev/null \
+  || fail "silent stall refusal did not list the missing completion marker"
+grep -E '^Present: .*\bapp\.pid\b' "$SANDBOX/stall-silent.log" >/dev/null \
+  || fail "silent stall refusal did not report what the run did produce"
+
+if FAKE_STALL=1 FAKE_SAY='scenario: opened the window' \
+    LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
+    LOKA_MACOS_SCENARIO_WORK="$STALL_WORK" \
+    FAKE_EXPECTED_AUDIT="$SANDBOX/repo/tests/scenarios/expected/tutorial/startup.audit" \
+    FAKE_SNAPSHOT="$SANDBOX/snapshot.png" \
+    bash "$SANDBOX/repo/tests/macos/run-scenario.sh" \
+      tutorial startup \
+      >"$SANDBOX/stall-chatty.log" 2>&1; then
+  fail "macOS accepted a run that stopped after speaking"
+fi
+grep -Fq 'last line: scenario: opened the window' "$SANDBOX/stall-chatty.log" \
+  || fail "partial stall refusal did not report where the app got to"
+if grep -Fq 'runner.log 0 bytes' "$SANDBOX/stall-chatty.log"; then
+  fail "partial stall refusal reported an empty runner.log"
+fi
+
+# A refusal that fires before the work directory is reset must not describe
+# what is in it. Caught on the rig: the build-stage refusal listed the previous
+# run's completion marker as if this run had produced it.
+if LOKA_MACOS_SCENARIO_APP="$SANDBOX/no-such.app" \
+    LOKA_MACOS_SCENARIO_WORK="$STALL_WORK" \
+    FAKE_EXPECTED_AUDIT="$SANDBOX/repo/tests/scenarios/expected/tutorial/startup.audit" \
+    FAKE_SNAPSHOT="$SANDBOX/snapshot.png" \
+    bash "$SANDBOX/repo/tests/macos/run-scenario.sh" \
+      tutorial startup \
+      >"$SANDBOX/stall-preflight.log" 2>&1; then
+  fail "macOS accepted a run whose app does not exist"
+fi
+grep -Fq 'stopped before it reset the work directory' "$SANDBOX/stall-preflight.log" \
+  || fail "preflight refusal did not say the work directory is not this run's"
+if grep -Eq '^(Present|Absent):' "$SANDBOX/stall-preflight.log"; then
+  fail "preflight refusal described a work directory this run never reset"
+fi
+
+# One list names the artifacts a run must leave and the entries the census
+# reports. Shrinking it would quietly narrow both, so a missing artifact has to
+# be refused by name.
+if FAKE_OMIT=settle-b.png \
+    LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
+    LOKA_MACOS_SCENARIO_WORK="$STALL_WORK" \
+    FAKE_EXPECTED_AUDIT="$SANDBOX/repo/tests/scenarios/expected/tutorial/startup.audit" \
+    FAKE_SNAPSHOT="$SANDBOX/snapshot.png" \
+    bash "$SANDBOX/repo/tests/macos/run-scenario.sh" \
+      tutorial startup \
+      >"$SANDBOX/missing-artifact.log" 2>&1; then
+  fail "macOS accepted a run that left out settle-b.png"
+fi
+grep -Fq 'artifacts stage failed: missing settle-b.png' "$SANDBOX/missing-artifact.log" \
+  || fail "missing-artifact refusal did not name the artifact"
+grep -E '^Absent: .*\bsettle-b\.png\b' "$SANDBOX/missing-artifact.log" >/dev/null \
+  || fail "census did not report the missing artifact as absent"
 
 echo "macOS scenario runner tests passed"

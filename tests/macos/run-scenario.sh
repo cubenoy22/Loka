@@ -60,11 +60,77 @@ WORK_DIR_TOOL="$PROJECT_DIR/tests/macos/validate-work-dir.py"
 PYTHON3="${PYTHON3:-python3}"
 SCREENCAPTURE="${SCREENCAPTURE:-/usr/sbin/screencapture}"
 
+# Everything the run is expected to leave in the work directory, so a refusal
+# can say how far the app actually got. runner.log is reported separately: its
+# size is the fact that separates "hung before writing anything" from "stopped
+# partway", and neither is visible from a bare deadline message (#466).
+WORK_REQUIRED_ARTIFACTS=(
+  actual.audit
+  actual.png
+  actual.profile
+  settle-a.png
+  settle-b.png
+  runner.log
+)
+WORK_CENSUS_ENTRIES=(
+  LokaTest.cfg
+  app.pid
+  stage
+  ready
+  "${WORK_REQUIRED_ARTIFACTS[@]}"
+  complete
+)
+
+# Set once this run has emptied and recreated $WORK. Before that the directory
+# still holds the previous run's artifacts, and reporting those as progress
+# would be worse than saying nothing: a refusal that never launched the app
+# would list a completion marker.
+WORK_IS_THIS_RUNS=0
+
+describe_work_state() {
+  if [ ! -d "$WORK" ]; then
+    echo "Work state: the work directory does not exist"
+    return
+  fi
+  if [ "$WORK_IS_THIS_RUNS" -eq 0 ]; then
+    echo "Work state: this run stopped before it reset the work directory, so what is in it belongs to the previous run"
+    return
+  fi
+  if [ ! -f "$WORK/runner.log" ]; then
+    echo "Work state: runner.log absent -- the app was never launched"
+  elif [ ! -s "$WORK/runner.log" ]; then
+    # No inference is drawn from an empty log: a scenario app that runs to the
+    # end normally writes nothing to it either. What separates a run that died
+    # early from one that nearly finished is the artifact census below.
+    echo "Work state: runner.log 0 bytes"
+  else
+    local bytes last
+    bytes="$(wc -c <"$WORK/runner.log" | tr -d ' ')"
+    last="$(tr -d '\r' <"$WORK/runner.log" | tail -n 1 | cut -c1-200)"
+    echo "Work state: runner.log $bytes bytes, last line: $last"
+  fi
+  local present=() absent=() entry
+  for entry in "${WORK_CENSUS_ENTRIES[@]}"; do
+    if [ "$entry" = "runner.log" ]; then
+      # already reported above, with its size
+      continue
+    fi
+    if [ -e "$WORK/$entry" ]; then
+      present+=("$entry")
+    else
+      absent+=("$entry")
+    fi
+  done
+  echo "Present: ${present[*]:-(nothing)}"
+  echo "Absent: ${absent[*]:-(nothing)}"
+}
+
 fail_stage() {
   local stage="$1"
   shift
   echo "$stage stage failed: $*" >&2
   echo "Artifacts: $WORK" >&2
+  describe_work_state >&2
   exit 1
 }
 
@@ -133,6 +199,7 @@ if [ -d "$WORK" ]; then
   rm -rf "$WORK"
 fi
 mkdir -p "$WORK"
+WORK_IS_THIS_RUNS=1
 if [ "$EXAMPLE" = "scrapbook" ]; then
   if ! mkdir -p "$WORK/stage"; then
     fail_stage stage "could not create $WORK/stage"
@@ -232,7 +299,7 @@ fi
 if [ ! -f "$WORK/complete" ] || [ "$(tr -d '\r\n' <"$WORK/complete")" != "artifacts-ready" ]; then
   fail_stage completion "atomic completion marker is missing or invalid"
 fi
-for artifact in actual.audit actual.png actual.profile settle-a.png settle-b.png runner.log; do
+for artifact in "${WORK_REQUIRED_ARTIFACTS[@]}"; do
   if [ ! -f "$WORK/$artifact" ]; then
     fail_stage artifacts "missing $artifact"
   fi
