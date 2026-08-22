@@ -2,6 +2,7 @@
 
 import importlib.util
 import pathlib
+import re
 import shutil
 import sys
 import tempfile
@@ -78,13 +79,18 @@ def make_toolbox_golden_bundle(root, checkout, scenarios):
             )
         )
     approved = golden_identity.identity_sha256(identity)
-    descriptor.write_text(
-        descriptor.read_text(encoding="utf-8").replace(
-            "reference_identity_sha256 = unapproved",
-            f"reference_identity_sha256 = {approved}",
-        ),
-        encoding="utf-8",
+    # Rewrite the line rather than a known spelling of its value: the tracked
+    # descriptor now carries a real digest, and a substring replace against
+    # "unapproved" would silently no-op and leave the fixture pointing at the
+    # production identity.
+    replaced, count = re.subn(
+        r"^reference_identity_sha256 = .*$",
+        f"reference_identity_sha256 = {approved}",
+        descriptor.read_text(encoding="utf-8"),
+        flags=re.MULTILINE,
     )
+    assert count == 1, f"expected one reference_identity_sha256 line, found {count}"
+    descriptor.write_text(replaced, encoding="utf-8")
     return bundle
 
 
@@ -319,7 +325,13 @@ class ToolboxRigAdapterTest(unittest.TestCase):
         self.assertEqual(descriptor.rig_id, "toolbox-maciix")
         self.assertEqual(descriptor.supported_modes, frozenset(("flow",)))
         self.assertTrue(descriptor.disposable_for_input)
-        self.assertEqual(descriptor.reference_identity_sha256, "unapproved")
+        # Pinned to the exact reviewed value, not merely "looks like a digest":
+        # this authority is what makes a bundle verdict-eligible, so changing it
+        # has to change a test and surface in review.
+        self.assertEqual(
+            descriptor.reference_identity_sha256,
+            "080c51416bcac65bb9e621709e8666dbf06fef4acf9930b94ba4caf4e929b15d",
+        )
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             config = root / "local.ini"
