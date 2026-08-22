@@ -53,6 +53,7 @@ BINARY="$APP/Contents/MacOS/$TARGET"
 EXPECTED="$PROJECT_DIR/tests/scenarios/expected/$EXAMPLE/$SCENARIO.audit"
 PNG_TOOL="$PROJECT_DIR/tests/scenarios/pngtool.py"
 GOLDEN_IDENTITY_GUARD="$PROJECT_DIR/scripts/rig/golden_identity_guard.py"
+PACKAGE_FIXTURE_GUARD="$PROJECT_DIR/scripts/rig/package_fixture_guard.py"
 WORK_DIR_TOOL="$PROJECT_DIR/tests/macos/validate-work-dir.py"
 PYTHON3="${PYTHON3:-python3}"
 SCREENCAPTURE="${SCREENCAPTURE:-/usr/sbin/screencapture}"
@@ -73,6 +74,18 @@ publish_verified() {
 if [ ! -x "$BINARY" ]; then
   fail_stage build "missing $BINARY; run: cmake --preset macos-debug && cmake --build --preset macos-scenarios"
 fi
+if [ "$EXAMPLE" = "scrapbook" ]; then
+  LRPC="$PROJECT_DIR/build/host/lrpc/lrpc"
+  SOURCE_ASSETS="$PROJECT_DIR/example/ScrapbookUI/assets/ASSETS-modern.LRP"
+  FIXTURE_REGISTRY="$PROJECT_DIR/tests/scenarios/scrapbook-package-fixtures.txt"
+  if [ ! -x "$LRPC" ]; then
+    fail_stage stage \
+      "missing $LRPC; build it with: cmake -S tools/lrpc -B build/host/lrpc && cmake --build build/host/lrpc"
+  fi
+  if [ ! -f "$SOURCE_ASSETS" ]; then
+    fail_stage stage "package not found: $SOURCE_ASSETS"
+  fi
+fi
 if [ ! -f "$EXPECTED" ]; then
   fail_stage verdict "missing tracked audit $EXPECTED"
 fi
@@ -84,6 +97,46 @@ if [ -d "$WORK" ]; then
   rm -rf "$WORK"
 fi
 mkdir -p "$WORK"
+if [ "$EXAMPLE" = "scrapbook" ]; then
+  if ! mkdir -p "$WORK/stage"; then
+    fail_stage stage "could not create $WORK/stage"
+  fi
+  STAGED_APP="$WORK/stage/$TARGET.app"
+  if ! cp -R "$APP" "$STAGED_APP"; then
+    fail_stage stage "could not copy $APP to $STAGED_APP"
+  fi
+  STAGED_ASSETS="$STAGED_APP/Contents/Resources/ASSETS.LRP"
+  if ! CORRUPT_BAG="$("$PYTHON3" "$PACKAGE_FIXTURE_GUARD" plan \
+      --registry "$FIXTURE_REGISTRY" --scenario "$SCENARIO" 2>&1)"; then
+    fail_stage stage "$CORRUPT_BAG"
+  fi
+  # The refusal message is worth merging into the value, but only on failure:
+  # on success anything the interpreter wrote to stderr rides along and would be
+  # handed to lrpc as a bag number. The answer shape is empty or decimal.
+  if [ -n "$CORRUPT_BAG" ] && [[ ! "$CORRUPT_BAG" =~ ^[0-9]+$ ]]; then
+    fail_stage stage "package fixture plan answered '$CORRUPT_BAG', not a bag number"
+  fi
+  STAGE_ARGUMENTS=(stage "$SOURCE_ASSETS" -o "$STAGED_ASSETS")
+  if [ -n "$CORRUPT_BAG" ]; then
+    STAGE_ARGUMENTS+=(--corrupt-bag "$CORRUPT_BAG")
+  fi
+  if ! "$LRPC" "${STAGE_ARGUMENTS[@]}"; then
+    fail_stage stage "could not stage the scenario package"
+  fi
+  if ! fixture_message="$("$PYTHON3" "$PACKAGE_FIXTURE_GUARD" verify \
+      --registry "$FIXTURE_REGISTRY" --scenario "$SCENARIO" \
+      --source "$SOURCE_ASSETS" --staged "$STAGED_ASSETS" 2>&1)"; then
+    fail_stage stage "$fixture_message"
+  fi
+  # BINARY carried the original bundle through the preflight above; from
+  # here it names the staged copy. cp does not promise the mode bits, and a
+  # non-executable copy would otherwise surface as "scenario app exited
+  # non-zero" from inside the launch subshell, pointing away from staging.
+  BINARY="$STAGED_APP/Contents/MacOS/$TARGET"
+  if [ ! -x "$BINARY" ]; then
+    fail_stage stage "staged $BINARY is not executable"
+  fi
+fi
 printf 'scenario %s\ncapture_dir %s\n' "$SCENARIO" "$WORK" >"$WORK/LokaTest.cfg"
 
 if [ "${LOKA_MACOS_SCENARIO_CAPTURE_DESKTOP:-0}" = "1" ]; then

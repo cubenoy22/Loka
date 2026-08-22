@@ -34,6 +34,7 @@ $Golden = Join-Path $GoldenDirectory "$Scenario.png"
 $GoldenProfile = Join-Path $GoldenDirectory "$Scenario.profile"
 $PngTool = Join-Path $ProjectDirectory "tests/scenarios/pngtool.py"
 $GoldenIdentityGuard = Join-Path $ProjectDirectory "scripts/rig/golden_identity_guard.py"
+$PackageFixtureGuard = Join-Path $ProjectDirectory "scripts/rig/package_fixture_guard.py"
 $CaptureProfileGuard = Join-Path $ProjectDirectory "scripts/rig/win32/capture_profile_guard.py"
 $RigDescriptorDirectory = Join-Path $ProjectDirectory "scripts/rig/win32/rigs"
 $RunnerLog = Join-Path $Work "runner.log"
@@ -45,6 +46,7 @@ $Python = $null
 $UseWslPython = $false
 $PngExitCode = 0
 $GoldenIdentityExitCode = 0
+$PackageFixtureExitCode = 0
 $CaptureProfileExitCode = 0
 $ExitCode = 0
 
@@ -123,22 +125,6 @@ function Read-CaptureBounds([string]$Path) {
     return $values
 }
 
-function Get-CorruptBag([string]$ScenarioName) {
-    $result = $null
-    foreach ($line in [System.IO.File]::ReadAllLines($FixtureRegistry)) {
-        if ($line -notmatch '^([a-z0-9][a-z0-9-]*) corrupt-bag=([0-9]+)$') {
-            Fail-Stage "stage" "invalid Scrapbook fixture registry line '$line'"
-        }
-        if ($Matches[1] -eq $ScenarioName) {
-            if ($null -ne $result) {
-                Fail-Stage "stage" "duplicate fixture mapping for '$ScenarioName'"
-            }
-            $result = [int]$Matches[2]
-        }
-    }
-    return $result
-}
-
 function Resolve-Python {
     if ($env:PYTHON3) {
         $script:Python = $env:PYTHON3
@@ -157,10 +143,10 @@ function Resolve-Python {
     Fail-Stage "build" "a real python.exe or WSL python3 is required for exact PNG crop/compare"
 }
 
-function Convert-ToWslPath([string]$Path) {
+function Convert-ToWslPath([string]$Path, [string]$StageName = "crop") {
     $fullPath = [System.IO.Path]::GetFullPath($Path)
     if ($fullPath -notmatch '^([A-Za-z]):\\(.*)$') {
-        Fail-Stage "crop" "WSL Python requires a drive-letter path, got '$fullPath'"
+        Fail-Stage $StageName "WSL Python requires a drive-letter path, got '$fullPath'"
     }
     $drive = $Matches[1].ToLowerInvariant()
     $tail = $Matches[2].Replace('\', '/')
@@ -214,6 +200,33 @@ function Invoke-GoldenIdentityGuard([string]$Capture) {
             --example $Example --scenario $Scenario
     }
     $script:GoldenIdentityExitCode = $LASTEXITCODE
+}
+
+function Invoke-PackageFixturePlan {
+    if ($UseWslPython) {
+        & wsl.exe python3 (Convert-ToWslPath $PackageFixtureGuard "stage") plan `
+            --registry (Convert-ToWslPath $FixtureRegistry "stage") `
+            --scenario $Scenario 2>&1
+    } else {
+        & $Python $PackageFixtureGuard plan `
+            --registry $FixtureRegistry --scenario $Scenario 2>&1
+    }
+    $script:PackageFixtureExitCode = $LASTEXITCODE
+}
+
+function Invoke-PackageFixtureVerify([string]$StagedAssets) {
+    if ($UseWslPython) {
+        & wsl.exe python3 (Convert-ToWslPath $PackageFixtureGuard "stage") verify `
+            --registry (Convert-ToWslPath $FixtureRegistry "stage") `
+            --scenario $Scenario `
+            --source (Convert-ToWslPath $SourceAssets "stage") `
+            --staged (Convert-ToWslPath $StagedAssets "stage") 2>&1
+    } else {
+        & $Python $PackageFixtureGuard verify `
+            --registry $FixtureRegistry --scenario $Scenario `
+            --source $SourceAssets --staged $StagedAssets 2>&1
+    }
+    $script:PackageFixtureExitCode = $LASTEXITCODE
 }
 
 function Resolve-RigDescriptor([string]$Profile) {
@@ -386,13 +399,28 @@ try {
     if ($Example -eq "scrapbook") {
         $StagedAssets = Join-Path $Stage "ASSETS.LRP"
         $stageArguments = @("stage", $SourceAssets, "-o", $StagedAssets)
-        $corruptBag = Get-CorruptBag $Scenario
-        if ($null -ne $corruptBag) {
-            $stageArguments += @("--corrupt-bag", [string]$corruptBag)
+        $corruptBag = ((Invoke-PackageFixturePlan) | Out-String).Trim()
+        if ($PackageFixtureExitCode -ne 0) {
+            Fail-Stage "stage" $corruptBag
+        }
+        # The refusal message is worth merging into the value, but only on
+        # failure: on success anything the interpreter wrote to stderr rides
+        # along. On this rail that interpreter can be `wsl.exe python3`, whose
+        # interop warnings land on stderr, so the answer shape is checked
+        # rather than trusted. Empty or decimal, nothing else.
+        if ($corruptBag.Length -ne 0) {
+            if ($corruptBag -notmatch '^[0-9]+$') {
+                Fail-Stage "stage" "package fixture plan answered '$corruptBag', not a bag number"
+            }
+            $stageArguments += @("--corrupt-bag", $corruptBag)
         }
         & $Lrpc @stageArguments *>> $RunnerLog
         if ($LASTEXITCODE -ne 0) {
             Fail-Stage "stage" "lrpc refused the staged package; see $RunnerLog"
+        }
+        $fixtureMessage = ((Invoke-PackageFixtureVerify $StagedAssets) | Out-String).Trim()
+        if ($PackageFixtureExitCode -ne 0) {
+            Fail-Stage "stage" $fixtureMessage
         }
     }
     [System.IO.File]::WriteAllText(

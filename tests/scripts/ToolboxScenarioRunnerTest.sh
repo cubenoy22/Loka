@@ -32,6 +32,8 @@ cp "$REPO_DIR/scripts/rig/toolbox/classic_golden_identity.py" \
   "$SANDBOX/repo/scripts/rig/toolbox/classic_golden_identity.py"
 cp "$REPO_DIR/scripts/rig/golden_identity_guard.py" \
   "$SANDBOX/repo/scripts/rig/golden_identity_guard.py"
+cp "$REPO_DIR/scripts/rig/package_fixture_guard.py" \
+  "$SANDBOX/repo/scripts/rig/package_fixture_guard.py"
 cp "$REPO_DIR/scripts/rig/toolbox/rigs/toolbox-maciix.ini" \
   "$SANDBOX/repo/scripts/rig/toolbox/rigs/toolbox-maciix.ini"
 cp "$REPO_DIR/tests/scenarios/pngtool.py" "$SANDBOX/repo/tests/scenarios/pngtool.py"
@@ -98,6 +100,9 @@ cat >"$SANDBOX/repo/build/host/lrpc/lrpc" <<'SH'
 # fake lrpc: stage <source> -o <destination> [--corrupt-bag N]
 printf '%s\n' "$@" >"$SANDBOX/lrpc-arguments"
 cp -f "$2" "$4"
+if [ "${5:-}" = "--corrupt-bag" ] && [ "${FAKE_LRPC_IDENTITY:-0}" != "1" ]; then
+  printf 'corrupt bag %s\n' "$6" >>"$4"
+fi
 SH
 chmod +x "$SANDBOX/repo/build/host/lrpc/lrpc"
 
@@ -257,9 +262,9 @@ if MAME_ENV_FILE="$SANDBOX/mame.env" env -u WSL_INTEROP \
       >"$SANDBOX/runner-malformed-fixture.log" 2>&1; then
   fail "malformed fixture registry unexpectedly passed"
 fi
-grep -Fq 'invalid Scrapbook fixture registry line' \
+grep -Fq ':4: invalid package fixture registry entry' \
   "$SANDBOX/runner-malformed-fixture.log" \
-  || fail "malformed fixture registry was not rejected by the parser"
+  || fail "malformed fixture registry was not rejected with its line number"
 [ ! -f "$SANDBOX/tab-count" ] \
   || fail "malformed fixture registry reached MAME launch"
 cp "$SANDBOX/fixtures-valid.txt" \
@@ -271,6 +276,21 @@ grep -Fxq -- '--corrupt-bag' "$SANDBOX/lrpc-arguments" \
   || fail "Scrapbook refusal did not request package corruption"
 grep -Fxq -- '1' "$SANDBOX/lrpc-arguments" \
   || fail "Scrapbook refusal did not use the neutral bag mapping"
+rm -f "$SANDBOX/tab-count"
+if MAME_ENV_FILE="$SANDBOX/mame.env" FAKE_LRPC_IDENTITY=1 env -u WSL_INTEROP \
+    bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" \
+      scrapbook open-first-page-refused \
+      >"$SANDBOX/runner-unstaged-fixture.log" 2>&1; then
+  fail "byte-identical corrupt fixture unexpectedly reached MAME"
+fi
+grep -Fq "scenario 'open-first-page-refused' declares corrupt-bag=1" \
+  "$SANDBOX/runner-unstaged-fixture.log" \
+  || fail "package fixture wall did not name the declared corruption"
+grep -Fq 'this rail did not stage the fixture' \
+  "$SANDBOX/runner-unstaged-fixture.log" \
+  || fail "package fixture wall did not diagnose the missing stage"
+[ ! -f "$SANDBOX/tab-count" ] \
+  || fail "byte-identical corrupt fixture reached MAME launch"
 run_case helloworld startup 2 unset
 run_case helloworld toggle-action-probe 2 unset
 run_case tutorial startup 3 unset

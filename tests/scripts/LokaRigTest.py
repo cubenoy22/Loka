@@ -17,6 +17,7 @@ sys.path.insert(0, str(RIG_SCRIPTS))
 
 import loka_rig_common as common
 import golden_identity_guard
+import package_fixture_guard
 from toolbox import loka_toolbox_rig as toolbox
 from toolbox import classic_golden_identity as golden_identity
 
@@ -482,6 +483,153 @@ class ToolboxRigAdapterTest(unittest.TestCase):
                 len(list(staged_root.rglob("manifest.txt"))),
                 1,
             )
+
+
+class PackageFixtureGuardTest(unittest.TestCase):
+    def test_missing_registry_refuses_as_package_fixture_error(self):
+        registry = pathlib.Path("/definitely/missing/package-fixtures.txt")
+        with self.assertRaises(package_fixture_guard.PackageFixtureError) as caught:
+            package_fixture_guard.read_fixtures(registry)
+        self.assertIn("cannot read package fixture registry", str(caught.exception))
+        self.assertIn(str(registry), str(caught.exception))
+
+    def test_malformed_line_refuses_and_names_the_line(self):
+        with tempfile.TemporaryDirectory() as directory:
+            registry = pathlib.Path(directory) / "fixtures.txt"
+            registry.write_text(
+                "first corrupt-bag=1\nmalformed fixture row\n", encoding="utf-8"
+            )
+            with self.assertRaises(package_fixture_guard.PackageFixtureError) as caught:
+                package_fixture_guard.read_fixtures(registry)
+            self.assertIn(f"{registry}:2:", str(caught.exception))
+            self.assertIn("invalid package fixture registry entry", str(caught.exception))
+
+    def test_duplicate_scenario_refuses_and_names_the_line(self):
+        with tempfile.TemporaryDirectory() as directory:
+            registry = pathlib.Path(directory) / "fixtures.txt"
+            registry.write_text(
+                "first corrupt-bag=1\nfirst corrupt-bag=2\n", encoding="utf-8"
+            )
+            with self.assertRaises(package_fixture_guard.PackageFixtureError) as caught:
+                package_fixture_guard.read_fixtures(registry)
+            self.assertIn(f"{registry}:2:", str(caught.exception))
+            self.assertIn("duplicate package fixture scenario 'first'", str(caught.exception))
+
+    def test_unregistered_scenario_has_no_corrupt_bag(self):
+        fixtures = (("first", 1), ("second", 2))
+        self.assertIsNone(
+            package_fixture_guard.corrupt_bag_for(fixtures, "unregistered")
+        )
+
+    def test_missing_staged_fixture_refuses_with_staging_diagnosis(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            source = root / "source.lrp"
+            staged = root / "staged.lrp"
+            source.write_bytes(b"package")
+            with self.assertRaises(package_fixture_guard.PackageFixtureError) as caught:
+                package_fixture_guard.verify_staged(
+                    source, staged, 3, "refused-cell"
+                )
+            self.assertEqual(
+                str(caught.exception),
+                f"scenario 'refused-cell' declares corrupt-bag=3 but {staged} does not exist; "
+                "this rail did not stage the fixture",
+            )
+
+    def test_missing_staged_package_refuses_with_staging_diagnosis(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            source = root / "source.lrp"
+            staged = root / "staged.lrp"
+            source.write_bytes(b"package")
+            with self.assertRaises(package_fixture_guard.PackageFixtureError) as caught:
+                package_fixture_guard.verify_staged(
+                    source, staged, None, "ordinary-cell"
+                )
+            self.assertEqual(
+                str(caught.exception),
+                f"scenario 'ordinary-cell' declares no package fixture but {staged} does not exist; "
+                "this rail did not stage the package",
+            )
+
+    def test_declared_corruption_refuses_byte_identical_stage(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            source = root / "source.lrp"
+            staged = root / "staged.lrp"
+            source.write_bytes(b"package")
+            staged.write_bytes(b"package")
+            with self.assertRaises(package_fixture_guard.PackageFixtureError) as caught:
+                package_fixture_guard.verify_staged(
+                    source, staged, 5, "refused-cell"
+                )
+            self.assertEqual(
+                str(caught.exception),
+                f"scenario 'refused-cell' declares corrupt-bag=5 but {staged} is byte-identical "
+                f"to {source}; this rail did not stage the fixture",
+            )
+
+    def test_unreadable_source_refuses_as_package_fixture_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            source = root / "missing-source.lrp"
+            staged = root / "staged.lrp"
+            staged.write_bytes(b"package")
+            with self.assertRaises(package_fixture_guard.PackageFixtureError) as caught:
+                package_fixture_guard.verify_staged(source, staged, None)
+            self.assertIn("cannot compare staged package", str(caught.exception))
+            self.assertIn(str(source), str(caught.exception))
+
+    def test_undeclared_corruption_refuses_different_stage(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            source = root / "source.lrp"
+            staged = root / "staged.lrp"
+            source.write_bytes(b"package")
+            staged.write_bytes(b"changed package")
+            with self.assertRaises(package_fixture_guard.PackageFixtureError) as caught:
+                package_fixture_guard.verify_staged(
+                    source, staged, None, "ordinary-cell"
+                )
+            self.assertEqual(
+                str(caught.exception),
+                f"scenario 'ordinary-cell' declares no package fixture but {staged} differs from {source}",
+            )
+
+    def test_declared_corruption_accepts_different_stage(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            source = root / "source.lrp"
+            staged = root / "staged.lrp"
+            source.write_bytes(b"package")
+            staged.write_bytes(b"changed package")
+            package_fixture_guard.verify_staged(source, staged, 1)
+
+    def test_no_fixture_accepts_byte_identical_stage(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            source = root / "source.lrp"
+            staged = root / "staged.lrp"
+            source.write_bytes(b"package")
+            staged.write_bytes(b"package")
+            package_fixture_guard.verify_staged(source, staged, None)
+
+    def test_win32_rail_verifies_the_staged_package_after_lrpc(self):
+        runner = (ROOT / "tests" / "win32" / "run-scenario.ps1").read_text(
+            encoding="utf-8"
+        )
+        plan_call = runner.index("$corruptBag = ((Invoke-PackageFixturePlan)")
+        lrpc_call = runner.index("& $Lrpc @stageArguments")
+        verify_call = runner.index("Invoke-PackageFixtureVerify $StagedAssets")
+        self.assertLess(plan_call, lrpc_call)
+        self.assertLess(lrpc_call, verify_call)
+        self.assertIn(
+            'Convert-ToWslPath $PackageFixtureGuard "stage"', runner
+        )
+        self.assertIn('Convert-ToWslPath $FixtureRegistry "stage"', runner)
+        self.assertIn('Convert-ToWslPath $SourceAssets "stage"', runner)
+        self.assertIn('Convert-ToWslPath $StagedAssets "stage"', runner)
 
 
 class GoldenIdentityGuardTest(unittest.TestCase):
