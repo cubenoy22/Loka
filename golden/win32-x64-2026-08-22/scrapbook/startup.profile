@@ -1,0 +1,12 @@
+profile_version=2
+os_build=10.0.26200
+arch=x64
+scale_percent_available=1
+scale_percent=100
+depth_available=1
+depth=32
+appearance_available=1
+appearance=light
+capture_api=PrintWindow.PW_RENDERFULLCONTENT.v1
+pixel_width=356
+pixel_height=289
