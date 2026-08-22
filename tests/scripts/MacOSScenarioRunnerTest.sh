@@ -290,7 +290,7 @@ if FAKE_STALL=1 \
       >"$SANDBOX/stall-silent.log" 2>&1; then
   fail "macOS accepted a run that produced no artifacts"
 fi
-grep -Fq 'runner.log 0 bytes -- the app wrote nothing before it stopped' \
+grep -Fq 'Work state: runner.log 0 bytes' \
   "$SANDBOX/stall-silent.log" \
   || fail "silent stall refusal did not report the empty runner.log"
 grep -E '^Absent: .*\bcomplete\b' "$SANDBOX/stall-silent.log" >/dev/null \
@@ -310,8 +310,8 @@ if FAKE_STALL=1 FAKE_SAY='scenario: opened the window' \
 fi
 grep -Fq 'last line: scenario: opened the window' "$SANDBOX/stall-chatty.log" \
   || fail "partial stall refusal did not report where the app got to"
-if grep -Fq 'the app wrote nothing' "$SANDBOX/stall-chatty.log"; then
-  fail "partial stall refusal claimed the app wrote nothing"
+if grep -Fq 'runner.log 0 bytes' "$SANDBOX/stall-chatty.log"; then
+  fail "partial stall refusal reported an empty runner.log"
 fi
 
 # A refusal that fires before the work directory is reset must not describe

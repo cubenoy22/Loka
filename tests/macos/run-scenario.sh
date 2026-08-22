@@ -93,7 +93,10 @@ describe_work_state() {
   if [ ! -f "$WORK/runner.log" ]; then
     echo "Work state: runner.log absent -- the app was never launched"
   elif [ ! -s "$WORK/runner.log" ]; then
-    echo "Work state: runner.log 0 bytes -- the app wrote nothing before it stopped"
+    # No inference is drawn from an empty log: a scenario app that runs to the
+    # end normally writes nothing to it either. What separates a run that died
+    # early from one that nearly finished is the artifact census below.
+    echo "Work state: runner.log 0 bytes"
   else
     local bytes last
     bytes="$(wc -c <"$WORK/runner.log" | tr -d ' ')"
