@@ -28,7 +28,7 @@ from loka_rig_common import (
     execute_adapter,
     make_run_id,
     parse_bool,
-    read_single_section,
+    read_declared_section,
     require_keys,
     resolve_commit,
     target_retained_value,
@@ -74,7 +74,7 @@ def _narrow_absolute_path(value: str, field: str, path: pathlib.Path) -> pathlib
 
 
 def load_descriptor(path: pathlib.Path) -> RigDescriptor:
-    section = read_single_section(path, "rig")
+    section = read_declared_section(path, "rig", permitted=("rig", "capture"))
     expected = {
         "descriptor_version",
         "rig_id",
@@ -121,7 +121,7 @@ def load_descriptor(path: pathlib.Path) -> RigDescriptor:
 
 
 def load_local_mapping(path: pathlib.Path) -> LocalMapping:
-    section = read_single_section(path, "local")
+    section = read_declared_section(path, "local")
     require_keys(section, {"archive_root", "mame_env_file", "golden_root"}, path)
     return LocalMapping(
         archive_root=_narrow_absolute_path(section["archive_root"], "archive_root", path),
