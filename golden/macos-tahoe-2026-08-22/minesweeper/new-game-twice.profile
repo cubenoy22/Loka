@@ -1,0 +1,12 @@
+profile_version=2
+os_build=25G76
+arch=x86_64
+scale_percent_available=1
+scale_percent=200
+depth_available=1
+depth=24
+appearance_available=1
+appearance=light
+capture_api=NSView.cacheDisplayInRect.v1
+pixel_width=440
+pixel_height=480
