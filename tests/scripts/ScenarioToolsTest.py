@@ -75,6 +75,29 @@ class ExpectedAuditPinsTest(unittest.TestCase):
         self.assertLess(guard_call, golden_copy)
         self.assertIn("--declarations $StartupIdentityDeclarations", runner)
 
+        # The rig's declared capture environment is checked before the golden is
+        # written *and* before it is compared, so a bake on a machine that does
+        # not match refuses instead of pinning whatever the desktop was.
+        resolve_call = runner.index("$RigDescriptor = Resolve-RigDescriptor $ActualProfile")
+        profile_guard = runner.index(
+            "Invoke-CaptureProfileGuard $RigDescriptor $ActualProfile"
+        )
+        update_branch = runner.index("if ($UpdateGolden) {")
+        compare_profile = runner.index("$expectedProfile = Read-ScenarioProfile $GoldenProfile")
+        self.assertLess(resolve_call, profile_guard)
+        self.assertLess(profile_guard, update_branch)
+        self.assertLess(profile_guard, golden_copy)
+        self.assertLess(profile_guard, compare_profile)
+        self.assertIn("--descriptor $Descriptor", runner)
+
+        # The descriptor is chosen from the architecture the vehicle reports.
+        # Fixing it to one architecture would refuse every run on the others --
+        # this rail is supported on ARM64 Windows as well as x64.
+        self.assertIn('Join-Path $RigDescriptorDirectory "win32-$arch.ini"', runner)
+        self.assertNotIn("rigs/win32-x64.ini", runner)
+        rigs = os.path.join(PROJECT_DIR, "scripts", "rig", "win32", "rigs")
+        self.assertTrue(os.path.isfile(os.path.join(rigs, "win32-x64.ini")))
+
     def test_win32_vehicle_map_covers_the_shared_registry_examples(self):
         runner_path = os.path.join(PROJECT_DIR, "tests", "win32", "run-scenario.ps1")
         with open(runner_path, "r", encoding="utf-8") as handle:

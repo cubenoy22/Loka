@@ -20,6 +20,9 @@ import golden_identity_guard
 from toolbox import loka_toolbox_rig as toolbox
 from toolbox import classic_golden_identity as golden_identity
 
+sys.path.insert(0, str(ROOT / "scripts" / "rig" / "win32"))
+import capture_profile_guard  # noqa: E402
+
 
 def make_toolbox_golden_bundle(root, checkout, scenarios):
     registry = checkout / "tests" / "scenarios" / "scenarios.txt"
@@ -666,6 +669,89 @@ class GoldenIdentityGuardTest(unittest.TestCase):
                     "interaction",
                 )
             self.assertIn("declaration is not registered", str(caught.exception))
+
+
+
+class Win32CaptureProfileGuardTest(unittest.TestCase):
+    DECLARED = (
+        "[rig]\n"
+        "rig_id = fake\n"
+        "\n"
+        "[capture]\n"
+        "appearance = light\n"
+        "scale_percent = 100\n"
+    )
+    REPORTED = (
+        "profile_version=2\n"
+        "appearance=light\n"
+        "scale_percent=100\n"
+        "depth=32\n"
+    )
+
+    def make(self, root, declared=None, reported=None):
+        descriptor = root / "fake-rig.ini"
+        descriptor.write_text(self.DECLARED if declared is None else declared, encoding="utf-8")
+        profile = root / "actual.profile"
+        profile.write_text(self.REPORTED if reported is None else reported, encoding="utf-8")
+        return descriptor, profile
+
+    def test_matching_environment_passes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            descriptor, profile = self.make(pathlib.Path(directory))
+            capture_profile_guard.verify_capture_profile(descriptor, profile)
+
+    def test_moved_field_refuses_and_names_both_values(self):
+        with tempfile.TemporaryDirectory() as directory:
+            descriptor, profile = self.make(
+                pathlib.Path(directory),
+                reported=self.REPORTED.replace("appearance=light", "appearance=dark"),
+            )
+            with self.assertRaises(capture_profile_guard.CaptureProfileError) as caught:
+                capture_profile_guard.verify_capture_profile(descriptor, profile)
+            self.assertIn("declares appearance=light", str(caught.exception))
+            self.assertIn("reports appearance=dark", str(caught.exception))
+
+    def test_absent_field_refuses_rather_than_passing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            descriptor, profile = self.make(
+                pathlib.Path(directory),
+                reported="profile_version=2\nscale_percent=100\n",
+            )
+            with self.assertRaises(capture_profile_guard.CaptureProfileError) as caught:
+                capture_profile_guard.verify_capture_profile(descriptor, profile)
+            self.assertIn("reports no such field", str(caught.exception))
+
+    def test_field_the_descriptor_omits_is_not_checked(self):
+        with tempfile.TemporaryDirectory() as directory:
+            descriptor, profile = self.make(
+                pathlib.Path(directory),
+                reported=self.REPORTED.replace("depth=32", "depth=16"),
+            )
+            capture_profile_guard.verify_capture_profile(descriptor, profile)
+
+    def test_descriptor_without_a_capture_section_refuses(self):
+        with tempfile.TemporaryDirectory() as directory:
+            descriptor, profile = self.make(
+                pathlib.Path(directory), declared="[rig]\nrig_id = fake\n"
+            )
+            with self.assertRaises(capture_profile_guard.CaptureProfileError) as caught:
+                capture_profile_guard.verify_capture_profile(descriptor, profile)
+            self.assertIn("declares no [capture] section", str(caught.exception))
+
+    def test_tracked_descriptor_declares_the_pinned_environment(self):
+        descriptor = ROOT / "scripts" / "rig" / "win32" / "rigs" / "win32-x64.ini"
+        declared = capture_profile_guard.read_declared_capture(descriptor)
+        self.assertEqual(
+            declared,
+            {
+                "os_build": "10.0.26200",
+                "arch": "x64",
+                "scale_percent": "100",
+                "depth": "32",
+                "appearance": "light",
+            },
+        )
+
 
 
 if __name__ == "__main__":
