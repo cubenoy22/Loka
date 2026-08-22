@@ -1,4 +1,5 @@
 {
+  "C_Cpp.intelliSenseEngine": "disabled",
   "cmake.copyCompileCommands": "${workspaceFolder}/compile_commands.json",
   "cmake.useCMakePresets": "always",
   "cmake.ctest.testExplorerIntegration": true,
