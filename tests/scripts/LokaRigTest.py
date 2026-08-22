@@ -3,6 +3,7 @@
 import importlib.util
 import pathlib
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -20,6 +21,7 @@ import loka_rig_common as common
 import capture_profile_guard
 import golden_identity_guard
 import package_fixture_guard
+from macos import loka_macos_rig as macos
 from toolbox import loka_toolbox_rig as toolbox
 from toolbox import classic_golden_identity as golden_identity
 
@@ -1035,6 +1037,115 @@ class RunnerRigScriptReferenceTest(unittest.TestCase):
                         (ROOT / relative).is_file(),
                         f"{runner} names {relative}, which is not in the tree",
                     )
+
+
+def drive_macos_adapter_build(root):
+    """Record the commands the macOS adapter's build would issue on its rig."""
+    descriptor = macos.load_descriptor(
+        ROOT / "scripts" / "rig" / "macos" / "rigs" / "mavericks-10.9.ini"
+    )
+    mapping = macos.LocalMapping(
+        vm_host_ssh="vm-host",
+        vm_name="VM",
+        target_host="auto",
+        target_user="user",
+        target_identity_file=root / "key",
+        target_proxy_ssh="vm-host",
+        target_legacy_rsa=True,
+        target_root=pathlib.PurePosixPath("/target"),
+        archive_root=root / "archive",
+        vm_snapshot="",
+        target_python="/usr/bin/python3",
+    )
+    run = macos.MacOSRigRun(ROOT, descriptor, mapping, "HEAD", "flow", "startup", False)
+    run.target_source = pathlib.PurePosixPath("/target/run/source")
+    recorded = []
+    run._run_logged_ssh = lambda command, log_name, stage: recorded.append(shlex.split(command))
+    run._build()
+    return recorded
+
+
+def drive_toolbox_adapter_build(root):
+    """Record the commands the Toolbox adapter's build would issue on its rig."""
+    descriptor = toolbox.load_descriptor(
+        ROOT / "scripts" / "rig" / "toolbox" / "rigs" / "toolbox-maciix.ini"
+    )
+    mapping = toolbox.LocalMapping(root / "archive", root / "mame.env", root / "golden")
+    run = toolbox.ToolboxRigRun(ROOT, descriptor, mapping, "HEAD", "flow")
+    run.checkout = root / "checkout"
+    recorded = []
+    run._logged_run = lambda arguments, log_name, stage, **keywords: recorded.append(
+        [str(argument) for argument in arguments]
+    )
+    run.build()
+    return recorded
+
+
+class AdapterHostToolBuildTest(unittest.TestCase):
+    """Every rig adapter builds the host lrpc its scenario runner stages through.
+
+    The runners refuse without build/host/lrpc, and an adapter's build runs
+    only on its own rig -- over SSH to a VM, or against an emulator -- so no
+    suite ever executes one for real. An adapter that forgets the step is
+    green everywhere a test can reach and dead on arrival at the rig, which is
+    how the macOS adapter went out unable to run any cell: #467 gave the
+    runner a staging step that needs lrpc, and only the Toolbox adapter
+    already built it.
+
+    Each adapter is driven here with its command seam replaced by a recorder,
+    so what is checked is the command the adapter would issue rather than the
+    text of its source. A source grep would pass an adapter that only
+    mentions lrpc in a comment or in dead code.
+
+    Commands are compared as argument tokens, not as text: a substring test
+    accepts an adapter that builds into build/host/lrpc2, which the runner
+    never reads.
+
+    DRIVERS is spelled out rather than inferred: a newly registered adapter
+    fails test_registered_adapters_are_the_ones_this_wall_covers until someone
+    writes its driver, and an adapter that legitimately runs no packaged cell
+    belongs here with its reason rather than silently outside the wall.
+    """
+
+    DRIVERS = {"macos": drive_macos_adapter_build, "toolbox": drive_toolbox_adapter_build}
+
+    def build_commands(self, name):
+        with tempfile.TemporaryDirectory() as directory:
+            return self.DRIVERS[name](pathlib.Path(directory))
+
+    def test_registered_adapters_are_the_ones_this_wall_covers(self):
+        cli = load_cli()
+        self.assertEqual({adapter.name for adapter in cli.ADAPTERS}, set(self.DRIVERS))
+
+    def test_every_adapter_configures_and_builds_the_host_lrpc(self):
+        for name in sorted(self.DRIVERS):
+            with self.subTest(adapter=name):
+                commands = self.build_commands(name)
+                self.assertTrue(
+                    any("tools/lrpc" in c and "build/host/lrpc" in c for c in commands),
+                    f"{name} adapter issues no command configuring tools/lrpc "
+                    f"into build/host/lrpc; it ran {commands}",
+                )
+                self.assertTrue(
+                    any("--build" in c and "build/host/lrpc" in c for c in commands),
+                    f"{name} adapter issues no command building build/host/lrpc, "
+                    f"which its scenario runner refuses without; it ran {commands}",
+                )
+
+    def test_the_runners_still_require_what_the_wall_pins(self):
+        runners = (
+            "tests/macos/run-scenario.sh",
+            "tests/win32/run-scenario.ps1",
+            "tests/toolbox/run-scenario.sh",
+        )
+        for runner in runners:
+            with self.subTest(runner=runner):
+                text = (ROOT / runner).read_text(encoding="utf-8")
+                self.assertTrue(
+                    "build/host/lrpc" in text,
+                    f"{runner} no longer stages through build/host/lrpc; "
+                    "this wall is pinning a requirement that moved",
+                )
 
 
 if __name__ == "__main__":
