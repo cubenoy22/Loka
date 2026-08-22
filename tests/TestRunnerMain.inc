@@ -1,9 +1,22 @@
+#include <cassert>
 #include <cstdio>
 #include <cstring>
+#ifdef _MSC_VER
+#include <stdlib.h>
+#endif
 #include "core/diag/LifecycleAudit.hpp"
 
 namespace
 {
+#ifdef _MSC_VER
+  void lokaConfigureNonInteractiveWin32TestProcess()
+  {
+    // The console runner already sends assert diagnostics to stderr. Disable
+    // only abort's follow-up message and Windows Error Reporting UI.
+    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+  }
+#endif
+
   typedef void (*LokaTestFunction)();
 
   struct LokaRegisteredTest
@@ -136,6 +149,18 @@ namespace
 
 int main(int argc, char **argv)
 {
+#ifdef _MSC_VER
+  lokaConfigureNonInteractiveWin32TestProcess();
+#endif
+
+#if defined(_MSC_VER) && !defined(NDEBUG)
+  if (argc == 2 && std::strcmp(argv[1], "--win32-assert-probe") == 0)
+  {
+    assert(false && "intentional Win32 assert probe");
+    return 0;
+  }
+#endif
+
   if (argc == 1)
   {
     lokaRunAllTests();
@@ -163,4 +188,3 @@ int main(int argc, char **argv)
   std::fprintf(stderr, "Usage: %s [--list|test-name]\n", argv[0]);
   return 1;
 }
-
