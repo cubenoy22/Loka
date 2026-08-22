@@ -63,7 +63,6 @@ class ExpectedAuditPinsTest(unittest.TestCase):
             [cell for cell, _ in entries],
             [
                 ("minesweeper", "new-game-twice"),
-                ("scrapbook", "open-first-page"),
                 ("scrapbook", "flip-forward-back"),
             ],
         )
@@ -138,12 +137,14 @@ class ExpectedAuditPinsTest(unittest.TestCase):
         registry = os.path.join(PROJECT_DIR, "tests", "scenarios", "scenarios.txt")
         with open(registry, "r", encoding="utf-8") as handle:
             entries = [line.split() for line in handle.read().splitlines()]
-        self.assertEqual(len(entries), 17)
+        self.assertEqual(len(entries), 16)
         self.assertEqual(len(entries), len({tuple(entry) for entry in entries}))
+        registered_audits = set()
         for entry in entries:
             self.assertEqual(len(entry), 2)
             example, scenario = entry
             audit_path = os.path.join(SCENARIO_DIR, "expected", example, scenario + ".audit")
+            registered_audits.add(os.path.relpath(audit_path, SCENARIO_DIR))
             with open(audit_path, "rb") as handle:
                 audit = handle.read()
 
@@ -168,6 +169,13 @@ class ExpectedAuditPinsTest(unittest.TestCase):
             self.assertNotIn(b"/home/", audit)
             self.assertNotIn(b"/mnt/", audit)
             self.assertNotIn(b"build/", audit)
+
+        tracked_audits = {
+            os.path.relpath(path, SCENARIO_DIR)
+            for path in pathlib.Path(SCENARIO_DIR, "expected").glob("*/*.audit")
+            if path.name != "standalone-tour.audit"
+        }
+        self.assertEqual(tracked_audits, registered_audits)
 
     def test_byte_compare_rejects_observed_string_mutation(self):
         expected = os.path.join(SCENARIO_DIR, "expected", "scrapbook", "open-text-page.audit")
