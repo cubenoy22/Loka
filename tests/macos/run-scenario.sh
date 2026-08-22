@@ -58,11 +58,56 @@ WORK_DIR_TOOL="$PROJECT_DIR/tests/macos/validate-work-dir.py"
 PYTHON3="${PYTHON3:-python3}"
 SCREENCAPTURE="${SCREENCAPTURE:-/usr/sbin/screencapture}"
 
+# Everything the run is expected to leave in the work directory, so a refusal
+# can say how far the app actually got. runner.log is reported separately: its
+# size is the fact that separates "hung before writing anything" from "stopped
+# partway", and neither is visible from a bare deadline message (#466).
+WORK_CENSUS_ENTRIES=(
+  LokaTest.cfg
+  app.pid
+  stage
+  ready
+  actual.audit
+  actual.png
+  actual.profile
+  settle-a.png
+  settle-b.png
+  complete
+)
+
+describe_work_state() {
+  if [ ! -d "$WORK" ]; then
+    echo "Work state: the work directory does not exist"
+    return
+  fi
+  if [ ! -f "$WORK/runner.log" ]; then
+    echo "Work state: runner.log absent -- the app was never launched"
+  elif [ ! -s "$WORK/runner.log" ]; then
+    echo "Work state: runner.log 0 bytes -- the app wrote nothing before it stopped"
+  else
+    local bytes last
+    bytes="$(wc -c <"$WORK/runner.log" | tr -d ' ')"
+    last="$(tr -d '\r' <"$WORK/runner.log" | tail -n 1 | cut -c1-200)"
+    echo "Work state: runner.log $bytes bytes, last line: $last"
+  fi
+  local present=() absent=() entry
+  for entry in "${WORK_CENSUS_ENTRIES[@]}"; do
+    if [ -e "$WORK/$entry" ]; then
+      present+=("$entry")
+    else
+      absent+=("$entry")
+    fi
+  done
+  echo "Present: ${present[*]:-(nothing)}"
+  echo "Absent: ${absent[*]:-(nothing)}"
+}
+
 fail_stage() {
   local stage="$1"
   shift
   echo "$stage stage failed: $*" >&2
   echo "Artifacts: $WORK" >&2
+  describe_work_state >&2
   exit 1
 }
 
