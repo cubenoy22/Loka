@@ -127,7 +127,7 @@ host must satisfy that preset's toolchain requirements.
 | L1 Classic `FloppyBird` | `tests/toolbox/run-scenario.sh floppybird startup` — fixed-step initial surface observation, tracked expected audit, and settled rig-local pixel golden |
 | L2 Classic `ScrapbookUI` | `tests/toolbox/run-scenario.sh scrapbook flip-forward-back` — tracked expected audit plus settled rig-local pixel golden |
 | L2 Classic `HelloWorld` | `tests/toolbox/run-scenario.sh helloworld toggle-action-probe` — typed TEST_ID actions drive MainNode-owned Emitters; tracked expected audit plus settled rig-local pixel golden |
-| L2 Classic `Tutorial` | `tests/toolbox/run-scenario.sh tutorial increment-summary-toggle` — typed TEST_ID actions increment Step 4 twice, hide and restore its derived summary, and pin the full audit plus settled rig-local pixel golden; EditText remains outside Tutorial's runtime path ([#167](https://github.com/cubenoy22/Loka/issues/167)) |
+| L2 Classic `Tutorial` | `tests/toolbox/run-scenario.sh tutorial increment-summary-toggle` — typed TEST_ID actions increment Step 4 twice, hide and restore its derived summary, and pin the full audit plus settled rig-local pixel golden; Tutorial intentionally leaves EditText verification to HelloWorld's BMI controls. |
 | L2 Classic `MineSweeper` | `tests/toolbox/run-scenario.sh minesweeper new-game-twice` — fixed caller-owned seed pins the initial board and both MainNode-owned New Game commands; tracked expected audit plus settled rig-local pixel golden |
 | L2 Classic `FloppyBird` | `tests/toolbox/run-scenario.sh floppybird fixed-step-flaps` — fixed caller-owned seed and exact 1/60-step advancement pin five flaps and surface checkpoints; tracked expected audit plus settled rig-local pixel golden |
 | Standalone Classic `Tutorial` | `LokaTutorialStandaloneFlow68K_APPL` presents the same typed scenario without host config; after target execution, `tests/toolbox/verify-standalone-audit.sh tutorial increment-summary-toggle <LOG.TXT>` byte-compares the complete durable audit |
@@ -140,6 +140,16 @@ host must satisfy that preset's toolchain requirements.
 | L1 Classic `SimpleViewer` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
 | L2 Classic examples other than `ScrapbookUI`, `HelloWorld`, `Tutorial`, `MineSweeper`, and `FloppyBird` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
 | L3 all OSes | n/a — manual by definition; record the rig/hardware and evidence in the selected matrix cell |
+
+The EditText verification path belongs to HelloWorld rather than Tutorial. For
+the automated application-facing path, run the `bmi-roundtrip` cell with each
+platform's scenario command above. It enters valid height and weight values,
+checks the calculated BMI, enters an invalid height, and restores the valid
+value through the two BMI EditText nodes. `EnterText` writes through the Scene
+tracker like native text-change actuation, but it does not synthesize keyboard
+input. For L3 or input-path acceptance, launch HelloWorld, type into the
+`Height (cm)` and `Weight (kg)` controls, and confirm that the result follows
+the entered values.
 
 The Classic scenario command requires an already configured local MAME rig,
 the example's Toolbox test application, and the host `lrpc` tool; if an

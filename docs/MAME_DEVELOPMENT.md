@@ -123,8 +123,9 @@ The TEST-only `LokaTutorialStandaloneFlow68K_APPL` target presents Tutorial
 Step 4 through the same typed `increment-summary-toggle` scenario used by the
 machine-verdict rail. It increments the derived item summary twice, hides it,
 proves that the conditional node left the scene, restores it, and holds the
-final `Items: 2` scene until the user quits. It exercises no EditText path;
-[#167](https://github.com/cubenoy22/Loka/issues/167) remains untouched.
+final `Items: 2` scene until the user quits. Tutorial intentionally exercises
+no EditText path. Application-level text-entry verification belongs to
+HelloWorld's BMI controls and its `bmi-roundtrip` scenario.
 
 In VS Code, run **Build & Start in MAME via SCSI: Tutorial Standalone Flow**.
 The task builds the excluded APPL target, puts its MacBinary on `LokaDev`, and
