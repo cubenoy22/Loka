@@ -34,6 +34,8 @@ $Golden = Join-Path $GoldenDirectory "$Scenario.png"
 $GoldenProfile = Join-Path $GoldenDirectory "$Scenario.profile"
 $PngTool = Join-Path $ProjectDirectory "tests/scenarios/pngtool.py"
 $GoldenIdentityGuard = Join-Path $ProjectDirectory "scripts/rig/golden_identity_guard.py"
+$CaptureProfileGuard = Join-Path $ProjectDirectory "scripts/rig/win32/capture_profile_guard.py"
+$RigDescriptorDirectory = Join-Path $ProjectDirectory "scripts/rig/win32/rigs"
 $RunnerLog = Join-Path $Work "runner.log"
 $ChildProcess = $null
 $ChildWindow = [IntPtr]::Zero
@@ -43,6 +45,7 @@ $Python = $null
 $UseWslPython = $false
 $PngExitCode = 0
 $GoldenIdentityExitCode = 0
+$CaptureProfileExitCode = 0
 $ExitCode = 0
 
 function Fail-Stage([string]$StageName, [string]$Message) {
@@ -213,6 +216,40 @@ function Invoke-GoldenIdentityGuard([string]$Capture) {
     $script:GoldenIdentityExitCode = $LASTEXITCODE
 }
 
+function Resolve-RigDescriptor([string]$Profile) {
+    # The rail runs on more than one architecture and the vehicle reports which
+    # one it built for, so the descriptor is chosen rather than fixed. Picking
+    # one architecture's file for every rig would refuse every run on the others.
+    $facts = Read-ScenarioProfile $Profile
+    if (-not $facts.ContainsKey("arch")) {
+        Fail-Stage "profile" "capture profile reports no arch; cannot choose a rig descriptor"
+    }
+    $arch = $facts["arch"]
+    if ($arch -notmatch '^[a-z0-9_]+$') {
+        Fail-Stage "profile" "capture profile reports an unusable arch '$arch'"
+    }
+    $candidate = Join-Path $RigDescriptorDirectory "win32-$arch.ini"
+    if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+        Fail-Stage "profile" ("no tracked rig descriptor for arch=$arch; this rail's goldens " +
+            "would be pinned to an undeclared environment. Add $candidate declaring the " +
+            "[capture] fields this machine reports in $Profile.")
+    }
+    return $candidate
+}
+
+function Invoke-CaptureProfileGuard([string]$Descriptor, [string]$Profile) {
+    if ($UseWslPython) {
+        & wsl.exe python3 (Convert-ToWslPath $CaptureProfileGuard) `
+            --descriptor (Convert-ToWslPath $Descriptor) `
+            --profile (Convert-ToWslPath $Profile)
+    } else {
+        & $Python $CaptureProfileGuard `
+            --descriptor $Descriptor `
+            --profile $Profile
+    }
+    $script:CaptureProfileExitCode = $LASTEXITCODE
+}
+
 $nativeSource = @'
 using System;
 using System.Collections.Generic;
@@ -317,7 +354,7 @@ try {
     $BuiltExecutable = Join-Path $ProjectDirectory `
         "build/win32/Debug/example/$VehicleOutputDirectory/$VehicleExecutableName"
     if (-not (Test-Path -LiteralPath $BuiltExecutable -PathType Leaf)) {
-        Fail-Stage "build" "missing $BuiltExecutable; enter vcvarsall.bat arm64, run cmake --preset win32-debug, then cmake --build --preset win32-tests"
+        Fail-Stage "build" "missing $BuiltExecutable; enter vcvarsall.bat for this machine's architecture, run cmake --preset win32-debug, then cmake --build --preset win32-tests"
     }
     if ($Example -eq "scrapbook") {
         if (-not (Test-Path -LiteralPath $Lrpc -PathType Leaf)) {
@@ -485,6 +522,16 @@ try {
     }
     $ActualProfile = Join-Path $Work "actual.profile"
     Copy-Item -LiteralPath $StageProfile -Destination $ActualProfile
+
+    # Before the golden is written or compared, not after. A bake on a machine
+    # that does not match the tracked rig would otherwise pin whatever the
+    # desktop happened to be, and the disagreement would surface as a pixel
+    # mismatch on some later, unrelated change.
+    $RigDescriptor = Resolve-RigDescriptor $ActualProfile
+    Invoke-CaptureProfileGuard $RigDescriptor $ActualProfile *>> $RunnerLog
+    if ($CaptureProfileExitCode -ne 0) {
+        Fail-Stage "profile" "capture environment is not the one $RigDescriptor declares; see $RunnerLog"
+    }
 
     if ($UpdateGolden) {
         Invoke-GoldenIdentityGuard $Actual *>> $RunnerLog
