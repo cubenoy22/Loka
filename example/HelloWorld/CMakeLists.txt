@@ -114,6 +114,14 @@ if(WIN32)
   add_dependencies(LokaTestsWin32 LokaWin32StandaloneAuditFixture)
 
   add_test(NAME LokaTestsWin32 COMMAND LokaTestsWin32)
+  if(MSVC AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_test(NAME scriptWin32AssertFailure
+      COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
+        -File
+          ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/scripts/Win32AssertFailureTest.ps1
+        -TestExecutable $<TARGET_FILE:LokaTestsWin32>)
+    set_tests_properties(scriptWin32AssertFailure PROPERTIES TIMEOUT 15)
+  endif()
   add_test(NAME scriptWin32StandaloneAuditVerifier
     COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
       -File
