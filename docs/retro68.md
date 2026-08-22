@@ -554,13 +554,16 @@ Practical rule:
 - but if a crash remains after several safe-side fixes, question the ownership
   model, not only the cleanup details
 
-## VSCode (IntelliSense)
+## VS Code (clangd)
 
-To enable Classic Mac OS headers in IntelliSense, add the Retro68 interfaces
-directory to your include path.
+To enable Classic Mac OS headers in clangd, select a Retro68 preset in CMake
+Tools and configure it. The Retro68 presets generate a compilation database,
+and the tracked VS Code settings copy the active database to
+`compile_commands.json` at the repository root for clangd.
 
-This repo includes a starter configuration at:
+The workspace permits clangd to query only the Retro68 68K and PPC C++ compiler
+drivers named by that database. This supplies the toolchain's actual system
+include paths without hard-coding the location of a local Retro68 build.
 
-- `.vscode/c_cpp_properties.json`
-
-Update the path if your Retro68 build directory differs from `../Retro68-build`.
+`.vscode/c_cpp_properties.json` remains as a starter configuration for anyone
+who explicitly re-enables the Microsoft C/C++ IntelliSense engine.
