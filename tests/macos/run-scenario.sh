@@ -54,6 +54,8 @@ EXPECTED="$PROJECT_DIR/tests/scenarios/expected/$EXAMPLE/$SCENARIO.audit"
 PNG_TOOL="$PROJECT_DIR/tests/scenarios/pngtool.py"
 GOLDEN_IDENTITY_GUARD="$PROJECT_DIR/scripts/rig/golden_identity_guard.py"
 PACKAGE_FIXTURE_GUARD="$PROJECT_DIR/scripts/rig/package_fixture_guard.py"
+CAPTURE_PROFILE_GUARD="$PROJECT_DIR/scripts/rig/capture_profile_guard.py"
+RIG_DESCRIPTOR_DIRECTORY="$PROJECT_DIR/scripts/rig/macos/rigs"
 WORK_DIR_TOOL="$PROJECT_DIR/tests/macos/validate-work-dir.py"
 PYTHON3="${PYTHON3:-python3}"
 SCREENCAPTURE="${SCREENCAPTURE:-/usr/sbin/screencapture}"
@@ -130,6 +132,31 @@ fail_stage() {
   echo "Artifacts: $WORK" >&2
   describe_work_state >&2
   exit 1
+}
+
+resolve_rig_descriptor() {
+  local name="${LOKA_MACOS_RIG:-}"
+  if [ -z "$name" ]; then
+    fail_stage profile \
+      "LOKA_MACOS_RIG is unset; set LOKA_MACOS_RIG=<name> for a descriptor in $RIG_DESCRIPTOR_DIRECTORY"
+  fi
+  if [[ ! "$name" =~ ^[a-z0-9][a-z0-9.-]*$ ]] || [[ "$name" == *..* ]]; then
+    fail_stage profile \
+      "invalid LOKA_MACOS_RIG name '$name'; expected a name matching ^[a-z0-9][a-z0-9.-]*$ without '..'"
+  fi
+  RIG_DESCRIPTOR="$RIG_DESCRIPTOR_DIRECTORY/$name.ini"
+  if [ ! -f "$RIG_DESCRIPTOR" ]; then
+    fail_stage profile \
+      "no tracked rig descriptor at $RIG_DESCRIPTOR; this rail's goldens would be pinned to an undeclared environment. Add $RIG_DESCRIPTOR declaring the [capture] fields this machine reports in $WORK/actual.profile."
+  fi
+}
+
+verify_capture_environment() {
+  if ! "$PYTHON3" "$CAPTURE_PROFILE_GUARD" \
+      --descriptor "$RIG_DESCRIPTOR" --profile "$WORK/actual.profile"; then
+    fail_stage profile \
+      "capture environment is not the one $RIG_DESCRIPTOR declares"
+  fi
 }
 
 publish_verified() {
@@ -298,7 +325,10 @@ if [ "$MODE" = "structural" ]; then
   exit 0
 fi
 
+resolve_rig_descriptor
+
 if [ "$MODE" = "update" ]; then
+  verify_capture_environment
   if ! "$PYTHON3" "$GOLDEN_IDENTITY_GUARD" \
       --registry "$SCENARIO_REGISTRY" \
       --declarations "$STARTUP_IDENTITY_DECLARATIONS" \
@@ -315,6 +345,7 @@ if [ "$MODE" = "update" ]; then
   exit 0
 fi
 
+verify_capture_environment
 if [ ! -f "$GOLDEN" ] || [ ! -f "$GOLDEN_PROFILE" ]; then
   fail_stage golden "missing rig-local golden/profile; rerun with --update-golden"
 fi

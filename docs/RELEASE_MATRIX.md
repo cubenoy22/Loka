@@ -136,7 +136,7 @@ host must satisfy that preset's toolchain requirements.
 | L1 Win32 `ScrapbookUI` | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/win32/run-scenario.ps1 scrapbook startup` — shared State-driven scenario, byte-identical tracked audit, two-hash settled `PrintWindow` capture, and rig-local profiled golden |
 | L2 Win32 `ScrapbookUI` | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/win32/run-scenario.ps1 scrapbook flip-forward-back` — shared State-driven scenario, byte-identical tracked audit, two-hash settled `PrintWindow` capture, and rig-local profiled golden |
 | L1/L2 Win32 other scenario examples | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/win32/run-scenario.ps1 <example> <scenario>` — shared scene driver, byte-identical tracked audit, two-hash settled `PrintWindow` capture, and rig-local profiled golden |
-| L1/L2 macOS | `tests/macos/run-scenario.sh <example> <scenario>` — tracked expected audit plus settled rig-local pixel golden |
+| L1/L2 macOS | `LOKA_MACOS_RIG=<rig> tests/macos/run-scenario.sh <example> <scenario>` — tracked expected audit plus settled rig-local pixel golden; `<rig>` names a descriptor in `scripts/rig/macos/rigs/`, and the capture environment it declares must match what the run reports |
 | L1 Classic `SimpleViewer` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
 | L2 Classic examples other than `ScrapbookUI`, `HelloWorld`, `Tutorial`, `MineSweeper`, and `FloppyBird` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
 | L3 all OSes | n/a — manual by definition; record the rig/hardware and evidence in the selected matrix cell |

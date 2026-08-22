@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refuse a Win32 capture whose environment is not the one the rig declares."""
+"""Refuse a capture whose environment is not the one the rig declares."""
 
 from __future__ import annotations
 
@@ -96,7 +96,7 @@ def main(arguments: Sequence[str]) -> int:
     try:
         verify_capture_profile(args.descriptor, args.profile)
     except (CaptureProfileError, OSError) as error:
-        print(f"Win32 capture profile refused: {error}", file=sys.stderr)
+        print(f"Capture profile refused: {error}", file=sys.stderr)
         return 4
     return 0
 

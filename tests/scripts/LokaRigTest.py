@@ -4,6 +4,7 @@ import importlib.util
 import pathlib
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import types
@@ -16,13 +17,11 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(RIG_SCRIPTS))
 
 import loka_rig_common as common
+import capture_profile_guard
 import golden_identity_guard
 import package_fixture_guard
 from toolbox import loka_toolbox_rig as toolbox
 from toolbox import classic_golden_identity as golden_identity
-
-sys.path.insert(0, str(ROOT / "scripts" / "rig" / "win32"))
-import capture_profile_guard  # noqa: E402
 
 
 def make_toolbox_golden_bundle(root, checkout, scenarios):
@@ -834,7 +833,7 @@ class GoldenIdentityGuardTest(unittest.TestCase):
 
 
 
-class Win32CaptureProfileGuardTest(unittest.TestCase):
+class CaptureProfileGuardTest(unittest.TestCase):
     DECLARED = (
         "[rig]\n"
         "rig_id = fake\n"
@@ -856,6 +855,35 @@ class Win32CaptureProfileGuardTest(unittest.TestCase):
         profile = root / "actual.profile"
         profile.write_text(self.REPORTED if reported is None else reported, encoding="utf-8")
         return descriptor, profile
+
+    def test_module_is_loaded_from_the_shared_rig_directory(self):
+        self.assertEqual(
+            pathlib.Path(capture_profile_guard.__file__).resolve(),
+            (RIG_SCRIPTS / "capture_profile_guard.py").resolve(),
+        )
+
+    def test_shared_cli_refusal_uses_rail_neutral_wording(self):
+        with tempfile.TemporaryDirectory() as directory:
+            descriptor, profile = self.make(
+                pathlib.Path(directory),
+                reported=self.REPORTED.replace("appearance=light", "appearance=dark"),
+            )
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(RIG_SCRIPTS / "capture_profile_guard.py"),
+                    "--descriptor",
+                    str(descriptor),
+                    "--profile",
+                    str(profile),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(completed.returncode, 4)
+            self.assertIn("Capture profile refused: ", completed.stderr)
+            self.assertNotIn("Win32 capture profile refused", completed.stderr)
 
     def test_matching_environment_passes(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -914,6 +942,99 @@ class Win32CaptureProfileGuardTest(unittest.TestCase):
             },
         )
 
+    def test_tahoe_declares_only_fields_the_macos_profile_carries(self):
+        descriptor = ROOT / "scripts" / "rig" / "macos" / "rigs" / "tahoe.ini"
+        declared = capture_profile_guard.read_declared_capture(descriptor)
+        self.assertEqual(
+            declared,
+            {
+                "profile_version": "2",
+                "os_build": "25G76",
+                "arch": "x86_64",
+                "scale_percent": "200",
+                "depth": "24",
+                "appearance": "light",
+                "capture_api": "NSView.cacheDisplayInRect.v1",
+            },
+        )
+        macos_profile_fields = {
+            "profile_version",
+            "os_build",
+            "arch",
+            "scale_percent_available",
+            "scale_percent",
+            "depth_available",
+            "depth",
+            "appearance_available",
+            "appearance",
+            "capture_api",
+            "pixel_width",
+            "pixel_height",
+        }
+        self.assertLessEqual(set(declared), macos_profile_fields)
+
+    def test_mavericks_declares_no_capture_section(self):
+        """The Mavericks rig has never had its capture profile recorded.
+
+        Any [capture] value there would be invented, and an invented value is
+        worse than none: the guard would pass a bake against a number nobody
+        measured. Until that rig captures once, its descriptor stays without a
+        [capture] section and the guard refuses any pixel-evaluating run that
+        selects it.
+        """
+        descriptor = ROOT / "scripts" / "rig" / "macos" / "rigs" / "mavericks-10.9.ini"
+        with self.assertRaises(capture_profile_guard.CaptureProfileError) as caught:
+            capture_profile_guard.read_declared_capture(descriptor)
+        self.assertIn("declares no [capture] section", str(caught.exception))
+
+
+
+class RunnerRigScriptReferenceTest(unittest.TestCase):
+    """Each rail names its guards by path, and no rail runner is executed here.
+
+    The PowerShell runner cannot run on the headless suite's hosts at all, and
+    the shell runners need their platform, so a path that stopped resolving
+    would surface only on the rig it belongs to -- after someone travelled to
+    it. Pinning the set also makes a rail acquiring or losing a guard a
+    reviewable edit rather than a silent one.
+    """
+
+    REFERENCE_PATTERN = re.compile(r"scripts/rig/[A-Za-z0-9_./-]+\.py")
+    EXPECTED = {
+        "tests/win32/run-scenario.ps1": {
+            "scripts/rig/capture_profile_guard.py",
+            "scripts/rig/golden_identity_guard.py",
+            "scripts/rig/package_fixture_guard.py",
+        },
+        "tests/macos/run-scenario.sh": {
+            "scripts/rig/capture_profile_guard.py",
+            "scripts/rig/golden_identity_guard.py",
+            "scripts/rig/package_fixture_guard.py",
+        },
+        # The Toolbox rail declares no capture environment: a Classic capture
+        # comes from an emulator or real hardware, and that environment has
+        # never been recorded as a profile. It is the one rail this wall does
+        # not yet cover.
+        "tests/toolbox/run-scenario.sh": {
+            "scripts/rig/package_fixture_guard.py",
+            "scripts/rig/toolbox/classic_golden_identity.py",
+        },
+    }
+
+    def test_every_runner_references_exactly_its_declared_rig_scripts(self):
+        for runner, expected in self.EXPECTED.items():
+            with self.subTest(runner=runner):
+                text = (ROOT / runner).read_text(encoding="utf-8")
+                self.assertEqual(set(self.REFERENCE_PATTERN.findall(text)), expected)
+
+    def test_every_referenced_rig_script_exists(self):
+        for runner, expected in self.EXPECTED.items():
+            for relative in sorted(expected):
+                with self.subTest(runner=runner, script=relative):
+                    self.assertTrue(
+                        (ROOT / relative).is_file(),
+                        f"{runner} names {relative}, which is not in the tree",
+                    )
 
 
 if __name__ == "__main__":
