@@ -1,3 +1,2 @@
 minesweeper new-game-twice a second new game reseeds to the same fixed board, so the settled grid is the one startup already shows
-scrapbook open-first-page page 1 is what startup presents; the cell shares runOpenScenario with startup and only re-asserts that opening the first page is a no-op
 scrapbook flip-forward-back selectPage(1) then selectPage(0) settles back on page 1; the 2/5 midpoint is audited by caption and page index only, never rendered into a compared frame (see #451)

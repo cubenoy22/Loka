@@ -215,6 +215,11 @@ void testScrapbookRigLaunchRequiresConfigAndRefusesStandaloneTour()
   LOKA_VERIFY(plan.scenario() == "startup");
   LOKA_VERIFY(plan.completionPolicy() == loka::scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED);
 
+  // The retired duplicate must fail closed without replacing the accepted plan.
+  settings.scenario = "open-first-page";
+  LOKA_VERIFY(!loka::scenario_tests::QueryRigLaunchPlan(true, settings, plan));
+  LOKA_VERIFY(plan.scenario() == "startup");
+
   plan = loka::scenario_tests::ScenarioLaunchPlan::StandaloneTour();
   LOKA_VERIFY(!loka::scenario_tests::QueryRigLaunchPlan(false, settings, plan));
   LOKA_VERIFY(plan.scenario() == "standalone-tour");

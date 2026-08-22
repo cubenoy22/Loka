@@ -102,7 +102,7 @@ echo "pattern: $W0 $W1 link $LINK"
 
 # --- scenario config -------------------------------------------------------
 CONFIG="$WORK/LokaTest.cfg"
-printf 'scenario open-first-page\nlinger_seconds 600\n' >"$CONFIG"
+printf 'scenario startup\nlinger_seconds 600\n' >"$CONFIG"
 export LOKA_DEV_DATA="$PROJECT_DIR/example/ScrapbookUI/ASSETS.LRP
 $CONFIG"
 

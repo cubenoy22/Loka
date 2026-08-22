@@ -94,7 +94,6 @@ namespace loka
       {
         KIND_INVALID = 0,
         KIND_STARTUP,
-        KIND_OPEN_FIRST_PAGE,
         KIND_OPEN_FIRST_PAGE_REFUSED,
         KIND_FLIP_FORWARD_BACK,
         KIND_REFUSED_FLIP_KEEPS_PAGE,
