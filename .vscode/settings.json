@@ -1,4 +1,8 @@
 {
+  "C_Cpp.intelliSenseEngine": "disabled",
+  "clangd.arguments": [
+    "--query-driver=**/m68k-apple-macos-g++,**/powerpc-apple-macos-g++"
+  ],
   "cmake.copyCompileCommands": "${workspaceFolder}/compile_commands.json",
   "cmake.useCMakePresets": "always",
   "cmake.ctest.testExplorerIntegration": true,
