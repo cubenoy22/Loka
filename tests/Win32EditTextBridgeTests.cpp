@@ -23,8 +23,8 @@ void testWin32EditTextBridgeRoundTripsUtf16()
 
   HWND edit = loka::win32::CreateEditTextControl(parent, 0, 0, 180, 24);
   assert(edit);
-  assert(IsWindowUnicode(edit) &&
-         "the EDIT control must be a Unicode window: an ANSI EDIT stores IME input in the system codepage");
+  LOKA_VERIFY(IsWindowUnicode(edit) &&
+              "the EDIT control must be a Unicode window: an ANSI EDIT stores IME input in the system codepage");
 
   // Readback direction: what an IME commit leaves in the control must reach
   // the logical String losslessly.
@@ -49,7 +49,7 @@ void testWin32EditTextBridgeRoundTripsUtf16()
   // the bridge back to the A path.
   HWND ansiEdit = CreateWindowExA(
       WS_EX_CLIENTEDGE, "EDIT", "", WS_CHILD | WS_BORDER, 0, 30, 180, 24, parent, NULL, GetModuleHandle(NULL), NULL);
-  assert(ansiEdit && !IsWindowUnicode(ansiEdit));
+  LOKA_VERIFY(ansiEdit && !IsWindowUnicode(ansiEdit));
   SendMessageW(ansiEdit, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(kJapanesePayload));
   int ansiLen = GetWindowTextLengthA(ansiEdit);
   std::string ansiBytes(static_cast<std::size_t>(ansiLen > 0 ? ansiLen : 0), '\0');
