@@ -133,7 +133,7 @@ if ! LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
 fi
 grep -Fxq -- '--corrupt-bag' "$SANDBOX/lrpc-arguments" \
   || fail "Scrapbook refusal cell did not request corruption"
-grep -Fxq -- '1' "$SANDBOX/lrpc-arguments" \
+grep -A1 -Fx -- '--corrupt-bag' "$SANDBOX/lrpc-arguments" | tail -1 | grep -Fxq -- '1' \
   || fail "Scrapbook refusal cell did not request corrupt bag 1"
 grep -Fq '/stage/LokaScrapbookScenarioMacOS.app/Contents/MacOS/' \
   "$SANDBOX/launched-binary" \

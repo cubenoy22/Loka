@@ -78,6 +78,15 @@ if [ "$EXAMPLE" = "scrapbook" ]; then
   LRPC="$PROJECT_DIR/build/host/lrpc/lrpc"
   SOURCE_ASSETS="$PROJECT_DIR/example/ScrapbookUI/assets/ASSETS-modern.LRP"
   FIXTURE_REGISTRY="$PROJECT_DIR/tests/scenarios/scrapbook-package-fixtures.txt"
+  # tools/lrpc pins no generator, so where the binary lands depends on the one
+  # cmake picks. A bare configure takes Unix Makefiles here and writes
+  # build/host/lrpc/lrpc, but an exported CMAKE_GENERATOR of Xcode -- which
+  # scripts/macos/gen-xcodeproj.sh makes a normal habit -- writes a per-config
+  # subdirectory instead. Look there too, the way the Win32 rail already does,
+  # so the remediation below is never printed to someone who ran it correctly.
+  if [ ! -x "$LRPC" ] && [ -x "$PROJECT_DIR/build/host/lrpc/Debug/lrpc" ]; then
+    LRPC="$PROJECT_DIR/build/host/lrpc/Debug/lrpc"
+  fi
   if [ ! -x "$LRPC" ]; then
     fail_stage stage \
       "missing $LRPC; build it with: cmake -S tools/lrpc -B build/host/lrpc && cmake --build build/host/lrpc"

@@ -274,7 +274,7 @@ run_case scrapbook startup 1 unset
 run_case scrapbook open-first-page-refused 1 unset
 grep -Fxq -- '--corrupt-bag' "$SANDBOX/lrpc-arguments" \
   || fail "Scrapbook refusal did not request package corruption"
-grep -Fxq -- '1' "$SANDBOX/lrpc-arguments" \
+grep -A1 -Fx -- '--corrupt-bag' "$SANDBOX/lrpc-arguments" | tail -1 | grep -Fxq -- '1' \
   || fail "Scrapbook refusal did not use the neutral bag mapping"
 rm -f "$SANDBOX/tab-count"
 if MAME_ENV_FILE="$SANDBOX/mame.env" FAKE_LRPC_IDENTITY=1 env -u WSL_INTEROP \

@@ -624,6 +624,20 @@ class PackageFixtureGuardTest(unittest.TestCase):
         verify_call = runner.index("Invoke-PackageFixtureVerify $StagedAssets")
         self.assertLess(plan_call, lrpc_call)
         self.assertLess(lrpc_call, verify_call)
+        # Ordering alone would still hold with both refusals deleted, which is
+        # the whole behaviour. Pin that each answer is acted on, and that the
+        # plan answer's shape is checked before it becomes an lrpc argument.
+        plan_refusal = runner.index(
+            'Fail-Stage "stage" $corruptBag'
+        )
+        shape_check = runner.index("$corruptBag -notmatch '^[0-9]+$'")
+        verify_refusal = runner.index(
+            'Fail-Stage "stage" $fixtureMessage'
+        )
+        self.assertLess(plan_call, plan_refusal)
+        self.assertLess(plan_refusal, shape_check)
+        self.assertLess(shape_check, lrpc_call)
+        self.assertLess(verify_call, verify_refusal)
         self.assertIn(
             'Convert-ToWslPath $PackageFixtureGuard "stage"', runner
         )
