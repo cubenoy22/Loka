@@ -4,6 +4,7 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SANDBOX="$(mktemp -d)"
+export SANDBOX
 trap 'rm -rf "$SANDBOX"' EXIT
 
 fail() {
@@ -14,17 +15,28 @@ fail() {
 mkdir -p \
   "$SANDBOX/repo/tests/macos" \
   "$SANDBOX/repo/tests/scenarios/expected" \
+  "$SANDBOX/repo/example/ScrapbookUI/assets" \
+  "$SANDBOX/repo/build/host/lrpc" \
   "$SANDBOX/repo/build" \
-  "$SANDBOX/fake.app/Contents/MacOS"
+  "$SANDBOX/fake.app/Contents/MacOS" \
+  "$SANDBOX/fake.app/Contents/Resources"
 cp "$REPO_DIR/tests/macos/run-scenario.sh" "$SANDBOX/repo/tests/macos/run-scenario.sh"
 cp "$REPO_DIR/tests/macos/validate-work-dir.py" "$SANDBOX/repo/tests/macos/validate-work-dir.py"
 mkdir -p "$SANDBOX/repo/scripts/rig"
 cp "$REPO_DIR/scripts/rig/golden_identity_guard.py" \
   "$SANDBOX/repo/scripts/rig/golden_identity_guard.py"
+cp "$REPO_DIR/scripts/rig/package_fixture_guard.py" \
+  "$SANDBOX/repo/scripts/rig/package_fixture_guard.py"
 cp "$REPO_DIR/tests/scenarios/pngtool.py" "$SANDBOX/repo/tests/scenarios/pngtool.py"
 cp "$REPO_DIR/tests/scenarios/scenarios.txt" "$SANDBOX/repo/tests/scenarios/scenarios.txt"
 cp "$REPO_DIR/tests/scenarios/startup-golden-identities.txt" \
   "$SANDBOX/repo/tests/scenarios/startup-golden-identities.txt"
+cp "$REPO_DIR/tests/scenarios/scrapbook-package-fixtures.txt" \
+  "$SANDBOX/repo/tests/scenarios/scrapbook-package-fixtures.txt"
+cp "$REPO_DIR/example/ScrapbookUI/assets/ASSETS-modern.LRP" \
+  "$SANDBOX/repo/example/ScrapbookUI/assets/ASSETS-modern.LRP"
+cp "$REPO_DIR/example/ScrapbookUI/assets/ASSETS-modern.LRP" \
+  "$SANDBOX/fake.app/Contents/Resources/ASSETS.LRP"
 for example in scrapbook helloworld tutorial minesweeper floppybird; do
   mkdir -p "$SANDBOX/repo/tests/scenarios/expected/$example"
   cp "$REPO_DIR/tests/scenarios/expected/$example/startup.audit" \
@@ -34,6 +46,13 @@ cp "$REPO_DIR/tests/scenarios/expected/helloworld/bmi-roundtrip.audit" \
   "$SANDBOX/repo/tests/scenarios/expected/helloworld/bmi-roundtrip.audit"
 cp "$REPO_DIR/tests/scenarios/expected/minesweeper/new-game-twice.audit" \
   "$SANDBOX/repo/tests/scenarios/expected/minesweeper/new-game-twice.audit"
+for scenario in \
+  open-first-page-refused \
+  refused-flip-keeps-page \
+  open-text-page-refused; do
+  cp "$REPO_DIR/tests/scenarios/expected/scrapbook/$scenario.audit" \
+    "$SANDBOX/repo/tests/scenarios/expected/scrapbook/$scenario.audit"
+done
 
 for invocation in \
   'scrapbook startup' \
@@ -52,6 +71,16 @@ cp "$REPO_DIR/example/ScrapbookUI/assets/page2.png" "$SANDBOX/different-snapshot
 cat >"$SANDBOX/fake.app/Contents/MacOS/LokaScrapbookScenarioMacOS" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
+printf '%s\n' "$0" >"$SANDBOX/launched-binary"
+if [ "${FAKE_REQUIRE_STAGED:-0}" = "1" ]; then
+  case "$0" in
+    "$SANDBOX"/repo/build/macos-scenario/scrapbook/*/stage/*.app/Contents/MacOS/*) ;;
+    *) exit 19 ;;
+  esac
+fi
+if [ -f "$(dirname "$0")/../Resources/ASSETS.LRP" ]; then
+  printf 'staged-package-present\n' >"$SANDBOX/launched-package"
+fi
 if [ "${FAKE_AUDIT_MUTATION:-0}" = "1" ]; then
   sed 's/text_empty\ttrue/text_empty\tfalse/' "$FAKE_EXPECTED_AUDIT" >actual.audit
 else
@@ -68,6 +97,21 @@ chmod +x \
   "$SANDBOX/repo/tests/macos/run-scenario.sh" \
   "$SANDBOX/fake.app/Contents/MacOS/LokaScrapbookScenarioMacOS"
 
+cat >"$SANDBOX/repo/build/host/lrpc/lrpc" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$@" >"$SANDBOX/lrpc-arguments"
+if [ "${FAKE_LRPC_MODE:-copy}" = "missing" ]; then
+  rm -f "$4"
+  exit 0
+fi
+cp -f "$2" "$4"
+if [ "${5:-}" = "--corrupt-bag" ] && [ "${FAKE_LRPC_MODE:-copy}" != "identity" ]; then
+  printf 'corrupt bag %s\n' "$6" >>"$4"
+fi
+SH
+chmod +x "$SANDBOX/repo/build/host/lrpc/lrpc"
+
 for target in \
   LokaHelloWorldScenarioMacOS \
   LokaTutorialScenarioMacOS \
@@ -76,6 +120,68 @@ for target in \
   cp "$SANDBOX/fake.app/Contents/MacOS/LokaScrapbookScenarioMacOS" \
     "$SANDBOX/fake.app/Contents/MacOS/$target"
 done
+
+EXPECTED="$SANDBOX/repo/tests/scenarios/expected/scrapbook/open-first-page-refused.audit"
+WORK="$SANDBOX/repo/build/macos-scenario/scrapbook/open-first-page-refused"
+if ! LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
+    LOKA_MACOS_SCENARIO_WORK="$WORK" FAKE_REQUIRE_STAGED=1 \
+    FAKE_EXPECTED_AUDIT="$EXPECTED" FAKE_SNAPSHOT="$SANDBOX/snapshot.png" \
+    bash "$SANDBOX/repo/tests/macos/run-scenario.sh" \
+      scrapbook open-first-page-refused --ci-structural \
+      >"$SANDBOX/runner-refusal-cell.log" 2>&1; then
+  fail "Scrapbook refusal cell did not pass with its staged corrupt fixture"
+fi
+grep -Fxq -- '--corrupt-bag' "$SANDBOX/lrpc-arguments" \
+  || fail "Scrapbook refusal cell did not request corruption"
+grep -A1 -Fx -- '--corrupt-bag' "$SANDBOX/lrpc-arguments" | tail -1 | grep -Fxq -- '1' \
+  || fail "Scrapbook refusal cell did not request corrupt bag 1"
+grep -Fq '/stage/LokaScrapbookScenarioMacOS.app/Contents/MacOS/' \
+  "$SANDBOX/launched-binary" \
+  || fail "Scrapbook refusal cell launched the original bundle"
+
+rm -f "$SANDBOX/launched-binary"
+if LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
+    LOKA_MACOS_SCENARIO_WORK="$WORK" FAKE_REQUIRE_STAGED=1 FAKE_LRPC_MODE=identity \
+    FAKE_EXPECTED_AUDIT="$EXPECTED" FAKE_SNAPSHOT="$SANDBOX/snapshot.png" \
+    bash "$SANDBOX/repo/tests/macos/run-scenario.sh" \
+      scrapbook open-first-page-refused --ci-structural \
+      >"$SANDBOX/runner-unstaged-fixture.log" 2>&1; then
+  fail "byte-identical corrupt fixture unexpectedly launched"
+fi
+grep -Fq "scenario 'open-first-page-refused' declares corrupt-bag=1" \
+  "$SANDBOX/runner-unstaged-fixture.log" \
+  || fail "package fixture wall did not name the declared corruption"
+grep -Fq 'this rail did not stage the fixture' \
+  "$SANDBOX/runner-unstaged-fixture.log" \
+  || fail "package fixture wall did not diagnose the unchanged fixture"
+[ ! -f "$SANDBOX/launched-binary" ] \
+  || fail "package fixture wall fired after launch"
+
+# The plan answer is read from a command whose stderr is merged in so that a
+# refusal carries its message. On the Win32 rail that command can be
+# `wsl.exe python3`, which writes interop warnings to stderr on success, so a
+# rail that trusted the merged value would hand the warning to lrpc as a bag
+# number. The answer shape is checked instead.
+cat >"$SANDBOX/noisy-python3" <<'SH'
+#!/usr/bin/env bash
+echo "wsl: interop warning simulated" >&2
+exec python3 "$@"
+SH
+chmod +x "$SANDBOX/noisy-python3"
+rm -f "$SANDBOX/launched-binary"
+if PYTHON3="$SANDBOX/noisy-python3" \
+    LOKA_MACOS_SCENARIO_APP="$SANDBOX/fake.app" \
+    LOKA_MACOS_SCENARIO_WORK="$WORK" FAKE_REQUIRE_STAGED=1 \
+    FAKE_EXPECTED_AUDIT="$EXPECTED" FAKE_SNAPSHOT="$SANDBOX/snapshot.png" \
+    bash "$SANDBOX/repo/tests/macos/run-scenario.sh" \
+      scrapbook open-first-page-refused --ci-structural \
+      >"$SANDBOX/runner-noisy-plan.log" 2>&1; then
+  fail "a plan answer carrying interpreter stderr unexpectedly reached lrpc"
+fi
+grep -Fq 'not a bag number' "$SANDBOX/runner-noisy-plan.log" \
+  || fail "contaminated plan answer was not named as such"
+[ ! -f "$SANDBOX/launched-binary" ] \
+  || fail "contaminated plan answer reached launch"
 
 for example in scrapbook helloworld tutorial minesweeper floppybird; do
   EXPECTED="$SANDBOX/repo/tests/scenarios/expected/$example/startup.audit"
@@ -87,6 +193,18 @@ for example in scrapbook helloworld tutorial minesweeper floppybird; do
         "$example" startup --ci-structural \
         >"$SANDBOX/runner-$example-success.log" 2>&1; then
     fail "$example byte-identical audit did not pass structural mode"
+  fi
+  if [ "$example" = "scrapbook" ]; then
+    if grep -Fxq -- '--corrupt-bag' "$SANDBOX/lrpc-arguments"; then
+      fail "non-fixture Scrapbook startup requested package corruption"
+    fi
+    grep -Fxq -- 'stage' "$SANDBOX/lrpc-arguments" \
+      || fail "non-fixture Scrapbook startup did not stage its package"
+    grep -Fq '/stage/LokaScrapbookScenarioMacOS.app/Contents/MacOS/' \
+      "$SANDBOX/launched-binary" \
+      || fail "Scrapbook startup launched the original bundle"
+    grep -Fxq 'staged-package-present' "$SANDBOX/launched-package" \
+      || fail "staged Scrapbook bundle did not contain the package"
   fi
 done
 

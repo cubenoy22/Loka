@@ -163,6 +163,7 @@ ACTUAL_IMAGE="$WORK/$SCENARIO.png"
 GOLDEN="$PROJECT_DIR/build/mame-scenario/golden/$EXAMPLE/$SCENARIO.png"
 GOLDEN_BUNDLE="$PROJECT_DIR/build/mame-scenario/golden"
 GOLDEN_IDENTITY_HELPER="$PROJECT_DIR/scripts/rig/toolbox/classic_golden_identity.py"
+PACKAGE_FIXTURE_GUARD="$PROJECT_DIR/scripts/rig/package_fixture_guard.py"
 RIG_DESCRIPTOR="$PROJECT_DIR/scripts/rig/toolbox/rigs/toolbox-maciix.ini"
 CAPTURE_ADAPTER="${LOKA_TOOLBOX_CAPTURE_ADAPTER:-mame-screen-snapshot.v1}"
 BUILD_PROVENANCE="$(dirname "$APPL")/classic-build-provenance.txt"
@@ -235,28 +236,28 @@ if [ "$EXAMPLE" = "scrapbook" ]; then
     fail_stage mame "package not found: $ASSETS"
   fi
   STAGED_ASSETS="$WORK/ASSETS.LRP"
-  CORRUPT_BAG=""
   FIXTURE_REGISTRY="$PROJECT_DIR/tests/scenarios/scrapbook-package-fixtures.txt"
-  if [ ! -f "$FIXTURE_REGISTRY" ]; then
-    fail_stage mame "missing $FIXTURE_REGISTRY"
+  if ! CORRUPT_BAG="$(python3 "$PACKAGE_FIXTURE_GUARD" plan \
+      --registry "$FIXTURE_REGISTRY" --scenario "$SCENARIO" 2>&1)"; then
+    fail_stage mame "$CORRUPT_BAG"
   fi
-  while IFS= read -r fixture_entry || [ -n "$fixture_entry" ]; do
-    if [[ ! "$fixture_entry" =~ ^([a-z0-9][a-z0-9-]*)\ corrupt-bag=([0-9]+)$ ]]; then
-      fail_stage mame "invalid Scrapbook fixture registry line '$fixture_entry'"
-    fi
-    if [ "${BASH_REMATCH[1]}" = "$SCENARIO" ]; then
-      if [ -n "$CORRUPT_BAG" ]; then
-        fail_stage mame "duplicate fixture mapping for '$SCENARIO'"
-      fi
-      CORRUPT_BAG="${BASH_REMATCH[2]}"
-    fi
-  done <"$FIXTURE_REGISTRY"
+  # The refusal message is worth merging into the value, but only on failure:
+  # on success anything the interpreter wrote to stderr rides along and would be
+  # handed to lrpc as a bag number. The answer shape is empty or decimal.
+  if [ -n "$CORRUPT_BAG" ] && [[ ! "$CORRUPT_BAG" =~ ^[0-9]+$ ]]; then
+    fail_stage mame "package fixture plan answered '$CORRUPT_BAG', not a bag number"
+  fi
   STAGE_ARGUMENTS=(stage "$ASSETS" -o "$STAGED_ASSETS")
   if [ -n "$CORRUPT_BAG" ]; then
     STAGE_ARGUMENTS+=(--corrupt-bag "$CORRUPT_BAG")
   fi
   if ! "$LRPC" "${STAGE_ARGUMENTS[@]}"; then
     fail_stage mame "could not stage the scenario package"
+  fi
+  if ! fixture_message="$(python3 "$PACKAGE_FIXTURE_GUARD" verify \
+      --registry "$FIXTURE_REGISTRY" --scenario "$SCENARIO" \
+      --source "$ASSETS" --staged "$STAGED_ASSETS" 2>&1)"; then
+    fail_stage mame "$fixture_message"
   fi
   DEV_DISK_ARGUMENTS+=("$STAGED_ASSETS")
 fi
