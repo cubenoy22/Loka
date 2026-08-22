@@ -34,7 +34,7 @@ protected:
   WindowProps productionWindowProps(const loka::app::scene::NodeDefinitionBase &scene) const
   {
     return WindowProps()
-        .frame(50, 50, 420, 300)
+        .frame(50, 50, 420, 330)
         .scene(scene)
         .title("LokaSample")
         .visible(true);

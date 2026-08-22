@@ -17,6 +17,7 @@
 #include "platform/file/FileHandle.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
 #include "scenarios/FloppyBirdScenarios.hpp"
+#include "scenarios/HelloWorldProductionFrame.hpp"
 #include "scenarios/MineSweeperScenarios.hpp"
 #include "scenarios/StartupScenarios.hpp"
 
@@ -113,10 +114,11 @@ void testHelloWorldStartupHoldsSettledInitialScreenAndMatchesAudit()
 {
   helloworld::MainProps props;
   loka::app::scene::BoundaryDefinition<helloworld::MainProps, helloworld::MainNode> definition(props);
+  const loka::scenario_tests::HelloWorldProductionFrame frame;
   RunStartupScenario(loka::scenario_tests::STARTUP_EXAMPLE_HELLO_WORLD,
                      definition.clone(),
-                     420,
-                     300,
+                     frame.width(),
+                     frame.height(),
                      "tests/scenarios/expected/helloworld/startup.audit",
                      0);
   std::printf("testHelloWorldStartupHoldsSettledInitialScreenAndMatchesAudit passed\n");

@@ -41,7 +41,7 @@ namespace loka
           helloworld::MainProps(),
           &this->borrowedMainNode_,
           420,
-          300,
+          330,
           "Loka HelloWorld Standalone Flow",
           app::IdlePolicy::interval(0.1),
           &HelloWorldStandaloneFlowAppConfig::OnWindowIdle,

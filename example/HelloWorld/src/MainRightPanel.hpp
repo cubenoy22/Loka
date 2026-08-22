@@ -1,6 +1,8 @@
 #ifndef LOKA_HELLOWORLD_MAIN_RIGHT_PANEL_HPP
 #define LOKA_HELLOWORLD_MAIN_RIGHT_PANEL_HPP
 
+#include "BmiCalculatorComponent.hpp"
+
 #include "app/nodes/controls/PopupMenu.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/Text.hpp"
@@ -12,7 +14,10 @@ namespace helloworld
 {
   inline loka::app::VStack MainRightPanel(const loka::Vector<loka::core::String> *fruits,
                                           loka::core::State<int> *fruitIndex,
-                                          loka::core::State<loka::core::String> *fruitMessage)
+                                          loka::core::State<loka::core::String> *fruitMessage,
+                                          loka::core::State<loka::core::String> *heightInput,
+                                          loka::core::State<loka::core::String> *weightInput,
+                                          loka::core::State<loka::core::String> *bmiResult)
   {
     using namespace loka::app;
     return VStack().TEST_ID("HelloWorld.RightPanel")
@@ -20,7 +25,8 @@ namespace helloworld
            << PopupMenu(fruits) //
                   .selectedIndex(fruitIndex)
                   .TEST_ID("HelloWorld.RightPanel.FruitPopup")
-           << Text(fruitMessage).TEST_ID("HelloWorld.RightPanel.FruitMessage");
+           << Text(fruitMessage).TEST_ID("HelloWorld.RightPanel.FruitMessage")
+           << BmiCalculator(heightInput, weightInput, bmiResult);
   }
 
 } // namespace helloworld
