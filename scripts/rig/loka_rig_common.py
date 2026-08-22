@@ -238,15 +238,37 @@ def execute_adapter(adapter: RigAdapter) -> pathlib.Path:
     return adapter.archive
 
 
-def read_single_section(path: pathlib.Path, section: str) -> configparser.SectionProxy:
+def read_declared_section(
+    path: pathlib.Path,
+    section: str,
+    permitted: Optional[Sequence[str]] = None,
+) -> configparser.SectionProxy:
+    """Read one section, refusing sections the file is not allowed to carry.
+
+    A rig descriptor is read by more than one consumer: the adapter reads
+    [rig], and the capture guard reads [capture]. Demanding that the file hold
+    nothing but the caller's own section made the second consumer impossible,
+    and reported the collision as a malformed file. `permitted` names every
+    section the file may carry, so a misspelled or stray one is still refused.
+    """
+    allowed = {section} if permitted is None else set(permitted)
+    if section not in allowed:
+        raise RigError("configuration", f"{path}: [{section}] is not among the permitted sections")
     parser = configparser.ConfigParser(interpolation=None)
     try:
         with path.open("r", encoding="utf-8") as source:
             parser.read_file(source)
     except (OSError, configparser.Error) as error:
         raise RigError("configuration", f"cannot read {path}: {error}") from error
-    if parser.sections() != [section]:
-        raise RigError("configuration", f"{path} must contain only [{section}]")
+    present = set(parser.sections())
+    if section not in present:
+        raise RigError("configuration", f"{path} must declare [{section}]")
+    unexpected = sorted(present - allowed)
+    if unexpected:
+        raise RigError(
+            "configuration",
+            f"{path} declares unexpected " + ", ".join(f"[{name}]" for name in unexpected),
+        )
     return parser[section]
 
 

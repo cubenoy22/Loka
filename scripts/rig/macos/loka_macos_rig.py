@@ -37,7 +37,7 @@ from loka_rig_common import (
     execute_adapter,
     make_run_id,
     parse_bool,
-    read_single_section,
+    read_declared_section,
     render_manifest,
     require_keys,
     resolve_commit,
@@ -94,7 +94,7 @@ class VmLease:
 
 
 def load_descriptor(path: pathlib.Path) -> RigDescriptor:
-    section = read_single_section(path, "rig")
+    section = read_declared_section(path, "rig", permitted=("rig", "capture"))
     expected = {
         "descriptor_version",
         "rig_id",
@@ -121,7 +121,12 @@ def load_descriptor(path: pathlib.Path) -> RigDescriptor:
     if not modes or not modes.issubset(SUPPORTED_MODES):
         raise RigError("configuration", f"{path}: unsupported or empty supported_modes")
     if section["build_profile"] != "macos-10.6-sdk-i386":
-        raise RigError("configuration", f"{path}: unsupported build_profile")
+        raise RigError(
+            "configuration",
+            f"{path}: build_profile {section['build_profile'].strip()} is not one this adapter runs "
+            "(macos-10.6-sdk-i386); a descriptor can declare a capture environment for the "
+            "scenario rail without being runnable here",
+        )
     return RigDescriptor(
         rig_id=rig_id,
         os_version=section["os_version"].strip(),
@@ -138,7 +143,7 @@ def load_descriptor(path: pathlib.Path) -> RigDescriptor:
 
 
 def load_local_mapping(path: pathlib.Path) -> LocalMapping:
-    section = read_single_section(path, "local")
+    section = read_declared_section(path, "local")
     required = {
         "vm_host_ssh",
         "vm_name",
