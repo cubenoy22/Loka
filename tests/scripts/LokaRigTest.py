@@ -989,5 +989,53 @@ class CaptureProfileGuardTest(unittest.TestCase):
 
 
 
+class RunnerRigScriptReferenceTest(unittest.TestCase):
+    """Each rail names its guards by path, and no rail runner is executed here.
+
+    The PowerShell runner cannot run on the headless suite's hosts at all, and
+    the shell runners need their platform, so a path that stopped resolving
+    would surface only on the rig it belongs to -- after someone travelled to
+    it. Pinning the set also makes a rail acquiring or losing a guard a
+    reviewable edit rather than a silent one.
+    """
+
+    REFERENCE_PATTERN = re.compile(r"scripts/rig/[A-Za-z0-9_./-]+\.py")
+    EXPECTED = {
+        "tests/win32/run-scenario.ps1": {
+            "scripts/rig/capture_profile_guard.py",
+            "scripts/rig/golden_identity_guard.py",
+            "scripts/rig/package_fixture_guard.py",
+        },
+        "tests/macos/run-scenario.sh": {
+            "scripts/rig/capture_profile_guard.py",
+            "scripts/rig/golden_identity_guard.py",
+            "scripts/rig/package_fixture_guard.py",
+        },
+        # The Toolbox rail declares no capture environment: a Classic capture
+        # comes from an emulator or real hardware, and that environment has
+        # never been recorded as a profile. It is the one rail this wall does
+        # not yet cover.
+        "tests/toolbox/run-scenario.sh": {
+            "scripts/rig/package_fixture_guard.py",
+            "scripts/rig/toolbox/classic_golden_identity.py",
+        },
+    }
+
+    def test_every_runner_references_exactly_its_declared_rig_scripts(self):
+        for runner, expected in self.EXPECTED.items():
+            with self.subTest(runner=runner):
+                text = (ROOT / runner).read_text(encoding="utf-8")
+                self.assertEqual(set(self.REFERENCE_PATTERN.findall(text)), expected)
+
+    def test_every_referenced_rig_script_exists(self):
+        for runner, expected in self.EXPECTED.items():
+            for relative in sorted(expected):
+                with self.subTest(runner=runner, script=relative):
+                    self.assertTrue(
+                        (ROOT / relative).is_file(),
+                        f"{runner} names {relative}, which is not in the tree",
+                    )
+
+
 if __name__ == "__main__":
     unittest.main()
