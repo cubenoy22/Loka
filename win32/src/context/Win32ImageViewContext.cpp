@@ -6,7 +6,7 @@
 
 namespace
 {
-  const char *kImageViewClassName = "LOKA_IMAGE_VIEW";
+  const wchar_t kImageViewClassName[] = L"LOKA_IMAGE_VIEW";
   const COLORREF kImageViewFillColor = RGB(240, 240, 240);
 
   class Win32ImageViewNodeHandler
@@ -206,8 +206,8 @@ Win32ImageViewContext::Win32ImageViewContext(Win32ScenePlatformController *contr
       image_()
 {
   EnsureClassRegistered();
-  hwnd_ = CreateWindowExA(
-      0, kImageViewClassName, "", WS_CHILD | WS_VISIBLE, x, y, width, height, parent, 0, GetModuleHandle(NULL), this);
+  hwnd_ = CreateWindowExW(
+      0, kImageViewClassName, L"", WS_CHILD | WS_VISIBLE, x, y, width, height, parent, 0, GetModuleHandleW(NULL), this);
   bindImage();
 }
 
@@ -289,15 +289,15 @@ void Win32ImageViewContext::EnsureClassRegistered()
   {
     return;
   }
-  WNDCLASSA wc;
+  WNDCLASSW wc;
   ZeroMemory(&wc, sizeof(wc));
   wc.style = CS_HREDRAW | CS_VREDRAW;
   wc.lpfnWndProc = Win32ImageViewContext::WndProc;
-  wc.hInstance = GetModuleHandle(NULL);
-  wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+  wc.hInstance = GetModuleHandleW(NULL);
+  wc.hCursor = LoadCursorW(NULL, IDC_ARROW);
   wc.hbrBackground = NULL;
   wc.lpszClassName = kImageViewClassName;
-  RegisterClassA(&wc);
+  RegisterClassW(&wc);
   registered = true;
 }
 
@@ -307,7 +307,7 @@ LRESULT CALLBACK Win32ImageViewContext::WndProc(HWND hwnd, UINT msg, WPARAM wPar
       static_cast<Win32ImageViewContext *>(reinterpret_cast<void *>(GetWindowLongPtr(hwnd, GWLP_USERDATA)));
   if (msg == WM_NCCREATE)
   {
-    CREATESTRUCT *cs = reinterpret_cast<CREATESTRUCT *>(lParam);
+    CREATESTRUCTW *cs = reinterpret_cast<CREATESTRUCTW *>(lParam);
     self = static_cast<Win32ImageViewContext *>(cs->lpCreateParams);
     SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
   }
@@ -333,7 +333,7 @@ LRESULT CALLBACK Win32ImageViewContext::WndProc(HWND hwnd, UINT msg, WPARAM wPar
   default:
     break;
   }
-  return DefWindowProc(hwnd, msg, wParam, lParam);
+  return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
 
 void Win32ImageViewContext::bindImage()

@@ -5,7 +5,7 @@
 
 namespace
 {
-  const char *kRectSurfaceClassName = "LOKA_RECT_SURFACE";
+  const wchar_t kRectSurfaceClassName[] = L"LOKA_RECT_SURFACE";
   const COLORREF kRectSurfaceClearColor = RGB(255, 255, 255);
 }
 
@@ -22,8 +22,8 @@ Win32RectSurfaceContext::Win32RectSurfaceContext(Win32ScenePlatformController *c
       modelState_(0)
 {
   EnsureClassRegistered();
-  hwnd_ = CreateWindowExA(
-      0, kRectSurfaceClassName, "", WS_CHILD | WS_VISIBLE, x, y, width, height, parent, 0, GetModuleHandle(NULL), this);
+  hwnd_ = CreateWindowExW(
+      0, kRectSurfaceClassName, L"", WS_CHILD | WS_VISIBLE, x, y, width, height, parent, 0, GetModuleHandleW(NULL), this);
   bindModel();
 }
 
@@ -100,15 +100,15 @@ void Win32RectSurfaceContext::EnsureClassRegistered()
   {
     return;
   }
-  WNDCLASSA wc;
+  WNDCLASSW wc;
   ZeroMemory(&wc, sizeof(wc));
   wc.style = CS_HREDRAW | CS_VREDRAW;
   wc.lpfnWndProc = Win32RectSurfaceContext::WndProc;
-  wc.hInstance = GetModuleHandle(NULL);
-  wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+  wc.hInstance = GetModuleHandleW(NULL);
+  wc.hCursor = LoadCursorW(NULL, IDC_ARROW);
   wc.hbrBackground = NULL;
   wc.lpszClassName = kRectSurfaceClassName;
-  RegisterClassA(&wc);
+  RegisterClassW(&wc);
   registered = true;
 }
 
@@ -118,7 +118,7 @@ LRESULT CALLBACK Win32RectSurfaceContext::WndProc(HWND hwnd, UINT msg, WPARAM wP
       static_cast<Win32RectSurfaceContext *>(reinterpret_cast<void *>(GetWindowLongPtr(hwnd, GWLP_USERDATA)));
   if (msg == WM_NCCREATE)
   {
-    CREATESTRUCT *create = reinterpret_cast<CREATESTRUCT *>(lParam);
+    CREATESTRUCTW *create = reinterpret_cast<CREATESTRUCTW *>(lParam);
     self = static_cast<Win32RectSurfaceContext *>(create->lpCreateParams);
     SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
   }
@@ -145,7 +145,7 @@ LRESULT CALLBACK Win32RectSurfaceContext::WndProc(HWND hwnd, UINT msg, WPARAM wP
   default:
     break;
   }
-  return DefWindowProc(hwnd, msg, wParam, lParam);
+  return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
 
 void Win32RectSurfaceContext::bindModel()

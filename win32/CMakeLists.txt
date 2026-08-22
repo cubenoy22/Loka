@@ -31,6 +31,12 @@ set(SOURCES
   src/platform/Win32AppLocation.cpp
 )
 
+add_library(LokaWin32WideApiContract INTERFACE)
+target_compile_definitions(LokaWin32WideApiContract INTERFACE
+  UNICODE
+  _UNICODE
+)
+
 add_library(LokaWin32Core STATIC ${SOURCES} ${COMMON_SOURCES})
 loka_enable_warnings(LokaWin32Core)
 target_include_directories(LokaWin32Core PUBLIC
@@ -41,7 +47,10 @@ target_include_directories(LokaWin32Core PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-target_link_libraries(LokaWin32Core PRIVATE windowscodecs ole32)
+target_link_libraries(LokaWin32Core
+  PUBLIC LokaWin32WideApiContract
+  PRIVATE windowscodecs ole32
+)
 
 if(MSVC)
     target_compile_options(LokaWin32Core PRIVATE /utf-8)
@@ -82,7 +91,11 @@ if(CMAKE_SOURCE_DIR STREQUAL LOKA_WIN32_REPOSITORY_ROOT)
       ${CMAKE_CURRENT_SOURCE_DIR}/src
     )
     target_compile_definitions(${target} PRIVATE TEST_BUILD)
-    target_link_libraries(${target} PRIVATE windowscodecs ole32)
+    target_link_libraries(${target} PRIVATE
+      LokaWin32WideApiContract
+      windowscodecs
+      ole32
+    )
     set_target_properties(${target} PROPERTIES
       CXX_STANDARD 98
       CXX_STANDARD_REQUIRED YES
@@ -247,7 +260,11 @@ if(CMAKE_SOURCE_DIR STREQUAL LOKA_WIN32_REPOSITORY_ROOT)
     ${CMAKE_CURRENT_SOURCE_DIR}/src
   )
   target_compile_definitions(LokaScrapbookStandaloneFlowWin32 PRIVATE TEST_BUILD)
-  target_link_libraries(LokaScrapbookStandaloneFlowWin32 PRIVATE windowscodecs ole32)
+  target_link_libraries(LokaScrapbookStandaloneFlowWin32 PRIVATE
+    LokaWin32WideApiContract
+    windowscodecs
+    ole32
+  )
   set_target_properties(LokaScrapbookStandaloneFlowWin32 PROPERTIES
     CXX_STANDARD 98
     CXX_STANDARD_REQUIRED YES

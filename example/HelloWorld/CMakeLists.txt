@@ -83,6 +83,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32FilePathTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32AppLocationTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32RectSurfacePaintTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32WideApiTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32WindowClientSizeTests.cpp
   )
   loka_enable_warnings(LokaTestsWin32)
@@ -99,6 +100,7 @@ if(WIN32)
   )
 
   target_compile_definitions(LokaTestsWin32 PRIVATE TEST_BUILD)
+  target_link_libraries(LokaTestsWin32 PRIVATE LokaWin32WideApiContract)
 
   if(MSVC)
     target_compile_options(LokaTestsWin32 PRIVATE /utf-8)
@@ -107,6 +109,8 @@ if(WIN32)
   add_executable(LokaWin32StandaloneAuditFixture EXCLUDE_FROM_ALL
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/scripts/Win32StandaloneAuditFixture.cpp)
   loka_enable_warnings(LokaWin32StandaloneAuditFixture)
+  target_link_libraries(LokaWin32StandaloneAuditFixture PRIVATE
+    LokaWin32WideApiContract)
   set_target_properties(LokaWin32StandaloneAuditFixture PROPERTIES
     CXX_STANDARD 98
     CXX_STANDARD_REQUIRED YES

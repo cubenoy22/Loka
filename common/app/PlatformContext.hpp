@@ -4,6 +4,9 @@
 #include <cstddef>
 
 #if defined(_WIN32) || defined(WIN32)
+#if !defined(UNICODE) || !defined(_UNICODE)
+#error "Loka Win32 targets require UNICODE and _UNICODE"
+#endif
 #include <windows.h>
 #else
 // Provide a placeholder type for non-Windows builds
