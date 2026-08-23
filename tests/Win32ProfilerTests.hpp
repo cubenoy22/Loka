@@ -1,0 +1,7 @@
+#ifndef LOKA_TESTS_WIN32_PROFILER_TESTS_HPP
+#define LOKA_TESTS_WIN32_PROFILER_TESTS_HPP
+
+void testWin32ProfilerConvertsLongRunningCounterWithoutOverflow();
+void testWin32ProfilerConvertsExtremeRemainderWithoutOverflow();
+
+#endif // LOKA_TESTS_WIN32_PROFILER_TESTS_HPP

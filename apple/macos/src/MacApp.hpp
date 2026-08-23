@@ -2,6 +2,7 @@
 #define LOKA_MAC_APP_HPP
 
 #include "app/core/App.hpp"
+#include "MacMenuProjection.hpp"
 #include <mach/mach_time.h>
 #include <vector>
 
@@ -42,7 +43,7 @@ private:
   int nextCommandId_;
   std::vector<MenuCommand> commands_;
   std::vector<MenuBinding *> bindings_;
-  void *menuTarget_;
+  MacMenuProjection menuProjection_;
   void *flushTarget_;
   void *flushTimer_;
   unsigned long long lastIdleTick_;

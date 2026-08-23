@@ -50,6 +50,13 @@ namespace
 {
   static const double kFlushTimerIntervalSeconds = 1.0 / 60.0;
 
+  static void *CreateMenuTarget(MacApp *owner)
+  {
+    LokaMenuTarget *target = [[LokaMenuTarget alloc] init];
+    target.owner = owner;
+    return (void *)target;
+  }
+
   static NSString *MenuTitleFromString(const loka::core::String &title, const char *fallback)
   {
     std::string utf8;
@@ -80,7 +87,7 @@ MacApp::MacApp(AppConfigurable *config)
       nextCommandId_(1),
       commands_(),
       bindings_(),
-      menuTarget_(0),
+      menuProjection_(CreateMenuTarget(this)),
       flushTarget_(0),
       flushTimer_(0),
       lastIdleTick_(0),
@@ -92,13 +99,8 @@ MacApp::MacApp(AppConfigurable *config)
 
 MacApp::~MacApp()
 {
-  clearMenuBindings();
-  if (menuTarget_)
-  {
-    [(id)menuTarget_ release];
-    menuTarget_ = 0;
-  }
   stopInvalidationFlushTimer();
+  clearMenuBindings();
 }
 
 void MacApp::run()
@@ -422,6 +424,7 @@ void MacApp::applyMenuBar(Window *activeWindow)
   const loka::app::MenuBarDefinition *menuBar = resolveMenuBar(activeWindow);
   if (!menuBar)
   {
+    this->menuProjection_.reset();
     return;
   }
 
@@ -436,18 +439,7 @@ void MacApp::applyMenuBar(Window *activeWindow)
     }
   }
 
-  LokaMenuTarget *target = nil;
-  if (menuTarget_)
-  {
-    target = (LokaMenuTarget *)menuTarget_;
-  }
-  else
-  {
-    LokaMenuTarget *created = [[LokaMenuTarget alloc] init];
-    created.owner = this;
-    menuTarget_ = (void *)created;
-    target = created;
-  }
+  LokaMenuTarget *target = (LokaMenuTarget *)this->menuProjection_.target();
 
   NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:@""];
   loka::dsl::CompositionCursor<loka::app::MenuDefinition> it(menuBar->menusHead(), menuBar->menusCount());
@@ -477,7 +469,7 @@ void MacApp::applyMenuBar(Window *activeWindow)
     [menuItem release];
     [subMenu release];
   }
-  [NSApp setMainMenu:mainMenu];
+  this->menuProjection_.install((void *)mainMenu);
   [mainMenu release];
   clearMenuDiff();
 }

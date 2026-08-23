@@ -16,7 +16,7 @@ namespace loka
           audit_(auditFile ? *auditFile : ResolveStandaloneAuditFile(), "toggle-action-probe"),
           scenario_(scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &this->audit_),
           borrowedMainNode_(0),
-          mountDeadline_("HelloWorld", diagnostics)
+          runControl_("HelloWorld", diagnostics)
     {
     }
 
@@ -27,12 +27,12 @@ namespace loka
 
     int HelloWorldStandaloneFlowAppConfig::exitCode() const
     {
-      return this->audit_.isValid() && !this->mountDeadline_.failed() ? 0 : 1;
+      return this->audit_.isValid() && !this->runControl_.failed() ? 0 : 1;
     }
 
     void HelloWorldStandaloneFlowAppConfig::setApp(App *app)
     {
-      this->mountDeadline_.setApp(app);
+      this->runControl_.setApp(app);
     }
 
     void HelloWorldStandaloneFlowAppConfig::compose(AppComposition &composition)
@@ -60,13 +60,13 @@ namespace loka
 
     void HelloWorldStandaloneFlowAppConfig::tick(Window *window)
     {
-      const StandaloneMountDeadline::Advance mountAdvance = this->mountDeadline_.advance(this->borrowedMainNode_ != 0);
+      const StandaloneRunControl::Advance mountAdvance = this->runControl_.advance(this->borrowedMainNode_ != 0);
       switch (mountAdvance)
       {
-      case StandaloneMountDeadline::ADVANCE_WAITING:
-      case StandaloneMountDeadline::ADVANCE_FAILED:
+      case StandaloneRunControl::ADVANCE_WAITING:
+      case StandaloneRunControl::ADVANCE_FAILED:
         return;
-      case StandaloneMountDeadline::ADVANCE_MOUNTED:
+      case StandaloneRunControl::ADVANCE_MOUNTED:
         break;
       }
       if (!window || !window->scene())
@@ -75,14 +75,8 @@ namespace loka
       }
       dsl::SnapRecord record;
       const scenario_tests::ScenarioAdvance advance =
-          this->scenario_.step(this->mountDeadline_.tick(), window->scene(), StandaloneContentBounds(window), record);
-      switch (advance)
-      {
-      case scenario_tests::SCENARIO_ADVANCE_PENDING:
-      case scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD:
-      case scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY:
-        return;
-      }
+          this->scenario_.step(this->runControl_.tick(), window->scene(), StandaloneContentBounds(window), record);
+      this->runControl_.observeScenarioAdvance(advance, record);
     }
   } // namespace standalone_tests
 } // namespace loka

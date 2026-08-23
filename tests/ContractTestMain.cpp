@@ -10,6 +10,7 @@
 #include "Win32RectSurfacePaintTests.hpp"
 #include "Win32WideApiTests.hpp"
 #include "Win32WindowClientSizeTests.hpp"
+#include "Win32ProfilerTests.hpp"
 #endif
 #include "DerivedStateTests.hpp"
 #include "DefinitionCloneTests.hpp"

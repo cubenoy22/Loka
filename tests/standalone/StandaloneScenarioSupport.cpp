@@ -39,23 +39,29 @@ namespace loka
       return result;
     }
 
-    StandaloneMountDeadline::StandaloneMountDeadline(const char *applicationName, std::FILE *diagnostics)
+    StandaloneRunControl::StandaloneRunControl(const char *applicationName, std::FILE *diagnostics)
         : borrowedApp_(0),
           applicationName_(applicationName ? applicationName : "application"),
           diagnostics_(diagnostics ? diagnostics : stderr),
           tick_(0),
-          failed_(false)
+          mountFailed_(false)
     {
     }
 
-    void StandaloneMountDeadline::setApp(App *app)
+    void StandaloneRunControl::setApp(App *app)
     {
       this->borrowedApp_ = app;
+#if LOKA_STANDALONE_PERFORMANCE_RUNS > 0
+      if (app)
+      {
+        this->scenarioVerdict_.begin();
+      }
+#endif
     }
 
-    StandaloneMountDeadline::Advance StandaloneMountDeadline::advance(bool mainNodeMounted)
+    StandaloneRunControl::Advance StandaloneRunControl::advance(bool mainNodeMounted)
     {
-      if (this->failed_)
+      if (this->mountFailed_)
       {
         return ADVANCE_FAILED;
       }
@@ -69,7 +75,7 @@ namespace loka
         return ADVANCE_WAITING;
       }
 
-      this->failed_ = true;
+      this->mountFailed_ = true;
       std::fprintf(this->diagnostics_,
                    "Loka %s standalone startup failed: "
                    "MainNode was not mounted after %d idle ticks.\n",
@@ -83,14 +89,40 @@ namespace loka
       return ADVANCE_FAILED;
     }
 
-    long StandaloneMountDeadline::tick() const
+    void StandaloneRunControl::observeScenarioAdvance(scenario_tests::ScenarioAdvance advance,
+                                                      const dsl::SnapRecord &record)
+    {
+      switch (advance)
+      {
+      case scenario_tests::SCENARIO_ADVANCE_PENDING:
+      case scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY:
+        return;
+      case scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD:
+        break;
+      }
+#if LOKA_STANDALONE_PERFORMANCE_RUNS > 0
+      this->scenarioVerdict_.observe(record);
+      if (this->borrowedApp_)
+      {
+        this->borrowedApp_->quit();
+      }
+#else
+      (void)record;
+#endif
+    }
+
+    long StandaloneRunControl::tick() const
     {
       return this->tick_;
     }
 
-    bool StandaloneMountDeadline::failed() const
+    bool StandaloneRunControl::failed() const
     {
-      return this->failed_;
+#if LOKA_STANDALONE_PERFORMANCE_RUNS > 0
+      return this->mountFailed_ || this->scenarioVerdict_.refusesCompletedPass();
+#else
+      return this->mountFailed_;
+#endif
     }
   } // namespace standalone_tests
 } // namespace loka

@@ -130,6 +130,18 @@ This is the environment where binaries are actually built.
   stops the final-scene hold, and leaves `LOG.TXT` as the target-local runtime
   verdict. For a VAIO P, start VS Code from a VS2017 `x64_x86 Cross Tools`
   session; the task inherits that session's x86 target.
+
+  To measure a Standalone Flow, configure a separate cache with
+  `LOKA_STANDALONE_PERFORMANCE_RUNS` set from 3 through 10 and build its
+  ordinary Standalone Flow target. The application runs the complete
+  Config/App/Flow lifetime that many times, after each pass has published its
+  successful terminal audit, then writes `PERF.TXT` beside the application and
+  exits. A failed pass leaves the report empty and returns a failing exit code.
+  The per-run `elapsed_ticks` and summary use the platform profiler's native
+  tick unit, so compare reports only on the same target and rig. Run the
+  ordinary audit verification first; performance mode preserves the final
+  pass's `LOG.TXT`, but `PERF.TXT` is timing data rather than a correctness
+  verdict.
 - Some endpoint scanners flag freshly linked unsigned test executables,
   particularly 32-bit ones.
   This workflow deliberately does not add an antivirus exclusion; use the

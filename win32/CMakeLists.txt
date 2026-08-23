@@ -5,6 +5,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(NOT COMMAND loka_enable_warnings)
   include("${CMAKE_CURRENT_LIST_DIR}/../cmake/LokaWarnings.cmake")
 endif()
+if(NOT COMMAND loka_enable_standalone_performance)
+  include("${CMAKE_CURRENT_LIST_DIR}/../cmake/LokaStandalonePerformance.cmake")
+endif()
 
 file(GLOB_RECURSE COMMON_SOURCES CONFIGURE_DEPENDS ../common/*.cpp)
 list(REMOVE_DUPLICATES COMMON_SOURCES)
@@ -182,7 +185,6 @@ if(CMAKE_SOURCE_DIR STREQUAL LOKA_WIN32_REPOSITORY_ROOT)
   set(LOKA_SCENARIO_LOOP_CYCLES "" CACHE STRING
     "Full reel passes a loop presentation runs before quitting. Empty means never quit."
   )
-
   add_test(NAME scriptWin32ScenarioProfile
     COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
       ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scripts/Win32ScenarioProfileTest.ps1)
@@ -264,6 +266,12 @@ if(CMAKE_SOURCE_DIR STREQUAL LOKA_WIN32_REPOSITORY_ROOT)
     ${CMAKE_CURRENT_SOURCE_DIR}/src
   )
   target_compile_definitions(LokaScrapbookStandaloneFlowWin32 PRIVATE TEST_BUILD)
+  set(LOKA_STANDALONE_PERFORMANCE_RUNS "" CACHE STRING
+    "Complete Standalone Flow passes to measure (3-10). Empty disables measurement."
+  )
+  loka_enable_standalone_performance(
+    LokaScrapbookStandaloneFlowWin32
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/standalone/StandalonePerformance.cpp)
   target_link_libraries(LokaScrapbookStandaloneFlowWin32 PRIVATE
     LokaWin32WideApiContract
     windowscodecs

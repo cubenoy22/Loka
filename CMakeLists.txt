@@ -14,6 +14,7 @@ option(LOKA_TOOLBOX_MULTIVERSAL_INTERFACES
   "Build Toolbox targets against Retro68's redistributable Multiversal Interfaces" OFF)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/LokaWarnings.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/LokaStandalonePerformance.cmake)
 
 macro(loka_suppress_arclite_link)
   if(LOKA_MACOS_SUPPRESS_ARCLITE_LINK)
@@ -69,6 +70,23 @@ endif()
 # that would otherwise clutter generated Xcode/MSVC projects.
 set_property(GLOBAL PROPERTY CTEST_TARGETS_ADDED 1)
 include(CTest)
+
+foreach(_loka_invalid_performance_runs IN ITEMS abc ON 0 2 11)
+  add_test(NAME "standalonePerformanceConfigRejects-${_loka_invalid_performance_runs}"
+    COMMAND ${CMAKE_COMMAND}
+      -DLOKA_REPOSITORY_ROOT=${CMAKE_CURRENT_SOURCE_DIR}
+      -DLOKA_TEST_PERFORMANCE_RUNS=${_loka_invalid_performance_runs}
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/scripts/StandalonePerformanceConfigProbe.cmake)
+  set_tests_properties(
+    "standalonePerformanceConfigRejects-${_loka_invalid_performance_runs}"
+    PROPERTIES WILL_FAIL TRUE)
+endforeach()
+unset(_loka_invalid_performance_runs)
+add_test(NAME standalonePerformanceConfigAccepts-3
+  COMMAND ${CMAKE_COMMAND}
+    -DLOKA_REPOSITORY_ROOT=${CMAKE_CURRENT_SOURCE_DIR}
+    -DLOKA_TEST_PERFORMANCE_RUNS=3
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/scripts/StandalonePerformanceConfigProbe.cmake)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/LokaTestSources.cmake)
 
@@ -182,7 +200,9 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/StartupScenarioTests\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/StartupScenarios\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/ScenarioReelTests\\.cpp$")
+  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/StandalonePerformanceTests\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/ScenarioReel\\.cpp$")
+  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/standalone/StandalonePerformance\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/RectSurfaceScenarioObservation\\.cpp$")
 
   add_executable(LokaContractTests
@@ -208,7 +228,9 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/OwnershipDumpTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/HelloWorldScenarioTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/ScenarioReelTests.cpp
+    ${PROJECT_SOURCE_DIR}/tests/StandalonePerformanceTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+    ${PROJECT_SOURCE_DIR}/tests/standalone/StandalonePerformance.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioReel.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/HelloWorldScenarios.cpp
     ${PROJECT_SOURCE_DIR}/tests/TutorialScenarioTests.cpp

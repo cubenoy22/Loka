@@ -1,0 +1,10 @@
+#ifndef LOKA_TESTS_STANDALONE_PERFORMANCE_TESTS_HPP
+#define LOKA_TESTS_STANDALONE_PERFORMANCE_TESTS_HPP
+
+void testStandalonePerformanceSessionSummarizesThreeCompletedRuns();
+void testStandalonePerformanceSessionRefusesInvalidOrIncompleteRuns();
+void testStandalonePerformanceSessionMeasuresAcrossSignedTickWrap();
+void testStandaloneScenarioVerdictRetainsFirstTerminalResult();
+void testStandalonePerformanceReportWritesCompletedSession();
+
+#endif // LOKA_TESTS_STANDALONE_PERFORMANCE_TESTS_HPP
