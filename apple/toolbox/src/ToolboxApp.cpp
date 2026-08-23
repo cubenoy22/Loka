@@ -25,7 +25,7 @@ ToolboxApp::ToolboxApp(AppConfigurable *config)
 }
 ToolboxApp::~ToolboxApp()
 {
-  clearMenuBindings();
+  resetMenuState();
 }
 
 void ToolboxApp::run()
@@ -428,6 +428,7 @@ void ToolboxApp::disposeHierarchicalMenus()
 
 void ToolboxApp::resetMenuState()
 {
+  ClearMenuBar();
   clearMenuBindings();
   disposeHierarchicalMenus();
   disposeMenuEntries();
@@ -546,7 +547,6 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
   if (!menuBar)
   {
     resetMenuState();
-    ClearMenuBar();
     InitMenus();
     DrawMenuBar();
     if (activeWindow && activeWindow->asToolboxWindow())
@@ -587,7 +587,6 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
   if (!canPartial)
   {
     resetMenuState();
-    ClearMenuBar();
     InitMenus();
   }
 
@@ -825,7 +824,6 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
   if (needsFullRebuild)
   {
     resetMenuState();
-    ClearMenuBar();
     InitMenus();
     applyMenuBar(activeWindow);
     return;

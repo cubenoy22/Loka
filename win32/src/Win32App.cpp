@@ -30,14 +30,91 @@ namespace
     DrawMenuBar(window->hwnd());
     return true;
   }
+
 } // namespace
+
+Win32App::AttachedMenu::AttachedMenu()
+    : window_(0),
+      menu_(NULL)
+{
+}
+
+Win32App::AttachedMenu::~AttachedMenu()
+{
+  this->resetForTeardown();
+}
+
+bool Win32App::AttachedMenu::detach(DetachMode mode)
+{
+  if (!this->menu_)
+  {
+    this->window_ = 0;
+    return true;
+  }
+  if (!this->window_ || !this->window_->hwnd())
+  {
+    // DestroyWindow owns an attached menu. A missing HWND means the native
+    // window has already released this handle for us.
+    this->window_ = 0;
+    this->menu_ = NULL;
+    return true;
+  }
+  if (GetMenu(this->window_->hwnd()) == this->menu_)
+  {
+    const bool detached = mode == DETACH_PRESERVING_CONTENT_FRAME
+                              ? ApplyWindowMenuPreservingContentFrame(this->window_, NULL)
+                              : this->window_->detachMenuForTeardown(this->menu_);
+    if (!detached)
+    {
+      return false;
+    }
+  }
+  this->window_ = 0;
+  return true;
+}
+
+void Win32App::AttachedMenu::destroyDetached()
+{
+  if (this->menu_)
+  {
+    DestroyMenu(this->menu_);
+    this->menu_ = NULL;
+  }
+}
+
+bool Win32App::AttachedMenu::reset(DetachMode mode)
+{
+  if (!this->detach(mode))
+  {
+    return false;
+  }
+  this->destroyDetached();
+  return true;
+}
+
+bool Win32App::AttachedMenu::resetPreservingContentFrame()
+{
+  return this->reset(DETACH_PRESERVING_CONTENT_FRAME);
+}
+
+bool Win32App::AttachedMenu::resetForTeardown()
+{
+  return this->reset(DETACH_FOR_TEARDOWN);
+}
+
+void Win32App::AttachedMenu::attach(Win32Window *window, HMENU menu)
+{
+  assert(!this->window_ && !this->menu_ && "AttachedMenu must be empty before attach");
+  this->window_ = window;
+  this->menu_ = menu;
+}
 
 Win32App::Win32App(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow)
     : App(config),
       hInstance_(hInstance),
       nCmdShow_(nCmdShow),
       nextCommandId_(1000),
-      activeMenu_(NULL),
+      activeMenu_(),
       commands_(),
       bindings_()
 {
@@ -46,12 +123,8 @@ Win32App::Win32App(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow)
 
 Win32App::~Win32App()
 {
-  clearMenuBindings();
-  if (activeMenu_)
-  {
-    DestroyMenu(activeMenu_);
-    activeMenu_ = NULL;
-  }
+  this->activeMenu_.resetForTeardown();
+  this->clearMenuBindings();
 }
 
 void Win32App::quit()
@@ -290,12 +363,11 @@ void Win32App::buildMenuItems(HMENU menu, const loka::app::MenuItemDefinition *i
 
 void Win32App::applyMenuBar(Window *activeWindow)
 {
-  clearMenuBindings();
-  if (activeMenu_)
+  if (!this->activeMenu_.resetPreservingContentFrame())
   {
-    DestroyMenu(activeMenu_);
-    activeMenu_ = NULL;
+    return;
   }
+  this->clearMenuBindings();
 
   Win32Window *win = activeWindow ? activeWindow->asWin32Window() : 0;
   HWND hwnd = win ? win->hwnd() : NULL;
@@ -348,6 +420,6 @@ void Win32App::applyMenuBar(Window *activeWindow)
     DestroyMenu(menuBarHandle);
     return;
   }
-  activeMenu_ = menuBarHandle;
+  this->activeMenu_.attach(win, menuBarHandle);
   clearMenuDiff();
 }

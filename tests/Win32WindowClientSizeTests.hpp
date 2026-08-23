@@ -4,5 +4,8 @@
 void testWin32DeclaredWindowSizeMeansClientArea();
 void testWin32AppOnlyMenuWindowSettles();
 void testWin32MenuRebuildPreservesMovedWindowFrame();
+void testWin32WindowDestructionDestroysNativeWindow();
+void testWin32RepeatedAppDestructionDetachesMenuBeforeDestroyingHandle();
+void testWin32NativeWindowDestructionReleasesMenuWithoutStateNotification();
 
 #endif // LOKA_WIN32_WINDOW_CLIENT_SIZE_TESTS_HPP
