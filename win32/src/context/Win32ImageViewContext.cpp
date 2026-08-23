@@ -407,9 +407,51 @@ void Win32ImageViewContext::drawImage(HDC hdc, const RECT &rect)
       fitMode = static_cast<int>(node_->props.attr_.fitValue_);
     }
     BlitRect blit = ComputeBlitRect(fitMode, rect, srcWidth, srcHeight);
-    SetStretchBltMode(hdc, COLORONCOLOR);
-    StretchBlt(
-        hdc, blit.dstX, blit.dstY, blit.dstW, blit.dstH, memdc, blit.srcX, blit.srcY, blit.srcW, blit.srcH, SRCCOPY);
+
+    BITMAPINFO bitmapInfo;
+    ZeroMemory(&bitmapInfo, sizeof(bitmapInfo));
+    bitmapInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bitmapInfo.bmiHeader.biWidth = blit.dstW;
+    bitmapInfo.bmiHeader.biHeight = -blit.dstH;
+    bitmapInfo.bmiHeader.biPlanes = 1;
+    bitmapInfo.bmiHeader.biBitCount = 32;
+    bitmapInfo.bmiHeader.biCompression = BI_RGB;
+
+    void *bits = 0;
+    HBITMAP offscreenBitmap = CreateDIBSection(0, &bitmapInfo, DIB_RGB_COLORS, &bits, 0, 0);
+    HDC offscreenDC = offscreenBitmap ? CreateCompatibleDC(hdc) : 0;
+    bool drewOffscreen = false;
+    if (offscreenDC)
+    {
+      HGDIOBJ oldOffscreenBitmap = SelectObject(offscreenDC, offscreenBitmap);
+      if (oldOffscreenBitmap)
+      {
+        SetStretchBltMode(offscreenDC, COLORONCOLOR);
+        if (StretchBlt(
+                offscreenDC, 0, 0, blit.dstW, blit.dstH, memdc, blit.srcX, blit.srcY, blit.srcW, blit.srcH, SRCCOPY))
+        {
+          // This final 1:1 copy is pixel-exact only when the source and
+          // destination formats agree. The verified Win32 rig declares
+          // depth=32; 16bpp and 8bpp-palette destinations may quantise.
+          drewOffscreen = BitBlt(hdc, blit.dstX, blit.dstY, blit.dstW, blit.dstH, offscreenDC, 0, 0, SRCCOPY) != 0;
+        }
+        SelectObject(offscreenDC, oldOffscreenBitmap);
+      }
+      DeleteDC(offscreenDC);
+    }
+    if (offscreenBitmap)
+    {
+      DeleteObject(offscreenBitmap);
+    }
+
+    if (!drewOffscreen)
+    {
+      // If an offscreen resource or copy fails, a potentially nondeterministic
+      // image is preferable to drawing no image at all.
+      SetStretchBltMode(hdc, COLORONCOLOR);
+      StretchBlt(
+          hdc, blit.dstX, blit.dstY, blit.dstW, blit.dstH, memdc, blit.srcX, blit.srcY, blit.srcW, blit.srcH, SRCCOPY);
+    }
   }
   SelectObject(memdc, old);
   DeleteDC(memdc);
