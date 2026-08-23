@@ -1981,6 +1981,9 @@ namespace
           lastBoundaryApplyPlan_(),
           boundaryApplyCalls_(0),
           calls_(0),
+          synchronizeCalls_(0),
+          queuePendingSyncOnChange_(false),
+          pendingSync_(false),
           skipGlobalChangeForBoundaryLocalPaint_(false),
           destroyed_(false)
     {
@@ -1992,6 +1995,10 @@ namespace
       lastFlags_ = flags;
       lastFullRebuild_ = fullRebuild;
       ++calls_;
+      if (this->queuePendingSyncOnChange_)
+      {
+        this->pendingSync_ = true;
+      }
     }
 
     virtual void onBoundaryApply(loka::app::scene::Node *rootNode,
@@ -2013,11 +2020,15 @@ namespace
       return skipGlobalChangeForBoundaryLocalPaint_;
     }
 
-    virtual void synchronize() {}
+    virtual void synchronize()
+    {
+      ++this->synchronizeCalls_;
+      this->pendingSync_ = false;
+    }
 
     virtual bool hasPendingSync() const
     {
-      return false;
+      return this->pendingSync_;
     }
 
     virtual void destroy()
@@ -2034,6 +2045,9 @@ namespace
     loka::app::scene::PlatformApplyPlan lastBoundaryApplyPlan_;
     int boundaryApplyCalls_;
     int calls_;
+    int synchronizeCalls_;
+    bool queuePendingSyncOnChange_;
+    bool pendingSync_;
     bool skipGlobalChangeForBoundaryLocalPaint_;
     bool destroyed_;
   };
@@ -6841,6 +6855,72 @@ void testSceneFlowWaitUntilAppliedRetainsBaselineWhileActionPending()
   LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
   LOKA_VERIFY(actionCalls == 2);
 
+  scene.unmount();
+}
+
+void testSceneFlowWaitUntilPresentedWaitsForPlatformSynchronization()
+{
+  using namespace loka::app::scene;
+
+  Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
+  FlowScenePlatformController platform;
+  platform.queuePendingSyncOnChange_ = true;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  platform.synchronize();
+
+  int actionCalls = 0;
+  Scene *scenePtr = &scene;
+  loka::dsl::testing::ScenarioClock clock;
+  loka::dsl::FlowChain<Scene *, Scene *> chain = (loka::dsl::testing::ScenarioFlow(clock, &scenePtr)
+                                                  | loka::dsl::testing::Then(QueueSceneApplyAction(&actionCalls))
+                                                        .waitUntil(loka::dsl::testing::ProjectionEvent::PRESENTED))
+                                                     .flow();
+
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
+  LOKA_VERIFY(actionCalls == 1);
+  LOKA_VERIFY(scene.flushInvalidation());
+  const bool presentationPending = platform.hasPendingSync();
+  LOKA_VERIFY(presentationPending);
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
+  LOKA_VERIFY(actionCalls == 1);
+
+  const int synchronizeCallsBeforePresentation = platform.synchronizeCalls_;
+  platform.synchronize();
+  LOKA_VERIFY(platform.synchronizeCalls_ == synchronizeCallsBeforePresentation + 1);
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(actionCalls == 1);
+
+  scene.unmount();
+}
+
+void testSceneFlowWaitUntilAppliedDoesNotWaitForPlatformSynchronization()
+{
+  using namespace loka::app::scene;
+
+  Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
+  FlowScenePlatformController platform;
+  platform.queuePendingSyncOnChange_ = true;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  platform.synchronize();
+
+  int actionCalls = 0;
+  Scene *scenePtr = &scene;
+  loka::dsl::testing::ScenarioClock clock;
+  loka::dsl::FlowChain<Scene *, Scene *> chain = (loka::dsl::testing::ScenarioFlow(clock, &scenePtr)
+                                                  | loka::dsl::testing::Then(QueueSceneApplyAction(&actionCalls))
+                                                        .waitUntil(loka::dsl::testing::ProjectionEvent::APPLIED))
+                                                     .flow();
+
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
+  LOKA_VERIFY(scene.flushInvalidation());
+  const bool presentationPending = platform.hasPendingSync();
+  LOKA_VERIFY(presentationPending);
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(actionCalls == 1);
+
+  platform.synchronize();
   scene.unmount();
 }
 

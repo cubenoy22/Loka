@@ -21,6 +21,8 @@ void testSceneFlowAtTickRunsEachActionOnceInOrder();
 void testSceneFlowThenRunsEachActionOnceInOrder();
 void testSceneFlowWaitUntilAppliedWaitsForProjection();
 void testSceneFlowWaitUntilAppliedRetainsBaselineWhileActionPending();
+void testSceneFlowWaitUntilPresentedWaitsForPlatformSynchronization();
+void testSceneFlowWaitUntilAppliedDoesNotWaitForPlatformSynchronization();
 void testSceneFlowWaitUntilAppliedRefusesMissingProjection();
 
 #endif // LOKA_FLOW_DSL_TESTS_HPP
