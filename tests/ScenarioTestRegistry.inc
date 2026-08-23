@@ -1,6 +1,9 @@
 // Flow scenario tests in their established execution order.
 LOKA_TEST(testLokaFlowDslV1Core)
 LOKA_TEST(testSceneFlowAtTickRunsEachActionOnceInOrder)
+LOKA_TEST(testSceneFlowThenRunsEachActionOnceInOrder)
+LOKA_TEST(testSceneFlowWaitUntilAppliedWaitsForProjection)
+LOKA_TEST(testSceneFlowWaitUntilAppliedRefusesMissingProjection)
 LOKA_TEST(testHelloWorldToggleActionProbeDrivesOwnerCommands)
 LOKA_TEST(testHelloWorldToggleActionProbeHoldsFinalScene)
 LOKA_TEST(testHelloWorldVehiclePresentationUsesExampleDeclaration)

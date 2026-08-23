@@ -18,5 +18,8 @@ void testStateStreamDestructionReleasesOwnedState();
 void testStateStreamDestructionUnbindsSources();
 void testBoundaryBorrowDirectionsRejectSiblingAndDescendant();
 void testSceneFlowAtTickRunsEachActionOnceInOrder();
+void testSceneFlowThenRunsEachActionOnceInOrder();
+void testSceneFlowWaitUntilAppliedWaitsForProjection();
+void testSceneFlowWaitUntilAppliedRefusesMissingProjection();
 
 #endif // LOKA_FLOW_DSL_TESTS_HPP
