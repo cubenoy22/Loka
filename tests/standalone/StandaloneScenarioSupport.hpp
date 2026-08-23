@@ -4,6 +4,10 @@
 #include <cstdio>
 
 #include "../scenarios/ScenarioTypes.hpp"
+#include "StandalonePerformanceConfig.hpp"
+#if LOKA_STANDALONE_PERFORMANCE_RUNS > 0
+#include "StandalonePerformance.hpp"
+#endif
 #include "platform/file/FileHandle.hpp"
 
 class App;
@@ -19,10 +23,10 @@ namespace loka
     /** Resolves the application-side audit file shared by presentation apps. */
     platform::file::FileHandle ResolveStandaloneAuditFile();
 
-    /** Owns the bounded startup wait shared by the TEST-only standalone
-        presentations. A refused MainNode mount produces one diagnostic,
-        requests App shutdown, and remains a terminal failure. */
-    class StandaloneMountDeadline
+    /** Owns the bounded startup wait and terminal App control shared by the
+        TEST-only Standalone Flow presentations. A refused MainNode mount
+        produces one diagnostic, requests shutdown, and remains terminal. */
+    class StandaloneRunControl
     {
     public:
       enum Advance
@@ -32,10 +36,13 @@ namespace loka
         ADVANCE_FAILED
       };
 
-      explicit StandaloneMountDeadline(const char *applicationName, std::FILE *diagnostics = 0);
+      explicit StandaloneRunControl(const char *applicationName, std::FILE *diagnostics = 0);
 
       void setApp(App *app);
       Advance advance(bool mainNodeMounted);
+      /** Lets a measured Standalone Flow quit only after its terminal audit
+          has been published. Ordinary presentation builds keep holding. */
+      void observeScenarioAdvance(scenario_tests::ScenarioAdvance advance, const dsl::SnapRecord &record);
       long tick() const;
       bool failed() const;
 
@@ -49,7 +56,10 @@ namespace loka
       const char *applicationName_;
       std::FILE *diagnostics_;
       long tick_;
-      bool failed_;
+      bool mountFailed_;
+#if LOKA_STANDALONE_PERFORMANCE_RUNS > 0
+      StandaloneScenarioVerdict scenarioVerdict_;
+#endif
     };
   } // namespace standalone_tests
 } // namespace loka

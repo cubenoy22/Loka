@@ -10,10 +10,12 @@
 #include "Win32RectSurfacePaintTests.hpp"
 #include "Win32WideApiTests.hpp"
 #include "Win32WindowClientSizeTests.hpp"
+#include "Win32ProfilerTests.hpp"
 #endif
 #ifdef __APPLE__
 #include "MacDisplayAppearanceTests.hpp"
 #include "MacAppLocationTests.hpp"
+#include "MacMenuProjectionTests.hpp"
 #endif
 #include "DerivedStateTests.hpp"
 #include "DefinitionCloneTests.hpp"
@@ -36,6 +38,7 @@
 #include "FloppyBirdScenarioTests.hpp"
 #include "StartupScenarioTests.hpp"
 #include "ScenarioReelTests.hpp"
+#include "StandalonePerformanceTests.hpp"
 #include "BlobRangeTests.hpp"
 #include "PictParserTests.hpp"
 #include "SceneTests.hpp"

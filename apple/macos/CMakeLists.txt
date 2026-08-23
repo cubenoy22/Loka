@@ -7,6 +7,9 @@ set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
 
 option(TEST_BUILD "Include unit test sources in app target" OFF)
 option(LOKA_MAC_OS_10_4 "Enable macOS 10.4u SDK mode" OFF)
+if(NOT COMMAND loka_enable_standalone_performance)
+  include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/LokaStandalonePerformance.cmake")
+endif()
 set(LOKA_MAC_OS_10_4_SYSROOT "/Developer/SDKs/MacOSX10.4u.sdk" CACHE PATH
   "Path to macOS 10.4u SDK used when LOKA_MAC_OS_10_4=ON")
 
@@ -45,6 +48,7 @@ file(GLOB_RECURSE LOKA_MACOS_CORE_HEADERS CONFIGURE_DEPENDS
 set(LOKA_MACOS_CORE_SOURCES
   src/MacBootstrap.mm
   src/MacApp.mm
+  src/MacMenuProjection.mm
   src/MacBuiltInSupport.mm
   src/MacDisplayAppearance.mm
   src/MacPlatformContext.mm
@@ -108,9 +112,11 @@ if(NOT LOKA_MAC_OS_10_4)
     ${LOKA_MACOS_TEST_COMMON_SOURCES}
     ${PROJECT_SOURCE_DIR}/tests/MacDisplayAppearanceTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacAppLocationTests.mm
+    ${PROJECT_SOURCE_DIR}/tests/MacMenuProjectionTests.mm
     ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/MacDisplayAppearance.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/platform/MacAppLocation.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/MacMenuProjection.mm
     ${LOKA_MACOS_TEST_HEADERS}
   )
   loka_enable_warnings(LokaTestsMacOS)
@@ -128,6 +134,7 @@ if(NOT LOKA_MAC_OS_10_4)
 
   target_compile_definitions(LokaTestsMacOS PRIVATE TEST_BUILD)
   target_link_libraries(LokaTestsMacOS PRIVATE
+    "-framework AppKit"
     "-framework Foundation"
     "-framework CoreFoundation"
   )
@@ -333,3 +340,9 @@ loka_configure_scenario_test_bundle(
   "com.cubenoy22.loka.scrapbook-standalone-flow"
   example/ScrapbookUI/src
 )
+set(LOKA_STANDALONE_PERFORMANCE_RUNS "" CACHE STRING
+  "Complete Standalone Flow passes to measure (3-10). Empty disables measurement."
+)
+loka_enable_standalone_performance(
+  LokaScrapbookStandaloneFlowMacOS
+  ${PROJECT_SOURCE_DIR}/tests/standalone/StandalonePerformance.cpp)

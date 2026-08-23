@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.15)
 project(LokaTestsToolbox LANGUAGES CXX)
 
+if(NOT COMMAND loka_enable_standalone_performance)
+  include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/LokaStandalonePerformance.cmake")
+endif()
+
 if(NOT CMAKE_SYSTEM_NAME MATCHES "^Retro68$")
   add_custom_target(LokaTestsToolbox ALL
     COMMAND ${CMAKE_COMMAND} -E echo
@@ -406,6 +410,21 @@ target_compile_definitions(${LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_TARGET} PR
   TEST_BUILD
   LOKA_DIAG=1
 )
+
+set(LOKA_STANDALONE_PERFORMANCE_RUNS "" CACHE STRING
+  "Complete Standalone Flow passes to measure (3-10). Empty disables measurement."
+)
+foreach(_LOKA_STANDALONE_TARGET IN ITEMS
+    ${LOKA_STANDALONE_FLOW_TOOLBOX_TARGET}
+    ${LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_TARGET}
+    ${LOKA_TUTORIAL_STANDALONE_FLOW_TOOLBOX_TARGET}
+    ${LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_TARGET}
+    ${LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_TARGET})
+  loka_enable_standalone_performance(
+    ${_LOKA_STANDALONE_TARGET}
+    ${CMAKE_SOURCE_DIR}/tests/standalone/StandalonePerformance.cpp)
+endforeach()
+unset(_LOKA_STANDALONE_TARGET)
 
 if(NOT LOKA_SCRAPBOOK_PAGE_COUNT STREQUAL "")
   target_compile_definitions(${LOKA_TESTS_TOOLBOX_TARGET} PRIVATE

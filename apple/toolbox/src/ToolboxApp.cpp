@@ -64,6 +64,7 @@ void ToolboxApp::run()
       setActiveWindow(firstWindow);
     }
   }
+  unsigned long lastTick = TickCount();
   running_ = true;
   while (running_)
   {
@@ -261,7 +262,6 @@ void ToolboxApp::run()
         }
       }
     }
-    static unsigned long lastTick = TickCount();
     unsigned long now = TickCount();
     double elapsedSeconds = 0.0;
     if (now >= lastTick)

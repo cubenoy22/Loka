@@ -37,7 +37,7 @@ namespace loka
       dsl::testing::ScenarioAuditFile audit_;
       scenario_tests::MineSweeperScenario scenario_;
       minesweeper::MainNode *borrowedMainNode_;
-      StandaloneMountDeadline mountDeadline_;
+      StandaloneRunControl runControl_;
     };
   } // namespace standalone_tests
 } // namespace loka

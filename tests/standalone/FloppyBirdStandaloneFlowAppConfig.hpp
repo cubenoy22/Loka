@@ -38,7 +38,7 @@ namespace loka
       scenario_tests::FloppyBirdScenario scenario_;
       floppybird::GameModel game_;
       floppybird::MainNode *borrowedMainNode_;
-      StandaloneMountDeadline mountDeadline_;
+      StandaloneRunControl runControl_;
     };
   } // namespace standalone_tests
 } // namespace loka
