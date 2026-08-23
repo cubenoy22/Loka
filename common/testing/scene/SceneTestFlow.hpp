@@ -359,7 +359,7 @@ namespace loka
         ProjectionWaitAdapter(const AdapterT &adapter, ProjectionEvent::Type event)
             : adapter_(adapter),
               event_(event),
-              phase_(PHASE_ACTION),
+              phase_(PHASE_ACTION_NOT_STARTED),
               appliedGenerationBeforeAction_(0),
               completedOut_()
         {
@@ -378,12 +378,17 @@ namespace loka
             return this->advanceWait(out, error);
           }
 
-          unsigned long appliedGenerationBeforeAction = 0;
-          if (!scenario_projection_wait_detail::Access<In>::queryAppliedGeneration(
-                  in, appliedGenerationBeforeAction, error))
+          if (this->phase_ == PHASE_ACTION_NOT_STARTED)
           {
-            return FLOW_STEP_FAILED;
+            if (!scenario_projection_wait_detail::Access<In>::queryAppliedGeneration(
+                    in, this->appliedGenerationBeforeAction_, error))
+            {
+              return FLOW_STEP_FAILED;
+            }
+            this->phase_ = PHASE_ACTION_RUNNING;
           }
+          assert(this->phase_ == PHASE_ACTION_RUNNING
+                 && "ProjectionWaitAdapter action must be running before invocation");
           const StepRunStatus status = this->adapter_.run(in, out, error);
           if (status != FLOW_STEP_SUCCEEDED)
           {
@@ -391,7 +396,6 @@ namespace loka
           }
 
           this->completedOut_ = out;
-          this->appliedGenerationBeforeAction_ = appliedGenerationBeforeAction;
           this->phase_ = PHASE_WAITING;
           return this->advanceWait(out, error);
         }
@@ -399,7 +403,8 @@ namespace loka
       private:
         enum Phase
         {
-          PHASE_ACTION = 0,
+          PHASE_ACTION_NOT_STARTED = 0,
+          PHASE_ACTION_RUNNING,
           PHASE_WAITING,
           PHASE_COMPLETED
         };
