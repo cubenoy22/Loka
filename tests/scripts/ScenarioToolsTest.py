@@ -78,7 +78,9 @@ class ExpectedAuditPinsTest(unittest.TestCase):
         # The rig's declared capture environment is checked before the golden is
         # written *and* before it is compared, so a bake on a machine that does
         # not match refuses instead of pinning whatever the desktop was.
-        resolve_call = runner.index("$RigDescriptor = Resolve-RigDescriptor $ActualProfile")
+        resolve_call = runner.index(
+            "$RigDescriptor = Resolve-RigDescriptorPath (Get-RigDescriptorDirectory)"
+        )
         profile_guard = runner.index(
             "Invoke-CaptureProfileGuard $RigDescriptor $ActualProfile"
         )
@@ -90,13 +92,47 @@ class ExpectedAuditPinsTest(unittest.TestCase):
         self.assertLess(profile_guard, compare_profile)
         self.assertIn("--descriptor $Descriptor", runner)
 
-        # The descriptor is chosen from the architecture the vehicle reports.
-        # Fixing it to one architecture would refuse every run on the others --
-        # this rail is supported on ARM64 Windows as well as x64.
-        self.assertIn('Join-Path $RigDescriptorDirectory "win32-$arch.ini"', runner)
-        self.assertNotIn("rigs/win32-x64.ini", runner)
+        # The rig is named by the operator, never inferred. Deriving it from the
+        # reported architecture let two machines answer to one descriptor: an
+        # isolated guest reports a profile byte-identical to the reference
+        # machine's and settles on a different picture (#459). Fixing the runner
+        # to one descriptor instead would refuse every other machine, so neither
+        # end of that is available -- the name has to come from outside.
+        self.assertIn("$env:LOKA_WIN32_RIG", runner)
+        self.assertNotIn('"win32-$arch.ini"', runner)
+
+        # The descriptor directory is the operator's, not the tree's. A rig is a
+        # fact about one machine, the same as the golden it pins -- and
+        # build/win32-scenario/golden is ignored for exactly that reason.
+        self.assertNotIn('Join-Path $ProjectDirectory "scripts/rig/win32/rigs"', runner)
+        self.assertIn("Resolve-RigDescriptorPath (Get-RigDescriptorDirectory)", runner)
+
+        # The golden is stored under the rig that baked it. Two rigs can share a
+        # checkout now that the name is chosen rather than derived, and two rigs
+        # reporting the same capture profile can still settle on different pixels
+        # (#459) -- so a golden keyed only by example would be overwritten by
+        # whichever rig baked last, and the profile comparison would not notice.
+        golden_root = runner.index(
+            '$GoldenRoot = Join-Path $ProjectDirectory "build/win32-scenario/golden/$RigName"'
+        )
+        self.assertLess(resolve_call, golden_root)
+        self.assertIn("$GoldenDirectory = Join-Path $GoldenRoot $Example", runner)
+        self.assertNotIn('"build/win32-scenario/golden/$Example"', runner)
+        # The identity guard has to look under the same root, or --update-golden
+        # would check one rig's declaration against another rig's stored pixels.
+        self.assertNotIn(
+            '--golden-root (Join-Path $ProjectDirectory "build/win32-scenario/golden")', runner
+        )
+
+        # Named before the vehicle starts: an undeclared machine is turned away
+        # without opening a window, and the name is not read off the capture.
+        vehicle_start = runner.index("$BuiltExecutable = Join-Path $ProjectDirectory")
+        self.assertLess(resolve_call, vehicle_start)
+
+        # Only the example ships. Anything else here would be one machine's rig
+        # riding along in everyone's clone.
         rigs = os.path.join(PROJECT_DIR, "scripts", "rig", "win32", "rigs")
-        self.assertTrue(os.path.isfile(os.path.join(rigs, "win32-x64.ini")))
+        self.assertEqual(sorted(os.listdir(rigs)), ["local.example.ini"])
 
     def test_win32_vehicle_map_covers_the_shared_registry_examples(self):
         runner_path = os.path.join(PROJECT_DIR, "tests", "win32", "run-scenario.ps1")

@@ -29,14 +29,20 @@ $SourceAssets = Join-Path $ProjectDirectory "example/ScrapbookUI/assets/ASSETS-m
 $Work = Join-Path $ProjectDirectory "build/win32-scenario/$Example/$Scenario"
 $Stage = Join-Path $Work "stage"
 $Settle = Join-Path $Work "settle"
-$GoldenDirectory = Join-Path $ProjectDirectory "build/win32-scenario/golden/$Example"
-$Golden = Join-Path $GoldenDirectory "$Scenario.png"
-$GoldenProfile = Join-Path $GoldenDirectory "$Scenario.profile"
+# Filled in once the rig is known. A golden belongs to one rig, so the rig has
+# to be part of where it is stored: two rigs can share a checkout now that the
+# name is chosen rather than derived from the architecture, and two rigs that
+# report the same capture profile can still settle on different pixels (#459).
+# Keyed only by example, the second bake would overwrite the first and every
+# later comparison would silently use whichever rig baked last.
+$GoldenRoot = $null
+$GoldenDirectory = $null
+$Golden = $null
+$GoldenProfile = $null
 $PngTool = Join-Path $ProjectDirectory "tests/scenarios/pngtool.py"
 $GoldenIdentityGuard = Join-Path $ProjectDirectory "scripts/rig/golden_identity_guard.py"
 $PackageFixtureGuard = Join-Path $ProjectDirectory "scripts/rig/package_fixture_guard.py"
 $CaptureProfileGuard = Join-Path $ProjectDirectory "scripts/rig/capture_profile_guard.py"
-$RigDescriptorDirectory = Join-Path $ProjectDirectory "scripts/rig/win32/rigs"
 $RunnerLog = Join-Path $Work "runner.log"
 $ChildProcess = $null
 $ChildWindow = [IntPtr]::Zero
@@ -95,6 +101,7 @@ function Test-FilesEqual([string]$First, [string]$Second) {
 }
 
 . (Join-Path $PSScriptRoot "ScenarioProfile.ps1")
+. (Join-Path $PSScriptRoot "RigDescriptor.ps1")
 
 function Read-CaptureBounds([string]$Path) {
     $values = @{}
@@ -188,14 +195,14 @@ function Invoke-GoldenIdentityGuard([string]$Capture) {
         & wsl.exe python3 (Convert-ToWslPath $GoldenIdentityGuard) `
             --registry (Convert-ToWslPath $Registry) `
             --declarations (Convert-ToWslPath $StartupIdentityDeclarations) `
-            --golden-root (Convert-ToWslPath (Join-Path $ProjectDirectory "build/win32-scenario/golden")) `
+            --golden-root (Convert-ToWslPath $GoldenRoot) `
             --capture (Convert-ToWslPath $Capture) `
             --example $Example --scenario $Scenario
     } else {
         & $Python $GoldenIdentityGuard `
             --registry $Registry `
             --declarations $StartupIdentityDeclarations `
-            --golden-root (Join-Path $ProjectDirectory "build/win32-scenario/golden") `
+            --golden-root $GoldenRoot `
             --capture $Capture `
             --example $Example --scenario $Scenario
     }
@@ -227,27 +234,6 @@ function Invoke-PackageFixtureVerify([string]$StagedAssets) {
             --source $SourceAssets --staged $StagedAssets 2>&1
     }
     $script:PackageFixtureExitCode = $LASTEXITCODE
-}
-
-function Resolve-RigDescriptor([string]$Profile) {
-    # The rail runs on more than one architecture and the vehicle reports which
-    # one it built for, so the descriptor is chosen rather than fixed. Picking
-    # one architecture's file for every rig would refuse every run on the others.
-    $facts = Read-ScenarioProfile $Profile
-    if (-not $facts.ContainsKey("arch")) {
-        Fail-Stage "profile" "capture profile reports no arch; cannot choose a rig descriptor"
-    }
-    $arch = $facts["arch"]
-    if ($arch -notmatch '^[a-z0-9_]+$') {
-        Fail-Stage "profile" "capture profile reports an unusable arch '$arch'"
-    }
-    $candidate = Join-Path $RigDescriptorDirectory "win32-$arch.ini"
-    if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
-        Fail-Stage "profile" ("no tracked rig descriptor for arch=$arch; this rail's goldens " +
-            "would be pinned to an undeclared environment. Add $candidate declaring the " +
-            "[capture] fields this machine reports in $Profile.")
-    }
-    return $candidate
 }
 
 function Invoke-CaptureProfileGuard([string]$Descriptor, [string]$Profile) {
@@ -361,6 +347,15 @@ try {
     if (-not $Vehicles.ContainsKey($Example)) {
         Fail-Stage "arguments" "the Win32 runner has no vehicle for '$Example'"
     }
+    # Named before the vehicle starts. The name is not a fact about the run, so
+    # nothing has to be captured first, and an undeclared machine is turned away
+    # without opening a window.
+    $RigDescriptor = Resolve-RigDescriptorPath (Get-RigDescriptorDirectory) $env:LOKA_WIN32_RIG
+    $RigName = [System.IO.Path]::GetFileNameWithoutExtension($RigDescriptor)
+    $GoldenRoot = Join-Path $ProjectDirectory "build/win32-scenario/golden/$RigName"
+    $GoldenDirectory = Join-Path $GoldenRoot $Example
+    $Golden = Join-Path $GoldenDirectory "$Scenario.png"
+    $GoldenProfile = Join-Path $GoldenDirectory "$Scenario.profile"
     $Vehicle = $Vehicles[$Example]
     $VehicleExecutableName = $Vehicle.Executable
     $VehicleOutputDirectory = $Vehicle.OutputDirectory
@@ -555,7 +550,6 @@ try {
     # that does not match the tracked rig would otherwise pin whatever the
     # desktop happened to be, and the disagreement would surface as a pixel
     # mismatch on some later, unrelated change.
-    $RigDescriptor = Resolve-RigDescriptor $ActualProfile
     Invoke-CaptureProfileGuard $RigDescriptor $ActualProfile *>> $RunnerLog
     if ($CaptureProfileExitCode -ne 0) {
         Fail-Stage "profile" "capture environment is not the one $RigDescriptor declares; see $RunnerLog"

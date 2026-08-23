@@ -949,18 +949,17 @@ class CaptureProfileGuardTest(unittest.TestCase):
                 capture_profile_guard.verify_capture_profile(descriptor, profile)
             self.assertIn("declares no [capture] section", str(caught.exception))
 
-    def test_tracked_descriptor_declares_the_pinned_environment(self):
-        descriptor = ROOT / "scripts" / "rig" / "win32" / "rigs" / "win32-x64.ini"
+    def test_win32_example_descriptor_shows_the_shape_the_guard_reads(self):
+        # No Win32 machine's descriptor is tracked: a rig is a fact about one
+        # machine, the same as the golden it pins, and both now live beside the
+        # operator. What ships is the example the refusal tells people to copy,
+        # so the guard has to be able to read it -- a template the guard rejects
+        # would send everyone who followed the refusal into a second refusal.
+        descriptor = ROOT / "scripts" / "rig" / "win32" / "rigs" / "local.example.ini"
         declared = capture_profile_guard.read_declared_capture(descriptor)
         self.assertEqual(
-            declared,
-            {
-                "os_build": "10.0.26200",
-                "arch": "x64",
-                "scale_percent": "100",
-                "depth": "32",
-                "appearance": "light",
-            },
+            sorted(declared),
+            ["appearance", "arch", "depth", "os_build", "scale_percent"],
         )
 
     def test_tahoe_declares_only_fields_the_macos_profile_carries(self):
