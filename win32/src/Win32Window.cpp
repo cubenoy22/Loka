@@ -62,7 +62,14 @@ Win32Window::Win32Window(PlatformContext *context, const WindowProps &props)
 Win32Window::~Win32Window()
 {
   this->detachNativeStateObservers();
-  teardownScene();
+  if (this->hwnd_)
+  {
+    this->destroyNativeWindow();
+  }
+  else
+  {
+    this->teardownScene();
+  }
 }
 
 bool Win32Window::queryNativeContentFrame(loka::core::Frame &out) const
@@ -82,6 +89,38 @@ bool Win32Window::queryNativeContentFrame(loka::core::Frame &out) const
                           clientRect.right - clientRect.left,
                           clientRect.bottom - clientRect.top);
   return true;
+}
+
+bool Win32Window::detachMenuForTeardown(HMENU expectedMenu)
+{
+  if (!this->hwnd_ || !expectedMenu || GetMenu(this->hwnd_) != expectedMenu)
+  {
+    return false;
+  }
+  loka::core::Frame contentFrame;
+  if (!this->queryNativeContentFrame(contentFrame))
+  {
+    return false;
+  }
+  const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(this->hwnd_, GWL_STYLE));
+  const DWORD exStyle = static_cast<DWORD>(GetWindowLongPtrW(this->hwnd_, GWL_EXSTYLE));
+  int outerWidth = 0;
+  int outerHeight = 0;
+  if (!CalculateOuterSizeForClient(
+          contentFrame.width, contentFrame.height, style, exStyle, FALSE, outerWidth, outerHeight))
+  {
+    return false;
+  }
+
+  const LONG_PTR userData = GetWindowLongPtrW(this->hwnd_, GWLP_USERDATA);
+  SetWindowLongPtrW(this->hwnd_, GWLP_USERDATA, 0);
+  const BOOL detached = SetMenu(this->hwnd_, NULL);
+  if (detached)
+  {
+    MoveWindow(this->hwnd_, contentFrame.x, contentFrame.y, outerWidth, outerHeight, TRUE);
+  }
+  SetWindowLongPtrW(this->hwnd_, GWLP_USERDATA, userData);
+  return detached != FALSE;
 }
 
 void Win32Window::setApp(App *app)
@@ -351,10 +390,15 @@ void Win32Window::destroyNativeWindow()
 {
   if (this->hwnd_)
   {
+    App *appToClear = this->app_ && this->app_->activeWindow() == this ? this->app_ : 0;
     teardownScene();
     SetWindowLongPtr(this->hwnd_, GWLP_USERDATA, 0);
     DestroyWindow(this->hwnd_);
     this->hwnd_ = NULL;
+    if (appToClear)
+    {
+      appToClear->setActiveWindow(0);
+    }
   }
 }
 

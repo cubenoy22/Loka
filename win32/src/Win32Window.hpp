@@ -40,6 +40,9 @@ public:
 
   /** Reads the native window position and client size as one content frame. */
   bool queryNativeContentFrame(loka::core::Frame &out) const;
+  /** Detaches an installed menu during teardown while preserving the native
+      client frame and publishing no logical State. */
+  bool detachMenuForTeardown(HMENU expectedMenu);
 
   static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
