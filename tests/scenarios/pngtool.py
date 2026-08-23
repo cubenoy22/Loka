@@ -660,9 +660,15 @@ def main(argv=None):
         if arguments.command == "compare":
             if arguments.max_diff_px < 0:
                 raise PngError("--max-diff-px must not be negative")
-            difference_count = compare_images(
-                read_png(arguments.first), read_png(arguments.second)
+            expected = read_png(arguments.first)
+            actual = read_png(arguments.second)
+            difference_count = compare_images(expected, actual)
+            dimensions_differ = (
+                expected.width != actual.width or expected.height != actual.height
             )
+            if dimensions_differ:
+                print("compare result: dimension mismatch; result: fail")
+                return 1
             passed = difference_count <= arguments.max_diff_px
             print(
                 "compare result: differing pixels: {}; max-diff-px: {}; result: {}".format(

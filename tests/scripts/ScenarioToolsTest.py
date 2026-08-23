@@ -334,6 +334,25 @@ class PngToolTest(unittest.TestCase):
             self.assertNotEqual(exact_default.returncode, 0)
             self.assertIn("max-diff-px: 0", exact_default.stdout)
 
+    def test_compare_rejects_dimension_mismatch_at_any_tolerance(self):
+        with tempfile.TemporaryDirectory(prefix="scenario-png-dimensions-") as directory:
+            expected = os.path.join(directory, "expected.png")
+            actual = os.path.join(directory, "actual.png")
+            write_rgb_png(expected, 340, 250, [(1, 2, 3)] * (340 * 250))
+            write_rgb_png(actual, 340, 251, [(1, 2, 3)] * (340 * 251))
+
+            changed_shape = run_tool(
+                PNG_TOOL, "compare", "--max-diff-px", "400", expected, actual
+            )
+
+            self.assertNotEqual(changed_shape.returncode, 0)
+            self.assertIn("dimensions differ: 340x250 != 340x251", changed_shape.stdout)
+            self.assertIn(
+                "compare result: dimension mismatch; result: fail",
+                changed_shape.stdout,
+            )
+            self.assertNotIn("result: pass", changed_shape.stdout)
+
     def test_win32_compare_records_the_bounded_wobble_and_writes_diff_evidence(self):
         runner_path = os.path.join(PROJECT_DIR, "tests", "win32", "run-scenario.ps1")
         with open(runner_path, "r", encoding="utf-8") as handle:
