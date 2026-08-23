@@ -305,6 +305,58 @@ class PngToolTest(unittest.TestCase):
             self.assertTrue(os.path.isfile(difference))
             self.assertGreater(os.path.getsize(difference), 0)
 
+    def test_compare_threshold_is_bounded_reported_and_exact_by_default(self):
+        with tempfile.TemporaryDirectory(prefix="scenario-png-threshold-") as directory:
+            expected = os.path.join(directory, "expected.png")
+            actual = os.path.join(directory, "actual.png")
+            write_rgb_png(expected, 3, 1, [(1, 2, 3)] * 3)
+            write_rgb_png(actual, 3, 1, [(9, 8, 7), (1, 2, 3), (9, 8, 7)])
+
+            unchanged = run_tool(PNG_TOOL, "compare", expected, expected)
+            tolerated = run_tool(
+                PNG_TOOL, "compare", "--max-diff-px", "2", expected, actual
+            )
+            over_bound = run_tool(
+                PNG_TOOL, "compare", "--max-diff-px", "1", expected, actual
+            )
+            exact_default = run_tool(PNG_TOOL, "compare", expected, actual)
+
+            self.assertEqual(unchanged.returncode, 0, unchanged.stderr)
+            self.assertIn("differing pixels: 0", unchanged.stdout)
+            self.assertIn("max-diff-px: 0", unchanged.stdout)
+            self.assertEqual(tolerated.returncode, 0, tolerated.stderr)
+            self.assertIn("differing pixels: 2", tolerated.stdout)
+            self.assertIn("max-diff-px: 2", tolerated.stdout)
+            self.assertNotEqual(over_bound.returncode, 0)
+            self.assertIn("differing pixels: 2", over_bound.stdout)
+            self.assertIn("max-diff-px: 1", over_bound.stdout)
+            self.assertIn("first differing pixel (0, 0)", over_bound.stdout)
+            self.assertNotEqual(exact_default.returncode, 0)
+            self.assertIn("max-diff-px: 0", exact_default.stdout)
+
+    def test_win32_compare_records_the_bounded_wobble_and_writes_diff_evidence(self):
+        runner_path = os.path.join(PROJECT_DIR, "tests", "win32", "run-scenario.ps1")
+        with open(runner_path, "r", encoding="utf-8") as handle:
+            runner = handle.read()
+
+        compare_call = runner.index(
+            "Invoke-PngCompare $Actual $WorkGolden 400 *>> $RunnerLog"
+        )
+        update_branch = runner.index("if ($UpdateGolden) {")
+        compare_branch = runner.index("} else {", update_branch)
+        diff_on_nonzero = runner.index("if ($PngDifferenceCount -gt 0)", compare_call)
+        mismatch_failure = runner.index("if ($CompareExitCode -ne 0)", diff_on_nonzero)
+
+        self.assertLess(compare_branch, compare_call)
+        self.assertLess(compare_call, diff_on_nonzero)
+        self.assertLess(diff_on_nonzero, mismatch_failure)
+        self.assertIn("--max-diff-px $MaxDiffPx", runner)
+        self.assertIn("differing pixels: ([0-9]+); max-diff-px: ([0-9]+)", runner)
+        self.assertIn("TODO(#459)", runner)
+        self.assertIn("338 px worst observed", runner)
+        self.assertIn("compositing M1 offscreen composition", runner)
+        self.assertIn("Bounded at 400", runner)
+
 
 class PresetFlagSeedingTest(unittest.TestCase):
     """Pin the MSVC flag-seeding contract for the win32 preset family.
