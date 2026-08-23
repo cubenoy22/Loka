@@ -301,7 +301,12 @@ namespace loka
         {
           /** The Scene recorded a new last-applied generation after its
               platform apply callbacks returned. */
-          APPLIED = 0
+          APPLIED = 0,
+          /** A new applied generation exists and its mounted platform
+              controller reports no pending synchronization. This names the
+              Loka-to-native projection boundary, not external compositor or
+              display hardware completion. */
+          PRESENTED
         };
       } // namespace ProjectionEvent
 
@@ -318,6 +323,13 @@ namespace loka
 
           static bool hasPendingApply(const T &)
           {
+            return false;
+          }
+
+          static bool queryPendingPresentation(const T &, bool &, FlowError &error)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
             return false;
           }
         };
@@ -340,6 +352,25 @@ namespace loka
           static bool hasPendingApply(::loka::app::scene::Scene *const &scene)
           {
             return scene && scene->hasPendingInvalidation();
+          }
+
+          static bool queryPendingPresentation(::loka::app::scene::Scene *const &scene, bool &out, FlowError &error)
+          {
+            if (!scene)
+            {
+              error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+              error.code = FLOW_ERROR_SCENE_TEST_NULL_SCENE;
+              return false;
+            }
+            ::loka::app::scene::IPlatformController *controller = SceneTestAccess::platformController(*scene);
+            if (!controller)
+            {
+              error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+              error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
+              return false;
+            }
+            out = controller->hasPendingSync();
+            return true;
           }
         };
       } // namespace scenario_projection_wait_detail
@@ -414,6 +445,7 @@ namespace loka
           switch (this->event_)
           {
           case ProjectionEvent::APPLIED:
+          case ProjectionEvent::PRESENTED:
           {
             unsigned long appliedGeneration = 0;
             if (!scenario_projection_wait_detail::Access<Out>::queryAppliedGeneration(out, appliedGeneration, error))
@@ -422,6 +454,19 @@ namespace loka
             }
             if (appliedGeneration != this->appliedGenerationBeforeAction_)
             {
+              if (this->event_ == ProjectionEvent::PRESENTED)
+              {
+                bool pendingPresentation = false;
+                if (!scenario_projection_wait_detail::Access<Out>::queryPendingPresentation(
+                        out, pendingPresentation, error))
+                {
+                  return FLOW_STEP_FAILED;
+                }
+                if (pendingPresentation)
+                {
+                  return FLOW_STEP_PENDING;
+                }
+              }
               this->phase_ = PHASE_COMPLETED;
               return FLOW_STEP_SUCCEEDED;
             }
@@ -555,8 +600,8 @@ namespace loka
           return *this;
         }
 
-        /** Requires this Scene action to produce and cross one platform apply
-            generation before the scenario advances. */
+        /** Requires this Scene action to cross the selected projection
+            milestone before the scenario advances. */
         AtTickSpec<ProjectionWaitAdapter<AdapterT> > waitUntil(ProjectionEvent::Type event) const
         {
           typedef typename AdapterT::In AdapterIn;
