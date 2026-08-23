@@ -251,6 +251,25 @@ namespace loka
         }
       };
 
+      enum SceneTestFlowErrorKind
+      {
+        FLOW_ERROR_KIND_SCENE_SCENARIO = 1002,
+        FLOW_ERROR_KIND_SCENE_TEST_ASSERT = 1003
+      };
+
+      enum SceneTestFlowErrorCode
+      {
+        FLOW_ERROR_SCENE_TEST_NULL_SCENE = 1,
+        FLOW_ERROR_SCENE_TEST_ROOT_UNAVAILABLE = 2,
+        FLOW_ERROR_SCENE_TEST_NODE_NOT_FOUND = 3,
+        FLOW_ERROR_SCENE_TEST_NODE_TYPE_MISMATCH = 4,
+        FLOW_ERROR_SCENE_TEST_DUPLICATE_TEST_ID = 5,
+        FLOW_ERROR_SCENE_TEST_MISSING_TEST_ID = 6,
+        FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE = 7,
+        FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED = 8,
+        FLOW_ERROR_SCENE_TEST_EXPECTED_APPLY = 9
+      };
+
       /** Owner-updated monotonic clock borrowed by scheduled scenario steps. */
       class ScenarioClock
       {
@@ -274,6 +293,178 @@ namespace loka
       private:
         long tick_;
       };
+
+      /** Observable milestones for one ScenarioFlow action's projection. */
+      namespace ProjectionEvent
+      {
+        enum Type
+        {
+          /** The Scene recorded a new last-applied generation after its
+              platform apply callbacks returned. */
+          APPLIED = 0
+        };
+      } // namespace ProjectionEvent
+
+      namespace scenario_projection_wait_detail
+      {
+        template <class T> struct Access
+        {
+          static bool queryAppliedGeneration(const T &, unsigned long &, FlowError &error)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
+            return false;
+          }
+
+          static bool hasPendingApply(const T &)
+          {
+            return false;
+          }
+        };
+
+        template <> struct Access< ::loka::app::scene::Scene *>
+        {
+          static bool
+          queryAppliedGeneration(::loka::app::scene::Scene *const &scene, unsigned long &out, FlowError &error)
+          {
+            if (!scene)
+            {
+              error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+              error.code = FLOW_ERROR_SCENE_TEST_NULL_SCENE;
+              return false;
+            }
+            out = SceneTestAccess::snapshotGeneration(SceneTestAccess::lastUpdateSnapshot(*scene));
+            return true;
+          }
+
+          static bool hasPendingApply(::loka::app::scene::Scene *const &scene)
+          {
+            return scene && scene->hasPendingInvalidation();
+          }
+        };
+      } // namespace scenario_projection_wait_detail
+
+      /** Runs one Scene action to completion, then keeps its output pending until that
+          action's requested projection has crossed the selected milestone. */
+      template <class AdapterT> class ProjectionWaitAdapter
+      {
+      public:
+        typedef typename AdapterT::In In;
+        typedef typename AdapterT::Out Out;
+        typedef char LokaProjectionWaitAdapterRequiresSceneInput
+            [flow_detail::IsSame<In, ::loka::app::scene::Scene *>::value ? 1 : -1];
+        typedef char LokaProjectionWaitAdapterRequiresSceneOutput
+            [flow_detail::IsSame<Out, ::loka::app::scene::Scene *>::value ? 1 : -1];
+
+        ProjectionWaitAdapter(const AdapterT &adapter, ProjectionEvent::Type event)
+            : adapter_(adapter),
+              event_(event),
+              phase_(PHASE_ACTION_NOT_STARTED),
+              appliedGenerationBeforeAction_(0),
+              completedOut_()
+        {
+        }
+
+        StepRunStatus run(const In &in, Out &out, FlowError &error) const
+        {
+          if (this->phase_ == PHASE_COMPLETED)
+          {
+            out = this->completedOut_;
+            return FLOW_STEP_SUCCEEDED;
+          }
+          if (this->phase_ == PHASE_WAITING)
+          {
+            out = this->completedOut_;
+            return this->advanceWait(out, error);
+          }
+
+          if (this->phase_ == PHASE_ACTION_NOT_STARTED)
+          {
+            if (!scenario_projection_wait_detail::Access<In>::queryAppliedGeneration(
+                    in, this->appliedGenerationBeforeAction_, error))
+            {
+              return FLOW_STEP_FAILED;
+            }
+            this->phase_ = PHASE_ACTION_RUNNING;
+          }
+          assert(this->phase_ == PHASE_ACTION_RUNNING
+                 && "ProjectionWaitAdapter action must be running before invocation");
+          const StepRunStatus status = this->adapter_.run(in, out, error);
+          if (status != FLOW_STEP_SUCCEEDED)
+          {
+            return status;
+          }
+
+          this->completedOut_ = out;
+          this->phase_ = PHASE_WAITING;
+          return this->advanceWait(out, error);
+        }
+
+      private:
+        enum Phase
+        {
+          PHASE_ACTION_NOT_STARTED = 0,
+          PHASE_ACTION_RUNNING,
+          PHASE_WAITING,
+          PHASE_COMPLETED
+        };
+
+        StepRunStatus advanceWait(Out &out, FlowError &error) const
+        {
+          switch (this->event_)
+          {
+          case ProjectionEvent::APPLIED:
+          {
+            unsigned long appliedGeneration = 0;
+            if (!scenario_projection_wait_detail::Access<Out>::queryAppliedGeneration(out, appliedGeneration, error))
+            {
+              return FLOW_STEP_FAILED;
+            }
+            if (appliedGeneration != this->appliedGenerationBeforeAction_)
+            {
+              this->phase_ = PHASE_COMPLETED;
+              return FLOW_STEP_SUCCEEDED;
+            }
+            if (scenario_projection_wait_detail::Access<Out>::hasPendingApply(out))
+            {
+              return FLOW_STEP_PENDING;
+            }
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_EXPECTED_APPLY;
+            return FLOW_STEP_FAILED;
+          }
+          }
+          assert(false && "ProjectionWaitAdapter received an unknown ProjectionEvent");
+          error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+          error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
+          return FLOW_STEP_FAILED;
+        }
+
+        AdapterT adapter_;
+        ProjectionEvent::Type event_;
+        mutable Phase phase_;
+        mutable unsigned long appliedGenerationBeforeAction_;
+        mutable Out completedOut_;
+      };
+
+      namespace scenario_projection_wait_detail
+      {
+        template <class T> struct IsWaitAdapter
+        {
+          enum
+          {
+            value = 0
+          };
+        };
+
+        template <class AdapterT> struct IsWaitAdapter<ProjectionWaitAdapter<AdapterT> >
+        {
+          enum
+          {
+            value = 1
+          };
+        };
+      } // namespace scenario_projection_wait_detail
 
       /** Schedules one typed Flow action at or after a scenario tick. The
           completed output is replayed on later chain runs without repeating
@@ -364,6 +555,31 @@ namespace loka
           return *this;
         }
 
+        /** Requires this Scene action to produce and cross one platform apply
+            generation before the scenario advances. */
+        AtTickSpec<ProjectionWaitAdapter<AdapterT> > waitUntil(ProjectionEvent::Type event) const
+        {
+          typedef typename AdapterT::In AdapterIn;
+          typedef typename AdapterT::Out AdapterOut;
+          typedef char LokaScenarioProjectionWaitRequiresSceneInput
+              [flow_detail::IsSame<AdapterIn, ::loka::app::scene::Scene *>::value ? 1 : -1];
+          typedef char LokaScenarioProjectionWaitRequiresSceneOutput
+              [flow_detail::IsSame<AdapterOut, ::loka::app::scene::Scene *>::value ? 1 : -1];
+          typedef char LokaScenarioProjectionWaitCanOnlyBeDeclaredOnce
+              [scenario_projection_wait_detail::IsWaitAdapter<AdapterT>::value ? -1 : 1];
+          (void)sizeof(LokaScenarioProjectionWaitRequiresSceneInput);
+          (void)sizeof(LokaScenarioProjectionWaitRequiresSceneOutput);
+          (void)sizeof(LokaScenarioProjectionWaitCanOnlyBeDeclaredOnce);
+          AtTickSpec<ProjectionWaitAdapter<AdapterT> > result(this->dueTick_,
+                                                              ProjectionWaitAdapter<AdapterT>(this->adapter_, event));
+          result.named(this->name_.c_str());
+          if (this->successTarget_)
+          {
+            result.onSuccess(this->successTarget_);
+          }
+          return result;
+        }
+
         long dueTick() const
         {
           return this->dueTick_;
@@ -396,6 +612,13 @@ namespace loka
       template <class AdapterT> inline AtTickSpec<AdapterT> AtTick(long dueTick, const AdapterT &adapter)
       {
         return AtTickSpec<AdapterT>(dueTick, adapter);
+      }
+
+      /** Declares a scenario action eligible as soon as its predecessor has
+          completed. Timing-sensitive scenarios should continue to use AtTick. */
+      template <class AdapterT> inline AtTickSpec<AdapterT> Then(const AdapterT &adapter)
+      {
+        return AtTickSpec<AdapterT>(0, adapter);
       }
 
       template <class InT, class OutT> class ScenarioFlowChain
@@ -494,24 +717,6 @@ namespace loka
       {
         return ScenarioFlowStart<InT>(clock, input);
       }
-
-      enum SceneTestFlowErrorKind
-      {
-        FLOW_ERROR_KIND_SCENE_SCENARIO = 1002,
-        FLOW_ERROR_KIND_SCENE_TEST_ASSERT = 1003
-      };
-
-      enum SceneTestFlowErrorCode
-      {
-        FLOW_ERROR_SCENE_TEST_NULL_SCENE = 1,
-        FLOW_ERROR_SCENE_TEST_ROOT_UNAVAILABLE = 2,
-        FLOW_ERROR_SCENE_TEST_NODE_NOT_FOUND = 3,
-        FLOW_ERROR_SCENE_TEST_NODE_TYPE_MISMATCH = 4,
-        FLOW_ERROR_SCENE_TEST_DUPLICATE_TEST_ID = 5,
-        FLOW_ERROR_SCENE_TEST_MISSING_TEST_ID = 6,
-        FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE = 7,
-        FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED = 8
-      };
 
       template <class NodeT> struct SceneNodeCast;
       // Add explicit specializations for each supported node type so misuse fails at compile time,

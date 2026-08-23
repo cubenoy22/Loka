@@ -156,6 +156,66 @@ namespace
     int expectedPreviousCalls_;
   };
 
+  struct QueueSceneApplyAction
+  {
+    typedef loka::app::scene::Scene *In;
+    typedef loka::app::scene::Scene *Out;
+
+    explicit QueueSceneApplyAction(int *calls)
+        : calls_(calls)
+    {
+    }
+
+    loka::dsl::StepRunStatus
+    run(loka::app::scene::Scene *const &in, loka::app::scene::Scene *&out, loka::dsl::FlowError &error) const
+    {
+      out = in;
+      if (!in || !this->calls_)
+      {
+        error.kind = loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO;
+        error.code = loka::dsl::testing::FLOW_ERROR_SCENE_TEST_NULL_SCENE;
+        return loka::dsl::FLOW_STEP_FAILED;
+      }
+      ++(*this->calls_);
+      in->requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+
+    int *calls_;
+  };
+
+  struct PendingSceneApplyAction
+  {
+    typedef loka::app::scene::Scene *In;
+    typedef loka::app::scene::Scene *Out;
+
+    explicit PendingSceneApplyAction(int *calls)
+        : calls_(calls)
+    {
+    }
+
+    loka::dsl::StepRunStatus
+    run(loka::app::scene::Scene *const &in, loka::app::scene::Scene *&out, loka::dsl::FlowError &error) const
+    {
+      out = in;
+      if (!in || !this->calls_)
+      {
+        error.kind = loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO;
+        error.code = loka::dsl::testing::FLOW_ERROR_SCENE_TEST_NULL_SCENE;
+        return loka::dsl::FLOW_STEP_FAILED;
+      }
+      ++(*this->calls_);
+      if (*this->calls_ == 1)
+      {
+        in->requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
+        return loka::dsl::FLOW_STEP_PENDING;
+      }
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+
+    int *calls_;
+  };
+
   class ConditionalProjectedProbeNode;
   struct ConditionalProjectedProbeTypeTag
   {
@@ -6692,4 +6752,122 @@ void testSceneFlowAtTickRunsEachActionOnceInOrder()
   clock.advanceTo(5);
   LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
   LOKA_VERIFY(calls == 2);
+}
+
+void testSceneFlowThenRunsEachActionOnceInOrder()
+{
+  loka::dsl::testing::ScenarioClock clock;
+  loka::app::scene::Scene *scene = 0;
+  int calls = 0;
+  loka::dsl::FlowChain<loka::app::scene::Scene *, loka::app::scene::Scene *> chain =
+      (loka::dsl::testing::ScenarioFlow(clock, &scene) | loka::dsl::testing::Then(CountSceneAction(&calls, 0))
+       | loka::dsl::testing::Then(CountSceneAction(&calls, 1)))
+          .flow();
+
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(calls == 2);
+  clock.advanceTo(5);
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(calls == 2);
+}
+
+void testSceneFlowWaitUntilAppliedWaitsForProjection()
+{
+  using namespace loka::app::scene;
+
+  Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
+  FlowScenePlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  const int callsBeforeAction = platform.calls_;
+  int actionCalls = 0;
+  Scene *scenePtr = &scene;
+  Scene *completedScene = 0;
+  loka::dsl::testing::ScenarioClock clock;
+  loka::dsl::FlowChain<Scene *, Scene *> chain = (loka::dsl::testing::ScenarioFlow(clock, &scenePtr)
+                                                  | loka::dsl::testing::Then(QueueSceneApplyAction(&actionCalls))
+                                                        .onSuccess(&completedScene)
+                                                        .waitUntil(loka::dsl::testing::ProjectionEvent::APPLIED))
+                                                     .flow();
+
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
+  LOKA_VERIFY(actionCalls == 1);
+  const bool applyPending = scene.hasPendingInvalidation();
+  LOKA_VERIFY(applyPending);
+  LOKA_VERIFY(platform.calls_ == callsBeforeAction);
+  LOKA_VERIFY(completedScene == 0);
+
+  LOKA_VERIFY(scene.flushInvalidation());
+  LOKA_VERIFY(platform.calls_ > callsBeforeAction);
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(actionCalls == 1);
+  LOKA_VERIFY(completedScene == &scene);
+  const int callsAfterApply = platform.calls_;
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(actionCalls == 1);
+  LOKA_VERIFY(platform.calls_ == callsAfterApply);
+
+  scene.unmount();
+}
+
+void testSceneFlowWaitUntilAppliedRetainsBaselineWhileActionPending()
+{
+  using namespace loka::app::scene;
+
+  Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
+  FlowScenePlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  const int callsBeforeAction = platform.calls_;
+  int actionCalls = 0;
+  Scene *scenePtr = &scene;
+  loka::dsl::testing::ScenarioClock clock;
+  loka::dsl::FlowChain<Scene *, Scene *> chain = (loka::dsl::testing::ScenarioFlow(clock, &scenePtr)
+                                                  | loka::dsl::testing::Then(PendingSceneApplyAction(&actionCalls))
+                                                        .waitUntil(loka::dsl::testing::ProjectionEvent::APPLIED))
+                                                     .flow();
+
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
+  LOKA_VERIFY(actionCalls == 1);
+  const bool applyPending = scene.hasPendingInvalidation();
+  LOKA_VERIFY(applyPending);
+  LOKA_VERIFY(scene.flushInvalidation());
+  LOKA_VERIFY(platform.calls_ > callsBeforeAction);
+
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(actionCalls == 2);
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(actionCalls == 2);
+
+  scene.unmount();
+}
+
+void testSceneFlowWaitUntilAppliedRefusesMissingProjection()
+{
+  using namespace loka::app::scene;
+
+  Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
+  FlowScenePlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  Scene *scenePtr = &scene;
+  loka::dsl::testing::ScenarioClock clock;
+  int calls = 0;
+  FlowErrorCapture failure = {0, 0, 0};
+  loka::dsl::FlowChain<Scene *, Scene *> chain =
+      (loka::dsl::testing::ScenarioFlow(clock, &scenePtr)
+       | loka::dsl::testing::Then(CountSceneAction(&calls, 0)).waitUntil(loka::dsl::testing::ProjectionEvent::APPLIED))
+          .flow();
+  chain.onFailure(&FlowTestMarker::captureFailure, &failure);
+
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(calls == 1);
+  LOKA_VERIFY(failure.calls == 1);
+  LOKA_VERIFY(failure.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO);
+  LOKA_VERIFY(failure.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_EXPECTED_APPLY);
+
+  scene.unmount();
 }
