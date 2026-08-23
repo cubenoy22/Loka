@@ -6761,7 +6761,8 @@ void testSceneFlowWaitUntilAppliedWaitsForProjection()
 
   LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
   LOKA_VERIFY(actionCalls == 1);
-  LOKA_VERIFY(scene.hasPendingInvalidation());
+  const bool applyPending = scene.hasPendingInvalidation();
+  LOKA_VERIFY(applyPending);
   LOKA_VERIFY(platform.calls_ == callsBeforeAction);
   LOKA_VERIFY(completedScene == 0);
 
