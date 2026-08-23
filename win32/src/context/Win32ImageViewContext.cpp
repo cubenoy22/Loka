@@ -408,46 +408,55 @@ void Win32ImageViewContext::drawImage(HDC hdc, const RECT &rect)
     }
     BlitRect blit = ComputeBlitRect(fitMode, rect, srcWidth, srcHeight);
 
-    BITMAPINFO bitmapInfo;
-    ZeroMemory(&bitmapInfo, sizeof(bitmapInfo));
-    bitmapInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    bitmapInfo.bmiHeader.biWidth = blit.dstW;
-    bitmapInfo.bmiHeader.biHeight = -blit.dstH;
-    bitmapInfo.bmiHeader.biPlanes = 1;
-    bitmapInfo.bmiHeader.biBitCount = 32;
-    bitmapInfo.bmiHeader.biCompression = BI_RGB;
-
-    void *bits = 0;
-    HBITMAP offscreenBitmap = CreateDIBSection(0, &bitmapInfo, DIB_RGB_COLORS, &bits, 0, 0);
-    HDC offscreenDC = offscreenBitmap ? CreateCompatibleDC(hdc) : 0;
-    bool drewOffscreen = false;
-    if (offscreenDC)
+    bool drewImage = false;
+    if (blit.dstW == blit.srcW && blit.dstH == blit.srcH)
     {
-      HGDIOBJ oldOffscreenBitmap = SelectObject(offscreenDC, offscreenBitmap);
-      if (oldOffscreenBitmap)
+      // A 1:1 copy has no stretch rounding tie, so it does not need the
+      // scratch surface that keeps that tie off the window DC.
+      drewImage = BitBlt(hdc, blit.dstX, blit.dstY, blit.dstW, blit.dstH, memdc, blit.srcX, blit.srcY, SRCCOPY) != 0;
+    }
+    else
+    {
+      BITMAPINFO bitmapInfo;
+      ZeroMemory(&bitmapInfo, sizeof(bitmapInfo));
+      bitmapInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+      bitmapInfo.bmiHeader.biWidth = blit.dstW;
+      bitmapInfo.bmiHeader.biHeight = -blit.dstH;
+      bitmapInfo.bmiHeader.biPlanes = 1;
+      bitmapInfo.bmiHeader.biBitCount = 32;
+      bitmapInfo.bmiHeader.biCompression = BI_RGB;
+
+      void *bits = 0;
+      HBITMAP offscreenBitmap = CreateDIBSection(0, &bitmapInfo, DIB_RGB_COLORS, &bits, 0, 0);
+      HDC offscreenDC = offscreenBitmap ? CreateCompatibleDC(hdc) : 0;
+      if (offscreenDC)
       {
-        SetStretchBltMode(offscreenDC, COLORONCOLOR);
-        if (StretchBlt(
-                offscreenDC, 0, 0, blit.dstW, blit.dstH, memdc, blit.srcX, blit.srcY, blit.srcW, blit.srcH, SRCCOPY))
+        HGDIOBJ oldOffscreenBitmap = SelectObject(offscreenDC, offscreenBitmap);
+        if (oldOffscreenBitmap)
         {
-          // This final 1:1 copy is pixel-exact only when the source and
-          // destination formats agree. The verified Win32 rig declares
-          // depth=32; 16bpp and 8bpp-palette destinations may quantise.
-          drewOffscreen = BitBlt(hdc, blit.dstX, blit.dstY, blit.dstW, blit.dstH, offscreenDC, 0, 0, SRCCOPY) != 0;
+          SetStretchBltMode(offscreenDC, COLORONCOLOR);
+          if (StretchBlt(
+                  offscreenDC, 0, 0, blit.dstW, blit.dstH, memdc, blit.srcX, blit.srcY, blit.srcW, blit.srcH, SRCCOPY))
+          {
+            // This final 1:1 copy is pixel-exact only when the source and
+            // destination formats agree. The verified Win32 rig declares
+            // depth=32; 16bpp and 8bpp-palette destinations may quantise.
+            drewImage = BitBlt(hdc, blit.dstX, blit.dstY, blit.dstW, blit.dstH, offscreenDC, 0, 0, SRCCOPY) != 0;
+          }
+          SelectObject(offscreenDC, oldOffscreenBitmap);
         }
-        SelectObject(offscreenDC, oldOffscreenBitmap);
+        DeleteDC(offscreenDC);
       }
-      DeleteDC(offscreenDC);
-    }
-    if (offscreenBitmap)
-    {
-      DeleteObject(offscreenBitmap);
+      if (offscreenBitmap)
+      {
+        DeleteObject(offscreenBitmap);
+      }
     }
 
-    if (!drewOffscreen)
+    if (!drewImage)
     {
-      // If an offscreen resource or copy fails, a potentially nondeterministic
-      // image is preferable to drawing no image at all.
+      // If a direct copy, offscreen resource, or offscreen copy fails, a
+      // potentially nondeterministic image is preferable to drawing no image.
       SetStretchBltMode(hdc, COLORONCOLOR);
       StretchBlt(
           hdc, blit.dstX, blit.dstY, blit.dstW, blit.dstH, memdc, blit.srcX, blit.srcY, blit.srcW, blit.srcH, SRCCOPY);
