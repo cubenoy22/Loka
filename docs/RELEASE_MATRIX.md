@@ -70,6 +70,11 @@ inapplicable because its shared UI uses Previous/Next buttons.
 
 ## L1 — startup smoke
 
+Both pixel rails refuse until the rig is named. Set `$env:LOKA_WIN32_RIG = '<rig>'`
+and `LOKA_MACOS_RIG=<rig>` for the machine you are on before running the commands
+in the cells below; each names a descriptor in that machine's own rig directory,
+and the goldens are stored per rig. See *How each rail is run* for the full form.
+
 | Example | Linux host | Win32 | macOS | Classic Mac (68K rig) |
 | --- | --- | --- | --- | --- |
 | `FloppyBird` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_ (`tests/win32/run-scenario.ps1 floppybird startup`) | - [ ] Evidence: _add link_ (`tests/macos/run-scenario.sh floppybird startup`) | - [ ] Evidence: _add link_ (`tests/toolbox/run-scenario.sh floppybird startup`) |
@@ -80,6 +85,11 @@ inapplicable because its shared UI uses Previous/Next buttons.
 | `Tutorial` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_ (`tests/win32/run-scenario.ps1 tutorial startup`) | - [ ] Evidence: _add link_ (`tests/macos/run-scenario.sh tutorial startup`) | - [ ] Evidence: _add link_ (`tests/toolbox/run-scenario.sh tutorial startup`) |
 
 ## L2 — scenario completion
+
+Both pixel rails refuse until the rig is named. Set `$env:LOKA_WIN32_RIG = '<rig>'`
+and `LOKA_MACOS_RIG=<rig>` for the machine you are on before running the commands
+in the cells below; each names a descriptor in that machine's own rig directory,
+and the goldens are stored per rig. See *How each rail is run* for the full form.
 
 Record the chosen scenario name as well as its evidence. A release needs one
 representative scenario for each example on every applicable OS.
@@ -133,9 +143,9 @@ host must satisfy that preset's toolchain requirements.
 | Standalone Classic `Tutorial` | `LokaTutorialStandaloneFlow68K_APPL` presents the same typed scenario without host config; after target execution, `tests/toolbox/verify-standalone-audit.sh tutorial increment-summary-toggle <LOG.TXT>` byte-compares the complete durable audit |
 | Standalone Classic `MineSweeper` | `LokaMineStandaloneFlow68K_APPL` presents the fixed-seed two-New-Game tour without host config; after target execution, `tests/toolbox/verify-standalone-audit.sh minesweeper new-game-twice <LOG.TXT>` byte-compares the complete durable audit |
 | Standalone Classic `FloppyBird` | `LokaFloppyStandaloneFlow68K_APPL` presents the fixed-seed fixed-step flap tour without host config; after target execution, `tests/toolbox/verify-standalone-audit.sh floppybird fixed-step-flaps <LOG.TXT>` byte-compares the complete durable audit |
-| L1 Win32 `ScrapbookUI` | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/win32/run-scenario.ps1 scrapbook startup` — shared State-driven scenario, byte-identical tracked audit, two-hash settled `PrintWindow` capture, and rig-local profiled golden |
-| L2 Win32 `ScrapbookUI` | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/win32/run-scenario.ps1 scrapbook flip-forward-back` — shared State-driven scenario, byte-identical tracked audit, two-hash settled `PrintWindow` capture, and rig-local profiled golden |
-| L1/L2 Win32 other scenario examples | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/win32/run-scenario.ps1 <example> <scenario>` — shared scene driver, byte-identical tracked audit, two-hash settled `PrintWindow` capture, and rig-local profiled golden |
+| L1 Win32 `ScrapbookUI` | `$env:LOKA_WIN32_RIG = '<rig>'; powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/win32/run-scenario.ps1 scrapbook startup` — shared State-driven scenario, byte-identical tracked audit, two-hash settled `PrintWindow` capture, and rig-local profiled golden |
+| L2 Win32 `ScrapbookUI` | `$env:LOKA_WIN32_RIG = '<rig>'; powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/win32/run-scenario.ps1 scrapbook flip-forward-back` — shared State-driven scenario, byte-identical tracked audit, two-hash settled `PrintWindow` capture, and rig-local profiled golden |
+| L1/L2 Win32 other scenario examples | `$env:LOKA_WIN32_RIG = '<rig>'; powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/win32/run-scenario.ps1 <example> <scenario>` — shared scene driver, byte-identical tracked audit, two-hash settled `PrintWindow` capture, and rig-local profiled golden; `<rig>` names a descriptor in the local rig directory (`~/.config/loka/rigs/win32/`, override with `LOKA_WIN32_RIG_HOME`) — rig descriptors are not tracked, for the same reason the goldens they pin are not; copy `scripts/rig/win32/rigs/local.example.ini` to start one. The capture environment it declares must match what the run reports |
 | L1/L2 macOS | `LOKA_MACOS_RIG=<rig> tests/macos/run-scenario.sh <example> <scenario>` — tracked expected audit plus settled rig-local pixel golden; `<rig>` names a descriptor in `scripts/rig/macos/rigs/`, and the capture environment it declares must match what the run reports |
 | L1 Classic `SimpleViewer` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
 | L2 Classic examples other than `ScrapbookUI`, `HelloWorld`, `Tutorial`, `MineSweeper`, and `FloppyBird` | **TBD — [#312](https://github.com/cubenoy22/Loka/issues/312)** |
