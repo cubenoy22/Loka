@@ -78,6 +78,7 @@ This is the environment where binaries are actually built.
   architecture. A dedicated legacy build host may select a Release
   architecture explicitly, for example
   `LOKA_STANDALONE_MACOS_ARCH=i386 scripts/macos-standalone-flow.sh Release`.
+  The VS Code equivalent is **Release: macOS Standalone Application Set**.
 - For a presentation that keeps moving without a host controller, use the
   TEST-only HelloWorld and MineSweeper loop reels. Each application shows every
   registered cell for its example, wraps to the first, and continues until the
@@ -160,6 +161,9 @@ This is the environment where binaries are actually built.
   Closing it manually does not relaunch it.
   SimpleViewer remains interactive and is not started by either audit
   verification or Release staging.
+  The VS Code equivalent is **Release: Win32 Standalone Application Set**;
+  launch VS Code from the matching Visual Studio Developer Command Prompt so
+  the Task inherits the intended compiler architecture.
 
   To measure a Standalone Flow, configure a separate cache with
   `LOKA_STANDALONE_PERFORMANCE_RUNS` set from 3 through 10 and build its

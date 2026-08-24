@@ -8,6 +8,8 @@ Run:
 ./scripts/toolbox-standalone-flow.sh Release
 ```
 
+The VS Code equivalent is **Release: Toolbox 68K Standalone Application Set**.
+
 The release under `build/release/toolbox-68k` contains five autonomous
 Standalone Loop applications plus the interactive `LokaSimpleViewer68K`.
 Each application is provided as both a MacBinary (`.bin`) and an 800 KiB HFS
