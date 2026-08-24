@@ -1,6 +1,7 @@
 #include "MineSweeperStandaloneFlowAppConfig.hpp"
 
 #include "../scenarios/ScenarioWindow.hpp"
+#include "../scenarios/ScenarioReel.hpp"
 #include "app/core/AppComposition.hpp"
 #include "app/core/Window.hpp"
 
@@ -8,13 +9,28 @@ namespace loka
 {
   namespace standalone_tests
   {
+    namespace
+    {
+      const char *ConfiguredMineSweeperScenarioName()
+      {
+#if LOKA_STANDALONE_FLOW_LOOP
+        return "seeded-reveal";
+#else
+        return "new-game-twice";
+#endif
+      }
+    } // namespace
+
     MineSweeperStandaloneFlowAppConfig::MineSweeperStandaloneFlowAppConfig(
         PlatformContext *context,
         const platform::file::FileHandle *auditFile,
         std::FILE *diagnostics)
         : AppConfigurable(context),
-          audit_(auditFile ? *auditFile : ResolveStandaloneAuditFile(), "new-game-twice"),
-          scenario_(scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &this->audit_),
+          audit_(auditFile ? *auditFile : ResolveStandaloneAuditFile(), ConfiguredMineSweeperScenarioName()),
+          scenario_(new (std::nothrow) scenario_tests::MineSweeperScenario(
+              ConfiguredMineSweeperScenarioName(),
+              scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE,
+              &this->audit_)),
           borrowedMainNode_(0),
           runControl_("MineSweeper", diagnostics)
     {
@@ -22,12 +38,11 @@ namespace loka
 
     MineSweeperStandaloneFlowAppConfig::~MineSweeperStandaloneFlowAppConfig()
     {
-      this->scenario_.stop();
     }
 
     int MineSweeperStandaloneFlowAppConfig::exitCode() const
     {
-      return this->audit_.isValid() && !this->runControl_.failed() ? 0 : 1;
+      return this->audit_.isValid() && this->scenario_.isValid() && !this->runControl_.failed() ? 0 : 1;
     }
 
     void MineSweeperStandaloneFlowAppConfig::setApp(App *app)
@@ -78,11 +93,18 @@ namespace loka
       }
       dsl::SnapRecord record;
       const scenario_tests::ScenarioAdvance advance =
-          this->scenario_.step(this->runControl_.tick(),
-                               window->scene(),
-                               StandaloneContentBounds(window),
-                               record);
-      this->runControl_.observeScenarioAdvance(advance, record);
+          this->scenario_->step(this->runControl_.tick(),
+                                window->scene(),
+                                StandaloneContentBounds(window),
+                                record);
+      if (this->runControl_.observeScenarioAdvance(advance, record))
+      {
+        const bool replaced = this->scenario_.replace(new (std::nothrow) scenario_tests::MineSweeperScenario(
+            ConfiguredMineSweeperScenarioName(),
+            scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE,
+            0));
+        this->runControl_.completeSceneRearm(replaced && scenario_tests::RearmScenarioScene(window));
+      }
     }
   } // namespace standalone_tests
 } // namespace loka

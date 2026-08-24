@@ -39,12 +39,16 @@ namespace loka
       return result;
     }
 
-    StandaloneRunControl::StandaloneRunControl(const char *applicationName, std::FILE *diagnostics)
+    StandaloneRunControl::StandaloneRunControl(const char *applicationName,
+                                               std::FILE *diagnostics,
+                                               CompletionMode completionMode)
         : borrowedApp_(0),
           applicationName_(applicationName ? applicationName : "application"),
           diagnostics_(diagnostics ? diagnostics : stderr),
+          completionMode_(completionMode),
           tick_(0),
-          mountFailed_(false)
+          mountFailed_(false),
+          completed_(false)
     {
     }
 
@@ -89,26 +93,53 @@ namespace loka
       return ADVANCE_FAILED;
     }
 
-    void StandaloneRunControl::observeScenarioAdvance(scenario_tests::ScenarioAdvance advance,
+    bool StandaloneRunControl::observeScenarioAdvance(scenario_tests::ScenarioAdvance advance,
                                                       const dsl::SnapRecord &record)
     {
       switch (advance)
       {
       case scenario_tests::SCENARIO_ADVANCE_PENDING:
       case scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY:
-        return;
+        return false;
       case scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD:
         break;
       }
 #if LOKA_STANDALONE_PERFORMANCE_RUNS > 0
       this->scenarioVerdict_.observe(record);
+#else
+      (void)record;
+#endif
+      this->completed_ = true;
+      if (this->completionMode_ != HOLD_FINAL_SCENE && this->borrowedApp_)
+      {
+        if (this->completionMode_ == QUIT_COMPLETED_PASS)
+        {
+          this->borrowedApp_->quit();
+        }
+      }
+      return this->completionMode_ == REARM_COMPLETED_SCENE;
+    }
+
+    void StandaloneRunControl::completeSceneRearm(bool succeeded)
+    {
+      assert(this->completionMode_ == REARM_COMPLETED_SCENE && "Scene re-arm is a loop-only completion");
+      assert(this->completed_ && "Scene re-arm follows a completed scenario");
+      if (succeeded)
+      {
+        this->tick_ = 0;
+        this->completed_ = false;
+        return;
+      }
+      this->mountFailed_ = true;
+      std::fprintf(this->diagnostics_,
+                   "Loka %s standalone loop failed: "
+                   "the next scenario rail or Scene could not be prepared.\n",
+                   this->applicationName_);
+      std::fflush(this->diagnostics_);
       if (this->borrowedApp_)
       {
         this->borrowedApp_->quit();
       }
-#else
-      (void)record;
-#endif
     }
 
     long StandaloneRunControl::tick() const
@@ -124,5 +155,6 @@ namespace loka
       return this->mountFailed_;
 #endif
     }
+
   } // namespace standalone_tests
 } // namespace loka

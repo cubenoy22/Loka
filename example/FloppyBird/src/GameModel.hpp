@@ -74,6 +74,18 @@ namespace floppybird
       this->renderScene();
     }
 
+    /** Starts a fresh deterministic run while preserving the model identity
+        observed by the current or next Scene. */
+    void reset(unsigned long seed)
+    {
+      loka::core::StateTrackerGuard guard(&this->tracker_);
+      this->game_.reset(seed);
+      this->lastSnapshot_ = RenderSnapshot();
+      this->hasLastSnapshot_ = false;
+      this->lastScore_ = -1;
+      this->renderScene();
+    }
+
     void advanceFrame(double frameSeconds)
     {
       loka::core::StateTrackerGuard guard(&this->tracker_);

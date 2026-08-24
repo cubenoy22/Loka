@@ -232,13 +232,17 @@ set(LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_TARGET
   # Keep the generated application name within Classic HFS's 31-character limit.
   "LokaFloppyStandaloneFlow${LOKA_CLASSIC_TARGET_SUFFIX}"
 )
+set(LOKA_STANDALONE_FLOW_TOOLBOX_SUPPORT_SOURCES
+  ${CMAKE_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
+  ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioReel.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+)
 set(LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_SOURCES
   src/HelloWorldStandaloneFlowMain.cpp
   ${CMAKE_SOURCE_DIR}/tests/standalone/HelloWorldStandaloneFlowApplication.cpp
   ${CMAKE_SOURCE_DIR}/tests/standalone/HelloWorldStandaloneFlowAppConfig.cpp
-  ${CMAKE_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
-  ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
-  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+  ${LOKA_STANDALONE_FLOW_TOOLBOX_SUPPORT_SOURCES}
   ${CMAKE_SOURCE_DIR}/tests/scenarios/HelloWorldScenarios.cpp
   ${CMAKE_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/HelloWorldStandaloneSize.r
@@ -247,9 +251,7 @@ set(LOKA_TUTORIAL_STANDALONE_FLOW_TOOLBOX_SOURCES
   src/TutorialStandaloneFlowMain.cpp
   ${CMAKE_SOURCE_DIR}/tests/standalone/TutorialStandaloneFlowApplication.cpp
   ${CMAKE_SOURCE_DIR}/tests/standalone/TutorialStandaloneFlowAppConfig.cpp
-  ${CMAKE_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
-  ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
-  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+  ${LOKA_STANDALONE_FLOW_TOOLBOX_SUPPORT_SOURCES}
   ${CMAKE_SOURCE_DIR}/tests/scenarios/TutorialScenarios.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/TutorialStandaloneSize.r
 )
@@ -257,9 +259,7 @@ set(LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_SOURCES
   src/MineSweeperStandaloneFlowMain.cpp
   ${CMAKE_SOURCE_DIR}/tests/standalone/MineSweeperStandaloneFlowApplication.cpp
   ${CMAKE_SOURCE_DIR}/tests/standalone/MineSweeperStandaloneFlowAppConfig.cpp
-  ${CMAKE_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
-  ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
-  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+  ${LOKA_STANDALONE_FLOW_TOOLBOX_SUPPORT_SOURCES}
   ${CMAKE_SOURCE_DIR}/tests/scenarios/MineSweeperScenarios.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/MineSweeperStandaloneSize.r
 )
@@ -267,9 +267,7 @@ set(LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_SOURCES
   src/FloppyBirdStandaloneFlowMain.cpp
   ${CMAKE_SOURCE_DIR}/tests/standalone/FloppyBirdStandaloneFlowApplication.cpp
   ${CMAKE_SOURCE_DIR}/tests/standalone/FloppyBirdStandaloneFlowAppConfig.cpp
-  ${CMAKE_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
-  ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
-  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+  ${LOKA_STANDALONE_FLOW_TOOLBOX_SUPPORT_SOURCES}
   ${CMAKE_SOURCE_DIR}/tests/scenarios/FloppyBirdScenarios.cpp
   ${CMAKE_SOURCE_DIR}/tests/scenarios/RectSurfaceScenarioObservation.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/FloppyBirdStandaloneSize.r
@@ -278,37 +276,36 @@ set(LOKA_STANDALONE_FLOW_TOOLBOX_SOURCES
   src/StandaloneFlowMain.cpp
   ${CMAKE_SOURCE_DIR}/tests/standalone/StandaloneFlowApplication.cpp
   ${CMAKE_SOURCE_DIR}/tests/standalone/ScrapbookStandaloneFlowAppConfig.cpp
-  ${CMAKE_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
-  ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
-  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+  ${LOKA_STANDALONE_FLOW_TOOLBOX_SUPPORT_SOURCES}
   ${CMAKE_SOURCE_DIR}/tests/scenarios/ScrapbookScenarios.cpp
   ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/src/ScrapbookPackage.cpp
   ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/Size.r
 )
+
+function(loka_configure_toolbox_standalone_target target example_include_dir)
+  set_property(TARGET ${target} PROPERTY EXCLUDE_FROM_ALL TRUE)
+  set_property(TARGET ${target}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
+  target_include_directories(${target} PRIVATE
+    ${CMAKE_SOURCE_DIR}/tests/standalone
+    ${example_include_dir}
+  )
+  target_compile_definitions(${target} PRIVATE
+    TEST_BUILD
+    LOKA_DIAG=1
+  )
+endfunction()
 
 loka_add_toolbox_test_application(
   ${LOKA_STANDALONE_FLOW_TOOLBOX_TARGET}
   LokaAppleToolboxTestCore
   ${LOKA_STANDALONE_FLOW_TOOLBOX_SOURCES}
 )
-set_property(TARGET ${LOKA_STANDALONE_FLOW_TOOLBOX_TARGET}
-  PROPERTY EXCLUDE_FROM_ALL TRUE
-)
-set_property(TARGET ${LOKA_STANDALONE_FLOW_TOOLBOX_TARGET}_APPL
-  PROPERTY EXCLUDE_FROM_ALL TRUE
+loka_configure_toolbox_standalone_target(
+  ${LOKA_STANDALONE_FLOW_TOOLBOX_TARGET}
+  ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/src
 )
 target_include_directories(${LOKA_TESTS_TOOLBOX_TARGET} PRIVATE
   ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/src
-)
-
-target_include_directories(${LOKA_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVATE
-  ${CMAKE_SOURCE_DIR}/tests/standalone
-  ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/src
-)
-
-target_compile_definitions(${LOKA_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVATE
-  TEST_BUILD
-  LOKA_DIAG=1
 )
 
 configure_file(
@@ -321,19 +318,9 @@ loka_add_toolbox_test_application(
   LokaAppleToolboxTestCore
   ${LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_SOURCES}
 )
-set_property(TARGET ${LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_TARGET}
-  PROPERTY EXCLUDE_FROM_ALL TRUE
-)
-set_property(TARGET ${LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_TARGET}_APPL
-  PROPERTY EXCLUDE_FROM_ALL TRUE
-)
-target_include_directories(${LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVATE
-  ${CMAKE_SOURCE_DIR}/tests/standalone
+loka_configure_toolbox_standalone_target(
+  ${LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_TARGET}
   ${CMAKE_SOURCE_DIR}/example/HelloWorld/src
-)
-target_compile_definitions(${LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVATE
-  TEST_BUILD
-  LOKA_DIAG=1
 )
 
 configure_file(
@@ -346,19 +333,9 @@ loka_add_toolbox_test_application(
   LokaAppleToolboxTestCore
   ${LOKA_TUTORIAL_STANDALONE_FLOW_TOOLBOX_SOURCES}
 )
-set_property(TARGET ${LOKA_TUTORIAL_STANDALONE_FLOW_TOOLBOX_TARGET}
-  PROPERTY EXCLUDE_FROM_ALL TRUE
-)
-set_property(TARGET ${LOKA_TUTORIAL_STANDALONE_FLOW_TOOLBOX_TARGET}_APPL
-  PROPERTY EXCLUDE_FROM_ALL TRUE
-)
-target_include_directories(${LOKA_TUTORIAL_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVATE
-  ${CMAKE_SOURCE_DIR}/tests/standalone
+loka_configure_toolbox_standalone_target(
+  ${LOKA_TUTORIAL_STANDALONE_FLOW_TOOLBOX_TARGET}
   ${CMAKE_SOURCE_DIR}/example/Tutorial/src
-)
-target_compile_definitions(${LOKA_TUTORIAL_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVATE
-  TEST_BUILD
-  LOKA_DIAG=1
 )
 
 configure_file(
@@ -371,19 +348,9 @@ loka_add_toolbox_test_application(
   LokaAppleToolboxTestCore
   ${LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_SOURCES}
 )
-set_property(TARGET ${LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_TARGET}
-  PROPERTY EXCLUDE_FROM_ALL TRUE
-)
-set_property(TARGET ${LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_TARGET}_APPL
-  PROPERTY EXCLUDE_FROM_ALL TRUE
-)
-target_include_directories(${LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVATE
-  ${CMAKE_SOURCE_DIR}/tests/standalone
+loka_configure_toolbox_standalone_target(
+  ${LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_TARGET}
   ${CMAKE_SOURCE_DIR}/example/MineSweeper/src
-)
-target_compile_definitions(${LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVATE
-  TEST_BUILD
-  LOKA_DIAG=1
 )
 
 configure_file(
@@ -396,20 +363,98 @@ loka_add_toolbox_test_application(
   LokaAppleToolboxTestCore
   ${LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_SOURCES}
 )
-set_property(TARGET ${LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_TARGET}
-  PROPERTY EXCLUDE_FROM_ALL TRUE
-)
-set_property(TARGET ${LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_TARGET}_APPL
-  PROPERTY EXCLUDE_FROM_ALL TRUE
-)
-target_include_directories(${LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVATE
-  ${CMAKE_SOURCE_DIR}/tests/standalone
+loka_configure_toolbox_standalone_target(
+  ${LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_TARGET}
   ${CMAKE_SOURCE_DIR}/example/FloppyBird/src
 )
-target_compile_definitions(${LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_TARGET} PRIVATE
-  TEST_BUILD
-  LOKA_DIAG=1
+
+# Autonomous release loops share the finite standalone vehicles' application
+# sources. Only their completion policy differs: one App and native Window stay
+# alive while each completed rail is replaced and the current Scene is re-armed.
+set(LOKA_STANDALONE_LOOP_TOOLBOX_TARGET
+  "LokaScrapbookStandaloneLoop${LOKA_CLASSIC_TARGET_SUFFIX}"
 )
+set(LOKA_HELLO_WORLD_STANDALONE_LOOP_TOOLBOX_TARGET
+  "LokaHelloStandaloneLoop${LOKA_CLASSIC_TARGET_SUFFIX}"
+)
+set(LOKA_TUTORIAL_STANDALONE_LOOP_TOOLBOX_TARGET
+  "LokaTutorialStandaloneLoop${LOKA_CLASSIC_TARGET_SUFFIX}"
+)
+set(LOKA_MINESWEEPER_STANDALONE_LOOP_TOOLBOX_TARGET
+  "LokaMineStandaloneLoop${LOKA_CLASSIC_TARGET_SUFFIX}"
+)
+set(LOKA_FLOPPY_BIRD_STANDALONE_LOOP_TOOLBOX_TARGET
+  "LokaFloppyStandaloneLoop${LOKA_CLASSIC_TARGET_SUFFIX}"
+)
+
+function(loka_add_toolbox_standalone_loop target example_include_dir)
+  loka_add_toolbox_test_application(
+    ${target}
+    LokaAppleToolboxTestCore
+    ${ARGN}
+  )
+  loka_configure_toolbox_standalone_target(
+    ${target}
+    ${example_include_dir}
+  )
+  target_compile_definitions(${target} PRIVATE LOKA_STANDALONE_FLOW_LOOP=1)
+endfunction()
+
+loka_add_toolbox_standalone_loop(
+  ${LOKA_STANDALONE_LOOP_TOOLBOX_TARGET}
+  ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/src
+  ${LOKA_STANDALONE_FLOW_TOOLBOX_SOURCES}
+)
+loka_add_toolbox_standalone_loop(
+  ${LOKA_HELLO_WORLD_STANDALONE_LOOP_TOOLBOX_TARGET}
+  ${CMAKE_SOURCE_DIR}/example/HelloWorld/src
+  ${LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_SOURCES}
+)
+loka_add_toolbox_standalone_loop(
+  ${LOKA_TUTORIAL_STANDALONE_LOOP_TOOLBOX_TARGET}
+  ${CMAKE_SOURCE_DIR}/example/Tutorial/src
+  ${LOKA_TUTORIAL_STANDALONE_FLOW_TOOLBOX_SOURCES}
+)
+
+# The previous Toolbox loop soak established that MineSweeper needs more than
+# its 512K shipping preference while repeatedly rebuilding the board. Reuse
+# that measured loop partition instead of inventing a second memory policy.
+set(LOKA_MINESWEEPER_STANDALONE_LOOP_TOOLBOX_SOURCES
+  ${LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_SOURCES}
+)
+list(REMOVE_ITEM LOKA_MINESWEEPER_STANDALONE_LOOP_TOOLBOX_SOURCES
+  ${CMAKE_CURRENT_BINARY_DIR}/MineSweeperStandaloneSize.r
+)
+list(APPEND LOKA_MINESWEEPER_STANDALONE_LOOP_TOOLBOX_SOURCES
+  ${CMAKE_CURRENT_SOURCE_DIR}/ScenarioLoopSize.r
+)
+loka_add_toolbox_standalone_loop(
+  ${LOKA_MINESWEEPER_STANDALONE_LOOP_TOOLBOX_TARGET}
+  ${CMAKE_SOURCE_DIR}/example/MineSweeper/src
+  ${LOKA_MINESWEEPER_STANDALONE_LOOP_TOOLBOX_SOURCES}
+)
+loka_add_toolbox_standalone_loop(
+  ${LOKA_FLOPPY_BIRD_STANDALONE_LOOP_TOOLBOX_TARGET}
+  ${CMAKE_SOURCE_DIR}/example/FloppyBird/src
+  ${LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_SOURCES}
+)
+
+set(LOKA_STANDALONE_LOOP_TOOLBOX_ALL_TARGET
+  "LokaStandaloneLoop${LOKA_CLASSIC_TARGET_SUFFIX}All"
+)
+add_custom_target(${LOKA_STANDALONE_LOOP_TOOLBOX_ALL_TARGET})
+foreach(_LOKA_STANDALONE_LOOP_TARGET IN ITEMS
+    ${LOKA_STANDALONE_LOOP_TOOLBOX_TARGET}
+    ${LOKA_HELLO_WORLD_STANDALONE_LOOP_TOOLBOX_TARGET}
+    ${LOKA_TUTORIAL_STANDALONE_LOOP_TOOLBOX_TARGET}
+    ${LOKA_MINESWEEPER_STANDALONE_LOOP_TOOLBOX_TARGET}
+    ${LOKA_FLOPPY_BIRD_STANDALONE_LOOP_TOOLBOX_TARGET})
+  add_dependencies(${LOKA_STANDALONE_LOOP_TOOLBOX_ALL_TARGET}
+    ${_LOKA_STANDALONE_LOOP_TARGET}_APPL)
+endforeach()
+unset(_LOKA_STANDALONE_LOOP_TARGET)
+add_dependencies(${LOKA_STANDALONE_LOOP_TOOLBOX_ALL_TARGET}
+  LokaSimpleViewer${LOKA_CLASSIC_TARGET_SUFFIX}_APPL)
 
 set(LOKA_STANDALONE_PERFORMANCE_RUNS "" CACHE STRING
   "Complete Standalone Flow passes to measure (3-10). Empty disables measurement."

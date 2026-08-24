@@ -51,18 +51,33 @@ This is the environment where binaries are actually built.
 - The project already builds with older toolchains such as GCC 4.0.
 - Universal Binary 1 builds are possible on Snow Leopard systems.
 - On older macOS systems such as Snow Leopard, CMake and Ninja can be installed through MacPorts.
-- On Windows, VS Code should usually be launched from an appropriate Visual Studio Developer Command Prompt so that MSVC environment variables match the intended target architecture.
+- On Windows, run release commands from an appropriate Visual Studio Developer Command Prompt so that MSVC environment variables match the intended target architecture. VS Code may inherit the same environment, but is not required.
 - On Windows on ARM, use the ARM64 Native Tools Command Prompt for native ARM64 builds, or ARM64_x86 / ARM64_x64 Cross Tools prompts for x86-family builds.
 - For a host-native macOS standalone presentation, run
-  `Verify: macOS Standalone Flow Release` in VS Code. The task configures and
-  builds Release without pinning `CMAKE_OSX_ARCHITECTURES`, stages the complete
-  application bundle under `build/presentation/macos-<host>-release`, launches
-  it, requires the exact twelve-step success audit with its embedded
-  deterministic verdict body, and stops the final
-  scene hold. `Stage: macOS Standalone Flow Release` prepares the same portable
-  directory without launching it; the tracked `standalone-tour.audit` byte
-  authority is staged beside the verifier, while `ASSETS.LRP` remains owned by
-  the bundle at `Contents/Resources`.
+  `scripts/macos-standalone-flow.sh Verify` from the repository root. It
+  configures and builds Release without pinning `CMAKE_OSX_ARCHITECTURES`, stages five
+  independent application bundles under
+  `build/presentation/macos-<host>-release`, and launches them sequentially.
+  ScrapbookUI, HelloWorld, Tutorial, MineSweeper, and FloppyBird must each
+  publish their exact tracked success audit before the verifier stops that
+  application's final-scene hold and starts the next bundle. SimpleViewer is
+  intentionally omitted because its release scenario requires an interactive
+  file chooser. `scripts/macos-standalone-flow.sh Stage` prepares the same
+  portable directory without launching it; expected and actual audits are kept
+  per application, while ScrapbookUI's `ASSETS.LRP` remains owned by its bundle
+  at `Contents/Resources`. The matching VS Code Build, Stage, and Verify tasks
+  are optional shortcuts for the same Release flow.
+- To stage the 0.0.4 macOS application payload rather than the finite audit
+  rail, run `scripts/macos-standalone-flow.sh Release`. The result under
+  `build/release/macos-<architecture>` contains five autonomous loop bundles
+  plus the ordinary interactive `LokaSimpleViewerMacOS` executable. A loop
+  keeps its Config, App, and native Window; after its current scenario has
+  published a successful terminal audit, it replaces the rail and re-arms the
+  Scene. Closing its window stops it. SimpleViewer is built but is never
+  launched by the automated verifier. Release builds default to the host
+  architecture. A dedicated legacy build host may select a Release
+  architecture explicitly, for example
+  `LOKA_STANDALONE_MACOS_ARCH=i386 scripts/macos-standalone-flow.sh Release`.
 - For a presentation that keeps moving without a host controller, use the
   TEST-only HelloWorld and MineSweeper loop reels. Each application shows every
   registered cell for its example, wraps to the first, and continues until the
@@ -113,23 +128,38 @@ This is the environment where binaries are actually built.
 
   On Win32, pass `-DLOKA_SCENARIO_LOOP_CYCLES=2` to the architecture-specific
   configure command and build from that separate cache.
-- For a standalone presentation Release, start VS Code from the Visual Studio
-  Command Line Tools session for the desired target, then run
-  `Verify: Win32 Standalone Flow Release`. The task derives ARM64, x64, or
-  x86/i386 from the inherited compiler environment. It uses a separate CMake
-  cache for each architecture, verifies the resulting PE header, and stages
-  the executable with `ASSETS.LRP` and the tracked `standalone-tour.audit`
-  byte authority under
-  `build/presentation/win32-<architecture>-release`. It then launches the app,
-  waits for the exact twelve-step success audit with its embedded deterministic
-  verdict, and stops the final-scene
-  hold. Copy the staged directory to the target machine and run
+- For a portable standalone presentation Release, open the Visual Studio
+  Command Line Tools session for the desired target and run, for example:
+
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File scripts\win32-standalone-flow.ps1 -Action Stage -Architecture x64
+  ```
+
+  Substitute `x86` or `arm64` while using the matching compiler environment.
+  The script uses a separate CMake cache per architecture, verifies every PE
+  header, and stages five independent executables with `ASSETS.LRP`, a generated
+  application catalog, and all tracked expected audits under
+  `build/presentation/win32-<architecture>-release`. ScrapbookUI, HelloWorld,
+  Tutorial, MineSweeper, and FloppyBird are included; SimpleViewer is explicitly
+  omitted because it requires an interactive file chooser. Use `-Action Verify`
+  to launch all five sequentially on a compatible build host. Copy the staged
+  directory to the target machine and run
   `powershell -ExecutionPolicy Bypass -File .\Verify-StandaloneFlow.ps1`
   there for a hardware check. The staged verifier derives the architecture
-  from its sibling PE, starts the presentation, waits for the exact audit,
-  stops the final-scene hold, and leaves `LOG.TXT` as the target-local runtime
-  verdict. For a VAIO P, start VS Code from a VS2017 `x64_x86 Cross Tools`
-  session; the task inherits that session's x86 target.
+  from its sibling PEs, starts each presentation, waits for its exact tracked
+  audit, stops the final-scene hold, and stores the five target-local verdicts
+  under `actual`. For a VAIO P, build x86 from a VS2017 `x64_x86 Cross Tools`
+  session. The matching VS Code Build, Stage, and Verify tasks are optional
+  shortcuts for the same Release flow.
+
+  For the 0.0.4 application payload, use `-Action Release` instead of
+  `-Action Stage`. It writes `build/release/win32-<architecture>` with five
+  autonomous loop executables, `LokaSimpleViewerWin32.exe`, ScrapbookUI's
+  `ASSETS.LRP`, and a short README. Each loop keeps its App and native Window;
+  a completed pass receives a fresh scenario rail and a re-armed Scene.
+  Closing it manually does not relaunch it.
+  SimpleViewer remains interactive and is not started by either audit
+  verification or Release staging.
 
   To measure a Standalone Flow, configure a separate cache with
   `LOKA_STANDALONE_PERFORMANCE_RUNS` set from 3 through 10 and build its

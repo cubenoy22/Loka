@@ -34,7 +34,7 @@ namespace loka
       void tick(Window *window);
 
       dsl::testing::ScenarioAuditFile audit_;
-      scenario_tests::HelloWorldScenario scenario_;
+      StandaloneScenarioRail<scenario_tests::HelloWorldScenario> scenario_;
       helloworld::MainNode *borrowedMainNode_;
       StandaloneRunControl runControl_;
     };

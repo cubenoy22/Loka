@@ -75,7 +75,8 @@ namespace loka
         }
       }
       return WriteStandalonePerformanceReport(reportFile, performance) ? 0 : 1;
-#else
+#endif
+#if LOKA_STANDALONE_PERFORMANCE_RUNS == 0
       return standalone_flow_runner_detail::RunPass<Config>(platformContext.get(), hInstance, nCmdShow);
 #endif
     }

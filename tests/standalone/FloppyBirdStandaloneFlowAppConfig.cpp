@@ -1,6 +1,7 @@
 #include "FloppyBirdStandaloneFlowAppConfig.hpp"
 
 #include "../scenarios/ScenarioWindow.hpp"
+#include "../scenarios/ScenarioReel.hpp"
 #include "app/core/AppComposition.hpp"
 #include "app/core/Window.hpp"
 
@@ -14,7 +15,8 @@ namespace loka
         std::FILE *diagnostics)
         : AppConfigurable(context),
           audit_(auditFile ? *auditFile : ResolveStandaloneAuditFile(), "fixed-step-flaps"),
-          scenario_(scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &this->audit_),
+          scenario_(new (std::nothrow) scenario_tests::FloppyBirdScenario(
+              scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &this->audit_)),
           game_(scenario_tests::FloppyBirdScenarioSeed()),
           borrowedMainNode_(0),
           runControl_("FloppyBird", diagnostics)
@@ -23,12 +25,11 @@ namespace loka
 
     FloppyBirdStandaloneFlowAppConfig::~FloppyBirdStandaloneFlowAppConfig()
     {
-      this->scenario_.stop();
     }
 
     int FloppyBirdStandaloneFlowAppConfig::exitCode() const
     {
-      return this->audit_.isValid() && !this->runControl_.failed() ? 0 : 1;
+      return this->audit_.isValid() && this->scenario_.isValid() && !this->runControl_.failed() ? 0 : 1;
     }
 
     void FloppyBirdStandaloneFlowAppConfig::setApp(App *app)
@@ -80,12 +81,22 @@ namespace loka
       this->game_.advanceFrame(loka_floppy_bird::kFixedStepSeconds);
       dsl::SnapRecord record;
       const scenario_tests::ScenarioAdvance advance =
-          this->scenario_.step(this->runControl_.tick(),
-                               window->scene(),
-                               this->game_,
-                               StandaloneContentBounds(window),
-                               record);
-      this->runControl_.observeScenarioAdvance(advance, record);
+          this->scenario_->step(this->runControl_.tick(),
+                                window->scene(),
+                                this->game_,
+                                StandaloneContentBounds(window),
+                                record);
+      if (this->runControl_.observeScenarioAdvance(advance, record))
+      {
+        const bool replaced = this->scenario_.replace(new (std::nothrow) scenario_tests::FloppyBirdScenario(
+            scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, 0));
+        const bool rearmed = replaced && scenario_tests::RearmScenarioScene(window);
+        if (rearmed)
+        {
+          this->game_.reset(scenario_tests::FloppyBirdScenarioSeed());
+        }
+        this->runControl_.completeSceneRearm(rearmed);
+      }
     }
   } // namespace standalone_tests
 } // namespace loka

@@ -171,6 +171,55 @@ void testFloppyBirdFixedStepFlapsDriveSeededGame()
   std::printf("testFloppyBirdFixedStepFlapsDriveSeededGame passed\n");
 }
 
+void testFloppyBirdGameModelResetReplaysSeededScenario()
+{
+  floppybird::GameModel game(loka::scenario_tests::FloppyBirdScenarioSeed());
+  loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> root(CloneFloppyBirdRoot(game));
+  LOKA_VERIFY(root.get() != 0);
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(root.take());
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  loka::scenario_tests::CaptureContentBounds bounds;
+  loka::dsl::SnapRecord firstRecord;
+  {
+    loka::scenario_tests::FloppyBirdScenario first(
+        loka::scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED, 0);
+    AdvanceToCompletion(first,
+                        game,
+                        scene,
+                        bounds,
+                        firstRecord,
+                        loka::scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY);
+  }
+
+  scene.updateAttached(false);
+  scene.updateAttached(true);
+  game.reset(loka::scenario_tests::FloppyBirdScenarioSeed());
+
+  loka::dsl::SnapRecord secondRecord;
+  {
+    loka::scenario_tests::FloppyBirdScenario second(
+        loka::scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED, 0);
+    AdvanceToCompletion(second,
+                        game,
+                        scene,
+                        bounds,
+                        secondRecord,
+                        loka::scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY);
+  }
+
+  std::string firstSurface;
+  std::string secondSurface;
+  LOKA_VERIFY(firstRecord.get("surface.rects", firstSurface));
+  LOKA_VERIFY(secondRecord.get("surface.rects", secondSurface));
+  LOKA_VERIFY(secondSurface == firstSurface);
+
+  scene.unmount();
+  std::printf("testFloppyBirdGameModelResetReplaysSeededScenario passed\n");
+}
+
 void testFloppyBirdFixedStepFlapsHoldFinalSceneAndMatchAudit()
 {
   const char *actualPath = "_loka_floppybird_fixed_step_flaps.audit";

@@ -1,6 +1,7 @@
 #include "ScrapbookStandaloneFlowAppConfig.hpp"
 
 #include "../scenarios/ScenarioWindow.hpp"
+#include "../scenarios/ScenarioReel.hpp"
 #include "StandaloneScenarioSupport.hpp"
 #include "app/core/App.hpp"
 #include "app/core/Window.hpp"
@@ -14,7 +15,8 @@ namespace loka
                                                                        std::FILE *diagnostics)
         : ScrapbookAppConfig(context),
           audit_(auditFile ? *auditFile : ResolveStandaloneAuditFile(), "standalone-tour"),
-          scenario_(scenario_tests::ScenarioLaunchPlan::StandaloneTour(), &this->audit_),
+          scenario_(new (std::nothrow) scenario_tests::ScrapbookScenario(
+              scenario_tests::ScenarioLaunchPlan::StandaloneTour(), &this->audit_)),
           borrowedMainNode_(0),
           runControl_("Scrapbook", diagnostics)
     {
@@ -22,12 +24,11 @@ namespace loka
 
     ScrapbookStandaloneFlowAppConfig::~ScrapbookStandaloneFlowAppConfig()
     {
-      this->scenario_.stop();
     }
 
     int ScrapbookStandaloneFlowAppConfig::exitCode() const
     {
-      return this->audit_.isValid() && !this->runControl_.failed() ? 0 : 1;
+      return this->audit_.isValid() && this->scenario_.isValid() && !this->runControl_.failed() ? 0 : 1;
     }
 
     void ScrapbookStandaloneFlowAppConfig::setApp(App *app)
@@ -74,12 +75,17 @@ namespace loka
         return;
       }
       dsl::SnapRecord record;
-      const scenario_tests::ScenarioAdvance advance = this->scenario_.step(this->runControl_.tick(),
-                                                                           window->scene(),
-                                                                           *this->borrowedMainNode_,
-                                                                           StandaloneContentBounds(window),
-                                                                           record);
-      this->runControl_.observeScenarioAdvance(advance, record);
+      const scenario_tests::ScenarioAdvance advance = this->scenario_->step(this->runControl_.tick(),
+                                                                            window->scene(),
+                                                                            *this->borrowedMainNode_,
+                                                                            StandaloneContentBounds(window),
+                                                                            record);
+      if (this->runControl_.observeScenarioAdvance(advance, record))
+      {
+        const bool replaced = this->scenario_.replace(new (std::nothrow) scenario_tests::ScrapbookScenario(
+            scenario_tests::ScenarioLaunchPlan::StandaloneTour(), 0));
+        this->runControl_.completeSceneRearm(replaced && scenario_tests::RearmScenarioScene(window));
+      }
     }
   } // namespace standalone_tests
 } // namespace loka

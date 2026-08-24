@@ -1,6 +1,7 @@
 #include "HelloWorldStandaloneFlowAppConfig.hpp"
 
 #include "../scenarios/ScenarioWindow.hpp"
+#include "../scenarios/ScenarioReel.hpp"
 #include "StandaloneScenarioSupport.hpp"
 #include "app/core/App.hpp"
 #include "app/core/Window.hpp"
@@ -14,7 +15,8 @@ namespace loka
                                                                          std::FILE *diagnostics)
         : HelloWorldAppConfig(context, 0x13579BDFUL),
           audit_(auditFile ? *auditFile : ResolveStandaloneAuditFile(), "toggle-action-probe"),
-          scenario_(scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &this->audit_),
+          scenario_(new (std::nothrow) scenario_tests::HelloWorldScenario(
+              scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &this->audit_)),
           borrowedMainNode_(0),
           runControl_("HelloWorld", diagnostics)
     {
@@ -22,12 +24,11 @@ namespace loka
 
     HelloWorldStandaloneFlowAppConfig::~HelloWorldStandaloneFlowAppConfig()
     {
-      this->scenario_.stop();
     }
 
     int HelloWorldStandaloneFlowAppConfig::exitCode() const
     {
-      return this->audit_.isValid() && !this->runControl_.failed() ? 0 : 1;
+      return this->audit_.isValid() && this->scenario_.isValid() && !this->runControl_.failed() ? 0 : 1;
     }
 
     void HelloWorldStandaloneFlowAppConfig::setApp(App *app)
@@ -75,8 +76,13 @@ namespace loka
       }
       dsl::SnapRecord record;
       const scenario_tests::ScenarioAdvance advance =
-          this->scenario_.step(this->runControl_.tick(), window->scene(), StandaloneContentBounds(window), record);
-      this->runControl_.observeScenarioAdvance(advance, record);
+          this->scenario_->step(this->runControl_.tick(), window->scene(), StandaloneContentBounds(window), record);
+      if (this->runControl_.observeScenarioAdvance(advance, record))
+      {
+        const bool replaced = this->scenario_.replace(new (std::nothrow) scenario_tests::HelloWorldScenario(
+            scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, 0));
+        this->runControl_.completeSceneRearm(replaced && scenario_tests::RearmScenarioScene(window));
+      }
     }
   } // namespace standalone_tests
 } // namespace loka

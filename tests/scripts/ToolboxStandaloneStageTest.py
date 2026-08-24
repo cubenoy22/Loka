@@ -41,8 +41,24 @@ set -euo pipefail
 if [[ " $* " == *" --build "* ]]; then
   output="$PWD/build/retro68/68k/Release/tests/toolbox"
   mkdir -p "$output"
-  printf 'fixture-macbinary' >"$output/LokaScrapbookStandaloneFlow68K.bin"
-  printf 'fixture-hfs-app\n' >"$output/LokaScrapbookStandaloneFlow68K.dsk"
+  if [[ " $* " == *" LokaStandaloneLoop68KAll"* ]]; then
+    for name in \
+      LokaScrapbookStandaloneLoop68K \
+      LokaHelloStandaloneLoop68K \
+      LokaTutorialStandaloneLoop68K \
+      LokaMineStandaloneLoop68K \
+      LokaFloppyStandaloneLoop68K; do
+      printf 'fixture-macbinary-%s' "$name" >"$output/$name.bin"
+      printf '%s\n' "$name" >"$output/$name.dsk"
+    done
+    simple="$PWD/build/retro68/68k/Release/example/SimpleViewer"
+    mkdir -p "$simple"
+    printf 'fixture-simpleviewer' >"$simple/LokaSimpleViewer68K.bin"
+    printf 'LokaSimpleViewer68K\n' >"$simple/LokaSimpleViewer68K.dsk"
+  else
+    printf 'fixture-macbinary' >"$output/LokaScrapbookStandaloneFlow68K.bin"
+    printf 'LokaScrapbookStandaloneFlow68K\n' >"$output/LokaScrapbookStandaloneFlow68K.dsk"
+  fi
   cp "$PWD/example/ScrapbookUI/ASSETS.LRP" "$output/ASSETS.LRP"
 fi
 ''',
@@ -76,7 +92,7 @@ printf 'ASSETS.LRP\n' >>"$(cat "$HOME/mounted-disk")"
             r'''#!/usr/bin/env bash
 set -euo pipefail
 grep -q '^ASSETS.LRP$' "$(cat "$HOME/mounted-disk")"
-printf 'ASSETS.LRP\nLokaScrapbookStandaloneFlow68K\n'
+cat "$(cat "$HOME/mounted-disk")"
 ''',
         )
         self._write_tool(
@@ -102,6 +118,20 @@ rm -f "$HOME/mounted-disk"
         environment.update(environment_overrides)
         return subprocess.run(
             ["bash", "scripts/toolbox-standalone-flow.sh", "Stage"],
+            cwd=self.fixture,
+            env=environment,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+
+    def _run_release(self):
+        environment = os.environ.copy()
+        environment["PATH"] = str(self.fixture / "tools") + os.pathsep + environment["PATH"]
+        environment["RETRO68_TOOLCHAIN_BIN"] = str(self.fixture / "tools")
+        return subprocess.run(
+            ["bash", "scripts/toolbox-standalone-flow.sh", "Release"],
             cwd=self.fixture,
             env=environment,
             stdout=subprocess.PIPE,
@@ -143,6 +173,28 @@ rm -f "$HOME/mounted-disk"
         self.assertEqual((stage / "completed-stage").read_text(encoding="utf-8"), "keep")
         self.assertEqual(
             (stage / "LokaScrapbookStandaloneFlow68K.dsk").read_bytes(), previous_disk
+        )
+
+    def test_release_contains_five_loops_and_interactive_simpleviewer(self):
+        result = self._run_release()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+        release = self.fixture / "build" / "release" / "toolbox-68k"
+        expected = {"ASSETS.LRP", "README.md"}
+        for name in (
+            "LokaScrapbookStandaloneLoop68K",
+            "LokaHelloStandaloneLoop68K",
+            "LokaTutorialStandaloneLoop68K",
+            "LokaMineStandaloneLoop68K",
+            "LokaFloppyStandaloneLoop68K",
+            "LokaSimpleViewer68K",
+        ):
+            expected.add(f"{name}.bin")
+            expected.add(f"{name}.dsk")
+        self.assertEqual({path.name for path in release.iterdir()}, expected)
+        self.assertIn(
+            b"ASSETS.LRP\n",
+            (release / "LokaScrapbookStandaloneLoop68K.dsk").read_bytes(),
         )
 
     def test_vscode_tasks_use_the_completed_stage_for_floppy_and_scsi(self):

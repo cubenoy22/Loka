@@ -16,6 +16,7 @@
 #include "core/util/StateTrackerGuard.hpp"
 #include "platform/StringUTF8.hpp"
 #include "platform/null/NullPlatformContext.hpp"
+#include "platform/null/NullApp.hpp"
 #include "platform/null/NullWindow.hpp"
 #include "scenarios/HelloWorldScenarios.hpp"
 #include "scenarios/HelloWorldScenarioPresentation.hpp"
@@ -24,6 +25,7 @@
 #include "scenarios/ScenarioReel.hpp"
 #include "scenarios/ScenarioLoopAppConfig.hpp"
 #include "scenarios/StartupScenarios.hpp"
+#include "standalone/StandaloneScenarioSupport.hpp"
 #include "testing/app/SceneManagerTestAccess.hpp"
 
 namespace
@@ -55,6 +57,46 @@ namespace
     }
 
     int *notifications_;
+  };
+
+  struct StandaloneScenarioRailObservation
+  {
+    StandaloneScenarioRailObservation()
+        : stops(0),
+          destructions(0)
+    {
+    }
+
+    int stops;
+    int destructions;
+  };
+
+  class StandaloneScenarioRailProbe
+  {
+  public:
+    explicit StandaloneScenarioRailProbe(StandaloneScenarioRailObservation *observation)
+        : observation_(observation),
+          stopped_(false)
+    {
+    }
+
+    ~StandaloneScenarioRailProbe()
+    {
+      ++this->observation_->destructions;
+    }
+
+    void stop()
+    {
+      if (!this->stopped_)
+      {
+        this->stopped_ = true;
+        ++this->observation_->stops;
+      }
+    }
+
+  private:
+    StandaloneScenarioRailObservation *observation_;
+    bool stopped_;
   };
 
   struct AttachmentTransactionObservation
@@ -353,6 +395,7 @@ void testScenarioSceneRearmRebuildsExampleStateFromDefinition()
   windowProps.scene(new loka::app::scene::Scene(root.take()));
   NullWindow window(&context, windowProps);
   LOKA_VERIFY(window.scene() != 0);
+  loka::app::scene::Scene *const installedScene = window.scene();
   window.scene()->updateAttached(true);
   const std::size_t mountedNodeCount = window.scene()->liveNodeCount();
   LOKA_VERIFY(mountedNodeCount > 0);
@@ -372,6 +415,7 @@ void testScenarioSceneRearmRebuildsExampleStateFromDefinition()
   LOKA_VERIFY(attachmentObservation.calls == 2);
   LOKA_VERIFY(attachmentObservation.allCallsWereTransactional);
   LOKA_VERIFY(window.scene() != 0);
+  LOKA_VERIFY(window.scene() == installedScene);
   LOKA_VERIFY(window.scene()->liveNodeCount() == mountedNodeCount);
 
   const std::string secondBoard = RunMineSweeperBoardCell(window);
@@ -590,4 +634,78 @@ void testScenarioReelDriverAllocationRefusalRetiresInsteadOfWedging()
   LOKA_VERIFY(window.scene()->liveNodeCount() > 0);
 
   std::printf("testScenarioReelDriverAllocationRefusalRetiresInsteadOfWedging passed\n");
+}
+
+void testStandaloneRunControlRearmsCompletedSceneWithoutQuittingApp()
+{
+  NullApp completedApp(0);
+  loka::standalone_tests::StandaloneRunControl completed(
+      "LoopProbe",
+      0,
+      loka::standalone_tests::StandaloneRunControl::REARM_COMPLETED_SCENE);
+  completed.setApp(&completedApp);
+  LOKA_VERIFY(completed.advance(true)
+              == loka::standalone_tests::StandaloneRunControl::ADVANCE_MOUNTED);
+  LOKA_VERIFY(completed.tick() == 1);
+
+  loka::dsl::SnapRecord record;
+  LOKA_VERIFY(completed.observeScenarioAdvance(
+      loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD, record));
+  LOKA_VERIFY(!completedApp.quitRequested());
+  completed.completeSceneRearm(true);
+  LOKA_VERIFY(completed.tick() == 0);
+  LOKA_VERIFY(!completed.failed());
+
+  NullApp userClosedApp(0);
+  loka::standalone_tests::StandaloneRunControl userClosed(
+      "LoopProbe",
+      0,
+      loka::standalone_tests::StandaloneRunControl::REARM_COMPLETED_SCENE);
+  userClosed.setApp(&userClosedApp);
+  LOKA_VERIFY(!userClosedApp.quitRequested());
+  LOKA_VERIFY(!userClosed.failed());
+
+  std::FILE *diagnostics = std::tmpfile();
+  LOKA_VERIFY(diagnostics != 0);
+  NullApp failedApp(0);
+  loka::standalone_tests::StandaloneRunControl failed(
+      "LoopProbe",
+      diagnostics,
+      loka::standalone_tests::StandaloneRunControl::REARM_COMPLETED_SCENE);
+  failed.setApp(&failedApp);
+  LOKA_VERIFY(failed.observeScenarioAdvance(
+      loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD, record));
+  failed.completeSceneRearm(false);
+  LOKA_VERIFY(failed.failed());
+  LOKA_VERIFY(failedApp.quitRequested());
+  if (diagnostics)
+  {
+    LOKA_VERIFY(std::fclose(diagnostics) == 0);
+  }
+
+  std::printf("testStandaloneRunControlRearmsCompletedSceneWithoutQuittingApp passed\n");
+}
+
+void testStandaloneScenarioRailReplacementIsFailureAtomic()
+{
+  StandaloneScenarioRailObservation first;
+  StandaloneScenarioRailObservation second;
+  {
+    loka::standalone_tests::StandaloneScenarioRail<StandaloneScenarioRailProbe> rail(
+        new StandaloneScenarioRailProbe(&first));
+    LOKA_VERIFY(rail.isValid());
+    LOKA_VERIFY(!rail.replace(0));
+    LOKA_VERIFY(first.stops == 0);
+    LOKA_VERIFY(first.destructions == 0);
+
+    LOKA_VERIFY(rail.replace(new StandaloneScenarioRailProbe(&second)));
+    LOKA_VERIFY(first.stops == 1);
+    LOKA_VERIFY(first.destructions == 1);
+    LOKA_VERIFY(second.stops == 0);
+    LOKA_VERIFY(second.destructions == 0);
+  }
+  LOKA_VERIFY(second.stops == 1);
+  LOKA_VERIFY(second.destructions == 1);
+
+  std::printf("testStandaloneScenarioRailReplacementIsFailureAtomic passed\n");
 }

@@ -4,9 +4,9 @@ set -euo pipefail
 
 ACTION="${1:-Stage}"
 case "$ACTION" in
-  Build|Stage) ;;
+  Build|Stage|Release) ;;
   *)
-    echo "Usage: $0 [Build|Stage]" >&2
+    echo "Usage: $0 [Build|Stage|Release]" >&2
     exit 2
     ;;
 esac
@@ -72,25 +72,23 @@ BUILT_APPLICATION="$BUILD_ROOT/LokaScrapbookStandaloneFlow68K.bin"
 BUILT_DISK="$BUILD_ROOT/LokaScrapbookStandaloneFlow68K.dsk"
 BUILT_ASSETS="$BUILD_ROOT/ASSETS.LRP"
 STAGE_README="$PROJECT_DIR/docs/TOOLBOX_STANDALONE_FLOW.md"
-STAGE_ROOT="$PROJECT_DIR/build/presentation/toolbox-68k-release"
+if [[ "$ACTION" == "Release" ]]; then
+  BUILD_TARGET="LokaStandaloneLoop68KAll"
+  STAGE_ROOT="$PROJECT_DIR/build/release/toolbox-68k"
+else
+  BUILD_TARGET="LokaScrapbookStandaloneFlow68K_APPL"
+  STAGE_ROOT="$PROJECT_DIR/build/presentation/toolbox-68k-release"
+fi
 
 (
   cd "$PROJECT_DIR"
   "$CMAKE_BIN" --preset retro68-68k-release
   "$CMAKE_BIN" --build --preset retro68-68k-release \
-    --target LokaScrapbookStandaloneFlow68K_APPL
+    --target "$BUILD_TARGET"
 )
 
-if [[ ! -s "$BUILT_APPLICATION" ]]; then
-  echo "Standalone Flow MacBinary not found: $BUILT_APPLICATION" >&2
-  exit 1
-fi
 if [[ ! -s "$BUILT_ASSETS" ]]; then
   echo "Standalone Flow assets not found: $BUILT_ASSETS" >&2
-  exit 1
-fi
-if [[ ! -s "$BUILT_DISK" ]]; then
-  echo "Standalone Flow HFS disk not found: $BUILT_DISK" >&2
   exit 1
 fi
 if [[ ! -s "$STAGE_README" ]]; then
@@ -100,6 +98,17 @@ fi
 if ! cmp -s "$PROJECT_DIR/example/ScrapbookUI/ASSETS.LRP" "$BUILT_ASSETS"; then
   echo "Built ASSETS.LRP does not match the application package." >&2
   exit 1
+fi
+
+if [[ "$ACTION" != "Release" ]]; then
+  if [[ ! -s "$BUILT_APPLICATION" ]]; then
+    echo "Standalone Flow MacBinary not found: $BUILT_APPLICATION" >&2
+    exit 1
+  fi
+  if [[ ! -s "$BUILT_DISK" ]]; then
+    echo "Standalone Flow HFS disk not found: $BUILT_DISK" >&2
+    exit 1
+  fi
 fi
 
 if [[ "$ACTION" == "Build" ]]; then
@@ -116,11 +125,12 @@ if [[ -z "$HMOUNT" || -z "$HCOPY" || -z "$HLS" || -z "$HUMOUNT" ]]; then
   exit 1
 fi
 
-populate_stage_disk() (
+populate_scrapbook_disk() (
   set -euo pipefail
 
   local disk="$1"
-  local work_root="$2"
+  local application_name="$2"
+  local work_root="$3"
   local hfs_home=""
   local extracted_assets=""
   local listing=""
@@ -139,7 +149,7 @@ populate_stage_disk() (
   HOME="$hfs_home" "$HMOUNT" "$disk" >/dev/null
   HOME="$hfs_home" "$HCOPY" -r "$BUILT_ASSETS" :
   listing="$(HOME="$hfs_home" "$HLS" -1 :)"
-  if ! grep -Fxq 'LokaScrapbookStandaloneFlow68K' <<<"$listing" \
+  if ! grep -Fxq "$application_name" <<<"$listing" \
     || ! grep -Fxq 'ASSETS.LRP' <<<"$listing"; then
     echo "The staged HFS disk does not contain the application and ASSETS.LRP." >&2
     return 1
@@ -160,8 +170,10 @@ populate_toolbox_stage() {
   cp "$BUILT_DISK" "$destination/LokaScrapbookStandaloneFlow68K.dsk"
   cp "$BUILT_ASSETS" "$destination/ASSETS.LRP"
   cp "$STAGE_README" "$destination/README.md"
-  populate_stage_disk \
-    "$destination/LokaScrapbookStandaloneFlow68K.dsk" "$destination"
+  populate_scrapbook_disk \
+    "$destination/LokaScrapbookStandaloneFlow68K.dsk" \
+    LokaScrapbookStandaloneFlow68K \
+    "$destination"
   if ! cmp -s "$BUILT_APPLICATION" "$destination/LokaScrapbookStandaloneFlow68K.bin" \
     || ! cmp -s "$BUILT_ASSETS" "$destination/ASSETS.LRP" \
     || ! cmp -s "$STAGE_README" "$destination/README.md"; then
@@ -169,6 +181,53 @@ populate_toolbox_stage() {
     return 1
   fi
 }
+
+populate_toolbox_release() {
+  local destination="$1"
+  local artifact=""
+  local built_root=""
+  local built_name=""
+  local release_names=(
+    LokaScrapbookStandaloneLoop68K
+    LokaHelloStandaloneLoop68K
+    LokaTutorialStandaloneLoop68K
+    LokaMineStandaloneLoop68K
+    LokaFloppyStandaloneLoop68K
+  )
+
+  for built_name in "${release_names[@]}"; do
+    built_root="$BUILD_ROOT/$built_name"
+    for artifact in bin dsk; do
+      if [[ ! -s "$built_root.$artifact" ]]; then
+        echo "Toolbox Release artifact not found: $built_root.$artifact" >&2
+        return 1
+      fi
+      cp "$built_root.$artifact" "$destination/$built_name.$artifact"
+    done
+  done
+
+  built_root="$PROJECT_DIR/build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K"
+  for artifact in bin dsk; do
+    if [[ ! -s "$built_root.$artifact" ]]; then
+      echo "SimpleViewer Release artifact not found: $built_root.$artifact" >&2
+      return 1
+    fi
+    cp "$built_root.$artifact" "$destination/LokaSimpleViewer68K.$artifact"
+  done
+
+  cp "$BUILT_ASSETS" "$destination/ASSETS.LRP"
+  cp "$STAGE_README" "$destination/README.md"
+  populate_scrapbook_disk \
+    "$destination/LokaScrapbookStandaloneLoop68K.dsk" \
+    LokaScrapbookStandaloneLoop68K \
+    "$destination"
+}
+
+if [[ "$ACTION" == "Release" ]]; then
+  loka_replace_stage_directory "$STAGE_ROOT" populate_toolbox_release
+  echo "Staged five autonomous Toolbox loops plus SimpleViewer: $STAGE_ROOT"
+  exit 0
+fi
 
 loka_replace_stage_directory "$STAGE_ROOT" populate_toolbox_stage
 echo "Staged Toolbox 68K presentation: $STAGE_ROOT"
