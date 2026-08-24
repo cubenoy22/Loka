@@ -12,6 +12,7 @@
 #include "app/core/Window.hpp"
 #include "app/core/AppComposition.hpp"
 #include "app/scene/Scene.hpp"
+#include "core/LokaAlloc.hpp"
 #include "core/util/OwnedDef.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "platform/StringUTF8.hpp"
@@ -31,6 +32,24 @@
 namespace
 {
   const char *const kProbeCells[] = {"startup", "first", "second"};
+
+  int g_scenarioRearmAllocationRefusals = 0;
+
+  void *scenarioRearmRefusingBackendAlloc(
+      std::size_t size, const loka::core::LokaAllocationSite &site)
+  {
+    (void)size;
+    (void)site;
+    ++g_scenarioRearmAllocationRefusals;
+    return 0;
+  }
+
+  void scenarioRearmDelegatingBackendFree(
+      void *ptr, const loka::core::LokaAllocationSite &site)
+  {
+    (void)site;
+    delete[] static_cast<char *>(ptr);
+  }
 
   class NativeTitleObserverProbeWindow : public Window
   {
@@ -739,4 +758,91 @@ void testStandaloneScenarioRailReplacementIsFailureAtomic()
   LOKA_VERIFY(second.destructions == 1);
 
   std::printf("testStandaloneScenarioRailReplacementIsFailureAtomic passed\n");
+}
+
+void testStandaloneSceneRearmAllocationRefusalDoesNotCommitNextPass()
+{
+  const loka::scenario_tests::ScenarioCellTable cells(kProbeCells + 1, 2);
+  std::FILE *diagnostics = std::tmpfile();
+  LOKA_VERIFY(diagnostics != 0);
+  NullPlatformContext context;
+  NullApp app(0);
+  loka::standalone_tests::StandaloneRunControl runControl(
+      "LoopProbe",
+      cells,
+      diagnostics,
+      loka::standalone_tests::StandaloneRunControl::REARM_COMPLETED_SCENE);
+  loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> root(CloneMineSweeperRoot());
+  LOKA_VERIFY(root.get() != 0);
+  WindowProps windowProps;
+  windowProps.title("Loka Probe")
+      .displayTitleState(runControl.displayTitleState("Loka Probe"))
+      .scene(new loka::app::scene::Scene(root.take()));
+  NullWindow window(&context, windowProps);
+  runControl.setApp(&app);
+  LOKA_VERIFY(window.scene() != 0);
+  window.scene()->updateAttached(true);
+  const std::size_t mountedNodeCount = window.scene()->liveNodeCount();
+  LOKA_VERIFY(mountedNodeCount > 0);
+  LOKA_VERIFY(runControl.advance(true)
+              == loka::standalone_tests::StandaloneRunControl::ADVANCE_MOUNTED);
+
+  loka::dsl::SnapRecord record;
+  LOKA_VERIFY(runControl.observeScenarioAdvance(
+      loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD, record, &window));
+  const loka::core::String titleBefore = window.displayTitleState().get();
+
+  StandaloneScenarioRailObservation first;
+  StandaloneScenarioRailObservation second;
+  {
+    loka::standalone_tests::StandaloneScenarioRail<StandaloneScenarioRailProbe> rail(
+        new StandaloneScenarioRailProbe(&first));
+    AttachmentTransactionObservation attachmentObservation;
+    attachmentObservation.manager = window.sceneManager();
+    window.scene()->getAttachedState()->bind(
+        &ObserveAttachmentTransaction, &attachmentObservation, false);
+
+    // The refusal count is the positive control: the fresh attach really
+    // reached the allocation gate instead of failing for an unrelated reason.
+    g_scenarioRearmAllocationRefusals = 0;
+    loka::core::LokaAllocSetBackend(
+        &scenarioRearmRefusingBackendAlloc, &scenarioRearmDelegatingBackendFree);
+    const bool rearmed = rail.replaceAndRearmScene(
+        new StandaloneScenarioRailProbe(&second), &window);
+    loka::core::LokaAllocSetBackend(0, 0);
+
+    LOKA_VERIFY(!rearmed);
+    LOKA_VERIFY(g_scenarioRearmAllocationRefusals > 0);
+    LOKA_VERIFY(first.stops == 1);
+    LOKA_VERIFY(first.destructions == 1);
+    LOKA_VERIFY(second.stops == 0);
+    LOKA_VERIFY(second.destructions == 0);
+    LOKA_VERIFY(attachmentObservation.calls == 2);
+    LOKA_VERIFY(attachmentObservation.allCallsWereTransactional);
+
+    runControl.completeSceneRearm(rearmed, &window);
+    LOKA_VERIFY(runControl.failed());
+    LOKA_VERIFY(app.quitRequested());
+    LOKA_VERIFY(runControl.tick() == 1);
+    LOKA_VERIFY(std::string(runControl.nextScenarioName()) == "second");
+    LOKA_VERIFY(window.displayTitleState().get().equals(titleBefore));
+
+    // Restore the backend and externally drive the white-flag retry. This
+    // proves the failed re-arm left a recoverable uncomposed Scene rather than
+    // corrupting its root-definition owner.
+    window.scene()->requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    (void)window.scene()->flushInvalidation();
+    LOKA_VERIFY(window.scene()->liveNodeCount() == mountedNodeCount);
+
+    window.scene()->getAttachedState()->unbind(
+        &ObserveAttachmentTransaction, &attachmentObservation);
+  }
+  LOKA_VERIFY(second.stops == 1);
+  LOKA_VERIFY(second.destructions == 1);
+  if (diagnostics)
+  {
+    LOKA_VERIFY(std::fclose(diagnostics) == 0);
+  }
+
+  std::printf("testStandaloneSceneRearmAllocationRefusalDoesNotCommitNextPass passed\n");
 }
