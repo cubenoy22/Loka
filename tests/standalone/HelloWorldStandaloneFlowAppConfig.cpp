@@ -79,8 +79,14 @@ namespace loka
           this->scenario_->step(this->runControl_.tick(), window->scene(), StandaloneContentBounds(window), record);
       if (this->runControl_.observeScenarioAdvance(advance, record))
       {
-        const bool replaced = this->scenario_.replace(new (std::nothrow) scenario_tests::HelloWorldScenario(
-            scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, 0));
+        const scenario_tests::ScenarioCellTable interactionCells =
+            scenario_tests::HelloWorldReelCells().dropFirst(1);
+        const char *nextScenario = interactionCells.nextAfter(this->scenario_->name());
+        const bool replaced = nextScenario
+                              && this->scenario_.replace(new (std::nothrow) scenario_tests::HelloWorldScenario(
+                                  std::string(nextScenario),
+                                  scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE,
+                                  0));
         this->runControl_.completeSceneRearm(replaced && scenario_tests::RearmScenarioScene(window));
       }
     }

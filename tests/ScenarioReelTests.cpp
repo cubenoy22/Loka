@@ -383,6 +383,13 @@ void testScenarioReelCellTablesMatchSharedRegistry()
   LOKA_VERIFY(loka::scenario_tests::IsHelloWorldScenario("bmi-roundtrip"));
   LOKA_VERIFY(!loka::scenario_tests::IsHelloWorldScenario("startup"));
 
+  const loka::scenario_tests::ScenarioCellTable helloInteractions =
+      loka::scenario_tests::HelloWorldReelCells().dropFirst(1);
+  LOKA_VERIFY(std::string(helloInteractions.nextAfter("toggle-action-probe")) == "bmi-roundtrip");
+  LOKA_VERIFY(std::string(helloInteractions.nextAfter("bmi-roundtrip")) == "toggle-action-probe");
+  LOKA_VERIFY(helloInteractions.nextAfter("unknown") == 0);
+  LOKA_VERIFY(loka::scenario_tests::ScenarioCellTable(0, 0).nextAfter("unknown") == 0);
+
   std::printf("testScenarioReelCellTablesMatchSharedRegistry passed\n");
 }
 

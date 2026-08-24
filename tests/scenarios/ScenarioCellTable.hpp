@@ -64,6 +64,24 @@ namespace loka
         return false;
       }
 
+      /** Returns the cell after name, wrapping to the first cell. An empty
+          table or unknown name declines with null. */
+      const char *nextAfter(const std::string &name) const
+      {
+        if (this->count_ == 0)
+        {
+          return 0;
+        }
+        for (std::size_t i = 0; i < this->count_; ++i)
+        {
+          if (this->cells_[i] && name == this->cells_[i])
+          {
+            return this->cells_[(i + 1) % this->count_];
+          }
+        }
+        return 0;
+      }
+
       /** Returns the table without its first count cells. */
       ScenarioCellTable dropFirst(std::size_t count) const
       {

@@ -98,11 +98,11 @@ namespace
                            loka::dsl::SnapRecord &record,
                            loka::scenario_tests::ScenarioAdvance expected)
   {
-    for (long tick = 1; tick <= 192; ++tick)
+    for (long tick = 1; tick <= 273; ++tick)
     {
       game.advanceFrame(loka_floppy_bird::kFixedStepSeconds);
       const loka::scenario_tests::ScenarioAdvance actual = scenario.step(tick, &scene, game, bounds, record);
-      if (tick < 192)
+      if (tick < 273)
       {
         if (actual != loka::scenario_tests::SCENARIO_ADVANCE_PENDING)
         {
@@ -121,6 +121,14 @@ namespace
   {
     std::string value;
     LOKA_VERIFY(record.get(key, value));
+    if (value != expected)
+    {
+      std::fprintf(stderr,
+                   "FloppyBird record mismatch for %s: expected '%s', got '%s'\n",
+                   key ? key : "(null)",
+                   expected ? expected : "(null)",
+                   value.c_str());
+    }
     LOKA_VERIFY(value == expected);
   }
 } // namespace
@@ -156,13 +164,24 @@ void testFloppyBirdFixedStepFlapsDriveSeededGame()
   VerifyRecordString(record, "node", "FloppyBird.Surface");
   VerifyRecordString(record, "fixed_step_seconds", "1/60");
   VerifyRecordString(record, "flap_ticks", "2,40,78,116,154");
+  VerifyRecordString(record, "game_over_tick", "213");
+  VerifyRecordString(record, "game_over_hold_ticks", "60");
   VerifyRecordString(record,
                      "surface.rects",
-                     "2,0,24,60;2,132,24,108;175,0,24,39;175,111,24,129;72,103,18,14");
-  LOKA_VERIFY(audit.steps.size() == 11);
+                     "130,0,24,39;130,111,24,129;303,0,24,81;303,153,24,87;72,233,18,14");
+  LOKA_VERIFY(game.gameState() == loka_floppy_bird::GAME_DEAD);
+  LOKA_VERIFY(game.score() == 1);
+  loka::app::scene::Scene *checkedScene = 0;
+  loka::dsl::FlowError textError;
+  LOKA_VERIFY(loka::dsl::testing::CheckText("FloppyBird.Score", "Game Over - Score: 1")
+                  .run(&scene, checkedScene, textError)
+              == loka::dsl::FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(audit.steps.size() == 13);
   LOKA_VERIFY(audit.steps[1].name() == "flap-1");
   LOKA_VERIFY(audit.steps[4].name() == "verify-seeded-first-pipe");
   LOKA_VERIFY(audit.steps[9].name() == "verify-final-checkpoint");
+  LOKA_VERIFY(audit.steps[10].name() == "verify-game-over");
+  LOKA_VERIFY(audit.steps[11].name() == "verify-game-over-held");
   LOKA_VERIFY(audit.terminals.size() == 1);
   LOKA_VERIFY(audit.terminals[0] == loka::dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
   LOKA_VERIFY(audit.verdicts.size() == 1);
@@ -250,7 +269,7 @@ void testFloppyBirdFixedStepFlapsHoldFinalSceneAndMatchAudit()
                         bounds,
                         record,
                         loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
-    LOKA_VERIFY(scenario.step(193, &scene, game, bounds, record)
+    LOKA_VERIFY(scenario.step(274, &scene, game, bounds, record)
                 == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
   }
 
@@ -330,7 +349,7 @@ void testFloppyBirdStandaloneFlowWritesExpectedAudit()
     Window *window = components[0] ? components[0]->asWindow() : 0;
     LOKA_VERIFY(window != 0);
     LOKA_VERIFY(window->scene() != 0);
-    for (int tick = 0; tick < 194; ++tick)
+    for (int tick = 0; tick < 275; ++tick)
     {
       LOKA_VERIFY(window->handleIdle(0.1));
     }

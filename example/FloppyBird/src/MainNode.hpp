@@ -85,7 +85,7 @@ namespace floppybird
                        .TEST_ID("FloppyBird.Surface"));
 #else
       c.declare(VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_LEADING)
-                << Text(&this->props.shared_->scoreText_)
+                << Text(&this->props.shared_->scoreText_).TEST_ID("FloppyBird.Score")
                 << RectSurface(&this->props.shared_->surfaceModel_)
                        .useRegionClip(false)
                        .size(loka_floppy_bird::kWindowWidth, loka_floppy_bird::kWindowHeight)
