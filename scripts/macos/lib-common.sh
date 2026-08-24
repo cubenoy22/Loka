@@ -110,6 +110,46 @@ loka_find_first_selected_tool() {
   return 1
 }
 
+loka_find_selected_lipo() {
+  local candidate=""
+
+  if [[ -n "${LOKA_LIPO_BIN:-}" ]]; then
+    if [[ ! -x "${LOKA_LIPO_BIN}" ]]; then
+      echo "error: LOKA_LIPO_BIN is not executable: ${LOKA_LIPO_BIN}" >&2
+      return 1
+    fi
+    echo "${LOKA_LIPO_BIN}"
+    return 0
+  fi
+
+  if command -v xcrun >/dev/null 2>&1; then
+    candidate="$(xcrun -find lipo 2>/dev/null || true)"
+    if [[ -n "${candidate}" && -x "${candidate}" ]]; then
+      echo "${candidate}"
+      return 0
+    fi
+  fi
+
+  # Xcode 3.2.6 predates xcrun. Its Mac cctools may be absent from
+  # /Developer/usr/bin while the same universal lipo is installed with the
+  # iPhone platform tools. This ordering keeps that self-contained legacy
+  # tool ahead of a newer host's /usr/bin/lipo xcrun shim.
+  for candidate in \
+    /Developer/usr/bin/lipo \
+    /Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/lipo; do
+    if [[ -x "${candidate}" ]]; then
+      echo "${candidate}"
+      return 0
+    fi
+  done
+
+  if command -v lipo >/dev/null 2>&1; then
+    command -v lipo
+    return 0
+  fi
+  return 1
+}
+
 loka_find_selected_sdk() {
   local sdk_name="$1"
   local developer_dir=""
@@ -239,6 +279,7 @@ loka_merge_target_archs() {
   local source_bundle
   local out_bundle
   local out_bin
+  local lipo_bin=""
   local staging_root=""
   local staging_bundle
   local arch
@@ -252,6 +293,11 @@ loka_merge_target_archs() {
   fi
   IFS='|' read -r target_name _selection output_shape rel_path <<< "${record}"
   IFS=';'
+  lipo_bin="$(loka_find_selected_lipo || true)"
+  if [[ -z "${lipo_bin}" ]]; then
+    echo "error: lipo was not found for ${target_name}." >&2
+    return 1
+  fi
 
   for arch in ${archs_csv}; do
     bin="${build_root}/${build_cfg}-${arch}/${rel_path}"
@@ -304,11 +350,11 @@ loka_merge_target_archs() {
   esac
 
   if [[ "${#merge_inputs[@]}" -ge 2 ]]; then
-    if ! lipo -create "${merge_inputs[@]}" -output "${out_bin}"; then
+    if ! "${lipo_bin}" -create "${merge_inputs[@]}" -output "${out_bin}"; then
       [[ -z "${staging_root}" ]] || rm -rf "${staging_root}"
       return 1
     fi
-    if ! lipo -info "${out_bin}"; then
+    if ! "${lipo_bin}" -info "${out_bin}"; then
       [[ -z "${staging_root}" ]] || rm -rf "${staging_root}"
       return 1
     fi

@@ -39,6 +39,14 @@ fi
 
 export TARGET_SET=standalone-release
 export ARCHS="${ARCHS:-${DEFAULT_ARCHS}}"
+if [[ -z "${LOKA_LIPO_BIN:-}" ]]; then
+  LOKA_LIPO_BIN="$(loka_find_selected_lipo || true)"
+  if [[ -z "${LOKA_LIPO_BIN}" ]]; then
+    echo "lipo was not found for the UB1 release." >&2
+    exit 1
+  fi
+  export LOKA_LIPO_BIN
+fi
 if [[ "${PROFILE_NAME}" == "tiger" && "${ARCHS}" != "ppc;i386" ]]; then
   echo "The Tiger UB1 release requires ARCHS=ppc;i386 so its two slices can be merged." >&2
   exit 2
