@@ -83,8 +83,8 @@ observation; it does not replace the config-required machine-verdict scenarios
 described below.
 
 For a transportable artifact without changing the configured MAME disks, run
-**Stage: Toolbox 68K Standalone Flow Release**. It builds the same target and
-failure-atomically publishes its MacBinary, `ASSETS.LRP`, instructions, and a
+**Standalone: Toolbox 68K Release Action** and choose Stage. It builds the same
+target and failure-atomically publishes its MacBinary, `ASSETS.LRP`, instructions, and a
 self-contained HFS `.dsk` under `build/presentation/toolbox-68k-release`. The
 `.dsk` contains both the application and assets and can be transferred to real
 hardware or mounted live in MAME. The MacBinary and separate assets remain the

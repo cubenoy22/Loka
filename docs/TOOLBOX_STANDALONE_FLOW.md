@@ -8,7 +8,8 @@ Run:
 ./scripts/toolbox-standalone-flow.sh Release
 ```
 
-The VS Code equivalent is **Release: Toolbox 68K Standalone Application Set**.
+In **Standalone: Toolbox 68K Release Action**, choose Release for the VS Code
+equivalent.
 
 The release under `build/release/toolbox-68k` contains five autonomous
 Standalone Loop applications plus the interactive `LokaSimpleViewer68K`.

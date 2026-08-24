@@ -164,13 +164,13 @@
       "problemMatcher": "$gcc"
     },
     {
-      "label": "Build: macOS Standalone Flow Debug",
+      "label": "Standalone: macOS Debug Build",
       "type": "shell",
       "command": "cmake",
       "args": [
         "--build",
         "--preset",
-        "macos-standalone-flow"
+        "macos-standalone-${input:standaloneMode}"
       ],
       "dependsOn": [
         "Configure: macOS Native"
@@ -179,58 +179,12 @@
       "problemMatcher": "$gcc"
     },
     {
-      "label": "Build: macOS Standalone Loop Debug",
-      "type": "shell",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "--preset",
-        "macos-standalone-loop"
-      ],
-      "dependsOn": [
-        "Configure: macOS Native"
-      ],
-      "group": "build",
-      "problemMatcher": "$gcc"
-    },
-    {
-      "label": "Build: macOS Standalone Flow Release",
+      "label": "Standalone: macOS Release Action",
       "type": "shell",
       "command": "bash",
       "args": [
         "scripts/macos-standalone-flow.sh",
-        "Build"
-      ],
-      "group": "build",
-      "problemMatcher": "$gcc"
-    },
-    {
-      "label": "Stage: macOS Standalone Flow Release",
-      "type": "shell",
-      "command": "bash",
-      "args": [
-        "scripts/macos-standalone-flow.sh",
-        "Stage"
-      ],
-      "problemMatcher": "$gcc"
-    },
-    {
-      "label": "Verify: macOS Standalone Flow Release",
-      "type": "shell",
-      "command": "bash",
-      "args": [
-        "scripts/macos-standalone-flow.sh",
-        "Verify"
-      ],
-      "problemMatcher": "$gcc"
-    },
-    {
-      "label": "Release: macOS Standalone Application Set",
-      "type": "shell",
-      "command": "bash",
-      "args": [
-        "scripts/macos-standalone-flow.sh",
-        "Release"
+        "${input:standaloneReleaseAction}"
       ],
       "group": "build",
       "problemMatcher": "$gcc"
@@ -243,6 +197,7 @@
         "--preset",
         "win32-debug"
       ],
+      "hide": true,
       "group": "build",
       "problemMatcher": "$msCompile"
     },
@@ -371,13 +326,13 @@
       "problemMatcher": "$msCompile"
     },
     {
-      "label": "Build: Win32 Standalone Flow Debug",
+      "label": "Standalone: Win32 Debug Build",
       "type": "shell",
       "command": "cmake",
       "args": [
         "--build",
         "--preset",
-        "win32-standalone-flow"
+        "win32-standalone-${input:standaloneMode}"
       ],
       "dependsOn": [
         "Configure: Win32 Native"
@@ -386,22 +341,7 @@
       "problemMatcher": "$msCompile"
     },
     {
-      "label": "Build: Win32 Standalone Loop Debug",
-      "type": "shell",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "--preset",
-        "win32-standalone-loop"
-      ],
-      "dependsOn": [
-        "Configure: Win32 Native"
-      ],
-      "group": "build",
-      "problemMatcher": "$msCompile"
-    },
-    {
-      "label": "Build: Win32 Standalone Flow Release",
+      "label": "Standalone: Win32 Release Action",
       "type": "shell",
       "command": "powershell.exe",
       "args": [
@@ -411,53 +351,7 @@
         "-File",
         "scripts/win32-standalone-flow.ps1",
         "-Action",
-        "Build"
-      ],
-      "group": "build",
-      "problemMatcher": "$msCompile"
-    },
-    {
-      "label": "Stage: Win32 Standalone Flow Release",
-      "type": "shell",
-      "command": "powershell.exe",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "scripts/win32-standalone-flow.ps1",
-        "-Action",
-        "Stage"
-      ],
-      "problemMatcher": "$msCompile"
-    },
-    {
-      "label": "Verify: Win32 Standalone Flow Release",
-      "type": "shell",
-      "command": "powershell.exe",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "scripts/win32-standalone-flow.ps1",
-        "-Action",
-        "Verify"
-      ],
-      "problemMatcher": "$msCompile"
-    },
-    {
-      "label": "Release: Win32 Standalone Application Set",
-      "type": "shell",
-      "command": "powershell.exe",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "scripts/win32-standalone-flow.ps1",
-        "-Action",
-        "Release"
+        "${input:standaloneReleaseAction}"
       ],
       "group": "build",
       "problemMatcher": "$msCompile"
@@ -518,32 +412,18 @@
         "--preset",
         "retro68-68k-dwarf"
       ],
+      "hide": true,
       "group": "build",
       "problemMatcher": "$gcc"
     },
     {
-      "label": "Build: Retro68 68K Standalone Flow DWARF",
+      "label": "Standalone: Retro68 68K DWARF Build",
       "type": "shell",
       "command": "cmake",
       "args": [
         "--build",
         "--preset",
-        "retro68-68k-standalone-flow-dwarf"
-      ],
-      "dependsOn": [
-        "Configure: Retro68 68K DWARF"
-      ],
-      "group": "build",
-      "problemMatcher": "$gcc"
-    },
-    {
-      "label": "Build: Retro68 68K Standalone Loop DWARF",
-      "type": "shell",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "--preset",
-        "retro68-68k-standalone-loop-dwarf"
+        "retro68-68k-standalone-${input:standaloneMode}-dwarf"
       ],
       "dependsOn": [
         "Configure: Retro68 68K DWARF"
@@ -763,6 +643,7 @@
     {
       "label": "Build: Retro68 68K Scrapbook Standalone Flow",
       "type": "shell",
+      "hide": true,
       "command": "cmake",
       "args": [
         "--build",
@@ -780,6 +661,7 @@
     {
       "label": "Build: Retro68 68K HelloWorld Standalone Flow",
       "type": "shell",
+      "hide": true,
       "command": "cmake",
       "args": [
         "--build",
@@ -797,6 +679,7 @@
     {
       "label": "Build: Retro68 68K Tutorial Standalone Flow",
       "type": "shell",
+      "hide": true,
       "command": "cmake",
       "args": [
         "--build",
@@ -814,6 +697,7 @@
     {
       "label": "Build: Retro68 68K MineSweeper Standalone Flow",
       "type": "shell",
+      "hide": true,
       "command": "cmake",
       "args": [
         "--build",
@@ -831,6 +715,7 @@
     {
       "label": "Build: Retro68 68K FloppyBird Standalone Flow",
       "type": "shell",
+      "hide": true,
       "command": "cmake",
       "args": [
         "--build",
@@ -882,6 +767,7 @@
     {
       "label": "Stage: Toolbox 68K Standalone Flow Release",
       "type": "shell",
+      "hide": true,
       "command": "bash",
       "args": [
         "scripts/toolbox-standalone-flow.sh",
@@ -890,12 +776,12 @@
       "problemMatcher": "$gcc"
     },
     {
-      "label": "Release: Toolbox 68K Standalone Application Set",
+      "label": "Standalone: Toolbox 68K Release Action",
       "type": "shell",
       "command": "bash",
       "args": [
         "scripts/toolbox-standalone-flow.sh",
-        "Release"
+        "${input:toolboxStandaloneReleaseAction}"
       ],
       "group": "build",
       "problemMatcher": "$gcc"
@@ -1025,6 +911,7 @@
     {
       "label": "Prepare SCSI Dev Disk: Scrapbook Standalone Flow",
       "type": "shell",
+      "hide": true,
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
       "args": [
         "${workspaceFolder}/build/presentation/toolbox-68k-release/LokaScrapbookStandaloneFlow68K.bin",
@@ -1047,6 +934,7 @@
     {
       "label": "Prepare SCSI Dev Disk: HelloWorld Standalone Flow",
       "type": "shell",
+      "hide": true,
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
       "args": [
         "${workspaceFolder}/build/retro68/68k/Release/tests/toolbox/LokaHelloStandaloneFlow68K.bin"
@@ -1067,6 +955,7 @@
     {
       "label": "Prepare SCSI Dev Disk: Tutorial Standalone Flow",
       "type": "shell",
+      "hide": true,
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
       "args": [
         "${workspaceFolder}/build/retro68/68k/Release/tests/toolbox/LokaTutorialStandaloneFlow68K.bin"
@@ -1087,6 +976,7 @@
     {
       "label": "Prepare SCSI Dev Disk: MineSweeper Standalone Flow",
       "type": "shell",
+      "hide": true,
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
       "args": [
         "${workspaceFolder}/build/retro68/68k/Release/tests/toolbox/LokaMineStandaloneFlow68K.bin"
@@ -1107,6 +997,7 @@
     {
       "label": "Prepare SCSI Dev Disk: FloppyBird Standalone Flow",
       "type": "shell",
+      "hide": true,
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
       "args": [
         "${workspaceFolder}/build/retro68/68k/Release/tests/toolbox/LokaFloppyStandaloneFlow68K.bin"
@@ -1308,6 +1199,7 @@
     {
       "label": "MAME: Mount Scrapbook Standalone Flow Stage",
       "type": "shell",
+      "hide": true,
       "command": "${workspaceFolder}/scripts/mame-mount.sh",
       "args": [
         "${workspaceFolder}/build/presentation/toolbox-68k-release/LokaScrapbookStandaloneFlow68K.dsk"
@@ -1606,6 +1498,66 @@
     }
   ],
   "inputs": [
+    {
+      "id": "standaloneMode",
+      "type": "pickString",
+      "description": "Select the Standalone Debug build mode",
+      "default": "loop",
+      "options": [
+        {
+          "label": "Finite Flow",
+          "value": "flow"
+        },
+        {
+          "label": "Autonomous Loop (+ SimpleViewer)",
+          "value": "loop"
+        }
+      ]
+    },
+    {
+      "id": "standaloneReleaseAction",
+      "type": "pickString",
+      "description": "Select the macOS/Win32 Standalone Release action",
+      "default": "Release",
+      "options": [
+        {
+          "label": "Build finite Flow",
+          "value": "Build"
+        },
+        {
+          "label": "Stage finite Flow",
+          "value": "Stage"
+        },
+        {
+          "label": "Verify finite Flow",
+          "value": "Verify"
+        },
+        {
+          "label": "Release autonomous Loops (+ SimpleViewer)",
+          "value": "Release"
+        }
+      ]
+    },
+    {
+      "id": "toolboxStandaloneReleaseAction",
+      "type": "pickString",
+      "description": "Select the Toolbox Standalone Release action",
+      "default": "Release",
+      "options": [
+        {
+          "label": "Build finite Flow",
+          "value": "Build"
+        },
+        {
+          "label": "Stage finite Flow",
+          "value": "Stage"
+        },
+        {
+          "label": "Release autonomous Loops (+ SimpleViewer)",
+          "value": "Release"
+        }
+      ]
+    },
     {
       "id": "retro68DskPath",
       "type": "pickString",

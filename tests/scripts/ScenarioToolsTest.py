@@ -358,61 +358,142 @@ class PresetFlagSeedingTest(unittest.TestCase):
 class StandaloneDebugEntryPointTest(unittest.TestCase):
     """Keep CMake and VS Code on the existing target-owned mode boundary."""
 
-    def test_debug_presets_and_tasks_cover_flow_and_loop_aggregates(self):
+    def load_documents(self):
         with open(os.path.join(PROJECT_DIR, "CMakePresets.json"), "r", encoding="utf-8") as handle:
             presets = {preset["name"]: preset for preset in json.load(handle)["buildPresets"]}
         with open(os.path.join(PROJECT_DIR, ".vscode", "tasks.json"), "r", encoding="utf-8") as handle:
-            tasks = {task["label"]: task for task in json.load(handle)["tasks"]}
+            task_document = json.load(handle)
+        return presets, task_document
 
+    def test_debug_presets_cover_flow_and_loop_aggregates(self):
+        presets, _ = self.load_documents()
         expected = {
-            "Build: macOS Standalone Flow Debug": (
-                "macos-standalone-flow",
-                "macos-debug",
-                "LokaStandaloneFlowMacOSAll",
-                "Configure: macOS Native",
-            ),
-            "Build: macOS Standalone Loop Debug": (
-                "macos-standalone-loop",
-                "macos-debug",
-                "LokaStandaloneLoopMacOSAll",
-                "Configure: macOS Native",
-            ),
-            "Build: Win32 Standalone Flow Debug": (
-                "win32-standalone-flow",
-                "win32-debug",
-                "LokaStandaloneFlowWin32All",
-                "Configure: Win32 Native",
-            ),
-            "Build: Win32 Standalone Loop Debug": (
-                "win32-standalone-loop",
-                "win32-debug",
-                "LokaStandaloneLoopWin32All",
-                "Configure: Win32 Native",
-            ),
-            "Build: Retro68 68K Standalone Flow DWARF": (
-                "retro68-68k-standalone-flow-dwarf",
+            "macos-standalone-flow": ("macos-debug", "LokaStandaloneFlowMacOSAll"),
+            "macos-standalone-loop": ("macos-debug", "LokaStandaloneLoopMacOSAll"),
+            "win32-standalone-flow": ("win32-debug", "LokaStandaloneFlowWin32All"),
+            "win32-standalone-loop": ("win32-debug", "LokaStandaloneLoopWin32All"),
+            "retro68-68k-standalone-flow-dwarf": (
                 "retro68-68k-dwarf",
                 "LokaStandaloneFlow68KAll",
-                "Configure: Retro68 68K DWARF",
             ),
-            "Build: Retro68 68K Standalone Loop DWARF": (
-                "retro68-68k-standalone-loop-dwarf",
+            "retro68-68k-standalone-loop-dwarf": (
                 "retro68-68k-dwarf",
                 "LokaStandaloneLoop68KAll",
-                "Configure: Retro68 68K DWARF",
             ),
         }
 
-        for task_label, (preset_name, configure_preset, target, configure_task) in expected.items():
+        for preset_name, (configure_preset, target) in expected.items():
             self.assertEqual(presets[preset_name]["configurePreset"], configure_preset)
             self.assertEqual(presets[preset_name]["targets"], [target])
-            task = tasks[task_label]
+
+    def test_vscode_collapses_variants_behind_six_entry_points(self):
+        presets, task_document = self.load_documents()
+        tasks = {task["label"]: task for task in task_document["tasks"]}
+        inputs = {entry["id"]: entry for entry in task_document["inputs"]}
+
+        visible_entry_points = {
+            "Standalone: macOS Debug Build",
+            "Standalone: macOS Release Action",
+            "Standalone: Win32 Debug Build",
+            "Standalone: Win32 Release Action",
+            "Standalone: Retro68 68K DWARF Build",
+            "Standalone: Toolbox 68K Release Action",
+        }
+        self.assertEqual(
+            {
+                label
+                for label, task in tasks.items()
+                if label.startswith("Standalone:") and not task.get("hide", False)
+            },
+            visible_entry_points,
+        )
+
+        debug_tasks = {
+            "Standalone: macOS Debug Build": (
+                "macos-standalone-${input:standaloneMode}",
+                "Configure: macOS Native",
+            ),
+            "Standalone: Win32 Debug Build": (
+                "win32-standalone-${input:standaloneMode}",
+                "Configure: Win32 Native",
+            ),
+            "Standalone: Retro68 68K DWARF Build": (
+                "retro68-68k-standalone-${input:standaloneMode}-dwarf",
+                "Configure: Retro68 68K DWARF",
+            ),
+        }
+        for label, (preset_name, configure_task) in debug_tasks.items():
+            task = tasks[label]
             self.assertEqual(
                 task["args"],
                 ["--build", "--preset", preset_name],
             )
             self.assertEqual(task["dependsOn"], [configure_task])
             self.assertIn(task["dependsOn"][0], tasks)
+            for mode in ("flow", "loop"):
+                self.assertIn(
+                    preset_name.replace("${input:standaloneMode}", mode),
+                    presets,
+                )
+
+        self.assertEqual(
+            tasks["Standalone: macOS Release Action"]["args"],
+            ["scripts/macos-standalone-flow.sh", "${input:standaloneReleaseAction}"],
+        )
+        self.assertEqual(
+            tasks["Standalone: Win32 Release Action"]["args"][-2:],
+            ["-Action", "${input:standaloneReleaseAction}"],
+        )
+        self.assertEqual(
+            tasks["Standalone: Toolbox 68K Release Action"]["args"],
+            ["scripts/toolbox-standalone-flow.sh", "${input:toolboxStandaloneReleaseAction}"],
+        )
+
+        self.assertEqual(
+            [option["value"] for option in inputs["standaloneMode"]["options"]],
+            ["flow", "loop"],
+        )
+        self.assertEqual(
+            [option["value"] for option in inputs["standaloneReleaseAction"]["options"]],
+            ["Build", "Stage", "Verify", "Release"],
+        )
+        self.assertEqual(
+            [option["value"] for option in inputs["toolboxStandaloneReleaseAction"]["options"]],
+            ["Build", "Stage", "Release"],
+        )
+
+        hidden_dependencies = [
+            "Configure: Win32 Native",
+            "Configure: Retro68 68K DWARF",
+            "Build: Retro68 68K Scrapbook Standalone Flow",
+            "Build: Retro68 68K HelloWorld Standalone Flow",
+            "Build: Retro68 68K Tutorial Standalone Flow",
+            "Build: Retro68 68K MineSweeper Standalone Flow",
+            "Build: Retro68 68K FloppyBird Standalone Flow",
+            "Stage: Toolbox 68K Standalone Flow Release",
+            "Prepare SCSI Dev Disk: Scrapbook Standalone Flow",
+            "Prepare SCSI Dev Disk: HelloWorld Standalone Flow",
+            "Prepare SCSI Dev Disk: Tutorial Standalone Flow",
+            "Prepare SCSI Dev Disk: MineSweeper Standalone Flow",
+            "Prepare SCSI Dev Disk: FloppyBird Standalone Flow",
+            "MAME: Mount Scrapbook Standalone Flow Stage",
+        ]
+        for label in hidden_dependencies:
+            self.assertTrue(tasks[label].get("hide", False), label)
+
+        removed_variants = [
+            "Build: macOS Standalone Flow Release",
+            "Stage: macOS Standalone Flow Release",
+            "Verify: macOS Standalone Flow Release",
+            "Release: macOS Standalone Application Set",
+            "Build: Win32 Standalone Flow Release",
+            "Stage: Win32 Standalone Flow Release",
+            "Verify: Win32 Standalone Flow Release",
+            "Release: Win32 Standalone Application Set",
+            "Release: Toolbox 68K Standalone Application Set",
+        ]
+        for label in removed_variants:
+            self.assertNotIn(label, tasks)
 
 
 if __name__ == "__main__":
