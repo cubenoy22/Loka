@@ -79,6 +79,12 @@ This is the environment where binaries are actually built.
   architecture explicitly, for example
   `LOKA_STANDALONE_MACOS_ARCH=i386 scripts/macos-standalone-flow.sh Release`.
   The VS Code equivalent is **Release: macOS Standalone Application Set**.
+  On a Snow Leopard/Xcode 3.2.6 build host, use
+  `scripts/macos-standalone-release-ub1.sh tiger` for a `ppc;i386` set or
+  `scripts/macos-standalone-release-ub1.sh leopard` for a
+  `ppc;i386;x86_64` set. These use the existing split-build and `lipo` merge
+  paths and publish under `build/release/macos-<profile>-ub1` only after every
+  application contains every requested slice.
 - For a presentation that keeps moving without a host controller, use the
   TEST-only HelloWorld and MineSweeper loop reels. Each application shows every
   registered cell for its example, wraps to the first, and continues until the

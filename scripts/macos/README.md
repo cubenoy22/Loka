@@ -170,6 +170,23 @@ while UB2 (`arm64;x86_64`) starts with Apple Silicon-capable Xcode releases.
   - Treat this as a Snow Leopard CLI verification path, not a Leopard-hosted script path.
   - By default builds all six shipping app targets, including the bundled `ScrapbookUIMacOS`, and creates merged outputs in `build/macos-10.5-ub1/universal`. Plain executables are emitted directly there; ScrapbookUI remains a bundle so its Resources stay intact.
 
+- `scripts/macos-standalone-release-ub1.sh tiger|leopard`
+  - Builds the five autonomous Standalone Loop bundles plus the interactive
+    SimpleViewer through the same per-architecture build and failure-atomic
+    `lipo` merge used by `build-10_4.sh` and `build-10_5.sh`.
+  - `tiger` selects `ppc;i386` and stages the completed set under
+    `build/release/macos-tiger-ub1`.
+  - `leopard` selects `ppc;i386;x86_64` and stages the completed set under
+    `build/release/macos-leopard-ub1`.
+  - Run this on the Snow Leopard/Xcode 3.2.6 build environment after selecting
+    the same SDK and compiler variables required by the underlying build
+    script. The stage is published only after all six applications contain
+    every requested architecture; Scrapbook's `ASSETS.LRP` remains inside its
+    bundle.
+  - The selection, merge, resource preservation, and failure-atomic stage are
+    script-tested. Until the commands are run on the legacy host, describe the
+    autonomous set as build-enabled rather than build-verified for UB1.
+
 - `scripts/macos/build-10_7.sh`
   - Standard build path for Lion and newer.
   - Defaults: `DEPLOYMENT_TARGET=10.7`, `MAC_OS_10_4=0`

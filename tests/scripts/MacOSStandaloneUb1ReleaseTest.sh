@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+TEST_ROOT="$(mktemp -d /tmp/loka-macos-standalone-ub1-XXXXXX)"
+trap 'rm -rf "${TEST_ROOT}"' EXIT
+
+fail() {
+  echo "MacOSStandaloneUb1ReleaseTest: $*" >&2
+  exit 1
+}
+
+FAKE_REPO="${TEST_ROOT}/repo"
+mkdir -p \
+  "${FAKE_REPO}/scripts/apple" \
+  "${FAKE_REPO}/scripts/macos" \
+  "${FAKE_REPO}/build/macos-10.4-ub1/universal"
+cp "${REPO_DIR}/scripts/macos-standalone-release-ub1.sh" "${FAKE_REPO}/scripts/"
+cp "${REPO_DIR}/scripts/presentation-stage.sh" "${FAKE_REPO}/scripts/"
+cp "${REPO_DIR}/scripts/apple/lib-xcode.sh" "${FAKE_REPO}/scripts/apple/"
+cp "${REPO_DIR}/scripts/macos/lib-common.sh" "${FAKE_REPO}/scripts/macos/"
+
+BUILD_LOG="${TEST_ROOT}/build.log"
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'set -euo pipefail' \
+  'printf "%s|%s\n" "${TARGET_SET:-}" "${ARCHS:-}" >"${LOKA_TEST_BUILD_LOG}"' \
+  >"${FAKE_REPO}/scripts/macos/build-10_4.sh"
+chmod +x \
+  "${FAKE_REPO}/scripts/macos-standalone-release-ub1.sh" \
+  "${FAKE_REPO}/scripts/macos/build-10_4.sh"
+
+FAKE_LIPO="${TEST_ROOT}/lipo"
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'set -euo pipefail' \
+  '[[ "$1" == "-info" ]]' \
+  'echo "Architectures in the fat file: $2 are: ppc i386"' \
+  >"${FAKE_LIPO}"
+chmod +x "${FAKE_LIPO}"
+
+ROOT_DIR="${FAKE_REPO}"
+source "${FAKE_REPO}/scripts/macos/lib-common.sh"
+UNIVERSAL_ROOT="${FAKE_REPO}/build/macos-10.4-ub1/universal"
+while IFS='|' read -r target_name memberships output_shape rel_path; do
+  loka_target_has_selection "${memberships}" standalone-release || continue
+  case "${output_shape}" in
+    executable)
+      output_path="${UNIVERSAL_ROOT}/$(basename "${rel_path}")"
+      mkdir -p "$(dirname "${output_path}")"
+      printf '%s\n' "${target_name}" >"${output_path}"
+      chmod +x "${output_path}"
+      ;;
+    bundle)
+      bundle_rel_path="${rel_path%%/Contents/MacOS/*}"
+      bundle_root="${UNIVERSAL_ROOT}/$(basename "${bundle_rel_path}")"
+      output_path="${bundle_root}/Contents/MacOS/$(basename "${rel_path}")"
+      mkdir -p "$(dirname "${output_path}")" "${bundle_root}/Contents/Resources"
+      printf '%s\n' "${target_name}" >"${output_path}"
+      chmod +x "${output_path}"
+      if [[ "${target_name}" == "LokaScrapbookStandaloneLoopMacOS" ]]; then
+        printf '%s\n' assets >"${bundle_root}/Contents/Resources/ASSETS.LRP"
+      fi
+      ;;
+  esac
+done < <(loka_target_manifest)
+
+LOKA_TEST_BUILD_LOG="${BUILD_LOG}" LOKA_LIPO_BIN="${FAKE_LIPO}" \
+  "${FAKE_REPO}/scripts/macos-standalone-release-ub1.sh" tiger >/dev/null
+
+[[ "$(cat "${BUILD_LOG}")" == "standalone-release|ppc;i386" ]] ||
+  fail "the Tiger build did not select the complete standalone UB1 set"
+
+RELEASE_ROOT="${FAKE_REPO}/build/release/macos-tiger-ub1"
+[[ -x "${RELEASE_ROOT}/LokaSimpleViewerMacOS" ]] ||
+  fail "the UB1 release omitted SimpleViewer"
+[[ -x "${RELEASE_ROOT}/LokaHelloWorldStandaloneLoopMacOS.app/Contents/MacOS/LokaHelloWorldStandaloneLoopMacOS" ]] ||
+  fail "the UB1 release omitted an autonomous loop"
+[[ -f "${RELEASE_ROOT}/LokaScrapbookStandaloneLoopMacOS.app/Contents/Resources/ASSETS.LRP" ]] ||
+  fail "the UB1 release lost Scrapbook assets"
+[[ "$(find "${RELEASE_ROOT}" -maxdepth 1 -name '*StandaloneLoopMacOS.app' | wc -l | tr -d ' ')" == "5" ]] ||
+  fail "the UB1 release did not contain exactly five loop bundles"
+grep -Fq 'Architectures: ppc;i386' "${RELEASE_ROOT}/README.txt" ||
+  fail "the UB1 release README did not record its architectures"
+
+cp "${RELEASE_ROOT}/README.txt" "${TEST_ROOT}/previous-readme"
+rm -rf "${UNIVERSAL_ROOT}/LokaHelloWorldStandaloneLoopMacOS.app"
+set +e
+LOKA_TEST_BUILD_LOG="${BUILD_LOG}" LOKA_LIPO_BIN="${FAKE_LIPO}" \
+  "${FAKE_REPO}/scripts/macos-standalone-release-ub1.sh" tiger >/dev/null 2>&1
+FAILURE_STATUS=$?
+set -e
+[[ "${FAILURE_STATUS}" -ne 0 ]] ||
+  fail "an incomplete UB1 input set was reported as success"
+cmp -s "${TEST_ROOT}/previous-readme" "${RELEASE_ROOT}/README.txt" ||
+  fail "an incomplete UB1 input set replaced the previous release"
+
+echo "MacOSStandaloneUb1ReleaseTest: PASS"
