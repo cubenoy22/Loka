@@ -110,6 +110,23 @@ loka_find_first_selected_tool() {
   return 1
 }
 
+loka_find_xcode_3_lipo() {
+  local candidate=""
+
+  # Xcode 3.2.6 predates xcrun. Its Mac cctools may be absent from
+  # /Developer/usr/bin while the same universal lipo is installed with the
+  # iPhone platform tools.
+  for candidate in \
+    /Developer/usr/bin/lipo \
+    /Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/lipo; do
+    if [[ -x "${candidate}" ]]; then
+      echo "${candidate}"
+      return 0
+    fi
+  done
+  return 1
+}
+
 loka_find_selected_lipo() {
   local candidate=""
 
@@ -122,6 +139,19 @@ loka_find_selected_lipo() {
     return 0
   fi
 
+  # Keep every tool in one selected legacy toolchain. On Mavericks,
+  # `xcrun -find lipo` can report /usr/bin/lipo successfully even though that
+  # shim later refuses /Developer because Xcode 3.2.6 has no xcrun.
+  case "${CC:-};${CXX:-}" in
+    *"/Developer/usr/bin/"*)
+      candidate="$(loka_find_xcode_3_lipo || true)"
+      if [[ -n "${candidate}" ]]; then
+        echo "${candidate}"
+        return 0
+      fi
+      ;;
+  esac
+
   if command -v xcrun >/dev/null 2>&1; then
     candidate="$(xcrun -find lipo 2>/dev/null || true)"
     if [[ -n "${candidate}" && -x "${candidate}" ]]; then
@@ -130,18 +160,11 @@ loka_find_selected_lipo() {
     fi
   fi
 
-  # Xcode 3.2.6 predates xcrun. Its Mac cctools may be absent from
-  # /Developer/usr/bin while the same universal lipo is installed with the
-  # iPhone platform tools. This ordering keeps that self-contained legacy
-  # tool ahead of a newer host's /usr/bin/lipo xcrun shim.
-  for candidate in \
-    /Developer/usr/bin/lipo \
-    /Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/lipo; do
-    if [[ -x "${candidate}" ]]; then
-      echo "${candidate}"
-      return 0
-    fi
-  done
+  candidate="$(loka_find_xcode_3_lipo || true)"
+  if [[ -n "${candidate}" ]]; then
+    echo "${candidate}"
+    return 0
+  fi
 
   if command -v lipo >/dev/null 2>&1; then
     command -v lipo
