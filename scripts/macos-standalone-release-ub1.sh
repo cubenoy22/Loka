@@ -85,6 +85,31 @@ copy_bundle() {
   fi
 }
 
+ub1_staged_arch_name() {
+  local requested_arch="$1"
+
+  # GCC 4.2 records the Leopard `-arch ppc` slice as the ppc7400 Mach-O
+  # subtype. Tiger's GCC 4.0 output remains the generic ppc subtype.
+  if [[ "${PROFILE_NAME}" == "leopard" && "${requested_arch}" == "ppc" ]]; then
+    echo ppc7400
+  else
+    echo "${requested_arch}"
+  fi
+}
+
+ub1_staged_archs() {
+  local requested_arch=""
+  local staged_archs=()
+  local requested_archs=()
+
+  IFS=';' read -r -a requested_archs <<< "${ARCHS}"
+  for requested_arch in "${requested_archs[@]}"; do
+    staged_archs+=("$(ub1_staged_arch_name "${requested_arch}")")
+  done
+  local IFS=';'
+  echo "${staged_archs[*]}"
+}
+
 populate_ub1_release() {
   local destination="$1"
   local target_name=""
@@ -97,6 +122,8 @@ populate_ub1_release() {
   local destination_item=""
   local destination_binary=""
   local arch=""
+  local staged_arch=""
+  local staged_archs=""
   local release_archs=()
   local count=0
 
@@ -137,8 +164,9 @@ populate_ub1_release() {
     fi
     IFS=';' read -r -a release_archs <<< "${ARCHS}"
     for arch in "${release_archs[@]}"; do
-      if ! loka_binary_contains_arch "${destination_binary}" "${arch}"; then
-        echo "Staged UB1 executable does not contain ${arch}: ${destination_binary}" >&2
+      staged_arch="$(ub1_staged_arch_name "${arch}")"
+      if ! loka_binary_contains_arch "${destination_binary}" "${staged_arch}"; then
+        echo "Staged UB1 executable does not contain ${staged_arch}: ${destination_binary}" >&2
         return 1
       fi
     done
@@ -149,11 +177,12 @@ populate_ub1_release() {
     echo "The UB1 standalone release must contain five loops plus SimpleViewer; found ${count}." >&2
     return 1
   fi
+  staged_archs="$(ub1_staged_archs)"
   printf '%s\n' \
     'Loka 0.0.4 UB1 Release applications' \
     '' \
     "Profile: ${PROFILE_NAME}" \
-    "Architectures: ${ARCHS}" \
+    "Architectures: ${staged_archs}" \
     '' \
     'The five StandaloneLoop applications run their UI tour repeatedly.' \
     'Quit a loop application to stop it. LokaSimpleViewerMacOS remains interactive.' \
@@ -161,4 +190,4 @@ populate_ub1_release() {
 }
 
 loka_replace_stage_directory "${STAGE_ROOT}" populate_ub1_release
-echo "Staged five autonomous UB1 loops plus SimpleViewer (${ARCHS}): ${STAGE_ROOT}"
+echo "Staged five autonomous UB1 loops plus SimpleViewer ($(ub1_staged_archs)): ${STAGE_ROOT}"

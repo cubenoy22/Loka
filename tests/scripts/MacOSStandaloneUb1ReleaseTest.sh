@@ -15,7 +15,8 @@ FAKE_REPO="${TEST_ROOT}/repo"
 mkdir -p \
   "${FAKE_REPO}/scripts/apple" \
   "${FAKE_REPO}/scripts/macos" \
-  "${FAKE_REPO}/build/macos-10.4-ub1/universal"
+  "${FAKE_REPO}/build/macos-10.4-ub1/universal" \
+  "${FAKE_REPO}/build/macos-10.5-ub1/universal"
 cp "${REPO_DIR}/scripts/macos-standalone-release-ub1.sh" "${FAKE_REPO}/scripts/"
 cp "${REPO_DIR}/scripts/presentation-stage.sh" "${FAKE_REPO}/scripts/"
 cp "${REPO_DIR}/scripts/apple/lib-xcode.sh" "${FAKE_REPO}/scripts/apple/"
@@ -27,16 +28,22 @@ printf '%s\n' \
   'set -euo pipefail' \
   'printf "%s|%s\n" "${TARGET_SET:-}" "${ARCHS:-}" >"${LOKA_TEST_BUILD_LOG}"' \
   >"${FAKE_REPO}/scripts/macos/build-10_4.sh"
+cp "${FAKE_REPO}/scripts/macos/build-10_4.sh" \
+  "${FAKE_REPO}/scripts/macos/build-10_5.sh"
 chmod +x \
   "${FAKE_REPO}/scripts/macos-standalone-release-ub1.sh" \
-  "${FAKE_REPO}/scripts/macos/build-10_4.sh"
+  "${FAKE_REPO}/scripts/macos/build-10_4.sh" \
+  "${FAKE_REPO}/scripts/macos/build-10_5.sh"
 
 FAKE_LIPO="${TEST_ROOT}/lipo"
 printf '%s\n' \
   '#!/usr/bin/env bash' \
   'set -euo pipefail' \
   '[[ "$1" == "-info" ]]' \
-  'echo "Architectures in the fat file: $2 are: ppc i386"' \
+  'case "$2" in' \
+  '  *leopard*) echo "Architectures in the fat file: $2 are: ppc7400 i386 x86_64" ;;' \
+  '  *) echo "Architectures in the fat file: $2 are: ppc i386" ;;' \
+  'esac' \
   >"${FAKE_LIPO}"
 chmod +x "${FAKE_LIPO}"
 
@@ -65,6 +72,8 @@ while IFS='|' read -r target_name memberships output_shape rel_path; do
       ;;
   esac
 done < <(loka_target_manifest)
+cp -R "${FAKE_REPO}/build/macos-10.4-ub1/universal/." \
+  "${FAKE_REPO}/build/macos-10.5-ub1/universal/"
 
 LOKA_TEST_BUILD_LOG="${BUILD_LOG}" LOKA_LIPO_BIN="${FAKE_LIPO}" \
   "${FAKE_REPO}/scripts/macos-standalone-release-ub1.sh" tiger >/dev/null
@@ -83,6 +92,15 @@ RELEASE_ROOT="${FAKE_REPO}/build/release/macos-tiger-ub1"
   fail "the UB1 release did not contain exactly five loop bundles"
 grep -Fq 'Architectures: ppc;i386' "${RELEASE_ROOT}/README.txt" ||
   fail "the UB1 release README did not record its architectures"
+
+LOKA_TEST_BUILD_LOG="${BUILD_LOG}" LOKA_LIPO_BIN="${FAKE_LIPO}" \
+  "${FAKE_REPO}/scripts/macos-standalone-release-ub1.sh" leopard >/dev/null
+[[ "$(cat "${BUILD_LOG}")" == "standalone-release|ppc;i386;x86_64" ]] ||
+  fail "the Leopard build did not select the complete standalone UB1 set"
+LEOPARD_RELEASE_ROOT="${FAKE_REPO}/build/release/macos-leopard-ub1"
+grep -Fq 'Architectures: ppc7400;i386;x86_64' \
+  "${LEOPARD_RELEASE_ROOT}/README.txt" ||
+  fail "the Leopard stage did not validate and record the GCC 4.2 ppc7400 subtype"
 
 cp "${RELEASE_ROOT}/README.txt" "${TEST_ROOT}/previous-readme"
 rm -rf "${UNIVERSAL_ROOT}/LokaHelloWorldStandaloneLoopMacOS.app"
