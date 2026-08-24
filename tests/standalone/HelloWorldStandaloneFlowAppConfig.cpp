@@ -18,7 +18,7 @@ namespace loka
           scenario_(new (std::nothrow) scenario_tests::HelloWorldScenario(
               scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &this->audit_)),
           borrowedMainNode_(0),
-          runControl_("HelloWorld", diagnostics)
+          runControl_("HelloWorld", scenario_tests::HelloWorldReelCells().dropFirst(1), diagnostics)
     {
     }
 
@@ -46,7 +46,8 @@ namespace loka
           "Loka HelloWorld Standalone Flow",
           app::IdlePolicy::interval(0.1),
           &HelloWorldStandaloneFlowAppConfig::OnWindowIdle,
-          this);
+          this,
+          this->runControl_.displayTitleState("Loka HelloWorld Standalone Flow"));
     }
 
     void HelloWorldStandaloneFlowAppConfig::OnWindowIdle(Window *window, double elapsedSeconds, void *userData)
@@ -77,17 +78,16 @@ namespace loka
       dsl::SnapRecord record;
       const scenario_tests::ScenarioAdvance advance =
           this->scenario_->step(this->runControl_.tick(), window->scene(), StandaloneContentBounds(window), record);
-      if (this->runControl_.observeScenarioAdvance(advance, record))
+      if (this->runControl_.observeScenarioAdvance(advance, record, window))
       {
-        const scenario_tests::ScenarioCellTable interactionCells =
-            scenario_tests::HelloWorldReelCells().dropFirst(1);
-        const char *nextScenario = interactionCells.nextAfter(this->scenario_->name());
+        const char *nextScenario = this->runControl_.nextScenarioName();
         const bool replaced = nextScenario
                               && this->scenario_.replace(new (std::nothrow) scenario_tests::HelloWorldScenario(
                                   std::string(nextScenario),
                                   scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE,
                                   0));
-        this->runControl_.completeSceneRearm(replaced && scenario_tests::RearmScenarioScene(window));
+        this->runControl_.completeSceneRearm(
+            replaced && scenario_tests::RearmScenarioScene(window), window);
       }
     }
   } // namespace standalone_tests

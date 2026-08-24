@@ -11,13 +11,20 @@ namespace loka
   {
     namespace
     {
+#if LOKA_STANDALONE_FLOW_LOOP
+      const char *const kConfiguredMineSweeperCells[] = {"seeded-reveal"};
+#else
+      const char *const kConfiguredMineSweeperCells[] = {"new-game-twice"};
+#endif
+
       const char *ConfiguredMineSweeperScenarioName()
       {
-#if LOKA_STANDALONE_FLOW_LOOP
-        return "seeded-reveal";
-#else
-        return "new-game-twice";
-#endif
+        return kConfiguredMineSweeperCells[0];
+      }
+
+      scenario_tests::ScenarioCellTable ConfiguredMineSweeperScenarioCells()
+      {
+        return scenario_tests::ScenarioCellTable(kConfiguredMineSweeperCells, 1);
       }
     } // namespace
 
@@ -32,7 +39,7 @@ namespace loka
               scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE,
               &this->audit_)),
           borrowedMainNode_(0),
-          runControl_("MineSweeper", diagnostics)
+          runControl_("MineSweeper", ConfiguredMineSweeperScenarioCells(), diagnostics)
     {
     }
 
@@ -60,7 +67,8 @@ namespace loka
           "Loka MineSweeper Standalone Flow",
           app::IdlePolicy::interval(0.1),
           &MineSweeperStandaloneFlowAppConfig::OnWindowIdle,
-          this);
+          this,
+          this->runControl_.displayTitleState("Loka MineSweeper Standalone Flow"));
     }
 
     void MineSweeperStandaloneFlowAppConfig::OnWindowIdle(Window *window,
@@ -97,13 +105,14 @@ namespace loka
                                 window->scene(),
                                 StandaloneContentBounds(window),
                                 record);
-      if (this->runControl_.observeScenarioAdvance(advance, record))
+      if (this->runControl_.observeScenarioAdvance(advance, record, window))
       {
         const bool replaced = this->scenario_.replace(new (std::nothrow) scenario_tests::MineSweeperScenario(
             ConfiguredMineSweeperScenarioName(),
             scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE,
             0));
-        this->runControl_.completeSceneRearm(replaced && scenario_tests::RearmScenarioScene(window));
+        this->runControl_.completeSceneRearm(
+            replaced && scenario_tests::RearmScenarioScene(window), window);
       }
     }
   } // namespace standalone_tests

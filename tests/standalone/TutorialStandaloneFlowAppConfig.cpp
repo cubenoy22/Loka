@@ -9,16 +9,21 @@ namespace loka
 {
   namespace standalone_tests
   {
+    namespace
+    {
+      const char *const kTutorialStandaloneCells[] = {"increment-summary-toggle"};
+    }
+
     TutorialStandaloneFlowAppConfig::TutorialStandaloneFlowAppConfig(
         PlatformContext *context,
         const platform::file::FileHandle *auditFile,
         std::FILE *diagnostics)
         : AppConfigurable(context),
-          audit_(auditFile ? *auditFile : ResolveStandaloneAuditFile(), "increment-summary-toggle"),
+          audit_(auditFile ? *auditFile : ResolveStandaloneAuditFile(), kTutorialStandaloneCells[0]),
           scenario_(new (std::nothrow) scenario_tests::TutorialScenario(
               scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &this->audit_)),
           borrowedMainNode_(0),
-          runControl_("Tutorial", diagnostics)
+          runControl_("Tutorial", scenario_tests::ScenarioCellTable(kTutorialStandaloneCells, 1), diagnostics)
     {
     }
 
@@ -46,7 +51,8 @@ namespace loka
           "Loka Tutorial Standalone Flow",
           app::IdlePolicy::interval(0.1),
           &TutorialStandaloneFlowAppConfig::OnWindowIdle,
-          this);
+          this,
+          this->runControl_.displayTitleState("Loka Tutorial Standalone Flow"));
     }
 
     void TutorialStandaloneFlowAppConfig::composeMenu(app::MenuComposition &composition)
@@ -82,11 +88,12 @@ namespace loka
       dsl::SnapRecord record;
       const scenario_tests::ScenarioAdvance advance =
           this->scenario_->step(this->runControl_.tick(), window->scene(), StandaloneContentBounds(window), record);
-      if (this->runControl_.observeScenarioAdvance(advance, record))
+      if (this->runControl_.observeScenarioAdvance(advance, record, window))
       {
         const bool replaced = this->scenario_.replace(new (std::nothrow) scenario_tests::TutorialScenario(
             scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, 0));
-        this->runControl_.completeSceneRearm(replaced && scenario_tests::RearmScenarioScene(window));
+        this->runControl_.completeSceneRearm(
+            replaced && scenario_tests::RearmScenarioScene(window), window);
       }
     }
   } // namespace standalone_tests

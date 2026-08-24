@@ -383,13 +383,6 @@ void testScenarioReelCellTablesMatchSharedRegistry()
   LOKA_VERIFY(loka::scenario_tests::IsHelloWorldScenario("bmi-roundtrip"));
   LOKA_VERIFY(!loka::scenario_tests::IsHelloWorldScenario("startup"));
 
-  const loka::scenario_tests::ScenarioCellTable helloInteractions =
-      loka::scenario_tests::HelloWorldReelCells().dropFirst(1);
-  LOKA_VERIFY(std::string(helloInteractions.nextAfter("toggle-action-probe")) == "bmi-roundtrip");
-  LOKA_VERIFY(std::string(helloInteractions.nextAfter("bmi-roundtrip")) == "toggle-action-probe");
-  LOKA_VERIFY(helloInteractions.nextAfter("unknown") == 0);
-  LOKA_VERIFY(loka::scenario_tests::ScenarioCellTable(0, 0).nextAfter("unknown") == 0);
-
   std::printf("testScenarioReelCellTablesMatchSharedRegistry passed\n");
 }
 
@@ -645,11 +638,18 @@ void testScenarioReelDriverAllocationRefusalRetiresInsteadOfWedging()
 
 void testStandaloneRunControlRearmsCompletedSceneWithoutQuittingApp()
 {
+  const loka::scenario_tests::ScenarioCellTable cells(kProbeCells + 1, 2);
+  NullPlatformContext context;
   NullApp completedApp(0);
   loka::standalone_tests::StandaloneRunControl completed(
       "LoopProbe",
+      cells,
       0,
       loka::standalone_tests::StandaloneRunControl::REARM_COMPLETED_SCENE);
+  WindowProps completedWindowProps;
+  completedWindowProps.title("Loka Probe").displayTitleState(
+      completed.displayTitleState("Loka Probe"));
+  NullWindow completedWindow(&context, completedWindowProps);
   completed.setApp(&completedApp);
   LOKA_VERIFY(completed.advance(true)
               == loka::standalone_tests::StandaloneRunControl::ADVANCE_MOUNTED);
@@ -657,15 +657,19 @@ void testStandaloneRunControlRearmsCompletedSceneWithoutQuittingApp()
 
   loka::dsl::SnapRecord record;
   LOKA_VERIFY(completed.observeScenarioAdvance(
-      loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD, record));
+      loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD, record, &completedWindow));
   LOKA_VERIFY(!completedApp.quitRequested());
-  completed.completeSceneRearm(true);
+  LOKA_VERIFY(std::string(completed.nextScenarioName()) == "second");
+  completed.completeSceneRearm(true, &completedWindow);
   LOKA_VERIFY(completed.tick() == 0);
   LOKA_VERIFY(!completed.failed());
+  LOKA_VERIFY(completedWindow.displayTitleState().get().equals(
+      loka::core::String::Literal("Loka Probe - second (cycle 1)")));
 
   NullApp userClosedApp(0);
   loka::standalone_tests::StandaloneRunControl userClosed(
       "LoopProbe",
+      cells,
       0,
       loka::standalone_tests::StandaloneRunControl::REARM_COMPLETED_SCENE);
   userClosed.setApp(&userClosedApp);
@@ -677,12 +681,13 @@ void testStandaloneRunControlRearmsCompletedSceneWithoutQuittingApp()
   NullApp failedApp(0);
   loka::standalone_tests::StandaloneRunControl failed(
       "LoopProbe",
+      cells,
       diagnostics,
       loka::standalone_tests::StandaloneRunControl::REARM_COMPLETED_SCENE);
   failed.setApp(&failedApp);
   LOKA_VERIFY(failed.observeScenarioAdvance(
-      loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD, record));
-  failed.completeSceneRearm(false);
+      loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD, record, &completedWindow));
+  failed.completeSceneRearm(false, &completedWindow);
   LOKA_VERIFY(failed.failed());
   LOKA_VERIFY(failedApp.quitRequested());
   if (diagnostics)

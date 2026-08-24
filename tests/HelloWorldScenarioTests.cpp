@@ -271,6 +271,9 @@ void testHelloWorldStandaloneMountRefusalFailsClosed()
     Window *window = components[0] ? components[0]->asWindow() : 0;
     LOKA_VERIFY(window != 0);
     LOKA_VERIFY(window->visibilityState().get());
+    LOKA_VERIFY(window->displayTitleState().get().equals(
+        loka::core::String::Literal(
+            "Loka HelloWorld Standalone Flow - toggle-action-probe (cycle 1)")));
     LOKA_VERIFY(window->scene() == 0);
     for (int tick = 0; tick < 8; ++tick)
     {

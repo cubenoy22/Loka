@@ -9,17 +9,22 @@ namespace loka
 {
   namespace standalone_tests
   {
+    namespace
+    {
+      const char *const kFloppyBirdStandaloneCells[] = {"fixed-step-flaps"};
+    }
+
     FloppyBirdStandaloneFlowAppConfig::FloppyBirdStandaloneFlowAppConfig(
         PlatformContext *context,
         const platform::file::FileHandle *auditFile,
         std::FILE *diagnostics)
         : AppConfigurable(context),
-          audit_(auditFile ? *auditFile : ResolveStandaloneAuditFile(), "fixed-step-flaps"),
+          audit_(auditFile ? *auditFile : ResolveStandaloneAuditFile(), kFloppyBirdStandaloneCells[0]),
           scenario_(new (std::nothrow) scenario_tests::FloppyBirdScenario(
               scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &this->audit_)),
           game_(scenario_tests::FloppyBirdScenarioSeed()),
           borrowedMainNode_(0),
-          runControl_("FloppyBird", diagnostics)
+          runControl_("FloppyBird", scenario_tests::ScenarioCellTable(kFloppyBirdStandaloneCells, 1), diagnostics)
     {
     }
 
@@ -47,7 +52,8 @@ namespace loka
           "Loka FloppyBird Standalone Flow",
           app::IdlePolicy::everyTick(),
           &FloppyBirdStandaloneFlowAppConfig::OnWindowIdle,
-          this);
+          this,
+          this->runControl_.displayTitleState("Loka FloppyBird Standalone Flow"));
     }
 
     void FloppyBirdStandaloneFlowAppConfig::OnWindowIdle(Window *window,
@@ -86,7 +92,7 @@ namespace loka
                                 this->game_,
                                 StandaloneContentBounds(window),
                                 record);
-      if (this->runControl_.observeScenarioAdvance(advance, record))
+      if (this->runControl_.observeScenarioAdvance(advance, record, window))
       {
         const bool replaced = this->scenario_.replace(new (std::nothrow) scenario_tests::FloppyBirdScenario(
             scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, 0));
@@ -95,7 +101,7 @@ namespace loka
         {
           this->game_.reset(scenario_tests::FloppyBirdScenarioSeed());
         }
-        this->runControl_.completeSceneRearm(rearmed);
+        this->runControl_.completeSceneRearm(rearmed, window);
       }
     }
   } // namespace standalone_tests

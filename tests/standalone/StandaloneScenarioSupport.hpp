@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <new>
 
-#include "../scenarios/ScenarioTypes.hpp"
+#include "../scenarios/ScenarioReel.hpp"
 #include "StandalonePerformanceConfig.hpp"
 #if LOKA_STANDALONE_PERFORMANCE_RUNS > 0
 #include "StandalonePerformance.hpp"
@@ -55,17 +55,25 @@ namespace loka
 
       explicit StandaloneRunControl(
           const char *applicationName,
+          const scenario_tests::ScenarioCellTable &cells,
           std::FILE *diagnostics = 0,
           CompletionMode completionMode = CONFIGURED_COMPLETION_MODE);
 
       void setApp(App *app);
+      /** Decorates the application title and returns the existing reel-owned
+          read-only native projection. Call while constructing the Window. */
+      core::State<core::String> *displayTitleState(const char *productionTitle);
       Advance advance(bool mainNodeMounted);
       /** Returns true when the loop build must replace its completed rail and
           re-arm the Scene. The App and native Window remain alive. */
-      bool observeScenarioAdvance(scenario_tests::ScenarioAdvance advance, const dsl::SnapRecord &record);
+      bool observeScenarioAdvance(scenario_tests::ScenarioAdvance advance,
+                                  const dsl::SnapRecord &record,
+                                  Window *window);
+      /** Returns the next registered cell without consuming the current one. */
+      const char *nextScenarioName() const;
       /** Commits a successful Scene re-arm as the next pass, or terminates a
           loop whose replacement could not be prepared. */
-      void completeSceneRearm(bool succeeded);
+      void completeSceneRearm(bool succeeded, Window *window);
       long tick() const;
       bool failed() const;
 
@@ -79,6 +87,8 @@ namespace loka
       const char *applicationName_;
       std::FILE *diagnostics_;
       const CompletionMode completionMode_;
+      scenario_tests::ScenarioReelPosition position_;
+      scenario_tests::ScenarioReelTitle operatorTitle_;
       long tick_;
       bool mountFailed_;
       bool completed_;

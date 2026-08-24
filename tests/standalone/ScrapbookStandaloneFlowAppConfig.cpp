@@ -10,15 +10,20 @@ namespace loka
 {
   namespace standalone_tests
   {
+    namespace
+    {
+      const char *const kScrapbookStandaloneCells[] = {"standalone-tour"};
+    }
+
     ScrapbookStandaloneFlowAppConfig::ScrapbookStandaloneFlowAppConfig(PlatformContext *context,
                                                                        const platform::file::FileHandle *auditFile,
                                                                        std::FILE *diagnostics)
         : ScrapbookAppConfig(context),
-          audit_(auditFile ? *auditFile : ResolveStandaloneAuditFile(), "standalone-tour"),
+          audit_(auditFile ? *auditFile : ResolveStandaloneAuditFile(), kScrapbookStandaloneCells[0]),
           scenario_(new (std::nothrow) scenario_tests::ScrapbookScenario(
               scenario_tests::ScenarioLaunchPlan::StandaloneTour(), &this->audit_)),
           borrowedMainNode_(0),
-          runControl_("Scrapbook", diagnostics)
+          runControl_("Scrapbook", scenario_tests::ScenarioCellTable(kScrapbookStandaloneCells, 1), diagnostics)
     {
     }
 
@@ -46,7 +51,8 @@ namespace loka
           "Loka Scrapbook Standalone Flow",
           app::IdlePolicy::interval(0.1),
           &ScrapbookStandaloneFlowAppConfig::OnWindowIdle,
-          this);
+          this,
+          this->runControl_.displayTitleState("Loka Scrapbook Standalone Flow"));
     }
 
     void ScrapbookStandaloneFlowAppConfig::OnWindowIdle(Window *window, double elapsedSeconds, void *userData)
@@ -80,11 +86,12 @@ namespace loka
                                                                             *this->borrowedMainNode_,
                                                                             StandaloneContentBounds(window),
                                                                             record);
-      if (this->runControl_.observeScenarioAdvance(advance, record))
+      if (this->runControl_.observeScenarioAdvance(advance, record, window))
       {
         const bool replaced = this->scenario_.replace(new (std::nothrow) scenario_tests::ScrapbookScenario(
             scenario_tests::ScenarioLaunchPlan::StandaloneTour(), 0));
-        this->runControl_.completeSceneRearm(replaced && scenario_tests::RearmScenarioScene(window));
+        this->runControl_.completeSceneRearm(
+            replaced && scenario_tests::RearmScenarioScene(window), window);
       }
     }
   } // namespace standalone_tests
