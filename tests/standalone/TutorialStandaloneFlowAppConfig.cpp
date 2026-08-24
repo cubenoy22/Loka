@@ -1,7 +1,6 @@
 #include "TutorialStandaloneFlowAppConfig.hpp"
 
 #include "../scenarios/ScenarioWindow.hpp"
-#include "../scenarios/ScenarioReel.hpp"
 #include "app/core/AppComposition.hpp"
 #include "app/core/Window.hpp"
 
@@ -11,6 +10,7 @@ namespace loka
   {
     namespace
     {
+      const char *const kTutorialStandaloneTitle = "Loka Tutorial Standalone Flow";
       const char *const kTutorialStandaloneCells[] = {"increment-summary-toggle"};
     }
 
@@ -48,11 +48,11 @@ namespace loka
           &this->borrowedMainNode_,
           360,
           280,
-          "Loka Tutorial Standalone Flow",
+          kTutorialStandaloneTitle,
           app::IdlePolicy::interval(0.1),
           &TutorialStandaloneFlowAppConfig::OnWindowIdle,
           this,
-          this->runControl_.displayTitleState("Loka Tutorial Standalone Flow"));
+          this->runControl_.displayTitleState(kTutorialStandaloneTitle));
     }
 
     void TutorialStandaloneFlowAppConfig::composeMenu(app::MenuComposition &composition)
@@ -90,10 +90,12 @@ namespace loka
           this->scenario_->step(this->runControl_.tick(), window->scene(), StandaloneContentBounds(window), record);
       if (this->runControl_.observeScenarioAdvance(advance, record, window))
       {
-        const bool replaced = this->scenario_.replace(new (std::nothrow) scenario_tests::TutorialScenario(
-            scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, 0));
         this->runControl_.completeSceneRearm(
-            replaced && scenario_tests::RearmScenarioScene(window), window);
+            this->scenario_.replaceAndRearmScene(
+                new (std::nothrow) scenario_tests::TutorialScenario(
+                    scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, 0),
+                window),
+            window);
       }
     }
   } // namespace standalone_tests

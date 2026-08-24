@@ -1,7 +1,6 @@
 #include "ScrapbookStandaloneFlowAppConfig.hpp"
 
 #include "../scenarios/ScenarioWindow.hpp"
-#include "../scenarios/ScenarioReel.hpp"
 #include "StandaloneScenarioSupport.hpp"
 #include "app/core/App.hpp"
 #include "app/core/Window.hpp"
@@ -12,6 +11,7 @@ namespace loka
   {
     namespace
     {
+      const char *const kScrapbookStandaloneTitle = "Loka Scrapbook Standalone Flow";
       const char *const kScrapbookStandaloneCells[] = {"standalone-tour"};
     }
 
@@ -48,11 +48,11 @@ namespace loka
           &this->borrowedMainNode_,
           340,
           250,
-          "Loka Scrapbook Standalone Flow",
+          kScrapbookStandaloneTitle,
           app::IdlePolicy::interval(0.1),
           &ScrapbookStandaloneFlowAppConfig::OnWindowIdle,
           this,
-          this->runControl_.displayTitleState("Loka Scrapbook Standalone Flow"));
+          this->runControl_.displayTitleState(kScrapbookStandaloneTitle));
     }
 
     void ScrapbookStandaloneFlowAppConfig::OnWindowIdle(Window *window, double elapsedSeconds, void *userData)
@@ -88,10 +88,12 @@ namespace loka
                                                                             record);
       if (this->runControl_.observeScenarioAdvance(advance, record, window))
       {
-        const bool replaced = this->scenario_.replace(new (std::nothrow) scenario_tests::ScrapbookScenario(
-            scenario_tests::ScenarioLaunchPlan::StandaloneTour(), 0));
         this->runControl_.completeSceneRearm(
-            replaced && scenario_tests::RearmScenarioScene(window), window);
+            this->scenario_.replaceAndRearmScene(
+                new (std::nothrow) scenario_tests::ScrapbookScenario(
+                    scenario_tests::ScenarioLaunchPlan::StandaloneTour(), 0),
+                window),
+            window);
       }
     }
   } // namespace standalone_tests

@@ -1,7 +1,6 @@
 #include "MineSweeperStandaloneFlowAppConfig.hpp"
 
 #include "../scenarios/ScenarioWindow.hpp"
-#include "../scenarios/ScenarioReel.hpp"
 #include "app/core/AppComposition.hpp"
 #include "app/core/Window.hpp"
 
@@ -11,6 +10,7 @@ namespace loka
   {
     namespace
     {
+      const char *const kMineSweeperStandaloneTitle = "Loka MineSweeper Standalone Flow";
 #if LOKA_STANDALONE_FLOW_LOOP
       const char *const kConfiguredMineSweeperCells[] = {"seeded-reveal"};
 #else
@@ -64,11 +64,11 @@ namespace loka
           &this->borrowedMainNode_,
           220,
           240,
-          "Loka MineSweeper Standalone Flow",
+          kMineSweeperStandaloneTitle,
           app::IdlePolicy::interval(0.1),
           &MineSweeperStandaloneFlowAppConfig::OnWindowIdle,
           this,
-          this->runControl_.displayTitleState("Loka MineSweeper Standalone Flow"));
+          this->runControl_.displayTitleState(kMineSweeperStandaloneTitle));
     }
 
     void MineSweeperStandaloneFlowAppConfig::OnWindowIdle(Window *window,
@@ -107,12 +107,14 @@ namespace loka
                                 record);
       if (this->runControl_.observeScenarioAdvance(advance, record, window))
       {
-        const bool replaced = this->scenario_.replace(new (std::nothrow) scenario_tests::MineSweeperScenario(
-            ConfiguredMineSweeperScenarioName(),
-            scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE,
-            0));
         this->runControl_.completeSceneRearm(
-            replaced && scenario_tests::RearmScenarioScene(window), window);
+            this->scenario_.replaceAndRearmScene(
+                new (std::nothrow) scenario_tests::MineSweeperScenario(
+                    ConfiguredMineSweeperScenarioName(),
+                    scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE,
+                    0),
+                window),
+            window);
       }
     }
   } // namespace standalone_tests

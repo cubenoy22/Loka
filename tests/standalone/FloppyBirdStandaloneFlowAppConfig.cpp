@@ -1,7 +1,6 @@
 #include "FloppyBirdStandaloneFlowAppConfig.hpp"
 
 #include "../scenarios/ScenarioWindow.hpp"
-#include "../scenarios/ScenarioReel.hpp"
 #include "app/core/AppComposition.hpp"
 #include "app/core/Window.hpp"
 
@@ -11,6 +10,7 @@ namespace loka
   {
     namespace
     {
+      const char *const kFloppyBirdStandaloneTitle = "Loka FloppyBird Standalone Flow";
       const char *const kFloppyBirdStandaloneCells[] = {"fixed-step-flaps"};
     }
 
@@ -49,11 +49,11 @@ namespace loka
           &this->borrowedMainNode_,
           380,
           340,
-          "Loka FloppyBird Standalone Flow",
+          kFloppyBirdStandaloneTitle,
           app::IdlePolicy::everyTick(),
           &FloppyBirdStandaloneFlowAppConfig::OnWindowIdle,
           this,
-          this->runControl_.displayTitleState("Loka FloppyBird Standalone Flow"));
+          this->runControl_.displayTitleState(kFloppyBirdStandaloneTitle));
     }
 
     void FloppyBirdStandaloneFlowAppConfig::OnWindowIdle(Window *window,
@@ -94,9 +94,10 @@ namespace loka
                                 record);
       if (this->runControl_.observeScenarioAdvance(advance, record, window))
       {
-        const bool replaced = this->scenario_.replace(new (std::nothrow) scenario_tests::FloppyBirdScenario(
-            scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, 0));
-        const bool rearmed = replaced && scenario_tests::RearmScenarioScene(window);
+        const bool rearmed = this->scenario_.replaceAndRearmScene(
+            new (std::nothrow) scenario_tests::FloppyBirdScenario(
+                scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, 0),
+            window);
         if (rearmed)
         {
           this->game_.reset(scenario_tests::FloppyBirdScenarioSeed());

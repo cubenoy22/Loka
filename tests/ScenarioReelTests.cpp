@@ -700,22 +700,41 @@ void testStandaloneRunControlRearmsCompletedSceneWithoutQuittingApp()
 
 void testStandaloneScenarioRailReplacementIsFailureAtomic()
 {
+  loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> root(CloneMineSweeperRoot());
+  LOKA_VERIFY(root.get() != 0);
+  NullPlatformContext context;
+  WindowProps windowProps;
+  windowProps.scene(new loka::app::scene::Scene(root.take()));
+  NullWindow window(&context, windowProps);
+  LOKA_VERIFY(window.scene() != 0);
+  window.scene()->updateAttached(true);
+  AttachmentTransactionObservation attachmentObservation;
+  attachmentObservation.manager = window.sceneManager();
+  window.scene()->getAttachedState()->bind(
+      &ObserveAttachmentTransaction, &attachmentObservation, false);
+
   StandaloneScenarioRailObservation first;
   StandaloneScenarioRailObservation second;
   {
     loka::standalone_tests::StandaloneScenarioRail<StandaloneScenarioRailProbe> rail(
         new StandaloneScenarioRailProbe(&first));
     LOKA_VERIFY(rail.isValid());
-    LOKA_VERIFY(!rail.replace(0));
+    LOKA_VERIFY(!rail.replaceAndRearmScene(0, &window));
     LOKA_VERIFY(first.stops == 0);
     LOKA_VERIFY(first.destructions == 0);
+    LOKA_VERIFY(attachmentObservation.calls == 0);
 
-    LOKA_VERIFY(rail.replace(new StandaloneScenarioRailProbe(&second)));
+    LOKA_VERIFY(rail.replaceAndRearmScene(
+        new StandaloneScenarioRailProbe(&second), &window));
     LOKA_VERIFY(first.stops == 1);
     LOKA_VERIFY(first.destructions == 1);
     LOKA_VERIFY(second.stops == 0);
     LOKA_VERIFY(second.destructions == 0);
+    LOKA_VERIFY(attachmentObservation.calls == 2);
+    LOKA_VERIFY(attachmentObservation.allCallsWereTransactional);
   }
+  window.scene()->getAttachedState()->unbind(
+      &ObserveAttachmentTransaction, &attachmentObservation);
   LOKA_VERIFY(second.stops == 1);
   LOKA_VERIFY(second.destructions == 1);
 

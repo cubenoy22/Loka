@@ -1,7 +1,6 @@
 #include "HelloWorldStandaloneFlowAppConfig.hpp"
 
 #include "../scenarios/ScenarioWindow.hpp"
-#include "../scenarios/ScenarioReel.hpp"
 #include "StandaloneScenarioSupport.hpp"
 #include "app/core/App.hpp"
 #include "app/core/Window.hpp"
@@ -10,6 +9,11 @@ namespace loka
 {
   namespace standalone_tests
   {
+    namespace
+    {
+      const char *const kHelloWorldStandaloneTitle = "Loka HelloWorld Standalone Flow";
+    }
+
     HelloWorldStandaloneFlowAppConfig::HelloWorldStandaloneFlowAppConfig(PlatformContext *context,
                                                                          const platform::file::FileHandle *auditFile,
                                                                          std::FILE *diagnostics)
@@ -43,11 +47,11 @@ namespace loka
           &this->borrowedMainNode_,
           420,
           330,
-          "Loka HelloWorld Standalone Flow",
+          kHelloWorldStandaloneTitle,
           app::IdlePolicy::interval(0.1),
           &HelloWorldStandaloneFlowAppConfig::OnWindowIdle,
           this,
-          this->runControl_.displayTitleState("Loka HelloWorld Standalone Flow"));
+          this->runControl_.displayTitleState(kHelloWorldStandaloneTitle));
     }
 
     void HelloWorldStandaloneFlowAppConfig::OnWindowIdle(Window *window, double elapsedSeconds, void *userData)
@@ -81,13 +85,15 @@ namespace loka
       if (this->runControl_.observeScenarioAdvance(advance, record, window))
       {
         const char *nextScenario = this->runControl_.nextScenarioName();
-        const bool replaced = nextScenario
-                              && this->scenario_.replace(new (std::nothrow) scenario_tests::HelloWorldScenario(
-                                  std::string(nextScenario),
-                                  scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE,
-                                  0));
         this->runControl_.completeSceneRearm(
-            replaced && scenario_tests::RearmScenarioScene(window), window);
+            nextScenario
+                && this->scenario_.replaceAndRearmScene(
+                    new (std::nothrow) scenario_tests::HelloWorldScenario(
+                        std::string(nextScenario),
+                        scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE,
+                        0),
+                    window),
+            window);
       }
     }
   } // namespace standalone_tests

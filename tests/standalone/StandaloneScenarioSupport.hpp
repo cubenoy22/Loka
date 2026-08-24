@@ -134,6 +134,15 @@ namespace loka
         return true;
       }
 
+      /** Installs a prepared rail before re-arming the Scene it will observe.
+
+          A refused candidate leaves both the live rail and Scene untouched;
+          a successful replacement stops the old rail before Scene teardown. */
+      bool replaceAndRearmScene(ScenarioT *candidate, Window *window)
+      {
+        return this->replace(candidate) && scenario_tests::RearmScenarioScene(window);
+      }
+
       void stop()
       {
         if (this->scenario_.get())
