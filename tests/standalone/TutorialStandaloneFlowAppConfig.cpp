@@ -8,26 +8,32 @@ namespace loka
 {
   namespace standalone_tests
   {
+    namespace
+    {
+      const char *const kTutorialStandaloneTitle = "Loka Tutorial Standalone Flow";
+      const char *const kTutorialStandaloneCells[] = {"increment-summary-toggle"};
+    }
+
     TutorialStandaloneFlowAppConfig::TutorialStandaloneFlowAppConfig(
         PlatformContext *context,
         const platform::file::FileHandle *auditFile,
         std::FILE *diagnostics)
         : AppConfigurable(context),
-          audit_(auditFile ? *auditFile : ResolveStandaloneAuditFile(), "increment-summary-toggle"),
-          scenario_(scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &this->audit_),
+          audit_(auditFile ? *auditFile : ResolveStandaloneAuditFile(), kTutorialStandaloneCells[0]),
+          scenario_(new (std::nothrow) scenario_tests::TutorialScenario(
+              scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &this->audit_)),
           borrowedMainNode_(0),
-          runControl_("Tutorial", diagnostics)
+          runControl_("Tutorial", scenario_tests::ScenarioCellTable(kTutorialStandaloneCells, 1), diagnostics)
     {
     }
 
     TutorialStandaloneFlowAppConfig::~TutorialStandaloneFlowAppConfig()
     {
-      this->scenario_.stop();
     }
 
     int TutorialStandaloneFlowAppConfig::exitCode() const
     {
-      return this->audit_.isValid() && !this->runControl_.failed() ? 0 : 1;
+      return this->audit_.isValid() && this->scenario_.isValid() && !this->runControl_.failed() ? 0 : 1;
     }
 
     void TutorialStandaloneFlowAppConfig::setApp(App *app)
@@ -42,10 +48,11 @@ namespace loka
           &this->borrowedMainNode_,
           360,
           280,
-          "Loka Tutorial Standalone Flow",
+          kTutorialStandaloneTitle,
           app::IdlePolicy::interval(0.1),
           &TutorialStandaloneFlowAppConfig::OnWindowIdle,
-          this);
+          this,
+          this->runControl_.displayTitleState(kTutorialStandaloneTitle));
     }
 
     void TutorialStandaloneFlowAppConfig::composeMenu(app::MenuComposition &composition)
@@ -80,8 +87,16 @@ namespace loka
       }
       dsl::SnapRecord record;
       const scenario_tests::ScenarioAdvance advance =
-          this->scenario_.step(this->runControl_.tick(), window->scene(), StandaloneContentBounds(window), record);
-      this->runControl_.observeScenarioAdvance(advance, record);
+          this->scenario_->step(this->runControl_.tick(), window->scene(), StandaloneContentBounds(window), record);
+      if (this->runControl_.observeScenarioAdvance(advance, record, window))
+      {
+        this->runControl_.completeSceneRearm(
+            this->scenario_.replaceAndRearmScene(
+                new (std::nothrow) scenario_tests::TutorialScenario(
+                    scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, 0),
+                window),
+            window);
+      }
     }
   } // namespace standalone_tests
 } // namespace loka

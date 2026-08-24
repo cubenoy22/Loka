@@ -195,6 +195,17 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Release: macOS Standalone Application Set",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "scripts/macos-standalone-flow.sh",
+        "Release"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Build: Win32 App",
       "type": "shell",
       "command": "cmake",
@@ -362,6 +373,22 @@
         "-Action",
         "Verify"
       ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Release: Win32 Standalone Application Set",
+      "type": "shell",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/win32-standalone-flow.ps1",
+        "-Action",
+        "Release"
+      ],
+      "group": "build",
       "problemMatcher": "$msCompile"
     },
     {
@@ -748,6 +775,17 @@
         "scripts/toolbox-standalone-flow.sh",
         "Stage"
       ],
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Release: Toolbox 68K Standalone Application Set",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "scripts/toolbox-standalone-flow.sh",
+        "Release"
+      ],
+      "group": "build",
       "problemMatcher": "$gcc"
     },
     {

@@ -65,6 +65,14 @@ namespace loka_floppy_bird
       this->randomState_ = value == 0UL ? 1UL : value;
     }
 
+    /** Restores the waiting screen and deterministic random sequence. */
+    void reset(unsigned long value)
+    {
+      this->state_ = GAME_WAITING;
+      this->resetForNewRun();
+      this->seed(value);
+    }
+
     void pressFlap()
     {
       if (this->state_ == GAME_DEAD)

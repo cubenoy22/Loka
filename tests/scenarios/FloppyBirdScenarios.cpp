@@ -20,7 +20,7 @@ namespace loka
       const char *kFirstPipeSurface = "318,0,24,60;318,132,24,108;72,97,18,14";
       const char *kMidRunSurface =
           "83,0,24,60;83,132,24,108;256,0,24,39;256,111,24,129;72,105,18,14";
-      const char *kFinalSurface =
+      const char *kLastPipeCheckpointSurface =
           "2,0,24,60;2,132,24,108;175,0,24,39;175,111,24,129;72,103,18,14";
       const long kStartTick = 2;
       const long kFlap2Tick = 40;
@@ -28,7 +28,9 @@ namespace loka
       const long kFlap3Tick = 78;
       const long kFlap4Tick = 116;
       const long kFlap5Tick = 154;
-      const long kFinalTick = 192;
+      const long kLastPipeCheckpointTick = 192;
+      const long kGameOverTick = 213;
+      const long kFinalTick = 273;
 
       class CheckSurfaceAdapter
       {
@@ -88,6 +90,31 @@ namespace loka
         }
       };
 
+      class CheckGameOverAdapter
+      {
+      public:
+        typedef FloppyBirdScenario::ScenarioInput In;
+        typedef FloppyBirdScenario::ScenarioInput Out;
+
+        dsl::StepRunStatus run(In const &in, Out &out, dsl::FlowError &error) const
+        {
+          out = in;
+          if (!in.game)
+          {
+            error.kind = dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = dsl::testing::FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
+            return dsl::FLOW_STEP_FAILED;
+          }
+          if (in.game->gameState() != loka_floppy_bird::GAME_DEAD || in.game->score() != 1)
+          {
+            error.kind = dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT;
+            error.code = dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED;
+            return dsl::FLOW_STEP_FAILED;
+          }
+          return dsl::FLOW_STEP_SUCCEEDED;
+        }
+      };
+
       class SnapSurfaceAdapter
       {
       public:
@@ -142,7 +169,10 @@ namespace loka
                 | AtTick(kFlap4Tick, FlapAdapter()).named("flap-4")
                 | AtTick(kFlap5Tick, CheckSurface(kMidRunSurface)).named("verify-mid-run")
                 | AtTick(kFlap5Tick, FlapAdapter()).named("flap-5")
-                | AtTick(kFinalTick, CheckSurface(kFinalSurface)).named("verify-final-checkpoint")
+                | AtTick(kLastPipeCheckpointTick, CheckSurface(kLastPipeCheckpointSurface))
+                      .named("verify-final-checkpoint")
+                | AtTick(kGameOverTick, CheckGameOverAdapter()).named("verify-game-over")
+                | AtTick(kFinalTick, CheckGameOverAdapter()).named("verify-game-over-held")
                 | AtTick(kFinalTick, SnapSurfaceAdapter(kFinalTick))
                       .named("capture-final-checkpoint")
                       .onSuccess(recordOut))
@@ -227,6 +257,8 @@ namespace loka
         out.setInt("seed", static_cast<long>(FloppyBirdScenarioSeed()));
         out.set("fixed_step_seconds", "1/60");
         out.setInt("fixed_step_count", kFinalTick);
+        out.setInt("game_over_tick", kGameOverTick);
+        out.setInt("game_over_hold_ticks", kFinalTick - kGameOverTick);
         out.set("flap_ticks", "2,40,78,116,154");
         out.set("checkpoint.waiting", kWaitingSurface);
         out.set("checkpoint.started", kStartedSurface);

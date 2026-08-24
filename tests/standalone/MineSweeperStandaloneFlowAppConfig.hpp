@@ -35,7 +35,7 @@ namespace loka
       void tick(Window *window);
 
       dsl::testing::ScenarioAuditFile audit_;
-      scenario_tests::MineSweeperScenario scenario_;
+      StandaloneScenarioRail<scenario_tests::MineSweeperScenario> scenario_;
       minesweeper::MainNode *borrowedMainNode_;
       StandaloneRunControl runControl_;
     };

@@ -1,5 +1,28 @@
 # Toolbox 68K standalone Flow stage
 
+## Autonomous release
+
+Run:
+
+```sh
+./scripts/toolbox-standalone-flow.sh Release
+```
+
+The VS Code equivalent is **Release: Toolbox 68K Standalone Application Set**.
+
+The release under `build/release/toolbox-68k` contains five autonomous
+Standalone Loop applications plus the interactive `LokaSimpleViewer68K`.
+Each application is provided as both a MacBinary (`.bin`) and an 800 KiB HFS
+disk (`.dsk`). The Scrapbook loop disk also contains `ASSETS.LRP`; the same
+asset file is included separately for MacBinary and SCSI-disk workflows.
+
+The loop applications keep one App and native Window alive, replace their
+completed scenario rail, and re-arm the current Scene until the user closes
+the Window. SimpleViewer remains interactive because its file chooser requires
+user selection.
+
+## Finite Scrapbook presentation stage
+
 This directory is a transportable Retro68 release of the Scrapbook standalone
 presentation Flow. It contains:
 

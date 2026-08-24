@@ -129,6 +129,13 @@ add_subdirectory(example/SimpleViewer)
 add_subdirectory(example/ScrapbookUI)
 add_subdirectory(example/FloppyBird)
 add_subdirectory(example/Tutorial)
+
+if(WIN32 AND TARGET LokaStandaloneLoopWin32All)
+  add_dependencies(LokaStandaloneLoopWin32All LokaSimpleViewerWin32)
+endif()
+if(APPLE AND TARGET LokaStandaloneLoopMacOSAll)
+  add_dependencies(LokaStandaloneLoopMacOSAll LokaSimpleViewerMacOS)
+endif()
 endif()
 
 if(NOT IOS)
@@ -201,7 +208,6 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/StartupScenarios\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/ScenarioReelTests\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/StandalonePerformanceTests\\.cpp$")
-  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/ScenarioReel\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/standalone/StandalonePerformance\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/RectSurfaceScenarioObservation\\.cpp$")
 
@@ -420,6 +426,9 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/Build104GuardTest.sh)
     add_test(NAME scriptMacOSBuildTargets
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MacOSBuildTargetsTest.sh)
+    add_test(NAME scriptMacOSStandaloneUb1Release
+      COMMAND bash
+        ${PROJECT_SOURCE_DIR}/tests/scripts/MacOSStandaloneUb1ReleaseTest.sh)
     add_test(NAME scriptPmonSpriteGenerator
       COMMAND python3
         ${PROJECT_SOURCE_DIR}/tests/scripts/PmonSpriteGeneratorTest.py)

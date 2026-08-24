@@ -34,6 +34,7 @@ ACCESSOR_NAMES = frozenset(
         "size",
         "count",
         "empty",
+        "isValid",
         "data",
         "at",
         "front",

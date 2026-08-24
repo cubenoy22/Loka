@@ -18,16 +18,22 @@ namespace loka
                                                      const char *title,
                                                      const app::IdlePolicy &idlePolicy,
                                                      WindowProps::OnIdleFn onIdle,
-                                                     void *userData)
+                                                     void *userData,
+                                                     core::State<core::String> *displayTitleState = 0)
     {
       ObservedMainDefinition<PropsT, NodeT> mainDefinition(props, observed);
-      return WindowDef(WindowProps()
-                           .frame(40, 40, width, height)
-                           .scene(mainDefinition)
-                           .title(title)
-                           .visible(true)
-                           .idlePolicy(idlePolicy)
-                           .onIdle(onIdle, userData));
+      WindowProps windowProps;
+      windowProps.frame(40, 40, width, height)
+          .scene(mainDefinition)
+          .title(title)
+          .visible(true)
+          .idlePolicy(idlePolicy)
+          .onIdle(onIdle, userData);
+      if (displayTitleState)
+      {
+        windowProps.displayTitleState(displayTitleState);
+      }
+      return WindowDef(windowProps);
     }
   } // namespace scenario_tests
 } // namespace loka

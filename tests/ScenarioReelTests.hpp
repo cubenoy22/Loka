@@ -8,5 +8,8 @@ void testScenarioReelRunsEveryMineSweeperCellEveryCycle();
 void testScenarioReelRunsEveryHelloWorldCellEveryCycle();
 void testScenarioWindowDisplayTitlePreservesLogicalTitleAndDropsNativeObserver();
 void testScenarioReelDriverAllocationRefusalRetiresInsteadOfWedging();
+void testStandaloneRunControlRearmsCompletedSceneWithoutQuittingApp();
+void testStandaloneScenarioRailReplacementIsFailureAtomic();
+void testStandaloneSceneRearmAllocationRefusalDoesNotCommitNextPass();
 
 #endif // LOKA_TESTS_SCENARIO_REEL_TESTS_HPP

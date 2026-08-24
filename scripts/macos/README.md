@@ -15,7 +15,7 @@ Legend: `:white_check_mark:` verified, `△` verified with caveats (see Notes),
 | Snow Leopard 10.6 / Xcode 3.2.6 | - | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | Main UB1 bridge; copied projects and `build-10_4.sh` / `build-10_5.sh` are build-verified (`ppc/i386` and `ppc7400/i386/x86_64`). |
 | Lion 10.7 + final Xcode | - | :white_check_mark: | :white_check_mark: | - | :x: | Final Xcode can debug native builds; cross-partition Xcode 3.2.6 can build UB1 through the UI, but CLI wrappers cannot select it with `xcode-select`. |
 | Mountain Lion 10.8 + final Xcode | :white_check_mark: | :white_check_mark: | :white_check_mark: | - | :x: | Can generate projects from source, debug with the final Xcode, and run cross-partition Xcode 3.2.6 for UB1 UI builds. CLI wrappers cannot select that Xcode through `xcode-select`. |
-| Mavericks 10.9 / Xcode 6.2 | :white_check_mark: | - | :white_check_mark: | - | :white_check_mark: | Legacy project generation works; Xcode 3.2.6 can launch there and build Leopard-facing four-architecture UB1 outputs from the UI. CLI `build-10_4.sh` verified with the explicit `CC`/`CXX` recipe (see Which Script To Run). |
+| Mavericks 10.9 / Xcode 6.2 | :white_check_mark: | - | :white_check_mark: | - | :white_check_mark: | Legacy project generation works. An installed Xcode 3.2.6 provides the CLI compilers, SDKs, and `lipo`; the autonomous Tiger and Leopard UB1 release sets are build-verified there with the explicit `CC`/`CXX` recipe (see Which Script To Run). |
 | Yosemite 10.10 | :white_check_mark: | :white_check_mark: | :x: | :x: | - | Project generation and native debugging work, but Xcode 3.2.6 cannot launch there. |
 | El Capitan 10.11 through Sierra 10.12 / Xcode 9.2 | :white_check_mark: | :white_check_mark: | - | - | - | Leopard-facing Xcode project generation has been verified on Sierra with Xcode 9.2; generated projects have been copied back to Snow Leopard and build-verified there. |
 | High Sierra 10.13 | △ | :white_check_mark: | - | - | - | Depends on the selected Xcode version; Xcode 9.4.1-era setups are expected to work, while Xcode 10.1 fails legacy UB1 generation. |
@@ -169,6 +169,25 @@ while UB2 (`arm64;x86_64`) starts with Apple Silicon-capable Xcode releases.
   - The previous five-target default set is build-verified on Snow Leopard with Xcode 3.2.6; expected merged slices are `ppc7400 i386 x86_64`. The newly enumerated ScrapbookUI bundle has not yet been build-verified on that toolchain.
   - Treat this as a Snow Leopard CLI verification path, not a Leopard-hosted script path.
   - By default builds all six shipping app targets, including the bundled `ScrapbookUIMacOS`, and creates merged outputs in `build/macos-10.5-ub1/universal`. Plain executables are emitted directly there; ScrapbookUI remains a bundle so its Resources stay intact.
+
+- `scripts/macos-standalone-release-ub1.sh tiger|leopard`
+  - Builds the five autonomous Standalone Loop bundles plus the interactive
+    SimpleViewer through the same per-architecture build and failure-atomic
+    `lipo` merge used by `build-10_4.sh` and `build-10_5.sh`.
+  - `tiger` selects `ppc;i386` and stages the completed set under
+    `build/release/macos-tiger-ub1`.
+  - `leopard` selects `ppc;i386;x86_64` and stages the completed set under
+    `build/release/macos-leopard-ub1`. GCC 4.2 records its requested `ppc`
+    input as the `ppc7400` Mach-O subtype, so the staged slices are
+    `ppc7400 i386 x86_64`.
+  - Run this with the Xcode 3.2.6 build environment after selecting the same
+    SDK and compiler variables required by the underlying build script. The
+    stage is published only after all six applications contain every expected
+    architecture; Scrapbook's `ASSETS.LRP` remains inside its bundle.
+  - The complete autonomous sets are build-verified through the Mavericks
+    10.9.5 + Xcode 3.2.6 CLI route: Tiger as `ppc i386`, Leopard as
+    `ppc7400 i386 x86_64`. This is not a runtime-verification claim for either
+    target OS or PowerPC hardware.
 
 - `scripts/macos/build-10_7.sh`
   - Standard build path for Lion and newer.

@@ -39,12 +39,19 @@ namespace loka
       return result;
     }
 
-    StandaloneRunControl::StandaloneRunControl(const char *applicationName, std::FILE *diagnostics)
+    StandaloneRunControl::StandaloneRunControl(const char *applicationName,
+                                               const scenario_tests::ScenarioCellTable &cells,
+                                               std::FILE *diagnostics,
+                                               CompletionMode completionMode)
         : borrowedApp_(0),
           applicationName_(applicationName ? applicationName : "application"),
           diagnostics_(diagnostics ? diagnostics : stderr),
+          completionMode_(completionMode),
+          position_(cells, 0),
+          operatorTitle_(position_.cell(), position_.completedCycles()),
           tick_(0),
-          mountFailed_(false)
+          mountFailed_(false),
+          completed_(false)
     {
     }
 
@@ -57,6 +64,13 @@ namespace loka
         this->scenarioVerdict_.begin();
       }
 #endif
+    }
+
+    core::State<core::String> *StandaloneRunControl::displayTitleState(const char *productionTitle)
+    {
+      this->operatorTitle_.decorateBeforeProjection(
+          productionTitle ? core::String::Literal(productionTitle) : core::String());
+      return this->operatorTitle_.state();
     }
 
     StandaloneRunControl::Advance StandaloneRunControl::advance(bool mainNodeMounted)
@@ -89,26 +103,69 @@ namespace loka
       return ADVANCE_FAILED;
     }
 
-    void StandaloneRunControl::observeScenarioAdvance(scenario_tests::ScenarioAdvance advance,
-                                                      const dsl::SnapRecord &record)
+    bool StandaloneRunControl::observeScenarioAdvance(scenario_tests::ScenarioAdvance advance,
+                                                      const dsl::SnapRecord &record,
+                                                      Window *window)
     {
+      if (window)
+      {
+        this->operatorTitle_.synchronizeProductionTitle(window->titleState().get(), window->getTracker());
+      }
       switch (advance)
       {
       case scenario_tests::SCENARIO_ADVANCE_PENDING:
       case scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY:
-        return;
+        return false;
       case scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD:
         break;
       }
 #if LOKA_STANDALONE_PERFORMANCE_RUNS > 0
       this->scenarioVerdict_.observe(record);
+#else
+      (void)record;
+#endif
+      this->completed_ = true;
+      if (this->completionMode_ != HOLD_FINAL_SCENE && this->borrowedApp_)
+      {
+        if (this->completionMode_ == QUIT_COMPLETED_PASS)
+        {
+          this->borrowedApp_->quit();
+        }
+      }
+      return this->completionMode_ == REARM_COMPLETED_SCENE;
+    }
+
+    const char *StandaloneRunControl::nextScenarioName() const
+    {
+      scenario_tests::ScenarioReelPosition next(this->position_);
+      next.advance();
+      return next.cell();
+    }
+
+    void StandaloneRunControl::completeSceneRearm(bool succeeded, Window *window)
+    {
+      assert(this->completionMode_ == REARM_COMPLETED_SCENE && "Scene re-arm is a loop-only completion");
+      assert(this->completed_ && "Scene re-arm follows a completed scenario");
+      if (succeeded)
+      {
+        assert(window && "A successful Scene re-arm has a Window owner");
+        this->position_.advance();
+        this->operatorTitle_.publish(
+            this->position_.cell(), this->position_.completedCycles(), window ? window->getTracker() : 0);
+        this->tick_ = 0;
+        this->completed_ = false;
+        return;
+      }
+      this->mountFailed_ = true;
+      std::fprintf(this->diagnostics_,
+                   "Loka %s standalone loop failed: "
+                   "the next scenario rail or Scene could not be prepared.\n",
+                   this->applicationName_);
+      std::fflush(this->diagnostics_);
       if (this->borrowedApp_)
       {
         this->borrowedApp_->quit();
       }
-#else
-      (void)record;
-#endif
     }
 
     long StandaloneRunControl::tick() const
@@ -124,5 +181,6 @@ namespace loka
       return this->mountFailed_;
 #endif
     }
+
   } // namespace standalone_tests
 } // namespace loka

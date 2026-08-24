@@ -9,25 +9,30 @@ namespace loka
 {
   namespace standalone_tests
   {
+    namespace
+    {
+      const char *const kHelloWorldStandaloneTitle = "Loka HelloWorld Standalone Flow";
+    }
+
     HelloWorldStandaloneFlowAppConfig::HelloWorldStandaloneFlowAppConfig(PlatformContext *context,
                                                                          const platform::file::FileHandle *auditFile,
                                                                          std::FILE *diagnostics)
         : HelloWorldAppConfig(context, 0x13579BDFUL),
           audit_(auditFile ? *auditFile : ResolveStandaloneAuditFile(), "toggle-action-probe"),
-          scenario_(scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &this->audit_),
+          scenario_(new (std::nothrow) scenario_tests::HelloWorldScenario(
+              scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &this->audit_)),
           borrowedMainNode_(0),
-          runControl_("HelloWorld", diagnostics)
+          runControl_("HelloWorld", scenario_tests::HelloWorldReelCells().dropFirst(1), diagnostics)
     {
     }
 
     HelloWorldStandaloneFlowAppConfig::~HelloWorldStandaloneFlowAppConfig()
     {
-      this->scenario_.stop();
     }
 
     int HelloWorldStandaloneFlowAppConfig::exitCode() const
     {
-      return this->audit_.isValid() && !this->runControl_.failed() ? 0 : 1;
+      return this->audit_.isValid() && this->scenario_.isValid() && !this->runControl_.failed() ? 0 : 1;
     }
 
     void HelloWorldStandaloneFlowAppConfig::setApp(App *app)
@@ -42,10 +47,11 @@ namespace loka
           &this->borrowedMainNode_,
           420,
           330,
-          "Loka HelloWorld Standalone Flow",
+          kHelloWorldStandaloneTitle,
           app::IdlePolicy::interval(0.1),
           &HelloWorldStandaloneFlowAppConfig::OnWindowIdle,
-          this);
+          this,
+          this->runControl_.displayTitleState(kHelloWorldStandaloneTitle));
     }
 
     void HelloWorldStandaloneFlowAppConfig::OnWindowIdle(Window *window, double elapsedSeconds, void *userData)
@@ -75,8 +81,20 @@ namespace loka
       }
       dsl::SnapRecord record;
       const scenario_tests::ScenarioAdvance advance =
-          this->scenario_.step(this->runControl_.tick(), window->scene(), StandaloneContentBounds(window), record);
-      this->runControl_.observeScenarioAdvance(advance, record);
+          this->scenario_->step(this->runControl_.tick(), window->scene(), StandaloneContentBounds(window), record);
+      if (this->runControl_.observeScenarioAdvance(advance, record, window))
+      {
+        const char *nextScenario = this->runControl_.nextScenarioName();
+        this->runControl_.completeSceneRearm(
+            nextScenario
+                && this->scenario_.replaceAndRearmScene(
+                    new (std::nothrow) scenario_tests::HelloWorldScenario(
+                        std::string(nextScenario),
+                        scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE,
+                        0),
+                    window),
+            window);
+      }
     }
   } // namespace standalone_tests
 } // namespace loka

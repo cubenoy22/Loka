@@ -67,7 +67,7 @@ bool SceneManager::rearmCurrentScene()
   loka::core::StateTrackerGuard guard(&tracker_);
   current->updateAttached(false);
   current->updateAttached(true);
-  return true;
+  return current->composed_;
 }
 
 SceneManager::SceneTransactionList SceneManager::getPendingTransactions() const
