@@ -51,7 +51,7 @@ $ChildStderrTask = $null
 $Python = $null
 $UseWslPython = $false
 $PngExitCode = 0
-$PngDifferenceCount = $null
+$PngCompareResult = $null
 $GoldenIdentityExitCode = 0
 $PackageFixtureExitCode = 0
 $CaptureProfileExitCode = 0
@@ -161,6 +161,8 @@ function Convert-ToWslPath([string]$Path, [string]$StageName = "crop") {
     return "/mnt/$drive/$tail"
 }
 
+. (Join-Path $PSScriptRoot "PngCompare.ps1")
+
 function Invoke-PngCrop([string]$InputPath, [long]$Left, [long]$Top, [long]$Right, [long]$Bottom, [string]$OutputPath) {
     if ($UseWslPython) {
         & wsl.exe python3 (Convert-ToWslPath $PngTool) crop `
@@ -169,29 +171,6 @@ function Invoke-PngCrop([string]$InputPath, [long]$Left, [long]$Top, [long]$Righ
         & $Python $PngTool crop $InputPath $Left $Top $Right $Bottom $OutputPath
     }
     $script:PngExitCode = $LASTEXITCODE
-}
-
-function Invoke-PngCompare([string]$First, [string]$Second, [long]$MaxDiffPx) {
-    $script:PngDifferenceCount = $null
-    if ($UseWslPython) {
-        $compareOutput = & wsl.exe python3 (Convert-ToWslPath $PngTool) compare `
-            --max-diff-px $MaxDiffPx `
-            (Convert-ToWslPath $First) (Convert-ToWslPath $Second) 2>&1
-    } else {
-        $compareOutput = & $Python $PngTool compare `
-            --max-diff-px $MaxDiffPx $First $Second 2>&1
-    }
-    $script:PngExitCode = $LASTEXITCODE
-    foreach ($line in @($compareOutput)) {
-        Write-Output $line
-        if ([string]$line -match 'differing pixels: ([0-9]+); max-diff-px: ([0-9]+)') {
-            $reportedTolerance = [long]$Matches[2]
-            if ($reportedTolerance -ne $MaxDiffPx) {
-                Fail-Stage "golden" "pngtool reported tolerance $reportedTolerance, expected $MaxDiffPx"
-            }
-            $script:PngDifferenceCount = [long]$Matches[1]
-        }
-    }
 }
 
 function Invoke-PngDiff([string]$Expected, [string]$Actual, [string]$OutputPath) {
@@ -603,16 +582,18 @@ try {
             }
             Fail-Stage "profile" "capture field '$profileMismatch' moved from '$expectedValue' to '$actualValue'"
         }
-        # TODO(#459): tolerates the known Win32 stretch-tie wobble (<=2
-        # full-height columns, 338 px worst observed); remove when the
-        # compositing M1 offscreen composition lands. Bounded at 400 so any
-        # real layout/content regression (thousands of px) still fails.
-        Invoke-PngCompare $Actual $WorkGolden 400 *>> $RunnerLog
+        # TODO(#459): tolerate at most 400 differing pixels in at most two
+        # destination x columns. Two is the tracked one-or-two full-height-column
+        # wobble: 169 px each and 338 px worst observed. A missing glyph spans
+        # roughly six to eight columns and an icon many more, so the shape bound
+        # still rejects content loss.
+        # Remove when the compositing M1 offscreen composition lands.
+        Invoke-PngCompare $Actual $WorkGolden 400 2 *>> $RunnerLog
         $CompareExitCode = $PngExitCode
-        if ($null -eq $PngDifferenceCount) {
-            Fail-Stage "golden" "pngtool compare omitted its measured diff count; see $RunnerLog"
+        if ($null -eq $PngCompareResult) {
+            Fail-Stage "golden" "pngtool compare omitted its measured diff counts; see $RunnerLog"
         }
-        if ($PngDifferenceCount -gt 0) {
+        if ($PngCompareResult.DifferenceCount -gt 0) {
             $Diff = Join-Path $Work "diff.png"
             Invoke-PngDiff $WorkGolden $Actual $Diff *>> $RunnerLog
             if (-not (Test-Path -LiteralPath $Diff -PathType Leaf)) {

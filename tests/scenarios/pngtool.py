@@ -2,6 +2,7 @@
 """Crop, compare, diff, and animate 8-bit RGB/RGBA PNGs using the standard library."""
 
 import argparse
+import collections
 import os
 import struct
 import sys
@@ -25,6 +26,11 @@ class Image:
         self.width = width
         self.height = height
         self.rgba = bytes(rgba)
+
+
+ImageDifference = collections.namedtuple(
+    "ImageDifference", ("pixel_count", "column_count", "first_difference")
+)
 
 
 def _paeth(left, above, upper_left):
@@ -195,9 +201,10 @@ def crop_image(image, left, top, right, bottom):
     return Image(width, height, cropped)
 
 
-def compare_images(first, second, report=True):
+def measure_image_difference(first, second):
     first_difference = None
     difference_count = 0
+    differing_columns = set()
     for y in range(max(first.height, second.height)):
         for x in range(max(first.width, second.width)):
             first_offset = (y * first.width + x) * 4
@@ -216,24 +223,35 @@ def compare_images(first, second, report=True):
                 if first_difference is None:
                     first_difference = (x, y, first_pixel, second_pixel)
                 difference_count += 1
+                differing_columns.add(x)
 
+    return ImageDifference(difference_count, len(differing_columns), first_difference)
+
+
+def report_image_difference(first, second, difference):
+    first_difference = difference.first_difference
+    if first_difference is not None and (
+        first.width != second.width or first.height != second.height
+    ):
+        print(
+            "dimensions differ: {}x{} != {}x{}".format(
+                first.width, first.height, second.width, second.height
+            )
+        )
+    if first_difference is not None:
+        x, y, first_pixel, second_pixel = first_difference
+        print(
+            "first differing pixel ({}, {}): {} != {}; differing pixels: {}".format(
+                x, y, first_pixel, second_pixel, difference.pixel_count
+            )
+        )
+
+
+def compare_images(first, second, report=True):
+    difference = measure_image_difference(first, second)
     if report:
-        if first_difference is not None and (
-            first.width != second.width or first.height != second.height
-        ):
-            print(
-                "dimensions differ: {}x{} != {}x{}".format(
-                    first.width, first.height, second.width, second.height
-                )
-            )
-        if first_difference is not None:
-            x, y, first_pixel, second_pixel = first_difference
-            print(
-                "first differing pixel ({}, {}): {} != {}; differing pixels: {}".format(
-                    x, y, first_pixel, second_pixel, difference_count
-                )
-            )
-    return difference_count
+        report_image_difference(first, second, difference)
+    return difference.pixel_count
 
 
 def difference_image(expected, actual):
@@ -628,6 +646,7 @@ def main(argv=None):
 
     compare_parser = subparsers.add_parser("compare", help="compare decoded pixels")
     compare_parser.add_argument("--max-diff-px", type=int, default=0)
+    compare_parser.add_argument("--max-diff-columns", type=int)
     compare_parser.add_argument("first")
     compare_parser.add_argument("second")
 
@@ -660,20 +679,42 @@ def main(argv=None):
         if arguments.command == "compare":
             if arguments.max_diff_px < 0:
                 raise PngError("--max-diff-px must not be negative")
+            if arguments.max_diff_columns is not None and arguments.max_diff_columns < 0:
+                raise PngError("--max-diff-columns must not be negative")
             expected = read_png(arguments.first)
             actual = read_png(arguments.second)
-            difference_count = compare_images(expected, actual)
+            difference = measure_image_difference(expected, actual)
+            report_image_difference(expected, actual, difference)
             dimensions_differ = (
                 expected.width != actual.width or expected.height != actual.height
             )
+            max_diff_columns = (
+                "unbounded"
+                if arguments.max_diff_columns is None
+                else str(arguments.max_diff_columns)
+            )
             if dimensions_differ:
-                print("compare result: dimension mismatch; result: fail")
+                print(
+                    "compare result: dimension mismatch; result: fail; differing pixels: {}; "
+                    "differing columns: {}; max-diff-px: {}; max-diff-columns: {}".format(
+                        difference.pixel_count,
+                        difference.column_count,
+                        arguments.max_diff_px,
+                        max_diff_columns,
+                    )
+                )
                 return 1
-            passed = difference_count <= arguments.max_diff_px
+            passed = difference.pixel_count <= arguments.max_diff_px and (
+                arguments.max_diff_columns is None
+                or difference.column_count <= arguments.max_diff_columns
+            )
             print(
-                "compare result: differing pixels: {}; max-diff-px: {}; result: {}".format(
-                    difference_count,
+                "compare result: differing pixels: {}; differing columns: {}; "
+                "max-diff-px: {}; max-diff-columns: {}; result: {}".format(
+                    difference.pixel_count,
+                    difference.column_count,
                     arguments.max_diff_px,
+                    max_diff_columns,
                     "pass" if passed else "fail",
                 )
             )
