@@ -417,7 +417,14 @@ foreach ($entry in $catalog) {
         $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
         while ([DateTime]::UtcNow -lt $deadline) {
             if (Test-Path -LiteralPath $auditPath) {
-                $content = Read-SharedText $auditPath
+                try {
+                    $content = Read-SharedText $auditPath
+                } catch [System.IO.IOException] {
+                    # fopen creates the file before the app closes its
+                    # exclusive write handle. Treat that interval as pending.
+                    Start-Sleep -Milliseconds 50
+                    continue
+                }
                 if ($content -match "(?m)^terminal status=(failed|canceled)\r?$") {
                     Copy-Item -LiteralPath $auditPath -Destination $actualAuditPath
                     throw "$($entry.Key) Standalone Flow reported terminal status $($Matches[1])."
