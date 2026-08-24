@@ -53,6 +53,23 @@ This is the environment where binaries are actually built.
 - On older macOS systems such as Snow Leopard, CMake and Ninja can be installed through MacPorts.
 - On Windows, run release commands from an appropriate Visual Studio Developer Command Prompt so that MSVC environment variables match the intended target architecture. VS Code may inherit the same environment, but is not required.
 - On Windows on ARM, use the ARM64 Native Tools Command Prompt for native ARM64 builds, or ARM64_x86 / ARM64_x64 Cross Tools prompts for x86-family builds.
+- For interactive Standalone Flow or Standalone Loop debugging on macOS or
+  Win32, configure the ordinary platform Debug preset, then select one of the
+  generated
+  `StandaloneFlow` or `StandaloneLoop` executable targets in CMake Tools,
+  Visual Studio, or Xcode. Build and debug that target directly. The VS Code
+  macOS/Win32 Standalone Flow/Loop Debug tasks build the complete aggregate
+  for the selected platform when that is more useful; Loop also pulls in the
+  ordinary interactive SimpleViewer. The matching Retro68 68K DWARF tasks
+  emit the five Classic Flow or Loop applications and their `.gdb` images;
+  the Loop aggregate also builds SimpleViewer, and attaching an image to MAME
+  remains a separate debugging step.
+  Target selection is the mode boundary: do not add standalone defines to an
+  ordinary shipping example target. Standalone vehicles compile their complete
+  core/platform source graph uniformly with `TEST_BUILD`; applying only a mode
+  define to the shipping target would mix incompatible test and shipping
+  layouts. A Flow target exits after its finite audit rail, while a Loop target
+  keeps its App and native window and repeatedly re-arms the rail until closed.
 - For a host-native macOS standalone presentation, run
   `scripts/macos-standalone-flow.sh Verify` from the repository root. It
   configures and builds Release without pinning `CMAKE_OSX_ARCHITECTURES`, stages five

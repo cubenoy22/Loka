@@ -355,5 +355,65 @@ class PresetFlagSeedingTest(unittest.TestCase):
             )
 
 
+class StandaloneDebugEntryPointTest(unittest.TestCase):
+    """Keep CMake and VS Code on the existing target-owned mode boundary."""
+
+    def test_debug_presets_and_tasks_cover_flow_and_loop_aggregates(self):
+        with open(os.path.join(PROJECT_DIR, "CMakePresets.json"), "r", encoding="utf-8") as handle:
+            presets = {preset["name"]: preset for preset in json.load(handle)["buildPresets"]}
+        with open(os.path.join(PROJECT_DIR, ".vscode", "tasks.json"), "r", encoding="utf-8") as handle:
+            tasks = {task["label"]: task for task in json.load(handle)["tasks"]}
+
+        expected = {
+            "Build: macOS Standalone Flow Debug": (
+                "macos-standalone-flow",
+                "macos-debug",
+                "LokaStandaloneFlowMacOSAll",
+                "Configure: macOS Native",
+            ),
+            "Build: macOS Standalone Loop Debug": (
+                "macos-standalone-loop",
+                "macos-debug",
+                "LokaStandaloneLoopMacOSAll",
+                "Configure: macOS Native",
+            ),
+            "Build: Win32 Standalone Flow Debug": (
+                "win32-standalone-flow",
+                "win32-debug",
+                "LokaStandaloneFlowWin32All",
+                "Configure: Win32 Native",
+            ),
+            "Build: Win32 Standalone Loop Debug": (
+                "win32-standalone-loop",
+                "win32-debug",
+                "LokaStandaloneLoopWin32All",
+                "Configure: Win32 Native",
+            ),
+            "Build: Retro68 68K Standalone Flow DWARF": (
+                "retro68-68k-standalone-flow-dwarf",
+                "retro68-68k-dwarf",
+                "LokaStandaloneFlow68KAll",
+                "Configure: Retro68 68K DWARF",
+            ),
+            "Build: Retro68 68K Standalone Loop DWARF": (
+                "retro68-68k-standalone-loop-dwarf",
+                "retro68-68k-dwarf",
+                "LokaStandaloneLoop68KAll",
+                "Configure: Retro68 68K DWARF",
+            ),
+        }
+
+        for task_label, (preset_name, configure_preset, target, configure_task) in expected.items():
+            self.assertEqual(presets[preset_name]["configurePreset"], configure_preset)
+            self.assertEqual(presets[preset_name]["targets"], [target])
+            task = tasks[task_label]
+            self.assertEqual(
+                task["args"],
+                ["--build", "--preset", preset_name],
+            )
+            self.assertEqual(task["dependsOn"], [configure_task])
+            self.assertIn(task["dependsOn"][0], tasks)
+
+
 if __name__ == "__main__":
     unittest.main()

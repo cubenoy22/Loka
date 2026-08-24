@@ -164,6 +164,36 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Build: macOS Standalone Flow Debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "macos-standalone-flow"
+      ],
+      "dependsOn": [
+        "Configure: macOS Native"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Build: macOS Standalone Loop Debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "macos-standalone-loop"
+      ],
+      "dependsOn": [
+        "Configure: macOS Native"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Build: macOS Standalone Flow Release",
       "type": "shell",
       "command": "bash",
@@ -204,6 +234,17 @@
       ],
       "group": "build",
       "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Configure: Win32 Native",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--preset",
+        "win32-debug"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
     },
     {
       "label": "Build: Win32 App",
@@ -330,6 +371,36 @@
       "problemMatcher": "$msCompile"
     },
     {
+      "label": "Build: Win32 Standalone Flow Debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "win32-standalone-flow"
+      ],
+      "dependsOn": [
+        "Configure: Win32 Native"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Build: Win32 Standalone Loop Debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "win32-standalone-loop"
+      ],
+      "dependsOn": [
+        "Configure: Win32 Native"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
       "label": "Build: Win32 Standalone Flow Release",
       "type": "shell",
       "command": "powershell.exe",
@@ -435,6 +506,47 @@
       ],
       "dependsOn": [
         "Configure: Retro68 68K"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Configure: Retro68 68K DWARF",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--preset",
+        "retro68-68k-dwarf"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Build: Retro68 68K Standalone Flow DWARF",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "retro68-68k-standalone-flow-dwarf"
+      ],
+      "dependsOn": [
+        "Configure: Retro68 68K DWARF"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Build: Retro68 68K Standalone Loop DWARF",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "retro68-68k-standalone-loop-dwarf"
+      ],
+      "dependsOn": [
+        "Configure: Retro68 68K DWARF"
       ],
       "group": "build",
       "problemMatcher": "$gcc"

@@ -314,6 +314,18 @@
       }
     },
     {
+      "name": "macos-standalone-loop",
+      "configurePreset": "macos-debug",
+      "targets": [
+        "LokaStandaloneLoopMacOSAll"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      }
+    },
+    {
       "name": "macos-standalone-flow-release",
       "configurePreset": "macos-release",
       "targets": [
@@ -379,6 +391,18 @@
       "configurePreset": "win32-debug",
       "targets": [
         "LokaStandaloneFlowWin32All"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "win32-standalone-loop",
+      "configurePreset": "win32-debug",
+      "targets": [
+        "LokaStandaloneLoopWin32All"
       ],
       "condition": {
         "type": "equals",
@@ -483,6 +507,20 @@
     {
       "name": "retro68-68k-dwarf",
       "configurePreset": "retro68-68k-dwarf"
+    },
+    {
+      "name": "retro68-68k-standalone-flow-dwarf",
+      "configurePreset": "retro68-68k-dwarf",
+      "targets": [
+        "LokaStandaloneFlow68KAll"
+      ]
+    },
+    {
+      "name": "retro68-68k-standalone-loop-dwarf",
+      "configurePreset": "retro68-68k-dwarf",
+      "targets": [
+        "LokaStandaloneLoop68KAll"
+      ]
     },
     {
       "name": "retro68-ppc-release",

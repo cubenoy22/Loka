@@ -282,7 +282,17 @@ set(LOKA_STANDALONE_FLOW_TOOLBOX_SOURCES
   ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/Size.r
 )
 
-function(loka_configure_toolbox_standalone_target target example_include_dir)
+set(LOKA_STANDALONE_FLOW_TOOLBOX_ALL_TARGET
+  "LokaStandaloneFlow${LOKA_CLASSIC_TARGET_SUFFIX}All"
+)
+set(LOKA_STANDALONE_LOOP_TOOLBOX_ALL_TARGET
+  "LokaStandaloneLoop${LOKA_CLASSIC_TARGET_SUFFIX}All"
+)
+add_custom_target(${LOKA_STANDALONE_FLOW_TOOLBOX_ALL_TARGET})
+add_custom_target(${LOKA_STANDALONE_LOOP_TOOLBOX_ALL_TARGET})
+
+function(loka_configure_toolbox_standalone_target
+         target example_include_dir aggregate_target)
   set_property(TARGET ${target} PROPERTY EXCLUDE_FROM_ALL TRUE)
   set_property(TARGET ${target}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
   target_include_directories(${target} PRIVATE
@@ -293,6 +303,7 @@ function(loka_configure_toolbox_standalone_target target example_include_dir)
     TEST_BUILD
     LOKA_DIAG=1
   )
+  add_dependencies(${aggregate_target} ${target}_APPL)
 endfunction()
 
 loka_add_toolbox_test_application(
@@ -303,6 +314,7 @@ loka_add_toolbox_test_application(
 loka_configure_toolbox_standalone_target(
   ${LOKA_STANDALONE_FLOW_TOOLBOX_TARGET}
   ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/src
+  ${LOKA_STANDALONE_FLOW_TOOLBOX_ALL_TARGET}
 )
 target_include_directories(${LOKA_TESTS_TOOLBOX_TARGET} PRIVATE
   ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/src
@@ -321,6 +333,7 @@ loka_add_toolbox_test_application(
 loka_configure_toolbox_standalone_target(
   ${LOKA_HELLO_WORLD_STANDALONE_FLOW_TOOLBOX_TARGET}
   ${CMAKE_SOURCE_DIR}/example/HelloWorld/src
+  ${LOKA_STANDALONE_FLOW_TOOLBOX_ALL_TARGET}
 )
 
 configure_file(
@@ -336,6 +349,7 @@ loka_add_toolbox_test_application(
 loka_configure_toolbox_standalone_target(
   ${LOKA_TUTORIAL_STANDALONE_FLOW_TOOLBOX_TARGET}
   ${CMAKE_SOURCE_DIR}/example/Tutorial/src
+  ${LOKA_STANDALONE_FLOW_TOOLBOX_ALL_TARGET}
 )
 
 configure_file(
@@ -351,6 +365,7 @@ loka_add_toolbox_test_application(
 loka_configure_toolbox_standalone_target(
   ${LOKA_MINESWEEPER_STANDALONE_FLOW_TOOLBOX_TARGET}
   ${CMAKE_SOURCE_DIR}/example/MineSweeper/src
+  ${LOKA_STANDALONE_FLOW_TOOLBOX_ALL_TARGET}
 )
 
 configure_file(
@@ -366,6 +381,7 @@ loka_add_toolbox_test_application(
 loka_configure_toolbox_standalone_target(
   ${LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_TARGET}
   ${CMAKE_SOURCE_DIR}/example/FloppyBird/src
+  ${LOKA_STANDALONE_FLOW_TOOLBOX_ALL_TARGET}
 )
 
 # Autonomous release loops share the finite standalone vehicles' application
@@ -396,6 +412,7 @@ function(loka_add_toolbox_standalone_loop target example_include_dir)
   loka_configure_toolbox_standalone_target(
     ${target}
     ${example_include_dir}
+    ${LOKA_STANDALONE_LOOP_TOOLBOX_ALL_TARGET}
   )
   target_compile_definitions(${target} PRIVATE LOKA_STANDALONE_FLOW_LOOP=1)
 endfunction()
@@ -439,20 +456,6 @@ loka_add_toolbox_standalone_loop(
   ${LOKA_FLOPPY_BIRD_STANDALONE_FLOW_TOOLBOX_SOURCES}
 )
 
-set(LOKA_STANDALONE_LOOP_TOOLBOX_ALL_TARGET
-  "LokaStandaloneLoop${LOKA_CLASSIC_TARGET_SUFFIX}All"
-)
-add_custom_target(${LOKA_STANDALONE_LOOP_TOOLBOX_ALL_TARGET})
-foreach(_LOKA_STANDALONE_LOOP_TARGET IN ITEMS
-    ${LOKA_STANDALONE_LOOP_TOOLBOX_TARGET}
-    ${LOKA_HELLO_WORLD_STANDALONE_LOOP_TOOLBOX_TARGET}
-    ${LOKA_TUTORIAL_STANDALONE_LOOP_TOOLBOX_TARGET}
-    ${LOKA_MINESWEEPER_STANDALONE_LOOP_TOOLBOX_TARGET}
-    ${LOKA_FLOPPY_BIRD_STANDALONE_LOOP_TOOLBOX_TARGET})
-  add_dependencies(${LOKA_STANDALONE_LOOP_TOOLBOX_ALL_TARGET}
-    ${_LOKA_STANDALONE_LOOP_TARGET}_APPL)
-endforeach()
-unset(_LOKA_STANDALONE_LOOP_TARGET)
 add_dependencies(${LOKA_STANDALONE_LOOP_TOOLBOX_ALL_TARGET}
   LokaSimpleViewer${LOKA_CLASSIC_TARGET_SUFFIX}_APPL)
 
