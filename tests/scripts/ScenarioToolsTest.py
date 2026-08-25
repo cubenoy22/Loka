@@ -562,6 +562,7 @@ class StandaloneDebugEntryPointTest(unittest.TestCase):
             "win32-standalone-x86-release": "win32-x86-release",
             "retro68-68k-standalone-release": "retro68-68k-release",
             "retro68-68k-standalone-dwarf": "retro68-68k-dwarf",
+            "retro68-ppc-standalone-release": "retro68-ppc-release",
         }
 
         for preset_name, parent_name in expected_parents.items():
@@ -613,8 +614,8 @@ class StandaloneDebugEntryPointTest(unittest.TestCase):
                 "build/win32/standalone/presentation/$Architecture/Release",
             ),
             "scripts/toolbox-standalone-flow.sh": (
-                "--preset retro68-68k-standalone-release",
-                "build/retro68/68k/Standalone/Release",
+                'CONFIGURE_PRESET="retro68-$CLASSIC_CPU-standalone-release"',
+                "build/retro68/$CLASSIC_CPU/Standalone/Release",
             ),
         }
         for relative_path, fragments in expected_fragments.items():
@@ -667,6 +668,7 @@ class StandaloneDebugEntryPointTest(unittest.TestCase):
             "Standalone: macOS Release Action",
             "Standalone: Win32 Release Action",
             "Standalone: Toolbox 68K Release Action",
+            "Standalone: Toolbox PPC Release Action",
         }
         self.assertEqual(
             {
@@ -689,6 +691,14 @@ class StandaloneDebugEntryPointTest(unittest.TestCase):
         self.assertEqual(
             tasks["Standalone: Toolbox 68K Release Action"]["args"],
             ["scripts/toolbox-standalone-flow.sh", "${input:toolboxStandaloneReleaseAction}"],
+        )
+        self.assertEqual(
+            tasks["Standalone: Toolbox PPC Release Action"]["args"],
+            [
+                "scripts/toolbox-standalone-flow.sh",
+                "${input:toolboxStandaloneReleaseAction}",
+                "ppc",
+            ],
         )
 
         self.assertEqual(

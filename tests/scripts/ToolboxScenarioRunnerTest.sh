@@ -34,6 +34,10 @@ cp "$REPO_DIR/scripts/rig/golden_identity_guard.py" \
   "$SANDBOX/repo/scripts/rig/golden_identity_guard.py"
 cp "$REPO_DIR/scripts/rig/package_fixture_guard.py" \
   "$SANDBOX/repo/scripts/rig/package_fixture_guard.py"
+cp "$REPO_DIR/scripts/retro68-env.sh" \
+  "$SANDBOX/repo/scripts/retro68-env.sh"
+cp "$REPO_DIR/scripts/env-file.sh" \
+  "$SANDBOX/repo/scripts/env-file.sh"
 cp "$REPO_DIR/scripts/rig/toolbox/rigs/toolbox-maciix.ini" \
   "$SANDBOX/repo/scripts/rig/toolbox/rigs/toolbox-maciix.ini"
 cp "$REPO_DIR/tests/scenarios/pngtool.py" "$SANDBOX/repo/tests/scenarios/pngtool.py"

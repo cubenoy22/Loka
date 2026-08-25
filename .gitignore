@@ -23,6 +23,7 @@ __pycache__/
 **/build
 compile_commands.json
 CMakeUserPresets.json
+.env-retro68
 .env-mame
 
 # Created by https://www.toptal.com/developers/gitignore/api/node,macos,linux

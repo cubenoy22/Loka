@@ -24,10 +24,10 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC)$")
   )
 endif()
 
-if(NOT CMAKE_SYSTEM_NAME MATCHES "^Retro68$")
+if(NOT CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC)$")
   add_custom_target(LokaTestsToolbox ALL
     COMMAND ${CMAKE_COMMAND} -E echo
-      "LokaTestsToolbox is Retro68-only. No app is built for this platform."
+      "LokaTestsToolbox requires a Retro68 Toolbox toolchain. No app is built for this platform."
   )
   return()
 endif()
@@ -96,7 +96,9 @@ function(loka_add_toolbox_test_application target core_target)
     -fno-rtti
   )
   target_link_options(${target} PRIVATE -Wl,--gc-sections)
-  if(NOT LOKA_RETRO68_DIAGNOSTICS)
+  # --mac-strip-macsbug belongs to the 68K Elf2Mac linker. RetroPPC emits
+  # XCOFF/PEF and rejects that option.
+  if(CMAKE_SYSTEM_NAME STREQUAL "Retro68" AND NOT LOKA_RETRO68_DIAGNOSTICS)
     target_link_options(${target} PRIVATE -Wl,--mac-strip-macsbug)
   endif()
 endfunction()
