@@ -258,6 +258,15 @@
       }
     },
     {
+      "name": "retro68-ppc-standalone-release",
+      "displayName": "Retro68 PPC Standalone Release (Ninja)",
+      "inherits": "retro68-ppc-release",
+      "binaryDir": "build/retro68/ppc/Standalone/Release",
+      "cacheVariables": {
+        "LOKA_ENABLE_STANDALONE_TARGETS": "ON"
+      }
+    },
+    {
       "name": "testing",
       "displayName": "Linux Headless Tests (Ninja)",
       "generator": "Ninja",
@@ -601,6 +610,10 @@
     {
       "name": "retro68-ppc-release",
       "configurePreset": "retro68-ppc-release"
+    },
+    {
+      "name": "retro68-ppc-standalone-release",
+      "configurePreset": "retro68-ppc-standalone-release"
     },
     {
       "name": "testing",

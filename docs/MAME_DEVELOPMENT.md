@@ -35,10 +35,11 @@ this repository boots it directly. To change what the template contains, work in
 a boot copy and promote it deliberately — an accidental promotion is exactly the
 failure this rule prevents.
 
-Set `RETRO68_BUILD_DIR` in the environment when the Retro68 build is not under
-`~/Retro68-build` or `~/Retro68`. `RETRO68_TOOLCHAIN_BIN` may also be set in
-`.env-mame` when the host `hformat`, `hcopy`, and `humount` tools are not on
-`PATH` or in one of the standard Retro68 build locations.
+Configure `.env-retro68` as described in `docs/retro68.md` when the Retro68
+build or Ninja is not found automatically. The MAME disk scripts load the same
+Retro68 host configuration; `.env-mame` remains limited to emulator and disk
+settings. Native Windows launchers may still use `RETRO68_TOOLCHAIN_BIN` in
+`.env-mame` because `.env-retro68` contains WSL-side paths in that workflow.
 
 ## SCSI workflow
 
@@ -91,6 +92,11 @@ hardware or mounted live in MAME. The MacBinary and separate assets remain the
 inputs for copying to an existing HFS volume or generating a local MAME SCSI
 development disk. See the staged `README.md` (sourced from
 `docs/TOOLBOX_STANDALONE_FLOW.md`) for both routes.
+
+For PowerPC real hardware, run **Standalone: Toolbox PPC Release Action** and
+choose Release. It stages the five autonomous PPC loops, interactive
+SimpleViewer, MacBinary files, and HFS floppy images under
+`build/release/toolbox-ppc`. The checked-in MAME tasks remain 68K-specific.
 
 ### HelloWorld standalone Flow
 
@@ -204,8 +210,8 @@ the default build or a gating test run.
 Build both excluded APPL targets from the repository root:
 
 ```sh
-cmake --preset retro68-68k-release
-cmake --build --preset retro68-68k-release --target \
+scripts/retro68-cmake.sh --preset retro68-68k-release
+scripts/retro68-cmake.sh --build --preset retro68-68k-release --target \
   LokaHelloScenarioLoop68K_APPL LokaMineScenarioLoop68K_APPL
 ```
 
@@ -501,8 +507,8 @@ The ordinary Retro68 release profile has no `-g`, so the emitted
 build directory with DWARF:
 
 ```sh
-cmake --preset retro68-68k-dwarf
-cmake --build --preset retro68-68k-dwarf --target LokaTutorial68K_APPL
+scripts/retro68-cmake.sh --preset retro68-68k-dwarf
+scripts/retro68-cmake.sh --build --preset retro68-68k-dwarf --target LokaTutorial68K_APPL
 ```
 
 The result is an `MC68000 ELF32` file with DWARF 4 whose `DW_AT_name` entries
@@ -661,8 +667,8 @@ configured boot disk stays an input.
 **1. Build with debug information**
 
 ```sh
-cmake --preset retro68-68k-dwarf
-cmake --build --preset retro68-68k-dwarf --target LokaTutorial68K_APPL
+scripts/retro68-cmake.sh --preset retro68-68k-dwarf
+scripts/retro68-cmake.sh --build --preset retro68-68k-dwarf --target LokaTutorial68K_APPL
 APPL=build/retro68/68k/DiagDwarf4/example/Tutorial/LokaTutorial68K.bin
 ```
 

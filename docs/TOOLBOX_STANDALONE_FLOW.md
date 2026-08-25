@@ -1,18 +1,23 @@
-# Toolbox 68K standalone Flow stage
+# Toolbox Classic standalone Flow stage
 
 ## Autonomous release
 
 Run:
 
 ```sh
+# 68K
 ./scripts/toolbox-standalone-flow.sh Release
+
+# PowerPC
+./scripts/toolbox-standalone-flow.sh Release ppc
 ```
 
-In **Standalone: Toolbox 68K Release Action**, choose Release for the VS Code
-equivalent.
+In VS Code, choose Release from **Standalone: Toolbox 68K Release Action** or
+**Standalone: Toolbox PPC Release Action**.
 
-The release under `build/release/toolbox-68k` contains five autonomous
-Standalone Loop applications plus the interactive `LokaSimpleViewer68K`.
+The release under `build/release/toolbox-68k` or `build/release/toolbox-ppc`
+contains five autonomous Standalone Loop applications plus the matching
+interactive `LokaSimpleViewer68K` or `LokaSimpleViewerPPC`.
 Each application is provided as both a MacBinary (`.bin`) and an 800 KiB HFS
 disk (`.dsk`). The Scrapbook loop disk also contains `ASSETS.LRP`; the same
 asset file is included separately for MacBinary and SCSI-disk workflows.
@@ -24,13 +29,15 @@ user selection.
 
 ## Finite Scrapbook presentation stage
 
-This directory is a transportable Retro68 release of the Scrapbook standalone
-presentation Flow. It contains:
+Choose Stage from the matching VS Code action to create a finite Scrapbook
+presentation under `build/presentation/toolbox-68k-release` or
+`build/presentation/toolbox-ppc-release`. It contains:
 
-- `LokaScrapbookStandaloneFlow68K.bin`: the MacBinary application for copying
+- `LokaScrapbookStandaloneFlow68K.bin` or
+  `LokaScrapbookStandaloneFlowPPC.bin`: the MacBinary application for copying
   to an existing HFS volume;
-- `LokaScrapbookStandaloneFlow68K.dsk`: a self-contained 800 KiB HFS floppy
-  image containing the application and `ASSETS.LRP`; and
+- the matching `.dsk`: a self-contained 800 KiB HFS floppy image containing
+  the application and `ASSETS.LRP`; and
 - `ASSETS.LRP`: the application data file, provided separately for MacBinary
   and SCSI-disk workflows.
 
@@ -42,6 +49,10 @@ alternative, write or mount the `.dsk` with a tool that preserves a raw HFS
 floppy image; that image already contains both required files.
 
 ## MAME floppy
+
+The checked-in MAME tasks remain the 68K runtime-verification path. PPC
+artifacts are intended for compatible real hardware or a separately configured
+PPC emulator.
 
 Configure `.env-mame` as described in `docs/MAME_DEVELOPMENT.md`, start MAME,
 then run the VS Code task **Stage & Mount in Running MAME: Scrapbook Standalone

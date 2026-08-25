@@ -78,7 +78,7 @@ endfunction()
 add_library(LokaAppleToolboxCore STATIC ${LOKA_TOOLBOX_SOURCES} ${COMMON_SOURCES})
 loka_configure_toolbox_core(LokaAppleToolboxCore)
 
-if(CMAKE_SYSTEM_NAME MATCHES "^Retro68$")
+if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC)$")
   # Standalone scenario applications need TEST_ID-bearing inline definitions
   # to have one meaning throughout the executable. Keep this variant explicit
   # and out of ordinary builds rather than mixing it with the shipping core.

@@ -351,7 +351,7 @@
     {
       "label": "Configure: Retro68 68K",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--preset",
         "retro68-68k-release"
@@ -362,7 +362,7 @@
     {
       "label": "Build: Retro68 68K",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -378,7 +378,7 @@
       "label": "Configure: Retro68 68K Standalone Release",
       "type": "shell",
       "hide": true,
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--preset",
         "retro68-68k-standalone-release"
@@ -389,7 +389,7 @@
     {
       "label": "Configure: Retro68 PPC",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--preset",
         "retro68-ppc-release"
@@ -400,7 +400,7 @@
     {
       "label": "Build: Retro68 PPC",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -496,7 +496,7 @@
     {
       "label": "Build: Retro68 68K HelloWorld",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -513,7 +513,7 @@
     {
       "label": "Build: Retro68 68K MineSweeper",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -530,7 +530,7 @@
     {
       "label": "Build: Retro68 68K SimpleViewer",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -547,7 +547,7 @@
     {
       "label": "Build: Retro68 68K FloppyBird",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -564,7 +564,7 @@
     {
       "label": "Build: Retro68 68K Tutorial",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -581,7 +581,7 @@
     {
       "label": "Build: Retro68 68K ScrapbookUI",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -599,7 +599,7 @@
       "label": "Build: Retro68 68K Scrapbook Standalone Flow",
       "type": "shell",
       "hide": true,
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -617,7 +617,7 @@
       "label": "Build: Retro68 68K HelloWorld Standalone Flow",
       "type": "shell",
       "hide": true,
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -635,7 +635,7 @@
       "label": "Build: Retro68 68K Tutorial Standalone Flow",
       "type": "shell",
       "hide": true,
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -653,7 +653,7 @@
       "label": "Build: Retro68 68K MineSweeper Standalone Flow",
       "type": "shell",
       "hide": true,
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -671,7 +671,7 @@
       "label": "Build: Retro68 68K FloppyBird Standalone Flow",
       "type": "shell",
       "hide": true,
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -688,7 +688,7 @@
     {
       "label": "Build: Retro68 68K HelloWorld Scenario Loop",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -705,7 +705,7 @@
     {
       "label": "Build: Retro68 68K MineSweeper Scenario Loop",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -737,6 +737,18 @@
       "args": [
         "scripts/toolbox-standalone-flow.sh",
         "${input:toolboxStandaloneReleaseAction}"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Standalone: Toolbox PPC Release Action",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "scripts/toolbox-standalone-flow.sh",
+        "${input:toolboxStandaloneReleaseAction}",
+        "ppc"
       ],
       "group": "build",
       "problemMatcher": "$gcc"
@@ -1387,7 +1399,7 @@
     {
       "label": "PMonSprite: Configure ScrapbookUI",
       "type": "shell",
-      "command": "cmake -S . -B build/retro68-pmon -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/Retro68.cmake -DRETRO68_CPU=m68k -DLOKA_WARNINGS_AS_ERRORS=ON -DLOKA_SCRAPBOOK_PAGE_COUNT=$(cat build/pmonsprite-lrp-256/page-count.txt) -DLOKA_SCRAPBOOK_ID_SPACE_STAMP=$(cat build/pmonsprite-lrp-256/stamp.txt)",
+      "command": "scripts/retro68-cmake.sh -S . -B build/retro68-pmon -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/Retro68.cmake -DRETRO68_CPU=m68k -DLOKA_WARNINGS_AS_ERRORS=ON -DLOKA_SCRAPBOOK_PAGE_COUNT=$(cat build/pmonsprite-lrp-256/page-count.txt) -DLOKA_SCRAPBOOK_ID_SPACE_STAMP=$(cat build/pmonsprite-lrp-256/stamp.txt)",
       "detail": "Reads metadata from the default color package; the 1-bit variant remains available via the script's --depth 1 CLI",
       "problemMatcher": "$gcc",
       "dependsOn": [
@@ -1397,7 +1409,7 @@
     {
       "label": "PMonSprite: Build ScrapbookUI",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "build/retro68-pmon",

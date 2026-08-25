@@ -4,6 +4,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+. "$PROJECT_DIR/scripts/retro68-env.sh"
+
+loka_load_retro68_environment "$PROJECT_DIR"
 
 usage() {
   echo "Usage: $0 <example> <scenario from scenarios.txt> [--update-golden | --probe | --structural-audit]" >&2

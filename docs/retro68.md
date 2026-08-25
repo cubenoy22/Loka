@@ -13,9 +13,11 @@ This repo includes shared Retro68 Release presets in `CMakePresets.json`:
 
 - `retro68-68k-release`
 - `retro68-ppc-release`
+- `retro68-68k-standalone-release`
+- `retro68-ppc-standalone-release`
 
 These presets use `cmake/toolchains/Retro68.cmake`, which resolves the toolchain
-from environment variables or common default paths.
+from host-local configuration, environment variables, or common default paths.
 
 By default, the Retro68 toolchain wrapper checks:
 
@@ -23,9 +25,17 @@ By default, the Retro68 toolchain wrapper checks:
 - `~/Retro68`
 
 If your Retro68 build is in one of those locations and `ninja` is on `PATH`, the
-shared Release presets can be used directly. If Retro68 is installed elsewhere,
-add a local `CMakeUserPresets.json` or set the environment variables listed
-below.
+shared Release presets can be used directly. Otherwise, copy the checked-in
+example and describe this host once:
+
+```sh
+cp .env-retro68.example .env-retro68
+```
+
+`.env-retro68` is ignored by Git. VS Code Retro68 tasks and
+`scripts/retro68-cmake.sh` load it automatically on macOS, Linux, and WSL. Use
+paths as seen by the current host; a WSL file therefore contains Linux or
+`/mnt/...` paths, not Windows path syntax.
 
 For Retro68, use the Release presets directly. Dedicated `Debug` or
 `MinSizeRel` presets are not maintained here because the practical workflow is
@@ -64,76 +74,40 @@ Toolbox implementation detail. They preserve the Universal-style contracts
 already used by the backend and contain Multiversal's global Toolbox names;
 they are not a second app-facing API.
 
-### Option A: Use shared presets directly
+### Host configuration
 
-Use this option when Retro68 is installed at `~/Retro68-build` or `~/Retro68`,
-or set one of the following so the toolchain can be found:
+The local file accepts these settings:
 
 - `RETRO68_TOOLCHAIN_DIR` (path to Retro68 toolchain CMake dir or toolchain file)
 - `RETRO68_BUILD_DIR` (path to Retro68 build output directory)
+- `RETRO68_TOOLCHAIN_BIN` (optional host-tool directory)
+- `CMAKE_MAKE_PROGRAM` (optional path to Ninja)
+
+Usually only `RETRO68_BUILD_DIR` is needed. Set `CMAKE_MAKE_PROGRAM` when an
+editor launched from the desktop cannot see Ninja on its inherited `PATH`.
+Values already supplied by a caller or CI take precedence over the local file.
 
 Then run:
 
 ```sh
-cmake --preset retro68-68k-release
-cmake --build --preset retro68-68k-release
+scripts/retro68-cmake.sh --preset retro68-68k-release
+scripts/retro68-cmake.sh --build --preset retro68-68k-release
 ```
 
-### Option B: Add local `CMakeUserPresets.json`
-
-If Retro68 is not under `~/Retro68-build` or `~/Retro68`, or if your editor does
-not inherit a shell `PATH` that can find `ninja`, create `CMakeUserPresets.json`
-in the project root (always `"inherits"` a repository preset — a standalone
-local preset silently loses the Classic size/flag policy carried by
-`retro68-release-base` and binaries grow back by roughly 40%, see #135):
-
-```json
-{
-  "version": 3,
-  "configurePresets": [
-    {
-      "name": "retro68-68k-local",
-      "inherits": "retro68-68k-release",
-      "environment": {
-        "PATH": "/path/to/Retro68-build/toolchain/bin:$penv{PATH}"
-      },
-      "cacheVariables": {
-        "RETRO68_BUILD_DIR": "/path/to/Retro68-build",
-        "CMAKE_MAKE_PROGRAM": "/path/to/ninja"
-      }
-    }
-  ],
-  "buildPresets": [
-    {
-      "name": "retro68-68k-local",
-      "configurePreset": "retro68-68k-local"
-    }
-  ]
-}
-```
-
-Replace `/path/to/Retro68-build` with your actual Retro68 build directory.
-Replace `/path/to/ninja` with the Ninja executable path, or omit
-`CMAKE_MAKE_PROGRAM` if Ninja is already visible on `PATH`.
-
-Then select `retro68-68k-local` in VS Code/CMake Tools, or run:
-
-```sh
-cmake --preset retro68-68k-local
-cmake --build --preset retro68-68k-local
-```
+The preset name describes the target and build policy, not the host. There is
+no separate `local` preset: every host uses the same repository Release preset,
+so the Classic size and linker policy cannot drift between local and shared
+builds. Direct `cmake` invocations do not load dotenv files; use the wrapper, or
+export the same variables explicitly in an already-managed CI environment.
 
 ## Building
 
-Use the matching preset for your setup. For the shared Release preset:
+Use the repository Release preset through the wrapper:
 
 ```sh
-cmake --preset retro68-68k-release
-cmake --build --preset retro68-68k-release --target LokaHello68K
+scripts/retro68-cmake.sh --preset retro68-68k-release
+scripts/retro68-cmake.sh --build --preset retro68-68k-release --target LokaHello68K
 ```
-
-For a local preset, replace `retro68-68k-release` with your local preset name,
-such as `retro68-68k-local`.
 
 Output files:
 - `retro68-68k-release`:
@@ -142,16 +116,24 @@ Output files:
 - `retro68-ppc-release`:
   - `build/retro68/ppc/Release/example/HelloWorld/LokaHelloPPC.dsk`
   - `build/retro68/ppc/Release/example/HelloWorld/LokaHelloPPC.bin`
-- If you use custom `CMakeUserPresets.json`, paths follow your `binaryDir`.
 
-## Environment variables (alternative)
+For transportable autonomous Standalone releases, run the corresponding VS
+Code task **Standalone: Toolbox 68K Release Action** or **Standalone: Toolbox
+PPC Release Action**. Release artifacts are staged under
+`build/release/toolbox-68k` or `build/release/toolbox-ppc` respectively.
 
-If you prefer environment variables over CMakeUserPresets.json:
+## Environment variables
+
+The CMake toolchain also accepts these variables from an explicitly managed
+process environment:
 
 - `RETRO68_BUILD_DIR`: path to the Retro68 build output directory.
 - `RETRO68_TOOLCHAIN_DIR`: path to the Retro68 toolchain CMake directory.
 - `RETRO68_CPU`: target CPU (`m68k` or `ppc`). Defaults to `m68k`.
 - `RETRO68_PPC_FLAVOR`: `retroppc` or `retrocarbon` (when `RETRO68_CPU=ppc`).
+
+The host-local file intentionally accepts only the location variables listed
+under Host configuration. CPU and flavor remain owned by the selected preset.
 
 Preset mapping used in this repo:
 
