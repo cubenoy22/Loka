@@ -67,7 +67,7 @@ if [[ -z "$CMAKE_BIN" ]]; then
   exit 1
 fi
 
-BUILD_ROOT="$PROJECT_DIR/build/retro68/68k/Release/tests/toolbox"
+BUILD_ROOT="$PROJECT_DIR/build/retro68/68k/Standalone/Release/tests/toolbox"
 BUILT_APPLICATION="$BUILD_ROOT/LokaScrapbookStandaloneFlow68K.bin"
 BUILT_DISK="$BUILD_ROOT/LokaScrapbookStandaloneFlow68K.dsk"
 BUILT_ASSETS="$BUILD_ROOT/ASSETS.LRP"
@@ -82,8 +82,8 @@ fi
 
 (
   cd "$PROJECT_DIR"
-  "$CMAKE_BIN" --preset retro68-68k-release
-  "$CMAKE_BIN" --build --preset retro68-68k-release \
+  "$CMAKE_BIN" --preset retro68-68k-standalone-release
+  "$CMAKE_BIN" --build --preset retro68-68k-standalone-release \
     --target "$BUILD_TARGET"
 )
 
@@ -206,7 +206,7 @@ populate_toolbox_release() {
     done
   done
 
-  built_root="$PROJECT_DIR/build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K"
+  built_root="$PROJECT_DIR/build/retro68/68k/Standalone/Release/example/SimpleViewer/LokaSimpleViewer68K"
   for artifact in bin dsk; do
     if [[ ! -s "$built_root.$artifact" ]]; then
       echo "SimpleViewer Release artifact not found: $built_root.$artifact" >&2

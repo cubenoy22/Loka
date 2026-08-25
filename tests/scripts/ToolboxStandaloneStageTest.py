@@ -39,7 +39,7 @@ class ToolboxStandaloneStageTest(unittest.TestCase):
             r'''#!/usr/bin/env bash
 set -euo pipefail
 if [[ " $* " == *" --build "* ]]; then
-  output="$PWD/build/retro68/68k/Release/tests/toolbox"
+  output="$PWD/build/retro68/68k/Standalone/Release/tests/toolbox"
   mkdir -p "$output"
   if [[ " $* " == *" LokaStandaloneLoop68KAll"* ]]; then
     for name in \
@@ -51,7 +51,7 @@ if [[ " $* " == *" --build "* ]]; then
       printf 'fixture-macbinary-%s' "$name" >"$output/$name.bin"
       printf '%s\n' "$name" >"$output/$name.dsk"
     done
-    simple="$PWD/build/retro68/68k/Release/example/SimpleViewer"
+    simple="$PWD/build/retro68/68k/Standalone/Release/example/SimpleViewer"
     mkdir -p "$simple"
     printf 'fixture-simpleviewer' >"$simple/LokaSimpleViewer68K.bin"
     printf 'LokaSimpleViewer68K\n' >"$simple/LokaSimpleViewer68K.dsk"

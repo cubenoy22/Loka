@@ -38,6 +38,24 @@
       }
     },
     {
+      "name": "macos-standalone-debug",
+      "displayName": "macOS Standalone Debug (Ninja)",
+      "inherits": "macos-debug",
+      "binaryDir": "build/macos/Standalone/Debug",
+      "cacheVariables": {
+        "LOKA_ENABLE_STANDALONE_TARGETS": "ON"
+      }
+    },
+    {
+      "name": "macos-standalone-release",
+      "displayName": "macOS Standalone Release (Ninja)",
+      "inherits": "macos-release",
+      "binaryDir": "build/macos/Standalone/Release",
+      "cacheVariables": {
+        "LOKA_ENABLE_STANDALONE_TARGETS": "ON"
+      }
+    },
+    {
       "name": "win32-debug",
       "displayName": "Win32 Debug (Ninja)",
       "generator": "Ninja",
@@ -51,6 +69,15 @@
         "type": "equals",
         "lhs": "${hostSystemName}",
         "rhs": "Windows"
+      }
+    },
+    {
+      "name": "win32-standalone-debug",
+      "displayName": "Win32 Standalone Debug (Ninja)",
+      "inherits": "win32-debug",
+      "binaryDir": "build/win32/Standalone/Debug",
+      "cacheVariables": {
+        "LOKA_ENABLE_STANDALONE_TARGETS": "ON"
       }
     },
     {
@@ -134,6 +161,33 @@
       "binaryDir": "build/win32/presentation/x86/Release"
     },
     {
+      "name": "win32-standalone-arm64-release",
+      "displayName": "Win32 ARM64 Standalone Release (Ninja, static CRT)",
+      "inherits": "win32-arm64-release",
+      "binaryDir": "build/win32/standalone/presentation/arm64/Release",
+      "cacheVariables": {
+        "LOKA_ENABLE_STANDALONE_TARGETS": "ON"
+      }
+    },
+    {
+      "name": "win32-standalone-x64-release",
+      "displayName": "Win32 x64 Standalone Release (Ninja, static CRT)",
+      "inherits": "win32-x64-release",
+      "binaryDir": "build/win32/standalone/presentation/x64/Release",
+      "cacheVariables": {
+        "LOKA_ENABLE_STANDALONE_TARGETS": "ON"
+      }
+    },
+    {
+      "name": "win32-standalone-x86-release",
+      "displayName": "Win32 x86 Standalone Release (Ninja, static CRT)",
+      "inherits": "win32-x86-release",
+      "binaryDir": "build/win32/standalone/presentation/x86/Release",
+      "cacheVariables": {
+        "LOKA_ENABLE_STANDALONE_TARGETS": "ON"
+      }
+    },
+    {
       "name": "retro68-release-base",
       "hidden": true,
       "generator": "Ninja",
@@ -173,6 +227,24 @@
       "cacheVariables": {
         "CMAKE_CXX_FLAGS_RELEASE": "-Os -g -gdwarf-4 -ffunction-sections -fdata-sections -fno-exceptions",
         "LOKA_CLASSIC_STRIP": "OFF"
+      }
+    },
+    {
+      "name": "retro68-68k-standalone-release",
+      "displayName": "Retro68 68K Standalone Release (Ninja)",
+      "inherits": "retro68-68k-release",
+      "binaryDir": "build/retro68/68k/Standalone/Release",
+      "cacheVariables": {
+        "LOKA_ENABLE_STANDALONE_TARGETS": "ON"
+      }
+    },
+    {
+      "name": "retro68-68k-standalone-dwarf",
+      "displayName": "Retro68 68K Standalone DWARF (Ninja)",
+      "inherits": "retro68-68k-dwarf",
+      "binaryDir": "build/retro68/68k/Standalone/DiagDwarf4",
+      "cacheVariables": {
+        "LOKA_ENABLE_STANDALONE_TARGETS": "ON"
       }
     },
     {
@@ -303,7 +375,7 @@
     },
     {
       "name": "macos-standalone-flow",
-      "configurePreset": "macos-debug",
+      "configurePreset": "macos-standalone-debug",
       "targets": [
         "LokaStandaloneFlowMacOSAll"
       ],
@@ -314,8 +386,20 @@
       }
     },
     {
+      "name": "macos-standalone-loop",
+      "configurePreset": "macos-standalone-debug",
+      "targets": [
+        "LokaStandaloneLoopMacOSAll"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      }
+    },
+    {
       "name": "macos-standalone-flow-release",
-      "configurePreset": "macos-release",
+      "configurePreset": "macos-standalone-release",
       "targets": [
         "LokaStandaloneFlowMacOSAll"
       ],
@@ -327,7 +411,7 @@
     },
     {
       "name": "macos-standalone-loop-release",
-      "configurePreset": "macos-release",
+      "configurePreset": "macos-standalone-release",
       "targets": [
         "LokaStandaloneLoopMacOSAll"
       ],
@@ -376,9 +460,21 @@
     },
     {
       "name": "win32-standalone-flow",
-      "configurePreset": "win32-debug",
+      "configurePreset": "win32-standalone-debug",
       "targets": [
         "LokaStandaloneFlowWin32All"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "win32-standalone-loop",
+      "configurePreset": "win32-standalone-debug",
+      "targets": [
+        "LokaStandaloneLoopWin32All"
       ],
       "condition": {
         "type": "equals",
@@ -412,42 +508,42 @@
     },
     {
       "name": "win32-standalone-flow-arm64-release",
-      "configurePreset": "win32-arm64-release",
+      "configurePreset": "win32-standalone-arm64-release",
       "targets": [
         "LokaStandaloneFlowWin32All"
       ]
     },
     {
       "name": "win32-standalone-flow-x64-release",
-      "configurePreset": "win32-x64-release",
+      "configurePreset": "win32-standalone-x64-release",
       "targets": [
         "LokaStandaloneFlowWin32All"
       ]
     },
     {
       "name": "win32-standalone-flow-x86-release",
-      "configurePreset": "win32-x86-release",
+      "configurePreset": "win32-standalone-x86-release",
       "targets": [
         "LokaStandaloneFlowWin32All"
       ]
     },
     {
       "name": "win32-standalone-loop-arm64-release",
-      "configurePreset": "win32-arm64-release",
+      "configurePreset": "win32-standalone-arm64-release",
       "targets": [
         "LokaStandaloneLoopWin32All"
       ]
     },
     {
       "name": "win32-standalone-loop-x64-release",
-      "configurePreset": "win32-x64-release",
+      "configurePreset": "win32-standalone-x64-release",
       "targets": [
         "LokaStandaloneLoopWin32All"
       ]
     },
     {
       "name": "win32-standalone-loop-x86-release",
-      "configurePreset": "win32-x86-release",
+      "configurePreset": "win32-standalone-x86-release",
       "targets": [
         "LokaStandaloneLoopWin32All"
       ]
@@ -483,6 +579,24 @@
     {
       "name": "retro68-68k-dwarf",
       "configurePreset": "retro68-68k-dwarf"
+    },
+    {
+      "name": "retro68-68k-standalone-release",
+      "configurePreset": "retro68-68k-standalone-release"
+    },
+    {
+      "name": "retro68-68k-standalone-flow-dwarf",
+      "configurePreset": "retro68-68k-standalone-dwarf",
+      "targets": [
+        "LokaStandaloneFlow68KAll"
+      ]
+    },
+    {
+      "name": "retro68-68k-standalone-loop-dwarf",
+      "configurePreset": "retro68-68k-standalone-dwarf",
+      "targets": [
+        "LokaStandaloneLoop68KAll"
+      ]
     },
     {
       "name": "retro68-ppc-release",

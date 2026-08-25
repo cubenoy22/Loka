@@ -53,6 +53,24 @@ This is the environment where binaries are actually built.
 - On older macOS systems such as Snow Leopard, CMake and Ninja can be installed through MacPorts.
 - On Windows, run release commands from an appropriate Visual Studio Developer Command Prompt so that MSVC environment variables match the intended target architecture. VS Code may inherit the same environment, but is not required.
 - On Windows on ARM, use the ARM64 Native Tools Command Prompt for native ARM64 builds, or ARM64_x86 / ARM64_x64 Cross Tools prompts for x86-family builds.
+- The ordinary macOS, Win32, and Retro68 Configure Presets do not register
+  Standalone executable targets, so those applications do not clutter CMake
+  Tools' normal launch/debug target picker. For interactive Standalone Flow or
+  Standalone Loop debugging, select `macos-standalone-debug`,
+  `win32-standalone-debug`, or `retro68-68k-standalone-dwarf` as the Configure
+  Preset. Then select the matching Flow or Loop Build Preset and debug the
+  generated executable target directly. The Flow aggregate builds the five
+  finite applications; Loop builds the five autonomous applications plus the
+  ordinary interactive SimpleViewer. The Retro68 DWARF targets also emit their
+  `.gdb` images; attaching an image to MAME remains a separate debugging step.
+  Each Standalone Configure Preset owns a separate build directory, so selecting
+  it cannot leave Standalone targets in the ordinary configuration's cache.
+  Target selection is the mode boundary: do not add standalone defines to an
+  ordinary shipping example target. Standalone vehicles compile their complete
+  core/platform source graph uniformly with `TEST_BUILD`; applying only a mode
+  define to the shipping target would mix incompatible test and shipping
+  layouts. A Flow target exits after its finite audit rail, while a Loop target
+  keeps its App and native window and repeatedly re-arms the rail until closed.
 - For a host-native macOS standalone presentation, run
   `scripts/macos-standalone-flow.sh Verify` from the repository root. It
   configures and builds Release without pinning `CMAKE_OSX_ARCHITECTURES`, stages five
@@ -65,8 +83,8 @@ This is the environment where binaries are actually built.
   file chooser. `scripts/macos-standalone-flow.sh Stage` prepares the same
   portable directory without launching it; expected and actual audits are kept
   per application, while ScrapbookUI's `ASSETS.LRP` remains owned by its bundle
-  at `Contents/Resources`. The matching VS Code Build, Stage, and Verify tasks
-  are optional shortcuts for the same Release flow.
+  at `Contents/Resources`. **Standalone: macOS Release Action** is the VS Code
+  shortcut; choose Build, Stage, or Verify from its action prompt.
 - To stage the 0.0.4 macOS application payload rather than the finite audit
   rail, run `scripts/macos-standalone-flow.sh Release`. The result under
   `build/release/macos-<architecture>` contains five autonomous loop bundles
@@ -78,7 +96,8 @@ This is the environment where binaries are actually built.
   architecture. A dedicated legacy build host may select a Release
   architecture explicitly, for example
   `LOKA_STANDALONE_MACOS_ARCH=i386 scripts/macos-standalone-flow.sh Release`.
-  The VS Code equivalent is **Release: macOS Standalone Application Set**.
+  In **Standalone: macOS Release Action**, choose Release for the equivalent
+  VS Code action.
   In an Xcode 3.2.6 build environment, use
   `scripts/macos-standalone-release-ub1.sh tiger` for a `ppc;i386` set or
   `scripts/macos-standalone-release-ub1.sh leopard` for a
@@ -100,9 +119,9 @@ This is the environment where binaries are actually built.
   [Classic scenario loop reels](MAME_DEVELOPMENT.md#classic-scenario-loop-reels)
   for the exact build, MAME, and SD-SCSI routes.
 
-  On macOS, use **Run (macOS HelloWorld Scenario Loop)** or **Run (macOS
-  MineSweeper Scenario Loop)** in VS Code. The equivalent Terminal commands
-  from the repository root are:
+  On macOS, build the reel with **Build: macOS HelloWorld Scenario Loop** or
+  **Build: macOS MineSweeper Scenario Loop** in VS Code, then open the generated
+  application. The equivalent Terminal commands from the repository root are:
 
   ```sh
   cmake --preset macos-debug
@@ -112,11 +131,11 @@ This is the environment where binaries are actually built.
   ```
 
   The macOS apps stop when the user chooses Quit or presses Command-Q. On
-  Win32, use
-  `Run (Windows HelloWorld Scenario Loop)` or
-  `Run (Windows MineSweeper Scenario Loop)` for a Debug desk build. For a
-  portable Release reel, use the architecture-specific presentation preset;
-  for example, from an ARM64 Native Tools prompt:
+  Win32, the **Build: Win32 HelloWorld Scenario Loop** and **Build: Win32
+  MineSweeper Scenario Loop** tasks build the Debug reels; start the generated
+  executable directly. For a portable Release reel, use the
+  architecture-specific presentation preset; for example, from an ARM64 Native
+  Tools prompt:
 
   ```bat
   cmake --preset win32-arm64-release
@@ -159,8 +178,8 @@ This is the environment where binaries are actually built.
   from its sibling PEs, starts each presentation, waits for its exact tracked
   audit, stops the final-scene hold, and stores the five target-local verdicts
   under `actual`. For a VAIO P, build x86 from a VS2017 `x64_x86 Cross Tools`
-  session. The matching VS Code Build, Stage, and Verify tasks are optional
-  shortcuts for the same Release flow.
+  session. **Standalone: Win32 Release Action** is the VS Code shortcut;
+  choose Build, Stage, or Verify from its action prompt.
 
   For the 0.0.4 application payload, use `-Action Release` instead of
   `-Action Stage`. It writes `build/release/win32-<architecture>` with five
@@ -170,7 +189,8 @@ This is the environment where binaries are actually built.
   Closing it manually does not relaunch it.
   SimpleViewer remains interactive and is not started by either audit
   verification or Release staging.
-  The VS Code equivalent is **Release: Win32 Standalone Application Set**;
+  In **Standalone: Win32 Release Action**, choose Release for the equivalent
+  VS Code action;
   launch VS Code from the matching Visual Studio Developer Command Prompt so
   the Task inherits the intended compiler architecture.
 

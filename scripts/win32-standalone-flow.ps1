@@ -201,7 +201,7 @@ if ($IsPackagedVerifier -and $Action -ne "Verify") {
     throw "The staged verifier supports only the Verify action."
 }
 
-$configurePreset = if ($Architecture) { "win32-$Architecture-release" } else { $null }
+$configurePreset = if ($Architecture) { "win32-standalone-$Architecture-release" } else { $null }
 $buildPreset = if ($Architecture) {
     if ($IsReleasePackage) {
         "win32-standalone-loop-$Architecture-release"
@@ -210,7 +210,7 @@ $buildPreset = if ($Architecture) {
     }
 } else { $null }
 if (-not $BuildDirectory -and $Architecture) {
-    $BuildDirectory = "build/win32/presentation/$Architecture/Release"
+    $BuildDirectory = "build/win32/standalone/presentation/$Architecture/Release"
 }
 if (-not $StageDirectory -and $Architecture) {
     $StageDirectory = if ($IsReleasePackage) {
@@ -228,14 +228,14 @@ $catalogPath = if ($IsPackagedVerifier) { $PackagedCatalog } else { $buildCatalo
 if (-not $IsPackagedVerifier) {
     if (-not $Architecture) {
         $Architecture = Get-CompilerEnvironmentArchitecture
-        $configurePreset = "win32-$Architecture-release"
+        $configurePreset = "win32-standalone-$Architecture-release"
         $buildPreset = if ($IsReleasePackage) {
             "win32-standalone-loop-$Architecture-release"
         } else {
             "win32-standalone-flow-$Architecture-release"
         }
         if (-not $BuildDirectory) {
-            $BuildDirectory = "build/win32/presentation/$Architecture/Release"
+            $BuildDirectory = "build/win32/standalone/presentation/$Architecture/Release"
             $buildRoot = Resolve-ProjectPath $BuildDirectory
             $buildCatalog = Join-Path $buildRoot $CatalogName
             $catalogPath = $buildCatalog

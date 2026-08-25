@@ -7,6 +7,8 @@ option(LOKA_MACOS_SUPPRESS_ARCLITE_LINK "Remove libarclite from generated macOS 
 option(TEST_BUILD "Enable test build mode" OFF)
 option(LOKA_MAME_SCENARIOS "Register the MAME-backed scenario tests" OFF)
 option(LOKA_WIN32_SCENARIOS "Register the rig-local Win32 scenario tests" OFF)
+option(LOKA_ENABLE_STANDALONE_TARGETS
+  "Register the finite Flow and autonomous Loop application targets" OFF)
 option(LOKA_LIFECYCLE_AUDIT "Enable lifecycle alive-counter auditing" OFF)
 option(LOKA_RETRO68_DIAGNOSTICS
   "Diagnostic Retro68 profile: keep MacsBug names, the function-tick profiler, and debug-stats dumps" OFF)
