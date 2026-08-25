@@ -1,8 +1,7 @@
 # Loka Programming Guide
 
-Target version: current development source, heading to `0.0.4`. For the
-guide matching the published v0.0.3 artifact, read this file at the
-`v0.0.3` tag.
+This guide tracks the current development source. For the guide as it stood
+for a published release, read this file at that release's tag.
 
 Japanese version: [ProgrammingGuide.md](ProgrammingGuide.md)
 

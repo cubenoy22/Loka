@@ -51,8 +51,6 @@ new joined it without being listed here.
 | `README.md` platform table's "not part of `X`" note | the release under development | with the CMake bump |
 | `ROADMAP.md` release-provenance paragraph | the release under development | with the CMake bump |
 | `ROADMAP.md` per-release sections | published history | a new section at release; the previous one loses `(current)` |
-| `docs/ProgrammingGuide.md` / `.en.md` header | the release under development, and the tag whose guide matches the last published artifact | with the CMake bump |
-| `apple/ios/legacy/Info.plist` `CFBundleShortVersionString` | the release under development | with the CMake bump. The modern iOS bundle takes `@PROJECT_VERSION@` and needs no edit; only the legacy plist hardcodes it |
 
 Deliberately **not** on this list, and not to be "fixed" by a sweep:
 
@@ -68,6 +66,15 @@ Deliberately **not** on this list, and not to be "fixed" by a sweep:
 - `docs/archives/` and the `*Draft.md` design notes.
 - `scripts/release/README.md` takes the tag from `$TAG` so its example never
   goes stale.
+- `docs/ProgrammingGuide.md` / `.en.md` name no release at all. The guide tracks
+  the development source, and a reader who wants the guide as it stood for a
+  published release reads the file at that release's tag. Do not reintroduce a
+  version line: it was one, it went stale, and the tag already carries the fact.
+- `apple/ios/legacy/Info.plist` `CFBundleShortVersionString` stays at the
+  version the legacy iPhone OS 3.1 profile was actually verified at. It is
+  frozen work, not a shipping target, so advancing it would claim a
+  verification that never happened. The modern iOS bundle takes
+  `@PROJECT_VERSION@` and needs no edit either way.
 
 The OS columns come from `CMakePresets.json` and the platform workflows under
 `.github/workflows/` (`linux.yml`, `macos.yml`, `windows.yml`, and
