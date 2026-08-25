@@ -16,7 +16,7 @@ function(loka_enable_warnings target)
       target_compile_options(${target} PRIVATE /WX)
     endif()
   elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    target_compile_options(${target} PRIVATE -Wall -Wextra)
+    target_compile_options(${target} PRIVATE -Wall -Wextra -Woverloaded-virtual)
 
     # GCC 11+ diagnoses every Node new-expression because Node supplies a
     # class-specific delete for arena storage. The ownership hole is real but
@@ -57,6 +57,11 @@ function(_loka_verify_warning_floor_in_directory directory)
         list(FIND _loka_compile_options "-Wextra" _loka_extra_index)
         if(_loka_extra_index EQUAL -1)
           message(FATAL_ERROR "Loka target ${_loka_target} is missing -Wextra")
+        endif()
+        list(FIND _loka_compile_options "-Woverloaded-virtual" _loka_overloaded_virtual_index)
+        if(_loka_overloaded_virtual_index EQUAL -1)
+          message(FATAL_ERROR
+            "Loka target ${_loka_target} is missing -Woverloaded-virtual")
         endif()
         set(_loka_error_flag "-Werror")
       else()

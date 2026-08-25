@@ -17,6 +17,8 @@
 
 namespace scrapbook
 {
+  using loka::app::Button;
+
   struct MainTypeTag
   {
   };

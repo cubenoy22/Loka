@@ -2,6 +2,7 @@
 #define LOKA_HELLOWORLD_MAIN_NODE_HPP
 
 #include "MainRightPanel.hpp"
+#include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
@@ -11,6 +12,8 @@
 
 namespace helloworld
 {
+  using loka::app::Button;
+
   class MainNode;
   typedef loka::app::scene::BoundaryPropsFor<MainNode> MainProps;
 
