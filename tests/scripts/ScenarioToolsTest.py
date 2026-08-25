@@ -356,28 +356,120 @@ class PresetFlagSeedingTest(unittest.TestCase):
 
 
 class StandaloneDebugEntryPointTest(unittest.TestCase):
-    """Keep CMake and VS Code on the existing target-owned mode boundary."""
+    """Keep Standalone vehicles out of the ordinary CMake Tools code model."""
 
     def load_documents(self):
         with open(os.path.join(PROJECT_DIR, "CMakePresets.json"), "r", encoding="utf-8") as handle:
-            presets = {preset["name"]: preset for preset in json.load(handle)["buildPresets"]}
+            preset_document = json.load(handle)
+            configure_presets = {
+                preset["name"]: preset for preset in preset_document["configurePresets"]
+            }
+            build_presets = {
+                preset["name"]: preset for preset in preset_document["buildPresets"]
+            }
         with open(os.path.join(PROJECT_DIR, ".vscode", "tasks.json"), "r", encoding="utf-8") as handle:
             task_document = json.load(handle)
-        return presets, task_document
+        return configure_presets, build_presets, task_document
+
+    def test_standalone_configure_presets_own_separate_build_trees(self):
+        configure_presets, _, _ = self.load_documents()
+        expected_parents = {
+            "macos-standalone-debug": "macos-debug",
+            "macos-standalone-release": "macos-release",
+            "win32-standalone-debug": "win32-debug",
+            "win32-standalone-arm64-release": "win32-arm64-release",
+            "win32-standalone-x64-release": "win32-x64-release",
+            "win32-standalone-x86-release": "win32-x86-release",
+            "retro68-68k-standalone-release": "retro68-68k-release",
+            "retro68-68k-standalone-dwarf": "retro68-68k-dwarf",
+        }
+
+        for preset_name, parent_name in expected_parents.items():
+            preset = configure_presets[preset_name]
+            self.assertEqual(preset["inherits"], parent_name)
+            self.assertEqual(
+                preset["cacheVariables"]["LOKA_ENABLE_STANDALONE_TARGETS"],
+                "ON",
+            )
+            self.assertNotEqual(
+                preset["binaryDir"], configure_presets[parent_name]["binaryDir"]
+            )
+            self.assertNotIn(
+                "LOKA_ENABLE_STANDALONE_TARGETS",
+                configure_presets[parent_name].get("cacheVariables", {}),
+            )
+
+        with open(os.path.join(PROJECT_DIR, "CMakeLists.txt"), "r", encoding="utf-8") as handle:
+            root_cmake = handle.read()
+        self.assertRegex(
+            root_cmake,
+            r"option\(LOKA_ENABLE_STANDALONE_TARGETS\s+[^\)]* OFF\)",
+        )
+
+        guarded_targets = {
+            "apple/macos/CMakeLists.txt": "LokaStandaloneFlowMacOSAll",
+            "win32/CMakeLists.txt": "LokaStandaloneFlowWin32All",
+            "tests/toolbox/CMakeLists.txt": "LOKA_STANDALONE_FLOW_TOOLBOX_ALL_TARGET",
+        }
+        for relative_path, target_name in guarded_targets.items():
+            with open(
+                os.path.join(PROJECT_DIR, relative_path), "r", encoding="utf-8"
+            ) as handle:
+                cmake_source = handle.read()
+            gate = cmake_source.index("if(LOKA_ENABLE_STANDALONE_TARGETS)")
+            target = cmake_source.index(target_name, gate)
+            close = cmake_source.index("endif()", gate)
+            self.assertLess(gate, target, relative_path)
+            self.assertLess(target, close, relative_path)
+
+    def test_release_rails_use_dedicated_standalone_presets_and_build_trees(self):
+        expected_fragments = {
+            "scripts/macos-standalone-flow.sh": (
+                "--preset macos-standalone-release",
+                "build/macos/Standalone/Release",
+            ),
+            "scripts/win32-standalone-flow.ps1": (
+                "win32-standalone-$Architecture-release",
+                "build/win32/standalone/presentation/$Architecture/Release",
+            ),
+            "scripts/toolbox-standalone-flow.sh": (
+                "--preset retro68-68k-standalone-release",
+                "build/retro68/68k/Standalone/Release",
+            ),
+        }
+        for relative_path, fragments in expected_fragments.items():
+            with open(
+                os.path.join(PROJECT_DIR, relative_path), "r", encoding="utf-8"
+            ) as handle:
+                source = handle.read()
+            for fragment in fragments:
+                self.assertIn(fragment, source, relative_path)
 
     def test_debug_presets_cover_flow_and_loop_aggregates(self):
-        presets, _ = self.load_documents()
+        _, presets, _ = self.load_documents()
         expected = {
-            "macos-standalone-flow": ("macos-debug", "LokaStandaloneFlowMacOSAll"),
-            "macos-standalone-loop": ("macos-debug", "LokaStandaloneLoopMacOSAll"),
-            "win32-standalone-flow": ("win32-debug", "LokaStandaloneFlowWin32All"),
-            "win32-standalone-loop": ("win32-debug", "LokaStandaloneLoopWin32All"),
+            "macos-standalone-flow": (
+                "macos-standalone-debug",
+                "LokaStandaloneFlowMacOSAll",
+            ),
+            "macos-standalone-loop": (
+                "macos-standalone-debug",
+                "LokaStandaloneLoopMacOSAll",
+            ),
+            "win32-standalone-flow": (
+                "win32-standalone-debug",
+                "LokaStandaloneFlowWin32All",
+            ),
+            "win32-standalone-loop": (
+                "win32-standalone-debug",
+                "LokaStandaloneLoopWin32All",
+            ),
             "retro68-68k-standalone-flow-dwarf": (
-                "retro68-68k-dwarf",
+                "retro68-68k-standalone-dwarf",
                 "LokaStandaloneFlow68KAll",
             ),
             "retro68-68k-standalone-loop-dwarf": (
-                "retro68-68k-dwarf",
+                "retro68-68k-standalone-dwarf",
                 "LokaStandaloneLoop68KAll",
             ),
         }
@@ -386,17 +478,14 @@ class StandaloneDebugEntryPointTest(unittest.TestCase):
             self.assertEqual(presets[preset_name]["configurePreset"], configure_preset)
             self.assertEqual(presets[preset_name]["targets"], [target])
 
-    def test_vscode_collapses_variants_behind_six_entry_points(self):
-        presets, task_document = self.load_documents()
+    def test_vscode_keeps_only_release_actions(self):
+        _, _, task_document = self.load_documents()
         tasks = {task["label"]: task for task in task_document["tasks"]}
         inputs = {entry["id"]: entry for entry in task_document["inputs"]}
 
         visible_entry_points = {
-            "Standalone: macOS Debug Build",
             "Standalone: macOS Release Action",
-            "Standalone: Win32 Debug Build",
             "Standalone: Win32 Release Action",
-            "Standalone: Retro68 68K DWARF Build",
             "Standalone: Toolbox 68K Release Action",
         }
         self.assertEqual(
@@ -407,34 +496,7 @@ class StandaloneDebugEntryPointTest(unittest.TestCase):
             },
             visible_entry_points,
         )
-
-        debug_tasks = {
-            "Standalone: macOS Debug Build": (
-                "macos-standalone-${input:standaloneMode}",
-                "Configure: macOS Native",
-            ),
-            "Standalone: Win32 Debug Build": (
-                "win32-standalone-${input:standaloneMode}",
-                "Configure: Win32 Native",
-            ),
-            "Standalone: Retro68 68K DWARF Build": (
-                "retro68-68k-standalone-${input:standaloneMode}-dwarf",
-                "Configure: Retro68 68K DWARF",
-            ),
-        }
-        for label, (preset_name, configure_task) in debug_tasks.items():
-            task = tasks[label]
-            self.assertEqual(
-                task["args"],
-                ["--build", "--preset", preset_name],
-            )
-            self.assertEqual(task["dependsOn"], [configure_task])
-            self.assertIn(task["dependsOn"][0], tasks)
-            for mode in ("flow", "loop"):
-                self.assertIn(
-                    preset_name.replace("${input:standaloneMode}", mode),
-                    presets,
-                )
+        self.assertNotIn("standaloneMode", inputs)
 
         self.assertEqual(
             tasks["Standalone: macOS Release Action"]["args"],
@@ -450,10 +512,6 @@ class StandaloneDebugEntryPointTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            [option["value"] for option in inputs["standaloneMode"]["options"]],
-            ["flow", "loop"],
-        )
-        self.assertEqual(
             [option["value"] for option in inputs["standaloneReleaseAction"]["options"]],
             ["Build", "Stage", "Verify", "Release"],
         )
@@ -464,7 +522,7 @@ class StandaloneDebugEntryPointTest(unittest.TestCase):
 
         hidden_dependencies = [
             "Configure: Win32 Native",
-            "Configure: Retro68 68K DWARF",
+            "Configure: Retro68 68K Standalone Release",
             "Build: Retro68 68K Scrapbook Standalone Flow",
             "Build: Retro68 68K HelloWorld Standalone Flow",
             "Build: Retro68 68K Tutorial Standalone Flow",
@@ -480,6 +538,15 @@ class StandaloneDebugEntryPointTest(unittest.TestCase):
         ]
         for label in hidden_dependencies:
             self.assertTrue(tasks[label].get("hide", False), label)
+
+        for label in hidden_dependencies[2:7]:
+            self.assertEqual(
+                tasks[label]["args"][2], "retro68-68k-standalone-release"
+            )
+            self.assertEqual(
+                tasks[label]["dependsOn"],
+                ["Configure: Retro68 68K Standalone Release"],
+            )
 
         removed_variants = [
             "Build: macOS Standalone Flow Release",

@@ -211,6 +211,7 @@ target_compile_definitions(${LOKA_FLOPPY_BIRD_TESTS_TOOLBOX_TARGET} PRIVATE
   LOKA_DIAG=1
 )
 
+if(LOKA_ENABLE_STANDALONE_TARGETS)
 set(LOKA_STANDALONE_FLOW_TOOLBOX_TARGET
   # Keep the generated application name within Classic HFS's 31-character limit.
   "LokaScrapbookStandaloneFlow${LOKA_CLASSIC_TARGET_SUFFIX}"
@@ -473,6 +474,7 @@ foreach(_LOKA_STANDALONE_TARGET IN ITEMS
     ${CMAKE_SOURCE_DIR}/tests/standalone/StandalonePerformance.cpp)
 endforeach()
 unset(_LOKA_STANDALONE_TARGET)
+endif()
 
 if(NOT LOKA_SCRAPBOOK_PAGE_COUNT STREQUAL "")
   target_compile_definitions(${LOKA_TESTS_TOOLBOX_TARGET} PRIVATE

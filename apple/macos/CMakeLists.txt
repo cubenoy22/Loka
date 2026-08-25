@@ -320,6 +320,7 @@ if(NOT LOKA_MAC_OS_10_4)
   endif()
 endif()
 
+if(LOKA_ENABLE_STANDALONE_TARGETS)
 set(LOKA_STANDALONE_PERFORMANCE_RUNS "" CACHE STRING
   "Complete Standalone Flow passes to measure (3-10). Empty disables measurement."
 )
@@ -442,3 +443,4 @@ loka_add_macos_standalone_flow_bundle(
   ${PROJECT_SOURCE_DIR}/tests/scenarios/FloppyBirdScenarios.cpp
   ${PROJECT_SOURCE_DIR}/tests/scenarios/RectSurfaceScenarioObservation.cpp
 )
+endif()

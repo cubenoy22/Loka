@@ -164,21 +164,6 @@
       "problemMatcher": "$gcc"
     },
     {
-      "label": "Standalone: macOS Debug Build",
-      "type": "shell",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "--preset",
-        "macos-standalone-${input:standaloneMode}"
-      ],
-      "dependsOn": [
-        "Configure: macOS Native"
-      ],
-      "group": "build",
-      "problemMatcher": "$gcc"
-    },
-    {
       "label": "Standalone: macOS Release Action",
       "type": "shell",
       "command": "bash",
@@ -326,21 +311,6 @@
       "problemMatcher": "$msCompile"
     },
     {
-      "label": "Standalone: Win32 Debug Build",
-      "type": "shell",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "--preset",
-        "win32-standalone-${input:standaloneMode}"
-      ],
-      "dependsOn": [
-        "Configure: Win32 Native"
-      ],
-      "group": "build",
-      "problemMatcher": "$msCompile"
-    },
-    {
       "label": "Standalone: Win32 Release Action",
       "type": "shell",
       "command": "powershell.exe",
@@ -405,28 +375,13 @@
       "problemMatcher": "$gcc"
     },
     {
-      "label": "Configure: Retro68 68K DWARF",
+      "label": "Configure: Retro68 68K Standalone Release",
       "type": "shell",
-      "command": "cmake",
-      "args": [
-        "--preset",
-        "retro68-68k-dwarf"
-      ],
       "hide": true,
-      "group": "build",
-      "problemMatcher": "$gcc"
-    },
-    {
-      "label": "Standalone: Retro68 68K DWARF Build",
-      "type": "shell",
       "command": "cmake",
       "args": [
-        "--build",
         "--preset",
-        "retro68-68k-standalone-${input:standaloneMode}-dwarf"
-      ],
-      "dependsOn": [
-        "Configure: Retro68 68K DWARF"
+        "retro68-68k-standalone-release"
       ],
       "group": "build",
       "problemMatcher": "$gcc"
@@ -648,12 +603,12 @@
       "args": [
         "--build",
         "--preset",
-        "retro68-68k-release",
+        "retro68-68k-standalone-release",
         "--target",
         "LokaScrapbookStandaloneFlow68K_APPL"
       ],
       "dependsOn": [
-        "Configure: Retro68 68K"
+        "Configure: Retro68 68K Standalone Release"
       ],
       "group": "build",
       "problemMatcher": "$gcc"
@@ -666,12 +621,12 @@
       "args": [
         "--build",
         "--preset",
-        "retro68-68k-release",
+        "retro68-68k-standalone-release",
         "--target",
         "LokaHelloStandaloneFlow68K_APPL"
       ],
       "dependsOn": [
-        "Configure: Retro68 68K"
+        "Configure: Retro68 68K Standalone Release"
       ],
       "group": "build",
       "problemMatcher": "$gcc"
@@ -684,12 +639,12 @@
       "args": [
         "--build",
         "--preset",
-        "retro68-68k-release",
+        "retro68-68k-standalone-release",
         "--target",
         "LokaTutorialStandaloneFlow68K_APPL"
       ],
       "dependsOn": [
-        "Configure: Retro68 68K"
+        "Configure: Retro68 68K Standalone Release"
       ],
       "group": "build",
       "problemMatcher": "$gcc"
@@ -702,12 +657,12 @@
       "args": [
         "--build",
         "--preset",
-        "retro68-68k-release",
+        "retro68-68k-standalone-release",
         "--target",
         "LokaMineStandaloneFlow68K_APPL"
       ],
       "dependsOn": [
-        "Configure: Retro68 68K"
+        "Configure: Retro68 68K Standalone Release"
       ],
       "group": "build",
       "problemMatcher": "$gcc"
@@ -720,12 +675,12 @@
       "args": [
         "--build",
         "--preset",
-        "retro68-68k-release",
+        "retro68-68k-standalone-release",
         "--target",
         "LokaFloppyStandaloneFlow68K_APPL"
       ],
       "dependsOn": [
-        "Configure: Retro68 68K"
+        "Configure: Retro68 68K Standalone Release"
       ],
       "group": "build",
       "problemMatcher": "$gcc"
@@ -937,7 +892,7 @@
       "hide": true,
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
       "args": [
-        "${workspaceFolder}/build/retro68/68k/Release/tests/toolbox/LokaHelloStandaloneFlow68K.bin"
+        "${workspaceFolder}/build/retro68/68k/Standalone/Release/tests/toolbox/LokaHelloStandaloneFlow68K.bin"
       ],
       "windows": {
         "command": "powershell.exe",
@@ -947,7 +902,7 @@
           "Bypass",
           "-File",
           "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Release/tests/toolbox/LokaHelloStandaloneFlow68K.bin"
+          "build/retro68/68k/Standalone/Release/tests/toolbox/LokaHelloStandaloneFlow68K.bin"
         ]
       },
       "problemMatcher": []
@@ -958,7 +913,7 @@
       "hide": true,
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
       "args": [
-        "${workspaceFolder}/build/retro68/68k/Release/tests/toolbox/LokaTutorialStandaloneFlow68K.bin"
+        "${workspaceFolder}/build/retro68/68k/Standalone/Release/tests/toolbox/LokaTutorialStandaloneFlow68K.bin"
       ],
       "windows": {
         "command": "powershell.exe",
@@ -968,7 +923,7 @@
           "Bypass",
           "-File",
           "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Release/tests/toolbox/LokaTutorialStandaloneFlow68K.bin"
+          "build/retro68/68k/Standalone/Release/tests/toolbox/LokaTutorialStandaloneFlow68K.bin"
         ]
       },
       "problemMatcher": []
@@ -979,7 +934,7 @@
       "hide": true,
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
       "args": [
-        "${workspaceFolder}/build/retro68/68k/Release/tests/toolbox/LokaMineStandaloneFlow68K.bin"
+        "${workspaceFolder}/build/retro68/68k/Standalone/Release/tests/toolbox/LokaMineStandaloneFlow68K.bin"
       ],
       "windows": {
         "command": "powershell.exe",
@@ -989,7 +944,7 @@
           "Bypass",
           "-File",
           "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Release/tests/toolbox/LokaMineStandaloneFlow68K.bin"
+          "build/retro68/68k/Standalone/Release/tests/toolbox/LokaMineStandaloneFlow68K.bin"
         ]
       },
       "problemMatcher": []
@@ -1000,7 +955,7 @@
       "hide": true,
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
       "args": [
-        "${workspaceFolder}/build/retro68/68k/Release/tests/toolbox/LokaFloppyStandaloneFlow68K.bin"
+        "${workspaceFolder}/build/retro68/68k/Standalone/Release/tests/toolbox/LokaFloppyStandaloneFlow68K.bin"
       ],
       "windows": {
         "command": "powershell.exe",
@@ -1010,7 +965,7 @@
           "Bypass",
           "-File",
           "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Release/tests/toolbox/LokaFloppyStandaloneFlow68K.bin"
+          "build/retro68/68k/Standalone/Release/tests/toolbox/LokaFloppyStandaloneFlow68K.bin"
         ]
       },
       "problemMatcher": []
@@ -1498,22 +1453,6 @@
     }
   ],
   "inputs": [
-    {
-      "id": "standaloneMode",
-      "type": "pickString",
-      "description": "Select the Standalone Debug build mode",
-      "default": "loop",
-      "options": [
-        {
-          "label": "Finite Flow",
-          "value": "flow"
-        },
-        {
-          "label": "Autonomous Loop (+ SimpleViewer)",
-          "value": "loop"
-        }
-      ]
-    },
     {
       "id": "standaloneReleaseAction",
       "type": "pickString",

@@ -148,9 +148,9 @@ else
       ;;
   esac
   if [[ "$TARGET_ARCH" == "$HOST_ARCH" ]]; then
-    BUILD_ROOT="$PROJECT_DIR/build/macos/Release"
+    BUILD_ROOT="$PROJECT_DIR/build/macos/Standalone/Release"
   else
-    BUILD_ROOT="$PROJECT_DIR/build/macos/$TARGET_ARCH/Release"
+    BUILD_ROOT="$PROJECT_DIR/build/macos/$TARGET_ARCH/Standalone/Release"
   fi
   BUILD_APP_ROOT="$BUILD_ROOT/apple/macos"
   BUILD_CATALOG="$BUILD_APP_ROOT/$CATALOG_NAME"
@@ -165,9 +165,9 @@ else
   (
     cd "$PROJECT_DIR"
     if [[ "$TARGET_ARCH" == "$HOST_ARCH" ]]; then
-      "$CMAKE_BIN" --preset macos-release
+      "$CMAKE_BIN" --preset macos-standalone-release
     else
-      "$CMAKE_BIN" --preset macos-release \
+      "$CMAKE_BIN" --preset macos-standalone-release \
         -B "$BUILD_ROOT" \
         -DCMAKE_OSX_ARCHITECTURES="$TARGET_ARCH"
     fi

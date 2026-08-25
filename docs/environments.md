@@ -53,18 +53,18 @@ This is the environment where binaries are actually built.
 - On older macOS systems such as Snow Leopard, CMake and Ninja can be installed through MacPorts.
 - On Windows, run release commands from an appropriate Visual Studio Developer Command Prompt so that MSVC environment variables match the intended target architecture. VS Code may inherit the same environment, but is not required.
 - On Windows on ARM, use the ARM64 Native Tools Command Prompt for native ARM64 builds, or ARM64_x86 / ARM64_x64 Cross Tools prompts for x86-family builds.
-- For interactive Standalone Flow or Standalone Loop debugging on macOS or
-  Win32, configure the ordinary platform Debug preset, then select one of the
-  generated
-  `StandaloneFlow` or `StandaloneLoop` executable targets in CMake Tools,
-  Visual Studio, or Xcode. Build and debug that target directly. In VS Code,
-  run **Standalone: macOS Debug Build** or **Standalone: Win32 Debug Build**,
-  then select finite Flow or autonomous Loop. The selected aggregate builds
-  the complete set; Loop also pulls in the ordinary interactive SimpleViewer.
-  **Standalone: Retro68 68K DWARF Build** offers the same mode choice and
-  emits the five Classic applications and their `.gdb` images. Its Loop
-  aggregate also builds SimpleViewer; attaching an image to MAME remains a
-  separate debugging step.
+- The ordinary macOS, Win32, and Retro68 Configure Presets do not register
+  Standalone executable targets, so those applications do not clutter CMake
+  Tools' normal launch/debug target picker. For interactive Standalone Flow or
+  Standalone Loop debugging, select `macos-standalone-debug`,
+  `win32-standalone-debug`, or `retro68-68k-standalone-dwarf` as the Configure
+  Preset. Then select the matching Flow or Loop Build Preset and debug the
+  generated executable target directly. The Flow aggregate builds the five
+  finite applications; Loop builds the five autonomous applications plus the
+  ordinary interactive SimpleViewer. The Retro68 DWARF targets also emit their
+  `.gdb` images; attaching an image to MAME remains a separate debugging step.
+  Each Standalone Configure Preset owns a separate build directory, so selecting
+  it cannot leave Standalone targets in the ordinary configuration's cache.
   Target selection is the mode boundary: do not add standalone defines to an
   ordinary shipping example target. Standalone vehicles compile their complete
   core/platform source graph uniformly with `TEST_BUILD`; applying only a mode
