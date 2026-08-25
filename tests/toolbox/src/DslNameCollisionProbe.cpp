@@ -1,10 +1,35 @@
+// The classic headers a rig actually ships depend on which header set its
+// Retro68 was built from: the multiversal CIncludes carry some of these, while
+// others arrive only with Apple's Universal Interfaces, which cannot be
+// redistributed and are therefore absent from the hosted CI image. Include
+// whatever this rig has rather than assuming one set, so the probe guards the
+// collisions that exist HERE instead of failing to build. A rig missing a
+// header simply cannot host the collision that header introduces.
+#if defined(__has_include)
+#if __has_include(<Events.h>)
 #include <Events.h>
+#endif
+#if __has_include(<Lists.h>)
 #include <Lists.h>
+#endif
+#if __has_include(<Controls.h>)
 #include <Controls.h>
+#endif
+#if __has_include(<TextEdit.h>)
 #include <TextEdit.h>
+#endif
+#if __has_include(<Menus.h>)
 #include <Menus.h>
+#endif
+#if __has_include(<Quickdraw.h>)
 #include <Quickdraw.h>
+#endif
+#if __has_include(<Dialogs.h>)
 #include <Dialogs.h>
+#endif
+#else
+#error "The collision probe needs __has_include to adapt to the rig's header set"
+#endif
 
 #include "example/FloppyBird/src/MainNode.hpp"
 #include "example/HelloWorld/src/MainNode.hpp"
