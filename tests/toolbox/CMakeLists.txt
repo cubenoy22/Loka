@@ -5,6 +5,25 @@ if(NOT COMMAND loka_enable_standalone_performance)
   include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/LokaStandalonePerformance.cmake")
 endif()
 
+if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC)$")
+  add_library(LokaToolboxDslNameCollisionProbe OBJECT
+    src/DslNameCollisionProbe.cpp
+  )
+  loka_enable_warnings(LokaToolboxDslNameCollisionProbe)
+  target_include_directories(LokaToolboxDslNameCollisionProbe PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/common
+    ${CMAKE_SOURCE_DIR}/apple/toolbox/src
+  )
+  target_compile_definitions(LokaToolboxDslNameCollisionProbe PRIVATE
+    LOKA_RETRO68=1
+  )
+  set_target_properties(LokaToolboxDslNameCollisionProbe PROPERTIES
+    CXX_STANDARD 98
+    CXX_STANDARD_REQUIRED YES
+  )
+endif()
+
 if(NOT CMAKE_SYSTEM_NAME MATCHES "^Retro68$")
   add_custom_target(LokaTestsToolbox ALL
     COMMAND ${CMAKE_COMMAND} -E echo

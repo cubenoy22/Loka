@@ -19,6 +19,8 @@
 
 namespace simpleviewer
 {
+  using loka::app::Button;
+
   class MainTypeTag
   {
   };

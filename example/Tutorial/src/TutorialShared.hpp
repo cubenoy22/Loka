@@ -1,11 +1,14 @@
 #ifndef LOKA_TUTORIAL_SHARED_HPP
 #define LOKA_TUTORIAL_SHARED_HPP
 
-#include "app/nodes/Text.hpp"
 #include "app/Menu.hpp"
+#include "app/nodes/controls/Button.hpp"
+#include "app/nodes/Text.hpp"
 
 namespace tutorial
 {
+  using loka::app::Button;
+
   inline loka::app::TextDefinition TutorialTitle(const char *title)
   {
     return loka::app::Text(title);

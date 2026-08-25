@@ -2,7 +2,6 @@
 
 #include "app/nodes/Text.hpp"
 #include "app/core/Window.hpp"
-#include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/ZStack.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "platform/StringUTF8.hpp"

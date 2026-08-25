@@ -43,7 +43,7 @@ namespace tutorial
       c.declare(                     //
           VStack()                   //
           << TutorialTitle("Step 3") //
-          << loka::app::Button("Toggle details", &this->toggleDetailsEvent_)
+          << Button("Toggle details", &this->toggleDetailsEvent_)
           << (Show(*this->showDetails_.state()) //
               << loka::app::Text("Conditional content is visible."))
           << TutorialHint("Show(condition) keeps conditional UI readable in the DSL."));
