@@ -562,6 +562,39 @@ class StandaloneDebugEntryPointTest(unittest.TestCase):
         for label in removed_variants:
             self.assertNotIn(label, tasks)
 
+    def test_vscode_launch_picker_contains_only_ordinary_examples(self):
+        with open(
+            os.path.join(PROJECT_DIR, ".vscode", "launch.json"),
+            "r",
+            encoding="utf-8",
+        ) as handle:
+            launch_document = json.load(handle)
+
+        names = [
+            configuration["name"]
+            for configuration in launch_document["configurations"]
+        ]
+        self.assertEqual(
+            set(names),
+            {
+                "Run (macOS HelloWorld)",
+                "Run (macOS MineSweeper)",
+                "Run (macOS SimpleViewer)",
+                "Run (macOS ScrapbookUI)",
+                "Run (macOS FloppyBird)",
+                "Run (macOS Tutorial)",
+                "Run (Windows HelloWorld)",
+                "Run (Windows MineSweeper)",
+                "Run (Windows SimpleViewer)",
+                "Run (Windows ScrapbookUI)",
+                "Run (Windows FloppyBird)",
+                "Run (Windows Tutorial)",
+            },
+        )
+        self.assertEqual(len(names), len(set(names)))
+        self.assertFalse(any("Standalone" in name for name in names))
+        self.assertFalse(any("Scenario Loop" in name for name in names))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -119,9 +119,9 @@ This is the environment where binaries are actually built.
   [Classic scenario loop reels](MAME_DEVELOPMENT.md#classic-scenario-loop-reels)
   for the exact build, MAME, and SD-SCSI routes.
 
-  On macOS, use **Run (macOS HelloWorld Scenario Loop)** or **Run (macOS
-  MineSweeper Scenario Loop)** in VS Code. The equivalent Terminal commands
-  from the repository root are:
+  On macOS, build the reel with **Build: macOS HelloWorld Scenario Loop** or
+  **Build: macOS MineSweeper Scenario Loop** in VS Code, then open the generated
+  application. The equivalent Terminal commands from the repository root are:
 
   ```sh
   cmake --preset macos-debug
@@ -131,11 +131,11 @@ This is the environment where binaries are actually built.
   ```
 
   The macOS apps stop when the user chooses Quit or presses Command-Q. On
-  Win32, use
-  `Run (Windows HelloWorld Scenario Loop)` or
-  `Run (Windows MineSweeper Scenario Loop)` for a Debug desk build. For a
-  portable Release reel, use the architecture-specific presentation preset;
-  for example, from an ARM64 Native Tools prompt:
+  Win32, the **Build: Win32 HelloWorld Scenario Loop** and **Build: Win32
+  MineSweeper Scenario Loop** tasks build the Debug reels; start the generated
+  executable directly. For a portable Release reel, use the
+  architecture-specific presentation preset; for example, from an ARM64 Native
+  Tools prompt:
 
   ```bat
   cmake --preset win32-arm64-release
