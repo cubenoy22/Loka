@@ -35,6 +35,39 @@ Before applying the matrix, complete the release-provenance check:
   release notes; and every cited issue or pull request was verified as shipped.
   The annotated-tag requirement applies to releases after v0.0.2; the published
   v0.0.2 lightweight tag is grandfathered and stays as it is.
+  The enumerated sites are below; "current-release documentation" is not one
+  file.
+
+### Version-bearing sites
+
+Every place in the tracked tree that names a Loka release. Walk this list at
+each release; `grep -rn "0\.0\.[0-9]"` over the tree is the check that nothing
+new joined it without being listed here.
+
+| Site | Names | When it changes |
+| --- | --- | --- |
+| `CMakeLists.txt` `project(Loka VERSION ...)` | the release **under development** | bumped to the next version **immediately after tagging**, never at tag time |
+| `README.md` current-release callout | the newest **published** tag | at release, to the tag just cut |
+| `README.md` platform table's "not part of `X`" note | the release under development | with the CMake bump |
+| `ROADMAP.md` release-provenance paragraph | the release under development | with the CMake bump |
+| `ROADMAP.md` per-release sections | published history | a new section at release; the previous one loses `(current)` |
+| `docs/ProgrammingGuide.md` / `.en.md` header | the release under development, and the tag whose guide matches the last published artifact | with the CMake bump |
+| `apple/ios/legacy/Info.plist` `CFBundleShortVersionString` | the release under development | with the CMake bump. The modern iOS bundle takes `@PROJECT_VERSION@` and needs no edit; only the legacy plist hardcodes it |
+
+Deliberately **not** on this list, and not to be "fixed" by a sweep:
+
+- `ROADMAP.md` history, milestone plans, and `docs/TODO.md` backlog notes name
+  the release something was targeted at. They are records, not claims about the
+  present.
+- `scripts/ios/legacy/README.md` records the version SpringBoard actually
+  enumerated during a past device run. Bumping it would falsify evidence.
+- `docs/ProgrammingGuide.md` body passages labelled with the release whose
+  semantics they describe. If such a pattern still holds, drop the label rather
+  than advancing it; if it no longer holds, the passage needs rewriting, not a
+  version bump.
+- `docs/archives/` and the `*Draft.md` design notes.
+- `scripts/release/README.md` takes the tag from `$TAG` so its example never
+  goes stale.
 
 The OS columns come from `CMakePresets.json` and the platform workflows under
 `.github/workflows/` (`linux.yml`, `macos.yml`, `windows.yml`, and
