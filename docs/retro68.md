@@ -78,14 +78,18 @@ they are not a second app-facing API.
 
 The local file accepts these settings:
 
-- `RETRO68_TOOLCHAIN_DIR` (path to Retro68 toolchain CMake dir or toolchain file)
 - `RETRO68_BUILD_DIR` (path to Retro68 build output directory)
+- `RETRO68_TOOLCHAIN_DIR` (advanced override for one CPU's toolchain CMake
+  directory or file)
 - `RETRO68_TOOLCHAIN_BIN` (optional host-tool directory)
 - `CMAKE_MAKE_PROGRAM` (optional path to Ninja)
 
-Usually only `RETRO68_BUILD_DIR` is needed. Set `CMAKE_MAKE_PROGRAM` when an
-editor launched from the desktop cannot see Ninja on its inherited `PATH`.
-Values already supplied by a caller or CI take precedence over the local file.
+Prefer `RETRO68_BUILD_DIR`: the toolchain file uses it to select the matching
+68K or PPC directory for each preset. `RETRO68_TOOLCHAIN_DIR` points at one
+CPU's toolchain CMake directory, so setting it pins configuration to that CPU
+and makes the other preset family fail. Set `CMAKE_MAKE_PROGRAM` when an editor
+launched from the desktop cannot see Ninja on its inherited `PATH`. Values
+already supplied by a caller or CI take precedence over the local file.
 
 Then run:
 
@@ -128,7 +132,10 @@ The CMake toolchain also accepts these variables from an explicitly managed
 process environment:
 
 - `RETRO68_BUILD_DIR`: path to the Retro68 build output directory.
-- `RETRO68_TOOLCHAIN_DIR`: path to the Retro68 toolchain CMake directory.
+- `RETRO68_TOOLCHAIN_DIR`: advanced override for one CPU's Retro68 toolchain
+  CMake directory or file. It pins configuration to that CPU and makes the
+  other preset family fail; prefer `RETRO68_BUILD_DIR` for shared 68K and PPC
+  use.
 - `RETRO68_CPU`: target CPU (`m68k` or `ppc`). Defaults to `m68k`.
 - `RETRO68_PPC_FLAVOR`: `retroppc` or `retrocarbon` (when `RETRO68_CPU=ppc`).
 
