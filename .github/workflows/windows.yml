@@ -36,6 +36,7 @@ jobs:
       # Hosted CI does not cover the local rig's ARM64 build or ACP=932
       # full-width-path behavior; those remain manually verified per #172.
       - run: ctest --preset win32-tests --output-on-failure
+      - run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/scripts/Win32PngCompareTest.ps1
       - run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/scripts/Win32PresentationStageTest.ps1
       # Exercise the same clean Release entry point used to prepare portable
       # device builds: five autonomous loops, SimpleViewer, and their assets.

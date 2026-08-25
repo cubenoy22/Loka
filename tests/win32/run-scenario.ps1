@@ -51,6 +51,7 @@ $ChildStderrTask = $null
 $Python = $null
 $UseWslPython = $false
 $PngExitCode = 0
+$PngCompareResult = $null
 $GoldenIdentityExitCode = 0
 $PackageFixtureExitCode = 0
 $CaptureProfileExitCode = 0
@@ -160,22 +161,14 @@ function Convert-ToWslPath([string]$Path, [string]$StageName = "crop") {
     return "/mnt/$drive/$tail"
 }
 
+. (Join-Path $PSScriptRoot "PngCompare.ps1")
+
 function Invoke-PngCrop([string]$InputPath, [long]$Left, [long]$Top, [long]$Right, [long]$Bottom, [string]$OutputPath) {
     if ($UseWslPython) {
         & wsl.exe python3 (Convert-ToWslPath $PngTool) crop `
             (Convert-ToWslPath $InputPath) $Left $Top $Right $Bottom (Convert-ToWslPath $OutputPath)
     } else {
         & $Python $PngTool crop $InputPath $Left $Top $Right $Bottom $OutputPath
-    }
-    $script:PngExitCode = $LASTEXITCODE
-}
-
-function Invoke-PngCompare([string]$First, [string]$Second) {
-    if ($UseWslPython) {
-        & wsl.exe python3 (Convert-ToWslPath $PngTool) compare `
-            (Convert-ToWslPath $First) (Convert-ToWslPath $Second)
-    } else {
-        & $Python $PngTool compare $First $Second
     }
     $script:PngExitCode = $LASTEXITCODE
 }
@@ -589,13 +582,25 @@ try {
             }
             Fail-Stage "profile" "capture field '$profileMismatch' moved from '$expectedValue' to '$actualValue'"
         }
-        Invoke-PngCompare $Actual $WorkGolden *>> $RunnerLog
-        if ($PngExitCode -ne 0) {
+        # TODO(#459): tolerate at most 400 differing pixels in at most two
+        # destination x columns. Two is the tracked one-or-two full-height-column
+        # wobble: 169 px each and 338 px worst observed. A missing glyph spans
+        # roughly six to eight columns and an icon many more, so the shape bound
+        # still rejects content loss.
+        # Remove when the compositing M1 offscreen composition lands.
+        Invoke-PngCompare $Actual $WorkGolden 400 2 *>> $RunnerLog
+        $CompareExitCode = $PngExitCode
+        if ($null -eq $PngCompareResult) {
+            Fail-Stage "golden" "pngtool compare omitted its measured diff counts; see $RunnerLog"
+        }
+        if ($PngCompareResult.DifferenceCount -gt 0) {
             $Diff = Join-Path $Work "diff.png"
             Invoke-PngDiff $WorkGolden $Actual $Diff *>> $RunnerLog
             if (-not (Test-Path -LiteralPath $Diff -PathType Leaf)) {
                 Fail-Stage "golden" "pixel mismatch was detected but diff.png could not be written"
             }
+        }
+        if ($CompareExitCode -ne 0) {
             Fail-Stage "golden" "actual pixels differ from $Golden; see actual.png, golden.png, and diff.png"
         }
         [System.IO.File]::WriteAllText((Join-Path $Work "verified"), "runner-verified`n")

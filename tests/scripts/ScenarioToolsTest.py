@@ -305,6 +305,186 @@ class PngToolTest(unittest.TestCase):
             self.assertTrue(os.path.isfile(difference))
             self.assertGreater(os.path.getsize(difference), 0)
 
+    def test_compare_threshold_is_bounded_reported_and_exact_by_default(self):
+        with tempfile.TemporaryDirectory(prefix="scenario-png-threshold-") as directory:
+            expected = os.path.join(directory, "expected.png")
+            actual = os.path.join(directory, "actual.png")
+            write_rgb_png(expected, 3, 1, [(1, 2, 3)] * 3)
+            write_rgb_png(actual, 3, 1, [(9, 8, 7), (1, 2, 3), (9, 8, 7)])
+
+            unchanged = run_tool(PNG_TOOL, "compare", expected, expected)
+            tolerated = run_tool(
+                PNG_TOOL, "compare", "--max-diff-px", "2", expected, actual
+            )
+            over_bound = run_tool(
+                PNG_TOOL, "compare", "--max-diff-px", "1", expected, actual
+            )
+            exact_default = run_tool(PNG_TOOL, "compare", expected, actual)
+
+            self.assertEqual(unchanged.returncode, 0, unchanged.stderr)
+            self.assertIn("differing pixels: 0", unchanged.stdout)
+            self.assertIn("differing columns: 0", unchanged.stdout)
+            self.assertIn("max-diff-px: 0", unchanged.stdout)
+            self.assertIn("max-diff-columns: unbounded", unchanged.stdout)
+            self.assertEqual(tolerated.returncode, 0, tolerated.stderr)
+            self.assertIn("differing pixels: 2", tolerated.stdout)
+            self.assertIn("differing columns: 2", tolerated.stdout)
+            self.assertIn("max-diff-px: 2", tolerated.stdout)
+            self.assertIn("max-diff-columns: unbounded", tolerated.stdout)
+            self.assertNotEqual(over_bound.returncode, 0)
+            self.assertIn("differing pixels: 2", over_bound.stdout)
+            self.assertIn("max-diff-px: 1", over_bound.stdout)
+            self.assertIn("first differing pixel (0, 0)", over_bound.stdout)
+            self.assertNotEqual(exact_default.returncode, 0)
+            self.assertIn("max-diff-px: 0", exact_default.stdout)
+
+    def test_compare_column_threshold_is_bounded_reported_and_unbounded_by_default(self):
+        with tempfile.TemporaryDirectory(prefix="scenario-png-columns-") as directory:
+            expected = os.path.join(directory, "expected.png")
+            actual = os.path.join(directory, "actual.png")
+            write_rgb_png(expected, 3, 1, [(1, 2, 3)] * 3)
+            write_rgb_png(actual, 3, 1, [(9, 8, 7)] * 3)
+
+            omitted = run_tool(
+                PNG_TOOL, "compare", "--max-diff-px", "3", expected, actual
+            )
+            over_column_bound = run_tool(
+                PNG_TOOL,
+                "compare",
+                "--max-diff-px",
+                "400",
+                "--max-diff-columns",
+                "2",
+                expected,
+                actual,
+            )
+            negative = run_tool(
+                PNG_TOOL,
+                "compare",
+                "--max-diff-columns",
+                "-1",
+                expected,
+                actual,
+            )
+            tolerated = run_tool(
+                PNG_TOOL,
+                "compare",
+                "--max-diff-px",
+                "400",
+                "--max-diff-columns",
+                "3",
+                expected,
+                actual,
+            )
+
+            self.assertEqual(omitted.returncode, 0, omitted.stderr)
+            self.assertIn("max-diff-columns: unbounded", omitted.stdout)
+            self.assertNotEqual(over_column_bound.returncode, 0)
+            self.assertIn(
+                "compare result: differing pixels: 3; differing columns: 3; "
+                "max-diff-px: 400; max-diff-columns: 2; result: fail",
+                over_column_bound.stdout,
+            )
+            self.assertEqual(tolerated.returncode, 0, tolerated.stderr)
+            self.assertNotEqual(negative.returncode, 0)
+            self.assertIn(
+                "--max-diff-columns must not be negative", negative.stderr
+            )
+
+    def test_compare_requires_both_pixel_and_column_bounds(self):
+        with tempfile.TemporaryDirectory(prefix="scenario-png-bounds-") as directory:
+            expected = os.path.join(directory, "expected.png")
+            actual = os.path.join(directory, "actual.png")
+            write_rgb_png(expected, 2, 201, [(1, 2, 3)] * 402)
+            write_rgb_png(actual, 2, 201, [(9, 8, 7)] * 402)
+
+            over_pixel_bound = run_tool(
+                PNG_TOOL,
+                "compare",
+                "--max-diff-px",
+                "400",
+                "--max-diff-columns",
+                "2",
+                expected,
+                actual,
+            )
+
+            self.assertNotEqual(over_pixel_bound.returncode, 0)
+            self.assertIn(
+                "compare result: differing pixels: 402; differing columns: 2; "
+                "max-diff-px: 400; max-diff-columns: 2; result: fail",
+                over_pixel_bound.stdout,
+            )
+
+    def test_compare_rejects_dimension_mismatch_at_any_tolerance(self):
+        with tempfile.TemporaryDirectory(prefix="scenario-png-dimensions-") as directory:
+            expected = os.path.join(directory, "expected.png")
+            actual = os.path.join(directory, "actual.png")
+            write_rgb_png(expected, 340, 250, [(1, 2, 3)] * (340 * 250))
+            write_rgb_png(actual, 340, 251, [(1, 2, 3)] * (340 * 251))
+
+            changed_shape = run_tool(
+                PNG_TOOL,
+                "compare",
+                "--max-diff-px",
+                "400",
+                "--max-diff-columns",
+                "400",
+                expected,
+                actual,
+            )
+
+            self.assertNotEqual(changed_shape.returncode, 0)
+            self.assertIn("dimensions differ: 340x250 != 340x251", changed_shape.stdout)
+            self.assertIn(
+                "compare result: dimension mismatch; result: fail",
+                changed_shape.stdout,
+            )
+            self.assertIn("differing pixels: 340", changed_shape.stdout)
+            self.assertIn("differing columns: 340", changed_shape.stdout)
+            self.assertIn("max-diff-px: 400", changed_shape.stdout)
+            self.assertIn("max-diff-columns: 400", changed_shape.stdout)
+            self.assertNotIn("result: pass", changed_shape.stdout)
+
+    def test_win32_compare_records_the_bounded_wobble_and_writes_diff_evidence(self):
+        runner_path = os.path.join(PROJECT_DIR, "tests", "win32", "run-scenario.ps1")
+        with open(runner_path, "r", encoding="utf-8") as handle:
+            runner = handle.read()
+        compare_support_path = os.path.join(
+            PROJECT_DIR, "tests", "win32", "PngCompare.ps1"
+        )
+        with open(compare_support_path, "r", encoding="utf-8") as handle:
+            compare_support = handle.read()
+
+        compare_call = runner.index(
+            "Invoke-PngCompare $Actual $WorkGolden 400 2 *>> $RunnerLog"
+        )
+        update_branch = runner.index("if ($UpdateGolden) {")
+        compare_branch = runner.index("} else {", update_branch)
+        diff_on_nonzero = runner.index(
+            "if ($PngCompareResult.DifferenceCount -gt 0)", compare_call
+        )
+        mismatch_failure = runner.index("if ($CompareExitCode -ne 0)", diff_on_nonzero)
+
+        self.assertLess(compare_branch, compare_call)
+        self.assertLess(compare_call, diff_on_nonzero)
+        self.assertLess(diff_on_nonzero, mismatch_failure)
+        self.assertIn("--max-diff-px $MaxDiffPx", compare_support)
+        self.assertIn("--max-diff-columns $MaxDiffColumns", compare_support)
+        self.assertIn(
+            "differing pixels: ([0-9]+); differing columns: ([0-9]+); "
+            "max-diff-px: ([0-9]+); max-diff-columns: ([0-9]+)",
+            compare_support,
+        )
+        self.assertIn("$null -eq $PngCompareResult", runner)
+        self.assertIn("DifferenceColumnCount = $differenceColumnCount", compare_support)
+        self.assertIn("TODO(#459)", runner)
+        self.assertIn("169 px each", runner)
+        self.assertIn("338 px worst observed", runner)
+        self.assertIn("roughly six to eight columns", runner)
+        self.assertIn("an icon many more", runner)
+        self.assertIn("compositing M1 offscreen composition", runner)
+
 
 class PresetFlagSeedingTest(unittest.TestCase):
     """Pin the MSVC flag-seeding contract for the win32 preset family.
