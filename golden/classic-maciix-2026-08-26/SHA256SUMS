@@ -1,0 +1,17 @@
+e78a33207e7a3c7173f689235286de1fb60d80154bd78edc8fea7de87bb63aa1  ./floppybird/fixed-step-flaps.png
+50cae664c096167be2be06940b72221e1de8099f03d5d69c4e07dc228730abba  ./floppybird/startup.png
+c0144ca7586e9c2782dfc5a49fd7879c924587a51f0e41184fc1a62ad1c02eff  ./helloworld/bmi-roundtrip.png
+9a9f04539aeb4bcc858ec409a6fa0c2d8a261dbdb8cd93ceeb363cffd4ff9558  ./helloworld/startup.png
+92720f8d90b66668224269110128d0118998eacba232a3f8b5bd5ee316599852  ./helloworld/toggle-action-probe.png
+7fb50ae1df8d1205619124032d2abbb00fdac902d78830e99e9ef20bfd6b4b56  ./manifest.txt
+b2f53e18f699b2b4ca6341a1d3f98918acf37f0609f5b6eecc4fd3351578c646  ./minesweeper/new-game-twice.png
+3752b057563c48913b2efa89258558be687a20a4dfc5d19fd12598c470603c5f  ./minesweeper/seeded-reveal.png
+b2f53e18f699b2b4ca6341a1d3f98918acf37f0609f5b6eecc4fd3351578c646  ./minesweeper/startup.png
+d7f8fd95bc0f13457d0b92cd61b003405016dc002cd1762ea9f174972cfce865  ./scrapbook/flip-forward-back.png
+6770a25175ae2b3029650a4f3c2f6b44c6aea5dc88d53f2015c62a05cdae5990  ./scrapbook/open-first-page-refused.png
+dfb28fcc3e5563b8845bd03964b23430dfed59d8e0597a80cf40b281c8ef7c31  ./scrapbook/open-text-page-refused.png
+3990adcb9069a0248f9dfd821684cdf6d7c0b9d38e3c7a1df002a992997867aa  ./scrapbook/open-text-page.png
+575fe41cc44cea744e14a15f2a8fb37c0d35cd1249f4e1370447c08873377238  ./scrapbook/refused-flip-keeps-page.png
+d7f8fd95bc0f13457d0b92cd61b003405016dc002cd1762ea9f174972cfce865  ./scrapbook/startup.png
+386f5695ad182ca3bd73b68dbe838c180bf919b59714636622a87ba1a782b11a  ./tutorial/increment-summary-toggle.png
+ffe5a9b95d7722d5f2bb41903813afa488ef0e976317c19f635d593199e2d739  ./tutorial/startup.png
