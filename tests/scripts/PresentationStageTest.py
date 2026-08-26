@@ -75,6 +75,27 @@ loka_replace_stage_directory "$stage" populate
                 self.assertEqual(handle.read(), "old")
             self.assertEqual(os.listdir(directory), ["stage"])
 
+    def test_populate_arguments_are_forwarded_after_staging_path(self):
+        with tempfile.TemporaryDirectory(prefix="presentation-stage-") as directory:
+            stage = os.path.join(directory, "stage")
+
+            result = run_stage(
+                r'''
+set -euo pipefail
+stage="$1"
+. "$2"
+populate() {
+  printf '%s|%s' "$2" "$3" >"$1/arguments"
+}
+loka_replace_stage_directory "$stage" populate alpha "two words"
+''',
+                stage,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            with open(os.path.join(stage, "arguments"), encoding="utf-8") as handle:
+                self.assertEqual(handle.read(), "alpha|two words")
+
     def test_unsafe_root_path_is_refused_before_populate(self):
         result = run_stage(
             r'''

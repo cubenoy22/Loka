@@ -433,6 +433,9 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     add_test(NAME scriptMacOSStandaloneUb1Release
       COMMAND bash
         ${PROJECT_SOURCE_DIR}/tests/scripts/MacOSStandaloneUb1ReleaseTest.sh)
+    add_test(NAME scriptMacOSStandaloneUb2Release
+      COMMAND bash
+        ${PROJECT_SOURCE_DIR}/tests/scripts/MacOSStandaloneUb2ReleaseTest.sh)
     add_test(NAME scriptPmonSpriteGenerator
       COMMAND python3
         ${PROJECT_SOURCE_DIR}/tests/scripts/PmonSpriteGeneratorTest.py)
