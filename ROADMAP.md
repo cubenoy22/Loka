@@ -16,7 +16,7 @@ Versioning follows a pragmatic pre-1.0 scheme:
 The version in the top-level CMake `project(Loka VERSION ... LANGUAGES CXX)`
 call is the canonical source version, and it names the release **under
 development**: the source tree on `main` always carries the next version
-(currently `0.0.3`), so a build from source never claims to be a published
+(currently `0.0.4`), so a build from source never claims to be a published
 artifact it has drifted from. Cutting a release means bringing the
 documentation and release metadata into agreement with that version and
 freezing it with the annotated tag; immediately after tagging, the source
@@ -30,7 +30,36 @@ created with `git tag -a`, with the release notes recorded in the tag message.
 
 ---
 
-## v0.0.2 (current)
+## v0.0.3 (current)
+
+Resource and proof-machinery milestone — 159 pull requests since 0.0.2. See the
+[release notes](https://github.com/cubenoy22/Loka/releases/tag/v0.0.3).
+
+Delivered:
+
+* **LRPK V1**: a packaged resource container with a tracked on-disk format,
+  streaming reader, pack-side `lrpc` writer, and typed refusals that leave the
+  UI on its last good page
+* **ScrapbookUI**: a shipping example consuming an LRPK package page by page,
+  with visible refusal behavior on corrupted bags
+* **Scenario verification rails** on all three native targets: declarative
+  scene scenario flow from one shared registry, two-layer machine verdicts
+  (byte-compared durable audit + settled pixel golden), and a rig `.profile`
+  fingerprint that refuses to compare captures across environments
+* **Loop-reel presentation builds** cycling every registered scenario on
+  Classic, macOS, and Win32
+* Cross-platform **menu bar** support with an app-owned composition model
+* The **ComponentNode / ownership-inversion / structural self-declaration**
+  wall (#36 / #270 / #277 closed)
+* macOS build generations: failure-atomic UB2 builds plus a legacy script
+  family reaching back to Mac OS X 10.4; Windows XP presets that compose with
+  MSVC platform defaults
+
+Verification evidence and known issues are recorded on release PR #387.
+
+---
+
+## v0.0.2
 
 Reliability milestone — 88 pull requests focused on lifecycle and ownership
 contracts. See the [release notes](https://github.com/cubenoy22/Loka/releases/tag/v0.0.2).
