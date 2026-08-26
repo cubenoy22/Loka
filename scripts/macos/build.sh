@@ -67,6 +67,10 @@ if [[ "${MAC_OS_10_4}" == "1" ]]; then
   fi
 fi
 
+if [[ "${TARGET_SET:-}" == "standalone-release" ]]; then
+  CMAKE_ARGS+=("-DLOKA_ENABLE_STANDALONE_TARGETS=ON")
+fi
+
 cmake "${CMAKE_ARGS[@]}"
 
 if [[ -n "${TARGET}" ]]; then

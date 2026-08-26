@@ -107,6 +107,11 @@ This is the environment where binaries are actually built.
   are build-verified through the Mavericks 10.9.5 + Xcode 3.2.6 CLI route;
   GCC 4.2 records the Leopard PPC slice as `ppc7400`. Runtime on a PowerPC Mac
   remains a separate verification step.
+  On Big Sur or newer with an Apple Silicon-capable Xcode, run
+  `scripts/macos-standalone-release-ub2.sh` for the corresponding
+  `arm64;x86_64` autonomous set. It stages the same five loops plus SimpleViewer
+  under `build/release/macos-ub2` only after every executable contains both
+  slices. The default deployment target is macOS 11.0.
 - For a presentation that keeps moving without a host controller, use the
   TEST-only HelloWorld and MineSweeper loop reels. Each application shows every
   registered cell for its example, wraps to the first, and continues until the

@@ -189,6 +189,14 @@ while UB2 (`arm64;x86_64`) starts with Apple Silicon-capable Xcode releases.
     `ppc7400 i386 x86_64`. This is not a runtime-verification claim for either
     target OS or PowerPC hardware.
 
+- `scripts/macos-standalone-release-ub2.sh`
+  - Builds the five autonomous Standalone Loop bundles plus the interactive
+    SimpleViewer as `arm64;x86_64`, then stages the complete set under
+    `build/release/macos-ub2`.
+  - Uses the modern UB2 build path with deployment target 11.0 and publishes
+    only after every executable contains both required slices. Scrapbook's
+    `ASSETS.LRP` remains inside its bundle.
+
 - `scripts/macos/build-10_7.sh`
   - Standard build path for Lion and newer.
   - Defaults: `DEPLOYMENT_TARGET=10.7`, `MAC_OS_10_4=0`
@@ -272,6 +280,9 @@ TARGET=LokaSimpleViewerMacOS ./scripts/macos/build-10_4.sh
 
 # UB2 target (arm64 + x86_64, macOS 11+)
 ./scripts/macos/build-ub2.sh
+
+# UB2 autonomous Standalone Loop release set
+./scripts/macos-standalone-release-ub2.sh
 
 # Generate Xcode project with Xcode's standard architecture preset
 ./scripts/macos/gen-xcodeproj.sh

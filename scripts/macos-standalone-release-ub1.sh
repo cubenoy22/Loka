@@ -26,6 +26,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ROOT_DIR="${PROJECT_DIR}"
 . "${SCRIPT_DIR}/macos/lib-common.sh"
+. "${SCRIPT_DIR}/macos/standalone-release-stage.sh"
 . "${SCRIPT_DIR}/presentation-stage.sh"
 
 if [[ -n "${TARGET:-}" ]]; then
@@ -74,17 +75,6 @@ BUILD_ROOT="${PROJECT_DIR}/build/${BUILD_ROOT_NAME}"
 UNIVERSAL_ROOT="${BUILD_ROOT}/universal"
 STAGE_ROOT="${PROJECT_DIR}/build/release/macos-${PROFILE_NAME}-ub1"
 
-copy_bundle() {
-  local source_bundle="$1"
-  local destination_bundle="$2"
-
-  if [[ -x /usr/bin/ditto ]]; then
-    /usr/bin/ditto "${source_bundle}" "${destination_bundle}"
-  else
-    cp -R "${source_bundle}" "${destination_bundle}"
-  fi
-}
-
 ub1_staged_arch_name() {
   local requested_arch="$1"
 
@@ -110,84 +100,11 @@ ub1_staged_archs() {
   echo "${staged_archs[*]}"
 }
 
-populate_ub1_release() {
-  local destination="$1"
-  local target_name=""
-  local record=""
-  local _memberships=""
-  local output_shape=""
-  local rel_path=""
-  local bundle_rel_path=""
-  local source_item=""
-  local destination_item=""
-  local destination_binary=""
-  local arch=""
-  local staged_arch=""
-  local staged_archs=""
-  local release_archs=()
-  local count=0
-
-  for target_name in $(loka_targets_for_selection standalone-release); do
-    record="$(loka_target_record "${target_name}")"
-    IFS='|' read -r target_name _memberships output_shape rel_path <<< "${record}"
-    case "${output_shape}" in
-      executable)
-        source_item="${UNIVERSAL_ROOT}/$(basename "${rel_path}")"
-        destination_item="${destination}/$(basename "${rel_path}")"
-        if [[ ! -f "${source_item}" ]]; then
-          echo "UB1 release executable not found: ${source_item}" >&2
-          return 1
-        fi
-        cp "${source_item}" "${destination_item}"
-        destination_binary="${destination_item}"
-        ;;
-      bundle)
-        bundle_rel_path="${rel_path%%/Contents/MacOS/*}"
-        source_item="${UNIVERSAL_ROOT}/$(basename "${bundle_rel_path}")"
-        destination_item="${destination}/$(basename "${bundle_rel_path}")"
-        if [[ ! -d "${source_item}" ]]; then
-          echo "UB1 release bundle not found: ${source_item}" >&2
-          return 1
-        fi
-        copy_bundle "${source_item}" "${destination_item}"
-        destination_binary="${destination_item}/Contents/MacOS/$(basename "${rel_path}")"
-        ;;
-      *)
-        echo "Unknown UB1 release output shape '${output_shape}' for ${target_name}." >&2
-        return 1
-        ;;
-    esac
-
-    if [[ ! -f "${destination_binary}" ]]; then
-      echo "Staged UB1 executable not found: ${destination_binary}" >&2
-      return 1
-    fi
-    IFS=';' read -r -a release_archs <<< "${ARCHS}"
-    for arch in "${release_archs[@]}"; do
-      staged_arch="$(ub1_staged_arch_name "${arch}")"
-      if ! loka_binary_contains_arch "${destination_binary}" "${staged_arch}"; then
-        echo "Staged UB1 executable does not contain ${staged_arch}: ${destination_binary}" >&2
-        return 1
-      fi
-    done
-    count=$((count + 1))
-  done
-
-  if [[ "${count}" -ne 6 ]]; then
-    echo "The UB1 standalone release must contain five loops plus SimpleViewer; found ${count}." >&2
-    return 1
-  fi
-  staged_archs="$(ub1_staged_archs)"
-  printf '%s\n' \
-    'Loka 0.0.4 UB1 Release applications' \
-    '' \
-    "Profile: ${PROFILE_NAME}" \
-    "Architectures: ${staged_archs}" \
-    '' \
-    'The five StandaloneLoop applications run their UI tour repeatedly.' \
-    'Quit a loop application to stop it. LokaSimpleViewerMacOS remains interactive.' \
-    >"${destination}/README.txt"
-}
-
-loka_replace_stage_directory "${STAGE_ROOT}" populate_ub1_release
+loka_stage_standalone_release \
+  "${UNIVERSAL_ROOT}" \
+  "${STAGE_ROOT}" \
+  flat \
+  "$(ub1_staged_archs)" \
+  UB1 \
+  "${PROFILE_NAME}"
 echo "Staged five autonomous UB1 loops plus SimpleViewer ($(ub1_staged_archs)): ${STAGE_ROOT}"

@@ -91,7 +91,21 @@ printf '%s\n' \
   'printf "universal\n" > "${output}"' \
   > "${FAKE_BIN}/lipo"
 chmod +x "${FAKE_BIN}/lipo"
+export LOKA_LIPO_BIN="${FAKE_BIN}/lipo"
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'printf "%s\n" "$*" >>"${LOKA_TEST_CMAKE_LOG}"' \
+  > "${FAKE_BIN}/cmake"
+chmod +x "${FAKE_BIN}/cmake"
 export PATH="${FAKE_BIN}:${PATH}"
+
+export LOKA_TEST_CMAKE_LOG="${TEST_ROOT}/cmake.log"
+unset TARGET || true
+TARGET_SET=standalone-release \
+  BUILD_DIR="${TEST_ROOT}/standalone-cmake" \
+  "${REPO_DIR}/scripts/macos/build.sh"
+grep -Fq -- '-DLOKA_ENABLE_STANDALONE_TARGETS=ON' "${LOKA_TEST_CMAKE_LOG}" ||
+  fail "standalone-release did not register its gated CMake targets"
 
 stage_arch() {
   local build_root="$1"

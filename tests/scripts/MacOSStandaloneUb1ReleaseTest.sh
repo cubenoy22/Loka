@@ -21,6 +21,8 @@ cp "${REPO_DIR}/scripts/macos-standalone-release-ub1.sh" "${FAKE_REPO}/scripts/"
 cp "${REPO_DIR}/scripts/presentation-stage.sh" "${FAKE_REPO}/scripts/"
 cp "${REPO_DIR}/scripts/apple/lib-xcode.sh" "${FAKE_REPO}/scripts/apple/"
 cp "${REPO_DIR}/scripts/macos/lib-common.sh" "${FAKE_REPO}/scripts/macos/"
+cp "${REPO_DIR}/scripts/macos/standalone-release-stage.sh" \
+  "${FAKE_REPO}/scripts/macos/"
 
 BUILD_LOG="${TEST_ROOT}/build.log"
 printf '%s\n' \
