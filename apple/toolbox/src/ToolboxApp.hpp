@@ -4,7 +4,7 @@
 #include "app/core/App.hpp"
 #include <vector>
 #include <Menus.h>
-
+#include "ToolboxActivationPhase.hpp"
 class ToolboxApp : public App
 {
 protected:
@@ -53,7 +53,7 @@ private:
   void disposeHierarchicalMenus();
   /** Applies recorded scene changes and, while foreground, paints each window
       once at the run-loop tick's presentation boundary. */
-  void present(bool isForeground);
+  void present(ActivationPhase phase);
   short nextMenuId_;
   std::vector<MenuCommand> commands_;
   std::vector<MenuBinding *> bindings_;

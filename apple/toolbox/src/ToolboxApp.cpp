@@ -89,11 +89,11 @@ void ToolboxApp::run()
     }
   }
   unsigned long lastTick = TickCount();
-  bool isForeground = true;
+  ActivationPhase phase = ACTIVATION_FOREGROUND;
   running_ = true;
   while (running_)
   {
-    if (isForeground)
+    if (phase == ACTIVATION_FOREGROUND)
     {
       this->flushMenuInvalidation();
     }
@@ -122,16 +122,16 @@ void ToolboxApp::run()
         ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
         if (toolboxWindow)
         {
-          toolboxWindow->idleControls(isForeground);
+          toolboxWindow->idleControls(phase);
         }
       }
     }
     ToolboxWindow *active = activeWindow() ? activeWindow()->asToolboxWindow() : 0;
-    if (isForeground && active)
+    if (phase == ACTIVATION_FOREGROUND && active)
     {
       active->updateCursor();
     }
-    if (isForeground && event.what == updateEvt)
+    if (phase == ACTIVATION_FOREGROUND && event.what == updateEvt)
     {
       WindowPtr target = reinterpret_cast<WindowPtr>(event.message);
       if (target && group_)
@@ -260,11 +260,11 @@ void ToolboxApp::run()
     }
     else if (event.what == osEvt && IsSuspendResumeEvent(event))
     {
-      isForeground = IsResumeEvent(event);
+      phase = IsResumeEvent(event) ? ACTIVATION_FOREGROUND : ACTIVATION_BACKGROUND;
       ToolboxWindow *active = activeWindow() ? activeWindow()->asToolboxWindow() : 0;
       if (active && active->window())
       {
-        HiliteWindow(active->window(), isForeground);
+        HiliteWindow(active->window(), phase == ACTIVATION_FOREGROUND);
       }
     }
     else if (event.what == keyDown || event.what == autoKey)
@@ -311,7 +311,7 @@ void ToolboxApp::run()
     {
       this->handleIdle(dispatchElapsedSeconds);
     }
-    this->present(isForeground);
+    this->present(phase);
     if (event.what == nullEvent && group_)
     {
       const std::vector<AppComponent *> &comps = group_->getComponents();
@@ -328,10 +328,10 @@ void ToolboxApp::run()
   }
 }
 
-void ToolboxApp::present(bool isForeground)
+void ToolboxApp::present(ActivationPhase phase)
 {
   this->flushWindowInvalidations();
-  if (!isForeground || !group_)
+  if (phase != ACTIVATION_FOREGROUND || !group_)
   {
     return;
   }

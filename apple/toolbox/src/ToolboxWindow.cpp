@@ -368,11 +368,13 @@ void ToolboxWindow::dispatchDeferredDebugDumpCompletion()
   }
 }
 
-void ToolboxWindow::idleControls(bool allowTextEditIdle)
+void ToolboxWindow::idleControls(ActivationPhase phase)
 {
   if (scenePlatformController_)
   {
-    if (allowTextEditIdle)
+    // Caret blink and other text-edit idle work is foreground-only; native
+    // handle reclamation runs in every phase.
+    if (phase == ACTIVATION_FOREGROUND)
     {
       scenePlatformController_->idleTextEdits();
     }
