@@ -32,7 +32,7 @@ public:
   bool handleMouseDown(const Point &globalPoint);
   bool handleKeyDown(char key);
   void drawDirty(const Rect &rect);
-  void idleControls();
+  void idleControls(bool allowTextEditIdle);
   void updateCursor();
   void invalidateWindow();
   void draw();

@@ -51,9 +51,9 @@ private:
   void resetMenuState();
   void disposeMenuEntries();
   void disposeHierarchicalMenus();
-  /** Applies recorded scene changes and paints each window once at the
-      run-loop tick's presentation boundary. */
-  void present();
+  /** Applies recorded scene changes and, while foreground, paints each window
+      once at the run-loop tick's presentation boundary. */
+  void present(bool isForeground);
   short nextMenuId_;
   std::vector<MenuCommand> commands_;
   std::vector<MenuBinding *> bindings_;

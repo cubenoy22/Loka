@@ -13,6 +13,30 @@
 #include <Devices.h>
 #include "platform/StringUTF8.hpp"
 
+namespace
+{
+  const unsigned long kOsEventMessageMask = 0xFF000000UL;
+#if defined(LOKA_TOOLBOX_MULTIVERSAL_INTERFACES)
+  const unsigned long kSuspendResumeEventMessage = SUSPENDRESUMEBITS;
+  const unsigned long kResumeEventFlag = RESUME;
+#else
+  const unsigned long kSuspendResumeEventMessage =
+      static_cast<unsigned long>(suspendResumeMessage) << 24;
+  const unsigned long kResumeEventFlag = resumeFlag;
+#endif
+
+  bool IsSuspendResumeEvent(const EventRecord &event)
+  {
+    return (static_cast<unsigned long>(event.message) & kOsEventMessageMask) ==
+           kSuspendResumeEventMessage;
+  }
+
+  bool IsResumeEvent(const EventRecord &event)
+  {
+    return (static_cast<unsigned long>(event.message) & kResumeEventFlag) != 0;
+  }
+} // namespace
+
 ToolboxApp::ToolboxApp(AppConfigurable *config)
     : App(config),
       nextMenuId_(128),
@@ -65,10 +89,14 @@ void ToolboxApp::run()
     }
   }
   unsigned long lastTick = TickCount();
+  bool isForeground = true;
   running_ = true;
   while (running_)
   {
-    this->flushMenuInvalidation();
+    if (isForeground)
+    {
+      this->flushMenuInvalidation();
+    }
     EventRecord event;
     WaitNextEvent(everyEvent, &event, 1, 0);
     if (event.what == nullEvent && group_)
@@ -94,16 +122,16 @@ void ToolboxApp::run()
         ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
         if (toolboxWindow)
         {
-          toolboxWindow->idleControls();
+          toolboxWindow->idleControls(isForeground);
         }
       }
     }
     ToolboxWindow *active = activeWindow() ? activeWindow()->asToolboxWindow() : 0;
-    if (active)
+    if (isForeground && active)
     {
       active->updateCursor();
     }
-    if (event.what == updateEvt)
+    if (isForeground && event.what == updateEvt)
     {
       WindowPtr target = reinterpret_cast<WindowPtr>(event.message);
       if (target && group_)
@@ -230,6 +258,15 @@ void ToolboxApp::run()
         }
       }
     }
+    else if (event.what == osEvt && IsSuspendResumeEvent(event))
+    {
+      isForeground = IsResumeEvent(event);
+      ToolboxWindow *active = activeWindow() ? activeWindow()->asToolboxWindow() : 0;
+      if (active && active->window())
+      {
+        HiliteWindow(active->window(), isForeground);
+      }
+    }
     else if (event.what == keyDown || event.what == autoKey)
     {
       ToolboxWindow *active = activeWindow() ? activeWindow()->asToolboxWindow() : 0;
@@ -274,7 +311,7 @@ void ToolboxApp::run()
     {
       this->handleIdle(dispatchElapsedSeconds);
     }
-    this->present();
+    this->present(isForeground);
     if (event.what == nullEvent && group_)
     {
       const std::vector<AppComponent *> &comps = group_->getComponents();
@@ -291,10 +328,10 @@ void ToolboxApp::run()
   }
 }
 
-void ToolboxApp::present()
+void ToolboxApp::present(bool isForeground)
 {
   this->flushWindowInvalidations();
-  if (!group_)
+  if (!isForeground || !group_)
   {
     return;
   }

@@ -368,11 +368,14 @@ void ToolboxWindow::dispatchDeferredDebugDumpCompletion()
   }
 }
 
-void ToolboxWindow::idleControls()
+void ToolboxWindow::idleControls(bool allowTextEditIdle)
 {
   if (scenePlatformController_)
   {
-    scenePlatformController_->idleTextEdits();
+    if (allowTextEditIdle)
+    {
+      scenePlatformController_->idleTextEdits();
+    }
     scenePlatformController_->flushRetiredNativeHandles();
   }
 }

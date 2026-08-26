@@ -21,10 +21,10 @@ resource 'SIZE' (-1) {
 	canBackground,
 	doesActivateOnFGSwitch,
 #else
-	ignoreSuspendResumeEvents,
+	acceptSuspendResumeEvents,
 	reserved,
-	cannotBackground,
-	needsActivateOnFGSwitch,
+	canBackground,
+	doesActivateOnFGSwitch,
 #endif
 	backgroundAndForeground,
 	dontGetFrontClicks,
