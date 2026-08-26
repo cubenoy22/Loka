@@ -6,20 +6,17 @@
 loka_replace_stage_directory() (
   set -euo pipefail
 
-  if [[ $# -lt 2 ]]; then
+  if [[ $# -ne 2 ]]; then
     echo "loka_replace_stage_directory requires a stage path and populate function." >&2
     return 2
   fi
 
-  # These values belong to the transaction subshell rather than this function
-  # frame. Keeping them in subshell scope leaves them available to the EXIT
-  # trap even after Bash has unwound the function on a populate failure.
-  stage_root="$1"
-  populate_function="$2"
-  parent=""
-  stage_name=""
-  staging_root=""
-  backup_root=""
+  local stage_root="$1"
+  local populate_function="$2"
+  local parent=""
+  local stage_name=""
+  local staging_root=""
+  local backup_root=""
 
   case "$stage_root" in
     ""|/|.|..)
@@ -56,7 +53,7 @@ loka_replace_stage_directory() (
 
   rm -rf "$staging_root" "$backup_root"
   mkdir -p "$staging_root"
-  "$populate_function" "$staging_root" "${@:3}"
+  "$populate_function" "$staging_root"
   if [[ ! -d "$staging_root" ]]; then
     echo "Presentation populate function removed its staging directory." >&2
     return 1

@@ -28,9 +28,10 @@ case "${ARCHS}" in
     ;;
 esac
 
+BUILD_ROOT="${BUILD_DIR:-${PROJECT_DIR}/build/macos-ub2/${BUILD_TYPE:-Release}}"
+export BUILD_DIR="${BUILD_ROOT}"
 "${SCRIPT_DIR}/macos/build-ub2.sh"
 
-BUILD_ROOT="${PROJECT_DIR}/build/macos-ub2/${BUILD_TYPE:-Release}"
 STAGE_ROOT="${PROJECT_DIR}/build/release/macos-ub2"
 loka_stage_standalone_release \
   "${BUILD_ROOT}" \

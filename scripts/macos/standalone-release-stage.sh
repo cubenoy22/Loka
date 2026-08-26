@@ -6,11 +6,6 @@
 # target-relative paths.
 loka_populate_standalone_release_stage() {
   local destination="$1"
-  local source_root="$2"
-  local source_layout="$3"
-  local staged_archs="$4"
-  local format_name="$5"
-  local profile_name="$6"
   local target_name=""
   local record=""
   local _memberships=""
@@ -24,10 +19,10 @@ loka_populate_standalone_release_stage() {
   local release_archs=()
   local count=0
 
-  case "${source_layout}" in
+  case "${LOKA_STANDALONE_SOURCE_LAYOUT}" in
     flat|tree) ;;
     *)
-      echo "Unknown standalone release source layout '${source_layout}'." >&2
+      echo "Unknown standalone release source layout '${LOKA_STANDALONE_SOURCE_LAYOUT}'." >&2
       return 2
       ;;
   esac
@@ -37,14 +32,14 @@ loka_populate_standalone_release_stage() {
     IFS='|' read -r target_name _memberships output_shape rel_path <<< "${record}"
     case "${output_shape}" in
       executable)
-        if [[ "${source_layout}" == "flat" ]]; then
-          source_item="${source_root}/$(basename "${rel_path}")"
+        if [[ "${LOKA_STANDALONE_SOURCE_LAYOUT}" == "flat" ]]; then
+          source_item="${LOKA_STANDALONE_SOURCE_ROOT}/$(basename "${rel_path}")"
         else
-          source_item="${source_root}/${rel_path}"
+          source_item="${LOKA_STANDALONE_SOURCE_ROOT}/${rel_path}"
         fi
         destination_item="${destination}/$(basename "${rel_path}")"
         if [[ ! -f "${source_item}" ]]; then
-          echo "${format_name} release executable not found: ${source_item}" >&2
+          echo "${LOKA_STANDALONE_FORMAT_NAME} release executable not found: ${source_item}" >&2
           return 1
         fi
         cp "${source_item}" "${destination_item}"
@@ -52,14 +47,14 @@ loka_populate_standalone_release_stage() {
         ;;
       bundle)
         bundle_rel_path="${rel_path%%/Contents/MacOS/*}"
-        if [[ "${source_layout}" == "flat" ]]; then
-          source_item="${source_root}/$(basename "${bundle_rel_path}")"
+        if [[ "${LOKA_STANDALONE_SOURCE_LAYOUT}" == "flat" ]]; then
+          source_item="${LOKA_STANDALONE_SOURCE_ROOT}/$(basename "${bundle_rel_path}")"
         else
-          source_item="${source_root}/${bundle_rel_path}"
+          source_item="${LOKA_STANDALONE_SOURCE_ROOT}/${bundle_rel_path}"
         fi
         destination_item="${destination}/$(basename "${bundle_rel_path}")"
         if [[ ! -d "${source_item}" ]]; then
-          echo "${format_name} release bundle not found: ${source_item}" >&2
+          echo "${LOKA_STANDALONE_FORMAT_NAME} release bundle not found: ${source_item}" >&2
           return 1
         fi
         if [[ -x /usr/bin/ditto ]]; then
@@ -76,13 +71,13 @@ loka_populate_standalone_release_stage() {
     esac
 
     if [[ ! -f "${destination_binary}" ]]; then
-      echo "Staged ${format_name} executable not found: ${destination_binary}" >&2
+      echo "Staged ${LOKA_STANDALONE_FORMAT_NAME} executable not found: ${destination_binary}" >&2
       return 1
     fi
-    IFS=';' read -r -a release_archs <<< "${staged_archs}"
+    IFS=';' read -r -a release_archs <<< "${LOKA_STANDALONE_STAGED_ARCHS}"
     for arch in "${release_archs[@]}"; do
       if ! loka_binary_contains_arch "${destination_binary}" "${arch}"; then
-        echo "Staged ${format_name} executable does not contain ${arch}: ${destination_binary}" >&2
+        echo "Staged ${LOKA_STANDALONE_FORMAT_NAME} executable does not contain ${arch}: ${destination_binary}" >&2
         return 1
       fi
     done
@@ -90,27 +85,35 @@ loka_populate_standalone_release_stage() {
   done
 
   if [[ "${count}" -ne 6 ]]; then
-    echo "The ${format_name} standalone release must contain five loops plus SimpleViewer; found ${count}." >&2
+    echo "The ${LOKA_STANDALONE_FORMAT_NAME} standalone release must contain five loops plus SimpleViewer; found ${count}." >&2
     return 1
   fi
   printf '%s\n' \
-    "Loka 0.0.4 ${format_name} Release applications" \
+    "Loka 0.0.4 ${LOKA_STANDALONE_FORMAT_NAME} Release applications" \
     '' \
-    "Profile: ${profile_name}" \
-    "Architectures: ${staged_archs}" \
+    "Profile: ${LOKA_STANDALONE_PROFILE_NAME}" \
+    "Architectures: ${LOKA_STANDALONE_STAGED_ARCHS}" \
     '' \
     'The five StandaloneLoop applications run their UI tour repeatedly.' \
     'Quit a loop application to stop it. LokaSimpleViewerMacOS remains interactive.' \
     >"${destination}/README.txt"
 }
 
-loka_stage_standalone_release() {
+loka_stage_standalone_release() (
+  set -euo pipefail
   if [[ $# -ne 6 ]]; then
     echo "loka_stage_standalone_release requires source, destination, layout, architectures, format, and profile." >&2
     return 2
   fi
+  # Keep one callback configuration inside this operation's subshell while the
+  # shared presentation transaction retains its established two-argument API.
+  LOKA_STANDALONE_SOURCE_ROOT="$1"
+  LOKA_STANDALONE_STAGE_ROOT="$2"
+  LOKA_STANDALONE_SOURCE_LAYOUT="$3"
+  LOKA_STANDALONE_STAGED_ARCHS="$4"
+  LOKA_STANDALONE_FORMAT_NAME="$5"
+  LOKA_STANDALONE_PROFILE_NAME="$6"
   loka_replace_stage_directory \
-    "$2" \
-    loka_populate_standalone_release_stage \
-    "$1" "$3" "$4" "$5" "$6"
-}
+    "${LOKA_STANDALONE_STAGE_ROOT}" \
+    loka_populate_standalone_release_stage
+)
