@@ -32,6 +32,7 @@ public:
   bool hasPendingInvalidate() const;
   bool handleMouseDown(const Point &globalPoint);
   bool handleKeyDown(char key);
+  void handleActivation(bool active);
   void drawDirty(const Rect &rect);
   void idleControls(ActivationPhase phase);
   void updateCursor();

@@ -55,6 +55,14 @@ public:
 
   void render();
   void renderDirty(const Rect &rect);
+  /** Applies the owning Window's activateEvt state to every native control.
+      Per-control enabled/range state remains the logical source restored when
+      the Window becomes active again. */
+  void setWindowActive(bool active);
+  bool windowActive() const
+  {
+    return windowActive_;
+  }
   bool handleMouseDown(const Point &point);
   void emitHitEmitter(loka::core::EmitterState *emitter);
   void recordButtonHit(const Rect &rect,
@@ -259,6 +267,7 @@ private:
   };
 
   ToolboxWindow *window_;
+  bool windowActive_;
   loka::app::scene::Node *rootNode_;
   loka::app::scene::Node *pendingRootNode_;
   std::vector<ButtonHit> buttonHits_;
@@ -328,6 +337,7 @@ private:
   void clearTextBindings();
   void clearEnabledBindings();
   void clearControls();
+  void applyControlHilite(ControlRef control, bool logicallyActive) const;
   void queueRetiredControl(ControlRef control, loka::app::scene::NativeLifetimeHint lifetimeHint);
   void queueRetiredScrollBarControl(ControlRef control, loka::app::scene::NativeLifetimeHint lifetimeHint);
   /** Publishes the value a finished tracking loop settled on, in the order

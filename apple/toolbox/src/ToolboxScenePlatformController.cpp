@@ -922,6 +922,7 @@ static const std::size_t kNativePoolBucketDepthCap = 8;
 
 ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *window)
     : window_(window),
+      windowActive_(window && window->window() && FrontWindow() == window->window()),
       rootNode_(0),
       pendingRootNode_(0),
       focusedText_(0),
@@ -967,6 +968,52 @@ ToolboxScenePlatformController::~ToolboxScenePlatformController()
   }
 }
 
+void ToolboxScenePlatformController::setWindowActive(bool active)
+{
+  if (windowActive_ == active)
+  {
+    return;
+  }
+  windowActive_ = active;
+  if (!window_ || !window_->window())
+  {
+    return;
+  }
+  GrafPtr oldPort;
+  GetPort(&oldPort);
+  SetPort(window_->window());
+  for (size_t i = 0; i < buttonControls_.size(); ++i)
+  {
+    ButtonControlBinding &binding = buttonControls_[i];
+    this->applyControlHilite(binding.control, !binding.enabled || binding.enabled->get());
+  }
+  for (size_t i = 0; i < scrollBarControls_.size(); ++i)
+  {
+    ScrollBarControlBinding &binding = scrollBarControls_[i];
+    this->applyControlHilite(binding.control, binding.active);
+  }
+  for (size_t i = 0; i < editControls_.size(); ++i)
+  {
+    if (editControls_[i].te)
+    {
+      TEDeactivate(editControls_[i].te);
+    }
+  }
+  if (windowActive_)
+  {
+    EditTextControlBinding *focused = editControls_.focused();
+    if (focused && focused->te)
+    {
+      TEActivate(focused->te);
+    }
+  }
+  SetPort(oldPort);
+  for (size_t i = 0; i < popupHits_.size(); ++i)
+  {
+    window_->requestInvalidateRect(popupHits_[i].rect);
+  }
+}
+
 bool ToolboxScenePlatformController::registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler)
 {
   return this->nodeHandlerRegistry_.registerHandler(handler);
@@ -1009,6 +1056,14 @@ bool ToolboxScenePlatformController::prepareProjectedLayout(loka::app::scene::No
 short ToolboxScenePlatformController::allocateControlId()
 {
   return controlIds_.allocate();
+}
+
+void ToolboxScenePlatformController::applyControlHilite(ControlRef control, bool logicallyActive) const
+{
+  if (control)
+  {
+    HiliteControl(control, windowActive_ && logicallyActive ? 0 : kControlInactivePart);
+  }
 }
 
 void ToolboxScenePlatformController::onChange(loka::app::scene::Node *rootNode,
@@ -2082,14 +2137,7 @@ bool ToolboxScenePlatformController::applyEnabledChangeForKind(
       {
         if (binding.control)
         {
-          if (enabled->get())
-          {
-            HiliteControl(binding.control, 0);
-          }
-          else
-          {
-            HiliteControl(binding.control, 255);
-          }
+          this->applyControlHilite(binding.control, enabled->get());
         }
         return true;
       }
@@ -2108,7 +2156,7 @@ bool ToolboxScenePlatformController::applyEnabledChangeForKind(
       binding.active = enabled->get() && loka::app::ScrollBarIsScrollable(binding.minimum, binding.maximum);
       if (binding.control)
       {
-        HiliteControl(binding.control, binding.active ? 0 : 255);
+        this->applyControlHilite(binding.control, binding.active);
       }
       return true;
     }
@@ -2404,7 +2452,7 @@ void ToolboxScenePlatformController::redrawTextHit(TextHit &hit)
 
 void ToolboxScenePlatformController::redrawPopupHit(const PopupHit &hit)
 {
-  if (!window_ || !window_->window())
+  if (!window_ || !window_->window() || !hit.context)
   {
     return;
   }
@@ -2412,42 +2460,7 @@ void ToolboxScenePlatformController::redrawPopupHit(const PopupHit &hit)
   GetPort(&oldPort);
   SetPort(window_->window());
   EraseRect(&hit.rect);
-  loka::core::String label = loka::core::String::Literal("Select");
-  int selectedIndex = 0;
-  if (hit.selectedIndex)
-  {
-    selectedIndex = hit.selectedIndex->get();
-  }
-  if (hit.items && hit.items->size() > 0)
-  {
-    if (selectedIndex < 0)
-    {
-      selectedIndex = 0;
-    }
-    if (static_cast<std::size_t>(selectedIndex) >= hit.items->size())
-    {
-      selectedIndex = static_cast<int>(hit.items->size() - 1);
-    }
-    label = (*hit.items)[selectedIndex];
-  }
-  FrameRect(&hit.rect);
-  PenState penState;
-  GetPenState(&penState);
-  PenPat(&qd.gray);
-  MoveTo(hit.rect.left + 2, hit.rect.bottom);
-  LineTo(hit.rect.right, hit.rect.bottom);
-  LineTo(hit.rect.right, hit.rect.top + 2);
-  SetPenState(&penState);
-  short textY = static_cast<short>(hit.rect.top + hit.lineHeight - 2);
-  DrawStringAt(static_cast<short>(hit.rect.left + 4), textY, label);
-  short arrowRight = static_cast<short>(hit.rect.right - 4);
-  short arrowTop = static_cast<short>(hit.rect.top + 4);
-  short arrowBottom = static_cast<short>(hit.rect.bottom - 4);
-  short arrowMidY = static_cast<short>((arrowTop + arrowBottom) / 2);
-  MoveTo(static_cast<short>(arrowRight - 6), arrowMidY - 3);
-  LineTo(arrowRight, arrowMidY - 3);
-  LineTo(static_cast<short>(arrowRight - 3), arrowMidY + 3);
-  LineTo(static_cast<short>(arrowRight - 6), arrowMidY - 3);
+  hit.context->draw(this);
   SetPort(oldPort);
 }
 
@@ -2781,14 +2794,7 @@ bool ToolboxScenePlatformController::ensureButtonControl(short resourceId,
     binding->label = labelUtf8;
     binding->needsDraw = true;
   }
-  if (binding->enabled && !binding->enabled->get())
-  {
-    HiliteControl(binding->control, 255);
-  }
-  else
-  {
-    HiliteControl(binding->control, 0);
-  }
+  this->applyControlHilite(binding->control, !binding->enabled || binding->enabled->get());
   ShowControl(binding->control);
   return true;
 }
@@ -2957,7 +2963,7 @@ bool ToolboxScenePlatformController::ensureScrollBarControl(short resourceId,
   binding->active = enabledNow && loka::app::ScrollBarIsScrollable(props.min_, props.max_);
   // Classic's one presentation for "cannot be used right now", whether the
   // reason is a disabled binding or a range with nowhere to go.
-  HiliteControl(binding->control, binding->active ? 0 : 255);
+  this->applyControlHilite(binding->control, binding->active);
   ShowControl(binding->control);
   return true;
 }
@@ -3134,6 +3140,10 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(ToolboxEditTextCo
   if (!inBatchUpdate_)
   {
     syncEditTextFromState(*binding);
+  }
+  if (!windowActive_ && binding->te)
+  {
+    TEDeactivate(binding->te);
   }
   return binding ? binding->te : 0;
 }

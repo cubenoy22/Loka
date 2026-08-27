@@ -121,7 +121,7 @@ void ToolboxPopupMenuContext::copyToPascalString(const loka::core::String &value
   }
 }
 
-void ToolboxPopupMenuContext::draw()
+void ToolboxPopupMenuContext::draw(ToolboxScenePlatformController *controller)
 {
   if (!node_)
   {
@@ -140,12 +140,20 @@ void ToolboxPopupMenuContext::draw()
   }
   PenState penState;
   GetPenState(&penState);
+  const bool active = (!enabled_ || enabled_->get()) && (!controller || controller->windowActive());
+  if (!active)
+  {
+    PenPat(&qd.gray);
+  }
   FrameRect(&rect_);
   PenPat(&qd.gray);
   MoveTo(rect_.left + 2, rect_.bottom);
   LineTo(rect_.right, rect_.bottom);
   LineTo(rect_.right, rect_.top + 2);
-  SetPenState(&penState);
+  if (active)
+  {
+    SetPenState(&penState);
+  }
   short textY = static_cast<short>(rect_.top + lineHeight_ - 2);
   DrawStringAt(static_cast<short>(rect_.left + 4), textY, label);
   short arrowRight = static_cast<short>(rect_.right - 4);
@@ -156,6 +164,7 @@ void ToolboxPopupMenuContext::draw()
   LineTo(arrowRight, arrowMidY - 3);
   LineTo(static_cast<short>(arrowRight - 3), arrowMidY + 3);
   LineTo(static_cast<short>(arrowRight - 6), arrowMidY - 3);
+  SetPenState(&penState);
 }
 
 short ToolboxPopupMenuContext::layout(loka::app::scene::IPlatformController *controller,
@@ -236,9 +245,9 @@ bool ToolboxPopupMenuContext::handleMouseDown(const Point &point, ToolboxScenePl
   return true;
 }
 
-void ToolboxPopupMenuContext::render(loka::app::scene::IPlatformController *)
+void ToolboxPopupMenuContext::render(loka::app::scene::IPlatformController *controller)
 {
-  draw();
+  draw(static_cast<ToolboxScenePlatformController *>(controller));
 }
 
 short ToolboxPopupMenuContext::menuId() const

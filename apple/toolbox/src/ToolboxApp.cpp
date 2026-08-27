@@ -259,7 +259,12 @@ void ToolboxApp::run()
           ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
           if (toolboxWindow && toolboxWindow->window() == target)
           {
-            setActiveWindow(toolboxWindow);
+            const bool active = (event.modifiers & activeFlag) != 0;
+            toolboxWindow->handleActivation(active);
+            if (active)
+            {
+              setActiveWindow(toolboxWindow);
+            }
             break;
           }
         }

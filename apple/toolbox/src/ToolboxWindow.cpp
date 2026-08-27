@@ -348,6 +348,14 @@ bool ToolboxWindow::handleKeyDown(char key)
   return scenePlatformController_->handleKeyDown(key);
 }
 
+void ToolboxWindow::handleActivation(bool active)
+{
+  if (scenePlatformController_)
+  {
+    scenePlatformController_->setWindowActive(active);
+  }
+}
+
 void ToolboxWindow::dispatchDeferredDebugDumpCompletion()
 {
   if (pendingDeferredDebugDumpCompletion_)

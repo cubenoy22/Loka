@@ -14,7 +14,8 @@
 typedef int16_t ControlPartCode;
 
 enum {
-  kControlIndicatorPart = 129
+  kControlIndicatorPart = 129,
+  kControlInactivePart = 255
 };
 
 #endif

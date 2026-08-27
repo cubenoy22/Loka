@@ -50,7 +50,7 @@ public:
                   loka::core::EmitterState *onChange,
                   loka::core::State<bool> *enabled);
   void updateRect(const Rect &rect, short lineHeight);
-  void draw();
+  void draw(ToolboxScenePlatformController *controller);
   virtual void render(loka::app::scene::IPlatformController *controller);
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   bool handleMouseDown(const Point &point, ToolboxScenePlatformController *controller);
