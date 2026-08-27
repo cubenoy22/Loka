@@ -156,12 +156,19 @@ representative scenario for each example on every applicable OS.
 Select and complete one example cell per applicable OS for this release. Leave
 the other cells unchecked so the sample remains visible.
 
+**v0.0.4 release-owner deviation (2026-08-27): the Win32 and macOS L3 samples
+are not taken for this release.** The modern rails ship on their automated L1/L2
+evidence alone; a defect surfacing later on them ships in a follow-up release.
+Recorded here per the honest-recording policy — the cells below stay unchecked
+rather than being converted into a claim. The Classic sample was taken on real
+Mac OS 9 hardware and is recorded in its cell.
+
 | Example | Linux host | Win32 | macOS | Classic Mac |
 | --- | --- | --- | --- | --- |
 | `FloppyBird` | n/a — no Linux GUI application target | - [ ] Sample evidence: _add link_ | - [ ] Sample evidence: _add link_ | - [ ] Sample evidence: _add link_ |
 | `HelloWorld` | n/a — no Linux GUI application target | - [ ] Sample evidence: _add link_ | - [ ] Sample evidence: _add link_ | - [ ] Sample evidence: _add link_ |
 | `MineSweeper` | n/a — no Linux GUI application target | - [ ] Sample evidence: _add link_ | - [ ] Sample evidence: _add link_ | - [ ] Sample evidence: _add link_ |
-| `ScrapbookUI` | n/a — no Linux GUI application target | - [ ] Sample evidence: _add link_ | - [ ] Sample evidence: _add link_ | - [ ] Sample evidence: _add link_ |
+| `ScrapbookUI` | n/a — no Linux GUI application target | - [ ] Sample evidence: _add link_ | - [ ] Sample evidence: _add link_ | - [x] ✅ Hands-on session on a real Mac OS 9 PowerBook (Titanium), 2026-08-26, exercising the 0.0.4 standalone loop applications including ScrapbookUI's. The session did exactly what L3 exists for — it surfaced two real-hardware behaviors the automated rails cannot see: [#490](https://github.com/cubenoy22/Loka/issues/490) (a second standalone loop exits silently over the shared `LOG.TXT`) and [#491](https://github.com/cubenoy22/Loka/issues/491) (every non-Carbon SIZE declares `cannotBackground`, so a backgrounded application stops). Both are filed and dispositioned to 0.0.5; neither affects a foreground single-application run. |
 | `SimpleViewer` | n/a — no Linux GUI application target | - [ ] Sample evidence: _add link_ | - [ ] Sample evidence: _add link_ | - [ ] Sample evidence: _add link_ |
 | `Tutorial` | n/a — no Linux GUI application target | - [ ] Sample evidence: _add link_ | - [ ] Sample evidence: _add link_ | - [ ] Sample evidence: _add link_ |
 
