@@ -30,7 +30,38 @@ created with `git tag -a`, with the release notes recorded in the tag message.
 
 ---
 
-## v0.0.3 (current)
+## v0.0.4 (current)
+
+Verification-hardening and presentation milestone — 58 commits since 0.0.3. See
+the [release notes](https://github.com/cubenoy22/Loka/releases/tag/v0.0.4).
+
+Delivered:
+
+* **Autonomous standalone presentation builds**: installable loop applications
+  running the scenario reel unattended on Classic, Win32, and macOS; a macOS
+  UB2 (arm64+x86_64) standalone release path; standalone debug targets; launch
+  parity and reel-cell window titles
+* **Rig hardening**: every pixel rail declares its capture environment before
+  it bakes and refuses undeclared drift; goldens carry a reference identity and
+  cannot self-authorize; startup-identity guards refuse a golden that silently
+  equals startup; rigs are named, not derived from architecture
+* **Classic correctness**: EditText listens to its own State with one border
+  owner; partial redraw punches out overlapped ZStack siblings, with a
+  discriminating instrument; retained Button and PopupMenu handler updates
+* **Cross-platform**: DSL names no longer collide with Universal Interfaces
+  globals; native App teardown completes between runs; SimpleViewer releases
+  image bytes before its low-memory retry; wide Win32 API builds enforced
+* **CI**: per-platform workflows with hosted Toolbox and Win32 standalone
+  Release builds
+
+Verification evidence and known issues are recorded on release PR #497.
+Known ships-with defects: #496 (Win32 MineSweeper settle), #490/#491
+(standalone loop LOG.TXT sharing and Classic backgrounding), dispositioned
+to 0.0.5.
+
+---
+
+## v0.0.3
 
 Resource and proof-machinery milestone — 159 pull requests since 0.0.2. See the
 [release notes](https://github.com/cubenoy22/Loka/releases/tag/v0.0.3).
