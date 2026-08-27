@@ -13,6 +13,33 @@ per rig, the install path does not follow the product year (VS 2026 lives under
 `\18\`), and a wrong guess fails at `call`. Discover both in the bat file — see
 Build below.
 
+## Standard rig: an isolated Hyper-V VM
+
+Since 2026-08-27 the standard rig for golden work and pre/post comparisons is
+an isolated Hyper-V guest, not bare metal. A VM is the only kind of Win32
+machine whose environment is reproducible (image + disabled updates + named
+checkpoint), which the golden-lifetime ruling requires of a long-term
+baseline — and the scenario rail is deterministic there (all ten matrix cells
+bake and re-verify; the #496 multistable settle has never manifested in a
+VM). Bare metal remains for release evidence and explained version-to-version
+comparison only.
+
+- WSL and the Hyper-V Default Switch are separate NATs the host does not
+  route between. Bridge exactly one ssh port with `netsh portproxy` bound to
+  the WSL-facing address — an external switch would put the guest on the LAN
+  and break the isolation the VM exists for. Both addresses move on host
+  reboot; re-run the bridge then. The rig's name, addresses, and credentials
+  live outside this repository, with the rig descriptors.
+- Anything that opens a window (bake, verify, scenario runs) must run in the
+  guest's interactive console session, not the ssh session: register a
+  scheduled task with an Interactive logon principal for the autologon user,
+  have the script write its own output file, and poll that file over ssh. An
+  ssh-run scenario dies at the capture stage reporting zero windows found.
+- The guest builds with the same build.bat below; its rig descriptor lives in
+  the guest's own `~/.config/loka/rigs/win32/`, untracked like every rig's.
+- A checkpoint freezes the goldens with the machine: reverting to it also
+  reverts any goldens baked after it.
+
 ## Checkout layout
 
 - **The WSL ext4 clone is the source of truth.** Clone it with WSL `git`, not
