@@ -39,38 +39,13 @@ body:
     validations:
       required: true
 
-  - type: dropdown
+  - type: input
     id: cmake_preset
     attributes:
       label: CMake preset
-      options:
-        - macos-debug
-        - macos-release
-        - macos-standalone-debug
-        - macos-standalone-release
-        - win32-debug
-        - win32-standalone-debug
-        - win32-release
-        - win32-xp-debug
-        - win32-xp-release
-        - win32-arm64-release
-        - win32-x64-release
-        - win32-x86-release
-        - win32-standalone-arm64-release
-        - win32-standalone-x64-release
-        - win32-standalone-x86-release
-        - retro68-68k-release
-        - retro68-68k-diag
-        - retro68-68k-dwarf
-        - retro68-68k-standalone-release
-        - retro68-68k-standalone-dwarf
-        - retro68-ppc-release
-        - retro68-ppc-standalone-release
-        - testing
-        - testing-coverage
-        - testing-release
-        - testing-asan
-        - Custom or no preset
+      description: >-
+        The preset you configured with (see CMakePresets.json), e.g.
+        testing, win32-debug, macos-debug, retro68-68k-release.
     validations:
       required: true
 
