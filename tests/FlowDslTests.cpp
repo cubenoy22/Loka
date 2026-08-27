@@ -97,6 +97,48 @@ namespace
     return loka::app::Fragment() << loka::app::Text("Light child").testId("TypedDslLightChild");
   }
 
+  static void assertEquivalentDefinitionStructure(loka::app::scene::NodeDefinitionBase *expected,
+                                                  loka::app::scene::NodeDefinitionBase *actual)
+  {
+    assert(expected);
+    assert(actual);
+    assert(expected->nodeKind() == actual->nodeKind());
+    assert(expected->propsBase());
+    assert(actual->propsBase());
+    assert(expected->propsBase()->propsTypeId() == actual->propsBase()->propsTypeId());
+    assert(expected->hasEquivalentProps(*actual));
+
+    loka::app::scene::IBranchSeatDefinition *expectedSeat = expected->asBranchSeatDefinition();
+    loka::app::scene::IBranchSeatDefinition *actualSeat = actual->asBranchSeatDefinition();
+    assert((expectedSeat != 0) == (actualSeat != 0));
+    if (expectedSeat)
+    {
+      assert(expectedSeat->branchCondition() == actualSeat->branchCondition());
+      assertEquivalentDefinitionStructure(expectedSeat->branchDefinition(false), actualSeat->branchDefinition(false));
+      assertEquivalentDefinitionStructure(expectedSeat->branchDefinition(true), actualSeat->branchDefinition(true));
+    }
+
+    loka::app::scene::INestableDefinition *expectedNestable = expected->asNestableDefinition();
+    loka::app::scene::INestableDefinition *actualNestable = actual->asNestableDefinition();
+    assert((expectedNestable != 0) == (actualNestable != 0));
+    if (!expectedNestable)
+    {
+      return;
+    }
+
+    assert(expectedNestable->childrenCount() == actualNestable->childrenCount());
+    loka::app::scene::NodeDefinitionBase *expectedChild = expectedNestable->childrenHead();
+    loka::app::scene::NodeDefinitionBase *actualChild = actualNestable->childrenHead();
+    while (expectedChild && actualChild)
+    {
+      assertEquivalentDefinitionStructure(expectedChild, actualChild);
+      expectedChild = expectedChild->nextInComposition;
+      actualChild = actualChild->nextInComposition;
+    }
+    assert(!expectedChild);
+    assert(!actualChild);
+  }
+
   class TypedDslLightHostNode;
   typedef loka::app::scene::BoundaryPropsFor<TypedDslLightHostNode> TypedDslLightHostProps;
 
@@ -3076,6 +3118,32 @@ void testLokaFlowDslV1Core()
     tracker.end();
 
     assert(label.get().equals(loka::core::String::Literal("Count: 5")));
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    loka::core::MutableState<bool> isVisible(false);
+
+    NodeComposition explicitComposition;
+    explicitComposition.declare(Box() << (Show(isVisible) << Text("Visible child")));
+
+    NodeComposition shorthandComposition;
+    shorthandComposition.declare(Box() << (isVisible << Text("Visible child")));
+
+    assertEquivalentDefinitionStructure(explicitComposition.root(), shorthandComposition.root());
+  }
+
+  {
+    using namespace loka::app;
+
+    loka::core::MutableState<bool> isVisible(false);
+    ShowDefinition explicitShow = Show(isVisible) << Text("First") << Text("Second");
+    ShowDefinition shorthandShow = isVisible << Text("First") << Text("Second");
+
+    assert(shorthandShow.childrenCount() == 2);
+    assertEquivalentDefinitionStructure(&explicitShow, &shorthandShow);
   }
 
   {
