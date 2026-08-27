@@ -64,6 +64,11 @@ Deliberately **not** on this list, and not to be "fixed" by a sweep:
   than advancing it; if it no longer holds, the passage needs rewriting, not a
   version bump.
 - `docs/archives/` and the `*Draft.md` design notes.
+- The staged standalone payload `README.txt` labels
+  (`scripts/macos-standalone-flow.sh`, `scripts/macos/standalone-release-stage.sh`,
+  `scripts/win32-standalone-flow.ps1`) derive the version from the top-level
+  CMake `project()` call at run time, so they follow the bump without being
+  walked. They were hardcoded once and went stale at the 0.0.4 -> 0.0.5 bump.
 - `scripts/release/README.md` takes the tag from `$TAG` so its example never
   goes stale.
 - `docs/ProgrammingGuide.md` / `.en.md` name no release at all. The guide tracks

@@ -85,7 +85,7 @@ This is the environment where binaries are actually built.
   per application, while ScrapbookUI's `ASSETS.LRP` remains owned by its bundle
   at `Contents/Resources`. **Standalone: macOS Release Action** is the VS Code
   shortcut; choose Build, Stage, or Verify from its action prompt.
-- To stage the 0.0.4 macOS application payload rather than the finite audit
+- To stage the standalone macOS application payload rather than the finite audit
   rail, run `scripts/macos-standalone-flow.sh Release`. The result under
   `build/release/macos-<architecture>` contains five autonomous loop bundles
   plus the ordinary interactive `LokaSimpleViewerMacOS` executable. A loop
@@ -186,7 +186,7 @@ This is the environment where binaries are actually built.
   session. **Standalone: Win32 Release Action** is the VS Code shortcut;
   choose Build, Stage, or Verify from its action prompt.
 
-  For the 0.0.4 application payload, use `-Action Release` instead of
+  For the standalone application payload, use `-Action Release` instead of
   `-Action Stage`. It writes `build/release/win32-<architecture>` with five
   autonomous loop executables, `LokaSimpleViewerWin32.exe`, ScrapbookUI's
   `ASSETS.LRP`, and a short README. Each loop keeps its App and native Window;

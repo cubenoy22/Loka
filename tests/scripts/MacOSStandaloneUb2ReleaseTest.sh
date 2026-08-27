@@ -15,6 +15,7 @@ FAKE_REPO="${TEST_ROOT}/repo"
 mkdir -p \
   "${FAKE_REPO}/scripts/apple" \
   "${FAKE_REPO}/scripts/macos"
+printf 'project(Loka VERSION 9.9.9 LANGUAGES CXX)\n' > "${FAKE_REPO}/CMakeLists.txt"
 cp "${REPO_DIR}/scripts/macos-standalone-release-ub2.sh" "${FAKE_REPO}/scripts/"
 cp "${REPO_DIR}/scripts/presentation-stage.sh" "${FAKE_REPO}/scripts/"
 cp "${REPO_DIR}/scripts/apple/lib-xcode.sh" "${FAKE_REPO}/scripts/apple/"
@@ -91,6 +92,8 @@ RELEASE_ROOT="${FAKE_REPO}/build/release/macos-ub2"
 grep -Fq 'Architectures: arm64;x86_64' "${RELEASE_ROOT}/README.txt" ||
   fail "the UB2 release README did not record both architectures"
 
+grep -q "^Loka 9.9.9 " "${RELEASE_ROOT}/README.txt" \
+  || fail "the staged README does not carry the fixture source version (label must derive from CMakeLists, not a hardcode)"
 cp "${RELEASE_ROOT}/README.txt" "${TEST_ROOT}/previous-readme"
 rm -rf "${BUILD_ROOT}/apple/macos/LokaHelloWorldStandaloneLoopMacOS.app"
 set +e

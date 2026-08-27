@@ -233,8 +233,16 @@ else
       visit_catalog "$BUILD_CATALOG" copy_loop_entry
       cp "$SIMPLE_VIEWER" "$destination/LokaSimpleViewerMacOS"
       chmod +x "$destination/LokaSimpleViewerMacOS"
+      # Same derivation as loka_source_version in standalone-release-stage.sh;
+      # inlined because this script deliberately avoids the lib-common/Xcode
+      # coupling that sourcing the stage library's siblings would bring.
+      source_version="$(sed -n 's/^project(Loka VERSION \([0-9.][0-9.]*\) LANGUAGES CXX)$/\1/p' "$SCRIPT_DIR/../CMakeLists.txt")"
+      if [ -z "$source_version" ]; then
+        echo "Could not read the Loka source version from $SCRIPT_DIR/../CMakeLists.txt" >&2
+        exit 1
+      fi
       printf '%s\n' \
-        'Loka 0.0.4 Release applications' \
+        "Loka ${source_version} Release applications" \
         '' \
         'The five StandaloneLoop applications run their UI tour repeatedly.' \
         'Quit a loop application to stop it. LokaSimpleViewerMacOS remains interactive.' \

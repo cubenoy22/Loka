@@ -16,7 +16,7 @@ Versioning follows a pragmatic pre-1.0 scheme:
 The version in the top-level CMake `project(Loka VERSION ... LANGUAGES CXX)`
 call is the canonical source version, and it names the release **under
 development**: the source tree on `main` always carries the next version
-(currently `0.0.4`), so a build from source never claims to be a published
+(currently `0.0.5`), so a build from source never claims to be a published
 artifact it has drifted from. Cutting a release means bringing the
 documentation and release metadata into agreement with that version and
 freezing it with the annotated tag; immediately after tagging, the source
