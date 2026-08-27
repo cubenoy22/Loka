@@ -4,6 +4,21 @@
 # already-built tree. The caller supplies the source layout because legacy
 # split builds flatten their lipo outputs while modern CMake builds retain the
 # target-relative paths.
+# The canonical source version, read from the top-level CMake project() call
+# so staged payload labels cannot drift from the version being built (the
+# hardcoded labels this replaces went stale at the 0.0.4 -> 0.0.5 bump).
+loka_source_version() {
+  local stage_dir root version
+  stage_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  root="$(cd "${stage_dir}/../.." && pwd)"
+  version="$(sed -n 's/^project(Loka VERSION \([0-9.][0-9.]*\) LANGUAGES CXX)$/\1/p' "${root}/CMakeLists.txt")"
+  if [ -z "${version}" ]; then
+    echo "Could not read the Loka source version from ${root}/CMakeLists.txt" >&2
+    return 1
+  fi
+  printf '%s\n' "${version}"
+}
+
 loka_populate_standalone_release_stage() {
   local destination="$1"
   local target_name=""
@@ -88,8 +103,10 @@ loka_populate_standalone_release_stage() {
     echo "The ${LOKA_STANDALONE_FORMAT_NAME} standalone release must contain five loops plus SimpleViewer; found ${count}." >&2
     return 1
   fi
+  local source_version
+  source_version="$(loka_source_version)" || return 1
   printf '%s\n' \
-    "Loka 0.0.4 ${LOKA_STANDALONE_FORMAT_NAME} Release applications" \
+    "Loka ${source_version} ${LOKA_STANDALONE_FORMAT_NAME} Release applications" \
     '' \
     "Profile: ${LOKA_STANDALONE_PROFILE_NAME}" \
     "Architectures: ${LOKA_STANDALONE_STAGED_ARCHS}" \

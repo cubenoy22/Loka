@@ -310,9 +310,15 @@ if ($IsReleasePackage) {
         Assert-FileCopy $simpleViewer `
             (Join-Path $Destination "LokaSimpleViewerWin32.exe")
         Assert-FileCopy $loopAssets (Join-Path $Destination "ASSETS.LRP")
+        $sourceVersionMatch = Select-String -LiteralPath (Join-Path $ProjectDirectory "CMakeLists.txt") `
+            -Pattern '^project\(Loka VERSION ([0-9.]+) LANGUAGES CXX\)$'
+        if (-not $sourceVersionMatch) {
+            throw "Could not read the Loka source version from CMakeLists.txt"
+        }
+        $sourceVersion = $sourceVersionMatch.Matches[0].Groups[1].Value
         [System.IO.File]::WriteAllText(
             (Join-Path $Destination "README.txt"),
-            "Loka 0.0.4 Release applications`r`n`r`n" +
+            "Loka $sourceVersion Release applications`r`n`r`n" +
             "The five StandaloneLoop applications run their UI tour repeatedly.`r`n" +
             "Close a loop application's window to stop it. SimpleViewer remains interactive.`r`n")
     }.GetNewClosure()
