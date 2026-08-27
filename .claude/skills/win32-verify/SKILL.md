@@ -35,9 +35,15 @@ comparison only.
   scheduled task with an Interactive logon principal for the autologon user,
   have the script write its own output file, and poll that file over ssh. An
   ssh-run scenario dies at the capture stage reporting zero windows found.
-- The guest builds with the same build.bat below; its rig descriptor lives in
-  the guest's own `~/.config/loka/rigs/win32/`, untracked like every rig's.
-- A checkpoint freezes the goldens with the machine: reverting to it also
+- **Everything the rail touches lives on the guest's own virtual disk** — a
+  normal clone on the guest, its build tree, its goldens, and its rig
+  descriptor (`~/.config/loka/rigs/win32/` in the guest, untracked like every
+  rig's). The Checkout-layout section below is the bare-metal flow; do not
+  apply it here. A host-side worktree or share would put the goldens outside
+  the checkpoint boundary, so a revert would restore the machine but not the
+  baselines it is compared against — exactly the drift the VM exists to
+  prevent. The guest builds with the same build.bat below.
+- The checkpoint freezes the goldens with the machine: reverting to it also
   reverts any goldens baked after it.
 
 ## Checkout layout
