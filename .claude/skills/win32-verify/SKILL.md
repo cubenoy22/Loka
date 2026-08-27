@@ -13,23 +13,36 @@ per rig, the install path does not follow the product year (VS 2026 lives under
 `\18\`), and a wrong guess fails at `call`. Discover both in the bat file — see
 Build below.
 
-## Standard rig: an isolated Hyper-V VM
+## Standard rig: an isolated VM
 
 Since 2026-08-27 the standard rig for golden work and pre/post comparisons is
-an isolated Hyper-V guest, not bare metal. A VM is the only kind of Win32
-machine whose environment is reproducible (image + disabled updates + named
-checkpoint), which the golden-lifetime ruling requires of a long-term
-baseline — and the scenario rail is deterministic there (all ten matrix cells
-bake and re-verify; the #496 multistable settle has never manifested in a
-VM). Bare metal remains for release evidence and explained version-to-version
-comparison only.
+an isolated Windows guest in a VM, not bare metal. A VM is the only kind of
+Win32 machine whose environment is reproducible (image + disabled updates +
+named snapshot), which the golden-lifetime ruling requires of a long-term
+baseline. **The condition is hypervisor-agnostic**: the reference rig is a
+Hyper-V guest, but a Parallels, VMware, or UTM Windows guest that freezes the
+same way qualifies identically — the Mavericks rig is already a Parallels VM
+in the same image-backed column. Goldens are per-rig either way; two
+hypervisors are two rigs. Bare metal remains for release evidence and
+explained version-to-version comparison only.
 
-- WSL and the Hyper-V Default Switch are separate NATs the host does not
-  route between. Bridge exactly one ssh port with `netsh portproxy` bound to
-  the WSL-facing address — an external switch would put the guest on the LAN
-  and break the isolation the VM exists for. Both addresses move on host
-  reboot; re-run the bridge then. The rig's name, addresses, and credentials
+One caveat travels with the hypervisor: the determinism observed on the
+reference rig (all ten matrix cells bake and re-verify; the #496 multistable
+settle has never manifested there) was measured on Hyper-V's virtual display
+adapter. A different hypervisor's virtual GPU is a different renderer — before
+trusting a new guest, probe a cell several times for a single content hash
+the way #496 was characterized, rather than assuming the determinism carries.
+
+- Hyper-V + WSL plumbing specifically: WSL and the Default Switch are
+  separate NATs the host does not route between, so bridge exactly one ssh
+  port with `netsh portproxy` bound to the WSL-facing address — an external
+  switch would put the guest on the LAN and break the isolation the VM exists
+  for. Both addresses move on host reboot; re-run the bridge then. (Other
+  hypervisors' shared-NAT modes are typically reachable from the host
+  directly and need none of this.) The rig's name, addresses, and credentials
   live outside this repository, with the rig descriptors.
+- The interactive-session requirement below is a Windows-guest fact, not a
+  Hyper-V one; it applies under any hypervisor.
 - Anything that opens a window (bake, verify, scenario runs) must run in the
   guest's interactive console session, not the ssh session: register a
   scheduled task with an Interactive logon principal for the autologon user,
