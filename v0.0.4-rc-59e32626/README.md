@@ -13,6 +13,10 @@ live under `golden/` (`classic-maciix-2026-08-26/`, `macos-tahoe-2026-08-27/`,
   behind #496 (repro frequencies and the captured incomplete board).
 - `win32-omen-scrapbook-determinism.txt` — 8-run scrapbook startup content
   check (the ≤2-column #459 tie stays within compare tolerance).
+- `ub2-assembly-rehearsal-manifest.txt` — the end-to-end macOS UB2 assembly
+  rehearsal on tahoe at the same allowlist commit: the #489 standalone release
+  stage (five loops + SimpleViewer, arm64+x86_64, per-arch verified by the
+  stage), ditto-zipped and collected.
 - `classic-assembly-rehearsal-manifest.txt` + `…-build.log.gz` — the
   end-to-end Classic release-assembly rehearsal at the allowlist commit
   `6e4c7378` (RC + allowlist file only): 68K and PPC Retro68 Release builds,
