@@ -113,10 +113,22 @@ if(NOT LOKA_MAC_OS_10_4)
     ${PROJECT_SOURCE_DIR}/tests/MacDisplayAppearanceTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacAppLocationTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacMenuProjectionTests.mm
+    ${PROJECT_SOURCE_DIR}/tests/MacNodeHandlerEnsureTests.mm
     ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/MacDisplayAppearance.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/platform/MacAppLocation.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/MacMenuProjection.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/MacBuiltInSupport.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/MacScenePlatformController.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/context/MacButtonContext.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/context/MacRetirableContext.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/context/MacCellContext.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/context/MacEditTextContext.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/context/MacOpenFileDialogContext.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/context/MacTextContext.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/context/MacPopupMenuContext.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/context/MacImageViewContext.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/context/MacRectSurfaceContext.mm
     ${LOKA_MACOS_TEST_HEADERS}
   )
   loka_enable_warnings(LokaTestsMacOS)
@@ -130,6 +142,7 @@ if(NOT LOKA_MAC_OS_10_4)
     ${PROJECT_SOURCE_DIR}/example/MineSweeper/src
     ${PROJECT_SOURCE_DIR}/example/FloppyBird/src
     ${CMAKE_CURRENT_LIST_DIR}/src
+    ${CMAKE_CURRENT_LIST_DIR}/src/context
   )
 
   target_compile_definitions(LokaTestsMacOS PRIVATE TEST_BUILD)
