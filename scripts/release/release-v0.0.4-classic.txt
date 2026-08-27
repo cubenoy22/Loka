@@ -1,0 +1,16 @@
+# v0.0.4 Classic release archive allowlist (adjudicated 2026-08-27: Classic APPLs
+# plus the separate macOS UB2 standalone archive, see release-v0.0.4-macos-ub2.txt).
+# MacBinary-encoded application binaries per example, plus ScrapbookUI's tracked
+# package beside its 68K binary. ScrapbookUI has no PPC target (n/a in the matrix).
+git	example/ScrapbookUI/ASSETS.LRP	68K/ScrapbookUI/ASSETS.LRP
+build	build/retro68/68k/Release/example/ScrapbookUI/ScrapbookUI68K.bin	68K/ScrapbookUI/ScrapbookUI68K.bin
+build	build/retro68/68k/Release/example/HelloWorld/LokaHello68K.bin	68K/HelloWorld/LokaHello68K.bin
+build	build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.bin	68K/Tutorial/LokaTutorial68K.bin
+build	build/retro68/68k/Release/example/MineSweeper/LokaMine68K.bin	68K/MineSweeper/LokaMine68K.bin
+build	build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.bin	68K/SimpleViewer/LokaSimpleViewer68K.bin
+build	build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.bin	68K/FloppyBird/LokaFloppyBird68K.bin
+build	build/retro68/ppc/Release/example/HelloWorld/LokaHelloPPC.bin	PPC/HelloWorld/LokaHelloPPC.bin
+build	build/retro68/ppc/Release/example/Tutorial/LokaTutorialPPC.bin	PPC/Tutorial/LokaTutorialPPC.bin
+build	build/retro68/ppc/Release/example/MineSweeper/LokaMinePPC.bin	PPC/MineSweeper/LokaMinePPC.bin
+build	build/retro68/ppc/Release/example/SimpleViewer/LokaSimpleViewerPPC.bin	PPC/SimpleViewer/LokaSimpleViewerPPC.bin
+build	build/retro68/ppc/Release/example/FloppyBird/LokaFloppyBirdPPC.bin	PPC/FloppyBird/LokaFloppyBirdPPC.bin

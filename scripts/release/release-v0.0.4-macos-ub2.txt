@@ -1,0 +1,9 @@
+# v0.0.4 macOS UB2 standalone release allowlist (adjudicated 2026-08-27:
+# Classic APPLs plus this separate macOS archive; two archives because the
+# Retro68 and macOS legs build on different hosts and assemble.py runs its
+# build commands in one canonical checkout).
+# One zip staged by scripts/macos-standalone-release-ub2.sh at the tag —
+# five autonomous presentation loops plus SimpleViewer, arm64+x86_64 —
+# then zipped by ditto so the .app bundles enter the archive as one file
+# (assemble.py refuses directories by design).
+build	build/release/Loka-macos-standalone-UB2.zip	macOS/Loka-macos-standalone-UB2.zip
