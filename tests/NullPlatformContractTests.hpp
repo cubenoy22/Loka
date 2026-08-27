@@ -95,6 +95,7 @@ void testBankedSectionSwapPresentsFreshControls();
 void testBankedSectionClickHandlerSwapPresentsFreshControls();
 void testButtonHandlerOnlyRecomposeUsesCurrentEmitter();
 void testPopupMenuHandlerOnlyRecomposeUsesCurrentEmitter();
+void testControlValueBindingsRequireMutableState();
 void testToolboxPresentPointPaintsFreshBankedSectionChildren();
 void testToolboxStructureSwapCollapsesToOneFullPresent();
 void testToolboxPlainContentUpdateUsesDirtyPresent();

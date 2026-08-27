@@ -3,6 +3,7 @@
 
 #include "core/State.hpp"
 #include "app/scene/Node.hpp"
+#include "app/scene/state/NodeState.hpp"
 
 namespace loka
 {
@@ -69,7 +70,7 @@ namespace loka
       typedef ScrollBarNode NodeType;
       /** Two-way binding. Only settled values ever reach it -- see the arms:
           the write happens after the tracking loop returns, never during. */
-      loka::core::State<int> *value_;
+      loka::core::MutableState<int> *value_;
       /** Static like PopupMenu's items: a range change is a recompose, not a
           State notification, so the range cannot drift out from under a
           tracking loop that is already running.
@@ -99,7 +100,7 @@ namespace loka
       {
       }
 
-      explicit ScrollBarProps(loka::core::State<int> *value)
+      explicit ScrollBarProps(loka::core::MutableState<int> *value)
           : value_(value),
             min_(0),
             max_(0),
@@ -112,9 +113,28 @@ namespace loka
       {
       }
 
-      ScrollBarProps &value(loka::core::State<int> *value)
+      explicit ScrollBarProps(const loka::app::scene::NodeState<int> &value)
+          : value_(value.dangerouslyMutableState()),
+            min_(0),
+            max_(0),
+            orientation_(SCROLL_BAR_VERTICAL),
+            lineStep_(1),
+            pageStep_(1),
+            enabled_(0),
+            onChange_(0),
+            controlTag_(0)
+      {
+      }
+
+      ScrollBarProps &value(loka::core::MutableState<int> *value)
       {
         this->value_ = value;
+        return *this;
+      }
+
+      ScrollBarProps &value(const loka::app::scene::NodeState<int> &value)
+      {
+        this->value_ = value.dangerouslyMutableState();
         return *this;
       }
 
@@ -282,12 +302,22 @@ namespace loka
           : loka::app::scene::NodeDefinition<ScrollBarProps, ScrollBarNode>(p)
       {
       }
-      explicit ScrollBarDefinition(loka::core::State<int> *value)
+      explicit ScrollBarDefinition(loka::core::MutableState<int> *value)
+          : loka::app::scene::NodeDefinition<ScrollBarProps, ScrollBarNode>(ScrollBarProps(value))
+      {
+      }
+      explicit ScrollBarDefinition(const loka::app::scene::NodeState<int> &value)
           : loka::app::scene::NodeDefinition<ScrollBarProps, ScrollBarNode>(ScrollBarProps(value))
       {
       }
 
-      ScrollBarDefinition &value(loka::core::State<int> *value)
+      ScrollBarDefinition &value(loka::core::MutableState<int> *value)
+      {
+        this->props.value(value);
+        return *this;
+      }
+
+      ScrollBarDefinition &value(const loka::app::scene::NodeState<int> &value)
       {
         this->props.value(value);
         return *this;

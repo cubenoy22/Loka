@@ -6,6 +6,7 @@
 #include "core/String.hpp"
 #include "core/Vector.hpp"
 #include "app/scene/Node.hpp"
+#include "app/scene/state/NodeState.hpp"
 
 namespace loka
 {
@@ -23,7 +24,7 @@ namespace loka
       typedef PopupMenuTypeTag TypeTag;
       virtual ~IPopupMenuProps() {}
       virtual const loka::Vector<loka::core::String> *getItems() const = 0;
-      virtual loka::core::State<int> *getSelectedIndex() const = 0;
+      virtual loka::core::MutableState<int> *getSelectedIndex() const = 0;
       virtual loka::core::State<bool> *getEnabled() const = 0;
       virtual loka::core::EmitterState *getOnChange() const = 0;
     };
@@ -35,7 +36,8 @@ namespace loka
       const loka::Vector<loka::core::String> *items_;
       loka::Vector<loka::core::String> ownedItems_;
       bool ownsItems_;
-      loka::core::State<int> *selectedIndex_;
+      /** Two-way binding: user selection is written back to this state. */
+      loka::core::MutableState<int> *selectedIndex_;
       loka::core::State<bool> *enabled_;
       loka::core::EmitterState *onChange_;
       int controlTag_;
@@ -113,9 +115,15 @@ namespace loka
         return *this;
       }
 
-      PopupMenuProps &selectedIndex(loka::core::State<int> *index)
+      PopupMenuProps &selectedIndex(loka::core::MutableState<int> *index)
       {
         this->selectedIndex_ = index;
+        return *this;
+      }
+
+      PopupMenuProps &selectedIndex(const loka::app::scene::NodeState<int> &index)
+      {
+        this->selectedIndex_ = index.dangerouslyMutableState();
         return *this;
       }
 
@@ -140,7 +148,7 @@ namespace loka
       {
         return items_;
       }
-      virtual loka::core::State<int> *getSelectedIndex() const
+      virtual loka::core::MutableState<int> *getSelectedIndex() const
       {
         return selectedIndex_;
       }
@@ -310,7 +318,13 @@ namespace loka
         return *this;
       }
 
-      PopupMenuDefinition &selectedIndex(loka::core::State<int> *index)
+      PopupMenuDefinition &selectedIndex(loka::core::MutableState<int> *index)
+      {
+        this->props.selectedIndex(index);
+        return *this;
+      }
+
+      PopupMenuDefinition &selectedIndex(const loka::app::scene::NodeState<int> &index)
       {
         this->props.selectedIndex(index);
         return *this;
