@@ -17,6 +17,7 @@ mkdir -p \
   "${FAKE_REPO}/scripts/macos" \
   "${FAKE_REPO}/build/macos-10.4-ub1/universal" \
   "${FAKE_REPO}/build/macos-10.5-ub1/universal"
+printf 'project(Loka VERSION 9.9.9 LANGUAGES CXX)\n' > "${FAKE_REPO}/CMakeLists.txt"
 cp "${REPO_DIR}/scripts/macos-standalone-release-ub1.sh" "${FAKE_REPO}/scripts/"
 cp "${REPO_DIR}/scripts/presentation-stage.sh" "${FAKE_REPO}/scripts/"
 cp "${REPO_DIR}/scripts/apple/lib-xcode.sh" "${FAKE_REPO}/scripts/apple/"
@@ -94,6 +95,8 @@ RELEASE_ROOT="${FAKE_REPO}/build/release/macos-tiger-ub1"
   fail "the UB1 release did not contain exactly five loop bundles"
 grep -Fq 'Architectures: ppc;i386' "${RELEASE_ROOT}/README.txt" ||
   fail "the UB1 release README did not record its architectures"
+grep -q '^Loka 9.9.9 ' "${RELEASE_ROOT}/README.txt" ||
+  fail "the staged README does not carry the fixture source version (label must derive from CMakeLists, not a hardcode)"
 
 LOKA_TEST_BUILD_LOG="${BUILD_LOG}" LOKA_LIPO_BIN="${FAKE_LIPO}" \
   "${FAKE_REPO}/scripts/macos-standalone-release-ub1.sh" leopard >/dev/null
