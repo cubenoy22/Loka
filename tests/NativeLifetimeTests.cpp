@@ -172,14 +172,14 @@ void testNativeContextObservesLifetimeHint()
   loka::app::scene::Node node;
   node.setNativeLifetimeHint(loka::app::scene::NATIVE_HINT_EAGER_RELEASE);
   node.setContext(new loka::app::scene::NativeNodeContext());
-  assert(node.getContext()->lifetimeHint() == loka::app::scene::NATIVE_HINT_EAGER_RELEASE &&
+  LOKA_VERIFY(node.getContext()->lifetimeHint() == loka::app::scene::NATIVE_HINT_EAGER_RELEASE &&
          "the attach-time read adopts the declare-time hint");
 
   node.setNativeLifetimeHint(loka::app::scene::NATIVE_HINT_DESIRE_STAY);
-  assert(node.getContext()->lifetimeHint() == loka::app::scene::NATIVE_HINT_EAGER_RELEASE &&
+  LOKA_VERIFY(node.getContext()->lifetimeHint() == loka::app::scene::NATIVE_HINT_EAGER_RELEASE &&
          "a runtime change is invisible until the next walk visit");
   loka::app::scene::LifecycleFactTestAccess::DeliverFacts(&node);
-  assert(node.getContext()->lifetimeHint() == loka::app::scene::NATIVE_HINT_DESIRE_STAY &&
+  LOKA_VERIFY(node.getContext()->lifetimeHint() == loka::app::scene::NATIVE_HINT_DESIRE_STAY &&
          "the delivery walk refreshes the snapshot even without a fact transition");
 
   loka::app::scene::NativeNodeContext prioritized(loka::app::scene::NativeNodeContext::PRIORITY_HIGH);

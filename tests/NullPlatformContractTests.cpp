@@ -1584,7 +1584,7 @@ void testNullNodeHandlerRefusalIsTypedObservableAndContextless()
   state.height = 20;
 
   LOKA_VERIFY(!platform.prepareProjectedLayout(&cell, state));
-  assert(!cell.getContext());
+  LOKA_VERIFY(!cell.getContext());
   assert(platform.cellRefusalCount() == 1);
 }
 
@@ -1597,7 +1597,7 @@ void testNullNodeHandlerRealKindStillProjects()
   state.height = 20;
 
   LOKA_VERIFY(platform.prepareProjectedLayout(&button, state));
-  assert(button.getContext());
+  LOKA_VERIFY(button.getContext());
 }
 
 void testNullNodeHandlerRegistryMissEducatesInDiagnosticBuilds()

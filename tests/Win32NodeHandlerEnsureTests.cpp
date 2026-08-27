@@ -83,7 +83,7 @@ void testWin32NodeHandlerEnsureContract()
     state.width = 120;
     state.height = 40;
     LOKA_VERIFY(controller.prepareProjectedLayout(&button, state));
-    assert(button.getContext() == ctx && "re-ensure must reuse the existing context, not recreate it");
+    LOKA_VERIFY(button.getContext() == ctx && "re-ensure must reuse the existing context, not recreate it");
     assert(countChildWindows(root) == childrenAfterFirstEnsure &&
            "re-ensure must not materialize another native window");
     r = childRectInParent(ctx->hwnd(), root);
@@ -104,7 +104,7 @@ void testWin32NodeHandlerEnsureContract()
     const int childrenWithText = countChildWindows(root);
     assert(childrenWithText == childrenAfterFirstEnsure + 1);
     LOKA_VERIFY(controller.prepareProjectedLayout(&text, state));
-    assert(text.getContext() == textCtx);
+    LOKA_VERIFY(text.getContext() == textCtx);
     assert(countChildWindows(root) == childrenWithText);
 
     // -- ScrollBar: Win32 has no native context for it; the registered
@@ -120,7 +120,7 @@ void testWin32NodeHandlerEnsureContract()
     state.height = 16;
     LOKA_VERIFY(!controller.prepareProjectedLayout(&scrollBar, state) &&
            "an unsupported kind must refuse, not project");
-    assert(!scrollBar.getContext());
+    LOKA_VERIFY(!scrollBar.getContext());
     assert(countChildWindows(root) == childrenWithText &&
            "a refusal must not materialize a native window");
 

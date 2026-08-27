@@ -689,7 +689,7 @@ void testPlatformNodeHandlerRegistration()
   loka::app::scene::NodeContext *context = resolved->ensureContext(&node, &platform, state);
   (void)context;
   assert(context != 0);
-  assert(node.getContext() == context);
+  LOKA_VERIFY(node.getContext() == context);
   assert(handler.ensureCalls_ == 1);
   assert(handler.lastState_.x == 4);
   assert(handler.lastState_.y == 8);
