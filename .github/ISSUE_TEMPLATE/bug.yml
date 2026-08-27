@@ -1,0 +1,121 @@
+name: Bug report
+description: >-
+  Use a symptom-based title: state the observed failure, not the suspected fix.
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Classic 68K
+        - Classic PPC
+        - macOS
+        - Win32
+        - Linux host
+        - multiple
+    validations:
+      required: true
+
+  - type: dropdown
+    id: toolchain
+    attributes:
+      label: Toolchain
+      options:
+        - Retro68 GCC 68K
+        - Retro68 GCC PPC
+        - AppleClang
+        - MSVC
+        - GCC
+        - Clang
+        - Other or unknown
+    validations:
+      required: true
+
+  - type: input
+    id: toolchain_details
+    attributes:
+      label: Toolchain version
+      placeholder: Compiler and version, if known
+    validations:
+      required: true
+
+  - type: dropdown
+    id: cmake_preset
+    attributes:
+      label: CMake preset
+      options:
+        - macos-debug
+        - macos-release
+        - macos-standalone-debug
+        - macos-standalone-release
+        - win32-debug
+        - win32-standalone-debug
+        - win32-release
+        - win32-xp-debug
+        - win32-xp-release
+        - win32-arm64-release
+        - win32-x64-release
+        - win32-x86-release
+        - win32-standalone-arm64-release
+        - win32-standalone-x64-release
+        - win32-standalone-x86-release
+        - retro68-68k-release
+        - retro68-68k-diag
+        - retro68-68k-dwarf
+        - retro68-68k-standalone-release
+        - retro68-68k-standalone-dwarf
+        - retro68-ppc-release
+        - retro68-ppc-standalone-release
+        - testing
+        - testing-coverage
+        - testing-release
+        - testing-asan
+        - Custom or no preset
+    validations:
+      required: true
+
+  - type: dropdown
+    id: runtime_environment
+    attributes:
+      label: Real hardware or emulator
+      options:
+        - Real hardware
+        - Emulator
+        - Host OS or build-only
+    validations:
+      required: true
+
+  - type: input
+    id: runtime_environment_details
+    attributes:
+      label: Hardware or emulator (which)
+      description: Name the machine, emulator and version, or host OS as applicable.
+      placeholder: Macintosh IIx, Mini vMac 36.04, or Windows 11
+    validations:
+      required: true
+
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened?
+      description: State the observed failure and include relevant output or evidence.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
