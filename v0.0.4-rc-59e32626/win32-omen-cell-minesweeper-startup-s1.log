@@ -1,0 +1,14 @@
+﻿stage: build artifact C:\Users\cuben\source\repos\loka-win32rig\build\win32\Debug\example\MineSweeper\LokaMineSweeperScenarioWin32.exe
+stage: native directory (no development disk)
+stage: launch
+audit verdict: byte-identical expected_sha256=0c492d097f12172b301bda76b14df9ef62d975d577da30961c7a5674ea0bd734 actual_sha256=0c492d097f12172b301bda76b14df9ef62d975d577da30961c7a5674ea0bd734
+stage: capture PID=80580 HWND=0x7E08D6
+settle frame 1 sha256=6ca46d577c66b6a44a57008d4257cab65865ac1cfe2fde721a132c5d23133cbd
+settle frame 2 sha256=3aa8bd9a7ea7bb6e77a52e1c3186e04e51a5b529b21dc9ff548f6eb4ff96b1fa
+settle frame 3 sha256=8f5f458d5ff33b896ce9f4ca12c9c9da3bc4f9a3c693abaabf73f14097fbe560
+settle frame 4 sha256=57b76d52ab18e05e3f451e6634c0d8c57b4192cc7614cc10331f0f1c29958be9
+settle frame 5 sha256=536cb9e6a0195ee8eebfc650e1d94f6b0d7b73ef00b4ef38cf5512cc0cd2088f
+settle frame 6 sha256=6ca46d577c66b6a44a57008d4257cab65865ac1cfe2fde721a132c5d23133cbd
+settle frame 7 sha256=6ca46d577c66b6a44a57008d4257cab65865ac1cfe2fde721a132c5d23133cbd
+Updated Win32 rig golden: C:\Users\cuben\source\repos\loka-win32rig\build\win32-scenario\golden\omen\minesweeper\startup.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.

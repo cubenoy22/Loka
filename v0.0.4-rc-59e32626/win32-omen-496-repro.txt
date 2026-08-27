@@ -1,0 +1,6 @@
+run 1 verify_exit=1 actual_sha=0282D8AE763FE183
+run 2 verify_exit=0 actual_sha=917E3EE55264BDCF
+run 3 verify_exit=1 actual_sha=0282D8AE763FE183
+run 4 verify_exit=0 actual_sha=917E3EE55264BDCF
+run 5 verify_exit=0 actual_sha=917E3EE55264BDCF
+run 6 verify_exit=0 actual_sha=917E3EE55264BDCF

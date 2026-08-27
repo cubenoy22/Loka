@@ -1,0 +1,9 @@
+﻿stage: build artifact C:\Users\cuben\source\repos\loka-win32rig\build\win32\Debug\example\ScrapbookUI\LokaScrapbookScenarioWin32.exe
+stage: native directory (no development disk)
+stage: launch
+audit verdict: byte-identical expected_sha256=501484a0af0017834eb41061a7517c8ac35e85345910708984e17eb145db4d00 actual_sha256=501484a0af0017834eb41061a7517c8ac35e85345910708984e17eb145db4d00
+stage: capture PID=50556 HWND=0x1B0E5A
+settle frame 1 sha256=27ba1c7de126e7572301b48b58a72cbf861fd7d7ef16f0af6b0564fd466a0458
+settle frame 2 sha256=27ba1c7de126e7572301b48b58a72cbf861fd7d7ef16f0af6b0564fd466a0458
+Updated Win32 rig golden: C:\Users\cuben\source\repos\loka-win32rig\build\win32-scenario\golden\omen\scrapbook\flip-forward-back.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.

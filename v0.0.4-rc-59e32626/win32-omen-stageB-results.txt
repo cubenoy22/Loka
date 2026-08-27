@@ -1,0 +1,7 @@
+  scrapbook startup bake attempt 1 exit=0
+    scrapbook flip-forward-back bake attempt 1 exit=0
+RESULT scrapbook startup verify=0 ; scrapbook flip-forward-back verify=0
+  minesweeper startup bake attempt 1 exit=0
+    minesweeper new-game-twice bake attempt 1 exit=0
+RESULT minesweeper startup verify=0 ; minesweeper new-game-twice verify=1
+STAGE-B DONE

@@ -1,0 +1,61 @@
+===== scrapbook startup :: update =====
+Updated macOS rig golden: /Users/lihi-ai/loka/build/macos-scenario/golden/scrapbook/startup.png
+===== scrapbook startup :: verify =====
+compare result: differing pixels: 0; differing columns: 0; max-diff-px: 0; max-diff-columns: unbounded; result: pass
+Scenario passed: scrapbook startup
+PASS scrapbook startup
+===== scrapbook flip-forward-back :: update =====
+Updated macOS rig golden: /Users/lihi-ai/loka/build/macos-scenario/golden/scrapbook/flip-forward-back.png
+===== scrapbook flip-forward-back :: verify =====
+compare result: differing pixels: 0; differing columns: 0; max-diff-px: 0; max-diff-columns: unbounded; result: pass
+Scenario passed: scrapbook flip-forward-back
+PASS scrapbook flip-forward-back
+===== helloworld startup :: update =====
+Updated macOS rig golden: /Users/lihi-ai/loka/build/macos-scenario/golden/helloworld/startup.png
+===== helloworld startup :: verify =====
+compare result: differing pixels: 0; differing columns: 0; max-diff-px: 0; max-diff-columns: unbounded; result: pass
+Scenario passed: helloworld startup
+PASS helloworld startup
+===== helloworld bmi-roundtrip :: update =====
+Updated macOS rig golden: /Users/lihi-ai/loka/build/macos-scenario/golden/helloworld/bmi-roundtrip.png
+===== helloworld bmi-roundtrip :: verify =====
+compare result: differing pixels: 0; differing columns: 0; max-diff-px: 0; max-diff-columns: unbounded; result: pass
+Scenario passed: helloworld bmi-roundtrip
+PASS helloworld bmi-roundtrip
+===== tutorial startup :: update =====
+Updated macOS rig golden: /Users/lihi-ai/loka/build/macos-scenario/golden/tutorial/startup.png
+===== tutorial startup :: verify =====
+compare result: differing pixels: 0; differing columns: 0; max-diff-px: 0; max-diff-columns: unbounded; result: pass
+Scenario passed: tutorial startup
+PASS tutorial startup
+===== tutorial increment-summary-toggle :: update =====
+Updated macOS rig golden: /Users/lihi-ai/loka/build/macos-scenario/golden/tutorial/increment-summary-toggle.png
+===== tutorial increment-summary-toggle :: verify =====
+compare result: differing pixels: 0; differing columns: 0; max-diff-px: 0; max-diff-columns: unbounded; result: pass
+Scenario passed: tutorial increment-summary-toggle
+PASS tutorial increment-summary-toggle
+===== minesweeper startup :: update =====
+Updated macOS rig golden: /Users/lihi-ai/loka/build/macos-scenario/golden/minesweeper/startup.png
+===== minesweeper startup :: verify =====
+compare result: differing pixels: 0; differing columns: 0; max-diff-px: 0; max-diff-columns: unbounded; result: pass
+Scenario passed: minesweeper startup
+PASS minesweeper startup
+===== minesweeper new-game-twice :: update =====
+Updated macOS rig golden: /Users/lihi-ai/loka/build/macos-scenario/golden/minesweeper/new-game-twice.png
+===== minesweeper new-game-twice :: verify =====
+compare result: differing pixels: 0; differing columns: 0; max-diff-px: 0; max-diff-columns: unbounded; result: pass
+Scenario passed: minesweeper new-game-twice
+PASS minesweeper new-game-twice
+===== floppybird startup :: update =====
+Updated macOS rig golden: /Users/lihi-ai/loka/build/macos-scenario/golden/floppybird/startup.png
+===== floppybird startup :: verify =====
+compare result: differing pixels: 0; differing columns: 0; max-diff-px: 0; max-diff-columns: unbounded; result: pass
+Scenario passed: floppybird startup
+PASS floppybird startup
+===== floppybird fixed-step-flaps :: update =====
+Updated macOS rig golden: /Users/lihi-ai/loka/build/macos-scenario/golden/floppybird/fixed-step-flaps.png
+===== floppybird fixed-step-flaps :: verify =====
+compare result: differing pixels: 0; differing columns: 0; max-diff-px: 0; max-diff-columns: unbounded; result: pass
+Scenario passed: floppybird fixed-step-flaps
+PASS floppybird fixed-step-flaps
+===== BAKE SEQUENCE EXIT 0 Thu Aug 27 01:24:05 JST 2026 =====

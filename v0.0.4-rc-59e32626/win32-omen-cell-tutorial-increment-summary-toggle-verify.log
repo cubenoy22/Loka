@@ -1,0 +1,8 @@
+﻿stage: build artifact C:\Users\cuben\source\repos\loka-win32rig\build\win32\Debug\example\Tutorial\LokaTutorialScenarioWin32.exe
+stage: native directory (no development disk)
+stage: launch
+audit verdict: byte-identical expected_sha256=de03245bc31deb9c2c5146a1b4aecf6e766dc590089a6078d326aead826e88a3 actual_sha256=de03245bc31deb9c2c5146a1b4aecf6e766dc590089a6078d326aead826e88a3
+stage: capture PID=49076 HWND=0x4E0996
+settle frame 1 sha256=bc93be49cac9322f9571b8e328980d99006ab1ef427af6e3001f0f17086898fb
+settle frame 2 sha256=bc93be49cac9322f9571b8e328980d99006ab1ef427af6e3001f0f17086898fb
+Scenario passed: tutorial/increment-summary-toggle

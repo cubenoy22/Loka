@@ -1,0 +1,9 @@
+﻿stage: build artifact C:\Users\cuben\source\repos\loka-win32rig\build\win32\Debug\example\HelloWorld\LokaHelloWorldScenarioWin32.exe
+stage: native directory (no development disk)
+stage: launch
+audit verdict: byte-identical expected_sha256=1e4d49eef070135511a68c2842307f4a3acf1253778e6869cba6d60893c2c472 actual_sha256=1e4d49eef070135511a68c2842307f4a3acf1253778e6869cba6d60893c2c472
+stage: capture PID=59652 HWND=0x22069E
+settle frame 1 sha256=5a0830efe5d5c577529ed36f90a6d8de7b76b4fe90fc0e0b26d369e12baf2d63
+settle frame 2 sha256=5a0830efe5d5c577529ed36f90a6d8de7b76b4fe90fc0e0b26d369e12baf2d63
+Updated Win32 rig golden: C:\Users\cuben\source\repos\loka-win32rig\build\win32-scenario\golden\omen\helloworld\bmi-roundtrip.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.

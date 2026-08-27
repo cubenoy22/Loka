@@ -1,0 +1,9 @@
+﻿stage: build artifact C:\Users\cuben\source\repos\loka-win32rig\build\win32\Debug\example\FloppyBird\LokaFloppyBirdScenarioWin32.exe
+stage: native directory (no development disk)
+stage: launch
+audit verdict: byte-identical expected_sha256=fab9cfc70eb3bc644ce5b48bb2d37c90ca970750c294aa8673a3e03a0c34b140 actual_sha256=fab9cfc70eb3bc644ce5b48bb2d37c90ca970750c294aa8673a3e03a0c34b140
+stage: capture PID=18056 HWND=0x520996
+settle frame 1 sha256=2e3be3b3400ee76cd5afe5b206805a5953f4bf54602a8f170ac8ac5a8e150803
+settle frame 2 sha256=2e3be3b3400ee76cd5afe5b206805a5953f4bf54602a8f170ac8ac5a8e150803
+Updated Win32 rig golden: C:\Users\cuben\source\repos\loka-win32rig\build\win32-scenario\golden\omen\floppybird\startup.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.

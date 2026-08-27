@@ -1,0 +1,7 @@
+RESULT helloworld startup update=0 verify=0
+RESULT helloworld bmi-roundtrip update=0 verify=0
+RESULT tutorial startup update=0 verify=0
+RESULT tutorial increment-summary-toggle update=0 verify=0
+RESULT floppybird startup update=0 verify=0
+RESULT floppybird fixed-step-flaps update=0 verify=0
+STAGE-A DONE

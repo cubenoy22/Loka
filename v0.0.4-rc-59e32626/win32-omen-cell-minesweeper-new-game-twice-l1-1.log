@@ -1,0 +1,9 @@
+﻿stage: build artifact C:\Users\cuben\source\repos\loka-win32rig\build\win32\Debug\example\MineSweeper\LokaMineSweeperScenarioWin32.exe
+stage: native directory (no development disk)
+stage: launch
+audit verdict: byte-identical expected_sha256=bca15b6a4abf2b065f805b6fb00d7460181f0feae005f1ade5ce632b2122fd6d actual_sha256=bca15b6a4abf2b065f805b6fb00d7460181f0feae005f1ade5ce632b2122fd6d
+stage: capture PID=84548 HWND=0x350E3A
+settle frame 1 sha256=6ca46d577c66b6a44a57008d4257cab65865ac1cfe2fde721a132c5d23133cbd
+settle frame 2 sha256=6ca46d577c66b6a44a57008d4257cab65865ac1cfe2fde721a132c5d23133cbd
+Updated Win32 rig golden: C:\Users\cuben\source\repos\loka-win32rig\build\win32-scenario\golden\omen\minesweeper\new-game-twice.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.

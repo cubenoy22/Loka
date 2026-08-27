@@ -1,0 +1,9 @@
+﻿stage: build artifact C:\Users\cuben\source\repos\loka-win32rig\build\win32\Debug\example\Tutorial\LokaTutorialScenarioWin32.exe
+stage: native directory (no development disk)
+stage: launch
+audit verdict: byte-identical expected_sha256=f834aa6bdd4fb43977de8770f39d76a9eaf1c839b9f31aece412c8cc57857881 actual_sha256=f834aa6bdd4fb43977de8770f39d76a9eaf1c839b9f31aece412c8cc57857881
+stage: capture PID=23776 HWND=0x2A069E
+settle frame 1 sha256=f372013eae2f0d25edc5fdcd22489604432f14542530f77fa51bf79350d9247d
+settle frame 2 sha256=f372013eae2f0d25edc5fdcd22489604432f14542530f77fa51bf79350d9247d
+Updated Win32 rig golden: C:\Users\cuben\source\repos\loka-win32rig\build\win32-scenario\golden\omen\tutorial\startup.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.

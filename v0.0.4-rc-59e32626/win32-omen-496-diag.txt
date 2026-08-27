@@ -1,0 +1,6 @@
+captured board-B on attempt 5
+startup run 1 exit=0 sha=917E3EE55264BDCF
+startup run 2 exit=1 sha=304948061B643DB0
+startup run 3 exit=0 sha=917E3EE55264BDCF
+startup run 4 exit=1 sha=0282D8AE763FE183
+startup run 5 exit=0 sha=917E3EE55264BDCF

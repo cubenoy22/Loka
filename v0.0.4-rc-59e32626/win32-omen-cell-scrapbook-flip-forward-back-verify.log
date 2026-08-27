@@ -1,0 +1,9 @@
+﻿stage: build artifact C:\Users\cuben\source\repos\loka-win32rig\build\win32\Debug\example\ScrapbookUI\LokaScrapbookScenarioWin32.exe
+stage: native directory (no development disk)
+stage: launch
+audit verdict: byte-identical expected_sha256=501484a0af0017834eb41061a7517c8ac35e85345910708984e17eb145db4d00 actual_sha256=501484a0af0017834eb41061a7517c8ac35e85345910708984e17eb145db4d00
+stage: capture PID=15816 HWND=0x7908D6
+settle frame 1 sha256=27ba1c7de126e7572301b48b58a72cbf861fd7d7ef16f0af6b0564fd466a0458
+settle frame 2 sha256=4800dc03fc4d9ce415a7a5b5c1b0fc262e1fe4259ea3c74e660818fddb741e21
+settle frame 3 sha256=4800dc03fc4d9ce415a7a5b5c1b0fc262e1fe4259ea3c74e660818fddb741e21
+Scenario passed: scrapbook/flip-forward-back

@@ -1,0 +1,18 @@
+﻿stage: build artifact C:\Users\cuben\source\repos\loka-win32rig\build\win32\Debug\example\MineSweeper\LokaMineSweeperScenarioWin32.exe
+stage: native directory (no development disk)
+stage: launch
+audit verdict: byte-identical expected_sha256=bca15b6a4abf2b065f805b6fb00d7460181f0feae005f1ade5ce632b2122fd6d actual_sha256=bca15b6a4abf2b065f805b6fb00d7460181f0feae005f1ade5ce632b2122fd6d
+stage: capture PID=57276 HWND=0x6205B4
+settle frame 1 sha256=1610d8fe5274b1e67ee246ad679588389ec07bc71359e75660d5216b31acedb6
+settle frame 2 sha256=1610d8fe5274b1e67ee246ad679588389ec07bc71359e75660d5216b31acedb6
+powershell.exe : golden stage failed: actual pixels differ from 
+C:\Users\cuben\source\repos\loka-win32rig\build\win32-scenario\golden\omen\minesweeper\new-game-twice.png; see 
+actual.png, golden.png, and diff.png
+発生場所 C:\Users\cuben\source\repos\loka-win32rig\bakeB.ps1:8 文字:3
++   & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $s $ex $s ...
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (golden stage fa...g, and diff.png:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Work directory left for inspection: 
+C:\Users\cuben\source\repos\loka-win32rig\build\win32-scenario\minesweeper\new-game-twice

@@ -1,0 +1,8 @@
+﻿stage: build artifact C:\Users\cuben\source\repos\loka-win32rig\build\win32\Debug\example\MineSweeper\LokaMineSweeperScenarioWin32.exe
+stage: native directory (no development disk)
+stage: launch
+audit verdict: byte-identical expected_sha256=0c492d097f12172b301bda76b14df9ef62d975d577da30961c7a5674ea0bd734 actual_sha256=0c492d097f12172b301bda76b14df9ef62d975d577da30961c7a5674ea0bd734
+stage: capture PID=48240 HWND=0x390E3A
+settle frame 1 sha256=6ca46d577c66b6a44a57008d4257cab65865ac1cfe2fde721a132c5d23133cbd
+settle frame 2 sha256=6ca46d577c66b6a44a57008d4257cab65865ac1cfe2fde721a132c5d23133cbd
+Scenario passed: minesweeper/startup
