@@ -7,7 +7,7 @@
 int main()
 {
   NullPlatformContext context;
-  MyAppConfig production(&context);
+  TutorialAppConfig production(&context);
   loka::scenario_tests::TutorialScenarioPresentation startupVehicle(&context, true);
   loka::scenario_tests::TutorialScenarioPresentation interactionVehicle(&context, false);
   loka::scenario_tests::VerifyVehiclePresentation(&context, production, startupVehicle, true);

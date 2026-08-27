@@ -9,7 +9,7 @@
 
 namespace
 {
-  const char *kCellClassName = "LOKA_CELL";
+  const wchar_t kCellClassName[] = L"LOKA_CELL";
   const COLORREF kCellFillColor = RGB(235, 235, 235);
 
   class Win32CellNodeHandler
@@ -54,8 +54,8 @@ Win32CellContext::Win32CellContext(Win32ScenePlatformController *controller,
       text_()
 {
   EnsureClassRegistered();
-  hwnd_ = CreateWindowExA(
-      0, kCellClassName, "", WS_CHILD | WS_VISIBLE, x, y, width, height, parent, 0, GetModuleHandle(NULL), this);
+  hwnd_ = CreateWindowExW(
+      0, kCellClassName, L"", WS_CHILD | WS_VISIBLE, x, y, width, height, parent, 0, GetModuleHandleW(NULL), this);
   bindText();
 }
 
@@ -142,15 +142,15 @@ void Win32CellContext::EnsureClassRegistered()
   {
     return;
   }
-  WNDCLASSA wc;
+  WNDCLASSW wc;
   ZeroMemory(&wc, sizeof(wc));
   wc.style = CS_HREDRAW | CS_VREDRAW;
   wc.lpfnWndProc = Win32CellContext::WndProc;
-  wc.hInstance = GetModuleHandle(NULL);
-  wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+  wc.hInstance = GetModuleHandleW(NULL);
+  wc.hCursor = LoadCursorW(NULL, IDC_ARROW);
   wc.hbrBackground = NULL;
   wc.lpszClassName = kCellClassName;
-  RegisterClassA(&wc);
+  RegisterClassW(&wc);
   registered = true;
 }
 
@@ -160,7 +160,7 @@ LRESULT CALLBACK Win32CellContext::WndProc(HWND hwnd, UINT msg, WPARAM wParam, L
       static_cast<Win32CellContext *>(reinterpret_cast<void *>(GetWindowLongPtr(hwnd, GWLP_USERDATA)));
   if (msg == WM_NCCREATE)
   {
-    CREATESTRUCT *cs = reinterpret_cast<CREATESTRUCT *>(lParam);
+    CREATESTRUCTW *cs = reinterpret_cast<CREATESTRUCTW *>(lParam);
     self = static_cast<Win32CellContext *>(cs->lpCreateParams);
     SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
   }
@@ -192,7 +192,7 @@ LRESULT CALLBACK Win32CellContext::WndProc(HWND hwnd, UINT msg, WPARAM wParam, L
   default:
     break;
   }
-  return DefWindowProc(hwnd, msg, wParam, lParam);
+  return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
 
 void Win32CellContext::bindText()

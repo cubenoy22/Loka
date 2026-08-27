@@ -164,35 +164,27 @@
       "problemMatcher": "$gcc"
     },
     {
-      "label": "Build: macOS Standalone Flow Release",
+      "label": "Standalone: macOS Release Action",
       "type": "shell",
       "command": "bash",
       "args": [
         "scripts/macos-standalone-flow.sh",
-        "Build"
+        "${input:standaloneReleaseAction}"
       ],
       "group": "build",
       "problemMatcher": "$gcc"
     },
     {
-      "label": "Stage: macOS Standalone Flow Release",
+      "label": "Configure: Win32 Native",
       "type": "shell",
-      "command": "bash",
+      "command": "cmake",
       "args": [
-        "scripts/macos-standalone-flow.sh",
-        "Stage"
+        "--preset",
+        "win32-debug"
       ],
-      "problemMatcher": "$gcc"
-    },
-    {
-      "label": "Verify: macOS Standalone Flow Release",
-      "type": "shell",
-      "command": "bash",
-      "args": [
-        "scripts/macos-standalone-flow.sh",
-        "Verify"
-      ],
-      "problemMatcher": "$gcc"
+      "hide": true,
+      "group": "build",
+      "problemMatcher": "$msCompile"
     },
     {
       "label": "Build: Win32 App",
@@ -319,7 +311,7 @@
       "problemMatcher": "$msCompile"
     },
     {
-      "label": "Build: Win32 Standalone Flow Release",
+      "label": "Standalone: Win32 Release Action",
       "type": "shell",
       "command": "powershell.exe",
       "args": [
@@ -329,39 +321,9 @@
         "-File",
         "scripts/win32-standalone-flow.ps1",
         "-Action",
-        "Build"
+        "${input:standaloneReleaseAction}"
       ],
       "group": "build",
-      "problemMatcher": "$msCompile"
-    },
-    {
-      "label": "Stage: Win32 Standalone Flow Release",
-      "type": "shell",
-      "command": "powershell.exe",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "scripts/win32-standalone-flow.ps1",
-        "-Action",
-        "Stage"
-      ],
-      "problemMatcher": "$msCompile"
-    },
-    {
-      "label": "Verify: Win32 Standalone Flow Release",
-      "type": "shell",
-      "command": "powershell.exe",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "scripts/win32-standalone-flow.ps1",
-        "-Action",
-        "Verify"
-      ],
       "problemMatcher": "$msCompile"
     },
     {
@@ -389,7 +351,7 @@
     {
       "label": "Configure: Retro68 68K",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--preset",
         "retro68-68k-release"
@@ -400,7 +362,7 @@
     {
       "label": "Build: Retro68 68K",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -413,9 +375,21 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Configure: Retro68 68K Standalone Release",
+      "type": "shell",
+      "hide": true,
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
+      "args": [
+        "--preset",
+        "retro68-68k-standalone-release"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Configure: Retro68 PPC",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--preset",
         "retro68-ppc-release"
@@ -426,7 +400,7 @@
     {
       "label": "Build: Retro68 PPC",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -439,20 +413,18 @@
       "problemMatcher": "$gcc"
     },
     {
-      "label": "Configure HelloWorld (Native-Debug-Console)",
+      "label": "Configure HelloWorld (Native-Debug)",
       "type": "shell",
       "command": "cmake",
       "args": [
         "-S",
         "example/HelloWorld",
         "-B",
-        "example/HelloWorld/build/native",
-        "-DUSE_CONSOLE_SUBSYSTEM=ON",
-        "-DTEST_BUILD=ON"
+        "example/HelloWorld/build/native"
       ]
     },
     {
-      "label": "Build HelloWorld (Native-Debug-Console)",
+      "label": "Build HelloWorld (Native-Debug)",
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -462,55 +434,20 @@
         "Debug"
       ],
       "dependsOn": [
-        "Configure HelloWorld (Native-Debug-Console)"
+        "Configure HelloWorld (Native-Debug)"
       ],
       "group": "build"
     },
     {
-      "label": "Configure HelloWorld (Native-Debug-GUI)",
-      "type": "shell",
-      "command": "cmake",
-      "args": [
-        "-S",
-        "example/HelloWorld",
-        "-B",
-        "example/HelloWorld/build/native",
-        "-DUSE_CONSOLE_SUBSYSTEM=OFF"
-      ]
-    },
-    {
-      "label": "Build HelloWorld (Native-Debug-GUI)",
-      "type": "shell",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "example/HelloWorld/build/native",
-        "--config",
-        "Debug"
-      ],
+      "label": "Config & Build HelloWorld (Native-Debug)",
       "dependsOn": [
-        "Configure HelloWorld (Native-Debug-GUI)"
+        "Configure HelloWorld (Native-Debug)",
+        "Build HelloWorld (Native-Debug)"
       ],
       "group": "build"
     },
     {
-      "label": "Config & Build HelloWorld (Native-Debug-GUI)",
-      "dependsOn": [
-        "Configure HelloWorld (Native-Debug-GUI)",
-        "Build HelloWorld (Native-Debug-GUI)"
-      ],
-      "group": "build"
-    },
-    {
-      "label": "Config & Build HelloWorld (Native-Debug-Console)",
-      "dependsOn": [
-        "Configure HelloWorld (Native-Debug-Console)",
-        "Build HelloWorld (Native-Debug-Console)"
-      ],
-      "group": "build"
-    },
-    {
-      "label": "Configure HelloWorld (Native-Release-Console)",
+      "label": "Configure HelloWorld (Native-Release)",
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -518,13 +455,11 @@
         "example/HelloWorld",
         "-B",
         "example/HelloWorld/build/native-release",
-        "-DUSE_CONSOLE_SUBSYSTEM=ON",
-        "-DTEST_BUILD=ON",
         "-DCMAKE_BUILD_TYPE=Release"
       ]
     },
     {
-      "label": "Build HelloWorld (Native-Release-Console)",
+      "label": "Build HelloWorld (Native-Release)",
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -534,51 +469,15 @@
         "Release"
       ],
       "dependsOn": [
-        "Configure HelloWorld (Native-Release-Console)"
+        "Configure HelloWorld (Native-Release)"
       ],
       "group": "build"
     },
     {
-      "label": "Configure HelloWorld (Native-Release-GUI)",
-      "type": "shell",
-      "command": "cmake",
-      "args": [
-        "-S",
-        "example/HelloWorld",
-        "-B",
-        "example/HelloWorld/build/native-release",
-        "-DUSE_CONSOLE_SUBSYSTEM=OFF",
-        "-DCMAKE_BUILD_TYPE=Release"
-      ]
-    },
-    {
-      "label": "Build HelloWorld (Native-Release-GUI)",
-      "type": "shell",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "example/HelloWorld/build/native-release",
-        "--config",
-        "Release"
-      ],
+      "label": "Config & Build HelloWorld (Native-Release)",
       "dependsOn": [
-        "Configure HelloWorld (Native-Release-GUI)"
-      ],
-      "group": "build"
-    },
-    {
-      "label": "Config & Build HelloWorld (Native-Release-GUI)",
-      "dependsOn": [
-        "Configure HelloWorld (Native-Release-GUI)",
-        "Build HelloWorld (Native-Release-GUI)"
-      ],
-      "group": "build"
-    },
-    {
-      "label": "Config & Build HelloWorld (Native-Release-Console)",
-      "dependsOn": [
-        "Configure HelloWorld (Native-Release-Console)",
-        "Build HelloWorld (Native-Release-Console)"
+        "Configure HelloWorld (Native-Release)",
+        "Build HelloWorld (Native-Release)"
       ],
       "group": "build"
     },
@@ -597,7 +496,7 @@
     {
       "label": "Build: Retro68 68K HelloWorld",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -614,7 +513,7 @@
     {
       "label": "Build: Retro68 68K MineSweeper",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -631,7 +530,7 @@
     {
       "label": "Build: Retro68 68K SimpleViewer",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -648,7 +547,7 @@
     {
       "label": "Build: Retro68 68K FloppyBird",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -665,7 +564,7 @@
     {
       "label": "Build: Retro68 68K Tutorial",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -682,7 +581,7 @@
     {
       "label": "Build: Retro68 68K ScrapbookUI",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -699,16 +598,17 @@
     {
       "label": "Build: Retro68 68K Scrapbook Standalone Flow",
       "type": "shell",
-      "command": "cmake",
+      "hide": true,
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
-        "retro68-68k-release",
+        "retro68-68k-standalone-release",
         "--target",
         "LokaScrapbookStandaloneFlow68K_APPL"
       ],
       "dependsOn": [
-        "Configure: Retro68 68K"
+        "Configure: Retro68 68K Standalone Release"
       ],
       "group": "build",
       "problemMatcher": "$gcc"
@@ -716,16 +616,17 @@
     {
       "label": "Build: Retro68 68K HelloWorld Standalone Flow",
       "type": "shell",
-      "command": "cmake",
+      "hide": true,
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
-        "retro68-68k-release",
+        "retro68-68k-standalone-release",
         "--target",
         "LokaHelloStandaloneFlow68K_APPL"
       ],
       "dependsOn": [
-        "Configure: Retro68 68K"
+        "Configure: Retro68 68K Standalone Release"
       ],
       "group": "build",
       "problemMatcher": "$gcc"
@@ -733,16 +634,17 @@
     {
       "label": "Build: Retro68 68K Tutorial Standalone Flow",
       "type": "shell",
-      "command": "cmake",
+      "hide": true,
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
-        "retro68-68k-release",
+        "retro68-68k-standalone-release",
         "--target",
         "LokaTutorialStandaloneFlow68K_APPL"
       ],
       "dependsOn": [
-        "Configure: Retro68 68K"
+        "Configure: Retro68 68K Standalone Release"
       ],
       "group": "build",
       "problemMatcher": "$gcc"
@@ -750,16 +652,17 @@
     {
       "label": "Build: Retro68 68K MineSweeper Standalone Flow",
       "type": "shell",
-      "command": "cmake",
+      "hide": true,
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
-        "retro68-68k-release",
+        "retro68-68k-standalone-release",
         "--target",
         "LokaMineStandaloneFlow68K_APPL"
       ],
       "dependsOn": [
-        "Configure: Retro68 68K"
+        "Configure: Retro68 68K Standalone Release"
       ],
       "group": "build",
       "problemMatcher": "$gcc"
@@ -767,16 +670,17 @@
     {
       "label": "Build: Retro68 68K FloppyBird Standalone Flow",
       "type": "shell",
-      "command": "cmake",
+      "hide": true,
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
-        "retro68-68k-release",
+        "retro68-68k-standalone-release",
         "--target",
         "LokaFloppyStandaloneFlow68K_APPL"
       ],
       "dependsOn": [
-        "Configure: Retro68 68K"
+        "Configure: Retro68 68K Standalone Release"
       ],
       "group": "build",
       "problemMatcher": "$gcc"
@@ -784,7 +688,7 @@
     {
       "label": "Build: Retro68 68K HelloWorld Scenario Loop",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -801,7 +705,7 @@
     {
       "label": "Build: Retro68 68K MineSweeper Scenario Loop",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "--preset",
@@ -818,11 +722,35 @@
     {
       "label": "Stage: Toolbox 68K Standalone Flow Release",
       "type": "shell",
+      "hide": true,
       "command": "bash",
       "args": [
         "scripts/toolbox-standalone-flow.sh",
         "Stage"
       ],
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Standalone: Toolbox 68K Release Action",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "scripts/toolbox-standalone-flow.sh",
+        "${input:toolboxStandaloneReleaseAction}"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Standalone: Toolbox PPC Release Action",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "scripts/toolbox-standalone-flow.sh",
+        "${input:toolboxStandaloneReleaseAction}",
+        "ppc"
+      ],
+      "group": "build",
       "problemMatcher": "$gcc"
     },
     {
@@ -950,6 +878,7 @@
     {
       "label": "Prepare SCSI Dev Disk: Scrapbook Standalone Flow",
       "type": "shell",
+      "hide": true,
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
       "args": [
         "${workspaceFolder}/build/presentation/toolbox-68k-release/LokaScrapbookStandaloneFlow68K.bin",
@@ -972,9 +901,10 @@
     {
       "label": "Prepare SCSI Dev Disk: HelloWorld Standalone Flow",
       "type": "shell",
+      "hide": true,
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
       "args": [
-        "${workspaceFolder}/build/retro68/68k/Release/tests/toolbox/LokaHelloStandaloneFlow68K.bin"
+        "${workspaceFolder}/build/retro68/68k/Standalone/Release/tests/toolbox/LokaHelloStandaloneFlow68K.bin"
       ],
       "windows": {
         "command": "powershell.exe",
@@ -984,7 +914,7 @@
           "Bypass",
           "-File",
           "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Release/tests/toolbox/LokaHelloStandaloneFlow68K.bin"
+          "build/retro68/68k/Standalone/Release/tests/toolbox/LokaHelloStandaloneFlow68K.bin"
         ]
       },
       "problemMatcher": []
@@ -992,9 +922,10 @@
     {
       "label": "Prepare SCSI Dev Disk: Tutorial Standalone Flow",
       "type": "shell",
+      "hide": true,
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
       "args": [
-        "${workspaceFolder}/build/retro68/68k/Release/tests/toolbox/LokaTutorialStandaloneFlow68K.bin"
+        "${workspaceFolder}/build/retro68/68k/Standalone/Release/tests/toolbox/LokaTutorialStandaloneFlow68K.bin"
       ],
       "windows": {
         "command": "powershell.exe",
@@ -1004,7 +935,7 @@
           "Bypass",
           "-File",
           "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Release/tests/toolbox/LokaTutorialStandaloneFlow68K.bin"
+          "build/retro68/68k/Standalone/Release/tests/toolbox/LokaTutorialStandaloneFlow68K.bin"
         ]
       },
       "problemMatcher": []
@@ -1012,9 +943,10 @@
     {
       "label": "Prepare SCSI Dev Disk: MineSweeper Standalone Flow",
       "type": "shell",
+      "hide": true,
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
       "args": [
-        "${workspaceFolder}/build/retro68/68k/Release/tests/toolbox/LokaMineStandaloneFlow68K.bin"
+        "${workspaceFolder}/build/retro68/68k/Standalone/Release/tests/toolbox/LokaMineStandaloneFlow68K.bin"
       ],
       "windows": {
         "command": "powershell.exe",
@@ -1024,7 +956,7 @@
           "Bypass",
           "-File",
           "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Release/tests/toolbox/LokaMineStandaloneFlow68K.bin"
+          "build/retro68/68k/Standalone/Release/tests/toolbox/LokaMineStandaloneFlow68K.bin"
         ]
       },
       "problemMatcher": []
@@ -1032,9 +964,10 @@
     {
       "label": "Prepare SCSI Dev Disk: FloppyBird Standalone Flow",
       "type": "shell",
+      "hide": true,
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
       "args": [
-        "${workspaceFolder}/build/retro68/68k/Release/tests/toolbox/LokaFloppyStandaloneFlow68K.bin"
+        "${workspaceFolder}/build/retro68/68k/Standalone/Release/tests/toolbox/LokaFloppyStandaloneFlow68K.bin"
       ],
       "windows": {
         "command": "powershell.exe",
@@ -1044,7 +977,7 @@
           "Bypass",
           "-File",
           "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Release/tests/toolbox/LokaFloppyStandaloneFlow68K.bin"
+          "build/retro68/68k/Standalone/Release/tests/toolbox/LokaFloppyStandaloneFlow68K.bin"
         ]
       },
       "problemMatcher": []
@@ -1233,6 +1166,7 @@
     {
       "label": "MAME: Mount Scrapbook Standalone Flow Stage",
       "type": "shell",
+      "hide": true,
       "command": "${workspaceFolder}/scripts/mame-mount.sh",
       "args": [
         "${workspaceFolder}/build/presentation/toolbox-68k-release/LokaScrapbookStandaloneFlow68K.dsk"
@@ -1465,7 +1399,7 @@
     {
       "label": "PMonSprite: Configure ScrapbookUI",
       "type": "shell",
-      "command": "cmake -S . -B build/retro68-pmon -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/Retro68.cmake -DRETRO68_CPU=m68k -DLOKA_WARNINGS_AS_ERRORS=ON -DLOKA_SCRAPBOOK_R_HEADER_DIR=$PWD/build/pmonsprite-lrp-256",
+      "command": "scripts/retro68-cmake.sh -S . -B build/retro68-pmon -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/Retro68.cmake -DRETRO68_CPU=m68k -DLOKA_WARNINGS_AS_ERRORS=ON -DLOKA_SCRAPBOOK_R_HEADER_DIR=$PWD/build/pmonsprite-lrp-256",
       "detail": "Compiles against the generated resource header for the default color package; the 1-bit variant remains available via the script's --depth 1 CLI",
       "problemMatcher": "$gcc",
       "dependsOn": [
@@ -1475,7 +1409,7 @@
     {
       "label": "PMonSprite: Build ScrapbookUI",
       "type": "shell",
-      "command": "cmake",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
         "--build",
         "build/retro68-pmon",
@@ -1531,6 +1465,50 @@
     }
   ],
   "inputs": [
+    {
+      "id": "standaloneReleaseAction",
+      "type": "pickString",
+      "description": "Select the macOS/Win32 Standalone Release action",
+      "default": "Release",
+      "options": [
+        {
+          "label": "Build finite Flow",
+          "value": "Build"
+        },
+        {
+          "label": "Stage finite Flow",
+          "value": "Stage"
+        },
+        {
+          "label": "Verify finite Flow",
+          "value": "Verify"
+        },
+        {
+          "label": "Release autonomous Loops (+ SimpleViewer)",
+          "value": "Release"
+        }
+      ]
+    },
+    {
+      "id": "toolboxStandaloneReleaseAction",
+      "type": "pickString",
+      "description": "Select the Toolbox Standalone Release action",
+      "default": "Release",
+      "options": [
+        {
+          "label": "Build finite Flow",
+          "value": "Build"
+        },
+        {
+          "label": "Stage finite Flow",
+          "value": "Stage"
+        },
+        {
+          "label": "Release autonomous Loops (+ SimpleViewer)",
+          "value": "Release"
+        }
+      ]
+    },
     {
       "id": "retro68DskPath",
       "type": "pickString",

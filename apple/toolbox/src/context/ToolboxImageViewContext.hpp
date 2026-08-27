@@ -33,7 +33,6 @@ private:
 
   loka::app::ImageViewNode *node_;
   Rect rect_;
-  loka::core::resource::Image image_;
 };
 
 bool RegisterToolboxImageViewNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);

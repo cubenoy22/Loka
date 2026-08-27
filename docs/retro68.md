@@ -13,9 +13,11 @@ This repo includes shared Retro68 Release presets in `CMakePresets.json`:
 
 - `retro68-68k-release`
 - `retro68-ppc-release`
+- `retro68-68k-standalone-release`
+- `retro68-ppc-standalone-release`
 
 These presets use `cmake/toolchains/Retro68.cmake`, which resolves the toolchain
-from environment variables or common default paths.
+from host-local configuration, environment variables, or common default paths.
 
 By default, the Retro68 toolchain wrapper checks:
 
@@ -23,85 +25,93 @@ By default, the Retro68 toolchain wrapper checks:
 - `~/Retro68`
 
 If your Retro68 build is in one of those locations and `ninja` is on `PATH`, the
-shared Release presets can be used directly. If Retro68 is installed elsewhere,
-add a local `CMakeUserPresets.json` or set the environment variables listed
-below.
+shared Release presets can be used directly. Otherwise, copy the checked-in
+example and describe this host once:
+
+```sh
+cp .env-retro68.example .env-retro68
+```
+
+`.env-retro68` is ignored by Git. VS Code Retro68 tasks and
+`scripts/retro68-cmake.sh` load it automatically on macOS, Linux, and WSL. Use
+paths as seen by the current host; a WSL file therefore contains Linux or
+`/mnt/...` paths, not Windows path syntax.
 
 For Retro68, use the Release presets directly. Dedicated `Debug` or
 `MinSizeRel` presets are not maintained here because the practical workflow is
 already Release-oriented and the Release flags are the ones we want to keep
 consistent across Classic targets.
 
-### Option A: Use shared presets directly
+### Redistributable interfaces in hosted CI
 
-Use this option when Retro68 is installed at `~/Retro68-build` or `~/Retro68`,
-or set one of the following so the toolchain can be found:
+The `Toolbox Build CI` workflow builds every Toolbox target for both 68K and
+PowerPC in Retro68's official container. It selects the redistributable
+Multiversal Interfaces explicitly and enables Loka's internal compatibility
+boundary with `LOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON`. The container image is
+pinned by digest in `.github/workflows/toolbox.yml` so the compiler and header
+set cannot change silently.
 
-- `RETRO68_TOOLCHAIN_DIR` (path to Retro68 toolchain CMake dir or toolchain file)
+This workflow is **build-verified** only: it proves that the applications
+compile and link without redistributing Apple's Universal Interfaces. Runtime
+and golden verification remain on the named Toolbox rig described in
+`docs/LOKA_RIG.md`.
+
+Universal Interfaces remain the default for existing local Retro68 setups. To
+reproduce the hosted interface choice inside a Retro68 container launched with
+`INTERFACES=multiversal`, run:
+
+```sh
+cmake --preset retro68-68k-release -G "Unix Makefiles" \
+  -DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON
+cmake --build --preset retro68-68k-release
+cmake --preset retro68-ppc-release -G "Unix Makefiles" \
+  -DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON
+cmake --build --preset retro68-ppc-release
+```
+
+The compatibility headers under `apple/toolbox/compat/multiversal` are a
+Toolbox implementation detail. They preserve the Universal-style contracts
+already used by the backend and contain Multiversal's global Toolbox names;
+they are not a second app-facing API.
+
+### Host configuration
+
+The local file accepts these settings:
+
 - `RETRO68_BUILD_DIR` (path to Retro68 build output directory)
+- `RETRO68_TOOLCHAIN_DIR` (advanced override for one CPU's toolchain CMake
+  directory or file)
+- `RETRO68_TOOLCHAIN_BIN` (optional host-tool directory)
+- `CMAKE_MAKE_PROGRAM` (optional path to Ninja)
+
+Prefer `RETRO68_BUILD_DIR`: the toolchain file uses it to select the matching
+68K or PPC directory for each preset. `RETRO68_TOOLCHAIN_DIR` points at one
+CPU's toolchain CMake directory, so setting it pins configuration to that CPU
+and makes the other preset family fail. Set `CMAKE_MAKE_PROGRAM` when an editor
+launched from the desktop cannot see Ninja on its inherited `PATH`. Values
+already supplied by a caller or CI take precedence over the local file.
 
 Then run:
 
 ```sh
-cmake --preset retro68-68k-release
-cmake --build --preset retro68-68k-release
+scripts/retro68-cmake.sh --preset retro68-68k-release
+scripts/retro68-cmake.sh --build --preset retro68-68k-release
 ```
 
-### Option B: Add local `CMakeUserPresets.json`
-
-If Retro68 is not under `~/Retro68-build` or `~/Retro68`, or if your editor does
-not inherit a shell `PATH` that can find `ninja`, create `CMakeUserPresets.json`
-in the project root (always `"inherits"` a repository preset — a standalone
-local preset silently loses the Classic size/flag policy carried by
-`retro68-release-base` and binaries grow back by roughly 40%, see #135):
-
-```json
-{
-  "version": 3,
-  "configurePresets": [
-    {
-      "name": "retro68-68k-local",
-      "inherits": "retro68-68k-release",
-      "environment": {
-        "PATH": "/path/to/Retro68-build/toolchain/bin:$penv{PATH}"
-      },
-      "cacheVariables": {
-        "RETRO68_BUILD_DIR": "/path/to/Retro68-build",
-        "CMAKE_MAKE_PROGRAM": "/path/to/ninja"
-      }
-    }
-  ],
-  "buildPresets": [
-    {
-      "name": "retro68-68k-local",
-      "configurePreset": "retro68-68k-local"
-    }
-  ]
-}
-```
-
-Replace `/path/to/Retro68-build` with your actual Retro68 build directory.
-Replace `/path/to/ninja` with the Ninja executable path, or omit
-`CMAKE_MAKE_PROGRAM` if Ninja is already visible on `PATH`.
-
-Then select `retro68-68k-local` in VS Code/CMake Tools, or run:
-
-```sh
-cmake --preset retro68-68k-local
-cmake --build --preset retro68-68k-local
-```
+The preset name describes the target and build policy, not the host. There is
+no separate `local` preset: every host uses the same repository Release preset,
+so the Classic size and linker policy cannot drift between local and shared
+builds. Direct `cmake` invocations do not load dotenv files; use the wrapper, or
+export the same variables explicitly in an already-managed CI environment.
 
 ## Building
 
-Use the matching preset for your setup. For the shared Release preset:
+Use the repository Release preset through the wrapper:
 
 ```sh
-cmake --preset retro68-68k-release
-cmake --build --preset retro68-68k-release --target LokaHello68K
+scripts/retro68-cmake.sh --preset retro68-68k-release
+scripts/retro68-cmake.sh --build --preset retro68-68k-release --target LokaHello68K
 ```
-
-For a local preset, replace `retro68-68k-release` with your local preset name,
-such as `retro68-68k-local`.
 
 Output files:
 - `retro68-68k-release`:
@@ -110,16 +120,27 @@ Output files:
 - `retro68-ppc-release`:
   - `build/retro68/ppc/Release/example/HelloWorld/LokaHelloPPC.dsk`
   - `build/retro68/ppc/Release/example/HelloWorld/LokaHelloPPC.bin`
-- If you use custom `CMakeUserPresets.json`, paths follow your `binaryDir`.
 
-## Environment variables (alternative)
+For transportable autonomous Standalone releases, run the corresponding VS
+Code task **Standalone: Toolbox 68K Release Action** or **Standalone: Toolbox
+PPC Release Action**. Release artifacts are staged under
+`build/release/toolbox-68k` or `build/release/toolbox-ppc` respectively.
 
-If you prefer environment variables over CMakeUserPresets.json:
+## Environment variables
+
+The CMake toolchain also accepts these variables from an explicitly managed
+process environment:
 
 - `RETRO68_BUILD_DIR`: path to the Retro68 build output directory.
-- `RETRO68_TOOLCHAIN_DIR`: path to the Retro68 toolchain CMake directory.
+- `RETRO68_TOOLCHAIN_DIR`: advanced override for one CPU's Retro68 toolchain
+  CMake directory or file. It pins configuration to that CPU and makes the
+  other preset family fail; prefer `RETRO68_BUILD_DIR` for shared 68K and PPC
+  use.
 - `RETRO68_CPU`: target CPU (`m68k` or `ppc`). Defaults to `m68k`.
 - `RETRO68_PPC_FLAVOR`: `retroppc` or `retrocarbon` (when `RETRO68_CPU=ppc`).
+
+The host-local file intentionally accepts only the location variables listed
+under Host configuration. CPU and flavor remain owned by the selected preset.
 
 Preset mapping used in this repo:
 
@@ -522,13 +543,16 @@ Practical rule:
 - but if a crash remains after several safe-side fixes, question the ownership
   model, not only the cleanup details
 
-## VSCode (IntelliSense)
+## VS Code (clangd)
 
-To enable Classic Mac OS headers in IntelliSense, add the Retro68 interfaces
-directory to your include path.
+To enable Classic Mac OS headers in clangd, select a Retro68 preset in CMake
+Tools and configure it. The Retro68 presets generate a compilation database,
+and the tracked VS Code settings copy the active database to
+`compile_commands.json` at the repository root for clangd.
 
-This repo includes a starter configuration at:
+The workspace permits clangd to query only the Retro68 68K and PPC C++ compiler
+drivers named by that database. This supplies the toolchain's actual system
+include paths without hard-coding the location of a local Retro68 build.
 
-- `.vscode/c_cpp_properties.json`
-
-Update the path if your Retro68 build directory differs from `../Retro68-build`.
+`.vscode/c_cpp_properties.json` remains as a starter configuration for anyone
+who explicitly re-enables the Microsoft C/C++ IntelliSense engine.

@@ -45,7 +45,7 @@
 
 namespace
 {
-#if !defined(pushButProc)
+#if !defined(pushButProc) && !defined(LOKA_TOOLBOX_MULTIVERSAL_INTERFACES)
   enum
   {
     pushButProc = 0
@@ -56,7 +56,7 @@ namespace
   // toolchain's Controls.h does not pull in and which cannot be added here
   // without making the pushButProc fallback above ambiguous. Same idiom,
   // same Universal Interfaces values.
-#if !defined(scrollBarProc)
+#if !defined(scrollBarProc) && !defined(LOKA_TOOLBOX_MULTIVERSAL_INTERFACES)
   enum
   {
     scrollBarProc = 16
@@ -249,6 +249,30 @@ namespace
       for (loka::app::scene::Node *child = it.next(); child; child = it.next())
       {
         if (HasRectSurfaceNode(child))
+        {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  bool HasZStackNode(loka::app::scene::Node *node)
+  {
+    if (!node)
+    {
+      return false;
+    }
+    if (node->kind() == loka::app::scene::NODE_KIND_ZSTACK)
+    {
+      return true;
+    }
+    if (loka::app::scene::INestable *nestable = node->asNestable())
+    {
+      loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+      {
+        if (HasZStackNode(child))
         {
           return true;
         }
@@ -1394,6 +1418,45 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     }
     return;
   }
+  bool dirtyIntersectsText = false;
+  for (size_t i = 0; i < textHits_.size(); ++i)
+  {
+    if (RectsIntersect(rect, textHits_[i].rect))
+    {
+      dirtyIntersectsText = true;
+      break;
+    }
+  }
+  if (dirtyIntersectsText && HasZStackNode(rootNode_))
+  {
+    // A ZStack declares shared pixels. Rebuild the registries only before any
+    // replay prefix is frozen (#315), and let the clipped render walk own the
+    // dirty pixels instead of letting one text run erase its siblings.
+    GrafPtr oldPort;
+    GetPort(&oldPort);
+    SetPort(window_->window());
+    // Own the clip save locally: beginClip/endClip share one region and one
+    // flag, and the walk below re-enters them (EditText::draw clips TEUpdate),
+    // so nesting through the shared pair would leave the port clipped to this
+    // dirty rect after the inner endClip consumed the flag. Same shape as
+    // redrawTextHit's save/restore.
+    RgnHandle oldClip = NewRgn();
+    if (oldClip != 0)
+    {
+      GetClip(oldClip);
+      ClipRect(&rect);
+    }
+    EraseRect(&rect);
+    render();
+    if (oldClip != 0)
+    {
+      SetClip(oldClip);
+      DisposeRgn(oldClip);
+    }
+    drawControlsInRect(rect);
+    SetPort(oldPort);
+    return;
+  }
   if (HasRectSurfaceNode(rootNode_))
   {
     RenderDirtyRectSurfaces(rootNode_, this, rect);
@@ -1437,19 +1500,30 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     }
     redrawTextHit(hit);
   }
-  for (size_t i = 0; i < editControls_.size(); ++i)
+  const size_t editReplayCount = editControls_.size();
+  for (size_t i = 0; i < editReplayCount; ++i)
   {
     EditTextControlBinding &binding = editControls_[i];
-    if (!binding.te || !binding.usedThisFrame)
+    if (!binding.ownerContext || !binding.te || !binding.usedThisFrame)
     {
       continue;
     }
-    if (!RectsIntersect(rect, binding.rect))
+    // binding.rect is the inset text rect that TEUpdate needs; draw() frames
+    // the outer rect, so the region that has to trigger a redraw is the outer
+    // one. Gating on the inner rect would skip a dirty strip covering only the
+    // chrome and leave the frame erased.
+    if (!RectsIntersect(rect, binding.ownerContext->chromeRect()))
     {
       continue;
     }
-    TEUpdate(&binding.rect, binding.te);
-    FrameRect(&binding.rect);
+    // draw() re-enters ensureEditTextControl, which can add to editControls_,
+    // so the owner is read out before the call and the bound is a snapshot:
+    // the binding reference must not survive a reallocation, and the replay
+    // must not iterate entries it created. Same wall as the cell replay above.
+    ToolboxEditTextContext *owner = binding.ownerContext;
+    owner->draw(this);
+    assert(editControls_.size() == editReplayCount
+           && "edit controls register on the render walk; the dirty replay must not grow the registry it iterates (#315)");
   }
   drawControlsInRect(rect);
 }
@@ -1776,6 +1850,13 @@ void ToolboxScenePlatformController::unbindEnabledState(loka::core::State<bool> 
 
 bool ToolboxScenePlatformController::hasLiveBinding(loka::core::State<loka::core::String> *text) const
 {
+  for (size_t i = 0; i < editControls_.size(); ++i)
+  {
+    if (editControls_[i].text == text)
+    {
+      return true;
+    }
+  }
   for (size_t i = 0; i < cellHits_.size(); ++i)
   {
     if (cellHits_[i].text == text)
@@ -1832,6 +1913,13 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
   {
     return;
   }
+  // Native controls are state mirrors, not paint alternatives. Synchronize
+  // every matching TE record before the first-match paint registries below can
+  // return; a State may legitimately feed both an EditText and a Text/Cell.
+  const size_t editControlMatchCount = editControls_.forEachTextBinding(
+      text,
+      this,
+      &ToolboxScenePlatformController::refreshEditTextBindingForStateChange);
   for (size_t i = 0; i < cellHits_.size(); ++i)
   {
     CellHit &hit = cellHits_[i];
@@ -1931,11 +2019,7 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
       return;
     }
   }
-  if (editControls_.forEachTextBinding(
-          text,
-          this,
-          &ToolboxScenePlatformController::refreshEditTextBindingForStateChange)
-      != 0)
+  if (editControlMatchCount != 0)
   {
     return;
   }
@@ -2974,7 +3058,7 @@ void ToolboxScenePlatformController::drawFallbackControl(const Rect &rect)
   LineTo(rect.right - 2, rect.top + 2);
 }
 
-TEHandle ToolboxScenePlatformController::ensureEditTextControl(loka::app::scene::NodeContext *ownerContext,
+TEHandle ToolboxScenePlatformController::ensureEditTextControl(ToolboxEditTextContext *ownerContext,
                                                                const Rect &rect,
                                                                loka::core::State<loka::core::String> *text,
                                                                loka::app::scene::NativeLifetimeHint lifetimeHint)
@@ -2984,10 +3068,12 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(loka::app::scene:
     return 0;
   }
   EditTextControlBinding *binding = 0;
+  loka::core::State<loka::core::String> *previousText = 0;
   size_t bindingIndex = 0;
   if (editControls_.find(ownerContext, bindingIndex))
   {
     binding = &editControls_[bindingIndex];
+    previousText = binding->text;
     binding->text = text;
   }
   if (!binding)
@@ -2997,7 +3083,7 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(loka::app::scene:
     {
       // Restore the fresh-created baseline: pooled records keep their last
       // text and rects, and the new binding starts from lastText == "".
-      TESetText("", 0, te);
+      TESetText(static_cast<const void *>(""), 0, te);
       (**te).destRect = rect;
       (**te).viewRect = rect;
       TECalText(te);
@@ -3022,6 +3108,14 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(loka::app::scene:
     binding = &editControls_.back();
     syncEditTextFromState(*binding);
     TEAutoView(true, binding->te);
+  }
+  // A native EditText is a live String projection just like Text and the
+  // fallback EditHit. Register it at the same seam so programmatic writes can
+  // reach TESetText even when no render walk follows the write.
+  bindTextState(text);
+  if (previousText && previousText != text && !this->hasLiveBinding(previousText))
+  {
+    unbindTextState(previousText);
   }
   binding->usedThisFrame = true;
   binding->lifetimeHint = lifetimeHint;
@@ -3049,6 +3143,7 @@ void ToolboxScenePlatformController::retireEditTextControlAt(
     loka::app::scene::NativeLifetimeHint lifetimeHint)
 {
   EditTextControlBinding &binding = editControls_[index];
+  loka::core::State<loka::core::String> *retiredText = binding.text;
   if (binding.te)
   {
     TEDeactivate(binding.te);
@@ -3056,6 +3151,10 @@ void ToolboxScenePlatformController::retireEditTextControlAt(
     binding.te = 0;
   }
   editControls_.erase(index);
+  if (retiredText && !this->hasLiveBinding(retiredText))
+  {
+    unbindTextState(retiredText);
+  }
 }
 
 void ToolboxScenePlatformController::retireEditTextControl(
@@ -3086,6 +3185,49 @@ void ToolboxScenePlatformController::syncEditTextFromState(EditTextControlBindin
   binding.lastText = utf8;
 }
 
+#ifdef TEST_BUILD
+bool ToolboxScenePlatformController::queryEditTextValueForTesting(
+    ToolboxEditTextContext *ownerContext,
+    std::string &out) const
+{
+  out.clear();
+  size_t index = 0;
+  if (!ownerContext || !editControls_.find(ownerContext, index))
+  {
+    return false;
+  }
+  const EditTextControlBinding &binding = editControls_[index];
+  if (!binding.te || !*binding.te)
+  {
+    return false;
+  }
+  // TERec::hText is CharsHandle (unsigned char **) under Apple's Universal
+  // Interfaces and Handle (char **) under Multiversal, and both toolchains are
+  // supported. Reach it as a plain Handle so the declaration this file sees
+  // does not decide whether it compiles.
+  Handle textHandle = reinterpret_cast<Handle>((**binding.te).hText);
+  const long length = (**binding.te).teLength;
+  if (length < 0 || (length > 0 && !textHandle))
+  {
+    return false;
+  }
+  if (length > 0)
+  {
+    const char previousHandleState = HGetState(textHandle);
+    HLock(textHandle);
+    const char *bytes = reinterpret_cast<const char *>(*textHandle);
+    if (!bytes)
+    {
+      HSetState(textHandle, previousHandleState);
+      return false;
+    }
+    out.assign(bytes, static_cast<std::string::size_type>(length));
+    HSetState(textHandle, previousHandleState);
+  }
+  return true;
+}
+#endif
+
 void ToolboxScenePlatformController::updateStateFromEdit(EditTextControlBinding &binding)
 {
   if (!binding.text || !binding.te)
@@ -3108,7 +3250,7 @@ void ToolboxScenePlatformController::updateStateFromEdit(EditTextControlBinding 
   if (textHandle && length > 0)
   {
     HLock(reinterpret_cast<Handle>(textHandle));
-    const char *ptr = *textHandle;
+    const char *ptr = reinterpret_cast<const char *>(*textHandle);
     utf8.assign(ptr, static_cast<size_t>(length));
     HUnlock(reinterpret_cast<Handle>(textHandle));
   }

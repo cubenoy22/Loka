@@ -6,10 +6,10 @@
 #include "app/core/WindowDefinition.hpp"
 #include "MainNode.hpp"
 
-class MyAppConfig : public AppConfigurable
+class MineSweeperAppConfig : public AppConfigurable
 {
 public:
-  MyAppConfig(PlatformContext *ctx, const minesweeper::MainProps &mainProps)
+  MineSweeperAppConfig(PlatformContext *ctx, const minesweeper::MainProps &mainProps)
       : AppConfigurable(ctx),
         mainProps_(mainProps)
   {
@@ -17,9 +17,8 @@ public:
 
   virtual void compose(AppComposition &c)
   {
-    loka::app::scene::NodeDefinition<minesweeper::MainProps, minesweeper::MainNode> mainDefinition(
-        this->mainProps_);
-    c << WindowDef(this->productionWindowProps(mainDefinition));
+    c << WindowDef(this->productionWindowProps(
+        loka::app::scene::Boundary<minesweeper::MainNode>(this->mainProps_)));
   }
 
 protected:

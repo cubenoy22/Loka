@@ -6,14 +6,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 {
   (void)hPrevInstance;
   (void)lpCmdLine;
-  return loka::platform::RunApp<MyAppConfig>(hInstance, nCmdShow);
+  return loka::platform::RunApp<FloppyBirdAppConfig>(hInstance, nCmdShow);
 }
 #elif defined(LOKA_RETRO68)
 int main(int argc, char **argv)
 {
   (void)argc;
   (void)argv;
-  return loka::platform::RunApp<MyAppConfig>();
+  return loka::platform::RunApp<FloppyBirdAppConfig>();
 }
 #else
 #error Unsupported platform for FloppyBird main.cpp

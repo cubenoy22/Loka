@@ -3,6 +3,7 @@
 
 import json
 import os
+import pathlib
 import struct
 import subprocess
 import sys
@@ -14,6 +15,9 @@ import zlib
 PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SCENARIO_DIR = os.path.join(PROJECT_DIR, "tests", "scenarios")
 PNG_TOOL = os.path.join(SCENARIO_DIR, "pngtool.py")
+
+sys.path.insert(0, os.path.join(PROJECT_DIR, "scripts", "rig"))
+import golden_identity_guard  # noqa: E402
 
 
 def run_tool(*arguments):
@@ -50,6 +54,86 @@ def write_rgb_png(path, width, height, pixels):
 
 
 class ExpectedAuditPinsTest(unittest.TestCase):
+    def test_startup_identity_declarations_are_tracked_and_win32_guards_before_copy(self):
+        declarations = os.path.join(
+            SCENARIO_DIR, "startup-golden-identities.txt"
+        )
+        entries = golden_identity_guard.read_declarations(pathlib.Path(declarations))
+        self.assertEqual(
+            [cell for cell, _ in entries],
+            [
+                ("minesweeper", "new-game-twice"),
+                ("scrapbook", "flip-forward-back"),
+            ],
+        )
+
+        runner_path = os.path.join(PROJECT_DIR, "tests", "win32", "run-scenario.ps1")
+        with open(runner_path, "r", encoding="utf-8") as handle:
+            runner = handle.read()
+        guard_call = runner.index("Invoke-GoldenIdentityGuard $Actual")
+        golden_copy = runner.index("Copy-Item -LiteralPath $Actual -Destination $Golden")
+        self.assertLess(guard_call, golden_copy)
+        self.assertIn("--declarations $StartupIdentityDeclarations", runner)
+
+        # The rig's declared capture environment is checked before the golden is
+        # written *and* before it is compared, so a bake on a machine that does
+        # not match refuses instead of pinning whatever the desktop was.
+        resolve_call = runner.index(
+            "$RigDescriptor = Resolve-RigDescriptorPath (Get-RigDescriptorDirectory)"
+        )
+        profile_guard = runner.index(
+            "Invoke-CaptureProfileGuard $RigDescriptor $ActualProfile"
+        )
+        update_branch = runner.index("if ($UpdateGolden) {")
+        compare_profile = runner.index("$expectedProfile = Read-ScenarioProfile $GoldenProfile")
+        self.assertLess(resolve_call, profile_guard)
+        self.assertLess(profile_guard, update_branch)
+        self.assertLess(profile_guard, golden_copy)
+        self.assertLess(profile_guard, compare_profile)
+        self.assertIn("--descriptor $Descriptor", runner)
+
+        # The rig is named by the operator, never inferred. Deriving it from the
+        # reported architecture let two machines answer to one descriptor: an
+        # isolated guest reports a profile byte-identical to the reference
+        # machine's and settles on a different picture (#459). Fixing the runner
+        # to one descriptor instead would refuse every other machine, so neither
+        # end of that is available -- the name has to come from outside.
+        self.assertIn("$env:LOKA_WIN32_RIG", runner)
+        self.assertNotIn('"win32-$arch.ini"', runner)
+
+        # The descriptor directory is the operator's, not the tree's. A rig is a
+        # fact about one machine, the same as the golden it pins -- and
+        # build/win32-scenario/golden is ignored for exactly that reason.
+        self.assertNotIn('Join-Path $ProjectDirectory "scripts/rig/win32/rigs"', runner)
+        self.assertIn("Resolve-RigDescriptorPath (Get-RigDescriptorDirectory)", runner)
+
+        # The golden is stored under the rig that baked it. Two rigs can share a
+        # checkout now that the name is chosen rather than derived, and two rigs
+        # reporting the same capture profile can still settle on different pixels
+        # (#459) -- so a golden keyed only by example would be overwritten by
+        # whichever rig baked last, and the profile comparison would not notice.
+        golden_root = runner.index(
+            '$GoldenRoot = Join-Path $ProjectDirectory "build/win32-scenario/golden/$RigName"'
+        )
+        self.assertLess(resolve_call, golden_root)
+        self.assertIn("$GoldenDirectory = Join-Path $GoldenRoot $Example", runner)
+        self.assertNotIn('"build/win32-scenario/golden/$Example"', runner)
+        # The identity guard has to look under the same root, or --update-golden
+        # would check one rig's declaration against another rig's stored pixels.
+        self.assertNotIn(
+            '--golden-root (Join-Path $ProjectDirectory "build/win32-scenario/golden")', runner
+        )
+
+        # Named before the vehicle starts: an undeclared machine is turned away
+        # without opening a window, and the name is not read off the capture.
+        vehicle_start = runner.index("$BuiltExecutable = Join-Path $ProjectDirectory")
+        self.assertLess(resolve_call, vehicle_start)
+
+        # Only the example ships. Anything else here would be one machine's rig
+        # riding along in everyone's clone.
+        rigs = os.path.join(PROJECT_DIR, "scripts", "rig", "win32", "rigs")
+        self.assertEqual(sorted(os.listdir(rigs)), ["local.example.ini"])
+
     def test_win32_vehicle_map_covers_the_shared_registry_examples(self):
         runner_path = os.path.join(PROJECT_DIR, "tests", "win32", "run-scenario.ps1")
         with open(runner_path, "r", encoding="utf-8") as handle:
@@ -112,12 +196,14 @@ class ExpectedAuditPinsTest(unittest.TestCase):
         registry = os.path.join(PROJECT_DIR, "tests", "scenarios", "scenarios.txt")
         with open(registry, "r", encoding="utf-8") as handle:
             entries = [line.split() for line in handle.read().splitlines()]
-        self.assertEqual(len(entries), 17)
+        self.assertEqual(len(entries), 16)
         self.assertEqual(len(entries), len({tuple(entry) for entry in entries}))
+        registered_audits = set()
         for entry in entries:
             self.assertEqual(len(entry), 2)
             example, scenario = entry
             audit_path = os.path.join(SCENARIO_DIR, "expected", example, scenario + ".audit")
+            registered_audits.add(os.path.relpath(audit_path, SCENARIO_DIR))
             with open(audit_path, "rb") as handle:
                 audit = handle.read()
 
@@ -142,6 +228,13 @@ class ExpectedAuditPinsTest(unittest.TestCase):
             self.assertNotIn(b"/home/", audit)
             self.assertNotIn(b"/mnt/", audit)
             self.assertNotIn(b"build/", audit)
+
+        tracked_audits = {
+            os.path.relpath(path, SCENARIO_DIR)
+            for path in pathlib.Path(SCENARIO_DIR, "expected").glob("*/*.audit")
+            if path.name != "standalone-tour.audit"
+        }
+        self.assertEqual(tracked_audits, registered_audits)
 
     def test_byte_compare_rejects_observed_string_mutation(self):
         expected = os.path.join(SCENARIO_DIR, "expected", "scrapbook", "open-text-page.audit")
@@ -212,6 +305,186 @@ class PngToolTest(unittest.TestCase):
             self.assertTrue(os.path.isfile(difference))
             self.assertGreater(os.path.getsize(difference), 0)
 
+    def test_compare_threshold_is_bounded_reported_and_exact_by_default(self):
+        with tempfile.TemporaryDirectory(prefix="scenario-png-threshold-") as directory:
+            expected = os.path.join(directory, "expected.png")
+            actual = os.path.join(directory, "actual.png")
+            write_rgb_png(expected, 3, 1, [(1, 2, 3)] * 3)
+            write_rgb_png(actual, 3, 1, [(9, 8, 7), (1, 2, 3), (9, 8, 7)])
+
+            unchanged = run_tool(PNG_TOOL, "compare", expected, expected)
+            tolerated = run_tool(
+                PNG_TOOL, "compare", "--max-diff-px", "2", expected, actual
+            )
+            over_bound = run_tool(
+                PNG_TOOL, "compare", "--max-diff-px", "1", expected, actual
+            )
+            exact_default = run_tool(PNG_TOOL, "compare", expected, actual)
+
+            self.assertEqual(unchanged.returncode, 0, unchanged.stderr)
+            self.assertIn("differing pixels: 0", unchanged.stdout)
+            self.assertIn("differing columns: 0", unchanged.stdout)
+            self.assertIn("max-diff-px: 0", unchanged.stdout)
+            self.assertIn("max-diff-columns: unbounded", unchanged.stdout)
+            self.assertEqual(tolerated.returncode, 0, tolerated.stderr)
+            self.assertIn("differing pixels: 2", tolerated.stdout)
+            self.assertIn("differing columns: 2", tolerated.stdout)
+            self.assertIn("max-diff-px: 2", tolerated.stdout)
+            self.assertIn("max-diff-columns: unbounded", tolerated.stdout)
+            self.assertNotEqual(over_bound.returncode, 0)
+            self.assertIn("differing pixels: 2", over_bound.stdout)
+            self.assertIn("max-diff-px: 1", over_bound.stdout)
+            self.assertIn("first differing pixel (0, 0)", over_bound.stdout)
+            self.assertNotEqual(exact_default.returncode, 0)
+            self.assertIn("max-diff-px: 0", exact_default.stdout)
+
+    def test_compare_column_threshold_is_bounded_reported_and_unbounded_by_default(self):
+        with tempfile.TemporaryDirectory(prefix="scenario-png-columns-") as directory:
+            expected = os.path.join(directory, "expected.png")
+            actual = os.path.join(directory, "actual.png")
+            write_rgb_png(expected, 3, 1, [(1, 2, 3)] * 3)
+            write_rgb_png(actual, 3, 1, [(9, 8, 7)] * 3)
+
+            omitted = run_tool(
+                PNG_TOOL, "compare", "--max-diff-px", "3", expected, actual
+            )
+            over_column_bound = run_tool(
+                PNG_TOOL,
+                "compare",
+                "--max-diff-px",
+                "400",
+                "--max-diff-columns",
+                "2",
+                expected,
+                actual,
+            )
+            negative = run_tool(
+                PNG_TOOL,
+                "compare",
+                "--max-diff-columns",
+                "-1",
+                expected,
+                actual,
+            )
+            tolerated = run_tool(
+                PNG_TOOL,
+                "compare",
+                "--max-diff-px",
+                "400",
+                "--max-diff-columns",
+                "3",
+                expected,
+                actual,
+            )
+
+            self.assertEqual(omitted.returncode, 0, omitted.stderr)
+            self.assertIn("max-diff-columns: unbounded", omitted.stdout)
+            self.assertNotEqual(over_column_bound.returncode, 0)
+            self.assertIn(
+                "compare result: differing pixels: 3; differing columns: 3; "
+                "max-diff-px: 400; max-diff-columns: 2; result: fail",
+                over_column_bound.stdout,
+            )
+            self.assertEqual(tolerated.returncode, 0, tolerated.stderr)
+            self.assertNotEqual(negative.returncode, 0)
+            self.assertIn(
+                "--max-diff-columns must not be negative", negative.stderr
+            )
+
+    def test_compare_requires_both_pixel_and_column_bounds(self):
+        with tempfile.TemporaryDirectory(prefix="scenario-png-bounds-") as directory:
+            expected = os.path.join(directory, "expected.png")
+            actual = os.path.join(directory, "actual.png")
+            write_rgb_png(expected, 2, 201, [(1, 2, 3)] * 402)
+            write_rgb_png(actual, 2, 201, [(9, 8, 7)] * 402)
+
+            over_pixel_bound = run_tool(
+                PNG_TOOL,
+                "compare",
+                "--max-diff-px",
+                "400",
+                "--max-diff-columns",
+                "2",
+                expected,
+                actual,
+            )
+
+            self.assertNotEqual(over_pixel_bound.returncode, 0)
+            self.assertIn(
+                "compare result: differing pixels: 402; differing columns: 2; "
+                "max-diff-px: 400; max-diff-columns: 2; result: fail",
+                over_pixel_bound.stdout,
+            )
+
+    def test_compare_rejects_dimension_mismatch_at_any_tolerance(self):
+        with tempfile.TemporaryDirectory(prefix="scenario-png-dimensions-") as directory:
+            expected = os.path.join(directory, "expected.png")
+            actual = os.path.join(directory, "actual.png")
+            write_rgb_png(expected, 340, 250, [(1, 2, 3)] * (340 * 250))
+            write_rgb_png(actual, 340, 251, [(1, 2, 3)] * (340 * 251))
+
+            changed_shape = run_tool(
+                PNG_TOOL,
+                "compare",
+                "--max-diff-px",
+                "400",
+                "--max-diff-columns",
+                "400",
+                expected,
+                actual,
+            )
+
+            self.assertNotEqual(changed_shape.returncode, 0)
+            self.assertIn("dimensions differ: 340x250 != 340x251", changed_shape.stdout)
+            self.assertIn(
+                "compare result: dimension mismatch; result: fail",
+                changed_shape.stdout,
+            )
+            self.assertIn("differing pixels: 340", changed_shape.stdout)
+            self.assertIn("differing columns: 340", changed_shape.stdout)
+            self.assertIn("max-diff-px: 400", changed_shape.stdout)
+            self.assertIn("max-diff-columns: 400", changed_shape.stdout)
+            self.assertNotIn("result: pass", changed_shape.stdout)
+
+    def test_win32_compare_records_the_bounded_wobble_and_writes_diff_evidence(self):
+        runner_path = os.path.join(PROJECT_DIR, "tests", "win32", "run-scenario.ps1")
+        with open(runner_path, "r", encoding="utf-8") as handle:
+            runner = handle.read()
+        compare_support_path = os.path.join(
+            PROJECT_DIR, "tests", "win32", "PngCompare.ps1"
+        )
+        with open(compare_support_path, "r", encoding="utf-8") as handle:
+            compare_support = handle.read()
+
+        compare_call = runner.index(
+            "Invoke-PngCompare $Actual $WorkGolden 400 2 *>> $RunnerLog"
+        )
+        update_branch = runner.index("if ($UpdateGolden) {")
+        compare_branch = runner.index("} else {", update_branch)
+        diff_on_nonzero = runner.index(
+            "if ($PngCompareResult.DifferenceCount -gt 0)", compare_call
+        )
+        mismatch_failure = runner.index("if ($CompareExitCode -ne 0)", diff_on_nonzero)
+
+        self.assertLess(compare_branch, compare_call)
+        self.assertLess(compare_call, diff_on_nonzero)
+        self.assertLess(diff_on_nonzero, mismatch_failure)
+        self.assertIn("--max-diff-px $MaxDiffPx", compare_support)
+        self.assertIn("--max-diff-columns $MaxDiffColumns", compare_support)
+        self.assertIn(
+            "differing pixels: ([0-9]+); differing columns: ([0-9]+); "
+            "max-diff-px: ([0-9]+); max-diff-columns: ([0-9]+)",
+            compare_support,
+        )
+        self.assertIn("$null -eq $PngCompareResult", runner)
+        self.assertIn("DifferenceColumnCount = $differenceColumnCount", compare_support)
+        self.assertIn("TODO(#459)", runner)
+        self.assertIn("169 px each", runner)
+        self.assertIn("338 px worst observed", runner)
+        self.assertIn("roughly six to eight columns", runner)
+        self.assertIn("an icon many more", runner)
+        self.assertIn("compositing M1 offscreen composition", runner)
+
 
 class PresetFlagSeedingTest(unittest.TestCase):
     """Pin the MSVC flag-seeding contract for the win32 preset family.
@@ -260,6 +533,257 @@ class PresetFlagSeedingTest(unittest.TestCase):
                 cache.get("CMAKE_EXE_LINKER_FLAGS_INIT", ""),
                 name,
             )
+
+
+class StandaloneDebugEntryPointTest(unittest.TestCase):
+    """Keep Standalone vehicles out of the ordinary CMake Tools code model."""
+
+    def load_documents(self):
+        with open(os.path.join(PROJECT_DIR, "CMakePresets.json"), "r", encoding="utf-8") as handle:
+            preset_document = json.load(handle)
+            configure_presets = {
+                preset["name"]: preset for preset in preset_document["configurePresets"]
+            }
+            build_presets = {
+                preset["name"]: preset for preset in preset_document["buildPresets"]
+            }
+        with open(os.path.join(PROJECT_DIR, ".vscode", "tasks.json"), "r", encoding="utf-8") as handle:
+            task_document = json.load(handle)
+        return configure_presets, build_presets, task_document
+
+    def test_standalone_configure_presets_own_separate_build_trees(self):
+        configure_presets, _, _ = self.load_documents()
+        expected_parents = {
+            "macos-standalone-debug": "macos-debug",
+            "macos-standalone-release": "macos-release",
+            "win32-standalone-debug": "win32-debug",
+            "win32-standalone-arm64-release": "win32-arm64-release",
+            "win32-standalone-x64-release": "win32-x64-release",
+            "win32-standalone-x86-release": "win32-x86-release",
+            "retro68-68k-standalone-release": "retro68-68k-release",
+            "retro68-68k-standalone-dwarf": "retro68-68k-dwarf",
+            "retro68-ppc-standalone-release": "retro68-ppc-release",
+        }
+
+        for preset_name, parent_name in expected_parents.items():
+            preset = configure_presets[preset_name]
+            self.assertEqual(preset["inherits"], parent_name)
+            self.assertEqual(
+                preset["cacheVariables"]["LOKA_ENABLE_STANDALONE_TARGETS"],
+                "ON",
+            )
+            self.assertNotEqual(
+                preset["binaryDir"], configure_presets[parent_name]["binaryDir"]
+            )
+            self.assertNotIn(
+                "LOKA_ENABLE_STANDALONE_TARGETS",
+                configure_presets[parent_name].get("cacheVariables", {}),
+            )
+
+        with open(os.path.join(PROJECT_DIR, "CMakeLists.txt"), "r", encoding="utf-8") as handle:
+            root_cmake = handle.read()
+        self.assertRegex(
+            root_cmake,
+            r"option\(LOKA_ENABLE_STANDALONE_TARGETS\s+[^\)]* OFF\)",
+        )
+
+        guarded_targets = {
+            "apple/macos/CMakeLists.txt": "LokaStandaloneFlowMacOSAll",
+            "win32/CMakeLists.txt": "LokaStandaloneFlowWin32All",
+            "tests/toolbox/CMakeLists.txt": "LOKA_STANDALONE_FLOW_TOOLBOX_ALL_TARGET",
+        }
+        for relative_path, target_name in guarded_targets.items():
+            with open(
+                os.path.join(PROJECT_DIR, relative_path), "r", encoding="utf-8"
+            ) as handle:
+                cmake_source = handle.read()
+            gate = cmake_source.index("if(LOKA_ENABLE_STANDALONE_TARGETS)")
+            target = cmake_source.index(target_name, gate)
+            close = cmake_source.index("endif()", gate)
+            self.assertLess(gate, target, relative_path)
+            self.assertLess(target, close, relative_path)
+
+    def test_release_rails_use_dedicated_standalone_presets_and_build_trees(self):
+        expected_fragments = {
+            "scripts/macos-standalone-flow.sh": (
+                "--preset macos-standalone-release",
+                "build/macos/Standalone/Release",
+            ),
+            "scripts/win32-standalone-flow.ps1": (
+                "win32-standalone-$Architecture-release",
+                "build/win32/standalone/presentation/$Architecture/Release",
+            ),
+            "scripts/toolbox-standalone-flow.sh": (
+                'CONFIGURE_PRESET="retro68-$CLASSIC_CPU-standalone-release"',
+                "build/retro68/$CLASSIC_CPU/Standalone/Release",
+            ),
+        }
+        for relative_path, fragments in expected_fragments.items():
+            with open(
+                os.path.join(PROJECT_DIR, relative_path), "r", encoding="utf-8"
+            ) as handle:
+                source = handle.read()
+            for fragment in fragments:
+                self.assertIn(fragment, source, relative_path)
+
+    def test_debug_presets_cover_flow_and_loop_aggregates(self):
+        _, presets, _ = self.load_documents()
+        expected = {
+            "macos-standalone-flow": (
+                "macos-standalone-debug",
+                "LokaStandaloneFlowMacOSAll",
+            ),
+            "macos-standalone-loop": (
+                "macos-standalone-debug",
+                "LokaStandaloneLoopMacOSAll",
+            ),
+            "win32-standalone-flow": (
+                "win32-standalone-debug",
+                "LokaStandaloneFlowWin32All",
+            ),
+            "win32-standalone-loop": (
+                "win32-standalone-debug",
+                "LokaStandaloneLoopWin32All",
+            ),
+            "retro68-68k-standalone-flow-dwarf": (
+                "retro68-68k-standalone-dwarf",
+                "LokaStandaloneFlow68KAll",
+            ),
+            "retro68-68k-standalone-loop-dwarf": (
+                "retro68-68k-standalone-dwarf",
+                "LokaStandaloneLoop68KAll",
+            ),
+        }
+
+        for preset_name, (configure_preset, target) in expected.items():
+            self.assertEqual(presets[preset_name]["configurePreset"], configure_preset)
+            self.assertEqual(presets[preset_name]["targets"], [target])
+
+    def test_vscode_keeps_only_release_actions(self):
+        _, _, task_document = self.load_documents()
+        tasks = {task["label"]: task for task in task_document["tasks"]}
+        inputs = {entry["id"]: entry for entry in task_document["inputs"]}
+
+        visible_entry_points = {
+            "Standalone: macOS Release Action",
+            "Standalone: Win32 Release Action",
+            "Standalone: Toolbox 68K Release Action",
+            "Standalone: Toolbox PPC Release Action",
+        }
+        self.assertEqual(
+            {
+                label
+                for label, task in tasks.items()
+                if label.startswith("Standalone:") and not task.get("hide", False)
+            },
+            visible_entry_points,
+        )
+        self.assertNotIn("standaloneMode", inputs)
+
+        self.assertEqual(
+            tasks["Standalone: macOS Release Action"]["args"],
+            ["scripts/macos-standalone-flow.sh", "${input:standaloneReleaseAction}"],
+        )
+        self.assertEqual(
+            tasks["Standalone: Win32 Release Action"]["args"][-2:],
+            ["-Action", "${input:standaloneReleaseAction}"],
+        )
+        self.assertEqual(
+            tasks["Standalone: Toolbox 68K Release Action"]["args"],
+            ["scripts/toolbox-standalone-flow.sh", "${input:toolboxStandaloneReleaseAction}"],
+        )
+        self.assertEqual(
+            tasks["Standalone: Toolbox PPC Release Action"]["args"],
+            [
+                "scripts/toolbox-standalone-flow.sh",
+                "${input:toolboxStandaloneReleaseAction}",
+                "ppc",
+            ],
+        )
+
+        self.assertEqual(
+            [option["value"] for option in inputs["standaloneReleaseAction"]["options"]],
+            ["Build", "Stage", "Verify", "Release"],
+        )
+        self.assertEqual(
+            [option["value"] for option in inputs["toolboxStandaloneReleaseAction"]["options"]],
+            ["Build", "Stage", "Release"],
+        )
+
+        hidden_dependencies = [
+            "Configure: Win32 Native",
+            "Configure: Retro68 68K Standalone Release",
+            "Build: Retro68 68K Scrapbook Standalone Flow",
+            "Build: Retro68 68K HelloWorld Standalone Flow",
+            "Build: Retro68 68K Tutorial Standalone Flow",
+            "Build: Retro68 68K MineSweeper Standalone Flow",
+            "Build: Retro68 68K FloppyBird Standalone Flow",
+            "Stage: Toolbox 68K Standalone Flow Release",
+            "Prepare SCSI Dev Disk: Scrapbook Standalone Flow",
+            "Prepare SCSI Dev Disk: HelloWorld Standalone Flow",
+            "Prepare SCSI Dev Disk: Tutorial Standalone Flow",
+            "Prepare SCSI Dev Disk: MineSweeper Standalone Flow",
+            "Prepare SCSI Dev Disk: FloppyBird Standalone Flow",
+            "MAME: Mount Scrapbook Standalone Flow Stage",
+        ]
+        for label in hidden_dependencies:
+            self.assertTrue(tasks[label].get("hide", False), label)
+
+        for label in hidden_dependencies[2:7]:
+            self.assertEqual(
+                tasks[label]["args"][2], "retro68-68k-standalone-release"
+            )
+            self.assertEqual(
+                tasks[label]["dependsOn"],
+                ["Configure: Retro68 68K Standalone Release"],
+            )
+
+        removed_variants = [
+            "Build: macOS Standalone Flow Release",
+            "Stage: macOS Standalone Flow Release",
+            "Verify: macOS Standalone Flow Release",
+            "Release: macOS Standalone Application Set",
+            "Build: Win32 Standalone Flow Release",
+            "Stage: Win32 Standalone Flow Release",
+            "Verify: Win32 Standalone Flow Release",
+            "Release: Win32 Standalone Application Set",
+            "Release: Toolbox 68K Standalone Application Set",
+        ]
+        for label in removed_variants:
+            self.assertNotIn(label, tasks)
+
+    def test_vscode_launch_picker_contains_only_ordinary_examples(self):
+        with open(
+            os.path.join(PROJECT_DIR, ".vscode", "launch.json"),
+            "r",
+            encoding="utf-8",
+        ) as handle:
+            launch_document = json.load(handle)
+
+        names = [
+            configuration["name"]
+            for configuration in launch_document["configurations"]
+        ]
+        self.assertEqual(
+            set(names),
+            {
+                "Run (macOS HelloWorld)",
+                "Run (macOS MineSweeper)",
+                "Run (macOS SimpleViewer)",
+                "Run (macOS ScrapbookUI)",
+                "Run (macOS FloppyBird)",
+                "Run (macOS Tutorial)",
+                "Run (Windows HelloWorld)",
+                "Run (Windows MineSweeper)",
+                "Run (Windows SimpleViewer)",
+                "Run (Windows ScrapbookUI)",
+                "Run (Windows FloppyBird)",
+                "Run (Windows Tutorial)",
+            },
+        )
+        self.assertEqual(len(names), len(set(names)))
+        self.assertFalse(any("Standalone" in name for name in names))
+        self.assertFalse(any("Scenario Loop" in name for name in names))
 
 
 if __name__ == "__main__":

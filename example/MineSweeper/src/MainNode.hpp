@@ -11,6 +11,9 @@
 
 namespace minesweeper
 {
+  using loka::app::Button;
+  using loka::app::Cell;
+
   struct MineCellTypeTag
   {
   };
@@ -79,15 +82,13 @@ namespace minesweeper
       writer; whether the cell has been revealed is a node member that lives
       and dies with the box. The board never writes into this box -- reveal
       is the cell's own doing, and a new game retires the box wholesale. */
-  class MineCellNode : public loka::app::scene::ComponentNode
+  class MineCellNode : public loka::app::scene::ComponentNodeWithProps<MineCellProps>
   {
-  public:
-    typedef MineCellTypeTag TypeTag;
-    MineCellProps props;
+    typedef loka::app::scene::ComponentNodeWithProps<MineCellProps> Base;
 
+  public:
     explicit MineCellNode(const MineCellProps &p)
-        : loka::app::scene::ComponentNode(),
-          props(p),
+        : Base(p),
           revealed_(false),
           text_(),
           click_()
@@ -105,9 +106,9 @@ namespace minesweeper
     virtual void composeChildren(loka::app::scene::NodeComposition &c)
     {
 #if defined(TEST_BUILD)
-      c.declare(loka::app::Cell(this->text_.state()).onClick(&this->click_).TEST_ID(this->testId()));
+      c.declare(Cell(this->text_.state()).onClick(&this->click_).TEST_ID(this->testId()));
 #else
-      c.declare(loka::app::Cell(this->text_.state()).onClick(&this->click_));
+      c.declare(Cell(this->text_.state()).onClick(&this->click_));
 #endif
     }
 
@@ -157,8 +158,6 @@ namespace minesweeper
     loka::app::scene::NodeState<loka::core::String> text_;
     loka::core::EmitterState click_;
   };
-
-  typedef loka::app::scene::NodeDefinition<MineCellProps, MineCellNode> MineCell;
 
   struct MainTypeTag
   {
@@ -221,8 +220,7 @@ namespace minesweeper
     {
       using namespace loka::app;
       Column content;
-      content << loka::app::Button("New Game", &this->newGameClick_)
-                     .TEST_ID("MineSweeper.NewGameButton");
+      content << Button("New Game", &this->newGameClick_).TEST_ID("MineSweeper.NewGameButton");
       Grid grid;
       grid.rows(kRows).cols(kCols).TEST_ID("MineSweeper.Board");
       for (int i = 0; i < kCellCount; ++i)
@@ -234,7 +232,8 @@ namespace minesweeper
         // cells.
         Section cell(static_cast<loka::app::scene::NodeTag>(
             kCellSectionKeyBase + this->bank_ * kCellCount + i));
-        cell << MineCell(MineCellProps(this->mines_[i], this->countAdjacent(i), i));
+        cell << scene::Component(
+            MineCellProps(this->mines_[i], this->countAdjacent(i), i));
         grid << cell;
       }
       content << grid;

@@ -1,5 +1,5 @@
 loka_scenario_audit version=1 scenario=startup
-crop_bottom	300
+crop_bottom	330
 crop_left	0
 crop_right	420
 crop_top	0

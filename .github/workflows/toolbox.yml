@@ -1,0 +1,47 @@
+name: Toolbox Build CI
+
+# This workflow is build verification only. Runtime verification remains on
+# the named Toolbox rig because it owns the required ROM, system disk, and
+# rig-local golden evidence.
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  toolbox-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RETRO68_IMAGE: ghcr.io/autc04/retro68@sha256:459dd3ea9856262162615527021be7b64f198631dc59cca8cedbf197b7656019
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      # Retro68's public image contains both cross-toolchains and defaults to
+      # the redistributable Multiversal Interfaces. Keep the interface choice
+      # explicit so this check cannot silently begin consuming Apple headers.
+      - name: Pull Retro68 toolchain
+        run: docker pull "$RETRO68_IMAGE"
+
+      - name: Build Toolbox 68K and PPC
+        run: |
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            --env INTERFACES=multiversal \
+            --env RETRO68_BUILD_DIR=/Retro68-build \
+            --volume "$GITHUB_WORKSPACE:/workspace" \
+            --workdir /workspace \
+            "$RETRO68_IMAGE" \
+            /bin/bash -ceu '
+              cmake --preset retro68-68k-release -G "Unix Makefiles" \
+                -DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON
+              cmake --build --preset retro68-68k-release
+              cmake --preset retro68-ppc-release -G "Unix Makefiles" \
+                -DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON
+              cmake --build --preset retro68-ppc-release
+            '

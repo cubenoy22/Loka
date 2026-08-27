@@ -9,10 +9,10 @@
 #include "GameModel.hpp"
 #include "MainNode.hpp"
 
-class MyAppConfig : public AppConfigurable
+class FloppyBirdAppConfig : public AppConfigurable
 {
 public:
-  explicit MyAppConfig(PlatformContext *ctx, unsigned long gameSeed = 1UL)
+  explicit FloppyBirdAppConfig(PlatformContext *ctx, unsigned long gameSeed = 1UL)
       : AppConfigurable(ctx),
         game_(gameSeed)
   {
@@ -20,12 +20,12 @@ public:
 
   virtual void compose(AppComposition &c)
   {
-    loka::app::scene::NodeDefinition<floppybird::MainProps, floppybird::MainNode> mainDefinition(
-        floppybird::MainProps(&this->game_));
-    c << WindowDef(this->productionWindowProps(mainDefinition)
+    c << WindowDef(this->productionWindowProps(
+                       loka::app::scene::Boundary<floppybird::MainNode>(
+                           floppybird::MainProps(&this->game_)))
                        .idlePolicy(loka::app::IdlePolicy::interval(loka_floppy_bird::kFixedStepSeconds))
-                       .onIdle(&MyAppConfig::WindowIdleThunk, this)
-                       .onKeyPress(&MyAppConfig::WindowKeyPressThunk, this));
+                       .onIdle(&FloppyBirdAppConfig::WindowIdleThunk, this)
+                       .onKeyPress(&FloppyBirdAppConfig::WindowKeyPressThunk, this));
   }
 
   virtual void composeMenu(loka::app::MenuComposition &c)
@@ -72,7 +72,7 @@ protected:
 private:
   static void WindowIdleThunk(Window *window, double elapsedSeconds, void *userData)
   {
-    MyAppConfig *self = static_cast<MyAppConfig *>(userData);
+    FloppyBirdAppConfig *self = static_cast<FloppyBirdAppConfig *>(userData);
     if (self)
     {
       self->handleWindowIdle(window, elapsedSeconds);
@@ -81,7 +81,7 @@ private:
 
   static bool WindowKeyPressThunk(Window *window, char key, void *userData)
   {
-    MyAppConfig *self = static_cast<MyAppConfig *>(userData);
+    FloppyBirdAppConfig *self = static_cast<FloppyBirdAppConfig *>(userData);
     return self ? self->handleWindowKeyPress(window, key) : false;
   }
 

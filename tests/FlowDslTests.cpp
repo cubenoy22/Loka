@@ -156,6 +156,66 @@ namespace
     int expectedPreviousCalls_;
   };
 
+  struct QueueSceneApplyAction
+  {
+    typedef loka::app::scene::Scene *In;
+    typedef loka::app::scene::Scene *Out;
+
+    explicit QueueSceneApplyAction(int *calls)
+        : calls_(calls)
+    {
+    }
+
+    loka::dsl::StepRunStatus
+    run(loka::app::scene::Scene *const &in, loka::app::scene::Scene *&out, loka::dsl::FlowError &error) const
+    {
+      out = in;
+      if (!in || !this->calls_)
+      {
+        error.kind = loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO;
+        error.code = loka::dsl::testing::FLOW_ERROR_SCENE_TEST_NULL_SCENE;
+        return loka::dsl::FLOW_STEP_FAILED;
+      }
+      ++(*this->calls_);
+      in->requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+
+    int *calls_;
+  };
+
+  struct PendingSceneApplyAction
+  {
+    typedef loka::app::scene::Scene *In;
+    typedef loka::app::scene::Scene *Out;
+
+    explicit PendingSceneApplyAction(int *calls)
+        : calls_(calls)
+    {
+    }
+
+    loka::dsl::StepRunStatus
+    run(loka::app::scene::Scene *const &in, loka::app::scene::Scene *&out, loka::dsl::FlowError &error) const
+    {
+      out = in;
+      if (!in || !this->calls_)
+      {
+        error.kind = loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO;
+        error.code = loka::dsl::testing::FLOW_ERROR_SCENE_TEST_NULL_SCENE;
+        return loka::dsl::FLOW_STEP_FAILED;
+      }
+      ++(*this->calls_);
+      if (*this->calls_ == 1)
+      {
+        in->requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
+        return loka::dsl::FLOW_STEP_PENDING;
+      }
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+
+    int *calls_;
+  };
+
   class ConditionalProjectedProbeNode;
   struct ConditionalProjectedProbeTypeTag
   {
@@ -1757,6 +1817,57 @@ namespace
     int height_;
   };
 
+  struct SimpleViewerRetainingPlatformContext : public FlowTestPlatformContext
+  {
+    SimpleViewerRetainingPlatformContext()
+        : observedBlob_(),
+          capacityReleaseWitness_(0),
+          capacityQueryCalls_(0)
+    {
+    }
+
+    virtual bool queryLargestContiguousAllocation(std::size_t &out) const
+    {
+      if (!this->capacityReleaseWitness_)
+      {
+        return false;
+      }
+      ++this->capacityQueryCalls_;
+      out = this->capacityReleaseWitness_->useCount() == 1 ? static_cast<std::size_t>(-1) : 0;
+      return true;
+    }
+
+    virtual bool createImageFromBlob(const loka::core::resource::Blob &blob,
+                                     std::size_t,
+                                     std::size_t,
+                                     loka::core::resource::Image &out) const
+    {
+      ++this->createImageCalls_;
+      if (!this->createImageResult_)
+      {
+        return false;
+      }
+      this->observedBlob_ = blob.handle();
+      loka::core::resource::Blob *retainedBlob = new loka::core::resource::Blob(blob);
+      out = loka::core::resource::Image::FromNative(
+          reinterpret_cast<void *>(0x1),
+          this->width_,
+          this->height_,
+          &SimpleViewerRetainingPlatformContext::ReleaseRetainedBlob,
+          retainedBlob);
+      return true;
+    }
+
+    static void ReleaseRetainedBlob(void *, void *userData)
+    {
+      delete static_cast<loka::core::resource::Blob *>(userData);
+    }
+
+    mutable loka::core::Managed<loka::core::resource::BlobRecord> observedBlob_;
+    const loka::core::Managed<loka::core::resource::BlobRecord> *capacityReleaseWitness_;
+    mutable int capacityQueryCalls_;
+  };
+
   struct FlowTestCapturableBitmap : public loka::app::scene::ICapturableBitmap
   {
     virtual bool captureBitmap(loka::core::resource::Image &out) const
@@ -1870,6 +1981,9 @@ namespace
           lastBoundaryApplyPlan_(),
           boundaryApplyCalls_(0),
           calls_(0),
+          synchronizeCalls_(0),
+          queuePendingSyncOnChange_(false),
+          pendingSync_(false),
           skipGlobalChangeForBoundaryLocalPaint_(false),
           destroyed_(false)
     {
@@ -1881,6 +1995,10 @@ namespace
       lastFlags_ = flags;
       lastFullRebuild_ = fullRebuild;
       ++calls_;
+      if (this->queuePendingSyncOnChange_)
+      {
+        this->pendingSync_ = true;
+      }
     }
 
     virtual void onBoundaryApply(loka::app::scene::Node *rootNode,
@@ -1902,11 +2020,15 @@ namespace
       return skipGlobalChangeForBoundaryLocalPaint_;
     }
 
-    virtual void synchronize() {}
+    virtual void synchronize()
+    {
+      ++this->synchronizeCalls_;
+      this->pendingSync_ = false;
+    }
 
     virtual bool hasPendingSync() const
     {
-      return false;
+      return this->pendingSync_;
     }
 
     virtual void destroy()
@@ -1923,6 +2045,9 @@ namespace
     loka::app::scene::PlatformApplyPlan lastBoundaryApplyPlan_;
     int boundaryApplyCalls_;
     int calls_;
+    int synchronizeCalls_;
+    bool queuePendingSyncOnChange_;
+    bool pendingSync_;
     bool skipGlobalChangeForBoundaryLocalPaint_;
     bool destroyed_;
   };
@@ -5833,6 +5958,143 @@ void testSimpleViewerClosesDialogFromChooserCompletion()
   scene.unmount();
 }
 
+void testSimpleViewerImageLoadSessionPreservesAndReleasesCurrentImage()
+{
+  const char *path = "_loka_test_simpleviewer_reopen.bin";
+  {
+    const unsigned char bytes[] = {0x00, 0x11, 0x02, 0xff};
+    FILE *file = std::fopen(path, "wb");
+    assert(file != 0);
+    LOKA_VERIFY(std::fwrite(bytes, 1, sizeof(bytes), file) == sizeof(bytes));
+    LOKA_VERIFY(std::fclose(file) == 0);
+  }
+
+  SimpleViewerRetainingPlatformContext platformContext;
+  platformContext.createImageResult_ = true;
+  loka::core::EmitterState openDialogEvent;
+  simpleviewer::MainProps props;
+  props.platformContext(&platformContext).openDialogEvent(&openDialogEvent);
+  loka::app::scene::Scene scene(
+      new loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(props));
+  FlowScenePlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  openDialogEvent.emit();
+  if (scene.hasPendingInvalidation())
+  {
+    LOKA_VERIFY(scene.flushInvalidation());
+  }
+  loka::app::OpenFileDialogNode *dialog = findSimpleViewerOpenFileDialog(scene);
+  assert(dialog != 0);
+  deliverSimpleViewerOpenFileDialogResult(
+      dialog,
+      loka::app::FileChooserResult::File(loka::file::File::FromPath(loka::core::String::Literal(path))));
+  assert(platformContext.createImageCalls_ == 1);
+
+  loka::core::Managed<loka::core::resource::BlobRecord> previousBlob = platformContext.observedBlob_;
+  platformContext.observedBlob_.reset();
+  assert(previousBlob.useCount() == 2
+         && "a completed image load must leave its Blob only with the displayed Image and this witness");
+
+  openDialogEvent.emit();
+  assert(previousBlob.useCount() == 2 && "opening a chooser must preserve the displayed image");
+
+  dialog = findSimpleViewerOpenFileDialog(scene);
+  assert(dialog != 0 && "reopening must publish a fresh dialog node before its result is delivered");
+  deliverSimpleViewerOpenFileDialogResult(dialog, loka::app::FileChooserResult::Canceled());
+  assert(previousBlob.useCount() == 2 && "canceling an image load must preserve the displayed image");
+
+  openDialogEvent.emit();
+  dialog = findSimpleViewerOpenFileDialog(scene);
+  assert(dialog != 0);
+  platformContext.capacityReleaseWitness_ = &previousBlob;
+  deliverSimpleViewerOpenFileDialogResult(
+      dialog,
+      loka::app::FileChooserResult::File(loka::file::File::FromPath(loka::core::String::Literal(path))));
+  assert(platformContext.capacityQueryCalls_ == 2
+         && "capacity refusal must release the current image and retry the Blob staging step once");
+  assert(previousBlob.useCount() == 1
+         && "the retry must release the previous payload before allocating the replacement");
+  assert(platformContext.createImageCalls_ == 2 && "the fresh flow must remain bound to chooser completion");
+  assert(platformContext.observedBlob_.isValid());
+  assert(platformContext.observedBlob_ != previousBlob && "the second read must publish a fresh blob");
+
+  scene.unmount();
+  LOKA_VERIFY(std::remove(path) == 0);
+}
+
+void testSimpleViewerImageLoadStopsWhenCapacityRemainsUnavailable()
+{
+  const char *path = "_loka_test_simpleviewer_capacity_refusal.bin";
+  {
+    const unsigned char bytes[] = {0x00, 0x11, 0x02, 0xff};
+    FILE *file = std::fopen(path, "wb");
+    assert(file != 0);
+    LOKA_VERIFY(std::fwrite(bytes, 1, sizeof(bytes), file) == sizeof(bytes));
+    LOKA_VERIFY(std::fclose(file) == 0);
+  }
+
+  SimpleViewerRetainingPlatformContext platformContext;
+  platformContext.createImageResult_ = true;
+  loka::core::Managed<loka::core::resource::BlobRecord> unavailableCapacity;
+  platformContext.capacityReleaseWitness_ = &unavailableCapacity;
+  loka::core::EmitterState openDialogEvent;
+  simpleviewer::MainProps props;
+  props.platformContext(&platformContext).openDialogEvent(&openDialogEvent);
+  loka::app::scene::Scene scene(
+      new loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(props));
+  FlowScenePlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  openDialogEvent.emit();
+  loka::app::OpenFileDialogNode *dialog = findSimpleViewerOpenFileDialog(scene);
+  assert(dialog != 0);
+  deliverSimpleViewerOpenFileDialogResult(
+      dialog,
+      loka::app::FileChooserResult::File(loka::file::File::FromPath(loka::core::String::Literal(path))));
+  assert(platformContext.capacityQueryCalls_ == 1
+         && "an unavailable allocation with no current image must terminate instead of looping the GoTo");
+  assert(platformContext.createImageCalls_ == 0 && "capacity refusal must happen before image decoding");
+
+  scene.unmount();
+  LOKA_VERIFY(std::remove(path) == 0);
+}
+
+void testSimpleViewerBlobAdapterClearsPreviousOutputBeforeFailure()
+{
+  const char *path = "_loka_test_simpleviewer_blob_adapter.bin";
+  {
+    const unsigned char bytes[] = {0x10, 0x20, 0x30, 0x40};
+    FILE *file = std::fopen(path, "wb");
+    assert(file != 0);
+    LOKA_VERIFY(std::fwrite(bytes, 1, sizeof(bytes), file) == sizeof(bytes));
+    LOKA_VERIFY(std::fclose(file) == 0);
+  }
+
+  simpleviewer::ProjectionToBlobAdapter adapter;
+  simpleviewer::ChooserProjection projection;
+  projection.request.setFilePath(loka::core::String::Literal(path));
+  loka::core::resource::Blob output;
+  loka::dsl::FlowError error;
+  LOKA_VERIFY(adapter.run(projection, output, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
+  assert(output.isCompleted());
+  assert(!output.isMutable());
+  assert(output.size() == 4);
+  assert(output.bytes().size() == 4);
+
+  loka::core::Managed<loka::core::resource::BlobRecord> previousBlob = output.handle();
+  assert(previousBlob.useCount() == 2);
+  const simpleviewer::ChooserProjection canceled;
+  LOKA_VERIFY(adapter.run(canceled, output, error) == loka::dsl::FLOW_STEP_FAILED);
+  assert(previousBlob.useCount() == 1
+         && "a failed read attempt must not leave the adapter's previous heavy output installed");
+  assert(output == loka::core::resource::Blob::Empty());
+
+  LOKA_VERIFY(std::remove(path) == 0);
+}
+
 namespace
 {
   typedef loka::dsl::FlowChain<int, int> CharacterizationIntFlow;
@@ -6504,4 +6766,188 @@ void testSceneFlowAtTickRunsEachActionOnceInOrder()
   clock.advanceTo(5);
   LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
   LOKA_VERIFY(calls == 2);
+}
+
+void testSceneFlowThenRunsEachActionOnceInOrder()
+{
+  loka::dsl::testing::ScenarioClock clock;
+  loka::app::scene::Scene *scene = 0;
+  int calls = 0;
+  loka::dsl::FlowChain<loka::app::scene::Scene *, loka::app::scene::Scene *> chain =
+      (loka::dsl::testing::ScenarioFlow(clock, &scene) | loka::dsl::testing::Then(CountSceneAction(&calls, 0))
+       | loka::dsl::testing::Then(CountSceneAction(&calls, 1)))
+          .flow();
+
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(calls == 2);
+  clock.advanceTo(5);
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(calls == 2);
+}
+
+void testSceneFlowWaitUntilAppliedWaitsForProjection()
+{
+  using namespace loka::app::scene;
+
+  Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
+  FlowScenePlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  const int callsBeforeAction = platform.calls_;
+  int actionCalls = 0;
+  Scene *scenePtr = &scene;
+  Scene *completedScene = 0;
+  loka::dsl::testing::ScenarioClock clock;
+  loka::dsl::FlowChain<Scene *, Scene *> chain = (loka::dsl::testing::ScenarioFlow(clock, &scenePtr)
+                                                  | loka::dsl::testing::Then(QueueSceneApplyAction(&actionCalls))
+                                                        .onSuccess(&completedScene)
+                                                        .waitUntil(loka::dsl::testing::ProjectionEvent::APPLIED))
+                                                     .flow();
+
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
+  LOKA_VERIFY(actionCalls == 1);
+  const bool applyPending = scene.hasPendingInvalidation();
+  LOKA_VERIFY(applyPending);
+  LOKA_VERIFY(platform.calls_ == callsBeforeAction);
+  LOKA_VERIFY(completedScene == 0);
+
+  LOKA_VERIFY(scene.flushInvalidation());
+  LOKA_VERIFY(platform.calls_ > callsBeforeAction);
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(actionCalls == 1);
+  LOKA_VERIFY(completedScene == &scene);
+  const int callsAfterApply = platform.calls_;
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(actionCalls == 1);
+  LOKA_VERIFY(platform.calls_ == callsAfterApply);
+
+  scene.unmount();
+}
+
+void testSceneFlowWaitUntilAppliedRetainsBaselineWhileActionPending()
+{
+  using namespace loka::app::scene;
+
+  Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
+  FlowScenePlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  const int callsBeforeAction = platform.calls_;
+  int actionCalls = 0;
+  Scene *scenePtr = &scene;
+  loka::dsl::testing::ScenarioClock clock;
+  loka::dsl::FlowChain<Scene *, Scene *> chain = (loka::dsl::testing::ScenarioFlow(clock, &scenePtr)
+                                                  | loka::dsl::testing::Then(PendingSceneApplyAction(&actionCalls))
+                                                        .waitUntil(loka::dsl::testing::ProjectionEvent::APPLIED))
+                                                     .flow();
+
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
+  LOKA_VERIFY(actionCalls == 1);
+  const bool applyPending = scene.hasPendingInvalidation();
+  LOKA_VERIFY(applyPending);
+  LOKA_VERIFY(scene.flushInvalidation());
+  LOKA_VERIFY(platform.calls_ > callsBeforeAction);
+
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(actionCalls == 2);
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(actionCalls == 2);
+
+  scene.unmount();
+}
+
+void testSceneFlowWaitUntilPresentedWaitsForPlatformSynchronization()
+{
+  using namespace loka::app::scene;
+
+  Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
+  FlowScenePlatformController platform;
+  platform.queuePendingSyncOnChange_ = true;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  platform.synchronize();
+
+  int actionCalls = 0;
+  Scene *scenePtr = &scene;
+  loka::dsl::testing::ScenarioClock clock;
+  loka::dsl::FlowChain<Scene *, Scene *> chain = (loka::dsl::testing::ScenarioFlow(clock, &scenePtr)
+                                                  | loka::dsl::testing::Then(QueueSceneApplyAction(&actionCalls))
+                                                        .waitUntil(loka::dsl::testing::ProjectionEvent::PRESENTED))
+                                                     .flow();
+
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
+  LOKA_VERIFY(actionCalls == 1);
+  LOKA_VERIFY(scene.flushInvalidation());
+  const bool presentationPending = platform.hasPendingSync();
+  LOKA_VERIFY(presentationPending);
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
+  LOKA_VERIFY(actionCalls == 1);
+
+  const int synchronizeCallsBeforePresentation = platform.synchronizeCalls_;
+  platform.synchronize();
+  LOKA_VERIFY(platform.synchronizeCalls_ == synchronizeCallsBeforePresentation + 1);
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(actionCalls == 1);
+
+  scene.unmount();
+}
+
+void testSceneFlowWaitUntilAppliedDoesNotWaitForPlatformSynchronization()
+{
+  using namespace loka::app::scene;
+
+  Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
+  FlowScenePlatformController platform;
+  platform.queuePendingSyncOnChange_ = true;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  platform.synchronize();
+
+  int actionCalls = 0;
+  Scene *scenePtr = &scene;
+  loka::dsl::testing::ScenarioClock clock;
+  loka::dsl::FlowChain<Scene *, Scene *> chain = (loka::dsl::testing::ScenarioFlow(clock, &scenePtr)
+                                                  | loka::dsl::testing::Then(QueueSceneApplyAction(&actionCalls))
+                                                        .waitUntil(loka::dsl::testing::ProjectionEvent::APPLIED))
+                                                     .flow();
+
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
+  LOKA_VERIFY(scene.flushInvalidation());
+  const bool presentationPending = platform.hasPendingSync();
+  LOKA_VERIFY(presentationPending);
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(actionCalls == 1);
+
+  platform.synchronize();
+  scene.unmount();
+}
+
+void testSceneFlowWaitUntilAppliedRefusesMissingProjection()
+{
+  using namespace loka::app::scene;
+
+  Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
+  FlowScenePlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  Scene *scenePtr = &scene;
+  loka::dsl::testing::ScenarioClock clock;
+  int calls = 0;
+  FlowErrorCapture failure = {0, 0, 0};
+  loka::dsl::FlowChain<Scene *, Scene *> chain =
+      (loka::dsl::testing::ScenarioFlow(clock, &scenePtr)
+       | loka::dsl::testing::Then(CountSceneAction(&calls, 0)).waitUntil(loka::dsl::testing::ProjectionEvent::APPLIED))
+          .flow();
+  chain.onFailure(&FlowTestMarker::captureFailure, &failure);
+
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(calls == 1);
+  LOKA_VERIFY(failure.calls == 1);
+  LOKA_VERIFY(failure.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO);
+  LOKA_VERIFY(failure.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_EXPECTED_APPLY);
+
+  scene.unmount();
 }

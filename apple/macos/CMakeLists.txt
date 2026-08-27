@@ -7,6 +7,9 @@ set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
 
 option(TEST_BUILD "Include unit test sources in app target" OFF)
 option(LOKA_MAC_OS_10_4 "Enable macOS 10.4u SDK mode" OFF)
+if(NOT COMMAND loka_enable_standalone_performance)
+  include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/LokaStandalonePerformance.cmake")
+endif()
 set(LOKA_MAC_OS_10_4_SYSROOT "/Developer/SDKs/MacOSX10.4u.sdk" CACHE PATH
   "Path to macOS 10.4u SDK used when LOKA_MAC_OS_10_4=ON")
 
@@ -45,6 +48,7 @@ file(GLOB_RECURSE LOKA_MACOS_CORE_HEADERS CONFIGURE_DEPENDS
 set(LOKA_MACOS_CORE_SOURCES
   src/MacBootstrap.mm
   src/MacApp.mm
+  src/MacMenuProjection.mm
   src/MacBuiltInSupport.mm
   src/MacDisplayAppearance.mm
   src/MacPlatformContext.mm
@@ -108,9 +112,11 @@ if(NOT LOKA_MAC_OS_10_4)
     ${LOKA_MACOS_TEST_COMMON_SOURCES}
     ${PROJECT_SOURCE_DIR}/tests/MacDisplayAppearanceTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacAppLocationTests.mm
+    ${PROJECT_SOURCE_DIR}/tests/MacMenuProjectionTests.mm
     ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/MacDisplayAppearance.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/platform/MacAppLocation.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/MacMenuProjection.mm
     ${LOKA_MACOS_TEST_HEADERS}
   )
   loka_enable_warnings(LokaTestsMacOS)
@@ -129,6 +135,7 @@ if(NOT LOKA_MAC_OS_10_4)
 
   target_compile_definitions(LokaTestsMacOS PRIVATE TEST_BUILD)
   target_link_libraries(LokaTestsMacOS PRIVATE
+    "-framework AppKit"
     "-framework Foundation"
     "-framework CoreFoundation"
   )
@@ -314,23 +321,127 @@ if(NOT LOKA_MAC_OS_10_4)
   endif()
 endif()
 
-add_executable(LokaScrapbookStandaloneFlowMacOS EXCLUDE_FROM_ALL MACOSX_BUNDLE
-  ${PROJECT_SOURCE_DIR}/tests/macos/StandaloneFlowMain.mm
-  ${PROJECT_SOURCE_DIR}/tests/standalone/StandaloneFlowApplication.cpp
+if(LOKA_ENABLE_STANDALONE_TARGETS)
+set(LOKA_STANDALONE_PERFORMANCE_RUNS "" CACHE STRING
+  "Complete Standalone Flow passes to measure (3-10). Empty disables measurement."
+)
+
+set(LOKA_MACOS_STANDALONE_FLOW_CATALOG
+  ${CMAKE_CURRENT_BINARY_DIR}/standalone-flow-catalog.tsv
+)
+file(WRITE ${LOKA_MACOS_STANDALONE_FLOW_CATALOG}
+  "# SimpleViewer is excluded from automation: its file chooser remains interactive.\n"
+)
+add_custom_target(LokaStandaloneFlowMacOSAll)
+add_custom_target(LokaStandaloneLoopMacOSAll)
+
+function(loka_add_macos_standalone_flow_bundle
+         key target loop_target config_header config_type bundle_id example_include_dir expected_audit)
+  # Finite targets own one complete App lifetime. Loop targets keep that App
+  # and native Window, replacing the scenario rail and re-arming its Scene.
+  # The catalog below keeps build, stage, and verification on the same list.
+  foreach(_loka_standalone_target IN ITEMS ${target} ${loop_target})
+    set(_loka_standalone_bundle_id "${bundle_id}")
+    if(_loka_standalone_target STREQUAL loop_target)
+      set(_loka_standalone_bundle_id "${bundle_id}.loop")
+    endif()
+    add_executable(${_loka_standalone_target} EXCLUDE_FROM_ALL MACOSX_BUNDLE
+      ${PROJECT_SOURCE_DIR}/tests/macos/StandaloneFlowMain.mm
+      ${PROJECT_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
+      ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioReel.cpp
+      ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+      ${PROJECT_SOURCE_DIR}/tests/TestingHooks.cpp
+      ${LOKA_MACOS_CORE_SOURCES}
+      ${COMMON_SOURCES}
+      ${COMMON_HEADERS}
+      ${LOKA_MACOS_CORE_HEADERS}
+      ${ARGN}
+    )
+    loka_configure_scenario_test_bundle(
+      ${_loka_standalone_target}
+      "${_loka_standalone_bundle_id}"
+      "${example_include_dir}"
+    )
+    target_compile_definitions(${_loka_standalone_target} PRIVATE
+      "LOKA_STANDALONE_FLOW_CONFIG_HEADER=\"${config_header}\""
+      "LOKA_STANDALONE_FLOW_CONFIG_TYPE=${config_type}"
+    )
+  endforeach()
+  unset(_loka_standalone_bundle_id)
+  loka_enable_standalone_performance(
+    ${target}
+    ${PROJECT_SOURCE_DIR}/tests/standalone/StandalonePerformance.cpp
+  )
+  target_compile_definitions(${loop_target} PRIVATE LOKA_STANDALONE_FLOW_LOOP=1)
+  add_dependencies(LokaStandaloneFlowMacOSAll ${target})
+  add_dependencies(LokaStandaloneLoopMacOSAll ${loop_target})
+  file(APPEND ${LOKA_MACOS_STANDALONE_FLOW_CATALOG}
+    "${key}\t${target}\t${expected_audit}\n"
+  )
+endfunction()
+
+loka_add_macos_standalone_flow_bundle(
+  scrapbook
+  LokaScrapbookStandaloneFlowMacOS
+  LokaScrapbookStandaloneLoopMacOS
+  ScrapbookStandaloneFlowAppConfig.hpp
+  ::loka::standalone_tests::ScrapbookStandaloneFlowAppConfig
+  com.cubenoy22.loka.scrapbook-standalone-flow
+  example/ScrapbookUI/src
+  tests/scenarios/expected/scrapbook/standalone-tour.audit
   ${PROJECT_SOURCE_DIR}/tests/standalone/ScrapbookStandaloneFlowAppConfig.cpp
-  ${PROJECT_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
-  ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
   ${PROJECT_SOURCE_DIR}/tests/scenarios/ScrapbookScenarios.cpp
-  ${PROJECT_SOURCE_DIR}/tests/TestingHooks.cpp
   ${PROJECT_SOURCE_DIR}/example/ScrapbookUI/src/ScrapbookPackage.cpp
-  ${LOKA_MACOS_CORE_SOURCES}
-  ${COMMON_SOURCES}
-  ${COMMON_HEADERS}
-  ${LOKA_MACOS_CORE_HEADERS}
   ${LOKA_SCRAPBOOK_SCENARIO_RESOURCE_DIR}/ASSETS.LRP
 )
-loka_configure_scenario_test_bundle(
-  LokaScrapbookStandaloneFlowMacOS
-  "com.cubenoy22.loka.scrapbook-standalone-flow"
-  example/ScrapbookUI/src
+loka_add_macos_standalone_flow_bundle(
+  helloworld
+  LokaHelloWorldStandaloneFlowMacOS
+  LokaHelloWorldStandaloneLoopMacOS
+  HelloWorldStandaloneFlowAppConfig.hpp
+  ::loka::standalone_tests::HelloWorldStandaloneFlowAppConfig
+  com.cubenoy22.loka.helloworld-standalone-flow
+  example/HelloWorld/src
+  tests/scenarios/expected/helloworld/toggle-action-probe.audit
+  ${PROJECT_SOURCE_DIR}/tests/standalone/HelloWorldStandaloneFlowAppConfig.cpp
+  ${PROJECT_SOURCE_DIR}/tests/scenarios/HelloWorldScenarios.cpp
+  ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
 )
+loka_add_macos_standalone_flow_bundle(
+  tutorial
+  LokaTutorialStandaloneFlowMacOS
+  LokaTutorialStandaloneLoopMacOS
+  TutorialStandaloneFlowAppConfig.hpp
+  ::loka::standalone_tests::TutorialStandaloneFlowAppConfig
+  com.cubenoy22.loka.tutorial-standalone-flow
+  example/Tutorial/src
+  tests/scenarios/expected/tutorial/increment-summary-toggle.audit
+  ${PROJECT_SOURCE_DIR}/tests/standalone/TutorialStandaloneFlowAppConfig.cpp
+  ${PROJECT_SOURCE_DIR}/tests/scenarios/TutorialScenarios.cpp
+)
+loka_add_macos_standalone_flow_bundle(
+  minesweeper
+  LokaMineSweeperStandaloneFlowMacOS
+  LokaMineSweeperStandaloneLoopMacOS
+  MineSweeperStandaloneFlowAppConfig.hpp
+  ::loka::standalone_tests::MineSweeperStandaloneFlowAppConfig
+  com.cubenoy22.loka.minesweeper-standalone-flow
+  example/MineSweeper/src
+  tests/scenarios/expected/minesweeper/new-game-twice.audit
+  ${PROJECT_SOURCE_DIR}/tests/standalone/MineSweeperStandaloneFlowAppConfig.cpp
+  ${PROJECT_SOURCE_DIR}/tests/scenarios/MineSweeperScenarios.cpp
+)
+loka_add_macos_standalone_flow_bundle(
+  floppybird
+  LokaFloppyBirdStandaloneFlowMacOS
+  LokaFloppyBirdStandaloneLoopMacOS
+  FloppyBirdStandaloneFlowAppConfig.hpp
+  ::loka::standalone_tests::FloppyBirdStandaloneFlowAppConfig
+  com.cubenoy22.loka.floppybird-standalone-flow
+  example/FloppyBird/src
+  tests/scenarios/expected/floppybird/fixed-step-flaps.audit
+  ${PROJECT_SOURCE_DIR}/tests/standalone/FloppyBirdStandaloneFlowAppConfig.cpp
+  ${PROJECT_SOURCE_DIR}/tests/scenarios/FloppyBirdScenarios.cpp
+  ${PROJECT_SOURCE_DIR}/tests/scenarios/RectSurfaceScenarioObservation.cpp
+)
+endif()

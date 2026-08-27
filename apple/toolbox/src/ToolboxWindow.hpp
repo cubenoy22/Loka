@@ -2,6 +2,7 @@
 #define LOKA_TOOLBOX_WINDOW_HPP
 
 #include "app/core/Window.hpp"
+#include "ToolboxActivationPhase.hpp"
 #include <Windows.h>
 #include <vector>
 
@@ -32,7 +33,7 @@ public:
   bool handleMouseDown(const Point &globalPoint);
   bool handleKeyDown(char key);
   void drawDirty(const Rect &rect);
-  void idleControls();
+  void idleControls(ActivationPhase phase);
   void updateCursor();
   void invalidateWindow();
   void draw();

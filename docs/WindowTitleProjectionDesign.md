@@ -10,8 +10,10 @@ projection for native chrome. Without that explicit projection, the display
 state is the logical title state, so existing applications and platform
 vehicles keep their previous behavior.
 
-The scenario reel uses the split to compose its operator label without making
-the application and the reel write the same mutable state:
+Scenario loop owners use the split to compose their operator label without
+making the application and the loop write the same mutable state. Both
+`ScenarioReel` and autonomous `StandaloneRunControl` reuse
+`ScenarioReelPosition` and `ScenarioReelTitle` for this fact:
 
 ```text
 application -> logical title State ----> Window::titleState()
@@ -34,8 +36,8 @@ and one-based cycle.
 
 ## Lifetime
 
-The reel owns the composed display state, and it outlives each Window created
-from the loop config. Native Window backends therefore register visibility,
+The loop owner owns the composed display state, and it outlives each Window
+created from its config. Native Window backends therefore register visibility,
 display-title, and frame observers through the Window-owned native observer
 ledger. Each backend detaches the ledger before native teardown; the ledger's
 destructor repeats the detach as a non-optional cleanup fallback. A borrowed

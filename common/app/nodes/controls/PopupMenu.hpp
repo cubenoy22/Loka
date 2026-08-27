@@ -208,6 +208,8 @@ namespace loka
           return controlTag_ < other.controlTag_;
         if (selectedIndex_ != other.selectedIndex_)
           return selectedIndex_ < other.selectedIndex_;
+        if (onChange_ != other.onChange_)
+          return onChange_ < other.onChange_;
         return enabled_ < other.enabled_;
       }
     };

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(Loka VERSION 0.0.3 LANGUAGES CXX)
+project(Loka VERSION 0.0.5 LANGUAGES CXX)
 
 option(LOKA_ENABLE_APPLE "Enable Apple platform targets" ON)
 option(LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS "Add explicit -fno-objc-arc flags to macOS example targets" ON)
@@ -7,14 +7,19 @@ option(LOKA_MACOS_SUPPRESS_ARCLITE_LINK "Remove libarclite from generated macOS 
 option(TEST_BUILD "Enable test build mode" OFF)
 option(LOKA_MAME_SCENARIOS "Register the MAME-backed scenario tests" OFF)
 option(LOKA_WIN32_SCENARIOS "Register the rig-local Win32 scenario tests" OFF)
+option(LOKA_ENABLE_STANDALONE_TARGETS
+  "Register the finite Flow and autonomous Loop application targets" OFF)
 option(LOKA_LIFECYCLE_AUDIT "Enable lifecycle alive-counter auditing" OFF)
 option(LOKA_RETRO68_DIAGNOSTICS
   "Diagnostic Retro68 profile: keep MacsBug names, the function-tick profiler, and debug-stats dumps" OFF)
 set(LOKA_SCRAPBOOK_R_HEADER_DIR
   "${PROJECT_SOURCE_DIR}/example/ScrapbookUI/src" CACHE PATH
   "Directory containing lrpc's generated ScrapbookUI R.hpp")
+option(LOKA_TOOLBOX_MULTIVERSAL_INTERFACES
+  "Build Toolbox targets against Retro68's redistributable Multiversal Interfaces" OFF)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/LokaWarnings.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/LokaStandalonePerformance.cmake)
 
 macro(loka_suppress_arclite_link)
   if(LOKA_MACOS_SUPPRESS_ARCLITE_LINK)
@@ -71,6 +76,23 @@ endif()
 set_property(GLOBAL PROPERTY CTEST_TARGETS_ADDED 1)
 include(CTest)
 
+foreach(_loka_invalid_performance_runs IN ITEMS abc ON 0 2 11)
+  add_test(NAME "standalonePerformanceConfigRejects-${_loka_invalid_performance_runs}"
+    COMMAND ${CMAKE_COMMAND}
+      -DLOKA_REPOSITORY_ROOT=${CMAKE_CURRENT_SOURCE_DIR}
+      -DLOKA_TEST_PERFORMANCE_RUNS=${_loka_invalid_performance_runs}
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/scripts/StandalonePerformanceConfigProbe.cmake)
+  set_tests_properties(
+    "standalonePerformanceConfigRejects-${_loka_invalid_performance_runs}"
+    PROPERTIES WILL_FAIL TRUE)
+endforeach()
+unset(_loka_invalid_performance_runs)
+add_test(NAME standalonePerformanceConfigAccepts-3
+  COMMAND ${CMAKE_COMMAND}
+    -DLOKA_REPOSITORY_ROOT=${CMAKE_CURRENT_SOURCE_DIR}
+    -DLOKA_TEST_PERFORMANCE_RUNS=3
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/scripts/StandalonePerformanceConfigProbe.cmake)
+
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/LokaTestSources.cmake)
 
 # Compile-only regression pins are built by the headless test profile and by
@@ -112,6 +134,13 @@ add_subdirectory(example/SimpleViewer)
 add_subdirectory(example/ScrapbookUI)
 add_subdirectory(example/FloppyBird)
 add_subdirectory(example/Tutorial)
+
+if(WIN32 AND TARGET LokaStandaloneLoopWin32All)
+  add_dependencies(LokaStandaloneLoopWin32All LokaSimpleViewerWin32)
+endif()
+if(APPLE AND TARGET LokaStandaloneLoopMacOSAll)
+  add_dependencies(LokaStandaloneLoopMacOSAll LokaSimpleViewerMacOS)
+endif()
 endif()
 
 if(NOT IOS)
@@ -183,7 +212,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/StartupScenarioTests\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/StartupScenarios\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/ScenarioReelTests\\.cpp$")
-  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/ScenarioReel\\.cpp$")
+  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/StandalonePerformanceTests\\.cpp$")
+  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/standalone/StandalonePerformance\\.cpp$")
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/scenarios/RectSurfaceScenarioObservation\\.cpp$")
 
   add_executable(LokaContractTests
@@ -210,7 +240,9 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/OwnershipDumpTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/HelloWorldScenarioTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/ScenarioReelTests.cpp
+    ${PROJECT_SOURCE_DIR}/tests/StandalonePerformanceTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+    ${PROJECT_SOURCE_DIR}/tests/standalone/StandalonePerformance.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioReel.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/HelloWorldScenarios.cpp
     ${PROJECT_SOURCE_DIR}/tests/TutorialScenarioTests.cpp
@@ -378,6 +410,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MameDebugLaunchTest.sh)
     add_test(NAME scriptMameRunLaunch
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MameRunLaunchTest.sh)
+    add_test(NAME scriptRetro68Environment
+      COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/Retro68EnvironmentTest.sh)
     add_test(NAME scriptPngCropSelftest
       COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/scenarios/pngtool.py selftest)
     add_test(NAME scriptScenarioTools
@@ -407,6 +441,12 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/Build104GuardTest.sh)
     add_test(NAME scriptMacOSBuildTargets
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MacOSBuildTargetsTest.sh)
+    add_test(NAME scriptMacOSStandaloneUb1Release
+      COMMAND bash
+        ${PROJECT_SOURCE_DIR}/tests/scripts/MacOSStandaloneUb1ReleaseTest.sh)
+    add_test(NAME scriptMacOSStandaloneUb2Release
+      COMMAND bash
+        ${PROJECT_SOURCE_DIR}/tests/scripts/MacOSStandaloneUb2ReleaseTest.sh)
     add_test(NAME scriptPmonSpriteGenerator
       COMMAND python3
         ${PROJECT_SOURCE_DIR}/tests/scripts/PmonSpriteGeneratorTest.py)

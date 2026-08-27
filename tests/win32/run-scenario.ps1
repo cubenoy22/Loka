@@ -12,6 +12,7 @@ Set-StrictMode -Version 2
 
 $ProjectDirectory = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $Registry = Join-Path $ProjectDirectory "tests/scenarios/scenarios.txt"
+$StartupIdentityDeclarations = Join-Path $ProjectDirectory "tests/scenarios/startup-golden-identities.txt"
 $FixtureRegistry = Join-Path $ProjectDirectory "tests/scenarios/scrapbook-package-fixtures.txt"
 $ExpectedAudit = Join-Path $ProjectDirectory "tests/scenarios/expected/$Example/$Scenario.audit"
 $Vehicles = @{
@@ -28,10 +29,20 @@ $SourceAssets = Join-Path $ProjectDirectory "example/ScrapbookUI/assets/ASSETS-m
 $Work = Join-Path $ProjectDirectory "build/win32-scenario/$Example/$Scenario"
 $Stage = Join-Path $Work "stage"
 $Settle = Join-Path $Work "settle"
-$GoldenDirectory = Join-Path $ProjectDirectory "build/win32-scenario/golden/$Example"
-$Golden = Join-Path $GoldenDirectory "$Scenario.png"
-$GoldenProfile = Join-Path $GoldenDirectory "$Scenario.profile"
+# Filled in once the rig is known. A golden belongs to one rig, so the rig has
+# to be part of where it is stored: two rigs can share a checkout now that the
+# name is chosen rather than derived from the architecture, and two rigs that
+# report the same capture profile can still settle on different pixels (#459).
+# Keyed only by example, the second bake would overwrite the first and every
+# later comparison would silently use whichever rig baked last.
+$GoldenRoot = $null
+$GoldenDirectory = $null
+$Golden = $null
+$GoldenProfile = $null
 $PngTool = Join-Path $ProjectDirectory "tests/scenarios/pngtool.py"
+$GoldenIdentityGuard = Join-Path $ProjectDirectory "scripts/rig/golden_identity_guard.py"
+$PackageFixtureGuard = Join-Path $ProjectDirectory "scripts/rig/package_fixture_guard.py"
+$CaptureProfileGuard = Join-Path $ProjectDirectory "scripts/rig/capture_profile_guard.py"
 $RunnerLog = Join-Path $Work "runner.log"
 $ChildProcess = $null
 $ChildWindow = [IntPtr]::Zero
@@ -40,6 +51,10 @@ $ChildStderrTask = $null
 $Python = $null
 $UseWslPython = $false
 $PngExitCode = 0
+$PngCompareResult = $null
+$GoldenIdentityExitCode = 0
+$PackageFixtureExitCode = 0
+$CaptureProfileExitCode = 0
 $ExitCode = 0
 
 function Fail-Stage([string]$StageName, [string]$Message) {
@@ -86,42 +101,8 @@ function Test-FilesEqual([string]$First, [string]$Second) {
     }
 }
 
-function Read-ScenarioProfile([string]$Path) {
-    $values = @{}
-    foreach ($line in [System.IO.File]::ReadAllLines($Path)) {
-        if ($line -notmatch '^([a-z_]+)=(.*)$') {
-            Fail-Stage "profile" "invalid profile line '$line' in $Path"
-        }
-        if ($values.ContainsKey($Matches[1])) {
-            Fail-Stage "profile" "duplicate profile field '$($Matches[1])' in $Path"
-        }
-        $values[$Matches[1]] = $Matches[2]
-    }
-    return $values
-}
-
-function Get-CaptureProfileMismatch($Expected, $Actual) {
-    $captureFields = @(
-        "scale_percent_available",
-        "scale_percent",
-        "depth_available",
-        "depth",
-        "appearance_available",
-        "appearance",
-        "capture_api",
-        "pixel_width",
-        "pixel_height"
-    )
-    foreach ($field in $captureFields) {
-        $expectedHasField = $Expected.ContainsKey($field)
-        $actualHasField = $Actual.ContainsKey($field)
-        if ($expectedHasField -ne $actualHasField `
-            -or ($expectedHasField -and $Expected[$field] -cne $Actual[$field])) {
-            return $field
-        }
-    }
-    return $null
-}
+. (Join-Path $PSScriptRoot "ScenarioProfile.ps1")
+. (Join-Path $PSScriptRoot "RigDescriptor.ps1")
 
 function Read-CaptureBounds([string]$Path) {
     $values = @{}
@@ -152,22 +133,6 @@ function Read-CaptureBounds([string]$Path) {
     return $values
 }
 
-function Get-CorruptBag([string]$ScenarioName) {
-    $result = $null
-    foreach ($line in [System.IO.File]::ReadAllLines($FixtureRegistry)) {
-        if ($line -notmatch '^([a-z0-9][a-z0-9-]*) corrupt-bag=([0-9]+)$') {
-            Fail-Stage "stage" "invalid Scrapbook fixture registry line '$line'"
-        }
-        if ($Matches[1] -eq $ScenarioName) {
-            if ($null -ne $result) {
-                Fail-Stage "stage" "duplicate fixture mapping for '$ScenarioName'"
-            }
-            $result = [int]$Matches[2]
-        }
-    }
-    return $result
-}
-
 function Resolve-Python {
     if ($env:PYTHON3) {
         $script:Python = $env:PYTHON3
@@ -186,15 +151,17 @@ function Resolve-Python {
     Fail-Stage "build" "a real python.exe or WSL python3 is required for exact PNG crop/compare"
 }
 
-function Convert-ToWslPath([string]$Path) {
+function Convert-ToWslPath([string]$Path, [string]$StageName = "crop") {
     $fullPath = [System.IO.Path]::GetFullPath($Path)
     if ($fullPath -notmatch '^([A-Za-z]):\\(.*)$') {
-        Fail-Stage "crop" "WSL Python requires a drive-letter path, got '$fullPath'"
+        Fail-Stage $StageName "WSL Python requires a drive-letter path, got '$fullPath'"
     }
     $drive = $Matches[1].ToLowerInvariant()
     $tail = $Matches[2].Replace('\', '/')
     return "/mnt/$drive/$tail"
 }
+
+. (Join-Path $PSScriptRoot "PngCompare.ps1")
 
 function Invoke-PngCrop([string]$InputPath, [long]$Left, [long]$Top, [long]$Right, [long]$Bottom, [string]$OutputPath) {
     if ($UseWslPython) {
@@ -202,16 +169,6 @@ function Invoke-PngCrop([string]$InputPath, [long]$Left, [long]$Top, [long]$Righ
             (Convert-ToWslPath $InputPath) $Left $Top $Right $Bottom (Convert-ToWslPath $OutputPath)
     } else {
         & $Python $PngTool crop $InputPath $Left $Top $Right $Bottom $OutputPath
-    }
-    $script:PngExitCode = $LASTEXITCODE
-}
-
-function Invoke-PngCompare([string]$First, [string]$Second) {
-    if ($UseWslPython) {
-        & wsl.exe python3 (Convert-ToWslPath $PngTool) compare `
-            (Convert-ToWslPath $First) (Convert-ToWslPath $Second)
-    } else {
-        & $Python $PngTool compare $First $Second
     }
     $script:PngExitCode = $LASTEXITCODE
 }
@@ -224,6 +181,65 @@ function Invoke-PngDiff([string]$Expected, [string]$Actual, [string]$OutputPath)
         & $Python $PngTool diff $Expected $Actual $OutputPath
     }
     $script:PngExitCode = $LASTEXITCODE
+}
+
+function Invoke-GoldenIdentityGuard([string]$Capture) {
+    if ($UseWslPython) {
+        & wsl.exe python3 (Convert-ToWslPath $GoldenIdentityGuard) `
+            --registry (Convert-ToWslPath $Registry) `
+            --declarations (Convert-ToWslPath $StartupIdentityDeclarations) `
+            --golden-root (Convert-ToWslPath $GoldenRoot) `
+            --capture (Convert-ToWslPath $Capture) `
+            --example $Example --scenario $Scenario
+    } else {
+        & $Python $GoldenIdentityGuard `
+            --registry $Registry `
+            --declarations $StartupIdentityDeclarations `
+            --golden-root $GoldenRoot `
+            --capture $Capture `
+            --example $Example --scenario $Scenario
+    }
+    $script:GoldenIdentityExitCode = $LASTEXITCODE
+}
+
+function Invoke-PackageFixturePlan {
+    if ($UseWslPython) {
+        & wsl.exe python3 (Convert-ToWslPath $PackageFixtureGuard "stage") plan `
+            --registry (Convert-ToWslPath $FixtureRegistry "stage") `
+            --scenario $Scenario 2>&1
+    } else {
+        & $Python $PackageFixtureGuard plan `
+            --registry $FixtureRegistry --scenario $Scenario 2>&1
+    }
+    $script:PackageFixtureExitCode = $LASTEXITCODE
+}
+
+function Invoke-PackageFixtureVerify([string]$StagedAssets) {
+    if ($UseWslPython) {
+        & wsl.exe python3 (Convert-ToWslPath $PackageFixtureGuard "stage") verify `
+            --registry (Convert-ToWslPath $FixtureRegistry "stage") `
+            --scenario $Scenario `
+            --source (Convert-ToWslPath $SourceAssets "stage") `
+            --staged (Convert-ToWslPath $StagedAssets "stage") 2>&1
+    } else {
+        & $Python $PackageFixtureGuard verify `
+            --registry $FixtureRegistry --scenario $Scenario `
+            --source $SourceAssets --staged $StagedAssets 2>&1
+    }
+    $script:PackageFixtureExitCode = $LASTEXITCODE
+}
+
+function Invoke-CaptureProfileGuard([string]$Descriptor, [string]$Profile) {
+    if ($UseWslPython) {
+        & wsl.exe python3 (Convert-ToWslPath $CaptureProfileGuard) `
+            --descriptor (Convert-ToWslPath $Descriptor) `
+            --profile (Convert-ToWslPath $Profile)
+    } else {
+        & $Python $CaptureProfileGuard `
+            --descriptor $Descriptor `
+            --profile $Profile
+    }
+    $script:CaptureProfileExitCode = $LASTEXITCODE
 }
 
 $nativeSource = @'
@@ -324,13 +340,22 @@ try {
     if (-not $Vehicles.ContainsKey($Example)) {
         Fail-Stage "arguments" "the Win32 runner has no vehicle for '$Example'"
     }
+    # Named before the vehicle starts. The name is not a fact about the run, so
+    # nothing has to be captured first, and an undeclared machine is turned away
+    # without opening a window.
+    $RigDescriptor = Resolve-RigDescriptorPath (Get-RigDescriptorDirectory) $env:LOKA_WIN32_RIG
+    $RigName = [System.IO.Path]::GetFileNameWithoutExtension($RigDescriptor)
+    $GoldenRoot = Join-Path $ProjectDirectory "build/win32-scenario/golden/$RigName"
+    $GoldenDirectory = Join-Path $GoldenRoot $Example
+    $Golden = Join-Path $GoldenDirectory "$Scenario.png"
+    $GoldenProfile = Join-Path $GoldenDirectory "$Scenario.profile"
     $Vehicle = $Vehicles[$Example]
     $VehicleExecutableName = $Vehicle.Executable
     $VehicleOutputDirectory = $Vehicle.OutputDirectory
     $BuiltExecutable = Join-Path $ProjectDirectory `
         "build/win32/Debug/example/$VehicleOutputDirectory/$VehicleExecutableName"
     if (-not (Test-Path -LiteralPath $BuiltExecutable -PathType Leaf)) {
-        Fail-Stage "build" "missing $BuiltExecutable; enter vcvarsall.bat arm64, run cmake --preset win32-debug, then cmake --build --preset win32-tests"
+        Fail-Stage "build" "missing $BuiltExecutable; enter vcvarsall.bat for this machine's architecture, run cmake --preset win32-debug, then cmake --build --preset win32-tests"
     }
     if ($Example -eq "scrapbook") {
         if (-not (Test-Path -LiteralPath $Lrpc -PathType Leaf)) {
@@ -362,13 +387,28 @@ try {
     if ($Example -eq "scrapbook") {
         $StagedAssets = Join-Path $Stage "ASSETS.LRP"
         $stageArguments = @("stage", $SourceAssets, "-o", $StagedAssets)
-        $corruptBag = Get-CorruptBag $Scenario
-        if ($null -ne $corruptBag) {
-            $stageArguments += @("--corrupt-bag", [string]$corruptBag)
+        $corruptBag = ((Invoke-PackageFixturePlan) | Out-String).Trim()
+        if ($PackageFixtureExitCode -ne 0) {
+            Fail-Stage "stage" $corruptBag
+        }
+        # The refusal message is worth merging into the value, but only on
+        # failure: on success anything the interpreter wrote to stderr rides
+        # along. On this rail that interpreter can be `wsl.exe python3`, whose
+        # interop warnings land on stderr, so the answer shape is checked
+        # rather than trusted. Empty or decimal, nothing else.
+        if ($corruptBag.Length -ne 0) {
+            if ($corruptBag -notmatch '^[0-9]+$') {
+                Fail-Stage "stage" "package fixture plan answered '$corruptBag', not a bag number"
+            }
+            $stageArguments += @("--corrupt-bag", $corruptBag)
         }
         & $Lrpc @stageArguments *>> $RunnerLog
         if ($LASTEXITCODE -ne 0) {
             Fail-Stage "stage" "lrpc refused the staged package; see $RunnerLog"
+        }
+        $fixtureMessage = ((Invoke-PackageFixtureVerify $StagedAssets) | Out-String).Trim()
+        if ($PackageFixtureExitCode -ne 0) {
+            Fail-Stage "stage" $fixtureMessage
         }
     }
     [System.IO.File]::WriteAllText(
@@ -499,7 +539,20 @@ try {
     $ActualProfile = Join-Path $Work "actual.profile"
     Copy-Item -LiteralPath $StageProfile -Destination $ActualProfile
 
+    # Before the golden is written or compared, not after. A bake on a machine
+    # that does not match the tracked rig would otherwise pin whatever the
+    # desktop happened to be, and the disagreement would surface as a pixel
+    # mismatch on some later, unrelated change.
+    Invoke-CaptureProfileGuard $RigDescriptor $ActualProfile *>> $RunnerLog
+    if ($CaptureProfileExitCode -ne 0) {
+        Fail-Stage "profile" "capture environment is not the one $RigDescriptor declares; see $RunnerLog"
+    }
+
     if ($UpdateGolden) {
+        Invoke-GoldenIdentityGuard $Actual *>> $RunnerLog
+        if ($GoldenIdentityExitCode -ne 0) {
+            Fail-Stage "golden" "settled capture failed the startup-identity contract; see $RunnerLog"
+        }
         New-Item -ItemType Directory -Path $GoldenDirectory -Force | Out-Null
         Copy-Item -LiteralPath $Actual -Destination $Golden
         Copy-Item -LiteralPath $ActualProfile -Destination $GoldenProfile
@@ -529,13 +582,25 @@ try {
             }
             Fail-Stage "profile" "capture field '$profileMismatch' moved from '$expectedValue' to '$actualValue'"
         }
-        Invoke-PngCompare $Actual $WorkGolden *>> $RunnerLog
-        if ($PngExitCode -ne 0) {
+        # TODO(#459): tolerate at most 400 differing pixels in at most two
+        # destination x columns. Two is the tracked one-or-two full-height-column
+        # wobble: 169 px each and 338 px worst observed. A missing glyph spans
+        # roughly six to eight columns and an icon many more, so the shape bound
+        # still rejects content loss.
+        # Remove when the compositing M1 offscreen composition lands.
+        Invoke-PngCompare $Actual $WorkGolden 400 2 *>> $RunnerLog
+        $CompareExitCode = $PngExitCode
+        if ($null -eq $PngCompareResult) {
+            Fail-Stage "golden" "pngtool compare omitted its measured diff counts; see $RunnerLog"
+        }
+        if ($PngCompareResult.DifferenceCount -gt 0) {
             $Diff = Join-Path $Work "diff.png"
             Invoke-PngDiff $WorkGolden $Actual $Diff *>> $RunnerLog
             if (-not (Test-Path -LiteralPath $Diff -PathType Leaf)) {
                 Fail-Stage "golden" "pixel mismatch was detected but diff.png could not be written"
             }
+        }
+        if ($CompareExitCode -ne 0) {
             Fail-Stage "golden" "actual pixels differ from $Golden; see actual.png, golden.png, and diff.png"
         }
         [System.IO.File]::WriteAllText((Join-Path $Work "verified"), "runner-verified`n")

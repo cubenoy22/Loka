@@ -35,10 +35,11 @@ this repository boots it directly. To change what the template contains, work in
 a boot copy and promote it deliberately — an accidental promotion is exactly the
 failure this rule prevents.
 
-Set `RETRO68_BUILD_DIR` in the environment when the Retro68 build is not under
-`~/Retro68-build` or `~/Retro68`. `RETRO68_TOOLCHAIN_BIN` may also be set in
-`.env-mame` when the host `hformat`, `hcopy`, and `humount` tools are not on
-`PATH` or in one of the standard Retro68 build locations.
+Configure `.env-retro68` as described in `docs/retro68.md` when the Retro68
+build or Ninja is not found automatically. The MAME disk scripts load the same
+Retro68 host configuration; `.env-mame` remains limited to emulator and disk
+settings. Native Windows launchers may still use `RETRO68_TOOLCHAIN_BIN` in
+`.env-mame` because `.env-retro68` contains WSL-side paths in that workflow.
 
 ## SCSI workflow
 
@@ -83,14 +84,19 @@ observation; it does not replace the config-required machine-verdict scenarios
 described below.
 
 For a transportable artifact without changing the configured MAME disks, run
-**Stage: Toolbox 68K Standalone Flow Release**. It builds the same target and
-failure-atomically publishes its MacBinary, `ASSETS.LRP`, instructions, and a
+**Standalone: Toolbox 68K Release Action** and choose Stage. It builds the same
+target and failure-atomically publishes its MacBinary, `ASSETS.LRP`, instructions, and a
 self-contained HFS `.dsk` under `build/presentation/toolbox-68k-release`. The
 `.dsk` contains both the application and assets and can be transferred to real
 hardware or mounted live in MAME. The MacBinary and separate assets remain the
 inputs for copying to an existing HFS volume or generating a local MAME SCSI
 development disk. See the staged `README.md` (sourced from
 `docs/TOOLBOX_STANDALONE_FLOW.md`) for both routes.
+
+For PowerPC real hardware, run **Standalone: Toolbox PPC Release Action** and
+choose Release. It stages the five autonomous PPC loops, interactive
+SimpleViewer, MacBinary files, and HFS floppy images under
+`build/release/toolbox-ppc`. The checked-in MAME tasks remain 68K-specific.
 
 ### HelloWorld standalone Flow
 
@@ -123,8 +129,9 @@ The TEST-only `LokaTutorialStandaloneFlow68K_APPL` target presents Tutorial
 Step 4 through the same typed `increment-summary-toggle` scenario used by the
 machine-verdict rail. It increments the derived item summary twice, hides it,
 proves that the conditional node left the scene, restores it, and holds the
-final `Items: 2` scene until the user quits. It exercises no EditText path;
-[#167](https://github.com/cubenoy22/Loka/issues/167) remains untouched.
+final `Items: 2` scene until the user quits. Tutorial intentionally exercises
+no EditText path. Application-level text-entry verification belongs to
+HelloWorld's BMI controls and its `bmi-roundtrip` scenario.
 
 In VS Code, run **Build & Start in MAME via SCSI: Tutorial Standalone Flow**.
 The task builds the excluded APPL target, puts its MacBinary on `LokaDev`, and
@@ -203,8 +210,8 @@ the default build or a gating test run.
 Build both excluded APPL targets from the repository root:
 
 ```sh
-cmake --preset retro68-68k-release
-cmake --build --preset retro68-68k-release --target \
+scripts/retro68-cmake.sh --preset retro68-68k-release
+scripts/retro68-cmake.sh --build --preset retro68-68k-release --target \
   LokaHelloScenarioLoop68K_APPL LokaMineScenarioLoop68K_APPL
 ```
 
@@ -288,10 +295,22 @@ python3 scripts/rig/loka-rig.py run toolbox-maciix \
 ```
 
 The Toolbox adapter creates a detached checkout, configures and builds the
-Retro68 scenario applications, stages the finalized per-example rig-local
-goldens, runs the shared ten-scenario rail, and collects the ten PNGs plus both the presentation and
-common run manifests. Adapter failure retains the checkout for diagnosis;
+Retro68 scenario applications, validates and atomically stages the strict
+rig-local golden bundle, runs every registered scenario, and collects the PNGs
+plus both the presentation and common run manifests. Adapter failure retains the checkout for diagnosis;
 success removes it only after manifest finalization.
+
+Each `--update-golden` scenario capture enters a sibling `.incomplete` bake.
+The official directory changes only when the bake contains every registry
+entry and its one manifest binds every PNG, its producing application binary
+digest, and every reference-identity field. Resuming an incomplete bake also
+requires the same Git HEAD and `git status --porcelain` digest that started it;
+an unattestable source tree may publish a one-shot bake but cannot resume one. A
+complete bake from a different environment remains ineligible until its
+printed identity digest is reviewed and separately written to the tracked
+`toolbox-maciix.ini`; baking never edits that authority. Use
+`--structural-audit` for contributor runs that validate the tracked audit and
+capture path without claiming a pixel verdict.
 
 ### Isolate the emulator state
 
@@ -488,8 +507,8 @@ The ordinary Retro68 release profile has no `-g`, so the emitted
 build directory with DWARF:
 
 ```sh
-cmake --preset retro68-68k-dwarf
-cmake --build --preset retro68-68k-dwarf --target LokaTutorial68K_APPL
+scripts/retro68-cmake.sh --preset retro68-68k-dwarf
+scripts/retro68-cmake.sh --build --preset retro68-68k-dwarf --target LokaTutorial68K_APPL
 ```
 
 The result is an `MC68000 ELF32` file with DWARF 4 whose `DW_AT_name` entries
@@ -648,8 +667,8 @@ configured boot disk stays an input.
 **1. Build with debug information**
 
 ```sh
-cmake --preset retro68-68k-dwarf
-cmake --build --preset retro68-68k-dwarf --target LokaTutorial68K_APPL
+scripts/retro68-cmake.sh --preset retro68-68k-dwarf
+scripts/retro68-cmake.sh --build --preset retro68-68k-dwarf --target LokaTutorial68K_APPL
 APPL=build/retro68/68k/DiagDwarf4/example/Tutorial/LokaTutorial68K.bin
 ```
 

@@ -16,6 +16,7 @@
 #include "platform/null/NullApp.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "platform/null/NullWindow.hpp"
+#include "scenarios/HelloWorldProductionFrame.hpp"
 #include "scenarios/ObservedMainDefinition.hpp"
 #include "scenarios/VehiclePresentationVerify.hpp"
 #include "scenarios/HelloWorldScenarioPresentation.hpp"
@@ -103,8 +104,9 @@ void testHelloWorldToggleActionProbeDrivesOwnerCommands()
   loka::scenario_tests::HelloWorldScenario scenario(loka::scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED, &audit);
   loka::scenario_tests::CaptureContentBounds bounds;
   bounds.available = true;
-  bounds.right = 420;
-  bounds.bottom = 300;
+  const loka::scenario_tests::HelloWorldProductionFrame productionFrame;
+  bounds.right = productionFrame.width();
+  bounds.bottom = productionFrame.height();
   loka::dsl::SnapRecord record;
 
   LOKA_VERIFY(scenario.step(1, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
@@ -127,7 +129,7 @@ void testHelloWorldToggleActionProbeDrivesOwnerCommands()
   VerifyRecordInt(record, "crop_left", 0);
   VerifyRecordInt(record, "crop_top", 0);
   VerifyRecordInt(record, "crop_right", 420);
-  VerifyRecordInt(record, "crop_bottom", 300);
+  VerifyRecordInt(record, "crop_bottom", 330);
   LOKA_VERIFY(audit.steps.size() == 8);
   LOKA_VERIFY(audit.steps[1].name() == "probe-enabled-action");
   LOKA_VERIFY(audit.steps[3].name() == "toggle-probe-disabled");
@@ -155,8 +157,9 @@ void testHelloWorldToggleActionProbeHoldsFinalScene()
   loka::scenario_tests::HelloWorldScenario scenario(loka::scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &audit);
   loka::scenario_tests::CaptureContentBounds bounds;
   bounds.available = true;
-  bounds.right = 420;
-  bounds.bottom = 300;
+  const loka::scenario_tests::HelloWorldProductionFrame productionFrame;
+  bounds.right = productionFrame.width();
+  bounds.bottom = productionFrame.height();
   loka::dsl::SnapRecord record;
 
   LOKA_VERIFY(scenario.step(2, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
@@ -198,8 +201,9 @@ void testHelloWorldBmiRoundtripDrivesEditTextInput()
       &audit);
   loka::scenario_tests::CaptureContentBounds bounds;
   bounds.available = true;
-  bounds.right = 420;
-  bounds.bottom = 300;
+  const loka::scenario_tests::HelloWorldProductionFrame productionFrame;
+  bounds.right = productionFrame.width();
+  bounds.bottom = productionFrame.height();
   loka::dsl::SnapRecord record;
 
   LOKA_VERIFY(driver.step(2, &window, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_PENDING);
@@ -225,7 +229,7 @@ void testHelloWorldBmiRoundtripDrivesEditTextInput()
 
 void testHelloWorldStandaloneMenuMatchesExample()
 {
-  MyAppConfig example(0, 0x13579BDFUL);
+  HelloWorldAppConfig example(0, 0x13579BDFUL);
   loka::standalone_tests::HelloWorldStandaloneFlowAppConfig standalone(0);
   loka::app::MenuBarDefinition exampleMenu;
   loka::app::MenuBarDefinition standaloneMenu;
@@ -267,6 +271,9 @@ void testHelloWorldStandaloneMountRefusalFailsClosed()
     Window *window = components[0] ? components[0]->asWindow() : 0;
     LOKA_VERIFY(window != 0);
     LOKA_VERIFY(window->visibilityState().get());
+    LOKA_VERIFY(window->displayTitleState().get().equals(
+        loka::core::String::Literal(
+            "Loka HelloWorld Standalone Flow - toggle-action-probe (cycle 1)")));
     LOKA_VERIFY(window->scene() == 0);
     for (int tick = 0; tick < 8; ++tick)
     {

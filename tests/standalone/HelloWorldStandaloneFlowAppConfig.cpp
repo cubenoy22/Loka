@@ -9,30 +9,35 @@ namespace loka
 {
   namespace standalone_tests
   {
+    namespace
+    {
+      const char *const kHelloWorldStandaloneTitle = "Loka HelloWorld Standalone Flow";
+    }
+
     HelloWorldStandaloneFlowAppConfig::HelloWorldStandaloneFlowAppConfig(PlatformContext *context,
                                                                          const platform::file::FileHandle *auditFile,
                                                                          std::FILE *diagnostics)
-        : MyAppConfig(context, 0x13579BDFUL),
+        : HelloWorldAppConfig(context, 0x13579BDFUL),
           audit_(auditFile ? *auditFile : ResolveStandaloneAuditFile(), "toggle-action-probe"),
-          scenario_(scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &this->audit_),
+          scenario_(new (std::nothrow) scenario_tests::HelloWorldScenario(
+              scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &this->audit_)),
           borrowedMainNode_(0),
-          mountDeadline_("HelloWorld", diagnostics)
+          runControl_("HelloWorld", scenario_tests::HelloWorldReelCells().dropFirst(1), diagnostics)
     {
     }
 
     HelloWorldStandaloneFlowAppConfig::~HelloWorldStandaloneFlowAppConfig()
     {
-      this->scenario_.stop();
     }
 
     int HelloWorldStandaloneFlowAppConfig::exitCode() const
     {
-      return this->audit_.isValid() && !this->mountDeadline_.failed() ? 0 : 1;
+      return this->audit_.isValid() && this->scenario_.isValid() && !this->runControl_.failed() ? 0 : 1;
     }
 
     void HelloWorldStandaloneFlowAppConfig::setApp(App *app)
     {
-      this->mountDeadline_.setApp(app);
+      this->runControl_.setApp(app);
     }
 
     void HelloWorldStandaloneFlowAppConfig::compose(AppComposition &composition)
@@ -41,11 +46,12 @@ namespace loka
           helloworld::MainProps(),
           &this->borrowedMainNode_,
           420,
-          300,
-          "Loka HelloWorld Standalone Flow",
+          330,
+          kHelloWorldStandaloneTitle,
           app::IdlePolicy::interval(0.1),
           &HelloWorldStandaloneFlowAppConfig::OnWindowIdle,
-          this);
+          this,
+          this->runControl_.displayTitleState(kHelloWorldStandaloneTitle));
     }
 
     void HelloWorldStandaloneFlowAppConfig::OnWindowIdle(Window *window, double elapsedSeconds, void *userData)
@@ -60,13 +66,13 @@ namespace loka
 
     void HelloWorldStandaloneFlowAppConfig::tick(Window *window)
     {
-      const StandaloneMountDeadline::Advance mountAdvance = this->mountDeadline_.advance(this->borrowedMainNode_ != 0);
+      const StandaloneRunControl::Advance mountAdvance = this->runControl_.advance(this->borrowedMainNode_ != 0);
       switch (mountAdvance)
       {
-      case StandaloneMountDeadline::ADVANCE_WAITING:
-      case StandaloneMountDeadline::ADVANCE_FAILED:
+      case StandaloneRunControl::ADVANCE_WAITING:
+      case StandaloneRunControl::ADVANCE_FAILED:
         return;
-      case StandaloneMountDeadline::ADVANCE_MOUNTED:
+      case StandaloneRunControl::ADVANCE_MOUNTED:
         break;
       }
       if (!window || !window->scene())
@@ -75,13 +81,19 @@ namespace loka
       }
       dsl::SnapRecord record;
       const scenario_tests::ScenarioAdvance advance =
-          this->scenario_.step(this->mountDeadline_.tick(), window->scene(), StandaloneContentBounds(window), record);
-      switch (advance)
+          this->scenario_->step(this->runControl_.tick(), window->scene(), StandaloneContentBounds(window), record);
+      if (this->runControl_.observeScenarioAdvance(advance, record, window))
       {
-      case scenario_tests::SCENARIO_ADVANCE_PENDING:
-      case scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD:
-      case scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY:
-        return;
+        const char *nextScenario = this->runControl_.nextScenarioName();
+        this->runControl_.completeSceneRearm(
+            nextScenario
+                && this->scenario_.replaceAndRearmScene(
+                    new (std::nothrow) scenario_tests::HelloWorldScenario(
+                        std::string(nextScenario),
+                        scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE,
+                        0),
+                    window),
+            window);
       }
     }
   } // namespace standalone_tests

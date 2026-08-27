@@ -15,6 +15,11 @@ ACTUAL_TARGETS="$(loka_known_targets)"
 [[ "${ACTUAL_TARGETS}" == "${EXPECTED_TARGETS}" ]] ||
   fail "default target manifest does not contain the six shipping examples"
 
+EXPECTED_STANDALONE_RELEASE_TARGETS=$'LokaSimpleViewerMacOS\nLokaScrapbookStandaloneLoopMacOS\nLokaHelloWorldStandaloneLoopMacOS\nLokaTutorialStandaloneLoopMacOS\nLokaMineSweeperStandaloneLoopMacOS\nLokaFloppyBirdStandaloneLoopMacOS'
+ACTUAL_STANDALONE_RELEASE_TARGETS="$(loka_targets_for_selection standalone-release)"
+[[ "${ACTUAL_STANDALONE_RELEASE_TARGETS}" == "${EXPECTED_STANDALONE_RELEASE_TARGETS}" ]] ||
+  fail "standalone-release target set does not contain five loops plus SimpleViewer"
+
 SCRAPBOOK_REL_PATH="example/ScrapbookUI/ScrapbookUIMacOS.app/Contents/MacOS/ScrapbookUIMacOS"
 [[ "$(loka_target_rel_path ScrapbookUIMacOS)" == "${SCRAPBOOK_REL_PATH}" ]] ||
   fail "ScrapbookUIMacOS executable path does not point inside its bundle"
@@ -35,9 +40,30 @@ chmod +x "${FAKE_ROOT}/scripts/macos/build.sh"
 
 export LOKA_TEST_BUILD_LOG="${TEST_ROOT}/targets.log"
 unset TARGET || true
+unset TARGET_SET || true
 loka_build_requested_or_known_targets "${FAKE_ROOT}"
 [[ "$(cat "${LOKA_TEST_BUILD_LOG}")" == "${EXPECTED_TARGETS}" ]] ||
   fail "default build loop did not request all six shipping examples"
+
+: >"${LOKA_TEST_BUILD_LOG}"
+export TARGET_SET=standalone-release
+loka_build_requested_or_known_targets "${FAKE_ROOT}"
+[[ "$(cat "${LOKA_TEST_BUILD_LOG}")" == "${EXPECTED_STANDALONE_RELEASE_TARGETS}" ]] ||
+  fail "standalone-release build loop did not request its complete application set"
+unset TARGET_SET
+
+set +e
+CONFLICT_OUTPUT="$(TARGET=LokaHelloMacOS TARGET_SET=standalone-release \
+  loka_requested_or_known_targets 2>&1)"
+CONFLICT_STATUS=$?
+UNKNOWN_OUTPUT="$(TARGET_SET=unknown-set \
+  loka_requested_or_known_targets 2>&1)"
+UNKNOWN_STATUS=$?
+set -e
+[[ "${CONFLICT_STATUS}" -ne 0 && "${CONFLICT_OUTPUT}" == *"not both"* ]] ||
+  fail "TARGET and TARGET_SET conflict was not refused clearly"
+[[ "${UNKNOWN_STATUS}" -ne 0 && "${UNKNOWN_OUTPUT}" == *"unknown or empty"* ]] ||
+  fail "an unknown target set was not refused clearly"
 
 STALE_ROOT="${TEST_ROOT}/stale"
 mkdir -p \
@@ -65,20 +91,35 @@ printf '%s\n' \
   'printf "universal\n" > "${output}"' \
   > "${FAKE_BIN}/lipo"
 chmod +x "${FAKE_BIN}/lipo"
+export LOKA_LIPO_BIN="${FAKE_BIN}/lipo"
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'printf "%s\n" "$*" >>"${LOKA_TEST_CMAKE_LOG}"' \
+  > "${FAKE_BIN}/cmake"
+chmod +x "${FAKE_BIN}/cmake"
 export PATH="${FAKE_BIN}:${PATH}"
+
+export LOKA_TEST_CMAKE_LOG="${TEST_ROOT}/cmake.log"
+unset TARGET || true
+TARGET_SET=standalone-release \
+  BUILD_DIR="${TEST_ROOT}/standalone-cmake" \
+  "${REPO_DIR}/scripts/macos/build.sh"
+grep -Fq -- '-DLOKA_ENABLE_STANDALONE_TARGETS=ON' "${LOKA_TEST_CMAKE_LOG}" ||
+  fail "standalone-release did not register its gated CMake targets"
 
 stage_arch() {
   local build_root="$1"
   local arch="$2"
+  local requested_selection="${3:-default}"
   local target_name
-  local selection
+  local memberships
   local output_shape
   local rel_path
   local target_path
   local bundle_root
 
-  while IFS='|' read -r target_name selection output_shape rel_path; do
-    [[ "${selection}" == "default" ]] || continue
+  while IFS='|' read -r target_name memberships output_shape rel_path; do
+    loka_target_has_selection "${memberships}" "${requested_selection}" || continue
     target_path="${build_root}/Release-${arch}/${rel_path}"
     mkdir -p "$(dirname "${target_path}")"
     printf '%s\n' "${arch}" > "${target_path}"
@@ -160,5 +201,21 @@ loka_merge_requested_or_known_targets_multi_arch \
   fail "multi-arch merge did not place ScrapbookUI's executable inside a bundle"
 [[ "$(cat "${MULTI_ARCH_ROOT}/universal/ScrapbookUIMacOS.app/Contents/Resources/ASSETS.LRP")" == "assets-ppc" ]] ||
   fail "multi-arch merge did not preserve ScrapbookUI's Resources"
+
+STANDALONE_ROOT="${TEST_ROOT}/standalone-release"
+stage_arch "${STANDALONE_ROOT}" ppc standalone-release
+stage_arch "${STANDALONE_ROOT}" i386 standalone-release
+export TARGET_SET=standalone-release
+loka_merge_requested_or_known_targets_two_arch \
+  "${STANDALONE_ROOT}" Release ppc i386
+unset TARGET_SET
+[[ "$(cat "${STANDALONE_ROOT}/universal/LokaSimpleViewerMacOS")" == "universal" ]] ||
+  fail "standalone-release merge omitted SimpleViewer"
+[[ "$(cat "${STANDALONE_ROOT}/universal/LokaHelloWorldStandaloneLoopMacOS.app/Contents/MacOS/LokaHelloWorldStandaloneLoopMacOS")" == "universal" ]] ||
+  fail "standalone-release merge omitted an autonomous loop bundle"
+[[ "$(cat "${STANDALONE_ROOT}/universal/LokaScrapbookStandaloneLoopMacOS.app/Contents/Resources/ASSETS.LRP")" == "assets-ppc" ]] ||
+  fail "standalone-release merge did not preserve Scrapbook loop resources"
+[[ ! -e "${STANDALONE_ROOT}/universal/LokaHelloMacOS" ]] ||
+  fail "standalone-release merge leaked a normal shipping executable"
 
 echo "MacOSBuildTargetsTest: PASS"

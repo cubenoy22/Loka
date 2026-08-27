@@ -13,7 +13,6 @@ namespace loka
     namespace
     {
       const char *kStartup = "startup";
-      const char *kOpenFirstPage = "open-first-page";
       const char *kOpenFirstPageRefused = "open-first-page-refused";
       const char *kFlipForwardBack = "flip-forward-back";
       const char *kRefusedFlipKeepsPage = "refused-flip-keeps-page";
@@ -61,7 +60,7 @@ namespace loka
 
       bool IsRigScenario(const std::string &name)
       {
-        return name == kStartup || name == kOpenFirstPage || name == kOpenFirstPageRefused
+        return name == kStartup || name == kOpenFirstPageRefused
                || name == kFlipForwardBack || name == kRefusedFlipKeepsPage
                || name == kOpenTextPage || name == kOpenTextPageRefused;
       }
@@ -214,10 +213,6 @@ namespace loka
       {
         this->kind_ = KIND_STARTUP;
       }
-      else if (name == kOpenFirstPage)
-      {
-        this->kind_ = KIND_OPEN_FIRST_PAGE;
-      }
       else if (name == kOpenFirstPageRefused)
       {
         this->kind_ = KIND_OPEN_FIRST_PAGE_REFUSED;
@@ -269,7 +264,6 @@ namespace loka
         complete = true;
         break;
       case KIND_STARTUP:
-      case KIND_OPEN_FIRST_PAGE:
       case KIND_OPEN_FIRST_PAGE_REFUSED:
         complete = this->runOpenScenario(tick, mainNode, bounds, out);
         break;
@@ -395,7 +389,7 @@ namespace loka
       SetContentBounds(out, bounds);
 
       bool ok = false;
-      if (this->kind_ == KIND_STARTUP || this->kind_ == KIND_OPEN_FIRST_PAGE)
+      if (this->kind_ == KIND_STARTUP)
       {
         ok = bounds.available && page.published && page.page == 0 && textAvailable && !refusalReached
              && page.caption == "1 / 5";

@@ -1,8 +1,7 @@
 # Loka Programming Guide
 
-Target version: current development source, heading to `0.0.3` (includes
-contracts added after v0.0.2, e.g. `Held`). For the guide matching the
-published v0.0.2 artifact, read this file at the `v0.0.2` tag.
+This guide tracks the current development source. For the guide as it stood
+for a published release, read this file at that release's tag.
 
 English version: [ProgrammingGuide.en.md](ProgrammingGuide.en.md)
 
@@ -650,10 +649,10 @@ state が連鎖しても、どの owner / tracker の上で動いているかを
 ただしその場合でも、注意点は memory lifetime だけではありません。
 Tracker がどちらの owner に属するかが重要です。
 
-0.0.2 での基本パターンは、次のように考えます。
+基本パターンは、次のように考えます。
 
 ```text
-Safe 0.0.2 pattern
+Safe pattern
 
 Node / Boundary owner
 +-- NodeState<T> source
@@ -696,10 +695,10 @@ Flow result
   onSuccess(...) -> owner updates output state
 ```
 
-逆に、次の形は 0.0.2 の通常ルートではありません。
+逆に、次の形は通常ルートではありません。
 
 ```text
-Not the default 0.0.2 pattern
+Not the default pattern
 
 Parent owner                  Child owner
 +-- State<T> source  ----->   +-- FlowSlot<StateStream<U>>
@@ -1073,13 +1072,13 @@ Loka の cross-platform 性を理解するには、
 たとえば UI を構成する Node 側は、次のようにそのまま共通で使えます。
 
 ```cpp
-class HelloNode : public loka::app::scene::StdCompositionNodeFor<HelloNode>
+class HelloNode : public loka::app::scene::BoundaryNodeFor<HelloNode>
 {
 public:
-  typedef loka::app::scene::StdCompositionPropsFor<HelloNode> PropsType;
+  typedef loka::app::scene::BoundaryPropsFor<HelloNode> PropsType;
 
   HelloNode(const PropsType &p)
-      : loka::app::scene::StdCompositionNodeFor<HelloNode>(p)
+      : loka::app::scene::BoundaryNodeFor<HelloNode>(p)
   {
   }
 
@@ -1102,7 +1101,7 @@ virtual void compose(loka::app::AppComposition &c)
                                 .frame(40, 40, 320, 240)
                                 .title("Hello")
                                 .visible(true)
-                                .scene(loka::app::scene::NodeDefinition<HelloProps, HelloNode>()));
+                                .scene(loka::app::scene::Boundary<HelloNode>()));
 }
 ```
 
@@ -1337,7 +1336,7 @@ UI と処理パイプラインを一貫した考え方で扱える基盤にな�
 Flow は、State と event handler を集約する処理パイプラインです。
 そのため、Flow 自体の lifetime も Node / Boundary の lifetime と切り離して考えないでください。
 
-Loka `0.0.2` では、Node に紐づく Flow は Node member として保持し、
+Loka では、Node に紐づく Flow は Node member として保持し、
 必要なら `FlowSlot<T>` のような小さな owner slot に入れる方針を取ります。
 これにより、Node の destructor で Flow が確実に破棄され、
 Flow 内部の binding や trigger も同じ寿命で解放できます。
@@ -1737,7 +1736,7 @@ reuse algorithm や redraw 戦略まで含めた実装コストが非常に大�
 `Show()` は「毎回 child を破棄して作り直す」仕組みではなく、
 基本的には retained な child を attach / detach する仕組みとして考えます。
 
-つまり、現在の `0.0.2` スコープでは次のように理解してください。
+つまり、現在のスコープでは次のように理解してください。
 
 - `Show(false)` で child は active projection から外れる
 - child の論理 identity は保持される
@@ -2043,7 +2042,7 @@ virtual void compose(loka::app::AppComposition &c)
                                 .frame(50, 50, 420, 300)
                                 .title("LokaSample")
                                 .visible(true)
-                                .scene(loka::app::scene::NodeDefinition<MyProps, MyNode>()));
+                                .scene(loka::app::scene::Boundary<MyNode>()));
 }
 ```
 
@@ -2081,7 +2080,7 @@ Menu DSL でも考え方は同じです。
 - 必要なら event や attr を積む
 - 最終的な反映は各 OS の menu system へ投影される
 
-ただし、Loka `0.0.2` の `MenuComposition` は、
+ただし、Loka の `MenuComposition` は、
 Scene node の `StdComposition` とは更新モデルが異なります。
 
 `StdComposition` の `composeNode()` は attach 時に一度だけ構造を宣言し、

@@ -1,0 +1,6 @@
+#ifndef LOKA_TESTS_MAC_MENU_PROJECTION_TESTS_HPP
+#define LOKA_TESTS_MAC_MENU_PROJECTION_TESTS_HPP
+
+void testMacMenuProjectionDetachesMainMenuBeforeReleasingTarget();
+
+#endif // LOKA_TESTS_MAC_MENU_PROJECTION_TESTS_HPP

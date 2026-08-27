@@ -2,6 +2,7 @@
 """Crop, compare, diff, and animate 8-bit RGB/RGBA PNGs using the standard library."""
 
 import argparse
+import collections
 import os
 import struct
 import sys
@@ -25,6 +26,11 @@ class Image:
         self.width = width
         self.height = height
         self.rgba = bytes(rgba)
+
+
+ImageDifference = collections.namedtuple(
+    "ImageDifference", ("pixel_count", "column_count", "first_difference")
+)
 
 
 def _paeth(left, above, upper_left):
@@ -195,9 +201,10 @@ def crop_image(image, left, top, right, bottom):
     return Image(width, height, cropped)
 
 
-def compare_images(first, second, report=True):
+def measure_image_difference(first, second):
     first_difference = None
     difference_count = 0
+    differing_columns = set()
     for y in range(max(first.height, second.height)):
         for x in range(max(first.width, second.width)):
             first_offset = (y * first.width + x) * 4
@@ -216,23 +223,35 @@ def compare_images(first, second, report=True):
                 if first_difference is None:
                     first_difference = (x, y, first_pixel, second_pixel)
                 difference_count += 1
+                differing_columns.add(x)
 
-    if first_difference is None:
-        return True
-    if report:
-        if first.width != second.width or first.height != second.height:
-            print(
-                "dimensions differ: {}x{} != {}x{}".format(
-                    first.width, first.height, second.width, second.height
-                )
+    return ImageDifference(difference_count, len(differing_columns), first_difference)
+
+
+def report_image_difference(first, second, difference):
+    first_difference = difference.first_difference
+    if first_difference is not None and (
+        first.width != second.width or first.height != second.height
+    ):
+        print(
+            "dimensions differ: {}x{} != {}x{}".format(
+                first.width, first.height, second.width, second.height
             )
+        )
+    if first_difference is not None:
         x, y, first_pixel, second_pixel = first_difference
         print(
             "first differing pixel ({}, {}): {} != {}; differing pixels: {}".format(
-                x, y, first_pixel, second_pixel, difference_count
+                x, y, first_pixel, second_pixel, difference.pixel_count
             )
         )
-    return False
+
+
+def compare_images(first, second, report=True):
+    difference = measure_image_difference(first, second)
+    if report:
+        report_image_difference(first, second, difference)
+    return difference.pixel_count
 
 
 def difference_image(expected, actual):
@@ -549,22 +568,24 @@ def selftest():
         roundtrip_path = os.path.join(directory, "roundtrip.png")
         _write_rgba_with_filters(filtered_path, source)
         decoded = read_png(filtered_path)
-        if not compare_images(source, decoded, report=False):
+        if compare_images(source, decoded, report=False) != 0:
             raise PngError("RGBA/filter decode selftest failed")
 
         expected_crop = crop_image(source, 1, 1, 6, 5)
         write_png(cropped_path, expected_crop)
         decoded_crop = read_png(cropped_path)
         write_png(roundtrip_path, decoded_crop)
-        if not compare_images(expected_crop, decoded_crop, report=False):
+        if compare_images(expected_crop, decoded_crop, report=False) != 0:
             raise PngError("crop/write/read selftest failed")
-        if not compare_images(read_png(cropped_path), read_png(roundtrip_path), report=False):
+        if compare_images(
+            read_png(cropped_path), read_png(roundtrip_path), report=False
+        ) != 0:
             raise PngError("compare round-trip selftest failed")
 
         changed = bytearray(decoded_crop.rgba)
         changed[0] ^= 1
         changed_image = Image(decoded_crop.width, decoded_crop.height, changed)
-        if compare_images(decoded_crop, changed_image, report=False):
+        if compare_images(decoded_crop, changed_image, report=False) == 0:
             raise PngError("compare mismatch selftest failed")
         difference = difference_image(decoded_crop, changed_image)
         if difference.rgba[:4] != bytes((255, 0, 255, 255)):
@@ -624,6 +645,8 @@ def main(argv=None):
     crop_parser.add_argument("output")
 
     compare_parser = subparsers.add_parser("compare", help="compare decoded pixels")
+    compare_parser.add_argument("--max-diff-px", type=int, default=0)
+    compare_parser.add_argument("--max-diff-columns", type=int)
     compare_parser.add_argument("first")
     compare_parser.add_argument("second")
 
@@ -654,13 +677,54 @@ def main(argv=None):
             )
             return 0
         if arguments.command == "compare":
-            return 0 if compare_images(read_png(arguments.first), read_png(arguments.second)) else 1
+            if arguments.max_diff_px < 0:
+                raise PngError("--max-diff-px must not be negative")
+            if arguments.max_diff_columns is not None and arguments.max_diff_columns < 0:
+                raise PngError("--max-diff-columns must not be negative")
+            expected = read_png(arguments.first)
+            actual = read_png(arguments.second)
+            difference = measure_image_difference(expected, actual)
+            report_image_difference(expected, actual, difference)
+            dimensions_differ = (
+                expected.width != actual.width or expected.height != actual.height
+            )
+            max_diff_columns = (
+                "unbounded"
+                if arguments.max_diff_columns is None
+                else str(arguments.max_diff_columns)
+            )
+            if dimensions_differ:
+                print(
+                    "compare result: dimension mismatch; result: fail; differing pixels: {}; "
+                    "differing columns: {}; max-diff-px: {}; max-diff-columns: {}".format(
+                        difference.pixel_count,
+                        difference.column_count,
+                        arguments.max_diff_px,
+                        max_diff_columns,
+                    )
+                )
+                return 1
+            passed = difference.pixel_count <= arguments.max_diff_px and (
+                arguments.max_diff_columns is None
+                or difference.column_count <= arguments.max_diff_columns
+            )
+            print(
+                "compare result: differing pixels: {}; differing columns: {}; "
+                "max-diff-px: {}; max-diff-columns: {}; result: {}".format(
+                    difference.pixel_count,
+                    difference.column_count,
+                    arguments.max_diff_px,
+                    max_diff_columns,
+                    "pass" if passed else "fail",
+                )
+            )
+            return 0 if passed else 1
         if arguments.command == "diff":
             expected = read_png(arguments.expected)
             actual = read_png(arguments.actual)
-            equal = compare_images(expected, actual)
+            difference_count = compare_images(expected, actual)
             write_png(arguments.output, difference_image(expected, actual))
-            return 0 if equal else 1
+            return 0 if difference_count == 0 else 1
         if arguments.command == "gif":
             if arguments.stride < 1:
                 raise PngError("--stride must be at least 1")

@@ -17,7 +17,7 @@ namespace loka
   namespace standalone_tests
   {
     /** Owns HelloWorld's standalone presentation composition and scenario. */
-    class HelloWorldStandaloneFlowAppConfig : public MyAppConfig
+    class HelloWorldStandaloneFlowAppConfig : public HelloWorldAppConfig
     {
     public:
       explicit HelloWorldStandaloneFlowAppConfig(PlatformContext *context,
@@ -34,9 +34,9 @@ namespace loka
       void tick(Window *window);
 
       dsl::testing::ScenarioAuditFile audit_;
-      scenario_tests::HelloWorldScenario scenario_;
+      StandaloneScenarioRail<scenario_tests::HelloWorldScenario> scenario_;
       helloworld::MainNode *borrowedMainNode_;
-      StandaloneMountDeadline mountDeadline_;
+      StandaloneRunControl runControl_;
     };
   } // namespace standalone_tests
 } // namespace loka

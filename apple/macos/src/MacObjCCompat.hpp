@@ -113,18 +113,21 @@ typedef float CGFloat;
 // old system and are only missing from current SDKs, so their declarations
 // enable a real call. This one enables compilation of a call that the runtime
 // guard will decline.
-#if !defined(MAC_OS_X_VERSION_MAX_ALLOWED) || (MAC_OS_X_VERSION_MAX_ALLOWED < 1070)
+// Keep this declaration unconditional. A legacy SDK installed beside a newer
+// Xcode can resolve AvailabilityMacros.h from the host while resolving
+// NSWindow.h from the selected SDK. In that mixed but supported setup an SDK
+// version guard describes neither header surface and drops the declaration.
+// Repeating a method declaration from a newer NSWindow interface is harmless;
+// this category still provides no implementation.
 @interface NSWindow (LokaBackingScaleCompat)
 - (CGFloat)backingScaleFactor;
 @end
-#endif
 
-// effectiveAppearance arrived in 10.9. As above, this declaration only gives
-// Objective-C++ the return type; respondsToSelector: remains the runtime wall.
-#if !defined(MAC_OS_X_VERSION_MAX_ALLOWED) || (MAC_OS_X_VERSION_MAX_ALLOWED < 1090)
+// effectiveAppearance arrived after the legacy SDKs. As above, this
+// declaration only gives Objective-C++ the return type; respondsToSelector:
+// remains the runtime wall.
 @interface NSWindow (LokaEffectiveAppearanceCompat)
 - (id)effectiveAppearance;
 @end
-#endif
 
 #endif // LOKA_MAC_OBJC_COMPAT_HPP

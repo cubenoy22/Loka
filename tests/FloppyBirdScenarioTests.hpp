@@ -2,6 +2,7 @@
 #define LOKA_TESTS_FLOPPY_BIRD_SCENARIO_TESTS_HPP
 
 void testFloppyBirdFixedStepFlapsDriveSeededGame();
+void testFloppyBirdGameModelResetReplaysSeededScenario();
 void testFloppyBirdFixedStepFlapsHoldFinalSceneAndMatchAudit();
 void testFloppyBirdDifferentSeedRefusesFixedCheckpointAudit();
 void testFloppyBirdStandaloneFlowWritesExpectedAudit();

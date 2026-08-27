@@ -21,6 +21,47 @@ sys.modules[SPEC.name] = rig
 SPEC.loader.exec_module(rig)
 
 
+class DescriptorSectionTest(unittest.TestCase):
+    """A descriptor is read by more than one consumer.
+
+    The adapter reads [rig]; the scenario rail's capture guard reads
+    [capture]. A descriptor carrying both must fail on what is actually wrong
+    with it for this adapter -- not on the fact that a second consumer exists.
+    """
+
+    RIGS = ROOT / "scripts" / "rig" / "macos" / "rigs"
+
+    def test_mavericks_still_loads(self):
+        self.assertEqual(rig.load_descriptor(self.RIGS / "mavericks-10.9.ini").rig_id, "mavericks-10.9")
+
+    def test_tahoe_is_refused_for_its_build_profile_not_its_shape(self):
+        with self.assertRaises(rig.RigError) as caught:
+            rig.load_descriptor(self.RIGS / "tahoe.ini")
+        message = str(caught.exception)
+        self.assertIn("build_profile macos-debug is not one this adapter runs", message)
+        self.assertNotIn("must contain only", message)
+        self.assertNotIn("unexpected", message)
+
+    def test_a_stray_section_is_still_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            descriptor = pathlib.Path(directory) / "strays.ini"
+            descriptor.write_text(
+                (self.RIGS / "mavericks-10.9.ini").read_text(encoding="utf-8") + "\n[rigg]\nkey = value\n",
+                encoding="utf-8",
+            )
+            with self.assertRaises(rig.RigError) as caught:
+                rig.load_descriptor(descriptor)
+            self.assertIn("declares unexpected [rigg]", str(caught.exception))
+
+    def test_a_descriptor_without_its_own_section_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            descriptor = pathlib.Path(directory) / "capture-only.ini"
+            descriptor.write_text("[capture]\nappearance = light\n", encoding="utf-8")
+            with self.assertRaises(rig.RigError) as caught:
+                rig.load_descriptor(descriptor)
+            self.assertIn("must declare [rig]", str(caught.exception))
+
+
 class MacOSRigProtocolTest(unittest.TestCase):
     def test_tracked_descriptor_separates_machine_local_mapping(self):
         descriptor = rig.load_descriptor(ROOT / "scripts" / "rig" / "macos" / "rigs" / "mavericks-10.9.ini")
@@ -50,8 +91,16 @@ class MacOSRigProtocolTest(unittest.TestCase):
     def test_unknown_descriptor_vocabulary_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "rig.ini"
-            text = (ROOT / "scripts" / "rig" / "macos" / "rigs" / "mavericks-10.9.ini").read_text(encoding="utf-8")
-            path.write_text(text + "unexpected = value\n", encoding="utf-8")
+            source = ROOT / "scripts" / "rig" / "macos" / "rigs" / "mavericks-10.9.ini"
+            lines = source.read_text(encoding="utf-8").splitlines(keepends=True)
+            # The stray key has to land in [rig]; appending it to the file put
+            # it wherever the last section happened to be, so this stopped
+            # testing anything the day the descriptor grew a [capture] section
+            # after it. load_descriptor polices the [rig] vocabulary, and a
+            # stray [capture] field fails closed later, at compare time.
+            after_header = lines.index("[rig]\n") + 1
+            mutated = lines[:after_header] + ["unexpected = value\n"] + lines[after_header:]
+            path.write_text("".join(mutated), encoding="utf-8")
             with self.assertRaises(rig.RigError) as caught:
                 rig.load_descriptor(path)
             self.assertEqual(caught.exception.stage, "configuration")

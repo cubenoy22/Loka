@@ -7,7 +7,6 @@ import argparse
 import dataclasses
 import os
 import pathlib
-import re
 import shutil
 import subprocess
 import sys
@@ -29,16 +28,21 @@ from loka_rig_common import (
     execute_adapter,
     make_run_id,
     parse_bool,
-    read_single_section,
+    read_declared_section,
     require_keys,
     resolve_commit,
     target_retained_value,
     write_manifest,
 )
+from toolbox.classic_golden_identity import (
+    SHA256_PATTERN,
+    UNAPPROVED_IDENTITY,
+    IdentityError,
+    validate_bundle,
+)
 
 
 SUPPORTED_MODES = frozenset(("flow",))
-SCENARIO_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -52,6 +56,7 @@ class RigDescriptor:
     capture_adapter: str
     recording_adapter: str
     artifact_contract_version: str
+    reference_identity_sha256: str
 
 
 @dataclasses.dataclass(frozen=True)
@@ -69,7 +74,7 @@ def _narrow_absolute_path(value: str, field: str, path: pathlib.Path) -> pathlib
 
 
 def load_descriptor(path: pathlib.Path) -> RigDescriptor:
-    section = read_single_section(path, "rig")
+    section = read_declared_section(path, "rig", permitted=("rig", "capture"))
     expected = {
         "descriptor_version",
         "rig_id",
@@ -81,6 +86,7 @@ def load_descriptor(path: pathlib.Path) -> RigDescriptor:
         "capture_adapter",
         "recording_adapter",
         "artifact_contract_version",
+        "reference_identity_sha256",
     }
     require_keys(section, expected, path)
     if section["descriptor_version"] != SUPPORTED_DESCRIPTOR_VERSION:
@@ -95,6 +101,11 @@ def load_descriptor(path: pathlib.Path) -> RigDescriptor:
         raise RigError("configuration", f"{path}: unsupported or empty supported_modes")
     if section["build_profile"] != "retro68-68k-release":
         raise RigError("configuration", f"{path}: unsupported build_profile")
+    reference_identity = section["reference_identity_sha256"].strip()
+    if reference_identity != UNAPPROVED_IDENTITY and not SHA256_PATTERN.fullmatch(
+        reference_identity
+    ):
+        raise RigError("configuration", f"{path}: invalid reference_identity_sha256")
     return RigDescriptor(
         rig_id=rig_id,
         machine=section["machine"].strip(),
@@ -105,11 +116,12 @@ def load_descriptor(path: pathlib.Path) -> RigDescriptor:
         capture_adapter=section["capture_adapter"].strip(),
         recording_adapter=section["recording_adapter"].strip(),
         artifact_contract_version=section["artifact_contract_version"].strip(),
+        reference_identity_sha256=reference_identity,
     )
 
 
 def load_local_mapping(path: pathlib.Path) -> LocalMapping:
-    section = read_single_section(path, "local")
+    section = read_declared_section(path, "local")
     require_keys(section, {"archive_root", "mame_env_file", "golden_root"}, path)
     return LocalMapping(
         archive_root=_narrow_absolute_path(section["archive_root"], "archive_root", path),
@@ -118,50 +130,17 @@ def load_local_mapping(path: pathlib.Path) -> LocalMapping:
     )
 
 
-def _read_scenarios(checkout: pathlib.Path) -> tuple[tuple[str, str], ...]:
-    registry = checkout / "tests" / "scenarios" / "scenarios.txt"
-    try:
-        rows = tuple(line.split() for line in registry.read_text(encoding="utf-8").splitlines())
-    except OSError as error:
-        raise RigError("golden-preflight", f"cannot read scenario registry: {registry}") from error
-    if not rows or any(
-        len(row) != 2
-        or not SCENARIO_PATTERN.fullmatch(row[0])
-        or not SCENARIO_PATTERN.fullmatch(row[1])
-        for row in rows
-    ):
-        raise RigError("golden-preflight", f"invalid or empty scenario registry: {registry}")
-    scenarios = tuple((row[0], row[1]) for row in rows)
-    if len(set(scenarios)) != len(scenarios):
-        raise RigError("golden-preflight", f"duplicate scenario registry entry: {registry}")
-    return scenarios
-
-
 def stage_goldens(checkout: pathlib.Path, golden_root: pathlib.Path) -> tuple[tuple[str, str], ...]:
-    scenarios = _read_scenarios(checkout)
+    registry = checkout / "tests" / "scenarios" / "scenarios.txt"
+    descriptor = checkout / "scripts" / "rig" / "toolbox" / "rigs" / "toolbox-maciix.ini"
     destination = checkout / "build" / "mame-scenario" / "golden"
     temporary = destination.with_name("golden.tmp")
-    sources: list[tuple[str, pathlib.Path, pathlib.Path]] = []
-    for example, scenario in scenarios:
-        golden = golden_root / example / f"{scenario}.png"
-        sources.append((example, golden, golden.with_name(f"{golden.name}.mame-machine")))
     try:
-        for _example, golden, machine_record in sources:
-            if not golden.is_file() or golden.is_symlink():
-                raise RigError("golden-preflight", f"missing finalized rig-local golden: {golden}")
-            if not machine_record.is_file() or machine_record.is_symlink():
-                raise RigError(
-                    "golden-preflight",
-                    f"missing machine record {machine_record} for existing {golden}; "
-                    "re-record via --update-golden, or write the record by hand if provenance is known",
-                )
-        temporary.mkdir(parents=True, exist_ok=False)
-        for example, golden, machine_record in sources:
-            destination_dir = temporary / example
-            destination_dir.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(golden, destination_dir / golden.name)
-            shutil.copy2(machine_record, destination_dir / machine_record.name)
+        scenarios = validate_bundle(golden_root, registry, descriptor)
+        shutil.copytree(golden_root, temporary, symlinks=False)
         temporary.replace(destination)
+    except IdentityError as error:
+        raise RigError("golden-preflight", str(error)) from error
     except RigError:
         raise
     except OSError as error:
@@ -386,6 +365,29 @@ class ToolboxRigRun:
             target_workdir=target_workdir,
             next_diagnostic_command="inspect retained Toolbox checkout" if result != "passed" else "none",
         )
+        refusal_markers = (
+            self.archive / "presentation.incomplete" / "machine-verdict.txt",
+            self.archive / "machine-verdict.txt",
+        )
+        for marker in refusal_markers:
+            if not marker.is_file():
+                continue
+            refusal_fields = marker.read_text(
+                encoding="utf-8", errors="replace"
+            ).splitlines()
+            # `refused` is meaningful only after the machine procedure passed;
+            # preflight failures remain failed-or-not-reached in both lanes.
+            if (
+                "machine_verdict=refused" not in refusal_fields
+                or "runtime_verification=passed" not in refusal_fields
+            ):
+                continue
+            replacements = {
+                "machine_verdict": "refused",
+                "runtime_verification": "passed",
+            }
+            common_result = dataclasses.replace(common_result, **replacements)
+            break
         adapter_fields = (
             ("descriptor_version", SUPPORTED_DESCRIPTOR_VERSION),
             ("artifact_contract_version", self.descriptor.artifact_contract_version),

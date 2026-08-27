@@ -8,10 +8,10 @@
 #include "app/Menu.hpp"
 #include "MainNode.hpp"
 
-class MyAppConfig : public AppConfigurable
+class HelloWorldAppConfig : public AppConfigurable
 {
 public:
-  MyAppConfig(PlatformContext *ctx, unsigned long menuSeed)
+  HelloWorldAppConfig(PlatformContext *ctx, unsigned long menuSeed)
       : AppConfigurable(ctx),
         menu_(menuSeed)
   {
@@ -19,8 +19,8 @@ public:
 
   virtual void compose(AppComposition &c)
   {
-    loka::app::scene::NodeDefinition<helloworld::MainProps, helloworld::MainNode> mainDefinition;
-    c << WindowDef(this->productionWindowProps(mainDefinition));
+    c << WindowDef(this->productionWindowProps(
+        loka::app::scene::Boundary<helloworld::MainNode>()));
   }
 
   virtual void composeMenu(loka::app::MenuComposition &c)
@@ -34,7 +34,7 @@ protected:
   WindowProps productionWindowProps(const loka::app::scene::NodeDefinitionBase &scene) const
   {
     return WindowProps()
-        .frame(50, 50, 420, 300)
+        .frame(50, 50, 420, 330)
         .scene(scene)
         .title("LokaSample")
         .visible(true);

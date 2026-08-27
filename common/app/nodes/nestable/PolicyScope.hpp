@@ -23,6 +23,7 @@ namespace loka
       }
       PolicyScopeDefinition(const PolicyScopeDefinition &other)
           : scene::NodeDefinitionBase(other),
+            scene::IBranchPolicyScopeDefinition(other),
             content_(other.content_),
             policies_(other.policies_)
       {

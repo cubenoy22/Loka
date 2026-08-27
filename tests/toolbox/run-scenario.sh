@@ -4,9 +4,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+. "$PROJECT_DIR/scripts/retro68-env.sh"
+
+loka_load_retro68_environment "$PROJECT_DIR"
 
 usage() {
-  echo "Usage: $0 <example> <scenario from scenarios.txt> [--update-golden]" >&2
+  echo "Usage: $0 <example> <scenario from scenarios.txt> [--update-golden | --probe | --structural-audit]" >&2
 }
 
 fail_stage() {
@@ -25,19 +28,37 @@ fi
 EXAMPLE="$1"
 SCENARIO="$2"
 SCENARIO_REGISTRY="$PROJECT_DIR/tests/scenarios/scenarios.txt"
+STARTUP_IDENTITY_DECLARATIONS="$PROJECT_DIR/tests/scenarios/startup-golden-identities.txt"
 UPDATE_GOLDEN=0
+STRUCTURAL_AUDIT=0
 if [[ ! "$EXAMPLE" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
   || [[ ! "$SCENARIO" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
   || ! grep -Fxq -- "$EXAMPLE $SCENARIO" "$SCENARIO_REGISTRY"; then
   usage
   exit 2
 fi
+PROBE=0
+# Cells with a probe leg in their scenario driver. --probe on any other cell
+# would write the key, have no reader, and print a green that verified
+# nothing -- a silent skip indistinguishable from coverage.
+PROBE_CELLS="helloworld bmi-roundtrip
+helloworld toggle-action-probe"
 if [ $# -eq 3 ]; then
-  if [ "$3" != "--update-golden" ]; then
-    usage
-    exit 2
-  fi
-  UPDATE_GOLDEN=1
+  case "$3" in
+    --update-golden) UPDATE_GOLDEN=1 ;;
+    --structural-audit) STRUCTURAL_AUDIT=1 ;;
+    --probe)
+      if ! printf '%s\n' "$PROBE_CELLS" | grep -Fxq -- "$EXAMPLE $SCENARIO"; then
+        echo "no probe leg exists for '$EXAMPLE $SCENARIO'; probe cells: $PROBE_CELLS" >&2
+        exit 2
+      fi
+      PROBE=1
+      ;;
+    *)
+      usage
+      exit 2
+      ;;
+  esac
 fi
 
 WORK="$PROJECT_DIR/build/mame-scenario/$EXAMPLE/$SCENARIO"
@@ -143,7 +164,14 @@ ACTUAL_IMAGE="$WORK/$SCENARIO.png"
 # directory wipes and regenerate with --update-golden; reviewers see the
 # captures through the pr-assets evidence branch instead.
 GOLDEN="$PROJECT_DIR/build/mame-scenario/golden/$EXAMPLE/$SCENARIO.png"
-GOLDEN_MACHINE="$GOLDEN.mame-machine"
+GOLDEN_BUNDLE="$PROJECT_DIR/build/mame-scenario/golden"
+GOLDEN_IDENTITY_HELPER="$PROJECT_DIR/scripts/rig/toolbox/classic_golden_identity.py"
+PACKAGE_FIXTURE_GUARD="$PROJECT_DIR/scripts/rig/package_fixture_guard.py"
+RIG_DESCRIPTOR="$PROJECT_DIR/scripts/rig/toolbox/rigs/toolbox-maciix.ini"
+CAPTURE_ADAPTER="${LOKA_TOOLBOX_CAPTURE_ADAPTER:-mame-screen-snapshot.v1}"
+BUILD_PROVENANCE="$(dirname "$APPL")/classic-build-provenance.txt"
+CURRENT_IDENTITY="$WORK/classic-golden-identity.txt"
+MACHINE_VERDICT="$WORK/machine-verdict.txt"
 HOME_DIR="$WORK/home"
 CFG_DIR="$WORK/cfg"
 NVRAM_DIR="$WORK/nvram"
@@ -163,10 +191,41 @@ fi
 if ! chmod u+w "$BOOT"; then
   fail_stage mame "could not make the boot hard disk copy writable"
 fi
+
+# Capture the immutable boot-template content before MAME can write to its
+# private copy. Build provenance comes from the clean Retro68 build artifact;
+# only the emulator/ROM facts are resolved on the host here.
+if [ "$STRUCTURAL_AUDIT" -eq 0 ]; then
+  if ! identity_message="$(python3 "$GOLDEN_IDENTITY_HELPER" capture-current \
+      --output "$CURRENT_IDENTITY" \
+      --build-provenance "$BUILD_PROVENANCE" \
+      --descriptor "$RIG_DESCRIPTOR" \
+      --mame-executable "$MAME_EXECUTABLE" \
+      --rompath "${MAME_ROMPATH:-}" \
+      --ram-size "$RAMSIZE" \
+      --machine "$MACHINE" \
+      --capture-adapter "$CAPTURE_ADAPTER" \
+      --boot-hd "$BOOT" 2>&1)"; then
+    refusal_reason="${identity_message//$'\n'/ }"
+    printf 'machine_verdict=failed-or-not-reached\nruntime_verification=failed-or-not-reached\nrefusal_reason=%s\n' \
+      "$refusal_reason" >"$MACHINE_VERDICT" || true
+    echo "machine_verdict=failed-or-not-reached" >&2
+    echo "$identity_message" >&2
+    echo "Work directory left for inspection: $WORK" >&2
+    exit 3
+  fi
+fi
 # linger_seconds keeps the scenario window alive after the audit is written,
 # so the emulator-side snapshot captures the scene instead of the desktop the
 # application would otherwise have quit back to.
-if ! printf 'scenario %s\nlinger_seconds 120\n' "$SCENARIO" >"$CONFIG"; then
+# --probe opts the driver into the dirty-replay probes (#436, #412). Off by
+# default so tracked cells keep their audits byte-identical.
+PROBE_LINE=""
+if [ "$PROBE" -eq 1 ]; then
+  PROBE_LINE="probe_dirty_replay 1
+"
+fi
+if ! printf 'scenario %s\nlinger_seconds 120\n%s' "$SCENARIO" "$PROBE_LINE" >"$CONFIG"; then
   fail_stage mame "could not write LokaTest.cfg"
 fi
 if ! cp -f "$SCRIPT_DIR/mame-launch.lua" "$LAUNCHER"; then
@@ -180,28 +239,28 @@ if [ "$EXAMPLE" = "scrapbook" ]; then
     fail_stage mame "package not found: $ASSETS"
   fi
   STAGED_ASSETS="$WORK/ASSETS.LRP"
-  CORRUPT_BAG=""
   FIXTURE_REGISTRY="$PROJECT_DIR/tests/scenarios/scrapbook-package-fixtures.txt"
-  if [ ! -f "$FIXTURE_REGISTRY" ]; then
-    fail_stage mame "missing $FIXTURE_REGISTRY"
+  if ! CORRUPT_BAG="$(python3 "$PACKAGE_FIXTURE_GUARD" plan \
+      --registry "$FIXTURE_REGISTRY" --scenario "$SCENARIO" 2>&1)"; then
+    fail_stage mame "$CORRUPT_BAG"
   fi
-  while IFS= read -r fixture_entry || [ -n "$fixture_entry" ]; do
-    if [[ ! "$fixture_entry" =~ ^([a-z0-9][a-z0-9-]*)\ corrupt-bag=([0-9]+)$ ]]; then
-      fail_stage mame "invalid Scrapbook fixture registry line '$fixture_entry'"
-    fi
-    if [ "${BASH_REMATCH[1]}" = "$SCENARIO" ]; then
-      if [ -n "$CORRUPT_BAG" ]; then
-        fail_stage mame "duplicate fixture mapping for '$SCENARIO'"
-      fi
-      CORRUPT_BAG="${BASH_REMATCH[2]}"
-    fi
-  done <"$FIXTURE_REGISTRY"
+  # The refusal message is worth merging into the value, but only on failure:
+  # on success anything the interpreter wrote to stderr rides along and would be
+  # handed to lrpc as a bag number. The answer shape is empty or decimal.
+  if [ -n "$CORRUPT_BAG" ] && [[ ! "$CORRUPT_BAG" =~ ^[0-9]+$ ]]; then
+    fail_stage mame "package fixture plan answered '$CORRUPT_BAG', not a bag number"
+  fi
   STAGE_ARGUMENTS=(stage "$ASSETS" -o "$STAGED_ASSETS")
   if [ -n "$CORRUPT_BAG" ]; then
     STAGE_ARGUMENTS+=(--corrupt-bag "$CORRUPT_BAG")
   fi
   if ! "$LRPC" "${STAGE_ARGUMENTS[@]}"; then
     fail_stage mame "could not stage the scenario package"
+  fi
+  if ! fixture_message="$(python3 "$PACKAGE_FIXTURE_GUARD" verify \
+      --registry "$FIXTURE_REGISTRY" --scenario "$SCENARIO" \
+      --source "$ASSETS" --staged "$STAGED_ASSETS" 2>&1)"; then
+    fail_stage mame "$fixture_message"
   fi
   DEV_DISK_ARGUMENTS+=("$STAGED_ASSETS")
 fi
@@ -342,35 +401,44 @@ if ! cp -f "$newest_snapshot" "$ACTUAL_IMAGE"; then
   fail_stage collect "could not collect $newest_snapshot"
 fi
 
+if [ "$STRUCTURAL_AUDIT" -eq 1 ]; then
+  echo "Scenario structural/audit pass: $EXAMPLE/$SCENARIO"
+  echo "Pixel verdict: not evaluated (Classic structural/audit mode does not claim a pixel verdict)"
+  exit 0
+fi
+
 if [ "$UPDATE_GOLDEN" -eq 1 ]; then
-  if ! mkdir -p "$(dirname "$GOLDEN")"; then
-    fail_stage golden "could not create the golden directory"
+  if ! python3 "$GOLDEN_IDENTITY_HELPER" stage-capture \
+      --bundle "$GOLDEN_BUNDLE" \
+      --registry "$SCENARIO_REGISTRY" \
+      --declarations "$STARTUP_IDENTITY_DECLARATIONS" \
+      --descriptor "$RIG_DESCRIPTOR" \
+      --current-identity "$CURRENT_IDENTITY" \
+      --capture "$ACTUAL_IMAGE" \
+      --application "$APPL" \
+      --source-tree "$PROJECT_DIR" \
+      --example "$EXAMPLE" \
+      --scenario "$SCENARIO"; then
+    fail_stage golden "could not stage the complete atomic golden bundle"
   fi
-  if ! cp -f "$ACTUAL_IMAGE" "$GOLDEN"; then
-    fail_stage golden "could not update $GOLDEN"
-  fi
-  if ! printf '%s\n' "$MACHINE" >"$GOLDEN_MACHINE"; then
-    fail_stage golden "could not record MAME machine '$MACHINE' in $GOLDEN_MACHINE"
-  fi
-  echo "Updated golden: $GOLDEN"
-  echo "Recorded MAME machine: $MACHINE"
   echo "Reminder: attach before/after visual evidence to the PR."
   exit 0
 fi
 
-if [ ! -f "$GOLDEN" ]; then
-  fail_stage golden "missing $GOLDEN; rerun with --update-golden to create it"
-fi
-if [ ! -f "$GOLDEN_MACHINE" ]; then
-  fail_stage golden \
-    "missing machine record $GOLDEN_MACHINE for existing $GOLDEN; rerun with --update-golden, or write '$MACHINE' to $GOLDEN_MACHINE if you know the golden's provenance"
-fi
-if ! RECORDED_MACHINE="$(cat "$GOLDEN_MACHINE")"; then
-  fail_stage golden "could not read machine record $GOLDEN_MACHINE"
-fi
-if [ "$RECORDED_MACHINE" != "$MACHINE" ]; then
-  fail_stage golden \
-    "$GOLDEN was recorded on MAME machine '$RECORDED_MACHINE', but the current machine is '$MACHINE'; switch machines or rerun with --update-golden to replace it intentionally"
+if ! identity_message="$(python3 "$GOLDEN_IDENTITY_HELPER" verify \
+    --bundle "$GOLDEN_BUNDLE" \
+    --registry "$SCENARIO_REGISTRY" \
+    --descriptor "$RIG_DESCRIPTOR" \
+    --current-identity "$CURRENT_IDENTITY" \
+    --example "$EXAMPLE" \
+    --scenario "$SCENARIO" 2>&1)"; then
+  refusal_reason="${identity_message//$'\n'/ }"
+  printf 'machine_verdict=refused\nruntime_verification=passed\nrefusal_reason=%s\n' \
+    "$refusal_reason" >"$MACHINE_VERDICT" || true
+  echo "machine_verdict=refused" >&2
+  echo "$identity_message" >&2
+  echo "Work directory left for inspection: $WORK" >&2
+  exit 3
 fi
 if ! python3 "$PNG_TOOL" compare "$ACTUAL_IMAGE" "$GOLDEN"; then
   python3 "$PNG_TOOL" diff "$GOLDEN" "$ACTUAL_IMAGE" "$DIFF_DIR/$SCENARIO.png" || true

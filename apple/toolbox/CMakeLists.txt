@@ -78,7 +78,7 @@ endfunction()
 add_library(LokaAppleToolboxCore STATIC ${LOKA_TOOLBOX_SOURCES} ${COMMON_SOURCES})
 loka_configure_toolbox_core(LokaAppleToolboxCore)
 
-if(CMAKE_SYSTEM_NAME MATCHES "^Retro68$")
+if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC)$")
   # Standalone scenario applications need TEST_ID-bearing inline definitions
   # to have one meaning throughout the executable. Keep this variant explicit
   # and out of ordinary builds rather than mixing it with the shipping core.
@@ -100,3 +100,12 @@ target_link_libraries(LokaAppleToolbox INTERFACE
 target_include_directories(LokaAppleToolbox INTERFACE
   ${CMAKE_CURRENT_LIST_DIR}
 )
+
+if(LOKA_TOOLBOX_MULTIVERSAL_INTERFACES)
+  target_include_directories(LokaAppleToolbox BEFORE INTERFACE
+    ${CMAKE_CURRENT_LIST_DIR}/compat/multiversal
+  )
+  target_compile_definitions(LokaAppleToolbox INTERFACE
+    LOKA_TOOLBOX_MULTIVERSAL_INTERFACES=1
+  )
+endif()

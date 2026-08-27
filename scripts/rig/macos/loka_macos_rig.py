@@ -37,7 +37,7 @@ from loka_rig_common import (
     execute_adapter,
     make_run_id,
     parse_bool,
-    read_single_section,
+    read_declared_section,
     render_manifest,
     require_keys,
     resolve_commit,
@@ -94,7 +94,7 @@ class VmLease:
 
 
 def load_descriptor(path: pathlib.Path) -> RigDescriptor:
-    section = read_single_section(path, "rig")
+    section = read_declared_section(path, "rig", permitted=("rig", "capture"))
     expected = {
         "descriptor_version",
         "rig_id",
@@ -121,7 +121,12 @@ def load_descriptor(path: pathlib.Path) -> RigDescriptor:
     if not modes or not modes.issubset(SUPPORTED_MODES):
         raise RigError("configuration", f"{path}: unsupported or empty supported_modes")
     if section["build_profile"] != "macos-10.6-sdk-i386":
-        raise RigError("configuration", f"{path}: unsupported build_profile")
+        raise RigError(
+            "configuration",
+            f"{path}: build_profile {section['build_profile'].strip()} is not one this adapter runs "
+            "(macos-10.6-sdk-i386); a descriptor can declare a capture environment for the "
+            "scenario rail without being runnable here",
+        )
     return RigDescriptor(
         rig_id=rig_id,
         os_version=section["os_version"].strip(),
@@ -138,7 +143,7 @@ def load_descriptor(path: pathlib.Path) -> RigDescriptor:
 
 
 def load_local_mapping(path: pathlib.Path) -> LocalMapping:
-    section = read_single_section(path, "local")
+    section = read_declared_section(path, "local")
     required = {
         "vm_host_ssh",
         "vm_name",
@@ -522,8 +527,39 @@ class MacOSRigRun:
             ),
             {"PATH": "/opt/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"},
         )
+        # The scenario runner stages Scrapbook packages through the host lrpc
+        # tool; a fresh checkout must build it or the runner refuses. The
+        # target build above cannot supply it: lrpc is a host tool, built by
+        # its own configure into build/host/lrpc, and this rail cross-builds
+        # the app for i386 against the 10.6 SDK. Leave that bare, the way the
+        # runner's own remediation line spells it, so lrpc is compiled for the
+        # machine that has to run it.
+        configure_lrpc = remote_in_directory(
+            self.target_source,
+            (
+                "/opt/local/bin/cmake",
+                "-S",
+                "tools/lrpc",
+                "-B",
+                "build/host/lrpc",
+            ),
+            {"PATH": "/opt/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"},
+        )
+        build_lrpc = remote_in_directory(
+            self.target_source,
+            (
+                "/opt/local/bin/cmake",
+                "--build",
+                "build/host/lrpc",
+                "--parallel",
+                "2",
+            ),
+            {"PATH": "/opt/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"},
+        )
         self._run_logged_ssh(configure, "build.log", "configure")
         self._run_logged_ssh(build, "build.log", "build")
+        self._run_logged_ssh(configure_lrpc, "build.log", "configure-lrpc")
+        self._run_logged_ssh(build_lrpc, "build.log", "build-lrpc")
 
     def _runner_command(self) -> str:
         app = self.target_source / "build" / "loka-rig-macos" / "apple" / "macos" / "LokaScrapbookScenarioMacOS.app"

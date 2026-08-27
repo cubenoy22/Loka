@@ -73,6 +73,15 @@ namespace
     return lhs.left == rhs.left && lhs.top == rhs.top &&
            lhs.right == rhs.right && lhs.bottom == rhs.bottom;
   }
+
+  void CountFrameNotification(void *userData)
+  {
+    int *count = static_cast<int *>(userData);
+    if (count)
+    {
+      ++*count;
+    }
+  }
 } // namespace
 
 void testWin32DeclaredWindowSizeMeansClientArea()
@@ -227,4 +236,102 @@ void testWin32MenuRebuildPreservesMovedWindowFrame()
   app.setActiveWindow(0);
   setWindowVisibility(window, false);
   printf("==== [testWin32MenuRebuildPreservesMovedWindowFrame] PASSED ====\n");
+}
+
+void testWin32WindowDestructionDestroysNativeWindow()
+{
+  printf("\n==== [testWin32WindowDestructionDestroysNativeWindow] start ====\n");
+  HWND hwnd = NULL;
+  {
+    WindowProps props;
+    props.frame(40, 40, 257, 163).visible(false);
+    NullPlatformContext context;
+    Win32Window window(&context, props);
+    setWindowVisibility(window, true);
+    hwnd = window.hwnd();
+    LOKA_VERIFY(hwnd != NULL);
+    const BOOL windowCreated = IsWindow(hwnd);
+    LOKA_VERIFY(windowCreated);
+  }
+  const BOOL windowRemaining = IsWindow(hwnd);
+  LOKA_VERIFY(!windowRemaining);
+  printf("==== [testWin32WindowDestructionDestroysNativeWindow] PASSED ====\n");
+}
+
+void testWin32RepeatedAppDestructionDetachesMenuBeforeDestroyingHandle()
+{
+  printf("\n==== [testWin32RepeatedAppDestructionDetachesMenuBeforeDestroyingHandle] start ====\n");
+  loka::app::MenuBarDefinition menuBar;
+  menuBar << (loka::app::Menu("File") << loka::app::MenuItem("Quit"));
+  WindowProps props;
+  props.frame(40, 40, 257, 163).visible(false);
+  NullPlatformContext context;
+  Win32Window window(&context, props);
+  setWindowVisibility(window, true);
+  HWND hwnd = window.hwnd();
+  LOKA_VERIFY(hwnd != NULL);
+  int frameNotifications = 0;
+  window.frameState().deferBind(&CountFrameNotification, &frameNotifications);
+
+  for (int run = 0; run < 2; ++run)
+  {
+    HMENU menu = NULL;
+    {
+      MenuApplyingWin32App app;
+      app.setActiveWindow(&window);
+      app.setDefaultMenuBar(&menuBar);
+      menu = GetMenu(hwnd);
+      LOKA_VERIFY(menu != NULL);
+      const BOOL menuCreated = IsMenu(menu);
+      LOKA_VERIFY(menuCreated);
+      frameNotifications = 0;
+    }
+
+    // App teardown may alter native menu ownership but must publish no State.
+    LOKA_VERIFY(frameNotifications == 0);
+    assertClientSize(hwnd, 257, 163);
+    const HMENU attachedMenu = GetMenu(hwnd);
+    LOKA_VERIFY(attachedMenu == NULL);
+    const BOOL menuRemaining = IsMenu(menu);
+    LOKA_VERIFY(!menuRemaining);
+  }
+
+  const BOOL windowRemaining = IsWindow(hwnd);
+  LOKA_VERIFY(windowRemaining);
+  window.frameState().deferUnbind(&CountFrameNotification, &frameNotifications);
+  setWindowVisibility(window, false);
+  printf("==== [testWin32RepeatedAppDestructionDetachesMenuBeforeDestroyingHandle] PASSED ====\n");
+}
+
+void testWin32NativeWindowDestructionReleasesMenuWithoutStateNotification()
+{
+  printf("\n==== [testWin32NativeWindowDestructionReleasesMenuWithoutStateNotification] start ====\n");
+  loka::app::MenuBarDefinition menuBar;
+  menuBar << (loka::app::Menu("File") << loka::app::MenuItem("Quit"));
+  MenuApplyingWin32App app;
+  WindowProps props;
+  props.frame(40, 40, 257, 163).visible(false);
+  NullPlatformContext context;
+  Win32Window window(&context, props);
+  window.setApp(&app);
+  setWindowVisibility(window, true);
+  app.setDefaultMenuBar(&menuBar);
+  HMENU menu = GetMenu(window.hwnd());
+  LOKA_VERIFY(menu != NULL);
+  const BOOL menuCreated = IsMenu(menu);
+  LOKA_VERIFY(menuCreated);
+  int frameNotifications = 0;
+  window.frameState().deferBind(&CountFrameNotification, &frameNotifications);
+
+  setWindowVisibility(window, false);
+
+  LOKA_VERIFY(frameNotifications == 0);
+  const HWND destroyedHwnd = window.hwnd();
+  LOKA_VERIFY(destroyedHwnd == NULL);
+  Window *activeWindow = app.activeWindow();
+  LOKA_VERIFY(activeWindow == NULL);
+  const BOOL menuRemaining = IsMenu(menu);
+  LOKA_VERIFY(!menuRemaining);
+  window.frameState().deferUnbind(&CountFrameNotification, &frameNotifications);
+  printf("==== [testWin32NativeWindowDestructionReleasesMenuWithoutStateNotification] PASSED ====\n");
 }

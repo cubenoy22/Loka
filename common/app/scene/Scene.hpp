@@ -20,6 +20,7 @@
 #include "dsl/composition/CompositionDiff.hpp"
 
 class Window;
+class SceneManager;
 
 enum SceneLifecycle
 {
@@ -480,7 +481,7 @@ namespace loka
         bool cycleWhiteFlagFullRebuild_;
 
         // SceneManager owns lifecycle_/attached mutations.
-        friend class SceneManager;
+        friend class ::SceneManager;
         friend class loka::app::detail::SceneRetirePool;
         friend class SceneDirector;
         friend class ::loka::dsl::testing::SceneTestAccess;

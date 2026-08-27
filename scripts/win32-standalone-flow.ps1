@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("Build", "Stage", "Verify")]
+    [ValidateSet("Build", "Stage", "Verify", "Release")]
     [string]$Action = "Verify",
 
     [ValidateSet("x86", "x64", "arm64")]
@@ -9,16 +9,17 @@ param(
 
     [string]$StageDirectory,
 
-    [int]$TimeoutSeconds = 30
+    [int]$TimeoutSeconds = 120
 )
 
 $ErrorActionPreference = "Stop"
 
 $ScriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDirectory = Split-Path -Parent $ScriptDirectory
-$expectedAuditName = "standalone-tour.audit"
-$packagedExecutable = Join-Path $ScriptDirectory "LokaScrapbookStandaloneFlowWin32.exe"
-$isPackagedVerifier = Test-Path -LiteralPath $packagedExecutable
+$CatalogName = "standalone-flow-catalog.tsv"
+$PackagedCatalog = Join-Path $ScriptDirectory $CatalogName
+$IsPackagedVerifier = Test-Path -LiteralPath $PackagedCatalog
+$IsReleasePackage = $Action -eq "Release"
 
 function Resolve-ProjectPath([string]$Path) {
     if ([System.IO.Path]::IsPathRooted($Path)) {
@@ -56,9 +57,7 @@ function Get-PeArchitecture([string]$Path) {
 function Assert-ExecutableArchitecture([string]$Path, [string]$Expected) {
     $actual = Get-PeArchitecture $Path
     if ($actual -ne $Expected) {
-        throw (("Expected a {0} PE executable, but the selected compiler produced {1}. " +
-            "Start VS Code from the Visual Studio Command Line Tools for the intended target and use a fresh architecture-specific preset.") -f
-            $Expected, $actual)
+        throw ("Expected a {0} PE executable, but {1} contains {2}." -f $Expected, $Path, $actual)
     }
 }
 
@@ -75,12 +74,10 @@ function Assert-FileCopy([string]$Source, [string]$Destination) {
 function Get-CompilerEnvironmentArchitecture {
     $compiler = Get-Command cl.exe -ErrorAction SilentlyContinue
     if (-not $compiler) {
-        throw "cl.exe is not available. Start VS Code from Visual Studio Command Line Tools for the intended target."
+        throw "cl.exe is not available. Run this script from Visual Studio Command Line Tools."
     }
-
     if (-not $env:VSCMD_ARG_TGT_ARCH) {
-        throw ("The Visual Studio target architecture is unavailable. " +
-            "Start VS Code from ARM64, x64, or x86 Visual Studio Command Line Tools.")
+        throw "The Visual Studio target architecture is unavailable."
     }
 
     $target = $env:VSCMD_ARG_TGT_ARCH.ToLowerInvariant()
@@ -96,9 +93,20 @@ function Get-CompilerEnvironmentArchitecture {
 function Assert-CompilerEnvironment([string]$Expected) {
     $target = Get-CompilerEnvironmentArchitecture
     if ($target -ne $Expected) {
-        throw (("The requested architecture is {0}, but this Visual Studio environment targets {1}. " +
-            "Restart VS Code from the intended Visual Studio Command Line Tools or omit -Architecture to use the inherited target.") -f
+        throw ("The requested architecture is {0}, but this Visual Studio environment targets {1}." -f
             $Expected, $target)
+    }
+    if ($env:VCToolsInstallDir -and $env:VSCMD_ARG_HOST_ARCH) {
+        $hostTarget = $env:VSCMD_ARG_HOST_ARCH.ToLowerInvariant()
+        if ($hostTarget -eq "amd64") {
+            $hostTarget = "x64"
+        }
+        $expectedCompiler = Join-Path $env:VCToolsInstallDir `
+            ("bin\Host" + $hostTarget + "\" + $Expected + "\cl.exe")
+        if (-not (Test-Path -LiteralPath $expectedCompiler -PathType Leaf)) {
+            throw ("The Visual Studio {0} C++ compiler is not installed: {1}" -f
+                $Expected, $expectedCompiler)
+        }
     }
 }
 
@@ -145,38 +153,102 @@ function Assert-SuccessAudit([string]$Path, [string]$ExpectedPath) {
     }
 }
 
-if (-not $Architecture) {
-    if ($isPackagedVerifier) {
-        $Architecture = Get-PeArchitecture $packagedExecutable
-    } else {
-        $Architecture = Get-CompilerEnvironmentArchitecture
+function Get-StandaloneCatalog([string]$Path) {
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        throw "Standalone Flow catalog not found: $Path"
     }
+
+    $entries = @()
+    $keys = New-Object 'System.Collections.Generic.HashSet[string]'
+    $targets = New-Object 'System.Collections.Generic.HashSet[string]'
+    foreach ($line in [System.IO.File]::ReadAllLines($Path)) {
+        if (-not $line -or $line.StartsWith("#")) {
+            continue
+        }
+        $fields = $line.Split("`t")
+        if ($fields.Length -ne 3) {
+            throw "Invalid Standalone Flow catalog line: $line"
+        }
+        $key = $fields[0]
+        $target = $fields[1]
+        $expectedAudit = $fields[2].Replace("/", [System.IO.Path]::DirectorySeparatorChar)
+        if ($key -notmatch '^[a-z0-9_-]+$') {
+            throw "Invalid Standalone Flow catalog key: $key"
+        }
+        if ($target -notmatch '^[A-Za-z0-9_]+$') {
+            throw "Invalid Standalone Flow catalog target for '$key': $target"
+        }
+        if ($fields[2] -notmatch '^tests/scenarios/expected/[A-Za-z0-9_-]+/[A-Za-z0-9_-]+\.audit$' `
+            -or $fields[2].Contains("..")) {
+            throw "Invalid Standalone Flow expected audit for '$key': $($fields[2])"
+        }
+        if (-not $keys.Add($key) -or -not $targets.Add($target)) {
+            throw "Duplicate Standalone Flow catalog key or target: $line"
+        }
+        $entries += [PSCustomObject]@{
+            Key = $key
+            Target = $target
+            ExpectedAudit = $expectedAudit
+        }
+    }
+    if ($entries.Count -ne 5) {
+        throw "Standalone Flow catalog must contain five runnable applications; found $($entries.Count)."
+    }
+    return ,$entries
 }
 
-if ($isPackagedVerifier -and $Action -ne "Verify") {
+if ($IsPackagedVerifier -and $Action -ne "Verify") {
     throw "The staged verifier supports only the Verify action."
 }
 
-$configurePreset = "win32-$Architecture-release"
-$buildPreset = "win32-standalone-flow-$Architecture-release"
-if (-not $BuildDirectory) {
-    $BuildDirectory = "build/win32/presentation/$Architecture/Release"
+$configurePreset = if ($Architecture) { "win32-standalone-$Architecture-release" } else { $null }
+$buildPreset = if ($Architecture) {
+    if ($IsReleasePackage) {
+        "win32-standalone-loop-$Architecture-release"
+    } else {
+        "win32-standalone-flow-$Architecture-release"
+    }
+} else { $null }
+if (-not $BuildDirectory -and $Architecture) {
+    $BuildDirectory = "build/win32/standalone/presentation/$Architecture/Release"
 }
-if (-not $StageDirectory) {
-    $StageDirectory = "build/presentation/win32-$Architecture-release"
+if (-not $StageDirectory -and $Architecture) {
+    $StageDirectory = if ($IsReleasePackage) {
+        "build/release/win32-$Architecture"
+    } else {
+        "build/presentation/win32-$Architecture-release"
+    }
 }
 
-$buildRoot = Resolve-ProjectPath $BuildDirectory
-$stageRoot = if ($isPackagedVerifier) { $ScriptDirectory } else { Resolve-ProjectPath $StageDirectory }
-$builtExecutable = Join-Path $buildRoot "example/ScrapbookUI/standalone-flow/LokaScrapbookStandaloneFlowWin32.exe"
-$builtAssets = Join-Path $buildRoot "example/ScrapbookUI/standalone-flow/ASSETS.LRP"
-$stagedExecutable = Join-Path $stageRoot "LokaScrapbookStandaloneFlowWin32.exe"
-$stagedAssets = Join-Path $stageRoot "ASSETS.LRP"
-$stagedVerifier = Join-Path $stageRoot "Verify-StandaloneFlow.ps1"
-$expectedAuditPath = Join-Path $stageRoot $expectedAuditName
-$auditPath = Join-Path $stageRoot "LOG.TXT"
+$buildRoot = if ($BuildDirectory) { Resolve-ProjectPath $BuildDirectory } else { $null }
+$stageRoot = if ($IsPackagedVerifier) { $ScriptDirectory } else { Resolve-ProjectPath $StageDirectory }
+$buildCatalog = if ($buildRoot) { Join-Path $buildRoot $CatalogName } else { $null }
+$catalogPath = if ($IsPackagedVerifier) { $PackagedCatalog } else { $buildCatalog }
 
-if (-not $isPackagedVerifier) {
+if (-not $IsPackagedVerifier) {
+    if (-not $Architecture) {
+        $Architecture = Get-CompilerEnvironmentArchitecture
+        $configurePreset = "win32-standalone-$Architecture-release"
+        $buildPreset = if ($IsReleasePackage) {
+            "win32-standalone-loop-$Architecture-release"
+        } else {
+            "win32-standalone-flow-$Architecture-release"
+        }
+        if (-not $BuildDirectory) {
+            $BuildDirectory = "build/win32/standalone/presentation/$Architecture/Release"
+            $buildRoot = Resolve-ProjectPath $BuildDirectory
+            $buildCatalog = Join-Path $buildRoot $CatalogName
+            $catalogPath = $buildCatalog
+        }
+        if (-not $StageDirectory) {
+            $StageDirectory = if ($IsReleasePackage) {
+                "build/release/win32-$Architecture"
+            } else {
+                "build/presentation/win32-$Architecture-release"
+            }
+            $stageRoot = Resolve-ProjectPath $StageDirectory
+        }
+    }
     Assert-CompilerEnvironment $Architecture
     Push-Location $ProjectDirectory
     try {
@@ -191,86 +263,202 @@ if (-not $isPackagedVerifier) {
     } finally {
         Pop-Location
     }
+}
 
-    if (-not (Test-Path -LiteralPath $builtExecutable)) {
-        throw "Standalone Flow executable not found: $builtExecutable"
+$catalog = Get-StandaloneCatalog $catalogPath
+if (-not $Architecture) {
+    $firstExecutable = Join-Path $stageRoot ($catalog[0].Target + ".exe")
+    $Architecture = Get-PeArchitecture $firstExecutable
+}
+
+if ($IsReleasePackage) {
+    $loopExecutableRoot = Join-Path $buildRoot "standalone-loop"
+    $loopAssets = Join-Path $loopExecutableRoot "ASSETS.LRP"
+    $simpleViewer = Join-Path $buildRoot "example/SimpleViewer/LokaSimpleViewerWin32.exe"
+    foreach ($entry in $catalog) {
+        $loopTarget = $entry.Target.Replace("StandaloneFlow", "StandaloneLoop")
+        $loopExecutable = Join-Path $loopExecutableRoot ($loopTarget + ".exe")
+        if (-not (Test-Path -LiteralPath $loopExecutable -PathType Leaf)) {
+            throw "Autonomous loop executable not found: $loopExecutable"
+        }
+        Assert-ExecutableArchitecture $loopExecutable $Architecture
     }
-    if (-not (Test-Path -LiteralPath $builtAssets)) {
+    if (-not (Test-Path -LiteralPath $simpleViewer -PathType Leaf)) {
+        throw "SimpleViewer Release executable not found: $simpleViewer"
+    }
+    Assert-ExecutableArchitecture $simpleViewer $Architecture
+    if (-not (Test-Path -LiteralPath $loopAssets -PathType Leaf)) {
+        throw "Autonomous loop assets not found: $loopAssets"
+    }
+
+    . (Join-Path $ScriptDirectory "presentation-stage.ps1")
+    $populateRelease = {
+        param([string]$Destination)
+
+        foreach ($entry in $catalog) {
+            $loopTarget = $entry.Target.Replace("StandaloneFlow", "StandaloneLoop")
+            $sourceExecutable = Join-Path $loopExecutableRoot ($loopTarget + ".exe")
+            $destinationExecutable = Join-Path $Destination ($loopTarget + ".exe")
+            Copy-Item -LiteralPath $sourceExecutable -Destination $destinationExecutable
+            Assert-ExecutableArchitecture $destinationExecutable $Architecture
+            Assert-FileCopy $sourceExecutable $destinationExecutable
+        }
+        Copy-Item -LiteralPath $simpleViewer `
+            -Destination (Join-Path $Destination "LokaSimpleViewerWin32.exe")
+        Copy-Item -LiteralPath $loopAssets `
+            -Destination (Join-Path $Destination "ASSETS.LRP")
+        Assert-FileCopy $simpleViewer `
+            (Join-Path $Destination "LokaSimpleViewerWin32.exe")
+        Assert-FileCopy $loopAssets (Join-Path $Destination "ASSETS.LRP")
+        $sourceVersionMatch = Select-String -LiteralPath (Join-Path $ProjectDirectory "CMakeLists.txt") `
+            -Pattern '^project\(Loka VERSION ([0-9.]+) LANGUAGES CXX\)$'
+        if (-not $sourceVersionMatch) {
+            throw "Could not read the Loka source version from CMakeLists.txt"
+        }
+        $sourceVersion = $sourceVersionMatch.Matches[0].Groups[1].Value
+        [System.IO.File]::WriteAllText(
+            (Join-Path $Destination "README.txt"),
+            "Loka $sourceVersion Release applications`r`n`r`n" +
+            "The five StandaloneLoop applications run their UI tour repeatedly.`r`n" +
+            "Close a loop application's window to stop it. SimpleViewer remains interactive.`r`n")
+    }.GetNewClosure()
+    Install-LokaPresentationStageDirectory `
+        -StageRoot $stageRoot -Populate $populateRelease
+    Write-Output "Staged five autonomous loops plus SimpleViewer ($Architecture): $stageRoot"
+    exit 0
+}
+
+$builtExecutableRoot = if ($buildRoot) { Join-Path $buildRoot "standalone-flow" } else { $null }
+$builtAssets = if ($builtExecutableRoot) { Join-Path $builtExecutableRoot "ASSETS.LRP" } else { $null }
+
+if (-not $IsPackagedVerifier) {
+    foreach ($entry in $catalog) {
+        $builtExecutable = Join-Path $builtExecutableRoot ($entry.Target + ".exe")
+        if (-not (Test-Path -LiteralPath $builtExecutable -PathType Leaf)) {
+            throw "Standalone Flow executable not found: $builtExecutable"
+        }
+        Assert-ExecutableArchitecture $builtExecutable $Architecture
+    }
+    if (-not (Test-Path -LiteralPath $builtAssets -PathType Leaf)) {
         throw "Standalone Flow assets not found: $builtAssets"
     }
-    Assert-ExecutableArchitecture $builtExecutable $Architecture
 
     if ($Action -eq "Build") {
-        Write-Output "Built $Architecture Standalone Flow: $builtExecutable"
+        Write-Output "Built five $Architecture Standalone Flow Release executables: $builtExecutableRoot"
         exit 0
     }
 
-    $presentationStageHelper = Join-Path $ScriptDirectory "presentation-stage.ps1"
-    . $presentationStageHelper
+    . (Join-Path $ScriptDirectory "presentation-stage.ps1")
     $sourceVerifier = $MyInvocation.MyCommand.Path
     $populateStage = {
         param([string]$Destination)
 
-        $destinationExecutable = Join-Path $Destination "LokaScrapbookStandaloneFlowWin32.exe"
-        $destinationAssets = Join-Path $Destination "ASSETS.LRP"
-        $destinationVerifier = Join-Path $Destination "Verify-StandaloneFlow.ps1"
-        $sourceExpectedAudit = Join-Path $ProjectDirectory "tests/scenarios/expected/scrapbook/$expectedAuditName"
-        $destinationExpectedAudit = Join-Path $Destination $expectedAuditName
-        Copy-Item -LiteralPath $builtExecutable -Destination $destinationExecutable
-        Copy-Item -LiteralPath $builtAssets -Destination $destinationAssets
-        Copy-Item -LiteralPath $sourceVerifier -Destination $destinationVerifier
-        Copy-Item -LiteralPath $sourceExpectedAudit -Destination $destinationExpectedAudit
-        Assert-ExecutableArchitecture $destinationExecutable $Architecture
-        Assert-FileCopy $builtExecutable $destinationExecutable
-        Assert-FileCopy $builtAssets $destinationAssets
-        Assert-FileCopy $sourceVerifier $destinationVerifier
-        Assert-FileCopy $sourceExpectedAudit $destinationExpectedAudit
+        $expectedRoot = Join-Path $Destination "expected"
+        New-Item -ItemType Directory -Path $expectedRoot | Out-Null
+        Copy-Item -LiteralPath $buildCatalog -Destination (Join-Path $Destination $CatalogName)
+        Copy-Item -LiteralPath $builtAssets -Destination (Join-Path $Destination "ASSETS.LRP")
+        Copy-Item -LiteralPath $sourceVerifier -Destination (Join-Path $Destination "Verify-StandaloneFlow.ps1")
+        foreach ($entry in $catalog) {
+            $sourceExecutable = Join-Path $builtExecutableRoot ($entry.Target + ".exe")
+            $destinationExecutable = Join-Path $Destination ($entry.Target + ".exe")
+            $sourceExpected = Join-Path $ProjectDirectory $entry.ExpectedAudit
+            $destinationExpected = Join-Path $expectedRoot ($entry.Key + ".audit")
+            Copy-Item -LiteralPath $sourceExecutable -Destination $destinationExecutable
+            Copy-Item -LiteralPath $sourceExpected -Destination $destinationExpected
+            Assert-ExecutableArchitecture $destinationExecutable $Architecture
+            Assert-FileCopy $sourceExecutable $destinationExecutable
+            Assert-FileCopy $sourceExpected $destinationExpected
+        }
+        Assert-FileCopy $buildCatalog (Join-Path $Destination $CatalogName)
+        Assert-FileCopy $builtAssets (Join-Path $Destination "ASSETS.LRP")
+        Assert-FileCopy $sourceVerifier (Join-Path $Destination "Verify-StandaloneFlow.ps1")
     }.GetNewClosure()
     Install-LokaPresentationStageDirectory -StageRoot $stageRoot -Populate $populateStage
 
     if ($Action -eq "Stage") {
-        Write-Output "Staged $Architecture presentation: $stageRoot"
+        Write-Output "Staged five portable $Architecture Standalone Flow Release executables: $stageRoot"
         exit 0
     }
 }
 
-if (-not (Test-Path -LiteralPath $stagedExecutable)) {
-    throw "Staged executable not found: $stagedExecutable."
+$stagedAssets = Join-Path $stageRoot "ASSETS.LRP"
+if (-not (Test-Path -LiteralPath $stagedAssets -PathType Leaf)) {
+    throw "Staged Standalone Flow assets not found: $stagedAssets"
 }
-if (-not (Test-Path -LiteralPath $stagedAssets)) {
-    throw "Staged assets not found: $stagedAssets."
+foreach ($entry in $catalog) {
+    $stagedExecutable = Join-Path $stageRoot ($entry.Target + ".exe")
+    $expectedAuditPath = Join-Path (Join-Path $stageRoot "expected") `
+        ($entry.Key + ".audit")
+    if (-not (Test-Path -LiteralPath $stagedExecutable -PathType Leaf)) {
+        throw "Staged executable not found: $stagedExecutable"
+    }
+    if (-not (Test-Path -LiteralPath $expectedAuditPath -PathType Leaf)) {
+        throw "Staged expected audit not found: $expectedAuditPath"
+    }
+    Assert-ExecutableArchitecture $stagedExecutable $Architecture
 }
-if (-not (Test-Path -LiteralPath $expectedAuditPath)) {
-    throw "Staged expected audit not found: $expectedAuditPath."
-}
-Assert-ExecutableArchitecture $stagedExecutable $Architecture
-Remove-Item -LiteralPath $auditPath -Force -ErrorAction SilentlyContinue
 
-$process = $null
-try {
-    $process = Start-Process -FilePath $stagedExecutable -WorkingDirectory $stageRoot -PassThru
-    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
-    while ([DateTime]::UtcNow -lt $deadline) {
-        if (Test-Path -LiteralPath $auditPath) {
-            $content = Read-SharedText $auditPath
-            if ($content -match "(?m)^terminal status=(failed|canceled)\r?$") {
-                throw "Standalone Flow reported terminal status $($Matches[1])."
-            }
-            if ($content -match "(?m)^terminal status=succeeded\r?$") {
-                Assert-SuccessAudit $auditPath $expectedAuditPath
-                Write-Output "Runtime-verified $Architecture Standalone Flow: $auditPath"
-                exit 0
-            }
+$actualRoot = Join-Path $stageRoot "actual"
+New-Item -ItemType Directory -Path $actualRoot -Force | Out-Null
+foreach ($entry in $catalog) {
+    Remove-Item -LiteralPath (Join-Path $actualRoot ($entry.Key + ".audit")) `
+        -Force -ErrorAction SilentlyContinue
+}
+
+$auditPath = Join-Path $stageRoot "LOG.TXT"
+foreach ($entry in $catalog) {
+    $stagedExecutable = Join-Path $stageRoot ($entry.Target + ".exe")
+    $expectedAuditPath = Join-Path (Join-Path $stageRoot "expected") ($entry.Key + ".audit")
+    $actualAuditPath = Join-Path $actualRoot ($entry.Key + ".audit")
+    Remove-Item -LiteralPath $auditPath -Force -ErrorAction SilentlyContinue
+
+    $process = $null
+    $previousAuditFixture = $env:LOKA_STANDALONE_AUDIT_FIXTURE
+    try {
+        if ($env:LOKA_STANDALONE_AUDIT_FIXTURE_DIR) {
+            $env:LOKA_STANDALONE_AUDIT_FIXTURE = Join-Path `
+                $env:LOKA_STANDALONE_AUDIT_FIXTURE_DIR ($entry.Key + ".audit")
         }
-        if ($process.HasExited) {
-            throw "Standalone Flow exited before publishing a success audit (exit code $($process.ExitCode))."
+        $process = Start-Process -FilePath $stagedExecutable -WorkingDirectory $stageRoot -PassThru
+        $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+        while ([DateTime]::UtcNow -lt $deadline) {
+            if (Test-Path -LiteralPath $auditPath) {
+                try {
+                    $content = Read-SharedText $auditPath
+                } catch [System.IO.IOException] {
+                    # fopen creates the file before the app closes its
+                    # exclusive write handle. Treat that interval as pending.
+                    Start-Sleep -Milliseconds 50
+                    continue
+                }
+                if ($content -match "(?m)^terminal status=(failed|canceled)\r?$") {
+                    Copy-Item -LiteralPath $auditPath -Destination $actualAuditPath
+                    throw "$($entry.Key) Standalone Flow reported terminal status $($Matches[1])."
+                }
+                if ($content -match "(?m)^terminal status=succeeded\r?$") {
+                    Copy-Item -LiteralPath $auditPath -Destination $actualAuditPath
+                    Assert-SuccessAudit $actualAuditPath $expectedAuditPath
+                    Write-Output "Runtime-verified Win32 Standalone Flow: $($entry.Key) ($Architecture)"
+                    break
+                }
+            }
+            if ($process.HasExited) {
+                throw ("{0} Standalone Flow exited before publishing a success audit (exit code {1})." -f
+                    $entry.Key, $process.ExitCode)
+            }
+            Start-Sleep -Milliseconds 200
         }
-        Start-Sleep -Milliseconds 200
-    }
-    throw "Timed out after $TimeoutSeconds seconds waiting for Standalone Flow success."
-} finally {
-    if ($process -and -not $process.HasExited) {
-        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-        $process.WaitForExit()
+        if (-not (Test-Path -LiteralPath $actualAuditPath)) {
+            throw "Timed out after $TimeoutSeconds seconds waiting for $($entry.Key) Standalone Flow success."
+        }
+    } finally {
+        if ($process -and -not $process.HasExited) {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            $process.WaitForExit()
+        }
+        $env:LOKA_STANDALONE_AUDIT_FIXTURE = $previousAuditFixture
     }
 }
+
+Remove-Item -LiteralPath $auditPath -Force -ErrorAction SilentlyContinue
+Write-Output "Runtime-verified all five $Architecture Win32 Standalone Flow Release executables: $actualRoot"

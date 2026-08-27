@@ -8,7 +8,7 @@ int main()
 {
   NullPlatformContext context;
   const unsigned long gameSeed = 0x27182818UL;
-  MyAppConfig production(&context, gameSeed);
+  FloppyBirdAppConfig production(&context, gameSeed);
   loka::scenario_tests::FloppyBirdScenarioPresentation vehicle(&context, gameSeed);
   loka::scenario_tests::VerifyVehiclePresentation(&context, production, vehicle, true);
   std::printf("testFloppyBirdVehiclePresentationUsesExampleDeclaration passed\n");

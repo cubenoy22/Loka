@@ -8,7 +8,7 @@ int main(int argc, char **argv)
   (void)argv;
 
   NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-  int result = loka::platform::RunApp<MyAppConfig>();
+  int result = loka::platform::RunApp<TutorialAppConfig>();
   (void)pool;
   return result;
 }

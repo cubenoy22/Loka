@@ -17,6 +17,7 @@ fi
 EXAMPLE="$1"
 SCENARIO="$2"
 SCENARIO_REGISTRY="$PROJECT_DIR/tests/scenarios/scenarios.txt"
+STARTUP_IDENTITY_DECLARATIONS="$PROJECT_DIR/tests/scenarios/startup-golden-identities.txt"
 if [[ ! "$EXAMPLE" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
   || [[ ! "$SCENARIO" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
   || ! grep -Fxq -- "$EXAMPLE $SCENARIO" "$SCENARIO_REGISTRY"; then
@@ -51,16 +52,111 @@ APP="${LOKA_MACOS_SCENARIO_APP:-$PROJECT_DIR/build/macos/Debug/apple/macos/$TARG
 BINARY="$APP/Contents/MacOS/$TARGET"
 EXPECTED="$PROJECT_DIR/tests/scenarios/expected/$EXAMPLE/$SCENARIO.audit"
 PNG_TOOL="$PROJECT_DIR/tests/scenarios/pngtool.py"
+GOLDEN_IDENTITY_GUARD="$PROJECT_DIR/scripts/rig/golden_identity_guard.py"
+PACKAGE_FIXTURE_GUARD="$PROJECT_DIR/scripts/rig/package_fixture_guard.py"
+CAPTURE_PROFILE_GUARD="$PROJECT_DIR/scripts/rig/capture_profile_guard.py"
+RIG_DESCRIPTOR_DIRECTORY="$PROJECT_DIR/scripts/rig/macos/rigs"
 WORK_DIR_TOOL="$PROJECT_DIR/tests/macos/validate-work-dir.py"
 PYTHON3="${PYTHON3:-python3}"
 SCREENCAPTURE="${SCREENCAPTURE:-/usr/sbin/screencapture}"
+
+# Everything the run is expected to leave in the work directory, so a refusal
+# can say how far the app actually got. runner.log is reported separately: its
+# size is the fact that separates "hung before writing anything" from "stopped
+# partway", and neither is visible from a bare deadline message (#466).
+WORK_REQUIRED_ARTIFACTS=(
+  actual.audit
+  actual.png
+  actual.profile
+  settle-a.png
+  settle-b.png
+  runner.log
+)
+WORK_CENSUS_ENTRIES=(
+  LokaTest.cfg
+  app.pid
+  stage
+  ready
+  "${WORK_REQUIRED_ARTIFACTS[@]}"
+  complete
+)
+
+# Set once this run has emptied and recreated $WORK. Before that the directory
+# still holds the previous run's artifacts, and reporting those as progress
+# would be worse than saying nothing: a refusal that never launched the app
+# would list a completion marker.
+WORK_IS_THIS_RUNS=0
+
+describe_work_state() {
+  if [ ! -d "$WORK" ]; then
+    echo "Work state: the work directory does not exist"
+    return
+  fi
+  if [ "$WORK_IS_THIS_RUNS" -eq 0 ]; then
+    echo "Work state: this run stopped before it reset the work directory, so what is in it belongs to the previous run"
+    return
+  fi
+  if [ ! -f "$WORK/runner.log" ]; then
+    echo "Work state: runner.log absent -- the app was never launched"
+  elif [ ! -s "$WORK/runner.log" ]; then
+    # No inference is drawn from an empty log: a scenario app that runs to the
+    # end normally writes nothing to it either. What separates a run that died
+    # early from one that nearly finished is the artifact census below.
+    echo "Work state: runner.log 0 bytes"
+  else
+    local bytes last
+    bytes="$(wc -c <"$WORK/runner.log" | tr -d ' ')"
+    last="$(tr -d '\r' <"$WORK/runner.log" | tail -n 1 | cut -c1-200)"
+    echo "Work state: runner.log $bytes bytes, last line: $last"
+  fi
+  local present=() absent=() entry
+  for entry in "${WORK_CENSUS_ENTRIES[@]}"; do
+    if [ "$entry" = "runner.log" ]; then
+      # already reported above, with its size
+      continue
+    fi
+    if [ -e "$WORK/$entry" ]; then
+      present+=("$entry")
+    else
+      absent+=("$entry")
+    fi
+  done
+  echo "Present: ${present[*]:-(nothing)}"
+  echo "Absent: ${absent[*]:-(nothing)}"
+}
 
 fail_stage() {
   local stage="$1"
   shift
   echo "$stage stage failed: $*" >&2
   echo "Artifacts: $WORK" >&2
+  describe_work_state >&2
   exit 1
+}
+
+resolve_rig_descriptor() {
+  local name="${LOKA_MACOS_RIG:-}"
+  if [ -z "$name" ]; then
+    fail_stage profile \
+      "LOKA_MACOS_RIG is unset; set LOKA_MACOS_RIG=<name> for a descriptor in $RIG_DESCRIPTOR_DIRECTORY"
+  fi
+  if [[ ! "$name" =~ ^[a-z0-9][a-z0-9.-]*$ ]] || [[ "$name" == *..* ]]; then
+    fail_stage profile \
+      "invalid LOKA_MACOS_RIG name '$name'; expected a name matching ^[a-z0-9][a-z0-9.-]*$ without '..'"
+  fi
+  RIG_DESCRIPTOR="$RIG_DESCRIPTOR_DIRECTORY/$name.ini"
+  if [ ! -f "$RIG_DESCRIPTOR" ]; then
+    fail_stage profile \
+      "no tracked rig descriptor at $RIG_DESCRIPTOR; this rail's goldens would be pinned to an undeclared environment. Add $RIG_DESCRIPTOR declaring the [capture] fields this machine reports in $WORK/actual.profile."
+  fi
+}
+
+verify_capture_environment() {
+  if ! "$PYTHON3" "$CAPTURE_PROFILE_GUARD" \
+      --descriptor "$RIG_DESCRIPTOR" --profile "$WORK/actual.profile"; then
+    fail_stage profile \
+      "capture environment is not the one $RIG_DESCRIPTOR declares"
+  fi
 }
 
 publish_verified() {
@@ -70,6 +166,27 @@ publish_verified() {
 
 if [ ! -x "$BINARY" ]; then
   fail_stage build "missing $BINARY; run: cmake --preset macos-debug && cmake --build --preset macos-scenarios"
+fi
+if [ "$EXAMPLE" = "scrapbook" ]; then
+  LRPC="$PROJECT_DIR/build/host/lrpc/lrpc"
+  SOURCE_ASSETS="$PROJECT_DIR/example/ScrapbookUI/assets/ASSETS-modern.LRP"
+  FIXTURE_REGISTRY="$PROJECT_DIR/tests/scenarios/scrapbook-package-fixtures.txt"
+  # tools/lrpc pins no generator, so where the binary lands depends on the one
+  # cmake picks. A bare configure takes Unix Makefiles here and writes
+  # build/host/lrpc/lrpc, but an exported CMAKE_GENERATOR of Xcode -- which
+  # scripts/macos/gen-xcodeproj.sh makes a normal habit -- writes a per-config
+  # subdirectory instead. Look there too, the way the Win32 rail already does,
+  # so the remediation below is never printed to someone who ran it correctly.
+  if [ ! -x "$LRPC" ] && [ -x "$PROJECT_DIR/build/host/lrpc/Debug/lrpc" ]; then
+    LRPC="$PROJECT_DIR/build/host/lrpc/Debug/lrpc"
+  fi
+  if [ ! -x "$LRPC" ]; then
+    fail_stage stage \
+      "missing $LRPC; build it with: cmake -S tools/lrpc -B build/host/lrpc && cmake --build build/host/lrpc"
+  fi
+  if [ ! -f "$SOURCE_ASSETS" ]; then
+    fail_stage stage "package not found: $SOURCE_ASSETS"
+  fi
 fi
 if [ ! -f "$EXPECTED" ]; then
   fail_stage verdict "missing tracked audit $EXPECTED"
@@ -82,6 +199,47 @@ if [ -d "$WORK" ]; then
   rm -rf "$WORK"
 fi
 mkdir -p "$WORK"
+WORK_IS_THIS_RUNS=1
+if [ "$EXAMPLE" = "scrapbook" ]; then
+  if ! mkdir -p "$WORK/stage"; then
+    fail_stage stage "could not create $WORK/stage"
+  fi
+  STAGED_APP="$WORK/stage/$TARGET.app"
+  if ! cp -R "$APP" "$STAGED_APP"; then
+    fail_stage stage "could not copy $APP to $STAGED_APP"
+  fi
+  STAGED_ASSETS="$STAGED_APP/Contents/Resources/ASSETS.LRP"
+  if ! CORRUPT_BAG="$("$PYTHON3" "$PACKAGE_FIXTURE_GUARD" plan \
+      --registry "$FIXTURE_REGISTRY" --scenario "$SCENARIO" 2>&1)"; then
+    fail_stage stage "$CORRUPT_BAG"
+  fi
+  # The refusal message is worth merging into the value, but only on failure:
+  # on success anything the interpreter wrote to stderr rides along and would be
+  # handed to lrpc as a bag number. The answer shape is empty or decimal.
+  if [ -n "$CORRUPT_BAG" ] && [[ ! "$CORRUPT_BAG" =~ ^[0-9]+$ ]]; then
+    fail_stage stage "package fixture plan answered '$CORRUPT_BAG', not a bag number"
+  fi
+  STAGE_ARGUMENTS=(stage "$SOURCE_ASSETS" -o "$STAGED_ASSETS")
+  if [ -n "$CORRUPT_BAG" ]; then
+    STAGE_ARGUMENTS+=(--corrupt-bag "$CORRUPT_BAG")
+  fi
+  if ! "$LRPC" "${STAGE_ARGUMENTS[@]}"; then
+    fail_stage stage "could not stage the scenario package"
+  fi
+  if ! fixture_message="$("$PYTHON3" "$PACKAGE_FIXTURE_GUARD" verify \
+      --registry "$FIXTURE_REGISTRY" --scenario "$SCENARIO" \
+      --source "$SOURCE_ASSETS" --staged "$STAGED_ASSETS" 2>&1)"; then
+    fail_stage stage "$fixture_message"
+  fi
+  # BINARY carried the original bundle through the preflight above; from
+  # here it names the staged copy. cp does not promise the mode bits, and a
+  # non-executable copy would otherwise surface as "scenario app exited
+  # non-zero" from inside the launch subshell, pointing away from staging.
+  BINARY="$STAGED_APP/Contents/MacOS/$TARGET"
+  if [ ! -x "$BINARY" ]; then
+    fail_stage stage "staged $BINARY is not executable"
+  fi
+fi
 printf 'scenario %s\ncapture_dir %s\n' "$SCENARIO" "$WORK" >"$WORK/LokaTest.cfg"
 
 if [ "${LOKA_MACOS_SCENARIO_CAPTURE_DESKTOP:-0}" = "1" ]; then
@@ -141,7 +299,7 @@ fi
 if [ ! -f "$WORK/complete" ] || [ "$(tr -d '\r\n' <"$WORK/complete")" != "artifacts-ready" ]; then
   fail_stage completion "atomic completion marker is missing or invalid"
 fi
-for artifact in actual.audit actual.png actual.profile settle-a.png settle-b.png runner.log; do
+for artifact in "${WORK_REQUIRED_ARTIFACTS[@]}"; do
   if [ ! -f "$WORK/$artifact" ]; then
     fail_stage artifacts "missing $artifact"
   fi
@@ -167,7 +325,19 @@ if [ "$MODE" = "structural" ]; then
   exit 0
 fi
 
+resolve_rig_descriptor
+
 if [ "$MODE" = "update" ]; then
+  verify_capture_environment
+  if ! "$PYTHON3" "$GOLDEN_IDENTITY_GUARD" \
+      --registry "$SCENARIO_REGISTRY" \
+      --declarations "$STARTUP_IDENTITY_DECLARATIONS" \
+      --golden-root "$PROJECT_DIR/build/macos-scenario/golden" \
+      --capture "$WORK/actual.png" \
+      --example "$EXAMPLE" \
+      --scenario "$SCENARIO"; then
+    fail_stage golden "settled capture failed the startup-identity contract"
+  fi
   mkdir -p "$GOLDEN_DIR"
   cp -f "$WORK/actual.png" "$GOLDEN"
   cp -f "$WORK/actual.profile" "$GOLDEN_PROFILE"
@@ -175,6 +345,7 @@ if [ "$MODE" = "update" ]; then
   exit 0
 fi
 
+verify_capture_environment
 if [ ! -f "$GOLDEN" ] || [ ! -f "$GOLDEN_PROFILE" ]; then
   fail_stage golden "missing rig-local golden/profile; rerun with --update-golden"
 fi

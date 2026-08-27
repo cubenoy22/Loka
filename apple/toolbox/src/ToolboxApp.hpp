@@ -4,7 +4,7 @@
 #include "app/core/App.hpp"
 #include <vector>
 #include <Menus.h>
-
+#include "ToolboxActivationPhase.hpp"
 class ToolboxApp : public App
 {
 protected:
@@ -31,11 +31,18 @@ public:
 
   struct MenuBinding
   {
+    ToolboxApp *app;
     MenuHandle menu;
     short itemIndex;
     loka::core::State<bool> *enabledState;
     bool invertEnabled;
   };
+
+  /** Called by a live menu binding when it has updated the app-owned menu
+      data. Foreground: redraws the menu bar immediately. Background: the
+      shared menu bar is the foreground application's surface, so the single
+      redraw is deferred until resume. */
+  void noteMenuBarChangedFromBinding();
 
 private:
   struct MenuEntry
@@ -51,9 +58,15 @@ private:
   void resetMenuState();
   void disposeMenuEntries();
   void disposeHierarchicalMenus();
-  /** Applies recorded scene changes and paints each window once at the
-      run-loop tick's presentation boundary. */
-  void present();
+  /** Applies recorded scene changes and, while foreground, paints each window
+      once at the run-loop tick's presentation boundary. */
+  void present(ActivationPhase phase);
+  /** The run loop owns this; every step branches on it rather than taking
+      per-step booleans (see ToolboxActivationPhase.hpp). */
+  ActivationPhase activationPhase_;
+  /** A background binding changed the menu data; one DrawMenuBar is owed at
+      resume. */
+  bool menuBarDrawDeferred_;
   short nextMenuId_;
   std::vector<MenuCommand> commands_;
   std::vector<MenuBinding *> bindings_;

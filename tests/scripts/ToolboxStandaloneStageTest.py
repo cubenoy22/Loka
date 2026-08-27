@@ -24,7 +24,13 @@ class ToolboxStandaloneStageTest(unittest.TestCase):
         (self.fixture / "example" / "ScrapbookUI").mkdir(parents=True)
         (self.fixture / "tools").mkdir()
 
-        for name in ("toolbox-standalone-flow.sh", "presentation-stage.sh"):
+        for name in (
+            "toolbox-standalone-flow.sh",
+            "presentation-stage.sh",
+            "retro68-cmake.sh",
+            "retro68-env.sh",
+            "env-file.sh",
+        ):
             shutil.copy2(PROJECT_DIR / "scripts" / name, self.fixture / "scripts" / name)
         shutil.copy2(
             PROJECT_DIR / "docs" / "TOOLBOX_STANDALONE_FLOW.md",
@@ -38,13 +44,43 @@ class ToolboxStandaloneStageTest(unittest.TestCase):
             "cmake",
             r'''#!/usr/bin/env bash
 set -euo pipefail
+cpu=68k
+suffix=68K
+if [[ " $* " == *" retro68-ppc-standalone-release "* ]]; then
+  cpu=ppc
+  suffix=PPC
+fi
 if [[ " $* " == *" --build "* ]]; then
-  output="$PWD/build/retro68/68k/Release/tests/toolbox"
+  output="$PWD/build/retro68/$cpu/Standalone/Release/tests/toolbox"
   mkdir -p "$output"
-  printf 'fixture-macbinary' >"$output/LokaScrapbookStandaloneFlow68K.bin"
-  printf 'fixture-hfs-app\n' >"$output/LokaScrapbookStandaloneFlow68K.dsk"
+  if [[ " $* " == *" LokaStandaloneLoop${suffix}All"* ]]; then
+    for base in \
+      LokaScrapbookStandaloneLoop \
+      LokaHelloStandaloneLoop \
+      LokaTutorialStandaloneLoop \
+      LokaMineStandaloneLoop \
+      LokaFloppyStandaloneLoop; do
+      name="$base$suffix"
+      printf 'fixture-macbinary-%s' "$name" >"$output/$name.bin"
+      printf '%s\n' "$name" >"$output/$name.dsk"
+    done
+    simple="$PWD/build/retro68/$cpu/Standalone/Release/example/SimpleViewer"
+    mkdir -p "$simple"
+    printf 'fixture-simpleviewer' >"$simple/LokaSimpleViewer$suffix.bin"
+    printf 'LokaSimpleViewer%s\n' "$suffix" >"$simple/LokaSimpleViewer$suffix.dsk"
+  else
+    printf 'fixture-macbinary' >"$output/LokaScrapbookStandaloneFlow$suffix.bin"
+    printf 'LokaScrapbookStandaloneFlow%s\n' "$suffix" \
+      >"$output/LokaScrapbookStandaloneFlow$suffix.dsk"
+  fi
   cp "$PWD/example/ScrapbookUI/ASSETS.LRP" "$output/ASSETS.LRP"
 fi
+''',
+        )
+        self._write_tool(
+            "ninja",
+            r'''#!/usr/bin/env bash
+exit 0
 ''',
         )
         self._write_tool(
@@ -76,7 +112,7 @@ printf 'ASSETS.LRP\n' >>"$(cat "$HOME/mounted-disk")"
             r'''#!/usr/bin/env bash
 set -euo pipefail
 grep -q '^ASSETS.LRP$' "$(cat "$HOME/mounted-disk")"
-printf 'ASSETS.LRP\nLokaScrapbookStandaloneFlow68K\n'
+cat "$(cat "$HOME/mounted-disk")"
 ''',
         )
         self._write_tool(
@@ -95,13 +131,33 @@ rm -f "$HOME/mounted-disk"
         path.write_text(body, encoding="utf-8")
         path.chmod(0o755)
 
-    def _run_stage(self, **environment_overrides):
+    def _run_stage(self, cpu=None, **environment_overrides):
         environment = os.environ.copy()
         environment["PATH"] = str(self.fixture / "tools") + os.pathsep + environment["PATH"]
         environment["RETRO68_TOOLCHAIN_BIN"] = str(self.fixture / "tools")
         environment.update(environment_overrides)
+        command = ["bash", "scripts/toolbox-standalone-flow.sh", "Stage"]
+        if cpu is not None:
+            command.append(cpu)
         return subprocess.run(
-            ["bash", "scripts/toolbox-standalone-flow.sh", "Stage"],
+            command,
+            cwd=self.fixture,
+            env=environment,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+
+    def _run_release(self, cpu=None):
+        environment = os.environ.copy()
+        environment["PATH"] = str(self.fixture / "tools") + os.pathsep + environment["PATH"]
+        environment["RETRO68_TOOLCHAIN_BIN"] = str(self.fixture / "tools")
+        command = ["bash", "scripts/toolbox-standalone-flow.sh", "Release"]
+        if cpu is not None:
+            command.append(cpu)
+        return subprocess.run(
+            command,
             cwd=self.fixture,
             env=environment,
             stdout=subprocess.PIPE,
@@ -145,6 +201,70 @@ rm -f "$HOME/mounted-disk"
             (stage / "LokaScrapbookStandaloneFlow68K.dsk").read_bytes(), previous_disk
         )
 
+    def test_ppc_stage_contains_transport_and_self_contained_disk_artifacts(self):
+        result = self._run_stage("ppc")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+        stage = self.fixture / "build" / "presentation" / "toolbox-ppc-release"
+        self.assertEqual(
+            sorted(path.name for path in stage.iterdir()),
+            [
+                "ASSETS.LRP",
+                "LokaScrapbookStandaloneFlowPPC.bin",
+                "LokaScrapbookStandaloneFlowPPC.dsk",
+                "README.md",
+            ],
+        )
+        self.assertEqual((stage / "ASSETS.LRP").read_bytes(), b"fixture-assets\x00\xff")
+        self.assertIn(
+            b"ASSETS.LRP\n",
+            (stage / "LokaScrapbookStandaloneFlowPPC.dsk").read_bytes(),
+        )
+
+    def test_release_contains_five_loops_and_interactive_simpleviewer(self):
+        result = self._run_release()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+        release = self.fixture / "build" / "release" / "toolbox-68k"
+        expected = {"ASSETS.LRP", "README.md"}
+        for name in (
+            "LokaScrapbookStandaloneLoop68K",
+            "LokaHelloStandaloneLoop68K",
+            "LokaTutorialStandaloneLoop68K",
+            "LokaMineStandaloneLoop68K",
+            "LokaFloppyStandaloneLoop68K",
+            "LokaSimpleViewer68K",
+        ):
+            expected.add(f"{name}.bin")
+            expected.add(f"{name}.dsk")
+        self.assertEqual({path.name for path in release.iterdir()}, expected)
+        self.assertIn(
+            b"ASSETS.LRP\n",
+            (release / "LokaScrapbookStandaloneLoop68K.dsk").read_bytes(),
+        )
+
+    def test_ppc_release_contains_native_ppc_artifacts(self):
+        result = self._run_release("ppc")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+        release = self.fixture / "build" / "release" / "toolbox-ppc"
+        expected = {"ASSETS.LRP", "README.md"}
+        for name in (
+            "LokaScrapbookStandaloneLoopPPC",
+            "LokaHelloStandaloneLoopPPC",
+            "LokaTutorialStandaloneLoopPPC",
+            "LokaMineStandaloneLoopPPC",
+            "LokaFloppyStandaloneLoopPPC",
+            "LokaSimpleViewerPPC",
+        ):
+            expected.add(f"{name}.bin")
+            expected.add(f"{name}.dsk")
+        self.assertEqual({path.name for path in release.iterdir()}, expected)
+        self.assertIn(
+            b"ASSETS.LRP\n",
+            (release / "LokaScrapbookStandaloneLoopPPC.dsk").read_bytes(),
+        )
+
     def test_vscode_tasks_use_the_completed_stage_for_floppy_and_scsi(self):
         tasks_document = json.loads((PROJECT_DIR / ".vscode" / "tasks.json").read_text())
         tasks = {task["label"]: task for task in tasks_document["tasks"]}
@@ -177,6 +297,14 @@ rm -f "$HOME/mounted-disk"
             [
                 f"${{workspaceFolder}}/{stage_root}/LokaScrapbookStandaloneFlow68K.bin",
                 f"${{workspaceFolder}}/{stage_root}/ASSETS.LRP",
+            ],
+        )
+        self.assertEqual(
+            tasks["Standalone: Toolbox PPC Release Action"]["args"],
+            [
+                "scripts/toolbox-standalone-flow.sh",
+                "${input:toolboxStandaloneReleaseAction}",
+                "ppc",
             ],
         )
         picker = next(

@@ -1,11 +1,7 @@
 #include "MineSweeperStandaloneFlowApplication.hpp"
 
-#include <cassert>
-
 #include "MineSweeperStandaloneFlowAppConfig.hpp"
-#include "app/bootstrap/PlatformBootstrap.hpp"
-#include "app/core/App.hpp"
-#include "core/util/ScopedPtr.hpp"
+#include "StandaloneFlowRunner.hpp"
 
 namespace loka
 {
@@ -13,27 +9,7 @@ namespace loka
   {
     int RunMineSweeperStandaloneFlowApplication(HINSTANCE hInstance, int nCmdShow)
     {
-      platform::InitPlatformRuntime();
-      core::ScopedPtr<PlatformContext> platformContext(platform::CreatePlatformContext());
-      assert(platformContext.get() && "PlatformContext is required");
-      if (!platformContext.get())
-      {
-        return 1;
-      }
-      MineSweeperStandaloneFlowAppConfig config(platformContext.get());
-      if (config.exitCode() != 0)
-      {
-        return config.exitCode();
-      }
-      core::ScopedPtr<App> app(platformContext->createApp(&config, hInstance, nCmdShow));
-      assert(app.get() && "App is required");
-      if (!app.get())
-      {
-        return 1;
-      }
-      config.setApp(app.get());
-      app->run();
-      return config.exitCode();
+      return RunStandaloneFlowWithConfig<MineSweeperStandaloneFlowAppConfig>(hInstance, nCmdShow);
     }
   } // namespace standalone_tests
 } // namespace loka

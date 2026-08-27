@@ -15,6 +15,8 @@ namespace floppybird
   private:
     struct RenderSnapshot
     {
+      loka_floppy_bird::GameState state;
+      short score;
       short birdY;
       short pipeCount;
       short pipeLeft[loka_floppy_bird::kMaxPipes];
@@ -22,7 +24,9 @@ namespace floppybird
       short pipeGapBottom[loka_floppy_bird::kMaxPipes];
 
       RenderSnapshot()
-          : birdY(0),
+          : state(loka_floppy_bird::GAME_WAITING),
+            score(0),
+            birdY(0),
             pipeCount(0)
       {
         for (int i = 0; i < loka_floppy_bird::kMaxPipes; ++i)
@@ -35,7 +39,8 @@ namespace floppybird
 
       bool operator==(const RenderSnapshot &other) const
       {
-        if (this->birdY != other.birdY || this->pipeCount != other.pipeCount)
+        if (this->state != other.state || this->score != other.score || this->birdY != other.birdY
+            || this->pipeCount != other.pipeCount)
         {
           return false;
         }
@@ -63,14 +68,24 @@ namespace floppybird
           tracker_(),
           lastSnapshot_(),
           hasLastSnapshot_(false),
-          cachedModel_(),
-          lastScore_(-1)
+          cachedModel_()
     {
       this->tracker_.addState(&this->surfaceModel_);
 #if !defined(LOKA_RETRO68)
       this->tracker_.addState(&this->scoreText_);
 #endif
       this->game_.seed(seed);
+      this->renderScene();
+    }
+
+    /** Starts a fresh deterministic run while preserving the model identity
+        observed by the current or next Scene. */
+    void reset(unsigned long seed)
+    {
+      loka::core::StateTrackerGuard guard(&this->tracker_);
+      this->game_.reset(seed);
+      this->lastSnapshot_ = RenderSnapshot();
+      this->hasLastSnapshot_ = false;
       this->renderScene();
     }
 
@@ -90,9 +105,23 @@ namespace floppybird
       this->renderScene();
     }
 
+    /** Reports the current game phase without exposing mutable GameLogic. */
+    loka_floppy_bird::GameState gameState() const
+    {
+      return this->game_.state();
+    }
+
+    /** Reports the score owned by this run. */
+    int score() const
+    {
+      return this->game_.score();
+    }
+
   private:
     bool buildSnapshot(RenderSnapshot &snapshot)
     {
+      snapshot.state = this->game_.state();
+      snapshot.score = static_cast<short>(this->game_.score());
       snapshot.pipeCount = static_cast<short>(this->game_.pipeCount());
       snapshot.birdY = static_cast<short>(this->game_.birdY() + 0.5);
       for (short i = 0; i < snapshot.pipeCount; ++i)
@@ -116,18 +145,22 @@ namespace floppybird
     void renderScene()
     {
       RenderSnapshot snapshot;
-#if !defined(LOKA_RETRO68)
-      const int score = this->game_.score();
-      if (score != this->lastScore_)
-      {
-        this->scoreText_.set(loka::core::String::Literal("Score: ") + loka::core::String::FromInt(score));
-        this->lastScore_ = score;
-      }
-#endif
       if (!this->buildSnapshot(snapshot))
       {
         return;
       }
+#if !defined(LOKA_RETRO68)
+      if (snapshot.state == loka_floppy_bird::GAME_DEAD)
+      {
+        this->scoreText_.set(loka::core::String::Literal("Game Over - Score: ")
+                             + loka::core::String::FromInt(snapshot.score));
+      }
+      else
+      {
+        this->scoreText_.set(loka::core::String::Literal("Score: ")
+                             + loka::core::String::FromInt(snapshot.score));
+      }
+#endif
 
       this->cachedModel_.rectCount = 0;
       for (short i = 0; i < snapshot.pipeCount; ++i)
@@ -168,7 +201,6 @@ namespace floppybird
     RenderSnapshot lastSnapshot_;
     bool hasLastSnapshot_;
     loka::app::RectSurfaceModel cachedModel_;
-    int lastScore_;
   };
 } // namespace floppybird
 

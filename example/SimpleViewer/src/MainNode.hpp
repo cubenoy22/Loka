@@ -8,11 +8,10 @@
 #include "app/OpenFileDialog.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/scene/state/NodeState.hpp"
-#include "app/scene/state/FlowSlot.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/ImageView.hpp"
-#include "SimpleViewerFlowAdapters.hpp"
+#include "ImageLoadSession.hpp"
 #include "core/State.hpp"
 #include "core/String.hpp"
 #include "core/resource/Image.hpp"
@@ -20,6 +19,8 @@
 
 namespace simpleviewer
 {
+  using loka::app::Button;
+
   class MainTypeTag
   {
   };
@@ -75,7 +76,6 @@ namespace simpleviewer
   {
   public:
     typedef MainTypeTag TypeTag;
-    typedef loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::Image> ViewerFlowChain;
 
     MainNode(const MainProps &p)
         : loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>(p),
@@ -84,7 +84,7 @@ namespace simpleviewer
           chooserResult_(),
           chooserMessage_(),
           image_(),
-          flow_()
+          imageLoad_()
     {
       this->state(this->isDialogShown_, false);
       this->state(this->chooserResult_, loka::app::FileChooserResult());
@@ -101,9 +101,6 @@ namespace simpleviewer
       this->props.assertInitialized();
       (void)c;
       this->bindActionForUi(*this->props.openDialogEvent_, &MainNode::openDialog);
-      this->flow_.set(buildFlow(*this))
-          .bindTrigger(this->chooserResult_)
-          .withTracker(static_cast<loka::core::PushStateTracker *>(this->tracker()));
       this->initialized_ = true;
     }
 
@@ -124,22 +121,24 @@ namespace simpleviewer
     }
 
   private:
-    static bool IsNoFileSelectedError(const loka::dsl::FlowError &error, void *);
-    static loka::dsl::FlowHandleResult OnBlobDecodeFailure(const loka::dsl::FlowError &error, void *userData);
-    static loka::dsl::FlowHandleResult OnBlobLoadCanceled(const loka::dsl::FlowError &error, void *userData);
-    static loka::dsl::FlowHandleResult OnBlobLoadFailure(const loka::dsl::FlowError &error, void *userData);
-    static void OnChooserCompletion(const simpleviewer::ChooserContext &context, void *userData);
-    static void OnChooserProjection(const simpleviewer::ChooserProjection &projection, void *userData);
-    static void OnImageDecoded(const loka::core::resource::Image &image, void *userData);
-    static ViewerFlowChain buildFlow(MainNode &self);
-    static loka::core::String buildErrorMessage(const loka::dsl::FlowError &error);
+    friend class ImageLoadSession;
 
     void openDialog()
     {
+      this->imageLoad_.begin(
+          *this,
+          this->props.platformContext_,
+          this->chooserResult_.state(),
+          static_cast<loka::core::PushStateTracker *>(this->tracker()));
       this->isDialogShown_.set(true, true);
     }
 
-    void setEmptyImageIfNeeded()
+    bool hasCurrentImage() const
+    {
+      return this->image_.get().isValid();
+    }
+
+    void releaseCurrentImageForLoad()
     {
       const loka::core::resource::Image empty = loka::core::resource::Image::Empty();
       if (this->image_.get() == empty)
@@ -147,6 +146,24 @@ namespace simpleviewer
         return;
       }
       this->image_.set(empty);
+    }
+
+    void commitLoadedImage(const loka::core::resource::Image &image)
+    {
+      this->image_.set(image, true);
+    }
+
+    void closeDialogForChooserResult(const loka::app::FileChooserResult &result)
+    {
+      if (result.kind != loka::app::FileChooserResult::RESULT_NONE && this->isDialogShown_.get())
+      {
+        this->isDialogShown_.set(false, true);
+      }
+    }
+
+    bool isImageLoadDialogShown() const
+    {
+      return this->isDialogShown_.get();
     }
 
     void setChooserMessageIfChanged(const loka::core::String &message)
@@ -163,10 +180,10 @@ namespace simpleviewer
     loka::app::scene::NodeState<loka::app::FileChooserResult> chooserResult_;
     loka::app::scene::NodeState<loka::core::String> chooserMessage_;
     loka::app::scene::NodeState<loka::core::resource::Image> image_;
-    loka::app::scene::FlowSlot<ViewerFlowChain> flow_;
+    ImageLoadSession imageLoad_;
   };
 } // namespace simpleviewer
 
-#include "MainNodeFlow.hpp"
+#include "ImageLoadSessionFlow.hpp"
 
 #endif // LOKA_SIMPLE_VIEWER_MAIN_NODE_HPP

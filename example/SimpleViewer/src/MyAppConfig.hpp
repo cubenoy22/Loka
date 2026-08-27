@@ -8,10 +8,10 @@
 #include "app/Menu.hpp"
 #include "MainNode.hpp"
 
-class MyAppConfig : public AppConfigurable
+class SimpleViewerAppConfig : public AppConfigurable
 {
 public:
-  explicit MyAppConfig(PlatformContext *ctx)
+  explicit SimpleViewerAppConfig(PlatformContext *ctx)
       : AppConfigurable(ctx),
         openDialogEvent_()
   {
@@ -22,7 +22,7 @@ public:
     c << WindowDef(
         WindowProps()
             .frame(40, 40, 320, 240)
-            .scene(loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(
+            .scene(loka::app::scene::Boundary<simpleviewer::MainNode>(
                 simpleviewer::MainProps()
                     .platformContext(this->getPlatformContext()) // TODO: Make this retrievable from inside the Node
                     .openDialogEvent(&this->openDialogEvent_)))

@@ -3,6 +3,9 @@
 
 void testLokaFlowDslV1Core();
 void testSimpleViewerClosesDialogFromChooserCompletion();
+void testSimpleViewerImageLoadSessionPreservesAndReleasesCurrentImage();
+void testSimpleViewerImageLoadStopsWhenCapacityRemainsUnavailable();
+void testSimpleViewerBlobAdapterClearsPreviousOutputBeforeFailure();
 void testFlowChainHandleCopiesShareImplementationLifetime();
 void testFlowChainRunPinDefersImplementationDeletion();
 void testFlowSlotClearDefersRunningFlowDeletion();
@@ -15,5 +18,11 @@ void testStateStreamDestructionReleasesOwnedState();
 void testStateStreamDestructionUnbindsSources();
 void testBoundaryBorrowDirectionsRejectSiblingAndDescendant();
 void testSceneFlowAtTickRunsEachActionOnceInOrder();
+void testSceneFlowThenRunsEachActionOnceInOrder();
+void testSceneFlowWaitUntilAppliedWaitsForProjection();
+void testSceneFlowWaitUntilAppliedRetainsBaselineWhileActionPending();
+void testSceneFlowWaitUntilPresentedWaitsForPlatformSynchronization();
+void testSceneFlowWaitUntilAppliedDoesNotWaitForPlatformSynchronization();
+void testSceneFlowWaitUntilAppliedRefusesMissingProjection();
 
 #endif // LOKA_FLOW_DSL_TESTS_HPP

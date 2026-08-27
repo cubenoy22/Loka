@@ -25,6 +25,17 @@ checkout; sync goes through origin only.
   whenever the point of the run is to keep Codex *away* from the repository —
   e.g. re-implementing something from its spec alone as an independence check.
 - `--full-auto` is deprecated; use `--sandbox workspace-write`.
+- **`--sandbox workspace-write` blocks the network, so `git push` and `gh pr
+  create` always fail** — the sandbox only allows `[workdir, /tmp, $TMPDIR]`
+  and no outbound traffic. Left to its own devices Codex clones into `/tmp`,
+  re-points `origin` at the GitHub URL, runs `gh auth status`, and reports a
+  `gh could not authenticate` / "run `gh auth refresh`" error. **That error is
+  the sandbox, not a real auth problem.** Do not chase it. **Every
+  implementation brief must say: commit and STOP; do not push, do not `gh pr
+  create` — the delegator pushes and opens the PR.** Then recover the commit
+  (it is on the branch Codex made, and/or as uncommitted changes on the
+  working clone's HEAD — check both) and push it yourself from a worktree.
+  Seen on #488, #491.
 
 ## Connector limits
 

@@ -38,7 +38,8 @@ namespace simpleviewer
     SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_READ_FAILED = 1010,
     SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_OPEN_FAILED = 1011,
     SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_SEEK_FAILED = 1012,
-    SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_READ_FAILED = 1013
+    SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_READ_FAILED = 1013,
+    SIMPLE_VIEWER_FLOW_ERROR_CODE_IMAGE_LOAD_REQUIRES_RELEASE = 1014
   };
 
   struct ChooserContext
@@ -148,6 +149,7 @@ namespace simpleviewer
     loka::dsl::StepRunStatus run(const In &projection, Out &out, loka::dsl::FlowError &error) const
     {
       using namespace loka::core::resource;
+      out = Out::Empty();
 
       if (projection.request.source == BLOB_SOURCE_NONE)
       {
@@ -158,33 +160,47 @@ namespace simpleviewer
 
       if (projection.request.source == BLOB_SOURCE_FILE)
       {
-        std::vector<unsigned char> bytes;
+        Blob blob = Blob::Create();
+        std::vector<unsigned char> &bytes = blob.mutableBytes();
         int detailCode = SIMPLE_VIEWER_FLOW_ERROR_CODE_FILE_READ_FAILED;
-        if (!readBytesViaPlatform(projection, bytes, detailCode) &&
-            !readFileBytes(projection.request.filePath, bytes, detailCode))
+        bool loaded = readBytesViaPlatform(projection, bytes, detailCode);
+        if (!loaded && detailCode != SIMPLE_VIEWER_FLOW_ERROR_CODE_IMAGE_LOAD_REQUIRES_RELEASE)
+        {
+          loaded = readFileBytes(projection.request.filePath, bytes, detailCode);
+        }
+        if (!loaded)
         {
           error.kind = SIMPLE_VIEWER_FLOW_ERROR_BLOB_LOAD;
           error.code = detailCode;
           return loka::dsl::FLOW_STEP_FAILED;
         }
 
-        Blob blob = Blob::Create();
-        blob.setBytes(bytes);
-        blob.setCompleted(true);
+        blob.sealBytes();
         out = blob;
         return loka::dsl::FLOW_STEP_SUCCEEDED;
       }
 
       // BLOB_SOURCE_BYTES — not used in SimpleViewer but handle gracefully
-      out = Blob::Empty();
       return loka::dsl::FLOW_STEP_SUCCEEDED;
     }
 
   private:
+    bool hasCapacityFor(std::size_t requiredBytes, int &detailCodeOut) const
+    {
+      std::size_t largestAllocation = 0;
+      if (this->ctx_ && this->ctx_->queryLargestContiguousAllocation(largestAllocation) &&
+          requiredBytes > largestAllocation)
+      {
+        detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_IMAGE_LOAD_REQUIRES_RELEASE;
+        return false;
+      }
+      return true;
+    }
+
     // Takes the logical path, not bytes: on Win32 the narrow open decodes its
     // argument in the ANSI code page, so flattening here would lose a
     // full-width path (#15). loka::platform::file::OpenRead owns that choice.
-    static bool readFileBytes(const loka::core::String &path, std::vector<unsigned char> &out, int &detailCodeOut)
+    bool readFileBytes(const loka::core::String &path, std::vector<unsigned char> &out, int &detailCodeOut) const
     {
       out.clear();
       FILE *file = loka::platform::file::OpenRead(path);
@@ -199,6 +215,11 @@ namespace simpleviewer
         long length = std::ftell(file);
         if (length >= 0)
         {
+          if (!this->hasCapacityFor(static_cast<std::size_t>(length), detailCodeOut))
+          {
+            std::fclose(file);
+            return false;
+          }
           out.resize(static_cast<std::size_t>(length));
           if (std::fseek(file, 0, SEEK_SET) != 0)
           {
@@ -241,6 +262,13 @@ namespace simpleviewer
         if (readBytes > 0)
         {
           std::size_t oldSize = out.size();
+          if (readBytes > static_cast<std::size_t>(-1) - oldSize ||
+              !this->hasCapacityFor(oldSize + readBytes, detailCodeOut))
+          {
+            std::fclose(file);
+            out.clear();
+            return false;
+          }
           out.resize(oldSize + readBytes);
           for (std::size_t i = 0; i < readBytes; ++i)
           {
@@ -298,6 +326,11 @@ namespace simpleviewer
         {
           FSClose(refNum);
           detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_GETEOF_FAILED;
+          return false;
+        }
+        if (!this->hasCapacityFor(static_cast<std::size_t>(fileSize), detailCodeOut))
+        {
+          FSClose(refNum);
           return false;
         }
         out.resize(static_cast<std::size_t>(fileSize));

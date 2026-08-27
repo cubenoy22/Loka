@@ -11,12 +11,12 @@ namespace loka
   {
     /** Presents MineSweeper's production window declaration around its
         deterministic scenario scene. */
-    class MineSweeperScenarioPresentation : public ::MyAppConfig,
+    class MineSweeperScenarioPresentation : public ::MineSweeperAppConfig,
                                             protected ScenarioWindowPresentation
     {
     public:
       MineSweeperScenarioPresentation(PlatformContext *context, const minesweeper::MainProps &mainProps)
-          : ::MyAppConfig(context, mainProps)
+          : ::MineSweeperAppConfig(context, mainProps)
       {
       }
 

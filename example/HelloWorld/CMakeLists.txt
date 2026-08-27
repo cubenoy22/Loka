@@ -28,14 +28,7 @@ if(WIN32)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../win32 ${CMAKE_CURRENT_BINARY_DIR}/win32)
   endif()
 
-  # Option to use console subsystem (main) instead of GUI subsystem (WinMain)
-  option(USE_CONSOLE_SUBSYSTEM "Use console subsystem for debugging" OFF)
-
-  if(USE_CONSOLE_SUBSYSTEM)
-    add_executable(LokaHelloWin32 ${HELLOWORLD_SOURCES})
-  else()
-    add_executable(LokaHelloWin32 WIN32 ${HELLOWORLD_SOURCES})
-  endif()
+  add_executable(LokaHelloWin32 WIN32 ${HELLOWORLD_SOURCES})
   loka_enable_warnings(LokaHelloWin32)
   loka_enable_win32_visual_styles(LokaHelloWin32)
 
@@ -90,7 +83,9 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32FilePathTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32AppLocationTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32RectSurfacePaintTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32WideApiTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32WindowClientSizeTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32ProfilerTests.cpp
   )
   loka_enable_warnings(LokaTestsWin32)
 
@@ -107,6 +102,7 @@ if(WIN32)
   )
 
   target_compile_definitions(LokaTestsWin32 PRIVATE TEST_BUILD)
+  target_link_libraries(LokaTestsWin32 PRIVATE LokaWin32WideApiContract)
 
   if(MSVC)
     target_compile_options(LokaTestsWin32 PRIVATE /utf-8)
@@ -115,6 +111,8 @@ if(WIN32)
   add_executable(LokaWin32StandaloneAuditFixture EXCLUDE_FROM_ALL
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/scripts/Win32StandaloneAuditFixture.cpp)
   loka_enable_warnings(LokaWin32StandaloneAuditFixture)
+  target_link_libraries(LokaWin32StandaloneAuditFixture PRIVATE
+    LokaWin32WideApiContract)
   set_target_properties(LokaWin32StandaloneAuditFixture PROPERTIES
     CXX_STANDARD 98
     CXX_STANDARD_REQUIRED YES
@@ -122,6 +120,14 @@ if(WIN32)
   add_dependencies(LokaTestsWin32 LokaWin32StandaloneAuditFixture)
 
   add_test(NAME LokaTestsWin32 COMMAND LokaTestsWin32)
+  if(MSVC AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_test(NAME scriptWin32AssertFailure
+      COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
+        -File
+          ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/scripts/Win32AssertFailureTest.ps1
+        -TestExecutable $<TARGET_FILE:LokaTestsWin32>)
+    set_tests_properties(scriptWin32AssertFailure PROPERTIES TIMEOUT 15)
+  endif()
   add_test(NAME scriptWin32StandaloneAuditVerifier
     COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
       -File

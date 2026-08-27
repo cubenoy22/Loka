@@ -4,53 +4,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 ENV_FILE="${MAME_ENV_FILE:-$PROJECT_DIR/.env-mame}"
+. "$SCRIPT_DIR/retro68-env.sh"
 
-trim_whitespace() {
-  local value="$1"
-  value="${value#"${value%%[![:space:]]*}"}"
-  value="${value%"${value##*[![:space:]]}"}"
-  printf '%s' "$value"
-}
-
-expand_environment_value() {
-  local value="$1"
-
-  # Preserve common path syntax from the previously sourced env file without
-  # evaluating arbitrary shell expressions.
-  if [ "$value" = "~" ]; then
-    value="$HOME"
-  elif [[ "$value" == \~/* ]]; then
-    value="$HOME/${value:2}"
-  fi
-  value="${value//\$\{HOME\}/$HOME}"
-  value="${value//\$HOME/$HOME}"
-  value="${value//\\ / }"
-  printf '%s' "$value"
-}
+loka_load_retro68_environment "$PROJECT_DIR"
 
 import_mame_environment() {
   local path="$1"
-  local line name value
-
-  while IFS= read -r line || [ -n "$line" ]; do
-    line="${line%$'\r'}"
-    line="$(trim_whitespace "$line")"
-    if [ -z "$line" ] || [[ "$line" == \#* ]]; then
-      continue
-    fi
-    if [[ ! "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
-      echo "Error: invalid environment line in $path" >&2
-      exit 1
-    fi
-
-    name="${BASH_REMATCH[1]}"
-    value="$(trim_whitespace "${BASH_REMATCH[2]}")"
-    if [[ "$value" == \"*\" ]] || [[ "$value" == \'*\' ]]; then
-      value="${value:1:${#value}-2}"
-    fi
-    value="$(expand_environment_value "$value")"
-    export "$name=$value"
-  done < "$path"
+  loka_import_environment_file "$path"
 }
 
 normalize_host_path() {

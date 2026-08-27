@@ -20,13 +20,13 @@ checkout, archive paths default to source paths, and directories and symlinks
 are refused. The archive is written from these entries alone, then reopened and
 checked for exact membership and content hashes.
 
-For example:
+For example, with `TAG` set to the release tag being assembled:
 
 ```sh
 python3 scripts/release/assemble.py \
-  --tag v0.0.3 \
-  --allowlist release-v0.0.3.txt \
-  --archive /tmp/Loka-v0.0.3.zip \
+  --tag "$TAG" \
+  --allowlist "release-$TAG.txt" \
+  --archive "/tmp/Loka-$TAG.zip" \
   --build-command 'cmake --preset retro68-68k-release' \
   --build-command 'cmake --build --preset retro68-68k-release'
 ```

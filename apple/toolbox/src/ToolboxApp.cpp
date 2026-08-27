@@ -13,8 +13,34 @@
 #include <Devices.h>
 #include "platform/StringUTF8.hpp"
 
+namespace
+{
+  const unsigned long kOsEventMessageMask = 0xFF000000UL;
+#if defined(LOKA_TOOLBOX_MULTIVERSAL_INTERFACES)
+  const unsigned long kSuspendResumeEventMessage = SUSPENDRESUMEBITS;
+  const unsigned long kResumeEventFlag = RESUME;
+#else
+  const unsigned long kSuspendResumeEventMessage =
+      static_cast<unsigned long>(suspendResumeMessage) << 24;
+  const unsigned long kResumeEventFlag = resumeFlag;
+#endif
+
+  bool IsSuspendResumeEvent(const EventRecord &event)
+  {
+    return (static_cast<unsigned long>(event.message) & kOsEventMessageMask) ==
+           kSuspendResumeEventMessage;
+  }
+
+  bool IsResumeEvent(const EventRecord &event)
+  {
+    return (static_cast<unsigned long>(event.message) & kResumeEventFlag) != 0;
+  }
+} // namespace
+
 ToolboxApp::ToolboxApp(AppConfigurable *config)
     : App(config),
+      activationPhase_(ACTIVATION_FOREGROUND),
+      menuBarDrawDeferred_(false),
       nextMenuId_(128),
       commands_(),
       bindings_(),
@@ -25,7 +51,7 @@ ToolboxApp::ToolboxApp(AppConfigurable *config)
 }
 ToolboxApp::~ToolboxApp()
 {
-  clearMenuBindings();
+  resetMenuState();
 }
 
 void ToolboxApp::run()
@@ -64,10 +90,15 @@ void ToolboxApp::run()
       setActiveWindow(firstWindow);
     }
   }
+  unsigned long lastTick = TickCount();
+  activationPhase_ = ACTIVATION_FOREGROUND;
   running_ = true;
   while (running_)
   {
-    this->flushMenuInvalidation();
+    if (activationPhase_ == ACTIVATION_FOREGROUND)
+    {
+      this->flushMenuInvalidation();
+    }
     EventRecord event;
     WaitNextEvent(everyEvent, &event, 1, 0);
     if (event.what == nullEvent && group_)
@@ -93,17 +124,22 @@ void ToolboxApp::run()
         ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
         if (toolboxWindow)
         {
-          toolboxWindow->idleControls();
+          toolboxWindow->idleControls(activationPhase_);
         }
       }
     }
     ToolboxWindow *active = activeWindow() ? activeWindow()->asToolboxWindow() : 0;
-    if (active)
+    if (activationPhase_ == ACTIVATION_FOREGROUND && active)
     {
       active->updateCursor();
     }
     if (event.what == updateEvt)
     {
+      // An OS update event arrives in every phase -- another window exposing
+      // part of a background Loka window still needs that region repainted,
+      // and skipping BeginUpdate/EndUpdate would leave the update region
+      // pending so WaitNextEvent returns the same event forever. Only
+      // mutation-driven presentation defers to foreground (present()).
       WindowPtr target = reinterpret_cast<WindowPtr>(event.message);
       if (target && group_)
       {
@@ -229,6 +265,23 @@ void ToolboxApp::run()
         }
       }
     }
+    else if (event.what == osEvt && IsSuspendResumeEvent(event))
+    {
+      activationPhase_ =
+          IsResumeEvent(event) ? ACTIVATION_FOREGROUND : ACTIVATION_BACKGROUND;
+      ToolboxWindow *active = activeWindow() ? activeWindow()->asToolboxWindow() : 0;
+      if (active && active->window())
+      {
+        HiliteWindow(active->window(), activationPhase_ == ACTIVATION_FOREGROUND);
+      }
+      if (activationPhase_ == ACTIVATION_FOREGROUND && menuBarDrawDeferred_)
+      {
+        // Background bindings updated the app-owned menu data but deferred
+        // the shared menu bar write; show it once now the bar is ours again.
+        DrawMenuBar();
+        menuBarDrawDeferred_ = false;
+      }
+    }
     else if (event.what == keyDown || event.what == autoKey)
     {
       ToolboxWindow *active = activeWindow() ? activeWindow()->asToolboxWindow() : 0;
@@ -261,7 +314,6 @@ void ToolboxApp::run()
         }
       }
     }
-    static unsigned long lastTick = TickCount();
     unsigned long now = TickCount();
     double elapsedSeconds = 0.0;
     if (now >= lastTick)
@@ -274,7 +326,7 @@ void ToolboxApp::run()
     {
       this->handleIdle(dispatchElapsedSeconds);
     }
-    this->present();
+    this->present(activationPhase_);
     if (event.what == nullEvent && group_)
     {
       const std::vector<AppComponent *> &comps = group_->getComponents();
@@ -291,10 +343,10 @@ void ToolboxApp::run()
   }
 }
 
-void ToolboxApp::present()
+void ToolboxApp::present(ActivationPhase phase)
 {
   this->flushWindowInvalidations();
-  if (!group_)
+  if (phase != ACTIVATION_FOREGROUND || !group_)
   {
     return;
   }
@@ -349,7 +401,19 @@ void ToolboxApp::MenuEnabledChangedThunk(void *userData)
   {
     DisableItem(binding->menu, binding->itemIndex);
   }
-  DrawMenuBar();
+  // Enable/DisableItem mutate app-owned menu data and are phase-free; the
+  // DrawMenuBar screen write is the app's to gate.
+  binding->app->noteMenuBarChangedFromBinding();
+}
+
+void ToolboxApp::noteMenuBarChangedFromBinding()
+{
+  if (activationPhase_ == ACTIVATION_FOREGROUND)
+  {
+    DrawMenuBar();
+    return;
+  }
+  menuBarDrawDeferred_ = true;
 }
 
 void ToolboxApp::clearMenuBindings()
@@ -428,13 +492,15 @@ void ToolboxApp::disposeHierarchicalMenus()
 
 void ToolboxApp::resetMenuState()
 {
+  ClearMenuBar();
   clearMenuBindings();
   disposeHierarchicalMenus();
   disposeMenuEntries();
   nextMenuId_ = 128;
 }
 
-static void BuildMenuItems(MenuHandle menu,
+static void BuildMenuItems(ToolboxApp *app,
+                           MenuHandle menu,
                            const loka::app::MenuItemDefinition *itemsHead,
                            short menuId,
                            short &nextMenuId,
@@ -474,7 +540,7 @@ static void BuildMenuItems(MenuHandle menu,
     {
       short subMenuId = nextMenuId++;
       MenuHandle subMenu = NewMenu(subMenuId, title);
-      BuildMenuItems(subMenu, itemDef->childrenHead(), subMenuId, nextMenuId, commands, bindings, hierarchicalMenus);
+      BuildMenuItems(app, subMenu, itemDef->childrenHead(), subMenuId, nextMenuId, commands, bindings, hierarchicalMenus);
       if (CountMenuItems(subMenu) == 0)
       {
         DisposeMenu(subMenu);
@@ -511,6 +577,7 @@ static void BuildMenuItems(MenuHandle menu,
     if (enabledBindingState)
     {
       ToolboxApp::MenuBinding *binding = new ToolboxApp::MenuBinding();
+      binding->app = app;
       binding->menu = menu;
       binding->itemIndex = itemIndex;
       binding->enabledState = enabledBindingState;
@@ -546,7 +613,6 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
   if (!menuBar)
   {
     resetMenuState();
-    ClearMenuBar();
     InitMenus();
     DrawMenuBar();
     if (activeWindow && activeWindow->asToolboxWindow())
@@ -587,7 +653,6 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
   if (!canPartial)
   {
     resetMenuState();
-    ClearMenuBar();
     InitMenus();
   }
 
@@ -651,6 +716,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
       if (enabledBindingState)
       {
         ToolboxApp::MenuBinding *binding = new ToolboxApp::MenuBinding();
+        binding->app = this;
         binding->menu = menu;
         binding->itemIndex = aboutIndex;
         binding->enabledState = enabledBindingState;
@@ -694,7 +760,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
       }
       short menuId = nextMenuId_;
       MenuHandle menu = NewMenu(menuId, title);
-      BuildMenuItems(menu, menuDef->itemsHead(), menuId, nextMenuId_, commands_, bindings_, hierarchicalMenus_);
+      BuildMenuItems(this, menu, menuDef->itemsHead(), menuId, nextMenuId_, commands_, bindings_, hierarchicalMenus_);
       if (CountMenuItems(menu) == 0)
       {
         DisposeMenu(menu);
@@ -805,6 +871,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
       if (enabledBindingState)
       {
         ToolboxApp::MenuBinding *binding = new ToolboxApp::MenuBinding();
+        binding->app = this;
         binding->menu = entry.menu;
         binding->itemIndex = aboutIndex;
         binding->enabledState = enabledBindingState;
@@ -815,6 +882,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
       continue;
     }
     BuildMenuItems(
+        this,
         entry.menu, menuDef->itemsHead(), entry.menuId, nextMenuId_, commands_, bindings_, hierarchicalMenus_);
     if (CountMenuItems(entry.menu) == 0)
     {
@@ -825,7 +893,6 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
   if (needsFullRebuild)
   {
     resetMenuState();
-    ClearMenuBar();
     InitMenus();
     applyMenuBar(activeWindow);
     return;

@@ -13,6 +13,7 @@
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/Cell.hpp"
 #include "app/nodes/controls/EditText.hpp"
+#include "app/nodes/controls/PopupMenu.hpp"
 #include "app/nodes/controls/ScrollBar.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "app/nodes/nestable/BoundarySection.hpp"
@@ -3797,6 +3798,163 @@ void testBankedSectionClickHandlerSwapPresentsFreshControls()
   scene.flushInvalidation();
   assert(platform.onChangeCallCount() == onChangeAfterSwaps &&
          "a paint-only cycle after a structural one must not escalate");
+}
+
+namespace
+{
+  enum HandlerSwapControlKind
+  {
+    HANDLER_SWAP_BUTTON,
+    HANDLER_SWAP_POPUP_MENU
+  };
+
+  HandlerSwapControlKind g_handlerSwapControlKind = HANDLER_SWAP_BUTTON;
+  loka::core::State<loka::core::String> *g_handlerSwapButtonText = 0;
+  loka::core::EmitterState *g_handlerSwapEmitter = 0;
+
+  class HandlerSwapBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<HandlerSwapBoundaryNode>
+      HandlerSwapBoundaryProps;
+  typedef SceneTestSupport::RecomposingBoundaryNode<HandlerSwapBoundaryNode,
+                                                     HandlerSwapBoundaryProps,
+                                                     true>
+      HandlerSwapBoundaryBase;
+
+  class HandlerSwapBoundaryNode
+      : public HandlerSwapBoundaryBase
+  {
+  public:
+    explicit HandlerSwapBoundaryNode(const HandlerSwapBoundaryProps &props)
+        : HandlerSwapBoundaryBase(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::FragmentDefinition root;
+      if (g_handlerSwapControlKind == HANDLER_SWAP_BUTTON)
+      {
+        root << loka::app::ButtonDefinition(g_handlerSwapButtonText,
+                                             g_handlerSwapEmitter);
+      }
+      else
+      {
+        const char *items[] = {"first", "second"};
+        loka::app::PopupMenuDefinition popup(items, 2);
+        popup.onChange(g_handlerSwapEmitter);
+        root << popup;
+      }
+      composition.declare(root);
+    }
+  };
+
+  struct HandlerSwapWitness
+  {
+    HandlerSwapWitness()
+        : calls(0)
+    {
+    }
+
+    int calls;
+
+    static void Thunk(void *userData)
+    {
+      HandlerSwapWitness *self = static_cast<HandlerSwapWitness *>(userData);
+      if (self)
+      {
+        ++self->calls;
+      }
+    }
+  };
+
+  loka::app::scene::Node *findHandlerSwapControl(
+      loka::app::scene::Node *node,
+      HandlerSwapControlKind kind)
+  {
+    if (!node)
+    {
+      return 0;
+    }
+    if ((kind == HANDLER_SWAP_BUTTON && node->asButtonNode()) ||
+        (kind == HANDLER_SWAP_POPUP_MENU && node->asPopupMenuNode()))
+    {
+      return node;
+    }
+    loka::app::scene::INestable *nestable = node->asNestable();
+    for (loka::app::scene::Node *child = nestable ? nestable->childrenHead() : 0;
+         child; child = child->nextInComposition)
+    {
+      loka::app::scene::Node *match = findHandlerSwapControl(child, kind);
+      if (match)
+      {
+        return match;
+      }
+    }
+    return 0;
+  }
+
+  void verifyHandlerOnlyRecomposeUsesCurrentEmitter(HandlerSwapControlKind kind)
+  {
+    loka::core::MutableState<loka::core::String> buttonText(
+        loka::core::String::Literal("handler-swap"));
+    loka::core::EmitterState previousEmitter;
+    loka::core::EmitterState currentEmitter;
+    HandlerSwapWitness previousWitness;
+    HandlerSwapWitness currentWitness;
+    previousEmitter.bind(&HandlerSwapWitness::Thunk, &previousWitness, false);
+    currentEmitter.bind(&HandlerSwapWitness::Thunk, &currentWitness, false);
+    g_handlerSwapControlKind = kind;
+    g_handlerSwapButtonText = &buttonText;
+    g_handlerSwapEmitter = &previousEmitter;
+
+    {
+      NullScenePlatformController platform;
+      loka::app::scene::Scene scene(
+          (loka::app::scene::Boundary<HandlerSwapBoundaryNode>()));
+      mountAndAttach(scene, platform);
+
+      loka::app::scene::Node *original = findHandlerSwapControl(
+          loka::dsl::testing::SceneTestAccess::rootNode(scene), kind);
+      (void)original;
+      assert(original);
+
+      g_handlerSwapEmitter = &currentEmitter;
+      scene.requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
+      LOKA_VERIFY(scene.flushInvalidation());
+
+      loka::app::scene::Node *updated = findHandlerSwapControl(
+          loka::dsl::testing::SceneTestAccess::rootNode(scene), kind);
+      assert(updated == original &&
+             "a handler-only recompose must retain the compatible control node");
+
+      loka::core::EmitterState *appliedEmitter =
+          kind == HANDLER_SWAP_BUTTON
+              ? updated->asButtonNode()->props.onClick_
+              : updated->asPopupMenuNode()->props.onChange_;
+      assert(appliedEmitter == &currentEmitter &&
+             "retained props must apply a handler-only identity change");
+      appliedEmitter->emit();
+      assert(previousWitness.calls == 0 &&
+             "a retained control must stop gesturing at the previous owner");
+      assert(currentWitness.calls == 1 &&
+             "the recomposed handler must receive the next gesture");
+    }
+
+    previousEmitter.unbind(&HandlerSwapWitness::Thunk, &previousWitness);
+    currentEmitter.unbind(&HandlerSwapWitness::Thunk, &currentWitness);
+    g_handlerSwapButtonText = 0;
+    g_handlerSwapEmitter = 0;
+  }
+} // namespace
+
+void testButtonHandlerOnlyRecomposeUsesCurrentEmitter()
+{
+  verifyHandlerOnlyRecomposeUsesCurrentEmitter(HANDLER_SWAP_BUTTON);
+}
+
+void testPopupMenuHandlerOnlyRecomposeUsesCurrentEmitter()
+{
+  verifyHandlerOnlyRecomposeUsesCurrentEmitter(HANDLER_SWAP_POPUP_MENU);
 }
 
 namespace

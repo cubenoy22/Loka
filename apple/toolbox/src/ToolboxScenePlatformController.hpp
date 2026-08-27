@@ -20,6 +20,7 @@ class ToolboxWindow;
 class ToolboxButtonContext;
 class ToolboxPopupMenuContext;
 class ToolboxCellContext;
+class ToolboxEditTextContext;
 
 namespace loka
 {
@@ -114,7 +115,7 @@ public:
       changed since the last present. */
   void requestStructurePresent();
   void drawFallbackControl(const Rect &rect);
-  TEHandle ensureEditTextControl(loka::app::scene::NodeContext *ownerContext,
+  TEHandle ensureEditTextControl(ToolboxEditTextContext *ownerContext,
                                  const Rect &rect,
                                  loka::core::State<loka::core::String> *text,
                                  loka::app::scene::NativeLifetimeHint lifetimeHint = loka::app::scene::NATIVE_HINT_DEFAULT);
@@ -238,7 +239,7 @@ private:
 
   struct EditTextControlBinding
   {
-    loka::app::scene::NodeContext *ownerContext;
+    ToolboxEditTextContext *ownerContext;
     loka::core::State<loka::core::String> *text;
     TEHandle te;
     Rect rect;
@@ -361,6 +362,14 @@ private:
 public:
   void flushRetiredNativeHandles();
   std::string debugStatsSummary() const;
+#ifdef TEST_BUILD
+  /** Reads the live TextEdit payload without synchronizing it first.
+
+      Scenario probes use this const door to distinguish the native record from
+      its bound State; calling ensureEditTextControl would repair the value and
+      make the probe non-discriminating. */
+  bool queryEditTextValueForTesting(ToolboxEditTextContext *ownerContext, std::string &out) const;
+#endif
   void noteWindowDraw()
   {
     ++debugStats_.drawCalls;

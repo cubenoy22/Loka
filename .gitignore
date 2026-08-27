@@ -1,4 +1,20 @@
 # CUSTOM
+# Python bytecode. The repository ships rig tooling and test harnesses as
+# modules, so any run of them -- or a py_compile syntax check -- leaves these
+# beside the sources.
+__pycache__/
+*.py[cod]
+
+# Artifacts the documented workflows drop at the worktree root. The Win32
+# verification procedure has you write a .bat beside the sources and run the
+# test binary from the worktree root, where LrpkGoldenBytesTests writes
+# golden.lrpk through a relative path. Both accumulated as untracked litter on
+# the retiring rig; ignoring them is cheaper than remembering to delete them.
+# Anchored, because only the root is where the procedure puts them: a helper
+# script under scripts/ or a fixture under tests/ must stay visible.
+/*.bat
+/golden.lrpk
+
 # Local planning notes and session handoffs (Japanese, machine-specific paths).
 # The handoff skill relies on this being ignored in every clone, not just ones
 # with a hand-edited .git/info/exclude.
@@ -7,6 +23,7 @@
 **/build
 compile_commands.json
 CMakeUserPresets.json
+.env-retro68
 .env-mame
 
 # Created by https://www.toptal.com/developers/gitignore/api/node,macos,linux

@@ -4,6 +4,9 @@
 #include <cstddef>
 
 #if defined(_WIN32) || defined(WIN32)
+#if !defined(UNICODE) || !defined(_UNICODE)
+#error "Loka Win32 targets require UNICODE and _UNICODE"
+#endif
 #include <windows.h>
 #else
 // Provide a placeholder type for non-Windows builds
@@ -64,6 +67,13 @@ public:
 
   virtual loka::app::scene::NodeContext *createNodeContext(loka::app::scene::Node *node) const = 0;
   virtual bool openFile(const loka::file::File &item, loka::platform::file::FileHandle &out) const = 0;
+  /** Reports the largest contiguous allocation the target can currently
+      satisfy. Targets without a meaningful answer decline the query. */
+  virtual bool queryLargestContiguousAllocation(std::size_t &out) const
+  {
+    (void)out;
+    return false;
+  }
   /** Builds an image from `[offset, offset + length)` of `blob`.
       A range rather than the whole buffer, because an LRPK asset is a range
       inside its bag's blob and copying it out to be decoded would put the

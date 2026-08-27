@@ -23,6 +23,36 @@ protected:
   virtual void applyMenuBar(Window *activeWindow);
 
 private:
+  /** Owns one menu while recording the native window to which it is attached.
+      Reset always detaches the menu before destroying its handle. */
+  class AttachedMenu
+  {
+  public:
+    AttachedMenu();
+    ~AttachedMenu();
+
+    bool resetPreservingContentFrame();
+    bool resetForTeardown();
+    void attach(Win32Window *window, HMENU menu);
+
+  private:
+    enum DetachMode
+    {
+      DETACH_PRESERVING_CONTENT_FRAME,
+      DETACH_FOR_TEARDOWN
+    };
+
+    AttachedMenu(const AttachedMenu &);
+    AttachedMenu &operator=(const AttachedMenu &);
+
+    bool reset(DetachMode mode);
+    bool detach(DetachMode mode);
+    void destroyDetached();
+
+    Win32Window *window_;
+    HMENU menu_;
+  };
+
   struct MenuCommand
   {
     int commandId;
@@ -47,7 +77,7 @@ private:
   HINSTANCE hInstance_;
   int nCmdShow_;
   int nextCommandId_;
-  HMENU activeMenu_;
+  AttachedMenu activeMenu_;
   std::vector<MenuCommand> commands_;
   std::vector<MenuBinding *> bindings_;
 };

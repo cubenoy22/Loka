@@ -5,6 +5,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(NOT COMMAND loka_enable_warnings)
   include("${CMAKE_CURRENT_LIST_DIR}/../cmake/LokaWarnings.cmake")
 endif()
+if(NOT COMMAND loka_enable_standalone_performance)
+  include("${CMAKE_CURRENT_LIST_DIR}/../cmake/LokaStandalonePerformance.cmake")
+endif()
 
 file(GLOB_RECURSE COMMON_SOURCES CONFIGURE_DEPENDS ../common/*.cpp)
 list(REMOVE_DUPLICATES COMMON_SOURCES)
@@ -31,6 +34,12 @@ set(SOURCES
   src/platform/Win32AppLocation.cpp
 )
 
+add_library(LokaWin32WideApiContract INTERFACE)
+target_compile_definitions(LokaWin32WideApiContract INTERFACE
+  UNICODE
+  _UNICODE
+)
+
 add_library(LokaWin32Core STATIC ${SOURCES} ${COMMON_SOURCES})
 loka_enable_warnings(LokaWin32Core)
 target_include_directories(LokaWin32Core PUBLIC
@@ -41,7 +50,10 @@ target_include_directories(LokaWin32Core PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-target_link_libraries(LokaWin32Core PRIVATE windowscodecs ole32)
+target_link_libraries(LokaWin32Core
+  PUBLIC LokaWin32WideApiContract
+  PRIVATE windowscodecs ole32
+)
 
 if(MSVC)
     target_compile_options(LokaWin32Core PRIVATE /utf-8)
@@ -51,8 +63,11 @@ get_filename_component(LOKA_WIN32_REPOSITORY_ROOT
   ${CMAKE_CURRENT_SOURCE_DIR}/..
   ABSOLUTE
 )
+string(TOLOWER "${CMAKE_SOURCE_DIR}" LOKA_WIN32_TOP_LEVEL_SOURCE_NORMALIZED)
+string(TOLOWER "${LOKA_WIN32_REPOSITORY_ROOT}" LOKA_WIN32_REPOSITORY_ROOT_NORMALIZED)
 
-if(CMAKE_SOURCE_DIR STREQUAL LOKA_WIN32_REPOSITORY_ROOT)
+if(LOKA_WIN32_TOP_LEVEL_SOURCE_NORMALIZED STREQUAL
+    LOKA_WIN32_REPOSITORY_ROOT_NORMALIZED)
   include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/LokaWin32VisualStyles.cmake)
 
   set(LOKA_WIN32_SCENARIO_PRESENTATION_COMMON_SOURCES
@@ -82,7 +97,11 @@ if(CMAKE_SOURCE_DIR STREQUAL LOKA_WIN32_REPOSITORY_ROOT)
       ${CMAKE_CURRENT_SOURCE_DIR}/src
     )
     target_compile_definitions(${target} PRIVATE TEST_BUILD)
-    target_link_libraries(${target} PRIVATE windowscodecs ole32)
+    target_link_libraries(${target} PRIVATE
+      LokaWin32WideApiContract
+      windowscodecs
+      ole32
+    )
     set_target_properties(${target} PROPERTIES
       CXX_STANDARD 98
       CXX_STANDARD_REQUIRED YES
@@ -169,6 +188,13 @@ if(CMAKE_SOURCE_DIR STREQUAL LOKA_WIN32_REPOSITORY_ROOT)
   set(LOKA_SCENARIO_LOOP_CYCLES "" CACHE STRING
     "Full reel passes a loop presentation runs before quitting. Empty means never quit."
   )
+  add_test(NAME scriptWin32ScenarioProfile
+    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+      ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scripts/Win32ScenarioProfileTest.ps1)
+
+  add_test(NAME scriptWin32RigDescriptor
+    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+      ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scripts/Win32RigDescriptorTest.ps1)
 
   loka_add_win32_scenario_loop_executable(
     LokaHelloWorldScenarioLoopWin32
@@ -210,48 +236,154 @@ if(CMAKE_SOURCE_DIR STREQUAL LOKA_WIN32_REPOSITORY_ROOT)
     unset(_LOKA_WIN32_SCENARIO_REGISTRY)
   endif()
 
+  if(LOKA_ENABLE_STANDALONE_TARGETS)
   set(LOKA_STANDALONE_FLOW_ASSETS
     "${CMAKE_CURRENT_SOURCE_DIR}/../example/ScrapbookUI/assets/ASSETS-modern.LRP"
   )
   set(LOKA_STANDALONE_FLOW_OUTPUT_DIRECTORY
-    "${CMAKE_BINARY_DIR}/example/ScrapbookUI/standalone-flow"
+    "${CMAKE_BINARY_DIR}/standalone-flow"
   )
+  set(LOKA_STANDALONE_LOOP_OUTPUT_DIRECTORY
+    "${CMAKE_BINARY_DIR}/standalone-loop"
+  )
+  set(LOKA_WIN32_STANDALONE_FLOW_CATALOG
+    "${CMAKE_BINARY_DIR}/standalone-flow-catalog.tsv"
+  )
+  file(WRITE "${LOKA_WIN32_STANDALONE_FLOW_CATALOG}"
+    "# SimpleViewer is excluded from automation: its file chooser remains interactive.\n"
+  )
+  add_custom_target(LokaStandaloneFlowWin32All)
+  add_custom_target(LokaStandaloneLoopWin32All)
 
   # TEST-only presentation target. Compile common/platform sources uniformly
   # with TEST_BUILD rather than mixing the shipping core's Node layout with the
   # TEST_ID-bearing scenario layout.
-  add_executable(LokaScrapbookStandaloneFlowWin32 WIN32 EXCLUDE_FROM_ALL
-    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/win32/StandaloneFlowMain.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/standalone/StandaloneFlowApplication.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/standalone/ScrapbookStandaloneFlowAppConfig.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/standalone/StandaloneScenarioSupport.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/ScenarioTypes.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/ScrapbookScenarios.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/TestingHooks.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../example/ScrapbookUI/src/ScrapbookPackage.cpp
-    ${SOURCES}
-    ${COMMON_SOURCES}
+  set(LOKA_STANDALONE_PERFORMANCE_RUNS "" CACHE STRING
+    "Complete Standalone Flow passes to measure (3-10). Empty disables measurement."
   )
-  loka_enable_warnings(LokaScrapbookStandaloneFlowWin32)
-  loka_enable_win32_visual_styles(LokaScrapbookStandaloneFlowWin32)
 
-  target_include_directories(LokaScrapbookStandaloneFlowWin32 PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../common
-    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios
-    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/standalone
-    ${CMAKE_CURRENT_SOURCE_DIR}/../example/ScrapbookUI/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
+  function(loka_add_win32_standalone_flow_executable
+           key target loop_target config_header config_type example_include_dir expected_audit)
+    # Finite targets own one complete App lifetime. Loop targets keep that App
+    # and native Window, replacing the scenario rail and re-arming its Scene.
+    foreach(_loka_standalone_target IN ITEMS ${target} ${loop_target})
+      add_executable(${_loka_standalone_target} WIN32 EXCLUDE_FROM_ALL
+        ${CMAKE_CURRENT_SOURCE_DIR}/../tests/win32/StandaloneFlowMain.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../tests/standalone/StandaloneScenarioSupport.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/ScenarioReel.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/ScenarioTypes.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../tests/TestingHooks.cpp
+        ${SOURCES}
+        ${COMMON_SOURCES}
+        ${ARGN}
+      )
+      loka_enable_warnings(${_loka_standalone_target})
+      loka_enable_win32_visual_styles(${_loka_standalone_target})
+      target_include_directories(${_loka_standalone_target} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../common
+        ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios
+        ${CMAKE_CURRENT_SOURCE_DIR}/../tests/standalone
+        ${CMAKE_CURRENT_SOURCE_DIR}/../${example_include_dir}
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+      )
+      target_compile_definitions(${_loka_standalone_target} PRIVATE
+        TEST_BUILD
+        "LOKA_STANDALONE_FLOW_CONFIG_HEADER=\"${config_header}\""
+        "LOKA_STANDALONE_FLOW_CONFIG_TYPE=${config_type}"
+      )
+      target_link_libraries(${_loka_standalone_target} PRIVATE
+        LokaWin32WideApiContract
+        windowscodecs
+        ole32
+      )
+      set_target_properties(${_loka_standalone_target} PROPERTIES
+        CXX_STANDARD 98
+        CXX_STANDARD_REQUIRED YES
+        RUNTIME_OUTPUT_DIRECTORY "${LOKA_STANDALONE_FLOW_OUTPUT_DIRECTORY}"
+      )
+      if(MSVC)
+        target_compile_options(${_loka_standalone_target} PRIVATE /utf-8)
+      endif()
+    endforeach()
+    loka_enable_standalone_performance(
+      ${target}
+      ${CMAKE_CURRENT_SOURCE_DIR}/../tests/standalone/StandalonePerformance.cpp
+    )
+    target_compile_definitions(${loop_target} PRIVATE LOKA_STANDALONE_FLOW_LOOP=1)
+    set_target_properties(${loop_target} PROPERTIES
+      RUNTIME_OUTPUT_DIRECTORY "${LOKA_STANDALONE_LOOP_OUTPUT_DIRECTORY}"
+    )
+    add_dependencies(LokaStandaloneFlowWin32All ${target})
+    add_dependencies(LokaStandaloneLoopWin32All ${loop_target})
+    file(APPEND "${LOKA_WIN32_STANDALONE_FLOW_CATALOG}"
+      "${key}\t${target}\t${expected_audit}\n"
+    )
+  endfunction()
+
+  loka_add_win32_standalone_flow_executable(
+    scrapbook
+    LokaScrapbookStandaloneFlowWin32
+    LokaScrapbookStandaloneLoopWin32
+    ScrapbookStandaloneFlowAppConfig.hpp
+    ::loka::standalone_tests::ScrapbookStandaloneFlowAppConfig
+    example/ScrapbookUI/src
+    tests/scenarios/expected/scrapbook/standalone-tour.audit
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/standalone/ScrapbookStandaloneFlowAppConfig.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/ScrapbookScenarios.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../example/ScrapbookUI/src/ScrapbookPackage.cpp
   )
-  target_compile_definitions(LokaScrapbookStandaloneFlowWin32 PRIVATE TEST_BUILD)
-  target_link_libraries(LokaScrapbookStandaloneFlowWin32 PRIVATE windowscodecs ole32)
-  set_target_properties(LokaScrapbookStandaloneFlowWin32 PROPERTIES
-    CXX_STANDARD 98
-    CXX_STANDARD_REQUIRED YES
-    RUNTIME_OUTPUT_DIRECTORY "${LOKA_STANDALONE_FLOW_OUTPUT_DIRECTORY}"
+  loka_add_win32_standalone_flow_executable(
+    helloworld
+    LokaHelloWorldStandaloneFlowWin32
+    LokaHelloWorldStandaloneLoopWin32
+    HelloWorldStandaloneFlowAppConfig.hpp
+    ::loka::standalone_tests::HelloWorldStandaloneFlowAppConfig
+    example/HelloWorld/src
+    tests/scenarios/expected/helloworld/toggle-action-probe.audit
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/standalone/HelloWorldStandaloneFlowAppConfig.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/HelloWorldScenarios.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../example/HelloWorld/src/MainNode.cpp
+  )
+  loka_add_win32_standalone_flow_executable(
+    tutorial
+    LokaTutorialStandaloneFlowWin32
+    LokaTutorialStandaloneLoopWin32
+    TutorialStandaloneFlowAppConfig.hpp
+    ::loka::standalone_tests::TutorialStandaloneFlowAppConfig
+    example/Tutorial/src
+    tests/scenarios/expected/tutorial/increment-summary-toggle.audit
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/standalone/TutorialStandaloneFlowAppConfig.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/TutorialScenarios.cpp
+  )
+  loka_add_win32_standalone_flow_executable(
+    minesweeper
+    LokaMineSweeperStandaloneFlowWin32
+    LokaMineSweeperStandaloneLoopWin32
+    MineSweeperStandaloneFlowAppConfig.hpp
+    ::loka::standalone_tests::MineSweeperStandaloneFlowAppConfig
+    example/MineSweeper/src
+    tests/scenarios/expected/minesweeper/new-game-twice.audit
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/standalone/MineSweeperStandaloneFlowAppConfig.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/MineSweeperScenarios.cpp
+  )
+  loka_add_win32_standalone_flow_executable(
+    floppybird
+    LokaFloppyBirdStandaloneFlowWin32
+    LokaFloppyBirdStandaloneLoopWin32
+    FloppyBirdStandaloneFlowAppConfig.hpp
+    ::loka::standalone_tests::FloppyBirdStandaloneFlowAppConfig
+    example/FloppyBird/src
+    tests/scenarios/expected/floppybird/fixed-step-flaps.audit
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/standalone/FloppyBirdStandaloneFlowAppConfig.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/FloppyBirdScenarios.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/RectSurfaceScenarioObservation.cpp
   )
 
   set(LOKA_STANDALONE_FLOW_ASSET_OUTPUT_DIRECTORY
     "${LOKA_STANDALONE_FLOW_OUTPUT_DIRECTORY}"
+  )
+  set(LOKA_STANDALONE_LOOP_ASSET_OUTPUT_DIRECTORY
+    "${LOKA_STANDALONE_LOOP_OUTPUT_DIRECTORY}"
   )
   if(CMAKE_CONFIGURATION_TYPES)
     # Multi-config generators append the selected configuration to the
@@ -259,29 +391,36 @@ if(CMAKE_SOURCE_DIR STREQUAL LOKA_WIN32_REPOSITORY_ROOT)
     set(LOKA_STANDALONE_FLOW_ASSET_OUTPUT_DIRECTORY
       "${LOKA_STANDALONE_FLOW_OUTPUT_DIRECTORY}/$<CONFIG>"
     )
+    set(LOKA_STANDALONE_LOOP_ASSET_OUTPUT_DIRECTORY
+      "${LOKA_STANDALONE_LOOP_OUTPUT_DIRECTORY}/$<CONFIG>"
+    )
   endif()
 
-  add_custom_target(LokaScrapbookStandaloneFlowWin32Assets
+  add_custom_target(LokaStandaloneWin32Assets
     COMMAND ${CMAKE_COMMAND} -E make_directory
       "${LOKA_STANDALONE_FLOW_ASSET_OUTPUT_DIRECTORY}"
+      "${LOKA_STANDALONE_LOOP_ASSET_OUTPUT_DIRECTORY}"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
       "${LOKA_STANDALONE_FLOW_ASSETS}"
       "${LOKA_STANDALONE_FLOW_ASSET_OUTPUT_DIRECTORY}/ASSETS.LRP"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${LOKA_STANDALONE_FLOW_ASSETS}"
+      "${LOKA_STANDALONE_LOOP_ASSET_OUTPUT_DIRECTORY}/ASSETS.LRP"
     DEPENDS "${LOKA_STANDALONE_FLOW_ASSETS}"
     VERBATIM
   )
-  add_dependencies(
-    LokaScrapbookStandaloneFlowWin32
-    LokaScrapbookStandaloneFlowWin32Assets
-  )
-
-  if(MSVC)
-    target_compile_options(LokaScrapbookStandaloneFlowWin32 PRIVATE /utf-8)
-  endif()
+  add_dependencies(LokaScrapbookStandaloneFlowWin32 LokaStandaloneWin32Assets)
+  add_dependencies(LokaScrapbookStandaloneLoopWin32 LokaStandaloneWin32Assets)
 
   unset(LOKA_STANDALONE_FLOW_OUTPUT_DIRECTORY)
+  unset(LOKA_STANDALONE_LOOP_OUTPUT_DIRECTORY)
   unset(LOKA_STANDALONE_FLOW_ASSET_OUTPUT_DIRECTORY)
+  unset(LOKA_STANDALONE_LOOP_ASSET_OUTPUT_DIRECTORY)
   unset(LOKA_STANDALONE_FLOW_ASSETS)
+  unset(LOKA_WIN32_STANDALONE_FLOW_CATALOG)
+  endif()
 endif()
 
+unset(LOKA_WIN32_TOP_LEVEL_SOURCE_NORMALIZED)
+unset(LOKA_WIN32_REPOSITORY_ROOT_NORMALIZED)
 unset(LOKA_WIN32_REPOSITORY_ROOT)

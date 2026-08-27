@@ -65,7 +65,8 @@ namespace loka
         recomposes it. Nothing is reset in place, so the example's state is new
         because its nodes are new.
 
-        Returns false when the window has no mounted scene to re-arm. */
+        Returns false when the window has no mounted scene to re-arm or the
+        fresh attachment cannot compose. */
     bool RearmScenarioScene(Window *window);
 
     /** Runs one example's registered cells endlessly in one process: step the

@@ -32,6 +32,11 @@ jobs:
       # prove the real AppKit runner, bounded settle, exact audit, profile,
       # and atomic completion contract; Tahoe owns the pixel verdict.
       - run: cmake --build --preset macos-scenarios
+      # Every Scrapbook cell stages its package through lrpc now, including the
+      # two that declare no fixture, so the host tool is a prerequisite of the
+      # scenario steps rather than of the asset bake alone.
+      - run: cmake -S tools/lrpc -B build/host/lrpc
+      - run: cmake --build build/host/lrpc
       - run: tests/macos/run-scenario.sh scrapbook startup --ci-structural
       - run: tests/macos/run-scenario.sh scrapbook flip-forward-back --ci-structural
       - run: tests/macos/run-scenario.sh helloworld startup --ci-structural

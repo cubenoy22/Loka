@@ -1,17 +1,27 @@
 #include "HelloWorldScenarioDriver.hpp"
 
 #include <cassert>
+#include <cstdio>
+#include <cstring>
 
 #include "HelloWorldScenarios.hpp"
 #include "HelloWorldScenarioPresentation.hpp"
 #include "ScenarioDriverSupport.hpp"
 #include "StartupScenarios.hpp"
+#include "ToolboxScenePlatformController.hpp"
+#include "ToolboxWindow.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
 #include "app/core/App.hpp"
 #include "app/core/AppComposition.hpp"
 #include "app/core/AppConfigurable.hpp"
+#include "app/nodes/Text.hpp"
+#include "app/nodes/controls/EditText.hpp"
+#include "context/ToolboxEditTextContext.hpp"
+#include "context/ToolboxTextContext.hpp"
 #include "core/util/ScopedPtr.hpp"
+#include "core/util/StateTrackerGuard.hpp"
+#include "platform/StringUTF8.hpp"
 #include "testing/scene/ScenarioAudit.hpp"
 
 namespace loka
@@ -22,6 +32,471 @@ namespace loka
     {
       const char *kConfigPath = "LokaTest.cfg";
       const char *kDefaultScenarioName = "toggle-action-probe";
+      const char *kBmiRoundtripScenarioName = "bmi-roundtrip";
+      const char *kZStackDirtyReplayScenarioName = "toggle-action-probe";
+      const char *kDirtyReplayProbeKey = "probe_dirty_replay";
+
+      /** The probe stays opt-in. Its original reason is gone -- the BMI fields
+          no longer sit below the fold, so a probe run can no longer red the
+          rail for visibility rather than replay -- but "the reason went away"
+          is not evidence that the probe still fails when it should. Turning it
+          on by default needs a run that shows it going red on a reintroduced
+          defect; #436 tracks that. run-scenario.sh --probe writes this key;
+          the tracked cell does not. SnapTestConfig ignores unknown keys, so
+          this stays driver-local. */
+      bool DirtyReplayProbeRequested(const char *configPath)
+      {
+        FILE *fp = std::fopen(configPath, "rb");
+        if (!fp)
+        {
+          return false;
+        }
+        char line[256];
+        bool requested = false;
+        while (std::fgets(line, sizeof(line), fp) != 0)
+        {
+          const char *cursor = line;
+          while (*cursor == ' ' || *cursor == '\t')
+          {
+            ++cursor;
+          }
+          const size_t keyLength = std::strlen(kDirtyReplayProbeKey);
+          if (std::strncmp(cursor, kDirtyReplayProbeKey, keyLength) != 0)
+          {
+            continue;
+          }
+          cursor += keyLength;
+          while (*cursor == ' ' || *cursor == '\t')
+          {
+            ++cursor;
+          }
+          if (*cursor == '1')
+          {
+            requested = true;
+          }
+        }
+        std::fclose(fp);
+        return requested;
+      }
+      const char *kBmiHeightInputTestId = "HelloWorld.Bmi.HeightInput";
+      const char *kLeftPanelTitleTestId = "HelloWorld.LeftPanel.Title";
+      const char *kDecorationTestId = "HelloWorld.Decoration";
+      const short kDirtyReplayProbeMaxWidth = 256;
+
+      struct ProgrammaticTextChange
+      {
+        core::MutableState<core::String> *state;
+        core::StateTracker *tracker;
+        core::String value;
+
+        ProgrammaticTextChange(core::MutableState<core::String> *stateValue,
+                               core::StateTracker *trackerValue,
+                               const core::String &nextValue)
+            : state(stateValue),
+              tracker(trackerValue),
+              value(nextValue)
+        {
+        }
+
+        static void Apply(void *userData)
+        {
+          ProgrammaticTextChange *change = static_cast<ProgrammaticTextChange *>(userData);
+          if (!change || !change->state || !change->tracker)
+          {
+            return;
+          }
+          core::StateTrackerGuard guard(change->tracker);
+          change->state->set(change->value, true);
+        }
+      };
+
+      bool ProbeBmiHeightStateSync(Window *window, const char *&failureMessage)
+      {
+        failureMessage = "EditText state-sync probe was not run";
+        ToolboxWindow *toolboxWindow = window ? window->asToolboxWindow() : 0;
+        WindowPtr nativeWindow = toolboxWindow ? toolboxWindow->window() : 0;
+        ToolboxScenePlatformController *controller =
+            toolboxWindow ? toolboxWindow->scenePlatformController() : 0;
+        if (!window || !window->scene() || !toolboxWindow || !nativeWindow || !controller)
+        {
+          failureMessage = "EditText state-sync probe window was unavailable";
+          return false;
+        }
+
+        app::EditTextNode *heightInput = 0;
+        dsl::FlowError lookupError;
+        if (dsl::testing::LookupNodeById<app::EditTextNode>(
+                window->scene(), kBmiHeightInputTestId, heightInput, lookupError)
+            != dsl::FLOW_STEP_SUCCEEDED)
+        {
+          failureMessage = "EditText state-sync probe could not find the BMI height input";
+          return false;
+        }
+        ToolboxEditTextContext *editContext =
+            heightInput ? static_cast<ToolboxEditTextContext *>(heightInput->getContext()) : 0;
+        core::MutableState<core::String> *heightState =
+            heightInput && heightInput->props.text_
+                ? static_cast<core::MutableState<core::String> *>(heightInput->props.text_->asMutableState())
+                : 0;
+        app::scene::BoundaryNode *rootBoundary =
+            dsl::testing::SceneTestAccess::rootBoundary(*window->scene());
+        if (!editContext || !heightState || !rootBoundary || !rootBoundary->tracker())
+        {
+          failureMessage = "EditText state-sync probe found no live mutable Toolbox binding";
+          return false;
+        }
+        const Rect chrome = editContext->chromeRect();
+        if (chrome.left < nativeWindow->portRect.left || chrome.top < nativeWindow->portRect.top
+            || chrome.right > nativeWindow->portRect.right || chrome.bottom > nativeWindow->portRect.bottom)
+        {
+          failureMessage = "EditText state-sync probe input was outside the window port";
+          return false;
+        }
+
+        std::string beforeState;
+        std::string beforeNative;
+        if (!platform::CollectUtf8(heightState->get(), beforeState)
+            || !controller->queryEditTextValueForTesting(editContext, beforeNative))
+        {
+          failureMessage = "EditText state-sync probe could not read its positive-control values";
+          return false;
+        }
+        const char *nextBytes = beforeState == "181.5" ? "182.5" : "181.5";
+        ProgrammaticTextChange change(
+            heightState, rootBoundary->tracker(), core::String::Literal(nextBytes));
+        core::EmitterState batchEvent;
+        batchEvent.bind(&ProgrammaticTextChange::Apply, &change, false, false, 0);
+        // emitHitEmitter owns the controller's ordinary begin/end batch pair.
+        // This keeps the probe on the same always-on Release path as a native
+        // batched action without adding a mutable testing door to production.
+        controller->emitHitEmitter(&batchEvent);
+        batchEvent.unbind(&ProgrammaticTextChange::Apply, &change);
+
+        std::string afterState;
+        if (!platform::CollectUtf8(heightState->get(), afterState) || afterState != nextBytes
+            || afterState == beforeState)
+        {
+          failureMessage = "EditText state-sync probe positive control did not change the State";
+          return false;
+        }
+
+        // Read the TE record BEFORE any flush or presentation. The defect's
+        // seam is that a programmatic write must reach TESetText through the
+        // state listener itself: in the reel a batch is open when the walk
+        // runs, so the render-time repair in ensureEditTextControl is gated
+        // off and nothing else heals the record. A read after a flush would
+        // let that healing walk hide the missing listener, and the probe
+        // would pass with the fix reverted.
+        std::string afterNative;
+        if (!controller->queryEditTextValueForTesting(editContext, afterNative))
+        {
+          failureMessage = "EditText state-sync probe could not read the TE record";
+          return false;
+        }
+        if (afterNative != afterState)
+        {
+          failureMessage = "EditText TE text did not match its programmatically changed State";
+          return false;
+        }
+
+        // Put the completed scenario's value back before anything paints: the
+        // runner captures this scene and compares it against the same golden a
+        // non-probe run produces, so a probe that leaves the field changed
+        // could only pass by replacing a golden the presentation rail then
+        // fails. Restoring is also a second measurement of the same seam --
+        // the listener has to carry this write to the TE record too.
+        ProgrammaticTextChange restore(
+            heightState, rootBoundary->tracker(), core::String::Literal(beforeState.c_str()));
+        core::EmitterState restoreEvent;
+        restoreEvent.bind(&ProgrammaticTextChange::Apply, &restore, false, false, 0);
+        controller->emitHitEmitter(&restoreEvent);
+        restoreEvent.unbind(&ProgrammaticTextChange::Apply, &restore);
+
+        std::string restoredState;
+        std::string restoredNative;
+        if (!platform::CollectUtf8(heightState->get(), restoredState) || restoredState != beforeState)
+        {
+          failureMessage = "EditText state-sync probe could not restore the completed scenario value";
+          return false;
+        }
+        if (!controller->queryEditTextValueForTesting(editContext, restoredNative)
+            || restoredNative != restoredState)
+        {
+          failureMessage = "EditText TE text did not follow the State back to its scenario value";
+          return false;
+        }
+
+        // Then present normally so the screen and any later capture see the
+        // settled scene; this is cleanup, not the assertion.
+        window->flushSceneInvalidation();
+        toolboxWindow->flushInvalidate();
+        failureMessage = 0;
+        return true;
+      }
+
+      void CapturePixelRow(const Rect &row, unsigned char *pixels)
+      {
+        for (short x = row.left; x < row.right; ++x)
+        {
+          pixels[x - row.left] = GetPixel(x, row.top) ? 1 : 0;
+        }
+      }
+
+      bool PixelRowMatches(const Rect &row, const unsigned char *pixels)
+      {
+        for (short x = row.left; x < row.right; ++x)
+        {
+          const unsigned char pixel = GetPixel(x, row.top) ? 1 : 0;
+          if (pixel != pixels[x - row.left])
+          {
+            return false;
+          }
+        }
+        return true;
+      }
+
+      bool ProbeBmiHeightDirtyReplay(Window *window, const char *&failureMessage)
+      {
+        failureMessage = "dirty replay probe was not run";
+        ToolboxWindow *toolboxWindow = window ? window->asToolboxWindow() : 0;
+        WindowPtr nativeWindow = toolboxWindow ? toolboxWindow->window() : 0;
+        if (!window || !window->scene() || !toolboxWindow || !nativeWindow)
+        {
+          failureMessage = "dirty replay probe window was unavailable";
+          return false;
+        }
+
+        app::EditTextNode *heightInput = 0;
+        dsl::FlowError lookupError;
+        if (dsl::testing::LookupNodeById<app::EditTextNode>(
+                window->scene(), kBmiHeightInputTestId, heightInput, lookupError)
+            != dsl::FLOW_STEP_SUCCEEDED)
+        {
+          failureMessage = "dirty replay probe could not find the BMI height input";
+          return false;
+        }
+        ToolboxEditTextContext *editContext =
+            heightInput ? static_cast<ToolboxEditTextContext *>(heightInput->getContext()) : 0;
+        if (!editContext)
+        {
+          failureMessage = "dirty replay probe found no Toolbox EditText context";
+          return false;
+        }
+
+        const Rect chrome = editContext->chromeRect();
+        const int width = static_cast<int>(chrome.right) - static_cast<int>(chrome.left);
+        if (width <= 0 || width > kDirtyReplayProbeMaxWidth || chrome.top < nativeWindow->portRect.top
+            || chrome.top >= nativeWindow->portRect.bottom || chrome.left < nativeWindow->portRect.left
+            || chrome.right > nativeWindow->portRect.right)
+        {
+          failureMessage = "dirty replay probe found invalid EditText chrome bounds";
+          return false;
+        }
+
+        // EditText layout insets textRect.top by two pixels. Damage only the
+        // one-pixel chrome row so replay has to gate on the extent it frames.
+        Rect row = chrome;
+        row.bottom = static_cast<short>(row.top + 1);
+        unsigned char savedPixels[kDirtyReplayProbeMaxWidth];
+        GrafPtr previousPort = 0;
+        GetPort(&previousPort);
+        SetPort(nativeWindow);
+        CapturePixelRow(row, savedPixels);
+        EraseRect(&row);
+        const bool damageObserved = !PixelRowMatches(row, savedPixels);
+        SetPort(previousPort);
+        if (!damageObserved)
+        {
+          failureMessage = "dirty replay probe positive control did not change pixels";
+          return false;
+        }
+
+        toolboxWindow->drawDirty(row);
+
+        SetPort(nativeWindow);
+        const bool replayRestoredPixels = PixelRowMatches(row, savedPixels);
+        SetPort(previousPort);
+        if (!replayRestoredPixels)
+        {
+          failureMessage = "dirty replay did not restore the EditText chrome row";
+          return false;
+        }
+        failureMessage = 0;
+        return true;
+      }
+
+      bool ProbeZStackTextDirtyReplay(Window *window, const char *&failureMessage)
+      {
+        failureMessage = "ZStack dirty replay probe was not run";
+        ToolboxWindow *toolboxWindow = window ? window->asToolboxWindow() : 0;
+        WindowPtr nativeWindow = toolboxWindow ? toolboxWindow->window() : 0;
+        if (!window || !window->scene() || !toolboxWindow || !nativeWindow)
+        {
+          failureMessage = "ZStack dirty replay probe window was unavailable";
+          return false;
+        }
+
+        app::TextNode *title = 0;
+        app::TextNode *decoration = 0;
+        dsl::FlowError titleLookupError;
+        dsl::FlowError decorationLookupError;
+        if (dsl::testing::LookupNodeById<app::TextNode>(
+                window->scene(), kLeftPanelTitleTestId, title, titleLookupError)
+                != dsl::FLOW_STEP_SUCCEEDED
+            || dsl::testing::LookupNodeById<app::TextNode>(
+                   window->scene(), kDecorationTestId, decoration, decorationLookupError)
+                   != dsl::FLOW_STEP_SUCCEEDED)
+        {
+          failureMessage = "ZStack dirty replay probe could not find the overlapping text nodes";
+          return false;
+        }
+        ToolboxTextContext *titleContext =
+            title ? static_cast<ToolboxTextContext *>(title->getContext()) : 0;
+        ToolboxTextContext *decorationContext =
+            decoration ? static_cast<ToolboxTextContext *>(decoration->getContext()) : 0;
+        if (!titleContext || !decorationContext)
+        {
+          failureMessage = "ZStack dirty replay probe found no Toolbox Text context";
+          return false;
+        }
+
+        short overlapWidth = titleContext->visibleWidth();
+        const short decorationWidth = decorationContext->visibleWidth();
+        if (decorationWidth < overlapWidth)
+        {
+          overlapWidth = decorationWidth;
+        }
+        // The controller starts the root layout at (12, 24) with a 14-pixel
+        // line height. ToolboxTextContext therefore records both first ZStack
+        // children in [12, 12, 12 + width, 30]. The contexts supply the live
+        // widths; these shared root coordinates need no new production query.
+        Rect overlap;
+        overlap.left = 12;
+        overlap.top = 12;
+        overlap.right = static_cast<short>(overlap.left + overlapWidth);
+        overlap.bottom = 30;
+        const int width = static_cast<int>(overlap.right) - static_cast<int>(overlap.left);
+        if (width <= 0 || width > kDirtyReplayProbeMaxWidth || overlap.left < nativeWindow->portRect.left
+            || overlap.right > nativeWindow->portRect.right || overlap.top < nativeWindow->portRect.top
+            || overlap.bottom > nativeWindow->portRect.bottom)
+        {
+          failureMessage = "ZStack dirty replay probe strip was outside the window port";
+          return false;
+        }
+
+        unsigned char savedPixels[kDirtyReplayProbeMaxWidth];
+        unsigned char titlePixels[kDirtyReplayProbeMaxWidth];
+        unsigned char decorationPixels[kDirtyReplayProbeMaxWidth];
+        Rect row = overlap;
+        bool foundUnderlyingTitlePixel = false;
+        short underlyingTitleX = 0;
+        GrafPtr previousPort = 0;
+        GetPort(&previousPort);
+        SetPort(nativeWindow);
+        RgnHandle previousClip = NewRgn();
+        if (!previousClip)
+        {
+          SetPort(previousPort);
+          failureMessage = "ZStack dirty replay probe could not preserve the clip region";
+          return false;
+        }
+        GetClip(previousClip);
+        for (short y = overlap.top; y < overlap.bottom; ++y)
+        {
+          row.top = y;
+          row.bottom = static_cast<short>(y + 1);
+          CapturePixelRow(row, savedPixels);
+          SetClip(previousClip);
+          ClipRect(&row);
+          EraseRect(&row);
+          titleContext->draw(0);
+          CapturePixelRow(row, titlePixels);
+          EraseRect(&row);
+          decorationContext->draw(0);
+          CapturePixelRow(row, decorationPixels);
+          for (short x = row.left; x < row.right; ++x)
+          {
+            const short index = static_cast<short>(x - row.left);
+            if (titlePixels[index] != 0 && decorationPixels[index] == 0)
+            {
+              foundUnderlyingTitlePixel = true;
+              underlyingTitleX = x;
+              break;
+            }
+          }
+          if (foundUnderlyingTitlePixel)
+          {
+            break;
+          }
+        }
+        SetClip(previousClip);
+        DisposeRgn(previousClip);
+
+        // Restore every row touched while separating the two glyph masks.
+        // Damage only the selected title pixel: it lies inside the decoration
+        // hit rect but carries no decoration ink. This is also the setup
+        // positive control for the expected composite.
+        if (foundUnderlyingTitlePixel)
+        {
+          savedPixels[0] = savedPixels[underlyingTitleX - overlap.left];
+          row.left = underlyingTitleX;
+          row.right = static_cast<short>(underlyingTitleX + 1);
+        }
+        toolboxWindow->draw();
+        const bool setupCompositeRestored =
+            foundUnderlyingTitlePixel && PixelRowMatches(row, savedPixels);
+        if (setupCompositeRestored)
+        {
+          EraseRect(&row);
+        }
+        const bool damageObserved = setupCompositeRestored && !PixelRowMatches(row, savedPixels);
+        SetPort(previousPort);
+        if (!foundUnderlyingTitlePixel)
+        {
+          failureMessage = "ZStack dirty replay probe found no title-only pixel under the decoration";
+          return false;
+        }
+        if (!setupCompositeRestored)
+        {
+          failureMessage = "ZStack dirty replay probe could not restore its setup damage";
+          return false;
+        }
+        if (!damageObserved)
+        {
+          failureMessage = "ZStack dirty replay probe positive control did not change pixels";
+          return false;
+        }
+
+        toolboxWindow->drawDirty(row);
+
+        SetPort(nativeWindow);
+        const bool replayRestoredPixels = PixelRowMatches(row, savedPixels);
+        SetPort(previousPort);
+        if (!replayRestoredPixels)
+        {
+          failureMessage = "dirty replay did not restore title pixels beneath the ZStack decoration";
+          return false;
+        }
+        failureMessage = 0;
+        return true;
+      }
+
+      bool IsSuccessfulRecord(const dsl::SnapRecord &record)
+      {
+        std::string status;
+        return record.get("status", status) && status == dsl::SnapStatusOk();
+      }
+
+      void SetDirtyReplayProbeFailure(dsl::SnapRecord &record,
+                                      int code,
+                                      const char *step,
+                                      const char *node,
+                                      const char *failureMessage)
+      {
+        record = scenario_tests::MakeHelloWorldDriverErrorRecord(code, failureMessage);
+        record.set("step", step);
+        record.set("node", node);
+      }
 
       class HelloWorldScenarioAppConfig : public scenario_tests::HelloWorldScenarioPresentation
       {
@@ -102,6 +577,33 @@ namespace loka
             }
             if (done)
             {
+              if (!this->startup_ && this->scenario_.name() == kBmiRoundtripScenarioName
+                  && IsSuccessfulRecord(record) && DirtyReplayProbeRequested(kConfigPath))
+              {
+                // Success leaves the completed portable record untouched;
+                // only a failed rail-local probe replaces the verdict.
+                const char *probeFailure = 0;
+                if (!ProbeBmiHeightDirtyReplay(window, probeFailure))
+                {
+                  SetDirtyReplayProbeFailure(
+                      record, 2404, kBmiRoundtripScenarioName, kBmiHeightInputTestId, probeFailure);
+                }
+                else if (!ProbeBmiHeightStateSync(window, probeFailure))
+                {
+                  SetDirtyReplayProbeFailure(
+                      record, 2406, kBmiRoundtripScenarioName, kBmiHeightInputTestId, probeFailure);
+                }
+              }
+              if (!this->startup_ && this->scenario_.name() == kZStackDirtyReplayScenarioName
+                  && IsSuccessfulRecord(record) && DirtyReplayProbeRequested(kConfigPath))
+              {
+                const char *probeFailure = 0;
+                if (!ProbeZStackTextDirtyReplay(window, probeFailure))
+                {
+                  SetDirtyReplayProbeFailure(
+                      record, 2405, kZStackDirtyReplayScenarioName, kLeftPanelTitleTestId, probeFailure);
+                }
+              }
               if (this->startup_)
               {
                 (void)this->startupScenario_.publishVerdict(record);
