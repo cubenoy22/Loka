@@ -17,10 +17,11 @@ namespace loka
         stable symbolic name, an assigned numeric id, an asset kind, a bag
         assignment and a completed byte payload. The manifest is that contract
         written down, nothing more -- it is deliberately *below* #185 §6's
-        declaration file rather than an early draft of it. When the string
-        shape rally lands and `lrpc` grows a front half that walks `Assets/`,
-        that front half produces records of this shape; it does not replace
-        them. */
+        declaration file rather than an early draft of it. V1 deliberately
+        keeps this explicit manifest as the CLI input: filesystem discovery
+        cannot define the deferred "one file, many string ids" shape yet.
+        A later discovery front half must produce records of this shape; it
+        does not replace them. */
     struct ManifestAsset
     {
       ManifestAsset()
@@ -37,8 +38,7 @@ namespace loka
       std::size_t bag;
       /** Carried but not written to the package. The id->name table is the
           `"nams"` chunk, which is a diagnostic-build concern and out of the
-          vertical slice; the column exists now because the pack-input
-          contract names it and because `R.hpp` generation will read it. */
+          vertical slice; generated `R.hpp` reads this source-side name. */
       std::string name;
       std::string source;
     };
@@ -160,7 +160,7 @@ namespace loka
         std::size_t &errorLine);
 #endif
 
-    /** Derives the id-space stamp from the id assignment itself.
+    /** Derives the id-space stamp from the generated baked-resource facts.
 
         #185 §10 gives the stamp one job: detecting a package that is out of
         step with the header the application compiled against, a failure that
@@ -169,8 +169,11 @@ namespace loka
         only catches a literal mismatch, so renumbering an asset leaves the
         stamp agreeing while every lookup has moved.
 
-        It covers the **symbol-to-id association**, as sorted `(id, kind, name)`
-        rows, not just the set of ids. Hashing `(id, kind)` alone would let two
+        It covers the **generated baked-resource facts**, as the bag count plus
+        sorted `(id, kind, bag, name)` rows, not just the set of ids. Bag
+        membership is included because generated `AssetRef` values carry it;
+        inserting or moving a bag must not leave an older header accepted.
+        Hashing `(id, kind)` alone would let two
         same-kind symbols exchange ids without moving the stamp -- the row
         multiset is identical while the header now points each symbol at the
         other's bytes, which is exactly the silent mismatch being guarded

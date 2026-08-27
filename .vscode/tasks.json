@@ -1399,8 +1399,8 @@
     {
       "label": "PMonSprite: Configure ScrapbookUI",
       "type": "shell",
-      "command": "scripts/retro68-cmake.sh -S . -B build/retro68-pmon -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/Retro68.cmake -DRETRO68_CPU=m68k -DLOKA_WARNINGS_AS_ERRORS=ON -DLOKA_SCRAPBOOK_PAGE_COUNT=$(cat build/pmonsprite-lrp-256/page-count.txt) -DLOKA_SCRAPBOOK_ID_SPACE_STAMP=$(cat build/pmonsprite-lrp-256/stamp.txt)",
-      "detail": "Reads metadata from the default color package; the 1-bit variant remains available via the script's --depth 1 CLI",
+      "command": "scripts/retro68-cmake.sh -S . -B build/retro68-pmon -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/Retro68.cmake -DRETRO68_CPU=m68k -DLOKA_WARNINGS_AS_ERRORS=ON -DLOKA_SCRAPBOOK_R_HEADER_DIR=$PWD/build/pmonsprite-lrp-256",
+      "detail": "Compiles against the generated resource header for the default color package; the 1-bit variant remains available via the script's --depth 1 CLI",
       "problemMatcher": "$gcc",
       "dependsOn": [
         "PMonSprite: Generate LRP"

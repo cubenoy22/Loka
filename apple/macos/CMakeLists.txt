@@ -122,6 +122,7 @@ if(NOT LOKA_MAC_OS_10_4)
   loka_enable_warnings(LokaTestsMacOS)
 
   target_include_directories(LokaTestsMacOS PRIVATE
+    ${LOKA_SCRAPBOOK_R_HEADER_DIR}
     ${PROJECT_SOURCE_DIR}/common
     ${PROJECT_SOURCE_DIR}/tests
     ${PROJECT_SOURCE_DIR}/tools

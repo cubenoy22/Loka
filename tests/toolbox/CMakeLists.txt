@@ -10,10 +10,17 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC)$")
     src/DslNameCollisionProbe.cpp
   )
   loka_enable_warnings(LokaToolboxDslNameCollisionProbe)
+  # The probe reaches ScrapbookUI's MainNode, whose package header includes
+  # the generated <R.hpp>; give it the same shadow-then-src order as the
+  # other Scrapbook consumers.
+  target_include_directories(LokaToolboxDslNameCollisionProbe BEFORE PRIVATE
+    ${LOKA_SCRAPBOOK_R_HEADER_DIR}
+  )
   target_include_directories(LokaToolboxDslNameCollisionProbe PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/common
     ${CMAKE_SOURCE_DIR}/apple/toolbox/src
+    ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/src
   )
   target_compile_definitions(LokaToolboxDslNameCollisionProbe PRIVATE
     LOKA_RETRO68=1
@@ -118,6 +125,15 @@ loka_add_toolbox_test_application(
   ${LOKA_TESTS_TOOLBOX_TARGET}
   LokaAppleToolboxCore
   ${LOKA_TESTS_TOOLBOX_SOURCES}
+)
+# The registry vehicle compiles ScrapbookUI's package sources, which include
+# the generated <R.hpp>; shadow dir first so a regenerated header overrides
+# the checked-in one.
+target_include_directories(${LOKA_TESTS_TOOLBOX_TARGET} BEFORE PRIVATE
+  ${LOKA_SCRAPBOOK_R_HEADER_DIR}
+)
+target_include_directories(${LOKA_TESTS_TOOLBOX_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/src
 )
 
 set(LOKA_HELLO_WORLD_TESTS_TOOLBOX_SOURCES
@@ -338,9 +354,15 @@ loka_configure_toolbox_standalone_target(
   ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/src
   ${LOKA_STANDALONE_FLOW_TOOLBOX_ALL_TARGET}
 )
-target_include_directories(${LOKA_TESTS_TOOLBOX_TARGET} PRIVATE
-  ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/src
+
+# The standalone helper above already supplies tests/standalone, the example
+# src, and the TEST_BUILD defines; only the generated-header shadow directory
+# is Scrapbook-specific (it must precede the src include so a regenerated
+# R.hpp overrides the checked-in one, as on the tests target above).
+target_include_directories(${LOKA_STANDALONE_FLOW_TOOLBOX_TARGET} BEFORE PRIVATE
+  ${LOKA_SCRAPBOOK_R_HEADER_DIR}
 )
+
 
 configure_file(
   ${CMAKE_SOURCE_DIR}/example/HelloWorld/Size.r
@@ -495,18 +517,6 @@ foreach(_LOKA_STANDALONE_TARGET IN ITEMS
     ${CMAKE_SOURCE_DIR}/tests/standalone/StandalonePerformance.cpp)
 endforeach()
 unset(_LOKA_STANDALONE_TARGET)
-endif()
-
-if(NOT LOKA_SCRAPBOOK_PAGE_COUNT STREQUAL "")
-  target_compile_definitions(${LOKA_TESTS_TOOLBOX_TARGET} PRIVATE
-    LOKA_SCRAPBOOK_PAGE_COUNT=${LOKA_SCRAPBOOK_PAGE_COUNT}
-  )
-endif()
-
-if(NOT LOKA_SCRAPBOOK_ID_SPACE_STAMP STREQUAL "")
-  target_compile_definitions(${LOKA_TESTS_TOOLBOX_TARGET} PRIVATE
-    LOKA_SCRAPBOOK_ID_SPACE_STAMP=${LOKA_SCRAPBOOK_ID_SPACE_STAMP}
-  )
 endif()
 
 configure_file(

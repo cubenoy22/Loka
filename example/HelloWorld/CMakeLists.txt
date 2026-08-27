@@ -90,6 +90,7 @@ if(WIN32)
   loka_enable_warnings(LokaTestsWin32)
 
   target_include_directories(LokaTestsWin32 PRIVATE
+    ${LOKA_SCRAPBOOK_R_HEADER_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tools
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src

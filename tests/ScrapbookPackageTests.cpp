@@ -18,7 +18,6 @@
 
 namespace
 {
-  const loka::core::resource::lrpk::U32 kScrapbookStamp = 3579051217UL;
   const unsigned char kPngSignature[] = {0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'};
   const std::size_t kPrerasterizedPictureHeight = 150;
   const std::size_t kPrerasterizedPictureRowBytes = 26;
@@ -177,7 +176,7 @@ namespace
 
   bool HasScrapbookStamp(const loka::lrpc::PackManifest &manifest)
   {
-    return loka::lrpc::DeriveIdSpaceStamp(manifest) == kScrapbookStamp;
+    return loka::lrpc::DeriveIdSpaceStamp(manifest) == R::IdSpaceStamp;
   }
 
   bool PackageCountsMatchManifest(const loka::core::resource::lrpk::Reader &reader,
@@ -253,7 +252,7 @@ namespace
     loka::core::resource::lrpk::Reader reader;
     std::size_t indexBytesNeeded = 0;
     LOKA_VERIFY(reader.beginOpen(
-                    source, kScrapbookStamp, loka::core::resource::lrpk::Reader::VERIFY_INTEGRITY, indexBytesNeeded)
+                    source, R::IdSpaceStamp, loka::core::resource::lrpk::Reader::VERIFY_INTEGRITY, indexBytesNeeded)
                 == loka::core::resource::lrpk::Reader::OPEN_OK);
     std::vector<unsigned char> index(indexBytesNeeded);
     LOKA_VERIFY(reader.finishOpen(index.empty() ? 0 : &index[0], index.size())
@@ -311,6 +310,9 @@ void testScrapbookPackagesMatchTheirManifestsAndCarryNativeImages()
   PackagePathContext context(packageString);
   scrapbook::ScrapbookPackage package;
   LOKA_VERIFY(package.open(&context));
+  scrapbook::PagePresentation refusedPage;
+  LOKA_VERIFY(!package.preparePage(-1, refusedPage));
+  LOKA_VERIFY(!package.preparePage(static_cast<int>(R::Pages::AssetCount), refusedPage));
   scrapbook::PagePresentation textPage;
   LOKA_VERIFY(package.preparePage(4, textPage));
   assert(!textPage.isImage);

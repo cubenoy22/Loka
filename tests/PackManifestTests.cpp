@@ -7,6 +7,7 @@
 #include <string>
 
 #include "lrpc/PackManifest.hpp"
+#include "lrpc/ResourceHeader.hpp"
 
 using loka::lrpc::DeriveIdSpaceStamp;
 using loka::lrpc::ManifestResult;
@@ -14,6 +15,7 @@ using loka::lrpc::PackManifest;
 using loka::lrpc::ParseManifest;
 using loka::lrpc::RequirementResult;
 using loka::lrpc::RequirementViolation;
+using loka::lrpc::ResourceHeaderResult;
 
 namespace
 {
@@ -36,6 +38,134 @@ namespace
     return manifest;
   }
 } // namespace
+
+void testResourceHeaderGeneratesTypedNestedSymbols()
+{
+  const PackManifest manifest = Manifest(
+      "bag ui\n"
+      "asset 9001 image UI/RefusedBadge badge.pict\n"
+      "asset 1001 image Pages/One one.pict\n"
+      "bag text\n"
+      "asset 1002 string Pages/Two two.txt\n"
+      "asset 9002 string UI/Caption caption.txt\n");
+
+  std::string header;
+  LOKA_VERIFY(loka::lrpc::GenerateResourceHeader(manifest, header) ==
+              loka::lrpc::RESOURCE_HEADER_OK);
+  assert(header.find("struct AssetRef") != std::string::npos);
+  assert(header.find("const AssetId IdSpaceStamp = ") != std::string::npos);
+  assert(header.find("const std::size_t AssetCount = 4;") != std::string::npos);
+  assert(header.find("const std::size_t BagCount = 2;") != std::string::npos);
+  assert(header.find("namespace UI") != std::string::npos);
+  assert(header.find("const AssetRef RefusedBadge = {9001UL, 0, ") !=
+         std::string::npos);
+  assert(header.find("const AssetRef Caption = {9002UL, 1, ") !=
+         std::string::npos);
+  assert(header.find("namespace Pages") != std::string::npos);
+  assert(header.find("const AssetRef One = {1001UL, 0, ") != std::string::npos);
+  assert(header.find("const AssetRef Two = {1002UL, 1, ") != std::string::npos);
+  // Interleaved manifest records still form one namespace-owned sequence.
+  const std::string uiOpening("  namespace UI\n  {");
+  assert(header.find(uiOpening) == header.rfind(uiOpening));
+  assert(header.find("const std::size_t AssetCount = 2;", header.find(uiOpening)) !=
+         std::string::npos);
+
+  const PackManifest renamedSources = Manifest(
+      "bag ui\n"
+      "asset 9001 image UI/RefusedBadge elsewhere.png\n"
+      "asset 1001 image Pages/One elsewhere-one.png\n"
+      "bag text\n"
+      "asset 1002 string Pages/Two elsewhere-two.txt\n"
+      "asset 9002 string UI/Caption elsewhere-caption.txt\n");
+  std::string sameHeader;
+  LOKA_VERIFY(loka::lrpc::GenerateResourceHeader(renamedSources, sameHeader) ==
+              loka::lrpc::RESOURCE_HEADER_OK);
+  assert(header == sameHeader);
+
+  const PackManifest oneListing = Manifest(
+      "bag all\n"
+      "asset 7 image UI/Icon icon\n"
+      "asset 3 string Pages/First first\n"
+      "asset 5 string Pages/Second second\n");
+  const PackManifest anotherListing = Manifest(
+      "bag all\n"
+      "asset 5 string Pages/Second second\n"
+      "asset 7 image UI/Icon icon\n"
+      "asset 3 string Pages/First first\n");
+  std::string canonicalOne;
+  std::string canonicalOther;
+  LOKA_VERIFY(loka::lrpc::GenerateResourceHeader(oneListing, canonicalOne) ==
+              loka::lrpc::RESOURCE_HEADER_OK);
+  LOKA_VERIFY(loka::lrpc::GenerateResourceHeader(anotherListing, canonicalOther) ==
+              loka::lrpc::RESOURCE_HEADER_OK);
+  assert(canonicalOne == canonicalOther);
+  assert(canonicalOne.find("const AssetRef First") <
+         canonicalOne.find("const AssetRef Second"));
+
+  std::printf("testResourceHeaderGeneratesTypedNestedSymbols passed\n");
+}
+
+void testResourceHeaderRefusesAmbiguousCppSurfaces()
+{
+  const char *badSymbols[] = {
+      "bag Main\nasset 1 image 9Lives a\n",
+      "bag Main\nasset 1 image UI/class a\n",
+      "bag Main\nasset 1 image UI/concept a\n",
+      "bag Main\nasset 1 image UI/Bad__Name a\n",
+      "bag Main\nasset 1 image UI/Bad-Name a\n"};
+  for (std::size_t i = 0; i < sizeof(badSymbols) / sizeof(badSymbols[0]); ++i)
+  {
+    std::string preserved("preserved");
+    LOKA_VERIFY(loka::lrpc::GenerateResourceHeader(Manifest(badSymbols[i]), preserved) ==
+                loka::lrpc::RESOURCE_HEADER_BAD_SYMBOL);
+    assert(preserved == "preserved");
+  }
+
+  std::string preserved("preserved");
+  LOKA_VERIFY(loka::lrpc::GenerateResourceHeader(
+                  Manifest("bag Main\nasset 1 image Flat a\n"),
+                  preserved) == loka::lrpc::RESOURCE_HEADER_NEEDS_NAMESPACE);
+  assert(preserved == "preserved");
+
+  LOKA_VERIFY(loka::lrpc::GenerateResourceHeader(
+                  Manifest("bag Main\nasset 1 image UI/Badge a\n"
+                           "asset 2 image UI/Badge/Small b\n"),
+                  preserved) == loka::lrpc::RESOURCE_HEADER_SYMBOL_COLLISION);
+  assert(preserved == "preserved");
+
+  LOKA_VERIFY(loka::lrpc::GenerateResourceHeader(
+                  Manifest("bag Main\nasset 1 image Pages/Assets a\n"),
+                  preserved) == loka::lrpc::RESOURCE_HEADER_RESERVED_SYMBOL);
+  assert(preserved == "preserved");
+
+  std::printf("testResourceHeaderRefusesAmbiguousCppSurfaces passed\n");
+}
+
+void testResourceHeaderHandlesFiftyThousandSymbols()
+{
+  PackManifest manifest;
+  manifest.bags.push_back("bulk");
+  manifest.assets.resize(50000);
+  for (std::size_t i = 0; i < manifest.assets.size(); ++i)
+  {
+    char name[40];
+    ::snprintf(name, sizeof(name), "Bulk/A%lu", static_cast<unsigned long>(i + 1));
+    manifest.assets[i].id = static_cast<loka::core::resource::lrpk::U32>(i + 1);
+    manifest.assets[i].kind = loka::core::resource::lrpk::ASSET_KIND_IMAGE;
+    manifest.assets[i].bag = 0;
+    manifest.assets[i].name = name;
+  }
+
+  std::string header;
+  LOKA_VERIFY(loka::lrpc::GenerateResourceHeader(manifest, header) ==
+              loka::lrpc::RESOURCE_HEADER_OK);
+  assert(header.find("const std::size_t AssetCount = 50000;") !=
+         std::string::npos);
+  assert(header.find("const AssetRef A50000 = {50000UL, 0,") !=
+         std::string::npos);
+
+  std::printf("testResourceHeaderHandlesFiftyThousandSymbols passed\n");
+}
 
 void testPackManifestParsesRecordsAndRefusesMalformedLines()
 {
@@ -152,6 +282,23 @@ void testPackManifestStampFollowsTheIdSpaceNotTheListing()
                line) == loka::lrpc::MANIFEST_OK);
   assert(DeriveIdSpaceStamp(resourced) == DeriveIdSpaceStamp(listedOneWay));
 
+  // Bag membership is generated into AssetRef. An older header that opens
+  // the previous bag must therefore be rejected even though the id, kind, and
+  // name did not move.
+  PackManifest movedBag;
+  LOKA_VERIFY(Parse("bag Main\nasset 1001 image A a\nbag Later\nasset 2001 string B b\n",
+                    movedBag,
+                    line) == loka::lrpc::MANIFEST_OK);
+  assert(DeriveIdSpaceStamp(movedBag) != DeriveIdSpaceStamp(listedOneWay));
+
+  // BagCount is also emitted in R.hpp. Even an appended empty bag has to move
+  // the stamp or a stale header would pass the identity check and fail later.
+  PackManifest extraEmptyBag;
+  LOKA_VERIFY(Parse("bag Main\nasset 1001 image A a\nasset 2001 string B b\nbag Empty\n",
+                    extraEmptyBag,
+                    line) == loka::lrpc::MANIFEST_OK);
+  assert(DeriveIdSpaceStamp(extraEmptyBag) != DeriveIdSpaceStamp(listedOneWay));
+
   // The symbolic name is part of the association the stamp guards, so renaming
   // a symbol restamps.
   PackManifest renamed;
@@ -161,7 +308,7 @@ void testPackManifestStampFollowsTheIdSpaceNotTheListing()
   assert(DeriveIdSpaceStamp(renamed) != DeriveIdSpaceStamp(listedOneWay));
 
   // The case that makes hashing the name load-bearing rather than tidy: two
-  // same-kind symbols exchange ids. The sorted `(id, kind)` multiset is
+  // same-kind symbols exchange ids. The sorted `(id, kind, bag)` multiset is
   // identical, so a stamp over ids alone does not move -- while the generated
   // header now points each symbol at the other's bytes and an old package
   // passes every check and draws the wrong asset.

@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <vector>
 
+#include <R.hpp>
+
 #include "app/PlatformContext.hpp"
 #include "core/String.hpp"
 #include "core/resource/Blob.hpp"
@@ -17,47 +19,13 @@
 
 namespace scrapbook
 {
-  typedef loka::core::resource::lrpk::U32 AssetId;
-
-#if defined(LOKA_SCRAPBOOK_PAGE_COUNT)
-  const std::size_t kPageCount = LOKA_SCRAPBOOK_PAGE_COUNT;
-#else
-  const std::size_t kPageCount = 5;
-#endif
-
-  const AssetId kFirstPageAssetId = 1001UL;
-  const AssetId kRefusedBadgeAssetId = 9001UL;
-  const std::size_t kUiBagIndex = 0;
-  const std::size_t kFirstPageBagIndex = 1;
+  const std::size_t kPageCount = R::Pages::AssetCount;
 
 #if defined(LOKA_RETRO68)
   typedef loka::toolbox::ToolboxByteSource ScrapbookByteSource;
 #else
   typedef loka::core::resource::lrpk::StdioByteSource ScrapbookByteSource;
 #endif
-
-#if defined(LOKA_SCRAPBOOK_ID_SPACE_STAMP)
-// Injected stamps are full 32-bit values; under -Werror gnu++98, bare decimal
-// literals above the signed 31-bit range are rejected. Expand before adding UL.
-#define LOKA_SCRAPBOOK_STAMP_LITERAL_IMPL(value) value##UL
-#define LOKA_SCRAPBOOK_STAMP_LITERAL(value) LOKA_SCRAPBOOK_STAMP_LITERAL_IMPL(value)
-  const AssetId kIdSpaceStamp =
-      LOKA_SCRAPBOOK_STAMP_LITERAL(LOKA_SCRAPBOOK_ID_SPACE_STAMP);
-#undef LOKA_SCRAPBOOK_STAMP_LITERAL
-#undef LOKA_SCRAPBOOK_STAMP_LITERAL_IMPL
-#else
-  const AssetId kIdSpaceStamp = 3579051217UL;
-#endif
-
-  inline AssetId PageAssetId(std::size_t page)
-  {
-    return kFirstPageAssetId + static_cast<AssetId>(page);
-  }
-
-  inline std::size_t PageBagIndex(std::size_t page)
-  {
-    return kFirstPageBagIndex + page;
-  }
 
   /** A page that has been fully read and decoded but not yet installed as the
       package owner's current page. It is a completed value so the node can
@@ -113,7 +81,10 @@ namespace scrapbook
     ScrapbookPackage(const ScrapbookPackage &);
     ScrapbookPackage &operator=(const ScrapbookPackage &);
 
-    bool buildPresentation(int page, const loka::core::resource::Blob &blob, PagePresentation &out);
+    bool buildPresentation(int page,
+                           const R::AssetRef &resource,
+                           const loka::core::resource::Blob &blob,
+                           PagePresentation &out);
     bool loadRefusedBadge();
     void releaseUiBag();
     void rollbackPreparedBag(std::size_t bag, bool openedNew);

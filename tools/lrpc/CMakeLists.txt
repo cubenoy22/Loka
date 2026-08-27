@@ -18,6 +18,7 @@ add_executable(lrpc
   HostFile.cpp
   LrpkStager.cpp
   PackManifest.cpp
+  ResourceHeader.cpp
   LrpkWriter.cpp
   Utf8Path.cpp
 )
