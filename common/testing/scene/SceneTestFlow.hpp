@@ -1103,6 +1103,14 @@ namespace loka
                                            FlowError &error)
       {
         out = 0;
+        if (selector.anchorId().empty())
+        {
+          // An omitted anchor would otherwise match every id-less node and,
+          // when exactly one exists, silently become a scene-wide lookup.
+          error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+          error.code = FLOW_ERROR_SCENE_TEST_MISSING_TEST_ID;
+          return FLOW_STEP_FAILED;
+        }
         ::loka::app::scene::Node *anchor = 0;
         StepRunStatus anchorStatus =
             LookupNodeById< ::loka::app::scene::Node>(scene, selector.anchorId(), anchor, error);

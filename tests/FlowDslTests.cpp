@@ -3480,6 +3480,7 @@ void testLokaFlowDslV1Core()
                 == loka::dsl::FLOW_STEP_FAILED);
     LOKA_VERIFY(error.code == FLOW_ERROR_SCENE_TEST_INVALID_ORDINAL);
 
+
     LOKA_VERIFY(ResolveSelector<TextNode>(
                     &scene, Within("SelectorRegion").descendant<TextNode>(3), missing, error)
                 == loka::dsl::FLOW_STEP_FAILED);
@@ -3496,6 +3497,38 @@ void testLokaFlowDslV1Core()
     LOKA_VERIFY(std::strcmp(SceneNodeCast<ButtonNode>::name(), "Button") == 0);
     LOKA_VERIFY(std::strcmp(SceneNodeCast<CellNode>::name(), "Cell") == 0);
     LOKA_VERIFY(std::strcmp(SceneNodeCast<EditTextNode>::name(), "EditText") == 0);
+
+    scene.unmount();
+  }
+
+  {
+    // An omitted anchor must be refused, not silently matched against the one
+    // id-less node in the scene (which would turn the selector into a
+    // scene-wide ordinal lookup).
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    using namespace loka::dsl::testing;
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box());
+    root << Text("Only").testId("EmptyAnchorLeaf");
+
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    TextNode *text = 0;
+    loka::dsl::FlowError error;
+    LOKA_VERIFY(ResolveSelector<TextNode>(&scene, Within("").descendant<TextNode>(1), text, error)
+                == loka::dsl::FLOW_STEP_FAILED);
+    LOKA_VERIFY(error.code == FLOW_ERROR_SCENE_TEST_MISSING_TEST_ID);
+    LOKA_VERIFY(text == 0);
+    LOKA_VERIFY(ResolveSelector<TextNode>(&scene, Within(0).descendant<TextNode>(1), text, error)
+                == loka::dsl::FLOW_STEP_FAILED);
+    LOKA_VERIFY(error.code == FLOW_ERROR_SCENE_TEST_MISSING_TEST_ID);
 
     scene.unmount();
   }
