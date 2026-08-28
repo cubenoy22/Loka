@@ -12,12 +12,12 @@
 
 namespace helloworld
 {
-  inline loka::app::VStack MainRightPanel(const loka::Vector<loka::core::String> *fruits,
-                                          const loka::app::scene::NodeState<int> &fruitIndex,
-                                          loka::core::State<loka::core::String> *fruitMessage,
-                                          const loka::app::scene::NodeState<loka::core::String> &heightInput,
-                                          const loka::app::scene::NodeState<loka::core::String> &weightInput,
-                                          loka::core::State<loka::core::String> *bmiResult)
+  inline loka::app::VStack MainRightPanel(const loka::Vector<String> *fruits,
+                                          const NodeState<int> &fruitIndex,
+                                          State<String> *fruitMessage,
+                                          const NodeState<String> &heightInput,
+                                          const NodeState<String> &weightInput,
+                                          State<String> *bmiResult)
   {
     using namespace loka::app;
     return VStack().TEST_ID("HelloWorld.RightPanel")

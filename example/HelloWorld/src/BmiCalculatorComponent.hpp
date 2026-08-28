@@ -9,9 +9,13 @@
 
 namespace helloworld
 {
-  inline loka::app::F BmiCalculator(const loka::app::scene::NodeState<loka::core::String> &heightInput,
-                                    const loka::app::scene::NodeState<loka::core::String> &weightInput,
-                                    loka::core::State<loka::core::String> *bmiResult)
+  using loka::app::scene::NodeState;
+  using loka::core::State;
+  using loka::core::String;
+
+  inline loka::app::F BmiCalculator(const NodeState<String> &heightInput,
+                                    const NodeState<String> &weightInput,
+                                    State<String> *bmiResult)
   {
     using namespace loka::app;
     return F()                       //
