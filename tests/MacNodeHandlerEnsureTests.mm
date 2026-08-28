@@ -60,9 +60,17 @@ namespace
       ++gReentrantAfterAttaches;
       loka::app::scene::Node *owner = ctx->owner();
       LOKA_VERIFY(owner != 0);
-      // Model the modal macOS dialog hazard: synchronous app code recomposes
-      // and retires the context before ensureContext returns to the platform
-      // controller. Do not touch ctx after this call; it has been reclaimed.
+      // Model the modal macOS dialog hazard from the ensure side: synchronous
+      // app code REPLACES the node's live context (here with none) before
+      // ensureContext returns, so the platform controller's local pointer is
+      // stale on return. setContext(0) on a still-ATTACHED node is a live
+      // replacement, not the retire door -- releaseContext's terminal
+      // delivery assumes RETIRED was already written, so nothing is delivered
+      // here. That is deliberate: this test owns the ensure re-read contract.
+      // Retirement terminal delivery and queued native destruction are a
+      // different contract, covered by the lifecycle-fact tests, and a
+      // regression confined to those would not turn this test red.
+      // Do not touch ctx after this call; it has been reclaimed.
       owner->setContext(0);
     }
   };
@@ -153,7 +161,7 @@ void testMacNodeHandlerEnsureContract()
     LOKA_VERIFY(countChildViews(root) == childrenWithText &&
                 "a refusal must not materialize a native view");
 
-    // -- Re-entrancy: afterAttach retires the just-published context --
+    // -- Re-entrancy: afterAttach replaces the just-published context --
     gReentrantCreates = 0;
     gReentrantAttachReads = 0;
     gReentrantAfterAttaches = 0;
@@ -162,7 +170,7 @@ void testMacNodeHandlerEnsureContract()
     LOKA_VERIFY(controller.registerNodeHandler(&reentrantHandler));
     loka::app::ButtonNode reentrantButton(buttonProps);
     LOKA_VERIFY(!controller.prepareProjectedLayout(&reentrantButton, state) &&
-                "ensure must re-read the node after re-entrant attach work retires its context");
+                "ensure must re-read the node after re-entrant attach work replaces its context");
     LOKA_VERIFY(!reentrantButton.getContext());
     LOKA_VERIFY(gReentrantCreates == 1);
     LOKA_VERIFY(gReentrantAttachReads == 1);
