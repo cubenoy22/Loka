@@ -54,7 +54,10 @@ question it should have asked — is cheaper to continue than to re-issue.
 so the follow-up does not re-pay for the repository walk the first run already
 did; `--last` picks the most recent session for this cwd (`--all` disables the
 cwd filter). `codex exec fork <SESSION_ID>` branches a session instead, for
-trying a second approach without spending the first.
+trying a second approach without spending the first. Both subcommands are
+verified against `codex-cli 0.149.1`; `fork` did not exist under `exec` in
+older 0.144 alphas, so check `codex exec --help` before writing a brief around
+it on an older CLI.
 
 Every launch rule above still applies to a resume — `< /dev/null`, full output
 to a file, and orphan check first. The orphan check matters more here, not
