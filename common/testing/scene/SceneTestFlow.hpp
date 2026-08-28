@@ -267,7 +267,9 @@ namespace loka
         FLOW_ERROR_SCENE_TEST_MISSING_TEST_ID = 6,
         FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE = 7,
         FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED = 8,
-        FLOW_ERROR_SCENE_TEST_EXPECTED_APPLY = 9
+        FLOW_ERROR_SCENE_TEST_EXPECTED_APPLY = 9,
+        FLOW_ERROR_SCENE_TEST_INVALID_ORDINAL = 10,
+        FLOW_ERROR_SCENE_TEST_ORDINAL_OUT_OF_RANGE = 11
       };
 
       /** Owner-updated monotonic clock borrowed by scheduled scenario steps. */
@@ -779,6 +781,11 @@ namespace loka
 
       template <> struct SceneNodeCast< ::loka::app::scene::Node>
       {
+        static const char *name()
+        {
+          return "Node";
+        }
+
         static ::loka::app::scene::Node *cast(::loka::app::scene::Node *node)
         {
           return node;
@@ -787,6 +794,11 @@ namespace loka
 
       template <> struct SceneNodeCast< ::loka::app::TextNode>
       {
+        static const char *name()
+        {
+          return "Text";
+        }
+
         static ::loka::app::TextNode *cast(::loka::app::scene::Node *node)
         {
           return node ? node->asTextNode() : 0;
@@ -795,6 +807,11 @@ namespace loka
 
       template <> struct SceneNodeCast< ::loka::app::ButtonNode>
       {
+        static const char *name()
+        {
+          return "Button";
+        }
+
         static ::loka::app::ButtonNode *cast(::loka::app::scene::Node *node)
         {
           return node ? node->asButtonNode() : 0;
@@ -803,6 +820,11 @@ namespace loka
 
       template <> struct SceneNodeCast< ::loka::app::CellNode>
       {
+        static const char *name()
+        {
+          return "Cell";
+        }
+
         static ::loka::app::CellNode *cast(::loka::app::scene::Node *node)
         {
           return node ? node->asCellNode() : 0;
@@ -811,11 +833,71 @@ namespace loka
 
       template <> struct SceneNodeCast< ::loka::app::EditTextNode>
       {
+        static const char *name()
+        {
+          return "EditText";
+        }
+
         static ::loka::app::EditTextNode *cast(::loka::app::scene::Node *node)
         {
           return node ? node->asEditTextNode() : 0;
         }
       };
+
+      /** Immutable description of the k-th typed descendant below one scene-global anchor. */
+      template <class NodeT> class NodeSelector
+      {
+      public:
+        NodeSelector(const std::string &anchorId, long ordinal)
+            : anchorId_(anchorId),
+              ordinal_(ordinal)
+        {
+        }
+
+        const std::string &anchorId() const
+        {
+          return this->anchorId_;
+        }
+
+        long ordinal() const
+        {
+          return this->ordinal_;
+        }
+
+        std::string describe() const
+        {
+          char ordinalText[32];
+          ::snprintf(ordinalText, sizeof(ordinalText), "%ld", this->ordinal_);
+          return this->anchorId_ + "/" + SceneNodeCast<NodeT>::name() + "[" + ordinalText + "]";
+        }
+
+      private:
+        std::string anchorId_;
+        long ordinal_;
+      };
+
+      /** Starts a typed descendant selector at one scene-global TEST_ID anchor. */
+      class WithinAnchor
+      {
+      public:
+        explicit WithinAnchor(const char *anchorId)
+            : anchorId_(anchorId ? anchorId : "")
+        {
+        }
+
+        template <class NodeT> NodeSelector<NodeT> descendant(long ordinal) const
+        {
+          return NodeSelector<NodeT>(this->anchorId_, ordinal);
+        }
+
+      private:
+        std::string anchorId_;
+      };
+
+      inline WithinAnchor Within(const char *anchorId)
+      {
+        return WithinAnchor(anchorId);
+      }
 
       namespace scene_test_detail
       {
@@ -904,6 +986,42 @@ namespace loka
             child = child->nextInComposition;
           }
         }
+
+        template <class NodeT>
+        static void findDescendantByOrdinalRecursive(::loka::app::scene::Node *node,
+                                                     long ordinal,
+                                                     long &typedMatches,
+                                                     NodeT *&result)
+        {
+          if (!node || result)
+          {
+            return;
+          }
+
+          NodeT *typed = SceneNodeCast<NodeT>::cast(node);
+          if (typed)
+          {
+            ++typedMatches;
+            if (typedMatches == ordinal)
+            {
+              result = typed;
+              return;
+            }
+          }
+
+          ::loka::app::scene::INestable *nestable = node->asNestable();
+          if (!nestable)
+          {
+            return;
+          }
+
+          ::loka::app::scene::Node *child = nestable->childrenHead();
+          while (child && !result)
+          {
+            findDescendantByOrdinalRecursive<NodeT>(child, ordinal, typedMatches, result);
+            child = child->nextInComposition;
+          }
+        }
       } // namespace scene_test_detail
 
       template <class NodeT>
@@ -977,6 +1095,93 @@ namespace loka
         return FLOW_STEP_SUCCEEDED;
       }
 
+      /** Resolves a typed ordinal selector against the scene's current materialized tree. */
+      template <class NodeT>
+      static StepRunStatus ResolveSelector(::loka::app::scene::Scene *scene,
+                                           const NodeSelector<NodeT> &selector,
+                                           NodeT *&out,
+                                           FlowError &error)
+      {
+        out = 0;
+        ::loka::app::scene::Node *anchor = 0;
+        StepRunStatus anchorStatus =
+            LookupNodeById< ::loka::app::scene::Node>(scene, selector.anchorId(), anchor, error);
+        if (anchorStatus != FLOW_STEP_SUCCEEDED)
+        {
+          return anchorStatus;
+        }
+        if (selector.ordinal() < 1)
+        {
+          error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+          error.code = FLOW_ERROR_SCENE_TEST_INVALID_ORDINAL;
+          return FLOW_STEP_FAILED;
+        }
+
+        ::loka::app::scene::INestable *nestable = anchor->asNestable();
+        long typedMatches = 0;
+        ::loka::app::scene::Node *child = nestable ? nestable->childrenHead() : 0;
+        while (child && !out)
+        {
+          scene_test_detail::findDescendantByOrdinalRecursive<NodeT>(
+              child, selector.ordinal(), typedMatches, out);
+          child = child->nextInComposition;
+        }
+        if (!out)
+        {
+          error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+          error.code = FLOW_ERROR_SCENE_TEST_ORDINAL_OUT_OF_RANGE;
+          return FLOW_STEP_FAILED;
+        }
+        return FLOW_STEP_SUCCEEDED;
+      }
+
+      namespace scene_test_detail
+      {
+        /** Internal sum value that lets one action implementation preserve the
+            direct-id API while also accepting typed ordinal selectors. */
+        template <class NodeT> class NodeTarget
+        {
+        public:
+          explicit NodeTarget(const char *testId)
+              : idOrAnchor_(testId ? testId : ""),
+                ordinal_(0),
+                selector_(false)
+          {
+          }
+
+          explicit NodeTarget(const NodeSelector<NodeT> &selector)
+              : idOrAnchor_(selector.anchorId()),
+                ordinal_(selector.ordinal()),
+                selector_(true)
+          {
+          }
+
+          StepRunStatus resolve(::loka::app::scene::Scene *scene, NodeT *&out, FlowError &error) const
+          {
+            if (!this->selector_)
+            {
+              return LookupNodeById<NodeT>(scene, this->idOrAnchor_, out, error);
+            }
+            return ResolveSelector<NodeT>(
+                scene, NodeSelector<NodeT>(this->idOrAnchor_, this->ordinal_), out, error);
+          }
+
+          std::string describe() const
+          {
+            if (!this->selector_)
+            {
+              return this->idOrAnchor_;
+            }
+            return NodeSelector<NodeT>(this->idOrAnchor_, this->ordinal_).describe();
+          }
+
+        private:
+          std::string idOrAnchor_;
+          long ordinal_;
+          bool selector_;
+        };
+      } // namespace scene_test_detail
+
       template <class NodeT> struct SceneCaptureTraits;
 
       template <> struct SceneCaptureTraits< ::loka::app::TextNode>
@@ -999,6 +1204,46 @@ namespace loka
           return true;
         }
       };
+
+      namespace scene_test_detail
+      {
+        template <class NodeT>
+        static StepRunStatus captureNodeWithIdentity(NodeT *node,
+                                                     const std::string &identity,
+                                                     const std::string &testName,
+                                                     const std::string &stepName,
+                                                     long tick,
+                                                     long scenarioVersion,
+                                                     const std::string &status,
+                                                     SnapRecord &out,
+                                                     FlowError &error)
+        {
+          if (!node)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_NODE_NOT_FOUND;
+            return FLOW_STEP_FAILED;
+          }
+
+          BuildSnapV1RecordAdapter base(
+              testName.c_str(), stepName.c_str(), identity.c_str(), tick, scenarioVersion, status.c_str());
+          const int unused = 0;
+          FlowError ignored;
+          if (base.run(unused, out, ignored) != FLOW_STEP_SUCCEEDED)
+          {
+            error.kind = FLOW_ERROR_KIND_SNAP;
+            error.code = FLOW_ERROR_SNAP_WRITE_FAILED;
+            return FLOW_STEP_FAILED;
+          }
+          if (!SceneCaptureTraits<NodeT>::capture(node, out))
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
+            return FLOW_STEP_FAILED;
+          }
+          return FLOW_STEP_SUCCEEDED;
+        }
+      } // namespace scene_test_detail
 
       template <class NodeT> class CaptureNodeAdapter
       {
@@ -1035,23 +1280,8 @@ namespace loka
             return FLOW_STEP_FAILED;
           }
 
-          BuildSnapV1RecordAdapter base(
-              testName_.c_str(), stepName_.c_str(), nodeId.c_str(), tick_, scenarioVersion_, status_.c_str());
-          const int unused = 0;
-          FlowError ignored;
-          if (base.run(unused, out, ignored) != FLOW_STEP_SUCCEEDED)
-          {
-            error.kind = FLOW_ERROR_KIND_SNAP;
-            error.code = FLOW_ERROR_SNAP_WRITE_FAILED;
-            return FLOW_STEP_FAILED;
-          }
-          if (!SceneCaptureTraits<NodeT>::capture(in, out))
-          {
-            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
-            error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
-            return FLOW_STEP_FAILED;
-          }
-          return FLOW_STEP_SUCCEEDED;
+          return scene_test_detail::captureNodeWithIdentity<NodeT>(
+              in, nodeId, testName_, stepName_, tick_, scenarioVersion_, status_, out, error);
         }
 
       private:
@@ -1455,7 +1685,22 @@ namespace loka
                         long tick,
                         long scenarioVersion,
                         const char *status = SnapStatusOk())
-            : testId_(testId ? testId : ""),
+            : target_(testId),
+              testName_(testName ? testName : ""),
+              stepName_(stepName ? stepName : ""),
+              tick_(tick),
+              scenarioVersion_(scenarioVersion),
+              status_(status ? status : SnapStatusOk())
+        {
+        }
+
+        SnapTextAdapter(const NodeSelector< ::loka::app::TextNode> &selector,
+                        const char *testName,
+                        const char *stepName,
+                        long tick,
+                        long scenarioVersion,
+                        const char *status = SnapStatusOk())
+            : target_(selector),
               testName_(testName ? testName : ""),
               stepName_(stepName ? stepName : ""),
               tick_(tick),
@@ -1467,18 +1712,24 @@ namespace loka
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
           ::loka::app::TextNode *node = 0;
-          StepRunStatus lookupStatus = LookupNodeById< ::loka::app::TextNode>(in, testId_, node, error);
+          StepRunStatus lookupStatus = target_.resolve(in, node, error);
           if (lookupStatus != FLOW_STEP_SUCCEEDED)
           {
             return lookupStatus;
           }
-          return CaptureNode< ::loka::app::TextNode>(
-                     testName_.c_str(), stepName_.c_str(), tick_, scenarioVersion_, status_.c_str())
-              .run(node, out, error);
+          return scene_test_detail::captureNodeWithIdentity< ::loka::app::TextNode>(node,
+                                                                                    target_.describe(),
+                                                                                    testName_,
+                                                                                    stepName_,
+                                                                                    tick_,
+                                                                                    scenarioVersion_,
+                                                                                    status_,
+                                                                                    out,
+                                                                                    error);
         }
 
       private:
-        std::string testId_;
+        scene_test_detail::NodeTarget< ::loka::app::TextNode> target_;
         std::string testName_;
         std::string stepName_;
         long tick_;
@@ -1500,6 +1751,25 @@ namespace loka
       SnapText(const char *testId, const char *testName, const char *stepName, long tick, long scenarioVersion)
       {
         return SnapTextAdapter(testId, testName, stepName, tick, scenarioVersion);
+      }
+
+      inline SnapTextAdapter SnapText(const NodeSelector< ::loka::app::TextNode> &selector,
+                                      const char *testName,
+                                      const char *stepName,
+                                      long tick,
+                                      long scenarioVersion,
+                                      const char *status)
+      {
+        return SnapTextAdapter(selector, testName, stepName, tick, scenarioVersion, status);
+      }
+
+      inline SnapTextAdapter SnapText(const NodeSelector< ::loka::app::TextNode> &selector,
+                                      const char *testName,
+                                      const char *stepName,
+                                      long tick,
+                                      long scenarioVersion)
+      {
+        return SnapTextAdapter(selector, testName, stepName, tick, scenarioVersion);
       }
 
       class AssertSnapStringEqualsAdapter
@@ -1822,7 +2092,13 @@ namespace loka
         typedef ::loka::app::scene::Scene *Out;
 
         CheckTextAdapter(const char *testId, const char *expected)
-            : testId_(testId ? testId : ""),
+            : target_(testId),
+              expected_(expected ? expected : "")
+        {
+        }
+
+        CheckTextAdapter(const NodeSelector< ::loka::app::TextNode> &selector, const char *expected)
+            : target_(selector),
               expected_(expected ? expected : "")
         {
         }
@@ -1831,7 +2107,7 @@ namespace loka
         {
           out = in;
           ::loka::app::TextNode *node = 0;
-          StepRunStatus lookupStatus = LookupNodeById< ::loka::app::TextNode>(in, testId_, node, error);
+          StepRunStatus lookupStatus = target_.resolve(in, node, error);
           if (lookupStatus != FLOW_STEP_SUCCEEDED)
           {
             return lookupStatus;
@@ -1854,13 +2130,18 @@ namespace loka
         }
 
       private:
-        std::string testId_;
+        scene_test_detail::NodeTarget< ::loka::app::TextNode> target_;
         std::string expected_;
       };
 
       inline CheckTextAdapter CheckText(const char *testId, const char *expected)
       {
         return CheckTextAdapter(testId, expected);
+      }
+
+      inline CheckTextAdapter CheckText(const NodeSelector< ::loka::app::TextNode> &selector, const char *expected)
+      {
+        return CheckTextAdapter(selector, expected);
       }
 
       class CheckTextDirtyHasBitsAdapter
@@ -2199,7 +2480,13 @@ namespace loka
         typedef ::loka::app::scene::Scene *Out;
 
         EnterTextByIdAndFlushAdapter(const char *testId, const char *value)
-            : testId_(testId ? testId : ""),
+            : target_(testId),
+              value_(value ? value : "")
+        {
+        }
+
+        EnterTextByIdAndFlushAdapter(const NodeSelector< ::loka::app::EditTextNode> &selector, const char *value)
+            : target_(selector),
               value_(value ? value : "")
         {
         }
@@ -2208,8 +2495,7 @@ namespace loka
         {
           out = in;
           ::loka::app::EditTextNode *editText = 0;
-          StepRunStatus lookupStatus =
-              LookupNodeById< ::loka::app::EditTextNode>(in, testId_, editText, error);
+          StepRunStatus lookupStatus = target_.resolve(in, editText, error);
           if (lookupStatus != FLOW_STEP_SUCCEEDED)
           {
             return lookupStatus;
@@ -2240,7 +2526,7 @@ namespace loka
         }
 
       private:
-        std::string testId_;
+        scene_test_detail::NodeTarget< ::loka::app::EditTextNode> target_;
         std::string value_;
       };
 
@@ -2250,6 +2536,12 @@ namespace loka
       inline EnterTextByIdAndFlushAdapter EnterText(const char *testId, const char *value)
       {
         return EnterTextByIdAndFlushAdapter(testId, value);
+      }
+
+      inline EnterTextByIdAndFlushAdapter
+      EnterText(const NodeSelector< ::loka::app::EditTextNode> &selector, const char *value)
+      {
+        return EnterTextByIdAndFlushAdapter(selector, value);
       }
 
       template <class NodeT> struct SceneClickTraits;
@@ -2281,12 +2573,12 @@ namespace loka
       };
 
       template <class NodeT>
-      static StepRunStatus EmitNodeClickById(::loka::app::scene::Scene *scene,
-                                             const std::string &testId,
-                                             FlowError &error)
+      static StepRunStatus EmitNodeClick(::loka::app::scene::Scene *scene,
+                                         const scene_test_detail::NodeTarget<NodeT> &target,
+                                         FlowError &error)
       {
         NodeT *node = 0;
-        StepRunStatus lookupStatus = LookupNodeById<NodeT>(scene, testId, node, error);
+        StepRunStatus lookupStatus = target.resolve(scene, node, error);
         if (lookupStatus != FLOW_STEP_SUCCEEDED)
         {
           return lookupStatus;
@@ -2321,7 +2613,12 @@ namespace loka
         typedef ::loka::app::scene::Scene *Out;
 
         explicit ClickButtonByIdAdapter(const char *testId)
-            : testId_(testId ? testId : "")
+            : target_(testId)
+        {
+        }
+
+        explicit ClickButtonByIdAdapter(const NodeSelector< ::loka::app::ButtonNode> &selector)
+            : target_(selector)
         {
         }
 
@@ -2334,16 +2631,21 @@ namespace loka
             error.code = FLOW_ERROR_SCENE_TEST_NULL_SCENE;
             return FLOW_STEP_FAILED;
           }
-          return EmitNodeClickById< ::loka::app::ButtonNode>(in, testId_, error);
+          return EmitNodeClick< ::loka::app::ButtonNode>(in, target_, error);
         }
 
       private:
-        std::string testId_;
+        scene_test_detail::NodeTarget< ::loka::app::ButtonNode> target_;
       };
 
       inline ClickButtonByIdAdapter ClickButtonById(const char *testId)
       {
         return ClickButtonByIdAdapter(testId);
+      }
+
+      inline ClickButtonByIdAdapter ClickButtonById(const NodeSelector< ::loka::app::ButtonNode> &selector)
+      {
+        return ClickButtonByIdAdapter(selector);
       }
 
       class ClickButtonByIdAndFlushAdapter
@@ -2353,14 +2655,19 @@ namespace loka
         typedef ::loka::app::scene::Scene *Out;
 
         explicit ClickButtonByIdAndFlushAdapter(const char *testId)
-            : testId_(testId ? testId : "")
+            : target_(testId)
+        {
+        }
+
+        explicit ClickButtonByIdAndFlushAdapter(const NodeSelector< ::loka::app::ButtonNode> &selector)
+            : target_(selector)
         {
         }
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
           out = in;
-          StepRunStatus clickStatus = ClickButtonById(testId_.c_str()).run(in, out, error);
+          StepRunStatus clickStatus = EmitNodeClick< ::loka::app::ButtonNode>(in, target_, error);
           if (clickStatus != FLOW_STEP_SUCCEEDED)
           {
             return clickStatus;
@@ -2369,12 +2676,18 @@ namespace loka
         }
 
       private:
-        std::string testId_;
+        scene_test_detail::NodeTarget< ::loka::app::ButtonNode> target_;
       };
 
       inline ClickButtonByIdAndFlushAdapter ClickButtonByIdAndFlush(const char *testId)
       {
         return ClickButtonByIdAndFlushAdapter(testId);
+      }
+
+      inline ClickButtonByIdAndFlushAdapter
+      ClickButtonByIdAndFlush(const NodeSelector< ::loka::app::ButtonNode> &selector)
+      {
+        return ClickButtonByIdAndFlushAdapter(selector);
       }
 
       /** Scenario-facing button action. A click includes the resulting Scene
@@ -2384,6 +2697,11 @@ namespace loka
         return ClickButtonByIdAndFlush(testId);
       }
 
+      inline ClickButtonByIdAndFlushAdapter ClickButton(const NodeSelector< ::loka::app::ButtonNode> &selector)
+      {
+        return ClickButtonByIdAndFlush(selector);
+      }
+
       class ClickCellByIdAndFlushAdapter
       {
       public:
@@ -2391,7 +2709,12 @@ namespace loka
         typedef ::loka::app::scene::Scene *Out;
 
         explicit ClickCellByIdAndFlushAdapter(const char *testId)
-            : testId_(testId ? testId : "")
+            : target_(testId)
+        {
+        }
+
+        explicit ClickCellByIdAndFlushAdapter(const NodeSelector< ::loka::app::CellNode> &selector)
+            : target_(selector)
         {
         }
 
@@ -2404,8 +2727,7 @@ namespace loka
             error.code = FLOW_ERROR_SCENE_TEST_NULL_SCENE;
             return FLOW_STEP_FAILED;
           }
-          StepRunStatus clickStatus =
-              EmitNodeClickById< ::loka::app::CellNode>(in, testId_, error);
+          StepRunStatus clickStatus = EmitNodeClick< ::loka::app::CellNode>(in, target_, error);
           if (clickStatus != FLOW_STEP_SUCCEEDED)
           {
             return clickStatus;
@@ -2414,13 +2736,18 @@ namespace loka
         }
 
       private:
-        std::string testId_;
+        scene_test_detail::NodeTarget< ::loka::app::CellNode> target_;
       };
 
       /** Scenario-facing Cell action through the Cell's ordinary emitter. */
       inline ClickCellByIdAndFlushAdapter ClickCell(const char *testId)
       {
         return ClickCellByIdAndFlushAdapter(testId);
+      }
+
+      inline ClickCellByIdAndFlushAdapter ClickCell(const NodeSelector< ::loka::app::CellNode> &selector)
+      {
+        return ClickCellByIdAndFlushAdapter(selector);
       }
 
       class CheckTimingLessEqualAdapter

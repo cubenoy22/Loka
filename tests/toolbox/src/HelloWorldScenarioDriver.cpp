@@ -23,6 +23,7 @@
 #include "core/util/StateTrackerGuard.hpp"
 #include "platform/StringUTF8.hpp"
 #include "testing/scene/ScenarioAudit.hpp"
+#include "testing/scene/SceneTestFlow.hpp"
 
 namespace loka
 {
@@ -78,10 +79,14 @@ namespace loka
         std::fclose(fp);
         return requested;
       }
-      const char *kBmiHeightInputTestId = "HelloWorld.Bmi.HeightInput";
       const char *kLeftPanelTitleTestId = "HelloWorld.LeftPanel.Title";
       const char *kDecorationTestId = "HelloWorld.Decoration";
       const short kDirtyReplayProbeMaxWidth = 256;
+
+      dsl::testing::NodeSelector<app::EditTextNode> BmiHeightInputSelector()
+      {
+        return dsl::testing::Within("HelloWorld.Bmi").descendant<app::EditTextNode>(1);
+      }
 
       struct ProgrammaticTextChange
       {
@@ -125,8 +130,8 @@ namespace loka
 
         app::EditTextNode *heightInput = 0;
         dsl::FlowError lookupError;
-        if (dsl::testing::LookupNodeById<app::EditTextNode>(
-                window->scene(), kBmiHeightInputTestId, heightInput, lookupError)
+        if (dsl::testing::ResolveSelector<app::EditTextNode>(
+                window->scene(), BmiHeightInputSelector(), heightInput, lookupError)
             != dsl::FLOW_STEP_SUCCEEDED)
         {
           failureMessage = "EditText state-sync probe could not find the BMI height input";
@@ -268,8 +273,8 @@ namespace loka
 
         app::EditTextNode *heightInput = 0;
         dsl::FlowError lookupError;
-        if (dsl::testing::LookupNodeById<app::EditTextNode>(
-                window->scene(), kBmiHeightInputTestId, heightInput, lookupError)
+        if (dsl::testing::ResolveSelector<app::EditTextNode>(
+                window->scene(), BmiHeightInputSelector(), heightInput, lookupError)
             != dsl::FLOW_STEP_SUCCEEDED)
         {
           failureMessage = "dirty replay probe could not find the BMI height input";
@@ -586,12 +591,20 @@ namespace loka
                 if (!ProbeBmiHeightDirtyReplay(window, probeFailure))
                 {
                   SetDirtyReplayProbeFailure(
-                      record, 2404, kBmiRoundtripScenarioName, kBmiHeightInputTestId, probeFailure);
+                      record,
+                      2404,
+                      kBmiRoundtripScenarioName,
+                      BmiHeightInputSelector().describe().c_str(),
+                      probeFailure);
                 }
                 else if (!ProbeBmiHeightStateSync(window, probeFailure))
                 {
                   SetDirtyReplayProbeFailure(
-                      record, 2406, kBmiRoundtripScenarioName, kBmiHeightInputTestId, probeFailure);
+                      record,
+                      2406,
+                      kBmiRoundtripScenarioName,
+                      BmiHeightInputSelector().describe().c_str(),
+                      probeFailure);
                 }
               }
               if (!this->startup_ && this->scenario_.name() == kZStackDirtyReplayScenarioName

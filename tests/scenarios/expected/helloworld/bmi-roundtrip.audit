@@ -16,7 +16,7 @@ dirty.mask	0
 format_version	1
 height_cm	180
 invalid_input_result	BMI: --
-node	HelloWorld.Bmi.Result
+node	HelloWorld.Bmi/Text[4]
 scenario_version	1
 schema_version	1
 status	ok

@@ -24,6 +24,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC)$")
   )
   target_compile_definitions(LokaToolboxDslNameCollisionProbe PRIVATE
     LOKA_RETRO68=1
+    TEST_BUILD=1
   )
   set_target_properties(LokaToolboxDslNameCollisionProbe PROPERTIES
     CXX_STANDARD 98

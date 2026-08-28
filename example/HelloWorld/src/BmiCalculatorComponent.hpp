@@ -18,13 +18,13 @@ namespace helloworld
                                     State<String> *bmiResult)
   {
     using namespace loka::app;
-    return F()                       //
+    return F().TEST_ID("HelloWorld.Bmi") //
            << Text("BMI Calculator") //
            << Text("Height (cm)")    //
-           << EditText(heightInput).TEST_ID("HelloWorld.Bmi.HeightInput") //
+           << EditText(heightInput)   //
            << Text("Weight (kg)")    //
-           << EditText(weightInput).TEST_ID("HelloWorld.Bmi.WeightInput") //
-           << Text(bmiResult).TEST_ID("HelloWorld.Bmi.Result");
+           << EditText(weightInput)   //
+           << Text(bmiResult);
   }
 
 } // namespace helloworld
