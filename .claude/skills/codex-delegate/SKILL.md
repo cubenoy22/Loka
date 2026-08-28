@@ -36,6 +36,31 @@ checkout; sync goes through origin only.
   (it is on the branch Codex made, and/or as uncommitted changes on the
   working clone's HEAD — check both) and push it yourself from a worktree.
   Seen on #488, #491.
+- **In a linked worktree Codex usually cannot commit at all.** A worktree's
+  `.git` is a file pointing at the parent clone's `.git/worktrees/<name>/`,
+  which lies outside the sandbox's write root, so `git commit` dies with
+  `index.lock: Read-only file system`. An individual run occasionally succeeds
+  (environment variation), so brief for both outcomes: **"commit if you can; if
+  the commit fails, stop and leave the work dirty, with the results in
+  `FINDINGS.md`"** — the delegator commits at harvest either way. The split is
+  not only a workaround: nothing lands without having been read. Measured
+  2026-08-28.
+
+## Resuming instead of re-briefing
+
+A run that came back incomplete — a leg skipped, the smell list missing, a
+question it should have asked — is cheaper to continue than to re-issue.
+`codex exec resume <SESSION_ID> "<follow-up>"` replays that session's context,
+so the follow-up does not re-pay for the repository walk the first run already
+did; `--last` picks the most recent session for this cwd (`--all` disables the
+cwd filter). `codex exec fork <SESSION_ID>` branches a session instead, for
+trying a second approach without spending the first.
+
+Every launch rule above still applies to a resume — `< /dev/null`, full output
+to a file, and orphan check first. The orphan check matters more here, not
+less: a resume that races the original run's leftovers double-executes whatever
+the follow-up asks for. Session ids are in the transcripts under
+`~/.codex/sessions/<JST date>/rollout-*.jsonl`.
 
 ## Connector limits
 
