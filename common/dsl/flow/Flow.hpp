@@ -54,6 +54,9 @@ namespace loka
       FLOW_ERROR_HANDLED = 1
     };
 
+    template <typename AdapterT> class RuntimeStep;
+    template <typename InT, typename OutT> class MatchAdapter;
+
     namespace flow_detail
     {
       template <typename A, typename B> struct IsSame
@@ -70,6 +73,23 @@ namespace loka
         {
           value = 1
         };
+      };
+
+      template <typename AdapterT> struct RuntimeStepCancel
+      {
+        static void request(AdapterT &)
+        {
+        }
+
+        static void clear(AdapterT &)
+        {
+        }
+      };
+
+      template <typename InT, typename OutT> struct RuntimeStepCancel<MatchAdapter<InT, OutT> >
+      {
+        static void request(MatchAdapter<InT, OutT> &adapter);
+        static void clear(MatchAdapter<InT, OutT> &adapter);
       };
     } // namespace flow_detail
 
@@ -335,6 +355,13 @@ namespace loka
       }
 
     private:
+      friend class RuntimeStep<AdapterT>;
+
+      AdapterT &adapterForRuntime()
+      {
+        return this->adapter_;
+      }
+
       int id_;
       AdapterT adapter_;
       const In *input_;
@@ -494,6 +521,12 @@ namespace loka
         virtual ~IRuntimeStep() {}
         virtual IRuntimeStep *clone() const = 0;
         virtual int stepId() const = 0;
+        virtual void requestCancel() {}
+        virtual void clearCancel() {}
+        virtual void setInputOverride(const void *) {}
+        virtual bool isPending() const = 0;
+        virtual void clearLastFailure() = 0;
+        virtual bool lastFailure(FlowError &errorOut) const = 0;
         virtual StepRunStatus run(const void *inputFromPrev,
                                   FlowError &error,
                                   bool &errorHandled,
@@ -555,6 +588,10 @@ namespace loka
 
       FlowRunResult runPinnedFromIndex(std::size_t startIndex) const
       {
+        for (std::size_t i = 0; i < this->steps_.size(); ++i)
+        {
+          this->steps_[i]->clearLastFailure();
+        }
         RunPinScope runPinScope(this);
         return this->runCoreFromIndex(startIndex, false);
       }
@@ -567,6 +604,71 @@ namespace loka
           return FLOW_RUN_FAILED;
         }
         return this->runPinnedFromIndex(start);
+      }
+
+      bool setFirstStepInputOverride(const void *input) const
+      {
+        if (this->steps_.empty())
+        {
+          return false;
+        }
+        this->steps_[0]->setInputOverride(input);
+        return true;
+      }
+
+      FlowRunResult runPinnedWithInput(const void *input) const
+      {
+        if (!this->setFirstStepInputOverride(input))
+        {
+          return FLOW_RUN_FAILED;
+        }
+        return this->runPinnedFromIndex(0);
+      }
+
+      bool pendingStepId(int &stepIdOut) const
+      {
+        for (std::size_t i = 0; i < this->steps_.size(); ++i)
+        {
+          if (this->steps_[i]->isPending())
+          {
+            stepIdOut = this->steps_[i]->stepId();
+            return true;
+          }
+        }
+        return false;
+      }
+
+      const void *lastOutputPtr() const
+      {
+        return this->steps_.empty() ? 0 : this->steps_[this->steps_.size() - 1]->outputPtr();
+      }
+
+      bool lastFailure(FlowError &errorOut) const
+      {
+        for (std::size_t i = this->steps_.size(); i > 0; --i)
+        {
+          if (this->steps_[i - 1]->lastFailure(errorOut))
+          {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      void requestCancelFromParent()
+      {
+        for (std::size_t i = 0; i < this->steps_.size(); ++i)
+        {
+          this->steps_[i]->requestCancel();
+        }
+      }
+
+      void clearCancelFromParent()
+      {
+        for (std::size_t i = 0; i < this->steps_.size(); ++i)
+        {
+          this->steps_[i]->clearCancel();
+        }
       }
 
       // `resumedSegment` is true only for the internal flow-level success
@@ -856,7 +958,10 @@ namespace loka
       explicit RuntimeStep(const Spec &spec)
           : spec_(spec),
             out_(),
-            pendingCount_(0)
+            pendingCount_(0),
+            inputOverride_(0),
+            hasLastFailure_(false),
+            lastFailure_()
       {
       }
 
@@ -870,6 +975,41 @@ namespace loka
         return this->spec_.id();
       }
 
+      virtual void setInputOverride(const void *input)
+      {
+        this->inputOverride_ = input;
+      }
+
+      virtual void requestCancel()
+      {
+        flow_detail::RuntimeStepCancel<AdapterT>::request(this->spec_.adapterForRuntime());
+      }
+
+      virtual void clearCancel()
+      {
+        flow_detail::RuntimeStepCancel<AdapterT>::clear(this->spec_.adapterForRuntime());
+      }
+
+      virtual bool isPending() const
+      {
+        return this->pendingCount_ > 0;
+      }
+
+      virtual void clearLastFailure()
+      {
+        this->hasLastFailure_ = false;
+      }
+
+      virtual bool lastFailure(FlowError &errorOut) const
+      {
+        if (!this->hasLastFailure_)
+        {
+          return false;
+        }
+        errorOut = this->lastFailure_;
+        return true;
+      }
+
       virtual StepRunStatus
       run(const void *inputFromPrev, FlowError &error, bool &errorHandled, int &resumeStepId, int &successResumeStepId)
       {
@@ -879,7 +1019,7 @@ namespace loka
         const In *in = this->spec_.inputPtr();
         if (in == 0)
         {
-          in = static_cast<const In *>(inputFromPrev);
+          in = static_cast<const In *>(this->inputOverride_ ? this->inputOverride_ : inputFromPrev);
         }
         assert(in != 0);
 
@@ -887,6 +1027,7 @@ namespace loka
         if (status == FLOW_STEP_SUCCEEDED)
         {
           this->pendingCount_ = 0;
+          this->inputOverride_ = 0;
           const std::vector<typename Spec::SuccessCallback> &callbacks = this->spec_.successCallbacks();
           for (std::size_t i = 0; i < callbacks.size(); ++i)
           {
@@ -944,6 +1085,7 @@ namespace loka
         }
 
         this->pendingCount_ = 0;
+        this->inputOverride_ = 0;
 
         const std::vector<typename Spec::FailureCallback> &failureCallbacks = this->spec_.failureCallbacks();
         this->pendingCount_ = 0;
@@ -966,6 +1108,8 @@ namespace loka
         {
           this->spec_.finallyFn()(this->spec_.finallyUser());
         }
+        this->lastFailure_ = error;
+        this->hasLastFailure_ = true;
         return FLOW_STEP_FAILED;
       }
 
@@ -978,6 +1122,9 @@ namespace loka
       Spec spec_;
       Out out_;
       int pendingCount_;
+      const void *inputOverride_;
+      bool hasLastFailure_;
+      FlowError lastFailure_;
     };
 
     template <typename InT, typename OutT> class FlowChain
@@ -1112,6 +1259,7 @@ namespace loka
       {
         this->detachIfShared();
         this->impl_->cancelRequested_ = true;
+        this->impl_->requestCancelFromParent();
         return *this;
       }
 
@@ -1119,6 +1267,7 @@ namespace loka
       {
         this->detachIfShared();
         this->impl_->cancelRequested_ = false;
+        this->impl_->clearCancelFromParent();
         return *this;
       }
 
@@ -1236,6 +1385,391 @@ namespace loka
         return FlowChain<typename AdapterT::In, typename AdapterT::Out>(impl);
       }
     };
+
+    /** Implements one first-match-wins Flow step. Child chains are owned
+        clones and advance only while the parent drives this adapter. */
+    template <typename InT, typename OutT> class MatchAdapter
+    {
+    public:
+      typedef InT In;
+      typedef OutT Out;
+      typedef bool (*MatcherFn)(const In &, void *);
+      typedef StepRunStatus (*ValueHandlerFn)(const In &, Out &, FlowError &, void *);
+
+      MatchAdapter()
+          : arms_(),
+            otherwise_(0),
+            otherwiseUser_(0),
+            selectedArm_(-1),
+            pendingChildStepId_(-1),
+            cancelForwarded_(false),
+            matchedInput_()
+      {
+      }
+
+      MatchAdapter(const MatchAdapter &other)
+          : arms_(other.arms_),
+            otherwise_(other.otherwise_),
+            otherwiseUser_(other.otherwiseUser_),
+            selectedArm_(-1),
+            pendingChildStepId_(-1),
+            cancelForwarded_(false),
+            matchedInput_()
+      {
+      }
+
+      MatchAdapter &operator=(const MatchAdapter &other)
+      {
+        if (this != &other)
+        {
+          this->arms_ = other.arms_;
+          this->otherwise_ = other.otherwise_;
+          this->otherwiseUser_ = other.otherwiseUser_;
+          this->selectedArm_ = -1;
+          this->pendingChildStepId_ = -1;
+          this->cancelForwarded_ = false;
+        }
+        return *this;
+      }
+
+      void addValueArm(MatcherFn matcher, void *user, ValueHandlerFn handler)
+      {
+        this->arms_.push_back(Arm(matcher, user, handler));
+      }
+
+      template <typename ChildInT, typename ChildOutT>
+      void addChildArm(MatcherFn matcher, void *user, const FlowChain<ChildInT, ChildOutT> &child)
+      {
+        typedef char LokaFlowMatchChildOutputTypeMismatch[
+            (flow_detail::IsSame<Out, ChildOutT>::value) ? 1 : -1];
+        (void)sizeof(LokaFlowMatchChildOutputTypeMismatch);
+        this->arms_.push_back(Arm(matcher,
+                                  user,
+                                  child.impl_,
+                                  flow_detail::IsSame<In, ChildInT>::value != 0));
+      }
+
+      void setOtherwise(ValueHandlerFn handler, void *user)
+      {
+        this->otherwise_ = handler;
+        this->otherwiseUser_ = user;
+      }
+
+      StepRunStatus run(const In &in, Out &out, FlowError &error) const
+      {
+        if (this->cancelForwarded_)
+        {
+          this->clearChildCancel();
+          this->resetRun();
+        }
+
+        if (this->selectedArm_ < 0)
+        {
+          for (std::size_t i = 0; i < this->arms_.size(); ++i)
+          {
+            if (this->arms_[i].matcher != 0 && this->arms_[i].matcher(in, this->arms_[i].user))
+            {
+              this->selectedArm_ = static_cast<int>(i);
+              break;
+            }
+          }
+
+          if (this->selectedArm_ < 0)
+          {
+            if (this->otherwise_ == 0)
+            {
+              return FLOW_STEP_FAILED;
+            }
+            return this->otherwise_(in, out, error, this->otherwiseUser_);
+          }
+        }
+
+        Arm &arm = this->arms_[static_cast<std::size_t>(this->selectedArm_)];
+        if (arm.valueHandler != 0)
+        {
+          const StepRunStatus status = arm.valueHandler(in, out, error, arm.user);
+          if (status != FLOW_STEP_PENDING)
+          {
+            this->resetRun();
+          }
+          return status;
+        }
+
+        // The child reads the matched value through a pointer it keeps across
+        // pending resumes, so it must point at storage this adapter owns: the
+        // parent's input buffer can be freed by a trigger rebind while the
+        // child is still pending. The pointer is refreshed on every drive so
+        // a cloned adapter never hands out its source's address.
+        FlowRunResult childResult = FLOW_RUN_FAILED;
+        if (this->pendingChildStepId_ >= 0)
+        {
+          if (arm.acceptsMatchInput)
+          {
+            arm.child->setFirstStepInputOverride(&this->matchedInput_);
+          }
+          childResult = arm.child->runPinnedFromStepId(this->pendingChildStepId_);
+        }
+        else
+        {
+          // A fresh arm start must not inherit a cancel request that an
+          // earlier parent cancel() left on the child and a copy-on-write
+          // clone carried over (the clone resets this adapter's own state).
+          arm.child->cancelRequested_ = false;
+          arm.child->clearCancelFromParent();
+          if (arm.acceptsMatchInput)
+          {
+            this->matchedInput_ = in;
+            childResult = arm.child->runPinnedWithInput(&this->matchedInput_);
+          }
+          else
+          {
+            childResult = arm.child->runPinnedFromIndex(0);
+          }
+        }
+
+        if (childResult == FLOW_RUN_PENDING)
+        {
+          int pendingStepId = -1;
+          if (!arm.child->pendingStepId(pendingStepId))
+          {
+            this->resetRun();
+            return FLOW_STEP_FAILED;
+          }
+          this->pendingChildStepId_ = pendingStepId;
+          return FLOW_STEP_PENDING;
+        }
+
+        if (childResult == FLOW_RUN_SUCCEEDED)
+        {
+          const Out *childOut = static_cast<const Out *>(arm.child->lastOutputPtr());
+          if (childOut != 0)
+          {
+            out = *childOut;
+            this->resetRun();
+            return FLOW_STEP_SUCCEEDED;
+          }
+        }
+
+        else if (childResult == FLOW_RUN_FAILED)
+        {
+          FlowError childError;
+          if (arm.child->lastFailure(childError))
+          {
+            error = childError;
+          }
+        }
+
+        this->resetRun();
+        return FLOW_STEP_FAILED;
+      }
+
+      void requestCancel() const
+      {
+        if (this->selectedArm_ < 0)
+        {
+          return;
+        }
+        Arm &arm = this->arms_[static_cast<std::size_t>(this->selectedArm_)];
+        this->cancelForwarded_ = true;
+        if (arm.child != 0)
+        {
+          arm.child->cancelRequested_ = true;
+          arm.child->requestCancelFromParent();
+        }
+      }
+
+      void clearCancel() const
+      {
+        if (!this->cancelForwarded_)
+        {
+          return;
+        }
+        if (this->selectedArm_ >= 0)
+        {
+          Arm &arm = this->arms_[static_cast<std::size_t>(this->selectedArm_)];
+          if (arm.child != 0)
+          {
+            arm.child->cancelRequested_ = false;
+            arm.child->clearCancelFromParent();
+          }
+        }
+        this->cancelForwarded_ = false;
+      }
+
+    private:
+      struct Arm
+      {
+        Arm(MatcherFn matcherValue, void *userValue, ValueHandlerFn handlerValue)
+            : matcher(matcherValue),
+              user(userValue),
+              valueHandler(handlerValue),
+              child(0),
+              acceptsMatchInput(false)
+        {
+        }
+
+        Arm(MatcherFn matcherValue, void *userValue, FlowChainImpl *childValue, bool acceptsInput)
+            : matcher(matcherValue),
+              user(userValue),
+              valueHandler(0),
+              child(childValue ? childValue->clone() : 0),
+              acceptsMatchInput(acceptsInput)
+        {
+        }
+
+        Arm(const Arm &other)
+            : matcher(other.matcher),
+              user(other.user),
+              valueHandler(other.valueHandler),
+              child(other.child ? other.child->clone() : 0),
+              acceptsMatchInput(other.acceptsMatchInput)
+        {
+        }
+
+        ~Arm()
+        {
+          if (this->child != 0)
+          {
+            this->child->release();
+          }
+        }
+
+        Arm &operator=(const Arm &other)
+        {
+          if (this != &other)
+          {
+            FlowChainImpl *nextChild = other.child ? other.child->clone() : 0;
+            if (this->child != 0)
+            {
+              this->child->release();
+            }
+            this->matcher = other.matcher;
+            this->user = other.user;
+            this->valueHandler = other.valueHandler;
+            this->child = nextChild;
+            this->acceptsMatchInput = other.acceptsMatchInput;
+          }
+          return *this;
+        }
+
+        MatcherFn matcher;
+        void *user;
+        ValueHandlerFn valueHandler;
+        FlowChainImpl *child;
+        bool acceptsMatchInput;
+      };
+
+      void clearChildCancel() const
+      {
+        if (this->selectedArm_ >= 0)
+        {
+          Arm &arm = this->arms_[static_cast<std::size_t>(this->selectedArm_)];
+          if (arm.child != 0)
+          {
+            arm.child->cancelRequested_ = false;
+          }
+        }
+      }
+
+      void resetRun() const
+      {
+        this->selectedArm_ = -1;
+        this->pendingChildStepId_ = -1;
+        this->cancelForwarded_ = false;
+      }
+
+      mutable std::vector<Arm> arms_;
+      ValueHandlerFn otherwise_;
+      void *otherwiseUser_;
+      mutable int selectedArm_;
+      mutable int pendingChildStepId_;
+      mutable bool cancelForwarded_;
+      mutable In matchedInput_;
+    };
+
+    namespace flow_detail
+    {
+      template <typename InT, typename OutT>
+      void RuntimeStepCancel<MatchAdapter<InT, OutT> >::request(MatchAdapter<InT, OutT> &adapter)
+      {
+        adapter.requestCancel();
+      }
+
+      template <typename InT, typename OutT>
+      void RuntimeStepCancel<MatchAdapter<InT, OutT> >::clear(MatchAdapter<InT, OutT> &adapter)
+      {
+        adapter.clearCancel();
+      }
+    } // namespace flow_detail
+
+    /** Declares ordered value or child-Flow arms for a Match step. A child
+        with the same In type receives the matched value; another ChildIn
+        type must provide its first step's input explicitly. Every child Out
+        must exactly match this Match's Out. */
+    template <typename InT, typename OutT> class MatchSpec
+    {
+    public:
+      typedef MatchAdapter<InT, OutT> Adapter;
+      typedef typename Adapter::MatcherFn MatcherFn;
+      typedef typename Adapter::ValueHandlerFn ValueHandlerFn;
+
+      explicit MatchSpec(int id)
+          : id_(id),
+            adapter_()
+      {
+      }
+
+      MatchSpec &arm(MatcherFn matcher, void *user, ValueHandlerFn handler)
+      {
+        this->adapter_.addValueArm(matcher, user, handler);
+        return *this;
+      }
+
+      template <typename ChildInT, typename ChildOutT>
+      MatchSpec &arm(MatcherFn matcher, void *user, const FlowChain<ChildInT, ChildOutT> &child)
+      {
+        this->adapter_.addChildArm(matcher, user, child);
+        return *this;
+      }
+
+      MatchSpec &otherwise(ValueHandlerFn handler, void *user = 0)
+      {
+        this->adapter_.setOtherwise(handler, user);
+        return *this;
+      }
+
+      int id() const
+      {
+        return this->id_;
+      }
+
+      const Adapter &adapter() const
+      {
+        return this->adapter_;
+      }
+
+    private:
+      int id_;
+      Adapter adapter_;
+    };
+
+    template <typename InT, typename OutT> MatchSpec<InT, OutT> Match(int id)
+    {
+      return MatchSpec<InT, OutT>(id);
+    }
+
+    template <typename FlowInT, typename CurrentOutT, typename MatchOutT>
+    FlowChain<FlowInT, MatchOutT> operator|(const FlowChain<FlowInT, CurrentOutT> &chain,
+                                            const MatchSpec<CurrentOutT, MatchOutT> &match)
+    {
+      return chain | Step(match.id(), match.adapter());
+    }
+
+    template <typename MatchInT, typename MatchOutT>
+    FlowChain<MatchInT, MatchOutT> operator|(const Flow &flow, const MatchSpec<MatchInT, MatchOutT> &match)
+    {
+      return flow | Step(match.id(), match.adapter());
+    }
   } // namespace dsl
 } // namespace loka
 

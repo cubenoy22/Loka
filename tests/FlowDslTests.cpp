@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstring>
 #include <cstdio>
+#include <string>
 #include <vector>
 
 #include "app/nodes/nestable/Box.hpp"
@@ -1582,6 +1583,82 @@ namespace
       return loka::dsl::FLOW_STEP_SUCCEEDED;
     }
   };
+
+  struct FlowMatchArmProbe
+  {
+    FlowMatchArmProbe(bool matchValue, int outputDelta)
+        : matches(matchValue),
+          delta(outputDelta),
+          matcherCalls(0),
+          handlerCalls(0)
+    {
+    }
+
+    bool matches;
+    int delta;
+    int matcherCalls;
+    int handlerCalls;
+  };
+
+  struct FlowMatchTestHelpers
+  {
+    static bool probeMatcher(const int &, void *user)
+    {
+      FlowMatchArmProbe *probe = static_cast<FlowMatchArmProbe *>(user);
+      ++probe->matcherCalls;
+      return probe->matches;
+    }
+
+    static bool alwaysMatch(const int &, void *)
+    {
+      return true;
+    }
+
+    static loka::dsl::StepRunStatus valueHandler(const int &in,
+                                                  int &out,
+                                                  loka::dsl::FlowError &,
+                                                  void *user)
+    {
+      FlowMatchArmProbe *probe = static_cast<FlowMatchArmProbe *>(user);
+      ++probe->handlerCalls;
+      out = in + probe->delta;
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+
+    static loka::dsl::StepRunStatus countAsValue(const int &in,
+                                                  int &out,
+                                                  loka::dsl::FlowError &,
+                                                  void *user)
+    {
+      int *calls = static_cast<int *>(user);
+      ++(*calls);
+      out = in;
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+
+    static loka::dsl::FlowHandleResult countAsHandledFailure(const loka::dsl::FlowError &, void *user)
+    {
+      ++(*static_cast<int *>(user));
+      return loka::dsl::FLOW_ERROR_HANDLED;
+    }
+  };
+
+  static std::string ReadFlowMatchAuditBytes(const char *path)
+  {
+    FILE *input = std::fopen(path, "rb");
+    assert(input != 0);
+    std::string content;
+    char buffer[128];
+    std::size_t count = 0;
+    while ((count = std::fread(buffer, 1, sizeof(buffer), input)) != 0)
+    {
+      content.append(buffer, count);
+    }
+    const int closeResult = std::fclose(input);
+    (void)closeResult;
+    assert(closeResult == 0);
+    return content;
+  }
 
   struct FlowTestFail500Adapter
   {
@@ -7034,4 +7111,258 @@ void testSceneFlowWaitUntilAppliedRefusesMissingProjection()
   LOKA_VERIFY(failure.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_EXPECTED_APPLY);
 
   scene.unmount();
+}
+
+void testFlowMatchRunsOnlyFirstMatchingArm()
+{
+  int input = 10;
+  int captured = 0;
+  FlowMatchArmProbe first(true, 5);
+  FlowMatchArmProbe later(true, 100);
+
+  loka::dsl::FlowChain<int, int> chain =
+      loka::dsl::Flow() | loka::dsl::Step(1, FlowTestAdd1Adapter()).input(&input)
+      | loka::dsl::Match<int, int>(2)
+            .arm(&FlowMatchTestHelpers::probeMatcher, &first, &FlowMatchTestHelpers::valueHandler)
+            .arm(&FlowMatchTestHelpers::probeMatcher, &later, &FlowMatchTestHelpers::valueHandler)
+      | loka::dsl::Step(3, FlowTestAdd1Adapter()).onSuccess(&captured);
+
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(first.matcherCalls == 1);
+  LOKA_VERIFY(first.handlerCalls == 1);
+  LOKA_VERIFY(later.matcherCalls == 0);
+  LOKA_VERIFY(later.handlerCalls == 0);
+  LOKA_VERIFY(captured == 17);
+}
+
+void testFlowMatchChildOutputFlowsToNextStep()
+{
+  int input = 6;
+  int captured = 0;
+  loka::dsl::FlowChain<int, int> child =
+      loka::dsl::Flow() | loka::dsl::Step(101, FlowTestMul2Adapter());
+  loka::dsl::MatchSpec<int, int> match = loka::dsl::Match<int, int>(2);
+  match.arm(&FlowMatchTestHelpers::alwaysMatch, 0, child);
+
+  loka::dsl::FlowChain<int, int> chain =
+      loka::dsl::Flow() | loka::dsl::Step(1, FlowTestAdd1Adapter()).input(&input)
+      | match
+      | loka::dsl::Step(3, FlowTestAdd1Adapter()).onSuccess(&captured);
+
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(captured == 15);
+
+  FlowErrorCapture failure = {0, 0, 0};
+  loka::dsl::FlowChain<int, int> failingChild =
+      loka::dsl::Flow() | loka::dsl::Step(102, FlowTestFail500Adapter());
+  loka::dsl::MatchSpec<int, int> failingMatch = loka::dsl::Match<int, int>(4);
+  failingMatch.arm(&FlowMatchTestHelpers::alwaysMatch, 0, failingChild);
+  loka::dsl::FlowChain<int, int> failingParent =
+      loka::dsl::Flow() | loka::dsl::Step(1, FlowTestAdd1Adapter()).input(&input) | failingMatch;
+  failingParent.onFailure(&FlowTestMarker::is500, &FlowTestMarker::captureFailure, &failure);
+  LOKA_VERIFY(failingParent.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(failure.calls == 1);
+  LOKA_VERIFY(failure.kind == 1);
+  LOKA_VERIFY(failure.code == 500);
+}
+
+void testFlowMatchPendingChildKeepsParentTriggerReentryDropped()
+{
+  loka::core::MutableState<int> trigger;
+  bool ready = false;
+  int childCalls = 0;
+  int captured = 0;
+  loka::dsl::FlowChain<int, int> child =
+      loka::dsl::Flow() | loka::dsl::Step(101, FlowTestPendingThenSuccessAdapter(&ready, &childCalls));
+  loka::dsl::MatchSpec<int, int> match = loka::dsl::Match<int, int>(20);
+  match.arm(&FlowMatchTestHelpers::alwaysMatch, 0, child);
+  loka::dsl::FlowChain<int, int> parent =
+      loka::dsl::Flow() | match | loka::dsl::Step(21, FlowTestAdd1Adapter()).onSuccess(&captured);
+  parent.bindTrigger(&trigger);
+
+  trigger.set(5, true);
+  LOKA_VERIFY(childCalls == 1);
+  LOKA_VERIFY(captured == 0);
+
+  trigger.set(8, true);
+  LOKA_VERIFY(childCalls == 1);
+  LOKA_VERIFY(captured == 0);
+
+  ready = true;
+  LOKA_VERIFY(parent.resumeResult(20) == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(childCalls == 2);
+  LOKA_VERIFY(captured == 106);
+}
+
+void testFlowMatchForwardsParentCancelToPendingChild()
+{
+  int input = 9;
+  bool ready = false;
+  int pendingCalls = 0;
+  int laterChildCalls = 0;
+  loka::dsl::FlowChain<int, int> child =
+      loka::dsl::Flow() | loka::dsl::Step(101, FlowTestPendingThenSuccessAdapter(&ready, &pendingCalls))
+      | loka::dsl::Step(102, FlowTestCountedPassAdapter(&laterChildCalls));
+  loka::dsl::MatchSpec<int, int> match = loka::dsl::Match<int, int>(20);
+  match.arm(&FlowMatchTestHelpers::alwaysMatch, 0, child);
+  loka::dsl::FlowChain<int, int> parent = loka::dsl::Flow() | loka::dsl::Step(1, FlowTestAdd1Adapter()).input(&input)
+                                               | match;
+
+  LOKA_VERIFY(parent.runResult() == loka::dsl::FLOW_RUN_PENDING);
+  LOKA_VERIFY(pendingCalls == 1);
+  LOKA_VERIFY(laterChildCalls == 0);
+
+  parent.cancel();
+  ready = true;
+  LOKA_VERIFY(parent.resumeResult(20) == loka::dsl::FLOW_RUN_CANCELED);
+  LOKA_VERIFY(pendingCalls == 1);
+  LOKA_VERIFY(laterChildCalls == 0);
+
+  LOKA_VERIFY(parent.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(pendingCalls == 2);
+  LOKA_VERIFY(laterChildCalls == 1);
+}
+
+void testFlowMatchFreshRunAfterCancelSurvivesCopyOnWriteClone()
+{
+  int input = 9;
+  bool ready = false;
+  int childCalls = 0;
+  loka::dsl::FlowChain<int, int> child =
+      loka::dsl::Flow() | loka::dsl::Step(101, FlowTestPendingThenSuccessAdapter(&ready, &childCalls));
+  loka::dsl::MatchSpec<int, int> match = loka::dsl::Match<int, int>(20);
+  match.arm(&FlowMatchTestHelpers::alwaysMatch, 0, child);
+  loka::dsl::FlowChain<int, int> parent = loka::dsl::Flow() | loka::dsl::Step(1, FlowTestAdd1Adapter()).input(&input)
+                                               | match;
+
+  LOKA_VERIFY(parent.runResult() == loka::dsl::FLOW_RUN_PENDING);
+  LOKA_VERIFY(childCalls == 1);
+  parent.cancel();
+
+  // A shared wrapper that mutates after the cancel detaches onto a
+  // copy-on-write clone. The clone's child must not carry the stale cancel
+  // request into its next fresh arm start.
+  loka::dsl::FlowChain<int, int> copy = parent;
+  copy.clearCancel();
+  ready = true;
+  LOKA_VERIFY(copy.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(childCalls == 2);
+}
+
+void testFlowMatchChildKeepsMatchedInputAcrossTriggerRebind()
+{
+  loka::core::MutableState<int> trigger;
+  loka::core::MutableState<int> replacement;
+  bool ready = false;
+  int childCalls = 0;
+  int captured = 0;
+  loka::dsl::FlowChain<int, int> child =
+      loka::dsl::Flow() | loka::dsl::Step(101, FlowTestPendingThenSuccessAdapter(&ready, &childCalls));
+  loka::dsl::MatchSpec<int, int> match = loka::dsl::Match<int, int>(20);
+  match.arm(&FlowMatchTestHelpers::alwaysMatch, 0, child);
+  loka::dsl::FlowChain<int, int> parent =
+      loka::dsl::Flow() | match | loka::dsl::Step(21, FlowTestAdd1Adapter()).onSuccess(&captured);
+  parent.bindTrigger(&trigger);
+
+  trigger.set(5, true);
+  LOKA_VERIFY(childCalls == 1);
+
+  // Rebinding frees the old trigger input buffer while the child is still
+  // pending on the matched value; the resume must read a value Match owns,
+  // not the freed buffer.
+  parent.bindTrigger(&replacement);
+  ready = true;
+  LOKA_VERIFY(parent.resumeResult(20) == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(childCalls == 2);
+  LOKA_VERIFY(captured == 106);
+}
+
+void testFlowMatchWithoutMatchingArmPropagatesFailure()
+{
+  int input = 4;
+  FlowMatchArmProbe arm(false, 1);
+  loka::dsl::MatchSpec<int, int> match = loka::dsl::Match<int, int>(10);
+  match.arm(&FlowMatchTestHelpers::probeMatcher, &arm, &FlowMatchTestHelpers::valueHandler);
+  loka::dsl::FlowChain<int, int> chain =
+      loka::dsl::Flow() | loka::dsl::Step(9, FlowTestAdd1Adapter()).input(&input) | match;
+
+  LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_FAILED);
+  LOKA_VERIFY(arm.matcherCalls == 1);
+  LOKA_VERIFY(arm.handlerCalls == 0);
+
+  int otherwiseCalls = 0;
+  loka::dsl::MatchSpec<int, int> withOtherwise = loka::dsl::Match<int, int>(11);
+  withOtherwise.otherwise(&FlowMatchTestHelpers::countAsValue, &otherwiseCalls);
+  loka::dsl::FlowChain<int, int> handled =
+      loka::dsl::Flow() | loka::dsl::Step(8, FlowTestAdd1Adapter()).input(&input) | withOtherwise;
+  LOKA_VERIFY(handled.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(otherwiseCalls == 1);
+}
+
+void testFlowMatchDegenerateRoutingMatchesOnFailureResult()
+{
+  int input = 500;
+  int failureCalls = 0;
+  int matchCalls = 0;
+  int failureActionCalls = 0;
+  int matchActionCalls = 0;
+  loka::dsl::FlowChain<int, int> failureChain =
+      loka::dsl::Flow() | loka::dsl::Step(1, FlowTestFail500Adapter()).input(&input)
+      | loka::dsl::Step(2, FlowTestCountedPassAdapter(&failureActionCalls)).input(&input);
+  failureChain.onFailure(&FlowMatchTestHelpers::countAsHandledFailure, &failureCalls, 2);
+
+  loka::dsl::MatchSpec<int, int> match = loka::dsl::Match<int, int>(1);
+  match.arm(&FlowMatchTestHelpers::alwaysMatch, &matchCalls, &FlowMatchTestHelpers::countAsValue);
+  loka::dsl::FlowChain<int, int> matchChain =
+      loka::dsl::Flow() | loka::dsl::Step(0, FlowTestAdd1Adapter()).input(&input) | match
+      | loka::dsl::Step(2, FlowTestCountedPassAdapter(&matchActionCalls));
+
+  const loka::dsl::FlowRunResult failureResult = failureChain.runResult();
+  const loka::dsl::FlowRunResult matchResult = matchChain.runResult();
+  LOKA_VERIFY(failureResult == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(matchResult == failureResult);
+  LOKA_VERIFY(failureCalls == 1);
+  LOKA_VERIFY(matchCalls == 1);
+  LOKA_VERIFY(failureActionCalls == 1);
+  LOKA_VERIFY(matchActionCalls == 1);
+}
+
+void testFlowMatchAuditWritesExactMatchAndSubstepLinesOnce()
+{
+  const char *path = "_loka_flow_match_audit.audit";
+  std::remove(path);
+  {
+    loka::platform::file::FileHandle destination;
+    destination.displayPath = loka::core::String::Literal(path);
+    loka::dsl::testing::ScenarioAuditFile audit(destination, "flow-match");
+    loka::dsl::FlowError auditError;
+    loka::dsl::testing::scenario_audit_detail::MatchSelectionEmitter selected(&audit, 12, 1);
+    const bool selectedFirst = selected.emit(auditError);
+    const bool selectedAgain = selected.emit(auditError);
+    LOKA_VERIFY(selectedFirst);
+    LOKA_VERIFY(selectedAgain);
+
+    loka::dsl::FlowError childError;
+    childError.kind = 7;
+    childError.code = 42;
+    loka::dsl::testing::scenario_audit_detail::SubstepTerminalEmitter substep(
+        &audit, 12, 1, 101, "child step\tA", 20);
+    const bool substepFirst = substep.emit(21, loka::dsl::FLOW_STEP_FAILED, childError);
+    const bool substepAgain = substep.emit(21, loka::dsl::FLOW_STEP_FAILED, childError);
+    LOKA_VERIFY(substepFirst);
+    LOKA_VERIFY(substepAgain);
+
+    loka::dsl::testing::scenario_audit_detail::MatchSelectionEmitter unmatched(&audit, 13);
+    const bool unmatchedFirst = unmatched.emit(auditError);
+    const bool unmatchedAgain = unmatched.emit(auditError);
+    LOKA_VERIFY(unmatchedFirst);
+    LOKA_VERIFY(unmatchedAgain);
+  }
+
+  const std::string content = ReadFlowMatchAuditBytes(path);
+  std::remove(path);
+  LOKA_VERIFY(content == "loka_scenario_audit version=1 scenario=flow-match\n"
+                         "match id=12 arm=1\n"
+                         "substep match=12 arm=1 id=101 due_tick=20 tick=21 status=failed error_kind=7 error_code=42 name=child%20step%09A\n"
+                         "match id=13 arm=none\n");
 }
