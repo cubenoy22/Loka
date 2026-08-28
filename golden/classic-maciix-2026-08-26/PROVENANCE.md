@@ -23,8 +23,9 @@ the pixels are correct. Known drawing defects present in these captures:
 - **#45 item 7** — wrap-mode measurement diverges across rails, silently truncating
   a label. Classic is the rail that gets it right, so this set does not show it,
   but the same cells on macOS and Win32 do.
-- **#481** — `HelloWorld`'s panel title paints an extra glyph over its first
-  letter, on all three rails. Visible in `helloworld/startup.png`.
+- **#481** — the `*` overlapping `Loka Sample` in HelloWorld is the example's
+  deliberate ZStack overlay demonstration, not a drawing defect (clarified by
+  the maintainer 2026-08-28); it is a legibility question, not correctness.
 
 ## Version-to-version comparison against 2026-08-22
 

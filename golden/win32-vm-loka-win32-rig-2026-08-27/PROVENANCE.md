@@ -49,7 +49,8 @@ moves, and the checkpoint records everything else.
 ## What this set is, and is not
 
 It records **what this version drew in this environment**. Known drawing
-defects in this build: **#481** (HelloWorld title glyph overpaint, all rails),
+defects in this build: **#481** (the HelloWorld `*` overlay: a deliberate ZStack demonstration,
+not a defect - clarified 2026-08-28),
 **#45 item 7** (wrap-mode truncation). #496 does not reproduce here but
 remains open for the bare-iron rail.
 

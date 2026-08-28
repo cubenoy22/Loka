@@ -71,8 +71,7 @@ rather than reused is the desk move above and the four newly-covered examples.
 It records **what this version drew in this environment**. Not a correctness
 claim. Known drawing defects in this build:
 
-- **#481** — HelloWorld's panel title paints an extra glyph over its first
-  letter on all three rails; present on the `helloworld` cells here.
+- **#481** — the `*` overlapping `Loka Sample` in HelloWorld is the example's deliberate ZStack overlay demonstration, not a drawing defect (clarified by the maintainer 2026-08-28); it is legibility, not correctness.
 - **#45 item 7** — wrap-mode measurement diverges across rails, truncating a
   label on Win32 and macOS.
 - **#496** — the MineSweeper incomplete-grid settle described above.
