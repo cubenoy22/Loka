@@ -1392,6 +1392,46 @@ Flow B ----+
 Flow 専用の input / result state、read-only input state、結果専用 state、
 あるいは owner method / emitter adapter を検討してください。
 
+### `Match()` — 値で分岐して子 Flow を待つ
+
+`onFailure` の列は、すでに「上から matcher を当てて最初に当たった分岐だけが走る」
+first-match-wins の分岐です。`Match()` はその構造に *値* 用の名前を与え、
+各分岐(`arm`)を「値ハンドラ」または「親が完了を待つ子 Flow」のどちらかにできるようにします。
+
+```cpp
+using loka::dsl::Flow;
+using loka::dsl::Match;
+using loka::dsl::Step;
+
+Flow()
+  | Step(STEP_OPEN, OpenAdapter(...))                       // Out = OpenResult
+  | Match<OpenResult, Image>(MATCH_OPEN)                    // In = 前段の Out
+      .arm(&IsDecoded,      this, &TakeDecodedImage)        // 値の分岐
+      .arm(&NeedsRelease,   this, releaseAndRetryFlow)      // 子 Flow の分岐
+      .otherwise(&ReportNoImage, this)                      // 任意
+  | Step(STEP_SHOW, ShowAdapter(...));                      // In = Image
+```
+
+- matcher は `bool (*)(const In &, void *)`。分岐は宣言順に試され、最初に当たった分岐だけが走ります。
+  マッチするのは *値* です。本当の失敗は今まで通り `onFailure` を通るので、
+  「不一致」と「失敗」が混ざることはありません。
+- 値の分岐は `StepRunStatus (*)(const In &, Out &, FlowError &, void *)`。
+  他の adapter と同じく `FLOW_STEP_PENDING` を返せます。
+- 子 Flow の分岐は `FlowChain<ChildIn, ChildOut>` を受け取ります。`ChildOut` は
+  Match の `Out` と完全一致が必要です (コンパイル時に検査)。`ChildIn` が Match の
+  `In` と同じなら、マッチした値がそのまま子の最初の step に渡ります。違う型なら
+  子が自分で最初の step の `.input(...)` を用意します。
+- `otherwise()` は任意です。どの分岐にも当たらず `otherwise()` も無いときは、
+  未処理の step 失敗と同じ形で run が失敗し、flow-level の `onFailure` 列が
+  そのまま適用されます。
+- `Match` は普通の step です。step id 空間・`resume(id)`・シナリオ audit の列を
+  共有します。子 Flow の分岐が pending の間は親も pending なので、trigger の再発火を
+  捨てる既存規則がそのまま子を守ります。親の `cancel()` は子にも届き、
+  子は次の step 境界で止まります。Match は失敗原子性を足しません。
+  途中まで走った分岐の副作用は巻き戻されません。
+- 駆動するのは常に親です。外部の完了通知は *親* を Match の step id で resume し、
+  子が単独で resume されることはありません。
+
 ### 双方向入力と更新ループ
 
 単位変換、Slider と EditText の連動、2 つの入力欄が互いに値を変換する UI では、

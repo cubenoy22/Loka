@@ -89,6 +89,90 @@ namespace loka
         return this->error_;
       }
 
+      ScenarioMatchSelection::ScenarioMatchSelection(int matchStepId)
+          : matchStepId_(matchStepId),
+            armIndex_(-1)
+      {
+      }
+
+      ScenarioMatchSelection::ScenarioMatchSelection(int matchStepId, int armIndex)
+          : matchStepId_(matchStepId),
+            armIndex_(armIndex)
+      {
+        assert(armIndex >= 0 && "ScenarioMatchSelection requires a non-negative arm index");
+      }
+
+      int ScenarioMatchSelection::matchStepId() const
+      {
+        return this->matchStepId_;
+      }
+
+      bool ScenarioMatchSelection::hasArm() const
+      {
+        return this->armIndex_ >= 0;
+      }
+
+      int ScenarioMatchSelection::armIndex() const
+      {
+        assert(this->hasArm() && "ScenarioMatchSelection has no selected arm");
+        return this->armIndex_;
+      }
+
+      ScenarioSubstepTerminal::ScenarioSubstepTerminal(int matchStepId,
+                                                       int armIndex,
+                                                       int stepId,
+                                                       const char *name,
+                                                       long dueTick,
+                                                       long tick,
+                                                       StepRunStatus status,
+                                                       const FlowError &error)
+          : matchStepId_(matchStepId),
+            armIndex_(armIndex),
+            step_(stepId, name, dueTick, tick, status, error)
+      {
+        assert(armIndex >= 0 && "ScenarioSubstepTerminal requires a non-negative arm index");
+      }
+
+      int ScenarioSubstepTerminal::matchStepId() const
+      {
+        return this->matchStepId_;
+      }
+
+      int ScenarioSubstepTerminal::armIndex() const
+      {
+        return this->armIndex_;
+      }
+
+      int ScenarioSubstepTerminal::stepId() const
+      {
+        return this->step_.stepId();
+      }
+
+      const std::string &ScenarioSubstepTerminal::name() const
+      {
+        return this->step_.name();
+      }
+
+      long ScenarioSubstepTerminal::dueTick() const
+      {
+        return this->step_.dueTick();
+      }
+
+      long ScenarioSubstepTerminal::tick() const
+      {
+        return this->step_.tick();
+      }
+
+      StepRunStatus ScenarioSubstepTerminal::status() const
+      {
+        return this->step_.status();
+      }
+
+      const FlowError &ScenarioSubstepTerminal::error() const
+      {
+        return this->step_.error();
+      }
+
       scenario_audit_detail::OnceEmissionState::OnceEmissionState()
           : state_(STATE_WAITING)
       {
@@ -150,6 +234,99 @@ namespace loka
         {
           const ScenarioStepTerminal record(this->stepId_, this->name_.c_str(), this->dueTick_, tick, status, error);
           if (!this->sink_->recordStep(record))
+          {
+            this->emission_.settle(false);
+            error.kind = FLOW_ERROR_KIND_SCENARIO_AUDIT;
+            error.code = FLOW_ERROR_SCENARIO_AUDIT_WRITE_FAILED;
+            return false;
+          }
+        }
+        return this->emission_.settle(true);
+      }
+
+      scenario_audit_detail::MatchSelectionEmitter::MatchSelectionEmitter(ScenarioAuditSink *sink,
+                                                                           int matchStepId,
+                                                                           int armIndex)
+          : sink_(sink),
+            record_(matchStepId, armIndex),
+            emission_()
+      {
+      }
+
+      scenario_audit_detail::MatchSelectionEmitter::MatchSelectionEmitter(ScenarioAuditSink *sink,
+                                                                           int matchStepId)
+          : sink_(sink),
+            record_(matchStepId),
+            emission_()
+      {
+      }
+
+      bool scenario_audit_detail::MatchSelectionEmitter::emit(FlowError &error) const
+      {
+        const OnceEmissionState::Decision decision = this->emission_.next();
+        if (decision == OnceEmissionState::ALREADY_REFUSED)
+        {
+          error.kind = FLOW_ERROR_KIND_SCENARIO_AUDIT;
+          error.code = FLOW_ERROR_SCENARIO_AUDIT_WRITE_FAILED;
+          return false;
+        }
+        if (decision == OnceEmissionState::ALREADY_RECORDED)
+        {
+          return true;
+        }
+        if (this->sink_ != 0 && !this->sink_->recordMatch(this->record_))
+        {
+          this->emission_.settle(false);
+          error.kind = FLOW_ERROR_KIND_SCENARIO_AUDIT;
+          error.code = FLOW_ERROR_SCENARIO_AUDIT_WRITE_FAILED;
+          return false;
+        }
+        return this->emission_.settle(true);
+      }
+
+      scenario_audit_detail::SubstepTerminalEmitter::SubstepTerminalEmitter(ScenarioAuditSink *sink,
+                                                                             int matchStepId,
+                                                                             int armIndex,
+                                                                             int stepId,
+                                                                             const char *name,
+                                                                             long dueTick)
+          : sink_(sink),
+            matchStepId_(matchStepId),
+            armIndex_(armIndex),
+            stepId_(stepId),
+            name_(name ? name : ""),
+            dueTick_(dueTick),
+            emission_()
+      {
+      }
+
+      bool scenario_audit_detail::SubstepTerminalEmitter::emit(long tick,
+                                                                StepRunStatus status,
+                                                                FlowError &error) const
+      {
+        assert(status != FLOW_STEP_PENDING && "SubstepTerminalEmitter requires a terminal step");
+        const OnceEmissionState::Decision decision = this->emission_.next();
+        if (decision == OnceEmissionState::ALREADY_REFUSED)
+        {
+          error.kind = FLOW_ERROR_KIND_SCENARIO_AUDIT;
+          error.code = FLOW_ERROR_SCENARIO_AUDIT_WRITE_FAILED;
+          return false;
+        }
+        if (decision == OnceEmissionState::ALREADY_RECORDED)
+        {
+          return true;
+        }
+        if (this->sink_ != 0)
+        {
+          const ScenarioSubstepTerminal record(this->matchStepId_,
+                                               this->armIndex_,
+                                               this->stepId_,
+                                               this->name_.c_str(),
+                                               this->dueTick_,
+                                               tick,
+                                               status,
+                                               error);
+          if (!this->sink_->recordSubstep(record))
           {
             this->emission_.settle(false);
             error.kind = FLOW_ERROR_KIND_SCENARIO_AUDIT;
@@ -257,6 +434,52 @@ namespace loka
                                     StepStatusName(record.status()),
                                     error.kind,
                                     error.code)
+                       >= 0;
+        if (written)
+        {
+          written = this->writeEscaped(record.name());
+        }
+        if (written)
+        {
+          written = std::fputc('\n', this->file_) != EOF;
+        }
+        return this->finishRecord(written);
+      }
+
+      bool ScenarioAuditFile::recordMatch(const ScenarioMatchSelection &record)
+      {
+        if (!this->isValid())
+        {
+          return false;
+        }
+        bool written = std::fprintf(this->file_, "match id=%d arm=", record.matchStepId()) >= 0;
+        if (written)
+        {
+          written = record.hasArm()
+                        ? std::fprintf(this->file_, "%d\n", record.armIndex()) >= 0
+                        : std::fputs("none\n", this->file_) >= 0;
+        }
+        return this->finishRecord(written);
+      }
+
+      bool ScenarioAuditFile::recordSubstep(const ScenarioSubstepTerminal &record)
+      {
+        if (!this->isValid())
+        {
+          return false;
+        }
+        const FlowError &error = record.error();
+        bool written = std::fprintf(
+                           this->file_,
+                           "substep match=%d arm=%d id=%d due_tick=%ld tick=%ld status=%s error_kind=%d error_code=%d name=",
+                           record.matchStepId(),
+                           record.armIndex(),
+                           record.stepId(),
+                           record.dueTick(),
+                           record.tick(),
+                           StepStatusName(record.status()),
+                           error.kind,
+                           error.code)
                        >= 0;
         if (written)
         {

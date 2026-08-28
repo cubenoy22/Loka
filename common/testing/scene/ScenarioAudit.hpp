@@ -56,6 +56,51 @@ namespace loka
         FlowError error_;
       };
 
+      /** Immutable first-match selection fact. A selection without an arm
+          records the optional-otherwise miss as arm=none. */
+      class ScenarioMatchSelection
+      {
+      public:
+        explicit ScenarioMatchSelection(int matchStepId);
+        ScenarioMatchSelection(int matchStepId, int armIndex);
+
+        int matchStepId() const;
+        bool hasArm() const;
+        int armIndex() const;
+
+      private:
+        int matchStepId_;
+        int armIndex_;
+      };
+
+      /** Immutable child-step terminal fact with its owning Match arm. */
+      class ScenarioSubstepTerminal
+      {
+      public:
+        ScenarioSubstepTerminal(int matchStepId,
+                                int armIndex,
+                                int stepId,
+                                const char *name,
+                                long dueTick,
+                                long tick,
+                                StepRunStatus status,
+                                const FlowError &error);
+
+        int matchStepId() const;
+        int armIndex() const;
+        int stepId() const;
+        const std::string &name() const;
+        long dueTick() const;
+        long tick() const;
+        StepRunStatus status() const;
+        const FlowError &error() const;
+
+      private:
+        int matchStepId_;
+        int armIndex_;
+        ScenarioStepTerminal step_;
+      };
+
       /** Borrowed synchronous destination for scenario audit facts. The owner
           must outlive every ScenarioFlow that refers to it. */
       class ScenarioAuditSink
@@ -63,6 +108,8 @@ namespace loka
       public:
         virtual ~ScenarioAuditSink() {}
         virtual bool recordStep(const ScenarioStepTerminal &record) = 0;
+        virtual bool recordMatch(const ScenarioMatchSelection &record) = 0;
+        virtual bool recordSubstep(const ScenarioSubstepTerminal &record) = 0;
         virtual bool recordVerdict(const SnapRecord &record) = 0;
         virtual bool recordTerminal(ScenarioAuditTerminalStatus status) = 0;
       };
@@ -114,6 +161,44 @@ namespace loka
           OnceEmissionState emission_;
         };
 
+        /** Emits one Match arm-selection fact at most once. */
+        class MatchSelectionEmitter
+        {
+        public:
+          MatchSelectionEmitter(ScenarioAuditSink *sink, int matchStepId, int armIndex);
+          MatchSelectionEmitter(ScenarioAuditSink *sink, int matchStepId);
+
+          bool emit(FlowError &error) const;
+
+        private:
+          ScenarioAuditSink *sink_;
+          ScenarioMatchSelection record_;
+          OnceEmissionState emission_;
+        };
+
+        /** Emits one child-step terminal fact at most once. */
+        class SubstepTerminalEmitter
+        {
+        public:
+          SubstepTerminalEmitter(ScenarioAuditSink *sink,
+                                 int matchStepId,
+                                 int armIndex,
+                                 int stepId,
+                                 const char *name,
+                                 long dueTick);
+
+          bool emit(long tick, StepRunStatus status, FlowError &error) const;
+
+        private:
+          ScenarioAuditSink *sink_;
+          int matchStepId_;
+          int armIndex_;
+          int stepId_;
+          std::string name_;
+          long dueTick_;
+          OnceEmissionState emission_;
+        };
+
         /** Keeps the scenario's one logical verdict/terminal transition
             coherent across cached result reads and orderly teardown. */
         class TerminalEmitter
@@ -144,6 +229,8 @@ namespace loka
 
         bool isValid() const;
         virtual bool recordStep(const ScenarioStepTerminal &record);
+        virtual bool recordMatch(const ScenarioMatchSelection &record);
+        virtual bool recordSubstep(const ScenarioSubstepTerminal &record);
         virtual bool recordVerdict(const SnapRecord &record);
         virtual bool recordTerminal(ScenarioAuditTerminalStatus status);
 

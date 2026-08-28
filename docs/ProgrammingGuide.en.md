@@ -395,6 +395,49 @@ paths need to update a value. Prefer:
 
 This keeps update loops and lifecycle relationships visible.
 
+### `Match()`
+
+The `onFailure` list is already a first-match-wins router: matchers are tried
+in declaration order and the first hit handles the error. `Match()` gives that
+structure a name for *values*, and lets an arm be either a value handler or a
+whole child Flow that the parent awaits.
+
+```cpp
+using loka::dsl::Flow;
+using loka::dsl::Match;
+using loka::dsl::Step;
+
+Flow()
+  | Step(STEP_OPEN, OpenAdapter(...))                       // Out = OpenResult
+  | Match<OpenResult, Image>(MATCH_OPEN)                    // In = previous Out
+      .arm(&IsDecoded,      this, &TakeDecodedImage)        // value arm
+      .arm(&NeedsRelease,   this, releaseAndRetryFlow)      // child Flow arm
+      .otherwise(&ReportNoImage, this)                      // optional
+  | Step(STEP_SHOW, ShowAdapter(...));                      // In = Image
+```
+
+- A matcher is `bool (*)(const In &, void *)`; arms are tried in declaration
+  order and only the first hit runs. Matching is on the *value*: real failures
+  still travel through `onFailure`, so a mismatch and a failure are never the
+  same thing.
+- A value arm is `StepRunStatus (*)(const In &, Out &, FlowError &, void *)`;
+  it may return `FLOW_STEP_PENDING` like any adapter.
+- A child Flow arm receives a `FlowChain<ChildIn, ChildOut>`. `ChildOut` must
+  be exactly the Match's `Out` (a compile-time check). When `ChildIn` equals
+  the Match's `In`, the matched value is fed to the child's first step;
+  otherwise the child must supply its first step's `.input(...)` itself.
+- `otherwise()` is optional. When no arm matches and there is no
+  `otherwise()`, the run fails exactly like an unhandled step failure, so the
+  flow-level `onFailure` list still applies.
+- `Match` is an ordinary step: it shares the step id space, `resume(id)`, and
+  the scenario audit column. While a child arm is pending the parent is
+  pending, so the trigger drop rule already protects the child from re-entry;
+  `cancel()` on the parent reaches the child and stops it at its next step
+  boundary. Match adds no failure atomicity: an arm that ran halfway is not
+  rolled back.
+- The parent drives the child. External completion resumes the *parent* at
+  the Match step id; the child is never resumed on its own.
+
 ## 10. Bidirectional Input And Update Loops
 
 Bidirectional UI can accidentally create loops:

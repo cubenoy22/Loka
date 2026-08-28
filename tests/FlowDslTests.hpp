@@ -2,6 +2,18 @@
 #define LOKA_FLOW_DSL_TESTS_HPP
 
 void testLokaFlowDslV1Core();
+void testFlowMatchRunsOnlyFirstMatchingArm();
+void testFlowMatchChildOutputFlowsToNextStep();
+void testFlowMatchPendingChildKeepsParentTriggerReentryDropped();
+void testFlowMatchForwardsParentCancelToPendingChild();
+void testFlowMatchFreshRunAfterCancelSurvivesCopyOnWriteClone();
+void testFlowMatchChildKeepsMatchedInputAcrossTriggerRebind();
+void testFlowMatchParentCancelTerminallyCleansPendingChild();
+void testFlowMatchChildHandledFailureWithoutOutputFailsMatch();
+void testFlowMatchPendingValueArmKeepsMatchedInputAcrossTriggerRebind();
+void testFlowMatchWithoutMatchingArmPropagatesFailure();
+void testFlowMatchDegenerateRoutingMatchesOnFailureResult();
+void testFlowMatchAuditWritesExactMatchAndSubstepLinesOnce();
 void testSimpleViewerClosesDialogFromChooserCompletion();
 void testSimpleViewerImageLoadSessionPreservesAndReleasesCurrentImage();
 void testSimpleViewerImageLoadStopsWhenCapacityRemainsUnavailable();

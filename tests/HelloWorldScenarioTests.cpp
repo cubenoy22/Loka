@@ -53,6 +53,16 @@ namespace
       return true;
     }
 
+    virtual bool recordMatch(const loka::dsl::testing::ScenarioMatchSelection &)
+    {
+      return true;
+    }
+
+    virtual bool recordSubstep(const loka::dsl::testing::ScenarioSubstepTerminal &)
+    {
+      return true;
+    }
+
     virtual bool recordTerminal(loka::dsl::testing::ScenarioAuditTerminalStatus status)
     {
       this->terminals.push_back(status);
