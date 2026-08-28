@@ -449,8 +449,8 @@ chaining with `<<` as usual. The shorthand applies only when the left
 operand is a `State<bool>` reference.
 
 ```cpp
-<< (Show(this->detailsVisible_) << this->detailsDefinition_)
-<< (this->detailsVisible_ << this->detailsDefinition_)
+<< (Show(*this->detailsVisible_.state()) << this->detailsDefinition_)
+<< (*this->detailsVisible_.state() << this->detailsDefinition_)
 ```
 
 The other policy is explicit. Placing `PolicyScope` at the root of a

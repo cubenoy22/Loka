@@ -1030,7 +1030,7 @@ public:
   {
     c.declare(loka::app::VStack()
               << loka::app::Button("Toggle Details", &this->toggle_)
-              << (loka::app::Show(this->detailsVisible_.get()) << this->detailsDefinition_));
+              << (loka::app::Show(*this->detailsVisible_.state()) << this->detailsDefinition_));
   }
 
 private:
@@ -1753,8 +1753,8 @@ SwiftUI / Compose の `if (show) { ... }` に近い感覚で使えます。
 state を左辺に置けます。次の 2 行は同じ `ShowDefinition` に展開されます。
 
 ```cpp
-<< (loka::app::Show(this->detailsVisible_) << this->detailsDefinition_)
-<< (this->detailsVisible_ << this->detailsDefinition_)
+<< (loka::app::Show(*this->detailsVisible_.state()) << this->detailsDefinition_)
+<< (*this->detailsVisible_.state() << this->detailsDefinition_)
 ```
 
 展開先が同一なので、この節の retained attach/detach の意味論、

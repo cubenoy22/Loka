@@ -3147,6 +3147,22 @@ void testLokaFlowDslV1Core()
   }
 
   {
+    // A const State<bool>& reaches both doors: Show() has a const factory, so
+    // the shorthand carries the const overload too and the documented
+    // "expands to exactly Show(condition) << child" holds for read-only
+    // conditions as well.
+    using namespace loka::app;
+
+    loka::core::MutableState<bool> owned(false);
+    const loka::core::State<bool> &isVisible = owned;
+    ShowDefinition explicitShow = Show(isVisible) << Text("First");
+    ShowDefinition shorthandShow = isVisible << Text("First");
+
+    assert(shorthandShow.childrenCount() == 1);
+    assertEquivalentDefinitionStructure(&explicitShow, &shorthandShow);
+  }
+
+  {
     using namespace loka::app;
     using namespace loka::app::scene;
 
