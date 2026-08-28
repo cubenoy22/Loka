@@ -3959,6 +3959,87 @@ void testPopupMenuHandlerOnlyRecomposeUsesCurrentEmitter()
 
 namespace
 {
+  typedef char MatchingValueBindingSignature;
+  struct MissingValueBindingSignature
+  {
+    char bytes[2];
+  };
+
+  template <typename PropsT, typename ValueT> struct ControlValueBindingDoorProbe
+  {
+    typedef PropsT &(PropsT::*MutableDoor)(loka::core::MutableState<ValueT> *);
+  };
+
+  template <typename PropsT> struct EditTextImmutableValueDoorProbe
+  {
+    typedef PropsT &(PropsT::*Door)(loka::core::State<loka::core::String> *);
+    template <Door> struct Match
+    {
+    };
+    template <typename Candidate> static MatchingValueBindingSignature Test(Match<&Candidate::text> *);
+    template <typename Candidate> static MissingValueBindingSignature Test(...);
+    enum
+    {
+      kAccepts = sizeof(Test<PropsT>(0)) == sizeof(MatchingValueBindingSignature)
+    };
+  };
+
+  template <typename PropsT> struct PopupMenuImmutableValueDoorProbe
+  {
+    typedef PropsT &(PropsT::*Door)(loka::core::State<int> *);
+    template <Door> struct Match
+    {
+    };
+    template <typename Candidate> static MatchingValueBindingSignature Test(Match<&Candidate::selectedIndex> *);
+    template <typename Candidate> static MissingValueBindingSignature Test(...);
+    enum
+    {
+      kAccepts = sizeof(Test<PropsT>(0)) == sizeof(MatchingValueBindingSignature)
+    };
+  };
+
+  template <typename PropsT> struct ScrollBarImmutableValueDoorProbe
+  {
+    typedef PropsT &(PropsT::*Door)(loka::core::State<int> *);
+    template <Door> struct Match
+    {
+    };
+    template <typename Candidate> static MatchingValueBindingSignature Test(Match<&Candidate::value> *);
+    template <typename Candidate> static MissingValueBindingSignature Test(...);
+    enum
+    {
+      kAccepts = sizeof(Test<PropsT>(0)) == sizeof(MatchingValueBindingSignature)
+    };
+  };
+
+  typedef ControlValueBindingDoorProbe<loka::app::EditTextProps,
+                                       loka::core::String>
+      EditTextValueDoorProbe;
+  typedef ControlValueBindingDoorProbe<loka::app::PopupMenuProps, int>
+      PopupMenuValueDoorProbe;
+  typedef ControlValueBindingDoorProbe<loka::app::ScrollBarProps, int>
+      ScrollBarValueDoorProbe;
+}
+
+void testControlValueBindingsRequireMutableState()
+{
+  EditTextValueDoorProbe::MutableDoor editTextDoor = &loka::app::EditTextProps::text;
+  PopupMenuValueDoorProbe::MutableDoor popupMenuDoor = &loka::app::PopupMenuProps::selectedIndex;
+  ScrollBarValueDoorProbe::MutableDoor scrollBarDoor = &loka::app::ScrollBarProps::value;
+  (void)editTextDoor;
+  (void)popupMenuDoor;
+  (void)scrollBarDoor;
+
+  assert(!EditTextImmutableValueDoorProbe<loka::app::EditTextProps>::kAccepts &&
+         "EditText value binding must refuse immutable State<String>");
+  assert(!PopupMenuImmutableValueDoorProbe<loka::app::PopupMenuProps>::kAccepts &&
+         "PopupMenu value binding must refuse immutable State<int>");
+  assert(!ScrollBarImmutableValueDoorProbe<loka::app::ScrollBarProps>::kAccepts &&
+         "ScrollBar value binding must refuse immutable State<int>");
+}
+
+namespace
+{
   class StdCompositionShowShapeTypeTag
   {
   };

@@ -269,10 +269,10 @@ namespace helloworld
     c.declare(HStack().TEST_ID("HelloWorld.MainPanels")
               << this->mainLeftPanel()
               << MainRightPanel(&this->fruits_,
-                                this->fruitIndex_.state(),
+                                this->fruitIndex_,
                                 this->fruitMessage_.state(),
-                                this->heightInput_.state(),
-                                this->weightInput_.state(),
+                                this->heightInput_,
+                                this->weightInput_,
                                 this->bmiResult_.state()));
     c.declare(Text("*").TEST_ID("HelloWorld.Decoration"));
   }

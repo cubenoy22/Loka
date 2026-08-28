@@ -5,6 +5,7 @@
 #include "core/State.hpp"
 #include "core/String.hpp"
 #include "app/scene/Node.hpp"
+#include "app/scene/state/NodeState.hpp"
 
 namespace loka
 {
@@ -20,21 +21,32 @@ namespace loka
     {
       typedef EditTextTypeTag TypeTag;
       typedef EditTextNode NodeType;
-      loka::core::State<loka::core::String> *text_;
+      /** Two-way binding: user edits are written back to this state. */
+      loka::core::MutableState<loka::core::String> *text_;
       int controlTag_;
       EditTextProps()
           : text_(0),
             controlTag_(0)
       {
       }
-      EditTextProps(loka::core::State<loka::core::String> *state)
+      EditTextProps(loka::core::MutableState<loka::core::String> *state)
           : text_(state),
             controlTag_(0)
       {
       }
-      EditTextProps &text(loka::core::State<loka::core::String> *state)
+      EditTextProps(const scene::NodeState<loka::core::String> &state)
+          : text_(state.dangerouslyMutableState()),
+            controlTag_(0)
+      {
+      }
+      EditTextProps &text(loka::core::MutableState<loka::core::String> *state)
       {
         this->text_ = state;
+        return *this;
+      }
+      EditTextProps &text(const scene::NodeState<loka::core::String> &state)
+      {
+        this->text_ = state.dangerouslyMutableState();
         return *this;
       }
       EditTextProps &controlTag(int tag)
@@ -110,7 +122,11 @@ namespace loka
           : loka::app::scene::NodeDefinition<EditTextProps, EditTextNode>(p)
       {
       }
-      EditTextDefinition(loka::core::State<loka::core::String> *state)
+      EditTextDefinition(loka::core::MutableState<loka::core::String> *state)
+          : loka::app::scene::NodeDefinition<EditTextProps, EditTextNode>(EditTextProps(state))
+      {
+      }
+      EditTextDefinition(const scene::NodeState<loka::core::String> &state)
           : loka::app::scene::NodeDefinition<EditTextProps, EditTextNode>(EditTextProps(state))
       {
       }
