@@ -102,7 +102,8 @@ namespace loka
                                                            NodeArena *arena,
                                                            long &autoIdCounter,
                                                            BoundaryNode *boundary,
-                                                           Node *runtimeParent)
+                                                           Node *runtimeParent,
+                                                           BoundaryBranchSeatRuntimeRegistrationPlan *registrations)
       {
         if (!def)
         {
@@ -117,7 +118,8 @@ namespace loka
                                      arena,
                                      autoIdCounter,
                                      boundary,
-                                     runtimeParent);
+                                     runtimeParent,
+                                     registrations);
         }
         IBranchSeatDefinition *seat = def->asBranchSeatDefinition();
         if (seat)
@@ -138,13 +140,24 @@ namespace loka
                                                                  arena,
                                                                  autoIdCounter,
                                                                  boundary,
-                                                                 runtimeParent);
+                                                                 runtimeParent,
+                                                                 registrations);
           if (active.root)
           {
-            boundary->registerMaterializedBranchSeat(*plan,
-                                                     runtimeParent,
-                                                     active.root,
-                                                     condition);
+            if (registrations)
+            {
+              registrations->record(*plan,
+                                    runtimeParent,
+                                    active.root,
+                                    condition);
+            }
+            else
+            {
+              boundary->registerMaterializedBranchSeat(*plan,
+                                                       runtimeParent,
+                                                       active.root,
+                                                       condition);
+            }
           }
           return active;
         }
@@ -185,7 +198,8 @@ namespace loka
                                                                         arena,
                                                                         autoIdCounter,
                                                                         boundary,
-                                                                        node);
+                                                                        node,
+                                                                        registrations);
             result.allocationFailed = result.allocationFailed || childResult.allocationFailed;
             result.requiresBoundaryPlan =
                 result.requiresBoundaryPlan || childResult.requiresBoundaryPlan;
@@ -204,7 +218,8 @@ namespace loka
       static NodeMaterializationResult createNodeRecursive(NodeDefinitionBase *def,
                                                            long &autoIdCounter,
                                                            BoundaryNode *boundary,
-                                                           Node *runtimeParent)
+                                                           Node *runtimeParent,
+                                                           BoundaryBranchSeatRuntimeRegistrationPlan *registrations)
       {
         if (!def)
         {
@@ -218,7 +233,8 @@ namespace loka
           return createNodeRecursive(scope->scopedBranchDefinition(),
                                      autoIdCounter,
                                      boundary,
-                                     runtimeParent);
+                                     runtimeParent,
+                                     registrations);
         }
         IBranchSeatDefinition *seat = def->asBranchSeatDefinition();
         if (seat)
@@ -238,13 +254,24 @@ namespace loka
           NodeMaterializationResult active = createNodeRecursive(branchDefinition,
                                                                  autoIdCounter,
                                                                  boundary,
-                                                                 runtimeParent);
+                                                                 runtimeParent,
+                                                                 registrations);
           if (active.root)
           {
-            boundary->registerMaterializedBranchSeat(*plan,
-                                                     runtimeParent,
-                                                     active.root,
-                                                     condition);
+            if (registrations)
+            {
+              registrations->record(*plan,
+                                    runtimeParent,
+                                    active.root,
+                                    condition);
+            }
+            else
+            {
+              boundary->registerMaterializedBranchSeat(*plan,
+                                                       runtimeParent,
+                                                       active.root,
+                                                       condition);
+            }
           }
           return active;
         }
@@ -270,7 +297,8 @@ namespace loka
             NodeMaterializationResult childResult = createNodeRecursive(child,
                                                                         autoIdCounter,
                                                                         boundary,
-                                                                        node);
+                                                                        node,
+                                                                        registrations);
             result.allocationFailed = result.allocationFailed || childResult.allocationFailed;
             result.requiresBoundaryPlan =
                 result.requiresBoundaryPlan || childResult.requiresBoundaryPlan;
@@ -384,7 +412,12 @@ namespace loka
               arena->reserve(totalSize);
             }
             long autoIdCounter = 1;
-            return createNodeWithArena(root, arena, autoIdCounter, bnd, bnd);
+            return createNodeWithArena(root,
+                                       arena,
+                                       autoIdCounter,
+                                       bnd,
+                                       bnd,
+                                       this->branchSeatRegistrations_);
           }
         }
 
@@ -397,7 +430,11 @@ namespace loka
         // refusal instead, without a boundary being involved.
         long autoIdCounter = 1;
         BoundaryNode *boundary = context_ ? context_->boundary() : 0;
-        return createNodeRecursive(root, autoIdCounter, boundary, boundary);
+        return createNodeRecursive(root,
+                                   autoIdCounter,
+                                   boundary,
+                                   boundary,
+                                   this->branchSeatRegistrations_);
       }
 
       BoundaryNode *NodeComposition::boundary() const

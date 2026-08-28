@@ -10,6 +10,8 @@ void testOwnershipDumpHeldByNamesSurvivingOwner();
 void testOwnershipDumpIsDeterministic();
 void testOwnershipDumpWalksParkedBranches();
 void testOwnershipDumpAdoptsParkedNestedBoundaryReleases();
+void testOwnershipDumpRemovedOuterSeatRetiresNestedParkedBranch();
+void testOwnershipDumpShiftedSlotDoesNotReuseNestedParkedBranch();
 void testOwnershipDumpShowsPendingReleaseUntilDrain();
 
 #endif // LOKA_TESTS_OWNERSHIP_DUMP_TESTS_HPP

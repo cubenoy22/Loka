@@ -7,6 +7,7 @@
 #include "app/scene/composition/NodeCompositionDiff.hpp"
 #include "app/scene/composition/NodeCompositionSnapshot.hpp"
 #include "app/scene/boundary/BoundaryStateTypes.hpp"
+#include "app/scene/boundary/detail/BoundaryBranchSeatState.hpp"
 
 namespace loka
 {
@@ -143,9 +144,24 @@ namespace loka
         void clear()
         {
           entries.clear();
+          branchSeatRegistrations.clear();
         }
 
         std::vector<BoundaryLocalRebuildPlanEntry> entries;
+        BoundaryBranchSeatRuntimeRegistrationPlan branchSeatRegistrations;
+      };
+
+      /** Live roots the incoming definition generation will structurally
+          detach. Runtime-seat lookups treat every descendant as unavailable
+          without changing either ownership ledger before commit. */
+      struct BoundaryLocalRebuildExclusions
+      {
+        void clear()
+        {
+          roots.clear();
+        }
+
+        std::vector<Node *> roots;
       };
 
       struct BoundaryCompositionState
