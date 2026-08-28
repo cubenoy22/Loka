@@ -441,6 +441,18 @@ Retained attach/detach is the default: a hidden branch is parked, its nodes,
 native contexts, and subtree-local state survive, and re-showing brings the
 same identity back.
 
+When the condition is a `State<bool>` itself, the `Show()` call can be
+omitted: `isVisible << child` expands to exactly `Show(isVisible) << child`,
+so both lines below build the same `ShowDefinition` — same retained
+semantics, same `PolicyScope` composition, and further children keep
+chaining with `<<` as usual. The shorthand applies only when the left
+operand is a `State<bool>` reference.
+
+```cpp
+<< (Show(this->detailsVisible_) << this->detailsDefinition_)
+<< (this->detailsVisible_ << this->detailsDefinition_)
+```
+
 The other policy is explicit. Placing `PolicyScope` at the root of a
 conditional branch declares how that one branch behaves on detach:
 
