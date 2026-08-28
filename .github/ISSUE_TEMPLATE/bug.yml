@@ -1,0 +1,96 @@
+name: Bug report
+description: >-
+  Use a symptom-based title: state the observed failure, not the suspected fix.
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Classic 68K
+        - Classic PPC
+        - macOS
+        - Win32
+        - Linux host
+        - multiple
+    validations:
+      required: true
+
+  - type: dropdown
+    id: toolchain
+    attributes:
+      label: Toolchain
+      options:
+        - Retro68 GCC 68K
+        - Retro68 GCC PPC
+        - AppleClang
+        - MSVC
+        - GCC
+        - Clang
+        - Other or unknown
+    validations:
+      required: true
+
+  - type: input
+    id: toolchain_details
+    attributes:
+      label: Toolchain version
+      placeholder: Compiler and version, if known
+    validations:
+      required: true
+
+  - type: input
+    id: cmake_preset
+    attributes:
+      label: CMake preset
+      description: >-
+        The preset you configured with (see CMakePresets.json), e.g.
+        testing, win32-debug, macos-debug, retro68-68k-release.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: runtime_environment
+    attributes:
+      label: Real hardware or emulator
+      options:
+        - Real hardware
+        - Emulator
+        - Host OS or build-only
+    validations:
+      required: true
+
+  - type: input
+    id: runtime_environment_details
+    attributes:
+      label: Hardware or emulator (which)
+      description: Name the machine, emulator and version, or host OS as applicable.
+      placeholder: Macintosh IIx, Mini vMac 36.04, or Windows 11
+    validations:
+      required: true
+
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened?
+      description: State the observed failure and include relevant output or evidence.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
