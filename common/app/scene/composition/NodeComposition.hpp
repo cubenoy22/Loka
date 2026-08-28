@@ -23,6 +23,7 @@ namespace loka
     namespace scene
     {
       class BoundaryNode;
+      class BoundaryBranchSeatRuntimeRegistrationPlan;
       class Scene;
       namespace testing
       {
@@ -390,6 +391,7 @@ namespace loka
         NodeDefinitionBase *root_;
         INestableDefinition *activeParent_;
         ComponentContext *context_;
+        BoundaryBranchSeatRuntimeRegistrationPlan *branchSeatRegistrations_;
         NodeDefinitionBase *storeBase(const NodeDefinitionBase &def)
         {
           loka::core::OwnedDef<NodeDefinitionBase> cloned(def.clone());
@@ -451,7 +453,8 @@ namespace loka
         NodeComposition()
             : root_(0),
               activeParent_(0),
-              context_(0)
+              context_(0),
+              branchSeatRegistrations_(0)
         {
         }
 
@@ -585,6 +588,7 @@ namespace loka
           this->destroyArena();
           activeParent_ = 0;
           context_ = 0;
+          branchSeatRegistrations_ = 0;
         }
 
         // Create node tree
@@ -744,6 +748,12 @@ namespace loka
         }
 
       private:
+        void collectBranchSeatRegistrationsIn(
+            BoundaryBranchSeatRuntimeRegistrationPlan *registrations)
+        {
+          this->branchSeatRegistrations_ = registrations;
+        }
+
         /** Internal materialization primitive. The returned allocation flag
             must be consumed by the operation's owner-side choke point. */
         NodeMaterializationResult createNodeFromDefinitionResult(

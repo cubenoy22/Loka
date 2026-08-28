@@ -1086,8 +1086,6 @@ void testOwnershipDumpShiftedSlotDoesNotReuseNestedParkedBranch()
     loka::app::scene::Scene *scene = createFixtureScene(platform);
 
     scenario.parkedSeatInnerCondition.set(false);
-    scenario.parkedSeatFixturePhase = 1;
-    requestFixtureRecompose(*scene);
     scenario.parkedSeatFixturePhase = 2;
     requestFixtureRecompose(*scene);
 

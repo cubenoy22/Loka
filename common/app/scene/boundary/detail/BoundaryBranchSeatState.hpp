@@ -94,6 +94,58 @@ namespace loka
         unsigned long appliedGeneration;
       };
 
+      class BoundaryBranchSeatState;
+
+      /** Uncommitted runtime-seat facts produced while a fallible local
+          rebuild materializes candidates. Commit publishes them only after
+          the structural plan has installed its new roots and removed stale
+          mappings. */
+      class BoundaryBranchSeatRuntimeRegistrationPlan
+      {
+      public:
+        struct Entry
+        {
+          Entry(const BoundaryBranchSeatPlanEntry &planValue,
+                Node *parentValue,
+                Node *activeValue,
+                bool conditionValue)
+              : plan(planValue),
+                parent(parentValue),
+                active(activeValue),
+                condition(conditionValue)
+          {
+          }
+
+          BoundaryBranchSeatPlanEntry plan;
+          Node *parent;
+          Node *active;
+          bool condition;
+        };
+
+        void record(const BoundaryBranchSeatPlanEntry &plan,
+                    Node *parent,
+                    Node *active,
+                    bool condition)
+        {
+          this->entries_.push_back(Entry(plan, parent, active, condition));
+        }
+
+        void clear()
+        {
+          this->entries_.clear();
+        }
+
+        size_t count() const
+        {
+          return this->entries_.size();
+        }
+
+        void commitTo(BoundaryBranchSeatState &state);
+
+      private:
+        std::vector<Entry> entries_;
+      };
+
       /** Boundary-owned definition plans and runtime seat ownership. Plans
           borrow the current composition generation; runtime entries borrow
           chain residents owned by this Boundary. */
@@ -192,6 +244,13 @@ namespace loka
                                              plan.ownerKey,
                                              plan.ownerCondition));
           this->runtime_.back().appliedGeneration = this->generation_;
+        }
+
+        /** Performs the only potentially allocating part of publishing staged
+            runtime facts while the local rebuild is still fallible. */
+        void reserveRuntimeRegistrations(size_t additionalCount)
+        {
+          this->runtime_.reserve(this->runtime_.size() + additionalCount);
         }
 
         bool isLive(const BoundaryBranchSeatRuntimeEntry &entry) const
@@ -345,6 +404,20 @@ namespace loka
         bool misplacementHintEmitted_;
 #endif
       };
+
+      inline void BoundaryBranchSeatRuntimeRegistrationPlan::commitTo(
+          BoundaryBranchSeatState &state)
+      {
+        for (size_t i = 0; i < this->entries_.size(); ++i)
+        {
+          Entry &entry = this->entries_[i];
+          state.registerRuntime(entry.plan,
+                                entry.parent,
+                                entry.active,
+                                entry.condition);
+        }
+        this->entries_.clear();
+      }
     } // namespace scene
   } // namespace app
 } // namespace loka
