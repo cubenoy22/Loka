@@ -1614,6 +1614,40 @@ namespace
       return true;
     }
 
+    struct PendingValueProbe
+    {
+      PendingValueProbe()
+          : ready(false),
+            calls(0),
+            lastIn(-1)
+      {
+      }
+      bool ready;
+      int calls;
+      int lastIn;
+    };
+
+    static loka::dsl::StepRunStatus pendingThenValue(const int &in,
+                                                      int &out,
+                                                      loka::dsl::FlowError &,
+                                                      void *user)
+    {
+      PendingValueProbe *probe = static_cast<PendingValueProbe *>(user);
+      ++probe->calls;
+      probe->lastIn = in;
+      if (!probe->ready)
+      {
+        return loka::dsl::FLOW_STEP_PENDING;
+      }
+      out = in + 100;
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+
+    static void countFinally(void *user)
+    {
+      ++(*static_cast<int *>(user));
+    }
+
     static loka::dsl::StepRunStatus valueHandler(const int &in,
                                                   int &out,
                                                   loka::dsl::FlowError &,
@@ -7274,6 +7308,81 @@ void testFlowMatchChildKeepsMatchedInputAcrossTriggerRebind()
   ready = true;
   LOKA_VERIFY(parent.resumeResult(20) == loka::dsl::FLOW_RUN_SUCCEEDED);
   LOKA_VERIFY(childCalls == 2);
+  LOKA_VERIFY(captured == 106);
+}
+
+void testFlowMatchParentCancelTerminallyCleansPendingChild()
+{
+  int input = 9;
+  bool ready = false;
+  int childCalls = 0;
+  int childFinally = 0;
+  bool childLoading = false;
+  loka::dsl::FlowChain<int, int> child =
+      loka::dsl::Flow() | loka::dsl::Step(101, FlowTestPendingThenSuccessAdapter(&ready, &childCalls));
+  child.onFinally(&FlowMatchTestHelpers::countFinally, &childFinally).trackLoading(&childLoading);
+  loka::dsl::MatchSpec<int, int> match = loka::dsl::Match<int, int>(20);
+  match.arm(&FlowMatchTestHelpers::alwaysMatch, 0, child);
+  loka::dsl::FlowChain<int, int> parent = loka::dsl::Flow() | loka::dsl::Step(1, FlowTestAdd1Adapter()).input(&input)
+                                               | match;
+
+  LOKA_VERIFY(parent.runResult() == loka::dsl::FLOW_RUN_PENDING);
+  LOKA_VERIFY(childLoading);
+  LOKA_VERIFY(childFinally == 0);
+
+  // Consuming the parent's cancellation must also settle the pending child:
+  // its loading state drops and its onFinally fires exactly once.
+  parent.cancel();
+  LOKA_VERIFY(parent.resumeResult(20) == loka::dsl::FLOW_RUN_CANCELED);
+  LOKA_VERIFY(!childLoading);
+  LOKA_VERIFY(childFinally == 1);
+  LOKA_VERIFY(childCalls == 1);
+}
+
+void testFlowMatchChildHandledFailureWithoutOutputFailsMatch()
+{
+  int input = 500;
+  int handledCalls = 0;
+  int downstreamCalls = 0;
+  loka::dsl::FlowChain<int, int> child =
+      loka::dsl::Flow() | loka::dsl::Step(101, FlowTestFail500Adapter())
+      | loka::dsl::Step(102, FlowTestAdd1Adapter());
+  child.onFailure(&FlowMatchTestHelpers::countAsHandledFailure, &handledCalls);
+  loka::dsl::MatchSpec<int, int> match = loka::dsl::Match<int, int>(20);
+  match.arm(&FlowMatchTestHelpers::alwaysMatch, 0, child);
+  loka::dsl::FlowChain<int, int> parent = loka::dsl::Flow() | loka::dsl::Step(1, FlowTestAdd1Adapter()).input(&input)
+                                               | match | loka::dsl::Step(30, FlowTestCountedPassAdapter(&downstreamCalls));
+
+  // The child's own onFailure handles the error, so the child run "succeeds"
+  // without ever producing its final output. Match must not fabricate one.
+  LOKA_VERIFY(parent.runResult() == loka::dsl::FLOW_RUN_FAILED);
+  LOKA_VERIFY(handledCalls == 1);
+  LOKA_VERIFY(downstreamCalls == 0);
+}
+
+void testFlowMatchPendingValueArmKeepsMatchedInputAcrossTriggerRebind()
+{
+  loka::core::MutableState<int> trigger;
+  loka::core::MutableState<int> replacement;
+  FlowMatchTestHelpers::PendingValueProbe probe;
+  int captured = 0;
+  loka::dsl::MatchSpec<int, int> valueMatch = loka::dsl::Match<int, int>(20);
+  valueMatch.arm(&FlowMatchTestHelpers::alwaysMatch, &probe, &FlowMatchTestHelpers::pendingThenValue);
+  loka::dsl::FlowChain<int, int> parent =
+      loka::dsl::Flow() | valueMatch | loka::dsl::Step(21, FlowTestAdd1Adapter()).onSuccess(&captured);
+  parent.bindTrigger(&trigger);
+
+  trigger.set(5, true);
+  LOKA_VERIFY(probe.calls == 1);
+  LOKA_VERIFY(probe.lastIn == 5);
+
+  // The value that selected the arm must be the value the resumed handler
+  // sees, even after the trigger buffer it came from has been replaced.
+  parent.bindTrigger(&replacement);
+  probe.ready = true;
+  LOKA_VERIFY(parent.resumeResult(20) == loka::dsl::FLOW_RUN_SUCCEEDED);
+  LOKA_VERIFY(probe.calls == 2);
+  LOKA_VERIFY(probe.lastIn == 5);
   LOKA_VERIFY(captured == 106);
 }
 

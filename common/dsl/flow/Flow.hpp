@@ -45,7 +45,8 @@ namespace loka
     enum
     {
       FLOW_ERROR_CODE_STEP_PENDING_TIMEOUT = 1001,
-      FLOW_ERROR_CODE_ASSERT_PREDICATE_FAILED = 1002
+      FLOW_ERROR_CODE_ASSERT_PREDICATE_FAILED = 1002,
+      FLOW_ERROR_CODE_MATCH_CHILD_OUTPUT_MISSING = 1003
     };
 
     enum FlowHandleResult
@@ -84,12 +85,17 @@ namespace loka
         static void clear(AdapterT &)
         {
         }
+
+        static void settle(AdapterT &)
+        {
+        }
       };
 
       template <typename InT, typename OutT> struct RuntimeStepCancel<MatchAdapter<InT, OutT> >
       {
         static void request(MatchAdapter<InT, OutT> &adapter);
         static void clear(MatchAdapter<InT, OutT> &adapter);
+        static void settle(MatchAdapter<InT, OutT> &adapter);
       };
     } // namespace flow_detail
 
@@ -523,10 +529,16 @@ namespace loka
         virtual int stepId() const = 0;
         virtual void requestCancel() {}
         virtual void clearCancel() {}
+        // Called when the owning chain consumes its cancellation, so a step
+        // that owns a pending child can settle it at the child's boundary.
+        virtual void settleCancel() {}
         virtual void setInputOverride(const void *) {}
         virtual bool isPending() const = 0;
-        virtual void clearLastFailure() = 0;
+        virtual void resetRunObservations() = 0;
         virtual bool lastFailure(FlowError &errorOut) const = 0;
+        // Non-null only when this step produced its output in the current
+        // run; a handled failure leaves the output unproduced.
+        virtual const void *producedOutputPtr() const = 0;
         virtual StepRunStatus run(const void *inputFromPrev,
                                   FlowError &error,
                                   bool &errorHandled,
@@ -590,7 +602,7 @@ namespace loka
       {
         for (std::size_t i = 0; i < this->steps_.size(); ++i)
         {
-          this->steps_[i]->clearLastFailure();
+          this->steps_[i]->resetRunObservations();
         }
         RunPinScope runPinScope(this);
         return this->runCoreFromIndex(startIndex, false);
@@ -638,9 +650,17 @@ namespace loka
         return false;
       }
 
-      const void *lastOutputPtr() const
+      const void *lastProducedOutputPtr() const
       {
-        return this->steps_.empty() ? 0 : this->steps_[this->steps_.size() - 1]->outputPtr();
+        return this->steps_.empty() ? 0 : this->steps_[this->steps_.size() - 1]->producedOutputPtr();
+      }
+
+      void settleCancelOnSteps() const
+      {
+        for (std::size_t i = 0; i < this->steps_.size(); ++i)
+        {
+          this->steps_[i]->settleCancel();
+        }
       }
 
       bool lastFailure(FlowError &errorOut) const
@@ -746,6 +766,7 @@ namespace loka
           if (this->cancelRequested_)
           {
             this->cancelRequested_ = false;
+            this->settleCancelOnSteps();
             this->terminalCleanup();
             return FLOW_RUN_CANCELED;
           }
@@ -961,7 +982,8 @@ namespace loka
             pendingCount_(0),
             inputOverride_(0),
             hasLastFailure_(false),
-            lastFailure_()
+            lastFailure_(),
+            producedOutput_(false)
       {
       }
 
@@ -990,14 +1012,25 @@ namespace loka
         flow_detail::RuntimeStepCancel<AdapterT>::clear(this->spec_.adapterForRuntime());
       }
 
+      virtual void settleCancel()
+      {
+        flow_detail::RuntimeStepCancel<AdapterT>::settle(this->spec_.adapterForRuntime());
+      }
+
       virtual bool isPending() const
       {
         return this->pendingCount_ > 0;
       }
 
-      virtual void clearLastFailure()
+      virtual void resetRunObservations()
       {
         this->hasLastFailure_ = false;
+        this->producedOutput_ = false;
+      }
+
+      virtual const void *producedOutputPtr() const
+      {
+        return this->producedOutput_ ? &this->out_ : 0;
       }
 
       virtual bool lastFailure(FlowError &errorOut) const
@@ -1028,6 +1061,7 @@ namespace loka
         {
           this->pendingCount_ = 0;
           this->inputOverride_ = 0;
+          this->producedOutput_ = true;
           const std::vector<typename Spec::SuccessCallback> &callbacks = this->spec_.successCallbacks();
           for (std::size_t i = 0; i < callbacks.size(); ++i)
           {
@@ -1125,6 +1159,7 @@ namespace loka
       const void *inputOverride_;
       bool hasLastFailure_;
       FlowError lastFailure_;
+      bool producedOutput_;
     };
 
     template <typename InT, typename OutT> class FlowChain
@@ -1463,6 +1498,10 @@ namespace loka
           this->resetRun();
         }
 
+        // The value that selected the arm is captured once per fresh
+        // selection and reused for every drive until the step settles: the
+        // caller's `in` may point at a trigger buffer that a rebind replaces
+        // while a value arm or a child is still pending.
         if (this->selectedArm_ < 0)
         {
           for (std::size_t i = 0; i < this->arms_.size(); ++i)
@@ -1480,14 +1519,25 @@ namespace loka
             {
               return FLOW_STEP_FAILED;
             }
-            return this->otherwise_(in, out, error, this->otherwiseUser_);
+            this->selectedArm_ = static_cast<int>(this->arms_.size());
           }
+          this->matchedInput_ = in;
+        }
+
+        if (this->selectedArm_ == static_cast<int>(this->arms_.size()))
+        {
+          const StepRunStatus status = this->otherwise_(this->matchedInput_, out, error, this->otherwiseUser_);
+          if (status != FLOW_STEP_PENDING)
+          {
+            this->resetRun();
+          }
+          return status;
         }
 
         Arm &arm = this->arms_[static_cast<std::size_t>(this->selectedArm_)];
         if (arm.valueHandler != 0)
         {
-          const StepRunStatus status = arm.valueHandler(in, out, error, arm.user);
+          const StepRunStatus status = arm.valueHandler(this->matchedInput_, out, error, arm.user);
           if (status != FLOW_STEP_PENDING)
           {
             this->resetRun();
@@ -1496,10 +1546,9 @@ namespace loka
         }
 
         // The child reads the matched value through a pointer it keeps across
-        // pending resumes, so it must point at storage this adapter owns: the
-        // parent's input buffer can be freed by a trigger rebind while the
-        // child is still pending. The pointer is refreshed on every drive so
-        // a cloned adapter never hands out its source's address.
+        // pending resumes, so it points at storage this adapter owns; the
+        // pointer is refreshed on every drive so a cloned adapter never hands
+        // out its source's address.
         FlowRunResult childResult = FLOW_RUN_FAILED;
         if (this->pendingChildStepId_ >= 0)
         {
@@ -1518,7 +1567,6 @@ namespace loka
           arm.child->clearCancelFromParent();
           if (arm.acceptsMatchInput)
           {
-            this->matchedInput_ = in;
             childResult = arm.child->runPinnedWithInput(&this->matchedInput_);
           }
           else
@@ -1541,15 +1589,19 @@ namespace loka
 
         if (childResult == FLOW_RUN_SUCCEEDED)
         {
-          const Out *childOut = static_cast<const Out *>(arm.child->lastOutputPtr());
+          // A child whose own onFailure handled an error reports a
+          // successful run without ever producing its final output. That is
+          // not a value this arm can forward, so it is a Match failure.
+          const Out *childOut = static_cast<const Out *>(arm.child->lastProducedOutputPtr());
           if (childOut != 0)
           {
             out = *childOut;
             this->resetRun();
             return FLOW_STEP_SUCCEEDED;
           }
+          error.kind = FLOW_ERROR_KIND_FLOW;
+          error.code = FLOW_ERROR_CODE_MATCH_CHILD_OUTPUT_MISSING;
         }
-
         else if (childResult == FLOW_RUN_FAILED)
         {
           FlowError childError;
@@ -1563,14 +1615,35 @@ namespace loka
         return FLOW_STEP_FAILED;
       }
 
+      // The parent consumed its cancellation: drive a pending child to its
+      // own step boundary so its terminal cleanup (tracker end, onFinally,
+      // loading state) runs exactly once, then forget the selection.
+      void settleCancel() const
+      {
+        if (this->selectedArm_ >= 0 && this->selectedArm_ < static_cast<int>(this->arms_.size()))
+        {
+          Arm &arm = this->arms_[static_cast<std::size_t>(this->selectedArm_)];
+          if (arm.child != 0 && this->pendingChildStepId_ >= 0)
+          {
+            arm.child->cancelRequested_ = true;
+            arm.child->runPinnedFromStepId(this->pendingChildStepId_);
+          }
+        }
+        this->resetRun();
+      }
+
       void requestCancel() const
       {
         if (this->selectedArm_ < 0)
         {
           return;
         }
-        Arm &arm = this->arms_[static_cast<std::size_t>(this->selectedArm_)];
         this->cancelForwarded_ = true;
+        if (this->selectedArm_ >= static_cast<int>(this->arms_.size()))
+        {
+          return;
+        }
+        Arm &arm = this->arms_[static_cast<std::size_t>(this->selectedArm_)];
         if (arm.child != 0)
         {
           arm.child->cancelRequested_ = true;
@@ -1584,7 +1657,7 @@ namespace loka
         {
           return;
         }
-        if (this->selectedArm_ >= 0)
+        if (this->selectedArm_ >= 0 && this->selectedArm_ < static_cast<int>(this->arms_.size()))
         {
           Arm &arm = this->arms_[static_cast<std::size_t>(this->selectedArm_)];
           if (arm.child != 0)
@@ -1661,7 +1734,7 @@ namespace loka
 
       void clearChildCancel() const
       {
-        if (this->selectedArm_ >= 0)
+        if (this->selectedArm_ >= 0 && this->selectedArm_ < static_cast<int>(this->arms_.size()))
         {
           Arm &arm = this->arms_[static_cast<std::size_t>(this->selectedArm_)];
           if (arm.child != 0)
@@ -1699,6 +1772,12 @@ namespace loka
       void RuntimeStepCancel<MatchAdapter<InT, OutT> >::clear(MatchAdapter<InT, OutT> &adapter)
       {
         adapter.clearCancel();
+      }
+
+      template <typename InT, typename OutT>
+      void RuntimeStepCancel<MatchAdapter<InT, OutT> >::settle(MatchAdapter<InT, OutT> &adapter)
+      {
+        adapter.settleCancel();
       }
     } // namespace flow_detail
 
