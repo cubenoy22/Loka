@@ -1058,15 +1058,17 @@ void testOwnershipDumpRemovedOuterSeatRetiresNestedParkedBranch()
     scenario.parkedSeatInnerCondition.set(false);
     const std::string parked =
         loka::dsl::testing::OwnershipDump::dump(*scene);
-    assert(parked.find("parked\n") != std::string::npos &&
-           "the inner seat must park its outgoing branch before removal");
+    // Observations stay outside assert(): under NDEBUG the whole expression
+    // would vanish and the fixture would stop discriminating.
+    const bool innerParked = parked.find("parked\n") != std::string::npos;
+    LOKA_VERIFY(innerParked && "the inner seat must park its outgoing branch before removal");
 
     scenario.parkedSeatFixturePhase = 1;
     requestFixtureRecompose(*scene);
     const std::string removed =
         loka::dsl::testing::OwnershipDump::dump(*scene);
-    assert(removed.find("parked\n") == std::string::npos &&
-           "removing the outer seat must retire its nested parked branch");
+    const bool parkedSurvived = removed.find("parked\n") != std::string::npos;
+    LOKA_VERIFY(!parkedSurvived && "removing the outer seat must retire its nested parked branch");
     delete scene;
   }
   g_ownershipDumpScenario = 0;
@@ -1093,8 +1095,8 @@ void testOwnershipDumpShiftedSlotDoesNotReuseNestedParkedBranch()
     ParkedSeatProbeNode *shiftedFalse = findLiveParkedSeatProbe(
         loka::dsl::testing::SceneTestAccess::rootNode(*scene),
         &scenario.shiftedFalseRecord);
-    assert(shiftedFalse && shiftedFalse->birth() == 202 &&
-           "a shifted anonymous seat must materialize its own branch, not the orphan");
+    const bool shiftedOwnsItsBranch = shiftedFalse != 0 && shiftedFalse->birth() == 202;
+    LOKA_VERIFY(shiftedOwnsItsBranch && "a shifted anonymous seat must materialize its own branch, not the orphan");
     delete scene;
   }
   g_ownershipDumpScenario = 0;
