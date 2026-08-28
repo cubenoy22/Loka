@@ -1833,7 +1833,7 @@ void testRootUpdateFallbackReleasesNativeContextBeforeNodeOwnedStateReclaim()
     scene.updateAttached(true);
 
     assert(g_nativeBindingStateBoundary != 0);
-    assert(g_nativeBindingStateBoundary->getContext() != 0);
+    LOKA_VERIFY(g_nativeBindingStateBoundary->getContext() != 0);
     assert(!unboundWhileStateAlive);
     assert(!nodeDestroyed);
 
@@ -1919,7 +1919,7 @@ void testRetiringNativeContextUnbindsBeforeNodeOwnedStateReclaim()
 
     assert(g_conditionalArenaRetireProbe != 0);
     assert(g_nativeBindingStateBoundary != 0);
-    assert(g_nativeBindingStateBoundary->getContext() != 0);
+    LOKA_VERIFY(g_nativeBindingStateBoundary->getContext() != 0);
 
     g_conditionalArenaRetireProbe->showAlternate();
     LOKA_VERIFY(scene.flushInvalidation());
@@ -1945,7 +1945,7 @@ void testSceneDestructionUnbindsNativeContextBeforeNodeOwnedStateReclaim()
     scene.updateAttached(true);
 
     assert(g_nativeBindingStateBoundary != 0);
-    assert(g_nativeBindingStateBoundary->getContext() != 0);
+    LOKA_VERIFY(g_nativeBindingStateBoundary->getContext() != 0);
     assert(!unboundWhileStateAlive);
   }
 

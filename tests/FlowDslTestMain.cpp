@@ -16,6 +16,7 @@
 #include "MacDisplayAppearanceTests.hpp"
 #include "MacAppLocationTests.hpp"
 #include "MacMenuProjectionTests.hpp"
+#include "MacNodeHandlerEnsureTests.hpp"
 #endif
 #include "DerivedStateTests.hpp"
 #include "DefinitionCloneTests.hpp"
