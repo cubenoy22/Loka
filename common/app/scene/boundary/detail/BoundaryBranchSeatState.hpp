@@ -219,34 +219,30 @@ namespace loka
             key = this->runtime_[i].key;
             condition = this->runtime_[i].activeCondition;
             this->runtime_.erase(this->runtime_.begin() + i);
-            this->eraseOwnedBranch(key, false);
-            this->eraseOwnedBranch(key, true);
             return true;
           }
           return false;
         }
 
-        void eraseOwnedBranch(const BoundaryParkedBranchKey &ownerKey, bool ownerCondition)
+        /** Removes one directly owned runtime mapping. The Boundary repeats
+            this door while retiring the mapping's active subtree and every
+            parked resident under the same seat key. */
+        bool eraseOneOwnedRuntime(const BoundaryParkedBranchKey &ownerKey,
+                                  bool ownerCondition,
+                                  BoundaryParkedBranchKey &erasedKey)
         {
-          bool erased;
-          do
+          for (size_t i = 0; i < this->runtime_.size(); ++i)
           {
-            erased = false;
-            for (size_t i = 0; i < this->runtime_.size(); ++i)
+            if (this->runtime_[i].hasOwner &&
+                this->runtime_[i].ownerKey.matches(ownerKey) &&
+                this->runtime_[i].ownerCondition == ownerCondition)
             {
-              if (this->runtime_[i].hasOwner &&
-                  this->runtime_[i].ownerKey.matches(ownerKey) &&
-                  this->runtime_[i].ownerCondition == ownerCondition)
-              {
-                const BoundaryParkedBranchKey erasedKey = this->runtime_[i].key;
-                this->runtime_.erase(this->runtime_.begin() + i);
-                this->eraseOwnedBranch(erasedKey, false);
-                this->eraseOwnedBranch(erasedKey, true);
-                erased = true;
-                break;
-              }
+              erasedKey = this->runtime_[i].key;
+              this->runtime_.erase(this->runtime_.begin() + i);
+              return true;
             }
-          } while (erased);
+          }
+          return false;
         }
 
         void clearRuntime()

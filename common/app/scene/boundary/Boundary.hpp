@@ -839,6 +839,7 @@ namespace loka
             return false;
           }
           this->composeTree(created, context, COMPOSE_EVENT_ATTACH, this);
+          this->retireParkedBranchForRemovedSeat(context, liveRoot);
           this->composeTree(liveRoot, context, COMPOSE_EVENT_DETACH, this);
           this->retireDetachedNode(context, liveRoot);
           return true;
@@ -1449,18 +1450,49 @@ namespace loka
                  nestable && nestable->childrenCount() == 0;
         }
 
-        void retireSeatBranch(ComponentContext &context,
-                              const BoundaryParkedBranchKey &key,
-                              bool condition,
-                              Node *branch)
+        void retireSeatBranchRoot(ComponentContext &context, Node *branch)
         {
           if (!branch)
           {
             return;
           }
-          this->branchSeats_.eraseOwnedBranch(key, condition);
           this->composeTree(branch, context, COMPOSE_EVENT_DETACH, this);
           this->retireDetachedNode(context, branch);
+        }
+
+        /** Commits descendant seat death across both Boundary-owned ledgers.
+            Runtime mappings are erased one at a time without allocation; each
+            erased key first drains both of its descendant arms and then every
+            parked resident for that key through the ordinary retire door. */
+        void retireOwnedSeatDescendants(
+            ComponentContext &context,
+            const BoundaryParkedBranchKey &ownerKey,
+            bool ownerCondition)
+        {
+          BoundaryParkedBranchKey nestedKey;
+          while (this->branchSeats_.eraseOneOwnedRuntime(ownerKey,
+                                                         ownerCondition,
+                                                         nestedKey))
+          {
+            this->retireOwnedSeatDescendants(context, nestedKey, false);
+            this->retireOwnedSeatDescendants(context, nestedKey, true);
+            bool parkedCondition = false;
+            Node *parkedBranch = 0;
+            while ((parkedBranch =
+                        this->parkedBranches_.take(nestedKey, parkedCondition)) != 0)
+            {
+              this->retireSeatBranchRoot(context, parkedBranch);
+            }
+          }
+        }
+
+        void retireSeatBranch(ComponentContext &context,
+                              const BoundaryParkedBranchKey &key,
+                              bool condition,
+                              Node *branch)
+        {
+          this->retireOwnedSeatDescendants(context, key, condition);
+          this->retireSeatBranchRoot(context, branch);
         }
 
         void retireParkedBranchForRemovedSeat(ComponentContext &context,
@@ -1474,6 +1506,7 @@ namespace loka
           {
             return;
           }
+          this->retireOwnedSeatDescendants(context, key, activeCondition);
           bool parkedCondition = !activeCondition;
           Node *parkedBranch = this->parkedBranches_.take(key, parkedCondition);
           this->retireSeatBranch(context,

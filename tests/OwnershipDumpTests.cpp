@@ -34,6 +34,10 @@ namespace
   {
   };
 
+  struct ParkedSeatProbeRecord
+  {
+  };
+
   struct OwnershipDumpScenario
   {
     OwnershipDumpScenario()
@@ -45,6 +49,10 @@ namespace
           showCreator(true),
           useConditional(false),
           nestedBoundaryBranch(false),
+          parkedSeatFixturePhase(-1),
+          parkedSeatOuterCondition(true),
+          parkedSeatInnerCondition(true),
+          parkedSeatShiftedCondition(true),
           createHeld(true),
           showFirstHolder(true),
           showSecondHolder(false),
@@ -61,6 +69,11 @@ namespace
     bool showCreator;
     bool useConditional;
     bool nestedBoundaryBranch;
+    int parkedSeatFixturePhase;
+    loka::core::MutableState<bool> parkedSeatOuterCondition;
+    loka::core::MutableState<bool> parkedSeatInnerCondition;
+    loka::core::MutableState<bool> parkedSeatShiftedCondition;
+    ParkedSeatProbeRecord shiftedFalseRecord;
     bool createHeld;
     bool showFirstHolder;
     bool showSecondHolder;
@@ -305,6 +318,106 @@ namespace
                                            OwnershipDumpProbeNode>
       OwnershipDumpProbeDefinition;
 
+  struct ParkedSeatProbeTypeTag
+  {
+  };
+
+  class ParkedSeatProbeNode;
+
+  struct ParkedSeatProbeProps
+      : public loka::app::scene::NodePropsBase<ParkedSeatProbeProps>
+  {
+    typedef ParkedSeatProbeTypeTag TypeTag;
+    typedef ParkedSeatProbeNode NodeType;
+
+    ParkedSeatProbeProps(int birthValue = 0,
+                         ParkedSeatProbeRecord *recordValue = 0)
+        : birth(birthValue),
+          record(recordValue)
+    {
+    }
+
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      if (rhs.propsTypeId() != this->propsTypeId())
+      {
+        return false;
+      }
+      const ParkedSeatProbeProps &other =
+          static_cast<const ParkedSeatProbeProps &>(rhs);
+      if (this->birth != other.birth)
+      {
+        return this->birth < other.birth;
+      }
+      return this->record < other.record;
+    }
+
+    int birth;
+    ParkedSeatProbeRecord *record;
+  };
+
+  class ParkedSeatProbeNode : public loka::app::scene::Node
+  {
+  public:
+    typedef ParkedSeatProbeTypeTag TypeTag;
+    ParkedSeatProbeProps props;
+
+    explicit ParkedSeatProbeNode(const ParkedSeatProbeProps &value)
+        : loka::app::scene::Node(),
+          props(value),
+          birth_(value.birth)
+    {
+    }
+
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<ParkedSeatProbeNode>();
+    }
+
+    int birth() const
+    {
+      return this->birth_;
+    }
+
+  private:
+    int birth_;
+  };
+
+  typedef loka::app::scene::NodeDefinition<ParkedSeatProbeProps,
+                                           ParkedSeatProbeNode>
+      ParkedSeatProbeDefinition;
+
+  ParkedSeatProbeNode *findLiveParkedSeatProbe(
+      loka::app::scene::Node *node,
+      ParkedSeatProbeRecord *record)
+  {
+    if (!node)
+    {
+      return 0;
+    }
+    if (node->nodeTypeKey() ==
+        loka::app::scene::NodeTypeToken<ParkedSeatProbeNode>())
+    {
+      ParkedSeatProbeNode *probe = static_cast<ParkedSeatProbeNode *>(node);
+      if (probe->props.record == record)
+      {
+        return probe;
+      }
+    }
+    loka::app::scene::INestable *nestable = node->asNestable();
+    for (loka::app::scene::Node *child = nestable ? nestable->childrenHead() : 0;
+         child;
+         child = child->nextInComposition)
+    {
+      ParkedSeatProbeNode *found = findLiveParkedSeatProbe(child, record);
+      if (found)
+      {
+        return found;
+      }
+    }
+    return 0;
+  }
+
   class OwnershipDumpNestedBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<OwnershipDumpNestedBoundaryNode>
       OwnershipDumpNestedBoundaryProps;
@@ -356,6 +469,46 @@ namespace
       assert(g_ownershipDumpScenario);
       OwnershipDumpScenario &scenario = *g_ownershipDumpScenario;
       loka::app::Fragment root;
+      if (scenario.parkedSeatFixturePhase == 0)
+      {
+        ParkedSeatProbeDefinition oldTrue((ParkedSeatProbeProps(101)));
+        ParkedSeatProbeDefinition oldFalse((ParkedSeatProbeProps(102)));
+        loka::app::scene::ConditionalDefinition inner(
+            (loka::app::scene::ConditionalProps(
+                &scenario.parkedSeatInnerCondition, &oldTrue, &oldFalse)));
+        loka::app::FragmentDefinition outerTrueBranch;
+        outerTrueBranch << inner;
+        loka::app::FragmentDefinition emptyOuterBranch;
+        loka::app::scene::ConditionalDefinition outer(
+            (loka::app::scene::ConditionalProps(
+                &scenario.parkedSeatOuterCondition,
+                &outerTrueBranch,
+                &emptyOuterBranch)));
+        root << outer;
+        composition.declare(root);
+        return;
+      }
+      if (scenario.parkedSeatFixturePhase == 1)
+      {
+        composition.declare(root);
+        return;
+      }
+      if (scenario.parkedSeatFixturePhase == 2)
+      {
+        ParkedSeatProbeDefinition slotSpacer((ParkedSeatProbeProps(200)));
+        ParkedSeatProbeDefinition secondSlotSpacer((ParkedSeatProbeProps(200)));
+        ParkedSeatProbeDefinition shiftedTrue((ParkedSeatProbeProps(201)));
+        ParkedSeatProbeDefinition shiftedFalse(
+            (ParkedSeatProbeProps(202, &scenario.shiftedFalseRecord)));
+        loka::app::scene::ConditionalDefinition shifted(
+            (loka::app::scene::ConditionalProps(
+                &scenario.parkedSeatShiftedCondition,
+                &shiftedTrue,
+                &shiftedFalse)));
+        root << slotSpacer << secondSlotSpacer << shifted;
+        composition.declare(root);
+        return;
+      }
       if (scenario.showCreator)
       {
         loka::app::Section creator(4101);
@@ -888,6 +1041,62 @@ void testOwnershipDumpAdoptsParkedNestedBoundaryReleases()
     delete scene;
   }
   assert(scenario.releaseCount == 1);
+  g_ownershipDumpScenario = 0;
+}
+
+void testOwnershipDumpRemovedOuterSeatRetiresNestedParkedBranch()
+{
+  OwnershipDumpScenario scenario;
+  scenario.parkedSeatFixturePhase = 0;
+  scenario.createHeld = false;
+  scenario.createStates = false;
+  g_ownershipDumpScenario = &scenario;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene *scene = createFixtureScene(platform);
+
+    scenario.parkedSeatInnerCondition.set(false);
+    const std::string parked =
+        loka::dsl::testing::OwnershipDump::dump(*scene);
+    assert(parked.find("parked\n") != std::string::npos &&
+           "the inner seat must park its outgoing branch before removal");
+
+    scenario.parkedSeatFixturePhase = 1;
+    requestFixtureRecompose(*scene);
+    const std::string removed =
+        loka::dsl::testing::OwnershipDump::dump(*scene);
+    assert(removed.find("parked\n") == std::string::npos &&
+           "removing the outer seat must retire its nested parked branch");
+    delete scene;
+  }
+  g_ownershipDumpScenario = 0;
+}
+
+void testOwnershipDumpShiftedSlotDoesNotReuseNestedParkedBranch()
+{
+  OwnershipDumpScenario scenario;
+  scenario.parkedSeatFixturePhase = 0;
+  scenario.createHeld = false;
+  scenario.createStates = false;
+  g_ownershipDumpScenario = &scenario;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene *scene = createFixtureScene(platform);
+
+    scenario.parkedSeatInnerCondition.set(false);
+    scenario.parkedSeatFixturePhase = 1;
+    requestFixtureRecompose(*scene);
+    scenario.parkedSeatFixturePhase = 2;
+    requestFixtureRecompose(*scene);
+
+    scenario.parkedSeatShiftedCondition.set(false);
+    ParkedSeatProbeNode *shiftedFalse = findLiveParkedSeatProbe(
+        loka::dsl::testing::SceneTestAccess::rootNode(*scene),
+        &scenario.shiftedFalseRecord);
+    assert(shiftedFalse && shiftedFalse->birth() == 202 &&
+           "a shifted anonymous seat must materialize its own branch, not the orphan");
+    delete scene;
+  }
   g_ownershipDumpScenario = 0;
 }
 
