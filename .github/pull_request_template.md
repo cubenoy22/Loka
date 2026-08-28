@@ -18,6 +18,12 @@
 | --- | --- | --- |
 | <!-- platform and OS range --> | <!-- `build-verified` or `runtime-verified` --> | <!-- command/result --> |
 
+## Documentation
+
+- [ ] Not a user-facing surface change.
+- [ ] DSL / user-facing surface changed and the Programming Guide (both
+      languages) is updated in this PR: <!-- section -->
+
 ## UI changes
 
 - [ ] Not a UI change.

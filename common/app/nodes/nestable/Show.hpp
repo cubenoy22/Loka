@@ -190,6 +190,15 @@ namespace loka
       definition << child;
       return definition;
     }
+
+    template <typename ChildDefinitionT>
+    inline ShowDefinition operator<<(const loka::core::State<bool> &condition,
+                                     const ChildDefinitionT &child)
+    {
+      ShowDefinition definition = Show(condition);
+      definition << child;
+      return definition;
+    }
   } // namespace app
 } // namespace loka
 

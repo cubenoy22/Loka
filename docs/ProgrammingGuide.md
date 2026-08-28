@@ -1030,7 +1030,7 @@ public:
   {
     c.declare(loka::app::VStack()
               << loka::app::Button("Toggle Details", &this->toggle_)
-              << (loka::app::Show(this->detailsVisible_.get()) << this->detailsDefinition_));
+              << (loka::app::Show(*this->detailsVisible_.state()) << this->detailsDefinition_));
   }
 
 private:
@@ -1746,6 +1746,21 @@ reuse algorithm や redraw 戦略まで含めた実装コストが非常に大�
 これは React 的な conditional render よりも、
 SwiftUI / Compose の `if (show) { ... }` に近い感覚で使えます。
 ただし Loka では、古い環境でのコストと native context の寿命をより強く意識します。
+
+#### 省略記法: `State<bool> << child`
+
+条件が `State<bool>` そのものであるときは、`Show()` を書かずに
+state を左辺に置けます。次の 2 行は同じ `ShowDefinition` に展開されます。
+
+```cpp
+<< (loka::app::Show(*this->detailsVisible_.state()) << this->detailsDefinition_)
+<< (*this->detailsVisible_.state() << this->detailsDefinition_)
+```
+
+展開先が同一なので、この節の retained attach/detach の意味論、
+`PolicyScope` との組み合わせ、複数 child の `<<` 連結は
+すべて `Show()` と同じに保たれます。左辺が `State<bool>` の参照である
+ときだけこの演算子が選ばれます(他の `State<T>` には効きません)。
 
 この retained attach/detach の考え方は、
 `OpenFileDialog` のような native callback を持つ node でも重要です。
