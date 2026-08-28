@@ -225,7 +225,7 @@ void testHelloWorldBmiRoundtripDrivesEditTextInput()
 
   std::string value;
   LOKA_VERIFY(record.get("step", value) && value == "bmi-roundtrip");
-  LOKA_VERIFY(record.get("node", value) && value == "HelloWorld.Bmi.Result");
+  LOKA_VERIFY(record.get("node", value) && value == "HelloWorld.Bmi/Text[4]");
   LOKA_VERIFY(record.get("text.value", value) && value == "BMI: 25.00");
   LOKA_VERIFY(record.get("invalid_input_result", value) && value == "BMI: --");
   LOKA_VERIFY(audit.steps.size() == 8);

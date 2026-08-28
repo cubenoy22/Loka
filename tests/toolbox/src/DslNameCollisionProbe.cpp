@@ -41,6 +41,17 @@
 #include "example/Tutorial/src/Step2Node.hpp"
 #include "example/Tutorial/src/Step3Node.hpp"
 #include "example/Tutorial/src/Step4Node.hpp"
+#include "testing/scene/SceneTestFlow.hpp"
+
+namespace scenario_dsl_collision_probe
+{
+  using namespace loka::dsl::testing;
+
+  inline NodeSelector<loka::app::TextNode> ProbeWithinName()
+  {
+    return Within("CollisionProbe").descendant<loka::app::TextNode>(1);
+  }
+} // namespace scenario_dsl_collision_probe
 
 namespace helloworld
 {

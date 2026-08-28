@@ -67,22 +67,28 @@ namespace loka
         const long invalidTick = calculatedTick + kStepSpacingTicks;
         const long finalTick = invalidTick + kStepSpacingTicks;
         return (ScenarioFlow(clock, sceneInput).auditTo(audit)
-                | AtTick(kInitialTick, EnterText("HelloWorld.Bmi.HeightInput", "180"))
+                | AtTick(kInitialTick, EnterText(Within("HelloWorld.Bmi").descendant<app::EditTextNode>(1), "180"))
                       .named("enter-height")
-                | AtTick(kInitialTick, EnterText("HelloWorld.Bmi.WeightInput", "81"))
+                | AtTick(kInitialTick, EnterText(Within("HelloWorld.Bmi").descendant<app::EditTextNode>(2), "81"))
                       .named("enter-weight")
-                | AtTick(calculatedTick, CheckText("HelloWorld.Bmi.Result", "BMI: 25.00"))
+                | AtTick(calculatedTick, CheckText(Within("HelloWorld.Bmi").descendant<app::TextNode>(4), "BMI: 25.00"))
                       .named("verify-calculated-bmi")
-                | AtTick(calculatedTick, EnterText("HelloWorld.Bmi.HeightInput", "invalid"))
+                | AtTick(calculatedTick,
+                         EnterText(Within("HelloWorld.Bmi").descendant<app::EditTextNode>(1), "invalid"))
                       .named("enter-invalid-height")
-                | AtTick(invalidTick, CheckText("HelloWorld.Bmi.Result", "BMI: --"))
+                | AtTick(invalidTick, CheckText(Within("HelloWorld.Bmi").descendant<app::TextNode>(4), "BMI: --"))
                       .named("verify-invalid-input")
-                | AtTick(invalidTick, EnterText("HelloWorld.Bmi.HeightInput", "180"))
+                | AtTick(invalidTick,
+                         EnterText(Within("HelloWorld.Bmi").descendant<app::EditTextNode>(1), "180"))
                       .named("restore-valid-height")
-                | AtTick(finalTick, CheckText("HelloWorld.Bmi.Result", "BMI: 25.00"))
+                | AtTick(finalTick, CheckText(Within("HelloWorld.Bmi").descendant<app::TextNode>(4), "BMI: 25.00"))
                       .named("verify-roundtrip-bmi")
                 | AtTick(finalTick,
-                         SnapText("HelloWorld.Bmi.Result", "HelloWorld", kBmiRoundtrip, finalTick, 1))
+                         SnapText(Within("HelloWorld.Bmi").descendant<app::TextNode>(4),
+                                  "HelloWorld",
+                                  kBmiRoundtrip,
+                                  finalTick,
+                                  1))
                       .named("capture-bmi-result")
                       .onSuccess(recordOut))
             .flow();

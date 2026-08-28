@@ -3434,6 +3434,233 @@ void testLokaFlowDslV1Core()
   {
     using namespace loka::app;
     using namespace loka::app::scene;
+    using namespace loka::dsl::testing;
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("SelectorRegion"));
+    root << Text("First") << (Box() << Text("Nested second"));
+
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    const NodeSelector<TextNode> secondText = Within("SelectorRegion").descendant<TextNode>(2);
+    TextNode *text = 0;
+    loka::dsl::FlowError error;
+    LOKA_VERIFY(ResolveSelector<TextNode>(&scene, secondText, text, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
+    std::string textValue;
+    LOKA_VERIFY(text && text->props.text_ && loka::platform::CollectUtf8(text->props.text_->get(), textValue));
+    LOKA_VERIFY(textValue == "Nested second");
+
+    Node *firstDescendant = 0;
+    LOKA_VERIFY(ResolveSelector<Node>(
+                    &scene, Within("SelectorRegion").descendant<Node>(1), firstDescendant, error)
+                == loka::dsl::FLOW_STEP_SUCCEEDED);
+    Node *anchor = 0;
+    LOKA_VERIFY(LookupNodeById<Node>(&scene, "SelectorRegion", anchor, error)
+                == loka::dsl::FLOW_STEP_SUCCEEDED);
+    LOKA_VERIFY(firstDescendant != anchor);
+
+    loka::dsl::SnapRecord captured;
+    LOKA_VERIFY(SnapText(secondText, "SceneFlow", "selector-snap", 12, 1).run(&scene, captured, error)
+                == loka::dsl::FLOW_STEP_SUCCEEDED);
+    LOKA_VERIFY(captured.serialize(false).find("node\tSelectorRegion/Text[2]\n") != std::string::npos);
+
+    TextNode *missing = 0;
+    LOKA_VERIFY(ResolveSelector<TextNode>(
+                    &scene, Within("MissingRegion").descendant<TextNode>(1), missing, error)
+                == loka::dsl::FLOW_STEP_FAILED);
+    LOKA_VERIFY(error.code == FLOW_ERROR_SCENE_TEST_NODE_NOT_FOUND);
+
+    LOKA_VERIFY(ResolveSelector<TextNode>(
+                    &scene, Within("SelectorRegion").descendant<TextNode>(0), missing, error)
+                == loka::dsl::FLOW_STEP_FAILED);
+    LOKA_VERIFY(error.code == FLOW_ERROR_SCENE_TEST_INVALID_ORDINAL);
+
+
+    LOKA_VERIFY(ResolveSelector<TextNode>(
+                    &scene, Within("SelectorRegion").descendant<TextNode>(3), missing, error)
+                == loka::dsl::FLOW_STEP_FAILED);
+    LOKA_VERIFY(error.code == FLOW_ERROR_SCENE_TEST_ORDINAL_OUT_OF_RANGE);
+
+    EditTextNode *noEditText = 0;
+    LOKA_VERIFY(ResolveSelector<EditTextNode>(
+                    &scene, Within("SelectorRegion").descendant<EditTextNode>(1), noEditText, error)
+                == loka::dsl::FLOW_STEP_FAILED);
+    LOKA_VERIFY(error.code == FLOW_ERROR_SCENE_TEST_ORDINAL_OUT_OF_RANGE);
+
+    LOKA_VERIFY(std::strcmp(SceneNodeCast<Node>::name(), "Node") == 0);
+    LOKA_VERIFY(std::strcmp(SceneNodeCast<TextNode>::name(), "Text") == 0);
+    LOKA_VERIFY(std::strcmp(SceneNodeCast<ButtonNode>::name(), "Button") == 0);
+    LOKA_VERIFY(std::strcmp(SceneNodeCast<CellNode>::name(), "Cell") == 0);
+    LOKA_VERIFY(std::strcmp(SceneNodeCast<EditTextNode>::name(), "EditText") == 0);
+
+    scene.unmount();
+  }
+
+  {
+    // An omitted anchor must be refused, not silently matched against the one
+    // id-less node in the scene (which would turn the selector into a
+    // scene-wide ordinal lookup).
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    using namespace loka::dsl::testing;
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box());
+    root << Text("Only").testId("EmptyAnchorLeaf");
+
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    TextNode *text = 0;
+    loka::dsl::FlowError error;
+    LOKA_VERIFY(ResolveSelector<TextNode>(&scene, Within("").descendant<TextNode>(1), text, error)
+                == loka::dsl::FLOW_STEP_FAILED);
+    LOKA_VERIFY(error.code == FLOW_ERROR_SCENE_TEST_MISSING_TEST_ID);
+    LOKA_VERIFY(text == 0);
+    LOKA_VERIFY(ResolveSelector<TextNode>(&scene, Within(0).descendant<TextNode>(1), text, error)
+                == loka::dsl::FLOW_STEP_FAILED);
+    LOKA_VERIFY(error.code == FLOW_ERROR_SCENE_TEST_MISSING_TEST_ID);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    using namespace loka::dsl::testing;
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("DuplicateRoot"));
+    root << (Box().testId("DuplicatedRegion") << Text("A"));
+    root << (Box().testId("DuplicatedRegion") << Text("B"));
+
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    TextNode *text = 0;
+    loka::dsl::FlowError error;
+    LOKA_VERIFY(ResolveSelector<TextNode>(
+                    &scene, Within("DuplicatedRegion").descendant<TextNode>(1), text, error)
+                == loka::dsl::FLOW_STEP_FAILED);
+    LOKA_VERIFY(error.code == FLOW_ERROR_SCENE_TEST_DUPLICATE_TEST_ID);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    using namespace loka::dsl::testing;
+
+    loka::core::MutableState<bool> visible(false);
+    loka::core::MutableState<bool> replacementVisible(false);
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("ConditionalRegion"));
+    root << (Show(visible) << Text("First materialized"));
+    root << (Show(replacementVisible) << Text("Replacement materialized"));
+
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    const NodeSelector<TextNode> selector = Within("ConditionalRegion").descendant<TextNode>(1);
+    TextNode *first = 0;
+    loka::dsl::FlowError error;
+    LOKA_VERIFY(ResolveSelector<TextNode>(&scene, selector, first, error) == loka::dsl::FLOW_STEP_FAILED);
+    LOKA_VERIFY(error.code == FLOW_ERROR_SCENE_TEST_ORDINAL_OUT_OF_RANGE);
+
+    Scene *sceneInput = &scene;
+    Scene *sceneOutput = 0;
+    LOKA_VERIFY(SetBoolStateAndFlush(&visible, true).run(sceneInput, sceneOutput, error)
+                == loka::dsl::FLOW_STEP_SUCCEEDED);
+    LOKA_VERIFY(ResolveSelector<TextNode>(&scene, selector, first, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
+    LOKA_VERIFY(first != 0);
+    std::string firstText;
+    LOKA_VERIFY(first->props.text_ && loka::platform::CollectUtf8(first->props.text_->get(), firstText));
+    LOKA_VERIFY(firstText == "First materialized");
+
+    LOKA_VERIFY(SetBoolStateAndFlush(&visible, false).run(sceneInput, sceneOutput, error)
+                == loka::dsl::FLOW_STEP_SUCCEEDED);
+    TextNode *parked = 0;
+    LOKA_VERIFY(ResolveSelector<TextNode>(&scene, selector, parked, error) == loka::dsl::FLOW_STEP_FAILED);
+    LOKA_VERIFY(error.code == FLOW_ERROR_SCENE_TEST_ORDINAL_OUT_OF_RANGE);
+
+    LOKA_VERIFY(SetBoolStateAndFlush(&replacementVisible, true).run(sceneInput, sceneOutput, error)
+                == loka::dsl::FLOW_STEP_SUCCEEDED);
+    TextNode *replacement = 0;
+    LOKA_VERIFY(ResolveSelector<TextNode>(&scene, selector, replacement, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
+    LOKA_VERIFY(replacement != 0);
+    std::string replacementText;
+    LOKA_VERIFY(replacement->props.text_
+                && loka::platform::CollectUtf8(replacement->props.text_->get(), replacementText));
+    LOKA_VERIFY(replacementText == "Replacement materialized");
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    using namespace loka::dsl::testing;
+
+    loka::core::MutableState<loka::core::String> input(loka::core::String::Literal("before"));
+    loka::core::EmitterState buttonClick;
+    loka::core::EmitterState cellClick;
+    int buttonClicks = 0;
+    int cellClicks = 0;
+    buttonClick.bind(&incrementNotificationCount, &buttonClicks, false);
+    cellClick.bind(&incrementNotificationCount, &cellClicks, false);
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("ActionRegion"));
+    root << EditText(&input) << Button("Press").onClick(&buttonClick) << Cell("Open").onClick(&cellClick);
+
+    NodeDefinitionBase *rootDefinition = composition.root()->clone();
+    LOKA_VERIFY(rootDefinition != 0);
+    Scene scene(rootDefinition);
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *sceneInput = &scene;
+    Scene *sceneOutput = 0;
+    loka::dsl::FlowError error;
+    LOKA_VERIFY(EnterText(Within("ActionRegion").descendant<EditTextNode>(1), "after")
+                    .run(sceneInput, sceneOutput, error)
+                == loka::dsl::FLOW_STEP_SUCCEEDED);
+    LOKA_VERIFY(input.get().equals(loka::core::String::Literal("after")));
+    LOKA_VERIFY(ClickButton(Within("ActionRegion").descendant<ButtonNode>(1))
+                    .run(sceneInput, sceneOutput, error)
+                == loka::dsl::FLOW_STEP_SUCCEEDED);
+    LOKA_VERIFY(ClickCell(Within("ActionRegion").descendant<CellNode>(1)).run(sceneInput, sceneOutput, error)
+                == loka::dsl::FLOW_STEP_SUCCEEDED);
+    LOKA_VERIFY(buttonClicks == 1);
+    LOKA_VERIFY(cellClicks == 1);
+
+    buttonClick.unbind(&incrementNotificationCount, &buttonClicks);
+    cellClick.unbind(&incrementNotificationCount, &cellClicks);
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
 
     NodeComposition composition;
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
