@@ -55,6 +55,13 @@ namespace loka
         this->content_.addOwnedChild(ownedChild);
         return *this;
       }
+      template <class ItemT, class FactoryT, class KeyExprT>
+      PolicyScopeDefinition &operator<<(
+          const ForBuilder<ItemT, FactoryT, KeyExprT> &builder)
+      {
+        builder.appendTo(this->content_);
+        return *this;
+      }
 
       virtual scene::Node *create() const
       {

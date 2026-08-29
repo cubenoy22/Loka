@@ -3661,14 +3661,16 @@ namespace
       loka::app::FragmentDefinition root;
       loka::app::ButtonDefinition game("game", &this->newGameClick_);
       root << game;
+      loka::app::FragmentDefinition bankedCells;
       for (int i = 0; i < 2; ++i)
       {
         loka::app::Section section(static_cast<loka::app::scene::NodeTag>(
             9100 + this->bank_ * 2 + i));
         loka::app::ButtonDefinition cell("cell");
         section << cell;
-        root << section;
+        bankedCells << section;
       }
+      root << bankedCells;
       composition.declare(root);
     }
 

@@ -1735,7 +1735,8 @@ namespace
           root << SectionOwnerProbeDefinition(
               SectionOwnerProbeProps(&scenario.boundary,
                                      &scenario.primary,
-                                     false));
+                                     false))
+                      .tag(4191);
         }
         break;
       }
@@ -2178,7 +2179,8 @@ namespace
         {
           loka::app::Section creator(5101);
           creator << HeldOwnerSlotProbeDefinition(
-              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_CREATE));
+              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_CREATE))
+                         .tag(5191);
           if (scenario.showDescendant)
           {
             loka::app::Section descendant(5102);
@@ -2196,19 +2198,23 @@ namespace
               HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_TRY_HOLD));
           loka::app::Section fourth(5204);
           fourth << HeldOwnerSlotProbeDefinition(
-              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_HOLD));
+              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_HOLD))
+                        .tag(5291);
           fourth << fifth;
           loka::app::Section third(5203);
           third << HeldOwnerSlotProbeDefinition(
-              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_HOLD));
+              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_HOLD))
+                       .tag(5291);
           third << fourth;
           loka::app::Section second(5202);
           second << HeldOwnerSlotProbeDefinition(
-              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_HOLD));
+              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_HOLD))
+                        .tag(5291);
           second << third;
           loka::app::Section creator(5201);
           creator << HeldOwnerSlotProbeDefinition(
-              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_CREATE));
+              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_CREATE))
+                         .tag(5291);
           creator << second;
           root << creator;
         }

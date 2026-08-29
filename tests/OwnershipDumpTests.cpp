@@ -513,7 +513,8 @@ namespace
       {
         loka::app::Section creator(4101);
         creator << OwnershipDumpProbeDefinition(
-            OwnershipDumpProbeProps(OwnershipDumpProbeProps::ROLE_CREATE));
+            OwnershipDumpProbeProps(OwnershipDumpProbeProps::ROLE_CREATE))
+                       .tag(4191);
         if (scenario.showFirstHolder)
         {
           loka::app::Section holder(4102);

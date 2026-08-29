@@ -5,6 +5,7 @@
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/Cell.hpp"
 #include "app/nodes/nestable/BoundarySection.hpp"
+#include "app/nodes/nestable/For.hpp"
 #include "app/nodes/nestable/Grid.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/scene/node/ComponentNode.hpp"
@@ -193,6 +194,36 @@ namespace minesweeper
 
   class MainNode : public loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>
   {
+    struct MineCellItem
+    {
+      explicit MineCellItem(bool mine = false)
+          : isMine(mine)
+      {
+      }
+
+      bool isMine;
+    };
+
+    struct MineCellFactory
+    {
+      typedef loka::app::scene::NodeDefinition<MineCellProps, MineCellNode>
+          Result;
+
+      explicit MineCellFactory(const MainNode *owner)
+          : owner_(owner)
+      {
+      }
+
+      Result operator()(const MineCellItem &item, std::size_t index) const
+      {
+        const int cellIndex = static_cast<int>(index);
+        return loka::app::scene::Component(MineCellProps(
+            item.isMine, this->owner_->countAdjacent(cellIndex), cellIndex));
+      }
+
+      const MainNode *owner_;
+    };
+
   public:
     typedef MainTypeTag TypeTag;
 
@@ -223,19 +254,17 @@ namespace minesweeper
       content << Button("New Game", &this->newGameClick_).TEST_ID("MineSweeper.NewGameButton");
       Grid grid;
       grid.rows(kRows).cols(kCols).TEST_ID("MineSweeper.Board");
+      MineCellItem cellItems[kCellCount];
       for (int i = 0; i < kCellCount; ++i)
       {
-        // One owner-scope box per cell, and the cell's presentation
-        // resident now lives inside it (#274's parent-declared arrays are
-        // gone). A new game swaps the key bank, so the plan retires each
-        // old box -- residents included -- and materializes fresh covered
-        // cells.
-        Section cell(static_cast<loka::app::scene::NodeTag>(
-            kCellSectionKeyBase + this->bank_ * kCellCount + i));
-        cell << scene::Component(
-            MineCellProps(this->mines_[i], this->countAdjacent(i), i));
-        grid << cell;
+        cellItems[i] = MineCellItem(this->mines_[i]);
       }
+      // For emits one owner-scope box per cell. A new game swaps the key
+      // bank, so the plan retires every old box -- presentation residents
+      // included -- and materializes fresh covered cells.
+      grid << For(static_cast<loka::app::scene::NodeTag>(
+                      kCellSectionKeyBase + this->bank_ * kCellCount),
+                  cellItems, MineCellFactory(this));
       content << grid;
       c.declare(content);
     }

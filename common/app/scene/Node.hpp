@@ -45,6 +45,9 @@ namespace loka
 {
   namespace app
   {
+    template <class ItemT, class FactoryT, class KeyExprT>
+    class ForBuilder;
+
     namespace scene
     {
       // NodeDirtyFlags: flags for node dirtiness (C++98-friendly)
@@ -1236,6 +1239,15 @@ namespace loka
         {
           DerivedT *self = static_cast<DerivedT *>(this);
           static_cast<INestableDefinition &>(*self) << container;
+          return *self;
+        }
+
+        template <class ItemT, class FactoryT, class KeyExprT>
+        DerivedT &operator<<(
+            const ::loka::app::ForBuilder<ItemT, FactoryT, KeyExprT> &builder)
+        {
+          DerivedT *self = static_cast<DerivedT *>(this);
+          builder.appendTo(static_cast<INestableDefinition &>(*self));
           return *self;
         }
       };
