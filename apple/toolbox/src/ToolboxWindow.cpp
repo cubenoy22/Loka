@@ -328,6 +328,69 @@ void ToolboxWindow::TitleChangedThunk(void *userData)
   SetWTitle(self->window_, titleStr);
 }
 
+namespace
+{
+  const short kGrowBoxSize = 15;
+  const short kMinimumGrowWidth = 64;  // REALbasic 3.1 floor
+  const short kMinimumGrowHeight = 64;
+
+  Rect GrowIconRect(const Rect &portRect)
+  {
+    Rect rect;
+    rect.left = static_cast<short>(portRect.right - kGrowBoxSize);
+    rect.top = static_cast<short>(portRect.bottom - kGrowBoxSize);
+    rect.right = portRect.right;
+    rect.bottom = portRect.bottom;
+    return rect;
+  }
+} // namespace
+
+void ToolboxWindow::handleGrow(const Point &globalPoint)
+{
+  if (!window_)
+  {
+    return;
+  }
+  Rect sizeRect;
+  // Rect is {top, left, bottom, right}; SetRect takes (left, top, right, bottom):
+  // left/top = minimum width/height, right/bottom = maximum width/height.
+  SetRect(&sizeRect,
+          kMinimumGrowWidth,
+          kMinimumGrowHeight,
+          static_cast<short>(qd.screenBits.bounds.right - qd.screenBits.bounds.left),
+          static_cast<short>(qd.screenBits.bounds.bottom - qd.screenBits.bounds.top));
+  const long grown = GrowWindow(window_, globalPoint, &sizeRect);
+  if (grown == 0)
+  {
+    return; // cancelled or unchanged: leave the size alone
+  }
+  const short width = static_cast<short>(grown & 0xFFFF);
+  const short height = static_cast<short>((grown >> 16) & 0xFFFF);
+  SizeWindow(window_, width, height, true);
+  // SizeWindow(..., true) invalidates only the newly exposed area; the whole
+  // content is laid out from portRect on the next draw, so invalidate it all.
+  GrafPtr oldPort;
+  GetPort(&oldPort);
+  SetPort(window_);
+  InvalRect(&window_->portRect);
+  SetPort(oldPort);
+  this->storeNativeContentSize(width, height);
+}
+
+void ToolboxWindow::invalidateGrowIcon()
+{
+  if (!window_)
+  {
+    return;
+  }
+  GrafPtr oldPort;
+  GetPort(&oldPort);
+  SetPort(window_);
+  const Rect corner = GrowIconRect(window_->portRect);
+  InvalRect(&corner);
+  SetPort(oldPort);
+}
+
 bool ToolboxWindow::handleMouseDown(const Point &globalPoint)
 {
   if (!window_ || !scenePlatformController_)

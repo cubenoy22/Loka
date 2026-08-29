@@ -14,8 +14,6 @@ typedef void (*DeferredDumpCompletion)(void *userData);
 class ToolboxWindow : public Window
 {
 public:
-  using Window::storeNativeContentSize;
-
   ToolboxWindow(PlatformContext *context, const WindowProps &props);
   virtual ~ToolboxWindow();
   virtual ToolboxWindow *asToolboxWindow()
@@ -33,6 +31,12 @@ public:
   void flushInvalidate();
   bool hasPendingInvalidate() const;
   bool handleMouseDown(const Point &globalPoint);
+  /** Tracks a grow-box drag from the given global mouse-down point, resizes
+      the native window, and publishes the new content size (GH #524). */
+  void handleGrow(const Point &globalPoint);
+  /** Invalidates the grow-box corner so the next update redraws it in the
+      window's current hilite state. */
+  void invalidateGrowIcon();
   bool handleKeyDown(char key);
   void drawDirty(const Rect &rect);
   void idleControls(ActivationPhase phase);
