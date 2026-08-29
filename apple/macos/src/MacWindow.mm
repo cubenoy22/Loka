@@ -516,7 +516,12 @@ void MacWindow::handleWindowDidResize()
   {
     return;
   }
-  scenePlatformController_->relayout(width, height);
+  // A frame observer may have corrected the size while the store settled (a
+  // clamp projects through setFrame and re-enters this callback); lay out
+  // from the native bounds as they are now, not from the captured locals.
+  const NSRect settled = [view bounds];
+  scenePlatformController_->relayout(static_cast<int>(settled.size.width),
+                                     static_cast<int>(settled.size.height));
 }
 
 void MacWindow::handleWindowDidBecomeKey()
