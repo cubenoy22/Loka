@@ -495,8 +495,8 @@ namespace
 
     int status = 0;
     LOKA_VERIFY(waitpid(child, &status, 0) == child);
-    assert(WIFSIGNALED(status));
-    assert(WTERMSIG(status) == SIGABRT);
+  LOKA_VERIFY(WIFSIGNALED(status));
+  LOKA_VERIFY(WTERMSIG(status) == SIGABRT);
   }
 #endif
 

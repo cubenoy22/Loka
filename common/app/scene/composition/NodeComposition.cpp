@@ -346,8 +346,29 @@ namespace loka
         if (nestable)
         {
 #ifndef NDEBUG
-          // Misuse detection only: the duplicate-key assert is this scan's
-          // sole effect, so release builds skip the quadratic walk entirely.
+          // Misuse detection only: the fully-tagged and duplicate-key asserts
+          // are this scan's sole effects, so release builds skip it entirely.
+          bool requiresFullyTaggedSiblings = false;
+          for (NodeDefinitionBase *candidate = nestable->childrenHead();
+               candidate;
+               candidate = candidate->nextInComposition)
+          {
+            if (candidate->requiresUniqueSiblingTag())
+            {
+              requiresFullyTaggedSiblings = true;
+              break;
+            }
+          }
+          if (requiresFullyTaggedSiblings)
+          {
+            for (NodeDefinitionBase *candidate = nestable->childrenHead();
+                 candidate;
+                 candidate = candidate->nextInComposition)
+            {
+              assert(candidate->nodeTag() != NODE_TAG_NONE &&
+                     "a sibling list containing a BoundarySection must be fully tagged");
+            }
+          }
           for (NodeDefinitionBase *candidate = nestable->childrenHead();
                candidate;
                candidate = candidate->nextInComposition)

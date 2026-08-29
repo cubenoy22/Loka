@@ -58,6 +58,7 @@
 #include "NullPlatformContractTests.hpp"
 #include "LifecycleFactTests.hpp"
 #include "LokaAllocTests.hpp"
+#include "ForTests.hpp"
 #include "core/diag/LifecycleAudit.hpp"
 
 #include "ContractTestSupport.inc"

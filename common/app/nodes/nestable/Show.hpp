@@ -155,6 +155,13 @@ namespace loka
         }
         return *this;
       }
+      template <class ItemT, class FactoryT, class KeyExprT>
+      ShowDefinition &operator<<(
+          const ForBuilder<ItemT, FactoryT, KeyExprT> &builder)
+      {
+        builder.appendTo(this->trueBranch_);
+        return *this;
+      }
 
       const scene::ConditionalProps &props() const
       {

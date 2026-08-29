@@ -136,10 +136,10 @@ void testConditionalAndShowDefinitionsCarryNativeLifetimeHint()
       loka::app::scene::ConditionalProps(&condition, &branchContents, 0));
   loka::app::scene::ConditionalDefinition differentConditional(
       loka::app::scene::ConditionalProps(&otherCondition, 0, 0));
-  assert(conditional.propsBase());
-  assert(conditional.propsBase()->propsTypeId() == equivalentConditional.propsBase()->propsTypeId());
-  assert(conditional.hasEquivalentProps(equivalentConditional));
-  assert(!conditional.hasEquivalentProps(differentConditional));
+  LOKA_VERIFY(conditional.propsBase());
+  LOKA_VERIFY(conditional.propsBase()->propsTypeId() == equivalentConditional.propsBase()->propsTypeId());
+  LOKA_VERIFY(conditional.hasEquivalentProps(equivalentConditional));
+  LOKA_VERIFY(!conditional.hasEquivalentProps(differentConditional));
   conditional.setNativeLifetimeHint(loka::app::scene::NATIVE_HINT_EAGER_RELEASE);
   loka::app::scene::NodeDefinitionBase *conditionalCopy = conditional.clone();
   assert(conditionalCopy);
@@ -151,11 +151,11 @@ void testConditionalAndShowDefinitionsCarryNativeLifetimeHint()
   loka::app::ShowDefinition equivalentShow(&condition);
   loka::app::ShowDefinition updatedShow(&otherCondition);
   show << branchContents;
-  assert(show.propsBase());
-  assert(show.propsBase()->propsTypeId() == equivalentShow.propsBase()->propsTypeId());
-  assert(show.hasEquivalentProps(equivalentShow) &&
+  LOKA_VERIFY(show.propsBase());
+  LOKA_VERIFY(show.propsBase()->propsTypeId() == equivalentShow.propsBase()->propsTypeId());
+  LOKA_VERIFY(show.hasEquivalentProps(equivalentShow) &&
          "rebuilt Show branch contents do not participate in props equivalence");
-  assert(!show.hasEquivalentProps(updatedShow));
+  LOKA_VERIFY(!show.hasEquivalentProps(updatedShow));
   branchContents.setNativeLifetimeHint(loka::app::scene::NATIVE_HINT_DESIRE_STAY);
   loka::app::scene::Node *contentNode = branchContents.create();
   assert(contentNode);

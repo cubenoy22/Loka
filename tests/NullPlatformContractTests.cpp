@@ -1615,8 +1615,8 @@ void testNullNodeHandlerRegistryMissEducatesInDiagnosticBuilds()
   }
   int status = 0;
   LOKA_VERIFY(waitpid(child, &status, 0) == child);
-  assert(WIFSIGNALED(status));
-  assert(WTERMSIG(status) == SIGABRT &&
+  LOKA_VERIFY(WIFSIGNALED(status));
+  LOKA_VERIFY(WTERMSIG(status) == SIGABRT &&
          "a registry miss must educate instead of sharing the typed-refusal path");
 #endif
 }
@@ -3661,14 +3661,16 @@ namespace
       loka::app::FragmentDefinition root;
       loka::app::ButtonDefinition game("game", &this->newGameClick_);
       root << game;
+      loka::app::FragmentDefinition bankedCells;
       for (int i = 0; i < 2; ++i)
       {
         loka::app::Section section(static_cast<loka::app::scene::NodeTag>(
             9100 + this->bank_ * 2 + i));
         loka::app::ButtonDefinition cell("cell");
         section << cell;
-        root << section;
+        bankedCells << section;
       }
+      root << bankedCells;
       composition.declare(root);
     }
 
@@ -5793,8 +5795,8 @@ void testOpenFileDialogRequiresCompletionBinding()
   }
   int status = 0;
   LOKA_VERIFY(waitpid(child, &status, 0) == child);
-  assert(WIFSIGNALED(status));
-  assert(WTERMSIG(status) == SIGABRT && "OpenFileDialog requires result or onResult completion delivery");
+  LOKA_VERIFY(WIFSIGNALED(status));
+  LOKA_VERIFY(WTERMSIG(status) == SIGABRT && "OpenFileDialog requires result or onResult completion delivery");
 #endif
 }
 

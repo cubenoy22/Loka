@@ -1735,7 +1735,8 @@ namespace
           root << SectionOwnerProbeDefinition(
               SectionOwnerProbeProps(&scenario.boundary,
                                      &scenario.primary,
-                                     false));
+                                     false))
+                      .tag(4191);
         }
         break;
       }
@@ -2178,7 +2179,8 @@ namespace
         {
           loka::app::Section creator(5101);
           creator << HeldOwnerSlotProbeDefinition(
-              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_CREATE));
+              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_CREATE))
+                         .tag(5191);
           if (scenario.showDescendant)
           {
             loka::app::Section descendant(5102);
@@ -2196,19 +2198,23 @@ namespace
               HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_TRY_HOLD));
           loka::app::Section fourth(5204);
           fourth << HeldOwnerSlotProbeDefinition(
-              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_HOLD));
+              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_HOLD))
+                        .tag(5291);
           fourth << fifth;
           loka::app::Section third(5203);
           third << HeldOwnerSlotProbeDefinition(
-              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_HOLD));
+              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_HOLD))
+                       .tag(5291);
           third << fourth;
           loka::app::Section second(5202);
           second << HeldOwnerSlotProbeDefinition(
-              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_HOLD));
+              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_HOLD))
+                        .tag(5291);
           second << third;
           loka::app::Section creator(5201);
           creator << HeldOwnerSlotProbeDefinition(
-              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_CREATE));
+              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_CREATE))
+                         .tag(5291);
           creator << second;
           root << creator;
         }
@@ -2413,8 +2419,8 @@ namespace
 
     int status = 0;
     LOKA_VERIFY(waitpid(child, &status, 0) == child);
-    assert(WIFSIGNALED(status));
-    assert(WTERMSIG(status) == SIGABRT);
+    LOKA_VERIFY(WIFSIGNALED(status));
+    LOKA_VERIFY(WTERMSIG(status) == SIGABRT);
   }
 } // namespace
 #endif
@@ -2993,8 +2999,8 @@ void testNestedConditionalSeatDefersProjectionAndRecoversThroughRootBoundaryWrap
         innerNode ? innerNode->asNestable() : 0;
     loka::app::scene::Node *activeBranch =
         innerFragment ? innerFragment->childrenHead() : 0;
-    assert(rootFragment && rootFragment->childrenCount() == 1);
-    assert(innerFragment && innerFragment->childrenCount() == 1);
+  LOKA_VERIFY(rootFragment && rootFragment->childrenCount() == 1);
+  LOKA_VERIFY(innerFragment && innerFragment->childrenCount() == 1);
     (void)activeBranch;
     assert(activeBranch &&
            activeBranch->propsTypeId() == GateProbeProps::staticTypeId());
@@ -3277,7 +3283,7 @@ void testBoundarySectionRetainedKeyAppliesChangedChildPropsInPlace()
     LOKA_VERIFY(scene.flushInvalidation());
 
     assert(root->section(1101) == section);
-    assert(section->childrenHead() == child &&
+  LOKA_VERIFY(section->childrenHead() == child &&
            "compatible child props must update the existing child in place");
     assert(child->props.revision == 7 &&
            "the retained child must receive the current definition props");
@@ -3319,8 +3325,8 @@ void testBoundarySectionRejectsMissingAndDuplicateSiblingKeys()
 
     int status = 0;
     LOKA_VERIFY(waitpid(child, &status, 0) == child);
-    assert(WIFSIGNALED(status));
-    assert(WTERMSIG(status) == SIGABRT);
+  LOKA_VERIFY(WIFSIGNALED(status));
+  LOKA_VERIFY(WTERMSIG(status) == SIGABRT);
   }
 #endif
 }

@@ -1685,7 +1685,7 @@ void testRootUpdateFallbackDestroysRetiredArenaNodeOnNextTrackerRun()
     scene.requestInvalidate(NODE_DIRTY_CHILD);
     LOKA_VERIFY(scene.flushInvalidation());
 
-    assert(rootBoundary->childrenHead() != retiringRoot &&
+  LOKA_VERIFY(rootBoundary->childrenHead() != retiringRoot &&
            "root shape swap must replace the retiring root");
     assert(destructorCalls == 0 &&
            "retired root arena node must remain alive through the retiring apply");
@@ -2019,8 +2019,8 @@ void testSceneTeardownDrainsPendingRetiredGenerationExactlyOnce()
     scene.requestInvalidate(NODE_DIRTY_CHILD);
     LOKA_VERIFY(scene.flushInvalidation());
 
-    assert(rootBoundary->childrenHead() != retiringRoot);
-    assert(rootBoundary->childrenHead() != 0 &&
+  LOKA_VERIFY(rootBoundary->childrenHead() != retiringRoot);
+  LOKA_VERIFY(rootBoundary->childrenHead() != 0 &&
            rootBoundary->childrenHead()->isArenaAllocated());
     assert(scene.hasPendingInvalidation() &&
            "generation retirement must leave a later drain pending at Scene teardown");
