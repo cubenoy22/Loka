@@ -1615,8 +1615,8 @@ void testNullNodeHandlerRegistryMissEducatesInDiagnosticBuilds()
   }
   int status = 0;
   LOKA_VERIFY(waitpid(child, &status, 0) == child);
-  assert(WIFSIGNALED(status));
-  assert(WTERMSIG(status) == SIGABRT &&
+  LOKA_VERIFY(WIFSIGNALED(status));
+  LOKA_VERIFY(WTERMSIG(status) == SIGABRT &&
          "a registry miss must educate instead of sharing the typed-refusal path");
 #endif
 }
@@ -5795,8 +5795,8 @@ void testOpenFileDialogRequiresCompletionBinding()
   }
   int status = 0;
   LOKA_VERIFY(waitpid(child, &status, 0) == child);
-  assert(WIFSIGNALED(status));
-  assert(WTERMSIG(status) == SIGABRT && "OpenFileDialog requires result or onResult completion delivery");
+  LOKA_VERIFY(WIFSIGNALED(status));
+  LOKA_VERIFY(WTERMSIG(status) == SIGABRT && "OpenFileDialog requires result or onResult completion delivery");
 #endif
 }
 

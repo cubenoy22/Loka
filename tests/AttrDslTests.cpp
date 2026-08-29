@@ -478,7 +478,7 @@ namespace
 
       loka::app::scene::INestable *nestable = node->asNestable();
       assert(nestable != 0);
-      assert(nestable->childrenHead() != 0);
+    LOKA_VERIFY(nestable->childrenHead() != 0);
 
       loka::app::scene::LayoutState childState = state;
       childState.y += 4;

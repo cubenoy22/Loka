@@ -2419,8 +2419,8 @@ namespace
 
     int status = 0;
     LOKA_VERIFY(waitpid(child, &status, 0) == child);
-    assert(WIFSIGNALED(status));
-    assert(WTERMSIG(status) == SIGABRT);
+    LOKA_VERIFY(WIFSIGNALED(status));
+    LOKA_VERIFY(WTERMSIG(status) == SIGABRT);
   }
 } // namespace
 #endif
@@ -2999,8 +2999,8 @@ void testNestedConditionalSeatDefersProjectionAndRecoversThroughRootBoundaryWrap
         innerNode ? innerNode->asNestable() : 0;
     loka::app::scene::Node *activeBranch =
         innerFragment ? innerFragment->childrenHead() : 0;
-    assert(rootFragment && rootFragment->childrenCount() == 1);
-    assert(innerFragment && innerFragment->childrenCount() == 1);
+  LOKA_VERIFY(rootFragment && rootFragment->childrenCount() == 1);
+  LOKA_VERIFY(innerFragment && innerFragment->childrenCount() == 1);
     (void)activeBranch;
     assert(activeBranch &&
            activeBranch->propsTypeId() == GateProbeProps::staticTypeId());
@@ -3283,7 +3283,7 @@ void testBoundarySectionRetainedKeyAppliesChangedChildPropsInPlace()
     LOKA_VERIFY(scene.flushInvalidation());
 
     assert(root->section(1101) == section);
-    assert(section->childrenHead() == child &&
+  LOKA_VERIFY(section->childrenHead() == child &&
            "compatible child props must update the existing child in place");
     assert(child->props.revision == 7 &&
            "the retained child must receive the current definition props");
@@ -3325,8 +3325,8 @@ void testBoundarySectionRejectsMissingAndDuplicateSiblingKeys()
 
     int status = 0;
     LOKA_VERIFY(waitpid(child, &status, 0) == child);
-    assert(WIFSIGNALED(status));
-    assert(WTERMSIG(status) == SIGABRT);
+  LOKA_VERIFY(WIFSIGNALED(status));
+  LOKA_VERIFY(WTERMSIG(status) == SIGABRT);
   }
 #endif
 }

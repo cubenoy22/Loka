@@ -454,8 +454,8 @@ void testNestableDefinitionAssignmentPreservesStableChildOnOomClone()
   stableTarget = sourceWithBadChild;
 
   assert(stableTarget.props.padding == 10);
-  assert(stableTarget.childrenCount() == 1);
-  assert(stableTarget.childrenHead() != 0);
+  LOKA_VERIFY(stableTarget.childrenCount() == 1);
+  LOKA_VERIFY(stableTarget.childrenHead() != 0);
   loka::app::scene::NodeDefinitionBase *childClone = stableTarget.childrenHead()->clone();
   assert(childClone != 0);
   delete childClone;

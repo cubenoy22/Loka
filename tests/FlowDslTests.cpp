@@ -104,10 +104,10 @@ namespace
     assert(expected);
     assert(actual);
     assert(expected->nodeKind() == actual->nodeKind());
-    assert(expected->propsBase());
-    assert(actual->propsBase());
-    assert(expected->propsBase()->propsTypeId() == actual->propsBase()->propsTypeId());
-    assert(expected->hasEquivalentProps(*actual));
+    LOKA_VERIFY(expected->propsBase());
+    LOKA_VERIFY(actual->propsBase());
+    LOKA_VERIFY(expected->propsBase()->propsTypeId() == actual->propsBase()->propsTypeId());
+    LOKA_VERIFY(expected->hasEquivalentProps(*actual));
 
     loka::app::scene::IBranchSeatDefinition *expectedSeat = expected->asBranchSeatDefinition();
     loka::app::scene::IBranchSeatDefinition *actualSeat = actual->asBranchSeatDefinition();
@@ -127,7 +127,7 @@ namespace
       return;
     }
 
-    assert(expectedNestable->childrenCount() == actualNestable->childrenCount());
+    LOKA_VERIFY(expectedNestable->childrenCount() == actualNestable->childrenCount());
     loka::app::scene::NodeDefinitionBase *expectedChild = expectedNestable->childrenHead();
     loka::app::scene::NodeDefinitionBase *actualChild = actualNestable->childrenHead();
     while (expectedChild && actualChild)
@@ -2307,21 +2307,21 @@ void testLokaFlowDslV1Core()
 
   {
     loka::app::HStack buttons = buildTypedHStack();
-    assert(buttons.childrenCount() == 2);
+  LOKA_VERIFY(buttons.childrenCount() == 2);
     assert(buttons.props.hasVerticalAlignment_);
     assert(buttons.props.verticalAlignment_ == loka::app::VERTICAL_ALIGNMENT_BOTTOM);
   }
 
   {
     loka::app::VStack column = buildTypedVStack();
-    assert(column.childrenCount() == 2);
+  LOKA_VERIFY(column.childrenCount() == 2);
     assert(column.props.hasHorizontalAlignment_);
     assert(column.props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_CENTER);
   }
 
   {
     loka::app::Box box = buildTypedBox();
-    assert(box.childrenCount() == 1);
+  LOKA_VERIFY(box.childrenCount() == 1);
     assert(box.props.padding == 8);
     assert(box.hasTestId());
     assert(box.testIdValue() == "TypedBox");
@@ -2329,19 +2329,19 @@ void testLokaFlowDslV1Core()
 
   {
     loka::app::Fragment fragment = buildTypedFragment();
-    assert(fragment.childrenCount() == 2);
+  LOKA_VERIFY(fragment.childrenCount() == 2);
   }
 
   {
     loka::app::Grid grid = buildTypedGrid();
-    assert(grid.childrenCount() == 2);
+  LOKA_VERIFY(grid.childrenCount() == 2);
     assert(grid.props.rows == 1);
     assert(grid.props.cols == 2);
   }
 
   {
     loka::app::ZStack stack = buildTypedZStack();
-    assert(stack.childrenCount() == 2);
+  LOKA_VERIFY(stack.childrenCount() == 2);
     assert(stack.hasTestId());
     assert(stack.testIdValue() == "TypedZStack");
   }
@@ -3253,7 +3253,7 @@ void testLokaFlowDslV1Core()
     ShowDefinition explicitShow = Show(isVisible) << Text("First") << Text("Second");
     ShowDefinition shorthandShow = isVisible << Text("First") << Text("Second");
 
-    assert(shorthandShow.childrenCount() == 2);
+  LOKA_VERIFY(shorthandShow.childrenCount() == 2);
     assertEquivalentDefinitionStructure(&explicitShow, &shorthandShow);
   }
 
@@ -3269,7 +3269,7 @@ void testLokaFlowDslV1Core()
     ShowDefinition explicitShow = Show(isVisible) << Text("First");
     ShowDefinition shorthandShow = isVisible << Text("First");
 
-    assert(shorthandShow.childrenCount() == 1);
+  LOKA_VERIFY(shorthandShow.childrenCount() == 1);
     assertEquivalentDefinitionStructure(&explicitShow, &shorthandShow);
   }
 
@@ -3284,11 +3284,11 @@ void testLokaFlowDslV1Core()
     TextDefinition trueText = Text("On").testId("ShowOnText");
     ShowDefinition showDef = Show(showState);
     showDef << trueText;
-    assert(showDef.childrenCount() == 1);
+  LOKA_VERIFY(showDef.childrenCount() == 1);
     root << showDef;
-    assert(root.childrenCount() == 1);
-    assert(root.childrenHead() != 0);
-    assert(root.childrenHead()->asNestableDefinition() == 0);
+  LOKA_VERIFY(root.childrenCount() == 1);
+  LOKA_VERIFY(root.childrenHead() != 0);
+  LOKA_VERIFY(root.childrenHead()->asNestableDefinition() == 0);
 
     NodeDefinitionBase *rootDefinition = composition.root()->clone();
     LOKA_VERIFY(rootDefinition != 0);

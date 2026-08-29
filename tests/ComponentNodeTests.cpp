@@ -497,7 +497,7 @@ void testComponentComposesChildrenOnceAfterStatesConnect()
     // The child subtree exists and is the declared Cell control, wired to
     // the component-owned resident.
     loka::app::scene::INestable *nestable = component->asNestable();
-    assert(nestable && nestable->childrenCount() == 1);
+  LOKA_VERIFY(nestable && nestable->childrenCount() == 1);
     loka::app::scene::Node *child = nestable->childrenHead();
     (void)child;
     assert(child && child->kind() == loka::app::scene::NODE_KIND_CELL);
@@ -649,8 +649,8 @@ void testComponentRefusesBranchSeatWholeBox()
   }
   int status = 0;
   LOKA_VERIFY(waitpid(child, &status, 0) == child);
-  assert(WIFSIGNALED(status));
-  assert(WTERMSIG(status) == SIGABRT);
+  LOKA_VERIFY(WIFSIGNALED(status));
+  LOKA_VERIFY(WTERMSIG(status) == SIGABRT);
 #endif
 }
 
