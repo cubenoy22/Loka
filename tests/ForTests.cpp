@@ -762,22 +762,34 @@ void testForWindowSlideRetainsOverlappingSeatsInOrder()
   LOKA_VERIFY(child == 0);
 }
 
-void testForWindowDuplicateScanIgnoresItemsOutsideWindow()
+void testForWindowRejectsDuplicateKeysOutsideWindow()
 {
-#ifndef NDEBUG
-  loka::Vector<ForItem> items;
-  items.push_back(ForItem(7, "first seven"));
-  items.push_back(ForItem(8, "eight"));
-  items.push_back(ForItem(7, "second seven"));
+  // Keys `[7, 8, 7]` with `window(0, 2)` expand only two rows, but the seat
+  // identity domain is the whole item list: sliding to `window(1, 2)` would
+  // otherwise hand the first item's Section (state included) to the third.
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
+  const pid_t child = fork();
+  LOKA_VERIFY(child >= 0);
+  if (child == 0)
+  {
+    loka::Vector<ForItem> items;
+    items.push_back(ForItem(7, "first seven"));
+    items.push_back(ForItem(8, "eight"));
+    items.push_back(ForItem(7, "second seven"));
+    typedef loka::app::ForBuilder<
+        ForItem,
+        ForTextFactory,
+        loka::dsl::Expr<int, loka::dsl::IndexExpr> > DefaultBuilder;
+    ForTextFactory factory;
+    DefaultBuilder builder = loka::app::For(1600, items, factory);
+    loka::app::Fragment parent;
+    parent << builder.key(builder.slot.member<int, &ForItem::id>()).window(0, 2);
+    _exit(0);
+  }
 
-  typedef loka::app::ForBuilder<
-      ForItem,
-      ForTextFactory,
-      loka::dsl::Expr<int, loka::dsl::IndexExpr> > DefaultBuilder;
-  ForTextFactory factory;
-  DefaultBuilder builder = loka::app::For(1600, items, factory);
-  loka::app::Fragment parent;
-  parent << builder.key(builder.slot.member<int, &ForItem::id>()).window(0, 2);
-  LOKA_VERIFY(parent.childrenCount() == 2);
+  int status = 0;
+  LOKA_VERIFY(waitpid(child, &status, 0) == child);
+  LOKA_VERIFY(WIFSIGNALED(status));
+  LOKA_VERIFY(WTERMSIG(status) == SIGABRT);
 #endif
 }

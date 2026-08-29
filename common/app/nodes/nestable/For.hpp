@@ -168,13 +168,18 @@ namespace loka
           return;
         }
 
-        std::size_t begin = 0;
-        std::size_t length = 0;
-        this->window_.resolve(itemCount, begin, length);
-        if (!this->validateKeys(items, begin, length))
+        // Keys are validated over the whole item domain, never just the
+        // window: a seat persists across window slides, so two items sharing
+        // one key anywhere in `items` would hand one item's Section (state
+        // included) to the other when the window moves (PR #523 review).
+        if (!this->validateKeys(items, itemCount))
         {
           return;
         }
+
+        std::size_t begin = 0;
+        std::size_t length = 0;
+        this->window_.resolve(itemCount, begin, length);
         const std::size_t end = begin + length;
 
         OwnedDefinitionBatch factoryChildren;
@@ -333,13 +338,10 @@ namespace loka
         return true;
       }
 
-      bool validateKeys(const Item *items,
-                        std::size_t begin,
-                        std::size_t length) const
+      bool validateKeys(const Item *items, std::size_t itemCount) const
       {
-        const std::size_t end = begin + length;
-        for (std::size_t absoluteIndex = begin;
-             absoluteIndex < end;
+        for (std::size_t absoluteIndex = 0;
+             absoluteIndex < itemCount;
              ++absoluteIndex)
         {
           scene::NodeTag candidate = scene::NODE_TAG_NONE;
@@ -351,7 +353,7 @@ namespace loka
           // This is the same debug-only misuse wall as the completed sibling
           // Section duplicate scan. Release diffing already refuses duplicate
           // tagged siblings and falls back to a full rebuild.
-          for (std::size_t prior = begin; prior < absoluteIndex; ++prior)
+          for (std::size_t prior = 0; prior < absoluteIndex; ++prior)
           {
             scene::NodeTag priorTag = scene::NODE_TAG_NONE;
             if (!this->evaluateTag(items, prior, priorTag))
