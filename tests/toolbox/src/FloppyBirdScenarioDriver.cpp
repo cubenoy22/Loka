@@ -38,7 +38,7 @@ namespace loka
               recorded_(false),
               tickCount_(0),
               lingerRemaining_(settings.hasLingerSeconds ? static_cast<double>(settings.lingerSeconds) : 0.0),
-              hostCompletionSignal_()
+              completionPublisher_()
         {
         }
 
@@ -113,7 +113,7 @@ namespace loka
                 (void)this->scenario_.publishVerdict(record);
               }
               this->recorded_ = true;
-              (void)this->hostCompletionSignal_.publish();
+              (void)this->completionPublisher_.publish(window);
             }
           }
           if (!this->recorded_)
@@ -135,7 +135,7 @@ namespace loka
         bool recorded_;
         long tickCount_;
         double lingerRemaining_;
-        HostCompletionSignal hostCompletionSignal_;
+        ScenarioCompletionPublisher completionPublisher_;
       };
     } // namespace
 

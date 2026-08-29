@@ -61,6 +61,10 @@ cp "$REPO_DIR/tests/scenarios/expected/floppybird/fixed-step-flaps.audit" \
   "$SANDBOX/repo/tests/scenarios/expected/floppybird/fixed-step-flaps.audit"
 cp "$REPO_DIR/example/ScrapbookUI/assets/page1.png" "$SANDBOX/snapshot.png"
 cp "$REPO_DIR/example/ScrapbookUI/assets/page2.png" "$SANDBOX/different-snapshot.png"
+printf '20 10 180 140\n' >"$SANDBOX/capture-rectangle.txt"
+python3 "$SANDBOX/repo/tests/scenarios/pngtool.py" normalize \
+  "$SANDBOX/snapshot.png" "$SANDBOX/capture-rectangle.txt" \
+  "$SANDBOX/normalized-snapshot.png" >/dev/null
 printf '%s\n' \
   'scrapbook startup' \
   'scrapbook open-first-page-refused' \
@@ -163,6 +167,13 @@ cat >"$SANDBOX/retro-tools/hcopy" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 destination="$3"
+if [ "$2" = ":LokaTestsToolbox.capture" ]; then
+  if [ "${FAKE_CAPTURE_MISSING:-0}" = "1" ]; then
+    exit 1
+  fi
+  printf '%s\n' "${FAKE_CAPTURE_RECTANGLE-20 10 180 140}" >"$destination"
+  exit 0
+fi
 expected="$SANDBOX/repo/tests/scenarios/expected/${FAKE_EXAMPLE:-scrapbook}/${FAKE_SCENARIO:-startup}.audit"
 if [ "${FAKE_AUDIT_MUTATION:-0}" = "1" ]; then
   sed 's/status\tok/status\terror/' "$expected" >"$destination"
@@ -318,7 +329,7 @@ prepare_authorized_bundle() {
     --descriptor "$RIG_DESCRIPTOR" \
     --mame-executable "$SANDBOX/fake-mame" \
     --ram-size 8M --machine maciix \
-    --capture-adapter mame-screen-snapshot.v1 \
+    --capture-adapter mame-screen-snapshot.v2 \
     --boot-hd "$SANDBOX/BootTemplate.hd" \
     || fail "could not capture the fake reference identity"
   while read -r example scenario; do
@@ -328,7 +339,7 @@ prepare_authorized_bundle() {
       --declarations "$STARTUP_IDENTITY_DECLARATIONS" \
       --descriptor "$RIG_DESCRIPTOR" \
       --current-identity "$CURRENT_IDENTITY" \
-      --capture "$SANDBOX/snapshot.png" \
+      --capture "$SANDBOX/normalized-snapshot.png" \
       --application "$SANDBOX/fake-mame" \
       --source-tree "$REPO_DIR" \
       --example "$example" --scenario "$scenario" >/dev/null \
@@ -437,6 +448,53 @@ verify_startup_verdict helloworld
 verify_startup_verdict tutorial
 verify_startup_verdict minesweeper
 verify_startup_verdict floppybird
+
+verify_capture_rectangle_failure() {
+  local setting="$1"
+  local expected_stage="$2"
+  shift 2
+  if MAME_ENV_FILE="$SANDBOX/mame.env" RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
+      FAKE_MAME_RESULT=success FAKE_EXAMPLE=helloworld \
+      env -u WSL_INTEROP -u LOKA_TAB_COUNT "$setting" \
+      bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" helloworld startup "$@" \
+        >"$SANDBOX/runner-capture-rectangle-failure.log" 2>&1; then
+    fail "invalid capture rectangle '$setting' unexpectedly passed"
+  fi
+  grep -Fq "$expected_stage stage failed:" \
+    "$SANDBOX/runner-capture-rectangle-failure.log" \
+    || fail "invalid capture rectangle '$setting' did not fail the $expected_stage stage"
+  if grep -Fq 'machine_verdict=refused' \
+      "$SANDBOX/runner-capture-rectangle-failure.log"; then
+    fail "invalid runtime capture rectangle '$setting' became a reference refusal"
+  fi
+}
+
+verify_capture_rectangle_failure FAKE_CAPTURE_MISSING=1 extract --structural-audit
+verify_capture_rectangle_failure FAKE_CAPTURE_RECTANGLE= normalize
+verify_capture_rectangle_failure FAKE_CAPTURE_RECTANGLE='20 10 nope 140' normalize
+verify_capture_rectangle_failure FAKE_CAPTURE_RECTANGLE='20 10 201 140' normalize
+
+verify_moved_window_is_pixel_failure() {
+  if MAME_ENV_FILE="$SANDBOX/mame.env" RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
+      FAKE_MAME_RESULT=success FAKE_EXAMPLE=helloworld \
+      FAKE_CAPTURE_RECTANGLE='21 10 181 140' \
+      env -u WSL_INTEROP -u LOKA_TAB_COUNT \
+      bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" helloworld startup \
+        >"$SANDBOX/runner-moved-window.log" 2>&1; then
+    fail "moved window unexpectedly passed its pixel golden"
+  fi
+  grep -Fq 'golden stage failed:' "$SANDBOX/runner-moved-window.log" \
+    || fail "moved window did not fail as a golden verdict"
+  grep -Fq 'baked rectangle: 20 10 180 140' "$SANDBOX/runner-moved-window.log" \
+    || fail "moved-window verdict omitted the baked rectangle"
+  grep -Fq 'reported rectangle: 21 10 181 140' "$SANDBOX/runner-moved-window.log" \
+    || fail "moved-window verdict omitted the runtime rectangle"
+  if grep -Fq 'machine_verdict=refused' "$SANDBOX/runner-moved-window.log"; then
+    fail "moved window was misclassified as a reference refusal"
+  fi
+}
+
+verify_moved_window_is_pixel_failure
 
 assert_refused() {
   local log="$1"
@@ -552,7 +610,7 @@ verify_atomic_bake_and_no_self_authorize() {
     --descriptor "$RIG_DESCRIPTOR" \
     --mame-executable "$SANDBOX/fake-mame" \
     --ram-size 8M --machine macqd700 \
-    --capture-adapter mame-screen-snapshot.v1 \
+    --capture-adapter mame-screen-snapshot.v2 \
     --boot-hd "$SANDBOX/BootTemplate.hd" \
     || fail "could not capture arbitrary bake identity"
   mkdir "$bundle.previous"
@@ -608,7 +666,7 @@ EOF
   python3 "$IDENTITY_HELPER" capture-current \
     --output "$current" --build-provenance "$provenance" \
     --descriptor "$RIG_DESCRIPTOR" --mame-executable "$SANDBOX/fake-mame" \
-    --ram-size 8M --machine maciix --capture-adapter mame-screen-snapshot.v1 \
+    --ram-size 8M --machine maciix --capture-adapter mame-screen-snapshot.v2 \
     --boot-hd "$SANDBOX/BootTemplate.hd" \
     || fail "unattestable Retro68 provenance prevented current identity capture"
   python3 "$IDENTITY_HELPER" stage-capture \

@@ -1,9 +1,12 @@
 #include "ScenarioDriverSupport.hpp"
 
+#include <cstdio>
+
 #include "ToolboxWindow.hpp"
 #include "app/core/Window.hpp"
 #include "core/io/File.hpp"
 #include "platform/file/AppLocation.hpp"
+#include "platform/file/FileIO.hpp"
 #include "testing/scene/ScenarioAudit.hpp"
 
 namespace loka
@@ -13,6 +16,57 @@ namespace loka
     namespace
     {
       const char *kAuditFile = "LokaTestsToolbox.audit";
+      const char *kCaptureRectangleFile = "LokaTestsToolbox.capture";
+
+      bool QueryCaptureStructureBounds(Window *window, Rect &out)
+      {
+        ToolboxWindow *toolboxWindow = window ? window->asToolboxWindow() : 0;
+        WindowPtr nativeWindow = toolboxWindow ? toolboxWindow->window() : 0;
+        WindowPeek peek = reinterpret_cast<WindowPeek>(nativeWindow);
+        if (!peek || !peek->strucRgn)
+        {
+          return false;
+        }
+        const Rect bounds = (*peek->strucRgn)->rgnBBox;
+        const Rect screen = qd.screenBits.bounds;
+        if (bounds.left < screen.left || bounds.top < screen.top || bounds.right > screen.right
+            || bounds.bottom > screen.bottom || bounds.right <= bounds.left || bounds.bottom <= bounds.top)
+        {
+          return false;
+        }
+        out = bounds;
+        return true;
+      }
+
+      bool PublishCaptureRectangle(Window *window)
+      {
+        Rect bounds;
+        if (!QueryCaptureStructureBounds(window, bounds))
+        {
+          return false;
+        }
+        platform::file::FileHandle destination;
+        if (!platform::file::ResolveApplicationSidecar(
+                file::File::Application() << file::File(kCaptureRectangleFile), destination))
+        {
+          return false;
+        }
+        std::FILE *output = platform::file::OpenWriteTruncate(destination);
+        if (!output)
+        {
+          return false;
+        }
+        const bool wrote = std::fprintf(output,
+                                        "%d %d %d %d\n",
+                                        static_cast<int>(bounds.left),
+                                        static_cast<int>(bounds.top),
+                                        static_cast<int>(bounds.right),
+                                        static_cast<int>(bounds.bottom))
+            > 0;
+        const bool flushed = wrote && platform::file::FlushWrite(output, destination);
+        const bool closed = std::fclose(output) == 0;
+        return flushed && closed;
+      }
     } // namespace
 
     scenario_tests::CaptureContentBounds QueryCaptureContentBounds(Window *window)
@@ -72,23 +126,30 @@ namespace loka
       return audit.isValid() && terminal.emit(dsl::testing::SCENARIO_AUDIT_FAILED, record);
     }
 
-    HostCompletionSignal::HostCompletionSignal()
-        : window_(0)
+    ScenarioCompletionPublisher::ScenarioCompletionPublisher()
+        : signalWindow_(0)
     {
     }
 
-    HostCompletionSignal::~HostCompletionSignal()
+    ScenarioCompletionPublisher::~ScenarioCompletionPublisher()
     {
-      if (this->window_)
+      if (this->signalWindow_)
       {
-        DisposeWindow(this->window_);
-        this->window_ = 0;
+        DisposeWindow(this->signalWindow_);
+        this->signalWindow_ = 0;
       }
     }
 
-    bool HostCompletionSignal::publish()
+    bool ScenarioCompletionPublisher::publish(Window *window)
     {
-      if (this->window_)
+      const bool capturePublished = PublishCaptureRectangle(window);
+      const bool signalPublished = this->publishHostSignal();
+      return capturePublished && signalPublished;
+    }
+
+    bool ScenarioCompletionPublisher::publishHostSignal()
+    {
+      if (this->signalWindow_)
       {
         return true;
       }
@@ -104,17 +165,17 @@ namespace loka
               static_cast<short>(bounds.bottom - 4));
       Str255 title;
       title[0] = 0;
-      this->window_ = NewWindow(0, &bounds, title, true, plainDBox, reinterpret_cast<WindowPtr>(-1L), false, 0);
-      if (!this->window_)
+      this->signalWindow_ = NewWindow(0, &bounds, title, true, plainDBox, reinterpret_cast<WindowPtr>(-1L), false, 0);
+      if (!this->signalWindow_)
       {
         return false;
       }
       GrafPtr previousPort = 0;
       GetPort(&previousPort);
-      BeginUpdate(this->window_);
-      SetPort(this->window_);
-      FillRect(&this->window_->portRect, &qd.black);
-      EndUpdate(this->window_);
+      BeginUpdate(this->signalWindow_);
+      SetPort(this->signalWindow_);
+      FillRect(&this->signalWindow_->portRect, &qd.black);
+      EndUpdate(this->signalWindow_);
       SetPort(previousPort);
       return true;
     }

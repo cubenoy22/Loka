@@ -156,7 +156,9 @@ LAUNCHER="$WORK/mame-launch.lua"
 MAME_OUT="$WORK/mame.out"
 LAUNCH_LOG="$WORK/mame-launch.log"
 AUDIT="$WORK/LokaTestsToolbox.audit"
+CAPTURE_RECTANGLE="$WORK/LokaTestsToolbox.capture"
 EXPECTED_AUDIT="$PROJECT_DIR/tests/scenarios/expected/$EXAMPLE/$SCENARIO.audit"
+RAW_IMAGE="$WORK/$SCENARIO.full-screen.png"
 ACTUAL_IMAGE="$WORK/$SCENARIO.png"
 # Goldens are rig-local, not tracked: the pixels depend on the local boot
 # image's System resources (fonts, control chrome) and contain Apple-rendered
@@ -168,7 +170,7 @@ GOLDEN_BUNDLE="$PROJECT_DIR/build/mame-scenario/golden"
 GOLDEN_IDENTITY_HELPER="$PROJECT_DIR/scripts/rig/toolbox/classic_golden_identity.py"
 PACKAGE_FIXTURE_GUARD="$PROJECT_DIR/scripts/rig/package_fixture_guard.py"
 RIG_DESCRIPTOR="$PROJECT_DIR/scripts/rig/toolbox/rigs/toolbox-maciix.ini"
-CAPTURE_ADAPTER="${LOKA_TOOLBOX_CAPTURE_ADAPTER:-mame-screen-snapshot.v1}"
+CAPTURE_ADAPTER="${LOKA_TOOLBOX_CAPTURE_ADAPTER:-mame-screen-snapshot.v2}"
 BUILD_PROVENANCE="$(dirname "$APPL")/classic-build-provenance.txt"
 CURRENT_IDENTITY="$WORK/classic-golden-identity.txt"
 MACHINE_VERDICT="$WORK/machine-verdict.txt"
@@ -373,6 +375,11 @@ if ! HOME="$HFS_HOME" "$HCOPY" -t ":LokaTestsToolbox.audit" "$AUDIT" >"$WORK/hco
   HOME="$HFS_HOME" "$HUMOUNT" >/dev/null 2>&1 || true
   fail_stage extract "could not copy LokaTestsToolbox.audit; see $WORK/hcopy.out"
 fi
+if ! HOME="$HFS_HOME" "$HCOPY" -t ":LokaTestsToolbox.capture" "$CAPTURE_RECTANGLE" \
+    >"$WORK/hcopy-capture.out" 2>&1; then
+  HOME="$HFS_HOME" "$HUMOUNT" >/dev/null 2>&1 || true
+  fail_stage extract "could not copy LokaTestsToolbox.capture; see $WORK/hcopy-capture.out"
+fi
 if ! HOME="$HFS_HOME" "$HUMOUNT" >"$WORK/humount.out" 2>&1; then
   fail_stage extract "could not unmount the development disk; see $WORK/humount.out"
 fi
@@ -394,17 +401,21 @@ while IFS= read -r -d '' candidate; do
   fi
 done < <(find "$SNAPSHOT_DIR" -type f -name '*.png' -print0)
 if [ -z "$newest_snapshot" ]; then
-  fail_stage crop "MAME did not write a snapshot PNG under $SNAPSHOT_DIR"
+  fail_stage collect "MAME did not write a snapshot PNG under $SNAPSHOT_DIR"
 fi
 PNG_TOOL="$PROJECT_DIR/tests/scenarios/pngtool.py"
-if ! cp -f "$newest_snapshot" "$ACTUAL_IMAGE"; then
+if ! cp -f "$newest_snapshot" "$RAW_IMAGE"; then
   fail_stage collect "could not collect $newest_snapshot"
 fi
-
 if [ "$STRUCTURAL_AUDIT" -eq 1 ]; then
   echo "Scenario structural/audit pass: $EXAMPLE/$SCENARIO"
   echo "Pixel verdict: not evaluated (Classic structural/audit mode does not claim a pixel verdict)"
   exit 0
+fi
+
+if ! reported_rectangle="$(python3 "$PNG_TOOL" normalize \
+    "$RAW_IMAGE" "$CAPTURE_RECTANGLE" "$ACTUAL_IMAGE" 2>&1)"; then
+  fail_stage normalize "$reported_rectangle"
 fi
 
 if [ "$UPDATE_GOLDEN" -eq 1 ]; then
@@ -440,8 +451,19 @@ if ! identity_message="$(python3 "$GOLDEN_IDENTITY_HELPER" verify \
   echo "Work directory left for inspection: $WORK" >&2
   exit 3
 fi
+if ! baked_rectangle="$(python3 "$PNG_TOOL" alpha-bounds "$GOLDEN" 2>&1)"; then
+  refusal_reason="${baked_rectangle//$'\n'/ }"
+  printf 'machine_verdict=refused\nruntime_verification=passed\nrefusal_reason=%s\n' \
+    "$refusal_reason" >"$MACHINE_VERDICT" || true
+  echo "machine_verdict=refused" >&2
+  echo "$baked_rectangle" >&2
+  echo "Work directory left for inspection: $WORK" >&2
+  exit 3
+fi
 if ! python3 "$PNG_TOOL" compare "$ACTUAL_IMAGE" "$GOLDEN"; then
   python3 "$PNG_TOOL" diff "$GOLDEN" "$ACTUAL_IMAGE" "$DIFF_DIR/$SCENARIO.png" || true
+  echo "baked rectangle: $baked_rectangle" >&2
+  echo "reported rectangle: $reported_rectangle" >&2
   fail_stage golden "settled snapshot differs from $GOLDEN"
 fi
 

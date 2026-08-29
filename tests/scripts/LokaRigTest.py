@@ -72,7 +72,7 @@ def make_toolbox_golden_bundle(root, checkout, scenarios):
         "mame_rom_identity": "c" * 64,
         "ram_size": "8M",
         "machine": "maciix",
-        "capture_adapter": "mame-screen-snapshot.v1",
+        "capture_adapter": "mame-screen-snapshot.v2",
         "boot_hd_sha256": "d" * 64,
     }
     current = root / "current-identity.txt"

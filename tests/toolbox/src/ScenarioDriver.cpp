@@ -154,7 +154,7 @@ namespace loka
             {
               (void)this->scenario_.publishVerdict(record);
               this->recorded_ = true;
-              (void)this->hostCompletionSignal_.publish();
+              (void)this->completionPublisher_.publish(window);
             }
           }
           if (!this->recorded_)
@@ -177,7 +177,7 @@ namespace loka
         bool recorded_;
         long tickCount_;
         double lingerRemaining_;
-        HostCompletionSignal hostCompletionSignal_;
+        ScenarioCompletionPublisher completionPublisher_;
       };
     } // namespace
 
