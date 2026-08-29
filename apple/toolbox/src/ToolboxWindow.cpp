@@ -280,6 +280,10 @@ void ToolboxWindow::FrameChangedThunk(void *userData)
   {
     return;
   }
+  if (self->isCapturingNativeFrame())
+  {
+    return; // the native window is the source of this value; do not project it back
+  }
   loka::core::Frame frame = self->frameState().get();
   if (frame.hasPosition())
   {

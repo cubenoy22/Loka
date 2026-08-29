@@ -222,6 +222,10 @@ void MacWindow::FrameChangedThunk(void *userData)
   {
     return;
   }
+  if (self->isCapturingNativeFrame())
+  {
+    return; // the native window is the source of this value; do not project it back
+  }
   NSWindow *window = (NSWindow *)self->window_;
   loka::core::Frame frame = self->frameState().get();
   if (!frame.hasSize())

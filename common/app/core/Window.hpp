@@ -504,6 +504,7 @@ public:
   Window(PlatformContext *context, const WindowProps &props = WindowProps())
       : context_(context),
         tracker_(0),
+        capturingNativeFrame_(false),
         titleStorage_(),
         visibilityStorage_(true),
         frameState_(),
@@ -801,7 +802,12 @@ public:
 
 private:
 protected:
-  /** Stores a native content-size change without changing logical position. */
+  /** Stores a native content-size change without changing logical position.
+      The native window already has this size, and on rails that never write a
+      user move back into Frame.x/y the stored position may be stale, so the
+      rail's frame observer must not project this write back out (it would snap
+      the window to its originally declared origin). isCapturingNativeFrame()
+      is true for the duration of the write; observers return early on it. */
   void storeNativeContentSize(int width, int height)
   {
     loka::core::Frame frame = this->frameState().get();
@@ -811,9 +817,22 @@ protected:
     }
     frame.width = width;
     frame.height = height;
-    loka::core::StateTrackerGuard guard(this->getTracker());
-    this->frameState().set(frame);
+    this->capturingNativeFrame_ = true;
+    {
+      loka::core::StateTrackerGuard guard(this->getTracker());
+      this->frameState().set(frame);
+    }
+    this->capturingNativeFrame_ = false;
   }
+
+public:
+  /** True while a native size fact is being stored into frameState(). */
+  bool isCapturingNativeFrame() const
+  {
+    return this->capturingNativeFrame_;
+  }
+
+protected:
 
   void observeNativeState(const loka::core::StateBase &state,
                           loka::core::StateBase::OnChangeFn callback,
@@ -829,6 +848,7 @@ protected:
 
   PlatformContext *context_;
   loka::core::StateTracker *tracker_;
+  bool capturingNativeFrame_;
   SceneManager sceneManager_;
   loka::core::MutableState<loka::core::String> titleStorage_;
   loka::core::MutableState<bool> visibilityStorage_;
