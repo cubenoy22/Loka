@@ -4,6 +4,7 @@
 import argparse
 import collections
 import os
+import re
 import struct
 import sys
 import tempfile
@@ -177,9 +178,58 @@ def write_png(path, image):
         row_start = y * row_rgba_bytes
         for x in range(image.width):
             pixel_start = row_start + x * 4
-            scanlines.extend(image.rgba[pixel_start : pixel_start + 3])
+            scanlines.extend(image.rgba[pixel_start : pixel_start + 4])
     with open(path, "wb") as handle:
-        handle.write(_build_png(image.width, image.height, 2, bytes(scanlines)))
+        handle.write(_build_png(image.width, image.height, 6, bytes(scanlines)))
+
+
+def normalize_image(image, left, top, right, bottom):
+    if not (0 <= left < right <= image.width and 0 <= top < bottom <= image.height):
+        raise PngError(
+            "capture rectangle ({}, {}, {}, {}) is outside {}x{}".format(
+                left, top, right, bottom, image.width, image.height
+            )
+        )
+    normalized = bytearray(image.width * image.height * 4)
+    for y in range(top, bottom):
+        for x in range(left, right):
+            offset = (y * image.width + x) * 4
+            normalized[offset : offset + 3] = image.rgba[offset : offset + 3]
+            normalized[offset + 3] = 255
+    return Image(image.width, image.height, normalized)
+
+
+def read_capture_rectangle(path):
+    with open(path, "rb") as handle:
+        payload = handle.read()
+    if re.fullmatch(rb"-?\d+ -?\d+ -?\d+ -?\d+\n", payload) is None:
+        raise PngError("capture rectangle must be one 'left top right bottom' line")
+    return tuple(int(field) for field in payload.split())
+
+
+def alpha_mask_bounds(image):
+    left = image.width
+    top = image.height
+    right = 0
+    bottom = 0
+    for y in range(image.height):
+        for x in range(image.width):
+            alpha = image.rgba[(y * image.width + x) * 4 + 3]
+            if alpha not in (0, 255):
+                raise PngError("golden alpha mask contains a non-binary alpha value")
+            if alpha == 255:
+                left = min(left, x)
+                top = min(top, y)
+                right = max(right, x + 1)
+                bottom = max(bottom, y + 1)
+    if right == 0 or bottom == 0:
+        raise PngError("golden alpha mask is empty")
+    for y in range(image.height):
+        for x in range(image.width):
+            expected = 255 if left <= x < right and top <= y < bottom else 0
+            if image.rgba[(y * image.width + x) * 4 + 3] != expected:
+                raise PngError("golden alpha mask is not one rectangular region")
+    return left, top, right, bottom
 
 
 def crop_image(image, left, top, right, bottom):
@@ -559,8 +609,37 @@ def selftest():
     pixels = bytearray()
     for y in range(height):
         for x in range(width):
-            pixels.extend(((x * 31 + y * 7) & 0xFF, (x * 11 + y * 43) & 0xFF, (x * 5 + y * 19) & 0xFF, 255))
+            pixels.extend(
+                (
+                    (x * 31 + y * 7) & 0xFF,
+                    (x * 11 + y * 43) & 0xFF,
+                    (x * 5 + y * 19) & 0xFF,
+                    (x * 47 + y * 29) & 0xFF,
+                )
+            )
     source = Image(width, height, pixels)
+
+    normalized = normalize_image(source, 2, 1, 6, 4)
+    for y in range(height):
+        for x in range(width):
+            offset = (y * width + x) * 4
+            pixel = normalized.rgba[offset : offset + 4]
+            if 2 <= x < 6 and 1 <= y < 4:
+                expected = source.rgba[offset : offset + 3] + bytes((255,))
+            else:
+                expected = bytes((0, 0, 0, 0))
+            if pixel != expected:
+                raise PngError("window-mask normalization selftest failed")
+    if alpha_mask_bounds(normalized) != (2, 1, 6, 4):
+        raise PngError("window-mask alpha bounds selftest failed")
+    outside_changed = bytearray(source.rgba)
+    outside_changed[0:4] = bytes((255, 255, 255, 255))
+    if compare_images(
+        normalized,
+        normalize_image(Image(width, height, outside_changed), 2, 1, 6, 4),
+        report=False,
+    ) != 0:
+        raise PngError("outside-window difference survived normalization")
 
     with tempfile.TemporaryDirectory(prefix="pngcrop-selftest-") as directory:
         filtered_path = os.path.join(directory, "filtered.png")
@@ -575,6 +654,8 @@ def selftest():
         write_png(cropped_path, expected_crop)
         decoded_crop = read_png(cropped_path)
         write_png(roundtrip_path, decoded_crop)
+        if decoded_crop.rgba[3::4] != expected_crop.rgba[3::4]:
+            raise PngError("write_png alpha round-trip selftest failed")
         if compare_images(expected_crop, decoded_crop, report=False) != 0:
             raise PngError("crop/write/read selftest failed")
         if compare_images(
@@ -644,6 +725,18 @@ def main(argv=None):
     crop_parser.add_argument("bottom", type=int)
     crop_parser.add_argument("output")
 
+    normalize_parser = subparsers.add_parser(
+        "normalize", help="mask a full-screen PNG to a capture rectangle record"
+    )
+    normalize_parser.add_argument("input")
+    normalize_parser.add_argument("rectangle_record")
+    normalize_parser.add_argument("output")
+
+    bounds_parser = subparsers.add_parser(
+        "alpha-bounds", help="print and validate the rectangular alpha mask"
+    )
+    bounds_parser.add_argument("input")
+
     compare_parser = subparsers.add_parser("compare", help="compare decoded pixels")
     compare_parser.add_argument("--max-diff-px", type=int, default=0)
     compare_parser.add_argument("--max-diff-columns", type=int)
@@ -675,6 +768,16 @@ def main(argv=None):
                 arguments.output,
                 crop_image(image, arguments.left, arguments.top, arguments.right, arguments.bottom),
             )
+            return 0
+        if arguments.command == "normalize":
+            image = read_png(arguments.input)
+            rectangle = read_capture_rectangle(arguments.rectangle_record)
+            write_png(arguments.output, normalize_image(image, *rectangle))
+            print("{} {} {} {}".format(*rectangle))
+            return 0
+        if arguments.command == "alpha-bounds":
+            rectangle = alpha_mask_bounds(read_png(arguments.input))
+            print("{} {} {} {}".format(*rectangle))
             return 0
         if arguments.command == "compare":
             if arguments.max_diff_px < 0:

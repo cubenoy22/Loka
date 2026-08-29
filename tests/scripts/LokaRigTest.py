@@ -72,7 +72,7 @@ def make_toolbox_golden_bundle(root, checkout, scenarios):
         "mame_rom_identity": "c" * 64,
         "ram_size": "8M",
         "machine": "maciix",
-        "capture_adapter": "mame-screen-snapshot.v1",
+        "capture_adapter": "mame-screen-snapshot.v2",
         "boot_hd_sha256": "d" * 64,
     }
     current = root / "current-identity.txt"
@@ -354,7 +354,7 @@ class ToolboxRigAdapterTest(unittest.TestCase):
         # has to change a test and surface in review.
         self.assertEqual(
             descriptor.reference_identity_sha256,
-            "080c51416bcac65bb9e621709e8666dbf06fef4acf9930b94ba4caf4e929b15d",
+            "8eedf39aed8c900823809d0ef3b7312bedba2d6a6403c676eaf4e0ca62119326",
         )
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)

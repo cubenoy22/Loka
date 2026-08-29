@@ -24,18 +24,20 @@ namespace loka
     platform::file::FileHandle ResolveScenarioAuditFile();
     bool WriteScenarioErrorAudit(const char *scenario, const dsl::SnapRecord &record);
 
-    /** Owns the native marker used by MAME's live-screen completion seam. */
-    class HostCompletionSignal
+    /** Publishes the completion-time native capture geometry and then the
+        marker used by MAME's live-screen completion seam. */
+    class ScenarioCompletionPublisher
     {
     public:
-      HostCompletionSignal();
-      ~HostCompletionSignal();
-      bool publish();
+      ScenarioCompletionPublisher();
+      ~ScenarioCompletionPublisher();
+      bool publish(Window *window);
 
     private:
-      HostCompletionSignal(const HostCompletionSignal &);
-      HostCompletionSignal &operator=(const HostCompletionSignal &);
-      WindowPtr window_;
+      ScenarioCompletionPublisher(const ScenarioCompletionPublisher &);
+      ScenarioCompletionPublisher &operator=(const ScenarioCompletionPublisher &);
+      bool publishHostSignal();
+      WindowPtr signalWindow_;
     };
   } // namespace toolbox_tests
 } // namespace loka
