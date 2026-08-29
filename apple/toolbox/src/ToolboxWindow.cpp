@@ -280,11 +280,11 @@ void ToolboxWindow::FrameChangedThunk(void *userData)
   {
     return;
   }
-  if (self->isCapturingNativeFrame())
+  loka::core::Frame frame = self->frameState().get();
+  if (self->isCapturedNativeSize(frame.width, frame.height))
   {
     return; // the native window is the source of this value; do not project it back
   }
-  loka::core::Frame frame = self->frameState().get();
   if (frame.hasPosition())
   {
     short y = static_cast<short>(frame.y >= 0 ? frame.y : 0);
@@ -498,12 +498,17 @@ void ToolboxWindow::drawDirty(const Rect &rect)
     GetClip(oldClip);
     ClipRect(&clip);
     scenePlatformController_->renderDirty(rect);
+    // Content is laid out into the full portRect, so a dirty rect that touches
+    // the grow corner or the scroll-bar lines paints over them; restore the
+    // icon under the same clip (a rect that misses it draws nothing).
+    DrawGrowIcon(window_);
     SetClip(oldClip);
     DisposeRgn(oldClip);
   }
   else
   {
     scenePlatformController_->renderDirty(rect);
+    DrawGrowIcon(window_);
   }
   SetPort(oldPort);
 }
