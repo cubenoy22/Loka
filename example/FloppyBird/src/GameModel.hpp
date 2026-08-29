@@ -71,9 +71,7 @@ namespace floppybird
           cachedModel_()
     {
       this->tracker_.addState(&this->surfaceModel_);
-#if !defined(LOKA_RETRO68)
       this->tracker_.addState(&this->scoreText_);
-#endif
       this->game_.seed(seed);
       this->renderScene();
     }
@@ -145,22 +143,26 @@ namespace floppybird
     void renderScene()
     {
       RenderSnapshot snapshot;
+      const bool hadPreviousSnapshot = this->hasLastSnapshot_;
+      const short previousScore = hadPreviousSnapshot ? this->lastSnapshot_.score : 0;
+      const bool wasDead = hadPreviousSnapshot && this->lastSnapshot_.state == loka_floppy_bird::GAME_DEAD;
       if (!this->buildSnapshot(snapshot))
       {
         return;
       }
-#if !defined(LOKA_RETRO68)
-      if (snapshot.state == loka_floppy_bird::GAME_DEAD)
+      const bool isDead = snapshot.state == loka_floppy_bird::GAME_DEAD;
+      if (!hadPreviousSnapshot || previousScore != snapshot.score || wasDead != isDead)
       {
-        this->scoreText_.set(loka::core::String::Literal("Game Over - Score: ")
-                             + loka::core::String::FromInt(snapshot.score));
+        if (isDead)
+        {
+          this->scoreText_.set(loka::core::String::Literal("Game Over - Score: ")
+                               + loka::core::String::FromInt(snapshot.score));
+        }
+        else
+        {
+          this->scoreText_.set(loka::core::String::Literal("Score: ") + loka::core::String::FromInt(snapshot.score));
+        }
       }
-      else
-      {
-        this->scoreText_.set(loka::core::String::Literal("Score: ")
-                             + loka::core::String::FromInt(snapshot.score));
-      }
-#endif
 
       this->cachedModel_.rectCount = 0;
       for (short i = 0; i < snapshot.pipeCount; ++i)

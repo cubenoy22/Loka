@@ -226,6 +226,10 @@ void testFloppyBirdGameModelResetReplaysSeededScenario()
   scene.updateAttached(false);
   scene.updateAttached(true);
   game.reset(loka::scenario_tests::FloppyBirdScenarioSeed());
+  loka::app::scene::Scene *checkedScene = 0;
+  loka::dsl::FlowError textError;
+  LOKA_VERIFY(loka::dsl::testing::CheckText("FloppyBird.Score", "Score: 0").run(&scene, checkedScene, textError)
+              == loka::dsl::FLOW_STEP_SUCCEEDED);
 
   loka::dsl::SnapRecord secondRecord;
   {
