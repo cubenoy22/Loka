@@ -8,5 +8,10 @@ void testForFactoryCloneFailureLeavesParentUnchanged();
 void testUniqueTaggedSiblingListRejectsAnonymousSibling();
 void testForDerivedKeysRetainItemSeatAcrossRemoval();
 void testForVectorBuilderReadsCurrentContentsAtAppend();
+void testForWindowBuildsHandWrittenSubrange();
+void testForWindowClampsToLastValidStart();
+void testForWindowSurvivesKeyChainInBothOrders();
+void testForWindowSlideRetainsOverlappingSeatsInOrder();
+void testForWindowDuplicateScanIgnoresItemsOutsideWindow();
 
 #endif // LOKA_FOR_TESTS_HPP

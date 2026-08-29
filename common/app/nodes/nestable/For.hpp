@@ -15,6 +15,61 @@ namespace loka
 {
   namespace app
   {
+    namespace detail
+    {
+      /** Compose-time range request carried by ForBuilder. */
+      class ForWindow
+      {
+      public:
+        ForWindow()
+            : enabled_(false),
+              first_(0),
+              count_(0)
+        {
+        }
+
+        ForWindow(long first, long count)
+            : enabled_(true),
+              first_(first),
+              count_(count)
+        {
+        }
+
+        void resolve(std::size_t size,
+                     std::size_t &begin,
+                     std::size_t &length) const
+        {
+          begin = 0;
+          length = size;
+          if (!this->enabled_)
+          {
+            return;
+          }
+
+          const std::size_t boundedCount =
+              this->count_ <= 0
+                  ? 0
+                  : (static_cast<unsigned long>(this->count_) >= size
+                         ? size
+                         : static_cast<std::size_t>(this->count_));
+          const std::size_t maximumBegin = size > boundedCount
+                                                   ? size - boundedCount
+                                                   : 0;
+          begin = this->first_ <= 0
+                      ? 0
+                      : (static_cast<unsigned long>(this->first_) >= maximumBegin
+                             ? maximumBegin
+                             : static_cast<std::size_t>(this->first_));
+          length = boundedCount < size - begin ? boundedCount : size - begin;
+        }
+
+      private:
+        bool enabled_;
+        long first_;
+        long count_;
+      };
+    } // namespace detail
+
     /** Default item-to-definition policy for Props values. Props without a
         NodeType deliberately make the no-factory For overload ill-formed. */
     template <class Item> struct ComponentItemFactory
@@ -42,14 +97,16 @@ namespace loka
       ForBuilder(long base,
                  const Vector<Item> &items,
                  const Factory &factory,
-                 const KeyExprT &keyExpr)
+                 const KeyExprT &keyExpr,
+                 const detail::ForWindow &window = detail::ForWindow())
           : slot(1),
             base_(base),
             vectorItems_(&items),
             arrayItems_(0),
             arrayItemCount_(0),
             factory_(factory),
-            keyExpr_(keyExpr)
+            keyExpr_(keyExpr),
+            window_(window)
       {
       }
 
@@ -57,15 +114,25 @@ namespace loka
                  const Item *items,
                  std::size_t itemCount,
                  const Factory &factory,
-                 const KeyExprT &keyExpr)
+                 const KeyExprT &keyExpr,
+                 const detail::ForWindow &window = detail::ForWindow())
           : slot(1),
             base_(base),
             vectorItems_(0),
             arrayItems_(items),
             arrayItemCount_(itemCount),
             factory_(factory),
-            keyExpr_(keyExpr)
+            keyExpr_(keyExpr),
+            window_(window)
       {
+      }
+
+      /** Returns the same builder restricted to a clamped item window. */
+      ForBuilder window(long first, long count) const
+      {
+        ForBuilder result(*this);
+        result.window_ = detail::ForWindow(first, count);
+        return result;
       }
 
       /** Returns the same builder with an item-derived integer key offset.
@@ -77,11 +144,12 @@ namespace loka
         if (this->vectorItems_)
         {
           return ForBuilder<Item, Factory, dsl::Expr<int, KeyNodeT> >(
-              this->base_, *this->vectorItems_, this->factory_, keyExpr);
+              this->base_, *this->vectorItems_, this->factory_, keyExpr,
+              this->window_);
         }
         return ForBuilder<Item, Factory, dsl::Expr<int, KeyNodeT> >(
             this->base_, this->arrayItems_, this->arrayItemCount_,
-            this->factory_, keyExpr);
+            this->factory_, keyExpr, this->window_);
       }
 
       /** Builds the complete owned Section batch, then adopts it into parent.
@@ -95,16 +163,27 @@ namespace loka
             this->vectorItems_
                 ? (this->vectorItems_->empty() ? 0 : &(*this->vectorItems_)[0])
                 : this->arrayItems_;
-        if (!this->validateKeys(items, itemCount))
+        if (!this->validateInput(items, itemCount))
         {
           return;
         }
 
+        std::size_t begin = 0;
+        std::size_t length = 0;
+        this->window_.resolve(itemCount, begin, length);
+        if (!this->validateKeys(items, begin, length))
+        {
+          return;
+        }
+        const std::size_t end = begin + length;
+
         OwnedDefinitionBatch factoryChildren;
-        for (std::size_t i = 0; i < itemCount; ++i)
+        for (std::size_t absoluteIndex = begin;
+             absoluteIndex < end;
+             ++absoluteIndex)
         {
           scene::NodeDefinitionBase *ownedChild =
-              this->factory_(items[i], i).clone();
+              this->factory_(items[absoluteIndex], absoluteIndex).clone();
           if (!ownedChild)
           {
             return;
@@ -113,10 +192,12 @@ namespace loka
         }
 
         OwnedDefinitionBatch sections;
-        for (std::size_t i = 0; i < itemCount; ++i)
+        for (std::size_t absoluteIndex = begin;
+             absoluteIndex < end;
+             ++absoluteIndex)
         {
           scene::NodeTag tag = scene::NODE_TAG_NONE;
-          if (!this->evaluateTag(items, i, tag))
+          if (!this->evaluateTag(items, absoluteIndex, tag))
           {
             return;
           }
@@ -239,7 +320,7 @@ namespace loka
         return true;
       }
 
-      bool validateKeys(const Item *items, std::size_t itemCount) const
+      bool validateInput(const Item *items, std::size_t itemCount) const
       {
         if (this->base_ < 1L || this->base_ > 65535L)
         {
@@ -249,11 +330,20 @@ namespace loka
         {
           return false;
         }
+        return true;
+      }
 
-        for (std::size_t i = 0; i < itemCount; ++i)
+      bool validateKeys(const Item *items,
+                        std::size_t begin,
+                        std::size_t length) const
+      {
+        const std::size_t end = begin + length;
+        for (std::size_t absoluteIndex = begin;
+             absoluteIndex < end;
+             ++absoluteIndex)
         {
           scene::NodeTag candidate = scene::NODE_TAG_NONE;
-          if (!this->evaluateTag(items, i, candidate))
+          if (!this->evaluateTag(items, absoluteIndex, candidate))
           {
             return false;
           }
@@ -261,7 +351,7 @@ namespace loka
           // This is the same debug-only misuse wall as the completed sibling
           // Section duplicate scan. Release diffing already refuses duplicate
           // tagged siblings and falls back to a full rebuild.
-          for (std::size_t prior = 0; prior < i; ++prior)
+          for (std::size_t prior = begin; prior < absoluteIndex; ++prior)
           {
             scene::NodeTag priorTag = scene::NODE_TAG_NONE;
             if (!this->evaluateTag(items, prior, priorTag))
@@ -286,6 +376,7 @@ namespace loka
       std::size_t arrayItemCount_;
       Factory factory_;
       KeyExprT keyExpr_;
+      detail::ForWindow window_;
     };
 
     /** Builds Sections for Component Props items, keyed by Index(). */
