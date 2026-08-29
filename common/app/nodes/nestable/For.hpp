@@ -28,21 +28,41 @@ namespace loka
     };
 
     /** One-shot composition builder. It expands to owned Section definitions;
-        no For definition or runtime resident enters the composition tree. */
+        no For definition or runtime resident enters the composition tree.
+
+        This is a compose-scope temporary that borrows items and factory. Both
+        must outlive the `parent << builder` expression that consumes it; a
+        ForBuilder is not a value to store. Vector-backed builders resolve the
+        current elements at append time, so growth before insertion is safe. */
     template <class Item, class Factory, class KeyExprT>
     class ForBuilder
     {
     public:
-      ForBuilder(scene::NodeTag base,
+      ForBuilder(long base,
+                 const Vector<Item> &items,
+                 const Factory &factory,
+                 const KeyExprT &keyExpr)
+          : slot(1),
+            base_(base),
+            vectorItems_(&items),
+            arrayItems_(0),
+            arrayItemCount_(0),
+            factory_(&factory),
+            keyExpr_(keyExpr)
+      {
+      }
+
+      ForBuilder(long base,
                  const Item *items,
                  std::size_t itemCount,
                  const Factory &factory,
                  const KeyExprT &keyExpr)
           : slot(1),
             base_(base),
-            items_(items),
-            itemCount_(itemCount),
-            factory_(factory),
+            vectorItems_(0),
+            arrayItems_(items),
+            arrayItemCount_(itemCount),
+            factory_(&factory),
             keyExpr_(keyExpr)
       {
       }
@@ -53,25 +73,37 @@ namespace loka
       ForBuilder<Item, Factory, dsl::Expr<int, KeyNodeT> >
       key(const dsl::Expr<int, KeyNodeT> &keyExpr) const
       {
+        if (this->vectorItems_)
+        {
+          return ForBuilder<Item, Factory, dsl::Expr<int, KeyNodeT> >(
+              this->base_, *this->vectorItems_, *this->factory_, keyExpr);
+        }
         return ForBuilder<Item, Factory, dsl::Expr<int, KeyNodeT> >(
-            this->base_, this->items_, this->itemCount_, this->factory_,
-            keyExpr);
+            this->base_, this->arrayItems_, this->arrayItemCount_,
+            *this->factory_, keyExpr);
       }
 
       /** Builds the complete owned Section batch, then adopts it into parent.
           A refusal before commit leaves parent unchanged. */
       void appendTo(scene::INestableDefinition &parent) const
       {
-        if (!this->validateKeys())
+        const std::size_t itemCount =
+            this->vectorItems_ ? this->vectorItems_->size()
+                               : this->arrayItemCount_;
+        const Item *items =
+            this->vectorItems_
+                ? (this->vectorItems_->empty() ? 0 : &(*this->vectorItems_)[0])
+                : this->arrayItems_;
+        if (!this->validateKeys(items, itemCount))
         {
           return;
         }
 
         OwnedDefinitionBatch factoryChildren;
-        for (std::size_t i = 0; i < this->itemCount_; ++i)
+        for (std::size_t i = 0; i < itemCount; ++i)
         {
           scene::NodeDefinitionBase *ownedChild =
-              this->factory_(this->items_[i], i).clone();
+              (*this->factory_)(items[i], i).clone();
           if (!ownedChild)
           {
             return;
@@ -80,10 +112,10 @@ namespace loka
         }
 
         OwnedDefinitionBatch sections;
-        for (std::size_t i = 0; i < this->itemCount_; ++i)
+        for (std::size_t i = 0; i < itemCount; ++i)
         {
           scene::NodeTag tag = scene::NODE_TAG_NONE;
-          if (!this->evaluateTag(i, tag))
+          if (!this->evaluateTag(items, i, tag))
           {
             return;
           }
@@ -181,21 +213,23 @@ namespace loka
         scene::NodeDefinitionBase *tail_;
       };
 
-      bool evaluateTag(std::size_t index, scene::NodeTag &out) const
+      bool evaluateTag(const Item *items,
+                       std::size_t index,
+                       scene::NodeTag &out) const
       {
         dsl::EvalContext context;
         context.index = index;
-        context.slots[1] = const_cast<Item *>(&this->items_[index]);
+        context.slots[1] = const_cast<Item *>(&items[index]);
         const long offset = static_cast<long>(this->keyExpr_.eval(context));
-        const long base = static_cast<long>(this->base_);
 
         // Check before adding: on 32-bit targets INT_MAX + 65535 would
         // overflow long even though both operands are individually valid.
-        if (offset < 1L - base || offset > 65535L - base)
+        if (offset < 1L - this->base_ ||
+            offset > 65535L - this->base_)
         {
           return false;
         }
-        const long widenedTag = base + offset;
+        const long widenedTag = this->base_ + offset;
         if (widenedTag < 1L || widenedTag > 65535L)
         {
           return false;
@@ -204,21 +238,21 @@ namespace loka
         return true;
       }
 
-      bool validateKeys() const
+      bool validateKeys(const Item *items, std::size_t itemCount) const
       {
-        if (this->base_ == scene::NODE_TAG_NONE)
+        if (this->base_ < 1L || this->base_ > 65535L || !this->factory_)
         {
           return false;
         }
-        if (this->itemCount_ != 0 && !this->items_)
+        if (itemCount != 0 && !items)
         {
           return false;
         }
 
-        for (std::size_t i = 0; i < this->itemCount_; ++i)
+        for (std::size_t i = 0; i < itemCount; ++i)
         {
           scene::NodeTag candidate = scene::NODE_TAG_NONE;
-          if (!this->evaluateTag(i, candidate))
+          if (!this->evaluateTag(items, i, candidate))
           {
             return false;
           }
@@ -229,7 +263,7 @@ namespace loka
           for (std::size_t prior = 0; prior < i; ++prior)
           {
             scene::NodeTag priorTag = scene::NODE_TAG_NONE;
-            if (!this->evaluateTag(prior, priorTag))
+            if (!this->evaluateTag(items, prior, priorTag))
             {
               return false;
             }
@@ -245,43 +279,49 @@ namespace loka
         return true;
       }
 
-      scene::NodeTag base_;
-      const Item *items_;
-      std::size_t itemCount_;
-      Factory factory_;
+      long base_;
+      const Vector<Item> *vectorItems_;
+      const Item *arrayItems_;
+      std::size_t arrayItemCount_;
+      const Factory *factory_;
       KeyExprT keyExpr_;
     };
+
+    template <class Item>
+    inline const ComponentItemFactory<Item> &ForDefaultComponentItemFactory()
+    {
+      static const ComponentItemFactory<Item> factory;
+      return factory;
+    }
 
     /** Builds Sections for Component Props items, keyed by Index(). */
     template <class Item>
     inline ForBuilder<Item,
                       ComponentItemFactory<Item>,
                       dsl::Expr<int, dsl::IndexExpr> >
-    For(scene::NodeTag base, const Vector<Item> &items)
+    For(long base, const Vector<Item> &items)
     {
-      const Item *data = items.empty() ? 0 : &items[0];
       return ForBuilder<Item,
                         ComponentItemFactory<Item>,
                         dsl::Expr<int, dsl::IndexExpr> >(
-          base, data, items.size(), ComponentItemFactory<Item>(), dsl::Index());
+          base, items, ForDefaultComponentItemFactory<Item>(), dsl::Index());
     }
 
     /** Builds Sections from Vector items with a caller-supplied factory. */
     template <class Item, class Factory>
     inline ForBuilder<Item, Factory, dsl::Expr<int, dsl::IndexExpr> >
-    For(scene::NodeTag base,
+    For(long base,
         const Vector<Item> &items,
         const Factory &factory)
     {
-      const Item *data = items.empty() ? 0 : &items[0];
       return ForBuilder<Item, Factory, dsl::Expr<int, dsl::IndexExpr> >(
-          base, data, items.size(), factory, dsl::Index());
+          base, items, factory, dsl::Index());
     }
 
     /** Fixed-array form for allocation-free item models in compose code. */
     template <class Item, std::size_t Count, class Factory>
     inline ForBuilder<Item, Factory, dsl::Expr<int, dsl::IndexExpr> >
-    For(scene::NodeTag base,
+    For(long base,
         const Item (&items)[Count],
         const Factory &factory)
     {

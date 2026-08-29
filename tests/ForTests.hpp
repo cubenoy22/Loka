@@ -7,5 +7,6 @@ void testForRejectsInvalidTagsBeforeInsertion();
 void testForFactoryCloneFailureLeavesParentUnchanged();
 void testUniqueTaggedSiblingListRejectsAnonymousSibling();
 void testForDerivedKeysRetainItemSeatAcrossRemoval();
+void testForVectorBuilderReadsCurrentContentsAtAppend();
 
 #endif // LOKA_FOR_TESTS_HPP

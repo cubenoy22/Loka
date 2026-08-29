@@ -1,7 +1,6 @@
 #include "ForTests.hpp"
 #include "support/TestVerify.hpp"
 
-#include <cassert>
 #include <cstddef>
 #include <cstdio>
 #if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
@@ -197,12 +196,12 @@ namespace
       const loka::app::scene::NodeDefinitionBase *expected,
       const loka::app::scene::NodeDefinitionBase *actual)
   {
-    assert(expected && actual);
-    assert(expected->nodeTag() == actual->nodeTag());
-    assert(expected->propsBase() && actual->propsBase());
-    assert(expected->propsBase()->propsTypeId() ==
-           actual->propsBase()->propsTypeId());
-    assert(expected->hasEquivalentProps(*actual));
+    LOKA_VERIFY(expected && actual);
+    LOKA_VERIFY(expected->nodeTag() == actual->nodeTag());
+    LOKA_VERIFY(expected->propsBase() && actual->propsBase());
+    LOKA_VERIFY(expected->propsBase()->propsTypeId() ==
+                actual->propsBase()->propsTypeId());
+    LOKA_VERIFY(expected->hasEquivalentProps(*actual));
 
     loka::app::scene::INestableDefinition *expectedNestable =
         const_cast<loka::app::scene::NodeDefinitionBase *>(expected)
@@ -210,13 +209,14 @@ namespace
     loka::app::scene::INestableDefinition *actualNestable =
         const_cast<loka::app::scene::NodeDefinitionBase *>(actual)
             ->asNestableDefinition();
-    assert((expectedNestable != 0) == (actualNestable != 0));
+    LOKA_VERIFY((expectedNestable != 0) == (actualNestable != 0));
     if (!expectedNestable)
     {
       return;
     }
 
-    assert(expectedNestable->childrenCount() == actualNestable->childrenCount());
+    LOKA_VERIFY(expectedNestable->childrenCount() ==
+                actualNestable->childrenCount());
     loka::app::scene::NodeDefinitionBase *expectedChild =
         expectedNestable->childrenHead();
     loka::app::scene::NodeDefinitionBase *actualChild =
@@ -227,7 +227,7 @@ namespace
       expectedChild = expectedChild->nextInComposition;
       actualChild = actualChild->nextInComposition;
     }
-    assert(!expectedChild && !actualChild);
+    LOKA_VERIFY(!expectedChild && !actualChild);
   }
 
   loka::app::scene::NodeCompositionDiff::Entry *findDiffEntry(
@@ -259,7 +259,8 @@ namespace
           ForItem,
           ForTextFactory,
           loka::dsl::Expr<int, loka::dsl::IndexExpr> > DefaultBuilder;
-      DefaultBuilder builder = loka::app::For(100, items, ForTextFactory());
+      ForTextFactory factory;
+      DefaultBuilder builder = loka::app::For(100, items, factory);
       root << builder.key(builder.slot.member<int, &ForItem::id>());
     }
     else
@@ -297,20 +298,20 @@ void testForIndexBuildsHandWrittenSectionTree()
   loka::core::MutableState<bool> visible(true);
   loka::app::ShowDefinition show = loka::app::Show(visible);
   show << loka::app::For(500, items);
-  assert(show.childrenCount() == 3);
+  LOKA_VERIFY(show.childrenCount() == 3);
 
   loka::app::PolicyScopeDefinition policy;
   policy << loka::app::For(600, items);
   loka::app::scene::INestableDefinition *policyContent =
       policy.scopedBranchDefinition()->asNestableDefinition();
-  assert(policyContent && policyContent->childrenCount() == 3);
+  LOKA_VERIFY(policyContent && policyContent->childrenCount() == 3);
 }
 
 void testForRejectsDuplicateKeysWithinBatch()
 {
 #if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
   const pid_t child = fork();
-  assert(child >= 0);
+  LOKA_VERIFY(child >= 0);
   if (child == 0)
   {
     loka::Vector<ForItem> items;
@@ -321,15 +322,16 @@ void testForRejectsDuplicateKeysWithinBatch()
         ForItem,
         ForTextFactory,
         loka::dsl::Expr<int, loka::dsl::IndexExpr> > DefaultBuilder;
-    DefaultBuilder builder = loka::app::For(700, items, ForTextFactory());
+    ForTextFactory factory;
+    DefaultBuilder builder = loka::app::For(700, items, factory);
     parent << builder.key(loka::dsl::Const(0));
     _exit(0);
   }
 
   int status = 0;
   LOKA_VERIFY(waitpid(child, &status, 0) == child);
-  assert(WIFSIGNALED(status));
-  assert(WTERMSIG(status) == SIGABRT);
+  LOKA_VERIFY(WIFSIGNALED(status));
+  LOKA_VERIFY(WTERMSIG(status) == SIGABRT);
 #endif
 }
 
@@ -343,8 +345,18 @@ void testForRejectsInvalidTagsBeforeInsertion()
 
   loka::app::Fragment zeroBaseParent;
   zeroBaseParent << loka::app::For(0, items, factory);
-  assert(zeroBaseParent.childrenCount() == 0);
-  assert(factoryCalls == 0);
+  LOKA_VERIFY(zeroBaseParent.childrenCount() == 0);
+  LOKA_VERIFY(factoryCalls == 0);
+
+  loka::app::Fragment tooLargeBaseParent;
+  tooLargeBaseParent << loka::app::For(65537L, items, factory);
+  LOKA_VERIFY(tooLargeBaseParent.childrenCount() == 0);
+  LOKA_VERIFY(factoryCalls == 0);
+
+  loka::app::Fragment negativeBaseParent;
+  negativeBaseParent << loka::app::For(-1L, items, factory);
+  LOKA_VERIFY(negativeBaseParent.childrenCount() == 0);
+  LOKA_VERIFY(factoryCalls == 0);
 
   loka::app::Fragment overflowParent;
   typedef loka::app::ForBuilder<
@@ -353,13 +365,13 @@ void testForRejectsInvalidTagsBeforeInsertion()
       loka::dsl::Expr<int, loka::dsl::IndexExpr> > DefaultBuilder;
   DefaultBuilder builder = loka::app::For(1, items, factory);
   overflowParent << builder.key(loka::dsl::Const(65535));
-  assert(overflowParent.childrenCount() == 0);
-  assert(factoryCalls == 0);
+  LOKA_VERIFY(overflowParent.childrenCount() == 0);
+  LOKA_VERIFY(factoryCalls == 0);
 
   loka::app::Fragment underflowParent;
   underflowParent << builder.key(loka::dsl::Const(-1));
-  assert(underflowParent.childrenCount() == 0);
-  assert(factoryCalls == 0);
+  LOKA_VERIFY(underflowParent.childrenCount() == 0);
+  LOKA_VERIFY(factoryCalls == 0);
 }
 
 void testForFactoryCloneFailureLeavesParentUnchanged()
@@ -375,16 +387,16 @@ void testForFactoryCloneFailureLeavesParentUnchanged()
   loka::app::scene::NodeDefinitionBase *stableClone = parent.childrenHead();
   parent << loka::app::For(800, items, FailingCloneFactory(1));
 
-  assert(parent.childrenCount() == 1);
-  assert(parent.childrenHead() == stableClone);
-  assert(stableClone && !stableClone->nextInComposition);
+  LOKA_VERIFY(parent.childrenCount() == 1);
+  LOKA_VERIFY(parent.childrenHead() == stableClone);
+  LOKA_VERIFY(stableClone && !stableClone->nextInComposition);
 }
 
 void testUniqueTaggedSiblingListRejectsAnonymousSibling()
 {
 #if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
   const pid_t child = fork();
-  assert(child >= 0);
+  LOKA_VERIFY(child >= 0);
   if (child == 0)
   {
     loka::app::Fragment root;
@@ -397,8 +409,8 @@ void testUniqueTaggedSiblingListRejectsAnonymousSibling()
 
   int status = 0;
   LOKA_VERIFY(waitpid(child, &status, 0) == child);
-  assert(WIFSIGNALED(status));
-  assert(WTERMSIG(status) == SIGABRT);
+  LOKA_VERIFY(WIFSIGNALED(status));
+  LOKA_VERIFY(WTERMSIG(status) == SIGABRT);
 #endif
 }
 
@@ -422,10 +434,10 @@ void testForDerivedKeysRetainItemSeatAcrossRemoval()
       derivedBefore, derivedAfter, derivedDiff));
   loka::app::scene::NodeCompositionDiff::Entry *derivedC =
       findDiffEntry(derivedDiff, 103);
-  assert(derivedC);
-  assert(derivedC->action ==
-         loka::app::scene::NodeCompositionDiff::ACTION_RETAIN);
-  assert(derivedC->previousIndex == 2 && derivedC->currentIndex == 1);
+  LOKA_VERIFY(derivedC);
+  LOKA_VERIFY(derivedC->action ==
+              loka::app::scene::NodeCompositionDiff::ACTION_RETAIN);
+  LOKA_VERIFY(derivedC->previousIndex == 2 && derivedC->currentIndex == 1);
 
   loka::app::scene::NodeCompositionSnapshot indexBefore;
   loka::app::scene::NodeCompositionSnapshot indexAfter;
@@ -437,13 +449,43 @@ void testForDerivedKeysRetainItemSeatAcrossRemoval()
       indexBefore, indexAfter, indexDiff));
   loka::app::scene::NodeCompositionDiff::Entry *oldCSeat =
       findDiffEntry(indexDiff, 102);
-  assert(oldCSeat);
-  assert(oldCSeat->action ==
-         loka::app::scene::NodeCompositionDiff::ACTION_RETIRE);
+  LOKA_VERIFY(oldCSeat);
+  LOKA_VERIFY(oldCSeat->action ==
+              loka::app::scene::NodeCompositionDiff::ACTION_RETIRE);
   loka::app::scene::NodeCompositionDiff::Entry *shiftedCSeat =
       findDiffEntry(indexDiff, 101);
-  assert(shiftedCSeat);
-  assert(shiftedCSeat->action ==
-         loka::app::scene::NodeCompositionDiff::ACTION_RETAIN);
-  assert(shiftedCSeat->previousIndex == 1 && shiftedCSeat->currentIndex == 1);
+  LOKA_VERIFY(shiftedCSeat);
+  LOKA_VERIFY(shiftedCSeat->action ==
+              loka::app::scene::NodeCompositionDiff::ACTION_RETAIN);
+  LOKA_VERIFY(shiftedCSeat->previousIndex == 1 &&
+              shiftedCSeat->currentIndex == 1);
+}
+
+void testForVectorBuilderReadsCurrentContentsAtAppend()
+{
+  loka::Vector<ForItem> items;
+  items.push_back(ForItem(1, "one"));
+
+  ForTextFactory factory;
+  typedef loka::app::ForBuilder<
+      ForItem,
+      ForTextFactory,
+      loka::dsl::Expr<int, loka::dsl::IndexExpr> > DefaultBuilder;
+  DefaultBuilder builder = loka::app::For(1000, items, factory);
+
+  items.push_back(ForItem(2, "two"));
+  items.push_back(ForItem(3, "three"));
+
+  loka::app::Fragment generated;
+  generated << builder;
+
+  loka::app::Fragment expected;
+  for (std::size_t i = 0; i < items.size(); ++i)
+  {
+    loka::app::Section section(
+        static_cast<loka::app::scene::NodeTag>(1000 + i));
+    section << loka::app::Text(items[i].label);
+    expected << section;
+  }
+  assertEquivalentDefinitionTree(&expected, &generated);
 }

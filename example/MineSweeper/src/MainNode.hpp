@@ -262,8 +262,7 @@ namespace minesweeper
       // For emits one owner-scope box per cell. A new game swaps the key
       // bank, so the plan retires every old box -- presentation residents
       // included -- and materializes fresh covered cells.
-      grid << For(static_cast<loka::app::scene::NodeTag>(
-                      kCellSectionKeyBase + this->bank_ * kCellCount),
+      grid << For(kCellSectionKeyBase + this->bank_ * kCellCount,
                   cellItems, MineCellFactory(this));
       content << grid;
       c.declare(content);
