@@ -239,6 +239,24 @@ void MacWindow::FrameChangedThunk(void *userData)
   {
     screen = [NSScreen mainScreen];
   }
+  const bool sameContentSize = static_cast<int>(currentContent.size.width) == frame.width
+                               && static_cast<int>(currentContent.size.height) == frame.height;
+  bool samePosition = !frame.hasPosition();
+  if (frame.hasPosition())
+  {
+    NSRect mappedCurrentFrame = FrameRectForContent(frame.x,
+                                                    frame.y,
+                                                    currentContent.size.width,
+                                                    currentContent.size.height,
+                                                    [window styleMask],
+                                                    screen);
+    samePosition = currentFrame.origin.x == mappedCurrentFrame.origin.x
+                   && currentFrame.origin.y == mappedCurrentFrame.origin.y;
+  }
+  if (sameContentSize && samePosition)
+  {
+    return;
+  }
   NSRect nextFrame = FrameRectForContent(x, y, width, height, [window styleMask], screen);
   if (frame.x < 0)
   {
@@ -471,13 +489,30 @@ void MacWindow::handleWindowWillClose()
 
 void MacWindow::handleWindowDidResize()
 {
+  NSWindow *window = (NSWindow *)window_;
+  NSView *view = (NSView *)contentView_;
+  NSRect contentBounds;
+  if (view)
+  {
+    contentBounds = [view bounds];
+  }
+  else if (window)
+  {
+    contentBounds = [window contentRectForFrameRect:[window frame]];
+  }
+  else
+  {
+    return;
+  }
+  // Native fractional sizes truncate at the integer Frame/relayout seam.
+  const int width = static_cast<int>(contentBounds.size.width);
+  const int height = static_cast<int>(contentBounds.size.height);
+  this->storeNativeContentSize(width, height);
   if (!scenePlatformController_ || !contentView_)
   {
     return;
   }
-  NSView *view = (NSView *)contentView_;
-  NSRect bounds = [view bounds];
-  scenePlatformController_->relayout(static_cast<int>(bounds.size.width), static_cast<int>(bounds.size.height));
+  scenePlatformController_->relayout(width, height);
 }
 
 void MacWindow::handleWindowDidBecomeKey()

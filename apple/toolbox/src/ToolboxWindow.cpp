@@ -297,7 +297,12 @@ void ToolboxWindow::FrameChangedThunk(void *userData)
   }
   if (frame.hasSize())
   {
-    SizeWindow(self->window_, static_cast<short>(frame.width), static_cast<short>(frame.height), true);
+    const int currentWidth = self->window_->portRect.right - self->window_->portRect.left;
+    const int currentHeight = self->window_->portRect.bottom - self->window_->portRect.top;
+    if (currentWidth != frame.width || currentHeight != frame.height)
+    {
+      SizeWindow(self->window_, static_cast<short>(frame.width), static_cast<short>(frame.height), true);
+    }
   }
 }
 
@@ -460,6 +465,7 @@ void ToolboxWindow::draw()
     scenePlatformController_->render();
     scenePlatformController_->drawControlsInRect(window_->portRect);
   }
+  DrawGrowIcon(window_);
 
   SetPort(oldPort);
 }

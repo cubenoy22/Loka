@@ -42,6 +42,7 @@ namespace
   {
     if (window && window->frameState().get() != frame)
     {
+      loka::core::StateTrackerGuard guard(window->getTracker());
       window->frameState().set(frame);
     }
   }
@@ -293,7 +294,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         int height = HIWORD(lParam);
         self->scenePlatformController_->relayout(width, height);
       }
-      if (self->hwnd_)
+      if (wParam != SIZE_MINIMIZED && self->hwnd_)
       {
         loka::core::Frame frame;
         if (self->queryNativeContentFrame(frame))

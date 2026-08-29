@@ -13,6 +13,7 @@
 #include "Win32ProfilerTests.hpp"
 #endif
 #include "DerivedStateTests.hpp"
+#include "WindowFrameStateTests.hpp"
 #include "DefinitionCloneTests.hpp"
 #include "AttrDslTests.hpp"
 #include "SnapFormatTests.hpp"

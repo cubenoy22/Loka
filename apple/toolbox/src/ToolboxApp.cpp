@@ -9,6 +9,7 @@
 #include <Quickdraw.h>
 #include <Sound.h>
 #include <TextEdit.h>
+#include <ToolUtils.h>
 #include <Windows.h>
 #include <Devices.h>
 #include "platform/StringUTF8.hpp"
@@ -246,10 +247,56 @@ void ToolboxApp::run()
         Rect bounds = qd.screenBits.bounds;
         DragWindow(target, event.where, &bounds);
       }
+      else if (part == inGrow && target)
+      {
+        Rect sizeRect;
+        // Rect is {top, left, bottom, right}; SetRect is (left, top, right, bottom).
+        SetRect(&sizeRect,
+                64,
+                64,
+                static_cast<short>(qd.screenBits.bounds.right - qd.screenBits.bounds.left),
+                static_cast<short>(qd.screenBits.bounds.bottom - qd.screenBits.bounds.top));
+        long grown = GrowWindow(target, event.where, &sizeRect);
+        if (grown != 0)
+        {
+          short width = LoWord(grown);
+          short height = HiWord(grown);
+          SizeWindow(target, width, height, true);
+          GrafPtr oldPort;
+          GetPort(&oldPort);
+          SetPort(target);
+          InvalRect(&target->portRect);
+          SetPort(oldPort);
+
+          ToolboxWindow *grownWindow = 0;
+          if (group_)
+          {
+            const std::vector<AppComponent *> &comps = group_->getComponents();
+            for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+            {
+              Window *w = (*it)->asWindow();
+              ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
+              if (toolboxWindow && toolboxWindow->window() == target)
+              {
+                grownWindow = toolboxWindow;
+                break;
+              }
+            }
+          }
+          if (grownWindow)
+          {
+            grownWindow->storeNativeContentSize(width, height);
+          }
+        }
+      }
     }
     else if (event.what == activateEvt)
     {
       WindowPtr target = reinterpret_cast<WindowPtr>(event.message);
+      if (target)
+      {
+        HiliteWindow(target, (event.modifiers & activeFlag) != 0);
+      }
       if (group_)
       {
         const std::vector<AppComponent *> &comps = group_->getComponents();
@@ -260,6 +307,9 @@ void ToolboxApp::run()
           if (toolboxWindow && toolboxWindow->window() == target)
           {
             setActiveWindow(toolboxWindow);
+            // The existing full-invalidation door reaches draw(), which
+            // redraws the grow icon in the window's new hilite state.
+            toolboxWindow->requestInvalidate();
             break;
           }
         }

@@ -19,6 +19,7 @@
 #include "MacNodeHandlerEnsureTests.hpp"
 #endif
 #include "DerivedStateTests.hpp"
+#include "WindowFrameStateTests.hpp"
 #include "DefinitionCloneTests.hpp"
 #include "FlowDslTests.hpp"
 #include "OwnershipDumpTests.hpp"

@@ -14,6 +14,8 @@ typedef void (*DeferredDumpCompletion)(void *userData);
 class ToolboxWindow : public Window
 {
 public:
+  using Window::storeNativeContentSize;
+
   ToolboxWindow(PlatformContext *context, const WindowProps &props);
   virtual ~ToolboxWindow();
   virtual ToolboxWindow *asToolboxWindow()

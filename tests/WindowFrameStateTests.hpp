@@ -1,0 +1,6 @@
+#ifndef LOKA_WINDOW_FRAME_STATE_TESTS_HPP
+#define LOKA_WINDOW_FRAME_STATE_TESTS_HPP
+
+void testWindowFrameStateDrivesDerivedState();
+
+#endif // LOKA_WINDOW_FRAME_STATE_TESTS_HPP

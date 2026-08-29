@@ -10,6 +10,7 @@
 #include "app/core/AppComponent.hpp"
 #include "app/core/SceneManager.hpp"
 #include "core/util/StateUtil.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "core/util/OwnedDef.hpp"
 #include "app/scene/Node.hpp"
 #include "app/Menu.hpp"
@@ -538,6 +539,7 @@ public:
     pushTracker->addState(title_);
     pushTracker->addState(displayTitle_);
     pushTracker->addState(visibility_);
+    pushTracker->addState(frameStatePtr_);
     tracker_ = pushTracker;
     if (props.hasInitialTitle)
     {
@@ -799,6 +801,20 @@ public:
 
 private:
 protected:
+  /** Stores a native content-size change without changing logical position. */
+  void storeNativeContentSize(int width, int height)
+  {
+    loka::core::Frame frame = this->frameState().get();
+    if (frame.width == width && frame.height == height)
+    {
+      return;
+    }
+    frame.width = width;
+    frame.height = height;
+    loka::core::StateTrackerGuard guard(this->getTracker());
+    this->frameState().set(frame);
+  }
+
   void observeNativeState(const loka::core::StateBase &state,
                           loka::core::StateBase::OnChangeFn callback,
                           void *userData)
