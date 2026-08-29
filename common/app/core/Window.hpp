@@ -504,9 +504,7 @@ public:
   Window(PlatformContext *context, const WindowProps &props = WindowProps())
       : context_(context),
         tracker_(0),
-        capturingNativeFrame_(false),
-        capturedNativeWidth_(0),
-        capturedNativeHeight_(0),
+        nativeEchoArmed_(false),
         titleStorage_(),
         visibilityStorage_(true),
         frameState_(),
@@ -807,9 +805,10 @@ protected:
   /** Stores a native content-size change without changing logical position.
       The native window already has this size, and on rails that never write a
       user move back into Frame.x/y the stored position may be stale, so the
-      rail's frame observer must not project this exact value back out (it
-      would snap the window to its originally declared origin). Observers ask
-      isCapturedNativeSize() and skip only that echo. */
+      rail's frame observer must not project this one notification back out
+      (it would snap the window to its originally declared origin). The store
+      arms a one-shot echo; the observer consumes it on the first notification
+      and projects every later one (a clamp, a position correction) as usual. */
   void storeNativeContentSize(int width, int height)
   {
     loka::core::Frame frame = this->frameState().get();
@@ -819,25 +818,28 @@ protected:
     }
     frame.width = width;
     frame.height = height;
-    this->capturingNativeFrame_ = true;
-    this->capturedNativeWidth_ = width;
-    this->capturedNativeHeight_ = height;
+    this->nativeEchoArmed_ = true;
     {
       loka::core::StateTrackerGuard guard(this->getTracker());
       this->frameState().set(frame);
     }
-    this->capturingNativeFrame_ = false;
+    // The observer runs synchronously inside set(); if nothing consumed the
+    // echo (no rail observer), drop it so no later write is skipped.
+    this->nativeEchoArmed_ = false;
   }
 
 public:
-  /** True while a native size fact is being stored into frameState() and the
-      given size is that fact. A rail frame observer skips exactly this echo;
-      a corrective write made during the same transaction (a clamp, say) has a
-      different size and is still projected. */
-  bool isCapturedNativeSize(int width, int height) const
+  /** Consumes the one-shot native echo armed by storeNativeContentSize().
+      Returns true exactly once per store, for the notification that carries
+      the stored native size; every other frame notification returns false. */
+  bool consumeNativeEcho()
   {
-    return this->capturingNativeFrame_ && width == this->capturedNativeWidth_
-           && height == this->capturedNativeHeight_;
+    if (!this->nativeEchoArmed_)
+    {
+      return false;
+    }
+    this->nativeEchoArmed_ = false;
+    return true;
   }
 
 protected:
@@ -856,9 +858,7 @@ protected:
 
   PlatformContext *context_;
   loka::core::StateTracker *tracker_;
-  bool capturingNativeFrame_;
-  int capturedNativeWidth_;
-  int capturedNativeHeight_;
+  bool nativeEchoArmed_;
   SceneManager sceneManager_;
   loka::core::MutableState<loka::core::String> titleStorage_;
   loka::core::MutableState<bool> visibilityStorage_;

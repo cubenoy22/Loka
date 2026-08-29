@@ -298,6 +298,7 @@ void ToolboxApp::run()
       if (active && active->window())
       {
         HiliteWindow(active->window(), activationPhase_ == ACTIVATION_FOREGROUND);
+        active->invalidateGrowIcon();
       }
       if (activationPhase_ == ACTIVATION_FOREGROUND && menuBarDrawDeferred_)
       {

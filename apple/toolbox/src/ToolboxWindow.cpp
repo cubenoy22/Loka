@@ -281,9 +281,9 @@ void ToolboxWindow::FrameChangedThunk(void *userData)
     return;
   }
   loka::core::Frame frame = self->frameState().get();
-  if (self->isCapturedNativeSize(frame.width, frame.height))
+  if (self->consumeNativeEcho())
   {
-    return; // the native window is the source of this value; do not project it back
+    return; // the native window is the source of this notification; do not project it back
   }
   if (frame.hasPosition())
   {
