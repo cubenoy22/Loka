@@ -87,7 +87,11 @@ them. Word the requirement so the list cannot come back empty by default:
 > existing one; a check whose absence in some build configuration is worse than
 > "undetected"; a step added to one reclamation or teardown path that other
 > paths reaching the same point still lack; a field a type never reads itself;
-> an API shape chosen for test observability. If you believe the shape is
+> an API shape chosen for test observability. Separately, enumerate every
+> primitive member (`bool`, counter, index) the change adds to an existing
+> type, each with its single writer and the existing phase, type, or return
+> value it could not be derived from — an added flag or counter is returned
+> for reshaping unless that line exists. If you believe the shape is
 > clean, say so per item and explain what you considered — "nothing found" with
 > nothing considered is not an accepted answer.
 
@@ -105,3 +109,12 @@ one of them exactly an underdetermined ruling. This mirrors AGENTS.md
   — the list is a hypothesis set, not a substitute for looking.
 - The Codex PR-review bot's comments on GitHub PRs must always be read and
   answered before merge.
+
+- **`--sandbox read-only` also blocks the deliverable file.** A REFUTE/audit
+  run briefed to write `FINDINGS.md` under `~/codex-briefs` finished its whole
+  audit and then failed the single write (2026-08-30, 277k tokens). For
+  read-only audits either use `--sandbox workspace-write -C ~/codex-briefs`
+  with an explicit "do not modify the repository" instruction, or brief the
+  run to print the document to stdout (the log captures it). Recovery is
+  `codex exec resume <SESSION_ID> "print the complete findings to stdout"` —
+  the session id is the first line of the exec log (`session id: ...`).
