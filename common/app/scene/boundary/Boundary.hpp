@@ -1753,11 +1753,20 @@ namespace loka
           }
         }
 
+        /** Installs the plan's selected arm in place of the runtime's active
+            one. `drainParkedArmCount` > 0 means the seat is rebuilding under a
+            new shape: every arm parked under the old shape (0..count-1) is
+            retired after the outgoing arm and before the incoming arm's nested
+            mappings are committed -- after, so a failed materialization
+            leaves the old ledger untouched; before the commit, so the retire
+            under (key, arm) cannot erase the fresh mappings. `runtime` is read
+            once up front: the ledger it lives in is edited below. */
         bool replaceSeatBranch(ComponentContext &context,
                                const BoundaryBranchSeatPlanEntry &plan,
-                               BoundaryBranchSeatRuntimeEntry &runtime,
+                               const BoundaryBranchSeatRuntimeEntry &runtime,
                                bool parkOutgoing,
-                               bool reuseParked)
+                               bool reuseParked,
+                               unsigned drainParkedArmCount = 0)
         {
           Node *runtimeParent = runtime.parent;
           Node *outgoing = runtime.active;
@@ -1823,6 +1832,10 @@ namespace loka
               this->retireSeatBranchRoot(context, outgoing);
             }
           }
+          if (drainParkedArmCount > 0)
+          {
+            this->drainParkedSeat(context, plan.key, drainParkedArmCount);
+          }
           nestedRegistrations.commitTo(this->branchSeats_);
           BoundaryBranchSeatRuntimeEntry *committedRuntime =
               this->branchSeats_.findRuntime(plan.key);
@@ -1872,17 +1885,15 @@ namespace loka
 
           if (!runtime.shape.matches(mutablePlan->shape))
           {
-            // The old shape's parked arms are unusable under the new shape and
-            // are drained first: a drain after the rebuild would retire the old
-            // parked (key, arm) under the same owner pair the rebuilt arm's
-            // nested mappings carry and erase them (the selected arm may well
-            // be one that was parked under the old shape).
-            this->drainParkedSeat(context, mutablePlan->key, runtime.shape.armCount);
+            // Rebuild under the new shape; the old shape's parked arms are
+            // drained inside the replacement, between the outgoing retire and
+            // the commit of the incoming arm's nested mappings.
             return this->replaceSeatBranch(context,
                                            *mutablePlan,
                                            runtime,
                                            false,
-                                           false);
+                                           false,
+                                           runtime.shape.armCount);
           }
 
           if (mutablePlan->hasSelectedArm != runtime.hasActiveArm ||

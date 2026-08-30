@@ -4530,6 +4530,70 @@ void testProbeArmSeatShapeMismatchOnParkedArmKeepsNestedSeatMapping()
   g_probeArmSeatInputs = 0;
 }
 
+namespace
+{
+  bool g_probeArmFailEveryAllocation = false;
+
+  void *probeArmFailingBackendAlloc(std::size_t size,
+                                    const loka::core::LokaAllocationSite &)
+  {
+    if (g_probeArmFailEveryAllocation)
+    {
+      return 0;
+    }
+    return new (std::nothrow) char[size];
+  }
+
+  void probeArmFailingBackendFree(void *ptr, const loka::core::LokaAllocationSite &)
+  {
+    delete[] static_cast<char *>(ptr);
+  }
+} // namespace
+
+void testProbeArmSeatShapeMismatchAllocationFailureKeepsParkedArms()
+{
+  loka::core::MutableState<unsigned> selection(0);
+  loka::core::MutableState<int> revision(0);
+  loka::core::MutableState<bool> nested(false);
+  ProbeArmSeatInputs inputs(&selection, &revision, &nested);
+  inputs.mode = PROBE_ARM_SEAT_SHAPE_INITIAL;
+  g_probeArmSeatInputs = &inputs;
+  loka::core::LokaAllocSetBackend(&probeArmFailingBackendAlloc,
+                                  &probeArmFailingBackendFree);
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<ProbeArmSeatBoundaryNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    loka::app::scene::BoundaryNode *root =
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    LOKA_VERIFY(root && inputs.records[0].node);
+    ProbeArmLocalBoundaryNode *oldArm0 = inputs.records[0].node;
+    oldArm0->setValue(77);
+
+    setProbeState(selection, 1u);
+    flushProbeState(scene);
+    LOKA_VERIFY(root->parkedBranchCountForTesting() == 1);
+
+    // The rebuild under the new shape cannot materialize its arm: the old
+    // shape must stay whole -- active arm 1 installed, arm 0 still parked
+    // with its branch-local state -- so an external retry starts from it.
+    loka::core::MutableState<unsigned> replacementSelection(0);
+    inputs.selection = &replacementSelection;
+    inputs.mode = PROBE_ARM_SEAT_SHAPE_NESTED_ARM0;
+    setProbeState(revision, 1);
+    g_probeArmFailEveryAllocation = true;
+    (void)scene.flushInvalidation();
+    g_probeArmFailEveryAllocation = false;
+    LOKA_VERIFY(root->parkedBranchCountForTesting() == 1 &&
+                inputs.records[0].node == oldArm0 && oldArm0->value() == 77 &&
+                "a failed rebuild must not have drained the old shape's parked arms");
+  }
+  loka::core::LokaAllocSetBackend(0, 0);
+  g_probeArmSeatInputs = 0;
+}
+
 void testBranchSeatSiblingsRejectDuplicateTags()
 {
 #if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
