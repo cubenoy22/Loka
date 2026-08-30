@@ -15,6 +15,7 @@
 #include "DerivedStateTests.hpp"
 #include "WindowFrameStateTests.hpp"
 #include "DefinitionCloneTests.hpp"
+#include "NodeMatchTests.hpp"
 #include "AttrDslTests.hpp"
 #include "SnapFormatTests.hpp"
 #include "ScenarioProfileTests.hpp"
