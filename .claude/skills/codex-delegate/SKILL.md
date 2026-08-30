@@ -89,9 +89,10 @@ them. Word the requirement so the list cannot come back empty by default:
 > paths reaching the same point still lack; a field a type never reads itself;
 > an API shape chosen for test observability. Separately, enumerate every
 > primitive member (`bool`, counter, index) the change adds to an existing
-> type, each with its single writer and the existing phase, type, or return
-> value it could not be derived from — an added flag or counter is returned
-> for reshaping unless that line exists. If you believe the shape is
+> type, each with its single writer, every reader outside the owning type,
+> and the existing phase, type, or return value it could not be derived from
+> — an added flag or counter is returned for reshaping unless that line
+> exists, and a foreign reader fails it even when the writer is unique. If you believe the shape is
 > clean, say so per item and explain what you considered — "nothing found" with
 > nothing considered is not an accepted answer.
 
