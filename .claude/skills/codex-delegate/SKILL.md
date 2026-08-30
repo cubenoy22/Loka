@@ -25,6 +25,12 @@ checkout; sync goes through origin only.
   whenever the point of the run is to keep Codex *away* from the repository —
   e.g. re-implementing something from its spec alone as an independence check.
 - `--full-auto` is deprecated; use `--sandbox workspace-write`.
+- **Do not wait on `pgrep -f "codex exec"`** — the pattern matches the waiting
+  shell's own command line, so the loop reports "still running" forever (two
+  finished runs were watched for over an hour, 2026-08-30). Wait on the log
+  instead: the brief's `===== REPORT =====` marker, or an `echo "codex
+  exit=$?"` appended after the exec. `pgrep -af codex` is still right for the
+  orphan check *before* a launch, where a false positive only costs a look.
 - **`--sandbox workspace-write` blocks the network, so `git push` and `gh pr
   create` always fail** — the sandbox only allows `[workdir, /tmp, $TMPDIR]`
   and no outbound traffic. Left to its own devices Codex clones into `/tmp`,
@@ -71,6 +77,15 @@ the follow-up asks for. Session ids are in the transcripts under
   approval is auto-cancelled in non-interactive runs, and `--full-auto` does
   not override it. For a Notion write, an interactive codex session with one
   manual approval is the shortest path.
+
+## Briefing a change that adds tests
+
+- **A new test header must be included in both test mains**:
+  `tests/ContractTestMain.cpp` *and* `tests/FlowDslTestMain.cpp`. The
+  macOS and Win32 test targets compile only the second one, so a header
+  included only in the first passes Linux CI and fails macOS/Win32 CI (PR
+  #532, one extra round trip). Put the sentence in the brief; Codex does not
+  find the second main on its own.
 
 ## Always ask for the smell list (required deliverable)
 
