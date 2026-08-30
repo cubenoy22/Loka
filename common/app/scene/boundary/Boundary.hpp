@@ -1806,6 +1806,11 @@ namespace loka
           {
             return false;
           }
+          // Runtime publication is part of the structural commit: reserve the
+          // ledger storage now, while nothing has been replaced or retired, so
+          // the commit after cleanup cannot allocate (the local-rebuild path's
+          // rule, applyLocalRebuildPlan).
+          this->branchSeats_.reserveRuntimeRegistrations(nestedRegistrations.count());
 
           INestable *parent = runtimeParent ? runtimeParent->asNestable() : 0;
           if (!parent || !parent->replaceChild(outgoing, incoming))
