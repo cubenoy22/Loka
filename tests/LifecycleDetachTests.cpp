@@ -2449,7 +2449,6 @@ void testDirectRootBoundaryReRegistersObservedStateAcrossReattach()
     // projection work for the direct root boundary.
     {
       loka::core::StateTrackerGuard guard(g_directRootObserved->tracker());
-      assert(externalState.trackerOwner() == g_directRootObserved->tracker());
       externalState.set(1);
     }
     assert(scene.director().hasPendingBoundary(g_directRootObserved) &&
@@ -2465,7 +2464,6 @@ void testDirectRootBoundaryReRegistersObservedStateAcrossReattach()
 
     {
       loka::core::StateTrackerGuard guard(g_directRootObserved->tracker());
-      assert(externalState.trackerOwner() == g_directRootObserved->tracker());
       externalState.set(2);
     }
     assert(scene.director().hasPendingBoundary(g_directRootObserved) &&

@@ -126,7 +126,6 @@ namespace SceneTests
 
     {
       loka::core::StateTrackerGuard guard(rootBoundary->tracker());
-      assert(textState.trackerOwner() == rootBoundary->tracker());
       textState.set(loka::core::String::Literal("After"));
     }
 
