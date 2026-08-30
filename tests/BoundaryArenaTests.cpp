@@ -4594,6 +4594,41 @@ void testProbeArmSeatShapeMismatchAllocationFailureKeepsParkedArms()
   g_probeArmSeatInputs = 0;
 }
 
+void testIndexedSeatSlotPassTraversesArmsPastAnEmptyOne()
+{
+  // An empty arm (null definition) before populated ones must not stop the
+  // slot pass: the nested seats behind it need distinct anonymous slots, or
+  // they collide on one anonymous key and the whole seat is refused.
+  loka::core::MutableState<unsigned> selection(1);
+  loka::core::MutableState<bool> showA(false);
+  loka::core::MutableState<bool> showB(false);
+  loka::app::ButtonDefinition button("slot-button");
+  loka::app::ShowDefinition nestedA = loka::app::Show(showA);
+  nestedA << button;
+  loka::app::ShowDefinition nestedB = loka::app::Show(showB);
+  nestedB << button;
+  loka::app::scene::NodeDefinitionBase *arms[3] = {0, &nestedA, &nestedB};
+  loka::app::scene::testing::ProbeArmSeatDefinition seat(&selection, arms, 3);
+  loka::app::Fragment root;
+  root << seat;
+  loka::app::scene::NodeComposition composition;
+  composition.declare(root);
+  composition.assignCompositionSeatSlots();
+
+  loka::app::scene::INestableDefinition *rootNestable =
+      composition.root()->asNestableDefinition();
+  LOKA_VERIFY(rootNestable && rootNestable->childrenHead());
+  loka::app::scene::IBranchSeatDefinition *seatClone =
+      rootNestable->childrenHead()->asBranchSeatDefinition();
+  LOKA_VERIFY(seatClone && seatClone->armCount() == 3 && !seatClone->armDefinition(0));
+  loka::app::scene::NodeDefinitionBase *armA = seatClone->armDefinition(1);
+  loka::app::scene::NodeDefinitionBase *armB = seatClone->armDefinition(2);
+  LOKA_VERIFY(armA && armB);
+  LOKA_VERIFY(armA->compositionSeatSlot() >= 0 && armB->compositionSeatSlot() >= 0 &&
+              armA->compositionSeatSlot() != armB->compositionSeatSlot() &&
+              "arms behind an empty one still receive their own composition slots");
+}
+
 void testBranchSeatSiblingsRejectDuplicateTags()
 {
 #if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)

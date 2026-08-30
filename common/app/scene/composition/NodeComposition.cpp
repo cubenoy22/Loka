@@ -396,6 +396,17 @@ namespace loka
             assignDefinitionSeatSlots(child, nextSlot);
           }
         }
+        IBranchSeatDefinition *seat = definition->asBranchSeatDefinition();
+        if (seat)
+        {
+          // Indexed arms may be empty (null) anywhere in the list; walk every
+          // index so the arms behind an empty one still get their own slots.
+          for (unsigned arm = 0; arm < seat->armCount(); ++arm)
+          {
+            assignDefinitionSeatSlots(seat->armDefinition(arm), nextSlot);
+          }
+          return;
+        }
         for (unsigned i = 0; NodeDefinitionBase *branch = definition->retainedDefinitionBranch(i); ++i)
         {
           assignDefinitionSeatSlots(branch, nextSlot);
