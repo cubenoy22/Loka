@@ -2,6 +2,7 @@
 #define LOKA_WIN32_WINDOW_CLIENT_SIZE_TESTS_HPP
 
 void testWin32DeclaredWindowSizeMeansClientArea();
+void testWin32ResizeMessageStoresTrackedContentSize();
 void testWin32AppOnlyMenuWindowSettles();
 void testWin32MenuRebuildPreservesMovedWindowFrame();
 void testWin32WindowDestructionDestroysNativeWindow();

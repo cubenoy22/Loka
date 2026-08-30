@@ -35,6 +35,27 @@ namespace
   {
     return (static_cast<unsigned long>(event.message) & kResumeEventFlag) != 0;
   }
+
+  ToolboxWindow *FindToolboxWindow(AppComponentGroup *group, WindowPtr target)
+  {
+    if (!group || !target)
+    {
+      return 0;
+    }
+    const std::vector<AppComponent *> &components = group->getComponents();
+    for (std::vector<AppComponent *>::const_iterator it = components.begin();
+         it != components.end();
+         ++it)
+    {
+      Window *window = (*it)->asWindow();
+      ToolboxWindow *toolboxWindow = window ? window->asToolboxWindow() : 0;
+      if (toolboxWindow && toolboxWindow->window() == target)
+      {
+        return toolboxWindow;
+      }
+    }
+    return 0;
+  }
 } // namespace
 
 ToolboxApp::ToolboxApp(AppConfigurable *config)
@@ -245,6 +266,19 @@ void ToolboxApp::run()
       {
         Rect bounds = qd.screenBits.bounds;
         DragWindow(target, event.where, &bounds);
+        ToolboxWindow *dragged = FindToolboxWindow(group_, target);
+        if (dragged)
+        {
+          dragged->storeCurrentNativeContentFrame();
+        }
+      }
+      else if (part == inGrow && target)
+      {
+        ToolboxWindow *grown = FindToolboxWindow(group_, target);
+        if (grown)
+        {
+          grown->handleGrow(event.where);
+        }
       }
     }
     else if (event.what == activateEvt)
@@ -260,6 +294,9 @@ void ToolboxApp::run()
           if (toolboxWindow && toolboxWindow->window() == target)
           {
             setActiveWindow(toolboxWindow);
+            // The grow icon follows the window hilite state; redraw only
+            // its corner through the ordinary update event.
+            toolboxWindow->invalidateGrowIcon();
             break;
           }
         }
@@ -273,6 +310,7 @@ void ToolboxApp::run()
       if (active && active->window())
       {
         HiliteWindow(active->window(), activationPhase_ == ACTIVATION_FOREGROUND);
+        active->invalidateGrowIcon();
       }
       if (activationPhase_ == ACTIVATION_FOREGROUND && menuBarDrawDeferred_)
       {

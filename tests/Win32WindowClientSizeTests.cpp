@@ -6,6 +6,7 @@
 #include "Win32App.hpp"
 #include "Win32Window.hpp"
 #include "app/Menu.hpp"
+#include "core/State.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 
@@ -82,6 +83,36 @@ namespace
       ++*count;
     }
   }
+
+  struct Win32WidthIsNarrow : public loka::core::DerivedState<bool>::EvalFn
+  {
+    const loka::core::State<loka::core::Frame> *frame;
+
+    explicit Win32WidthIsNarrow(const loka::core::State<loka::core::Frame> *frameState)
+        : frame(frameState)
+    {
+    }
+
+    virtual bool operator()()
+    {
+      return this->frame && this->frame->get().hasSize() && this->frame->get().width < 480;
+    }
+  };
+
+  void resizeNativeClient(HWND hwnd, int width, int height)
+  {
+    RECT outer = {0, 0, width, height};
+    const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(hwnd, GWL_STYLE));
+    const DWORD exStyle = static_cast<DWORD>(GetWindowLongPtrW(hwnd, GWL_EXSTYLE));
+    LOKA_VERIFY(AdjustWindowRectEx(&outer, style, GetMenu(hwnd) ? TRUE : FALSE, exStyle));
+    LOKA_VERIFY(SetWindowPos(hwnd,
+                            NULL,
+                            0,
+                            0,
+                            outer.right - outer.left,
+                            outer.bottom - outer.top,
+                            SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE));
+  }
 } // namespace
 
 void testWin32DeclaredWindowSizeMeansClientArea()
@@ -128,6 +159,48 @@ void testWin32DeclaredWindowSizeMeansClientArea()
 
   setWindowVisibility(window, false);
   printf("==== [testWin32DeclaredWindowSizeMeansClientArea] PASSED ====\n");
+}
+
+void testWin32ResizeMessageStoresTrackedContentSize()
+{
+  printf("\n==== [testWin32ResizeMessageStoresTrackedContentSize] start ====\n");
+  WindowProps props;
+  props.frame(40, 40, 640, 360).visible(false);
+  NullPlatformContext context;
+  Win32Window window(&context, props);
+  setWindowVisibility(window, true);
+  HWND hwnd = window.hwnd();
+  assert(hwnd && IsWindow(hwnd));
+
+  const loka::core::Frame declaredFrame = window.frameState().get();
+  const loka::core::Frame beforeMinimize = window.nativeFrame().get();
+  SendMessageW(hwnd, WM_SIZE, SIZE_MINIMIZED, MAKELPARAM(0, 0));
+  LOKA_VERIFY(window.nativeFrame().get() == beforeMinimize &&
+              "a minimized WM_SIZE must not replace the last native content frame");
+  LOKA_VERIFY(window.frameState().get() == declaredFrame &&
+              "a minimized WM_SIZE must not change the declared content frame");
+
+  loka::core::State<loka::core::Frame> &nativeFrame = window.nativeFrame();
+  loka::core::DerivedState<bool> narrow(&nativeFrame, new Win32WidthIsNarrow(&nativeFrame));
+  loka::core::PushStateTracker *tracker = window.getTracker()->asPushTracker();
+  assert(tracker);
+  tracker->addState(&narrow);
+  int notifications = 0;
+  narrow.bind(&CountFrameNotification, &notifications, false);
+
+  resizeNativeClient(hwnd, 400, 280);
+  const loka::core::Frame resized = window.nativeFrame().get();
+  assert(resized.width == 400 && resized.height == 280 &&
+         "a normal WM_SIZE must publish the Win32 native content size");
+  LOKA_VERIFY(window.frameState().get() == declaredFrame &&
+              "a native WM_SIZE must not echo into the declared content frame");
+  assert(narrow.get() &&
+         "derived window state must settle before the native resize transaction returns");
+  assert(notifications == 1);
+
+  tracker->removeState(&narrow);
+  setWindowVisibility(window, false);
+  printf("==== [testWin32ResizeMessageStoresTrackedContentSize] PASSED ====\n");
 }
 
 void testWin32AppOnlyMenuWindowSettles()

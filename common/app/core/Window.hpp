@@ -10,6 +10,7 @@
 #include "app/core/AppComponent.hpp"
 #include "app/core/SceneManager.hpp"
 #include "core/util/StateUtil.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "core/util/OwnedDef.hpp"
 #include "app/scene/Node.hpp"
 #include "app/Menu.hpp"
@@ -20,6 +21,12 @@ namespace loka
 {
   namespace app
   {
+    namespace testing
+    {
+#ifdef TEST_BUILD
+      class WindowTestAccess;
+#endif
+    }
     namespace scene
     {
       class Scene;
@@ -506,14 +513,11 @@ public:
         titleStorage_(),
         visibilityStorage_(true),
         frameState_(),
+        nativeFrame_(),
         title_(&titleStorage_),
         displayTitle_(&titleStorage_),
         visibility_(&visibilityStorage_),
         frameStatePtr_(&frameState_),
-        positionX_(props.positionX),
-        positionY_(props.positionY),
-        width_(props.width),
-        height_(props.height),
         idlePolicy_(props.idlePolicyValue),
         onIdleFn_(props.onIdleFn),
         onIdleUserData_(props.onIdleUserData),
@@ -538,6 +542,8 @@ public:
     pushTracker->addState(title_);
     pushTracker->addState(displayTitle_);
     pushTracker->addState(visibility_);
+    pushTracker->addState(frameStatePtr_);
+    pushTracker->addState(&nativeFrame_);
     tracker_ = pushTracker;
     if (props.hasInitialTitle)
     {
@@ -547,18 +553,18 @@ public:
     {
       visibility_->set(props.initialVisibility);
     }
-    if (positionX_ >= 0 || positionY_ >= 0 || width_ > 0 || height_ > 0)
+    if (props.positionX >= 0 || props.positionY >= 0 || props.width > 0 || props.height > 0)
     {
       loka::core::Frame frame = frameStatePtr_->get();
-      if (positionX_ >= 0 && positionY_ >= 0)
+      if (props.positionX >= 0 && props.positionY >= 0)
       {
-        frame.x = positionX_;
-        frame.y = positionY_;
+        frame.x = props.positionX;
+        frame.y = props.positionY;
       }
-      if (width_ > 0 && height_ > 0)
+      if (props.width > 0 && props.height > 0)
       {
-        frame.width = width_;
-        frame.height = height_;
+        frame.width = props.width;
+        frame.height = props.height;
       }
       frameStatePtr_->set(frame);
     }
@@ -627,6 +633,19 @@ public:
   loka::core::MutableState<loka::core::Frame> &frameState()
   {
     return *frameStatePtr_;
+  }
+  /** The native content frame is a fact written only by the platform rail;
+      frameState() is application intent and the rail never writes it. The two
+      may legally diverge after a user resize. An application that wants its
+      intent to follow the native fact writes
+      frameState().set(nativeFrame().get()) itself. */
+  loka::core::State<loka::core::Frame> &nativeFrame()
+  {
+    return this->nativeFrame_; // State<T> carries no set(); only the rail's storeNativeFrame() writes
+  }
+  const loka::core::State<loka::core::Frame> &nativeFrame() const
+  {
+    return this->nativeFrame_;
   }
   const loka::app::MenuBarDefinition *menuBar() const
   {
@@ -797,8 +816,17 @@ public:
     return onKeyPressFn_(this, key, onKeyPressUserData_);
   }
 
-private:
 protected:
+  void storeNativeFrame(const loka::core::Frame &frame)
+  {
+    if (this->nativeFrame_.get() == frame)
+    {
+      return;
+    }
+    loka::core::StateTrackerGuard guard(this->getTracker());
+    this->nativeFrame_.set(frame);
+  }
+
   void observeNativeState(const loka::core::StateBase &state,
                           loka::core::StateBase::OnChangeFn callback,
                           void *userData)
@@ -817,14 +845,11 @@ protected:
   loka::core::MutableState<loka::core::String> titleStorage_;
   loka::core::MutableState<bool> visibilityStorage_;
   loka::core::MutableState<loka::core::Frame> frameState_;
+  loka::core::MutableState<loka::core::Frame> nativeFrame_;
   loka::core::MutableState<loka::core::String> *title_;
   loka::core::State<loka::core::String> *displayTitle_;
   loka::core::MutableState<bool> *visibility_;
   loka::core::MutableState<loka::core::Frame> *frameStatePtr_;
-  int positionX_;
-  int positionY_;
-  int width_;
-  int height_;
   loka::app::IdlePolicy idlePolicy_;
   WindowProps::OnIdleFn onIdleFn_;
   void *onIdleUserData_;
@@ -832,6 +857,10 @@ protected:
   void *onKeyPressUserData_;
   loka::core::OwnedDef<loka::app::MenuBarDefinition> menuBarDefinition_;
   NativeStateObserverLedger nativeStateObservers_;
+
+#ifdef TEST_BUILD
+  friend class ::loka::app::testing::WindowTestAccess;
+#endif
 };
 
 #endif // LOKA_WINDOW_HPP

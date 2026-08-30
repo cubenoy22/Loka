@@ -6,8 +6,6 @@
 #include "core/StateTracker.hpp"
 
 #include "app/scene/Scene.hpp"
-#include "app/scene/Scene.hpp"
-#include "core/util/StateTrackerGuard.hpp"
 #include "Win32ScenePlatformController.hpp"
 #include "context/Win32OpenFileDialogContext.hpp"
 #include "core/String.hpp"
@@ -36,14 +34,6 @@ namespace
     outerWidth = rect.right - rect.left;
     outerHeight = rect.bottom - rect.top;
     return true;
-  }
-
-  void StoreContentFrameIfChanged(Win32Window *window, const loka::core::Frame &frame)
-  {
-    if (window && window->frameState().get() != frame)
-    {
-      window->frameState().set(frame);
-    }
   }
 } // namespace
 
@@ -89,6 +79,54 @@ bool Win32Window::queryNativeContentFrame(loka::core::Frame &out) const
                           clientRect.right - clientRect.left,
                           clientRect.bottom - clientRect.top);
   return true;
+}
+
+bool Win32Window::storeCurrentNativeContentFrame()
+{
+  loka::core::Frame frame;
+  if (!this->queryNativeContentFrame(frame))
+  {
+    return false;
+  }
+  this->storeNativeFrame(frame);
+  return true;
+}
+
+bool Win32Window::applyNativeContentFrame(const loka::core::Frame &frame)
+{
+  if (!this->hwnd_ || !frame.hasSize())
+  {
+    return false;
+  }
+  RECT windowRect;
+  if (!GetWindowRect(this->hwnd_, &windowRect))
+  {
+    return false;
+  }
+  int outerWidth = 0;
+  int outerHeight = 0;
+  const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(this->hwnd_, GWL_STYLE));
+  const DWORD exStyle = static_cast<DWORD>(GetWindowLongPtrW(this->hwnd_, GWL_EXSTYLE));
+  if (!CalculateOuterSizeForClient(frame.width,
+                                   frame.height,
+                                   style,
+                                   exStyle,
+                                   GetMenu(this->hwnd_) ? TRUE : FALSE,
+                                   outerWidth,
+                                   outerHeight))
+  {
+    assert(false && "Win32 client size must convert to an outer window size");
+    return false;
+  }
+  const int x = frame.x >= 0 ? frame.x : windowRect.left;
+  const int y = frame.y >= 0 ? frame.y : windowRect.top;
+  if (x == windowRect.left && y == windowRect.top &&
+      outerWidth == windowRect.right - windowRect.left &&
+      outerHeight == windowRect.bottom - windowRect.top)
+  {
+    return true;
+  }
+  return MoveWindow(this->hwnd_, x, y, outerWidth, outerHeight, TRUE) != FALSE;
 }
 
 bool Win32Window::detachMenuForTeardown(HMENU expectedMenu)
@@ -183,39 +221,7 @@ void Win32Window::FrameChangedThunk(void *userData)
     return;
   }
   loka::core::Frame frame = self->frameState().get();
-  if (!frame.hasSize())
-  {
-    return;
-  }
-  RECT windowRect;
-  if (!GetWindowRect(self->hwnd_, &windowRect))
-  {
-    return;
-  }
-  int outerWidth = 0;
-  int outerHeight = 0;
-  DWORD style = static_cast<DWORD>(GetWindowLongPtrW(self->hwnd_, GWL_STYLE));
-  DWORD exStyle = static_cast<DWORD>(GetWindowLongPtrW(self->hwnd_, GWL_EXSTYLE));
-  if (!CalculateOuterSizeForClient(frame.width,
-                                   frame.height,
-                                   style,
-                                   exStyle,
-                                   GetMenu(self->hwnd_) ? TRUE : FALSE,
-                                   outerWidth,
-                                   outerHeight))
-  {
-    assert(false && "Win32 client size must convert to an outer window size");
-    return;
-  }
-  int x = frame.x >= 0 ? frame.x : windowRect.left;
-  int y = frame.y >= 0 ? frame.y : windowRect.top;
-  if (x == windowRect.left && y == windowRect.top &&
-      outerWidth == windowRect.right - windowRect.left &&
-      outerHeight == windowRect.bottom - windowRect.top)
-  {
-    return;
-  }
-  MoveWindow(self->hwnd_, x, y, outerWidth, outerHeight, TRUE);
+  self->applyNativeContentFrame(frame);
 }
 
 LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -293,13 +299,15 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         int height = HIWORD(lParam);
         self->scenePlatformController_->relayout(width, height);
       }
-      if (self->hwnd_)
+      if (wParam != SIZE_MINIMIZED && self->hwnd_)
       {
-        loka::core::Frame frame;
-        if (self->queryNativeContentFrame(frame))
-        {
-          StoreContentFrameIfChanged(self, frame);
-        }
+        self->storeCurrentNativeContentFrame();
+      }
+      return 0;
+    case WM_MOVE:
+      if (self->hwnd_ && !IsIconic(self->hwnd_))
+      {
+        self->storeCurrentNativeContentFrame();
       }
       return 0;
     case WM_PAINT:
@@ -370,11 +378,7 @@ void Win32Window::createNativeWindow()
   if (hwnd)
   {
     this->hwnd_ = hwnd;
-    loka::core::Frame frame;
-    if (this->queryNativeContentFrame(frame))
-    {
-      StoreContentFrameIfChanged(this, frame);
-    }
+    this->storeCurrentNativeContentFrame();
     if (this->app_)
     {
       this->app_->setActiveWindow(this);

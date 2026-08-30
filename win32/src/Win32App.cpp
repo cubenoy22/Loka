@@ -3,7 +3,6 @@
 #include <windows.h>
 #include <commdlg.h>
 #include "app/core/App.hpp"
-#include "core/util/StateTrackerGuard.hpp"
 #include "platform/Win32String.hpp"
 
 namespace
@@ -23,10 +22,8 @@ namespace
     {
       return false;
     }
-    {
-      loka::core::StateTrackerGuard guard(window->getTracker());
-      window->frameState().set(contentFrame, true);
-    }
+    window->applyNativeContentFrame(contentFrame);
+    window->storeCurrentNativeContentFrame();
     DrawMenuBar(window->hwnd());
     return true;
   }

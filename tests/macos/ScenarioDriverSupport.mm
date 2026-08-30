@@ -371,7 +371,7 @@ namespace loka
 
       void drive(Window *window, App *app, scenario_tests::ScenarioDriver &driver)
       {
-        const loka::core::Frame frame = window ? window->frameState().get() : loka::core::Frame();
+        const loka::core::Frame frame = window ? window->nativeFrame().get() : loka::core::Frame();
         scenario_tests::CaptureContentBounds bounds;
         if (frame.width > 0 && frame.height > 0)
         {

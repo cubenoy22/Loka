@@ -76,6 +76,15 @@
   }
 }
 
+- (void)windowDidMove:(NSNotification *)notification
+{
+  (void)notification;
+  if (self.owner)
+  {
+    self.owner->handleWindowDidMove();
+  }
+}
+
 - (void)windowDidBecomeKey:(NSNotification *)notification
 {
   (void)notification;
@@ -213,6 +222,26 @@ namespace
     frameRect.origin.y = top - y - frameRect.size.height;
     return frameRect;
   }
+
+  static loka::core::Frame NativeContentFrame(NSWindow *window)
+  {
+    if (!window)
+    {
+      return loka::core::Frame();
+    }
+    const NSRect contentRect = [window contentRectForFrameRect:[window frame]];
+    NSScreen *screen = [window screen];
+    if (!screen)
+    {
+      screen = [NSScreen mainScreen];
+    }
+    // Native fractional coordinates truncate at the integer Frame/relayout seam.
+    return loka::core::Frame(static_cast<int>(contentRect.origin.x),
+                             static_cast<int>(VisibleTopForScreen(screen)
+                                              - (contentRect.origin.y + contentRect.size.height)),
+                             static_cast<int>(contentRect.size.width),
+                             static_cast<int>(contentRect.size.height));
+  }
 } // namespace
 
 void MacWindow::FrameChangedThunk(void *userData)
@@ -238,6 +267,24 @@ void MacWindow::FrameChangedThunk(void *userData)
   if (!screen)
   {
     screen = [NSScreen mainScreen];
+  }
+  const bool sameContentSize = static_cast<int>(currentContent.size.width) == frame.width
+                               && static_cast<int>(currentContent.size.height) == frame.height;
+  bool samePosition = !frame.hasPosition();
+  if (frame.hasPosition())
+  {
+    NSRect mappedCurrentFrame = FrameRectForContent(frame.x,
+                                                    frame.y,
+                                                    currentContent.size.width,
+                                                    currentContent.size.height,
+                                                    [window styleMask],
+                                                    screen);
+    samePosition = currentFrame.origin.x == mappedCurrentFrame.origin.x
+                   && currentFrame.origin.y == mappedCurrentFrame.origin.y;
+  }
+  if (sameContentSize && samePosition)
+  {
+    return;
   }
   NSRect nextFrame = FrameRectForContent(x, y, width, height, [window styleMask], screen);
   if (frame.x < 0)
@@ -294,6 +341,7 @@ void MacWindow::createNativeWindow()
   window_ = (void *)window;
   contentView_ = (void *)contentView;
   delegate_ = (void *)delegate;
+  this->storeNativeFrame(NativeContentFrame(window));
 
   [window makeKeyAndOrderFront:nil];
   this->onCreate();
@@ -471,13 +519,29 @@ void MacWindow::handleWindowWillClose()
 
 void MacWindow::handleWindowDidResize()
 {
+  NSWindow *window = (NSWindow *)window_;
+  NSView *view = (NSView *)contentView_;
+  if (!window)
+  {
+    return;
+  }
+  this->storeNativeFrame(NativeContentFrame(window));
   if (!scenePlatformController_ || !contentView_)
   {
     return;
   }
-  NSView *view = (NSView *)contentView_;
-  NSRect bounds = [view bounds];
-  scenePlatformController_->relayout(static_cast<int>(bounds.size.width), static_cast<int>(bounds.size.height));
+  const NSRect contentBounds = [view bounds];
+  scenePlatformController_->relayout(static_cast<int>(contentBounds.size.width),
+                                     static_cast<int>(contentBounds.size.height));
+}
+
+void MacWindow::handleWindowDidMove()
+{
+  NSWindow *window = (NSWindow *)window_;
+  if (window)
+  {
+    this->storeNativeFrame(NativeContentFrame(window));
+  }
 }
 
 void MacWindow::handleWindowDidBecomeKey()

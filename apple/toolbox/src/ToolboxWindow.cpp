@@ -144,6 +144,7 @@ void ToolboxWindow::open()
   window_ = NewWindow(0, &bounds, titleStr, true, documentProc, (WindowPtr)-1, true, 0);
   titleBarHeight_ = WindowTitleBarHeight(window_);
   TitleChangedThunk(this);
+  this->storeCurrentNativeContentFrame();
 }
 
 void ToolboxWindow::requestInvalidate()
@@ -297,7 +298,42 @@ void ToolboxWindow::FrameChangedThunk(void *userData)
   }
   if (frame.hasSize())
   {
-    SizeWindow(self->window_, static_cast<short>(frame.width), static_cast<short>(frame.height), true);
+    const int currentWidth = self->window_->portRect.right - self->window_->portRect.left;
+    const int currentHeight = self->window_->portRect.bottom - self->window_->portRect.top;
+    if (currentWidth != frame.width || currentHeight != frame.height)
+    {
+      SizeWindow(self->window_, static_cast<short>(frame.width), static_cast<short>(frame.height), true);
+    }
+  }
+}
+
+loka::core::Frame ToolboxWindow::nativeContentFrame() const
+{
+  if (!this->window_)
+  {
+    return loka::core::Frame();
+  }
+  const Rect portRect = this->window_->portRect;
+  Point topLeft;
+  topLeft.h = portRect.left;
+  topLeft.v = portRect.top;
+  GrafPtr oldPort;
+  GetPort(&oldPort);
+  SetPort(this->window_);
+  LocalToGlobal(&topLeft);
+  SetPort(oldPort);
+  const short menuHeight = GetMBarHeight();
+  return loka::core::Frame(topLeft.h,
+                           static_cast<int>(topLeft.v) - menuHeight - 1,
+                           portRect.right - portRect.left,
+                           portRect.bottom - portRect.top);
+}
+
+void ToolboxWindow::storeCurrentNativeContentFrame()
+{
+  if (this->window_)
+  {
+    this->storeNativeFrame(this->nativeContentFrame());
   }
 }
 
@@ -321,6 +357,69 @@ void ToolboxWindow::TitleChangedThunk(void *userData)
   Str255 titleStr;
   CopyToPascalString(title, titleStr);
   SetWTitle(self->window_, titleStr);
+}
+
+namespace
+{
+  const short kGrowBoxSize = 15;
+  const short kMinimumGrowWidth = 64;  // REALbasic 3.1 floor
+  const short kMinimumGrowHeight = 64;
+
+  Rect GrowIconRect(const Rect &portRect)
+  {
+    Rect rect;
+    rect.left = static_cast<short>(portRect.right - kGrowBoxSize);
+    rect.top = static_cast<short>(portRect.bottom - kGrowBoxSize);
+    rect.right = portRect.right;
+    rect.bottom = portRect.bottom;
+    return rect;
+  }
+} // namespace
+
+void ToolboxWindow::handleGrow(const Point &globalPoint)
+{
+  if (!window_)
+  {
+    return;
+  }
+  Rect sizeRect;
+  // Rect is {top, left, bottom, right}; SetRect takes (left, top, right, bottom):
+  // left/top = minimum width/height, right/bottom = maximum width/height.
+  SetRect(&sizeRect,
+          kMinimumGrowWidth,
+          kMinimumGrowHeight,
+          static_cast<short>(qd.screenBits.bounds.right - qd.screenBits.bounds.left),
+          static_cast<short>(qd.screenBits.bounds.bottom - qd.screenBits.bounds.top));
+  const long grown = GrowWindow(window_, globalPoint, &sizeRect);
+  if (grown == 0)
+  {
+    return; // cancelled or unchanged: leave the size alone
+  }
+  const short width = static_cast<short>(grown & 0xFFFF);
+  const short height = static_cast<short>((grown >> 16) & 0xFFFF);
+  SizeWindow(window_, width, height, true);
+  // SizeWindow(..., true) invalidates only the newly exposed area; the whole
+  // content is laid out from portRect on the next draw, so invalidate it all.
+  GrafPtr oldPort;
+  GetPort(&oldPort);
+  SetPort(window_);
+  InvalRect(&window_->portRect);
+  SetPort(oldPort);
+  this->storeCurrentNativeContentFrame();
+}
+
+void ToolboxWindow::invalidateGrowIcon()
+{
+  if (!window_)
+  {
+    return;
+  }
+  GrafPtr oldPort;
+  GetPort(&oldPort);
+  SetPort(window_);
+  const Rect corner = GrowIconRect(window_->portRect);
+  InvalRect(&corner);
+  SetPort(oldPort);
 }
 
 bool ToolboxWindow::handleMouseDown(const Point &globalPoint)
@@ -420,12 +519,21 @@ void ToolboxWindow::drawDirty(const Rect &rect)
   GetPort(&oldPort);
   SetPort(window_);
   Rect clip = rect;
+  const Rect corner = GrowIconRect(window_->portRect);
+  Rect growIntersection;
+  const bool drawsGrowBox = SectRect(&clip, &corner, &growIntersection) != 0;
   RgnHandle oldClip = NewRgn();
   if (oldClip)
   {
     GetClip(oldClip);
     ClipRect(&clip);
     scenePlatformController_->renderDirty(rect);
+    if (drawsGrowBox)
+    {
+      SetClip(oldClip);
+      ClipRect(&growIntersection);
+      this->drawGrowBox();
+    }
     SetClip(oldClip);
     DisposeRgn(oldClip);
   }
@@ -434,6 +542,25 @@ void ToolboxWindow::drawDirty(const Rect &rect)
     scenePlatformController_->renderDirty(rect);
   }
   SetPort(oldPort);
+}
+
+void ToolboxWindow::drawGrowBox()
+{
+  if (!this->window_)
+  {
+    return;
+  }
+  RgnHandle oldClip = NewRgn();
+  if (!oldClip)
+  {
+    return;
+  }
+  GetClip(oldClip);
+  const Rect corner = GrowIconRect(this->window_->portRect);
+  ClipRect(&corner);
+  DrawGrowIcon(this->window_);
+  SetClip(oldClip);
+  DisposeRgn(oldClip);
 }
 
 void ToolboxWindow::invalidateWindow()
@@ -460,6 +587,7 @@ void ToolboxWindow::draw()
     scenePlatformController_->render();
     scenePlatformController_->drawControlsInRect(window_->portRect);
   }
+  this->drawGrowBox();
 
   SetPort(oldPort);
 }

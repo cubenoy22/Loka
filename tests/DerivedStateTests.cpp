@@ -1,6 +1,7 @@
 #include "DerivedStateTests.hpp"
 #include <cassert>
 #include <cstdio>
+#include "core/Frame.hpp"
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
 
@@ -56,6 +57,21 @@ namespace
     virtual int operator()()
     {
       return src ? src->get() * 2 : 0;
+    }
+  };
+
+  struct WidthIsNarrowEval : public loka::core::DerivedState<bool>::EvalFn
+  {
+    loka::core::State<loka::core::Frame> *frame;
+
+    explicit WidthIsNarrowEval(loka::core::State<loka::core::Frame> *frameState)
+        : frame(frameState)
+    {
+    }
+
+    virtual bool operator()()
+    {
+      return this->frame && this->frame->get().width < 480;
     }
   };
 
@@ -163,6 +179,41 @@ void testDerivedStateCore()
     // state is visited before its upstream in the first commit pass.
     assert(twiceNotifications == 1);
     assert(fourTimesNotifications == 1);
+  }
+
+  // --- a derived threshold notifies exactly once per truth-value crossing ---
+  {
+    loka::core::MutableState<loka::core::Frame> frame(loka::core::Frame(10, 20, 640, 480));
+    loka::core::DerivedState<bool> narrow(&frame, new WidthIsNarrowEval(&frame));
+    loka::core::PushStateTracker tracker;
+    tracker.addState(&frame);
+    tracker.addState(&narrow);
+    int notifications = 0;
+    narrow.bind(&increment, &notifications, false);
+
+    tracker.begin();
+    frame.set(loka::core::Frame(10, 20, 400, 480));
+    bool settled = tracker.end();
+    (void)settled;
+    assert(settled);
+    assert(narrow.get());
+    assert(notifications == 1);
+
+    tracker.begin();
+    frame.set(loka::core::Frame(10, 20, 300, 480));
+    settled = tracker.end();
+    (void)settled;
+    assert(settled);
+    assert(narrow.get());
+    assert(notifications == 1);
+
+    tracker.begin();
+    frame.set(loka::core::Frame(10, 20, 640, 480));
+    settled = tracker.end();
+    (void)settled;
+    assert(settled);
+    assert(!narrow.get());
+    assert(notifications == 2);
   }
 
   // --- without a tracker, a dependency write does NOT recompute ---
