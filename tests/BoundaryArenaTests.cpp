@@ -4642,10 +4642,23 @@ void testBranchSeatSiblingsRejectDuplicateTags()
   composition.assignCompositionSeatSlots();
   loka::app::scene::BoundaryBranchSeatState seats;
   seats.capture(composition.root());
-  // Release builds drop every plan under a key claimed by two definitions;
-  // both seats are then refused at materialization as seats without a
-  // captured plan (requiresBoundaryPlan in its own meaning).
-  LOKA_VERIFY(seats.plans().empty() &&
-              "release builds refuse every plan under a colliding tagged key");
+  // Release builds keep every claimant and refuse the key: findPlan() answers
+  // 0 while both entries stand, so both seats materialize as seats without a
+  // plan (requiresBoundaryPlan in its own meaning). A later append() under
+  // the same key (a nested composition) cannot revive it.
+  const loka::app::scene::BoundaryParkedBranchKey key(
+      8101, 0, first.branchSeatTypeId());
+  LOKA_VERIFY(seats.plans().size() == 2 && seats.findPlan(key) == 0 &&
+              "a key with two claimants has no plan");
+  loka::app::scene::testing::ProbeArmSeatDefinition third(&selection, arms, 3);
+  third.setNodeTag(8101);
+  loka::app::Fragment appended;
+  appended << third;
+  loka::app::scene::NodeComposition nestedComposition;
+  nestedComposition.declare(appended);
+  nestedComposition.assignCompositionSeatSlots();
+  seats.append(nestedComposition.root());
+  LOKA_VERIFY(seats.plans().size() == 3 && seats.findPlan(key) == 0 &&
+              "an appended third claimant does not revive a collided key");
 #endif
 }
