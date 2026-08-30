@@ -223,7 +223,8 @@ void testWin32NativeWindowCreationDoesNotEchoVisibility()
          "native window creation must not write visibilityState back (one application write, one notification)");
 
   setWindowVisibility(window, false);
-  LOKA_VERIFY(window.hwnd() == NULL);
+  const HWND destroyedHwnd = window.hwnd();
+  LOKA_VERIFY(destroyedHwnd == NULL);
   assert(notifications == 2 &&
          "native window destruction must not write visibilityState back either");
 
