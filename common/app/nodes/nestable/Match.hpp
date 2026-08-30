@@ -56,6 +56,13 @@ namespace loka
     class MatchDefinition : public scene::NodeDefinitionBase,
                             public scene::IBranchSeatDefinition
     {
+    public:
+      /** Predicates are pure selection queries: they must not write State.
+          userData is borrowed and must outlive every visit of this seat.
+          Declared before the matcher types below: a nested class may only
+          name members already declared, and Clang enforces that. */
+      typedef bool (*PredicateFn)(const T &, void *);
+
     private:
       struct Matcher
       {
@@ -88,7 +95,7 @@ namespace loka
 
       struct PredicateMatcher : public Matcher
       {
-        PredicateMatcher(typename MatchDefinition<T>::PredicateFn predicateValue,
+        PredicateMatcher(PredicateFn predicateValue,
                          void *userDataValue)
             : predicate(predicateValue),
               userData(userDataValue)
@@ -103,7 +110,7 @@ namespace loka
           return new PredicateMatcher(this->predicate, this->userData);
         }
 
-        typename MatchDefinition<T>::PredicateFn predicate;
+        PredicateFn predicate;
         void *userData;
       };
 
@@ -191,10 +198,6 @@ namespace loka
       {
         MAX_ARMS = 8
       };
-
-      /** Predicates are pure selection queries: they must not write State.
-          userData is borrowed and must outlive every visit of this seat. */
-      typedef bool (*PredicateFn)(const T &, void *);
 
       explicit MatchDefinition(loka::core::State<T> *state)
           : scene::NodeDefinitionBase(),
