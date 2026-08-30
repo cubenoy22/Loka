@@ -408,11 +408,9 @@ void Win32Window::destroyNativeWindow()
 
 void Win32Window::onCreate()
 {
+  // Native creation is entered from VisibilityChangedThunk; it reads the
+  // application's intent and never writes it back (no forced re-notify).
   Window::onCreate();
-  if (this->visibilityState().get())
-  {
-    this->visibilityState().set(true, true);
-  }
 }
 
 void Win32Window::onShow()
