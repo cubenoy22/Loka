@@ -474,7 +474,6 @@ namespace loka
               {
                 return;
               }
-              boundary_->registerState(state);
               boundary_->registerObservedState(state, flags);
             }
 

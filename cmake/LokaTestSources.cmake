@@ -19,6 +19,7 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/LifecycleFactTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/StateNotifyTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/StateTrackerCommitTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/BoundaryObservedStateTrackerTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/DerivedStateTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/WindowFrameStateTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/DefinitionCloneTests.cpp
