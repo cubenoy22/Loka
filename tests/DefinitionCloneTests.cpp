@@ -10,6 +10,7 @@
 #include "app/core/MenuController.hpp"
 #include "app/core/WindowDefinition.hpp"
 #include "app/nodes/nestable/Box.hpp"
+#include "app/nodes/nestable/Match.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/composition/NodeCompositionSnapshot.hpp"
 #include "app/scene/node/Conditional.hpp"
@@ -251,6 +252,12 @@ namespace
     return menu->itemsCount() == 1 && menu->itemsHead()
            && menu->itemsHead()->title.equals(loka::core::String::Literal(label));
   }
+
+  bool cloneMatchPredicate(const int &value, void *userData)
+  {
+    const int *expected = static_cast<const int *>(userData);
+    return expected && value == *expected;
+  }
 } // namespace
 
 // ============================================================
@@ -358,6 +365,41 @@ void testConditionalDefinitionCloneOwnership()
   assert(g_probeNodesAlive == 0);
 
   printf("==== [testConditionalDefinitionCloneOwnership] end ====\n");
+}
+
+void testMatchDefinitionClonePreservesArmsAndMatchers()
+{
+  loka::core::MutableState<int> selection(2);
+  CloneProbeDefinition valueArm;
+  CloneProbeDefinition predicateArm;
+  CloneProbeDefinition otherwiseArm;
+  int predicateValue = 2;
+  loka::app::MatchDefinition<int> original = loka::app::Match(selection);
+  original.arm(1, valueArm)
+      .arm(&cloneMatchPredicate, &predicateValue, predicateArm)
+      .otherwise(otherwiseArm);
+
+  loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> copy(original.clone());
+  const bool copyIsSet = copy.isSet();
+  LOKA_VERIFY(copyIsSet);
+  loka::app::scene::IBranchSeatDefinition *copiedSeat =
+      copy->asBranchSeatDefinition();
+  LOKA_VERIFY(copiedSeat);
+  const unsigned copiedArmCount = copiedSeat->armCount();
+  const unsigned originalArmCount = original.armCount();
+  LOKA_VERIFY(copiedArmCount == originalArmCount);
+  assert(copiedSeat->branchSeatTypeId() == original.branchSeatTypeId());
+  for (unsigned arm = 0; arm < originalArmCount; ++arm)
+  {
+    assert(copiedSeat->armDefinition(arm));
+    assert(copiedSeat->armDefinition(arm) != original.armDefinition(arm));
+  }
+  unsigned originalArm = 0;
+  unsigned copiedArm = 0;
+  const bool originalSelected = original.selectArm(originalArm);
+  const bool copySelected = copiedSeat->selectArm(copiedArm);
+  LOKA_VERIFY(originalSelected && copySelected);
+  assert(originalArm == 1 && copiedArm == originalArm);
 }
 
 void testConditionalDefinitionAssignmentPreservesPairOnSecondCloneFailure()
