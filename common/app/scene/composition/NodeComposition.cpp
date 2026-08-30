@@ -334,17 +334,21 @@ namespace loka
         return result;
       }
 
-      static bool assignDefinitionSeatSlots(NodeDefinitionBase *definition, int &nextSlot)
+      static void assignDefinitionSeatSlots(NodeDefinitionBase *definition, int &nextSlot)
       {
         if (!definition)
         {
-          return true;
+          return;
         }
-        bool valid = true;
         definition->setCompositionSeatSlot(nextSlot++);
         INestableDefinition *nestable = definition->asNestableDefinition();
         if (nestable)
         {
+#ifndef NDEBUG
+          // Misuse detection only: the fully-tagged and duplicate-key asserts
+          // are this scan's sole effects, so release builds skip it entirely.
+          // The release wall for a duplicate branch-seat key is where the key
+          // is minted (BoundaryBranchSeatState::captureDefinition).
           bool requiresFullyTaggedSiblings = false;
           for (NodeDefinitionBase *candidate = nestable->childrenHead();
                candidate;
@@ -364,10 +368,6 @@ namespace loka
             {
               assert(candidate->nodeTag() != NODE_TAG_NONE &&
                      "a sibling list containing a BoundarySection must be fully tagged");
-              if (candidate->nodeTag() == NODE_TAG_NONE)
-              {
-                valid = false;
-              }
             }
           }
           for (NodeDefinitionBase *candidate = nestable->childrenHead();
@@ -387,42 +387,30 @@ namespace loka
               {
                 assert(false &&
                        "sibling BoundarySections and branch seats require unique value keys");
-                valid = false;
               }
             }
           }
+#endif
           for (NodeDefinitionBase *child = nestable->childrenHead(); child; child = child->nextInComposition)
           {
-            if (!assignDefinitionSeatSlots(child, nextSlot))
-            {
-              valid = false;
-            }
+            assignDefinitionSeatSlots(child, nextSlot);
           }
         }
         for (unsigned i = 0; NodeDefinitionBase *branch = definition->retainedDefinitionBranch(i); ++i)
         {
-          if (!assignDefinitionSeatSlots(branch, nextSlot))
-          {
-            valid = false;
-          }
+          assignDefinitionSeatSlots(branch, nextSlot);
         }
-        return valid;
       }
 
       void NodeComposition::assignCompositionSeatSlots()
       {
         int nextSlot = 0;
-        this->validSiblingTags_ = assignDefinitionSeatSlots(this->root_, nextSlot);
+        assignDefinitionSeatSlots(this->root_, nextSlot);
       }
 
       NodeMaterializationResult NodeComposition::createNodeFromDefinitionResult(
           NodeDefinitionBase *root) const
       {
-        if (!this->validSiblingTags_)
-        {
-          NodeMaterializationResult refused = {0, false, true};
-          return refused;
-        }
         if (!root)
         {
           NodeMaterializationResult empty = {0, false, false};

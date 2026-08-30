@@ -523,8 +523,7 @@ namespace loka
         void appendNestedBranchSeatPlan(NodeComposition &composition)
         {
           composition.assignCompositionSeatSlots();
-          this->branchSeats_.append(
-              composition.hasValidSiblingTags() ? composition.root() : 0);
+          this->branchSeats_.append(composition.root());
         }
         bool evaluateBranchSeatsForScheduledApply(ComponentContext &context)
         {
@@ -2247,10 +2246,7 @@ namespace loka
         void captureCurrentCompositionSnapshot()
         {
           this->composition().assignCompositionSeatSlots();
-          this->branchSeats_.capture(
-              this->composition().hasValidSiblingTags()
-                  ? this->composition().root()
-                  : 0);
+          this->branchSeats_.capture(this->composition().root());
           this->registerBranchSeatDirtySources();
           compositionState_.captureCurrentSnapshot(this->composition());
         }

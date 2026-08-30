@@ -392,7 +392,6 @@ namespace loka
         INestableDefinition *activeParent_;
         ComponentContext *context_;
         BoundaryBranchSeatRuntimeRegistrationPlan *branchSeatRegistrations_;
-        bool validSiblingTags_;
         NodeDefinitionBase *storeBase(const NodeDefinitionBase &def)
         {
           loka::core::OwnedDef<NodeDefinitionBase> cloned(def.clone());
@@ -455,8 +454,7 @@ namespace loka
             : root_(0),
               activeParent_(0),
               context_(0),
-              branchSeatRegistrations_(0),
-              validSiblingTags_(true)
+              branchSeatRegistrations_(0)
         {
         }
 
@@ -591,7 +589,6 @@ namespace loka
           activeParent_ = 0;
           context_ = 0;
           branchSeatRegistrations_ = 0;
-          validSiblingTags_ = true;
         }
 
         // Create node tree
@@ -602,10 +599,6 @@ namespace loka
             published (#150's guard is the plan-side precedent). */
         NodeMaterializationResult createNodeTreeCompleted() const;
         void assignCompositionSeatSlots();
-        bool hasValidSiblingTags() const
-        {
-          return this->validSiblingTags_;
-        }
 
         NodeDefinitionBase *root() const
         {

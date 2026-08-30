@@ -441,8 +441,23 @@ namespace loka
           IBranchSeatDefinition *seat = definition->asBranchSeatDefinition();
           if (seat)
           {
+            const BoundaryParkedBranchKey key = keyFor(*definition, *seat);
+            BoundaryBranchSeatPlanEntry *existing = this->findPlan(key);
+            if (existing)
+            {
+              // A nested append re-walks subtrees the outer capture already
+              // covered: the first entry for the same definition stands. A
+              // different definition under the same key is a tag collision --
+              // tagged seat keys ignore the slot, so both seats would share one
+              // ledger row. It gets no plan; materialization refuses it as a
+              // seat without a captured plan, which is exactly what it is.
+              assert(existing->seat == seat &&
+                     "two branch seats share one tagged key: sibling branch seats "
+                     "and BoundarySections require unique value keys");
+              return;
+            }
             BoundaryBranchSeatPlanEntry entry;
-            entry.key = keyFor(*definition, *seat);
+            entry.key = key;
             entry.dirtySource = seat->branchCondition();
             entry.seat = seat;
             for (unsigned arm = 0; arm < seat->armCount(); ++arm)

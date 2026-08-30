@@ -4441,7 +4441,10 @@ void testBranchSeatSiblingsRejectDuplicateTags()
     root << first << second;
     loka::app::scene::NodeComposition composition;
     composition.declare(root);
-    composition.assignCompositionSeatSlots();
+    // Tagged seat keys ignore the slot, so no slot pass is needed to mint
+    // them; capture is the wall and asserts on the second seat under one key.
+    loka::app::scene::BoundaryBranchSeatState seats;
+    seats.capture(composition.root());
     _exit(0);
   }
 
@@ -4464,11 +4467,11 @@ void testBranchSeatSiblingsRejectDuplicateTags()
   loka::app::scene::NodeComposition composition;
   composition.declare(root);
   composition.assignCompositionSeatSlots();
-  LOKA_VERIFY(!composition.hasValidSiblingTags());
-  const loka::app::scene::NodeMaterializationResult result =
-      loka::app::scene::testing::NodeCompositionTestAccess::
-          createNodeFromDefinitionResult(composition, composition.root());
-  LOKA_VERIFY(!result.root && result.requiresBoundaryPlan &&
-              "release builds refuse duplicate branch-seat sibling tags");
+  loka::app::scene::BoundaryBranchSeatState seats;
+  seats.capture(composition.root());
+  // Release builds mint one plan for the key; the second seat has none and is
+  // refused at materialization as a seat without a captured plan.
+  LOKA_VERIFY(seats.plans().size() == 1 && seats.plans()[0].seat == &first &&
+              "release builds register one plan per tagged key");
 #endif
 }
