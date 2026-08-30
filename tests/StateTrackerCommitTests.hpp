@@ -4,5 +4,7 @@
 void testStateTrackerCommitQueuesNextTransaction();
 void testStateTrackerCommitWriteReachesNextSceneApply();
 void testStateTrackerCommitChainReportsIterationLimit();
+void testStateTrackerGuardOpenedDuringSettlementJoinsTransaction();
+void testStateTrackerGuardOpenedDuringCommitJoinsTransaction();
 
 #endif // LOKA_STATE_TRACKER_COMMIT_TESTS_HPP

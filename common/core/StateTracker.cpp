@@ -11,6 +11,7 @@ namespace loka
         : phase_(TRACKER_IDLE),
           pendingDirty_(false),
           depth_(0),
+          reentrantDepth_(0),
           invalidateFn_(0),
           invalidateUserData_(0),
           invalidateTarget_(0),
@@ -25,6 +26,7 @@ namespace loka
         : phase_(TRACKER_IDLE),
           pendingDirty_(false),
           depth_(0),
+          reentrantDepth_(0),
           invalidateFn_(0),
           invalidateUserData_(0),
           invalidateTarget_(0),
@@ -49,6 +51,11 @@ namespace loka
       if (depth_ > 0)
       {
         ++depth_;
+        return;
+      }
+      if (phase_ != TRACKER_IDLE)
+      {
+        ++reentrantDepth_;
         return;
       }
       ++depth_;
@@ -245,7 +252,13 @@ namespace loka
     bool PushStateTracker::end()
     {
       if (depth_ == 0)
+      {
+        if (reentrantDepth_ > 0)
+        {
+          --reentrantDepth_;
+        }
         return true;
+      }
       --depth_;
       if (depth_ > 0)
         return true;
