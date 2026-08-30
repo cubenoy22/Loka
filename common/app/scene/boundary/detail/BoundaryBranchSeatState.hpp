@@ -27,40 +27,101 @@ namespace loka
         BranchPolicies policies;
       };
 
+      /** Allocation-free fingerprint of one seat's ordered arm roots. */
+      struct BoundaryBranchSeatShape
+      {
+        BoundaryBranchSeatShape()
+            : armCount(0),
+              orderedRootTypes(2166136261UL)
+        {
+        }
+
+        void append(const void *propsTypeId)
+        {
+          const unsigned char *bytes =
+              reinterpret_cast<const unsigned char *>(&propsTypeId);
+          for (size_t i = 0; i < sizeof(propsTypeId); ++i)
+          {
+            this->orderedRootTypes ^= bytes[i];
+            this->orderedRootTypes *= 16777619UL;
+          }
+          ++this->armCount;
+        }
+
+        bool matches(const BoundaryBranchSeatShape &other) const
+        {
+          return this->armCount == other.armCount &&
+                 this->orderedRootTypes == other.orderedRootTypes;
+        }
+
+        unsigned armCount;
+        unsigned long orderedRootTypes;
+      };
+
       struct BoundaryBranchSeatPlanEntry
       {
         BoundaryBranchSeatPlanEntry()
             : key(),
-              condition(0),
-              whenFalse(),
-              whenTrue(),
+              dirtySource(0),
+              seat(0),
+              selectedArm(0),
+              hasSelectedArm(false),
+              shape(),
               hasOwner(false),
               ownerKey(),
-              ownerCondition(false)
+              ownerArm(0)
         {
         }
 
-        const BoundaryBranchPlanBranch &branch(bool value) const
+        BoundaryBranchPlanBranch branch(unsigned arm) const
         {
-          return value ? this->whenTrue : this->whenFalse;
+          BoundaryBranchPlanBranch result;
+          if (!this->seat || arm >= this->shape.armCount)
+          {
+            return result;
+          }
+          result.definition = this->seat->armDefinition(arm);
+          IBranchPolicyScopeDefinition *scope =
+              result.definition
+                  ? result.definition->asBranchPolicyScopeDefinition()
+                  : 0;
+          if (scope)
+          {
+            result.definition = scope->scopedBranchDefinition();
+            result.policies = scope->branchPolicies();
+          }
+          return result;
+        }
+
+        void snapshotSelection()
+        {
+          unsigned arm = 0;
+          const bool selected = this->seat && this->seat->selectArm(arm);
+          assert((!selected || arm < this->shape.armCount) &&
+                 "branch seat selected an arm outside its declared arm count");
+          this->hasSelectedArm = selected && arm < this->shape.armCount;
+          this->selectedArm = this->hasSelectedArm ? arm : 0;
         }
 
         /** Canonicalizes a null branch to the caller-owned empty definition. */
         NodeDefinitionBase *materializedBranchDefinition(
-            bool value,
             NodeDefinitionBase &emptyDefinition) const
         {
-          NodeDefinitionBase *definition = this->branch(value).definition;
+          NodeDefinitionBase *definition = this->hasSelectedArm
+                                               ? this->branch(this->selectedArm).definition
+                                               : 0;
           return definition ? definition : &emptyDefinition;
         }
 
         BoundaryParkedBranchKey key;
-        loka::core::State<bool> *condition;
-        BoundaryBranchPlanBranch whenFalse;
-        BoundaryBranchPlanBranch whenTrue;
+        loka::core::StateBase *dirtySource;
+        IBranchSeatDefinition *seat;
+        unsigned selectedArm;
+        bool hasSelectedArm;
+        BoundaryBranchSeatShape shape;
         bool hasOwner;
         BoundaryParkedBranchKey ownerKey;
-        bool ownerCondition;
+        unsigned ownerArm;
       };
 
       struct BoundaryBranchSeatRuntimeEntry
@@ -68,17 +129,21 @@ namespace loka
         BoundaryBranchSeatRuntimeEntry(const BoundaryParkedBranchKey &keyValue,
                                        Node *parentValue,
                                        Node *activeValue,
-                                       bool conditionValue,
+                                       unsigned armValue,
+                                       bool hasActiveArmValue,
+                                       const BoundaryBranchSeatShape &shapeValue,
                                        bool hasOwnerValue,
                                        const BoundaryParkedBranchKey &ownerKeyValue,
-                                       bool ownerConditionValue)
+                                       unsigned ownerArmValue)
             : key(keyValue),
               parent(parentValue),
               active(activeValue),
-              activeCondition(conditionValue),
+              activeArm(armValue),
+              hasActiveArm(hasActiveArmValue),
+              shape(shapeValue),
               hasOwner(hasOwnerValue),
               ownerKey(ownerKeyValue),
-              ownerCondition(ownerConditionValue),
+              ownerArm(ownerArmValue),
               appliedGeneration(0)
         {
         }
@@ -87,10 +152,12 @@ namespace loka
         /** Borrowed runtime parent; the Boundary owns both parent and child. */
         Node *parent;
         Node *active;
-        bool activeCondition;
+        unsigned activeArm;
+        bool hasActiveArm;
+        BoundaryBranchSeatShape shape;
         bool hasOwner;
         BoundaryParkedBranchKey ownerKey;
-        bool ownerCondition;
+        unsigned ownerArm;
         unsigned long appliedGeneration;
       };
 
@@ -107,27 +174,23 @@ namespace loka
         {
           Entry(const BoundaryBranchSeatPlanEntry &planValue,
                 Node *parentValue,
-                Node *activeValue,
-                bool conditionValue)
+                Node *activeValue)
               : plan(planValue),
                 parent(parentValue),
-                active(activeValue),
-                condition(conditionValue)
+                active(activeValue)
           {
           }
 
           BoundaryBranchSeatPlanEntry plan;
           Node *parent;
           Node *active;
-          bool condition;
         };
 
         void record(const BoundaryBranchSeatPlanEntry &plan,
                     Node *parent,
-                    Node *active,
-                    bool condition)
+                    Node *active)
         {
-          this->entries_.push_back(Entry(plan, parent, active, condition));
+          this->entries_.push_back(Entry(plan, parent, active));
         }
 
         void clear()
@@ -166,12 +229,12 @@ namespace loka
         {
           this->plans_.clear();
           ++this->generation_;
-          this->captureDefinition(root, 0, false);
+          this->captureDefinition(root, 0, 0);
         }
 
         void append(NodeDefinitionBase *root)
         {
-          this->captureDefinition(root, 0, false);
+          this->captureDefinition(root, 0, 0);
         }
 
         unsigned long generation() const
@@ -220,18 +283,19 @@ namespace loka
 
         void registerRuntime(const BoundaryBranchSeatPlanEntry &plan,
                              Node *parent,
-                             Node *active,
-                             bool condition)
+                             Node *active)
         {
           BoundaryBranchSeatRuntimeEntry *existing = this->findRuntime(plan.key);
           if (existing)
           {
             existing->parent = parent;
             existing->active = active;
-            existing->activeCondition = condition;
+            existing->activeArm = plan.selectedArm;
+            existing->hasActiveArm = plan.hasSelectedArm;
+            existing->shape = plan.shape;
             existing->hasOwner = plan.hasOwner;
             existing->ownerKey = plan.ownerKey;
-            existing->ownerCondition = plan.ownerCondition;
+            existing->ownerArm = plan.ownerArm;
             existing->appliedGeneration = this->generation_;
             return;
           }
@@ -239,10 +303,12 @@ namespace loka
               BoundaryBranchSeatRuntimeEntry(plan.key,
                                              parent,
                                              active,
-                                             condition,
+                                             plan.selectedArm,
+                                             plan.hasSelectedArm,
+                                             plan.shape,
                                              plan.hasOwner,
                                              plan.ownerKey,
-                                             plan.ownerCondition));
+                                             plan.ownerArm));
           this->runtime_.back().appliedGeneration = this->generation_;
         }
 
@@ -260,14 +326,17 @@ namespace loka
             return true;
           }
           const BoundaryBranchSeatRuntimeEntry *owner = this->findRuntime(entry.ownerKey);
-          return owner && owner->activeCondition == entry.ownerCondition && this->isLive(*owner);
+          return owner && owner->hasActiveArm &&
+                 owner->activeArm == entry.ownerArm && this->isLive(*owner);
         }
 
         /** Removes a seat mapping only when its active branch reaches the
             structural detach/retire commit point. */
         bool eraseRuntimeForActive(Node *active,
                                    BoundaryParkedBranchKey &key,
-                                   bool &condition)
+                                   unsigned &arm,
+                                   bool &hasActiveArm,
+                                   unsigned &armCount)
         {
           for (size_t i = 0; i < this->runtime_.size(); ++i)
           {
@@ -276,7 +345,9 @@ namespace loka
               continue;
             }
             key = this->runtime_[i].key;
-            condition = this->runtime_[i].activeCondition;
+            arm = this->runtime_[i].activeArm;
+            hasActiveArm = this->runtime_[i].hasActiveArm;
+            armCount = this->runtime_[i].shape.armCount;
             this->runtime_.erase(this->runtime_.begin() + i);
             return true;
           }
@@ -287,16 +358,18 @@ namespace loka
             this door while retiring the mapping's active subtree and every
             parked resident under the same seat key. */
         bool eraseOneOwnedRuntime(const BoundaryParkedBranchKey &ownerKey,
-                                  bool ownerCondition,
-                                  BoundaryParkedBranchKey &erasedKey)
+                                  unsigned ownerArm,
+                                  BoundaryParkedBranchKey &erasedKey,
+                                  unsigned &erasedArmCount)
         {
           for (size_t i = 0; i < this->runtime_.size(); ++i)
           {
             if (this->runtime_[i].hasOwner &&
                 this->runtime_[i].ownerKey.matches(ownerKey) &&
-                this->runtime_[i].ownerCondition == ownerCondition)
+                this->runtime_[i].ownerArm == ownerArm)
             {
               erasedKey = this->runtime_[i].key;
+              erasedArmCount = this->runtime_[i].shape.armCount;
               this->runtime_.erase(this->runtime_.begin() + i);
               return true;
             }
@@ -339,7 +412,7 @@ namespace loka
 
         void captureDefinition(NodeDefinitionBase *definition,
                                const BoundaryParkedBranchKey *ownerKey,
-                               bool ownerCondition)
+                               unsigned ownerArm)
         {
           if (!definition)
           {
@@ -361,7 +434,7 @@ namespace loka
 #endif
             this->captureDefinition(scope->scopedBranchDefinition(),
                                     ownerKey,
-                                    ownerCondition);
+                                    ownerArm);
             return;
           }
 
@@ -370,19 +443,28 @@ namespace loka
           {
             BoundaryBranchSeatPlanEntry entry;
             entry.key = keyFor(*definition, *seat);
-            entry.condition = seat->branchCondition();
-            entry.whenFalse = foldBranchRoot(seat->branchDefinition(false));
-            entry.whenTrue = foldBranchRoot(seat->branchDefinition(true));
+            entry.dirtySource = seat->branchCondition();
+            entry.seat = seat;
+            for (unsigned arm = 0; arm < seat->armCount(); ++arm)
+            {
+              BoundaryBranchPlanBranch branch = foldBranchRoot(seat->armDefinition(arm));
+              entry.shape.append(branch.definition
+                                     ? branch.definition->propsBase()->propsTypeId()
+                                     : 0);
+            }
+            entry.snapshotSelection();
             if (ownerKey)
             {
               entry.hasOwner = true;
               entry.ownerKey = *ownerKey;
-              entry.ownerCondition = ownerCondition;
+              entry.ownerArm = ownerArm;
             }
             this->plans_.push_back(entry);
             const BoundaryParkedBranchKey storedKey = entry.key;
-            this->captureDefinition(entry.whenFalse.definition, &storedKey, false);
-            this->captureDefinition(entry.whenTrue.definition, &storedKey, true);
+            for (unsigned arm = 0; arm < entry.shape.armCount; ++arm)
+            {
+              this->captureDefinition(entry.branch(arm).definition, &storedKey, arm);
+            }
             return;
           }
 
@@ -393,7 +475,7 @@ namespace loka
           }
           for (NodeDefinitionBase *child = nestable->childrenHead(); child; child = child->nextInComposition)
           {
-            this->captureDefinition(child, ownerKey, ownerCondition);
+            this->captureDefinition(child, ownerKey, ownerArm);
           }
         }
 
@@ -413,8 +495,7 @@ namespace loka
           Entry &entry = this->entries_[i];
           state.registerRuntime(entry.plan,
                                 entry.parent,
-                                entry.active,
-                                entry.condition);
+                                entry.active);
         }
         this->entries_.clear();
       }

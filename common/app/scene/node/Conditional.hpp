@@ -99,13 +99,38 @@ namespace loka
         {
           return this;
         }
-        virtual loka::core::State<bool> *branchCondition() const
+        virtual bool requiresUniqueSiblingTag() const
+        {
+          return true;
+        }
+        virtual loka::core::StateBase *branchCondition() const
         {
           return this->props.condition;
         }
-        virtual NodeDefinitionBase *branchDefinition(bool condition) const
+        virtual bool selectArm(unsigned &armOut) const
         {
-          return condition ? this->ownedTrueDef : this->ownedFalseDef;
+          if (!this->props.condition)
+          {
+            return false;
+          }
+          armOut = this->props.condition->get() ? 1u : 0u;
+          return true;
+        }
+        virtual unsigned armCount() const
+        {
+          return 2;
+        }
+        virtual NodeDefinitionBase *armDefinition(unsigned arm) const
+        {
+          if (arm == 0)
+          {
+            return this->ownedFalseDef;
+          }
+          if (arm == 1)
+          {
+            return this->ownedTrueDef;
+          }
+          return 0;
         }
         virtual const void *branchSeatTypeId() const
         {

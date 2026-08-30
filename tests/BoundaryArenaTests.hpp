@@ -40,5 +40,9 @@ void testHeldHandleCopiesDoNotChangeOwnerSlots();
 void testHeldNestedBoundaryRetireReleasesAtParentDrain();
 void testHeldStorageRefusalReleasesPayloadInsteadOfLeaking();
 void testHeldBlockUsesEnclosingBoundaryArenaWithoutHeapControlBlock();
+void testProbeArmSeatRestoresThreeIndependentArmStates();
+void testRemovingThreeArmSeatDrainsNestedAndParkedRows();
+void testProbeArmSeatShapeMismatchRebuildsAndDrainsOldArms();
+void testBranchSeatSiblingsRejectDuplicateTags();
 
 #endif // LOKA_BOUNDARY_ARENA_TESTS_HPP

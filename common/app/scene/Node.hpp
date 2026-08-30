@@ -804,12 +804,21 @@ namespace loka
         bool deliverWhileDetached;
       };
 
-      /** Definition-side description of a conditional branch seat. */
+      /** Definition-side description of an indexed branch seat. */
       struct IBranchSeatDefinition
       {
         virtual ~IBranchSeatDefinition() {}
-        virtual loka::core::State<bool> *branchCondition() const = 0;
-        virtual NodeDefinitionBase *branchDefinition(bool condition) const = 0;
+        /** Dirty source whose changes require the Boundary to visit this seat. */
+        virtual loka::core::StateBase *branchCondition() const = 0;
+        /** Selects this visit's arm. False denotes the seat's empty state. */
+        virtual bool selectArm(unsigned &armOut) const = 0;
+        virtual unsigned armCount() const = 0;
+        virtual NodeDefinitionBase *armDefinition(unsigned arm) const = 0;
+        /** Compatibility door for callers written against the two-arm seat. */
+        NodeDefinitionBase *branchDefinition(bool value) const
+        {
+          return this->armDefinition(value ? 1u : 0u);
+        }
         virtual const void *branchSeatTypeId() const = 0;
       };
 
@@ -912,6 +921,12 @@ namespace loka
         /** Definitions whose value tag is an owner-seat identity require
             sibling uniqueness at the seat-assignment seam. */
         virtual bool requiresUniqueSiblingTag() const
+        {
+          return false;
+        }
+        /** Definitions whose identity depends on tagged sibling enumeration
+            require every member of their sibling list to carry a tag. */
+        virtual bool requiresFullyTaggedSiblings() const
         {
           return false;
         }

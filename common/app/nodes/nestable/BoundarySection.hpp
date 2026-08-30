@@ -302,6 +302,11 @@ namespace loka
         this->assertValidIdentity();
         return true;
       }
+      virtual bool requiresFullyTaggedSiblings() const
+      {
+        this->assertValidIdentity();
+        return true;
+      }
 
     private:
       void assertValidIdentity() const

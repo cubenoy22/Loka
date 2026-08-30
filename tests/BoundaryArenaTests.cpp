@@ -22,12 +22,15 @@
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/BoundarySection.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
+#include "app/nodes/nestable/Show.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/node/Conditional.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "support/FullRebuildLedgerDefinition.hpp"
 #include "support/RecomposingBoundary.hpp"
 #include "support/RecordingPlatformController.hpp"
 #include "testing/core/HeldTestAccess.hpp"
+#include "testing/scene/ProbeArmSeatDefinition.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 
 namespace
@@ -4060,4 +4063,412 @@ void testHeldBlockUsesEnclosingBoundaryArenaWithoutHeapControlBlock()
   owner.detachHeldResources();
   owner.drainRetiredSubtreesAtNextTrackerRun();
   assert(secondScenario.releaseCount == 1);
+}
+
+namespace
+{
+  class ProbeArmLocalBoundaryNode;
+
+  struct ProbeArmLocalRecord
+  {
+    ProbeArmLocalRecord()
+        : node(0),
+          constructions(0),
+          destructions(0),
+          nextInstanceId(0)
+    {
+    }
+
+    ProbeArmLocalBoundaryNode *node;
+    int constructions;
+    int destructions;
+    int nextInstanceId;
+  };
+
+  enum ProbeArmSeatMode
+  {
+    PROBE_ARM_SEAT_STATEFUL,
+    PROBE_ARM_SEAT_NESTED,
+    PROBE_ARM_SEAT_REMOVED,
+    PROBE_ARM_SEAT_SHAPE_INITIAL,
+    PROBE_ARM_SEAT_SHAPE_REORDERED
+  };
+
+  struct ProbeArmSeatInputs
+  {
+    ProbeArmSeatInputs(loka::core::MutableState<unsigned> *selectionValue,
+                       loka::core::MutableState<int> *revisionValue,
+                       loka::core::MutableState<bool> *nestedValue)
+        : selection(selectionValue),
+          revision(revisionValue),
+          nestedSelection(nestedValue),
+          selectCalls(0),
+          mode(PROBE_ARM_SEAT_STATEFUL)
+    {
+    }
+
+    loka::core::MutableState<unsigned> *selection;
+    loka::core::MutableState<int> *revision;
+    loka::core::MutableState<bool> *nestedSelection;
+    ProbeArmLocalRecord records[3];
+    int selectCalls;
+    ProbeArmSeatMode mode;
+  };
+
+  ProbeArmSeatInputs *g_probeArmSeatInputs = 0;
+
+  typedef loka::app::scene::BoundaryPropsFor<ProbeArmLocalBoundaryNode>
+      ProbeArmLocalBoundaryProps;
+
+  class ProbeArmLocalBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<ProbeArmLocalBoundaryNode>
+  {
+  public:
+    explicit ProbeArmLocalBoundaryNode(const ProbeArmLocalBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<ProbeArmLocalBoundaryNode>(props),
+          value_(),
+          record_(0),
+          instanceId_(0)
+    {
+      this->state(this->value_, 0);
+      if (g_probeArmSeatInputs && g_probeArmSeatInputs->selection)
+      {
+        const unsigned arm = g_probeArmSeatInputs->selection->get();
+        if (arm < 3)
+        {
+          this->record_ = &g_probeArmSeatInputs->records[arm];
+          ++this->record_->constructions;
+          this->instanceId_ = ++this->record_->nextInstanceId;
+          this->record_->node = this;
+        }
+      }
+    }
+
+    virtual ~ProbeArmLocalBoundaryNode()
+    {
+      if (this->record_)
+      {
+        ++this->record_->destructions;
+        if (this->record_->node == this)
+        {
+          this->record_->node = 0;
+        }
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(loka::app::FragmentDefinition());
+    }
+
+    int value() const
+    {
+      return this->value_.get();
+    }
+
+    void setValue(int value)
+    {
+      this->value_.set(value);
+    }
+
+    int instanceId() const
+    {
+      return this->instanceId_;
+    }
+
+  private:
+    loka::app::scene::NodeState<int> value_;
+    ProbeArmLocalRecord *record_;
+    int instanceId_;
+  };
+
+  class ProbeArmSeatBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<ProbeArmSeatBoundaryNode>
+      ProbeArmSeatBoundaryProps;
+
+  class ProbeArmSeatBoundaryNode
+      : public SceneTestSupport::RecomposingBoundaryNode<ProbeArmSeatBoundaryNode,
+                                                         ProbeArmSeatBoundaryProps>
+  {
+  public:
+    explicit ProbeArmSeatBoundaryNode(const ProbeArmSeatBoundaryProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<ProbeArmSeatBoundaryNode,
+                                                    ProbeArmSeatBoundaryProps>(props)
+    {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      if (g_probeArmSeatInputs && g_probeArmSeatInputs->revision)
+      {
+        registrar.markDirtyOnChange(g_probeArmSeatInputs->revision,
+                                    loka::app::scene::NODE_DIRTY_PROPS);
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::FragmentDefinition root;
+      if (!g_probeArmSeatInputs ||
+          g_probeArmSeatInputs->mode == PROBE_ARM_SEAT_REMOVED)
+      {
+        composition.declare(root);
+        return;
+      }
+
+      loka::app::scene::BoundaryDefinition<ProbeArmLocalBoundaryProps,
+                                           ProbeArmLocalBoundaryNode>
+          stateful0 = loka::app::scene::Boundary<ProbeArmLocalBoundaryNode>();
+      loka::app::scene::BoundaryDefinition<ProbeArmLocalBoundaryProps,
+                                           ProbeArmLocalBoundaryNode>
+          stateful1 = loka::app::scene::Boundary<ProbeArmLocalBoundaryNode>();
+      loka::app::scene::BoundaryDefinition<ProbeArmLocalBoundaryProps,
+                                           ProbeArmLocalBoundaryNode>
+          stateful2 = loka::app::scene::Boundary<ProbeArmLocalBoundaryNode>();
+      loka::app::ButtonDefinition button("shape-button");
+      loka::app::FragmentDefinition empty;
+      loka::app::FragmentDefinition nestedArm;
+      loka::app::ShowDefinition nested =
+          loka::app::Show(*g_probeArmSeatInputs->nestedSelection);
+      nested << button;
+      nestedArm << stateful0 << nested;
+
+      loka::app::scene::NodeDefinitionBase *arms[3] = {
+          &stateful0, &stateful1, &stateful2};
+      if (g_probeArmSeatInputs->mode == PROBE_ARM_SEAT_NESTED)
+      {
+        arms[0] = &nestedArm;
+      }
+      else if (g_probeArmSeatInputs->mode == PROBE_ARM_SEAT_SHAPE_INITIAL)
+      {
+        arms[1] = &button;
+        arms[2] = &empty;
+      }
+      else if (g_probeArmSeatInputs->mode == PROBE_ARM_SEAT_SHAPE_REORDERED)
+      {
+        arms[1] = &empty;
+        arms[2] = &button;
+      }
+
+      loka::app::scene::testing::ProbeArmSeatDefinition seat(
+          g_probeArmSeatInputs->selection,
+          arms,
+          3,
+          &g_probeArmSeatInputs->selectCalls);
+      root << seat;
+      composition.declare(root);
+    }
+  };
+
+  template <class T>
+  void setProbeState(loka::core::MutableState<T> &state, const T &value)
+  {
+    loka::core::StateTrackerGuard guard(state.trackerOwner());
+    state.set(value);
+  }
+
+  void flushProbeState(loka::app::scene::Scene &scene)
+  {
+    assert(scene.hasPendingInvalidation()); // loka-assert-ok: pure query
+    LOKA_VERIFY(scene.flushInvalidation());
+  }
+
+  bool hasParkedArms(loka::app::scene::BoundaryNode &boundary,
+                     unsigned first,
+                     unsigned second)
+  {
+    if (boundary.parkedBranchCountForTesting() != 2)
+    {
+      return false;
+    }
+    const unsigned arm0 = boundary.parkedBranchArmForTesting(0);
+    const unsigned arm1 = boundary.parkedBranchArmForTesting(1);
+    return (arm0 == first && arm1 == second) ||
+           (arm0 == second && arm1 == first);
+  }
+} // namespace
+
+void testProbeArmSeatRestoresThreeIndependentArmStates()
+{
+  loka::core::MutableState<unsigned> selection(0);
+  loka::core::MutableState<int> revision(0);
+  loka::core::MutableState<bool> nested(false);
+  ProbeArmSeatInputs inputs(&selection, &revision, &nested);
+  g_probeArmSeatInputs = &inputs;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<ProbeArmSeatBoundaryNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    loka::app::scene::BoundaryNode *root =
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    LOKA_VERIFY(root && inputs.records[0].node);
+    LOKA_VERIFY(inputs.selectCalls == 1 &&
+                "estimate, materialization, and registration share one selected-arm snapshot");
+
+    ProbeArmLocalBoundaryNode *arm0 = inputs.records[0].node;
+    arm0->setValue(10);
+    setProbeState(selection, 1u);
+    flushProbeState(scene);
+    LOKA_VERIFY(inputs.selectCalls == 2 && inputs.records[1].node);
+    inputs.records[1].node->setValue(20);
+    LOKA_VERIFY(root->parkedBranchCountForTesting() == 1);
+    LOKA_VERIFY(root->parkedBranchArmForTesting(0) == 0);
+
+    setProbeState(selection, 2u);
+    flushProbeState(scene);
+    LOKA_VERIFY(inputs.selectCalls == 3 && inputs.records[2].node);
+    inputs.records[2].node->setValue(30);
+    LOKA_VERIFY(hasParkedArms(*root, 0, 1));
+
+    setProbeState(selection, 0u);
+    flushProbeState(scene);
+    LOKA_VERIFY(inputs.selectCalls == 4);
+    LOKA_VERIFY(inputs.records[0].node == arm0 && arm0->value() == 10);
+    LOKA_VERIFY(hasParkedArms(*root, 1, 2));
+
+    setProbeState(selection, 1u);
+    flushProbeState(scene);
+    LOKA_VERIFY(inputs.records[1].node && inputs.records[1].node->value() == 20);
+    setProbeState(selection, 2u);
+    flushProbeState(scene);
+    LOKA_VERIFY(inputs.records[2].node && inputs.records[2].node->value() == 30);
+  }
+  g_probeArmSeatInputs = 0;
+}
+
+void testRemovingThreeArmSeatDrainsNestedAndParkedRows()
+{
+  loka::core::MutableState<unsigned> selection(0);
+  loka::core::MutableState<int> revision(0);
+  loka::core::MutableState<bool> nested(false);
+  ProbeArmSeatInputs inputs(&selection, &revision, &nested);
+  inputs.mode = PROBE_ARM_SEAT_NESTED;
+  g_probeArmSeatInputs = &inputs;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<ProbeArmSeatBoundaryNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    loka::app::scene::BoundaryNode *root =
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    LOKA_VERIFY(root);
+
+    setProbeState(nested, true);
+    flushProbeState(scene);
+    setProbeState(selection, 1u);
+    flushProbeState(scene);
+    setProbeState(selection, 2u);
+    flushProbeState(scene);
+    LOKA_VERIFY(root->parkedBranchCountForTesting() == 3 &&
+                "two outer arms and the nested seat each contribute one parked row");
+
+    inputs.mode = PROBE_ARM_SEAT_REMOVED;
+    setProbeState(revision, 1);
+    flushProbeState(scene);
+    LOKA_VERIFY(root->parkedBranchCountForTesting() == 0 &&
+                "removing an N-arm seat drains every owned parked row");
+  }
+  g_probeArmSeatInputs = 0;
+}
+
+void testProbeArmSeatShapeMismatchRebuildsAndDrainsOldArms()
+{
+  loka::core::MutableState<unsigned> selection(0);
+  loka::core::MutableState<int> revision(0);
+  loka::core::MutableState<bool> nested(false);
+  ProbeArmSeatInputs inputs(&selection, &revision, &nested);
+  inputs.mode = PROBE_ARM_SEAT_SHAPE_INITIAL;
+  g_probeArmSeatInputs = &inputs;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<ProbeArmSeatBoundaryNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    loka::app::scene::BoundaryNode *root =
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    LOKA_VERIFY(root && inputs.records[0].node);
+    ProbeArmLocalBoundaryNode *oldArm0 = inputs.records[0].node;
+    const int oldInstance = oldArm0->instanceId();
+    oldArm0->setValue(77);
+
+    setProbeState(selection, 1u);
+    flushProbeState(scene);
+    LOKA_VERIFY(root->parkedBranchCountForTesting() == 1);
+
+    inputs.mode = PROBE_ARM_SEAT_SHAPE_REORDERED;
+    setProbeState(revision, 1);
+    flushProbeState(scene);
+    LOKA_VERIFY(root->parkedBranchCountForTesting() == 0 &&
+                "shape mismatch drains parked residents before the new shape can reuse them");
+
+    setProbeState(selection, 0u);
+    flushProbeState(scene);
+    LOKA_VERIFY(inputs.records[0].node &&
+                inputs.records[0].node != oldArm0 &&
+                inputs.records[0].node->instanceId() != oldInstance &&
+                inputs.records[0].node->value() == 0 &&
+                "the reordered seat must build a fresh arm instead of handing out the old row");
+  }
+  g_probeArmSeatInputs = 0;
+}
+
+void testBranchSeatSiblingsRejectDuplicateTags()
+{
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
+  const pid_t child = fork();
+  LOKA_VERIFY(child >= 0);
+  if (child == 0)
+  {
+    loka::core::MutableState<unsigned> selection(0);
+    loka::app::FragmentDefinition empty;
+    loka::app::scene::NodeDefinitionBase *arms[3] = {&empty, &empty, &empty};
+    loka::app::scene::testing::ProbeArmSeatDefinition first(
+        &selection, arms, 3);
+    loka::app::scene::testing::ProbeArmSeatDefinition second(
+        &selection, arms, 3);
+    first.setNodeTag(8101);
+    second.setNodeTag(8101);
+    loka::app::Fragment root;
+    root << first << second;
+    loka::app::scene::NodeComposition composition;
+    composition.declare(root);
+    composition.assignCompositionSeatSlots();
+    _exit(0);
+  }
+
+  int status = 0;
+  LOKA_VERIFY(waitpid(child, &status, 0) == child);
+  LOKA_VERIFY(WIFSIGNALED(status));
+  LOKA_VERIFY(WTERMSIG(status) == SIGABRT);
+#elif defined(NDEBUG)
+  loka::core::MutableState<unsigned> selection(0);
+  loka::app::FragmentDefinition empty;
+  loka::app::scene::NodeDefinitionBase *arms[3] = {&empty, &empty, &empty};
+  loka::app::scene::testing::ProbeArmSeatDefinition first(
+      &selection, arms, 3);
+  loka::app::scene::testing::ProbeArmSeatDefinition second(
+      &selection, arms, 3);
+  first.setNodeTag(8101);
+  second.setNodeTag(8101);
+  loka::app::Fragment root;
+  root << first << second;
+  loka::app::scene::NodeComposition composition;
+  composition.declare(root);
+  composition.assignCompositionSeatSlots();
+  LOKA_VERIFY(!composition.hasValidSiblingTags());
+  const loka::app::scene::NodeMaterializationResult result =
+      loka::app::scene::testing::NodeCompositionTestAccess::
+          createNodeFromDefinitionResult(composition, composition.root());
+  LOKA_VERIFY(!result.root && result.requiresBoundaryPlan &&
+              "release builds refuse duplicate branch-seat sibling tags");
+#endif
 }

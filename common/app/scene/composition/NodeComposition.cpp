@@ -49,12 +49,17 @@ namespace loka
         if (seat)
         {
           const BoundaryBranchSeatPlanEntry *plan = boundary ? boundary->branchSeatPlan(def) : 0;
-          assert(plan && plan->condition && "conditional seat requires a captured Boundary plan");
-          if (!plan || !plan->condition)
+          assert(plan && plan->dirtySource &&
+                 "branch seat requires a captured Boundary plan");
+          if (!plan || !plan->dirtySource)
           {
             return 0;
           }
-          return calculateTotalNodeSize(plan->branch(plan->condition->get()).definition, boundary);
+          return calculateTotalNodeSize(
+              plan->hasSelectedArm
+                  ? plan->branch(plan->selectedArm).definition
+                  : 0,
+              boundary);
         }
         INestableDefinition *nestableDef = def->asNestableDefinition();
         // Add size with alignment padding (worst case)
@@ -125,17 +130,16 @@ namespace loka
         if (seat)
         {
           const BoundaryBranchSeatPlanEntry *plan = boundary ? boundary->branchSeatPlan(def) : 0;
-          if (!plan || !plan->condition)
+          if (!plan || !plan->dirtySource)
           {
             assert(boundary == 0 &&
                    "a boundary-backed compose must have captured this seat's plan");
             NodeMaterializationResult missingPlan = {0, false, true};
             return missingPlan;
           }
-          const bool condition = plan->condition->get();
           loka::app::FragmentDefinition emptyBranch;
           NodeDefinitionBase *branchDefinition =
-              plan->materializedBranchDefinition(condition, emptyBranch);
+              plan->materializedBranchDefinition(emptyBranch);
           NodeMaterializationResult active = createNodeWithArena(branchDefinition,
                                                                  arena,
                                                                  autoIdCounter,
@@ -148,15 +152,13 @@ namespace loka
             {
               registrations->record(*plan,
                                     runtimeParent,
-                                    active.root,
-                                    condition);
+                                    active.root);
             }
             else
             {
               boundary->registerMaterializedBranchSeat(*plan,
                                                        runtimeParent,
-                                                       active.root,
-                                                       condition);
+                                                       active.root);
             }
           }
           return active;
@@ -240,17 +242,16 @@ namespace loka
         if (seat)
         {
           const BoundaryBranchSeatPlanEntry *plan = boundary ? boundary->branchSeatPlan(def) : 0;
-          if (!plan || !plan->condition)
+          if (!plan || !plan->dirtySource)
           {
             assert(boundary == 0 &&
                    "a boundary-backed compose must have captured this seat's plan");
             NodeMaterializationResult missingPlan = {0, false, true};
             return missingPlan;
           }
-          const bool condition = plan->condition->get();
           loka::app::FragmentDefinition emptyBranch;
           NodeDefinitionBase *branchDefinition =
-              plan->materializedBranchDefinition(condition, emptyBranch);
+              plan->materializedBranchDefinition(emptyBranch);
           NodeMaterializationResult active = createNodeRecursive(branchDefinition,
                                                                  autoIdCounter,
                                                                  boundary,
@@ -262,15 +263,13 @@ namespace loka
             {
               registrations->record(*plan,
                                     runtimeParent,
-                                    active.root,
-                                    condition);
+                                    active.root);
             }
             else
             {
               boundary->registerMaterializedBranchSeat(*plan,
                                                        runtimeParent,
-                                                       active.root,
-                                                       condition);
+                                                       active.root);
             }
           }
           return active;
@@ -335,25 +334,23 @@ namespace loka
         return result;
       }
 
-      static void assignDefinitionSeatSlots(NodeDefinitionBase *definition, int &nextSlot)
+      static bool assignDefinitionSeatSlots(NodeDefinitionBase *definition, int &nextSlot)
       {
         if (!definition)
         {
-          return;
+          return true;
         }
+        bool valid = true;
         definition->setCompositionSeatSlot(nextSlot++);
         INestableDefinition *nestable = definition->asNestableDefinition();
         if (nestable)
         {
-#ifndef NDEBUG
-          // Misuse detection only: the fully-tagged and duplicate-key asserts
-          // are this scan's sole effects, so release builds skip it entirely.
           bool requiresFullyTaggedSiblings = false;
           for (NodeDefinitionBase *candidate = nestable->childrenHead();
                candidate;
                candidate = candidate->nextInComposition)
           {
-            if (candidate->requiresUniqueSiblingTag())
+            if (candidate->requiresFullyTaggedSiblings())
             {
               requiresFullyTaggedSiblings = true;
               break;
@@ -367,6 +364,10 @@ namespace loka
             {
               assert(candidate->nodeTag() != NODE_TAG_NONE &&
                      "a sibling list containing a BoundarySection must be fully tagged");
+              if (candidate->nodeTag() == NODE_TAG_NONE)
+              {
+                valid = false;
+              }
             }
           }
           for (NodeDefinitionBase *candidate = nestable->childrenHead();
@@ -385,31 +386,43 @@ namespace loka
                   (candidate->requiresUniqueSiblingTag() || sibling->requiresUniqueSiblingTag()))
               {
                 assert(false &&
-                       "sibling BoundarySections require unique value keys");
+                       "sibling BoundarySections and branch seats require unique value keys");
+                valid = false;
               }
             }
           }
-#endif
           for (NodeDefinitionBase *child = nestable->childrenHead(); child; child = child->nextInComposition)
           {
-            assignDefinitionSeatSlots(child, nextSlot);
+            if (!assignDefinitionSeatSlots(child, nextSlot))
+            {
+              valid = false;
+            }
           }
         }
         for (unsigned i = 0; NodeDefinitionBase *branch = definition->retainedDefinitionBranch(i); ++i)
         {
-          assignDefinitionSeatSlots(branch, nextSlot);
+          if (!assignDefinitionSeatSlots(branch, nextSlot))
+          {
+            valid = false;
+          }
         }
+        return valid;
       }
 
       void NodeComposition::assignCompositionSeatSlots()
       {
         int nextSlot = 0;
-        assignDefinitionSeatSlots(this->root_, nextSlot);
+        this->validSiblingTags_ = assignDefinitionSeatSlots(this->root_, nextSlot);
       }
 
       NodeMaterializationResult NodeComposition::createNodeFromDefinitionResult(
           NodeDefinitionBase *root) const
       {
+        if (!this->validSiblingTags_)
+        {
+          NodeMaterializationResult refused = {0, false, true};
+          return refused;
+        }
         if (!root)
         {
           NodeMaterializationResult empty = {0, false, false};

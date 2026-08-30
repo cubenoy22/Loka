@@ -101,15 +101,36 @@ namespace loka
       {
         return this;
       }
-      virtual loka::core::State<bool> *branchCondition() const
+      virtual bool requiresUniqueSiblingTag() const
+      {
+        return true;
+      }
+      virtual loka::core::StateBase *branchCondition() const
       {
         return this->props_.condition;
       }
-      virtual scene::NodeDefinitionBase *branchDefinition(bool condition) const
+      virtual bool selectArm(unsigned &armOut) const
       {
+        if (!this->props_.condition)
+        {
+          return false;
+        }
+        armOut = this->props_.condition->get() ? 1u : 0u;
+        return true;
+      }
+      virtual unsigned armCount() const
+      {
+        return 2;
+      }
+      virtual scene::NodeDefinitionBase *armDefinition(unsigned arm) const
+      {
+        if (arm >= this->armCount())
+        {
+          return 0;
+        }
         FragmentDefinition *branch =
-            condition ? const_cast<FragmentDefinition *>(&this->trueBranch_)
-                      : const_cast<FragmentDefinition *>(&this->falseBranch_);
+            arm == 1 ? const_cast<FragmentDefinition *>(&this->trueBranch_)
+                     : const_cast<FragmentDefinition *>(&this->falseBranch_);
         scene::NodeDefinitionBase *onlyChild =
             branch->childrenCount() == 1 ? branch->childrenHead() : 0;
         return onlyChild && onlyChild->asBranchPolicyScopeDefinition()
