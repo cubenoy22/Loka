@@ -11,7 +11,6 @@ namespace loka
         : phase_(TRACKER_IDLE),
           pendingDirty_(false),
           depth_(0),
-          reentrantDepth_(0),
           invalidateFn_(0),
           invalidateUserData_(0),
           invalidateTarget_(0),
@@ -26,7 +25,6 @@ namespace loka
         : phase_(TRACKER_IDLE),
           pendingDirty_(false),
           depth_(0),
-          reentrantDepth_(0),
           invalidateFn_(0),
           invalidateUserData_(0),
           invalidateTarget_(0),
@@ -55,7 +53,9 @@ namespace loka
       }
       if (phase_ != TRACKER_IDLE)
       {
-        ++reentrantDepth_;
+        // Settling: depth_ is already zero and end() owns the loop. The joined
+        // level needs no record of its own -- its writes land in the phase's
+        // intake, and its end() is the depth_ == 0 early return below.
         return;
       }
       ++depth_;
@@ -252,13 +252,7 @@ namespace loka
     bool PushStateTracker::end()
     {
       if (depth_ == 0)
-      {
-        if (reentrantDepth_ > 0)
-        {
-          --reentrantDepth_;
-        }
-        return true;
-      }
+        return true; // unbalanced, or a level joined during settlement
       --depth_;
       if (depth_ > 0)
         return true;

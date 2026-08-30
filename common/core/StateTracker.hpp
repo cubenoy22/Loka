@@ -188,8 +188,6 @@ namespace loka
       bool pendingDirty_;
       /// depth_: nested begin/end depth counter.
       unsigned int depth_;
-      /// reentrantDepth_: begin/end levels joined while settlement is running.
-      unsigned int reentrantDepth_;
       /// invalidate callback (optional)
       InvalidateFn invalidateFn_;
       void *invalidateUserData_;
