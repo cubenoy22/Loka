@@ -27,10 +27,22 @@ checkout; sync goes through origin only.
 - `--full-auto` is deprecated; use `--sandbox workspace-write`.
 - **Do not wait on `pgrep -f "codex exec"`** — the pattern matches the waiting
   shell's own command line, so the loop reports "still running" forever (two
-  finished runs were watched for over an hour, 2026-08-30). Wait on the log
-  instead: the brief's `===== REPORT =====` marker, or an `echo "codex
-  exit=$?"` appended after the exec. `pgrep -af codex` is still right for the
-  orphan check *before* a launch, where a false positive only costs a look.
+  finished runs were watched for over an hour, 2026-08-30). Wait on a
+  process-completion sentinel in the log instead. The `===== REPORT =====`
+  marker alone is not one — a run that dies before printing it leaves the
+  loop waiting forever — so write the exit status from the same subshell
+  that ran the exec:
+
+  ```sh
+  ( codex exec --sandbox workspace-write -C "$WT" "$(cat brief.md)" \
+      < /dev/null > run.log 2>&1; echo "codex exit=$?" >> run.log ) &
+  ```
+
+  `codex exec ... & echo "codex exit=$?"` is wrong: it records the launch
+  status immediately, not Codex's. Then wait for `grep -q '^codex exit='
+  run.log` — it fires on success and on abnormal exit alike. `pgrep -af
+  codex` is still right for the orphan check *before* a launch, where a false
+  positive only costs a look.
 - **`--sandbox workspace-write` blocks the network, so `git push` and `gh pr
   create` always fail** — the sandbox only allows `[workdir, /tmp, $TMPDIR]`
   and no outbound traffic. Left to its own devices Codex clones into `/tmp`,
