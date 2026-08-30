@@ -3,6 +3,7 @@
 #include <cstdio>
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/boundary/Boundary.hpp"
 #include "app/scene/projection/PlatformController.hpp"
@@ -92,6 +93,88 @@ namespace
         static_cast<TrackerCommitLimitProbe *>(userData);
     ++probe->invalidations;
     probe->state->set(probe->state->get() + 1);
+  }
+
+  class IncrementedStateEval : public loka::core::DerivedState<int>::EvalFn
+  {
+  public:
+    explicit IncrementedStateEval(loka::core::State<int> *source)
+        : source_(source)
+    {
+    }
+
+    virtual int operator()()
+    {
+      return this->source_->get() + 1;
+    }
+
+  private:
+    loka::core::State<int> *source_;
+  };
+
+  void incrementGuardInvalidations(void *userData)
+  {
+    int *invalidations = static_cast<int *>(userData);
+    ++*invalidations;
+  }
+
+  struct SettlingGuardProbe
+  {
+    SettlingGuardProbe()
+        : tracker(0),
+          derived(0),
+          written(0),
+          invalidations(0)
+    {
+    }
+
+    loka::core::PushStateTracker *tracker;
+    loka::core::State<int> *derived;
+    loka::core::MutableState<int> *written;
+    int invalidations;
+  };
+
+  void writeFromSettlingDerived(void *userData)
+  {
+    SettlingGuardProbe *probe = static_cast<SettlingGuardProbe *>(userData);
+    {
+      loka::core::StateTrackerGuard guard(
+          probe->tracker, &incrementGuardInvalidations, &probe->invalidations);
+      probe->written->set(probe->derived->get());
+    }
+    // A joined level is not a closed transaction: nothing may acknowledge the
+    // outer settlement's dirt from inside it (MenuComposition::declare() is the
+    // manual begin/end/peekDirty client this protects).
+    assert(!probe->tracker->peekDirty());
+    assert(!probe->tracker->consumeDirty());
+  }
+
+  struct CommitGuardProbe
+  {
+    CommitGuardProbe()
+        : tracker(0),
+          source(0),
+          written(0),
+          invalidations(0)
+    {
+    }
+
+    loka::core::PushStateTracker *tracker;
+    loka::core::State<int> *source;
+    loka::core::MutableState<int> *written;
+    int invalidations;
+  };
+
+  void writeFromDeferredCommit(void *userData)
+  {
+    CommitGuardProbe *probe = static_cast<CommitGuardProbe *>(userData);
+    {
+      loka::core::StateTrackerGuard guard(
+          probe->tracker, &incrementGuardInvalidations, &probe->invalidations);
+      probe->written->set(probe->source->get());
+    }
+    assert(!probe->tracker->peekDirty());
+    assert(!probe->tracker->consumeDirty());
   }
 
   using namespace loka::app::scene;
@@ -258,4 +341,78 @@ void testStateTrackerCommitChainReportsIterationLimit()
   assert(state.get() == 1001);
   assert(tracker.phase() == loka::core::TRACKER_IDLE);
   printf("==== [testStateTrackerCommitChainReportsIterationLimit] end ====\n");
+}
+
+void testStateTrackerGuardOpenedDuringSettlementJoinsTransaction()
+{
+  printf("\n==== [testStateTrackerGuardOpenedDuringSettlementJoinsTransaction] start ====\n");
+  loka::core::MutableState<int> a(1);
+  loka::core::DerivedState<int> d(&a, new IncrementedStateEval(&a));
+  loka::core::MutableState<int> b(1);
+  loka::core::DerivedState<int> e(&b, new IncrementedStateEval(&b));
+  loka::core::PushStateTracker tracker;
+  SettlingGuardProbe probe;
+  probe.tracker = &tracker;
+  probe.derived = &d;
+  probe.written = &b;
+  tracker.addState(&a);
+  tracker.addState(&d);
+  tracker.addState(&b);
+  tracker.addState(&e);
+  d.bind(&writeFromSettlingDerived, &probe, false);
+
+  {
+    loka::core::StateTrackerGuard guard(
+        &tracker, &incrementGuardInvalidations, &probe.invalidations);
+    a.set(4);
+  }
+
+  assert(d.get() == 5);
+  assert(b.get() == 5);
+  assert(e.get() == 6);
+  assert(probe.invalidations == 1);
+  assert(tracker.phase() == loka::core::TRACKER_IDLE);
+  // The dirt the joined level could not consume is still pending for the owner.
+  assert(tracker.peekDirty());
+  assert(tracker.consumeDirty());
+  assert(!tracker.peekDirty());
+
+  {
+    loka::core::StateTrackerGuard guard(&tracker);
+    a.set(7);
+  }
+
+  assert(d.get() == 8);
+  assert(e.get() == 9);
+  assert(tracker.phase() == loka::core::TRACKER_IDLE);
+  printf("==== [testStateTrackerGuardOpenedDuringSettlementJoinsTransaction] end ====\n");
+}
+
+void testStateTrackerGuardOpenedDuringCommitJoinsTransaction()
+{
+  printf("\n==== [testStateTrackerGuardOpenedDuringCommitJoinsTransaction] start ====\n");
+  loka::core::MutableState<int> a(1);
+  loka::core::MutableState<int> b(1);
+  loka::core::DerivedState<int> e(&b, new IncrementedStateEval(&b));
+  loka::core::PushStateTracker tracker;
+  CommitGuardProbe probe;
+  probe.tracker = &tracker;
+  probe.source = &a;
+  probe.written = &b;
+  tracker.addState(&a);
+  tracker.addState(&b);
+  tracker.addState(&e);
+
+  {
+    loka::core::StateTrackerGuard guard(
+        &tracker, &incrementGuardInvalidations, &probe.invalidations);
+    a.set(10);
+    tracker.defer(&writeFromDeferredCommit, &probe);
+  }
+
+  assert(b.get() == 10);
+  assert(e.get() == 11);
+  assert(probe.invalidations == 1);
+  assert(tracker.phase() == loka::core::TRACKER_IDLE);
+  printf("==== [testStateTrackerGuardOpenedDuringCommitJoinsTransaction] end ====\n");
 }

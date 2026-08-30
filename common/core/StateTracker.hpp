@@ -48,6 +48,9 @@ namespace loka
       typedef std::vector<StateBase *> StateList;
       PushStateTracker(const std::vector<StateBase *> &states);
       PushStateTracker();
+      /** Begins a transaction. A guard opened while this tracker is settling
+          joins the running transaction; its writes land in the current phase's
+          intake and are drained by the settlement already in progress. */
       void begin();
       void defer(void (*fn)(void *), void *userData);
       void markDirty(StateBase *state);
@@ -185,6 +188,8 @@ namespace loka
       bool pendingDirty_;
       /// depth_: nested begin/end depth counter.
       unsigned int depth_;
+      /// reentrantDepth_: begin/end levels joined while settlement is running.
+      unsigned int reentrantDepth_;
       /// invalidate callback (optional)
       InvalidateFn invalidateFn_;
       void *invalidateUserData_;
