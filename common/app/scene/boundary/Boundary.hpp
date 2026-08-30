@@ -1778,10 +1778,18 @@ namespace loka
             this->retireSeatBranch(context, plan.key, plan.selectedArm, incoming);
             incoming = 0;
           }
+          // Nested seats inside the incoming arm are staged, not published:
+          // when the seat rebuilds in place (shape mismatch, same arm index)
+          // the outgoing arm is retired under the very owner pair
+          // (plan.key, selectedArm) the new nested mappings would carry, and
+          // retireOwnedSeatDescendants() would erase them with the old ones.
+          // The local-rebuild path stages for the same reason (#511).
+          BoundaryBranchSeatRuntimeRegistrationPlan nestedRegistrations;
           if (!incoming && !this->createCurrentBranch(context,
                                                       plan,
                                                       runtimeParent,
-                                                      incoming))
+                                                      incoming,
+                                                      &nestedRegistrations))
           {
             return false;
           }
@@ -1815,6 +1823,7 @@ namespace loka
               this->retireSeatBranchRoot(context, outgoing);
             }
           }
+          nestedRegistrations.commitTo(this->branchSeats_);
           BoundaryBranchSeatRuntimeEntry *committedRuntime =
               this->branchSeats_.findRuntime(plan.key);
           assert(committedRuntime &&

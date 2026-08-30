@@ -43,6 +43,7 @@ void testHeldBlockUsesEnclosingBoundaryArenaWithoutHeapControlBlock();
 void testProbeArmSeatRestoresThreeIndependentArmStates();
 void testRemovingThreeArmSeatDrainsNestedAndParkedRows();
 void testProbeArmSeatShapeMismatchRebuildsAndDrainsOldArms();
+void testProbeArmSeatShapeMismatchOnSameArmKeepsNestedSeatMapping();
 void testBranchSeatSiblingsRejectDuplicateTags();
 
 #endif // LOKA_BOUNDARY_ARENA_TESTS_HPP

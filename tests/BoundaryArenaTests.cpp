@@ -4091,7 +4091,8 @@ namespace
     PROBE_ARM_SEAT_NESTED,
     PROBE_ARM_SEAT_REMOVED,
     PROBE_ARM_SEAT_SHAPE_INITIAL,
-    PROBE_ARM_SEAT_SHAPE_REORDERED
+    PROBE_ARM_SEAT_SHAPE_REORDERED,
+    PROBE_ARM_SEAT_SHAPE_NESTED_ARM0
   };
 
   struct ProbeArmSeatInputs
@@ -4253,6 +4254,14 @@ namespace
       {
         arms[1] = &empty;
         arms[2] = &button;
+      }
+      else if (g_probeArmSeatInputs->mode == PROBE_ARM_SEAT_SHAPE_NESTED_ARM0)
+      {
+        // Same arm index as SHAPE_INITIAL's arm 0, different root type: a
+        // shape mismatch whose replacement arm carries a nested branch seat.
+        arms[0] = &nestedArm;
+        arms[1] = &button;
+        arms[2] = &empty;
       }
 
       loka::app::scene::testing::ProbeArmSeatDefinition seat(
@@ -4417,6 +4426,48 @@ void testProbeArmSeatShapeMismatchRebuildsAndDrainsOldArms()
                 inputs.records[0].node->instanceId() != oldInstance &&
                 inputs.records[0].node->value() == 0 &&
                 "the reordered seat must build a fresh arm instead of handing out the old row");
+  }
+  g_probeArmSeatInputs = 0;
+}
+
+void testProbeArmSeatShapeMismatchOnSameArmKeepsNestedSeatMapping()
+{
+  loka::core::MutableState<unsigned> selection(0);
+  loka::core::MutableState<int> revision(0);
+  loka::core::MutableState<bool> nested(false);
+  ProbeArmSeatInputs inputs(&selection, &revision, &nested);
+  inputs.mode = PROBE_ARM_SEAT_SHAPE_INITIAL;
+  g_probeArmSeatInputs = &inputs;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<ProbeArmSeatBoundaryNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    loka::app::scene::BoundaryNode *root =
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    LOKA_VERIFY(root && inputs.records[0].node);
+    ProbeArmLocalBoundaryNode *oldArm0 = inputs.records[0].node;
+
+    // The selected arm stays 0 while its root type changes: the seat rebuilds
+    // in place, and the replacement arm 0 contains a nested Show seat whose
+    // runtime mapping is owned by (seat key, arm 0) -- the same owner pair the
+    // outgoing arm 0 is retired under.
+    inputs.mode = PROBE_ARM_SEAT_SHAPE_NESTED_ARM0;
+    setProbeState(revision, 1);
+    flushProbeState(scene);
+    LOKA_VERIFY(inputs.records[0].node && inputs.records[0].node != oldArm0 &&
+                "the same-arm shape mismatch rebuilds arm 0");
+    LOKA_VERIFY(root->parkedBranchCountForTesting() == 0);
+
+    // The nested seat must still resolve its own selection after the rebuild:
+    // showing then hiding the button parks exactly one branch under it.
+    setProbeState(nested, true);
+    flushProbeState(scene);
+    setProbeState(nested, false);
+    flushProbeState(scene);
+    LOKA_VERIFY(root->parkedBranchCountForTesting() == 1 &&
+                "the nested seat installed by a same-arm rebuild keeps its runtime mapping");
   }
   g_probeArmSeatInputs = 0;
 }
