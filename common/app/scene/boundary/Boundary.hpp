@@ -1872,17 +1872,17 @@ namespace loka
 
           if (!runtime.shape.matches(mutablePlan->shape))
           {
-            const unsigned oldArmCount = runtime.shape.armCount;
-            if (!this->replaceSeatBranch(context,
-                                         *mutablePlan,
-                                         runtime,
-                                         false,
-                                         false))
-            {
-              return false;
-            }
-            this->drainParkedSeat(context, mutablePlan->key, oldArmCount);
-            return true;
+            // The old shape's parked arms are unusable under the new shape and
+            // are drained first: a drain after the rebuild would retire the old
+            // parked (key, arm) under the same owner pair the rebuilt arm's
+            // nested mappings carry and erase them (the selected arm may well
+            // be one that was parked under the old shape).
+            this->drainParkedSeat(context, mutablePlan->key, runtime.shape.armCount);
+            return this->replaceSeatBranch(context,
+                                           *mutablePlan,
+                                           runtime,
+                                           false,
+                                           false);
           }
 
           if (mutablePlan->hasSelectedArm != runtime.hasActiveArm ||

@@ -4459,15 +4459,73 @@ void testProbeArmSeatShapeMismatchOnSameArmKeepsNestedSeatMapping()
     LOKA_VERIFY(inputs.records[0].node && inputs.records[0].node != oldArm0 &&
                 "the same-arm shape mismatch rebuilds arm 0");
     LOKA_VERIFY(root->parkedBranchCountForTesting() == 0);
+    ProbeArmLocalBoundaryNode *rebuiltArm0 = inputs.records[0].node;
 
     // The nested seat must still resolve its own selection after the rebuild:
-    // showing then hiding the button parks exactly one branch under it.
+    // showing then hiding the button parks exactly one branch under it, and
+    // arm 0 stays the same instance (a rebuild backstop would replace it).
     setProbeState(nested, true);
     flushProbeState(scene);
     setProbeState(nested, false);
     flushProbeState(scene);
     LOKA_VERIFY(root->parkedBranchCountForTesting() == 1 &&
+                inputs.records[0].node == rebuiltArm0 &&
                 "the nested seat installed by a same-arm rebuild keeps its runtime mapping");
+  }
+  g_probeArmSeatInputs = 0;
+}
+
+void testProbeArmSeatShapeMismatchOnParkedArmKeepsNestedSeatMapping()
+{
+  loka::core::MutableState<unsigned> selection(0);
+  loka::core::MutableState<int> revision(0);
+  loka::core::MutableState<bool> nested(false);
+  ProbeArmSeatInputs inputs(&selection, &revision, &nested);
+  inputs.mode = PROBE_ARM_SEAT_SHAPE_INITIAL;
+  g_probeArmSeatInputs = &inputs;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<ProbeArmSeatBoundaryNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    loka::app::scene::BoundaryNode *root =
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    LOKA_VERIFY(root && inputs.records[0].node);
+    ProbeArmLocalBoundaryNode *oldArm0 = inputs.records[0].node;
+
+    // Park arm 0 under the old shape.
+    setProbeState(selection, 1u);
+    flushProbeState(scene);
+    LOKA_VERIFY(root->parkedBranchCountForTesting() == 1);
+
+    // Change the shape while the recomposed seat reads a *new* selection state
+    // that already says 0 (a set() on the old state would open the dirty door
+    // first and un-park arm 0 under the old shape). The rebuilt arm 0 (now
+    // carrying a nested Show) is installed while the old parked arm 0 is still
+    // in the ledger and is drained under the same (seat key, arm 0) owner pair.
+    loka::core::MutableState<unsigned> replacementSelection(0);
+    inputs.selection = &replacementSelection;
+    inputs.mode = PROBE_ARM_SEAT_SHAPE_NESTED_ARM0;
+    setProbeState(revision, 1);
+    flushProbeState(scene);
+    LOKA_VERIFY(inputs.records[0].node && inputs.records[0].node != oldArm0 &&
+                "the shape mismatch builds a fresh arm 0 instead of reusing the parked one");
+    LOKA_VERIFY(root->parkedBranchCountForTesting() == 0 &&
+                "the old shape's parked arms are drained");
+    ProbeArmLocalBoundaryNode *rebuiltArm0 = inputs.records[0].node;
+
+    // The nested seat must resolve its own updates through its mapping. If the
+    // drain had erased that mapping, the toggle could only be honoured by the
+    // rebuild backstop, which replaces arm 0 (a fresh instance) -- the parked
+    // count alone cannot tell the two apart.
+    setProbeState(nested, true);
+    flushProbeState(scene);
+    setProbeState(nested, false);
+    flushProbeState(scene);
+    LOKA_VERIFY(root->parkedBranchCountForTesting() == 1);
+    LOKA_VERIFY(inputs.records[0].node == rebuiltArm0 &&
+                "draining the old parked arm must not erase the nested seat's fresh mapping");
   }
   g_probeArmSeatInputs = 0;
 }
