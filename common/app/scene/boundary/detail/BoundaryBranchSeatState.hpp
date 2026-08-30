@@ -230,11 +230,55 @@ namespace loka
           this->plans_.clear();
           ++this->generation_;
           this->captureDefinition(root, 0, 0);
+          this->refuseCollidingKeys();
         }
 
         void append(NodeDefinitionBase *root)
         {
           this->captureDefinition(root, 0, 0);
+          this->refuseCollidingKeys();
+        }
+
+        /** Tagged seat keys ignore the slot, so two distinct definitions under
+            one key would share a single parked-ledger row. The walk records
+            both; this pass drops every plan for such a key, and the plan-less
+            seats are refused at materialization (requiresBoundaryPlan). The
+            multiplicity in plans_ is the whole record -- no flag survives it. */
+        void refuseCollidingKeys()
+        {
+          for (size_t i = 0; i < this->plans_.size();)
+          {
+            bool collided = false;
+            for (size_t j = i + 1; j < this->plans_.size(); ++j)
+            {
+              if (this->plans_[j].key.matches(this->plans_[i].key) &&
+                  this->plans_[j].seat != this->plans_[i].seat)
+              {
+                collided = true;
+                break;
+              }
+            }
+            if (!collided)
+            {
+              ++i;
+              continue;
+            }
+            assert(false &&
+                   "two branch seats share one tagged key: sibling branch seats "
+                   "and BoundarySections require unique value keys");
+            const BoundaryParkedBranchKey key = this->plans_[i].key;
+            for (size_t k = 0; k < this->plans_.size();)
+            {
+              if (this->plans_[k].key.matches(key))
+              {
+                this->plans_.erase(this->plans_.begin() + k);
+              }
+              else
+              {
+                ++k;
+              }
+            }
+          }
         }
 
         unsigned long generation() const
@@ -443,19 +487,16 @@ namespace loka
           {
             const BoundaryParkedBranchKey key = keyFor(*definition, *seat);
             BoundaryBranchSeatPlanEntry *existing = this->findPlan(key);
-            if (existing)
+            if (existing && existing->seat == seat)
             {
               // A nested append re-walks subtrees the outer capture already
-              // covered: the first entry for the same definition stands. A
-              // different definition under the same key is a tag collision --
-              // tagged seat keys ignore the slot, so both seats would share one
-              // ledger row. It gets no plan; materialization refuses it as a
-              // seat without a captured plan, which is exactly what it is.
-              assert(existing->seat == seat &&
-                     "two branch seats share one tagged key: sibling branch seats "
-                     "and BoundarySections require unique value keys");
+              // covered: the first entry for the same definition stands.
               return;
             }
+            // A different definition under an existing key is recorded as a
+            // second entry; refuseCollidingKeys() drops every plan for that
+            // key once the walk is complete, so both seats materialize as seats
+            // without a captured plan.
             BoundaryBranchSeatPlanEntry entry;
             entry.key = key;
             entry.dirtySource = seat->branchCondition();

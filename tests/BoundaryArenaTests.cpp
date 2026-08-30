@@ -4469,9 +4469,10 @@ void testBranchSeatSiblingsRejectDuplicateTags()
   composition.assignCompositionSeatSlots();
   loka::app::scene::BoundaryBranchSeatState seats;
   seats.capture(composition.root());
-  // Release builds mint one plan for the key; the second seat has none and is
-  // refused at materialization as a seat without a captured plan.
-  LOKA_VERIFY(seats.plans().size() == 1 && seats.plans()[0].seat == &first &&
-              "release builds register one plan per tagged key");
+  // Release builds drop every plan under a key claimed by two definitions;
+  // both seats are then refused at materialization as seats without a
+  // captured plan (requiresBoundaryPlan in its own meaning).
+  LOKA_VERIFY(seats.plans().empty() &&
+              "release builds refuse every plan under a colliding tagged key");
 #endif
 }
