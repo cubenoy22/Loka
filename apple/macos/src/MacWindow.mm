@@ -436,11 +436,9 @@ bool MacWindow::queryDisplayAppearance(DisplayAppearance &out) const
 
 void MacWindow::onCreate()
 {
+  // Native creation is entered from VisibilityChangedThunk; it reads the
+  // application's intent and never writes it back (no forced re-notify).
   Window::onCreate();
-  if (this->visibilityState().get())
-  {
-    this->visibilityState().set(true, true);
-  }
 }
 
 void MacWindow::onShow()

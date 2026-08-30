@@ -203,6 +203,35 @@ void testWin32ResizeMessageStoresTrackedContentSize()
   printf("==== [testWin32ResizeMessageStoresTrackedContentSize] PASSED ====\n");
 }
 
+void testWin32NativeWindowCreationDoesNotEchoVisibility()
+{
+  printf("\n==== [testWin32NativeWindowCreationDoesNotEchoVisibility] start ====\n");
+  WindowProps props;
+  props.frame(40, 40, 257, 163).visible(false);
+  NullPlatformContext context;
+  Win32Window window(&context, props);
+  int notifications = 0;
+  window.visibilityState().bind(&CountFrameNotification, &notifications, false);
+
+  setWindowVisibility(window, true);
+  HWND hwnd = window.hwnd();
+  assert(hwnd && IsWindow(hwnd));
+  LOKA_VERIFY(IsWindowVisible(hwnd));
+  printf("  visibility notifications after show=%d\n", notifications);
+  fflush(stdout);
+  assert(notifications == 1 &&
+         "native window creation must not write visibilityState back (one application write, one notification)");
+
+  setWindowVisibility(window, false);
+  const HWND destroyedHwnd = window.hwnd();
+  LOKA_VERIFY(destroyedHwnd == NULL);
+  assert(notifications == 2 &&
+         "native window destruction must not write visibilityState back either");
+
+  window.visibilityState().unbind(&CountFrameNotification, &notifications);
+  printf("==== [testWin32NativeWindowCreationDoesNotEchoVisibility] PASSED ====\n");
+}
+
 void testWin32AppOnlyMenuWindowSettles()
 {
   printf("\n==== [testWin32AppOnlyMenuWindowSettles] start ====\n");

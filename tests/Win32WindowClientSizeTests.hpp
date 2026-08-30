@@ -3,6 +3,7 @@
 
 void testWin32DeclaredWindowSizeMeansClientArea();
 void testWin32ResizeMessageStoresTrackedContentSize();
+void testWin32NativeWindowCreationDoesNotEchoVisibility();
 void testWin32AppOnlyMenuWindowSettles();
 void testWin32MenuRebuildPreservesMovedWindowFrame();
 void testWin32WindowDestructionDestroysNativeWindow();
