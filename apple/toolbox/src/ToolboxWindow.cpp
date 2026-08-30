@@ -144,6 +144,7 @@ void ToolboxWindow::open()
   window_ = NewWindow(0, &bounds, titleStr, true, documentProc, (WindowPtr)-1, true, 0);
   titleBarHeight_ = WindowTitleBarHeight(window_);
   TitleChangedThunk(this);
+  this->storeCurrentNativeContentFrame();
 }
 
 void ToolboxWindow::requestInvalidate()
@@ -281,10 +282,6 @@ void ToolboxWindow::FrameChangedThunk(void *userData)
     return;
   }
   loka::core::Frame frame = self->frameState().get();
-  if (self->consumeNativeEcho())
-  {
-    return; // the native window is the source of this notification; do not project it back
-  }
   if (frame.hasPosition())
   {
     short y = static_cast<short>(frame.y >= 0 ? frame.y : 0);
@@ -307,6 +304,36 @@ void ToolboxWindow::FrameChangedThunk(void *userData)
     {
       SizeWindow(self->window_, static_cast<short>(frame.width), static_cast<short>(frame.height), true);
     }
+  }
+}
+
+loka::core::Frame ToolboxWindow::nativeContentFrame() const
+{
+  if (!this->window_)
+  {
+    return loka::core::Frame();
+  }
+  const Rect portRect = this->window_->portRect;
+  Point topLeft;
+  topLeft.h = portRect.left;
+  topLeft.v = portRect.top;
+  GrafPtr oldPort;
+  GetPort(&oldPort);
+  SetPort(this->window_);
+  LocalToGlobal(&topLeft);
+  SetPort(oldPort);
+  const short menuHeight = GetMBarHeight();
+  return loka::core::Frame(topLeft.h,
+                           static_cast<int>(topLeft.v) - menuHeight - 1,
+                           portRect.right - portRect.left,
+                           portRect.bottom - portRect.top);
+}
+
+void ToolboxWindow::storeCurrentNativeContentFrame()
+{
+  if (this->window_)
+  {
+    this->storeNativeFrame(this->nativeContentFrame());
   }
 }
 
@@ -378,7 +405,7 @@ void ToolboxWindow::handleGrow(const Point &globalPoint)
   SetPort(window_);
   InvalRect(&window_->portRect);
   SetPort(oldPort);
-  this->storeNativeContentSize(width, height);
+  this->storeCurrentNativeContentFrame();
 }
 
 void ToolboxWindow::invalidateGrowIcon()
@@ -492,25 +519,48 @@ void ToolboxWindow::drawDirty(const Rect &rect)
   GetPort(&oldPort);
   SetPort(window_);
   Rect clip = rect;
+  const Rect corner = GrowIconRect(window_->portRect);
+  Rect growIntersection;
+  const bool drawsGrowBox = SectRect(&clip, &corner, &growIntersection) != 0;
   RgnHandle oldClip = NewRgn();
   if (oldClip)
   {
     GetClip(oldClip);
     ClipRect(&clip);
     scenePlatformController_->renderDirty(rect);
-    // Content is laid out into the full portRect, so a dirty rect that touches
-    // the grow corner or the scroll-bar lines paints over them; restore the
-    // icon under the same clip (a rect that misses it draws nothing).
-    DrawGrowIcon(window_);
+    if (drawsGrowBox)
+    {
+      SetClip(oldClip);
+      ClipRect(&growIntersection);
+      this->drawGrowBox();
+    }
     SetClip(oldClip);
     DisposeRgn(oldClip);
   }
   else
   {
     scenePlatformController_->renderDirty(rect);
-    DrawGrowIcon(window_);
   }
   SetPort(oldPort);
+}
+
+void ToolboxWindow::drawGrowBox()
+{
+  if (!this->window_)
+  {
+    return;
+  }
+  RgnHandle oldClip = NewRgn();
+  if (!oldClip)
+  {
+    return;
+  }
+  GetClip(oldClip);
+  const Rect corner = GrowIconRect(this->window_->portRect);
+  ClipRect(&corner);
+  DrawGrowIcon(this->window_);
+  SetClip(oldClip);
+  DisposeRgn(oldClip);
 }
 
 void ToolboxWindow::invalidateWindow()
@@ -537,7 +587,7 @@ void ToolboxWindow::draw()
     scenePlatformController_->render();
     scenePlatformController_->drawControlsInRect(window_->portRect);
   }
-  DrawGrowIcon(window_);
+  this->drawGrowBox();
 
   SetPort(oldPort);
 }

@@ -47,6 +47,7 @@ public:
 
   void handleWindowWillClose();
   void handleWindowDidResize();
+  void handleWindowDidMove();
   void handleWindowDidBecomeKey();
   bool handleKeyPress(char key);
 

@@ -21,6 +21,12 @@ namespace loka
 {
   namespace app
   {
+    namespace testing
+    {
+#ifdef TEST_BUILD
+      class WindowTestAccess;
+#endif
+    }
     namespace scene
     {
       class Scene;
@@ -504,18 +510,14 @@ public:
   Window(PlatformContext *context, const WindowProps &props = WindowProps())
       : context_(context),
         tracker_(0),
-        nativeEchoArmed_(false),
         titleStorage_(),
         visibilityStorage_(true),
         frameState_(),
+        nativeFrame_(),
         title_(&titleStorage_),
         displayTitle_(&titleStorage_),
         visibility_(&visibilityStorage_),
         frameStatePtr_(&frameState_),
-        positionX_(props.positionX),
-        positionY_(props.positionY),
-        width_(props.width),
-        height_(props.height),
         idlePolicy_(props.idlePolicyValue),
         onIdleFn_(props.onIdleFn),
         onIdleUserData_(props.onIdleUserData),
@@ -541,6 +543,7 @@ public:
     pushTracker->addState(displayTitle_);
     pushTracker->addState(visibility_);
     pushTracker->addState(frameStatePtr_);
+    pushTracker->addState(&nativeFrame_);
     tracker_ = pushTracker;
     if (props.hasInitialTitle)
     {
@@ -550,18 +553,18 @@ public:
     {
       visibility_->set(props.initialVisibility);
     }
-    if (positionX_ >= 0 || positionY_ >= 0 || width_ > 0 || height_ > 0)
+    if (props.positionX >= 0 || props.positionY >= 0 || props.width > 0 || props.height > 0)
     {
       loka::core::Frame frame = frameStatePtr_->get();
-      if (positionX_ >= 0 && positionY_ >= 0)
+      if (props.positionX >= 0 && props.positionY >= 0)
       {
-        frame.x = positionX_;
-        frame.y = positionY_;
+        frame.x = props.positionX;
+        frame.y = props.positionY;
       }
-      if (width_ > 0 && height_ > 0)
+      if (props.width > 0 && props.height > 0)
       {
-        frame.width = width_;
-        frame.height = height_;
+        frame.width = props.width;
+        frame.height = props.height;
       }
       frameStatePtr_->set(frame);
     }
@@ -630,6 +633,19 @@ public:
   loka::core::MutableState<loka::core::Frame> &frameState()
   {
     return *frameStatePtr_;
+  }
+  /** The native content frame is a fact written only by the platform rail;
+      frameState() is application intent and the rail never writes it. The two
+      may legally diverge after a user resize. An application that wants its
+      intent to follow the native fact writes
+      frameState().set(nativeFrame().get()) itself. */
+  loka::core::State<loka::core::Frame> &nativeFrame()
+  {
+    return this->nativeFrame_; // State<T> carries no set(); only the rail's storeNativeFrame() writes
+  }
+  const loka::core::State<loka::core::Frame> &nativeFrame() const
+  {
+    return this->nativeFrame_;
   }
   const loka::app::MenuBarDefinition *menuBar() const
   {
@@ -800,49 +816,16 @@ public:
     return onKeyPressFn_(this, key, onKeyPressUserData_);
   }
 
-private:
 protected:
-  /** Stores a native content-size change without changing logical position.
-      The native window already has this size, and on rails that never write a
-      user move back into Frame.x/y the stored position may be stale, so the
-      rail's frame observer must not project this one notification back out
-      (it would snap the window to its originally declared origin). The store
-      arms a one-shot echo; the observer consumes it on the first notification
-      and projects every later one (a clamp, a position correction) as usual. */
-  void storeNativeContentSize(int width, int height)
+  void storeNativeFrame(const loka::core::Frame &frame)
   {
-    loka::core::Frame frame = this->frameState().get();
-    if (frame.width == width && frame.height == height)
+    if (this->nativeFrame_.get() == frame)
     {
       return;
     }
-    frame.width = width;
-    frame.height = height;
-    this->nativeEchoArmed_ = true;
-    {
-      loka::core::StateTrackerGuard guard(this->getTracker());
-      this->frameState().set(frame);
-    }
-    // The observer runs synchronously inside set(); if nothing consumed the
-    // echo (no rail observer), drop it so no later write is skipped.
-    this->nativeEchoArmed_ = false;
+    loka::core::StateTrackerGuard guard(this->getTracker());
+    this->nativeFrame_.set(frame);
   }
-
-public:
-  /** Consumes the one-shot native echo armed by storeNativeContentSize().
-      Returns true exactly once per store, for the notification that carries
-      the stored native size; every other frame notification returns false. */
-  bool consumeNativeEcho()
-  {
-    if (!this->nativeEchoArmed_)
-    {
-      return false;
-    }
-    this->nativeEchoArmed_ = false;
-    return true;
-  }
-
-protected:
 
   void observeNativeState(const loka::core::StateBase &state,
                           loka::core::StateBase::OnChangeFn callback,
@@ -858,19 +841,15 @@ protected:
 
   PlatformContext *context_;
   loka::core::StateTracker *tracker_;
-  bool nativeEchoArmed_;
   SceneManager sceneManager_;
   loka::core::MutableState<loka::core::String> titleStorage_;
   loka::core::MutableState<bool> visibilityStorage_;
   loka::core::MutableState<loka::core::Frame> frameState_;
+  loka::core::MutableState<loka::core::Frame> nativeFrame_;
   loka::core::MutableState<loka::core::String> *title_;
   loka::core::State<loka::core::String> *displayTitle_;
   loka::core::MutableState<bool> *visibility_;
   loka::core::MutableState<loka::core::Frame> *frameStatePtr_;
-  int positionX_;
-  int positionY_;
-  int width_;
-  int height_;
   loka::app::IdlePolicy idlePolicy_;
   WindowProps::OnIdleFn onIdleFn_;
   void *onIdleUserData_;
@@ -878,6 +857,10 @@ protected:
   void *onKeyPressUserData_;
   loka::core::OwnedDef<loka::app::MenuBarDefinition> menuBarDefinition_;
   NativeStateObserverLedger nativeStateObservers_;
+
+#ifdef TEST_BUILD
+  friend class ::loka::app::testing::WindowTestAccess;
+#endif
 };
 
 #endif // LOKA_WINDOW_HPP

@@ -7,6 +7,8 @@
 #include "core/StateTracker.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "platform/null/NullPlatformContext.hpp"
+#include "support/TestVerify.hpp"
+#include "testing/app/WindowTestAccess.hpp"
 
 namespace
 {
@@ -17,16 +19,16 @@ namespace
 
   struct WindowWidthIsNarrow : public loka::core::DerivedState<bool>::EvalFn
   {
-    loka::core::State<loka::core::Frame> *frame;
+    const loka::core::State<loka::core::Frame> *frame;
 
-    explicit WindowWidthIsNarrow(loka::core::State<loka::core::Frame> *frameState)
+    explicit WindowWidthIsNarrow(const loka::core::State<loka::core::Frame> *frameState)
         : frame(frameState)
     {
     }
 
     virtual bool operator()()
     {
-      return this->frame && this->frame->get().width < 480;
+      return this->frame && this->frame->get().hasSize() && this->frame->get().width < 480;
     }
   };
 } // namespace
@@ -69,5 +71,43 @@ void testWindowFrameStateDrivesDerivedState()
   assert(notifications == 2);
 
   tracker->removeState(&narrow);
+  delete window;
+}
+
+void testWindowNativeFrameDrivesDerivedStateWithoutEchoingIntent()
+{
+  NullPlatformContext context;
+  const loka::core::Frame declaredFrame(10, 20, 640, 480);
+  WindowProps props;
+  props.frame(declaredFrame.x, declaredFrame.y, declaredFrame.width, declaredFrame.height);
+  Window *window = context.createWindow(props);
+  assert(window);
+
+  int frameStateNotifications = 0;
+  window->frameState().bind(&incrementWindowFrameNotification,
+                            &frameStateNotifications,
+                            false);
+  loka::core::State<loka::core::Frame> &nativeFrame = window->nativeFrame();
+  loka::core::DerivedState<bool> narrow(&nativeFrame, new WindowWidthIsNarrow(&nativeFrame));
+  loka::core::PushStateTracker *tracker = window->getTracker()->asPushTracker();
+  assert(tracker);
+  tracker->addState(&narrow);
+  int nativeNotifications = 0;
+  narrow.bind(&incrementWindowFrameNotification, &nativeNotifications, false);
+
+  const loka::core::Frame resizedFrame(10, 20, 400, 480);
+  loka::app::testing::WindowTestAccess::storeNativeFrame(*window, resizedFrame);
+  assert(narrow.get());
+  assert(nativeNotifications == 1);
+  assert(frameStateNotifications == 0);
+  LOKA_VERIFY(window->frameState().get() == declaredFrame);
+
+  loka::app::testing::WindowTestAccess::storeNativeFrame(*window, resizedFrame);
+  assert(nativeNotifications == 1);
+  assert(frameStateNotifications == 0);
+  LOKA_VERIFY(window->frameState().get() == declaredFrame);
+
+  tracker->removeState(&narrow);
+  window->frameState().unbind(&incrementWindowFrameNotification, &frameStateNotifications);
   delete window;
 }

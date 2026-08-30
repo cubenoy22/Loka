@@ -86,16 +86,16 @@ namespace
 
   struct Win32WidthIsNarrow : public loka::core::DerivedState<bool>::EvalFn
   {
-    loka::core::State<loka::core::Frame> *frame;
+    const loka::core::State<loka::core::Frame> *frame;
 
-    explicit Win32WidthIsNarrow(loka::core::State<loka::core::Frame> *frameState)
+    explicit Win32WidthIsNarrow(const loka::core::State<loka::core::Frame> *frameState)
         : frame(frameState)
     {
     }
 
     virtual bool operator()()
     {
-      return this->frame && this->frame->get().width < 480;
+      return this->frame && this->frame->get().hasSize() && this->frame->get().width < 480;
     }
   };
 
@@ -172,13 +172,16 @@ void testWin32ResizeMessageStoresTrackedContentSize()
   HWND hwnd = window.hwnd();
   assert(hwnd && IsWindow(hwnd));
 
-  const loka::core::Frame beforeMinimize = window.frameState().get();
+  const loka::core::Frame declaredFrame = window.frameState().get();
+  const loka::core::Frame beforeMinimize = window.nativeFrame().get();
   SendMessageW(hwnd, WM_SIZE, SIZE_MINIMIZED, MAKELPARAM(0, 0));
-  LOKA_VERIFY(window.frameState().get() == beforeMinimize &&
-              "a minimized WM_SIZE must not replace the last content frame");
+  LOKA_VERIFY(window.nativeFrame().get() == beforeMinimize &&
+              "a minimized WM_SIZE must not replace the last native content frame");
+  LOKA_VERIFY(window.frameState().get() == declaredFrame &&
+              "a minimized WM_SIZE must not change the declared content frame");
 
-  loka::core::DerivedState<bool> narrow(&window.frameState(),
-                                        new Win32WidthIsNarrow(&window.frameState()));
+  loka::core::State<loka::core::Frame> &nativeFrame = window.nativeFrame();
+  loka::core::DerivedState<bool> narrow(&nativeFrame, new Win32WidthIsNarrow(&nativeFrame));
   loka::core::PushStateTracker *tracker = window.getTracker()->asPushTracker();
   assert(tracker);
   tracker->addState(&narrow);
@@ -186,9 +189,11 @@ void testWin32ResizeMessageStoresTrackedContentSize()
   narrow.bind(&CountFrameNotification, &notifications, false);
 
   resizeNativeClient(hwnd, 400, 280);
-  const loka::core::Frame resized = window.frameState().get();
+  const loka::core::Frame resized = window.nativeFrame().get();
   assert(resized.width == 400 && resized.height == 280 &&
-         "a normal WM_SIZE must publish the Win32 content size");
+         "a normal WM_SIZE must publish the Win32 native content size");
+  LOKA_VERIFY(window.frameState().get() == declaredFrame &&
+              "a native WM_SIZE must not echo into the declared content frame");
   assert(narrow.get() &&
          "derived window state must settle before the native resize transaction returns");
   assert(notifications == 1);

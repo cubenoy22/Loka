@@ -76,6 +76,15 @@
   }
 }
 
+- (void)windowDidMove:(NSNotification *)notification
+{
+  (void)notification;
+  if (self.owner)
+  {
+    self.owner->handleWindowDidMove();
+  }
+}
+
 - (void)windowDidBecomeKey:(NSNotification *)notification
 {
   (void)notification;
@@ -213,6 +222,26 @@ namespace
     frameRect.origin.y = top - y - frameRect.size.height;
     return frameRect;
   }
+
+  static loka::core::Frame NativeContentFrame(NSWindow *window)
+  {
+    if (!window)
+    {
+      return loka::core::Frame();
+    }
+    const NSRect contentRect = [window contentRectForFrameRect:[window frame]];
+    NSScreen *screen = [window screen];
+    if (!screen)
+    {
+      screen = [NSScreen mainScreen];
+    }
+    // Native fractional coordinates truncate at the integer Frame/relayout seam.
+    return loka::core::Frame(static_cast<int>(contentRect.origin.x),
+                             static_cast<int>(VisibleTopForScreen(screen)
+                                              - (contentRect.origin.y + contentRect.size.height)),
+                             static_cast<int>(contentRect.size.width),
+                             static_cast<int>(contentRect.size.height));
+  }
 } // namespace
 
 void MacWindow::FrameChangedThunk(void *userData)
@@ -224,10 +253,6 @@ void MacWindow::FrameChangedThunk(void *userData)
   }
   NSWindow *window = (NSWindow *)self->window_;
   loka::core::Frame frame = self->frameState().get();
-  if (self->consumeNativeEcho())
-  {
-    return; // the native window is the source of this notification; do not project it back
-  }
   if (!frame.hasSize())
   {
     return;
@@ -316,6 +341,7 @@ void MacWindow::createNativeWindow()
   window_ = (void *)window;
   contentView_ = (void *)contentView;
   delegate_ = (void *)delegate;
+  this->storeNativeFrame(NativeContentFrame(window));
 
   [window makeKeyAndOrderFront:nil];
   this->onCreate();
@@ -495,33 +521,27 @@ void MacWindow::handleWindowDidResize()
 {
   NSWindow *window = (NSWindow *)window_;
   NSView *view = (NSView *)contentView_;
-  NSRect contentBounds;
-  if (view)
-  {
-    contentBounds = [view bounds];
-  }
-  else if (window)
-  {
-    contentBounds = [window contentRectForFrameRect:[window frame]];
-  }
-  else
+  if (!window)
   {
     return;
   }
-  // Native fractional sizes truncate at the integer Frame/relayout seam.
-  const int width = static_cast<int>(contentBounds.size.width);
-  const int height = static_cast<int>(contentBounds.size.height);
-  this->storeNativeContentSize(width, height);
+  this->storeNativeFrame(NativeContentFrame(window));
   if (!scenePlatformController_ || !contentView_)
   {
     return;
   }
-  // A frame observer may have corrected the size while the store settled (a
-  // clamp projects through setFrame and re-enters this callback); lay out
-  // from the native bounds as they are now, not from the captured locals.
-  const NSRect settled = [view bounds];
-  scenePlatformController_->relayout(static_cast<int>(settled.size.width),
-                                     static_cast<int>(settled.size.height));
+  const NSRect contentBounds = [view bounds];
+  scenePlatformController_->relayout(static_cast<int>(contentBounds.size.width),
+                                     static_cast<int>(contentBounds.size.height));
+}
+
+void MacWindow::handleWindowDidMove()
+{
+  NSWindow *window = (NSWindow *)window_;
+  if (window)
+  {
+    this->storeNativeFrame(NativeContentFrame(window));
+  }
 }
 
 void MacWindow::handleWindowDidBecomeKey()

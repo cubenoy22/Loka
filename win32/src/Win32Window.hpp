@@ -40,6 +40,10 @@ public:
 
   /** Reads the native window position and client size as one content frame. */
   bool queryNativeContentFrame(loka::core::Frame &out) const;
+  /** Publishes the current native content frame as a rail-owned fact. */
+  bool storeCurrentNativeContentFrame();
+  /** Projects a content frame into the native window. */
+  bool applyNativeContentFrame(const loka::core::Frame &frame);
   /** Detaches an installed menu during teardown while preserving the native
       client frame and publishing no logical State. */
   bool detachMenuForTeardown(HMENU expectedMenu);
