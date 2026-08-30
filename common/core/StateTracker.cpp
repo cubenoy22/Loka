@@ -477,14 +477,18 @@ namespace loka
       }
     }
 
+    // A transaction is closed only when no level is open and no settlement is
+    // running: a level joined during settlement (begin() while phase_ is not
+    // idle) sees depth_ == 0 yet must not read or clear the owner's pending
+    // dirt; the outer end() owns it until the phase returns to idle.
     bool PushStateTracker::peekDirty() const
     {
-      return depth_ == 0 && pendingDirty_;
+      return depth_ == 0 && phase_ == TRACKER_IDLE && pendingDirty_;
     }
 
     bool PushStateTracker::consumeDirty()
     {
-      if (depth_ > 0)
+      if (depth_ > 0 || phase_ != TRACKER_IDLE)
       {
         return false;
       }

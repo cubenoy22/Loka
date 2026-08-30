@@ -137,9 +137,16 @@ namespace
   void writeFromSettlingDerived(void *userData)
   {
     SettlingGuardProbe *probe = static_cast<SettlingGuardProbe *>(userData);
-    loka::core::StateTrackerGuard guard(
-        probe->tracker, &incrementGuardInvalidations, &probe->invalidations);
-    probe->written->set(probe->derived->get());
+    {
+      loka::core::StateTrackerGuard guard(
+          probe->tracker, &incrementGuardInvalidations, &probe->invalidations);
+      probe->written->set(probe->derived->get());
+    }
+    // A joined level is not a closed transaction: nothing may acknowledge the
+    // outer settlement's dirt from inside it (MenuComposition::declare() is the
+    // manual begin/end/peekDirty client this protects).
+    assert(!probe->tracker->peekDirty());
+    assert(!probe->tracker->consumeDirty());
   }
 
   struct CommitGuardProbe
@@ -161,9 +168,13 @@ namespace
   void writeFromDeferredCommit(void *userData)
   {
     CommitGuardProbe *probe = static_cast<CommitGuardProbe *>(userData);
-    loka::core::StateTrackerGuard guard(
-        probe->tracker, &incrementGuardInvalidations, &probe->invalidations);
-    probe->written->set(probe->source->get());
+    {
+      loka::core::StateTrackerGuard guard(
+          probe->tracker, &incrementGuardInvalidations, &probe->invalidations);
+      probe->written->set(probe->source->get());
+    }
+    assert(!probe->tracker->peekDirty());
+    assert(!probe->tracker->consumeDirty());
   }
 
   using namespace loka::app::scene;
@@ -361,6 +372,10 @@ void testStateTrackerGuardOpenedDuringSettlementJoinsTransaction()
   assert(e.get() == 6);
   assert(probe.invalidations == 1);
   assert(tracker.phase() == loka::core::TRACKER_IDLE);
+  // The dirt the joined level could not consume is still pending for the owner.
+  assert(tracker.peekDirty());
+  assert(tracker.consumeDirty());
+  assert(!tracker.peekDirty());
 
   {
     loka::core::StateTrackerGuard guard(&tracker);
