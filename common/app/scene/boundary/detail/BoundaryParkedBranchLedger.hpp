@@ -42,42 +42,36 @@ namespace loka
         {
           Entry(const BoundaryParkedBranchKey &keyValue,
                 Node *branchValue,
-                bool conditionValue)
+                unsigned armValue)
               : key(keyValue),
                 branch(branchValue),
-                condition(conditionValue)
+                arm(armValue)
           {
           }
 
           BoundaryParkedBranchKey key;
           Node *branch;
-          bool condition;
+          unsigned arm;
         };
 
-        void park(const BoundaryParkedBranchKey &key, Node *branch, bool condition)
+        void park(const BoundaryParkedBranchKey &key, Node *branch, unsigned arm)
         {
           if (branch)
           {
-            this->entries_.push_back(Entry(key, branch, condition));
+            this->entries_.push_back(Entry(key, branch, arm));
           }
         }
 
-        Node *take(const BoundaryParkedBranchKey &key)
-        {
-          bool condition = false;
-          return this->take(key, condition);
-        }
-
-        Node *take(const BoundaryParkedBranchKey &key, bool &condition)
+        Node *take(const BoundaryParkedBranchKey &key, unsigned arm)
         {
           for (size_t i = 0; i < this->entries_.size(); ++i)
           {
-            if (!this->entries_[i].key.matches(key))
+            if (!this->entries_[i].key.matches(key) ||
+                this->entries_[i].arm != arm)
             {
               continue;
             }
             Node *branch = this->entries_[i].branch;
-            condition = this->entries_[i].condition;
             this->entries_.erase(this->entries_.begin() + i);
             return branch;
           }
@@ -98,6 +92,13 @@ namespace loka
         {
           return index < this->entries_.size() ? &this->entries_[index] : 0;
         }
+
+#ifdef TEST_BUILD
+        unsigned countForTesting() const
+        {
+          return static_cast<unsigned>(this->entries_.size());
+        }
+#endif
 
         void detachAll(std::vector<Node *> &out)
         {
