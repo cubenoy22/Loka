@@ -2,6 +2,7 @@
 #define LOKA_TOOLBOX_SCENE_PLATFORM_CONTROLLER_HPP
 
 #include "app/scene/projection/PlatformController.hpp"
+#include "app/scene/projection/ProjectionParentScope.hpp"
 #include "ToolboxControlIdAllocator.hpp"
 #include "ToolboxEditControlLedger.hpp"
 #include "ToolboxEnabledChangeDispatch.hpp"
@@ -27,6 +28,7 @@ namespace loka
   namespace app
   {
     struct ScrollBarProps;
+    class ScrollViewNode;
   }
 } // namespace loka
 
@@ -110,6 +112,17 @@ public:
                               loka::app::scene::NativeLifetimeHint lifetimeHint =
                                   loka::app::scene::NATIVE_HINT_DEFAULT);
   void destroyScrollBarControl(short resourceId, loka::app::scene::NativeLifetimeHint lifetimeHint);
+  /** Projects the ScrollView viewport's own scrollBarProc without borrowing
+      the DSL ScrollBar binding or its window-tracker commit clock. */
+  int ensureViewportScrollBarControl(
+      const Rect &viewportRect,
+      loka::app::ScrollViewNode *scrollView,
+      int contentHeight,
+      int viewportHeight,
+      int requestedOffset);
+  void destroyViewportScrollBarControl(
+      loka::app::ScrollViewNode *scrollView,
+      loka::app::scene::NativeLifetimeHint lifetimeHint);
   void retireNodeContext(loka::app::scene::NodeContext *context, loka::app::scene::NativeLifetimeHint lifetimeHint);
   /** Escalates recorded dirty rectangles because the projected structure
       changed since the last present. */
@@ -136,6 +149,51 @@ public:
   {
     return activeLayoutBoundary_;
   }
+  short layoutScrollView(loka::app::ScrollViewNode *scrollView,
+                         loka::app::scene::LayoutState &state,
+                         loka::app::scene::BoundaryNode *currentBoundary);
+  void renderScrollView(loka::app::ScrollViewNode *scrollView);
+  bool projectLayoutState(loka::app::scene::LayoutState &state)
+  {
+    if (this->projectionParentScopes_.activeDepth() == 0)
+    {
+      return true;
+    }
+    const loka::app::scene::ProjectionParentScope &scope =
+        this->projectionParentScopes_.current();
+    // This rail has no inner native origin and ScrollView translates only Y.
+    // Both operands are short-bounded, so their sum is safe in int.
+    const int projectedY = static_cast<int>(state.y) + scope.translationY;
+    if (scope.translationX != 0 ||
+        projectedY < SHRT_MIN || projectedY > SHRT_MAX)
+    {
+      this->refuseScrollViewShortRange();
+      return false;
+    }
+    state.y = static_cast<short>(projectedY);
+    return true;
+  }
+  bool restoreProjectedLayoutState(loka::app::scene::LayoutState &state)
+  {
+    if (this->projectionParentScopes_.activeDepth() == 0)
+    {
+      return true;
+    }
+    // Toolbox ScrollView only translates upward by a pre-clamped short
+    // offset, so this subtraction cannot overflow int. Keep the refusal at
+    // the narrowing edge without paying for the generic int-overflow path.
+    const int contentY = static_cast<int>(state.y) -
+                         this->projectionParentScopes_.current().translationY;
+    if (contentY < SHRT_MIN || contentY > SHRT_MAX)
+    {
+      this->refuseScrollViewShortRange();
+      return false;
+    }
+    state.y = static_cast<short>(contentY);
+    return true;
+  }
+  bool refuseNarrowingInScrollScope(int resultY);
+  void refuseScrollViewShortRange();
 
 private:
   friend bool RegisterToolboxBuiltInSupport(ToolboxScenePlatformController &controller);
@@ -237,6 +295,16 @@ private:
     loka::app::scene::NativeLifetimeHint lifetimeHint;
   };
 
+  /** One viewport scrollbar. Its ScrollView pointer is the fact-write door;
+      lifecycle teardown removes the binding before the node can be reclaimed. */
+  struct ViewportScrollBarBinding
+  {
+    short resourceId;
+    loka::app::ScrollViewNode *scrollView;
+    bool usedThisFrame;
+    Rect rect;
+  };
+
   struct EditTextControlBinding
   {
     ToolboxEditTextContext *ownerContext;
@@ -259,12 +327,14 @@ private:
   };
 
   ToolboxWindow *window_;
+  loka::app::scene::ProjectionParentScopeStack projectionParentScopes_;
   loka::app::scene::Node *rootNode_;
   loka::app::scene::Node *pendingRootNode_;
   std::vector<ButtonHit> buttonHits_;
   std::vector<CellHit> cellHits_;
   std::vector<ButtonControlBinding> buttonControls_;
   std::vector<ScrollBarControlBinding> scrollBarControls_;
+  std::vector<ViewportScrollBarBinding> viewportScrollBars_;
   ToolboxEditControlLedger<EditTextControlBinding, loka::app::scene::NodeContext> editControls_;
   std::vector<EditHit> editHits_;
   std::vector<PopupHit> popupHits_;
@@ -293,6 +363,7 @@ private:
   loka::app::scene::ExactMatchHandleBucket<TEHandle> textEditBucket_;
   int poolIntakeAuditFailCount_;
   RgnHandle clipRgn_;
+  RgnHandle scrollViewClipRgn_;
   bool hasClip_;
   ToolboxControlIdAllocator controlIds_;
   ToolboxSceneDebugStats debugStats_;
@@ -333,6 +404,18 @@ private:
   /** Publishes the value a finished tracking loop settled on, in the order
       the ruling fixes: binding first, then onChange. */
   void commitScrollBarValueAt(std::size_t index);
+  void commitViewportScrollBarValue(
+      ViewportScrollBarBinding &binding,
+      ScrollBarControlBinding &native);
+  bool ensureScrollBarBinding(
+      short resourceId,
+      const Rect &rect,
+      int minimum,
+      int maximum,
+      int lineStep,
+      int pageStep,
+      loka::app::scene::NativeLifetimeHint lifetimeHint,
+      ScrollBarControlBinding *&binding);
   void queueRetiredTextEdit(TEHandle te, loka::app::scene::NativeLifetimeHint lifetimeHint);
   bool hasLiveBinding(ControlRef control) const;
   bool hasLiveBinding(TEHandle te) const;
@@ -357,6 +440,7 @@ private:
   void retireEditTextControlAt(std::size_t index, loka::app::scene::NativeLifetimeHint lifetimeHint);
   void retireEditTextControl(loka::app::scene::NodeContext *ownerContext,
                              loka::app::scene::NativeLifetimeHint lifetimeHint);
+  bool intersectWithProjectionClip(const Rect &rect, Rect &clipped) const;
   static void TextStateChangedThunk(void *userData);
 
 public:

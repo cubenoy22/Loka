@@ -46,6 +46,7 @@
 #include "ScrollViewScopeTests.hpp"
 #include "ToolboxLayoutContractTests.hpp"
 #include "ToolboxScenePlatformContractTests.hpp"
+#include "ToolboxScrollViewContractTests.hpp"
 #include "NullTextLayoutTests.hpp"
 #include "NullPlatformContractTests.hpp"
 #include "LifecycleFactTests.hpp"

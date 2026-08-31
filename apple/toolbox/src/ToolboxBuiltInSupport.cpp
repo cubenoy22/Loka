@@ -11,7 +11,6 @@
 #include "context/ToolboxPopupMenuContext.hpp"
 #include "context/ToolboxScrollBarContext.hpp"
 #include "context/ToolboxTextContext.hpp"
-#include "app/nodes/nestable/ScrollView.hpp"
 
 namespace
 {
@@ -21,8 +20,6 @@ namespace
       loka::app::scene::NodeTypeToken<loka::app::EditTextNode>());
   loka::app::scene::RefusedNodeHandler gRefusedToolboxScrollBar(
       loka::app::scene::NodeTypeToken<loka::app::ScrollBarNode>());
-  loka::app::scene::RefusedNodeHandler gRefusedToolboxScrollView(
-      loka::app::scene::NodeTypeToken<loka::app::ScrollViewNode>());
 } // namespace
 
 bool RegisterToolboxBuiltInSupport(ToolboxScenePlatformController &controller)
@@ -58,7 +55,6 @@ bool RegisterToolboxBuiltInSupport(ToolboxScenePlatformController &controller)
   {
     ok = controller.nodeHandlerRegistry_.registerHandler(&gRefusedToolboxScrollBar) && ok;
   }
-  ok = controller.nodeHandlerRegistry_.registerHandler(&gRefusedToolboxScrollView) && ok;
   ok = RegisterToolboxOpenFileDialogNodeHandler(controller.nodeHandlerRegistry_) && ok;
   return ok;
 }
