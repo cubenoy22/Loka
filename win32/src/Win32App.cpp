@@ -2,11 +2,78 @@
 #include "Win32Window.hpp"
 #include <windows.h>
 #include <commdlg.h>
+#include <limits>
 #include "app/core/App.hpp"
+#include "platform/Win32MessageWait.hpp"
 #include "platform/Win32String.hpp"
 
 namespace
 {
+  // Mac and Toolbox also define an event-loop tick near the display cadence.
+  // Keep everyTick bounded now that the Win32 wait can resolve sub-tick time.
+  const double kWin32EveryTickIntervalSeconds = 1.0 / 60.0;
+
+  LONGLONG AddCounterInterval(LONGLONG counter, LONGLONG frequency, double intervalSeconds)
+  {
+    double counterTicks = intervalSeconds * static_cast<double>(frequency);
+    if (counterTicks < 1.0)
+    {
+      counterTicks = 1.0;
+    }
+    const LONGLONG maximum = (std::numeric_limits<LONGLONG>::max)();
+    if (counterTicks >= static_cast<double>(maximum - counter))
+    {
+      return maximum;
+    }
+    return counter + static_cast<LONGLONG>(counterTicks + 0.5);
+  }
+
+  class Win32IdleDeadline
+  {
+  public:
+    Win32IdleDeadline()
+        : policy_(loka::app::IdlePolicy::none()),
+          deadlineCounter_(0)
+    {
+    }
+
+    void reset()
+    {
+      this->policy_ = loka::app::IdlePolicy::none();
+    }
+
+    LONGLONG
+    next(const loka::app::IdlePolicy &policy, bool idleDispatched, LONGLONG observedCounter, LONGLONG counterFrequency)
+    {
+      double intervalSeconds = 0.0;
+      switch (policy.mode)
+      {
+      case loka::app::IDLE_MODE_NONE:
+        intervalSeconds = 0.0;
+        break;
+      case loka::app::IDLE_MODE_EVERY_TICK:
+        intervalSeconds = kWin32EveryTickIntervalSeconds;
+        break;
+      case loka::app::IDLE_MODE_INTERVAL:
+        intervalSeconds = policy.intervalSeconds > 0.0 ? policy.intervalSeconds : kWin32EveryTickIntervalSeconds;
+        break;
+      }
+
+      const bool policyChanged = this->policy_.mode != policy.mode || this->policy_.intervalSeconds != intervalSeconds;
+      if (policyChanged || idleDispatched)
+      {
+        this->deadlineCounter_ = AddCounterInterval(observedCounter, counterFrequency, intervalSeconds);
+      }
+      this->policy_ = policy;
+      this->policy_.intervalSeconds = intervalSeconds;
+      return this->deadlineCounter_;
+    }
+
+  private:
+    loka::app::IdlePolicy policy_;
+    LONGLONG deadlineCounter_;
+  };
+
   bool ApplyWindowMenuPreservingContentFrame(Win32Window *window, HMENU menu)
   {
     if (!window || !window->hwnd())
@@ -152,6 +219,8 @@ void Win32App::run()
   LARGE_INTEGER lastTick;
   QueryPerformanceFrequency(&frequency);
   QueryPerformanceCounter(&lastTick);
+  loka::platform::Win32MessageWait messageWait;
+  Win32IdleDeadline idleDeadline;
 
   bool running = true;
   while (running)
@@ -192,6 +261,7 @@ void Win32App::run()
 
     if (policy.mode == loka::app::IDLE_MODE_NONE)
     {
+      idleDeadline.reset();
       this->flushMenuInvalidation();
       this->flushWindowInvalidations();
       if (!handledMessage)
@@ -202,13 +272,21 @@ void Win32App::run()
     }
 
     double dispatchElapsedSeconds = 0.0;
-    if (this->consumeIdle(elapsedSeconds, dispatchElapsedSeconds))
+    const bool idleDispatched = this->consumeIdle(elapsedSeconds, dispatchElapsedSeconds);
+    if (idleDispatched)
     {
       this->handleIdle(dispatchElapsedSeconds);
     }
     this->flushMenuInvalidation();
     this->flushWindowInvalidations();
-    Sleep(1);
+    const loka::app::IdlePolicy waitPolicy = this->idlePolicy();
+    if (waitPolicy.mode == loka::app::IDLE_MODE_NONE)
+    {
+      idleDeadline.reset();
+      continue;
+    }
+    const LONGLONG deadline = idleDeadline.next(waitPolicy, idleDispatched, now.QuadPart, frequency.QuadPart);
+    messageWait.waitUntil(deadline, frequency.QuadPart);
   }
 }
 
