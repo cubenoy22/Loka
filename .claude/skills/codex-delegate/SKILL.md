@@ -82,8 +82,11 @@ to a file, and orphan check first. **Global exec flags go BEFORE the
 subcommand**: `codex exec --sandbox workspace-write -C <dir> resume
 <SESSION_ID> "<follow-up>"`. Putting `--sandbox`/`-C` after `resume` dies
 instantly with `error: unexpected argument` (one launch lost, 2026-08-31);
-`codex exec resume --help` accepts only `-c/--config`, `--last`, `--all` as
-resume-local options, and a cheap syntax probe before the real launch is
+the resume parser accepts many exec options of its own (`-m/--model`,
+`-i/--image`, `--enable/--disable`, `--skip-git-repo-check`, …) but NOT
+`--sandbox` or `-C` — check `codex exec resume --help` for the exact list on
+your CLI version rather than assuming, and a cheap syntax probe before the
+real launch is
 `codex exec <flags> resume --help > /dev/null; echo $?`. The orphan check matters more here, not
 less: a resume that races the original run's leftovers double-executes whatever
 the follow-up asks for. Session ids are in the transcripts under
