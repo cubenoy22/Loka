@@ -7,7 +7,6 @@
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/Cell.hpp"
 #include "app/nodes/controls/ScrollBar.hpp"
-#include "app/nodes/nestable/ScrollView.hpp"
 #include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/ImageView.hpp"
 #include "app/OpenFileDialog.hpp"
@@ -25,96 +24,12 @@
 
 namespace
 {
-  Win32ScenePlatformController::LayoutNodeResult
-  DispatchProjectedLayout(Win32ScenePlatformController *controller,
-                          loka::app::scene::Node *node,
-                          const Win32ScenePlatformController::LayoutState &state)
-  {
-    if (!controller || !node)
-    {
-      return Win32ScenePlatformController::LayoutNodeResult(state.width, state.y);
-    }
-    loka::app::scene::IProjectedLayoutNode *projected = node->asProjectedLayoutNode();
-    if (!projected)
-    {
-      return Win32ScenePlatformController::LayoutNodeResult(state.width, state.y);
-    }
-    loka::app::scene::LayoutState projectedState;
-    projectedState.x = static_cast<short>(state.x);
-    projectedState.y = static_cast<short>(state.y);
-    projectedState.width = static_cast<short>(state.width);
-    projectedState.height = static_cast<short>(state.height);
-    projectedState.lineHeight = 0;
-    projectedState.spacing = 0;
-    return Win32ScenePlatformController::LayoutNodeResult(state.width,
-                                                          projected->layoutProjected(controller, projectedState));
-  }
-
-  Win32ScenePlatformController::LayoutNodeResult
-  DispatchTextLayout(Win32ScenePlatformController *controller,
-                     loka::app::scene::Node *node,
-                     const Win32ScenePlatformController::LayoutState &state)
-  {
-    return DispatchProjectedLayout(controller, node, state);
-  }
-
-  Win32ScenePlatformController::LayoutNodeResult
-  DispatchImageViewLayout(Win32ScenePlatformController *controller,
-                          loka::app::scene::Node *node,
-                          const Win32ScenePlatformController::LayoutState &state)
-  {
-    return DispatchProjectedLayout(controller, node, state);
-  }
-
-  Win32ScenePlatformController::LayoutNodeResult
-  DispatchButtonLayout(Win32ScenePlatformController *controller,
-                       loka::app::scene::Node *node,
-                       const Win32ScenePlatformController::LayoutState &state)
-  {
-    return DispatchProjectedLayout(controller, node, state);
-  }
-
-  Win32ScenePlatformController::LayoutNodeResult
-  DispatchEditTextLayout(Win32ScenePlatformController *controller,
-                         loka::app::scene::Node *node,
-                         const Win32ScenePlatformController::LayoutState &state)
-  {
-    return DispatchProjectedLayout(controller, node, state);
-  }
-
-  Win32ScenePlatformController::LayoutNodeResult
-  DispatchPopupMenuLayout(Win32ScenePlatformController *controller,
-                          loka::app::scene::Node *node,
-                          const Win32ScenePlatformController::LayoutState &state)
-  {
-    return DispatchProjectedLayout(controller, node, state);
-  }
-
-  Win32ScenePlatformController::LayoutNodeResult
-  DispatchCellLayout(Win32ScenePlatformController *controller,
-                     loka::app::scene::Node *node,
-                     const Win32ScenePlatformController::LayoutState &state)
-  {
-    return DispatchProjectedLayout(controller, node, state);
-  }
-
-  Win32ScenePlatformController::LayoutNodeResult
-  DispatchOpenFileDialogLayout(Win32ScenePlatformController *controller,
-                               loka::app::scene::Node *node,
-                               const Win32ScenePlatformController::LayoutState &state)
-  {
-    return DispatchProjectedLayout(controller, node, state);
-  }
-} // namespace
-
-namespace
-{
-  // Win32 has no ScrollBar or ScrollView context yet: a known unsupported kind
-  // must take the typed-refusal path, not trip the accidental-miss assert.
+  // Win32 has no ScrollBar context yet: a known unsupported kind must take
+  // the typed-refusal path, not trip the accidental-miss assert. ScrollView
+  // is a controller-owned projection-parent arm and does not use this leaf
+  // ensure registry.
   loka::app::scene::RefusedNodeHandler gRefusedWin32ScrollBar(
       loka::app::scene::NodeTypeToken<loka::app::ScrollBarNode>());
-  loka::app::scene::RefusedNodeHandler gRefusedWin32ScrollView(
-      loka::app::scene::NodeTypeToken<loka::app::ScrollViewNode>());
 } // namespace
 
 void RegisterWin32BuiltInSupport(Win32ScenePlatformController &controller)
@@ -127,19 +42,20 @@ void RegisterWin32BuiltInSupport(Win32ScenePlatformController &controller)
   loka::app::layout::RegisterBuiltinPlatformLayoutHandlers(
       controller.layoutHandlerRegistry_, &rowMetrics, &gridMetrics);
   controller.leafLayoutHandlerRegistry_.registerHandler(loka::app::scene::NodeTypeToken<loka::app::ButtonNode>(),
-                                                        &DispatchButtonLayout);
+                                                        &Win32ScenePlatformController::DispatchProjectedLayout);
   controller.leafLayoutHandlerRegistry_.registerHandler(loka::app::scene::NodeTypeToken<loka::app::EditTextNode>(),
-                                                        &DispatchEditTextLayout);
+                                                        &Win32ScenePlatformController::DispatchProjectedLayout);
   controller.leafLayoutHandlerRegistry_.registerHandler(loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>(),
-                                                        &DispatchPopupMenuLayout);
+                                                        &Win32ScenePlatformController::DispatchProjectedLayout);
   controller.leafLayoutHandlerRegistry_.registerHandler(loka::app::scene::NodeTypeToken<loka::app::CellNode>(),
-                                                        &DispatchCellLayout);
+                                                        &Win32ScenePlatformController::DispatchProjectedLayout);
   controller.leafLayoutHandlerRegistry_.registerHandler(loka::app::scene::NodeTypeToken<loka::app::TextNode>(),
-                                                        &DispatchTextLayout);
+                                                        &Win32ScenePlatformController::DispatchProjectedLayout);
   controller.leafLayoutHandlerRegistry_.registerHandler(loka::app::scene::NodeTypeToken<loka::app::ImageViewNode>(),
-                                                        &DispatchImageViewLayout);
+                                                        &Win32ScenePlatformController::DispatchProjectedLayout);
   controller.hostActionHandlerRegistry_.registerHandler(
-      loka::app::scene::NodeTypeToken<loka::app::OpenFileDialogNode>(), &DispatchOpenFileDialogLayout);
+      loka::app::scene::NodeTypeToken<loka::app::OpenFileDialogNode>(),
+      &Win32ScenePlatformController::DispatchProjectedLayout);
   RegisterWin32ButtonNodeHandler(controller.nodeHandlerRegistry_);
   RegisterWin32TextNodeHandler(controller.nodeHandlerRegistry_);
   RegisterWin32ImageViewNodeHandler(controller.nodeHandlerRegistry_);
@@ -148,5 +64,4 @@ void RegisterWin32BuiltInSupport(Win32ScenePlatformController &controller)
   RegisterWin32CellNodeHandler(controller.nodeHandlerRegistry_);
   RegisterWin32OpenFileDialogNodeHandler(controller.nodeHandlerRegistry_);
   controller.nodeHandlerRegistry_.registerHandler(&gRefusedWin32ScrollBar);
-  controller.nodeHandlerRegistry_.registerHandler(&gRefusedWin32ScrollView);
 }

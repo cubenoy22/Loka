@@ -2,6 +2,7 @@
 #include "Win32BuiltInSupport.hpp"
 #include "app/scene/boundary/Boundary.hpp"
 #include <cassert>
+#include <climits>
 #include <windows.h>
 #include <cstdio>
 #include <map>
@@ -9,6 +10,7 @@
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/nestable/Grid.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
+#include "app/nodes/nestable/ScrollView.hpp"
 #include "app/nodes/nestable/ZStack.hpp"
 #include "app/RectSurface.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
@@ -28,6 +30,7 @@
 #include "context/Win32ImageViewContext.hpp"
 #include "context/Win32OpenFileDialogContext.hpp"
 #include "context/Win32RectSurfaceContext.hpp"
+#include "context/Win32ScrollViewContext.hpp"
 
 namespace
 {
@@ -58,7 +61,11 @@ namespace loka
             return state.y;
           }
           const int result = this->controller_->layoutNodeFromSceneState(child, state);
-          this->layoutResultY_ = state.y;
+          if (this->controller_->refuseNarrowingInScrollScope(result))
+          {
+            return state.y;
+          }
+          this->layoutResultY_ = static_cast<short>(result);
           return result;
         }
 
@@ -82,6 +89,7 @@ namespace loka
 
 Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
     : rootHwnd_(rootHwnd),
+      projectionParentScopes_(rootHwnd),
       rootNode_(0),
       clientWidth_(0),
       clientHeight_(0)
@@ -600,8 +608,17 @@ void Win32ScenePlatformController::performLayout(int clientWidth, int clientHeig
     state.width = 0;
   }
   state.height = clientHeight > 0 ? clientHeight - 40 : 0;
+  assert(this->projectionParentScopes_.activeDepth() == 0 &&
+         "a Win32 projection pass must begin at the root scope");
+  const loka::core::Frame rootClip(0, 0, clientWidth, clientHeight);
+  if (!this->projectionParentScopes_.resetRoot(this->rootHwnd_, rootClip))
+  {
+    return;
+  }
   PROFILE_SECTION("layout");
-  layoutNode(rootNode_, state);
+  this->layoutNode(this->rootNode_, state);
+  assert(this->projectionParentScopes_.activeDepth() == 0 &&
+         "a Win32 projection pass must restore the root scope");
 }
 
 namespace
@@ -623,20 +640,176 @@ int Win32ScenePlatformController::applyBoundaryLayoutResult(loka::app::scene::Bo
 Win32ScenePlatformController::LayoutNodeResult
 Win32ScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *surface, const LayoutState &state)
 {
+  loka::app::scene::LayoutState projectedState;
+  if (!this->narrowLayoutState(state, projectedState, true))
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
   Win32RectSurfaceContext *ctx = static_cast<Win32RectSurfaceContext *>(surface->getContext());
   if (ctx)
   {
-    ctx->relayout(state.x, state.y, surface->props.width_, surface->props.height_);
+    ctx->relayout(projectedState.x,
+                  projectedState.y,
+                  surface->props.width_,
+                  surface->props.height_);
   }
   else
   {
     ctx = new Win32RectSurfaceContext(
-        this, rootHwnd_, state.x, state.y, surface->props.width_, surface->props.height_, surface);
+        this,
+        this->projectionParentHwnd(),
+        projectedState.x,
+        projectedState.y,
+        surface->props.width_,
+        surface->props.height_,
+        surface);
+    if (!ctx)
+    {
+      return LayoutNodeResult(state.width, state.y);
+    }
     surface->setContext(ctx);
     ctx->readLifecycleFactOnAttach();
   }
   return LayoutNodeResult(
       state.width, state.y + surface->props.height_ + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
+}
+
+Win32ScenePlatformController::LayoutNodeResult
+Win32ScenePlatformController::layoutScrollViewNode(loka::app::ScrollViewNode *scrollView,
+                                                   const LayoutState &state)
+{
+  if (!scrollView || this->projectionParentScopes_.activeDepth() != 0)
+  {
+    // V1 admits one active viewport. Refuse before creating the inner HWND so
+    // the outer scope remains the only structural clipping parent.
+    return LayoutNodeResult(state.width, state.y);
+  }
+  if (state.x < SHRT_MIN || state.x > SHRT_MAX ||
+      state.y < SHRT_MIN || state.y > SHRT_MAX ||
+      state.width < 0 || state.width > SHRT_MAX ||
+      state.height < 0 || state.height > SHRT_MAX ||
+      (state.height > 0 && state.y > SHRT_MAX - state.height))
+  {
+    // The shared traversal above consumes a short result. Refuse the viewport
+    // itself before its bottom or any child coordinate would narrow.
+    return LayoutNodeResult(state.width, state.y);
+  }
+
+  Win32ScrollViewContext *ctx =
+      static_cast<Win32ScrollViewContext *>(scrollView->getContext());
+  if (ctx)
+  {
+    ctx->relayout(state.x, state.y, state.width, state.height);
+  }
+  else
+  {
+    ctx = new Win32ScrollViewContext(this,
+                                     this->projectionParentHwnd(),
+                                     state.x,
+                                     state.y,
+                                     state.width,
+                                     state.height,
+                                     scrollView);
+    if (!ctx || !ctx->isValid())
+    {
+      delete ctx;
+      return LayoutNodeResult(state.width, state.y);
+    }
+    scrollView->setContext(ctx);
+    ctx->readLifecycleFactOnAttach();
+  }
+
+  const int requestedOffset = scrollView->props.offset_.isValid()
+                                  ? scrollView->props.offset_.get()
+                                  : 0;
+  const loka::core::Frame viewportClip(0, 0, state.width, state.height);
+  loka::app::scene::ProjectionParentScope viewportScope;
+  const loka::app::scene::ProjectionParentScope &parentScope =
+      this->projectionParentScopes_.current();
+  if (!parentScope.deriveScrolled(
+          static_cast<void *>(ctx->hwnd()),
+          state.x,
+          state.y,
+          viewportClip,
+          viewportScope))
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  loka::app::scene::ProjectionParentScope childScope;
+  if (!viewportScope.deriveScrolled(viewportScope.nativeParent,
+                                    0,
+                                    requestedOffset,
+                                    viewportClip,
+                                    childScope))
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+
+  int currentY = state.y;
+  int contentHeight = 0;
+  bool shortRangeRefused = false;
+  {
+    loka::app::scene::ProjectionParentScopeGuard scopeGuard(
+        this->projectionParentScopes_, childScope);
+    if (!scopeGuard.isActive())
+    {
+      return LayoutNodeResult(state.width, state.y);
+    }
+
+    loka::app::scene::INestable *nestable = scrollView->asNestable();
+    loka::dsl::CompositionCursor<loka::app::scene::Node> it(
+        nestable ? nestable->childrenHead() : 0,
+        nestable ? nestable->childrenCount() : 0);
+    for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+    {
+      if (currentY < SHRT_MIN || currentY > SHRT_MAX)
+      {
+        this->refuseScrollViewShortRange();
+        break;
+      }
+      LayoutState childState = state;
+      childState.y = currentY;
+      const int nextY = this->layoutNode(child, childState);
+      if (this->projectionParentScopes_.current().hasShortRangeRefusal())
+      {
+        break;
+      }
+      if (!this->projectionParentScopes_.current().tryAccumulateContentHeight(
+              currentY, nextY))
+      {
+        this->refuseScrollViewShortRange();
+        break;
+      }
+      currentY = nextY;
+    }
+    contentHeight = this->projectionParentScopes_.current().contentHeight();
+    shortRangeRefused =
+        this->projectionParentScopes_.current().hasShortRangeRefusal();
+  }
+
+  if (!shortRangeRefused)
+  {
+    const int clampedOffset =
+        ctx->setScrollMetrics(contentHeight, state.height, requestedOffset);
+    if (scrollView->props.offset_.isValid() &&
+        scrollView->props.offset_.get() != clampedOffset)
+    {
+      // Publish through the complete NodeState door after the scope has
+      // popped. A dirty notification may schedule/re-enter projection, and
+      // every projection pass must start from the root frame.
+      scrollView->props.offset_.set(clampedOffset);
+    }
+  }
+
+  if (state.height > 0)
+  {
+    return LayoutNodeResult(state.width, state.y + state.height);
+  }
+  if (currentY < SHRT_MIN || currentY > SHRT_MAX)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  return LayoutNodeResult(state.width, currentY);
 }
 
 int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const LayoutState &state)
@@ -645,18 +818,23 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
   {
     return state.y;
   }
+  if (this->projectionParentScopes_.activeDepth() != 0 &&
+      this->projectionParentScopes_.current().hasShortRangeRefusal())
+  {
+    // A container above may already have narrowed its next coordinate. Once
+    // this frame refuses, nothing else in the subtree may materialize from
+    // that poisoned value.
+    return state.y;
+  }
   return this->applyBoundaryLayoutResult(node->asBoundary(), state.x, state.y, this->computeLayoutResult(node, state));
 }
 
 Win32ScenePlatformController::LayoutNodeResult
 Win32ScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, const LayoutState &state)
 {
-  if (node->asScrollViewNode())
+  if (loka::app::ScrollViewNode *scrollView = node->asScrollViewNode())
   {
-    // ScrollView has no Win32 arm yet: refuse the subtree instead of laying
-    // out children without translation or clipping (#537). The generic
-    // nestable branch below would otherwise project them unscrolled.
-    return LayoutNodeResult(state.width, state.y);
+    return this->layoutScrollViewNode(scrollView, state);
   }
   if (loka::app::ColumnNode *column = node->asColumnNode())
   {
@@ -665,10 +843,10 @@ Win32ScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, 
     if (handler)
     {
       loka::app::scene::LayoutState handlerState;
-      handlerState.x = static_cast<short>(state.x);
-      handlerState.y = static_cast<short>(state.y);
-      handlerState.width = static_cast<short>(state.width);
-      handlerState.height = static_cast<short>(state.height);
+      if (!this->narrowLayoutState(state, handlerState, false))
+      {
+        return LayoutNodeResult(state.width, state.y);
+      }
       loka::app::scene::Win32PlatformLayoutTraversal traversal(this);
       currentY = handler->layoutNode(column, handlerState, &traversal);
     }
@@ -687,10 +865,10 @@ Win32ScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, 
     if (handler)
     {
       loka::app::scene::LayoutState handlerState;
-      handlerState.x = static_cast<short>(state.x);
-      handlerState.y = static_cast<short>(state.y);
-      handlerState.width = static_cast<short>(state.width);
-      handlerState.height = static_cast<short>(state.height);
+      if (!this->narrowLayoutState(state, handlerState, false))
+      {
+        return LayoutNodeResult(state.width, state.y);
+      }
       loka::app::scene::Win32PlatformLayoutTraversal traversal(this);
       maxY = handler->layoutNode(row, handlerState, &traversal);
     }
@@ -711,10 +889,10 @@ Win32ScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, 
     if (handler)
     {
       loka::app::scene::LayoutState handlerState;
-      handlerState.x = static_cast<short>(state.x);
-      handlerState.y = static_cast<short>(state.y);
-      handlerState.width = static_cast<short>(state.width);
-      handlerState.height = static_cast<short>(state.height);
+      if (!this->narrowLayoutState(state, handlerState, false))
+      {
+        return LayoutNodeResult(state.width, state.y);
+      }
       loka::app::scene::Win32PlatformLayoutTraversal traversal(this);
       maxY = handler->layoutNode(grid, handlerState, &traversal);
     }
@@ -736,10 +914,10 @@ Win32ScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, 
     if (handler)
     {
       loka::app::scene::LayoutState handlerState;
-      handlerState.x = static_cast<short>(state.x);
-      handlerState.y = static_cast<short>(state.y);
-      handlerState.width = static_cast<short>(state.width);
-      handlerState.height = static_cast<short>(state.height);
+      if (!this->narrowLayoutState(state, handlerState, false))
+      {
+        return LayoutNodeResult(state.width, state.y);
+      }
       loka::app::scene::Win32PlatformLayoutTraversal traversal(this);
       resultY = handler->layoutNode(box, handlerState, &traversal);
     }
@@ -758,10 +936,10 @@ Win32ScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, 
     if (handler)
     {
       loka::app::scene::LayoutState handlerState;
-      handlerState.x = static_cast<short>(state.x);
-      handlerState.y = static_cast<short>(state.y);
-      handlerState.width = static_cast<short>(state.width);
-      handlerState.height = static_cast<short>(state.height);
+      if (!this->narrowLayoutState(state, handlerState, false))
+      {
+        return LayoutNodeResult(state.width, state.y);
+      }
       loka::app::scene::Win32PlatformLayoutTraversal traversal(this);
       maxY = handler->layoutNode(stack, handlerState, &traversal);
     }
@@ -779,21 +957,19 @@ Win32ScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, 
     loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
     for (loka::app::scene::Node *child = it.next(); child; child = it.next())
     {
-      childState.y = layoutNode(child, childState);
+      const int nextY = this->layoutNode(child, childState);
+      if (this->refuseNarrowingInScrollScope(nextY))
+      {
+        break;
+      }
+      childState.y = nextY;
     }
     return LayoutNodeResult(state.width, childState.y);
   }
 
-  if (loka::app::scene::IProjectedLayoutNode *projected = node->asProjectedLayoutNode())
+  if (node->asProjectedLayoutNode())
   {
-    loka::app::scene::LayoutState projectedState;
-    projectedState.x = static_cast<short>(state.x);
-    projectedState.y = static_cast<short>(state.y);
-    projectedState.width = static_cast<short>(state.width);
-    projectedState.height = static_cast<short>(state.height);
-    projectedState.lineHeight = 0;
-    projectedState.spacing = 0;
-    return LayoutNodeResult(state.width, projected->layoutProjected(this, projectedState));
+    return DispatchProjectedLayout(this, node, state);
   }
 
   LeafLayoutHandlerFn leafLayoutHandler = this->leafLayoutHandlerRegistry_.find(node);
@@ -814,6 +990,107 @@ Win32ScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, 
   }
 
   return LayoutNodeResult(state.width, state.y);
+}
+
+Win32ScenePlatformController::LayoutNodeResult
+Win32ScenePlatformController::DispatchProjectedLayout(
+    Win32ScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  if (!controller || !node)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  loka::app::scene::IProjectedLayoutNode *projected =
+      node->asProjectedLayoutNode();
+  if (!projected)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  loka::app::scene::LayoutState projectedState;
+  if (!controller->narrowLayoutState(state, projectedState, true))
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  const int projectedResult =
+      projected->layoutProjected(controller, projectedState);
+  if (controller->projectionParentScopes_.activeDepth() == 0)
+  {
+    return LayoutNodeResult(state.width, projectedResult);
+  }
+  int contentResult = state.y;
+  if (!controller->projectionParentScopes_.current().restoreContentY(
+          projectedResult, contentResult))
+  {
+    controller->refuseScrollViewShortRange();
+    return LayoutNodeResult(state.width, state.y);
+  }
+  return LayoutNodeResult(state.width, contentResult);
+}
+
+bool Win32ScenePlatformController::narrowLayoutState(
+    const LayoutState &state,
+    loka::app::scene::LayoutState &narrowed,
+    bool applyProjection)
+{
+  if (state.x < SHRT_MIN || state.x > SHRT_MAX ||
+      state.y < SHRT_MIN || state.y > SHRT_MAX ||
+      state.width < SHRT_MIN || state.width > SHRT_MAX ||
+      state.height < SHRT_MIN || state.height > SHRT_MAX)
+  {
+    this->refuseScrollViewShortRange();
+    return false;
+  }
+
+  loka::app::scene::LayoutState content;
+  content.x = static_cast<short>(state.x);
+  content.y = static_cast<short>(state.y);
+  content.width = static_cast<short>(state.width);
+  content.height = static_cast<short>(state.height);
+  content.lineHeight = 0;
+  content.spacing = 0;
+  if (applyProjection && this->projectionParentScopes_.activeDepth() != 0)
+  {
+    if (!this->projectionParentScopes_.current().project(content, narrowed))
+    {
+      this->refuseScrollViewShortRange();
+      return false;
+    }
+    narrowed.lineHeight = content.lineHeight;
+    narrowed.spacing = content.spacing;
+    return true;
+  }
+  narrowed = content;
+  return true;
+}
+
+void Win32ScenePlatformController::refuseScrollViewShortRange()
+{
+  if (this->projectionParentScopes_.activeDepth() != 0)
+  {
+    this->projectionParentScopes_.current().markShortRangeRefused();
+  }
+}
+
+bool Win32ScenePlatformController::refuseNarrowingInScrollScope(int resultY)
+{
+  if (this->projectionParentScopes_.activeDepth() == 0)
+  {
+    return false;
+  }
+  loka::app::scene::ProjectionParentScope &scope =
+      this->projectionParentScopes_.current();
+  if (scope.hasShortRangeRefusal())
+  {
+    return true;
+  }
+  if (resultY >= SHRT_MIN && resultY <= SHRT_MAX)
+  {
+    return false;
+  }
+  scope.markShortRangeRefused();
+  return true;
 }
 
 int Win32ScenePlatformController::layoutContainerChild(void *context,

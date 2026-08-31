@@ -10,9 +10,11 @@
 #include "app/RectSurface.hpp"
 #include "app/nodes/ImageView.hpp"
 #include "app/nodes/controls/Cell.hpp"
+#include "app/nodes/nestable/ScrollView.hpp"
 #include "context/Win32CellContext.hpp"
 #include "context/Win32ImageViewContext.hpp"
 #include "context/Win32RectSurfaceContext.hpp"
+#include "context/Win32ScrollViewContext.hpp"
 #include "core/State.hpp"
 
 namespace
@@ -83,9 +85,16 @@ void testWin32CustomWindowClassesUseWideApiFamily()
     Win32RectSurfaceContext surface(&controller, root, 0, 100, 80, 60, &surfaceNode);
     verifyWideChildWindow(root, L"LOKA_RECT_SURFACE");
 
+    loka::app::ScrollViewNode scrollViewNode((loka::app::ScrollViewProps()));
+    Win32ScrollViewContext scrollView(
+        &controller, root, 90, 0, 80, 60, &scrollViewNode);
+    verifyWideChildWindow(root, L"LOKA_SCROLL_VIEW");
+
     cell.onFactChanged(loka::app::scene::NODE_FACT_ATTACHED, loka::app::scene::NODE_FACT_RETIRED);
     image.onFactChanged(loka::app::scene::NODE_FACT_ATTACHED, loka::app::scene::NODE_FACT_RETIRED);
     surface.onFactChanged(loka::app::scene::NODE_FACT_ATTACHED, loka::app::scene::NODE_FACT_RETIRED);
+    scrollView.onFactChanged(loka::app::scene::NODE_FACT_ATTACHED,
+                             loka::app::scene::NODE_FACT_RETIRED);
     controller.drainNativeRetirements();
   }
   DestroyWindow(root);
