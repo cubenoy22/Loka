@@ -1,0 +1,9 @@
+#ifndef LOKA_TESTS_SCROLL_VIEW_SCOPE_TESTS_HPP
+#define LOKA_TESTS_SCROLL_VIEW_SCOPE_TESTS_HPP
+
+void testScrollViewScopePushPopRestoresRootProjectionParent();
+void testScrollViewOffsetIsReappliedOnEveryRelayout();
+void testScrollViewContentHeightRefusesBeforeShortWrap();
+void testNestedScrollViewRefusalPreservesOuterScope();
+
+#endif // LOKA_TESTS_SCROLL_VIEW_SCOPE_TESTS_HPP

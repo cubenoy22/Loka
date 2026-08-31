@@ -393,6 +393,13 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 MacScenePlatformController::LayoutNodeResult
 MacScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, const LayoutState &state)
 {
+  if (node->asScrollViewNode())
+  {
+    // ScrollView has no macOS arm yet: refuse the subtree instead of laying
+    // out children without translation or clipping (#537). The generic
+    // nestable branch below would otherwise project them unscrolled.
+    return LayoutNodeResult(state.width, state.y);
+  }
   if (loka::app::ColumnNode *column = node->asColumnNode())
   {
     int currentY = state.y;

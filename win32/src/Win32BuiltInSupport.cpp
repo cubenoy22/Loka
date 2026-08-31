@@ -7,6 +7,7 @@
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/Cell.hpp"
 #include "app/nodes/controls/ScrollBar.hpp"
+#include "app/nodes/nestable/ScrollView.hpp"
 #include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/ImageView.hpp"
 #include "app/OpenFileDialog.hpp"
@@ -108,10 +109,12 @@ namespace
 
 namespace
 {
-  // Win32 has no ScrollBar context yet: a known unsupported kind must take the
-  // typed-refusal path, not trip the accidental-miss education assert.
+  // Win32 has no ScrollBar or ScrollView context yet: a known unsupported kind
+  // must take the typed-refusal path, not trip the accidental-miss assert.
   loka::app::scene::RefusedNodeHandler gRefusedWin32ScrollBar(
       loka::app::scene::NodeTypeToken<loka::app::ScrollBarNode>());
+  loka::app::scene::RefusedNodeHandler gRefusedWin32ScrollView(
+      loka::app::scene::NodeTypeToken<loka::app::ScrollViewNode>());
 } // namespace
 
 void RegisterWin32BuiltInSupport(Win32ScenePlatformController &controller)
@@ -145,4 +148,5 @@ void RegisterWin32BuiltInSupport(Win32ScenePlatformController &controller)
   RegisterWin32CellNodeHandler(controller.nodeHandlerRegistry_);
   RegisterWin32OpenFileDialogNodeHandler(controller.nodeHandlerRegistry_);
   controller.nodeHandlerRegistry_.registerHandler(&gRefusedWin32ScrollBar);
+  controller.nodeHandlerRegistry_.registerHandler(&gRefusedWin32ScrollView);
 }

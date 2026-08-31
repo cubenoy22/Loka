@@ -8,6 +8,7 @@
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
+#include "app/scene/projection/ProjectionParentScope.hpp"
 
 class NullButtonContext;
 class NullEditTextContext;
@@ -174,6 +175,9 @@ public:
   unsigned long createdCount() const;
   unsigned long disposedCount() const;
   unsigned cellRefusalCount() const;
+  unsigned scrollViewShortRangeRefusalCount() const;
+  unsigned nestedScrollViewRefusalCount() const;
+  unsigned projectionParentScopeDepthForTesting() const;
   BucketStats bucketStats(ControlRecipe recipe) const;
   unsigned long eventCount(EventKind kind) const;
   const LedgerRow *findLedgerRow(ControlRecipe recipe) const;
@@ -251,6 +255,13 @@ private:
   LedgerRow *findLedgerRow(FakeControlHandle *handle);
   int layoutNode(loka::app::scene::Node *node,
                  const loka::app::scene::LayoutState &state);
+  int layoutScrollView(loka::app::scene::Node *node,
+                       const loka::app::scene::LayoutState &state);
+  int projectLayout(loka::app::scene::Node *node,
+                    const loka::app::scene::LayoutState &state);
+  void refuseScrollViewShortRange();
+  void refuseNestedScrollView();
+  bool refuseNarrowingInScrollScope(int resultY);
   void flushRetired();
   void drainBuckets();
   void disposeHandle(FakeControlHandle *handle);
@@ -276,6 +287,9 @@ private:
   unsigned long injectedDeliveryCount_;
   unsigned long nextEventSequence_;
   int nextHandleId_;
+  loka::app::scene::ProjectionParentScopeStack projectionParentScopes_;
+  unsigned scrollViewShortRangeRefusalCount_;
+  unsigned nestedScrollViewRefusalCount_;
   bool preserveNextRetiredOwner_;
   bool skipNextProjection_;
   bool destroyed_;
