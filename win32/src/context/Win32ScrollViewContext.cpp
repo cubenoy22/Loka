@@ -294,5 +294,13 @@ LRESULT CALLBACK Win32ScrollViewContext::WndProc(HWND hwnd,
   {
     return 0;
   }
+  if (msg == WM_COMMAND && self && self->controller() &&
+      self->controller()->handleCommand(wParam, lParam))
+  {
+    // Controls parented to the viewport notify it, not the root window;
+    // forward through the same controller door Win32Window::WndProc uses so
+    // a Button inside a ScrollView still reaches its Loka handler.
+    return 0;
+  }
   return DefWindowProcW(hwnd, msg, wParam, lParam);
 }

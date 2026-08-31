@@ -745,6 +745,18 @@ Win32ScenePlatformController::layoutScrollViewNode(loka::app::ScrollViewNode *sc
     return LayoutNodeResult(state.width, state.y);
   }
 
+  LayoutState childBase = state;
+  {
+    RECT viewportClient;
+    if (GetClientRect(ctx->hwnd(), &viewportClient))
+    {
+      // The visible scrollbar occupies non-client width, so the viewport's
+      // client width is smaller than the seat width; children lay out
+      // against the client, or they extend underneath the scrollbar.
+      childBase.width = viewportClient.right - viewportClient.left;
+    }
+  }
+
   int currentY = state.y;
   int contentHeight = 0;
   bool shortRangeRefused = false;
@@ -767,7 +779,7 @@ Win32ScenePlatformController::layoutScrollViewNode(loka::app::ScrollViewNode *sc
         this->refuseScrollViewShortRange();
         break;
       }
-      LayoutState childState = state;
+      LayoutState childState = childBase;
       childState.y = currentY;
       const int nextY = this->layoutNode(child, childState);
       if (this->projectionParentScopes_.current().hasShortRangeRefusal())

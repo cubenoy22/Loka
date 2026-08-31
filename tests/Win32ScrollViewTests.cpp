@@ -193,14 +193,24 @@ namespace
                            NULL);
   }
 
+  void CountClickThunk(void *userData)
+  {
+    ++*static_cast<int *>(userData);
+  }
+
   loka::app::ColumnNode *addButtonColumn(loka::app::ScrollViewNode &scrollView,
-                                         int buttonCount)
+                                         int buttonCount,
+                                         loka::core::EmitterState *firstOnClick = 0)
   {
     loka::app::ColumnNode *column =
         new loka::app::ColumnNode((loka::app::ColumnProps()));
     for (int i = 0; i < buttonCount; ++i)
     {
       loka::app::ButtonProps props;
+      if (i == 0 && firstOnClick)
+      {
+        props.onClick(firstOnClick);
+      }
       column->addChild(new loka::app::ButtonNode(props));
     }
     scrollView.addChild(column);
@@ -222,15 +232,20 @@ namespace
 void testWin32ScrollViewParentsAndClipsProjectedChildren()
 {
   std::printf("\n==== [testWin32ScrollViewParentsAndClipsProjectedChildren] start ====\n");
-  OffsetFact offset(10);
-  loka::app::ScrollViewNode scrollView(
-      (loka::app::ScrollViewProps(offset.state())));
-  addButtonColumn(scrollView, 6);
   HWND root = createHostWindow();
   LOKA_VERIFY(root);
   {
     Win32ScenePlatformController controller(root);
     RegisterWin32BuiltInSupport(controller);
+    // Nodes are declared after the controller so they leave scope first:
+    // ~Node is the last retire door, and the controller must still be alive
+    // to receive the queued HWNDs (the ensure-contract convention; a node
+    // that instead dies after the controller is torn down by
+    // clearNodeContexts' releaseContext, which does not retire).
+    OffsetFact offset(10);
+    loka::app::ScrollViewNode scrollView(
+        (loka::app::ScrollViewProps(offset.state())));
+    addButtonColumn(scrollView, 6);
     establishLayout(controller, &scrollView, 300, 140);
 
     HWND viewport = findChildWindowByClass(root, L"LOKA_SCROLL_VIEW");
@@ -292,6 +307,10 @@ void testWin32ScrollViewParentsAndClipsProjectedChildren()
     assert(info.nPage == 100);
     assert(maximumOffset(info) == 164);
     assert(info.nPos == 10);
+
+    // Release the root pointer before the nodes leave scope so the
+    // controller's own teardown does not walk destroyed nodes.
+    controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
   }
   LOKA_VERIFY(DestroyWindow(root));
   std::printf("==== [testWin32ScrollViewParentsAndClipsProjectedChildren] PASSED ====\n");
@@ -300,15 +319,16 @@ void testWin32ScrollViewParentsAndClipsProjectedChildren()
 void testWin32ScrollViewOffsetIsRelayoutInput()
 {
   std::printf("\n==== [testWin32ScrollViewOffsetIsRelayoutInput] start ====\n");
-  OffsetFact offset(0);
-  loka::app::ScrollViewNode scrollView(
-      (loka::app::ScrollViewProps(offset.state())));
-  addButtonColumn(scrollView, 6);
   HWND root = createHostWindow();
   LOKA_VERIFY(root);
   {
     Win32ScenePlatformController controller(root);
     RegisterWin32BuiltInSupport(controller);
+    // Nodes after the controller: see the parents-and-clips pin.
+    OffsetFact offset(0);
+    loka::app::ScrollViewNode scrollView(
+        (loka::app::ScrollViewProps(offset.state())));
+    addButtonColumn(scrollView, 6);
     establishLayout(controller, &scrollView, 300, 140);
     HWND viewport = findChildWindowByClass(root, L"LOKA_SCROLL_VIEW");
     LOKA_VERIFY(viewport);
@@ -329,6 +349,8 @@ void testWin32ScrollViewOffsetIsRelayoutInput()
     assert(afterUnchangedRelayout.top == afterChange.top);
     assert(afterUnchangedRelayout.right == afterChange.right);
     assert(afterUnchangedRelayout.bottom == afterChange.bottom);
+
+    controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
   }
   LOKA_VERIFY(DestroyWindow(root));
   std::printf("==== [testWin32ScrollViewOffsetIsRelayoutInput] PASSED ====\n");
@@ -337,21 +359,33 @@ void testWin32ScrollViewOffsetIsRelayoutInput()
 void testWin32ScrollViewMessagePublishesOffsetFact()
 {
   std::printf("\n==== [testWin32ScrollViewMessagePublishesOffsetFact] start ====\n");
-  OffsetFact offset(0);
-  loka::app::ScrollViewNode scrollView(
-      (loka::app::ScrollViewProps(offset.state())));
-  addButtonColumn(scrollView, 6);
   HWND root = createHostWindow();
   LOKA_VERIFY(root);
   {
     Win32ScenePlatformController controller(root);
     RegisterWin32BuiltInSupport(controller);
+    // Nodes after the controller: see the parents-and-clips pin.
+    loka::core::EmitterState firstClick;
+    OffsetFact offset(0);
+    loka::app::ScrollViewNode scrollView(
+        (loka::app::ScrollViewProps(offset.state())));
+    addButtonColumn(scrollView, 6, &firstClick);
     establishLayout(controller, &scrollView, 300, 140);
     HWND viewport = findChildWindowByClass(root, L"LOKA_SCROLL_VIEW");
     LOKA_VERIFY(viewport);
     std::vector<HWND> buttons = directChildWindowsByClass(viewport, L"Button");
     assert(!buttons.empty());
     const RECT before = childRectInParent(buttons[0], viewport);
+
+    // A control parented to the viewport sends WM_COMMAND to the viewport,
+    // not the root window; the viewport forwards it through the same
+    // controller door Win32Window::WndProc uses, so the click still reaches
+    // the Loka handler.
+    int clicks = 0;
+    firstClick.bind(&CountClickThunk, &clicks, false);
+    SendMessageW(buttons[0], BM_CLICK, 0, 0);
+    LOKA_VERIFY(clicks == 1 &&
+                "a click inside the viewport must reach the Loka handler");
 
     SendMessageW(viewport, WM_VSCROLL, MAKEWPARAM(SB_LINEDOWN, 0), 0);
     assert(offset.state().get() == 1 &&
@@ -381,6 +415,8 @@ void testWin32ScrollViewMessagePublishesOffsetFact()
     SendMessageW(viewport, WM_VSCROLL, MAKEWPARAM(SB_LINEDOWN, 0), 0);
     assert(offset.state().get() == rangeEnd &&
            "line scrolling at the range end must clamp without another write");
+
+    controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
   }
   LOKA_VERIFY(DestroyWindow(root));
   std::printf("==== [testWin32ScrollViewMessagePublishesOffsetFact] PASSED ====\n");
@@ -389,15 +425,16 @@ void testWin32ScrollViewMessagePublishesOffsetFact()
 void testWin32ScrollViewResizeReclampsOffsetOnce()
 {
   std::printf("\n==== [testWin32ScrollViewResizeReclampsOffsetOnce] start ====\n");
-  OffsetFact offset(100);
-  loka::app::ScrollViewNode scrollView(
-      (loka::app::ScrollViewProps(offset.state())));
-  addButtonColumn(scrollView, 6);
   HWND root = createHostWindow();
   LOKA_VERIFY(root);
   {
     Win32ScenePlatformController controller(root);
     RegisterWin32BuiltInSupport(controller);
+    // Nodes after the controller: see the parents-and-clips pin.
+    OffsetFact offset(100);
+    loka::app::ScrollViewNode scrollView(
+        (loka::app::ScrollViewProps(offset.state())));
+    addButtonColumn(scrollView, 6);
     establishLayout(controller, &scrollView, 300, 100);
     HWND viewport = findChildWindowByClass(root, L"LOKA_SCROLL_VIEW");
     LOKA_VERIFY(viewport);
@@ -419,6 +456,8 @@ void testWin32ScrollViewResizeReclampsOffsetOnce()
     assert(offset.state().get() == 20);
     assert(offset.changeCount() == 0 &&
            "a still-valid offset must survive resize without a fact write");
+
+    controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
   }
   LOKA_VERIFY(DestroyWindow(root));
   std::printf("==== [testWin32ScrollViewResizeReclampsOffsetOnce] PASSED ====\n");
@@ -427,22 +466,23 @@ void testWin32ScrollViewResizeReclampsOffsetOnce()
 void testWin32NestedScrollViewRefusesWithoutDisturbingOuterScope()
 {
   std::printf("\n==== [testWin32NestedScrollViewRefusesWithoutDisturbingOuterScope] start ====\n");
-  OffsetFact outerOffset(5);
-  OffsetFact innerOffset(3);
-  loka::app::ScrollViewNode outer(
-      (loka::app::ScrollViewProps(outerOffset.state())));
-  loka::app::ScrollViewNode *inner = new loka::app::ScrollViewNode(
-      (loka::app::ScrollViewProps(innerOffset.state())));
-  loka::app::ColumnNode *innerColumn = addButtonColumn(*inner, 1);
-  loka::app::ButtonNode *innerButton =
-      innerColumn->childrenHead()->asButtonNode();
-  outer.addChild(inner);
-  addButtonColumn(outer, 6);
   HWND root = createHostWindow();
   LOKA_VERIFY(root);
   {
     Win32ScenePlatformController controller(root);
     RegisterWin32BuiltInSupport(controller);
+    // Nodes after the controller: see the parents-and-clips pin.
+    OffsetFact outerOffset(5);
+    OffsetFact innerOffset(3);
+    loka::app::ScrollViewNode outer(
+        (loka::app::ScrollViewProps(outerOffset.state())));
+    loka::app::ScrollViewNode *inner = new loka::app::ScrollViewNode(
+        (loka::app::ScrollViewProps(innerOffset.state())));
+    loka::app::ColumnNode *innerColumn = addButtonColumn(*inner, 1);
+    loka::app::ButtonNode *innerButton =
+        innerColumn->childrenHead()->asButtonNode();
+    outer.addChild(inner);
+    addButtonColumn(outer, 6);
     establishLayout(controller, &outer, 300, 140);
 
     HWND viewport = findChildWindowByClass(root, L"LOKA_SCROLL_VIEW");
@@ -463,6 +503,8 @@ void testWin32NestedScrollViewRefusesWithoutDisturbingOuterScope()
     const RECT after = childRectInParent(outerButtons[0], viewport);
     assert(after.top == before.top - 1 &&
            "the outer scope must remain live after the inner refusal");
+
+    controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
   }
   LOKA_VERIFY(DestroyWindow(root));
   std::printf("==== [testWin32NestedScrollViewRefusesWithoutDisturbingOuterScope] PASSED ====\n");

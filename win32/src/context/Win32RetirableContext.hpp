@@ -18,6 +18,11 @@ public:
 protected:
   void retireWindow(HWND &hwnd);
 
+  Win32ScenePlatformController *controller() const
+  {
+    return this->controller_;
+  }
+
 private:
   Win32ScenePlatformController *controller_;
 };
