@@ -33,6 +33,10 @@ public:
       return state.y;
     }
     const int result = this->controller_->layoutNode(child, state);
+    if (this->controller_->refuseNarrowingInScrollScope(result))
+    {
+      return state.y;
+    }
     this->resultY_ = static_cast<short>(result);
     return result;
   }
@@ -502,6 +506,15 @@ int NullScenePlatformController::layoutNode(loka::app::scene::Node *node,
     return state.y;
   }
 
+  if (this->projectionParentScopes_.activeDepth() != 0 &&
+      this->projectionParentScopes_.current().hasShortRangeRefusal())
+  {
+    // The scope's measurement channel already refused: a shared container
+    // loop above may hand us a narrowed coordinate, so nothing below this
+    // point may materialize from it.
+    return state.y;
+  }
+
   if (node->asScrollViewNode())
   {
     return this->layoutScrollView(node, state);
@@ -541,7 +554,12 @@ int NullScenePlatformController::layoutNode(loka::app::scene::Node *node,
   loka::app::scene::LayoutState childState = state;
   for (loka::app::scene::Node *child = nestable->childrenHead(); child; child = child->nextInComposition)
   {
-    childState.y = static_cast<short>(this->layoutNode(child, childState));
+    const int nextY = this->layoutNode(child, childState);
+    if (this->refuseNarrowingInScrollScope(nextY))
+    {
+      break;
+    }
+    childState.y = static_cast<short>(nextY);
   }
   return childState.y;
 }
@@ -569,7 +587,7 @@ int NullScenePlatformController::layoutScrollView(
     return state.y;
   }
 
-  const int offset = scrollView->props.offset_ ? scrollView->props.offset_->get() : 0;
+  const int offset = scrollView->props.offset_.isValid() ? scrollView->props.offset_.get() : 0;
   const loka::core::Frame clip(state.x, state.y, state.width, state.height);
   loka::app::scene::ProjectionParentScope childScope;
   const loka::app::scene::ProjectionParentScope &parentScope =
@@ -603,6 +621,12 @@ int NullScenePlatformController::layoutScrollView(
     loka::app::scene::LayoutState childState = state;
     childState.y = static_cast<short>(currentY);
     const int nextY = this->layoutNode(child, childState);
+    if (this->projectionParentScopes_.current().hasShortRangeRefusal())
+    {
+      // A nested traversal edge already refused and counted; do not count
+      // the stale return value a second time.
+      break;
+    }
     if (!this->projectionParentScopes_.current().tryAccumulateContentHeight(
             currentY, nextY))
     {
@@ -649,6 +673,26 @@ void NullScenePlatformController::refuseScrollViewShortRange()
 void NullScenePlatformController::refuseNestedScrollView()
 {
   ++this->nestedScrollViewRefusalCount_;
+}
+
+bool NullScenePlatformController::refuseNarrowingInScrollScope(int resultY)
+{
+  if (this->projectionParentScopes_.activeDepth() == 0)
+  {
+    return false;
+  }
+  loka::app::scene::ProjectionParentScope &scope = this->projectionParentScopes_.current();
+  if (scope.hasShortRangeRefusal())
+  {
+    return true;
+  }
+  if (resultY >= SHRT_MIN && resultY <= SHRT_MAX)
+  {
+    return false;
+  }
+  this->refuseScrollViewShortRange();
+  scope.markShortRangeRefused();
+  return true;
 }
 
 void NullScenePlatformController::flushRetired()

@@ -23,17 +23,21 @@ namespace loka
       typedef ScrollViewTypeTag TypeTag;
       typedef ScrollViewNode NodeType;
 
-      loka::core::MutableState<int> *offset_;
+      /** The full tracked door, kept whole: the rail publishes the fact
+          through offset_.set(), which opens the owner's tracker when idle
+          (#533). Storing only the raw MutableState pointer would discard the
+          tracker and owner and let a rail write bypass the transaction. */
+      scene::NodeState<int> offset_;
       loka::core::MutableState<int> *scrollTo_;
 
       ScrollViewProps()
-          : offset_(0),
+          : offset_(),
             scrollTo_(0)
       {
       }
 
       explicit ScrollViewProps(const scene::NodeState<int> &offset)
-          : offset_(offset.dangerouslyMutableState()),
+          : offset_(offset),
             scrollTo_(0)
       {
       }
@@ -41,7 +45,7 @@ namespace loka
       /** Binds the rail-published scroll offset fact. */
       ScrollViewProps &offset(const scene::NodeState<int> &value)
       {
-        this->offset_ = value.dangerouslyMutableState();
+        this->offset_ = value;
         return *this;
       }
 
@@ -66,9 +70,11 @@ namespace loka
           return false;
         }
         const ScrollViewProps &other = static_cast<const ScrollViewProps &>(rhs);
-        if (this->offset_ != other.offset_)
+        loka::core::MutableState<int> *mine = this->offset_.dangerouslyMutableState();
+        loka::core::MutableState<int> *theirs = other.offset_.dangerouslyMutableState();
+        if (mine != theirs)
         {
-          return this->offset_ < other.offset_;
+          return mine < theirs;
         }
         return this->scrollTo_ < other.scrollTo_;
       }
@@ -102,9 +108,9 @@ namespace loka
 
       virtual void declareDirtySources(scene::DirtySourceRegistrar &registrar)
       {
-        if (this->props.offset_)
+        if (this->props.offset_.isValid())
         {
-          registrar.markDirtyOnChange(this->props.offset_, scene::NODE_DIRTY_LAYOUT);
+          registrar.markDirtyOnChange(this->props.offset_.state(), scene::NODE_DIRTY_LAYOUT);
         }
       }
 

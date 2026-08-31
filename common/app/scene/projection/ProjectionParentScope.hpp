@@ -22,7 +22,8 @@ namespace loka
               translationX(0),
               translationY(0),
               clipRect(0, 0, 0, 0),
-              contentHeight_(0)
+              contentHeight_(0),
+              shortRangeRefused_(false)
         {
         }
 
@@ -34,7 +35,8 @@ namespace loka
               translationX(translateX),
               translationY(translateY),
               clipRect(clip),
-              contentHeight_(0)
+              contentHeight_(0),
+              shortRangeRefused_(false)
         {
         }
 
@@ -104,6 +106,22 @@ namespace loka
           return this->contentHeight_;
         }
 
+        /** Frame-resident fact: the measurement channel refused inside this
+            scope, so no further child result may narrow into a LayoutState
+            coordinate. Set through the one door below, cleared by the frame
+            being popped; nested containers run their own accumulate-then-
+            narrow loops, so the rail's traversal edge reads this to stop
+            materializing siblings after a refusal. */
+        void markShortRangeRefused()
+        {
+          this->shortRangeRefused_ = true;
+        }
+
+        bool hasShortRangeRefusal() const
+        {
+          return this->shortRangeRefused_;
+        }
+
         void *nativeParent;
         int translationX;
         int translationY;
@@ -111,6 +129,7 @@ namespace loka
 
       private:
         int contentHeight_;
+        bool shortRangeRefused_;
 
         static bool tryAdd(int lhs, int rhs, int &out)
         {

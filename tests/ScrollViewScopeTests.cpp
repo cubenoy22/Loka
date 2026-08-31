@@ -233,6 +233,32 @@ void testScrollViewContentHeightRefusesBeforeShortWrap()
   assert(platform.scrollViewShortRangeRefusalCount() == 2);
   assert(highSeatResult == 32000);
   assert(platform.projectionParentScopeDepthForTesting() == 0);
+
+  // The nested-container path: a Column between the ScrollView and the tall
+  // children runs its own accumulate-then-narrow loop, so the wrap must be
+  // refused at the traversal edge before the narrowed coordinate reaches the
+  // next grandchild.
+  loka::app::ScrollViewNode nestedNarrow((loka::app::ScrollViewProps(offset.state())));
+  loka::app::ColumnNode *tallColumn = new loka::app::ColumnNode((loka::app::ColumnProps()));
+  FixedLayoutProbeNode *firstGrandChild = new FixedLayoutProbeNode(1);
+  FixedLayoutProbeNode *secondGrandChild = new FixedLayoutProbeNode(1);
+  FixedLayoutProbeNode *wrappedGrandChild = new FixedLayoutProbeNode(1);
+  tallColumn->addChild(makeTallBox(20000, firstGrandChild));
+  tallColumn->addChild(makeTallBox(20000, secondGrandChild));
+  tallColumn->addChild(wrappedGrandChild);
+  nestedNarrow.addChild(tallColumn);
+  const int nestedResult = platform.projectLayoutForTesting(
+      &nestedNarrow, makeState(0, 0, 100, 100));
+  (void)nestedResult;
+
+  assert(firstGrandChild->wasLaidOut());
+  assert(firstGrandChild->geometry().y == 0);
+  assert(secondGrandChild->wasLaidOut());
+  assert(secondGrandChild->geometry().y == 20000);
+  assert(!wrappedGrandChild->wasLaidOut());
+  assert(platform.scrollViewShortRangeRefusalCount() == 3);
+  assert(nestedResult == 100);
+  assert(platform.projectionParentScopeDepthForTesting() == 0);
 }
 
 void testNestedScrollViewRefusalPreservesOuterScope()

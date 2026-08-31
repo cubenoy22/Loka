@@ -261,6 +261,7 @@ private:
                     const loka::app::scene::LayoutState &state);
   void refuseScrollViewShortRange();
   void refuseNestedScrollView();
+  bool refuseNarrowingInScrollScope(int resultY);
   void flushRetired();
   void drainBuckets();
   void disposeHandle(FakeControlHandle *handle);
