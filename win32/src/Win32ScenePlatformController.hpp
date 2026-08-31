@@ -3,6 +3,7 @@
 
 #include <windows.h>
 #include <vector>
+#include "app/scene/projection/ProjectionParentScope.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
@@ -10,6 +11,7 @@
 class Win32ButtonContext;
 class Win32EditTextContext;
 class Win32PopupMenuContext;
+class Win32ScrollViewContext;
 
 namespace loka
 {
@@ -25,6 +27,7 @@ namespace loka
   {
     class BoxNode;
     class RectSurfaceNode;
+    class ScrollViewNode;
   } // namespace app
 
   namespace dsl
@@ -113,6 +116,12 @@ public:
   HWND rootHwnd() const
   {
     return rootHwnd_;
+  }
+  /** Native parent for a projected child. The root remains the default;
+      an active ScrollView scope supplies its viewport HWND. */
+  HWND projectionParentHwnd() const
+  {
+    return static_cast<HWND>(this->projectionParentScopes_.current().nativeParent);
   }
   void queueNativeRetirement(HWND hwnd);
 
@@ -216,6 +225,10 @@ private:
   typedef LayoutNodeResult (*LeafLayoutHandlerFn)(Win32ScenePlatformController *,
                                                   loka::app::scene::Node *,
                                                   const LayoutState &);
+  static LayoutNodeResult DispatchProjectedLayout(
+      Win32ScenePlatformController *controller,
+      loka::app::scene::Node *node,
+      const LayoutState &state);
 
   struct LeafLayoutHandlerEntry
   {
@@ -310,8 +323,14 @@ private:
   int layoutNodeFromSceneState(loka::app::scene::Node *node, const loka::app::scene::LayoutState &state);
   int layoutNode(loka::app::scene::Node *node, const LayoutState &state);
   LayoutNodeResult computeLayoutResult(loka::app::scene::Node *node, const LayoutState &state);
+  LayoutNodeResult layoutScrollViewNode(loka::app::ScrollViewNode *scrollView, const LayoutState &state);
   int applyBoundaryLayoutResult(loka::app::scene::BoundaryNode *boundary, int x, int y, const LayoutNodeResult &result);
   LayoutNodeResult layoutRectSurfaceNode(loka::app::RectSurfaceNode *surface, const LayoutState &state);
+  bool narrowLayoutState(const LayoutState &state,
+                         loka::app::scene::LayoutState &narrowed,
+                         bool applyProjection);
+  bool refuseNarrowingInScrollScope(int resultY);
+  void refuseScrollViewShortRange();
   void performLayout(int clientWidth, int clientHeight);
   void clearContexts();
   void clearNodeContexts(loka::app::scene::Node *node);
@@ -320,6 +339,7 @@ private:
   void dumpRedrawStatsIfNeeded();
 
   HWND rootHwnd_;
+  loka::app::scene::ProjectionParentScopeStack projectionParentScopes_;
   loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlerRegistry_;
   loka::app::scene::PlatformNodeHandlerRegistry nodeHandlerRegistry_;
   LeafLayoutHandlerRegistry leafLayoutHandlerRegistry_;

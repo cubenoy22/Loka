@@ -1,0 +1,10 @@
+#ifndef LOKA_TESTS_WIN32_SCROLL_VIEW_TESTS_HPP
+#define LOKA_TESTS_WIN32_SCROLL_VIEW_TESTS_HPP
+
+void testWin32ScrollViewParentsAndClipsProjectedChildren();
+void testWin32ScrollViewOffsetIsRelayoutInput();
+void testWin32ScrollViewMessagePublishesOffsetFact();
+void testWin32ScrollViewResizeReclampsOffsetOnce();
+void testWin32NestedScrollViewRefusesWithoutDisturbingOuterScope();
+
+#endif // LOKA_TESTS_WIN32_SCROLL_VIEW_TESTS_HPP

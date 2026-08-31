@@ -26,7 +26,8 @@ namespace
                                     const loka::app::scene::LayoutState &state)
     {
       Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
-      return new Win32TextContext(win32, win32->rootHwnd(), state.x, state.y, state.width, state.height, text);
+      return new Win32TextContext(
+          win32, win32->projectionParentHwnd(), state.x, state.y, state.width, state.height, text);
     }
 
     static void refresh(Win32TextContext *ctx, const loka::app::scene::LayoutState &state)
