@@ -21,7 +21,12 @@ Win32ScrollViewContext::Win32ScrollViewContext(Win32ScenePlatformController *con
       hwnd_(0)
 {
   EnsureClassRegistered();
-  this->hwnd_ = CreateWindowExW(0,
+  // WS_EX_CONTROLPARENT: Win32App routes Tab through IsDialogMessage on the
+  // root, and the dialog manager only recurses into children of windows
+  // carrying this style (the root window sets it too, Win32Window.cpp) —
+  // without it every control inside a ScrollView is skipped by keyboard
+  // navigation.
+  this->hwnd_ = CreateWindowExW(WS_EX_CONTROLPARENT,
                                 kScrollViewClassName,
                                 L"",
                                 WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_CLIPCHILDREN,

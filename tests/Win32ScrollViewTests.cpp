@@ -254,6 +254,9 @@ void testWin32ScrollViewParentsAndClipsProjectedChildren()
     const LONG_PTR viewportStyle = GetWindowLongPtr(viewport, GWL_STYLE);
     assert((viewportStyle & WS_VSCROLL) != 0);
     assert((viewportStyle & WS_CLIPCHILDREN) != 0);
+    const LONG_PTR viewportExStyle = GetWindowLongPtr(viewport, GWL_EXSTYLE);
+    assert((viewportExStyle & WS_EX_CONTROLPARENT) != 0 &&
+           "IsDialogMessage only recurses into control parents; Tab must not skip the viewport's children");
 
     std::vector<HWND> buttons =
         directChildWindowsByClass(viewport, L"Button");
