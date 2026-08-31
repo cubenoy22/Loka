@@ -84,7 +84,7 @@ void Win32RectSurfaceContext::relayout(int x, int y, int width, int height)
   {
     return;
   }
-  MoveWindow(hwnd_, x, y, width, height, TRUE);
+  this->positionNativeWindow(this->hwnd_, x, y, width, height);
   HWND parent = 0;
   RECT rect;
   if (this->queryBoundsInParent(parent, rect))

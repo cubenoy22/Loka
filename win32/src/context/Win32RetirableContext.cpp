@@ -11,6 +11,19 @@ Win32RetirableContext::Win32RetirableContext(Win32ScenePlatformController *contr
 
 Win32RetirableContext::~Win32RetirableContext() {}
 
+void Win32RetirableContext::positionNativeWindow(HWND hwnd,
+                                                 int x,
+                                                 int y,
+                                                 int width,
+                                                 int height)
+{
+  assert(this->controller_ && "a live HWND must have a native layout owner");
+  if (this->controller_)
+  {
+    this->controller_->positionNativeWindow(hwnd, x, y, width, height);
+  }
+}
+
 void Win32RetirableContext::retireWindow(HWND &hwnd)
 {
   if (!hwnd)

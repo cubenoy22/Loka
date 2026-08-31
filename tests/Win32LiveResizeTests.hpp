@@ -1,0 +1,7 @@
+#ifndef LOKA_TESTS_WIN32_LIVE_RESIZE_TESTS_HPP
+#define LOKA_TESTS_WIN32_LIVE_RESIZE_TESTS_HPP
+
+void testWin32LayoutPresentsRootOnceAfterPositioningChildren();
+void testWin32PopupRelayoutPreservesNativeItems();
+
+#endif // LOKA_TESTS_WIN32_LIVE_RESIZE_TESTS_HPP

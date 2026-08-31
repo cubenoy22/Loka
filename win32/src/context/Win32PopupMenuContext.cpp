@@ -50,6 +50,7 @@ Win32PopupMenuContext::Win32PopupMenuContext(Win32ScenePlatformController *contr
       hwnd_(0),
       selectionState_(0),
       enabledState_(0),
+      appliedItems_(),
       applyingFromState_(false),
       updatingFromControl_(false),
       baseHeight_(height),
@@ -157,9 +158,12 @@ void Win32PopupMenuContext::relayout(int x, int y, int width, int height)
   }
   baseWidth_ = width;
   baseHeight_ = height;
-  MoveWindow(hwnd_, x, y, width, height, TRUE);
-  applyItems();
-  applySelection();
+  if (!this->itemsMatchApplied())
+  {
+    this->applyItems();
+    this->applySelection();
+  }
+  this->positionNativeWindow(this->hwnd_, x, y, width, this->dropHeight());
 }
 
 void Win32PopupMenuContext::bindSelection()
@@ -208,6 +212,16 @@ void Win32PopupMenuContext::unbindEnabled()
   }
 }
 
+bool Win32PopupMenuContext::itemsMatchApplied() const
+{
+  const loka::Vector<loka::core::String> *items = node_ ? node_->props.items_ : 0;
+  if (!items)
+  {
+    return this->appliedItems_.empty();
+  }
+  return loka::app::PopupMenuProps::compareItems(&this->appliedItems_, items) == 0;
+}
+
 void Win32PopupMenuContext::applyItems()
 {
   if (!hwnd_ || !node_)
@@ -218,6 +232,8 @@ void Win32PopupMenuContext::applyItems()
   const loka::Vector<loka::core::String> *items = node_->props.items_;
   if (!items)
   {
+    this->appliedItems_.clear();
+    this->applyDropGeometry();
     return;
   }
   for (std::size_t i = 0; i < items->size(); ++i)
@@ -228,22 +244,44 @@ void Win32PopupMenuContext::applyItems()
       SendMessageW(hwnd_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(wide.c_str()));
     }
   }
+  this->appliedItems_ = *items;
+  this->applyDropGeometry();
+}
+
+int Win32PopupMenuContext::dropHeight() const
+{
   int itemHeight = static_cast<int>(SendMessage(hwnd_, CB_GETITEMHEIGHT, 0, 0));
   if (itemHeight <= 0)
   {
     itemHeight = baseHeight_ > 0 ? baseHeight_ : 18;
   }
-  int visibleItems = static_cast<int>(items->size());
+  const loka::Vector<loka::core::String> *items = node_ ? node_->props.items_ : 0;
+  int visibleItems = items ? static_cast<int>(items->size()) : 0;
   if (visibleItems > 8)
   {
     visibleItems = 8;
   }
-  int dropHeight = baseHeight_ + itemHeight * visibleItems + 2;
-  if (dropHeight < baseHeight_)
+  int result = baseHeight_ + itemHeight * visibleItems + 2;
+  if (result < baseHeight_)
   {
-    dropHeight = baseHeight_;
+    result = baseHeight_;
   }
-  SetWindowPos(hwnd_, 0, 0, 0, baseWidth_, dropHeight, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+  return result;
+}
+
+void Win32PopupMenuContext::applyDropGeometry()
+{
+  if (!hwnd_)
+  {
+    return;
+  }
+  SetWindowPos(hwnd_,
+               0,
+               0,
+               0,
+               baseWidth_,
+               this->dropHeight(),
+               SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
 void Win32PopupMenuContext::applySelection()

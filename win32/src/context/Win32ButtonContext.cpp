@@ -220,7 +220,7 @@ void Win32ButtonContext::relayout(int x, int y, int width, int height)
   {
     return;
   }
-  MoveWindow(hwnd_, x, y, width, height, TRUE);
+  this->positionNativeWindow(this->hwnd_, x, y, width, height);
 }
 
 void Win32ButtonContext::bindText()

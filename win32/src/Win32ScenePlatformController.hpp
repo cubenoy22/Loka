@@ -10,7 +10,9 @@
 
 class Win32ButtonContext;
 class Win32EditTextContext;
+class Win32NativeLayoutPass;
 class Win32PopupMenuContext;
+class Win32RetirableContext;
 class Win32ScrollViewContext;
 
 namespace loka
@@ -128,6 +130,8 @@ public:
 private:
   friend class ::loka::dsl::testing::Win32ScenePlatformTestAccess;
   friend class ::loka::app::scene::Win32PlatformLayoutTraversal;
+  friend class ::Win32NativeLayoutPass;
+  friend class ::Win32RetirableContext;
   friend void RegisterWin32BuiltInSupport(Win32ScenePlatformController &controller);
 
   struct RedrawStats
@@ -332,6 +336,9 @@ private:
   bool refuseNarrowingInScrollScope(int resultY);
   void refuseScrollViewShortRange();
   void performLayout(int clientWidth, int clientHeight);
+  /** Position one projected HWND. A root layout pass suppresses per-child
+      repaint and presents the completed native layout once at the pass end. */
+  void positionNativeWindow(HWND hwnd, int x, int y, int width, int height);
   void clearContexts();
   void clearNodeContexts(loka::app::scene::Node *node);
   int measureClientWidth(int requestedWidth) const;
@@ -339,6 +346,7 @@ private:
   void dumpRedrawStatsIfNeeded();
 
   HWND rootHwnd_;
+  Win32NativeLayoutPass *activeNativeLayoutPass_;
   loka::app::scene::ProjectionParentScopeStack projectionParentScopes_;
   loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlerRegistry_;
   loka::app::scene::PlatformNodeHandlerRegistry nodeHandlerRegistry_;

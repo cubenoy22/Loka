@@ -102,7 +102,7 @@ void Win32ScrollViewContext::relayout(int x, int y, int width, int height)
 {
   if (this->hwnd_)
   {
-    MoveWindow(this->hwnd_, x, y, width, height, TRUE);
+    this->positionNativeWindow(this->hwnd_, x, y, width, height);
   }
 }
 
