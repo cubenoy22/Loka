@@ -3,6 +3,7 @@
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/Cell.hpp"
 #include "app/nodes/controls/ScrollBar.hpp"
+#include "app/nodes/nestable/ScrollView.hpp"
 #include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/ImageView.hpp"
 #include "app/OpenFileDialog.hpp"
@@ -102,10 +103,12 @@ namespace
 
 namespace
 {
-  // Mac has no ScrollBar context yet: a known unsupported kind must take the
-  // typed-refusal path, not trip the accidental-miss education assert.
+  // Mac has no ScrollBar or ScrollView context yet: a known unsupported kind
+  // must take the typed-refusal path, not trip the accidental-miss assert.
   loka::app::scene::RefusedNodeHandler gRefusedMacScrollBar(
       loka::app::scene::NodeTypeToken<loka::app::ScrollBarNode>());
+  loka::app::scene::RefusedNodeHandler gRefusedMacScrollView(
+      loka::app::scene::NodeTypeToken<loka::app::ScrollViewNode>());
 } // namespace
 
 void RegisterMacBuiltInSupport(MacScenePlatformController &controller)
@@ -139,4 +142,5 @@ void RegisterMacBuiltInSupport(MacScenePlatformController &controller)
   RegisterMacCellNodeHandler(controller.nodeHandlerRegistry_);
   RegisterMacOpenFileDialogNodeHandler(controller.nodeHandlerRegistry_);
   controller.nodeHandlerRegistry_.registerHandler(&gRefusedMacScrollBar);
+  controller.nodeHandlerRegistry_.registerHandler(&gRefusedMacScrollView);
 }

@@ -7,6 +7,7 @@
 #include "app/nodes/ImageView.hpp"
 #include "app/nodes/controls/Cell.hpp"
 #include "app/nodes/controls/PopupMenu.hpp"
+#include "app/nodes/nestable/ScrollView.hpp"
 #include "platform/null/context/NullButtonContext.hpp"
 #include "platform/null/context/NullEditTextContext.hpp"
 #include "platform/null/context/NullScrollBarContext.hpp"
@@ -93,6 +94,9 @@ NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepth
       injectedDeliveryCount_(0),
       nextEventSequence_(1),
       nextHandleId_(1),
+      projectionParentScopes_(this),
+      scrollViewShortRangeRefusalCount_(0),
+      nestedScrollViewRefusalCount_(0),
       preserveNextRetiredOwner_(false),
       skipNextProjection_(false),
       destroyed_(false),
@@ -146,7 +150,7 @@ void NullScenePlatformController::onChange(loka::app::scene::Node *rootNode,
   state.width = 100;
   state.height = 20;
   state.lineHeight = 20;
-  this->layoutNode(rootNode, state);
+  this->projectLayout(rootNode, state);
 }
 
 namespace
@@ -249,7 +253,7 @@ int NullScenePlatformController::projectLayoutForTesting(
     loka::app::scene::Node *node,
     const loka::app::scene::LayoutState &state)
 {
-  return this->layoutNode(node, state);
+  return this->projectLayout(node, state);
 }
 
 const std::vector<NullScenePlatformController::LedgerRow> &NullScenePlatformController::ledger() const
@@ -296,6 +300,21 @@ unsigned long NullScenePlatformController::disposedCount() const
 unsigned NullScenePlatformController::cellRefusalCount() const
 {
   return this->refusedProjectedNodeHandlers_.cellCount();
+}
+
+unsigned NullScenePlatformController::scrollViewShortRangeRefusalCount() const
+{
+  return this->scrollViewShortRangeRefusalCount_;
+}
+
+unsigned NullScenePlatformController::nestedScrollViewRefusalCount() const
+{
+  return this->nestedScrollViewRefusalCount_;
+}
+
+unsigned NullScenePlatformController::projectionParentScopeDepthForTesting() const
+{
+  return this->projectionParentScopes_.activeDepth();
 }
 
 loka::app::scene::ExactMatchHandleBucket<NullScenePlatformController::FakeControlHandle *> &
@@ -483,6 +502,11 @@ int NullScenePlatformController::layoutNode(loka::app::scene::Node *node,
     return state.y;
   }
 
+  if (node->asScrollViewNode())
+  {
+    return this->layoutScrollView(node, state);
+  }
+
   loka::app::scene::IPlatformLayoutHandler *layoutHandler = this->layoutHandlers_.find(node);
   if (layoutHandler)
   {
@@ -492,8 +516,21 @@ int NullScenePlatformController::layoutNode(loka::app::scene::Node *node,
 
   if (loka::app::scene::IProjectedLayoutNode *projected = node->asProjectedLayoutNode())
   {
-    loka::app::scene::LayoutState projectedState = state;
-    return projected->layoutProjected(this, projectedState);
+    loka::app::scene::LayoutState projectedState;
+    if (!this->projectionParentScopes_.current().project(state, projectedState))
+    {
+      this->refuseScrollViewShortRange();
+      return state.y;
+    }
+    const int projectedResult = projected->layoutProjected(this, projectedState);
+    int contentResult = state.y;
+    if (!this->projectionParentScopes_.current().restoreContentY(
+            projectedResult, contentResult))
+    {
+      this->refuseScrollViewShortRange();
+      return state.y;
+    }
+    return contentResult;
   }
 
   loka::app::scene::INestable *nestable = node->asNestable();
@@ -507,6 +544,94 @@ int NullScenePlatformController::layoutNode(loka::app::scene::Node *node,
     childState.y = static_cast<short>(this->layoutNode(child, childState));
   }
   return childState.y;
+}
+
+int NullScenePlatformController::layoutScrollView(
+    loka::app::scene::Node *node,
+    const loka::app::scene::LayoutState &state)
+{
+  loka::app::ScrollViewNode *scrollView = node ? node->asScrollViewNode() : 0;
+  if (!scrollView)
+  {
+    return state.y;
+  }
+  if (this->projectionParentScopes_.activeDepth() != 0)
+  {
+    this->refuseNestedScrollView();
+    return state.y;
+  }
+
+  const int offset = scrollView->props.offset_ ? scrollView->props.offset_->get() : 0;
+  const loka::core::Frame clip(state.x, state.y, state.width, state.height);
+  loka::app::scene::ProjectionParentScope childScope;
+  const loka::app::scene::ProjectionParentScope &parentScope =
+      this->projectionParentScopes_.current();
+  if (!parentScope.deriveScrolled(
+          parentScope.nativeParent, 0, offset, clip, childScope))
+  {
+    this->refuseScrollViewShortRange();
+    return state.y;
+  }
+
+  loka::app::scene::ProjectionParentScopeGuard scopeGuard(
+      this->projectionParentScopes_, childScope);
+  if (!scopeGuard.isActive())
+  {
+    this->refuseNestedScrollView();
+    return state.y;
+  }
+
+  int currentY = state.y;
+  loka::app::scene::INestable *nestable = scrollView->asNestable();
+  for (loka::app::scene::Node *child = nestable ? nestable->childrenHead() : 0;
+       child;
+       child = child->nextInComposition)
+  {
+    if (currentY < SHRT_MIN || currentY > SHRT_MAX)
+    {
+      this->refuseScrollViewShortRange();
+      break;
+    }
+    loka::app::scene::LayoutState childState = state;
+    childState.y = static_cast<short>(currentY);
+    const int nextY = this->layoutNode(child, childState);
+    if (!this->projectionParentScopes_.current().tryAccumulateContentHeight(
+            currentY, nextY))
+    {
+      this->refuseScrollViewShortRange();
+      break;
+    }
+    currentY = nextY;
+  }
+
+  return state.height > 0 ? state.y + state.height : currentY;
+}
+
+int NullScenePlatformController::projectLayout(
+    loka::app::scene::Node *node,
+    const loka::app::scene::LayoutState &state)
+{
+  assert(this->projectionParentScopes_.activeDepth() == 0 &&
+         "a projection pass must begin at the root scope");
+  const loka::core::Frame rootClip(state.x, state.y, state.width, state.height);
+  if (!this->projectionParentScopes_.resetRoot(this, rootClip))
+  {
+    return state.y;
+  }
+  const int result = this->layoutNode(node, state);
+  assert(this->projectionParentScopes_.activeDepth() == 0 &&
+         "a projection pass must restore the root scope");
+  return result;
+}
+
+void NullScenePlatformController::refuseScrollViewShortRange()
+{
+  ++this->scrollViewShortRangeRefusalCount_;
+}
+
+void NullScenePlatformController::refuseNestedScrollView()
+{
+  ++this->nestedScrollViewRefusalCount_;
 }
 
 void NullScenePlatformController::flushRetired()
