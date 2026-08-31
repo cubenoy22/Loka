@@ -13,6 +13,12 @@ import unittest
 
 PROJECT_DIR = pathlib.Path(__file__).resolve().parents[2]
 REPORT_TOOL = PROJECT_DIR / "tools" / "ci" / "retro68_size_report.py"
+TOOLBOX_WORKFLOW = PROJECT_DIR / ".github" / "workflows" / "toolbox.yml"
+SIZE_GATE_INVOCATION = (
+    "      - name: Report and gate Toolbox 68K binary sizes\n"
+    "        run: python3 tools/ci/retro68_size_report.py "
+    "build/retro68/68k/Release\n"
+)
 sys.dont_write_bytecode = True
 
 
@@ -97,6 +103,22 @@ def baseline_for(path, total, code, data, rela, allowance=4096):
 
 
 class Retro68SizeReportTest(unittest.TestCase):
+    def test_toolbox_workflow_runs_the_release_size_gate(self):
+        workflow = TOOLBOX_WORKFLOW.read_text(encoding="utf-8")
+        self.assertEqual(workflow.count(SIZE_GATE_INVOCATION), 1)
+
+        mutations = {
+            "invocation removed": workflow.replace(SIZE_GATE_INVOCATION, "", 1),
+            "build root drifted": workflow.replace(
+                "build/retro68/68k/Release",
+                "build/retro68/68k/Unexpected",
+                1,
+            ),
+        }
+        for name, mutated in mutations.items():
+            with self.subTest(name=name):
+                self.assertEqual(mutated.count(SIZE_GATE_INVOCATION), 0)
+
     def test_sums_multiple_resources_of_the_same_type(self):
         tool = load_report_tool()
         with tempfile.TemporaryDirectory(prefix="retro68-size-") as directory:
