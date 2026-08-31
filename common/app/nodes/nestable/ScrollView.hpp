@@ -16,8 +16,10 @@ namespace loka
     class ScrollViewNode;
 
     /** Stable inputs for a scrollable projection-parent scope. offset_ is the
-        rail-published fact; scrollTo_ is application intent and is consumed
-        by platform rails when their scrolling implementation is installed. */
+        rail-published fact; scrollTo_ is application intent, stored by the
+        contract but deliberately not yet consumed by any rail — wiring it
+        (clamping, zoom focal behavior) is its own mechanism in a later PR,
+        and zoom is its first named consumer (#537). */
     struct ScrollViewProps : public scene::NodePropsBase<ScrollViewProps>
     {
       typedef ScrollViewTypeTag TypeTag;
@@ -49,8 +51,10 @@ namespace loka
         return *this;
       }
 
-      /** Binds application-authored scroll intent. Projection is installed by
-          the platform rail implementations, not by this contract header. */
+      /** Binds application-authored scroll intent. Stored only for now: no
+          rail consumes it yet — the intent pipe is wired in a later PR with
+          zoom as its first consumer (#537), not as a side effect of a rail
+          landing. */
       ScrollViewProps &scrollTo(loka::core::MutableState<int> *value)
       {
         this->scrollTo_ = value;
