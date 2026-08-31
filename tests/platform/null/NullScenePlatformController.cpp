@@ -560,6 +560,14 @@ int NullScenePlatformController::layoutScrollView(
     this->refuseNestedScrollView();
     return state.y;
   }
+  if (state.height > 0 && state.y + state.height > SHRT_MAX)
+  {
+    // The viewport bottom itself would leave the short range; the caller
+    // casts the result back to LayoutState::Coordinate, so refuse before
+    // materializing a subtree whose seat cannot be represented.
+    this->refuseScrollViewShortRange();
+    return state.y;
+  }
 
   const int offset = scrollView->props.offset_ ? scrollView->props.offset_->get() : 0;
   const loka::core::Frame clip(state.x, state.y, state.width, state.height);
@@ -604,7 +612,16 @@ int NullScenePlatformController::layoutScrollView(
     currentY = nextY;
   }
 
-  return state.height > 0 ? state.y + state.height : currentY;
+  if (state.height > 0)
+  {
+    return state.y + state.height;
+  }
+  if (currentY > SHRT_MAX)
+  {
+    this->refuseScrollViewShortRange();
+    return state.y;
+  }
+  return currentY;
 }
 
 int NullScenePlatformController::projectLayout(

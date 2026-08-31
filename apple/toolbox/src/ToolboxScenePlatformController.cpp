@@ -849,6 +849,10 @@ namespace
       }
       return width;
     }
+    case loka::app::scene::NODE_KIND_SCROLL_VIEW:
+      // ScrollView has no Toolbox arm yet: refuse the subtree instead of
+      // laying out children without translation or clipping (#537).
+      return 0;
     default:
       break;
     }
@@ -894,6 +898,9 @@ namespace
       return;
     case loka::app::scene::NODE_KIND_RECT_SURFACE:
       node->render(controller);
+      return;
+    case loka::app::scene::NODE_KIND_SCROLL_VIEW:
+      // ScrollView has no Toolbox arm yet: refuse the subtree render (#537).
       return;
     default:
       break;

@@ -221,6 +221,18 @@ void testScrollViewContentHeightRefusesBeforeShortWrap()
   assert(platform.scrollViewShortRangeRefusalCount() == 1);
   assert(platform.projectionParentScopeDepthForTesting() == 0);
   assert(overflowResult == 100);
+
+  loka::app::ScrollViewNode highSeat((loka::app::ScrollViewProps(offset.state())));
+  FixedLayoutProbeNode *unreachable = new FixedLayoutProbeNode(1);
+  highSeat.addChild(unreachable);
+  const int highSeatResult = platform.projectLayoutForTesting(
+      &highSeat, makeState(0, 32000, 100, 1000));
+  (void)highSeatResult;
+
+  assert(!unreachable->wasLaidOut());
+  assert(platform.scrollViewShortRangeRefusalCount() == 2);
+  assert(highSeatResult == 32000);
+  assert(platform.projectionParentScopeDepthForTesting() == 0);
 }
 
 void testNestedScrollViewRefusalPreservesOuterScope()
