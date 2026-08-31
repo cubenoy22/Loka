@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <commdlg.h>
 #include "app/core/App.hpp"
+#include "platform/Win32IdlePacer.hpp"
 #include "platform/Win32String.hpp"
 
 namespace
@@ -152,6 +153,7 @@ void Win32App::run()
   LARGE_INTEGER lastTick;
   QueryPerformanceFrequency(&frequency);
   QueryPerformanceCounter(&lastTick);
+  loka::platform::Win32IdlePacer idlePacer;
 
   bool running = true;
   while (running)
@@ -192,6 +194,7 @@ void Win32App::run()
 
     if (policy.mode == loka::app::IDLE_MODE_NONE)
     {
+      idlePacer.reset();
       this->flushMenuInvalidation();
       this->flushWindowInvalidations();
       if (!handledMessage)
@@ -201,14 +204,29 @@ void Win32App::run()
       continue;
     }
 
-    double dispatchElapsedSeconds = 0.0;
-    if (this->consumeIdle(elapsedSeconds, dispatchElapsedSeconds))
+    double candidateElapsedSeconds = 0.0;
+    const bool idleCandidate = this->consumeIdle(elapsedSeconds, candidateElapsedSeconds);
+    double dispatchElapsedSeconds = candidateElapsedSeconds;
+    bool idleDispatched = idleCandidate;
+    if (policy.mode == loka::app::IDLE_MODE_EVERY_TICK)
+    {
+      idleDispatched = idleCandidate
+                       && idlePacer.gateEveryTick(
+                           candidateElapsedSeconds, policy, now.QuadPart, frequency.QuadPart, dispatchElapsedSeconds);
+    }
+    if (idleDispatched)
     {
       this->handleIdle(dispatchElapsedSeconds);
     }
     this->flushMenuInvalidation();
     this->flushWindowInvalidations();
-    Sleep(1);
+    const loka::app::IdlePolicy waitPolicy = this->idlePolicy();
+    if (waitPolicy.mode == loka::app::IDLE_MODE_NONE)
+    {
+      idlePacer.reset();
+      continue;
+    }
+    idlePacer.wait(waitPolicy, idleDispatched, now.QuadPart, frequency.QuadPart);
   }
 }
 

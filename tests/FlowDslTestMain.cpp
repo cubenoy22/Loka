@@ -13,6 +13,7 @@
 #include "Win32WideApiTests.hpp"
 #include "Win32WindowClientSizeTests.hpp"
 #include "Win32ProfilerTests.hpp"
+#include "Win32IdlePacerTests.hpp"
 #endif
 #ifdef __APPLE__
 #include "MacDisplayAppearanceTests.hpp"
