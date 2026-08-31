@@ -137,6 +137,7 @@ void testScrollViewScopePushPopRestoresRootProjectionParent()
 
   const int resultY = platform.projectLayoutForTesting(
       &column, makeState(10, 20, 80, 40));
+  (void)resultY;
 
   assert(first->wasLaidOut());
   assert(second->wasLaidOut());
@@ -167,6 +168,12 @@ void testScrollViewOffsetIsReappliedOnEveryRelayout()
   const short afterChange = child->geometry().y;
   const int thirdResult = platform.projectLayoutForTesting(&scrollView, input);
   const short afterUnchangedRelayout = child->geometry().y;
+  (void)firstResult;
+  (void)atZero;
+  (void)secondResult;
+  (void)afterChange;
+  (void)thirdResult;
+  (void)afterUnchangedRelayout;
 
   assert(atZero == 20);
   assert(afterChange == 14);
@@ -187,6 +194,7 @@ void testScrollViewContentHeightRefusesBeforeShortWrap()
   nearLimit.addChild(makeTallBox(static_cast<short>(SHRT_MAX - 1), nearProbe));
   const int nearResult = platform.projectLayoutForTesting(
       &nearLimit, makeState(0, 0, 100, 100));
+  (void)nearResult;
 
   assert(nearProbe->wasLaidOut());
   assert(nearProbe->geometry().y == 0);
@@ -202,6 +210,7 @@ void testScrollViewContentHeightRefusesBeforeShortWrap()
   overflow.addChild(afterOverflow);
   const int overflowResult = platform.projectLayoutForTesting(
       &overflow, makeState(0, 0, 100, 100));
+  (void)overflowResult;
 
   assert(first->wasLaidOut());
   assert(first->geometry().y == 0);
@@ -229,6 +238,7 @@ void testNestedScrollViewRefusalPreservesOuterScope()
 
   const int resultY = platform.projectLayoutForTesting(
       &outer, makeState(10, 20, 80, 40));
+  (void)resultY;
 
   assert(platform.nestedScrollViewRefusalCount() == 1);
   assert(!innerChild->wasLaidOut());
