@@ -2,9 +2,9 @@
   "schema_version": 1,
   "identity": {
     "ci_interfaces": "multiversal",
-    "component_reference": "local Universal Interfaces build; Multiversal total sizes matched",
+    "component_reference": "local Universal Interfaces build (Toolbox ScrollView arm refresh, #537 box 4); prior baseline 71920c47",
     "preset": "retro68-68k-release",
-    "source_commit": "71920c47"
+    "source_commit": "4aab2d7f+toolbox-arm"
   },
   "material_growth_bytes": 4096,
   "artifacts": [
@@ -12,60 +12,60 @@
       "name": "LokaHello68K",
       "path": "example/HelloWorld/LokaHello68K.bin",
       "baseline": {
-        "total": 259456,
-        "CODE": 235508,
-        "DATA": 13604,
-        "RELA": 9413
+        "total": 263552,
+        "CODE": 239452,
+        "DATA": 13668,
+        "RELA": 9536
       }
     },
     {
       "name": "LokaSimpleViewer68K",
       "path": "example/SimpleViewer/LokaSimpleViewer68K.bin",
       "baseline": {
-        "total": 256768,
-        "CODE": 233944,
-        "DATA": 12668,
-        "RELA": 9150
+        "total": 260864,
+        "CODE": 237876,
+        "DATA": 12724,
+        "RELA": 9268
       }
     },
     {
       "name": "LokaFloppyBird68K",
       "path": "example/FloppyBird/LokaFloppyBird68K.bin",
       "baseline": {
-        "total": 234368,
-        "CODE": 214768,
-        "DATA": 10620,
-        "RELA": 7962
+        "total": 238464,
+        "CODE": 218732,
+        "DATA": 10644,
+        "RELA": 8080
       }
     },
     {
       "name": "LokaMine68K",
       "path": "example/MineSweeper/LokaMine68K.bin",
       "baseline": {
-        "total": 230400,
-        "CODE": 208776,
-        "DATA": 12300,
-        "RELA": 8379
+        "total": 234496,
+        "CODE": 212712,
+        "DATA": 12372,
+        "RELA": 8501
       }
     },
     {
       "name": "LokaTutorial68K",
       "path": "example/Tutorial/LokaTutorial68K.bin",
       "baseline": {
-        "total": 219392,
-        "CODE": 200464,
-        "DATA": 10372,
-        "RELA": 7535
+        "total": 223488,
+        "CODE": 204424,
+        "DATA": 10400,
+        "RELA": 7653
       }
     },
     {
       "name": "ScrapbookUI68K",
       "path": "example/ScrapbookUI/ScrapbookUI68K.bin",
       "baseline": {
-        "total": 253824,
-        "CODE": 231068,
-        "DATA": 12652,
-        "RELA": 9130
+        "total": 257920,
+        "CODE": 235028,
+        "DATA": 12724,
+        "RELA": 9254
       }
     }
   ]

@@ -1,0 +1,9 @@
+#ifndef LOKA_TESTS_TOOLBOX_SCROLL_VIEW_CONTRACT_TESTS_HPP
+#define LOKA_TESTS_TOOLBOX_SCROLL_VIEW_CONTRACT_TESTS_HPP
+
+void testToolboxScrollViewChildWidthAlwaysReservesScrollbar();
+void testToolboxScrollViewHitIntersectionGatesViewport();
+void testToolboxScrollViewOffsetClampRepublishesOnlyChangedFacts();
+void testToolboxScrollViewRangeMapsContentMinusViewport();
+
+#endif // LOKA_TESTS_TOOLBOX_SCROLL_VIEW_CONTRACT_TESTS_HPP
