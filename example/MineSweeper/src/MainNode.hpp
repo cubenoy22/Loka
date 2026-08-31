@@ -229,22 +229,16 @@ namespace minesweeper
 
     MainNode(const MainProps &p)
         : loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>(p),
-          initialized_(false),
           bank_(0),
           boardRandom_(p.seed_)
     {
+      this->resetBoard();
     }
 
     virtual void attachNode(loka::app::scene::NodeComposition &c)
     {
       (void)c;
-      if (this->initialized_)
-      {
-        return;
-      }
-      this->initialized_ = true;
       this->bindUi();
-      this->resetBoard();
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
@@ -337,7 +331,6 @@ namespace minesweeper
       kCellSectionKeyBase = 100
     };
 
-    bool initialized_;
     int bank_;
     BoardRandom boardRandom_;
     bool mines_[kCellCount];

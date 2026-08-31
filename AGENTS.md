@@ -22,6 +22,7 @@ clear boundaries, and small reusable concepts.
 - Use English for code comments, code-facing docs, and API/design notes that ship with the repository; keep non-English prose for user conversation only unless a file already has an established localized convention.
 
 ## Ownership And State
+- `attachNode` runs on every attach and must be written as an idempotent re-declaration; do not guard it with `initialized_`, because callback de-duplication makes the re-run free. “Once” means an initial value or a constructor computation; attach-scoped resources are gated by the resource's own presence. A props-supplied `State<T>*` or `EmitterState*` is declared in the definition, not bound in `attachNode`.
 - Keep scopes small by default. Prefer immutable completed values, explicit owners for mutation, and small encapsulated types when a feature needs multiple pieces of internal state.
 - Before adding new variables, especially member fields, consider whether they introduce long-term ownership/lifecycle/cleanup complexity. Prefer reusing an existing owner or encapsulating the state so management does not become more fragmented over time.
 - When state or variables must be introduced, consider whether they should be encapsulated or expressed as a small state machine instead of scattered flags. Prefer lifecycle-aware structures that make ownership, transitions, and cleanup easier to reason about.

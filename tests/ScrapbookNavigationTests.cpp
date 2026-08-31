@@ -63,6 +63,11 @@ namespace scrapbook_navigation_test
       return true;
     }
 
+    bool isOpen() const
+    {
+      return currentPage_ >= 0;
+    }
+
     bool preparePage(int page, PagePresentation &out)
     {
       ++prepareCount_;

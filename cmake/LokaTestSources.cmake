@@ -85,5 +85,6 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/StartupRedrawTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/FlowDslTestMain.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/example/HelloWorld/src/MainNode.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/AttachNodeContractTests.cpp
 )
 unset(_LOKA_TEST_SOURCE_ROOT)

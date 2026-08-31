@@ -79,7 +79,6 @@ namespace simpleviewer
 
     MainNode(const MainProps &p)
         : loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>(p),
-          initialized_(false),
           isDialogShown_(),
           chooserResult_(),
           chooserMessage_(),
@@ -92,22 +91,11 @@ namespace simpleviewer
       this->state(this->image_, loka::core::resource::Image::Empty());
     }
 
-    virtual void attachNode(loka::app::scene::NodeComposition &c)
-    {
-      if (this->initialized_)
-      {
-        return;
-      }
-      this->props.assertInitialized();
-      (void)c;
-      this->bindActionForUi(*this->props.openDialogEvent_, &MainNode::openDialog);
-      this->initialized_ = true;
-    }
-
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       using namespace loka::app;
       this->props.assertInitialized();
+      this->bindActionForUi(*this->props.openDialogEvent_, &MainNode::openDialog);
       c.declare(
           VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_LEADING)
           << F() << Button("Open...").onClick(this->props.openDialogEvent_) << Text("Loka file:")
@@ -175,7 +163,6 @@ namespace simpleviewer
       this->chooserMessage_.set(message);
     }
 
-    bool initialized_;
     loka::app::scene::NodeState<bool> isDialogShown_;
     loka::app::scene::NodeState<loka::app::FileChooserResult> chooserResult_;
     loka::app::scene::NodeState<loka::core::String> chooserMessage_;

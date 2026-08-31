@@ -21,8 +21,7 @@ namespace tutorial
         : loka::app::scene::BoundaryNodeFor<Step2Node>(p),
           count_(),
           countText_(),
-          incrementEvent_(),
-          initialized_(false)
+          incrementEvent_()
     {
       this->state(this->count_, 0);
       this->state(this->countText_, loka::core::String::Literal("Count: 0"));
@@ -31,12 +30,7 @@ namespace tutorial
     virtual void attachNode(loka::app::scene::NodeComposition &c)
     {
       (void)c;
-      if (this->initialized_)
-      {
-        return;
-      }
       this->bindActionForUi(this->incrementEvent_, &Step2Node::increment);
-      this->initialized_ = true;
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
@@ -61,7 +55,6 @@ namespace tutorial
     loka::app::scene::NodeState<int> count_;
     loka::app::scene::NodeState<loka::core::String> countText_;
     loka::core::EmitterState incrementEvent_;
-    bool initialized_;
   };
 } // namespace tutorial
 

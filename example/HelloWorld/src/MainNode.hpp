@@ -35,7 +35,6 @@ namespace helloworld
     void refreshActionSummary();
     void refreshFruitMessage();
 
-    bool initialized_;
     bool actionSummaryCacheValid_;
     bool lastActionSummaryEnabled_;
     int lastActionSummaryCount_;
