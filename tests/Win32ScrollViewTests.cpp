@@ -457,6 +457,30 @@ void testWin32ScrollViewResizeReclampsOffsetOnce()
     assert(offset.changeCount() == 0 &&
            "a still-valid offset must survive resize without a fact write");
 
+    // An offset far beyond the short range must not wedge the viewport in a
+    // refusal loop: the arm pre-clamps before deriving the child scope, lays
+    // out, and setScrollMetrics republishes the exact maximum.
+    offset.state().set(40000);
+    offset.resetChangeCount();
+    controller.relayout(300, 100);
+    assert(offset.state().get() == 204 &&
+           "an oversized offset must recover to the content maximum");
+    assert(offset.changeCount() == 1);
+    controller.relayout(300, 100);
+    assert(offset.changeCount() == 1);
+
+    // SIF_DISABLENOSCROLL: the scrollbar keeps occupying its width when the
+    // content fits, so the client width children lay out against never
+    // changes between passes.
+    HWND viewport2 = findChildWindowByClass(root, L"LOKA_SCROLL_VIEW");
+    RECT clientWhileOverflowing;
+    LOKA_VERIFY(GetClientRect(viewport2, &clientWhileOverflowing));
+    controller.relayout(300, 400);
+    RECT clientWhileFitting;
+    LOKA_VERIFY(GetClientRect(viewport2, &clientWhileFitting));
+    assert(clientWhileFitting.right == clientWhileOverflowing.right &&
+           "the disabled scrollbar must keep its width when content fits");
+
     controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
   }
   LOKA_VERIFY(DestroyWindow(root));

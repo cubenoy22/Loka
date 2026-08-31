@@ -127,7 +127,10 @@ int Win32ScrollViewContext::setScrollMetrics(int contentHeight,
   SCROLLINFO info;
   ZeroMemory(&info, sizeof(info));
   info.cbSize = sizeof(info);
-  info.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
+  // SIF_DISABLENOSCROLL keeps the scrollbar present (disabled) when content
+  // fits, so the viewport client width never changes between layout passes
+  // and the width read before measurement stays true after it.
+  info.fMask = SIF_RANGE | SIF_PAGE | SIF_POS | SIF_DISABLENOSCROLL;
   info.nMin = 0;
   info.nMax = contentHeight > 0 ? contentHeight - 1 : 0;
   info.nPage = viewportHeight > 0 ? static_cast<UINT>(viewportHeight) : 0;

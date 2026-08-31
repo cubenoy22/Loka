@@ -719,9 +719,21 @@ Win32ScenePlatformController::layoutScrollViewNode(loka::app::ScrollViewNode *sc
     ctx->readLifecycleFactOnAttach();
   }
 
-  const int requestedOffset = scrollView->props.offset_.isValid()
-                                  ? scrollView->props.offset_.get()
-                                  : 0;
+  int requestedOffset = scrollView->props.offset_.isValid()
+                            ? scrollView->props.offset_.get()
+                            : 0;
+  if (requestedOffset < 0)
+  {
+    requestedOffset = 0;
+  }
+  else if (requestedOffset > SHRT_MAX)
+  {
+    // A fact far beyond the projected range must not push every child out of
+    // range and wedge the layout in a refusal loop before setScrollMetrics
+    // (the only precise clamp) can run; the exact maximum is republished
+    // after measurement.
+    requestedOffset = SHRT_MAX;
+  }
   const loka::core::Frame viewportClip(0, 0, state.width, state.height);
   loka::app::scene::ProjectionParentScope viewportScope;
   const loka::app::scene::ProjectionParentScope &parentScope =
