@@ -12,10 +12,10 @@
       "name": "LokaHello68K",
       "path": "example/HelloWorld/LokaHello68K.bin",
       "baseline": {
-        "total": 263552,
-        "CODE": 239452,
-        "DATA": 13668,
-        "RELA": 9536
+        "total": 263680,
+        "CODE": 239476,
+        "DATA": 13676,
+        "RELA": 9538
       }
     },
     {
@@ -23,9 +23,9 @@
       "path": "example/SimpleViewer/LokaSimpleViewer68K.bin",
       "baseline": {
         "total": 260864,
-        "CODE": 237876,
-        "DATA": 12724,
-        "RELA": 9268
+        "CODE": 237900,
+        "DATA": 12700,
+        "RELA": 9270
       }
     },
     {
@@ -33,19 +33,19 @@
       "path": "example/FloppyBird/LokaFloppyBird68K.bin",
       "baseline": {
         "total": 238464,
-        "CODE": 218732,
-        "DATA": 10644,
-        "RELA": 8080
+        "CODE": 218756,
+        "DATA": 10652,
+        "RELA": 8082
       }
     },
     {
       "name": "LokaMine68K",
       "path": "example/MineSweeper/LokaMine68K.bin",
       "baseline": {
-        "total": 234496,
-        "CODE": 212712,
-        "DATA": 12372,
-        "RELA": 8501
+        "total": 234624,
+        "CODE": 212736,
+        "DATA": 12380,
+        "RELA": 8503
       }
     },
     {
@@ -53,9 +53,9 @@
       "path": "example/Tutorial/LokaTutorial68K.bin",
       "baseline": {
         "total": 223488,
-        "CODE": 204424,
-        "DATA": 10400,
-        "RELA": 7653
+        "CODE": 204448,
+        "DATA": 10408,
+        "RELA": 7655
       }
     },
     {
@@ -63,9 +63,9 @@
       "path": "example/ScrapbookUI/ScrapbookUI68K.bin",
       "baseline": {
         "total": 257920,
-        "CODE": 235028,
-        "DATA": 12724,
-        "RELA": 9254
+        "CODE": 235052,
+        "DATA": 12700,
+        "RELA": 9256
       }
     }
   ]

@@ -1115,6 +1115,14 @@ short ToolboxScenePlatformController::layoutScrollView(
     // the outer measurement scope remains usable for following siblings.
     return 0;
   }
+  if (!this->scrollViewClipRgn_)
+  {
+    // NewRgn can refuse under Classic low memory. Without the clip region the
+    // render pass cannot draw the subtree, so refuse the whole seat here -
+    // before any ledger, CDEF, or hit registration - instead of leaving a
+    // scrollbar over invisible interactive content.
+    return 0;
+  }
 
   const int viewportRight = static_cast<int>(state.x) + state.width;
   const int viewportBottom = static_cast<int>(state.y) + state.height;
@@ -1350,6 +1358,20 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
   }
   if (!info.hasAnyWork())
   {
+    return;
+  }
+
+  if (!this->viewportScrollBars_.empty())
+  {
+    // Boundary bounds are recorded in content coordinates; inside a scrolled
+    // viewport they no longer name window pixels, and a rect invalidation
+    // would leave the OS update region clipping the redraw to the wrong
+    // place. Escalate to a full-window invalidation whenever a viewport is
+    // installed - the same conservative fallback renderDirty already takes:
+    // overpaint, never stale pixels. Projecting per-boundary bounds through
+    // the scope is the recorded alternative for a later pass (#518's
+    // projection-target track).
+    window_->requestInvalidate();
     return;
   }
 
