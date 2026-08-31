@@ -32,7 +32,7 @@ set(SOURCES
   src/platform/Win32String.cpp
   src/platform/Win32FileIO.cpp
   src/platform/Win32AppLocation.cpp
-  src/platform/Win32MessageWait.cpp
+  src/platform/Win32IdlePacer.cpp
 )
 
 add_library(LokaWin32WideApiContract INTERFACE)

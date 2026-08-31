@@ -1,0 +1,8 @@
+#ifndef LOKA_TESTS_WIN32_IDLE_PACER_TESTS_HPP
+#define LOKA_TESTS_WIN32_IDLE_PACER_TESTS_HPP
+
+void testWin32IdlePacerHonorsCounterDeadline();
+void testWin32IdlePacerWakesForQueuedMessage();
+void testWin32EveryTickGateDoesNotDispatchOnEarlyMessages();
+
+#endif // LOKA_TESTS_WIN32_IDLE_PACER_TESTS_HPP

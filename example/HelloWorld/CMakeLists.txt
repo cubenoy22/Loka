@@ -64,7 +64,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32AppLocation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32DebugLog.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32Profiler.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32MessageWait.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32IdlePacer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32ScenePlatformController.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32BuiltInSupport.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32App.cpp
@@ -87,7 +87,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32WideApiTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32WindowClientSizeTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32ProfilerTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32MessageWaitTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32IdlePacerTests.cpp
   )
   loka_enable_warnings(LokaTestsWin32)
 

@@ -1,7 +1,0 @@
-#ifndef LOKA_TESTS_WIN32_MESSAGE_WAIT_TESTS_HPP
-#define LOKA_TESTS_WIN32_MESSAGE_WAIT_TESTS_HPP
-
-void testWin32MessageWaitHonorsCounterDeadline();
-void testWin32MessageWaitWakesForQueuedMessage();
-
-#endif // LOKA_TESTS_WIN32_MESSAGE_WAIT_TESTS_HPP
