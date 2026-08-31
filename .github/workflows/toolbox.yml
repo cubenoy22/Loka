@@ -45,3 +45,6 @@ jobs:
                 -DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON
               cmake --build --preset retro68-ppc-release
             '
+
+      - name: Report and gate Toolbox 68K binary sizes
+        run: python3 tools/ci/retro68_size_report.py build/retro68/68k/Release

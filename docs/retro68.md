@@ -98,6 +98,25 @@ scripts/retro68-cmake.sh --preset retro68-68k-release
 scripts/retro68-cmake.sh --build --preset retro68-68k-release
 ```
 
+Report the final 68K MacBinary application sizes after the build with:
+
+```sh
+python3 tools/ci/retro68_size_report.py build/retro68/68k/Release
+```
+
+The report reads each final `.bin` resource fork and prints its total file size
+and CODE/DATA/RELA payload composition. The checked-in baseline manifest owns
+the shipping application list and allows at most 4096 bytes of total growth per
+application before the command fails. Component deltas are always printed for
+attribution. The 4 KiB allowance ignores small toolchain/resource-alignment
+churn while still catching the multi-kilobyte framework expansions that
+motivated the size audit. It is cumulative from the checked-in baseline, so a
+series of smaller increases cannot reset the allowance. The command also
+refuses a newly built final application that has no explicit baseline entry.
+Toolbox CI runs the same command after its pinned 68K build. Update baseline
+facts only with a fresh full Release build and a reviewed explanation for the
+accepted growth.
+
 The preset name describes the target and build policy, not the host. There is
 no separate `local` preset: every host uses the same repository Release preset,
 so the Classic size and linker policy cannot drift between local and shared
@@ -146,6 +165,20 @@ Preset mapping used in this repo:
 
 - `retro68-68k-release`: `RETRO68_CPU=m68k`
 - `retro68-ppc-release`: `RETRO68_CPU=ppc`, `RETRO68_PPC_FLAVOR=retroppc`
+
+### Compact and diagnostic 68K profiles
+
+`retro68-68k-release` is the compact shipping profile. It strips Classic
+MacsBug names from the application resources, compiles application targets
+without RTTI, and leaves function-tick profiling and diagnostic file I/O out of
+the binary. A separate DWARF-bearing `.gdb` link artifact remains available.
+
+`retro68-68k-diag` is the diagnostic profile. It retains MacsBug names, enables
+the function-tick profiler and diagnostic dumps, and does not define `NDEBUG`.
+It is **build-verified only**; no runtime verification is claimed for that
+profile. The compact 68K profile is runtime-verified separately on the named
+Classic rigs; each runtime claim must identify the exact artifact and evidence
+path rather than inheriting the diagnostic profile's build result.
 
 ## Notes
 
