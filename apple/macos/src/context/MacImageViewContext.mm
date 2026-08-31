@@ -114,7 +114,8 @@ namespace
                                        const loka::app::scene::LayoutState &state)
     {
       MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      return new MacImageViewContext(mac, mac->rootView(), state.x, state.y, state.width, state.height, image);
+      return new MacImageViewContext(
+          mac, mac->projectionParentView(), state.x, state.y, state.width, state.height, image);
     }
 
     static void refresh(MacImageViewContext *ctx, const loka::app::scene::LayoutState &state)

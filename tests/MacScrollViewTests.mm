@@ -1,0 +1,382 @@
+#include "MacScrollViewTests.hpp"
+
+#include "support/TestVerify.hpp"
+
+#include <AppKit/AppKit.h>
+#include <cassert>
+#include <cstdio>
+
+#include "MacScenePlatformController.hpp"
+#include "app/nodes/controls/Button.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
+#include "app/nodes/nestable/ScrollView.hpp"
+#include "app/scene/state/NodeState.hpp"
+#include "core/State.hpp"
+#include "core/StateTracker.hpp"
+
+namespace
+{
+  class OffsetFact
+  {
+  public:
+    explicit OffsetFact(int initial)
+        : storage_(initial),
+          tracker_(),
+          state_(&this->storage_, &this->tracker_),
+          changeCount_(0)
+    {
+      this->tracker_.addState(&this->storage_);
+      this->storage_.bind(&OffsetFact::ChangedThunk, this, false);
+    }
+
+    ~OffsetFact()
+    {
+      this->storage_.unbind(&OffsetFact::ChangedThunk, this);
+    }
+
+    loka::app::scene::NodeState<int> &state()
+    {
+      return this->state_;
+    }
+
+    int changeCount() const
+    {
+      return this->changeCount_;
+    }
+
+    void resetChangeCount()
+    {
+      this->changeCount_ = 0;
+    }
+
+  private:
+    static void ChangedThunk(void *userData)
+    {
+      OffsetFact *self = static_cast<OffsetFact *>(userData);
+      if (self)
+      {
+        ++self->changeCount_;
+      }
+    }
+
+    loka::core::MutableState<int> storage_;
+    loka::core::PushStateTracker tracker_;
+    loka::app::scene::NodeState<int> state_;
+    int changeCount_;
+
+    OffsetFact(const OffsetFact &);
+    OffsetFact &operator=(const OffsetFact &);
+  };
+
+  void CountClickThunk(void *userData)
+  {
+    ++*static_cast<int *>(userData);
+  }
+
+  loka::app::ColumnNode *
+  addButtonColumn(loka::app::ScrollViewNode &scrollView, int buttonCount, loka::core::EmitterState *firstOnClick = 0)
+  {
+    loka::app::ColumnNode *column = new loka::app::ColumnNode((loka::app::ColumnProps()));
+    for (int i = 0; i < buttonCount; ++i)
+    {
+      loka::app::ButtonProps props;
+      if (i == 0 && firstOnClick)
+      {
+        props.onClick(firstOnClick);
+      }
+      column->addChild(new loka::app::ButtonNode(props));
+    }
+    scrollView.addChild(column);
+    return column;
+  }
+
+  void establishLayout(MacScenePlatformController &controller, loka::app::scene::Node *root, int width, int height)
+  {
+    controller.onChange(root, loka::app::scene::NODE_DIRTY_NONE, false);
+    controller.relayout(width, height);
+  }
+
+  NSScrollView *scrollViewUnderRoot(NSView *root)
+  {
+    NSArray *children = [root subviews];
+    for (NSUInteger i = 0; i < [children count]; ++i)
+    {
+      NSView *child = [children objectAtIndex:i];
+      if ([child isKindOfClass:[NSScrollView class]])
+      {
+        return (NSScrollView *)child;
+      }
+    }
+    return nil;
+  }
+
+  NSArray *buttonsInDocument(NSScrollView *scrollView)
+  {
+    return scrollView ? [[scrollView documentView] subviews] : nil;
+  }
+
+  bool frameEquals(NSView *view, CGFloat x, CGFloat y, CGFloat width, CGFloat height)
+  {
+    const NSRect frame = [view frame];
+    return frame.origin.x == x && frame.origin.y == y && frame.size.width == width && frame.size.height == height;
+  }
+
+  int clipOffset(NSScrollView *scrollView)
+  {
+    return static_cast<int>([[scrollView contentView] bounds].origin.y);
+  }
+} // namespace
+
+void testMacScrollViewParentsChildrenToFlippedDocumentView()
+{
+  std::printf("\n==== [testMacScrollViewParentsChildrenToFlippedDocumentView] start ====\n");
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  [NSApplication sharedApplication];
+  NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 240)];
+  LOKA_VERIFY(root != nil);
+  {
+    MacScenePlatformController controller((void *)root);
+    // Nodes are declared after the controller so they leave scope first:
+    // ~Node remains the terminal retire door while the native queue owner is
+    // alive. Releasing rootNode_ below also prevents clearNodeContexts from
+    // replacing a live context without terminal fact delivery.
+    OffsetFact offset(10);
+    loka::app::ScrollViewNode scrollView((loka::app::ScrollViewProps(offset.state())));
+    addButtonColumn(scrollView, 6);
+    establishLayout(controller, &scrollView, 300, 140);
+
+    NSScrollView *nativeScrollView = scrollViewUnderRoot(root);
+    LOKA_VERIFY(nativeScrollView != nil);
+    assert([nativeScrollView superview] == root);
+    assert([nativeScrollView hasVerticalScroller]);
+    assert(![nativeScrollView autohidesScrollers]);
+    LOKA_VERIFY(frameEquals(nativeScrollView, 20, 20, 260, 100));
+
+    NSView *documentView = [nativeScrollView documentView];
+    LOKA_VERIFY(documentView != nil);
+    assert([documentView isFlipped]);
+    NSArray *buttons = buttonsInDocument(nativeScrollView);
+    assert([buttons count] == 6);
+    for (NSUInteger i = 0; i < [buttons count]; ++i)
+    {
+      assert([[buttons objectAtIndex:i] superview] == documentView);
+    }
+    LOKA_VERIFY(frameEquals([buttons objectAtIndex:0], 0, 0, [nativeScrollView contentSize].width, 32));
+    assert([(NSView *)[buttons objectAtIndex:1] frame].origin.y == 44);
+    assert([documentView frame].size.height == 264);
+    assert(clipOffset(nativeScrollView) == 10);
+
+    controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
+  }
+  LOKA_VERIFY([[root subviews] count] == 0);
+  [root release];
+  [pool drain];
+  std::printf("==== [testMacScrollViewParentsChildrenToFlippedDocumentView] PASSED ====\n");
+}
+
+void testMacScrollViewOffsetIsRelayoutInput()
+{
+  std::printf("\n==== [testMacScrollViewOffsetIsRelayoutInput] start ====\n");
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  [NSApplication sharedApplication];
+  NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 240)];
+  LOKA_VERIFY(root != nil);
+  {
+    MacScenePlatformController controller((void *)root);
+    OffsetFact offset(0);
+    loka::app::ScrollViewNode scrollView((loka::app::ScrollViewProps(offset.state())));
+    addButtonColumn(scrollView, 6);
+    establishLayout(controller, &scrollView, 300, 140);
+    NSScrollView *nativeScrollView = scrollViewUnderRoot(root);
+    LOKA_VERIFY(nativeScrollView != nil);
+    NSView *documentView = [nativeScrollView documentView];
+    NSArray *buttons = buttonsInDocument(nativeScrollView);
+    assert([buttons count] == 6);
+    const NSRect buttonAtZero = [[buttons objectAtIndex:0] frame];
+
+    offset.state().set(7);
+    controller.relayout(300, 140);
+    assert(clipOffset(nativeScrollView) == 7);
+    assert(NSEqualRects([[buttons objectAtIndex:0] frame], buttonAtZero)
+           && "AppKit scrolls the document; child content coordinates stay fixed");
+    const NSRect settledScrollFrame = [nativeScrollView frame];
+    const NSRect settledDocumentFrame = [documentView frame];
+    const NSRect settledButtonFrame = [[buttons objectAtIndex:0] frame];
+
+    controller.relayout(300, 140);
+    assert(clipOffset(nativeScrollView) == 7);
+    assert(NSEqualRects([nativeScrollView frame], settledScrollFrame));
+    assert(NSEqualRects([documentView frame], settledDocumentFrame));
+    assert(NSEqualRects([[buttons objectAtIndex:0] frame], settledButtonFrame));
+
+    controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
+  }
+  LOKA_VERIFY([[root subviews] count] == 0);
+  [root release];
+  [pool drain];
+  std::printf("==== [testMacScrollViewOffsetIsRelayoutInput] PASSED ====\n");
+}
+
+void testMacScrollViewBoundsObservationPublishesOffsetFact()
+{
+  std::printf("\n==== [testMacScrollViewBoundsObservationPublishesOffsetFact] start ====\n");
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  [NSApplication sharedApplication];
+  NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 240)];
+  LOKA_VERIFY(root != nil);
+  {
+    MacScenePlatformController controller((void *)root);
+    OffsetFact offset(0);
+    loka::app::ScrollViewNode scrollView((loka::app::ScrollViewProps(offset.state())));
+    addButtonColumn(scrollView, 6);
+    establishLayout(controller, &scrollView, 300, 140);
+    NSScrollView *nativeScrollView = scrollViewUnderRoot(root);
+    LOKA_VERIFY(nativeScrollView != nil);
+    NSClipView *clipView = [nativeScrollView contentView];
+
+    offset.resetChangeCount();
+    [clipView setBoundsOrigin:NSMakePoint(0, 12)];
+    [[NSNotificationCenter defaultCenter] postNotificationName:NSViewBoundsDidChangeNotification object:clipView];
+    assert(offset.state().get() == 12 && "clip-view bounds observation must publish through the NodeState door");
+    assert(offset.changeCount() == 1 && "an explicit duplicate notification must remain a same-value no-op");
+
+    offset.state().set(13);
+    offset.resetChangeCount();
+    controller.relayout(300, 140);
+    assert(clipOffset(nativeScrollView) == 13);
+    assert(offset.changeCount() == 0 && "the layout-driven scrollPoint echo must not republish the same fact");
+
+    controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
+  }
+  LOKA_VERIFY([[root subviews] count] == 0);
+  [root release];
+  [pool drain];
+  std::printf("==== [testMacScrollViewBoundsObservationPublishesOffsetFact] PASSED ====\n");
+}
+
+void testMacScrollViewResizeReclampsOffsetOnce()
+{
+  std::printf("\n==== [testMacScrollViewResizeReclampsOffsetOnce] start ====\n");
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  [NSApplication sharedApplication];
+  NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 240)];
+  LOKA_VERIFY(root != nil);
+  {
+    MacScenePlatformController controller((void *)root);
+    OffsetFact offset(100);
+    loka::app::ScrollViewNode scrollView((loka::app::ScrollViewProps(offset.state())));
+    addButtonColumn(scrollView, 6);
+    establishLayout(controller, &scrollView, 300, 140);
+    NSScrollView *nativeScrollView = scrollViewUnderRoot(root);
+    LOKA_VERIFY(nativeScrollView != nil);
+    assert(offset.state().get() == 100);
+
+    offset.resetChangeCount();
+    controller.relayout(300, 240);
+    assert(offset.state().get() == 64);
+    assert(offset.changeCount() == 1 && "a range-changing resize must publish one clamped fact");
+    assert(clipOffset(nativeScrollView) == 64);
+    controller.relayout(300, 240);
+    assert(offset.changeCount() == 1);
+
+    offset.state().set(20);
+    offset.resetChangeCount();
+    controller.relayout(300, 100);
+    assert(offset.state().get() == 20);
+    assert(offset.changeCount() == 0 && "a still-valid offset must survive resize without a fact write");
+
+    offset.state().set(40000);
+    offset.resetChangeCount();
+    controller.relayout(300, 100);
+    assert(offset.state().get() == 204 && "an oversized offset must recover to the exact content maximum");
+    assert(offset.changeCount() == 1);
+    controller.relayout(300, 100);
+    assert(offset.changeCount() == 1);
+
+    const CGFloat widthWhileOverflowing = [nativeScrollView contentSize].width;
+    controller.relayout(300, 400);
+    assert([nativeScrollView contentSize].width == widthWhileOverflowing
+           && "the non-autohiding vertical scroller must keep content width stable");
+
+    controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
+  }
+  LOKA_VERIFY([[root subviews] count] == 0);
+  [root release];
+  [pool drain];
+  std::printf("==== [testMacScrollViewResizeReclampsOffsetOnce] PASSED ====\n");
+}
+
+void testMacNestedScrollViewRefusesWithoutDisturbingOuterScope()
+{
+  std::printf("\n==== [testMacNestedScrollViewRefusesWithoutDisturbingOuterScope] start ====\n");
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  [NSApplication sharedApplication];
+  NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 240)];
+  LOKA_VERIFY(root != nil);
+  {
+    MacScenePlatformController controller((void *)root);
+    OffsetFact outerOffset(5);
+    OffsetFact innerOffset(3);
+    loka::app::ScrollViewNode outer((loka::app::ScrollViewProps(outerOffset.state())));
+    loka::app::ScrollViewNode *inner = new loka::app::ScrollViewNode((loka::app::ScrollViewProps(innerOffset.state())));
+    loka::app::ColumnNode *innerColumn = addButtonColumn(*inner, 1);
+    loka::app::ButtonNode *innerButton = innerColumn->childrenHead()->asButtonNode();
+    outer.addChild(inner);
+    addButtonColumn(outer, 6);
+    establishLayout(controller, &outer, 300, 140);
+
+    NSScrollView *nativeScrollView = scrollViewUnderRoot(root);
+    LOKA_VERIFY(nativeScrollView != nil);
+    assert([[root subviews] count] == 1 && "a nested ScrollView must refuse before materializing NSScrollView");
+    LOKA_VERIFY(inner->getContext() == 0);
+    LOKA_VERIFY(innerButton && innerButton->getContext() == 0);
+    assert([buttonsInDocument(nativeScrollView) count] == 6);
+
+    NSClipView *clipView = [nativeScrollView contentView];
+    [clipView setBoundsOrigin:NSMakePoint(0, 6)];
+    [[NSNotificationCenter defaultCenter] postNotificationName:NSViewBoundsDidChangeNotification object:clipView];
+    assert(outerOffset.state().get() == 6);
+    assert(innerOffset.state().get() == 3);
+    controller.relayout(300, 140);
+    assert(clipOffset(nativeScrollView) == 6 && "the outer scope must remain live after the inner refusal");
+
+    controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
+  }
+  LOKA_VERIFY([[root subviews] count] == 0);
+  [root release];
+  [pool drain];
+  std::printf("==== [testMacNestedScrollViewRefusesWithoutDisturbingOuterScope] PASSED ====\n");
+}
+
+void testMacScrollViewButtonClickReachesLokaHandler()
+{
+  std::printf("\n==== [testMacScrollViewButtonClickReachesLokaHandler] start ====\n");
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  [NSApplication sharedApplication];
+  NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 240)];
+  LOKA_VERIFY(root != nil);
+  {
+    MacScenePlatformController controller((void *)root);
+    loka::core::EmitterState firstClick;
+    OffsetFact offset(0);
+    loka::app::ScrollViewNode scrollView((loka::app::ScrollViewProps(offset.state())));
+    addButtonColumn(scrollView, 2, &firstClick);
+    establishLayout(controller, &scrollView, 300, 140);
+    NSScrollView *nativeScrollView = scrollViewUnderRoot(root);
+    LOKA_VERIFY(nativeScrollView != nil);
+    NSArray *buttons = buttonsInDocument(nativeScrollView);
+    assert([buttons count] == 2);
+
+    int clicks = 0;
+    firstClick.bind(&CountClickThunk, &clicks, false);
+    NSButton *button = (NSButton *)[buttons objectAtIndex:0];
+    [button performClick:nil];
+    LOKA_VERIFY(clicks == 1 && "a click inside the document view must reach the Loka handler");
+
+    controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
+  }
+  LOKA_VERIFY([[root subviews] count] == 0);
+  [root release];
+  [pool drain];
+  std::printf("==== [testMacScrollViewButtonClickReachesLokaHandler] PASSED ====\n");
+}

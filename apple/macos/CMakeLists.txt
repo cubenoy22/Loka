@@ -65,6 +65,7 @@ set(LOKA_MACOS_CORE_SOURCES
   src/context/MacPopupMenuContext.mm
   src/context/MacImageViewContext.mm
   src/context/MacRectSurfaceContext.mm
+  src/context/MacScrollViewContext.mm
   ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
 )
 
@@ -114,6 +115,7 @@ if(NOT LOKA_MAC_OS_10_4)
     ${PROJECT_SOURCE_DIR}/tests/MacAppLocationTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacMenuProjectionTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacNodeHandlerEnsureTests.mm
+    ${PROJECT_SOURCE_DIR}/tests/MacScrollViewTests.mm
     ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/MacDisplayAppearance.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/platform/MacAppLocation.mm
@@ -129,6 +131,7 @@ if(NOT LOKA_MAC_OS_10_4)
     ${CMAKE_CURRENT_LIST_DIR}/src/context/MacPopupMenuContext.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/context/MacImageViewContext.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/context/MacRectSurfaceContext.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/context/MacScrollViewContext.mm
     ${LOKA_MACOS_TEST_HEADERS}
   )
   loka_enable_warnings(LokaTestsMacOS)

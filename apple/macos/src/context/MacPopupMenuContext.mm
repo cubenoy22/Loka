@@ -26,7 +26,8 @@ namespace
                                        const loka::app::scene::LayoutState &state)
     {
       MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      return new MacPopupMenuContext(mac, mac->rootView(), state.x, state.y, state.width, state.height, popup);
+      return new MacPopupMenuContext(
+          mac, mac->projectionParentView(), state.x, state.y, state.width, state.height, popup);
     }
 
     static void refresh(MacPopupMenuContext *ctx, const loka::app::scene::LayoutState &state)
