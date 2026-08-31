@@ -31,7 +31,6 @@ namespace tutorial
           itemSummaryFlow_(),
           addItemEvent_(),
           toggleSummaryEvent_(),
-          initialized_(false),
           item1_(loka::app::Text("Item 1")),
           item2_(loka::app::Text("Item 2")),
           item3_(loka::app::Text("Item 3"))
@@ -47,10 +46,6 @@ namespace tutorial
     virtual void attachNode(loka::app::scene::NodeComposition &c)
     {
       (void)c;
-      if (this->initialized_)
-      {
-        return;
-      }
       this->bindActionForUi(this->addItemEvent_, &Step4Node::addItem);
       this->bindActionForUi(this->toggleSummaryEvent_, &Step4Node::toggleSummary);
       {
@@ -59,7 +54,6 @@ namespace tutorial
             .set(itemCountStream.map(loka::dsl::Const("Items: ") + itemCountStream.slot.value()))
             .bindTo(this->itemSummary_);
       }
-      this->initialized_ = true;
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
@@ -109,7 +103,6 @@ namespace tutorial
     loka::app::scene::FlowSlot<loka::dsl::StateStream<loka::core::String> > itemSummaryFlow_;
     loka::core::EmitterState addItemEvent_;
     loka::core::EmitterState toggleSummaryEvent_;
-    bool initialized_;
     loka::app::TextDefinition item1_;
     loka::app::TextDefinition item2_;
     loka::app::TextDefinition item3_;

@@ -33,8 +33,7 @@ namespace scrapbook
         uiBlob_(),
         refusedBadgeImage_(),
         currentBlob_(),
-        currentBag_(-1),
-        open_(false)
+        currentBag_(-1)
   {
   }
 
@@ -86,11 +85,15 @@ namespace scrapbook
     }
 
     this->context_ = context;
-    this->open_ = true;
     // Package chrome is optional. A refused UI bag must not turn an otherwise
     // usable page package into a whole-package refusal.
     (void)this->loadRefusedBadge();
     return true;
+  }
+
+  bool ScrapbookPackage::isOpen() const
+  {
+    return this->context_ != 0;
   }
 
   bool ScrapbookPackage::loadRefusedBadge()
@@ -132,7 +135,7 @@ namespace scrapbook
   {
     out = PagePresentation();
     const R::AssetRef *resource = 0;
-    if (!this->open_ || !QueryPageResource(page, resource))
+    if (!this->isOpen() || !QueryPageResource(page, resource))
     {
       return false;
     }
@@ -242,7 +245,7 @@ namespace scrapbook
 
   int ScrapbookPackage::currentPage() const
   {
-    if (!this->open_ || this->currentBag_ < 0)
+    if (!this->isOpen() || this->currentBag_ < 0)
     {
       return -1;
     }
@@ -292,6 +295,5 @@ namespace scrapbook
     this->indexBytes_.clear();
     this->source_.close();
     this->context_ = 0;
-    this->open_ = false;
   }
 } // namespace scrapbook

@@ -67,7 +67,6 @@ namespace scrapbook
 
     explicit MainNode(const MainProps &props)
         : loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>(props),
-          initialized_(false),
           selectedPage_(0),
           package_(),
           refusedPage_(),
@@ -137,7 +136,7 @@ namespace scrapbook
         return;
       }
       this->selectedPage_ = page;
-      if (this->initialized_)
+      if (this->package_.isOpen())
       {
         this->loadSelectedPage();
       }
@@ -164,18 +163,20 @@ namespace scrapbook
 
     virtual void attachNode(loka::app::scene::NodeComposition &composition)
     {
-      if (this->initialized_)
+      (void)composition;
+      this->props.assertInitialized();
+      // Callback redeclaration is unconditional: every attach replays the
+      // released ledger, and de-duplication makes the re-run free. Only the
+      // package-scoped work sits behind the resource-presence gate.
+      this->bindActionForUi(this->previousPage_, &MainNode::showPreviousPage);
+      this->bindActionForUi(this->nextPage_, &MainNode::showNextPage);
+      if (this->package_.isOpen())
       {
         return;
       }
-      (void)composition;
-      this->props.assertInitialized();
       this->package_.open(this->props.platformContext_);
       this->refusedBadgeImage_.set(this->package_.refusedBadgeImage());
       this->pageFlow_.set(buildFlow(*this)).withTracker(static_cast<loka::core::PushStateTracker *>(this->tracker()));
-      this->bindActionForUi(this->previousPage_, &MainNode::showPreviousPage);
-      this->bindActionForUi(this->nextPage_, &MainNode::showNextPage);
-      this->initialized_ = true;
       this->loadSelectedPage();
     }
 
@@ -183,7 +184,6 @@ namespace scrapbook
     {
       this->pageFlow_.clear();
       this->package_.close();
-      this->initialized_ = false;
       loka::app::scene::ComposableNode::detachNode(composition);
     }
 
@@ -269,7 +269,6 @@ namespace scrapbook
       this->showText_.set(true);
     }
 
-    bool initialized_;
     int selectedPage_;
     ScrapbookPackage package_;
     loka::app::scene::NodeState<int> refusedPage_;

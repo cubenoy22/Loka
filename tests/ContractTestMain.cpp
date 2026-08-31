@@ -49,6 +49,7 @@
 #include "LifecycleFactTests.hpp"
 #include "LokaAllocTests.hpp"
 #include "core/diag/LifecycleAudit.hpp"
+#include "AttachNodeContractTests.hpp"
 
 #include "ContractTestSupport.inc"
 

@@ -64,6 +64,7 @@
 #include "ForTests.hpp"
 #include "NodeMatchTests.hpp"
 #include "core/diag/LifecycleAudit.hpp"
+#include "AttachNodeContractTests.hpp"
 
 #include "ContractTestSupport.inc"
 

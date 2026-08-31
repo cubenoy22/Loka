@@ -25,7 +25,6 @@ namespace helloworld
 
   MainNode::MainNode(const MainProps &p)
       : loka::app::scene::BoundaryNodeFor<MainNode>(p),
-        initialized_(false),
         actionSummaryCacheValid_(false),
         lastActionSummaryEnabled_(false),
         lastActionSummaryCount_(0),
@@ -61,10 +60,6 @@ namespace helloworld
   void MainNode::attachNode(loka::app::scene::NodeComposition &c)
   {
     (void)c;
-    if (this->initialized_)
-    {
-      return;
-    }
     this->bindActionForUi(this->toggleEvent_, &MainNode::toggleMessage);
     this->bindActionForUi(this->toggleActionEnabledEvent_, &MainNode::toggleActionEnabled);
     this->bindActionForUi(this->actionProbeEvent_, &MainNode::handleActionProbe);
@@ -74,7 +69,6 @@ namespace helloworld
     this->refreshActionSummary();
     this->refreshBmiResult();
     this->refreshFruitMessage();
-    this->initialized_ = true;
   }
 
   ::Window *MainNode::windowOrNull() const

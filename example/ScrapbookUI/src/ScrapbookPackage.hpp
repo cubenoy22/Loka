@@ -63,6 +63,9 @@ namespace scrapbook
     ~ScrapbookPackage();
 
     bool open(PlatformContext *context);
+
+    /** True while this owner holds an open package session. */
+    bool isOpen() const;
     bool preparePage(int page, PagePresentation &out);
     void commitPage(const PagePresentation &page);
     void close();
@@ -97,7 +100,6 @@ namespace scrapbook
     loka::core::resource::Image refusedBadgeImage_;
     loka::core::resource::Blob currentBlob_;
     int currentBag_;
-    bool open_;
   };
 } // namespace scrapbook
 

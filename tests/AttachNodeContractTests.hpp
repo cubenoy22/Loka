@@ -1,0 +1,7 @@
+#ifndef LOKA_TESTS_ATTACH_NODE_CONTRACT_TESTS_HPP
+#define LOKA_TESTS_ATTACH_NODE_CONTRACT_TESTS_HPP
+
+void testAttachNodeReplayRestoresParkedBranchBindings();
+void testPropsSuppliedEmitterBindingFollowsDefinitionRecompose();
+
+#endif // LOKA_TESTS_ATTACH_NODE_CONTRACT_TESTS_HPP

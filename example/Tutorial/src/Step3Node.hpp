@@ -20,8 +20,7 @@ namespace tutorial
     Step3Node(const PropsType &p)
         : loka::app::scene::BoundaryNodeFor<Step3Node>(p),
           showDetails_(),
-          toggleDetailsEvent_(),
-          initialized_(false) //
+          toggleDetailsEvent_() //
     {
       this->state(this->showDetails_, false);
     }
@@ -29,12 +28,7 @@ namespace tutorial
     virtual void attachNode(loka::app::scene::NodeComposition &c)
     {
       (void)c;
-      if (this->initialized_)
-      {
-        return;
-      }
       this->bindActionForUi(this->toggleDetailsEvent_, &Step3Node::toggleDetails);
-      this->initialized_ = true;
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
@@ -61,7 +55,6 @@ namespace tutorial
 
     loka::app::scene::NodeState<bool> showDetails_;
     loka::core::EmitterState toggleDetailsEvent_;
-    bool initialized_;
   };
 } // namespace tutorial
 

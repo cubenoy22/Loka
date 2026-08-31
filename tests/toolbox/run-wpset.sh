@@ -135,7 +135,7 @@ delete
 # open() defensively closes first, so an unconditional break stops during
 # attach with nothing loaded and the whole leg passes vacuously. Only the
 # teardown close -- open package with a committed page -- may stop.
-break scrapbook::ScrapbookPackage::close if this->open_ && this->currentBag_ >= 0
+break scrapbook::ScrapbookPackage::close if this->context_ && this->currentBag_ >= 0
 continue
 echo LOKA-WPSET: close hit\n
 set \$ui = (this->reader_.state_.bags[0].open ? (unsigned long)this->reader_.state_.bagBase[0] : 0)
