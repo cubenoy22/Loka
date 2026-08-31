@@ -134,19 +134,18 @@ void testWin32PopupRelayoutPreservesNativeItems()
 
     const RECT rect = childRectInParent(popup, root);
     assert(rect.left == 30 && rect.top == 40 && rect.right - rect.left == 180);
-    assert(SendMessageW(popup, CB_GETCOUNT, 0, 0) == 3);
-    assert(SendMessageW(popup, CB_GETITEMDATA, 0, 0) == itemIdentity
-           && "geometry relayout must not rebuild PopupMenu item identity");
-    assert(SendMessageW(popup, CB_GETCURSEL, 0, 0) == 1);
+    LOKA_VERIFY(SendMessageW(popup, CB_GETCOUNT, 0, 0) == 3);
+    LOKA_VERIFY(SendMessageW(popup, CB_GETITEMDATA, 0, 0) == itemIdentity);
+    LOKA_VERIFY(SendMessageW(popup, CB_GETCURSEL, 0, 0) == 1);
 
     const char *replacementLiterals[] = {"One", "Two"};
     node.props.items(replacementLiterals, 2);
     context.relayout(30, 40, 180, 24);
-    assert(SendMessageW(popup, CB_GETCOUNT, 0, 0) == 2 && "changed PopupMenu props must still rebuild native content");
+    LOKA_VERIFY(SendMessageW(popup, CB_GETCOUNT, 0, 0) == 2);
     wchar_t firstItem[16];
     LOKA_VERIFY(SendMessageW(popup, CB_GETLBTEXT, 0, reinterpret_cast<LPARAM>(firstItem)) != CB_ERR);
     assert(std::wcscmp(firstItem, L"One") == 0);
-    assert(SendMessageW(popup, CB_GETCURSEL, 0, 0) == 1);
+    LOKA_VERIFY(SendMessageW(popup, CB_GETCURSEL, 0, 0) == 1);
 
     context.onFactChanged(loka::app::scene::NODE_FACT_ATTACHED, loka::app::scene::NODE_FACT_RETIRED);
     controller.drainNativeRetirements();
