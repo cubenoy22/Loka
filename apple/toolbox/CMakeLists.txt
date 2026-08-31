@@ -25,6 +25,9 @@ set(LOKA_TOOLBOX_SOURCES
   src/context/ToolboxImageViewContext.cpp
   src/context/ToolboxRectSurfaceContext.cpp
   src/ToolboxPlatformLayoutHandlers.cpp
+  src/ToolboxHitLedger.cpp
+  src/ToolboxNodeDispatch.cpp
+  src/ToolboxScrollBarLedger.cpp
   src/ToolboxScenePlatformController.cpp
   src/ToolboxWindow.cpp
   src/ToolboxWindowContext.cpp
@@ -32,6 +35,14 @@ set(LOKA_TOOLBOX_SOURCES
   src/platform/ToolboxAppLocation.cpp
   src/platform/ToolboxFileIO.cpp
   src/platform/ToolboxHfsName.cpp
+)
+
+# These implementation cells are included by the controller so the Classic
+# compiler retains the original translation-unit optimization and code size.
+set_source_files_properties(
+  src/ToolboxHitLedger.cpp
+  src/ToolboxScrollBarLedger.cpp
+  PROPERTIES HEADER_FILE_ONLY TRUE
 )
 
 file(GLOB_RECURSE COMMON_SOURCES CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/common/*.cpp)

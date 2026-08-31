@@ -6,6 +6,8 @@
 #include "ToolboxControlIdAllocator.hpp"
 #include "ToolboxEditControlLedger.hpp"
 #include "ToolboxEnabledChangeDispatch.hpp"
+#include "ToolboxHitLedger.hpp"
+#include "ToolboxScrollBarLedger.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "app/scene/projection/NativeHandlePool.hpp"
 #include "core/State.hpp"
@@ -200,53 +202,11 @@ private:
   template <typename Sink, typename StateType>
   friend class ToolboxEnabledStateBindingPath;
 
-  struct ButtonHit
-  {
-    Rect rect;
-    loka::core::EmitterState *emitter;
-    loka::core::State<bool> *enabled;
-    loka::app::scene::BoundaryNode *boundary;
-    ToolboxButtonContext *context;
-  };
-
-  struct CellHit
-  {
-    Rect rect;
-    loka::core::EmitterState *emitter;
-    loka::app::scene::BoundaryNode *boundary;
-    ToolboxCellContext *context;
-    loka::core::State<loka::core::String> *text;
-  };
-
-  struct EditHit
-  {
-    Rect rect;
-    loka::core::State<loka::core::String> *text;
-    loka::app::scene::BoundaryNode *boundary;
-  };
-
-  struct TextHit
-  {
-    Rect rect;
-    short x;
-    short y;
-    loka::core::State<loka::core::String> *text;
-    loka::app::scene::BoundaryNode *boundary;
-    short lastMeasuredWidth;
-    bool needsRelayoutOnChange;
-  };
-  struct PopupHit
-  {
-    Rect rect;
-    short lineHeight;
-    const loka::Vector<loka::core::String> *items;
-    loka::core::State<int> *selectedIndex;
-    loka::core::EmitterState *onChange;
-    loka::core::State<bool> *enabled;
-    loka::app::scene::BoundaryNode *boundary;
-    short menuId;
-    ToolboxPopupMenuContext *context;
-  };
+  typedef ToolboxHitLedger::ButtonHit ButtonHit;
+  typedef ToolboxHitLedger::CellHit CellHit;
+  typedef ToolboxHitLedger::EditHit EditHit;
+  typedef ToolboxHitLedger::TextHit TextHit;
+  typedef ToolboxHitLedger::PopupHit PopupHit;
   struct TextBinding
   {
     loka::core::State<loka::core::String> *state;
@@ -272,38 +232,8 @@ private:
     loka::app::scene::NativeLifetimeHint lifetimeHint;
   };
 
-  /** One live scrollBarProc control. The props are copied out by value
-      rather than kept as a node pointer: the binding outlives nothing, but
-      a value copy removes the question entirely, the way PopupHit does. */
-  struct ScrollBarControlBinding
-  {
-    short resourceId;
-    ControlRef control;
-    loka::core::State<int> *value;
-    loka::core::EmitterState *onChange;
-    loka::core::State<bool> *enabled;
-    int minimum;
-    int maximum;
-    int lineStep;
-    int pageStep;
-    /** The value this side last pushed into the CDEF. A tracking loop that
-        ends back here changed nothing, so no settle is published. */
-    int appliedValue;
-    bool active;
-    bool usedThisFrame;
-    Rect rect;
-    loka::app::scene::NativeLifetimeHint lifetimeHint;
-  };
-
-  /** One viewport scrollbar. Its ScrollView pointer is the fact-write door;
-      lifecycle teardown removes the binding before the node can be reclaimed. */
-  struct ViewportScrollBarBinding
-  {
-    short resourceId;
-    loka::app::ScrollViewNode *scrollView;
-    bool usedThisFrame;
-    Rect rect;
-  };
+  typedef ToolboxScrollBarLedger::ScrollBarControlBinding ScrollBarControlBinding;
+  typedef ToolboxScrollBarLedger::ViewportScrollBarBinding ViewportScrollBarBinding;
 
   struct EditTextControlBinding
   {
@@ -330,18 +260,13 @@ private:
   loka::app::scene::ProjectionParentScopeStack projectionParentScopes_;
   loka::app::scene::Node *rootNode_;
   loka::app::scene::Node *pendingRootNode_;
-  std::vector<ButtonHit> buttonHits_;
-  std::vector<CellHit> cellHits_;
+  ToolboxHitLedger hitLedger_;
   std::vector<ButtonControlBinding> buttonControls_;
-  std::vector<ScrollBarControlBinding> scrollBarControls_;
-  std::vector<ViewportScrollBarBinding> viewportScrollBars_;
+  ToolboxScrollBarLedger scrollBarLedger_;
   ToolboxEditControlLedger<EditTextControlBinding, loka::app::scene::NodeContext> editControls_;
-  std::vector<EditHit> editHits_;
-  std::vector<PopupHit> popupHits_;
   loka::core::State<loka::core::String> *focusedText_;
   Rect focusedRect_;
   bool hasFocusedRect_;
-  std::vector<TextHit> textHits_;
   std::vector<loka::core::State<loka::core::String> *> boundTextStates_;
   std::vector<TextBinding *> textBindings_;
   ToolboxEnabledStateBindingPath<ToolboxScenePlatformController,
@@ -359,7 +284,6 @@ private:
   std::vector<RetiredNativeEntry<ControlRef> > retiredScrollBarControls_;
   std::vector<RetiredNativeEntry<TEHandle> > retiredTextEdits_;
   loka::app::scene::ExactMatchHandleBucket<ControlRef> pushButtonBucket_;
-  loka::app::scene::ExactMatchHandleBucket<ControlRef> scrollBarBucket_;
   loka::app::scene::ExactMatchHandleBucket<TEHandle> textEditBucket_;
   int poolIntakeAuditFailCount_;
   RgnHandle clipRgn_;
