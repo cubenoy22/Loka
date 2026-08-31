@@ -130,7 +130,8 @@ namespace
                                   const loka::app::scene::LayoutState &state)
     {
       MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      return new MacTextContext(mac, mac->rootView(), state.x, state.y, state.width, state.height, text);
+      return new MacTextContext(
+          mac, mac->projectionParentView(), state.x, state.y, state.width, state.height, text);
     }
 
     static void refresh(MacTextContext *ctx, const loka::app::scene::LayoutState &state)
@@ -352,7 +353,15 @@ void MacTextContext::requestRelayoutIfNeeded()
   {
     return;
   }
-  MacScenePlatformController *controller = MacScenePlatformController::findForRootView((void *)view);
+  // Projected text may be parented to a ScrollView document. Find the first
+  // registered ancestor without storing a second root pointer in the context
+  // or assuming that an embedded controller root is the topmost native view.
+  MacScenePlatformController *controller = 0;
+  while (view && !controller)
+  {
+    controller = MacScenePlatformController::findForRootView((void *)view);
+    view = [view superview];
+  }
   if (!controller)
   {
     return;

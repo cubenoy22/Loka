@@ -3,11 +3,13 @@
 #include "MacObjCCompat.hpp"
 #include "app/scene/boundary/Boundary.hpp"
 #include <cassert>
+#include <climits>
 #include <AppKit/AppKit.h>
 #include <vector>
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/nestable/Grid.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
+#include "app/nodes/nestable/ScrollView.hpp"
 #include "app/nodes/nestable/ZStack.hpp"
 #include "app/RectSurface.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
@@ -23,6 +25,7 @@
 #include "context/MacEditTextContext.hpp"
 #include "context/MacOpenFileDialogContext.hpp"
 #include "context/MacRectSurfaceContext.hpp"
+#include "context/MacScrollViewContext.hpp"
 #include "core/Profiler.hpp"
 #include <map>
 
@@ -54,7 +57,11 @@ namespace loka
             return state.y;
           }
           const int result = this->controller_->layoutNodeFromSceneState(child, state);
-          this->layoutResultY_ = state.y;
+          if (this->controller_->refuseNarrowingInScrollScope(result))
+          {
+            return state.y;
+          }
+          this->layoutResultY_ = static_cast<short>(result);
           return result;
         }
 
@@ -78,6 +85,7 @@ namespace loka
 
 MacScenePlatformController::MacScenePlatformController(void *rootView)
     : rootView_(rootView),
+      projectionParentScopes_(rootView),
       rootNode_(0),
       lastChangeFlags_(loka::app::scene::NODE_DIRTY_NONE),
       clientWidth_(0),
@@ -337,8 +345,17 @@ void MacScenePlatformController::performLayout(int clientWidth, int clientHeight
     state.width = 0;
   }
   state.height = clientHeight > 0 ? clientHeight - 40 : 0;
+  assert(this->projectionParentScopes_.activeDepth() == 0 &&
+         "a macOS projection pass must begin at the root scope");
+  const loka::core::Frame rootClip(0, 0, clientWidth, clientHeight);
+  if (!this->projectionParentScopes_.resetRoot(this->rootView_, rootClip))
+  {
+    return;
+  }
   PROFILE_SECTION("layout");
-  layoutNode(rootNode_, state);
+  this->layoutNode(this->rootNode_, state);
+  assert(this->projectionParentScopes_.activeDepth() == 0 &&
+         "a macOS projection pass must restore the root scope");
   finalizeKeyLoop();
   if (rebuildContexts)
   {
@@ -365,15 +382,33 @@ int MacScenePlatformController::applyBoundaryLayoutResult(loka::app::scene::Boun
 MacScenePlatformController::LayoutNodeResult
 MacScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *surface, const LayoutState &state)
 {
+  loka::app::scene::LayoutState projectedState;
+  if (!this->narrowLayoutState(state, projectedState, true))
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
   MacRectSurfaceContext *ctx = static_cast<MacRectSurfaceContext *>(surface->getContext());
   if (ctx)
   {
-    ctx->relayout(state.x, state.y, surface->props.width_, surface->props.height_);
+    ctx->relayout(projectedState.x,
+                  projectedState.y,
+                  surface->props.width_,
+                  surface->props.height_);
   }
   else
   {
     ctx = new MacRectSurfaceContext(
-        this, rootView_, state.x, state.y, surface->props.width_, surface->props.height_, surface);
+        this,
+        this->projectionParentView(),
+        projectedState.x,
+        projectedState.y,
+        surface->props.width_,
+        surface->props.height_,
+        surface);
+    if (!ctx)
+    {
+      return LayoutNodeResult(state.width, state.y);
+    }
     surface->setContext(ctx);
     ctx->readLifecycleFactOnAttach();
   }
@@ -381,9 +416,158 @@ MacScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *su
       state.width, state.y + surface->props.height_ + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
 }
 
+MacScenePlatformController::LayoutNodeResult
+MacScenePlatformController::layoutScrollViewNode(
+    loka::app::ScrollViewNode *scrollView,
+    const LayoutState &state)
+{
+  if (!scrollView || this->projectionParentScopes_.activeDepth() != 0)
+  {
+    // V1 admits one active viewport. Refuse before creating the inner native
+    // view so the outer document remains the only structural clipping parent.
+    return LayoutNodeResult(state.width, state.y);
+  }
+  if (state.x < SHRT_MIN || state.x > SHRT_MAX ||
+      state.y < SHRT_MIN || state.y > SHRT_MAX ||
+      state.width < 0 || state.width > SHRT_MAX ||
+      state.height < 0 || state.height > SHRT_MAX ||
+      (state.height > 0 && state.y > SHRT_MAX - state.height))
+  {
+    // The shared traversal above consumes a short result. Refuse the viewport
+    // itself before its bottom or any child coordinate would narrow.
+    return LayoutNodeResult(state.width, state.y);
+  }
+
+  MacScrollViewContext *ctx =
+      static_cast<MacScrollViewContext *>(scrollView->getContext());
+  if (ctx)
+  {
+    ctx->relayout(state.x, state.y, state.width, state.height);
+  }
+  else
+  {
+    ctx = new MacScrollViewContext(this,
+                                   this->projectionParentView(),
+                                   state.x,
+                                   state.y,
+                                   state.width,
+                                   state.height,
+                                   scrollView);
+    if (!ctx || !ctx->isValid())
+    {
+      delete ctx;
+      return LayoutNodeResult(state.width, state.y);
+    }
+    scrollView->setContext(ctx);
+    ctx->readLifecycleFactOnAttach();
+  }
+
+  int requestedOffset = scrollView->props.offset_.isValid()
+                            ? scrollView->props.offset_.get()
+                            : 0;
+  if (requestedOffset < 0)
+  {
+    requestedOffset = 0;
+  }
+  else if (requestedOffset > SHRT_MAX)
+  {
+    // A far-out fact must not poison every child coordinate before the exact
+    // measured maximum can be republished after the scope has popped.
+    requestedOffset = SHRT_MAX;
+  }
+
+  const loka::core::Frame viewportClip(0, 0, state.width, state.height);
+  loka::app::scene::ProjectionParentScope childScope;
+  const loka::app::scene::ProjectionParentScope &parentScope =
+      this->projectionParentScopes_.current();
+  // AppKit applies scrolling through the clip view's bounds origin. Children
+  // therefore subtract the seat origin only; applying requestedOffset here
+  // would move them twice.
+  if (!parentScope.deriveScrolled(ctx->documentView(),
+                                  state.x,
+                                  state.y,
+                                  viewportClip,
+                                  childScope))
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+
+  LayoutState childBase = state;
+  childBase.width = ctx->contentWidth();
+  int currentY = state.y;
+  int contentHeight = 0;
+  bool shortRangeRefused = false;
+  {
+    loka::app::scene::ProjectionParentScopeGuard scopeGuard(
+        this->projectionParentScopes_, childScope);
+    if (!scopeGuard.isActive())
+    {
+      return LayoutNodeResult(state.width, state.y);
+    }
+
+    loka::app::scene::INestable *nestable = scrollView->asNestable();
+    loka::dsl::CompositionCursor<loka::app::scene::Node> it(
+        nestable ? nestable->childrenHead() : 0,
+        nestable ? nestable->childrenCount() : 0);
+    for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+    {
+      if (currentY < SHRT_MIN || currentY > SHRT_MAX)
+      {
+        this->refuseScrollViewShortRange();
+        break;
+      }
+      LayoutState childState = childBase;
+      childState.y = currentY;
+      const int nextY = this->layoutNode(child, childState);
+      if (this->projectionParentScopes_.current().hasShortRangeRefusal())
+      {
+        break;
+      }
+      if (!this->projectionParentScopes_.current().tryAccumulateContentHeight(
+              currentY, nextY))
+      {
+        this->refuseScrollViewShortRange();
+        break;
+      }
+      currentY = nextY;
+    }
+    contentHeight = this->projectionParentScopes_.current().contentHeight();
+    shortRangeRefused =
+        this->projectionParentScopes_.current().hasShortRangeRefusal();
+  }
+
+  if (!shortRangeRefused)
+  {
+    const int clampedOffset =
+        ctx->setScrollMetrics(contentHeight, state.height, requestedOffset);
+    if (scrollView->props.offset_.isValid() &&
+        scrollView->props.offset_.get() != clampedOffset)
+    {
+      // A fact write may schedule another layout. Publish only after the
+      // document scope has popped so every projection pass starts at root.
+      scrollView->props.offset_.set(clampedOffset);
+    }
+  }
+
+  if (state.height > 0)
+  {
+    return LayoutNodeResult(state.width, state.y + state.height);
+  }
+  if (currentY < SHRT_MIN || currentY > SHRT_MAX)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  return LayoutNodeResult(state.width, currentY);
+}
+
 int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const LayoutState &state)
 {
   if (!node)
+  {
+    return state.y;
+  }
+  if (this->projectionParentScopes_.activeDepth() != 0 &&
+      this->projectionParentScopes_.current().hasShortRangeRefusal())
   {
     return state.y;
   }
@@ -393,12 +577,9 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 MacScenePlatformController::LayoutNodeResult
 MacScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, const LayoutState &state)
 {
-  if (node->asScrollViewNode())
+  if (loka::app::ScrollViewNode *scrollView = node->asScrollViewNode())
   {
-    // ScrollView has no macOS arm yet: refuse the subtree instead of laying
-    // out children without translation or clipping (#537). The generic
-    // nestable branch below would otherwise project them unscrolled.
-    return LayoutNodeResult(state.width, state.y);
+    return this->layoutScrollViewNode(scrollView, state);
   }
   if (loka::app::ColumnNode *column = node->asColumnNode())
   {
@@ -407,10 +588,10 @@ MacScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, co
     if (handler)
     {
       loka::app::scene::LayoutState handlerState;
-      handlerState.x = static_cast<short>(state.x);
-      handlerState.y = static_cast<short>(state.y);
-      handlerState.width = static_cast<short>(state.width);
-      handlerState.height = static_cast<short>(state.height);
+      if (!this->narrowLayoutState(state, handlerState, false))
+      {
+        return LayoutNodeResult(state.width, state.y);
+      }
       loka::app::scene::MacPlatformLayoutTraversal traversal(this);
       currentY = handler->layoutNode(column, handlerState, &traversal);
     }
@@ -429,10 +610,10 @@ MacScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, co
     if (handler)
     {
       loka::app::scene::LayoutState handlerState;
-      handlerState.x = static_cast<short>(state.x);
-      handlerState.y = static_cast<short>(state.y);
-      handlerState.width = static_cast<short>(state.width);
-      handlerState.height = static_cast<short>(state.height);
+      if (!this->narrowLayoutState(state, handlerState, false))
+      {
+        return LayoutNodeResult(state.width, state.y);
+      }
       loka::app::scene::MacPlatformLayoutTraversal traversal(this);
       maxY = handler->layoutNode(row, handlerState, &traversal);
     }
@@ -453,10 +634,10 @@ MacScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, co
     if (handler)
     {
       loka::app::scene::LayoutState handlerState;
-      handlerState.x = static_cast<short>(state.x);
-      handlerState.y = static_cast<short>(state.y);
-      handlerState.width = static_cast<short>(state.width);
-      handlerState.height = static_cast<short>(state.height);
+      if (!this->narrowLayoutState(state, handlerState, false))
+      {
+        return LayoutNodeResult(state.width, state.y);
+      }
       loka::app::scene::MacPlatformLayoutTraversal traversal(this);
       maxY = handler->layoutNode(grid, handlerState, &traversal);
     }
@@ -478,10 +659,10 @@ MacScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, co
     if (handler)
     {
       loka::app::scene::LayoutState handlerState;
-      handlerState.x = static_cast<short>(state.x);
-      handlerState.y = static_cast<short>(state.y);
-      handlerState.width = static_cast<short>(state.width);
-      handlerState.height = static_cast<short>(state.height);
+      if (!this->narrowLayoutState(state, handlerState, false))
+      {
+        return LayoutNodeResult(state.width, state.y);
+      }
       loka::app::scene::MacPlatformLayoutTraversal traversal(this);
       resultY = handler->layoutNode(box, handlerState, &traversal);
     }
@@ -500,10 +681,10 @@ MacScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, co
     if (handler)
     {
       loka::app::scene::LayoutState handlerState;
-      handlerState.x = static_cast<short>(state.x);
-      handlerState.y = static_cast<short>(state.y);
-      handlerState.width = static_cast<short>(state.width);
-      handlerState.height = static_cast<short>(state.height);
+      if (!this->narrowLayoutState(state, handlerState, false))
+      {
+        return LayoutNodeResult(state.width, state.y);
+      }
       loka::app::scene::MacPlatformLayoutTraversal traversal(this);
       maxY = handler->layoutNode(stack, handlerState, &traversal);
     }
@@ -521,21 +702,19 @@ MacScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, co
     loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
     for (loka::app::scene::Node *child = it.next(); child; child = it.next())
     {
-      childState.y = layoutNode(child, childState);
+      const int nextY = this->layoutNode(child, childState);
+      if (this->refuseNarrowingInScrollScope(nextY))
+      {
+        break;
+      }
+      childState.y = nextY;
     }
     return LayoutNodeResult(state.width, childState.y);
   }
 
-  if (loka::app::scene::IProjectedLayoutNode *projected = node->asProjectedLayoutNode())
+  if (node->asProjectedLayoutNode())
   {
-    loka::app::scene::LayoutState projectedState;
-    projectedState.x = static_cast<short>(state.x);
-    projectedState.y = static_cast<short>(state.y);
-    projectedState.width = static_cast<short>(state.width);
-    projectedState.height = static_cast<short>(state.height);
-    projectedState.lineHeight = 0;
-    projectedState.spacing = 0;
-    return LayoutNodeResult(state.width, projected->layoutProjected(this, projectedState));
+    return DispatchProjectedLayout(this, node, state);
   }
 
   LeafLayoutHandlerFn leafLayoutHandler = this->leafLayoutHandlerRegistry_.find(node);
@@ -556,6 +735,107 @@ MacScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, co
   }
 
   return LayoutNodeResult(state.width, state.y);
+}
+
+MacScenePlatformController::LayoutNodeResult
+MacScenePlatformController::DispatchProjectedLayout(
+    MacScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  if (!controller || !node)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  loka::app::scene::IProjectedLayoutNode *projected =
+      node->asProjectedLayoutNode();
+  if (!projected)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  loka::app::scene::LayoutState projectedState;
+  if (!controller->narrowLayoutState(state, projectedState, true))
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  const int projectedResult =
+      projected->layoutProjected(controller, projectedState);
+  if (controller->projectionParentScopes_.activeDepth() == 0)
+  {
+    return LayoutNodeResult(state.width, projectedResult);
+  }
+  int contentResult = state.y;
+  if (!controller->projectionParentScopes_.current().restoreContentY(
+          projectedResult, contentResult))
+  {
+    controller->refuseScrollViewShortRange();
+    return LayoutNodeResult(state.width, state.y);
+  }
+  return LayoutNodeResult(state.width, contentResult);
+}
+
+bool MacScenePlatformController::narrowLayoutState(
+    const LayoutState &state,
+    loka::app::scene::LayoutState &narrowed,
+    bool applyProjection)
+{
+  if (state.x < SHRT_MIN || state.x > SHRT_MAX ||
+      state.y < SHRT_MIN || state.y > SHRT_MAX ||
+      state.width < SHRT_MIN || state.width > SHRT_MAX ||
+      state.height < SHRT_MIN || state.height > SHRT_MAX)
+  {
+    this->refuseScrollViewShortRange();
+    return false;
+  }
+
+  loka::app::scene::LayoutState content;
+  content.x = static_cast<short>(state.x);
+  content.y = static_cast<short>(state.y);
+  content.width = static_cast<short>(state.width);
+  content.height = static_cast<short>(state.height);
+  content.lineHeight = 0;
+  content.spacing = 0;
+  if (applyProjection && this->projectionParentScopes_.activeDepth() != 0)
+  {
+    if (!this->projectionParentScopes_.current().project(content, narrowed))
+    {
+      this->refuseScrollViewShortRange();
+      return false;
+    }
+    narrowed.lineHeight = content.lineHeight;
+    narrowed.spacing = content.spacing;
+    return true;
+  }
+  narrowed = content;
+  return true;
+}
+
+void MacScenePlatformController::refuseScrollViewShortRange()
+{
+  if (this->projectionParentScopes_.activeDepth() != 0)
+  {
+    this->projectionParentScopes_.current().markShortRangeRefused();
+  }
+}
+
+bool MacScenePlatformController::refuseNarrowingInScrollScope(int resultY)
+{
+  if (this->projectionParentScopes_.activeDepth() == 0)
+  {
+    return false;
+  }
+  loka::app::scene::ProjectionParentScope &scope =
+      this->projectionParentScopes_.current();
+  if (scope.hasShortRangeRefusal())
+  {
+    return true;
+  }
+  if (resultY >= SHRT_MIN && resultY <= SHRT_MAX)
+  {
+    return false;
+  }
+  scope.markShortRangeRefused();
+  return true;
 }
 
 int MacScenePlatformController::layoutContainerChild(void *context,

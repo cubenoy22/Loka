@@ -28,7 +28,8 @@ namespace
                                       const loka::app::scene::LayoutState &state)
     {
       MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      return new MacEditTextContext(mac, mac->rootView(), state.x, state.y, state.width, state.height, edit);
+      return new MacEditTextContext(
+          mac, mac->projectionParentView(), state.x, state.y, state.width, state.height, edit);
     }
 
     static void refresh(MacEditTextContext *ctx, const loka::app::scene::LayoutState &state)

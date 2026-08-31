@@ -1,0 +1,11 @@
+#ifndef LOKA_TESTS_MAC_SCROLL_VIEW_TESTS_HPP
+#define LOKA_TESTS_MAC_SCROLL_VIEW_TESTS_HPP
+
+void testMacScrollViewParentsChildrenToFlippedDocumentView();
+void testMacScrollViewOffsetIsRelayoutInput();
+void testMacScrollViewBoundsObservationPublishesOffsetFact();
+void testMacScrollViewResizeReclampsOffsetOnce();
+void testMacNestedScrollViewRefusesWithoutDisturbingOuterScope();
+void testMacScrollViewButtonClickReachesLokaHandler();
+
+#endif // LOKA_TESTS_MAC_SCROLL_VIEW_TESTS_HPP

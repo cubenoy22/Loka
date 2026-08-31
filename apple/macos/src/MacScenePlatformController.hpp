@@ -2,6 +2,7 @@
 #define LOKA_MAC_SCENE_PLATFORM_CONTROLLER_HPP
 
 #include <vector>
+#include "app/scene/projection/ProjectionParentScope.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
@@ -30,6 +31,7 @@ namespace loka
   namespace app
   {
     class RectSurfaceNode;
+    class ScrollViewNode;
 
     namespace scene
     {
@@ -97,6 +99,12 @@ public:
   static MacScenePlatformController *findForRootView(void *rootView);
   static void flushPendingRelayouts();
   void *rootView() const { return rootView_; }
+  /** Native parent for a projected child. The root remains the default;
+      an active ScrollView scope supplies its document view. */
+  void *projectionParentView() const
+  {
+    return this->projectionParentScopes_.current().nativeParent;
+  }
   void queueNativeRetirement(void *primary, void *auxiliary = 0);
 
 private:
@@ -107,6 +115,10 @@ private:
   typedef LayoutNodeResult (*LeafLayoutHandlerFn)(MacScenePlatformController *,
                                                   loka::app::scene::Node *,
                                                   const LayoutState &);
+  static LayoutNodeResult DispatchProjectedLayout(
+      MacScenePlatformController *controller,
+      loka::app::scene::Node *node,
+      const LayoutState &state);
 
   struct LeafLayoutHandlerEntry
   {
@@ -201,8 +213,15 @@ private:
   int layoutNodeFromSceneState(loka::app::scene::Node *node, const loka::app::scene::LayoutState &state);
   int layoutNode(loka::app::scene::Node *node, const LayoutState &state);
   LayoutNodeResult computeLayoutResult(loka::app::scene::Node *node, const LayoutState &state);
+  LayoutNodeResult layoutScrollViewNode(loka::app::ScrollViewNode *scrollView,
+                                        const LayoutState &state);
   int applyBoundaryLayoutResult(loka::app::scene::BoundaryNode *boundary, int x, int y, const LayoutNodeResult &result);
   LayoutNodeResult layoutRectSurfaceNode(loka::app::RectSurfaceNode *surface, const LayoutState &state);
+  bool narrowLayoutState(const LayoutState &state,
+                         loka::app::scene::LayoutState &narrowed,
+                         bool applyProjection);
+  bool refuseNarrowingInScrollScope(int resultY);
+  void refuseScrollViewShortRange();
   void performLayout(int clientWidth, int clientHeight, bool rebuildContexts);
   void clearContexts();
   void clearNodeContexts(loka::app::scene::Node *node);
@@ -215,6 +234,7 @@ private:
   void *findFieldForFocusedEdit(loka::app::scene::Node *node) const;
 
   void *rootView_;
+  loka::app::scene::ProjectionParentScopeStack projectionParentScopes_;
   loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlerRegistry_;
   loka::app::scene::PlatformNodeHandlerRegistry nodeHandlerRegistry_;
   LeafLayoutHandlerRegistry leafLayoutHandlerRegistry_;
