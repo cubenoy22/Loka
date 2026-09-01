@@ -2,6 +2,7 @@
 
 #include "app/nodes/Text.hpp"
 #include "app/core/Window.hpp"
+#include "app/nodes/nestable/ScrollView.hpp"
 #include "app/nodes/nestable/ZStack.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "platform/StringUTF8.hpp"
@@ -14,7 +15,7 @@ namespace helloworld
   using namespace loka::core;
   enum
   {
-    kMainPanelsTag = 1,
+    kMainPanelsScrollTag = 1,
     kDecorationTag = 2
   };
 
@@ -53,6 +54,7 @@ namespace helloworld
         fruitIndex_(),
         fruitMessage_(),
         isNarrow_(),
+        scrollOffset_(),
         fruits_()
   {
     this->state(this->message_, String::Literal("Hello, Loka!"));
@@ -65,6 +67,7 @@ namespace helloworld
     this->state(this->fruitIndex_, 0);
     this->state(this->fruitMessage_, String::Literal("You chose Apple."));
     this->state(this->isNarrow_, false);
+    this->state(this->scrollOffset_, 0);
     this->fruits_.assign(kFruitItems, kFruitItemCount);
   }
 
@@ -301,16 +304,18 @@ namespace helloworld
     // An unmaterialized state (allocation white flag, #132 ruling 3) must
     // compose the wide default instead of dereferencing a missing state.
     const bool narrowLayout = this->isNarrow_.isValid() && this->isNarrow_.get();
-    Stack mainPanels = Stack(narrowLayout ? STACK_AXIS_COLUMN : STACK_AXIS_ROW)
-                       .TEST_ID("HelloWorld.MainPanels")
-                       << this->mainLeftPanel()
-                       << MainRightPanel(&this->fruits_,
-                                         this->fruitIndex_,
-                                         this->fruitMessage_.state(),
-                                         this->heightInput_,
-                                         this->weightInput_,
-                                         this->bmiResult_.state());
-    mainPanels.tag(kMainPanelsTag);
+    ScrollView mainPanels = ScrollView(this->scrollOffset_)
+                                .TEST_ID("HelloWorld.MainPanelsScroll")
+                            << (Stack(narrowLayout ? STACK_AXIS_COLUMN : STACK_AXIS_ROW)
+                                    .TEST_ID("HelloWorld.MainPanels")
+                                << this->mainLeftPanel()
+                                << MainRightPanel(&this->fruits_,
+                                                  this->fruitIndex_,
+                                                  this->fruitMessage_.state(),
+                                                  this->heightInput_,
+                                                  this->weightInput_,
+                                                  this->bmiResult_.state()));
+    mainPanels.tag(kMainPanelsScrollTag);
     c.declare(mainPanels);
     TextDefinition decoration = Text("*").TEST_ID("HelloWorld.Decoration");
     decoration.tag(kDecorationTag);

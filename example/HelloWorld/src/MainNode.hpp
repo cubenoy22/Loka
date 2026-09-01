@@ -61,6 +61,7 @@ namespace helloworld
     loka::app::scene::NodeState<int> fruitIndex_;
     loka::app::scene::NodeState<loka::core::String> fruitMessage_;
     loka::app::scene::NodeState<bool> isNarrow_;
+    loka::app::scene::NodeState<int> scrollOffset_;
     loka::Vector<loka::core::String> fruits_;
   };
 
