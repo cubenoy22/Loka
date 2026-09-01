@@ -40,9 +40,9 @@ namespace
 } // namespace
 
 /** Stack owner for one native layout presentation. Contexts keep their usual
-    relayout doors, while the controller borrows this pass only during the
-    synchronous traversal. The borrow is removed before RedrawWindow can
-    re-enter native message handling. */
+    relayout doors, while the controller borrows the outermost pass during the
+    synchronous traversal. Reentrant layout scopes join that pass. The borrow
+    is removed before RedrawWindow can re-enter native message handling. */
 class Win32NativeLayoutPass
 {
 public:
@@ -50,16 +50,21 @@ public:
       : controller_(controller)
   {
     assert(this->controller_);
-    assert(!this->controller_->activeNativeLayoutPass_
-           && "Win32 native layout passes must not nest");
-    this->controller_->activeNativeLayoutPass_ = this;
+    if (!this->controller_->activeNativeLayoutPass_)
+    {
+      this->controller_->activeNativeLayoutPass_ = this;
+    }
   }
 
   ~Win32NativeLayoutPass()
   {
     assert(this->controller_);
-    assert(this->controller_->activeNativeLayoutPass_ == this
-           && "the active Win32 native layout pass must match its stack owner");
+    if (this->controller_->activeNativeLayoutPass_ != this)
+    {
+      assert(this->controller_->activeNativeLayoutPass_
+             && "a nested Win32 native layout pass must share an outer owner");
+      return;
+    }
     this->controller_->activeNativeLayoutPass_ = 0;
     if (this->controller_->rootHwnd_)
     {

@@ -10,10 +10,14 @@
 #include "Win32BuiltInSupport.hpp"
 #include "Win32ScenePlatformController.hpp"
 #include "app/nodes/Text.hpp"
+#include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/PopupMenu.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
+#include "app/nodes/nestable/ScrollView.hpp"
+#include "app/scene/state/NodeState.hpp"
 #include "context/Win32PopupMenuContext.hpp"
 #include "core/State.hpp"
+#include "core/StateTracker.hpp"
 #include "platform/String.hpp"
 
 namespace
@@ -37,6 +41,66 @@ namespace
 
   private:
     int *attempts_;
+  };
+
+  class ReentrantLayoutOffset
+  {
+  public:
+    explicit ReentrantLayoutOffset(int initial)
+        : storage_(initial),
+          tracker_(),
+          state_(&this->storage_, &this->tracker_),
+          controller_(0),
+          width_(0),
+          height_(0),
+          reentryCount_(0)
+    {
+      this->tracker_.addState(&this->storage_);
+    }
+
+    ~ReentrantLayoutOffset()
+    {
+      this->tracker_.setInvalidateCallback(0, 0);
+    }
+
+    loka::app::scene::NodeState<int> &state()
+    {
+      return this->state_;
+    }
+
+    void reenterLayout(Win32ScenePlatformController *controller, int width, int height)
+    {
+      this->controller_ = controller;
+      this->width_ = width;
+      this->height_ = height;
+      this->reentryCount_ = 0;
+      this->tracker_.setInvalidateCallback(&ReentrantLayoutOffset::InvalidateThunk, this);
+    }
+
+    int reentryCount() const
+    {
+      return this->reentryCount_;
+    }
+
+  private:
+    static void InvalidateThunk(void *userData)
+    {
+      ReentrantLayoutOffset *self = static_cast<ReentrantLayoutOffset *>(userData);
+      assert(self && self->controller_);
+      ++self->reentryCount_;
+      self->controller_->relayout(self->width_, self->height_);
+    }
+
+    loka::core::MutableState<int> storage_;
+    loka::core::PushStateTracker tracker_;
+    loka::app::scene::NodeState<int> state_;
+    Win32ScenePlatformController *controller_;
+    int width_;
+    int height_;
+    int reentryCount_;
+
+    ReentrantLayoutOffset(const ReentrantLayoutOffset &);
+    ReentrantLayoutOffset &operator=(const ReentrantLayoutOffset &);
   };
 
   LRESULT CALLBACK LiveResizeHostWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -126,6 +190,43 @@ void testWin32LayoutPresentsRootOnceAfterPositioningChildren()
   }
   LOKA_VERIFY(DestroyWindow(root));
   std::printf("==== [testWin32LayoutPresentsRootOnceAfterPositioningChildren] PASSED ====\n");
+}
+
+// A ScrollView range clamp publishes through NodeState during layout. Scene's
+// tracker callback can synchronously re-enter the full projection path. The
+// nested traversal must share the outer native pass so debug builds do not
+// assert and the root still presents only the completed outermost frame.
+void testWin32ReentrantLayoutSharesOutermostPresentation()
+{
+  std::printf("\n==== [testWin32ReentrantLayoutSharesOutermostPresentation] start ====\n");
+  HWND root = createLiveResizeHost();
+  {
+    Win32ScenePlatformController controller(root);
+    RegisterWin32BuiltInSupport(controller);
+    ReentrantLayoutOffset offset(100);
+    loka::app::ScrollViewNode scrollView((loka::app::ScrollViewProps(offset.state())));
+    loka::app::ColumnNode *column = new loka::app::ColumnNode((loka::app::ColumnProps()));
+    for (int index = 0; index < 6; ++index)
+    {
+      column->addChild(new loka::app::ButtonNode((loka::app::ButtonProps())));
+    }
+    scrollView.addChild(column);
+
+    controller.onChange(&scrollView, loka::app::scene::NODE_DIRTY_NONE, false);
+    controller.relayout(300, 100);
+    assert(offset.state().get() == 100);
+    offset.reenterLayout(&controller, 300, 240);
+    gLiveResizeHostPaintCount = 0;
+
+    controller.relayout(300, 240);
+
+    assert(offset.state().get() == 64);
+    assert(offset.reentryCount() == 1 && "one range clamp must cause one synchronous layout reentry");
+    assert(gLiveResizeHostPaintCount == 1 && "nested layout must share one outermost native presentation");
+    controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
+  }
+  LOKA_VERIFY(DestroyWindow(root));
+  std::printf("==== [testWin32ReentrantLayoutSharesOutermostPresentation] PASSED ====\n");
 }
 
 // #549: geometry refresh used to reset and repopulate every ComboBox item,
