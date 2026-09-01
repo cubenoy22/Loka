@@ -2,10 +2,7 @@
 #define LOKA_MENU_CONTROLLER_HPP
 
 #include "app/Menu.hpp"
-#include "core/scheduler/NextTickTracker.hpp"
 #include "core/util/OwnedDef.hpp"
-
-#include <vector>
 
 class AppConfigurable;
 class Window;
@@ -34,21 +31,17 @@ public:
   void clearDiff();
 
 private:
-  static void InvalidateThunk(void *userData);
   static bool RefreshThunk(void *userData);
   static void ApplyThunk(void *userData);
 
   void apply(Window *activeWindow);
-  void mergeArmedTrackers(loka::app::MenuComposition &composition);
 
   AppConfigurable *config_;
   ApplyFn applyFn_;
   void *applyUserData_;
   Window *pendingApplyWindow_;
   loka::core::OwnedDef<loka::app::MenuBarDefinition> menuBar_;
-  loka::core::NextTickTracker refresh_;
   loka::app::MenuCompositionDiff diff_;
-  std::vector<loka::core::PushStateTracker *> armedTrackers_;
 };
 
 #endif // LOKA_MENU_CONTROLLER_HPP

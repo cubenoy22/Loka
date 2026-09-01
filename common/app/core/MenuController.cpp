@@ -9,51 +9,13 @@ MenuController::MenuController(AppConfigurable *config, ApplyFn applyFn, void *a
       applyUserData_(applyUserData),
       pendingApplyWindow_(0),
       menuBar_(0),
-      refresh_(),
-      diff_(),
-      armedTrackers_()
+      diff_()
 {
 }
 
 MenuController::~MenuController()
 {
-  for (size_t i = 0; i < armedTrackers_.size(); ++i)
-  {
-    loka::core::PushStateTracker *tracker = armedTrackers_[i];
-    assert(tracker && tracker->invalidatesTarget(this) &&
-           "MenuController lost ownership of an armed MenuBoundary tracker");
-    tracker->setInvalidateCallback(0, 0);
-    tracker->setInvalidateTarget(0);
-  }
-  armedTrackers_.clear();
   menuBar_.reset();
-}
-
-void MenuController::mergeArmedTrackers(loka::app::MenuComposition &composition)
-{
-  for (loka::core::PushStateTracker *tracker = composition.takeArmedTracker();
-       tracker;
-       tracker = composition.takeArmedTracker())
-  {
-    size_t ledgerIndex = 0;
-    while (ledgerIndex < armedTrackers_.size() && armedTrackers_[ledgerIndex] != tracker)
-    {
-      ++ledgerIndex;
-    }
-    if (ledgerIndex == armedTrackers_.size())
-    {
-      armedTrackers_.push_back(tracker);
-    }
-  }
-}
-
-void MenuController::InvalidateThunk(void *userData)
-{
-  MenuController *controller = static_cast<MenuController *>(userData);
-  if (controller)
-  {
-    controller->requestInvalidation();
-  }
 }
 
 bool MenuController::RefreshThunk(void *userData)
@@ -73,13 +35,20 @@ void MenuController::ApplyThunk(void *userData)
 
 void MenuController::requestInvalidation()
 {
-  refresh_.request();
+  if (config_)
+  {
+    config_->menuRefresh().request();
+  }
 }
 
 bool MenuController::flushInvalidation(Window *activeWindow)
 {
+  if (!config_)
+  {
+    return false;
+  }
   pendingApplyWindow_ = activeWindow;
-  return refresh_.run(&MenuController::RefreshThunk, &MenuController::ApplyThunk, this);
+  return config_->menuRefresh().run(&MenuController::RefreshThunk, &MenuController::ApplyThunk, this);
 }
 
 void MenuController::invalidate(Window *activeWindow)
@@ -126,8 +95,8 @@ const loka::app::MenuBarDefinition *MenuController::resolveMenuBar(Window *windo
 
 // Refresh is one transaction with a single commit point at the end:
 //   1. Recompose the candidate bar. MenuComposition peeks boundary dirt and
-//      records both affected menu indices and newly armed tracker callbacks.
-//      Adopt every callback into this controller's teardown ledger immediately.
+//      records affected menu indices. Boundary callbacks request work on the
+//      AppConfigurable-owned refresh clock.
 //   2. Build the candidate diff into the local `nextDiff`; `menuBar_` and
 //      `diff_` stay untouched while anything can still fail.
 //   3. Clone and commit bar + diff together, then acknowledge the boundary
@@ -141,9 +110,9 @@ bool MenuController::refreshDefaultMenuBar()
   }
   loka::app::MenuBarDefinition menuBar;
   loka::app::MenuComposition menuComposition(&menuBar);
-  menuComposition.setInvalidateCallback(&MenuController::InvalidateThunk, this);
+  menuComposition.setInvalidateCallback(&loka::core::NextTickTracker::RequestThunk,
+                                        &config_->menuRefresh());
   config_->composeMenu(menuComposition);
-  this->mergeArmedTrackers(menuComposition);
   menuComposition.finish();
   std::vector<size_t> dirtyMenus;
   menuComposition.takeDirtyMenuIndices(dirtyMenus);
@@ -217,7 +186,7 @@ bool MenuController::refreshDefaultMenuBar()
     loka::core::OwnedDef<loka::app::MenuBarDefinition> nextMenuBar(menuBar.clone());
     if (!nextMenuBar.isSet())
     {
-      refresh_.requestAfterRun();
+      config_->menuRefresh().requestAfterRun();
       return false;
     }
     menuBar_.reset(nextMenuBar.take());

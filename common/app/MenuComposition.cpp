@@ -76,8 +76,6 @@ namespace loka
         if (invalidateFn_)
         {
           tracker->setInvalidateCallback(invalidateFn_, invalidateUserData_);
-          tracker->setInvalidateTarget(invalidateUserData_);
-          armedTrackers_.push_back(tracker);
         }
         tracker->begin();
       }
