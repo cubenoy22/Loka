@@ -9,6 +9,91 @@
 
 namespace
 {
+  class AttachObservableBoundaryNode;
+  struct AttachObservableBoundaryTypeTag
+  {
+  };
+
+  struct AttachObservableBoundaryProps
+      : public loka::app::scene::NodePropsBase<AttachObservableBoundaryProps>
+  {
+    typedef AttachObservableBoundaryTypeTag TypeTag;
+    typedef AttachObservableBoundaryNode NodeType;
+
+    explicit AttachObservableBoundaryProps(int policy)
+        : policy_(policy)
+    {
+    }
+
+    int policy() const
+    {
+      return this->policy_;
+    }
+
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      if (rhs.propsTypeId() != this->propsTypeId())
+      {
+        return this->propsTypeId() < rhs.propsTypeId();
+      }
+      return this->policy_ <
+             static_cast<const AttachObservableBoundaryProps &>(rhs).policy_;
+    }
+
+  private:
+    int policy_;
+  };
+
+  class AttachObservableBoundaryNode
+      : public loka::app::scene::StdCompositionBoundaryNodeBase<
+            AttachObservableBoundaryProps>
+  {
+  public:
+    explicit AttachObservableBoundaryNode(
+        const AttachObservableBoundaryProps &props)
+        : loka::app::scene::StdCompositionBoundaryNodeBase<
+              AttachObservableBoundaryProps>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      typedef loka::app::scene::NodeDefinition<
+          DefinitionCloneTestSupport::LimitedClonePolicyProbeProps,
+          DefinitionCloneTestSupport::LimitedClonePolicyProbeNode>
+          ProbeDefinition;
+      ProbeDefinition child(
+          DefinitionCloneTestSupport::LimitedClonePolicyProbeProps(
+              this->props.policy()));
+      composition.declare(child);
+    }
+  };
+
+  struct LimitedCloneAttachObservableBoundaryDefinition
+      : public loka::app::scene::BoundaryDefinition<
+            AttachObservableBoundaryProps,
+            AttachObservableBoundaryNode>
+  {
+    typedef loka::app::scene::BoundaryDefinition<
+        AttachObservableBoundaryProps,
+        AttachObservableBoundaryNode>
+        BaseType;
+
+    explicit LimitedCloneAttachObservableBoundaryDefinition(int policy)
+        : BaseType(AttachObservableBoundaryProps(policy))
+    {
+    }
+
+    virtual loka::app::scene::NodeDefinitionBase *clone() const
+    {
+      if (!DefinitionCloneTestSupport::limitedCloneBudgetAllowsClone())
+      {
+        return 0;
+      }
+      return new LimitedCloneAttachObservableBoundaryDefinition(*this);
+    }
+  };
+
   class RefusingLocalRecomposeBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<RefusingLocalRecomposeBoundaryNode>
       RefusingLocalRecomposeBoundaryProps;
@@ -32,7 +117,7 @@ namespace
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
-      DefinitionCloneTestSupport::LimitedClonePolicyProbeDefinition child(
+      LimitedCloneAttachObservableBoundaryDefinition child(
           this->policy_);
       composition.declare(child);
     }
@@ -53,10 +138,21 @@ namespace
     int policy_;
   };
 
-  DefinitionCloneTestSupport::LimitedClonePolicyProbeNode *onlyProbeChild(
+  AttachObservableBoundaryNode *onlyAttachObservableBoundary(
       RefusingLocalRecomposeBoundaryNode &boundary)
   {
     loka::app::scene::Node *child = boundary.childrenHead();
+    LOKA_VERIFY(child != 0);
+    LOKA_VERIFY(child->nextInComposition == 0);
+    return static_cast<AttachObservableBoundaryNode *>(child);
+  }
+
+  DefinitionCloneTestSupport::LimitedClonePolicyProbeNode *onlyNestedProbeChild(
+      RefusingLocalRecomposeBoundaryNode &boundary)
+  {
+    AttachObservableBoundaryNode *nested =
+        onlyAttachObservableBoundary(boundary);
+    loka::app::scene::Node *child = nested->childrenHead();
     LOKA_VERIFY(child != 0);
     LOKA_VERIFY(child->nextInComposition == 0);
     return static_cast<DefinitionCloneTestSupport::LimitedClonePolicyProbeNode *>(child);
@@ -79,7 +175,8 @@ void testRefusedLocalRecomposeNeverCompletesWithStaleRetainedProps()
       static_cast<RefusingLocalRecomposeBoundaryNode *>(
           loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
   LOKA_VERIFY(root != 0);
-  LOKA_VERIFY(onlyProbeChild(*root)->props.policy() == 0);
+  LOKA_VERIFY(onlyAttachObservableBoundary(*root)->props.policy() == 0);
+  LOKA_VERIFY(onlyNestedProbeChild(*root)->props.policy() == 0);
 
   g_limitedCloneBudget = 1;
   const int callsBefore = g_limitedCloneCalls;
@@ -88,9 +185,11 @@ void testRefusedLocalRecomposeNeverCompletesWithStaleRetainedProps()
   (void)projected;
   g_limitedCloneBudget = -1;
   LOKA_VERIFY(g_limitedCloneCalls >= callsBefore + 2);
+  LOKA_VERIFY(onlyNestedProbeChild(*root)->props.policy() == 1);
 
   const bool completed = root->composeResult().composed;
-  LOKA_VERIFY(!completed || onlyProbeChild(*root)->props.policy() == 1);
+  LOKA_VERIFY(!completed ||
+              onlyAttachObservableBoundary(*root)->props.policy() == 1);
   if (!completed)
   {
     LOKA_VERIFY(
@@ -100,7 +199,8 @@ void testRefusedLocalRecomposeNeverCompletesWithStaleRetainedProps()
   }
   const bool healed = root->composeResult().composed;
   LOKA_VERIFY(healed);
-  LOKA_VERIFY(onlyProbeChild(*root)->props.policy() == 1);
+  LOKA_VERIFY(onlyAttachObservableBoundary(*root)->props.policy() == 1);
+  LOKA_VERIFY(onlyNestedProbeChild(*root)->props.policy() == 1);
 
   scene.unmount();
   g_limitedCloneBudget = -1;

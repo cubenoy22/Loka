@@ -1391,7 +1391,7 @@ namespace loka
           if (child)
           {
             this->addChild(child);
-            this->composeTree(child, context, event, this);
+            this->composeTree(child, context, COMPOSE_EVENT_ATTACH, this);
           }
           context.setComposition(0);
         }
