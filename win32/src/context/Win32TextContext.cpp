@@ -272,17 +272,7 @@ void Win32TextContext::relayout(int x, int y, int width, int height)
   {
     return;
   }
-  MoveWindow(hwnd_, x, y, width, height, TRUE);
-  HWND parent = GetParent(hwnd_);
-  if (parent)
-  {
-    RECT rc;
-    if (GetWindowRect(hwnd_, &rc))
-    {
-      MapWindowPoints(NULL, parent, reinterpret_cast<POINT *>(&rc), 2);
-      Win32ScenePlatformController::redrawDirtySubtreeNow(parent, &rc, TRUE);
-    }
-  }
+  this->positionNativeWindow(this->hwnd_, x, y, width, height);
 }
 
 void Win32TextContext::bindText()

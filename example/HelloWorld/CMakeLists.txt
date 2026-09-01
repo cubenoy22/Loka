@@ -80,6 +80,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32RectSurfaceContext.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32ScrollViewContext.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32NodeHandlerEnsureTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32LiveResizeTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32ScrollViewTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32ThreadModalScopeTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32EditTextBridgeTests.cpp

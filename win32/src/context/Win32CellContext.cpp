@@ -132,7 +132,7 @@ void Win32CellContext::relayout(int x, int y, int width, int height)
   {
     return;
   }
-  MoveWindow(hwnd_, x, y, width, height, TRUE);
+  this->positionNativeWindow(this->hwnd_, x, y, width, height);
   Win32ScenePlatformController::redrawDirtySubtreeNow(hwnd_, NULL, TRUE);
 }
 

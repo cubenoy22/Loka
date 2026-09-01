@@ -39,6 +39,54 @@ namespace
 
 } // namespace
 
+/** Stack owner for one native layout presentation. Contexts keep their usual
+    relayout doors, while the controller borrows the outermost pass during the
+    synchronous traversal. Reentrant layout scopes join that pass. The borrow
+    is removed before RedrawWindow can re-enter native message handling. */
+class Win32NativeLayoutPass
+{
+public:
+  explicit Win32NativeLayoutPass(Win32ScenePlatformController *controller)
+      : controller_(controller)
+  {
+    assert(this->controller_);
+    if (!this->controller_->activeNativeLayoutPass_)
+    {
+      this->controller_->activeNativeLayoutPass_ = this;
+    }
+  }
+
+  ~Win32NativeLayoutPass()
+  {
+    assert(this->controller_);
+    if (this->controller_->activeNativeLayoutPass_ != this)
+    {
+      assert(this->controller_->activeNativeLayoutPass_
+             && "a nested Win32 native layout pass must share an outer owner");
+      return;
+    }
+    this->controller_->activeNativeLayoutPass_ = 0;
+    if (this->controller_->rootHwnd_)
+    {
+      RedrawWindow(this->controller_->rootHwnd_,
+                   NULL,
+                   NULL,
+                   RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+    }
+  }
+
+  void positionNativeWindow(HWND hwnd, int x, int y, int width, int height)
+  {
+    MoveWindow(hwnd, x, y, width, height, FALSE);
+  }
+
+private:
+  Win32ScenePlatformController *controller_;
+
+  Win32NativeLayoutPass(const Win32NativeLayoutPass &);
+  Win32NativeLayoutPass &operator=(const Win32NativeLayoutPass &);
+};
+
 namespace loka
 {
   namespace app
@@ -89,6 +137,7 @@ namespace loka
 
 Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
     : rootHwnd_(rootHwnd),
+      activeNativeLayoutPass_(0),
       projectionParentScopes_(rootHwnd),
       rootNode_(0),
       clientWidth_(0),
@@ -103,6 +152,8 @@ Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
 
 Win32ScenePlatformController::~Win32ScenePlatformController()
 {
+  assert(!this->activeNativeLayoutPass_
+         && "a Win32 controller must outlive its stack-owned native layout pass");
   if (rootHwnd_)
   {
     Win32ControllerMap::iterator it = gControllersByRootHwnd.find(rootHwnd_);
@@ -130,6 +181,10 @@ void Win32ScenePlatformController::requestDirtyRect(HWND targetHwnd, const RECT 
   if (it == gControllersByRootHwnd.end() || !it->second)
   {
     InvalidateRect(targetHwnd, rect, eraseBackground);
+    return;
+  }
+  if (it->second->activeNativeLayoutPass_)
+  {
     return;
   }
   it->second->queueDirtyRect(targetHwnd, rect, eraseBackground, false);
@@ -192,12 +247,27 @@ void Win32ScenePlatformController::requestDirtySubtree(HWND targetHwnd, const RE
     RedrawWindow(targetHwnd, rect, NULL, flags);
     return;
   }
+  if (it->second->activeNativeLayoutPass_)
+  {
+    return;
+  }
   it->second->queueDirtyRect(targetHwnd, rect, eraseBackground, true);
 }
 
 void Win32ScenePlatformController::redrawDirtySubtreeNow(HWND targetHwnd, const RECT *rect, BOOL eraseBackground)
 {
   if (!targetHwnd)
+  {
+    return;
+  }
+  HWND root = GetAncestor(targetHwnd, GA_ROOT);
+  if (!root)
+  {
+    root = targetHwnd;
+  }
+  Win32ControllerMap::iterator it = gControllersByRootHwnd.find(root);
+  if (it != gControllersByRootHwnd.end() && it->second
+      && it->second->activeNativeLayoutPass_)
   {
     return;
   }
@@ -592,6 +662,24 @@ void Win32ScenePlatformController::relayout(int clientWidth, int clientHeight)
   performLayout(clientWidth_, clientHeight_);
 }
 
+void Win32ScenePlatformController::positionNativeWindow(HWND hwnd,
+                                                        int x,
+                                                        int y,
+                                                        int width,
+                                                        int height)
+{
+  if (!hwnd)
+  {
+    return;
+  }
+  if (this->activeNativeLayoutPass_)
+  {
+    this->activeNativeLayoutPass_->positionNativeWindow(hwnd, x, y, width, height);
+    return;
+  }
+  MoveWindow(hwnd, x, y, width, height, TRUE);
+}
+
 void Win32ScenePlatformController::performLayout(int clientWidth, int clientHeight)
 {
   pendingInvalidations_.clear();
@@ -615,10 +703,13 @@ void Win32ScenePlatformController::performLayout(int clientWidth, int clientHeig
   {
     return;
   }
-  PROFILE_SECTION("layout");
-  this->layoutNode(this->rootNode_, state);
-  assert(this->projectionParentScopes_.activeDepth() == 0 &&
-         "a Win32 projection pass must restore the root scope");
+  {
+    Win32NativeLayoutPass nativeLayoutPass(this);
+    PROFILE_SECTION("layout");
+    this->layoutNode(this->rootNode_, state);
+    assert(this->projectionParentScopes_.activeDepth() == 0 &&
+           "a Win32 projection pass must restore the root scope");
+  }
 }
 
 namespace

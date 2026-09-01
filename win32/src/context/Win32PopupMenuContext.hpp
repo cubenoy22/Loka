@@ -50,7 +50,10 @@ private:
   void unbindSelection();
   void bindEnabled();
   void unbindEnabled();
+  bool itemsMatchApplied() const;
   void applyItems();
+  int dropHeight() const;
+  void applyDropGeometry();
   void applySelection();
   void applyEnabled();
   void syncStateFromControl();
@@ -62,6 +65,7 @@ private:
   HWND hwnd_;
   loka::core::State<int> *selectionState_;
   loka::core::State<bool> *enabledState_;
+  loka::Vector<loka::core::String> appliedItems_;
   bool applyingFromState_;
   bool updatingFromControl_;
   int baseHeight_;

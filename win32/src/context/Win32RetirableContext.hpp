@@ -17,6 +17,7 @@ public:
 
 protected:
   void retireWindow(HWND &hwnd);
+  void positionNativeWindow(HWND hwnd, int x, int y, int width, int height);
 
   Win32ScenePlatformController *controller() const
   {
