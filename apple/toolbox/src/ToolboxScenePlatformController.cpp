@@ -1,6 +1,7 @@
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxLayoutMetrics.hpp"
 #include "ToolboxBuiltInSupport.hpp"
+#include "ToolboxNodeDispatch.hpp"
 #include "ToolboxPlatformLayoutHandlers.hpp"
 #include "ToolboxScrollViewDecisions.hpp"
 #include "ToolboxWindow.hpp"
@@ -55,26 +56,6 @@ namespace
   };
 #endif
 
-  // The CDEF id and its part codes live in ControlDefinitions.h, which this
-  // toolchain's Controls.h does not pull in and which cannot be added here
-  // without making the pushButProc fallback above ambiguous. Same idiom,
-  // same Universal Interfaces values.
-#if !defined(scrollBarProc) && !defined(LOKA_TOOLBOX_MULTIVERSAL_INTERFACES)
-  enum
-  {
-    scrollBarProc = 16
-  };
-#endif
-#if !defined(kControlUpButtonPart)
-  enum
-  {
-    kControlUpButtonPart = 20,
-    kControlDownButtonPart = 21,
-    kControlPageUpPart = 22,
-    kControlPageDownPart = 23
-  };
-#endif
-
   static const short kAutoControlBaseId = 128;
 
   void DrawStringAt(short x, short y, const loka::core::String &value)
@@ -99,26 +80,6 @@ namespace
     DrawString(text);
   }
 
-  short PreferredChildHeightForRow(loka::app::scene::Node *child, short fallbackHeight)
-  {
-    if (!child)
-    {
-      return fallbackHeight;
-    }
-    if (loka::app::ImageViewNode *image = child->asImageViewNode())
-    {
-      if (image->props.height_ > 0)
-      {
-        return static_cast<short>(image->props.height_);
-      }
-      if (fallbackHeight > 0)
-      {
-        return fallbackHeight;
-      }
-      return ToolboxLayoutMetrics::kImageFallbackHeight;
-    }
-    return fallbackHeight;
-  }
 
   void CopyToPascalString(const loka::core::String &value, Str255 out)
   {
@@ -159,12 +120,6 @@ namespace
     rect.bottom = static_cast<short>(bounds.y + bounds.height);
     return rect;
   }
-
-  short LayoutNode(loka::app::scene::Node *node,
-                   loka::app::scene::LayoutState &state,
-                   ToolboxScenePlatformController *controller,
-                   loka::app::scene::BoundaryNode *currentBoundary);
-  void RenderNode(loka::app::scene::Node *node, ToolboxScenePlatformController *controller);
 
   short MaxExplicitControlId(loka::app::scene::Node *node)
   {
@@ -399,564 +354,7 @@ namespace
     return hasChild;
   }
 
-  short LayoutChildren(loka::app::scene::INestable *nestable,
-                       loka::app::scene::LayoutState &state,
-                       ToolboxScenePlatformController *controller,
-                       loka::app::scene::BoundaryNode *currentBoundary)
-  {
-    if (!nestable)
-    {
-      return 0;
-    }
-    short maxWidth = 0;
-    loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-    for (loka::app::scene::Node *child = it.next(); child; child = it.next())
-    {
-      short width = LayoutNode(child, state, controller, currentBoundary);
-      if (controller && controller->refuseNarrowingInScrollScope(state.y))
-      {
-        break;
-      }
-      if (width > maxWidth)
-      {
-        maxWidth = width;
-      }
-    }
-    return maxWidth;
-  }
 
-  class ToolboxLayoutTraversal : public loka::app::scene::IPlatformLayoutTraversal
-  {
-  public:
-    ToolboxLayoutTraversal(ToolboxScenePlatformController *controller, loka::app::scene::BoundaryNode *currentBoundary)
-        : controller_(controller),
-          currentBoundary_(currentBoundary),
-          layoutResultY_(0)
-    {
-    }
-
-    virtual int layoutChild(loka::app::scene::Node *child, const loka::app::scene::LayoutState &state)
-    {
-      loka::app::scene::LayoutState childState = state;
-      const short width = LayoutNode(child, childState, controller_, currentBoundary_);
-      if (controller_ && controller_->refuseNarrowingInScrollScope(childState.y))
-      {
-        return 0;
-      }
-      layoutResultY_ = childState.y;
-      return width;
-    }
-
-    virtual void setLayoutResultY(short y)
-    {
-      layoutResultY_ = y;
-    }
-
-    virtual short layoutResultY() const
-    {
-      return layoutResultY_;
-    }
-
-  private:
-    ToolboxScenePlatformController *controller_;
-    loka::app::scene::BoundaryNode *currentBoundary_;
-    short layoutResultY_;
-  };
-
-  class ActiveLayoutBoundaryScope
-  {
-  public:
-    ActiveLayoutBoundaryScope(ToolboxScenePlatformController *controller, loka::app::scene::BoundaryNode *boundary)
-        : controller_(controller),
-          previous_(controller ? controller->activeLayoutBoundary() : 0)
-    {
-      if (controller_)
-      {
-        controller_->setActiveLayoutBoundary(boundary);
-      }
-    }
-
-    ~ActiveLayoutBoundaryScope()
-    {
-      if (controller_)
-      {
-        controller_->setActiveLayoutBoundary(previous_);
-      }
-    }
-
-  private:
-    ToolboxScenePlatformController *controller_;
-    loka::app::scene::BoundaryNode *previous_;
-  };
-
-  short LayoutNode(loka::app::scene::Node *node,
-                   loka::app::scene::LayoutState &state,
-                   ToolboxScenePlatformController *controller,
-                   loka::app::scene::BoundaryNode *currentBoundary)
-  {
-    if (!node)
-    {
-      return 0;
-    }
-    if (controller && controller->refuseNarrowingInScrollScope(state.y))
-    {
-      return 0;
-    }
-    loka::app::scene::BoundaryNode *boundary = node->asBoundary();
-    loka::app::scene::BoundaryNode *activeBoundary = boundary ? boundary : currentBoundary;
-    const short startX = state.x;
-    const short startY = state.y;
-    const short startTop = static_cast<short>(startY - state.lineHeight + 2);
-    if (loka::app::scene::IProjectedLayoutNode *projected = node->asProjectedLayoutNode())
-    {
-      ActiveLayoutBoundaryScope boundaryScope(controller, activeBoundary);
-      short width = projected->layoutProjected(controller, state);
-      if (controller && !controller->restoreProjectedLayoutState(state))
-      {
-        return 0;
-      }
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
-      }
-      return width;
-    }
-    switch (node->kind())
-    {
-    case loka::app::scene::NODE_KIND_COLUMN:
-    {
-      loka::app::ColumnNode *column = static_cast<loka::app::ColumnNode *>(node);
-      short width = 0;
-      bool usedHandler = false;
-      if (controller && controller->layoutHandlerRegistry())
-      {
-        ToolboxLayoutTraversal traversal(controller, activeBoundary);
-        usedHandler = ApplyToolboxPlatformLayoutHandler(
-            *controller->layoutHandlerRegistry(), *column, state, traversal, width);
-      }
-      if (!usedHandler)
-      {
-        short currentY = state.y;
-        loka::dsl::CompositionCursor<loka::app::scene::Node> it(column->childrenHead(), column->childrenCount());
-        for (loka::app::scene::Node *child = it.next(); child; child = it.next())
-        {
-          loka::app::scene::LayoutState childState = state;
-          childState.y = currentY;
-          if (state.height > 0)
-          {
-            childState.height =
-                static_cast<short>(loka::app::layout::remainingChildHeightForColumn(state.height, state.y, currentY));
-          }
-          short childWidth = state.width;
-          short childOffset = 0;
-          if (column->props.hasHorizontalAlignment_)
-          {
-            childWidth = static_cast<short>(
-                loka::app::layout::preferredChildWidthForColumn(child, state.width));
-            short remain = static_cast<short>(state.width - childWidth);
-            if (remain > 0)
-            {
-              if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_CENTER)
-              {
-                childOffset = static_cast<short>(remain / 2);
-              }
-              else if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_TRAILING)
-              {
-                childOffset = remain;
-              }
-            }
-          }
-          childState.x = static_cast<short>(state.x + childOffset);
-          childState.width = childWidth;
-          short childUsedWidth = LayoutNode(child, childState, controller, activeBoundary);
-          if (childUsedWidth > width)
-          {
-            width = childUsedWidth;
-          }
-          currentY = childState.y;
-        }
-        state.y = currentY;
-      }
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
-      }
-      return width;
-    }
-    case loka::app::scene::NODE_KIND_BOX:
-    {
-      loka::app::BoxNode *box = static_cast<loka::app::BoxNode *>(node);
-      short width = 0;
-      bool usedHandler = false;
-      if (controller && controller->layoutHandlerRegistry())
-      {
-        ToolboxLayoutTraversal traversal(controller, activeBoundary);
-        usedHandler = ApplyToolboxPlatformLayoutHandler(
-            *controller->layoutHandlerRegistry(), *box, state, traversal, width);
-      }
-      if (!usedHandler)
-      {
-        short padding = static_cast<short>(box->props.padding);
-        const bool hasFixedSize = box->props.hasFixedSize();
-        loka::app::scene::LayoutState childState = state;
-        childState.x = static_cast<short>(state.x + padding);
-        childState.y = static_cast<short>(state.y + padding);
-        if (hasFixedSize)
-        {
-          childState.width = box->props.width;
-          childState.height = box->props.height;
-        }
-        if (childState.width > 0)
-        {
-          childState.width = static_cast<short>(childState.width - padding * 2);
-          if (childState.width < 0)
-          {
-            childState.width = 0;
-          }
-        }
-        if (childState.height > 0)
-        {
-          childState.height = static_cast<short>(childState.height - padding * 2);
-          if (childState.height < 0)
-          {
-            childState.height = 0;
-          }
-        }
-        short childWidth = LayoutChildren(box->asNestable(), childState, controller, activeBoundary);
-        width = hasFixedSize ? box->props.width : static_cast<short>(childWidth + padding * 2);
-        state.y = hasFixedSize ? static_cast<short>(state.y + box->props.height)
-                               : static_cast<short>(childState.y + padding);
-      }
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
-      }
-      return width;
-    }
-    case loka::app::scene::NODE_KIND_ZSTACK:
-    {
-      loka::app::ZStackNode *stack = static_cast<loka::app::ZStackNode *>(node);
-      short maxWidth = 0;
-      short maxY = state.y;
-      bool usedHandler = false;
-      if (controller && controller->layoutHandlerRegistry())
-      {
-        ToolboxLayoutTraversal traversal(controller, activeBoundary);
-        usedHandler = ApplyToolboxPlatformLayoutHandler(
-            *controller->layoutHandlerRegistry(), *stack, state, traversal, maxWidth);
-        if (usedHandler)
-        {
-          maxY = state.y;
-        }
-      }
-      if (!usedHandler)
-      {
-        loka::app::scene::LayoutState childState = state;
-        if (loka::app::scene::INestable *nestable = stack->asNestable())
-        {
-          loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-          for (loka::app::scene::Node *child = it.next(); child; child = it.next())
-          {
-            childState = state;
-            short width = LayoutNode(child, childState, controller, activeBoundary);
-            if (width > maxWidth)
-            {
-              maxWidth = width;
-            }
-            if (childState.y > maxY)
-            {
-              maxY = childState.y;
-            }
-          }
-        }
-      }
-      state.y = maxY;
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, maxWidth, static_cast<short>(state.y - startTop));
-      }
-      return maxWidth;
-    }
-    case loka::app::scene::NODE_KIND_GRID:
-    {
-      loka::app::GridNode *grid = static_cast<loka::app::GridNode *>(node);
-      short maxWidth = 0;
-      bool usedHandler = false;
-      if (controller && controller->layoutHandlerRegistry())
-      {
-        ToolboxLayoutTraversal traversal(controller, activeBoundary);
-        usedHandler = ApplyToolboxPlatformLayoutHandler(
-            *controller->layoutHandlerRegistry(), *grid, state, traversal, maxWidth);
-      }
-      if (!usedHandler)
-      {
-        const short rows = grid->props.rows > 0 ? grid->props.rows : 1;
-        const short cols = grid->props.cols > 0 ? grid->props.cols : 1;
-        const short gap = 0;
-        short availableWidth = state.width;
-        if (availableWidth > 0)
-        {
-          availableWidth = static_cast<short>(availableWidth - gap * (cols - 1));
-          if (availableWidth < 0)
-          {
-            availableWidth = 0;
-          }
-        }
-        short availableHeight = state.height;
-        if (availableHeight > 0)
-        {
-          availableHeight = static_cast<short>(availableHeight - gap * (rows - 1));
-          if (availableHeight < 0)
-          {
-            availableHeight = 0;
-          }
-        }
-        const short cellWidth = cols > 0 ? static_cast<short>(availableWidth / cols) : 0;
-        const short cellHeight = rows > 0 ? static_cast<short>(availableHeight / rows) : 0;
-        maxWidth = static_cast<short>(cellWidth * cols + gap * (cols > 0 ? cols - 1 : 0));
-        short maxY = state.y;
-        if (loka::app::scene::INestable *nestable = grid->asNestable())
-        {
-          const size_t childCount = nestable->childrenCount();
-          const size_t maxCount = static_cast<size_t>(rows * cols);
-          size_t index = 0;
-          loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), childCount);
-          for (loka::app::scene::Node *child = it.next(); child && index < maxCount; child = it.next(), ++index)
-          {
-            const short row = static_cast<short>(index / cols);
-            const short col = static_cast<short>(index % cols);
-            loka::app::scene::LayoutState cellState = state;
-            cellState.x = static_cast<short>(state.x + col * (cellWidth + gap));
-            cellState.y = static_cast<short>(state.y + row * (cellHeight + gap));
-            cellState.width = cellWidth;
-            cellState.height = cellHeight;
-            short width = LayoutNode(child, cellState, controller, activeBoundary);
-            if (width > maxWidth)
-            {
-              maxWidth = width;
-            }
-            if (cellState.y > maxY)
-            {
-              maxY = cellState.y;
-            }
-          }
-        }
-        if (cellHeight > 0)
-        {
-          short totalHeight = static_cast<short>(cellHeight * rows + gap * (rows > 0 ? rows - 1 : 0));
-          short bottom = static_cast<short>(state.y + totalHeight);
-          if (bottom > maxY)
-          {
-            maxY = bottom;
-          }
-        }
-        state.y = maxY;
-      }
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, maxWidth, static_cast<short>(state.y - startTop));
-      }
-      return maxWidth;
-    }
-    case loka::app::scene::NODE_KIND_ROW:
-    {
-      loka::app::RowNode *row = static_cast<loka::app::RowNode *>(node);
-      short width = 0;
-      bool usedHandler = false;
-      if (controller && controller->layoutHandlerRegistry())
-      {
-        ToolboxLayoutTraversal traversal(controller, activeBoundary);
-        usedHandler = ApplyToolboxPlatformLayoutHandler(
-            *controller->layoutHandlerRegistry(), *row, state, traversal, width);
-      }
-      if (!usedHandler)
-      {
-        short rowStartX = state.x;
-        short maxHeight = 0;
-        short rowHeight =
-            state.lineHeight > 0 ? state.lineHeight : ToolboxLayoutMetrics::kDefaultLineHeight;
-        const size_t childCount = row->childrenCount();
-        if (row->props.hasVerticalAlignment_)
-        {
-          rowHeight = 0;
-          loka::dsl::CompositionCursor<loka::app::scene::Node> measure(row->childrenHead(), row->childrenCount());
-          for (loka::app::scene::Node *child = measure.next(); child; child = measure.next())
-          {
-            short h = PreferredChildHeightForRow(
-                child, state.lineHeight > 0 ? state.lineHeight : ToolboxLayoutMetrics::kDefaultLineHeight);
-            if (h > rowHeight)
-            {
-              rowHeight = h;
-            }
-          }
-          if (rowHeight <= 0)
-          {
-            rowHeight = ToolboxLayoutMetrics::kDefaultLineHeight;
-          }
-        }
-        loka::dsl::CompositionCursor<loka::app::scene::Node> it(row->childrenHead(), row->childrenCount());
-        size_t childIndex = 0;
-        for (loka::app::scene::Node *child = it.next(); child; child = it.next(), ++childIndex)
-        {
-          loka::app::scene::LayoutState rowState = state;
-          rowState.x = rowStartX;
-          if (state.width > 0)
-          {
-            const short usedWidth = static_cast<short>(rowStartX - state.x);
-            short remainingWidth = static_cast<short>(state.width - usedWidth);
-            if (remainingWidth < 0)
-            {
-              remainingWidth = 0;
-            }
-            const size_t remainingChildren = (childCount > childIndex) ? (childCount - childIndex) : 1;
-            if (remainingChildren > 0)
-            {
-              rowState.width = static_cast<short>(remainingWidth / static_cast<short>(remainingChildren));
-            }
-          }
-          if (row->props.hasVerticalAlignment_)
-          {
-            short childHeight = PreferredChildHeightForRow(child, rowHeight);
-            short remain = static_cast<short>(rowHeight - childHeight);
-            short offset = 0;
-            if (remain > 0)
-            {
-              if (row->props.verticalAlignment_ == loka::app::VERTICAL_ALIGNMENT_CENTER)
-              {
-                offset = static_cast<short>(remain / 2);
-              }
-              else if (row->props.verticalAlignment_ == loka::app::VERTICAL_ALIGNMENT_BOTTOM)
-              {
-                offset = remain;
-              }
-            }
-            rowState.y = static_cast<short>(state.y + offset);
-            rowState.height = childHeight;
-          }
-          short childWidth = LayoutNode(child, rowState, controller, activeBoundary);
-          rowStartX = static_cast<short>(rowStartX + childWidth + state.spacing);
-          if (rowState.y > state.y && static_cast<short>(rowState.y - state.y) > maxHeight)
-          {
-            maxHeight = static_cast<short>(rowState.y - state.y);
-          }
-        }
-        state.y = static_cast<short>(state.y + maxHeight + state.spacing);
-        width = static_cast<short>(rowStartX - state.x);
-      }
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
-      }
-      return width;
-    }
-    case loka::app::scene::NODE_KIND_RECT_SURFACE:
-    {
-      loka::app::RectSurfaceNode *surface = static_cast<loka::app::RectSurfaceNode *>(node);
-      if (controller)
-      {
-        EnsureToolboxRectSurfaceContext(surface, controller);
-      }
-      if (surface->getContext())
-      {
-        ToolboxRectSurfaceContext *ctx = static_cast<ToolboxRectSurfaceContext *>(surface->getContext());
-        ctx->setBoundary(activeBoundary);
-      }
-      loka::app::scene::LayoutState projectedState = state;
-      if (controller)
-      {
-        // RectSurface is the one hand-routed projected leaf in this switch;
-        // give it the same translation and restore discipline as handler-
-        // backed leaves.
-        if (!controller->projectLayoutState(projectedState))
-        {
-          return 0;
-        }
-      }
-      short width = node->layout(controller, projectedState);
-      if (controller && !controller->restoreProjectedLayoutState(projectedState))
-      {
-        return 0;
-      }
-      state.y = projectedState.y;
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
-      }
-      return width;
-    }
-    case loka::app::scene::NODE_KIND_SCROLL_VIEW:
-    {
-      short width = controller
-                        ? controller->layoutScrollView(
-                              static_cast<loka::app::ScrollViewNode *>(node),
-                              state,
-                              activeBoundary)
-                        : 0;
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, width,
-                                  static_cast<short>(state.y - startTop));
-      }
-      return width;
-    }
-    default:
-      break;
-    }
-    short width = LayoutChildren(node->asNestable(), state, controller, activeBoundary);
-    if (boundary)
-    {
-      boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
-    }
-    return width;
-  }
-
-  void RenderChildren(loka::app::scene::INestable *nestable, ToolboxScenePlatformController *controller)
-  {
-    if (!nestable)
-    {
-      return;
-    }
-    loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-    for (loka::app::scene::Node *child = it.next(); child; child = it.next())
-    {
-      RenderNode(child, controller);
-    }
-  }
-
-  void RenderNode(loka::app::scene::Node *node, ToolboxScenePlatformController *controller)
-  {
-    if (!node)
-    {
-      return;
-    }
-    if (node->asProjectedLayoutNode())
-    {
-      node->render(controller);
-      return;
-    }
-    switch (node->kind())
-    {
-    case loka::app::scene::NODE_KIND_COLUMN:
-      RenderChildren(node->asNestable(), controller);
-      return;
-    case loka::app::scene::NODE_KIND_ROW:
-      RenderChildren(node->asNestable(), controller);
-      return;
-    case loka::app::scene::NODE_KIND_RECT_SURFACE:
-      node->render(controller);
-      return;
-    case loka::app::scene::NODE_KIND_SCROLL_VIEW:
-      if (controller)
-      {
-        controller->renderScrollView(
-            static_cast<loka::app::ScrollViewNode *>(node));
-      }
-      return;
-    default:
-      break;
-    }
-    RenderChildren(node->asNestable(), controller);
-  }
 
   bool RectsIntersect(const Rect &a, const Rect &b)
   {
@@ -984,6 +382,7 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
                                   : 0),
       rootNode_(0),
       pendingRootNode_(0),
+      scrollBarLedger_(kNativePoolBucketDepthCap),
       focusedText_(0),
       focusedRect_(),
       hasFocusedRect_(false),
@@ -997,7 +396,6 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       retiredScrollBarControls_(),
       retiredTextEdits_(),
       pushButtonBucket_(kNativePoolBucketDepthCap),
-      scrollBarBucket_(kNativePoolBucketDepthCap),
       textEditBucket_(kNativePoolBucketDepthCap),
       poolIntakeAuditFailCount_(0),
       clipRgn_(NewRgn()),
@@ -1246,11 +644,11 @@ void ToolboxScenePlatformController::renderScrollView(
     loka::app::ScrollViewNode *scrollView)
 {
   const ViewportScrollBarBinding *binding = 0;
-  for (std::size_t i = 0; i < this->viewportScrollBars_.size(); ++i)
+  for (std::size_t i = 0; i < this->scrollBarLedger_.viewportScrollBars_.size(); ++i)
   {
-    if (this->viewportScrollBars_[i].scrollView == scrollView)
+    if (this->scrollBarLedger_.viewportScrollBars_[i].scrollView == scrollView)
     {
-      binding = &this->viewportScrollBars_[i];
+      binding = &this->scrollBarLedger_.viewportScrollBars_[i];
       break;
     }
   }
@@ -1361,7 +759,7 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
     return;
   }
 
-  if (!this->viewportScrollBars_.empty())
+  if (!this->scrollBarLedger_.viewportScrollBars_.empty())
   {
     // Boundary bounds are recorded in content coordinates; inside a scrolled
     // viewport they no longer name window pixels, and a rect invalidation
@@ -1453,7 +851,7 @@ void ToolboxScenePlatformController::drainNativeRetirements()
 void ToolboxScenePlatformController::destroy()
 {
   rootNode_ = 0;
-  popupHits_.clear();
+  hitLedger_.popupHits_.clear();
   clearTextBindings();
   clearEnabledBindings();
   clearControls();
@@ -1515,36 +913,36 @@ void ToolboxScenePlatformController::retireNodeContext(loka::app::scene::NodeCon
     assert(!editControls_.contains(context) &&
            "detach must strip the context's native edit binding before context reclaim");
 
-    for (size_t i = 0; i < buttonHits_.size();)
+    for (size_t i = 0; i < hitLedger_.buttonHits_.size();)
     {
-      if (static_cast<loka::app::scene::NodeContext *>(buttonHits_[i].context) == context)
+      if (static_cast<loka::app::scene::NodeContext *>(hitLedger_.buttonHits_[i].context) == context)
       {
-        retiredEnabledStates.push_back(buttonHits_[i].enabled);
-        buttonHits_.erase(buttonHits_.begin() + i);
+        retiredEnabledStates.push_back(hitLedger_.buttonHits_[i].enabled);
+        hitLedger_.buttonHits_.erase(hitLedger_.buttonHits_.begin() + i);
       }
       else
       {
         ++i;
       }
     }
-    for (size_t i = 0; i < cellHits_.size();)
+    for (size_t i = 0; i < hitLedger_.cellHits_.size();)
     {
-      if (static_cast<loka::app::scene::NodeContext *>(cellHits_[i].context) == context)
+      if (static_cast<loka::app::scene::NodeContext *>(hitLedger_.cellHits_[i].context) == context)
       {
-        retiredTextStates.push_back(cellHits_[i].text);
-        cellHits_.erase(cellHits_.begin() + i);
+        retiredTextStates.push_back(hitLedger_.cellHits_[i].text);
+        hitLedger_.cellHits_.erase(hitLedger_.cellHits_.begin() + i);
       }
       else
       {
         ++i;
       }
     }
-    for (size_t i = 0; i < popupHits_.size();)
+    for (size_t i = 0; i < hitLedger_.popupHits_.size();)
     {
-      if (static_cast<loka::app::scene::NodeContext *>(popupHits_[i].context) == context)
+      if (static_cast<loka::app::scene::NodeContext *>(hitLedger_.popupHits_[i].context) == context)
       {
-        retiredEnabledStates.push_back(popupHits_[i].enabled);
-        popupHits_.erase(popupHits_.begin() + i);
+        retiredEnabledStates.push_back(hitLedger_.popupHits_[i].enabled);
+        hitLedger_.popupHits_.erase(hitLedger_.popupHits_.begin() + i);
       }
       else
       {
@@ -1556,22 +954,22 @@ void ToolboxScenePlatformController::retireNodeContext(loka::app::scene::NodeCon
     if (projectedText)
     {
       retiredTextStates.push_back(projectedText);
-      for (size_t i = 0; i < editHits_.size();)
+      for (size_t i = 0; i < hitLedger_.editHits_.size();)
       {
-        if (editHits_[i].text == projectedText)
+        if (hitLedger_.editHits_[i].text == projectedText)
         {
-          editHits_.erase(editHits_.begin() + i);
+          hitLedger_.editHits_.erase(hitLedger_.editHits_.begin() + i);
         }
         else
         {
           ++i;
         }
       }
-      for (size_t i = 0; i < textHits_.size();)
+      for (size_t i = 0; i < hitLedger_.textHits_.size();)
       {
-        if (textHits_[i].text == projectedText)
+        if (hitLedger_.textHits_[i].text == projectedText)
         {
-          textHits_.erase(textHits_.begin() + i);
+          hitLedger_.textHits_.erase(hitLedger_.textHits_.begin() + i);
         }
         else
         {
@@ -1616,27 +1014,27 @@ void ToolboxScenePlatformController::render()
     controlIds_.raiseBaseAbove(MaxExplicitControlId(rootNode_));
   }
   {
-    buttonHits_.clear();
-    cellHits_.clear();
+    hitLedger_.buttonHits_.clear();
+    hitLedger_.cellHits_.clear();
     for (size_t i = 0; i < buttonControls_.size(); ++i)
     {
       buttonControls_[i].usedThisFrame = false;
     }
-    for (size_t i = 0; i < scrollBarControls_.size(); ++i)
+    for (size_t i = 0; i < scrollBarLedger_.scrollBarControls_.size(); ++i)
     {
-      scrollBarControls_[i].usedThisFrame = false;
+      scrollBarLedger_.scrollBarControls_[i].usedThisFrame = false;
     }
-    for (size_t i = 0; i < viewportScrollBars_.size(); ++i)
+    for (size_t i = 0; i < scrollBarLedger_.viewportScrollBars_.size(); ++i)
     {
-      viewportScrollBars_[i].usedThisFrame = false;
+      scrollBarLedger_.viewportScrollBars_[i].usedThisFrame = false;
     }
-    editHits_.clear();
+    hitLedger_.editHits_.clear();
     for (size_t i = 0; i < editControls_.size(); ++i)
     {
       editControls_[i].usedThisFrame = false;
     }
-    textHits_.clear();
-    popupHits_.clear();
+    hitLedger_.textHits_.clear();
+    hitLedger_.popupHits_.clear();
     clearEnabledBindings();
     pendingTextStates_.clear();
     pendingDirtyRects_.clear();
@@ -1679,11 +1077,11 @@ void ToolboxScenePlatformController::render()
   RenderNode(rootNode_, this);
   assert(this->projectionParentScopes_.activeDepth() == 0 &&
          "a Toolbox projection pass must restore the root scope");
-  debugStats_.refreshHitCounts(static_cast<int>(buttonHits_.size()),
-                               static_cast<int>(cellHits_.size()),
-                               static_cast<int>(editHits_.size()),
-                               static_cast<int>(textHits_.size()),
-                               static_cast<int>(popupHits_.size()));
+  debugStats_.refreshHitCounts(static_cast<int>(hitLedger_.buttonHits_.size()),
+                               static_cast<int>(hitLedger_.cellHits_.size()),
+                               static_cast<int>(hitLedger_.editHits_.size()),
+                               static_cast<int>(hitLedger_.textHits_.size()),
+                               static_cast<int>(hitLedger_.popupHits_.size()));
   {
     for (size_t i = 0; i < buttonControls_.size(); ++i)
     {
@@ -1692,11 +1090,11 @@ void ToolboxScenePlatformController::render()
         HideControl(buttonControls_[i].control);
       }
     }
-    for (size_t i = 0; i < scrollBarControls_.size(); ++i)
+    for (size_t i = 0; i < scrollBarLedger_.scrollBarControls_.size(); ++i)
     {
-      if (!scrollBarControls_[i].usedThisFrame && scrollBarControls_[i].control)
+      if (!scrollBarLedger_.scrollBarControls_[i].usedThisFrame && scrollBarLedger_.scrollBarControls_[i].control)
       {
-        HideControl(scrollBarControls_[i].control);
+        HideControl(scrollBarLedger_.scrollBarControls_[i].control);
       }
     }
     for (size_t i = 0; i < editControls_.size();)
@@ -1725,14 +1123,14 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     render();
     return;
   }
-  if (!viewportScrollBars_.empty())
+  if (!scrollBarLedger_.viewportScrollBars_.empty())
   {
     // Direct dirty RectSurface replay bypasses the node render switch. Keep
     // the viewport's central clip authoritative whenever one is installed.
     render();
     return;
   }
-  if (textHits_.empty() && popupHits_.empty() && buttonControls_.empty() && scrollBarControls_.empty()
+  if (hitLedger_.textHits_.empty() && hitLedger_.popupHits_.empty() && buttonControls_.empty() && scrollBarLedger_.scrollBarControls_.empty()
       && editControls_.empty())
   {
     if (HasRectSurfaceNode(rootNode_))
@@ -1746,9 +1144,9 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     return;
   }
   bool dirtyIntersectsText = false;
-  for (size_t i = 0; i < textHits_.size(); ++i)
+  for (size_t i = 0; i < hitLedger_.textHits_.size(); ++i)
   {
-    if (RectsIntersect(rect, textHits_[i].rect))
+    if (RectsIntersect(rect, hitLedger_.textHits_[i].rect))
     {
       dirtyIntersectsText = true;
       break;
@@ -1788,9 +1186,9 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
   {
     RenderDirtyRectSurfaces(rootNode_, this, rect);
   }
-  for (size_t i = 0; i < popupHits_.size(); ++i)
+  for (size_t i = 0; i < hitLedger_.popupHits_.size(); ++i)
   {
-    PopupHit &hit = popupHits_[i];
+    PopupHit &hit = hitLedger_.popupHits_[i];
     if (!RectsIntersect(rect, hit.rect))
     {
       continue;
@@ -1802,10 +1200,10 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
   // bound and the copied entry keep a regressed registrar from turning this
   // into an unbounded loop or a dangling reference even where the assert is
   // compiled out; the assert makes the contract loud where it is not.
-  const size_t cellReplayCount = cellHits_.size();
+  const size_t cellReplayCount = hitLedger_.cellHits_.size();
   for (size_t i = 0; i < cellReplayCount; ++i)
   {
-    CellHit hit = cellHits_[i];
+    CellHit hit = hitLedger_.cellHits_[i];
     if (!hit.context)
     {
       continue;
@@ -1815,12 +1213,12 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
       continue;
     }
     hit.context->draw(this);
-    assert(cellHits_.size() == cellReplayCount
+    assert(hitLedger_.cellHits_.size() == cellReplayCount
            && "cell hits register on the render walk; the dirty replay must not grow the registry it iterates (#315)");
   }
-  for (size_t i = 0; i < textHits_.size(); ++i)
+  for (size_t i = 0; i < hitLedger_.textHits_.size(); ++i)
   {
-    TextHit &hit = textHits_[i];
+    TextHit &hit = hitLedger_.textHits_[i];
     if (!RectsIntersect(rect, hit.rect))
     {
       continue;
@@ -1855,71 +1253,7 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
   drawControlsInRect(rect);
 }
 
-bool ToolboxScenePlatformController::handleMouseDown(const Point &point)
-{
-  if (handleControlClick(point))
-  {
-    return false;
-  }
-  EditTextControlBinding *focusedEdit = editControls_.focused();
-  if (focusedEdit && focusedEdit->te)
-  {
-    TEDeactivate(focusedEdit->te);
-    editControls_.clearFocus();
-  }
-  for (size_t i = 0; i < editControls_.size(); ++i)
-  {
-    EditTextControlBinding &binding = editControls_[i];
-    if (binding.te && PtInRect(point, &binding.rect))
-    {
-      editControls_.focus(i);
-      TEActivate(binding.te);
-      TEClick(point, false, binding.te);
-      return true;
-    }
-  }
-  for (size_t i = 0; i < editHits_.size(); ++i)
-  {
-    EditHit &hit = editHits_[i];
-    if (hit.text && PtInRect(point, &hit.rect))
-    {
-      focusedText_ = hit.text;
-      focusedRect_ = hit.rect;
-      hasFocusedRect_ = true;
-      return true;
-    }
-  }
-  focusedText_ = 0;
-  hasFocusedRect_ = false;
-  for (size_t i = 0; i < popupHits_.size(); ++i)
-  {
-    PopupHit &hit = popupHits_[i];
-    if (hit.context && PtInRect(point, &hit.rect) &&
-        hit.context->handleMouseDown(point, this))
-    {
-      return false;
-    }
-  }
-  for (size_t i = 0; i < cellHits_.size(); ++i)
-  {
-    CellHit &hit = cellHits_[i];
-    if (hit.context && PtInRect(point, &hit.rect) &&
-        hit.context->handleMouseDown(point, this))
-    {
-      return false;
-    }
-  }
-  for (size_t i = 0; i < buttonHits_.size(); ++i)
-  {
-    ButtonHit &hit = buttonHits_[i];
-    if (hit.context && PtInRect(point, &hit.rect) &&
-        hit.context->handleMouseDown(point, this))
-    {
-      return false;
-    }
-  }
-  return false;
-}
+#include "ToolboxHitLedger.cpp"
 
 void ToolboxScenePlatformController::emitHitEmitter(loka::core::EmitterState *emitter)
 {
@@ -1951,124 +1285,6 @@ bool ToolboxScenePlatformController::handleKeyDown(char key)
   }
   endBatchUpdate();
   return true;
-}
-
-void ToolboxScenePlatformController::recordButtonHit(const Rect &rect,
-                                                     loka::core::EmitterState *emitter,
-                                                     loka::core::State<bool> *enabled,
-                                                     loka::app::scene::BoundaryNode *boundary,
-                                                     ToolboxButtonContext *context)
-{
-  Rect clipped;
-  if (!emitter || !this->intersectWithProjectionClip(rect, clipped))
-  {
-    return;
-  }
-  ButtonHit hit;
-  hit.rect = clipped;
-  hit.emitter = emitter;
-  hit.enabled = enabled;
-  hit.boundary = boundary;
-  hit.context = context;
-  buttonHits_.push_back(hit);
-  bindEnabledState(enabled);
-}
-
-void ToolboxScenePlatformController::recordCellHit(const Rect &rect,
-                                                   loka::core::EmitterState *emitter,
-                                                   loka::app::scene::BoundaryNode *boundary,
-                                                   ToolboxCellContext *context,
-                                                   loka::core::State<loka::core::String> *text)
-{
-  Rect clipped;
-  if (!this->intersectWithProjectionClip(rect, clipped))
-  {
-    return;
-  }
-  CellHit hit;
-  hit.rect = clipped;
-  hit.emitter = emitter;
-  hit.boundary = boundary;
-  hit.context = context;
-  hit.text = text;
-  cellHits_.push_back(hit);
-  bindTextState(text);
-}
-
-void ToolboxScenePlatformController::recordEditHit(const Rect &rect,
-                                                   loka::core::State<loka::core::String> *text,
-                                                   loka::app::scene::BoundaryNode *boundary)
-{
-  Rect clipped;
-  if (!this->intersectWithProjectionClip(rect, clipped))
-  {
-    return;
-  }
-  EditHit hit;
-  hit.rect = clipped;
-  hit.text = text;
-  hit.boundary = boundary;
-  editHits_.push_back(hit);
-  bindTextState(text);
-  if (text && focusedText_ == text)
-  {
-    focusedRect_ = clipped;
-    hasFocusedRect_ = true;
-  }
-}
-
-void ToolboxScenePlatformController::recordTextHit(const Rect &rect,
-                                                   short x,
-                                                   short y,
-                                                   loka::core::State<loka::core::String> *text,
-                                                   loka::app::scene::BoundaryNode *boundary,
-                                                   bool needsRelayoutOnChange,
-                                                   short visibleWidth)
-{
-  Rect clipped;
-  if (!text || !this->intersectWithProjectionClip(rect, clipped))
-  {
-    return;
-  }
-  TextHit hit;
-  hit.rect = clipped;
-  hit.x = x;
-  hit.y = y;
-  hit.text = text;
-  hit.boundary = boundary;
-  hit.lastMeasuredWidth = visibleWidth;
-  hit.needsRelayoutOnChange = needsRelayoutOnChange;
-  textHits_.push_back(hit);
-  bindTextState(text);
-}
-
-void ToolboxScenePlatformController::recordPopupHit(const Rect &rect,
-                                                    short lineHeight,
-                                                    const loka::Vector<loka::core::String> *items,
-                                                    loka::core::State<int> *selectedIndex,
-                                                    loka::core::EmitterState *onChange,
-                                                    loka::core::State<bool> *enabled,
-                                                    loka::app::scene::BoundaryNode *boundary,
-                                                    short menuId,
-                                                    ToolboxPopupMenuContext *context)
-{
-  Rect clipped;
-  if (!this->intersectWithProjectionClip(rect, clipped))
-  {
-    return;
-  }
-  PopupHit hit;
-  hit.rect = clipped;
-  hit.lineHeight = lineHeight;
-  hit.items = items;
-  hit.selectedIndex = selectedIndex;
-  hit.onChange = onChange;
-  hit.enabled = enabled;
-  hit.boundary = boundary;
-  hit.menuId = menuId;
-  hit.context = context;
-  popupHits_.push_back(hit);
-  bindEnabledState(enabled);
 }
 
 void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
@@ -2204,23 +1420,23 @@ bool ToolboxScenePlatformController::hasLiveBinding(loka::core::State<loka::core
       return true;
     }
   }
-  for (size_t i = 0; i < cellHits_.size(); ++i)
+  for (size_t i = 0; i < hitLedger_.cellHits_.size(); ++i)
   {
-    if (cellHits_[i].text == text)
+    if (hitLedger_.cellHits_[i].text == text)
     {
       return true;
     }
   }
-  for (size_t i = 0; i < editHits_.size(); ++i)
+  for (size_t i = 0; i < hitLedger_.editHits_.size(); ++i)
   {
-    if (editHits_[i].text == text)
+    if (hitLedger_.editHits_[i].text == text)
     {
       return true;
     }
   }
-  for (size_t i = 0; i < textHits_.size(); ++i)
+  for (size_t i = 0; i < hitLedger_.textHits_.size(); ++i)
   {
-    if (textHits_[i].text == text)
+    if (hitLedger_.textHits_[i].text == text)
     {
       return true;
     }
@@ -2230,23 +1446,23 @@ bool ToolboxScenePlatformController::hasLiveBinding(loka::core::State<loka::core
 
 bool ToolboxScenePlatformController::hasLiveBinding(loka::core::State<bool> *enabled) const
 {
-  for (size_t i = 0; i < buttonHits_.size(); ++i)
+  for (size_t i = 0; i < hitLedger_.buttonHits_.size(); ++i)
   {
-    if (buttonHits_[i].enabled == enabled)
+    if (hitLedger_.buttonHits_[i].enabled == enabled)
     {
       return true;
     }
   }
-  for (size_t i = 0; i < popupHits_.size(); ++i)
+  for (size_t i = 0; i < hitLedger_.popupHits_.size(); ++i)
   {
-    if (popupHits_[i].enabled == enabled)
+    if (hitLedger_.popupHits_[i].enabled == enabled)
     {
       return true;
     }
   }
-  for (size_t i = 0; i < scrollBarControls_.size(); ++i)
+  for (size_t i = 0; i < scrollBarLedger_.scrollBarControls_.size(); ++i)
   {
-    if (scrollBarControls_[i].enabled == enabled)
+    if (scrollBarLedger_.scrollBarControls_[i].enabled == enabled)
     {
       return true;
     }
@@ -2267,9 +1483,9 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
       text,
       this,
       &ToolboxScenePlatformController::refreshEditTextBindingForStateChange);
-  for (size_t i = 0; i < cellHits_.size(); ++i)
+  for (size_t i = 0; i < hitLedger_.cellHits_.size(); ++i)
   {
-    CellHit &hit = cellHits_[i];
+    CellHit &hit = hitLedger_.cellHits_[i];
     if (hit.text == text)
     {
       ++debugStats_.textChangedCellCount;
@@ -2285,9 +1501,9 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
       return;
     }
   }
-  for (size_t i = 0; i < textHits_.size(); ++i)
+  for (size_t i = 0; i < hitLedger_.textHits_.size(); ++i)
   {
-    TextHit &hit = textHits_[i];
+    TextHit &hit = hitLedger_.textHits_[i];
     if (hit.text == text)
     {
       ++debugStats_.textChangedTextCount;
@@ -2347,9 +1563,9 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
       return;
     }
   }
-  for (size_t i = 0; i < editHits_.size(); ++i)
+  for (size_t i = 0; i < hitLedger_.editHits_.size(); ++i)
   {
-    EditHit &hit = editHits_[i];
+    EditHit &hit = hitLedger_.editHits_[i];
     if (hit.text == text)
     {
       ++debugStats_.textChangedEditHitCount;
@@ -2370,8 +1586,8 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
   {
     return;
   }
-  // State not found in current textHits_/editHits_/editControls_.
-  // Add to pending list; will be resolved after next render populates textHits_.
+  // State not found in current hitLedger_.textHits_/hitLedger_.editHits_/editControls_.
+  // Add to pending list; will be resolved after next render populates hitLedger_.textHits_.
   if (inBatchUpdate_)
   {
     ++debugStats_.textChangedPendingCount;
@@ -2404,9 +1620,9 @@ bool ToolboxScenePlatformController::applyEnabledChangeForKind(
   switch (kind)
   {
   case TOOLBOX_ENABLED_POPUP_HIT:
-    for (size_t i = 0; i < popupHits_.size(); ++i)
+    for (size_t i = 0; i < hitLedger_.popupHits_.size(); ++i)
     {
-      PopupHit &hit = popupHits_[i];
+      PopupHit &hit = hitLedger_.popupHits_[i];
       if (hit.enabled == enabled)
       {
         if (inBatchUpdate_)
@@ -2443,9 +1659,9 @@ bool ToolboxScenePlatformController::applyEnabledChangeForKind(
     }
     return false;
   case TOOLBOX_ENABLED_SCROLL_BAR_CONTROL:
-    for (size_t i = 0; i < scrollBarControls_.size(); ++i)
+    for (size_t i = 0; i < scrollBarLedger_.scrollBarControls_.size(); ++i)
     {
-      ScrollBarControlBinding &binding = scrollBarControls_[i];
+      ScrollBarControlBinding &binding = scrollBarLedger_.scrollBarControls_[i];
       if (binding.enabled != enabled)
       {
         continue;
@@ -2461,9 +1677,9 @@ bool ToolboxScenePlatformController::applyEnabledChangeForKind(
     }
     return false;
   case TOOLBOX_ENABLED_BUTTON_HIT:
-    for (size_t i = 0; i < buttonHits_.size(); ++i)
+    for (size_t i = 0; i < hitLedger_.buttonHits_.size(); ++i)
     {
-      ButtonHit &hit = buttonHits_[i];
+      ButtonHit &hit = hitLedger_.buttonHits_[i];
       if (hit.enabled == enabled)
       {
         if (inBatchUpdate_)
@@ -2804,11 +2020,11 @@ void ToolboxScenePlatformController::requestInvalidateForText(loka::core::State<
   {
     return;
   }
-  for (size_t i = 0; i < textHits_.size(); ++i)
+  for (size_t i = 0; i < hitLedger_.textHits_.size(); ++i)
   {
-    if (textHits_[i].text == text)
+    if (hitLedger_.textHits_[i].text == text)
     {
-      window_->requestInvalidateRect(textHits_[i].rect);
+      window_->requestInvalidateRect(hitLedger_.textHits_[i].rect);
       return;
     }
   }
@@ -2832,7 +2048,7 @@ void ToolboxScenePlatformController::clearTextBindings()
   }
   textBindings_.clear();
   boundTextStates_.clear();
-  textHits_.clear();
+  hitLedger_.textHits_.clear();
 }
 
 void ToolboxScenePlatformController::clearEnabledBindings()
@@ -2852,17 +2068,17 @@ void ToolboxScenePlatformController::clearControls()
     }
   }
   buttonControls_.clear();
-  for (size_t i = 0; i < scrollBarControls_.size(); ++i)
+  for (size_t i = 0; i < scrollBarLedger_.scrollBarControls_.size(); ++i)
   {
-    if (scrollBarControls_[i].control)
+    if (scrollBarLedger_.scrollBarControls_[i].control)
     {
-      HideControl(scrollBarControls_[i].control);
-      queueRetiredScrollBarControl(scrollBarControls_[i].control, scrollBarControls_[i].lifetimeHint);
-      scrollBarControls_[i].control = 0;
+      HideControl(scrollBarLedger_.scrollBarControls_[i].control);
+      queueRetiredScrollBarControl(scrollBarLedger_.scrollBarControls_[i].control, scrollBarLedger_.scrollBarControls_[i].lifetimeHint);
+      scrollBarLedger_.scrollBarControls_[i].control = 0;
     }
   }
-  scrollBarControls_.clear();
-  viewportScrollBars_.clear();
+  scrollBarLedger_.scrollBarControls_.clear();
+  scrollBarLedger_.viewportScrollBars_.clear();
   for (size_t i = 0; i < editControls_.size(); ++i)
   {
     if (editControls_[i].te)
@@ -2924,9 +2140,9 @@ bool ToolboxScenePlatformController::hasLiveBinding(ControlRef control) const
       return true;
     }
   }
-  for (size_t i = 0; i < scrollBarControls_.size(); ++i)
+  for (size_t i = 0; i < scrollBarLedger_.scrollBarControls_.size(); ++i)
   {
-    if (scrollBarControls_[i].control == control)
+    if (scrollBarLedger_.scrollBarControls_[i].control == control)
     {
       return true;
     }
@@ -3000,7 +2216,7 @@ void ToolboxScenePlatformController::flushRetiredEntriesInto(
 void ToolboxScenePlatformController::flushRetiredNativeHandles()
 {
   flushRetiredEntriesInto(retiredControls_, pushButtonBucket_);
-  flushRetiredEntriesInto(retiredScrollBarControls_, scrollBarBucket_);
+  flushRetiredEntriesInto(retiredScrollBarControls_, scrollBarLedger_.scrollBarBucket_);
   flushRetiredEntriesInto(retiredTextEdits_, textEditBucket_);
   syncNativePoolStats();
 }
@@ -3027,7 +2243,7 @@ namespace
 void ToolboxScenePlatformController::drainNativeHandleBuckets()
 {
   pushButtonBucket_.drainWith(DisposePooledControl);
-  scrollBarBucket_.drainWith(DisposePooledControl);
+  scrollBarLedger_.scrollBarBucket_.drainWith(DisposePooledControl);
   textEditBucket_.drainWith(DisposePooledTextEdit);
   syncNativePoolStats();
 }
@@ -3173,372 +2389,7 @@ void ToolboxScenePlatformController::destroyButtonControl(short resourceId,
   }
 }
 
-namespace
-{
-  // The action proc runs inside TrackControl and has no user-data slot, so
-  // the step sizes of the bar being tracked are parked here for the duration
-  // of the loop. Classic is single-threaded and TrackControl does not nest,
-  // so exactly one bar is ever being tracked.
-  int gActiveScrollBarLineStep = 1;
-  int gActiveScrollBarPageStep = 1;
-  ControlActionUPP gScrollBarActionUPP = 0;
-
-  static pascal void ScrollBarActionProc(ControlRef control, ControlPartCode part)
-  {
-    if (!control)
-    {
-      return;
-    }
-    const int minimum = static_cast<int>(GetControlMinimum(control));
-    const int maximum = static_cast<int>(GetControlMaximum(control));
-    int value = static_cast<int>(GetControlValue(control));
-    switch (part)
-    {
-    case kControlUpButtonPart:
-      value -= gActiveScrollBarLineStep;
-      break;
-    case kControlDownButtonPart:
-      value += gActiveScrollBarLineStep;
-      break;
-    case kControlPageUpPart:
-      value -= gActiveScrollBarPageStep;
-      break;
-    case kControlPageDownPart:
-      value += gActiveScrollBarPageStep;
-      break;
-    default:
-      return;
-    }
-    value = loka::app::ScrollBarClampValue(value, minimum, maximum);
-    // Visual only. Nothing crosses into Loka from inside the loop: a held
-    // arrow must not publish one value per tick (ruling 1).
-    SetControlValue(control, static_cast<short>(value));
-  }
-
-  ControlActionUPP ScrollBarActionUPP()
-  {
-    if (!gScrollBarActionUPP)
-    {
-      gScrollBarActionUPP = NewControlActionUPP(ScrollBarActionProc);
-    }
-    return gScrollBarActionUPP;
-  }
-} // namespace
-
-bool ToolboxScenePlatformController::ensureScrollBarBinding(
-    short resourceId,
-    const Rect &rect,
-    int minimum,
-    int maximum,
-    int lineStep,
-    int pageStep,
-    loka::app::scene::NativeLifetimeHint lifetimeHint,
-    ScrollBarControlBinding *&binding)
-{
-  binding = 0;
-  if (!window_ || !window_->window() || resourceId <= 0)
-  {
-    return false;
-  }
-  Rect controlRect;
-  if (!this->intersectWithProjectionClip(rect, controlRect))
-  {
-    return true;
-  }
-  for (size_t i = 0; i < scrollBarControls_.size(); ++i)
-  {
-    if (scrollBarControls_[i].resourceId == resourceId)
-    {
-      binding = &scrollBarControls_[i];
-      break;
-    }
-  }
-  bool created = false;
-  if (!binding)
-  {
-    ControlRef control = 0;
-    if (!scrollBarBucket_.tryAcquire(control))
-    {
-      Rect rectCopy = controlRect;
-      Str255 title;
-      title[0] = 0;
-      // scrollBarProc is the pre-Appearance standard CDEF: available on
-      // every system this arm targets, and the one the Classic look expects.
-      control = NewControl(window_->window(), &rectCopy, title, false, 0, 0, 1, scrollBarProc, 0);
-      if (!control)
-      {
-        return false;
-      }
-      HideControl(control);
-    }
-    ScrollBarControlBinding entry;
-    entry.resourceId = resourceId;
-    entry.control = control;
-    entry.value = 0;
-    entry.onChange = 0;
-    entry.enabled = 0;
-    entry.minimum = 0;
-    entry.maximum = 0;
-    entry.lineStep = 1;
-    entry.pageStep = 1;
-    entry.appliedValue = 0;
-    entry.active = false;
-    entry.usedThisFrame = true;
-    entry.rect = controlRect;
-    entry.lifetimeHint = lifetimeHint;
-    scrollBarControls_.push_back(entry);
-    binding = &scrollBarControls_.back();
-    created = true;
-  }
-  binding->minimum = minimum;
-  binding->maximum = maximum;
-  binding->lineStep = lineStep;
-  binding->pageStep = pageStep;
-  binding->lifetimeHint = lifetimeHint;
-  binding->usedThisFrame = true;
-  if (created || binding->rect.left != controlRect.left || binding->rect.top != controlRect.top
-      || binding->rect.right != controlRect.right || binding->rect.bottom != controlRect.bottom)
-  {
-    MoveControl(binding->control, controlRect.left, controlRect.top);
-    SizeControl(binding->control, controlRect.right - controlRect.left, controlRect.bottom - controlRect.top);
-    binding->rect = controlRect;
-  }
-  SetControlMinimum(binding->control, static_cast<short>(minimum));
-  SetControlMaximum(binding->control, static_cast<short>(maximum));
-  return true;
-}
-
-bool ToolboxScenePlatformController::ensureScrollBarControl(short resourceId,
-                                                             const Rect &rect,
-                                                             const loka::app::ScrollBarProps &props,
-                                                             loka::app::scene::NativeLifetimeHint lifetimeHint)
-{
-  ScrollBarControlBinding *binding = 0;
-  if (!this->ensureScrollBarBinding(
-          resourceId, rect, props.min_, props.max_,
-          props.lineStep_, props.pageStep_, lifetimeHint, binding))
-  {
-    return false;
-  }
-  if (!binding)
-  {
-    return true;
-  }
-  binding->value = props.value_;
-  binding->onChange = props.onChange_;
-  binding->enabled = props.enabled_;
-  bindEnabledState(props.enabled_);
-  const int bound = props.value_ ? props.value_->get() : props.min_;
-  const int shown = loka::app::ScrollBarClampValue(bound, props.min_, props.max_);
-  SetControlValue(binding->control, static_cast<short>(shown));
-  binding->appliedValue = shown;
-
-  const bool enabledNow = !props.enabled_ || props.enabled_->get();
-  binding->active = enabledNow && loka::app::ScrollBarIsScrollable(props.min_, props.max_);
-  // Classic's one presentation for "cannot be used right now", whether the
-  // reason is a disabled binding or a range with nowhere to go.
-  HiliteControl(binding->control, binding->active ? 0 : 255);
-  ShowControl(binding->control);
-  return true;
-}
-
-void ToolboxScenePlatformController::destroyScrollBarControl(short resourceId,
-                                                              loka::app::scene::NativeLifetimeHint lifetimeHint)
-{
-  for (size_t i = 0; i < scrollBarControls_.size(); ++i)
-  {
-    ScrollBarControlBinding &binding = scrollBarControls_[i];
-    if (binding.resourceId != resourceId)
-    {
-      continue;
-    }
-    ControlRef control = binding.control;
-    loka::core::State<bool> *enabled = binding.enabled;
-    binding.control = 0;
-    binding.value = 0;
-    binding.onChange = 0;
-    binding.enabled = 0;
-    scrollBarControls_.erase(scrollBarControls_.begin() + i);
-    controlIds_.release(resourceId);
-    // The scroll bar is not hit-list based, so the enabled unbind that
-    // releaseNodeContexts performs for buttons and popups happens here
-    // instead -- same rule: the observer goes only when no live binding of
-    // any kind still needs it.
-    if (enabled && !hasLiveBinding(enabled))
-    {
-      unbindEnabledState(enabled);
-    }
-    if (control)
-    {
-      // Context destruction can run inside an update pass; disposal waits for
-      // the platform safe point like every other retired native handle.
-      HideControl(control);
-      queueRetiredScrollBarControl(control, lifetimeHint);
-    }
-    return;
-  }
-  // An auto id can exist before NewControl succeeds. The viewport ledger
-  // still owns that id and must return it when its node retires.
-  controlIds_.release(resourceId);
-}
-
-int ToolboxScenePlatformController::ensureViewportScrollBarControl(
-    const Rect &viewportRect,
-    loka::app::ScrollViewNode *scrollView,
-    int contentHeight,
-    int viewportHeight,
-    int requestedOffset)
-{
-  const ToolboxScrollViewMetrics metrics = ToolboxScrollViewResolveMetrics(
-      contentHeight, viewportHeight, requestedOffset);
-  ViewportScrollBarBinding *binding = 0;
-  for (std::size_t i = 0; i < this->viewportScrollBars_.size(); ++i)
-  {
-    if (this->viewportScrollBars_[i].scrollView == scrollView)
-    {
-      binding = &this->viewportScrollBars_[i];
-      break;
-    }
-  }
-  if (!binding)
-  {
-    ViewportScrollBarBinding entry;
-    entry.resourceId = this->allocateControlId();
-    entry.scrollView = scrollView;
-    entry.usedThisFrame = true;
-    entry.rect = viewportRect;
-    viewportScrollBars_.push_back(entry);
-    binding = &viewportScrollBars_.back();
-  }
-  binding->usedThisFrame = true;
-  binding->rect = viewportRect;
-
-  Rect barRect = viewportRect;
-  const int proposedLeft =
-      static_cast<int>(viewportRect.right) - loka::app::SCROLL_BAR_THICKNESS;
-  barRect.left = proposedLeft > viewportRect.left
-                     ? static_cast<short>(proposedLeft)
-                     : viewportRect.left;
-  ScrollBarControlBinding *native = 0;
-  if (!this->ensureScrollBarBinding(
-          binding->resourceId,
-          barRect,
-          0,
-          metrics.maximum,
-          1,
-          viewportHeight > 1 ? viewportHeight - 1 : 1,
-          scrollView->nativeLifetimeHint(),
-          native))
-  {
-    return metrics.clampedOffset;
-  }
-  if (native)
-  {
-    native->value = 0;
-    native->onChange = 0;
-    native->enabled = 0;
-    SetControlValue(native->control,
-                    static_cast<short>(metrics.clampedOffset));
-    native->appliedValue = metrics.clampedOffset;
-    native->active = metrics.maximum > 0;
-    HiliteControl(native->control, native->active ? 0 : 255);
-    ShowControl(native->control);
-  }
-  return metrics.clampedOffset;
-}
-
-void ToolboxScenePlatformController::destroyViewportScrollBarControl(
-    loka::app::ScrollViewNode *scrollView,
-    loka::app::scene::NativeLifetimeHint lifetimeHint)
-{
-  for (std::size_t index = 0; index < this->viewportScrollBars_.size(); ++index)
-  {
-    ViewportScrollBarBinding &binding = viewportScrollBars_[index];
-    if (binding.scrollView != scrollView)
-    {
-      continue;
-    }
-    const short resourceId = binding.resourceId;
-    viewportScrollBars_.erase(viewportScrollBars_.begin() + index);
-    this->destroyScrollBarControl(resourceId, lifetimeHint);
-    return;
-  }
-}
-
-void ToolboxScenePlatformController::commitScrollBarValueAt(std::size_t index)
-{
-  if (index >= scrollBarControls_.size())
-  {
-    return;
-  }
-  ScrollBarControlBinding &binding = scrollBarControls_[index];
-  if (!binding.control || !binding.value)
-  {
-    return;
-  }
-  const int settled = static_cast<int>(GetControlValue(binding.control));
-  if (settled == binding.appliedValue)
-  {
-    // A cancelled thumb drag lands back on the value the CDEF started from.
-    // Publishing it anyway would fire onChange for a gesture the user
-    // deliberately abandoned.
-    return;
-  }
-  loka::core::MutableState<int> *mutableValue =
-      static_cast<loka::core::MutableState<int> *>(binding.value->asMutableState());
-  if (!mutableValue)
-  {
-    return;
-  }
-  // Copy out before the batch: publishing re-enters projection, which can
-  // reallocate scrollBarControls_ underneath this reference.
-  const Rect rect = binding.rect;
-  loka::core::EmitterState *onChange = binding.onChange;
-  binding.appliedValue = settled;
-
-  beginBatchUpdate();
-  addPendingDirty(rect);
-  // The write enters the window tracker's transaction the way handleTextKey
-  // already does for typing: a settled value is scene input, and dependent
-  // state resolves in the same transaction rather than at whatever tick
-  // happens next.
-  {
-    loka::core::StateTrackerGuard _(window_ ? window_->getTracker() : 0);
-    // Order is the contract (ruling 1): the binding holds the settled value
-    // before any handler runs.
-    mutableValue->set(settled, true);
-    if (onChange)
-    {
-      onChange->emit();
-    }
-  }
-  endBatchUpdate();
-}
-
-void ToolboxScenePlatformController::commitViewportScrollBarValue(
-    ViewportScrollBarBinding &binding,
-    ScrollBarControlBinding &native)
-{
-  const int settled = static_cast<int>(GetControlValue(native.control));
-  if (settled == native.appliedValue)
-  {
-    // Cancelled thumb drags and range-edge presses publish no fact.
-    return;
-  }
-  loka::app::ScrollViewNode *scrollView = binding.scrollView;
-  const Rect rect = binding.rect;
-  native.appliedValue = settled;
-
-  beginBatchUpdate();
-  addPendingDirty(rect);
-  // Unlike the DSL ScrollBar commit above, this fact belongs to the
-  // ScrollView owner. The complete NodeState door selects that tracker.
-  if (scrollView->props.offset_.isValid())
-  {
-    scrollView->props.offset_.set(settled);
-  }
-  endBatchUpdate();
-}
+#include "ToolboxScrollBarLedger.cpp"
 
 void ToolboxScenePlatformController::drawFallbackControl(const Rect &rect)
 {
@@ -3776,9 +2627,9 @@ void ToolboxScenePlatformController::drawControlsInRect(const Rect &rect)
     ++debugStats_.totalControlDrawCount;
     binding.needsDraw = false;
   }
-  for (size_t i = 0; i < scrollBarControls_.size(); ++i)
+  for (size_t i = 0; i < scrollBarLedger_.scrollBarControls_.size(); ++i)
   {
-    ScrollBarControlBinding &binding = scrollBarControls_[i];
+    ScrollBarControlBinding &binding = scrollBarLedger_.scrollBarControls_[i];
     if (!binding.control || !binding.usedThisFrame)
     {
       continue;
@@ -3815,9 +2666,9 @@ bool ToolboxScenePlatformController::isPointInEdit(const Point &point) const
       return true;
     }
   }
-  for (size_t i = 0; i < editHits_.size(); ++i)
+  for (size_t i = 0; i < hitLedger_.editHits_.size(); ++i)
   {
-    const EditHit &hit = editHits_[i];
+    const EditHit &hit = hitLedger_.editHits_[i];
     if (hit.text && PtInRect(point, &hit.rect))
     {
       return true;
@@ -3863,84 +2714,6 @@ void ToolboxScenePlatformController::endClip()
     SetClip(clipRgn_);
     hasClip_ = false;
   }
-}
-
-bool ToolboxScenePlatformController::handleControlClick(const Point &point)
-{
-  if (!window_ || !window_->window())
-  {
-    return false;
-  }
-  ControlRef control = 0;
-  ControlPartCode part = FindControl(point, window_->window(), &control);
-  if (part == 0 || !control)
-  {
-    return false;
-  }
-  for (size_t i = 0; i < buttonControls_.size(); ++i)
-  {
-    ButtonControlBinding &binding = buttonControls_[i];
-    if (binding.control == control && binding.emitter)
-    {
-      if (binding.enabled && !binding.enabled->get())
-      {
-        return true;
-      }
-      beginBatchUpdate();
-      ControlPartCode tracked = TrackControl(control, point, 0);
-      if (tracked != 0)
-      {
-        binding.emitter->emit();
-      }
-      endBatchUpdate();
-      return true;
-    }
-  }
-  for (size_t i = 0; i < scrollBarControls_.size(); ++i)
-  {
-    if (scrollBarControls_[i].control != control)
-    {
-      continue;
-    }
-    std::size_t viewportIndex = viewportScrollBars_.size();
-    for (size_t j = 0; j < viewportScrollBars_.size(); ++j)
-    {
-      if (viewportScrollBars_[j].resourceId ==
-          scrollBarControls_[i].resourceId)
-      {
-        viewportIndex = j;
-        break;
-      }
-    }
-    if (!scrollBarControls_[i].active)
-    {
-      // An inactive bar still owns its rect; swallowing the click keeps the
-      // hit from falling through to whatever is drawn beneath it.
-      return true;
-    }
-    gActiveScrollBarLineStep = scrollBarControls_[i].lineStep;
-    gActiveScrollBarPageStep = scrollBarControls_[i].pageStep;
-    // The thumb gets no action proc: the CDEF's own outline drag is the
-    // Classic gesture. Arrows and page areas need one so a held press keeps
-    // moving instead of stepping once.
-    ControlActionUPP action = (part == kControlIndicatorPart) ? 0 : ScrollBarActionUPP();
-    TrackControl(control, point, action);
-    // Read after the loop has ended, never during it (ruling 1). The return
-    // code is deliberately ignored: releasing off an arrow ends the scroll
-    // but keeps what already scrolled, and commitScrollBarValueAt is the one
-    // place that decides whether anything actually changed.
-    if (viewportIndex != viewportScrollBars_.size())
-    {
-      commitViewportScrollBarValue(
-          viewportScrollBars_[viewportIndex], scrollBarControls_[i]);
-    }
-    else
-    {
-      commitScrollBarValueAt(i);
-    }
-    return true;
-  }
-  return false;
 }
 
 void ToolboxScenePlatformController::TextStateChangedThunk(void *userData)
