@@ -1,0 +1,11 @@
+#ifndef LOKA_TESTS_ROW_WIDTH_CONSULTATION_TESTS_HPP
+#define LOKA_TESTS_ROW_WIDTH_CONSULTATION_TESTS_HPP
+
+void testRowFixedBoxWidthLeavesOnlyRemainingSeatForText();
+void testRowEmptyFragmentConsumesNeitherSeatNorGap();
+void testRowBranchArmSwitchRelayoutsWidthConsultation();
+void testRowOversizedFixedBoxKeepsDeclaredSeatForSibling();
+void testRowZeroWidthRowKeepsFixedSeatLiveAndGapped();
+void testRowWidthHeuristicForwardsOnlySingleFragmentClaims();
+
+#endif // LOKA_TESTS_ROW_WIDTH_CONSULTATION_TESTS_HPP

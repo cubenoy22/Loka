@@ -55,6 +55,50 @@ namespace loka
         return clampToAvailable(availableWidth, availableWidth);
       }
 
+      /** Returns a Row child's fixed-width claim, a negative value for a flex
+          seat, or zero for an empty Fragment that consumes no seat. A
+          single-child Fragment forwards the child's answer so branch seats
+          preserve the active arm's claim. The declared claim is never clamped
+          to the row: the child lays out at its declared width, so shrinking
+          only the seat would overlap the next sibling. */
+      int preferredChildWidthForRow(loka::app::scene::Node *child);
+
+      /** Immutable allocation for one child in a consulted Row pass. */
+      struct RowChildWidth
+      {
+        RowChildWidth(int widthValue, bool liveSeatValue, bool gapBeforeValue)
+            : width_(widthValue),
+              liveSeat_(liveSeatValue),
+              gapBefore_(gapBeforeValue)
+        {
+        }
+
+        int width() const { return this->width_; }
+        bool isLiveSeat() const { return this->liveSeat_; }
+        bool hasGapBefore() const { return this->gapBefore_; }
+
+      private:
+        int width_;
+        bool liveSeat_;
+        bool gapBefore_;
+      };
+
+      /** Owns one Row pass's flex remainder and live-seat progression.
+          Construction consults every child once; next() then yields the
+          matching seat allocation in composition order. */
+      class RowWidthConsultation
+      {
+      public:
+        RowWidthConsultation(loka::app::scene::Node *childrenHead, size_t childCount, int availableWidth, int gap);
+
+        RowChildWidth next(loka::app::scene::Node *child);
+
+      private:
+        int baseFlexWidth_;
+        int flexRemainder_;
+        int liveSeatsSeen_;
+      };
+
       inline int remainingChildHeightForColumn(int parentHeight, int parentStartY, int currentY)
       {
         if (parentHeight <= 0)

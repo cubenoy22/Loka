@@ -58,6 +58,7 @@
 #include "LifecycleDetachTests.hpp"
 #include "NativeLifetimeTests.hpp"
 #include "NullLayoutTests.hpp"
+#include "RowWidthConsultationTests.hpp"
 #include "StackAxisRetentionTests.hpp"
 #include "HelloWorldResponsiveTests.hpp"
 #include "ScrollViewScopeTests.hpp"

@@ -3,6 +3,19 @@
 
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
 
+namespace loka
+{
+  namespace app
+  {
+    class StackNode;
+  }
+} // namespace loka
+
+/** Applies Toolbox Row layout through the supplied traversal. */
+int ComputeToolboxRowLayout(loka::app::StackNode *row,
+                            const loka::app::scene::LayoutState &state,
+                            loka::app::scene::IPlatformLayoutTraversal *traversal);
+
 /**
   Applies a registered Toolbox layout handler and commits both of its result
   channels to the caller's layout state.

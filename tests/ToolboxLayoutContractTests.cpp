@@ -4,6 +4,8 @@
 
 #include "../apple/toolbox/src/ToolboxPlatformLayoutHandlers.hpp"
 #include "app/nodes/nestable/Box.hpp"
+#include "app/nodes/nestable/Fragment.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
 
 namespace
 {
@@ -106,4 +108,52 @@ void testToolboxEmptyFixedBoxLayoutCommitsDeclaredExtent()
   LOKA_VERIFY(traversal.callCount_ == 0);
   LOKA_VERIFY(traversal.layoutResultY() == 190);
   LOKA_VERIFY(state.y == 190);
+}
+
+void testToolboxRowConsultsFixedChildWidth()
+{
+  loka::app::StackNode row((loka::app::StackProps(loka::app::STACK_AXIS_ROW)));
+  loka::app::BoxProps boxProps;
+  boxProps.setSize(200, 10);
+  row.addChild(new loka::app::BoxNode(boxProps));
+  row.addChild(new ToolboxLayoutProbeNode());
+  loka::app::scene::PlatformLayoutHandlerRegistry registry;
+  RegisterToolboxPlatformLayoutHandlers(registry);
+  ToolboxLayoutContractTraversal traversal(23, 7);
+  loka::app::scene::LayoutState state = FixedBoxInputState();
+  state.width = 500;
+  state.spacing = 4;
+  short width = 0;
+
+  const bool usedHandler = ApplyToolboxPlatformLayoutHandler(registry, row, state, traversal, width);
+
+  LOKA_VERIFY(usedHandler);
+  LOKA_VERIFY(width == 500);
+  LOKA_VERIFY(traversal.callCount_ == 2);
+  LOKA_VERIFY(traversal.lastState_.x == 214);
+  LOKA_VERIFY(traversal.lastState_.width == 296);
+}
+
+void testToolboxRowEmptyFragmentConsumesNoSeatOrGap()
+{
+  loka::app::StackNode row((loka::app::StackProps(loka::app::STACK_AXIS_ROW)));
+  loka::app::FragmentNode *empty = new loka::app::FragmentNode((loka::app::FragmentProps()));
+  empty->setPropsTypeId(loka::app::FragmentProps::staticTypeId());
+  row.addChild(empty);
+  row.addChild(new ToolboxLayoutProbeNode());
+  loka::app::scene::PlatformLayoutHandlerRegistry registry;
+  RegisterToolboxPlatformLayoutHandlers(registry);
+  ToolboxLayoutContractTraversal traversal(23, 7);
+  loka::app::scene::LayoutState state = FixedBoxInputState();
+  state.width = 500;
+  state.spacing = 4;
+  short width = 0;
+
+  const bool usedHandler = ApplyToolboxPlatformLayoutHandler(registry, row, state, traversal, width);
+
+  LOKA_VERIFY(usedHandler);
+  LOKA_VERIFY(width == 500);
+  LOKA_VERIFY(traversal.callCount_ == 2);
+  LOKA_VERIFY(traversal.lastState_.x == 10);
+  LOKA_VERIFY(traversal.lastState_.width == 500);
 }

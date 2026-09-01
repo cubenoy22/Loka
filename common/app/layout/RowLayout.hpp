@@ -51,15 +51,7 @@ namespace loka
           return state.y;
         }
 
-        const int childCountInt = static_cast<int>(childCount);
-        const int spacingTotal = metrics.gap * (childCountInt > 0 ? childCountInt - 1 : 0);
-        int availableWidth = state.width - spacingTotal;
-        if (availableWidth < 0)
-        {
-          availableWidth = 0;
-        }
-        const int baseWidth = childCountInt > 0 ? availableWidth / childCountInt : 0;
-        int remainder = childCountInt > 0 ? availableWidth - baseWidth * childCountInt : 0;
+        RowWidthConsultation widths(row->childrenHead(), childCount, state.width, metrics.gap);
         int rowHeight = state.height > 0 ? state.height : 0;
         if (row->props.hasVerticalAlignment_)
         {
@@ -91,15 +83,14 @@ namespace loka
         for (loka::app::scene::Node *child = it.next(); child; child = it.next())
         {
           LayoutStateT childState = state;
-          int childWidth = baseWidth;
-          if (remainder > 0)
+          const RowChildWidth allocation = widths.next(child);
+          if (allocation.hasGapBefore())
           {
-            childWidth += 1;
-            remainder -= 1;
+            currentX += metrics.gap;
           }
           childState.x = layoutCoordinate<LayoutStateT>(currentX);
           childState.y = state.y;
-          childState.width = layoutCoordinate<LayoutStateT>(childWidth);
+          childState.width = layoutCoordinate<LayoutStateT>(allocation.width());
           if (row->props.hasVerticalAlignment_)
           {
             const int childHeight = loka::app::layout::preferredChildHeightForRow(child,
@@ -130,7 +121,10 @@ namespace loka
           {
             maxY = childY;
           }
-          currentX += childWidth + metrics.gap;
+          if (allocation.isLiveSeat())
+          {
+            currentX += allocation.width();
+          }
         }
         return maxY;
       }
