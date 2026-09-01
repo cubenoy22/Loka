@@ -135,9 +135,15 @@ void testWin32DisplayScaleProjectsLogicalEdges()
   scale200.projectFrame(loka::core::Frame(10, 20, 30, 40), doubled);
   LOKA_VERIFY(doubled.left == 20 && doubled.top == 40
               && doubled.right == 80 && doubled.bottom == 120);
-  const loka::core::Frame roundTrip = scale200.unprojectContentFrame(
-      doubled, doubled.right - doubled.left, doubled.bottom - doubled.top);
-  LOKA_VERIFY(roundTrip == loka::core::Frame(10, 20, 30, 40));
+  RECT desktopWindow = {1920, 240, 2520, 1040};
+  const loka::core::Frame windowFrame = scale200.windowContentFrameFromNative(
+      desktopWindow, 600, 800);
+  LOKA_VERIFY(windowFrame == loka::core::Frame(1920, 240, 300, 400)
+              && "a top-level desktop origin must not be scaled by one monitor's DPI");
+  const loka::win32::Win32DisplayScale scale150(144);
+  LOKA_VERIFY(scale200.scaleLengthFrom(scale150, 12) == 16
+              && scale200.scaleLengthFrom(scale150, -12) == -16
+              && "system-DPI metrics must convert edge deltas to the target DPI");
 
   const loka::win32::Win32DisplayScale invalid(0);
   LOKA_VERIFY(invalid.dpi() == 96 && invalid.percent() == 100
@@ -189,6 +195,11 @@ void testWin32DeclaredWindowSizeMeansClientArea()
   HWND hwnd = window.hwnd();
   LOKA_VERIFY(hwnd && IsWindow(hwnd));
 
+  const RECT declaredOuterRect = readWindowRect(hwnd);
+  LOKA_VERIFY(declaredOuterRect.left == 40 && declaredOuterRect.top == 40
+              && window.nativeFrame().get().x == 40
+              && window.nativeFrame().get().y == 40
+              && "a declared desktop origin must remain stable at non-100% DPI");
   assertClientSize(hwnd, declaredWidth, declaredHeight);
   LOKA_VERIFY(window.frameState().get().width == declaredWidth);
   LOKA_VERIFY(window.frameState().get().height == declaredHeight);

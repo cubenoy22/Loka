@@ -32,8 +32,10 @@ namespace
                                    int &outerWidth,
                                    int &outerHeight)
   {
-    RECT rect;
-    scale.projectFrame(loka::core::Frame(0, 0, clientWidth, clientHeight), rect);
+    RECT rect = {0,
+                 0,
+                 scale.projectLength(clientWidth),
+                 scale.projectLength(clientHeight)};
     if (!scale.adjustWindowRect(rect, style, hasMenu, exStyle))
     {
       return false;
@@ -82,9 +84,9 @@ bool Win32Window::queryNativeContentFrame(loka::core::Frame &out) const
     return false;
   }
   out = loka::win32::Win32DisplayScale::forWindow(this->hwnd_)
-            .unprojectContentFrame(windowRect,
-                                   clientRect.right - clientRect.left,
-                                   clientRect.bottom - clientRect.top);
+            .windowContentFrameFromNative(windowRect,
+                                          clientRect.right - clientRect.left,
+                                          clientRect.bottom - clientRect.top);
   return true;
 }
 
@@ -128,8 +130,8 @@ bool Win32Window::applyNativeContentFrame(const loka::core::Frame &frame)
     assert(false && "Win32 client size must convert to an outer window size");
     return false;
   }
-  const int x = frame.x >= 0 ? scale.projectEdge(frame.x) : windowRect.left;
-  const int y = frame.y >= 0 ? scale.projectEdge(frame.y) : windowRect.top;
+  const int x = frame.x >= 0 ? frame.x : windowRect.left;
+  const int y = frame.y >= 0 ? frame.y : windowRect.top;
   if (x == windowRect.left && y == windowRect.top &&
       outerWidth == windowRect.right - windowRect.left &&
       outerHeight == windowRect.bottom - windowRect.top)
@@ -175,8 +177,8 @@ bool Win32Window::detachMenuForTeardown(HMENU expectedMenu)
   if (detached)
   {
     MoveWindow(this->hwnd_,
-               scale.projectEdge(contentFrame.x),
-               scale.projectEdge(contentFrame.y),
+               contentFrame.x,
+               contentFrame.y,
                outerWidth,
                outerHeight,
                TRUE);
@@ -433,10 +435,8 @@ void Win32Window::createNativeWindow()
                               kWndClassName,
                               L"",
                               kWindowStyle,
-                              initialScale.projectEdge(
-                                  this->hasPosition() ? this->positionX() : defaultFrame.x),
-                              initialScale.projectEdge(
-                                  this->hasPosition() ? this->positionY() : defaultFrame.y),
+                              this->hasPosition() ? this->positionX() : defaultFrame.x,
+                              this->hasPosition() ? this->positionY() : defaultFrame.y,
                               outerWidth,
                               outerHeight,
                               NULL,

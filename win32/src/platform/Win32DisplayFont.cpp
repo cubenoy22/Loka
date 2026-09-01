@@ -44,12 +44,8 @@ namespace
     const loka::win32::Win32DisplayScale systemScale =
         loka::win32::Win32DisplayScale::forSystem();
     out = metrics.lfMessageFont;
-    out.lfHeight = MulDiv(out.lfHeight,
-                          static_cast<int>(scale.dpi()),
-                          static_cast<int>(systemScale.dpi()));
-    out.lfWidth = MulDiv(out.lfWidth,
-                         static_cast<int>(scale.dpi()),
-                         static_cast<int>(systemScale.dpi()));
+    out.lfHeight = scale.scaleLengthFrom(systemScale, out.lfHeight);
+    out.lfWidth = scale.scaleLengthFrom(systemScale, out.lfWidth);
     return true;
   }
 } // namespace

@@ -28,10 +28,17 @@ namespace loka
       int unprojectEdge(int nativeCoordinate) const;
       int projectLength(int logicalLength) const;
       int unprojectLength(int nativeLength) const;
+      /** Converts a device-space length measured at sourceScale into this
+          scale's device space. */
+      int scaleLengthFrom(const Win32DisplayScale &sourceScale,
+                          int sourceLength) const;
       void projectFrame(const loka::core::Frame &logicalFrame, RECT &nativeRect) const;
-      loka::core::Frame unprojectContentFrame(const RECT &nativeWindowRect,
-                                              int nativeClientWidth,
-                                              int nativeClientHeight) const;
+      /** Preserves the Win32 virtual-desktop origin while converting the
+          content size back to logical display units. */
+      loka::core::Frame windowContentFrameFromNative(
+          const RECT &nativeWindowRect,
+          int nativeClientWidth,
+          int nativeClientHeight) const;
       bool adjustWindowRect(RECT &nativeClientRect,
                             DWORD style,
                             BOOL hasMenu,

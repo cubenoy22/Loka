@@ -186,6 +186,15 @@ namespace loka
       return this->unprojectEdge(nativeLength);
     }
 
+    int Win32DisplayScale::scaleLengthFrom(
+        const Win32DisplayScale &sourceScale,
+        int sourceLength) const
+    {
+      return MulDiv(sourceLength,
+                    static_cast<int>(this->dpi_),
+                    static_cast<int>(sourceScale.dpi()));
+    }
+
     void Win32DisplayScale::projectFrame(const loka::core::Frame &logicalFrame,
                                          RECT &nativeRect) const
     {
@@ -195,13 +204,13 @@ namespace loka
       nativeRect.bottom = this->projectEdge(logicalFrame.y + logicalFrame.height);
     }
 
-    loka::core::Frame Win32DisplayScale::unprojectContentFrame(
+    loka::core::Frame Win32DisplayScale::windowContentFrameFromNative(
         const RECT &nativeWindowRect,
         int nativeClientWidth,
         int nativeClientHeight) const
     {
-      return loka::core::Frame(this->unprojectEdge(nativeWindowRect.left),
-                               this->unprojectEdge(nativeWindowRect.top),
+      return loka::core::Frame(nativeWindowRect.left,
+                               nativeWindowRect.top,
                                this->unprojectLength(nativeClientWidth),
                                this->unprojectLength(nativeClientHeight));
     }
@@ -220,7 +229,28 @@ namespace loka
                    &nativeClientRect, style, hasMenu, exStyle, this->dpi_)
                != FALSE;
       }
-      return AdjustWindowRectEx(&nativeClientRect, style, hasMenu, exStyle) != FALSE;
+      RECT systemAdjusted = nativeClientRect;
+      if (!AdjustWindowRectEx(&systemAdjusted, style, hasMenu, exStyle))
+      {
+        return false;
+      }
+      // The legacy API returns non-client edge deltas at system DPI. Preserve
+      // the already projected client rect and move each edge by the same
+      // metric expressed at the target monitor DPI.
+      const Win32DisplayScale systemScale = Win32DisplayScale::forSystem();
+      nativeClientRect.left += this->scaleLengthFrom(
+          systemScale,
+          static_cast<int>(systemAdjusted.left - nativeClientRect.left));
+      nativeClientRect.top += this->scaleLengthFrom(
+          systemScale,
+          static_cast<int>(systemAdjusted.top - nativeClientRect.top));
+      nativeClientRect.right += this->scaleLengthFrom(
+          systemScale,
+          static_cast<int>(systemAdjusted.right - nativeClientRect.right));
+      nativeClientRect.bottom += this->scaleLengthFrom(
+          systemScale,
+          static_cast<int>(systemAdjusted.bottom - nativeClientRect.bottom));
+      return true;
     }
   } // namespace win32
 } // namespace loka
