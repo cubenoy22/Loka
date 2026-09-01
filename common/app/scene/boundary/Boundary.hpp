@@ -958,6 +958,18 @@ namespace loka
           return true;
         }
 
+        static bool applyRetainedNodeDefinition(
+            Node *liveNode,
+            NodeDefinitionBase *previousDefinition,
+            NodeDefinitionBase *currentDefinition)
+        {
+          const bool equivalentProps =
+              previousDefinition->hasEquivalentProps(*currentDefinition);
+          return equivalentProps
+                     ? currentDefinition->repointRetainedNodeDefinition(liveNode)
+                     : currentDefinition->applyPropsToNode(liveNode);
+        }
+
         bool applyRetainedDefinitionTree(ComponentContext &context,
                                          Node *liveNode,
                                          NodeDefinitionBase *previousDefinition,
@@ -971,18 +983,15 @@ namespace loka
           {
             return true;
           }
-
-          const bool equivalentProps =
-              previousDefinition->hasEquivalentProps(*currentDefinition);
-          const bool applied = equivalentProps
-                                   ? currentDefinition->repointRetainedNodeDefinition(liveNode)
-                                   : currentDefinition->applyPropsToNode(liveNode);
-          if (!applied || currentDefinition->isBoundary() ||
-              liveNode->asBoundary())
+          if (currentDefinition->isBoundary() || liveNode->asBoundary())
           {
-            return applied;
+            return applyRetainedNodeDefinition(
+                liveNode, previousDefinition, currentDefinition);
           }
 
+          // Descendant reconciliation uses definitions and the retained child
+          // chain, not this node's current props. Every successful descent
+          // applies this node last so a child refusal leaves it untouched.
           INestable *liveNestable = liveNode->asNestable();
           INestableDefinition *previousNestable =
               previousDefinition->asNestableDefinition();
@@ -992,7 +1001,9 @@ namespace loka
           {
             return liveNestable == 0 &&
                    previousNestable == 0 &&
-                   currentNestable == 0;
+                   currentNestable == 0 &&
+                   applyRetainedNodeDefinition(
+                       liveNode, previousDefinition, currentDefinition);
           }
 
           NodeCompositionDiff childDiff;
@@ -1004,7 +1015,8 @@ namespace loka
           }
           if (childDiff.empty())
           {
-            return true;
+            return applyRetainedNodeDefinition(
+                liveNode, previousDefinition, currentDefinition);
           }
 
           if (childDiff.isCompatibleRetainOnly())
@@ -1033,7 +1045,8 @@ namespace loka
                 return false;
               }
             }
-            return true;
+            return applyRetainedNodeDefinition(
+                liveNode, previousDefinition, currentDefinition);
           }
 
           BoundaryLocalRebuildPlan plan;
@@ -1087,7 +1100,8 @@ namespace loka
               return false;
             }
           }
-          return true;
+          return applyRetainedNodeDefinition(
+              liveNode, previousDefinition, currentDefinition);
         }
 
         bool applyRetainFastPathDefinitions(ComponentContext &context)
@@ -1309,12 +1323,9 @@ namespace loka
             return false;
           }
 
-          if (canApplyRetainedTree)
+          if (canApplyRetainedTree &&
+              this->applyRetainFastPathDefinitions(context))
           {
-            if (!this->applyRetainFastPathDefinitions(context))
-            {
-              return false;
-            }
             this->promoteCurrentCompositionSnapshot();
             loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
             for (Node *child = it.next(); child; child = it.next())
@@ -1324,6 +1335,9 @@ namespace loka
             return true;
           }
 
+          // A recursive refusal re-enters the existing local rebuild below.
+          // The branch-seat plan above remains a one-shot operation, and the
+          // snapshot is promoted only after one of the apply paths completes.
           std::vector<Node *> retainedChildren;
           if (!this->rebuildCompositionChildrenFromCurrentSnapshot(context, retainedChildren)
               && !this->rebuildCompositionRootFromCurrentSnapshot(context, retainedChildren))
@@ -1619,12 +1633,15 @@ namespace loka
               {
                 return false;
               }
-              if (applyRetainedDefinitions &&
-                  (reconciled
-                       ? !this->reconcileParkedBranch(
-                             context, plan.entries[i].node, retainedDefinition)
-                       : (!retainedDefinition->asBranchSeatDefinition() &&
-                          !retainedDefinition->applyPropsToNode(plan.entries[i].node))))
+              if (reconciled &&
+                  !this->reconcileParkedBranch(
+                      context, plan.entries[i].node, retainedDefinition))
+              {
+                return false;
+              }
+              if (!reconciled && applyRetainedDefinitions &&
+                  !retainedDefinition->asBranchSeatDefinition() &&
+                  !retainedDefinition->applyPropsToNode(plan.entries[i].node))
               {
                 return false;
               }
@@ -1717,10 +1734,15 @@ namespace loka
                 (seatPlan || effectiveDefinition->isCompatibleWithNode(existing)))
             {
               plan.entries.push_back(
-                  BoundaryLocalRebuildPlanEntry::retain(
-                      existing,
-                      effectiveDefinition,
-                      effectiveDefinition->nodeTag()));
+                  scope
+                      ? BoundaryLocalRebuildPlanEntry::reconcile(
+                            existing,
+                            effectiveDefinition,
+                            effectiveDefinition->nodeTag())
+                      : BoundaryLocalRebuildPlanEntry::retain(
+                            existing,
+                            effectiveDefinition,
+                            effectiveDefinition->nodeTag()));
             }
             else
             {

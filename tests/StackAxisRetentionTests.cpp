@@ -2,7 +2,10 @@
 
 #include "app/nodes/Text.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
+#include "app/nodes/controls/Button.hpp"
+#include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
+#include "app/nodes/nestable/PolicyScope.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/scene/Scene.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
@@ -132,6 +135,129 @@ namespace
     }
   };
 
+  struct RefusingContainerTypeTag
+  {
+  };
+
+  class RefusingContainerNode;
+
+  struct RefusingContainerProps
+      : public loka::app::scene::NodePropsBase<RefusingContainerProps>
+  {
+    typedef RefusingContainerTypeTag TypeTag;
+    typedef RefusingContainerNode NodeType;
+
+    RefusingContainerProps()
+        : revision(0)
+    {
+    }
+
+    explicit RefusingContainerProps(int revisionValue)
+        : revision(revisionValue)
+    {
+    }
+
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      if (rhs.propsTypeId() != this->propsTypeId())
+      {
+        return false;
+      }
+      const RefusingContainerProps &other =
+          static_cast<const RefusingContainerProps &>(rhs);
+      return this->revision < other.revision;
+    }
+
+    int revision;
+  };
+
+  class RefusingContainerNode : public loka::app::scene::NestableNode
+  {
+  public:
+    typedef RefusingContainerTypeTag TypeTag;
+
+    explicit RefusingContainerNode(const RefusingContainerProps &propsValue)
+        : props(propsValue)
+    {
+    }
+
+    RefusingContainerProps props;
+  };
+
+  class RefusingContainerApplyProbe
+  {
+  public:
+    RefusingContainerApplyProbe()
+        : state_(STATE_IDLE)
+    {
+    }
+
+    void reset()
+    {
+      this->state_ = STATE_IDLE;
+    }
+
+    void arm()
+    {
+      this->state_ = STATE_ARMED;
+    }
+
+    bool consume(int revision)
+    {
+      if (this->state_ != STATE_ARMED || revision != 1)
+      {
+        return false;
+      }
+      this->state_ = STATE_REFUSED;
+      return true;
+    }
+
+    bool wasRefused() const
+    {
+      return this->state_ == STATE_REFUSED;
+    }
+
+  private:
+    enum State
+    {
+      STATE_IDLE,
+      STATE_ARMED,
+      STATE_REFUSED
+    };
+
+    State state_;
+  };
+
+  RefusingContainerApplyProbe g_refusingContainerApply;
+
+  struct RefusingContainerDefinition
+      : public loka::app::scene::NestableNodeDefinition<
+            RefusingContainerProps,
+            RefusingContainerNode,
+            RefusingContainerDefinition>
+  {
+    typedef loka::app::scene::NestableNodeDefinition<
+        RefusingContainerProps,
+        RefusingContainerNode,
+        RefusingContainerDefinition> BaseType;
+    using BaseType::operator<<;
+
+    explicit RefusingContainerDefinition(
+        const RefusingContainerProps &propsValue = RefusingContainerProps())
+        : BaseType(propsValue)
+    {
+    }
+
+    virtual bool applyPropsToNode(loka::app::scene::Node *node) const
+    {
+      if (g_refusingContainerApply.consume(this->props.revision))
+      {
+        return false;
+      }
+      return BaseType::applyPropsToNode(node);
+    }
+  };
+
   enum NestedRetentionShape
   {
     NESTED_RETENTION_DEPTH_TWO,
@@ -139,6 +265,8 @@ namespace
     NESTED_RETENTION_TAGGED_PAIR,
     NESTED_RETENTION_CHANGED_PARENT_AND_CHILD,
     NESTED_RETENTION_STRUCTURAL_CHILDREN,
+    NESTED_RETENTION_MISPLACED_POLICY_SCOPE,
+    NESTED_RETENTION_REFUSING_CONTAINER,
     NESTED_RETENTION_REPOINT_PROBE
   };
 
@@ -224,6 +352,31 @@ namespace
           replaced.tag(5573);
           wrapper << replaced << retained;
         }
+        root << wrapper;
+      }
+      else if (Shape == NESTED_RETENTION_MISPLACED_POLICY_SCOPE)
+      {
+        loka::app::Fragment wrapper;
+        loka::app::PolicyScopeDefinition misplacedScope;
+        if (this->changed_)
+        {
+          loka::app::EditTextDefinition edit;
+          misplacedScope.destroyOnDetach() << edit;
+        }
+        else
+        {
+          loka::app::ButtonDefinition button("button");
+          misplacedScope.destroyOnDetach() << button;
+        }
+        wrapper << misplacedScope;
+        root << wrapper;
+      }
+      else if (Shape == NESTED_RETENTION_REFUSING_CONTAINER)
+      {
+        RefusingContainerDefinition wrapper(
+            RefusingContainerProps(this->changed_ ? 1 : 0));
+        wrapper << loka::app::Stack(
+            this->changed_ ? loka::app::STACK_AXIS_COLUMN : loka::app::STACK_AXIS_ROW);
         root << wrapper;
       }
       else
@@ -442,6 +595,73 @@ namespace
     LOKA_VERIFY(retained->props.axis_ == loka::app::STACK_AXIS_COLUMN);
     scene.unmount();
   }
+
+  template <bool UseRetainFastPaths>
+  void runNestedMisplacedPolicyScopeReconciliation()
+  {
+    NullScenePlatformController platform;
+    typedef NestedRetentionBoundaryNode<
+        UseRetainFastPaths, NESTED_RETENTION_MISPLACED_POLICY_SCOPE> BoundaryT;
+    loka::app::scene::Scene scene((loka::app::scene::Boundary<BoundaryT>()));
+    BoundaryT *boundary = mountNestedRetentionBoundary<
+        UseRetainFastPaths, NESTED_RETENTION_MISPLACED_POLICY_SCOPE>(platform, scene);
+    loka::app::scene::Node *wrapper = boundary->nodeAt(0);
+    loka::app::scene::Node *scopeContent = boundary->nodeAt(0, 0);
+    loka::app::scene::Node *oldControl = boundary->nodeAt(0, 0, 0);
+    LOKA_VERIFY(wrapper != 0);
+    LOKA_VERIFY(scopeContent != 0);
+    LOKA_VERIFY(oldControl != 0);
+    LOKA_VERIFY(oldControl->kind() == loka::app::scene::NODE_KIND_BUTTON);
+    LOKA_VERIFY(platform.findLedgerRow(
+        NullScenePlatformController::CONTROL_RECIPE_BUTTON) != 0);
+    LOKA_VERIFY(platform.findLedgerRow(
+        NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT) == 0);
+
+    flushNestedRetentionChange(boundary, scene);
+    platform.drainNativeRetirements();
+
+    loka::app::scene::Node *newControl = boundary->nodeAt(0, 0, 0);
+    LOKA_VERIFY(boundary->nodeAt(0) == wrapper);
+    LOKA_VERIFY(boundary->nodeAt(0, 0) == scopeContent);
+    LOKA_VERIFY(newControl != 0);
+    LOKA_VERIFY(newControl != oldControl);
+    LOKA_VERIFY(newControl->kind() == loka::app::scene::NODE_KIND_EDIT_TEXT);
+    LOKA_VERIFY(platform.findLedgerRow(
+        NullScenePlatformController::CONTROL_RECIPE_BUTTON) == 0);
+    LOKA_VERIFY(platform.findLedgerRow(
+        NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT) != 0);
+    scene.unmount();
+  }
+
+  template <bool UseRetainFastPaths>
+  void runNestedApplyRefusalFallsThroughToCurrentTree()
+  {
+    g_refusingContainerApply.reset();
+    NullScenePlatformController platform;
+    typedef NestedRetentionBoundaryNode<
+        UseRetainFastPaths, NESTED_RETENTION_REFUSING_CONTAINER> BoundaryT;
+    loka::app::scene::Scene scene((loka::app::scene::Boundary<BoundaryT>()));
+    BoundaryT *boundary = mountNestedRetentionBoundary<
+        UseRetainFastPaths, NESTED_RETENTION_REFUSING_CONTAINER>(platform, scene);
+    RefusingContainerNode *wrapper =
+        static_cast<RefusingContainerNode *>(boundary->nodeAt(0));
+    loka::app::StackNode *stack = boundary->nodeAt(0, 0)->asStackNode();
+    LOKA_VERIFY(wrapper != 0);
+    LOKA_VERIFY(stack != 0);
+    LOKA_VERIFY(wrapper->props.revision == 0);
+    LOKA_VERIFY(stack->props.axis_ == loka::app::STACK_AXIS_ROW);
+
+    g_refusingContainerApply.arm();
+    flushNestedRetentionChange(boundary, scene);
+
+    LOKA_VERIFY(g_refusingContainerApply.wasRefused());
+    LOKA_VERIFY(boundary->nodeAt(0) == wrapper);
+    LOKA_VERIFY(boundary->nodeAt(0, 0) == stack);
+    LOKA_VERIFY(wrapper->props.revision == 1);
+    LOKA_VERIFY(stack->props.axis_ == loka::app::STACK_AXIS_COLUMN);
+    scene.unmount();
+    g_refusingContainerApply.reset();
+  }
 } // namespace
 
 void testStackAxisFlipRetainsContainerAndChildAndRelayouts()
@@ -515,4 +735,16 @@ void testNestedRetainedStructuralChildrenApplyInBothModes()
 {
   runStructuralNestedRetention<false>();
   runStructuralNestedRetention<true>();
+}
+
+void testNestedMisplacedPolicyScopeReconcilesInBothModes()
+{
+  runNestedMisplacedPolicyScopeReconciliation<false>();
+  runNestedMisplacedPolicyScopeReconciliation<true>();
+}
+
+void testNestedApplyRefusalFallsThroughToCurrentTreeInBothModes()
+{
+  runNestedApplyRefusalFallsThroughToCurrentTree<false>();
+  runNestedApplyRefusalFallsThroughToCurrentTree<true>();
 }
