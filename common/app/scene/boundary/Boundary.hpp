@@ -1360,6 +1360,42 @@ namespace loka
           return true;
         }
 
+        /** Applies a local recompose when possible, otherwise replaces the
+            Boundary's children from the completed declaration. */
+        void recomposeLocalCompositionWithFullFallback(
+            ComponentContext &context,
+            ComposeEvent event,
+            LocalRecomposeMode mode)
+        {
+          if (this->recomposeLocalComposition(context, event, mode))
+          {
+            return;
+          }
+
+          NodeComposition &composition = this->composition();
+          this->promoteCurrentCompositionSnapshot();
+          std::vector<Node *> detached;
+          this->detachChildrenTo(detached);
+          for (size_t i = 0; i < detached.size(); ++i)
+          {
+            if (!detached[i])
+            {
+              continue;
+            }
+            this->composeTree(detached[i], context, COMPOSE_EVENT_DETACH, this);
+            this->retireDetachedNode(context, detached[i]);
+          }
+          this->retireOwnedNodeGeneration(context);
+          context.setComposition(&composition);
+          Node *child = composition.createNodeTree();
+          if (child)
+          {
+            this->addChild(child);
+            this->composeTree(child, context, event, this);
+          }
+          context.setComposition(0);
+        }
+
         /** Retires the complete arena allocation and ledger for clock-boundary reclaim. */
         void retireOwnedNodeGeneration(ComponentContext &context);
         void retireOwnedNodeGeneration()

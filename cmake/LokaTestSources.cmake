@@ -27,6 +27,7 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/DerivedStateTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/WindowFrameStateTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/DefinitionCloneTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/LocalRecomposeRefusalTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/NodeMatchTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/SceneOwnershipTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/PhaseGuardTests.cpp

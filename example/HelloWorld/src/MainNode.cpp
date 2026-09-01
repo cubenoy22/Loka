@@ -331,15 +331,13 @@ namespace helloworld
                                     loka::app::scene::ComposeEvent event)
   {
     typedef loka::app::scene::BoundaryNodeFor<MainNode> BaseType;
-    // Window boundaries do not re-declare on UPDATE by default. Only a
-    // derived layout-mode change needs to rebuild HelloWorld's structure.
     if (event == loka::app::scene::COMPOSE_EVENT_UPDATE &&
         (context.dirtyFlags() & loka::app::scene::NODE_DIRTY_CHILD))
     {
-      this->recomposeLocalComposition(context, event,
-                                      this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
+      this->recomposeLocalCompositionWithFullFallback(
+          context, event, this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
       // beginComposition releases this node's callbacks, so mirror attach's
-      // idempotent declarations after the local recompose.
+      // idempotent declarations after the local recompose or fallback.
       this->bindUi();
       return;
     }

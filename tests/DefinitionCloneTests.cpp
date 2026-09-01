@@ -14,6 +14,7 @@
 #include "app/scene/Node.hpp"
 #include "app/scene/composition/NodeCompositionSnapshot.hpp"
 #include "app/scene/node/Conditional.hpp"
+#include "support/LimitedCloneProbe.hpp"
 
 // Regression pin for the ConditionalDefinition dangling-branch fix (issue #47,
 // docs/TODO.md "DSL definition lifetime safety"): ConditionalDefinition must own
@@ -25,90 +26,24 @@
 // Probe definition/node with liveness counters
 // ============================================================
 
+namespace DefinitionCloneTestSupport
+{
+  int g_probePropsAlive = 0;
+  int g_probeNodesAlive = 0;
+  int g_probeNodesCreated = 0;
+  int g_limitedCloneBudget = -1;
+  int g_limitedCloneCalls = 0;
+} // namespace DefinitionCloneTestSupport
+
 namespace
 {
-
-  class CloneProbeNode;
-  struct CloneProbeTypeTag
-  {
-  };
-
-  static int g_probePropsAlive = 0;
-  static int g_probeNodesAlive = 0;
-  static int g_probeNodesCreated = 0;
-  static int g_limitedCloneBudget = -1;
-  static int g_limitedCloneCalls = 0;
-
-  struct CloneProbeProps : public loka::app::scene::NodePropsBase<CloneProbeProps>
-  {
-    typedef CloneProbeTypeTag TypeTag;
-    typedef CloneProbeNode NodeType;
-    CloneProbeProps()
-    {
-      ++g_probePropsAlive;
-    }
-    CloneProbeProps(const CloneProbeProps &other)
-        : loka::app::scene::NodePropsBase<CloneProbeProps>(other)
-    {
-      ++g_probePropsAlive;
-    }
-    ~CloneProbeProps()
-    {
-      --g_probePropsAlive;
-    }
-    bool operator<(const loka::app::scene::PropsBase &rhs) const
-    {
-      return rhs.propsTypeId() == this->propsTypeId() ? false : this->propsTypeId() < rhs.propsTypeId();
-    }
-  };
-
-  class CloneProbeNode : public loka::app::scene::Node
-  {
-  public:
-    typedef CloneProbeTypeTag TypeTag;
-    CloneProbeProps props;
-    CloneProbeNode(const CloneProbeProps &p)
-        : props(p)
-    {
-      ++g_probeNodesAlive;
-      ++g_probeNodesCreated;
-    }
-    virtual ~CloneProbeNode()
-    {
-      --g_probeNodesAlive;
-    }
-  };
-
-  struct CloneProbeDefinition : public loka::app::scene::NodeDefinition<CloneProbeProps, CloneProbeNode>
-  {
-    CloneProbeDefinition()
-        : loka::app::scene::NodeDefinition<CloneProbeProps, CloneProbeNode>()
-    {
-    }
-  };
+  using namespace DefinitionCloneTestSupport;
 
   struct OomCloneProbeDefinition : public CloneProbeDefinition
   {
     virtual loka::app::scene::NodeDefinitionBase *clone() const
     {
       return 0;
-    }
-  };
-
-  struct LimitedCloneProbeDefinition : public CloneProbeDefinition
-  {
-    virtual loka::app::scene::NodeDefinitionBase *clone() const
-    {
-      ++g_limitedCloneCalls;
-      if (g_limitedCloneBudget == 0)
-      {
-        return 0;
-      }
-      if (g_limitedCloneBudget > 0)
-      {
-        --g_limitedCloneBudget;
-      }
-      return new LimitedCloneProbeDefinition(*this);
     }
   };
 

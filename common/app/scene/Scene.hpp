@@ -719,29 +719,12 @@ namespace loka
             }
             else
             {
-              if (this->recomposeLocalComposition(
-                      context, event, LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS))
-              {
-                return;
-              }
-              composition = &this->composition();
+              this->recomposeLocalCompositionWithFullFallback(
+                  context, event, LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
+              this->composed_ = true;
+              return;
             }
             this->promoteCurrentCompositionSnapshot();
-            if (event == COMPOSE_EVENT_UPDATE)
-            {
-              std::vector<Node *> detached;
-              this->detachChildrenTo(detached);
-              for (size_t i = 0; i < detached.size(); ++i)
-              {
-                if (!detached[i])
-                {
-                  continue;
-                }
-                this->composeTree(detached[i], context, COMPOSE_EVENT_DETACH, this);
-                this->retireDetachedNode(context, detached[i]);
-              }
-              this->retireOwnedNodeGeneration(context);
-            }
             context.setComposition(composition);
             Node *child = composition->createNodeTree();
             if (child)
