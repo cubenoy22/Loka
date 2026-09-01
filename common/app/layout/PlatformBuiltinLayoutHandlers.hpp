@@ -69,51 +69,35 @@ namespace loka
         }
       };
 
-      class ColumnPlatformLayoutHandler : public loka::app::scene::IPlatformLayoutHandler
+      class StackPlatformLayoutHandler : public loka::app::scene::IPlatformLayoutHandler
       {
       public:
-        virtual const void *nodeTypeKey() const
-        {
-          return loka::app::scene::NodeTypeToken<loka::app::ColumnNode>();
-        }
-
-        virtual int layoutNode(loka::app::scene::Node *node,
-                               const loka::app::scene::LayoutState &state,
-                               loka::app::scene::IPlatformLayoutTraversal *traversal)
-        {
-          loka::app::ColumnNode *column = node ? node->asColumnNode() : 0;
-          if (!column || !traversal)
-          {
-            return state.y;
-          }
-          return loka::app::layout::computeColumnLayoutResultY(column, state, traversal, &DispatchTraversalLayoutChild);
-        }
-      };
-
-      class RowPlatformLayoutHandler : public loka::app::scene::IPlatformLayoutHandler
-      {
-      public:
-        explicit RowPlatformLayoutHandler(const RowLayoutMetrics &metrics)
+        explicit StackPlatformLayoutHandler(const RowLayoutMetrics &metrics)
             : metrics_(metrics)
         {
         }
 
         virtual const void *nodeTypeKey() const
         {
-          return loka::app::scene::NodeTypeToken<loka::app::RowNode>();
+          return loka::app::scene::NodeTypeToken<loka::app::StackNode>();
         }
 
         virtual int layoutNode(loka::app::scene::Node *node,
                                const loka::app::scene::LayoutState &state,
                                loka::app::scene::IPlatformLayoutTraversal *traversal)
         {
-          loka::app::RowNode *row = node ? node->asRowNode() : 0;
-          if (!row || !traversal)
+          loka::app::StackNode *stack = node ? node->asStackNode() : 0;
+          if (!stack || !traversal)
           {
             return state.y;
           }
+          if (stack->props.axis_ == loka::app::STACK_AXIS_COLUMN)
+          {
+            return loka::app::layout::computeColumnLayoutResultY(
+                stack, state, traversal, &DispatchTraversalLayoutChild);
+          }
           return loka::app::layout::computeRowLayoutResultY(
-              row, state, this->metrics_, traversal, &DispatchTraversalLayoutChild);
+              stack, state, this->metrics_, traversal, &DispatchTraversalLayoutChild);
         }
 
       private:
@@ -156,10 +140,9 @@ namespace loka
       {
         registry.registerHandler(new BoxPlatformLayoutHandler());
         registry.registerHandler(new ZStackPlatformLayoutHandler());
-        registry.registerHandler(new ColumnPlatformLayoutHandler());
         if (rowMetrics)
         {
-          registry.registerHandler(new RowPlatformLayoutHandler(*rowMetrics));
+          registry.registerHandler(new StackPlatformLayoutHandler(*rowMetrics));
         }
         if (gridMetrics)
         {

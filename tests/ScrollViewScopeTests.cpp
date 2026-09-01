@@ -124,7 +124,7 @@ namespace
 void testScrollViewScopePushPopRestoresRootProjectionParent()
 {
   OffsetFact offset(4);
-  loka::app::ColumnNode column((loka::app::ColumnProps()));
+  loka::app::StackNode column((loka::app::StackProps(loka::app::STACK_AXIS_COLUMN)));
   loka::app::ScrollViewNode *scrollView = makeScrollView(offset);
   FixedLayoutProbeNode *first = new FixedLayoutProbeNode(7);
   FixedLayoutProbeNode *second = new FixedLayoutProbeNode(5);
@@ -239,7 +239,8 @@ void testScrollViewContentHeightRefusesBeforeShortWrap()
   // refused at the traversal edge before the narrowed coordinate reaches the
   // next grandchild.
   loka::app::ScrollViewNode nestedNarrow((loka::app::ScrollViewProps(offset.state())));
-  loka::app::ColumnNode *tallColumn = new loka::app::ColumnNode((loka::app::ColumnProps()));
+  loka::app::StackNode *tallColumn =
+      new loka::app::StackNode((loka::app::StackProps(loka::app::STACK_AXIS_COLUMN)));
   FixedLayoutProbeNode *firstGrandChild = new FixedLayoutProbeNode(1);
   FixedLayoutProbeNode *secondGrandChild = new FixedLayoutProbeNode(1);
   FixedLayoutProbeNode *wrappedGrandChild = new FixedLayoutProbeNode(1);

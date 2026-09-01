@@ -156,87 +156,72 @@ namespace
     }
   };
 
-  class ToolboxColumnLayoutHandler : public loka::app::scene::IPlatformLayoutHandler
+  class ToolboxStackLayoutHandler : public loka::app::scene::IPlatformLayoutHandler
   {
   public:
     virtual const void *nodeTypeKey() const
     {
-      return loka::app::scene::NodeTypeToken<loka::app::ColumnNode>();
+      return loka::app::scene::NodeTypeToken<loka::app::StackNode>();
     }
 
     virtual int layoutNode(loka::app::scene::Node *node,
                            const loka::app::scene::LayoutState &state,
                            loka::app::scene::IPlatformLayoutTraversal *traversal)
     {
-      loka::app::ColumnNode *column = node ? node->asColumnNode() : 0;
-      if (!column || !traversal)
+      loka::app::StackNode *stack = node ? node->asStackNode() : 0;
+      if (!stack || !traversal)
       {
         return 0;
       }
 
-      short width = 0;
-      short currentY = state.y;
-      loka::dsl::CompositionCursor<loka::app::scene::Node> it(column->childrenHead(), column->childrenCount());
-      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+      if (stack->props.axis_ == loka::app::STACK_AXIS_COLUMN)
       {
-        loka::app::scene::LayoutState childState = state;
-        childState.y = currentY;
-        if (state.height > 0)
+        loka::app::StackNode *column = stack;
+        short width = 0;
+        short currentY = state.y;
+        loka::dsl::CompositionCursor<loka::app::scene::Node> it(column->childrenHead(), column->childrenCount());
+        for (loka::app::scene::Node *child = it.next(); child; child = it.next())
         {
-          childState.height =
-              static_cast<short>(loka::app::layout::remainingChildHeightForColumn(state.height, state.y, currentY));
-        }
-        short childWidth = state.width;
-        short childOffset = 0;
-        if (column->props.hasHorizontalAlignment_)
-        {
-          childWidth = static_cast<short>(
-              loka::app::layout::preferredChildWidthForColumn(child, state.width));
-          short remain = static_cast<short>(state.width - childWidth);
-          if (remain > 0)
+          loka::app::scene::LayoutState childState = state;
+          childState.y = currentY;
+          if (state.height > 0)
           {
-            if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_CENTER)
+            childState.height =
+                static_cast<short>(loka::app::layout::remainingChildHeightForColumn(state.height, state.y, currentY));
+          }
+          short childWidth = state.width;
+          short childOffset = 0;
+          if (column->props.hasHorizontalAlignment_)
+          {
+            childWidth = static_cast<short>(
+                loka::app::layout::preferredChildWidthForColumn(child, state.width));
+            short remain = static_cast<short>(state.width - childWidth);
+            if (remain > 0)
             {
-              childOffset = static_cast<short>(remain / 2);
-            }
-            else if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_TRAILING)
-            {
-              childOffset = remain;
+              if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_CENTER)
+              {
+                childOffset = static_cast<short>(remain / 2);
+              }
+              else if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_TRAILING)
+              {
+                childOffset = remain;
+              }
             }
           }
+          childState.x = static_cast<short>(state.x + childOffset);
+          childState.width = childWidth;
+          const int childWidthUsed = DispatchTraversalLayoutChild(traversal, child, childState);
+          if (childWidthUsed > width)
+          {
+            width = static_cast<short>(childWidthUsed);
+          }
+          currentY = traversal->layoutResultY();
         }
-        childState.x = static_cast<short>(state.x + childOffset);
-        childState.width = childWidth;
-        const int childWidthUsed = DispatchTraversalLayoutChild(traversal, child, childState);
-        if (childWidthUsed > width)
-        {
-          width = static_cast<short>(childWidthUsed);
-        }
-        currentY = traversal->layoutResultY();
-      }
-      traversal->setLayoutResultY(currentY);
-      return width;
-    }
-  };
-
-  class ToolboxRowLayoutHandler : public loka::app::scene::IPlatformLayoutHandler
-  {
-  public:
-    virtual const void *nodeTypeKey() const
-    {
-      return loka::app::scene::NodeTypeToken<loka::app::RowNode>();
-    }
-
-    virtual int layoutNode(loka::app::scene::Node *node,
-                           const loka::app::scene::LayoutState &state,
-                           loka::app::scene::IPlatformLayoutTraversal *traversal)
-    {
-      loka::app::RowNode *row = node ? node->asRowNode() : 0;
-      if (!row || !traversal)
-      {
-        return 0;
+        traversal->setLayoutResultY(currentY);
+        return width;
       }
 
+      loka::app::StackNode *row = stack;
       short rowStartX = state.x;
       short maxHeight = 0;
       short rowHeight =
@@ -419,7 +404,6 @@ void RegisterToolboxPlatformLayoutHandlers(loka::app::scene::PlatformLayoutHandl
 {
   registry.registerHandler(new ToolboxBoxLayoutHandler());
   registry.registerHandler(new ToolboxZStackLayoutHandler());
-  registry.registerHandler(new ToolboxColumnLayoutHandler());
-  registry.registerHandler(new ToolboxRowLayoutHandler());
+  registry.registerHandler(new ToolboxStackLayoutHandler());
   registry.registerHandler(new ToolboxGridLayoutHandler());
 }

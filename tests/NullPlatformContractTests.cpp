@@ -3366,11 +3366,10 @@ void testStructureReportDoesNotStickOnDirectRoot()
   // sticky report would deliver every later paint-only update as a
   // child-grade change and defeat the skip forever (#279 review).
   const unsigned long afterStructural = platform.onChangeCallCount();
-  (void)afterStructural;
   scene.requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
   scene.flushInvalidation();
-  assert(platform.onChangeCallCount() == afterStructural &&
-         "a paint-only cycle on a direct root must not inherit the previous cycle's structure report");
+  LOKA_VERIFY(platform.onChangeCallCount() == afterStructural &&
+              "a paint-only cycle on a direct root must not inherit the previous cycle's structure report");
   g_toggleVisible = 0;
 }
 
@@ -3795,11 +3794,10 @@ void testBankedSectionClickHandlerSwapPresentsFreshControls()
   // above, a paint-only cycle must still ride the skip -- a sticky report
   // would escalate every later update through layout/ensure (#279 review).
   const unsigned long onChangeAfterSwaps = platform.onChangeCallCount();
-  (void)onChangeAfterSwaps;
   scene.requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
   scene.flushInvalidation();
-  assert(platform.onChangeCallCount() == onChangeAfterSwaps &&
-         "a paint-only cycle after a structural one must not escalate");
+  LOKA_VERIFY(platform.onChangeCallCount() == onChangeAfterSwaps &&
+              "a paint-only cycle after a structural one must not escalate");
 }
 
 namespace
@@ -5473,8 +5471,8 @@ void testMisplacedPolicyScopeReconcilesReplacedInnerContent()
   // The request only carried PROPS; the structure-bearing apply must reach
   // the platform as a child-grade change, because real platforms gate their
   // layout/ensure pass on the flags (#277).
-  assert((platform.lastOnChangeFlags() & loka::app::scene::NODE_DIRTY_CHILD) != 0 &&
-         "a structure-bearing apply is a child-grade change even from a PROPS request");
+  LOKA_VERIFY((platform.lastOnChangeFlags() & loka::app::scene::NODE_DIRTY_CHILD) != 0 &&
+              "a structure-bearing apply is a child-grade change even from a PROPS request");
 
   {
     loka::core::StateTrackerGuard guard(revision.trackerOwner());

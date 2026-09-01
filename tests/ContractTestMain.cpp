@@ -44,6 +44,7 @@
 #include "LifecycleDetachTests.hpp"
 #include "NativeLifetimeTests.hpp"
 #include "NullLayoutTests.hpp"
+#include "StackAxisRetentionTests.hpp"
 #include "ScrollViewScopeTests.hpp"
 #include "ToolboxLayoutContractTests.hpp"
 #include "ToolboxScenePlatformContractTests.hpp"

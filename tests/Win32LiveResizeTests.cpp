@@ -176,7 +176,7 @@ void testWin32LayoutPresentsRootOnceAfterPositioningChildren()
   {
     Win32ScenePlatformController controller(root);
     RegisterWin32BuiltInSupport(controller);
-    loka::app::ColumnNode column((loka::app::ColumnProps()));
+    loka::app::StackNode column((loka::app::StackProps(loka::app::STACK_AXIS_COLUMN)));
     column.addChild(new loka::app::TextNode((loka::app::TextProps("first"))));
     column.addChild(new loka::app::TextNode((loka::app::TextProps("second"))));
 
@@ -205,7 +205,8 @@ void testWin32ReentrantLayoutSharesOutermostPresentation()
     RegisterWin32BuiltInSupport(controller);
     ReentrantLayoutOffset offset(100);
     loka::app::ScrollViewNode scrollView((loka::app::ScrollViewProps(offset.state())));
-    loka::app::ColumnNode *column = new loka::app::ColumnNode((loka::app::ColumnProps()));
+    loka::app::StackNode *column =
+        new loka::app::StackNode((loka::app::StackProps(loka::app::STACK_AXIS_COLUMN)));
     for (int index = 0; index < 6; ++index)
     {
       column->addChild(new loka::app::ButtonNode((loka::app::ButtonProps())));
