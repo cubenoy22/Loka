@@ -90,7 +90,9 @@ namespace loka
       }
       bool invalidatesTarget(const void *target) const
       {
-        return target && invalidateTarget_ == target;
+        // A null query observes the explicitly unarmed state without exposing
+        // the opaque target value.
+        return invalidateTarget_ == target;
       }
       /**
        * Registers a dependency edge used for derived-state propagation.

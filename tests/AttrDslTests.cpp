@@ -615,15 +615,21 @@ void testLokaAttrDslV1Core()
     loka::app::MenuItemDefinitionWithAttr changed =
         loka::app::MenuItem("Open").attr(loka::app::MenuItemAttr().disabled(false));
     assert(!left.equalsStructure(changed));
+
+    loka::app::MenuItemDefinitionWithAttr checkedChanged =
+        loka::app::MenuItem("Open").attr(loka::app::MenuItemAttr().disabled(&disabledState).checked(true));
+    assert(!left.equalsStructure(checkedChanged));
   }
 
   // --- MenuItem.attr is chain-style: returned definition carries attr ---
   {
     loka::app::MenuItemDefinitionWithAttr item =
-        loka::app::MenuItem("Open").attr(loka::app::MenuItemAttr().disabled(true));
+        loka::app::MenuItem("Open").attr(loka::app::MenuItemAttr().disabled(true).checked(true));
     assert(item.hasAttr_);
     assert(item.attr_.hasDisabledValue_);
     assert(item.attr_.disabledValue_);
+    assert(item.attr_.hasCheckedValue_);
+    assert(item.attr_.checkedValue_);
   }
 
   // --- MenuItem disabled attr -> effective enabled projection ---
@@ -664,6 +670,24 @@ void testLokaAttrDslV1Core()
     assert(!hiddenByState.isVisibleInitial());
     visibleState.set(true);
     assert(hiddenByState.isVisibleInitial());
+  }
+
+  // --- MenuItem checked projection ---
+  {
+    loka::app::MenuItemDefinition defaultItem = loka::app::MenuItem("Open");
+    LOKA_VERIFY(!defaultItem.isCheckedInitial());
+    LOKA_VERIFY(defaultItem.checkedBindingState() == 0);
+
+    loka::app::MenuItemDefinitionWithAttr checkedByValue =
+        loka::app::MenuItem("Open").attr(loka::app::MenuItemAttr().checked(true));
+    LOKA_VERIFY(checkedByValue.isCheckedInitial());
+    LOKA_VERIFY(checkedByValue.checkedBindingState() == 0);
+
+    loka::core::MutableState<bool> checkedState(false);
+    loka::app::MenuItemDefinitionWithAttr checkedByState =
+        loka::app::MenuItem("Open").attr(loka::app::MenuItemAttr().checked(&checkedState));
+    LOKA_VERIFY(!checkedByState.isCheckedInitial());
+    LOKA_VERIFY(checkedByState.checkedBindingState() == &checkedState);
   }
 
   printf("==== [testLokaAttrDslV1Core] end ====\n");

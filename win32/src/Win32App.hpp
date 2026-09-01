@@ -67,10 +67,12 @@ private:
     HWND hwnd;
     loka::core::State<bool> *enabledState;
     bool invertEnabled;
+    loka::core::State<bool> *checkedState;
   };
 
   void clearMenuBindings();
   static void MenuEnabledChangedThunk(void *userData);
+  static void MenuCheckedChangedThunk(void *userData);
   void buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *itemDef, HWND hwnd);
   void buildMenuItems(HMENU menu, const loka::app::MenuItemDefinition *itemsHead, HWND hwnd);
 

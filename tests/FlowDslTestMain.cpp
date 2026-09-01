@@ -29,6 +29,7 @@
 #include "FlowDslTests.hpp"
 #include "OwnershipDumpTests.hpp"
 #include "AttrDslTests.hpp"
+#include "MenuCheckedTests.hpp"
 #include "SnapFormatTests.hpp"
 #include "ScenarioProfileTests.hpp"
 #include "LrpkFormatTests.hpp"

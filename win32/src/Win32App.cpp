@@ -290,6 +290,20 @@ void Win32App::MenuEnabledChangedThunk(void *userData)
   }
 }
 
+void Win32App::MenuCheckedChangedThunk(void *userData)
+{
+  MenuBinding *binding = static_cast<MenuBinding *>(userData);
+  if (!binding || !binding->checkedState || !binding->menu)
+    return;
+  const bool checked = binding->checkedState->get();
+  CheckMenuItem(
+      binding->menu, binding->commandId, MF_BYCOMMAND | (checked ? MF_CHECKED : MF_UNCHECKED));
+  if (binding->hwnd)
+  {
+    DrawMenuBar(binding->hwnd);
+  }
+}
+
 void Win32App::clearMenuBindings()
 {
   for (size_t i = 0; i < bindings_.size(); ++i)
@@ -298,6 +312,10 @@ void Win32App::clearMenuBindings()
     if (binding && binding->enabledState)
     {
       binding->enabledState->deferUnbind(&Win32App::MenuEnabledChangedThunk, binding);
+    }
+    if (binding && binding->checkedState)
+    {
+      binding->checkedState->deferUnbind(&Win32App::MenuCheckedChangedThunk, binding);
     }
     delete binding;
   }
@@ -331,6 +349,10 @@ void Win32App::buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *it
   {
     flags |= MF_GRAYED;
   }
+  if (itemDef->isCheckedInitial())
+  {
+    flags |= MF_CHECKED;
+  }
 
   if (itemDef->hasChildren())
   {
@@ -353,7 +375,8 @@ void Win32App::buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *it
   command.emitter = itemDef->onClickState;
   commands_.push_back(command);
   loka::core::State<bool> *enabledBindingState = itemDef->enabledBindingState();
-  if (enabledBindingState)
+  loka::core::State<bool> *checkedBindingState = itemDef->checkedBindingState();
+  if (enabledBindingState || checkedBindingState)
   {
     Win32App::MenuBinding *binding = new Win32App::MenuBinding();
     binding->menu = menu;
@@ -361,7 +384,15 @@ void Win32App::buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *it
     binding->hwnd = hwnd;
     binding->enabledState = enabledBindingState;
     binding->invertEnabled = itemDef->enabledBindingInvert();
-    binding->enabledState->deferBind(&Win32App::MenuEnabledChangedThunk, binding);
+    binding->checkedState = checkedBindingState;
+    if (enabledBindingState)
+    {
+      enabledBindingState->deferBind(&Win32App::MenuEnabledChangedThunk, binding);
+    }
+    if (checkedBindingState)
+    {
+      checkedBindingState->deferBind(&Win32App::MenuCheckedChangedThunk, binding);
+    }
     bindings_.push_back(binding);
   }
 }

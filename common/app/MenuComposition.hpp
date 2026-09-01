@@ -26,6 +26,9 @@ namespace loka
       }
       virtual ~MenuBoundary()
       {
+        assert(this->tracker_.invalidatesTarget(0) &&
+               "MenuBoundary destroyed while its menu invalidate callback is still armed; "
+               "destroy the MenuController first so it can disarm the boundary tracker");
         this->releaseCallbacks();
         for (size_t i = 0; i < ownedStates_.size(); ++i)
         {
@@ -229,6 +232,7 @@ namespace loka
             invalidateFn_(0),
             invalidateUserData_(0),
             list_(),
+            armedTrackers_(),
             dirtyIndices_(),
             dirtyTrackers_()
       {
@@ -256,6 +260,20 @@ namespace loka
         out.swap(dirtyIndices_);
       }
 
+      /** Takes one boundary tracker whose persistent invalidation callback was
+          armed by this composition. The callback owner must merge each result
+          into its ledger and disarm it before that owner is reclaimed. */
+      loka::core::PushStateTracker *takeArmedTracker()
+      {
+        if (armedTrackers_.empty())
+        {
+          return 0;
+        }
+        loka::core::PushStateTracker *tracker = armedTrackers_.back();
+        armedTrackers_.pop_back();
+        return tracker;
+      }
+
       /** Acknowledges boundary dirt after the composed menu bar is committed. */
       void acknowledgeDirtyBoundaries();
 
@@ -272,6 +290,7 @@ namespace loka
       InvalidateFn invalidateFn_;
       void *invalidateUserData_;
       loka::dsl::CompositionList<MenuDefinition> list_;
+      std::vector<loka::core::PushStateTracker *> armedTrackers_;
       std::vector<size_t> dirtyIndices_;
       std::vector<loka::core::PushStateTracker *> dirtyTrackers_;
     };

@@ -695,7 +695,7 @@ void testMenuControllerPreservesRefreshedMenuBarOnOomClone()
   (void)refreshed;
   assert(!refreshed);
   assert(hasSingleMenuNamed(controller.defaultMenuBar(), "Stable"));
-  assert(!controller.diff().valid);
+  LOKA_VERIFY(!controller.diff().valid);
   assert(applyCount == 1);
   loka::app::testing::allowMenuBarDefinitionClones();
 

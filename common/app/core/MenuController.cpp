@@ -10,13 +10,41 @@ MenuController::MenuController(AppConfigurable *config, ApplyFn applyFn, void *a
       pendingApplyWindow_(0),
       menuBar_(0),
       refresh_(),
-      diff_()
+      diff_(),
+      armedTrackers_()
 {
 }
 
 MenuController::~MenuController()
 {
+  for (size_t i = 0; i < armedTrackers_.size(); ++i)
+  {
+    loka::core::PushStateTracker *tracker = armedTrackers_[i];
+    assert(tracker && tracker->invalidatesTarget(this) &&
+           "MenuController lost ownership of an armed MenuBoundary tracker");
+    tracker->setInvalidateCallback(0, 0);
+    tracker->setInvalidateTarget(0);
+  }
+  armedTrackers_.clear();
   menuBar_.reset();
+}
+
+void MenuController::mergeArmedTrackers(loka::app::MenuComposition &composition)
+{
+  for (loka::core::PushStateTracker *tracker = composition.takeArmedTracker();
+       tracker;
+       tracker = composition.takeArmedTracker())
+  {
+    size_t ledgerIndex = 0;
+    while (ledgerIndex < armedTrackers_.size() && armedTrackers_[ledgerIndex] != tracker)
+    {
+      ++ledgerIndex;
+    }
+    if (ledgerIndex == armedTrackers_.size())
+    {
+      armedTrackers_.push_back(tracker);
+    }
+  }
 }
 
 void MenuController::InvalidateThunk(void *userData)
@@ -98,7 +126,8 @@ const loka::app::MenuBarDefinition *MenuController::resolveMenuBar(Window *windo
 
 // Refresh is one transaction with a single commit point at the end:
 //   1. Recompose the candidate bar. MenuComposition peeks boundary dirt and
-//      records the affected menu indices without acknowledging it.
+//      records both affected menu indices and newly armed tracker callbacks.
+//      Adopt every callback into this controller's teardown ledger immediately.
 //   2. Build the candidate diff into the local `nextDiff`; `menuBar_` and
 //      `diff_` stay untouched while anything can still fail.
 //   3. Clone and commit bar + diff together, then acknowledge the boundary
@@ -114,6 +143,7 @@ bool MenuController::refreshDefaultMenuBar()
   loka::app::MenuComposition menuComposition(&menuBar);
   menuComposition.setInvalidateCallback(&MenuController::InvalidateThunk, this);
   config_->composeMenu(menuComposition);
+  this->mergeArmedTrackers(menuComposition);
   menuComposition.finish();
   std::vector<size_t> dirtyMenus;
   menuComposition.takeDirtyMenuIndices(dirtyMenus);

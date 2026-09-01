@@ -21,6 +21,7 @@
 #include "DefinitionCloneTests.hpp"
 #include "NodeMatchTests.hpp"
 #include "AttrDslTests.hpp"
+#include "MenuCheckedTests.hpp"
 #include "SnapFormatTests.hpp"
 #include "ScenarioProfileTests.hpp"
 #include "LrpkFormatTests.hpp"
