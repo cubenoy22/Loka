@@ -150,7 +150,7 @@ void testWin32FileFromWidePathSurvivesToOpen()
   // and "the file is open" -- every line of it is ours, and it is where #15
   // was lost.
   const loka::file::File item = loka::win32::FileFromWidePath(fileWide.c_str(), fileWide.size());
-  assert(item.kind() == loka::file::File::KIND_FILE);
+  LOKA_VERIFY(item.kind() == loka::file::File::KIND_FILE);
   FILE *opened = loka::platform::file::OpenRead(item.toString());
   assert(opened && "a File built from a UTF-16 path must still name that path at the open");
   unsigned char read[sizeof(kPayload)] = {0};

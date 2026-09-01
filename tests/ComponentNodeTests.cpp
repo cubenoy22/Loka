@@ -499,8 +499,7 @@ void testComponentComposesChildrenOnceAfterStatesConnect()
     loka::app::scene::INestable *nestable = component->asNestable();
   LOKA_VERIFY(nestable && nestable->childrenCount() == 1);
     loka::app::scene::Node *child = nestable->childrenHead();
-    (void)child;
-    assert(child && child->kind() == loka::app::scene::NODE_KIND_CELL);
+    LOKA_VERIFY(child && child->kind() == loka::app::scene::NODE_KIND_CELL);
 
     // A recompose over the same identity leaves the structure alone.
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
