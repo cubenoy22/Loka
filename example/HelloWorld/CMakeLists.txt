@@ -95,6 +95,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32IdlePacerTests.cpp
   )
   loka_enable_warnings(LokaTestsWin32)
+  loka_enable_win32_visual_styles(LokaTestsWin32)
 
   target_include_directories(LokaTestsWin32 PRIVATE
     ${LOKA_SCRAPBOOK_R_HEADER_DIR}

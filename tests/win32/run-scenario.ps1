@@ -296,7 +296,13 @@ public static class LokaScenarioNative {
             // The scenario target is Per-Monitor V2. Without the same thread
             // context here, GetWindowRect is virtualized to 96 DPI while the
             // target publishes physical-pixel crop bounds (#289, #492).
-            SetThreadDpiAwarenessContext(new IntPtr(-4));
+            IntPtr previousContext = SetThreadDpiAwarenessContext(new IntPtr(-4));
+            if (previousContext == IntPtr.Zero) {
+                // Windows 10 1607 exposes the API but supports only the
+                // Per-Monitor V1 context. Match the application's manifest
+                // fallback before querying physical desktop coordinates.
+                SetThreadDpiAwarenessContext(new IntPtr(-3));
+            }
         } catch (EntryPointNotFoundException) {
             // Older capture hosts keep the pre-existing 96-DPI rail.
         }
