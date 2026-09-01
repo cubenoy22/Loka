@@ -227,32 +227,22 @@ namespace loka
         return *this;
       }
 
-      static int compareTextState(loka::core::State<loka::core::String> *left,
-                                  loka::core::State<loka::core::String> *right)
-      {
-        if (left == right)
-        {
-          return 0;
-        }
-        if (!left)
-        {
-          return -1;
-        }
-        if (!right)
-        {
-          return 1;
-        }
-        return left->get().compare(right->get());
-      }
-
       bool operator<(const scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
         const TextProps &other = static_cast<const TextProps &>(rhs);
-        int textCompare = compareTextState(text_, other.text_);
-        if (textCompare != 0)
-          return textCompare < 0;
+        if (ownsText != other.ownsText)
+          return ownsText < other.ownsText;
+        if (ownsText)
+        {
+          const int textCompare =
+              ownedText.get().compare(other.ownedText.get());
+          if (textCompare != 0)
+            return textCompare < 0;
+        }
+        else if (text_ != other.text_)
+          return text_ < other.text_;
         if (hasAttr_ != other.hasAttr_)
           return hasAttr_ < other.hasAttr_;
         return attr_ < other.attr_;

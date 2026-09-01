@@ -61,7 +61,9 @@ namespace loka
         const EditTextProps &other = static_cast<const EditTextProps &>(rhs);
         if (controlTag_ != other.controlTag_)
           return controlTag_ < other.controlTag_;
-        return text_ < other.text_;
+        if (text_ != other.text_)
+          return text_ < other.text_;
+        return false;
       }
     };
 

@@ -110,6 +110,77 @@ namespace loka
                  && collectUniqueTaggedChildren(currentParent, currentChildren);
         }
 
+        inline bool haveDeepEquivalentDefinitions(
+            NodeDefinitionBase *previousDefinition,
+            NodeDefinitionBase *currentDefinition);
+
+        inline bool haveDeepEquivalentChildren(
+            INestableDefinition *previousParent,
+            INestableDefinition *currentParent)
+        {
+          if (!previousParent || !currentParent ||
+              previousParent->childrenCount() != currentParent->childrenCount())
+          {
+            return false;
+          }
+          NodeDefinitionBase *previousChild = previousParent->childrenHead();
+          NodeDefinitionBase *currentChild = currentParent->childrenHead();
+          while (previousChild && currentChild)
+          {
+            if (!haveDeepEquivalentDefinitions(previousChild, currentChild))
+            {
+              return false;
+            }
+            previousChild = previousChild->nextInComposition;
+            currentChild = currentChild->nextInComposition;
+          }
+          return previousChild == 0 && currentChild == 0;
+        }
+
+        inline bool haveDeepEquivalentDefinitions(
+            NodeDefinitionBase *previousDefinition,
+            NodeDefinitionBase *currentDefinition)
+        {
+          if (!previousDefinition || !currentDefinition ||
+              !previousDefinition->hasEquivalentProps(*currentDefinition))
+          {
+            return false;
+          }
+
+          // Seats and boundaries own separate composition scopes. Their
+          // existing definition equivalence door is the complete comparison
+          // at this level; this local tree walk must not enter either scope.
+          if (previousDefinition->asBranchSeatDefinition() ||
+              currentDefinition->asBranchSeatDefinition() ||
+              previousDefinition->isBoundary() ||
+              currentDefinition->isBoundary())
+          {
+            return true;
+          }
+
+          IBranchPolicyScopeDefinition *previousScope =
+              previousDefinition->asBranchPolicyScopeDefinition();
+          IBranchPolicyScopeDefinition *currentScope =
+              currentDefinition->asBranchPolicyScopeDefinition();
+          if (previousScope || currentScope)
+          {
+            return previousScope && currentScope &&
+                   haveDeepEquivalentDefinitions(
+                       previousScope->scopedBranchDefinition(),
+                       currentScope->scopedBranchDefinition());
+          }
+
+          INestableDefinition *previousNestable =
+              previousDefinition->asNestableDefinition();
+          INestableDefinition *currentNestable =
+              currentDefinition->asNestableDefinition();
+          if (!previousNestable || !currentNestable)
+          {
+            return previousNestable == 0 && currentNestable == 0;
+          }
+          return haveDeepEquivalentChildren(previousNestable, currentNestable);
+        }
+
         inline int indexOfTag(const std::vector<NodeDefinitionBase *> &children, NodeTag tag)
         {
           for (size_t i = 0; i < children.size(); ++i)

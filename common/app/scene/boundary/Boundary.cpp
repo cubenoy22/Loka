@@ -10,6 +10,25 @@ namespace loka
   {
     namespace scene
     {
+      void BoundaryNode::destroyUncommittedLocalRebuildCandidates(
+          BoundaryLocalRebuildPlan &plan)
+      {
+        for (size_t i = 0; i < plan.entries.size(); ++i)
+        {
+          BoundaryLocalRebuildPlanEntry &entry = plan.entries[i];
+          const bool materialized =
+              entry.action == BoundaryLocalRebuildPlanEntry::ACTION_ATTACH ||
+              entry.action == BoundaryLocalRebuildPlanEntry::ACTION_REPLACE;
+          const bool exclusivelyPlanOwned = entry.definition != 0;
+          if (materialized && exclusivelyPlanOwned && entry.node &&
+              entry.node->arenaOwner() == 0)
+          {
+            DestroyHeapNode(entry.node);
+            entry.node = 0;
+          }
+        }
+      }
+
       void BoundaryNode::retireOwnedNodeGeneration(ComponentContext &context)
       {
         detail::NodeArena::RetiredNodeGeneration gen;

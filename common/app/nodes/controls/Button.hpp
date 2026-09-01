@@ -134,7 +134,15 @@ namespace loka
         if (rhs.propsTypeId() != propsTypeId())
           return false;
         const ButtonProps &b = static_cast<const ButtonProps &>(rhs);
-        if (text_ != b.text_)
+        if (ownsText_ != b.ownsText_)
+          return ownsText_ < b.ownsText_;
+        if (ownsText_)
+        {
+          const int textCompare = ownedText_.get().compare(b.ownedText_.get());
+          if (textCompare != 0)
+            return textCompare < 0;
+        }
+        else if (text_ != b.text_)
           return text_ < b.text_;
         if (controlTag_ != b.controlTag_)
           return controlTag_ < b.controlTag_;
