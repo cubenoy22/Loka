@@ -12,6 +12,7 @@ void testNestedMisplacedPolicyScopeReconcilesInBothModes();
 void testNestedApplyRefusalFallsThroughToCurrentTreeInBothModes();
 void testDeepEquivalentAnonymousSubtreesRetainNodesInBothModes();
 void testDeepDifferentAnonymousSubtreeRebuildsLocallyInBothModes();
+void testDeepEquivalentAnonymousSubtreeRepointsMetadataInBothModes();
 void testControlPropsEquivalenceDistinguishesOwnedValuesAndBorrowedSources();
 
 #endif // LOKA_TESTS_STACK_AXIS_RETENTION_TESTS_HPP

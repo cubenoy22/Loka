@@ -888,6 +888,54 @@ namespace loka
                      : currentDefinition->applyPropsToNode(liveNode);
         }
 
+        static bool repointDeepEquivalentSiblings(
+            Node *liveNode,
+            NodeDefinitionBase *currentDefinition)
+        {
+          while (liveNode && currentDefinition)
+          {
+            NodeDefinitionBase *nextCurrent =
+                currentDefinition->nextInComposition;
+            IBranchPolicyScopeDefinition *scope =
+                currentDefinition->asBranchPolicyScopeDefinition();
+            if (scope)
+            {
+              currentDefinition = scope->scopedBranchDefinition();
+            }
+            if (!currentDefinition)
+            {
+              return false;
+            }
+            if (!currentDefinition->asBranchSeatDefinition())
+            {
+              if (!currentDefinition->repointRetainedNodeDefinition(liveNode))
+              {
+                return false;
+              }
+              if (!currentDefinition->isBoundary())
+              {
+                INestable *liveNestable = liveNode->asNestable();
+                INestableDefinition *currentNestable =
+                    currentDefinition->asNestableDefinition();
+                if ((liveNestable == 0) != (currentNestable == 0))
+                {
+                  return false;
+                }
+                if (liveNestable &&
+                    !repointDeepEquivalentSiblings(
+                        liveNestable->childrenHead(),
+                        currentNestable->childrenHead()))
+                {
+                  return false;
+                }
+              }
+            }
+            liveNode = liveNode->nextInComposition;
+            currentDefinition = nextCurrent;
+          }
+          return liveNode == 0 && currentDefinition == 0;
+        }
+
         bool applyRetainedDefinitionTree(ComponentContext &context,
                                          Node *liveNode,
                                          NodeDefinitionBase *previousDefinition,
@@ -932,6 +980,12 @@ namespace loka
             if (detail::haveDeepEquivalentChildren(previousNestable,
                                                    currentNestable))
             {
+              if (!repointDeepEquivalentSiblings(
+                      liveNestable->childrenHead(),
+                      currentNestable->childrenHead()))
+              {
+                return false;
+              }
               return applyRetainedNodeDefinition(
                   liveNode, previousDefinition, currentDefinition);
             }

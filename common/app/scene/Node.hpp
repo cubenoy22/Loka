@@ -904,7 +904,17 @@ namespace loka
         virtual NodeDefinitionBase *clone() const = 0;
         virtual NodeKind nodeKind() const = 0;
         virtual const PropsBase *propsBase() const = 0;
-        virtual bool hasEquivalentProps(const NodeDefinitionBase &other) const = 0;
+        virtual bool hasEquivalentProps(const NodeDefinitionBase &other) const
+        {
+          const PropsBase *props = this->propsBase();
+          const PropsBase *otherProps = other.propsBase();
+          if (!props || !otherProps ||
+              props->propsTypeId() != otherProps->propsTypeId())
+          {
+            return false;
+          }
+          return !(*props < *otherProps) && !(*otherProps < *props);
+        }
         /** Refreshes definition-generation borrows for a retained runtime node
             without applying changed prop values. */
         virtual bool repointRetainedNodeDefinition(Node *node) const
@@ -1175,19 +1185,6 @@ namespace loka
         virtual const PropsBase *propsBase() const
         {
           return &props;
-        }
-        virtual bool hasEquivalentProps(const NodeDefinitionBase &other) const
-        {
-          const PropsBase *otherProps = other.propsBase();
-          if (!otherProps)
-          {
-            return false;
-          }
-          if (this->props.propsTypeId() != otherProps->propsTypeId())
-          {
-            return false;
-          }
-          return !(this->props < *otherProps) && !(*otherProps < this->props);
         }
         virtual bool applyPropsToNode(Node *node) const
         {

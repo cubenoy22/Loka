@@ -270,7 +270,8 @@ namespace
     NESTED_RETENTION_REFUSING_CONTAINER,
     NESTED_RETENTION_REPOINT_PROBE,
     NESTED_RETENTION_DEEP_EQUIVALENT_ANONYMOUS,
-    NESTED_RETENTION_DEEP_DIFFERENT_ANONYMOUS
+    NESTED_RETENTION_DEEP_DIFFERENT_ANONYMOUS,
+    NESTED_RETENTION_DEEP_EQUIVALENT_METADATA
   };
 
   template <bool UseRetainFastPaths, NestedRetentionShape Shape>
@@ -383,6 +384,7 @@ namespace
         root << wrapper;
       }
       else if (Shape == NESTED_RETENTION_DEEP_EQUIVALENT_ANONYMOUS ||
+               Shape == NESTED_RETENTION_DEEP_EQUIVALENT_METADATA ||
                Shape == NESTED_RETENTION_DEEP_DIFFERENT_ANONYMOUS)
       {
         loka::app::Fragment wrapper;
@@ -406,9 +408,18 @@ namespace
         }
         else
         {
-          firstPanel << loka::app::Text("first")
-                     << loka::app::Text("second")
-                     << loka::app::Text("third");
+          loka::app::TextDefinition first("first");
+          loka::app::TextDefinition second("second");
+          loka::app::TextDefinition third("third");
+          if (Shape == NESTED_RETENTION_DEEP_EQUIVALENT_METADATA)
+          {
+            second.tag(this->changed_ ? 5577 : 5576);
+            second.lifetimeHint(
+                this->changed_
+                    ? loka::app::scene::NATIVE_HINT_DESIRE_STAY
+                    : loka::app::scene::NATIVE_HINT_DEFAULT);
+          }
+          firstPanel << first << second << third;
         }
         secondPanel << loka::app::Text("fourth")
                     << loka::app::Text("fifth")
@@ -828,6 +839,57 @@ namespace
         NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT) != 0);
     scene.unmount();
   }
+
+  template <bool UseRetainFastPaths>
+  void runDeepEquivalentMetadataRepoint()
+  {
+    NullScenePlatformController platform;
+    typedef NestedRetentionBoundaryNode<
+        UseRetainFastPaths,
+        NESTED_RETENTION_DEEP_EQUIVALENT_METADATA> BoundaryT;
+    loka::app::scene::Scene scene((loka::app::scene::Boundary<BoundaryT>()));
+    BoundaryT *boundary = mountNestedRetentionBoundary<
+        UseRetainFastPaths,
+        NESTED_RETENTION_DEEP_EQUIVALENT_METADATA>(platform, scene);
+    loka::app::scene::Node *wrapper = boundary->nodeAt(0);
+    loka::app::scene::Node *outer = boundary->nodeAt(0, 0);
+    loka::app::scene::Node *panels[2] = {
+        boundary->nodeAt(0, 0, 0), boundary->nodeAt(0, 0, 1)};
+    loka::app::scene::Node *leaves[2][3];
+    for (unsigned panel = 0; panel < 2; ++panel)
+    {
+      LOKA_VERIFY(panels[panel] != 0);
+      for (unsigned leaf = 0; leaf < 3; ++leaf)
+      {
+        leaves[panel][leaf] = nestedChildAt(panels[panel], leaf);
+        LOKA_VERIFY(leaves[panel][leaf] != 0);
+      }
+    }
+    LOKA_VERIFY(wrapper != 0);
+    LOKA_VERIFY(outer != 0);
+    LOKA_VERIFY(leaves[0][1]->nodeTag() == 5576);
+    const loka::app::scene::NativeLifetimeHint initialHint =
+        leaves[0][1]->nativeLifetimeHint();
+    LOKA_VERIFY(initialHint == loka::app::scene::NATIVE_HINT_DEFAULT);
+
+    flushNestedRetentionChange(boundary, scene);
+
+    LOKA_VERIFY(boundary->nodeAt(0) == wrapper);
+    LOKA_VERIFY(boundary->nodeAt(0, 0) == outer);
+    for (unsigned panel = 0; panel < 2; ++panel)
+    {
+      LOKA_VERIFY(boundary->nodeAt(0, 0, panel) == panels[panel]);
+      for (unsigned leaf = 0; leaf < 3; ++leaf)
+      {
+        LOKA_VERIFY(nestedChildAt(panels[panel], leaf) == leaves[panel][leaf]);
+      }
+    }
+    LOKA_VERIFY(leaves[0][1]->nodeTag() == 5577);
+    const loka::app::scene::NativeLifetimeHint currentHint =
+        leaves[0][1]->nativeLifetimeHint();
+    LOKA_VERIFY(currentHint == loka::app::scene::NATIVE_HINT_DESIRE_STAY);
+    scene.unmount();
+  }
 } // namespace
 
 void testStackAxisFlipRetainsContainerAndChildAndRelayouts()
@@ -925,6 +987,12 @@ void testDeepDifferentAnonymousSubtreeRebuildsLocallyInBothModes()
 {
   runDeepDifferentAnonymousLocalRebuild<false>();
   runDeepDifferentAnonymousLocalRebuild<true>();
+}
+
+void testDeepEquivalentAnonymousSubtreeRepointsMetadataInBothModes()
+{
+  runDeepEquivalentMetadataRepoint<false>();
+  runDeepEquivalentMetadataRepoint<true>();
 }
 
 void testControlPropsEquivalenceDistinguishesOwnedValuesAndBorrowedSources()
