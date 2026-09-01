@@ -9,7 +9,7 @@ namespace loka
   {
     namespace layout
     {
-      int preferredChildWidthForRow(loka::app::scene::Node *child, int availableWidth)
+      int preferredChildWidthForRow(loka::app::scene::Node *child)
       {
         if (!child)
         {
@@ -24,7 +24,7 @@ namespace loka
           }
           if (fragment->childrenCount() == 1)
           {
-            return preferredChildWidthForRow(fragment->childrenHead(), availableWidth);
+            return preferredChildWidthForRow(fragment->childrenHead());
           }
           return -1;
         }
@@ -32,14 +32,14 @@ namespace loka
         {
           if (image->props.width_ > 0)
           {
-            return clampToAvailable(image->props.width_, availableWidth);
+            return image->props.width_;
           }
         }
         if (loka::app::BoxNode *box = child->asBoxNode())
         {
-          if (box->props.hasFixedSize())
+          if (box->props.hasFixedSize() && box->props.width > 0)
           {
-            return clampToAvailable(box->props.width, availableWidth);
+            return box->props.width;
           }
         }
         return -1;
@@ -49,8 +49,7 @@ namespace loka
                                                  size_t childCount,
                                                  int availableWidth,
                                                  int gap)
-          : availableWidth_(availableWidth),
-            baseFlexWidth_(0),
+          : baseFlexWidth_(0),
             flexRemainder_(0),
             liveSeatsSeen_(0)
       {
@@ -60,7 +59,7 @@ namespace loka
         loka::dsl::CompositionCursor<loka::app::scene::Node> consult(childrenHead, childCount);
         for (loka::app::scene::Node *child = consult.next(); child; child = consult.next())
         {
-          const int preferredWidth = preferredChildWidthForRow(child, availableWidth);
+          const int preferredWidth = preferredChildWidthForRow(child);
           if (preferredWidth == 0)
           {
             continue;
@@ -90,7 +89,7 @@ namespace loka
 
       RowChildWidth RowWidthConsultation::next(loka::app::scene::Node *child)
       {
-        const int preferredWidth = preferredChildWidthForRow(child, this->availableWidth_);
+        const int preferredWidth = preferredChildWidthForRow(child);
         if (preferredWidth == 0)
         {
           return RowChildWidth(0, false, false);

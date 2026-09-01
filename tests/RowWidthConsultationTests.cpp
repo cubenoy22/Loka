@@ -176,6 +176,44 @@ void testRowBranchArmSwitchRelayoutsWidthConsultation()
   g_rowTextSeatRecord = 0;
 }
 
+void testRowOversizedFixedBoxKeepsDeclaredSeatForSibling()
+{
+  loka::app::StackNode row((loka::app::StackProps(loka::app::STACK_AXIS_ROW)));
+  loka::app::BoxProps boxProps;
+  boxProps.setSize(600, 10);
+  row.addChild(new loka::app::BoxNode(boxProps));
+  row.addChild(new RowSeatTextNode(loka::app::TextProps("text")));
+
+  RowTextSeatRecord record;
+  g_rowTextSeatRecord = &record;
+  NullScenePlatformController platform;
+  platform.projectLayoutForTesting(&row, rowState(500));
+  g_rowTextSeatRecord = 0;
+
+  LOKA_VERIFY(record.calls == 1);
+  LOKA_VERIFY(record.state.x == 604);
+  LOKA_VERIFY(record.state.width == 0);
+}
+
+void testRowZeroWidthRowKeepsFixedSeatLiveAndGapped()
+{
+  loka::app::StackNode row((loka::app::StackProps(loka::app::STACK_AXIS_ROW)));
+  loka::app::BoxProps boxProps;
+  boxProps.setSize(200, 10);
+  row.addChild(new loka::app::BoxNode(boxProps));
+  row.addChild(new RowSeatTextNode(loka::app::TextProps("text")));
+
+  RowTextSeatRecord record;
+  g_rowTextSeatRecord = &record;
+  NullScenePlatformController platform;
+  platform.projectLayoutForTesting(&row, rowState(0));
+  g_rowTextSeatRecord = 0;
+
+  LOKA_VERIFY(record.calls == 1);
+  LOKA_VERIFY(record.state.x == 204);
+  LOKA_VERIFY(record.state.width == 0);
+}
+
 void testRowWidthHeuristicForwardsOnlySingleFragmentClaims()
 {
   loka::app::ImageViewProps imageProps;
@@ -184,13 +222,13 @@ void testRowWidthHeuristicForwardsOnlySingleFragmentClaims()
 
   loka::app::FragmentNode empty((loka::app::FragmentProps()));
   empty.setPropsTypeId(loka::app::FragmentProps::staticTypeId());
-  LOKA_VERIFY(loka::app::layout::preferredChildWidthForRow(&empty, 200) == 0);
+  LOKA_VERIFY(loka::app::layout::preferredChildWidthForRow(&empty) == 0);
 
   loka::app::FragmentNode single((loka::app::FragmentProps()));
   single.setPropsTypeId(loka::app::FragmentProps::staticTypeId());
   single.addChild(image);
-  LOKA_VERIFY(loka::app::layout::preferredChildWidthForRow(&single, 200) == 75);
+  LOKA_VERIFY(loka::app::layout::preferredChildWidthForRow(&single) == 75);
 
   single.addChild(new loka::app::TextNode(loka::app::TextProps("text")));
-  LOKA_VERIFY(loka::app::layout::preferredChildWidthForRow(&single, 200) < 0);
+  LOKA_VERIFY(loka::app::layout::preferredChildWidthForRow(&single) < 0);
 }
