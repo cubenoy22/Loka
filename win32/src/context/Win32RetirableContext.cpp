@@ -24,6 +24,36 @@ void Win32RetirableContext::positionNativeWindow(HWND hwnd,
   }
 }
 
+HWND Win32RetirableContext::createNativeChildWindow(DWORD exStyle,
+                                                     LPCWSTR className,
+                                                     LPCWSTR windowName,
+                                                     DWORD style,
+                                                     int x,
+                                                     int y,
+                                                     int width,
+                                                     int height,
+                                                     HWND parent,
+                                                     HMENU menu,
+                                                     HINSTANCE instance,
+                                                     void *createParameter)
+{
+  assert(this->controller_ && "a native child must have a projection owner");
+  return this->controller_
+             ? this->controller_->createNativeChildWindow(exStyle,
+                                                          className,
+                                                          windowName,
+                                                          style,
+                                                          x,
+                                                          y,
+                                                          width,
+                                                          height,
+                                                          parent,
+                                                          menu,
+                                                          instance,
+                                                          createParameter)
+             : 0;
+}
+
 void Win32RetirableContext::retireWindow(HWND &hwnd)
 {
   if (!hwnd)

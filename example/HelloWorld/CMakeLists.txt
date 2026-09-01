@@ -65,6 +65,8 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32DebugLog.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32Profiler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32IdlePacer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32DisplayScale.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32DisplayFont.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32ScenePlatformController.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32BuiltInSupport.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32App.cpp

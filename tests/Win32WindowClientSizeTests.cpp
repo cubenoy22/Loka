@@ -9,6 +9,7 @@
 #include "core/State.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "platform/null/NullPlatformContext.hpp"
+#include "platform/Win32DisplayScale.hpp"
 
 namespace
 {
@@ -114,6 +115,63 @@ namespace
                             SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE));
   }
 } // namespace
+
+void testWin32DisplayScaleProjectsLogicalEdges()
+{
+  printf("\n==== [testWin32DisplayScaleProjectsLogicalEdges] start ====\n");
+  const loka::win32::Win32DisplayScale scale125(120);
+  const loka::core::Frame leftLogical(1, 2, 3, 5);
+  const loka::core::Frame rightLogical(4, 2, 7, 5);
+  RECT leftNative;
+  RECT rightNative;
+  scale125.projectFrame(leftLogical, leftNative);
+  scale125.projectFrame(rightLogical, rightNative);
+  LOKA_VERIFY(leftNative.right == rightNative.left
+              && "adjacent logical rectangles must retain one shared native edge");
+  LOKA_VERIFY(scale125.percent() == 125);
+
+  const loka::win32::Win32DisplayScale scale200(192);
+  RECT doubled;
+  scale200.projectFrame(loka::core::Frame(10, 20, 30, 40), doubled);
+  LOKA_VERIFY(doubled.left == 20 && doubled.top == 40
+              && doubled.right == 80 && doubled.bottom == 120);
+  const loka::core::Frame roundTrip = scale200.unprojectContentFrame(
+      doubled, doubled.right - doubled.left, doubled.bottom - doubled.top);
+  LOKA_VERIFY(roundTrip == loka::core::Frame(10, 20, 30, 40));
+
+  const loka::win32::Win32DisplayScale invalid(0);
+  LOKA_VERIFY(invalid.dpi() == 96 && invalid.percent() == 100
+              && "an absent DPI capability must degrade to the unscaled projection");
+  loka::win32::Win32DisplayScale untouched(192);
+  LOKA_VERIFY(!loka::win32::Win32DisplayScale::queryForWindow(NULL, untouched));
+  LOKA_VERIFY(untouched.dpi() == 192
+              && "a declined display-scale query must leave its output untouched");
+  printf("==== [testWin32DisplayScaleProjectsLogicalEdges] PASSED ====\n");
+}
+
+void testWin32DpiChangeAcceptsSuggestedWindowRect()
+{
+  printf("\n==== [testWin32DpiChangeAcceptsSuggestedWindowRect] start ====\n");
+  WindowProps props;
+  props.frame(40, 40, 257, 163).visible(false);
+  NullPlatformContext context;
+  Win32Window window(&context, props);
+  setWindowVisibility(window, true);
+  HWND hwnd = window.hwnd();
+  LOKA_VERIFY(hwnd && IsWindow(hwnd));
+
+  RECT suggested = {120, 140, 720, 640};
+  SendMessageW(hwnd,
+               WM_DPICHANGED,
+               MAKEWPARAM(192, 192),
+               reinterpret_cast<LPARAM>(&suggested));
+  const RECT actual = readWindowRect(hwnd);
+  LOKA_VERIFY(sameRect(actual, suggested)
+              && "WM_DPICHANGED must accept Win32's suggested top-level rectangle");
+
+  setWindowVisibility(window, false);
+  printf("==== [testWin32DpiChangeAcceptsSuggestedWindowRect] PASSED ====\n");
+}
 
 void testWin32DeclaredWindowSizeMeansClientArea()
 {

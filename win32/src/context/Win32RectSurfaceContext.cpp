@@ -22,7 +22,7 @@ Win32RectSurfaceContext::Win32RectSurfaceContext(Win32ScenePlatformController *c
       modelState_(0)
 {
   EnsureClassRegistered();
-  hwnd_ = CreateWindowExW(
+  hwnd_ = this->createNativeChildWindow(
       0, kRectSurfaceClassName, L"", WS_CHILD | WS_VISIBLE, x, y, width, height, parent, 0, GetModuleHandleW(NULL), this);
   bindModel();
 }
@@ -227,10 +227,11 @@ void Win32RectSurfaceContext::draw(HDC hdc, const RECT &rect)
   for (short i = 0; i < model.rectCount; ++i)
   {
     RECT spriteRect;
-    spriteRect.left = model.rects[i].x;
-    spriteRect.top = model.rects[i].y;
-    spriteRect.right = static_cast<LONG>(model.rects[i].x + model.rects[i].width);
-    spriteRect.bottom = static_cast<LONG>(model.rects[i].y + model.rects[i].height);
+    const loka::core::Frame logicalRect(model.rects[i].x,
+                                        model.rects[i].y,
+                                        model.rects[i].width,
+                                        model.rects[i].height);
+    this->controller()->displayScale().projectFrame(logicalRect, spriteRect);
     FillRect(hdc, &spriteRect, blackBrush);
   }
 }

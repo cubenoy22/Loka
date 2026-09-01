@@ -5,6 +5,9 @@ namespace loka
 {
   namespace core
   {
+    /** Rectangle in platform-neutral logical display units. Native platform
+        projections convert its edges to their device coordinate space;
+        decoded bitmap dimensions remain physical pixel facts. */
     struct Frame
     {
       int x;

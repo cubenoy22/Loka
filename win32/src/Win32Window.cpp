@@ -10,6 +10,7 @@
 #include "context/Win32OpenFileDialogContext.hpp"
 #include "core/String.hpp"
 #include "platform/Win32String.hpp"
+#include "platform/Win32DisplayScale.hpp"
 
 namespace
 {
@@ -17,17 +18,23 @@ namespace
   static const wchar_t *kWndClassName = L"DevWndClass";
   static const DWORD kWindowStyle = WS_OVERLAPPEDWINDOW;
   static const DWORD kWindowExStyle = WS_EX_CONTROLPARENT;
+  // Windows SDK headers hide this message when the XP compatibility preset
+  // sets _WIN32_WINNT=0x0501, although newer Windows can still send it to the
+  // same binary. Keep the wire value local to the capability-aware rail.
+  static const UINT kWindowDpiChangedMessage = 0x02E0;
 
   bool CalculateOuterSizeForClient(int clientWidth,
                                    int clientHeight,
                                    DWORD style,
                                    DWORD exStyle,
                                    BOOL hasMenu,
+                                   const loka::win32::Win32DisplayScale &scale,
                                    int &outerWidth,
                                    int &outerHeight)
   {
-    RECT rect = {0, 0, clientWidth, clientHeight};
-    if (!AdjustWindowRectEx(&rect, style, hasMenu, exStyle))
+    RECT rect;
+    scale.projectFrame(loka::core::Frame(0, 0, clientWidth, clientHeight), rect);
+    if (!scale.adjustWindowRect(rect, style, hasMenu, exStyle))
     {
       return false;
     }
@@ -74,10 +81,10 @@ bool Win32Window::queryNativeContentFrame(loka::core::Frame &out) const
   {
     return false;
   }
-  out = loka::core::Frame(windowRect.left,
-                          windowRect.top,
-                          clientRect.right - clientRect.left,
-                          clientRect.bottom - clientRect.top);
+  out = loka::win32::Win32DisplayScale::forWindow(this->hwnd_)
+            .unprojectContentFrame(windowRect,
+                                   clientRect.right - clientRect.left,
+                                   clientRect.bottom - clientRect.top);
   return true;
 }
 
@@ -107,19 +114,22 @@ bool Win32Window::applyNativeContentFrame(const loka::core::Frame &frame)
   int outerHeight = 0;
   const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(this->hwnd_, GWL_STYLE));
   const DWORD exStyle = static_cast<DWORD>(GetWindowLongPtrW(this->hwnd_, GWL_EXSTYLE));
+  const loka::win32::Win32DisplayScale scale =
+      loka::win32::Win32DisplayScale::forWindow(this->hwnd_);
   if (!CalculateOuterSizeForClient(frame.width,
                                    frame.height,
                                    style,
                                    exStyle,
                                    GetMenu(this->hwnd_) ? TRUE : FALSE,
+                                   scale,
                                    outerWidth,
                                    outerHeight))
   {
     assert(false && "Win32 client size must convert to an outer window size");
     return false;
   }
-  const int x = frame.x >= 0 ? frame.x : windowRect.left;
-  const int y = frame.y >= 0 ? frame.y : windowRect.top;
+  const int x = frame.x >= 0 ? scale.projectEdge(frame.x) : windowRect.left;
+  const int y = frame.y >= 0 ? scale.projectEdge(frame.y) : windowRect.top;
   if (x == windowRect.left && y == windowRect.top &&
       outerWidth == windowRect.right - windowRect.left &&
       outerHeight == windowRect.bottom - windowRect.top)
@@ -142,10 +152,19 @@ bool Win32Window::detachMenuForTeardown(HMENU expectedMenu)
   }
   const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(this->hwnd_, GWL_STYLE));
   const DWORD exStyle = static_cast<DWORD>(GetWindowLongPtrW(this->hwnd_, GWL_EXSTYLE));
+  const loka::win32::Win32DisplayScale scale =
+      loka::win32::Win32DisplayScale::forWindow(this->hwnd_);
   int outerWidth = 0;
   int outerHeight = 0;
   if (!CalculateOuterSizeForClient(
-          contentFrame.width, contentFrame.height, style, exStyle, FALSE, outerWidth, outerHeight))
+          contentFrame.width,
+          contentFrame.height,
+          style,
+          exStyle,
+          FALSE,
+          scale,
+          outerWidth,
+          outerHeight))
   {
     return false;
   }
@@ -155,7 +174,12 @@ bool Win32Window::detachMenuForTeardown(HMENU expectedMenu)
   const BOOL detached = SetMenu(this->hwnd_, NULL);
   if (detached)
   {
-    MoveWindow(this->hwnd_, contentFrame.x, contentFrame.y, outerWidth, outerHeight, TRUE);
+    MoveWindow(this->hwnd_,
+               scale.projectEdge(contentFrame.x),
+               scale.projectEdge(contentFrame.y),
+               outerWidth,
+               outerHeight,
+               TRUE);
   }
   SetWindowLongPtrW(this->hwnd_, GWLP_USERDATA, userData);
   return detached != FALSE;
@@ -297,13 +321,46 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       {
         int width = LOWORD(lParam);
         int height = HIWORD(lParam);
-        self->scenePlatformController_->relayout(width, height);
+        self->scenePlatformController_->relayoutNativeClientPixels(width, height);
       }
       if (wParam != SIZE_MINIMIZED && self->hwnd_)
       {
         self->storeCurrentNativeContentFrame();
       }
       return 0;
+    case kWindowDpiChangedMessage:
+    {
+      const loka::win32::Win32DisplayScale nextScale(LOWORD(wParam));
+      if (self->scenePlatformController_)
+      {
+        self->scenePlatformController_->updateDisplayScale(nextScale);
+      }
+      const RECT *suggested = reinterpret_cast<const RECT *>(lParam);
+      if (suggested)
+      {
+        SetWindowPos(hwnd,
+                     NULL,
+                     suggested->left,
+                     suggested->top,
+                     suggested->right - suggested->left,
+                     suggested->bottom - suggested->top,
+                     SWP_NOZORDER | SWP_NOACTIVATE);
+      }
+      if (self->scenePlatformController_)
+      {
+        // SetWindowPos commonly reaches WM_SIZE and lays out once already, but
+        // a size-preserving suggested rectangle need not. The projection pass
+        // is idempotent, so finish from the current client pixels either way.
+        RECT client;
+        if (GetClientRect(hwnd, &client))
+        {
+          self->scenePlatformController_->relayoutNativeClientPixels(
+              client.right - client.left, client.bottom - client.top);
+        }
+      }
+      self->storeCurrentNativeContentFrame();
+      return 0;
+    }
     case WM_MOVE:
       if (self->hwnd_ && !IsIconic(self->hwnd_))
       {
@@ -355,10 +412,19 @@ void Win32Window::createNativeWindow()
   const loka::core::Frame defaultFrame = Window::defaultFrame();
   const int clientWidth = this->hasSize() ? this->width() : defaultFrame.width;
   const int clientHeight = this->hasSize() ? this->height() : defaultFrame.height;
+  const loka::win32::Win32DisplayScale initialScale =
+      loka::win32::Win32DisplayScale::forSystem();
   int outerWidth = 0;
   int outerHeight = 0;
   if (!CalculateOuterSizeForClient(
-          clientWidth, clientHeight, kWindowStyle, kWindowExStyle, FALSE, outerWidth, outerHeight))
+          clientWidth,
+          clientHeight,
+          kWindowStyle,
+          kWindowExStyle,
+          FALSE,
+          initialScale,
+          outerWidth,
+          outerHeight))
   {
     assert(false && "Win32 client size must convert to an outer window size");
     return;
@@ -367,8 +433,10 @@ void Win32Window::createNativeWindow()
                               kWndClassName,
                               L"",
                               kWindowStyle,
-                              this->hasPosition() ? this->positionX() : defaultFrame.x,
-                              this->hasPosition() ? this->positionY() : defaultFrame.y,
+                              initialScale.projectEdge(
+                                  this->hasPosition() ? this->positionX() : defaultFrame.x),
+                              initialScale.projectEdge(
+                                  this->hasPosition() ? this->positionY() : defaultFrame.y),
                               outerWidth,
                               outerHeight,
                               NULL,
@@ -378,6 +446,11 @@ void Win32Window::createNativeWindow()
   if (hwnd)
   {
     this->hwnd_ = hwnd;
+    this->applyNativeContentFrame(
+        loka::core::Frame(this->hasPosition() ? this->positionX() : defaultFrame.x,
+                          this->hasPosition() ? this->positionY() : defaultFrame.y,
+                          clientWidth,
+                          clientHeight));
     this->storeCurrentNativeContentFrame();
     if (this->app_)
     {
@@ -445,66 +518,18 @@ bool Win32Window::hasPendingScenePlatformSync() const
   return scenePlatformController_ ? scenePlatformController_->hasPendingSync() : false;
 }
 
-namespace
-{
-  /** Per-monitor DPI is the correct answer where it exists, but GetDpiForWindow
-      is Windows 10 1607 and later while the supported baseline reaches back to
-      XP. Resolved through the export table rather than a version check, so the
-      path is capability-based with no OS-name fork (docs/TODO.md:97). */
-  typedef UINT(WINAPI *GetDpiForWindowFn)(HWND);
-
-  GetDpiForWindowFn ResolveGetDpiForWindow()
-  {
-    // user32.dll is already loaded in any process that owns a window, so this
-    // takes a reference to the existing module rather than mapping it again.
-    static bool resolved = false;
-    static GetDpiForWindowFn fn = 0;
-    if (!resolved)
-    {
-      resolved = true;
-      HMODULE user32 = GetModuleHandleW(L"user32.dll");
-      if (user32)
-      {
-        fn = reinterpret_cast<GetDpiForWindowFn>(GetProcAddress(user32, "GetDpiForWindow"));
-      }
-    }
-    return fn;
-  }
-} // namespace
-
 bool Win32Window::queryDisplayScalePercent(int &out) const
 {
   if (!hwnd_)
   {
     return false;
   }
-  int dpi = 0;
-  const GetDpiForWindowFn getDpiForWindow = ResolveGetDpiForWindow();
-  if (getDpiForWindow)
-  {
-    dpi = static_cast<int>(getDpiForWindow(hwnd_));
-  }
-  if (dpi <= 0)
-  {
-    // Pre-1607 the window's own DC still reports the density Windows is
-    // scaling it to, which is the fact being asked for.
-    HDC dc = GetDC(hwnd_);
-    if (!dc)
-    {
-      return false;
-    }
-    dpi = GetDeviceCaps(dc, LOGPIXELSX);
-    ReleaseDC(hwnd_, dc);
-  }
-  if (dpi <= 0)
+  loka::win32::Win32DisplayScale scale;
+  if (!loka::win32::Win32DisplayScale::queryForWindow(this->hwnd_, scale))
   {
     return false;
   }
-  // Windows' unscaled density is 96, not 72, which is exactly why the seam
-  // reports a percentage: 144 dpi is 150% here and 200% on the Apple targets.
-  // Every scale Windows offers is a multiple of 25%, and 96 * 25 / 100 is a
-  // whole number, so the conversion is exact in integers.
-  out = dpi * 100 / 96;
+  out = scale.percent();
   return true;
 }
 
@@ -568,7 +593,8 @@ void Win32Window::mountScene()
   {
     return;
   }
-  scenePlatformController_ = new Win32ScenePlatformController(this->hwnd_);
+  scenePlatformController_ = new Win32ScenePlatformController(
+      this->hwnd_, loka::win32::Win32DisplayScale::forWindow(this->hwnd_));
   currentScene->mount(scenePlatformController_);
 }
 

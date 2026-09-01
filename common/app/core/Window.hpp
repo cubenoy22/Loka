@@ -630,11 +630,13 @@ public:
   {
     return *displayTitle_;
   }
+  /** Application-intent content frame in logical display units. */
   loka::core::MutableState<loka::core::Frame> &frameState()
   {
     return *frameStatePtr_;
   }
-  /** The native content frame is a fact written only by the platform rail;
+  /** The native content frame is a logical-display-unit fact written only by
+      the platform rail;
       frameState() is application intent and the rail never writes it. The two
       may legally diverge after a user resize. An application that wants its
       intent to follow the native fact writes

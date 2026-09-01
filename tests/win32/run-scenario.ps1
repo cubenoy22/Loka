@@ -273,6 +273,8 @@ public static class LokaScenarioNative {
     private static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
     [DllImport("user32.dll")]
     private static extern bool PrintWindow(IntPtr hwnd, IntPtr hdc, uint flags);
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr dpiContext);
     [DllImport("user32.dll", EntryPoint = "PostMessageW")]
     private static extern bool PostMessageW(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
 
@@ -290,6 +292,14 @@ public static class LokaScenarioNative {
     }
 
     public static LokaScenarioCaptureResult CaptureWindow(IntPtr hwnd, string path) {
+        try {
+            // The scenario target is Per-Monitor V2. Without the same thread
+            // context here, GetWindowRect is virtualized to 96 DPI while the
+            // target publishes physical-pixel crop bounds (#289, #492).
+            SetThreadDpiAwarenessContext(new IntPtr(-4));
+        } catch (EntryPointNotFoundException) {
+            // Older capture hosts keep the pre-existing 96-DPI rail.
+        }
         RECT rect;
         if (!GetWindowRect(hwnd, out rect)) return LokaScenarioCaptureResult.Refused;
         int width = rect.Right - rect.Left;
