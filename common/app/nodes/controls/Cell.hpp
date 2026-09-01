@@ -84,7 +84,20 @@ namespace loka
         if (rhs.propsTypeId() != propsTypeId())
           return false;
         const CellProps &other = static_cast<const CellProps &>(rhs);
-        if (text_ != other.text_)
+        if (ownsText_ != other.ownsText_)
+        {
+          return ownsText_ < other.ownsText_;
+        }
+        if (ownsText_)
+        {
+          const int textCompare =
+              ownedText_.get().compare(other.ownedText_.get());
+          if (textCompare != 0)
+          {
+            return textCompare < 0;
+          }
+        }
+        else if (text_ != other.text_)
         {
           return text_ < other.text_;
         }

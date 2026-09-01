@@ -3,6 +3,7 @@
 #include "app/nodes/Text.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/controls/Button.hpp"
+#include "app/nodes/controls/Cell.hpp"
 #include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
 #include "app/nodes/nestable/PolicyScope.hpp"
@@ -267,7 +268,9 @@ namespace
     NESTED_RETENTION_STRUCTURAL_CHILDREN,
     NESTED_RETENTION_MISPLACED_POLICY_SCOPE,
     NESTED_RETENTION_REFUSING_CONTAINER,
-    NESTED_RETENTION_REPOINT_PROBE
+    NESTED_RETENTION_REPOINT_PROBE,
+    NESTED_RETENTION_DEEP_EQUIVALENT_ANONYMOUS,
+    NESTED_RETENTION_DEEP_DIFFERENT_ANONYMOUS
   };
 
   template <bool UseRetainFastPaths, NestedRetentionShape Shape>
@@ -379,6 +382,41 @@ namespace
             this->changed_ ? loka::app::STACK_AXIS_COLUMN : loka::app::STACK_AXIS_ROW);
         root << wrapper;
       }
+      else if (Shape == NESTED_RETENTION_DEEP_EQUIVALENT_ANONYMOUS ||
+               Shape == NESTED_RETENTION_DEEP_DIFFERENT_ANONYMOUS)
+      {
+        loka::app::Fragment wrapper;
+        loka::app::Stack outer(
+            this->changed_ ? loka::app::STACK_AXIS_COLUMN : loka::app::STACK_AXIS_ROW);
+        loka::app::Stack firstPanel(loka::app::STACK_AXIS_COLUMN);
+        loka::app::Stack secondPanel(loka::app::STACK_AXIS_COLUMN);
+        wrapper.tag(5575);
+        if (Shape == NESTED_RETENTION_DEEP_DIFFERENT_ANONYMOUS)
+        {
+          firstPanel << loka::app::Text("first");
+          if (this->changed_)
+          {
+            firstPanel << loka::app::EditTextDefinition();
+          }
+          else
+          {
+            firstPanel << loka::app::ButtonDefinition("old");
+          }
+          firstPanel << loka::app::Text("third");
+        }
+        else
+        {
+          firstPanel << loka::app::Text("first")
+                     << loka::app::Text("second")
+                     << loka::app::Text("third");
+        }
+        secondPanel << loka::app::Text("fourth")
+                    << loka::app::Text("fifth")
+                    << loka::app::Text("sixth");
+        outer << firstPanel << secondPanel;
+        wrapper << outer;
+        root << wrapper;
+      }
       else
       {
         loka::app::Fragment wrapper;
@@ -429,6 +467,19 @@ namespace
             loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     LOKA_VERIFY(boundary != 0);
     return boundary;
+  }
+
+  loka::app::scene::Node *nestedChildAt(loka::app::scene::Node *parent,
+                                        unsigned index)
+  {
+    loka::app::scene::INestable *nestable = parent ? parent->asNestable() : 0;
+    loka::app::scene::Node *child = nestable ? nestable->childrenHead() : 0;
+    while (child && index > 0)
+    {
+      child = child->nextInComposition;
+      --index;
+    }
+    return child;
   }
 
   template <bool UseRetainFastPaths, NestedRetentionShape Shape>
@@ -662,6 +713,121 @@ namespace
     scene.unmount();
     g_refusingContainerApply.reset();
   }
+
+  template <bool UseRetainFastPaths>
+  void runDeepEquivalentAnonymousRetention()
+  {
+    NullScenePlatformController platform;
+    typedef NestedRetentionBoundaryNode<
+        UseRetainFastPaths,
+        NESTED_RETENTION_DEEP_EQUIVALENT_ANONYMOUS> BoundaryT;
+    loka::app::scene::Scene scene((loka::app::scene::Boundary<BoundaryT>()));
+    BoundaryT *boundary = mountNestedRetentionBoundary<
+        UseRetainFastPaths,
+        NESTED_RETENTION_DEEP_EQUIVALENT_ANONYMOUS>(platform, scene);
+    loka::app::scene::Node *wrapper = boundary->nodeAt(0);
+    loka::app::StackNode *outer = boundary->nodeAt(0, 0)->asStackNode();
+    loka::app::scene::Node *panels[2] = {
+        boundary->nodeAt(0, 0, 0), boundary->nodeAt(0, 0, 1)};
+    loka::app::scene::Node *leaves[2][3];
+    LOKA_VERIFY(wrapper != 0);
+    LOKA_VERIFY(wrapper->nodeTag() == 5575);
+    LOKA_VERIFY(outer != 0);
+    LOKA_VERIFY(outer->props.axis_ == loka::app::STACK_AXIS_ROW);
+    for (unsigned panel = 0; panel < 2; ++panel)
+    {
+      LOKA_VERIFY(panels[panel] != 0);
+      for (unsigned leaf = 0; leaf < 3; ++leaf)
+      {
+        leaves[panel][leaf] = nestedChildAt(panels[panel], leaf);
+        LOKA_VERIFY(leaves[panel][leaf] != 0);
+      }
+      LOKA_VERIFY(nestedChildAt(panels[panel], 3) == 0);
+    }
+
+    flushNestedRetentionChange(boundary, scene);
+
+    LOKA_VERIFY(boundary->nodeAt(0) == wrapper);
+    LOKA_VERIFY(boundary->nodeAt(0, 0) == outer);
+    LOKA_VERIFY(outer->props.axis_ == loka::app::STACK_AXIS_COLUMN);
+    for (unsigned panel = 0; panel < 2; ++panel)
+    {
+      LOKA_VERIFY(boundary->nodeAt(0, 0, panel) == panels[panel]);
+      for (unsigned leaf = 0; leaf < 3; ++leaf)
+      {
+        LOKA_VERIFY(nestedChildAt(panels[panel], leaf) == leaves[panel][leaf]);
+      }
+    }
+    scene.unmount();
+  }
+
+  template <bool UseRetainFastPaths>
+  void runDeepDifferentAnonymousLocalRebuild()
+  {
+    NullScenePlatformController platform;
+    typedef NestedRetentionBoundaryNode<
+        UseRetainFastPaths,
+        NESTED_RETENTION_DEEP_DIFFERENT_ANONYMOUS> BoundaryT;
+    loka::app::scene::Scene scene((loka::app::scene::Boundary<BoundaryT>()));
+    BoundaryT *boundary = mountNestedRetentionBoundary<
+        UseRetainFastPaths,
+        NESTED_RETENTION_DEEP_DIFFERENT_ANONYMOUS>(platform, scene);
+    loka::app::scene::Node *wrapper = boundary->nodeAt(0);
+    loka::app::StackNode *outer = boundary->nodeAt(0, 0)->asStackNode();
+    loka::app::scene::Node *oldPanels[2] = {
+        boundary->nodeAt(0, 0, 0), boundary->nodeAt(0, 0, 1)};
+    loka::app::scene::Node *oldFirstPanelChildren[3];
+    LOKA_VERIFY(wrapper != 0);
+    LOKA_VERIFY(outer != 0);
+    LOKA_VERIFY(oldPanels[0] != 0);
+    LOKA_VERIFY(oldPanels[1] != 0);
+    for (unsigned child = 0; child < 3; ++child)
+    {
+      oldFirstPanelChildren[child] = nestedChildAt(oldPanels[0], child);
+      LOKA_VERIFY(oldFirstPanelChildren[child] != 0);
+    }
+    LOKA_VERIFY(oldFirstPanelChildren[1]->kind() ==
+                loka::app::scene::NODE_KIND_BUTTON);
+    LOKA_VERIFY(platform.findLedgerRow(
+        NullScenePlatformController::CONTROL_RECIPE_BUTTON) != 0);
+    LOKA_VERIFY(platform.findLedgerRow(
+        NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT) == 0);
+
+    flushNestedRetentionChange(boundary, scene);
+    platform.drainNativeRetirements();
+
+    loka::app::scene::Node *newPanels[2] = {
+        boundary->nodeAt(0, 0, 0), boundary->nodeAt(0, 0, 1)};
+    LOKA_VERIFY(boundary->nodeAt(0) == wrapper);
+    LOKA_VERIFY(boundary->nodeAt(0, 0) == outer);
+    LOKA_VERIFY(outer->props.axis_ == loka::app::STACK_AXIS_COLUMN);
+    LOKA_VERIFY(newPanels[0] != 0);
+    LOKA_VERIFY(newPanels[1] != 0);
+    LOKA_VERIFY(newPanels[0] != oldPanels[0]);
+    LOKA_VERIFY(newPanels[0] != oldPanels[1]);
+    LOKA_VERIFY(newPanels[1] != oldPanels[0]);
+    LOKA_VERIFY(newPanels[1] != oldPanels[1]);
+    LOKA_VERIFY(boundary->nodeAt(0, 0, 2) == 0);
+    loka::app::scene::Node *newFirstPanelChildren[3] = {
+        nestedChildAt(newPanels[0], 0),
+        nestedChildAt(newPanels[0], 1),
+        nestedChildAt(newPanels[0], 2)};
+    LOKA_VERIFY(newFirstPanelChildren[0] != 0);
+    LOKA_VERIFY(newFirstPanelChildren[1] != 0);
+    LOKA_VERIFY(newFirstPanelChildren[2] != 0);
+    LOKA_VERIFY(newFirstPanelChildren[0]->kind() ==
+                loka::app::scene::NODE_KIND_TEXT);
+    LOKA_VERIFY(newFirstPanelChildren[1]->kind() ==
+                loka::app::scene::NODE_KIND_EDIT_TEXT);
+    LOKA_VERIFY(newFirstPanelChildren[2]->kind() ==
+                loka::app::scene::NODE_KIND_TEXT);
+    LOKA_VERIFY(nestedChildAt(newPanels[0], 3) == 0);
+    LOKA_VERIFY(platform.findLedgerRow(
+        NullScenePlatformController::CONTROL_RECIPE_BUTTON) == 0);
+    LOKA_VERIFY(platform.findLedgerRow(
+        NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT) != 0);
+    scene.unmount();
+  }
 } // namespace
 
 void testStackAxisFlipRetainsContainerAndChildAndRelayouts()
@@ -747,4 +913,81 @@ void testNestedApplyRefusalFallsThroughToCurrentTreeInBothModes()
 {
   runNestedApplyRefusalFallsThroughToCurrentTree<false>();
   runNestedApplyRefusalFallsThroughToCurrentTree<true>();
+}
+
+void testDeepEquivalentAnonymousSubtreesRetainNodesInBothModes()
+{
+  runDeepEquivalentAnonymousRetention<false>();
+  runDeepEquivalentAnonymousRetention<true>();
+}
+
+void testDeepDifferentAnonymousSubtreeRebuildsLocallyInBothModes()
+{
+  runDeepDifferentAnonymousLocalRebuild<false>();
+  runDeepDifferentAnonymousLocalRebuild<true>();
+}
+
+void testControlPropsEquivalenceDistinguishesOwnedValuesAndBorrowedSources()
+{
+  loka::app::ButtonDefinition ownedButtonX("X");
+  loka::app::ButtonDefinition anotherOwnedButtonX("X");
+  loka::app::ButtonDefinition ownedButtonY("Y");
+  loka::core::State<loka::core::String> buttonStateA(
+      loka::core::String::Literal("X"));
+  loka::core::State<loka::core::String> buttonStateB(
+      loka::core::String::Literal("X"));
+  loka::app::ButtonDefinition borrowedButtonA(&buttonStateA);
+  loka::app::ButtonDefinition anotherBorrowedButtonA(&buttonStateA);
+  loka::app::ButtonDefinition borrowedButtonB(&buttonStateB);
+
+  LOKA_VERIFY(ownedButtonX.hasEquivalentProps(anotherOwnedButtonX));
+  LOKA_VERIFY(!ownedButtonX.hasEquivalentProps(ownedButtonY));
+  LOKA_VERIFY(!ownedButtonX.hasEquivalentProps(borrowedButtonA));
+  LOKA_VERIFY(!borrowedButtonA.hasEquivalentProps(ownedButtonX));
+  LOKA_VERIFY(borrowedButtonA.hasEquivalentProps(anotherBorrowedButtonA));
+  LOKA_VERIFY(!borrowedButtonA.hasEquivalentProps(borrowedButtonB));
+
+  loka::app::CellDefinition ownedCellX("X");
+  loka::app::CellDefinition anotherOwnedCellX("X");
+  loka::app::CellDefinition ownedCellY("Y");
+  loka::app::CellDefinition borrowedCellA(&buttonStateA);
+  loka::app::CellDefinition anotherBorrowedCellA(&buttonStateA);
+  loka::app::CellDefinition borrowedCellB(&buttonStateB);
+
+  LOKA_VERIFY(ownedCellX.hasEquivalentProps(anotherOwnedCellX));
+  LOKA_VERIFY(!ownedCellX.hasEquivalentProps(ownedCellY));
+  LOKA_VERIFY(!ownedCellX.hasEquivalentProps(borrowedCellA));
+  LOKA_VERIFY(!borrowedCellA.hasEquivalentProps(ownedCellX));
+  LOKA_VERIFY(borrowedCellA.hasEquivalentProps(anotherBorrowedCellA));
+  LOKA_VERIFY(!borrowedCellA.hasEquivalentProps(borrowedCellB));
+
+  loka::app::TextDefinition ownedTextX("X");
+  loka::app::TextDefinition anotherOwnedTextX("X");
+  loka::app::TextDefinition ownedTextY("Y");
+  loka::app::TextDefinition borrowedTextA(&buttonStateA);
+  loka::app::TextDefinition anotherBorrowedTextA(&buttonStateA);
+  loka::app::TextDefinition borrowedTextB(&buttonStateB);
+
+  LOKA_VERIFY(ownedTextX.hasEquivalentProps(anotherOwnedTextX));
+  LOKA_VERIFY(!ownedTextX.hasEquivalentProps(ownedTextY));
+  LOKA_VERIFY(!ownedTextX.hasEquivalentProps(borrowedTextA));
+  LOKA_VERIFY(!borrowedTextA.hasEquivalentProps(ownedTextX));
+  LOKA_VERIFY(borrowedTextA.hasEquivalentProps(anotherBorrowedTextA));
+  LOKA_VERIFY(!borrowedTextA.hasEquivalentProps(borrowedTextB));
+
+  loka::core::MutableState<loka::core::String> editStateA(
+      loka::core::String::Literal("X"));
+  loka::core::MutableState<loka::core::String> editStateB(
+      loka::core::String::Literal("X"));
+  loka::app::EditTextDefinition emptyEditA;
+  loka::app::EditTextDefinition emptyEditB;
+  loka::app::EditTextDefinition borrowedEditA(&editStateA);
+  loka::app::EditTextDefinition anotherBorrowedEditA(&editStateA);
+  loka::app::EditTextDefinition borrowedEditB(&editStateB);
+
+  // EditText is necessarily borrowed: #507 forbids definition-owned
+  // two-way bindings because user edits must outlive a definition generation.
+  LOKA_VERIFY(emptyEditA.hasEquivalentProps(emptyEditB));
+  LOKA_VERIFY(borrowedEditA.hasEquivalentProps(anotherBorrowedEditA));
+  LOKA_VERIFY(!borrowedEditA.hasEquivalentProps(borrowedEditB));
 }

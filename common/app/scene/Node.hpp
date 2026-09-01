@@ -909,7 +909,13 @@ namespace loka
             without applying changed prop values. */
         virtual bool repointRetainedNodeDefinition(Node *node) const
         {
-          return node != 0;
+          if (!this->isCompatibleWithNode(node))
+          {
+            return false;
+          }
+          node->setNodeTag(this->nodeTag());
+          node->setNativeLifetimeHint(this->nativeLifetimeHint());
+          return true;
         }
         virtual bool applyPropsToNode(Node *node) const = 0;
         virtual bool isCompatibleWithNode(const Node *node) const

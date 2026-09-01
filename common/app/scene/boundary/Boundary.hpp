@@ -876,88 +876,6 @@ namespace loka
           return node;
         }
 
-        static bool retainedDefinitionTreeIsComparable(
-            NodeDefinitionBase *previousDefinition,
-            NodeDefinitionBase *currentDefinition)
-        {
-          if (!previousDefinition || !currentDefinition)
-          {
-            return false;
-          }
-          if (currentDefinition->asBranchSeatDefinition() ||
-              currentDefinition->isBoundary())
-          {
-            return true;
-          }
-
-          INestableDefinition *previousNestable =
-              previousDefinition->asNestableDefinition();
-          INestableDefinition *currentNestable =
-              currentDefinition->asNestableDefinition();
-          if (!previousNestable || !currentNestable)
-          {
-            return previousNestable == 0 && currentNestable == 0;
-          }
-
-          NodeCompositionDiff childDiff;
-          if (!detail::buildChildDiffByTag(previousNestable,
-                                           currentNestable,
-                                           childDiff))
-          {
-            return false;
-          }
-          for (NodeCompositionDiff::Entry *entry = childDiff.entriesHead();
-               entry;
-               entry = entry->nextInComposition)
-          {
-            if (entry->action != NodeCompositionDiff::ACTION_RETAIN)
-            {
-              continue;
-            }
-            NodeDefinitionBase *previousChild = definitionAtIndex(
-                previousDefinition, entry->previousIndex);
-            NodeDefinitionBase *currentChild = definitionAtIndex(
-                currentDefinition, entry->currentIndex);
-            if (!retainedDefinitionTreeIsComparable(previousChild, currentChild))
-            {
-              return false;
-            }
-          }
-          return true;
-        }
-
-        bool retainedSubtreesAreComparable() const
-        {
-          const NodeCompositionDiff *diff = this->localCompositionDiff();
-          NodeDefinitionBase *previousRoot =
-              this->previousCompositionSnapshot().root();
-          NodeDefinitionBase *currentRoot =
-              this->currentCompositionSnapshot().root();
-          if (!diff || !previousRoot || !currentRoot)
-          {
-            return false;
-          }
-          for (NodeCompositionDiff::Entry *entry = diff->entriesHead();
-               entry;
-               entry = entry->nextInComposition)
-          {
-            if (entry->action != NodeCompositionDiff::ACTION_RETAIN)
-            {
-              continue;
-            }
-            NodeDefinitionBase *previousDefinition = definitionAtIndex(
-                previousRoot, entry->previousIndex);
-            NodeDefinitionBase *currentDefinition = definitionAtIndex(
-                currentRoot, entry->currentIndex);
-            if (!retainedDefinitionTreeIsComparable(previousDefinition,
-                                                    currentDefinition))
-            {
-              return false;
-            }
-          }
-          return true;
-        }
-
         static bool applyRetainedNodeDefinition(
             Node *liveNode,
             NodeDefinitionBase *previousDefinition,
@@ -1011,7 +929,36 @@ namespace loka
                                            currentNestable,
                                            childDiff))
           {
-            return false;
+            if (detail::haveDeepEquivalentChildren(previousNestable,
+                                                   currentNestable))
+            {
+              return applyRetainedNodeDefinition(
+                  liveNode, previousDefinition, currentDefinition);
+            }
+
+            BoundaryLocalRebuildPlan replaceAllPlan;
+            if (!this->buildParkedBranchReentryPlan(
+                    context,
+                    liveNode,
+                    *liveNestable,
+                    *currentNestable,
+                    replaceAllPlan,
+                    RETAINED_CHILD_PLAN_REPLACE_ALL))
+            {
+              return false;
+            }
+            std::vector<Node *> retainedChildren;
+            if (!this->applyLocalRebuildPlan(
+                    context,
+                    *liveNestable,
+                    replaceAllPlan,
+                    retainedChildren,
+                    false))
+            {
+              return false;
+            }
+            return applyRetainedNodeDefinition(
+                liveNode, previousDefinition, currentDefinition);
           }
           if (childDiff.empty())
           {
@@ -1051,7 +998,12 @@ namespace loka
 
           BoundaryLocalRebuildPlan plan;
           if (!this->buildParkedBranchReentryPlan(
-                  *liveNestable, *currentNestable, plan))
+                  context,
+                  liveNode,
+                  *liveNestable,
+                  *currentNestable,
+                  plan,
+                  RETAINED_CHILD_PLAN_PRESERVE_MATCHES))
           {
             return false;
           }
@@ -1311,8 +1263,7 @@ namespace loka
           }
           const NodeCompositionDiff *diff = this->localCompositionDiff();
           const bool canApplyRetainedTree =
-              diff && diff->isCompatibleRetainOnly() &&
-              this->retainedSubtreesAreComparable();
+              diff && diff->isCompatibleRetainOnly();
           if (!this->applyCurrentBranchSeatPlan(context, &exclusions))
           {
             return false;
@@ -1408,6 +1359,36 @@ namespace loka
           this->applyPendingLocalPaint(plan);
         }
 
+        static void destroyUncommittedLocalRebuildCandidates(
+            BoundaryLocalRebuildPlan &plan);
+
+        class UncommittedLocalRebuildPlanGuard
+        {
+        public:
+          explicit UncommittedLocalRebuildPlanGuard(
+              BoundaryLocalRebuildPlan &plan)
+              : plan_(&plan)
+          {
+          }
+
+          ~UncommittedLocalRebuildPlanGuard()
+          {
+            if (this->plan_)
+            {
+              BoundaryNode::destroyUncommittedLocalRebuildCandidates(
+                  *this->plan_);
+            }
+          }
+
+          void disarm()
+          {
+            this->plan_ = 0;
+          }
+
+        private:
+          BoundaryLocalRebuildPlan *plan_;
+        };
+
         bool buildLocalRebuildPlan(ComponentContext &context,
                                    const INestableDefinition &currentRoot,
                                    const BoundaryLocalRebuildExclusions &exclusions,
@@ -1433,38 +1414,7 @@ namespace loka
           // exclusively plan-owned too: their runtime facts remain in the
           // registration plan until the structural commit, so an abort cannot
           // leave runtime->active pointing at a discarded candidate.
-          struct UncommittedCandidateGuard
-          {
-            BoundaryLocalRebuildPlan &plan;
-            bool armed;
-            explicit UncommittedCandidateGuard(BoundaryLocalRebuildPlan &planRef)
-                : plan(planRef), armed(true)
-            {
-            }
-            void disarm() { armed = false; }
-            ~UncommittedCandidateGuard()
-            {
-              if (!armed)
-              {
-                return;
-              }
-              for (size_t i = 0; i < plan.entries.size(); ++i)
-              {
-                BoundaryLocalRebuildPlanEntry &entry = plan.entries[i];
-                const bool materialized =
-                    entry.action == BoundaryLocalRebuildPlanEntry::ACTION_ATTACH ||
-                    entry.action == BoundaryLocalRebuildPlanEntry::ACTION_REPLACE;
-                const bool exclusivelyPlanOwned =
-                    entry.definition != 0;
-                if (materialized && exclusivelyPlanOwned && entry.node &&
-                    entry.node->arenaOwner() == 0)
-                {
-                  DestroyHeapNode(entry.node);
-                  entry.node = 0;
-                }
-              }
-            }
-          } uncommittedGuard(plan);
+          UncommittedLocalRebuildPlanGuard uncommittedGuard(plan);
 
           INestable *root = compositionRootNestable();
           Node *runtimeParent = compositionRootNode();
@@ -1681,12 +1631,27 @@ namespace loka
           return true;
         }
 
-        bool buildParkedBranchReentryPlan(INestable &root,
-                                          INestableDefinition &desiredRoot,
-                                          BoundaryLocalRebuildPlan &plan)
+        enum RetainedChildPlanMode
+        {
+          RETAINED_CHILD_PLAN_PRESERVE_MATCHES,
+          RETAINED_CHILD_PLAN_REPLACE_ALL
+        };
+
+        bool buildParkedBranchReentryPlan(
+            ComponentContext &context,
+            Node *runtimeParent,
+            INestable &root,
+            INestableDefinition &desiredRoot,
+            BoundaryLocalRebuildPlan &plan,
+            RetainedChildPlanMode mode)
         {
           plan.clear();
           plan.reserve(desiredRoot.childrenCount());
+
+          // This builder may materialize more than one candidate before a
+          // later definition refuses. Until the complete plan is ready, those
+          // candidates have no owner except the plan itself.
+          UncommittedLocalRebuildPlanGuard uncommittedGuard(plan);
 
           std::vector<Node *> liveChildren;
           loka::dsl::CompositionCursor<Node> liveIt(root.childrenHead(), root.childrenCount());
@@ -1710,8 +1675,12 @@ namespace loka
                 this->branchSeatPlan(effectiveDefinition);
             BoundaryBranchSeatRuntimeEntry *seatRuntime =
                 seatPlan ? this->branchSeats_.findRuntime(seatPlan->key) : 0;
-            Node *existing = seatRuntime ? seatRuntime->active : 0;
-            if (!seatPlan && !existing &&
+            Node *existing =
+                mode == RETAINED_CHILD_PLAN_REPLACE_ALL
+                    ? (slot < liveChildren.size() ? liveChildren[slot] : 0)
+                    : (seatRuntime ? seatRuntime->active : 0);
+            if (mode == RETAINED_CHILD_PLAN_PRESERVE_MATCHES &&
+                !seatPlan && !existing &&
                 effectiveDefinition->nodeTag() != NODE_TAG_NONE)
             {
               for (size_t i = 0; i < liveChildren.size(); ++i)
@@ -1724,13 +1693,14 @@ namespace loka
                 }
               }
             }
-            else if (!seatPlan && !existing && slot < liveChildren.size() &&
+            else if (mode == RETAINED_CHILD_PLAN_PRESERVE_MATCHES &&
+                     !seatPlan && !existing && slot < liveChildren.size() &&
                      liveChildren[slot] && liveChildren[slot]->nodeTag() == NODE_TAG_NONE)
             {
               existing = liveChildren[slot];
             }
 
-            if (existing &&
+            if (mode == RETAINED_CHILD_PLAN_PRESERVE_MATCHES && existing &&
                 (seatPlan || effectiveDefinition->isCompatibleWithNode(existing)))
             {
               plan.entries.push_back(
@@ -1746,7 +1716,26 @@ namespace loka
             }
             else
             {
-              Node *created = this->materializeLocalRebuildNode(effectiveDefinition);
+              Node *created = 0;
+              if (seatPlan)
+              {
+                if (!seatPlan->dirtySource || !runtimeParent ||
+                    !this->createCurrentBranch(
+                        context,
+                        *seatPlan,
+                        runtimeParent,
+                        created,
+                        &plan.branchSeatRegistrations))
+                {
+                  return false;
+                }
+                plan.branchSeatRegistrations.record(
+                    *seatPlan, runtimeParent, created);
+              }
+              else
+              {
+                created = this->materializeLocalRebuildNode(effectiveDefinition);
+              }
               if (!created)
               {
                 return false;
@@ -1784,6 +1773,9 @@ namespace loka
                   BoundaryLocalRebuildPlanEntry::retire(liveChildren[i], liveChildren[i]->nodeTag()));
             }
           }
+          this->branchSeats_.reserveRuntimeRegistrations(
+              plan.branchSeatRegistrations.count());
+          uncommittedGuard.disarm();
           return true;
         }
 
@@ -1808,7 +1800,13 @@ namespace loka
           }
 
           BoundaryLocalRebuildPlan plan;
-          if (!this->buildParkedBranchReentryPlan(*root, *desiredRoot, plan))
+          if (!this->buildParkedBranchReentryPlan(
+                  context,
+                  node,
+                  *root,
+                  *desiredRoot,
+                  plan,
+                  RETAINED_CHILD_PLAN_PRESERVE_MATCHES))
           {
             return false;
           }
