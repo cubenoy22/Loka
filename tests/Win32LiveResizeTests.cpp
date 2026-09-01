@@ -14,11 +14,30 @@
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "context/Win32PopupMenuContext.hpp"
 #include "core/State.hpp"
+#include "platform/String.hpp"
 
 namespace
 {
   const wchar_t *kLiveResizeHostClass = L"LOKA_LIVE_RESIZE_TEST_HOST";
   int gLiveResizeHostPaintCount = 0;
+
+  class RefusingUtf8String : public loka::platform::String
+  {
+  public:
+    explicit RefusingUtf8String(int *attempts)
+        : attempts_(attempts)
+    {
+    }
+
+    virtual bool appendUtf8(std::string &) const
+    {
+      ++*this->attempts_;
+      return false;
+    }
+
+  private:
+    int *attempts_;
+  };
 
   LRESULT CALLBACK LiveResizeHostWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
   {
@@ -120,6 +139,7 @@ void testWin32PopupRelayoutPreservesNativeItems()
     Win32ScenePlatformController controller(root);
     const char *itemLiterals[] = {"Apple", "Banana", "Cherry"};
     loka::core::MutableState<int> selection(1);
+    int materializeAttempts = 0;
     loka::app::PopupMenuProps props;
     props.items(itemLiterals, 3).selectedIndex(&selection);
     loka::app::PopupMenuNode node(props);
@@ -146,6 +166,14 @@ void testWin32PopupRelayoutPreservesNativeItems()
     LOKA_VERIFY(SendMessageW(popup, CB_GETLBTEXT, 0, reinterpret_cast<LPARAM>(firstItem)) != CB_ERR);
     assert(std::wcscmp(firstItem, L"One") == 0);
     LOKA_VERIFY(SendMessageW(popup, CB_GETCURSEL, 0, 0) == 1);
+
+    loka::Vector<loka::core::String> failingItems;
+    failingItems.push_back(loka::core::String::FromPlatform(
+        loka::core::Managed<loka::platform::String>::Wrap(new RefusingUtf8String(&materializeAttempts))));
+    node.props.items(failingItems);
+    context.relayout(30, 40, 180, 24);
+    context.relayout(30, 40, 180, 24);
+    assert(materializeAttempts == 2 && "failed native content application must retry on the next relayout");
 
     context.onFactChanged(loka::app::scene::NODE_FACT_ATTACHED, loka::app::scene::NODE_FACT_RETIRED);
     controller.drainNativeRetirements();

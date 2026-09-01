@@ -236,15 +236,32 @@ void Win32PopupMenuContext::applyItems()
     this->applyDropGeometry();
     return;
   }
+  bool appliedAllItems = true;
   for (std::size_t i = 0; i < items->size(); ++i)
   {
     std::wstring wide;
-    if (loka::win32::MaterializeWideString((*items)[i], wide))
+    if (!loka::win32::MaterializeWideString((*items)[i], wide))
     {
-      SendMessageW(hwnd_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(wide.c_str()));
+      appliedAllItems = false;
+      break;
+    }
+    const LRESULT added = SendMessageW(hwnd_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(wide.c_str()));
+    if (added == CB_ERR || added == CB_ERRSPACE)
+    {
+      appliedAllItems = false;
+      break;
     }
   }
-  this->appliedItems_ = *items;
+  if (appliedAllItems)
+  {
+    this->appliedItems_ = *items;
+  }
+  else
+  {
+    // An empty applied-state cache makes the next relayout retry a non-empty
+    // desired list instead of treating a partially populated HWND as current.
+    this->appliedItems_.clear();
+  }
   this->applyDropGeometry();
 }
 
