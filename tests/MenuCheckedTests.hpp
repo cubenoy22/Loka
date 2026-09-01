@@ -4,6 +4,5 @@
 void testMenuItemCheckedAttrProjectsValueAndState();
 void testMenuBoundaryCheckedValuesSwapOnTrackedStateRefresh();
 void testMenuControllerDisarmsTrackedMenuBoundaryBeforeDestruction();
-void testSimpleViewerDisplayModeUpdatesRetainedImageViewProps();
 
 #endif // LOKA_TESTS_MENU_CHECKED_TESTS_HPP

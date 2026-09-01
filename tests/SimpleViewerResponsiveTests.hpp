@@ -1,0 +1,8 @@
+#ifndef LOKA_TESTS_SIMPLE_VIEWER_RESPONSIVE_TESTS_HPP
+#define LOKA_TESTS_SIMPLE_VIEWER_RESPONSIVE_TESTS_HPP
+
+void testSimpleViewerNavSeatsFollowModeAndRetainContentImage();
+void testSimpleViewerDisplayArmsAndMenuChecksFollowOwnedMode();
+void testSimpleViewerPaneScrollButtonUsesMenuEmitter();
+
+#endif // LOKA_TESTS_SIMPLE_VIEWER_RESPONSIVE_TESTS_HPP

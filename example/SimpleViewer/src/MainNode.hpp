@@ -3,23 +3,46 @@
 
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/controls/Button.hpp"
+#include "app/nodes/nestable/Box.hpp"
+#include "app/nodes/nestable/Fragment.hpp"
+#include "app/nodes/nestable/Match.hpp"
 #include "app/nodes/nestable/PolicyScope.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
+#include "app/nodes/nestable/ScrollView.hpp"
 #include "app/nodes/nestable/Show.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/scene/state/NodeState.hpp"
-#include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/ImageView.hpp"
+#include "app/core/Window.hpp"
 #include "ImageLoadSession.hpp"
 #include "core/State.hpp"
 #include "core/String.hpp"
 #include "core/resource/Image.hpp"
 #include <cassert>
 
+#ifdef TEST_BUILD
+class SimpleViewerTestAccess;
+#endif
+
 namespace simpleviewer
 {
   using loka::app::Button;
+
+  enum NavMode
+  {
+    NAV_WIDE = 0,
+    NAV_NARROW_CLOSED = 1,
+    NAV_NARROW_OPEN = 2
+  };
+
+  enum DisplayMode
+  {
+    DISPLAY_FIT = 0,
+    DISPLAY_ACTUAL_CENTER = 1,
+    DISPLAY_ACTUAL_SCROLL = 2
+  };
 
   class MainTypeTag
   {
@@ -33,11 +56,18 @@ namespace simpleviewer
     typedef MainNode NodeType;
     PlatformContext *platformContext_;
     loka::core::EmitterState *openDialogEvent_;
-    loka::core::State<bool> *actualSize_;
+    loka::core::State<int> *displayMode_;
+    loka::core::EmitterState *fitEvent_;
+    loka::core::EmitterState *actualCenterEvent_;
+    loka::core::EmitterState *actualScrollEvent_;
+
     MainProps()
         : platformContext_(0),
           openDialogEvent_(0),
-          actualSize_(0)
+          displayMode_(0),
+          fitEvent_(0),
+          actualCenterEvent_(0),
+          actualScrollEvent_(0)
     {
     }
 
@@ -53,9 +83,27 @@ namespace simpleviewer
       return *this;
     }
 
-    MainProps &actualSize(loka::core::State<bool> *state)
+    MainProps &displayMode(loka::core::State<int> *state)
     {
-      this->actualSize_ = state;
+      this->displayMode_ = state;
+      return *this;
+    }
+
+    MainProps &fitEvent(loka::core::EmitterState *eventState)
+    {
+      this->fitEvent_ = eventState;
+      return *this;
+    }
+
+    MainProps &actualCenterEvent(loka::core::EmitterState *eventState)
+    {
+      this->actualCenterEvent_ = eventState;
+      return *this;
+    }
+
+    MainProps &actualScrollEvent(loka::core::EmitterState *eventState)
+    {
+      this->actualScrollEvent_ = eventState;
       return *this;
     }
 
@@ -63,7 +111,10 @@ namespace simpleviewer
     {
       assert(this->platformContext_);
       assert(this->openDialogEvent_);
-      assert(this->actualSize_);
+      assert(this->displayMode_);
+      assert(this->fitEvent_);
+      assert(this->actualCenterEvent_);
+      assert(this->actualScrollEvent_);
     }
 
     bool operator<(const loka::app::scene::PropsBase &rhs) const
@@ -73,12 +124,18 @@ namespace simpleviewer
         return false;
       }
       const MainProps &other = static_cast<const MainProps &>(rhs);
-      if (platformContext_ != other.platformContext_)
-        return platformContext_ < other.platformContext_;
-      if (openDialogEvent_ != other.openDialogEvent_)
-        return openDialogEvent_ < other.openDialogEvent_;
-      if (actualSize_ != other.actualSize_)
-        return actualSize_ < other.actualSize_;
+      if (this->platformContext_ != other.platformContext_)
+        return this->platformContext_ < other.platformContext_;
+      if (this->openDialogEvent_ != other.openDialogEvent_)
+        return this->openDialogEvent_ < other.openDialogEvent_;
+      if (this->displayMode_ != other.displayMode_)
+        return this->displayMode_ < other.displayMode_;
+      if (this->fitEvent_ != other.fitEvent_)
+        return this->fitEvent_ < other.fitEvent_;
+      if (this->actualCenterEvent_ != other.actualCenterEvent_)
+        return this->actualCenterEvent_ < other.actualCenterEvent_;
+      if (this->actualScrollEvent_ != other.actualScrollEvent_)
+        return this->actualScrollEvent_ < other.actualScrollEvent_;
       return false;
     }
   };
@@ -87,13 +144,18 @@ namespace simpleviewer
   {
     enum
     {
-      kFillTag = 1,
-      kOpenButtonTag = 2,
-      kFileLabelTag = 3,
-      kChooserMessageTag = 4,
-      kImageViewTag = 5,
-      kOpenDialogTag = 6
+      kRootRowTag = 1,
+      kNavSeatTag = 2,
+      kContentTag = 3,
+      kNavToggleSeatTag = 4,
+      kDisplaySeatTag = 5,
+      kImageViewTag = 6,
+      kOpenDialogTag = 7
     };
+
+    static const int kNavWidth = 200;
+    static const int kNavHeight = 240;
+    static const int kNarrowBreakpoint = 480;
 
   public:
     typedef MainTypeTag TypeTag;
@@ -104,12 +166,19 @@ namespace simpleviewer
           chooserResult_(),
           chooserMessage_(),
           image_(),
+          navMode_(),
+          navOpen_(),
+          scrollOffset_(),
+          toggleNavEvent_(),
           imageLoad_()
     {
       this->state(this->isDialogShown_, false);
       this->state(this->chooserResult_, loka::app::FileChooserResult());
       this->state(this->chooserMessage_, loka::core::String::Literal("(none)"));
       this->state(this->image_, loka::core::resource::Image::Empty());
+      this->state(this->navMode_, static_cast<int>(NAV_WIDE));
+      this->state(this->navOpen_, false);
+      this->state(this->scrollOffset_, 0);
     }
 
     virtual void attachNode(loka::app::scene::NodeComposition &c)
@@ -122,27 +191,41 @@ namespace simpleviewer
     {
       using namespace loka::app;
       this->props.assertInitialized();
-      const bool actualSize = this->props.actualSize_->get();
-      ShowDefinition openDialog =
-          Show(*this->isDialogShown_.state())
-          << (PolicyScopeDefinition().destroyOnDetach()
-              << OpenFileDialog().result(this->chooserResult_).testId("SimpleViewerOpenFileDialog"));
-      openDialog.setNodeTag(kOpenDialogTag);
-      c.declare(
-          VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_LEADING)
-          << F().tag(kFillTag)
-          << Button("Open...").onClick(this->props.openDialogEvent_).tag(kOpenButtonTag)
-          << Text("Loka file:").tag(kFileLabelTag)
-          << Text(this->chooserMessage_.state())
-                 .attr(TextAttr().wrap(TEXT_WRAP_CHAR).truncation(TEXT_TRUNCATION_NONE))
-                 .tag(kChooserMessageTag)
-          << ImageView()
-                 .image(this->image_.state())
-                 .attr(ImageViewAttr()
-                           .sizePolicy(actualSize ? IMAGE_VIEW_SIZE_INTRINSIC : IMAGE_VIEW_SIZE_FILL_PARENT)
-                           .fit(IMAGE_FIT_CONTAIN))
-                 .tag(kImageViewTag)
-          << openDialog);
+
+      MatchDefinition<int> nav = Match(*this->navMode_.state());
+      nav.arm(&MainNode::isNavPaneVisible, 0, this->navPane())
+          .otherwise(Fragment());
+      nav.setNodeTag(kNavSeatTag);
+
+      MatchDefinition<int> navToggle = Match(*this->navMode_.state());
+      navToggle.arm(&MainNode::isNarrowMode,
+                    0,
+                    Button("=")
+                        .onClick(&this->toggleNavEvent_)
+                        .TEST_ID("SimpleViewer.NavToggle"))
+          .otherwise(Fragment());
+      navToggle.setNodeTag(kNavToggleSeatTag);
+
+      MatchDefinition<int> display = Match(*this->props.displayMode_);
+      display.arm(DISPLAY_FIT, this->imageView(IMAGE_VIEW_SIZE_FILL_PARENT))
+          .arm(DISPLAY_ACTUAL_CENTER,
+               HStack()
+                   .alignVertical(VERTICAL_ALIGNMENT_CENTER)
+                   .TEST_ID("SimpleViewer.ActualCenter")
+               << (VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_CENTER)
+                   << this->imageView(IMAGE_VIEW_SIZE_INTRINSIC)))
+          .arm(DISPLAY_ACTUAL_SCROLL,
+               ScrollView(this->scrollOffset_)
+                       .TEST_ID("SimpleViewer.ActualScroll")
+               << this->imageView(IMAGE_VIEW_SIZE_INTRINSIC));
+      display.setNodeTag(kDisplaySeatTag);
+
+      HStack root = HStack().TEST_ID("SimpleViewer.RootRow");
+      root.setNodeTag(kRootRowTag);
+      VStack content = VStack().TEST_ID("SimpleViewer.Content");
+      content.setNodeTag(kContentTag);
+      content << navToggle << display;
+      c.declare(root << nav << content);
     }
 
   protected:
@@ -168,11 +251,103 @@ namespace simpleviewer
 
   private:
     friend class ImageLoadSession;
+#ifdef TEST_BUILD
+    friend class ::SimpleViewerTestAccess;
+#endif
+
+    static bool isNarrowMode(const int &mode, void *)
+    {
+      return mode == NAV_NARROW_CLOSED || mode == NAV_NARROW_OPEN;
+    }
+
+    static bool isNavPaneVisible(const int &mode, void *)
+    {
+      return mode == NAV_WIDE || mode == NAV_NARROW_OPEN;
+    }
+
+    loka::app::Box navPane()
+    {
+      using namespace loka::app;
+      ShowDefinition openDialog =
+          Show(*this->isDialogShown_.state())
+          << (PolicyScopeDefinition().destroyOnDetach()
+              << OpenFileDialog().result(this->chooserResult_).testId("SimpleViewerOpenFileDialog"));
+      openDialog.setNodeTag(kOpenDialogTag);
+      return Box()
+                 .size(kNavWidth, kNavHeight)
+                 .TEST_ID("SimpleViewer.NavPane")
+             << (VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_LEADING)
+                 << Button("Open...").onClick(this->props.openDialogEvent_)
+                 << Text("Loka file:")
+                 << Text(this->chooserMessage_.state())
+                        .attr(TextAttr().wrap(TEXT_WRAP_CHAR).truncation(TEXT_TRUNCATION_NONE))
+                 << Button("Fit to Window")
+                        .onClick(this->props.fitEvent_)
+                        .TEST_ID("SimpleViewer.Mode.Fit")
+                 << Button("Actual Size")
+                        .onClick(this->props.actualCenterEvent_)
+                        .TEST_ID("SimpleViewer.Mode.ActualCenter")
+                 << Button("Actual Size (Scroll)")
+                        .onClick(this->props.actualScrollEvent_)
+                        .TEST_ID("SimpleViewer.Mode.ActualScroll")
+                 << openDialog);
+    }
+
+    loka::app::ImageViewDefinitionWithAttr imageView(
+        loka::app::ImageViewSizePolicy sizePolicy)
+    {
+      using namespace loka::app;
+      ImageViewDefinitionWithAttr image =
+          ImageView()
+              .image(this->image_.state())
+              .attr(ImageViewAttr().sizePolicy(sizePolicy).fit(IMAGE_FIT_CONTAIN))
+              .TEST_ID("SimpleViewer.Image");
+      image.setNodeTag(kImageViewTag);
+      return image;
+    }
 
     void bindUi()
     {
       this->bindActionForUi(*this->props.openDialogEvent_, &MainNode::openDialog);
-      this->watchStateForUi(*this->props.actualSize_, &MainNode::refreshDisplayMode);
+      this->bindActionForUi(this->toggleNavEvent_, &MainNode::toggleNavigation);
+      this->watchStateForUi(*this->props.displayMode_, &MainNode::refreshDisplayMode);
+      ::Window *window = this->windowOrNull();
+      if (window)
+      {
+        this->watchStateForUi(window->nativeFrame(), &MainNode::refreshLayoutMode, true);
+      }
+    }
+
+    ::Window *windowOrNull() const
+    {
+      const AttachedContext *ctx = this->attachedContext();
+      return ctx ? ctx->window() : 0;
+    }
+
+    void refreshLayoutMode()
+    {
+      ::Window *window = this->windowOrNull();
+      if (!window || !this->navMode_.isValid())
+      {
+        return;
+      }
+      const loka::core::Frame frame = window->nativeFrame().get();
+      const bool narrow = frame.hasSize() && frame.width > 0 && frame.width < kNarrowBreakpoint;
+      const int mode = narrow
+                           ? (this->navOpen_.get() ? NAV_NARROW_OPEN : NAV_NARROW_CLOSED)
+                           : NAV_WIDE;
+      if (this->navMode_.get() == mode)
+      {
+        return;
+      }
+      this->navMode_.set(mode);
+      this->markViewDirty(loka::app::scene::NODE_DIRTY_CHILD);
+    }
+
+    void toggleNavigation()
+    {
+      this->navOpen_.set(!this->navOpen_.get());
+      this->refreshLayoutMode();
     }
 
     void refreshDisplayMode()
@@ -236,6 +411,10 @@ namespace simpleviewer
     loka::app::scene::NodeState<loka::app::FileChooserResult> chooserResult_;
     loka::app::scene::NodeState<loka::core::String> chooserMessage_;
     loka::app::scene::NodeState<loka::core::resource::Image> image_;
+    loka::app::scene::NodeState<int> navMode_;
+    loka::app::scene::NodeState<bool> navOpen_;
+    loka::app::scene::NodeState<int> scrollOffset_;
+    loka::core::EmitterState toggleNavEvent_;
     ImageLoadSession imageLoad_;
   };
 } // namespace simpleviewer
