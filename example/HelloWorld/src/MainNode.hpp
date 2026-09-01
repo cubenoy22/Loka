@@ -24,9 +24,16 @@ namespace helloworld
     virtual void attachNode(loka::app::scene::NodeComposition &c);
     virtual void composeNode(loka::app::scene::NodeComposition &c);
 
+  protected:
+    virtual void declareLocalRecomposition(loka::app::scene::NodeComposition &composition);
+    virtual void composeWithContext(loka::app::scene::ComponentContext &context,
+                                    loka::app::scene::ComposeEvent event);
+
   private:
     ::Window *windowOrNull() const;
     loka::app::VStack mainLeftPanel();
+    void bindUi();
+    void refreshLayoutMode();
     double parseBmiValue(const loka::core::String &value) const;
     void refreshBmiResult();
     void toggleMessage();
@@ -53,6 +60,7 @@ namespace helloworld
     loka::core::EmitterState actionProbeEvent_;
     loka::app::scene::NodeState<int> fruitIndex_;
     loka::app::scene::NodeState<loka::core::String> fruitMessage_;
+    loka::app::scene::NodeState<bool> isNarrow_;
     loka::Vector<loka::core::String> fruits_;
   };
 

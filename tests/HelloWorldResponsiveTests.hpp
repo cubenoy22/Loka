@@ -1,0 +1,6 @@
+#ifndef LOKA_TESTS_HELLO_WORLD_RESPONSIVE_TESTS_HPP
+#define LOKA_TESTS_HELLO_WORLD_RESPONSIVE_TESTS_HPP
+
+void testHelloWorldResponsivePanelsFollowNativeFrameAndRetainSeats();
+
+#endif // LOKA_TESTS_HELLO_WORLD_RESPONSIVE_TESTS_HPP

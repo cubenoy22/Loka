@@ -59,6 +59,7 @@
 #include "NativeLifetimeTests.hpp"
 #include "NullLayoutTests.hpp"
 #include "StackAxisRetentionTests.hpp"
+#include "HelloWorldResponsiveTests.hpp"
 #include "ScrollViewScopeTests.hpp"
 #include "ToolboxLayoutContractTests.hpp"
 #include "ToolboxScenePlatformContractTests.hpp"
