@@ -39,6 +39,16 @@
       }
     },
     {
+      "name": "LokaSmirkBench68K",
+      "path": "example/SmirkBench/LokaSmirkBench68K.bin",
+      "baseline": {
+        "total": 247808,
+        "CODE": 225772,
+        "DATA": 12224,
+        "RELA": 8834
+      }
+    },
+    {
       "name": "LokaMine68K",
       "path": "example/MineSweeper/LokaMine68K.bin",
       "baseline": {

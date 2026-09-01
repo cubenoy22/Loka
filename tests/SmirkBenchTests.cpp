@@ -1,0 +1,192 @@
+#include "SmirkBenchTests.hpp"
+
+#include "../example/SmirkBench/src/MainNode.hpp"
+#include "app/layout/LayoutHeuristics.hpp"
+#include "app/nodes/controls/Button.hpp"
+#include "app/nodes/nestable/Box.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
+#include "app/scene/Scene.hpp"
+#include "platform/null/NullScenePlatformController.hpp"
+#include "support/TestVerify.hpp"
+#include "testing/scene/SceneTestFlow.hpp"
+
+namespace
+{
+  loka::app::scene::Node *findNodeByTestId(loka::app::scene::Node *node, const char *testId)
+  {
+    if (!node)
+    {
+      return 0;
+    }
+    if (node->testId() == testId)
+    {
+      return node;
+    }
+    loka::app::scene::INestable *nestable = node->asNestable();
+    for (loka::app::scene::Node *child = nestable ? nestable->childrenHead() : 0; child;
+         child = child->nextInComposition)
+    {
+      loka::app::scene::Node *match = findNodeByTestId(child, testId);
+      if (match)
+      {
+        return match;
+      }
+    }
+    return 0;
+  }
+
+  void flushSmirkBench(loka::app::scene::Scene &scene)
+  {
+    if (scene.hasPendingInvalidation())
+    {
+      LOKA_VERIFY(scene.flushInvalidation());
+    }
+  }
+
+  struct SmirkBenchFixture
+  {
+    SmirkBenchFixture()
+        : model(640, 400),
+          platform(),
+          scene(loka::app::scene::Boundary<smirkbench::MainNode>(smirkbench::MainProps(&this->model))),
+          mainNode(0)
+    {
+      this->scene.mount(&this->platform);
+      this->scene.updateAttached(true);
+      this->mainNode =
+          static_cast<smirkbench::MainNode *>(loka::dsl::testing::SceneTestAccess::rootBoundary(this->scene));
+      LOKA_VERIFY(this->mainNode != 0);
+    }
+
+    ~SmirkBenchFixture()
+    {
+      this->scene.unmount();
+    }
+
+    smirkbench::SmirkModel model;
+    NullScenePlatformController platform;
+    loka::app::scene::Scene scene;
+    smirkbench::MainNode *mainNode;
+  };
+
+  void verifyRowSeats(SmirkBenchFixture &fixture, int expectedNavWidth, int expectedSurfaceX, int expectedSurfaceWidth)
+  {
+    loka::app::scene::Node *rowNode =
+        findNodeByTestId(loka::dsl::testing::SceneTestAccess::rootNode(fixture.scene), "SmirkBench.Root");
+    LOKA_VERIFY(rowNode != 0);
+    loka::app::StackNode *row = rowNode->asStackNode();
+    LOKA_VERIFY(row != 0);
+    LOKA_VERIFY(row->childrenCount() == 2);
+    loka::app::scene::Node *navSeat = row->childrenHead();
+    loka::app::scene::Node *surfaceColumn = navSeat ? navSeat->nextInComposition : 0;
+    LOKA_VERIFY(surfaceColumn != 0);
+    LOKA_VERIFY(surfaceColumn->nextInComposition == 0);
+
+    loka::app::layout::RowWidthConsultation widths(row->childrenHead(), row->childrenCount(), 500, 4);
+    const loka::app::layout::RowChildWidth nav = widths.next(navSeat);
+    const loka::app::layout::RowChildWidth content = widths.next(surfaceColumn);
+    LOKA_VERIFY(nav.width() == expectedNavWidth);
+    LOKA_VERIFY(content.width() == expectedSurfaceWidth);
+    const int surfaceX = nav.isLiveSeat() ? nav.width() + 4 : 0;
+    LOKA_VERIFY(surfaceX == expectedSurfaceX);
+  }
+} // namespace
+
+void testSmirkBenchNavModesResizeSeatsAndRetainSurface()
+{
+  SmirkBenchFixture fixture;
+  loka::app::scene::Node *surface =
+      findNodeByTestId(loka::dsl::testing::SceneTestAccess::rootNode(fixture.scene), "SmirkBench.Surface");
+  LOKA_VERIFY(surface != 0);
+  LOKA_VERIFY(surface->asRectSurfaceNode() != 0);
+  verifyRowSeats(fixture, 200, 204, 296);
+
+  const unsigned long beforeClosed = fixture.platform.onChangeCallCount();
+  fixture.mainNode->setNavModeForTesting(smirkbench::NAV_NARROW_CLOSED);
+  flushSmirkBench(fixture.scene);
+  LOKA_VERIFY(fixture.platform.onChangeCallCount() == beforeClosed + 1);
+  LOKA_VERIFY((fixture.platform.lastOnChangeFlags() & loka::app::scene::NODE_DIRTY_CHILD) != 0);
+  LOKA_VERIFY((fixture.platform.lastOnChangeFlags() & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
+  LOKA_VERIFY(findNodeByTestId(loka::dsl::testing::SceneTestAccess::rootNode(fixture.scene), "SmirkBench.Surface")
+              == surface);
+  verifyRowSeats(fixture, 0, 0, 500);
+  loka::app::scene::Node *menuButtonNode =
+      findNodeByTestId(loka::dsl::testing::SceneTestAccess::rootNode(fixture.scene), "SmirkBench.NavToggle");
+  LOKA_VERIFY(menuButtonNode != 0);
+  loka::app::ButtonNode *menuButton = menuButtonNode->asButtonNode();
+  LOKA_VERIFY(menuButton != 0);
+  LOKA_VERIFY(menuButton->props.text_ != 0);
+  LOKA_VERIFY(menuButton->props.text_->get().equals(loka::core::String::Literal("=")));
+
+  fixture.mainNode->setNavModeForTesting(smirkbench::NAV_NARROW_OPEN);
+  flushSmirkBench(fixture.scene);
+  LOKA_VERIFY(findNodeByTestId(loka::dsl::testing::SceneTestAccess::rootNode(fixture.scene), "SmirkBench.Surface")
+              == surface);
+  verifyRowSeats(fixture, 200, 204, 296);
+}
+
+void testSmirkBenchNavModeDerivationAvoidsIdenticalWrites()
+{
+  SmirkBenchFixture fixture;
+  fixture.mainNode->refreshNavModeForTesting(loka::core::Frame(0, 0, 479, 300));
+  LOKA_VERIFY(fixture.mainNode->navModeForTesting() == smirkbench::NAV_NARROW_CLOSED);
+  LOKA_VERIFY(fixture.mainNode->consumeNavModeTrackerDirtForTesting());
+
+  fixture.mainNode->refreshNavModeForTesting(loka::core::Frame(0, 0, 479, 300));
+  LOKA_VERIFY(!fixture.mainNode->consumeNavModeTrackerDirtForTesting());
+
+  fixture.mainNode->setNavOpenForTesting(true);
+  fixture.mainNode->refreshNavModeForTesting(loka::core::Frame(0, 0, 479, 300));
+  LOKA_VERIFY(fixture.mainNode->navModeForTesting() == smirkbench::NAV_NARROW_OPEN);
+  LOKA_VERIFY(fixture.mainNode->consumeNavModeTrackerDirtForTesting());
+
+  fixture.mainNode->refreshNavModeForTesting(loka::core::Frame(0, 0, 480, 300));
+  LOKA_VERIFY(fixture.mainNode->navModeForTesting() == smirkbench::NAV_WIDE);
+  LOKA_VERIFY(fixture.mainNode->consumeNavModeTrackerDirtForTesting());
+}
+
+void testSmirkModelReflectsRefusesAndReclamps()
+{
+  smirkbench::SmirkModel model(100, 80, false);
+  LOKA_VERIFY(model.addFaceForTesting(loka::app::RectSprite(76, 10, 24, 24), 5, 2));
+  model.advanceFrame(smirkbench::kFixedStepSeconds);
+  LOKA_VERIFY(model.faceForTesting(0).x <= 76);
+  LOKA_VERIFY(model.faceForTesting(0).x >= 0);
+  LOKA_VERIFY(model.faceForTesting(0).y >= 0);
+  LOKA_VERIFY(model.faceForTesting(0).y <= 56);
+  LOKA_VERIFY(model.velocityXForTesting(0) < 0);
+
+  smirkbench::SmirkModel cappedModel(100, 80, false);
+  for (int i = 0; i < loka::app::RectSurfaceModel::kMaxRects; ++i)
+  {
+    LOKA_VERIFY(cappedModel.addFace());
+  }
+  LOKA_VERIFY(!cappedModel.addFace());
+  LOKA_VERIFY(cappedModel.faceCount() == loka::app::RectSurfaceModel::kMaxRects);
+
+  model.updateBounds(30, 30);
+  for (int i = 0; i < model.faceCount(); ++i)
+  {
+    const loka::app::RectSprite &face = model.faceForTesting(i);
+    LOKA_VERIFY(face.x >= 0);
+    LOKA_VERIFY(face.y >= 0);
+    LOKA_VERIFY(face.x + face.width <= 30);
+    LOKA_VERIFY(face.y + face.height <= 30);
+  }
+
+  SmirkBenchFixture fixture;
+  fixture.mainNode->setNavModeForTesting(smirkbench::NAV_NARROW_OPEN);
+  flushSmirkBench(fixture.scene);
+  loka::app::scene::Node *addButtonNode =
+      findNodeByTestId(loka::dsl::testing::SceneTestAccess::rootNode(fixture.scene), "SmirkBench.AddFace");
+  LOKA_VERIFY(addButtonNode != 0);
+  loka::app::ButtonNode *addButton = addButtonNode->asButtonNode();
+  LOKA_VERIFY(addButton != 0);
+  LOKA_VERIFY(addButton->props.onClick_ != 0);
+  while (fixture.model.faceCount() < loka::app::RectSurfaceModel::kMaxRects)
+  {
+    addButton->props.onClick_->emit();
+  }
+  LOKA_VERIFY(addButton->props.enabled_ != 0);
+  LOKA_VERIFY(!addButton->props.enabled_->get());
+}
