@@ -298,7 +298,10 @@ namespace helloworld
     rootDefinition.TEST_ID("HelloWorld.Root");
     ZStack &root = c.declare(rootDefinition);
     loka::app::scene::NodeComposition::ParentScope scope(c, root);
-    Stack mainPanels = Stack(this->isNarrow_.get() ? STACK_AXIS_COLUMN : STACK_AXIS_ROW)
+    // An unmaterialized state (allocation white flag, #132 ruling 3) must
+    // compose the wide default instead of dereferencing a missing state.
+    const bool narrowLayout = this->isNarrow_.isValid() && this->isNarrow_.get();
+    Stack mainPanels = Stack(narrowLayout ? STACK_AXIS_COLUMN : STACK_AXIS_ROW)
                        .TEST_ID("HelloWorld.MainPanels")
                        << this->mainLeftPanel()
                        << MainRightPanel(&this->fruits_,
