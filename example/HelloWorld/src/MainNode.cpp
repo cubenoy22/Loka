@@ -12,6 +12,12 @@
 namespace helloworld
 {
   using namespace loka::core;
+  enum
+  {
+    kMainPanelsTag = 1,
+    kDecorationTag = 2
+  };
+
   namespace
   {
     static const String kFruitItems[] = {
@@ -21,6 +27,9 @@ namespace helloworld
         String::Literal("Grape"),
     };
     static const std::size_t kFruitItemCount = sizeof(kFruitItems) / sizeof(kFruitItems[0]);
+    // HelloWorld starts at 420px wide, so 400 preserves its golden wide path;
+    // SmirkBench's 480px breakpoint is an app-specific choice, not a default.
+    static const int kNarrowBreakpoint = 400;
   } // namespace
 
   MainNode::MainNode(const MainProps &p)
@@ -43,6 +52,7 @@ namespace helloworld
         actionProbeEvent_(),
         fruitIndex_(),
         fruitMessage_(),
+        isNarrow_(),
         fruits_()
   {
     this->state(this->message_, String::Literal("Hello, Loka!"));
@@ -54,18 +64,29 @@ namespace helloworld
     this->state(this->bmiResult_, String::Literal("BMI: --"));
     this->state(this->fruitIndex_, 0);
     this->state(this->fruitMessage_, String::Literal("You chose Apple."));
+    this->state(this->isNarrow_, false);
     this->fruits_.assign(kFruitItems, kFruitItemCount);
   }
 
   void MainNode::attachNode(loka::app::scene::NodeComposition &c)
   {
     (void)c;
+    this->bindUi();
+  }
+
+  void MainNode::bindUi()
+  {
     this->bindActionForUi(this->toggleEvent_, &MainNode::toggleMessage);
     this->bindActionForUi(this->toggleActionEnabledEvent_, &MainNode::toggleActionEnabled);
     this->bindActionForUi(this->actionProbeEvent_, &MainNode::handleActionProbe);
     this->watchStateForUi(this->heightInput_, &MainNode::refreshBmiResult);
     this->watchStateForUi(this->weightInput_, &MainNode::refreshBmiResult);
     this->watchStateForUi(this->fruitIndex_, &MainNode::refreshFruitMessage);
+    ::Window *window = this->windowOrNull();
+    if (window)
+    {
+      this->watchStateForUi(window->nativeFrame(), &MainNode::refreshLayoutMode, true);
+    }
     this->refreshActionSummary();
     this->refreshBmiResult();
     this->refreshFruitMessage();
@@ -75,6 +96,23 @@ namespace helloworld
   {
     const AttachedContext *ctx = this->attachedContext();
     return ctx ? ctx->window() : 0;
+  }
+
+  void MainNode::refreshLayoutMode()
+  {
+    ::Window *window = this->windowOrNull();
+    if (!window || !this->isNarrow_.isValid())
+    {
+      return;
+    }
+    const Frame frame = window->nativeFrame().get();
+    const bool isNarrow = frame.hasSize() && frame.width > 0 && frame.width < kNarrowBreakpoint;
+    if (this->isNarrow_.get() == isNarrow)
+    {
+      return;
+    }
+    this->isNarrow_.set(isNarrow);
+    this->markViewDirty(loka::app::scene::NODE_DIRTY_CHILD);
   }
 
   loka::app::VStack MainNode::mainLeftPanel()
@@ -260,14 +298,43 @@ namespace helloworld
     rootDefinition.TEST_ID("HelloWorld.Root");
     ZStack &root = c.declare(rootDefinition);
     loka::app::scene::NodeComposition::ParentScope scope(c, root);
-    c.declare(HStack().TEST_ID("HelloWorld.MainPanels")
-              << this->mainLeftPanel()
-              << MainRightPanel(&this->fruits_,
-                                this->fruitIndex_,
-                                this->fruitMessage_.state(),
-                                this->heightInput_,
-                                this->weightInput_,
-                                this->bmiResult_.state()));
-    c.declare(Text("*").TEST_ID("HelloWorld.Decoration"));
+    Stack mainPanels = Stack(this->isNarrow_.get() ? STACK_AXIS_COLUMN : STACK_AXIS_ROW)
+                       .TEST_ID("HelloWorld.MainPanels")
+                       << this->mainLeftPanel()
+                       << MainRightPanel(&this->fruits_,
+                                         this->fruitIndex_,
+                                         this->fruitMessage_.state(),
+                                         this->heightInput_,
+                                         this->weightInput_,
+                                         this->bmiResult_.state());
+    mainPanels.tag(kMainPanelsTag);
+    c.declare(mainPanels);
+    TextDefinition decoration = Text("*").TEST_ID("HelloWorld.Decoration");
+    decoration.tag(kDecorationTag);
+    c.declare(decoration);
+  }
+
+  void MainNode::declareLocalRecomposition(loka::app::scene::NodeComposition &composition)
+  {
+    this->composeNode(composition);
+  }
+
+  void MainNode::composeWithContext(loka::app::scene::ComponentContext &context,
+                                    loka::app::scene::ComposeEvent event)
+  {
+    typedef loka::app::scene::BoundaryNodeFor<MainNode> BaseType;
+    // Window boundaries do not re-declare on UPDATE by default. Only a
+    // derived layout-mode change needs to rebuild HelloWorld's structure.
+    if (event == loka::app::scene::COMPOSE_EVENT_UPDATE &&
+        (context.dirtyFlags() & loka::app::scene::NODE_DIRTY_CHILD))
+    {
+      this->recomposeLocalComposition(context, event,
+                                      this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
+      // beginComposition releases this node's callbacks, so mirror attach's
+      // idempotent declarations after the local recompose.
+      this->bindUi();
+      return;
+    }
+    BaseType::composeWithContext(context, event);
   }
 } // namespace helloworld
