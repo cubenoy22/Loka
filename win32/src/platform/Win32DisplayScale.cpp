@@ -6,7 +6,63 @@ namespace
 
   typedef UINT(WINAPI *GetDpiForWindowFn)(HWND);
   typedef UINT(WINAPI *GetDpiForSystemFn)();
+  typedef HRESULT(WINAPI *GetDpiForMonitorFn)(HMONITOR, int, UINT *, UINT *);
   typedef BOOL(WINAPI *AdjustWindowRectExForDpiFn)(LPRECT, DWORD, BOOL, DWORD, UINT);
+
+  /** Process-lifetime capability box that keeps Shcore loaded for as long as
+      its resolved GetDpiForMonitor entry point can be called. */
+  class MonitorDpiQuery
+  {
+  public:
+    MonitorDpiQuery()
+        : module_(0),
+          function_(0)
+    {
+      // XP rejects this flag and follows the DC fallback. Windows 8.1 can
+      // load Shcore only from System32 without opening a DLL search path.
+      const DWORD kLoadLibrarySearchSystem32 = 0x00000800;
+      this->module_ = LoadLibraryExW(
+          L"shcore.dll", NULL, kLoadLibrarySearchSystem32);
+      if (this->module_)
+      {
+        this->function_ = reinterpret_cast<GetDpiForMonitorFn>(
+            GetProcAddress(this->module_, "GetDpiForMonitor"));
+      }
+    }
+
+    ~MonitorDpiQuery()
+    {
+      if (this->module_)
+      {
+        FreeLibrary(this->module_);
+        this->module_ = 0;
+        this->function_ = 0;
+      }
+    }
+
+    bool read(HWND hwnd, UINT &out) const
+    {
+      const HMONITOR monitor = MonitorFromWindow(
+          hwnd, MONITOR_DEFAULTTONEAREST);
+      UINT dpiX = 0;
+      UINT dpiY = 0;
+      if (!this->function_ || !monitor
+          || FAILED(this->function_(monitor, 0, &dpiX, &dpiY))
+          || dpiX == 0)
+      {
+        return false;
+      }
+      out = dpiX;
+      return true;
+    }
+
+  private:
+    HMODULE module_;
+    GetDpiForMonitorFn function_;
+
+    MonitorDpiQuery(const MonitorDpiQuery &);
+    MonitorDpiQuery &operator=(const MonitorDpiQuery &);
+  };
 
   FARPROC ResolveUser32Procedure(const char *name)
   {
@@ -24,6 +80,12 @@ namespace
     const int dpi = GetDeviceCaps(dc, LOGPIXELSX);
     ReleaseDC(NULL, dc);
     return dpi > 0 ? static_cast<UINT>(dpi) : kDefaultDpi;
+  }
+
+  bool ReadWindowMonitorDpi(HWND hwnd, UINT &out)
+  {
+    static MonitorDpiQuery query;
+    return query.read(hwnd, out);
   }
 } // namespace
 
@@ -48,6 +110,12 @@ namespace loka
           out = Win32DisplayScale(dpi);
           return true;
         }
+      }
+      UINT monitorDpi = 0;
+      if (hwnd && ReadWindowMonitorDpi(hwnd, monitorDpi))
+      {
+        out = Win32DisplayScale(monitorDpi);
+        return true;
       }
       if (hwnd)
       {
