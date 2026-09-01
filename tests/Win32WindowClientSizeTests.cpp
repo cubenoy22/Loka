@@ -187,7 +187,7 @@ void testWin32DeclaredWindowSizeMeansClientArea()
 
   setWindowVisibility(window, true);
   HWND hwnd = window.hwnd();
-  assert(hwnd && IsWindow(hwnd));
+  LOKA_VERIFY(hwnd && IsWindow(hwnd));
 
   assertClientSize(hwnd, declaredWidth, declaredHeight);
   LOKA_VERIFY(window.frameState().get().width == declaredWidth);
@@ -228,7 +228,7 @@ void testWin32ResizeMessageStoresTrackedContentSize()
   Win32Window window(&context, props);
   setWindowVisibility(window, true);
   HWND hwnd = window.hwnd();
-  assert(hwnd && IsWindow(hwnd));
+  LOKA_VERIFY(hwnd && IsWindow(hwnd));
 
   const loka::core::Frame declaredFrame = window.frameState().get();
   const loka::core::Frame beforeMinimize = window.nativeFrame().get();
@@ -273,7 +273,7 @@ void testWin32NativeWindowCreationDoesNotEchoVisibility()
 
   setWindowVisibility(window, true);
   HWND hwnd = window.hwnd();
-  assert(hwnd && IsWindow(hwnd));
+  LOKA_VERIFY(hwnd && IsWindow(hwnd));
   LOKA_VERIFY(IsWindowVisible(hwnd));
   printf("  visibility notifications after show=%d\n", notifications);
   fflush(stdout);
@@ -305,7 +305,7 @@ void testWin32AppOnlyMenuWindowSettles()
 
   setWindowVisibility(window, true);
   HWND hwnd = window.hwnd();
-  assert(hwnd && IsWindow(hwnd));
+  LOKA_VERIFY(hwnd && IsWindow(hwnd));
   const RECT initialOuterRect = readWindowRect(hwnd);
 
   MenuApplyingWin32App app;
@@ -324,8 +324,8 @@ void testWin32AppOnlyMenuWindowSettles()
          settledOuterRect.right,
          settledOuterRect.bottom);
   fflush(stdout);
-  assert(sameRect(initialOuterRect, settledOuterRect) &&
-         "an app-only menu must not grow the native window while it settles");
+  LOKA_VERIFY(sameRect(initialOuterRect, settledOuterRect) &&
+              "an app-only menu must not grow the native window while it settles");
   assertClientSize(hwnd, declaredWidth, declaredHeight);
 
   app.setActiveWindow(0);
@@ -353,7 +353,7 @@ void testWin32MenuRebuildPreservesMovedWindowFrame()
 
   setWindowVisibility(window, true);
   HWND hwnd = window.hwnd();
-  assert(hwnd && IsWindow(hwnd));
+  LOKA_VERIFY(hwnd && IsWindow(hwnd));
 
   MenuApplyingWin32App app;
   app.setActiveWindow(&window);
@@ -390,8 +390,8 @@ void testWin32MenuRebuildPreservesMovedWindowFrame()
   assert(rebuiltOuterRect.left == movedOuterRect.left &&
          rebuiltOuterRect.top == movedOuterRect.top &&
          "menu rebuild must preserve the actual Win32 window position");
-  assert(sameRect(movedClientRect, rebuiltClientRect) &&
-         "menu rebuild must preserve the Win32 client size");
+  LOKA_VERIFY(sameRect(movedClientRect, rebuiltClientRect) &&
+              "menu rebuild must preserve the Win32 client size");
 
   app.setActiveWindow(0);
   setWindowVisibility(window, false);
