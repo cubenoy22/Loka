@@ -59,7 +59,8 @@ namespace loka
   namespace win32
   {
     Win32DisplayFont::Win32DisplayFont()
-        : font_(0)
+        : font_(0),
+          scale_()
     {
     }
 
@@ -91,7 +92,13 @@ namespace loka
         return false;
       }
       this->font_ = replacement;
+      this->scale_ = scale;
       return true;
+    }
+
+    bool Win32DisplayFont::matches(const Win32DisplayScale &scale) const
+    {
+      return this->font_ && this->scale_ == scale;
     }
 
     void Win32DisplayFont::swap(Win32DisplayFont &other)
@@ -99,6 +106,10 @@ namespace loka
       HFONT temporary = this->font_;
       this->font_ = other.font_;
       other.font_ = temporary;
+
+      Win32DisplayScale temporaryScale = this->scale_;
+      this->scale_ = other.scale_;
+      other.scale_ = temporaryScale;
     }
   } // namespace win32
 } // namespace loka

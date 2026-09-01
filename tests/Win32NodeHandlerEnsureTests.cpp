@@ -99,6 +99,10 @@ void testWin32NodeHandlerEnsureContract()
         SendMessageW(ctx->hwnd(), WM_GETFONT, 0, 0));
     LOKA_VERIFY(font192 && font192 != font96
                 && "a DPI change must replace each native control's message font");
+    controller.updateDisplayScale(loka::win32::Win32DisplayScale(192));
+    LOKA_VERIFY(reinterpret_cast<HFONT>(
+                    SendMessageW(ctx->hwnd(), WM_GETFONT, 0, 0)) == font192
+                && "a matching DPI must retain the already-applied font");
     LOGFONTW releasedFont;
     ZeroMemory(&releasedFont, sizeof(releasedFont));
     LOKA_VERIFY(GetObjectW(font96, sizeof(releasedFont), &releasedFont) == 0

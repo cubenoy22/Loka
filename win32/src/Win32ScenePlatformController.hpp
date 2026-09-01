@@ -120,8 +120,8 @@ public:
   /** Relayout entry for WM_SIZE and other device-pixel client readings. */
   void relayoutNativeClientPixels(int clientWidth, int clientHeight);
   void relayout(int clientWidth, int clientHeight);
-  /** Replaces the projection fact and, when allocation succeeds, the native
-      subtree's DPI-derived font without exposing an unowned font handle. */
+  /** Replaces the projection fact and makes the native subtree's DPI-derived
+      font retryably converge without exposing an unowned font handle. */
   void updateDisplayScale(const loka::win32::Win32DisplayScale &displayScale);
   const loka::win32::Win32DisplayScale &displayScale() const
   {
@@ -368,6 +368,7 @@ private:
                                HINSTANCE instance,
                                void *createParameter);
   void applyDisplayFontToNativeSubtree(HFONT font);
+  void ensureDisplayFont();
   void clearContexts();
   void clearNodeContexts(loka::app::scene::Node *node);
   int measureClientWidth(int requestedWidth) const;

@@ -16,6 +16,7 @@ namespace loka
       ~Win32DisplayFont();
 
       bool create(const Win32DisplayScale &scale);
+      bool matches(const Win32DisplayScale &scale) const;
       void swap(Win32DisplayFont &other);
       HFONT get() const
       {
@@ -24,6 +25,7 @@ namespace loka
 
     private:
       HFONT font_;
+      Win32DisplayScale scale_;
 
       Win32DisplayFont(const Win32DisplayFont &);
       Win32DisplayFont &operator=(const Win32DisplayFont &);

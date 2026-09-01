@@ -693,11 +693,16 @@ void Win32ScenePlatformController::relayoutNativeClientPixels(int clientWidth,
 void Win32ScenePlatformController::updateDisplayScale(
     const loka::win32::Win32DisplayScale &displayScale)
 {
-  if (this->displayScale_ == displayScale)
+  this->displayScale_ = displayScale;
+  this->ensureDisplayFont();
+}
+
+void Win32ScenePlatformController::ensureDisplayFont()
+{
+  if (this->displayFont_.matches(this->displayScale_))
   {
     return;
   }
-  this->displayScale_ = displayScale;
   loka::win32::Win32DisplayFont replacement;
   if (replacement.create(this->displayScale_))
   {
@@ -783,6 +788,9 @@ HWND Win32ScenePlatformController::createNativeChildWindow(DWORD exStyle,
 
 void Win32ScenePlatformController::performLayout(int clientWidth, int clientHeight)
 {
+  // A failed DPI-derived font allocation leaves the owned font and its scale
+  // paired, so every later layout remains a safe retry point.
+  this->ensureDisplayFont();
   pendingInvalidations_.clear();
   if (!rootNode_ || !rootHwnd_)
   {
