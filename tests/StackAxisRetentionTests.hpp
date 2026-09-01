@@ -2,5 +2,13 @@
 #define LOKA_TESTS_STACK_AXIS_RETENTION_TESTS_HPP
 
 void testStackAxisFlipRetainsContainerAndChildAndRelayouts();
+void testNestedRetainedAnonymousChildAppliesChangedPropsInBothModes();
+void testNestedRetainedDepthThreeAppliesChangedPropsInBothModes();
+void testNestedRetainedTaggedChildrenApplyChangedPropsInBothModes();
+void testNestedChangedParentAndChildPropsApplyInBothModes();
+void testNestedEquivalentDefinitionIsRepointedInBothModes();
+void testNestedRetainedStructuralChildrenApplyInBothModes();
+void testNestedMisplacedPolicyScopeReconcilesInBothModes();
+void testNestedApplyRefusalFallsThroughToCurrentTreeInBothModes();
 
 #endif // LOKA_TESTS_STACK_AXIS_RETENTION_TESTS_HPP

@@ -128,50 +128,25 @@ namespace loka
           index = indexOfTag(children, tag);
           return index >= 0 ? children[static_cast<size_t>(index)] : 0;
         }
-      } // namespace detail
 
-      namespace detail
-      {
-        inline bool
-        buildRootDiffByTag(NodeDefinitionBase *previousRoot, NodeDefinitionBase *currentRoot, NodeCompositionDiff &out)
+        inline bool buildChildDiffByTag(INestableDefinition *previousParent,
+                                        INestableDefinition *currentParent,
+                                        NodeCompositionDiff &out)
         {
           out.clear();
-
-          if (!previousRoot && !currentRoot)
-          {
-            out.valid = true;
-            out.fullRebuild = false;
-            return true;
-          }
-          if (!previousRoot || !currentRoot)
-          {
-            return false;
-          }
-
-          INestableDefinition *previousNestable = previousRoot->asNestableDefinition();
-          INestableDefinition *currentNestable = currentRoot->asNestableDefinition();
-          if (!previousNestable && !currentNestable)
-          {
-            NodeTag rootTag = currentRoot->nodeTag();
-            if (rootTag == NODE_TAG_NONE)
-            {
-              rootTag = previousRoot->nodeTag();
-            }
-            addDiffEntry(out, rootTag, 0, previousRoot, currentRoot, 0, 0);
-            out.valid = true;
-            out.fullRebuild = false;
-            return true;
-          }
-          if (!previousNestable || !currentNestable)
+          if (!previousParent || !currentParent)
           {
             return false;
           }
 
           std::vector<NodeDefinitionBase *> previousChildren;
           std::vector<NodeDefinitionBase *> currentChildren;
-          if (!collectComparableChildren(previousNestable, currentNestable, previousChildren, currentChildren))
+          if (!collectComparableChildren(previousParent,
+                                          currentParent,
+                                          previousChildren,
+                                          currentChildren))
           {
-            return buildSingleAnonymousChildDiff(previousNestable, currentNestable, out);
+            return buildSingleAnonymousChildDiff(previousParent, currentParent, out);
           }
 
           for (size_t i = 0; i < currentChildren.size(); ++i)
@@ -221,6 +196,47 @@ namespace loka
           out.valid = true;
           out.fullRebuild = false;
           return true;
+        }
+      } // namespace detail
+
+      namespace detail
+      {
+        inline bool
+        buildRootDiffByTag(NodeDefinitionBase *previousRoot, NodeDefinitionBase *currentRoot, NodeCompositionDiff &out)
+        {
+          out.clear();
+
+          if (!previousRoot && !currentRoot)
+          {
+            out.valid = true;
+            out.fullRebuild = false;
+            return true;
+          }
+          if (!previousRoot || !currentRoot)
+          {
+            return false;
+          }
+
+          INestableDefinition *previousNestable = previousRoot->asNestableDefinition();
+          INestableDefinition *currentNestable = currentRoot->asNestableDefinition();
+          if (!previousNestable && !currentNestable)
+          {
+            NodeTag rootTag = currentRoot->nodeTag();
+            if (rootTag == NODE_TAG_NONE)
+            {
+              rootTag = previousRoot->nodeTag();
+            }
+            addDiffEntry(out, rootTag, 0, previousRoot, currentRoot, 0, 0);
+            out.valid = true;
+            out.fullRebuild = false;
+            return true;
+          }
+          if (!previousNestable || !currentNestable)
+          {
+            return false;
+          }
+
+          return buildChildDiffByTag(previousNestable, currentNestable, out);
         }
       } // namespace detail
 
