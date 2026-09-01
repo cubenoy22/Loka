@@ -838,8 +838,262 @@ namespace loka
           }
           return liveNode != 0;
         }
-        bool applyRetainFastPathDefinitions()
+
+        static NodeDefinitionBase *definitionAtIndex(
+            NodeDefinitionBase *root,
+            int index)
         {
+          if (!root || index < 0)
+          {
+            return 0;
+          }
+          INestableDefinition *nestable = root->asNestableDefinition();
+          if (!nestable)
+          {
+            return index == 0 ? root : 0;
+          }
+          NodeDefinitionBase *definition = nestable->childrenHead();
+          while (definition && index > 0)
+          {
+            definition = definition->nextInComposition;
+            --index;
+          }
+          return definition;
+        }
+
+        static Node *nodeAtIndex(INestable *parent, int index)
+        {
+          if (!parent || index < 0)
+          {
+            return 0;
+          }
+          Node *node = parent->childrenHead();
+          while (node && index > 0)
+          {
+            node = node->nextInComposition;
+            --index;
+          }
+          return node;
+        }
+
+        static bool retainedDefinitionTreeIsComparable(
+            NodeDefinitionBase *previousDefinition,
+            NodeDefinitionBase *currentDefinition)
+        {
+          if (!previousDefinition || !currentDefinition)
+          {
+            return false;
+          }
+          if (currentDefinition->asBranchSeatDefinition() ||
+              currentDefinition->isBoundary())
+          {
+            return true;
+          }
+
+          INestableDefinition *previousNestable =
+              previousDefinition->asNestableDefinition();
+          INestableDefinition *currentNestable =
+              currentDefinition->asNestableDefinition();
+          if (!previousNestable || !currentNestable)
+          {
+            return previousNestable == 0 && currentNestable == 0;
+          }
+
+          NodeCompositionDiff childDiff;
+          if (!detail::buildChildDiffByTag(previousNestable,
+                                           currentNestable,
+                                           childDiff))
+          {
+            return false;
+          }
+          for (NodeCompositionDiff::Entry *entry = childDiff.entriesHead();
+               entry;
+               entry = entry->nextInComposition)
+          {
+            if (entry->action != NodeCompositionDiff::ACTION_RETAIN)
+            {
+              continue;
+            }
+            NodeDefinitionBase *previousChild = definitionAtIndex(
+                previousDefinition, entry->previousIndex);
+            NodeDefinitionBase *currentChild = definitionAtIndex(
+                currentDefinition, entry->currentIndex);
+            if (!retainedDefinitionTreeIsComparable(previousChild, currentChild))
+            {
+              return false;
+            }
+          }
+          return true;
+        }
+
+        bool retainedSubtreesAreComparable() const
+        {
+          const NodeCompositionDiff *diff = this->localCompositionDiff();
+          NodeDefinitionBase *previousRoot =
+              this->previousCompositionSnapshot().root();
+          NodeDefinitionBase *currentRoot =
+              this->currentCompositionSnapshot().root();
+          if (!diff || !previousRoot || !currentRoot)
+          {
+            return false;
+          }
+          for (NodeCompositionDiff::Entry *entry = diff->entriesHead();
+               entry;
+               entry = entry->nextInComposition)
+          {
+            if (entry->action != NodeCompositionDiff::ACTION_RETAIN)
+            {
+              continue;
+            }
+            NodeDefinitionBase *previousDefinition = definitionAtIndex(
+                previousRoot, entry->previousIndex);
+            NodeDefinitionBase *currentDefinition = definitionAtIndex(
+                currentRoot, entry->currentIndex);
+            if (!retainedDefinitionTreeIsComparable(previousDefinition,
+                                                    currentDefinition))
+            {
+              return false;
+            }
+          }
+          return true;
+        }
+
+        bool applyRetainedDefinitionTree(ComponentContext &context,
+                                         Node *liveNode,
+                                         NodeDefinitionBase *previousDefinition,
+                                         NodeDefinitionBase *currentDefinition)
+        {
+          if (!liveNode || !previousDefinition || !currentDefinition)
+          {
+            return false;
+          }
+          if (currentDefinition->asBranchSeatDefinition())
+          {
+            return true;
+          }
+
+          const bool equivalentProps =
+              previousDefinition->hasEquivalentProps(*currentDefinition);
+          const bool applied = equivalentProps
+                                   ? currentDefinition->repointRetainedNodeDefinition(liveNode)
+                                   : currentDefinition->applyPropsToNode(liveNode);
+          if (!applied || currentDefinition->isBoundary() ||
+              liveNode->asBoundary())
+          {
+            return applied;
+          }
+
+          INestable *liveNestable = liveNode->asNestable();
+          INestableDefinition *previousNestable =
+              previousDefinition->asNestableDefinition();
+          INestableDefinition *currentNestable =
+              currentDefinition->asNestableDefinition();
+          if (!liveNestable || !previousNestable || !currentNestable)
+          {
+            return liveNestable == 0 &&
+                   previousNestable == 0 &&
+                   currentNestable == 0;
+          }
+
+          NodeCompositionDiff childDiff;
+          if (!detail::buildChildDiffByTag(previousNestable,
+                                           currentNestable,
+                                           childDiff))
+          {
+            return false;
+          }
+          if (childDiff.empty())
+          {
+            return true;
+          }
+
+          if (childDiff.isCompatibleRetainOnly())
+          {
+            for (NodeCompositionDiff::Entry *entry = childDiff.entriesHead();
+                 entry;
+                 entry = entry->nextInComposition)
+            {
+              NodeDefinitionBase *previousChild = definitionAtIndex(
+                  previousDefinition, entry->previousIndex);
+              NodeDefinitionBase *currentChild = definitionAtIndex(
+                  currentDefinition, entry->currentIndex);
+              if (!previousChild || !currentChild)
+              {
+                return false;
+              }
+              if (currentChild->asBranchSeatDefinition())
+              {
+                continue;
+              }
+              Node *liveChild = nodeAtIndex(
+                  liveNestable, entry->currentIndex);
+              if (!this->applyRetainedDefinitionTree(
+                      context, liveChild, previousChild, currentChild))
+              {
+                return false;
+              }
+            }
+            return true;
+          }
+
+          BoundaryLocalRebuildPlan plan;
+          if (!this->buildParkedBranchReentryPlan(
+                  *liveNestable, *currentNestable, plan))
+          {
+            return false;
+          }
+          std::vector<Node *> retainedChildren;
+          if (!this->applyLocalRebuildPlan(
+                  context, *liveNestable, plan, retainedChildren, false))
+          {
+            return false;
+          }
+
+          for (NodeCompositionDiff::Entry *entry = childDiff.entriesHead();
+               entry;
+               entry = entry->nextInComposition)
+          {
+            if (entry->action != NodeCompositionDiff::ACTION_RETAIN)
+            {
+              continue;
+            }
+            NodeDefinitionBase *previousChild = definitionAtIndex(
+                previousDefinition, entry->previousIndex);
+            NodeDefinitionBase *currentChild = definitionAtIndex(
+                currentDefinition, entry->currentIndex);
+            if (!previousChild || !currentChild ||
+                currentChild->asBranchSeatDefinition())
+            {
+              if (currentChild && currentChild->asBranchSeatDefinition())
+              {
+                continue;
+              }
+              return false;
+            }
+            if (entry->currentIndex < 0 ||
+                static_cast<size_t>(entry->currentIndex) >= plan.entries.size())
+            {
+              return false;
+            }
+            BoundaryLocalRebuildPlanEntry &planEntry =
+                plan.entries[static_cast<size_t>(entry->currentIndex)];
+            if (!planEntry.keepsLiveNode() ||
+                !this->applyRetainedDefinitionTree(
+                    context,
+                    planEntry.node,
+                    previousChild,
+                    currentChild))
+            {
+              return false;
+            }
+          }
+          return true;
+        }
+
+        bool applyRetainFastPathDefinitions(ComponentContext &context)
+        {
+          NodeDefinitionBase *previousRoot =
+              this->previousCompositionSnapshot().root();
           for (NodeCompositionDiff::Entry *entry = this->localCompositionDiff()->entriesHead();
                entry;
                entry = entry->nextInComposition)
@@ -861,10 +1115,10 @@ namespace loka
               // runtime representation of the seat.
               continue;
             }
-            const bool applied = entry->equivalentProps
-                                     ? definition->repointRetainedNodeDefinition(liveNode)
-                                     : definition->applyPropsToNode(liveNode);
-            if (!applied)
+            NodeDefinitionBase *previousDefinition = definitionAtIndex(
+                previousRoot, entry->previousIndex);
+            if (!this->applyRetainedDefinitionTree(
+                    context, liveNode, previousDefinition, definition))
             {
               return false;
             }
@@ -1041,31 +1295,33 @@ namespace loka
           {
             this->buildLocalRebuildExclusions(*currentRoot, exclusions);
           }
+          const NodeCompositionDiff *diff = this->localCompositionDiff();
+          const bool canApplyRetainedTree =
+              diff && diff->isCompatibleRetainOnly() &&
+              this->retainedSubtreesAreComparable();
           if (!this->applyCurrentBranchSeatPlan(context, &exclusions))
           {
             return false;
           }
-
-          if (mode == LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS)
+          if (mode == LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS &&
+              !this->canApplyLocalCompositionDiff())
           {
-            if (!this->canApplyLocalCompositionDiff())
+            return false;
+          }
+
+          if (canApplyRetainedTree)
+          {
+            if (!this->applyRetainFastPathDefinitions(context))
             {
               return false;
             }
-            if (this->localCompositionDiff()->isCompatibleRetainOnly())
+            this->promoteCurrentCompositionSnapshot();
+            loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
+            for (Node *child = it.next(); child; child = it.next())
             {
-              if (!this->applyRetainFastPathDefinitions())
-              {
-                return false;
-              }
-              this->promoteCurrentCompositionSnapshot();
-              loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
-              for (Node *child = it.next(); child; child = it.next())
-              {
-                this->composeTree(child, context, event, this);
-              }
-              return true;
+              this->composeTree(child, context, event, this);
             }
+            return true;
           }
 
           std::vector<Node *> retainedChildren;
@@ -1329,7 +1585,8 @@ namespace loka
         bool applyLocalRebuildPlan(ComponentContext &context,
                                    INestable &root,
                                    BoundaryLocalRebuildPlan &plan,
-                                   std::vector<Node *> &retainedChildren)
+                                   std::vector<Node *> &retainedChildren,
+                                   bool applyRetainedDefinitions = true)
         {
           // Structure self-report: the root-level diff cannot see what this
           // plan is about to do, so any entry that materializes or retires a
@@ -1358,7 +1615,11 @@ namespace loka
               NodeDefinitionBase *retainedDefinition = plan.entries[i].definition;
               const bool reconciled =
                   plan.entries[i].action == BoundaryLocalRebuildPlanEntry::ACTION_RECONCILE;
-              if (!retainedDefinition ||
+              if (!retainedDefinition)
+              {
+                return false;
+              }
+              if (applyRetainedDefinitions &&
                   (reconciled
                        ? !this->reconcileParkedBranch(
                              context, plan.entries[i].node, retainedDefinition)
