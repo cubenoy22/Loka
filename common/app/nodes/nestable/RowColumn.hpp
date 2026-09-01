@@ -21,24 +21,50 @@ namespace loka
       VERTICAL_ALIGNMENT_BOTTOM = 2
     };
 
-    struct ColumnTypeTag
+    enum StackAxis
+    {
+      STACK_AXIS_ROW,
+      STACK_AXIS_COLUMN
+    };
+
+    struct StackTypeTag
     {
     };
 
-    class ColumnNode;
+    class StackNode;
 
-    struct ColumnProps : public scene::NodePropsBase<ColumnProps>
+    struct StackProps : public scene::NodePropsBase<StackProps>
     {
-      typedef ColumnTypeTag TypeTag;
-      typedef ColumnNode NodeType;
+      typedef StackTypeTag TypeTag;
+      typedef StackNode NodeType;
+      StackAxis axis_;
+      bool hasVerticalAlignment_;
+      VerticalAlignment verticalAlignment_;
       bool hasHorizontalAlignment_;
       HorizontalAlignment horizontalAlignment_;
-      ColumnProps()
-          : hasHorizontalAlignment_(false),
+      StackProps()
+          : axis_(STACK_AXIS_ROW),
+            hasVerticalAlignment_(false),
+            verticalAlignment_(VERTICAL_ALIGNMENT_TOP),
+            hasHorizontalAlignment_(false),
             horizontalAlignment_(HORIZONTAL_ALIGNMENT_LEADING)
       {
       }
-      ColumnProps &alignHorizontal(HorizontalAlignment value)
+      explicit StackProps(StackAxis axis)
+          : axis_(axis),
+            hasVerticalAlignment_(false),
+            verticalAlignment_(VERTICAL_ALIGNMENT_TOP),
+            hasHorizontalAlignment_(false),
+            horizontalAlignment_(HORIZONTAL_ALIGNMENT_LEADING)
+      {
+      }
+      StackProps &alignVertical(VerticalAlignment value)
+      {
+        this->hasVerticalAlignment_ = true;
+        this->verticalAlignment_ = value;
+        return *this;
+      }
+      StackProps &alignHorizontal(HorizontalAlignment value)
       {
         this->hasHorizontalAlignment_ = true;
         this->horizontalAlignment_ = value;
@@ -48,128 +74,81 @@ namespace loka
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
-        const ColumnProps &other = static_cast<const ColumnProps &>(rhs);
+        const StackProps &other = static_cast<const StackProps &>(rhs);
+        if (this->axis_ != other.axis_)
+          return this->axis_ < other.axis_;
+        if (this->hasVerticalAlignment_ != other.hasVerticalAlignment_)
+          return this->hasVerticalAlignment_ < other.hasVerticalAlignment_;
+        if (this->verticalAlignment_ != other.verticalAlignment_)
+          return this->verticalAlignment_ < other.verticalAlignment_;
         if (this->hasHorizontalAlignment_ != other.hasHorizontalAlignment_)
           return this->hasHorizontalAlignment_ < other.hasHorizontalAlignment_;
         return this->horizontalAlignment_ < other.horizontalAlignment_;
       }
     };
 
-    class ColumnNode : public scene::NestableNode
+    class StackNode : public scene::NestableNode
     {
     public:
-      typedef ColumnTypeTag TypeTag;
-      ColumnProps props;
-      ColumnNode(const ColumnProps &p)
+      typedef StackTypeTag TypeTag;
+      StackProps props;
+      StackNode(const StackProps &p)
           : props(p)
       {
       }
       virtual scene::NodeKind kind() const
       {
-        return scene::NODE_KIND_COLUMN;
+        return scene::NODE_KIND_STACK;
       }
       virtual const void *nodeTypeKey() const
       {
-        return scene::NodeTypeToken<ColumnNode>();
+        return scene::NodeTypeToken<StackNode>();
       }
-      virtual ColumnNode *asColumnNode()
+      virtual StackNode *asStackNode()
       {
         return this;
       }
     };
 
-    struct ColumnDefinition : public scene::NestableNodeDefinition<ColumnProps, ColumnNode, ColumnDefinition>,
-                              public scene::TestIdDslMixin<ColumnDefinition>
+    struct StackDefinition : public scene::NestableNodeDefinition<StackProps, StackNode, StackDefinition>,
+                             public scene::TestIdDslMixin<StackDefinition>
     {
-      typedef scene::NestableNodeDefinition<ColumnProps, ColumnNode, ColumnDefinition> BaseType;
+      typedef scene::NestableNodeDefinition<StackProps, StackNode, StackDefinition> BaseType;
       using BaseType::operator<<;
-      ColumnDefinition()
-          : BaseType()
+      explicit StackDefinition(StackAxis axis)
+          : BaseType(StackProps(axis))
       {
       }
-      ColumnDefinition(const ColumnProps &p)
-          : BaseType(p)
-      {
-      }
-      ColumnDefinition(const ColumnDefinition &other)
+      StackDefinition(const StackDefinition &other)
           : BaseType(other)
       {
       }
-      ColumnDefinition &alignHorizontal(HorizontalAlignment value)
+      StackDefinition &alignVertical(VerticalAlignment value)
+      {
+        this->props.alignVertical(value);
+        return *this;
+      }
+      StackDefinition &alignHorizontal(HorizontalAlignment value)
       {
         this->props.alignHorizontal(value);
         return *this;
       }
+
+    private:
+      StackDefinition()
+          : BaseType(StackProps(STACK_AXIS_ROW))
+      {
+      }
+      friend struct scene::NestableNodeDefinition<StackProps, StackNode, StackDefinition>;
     };
 
-    struct RowTypeTag
-    {
-    };
-
-    class RowNode;
-
-    struct RowProps : public scene::NodePropsBase<RowProps>
-    {
-      typedef RowTypeTag TypeTag;
-      typedef RowNode NodeType;
-      bool hasVerticalAlignment_;
-      VerticalAlignment verticalAlignment_;
-      RowProps()
-          : hasVerticalAlignment_(false),
-            verticalAlignment_(VERTICAL_ALIGNMENT_TOP)
-      {
-      }
-      RowProps &alignVertical(VerticalAlignment value)
-      {
-        this->hasVerticalAlignment_ = true;
-        this->verticalAlignment_ = value;
-        return *this;
-      }
-      bool operator<(const scene::PropsBase &rhs) const
-      {
-        if (rhs.propsTypeId() != propsTypeId())
-          return false;
-        const RowProps &other = static_cast<const RowProps &>(rhs);
-        if (this->hasVerticalAlignment_ != other.hasVerticalAlignment_)
-          return this->hasVerticalAlignment_ < other.hasVerticalAlignment_;
-        return this->verticalAlignment_ < other.verticalAlignment_;
-      }
-    };
-
-    class RowNode : public scene::NestableNode
-    {
-    public:
-      typedef RowTypeTag TypeTag;
-      RowProps props;
-      RowNode(const RowProps &p)
-          : props(p)
-      {
-      }
-      virtual scene::NodeKind kind() const
-      {
-        return scene::NODE_KIND_ROW;
-      }
-      virtual const void *nodeTypeKey() const
-      {
-        return scene::NodeTypeToken<RowNode>();
-      }
-      virtual RowNode *asRowNode()
-      {
-        return this;
-      }
-    };
-
-    struct RowDefinition : public scene::NestableNodeDefinition<RowProps, RowNode, RowDefinition>,
+    struct RowDefinition : public scene::NestableNodeDefinition<StackProps, StackNode, RowDefinition>,
                            public scene::TestIdDslMixin<RowDefinition>
     {
-      typedef scene::NestableNodeDefinition<RowProps, RowNode, RowDefinition> BaseType;
+      typedef scene::NestableNodeDefinition<StackProps, StackNode, RowDefinition> BaseType;
       using BaseType::operator<<;
       RowDefinition()
-          : BaseType()
-      {
-      }
-      RowDefinition(const RowProps &p)
-          : BaseType(p)
+          : BaseType(StackProps(STACK_AXIS_ROW))
       {
       }
       RowDefinition(const RowDefinition &other)
@@ -183,6 +162,27 @@ namespace loka
       }
     };
 
+    struct ColumnDefinition : public scene::NestableNodeDefinition<StackProps, StackNode, ColumnDefinition>,
+                              public scene::TestIdDslMixin<ColumnDefinition>
+    {
+      typedef scene::NestableNodeDefinition<StackProps, StackNode, ColumnDefinition> BaseType;
+      using BaseType::operator<<;
+      ColumnDefinition()
+          : BaseType(StackProps(STACK_AXIS_COLUMN))
+      {
+      }
+      ColumnDefinition(const ColumnDefinition &other)
+          : BaseType(other)
+      {
+      }
+      ColumnDefinition &alignHorizontal(HorizontalAlignment value)
+      {
+        this->props.alignHorizontal(value);
+        return *this;
+      }
+    };
+
+    typedef StackDefinition Stack;
     typedef ColumnDefinition Column;
     typedef ColumnDefinition VStack;
     typedef RowDefinition Row;

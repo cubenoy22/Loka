@@ -198,12 +198,12 @@ namespace
     ++*static_cast<int *>(userData);
   }
 
-  loka::app::ColumnNode *addButtonColumn(loka::app::ScrollViewNode &scrollView,
+  loka::app::StackNode *addButtonColumn(loka::app::ScrollViewNode &scrollView,
                                          int buttonCount,
                                          loka::core::EmitterState *firstOnClick = 0)
   {
-    loka::app::ColumnNode *column =
-        new loka::app::ColumnNode((loka::app::ColumnProps()));
+    loka::app::StackNode *column =
+        new loka::app::StackNode((loka::app::StackProps(loka::app::STACK_AXIS_COLUMN)));
     for (int i = 0; i < buttonCount; ++i)
     {
       loka::app::ButtonProps props;
@@ -505,7 +505,7 @@ void testWin32NestedScrollViewRefusesWithoutDisturbingOuterScope()
         (loka::app::ScrollViewProps(outerOffset.state())));
     loka::app::ScrollViewNode *inner = new loka::app::ScrollViewNode(
         (loka::app::ScrollViewProps(innerOffset.state())));
-    loka::app::ColumnNode *innerColumn = addButtonColumn(*inner, 1);
+    loka::app::StackNode *innerColumn = addButtonColumn(*inner, 1);
     loka::app::ButtonNode *innerButton =
         innerColumn->childrenHead()->asButtonNode();
     outer.addChild(inner);

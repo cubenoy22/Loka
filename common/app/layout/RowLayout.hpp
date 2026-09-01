@@ -34,7 +34,7 @@ namespace loka
       };
 
       template <typename LayoutStateT>
-      int computeRowLayoutResultY(loka::app::RowNode *row,
+      int computeRowLayoutResultY(loka::app::StackNode *row,
                                   const LayoutStateT &state,
                                   const RowLayoutMetrics &metrics,
                                   void *context,

@@ -951,10 +951,10 @@ Win32ScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, 
   {
     return this->layoutScrollViewNode(scrollView, state);
   }
-  if (loka::app::ColumnNode *column = node->asColumnNode())
+  if (loka::app::StackNode *stack = node->asStackNode())
   {
-    int currentY = state.y;
-    loka::app::scene::IPlatformLayoutHandler *handler = this->layoutHandlerRegistry_.find(column);
+    int resultY = state.y;
+    loka::app::scene::IPlatformLayoutHandler *handler = this->layoutHandlerRegistry_.find(stack);
     if (handler)
     {
       loka::app::scene::LayoutState handlerState;
@@ -963,38 +963,21 @@ Win32ScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, 
         return LayoutNodeResult(state.width, state.y);
       }
       loka::app::scene::Win32PlatformLayoutTraversal traversal(this);
-      currentY = handler->layoutNode(column, handlerState, &traversal);
+      resultY = handler->layoutNode(stack, handlerState, &traversal);
     }
-    else
+    else if (stack->props.axis_ == loka::app::STACK_AXIS_COLUMN)
     {
-      currentY = loka::app::layout::computeColumnLayoutResultY(
-          column, state, this, &Win32ScenePlatformController::layoutContainerChild);
-    }
-    return LayoutNodeResult(state.width, currentY);
-  }
-
-  if (loka::app::RowNode *row = node->asRowNode())
-  {
-    int maxY = state.y;
-    loka::app::scene::IPlatformLayoutHandler *handler = this->layoutHandlerRegistry_.find(row);
-    if (handler)
-    {
-      loka::app::scene::LayoutState handlerState;
-      if (!this->narrowLayoutState(state, handlerState, false))
-      {
-        return LayoutNodeResult(state.width, state.y);
-      }
-      loka::app::scene::Win32PlatformLayoutTraversal traversal(this);
-      maxY = handler->layoutNode(row, handlerState, &traversal);
+      resultY = loka::app::layout::computeColumnLayoutResultY(
+          stack, state, this, &Win32ScenePlatformController::layoutContainerChild);
     }
     else
     {
       const loka::app::layout::RowLayoutMetrics metrics =
           loka::app::layout::FallbackControlMetrics::rowLayout();
-      maxY = loka::app::layout::computeRowLayoutResultY(
-          row, state, metrics, this, &Win32ScenePlatformController::layoutContainerChild);
+      resultY = loka::app::layout::computeRowLayoutResultY(
+          stack, state, metrics, this, &Win32ScenePlatformController::layoutContainerChild);
     }
-    return LayoutNodeResult(state.width, maxY);
+    return LayoutNodeResult(state.width, resultY);
   }
 
   if (loka::app::GridNode *grid = node->asGridNode())

@@ -103,21 +103,22 @@ namespace loka
       enum NodeKind
       {
         NODE_KIND_UNKNOWN = 0,
-        NODE_KIND_BOX,
-        NODE_KIND_ZSTACK,
-        NODE_KIND_GRID,
-        NODE_KIND_CELL,
-        NODE_KIND_COLUMN,
-        NODE_KIND_ROW,
-        NODE_KIND_TEXT,
-        NODE_KIND_BUTTON,
-        NODE_KIND_EDIT_TEXT,
-        NODE_KIND_POPUP_MENU,
-        NODE_KIND_OPEN_FILE_DIALOG,
-        NODE_KIND_IMAGE_VIEW,
-        NODE_KIND_RECT_SURFACE,
-        NODE_KIND_SCROLL_BAR,
-        NODE_KIND_SCROLL_VIEW
+        NODE_KIND_BOX = 1,
+        NODE_KIND_ZSTACK = 2,
+        NODE_KIND_GRID = 3,
+        NODE_KIND_CELL = 4,
+        NODE_KIND_STACK = 5,
+        // Tracked scenario audits serialize these ordinals. Values are
+        // wire-stable, and retired slot 6 must never be reassigned.
+        NODE_KIND_TEXT = 7,
+        NODE_KIND_BUTTON = 8,
+        NODE_KIND_EDIT_TEXT = 9,
+        NODE_KIND_POPUP_MENU = 10,
+        NODE_KIND_OPEN_FILE_DIALOG = 11,
+        NODE_KIND_IMAGE_VIEW = 12,
+        NODE_KIND_RECT_SURFACE = 13,
+        NODE_KIND_SCROLL_BAR = 14,
+        NODE_KIND_SCROLL_VIEW = 15
       };
 
       typedef unsigned short NodeTag;
@@ -185,8 +186,7 @@ namespace loka
     class ZStackNode;
     class GridNode;
     class CellNode;
-    class RowNode;
-    class ColumnNode;
+    class StackNode;
     class TextNode;
     class ButtonNode;
     class EditTextNode;
@@ -502,11 +502,7 @@ namespace loka
           return 0;
         }
         // App node type casts (avoid dynamic_cast for 68k performance)
-        virtual ::loka::app::RowNode *asRowNode()
-        {
-          return 0;
-        }
-        virtual ::loka::app::ColumnNode *asColumnNode()
+        virtual ::loka::app::StackNode *asStackNode()
         {
           return 0;
         }

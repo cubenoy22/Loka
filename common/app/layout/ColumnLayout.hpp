@@ -12,7 +12,7 @@ namespace loka
     namespace layout
     {
       template <typename LayoutStateT>
-      int computeColumnLayoutResultY(loka::app::ColumnNode *column,
+      int computeColumnLayoutResultY(loka::app::StackNode *column,
                                      const LayoutStateT &state,
                                      void *context,
                                      int (*layoutChild)(void *, loka::app::scene::Node *, const LayoutStateT &))

@@ -259,16 +259,16 @@ namespace
       this->first_ = first;
     }
 
-    loka::app::ColumnNode *column() const
+    loka::app::StackNode *column() const
     {
       loka::app::scene::Node *root = this->compositionRootNode();
-      return root ? root->asColumnNode() : 0;
+      return root ? root->asStackNode() : 0;
     }
 
     loka::app::BoundarySectionNode *section(
         loka::app::scene::NodeTag tag) const
     {
-      loka::app::ColumnNode *columnNode = this->column();
+      loka::app::StackNode *columnNode = this->column();
       for (loka::app::scene::Node *child =
                columnNode ? columnNode->childrenHead() : 0;
            child;
@@ -750,7 +750,7 @@ void testForWindowSlideRetainsOverlappingSeatsInOrder()
   LOKA_VERIFY(fresh != before[2]);
   LOKA_VERIFY(fresh != before[3]);
 
-  loka::app::ColumnNode *column = root->column();
+  loka::app::StackNode *column = root->column();
   LOKA_VERIFY(column != 0);
   loka::app::scene::Node *child = column->childrenHead();
   for (std::size_t i = 0; i < 4; ++i)

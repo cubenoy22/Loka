@@ -566,12 +566,21 @@ void testLokaAttrDslV1Core()
   // --- Row/Column alignment props storage ---
   {
     loka::app::VStack column = loka::app::VStack().alignHorizontal(loka::app::HORIZONTAL_ALIGNMENT_CENTER);
-    assert(column.props.hasHorizontalAlignment_);
-    assert(column.props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_CENTER);
+    LOKA_VERIFY(column.props.axis_ == loka::app::STACK_AXIS_COLUMN);
+    LOKA_VERIFY(column.props.hasHorizontalAlignment_);
+    LOKA_VERIFY(column.props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_CENTER);
 
     loka::app::HStack row = loka::app::HStack().alignVertical(loka::app::VERTICAL_ALIGNMENT_BOTTOM);
-    assert(row.props.hasVerticalAlignment_);
-    assert(row.props.verticalAlignment_ == loka::app::VERTICAL_ALIGNMENT_BOTTOM);
+    LOKA_VERIFY(row.props.axis_ == loka::app::STACK_AXIS_ROW);
+    LOKA_VERIFY(row.props.hasVerticalAlignment_);
+    LOKA_VERIFY(row.props.verticalAlignment_ == loka::app::VERTICAL_ALIGNMENT_BOTTOM);
+
+    loka::app::Stack stack = loka::app::Stack(loka::app::STACK_AXIS_ROW)
+                                  .alignVertical(loka::app::VERTICAL_ALIGNMENT_CENTER)
+                                  .alignHorizontal(loka::app::HORIZONTAL_ALIGNMENT_TRAILING);
+    LOKA_VERIFY(stack.props.axis_ == loka::app::STACK_AXIS_ROW);
+    LOKA_VERIFY(stack.props.verticalAlignment_ == loka::app::VERTICAL_ALIGNMENT_CENTER);
+    LOKA_VERIFY(stack.props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_TRAILING);
   }
 
   // --- Column remaining-height helper ---
@@ -1005,9 +1014,9 @@ void testContainerLayoutHelpersAdvanceResultY()
   }
 
   {
-    loka::app::ColumnProps props;
+    loka::app::StackProps props(loka::app::STACK_AXIS_COLUMN);
     props.alignHorizontal(loka::app::HORIZONTAL_ALIGNMENT_CENTER);
-    loka::app::ColumnNode column(props);
+    loka::app::StackNode column(props);
     AttrDslCustomLayoutLeafNode *first = new AttrDslCustomLayoutLeafNode();
     AttrDslCustomLayoutLeafNode *second = new AttrDslCustomLayoutLeafNode();
     column.addChild(first);
@@ -1023,9 +1032,9 @@ void testContainerLayoutHelpersAdvanceResultY()
   }
 
   {
-    loka::app::ColumnProps props;
+    loka::app::StackProps props(loka::app::STACK_AXIS_COLUMN);
     props.alignHorizontal(loka::app::HORIZONTAL_ALIGNMENT_CENTER);
-    loka::app::ColumnNode column(props);
+    loka::app::StackNode column(props);
     loka::app::ImageViewProps imageProps;
     imageProps.size(30, 12);
     loka::app::ImageViewNode *image = new loka::app::ImageViewNode(imageProps);
@@ -1041,9 +1050,9 @@ void testContainerLayoutHelpersAdvanceResultY()
   }
 
   {
-    loka::app::ColumnProps props;
+    loka::app::StackProps props(loka::app::STACK_AXIS_COLUMN);
     props.alignHorizontal(loka::app::HORIZONTAL_ALIGNMENT_TRAILING);
-    loka::app::ColumnNode column(props);
+    loka::app::StackNode column(props);
     loka::app::ImageViewProps imageProps;
     imageProps.size(30, 12);
     loka::app::ImageViewNode *image = new loka::app::ImageViewNode(imageProps);
@@ -1137,8 +1146,8 @@ void testContainerLayoutHelpersAdvanceResultY()
   }
 
   {
-    loka::app::RowProps props;
-    loka::app::RowNode row(props);
+    loka::app::StackProps props(loka::app::STACK_AXIS_ROW);
+    loka::app::StackNode row(props);
     loka::app::TextProps textProps;
     textProps.text("Row");
     loka::app::TextNode *text = new loka::app::TextNode(textProps);
@@ -1173,8 +1182,8 @@ void testContainerLayoutHelpersAdvanceResultY()
   }
 
   {
-    loka::app::RowProps props;
-    loka::app::RowNode row(props);
+    loka::app::StackProps props(loka::app::STACK_AXIS_ROW);
+    loka::app::StackNode row(props);
     AttrDslCustomLayoutLeafNode *first = new AttrDslCustomLayoutLeafNode();
     AttrDslCustomLayoutLeafNode *second = new AttrDslCustomLayoutLeafNode();
     AttrDslCustomLayoutLeafNode *third = new AttrDslCustomLayoutLeafNode();
@@ -1208,9 +1217,9 @@ void testContainerLayoutHelpersAdvanceResultY()
   }
 
   {
-    loka::app::RowProps props;
+    loka::app::StackProps props(loka::app::STACK_AXIS_ROW);
     props.alignVertical(loka::app::VERTICAL_ALIGNMENT_BOTTOM);
-    loka::app::RowNode row(props);
+    loka::app::StackNode row(props);
     loka::app::TextProps textProps;
     textProps.text("Row");
     loka::app::TextNode *text = new loka::app::TextNode(textProps);

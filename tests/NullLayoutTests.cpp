@@ -116,7 +116,7 @@ void testFallbackControlMetricsContract()
 
 void testNullLayoutRowProducesFixedChildGeometry()
 {
-  loka::app::RowNode row((loka::app::RowProps()));
+  loka::app::StackNode row((loka::app::StackProps(loka::app::STACK_AXIS_ROW)));
   FixedLayoutProbeNode *first = new FixedLayoutProbeNode(7);
   FixedLayoutProbeNode *second = new FixedLayoutProbeNode(11);
   row.addChild(first);
@@ -133,7 +133,7 @@ void testNullLayoutRowProducesFixedChildGeometry()
 
 void testNullLayoutColumnProducesFixedChildGeometry()
 {
-  loka::app::ColumnNode column((loka::app::ColumnProps()));
+  loka::app::StackNode column((loka::app::StackProps(loka::app::STACK_AXIS_COLUMN)));
   FixedLayoutProbeNode *first = new FixedLayoutProbeNode(7);
   FixedLayoutProbeNode *second = new FixedLayoutProbeNode(11);
   column.addChild(first);
@@ -245,7 +245,8 @@ void testNullLayoutNestedBoxAndRowProduceFixedChildGeometry()
   loka::app::BoxProps boxProps;
   boxProps.setPadding(2);
   loka::app::BoxNode box(boxProps);
-  loka::app::RowNode *row = new loka::app::RowNode((loka::app::RowProps()));
+  loka::app::StackNode *row =
+      new loka::app::StackNode((loka::app::StackProps(loka::app::STACK_AXIS_ROW)));
   FixedLayoutProbeNode *first = new FixedLayoutProbeNode(7);
   FixedLayoutProbeNode *second = new FixedLayoutProbeNode(11);
   row->addChild(first);
@@ -263,7 +264,7 @@ void testNullLayoutNestedBoxAndRowProduceFixedChildGeometry()
 
 void testNullLayoutOnChangeUsesRegisteredTraversal()
 {
-  loka::app::RowNode row((loka::app::RowProps()));
+  loka::app::StackNode row((loka::app::StackProps(loka::app::STACK_AXIS_ROW)));
   FixedLayoutProbeNode *first = new FixedLayoutProbeNode(7);
   FixedLayoutProbeNode *second = new FixedLayoutProbeNode(11);
   row.addChild(first);
