@@ -7,5 +7,6 @@ void testNestedRetainedDepthThreeAppliesChangedPropsInBothModes();
 void testNestedRetainedTaggedChildrenApplyChangedPropsInBothModes();
 void testNestedChangedParentAndChildPropsApplyInBothModes();
 void testNestedEquivalentDefinitionIsRepointedInBothModes();
+void testNestedRetainedStructuralChildrenApplyInBothModes();
 
 #endif // LOKA_TESTS_STACK_AXIS_RETENTION_TESTS_HPP

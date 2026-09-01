@@ -138,6 +138,7 @@ namespace
     NESTED_RETENTION_DEPTH_THREE,
     NESTED_RETENTION_TAGGED_PAIR,
     NESTED_RETENTION_CHANGED_PARENT_AND_CHILD,
+    NESTED_RETENTION_STRUCTURAL_CHILDREN,
     NESTED_RETENTION_REPOINT_PROBE
   };
 
@@ -204,6 +205,26 @@ namespace
         loka::app::Stack parent(axis);
         parent << loka::app::Stack(axis);
         root << parent;
+      }
+      else if (Shape == NESTED_RETENTION_STRUCTURAL_CHILDREN)
+      {
+        loka::app::Fragment wrapper;
+        loka::app::Stack retained(
+            this->changed_ ? loka::app::STACK_AXIS_COLUMN : loka::app::STACK_AXIS_ROW);
+        retained.tag(5574);
+        if (this->changed_)
+        {
+          loka::app::Text replacement("replacement");
+          replacement.tag(5573);
+          wrapper << retained << replacement;
+        }
+        else
+        {
+          loka::app::Fragment replaced;
+          replaced.tag(5573);
+          wrapper << replaced << retained;
+        }
+        root << wrapper;
       }
       else
       {
@@ -386,6 +407,41 @@ namespace
     LOKA_VERIFY(probe->repointCount == 1);
     scene.unmount();
   }
+
+  template <bool UseRetainFastPaths>
+  void runStructuralNestedRetention()
+  {
+    NullScenePlatformController platform;
+    typedef NestedRetentionBoundaryNode<
+        UseRetainFastPaths, NESTED_RETENTION_STRUCTURAL_CHILDREN> BoundaryT;
+    loka::app::scene::Scene scene((loka::app::scene::Boundary<BoundaryT>()));
+    BoundaryT *boundary = mountNestedRetentionBoundary<
+        UseRetainFastPaths, NESTED_RETENTION_STRUCTURAL_CHILDREN>(platform, scene);
+    loka::app::scene::Node *wrapper = boundary->nodeAt(0);
+    loka::app::scene::Node *replaced = boundary->nodeAt(0, 0);
+    loka::app::StackNode *retained = boundary->nodeAt(0, 1)->asStackNode();
+    LOKA_VERIFY(wrapper != 0);
+    LOKA_VERIFY(replaced != 0);
+    LOKA_VERIFY(retained != 0);
+    LOKA_VERIFY(retained->props.axis_ == loka::app::STACK_AXIS_ROW);
+
+    flushNestedRetentionChange(boundary, scene);
+
+    loka::app::scene::Node *first = boundary->nodeAt(0, 0);
+    loka::app::scene::Node *second = boundary->nodeAt(0, 1);
+    LOKA_VERIFY(boundary->nodeAt(0) == wrapper);
+    LOKA_VERIFY(first == retained);
+    LOKA_VERIFY(first != replaced);
+    LOKA_VERIFY(second != 0);
+    LOKA_VERIFY(boundary->nodeAt(0, 2) == 0);
+    LOKA_VERIFY(second != replaced);
+    LOKA_VERIFY(second != retained);
+    LOKA_VERIFY(second->kind() == loka::app::scene::NODE_KIND_TEXT);
+    LOKA_VERIFY(first->nodeTag() == 5574);
+    LOKA_VERIFY(second->nodeTag() == 5573);
+    LOKA_VERIFY(retained->props.axis_ == loka::app::STACK_AXIS_COLUMN);
+    scene.unmount();
+  }
 } // namespace
 
 void testStackAxisFlipRetainsContainerAndChildAndRelayouts()
@@ -453,4 +509,10 @@ void testNestedEquivalentDefinitionIsRepointedInBothModes()
 {
   runNestedDefinitionRepoint<false>();
   runNestedDefinitionRepoint<true>();
+}
+
+void testNestedRetainedStructuralChildrenApplyInBothModes()
+{
+  runStructuralNestedRetention<false>();
+  runStructuralNestedRetention<true>();
 }
