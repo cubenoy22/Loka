@@ -10,6 +10,177 @@ namespace
   // Ternary raster op "D": leave the destination pixel untouched (wingdi.h has no name for it).
   const DWORD kRopKeepDestination = 0x00AA0029;
 
+  bool SelectRectSurfaceBitmap(HDC dc, HBITMAP bitmap, HGDIOBJ &oldObject)
+  {
+    oldObject = SelectObject(dc, bitmap);
+    return oldObject != 0 && oldObject != HGDI_ERROR;
+  }
+
+  void DrawScaledRectSurfaceImage(HDC hdc,
+                                  const RECT &spriteRect,
+                                  HBITMAP bitmap,
+                                  HBITMAP mask,
+                                  int width,
+                                  int height)
+  {
+    const int projectedWidth = spriteRect.right - spriteRect.left;
+    const int projectedHeight = spriteRect.bottom - spriteRect.top;
+    if (projectedWidth <= 0 || projectedHeight <= 0)
+    {
+      return;
+    }
+
+    BITMAPINFO sourceInfo;
+    ZeroMemory(&sourceInfo, sizeof(sourceInfo));
+    sourceInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    sourceInfo.bmiHeader.biWidth = projectedWidth;
+    sourceInfo.bmiHeader.biHeight = -projectedHeight;
+    sourceInfo.bmiHeader.biPlanes = 1;
+    sourceInfo.bmiHeader.biBitCount = 32;
+    sourceInfo.bmiHeader.biCompression = BI_RGB;
+    void *projectedSourceBits = 0;
+    HBITMAP projectedSource = CreateDIBSection(
+        0, &sourceInfo, DIB_RGB_COLORS, &projectedSourceBits, 0, 0);
+
+    struct MonochromeBitmapInfo
+    {
+      BITMAPINFOHEADER header;
+      RGBQUAD colors[2];
+    } maskInfo;
+    ZeroMemory(&maskInfo, sizeof(maskInfo));
+    maskInfo.header.biSize = sizeof(BITMAPINFOHEADER);
+    maskInfo.header.biWidth = projectedWidth;
+    maskInfo.header.biHeight = -projectedHeight;
+    maskInfo.header.biPlanes = 1;
+    maskInfo.header.biBitCount = 1;
+    maskInfo.header.biCompression = BI_RGB;
+    maskInfo.header.biClrUsed = 2;
+    maskInfo.colors[1].rgbRed = 255;
+    maskInfo.colors[1].rgbGreen = 255;
+    maskInfo.colors[1].rgbBlue = 255;
+    void *projectedMaskBits = 0;
+    HBITMAP projectedMask = CreateDIBSection(
+        0, reinterpret_cast<const BITMAPINFO *>(&maskInfo), DIB_RGB_COLORS, &projectedMaskBits, 0, 0);
+
+    if (!projectedSource || !projectedSourceBits || !projectedMask || !projectedMaskBits)
+    {
+      if (projectedMask)
+      {
+        DeleteObject(projectedMask);
+      }
+      if (projectedSource)
+      {
+        DeleteObject(projectedSource);
+      }
+      return;
+    }
+
+    HDC source = CreateCompatibleDC(hdc);
+    HDC sourceMask = CreateCompatibleDC(hdc);
+    HDC scaledSource = CreateCompatibleDC(hdc);
+    HDC scaledMask = CreateCompatibleDC(hdc);
+    if (!source || !sourceMask || !scaledSource || !scaledMask)
+    {
+      if (scaledMask)
+      {
+        DeleteDC(scaledMask);
+      }
+      if (scaledSource)
+      {
+        DeleteDC(scaledSource);
+      }
+      if (sourceMask)
+      {
+        DeleteDC(sourceMask);
+      }
+      if (source)
+      {
+        DeleteDC(source);
+      }
+      DeleteObject(projectedMask);
+      DeleteObject(projectedSource);
+      return;
+    }
+
+    HGDIOBJ oldSource = 0;
+    HGDIOBJ oldSourceMask = 0;
+    HGDIOBJ oldScaledSource = 0;
+    HGDIOBJ oldScaledMask = 0;
+    const bool selectedSource = SelectRectSurfaceBitmap(source, bitmap, oldSource);
+    const bool selectedSourceMask = SelectRectSurfaceBitmap(sourceMask, mask, oldSourceMask);
+    const bool selectedScaledSource = SelectRectSurfaceBitmap(scaledSource, projectedSource, oldScaledSource);
+    bool selectedScaledMask = SelectRectSurfaceBitmap(scaledMask, projectedMask, oldScaledMask);
+    if (selectedSource && selectedSourceMask && selectedScaledSource && selectedScaledMask)
+    {
+      // COLORONCOLOR is nearest-neighbour here; the one-bit destination keeps
+      // the thresholded mask binary while its device extent changes.
+      SetStretchBltMode(scaledSource, COLORONCOLOR);
+      SetStretchBltMode(scaledMask, COLORONCOLOR);
+      const BOOL sourceScaled = StretchBlt(scaledSource,
+                                           0,
+                                           0,
+                                           projectedWidth,
+                                           projectedHeight,
+                                           source,
+                                           0,
+                                           0,
+                                           width,
+                                           height,
+                                           SRCCOPY);
+      const BOOL maskScaled = StretchBlt(scaledMask,
+                                         0,
+                                         0,
+                                         projectedWidth,
+                                         projectedHeight,
+                                         sourceMask,
+                                         0,
+                                         0,
+                                         width,
+                                         height,
+                                         SRCCOPY);
+      SelectObject(scaledMask, oldScaledMask);
+      selectedScaledMask = false;
+      if (sourceScaled && maskScaled)
+      {
+        MaskBlt(hdc,
+                spriteRect.left,
+                spriteRect.top,
+                projectedWidth,
+                projectedHeight,
+                scaledSource,
+                0,
+                0,
+                projectedMask,
+                0,
+                0,
+                MAKEROP4(SRCCOPY, kRopKeepDestination));
+      }
+    }
+
+    if (selectedScaledMask)
+    {
+      SelectObject(scaledMask, oldScaledMask);
+    }
+    if (selectedScaledSource)
+    {
+      SelectObject(scaledSource, oldScaledSource);
+    }
+    if (selectedSourceMask)
+    {
+      SelectObject(sourceMask, oldSourceMask);
+    }
+    if (selectedSource)
+    {
+      SelectObject(source, oldSource);
+    }
+    DeleteDC(scaledMask);
+    DeleteDC(scaledSource);
+    DeleteDC(sourceMask);
+    DeleteDC(source);
+    DeleteObject(projectedMask);
+    DeleteObject(projectedSource);
+  }
+
   void DrawRectSurfaceImage(HDC hdc, const RECT &spriteRect, const loka::app::RectSurfaceSprite &sprite)
   {
     loka::core::resource::Image image;
@@ -80,6 +251,15 @@ namespace
           maskRow[x / 8] |= static_cast<BYTE>(0x80u >> (x % 8));
         }
       }
+    }
+    const int projectedWidth = spriteRect.right - spriteRect.left;
+    const int projectedHeight = spriteRect.bottom - spriteRect.top;
+    if (projectedWidth != width || projectedHeight != height)
+    {
+      // Preserve the existing allocation-free projected==intrinsic path.
+      DrawScaledRectSurfaceImage(hdc, spriteRect, bitmap, mask, width, height);
+      DeleteObject(mask);
+      return;
     }
     HDC source = CreateCompatibleDC(hdc);
     if (!source)

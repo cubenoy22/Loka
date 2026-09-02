@@ -44,6 +44,7 @@ ToolboxWindow::ToolboxWindow(PlatformContext *context, const WindowProps &props)
       scenePlatformController_(0),
       context_(0),
       needsInvalidate_(false),
+      invalidatePaintPhase_(INVALIDATE_PAINT_IDLE),
       pendingDebugDump_(false),
       pendingDebugDumpCompletion_(0),
       pendingDebugDumpUserData_(0),
@@ -171,6 +172,10 @@ void ToolboxWindow::requestInvalidateRect(const Rect &rect)
   if (scenePlatformController_)
   {
     scenePlatformController_->noteWindowRectRequest();
+  }
+  if (needsInvalidate_ && invalidatePaintPhase_ == INVALIDATE_PAINT_IDLE)
+  {
+    return;
   }
   for (std::size_t i = 0; i < pendingInvalidateRects_.size(); ++i)
   {
@@ -561,6 +566,7 @@ void ToolboxWindow::draw()
   if (!window_)
     return;
 
+  invalidatePaintPhase_ = INVALIDATE_PAINT_DRAWING;
   if (scenePlatformController_)
   {
     scenePlatformController_->noteWindowDraw();
@@ -578,6 +584,7 @@ void ToolboxWindow::draw()
   this->drawGrowBox();
 
   SetPort(oldPort);
+  invalidatePaintPhase_ = INVALIDATE_PAINT_IDLE;
 }
 
 void ToolboxWindow::synchronizeScenePlatform()

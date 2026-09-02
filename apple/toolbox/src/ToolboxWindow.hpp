@@ -77,6 +77,14 @@ public:
   }
 
 private:
+  // A full request stays pending while draw() runs, so its bool alone cannot
+  // distinguish covered pre-flush rectangles from later-flush retry work.
+  enum InvalidatePaintPhase
+  {
+    INVALIDATE_PAINT_IDLE = 0,
+    INVALIDATE_PAINT_DRAWING
+  };
+
   static void TitleChangedThunk(void *userData);
   static void FrameChangedThunk(void *userData);
   App *app_;
@@ -84,6 +92,7 @@ private:
   ToolboxScenePlatformController *scenePlatformController_;
   ToolboxWindowContext *context_;
   bool needsInvalidate_;
+  InvalidatePaintPhase invalidatePaintPhase_;
   bool pendingDebugDump_;
   DeferredDumpCompletion pendingDebugDumpCompletion_;
   void *pendingDebugDumpUserData_;
