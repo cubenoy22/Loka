@@ -3,6 +3,7 @@
 
 #include "SmirkModel.hpp"
 #include "app/core/Window.hpp"
+#include "app/layout/FallbackControlMetrics.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/controls/Button.hpp"
@@ -13,6 +14,7 @@
 #include "app/nodes/nestable/Show.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "core/String.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 
 namespace smirkbench
 {
@@ -26,7 +28,50 @@ namespace smirkbench
   enum
   {
     kNavWidth = 200,
-    kNavBreakpoint = 480
+    kNavBreakpoint = 480,
+    kNavSeatGap = 4
+  };
+
+  /** The one app-owned meaning assigned to Window geometry for both the
+      retained RectSurface declaration and the model's bounce walls. */
+  class SurfaceExtent
+  {
+  public:
+    SurfaceExtent()
+        : width_(0),
+          height_(0)
+    {
+    }
+
+    SurfaceExtent(short widthValue, short heightValue)
+        : width_(widthValue),
+          height_(heightValue)
+    {
+    }
+
+    bool operator==(const SurfaceExtent &other) const
+    {
+      return this->width_ == other.width_ && this->height_ == other.height_;
+    }
+
+    bool operator!=(const SurfaceExtent &other) const
+    {
+      return !(*this == other);
+    }
+
+    short width() const
+    {
+      return this->width_;
+    }
+
+    short height() const
+    {
+      return this->height_;
+    }
+
+  private:
+    short width_;
+    short height_;
   };
 
   struct MainTypeTag
@@ -65,6 +110,14 @@ namespace smirkbench
 
   class MainNode : public loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>
   {
+    enum
+    {
+      kNavSeatTag = 1,
+      kContentSeatTag = 2,
+      kToggleSeatTag = 3,
+      kSurfaceSeatTag = 4
+    };
+
   public:
     typedef MainTypeTag TypeTag;
 
@@ -73,6 +126,7 @@ namespace smirkbench
           navMode_(),
           navOpen_(),
           faceCount_(),
+          surfaceExtent_(),
           faceCountText_(),
           addEnabled_(),
           navToggle_(),
@@ -82,6 +136,7 @@ namespace smirkbench
       this->state(this->navMode_, NAV_WIDE);
       this->state(this->navOpen_, false);
       this->state(this->faceCount_, initialFaceCount);
+      this->state(this->surfaceExtent_, SurfaceExtent());
       this->state(this->faceCountText_, this->faceCountLabel(initialFaceCount));
       this->state(this->addEnabled_, initialFaceCount < loka::app::RectSurfaceModel::kMaxRects);
     }
@@ -96,17 +151,25 @@ namespace smirkbench
     {
       using namespace loka::app;
       this->props.assertInitialized();
-      composition.declare(
-          Row().TEST_ID("SmirkBench.Root")
-          << Match(*this->navMode_.state())
-                 .arm(NAV_WIDE, Box().size(kNavWidth, 0) << this->navPane())
-                 .arm(NAV_NARROW_OPEN, Box().size(kNavWidth, 0) << this->navPane())
-                 .otherwise(Fragment())
-          << (Column()
-              << Match(*this->navMode_.state())
-                     .arm(&MainNode::isNarrowMode, 0, Button("=", &this->navToggle_).TEST_ID("SmirkBench.NavToggle"))
-                     .otherwise(Fragment())
-              << RectSurface(this->props.model_->surfaceModel()).useRegionClip(false).TEST_ID("SmirkBench.Surface")));
+      MatchDefinition<NavMode> nav = Match(*this->navMode_.state())
+                                         .arm(NAV_WIDE, Box().size(kNavWidth, 0) << this->navPane())
+                                         .arm(NAV_NARROW_OPEN, Box().size(kNavWidth, 0) << this->navPane())
+                                         .otherwise(Fragment());
+      nav.setNodeTag(kNavSeatTag);
+      MatchDefinition<NavMode> toggle =
+          Match(*this->navMode_.state())
+              .arm(&MainNode::isNarrowMode, 0, Button("=", &this->navToggle_).TEST_ID("SmirkBench.NavToggle"))
+              .otherwise(Fragment());
+      toggle.setNodeTag(kToggleSeatTag);
+      RectSurface surface = RectSurface(this->props.model_->surfaceModel())
+                                .size(this->surfaceExtent_.get().width(), this->surfaceExtent_.get().height())
+                                .useRegionClip(false)
+                                .TEST_ID("SmirkBench.Surface");
+      surface.tag(kSurfaceSeatTag);
+      Column content;
+      content.tag(kContentSeatTag);
+      content << toggle << surface;
+      composition.declare(Row().TEST_ID("SmirkBench.Root") << nav << content);
     }
 
 #if defined(TEST_BUILD)
@@ -142,6 +205,30 @@ namespace smirkbench
       return pushTracker ? pushTracker->consumeDirty() : false;
     }
 #endif
+
+  protected:
+    virtual void declareLocalRecomposition(loka::app::scene::NodeComposition &composition)
+    {
+      this->composeNode(composition);
+    }
+
+    virtual void composeWithContext(loka::app::scene::ComponentContext &context, loka::app::scene::ComposeEvent event)
+    {
+      typedef loka::app::scene::StdCompositionBoundaryNodeBase<MainProps> BaseType;
+      if (event == loka::app::scene::COMPOSE_EVENT_UPDATE
+          && (context.dirtyFlags() & loka::app::scene::NODE_DIRTY_CHILD))
+      {
+        if (!this->recomposeLocalComposition(context, event, this->LOCAL_RECOMPOSE_APPLY_SNAPSHOT)
+            && !this->composeResult().allocationFailed)
+        {
+          this->recomposeLocalCompositionWithFullFallback(
+              context, event, this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
+        }
+        this->bindUi();
+        return;
+      }
+      BaseType::composeWithContext(context, event);
+    }
 
   private:
     static bool isNarrowMode(const NavMode &mode, void *)
@@ -222,24 +309,48 @@ namespace smirkbench
     {
       const bool narrow = frame.width < kNavBreakpoint;
       const NavMode mode = narrow ? (this->navOpen_.get() ? NAV_NARROW_OPEN : NAV_NARROW_CLOSED) : NAV_WIDE;
-      if (this->navMode_.get() != mode)
+      int surfaceWidth = frame.width;
+      if (mode == NAV_WIDE || mode == NAV_NARROW_OPEN)
       {
-        this->navMode_.set(mode);
+        surfaceWidth -= kNavWidth + kNavSeatGap;
       }
-
+      int surfaceHeight = frame.height;
+      if (narrow)
+      {
+        surfaceHeight -= loka::app::layout::FallbackControlMetrics::kButtonHeight
+                         + loka::app::layout::FallbackControlMetrics::kVerticalSpacing;
+      }
+      const SurfaceExtent extent(this->clampDimension(surfaceWidth), this->clampDimension(surfaceHeight));
+      const bool modeChanged = this->navMode_.get() != mode;
+      const bool extentChanged = this->surfaceExtent_.get() != extent;
+      {
+        loka::core::StateTrackerGuard guard(this->tracker());
+        if (modeChanged)
+        {
+          this->navMode_.set(mode);
+        }
+        if (extentChanged)
+        {
+          this->surfaceExtent_.set(extent);
+        }
+      }
+      if (extentChanged && !modeChanged)
+      {
+        this->markViewDirty(loka::app::scene::NODE_DIRTY_CHILD);
+      }
       if (this->props.model_)
       {
-        int surfaceWidth = frame.width;
-        if (mode == NAV_WIDE || mode == NAV_NARROW_OPEN)
-        {
-          surfaceWidth -= kNavWidth;
-        }
-        if (surfaceWidth < 0)
-        {
-          surfaceWidth = 0;
-        }
-        this->props.model_->updateBounds(static_cast<short>(surfaceWidth), frame.height);
+        this->props.model_->updateBounds(extent.width(), extent.height());
       }
+    }
+
+    static short clampDimension(int value)
+    {
+      if (value <= 0)
+      {
+        return 0;
+      }
+      return value > 32767 ? 32767 : static_cast<short>(value);
     }
 
     void applyNavMode(NavMode mode)
@@ -258,6 +369,7 @@ namespace smirkbench
     loka::app::scene::NodeState<NavMode> navMode_;
     loka::app::scene::NodeState<bool> navOpen_;
     loka::app::scene::NodeState<int> faceCount_;
+    loka::app::scene::NodeState<SurfaceExtent> surfaceExtent_;
     loka::app::scene::NodeState<loka::core::String> faceCountText_;
     loka::app::scene::NodeState<bool> addEnabled_;
     loka::core::EmitterState navToggle_;

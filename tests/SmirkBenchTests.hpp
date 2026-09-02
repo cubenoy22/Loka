@@ -3,6 +3,7 @@
 
 void testSmirkBenchNavModesResizeSeatsAndRetainSurface();
 void testSmirkBenchNavModeDerivationAvoidsIdenticalWrites();
+void testSmirkBenchSurfaceExtentTracksContentSeat();
 void testSmirkModelReflectsRefusesAndReclamps();
 
 #endif // LOKA_TESTS_SMIRK_BENCH_TESTS_HPP
