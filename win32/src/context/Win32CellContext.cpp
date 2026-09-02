@@ -55,7 +55,7 @@ Win32CellContext::Win32CellContext(Win32ScenePlatformController *controller,
       text_()
 {
   EnsureClassRegistered();
-  hwnd_ = CreateWindowExW(
+  hwnd_ = this->createNativeChildWindow(
       0, kCellClassName, L"", WS_CHILD | WS_VISIBLE, x, y, width, height, parent, 0, GetModuleHandleW(NULL), this);
   bindText();
 }
@@ -242,6 +242,11 @@ void Win32CellContext::drawCell(HDC hdc, const RECT &rect)
   FrameRect(hdc, &rect, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
   if (!text_.empty())
   {
+    HGDIOBJ previousFont = 0;
+    if (this->controller() && this->controller()->displayFont())
+    {
+      previousFont = SelectObject(hdc, this->controller()->displayFont());
+    }
     SetBkMode(hdc, TRANSPARENT);
     RECT textRect = rect;
     DrawTextW(hdc,
@@ -249,6 +254,10 @@ void Win32CellContext::drawCell(HDC hdc, const RECT &rect)
               static_cast<int>(text_.size()),
               &textRect,
               DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+    if (previousFont)
+    {
+      SelectObject(hdc, previousFont);
+    }
   }
 }
 

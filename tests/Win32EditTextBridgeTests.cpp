@@ -12,6 +12,40 @@ namespace
   // path used to destroy (#160).
   const wchar_t kJapanesePayload[] = {0x3053, 0x3093, 0x306B, 0x3061, 0x306F, 0xD83C, 0xDF4E, 0};
   const char kJapanesePayloadUtf8[] = "\xE3\x81\x93\xE3\x82\x93\xE3\x81\xAB\xE3\x81\xA1\xE3\x81\xAF\xF0\x9F\x8D\x8E";
+
+  LRESULT CALLBACK AnsiTextNegativeControlProc(HWND hwnd,
+                                               UINT message,
+                                               WPARAM wParam,
+                                               LPARAM lParam)
+  {
+    return DefWindowProcA(hwnd, message, wParam, lParam);
+  }
+
+  HWND CreateAnsiTextNegativeControl(HWND parent)
+  {
+    static const char kClassName[] = "LokaAnsiTextNegativeControl";
+    WNDCLASSA windowClass = {0};
+    windowClass.lpfnWndProc = &AnsiTextNegativeControlProc;
+    windowClass.hInstance = GetModuleHandleW(NULL);
+    windowClass.lpszClassName = kClassName;
+    const ATOM registered = RegisterClassA(&windowClass);
+    LOKA_VERIFY(registered || GetLastError() == ERROR_CLASS_ALREADY_EXISTS);
+
+    // Deliberate test-only A-family window: it preserves the lossy code-page
+    // boundary that the production UTF-16 EDIT bridge must avoid (#160).
+    return CreateWindowExA(WS_EX_CLIENTEDGE,
+                           kClassName,
+                           "",
+                           WS_CHILD | WS_BORDER,
+                           0,
+                           30,
+                           180,
+                           24,
+                           parent,
+                           NULL,
+                           GetModuleHandleW(NULL),
+                           NULL);
+  }
 } // namespace
 
 void testWin32EditTextBridgeRoundTripsUtf16()
@@ -43,12 +77,11 @@ void testWin32EditTextBridgeRoundTripsUtf16()
   assert(wrote == std::wstring(kJapanesePayload) &&
          "write must materialize the logical String as UTF-16, not ANSI bytes");
 
-  // Documented pre-fix failure shape: the same payload through an ANSI EDIT
+  // Documented pre-fix failure shape: the same payload through an ANSI window
   // and a bytes-as-UTF-8 readback does NOT survive. This contrast is the
   // reason the bridge exists; it must keep failing if someone "simplifies"
   // the bridge back to the A path.
-  HWND ansiEdit = CreateWindowExA(
-      WS_EX_CLIENTEDGE, "EDIT", "", WS_CHILD | WS_BORDER, 0, 30, 180, 24, parent, NULL, GetModuleHandle(NULL), NULL);
+  HWND ansiEdit = CreateAnsiTextNegativeControl(parent);
   LOKA_VERIFY(ansiEdit && !IsWindowUnicode(ansiEdit));
   SendMessageW(ansiEdit, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(kJapanesePayload));
   int ansiLen = GetWindowTextLengthA(ansiEdit);

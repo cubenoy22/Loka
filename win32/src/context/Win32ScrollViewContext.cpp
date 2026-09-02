@@ -26,18 +26,19 @@ Win32ScrollViewContext::Win32ScrollViewContext(Win32ScenePlatformController *con
   // carrying this style (the root window sets it too, Win32Window.cpp) —
   // without it every control inside a ScrollView is skipped by keyboard
   // navigation.
-  this->hwnd_ = CreateWindowExW(WS_EX_CONTROLPARENT,
-                                kScrollViewClassName,
-                                L"",
-                                WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_CLIPCHILDREN,
-                                x,
-                                y,
-                                width,
-                                height,
-                                parent,
-                                0,
-                                GetModuleHandleW(NULL),
-                                this);
+  this->hwnd_ = this->createNativeChildWindow(
+      WS_EX_CONTROLPARENT,
+      kScrollViewClassName,
+      L"",
+      WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_CLIPCHILDREN,
+      x,
+      y,
+      width,
+      height,
+      parent,
+      0,
+      GetModuleHandleW(NULL),
+      this);
 }
 
 Win32ScrollViewContext::~Win32ScrollViewContext()

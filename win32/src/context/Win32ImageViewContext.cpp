@@ -116,7 +116,9 @@ namespace
     return out;
   }
 
-  int ResolveImageLayoutWidth(const loka::app::ImageViewNode *node, int fallbackWidth)
+  int ResolveImageLayoutWidth(const loka::app::ImageViewNode *node,
+                              const loka::win32::Win32DisplayScale &scale,
+                              int fallbackWidth)
   {
     if (!node)
     {
@@ -140,7 +142,7 @@ namespace
     }
     if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_INTRINSIC && srcWidth > 0)
     {
-      return srcWidth;
+      return scale.unprojectLength(srcWidth);
     }
     if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT)
     {
@@ -149,7 +151,10 @@ namespace
     return fallbackWidth;
   }
 
-  int ResolveImageLayoutHeight(const loka::app::ImageViewNode *node, int resolvedWidth, int fallbackHeight)
+  int ResolveImageLayoutHeight(const loka::app::ImageViewNode *node,
+                               const loka::win32::Win32DisplayScale &scale,
+                               int resolvedWidth,
+                               int fallbackHeight)
   {
     if (!node)
     {
@@ -183,7 +188,7 @@ namespace
     }
     if (srcHeight > 0)
     {
-      return srcHeight;
+      return scale.unprojectLength(srcHeight);
     }
     if (fallbackHeight > 0)
     {
@@ -207,7 +212,7 @@ Win32ImageViewContext::Win32ImageViewContext(Win32ScenePlatformController *contr
       image_()
 {
   EnsureClassRegistered();
-  hwnd_ = CreateWindowExW(
+  hwnd_ = this->createNativeChildWindow(
       0, kImageViewClassName, L"", WS_CHILD | WS_VISIBLE, x, y, width, height, parent, 0, GetModuleHandleW(NULL), this);
   bindImage();
 }
@@ -265,8 +270,9 @@ void Win32ImageViewContext::applyDetachedPresentation()
 
 short Win32ImageViewContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
-  const int imageWidth = ResolveImageLayoutWidth(this->node_, state.width);
-  const int imageHeight = ResolveImageLayoutHeight(this->node_, imageWidth, state.height);
+  const loka::win32::Win32DisplayScale &scale = this->controller()->displayScale();
+  const int imageWidth = ResolveImageLayoutWidth(this->node_, scale, state.width);
+  const int imageHeight = ResolveImageLayoutHeight(this->node_, scale, imageWidth, state.height);
   this->relayout(state.x, state.y, imageWidth, imageHeight);
   state.width = static_cast<short>(imageWidth);
   state.height = static_cast<short>(imageHeight);
