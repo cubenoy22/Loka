@@ -1,7 +1,9 @@
 #include "SimpleViewerResponsiveTests.hpp"
 
 #include "../example/SimpleViewer/src/MyAppConfig.hpp"
+#include "app/core/AppComposition.hpp"
 #include "app/core/MenuController.hpp"
+#include "app/core/Window.hpp"
 #include "app/layout/RowLayout.hpp"
 #include "app/nodes/ImageView.hpp"
 #include "app/nodes/controls/Button.hpp"
@@ -253,9 +255,7 @@ namespace
     LOKA_VERIFY(record.navNode != 0);
     record.contentNode = record.navNode->nextInComposition;
     LOKA_VERIFY(record.contentNode != 0);
-    loka::app::scene::Node *dialogSeat = record.contentNode->nextInComposition;
-    LOKA_VERIFY(dialogSeat != 0);
-    LOKA_VERIFY(dialogSeat->nextInComposition == 0);
+    LOKA_VERIFY(record.contentNode->nextInComposition == 0);
 
     loka::app::scene::LayoutState state;
     state.width = 600;
@@ -442,6 +442,51 @@ void testSimpleViewerDisplayModesProjectExpectedNullGeometry()
   LOKA_VERIFY(geometry->width == 320);
   LOKA_VERIFY(geometry->height == 240);
 
+  loka::app::StackNode *rootRow = static_cast<loka::app::StackNode *>(
+      findNode(main, "SimpleViewer.RootRow"));
+  LOKA_VERIFY(rootRow != 0);
+  loka::app::StackNode *root = static_cast<loka::app::StackNode *>(
+      findNode(main, "SimpleViewer.Root"));
+  LOKA_VERIFY(root != 0);
+  LOKA_VERIFY(root->childrenHead() == rootRow);
+  loka::app::scene::Node *dialogSeat = rootRow->nextInComposition;
+  LOKA_VERIFY(dialogSeat != 0);
+  LOKA_VERIFY(dialogSeat->nextInComposition == 0);
+  RowSeatRecorder seatsBeforeDialog;
+  recordRootSeats(rootRow, seatsBeforeDialog);
+  loka::app::scene::LayoutState rootState;
+  rootState.x = 0;
+  rootState.y = 0;
+  rootState.width = 600;
+  rootState.height = 400;
+  rootState.lineHeight = 10;
+  rootState.spacing = 4;
+  harness.platform.projectLayoutForTesting(root, rootState);
+  const loka::app::scene::LayoutState fitBeforeDialog = imageContext->geometry();
+  LOKA_VERIFY(fitBeforeDialog.height == rootState.height);
+
+  SimpleViewerTestAccess::openDialogEvent(harness.config)->emit();
+  flushScene(*harness.scene);
+  loka::app::OpenFileDialogNode *dialog =
+      static_cast<loka::app::OpenFileDialogNode *>(
+          findNode(main, "SimpleViewerOpenFileDialog"));
+  LOKA_VERIFY(dialog != 0);
+  rootRow = static_cast<loka::app::StackNode *>(
+      findNode(main, "SimpleViewer.RootRow"));
+  LOKA_VERIFY(rootRow != 0);
+  root = static_cast<loka::app::StackNode *>(
+      findNode(main, "SimpleViewer.Root"));
+  LOKA_VERIFY(root != 0);
+  RowSeatRecorder seatsWithDialog;
+  recordRootSeats(rootRow, seatsWithDialog);
+  LOKA_VERIFY(seatsWithDialog.contentState.width ==
+              seatsBeforeDialog.contentState.width);
+  harness.platform.projectLayoutForTesting(root, rootState);
+  geometry = &imageContext->geometry();
+  LOKA_VERIFY(geometry->x == fitBeforeDialog.x);
+  LOKA_VERIFY(geometry->y == fitBeforeDialog.y);
+  LOKA_VERIFY(geometry->width == fitBeforeDialog.width);
+  LOKA_VERIFY(geometry->height == fitBeforeDialog.height);
   SimpleViewerTestAccess::setDisplayMode(harness.config,
                                          simpleviewer::DISPLAY_ACTUAL);
   flushScene(*harness.scene);
@@ -543,4 +588,24 @@ void testSimpleViewerNarrowWindowFileMenuMaterializesDialogOutsideParkedNav()
   SimpleViewerTestAccess::openDialogEvent(config)->emit();
   window.flushSceneInvalidation();
   LOKA_VERIFY(findNode(main, "SimpleViewerOpenFileDialog") != 0);
+}
+
+void testSimpleViewerProductionConfigStartsAtWideBreakpoint()
+{
+  NullPlatformContext platformContext;
+  SimpleViewerAppConfig config(&platformContext);
+  AppComposition composition(&platformContext);
+  config.compose(composition);
+  std::vector<AppComponent *> components = composition.build();
+  LOKA_VERIFY(components.size() == 1);
+  Window *window = components[0] ? components[0]->asWindow() : 0;
+  LOKA_VERIFY(window != 0);
+  const loka::core::Frame frame = window->frameState().get();
+  LOKA_VERIFY(frame == loka::core::Frame(16, 16, 480, 280));
+  LOKA_VERIFY(frame.width >= 480);
+
+  for (std::size_t i = 0; i < components.size(); ++i)
+  {
+    delete components[i];
+  }
 }

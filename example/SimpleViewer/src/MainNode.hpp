@@ -150,7 +150,8 @@ namespace simpleviewer
       kNavToggleSeatTag = 4,
       kDisplaySeatTag = 5,
       kImageViewTag = 6,
-      kOpenDialogTag = 7
+      kOpenDialogTag = 7,
+      kRootTag = 8
     };
 
     static const int kNavWidth = 200;
@@ -220,12 +221,15 @@ namespace simpleviewer
               << OpenFileDialog().result(this->chooserResult_).testId("SimpleViewerOpenFileDialog"));
       openDialog.setNodeTag(kOpenDialogTag);
 
-      HStack root = HStack().TEST_ID("SimpleViewer.RootRow");
-      root.setNodeTag(kRootRowTag);
+      HStack rootRow = HStack().TEST_ID("SimpleViewer.RootRow");
+      rootRow.setNodeTag(kRootRowTag);
       VStack content = VStack().TEST_ID("SimpleViewer.Content");
       content.setNodeTag(kContentTag);
       content << navToggle << display;
-      c.declare(root << nav << content << openDialog);
+      rootRow << nav << content;
+      VStack root = VStack().TEST_ID("SimpleViewer.Root");
+      root.setNodeTag(kRootTag);
+      c.declare(root << rootRow << openDialog);
     }
 
   protected:
