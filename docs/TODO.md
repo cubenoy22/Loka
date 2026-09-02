@@ -28,6 +28,12 @@ These items address recurring bug patterns and structural risks identified durin
 
 ## Open
 
+- **Window placement type split**: `Window` currently carries a platform
+  desktop-placement `x`/`y` and logical content `width`/`height` in one
+  `Frame`. Before mobile/windowing families or explicit unit overloads make
+  that distinction app-visible in more places, introduce a small placement
+  value (or equivalent overloads) that names desktop position separately from
+  logical size without changing local UI `Frame` semantics. See #289.
 - Toolbox button release semantics differ between examples (#324 close-out): ScrapbookUI's Next fires only when the mouse-up lands inside the control (release-inside tracking), while MineSweeper's New Game fired even when a scenario warped the cursor away in the release instant. Both go through the same ButtonNode path, so something downstream diverges. Benign today, but worth locating the divergence before more Toolbox controls are added.
 - Define Modifier system (Text style + Window sizing) and wire through WindowProps/Layout.
 - Decide default window size (macOS/Win32/Toolbox) and unify hardcoded values.

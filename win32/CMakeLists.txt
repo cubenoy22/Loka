@@ -34,6 +34,8 @@ set(SOURCES
   src/platform/Win32FileIO.cpp
   src/platform/Win32AppLocation.cpp
   src/platform/Win32IdlePacer.cpp
+  src/platform/Win32DisplayScale.cpp
+  src/platform/Win32DisplayFont.cpp
 )
 
 add_library(LokaWin32WideApiContract INTERFACE)

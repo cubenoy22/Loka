@@ -119,18 +119,19 @@ Win32ButtonContext::Win32ButtonContext(Win32ScenePlatformController *controller,
   DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON;
   // Unicode window: keeps the label UTF-16 end to end (an ANSI window would
   // thunk SetWindowTextW through the system ACP and lose out-of-ACP chars).
-  hwnd_ = CreateWindowExW(0,
-                          L"BUTTON",
-                          L"",
-                          style,
-                          x,
-                          y,
-                          width,
-                          height,
-                          parent,
-                          reinterpret_cast<HMENU>(static_cast<INT_PTR>(1000)),
-                          GetModuleHandle(NULL),
-                          NULL);
+  hwnd_ = this->createNativeChildWindow(
+      0,
+      L"BUTTON",
+      L"",
+      style,
+      x,
+      y,
+      width,
+      height,
+      parent,
+      reinterpret_cast<HMENU>(static_cast<INT_PTR>(1000)),
+      GetModuleHandleW(NULL),
+      NULL);
   if (hwnd_)
   {
     SetWindowLongPtr(hwnd_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));

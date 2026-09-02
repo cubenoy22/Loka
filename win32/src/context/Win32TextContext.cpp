@@ -38,9 +38,13 @@ namespace
 
   Win32TextNodeHandler gWin32TextNodeHandler;
 
-  int MeasureTextHeightForWidth(HWND hwnd, const loka::app::TextNode *text, int width, int defaultHeight)
+  int MeasureTextHeightForWidth(HWND hwnd,
+                                const Win32ScenePlatformController *controller,
+                                const loka::app::TextNode *text,
+                                int width,
+                                int defaultHeight)
   {
-    if (!hwnd || !text || !text->props.text_)
+    if (!hwnd || !controller || !text || !text->props.text_)
     {
       return defaultHeight;
     }
@@ -72,13 +76,22 @@ namespace
     RECT rc;
     rc.left = 0;
     rc.top = 0;
-    rc.right = width;
+    rc.right = controller->displayScale().projectLength(width);
     rc.bottom = 0;
+    HGDIOBJ previousFont = 0;
+    if (controller->displayFont())
+    {
+      previousFont = SelectObject(hdc, controller->displayFont());
+    }
     UINT flags = DT_LEFT | DT_NOPREFIX | DT_CALCRECT | DT_WORDBREAK | DT_EDITCONTROL;
     DrawTextW(hdc, wide.c_str(), -1, &rc, flags);
+    if (previousFont)
+    {
+      SelectObject(hdc, previousFont);
+    }
     ReleaseDC(hwnd, hdc);
 
-    const int measured = rc.bottom - rc.top;
+    const int measured = controller->displayScale().unprojectLength(rc.bottom - rc.top);
     const int measuredWithPadding = measured + 8;
     if (measuredWithPadding > defaultHeight)
     {
@@ -188,7 +201,8 @@ Win32TextContext::Win32TextContext(Win32ScenePlatformController *controller,
   }
   // Unicode window: keeps WM_SETTEXT/paint in UTF-16 so the displayed text
   // matches what MeasureTextHeightForWidth measures with DrawTextW.
-  hwnd_ = CreateWindowExW(0, L"STATIC", L"", style, x, y, width, height, parent, NULL, GetModuleHandle(NULL), NULL);
+  hwnd_ = this->createNativeChildWindow(
+      0, L"STATIC", L"", style, x, y, width, height, parent, NULL, GetModuleHandleW(NULL), NULL);
   if (hwnd_)
   {
     HDC hdc = GetDC(hwnd_);
@@ -260,7 +274,11 @@ bool Win32TextContext::captureBitmap(loka::core::resource::Image &out) const
 short Win32TextContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
   const int textHeight = MeasureTextHeightForWidth(
-      this->hwnd_, this->node_, state.width, loka::app::layout::FallbackControlMetrics::kTextHeight);
+      this->hwnd_,
+      this->controller(),
+      this->node_,
+      state.width,
+      loka::app::layout::FallbackControlMetrics::kTextHeight);
   this->relayout(state.x, state.y, state.width, textHeight);
   state.height = static_cast<short>(textHeight);
   return static_cast<short>(state.y + textHeight + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
