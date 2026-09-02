@@ -73,7 +73,6 @@ namespace smirkbench
           navMode_(),
           navOpen_(),
           faceCount_(),
-          narrow_(),
           faceCountText_(),
           addEnabled_(),
           navToggle_(),
@@ -83,7 +82,6 @@ namespace smirkbench
       this->state(this->navMode_, NAV_WIDE);
       this->state(this->navOpen_, false);
       this->state(this->faceCount_, initialFaceCount);
-      this->state(this->narrow_, false);
       this->state(this->faceCountText_, this->faceCountLabel(initialFaceCount));
       this->state(this->addEnabled_, initialFaceCount < loka::app::RectSurfaceModel::kMaxRects);
     }
@@ -105,7 +103,9 @@ namespace smirkbench
                  .arm(NAV_NARROW_OPEN, Box().size(kNavWidth, 0) << this->navPane())
                  .otherwise(Fragment())
           << (Column()
-              << (Show(*this->narrow_.state()) << Button("=", &this->navToggle_).TEST_ID("SmirkBench.NavToggle"))
+              << Match(*this->navMode_.state())
+                     .arm(&MainNode::isNarrowMode, 0, Button("=", &this->navToggle_).TEST_ID("SmirkBench.NavToggle"))
+                     .otherwise(Fragment())
               << RectSurface(this->props.model_->surfaceModel()).useRegionClip(false).TEST_ID("SmirkBench.Surface")));
     }
 
@@ -144,6 +144,11 @@ namespace smirkbench
 #endif
 
   private:
+    static bool isNarrowMode(const NavMode &mode, void *)
+    {
+      return mode == NAV_NARROW_CLOSED || mode == NAV_NARROW_OPEN;
+    }
+
     loka::app::Column navPane()
     {
       using namespace loka::app;
@@ -221,10 +226,6 @@ namespace smirkbench
       {
         this->navMode_.set(mode);
       }
-      if (this->narrow_.get() != narrow)
-      {
-        this->narrow_.set(narrow);
-      }
 
       if (this->props.model_)
       {
@@ -247,11 +248,6 @@ namespace smirkbench
       {
         this->navMode_.set(mode);
       }
-      const bool narrow = mode != NAV_WIDE;
-      if (this->narrow_.get() != narrow)
-      {
-        this->narrow_.set(narrow);
-      }
       const bool open = mode == NAV_NARROW_OPEN;
       if (this->navOpen_.get() != open)
       {
@@ -262,7 +258,6 @@ namespace smirkbench
     loka::app::scene::NodeState<NavMode> navMode_;
     loka::app::scene::NodeState<bool> navOpen_;
     loka::app::scene::NodeState<int> faceCount_;
-    loka::app::scene::NodeState<bool> narrow_;
     loka::app::scene::NodeState<loka::core::String> faceCountText_;
     loka::app::scene::NodeState<bool> addEnabled_;
     loka::core::EmitterState navToggle_;
