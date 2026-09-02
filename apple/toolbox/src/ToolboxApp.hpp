@@ -17,6 +17,7 @@ public:
   virtual void quit();
   void handleMenuSelection(short menuId, short item);
   static void MenuEnabledChangedThunk(void *userData);
+  static void MenuCheckedChangedThunk(void *userData);
 
 public:
   virtual void applyMenuBar(Window *activeWindow);
@@ -36,6 +37,7 @@ public:
     short itemIndex;
     loka::core::State<bool> *enabledState;
     bool invertEnabled;
+    loka::core::State<bool> *checkedState;
   };
 
   /** Called by a live menu binding when it has updated the app-owned menu

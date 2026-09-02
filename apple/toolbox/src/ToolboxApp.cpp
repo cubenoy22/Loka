@@ -444,6 +444,15 @@ void ToolboxApp::MenuEnabledChangedThunk(void *userData)
   binding->app->noteMenuBarChangedFromBinding();
 }
 
+void ToolboxApp::MenuCheckedChangedThunk(void *userData)
+{
+  ToolboxApp::MenuBinding *binding = static_cast<ToolboxApp::MenuBinding *>(userData);
+  if (!binding || !binding->menu || !binding->checkedState)
+    return;
+  CheckItem(binding->menu, binding->itemIndex, binding->checkedState->get());
+  binding->app->noteMenuBarChangedFromBinding();
+}
+
 void ToolboxApp::noteMenuBarChangedFromBinding()
 {
   if (activationPhase_ == ACTIVATION_FOREGROUND)
@@ -452,6 +461,43 @@ void ToolboxApp::noteMenuBarChangedFromBinding()
     return;
   }
   menuBarDrawDeferred_ = true;
+}
+
+static void ApplyMenuItemStates(ToolboxApp *app,
+                                MenuHandle menu,
+                                short itemIndex,
+                                const loka::app::MenuItemDefinition *itemDef,
+                                std::vector<ToolboxApp::MenuBinding *> &bindings)
+{
+  if (!itemDef->isEnabledInitial())
+  {
+    DisableItem(menu, itemIndex);
+  }
+  CheckItem(menu, itemIndex, itemDef->isCheckedInitial());
+
+  loka::core::State<bool> *enabledState = itemDef->enabledBindingState();
+  loka::core::State<bool> *checkedState = itemDef->checkedBindingState();
+  if (!enabledState && !checkedState)
+  {
+    return;
+  }
+
+  ToolboxApp::MenuBinding *binding = new ToolboxApp::MenuBinding();
+  binding->app = app;
+  binding->menu = menu;
+  binding->itemIndex = itemIndex;
+  binding->enabledState = enabledState;
+  binding->invertEnabled = itemDef->enabledBindingInvert();
+  binding->checkedState = checkedState;
+  if (enabledState)
+  {
+    enabledState->deferBind(&ToolboxApp::MenuEnabledChangedThunk, binding);
+  }
+  if (checkedState)
+  {
+    checkedState->deferBind(&ToolboxApp::MenuCheckedChangedThunk, binding);
+  }
+  bindings.push_back(binding);
 }
 
 void ToolboxApp::clearMenuBindings()
@@ -465,8 +511,13 @@ void ToolboxApp::clearMenuBindings()
       {
         binding->enabledState->deferUnbind(&ToolboxApp::MenuEnabledChangedThunk, binding);
       }
+      if (binding->checkedState)
+      {
+        binding->checkedState->deferUnbind(&ToolboxApp::MenuCheckedChangedThunk, binding);
+      }
       binding->menu = 0;
       binding->enabledState = 0;
+      binding->checkedState = 0;
     }
     delete binding;
   }
@@ -485,8 +536,13 @@ void ToolboxApp::clearMenuBindingsFor(MenuHandle menuHandle, short menuId)
       {
         binding->enabledState->deferUnbind(&ToolboxApp::MenuEnabledChangedThunk, binding);
       }
+      if (binding->checkedState)
+      {
+        binding->checkedState->deferUnbind(&ToolboxApp::MenuCheckedChangedThunk, binding);
+      }
       binding->menu = 0;
       binding->enabledState = 0;
+      binding->checkedState = 0;
       delete binding;
       bindings_.erase(bindings_.begin() + i);
       continue;
@@ -607,22 +663,7 @@ static void BuildMenuItems(ToolboxApp *app,
     command.action = itemDef->action;
     command.emitter = itemDef->onClickState;
     commands.push_back(command);
-    if (!itemDef->isEnabledInitial())
-    {
-      DisableItem(menu, itemIndex);
-    }
-    loka::core::State<bool> *enabledBindingState = itemDef->enabledBindingState();
-    if (enabledBindingState)
-    {
-      ToolboxApp::MenuBinding *binding = new ToolboxApp::MenuBinding();
-      binding->app = app;
-      binding->menu = menu;
-      binding->itemIndex = itemIndex;
-      binding->enabledState = enabledBindingState;
-      binding->invertEnabled = itemDef->enabledBindingInvert();
-      enabledBindingState->deferBind(&ToolboxApp::MenuEnabledChangedThunk, binding);
-      bindings.push_back(binding);
-    }
+    ApplyMenuItemStates(app, menu, itemIndex, itemDef, bindings);
     itemDef = itemDef->nextInComposition;
   }
 }
@@ -746,22 +787,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
       command.action = itemDef->action;
       command.emitter = itemDef->onClickState;
       commands_.push_back(command);
-      if (!itemDef->isEnabledInitial())
-      {
-        DisableItem(menu, aboutIndex);
-      }
-      loka::core::State<bool> *enabledBindingState = itemDef->enabledBindingState();
-      if (enabledBindingState)
-      {
-        ToolboxApp::MenuBinding *binding = new ToolboxApp::MenuBinding();
-        binding->app = this;
-        binding->menu = menu;
-        binding->itemIndex = aboutIndex;
-        binding->enabledState = enabledBindingState;
-        binding->invertEnabled = itemDef->enabledBindingInvert();
-        enabledBindingState->deferBind(&ToolboxApp::MenuEnabledChangedThunk, binding);
-        bindings_.push_back(binding);
-      }
+      ApplyMenuItemStates(this, menu, aboutIndex, itemDef, bindings_);
       InsertMenu(menu, 0);
       appMenuHandle = menu;
     }
@@ -901,22 +927,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
       command.action = itemDef->action;
       command.emitter = itemDef->onClickState;
       commands_.push_back(command);
-      if (!itemDef->isEnabledInitial())
-      {
-        DisableItem(entry.menu, aboutIndex);
-      }
-      loka::core::State<bool> *enabledBindingState = itemDef->enabledBindingState();
-      if (enabledBindingState)
-      {
-        ToolboxApp::MenuBinding *binding = new ToolboxApp::MenuBinding();
-        binding->app = this;
-        binding->menu = entry.menu;
-        binding->itemIndex = aboutIndex;
-        binding->enabledState = enabledBindingState;
-        binding->invertEnabled = itemDef->enabledBindingInvert();
-        enabledBindingState->deferBind(&ToolboxApp::MenuEnabledChangedThunk, binding);
-        bindings_.push_back(binding);
-      }
+      ApplyMenuItemStates(this, entry.menu, aboutIndex, itemDef, bindings_);
       continue;
     }
     BuildMenuItems(

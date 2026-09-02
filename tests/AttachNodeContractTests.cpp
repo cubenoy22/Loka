@@ -274,7 +274,7 @@ namespace
         BaseType::composeWithContext(context, event);
         return;
       }
-      this->recomposeLocalComposition(
+      this->recomposeLocalCompositionWithFullFallback(
           context, event,
           this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
     }

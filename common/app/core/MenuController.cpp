@@ -9,7 +9,6 @@ MenuController::MenuController(AppConfigurable *config, ApplyFn applyFn, void *a
       applyUserData_(applyUserData),
       pendingApplyWindow_(0),
       menuBar_(0),
-      refresh_(),
       diff_()
 {
 }
@@ -17,15 +16,6 @@ MenuController::MenuController(AppConfigurable *config, ApplyFn applyFn, void *a
 MenuController::~MenuController()
 {
   menuBar_.reset();
-}
-
-void MenuController::InvalidateThunk(void *userData)
-{
-  MenuController *controller = static_cast<MenuController *>(userData);
-  if (controller)
-  {
-    controller->requestInvalidation();
-  }
 }
 
 bool MenuController::RefreshThunk(void *userData)
@@ -45,13 +35,20 @@ void MenuController::ApplyThunk(void *userData)
 
 void MenuController::requestInvalidation()
 {
-  refresh_.request();
+  if (config_)
+  {
+    config_->menuRefresh().request();
+  }
 }
 
 bool MenuController::flushInvalidation(Window *activeWindow)
 {
+  if (!config_)
+  {
+    return false;
+  }
   pendingApplyWindow_ = activeWindow;
-  return refresh_.run(&MenuController::RefreshThunk, &MenuController::ApplyThunk, this);
+  return config_->menuRefresh().run(&MenuController::RefreshThunk, &MenuController::ApplyThunk, this);
 }
 
 void MenuController::invalidate(Window *activeWindow)
@@ -98,7 +95,8 @@ const loka::app::MenuBarDefinition *MenuController::resolveMenuBar(Window *windo
 
 // Refresh is one transaction with a single commit point at the end:
 //   1. Recompose the candidate bar. MenuComposition peeks boundary dirt and
-//      records the affected menu indices without acknowledging it.
+//      records affected menu indices. Boundary callbacks request work on the
+//      AppConfigurable-owned refresh clock.
 //   2. Build the candidate diff into the local `nextDiff`; `menuBar_` and
 //      `diff_` stay untouched while anything can still fail.
 //   3. Clone and commit bar + diff together, then acknowledge the boundary
@@ -112,7 +110,8 @@ bool MenuController::refreshDefaultMenuBar()
   }
   loka::app::MenuBarDefinition menuBar;
   loka::app::MenuComposition menuComposition(&menuBar);
-  menuComposition.setInvalidateCallback(&MenuController::InvalidateThunk, this);
+  menuComposition.setInvalidateCallback(&loka::core::NextTickTracker::RequestThunk,
+                                        &config_->menuRefresh());
   config_->composeMenu(menuComposition);
   menuComposition.finish();
   std::vector<size_t> dirtyMenus;
@@ -187,7 +186,7 @@ bool MenuController::refreshDefaultMenuBar()
     loka::core::OwnedDef<loka::app::MenuBarDefinition> nextMenuBar(menuBar.clone());
     if (!nextMenuBar.isSet())
     {
-      refresh_.requestAfterRun();
+      config_->menuRefresh().requestAfterRun();
       return false;
     }
     menuBar_.reset(nextMenuBar.take());

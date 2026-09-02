@@ -283,7 +283,20 @@ void Win32App::MenuEnabledChangedThunk(void *userData)
   {
     enabled = !enabled;
   }
-  EnableMenuItem(binding->menu, binding->commandId, MF_BYCOMMAND | (enabled ? MF_ENABLED : MF_GRAYED));
+  EnableMenuItem(binding->menu, binding->item, binding->byFlags | (enabled ? MF_ENABLED : MF_GRAYED));
+  if (binding->hwnd)
+  {
+    DrawMenuBar(binding->hwnd);
+  }
+}
+
+void Win32App::MenuCheckedChangedThunk(void *userData)
+{
+  MenuBinding *binding = static_cast<MenuBinding *>(userData);
+  if (!binding || !binding->checkedState || !binding->menu)
+    return;
+  const bool checked = binding->checkedState->get();
+  CheckMenuItem(binding->menu, binding->item, binding->byFlags | (checked ? MF_CHECKED : MF_UNCHECKED));
   if (binding->hwnd)
   {
     DrawMenuBar(binding->hwnd);
@@ -298,6 +311,10 @@ void Win32App::clearMenuBindings()
     if (binding && binding->enabledState)
     {
       binding->enabledState->deferUnbind(&Win32App::MenuEnabledChangedThunk, binding);
+    }
+    if (binding && binding->checkedState)
+    {
+      binding->checkedState->deferUnbind(&Win32App::MenuCheckedChangedThunk, binding);
     }
     delete binding;
   }
@@ -331,6 +348,10 @@ void Win32App::buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *it
   {
     flags |= MF_GRAYED;
   }
+  if (itemDef->isCheckedInitial())
+  {
+    flags |= MF_CHECKED;
+  }
 
   if (itemDef->hasChildren())
   {
@@ -341,7 +362,11 @@ void Win32App::buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *it
       DestroyMenu(subMenu);
       return;
     }
+    // A popup title has no command id; its live state is addressed by the
+    // position it is appended at.
+    const int popupPosition = GetMenuItemCount(menu);
     AppendMenuW(menu, flags | MF_POPUP, reinterpret_cast<UINT_PTR>(subMenu), titleWide.c_str());
+    bindMenuItemStates(menu, static_cast<UINT>(popupPosition), MF_BYPOSITION, itemDef, hwnd);
     return;
   }
 
@@ -352,18 +377,38 @@ void Win32App::buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *it
   command.action = itemDef->action;
   command.emitter = itemDef->onClickState;
   commands_.push_back(command);
+  bindMenuItemStates(menu, static_cast<UINT>(commandId), MF_BYCOMMAND, itemDef, hwnd);
+}
+
+void Win32App::bindMenuItemStates(HMENU menu,
+                                  UINT item,
+                                  UINT byFlags,
+                                  const loka::app::MenuItemDefinition *itemDef,
+                                  HWND hwnd)
+{
   loka::core::State<bool> *enabledBindingState = itemDef->enabledBindingState();
+  loka::core::State<bool> *checkedBindingState = itemDef->checkedBindingState();
+  if (!enabledBindingState && !checkedBindingState)
+  {
+    return;
+  }
+  Win32App::MenuBinding *binding = new Win32App::MenuBinding();
+  binding->menu = menu;
+  binding->item = item;
+  binding->byFlags = byFlags;
+  binding->hwnd = hwnd;
+  binding->enabledState = enabledBindingState;
+  binding->invertEnabled = itemDef->enabledBindingInvert();
+  binding->checkedState = checkedBindingState;
   if (enabledBindingState)
   {
-    Win32App::MenuBinding *binding = new Win32App::MenuBinding();
-    binding->menu = menu;
-    binding->commandId = commandId;
-    binding->hwnd = hwnd;
-    binding->enabledState = enabledBindingState;
-    binding->invertEnabled = itemDef->enabledBindingInvert();
-    binding->enabledState->deferBind(&Win32App::MenuEnabledChangedThunk, binding);
-    bindings_.push_back(binding);
+    enabledBindingState->deferBind(&Win32App::MenuEnabledChangedThunk, binding);
   }
+  if (checkedBindingState)
+  {
+    checkedBindingState->deferBind(&Win32App::MenuCheckedChangedThunk, binding);
+  }
+  bindings_.push_back(binding);
 }
 
 void Win32App::buildMenuItems(HMENU menu, const loka::app::MenuItemDefinition *itemsHead, HWND hwnd)

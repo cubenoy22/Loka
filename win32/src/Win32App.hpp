@@ -63,14 +63,25 @@ private:
   struct MenuBinding
   {
     HMENU menu;
-    UINT commandId;
+    // Win32 addresses a menu item either by command id or by position: a
+    // leaf carries its command id with MF_BYCOMMAND, a popup title has no
+    // command and carries its appended index with MF_BYPOSITION.
+    UINT item;
+    UINT byFlags;
     HWND hwnd;
     loka::core::State<bool> *enabledState;
     bool invertEnabled;
+    loka::core::State<bool> *checkedState;
   };
 
   void clearMenuBindings();
   static void MenuEnabledChangedThunk(void *userData);
+  static void MenuCheckedChangedThunk(void *userData);
+  void bindMenuItemStates(HMENU menu,
+                          UINT item,
+                          UINT byFlags,
+                          const loka::app::MenuItemDefinition *itemDef,
+                          HWND hwnd);
   void buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *itemDef, HWND hwnd);
   void buildMenuItems(HMENU menu, const loka::app::MenuItemDefinition *itemsHead, HWND hwnd);
 
