@@ -1,0 +1,10 @@
+#ifndef LOKA_TESTS_MENU_CHECKED_TESTS_HPP
+#define LOKA_TESTS_MENU_CHECKED_TESTS_HPP
+
+void testMenuItemCheckedAttrProjectsValueAndState();
+void testMenuBoundaryCheckedValuesSwapOnTrackedStateRefresh();
+void testMenuBoundaryRefreshSurvivesMenuControllerReplacement();
+void testMenuControllerOutlivedByBoundaryDoesNotTouchIt();
+void testSimpleViewerDisplayModeUpdatesRetainedImageViewProps();
+
+#endif // LOKA_TESTS_MENU_CHECKED_TESTS_HPP

@@ -78,6 +78,14 @@ typedef float CGFloat;
 #define LOKA_MAC_MODAL_RESPONSE_OK NSOKButton
 #endif
 
+#if defined(MAC_OS_X_VERSION_MAX_ALLOWED) && (MAC_OS_X_VERSION_MAX_ALLOWED >= 101300)
+#define LOKA_MAC_CONTROL_STATE_ON NSControlStateValueOn
+#define LOKA_MAC_CONTROL_STATE_OFF NSControlStateValueOff
+#else
+#define LOKA_MAC_CONTROL_STATE_ON NSOnState
+#define LOKA_MAC_CONTROL_STATE_OFF NSOffState
+#endif
+
 // NSBitmapImageRep's PNG enum was renamed in the macOS 10.10 SDK. These are
 // enum values rather than macros, so select the spelling from the SDK surface.
 #if defined(MAC_OS_X_VERSION_MAX_ALLOWED) && (MAC_OS_X_VERSION_MAX_ALLOWED >= 101000)

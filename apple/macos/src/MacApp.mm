@@ -287,6 +287,15 @@ static void MenuEnabledChangedThunk(void *userData)
   [item setEnabled:enabled ? YES : NO];
 }
 
+static void MenuCheckedChangedThunk(void *userData)
+{
+  MacApp::MenuBinding *binding = static_cast<MacApp::MenuBinding *>(userData);
+  if (!binding || !binding->menuItem || !binding->checkedState)
+    return;
+  NSMenuItem *item = (NSMenuItem *)binding->menuItem;
+  [item setState:binding->checkedState->get() ? LOKA_MAC_CONTROL_STATE_ON : LOKA_MAC_CONTROL_STATE_OFF];
+}
+
 void MacApp::clearMenuBindings()
 {
   for (size_t i = 0; i < bindings_.size(); ++i)
@@ -295,6 +304,10 @@ void MacApp::clearMenuBindings()
     if (binding && binding->enabledState)
     {
       binding->enabledState->deferUnbind(&MenuEnabledChangedThunk, binding);
+    }
+    if (binding && binding->checkedState)
+    {
+      binding->checkedState->deferUnbind(&MenuCheckedChangedThunk, binding);
     }
     delete binding;
   }
@@ -382,16 +395,29 @@ static std::size_t BuildMenuItem(NSMenu *menu,
   {
     [menuItem setEnabled:NO];
   }
+  [menuItem setState:itemDef->isCheckedInitial() ? LOKA_MAC_CONTROL_STATE_ON : LOKA_MAC_CONTROL_STATE_OFF];
 
   loka::core::State<bool> *enabledBindingState = itemDef->enabledBindingState();
-  if (enabledBindingState)
+  loka::core::State<bool> *checkedBindingState = itemDef->checkedBindingState();
+  if (enabledBindingState || checkedBindingState)
   {
-    [menuItem setEnabled:itemDef->isEnabledInitial() ? YES : NO];
+    if (enabledBindingState)
+    {
+      [menuItem setEnabled:itemDef->isEnabledInitial() ? YES : NO];
+    }
     MacApp::MenuBinding *binding = new MacApp::MenuBinding();
     binding->menuItem = (void *)menuItem;
     binding->enabledState = enabledBindingState;
     binding->invertEnabled = itemDef->enabledBindingInvert();
-    enabledBindingState->deferBind(&MenuEnabledChangedThunk, binding);
+    binding->checkedState = checkedBindingState;
+    if (enabledBindingState)
+    {
+      enabledBindingState->deferBind(&MenuEnabledChangedThunk, binding);
+    }
+    if (checkedBindingState)
+    {
+      checkedBindingState->deferBind(&MenuCheckedChangedThunk, binding);
+    }
     bindings.push_back(binding);
   }
 

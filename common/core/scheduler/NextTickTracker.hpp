@@ -20,6 +20,15 @@ namespace loka
       {
       }
 
+      static void RequestThunk(void *tracker)
+      {
+        NextTickTracker *nextTickTracker = static_cast<NextTickTracker *>(tracker);
+        if (nextTickTracker)
+        {
+          nextTickTracker->request();
+        }
+      }
+
       void request(unsigned long delayMs = 0)
       {
         if (!requested_)
