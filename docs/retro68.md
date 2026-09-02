@@ -111,11 +111,16 @@ application before the command fails. Component deltas are always printed for
 attribution. The 4 KiB allowance ignores small toolchain/resource-alignment
 churn while still catching the multi-kilobyte framework expansions that
 motivated the size audit. It is cumulative from the checked-in baseline, so a
-series of smaller increases cannot reset the allowance. The command also
-refuses a newly built final application that has no explicit baseline entry.
-Toolbox CI runs the same command after its pinned 68K build. Update baseline
-facts only with a fresh full Release build and a reviewed explanation for the
-accepted growth.
+series of smaller increases cannot silently reset the allowance: only a
+deliberate, reviewed baseline refresh moves the reference point. The command
+also refuses a newly built final application that has no explicit baseline
+entry. Toolbox CI runs the same command after its pinned 68K build. Update
+baseline facts only with a fresh full Release build and a reviewed explanation
+for the accepted growth, in a change whose purpose is the refresh (or, for a
+new example, in the change that introduces it). Per the 2026-09-02 ruling the
+gate is a drift detector, not a budget: intentional feature growth is banked by
+refreshing rows deliberately, and only runaway growth — hundreds of kilobytes
+on a tens-of-kilobytes-class application — would justify a hard ceiling.
 
 The preset name describes the target and build policy, not the host. There is
 no separate `local` preset: every host uses the same repository Release preset,

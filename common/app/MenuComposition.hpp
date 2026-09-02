@@ -15,6 +15,11 @@ namespace loka
     struct MenuBarDefinition;
     class MenuComposition;
 
+    /**
+     * An AppConfigurable-owned menu composition scope. A MenuBoundary is owned
+     * by and composed by exactly one AppConfigurable; its tracker may retain
+     * that owner's menu-refresh callback for the boundary's lifetime.
+     */
     class MenuBoundary
     {
     public:

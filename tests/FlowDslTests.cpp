@@ -6318,8 +6318,9 @@ void testSimpleViewerClosesDialogFromChooserCompletion()
 {
   FlowTestPlatformContext platformContext;
   loka::core::EmitterState openDialogEvent;
+  loka::core::MutableState<bool> actualSize(false);
   simpleviewer::MainProps props;
-  props.platformContext(&platformContext).openDialogEvent(&openDialogEvent);
+  props.platformContext(&platformContext).openDialogEvent(&openDialogEvent).actualSize(&actualSize);
   loka::app::scene::Scene scene(
       new loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(props));
   FlowScenePlatformController platform;
@@ -6394,8 +6395,9 @@ void testSimpleViewerImageLoadSessionPreservesAndReleasesCurrentImage()
   SimpleViewerRetainingPlatformContext platformContext;
   platformContext.createImageResult_ = true;
   loka::core::EmitterState openDialogEvent;
+  loka::core::MutableState<bool> actualSize(false);
   simpleviewer::MainProps props;
-  props.platformContext(&platformContext).openDialogEvent(&openDialogEvent);
+  props.platformContext(&platformContext).openDialogEvent(&openDialogEvent).actualSize(&actualSize);
   loka::app::scene::Scene scene(
       new loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(props));
   FlowScenePlatformController platform;
@@ -6462,8 +6464,9 @@ void testSimpleViewerImageLoadStopsWhenCapacityRemainsUnavailable()
   loka::core::Managed<loka::core::resource::BlobRecord> unavailableCapacity;
   platformContext.capacityReleaseWitness_ = &unavailableCapacity;
   loka::core::EmitterState openDialogEvent;
+  loka::core::MutableState<bool> actualSize(false);
   simpleviewer::MainProps props;
-  props.platformContext(&platformContext).openDialogEvent(&openDialogEvent);
+  props.platformContext(&platformContext).openDialogEvent(&openDialogEvent).actualSize(&actualSize);
   loka::app::scene::Scene scene(
       new loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(props));
   FlowScenePlatformController platform;

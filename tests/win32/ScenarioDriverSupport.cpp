@@ -107,17 +107,19 @@ namespace loka
         return result;
       }
 
-      scenario_tests::CaptureContentBounds ContentLocalBounds(const scenario_tests::CaptureContentBounds &captureBounds)
+      scenario_tests::CaptureContentBounds LogicalContentBounds(Window *window)
       {
         scenario_tests::CaptureContentBounds result;
-        if (!captureBounds.available || captureBounds.right <= captureBounds.left
-            || captureBounds.bottom <= captureBounds.top)
+        const loka::core::Frame frame = window
+                                            ? window->nativeFrame().get()
+                                            : loka::core::Frame();
+        if (frame.width <= 0 || frame.height <= 0)
         {
           return result;
         }
         result.available = true;
-        result.right = captureBounds.right - captureBounds.left;
-        result.bottom = captureBounds.bottom - captureBounds.top;
+        result.right = frame.width;
+        result.bottom = frame.height;
         return result;
       }
 
@@ -236,9 +238,10 @@ namespace loka
 
         ++this->tick_;
         const scenario_tests::CaptureContentBounds captureBounds = QueryCaptureContentBounds(window);
+        const scenario_tests::CaptureContentBounds logicalBounds = LogicalContentBounds(window);
         dsl::SnapRecord record;
         const scenario_tests::ScenarioAdvance advance =
-            driver.step(this->tick_, window, ContentLocalBounds(captureBounds), record);
+            driver.step(this->tick_, window, logicalBounds, record);
         switch (advance)
         {
         case scenario_tests::SCENARIO_ADVANCE_PENDING:

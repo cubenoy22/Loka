@@ -288,8 +288,15 @@ namespace minesweeper
       if (event == loka::app::scene::COMPOSE_EVENT_UPDATE &&
           (context.dirtyFlags() & loka::app::scene::NODE_DIRTY_CHILD))
       {
-        this->recomposeLocalComposition(context, event,
-                                        this->LOCAL_RECOMPOSE_APPLY_SNAPSHOT);
+        if (!this->recomposeLocalComposition(
+                context, event, this->LOCAL_RECOMPOSE_APPLY_SNAPSHOT))
+        {
+          if (!this->composeResult().allocationFailed)
+          {
+            this->recomposeLocalCompositionWithFullFallback(
+                context, event, this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
+          }
+        }
         // beginComposition released this node's callbacks; a recomposing
         // boundary must re-declare its UI bindings or the second New Game
         // click emits into nothing (another WR-4 wrinkle to fold).

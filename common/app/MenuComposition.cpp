@@ -73,6 +73,10 @@ namespace loka
       loka::core::PushStateTracker *tracker = static_cast<loka::core::PushStateTracker *>(boundary.tracker());
       if (tracker)
       {
+        if (invalidateFn_)
+        {
+          tracker->setInvalidateCallback(invalidateFn_, invalidateUserData_);
+        }
         tracker->begin();
       }
       boundary.composeMenu(*this);
@@ -81,10 +85,6 @@ namespace loka
       {
         tracker->end();
         boundaryDirty = tracker->peekDirty();
-        if (boundaryDirty && invalidateFn_)
-        {
-          invalidateFn_(invalidateUserData_);
-        }
       }
       if (boundaryDirty)
       {

@@ -20,7 +20,7 @@ void testWin32RectSurfacePaintQueuesBoundedParentSubtree()
       0, L"STATIC", L"rect-surface-paint-host", WS_OVERLAPPED, 0, 0, 320, 240, NULL, NULL, GetModuleHandle(NULL), NULL);
   assert(root);
   {
-    Win32ScenePlatformController controller(root);
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
     loka::core::MutableState<loka::app::RectSurfaceModel> model((loka::app::RectSurfaceModel()));
     loka::app::RectSurfaceProps props;
     props.model(&model).size(100, 60);

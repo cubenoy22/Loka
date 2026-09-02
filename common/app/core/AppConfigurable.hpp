@@ -1,6 +1,8 @@
 #ifndef LOKA_APPCONFIGURABLE_HPP
 #define LOKA_APPCONFIGURABLE_HPP
 
+#include "core/scheduler/NextTickTracker.hpp"
+
 class AppComposition;
 class PlatformContext;
 
@@ -55,11 +57,17 @@ class AppConfigurable
 {
 protected:
   PlatformContext *ctx_;
+  loka::core::NextTickTracker menuRefresh_;
 
 public:
   AppConfigurable(PlatformContext *ctx)
-      : ctx_(ctx)
+      : ctx_(ctx),
+        menuRefresh_()
   {
+  }
+  loka::core::NextTickTracker &menuRefresh()
+  {
+    return menuRefresh_;
   }
   virtual void compose(AppComposition &c) = 0;
   virtual void composeMenu(loka::app::MenuComposition &c)

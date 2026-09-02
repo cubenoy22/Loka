@@ -2,7 +2,6 @@
 #define LOKA_MENU_CONTROLLER_HPP
 
 #include "app/Menu.hpp"
-#include "core/scheduler/NextTickTracker.hpp"
 #include "core/util/OwnedDef.hpp"
 
 class AppConfigurable;
@@ -32,7 +31,6 @@ public:
   void clearDiff();
 
 private:
-  static void InvalidateThunk(void *userData);
   static bool RefreshThunk(void *userData);
   static void ApplyThunk(void *userData);
 
@@ -43,7 +41,6 @@ private:
   void *applyUserData_;
   Window *pendingApplyWindow_;
   loka::core::OwnedDef<loka::app::MenuBarDefinition> menuBar_;
-  loka::core::NextTickTracker refresh_;
   loka::app::MenuCompositionDiff diff_;
 };
 

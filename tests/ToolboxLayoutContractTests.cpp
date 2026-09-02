@@ -134,6 +134,30 @@ void testToolboxRowConsultsFixedChildWidth()
   LOKA_VERIFY(traversal.lastState_.width == 296);
 }
 
+void testToolboxRowConsultsWidthOnlyBoxWidth()
+{
+  loka::app::StackNode row((loka::app::StackProps(loka::app::STACK_AXIS_ROW)));
+  loka::app::BoxProps boxProps;
+  boxProps.setSize(200, 0);
+  row.addChild(new loka::app::BoxNode(boxProps));
+  row.addChild(new ToolboxLayoutProbeNode());
+  loka::app::scene::PlatformLayoutHandlerRegistry registry;
+  RegisterToolboxPlatformLayoutHandlers(registry);
+  ToolboxLayoutContractTraversal traversal(23, 7);
+  loka::app::scene::LayoutState state = FixedBoxInputState();
+  state.width = 500;
+  state.spacing = 4;
+  short width = 0;
+
+  const bool usedHandler = ApplyToolboxPlatformLayoutHandler(registry, row, state, traversal, width);
+
+  LOKA_VERIFY(usedHandler);
+  LOKA_VERIFY(width == 500);
+  LOKA_VERIFY(traversal.callCount_ == 2);
+  LOKA_VERIFY(traversal.lastState_.x == 214);
+  LOKA_VERIFY(traversal.lastState_.width == 296);
+}
+
 void testToolboxRowEmptyFragmentConsumesNoSeatOrGap()
 {
   loka::app::StackNode row((loka::app::StackProps(loka::app::STACK_AXIS_ROW)));

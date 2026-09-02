@@ -45,7 +45,9 @@ public:
   void updateCursor();
   void invalidateWindow();
   void draw();
-  void refreshFrame();
+  /** Preserves the native content position after a menu-bar rebuild without
+      reapplying the application's declared frame intent. */
+  void preserveNativeContentPositionAfterMenuBarChange();
   virtual bool hasPendingScenePlatformSync() const;
   virtual void synchronizeScenePlatform();
   virtual void drainNativeRetirements();

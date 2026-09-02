@@ -28,6 +28,7 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/DerivedStateTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/WindowFrameStateTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/DefinitionCloneTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/LocalRecomposeRefusalTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/NodeMatchTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/SceneOwnershipTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/PhaseGuardTests.cpp
@@ -84,6 +85,7 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ForTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/OwnershipDumpTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/AttrDslTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/MenuCheckedTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/BoundaryArenaTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ComponentNodeTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/StartupRedrawTests.cpp

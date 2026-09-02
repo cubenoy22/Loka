@@ -72,7 +72,7 @@ void testWin32ApplicationItemNamesExecutableDirectory()
   alternateDirectory += L"loka-application-cwd-probe";
   RemoveDirectoryW(alternateDirectory.c_str());
   const BOOL madeAlternate = CreateDirectoryW(alternateDirectory.c_str(), NULL);
-  assert(madeAlternate || GetLastError() == ERROR_ALREADY_EXISTS);
+  LOKA_VERIFY(madeAlternate || GetLastError() == ERROR_ALREADY_EXISTS);
   assert(alternateDirectory != executableDirectory);
   LOKA_VERIFY(SetCurrentDirectoryW(alternateDirectory.c_str()));
 

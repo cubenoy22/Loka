@@ -31,7 +31,10 @@ namespace loka
             disabledState_(0),
             hasVisibleValue_(false),
             visibleValue_(true),
-            visibleState_(0)
+            visibleState_(0),
+            hasCheckedValue_(false),
+            checkedValue_(false),
+            checkedState_(0)
       {
       }
 
@@ -65,11 +68,28 @@ namespace loka
         return *this;
       }
 
+      MenuItemAttr &checked(bool value)
+      {
+        this->hasCheckedValue_ = true;
+        this->checkedValue_ = value;
+        this->checkedState_ = 0;
+        return *this;
+      }
+
+      MenuItemAttr &checked(loka::core::State<bool> *state)
+      {
+        this->hasCheckedValue_ = false;
+        this->checkedState_ = state;
+        return *this;
+      }
+
       bool operator==(const MenuItemAttr &other) const
       {
         return this->hasDisabledValue_ == other.hasDisabledValue_ && this->disabledValue_ == other.disabledValue_
                && this->disabledState_ == other.disabledState_ && this->hasVisibleValue_ == other.hasVisibleValue_
-               && this->visibleValue_ == other.visibleValue_ && this->visibleState_ == other.visibleState_;
+               && this->visibleValue_ == other.visibleValue_ && this->visibleState_ == other.visibleState_
+               && this->hasCheckedValue_ == other.hasCheckedValue_
+               && this->checkedValue_ == other.checkedValue_ && this->checkedState_ == other.checkedState_;
       }
 
       bool operator<(const MenuItemAttr &other) const
@@ -84,7 +104,13 @@ namespace loka
           return this->hasVisibleValue_ < other.hasVisibleValue_;
         if (this->visibleValue_ != other.visibleValue_)
           return this->visibleValue_ < other.visibleValue_;
-        return this->visibleState_ < other.visibleState_;
+        if (this->visibleState_ != other.visibleState_)
+          return this->visibleState_ < other.visibleState_;
+        if (this->hasCheckedValue_ != other.hasCheckedValue_)
+          return this->hasCheckedValue_ < other.hasCheckedValue_;
+        if (this->checkedValue_ != other.checkedValue_)
+          return this->checkedValue_ < other.checkedValue_;
+        return this->checkedState_ < other.checkedState_;
       }
 
       bool hasDisabledValue_;
@@ -93,6 +119,9 @@ namespace loka
       bool hasVisibleValue_;
       bool visibleValue_;
       loka::core::State<bool> *visibleState_;
+      bool hasCheckedValue_;
+      bool checkedValue_;
+      loka::core::State<bool> *checkedState_;
     };
 
     struct MenuItemDefinitionWithAttr;
@@ -312,6 +341,28 @@ namespace loka
           return this->attr_.visibleValue_;
         }
         return true;
+      }
+
+      bool isCheckedInitial() const
+      {
+        if (!this->hasAttr_)
+        {
+          return false;
+        }
+        if (this->attr_.checkedState_)
+        {
+          return this->attr_.checkedState_->get();
+        }
+        if (this->attr_.hasCheckedValue_)
+        {
+          return this->attr_.checkedValue_;
+        }
+        return false;
+      }
+
+      loka::core::State<bool> *checkedBindingState() const
+      {
+        return this->hasAttr_ ? this->attr_.checkedState_ : 0;
       }
 
       loka::core::State<bool> *enabledBindingState() const
