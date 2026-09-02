@@ -59,18 +59,19 @@ Win32PopupMenuContext::Win32PopupMenuContext(Win32ScenePlatformController *contr
   // Unicode window: CB_ADDSTRING sent via SendMessageW would otherwise be
   // thunked through the system ACP by an ANSI combo box, losing out-of-ACP
   // characters.
-  hwnd_ = CreateWindowExW(0,
-                          L"COMBOBOX",
-                          L"",
-                          WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
-                          x,
-                          y,
-                          width,
-                          height,
-                          parent,
-                          0,
-                          GetModuleHandle(NULL),
-                          NULL);
+  hwnd_ = this->createNativeChildWindow(
+      0,
+      L"COMBOBOX",
+      L"",
+      WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
+      x,
+      y,
+      width,
+      height,
+      parent,
+      0,
+      GetModuleHandleW(NULL),
+      NULL);
   if (hwnd_)
   {
     SetWindowLongPtr(hwnd_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
@@ -272,6 +273,10 @@ int Win32PopupMenuContext::dropHeight() const
   {
     itemHeight = baseHeight_ > 0 ? baseHeight_ : 18;
   }
+  else if (this->controller())
+  {
+    itemHeight = this->controller()->displayScale().unprojectLength(itemHeight);
+  }
   const loka::Vector<loka::core::String> *items = node_ ? node_->props.items_ : 0;
   int visibleItems = items ? static_cast<int>(items->size()) : 0;
   if (visibleItems > 8)
@@ -292,12 +297,13 @@ void Win32PopupMenuContext::applyDropGeometry()
   {
     return;
   }
+  const loka::win32::Win32DisplayScale &scale = this->controller()->displayScale();
   SetWindowPos(hwnd_,
                0,
                0,
                0,
-               baseWidth_,
-               this->dropHeight(),
+               scale.projectLength(baseWidth_),
+               scale.projectLength(this->dropHeight()),
                SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
 }
 

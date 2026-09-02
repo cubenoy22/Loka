@@ -7,6 +7,8 @@
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
+#include "platform/Win32DisplayFont.hpp"
+#include "platform/Win32DisplayScale.hpp"
 
 class Win32ButtonContext;
 class Win32EditTextContext;
@@ -87,7 +89,8 @@ public:
     int resultY;
   };
 
-  explicit Win32ScenePlatformController(HWND rootHwnd);
+  Win32ScenePlatformController(HWND rootHwnd,
+                               const loka::win32::Win32DisplayScale &displayScale);
   virtual ~Win32ScenePlatformController();
 
   static void requestDirtyRect(HWND targetHwnd, const RECT *rect, BOOL eraseBackground);
@@ -114,7 +117,20 @@ public:
   virtual bool registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler);
 
   bool handleCommand(WPARAM wParam, LPARAM lParam);
+  /** Relayout entry for WM_SIZE and other device-pixel client readings. */
+  void relayoutNativeClientPixels(int clientWidth, int clientHeight);
   void relayout(int clientWidth, int clientHeight);
+  /** Replaces the projection fact and makes the native subtree's DPI-derived
+      font retryably converge without exposing an unowned font handle. */
+  void updateDisplayScale(const loka::win32::Win32DisplayScale &displayScale);
+  const loka::win32::Win32DisplayScale &displayScale() const
+  {
+    return this->displayScale_;
+  }
+  HFONT displayFont() const
+  {
+    return this->displayFont_.get();
+  }
   HWND rootHwnd() const
   {
     return rootHwnd_;
@@ -339,6 +355,20 @@ private:
   /** Position one projected HWND. A root layout pass suppresses per-child
       repaint and presents the completed native layout once at the pass end. */
   void positionNativeWindow(HWND hwnd, int x, int y, int width, int height);
+  HWND createNativeChildWindow(DWORD exStyle,
+                               LPCWSTR className,
+                               LPCWSTR windowName,
+                               DWORD style,
+                               int x,
+                               int y,
+                               int width,
+                               int height,
+                               HWND parent,
+                               HMENU menu,
+                               HINSTANCE instance,
+                               void *createParameter);
+  void applyDisplayFontToNativeSubtree(HFONT font);
+  void ensureDisplayFont();
   void clearContexts();
   void clearNodeContexts(loka::app::scene::Node *node);
   int measureClientWidth(int requestedWidth) const;
@@ -355,6 +385,8 @@ private:
   loka::app::scene::Node *rootNode_;
   int clientWidth_;
   int clientHeight_;
+  loka::win32::Win32DisplayScale displayScale_;
+  loka::win32::Win32DisplayFont displayFont_;
   std::vector<PendingInvalidate> pendingInvalidations_;
   std::vector<HWND> retiredWindows_;
   RedrawStats redrawStats_;

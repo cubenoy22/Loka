@@ -9,6 +9,7 @@
 #include "core/State.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "platform/null/NullPlatformContext.hpp"
+#include "platform/Win32DisplayScale.hpp"
 
 namespace
 {
@@ -35,18 +36,27 @@ namespace
     window.frameState().set(frame);
   }
 
-  void assertClientSize(HWND hwnd, int expectedWidth, int expectedHeight)
+  void assertLogicalClientSize(HWND hwnd, int expectedWidth, int expectedHeight)
   {
     RECT client;
     LOKA_VERIFY(GetClientRect(hwnd, &client));
+    const loka::win32::Win32DisplayScale scale =
+        loka::win32::Win32DisplayScale::forWindow(hwnd);
+    const int expectedNativeWidth = scale.projectLength(expectedWidth);
+    const int expectedNativeHeight = scale.projectLength(expectedHeight);
     const int actualWidth = client.right - client.left;
     const int actualHeight = client.bottom - client.top;
-    printf("  declared=%dx%d client=%dx%d\n", expectedWidth, expectedHeight, actualWidth, actualHeight);
+    printf("  declared=%dx%d client=%dx%d at %d%%\n",
+           expectedWidth,
+           expectedHeight,
+           actualWidth,
+           actualHeight,
+           scale.percent());
     fflush(stdout);
-    assert(actualWidth == expectedWidth &&
-           "declared window width must describe the Win32 client area");
-    assert(actualHeight == expectedHeight &&
-           "declared window height must describe the Win32 client area");
+    LOKA_VERIFY(actualWidth == expectedNativeWidth &&
+                "declared window width must describe the Win32 client area");
+    LOKA_VERIFY(actualHeight == expectedNativeHeight &&
+                "declared window height must describe the Win32 client area");
   }
 
   RECT readWindowRect(HWND hwnd)
@@ -99,12 +109,18 @@ namespace
     }
   };
 
-  void resizeNativeClient(HWND hwnd, int width, int height)
+  void resizeLogicalClient(HWND hwnd, int width, int height)
   {
-    RECT outer = {0, 0, width, height};
+    const loka::win32::Win32DisplayScale scale =
+        loka::win32::Win32DisplayScale::forWindow(hwnd);
+    RECT outer = {0,
+                  0,
+                  scale.projectLength(width),
+                  scale.projectLength(height)};
     const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(hwnd, GWL_STYLE));
     const DWORD exStyle = static_cast<DWORD>(GetWindowLongPtrW(hwnd, GWL_EXSTYLE));
-    LOKA_VERIFY(AdjustWindowRectEx(&outer, style, GetMenu(hwnd) ? TRUE : FALSE, exStyle));
+    LOKA_VERIFY(scale.adjustWindowRect(
+        outer, style, GetMenu(hwnd) ? TRUE : FALSE, exStyle));
     LOKA_VERIFY(SetWindowPos(hwnd,
                             NULL,
                             0,
@@ -114,6 +130,69 @@ namespace
                             SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE));
   }
 } // namespace
+
+void testWin32DisplayScaleProjectsLogicalEdges()
+{
+  printf("\n==== [testWin32DisplayScaleProjectsLogicalEdges] start ====\n");
+  const loka::win32::Win32DisplayScale scale125(120);
+  const loka::core::Frame leftLogical(1, 2, 3, 5);
+  const loka::core::Frame rightLogical(4, 2, 7, 5);
+  RECT leftNative;
+  RECT rightNative;
+  scale125.projectFrame(leftLogical, leftNative);
+  scale125.projectFrame(rightLogical, rightNative);
+  LOKA_VERIFY(leftNative.right == rightNative.left
+              && "adjacent logical rectangles must retain one shared native edge");
+  LOKA_VERIFY(scale125.percent() == 125);
+
+  const loka::win32::Win32DisplayScale scale200(192);
+  RECT doubled;
+  scale200.projectFrame(loka::core::Frame(10, 20, 30, 40), doubled);
+  LOKA_VERIFY(doubled.left == 20 && doubled.top == 40
+              && doubled.right == 80 && doubled.bottom == 120);
+  RECT desktopWindow = {1920, 240, 2520, 1040};
+  const loka::core::Frame windowFrame = scale200.windowContentFrameFromNative(
+      desktopWindow, 600, 800);
+  LOKA_VERIFY(windowFrame == loka::core::Frame(1920, 240, 300, 400)
+              && "a top-level desktop origin must not be scaled by one monitor's DPI");
+  const loka::win32::Win32DisplayScale scale150(144);
+  LOKA_VERIFY(scale200.scaleLengthFrom(scale150, 12) == 16
+              && scale200.scaleLengthFrom(scale150, -12) == -16
+              && "system-DPI metrics must convert edge deltas to the target DPI");
+
+  const loka::win32::Win32DisplayScale invalid(0);
+  LOKA_VERIFY(invalid.dpi() == 96 && invalid.percent() == 100
+              && "an absent DPI capability must degrade to the unscaled projection");
+  loka::win32::Win32DisplayScale untouched(192);
+  LOKA_VERIFY(!loka::win32::Win32DisplayScale::queryForWindow(NULL, untouched));
+  LOKA_VERIFY(untouched.dpi() == 192
+              && "a declined display-scale query must leave its output untouched");
+  printf("==== [testWin32DisplayScaleProjectsLogicalEdges] PASSED ====\n");
+}
+
+void testWin32DpiChangeAcceptsSuggestedWindowRect()
+{
+  printf("\n==== [testWin32DpiChangeAcceptsSuggestedWindowRect] start ====\n");
+  WindowProps props;
+  props.frame(40, 40, 257, 163).visible(false);
+  NullPlatformContext context;
+  Win32Window window(&context, props);
+  setWindowVisibility(window, true);
+  HWND hwnd = window.hwnd();
+  LOKA_VERIFY(hwnd && IsWindow(hwnd));
+
+  RECT suggested = {120, 140, 720, 640};
+  SendMessageW(hwnd,
+               WM_DPICHANGED,
+               MAKEWPARAM(192, 192),
+               reinterpret_cast<LPARAM>(&suggested));
+  const RECT actual = readWindowRect(hwnd);
+  LOKA_VERIFY(sameRect(actual, suggested)
+              && "WM_DPICHANGED must accept Win32's suggested top-level rectangle");
+
+  setWindowVisibility(window, false);
+  printf("==== [testWin32DpiChangeAcceptsSuggestedWindowRect] PASSED ====\n");
+}
 
 void testWin32DeclaredWindowSizeMeansClientArea()
 {
@@ -129,9 +208,14 @@ void testWin32DeclaredWindowSizeMeansClientArea()
 
   setWindowVisibility(window, true);
   HWND hwnd = window.hwnd();
-  assert(hwnd && IsWindow(hwnd));
+  LOKA_VERIFY(hwnd && IsWindow(hwnd));
 
-  assertClientSize(hwnd, declaredWidth, declaredHeight);
+  const RECT declaredOuterRect = readWindowRect(hwnd);
+  LOKA_VERIFY(declaredOuterRect.left == 40 && declaredOuterRect.top == 40
+              && window.nativeFrame().get().x == 40
+              && window.nativeFrame().get().y == 40
+              && "a declared desktop origin must remain stable at non-100% DPI");
+  assertLogicalClientSize(hwnd, declaredWidth, declaredHeight);
   LOKA_VERIFY(window.frameState().get().width == declaredWidth);
   LOKA_VERIFY(window.frameState().get().height == declaredHeight);
 
@@ -139,13 +223,13 @@ void testWin32DeclaredWindowSizeMeansClientArea()
   app.setActiveWindow(&window);
   app.setDefaultMenuBar(&menuBar);
   assert(GetMenu(hwnd) && "the production menu path must attach the declared menu");
-  assertClientSize(hwnd, declaredWidth, declaredHeight);
+  assertLogicalClientSize(hwnd, declaredWidth, declaredHeight);
   LOKA_VERIFY(window.frameState().get().width == declaredWidth);
   LOKA_VERIFY(window.frameState().get().height == declaredHeight);
 
   app.setDefaultMenuBar(0);
   assert(!GetMenu(hwnd) && "the production menu path must detach a cleared menu");
-  assertClientSize(hwnd, declaredWidth, declaredHeight);
+  assertLogicalClientSize(hwnd, declaredWidth, declaredHeight);
   LOKA_VERIFY(window.frameState().get().width == declaredWidth);
   LOKA_VERIFY(window.frameState().get().height == declaredHeight);
   app.setActiveWindow(0);
@@ -153,7 +237,7 @@ void testWin32DeclaredWindowSizeMeansClientArea()
   const int resizedWidth = 311;
   const int resizedHeight = 197;
   setWindowFrame(window, loka::core::Frame(40, 40, resizedWidth, resizedHeight));
-  assertClientSize(hwnd, resizedWidth, resizedHeight);
+  assertLogicalClientSize(hwnd, resizedWidth, resizedHeight);
   LOKA_VERIFY(window.frameState().get().width == resizedWidth);
   LOKA_VERIFY(window.frameState().get().height == resizedHeight);
 
@@ -170,7 +254,7 @@ void testWin32ResizeMessageStoresTrackedContentSize()
   Win32Window window(&context, props);
   setWindowVisibility(window, true);
   HWND hwnd = window.hwnd();
-  assert(hwnd && IsWindow(hwnd));
+  LOKA_VERIFY(hwnd && IsWindow(hwnd));
 
   const loka::core::Frame declaredFrame = window.frameState().get();
   const loka::core::Frame beforeMinimize = window.nativeFrame().get();
@@ -188,10 +272,10 @@ void testWin32ResizeMessageStoresTrackedContentSize()
   int notifications = 0;
   narrow.bind(&CountFrameNotification, &notifications, false);
 
-  resizeNativeClient(hwnd, 400, 280);
+  resizeLogicalClient(hwnd, 400, 280);
   const loka::core::Frame resized = window.nativeFrame().get();
   assert(resized.width == 400 && resized.height == 280 &&
-         "a normal WM_SIZE must publish the Win32 native content size");
+         "a normal WM_SIZE must publish the tracked logical content size");
   LOKA_VERIFY(window.frameState().get() == declaredFrame &&
               "a native WM_SIZE must not echo into the declared content frame");
   assert(narrow.get() &&
@@ -215,7 +299,7 @@ void testWin32NativeWindowCreationDoesNotEchoVisibility()
 
   setWindowVisibility(window, true);
   HWND hwnd = window.hwnd();
-  assert(hwnd && IsWindow(hwnd));
+  LOKA_VERIFY(hwnd && IsWindow(hwnd));
   LOKA_VERIFY(IsWindowVisible(hwnd));
   printf("  visibility notifications after show=%d\n", notifications);
   fflush(stdout);
@@ -247,7 +331,7 @@ void testWin32AppOnlyMenuWindowSettles()
 
   setWindowVisibility(window, true);
   HWND hwnd = window.hwnd();
-  assert(hwnd && IsWindow(hwnd));
+  LOKA_VERIFY(hwnd && IsWindow(hwnd));
   const RECT initialOuterRect = readWindowRect(hwnd);
 
   MenuApplyingWin32App app;
@@ -266,9 +350,9 @@ void testWin32AppOnlyMenuWindowSettles()
          settledOuterRect.right,
          settledOuterRect.bottom);
   fflush(stdout);
-  assert(sameRect(initialOuterRect, settledOuterRect) &&
-         "an app-only menu must not grow the native window while it settles");
-  assertClientSize(hwnd, declaredWidth, declaredHeight);
+  LOKA_VERIFY(sameRect(initialOuterRect, settledOuterRect) &&
+              "an app-only menu must not grow the native window while it settles");
+  assertLogicalClientSize(hwnd, declaredWidth, declaredHeight);
 
   app.setActiveWindow(0);
   setWindowVisibility(window, false);
@@ -295,7 +379,7 @@ void testWin32MenuRebuildPreservesMovedWindowFrame()
 
   setWindowVisibility(window, true);
   HWND hwnd = window.hwnd();
-  assert(hwnd && IsWindow(hwnd));
+  LOKA_VERIFY(hwnd && IsWindow(hwnd));
 
   MenuApplyingWin32App app;
   app.setActiveWindow(&window);
@@ -332,8 +416,8 @@ void testWin32MenuRebuildPreservesMovedWindowFrame()
   assert(rebuiltOuterRect.left == movedOuterRect.left &&
          rebuiltOuterRect.top == movedOuterRect.top &&
          "menu rebuild must preserve the actual Win32 window position");
-  assert(sameRect(movedClientRect, rebuiltClientRect) &&
-         "menu rebuild must preserve the Win32 client size");
+  LOKA_VERIFY(sameRect(movedClientRect, rebuiltClientRect) &&
+              "menu rebuild must preserve the Win32 client size");
 
   app.setActiveWindow(0);
   setWindowVisibility(window, false);
@@ -391,7 +475,7 @@ void testWin32RepeatedAppDestructionDetachesMenuBeforeDestroyingHandle()
 
     // App teardown may alter native menu ownership but must publish no State.
     LOKA_VERIFY(frameNotifications == 0);
-    assertClientSize(hwnd, 257, 163);
+    assertLogicalClientSize(hwnd, 257, 163);
     const HMENU attachedMenu = GetMenu(hwnd);
     LOKA_VERIFY(attachedMenu == NULL);
     const BOOL menuRemaining = IsMenu(menu);

@@ -65,6 +65,8 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32DebugLog.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32Profiler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32IdlePacer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32DisplayScale.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32DisplayFont.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32ScenePlatformController.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32BuiltInSupport.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32App.cpp
@@ -93,6 +95,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32IdlePacerTests.cpp
   )
   loka_enable_warnings(LokaTestsWin32)
+  loka_enable_win32_visual_styles(LokaTestsWin32)
 
   target_include_directories(LokaTestsWin32 PRIVATE
     ${LOKA_SCRAPBOOK_R_HEADER_DIR}
@@ -138,6 +141,14 @@ if(WIN32)
       -File
         ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/scripts/Win32StandaloneAuditVerifierTest.ps1
       -FixtureExecutable $<TARGET_FILE:LokaWin32StandaloneAuditFixture>)
+  add_test(NAME scriptWin32ScenarioDpiAwareness
+    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
+      -File
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/scripts/Win32ScenarioDpiAwarenessTest.ps1
+      -Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/win32/ScenarioCaptureNative.cs
+      -TestSource
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/win32/ScenarioCaptureNativeTests.cs)
 
 endif()
 

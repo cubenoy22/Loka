@@ -247,7 +247,7 @@ bool ToolboxWindow::hasPendingInvalidate() const
   return needsInvalidate_ || !pendingInvalidateRects_.empty();
 }
 
-void ToolboxWindow::refreshFrame()
+void ToolboxWindow::preserveNativeContentPositionAfterMenuBarChange()
 {
   if (!this->window_)
   {
@@ -263,15 +263,6 @@ void ToolboxWindow::refreshFrame()
   SetPort(oldPort);
 
   MoveWindow(this->window_, actualContentBounds.left, actualContentBounds.top, false);
-
-  const loka::core::Frame declaredFrame = this->frameState().get();
-  if (declaredFrame.hasSize())
-  {
-    SizeWindow(this->window_,
-               static_cast<short>(declaredFrame.width),
-               static_cast<short>(declaredFrame.height),
-               true);
-  }
 }
 
 void ToolboxWindow::FrameChangedThunk(void *userData)
