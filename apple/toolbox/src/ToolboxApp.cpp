@@ -696,7 +696,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
     DrawMenuBar();
     if (activeWindow && activeWindow->asToolboxWindow())
     {
-      activeWindow->asToolboxWindow()->refreshFrame();
+      activeWindow->asToolboxWindow()->preserveNativeContentPositionAfterMenuBarChange();
     }
     clearMenuDiff();
     return;
@@ -840,7 +840,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
     DrawMenuBar();
     if (activeWindow && activeWindow->asToolboxWindow())
     {
-      activeWindow->asToolboxWindow()->refreshFrame();
+      activeWindow->asToolboxWindow()->preserveNativeContentPositionAfterMenuBarChange();
     }
     clearMenuDiff();
     return;
@@ -949,7 +949,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
   DrawMenuBar();
   if (activeWindow && activeWindow->asToolboxWindow())
   {
-    activeWindow->asToolboxWindow()->refreshFrame();
+    activeWindow->asToolboxWindow()->preserveNativeContentPositionAfterMenuBarChange();
   }
   clearMenuDiff();
 }
