@@ -1,5 +1,33 @@
 #include "context/ToolboxRectSurfaceContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
+#include "ToolboxNativeImage.hpp"
+
+namespace
+{
+  static bool IsColorPort(GrafPtr port)
+  {
+    if (!port)
+    {
+      return false;
+    }
+    const short firstWord = *reinterpret_cast<short *>(port);
+    return (firstWord & static_cast<short>(0xC000)) != 0;
+  }
+
+  static const BitMap *PortBitsForCopyMask(GrafPtr port)
+  {
+    if (!port)
+    {
+      return 0;
+    }
+    if (IsColorPort(port))
+    {
+      return reinterpret_cast<const BitMap *>(&((CGrafPtr)port)->portPixMap);
+    }
+    return &port->portBits;
+  }
+
+} // namespace
 
 void EnsureToolboxRectSurfaceContext(loka::app::RectSurfaceNode *node, ToolboxScenePlatformController *controller)
 {
@@ -94,9 +122,10 @@ void ToolboxRectSurfaceContext::render(loka::app::scene::IPlatformController *)
     EraseRect(&rect_);
   }
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
-  for (short i = 0; i < model.spriteCount; ++i)
+  const loka::app::RectSurfacePaintList paintList(model);
+  for (short i = 0; i < paintList.count(); ++i)
   {
-    const loka::app::RectSurfaceSprite &sprite = model.sprites[i];
+    const loka::app::RectSurfaceSprite &sprite = *paintList.querySprite(i);
     switch (sprite.kind())
     {
     case loka::app::RectSurfaceSprite::KIND_RECT:
@@ -106,7 +135,11 @@ void ToolboxRectSurfaceContext::render(loka::app::scene::IPlatformController *)
       break;
     }
     case loka::app::RectSurfaceSprite::KIND_IMAGE:
+    {
+      const Rect spriteRect = rectForSprite(sprite);
+      paintImage(sprite, spriteRect, 0);
       break;
+    }
     }
   }
   rememberCurrentModel();
@@ -125,6 +158,8 @@ void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
   }
 
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
+  const loka::app::RectSurfacePaintList paintList(model);
+  const bool replayPaintOrder = modelContainsImage(model) || (hasPreviousModel_ && modelContainsImage(previousModel_));
   bool useRegionClip = false;
   useRegionClip =
       node_->props.useRegionClip_ && buildDirtyRegion(dirtyRect, model) && dirtyRgn_ != 0 && savedClipRgn_ != 0;
@@ -135,7 +170,15 @@ void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
   }
   if (node_->props.clearBackground_)
   {
-    if (hasPreviousModel_)
+    if (replayPaintOrder)
+    {
+      Rect clearRect = rect_;
+      if (SectRect(&clearRect, &dirtyRect, &clearRect))
+      {
+        EraseRect(&clearRect);
+      }
+    }
+    else if (hasPreviousModel_)
     {
       for (short i = 0; i < previousModel_.spriteCount; ++i)
       {
@@ -169,27 +212,34 @@ void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
     }
   }
 
-  for (short i = 0; i < model.spriteCount; ++i)
+  for (short i = 0; i < paintList.count(); ++i)
   {
-    const loka::app::RectSurfaceSprite &sprite = model.sprites[i];
-    switch (sprite.kind())
-    {
-    case loka::app::RectSurfaceSprite::KIND_RECT:
-      break;
-    case loka::app::RectSurfaceSprite::KIND_IMAGE:
-      continue;
-    }
+    const loka::app::RectSurfaceSprite &sprite = *paintList.querySprite(i);
     Rect spriteRect = rectForSprite(sprite);
     Rect clippedRect = spriteRect;
     if (!SectRect(&clippedRect, &dirtyRect, &clippedRect))
     {
       continue;
     }
+    if (replayPaintOrder)
+    {
+      switch (sprite.kind())
+      {
+      case loka::app::RectSurfaceSprite::KIND_RECT:
+        paintRectIfVisible(spriteRect, dirtyRect);
+        break;
+      case loka::app::RectSurfaceSprite::KIND_IMAGE:
+        paintImage(sprite, spriteRect, &dirtyRect);
+        break;
+      }
+      continue;
+    }
     Rect previousSpriteRect;
     if (previousRectForIndex(i, previousSpriteRect))
     {
       if (previousSpriteRect.left == spriteRect.left && previousSpriteRect.top == spriteRect.top
-          && previousSpriteRect.right == spriteRect.right && previousSpriteRect.bottom == spriteRect.bottom)
+          && previousSpriteRect.right == spriteRect.right && previousSpriteRect.bottom == spriteRect.bottom
+          && loka::app::RectSurfaceSpriteRequiresRepaint(sprite, previousModel_.sprites[i]) == false)
       {
         continue;
       }
@@ -481,6 +531,43 @@ void ToolboxRectSurfaceContext::paintRectIfVisible(const Rect &rect, const Rect 
   PaintRect(&paintRect);
 }
 
+void ToolboxRectSurfaceContext::paintImage(const loka::app::RectSurfaceSprite &sprite,
+                                           const Rect &destinationRect,
+                                           const Rect *dirtyRect)
+{
+  loka::core::resource::Image image;
+  if (!sprite.queryImage(image) || !image.isValid() || sprite.width <= 0 || sprite.height <= 0)
+  {
+    return;
+  }
+  const BitMap *binaryMask = loka::toolbox::PrepareToolboxBinaryMask(image);
+  if (!binaryMask)
+  {
+    return;
+  }
+  GrafPtr destinationPort = 0;
+  GetPort(&destinationPort);
+  Rect sourceRect;
+  SetRect(&sourceRect, 0, 0, sprite.width, sprite.height);
+  if (destinationPort)
+  {
+    const BitMap *destinationBits = PortBitsForCopyMask(destinationPort);
+    if (destinationBits)
+    {
+      if (dirtyRect && tempRgn_)
+      {
+        GetClip(tempRgn_);
+        ClipRect(dirtyRect);
+      }
+      CopyMask(binaryMask, binaryMask, destinationBits, &sourceRect, &sourceRect, &destinationRect);
+      if (dirtyRect && tempRgn_)
+      {
+        SetClip(tempRgn_);
+      }
+    }
+  }
+}
+
 bool ToolboxRectSurfaceContext::currentModelContainsRect(const Rect &rect,
                                                          const loka::app::RectSurfaceModel &model) const
 {
@@ -493,6 +580,19 @@ bool ToolboxRectSurfaceContext::currentModelContainsRect(const Rect &rect,
     currentRect.bottom = static_cast<short>(currentRect.top + model.sprites[i].height);
     if (currentRect.left == rect.left && currentRect.top == rect.top && currentRect.right == rect.right
         && currentRect.bottom == rect.bottom)
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool ToolboxRectSurfaceContext::modelContainsImage(const loka::app::RectSurfaceModel &model) const
+{
+  const loka::app::RectSurfacePaintList paintList(model);
+  for (short i = 0; i < paintList.count(); ++i)
+  {
+    if (paintList.querySprite(i)->kind() == loka::app::RectSurfaceSprite::KIND_IMAGE)
     {
       return true;
     }

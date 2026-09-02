@@ -113,3 +113,35 @@ void testImageSpriteKeepsImageIdentityAndIntrinsicSize()
   LOKA_VERIFY(carried == image);
   LOKA_VERIFY(carried.nativeHandle() == &identity);
 }
+
+void testImageSpriteHandleChangeRequiresRepaintAtSameGeometry()
+{
+  int firstIdentity = 0;
+  int secondIdentity = 0;
+  const loka::core::resource::Image first = TestImage(&firstIdentity, 23, 29);
+  const loka::core::resource::Image second = TestImage(&secondIdentity, 23, 29);
+  const loka::app::RectSurfaceSprite previous(loka::app::ImageSprite(5, 7, first));
+  const loka::app::RectSurfaceSprite current(loka::app::ImageSprite(5, 7, second));
+
+  LOKA_VERIFY(previous.x == current.x && previous.y == current.y);
+  LOKA_VERIFY(previous.width == current.width && previous.height == current.height);
+  LOKA_VERIFY(loka::app::RectSurfaceSpriteRequiresRepaint(current, previous));
+  LOKA_VERIFY(!loka::app::RectSurfaceSpriteRequiresRepaint(previous, previous));
+}
+
+void testRectSurfacePaintListKeepsMixedSpriteOrder()
+{
+  int identity = 0;
+  const loka::core::resource::Image image = TestImage(&identity, 7, 9);
+  loka::app::RectSurfaceModel model;
+  LOKA_VERIFY(model.add(loka::app::RectSprite(1, 2, 3, 4)));
+  LOKA_VERIFY(model.add(loka::app::ImageSprite(5, 6, image)));
+  LOKA_VERIFY(model.add(loka::app::RectSprite(7, 8, 9, 10)));
+
+  const loka::app::RectSurfacePaintList paintList(model);
+  LOKA_VERIFY(paintList.count() == 3);
+  LOKA_VERIFY(paintList.querySprite(0)->kind() == loka::app::RectSurfaceSprite::KIND_RECT);
+  LOKA_VERIFY(paintList.querySprite(1)->kind() == loka::app::RectSurfaceSprite::KIND_IMAGE);
+  LOKA_VERIFY(paintList.querySprite(2)->kind() == loka::app::RectSurfaceSprite::KIND_RECT);
+  LOKA_VERIFY(paintList.querySprite(3) == 0);
+}

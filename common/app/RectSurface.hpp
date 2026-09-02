@@ -150,6 +150,15 @@ namespace loka
       loka::core::resource::Image image_;
     };
 
+    /** Returns whether publishing current in place of previous can change the
+        pixels at their shared array position. IMAGE identity is content for
+        this decision even when its intrinsic geometry is unchanged. */
+    inline bool RectSurfaceSpriteRequiresRepaint(const RectSurfaceSprite &current,
+                                                 const RectSurfaceSprite &previous)
+    {
+      return current != previous;
+    }
+
     struct RectSurfaceModel
     {
       enum
@@ -301,6 +310,33 @@ namespace loka
         sprites[spriteCount++] = sprite;
         return true;
       }
+    };
+
+    /** Read-only array-order view used by native RectSurface paint passes. */
+    class RectSurfacePaintList
+    {
+    public:
+      explicit RectSurfacePaintList(const RectSurfaceModel &model)
+          : model_(model)
+      {
+      }
+
+      short count() const
+      {
+        return RectSurfaceModel::clampSpriteCount(model_.spriteCount);
+      }
+
+      const RectSurfaceSprite *querySprite(short index) const
+      {
+        if (index < 0 || index >= count())
+        {
+          return 0;
+        }
+        return &model_.sprites[index];
+      }
+
+    private:
+      const RectSurfaceModel &model_;
     };
 
     class RectSurfaceNode;

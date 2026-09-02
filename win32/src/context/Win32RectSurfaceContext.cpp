@@ -7,6 +7,101 @@ namespace
 {
   const wchar_t kRectSurfaceClassName[] = L"LOKA_RECT_SURFACE";
   const COLORREF kRectSurfaceClearColor = RGB(255, 255, 255);
+
+  void DrawRectSurfaceImage(HDC hdc, const RECT &spriteRect, const loka::app::RectSurfaceSprite &sprite)
+  {
+    loka::core::resource::Image image;
+    if (!sprite.queryImage(image) || !image.isValid())
+    {
+      return;
+    }
+    HBITMAP bitmap = static_cast<HBITMAP>(image.nativeHandle());
+    if (!bitmap)
+    {
+      return;
+    }
+    DIBSECTION dib;
+    ZeroMemory(&dib, sizeof(dib));
+    if (GetObjectW(bitmap, sizeof(dib), &dib) != sizeof(dib) || !dib.dsBm.bmBits || dib.dsBm.bmBitsPixel != 32)
+    {
+      return;
+    }
+    const int width = image.width();
+    const int height = image.height();
+    if (width <= 0 || height <= 0)
+    {
+      return;
+    }
+    if (dib.dsBm.bmWidth < width || (dib.dsBm.bmHeight < 0 ? -dib.dsBm.bmHeight : dib.dsBm.bmHeight) < height)
+    {
+      return;
+    }
+    struct MonochromeBitmapInfo
+    {
+      BITMAPINFOHEADER header;
+      RGBQUAD colors[2];
+    } maskInfo;
+    ZeroMemory(&maskInfo, sizeof(maskInfo));
+    maskInfo.header.biSize = sizeof(BITMAPINFOHEADER);
+    maskInfo.header.biWidth = width;
+    maskInfo.header.biHeight = -height;
+    maskInfo.header.biPlanes = 1;
+    maskInfo.header.biBitCount = 1;
+    maskInfo.header.biCompression = BI_RGB;
+    maskInfo.header.biClrUsed = 2;
+    maskInfo.colors[1].rgbRed = 255;
+    maskInfo.colors[1].rgbGreen = 255;
+    maskInfo.colors[1].rgbBlue = 255;
+    BYTE *maskBits = 0;
+    HBITMAP mask = CreateDIBSection(
+        0, reinterpret_cast<const BITMAPINFO *>(&maskInfo), DIB_RGB_COLORS, reinterpret_cast<void **>(&maskBits), 0, 0);
+    if (!mask || !maskBits)
+    {
+      if (mask)
+      {
+        DeleteObject(mask);
+      }
+      return;
+    }
+    const SIZE_T maskRowBytes = static_cast<SIZE_T>(((width + 31) / 32) * 4);
+    ZeroMemory(maskBits, maskRowBytes * height);
+    const BYTE *sourceBits = static_cast<const BYTE *>(dib.dsBm.bmBits);
+    for (int y = 0; y < height; ++y)
+    {
+      const int sourceY = dib.dsBmih.biHeight < 0 ? y : height - y - 1;
+      const BYTE *sourceRow = sourceBits + sourceY * dib.dsBm.bmWidthBytes;
+      BYTE *maskRow = maskBits + y * maskRowBytes;
+      for (int x = 0; x < width; ++x)
+      {
+        if (sourceRow[x * 4 + 3] >= 128)
+        {
+          maskRow[x / 8] |= static_cast<BYTE>(0x80u >> (x % 8));
+        }
+      }
+    }
+    HDC source = CreateCompatibleDC(hdc);
+    if (!source)
+    {
+      DeleteObject(mask);
+      return;
+    }
+    HGDIOBJ old = SelectObject(source, bitmap);
+    MaskBlt(hdc,
+            spriteRect.left,
+            spriteRect.top,
+            width,
+            height,
+            source,
+            0,
+            0,
+            mask,
+            0,
+            0,
+            MAKEROP4(SRCCOPY, DSTCOPY));
+    SelectObject(source, old);
+    DeleteDC(source);
+    DeleteObject(mask);
+  }
 }
 
 Win32RectSurfaceContext::Win32RectSurfaceContext(Win32ScenePlatformController *controller,
@@ -223,16 +318,23 @@ void Win32RectSurfaceContext::draw(HDC hdc, const RECT &rect)
     return;
   }
   const loka::app::RectSurfaceModel model = modelState_->get();
+  const loka::app::RectSurfacePaintList paintList(model);
   HBRUSH blackBrush = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
-  for (short i = 0; i < model.spriteCount; ++i)
+  for (short i = 0; i < paintList.count(); ++i)
   {
-    const loka::app::RectSurfaceSprite &sprite = model.sprites[i];
+    const loka::app::RectSurfaceSprite &sprite = *paintList.querySprite(i);
     switch (sprite.kind())
     {
     case loka::app::RectSurfaceSprite::KIND_RECT:
       break;
     case loka::app::RectSurfaceSprite::KIND_IMAGE:
+    {
+      RECT spriteRect;
+      const loka::core::Frame logicalRect(sprite.x, sprite.y, sprite.width, sprite.height);
+      this->controller()->displayScale().projectFrame(logicalRect, spriteRect);
+      DrawRectSurfaceImage(hdc, spriteRect, sprite);
       continue;
+    }
     }
     RECT spriteRect;
     const loka::core::Frame logicalRect(sprite.x, sprite.y, sprite.width, sprite.height);

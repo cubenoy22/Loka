@@ -14,6 +14,26 @@ namespace loka
 
 class MacScenePlatformController;
 
+/** One RectSurface paint-position's lazy binary-alpha companion. The original
+    NSImage remains untouched for ImageView and is held only while cached. */
+class MacRectSurfacePreparedImage
+{
+public:
+  MacRectSurfacePreparedImage();
+  ~MacRectSurfacePreparedImage();
+
+  void *prepare(const loka::core::resource::Image &source);
+  void discardUnless(const loka::core::resource::Image &source);
+  void clear();
+
+private:
+  MacRectSurfacePreparedImage(const MacRectSurfacePreparedImage &);
+  MacRectSurfacePreparedImage &operator=(const MacRectSurfacePreparedImage &);
+
+  loka::core::resource::Image source_;
+  void *prepared_;
+};
+
 class MacRectSurfaceContext : public MacRetirableContext
 {
 public:
@@ -41,10 +61,13 @@ private:
   void bindModel();
   void unbindModel();
   void applyModel();
+  void discardStalePreparedImages();
+  void clearPreparedImages();
 
   loka::app::RectSurfaceNode *node_;
   loka::core::State<loka::app::RectSurfaceModel> *modelState_;
   void *view_;
+  MacRectSurfacePreparedImage preparedImages_[loka::app::RectSurfaceModel::kMaxSprites];
 };
 
 #endif

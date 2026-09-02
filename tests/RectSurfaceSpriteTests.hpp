@@ -4,5 +4,7 @@
 void testRectSurfaceModelKeepsMixedSpriteOrderAndBounds();
 void testRectSurfaceModelCapacityCountsEverySpriteKind();
 void testImageSpriteKeepsImageIdentityAndIntrinsicSize();
+void testImageSpriteHandleChangeRequiresRepaintAtSameGeometry();
+void testRectSurfacePaintListKeepsMixedSpriteOrder();
 
 #endif // LOKA_TESTS_RECT_SURFACE_SPRITE_TESTS_HPP
