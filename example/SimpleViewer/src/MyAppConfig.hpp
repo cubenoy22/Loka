@@ -27,7 +27,7 @@ public:
   {
     c << WindowDef(
         WindowProps()
-            .frame(40, 40, 320, 240)
+            .frame(16, 16, 480, 280)
             .scene(loka::app::scene::Boundary<simpleviewer::MainNode>(
                 simpleviewer::MainProps()
                     .platformContext(this->getPlatformContext()) // TODO: Make this retrievable from inside the Node

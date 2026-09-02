@@ -13,7 +13,9 @@
 #include "core/util/StateTrackerGuard.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
+#include "platform/null/NullWindow.hpp"
 #include "support/TestVerify.hpp"
+#include "testing/app/WindowTestAccess.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 
 class SimpleViewerTestAccess
@@ -251,7 +253,9 @@ namespace
     LOKA_VERIFY(record.navNode != 0);
     record.contentNode = record.navNode->nextInComposition;
     LOKA_VERIFY(record.contentNode != 0);
-    LOKA_VERIFY(record.contentNode->nextInComposition == 0);
+    loka::app::scene::Node *dialogSeat = record.contentNode->nextInComposition;
+    LOKA_VERIFY(dialogSeat != 0);
+    LOKA_VERIFY(dialogSeat->nextInComposition == 0);
 
     loka::app::scene::LayoutState state;
     state.width = 600;
@@ -498,4 +502,45 @@ void testSimpleViewerPaneScrollButtonUsesMenuEmitter()
               simpleviewer::DISPLAY_ACTUAL_SCROLL);
   verifyCheckedMode(viewMenu(harness.menuController.defaultMenuBar()),
                     simpleviewer::DISPLAY_ACTUAL_SCROLL);
+}
+
+void testSimpleViewerNarrowWindowFileMenuMaterializesDialogOutsideParkedNav()
+{
+  NullPlatformContext platformContext;
+  SimpleViewerAppConfig config(&platformContext);
+  NullScenePlatformController platform;
+  simpleviewer::MainProps mainProps;
+  mainProps.platformContext(&platformContext)
+      .openDialogEvent(SimpleViewerTestAccess::openDialogEvent(config))
+      .displayMode(SimpleViewerTestAccess::displayModeState(config))
+      .fitEvent(SimpleViewerTestAccess::fitEvent(config))
+      .actualEvent(SimpleViewerTestAccess::actualEvent(config))
+      .actualScrollEvent(SimpleViewerTestAccess::actualScrollEvent(config));
+  loka::app::scene::NodeDefinitionBase *rootDefinition =
+      loka::app::scene::Boundary<simpleviewer::MainNode>(mainProps).clone();
+  LOKA_VERIFY(rootDefinition != 0);
+
+  WindowProps windowProps;
+  windowProps.frame(40, 40, 320, 240)
+      .scene(new loka::app::scene::Scene(rootDefinition));
+  NullWindow window(&platformContext, windowProps, &platform);
+  LOKA_VERIFY(window.scene() != 0);
+  loka::app::testing::WindowTestAccess::storeNativeFrame(
+      window, loka::core::Frame(40, 40, 320, 240));
+  window.scene()->updateAttached(true);
+  if (window.hasPendingSceneInvalidation())
+  {
+    LOKA_VERIFY(window.flushSceneInvalidation());
+  }
+
+  simpleviewer::MainNode *main = static_cast<simpleviewer::MainNode *>(
+      loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()));
+  LOKA_VERIFY(main != 0);
+  LOKA_VERIFY(findNode(main, "SimpleViewer.NavPane") == 0);
+  LOKA_VERIFY(findNode(main, "SimpleViewer.NavToggle") != 0);
+  LOKA_VERIFY(findNode(main, "SimpleViewerOpenFileDialog") == 0);
+
+  SimpleViewerTestAccess::openDialogEvent(config)->emit();
+  window.flushSceneInvalidation();
+  LOKA_VERIFY(findNode(main, "SimpleViewerOpenFileDialog") != 0);
 }

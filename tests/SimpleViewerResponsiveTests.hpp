@@ -5,5 +5,6 @@ void testSimpleViewerNavSeatsFollowModeAndRetainContentImage();
 void testSimpleViewerDisplayArmsAndMenuChecksFollowOwnedMode();
 void testSimpleViewerDisplayModesProjectExpectedNullGeometry();
 void testSimpleViewerPaneScrollButtonUsesMenuEmitter();
+void testSimpleViewerNarrowWindowFileMenuMaterializesDialogOutsideParkedNav();
 
 #endif // LOKA_TESTS_SIMPLE_VIEWER_RESPONSIVE_TESTS_HPP

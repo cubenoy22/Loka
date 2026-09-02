@@ -214,12 +214,18 @@ namespace simpleviewer
                << this->imageView(IMAGE_VIEW_SIZE_INTRINSIC));
       display.setNodeTag(kDisplaySeatTag);
 
+      ShowDefinition openDialog =
+          Show(*this->isDialogShown_.state())
+          << (PolicyScopeDefinition().destroyOnDetach()
+              << OpenFileDialog().result(this->chooserResult_).testId("SimpleViewerOpenFileDialog"));
+      openDialog.setNodeTag(kOpenDialogTag);
+
       HStack root = HStack().TEST_ID("SimpleViewer.RootRow");
       root.setNodeTag(kRootRowTag);
       VStack content = VStack().TEST_ID("SimpleViewer.Content");
       content.setNodeTag(kContentTag);
       content << navToggle << display;
-      c.declare(root << nav << content);
+      c.declare(root << nav << content << openDialog);
     }
 
   protected:
@@ -262,11 +268,6 @@ namespace simpleviewer
     loka::app::Box navPane()
     {
       using namespace loka::app;
-      ShowDefinition openDialog =
-          Show(*this->isDialogShown_.state())
-          << (PolicyScopeDefinition().destroyOnDetach()
-              << OpenFileDialog().result(this->chooserResult_).testId("SimpleViewerOpenFileDialog"));
-      openDialog.setNodeTag(kOpenDialogTag);
       return Box()
                  .size(kNavWidth, 0)
                  .TEST_ID("SimpleViewer.NavPane")
@@ -283,8 +284,7 @@ namespace simpleviewer
                         .TEST_ID("SimpleViewer.Mode.Actual")
                  << Button("Actual Size (Scroll)")
                         .onClick(this->props.actualScrollEvent_)
-                        .TEST_ID("SimpleViewer.Mode.ActualScroll")
-                 << openDialog);
+                        .TEST_ID("SimpleViewer.Mode.ActualScroll"));
     }
 
     loka::app::ImageViewDefinitionWithAttr imageView(
