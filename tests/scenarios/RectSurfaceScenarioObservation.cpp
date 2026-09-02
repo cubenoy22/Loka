@@ -28,8 +28,8 @@ namespace loka
         return dsl::FLOW_STEP_FAILED;
       }
       const app::RectSurfaceModel &model = surface->props.model_->get();
-      const short count = app::RectSurfaceModel::clampRectCount(model.rectCount);
-      if (count != model.rectCount)
+      const short count = app::RectSurfaceModel::clampSpriteCount(model.spriteCount);
+      if (count != model.spriteCount)
       {
         error.kind = dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO;
         error.code = dsl::testing::FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
@@ -42,7 +42,7 @@ namespace loka
         {
           rectangles += ';';
         }
-        const app::RectSprite &rect = model.rects[i];
+        const app::RectSurfaceSprite &rect = model.sprites[i];
         char text[64];
         ::snprintf(text,
                    sizeof(text),

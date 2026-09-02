@@ -55,6 +55,7 @@
 #include "BoundaryArenaTests.hpp"
 #include "ComponentNodeTests.hpp"
 #include "ValueTests.hpp"
+#include "RectSurfaceSpriteTests.hpp"
 #include "SceneOwnershipTests.hpp"
 #include "PhaseGuardTests.hpp"
 #include "LifecycleDetachTests.hpp"

@@ -224,13 +224,18 @@ void Win32RectSurfaceContext::draw(HDC hdc, const RECT &rect)
   }
   const loka::app::RectSurfaceModel model = modelState_->get();
   HBRUSH blackBrush = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
-  for (short i = 0; i < model.rectCount; ++i)
+  for (short i = 0; i < model.spriteCount; ++i)
   {
+    const loka::app::RectSurfaceSprite &sprite = model.sprites[i];
+    switch (sprite.kind())
+    {
+    case loka::app::RectSurfaceSprite::KIND_RECT:
+      break;
+    case loka::app::RectSurfaceSprite::KIND_IMAGE:
+      continue;
+    }
     RECT spriteRect;
-    const loka::core::Frame logicalRect(model.rects[i].x,
-                                        model.rects[i].y,
-                                        model.rects[i].width,
-                                        model.rects[i].height);
+    const loka::core::Frame logicalRect(sprite.x, sprite.y, sprite.width, sprite.height);
     this->controller()->displayScale().projectFrame(logicalRect, spriteRect);
     FillRect(hdc, &spriteRect, blackBrush);
   }

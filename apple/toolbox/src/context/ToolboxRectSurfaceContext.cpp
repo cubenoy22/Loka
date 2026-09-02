@@ -94,10 +94,20 @@ void ToolboxRectSurfaceContext::render(loka::app::scene::IPlatformController *)
     EraseRect(&rect_);
   }
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
-  for (short i = 0; i < model.rectCount; ++i)
+  for (short i = 0; i < model.spriteCount; ++i)
   {
-    Rect spriteRect = rectForSprite(model.rects[i]);
-    PaintRect(&spriteRect);
+    const loka::app::RectSurfaceSprite &sprite = model.sprites[i];
+    switch (sprite.kind())
+    {
+    case loka::app::RectSurfaceSprite::KIND_RECT:
+    {
+      Rect spriteRect = rectForSprite(sprite);
+      PaintRect(&spriteRect);
+      break;
+    }
+    case loka::app::RectSurfaceSprite::KIND_IMAGE:
+      break;
+    }
   }
   rememberCurrentModel();
 }
@@ -127,13 +137,13 @@ void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
   {
     if (hasPreviousModel_)
     {
-      for (short i = 0; i < previousModel_.rectCount; ++i)
+      for (short i = 0; i < previousModel_.spriteCount; ++i)
       {
         Rect previousSpriteRect;
-        previousSpriteRect.left = static_cast<short>(rect_.left + previousModel_.rects[i].x);
-        previousSpriteRect.top = static_cast<short>(rect_.top + previousModel_.rects[i].y);
-        previousSpriteRect.right = static_cast<short>(previousSpriteRect.left + previousModel_.rects[i].width);
-        previousSpriteRect.bottom = static_cast<short>(previousSpriteRect.top + previousModel_.rects[i].height);
+        previousSpriteRect.left = static_cast<short>(rect_.left + previousModel_.sprites[i].x);
+        previousSpriteRect.top = static_cast<short>(rect_.top + previousModel_.sprites[i].y);
+        previousSpriteRect.right = static_cast<short>(previousSpriteRect.left + previousModel_.sprites[i].width);
+        previousSpriteRect.bottom = static_cast<short>(previousSpriteRect.top + previousModel_.sprites[i].height);
         if (currentModelContainsRect(previousSpriteRect, model))
         {
           continue;
@@ -159,9 +169,17 @@ void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
     }
   }
 
-  for (short i = 0; i < model.rectCount; ++i)
+  for (short i = 0; i < model.spriteCount; ++i)
   {
-    Rect spriteRect = rectForSprite(model.rects[i]);
+    const loka::app::RectSurfaceSprite &sprite = model.sprites[i];
+    switch (sprite.kind())
+    {
+    case loka::app::RectSurfaceSprite::KIND_RECT:
+      break;
+    case loka::app::RectSurfaceSprite::KIND_IMAGE:
+      continue;
+    }
+    Rect spriteRect = rectForSprite(sprite);
     Rect clippedRect = spriteRect;
     if (!SectRect(&clippedRect, &dirtyRect, &clippedRect))
     {
@@ -203,20 +221,20 @@ bool ToolboxRectSurfaceContext::dirtyRect(Rect &outRect) const
   }
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
   bool hasBounds = false;
-  if (model.rectCount > 0)
+  if (model.spriteCount > 0)
   {
-    outRect.left = static_cast<short>(rect_.left + model.rects[0].x);
-    outRect.top = static_cast<short>(rect_.top + model.rects[0].y);
-    outRect.right = static_cast<short>(outRect.left + model.rects[0].width);
-    outRect.bottom = static_cast<short>(outRect.top + model.rects[0].height);
+    outRect.left = static_cast<short>(rect_.left + model.sprites[0].x);
+    outRect.top = static_cast<short>(rect_.top + model.sprites[0].y);
+    outRect.right = static_cast<short>(outRect.left + model.sprites[0].width);
+    outRect.bottom = static_cast<short>(outRect.top + model.sprites[0].height);
     hasBounds = true;
   }
-  for (short i = 1; i < model.rectCount; ++i)
+  for (short i = 1; i < model.spriteCount; ++i)
   {
-    const short left = static_cast<short>(rect_.left + model.rects[i].x);
-    const short top = static_cast<short>(rect_.top + model.rects[i].y);
-    const short right = static_cast<short>(left + model.rects[i].width);
-    const short bottom = static_cast<short>(top + model.rects[i].height);
+    const short left = static_cast<short>(rect_.left + model.sprites[i].x);
+    const short top = static_cast<short>(rect_.top + model.sprites[i].y);
+    const short right = static_cast<short>(left + model.sprites[i].width);
+    const short bottom = static_cast<short>(top + model.sprites[i].height);
     if (!hasBounds)
     {
       outRect.left = left;
@@ -245,12 +263,12 @@ bool ToolboxRectSurfaceContext::dirtyRect(Rect &outRect) const
   }
   if (hasPreviousModel_)
   {
-    for (short i = 0; i < previousModel_.rectCount; ++i)
+    for (short i = 0; i < previousModel_.spriteCount; ++i)
     {
-      const short left = static_cast<short>(rect_.left + previousModel_.rects[i].x);
-      const short top = static_cast<short>(rect_.top + previousModel_.rects[i].y);
-      const short right = static_cast<short>(left + previousModel_.rects[i].width);
-      const short bottom = static_cast<short>(top + previousModel_.rects[i].height);
+      const short left = static_cast<short>(rect_.left + previousModel_.sprites[i].x);
+      const short top = static_cast<short>(rect_.top + previousModel_.sprites[i].y);
+      const short right = static_cast<short>(left + previousModel_.sprites[i].width);
+      const short bottom = static_cast<short>(top + previousModel_.sprites[i].height);
       if (!hasBounds)
       {
         outRect.left = left;
@@ -314,7 +332,7 @@ void ToolboxRectSurfaceContext::rememberCurrentModel()
   hasPreviousModel_ = true;
 }
 
-Rect ToolboxRectSurfaceContext::rectForSprite(const loka::app::RectSprite &sprite) const
+Rect ToolboxRectSurfaceContext::rectForSprite(const loka::app::RectSurfaceSprite &sprite) const
 {
   Rect rect;
   rect.left = static_cast<short>(rect_.left + sprite.x);
@@ -326,11 +344,11 @@ Rect ToolboxRectSurfaceContext::rectForSprite(const loka::app::RectSprite &sprit
 
 bool ToolboxRectSurfaceContext::previousRectForIndex(short index, Rect &previousRect) const
 {
-  if (!hasPreviousModel_ || index < 0 || index >= previousModel_.rectCount)
+  if (!hasPreviousModel_ || index < 0 || index >= previousModel_.spriteCount)
   {
     return false;
   }
-  previousRect = rectForSprite(previousModel_.rects[index]);
+  previousRect = rectForSprite(previousModel_.sprites[index]);
   return true;
 }
 
@@ -341,13 +359,13 @@ bool ToolboxRectSurfaceContext::findMatchingCurrentRect(const Rect &previousRect
   bool foundAnyMatch = false;
   bool foundSizeMatch = false;
   Rect sizeMatchedRect;
-  for (short i = 0; i < model.rectCount; ++i)
+  for (short i = 0; i < model.spriteCount; ++i)
   {
     Rect candidateRect;
-    candidateRect.left = static_cast<short>(rect_.left + model.rects[i].x);
-    candidateRect.top = static_cast<short>(rect_.top + model.rects[i].y);
-    candidateRect.right = static_cast<short>(candidateRect.left + model.rects[i].width);
-    candidateRect.bottom = static_cast<short>(candidateRect.top + model.rects[i].height);
+    candidateRect.left = static_cast<short>(rect_.left + model.sprites[i].x);
+    candidateRect.top = static_cast<short>(rect_.top + model.sprites[i].y);
+    candidateRect.right = static_cast<short>(candidateRect.left + model.sprites[i].width);
+    candidateRect.bottom = static_cast<short>(candidateRect.top + model.sprites[i].height);
     Rect overlap = previousRect;
     if (!SectRect(&overlap, &candidateRect, &overlap))
     {
@@ -466,13 +484,13 @@ void ToolboxRectSurfaceContext::paintRectIfVisible(const Rect &rect, const Rect 
 bool ToolboxRectSurfaceContext::currentModelContainsRect(const Rect &rect,
                                                          const loka::app::RectSurfaceModel &model) const
 {
-  for (short i = 0; i < model.rectCount; ++i)
+  for (short i = 0; i < model.spriteCount; ++i)
   {
     Rect currentRect;
-    currentRect.left = static_cast<short>(rect_.left + model.rects[i].x);
-    currentRect.top = static_cast<short>(rect_.top + model.rects[i].y);
-    currentRect.right = static_cast<short>(currentRect.left + model.rects[i].width);
-    currentRect.bottom = static_cast<short>(currentRect.top + model.rects[i].height);
+    currentRect.left = static_cast<short>(rect_.left + model.sprites[i].x);
+    currentRect.top = static_cast<short>(rect_.top + model.sprites[i].y);
+    currentRect.right = static_cast<short>(currentRect.left + model.sprites[i].width);
+    currentRect.bottom = static_cast<short>(currentRect.top + model.sprites[i].height);
     if (currentRect.left == rect.left && currentRect.top == rect.top && currentRect.right == rect.right
         && currentRect.bottom == rect.bottom)
     {
@@ -505,13 +523,13 @@ void ToolboxRectSurfaceContext::unionSpriteRectsIntoRegion(const loka::app::Rect
   {
     return;
   }
-  for (short i = 0; i < model.rectCount; ++i)
+  for (short i = 0; i < model.spriteCount; ++i)
   {
     Rect spriteRect;
-    spriteRect.left = static_cast<short>(rect_.left + model.rects[i].x);
-    spriteRect.top = static_cast<short>(rect_.top + model.rects[i].y);
-    spriteRect.right = static_cast<short>(spriteRect.left + model.rects[i].width);
-    spriteRect.bottom = static_cast<short>(spriteRect.top + model.rects[i].height);
+    spriteRect.left = static_cast<short>(rect_.left + model.sprites[i].x);
+    spriteRect.top = static_cast<short>(rect_.top + model.sprites[i].y);
+    spriteRect.right = static_cast<short>(spriteRect.left + model.sprites[i].width);
+    spriteRect.bottom = static_cast<short>(spriteRect.top + model.sprites[i].height);
     Rect clippedRect = spriteRect;
     if (!SectRect(&clippedRect, &dirtyRect, &clippedRect))
     {

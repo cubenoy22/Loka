@@ -4,6 +4,15 @@
 #include <assert.h>
 #include "app/scene/Node.hpp"
 #include "core/State.hpp"
+#include "core/resource/Image.hpp"
+
+#ifndef LOKA_RECT_SURFACE_CAPACITY
+#define LOKA_RECT_SURFACE_CAPACITY 16
+#endif
+
+#if LOKA_RECT_SURFACE_CAPACITY < 1 || LOKA_RECT_SURFACE_CAPACITY > 32767
+#error "LOKA_RECT_SURFACE_CAPACITY must fit the RectSurfaceModel short count"
+#endif
 
 namespace loka
 {
@@ -46,11 +55,106 @@ namespace loka
       }
     };
 
+    struct ImageSprite
+    {
+      short x;
+      short y;
+      loka::core::resource::Image image;
+
+      ImageSprite(short left, short top, const loka::core::resource::Image &imageValue)
+          : x(left),
+            y(top),
+            image(imageValue)
+      {
+      }
+    };
+
+    /** One RectSurface entry. Geometry is common to both kinds. The image
+        payload is meaningful only for KIND_IMAGE and is exposed through the
+        kind-refusing query rather than as a generally readable field. */
+    class RectSurfaceSprite
+    {
+    public:
+      enum Kind
+      {
+        KIND_RECT = 0,
+        KIND_IMAGE
+      };
+
+      short x;
+      short y;
+      short width;
+      short height;
+
+      RectSurfaceSprite()
+          : x(0),
+            y(0),
+            width(0),
+            height(0),
+            kind_(KIND_RECT),
+            image_()
+      {
+      }
+
+      RectSurfaceSprite(const RectSprite &rect)
+          : x(rect.x),
+            y(rect.y),
+            width(rect.width),
+            height(rect.height),
+            kind_(KIND_RECT),
+            image_()
+      {
+      }
+
+      RectSurfaceSprite(const ImageSprite &sprite)
+          : x(sprite.x),
+            y(sprite.y),
+            width(static_cast<short>(sprite.image.width())),
+            height(static_cast<short>(sprite.image.height())),
+            kind_(KIND_IMAGE),
+            image_(sprite.image)
+      {
+      }
+
+      Kind kind() const
+      {
+        return kind_;
+      }
+
+      bool queryImage(loka::core::resource::Image &out) const
+      {
+        if (kind_ != KIND_IMAGE)
+        {
+          return false;
+        }
+        out = image_;
+        return true;
+      }
+
+      bool operator==(const RectSurfaceSprite &other) const
+      {
+        if (kind_ != other.kind_ || x != other.x || y != other.y || width != other.width || height != other.height)
+        {
+          return false;
+        }
+        return kind_ != KIND_IMAGE || image_ == other.image_;
+      }
+
+      bool operator!=(const RectSurfaceSprite &other) const
+      {
+        return !(*this == other);
+      }
+
+    private:
+      Kind kind_;
+      loka::core::resource::Image image_;
+    };
+
     struct RectSurfaceModel
     {
       enum
       {
-        kMaxRects = 16,
+        kMaxSprites = LOKA_RECT_SURFACE_CAPACITY,
         kMaxDirtyRects = 16
       };
 
@@ -87,28 +191,38 @@ namespace loka
         }
       };
 
-      short rectCount;
+      short spriteCount;
       short dirtyRectCount;
-      RectSprite rects[kMaxRects];
+      RectSurfaceSprite sprites[kMaxSprites];
       DirtyRect dirtyRects[kMaxDirtyRects];
 
       RectSurfaceModel()
-          : rectCount(0),
+          : spriteCount(0),
             dirtyRectCount(0)
       {
       }
 
-      static short clampRectCount(short count)
+      static short clampSpriteCount(short count)
       {
         if (count < 0)
         {
           return 0;
         }
-        if (count > kMaxRects)
+        if (count > kMaxSprites)
         {
-          return kMaxRects;
+          return kMaxSprites;
         }
         return count;
+      }
+
+      bool add(const RectSprite &sprite)
+      {
+        return addSprite(RectSurfaceSprite(sprite));
+      }
+
+      bool add(const ImageSprite &sprite)
+      {
+        return addSprite(RectSurfaceSprite(sprite));
       }
 
       static short clampDirtyRectCount(short count)
@@ -126,19 +240,19 @@ namespace loka
 
       bool operator==(const RectSurfaceModel &other) const
       {
-        assert(rectCount >= 0 && rectCount <= kMaxRects);
+        assert(spriteCount >= 0 && spriteCount <= kMaxSprites);
         assert(dirtyRectCount >= 0 && dirtyRectCount <= kMaxDirtyRects);
-        assert(other.rectCount >= 0 && other.rectCount <= kMaxRects);
+        assert(other.spriteCount >= 0 && other.spriteCount <= kMaxSprites);
         assert(other.dirtyRectCount >= 0 && other.dirtyRectCount <= kMaxDirtyRects);
-        if (rectCount != other.rectCount || dirtyRectCount != other.dirtyRectCount)
+        if (spriteCount != other.spriteCount || dirtyRectCount != other.dirtyRectCount)
         {
           return false;
         }
-        const short safeRectCount = clampRectCount(rectCount);
+        const short safeSpriteCount = clampSpriteCount(spriteCount);
         const short safeDirtyRectCount = clampDirtyRectCount(dirtyRectCount);
-        for (short i = 0; i < safeRectCount; ++i)
+        for (short i = 0; i < safeSpriteCount; ++i)
         {
-          if (!(rects[i] == other.rects[i]))
+          if (!(sprites[i] == other.sprites[i]))
           {
             return false;
           }
@@ -175,6 +289,17 @@ namespace loka
           return;
         }
         dirtyRects[dirtyRectCount++] = DirtyRect(x, y, width, height);
+      }
+
+    private:
+      bool addSprite(const RectSurfaceSprite &sprite)
+      {
+        if (spriteCount >= kMaxSprites)
+        {
+          return false;
+        }
+        sprites[spriteCount++] = sprite;
+        return true;
       }
     };
 

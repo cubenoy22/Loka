@@ -19,7 +19,7 @@ public:
 private:
   bool
   findMatchingCurrentRect(const Rect &previousRect, const loka::app::RectSurfaceModel &model, Rect &currentRect) const;
-  Rect rectForSprite(const loka::app::RectSprite &sprite) const;
+  Rect rectForSprite(const loka::app::RectSurfaceSprite &sprite) const;
   bool previousRectForIndex(short index, Rect &previousRect) const;
   void paintCurrentMinusPrevious(const Rect &currentRect, const Rect &previousRect, const Rect &dirtyRect);
   void paintRectIfVisible(const Rect &rect, const Rect &dirtyRect);

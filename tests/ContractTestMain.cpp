@@ -41,6 +41,7 @@
 #include "ComponentNodeTests.hpp"
 #include "ForTests.hpp"
 #include "ValueTests.hpp"
+#include "RectSurfaceSpriteTests.hpp"
 #include "SceneOwnershipTests.hpp"
 #include "PhaseGuardTests.hpp"
 #include "LifecycleDetachTests.hpp"

@@ -192,11 +192,16 @@ void MacRectSurfaceContext::draw(void *viewBounds)
   }
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
   [MacRectSurfaceContentColor() setFill];
-  for (short i = 0; i < model.rectCount; ++i)
+  for (short i = 0; i < model.spriteCount; ++i)
   {
-    NSRectFill(NSMakeRect((CGFloat)model.rects[i].x,
-                          (CGFloat)model.rects[i].y,
-                          (CGFloat)model.rects[i].width,
-                          (CGFloat)model.rects[i].height));
+    const loka::app::RectSurfaceSprite &sprite = model.sprites[i];
+    switch (sprite.kind())
+    {
+    case loka::app::RectSurfaceSprite::KIND_RECT:
+      break;
+    case loka::app::RectSurfaceSprite::KIND_IMAGE:
+      continue;
+    }
+    NSRectFill(NSMakeRect((CGFloat)sprite.x, (CGFloat)sprite.y, (CGFloat)sprite.width, (CGFloat)sprite.height));
   }
 }

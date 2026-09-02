@@ -1,0 +1,8 @@
+#ifndef LOKA_TESTS_RECT_SURFACE_SPRITE_TESTS_HPP
+#define LOKA_TESTS_RECT_SURFACE_SPRITE_TESTS_HPP
+
+void testRectSurfaceModelKeepsMixedSpriteOrderAndBounds();
+void testRectSurfaceModelCapacityCountsEverySpriteKind();
+void testImageSpriteKeepsImageIdentityAndIntrinsicSize();
+
+#endif // LOKA_TESTS_RECT_SURFACE_SPRITE_TESTS_HPP

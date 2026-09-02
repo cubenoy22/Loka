@@ -164,36 +164,22 @@ namespace floppybird
         }
       }
 
-      this->cachedModel_.rectCount = 0;
+      this->cachedModel_.spriteCount = 0;
       for (short i = 0; i < snapshot.pipeCount; ++i)
       {
-        if (this->cachedModel_.rectCount < loka::app::RectSurfaceModel::kMaxRects)
-        {
-          this->cachedModel_.rects[this->cachedModel_.rectCount++] = loka::app::RectSprite(
-              snapshot.pipeLeft[i],
-              0,
-              static_cast<short>(loka_floppy_bird::kPipeWidth),
-              snapshot.pipeGapTop[i]);
-        }
-        if (this->cachedModel_.rectCount < loka::app::RectSurfaceModel::kMaxRects)
-        {
-          this->cachedModel_.rects[this->cachedModel_.rectCount++] =
-              loka::app::RectSprite(snapshot.pipeLeft[i],
-                                    snapshot.pipeGapBottom[i],
-                                    static_cast<short>(loka_floppy_bird::kPipeWidth),
-                                    static_cast<short>(loka_floppy_bird::kWindowHeight
-                                                       - snapshot.pipeGapBottom[i]));
-        }
+        this->cachedModel_.add(loka::app::RectSprite(
+            snapshot.pipeLeft[i], 0, static_cast<short>(loka_floppy_bird::kPipeWidth), snapshot.pipeGapTop[i]));
+        this->cachedModel_.add(
+            loka::app::RectSprite(snapshot.pipeLeft[i],
+                                  snapshot.pipeGapBottom[i],
+                                  static_cast<short>(loka_floppy_bird::kPipeWidth),
+                                  static_cast<short>(loka_floppy_bird::kWindowHeight - snapshot.pipeGapBottom[i])));
       }
 
-      if (this->cachedModel_.rectCount < loka::app::RectSurfaceModel::kMaxRects)
-      {
-        this->cachedModel_.rects[this->cachedModel_.rectCount++] =
-            loka::app::RectSprite(static_cast<short>(loka_floppy_bird::kBirdX),
-                                  snapshot.birdY,
-                                  static_cast<short>(loka_floppy_bird::kBirdWidth),
-                                  static_cast<short>(loka_floppy_bird::kBirdHeight));
-      }
+      this->cachedModel_.add(loka::app::RectSprite(static_cast<short>(loka_floppy_bird::kBirdX),
+                                                   snapshot.birdY,
+                                                   static_cast<short>(loka_floppy_bird::kBirdWidth),
+                                                   static_cast<short>(loka_floppy_bird::kBirdHeight)));
 
       this->surfaceModel_.set(this->cachedModel_);
     }
