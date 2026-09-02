@@ -7,6 +7,8 @@ namespace
 {
   const wchar_t kRectSurfaceClassName[] = L"LOKA_RECT_SURFACE";
   const COLORREF kRectSurfaceClearColor = RGB(255, 255, 255);
+  // Ternary raster op "D": leave the destination pixel untouched (wingdi.h has no name for it).
+  const DWORD kRopKeepDestination = 0x00AA0029;
 
   void DrawRectSurfaceImage(HDC hdc, const RECT &spriteRect, const loka::app::RectSurfaceSprite &sprite)
   {
@@ -97,7 +99,7 @@ namespace
             mask,
             0,
             0,
-            MAKEROP4(SRCCOPY, DSTCOPY));
+            MAKEROP4(SRCCOPY, kRopKeepDestination));
     SelectObject(source, old);
     DeleteDC(source);
     DeleteObject(mask);

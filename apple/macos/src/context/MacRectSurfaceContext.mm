@@ -63,9 +63,10 @@ namespace
 
     unsigned char *pixels = [bitmap bitmapData];
     const NSInteger bytesPerRow = [bitmap bytesPerRow];
-    const BOOL alphaFirst = ([bitmap bitmapFormat] & NSAlphaFirstBitmapFormat) != 0;
-    const BOOL nonpremultiplied = ([bitmap bitmapFormat] & NSAlphaNonpremultipliedBitmapFormat) != 0;
-    const NSInteger alphaIndex = alphaFirst ? 0 : 3;
+    // The rep above is allocated with the default bitmap format: RGBA with the
+    // alpha sample last and colour premultiplied.
+    const BOOL nonpremultiplied = NO;
+    const NSInteger alphaIndex = 3;
     for (NSInteger y = 0; y < height; ++y)
     {
       unsigned char *row = pixels + y * bytesPerRow;

@@ -574,7 +574,13 @@ ToolboxRectSurfaceContext::paintImage(const loka::app::RectSurfaceSprite &sprite
         GetClip(tempRgn_);
         ClipRect(dirtyRect);
       }
-      CopyMask(binaryMask, binaryMask, destinationBits, &sourceRect, &sourceRect, &destinationRect);
+      // The Universal Interfaces declare CopyMask with non-const BitMap pointers.
+      CopyMask(const_cast<BitMap *>(binaryMask),
+               const_cast<BitMap *>(binaryMask),
+               const_cast<BitMap *>(destinationBits),
+               &sourceRect,
+               &sourceRect,
+               &destinationRect);
       if (dirtyRect && tempRgn_)
       {
         SetClip(tempRgn_);
