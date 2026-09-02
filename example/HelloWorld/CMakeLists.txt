@@ -141,6 +141,14 @@ if(WIN32)
       -File
         ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/scripts/Win32StandaloneAuditVerifierTest.ps1
       -FixtureExecutable $<TARGET_FILE:LokaWin32StandaloneAuditFixture>)
+  add_test(NAME scriptWin32ScenarioDpiAwareness
+    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
+      -File
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/scripts/Win32ScenarioDpiAwarenessTest.ps1
+      -Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/win32/ScenarioCaptureNative.cs
+      -TestSource
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/win32/ScenarioCaptureNativeTests.cs)
 
 endif()
 

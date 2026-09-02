@@ -242,107 +242,7 @@ function Invoke-CaptureProfileGuard([string]$Descriptor, [string]$Profile) {
     $script:CaptureProfileExitCode = $LASTEXITCODE
 }
 
-$nativeSource = @'
-using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.Runtime.InteropServices;
-
-public enum LokaScenarioCaptureResult {
-    Refused,
-    Uniform,
-    Captured
-}
-
-public static class LokaScenarioNative {
-    [StructLayout(LayoutKind.Sequential)]
-    private struct RECT { public int Left, Top, Right, Bottom; }
-
-    private delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr parameter);
-
-    [DllImport("user32.dll")]
-    private static extern bool EnumWindows(EnumWindowsProc callback, IntPtr parameter);
-    [DllImport("user32.dll")]
-    private static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
-    [DllImport("user32.dll")]
-    private static extern bool IsWindowVisible(IntPtr hwnd);
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetWindow(IntPtr hwnd, uint command);
-    [DllImport("user32.dll")]
-    private static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
-    [DllImport("user32.dll")]
-    private static extern bool PrintWindow(IntPtr hwnd, IntPtr hdc, uint flags);
-    [DllImport("user32.dll")]
-    private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr dpiContext);
-    [DllImport("user32.dll", EntryPoint = "PostMessageW")]
-    private static extern bool PostMessageW(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
-
-    public static IntPtr[] VisibleTopLevelWindows(uint processId) {
-        List<IntPtr> result = new List<IntPtr>();
-        EnumWindows(delegate(IntPtr hwnd, IntPtr parameter) {
-            uint owner;
-            GetWindowThreadProcessId(hwnd, out owner);
-            if (owner == processId && IsWindowVisible(hwnd) && GetWindow(hwnd, 4) == IntPtr.Zero) {
-                result.Add(hwnd);
-            }
-            return true;
-        }, IntPtr.Zero);
-        return result.ToArray();
-    }
-
-    public static LokaScenarioCaptureResult CaptureWindow(IntPtr hwnd, string path) {
-        try {
-            // The scenario target is Per-Monitor V2. Without the same thread
-            // context here, GetWindowRect is virtualized to 96 DPI while the
-            // target publishes physical-pixel crop bounds (#289, #492).
-            IntPtr previousContext = SetThreadDpiAwarenessContext(new IntPtr(-4));
-            if (previousContext == IntPtr.Zero) {
-                // Windows 10 1607 exposes the API but supports only the
-                // Per-Monitor V1 context. Match the application's manifest
-                // fallback before querying physical desktop coordinates.
-                SetThreadDpiAwarenessContext(new IntPtr(-3));
-            }
-        } catch (EntryPointNotFoundException) {
-            // Older capture hosts keep the pre-existing 96-DPI rail.
-        }
-        RECT rect;
-        if (!GetWindowRect(hwnd, out rect)) return LokaScenarioCaptureResult.Refused;
-        int width = rect.Right - rect.Left;
-        int height = rect.Bottom - rect.Top;
-        if (width <= 0 || height <= 0) return LokaScenarioCaptureResult.Refused;
-        using (Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb))
-        using (Graphics graphics = Graphics.FromImage(bitmap)) {
-            IntPtr hdc = graphics.GetHdc();
-            bool captured;
-            try {
-                captured = PrintWindow(hwnd, hdc, 2);
-            } finally {
-                graphics.ReleaseHdc(hdc);
-            }
-            if (!captured) return LokaScenarioCaptureResult.Refused;
-            Color first = bitmap.GetPixel(0, 0);
-            bool varied = false;
-            for (int y = 0; y < height && !varied; ++y) {
-                for (int x = 0; x < width; ++x) {
-                    if (bitmap.GetPixel(x, y).ToArgb() != first.ToArgb()) {
-                        varied = true;
-                        break;
-                    }
-                }
-            }
-            if (!varied) return LokaScenarioCaptureResult.Uniform;
-            bitmap.Save(path, ImageFormat.Png);
-        }
-        return LokaScenarioCaptureResult.Captured;
-    }
-
-    public static bool CloseWindow(IntPtr hwnd) {
-        return hwnd != IntPtr.Zero && PostMessageW(hwnd, 0x0010, IntPtr.Zero, IntPtr.Zero);
-    }
-
-}
-'@
+$NativeSource = Join-Path $PSScriptRoot "ScenarioCaptureNative.cs"
 
 try {
     if ($Example -notmatch '^[a-z0-9][a-z0-9-]*$' `
@@ -433,7 +333,9 @@ try {
         (New-Object System.Text.UTF8Encoding($false)))
 
     Add-Type -AssemblyName System.Drawing
-    Add-Type -TypeDefinition $nativeSource -ReferencedAssemblies System.Drawing
+    Add-Type -Path $NativeSource -ReferencedAssemblies System.Drawing
+    $CaptureDpiSetup = [LokaScenarioNative]::PrepareCaptureProcess()
+    Write-Runner "stage: capture DPI setup $CaptureDpiSetup"
 
     Write-Runner "stage: launch"
     $startInfo = New-Object System.Diagnostics.ProcessStartInfo
@@ -495,7 +397,11 @@ try {
     $settleDeadline = [DateTime]::UtcNow.AddSeconds(30)
     for ($frame = 1; [DateTime]::UtcNow -lt $settleDeadline; ++$frame) {
         $framePath = Join-Path $Settle ("frame-{0:D3}.png" -f $frame)
-        $captureResult = [LokaScenarioNative]::CaptureWindow($ChildWindow, $framePath)
+        $captureResult = [LokaScenarioNative]::CaptureWindow(
+            $ChildWindow, $framePath, $CaptureDpiSetup)
+        if ($captureResult -eq [LokaScenarioCaptureResult]::PhysicalBoundsUnavailable) {
+            Fail-Stage "capture" "no DPI-awareness capability can provide physical window bounds"
+        }
         if ($captureResult -eq [LokaScenarioCaptureResult]::Refused) {
             Fail-Stage "capture" "PrintWindow(PW_RENDERFULLCONTENT) refused frame $frame"
         }
