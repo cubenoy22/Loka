@@ -96,6 +96,23 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Build: macOS SmirkBench",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "macos-debug",
+        "--target",
+        "LokaSmirkBenchMacOS"
+      ],
+      "dependsOn": [
+        "Configure: macOS Native"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Build: macOS Tutorial",
       "type": "shell",
       "command": "cmake",
@@ -250,6 +267,20 @@
         "win32-debug",
         "--target",
         "LokaFloppyBirdWin32"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Build: Win32 SmirkBench",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "win32-debug",
+        "--target",
+        "LokaSmirkBenchWin32"
       ],
       "group": "build",
       "problemMatcher": "$msCompile"
@@ -554,6 +585,23 @@
         "retro68-68k-release",
         "--target",
         "LokaFloppyBird68K_APPL"
+      ],
+      "dependsOn": [
+        "Configure: Retro68 68K"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Build: Retro68 68K SmirkBench",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
+      "args": [
+        "--build",
+        "--preset",
+        "retro68-68k-release",
+        "--target",
+        "LokaSmirkBench68K_APPL"
       ],
       "dependsOn": [
         "Configure: Retro68 68K"
@@ -1144,6 +1192,26 @@
       "problemMatcher": []
     },
     {
+      "label": "MAME: Mount SmirkBench",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-mount.sh",
+      "args": [
+        "${workspaceFolder}/build/retro68/68k/Release/example/SmirkBench/LokaSmirkBench68K.dsk"
+      ],
+      "windows": {
+        "command": "powershell.exe",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-mount.ps1",
+          "build/retro68/68k/Release/example/SmirkBench/LokaSmirkBench68K.dsk"
+        ]
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "MAME: Mount Tutorial",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-mount.sh",
@@ -1220,6 +1288,16 @@
         "MAME: Eject Floppy",
         "Build: Retro68 68K FloppyBird",
         "MAME: Mount FloppyBird"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Mount in MAME: SmirkBench",
+      "dependsOn": [
+        "MAME: Eject Floppy",
+        "Build: Retro68 68K SmirkBench",
+        "MAME: Mount SmirkBench"
       ],
       "dependsOrder": "sequence",
       "problemMatcher": []
