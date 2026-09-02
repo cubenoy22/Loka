@@ -154,7 +154,6 @@ namespace simpleviewer
     };
 
     static const int kNavWidth = 200;
-    static const int kNavHeight = 240;
     static const int kNarrowBreakpoint = 480;
 
   public:
@@ -274,7 +273,7 @@ namespace simpleviewer
               << OpenFileDialog().result(this->chooserResult_).testId("SimpleViewerOpenFileDialog"));
       openDialog.setNodeTag(kOpenDialogTag);
       return Box()
-                 .size(kNavWidth, kNavHeight)
+                 .size(kNavWidth, 0)
                  .TEST_ID("SimpleViewer.NavPane")
              << (VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_LEADING)
                  << Button("Open...").onClick(this->props.openDialogEvent_)
