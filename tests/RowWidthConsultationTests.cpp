@@ -71,14 +71,15 @@ namespace
     return state;
   }
 
-  class RowBranchWidthBoundaryNode;
-  typedef loka::app::scene::BoundaryPropsFor<RowBranchWidthBoundaryNode> RowBranchWidthBoundaryProps;
-
-  class RowBranchWidthBoundaryNode : public loka::app::scene::BoundaryNodeFor<RowBranchWidthBoundaryNode>
+  template <int BoxHeight>
+  class RowBranchWidthBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<RowBranchWidthBoundaryNode<BoxHeight> >
   {
   public:
-    explicit RowBranchWidthBoundaryNode(const RowBranchWidthBoundaryProps &props)
-        : loka::app::scene::BoundaryNodeFor<RowBranchWidthBoundaryNode>(props),
+    typedef loka::app::scene::BoundaryPropsFor<RowBranchWidthBoundaryNode<BoxHeight> > Props;
+
+    explicit RowBranchWidthBoundaryNode(const Props &props)
+        : loka::app::scene::BoundaryNodeFor<RowBranchWidthBoundaryNode<BoxHeight> >(props),
           fixedArmShown_()
     {
       this->state(this->fixedArmShown_, false);
@@ -87,7 +88,7 @@ namespace
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
       loka::app::BoxProps boxProps;
-      boxProps.setSize(20, 10);
+      boxProps.setSize(20, BoxHeight);
       loka::app::ShowDefinition fixedArm = loka::app::Show(*this->fixedArmShown_.state());
       fixedArm << loka::app::BoxDefinition(boxProps);
 
@@ -104,7 +105,60 @@ namespace
   private:
     loka::app::scene::NodeState<bool> fixedArmShown_;
   };
+
+  template <int BoxHeight>
+  void verifyRowBranchArmSwitchRelayoutsWidthConsultation()
+  {
+    RowTextSeatRecord record;
+    g_rowTextSeatRecord = &record;
+    NullScenePlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<RowBranchWidthBoundaryNode<BoxHeight> >()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    RowBranchWidthBoundaryNode<BoxHeight> *boundary = static_cast<RowBranchWidthBoundaryNode<BoxHeight> *>(
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    LOKA_VERIFY(boundary != 0);
+    const unsigned long layoutCalls = platform.onChangeCallCount();
+    const int textCalls = record.calls;
+
+    boundary->showFixedArm();
+    if (scene.hasPendingInvalidation())
+    {
+      LOKA_VERIFY(scene.flushInvalidation());
+    }
+
+    LOKA_VERIFY(platform.onChangeCallCount() == layoutCalls + 1);
+    LOKA_VERIFY((platform.lastOnChangeFlags() & loka::app::scene::NODE_DIRTY_CHILD) != 0);
+    LOKA_VERIFY((platform.lastOnChangeFlags() & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
+    LOKA_VERIFY(record.calls == textCalls + 1);
+    LOKA_VERIFY(record.state.x == 24);
+    LOKA_VERIFY(record.state.width == 76);
+
+    scene.unmount();
+    g_rowTextSeatRecord = 0;
+  }
 } // namespace
+
+void testRowWidthOnlyBoxLeavesOnlyRemainingSeatForText()
+{
+  loka::app::StackNode row((loka::app::StackProps(loka::app::STACK_AXIS_ROW)));
+  loka::app::BoxProps boxProps;
+  boxProps.setSize(200, 0);
+  row.addChild(new loka::app::BoxNode(boxProps));
+  row.addChild(new RowSeatTextNode(loka::app::TextProps("text")));
+
+  RowTextSeatRecord record;
+  g_rowTextSeatRecord = &record;
+  NullScenePlatformController platform;
+  platform.projectLayoutForTesting(&row, rowState(500));
+  g_rowTextSeatRecord = 0;
+
+  LOKA_VERIFY(record.calls == 1);
+  LOKA_VERIFY(record.state.x == 204);
+  LOKA_VERIFY(record.state.width == 296);
+}
 
 void testRowFixedBoxWidthLeavesOnlyRemainingSeatForText()
 {
@@ -146,34 +200,74 @@ void testRowEmptyFragmentConsumesNeitherSeatNorGap()
 
 void testRowBranchArmSwitchRelayoutsWidthConsultation()
 {
+  verifyRowBranchArmSwitchRelayoutsWidthConsultation<10>();
+}
+
+void testRowWidthOnlyBranchArmForwardsWidthClaim()
+{
+  verifyRowBranchArmSwitchRelayoutsWidthConsultation<0>();
+}
+
+void testRowHeightOnlyBoxKeepsFlexSeat()
+{
+  loka::app::StackNode row((loka::app::StackProps(loka::app::STACK_AXIS_ROW)));
+  loka::app::BoxProps boxProps;
+  boxProps.setSize(0, 10);
+  row.addChild(new loka::app::BoxNode(boxProps));
+  row.addChild(new RowSeatTextNode(loka::app::TextProps("text")));
+
   RowTextSeatRecord record;
   g_rowTextSeatRecord = &record;
   NullScenePlatformController platform;
-  loka::app::scene::Scene scene((loka::app::scene::Boundary<RowBranchWidthBoundaryNode>()));
-  scene.mount(&platform);
-  scene.updateAttached(true);
-
-  RowBranchWidthBoundaryNode *boundary =
-      static_cast<RowBranchWidthBoundaryNode *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
-  LOKA_VERIFY(boundary != 0);
-  const unsigned long layoutCalls = platform.onChangeCallCount();
-  const int textCalls = record.calls;
-
-  boundary->showFixedArm();
-  if (scene.hasPendingInvalidation())
-  {
-    LOKA_VERIFY(scene.flushInvalidation());
-  }
-
-  LOKA_VERIFY(platform.onChangeCallCount() == layoutCalls + 1);
-  LOKA_VERIFY((platform.lastOnChangeFlags() & loka::app::scene::NODE_DIRTY_CHILD) != 0);
-  LOKA_VERIFY((platform.lastOnChangeFlags() & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
-  LOKA_VERIFY(record.calls == textCalls + 1);
-  LOKA_VERIFY(record.state.x == 24);
-  LOKA_VERIFY(record.state.width == 76);
-
-  scene.unmount();
+  platform.projectLayoutForTesting(&row, rowState(500));
   g_rowTextSeatRecord = 0;
+
+  LOKA_VERIFY(record.calls == 1);
+  LOKA_VERIFY(record.state.x == 252);
+  LOKA_VERIFY(record.state.width == 248);
+}
+
+void testRowWidthOnlyBoxUsesRowHeight()
+{
+  loka::app::StackNode row((loka::app::StackProps(loka::app::STACK_AXIS_ROW)));
+  loka::app::BoxProps boxProps;
+  boxProps.setSize(200, 0);
+  loka::app::BoxNode *box = new loka::app::BoxNode(boxProps);
+  RowTextSeatRecord record;
+  box->addChild(new RowSeatTextNode(loka::app::TextProps("box")));
+  row.addChild(box);
+
+  g_rowTextSeatRecord = &record;
+  NullScenePlatformController platform;
+  platform.projectLayoutForTesting(&row, rowState(500));
+  g_rowTextSeatRecord = 0;
+
+  LOKA_VERIFY(record.calls == 1);
+  LOKA_VERIFY(record.state.x == 0);
+  LOKA_VERIFY(record.state.width == 200);
+  LOKA_VERIFY(record.state.height == 20);
+}
+
+void testColumnWidthOnlyBoxKeepsFullAvailableWidth()
+{
+  loka::app::StackProps columnProps(loka::app::STACK_AXIS_COLUMN);
+  columnProps.alignHorizontal(loka::app::HORIZONTAL_ALIGNMENT_LEADING);
+  loka::app::StackNode column(columnProps);
+  loka::app::BoxProps boxProps;
+  boxProps.setSize(200, 0);
+  loka::app::BoxNode *box = new loka::app::BoxNode(boxProps);
+  RowTextSeatRecord record;
+  box->addChild(new RowSeatTextNode(loka::app::TextProps("box")));
+  column.addChild(box);
+
+  g_rowTextSeatRecord = &record;
+  NullScenePlatformController platform;
+  platform.projectLayoutForTesting(&column, rowState(500));
+  g_rowTextSeatRecord = 0;
+
+  LOKA_VERIFY(record.calls == 1);
+  LOKA_VERIFY(record.state.x == 0);
+  LOKA_VERIFY(record.state.width == 500);
 }
 
 void testRowOversizedFixedBoxKeepsDeclaredSeatForSibling()
