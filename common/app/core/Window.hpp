@@ -278,6 +278,7 @@ public:
     return *this;
   }
 
+  /** Sets the top-level origin in the platform's desktop-placement space. */
   WindowProps &position(int x, int y)
   {
     positionX = x;
@@ -285,6 +286,7 @@ public:
     return *this;
   }
 
+  /** Sets the content size in logical display units. */
   WindowProps &size(int width, int height)
   {
     this->width = width;
@@ -292,6 +294,7 @@ public:
     return *this;
   }
 
+  /** Combines a platform desktop origin with a logical content size. */
   WindowProps &frame(int x, int y, int width, int height)
   {
     position(x, y);
@@ -340,6 +343,8 @@ public:
     return *this;
   }
 
+  /** Supplies live Window placement: platform desktop origin and logical
+      content size. */
   WindowProps &frameState(loka::core::MutableState<loka::core::Frame> *state)
   {
     frameStatePtr = state;
@@ -630,11 +635,14 @@ public:
   {
     return *displayTitle_;
   }
+  /** Application-intent content frame. Its size is in logical display units;
+      its top-level origin is a platform desktop-placement coordinate. */
   loka::core::MutableState<loka::core::Frame> &frameState()
   {
     return *frameStatePtr_;
   }
-  /** The native content frame is a fact written only by the platform rail;
+  /** The native content frame has a logical size and platform desktop origin
+      written only by the platform rail;
       frameState() is application intent and the rail never writes it. The two
       may legally diverge after a user resize. An application that wants its
       intent to follow the native fact writes

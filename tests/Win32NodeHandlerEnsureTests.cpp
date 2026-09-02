@@ -54,7 +54,7 @@ void testWin32NodeHandlerEnsureContract()
       0, L"STATIC", L"ensure-host", WS_OVERLAPPED, 0, 0, 320, 240, NULL, NULL, GetModuleHandle(NULL), NULL);
   assert(root);
   {
-    Win32ScenePlatformController controller(root);
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
     RegisterWin32BuiltInSupport(controller);
 
     // -- Button: full contract via the hwnd accessor --
@@ -89,6 +89,32 @@ void testWin32NodeHandlerEnsureContract()
     r = childRectInParent(ctx->hwnd(), root);
     assert(r.left == 40 && r.top == 50 && r.right - r.left == 120 && r.bottom - r.top == 40 &&
            "re-ensure must route through relayout so the window follows the requested geometry");
+
+    const HFONT font96 = reinterpret_cast<HFONT>(
+        SendMessageW(ctx->hwnd(), WM_GETFONT, 0, 0));
+    LOKA_VERIFY(font96);
+    controller.updateDisplayScale(loka::win32::Win32DisplayScale(192));
+    LOKA_VERIFY(controller.prepareProjectedLayout(&button, state));
+    const HFONT font192 = reinterpret_cast<HFONT>(
+        SendMessageW(ctx->hwnd(), WM_GETFONT, 0, 0));
+    LOKA_VERIFY(font192 && font192 != font96
+                && "a DPI change must replace each native control's message font");
+    controller.updateDisplayScale(loka::win32::Win32DisplayScale(192));
+    LOKA_VERIFY(reinterpret_cast<HFONT>(
+                    SendMessageW(ctx->hwnd(), WM_GETFONT, 0, 0)) == font192
+                && "a matching DPI must retain the already-applied font");
+    LOGFONTW releasedFont;
+    ZeroMemory(&releasedFont, sizeof(releasedFont));
+    LOKA_VERIFY(GetObjectW(font96, sizeof(releasedFont), &releasedFont) == 0
+                && "the replaced controller-owned font must be released");
+    r = childRectInParent(ctx->hwnd(), root);
+    assert(r.left == 80 && r.top == 100
+           && r.right - r.left == 240 && r.bottom - r.top == 80
+           && "a DPI change must reproject the same logical child frame");
+    controller.updateDisplayScale(loka::win32::Win32DisplayScale(96));
+    LOKA_VERIFY(controller.prepareProjectedLayout(&button, state));
+    LOKA_VERIFY(GetObjectW(font192, sizeof(releasedFont), &releasedFont) == 0
+                && "each later scale replacement must release its prior font");
 
     // -- Text: same contract on a second node kind (no hwnd accessor; the
     // child-window census carries the not-recreated leg) --

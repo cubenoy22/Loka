@@ -68,7 +68,8 @@ void testWin32OpenReadAcceptsFullWidthPath()
   dirWide += kDirNameWide;
   RemoveDirectoryW(dirWide.c_str());
   const BOOL made = CreateDirectoryW(dirWide.c_str(), NULL);
-  assert((made || GetLastError() == ERROR_ALREADY_EXISTS) && "could not create the full-width fixture directory");
+  LOKA_VERIFY((made || GetLastError() == ERROR_ALREADY_EXISTS) &&
+              "could not create the full-width fixture directory");
 
   std::wstring fileWide = dirWide;
   fileWide += L"\\";
@@ -134,7 +135,7 @@ void testWin32FileFromWidePathSurvivesToOpen()
   dirWide += kDirNameWide;
   RemoveDirectoryW(dirWide.c_str());
   const BOOL made = CreateDirectoryW(dirWide.c_str(), NULL);
-  assert((made || GetLastError() == ERROR_ALREADY_EXISTS));
+  LOKA_VERIFY(made || GetLastError() == ERROR_ALREADY_EXISTS);
 
   std::wstring fileWide = dirWide;
   fileWide += L"\\";

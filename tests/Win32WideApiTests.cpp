@@ -66,7 +66,7 @@ void testWin32CustomWindowClassesUseWideApiFamily()
       0, L"STATIC", L"wide-api-host", WS_OVERLAPPED, 0, 0, 320, 240, NULL, NULL, GetModuleHandleW(NULL), NULL);
   assert(root);
   {
-    Win32ScenePlatformController controller(root);
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
 
     loka::app::CellProps cellProps;
     loka::app::CellNode cellNode(cellProps);

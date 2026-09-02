@@ -18,6 +18,18 @@ public:
 protected:
   void retireWindow(HWND &hwnd);
   void positionNativeWindow(HWND hwnd, int x, int y, int width, int height);
+  HWND createNativeChildWindow(DWORD exStyle,
+                               LPCWSTR className,
+                               LPCWSTR windowName,
+                               DWORD style,
+                               int x,
+                               int y,
+                               int width,
+                               int height,
+                               HWND parent,
+                               HMENU menu,
+                               HINSTANCE instance,
+                               void *createParameter);
 
   Win32ScenePlatformController *controller() const
   {

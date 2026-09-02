@@ -174,7 +174,7 @@ void testWin32LayoutPresentsRootOnceAfterPositioningChildren()
   std::printf("\n==== [testWin32LayoutPresentsRootOnceAfterPositioningChildren] start ====\n");
   HWND root = createLiveResizeHost();
   {
-    Win32ScenePlatformController controller(root);
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
     RegisterWin32BuiltInSupport(controller);
     loka::app::StackNode column((loka::app::StackProps(loka::app::STACK_AXIS_COLUMN)));
     column.addChild(new loka::app::TextNode((loka::app::TextProps("first"))));
@@ -201,7 +201,7 @@ void testWin32ReentrantLayoutSharesOutermostPresentation()
   std::printf("\n==== [testWin32ReentrantLayoutSharesOutermostPresentation] start ====\n");
   HWND root = createLiveResizeHost();
   {
-    Win32ScenePlatformController controller(root);
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
     RegisterWin32BuiltInSupport(controller);
     ReentrantLayoutOffset offset(100);
     loka::app::ScrollViewNode scrollView((loka::app::ScrollViewProps(offset.state())));
@@ -238,7 +238,7 @@ void testWin32PopupRelayoutPreservesNativeItems()
   std::printf("\n==== [testWin32PopupRelayoutPreservesNativeItems] start ====\n");
   HWND root = createLiveResizeHost();
   {
-    Win32ScenePlatformController controller(root);
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
     const char *itemLiterals[] = {"Apple", "Banana", "Cherry"};
     loka::core::MutableState<int> selection(1);
     int materializeAttempts = 0;

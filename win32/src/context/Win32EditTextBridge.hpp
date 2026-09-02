@@ -15,6 +15,16 @@ namespace loka
 {
   namespace win32
   {
+    inline DWORD EditTextControlExStyle()
+    {
+      return WS_EX_CLIENTEDGE;
+    }
+
+    inline DWORD EditTextControlStyle()
+    {
+      return WS_TABSTOP | WS_VISIBLE | WS_CHILD | WS_BORDER | ES_AUTOHSCROLL;
+    }
+
     /** The EditText native pair must stay UTF-16 end to end: an ANSI EDIT
         control stores IME input in the system codepage, and reading those
         bytes back as UTF-8 destroys any out-of-ASCII text (#160). Creation,
@@ -22,9 +32,19 @@ namespace loka
         one committed LokaTestsWin32 test. */
     inline HWND CreateEditTextControl(HWND parent, int x, int y, int width, int height)
     {
-      DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | WS_BORDER | ES_AUTOHSCROLL;
       return CreateWindowExW(
-          WS_EX_CLIENTEDGE, L"EDIT", L"", style, x, y, width, height, parent, NULL, GetModuleHandle(NULL), NULL);
+          EditTextControlExStyle(),
+          L"EDIT",
+          L"",
+          EditTextControlStyle(),
+          x,
+          y,
+          width,
+          height,
+          parent,
+          NULL,
+          GetModuleHandleW(NULL),
+          NULL);
     }
 
     inline void ReadEditTextWide(HWND hwnd, std::wstring &out)

@@ -53,7 +53,18 @@ Win32EditTextContext::Win32EditTextContext(Win32ScenePlatformController *control
       applyingFromState_(false),
       updatingFromControl_(false)
 {
-  hwnd_ = loka::win32::CreateEditTextControl(parent, x, y, width, height);
+  hwnd_ = this->createNativeChildWindow(loka::win32::EditTextControlExStyle(),
+                                        L"EDIT",
+                                        L"",
+                                        loka::win32::EditTextControlStyle(),
+                                        x,
+                                        y,
+                                        width,
+                                        height,
+                                        parent,
+                                        NULL,
+                                        GetModuleHandleW(NULL),
+                                        NULL);
   if (hwnd_)
   {
     SetWindowLongPtr(hwnd_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));

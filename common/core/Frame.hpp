@@ -5,6 +5,11 @@ namespace loka
 {
   namespace core
   {
+    /** Rectangle used for logical UI geometry. Native platform projections
+        convert its local edges to device coordinates; an owning API may
+        document a wider placement space for its origin. Window does so for
+        top-level desktop placement while keeping width/height logical.
+        Decoded bitmap dimensions remain physical pixel facts. */
     struct Frame
     {
       int x;
