@@ -2,6 +2,7 @@
 #define LOKA_SIMPLE_VIEWER_MAIN_NODE_HPP
 
 #include "app/nodes/boundary/StdComposition.hpp"
+#include "app/layout/FallbackControlMetrics.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
@@ -194,16 +195,13 @@ namespace simpleviewer
       this->props.assertInitialized();
 
       MatchDefinition<int> nav = Match(*this->navMode_.state());
-      nav.arm(&MainNode::isNavPaneVisible, 0, this->navPane())
+      nav.arm(NAV_WIDE, this->navPane(false))
+          .arm(NAV_NARROW_OPEN, this->navPane(true))
           .otherwise(Fragment());
       nav.setNodeTag(kNavSeatTag);
 
       MatchDefinition<int> navToggle = Match(*this->navMode_.state());
-      navToggle.arm(&MainNode::isNarrowMode,
-                    0,
-                    Button("=")
-                        .onClick(&this->toggleNavEvent_)
-                        .TEST_ID("SimpleViewer.NavToggle"))
+      navToggle.arm(NAV_NARROW_CLOSED, this->navToggleButton())
           .otherwise(Fragment());
       navToggle.setNodeTag(kNavToggleSeatTag);
 
@@ -260,36 +258,48 @@ namespace simpleviewer
     friend class ::SimpleViewerTestAccess;
 #endif
 
-    static bool isNarrowMode(const int &mode, void *)
-    {
-      return mode == NAV_NARROW_CLOSED || mode == NAV_NARROW_OPEN;
-    }
-
-    static bool isNavPaneVisible(const int &mode, void *)
-    {
-      return mode == NAV_WIDE || mode == NAV_NARROW_OPEN;
-    }
-
-    loka::app::Box navPane()
+    loka::app::ButtonDefinition navToggleButton()
     {
       using namespace loka::app;
+      return Button("=")
+          .onClick(&this->toggleNavEvent_)
+          .TEST_ID("SimpleViewer.NavToggle");
+    }
+
+    loka::app::HStack navToggleHeader()
+    {
+      using namespace loka::app;
+      return HStack()
+             << (Box().size(layout::FallbackControlMetrics::kButtonHeight,
+                            layout::FallbackControlMetrics::kButtonHeight)
+                 << this->navToggleButton());
+    }
+
+    loka::app::Box navPane(bool showToggle)
+    {
+      using namespace loka::app;
+      VStack contents = VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_LEADING);
+      if (showToggle)
+      {
+        contents << this->navToggleHeader();
+      }
+      contents << Button("Open...").onClick(this->props.openDialogEvent_)
+               << Text("Loka file:")
+               << Text(this->chooserMessage_.state())
+                      .attr(TextAttr().wrap(TEXT_WRAP_CHAR).truncation(TEXT_TRUNCATION_NONE))
+               << Button("Fit to Window")
+                      .onClick(this->props.fitEvent_)
+                      .TEST_ID("SimpleViewer.Mode.Fit")
+               << Button("Actual Size")
+                      .onClick(this->props.actualEvent_)
+                      .TEST_ID("SimpleViewer.Mode.Actual")
+               << Button("Actual Size (Scroll)")
+                      .onClick(this->props.actualScrollEvent_)
+                      .TEST_ID("SimpleViewer.Mode.ActualScroll");
       return Box()
                  .size(kNavWidth, 0)
                  .TEST_ID("SimpleViewer.NavPane")
-             << (VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_LEADING)
-                 << Button("Open...").onClick(this->props.openDialogEvent_)
-                 << Text("Loka file:")
-                 << Text(this->chooserMessage_.state())
-                        .attr(TextAttr().wrap(TEXT_WRAP_CHAR).truncation(TEXT_TRUNCATION_NONE))
-                 << Button("Fit to Window")
-                        .onClick(this->props.fitEvent_)
-                        .TEST_ID("SimpleViewer.Mode.Fit")
-                 << Button("Actual Size")
-                        .onClick(this->props.actualEvent_)
-                        .TEST_ID("SimpleViewer.Mode.Actual")
-                 << Button("Actual Size (Scroll)")
-                        .onClick(this->props.actualScrollEvent_)
-                        .TEST_ID("SimpleViewer.Mode.ActualScroll"));
+             << contents;
     }
 
     loka::app::ImageViewDefinitionWithAttr imageView(

@@ -146,6 +146,57 @@ namespace
     }
   };
 
+  class NullButtonGeometryContext : public loka::app::scene::NodeContext
+  {
+  public:
+    NullButtonGeometryContext()
+        : geometry_()
+    {
+    }
+
+    virtual short layout(loka::app::scene::IPlatformController *,
+                         loka::app::scene::LayoutState &state)
+    {
+      this->geometry_ = state;
+      return static_cast<short>(state.y + state.height);
+    }
+
+    const loka::app::scene::LayoutState &geometry() const
+    {
+      return this->geometry_;
+    }
+
+  private:
+    loka::app::scene::LayoutState geometry_;
+  };
+
+  class NullButtonGeometryHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::ButtonNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(
+        loka::app::scene::Node *node,
+        loka::app::scene::IPlatformController *controller,
+        const loka::app::scene::LayoutState &state)
+    {
+      (void)state;
+      loka::app::ButtonNode *button = node ? node->asButtonNode() : 0;
+      if (!button || !controller)
+      {
+        return 0;
+      }
+      if (!button->getContext())
+      {
+        button->setContext(new NullButtonGeometryContext());
+      }
+      return button->getContext();
+    }
+  };
+
   void CountMenuApply(void *userData, Window *)
   {
     ++*static_cast<int *>(userData);
@@ -273,12 +324,14 @@ namespace
         : platformContext(),
           config(&platformContext),
           imageGeometryHandler(),
+          buttonGeometryHandler(),
           platform(),
           scene(0),
           menuApplyCount(0),
           menuController(&config, &CountMenuApply, &menuApplyCount)
     {
       LOKA_VERIFY(this->platform.registerNodeHandler(&this->imageGeometryHandler));
+      LOKA_VERIFY(this->platform.registerNodeHandler(&this->buttonGeometryHandler));
       simpleviewer::MainProps props;
       props.platformContext(&platformContext)
           .openDialogEvent(SimpleViewerTestAccess::openDialogEvent(config))
@@ -315,6 +368,7 @@ namespace
     NullPlatformContext platformContext;
     SimpleViewerAppConfig config;
     NullImageGeometryHandler imageGeometryHandler;
+    NullButtonGeometryHandler buttonGeometryHandler;
     NullScenePlatformController platform;
     loka::app::scene::Scene *scene;
     int menuApplyCount;
@@ -363,6 +417,38 @@ void testSimpleViewerNavSeatsFollowModeAndRetainContentImage()
   recordRootSeats(rootRow, open);
   LOKA_VERIFY(open.navState.width == 200);
   LOKA_VERIFY(open.contentState.x == 200 + kRowGap);
+}
+
+void testSimpleViewerOpenPaneToggleStaysInsideSubNavWidthViewport()
+{
+  SimpleViewerHarness harness;
+  simpleviewer::MainNode *main = harness.mainNode();
+  LOKA_VERIFY(main != 0);
+  SimpleViewerTestAccess::setNavMode(*main, simpleviewer::NAV_NARROW_OPEN);
+  flushScene(*harness.scene);
+
+  loka::app::StackNode *root = static_cast<loka::app::StackNode *>(
+      findNode(main, "SimpleViewer.Root"));
+  LOKA_VERIFY(root != 0);
+  loka::app::scene::LayoutState viewport;
+  viewport.x = 0;
+  viewport.y = 0;
+  viewport.width = 120;
+  viewport.height = 280;
+  viewport.lineHeight = 10;
+  viewport.spacing = kRowGap;
+  harness.platform.projectLayoutForTesting(root, viewport);
+
+  loka::app::ButtonNode *toggle = static_cast<loka::app::ButtonNode *>(
+      findNode(main, "SimpleViewer.NavToggle"));
+  LOKA_VERIFY(toggle != 0);
+  NullButtonGeometryContext *toggleContext =
+      static_cast<NullButtonGeometryContext *>(toggle->getContext());
+  LOKA_VERIFY(toggleContext != 0);
+  const loka::app::scene::LayoutState &geometry = toggleContext->geometry();
+  LOKA_VERIFY(geometry.width > 0);
+  LOKA_VERIFY(geometry.x >= viewport.x);
+  LOKA_VERIFY(geometry.x + geometry.width <= viewport.x + viewport.width);
 }
 
 void testSimpleViewerDisplayArmsAndMenuChecksFollowOwnedMode()

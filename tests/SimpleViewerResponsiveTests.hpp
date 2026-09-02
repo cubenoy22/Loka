@@ -2,6 +2,7 @@
 #define LOKA_TESTS_SIMPLE_VIEWER_RESPONSIVE_TESTS_HPP
 
 void testSimpleViewerNavSeatsFollowModeAndRetainContentImage();
+void testSimpleViewerOpenPaneToggleStaysInsideSubNavWidthViewport();
 void testSimpleViewerDisplayArmsAndMenuChecksFollowOwnedMode();
 void testSimpleViewerDisplayModesProjectExpectedNullGeometry();
 void testSimpleViewerCommittedImageResetsRailScrollOffset();
