@@ -44,11 +44,18 @@ private:
   void unbindModel();
   void applyModel();
   bool queryBoundsInParent(HWND &parent, RECT &rect) const;
-  void draw(HDC hdc, const RECT &rect);
+  loka::app::RectSurfacePaintResult draw(HDC hdc,
+                                         const RECT &rect,
+                                         loka::app::RectSurfaceModel &requestedModel,
+                                         RECT &retryRect);
+  void finishPaint(loka::app::RectSurfacePaintResult result,
+                   const loka::app::RectSurfaceModel &requestedModel,
+                   const RECT &retryRect);
 
   loka::app::RectSurfaceNode *node_;
   HWND hwnd_;
   loka::core::State<loka::app::RectSurfaceModel> *modelState_;
+  loka::app::RectSurfaceModel previousModel_;
 };
 
 #endif

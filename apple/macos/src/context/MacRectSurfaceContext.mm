@@ -17,6 +17,25 @@ namespace
     return [NSColor blackColor];
   }
 
+  void IncludeRectSurfaceRetryFrame(loka::core::Frame &retryFrame,
+                                    const loka::app::RectSurfaceSprite &sprite)
+  {
+    if (!retryFrame.hasSize())
+    {
+      retryFrame = loka::core::Frame(sprite.x, sprite.y, sprite.width, sprite.height);
+      return;
+    }
+    const int left = retryFrame.x < sprite.x ? retryFrame.x : sprite.x;
+    const int top = retryFrame.y < sprite.y ? retryFrame.y : sprite.y;
+    const int retryRight = retryFrame.x + retryFrame.width;
+    const int spriteRight = sprite.x + sprite.width;
+    const int right = retryRight > spriteRight ? retryRight : spriteRight;
+    const int retryBottom = retryFrame.y + retryFrame.height;
+    const int spriteBottom = sprite.y + sprite.height;
+    const int bottom = retryBottom > spriteBottom ? retryBottom : spriteBottom;
+    retryFrame = loka::core::Frame(left, top, right - left, bottom - top);
+  }
+
   unsigned char UnpremultiplyRectSurfaceComponent(unsigned char component, unsigned char alpha)
   {
     const unsigned int value = (static_cast<unsigned int>(component) * 255u + alpha / 2u) / alpha;
@@ -193,7 +212,8 @@ MacRectSurfaceContext::MacRectSurfaceContext(MacScenePlatformController *control
     : MacRetirableContext(controller),
       node_(node),
       modelState_(0),
-      view_(0)
+      view_(0),
+      previousModel_()
 {
   NSView *parent = (NSView *)parentView;
   LokaRectSurfaceView *view = [[LokaRectSurfaceView alloc] initWithFrame:NSMakeRect(x, y, width, height)];
@@ -235,6 +255,7 @@ void MacRectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact pr
     if (next == loka::app::scene::NODE_FACT_RETIRED)
     {
       this->clearPreparedImages();
+      this->previousModel_.clear();
       this->unbindModel();
       LokaRectSurfaceView *view = (LokaRectSurfaceView *)this->view_;
       [view setContext:0];
@@ -359,6 +380,8 @@ void MacRectSurfaceContext::draw(void *viewBounds)
   }
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
   const loka::app::RectSurfacePaintList paintList(model);
+  loka::app::RectSurfacePaintResult paintResult = loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
+  loka::core::Frame retryFrame;
   [MacRectSurfaceContentColor() setFill];
   for (short i = 0; i < paintList.count(); ++i)
   {
@@ -383,10 +406,43 @@ void MacRectSurfaceContext::draw(void *viewBounds)
                     operation:LOKA_MAC_COMPOSITING_SOURCE_OVER
                      fraction:1.0];
         }
+        else
+        {
+          paintResult = loka::app::RECT_SURFACE_PAINT_REFUSED;
+          IncludeRectSurfaceRetryFrame(retryFrame, sprite);
+        }
       }
       continue;
     }
     }
     NSRectFill(NSMakeRect((CGFloat)sprite.x, (CGFloat)sprite.y, (CGFloat)sprite.width, (CGFloat)sprite.height));
+  }
+  finishPaint(paintResult, model, retryFrame);
+}
+
+void MacRectSurfaceContext::finishPaint(loka::app::RectSurfacePaintResult result,
+                                        const loka::app::RectSurfaceModel &requestedModel,
+                                        const loka::core::Frame &retryFrame)
+{
+  loka::app::FinishRectSurfacePaint(result, requestedModel, previousModel_);
+  switch (result)
+  {
+  case loka::app::RECT_SURFACE_PAINT_SUCCEEDED:
+    break;
+  case loka::app::RECT_SURFACE_PAINT_REFUSED:
+  {
+    LokaRectSurfaceView *view = (LokaRectSurfaceView *)view_;
+    if (view && retryFrame.hasSize())
+    {
+      const NSRect retryRect = NSMakeRect(static_cast<CGFloat>(retryFrame.x),
+                                          static_cast<CGFloat>(retryFrame.y),
+                                          static_cast<CGFloat>(retryFrame.width),
+                                          static_cast<CGFloat>(retryFrame.height));
+      // This marks a later AppKit display pass; it never redisplays
+      // synchronously from inside the current drawRect: callback.
+      [view setNeedsDisplayInRect:retryRect];
+    }
+    break;
+  }
   }
 }

@@ -4,6 +4,7 @@
 
 #include "app/RectSurface.hpp"
 #include "core/resource/Image.hpp"
+#include <climits>
 
 namespace
 {
@@ -118,6 +119,25 @@ void testImageSpriteKeepsImageIdentityAndIntrinsicSize()
   LOKA_VERIFY(model.sprites[0].queryImage(carried));
   LOKA_VERIFY(carried == image);
   LOKA_VERIFY(carried.nativeHandle() == &identity);
+}
+
+void testRectSurfaceModelRefusesUnrepresentableImageDimensions()
+{
+  int identity = 0;
+  loka::app::RectSurfaceModel model;
+
+  LOKA_VERIFY(!model.add(loka::app::ImageSprite(1, 2, TestImage(&identity, 0, 1))));
+  LOKA_VERIFY(!model.add(loka::app::ImageSprite(1, 2, TestImage(&identity, 1, 0))));
+  LOKA_VERIFY(!model.add(loka::app::ImageSprite(1, 2, TestImage(&identity, -1, 1))));
+  LOKA_VERIFY(!model.add(loka::app::ImageSprite(1, 2, TestImage(&identity, 1, -1))));
+  LOKA_VERIFY(!model.add(loka::app::ImageSprite(1, 2, TestImage(&identity, SHRT_MAX + 1, 1))));
+  LOKA_VERIFY(!model.add(loka::app::ImageSprite(1, 2, TestImage(&identity, 1, SHRT_MAX + 1))));
+  LOKA_VERIFY(model.spriteCount() == 0);
+
+  LOKA_VERIFY(model.add(loka::app::ImageSprite(1, 2, TestImage(&identity, SHRT_MAX, SHRT_MAX))));
+  LOKA_VERIFY(model.spriteCount() == 1);
+  LOKA_VERIFY(model.sprites[0].width == SHRT_MAX);
+  LOKA_VERIFY(model.sprites[0].height == SHRT_MAX);
 }
 
 void testImageSpriteHandleChangeRequiresRepaintAtSameGeometry()

@@ -22,7 +22,12 @@ namespace
     }
     if (IsColorPort(port))
     {
-      return reinterpret_cast<const BitMap *>(&((CGrafPtr)port)->portPixMap);
+      PixMapHandle portPixMap = ((CGrafPtr)port)->portPixMap;
+      if (!portPixMap || !*portPixMap)
+      {
+        return 0;
+      }
+      return reinterpret_cast<const BitMap *>(*portPixMap);
     }
     return &port->portBits;
   }

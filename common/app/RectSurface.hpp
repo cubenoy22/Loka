@@ -2,6 +2,7 @@
 #define LOKA_APP_RECT_SURFACE_HPP
 
 #include <assert.h>
+#include <limits.h>
 #include "app/scene/Node.hpp"
 #include "core/State.hpp"
 #include "core/resource/Image.hpp"
@@ -237,6 +238,12 @@ namespace loka
 
       bool add(const ImageSprite &sprite)
       {
+        const int width = sprite.image.width();
+        const int height = sprite.image.height();
+        if (width < 1 || width > SHRT_MAX || height < 1 || height > SHRT_MAX)
+        {
+          return false;
+        }
         return addSprite(RectSurfaceSprite(sprite));
       }
 

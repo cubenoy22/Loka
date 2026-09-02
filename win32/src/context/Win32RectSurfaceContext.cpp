@@ -16,18 +16,43 @@ namespace
     return oldObject != 0 && oldObject != HGDI_ERROR;
   }
 
-  void DrawScaledRectSurfaceImage(HDC hdc,
-                                  const RECT &spriteRect,
-                                  HBITMAP bitmap,
-                                  HBITMAP mask,
-                                  int width,
-                                  int height)
+  void IncludeRectSurfaceRetryRect(RECT &retryRect, const RECT &spriteRect)
+  {
+    if (IsRectEmpty(&retryRect))
+    {
+      retryRect = spriteRect;
+      return;
+    }
+    if (spriteRect.left < retryRect.left)
+    {
+      retryRect.left = spriteRect.left;
+    }
+    if (spriteRect.top < retryRect.top)
+    {
+      retryRect.top = spriteRect.top;
+    }
+    if (spriteRect.right > retryRect.right)
+    {
+      retryRect.right = spriteRect.right;
+    }
+    if (spriteRect.bottom > retryRect.bottom)
+    {
+      retryRect.bottom = spriteRect.bottom;
+    }
+  }
+
+  loka::app::RectSurfacePaintResult DrawScaledRectSurfaceImage(HDC hdc,
+                                                               const RECT &spriteRect,
+                                                               HBITMAP bitmap,
+                                                               HBITMAP mask,
+                                                               int width,
+                                                               int height)
   {
     const int projectedWidth = spriteRect.right - spriteRect.left;
     const int projectedHeight = spriteRect.bottom - spriteRect.top;
     if (projectedWidth <= 0 || projectedHeight <= 0)
     {
-      return;
+      return loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
     }
 
     BITMAPINFO sourceInfo;
@@ -72,7 +97,7 @@ namespace
       {
         DeleteObject(projectedSource);
       }
-      return;
+      return loka::app::RECT_SURFACE_PAINT_REFUSED;
     }
 
     HDC source = CreateCompatibleDC(hdc);
@@ -99,7 +124,7 @@ namespace
       }
       DeleteObject(projectedMask);
       DeleteObject(projectedSource);
-      return;
+      return loka::app::RECT_SURFACE_PAINT_REFUSED;
     }
 
     HGDIOBJ oldSource = 0;
@@ -110,6 +135,7 @@ namespace
     const bool selectedSourceMask = SelectRectSurfaceBitmap(sourceMask, mask, oldSourceMask);
     const bool selectedScaledSource = SelectRectSurfaceBitmap(scaledSource, projectedSource, oldScaledSource);
     bool selectedScaledMask = SelectRectSurfaceBitmap(scaledMask, projectedMask, oldScaledMask);
+    loka::app::RectSurfacePaintResult result = loka::app::RECT_SURFACE_PAINT_REFUSED;
     if (selectedSource && selectedSourceMask && selectedScaledSource && selectedScaledMask)
     {
       // COLORONCOLOR is nearest-neighbour here; the one-bit destination keeps
@@ -142,18 +168,21 @@ namespace
       selectedScaledMask = false;
       if (sourceScaled && maskScaled)
       {
-        MaskBlt(hdc,
-                spriteRect.left,
-                spriteRect.top,
-                projectedWidth,
-                projectedHeight,
-                scaledSource,
-                0,
-                0,
-                projectedMask,
-                0,
-                0,
-                MAKEROP4(SRCCOPY, kRopKeepDestination));
+        if (MaskBlt(hdc,
+                    spriteRect.left,
+                    spriteRect.top,
+                    projectedWidth,
+                    projectedHeight,
+                    scaledSource,
+                    0,
+                    0,
+                    projectedMask,
+                    0,
+                    0,
+                    MAKEROP4(SRCCOPY, kRopKeepDestination)))
+        {
+          result = loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
+        }
       }
     }
 
@@ -179,35 +208,37 @@ namespace
     DeleteDC(source);
     DeleteObject(projectedMask);
     DeleteObject(projectedSource);
+    return result;
   }
 
-  void DrawRectSurfaceImage(HDC hdc, const RECT &spriteRect, const loka::app::RectSurfaceSprite &sprite)
+  loka::app::RectSurfacePaintResult
+  DrawRectSurfaceImage(HDC hdc, const RECT &spriteRect, const loka::app::RectSurfaceSprite &sprite)
   {
     loka::core::resource::Image image;
     if (!sprite.queryImage(image) || !image.isValid())
     {
-      return;
+      return loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
     }
     HBITMAP bitmap = static_cast<HBITMAP>(image.nativeHandle());
     if (!bitmap)
     {
-      return;
+      return loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
     }
     DIBSECTION dib;
     ZeroMemory(&dib, sizeof(dib));
     if (GetObjectW(bitmap, sizeof(dib), &dib) != sizeof(dib) || !dib.dsBm.bmBits || dib.dsBm.bmBitsPixel != 32)
     {
-      return;
+      return loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
     }
     const int width = image.width();
     const int height = image.height();
     if (width <= 0 || height <= 0)
     {
-      return;
+      return loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
     }
     if (dib.dsBm.bmWidth < width || (dib.dsBm.bmHeight < 0 ? -dib.dsBm.bmHeight : dib.dsBm.bmHeight) < height)
     {
-      return;
+      return loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
     }
     struct MonochromeBitmapInfo
     {
@@ -234,7 +265,7 @@ namespace
       {
         DeleteObject(mask);
       }
-      return;
+      return loka::app::RECT_SURFACE_PAINT_REFUSED;
     }
     const SIZE_T maskRowBytes = static_cast<SIZE_T>(((width + 31) / 32) * 4);
     ZeroMemory(maskBits, maskRowBytes * height);
@@ -257,32 +288,40 @@ namespace
     if (projectedWidth != width || projectedHeight != height)
     {
       // Preserve the existing allocation-free projected==intrinsic path.
-      DrawScaledRectSurfaceImage(hdc, spriteRect, bitmap, mask, width, height);
+      const loka::app::RectSurfacePaintResult result =
+          DrawScaledRectSurfaceImage(hdc, spriteRect, bitmap, mask, width, height);
       DeleteObject(mask);
-      return;
+      return result;
     }
     HDC source = CreateCompatibleDC(hdc);
     if (!source)
     {
       DeleteObject(mask);
-      return;
+      return loka::app::RECT_SURFACE_PAINT_REFUSED;
     }
-    HGDIOBJ old = SelectObject(source, bitmap);
-    MaskBlt(hdc,
-            spriteRect.left,
-            spriteRect.top,
-            width,
-            height,
-            source,
-            0,
-            0,
-            mask,
-            0,
-            0,
-            MAKEROP4(SRCCOPY, kRopKeepDestination));
+    HGDIOBJ old = 0;
+    if (!SelectRectSurfaceBitmap(source, bitmap, old))
+    {
+      DeleteDC(source);
+      DeleteObject(mask);
+      return loka::app::RECT_SURFACE_PAINT_REFUSED;
+    }
+    const BOOL painted = MaskBlt(hdc,
+                                 spriteRect.left,
+                                 spriteRect.top,
+                                 width,
+                                 height,
+                                 source,
+                                 0,
+                                 0,
+                                 mask,
+                                 0,
+                                 0,
+                                 MAKEROP4(SRCCOPY, kRopKeepDestination));
     SelectObject(source, old);
     DeleteDC(source);
     DeleteObject(mask);
+    return painted ? loka::app::RECT_SURFACE_PAINT_SUCCEEDED : loka::app::RECT_SURFACE_PAINT_REFUSED;
   }
 }
 
@@ -296,7 +335,8 @@ Win32RectSurfaceContext::Win32RectSurfaceContext(Win32ScenePlatformController *c
     : Win32RetirableContext(controller),
       node_(node),
       hwnd_(0),
-      modelState_(0)
+      modelState_(0),
+      previousModel_()
 {
   EnsureClassRegistered();
   hwnd_ = this->createNativeChildWindow(
@@ -333,6 +373,7 @@ void Win32RectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact 
     if (next == loka::app::scene::NODE_FACT_RETIRED)
     {
       this->unbindModel();
+      this->previousModel_.clear();
       this->retireWindow(this->hwnd_);
       this->node_ = 0;
     }
@@ -410,13 +451,21 @@ LRESULT CALLBACK Win32RectSurfaceContext::WndProc(HWND hwnd, UINT msg, WPARAM wP
     Win32ScenePlatformController::noteNativePaint(hwnd, Win32ScenePlatformController::NATIVE_PAINT_RECT_SURFACE, false);
     PAINTSTRUCT paint;
     HDC hdc = BeginPaint(hwnd, &paint);
+    loka::app::RectSurfacePaintResult paintResult = loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
+    loka::app::RectSurfaceModel requestedModel;
+    RECT retryRect;
+    SetRectEmpty(&retryRect);
     if (self)
     {
       RECT rect;
       GetClientRect(hwnd, &rect);
-      self->draw(hdc, rect);
+      paintResult = self->draw(hdc, rect, requestedModel, retryRect);
     }
     EndPaint(hwnd, &paint);
+    if (self)
+    {
+      self->finishPaint(paintResult, requestedModel, retryRect);
+    }
     return 0;
   }
   default:
@@ -484,7 +533,8 @@ void Win32RectSurfaceContext::ModelChangedThunk(void *userData)
   }
 }
 
-void Win32RectSurfaceContext::draw(HDC hdc, const RECT &rect)
+loka::app::RectSurfacePaintResult Win32RectSurfaceContext::draw(
+    HDC hdc, const RECT &rect, loka::app::RectSurfaceModel &requestedModel, RECT &retryRect)
 {
   if (node_ && node_->props.clearBackground_)
   {
@@ -497,10 +547,11 @@ void Win32RectSurfaceContext::draw(HDC hdc, const RECT &rect)
   }
   if (!node_ || !modelState_)
   {
-    return;
+    return loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
   }
-  const loka::app::RectSurfaceModel model = modelState_->get();
-  const loka::app::RectSurfacePaintList paintList(model);
+  requestedModel = modelState_->get();
+  const loka::app::RectSurfacePaintList paintList(requestedModel);
+  loka::app::RectSurfacePaintResult paintResult = loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
   HBRUSH blackBrush = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
   for (short i = 0; i < paintList.count(); ++i)
   {
@@ -514,7 +565,11 @@ void Win32RectSurfaceContext::draw(HDC hdc, const RECT &rect)
       RECT spriteRect;
       const loka::core::Frame logicalRect(sprite.x, sprite.y, sprite.width, sprite.height);
       this->controller()->displayScale().projectFrame(logicalRect, spriteRect);
-      DrawRectSurfaceImage(hdc, spriteRect, sprite);
+      if (DrawRectSurfaceImage(hdc, spriteRect, sprite) == loka::app::RECT_SURFACE_PAINT_REFUSED)
+      {
+        paintResult = loka::app::RECT_SURFACE_PAINT_REFUSED;
+        IncludeRectSurfaceRetryRect(retryRect, spriteRect);
+      }
       continue;
     }
     }
@@ -522,5 +577,26 @@ void Win32RectSurfaceContext::draw(HDC hdc, const RECT &rect)
     const loka::core::Frame logicalRect(sprite.x, sprite.y, sprite.width, sprite.height);
     this->controller()->displayScale().projectFrame(logicalRect, spriteRect);
     FillRect(hdc, &spriteRect, blackBrush);
+  }
+  return paintResult;
+}
+
+void Win32RectSurfaceContext::finishPaint(loka::app::RectSurfacePaintResult result,
+                                          const loka::app::RectSurfaceModel &requestedModel,
+                                          const RECT &retryRect)
+{
+  loka::app::FinishRectSurfacePaint(result, requestedModel, previousModel_);
+  switch (result)
+  {
+  case loka::app::RECT_SURFACE_PAINT_SUCCEEDED:
+    break;
+  case loka::app::RECT_SURFACE_PAINT_REFUSED:
+    if (hwnd_ && retryRect.left < retryRect.right && retryRect.top < retryRect.bottom)
+    {
+      // WM_PAINT calls finishPaint only after EndPaint, so this update region
+      // can schedule only a later message and cannot re-enter the current one.
+      InvalidateRect(hwnd_, &retryRect, FALSE);
+    }
+    break;
   }
 }

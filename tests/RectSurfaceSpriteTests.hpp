@@ -4,6 +4,7 @@
 void testRectSurfaceModelKeepsMixedSpriteOrderAndBounds();
 void testRectSurfaceModelCapacityCountsEverySpriteKind();
 void testImageSpriteKeepsImageIdentityAndIntrinsicSize();
+void testRectSurfaceModelRefusesUnrepresentableImageDimensions();
 void testImageSpriteHandleChangeRequiresRepaintAtSameGeometry();
 void testRectSurfacePaintListKeepsMixedSpriteOrder();
 void testRectSurfaceModelClearDropsImageHoldAndNormalizesEmptyValue();
