@@ -63,14 +63,11 @@ private:
   void applyModel();
   void discardStalePreparedImages();
   void clearPreparedImages();
-  void finishPaint(loka::app::RectSurfacePaintResult result,
-                   const loka::app::RectSurfaceModel &requestedModel,
-                   const loka::core::Frame &retryFrame);
+  void finishPaint(loka::app::RectSurfacePaintResult result, const loka::core::Frame &retryFrame);
 
   loka::app::RectSurfaceNode *node_;
   loka::core::State<loka::app::RectSurfaceModel> *modelState_;
   void *view_;
-  loka::app::RectSurfaceModel previousModel_;
   MacRectSurfacePreparedImage preparedImages_[loka::app::RectSurfaceModel::kMaxSprites];
 };
 

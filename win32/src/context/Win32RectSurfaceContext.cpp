@@ -335,8 +335,7 @@ Win32RectSurfaceContext::Win32RectSurfaceContext(Win32ScenePlatformController *c
     : Win32RetirableContext(controller),
       node_(node),
       hwnd_(0),
-      modelState_(0),
-      previousModel_()
+      modelState_(0)
 {
   EnsureClassRegistered();
   hwnd_ = this->createNativeChildWindow(
@@ -373,7 +372,6 @@ void Win32RectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact 
     if (next == loka::app::scene::NODE_FACT_RETIRED)
     {
       this->unbindModel();
-      this->previousModel_.clear();
       this->retireWindow(this->hwnd_);
       this->node_ = 0;
     }
@@ -452,19 +450,18 @@ LRESULT CALLBACK Win32RectSurfaceContext::WndProc(HWND hwnd, UINT msg, WPARAM wP
     PAINTSTRUCT paint;
     HDC hdc = BeginPaint(hwnd, &paint);
     loka::app::RectSurfacePaintResult paintResult = loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
-    loka::app::RectSurfaceModel requestedModel;
     RECT retryRect;
     SetRectEmpty(&retryRect);
     if (self)
     {
       RECT rect;
       GetClientRect(hwnd, &rect);
-      paintResult = self->draw(hdc, rect, requestedModel, retryRect);
+      paintResult = self->draw(hdc, rect, retryRect);
     }
     EndPaint(hwnd, &paint);
     if (self)
     {
-      self->finishPaint(paintResult, requestedModel, retryRect);
+      self->finishPaint(paintResult, retryRect);
     }
     return 0;
   }
@@ -533,8 +530,7 @@ void Win32RectSurfaceContext::ModelChangedThunk(void *userData)
   }
 }
 
-loka::app::RectSurfacePaintResult Win32RectSurfaceContext::draw(
-    HDC hdc, const RECT &rect, loka::app::RectSurfaceModel &requestedModel, RECT &retryRect)
+loka::app::RectSurfacePaintResult Win32RectSurfaceContext::draw(HDC hdc, const RECT &rect, RECT &retryRect)
 {
   if (node_ && node_->props.clearBackground_)
   {
@@ -549,8 +545,8 @@ loka::app::RectSurfacePaintResult Win32RectSurfaceContext::draw(
   {
     return loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
   }
-  requestedModel = modelState_->get();
-  const loka::app::RectSurfacePaintList paintList(requestedModel);
+  const loka::app::RectSurfaceModel model = modelState_->get();
+  const loka::app::RectSurfacePaintList paintList(model);
   loka::app::RectSurfacePaintResult paintResult = loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
   HBRUSH blackBrush = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
   for (short i = 0; i < paintList.count(); ++i)
@@ -581,11 +577,11 @@ loka::app::RectSurfacePaintResult Win32RectSurfaceContext::draw(
   return paintResult;
 }
 
-void Win32RectSurfaceContext::finishPaint(loka::app::RectSurfacePaintResult result,
-                                          const loka::app::RectSurfaceModel &requestedModel,
-                                          const RECT &retryRect)
+// Every WM_PAINT repaints its whole update region from the current model, so
+// there is no applied snapshot to keep here (Classic keeps one for its
+// dirty-rect diff); the only refusal policy is the later invalidation.
+void Win32RectSurfaceContext::finishPaint(loka::app::RectSurfacePaintResult result, const RECT &retryRect)
 {
-  loka::app::FinishRectSurfacePaint(result, requestedModel, previousModel_);
   switch (result)
   {
   case loka::app::RECT_SURFACE_PAINT_SUCCEEDED:

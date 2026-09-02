@@ -212,8 +212,7 @@ MacRectSurfaceContext::MacRectSurfaceContext(MacScenePlatformController *control
     : MacRetirableContext(controller),
       node_(node),
       modelState_(0),
-      view_(0),
-      previousModel_()
+      view_(0)
 {
   NSView *parent = (NSView *)parentView;
   LokaRectSurfaceView *view = [[LokaRectSurfaceView alloc] initWithFrame:NSMakeRect(x, y, width, height)];
@@ -255,7 +254,6 @@ void MacRectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact pr
     if (next == loka::app::scene::NODE_FACT_RETIRED)
     {
       this->clearPreparedImages();
-      this->previousModel_.clear();
       this->unbindModel();
       LokaRectSurfaceView *view = (LokaRectSurfaceView *)this->view_;
       [view setContext:0];
@@ -417,14 +415,15 @@ void MacRectSurfaceContext::draw(void *viewBounds)
     }
     NSRectFill(NSMakeRect((CGFloat)sprite.x, (CGFloat)sprite.y, (CGFloat)sprite.width, (CGFloat)sprite.height));
   }
-  finishPaint(paintResult, model, retryFrame);
+  finishPaint(paintResult, retryFrame);
 }
 
+// Every drawRect: pass repaints its whole update region from the current
+// model, so there is no applied snapshot to keep here (Classic keeps one for
+// its dirty-rect diff); the only refusal policy is the later display request.
 void MacRectSurfaceContext::finishPaint(loka::app::RectSurfacePaintResult result,
-                                        const loka::app::RectSurfaceModel &requestedModel,
                                         const loka::core::Frame &retryFrame)
 {
-  loka::app::FinishRectSurfacePaint(result, requestedModel, previousModel_);
   switch (result)
   {
   case loka::app::RECT_SURFACE_PAINT_SUCCEEDED:
