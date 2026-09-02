@@ -172,10 +172,6 @@ void ToolboxWindow::requestInvalidateRect(const Rect &rect)
   {
     scenePlatformController_->noteWindowRectRequest();
   }
-  if (needsInvalidate_)
-  {
-    return;
-  }
   for (std::size_t i = 0; i < pendingInvalidateRects_.size(); ++i)
   {
     Rect &pending = pendingInvalidateRects_[i];
@@ -221,12 +217,13 @@ void ToolboxWindow::flushInvalidate()
     {
       scenePlatformController_->noteWindowFlushFull();
     }
-    // Projected contexts are materialized during the tree walk and request a
-    // structure present themselves. This draw already includes them, so
-    // consume that request only after the walk completes.
-    this->draw();
-    needsInvalidate_ = false;
+    // Rect requests queued before this full paint are subsumed by it. Requests
+    // made during draw belong to later work and must survive this flush.
     pendingInvalidateRects_.clear();
+    this->draw();
+    // Projected contexts materialized by the walk request a structure present,
+    // but this draw already includes them. Consume only that full request.
+    needsInvalidate_ = false;
     return;
   }
   needsInvalidate_ = false;

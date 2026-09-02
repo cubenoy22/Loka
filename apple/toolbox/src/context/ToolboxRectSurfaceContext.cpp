@@ -146,23 +146,19 @@ void ToolboxRectSurfaceContext::render(loka::app::scene::IPlatformController *)
     }
     }
   }
-  loka::app::FinishRectSurfacePaint(paintResult, model, previousModel_);
-  if (paintResult == loka::app::RECT_SURFACE_PAINT_SUCCEEDED)
-  {
-    hasPreviousModel_ = true;
-  }
+  finishPaint(paintResult, model);
 }
 
-loka::app::RectSurfacePaintResult ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
+void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
 {
   if (!node_ || !node_->props.model_)
   {
-    return loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
+    return;
   }
   if (dirtyRect.right < rect_.left || dirtyRect.left > rect_.right || dirtyRect.bottom < rect_.top
       || dirtyRect.top > rect_.bottom)
   {
-    return loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
+    return;
   }
 
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
@@ -272,12 +268,25 @@ loka::app::RectSurfacePaintResult ToolboxRectSurfaceContext::renderDirty(const R
   {
     SetClip(savedClipRgn_);
   }
-  loka::app::FinishRectSurfacePaint(paintResult, model, previousModel_);
-  if (paintResult == loka::app::RECT_SURFACE_PAINT_SUCCEEDED)
+  finishPaint(paintResult, model);
+}
+
+void ToolboxRectSurfaceContext::finishPaint(loka::app::RectSurfacePaintResult result,
+                                            const loka::app::RectSurfaceModel &requestedModel)
+{
+  loka::app::FinishRectSurfacePaint(result, requestedModel, previousModel_);
+  switch (result)
   {
+  case loka::app::RECT_SURFACE_PAINT_SUCCEEDED:
     hasPreviousModel_ = true;
+    break;
+  case loka::app::RECT_SURFACE_PAINT_REFUSED:
+    if (this->controller())
+    {
+      this->controller()->requestRectSurfacePaintRetry(rect_);
+    }
+    break;
   }
-  return paintResult;
 }
 
 bool ToolboxRectSurfaceContext::dirtyRect(Rect &outRect) const

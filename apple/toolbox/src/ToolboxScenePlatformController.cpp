@@ -239,35 +239,29 @@ namespace
     return false;
   }
 
-  loka::app::RectSurfacePaintResult RenderDirtyRectSurfaces(loka::app::scene::Node *node,
-                                                            const Rect &dirtyRect)
+  void RenderDirtyRectSurfaces(loka::app::scene::Node *node, const Rect &dirtyRect)
   {
     if (!node)
     {
-      return loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
+      return;
     }
     if (loka::app::RectSurfaceNode *surface = node->asRectSurfaceNode())
     {
       ToolboxRectSurfaceContext *ctx = static_cast<ToolboxRectSurfaceContext *>(surface->getContext());
       if (ctx)
       {
-        return ctx->renderDirty(dirtyRect);
+        ctx->renderDirty(dirtyRect);
       }
-      return loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
+      return;
     }
-    loka::app::RectSurfacePaintResult result = loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
     if (loka::app::scene::INestable *nestable = node->asNestable())
     {
       loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
       for (loka::app::scene::Node *child = it.next(); child; child = it.next())
       {
-        if (RenderDirtyRectSurfaces(child, dirtyRect) == loka::app::RECT_SURFACE_PAINT_REFUSED)
-        {
-          result = loka::app::RECT_SURFACE_PAINT_REFUSED;
-        }
+        RenderDirtyRectSurfaces(child, dirtyRect);
       }
     }
-    return result;
   }
 
   bool CollectRectSurfaceDirtyRect(loka::app::scene::Node *node, Rect &outRect)
@@ -1138,14 +1132,7 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
   {
     if (HasRectSurfaceNode(rootNode_))
     {
-      if (RenderDirtyRectSurfaces(rootNode_, rect) == loka::app::RECT_SURFACE_PAINT_REFUSED)
-      {
-        // ToolboxWindow::flushInvalidate snapshots and clears the current
-        // pending-rect batch before calling renderDirty. This request enters
-        // the window's next batch, so persistent allocation refusal costs one
-        // attempt per later event-loop flush rather than spinning here.
-        window_->requestInvalidateRect(rect);
-      }
+      RenderDirtyRectSurfaces(rootNode_, rect);
     }
     else
     {
@@ -1194,10 +1181,7 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
   }
   if (HasRectSurfaceNode(rootNode_))
   {
-    if (RenderDirtyRectSurfaces(rootNode_, rect) == loka::app::RECT_SURFACE_PAINT_REFUSED)
-    {
-      window_->requestInvalidateRect(rect);
-    }
+    RenderDirtyRectSurfaces(rootNode_, rect);
   }
   for (size_t i = 0; i < hitLedger_.popupHits_.size(); ++i)
   {
@@ -1264,6 +1248,14 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
            && "edit controls register on the render walk; the dirty replay must not grow the registry it iterates (#315)");
   }
   drawControlsInRect(rect);
+}
+
+void ToolboxScenePlatformController::requestRectSurfacePaintRetry(const Rect &rect)
+{
+  if (window_)
+  {
+    window_->requestInvalidateRect(rect);
+  }
 }
 
 #include "ToolboxHitLedger.cpp"

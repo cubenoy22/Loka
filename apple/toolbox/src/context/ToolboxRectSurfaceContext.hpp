@@ -13,7 +13,7 @@ public:
 
   virtual short layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state);
   virtual void render(loka::app::scene::IPlatformController *);
-  loka::app::RectSurfacePaintResult renderDirty(const Rect &dirtyRect);
+  void renderDirty(const Rect &dirtyRect);
   bool dirtyRect(Rect &outRect) const;
 
 private:
@@ -31,6 +31,8 @@ private:
   bool modelContainsImage(const loka::app::RectSurfaceModel &model) const;
   bool buildDirtyRegion(const Rect &dirtyRect, const loka::app::RectSurfaceModel &model);
   void unionSpriteRectsIntoRegion(const loka::app::RectSurfaceModel &model, const Rect &dirtyRect);
+  void finishPaint(loka::app::RectSurfacePaintResult result,
+                   const loka::app::RectSurfaceModel &requestedModel);
 
   loka::app::RectSurfaceNode *node_;
   Rect rect_;
