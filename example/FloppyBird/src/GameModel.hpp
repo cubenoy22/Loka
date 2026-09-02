@@ -164,7 +164,7 @@ namespace floppybird
         }
       }
 
-      this->cachedModel_.spriteCount = 0;
+      this->cachedModel_.clear();
       for (short i = 0; i < snapshot.pipeCount; ++i)
       {
         this->cachedModel_.add(loka::app::RectSprite(

@@ -102,8 +102,8 @@ void ToolboxRectSurfaceContext::render(loka::app::scene::IPlatformController *)
   }
   // A walk can run under a clip that excludes this surface entirely (the #412
   // dirty escalation clips render() to the damaged rect). Painting would be a
-  // no-op there, but rememberCurrentModel() would still overwrite the previous
-  // sprite positions, and the surface's own pending dirty flush then loses the
+  // no-op there, but committing the applied snapshot would still overwrite
+  // the previous sprite positions, and the surface's own pending dirty flush then loses the
   // old rects it must erase. If nothing here can be painted, do not claim a
   // paint happened. The snapshot stays older, which only widens a later dirty
   // region -- overpaint, never stale pixels.
@@ -123,6 +123,7 @@ void ToolboxRectSurfaceContext::render(loka::app::scene::IPlatformController *)
   }
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
   const loka::app::RectSurfacePaintList paintList(model);
+  loka::app::RectSurfacePaintResult paintResult = loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
   for (short i = 0; i < paintList.count(); ++i)
   {
     const loka::app::RectSurfaceSprite &sprite = *paintList.querySprite(i);
@@ -137,28 +138,36 @@ void ToolboxRectSurfaceContext::render(loka::app::scene::IPlatformController *)
     case loka::app::RectSurfaceSprite::KIND_IMAGE:
     {
       const Rect spriteRect = rectForSprite(sprite);
-      paintImage(sprite, spriteRect, 0);
+      if (paintImage(sprite, spriteRect, 0) == loka::app::RECT_SURFACE_PAINT_REFUSED)
+      {
+        paintResult = loka::app::RECT_SURFACE_PAINT_REFUSED;
+      }
       break;
     }
     }
   }
-  rememberCurrentModel();
+  loka::app::FinishRectSurfacePaint(paintResult, model, previousModel_);
+  if (paintResult == loka::app::RECT_SURFACE_PAINT_SUCCEEDED)
+  {
+    hasPreviousModel_ = true;
+  }
 }
 
-void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
+loka::app::RectSurfacePaintResult ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
 {
   if (!node_ || !node_->props.model_)
   {
-    return;
+    return loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
   }
   if (dirtyRect.right < rect_.left || dirtyRect.left > rect_.right || dirtyRect.bottom < rect_.top
       || dirtyRect.top > rect_.bottom)
   {
-    return;
+    return loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
   }
 
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
   const loka::app::RectSurfacePaintList paintList(model);
+  loka::app::RectSurfacePaintResult paintResult = loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
   const bool replayPaintOrder = modelContainsImage(model) || (hasPreviousModel_ && modelContainsImage(previousModel_));
   bool useRegionClip = false;
   useRegionClip =
@@ -180,7 +189,7 @@ void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
     }
     else if (hasPreviousModel_)
     {
-      for (short i = 0; i < previousModel_.spriteCount; ++i)
+      for (short i = 0; i < previousModel_.spriteCount(); ++i)
       {
         Rect previousSpriteRect;
         previousSpriteRect.left = static_cast<short>(rect_.left + previousModel_.sprites[i].x);
@@ -229,7 +238,10 @@ void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
         paintRectIfVisible(spriteRect, dirtyRect);
         break;
       case loka::app::RectSurfaceSprite::KIND_IMAGE:
-        paintImage(sprite, spriteRect, &dirtyRect);
+        if (paintImage(sprite, spriteRect, &dirtyRect) == loka::app::RECT_SURFACE_PAINT_REFUSED)
+        {
+          paintResult = loka::app::RECT_SURFACE_PAINT_REFUSED;
+        }
         break;
       }
       continue;
@@ -260,7 +272,12 @@ void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
   {
     SetClip(savedClipRgn_);
   }
-  rememberCurrentModel();
+  loka::app::FinishRectSurfacePaint(paintResult, model, previousModel_);
+  if (paintResult == loka::app::RECT_SURFACE_PAINT_SUCCEEDED)
+  {
+    hasPreviousModel_ = true;
+  }
+  return paintResult;
 }
 
 bool ToolboxRectSurfaceContext::dirtyRect(Rect &outRect) const
@@ -271,7 +288,7 @@ bool ToolboxRectSurfaceContext::dirtyRect(Rect &outRect) const
   }
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
   bool hasBounds = false;
-  if (model.spriteCount > 0)
+  if (model.spriteCount() > 0)
   {
     outRect.left = static_cast<short>(rect_.left + model.sprites[0].x);
     outRect.top = static_cast<short>(rect_.top + model.sprites[0].y);
@@ -279,7 +296,7 @@ bool ToolboxRectSurfaceContext::dirtyRect(Rect &outRect) const
     outRect.bottom = static_cast<short>(outRect.top + model.sprites[0].height);
     hasBounds = true;
   }
-  for (short i = 1; i < model.spriteCount; ++i)
+  for (short i = 1; i < model.spriteCount(); ++i)
   {
     const short left = static_cast<short>(rect_.left + model.sprites[i].x);
     const short top = static_cast<short>(rect_.top + model.sprites[i].y);
@@ -313,7 +330,7 @@ bool ToolboxRectSurfaceContext::dirtyRect(Rect &outRect) const
   }
   if (hasPreviousModel_)
   {
-    for (short i = 0; i < previousModel_.spriteCount; ++i)
+    for (short i = 0; i < previousModel_.spriteCount(); ++i)
     {
       const short left = static_cast<short>(rect_.left + previousModel_.sprites[i].x);
       const short top = static_cast<short>(rect_.top + previousModel_.sprites[i].y);
@@ -370,18 +387,6 @@ bool ToolboxRectSurfaceContext::dirtyRect(Rect &outRect) const
   return outRect.left < outRect.right && outRect.top < outRect.bottom;
 }
 
-void ToolboxRectSurfaceContext::rememberCurrentModel()
-{
-  if (!node_ || !node_->props.model_)
-  {
-    hasPreviousModel_ = false;
-    previousModel_ = loka::app::RectSurfaceModel();
-    return;
-  }
-  previousModel_ = node_->props.model_->get();
-  hasPreviousModel_ = true;
-}
-
 Rect ToolboxRectSurfaceContext::rectForSprite(const loka::app::RectSurfaceSprite &sprite) const
 {
   Rect rect;
@@ -394,7 +399,7 @@ Rect ToolboxRectSurfaceContext::rectForSprite(const loka::app::RectSurfaceSprite
 
 bool ToolboxRectSurfaceContext::previousRectForIndex(short index, Rect &previousRect) const
 {
-  if (!hasPreviousModel_ || index < 0 || index >= previousModel_.spriteCount)
+  if (!hasPreviousModel_ || index < 0 || index >= previousModel_.spriteCount())
   {
     return false;
   }
@@ -409,7 +414,7 @@ bool ToolboxRectSurfaceContext::findMatchingCurrentRect(const Rect &previousRect
   bool foundAnyMatch = false;
   bool foundSizeMatch = false;
   Rect sizeMatchedRect;
-  for (short i = 0; i < model.spriteCount; ++i)
+  for (short i = 0; i < model.spriteCount(); ++i)
   {
     Rect candidateRect;
     candidateRect.left = static_cast<short>(rect_.left + model.sprites[i].x);
@@ -531,19 +536,20 @@ void ToolboxRectSurfaceContext::paintRectIfVisible(const Rect &rect, const Rect 
   PaintRect(&paintRect);
 }
 
-void ToolboxRectSurfaceContext::paintImage(const loka::app::RectSurfaceSprite &sprite,
-                                           const Rect &destinationRect,
-                                           const Rect *dirtyRect)
+loka::app::RectSurfacePaintResult
+ToolboxRectSurfaceContext::paintImage(const loka::app::RectSurfaceSprite &sprite,
+                                      const Rect &destinationRect,
+                                      const Rect *dirtyRect)
 {
   loka::core::resource::Image image;
   if (!sprite.queryImage(image) || !image.isValid() || sprite.width <= 0 || sprite.height <= 0)
   {
-    return;
+    return loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
   }
   const BitMap *binaryMask = loka::toolbox::PrepareToolboxBinaryMask(image);
   if (!binaryMask)
   {
-    return;
+    return loka::app::RECT_SURFACE_PAINT_REFUSED;
   }
   GrafPtr destinationPort = 0;
   GetPort(&destinationPort);
@@ -566,12 +572,13 @@ void ToolboxRectSurfaceContext::paintImage(const loka::app::RectSurfaceSprite &s
       }
     }
   }
+  return loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
 }
 
 bool ToolboxRectSurfaceContext::currentModelContainsRect(const Rect &rect,
                                                          const loka::app::RectSurfaceModel &model) const
 {
-  for (short i = 0; i < model.spriteCount; ++i)
+  for (short i = 0; i < model.spriteCount(); ++i)
   {
     Rect currentRect;
     currentRect.left = static_cast<short>(rect_.left + model.sprites[i].x);
@@ -623,7 +630,7 @@ void ToolboxRectSurfaceContext::unionSpriteRectsIntoRegion(const loka::app::Rect
   {
     return;
   }
-  for (short i = 0; i < model.spriteCount; ++i)
+  for (short i = 0; i < model.spriteCount(); ++i)
   {
     Rect spriteRect;
     spriteRect.left = static_cast<short>(rect_.left + model.sprites[i].x);

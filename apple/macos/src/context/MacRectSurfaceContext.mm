@@ -324,7 +324,7 @@ void MacRectSurfaceContext::discardStalePreparedImages()
     return;
   }
   const loka::app::RectSurfaceModel model = modelState_->get();
-  const short count = loka::app::RectSurfaceModel::clampSpriteCount(model.spriteCount);
+  const short count = model.spriteCount();
   for (short i = 0; i < loka::app::RectSurfaceModel::kMaxSprites; ++i)
   {
     loka::core::resource::Image current;

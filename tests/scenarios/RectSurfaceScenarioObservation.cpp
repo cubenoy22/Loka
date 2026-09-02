@@ -28,13 +28,7 @@ namespace loka
         return dsl::FLOW_STEP_FAILED;
       }
       const app::RectSurfaceModel &model = surface->props.model_->get();
-      const short count = app::RectSurfaceModel::clampSpriteCount(model.spriteCount);
-      if (count != model.spriteCount)
-      {
-        error.kind = dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO;
-        error.code = dsl::testing::FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
-        return dsl::FLOW_STEP_FAILED;
-      }
+      const short count = model.spriteCount();
       rectangles.clear();
       for (short i = 0; i < count; ++i)
       {

@@ -9,6 +9,12 @@ namespace
 {
   void IgnoreNativeImage(void *, void *) {}
 
+  void CountNativeImageRelease(void *, void *userData)
+  {
+    int *releaseCount = static_cast<int *>(userData);
+    ++*releaseCount;
+  }
+
   loka::core::resource::Image TestImage(void *identity, int width, int height)
   {
     return loka::core::resource::Image::FromNative(identity, width, height, &IgnoreNativeImage, 0);
@@ -16,7 +22,7 @@ namespace
 
   loka::app::RectSurfaceModel::DirtyRect SpriteBounds(const loka::app::RectSurfaceModel &model)
   {
-    if (model.spriteCount <= 0)
+    if (model.spriteCount() <= 0)
     {
       return loka::app::RectSurfaceModel::DirtyRect();
     }
@@ -24,7 +30,7 @@ namespace
     short top = model.sprites[0].y;
     short right = static_cast<short>(left + model.sprites[0].width);
     short bottom = static_cast<short>(top + model.sprites[0].height);
-    for (short i = 1; i < model.spriteCount; ++i)
+    for (short i = 1; i < model.spriteCount(); ++i)
     {
       const short candidateLeft = model.sprites[i].x;
       const short candidateTop = model.sprites[i].y;
@@ -61,7 +67,7 @@ void testRectSurfaceModelKeepsMixedSpriteOrderAndBounds()
   LOKA_VERIFY(mixed.add(loka::app::ImageSprite(11, 13, image)));
   LOKA_VERIFY(mixed.add(loka::app::RectSprite(1, 17, 19, 2)));
 
-  LOKA_VERIFY(mixed.spriteCount == 3);
+  LOKA_VERIFY(mixed.spriteCount() == 3);
   LOKA_VERIFY(mixed.sprites[0].kind() == loka::app::RectSurfaceSprite::KIND_RECT);
   LOKA_VERIFY(mixed.sprites[1].kind() == loka::app::RectSurfaceSprite::KIND_IMAGE);
   LOKA_VERIFY(mixed.sprites[2].kind() == loka::app::RectSurfaceSprite::KIND_RECT);
@@ -83,9 +89,9 @@ void testRectSurfaceModelCapacityCountsEverySpriteKind()
     LOKA_VERIFY(rectRefusal.add(loka::app::RectSprite(i, i, 1, 1)));
   }
   LOKA_VERIFY(rectRefusal.add(loka::app::ImageSprite(15, 15, image)));
-  LOKA_VERIFY(rectRefusal.spriteCount == loka::app::RectSurfaceModel::kMaxSprites);
+  LOKA_VERIFY(rectRefusal.spriteCount() == loka::app::RectSurfaceModel::kMaxSprites);
   LOKA_VERIFY(!rectRefusal.add(loka::app::RectSprite(16, 16, 1, 1)));
-  LOKA_VERIFY(rectRefusal.spriteCount == loka::app::RectSurfaceModel::kMaxSprites);
+  LOKA_VERIFY(rectRefusal.spriteCount() == loka::app::RectSurfaceModel::kMaxSprites);
 
   loka::app::RectSurfaceModel imageRefusal;
   for (short i = 0; i < loka::app::RectSurfaceModel::kMaxSprites; ++i)
@@ -93,7 +99,7 @@ void testRectSurfaceModelCapacityCountsEverySpriteKind()
     LOKA_VERIFY(imageRefusal.add(loka::app::RectSprite(i, i, 1, 1)));
   }
   LOKA_VERIFY(!imageRefusal.add(loka::app::ImageSprite(16, 16, image)));
-  LOKA_VERIFY(imageRefusal.spriteCount == loka::app::RectSurfaceModel::kMaxSprites);
+  LOKA_VERIFY(imageRefusal.spriteCount() == loka::app::RectSurfaceModel::kMaxSprites);
 }
 
 void testImageSpriteKeepsImageIdentityAndIntrinsicSize()
@@ -144,4 +150,43 @@ void testRectSurfacePaintListKeepsMixedSpriteOrder()
   LOKA_VERIFY(paintList.querySprite(1)->kind() == loka::app::RectSurfaceSprite::KIND_IMAGE);
   LOKA_VERIFY(paintList.querySprite(2)->kind() == loka::app::RectSurfaceSprite::KIND_RECT);
   LOKA_VERIFY(paintList.querySprite(3) == 0);
+}
+
+void testRectSurfaceModelClearDropsImageHoldAndNormalizesEmptyValue()
+{
+  int identity = 0;
+  int releaseCount = 0;
+  loka::app::RectSurfaceModel model;
+  {
+    const loka::core::resource::Image image = loka::core::resource::Image::FromNative(
+        &identity, 7, 9, &CountNativeImageRelease, &releaseCount);
+    LOKA_VERIFY(model.add(loka::app::ImageSprite(1, 2, image)));
+  }
+
+  LOKA_VERIFY(releaseCount == 0);
+  model.clear();
+  LOKA_VERIFY(releaseCount == 1);
+  LOKA_VERIFY(model.spriteCount() == 0);
+  LOKA_VERIFY(model.sprites[0] == loka::app::RectSurfaceSprite());
+  const loka::app::RectSurfaceModel independentlyEmpty;
+  LOKA_VERIFY(model == independentlyEmpty);
+}
+
+void testRectSurfaceRefusedPaintPreservesAppliedModel()
+{
+  loka::app::RectSurfaceModel applied;
+  LOKA_VERIFY(applied.add(loka::app::RectSprite(1, 2, 3, 4)));
+  const loka::app::RectSurfaceModel before = applied;
+  loka::app::RectSurfaceModel requested;
+  LOKA_VERIFY(requested.add(loka::app::RectSprite(5, 6, 7, 8)));
+
+  loka::app::FinishRectSurfacePaint(
+      loka::app::RECT_SURFACE_PAINT_REFUSED, requested, applied);
+
+  LOKA_VERIFY(applied == before);
+  LOKA_VERIFY(applied != requested);
+
+  loka::app::FinishRectSurfacePaint(
+      loka::app::RECT_SURFACE_PAINT_SUCCEEDED, requested, applied);
+  LOKA_VERIFY(applied == requested);
 }

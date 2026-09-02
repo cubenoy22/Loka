@@ -200,28 +200,34 @@ namespace loka
         }
       };
 
-      short spriteCount;
+    private:
+      short spriteCount_;
+
+    public:
       short dirtyRectCount;
       RectSurfaceSprite sprites[kMaxSprites];
       DirtyRect dirtyRects[kMaxDirtyRects];
 
       RectSurfaceModel()
-          : spriteCount(0),
+          : spriteCount_(0),
             dirtyRectCount(0)
       {
       }
 
-      static short clampSpriteCount(short count)
+      short spriteCount() const
       {
-        if (count < 0)
+        return spriteCount_;
+      }
+
+      /** Empties the active prefix and releases payloads before publishing the
+          new count. Inactive slots therefore never retain an Image. */
+      void clear()
+      {
+        for (short i = 0; i < spriteCount_; ++i)
         {
-          return 0;
+          sprites[i] = RectSurfaceSprite();
         }
-        if (count > kMaxSprites)
-        {
-          return kMaxSprites;
-        }
-        return count;
+        spriteCount_ = 0;
       }
 
       bool add(const RectSprite &sprite)
@@ -249,17 +255,16 @@ namespace loka
 
       bool operator==(const RectSurfaceModel &other) const
       {
-        assert(spriteCount >= 0 && spriteCount <= kMaxSprites);
+        assert(spriteCount_ >= 0 && spriteCount_ <= kMaxSprites);
         assert(dirtyRectCount >= 0 && dirtyRectCount <= kMaxDirtyRects);
-        assert(other.spriteCount >= 0 && other.spriteCount <= kMaxSprites);
+        assert(other.spriteCount_ >= 0 && other.spriteCount_ <= kMaxSprites);
         assert(other.dirtyRectCount >= 0 && other.dirtyRectCount <= kMaxDirtyRects);
-        if (spriteCount != other.spriteCount || dirtyRectCount != other.dirtyRectCount)
+        if (spriteCount_ != other.spriteCount_ || dirtyRectCount != other.dirtyRectCount)
         {
           return false;
         }
-        const short safeSpriteCount = clampSpriteCount(spriteCount);
         const short safeDirtyRectCount = clampDirtyRectCount(dirtyRectCount);
-        for (short i = 0; i < safeSpriteCount; ++i)
+        for (short i = 0; i < spriteCount_; ++i)
         {
           if (!(sprites[i] == other.sprites[i]))
           {
@@ -303,14 +308,36 @@ namespace loka
     private:
       bool addSprite(const RectSurfaceSprite &sprite)
       {
-        if (spriteCount >= kMaxSprites)
+        if (spriteCount_ >= kMaxSprites)
         {
           return false;
         }
-        sprites[spriteCount++] = sprite;
+        sprites[spriteCount_++] = sprite;
         return true;
       }
     };
+
+    enum RectSurfacePaintResult
+    {
+      RECT_SURFACE_PAINT_SUCCEEDED = 0,
+      RECT_SURFACE_PAINT_REFUSED
+    };
+
+    /** Commits a model only after its pixels were applied. Refusal preserves
+        the caller-owned applied snapshot for a later retry. */
+    inline void FinishRectSurfacePaint(RectSurfacePaintResult result,
+                                       const RectSurfaceModel &requested,
+                                       RectSurfaceModel &applied)
+    {
+      switch (result)
+      {
+      case RECT_SURFACE_PAINT_SUCCEEDED:
+        applied = requested;
+        break;
+      case RECT_SURFACE_PAINT_REFUSED:
+        break;
+      }
+    }
 
     /** Read-only array-order view used by native RectSurface paint passes. */
     class RectSurfacePaintList
@@ -323,7 +350,7 @@ namespace loka
 
       short count() const
       {
-        return RectSurfaceModel::clampSpriteCount(model_.spriteCount);
+        return model_.spriteCount();
       }
 
       const RectSurfaceSprite *querySprite(short index) const
