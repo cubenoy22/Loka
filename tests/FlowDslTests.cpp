@@ -6318,7 +6318,8 @@ void testSimpleViewerClosesDialogFromChooserCompletion()
 {
   FlowTestPlatformContext platformContext;
   loka::core::EmitterState openDialogEvent;
-  loka::core::MutableState<int> displayMode(simpleviewer::DISPLAY_FIT);
+  loka::core::MutableState<simpleviewer::DisplayMode> displayMode(
+      simpleviewer::DISPLAY_FIT);
   loka::core::EmitterState fitEvent;
   loka::core::EmitterState actualEvent;
   loka::core::EmitterState actualScrollEvent;
@@ -6403,7 +6404,8 @@ void testSimpleViewerImageLoadSessionPreservesAndReleasesCurrentImage()
   SimpleViewerRetainingPlatformContext platformContext;
   platformContext.createImageResult_ = true;
   loka::core::EmitterState openDialogEvent;
-  loka::core::MutableState<int> displayMode(simpleviewer::DISPLAY_FIT);
+  loka::core::MutableState<simpleviewer::DisplayMode> displayMode(
+      simpleviewer::DISPLAY_FIT);
   loka::core::EmitterState fitEvent;
   loka::core::EmitterState actualEvent;
   loka::core::EmitterState actualScrollEvent;
@@ -6480,7 +6482,8 @@ void testSimpleViewerImageLoadStopsWhenCapacityRemainsUnavailable()
   loka::core::Managed<loka::core::resource::BlobRecord> unavailableCapacity;
   platformContext.capacityReleaseWitness_ = &unavailableCapacity;
   loka::core::EmitterState openDialogEvent;
-  loka::core::MutableState<int> displayMode(simpleviewer::DISPLAY_FIT);
+  loka::core::MutableState<simpleviewer::DisplayMode> displayMode(
+      simpleviewer::DISPLAY_FIT);
   loka::core::EmitterState fitEvent;
   loka::core::EmitterState actualEvent;
   loka::core::EmitterState actualScrollEvent;

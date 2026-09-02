@@ -252,7 +252,8 @@ void testSimpleViewerDisplayModeUpdatesRetainedImageViewProps()
   NullScenePlatformController platform;
   NullPlatformContext platformContext;
   loka::core::EmitterState openDialogEvent;
-  loka::core::MutableState<int> displayMode(simpleviewer::DISPLAY_FIT);
+  loka::core::MutableState<simpleviewer::DisplayMode> displayMode(
+      simpleviewer::DISPLAY_FIT);
   loka::core::EmitterState fitEvent;
   loka::core::EmitterState actualEvent;
   loka::core::EmitterState actualScrollEvent;
@@ -289,7 +290,7 @@ void testSimpleViewerDisplayModeUpdatesRetainedImageViewProps()
   imageView = findOnlyImageView(loka::dsl::testing::SceneTestAccess::rootNode(scene));
   LOKA_VERIFY(imageView != 0);
   // Each display mode owns a distinct Match arm resident; the original Fit
-  // image is parked while Actual Center is active, then reused on re-entry.
+  // image is parked while Actual is active, then reused on re-entry.
   LOKA_VERIFY(imageView != retainedImageView);
   LOKA_VERIFY(imageView->props.attr_.sizePolicyValue_ == loka::app::IMAGE_VIEW_SIZE_INTRINSIC);
 

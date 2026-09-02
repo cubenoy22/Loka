@@ -60,7 +60,7 @@ private:
       // MenuBoundary's tracked-state door is explicit because this boundary
       // owns the mode while the scene receives only a read-only State view.
       this->displayMode_ =
-          &this->dangerouslyUseState<int>(simpleviewer::DISPLAY_FIT);
+          &this->dangerouslyUseState<simpleviewer::DisplayMode>(simpleviewer::DISPLAY_FIT);
     }
 
     virtual void composeMenu(loka::app::MenuComposition &c)
@@ -69,7 +69,7 @@ private:
       this->bindActionForMenu(this->fitToWindowEvent_, &MainMenu::fitToWindow);
       this->bindActionForMenu(this->actualEvent_, &MainMenu::showActual);
       this->bindActionForMenu(this->actualScrollEvent_, &MainMenu::showActualScrolling);
-      const int mode = this->displayMode_->get();
+      const simpleviewer::DisplayMode mode = this->displayMode_->get();
       c.declare(AppMenu()                                              //
                 << MenuItem("About").actionType(MENU_ACTION_ABOUT_APP) //
                 << MenuSeparator()                                     //
@@ -88,7 +88,7 @@ private:
                        .onClick(&this->actualScrollEvent_));
     }
 
-    loka::core::State<int> *displayModeState() const
+    loka::core::State<simpleviewer::DisplayMode> *displayModeState() const
     {
       return this->displayMode_;
     }
@@ -116,7 +116,7 @@ private:
     void setDisplayMode(simpleviewer::DisplayMode mode)
     {
       loka::core::StateTrackerGuard guard(this->tracker());
-      this->displayMode_->set(static_cast<int>(mode));
+      this->displayMode_->set(mode);
     }
 
     void fitToWindow()
@@ -135,7 +135,7 @@ private:
     }
 
     loka::core::EmitterState *openDialogEvent_;
-    loka::core::MutableState<int> *displayMode_;
+    loka::core::MutableState<simpleviewer::DisplayMode> *displayMode_;
     loka::core::EmitterState fitToWindowEvent_;
     loka::core::EmitterState actualEvent_;
     loka::core::EmitterState actualScrollEvent_;

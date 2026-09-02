@@ -29,7 +29,8 @@ public:
     node.navMode_.set(mode);
   }
 
-  static loka::core::State<int> *displayModeState(SimpleViewerAppConfig &config)
+  static loka::core::State<simpleviewer::DisplayMode> *displayModeState(
+      SimpleViewerAppConfig &config)
   {
     return config.menu_.displayMode_;
   }
@@ -58,13 +59,12 @@ public:
                              simpleviewer::DisplayMode mode)
   {
     loka::core::StateTrackerGuard guard(config.menu_.tracker());
-    config.menu_.displayMode_->set(static_cast<int>(mode));
+    config.menu_.displayMode_->set(mode);
   }
 
   static void setLoadedImage(simpleviewer::MainNode &node,
                              const loka::core::resource::Image &image)
   {
-    loka::core::StateTrackerGuard guard(node.tracker());
     node.commitLoadedImage(image);
   }
 };
@@ -527,6 +527,49 @@ void testSimpleViewerDisplayModesProjectExpectedNullGeometry()
   LOKA_VERIFY(geometry->y == 40);
   LOKA_VERIFY(geometry->width == 80);
   LOKA_VERIFY(geometry->height == 60);
+}
+
+void testSimpleViewerCommittedImageResetsRailScrollOffset()
+{
+  SimpleViewerHarness harness;
+  simpleviewer::MainNode *main = harness.mainNode();
+  LOKA_VERIFY(main != 0);
+  const loka::core::resource::Image tallImage =
+      loka::core::resource::Image::FromNative(reinterpret_cast<void *>(1),
+                                              80,
+                                              800,
+                                              0,
+                                              0);
+  SimpleViewerTestAccess::setLoadedImage(*main, tallImage);
+  SimpleViewerTestAccess::setDisplayMode(harness.config,
+                                         simpleviewer::DISPLAY_ACTUAL_SCROLL);
+  flushScene(*harness.scene);
+
+  loka::app::ScrollViewNode *scroll = static_cast<loka::app::ScrollViewNode *>(
+      findNode(main, "SimpleViewer.ActualScroll"));
+  LOKA_VERIFY(scroll != 0);
+  scroll->props.offset_.set(73);
+  LOKA_VERIFY(scroll->props.offset_.get() == 73);
+
+  SimpleViewerTestAccess::setDisplayMode(harness.config,
+                                         simpleviewer::DISPLAY_FIT);
+  flushScene(*harness.scene);
+  SimpleViewerTestAccess::setDisplayMode(harness.config,
+                                         simpleviewer::DISPLAY_ACTUAL_SCROLL);
+  flushScene(*harness.scene);
+  scroll = static_cast<loka::app::ScrollViewNode *>(
+      findNode(main, "SimpleViewer.ActualScroll"));
+  LOKA_VERIFY(scroll != 0);
+  LOKA_VERIFY(scroll->props.offset_.get() == 73);
+
+  const loka::core::resource::Image nextImage =
+      loka::core::resource::Image::FromNative(reinterpret_cast<void *>(2),
+                                              60,
+                                              600,
+                                              0,
+                                              0);
+  SimpleViewerTestAccess::setLoadedImage(*main, nextImage);
+  LOKA_VERIFY(scroll->props.offset_.get() == 0);
 }
 
 void testSimpleViewerPaneScrollButtonUsesMenuEmitter()

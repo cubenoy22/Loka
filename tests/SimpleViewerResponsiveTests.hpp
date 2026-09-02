@@ -4,6 +4,7 @@
 void testSimpleViewerNavSeatsFollowModeAndRetainContentImage();
 void testSimpleViewerDisplayArmsAndMenuChecksFollowOwnedMode();
 void testSimpleViewerDisplayModesProjectExpectedNullGeometry();
+void testSimpleViewerCommittedImageResetsRailScrollOffset();
 void testSimpleViewerPaneScrollButtonUsesMenuEmitter();
 void testSimpleViewerNarrowWindowFileMenuMaterializesDialogOutsideParkedNav();
 void testSimpleViewerProductionConfigStartsAtWideBreakpoint();

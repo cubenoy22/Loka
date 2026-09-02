@@ -20,6 +20,7 @@
 #include "core/State.hpp"
 #include "core/String.hpp"
 #include "core/resource/Image.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include <cassert>
 
 #ifdef TEST_BUILD
@@ -56,7 +57,7 @@ namespace simpleviewer
     typedef MainNode NodeType;
     PlatformContext *platformContext_;
     loka::core::EmitterState *openDialogEvent_;
-    loka::core::State<int> *displayMode_;
+    loka::core::State<DisplayMode> *displayMode_;
     loka::core::EmitterState *fitEvent_;
     loka::core::EmitterState *actualEvent_;
     loka::core::EmitterState *actualScrollEvent_;
@@ -83,7 +84,7 @@ namespace simpleviewer
       return *this;
     }
 
-    MainProps &displayMode(loka::core::State<int> *state)
+    MainProps &displayMode(loka::core::State<DisplayMode> *state)
     {
       this->displayMode_ = state;
       return *this;
@@ -206,7 +207,7 @@ namespace simpleviewer
           .otherwise(Fragment());
       navToggle.setNodeTag(kNavToggleSeatTag);
 
-      MatchDefinition<int> display = Match(*this->props.displayMode_);
+      MatchDefinition<DisplayMode> display = Match(*this->props.displayMode_);
       display.arm(DISPLAY_FIT, this->imageView(IMAGE_VIEW_SIZE_FILL_PARENT))
           .arm(DISPLAY_ACTUAL, this->imageView(IMAGE_VIEW_SIZE_INTRINSIC))
           .arm(DISPLAY_ACTUAL_SCROLL,
@@ -380,6 +381,8 @@ namespace simpleviewer
 
     void commitLoadedImage(const loka::core::resource::Image &image)
     {
+      loka::core::StateTrackerGuard guard(this->tracker());
+      this->scrollOffset_.set(0);
       this->image_.set(image, true);
     }
 
