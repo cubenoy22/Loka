@@ -254,7 +254,7 @@ void testSimpleViewerDisplayModeUpdatesRetainedImageViewProps()
   loka::core::EmitterState openDialogEvent;
   loka::core::MutableState<int> displayMode(simpleviewer::DISPLAY_FIT);
   loka::core::EmitterState fitEvent;
-  loka::core::EmitterState actualCenterEvent;
+  loka::core::EmitterState actualEvent;
   loka::core::EmitterState actualScrollEvent;
   loka::core::PushStateTracker modeTracker;
   modeTracker.addState(&displayMode);
@@ -263,7 +263,7 @@ void testSimpleViewerDisplayModeUpdatesRetainedImageViewProps()
       .openDialogEvent(&openDialogEvent)
       .displayMode(&displayMode)
       .fitEvent(&fitEvent)
-      .actualCenterEvent(&actualCenterEvent)
+      .actualEvent(&actualEvent)
       .actualScrollEvent(&actualScrollEvent);
   loka::app::scene::NodeDefinitionBase *rootDefinition =
       loka::app::scene::Boundary<simpleviewer::MainNode>(props).clone();
@@ -280,7 +280,7 @@ void testSimpleViewerDisplayModeUpdatesRetainedImageViewProps()
 
   {
     loka::core::StateTrackerGuard guard(&modeTracker);
-    displayMode.set(simpleviewer::DISPLAY_ACTUAL_CENTER);
+    displayMode.set(simpleviewer::DISPLAY_ACTUAL);
   }
   if (scene.hasPendingInvalidation())
   {

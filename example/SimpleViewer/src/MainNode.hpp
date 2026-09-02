@@ -40,7 +40,7 @@ namespace simpleviewer
   enum DisplayMode
   {
     DISPLAY_FIT = 0,
-    DISPLAY_ACTUAL_CENTER = 1,
+    DISPLAY_ACTUAL = 1,
     DISPLAY_ACTUAL_SCROLL = 2
   };
 
@@ -58,7 +58,7 @@ namespace simpleviewer
     loka::core::EmitterState *openDialogEvent_;
     loka::core::State<int> *displayMode_;
     loka::core::EmitterState *fitEvent_;
-    loka::core::EmitterState *actualCenterEvent_;
+    loka::core::EmitterState *actualEvent_;
     loka::core::EmitterState *actualScrollEvent_;
 
     MainProps()
@@ -66,7 +66,7 @@ namespace simpleviewer
           openDialogEvent_(0),
           displayMode_(0),
           fitEvent_(0),
-          actualCenterEvent_(0),
+          actualEvent_(0),
           actualScrollEvent_(0)
     {
     }
@@ -95,9 +95,9 @@ namespace simpleviewer
       return *this;
     }
 
-    MainProps &actualCenterEvent(loka::core::EmitterState *eventState)
+    MainProps &actualEvent(loka::core::EmitterState *eventState)
     {
-      this->actualCenterEvent_ = eventState;
+      this->actualEvent_ = eventState;
       return *this;
     }
 
@@ -113,7 +113,7 @@ namespace simpleviewer
       assert(this->openDialogEvent_);
       assert(this->displayMode_);
       assert(this->fitEvent_);
-      assert(this->actualCenterEvent_);
+      assert(this->actualEvent_);
       assert(this->actualScrollEvent_);
     }
 
@@ -132,8 +132,8 @@ namespace simpleviewer
         return this->displayMode_ < other.displayMode_;
       if (this->fitEvent_ != other.fitEvent_)
         return this->fitEvent_ < other.fitEvent_;
-      if (this->actualCenterEvent_ != other.actualCenterEvent_)
-        return this->actualCenterEvent_ < other.actualCenterEvent_;
+      if (this->actualEvent_ != other.actualEvent_)
+        return this->actualEvent_ < other.actualEvent_;
       if (this->actualScrollEvent_ != other.actualScrollEvent_)
         return this->actualScrollEvent_ < other.actualScrollEvent_;
       return false;
@@ -207,12 +207,7 @@ namespace simpleviewer
 
       MatchDefinition<int> display = Match(*this->props.displayMode_);
       display.arm(DISPLAY_FIT, this->imageView(IMAGE_VIEW_SIZE_FILL_PARENT))
-          .arm(DISPLAY_ACTUAL_CENTER,
-               HStack()
-                   .alignVertical(VERTICAL_ALIGNMENT_CENTER)
-                   .TEST_ID("SimpleViewer.ActualCenter")
-               << (VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_CENTER)
-                   << this->imageView(IMAGE_VIEW_SIZE_INTRINSIC)))
+          .arm(DISPLAY_ACTUAL, this->imageView(IMAGE_VIEW_SIZE_INTRINSIC))
           .arm(DISPLAY_ACTUAL_SCROLL,
                ScrollView(this->scrollOffset_)
                        .TEST_ID("SimpleViewer.ActualScroll")
@@ -284,8 +279,8 @@ namespace simpleviewer
                         .onClick(this->props.fitEvent_)
                         .TEST_ID("SimpleViewer.Mode.Fit")
                  << Button("Actual Size")
-                        .onClick(this->props.actualCenterEvent_)
-                        .TEST_ID("SimpleViewer.Mode.ActualCenter")
+                        .onClick(this->props.actualEvent_)
+                        .TEST_ID("SimpleViewer.Mode.Actual")
                  << Button("Actual Size (Scroll)")
                         .onClick(this->props.actualScrollEvent_)
                         .TEST_ID("SimpleViewer.Mode.ActualScroll")

@@ -3,6 +3,7 @@
 
 void testSimpleViewerNavSeatsFollowModeAndRetainContentImage();
 void testSimpleViewerDisplayArmsAndMenuChecksFollowOwnedMode();
+void testSimpleViewerDisplayModesProjectExpectedNullGeometry();
 void testSimpleViewerPaneScrollButtonUsesMenuEmitter();
 
 #endif // LOKA_TESTS_SIMPLE_VIEWER_RESPONSIVE_TESTS_HPP

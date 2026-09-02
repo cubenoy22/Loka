@@ -34,7 +34,7 @@ public:
                     .openDialogEvent(&this->openDialogEvent_)
                     .displayMode(this->menu_.displayModeState())
                     .fitEvent(this->menu_.fitEvent())
-                    .actualCenterEvent(this->menu_.actualCenterEvent())
+                    .actualEvent(this->menu_.actualEvent())
                     .actualScrollEvent(this->menu_.actualScrollEvent())))
             .title("LokaSimpleViewer")
             .visible(true));
@@ -53,7 +53,7 @@ private:
         : openDialogEvent_(openDialogEvent),
           displayMode_(0),
           fitToWindowEvent_(),
-          actualCenterEvent_(),
+          actualEvent_(),
           actualScrollEvent_()
     {
       this->reserveStates(1);
@@ -67,7 +67,7 @@ private:
     {
       using namespace loka::app;
       this->bindActionForMenu(this->fitToWindowEvent_, &MainMenu::fitToWindow);
-      this->bindActionForMenu(this->actualCenterEvent_, &MainMenu::showActualCentered);
+      this->bindActionForMenu(this->actualEvent_, &MainMenu::showActual);
       this->bindActionForMenu(this->actualScrollEvent_, &MainMenu::showActualScrolling);
       const int mode = this->displayMode_->get();
       c.declare(AppMenu()                                              //
@@ -81,8 +81,8 @@ private:
                        .attr(MenuItemAttr().checked(mode == simpleviewer::DISPLAY_FIT))
                        .onClick(&this->fitToWindowEvent_)
                 << MenuItem("Actual Size")
-                       .attr(MenuItemAttr().checked(mode == simpleviewer::DISPLAY_ACTUAL_CENTER))
-                       .onClick(&this->actualCenterEvent_)
+                       .attr(MenuItemAttr().checked(mode == simpleviewer::DISPLAY_ACTUAL))
+                       .onClick(&this->actualEvent_)
                 << MenuItem("Actual Size (Scroll)")
                        .attr(MenuItemAttr().checked(mode == simpleviewer::DISPLAY_ACTUAL_SCROLL))
                        .onClick(&this->actualScrollEvent_));
@@ -98,9 +98,9 @@ private:
       return &this->fitToWindowEvent_;
     }
 
-    loka::core::EmitterState *actualCenterEvent()
+    loka::core::EmitterState *actualEvent()
     {
-      return &this->actualCenterEvent_;
+      return &this->actualEvent_;
     }
 
     loka::core::EmitterState *actualScrollEvent()
@@ -124,9 +124,9 @@ private:
       this->setDisplayMode(simpleviewer::DISPLAY_FIT);
     }
 
-    void showActualCentered()
+    void showActual()
     {
-      this->setDisplayMode(simpleviewer::DISPLAY_ACTUAL_CENTER);
+      this->setDisplayMode(simpleviewer::DISPLAY_ACTUAL);
     }
 
     void showActualScrolling()
@@ -137,7 +137,7 @@ private:
     loka::core::EmitterState *openDialogEvent_;
     loka::core::MutableState<int> *displayMode_;
     loka::core::EmitterState fitToWindowEvent_;
-    loka::core::EmitterState actualCenterEvent_;
+    loka::core::EmitterState actualEvent_;
     loka::core::EmitterState actualScrollEvent_;
   };
 

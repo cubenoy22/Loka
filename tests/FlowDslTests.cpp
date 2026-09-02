@@ -6320,14 +6320,14 @@ void testSimpleViewerClosesDialogFromChooserCompletion()
   loka::core::EmitterState openDialogEvent;
   loka::core::MutableState<int> displayMode(simpleviewer::DISPLAY_FIT);
   loka::core::EmitterState fitEvent;
-  loka::core::EmitterState actualCenterEvent;
+  loka::core::EmitterState actualEvent;
   loka::core::EmitterState actualScrollEvent;
   simpleviewer::MainProps props;
   props.platformContext(&platformContext)
       .openDialogEvent(&openDialogEvent)
       .displayMode(&displayMode)
       .fitEvent(&fitEvent)
-      .actualCenterEvent(&actualCenterEvent)
+      .actualEvent(&actualEvent)
       .actualScrollEvent(&actualScrollEvent);
   loka::app::scene::Scene scene(
       new loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(props));
@@ -6405,14 +6405,14 @@ void testSimpleViewerImageLoadSessionPreservesAndReleasesCurrentImage()
   loka::core::EmitterState openDialogEvent;
   loka::core::MutableState<int> displayMode(simpleviewer::DISPLAY_FIT);
   loka::core::EmitterState fitEvent;
-  loka::core::EmitterState actualCenterEvent;
+  loka::core::EmitterState actualEvent;
   loka::core::EmitterState actualScrollEvent;
   simpleviewer::MainProps props;
   props.platformContext(&platformContext)
       .openDialogEvent(&openDialogEvent)
       .displayMode(&displayMode)
       .fitEvent(&fitEvent)
-      .actualCenterEvent(&actualCenterEvent)
+      .actualEvent(&actualEvent)
       .actualScrollEvent(&actualScrollEvent);
   loka::app::scene::Scene scene(
       new loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(props));
@@ -6482,14 +6482,14 @@ void testSimpleViewerImageLoadStopsWhenCapacityRemainsUnavailable()
   loka::core::EmitterState openDialogEvent;
   loka::core::MutableState<int> displayMode(simpleviewer::DISPLAY_FIT);
   loka::core::EmitterState fitEvent;
-  loka::core::EmitterState actualCenterEvent;
+  loka::core::EmitterState actualEvent;
   loka::core::EmitterState actualScrollEvent;
   simpleviewer::MainProps props;
   props.platformContext(&platformContext)
       .openDialogEvent(&openDialogEvent)
       .displayMode(&displayMode)
       .fitEvent(&fitEvent)
-      .actualCenterEvent(&actualCenterEvent)
+      .actualEvent(&actualEvent)
       .actualScrollEvent(&actualScrollEvent);
   loka::app::scene::Scene scene(
       new loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(props));
