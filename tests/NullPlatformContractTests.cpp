@@ -1047,7 +1047,7 @@ namespace
         BaseType::composeWithContext(context, event);
         return;
       }
-      this->recomposeLocalComposition(
+      this->recomposeLocalCompositionWithFullFallback(
           context, event, this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
     }
   };
@@ -3703,8 +3703,15 @@ namespace
       if (event == loka::app::scene::COMPOSE_EVENT_UPDATE &&
           (context.dirtyFlags() & loka::app::scene::NODE_DIRTY_CHILD))
       {
-        this->recomposeLocalComposition(context, event,
-                                        this->LOCAL_RECOMPOSE_APPLY_SNAPSHOT);
+        if (!this->recomposeLocalComposition(
+                context, event, this->LOCAL_RECOMPOSE_APPLY_SNAPSHOT))
+        {
+          if (!this->composeResult().allocationFailed)
+          {
+            this->recomposeLocalCompositionWithFullFallback(
+                context, event, this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
+          }
+        }
         this->bindUi();
         return;
       }

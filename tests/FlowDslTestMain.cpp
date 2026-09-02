@@ -26,6 +26,7 @@
 #include "DerivedStateTests.hpp"
 #include "WindowFrameStateTests.hpp"
 #include "DefinitionCloneTests.hpp"
+#include "LocalRecomposeRefusalTests.hpp"
 #include "FlowDslTests.hpp"
 #include "OwnershipDumpTests.hpp"
 #include "AttrDslTests.hpp"

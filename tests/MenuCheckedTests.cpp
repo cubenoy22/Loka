@@ -1,10 +1,16 @@
 #include "MenuCheckedTests.hpp"
 
+#include "../example/SimpleViewer/src/MainNode.hpp"
 #include "app/Menu.hpp"
 #include "app/core/AppConfigurable.hpp"
 #include "app/core/MenuController.hpp"
+#include "app/nodes/ImageView.hpp"
+#include "app/scene/Scene.hpp"
 #include "core/util/StateTrackerGuard.hpp"
+#include "platform/null/NullPlatformContext.hpp"
+#include "platform/null/NullScenePlatformController.hpp"
 #include "support/TestVerify.hpp"
+#include "testing/scene/SceneTestFlow.hpp"
 
 #include <cassert>
 
@@ -68,6 +74,47 @@ namespace
     CheckedMenuBoundary menu;
   };
 
+  class HeapCheckedMenuConfig : public AppConfigurable
+  {
+  public:
+    HeapCheckedMenuConfig()
+        : AppConfigurable(0),
+          menu_(new CheckedMenuBoundary())
+    {
+    }
+
+    virtual ~HeapCheckedMenuConfig()
+    {
+      delete this->menu_;
+    }
+
+    virtual void compose(AppComposition &)
+    {
+    }
+
+    virtual void composeMenu(loka::app::MenuComposition &composition)
+    {
+      if (this->menu_)
+      {
+        composition << *this->menu_;
+      }
+    }
+
+    CheckedMenuBoundary *menu()
+    {
+      return this->menu_;
+    }
+
+    void destroyMenu()
+    {
+      delete this->menu_;
+      this->menu_ = 0;
+    }
+
+  private:
+    CheckedMenuBoundary *menu_;
+  };
+
   void CountCheckedMenuApply(void *userData, Window *)
   {
     ++*static_cast<int *>(userData);
@@ -82,6 +129,29 @@ namespace
     return bar->menuAt(0);
   }
 
+  loka::app::ImageViewNode *findOnlyImageView(loka::app::scene::Node *node)
+  {
+    if (!node)
+    {
+      return 0;
+    }
+    if (node->asImageViewNode())
+    {
+      return node->asImageViewNode();
+    }
+    loka::app::scene::INestable *nestable = node->asNestable();
+    for (loka::app::scene::Node *child = nestable ? nestable->childrenHead() : 0;
+         child;
+         child = child->nextInComposition)
+    {
+      loka::app::ImageViewNode *found = findOnlyImageView(child);
+      if (found)
+      {
+        return found;
+      }
+    }
+    return 0;
+  }
 } // namespace
 
 void testMenuItemCheckedAttrProjectsValueAndState()
@@ -139,19 +209,102 @@ void testMenuBoundaryCheckedValuesSwapOnTrackedStateRefresh()
   LOKA_VERIFY(applyCount == initialApplyCount + 1);
 }
 
-void testMenuControllerDisarmsTrackedMenuBoundaryBeforeDestruction()
+void testMenuBoundaryRefreshSurvivesMenuControllerReplacement()
 {
   CheckedMenuConfig config;
   int applyCount = 0;
-  MenuController *controller = new MenuController(&config, &CountCheckedMenuApply, &applyCount);
-  LOKA_VERIFY(controller != 0);
-  controller->requestInvalidation();
-  LOKA_VERIFY(controller->flushInvalidation(0));
-  const int applyCountBeforeDestruction = applyCount;
+  {
+    MenuController controller(&config, &CountCheckedMenuApply, &applyCount);
+    controller.requestInvalidation();
+    LOKA_VERIFY(controller.flushInvalidation(0));
+    const loka::app::MenuDefinition *view = singleViewMenu(controller.defaultMenuBar());
+    LOKA_VERIFY(view != 0);
+    LOKA_VERIFY(view->itemsHead()->isCheckedInitial());
+    LOKA_VERIFY(!view->itemsHead()->nextInComposition->isCheckedInitial());
+    LOKA_VERIFY(!view->itemsHead()->nextInComposition->nextInComposition->isCheckedInitial());
+  }
 
-  delete controller;
-
-  LOKA_VERIFY(config.menu.pushTracker()->invalidatesTarget(0));
   config.menu.setDisplayMode(2);
-  LOKA_VERIFY(applyCount == applyCountBeforeDestruction);
+  LOKA_VERIFY(config.menuRefresh().hasPendingRequest());
+
+  MenuController replacement(&config, &CountCheckedMenuApply, &applyCount);
+  LOKA_VERIFY(replacement.flushInvalidation(0));
+  const loka::app::MenuDefinition *view = singleViewMenu(replacement.defaultMenuBar());
+  LOKA_VERIFY(view != 0);
+  LOKA_VERIFY(!view->itemsHead()->isCheckedInitial());
+  LOKA_VERIFY(!view->itemsHead()->nextInComposition->isCheckedInitial());
+  LOKA_VERIFY(view->itemsHead()->nextInComposition->nextInComposition->isCheckedInitial());
+}
+
+void testMenuControllerOutlivedByBoundaryDoesNotTouchIt()
+{
+  HeapCheckedMenuConfig config;
+  int applyCount = 0;
+  MenuController controller(&config, &CountCheckedMenuApply, &applyCount);
+  controller.requestInvalidation();
+  LOKA_VERIFY(controller.flushInvalidation(0));
+
+  config.destroyMenu();
+}
+
+void testSimpleViewerDisplayModeUpdatesRetainedImageViewProps()
+{
+  NullScenePlatformController platform;
+  NullPlatformContext platformContext;
+  loka::core::EmitterState openDialogEvent;
+  loka::core::MutableState<int> displayMode(simpleviewer::DISPLAY_FIT);
+  loka::core::EmitterState fitEvent;
+  loka::core::EmitterState actualCenterEvent;
+  loka::core::EmitterState actualScrollEvent;
+  loka::core::PushStateTracker modeTracker;
+  modeTracker.addState(&displayMode);
+  simpleviewer::MainProps props;
+  props.platformContext(&platformContext)
+      .openDialogEvent(&openDialogEvent)
+      .displayMode(&displayMode)
+      .fitEvent(&fitEvent)
+      .actualCenterEvent(&actualCenterEvent)
+      .actualScrollEvent(&actualScrollEvent);
+  loka::app::scene::NodeDefinitionBase *rootDefinition =
+      loka::app::scene::Boundary<simpleviewer::MainNode>(props).clone();
+  LOKA_VERIFY(rootDefinition != 0);
+  loka::app::scene::Scene scene(rootDefinition);
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  loka::app::ImageViewNode *imageView = findOnlyImageView(
+      loka::dsl::testing::SceneTestAccess::rootNode(scene));
+  LOKA_VERIFY(imageView != 0);
+  LOKA_VERIFY(imageView->props.attr_.sizePolicyValue_ == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT);
+  loka::app::ImageViewNode *retainedImageView = imageView;
+
+  {
+    loka::core::StateTrackerGuard guard(&modeTracker);
+    displayMode.set(simpleviewer::DISPLAY_ACTUAL_CENTER);
+  }
+  if (scene.hasPendingInvalidation())
+  {
+    LOKA_VERIFY(scene.flushInvalidation());
+  }
+  imageView = findOnlyImageView(loka::dsl::testing::SceneTestAccess::rootNode(scene));
+  LOKA_VERIFY(imageView != 0);
+  // Each display mode owns a distinct Match arm resident; the original Fit
+  // image is parked while Actual Center is active, then reused on re-entry.
+  LOKA_VERIFY(imageView != retainedImageView);
+  LOKA_VERIFY(imageView->props.attr_.sizePolicyValue_ == loka::app::IMAGE_VIEW_SIZE_INTRINSIC);
+
+  {
+    loka::core::StateTrackerGuard guard(&modeTracker);
+    displayMode.set(simpleviewer::DISPLAY_FIT);
+  }
+  if (scene.hasPendingInvalidation())
+  {
+    LOKA_VERIFY(scene.flushInvalidation());
+  }
+  imageView = findOnlyImageView(loka::dsl::testing::SceneTestAccess::rootNode(scene));
+  LOKA_VERIFY(imageView != 0);
+  LOKA_VERIFY(imageView == retainedImageView);
+  LOKA_VERIFY(imageView->props.attr_.sizePolicyValue_ == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT);
+
+  scene.unmount();
 }

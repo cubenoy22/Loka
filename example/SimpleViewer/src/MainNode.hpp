@@ -241,7 +241,7 @@ namespace simpleviewer
       if (event == loka::app::scene::COMPOSE_EVENT_UPDATE &&
           (context.dirtyFlags() & loka::app::scene::NODE_DIRTY_CHILD))
       {
-        this->recomposeLocalComposition(
+        this->recomposeLocalCompositionWithFullFallback(
             context, event, this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
         this->bindUi();
         return;

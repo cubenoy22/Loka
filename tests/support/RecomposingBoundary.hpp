@@ -1,7 +1,7 @@
 #ifndef LOKA_TESTS_SUPPORT_RECOMPOSING_BOUNDARY_HPP
 #define LOKA_TESTS_SUPPORT_RECOMPOSING_BOUNDARY_HPP
 
-#include "app/scene/boundary/Boundary.hpp"
+#include "app/nodes/boundary/StdComposition.hpp"
 
 namespace SceneTestSupport
 {
@@ -29,18 +29,26 @@ namespace SceneTestSupport
                                     loka::app::scene::ComposeEvent event)
     {
       typedef loka::app::scene::BoundaryNodeFor<NodeT> BaseType;
-      if (event != loka::app::scene::COMPOSE_EVENT_UPDATE)
+      if (event == loka::app::scene::COMPOSE_EVENT_UPDATE &&
+          !UseRetainFastPaths)
       {
-        BaseType::composeWithContext(context, event);
+        if (this->recomposeLocalComposition(
+                context, event, this->LOCAL_RECOMPOSE_APPLY_SNAPSHOT))
+        {
+          return;
+        }
+        if (this->composeResult().allocationFailed)
+        {
+          return;
+        }
+      }
+      if (event == loka::app::scene::COMPOSE_EVENT_UPDATE)
+      {
+        this->recomposeLocalCompositionWithFullFallback(
+            context, event, this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
         return;
       }
-
-      this->recomposeLocalComposition(
-          context,
-          event,
-          UseRetainFastPaths
-              ? this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS
-              : this->LOCAL_RECOMPOSE_APPLY_SNAPSHOT);
+      BaseType::composeWithContext(context, event);
     }
   };
 } // namespace SceneTestSupport
