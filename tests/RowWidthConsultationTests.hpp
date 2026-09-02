@@ -2,8 +2,13 @@
 #define LOKA_TESTS_ROW_WIDTH_CONSULTATION_TESTS_HPP
 
 void testRowFixedBoxWidthLeavesOnlyRemainingSeatForText();
+void testRowWidthOnlyBoxLeavesOnlyRemainingSeatForText();
 void testRowEmptyFragmentConsumesNeitherSeatNorGap();
 void testRowBranchArmSwitchRelayoutsWidthConsultation();
+void testRowWidthOnlyBranchArmForwardsWidthClaim();
+void testRowHeightOnlyBoxKeepsFlexSeat();
+void testRowWidthOnlyBoxUsesRowHeight();
+void testColumnWidthOnlyBoxKeepsFullAvailableWidth();
 void testRowOversizedFixedBoxKeepsDeclaredSeatForSibling();
 void testRowZeroWidthRowKeepsFixedSeatLiveAndGapped();
 void testRowWidthHeuristicForwardsOnlySingleFragmentClaims();

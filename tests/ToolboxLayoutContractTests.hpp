@@ -4,6 +4,7 @@
 void testToolboxFixedBoxLayoutCommitsDeclaredExtent();
 void testToolboxEmptyFixedBoxLayoutCommitsDeclaredExtent();
 void testToolboxRowConsultsFixedChildWidth();
+void testToolboxRowConsultsWidthOnlyBoxWidth();
 void testToolboxRowEmptyFragmentConsumesNoSeatOrGap();
 
 #endif // LOKA_TESTS_TOOLBOX_LAYOUT_CONTRACT_TESTS_HPP

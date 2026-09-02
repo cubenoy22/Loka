@@ -37,7 +37,7 @@ namespace loka
         }
         if (loka::app::BoxNode *box = child->asBoxNode())
         {
-          if (box->props.hasFixedSize() && box->props.width > 0)
+          if (box->props.width > 0)
           {
             return box->props.width;
           }
