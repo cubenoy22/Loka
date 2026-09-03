@@ -160,6 +160,12 @@ public:
   {
     this->rectSurfaceExtentLedger_.record(surface, extent);
   }
+  /** Retire door for a RectSurface context: takes back that surface's pending
+      seat rows so a surface reclaimed during delivery publishes nothing. */
+  void cancelRectSurfaceExtent(loka::app::RectSurfaceNode *surface)
+  {
+    this->rectSurfaceExtentLedger_.cancel(surface);
+  }
   void renderScrollView(loka::app::ScrollViewNode *scrollView);
   bool projectLayoutState(loka::app::scene::LayoutState &state)
   {

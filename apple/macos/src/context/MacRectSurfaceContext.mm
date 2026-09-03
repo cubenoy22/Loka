@@ -54,6 +54,7 @@ MacRectSurfaceContext::MacRectSurfaceContext(MacScenePlatformController *control
                                              int height,
                                              loka::app::RectSurfaceNode *node)
     : MacRetirableContext(controller),
+      controller_(controller),
       node_(node),
       modelState_(0),
       view_(0)
@@ -77,6 +78,12 @@ MacRectSurfaceContext::MacRectSurfaceContext(MacScenePlatformController *control
 MacRectSurfaceContext::~MacRectSurfaceContext()
 {
   assert(!view_ && "terminal fact delivery must queue the native view before context reclaim");
+  // Reclaimed contexts leave no pending seat row behind (pointer compare
+  // only; the node may already be gone).
+  if (controller_)
+  {
+    controller_->cancelRectSurfaceExtent(node_);
+  }
 }
 
 void MacRectSurfaceContext::readLifecycleFactOnAttach()

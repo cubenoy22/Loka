@@ -48,6 +48,7 @@ private:
   void unbindModel();
   void applyModel();
 
+  MacScenePlatformController *controller_;
   loka::app::RectSurfaceNode *node_;
   loka::core::State<loka::app::RectSurfaceModel> *modelState_;
   void *view_;

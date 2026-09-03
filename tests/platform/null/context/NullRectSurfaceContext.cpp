@@ -20,23 +20,29 @@ namespace
                                           loka::app::scene::IPlatformController *controller,
                                           const loka::app::scene::LayoutState &state)
     {
-      (void)controller;
       (void)state;
-      return new NullRectSurfaceContext(surface);
+      return new NullRectSurfaceContext(surface, static_cast<NullScenePlatformController *>(controller));
     }
   };
 
   NullRectSurfaceNodeHandler gNullRectSurfaceNodeHandler;
 } // namespace
 
-NullRectSurfaceContext::NullRectSurfaceContext(loka::app::RectSurfaceNode *node)
+NullRectSurfaceContext::NullRectSurfaceContext(loka::app::RectSurfaceNode *node,
+                                               NullScenePlatformController *controller)
     : loka::app::scene::NativeNodeContext(),
-      node_(node)
+      node_(node),
+      controller_(controller)
 {
 }
 
 NullRectSurfaceContext::~NullRectSurfaceContext()
 {
+  // Reclaimed contexts leave no pending seat row behind.
+  if (this->controller_)
+  {
+    this->controller_->cancelRectSurfaceExtent(this->node_);
+  }
   this->node_ = 0;
 }
 

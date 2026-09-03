@@ -346,6 +346,26 @@ namespace loka
         return this->entries_.size();
       }
 
+      /** A surface whose context is reclaimed while entries are pending (a
+          watcher recomposed it away during delivery) is no longer laid out:
+          its rows are taken back so nothing is published for it. */
+      void cancel(const RectSurfaceNode *node)
+      {
+        std::size_t kept = 0;
+        for (std::size_t i = 0; i < this->entries_.size(); ++i)
+        {
+          if (this->entries_[i].node != node)
+          {
+            if (kept != i)
+            {
+              this->entries_[kept] = this->entries_[i];
+            }
+            ++kept;
+          }
+        }
+        this->entries_.erase(this->entries_.begin() + kept, this->entries_.end());
+      }
+
       void discardSince(std::size_t mark)
       {
         if (mark < this->entries_.size())

@@ -459,3 +459,64 @@ void testRectSurfaceRefusedScrollViewContentPublishesNoExtent()
 
   verifyFrame(extent.get(), 1, 2, 3, 4);
 }
+
+namespace
+{
+  // A watcher on the first surface's fact retires the second surface's
+  // context (a synchronous recomposition removing it) while the flush that
+  // delivered the first is still holding the second's row.
+  struct RetireSiblingOnExtent
+  {
+    RetireSiblingOnExtent()
+        : sibling(0),
+          calls(0)
+    {
+    }
+
+    static void OnExtent(void *userData)
+    {
+      RetireSiblingOnExtent *self = static_cast<RetireSiblingOnExtent *>(userData);
+      if (!self)
+      {
+        return;
+      }
+      ++self->calls;
+      if (self->calls == 1 && self->sibling)
+      {
+        self->sibling->setContext(0);
+      }
+    }
+
+    loka::app::RectSurfaceNode *sibling;
+    int calls;
+  };
+} // namespace
+
+void testRectSurfaceRetiredDuringDeliveryPublishesNoExtent()
+{
+  loka::core::MutableState<loka::core::Frame> firstExtent;
+  loka::core::MutableState<loka::core::Frame> siblingExtent(loka::core::Frame(1, 2, 3, 4));
+  loka::core::PushStateTracker tracker;
+  tracker.addState(&firstExtent);
+  tracker.addState(&siblingExtent);
+  loka::app::scene::NodeState<loka::core::Frame> firstState(&firstExtent, &tracker);
+  loka::app::scene::NodeState<loka::core::Frame> siblingState(&siblingExtent, &tracker);
+  loka::app::RectSurfaceProps firstProps;
+  firstProps.size(100, 40).laidOutExtent(firstState);
+  loka::app::RectSurfaceProps siblingProps;
+  siblingProps.size(100, 40).laidOutExtent(siblingState);
+  loka::app::RectSurfaceNode *sibling = new loka::app::RectSurfaceNode(siblingProps);
+  RetireSiblingOnExtent observer;
+  observer.sibling = sibling;
+  firstExtent.bind(&RetireSiblingOnExtent::OnExtent, &observer, false);
+
+  loka::app::StackNode row((loka::app::StackProps(loka::app::STACK_AXIS_ROW)));
+  row.addChild(new loka::app::RectSurfaceNode(firstProps));
+  row.addChild(sibling);
+  NullScenePlatformController platform;
+  platform.projectLayoutForTesting(&row, layoutState(0, 0, 300, 40));
+
+  LOKA_VERIFY(observer.calls == 1);
+  LOKA_VERIFY(firstExtent.get() == loka::core::Frame(0, 0, 100, 40));
+  verifyFrame(siblingExtent.get(), 1, 2, 3, 4);
+}

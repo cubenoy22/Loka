@@ -35,6 +35,12 @@ ToolboxRectSurfaceContext::ToolboxRectSurfaceContext(loka::app::RectSurfaceNode 
 
 ToolboxRectSurfaceContext::~ToolboxRectSurfaceContext()
 {
+  // Reclaimed contexts leave no pending seat row behind (pointer compare
+  // only; the node may already be gone).
+  if (this->controller())
+  {
+    this->controller()->cancelRectSurfaceExtent(node_);
+  }
   if (dirtyRgn_)
   {
     DisposeRgn(dirtyRgn_);

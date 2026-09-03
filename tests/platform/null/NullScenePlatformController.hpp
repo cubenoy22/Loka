@@ -19,6 +19,12 @@ class NullWindow;
 class NullScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
+  /** Retire door for a RectSurface context: takes back that surface's pending
+      seat rows so a surface reclaimed during delivery publishes nothing. */
+  void cancelRectSurfaceExtent(loka::app::RectSurfaceNode *surface)
+  {
+    this->rectSurfaceExtentLedger_.cancel(surface);
+  }
   enum ControlRecipe
   {
     CONTROL_RECIPE_BUTTON,

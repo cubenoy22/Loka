@@ -16,7 +16,7 @@ namespace loka
 class NullRectSurfaceContext : public loka::app::scene::NativeNodeContext
 {
 public:
-  explicit NullRectSurfaceContext(loka::app::RectSurfaceNode *node);
+  NullRectSurfaceContext(loka::app::RectSurfaceNode *node, NullScenePlatformController *controller);
   virtual ~NullRectSurfaceContext();
 
   void readLifecycleFactOnAttach();
@@ -24,6 +24,7 @@ public:
 
 private:
   loka::app::RectSurfaceNode *node_;
+  NullScenePlatformController *controller_;
 };
 
 void RegisterNullRectSurfaceNodeHandler(NullScenePlatformController &controller);

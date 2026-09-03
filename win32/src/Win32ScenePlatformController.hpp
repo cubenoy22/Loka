@@ -55,6 +55,12 @@ namespace loka
 class Win32ScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
+  /** Retire door for a RectSurface context: takes back that surface's pending
+      seat rows so a surface reclaimed during delivery publishes nothing. */
+  void cancelRectSurfaceExtent(loka::app::RectSurfaceNode *surface)
+  {
+    this->rectSurfaceExtentLedger_.cancel(surface);
+  }
   enum NativePaintKind
   {
     NATIVE_PAINT_ROOT = 0,
