@@ -107,6 +107,15 @@ the follow-up asks for. Session ids are in the transcripts under
   included only in the first passes Linux CI and fails macOS/Win32 CI (PR
   #532, one extra round trip). Put the sentence in the brief; Codex does not
   find the second main on its own.
+- In a test that projects nodes through `NullScenePlatformController`, declare
+  the controller before the nodes so it outlives their terminal fact delivery.
+- Run `python3 tools/ci/check_test_asserts.py` after changing test assertions.
+  `LOKA_VERIFY(x.call())` registers the call name as load-bearing, so the audit
+  will reject plain `assert(y.call())` occurrences with the same name. Convert
+  genuinely load-bearing assertions; when the same name also has
+  non-load-bearing uses, bind the result to a local and verify the local. Never
+  replace `LOKA_VERIFY` with `assert` merely to silence the audit: `assert`
+  removes the call under `NDEBUG`.
 
 ## Always ask for the smell list (required deliverable)
 
@@ -138,106 +147,40 @@ something"; the file came back absent while the review found three real holes,
 one of them exactly an underdetermined ruling. This mirrors AGENTS.md
 "Shape Review Gates" gate 2, which the delegator runs on the same diff.
 
-## Pre-PR completion gate (run before the PR exists, not after the bot)
+## Pre-PR review fixed point
 
-PR #589 (2026-09-03) took ten PR-review-bot rounds, one macOS compile
-failure and one Win32 CI hang to converge on a change whose host suite was
-green from round one. Every one of those rounds was reachable locally. The
-gate below runs on the final diff — Codex's work plus every edit the
-delegator added afterwards — and finishes before the PR is opened and the
-bot is asked (pushing the branch as transport to the rigs is fine).
+The goal is one independent review of a complete change, not repeated review
+as a substitute for finishing its design.
 
-1. **State the invariant of anything deferred, queued, cached, or
-   ledgered in one sentence, then enumerate its negations and pin each.**
-   For #589 the sentence was "a pending entry is valid only for a surface
-   this pass actually placed and that is still placed when delivered; a
-   newer accepted pass supersedes it; a row leaves the ledger before app
-   code runs". Its negations were the bot's rounds 2–8: leaf refusal or
-   null native handle, ancestor refusal after child success, a nested
-   pass superseding older rows, `DETACHED_RETAINED` or `RETIRED` before
-   delivery, node absence without a replacement row, cancellation during
-   the delivery callback. Put the sentence and the negation list in the
-   implementation brief; a brief without it is not ready.
-2. **Adversarial pass on the final diff, in a fresh session.** Commit
-   first: `codex review --base <base>` reads the committed diff, so an
-   untracked new file is invisible to it — the only files legitimately
-   left untracked are the ones deliberately excluded from the PR
-   (FINDINGS); `git status` before the pass confirms nothing else is. Either
-   `codex review --base <base>` from the worktree (the same reviewer the
-   PR bot runs, non-interactive, log to a file with the `codex exit=`
-   sentinel) or a read-only `codex exec` REFUTE brief with the invariant
-   and its negations as numbered claims. A same-session self-review is not
-   accepted: the #589 smell report noticed the raw node pointer and then
-   argued it safe. Every REFUTED item is fixed and the pass rerun clean
-   before the push.
-3. **Native legs: mirror the CI jobs whose sources the diff touches.**
-   The list of what to build and run is `.github/workflows/*.yml`, not
-   this skill: for every job whose inputs the diff touches, reproduce
-   that job's environment and run every step of it in order — the `uses`
-   steps that set the toolchain (`windows.yml` selects x64 through
-   `msvc-dev-cmd`; a rig of another architecture is a different identity
-   under the #422 reference-identity ruling, not a mirror), then
-   configure, builds, ctest, and the steps after them (the macOS scenario
-   scripts, the Win32 PowerShell validations and Release staging, the
-   Toolbox size gate) — on the matching rig (tahoe
-   for `macos.yml`, the Win32 rig in an interactive scheduled task for
-   `windows.yml`, local Retro68 for `toolbox.yml`, host for `linux.yml`)
-   before opening the PR. Pushing the branch as transport is fine and
-   often required — the rigs fetch through origin (fleet rule) and tahoe
-   can also take an scp'd diff; the gate is drawn at opening the PR and
-   asking the bot, not at `git push`. Known ways a partial mirror has
-   lied, each a CI step that a shorter local sequence skipped:
-   - the test preset compiles its own subset of platform sources, so a
-     shipping-only file (`MacBootstrap.mm`) never enters `macos-tests` /
-     `win32-tests`; both the shipping and the test build are required
-     (win32-verify: neither implies the other);
-   - `ctest` after the builds, not a bare test binary — the registered
-     script tests (`scriptWin32ScenarioProfile`) and runtime failures on
-     macOS only show there; an MSVC Debug assert or a use-after-destruction
-     hangs on the abort dialog, so run under a timeout and read the log;
-   - `macos-scenarios` and the standalone presets are `EXCLUDE_FROM_ALL`
-     and belong to no other preset (the 2026-08-22 golden rebake ran
-     five-day-old binaries for exactly this reason); a diff touching a
-     scenario driver or a standalone main builds them;
-   - Toolbox CI configures `-DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON` for
-     both CPUs and builds both; the local presets default to Universal
-     Interfaces, so configure as CI does and `cmake --build` 68K and PPC.
-   Two limits of the mirror, stated so they are not mistaken for gaps:
-   the rigs are compile-and-test legs, not the verdict identity — tahoe
-   runs a newer macOS than the `macos-15` CI image, so a pass there
-   forecasts CI but the verdict is CI's under the #422 reference-identity
-   ruling; and the standalone mains (`tests/*/StandaloneFlowMain.*`, the
-   `*-standalone-*` presets) are built by no CI job at all, so a diff
-   touching them builds those presets locally because nothing else will.
-   CI is not the first compiler.
-4. **Null-rail test shape.** The `NullScenePlatformController` is the first
-   declaration in a test that projects nodes (it must outlive the nodes:
-   their terminal fact delivery reaches it during teardown; declared after
-   the nodes it is a dead stack object that Linux and ASan still tolerate
-   and MSVC Debug hangs on). Mind the assert-audit
-   coupling: `LOKA_VERIFY(x.call())` registers that call name as
-   load-bearing in `tools/ci/check_test_asserts.py`, which then reds every
-   plain `assert(y.call())` of the same name in other files. Either bind
-   the result to a local and verify the local, or convert those plain
-   asserts to `LOKA_VERIFY` in the same change — never leave the audit
-   half-converted, and never weaken a `LOKA_VERIFY` back to `assert` to
-   silence it (`assert` vanishes under `NDEBUG`; `LOKA_VERIFY` is the one
-   that keeps evaluating). Explaining the coupling is not checking it: run
-   `python3 tools/ci/check_test_asserts.py` on the final diff — it is a
-   standalone step in the linux CI job, part of no test preset, so nothing
-   else in this gate executes it. Both test mains
-   include the new header.
-5. **Any edit after step 2 — a REFUTED fix, a native-leg repair, a test
-   reshuffle — reruns step 2, the assert audit, and the affected legs.** The gate holds at a
-   fixed point: the adversarial pass and the legs saw the exact diff being
-   pushed, or they are re-run. Only then:
-6. **Open the PR and ask the bot once.** The gate applies to docs diffs
-   too: a diff that asserts a procedure or an invariant gets the same
-   adversarial pass, aimed at contradictions with the documents, CI jobs,
-   and scripts it cites — this gate's own PR (#590) skipped that and the
-   bot found five such contradictions in the gate text itself. A finding after this gate is
-   classified before it is fixed: brief gap, self-findable miss,
-   delegator's later edit, or pre-existing shape routed to its issue.
+1. **Apply the repository complexity gate before delegation.** A change that
+   crosses its split or hard-stop thresholds returns to design; extra review
+   rounds do not make an over-broad shape safer. For deferred, queued, cached,
+   or ledgered work, put one validity invariant and the concrete events that
+   invalidate it in the implementation brief, then pin those failure modes.
+2. **Complete and verify the candidate diff.** Commit it, confirm `git status`
+   contains no accidentally omitted files, and run the affected repository
+   test, build, and platform-verification entry points. Use the owning workflow
+   or platform skill rather than copying its command list here. If local and CI
+   execution must stay identical, extract a shared script and have both call
+   it. State unavailable rig coverage in the PR; hosted CI remains the verdict
+   for its own runner identity.
+3. **Run one fresh-context adversarial pass on that committed diff.** Use
+   `codex review --base <base>` from the worktree, or a read-only REFUTE
+   `codex exec` brief. Collect and classify the whole pass before editing, then
+   make one coherent correction. A same-session self-review is not independent.
+   Procedure and design-document changes receive the same cross-source check
+   against the documents, workflows, and scripts they cite.
+4. **Edits invalidate final-diff evidence.** Re-run the affected deterministic
+   checks and the independent pass after a correction. If two independent
+   passes expose new defects on the same design, ownership, lifecycle,
+   update-flow, or verification axis, stop adding case rules: return the
+   change to design and split or reshape it.
+5. **Open the PR and ask the review bot once.** Treat its reports as claims,
+   batch all confirmed findings into one correction, verify the result, and
+   request at most one final full review. Do not request a new review after
+   each individual fix. A further new defect on the same axis returns the PR
+   to Draft and design instead of starting another patch-and-review round;
+   route pre-existing findings to their owning issue.
 
 ## Reviewing what comes back
 
