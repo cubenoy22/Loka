@@ -415,10 +415,11 @@ namespace
       {
         return 0;
       }
-      if (controller)
+      if (controller && surface->getContext())
       {
         // The seat is a fact only once the surface was actually placed: a
-        // refused projection or restore records nothing.
+        // refused projection or restore, or a surface without a context,
+        // records nothing.
         controller->recordRectSurfaceExtent(
             surface, loka::core::Frame(seatX, seatY, resolvedWidth, resolvedHeight));
       }

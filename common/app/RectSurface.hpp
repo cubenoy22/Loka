@@ -331,7 +331,10 @@ namespace loka
         same node supersedes (a nested pass re-placed it), a refused
         projection or native context records nothing (never placed), a scope
         that ends refused takes its entries back (placement withdrawn), and a
-        reclaimed context cancels its node's rows (no longer placed). */
+        detach or retire fact delivered to its context cancels its node's
+        rows (no longer placed); a newer accepted pass supersedes an older
+        row, and a row leaves the ledger before its delivery runs so a cancel
+        raised by app code cannot skip another row. */
     class RectSurfaceExtentLedger
     {
     public:
@@ -354,9 +357,11 @@ namespace loka
         return this->entries_.size();
       }
 
-      /** A surface whose context is reclaimed while entries are pending (a
-          watcher recomposed it away during delivery) is no longer laid out:
-          its rows are taken back so nothing is published for it. */
+      /** A surface whose detach or retire fact arrives while entries are
+          pending (a watcher parked or removed it during delivery) is no
+          longer placed: its rows are taken back so nothing is published for
+          it. A context replaced on a live node keeps its row (the node stays
+          placed). */
       void cancel(const RectSurfaceNode *node)
       {
         std::size_t kept = 0;
