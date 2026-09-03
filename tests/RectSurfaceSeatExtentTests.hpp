@@ -13,7 +13,6 @@ void testRectSurfaceScrollViewExtentUsesContentCoordinates();
 void testRectSurfaceExtentLedgerNestedFlushKeepsNewerEntry();
 void testRectSurfaceRefusedProjectionPublishesNoExtent();
 void testRectSurfaceRefusedScrollViewContentPublishesNoExtent();
-void testRectSurfaceRetiredDuringDeliveryPublishesNoExtent();
 void testRectSurfaceDetachedRetainedDuringDeliveryPublishesNoExtent();
 void testRectSurfaceRetireFactDuringDeliveryPublishesNoExtent();
 void testRectSurfaceExtentLedgerCancelDuringDeliveryKeepsNextRow();

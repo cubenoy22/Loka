@@ -35,12 +35,6 @@ Win32RectSurfaceContext::Win32RectSurfaceContext(Win32ScenePlatformController *c
 Win32RectSurfaceContext::~Win32RectSurfaceContext()
 {
   assert(!hwnd_ && "terminal fact delivery must queue the HWND before context reclaim");
-  // Backstop for context replacement on a live node (no detach fact is
-  // delivered on that path); pointer compare only.
-  if (this->controller())
-  {
-    this->controller()->cancelRectSurfaceExtent(node_);
-  }
 }
 
 void Win32RectSurfaceContext::readLifecycleFactOnAttach()

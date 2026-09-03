@@ -48,12 +48,6 @@ void ToolboxRectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFac
 
 ToolboxRectSurfaceContext::~ToolboxRectSurfaceContext()
 {
-  // Backstop for context replacement on a live node (no detach fact is
-  // delivered on that path); pointer compare only.
-  if (this->controller())
-  {
-    this->controller()->cancelRectSurfaceExtent(node_);
-  }
   if (dirtyRgn_)
   {
     DisposeRgn(dirtyRgn_);

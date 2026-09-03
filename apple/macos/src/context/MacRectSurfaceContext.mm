@@ -79,12 +79,6 @@ MacRectSurfaceContext::MacRectSurfaceContext(MacScenePlatformController *control
 MacRectSurfaceContext::~MacRectSurfaceContext()
 {
   assert(!view_ && "terminal fact delivery must queue the native view before context reclaim");
-  // Backstop for context replacement on a live node (no detach fact is
-  // delivered on that path); pointer compare only.
-  if (controller_)
-  {
-    controller_->cancelRectSurfaceExtent(node_);
-  }
 }
 
 void MacRectSurfaceContext::readLifecycleFactOnAttach()

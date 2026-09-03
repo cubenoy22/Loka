@@ -38,13 +38,10 @@ NullRectSurfaceContext::NullRectSurfaceContext(loka::app::RectSurfaceNode *node,
 
 NullRectSurfaceContext::~NullRectSurfaceContext()
 {
-  // Backstop for context replacement on a live node (no detach fact is
-  // delivered on that path).
-  if (this->controller_)
-  {
-    this->controller_->cancelRectSurfaceExtent(this->node_);
-  }
+  // No controller access here: a test may destroy the controller before the
+  // nodes that own their contexts. Cancellation rides the lifecycle facts.
   this->node_ = 0;
+  this->controller_ = 0;
 }
 
 void NullRectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
