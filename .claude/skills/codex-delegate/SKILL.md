@@ -170,9 +170,12 @@ delegator added afterwards — before the branch is pushed.
    through origin (fleet rule) and tahoe can also take an scp'd diff; the
    gate is drawn at opening the PR and asking the bot, not at `git push`. macOS:
    tahoe `cmake --preset macos-debug`, then BOTH `cmake --build --preset
-   macos-debug` and `--preset macos-tests` (~3 min) — the test target
-   compiles its own subset of platform sources, so a shipping-only file
-   like `MacBootstrap.mm` never enters `macos-tests`. Win32: the rig's
+   macos-debug` and `--preset macos-tests`, then `ctest --preset
+   macos-tests` (~3 min; the same three steps as the macos CI job) — the
+   test target compiles its own subset of platform sources, so a
+   shipping-only file like `MacBootstrap.mm` never enters `macos-tests`,
+   and a build without the ctest run misses assertion and teardown
+   failures. Win32: the rig's
    `win32-debug` AND `win32-tests` builds (win32-verify: neither implies
    the other) plus `LokaTestsWin32` in an interactive scheduled task
    (~5 min; an MSVC Debug assert or a
@@ -193,7 +196,11 @@ delegator added afterwards — before the branch is pushed.
    silence it (`assert` vanishes under `NDEBUG`; `LOKA_VERIFY` is the one
    that keeps evaluating). Both test mains
    include the new header.
-5. **Then open the PR and ask the bot once.** A finding after this gate is
+5. **Any edit after step 2 — a REFUTED fix, a native-leg repair, a test
+   reshuffle — reruns step 2 and the affected legs.** The gate holds at a
+   fixed point: the adversarial pass and the legs saw the exact diff being
+   pushed, or they are re-run. Only then:
+6. **Open the PR and ask the bot once.** A finding after this gate is
    classified before it is fixed: brief gap, self-findable miss,
    delegator's later edit, or pre-existing shape routed to its issue.
 
