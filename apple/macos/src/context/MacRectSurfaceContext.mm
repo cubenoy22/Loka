@@ -162,6 +162,38 @@ namespace
   }
 } // namespace
 
+void MacRectSurfaceDrawPreparedImage(void *preparedImage, int x, int y, int width, int height)
+{
+  NSImage *image = (NSImage *)preparedImage;
+  if (!image || width <= 0 || height <= 0)
+  {
+    return;
+  }
+  const NSRect rect = NSMakeRect((CGFloat)x, (CGFloat)y, (CGFloat)width, (CGFloat)height);
+  // The classic NSImage draw assumes an unflipped context, and the RectSurface
+  // view is flipped, so the image would land upside down. Mirror the sprite
+  // rect onto itself for the draw (the respectFlipped: variant is avoided for
+  // the same runtime-compatibility reason as LokaImageView).
+  NSGraphicsContext *context = [NSGraphicsContext currentContext];
+  const BOOL flipped = context ? [context isFlipped] : NO;
+  if (flipped)
+  {
+    [NSGraphicsContext saveGraphicsState];
+    NSAffineTransform *flip = [NSAffineTransform transform];
+    [flip translateXBy:0 yBy:NSMinY(rect) + NSMaxY(rect)];
+    [flip scaleXBy:1 yBy:-1];
+    [flip concat];
+  }
+  [image drawInRect:rect
+           fromRect:NSZeroRect
+          operation:LOKA_MAC_COMPOSITING_SOURCE_OVER
+           fraction:1.0];
+  if (flipped)
+  {
+    [NSGraphicsContext restoreGraphicsState];
+  }
+}
+
 MacRectSurfacePreparedImage::MacRectSurfacePreparedImage()
     : source_(),
       prepared_(0)
@@ -441,13 +473,7 @@ void MacRectSurfaceContext::draw(void *viewBounds)
         NSImage *prepared = (NSImage *)preparedImages_[i].prepare(image);
         if (prepared)
         {
-          [prepared drawInRect:NSMakeRect((CGFloat)sprite.x,
-                                         (CGFloat)sprite.y,
-                                         (CGFloat)sprite.width,
-                                         (CGFloat)sprite.height)
-                     fromRect:NSZeroRect
-                    operation:LOKA_MAC_COMPOSITING_SOURCE_OVER
-                     fraction:1.0];
+          MacRectSurfaceDrawPreparedImage(prepared, sprite.x, sprite.y, sprite.width, sprite.height);
         }
         else
         {

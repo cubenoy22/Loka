@@ -15,6 +15,11 @@ namespace loka
 
 class MacScenePlatformController;
 
+/** Draws one prepared sprite image into the current NSGraphicsContext at the
+    sprite rect, upright whether or not that context is flipped (the
+    RectSurface view is). Shared by the view's draw and its pin. */
+void MacRectSurfaceDrawPreparedImage(void *preparedImage, int x, int y, int width, int height);
+
 /** One RectSurface paint-position's lazy binary-alpha companion. The original
     NSImage remains untouched for ImageView and is held only while cached. */
 class MacRectSurfacePreparedImage

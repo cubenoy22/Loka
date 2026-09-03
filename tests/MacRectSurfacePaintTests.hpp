@@ -3,5 +3,6 @@
 
 void testMacRectSurfaceImagePaintsNoAlphaSourceOpaque();
 void testMacRectSurfaceImagePaintsCapturedRepSource();
+void testMacRectSurfaceImageDrawsUprightInFlippedView();
 
 #endif
