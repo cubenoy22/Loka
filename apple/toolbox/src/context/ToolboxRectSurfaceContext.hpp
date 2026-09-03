@@ -10,6 +10,8 @@ class ToolboxRectSurfaceContext : public ToolboxProjectedNodeContext
 public:
   ToolboxRectSurfaceContext(loka::app::RectSurfaceNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxRectSurfaceContext();
+  virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                             loka::app::scene::NodeLifecycleFact next);
 
   virtual short layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state);
   virtual void render(loka::app::scene::IPlatformController *);

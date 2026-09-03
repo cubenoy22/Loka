@@ -33,6 +33,12 @@ public:
 
   void relayout(int x, int y, int width, int height);
   void draw(void *viewBounds);
+  /** False when the native view could not be created: the context then
+      holds no surface and must not be installed on the node. */
+  bool hasNativeSurface() const
+  {
+    return this->view_ != 0;
+  }
 
 private:
   void applyAttachedPresentation();
@@ -42,6 +48,7 @@ private:
   void unbindModel();
   void applyModel();
 
+  MacScenePlatformController *controller_;
   loka::app::RectSurfaceNode *node_;
   loka::core::State<loka::app::RectSurfaceModel> *modelState_;
   void *view_;

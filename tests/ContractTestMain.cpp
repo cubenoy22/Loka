@@ -55,6 +55,7 @@
 #include "ToolboxScenePlatformContractTests.hpp"
 #include "ToolboxScrollViewContractTests.hpp"
 #include "NullTextLayoutTests.hpp"
+#include "RectSurfaceSeatExtentTests.hpp"
 #include "NullPlatformContractTests.hpp"
 #include "LifecycleFactTests.hpp"
 #include "LokaAllocTests.hpp"

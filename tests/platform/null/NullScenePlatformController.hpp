@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <vector>
 
+#include "app/RectSurface.hpp"
 #include "app/scene/projection/NativeHandlePool.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
@@ -18,6 +19,12 @@ class NullWindow;
 class NullScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
+  /** Retire door for a RectSurface context: takes back that surface's pending
+      seat rows so a surface reclaimed during delivery publishes nothing. */
+  void cancelRectSurfaceExtent(loka::app::RectSurfaceNode *surface)
+  {
+    this->rectSurfaceExtentLedger_.cancel(surface);
+  }
   enum ControlRecipe
   {
     CONTROL_RECIPE_BUTTON,
@@ -271,6 +278,7 @@ private:
   loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlers_;
   RefusedProjectedNodeHandlers refusedProjectedNodeHandlers_;
   loka::app::scene::PlatformNodeHandlerRegistry nodeHandlers_;
+  loka::app::RectSurfaceExtentLedger rectSurfaceExtentLedger_;
   loka::app::scene::Node *rootNode_;
   std::vector<LedgerRow> ledger_;
   loka::app::scene::NodeDirtyFlags lastOnChangeFlags_;
