@@ -42,11 +42,48 @@ namespace
     return static_cast<unsigned char>(value > 255u ? 255u : value);
   }
 
-  NSImage *CreateRectSurfaceBinaryAlphaImage(NSImage *source, int sourceWidth, int sourceHeight)
+  // An image sprite's native handle is either an NSImage (resource images) or
+  // an NSImageRep (MacButtonContext / MacTextContext captureBitmap hand over
+  // the NSBitmapImageRep itself). Anything else is a structural fault of the
+  // producer, not a transient paint failure: the paint site asserts and skips
+  // it instead of refusing, because a refusal would requeue the same paint
+  // forever.
+  bool IsRectSurfaceImageHandle(id handle)
+  {
+    return [handle isKindOfClass:[NSImage class]] || [handle isKindOfClass:[NSImageRep class]];
+  }
+
+  // Both handle kinds go through the NSImage draw door: a rep is wrapped in an
+  // NSImage of the declared size so no NSImage-only selector reaches a rep.
+  // Returns a retained image.
+  NSImage *RetainRectSurfaceSourceImage(id source, NSInteger width, NSInteger height)
+  {
+    if ([source isKindOfClass:[NSImage class]])
+    {
+      return [(NSImage *)source retain];
+    }
+    if ([source isKindOfClass:[NSImageRep class]])
+    {
+      NSImage *wrapped = [[NSImage alloc] initWithSize:NSMakeSize(width, height)];
+      if (wrapped)
+      {
+        [wrapped addRepresentation:(NSImageRep *)source];
+      }
+      return wrapped;
+    }
+    return 0;
+  }
+
+  NSImage *CreateRectSurfaceBinaryAlphaImage(id sourceHandle, int sourceWidth, int sourceHeight)
   {
     const NSInteger width = sourceWidth;
     const NSInteger height = sourceHeight;
-    if (!source || width <= 0 || height <= 0)
+    if (!sourceHandle || width <= 0 || height <= 0)
+    {
+      return 0;
+    }
+    NSImage *source = RetainRectSurfaceSourceImage(sourceHandle, width, height);
+    if (!source)
     {
       return 0;
     }
@@ -63,12 +100,14 @@ namespace
                     bitsPerPixel:32];
     if (!bitmap)
     {
+      [source release];
       return 0;
     }
     NSGraphicsContext *bitmapContext = [NSGraphicsContext graphicsContextWithBitmapImageRep:bitmap];
     if (!bitmapContext)
     {
       [bitmap release];
+      [source release];
       return 0;
     }
     std::memset([bitmap bitmapData], 0, static_cast<std::size_t>([bitmap bytesPerRow]) * height);
@@ -79,6 +118,7 @@ namespace
              operation:LOKA_MAC_COMPOSITING_SOURCE_OVER
               fraction:1.0];
     [NSGraphicsContext setCurrentContext:previousContext];
+    [source release];
 
     unsigned char *pixels = [bitmap bitmapData];
     const NSInteger bytesPerRow = [bitmap bytesPerRow];
@@ -145,7 +185,7 @@ void *MacRectSurfacePreparedImage::prepare(const loka::core::resource::Image &so
     return 0;
   }
   NSImage *prepared = CreateRectSurfaceBinaryAlphaImage(
-      (NSImage *)source.nativeHandle(), source.width(), source.height());
+      (id)source.nativeHandle(), source.width(), source.height());
   if (!prepared)
   {
     return 0;
@@ -393,6 +433,11 @@ void MacRectSurfaceContext::draw(void *viewBounds)
       loka::core::resource::Image image;
       if (sprite.queryImage(image) && image.isValid())
       {
+        if (!IsRectSurfaceImageHandle((id)image.nativeHandle()))
+        {
+          assert(!"RectSurface image sprite handle is neither an NSImage nor an NSImageRep");
+          continue;
+        }
         NSImage *prepared = (NSImage *)preparedImages_[i].prepare(image);
         if (prepared)
         {
