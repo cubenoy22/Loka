@@ -138,6 +138,51 @@ something"; the file came back absent while the review found three real holes,
 one of them exactly an underdetermined ruling. This mirrors AGENTS.md
 "Shape Review Gates" gate 2, which the delegator runs on the same diff.
 
+## Pre-PR completion gate (run before the first push, not after the bot)
+
+PR #589 (2026-09-03) took ten PR-review-bot rounds, one macOS compile
+failure and one Win32 CI hang to converge on a change whose host suite was
+green from round one. Every one of those rounds was reachable locally. The
+gate below runs on the final diff — Codex's work plus every edit the
+delegator added afterwards — before the branch is pushed.
+
+1. **State the invariant of anything deferred, queued, cached, or
+   ledgered in one sentence, then enumerate its negations and pin each.**
+   For #589 the sentence was "a pending entry is valid only for a surface
+   this pass actually placed and that is still placed when delivered; a
+   newer accepted pass supersedes it; a row leaves the ledger before app
+   code runs". Its negations were the bot's rounds 2–8: leaf refusal or
+   null native handle, ancestor refusal after child success, a nested
+   pass superseding older rows, `DETACHED_RETAINED` or `RETIRED` before
+   delivery, node absence without a replacement row, cancellation during
+   the delivery callback. Put the sentence and the negation list in the
+   implementation brief; a brief without it is not ready.
+2. **Adversarial pass on the final diff, in a fresh session.** Either
+   `codex review --base <base>` from the worktree (the same reviewer the
+   PR bot runs, non-interactive, log to a file with the `codex exit=`
+   sentinel) or a read-only `codex exec` REFUTE brief with the invariant
+   and its negations as numbered claims. A same-session self-review is not
+   accepted: the #589 smell report noticed the raw node pointer and then
+   argued it safe. Every REFUTED item is fixed and the pass rerun clean
+   before the push.
+3. **Native compile leg for every rail the host cannot build.** macOS:
+   tahoe `cmake --preset macos-debug && cmake --build --preset macos-tests`
+   (~3 min). Win32: the rig's `win32-tests` build plus `LokaTestsWin32` in
+   an interactive scheduled task (~5 min; an MSVC Debug assert or a
+   use-after-destruction hangs on the abort dialog, so run under a timeout
+   and read the log). 68K/PPC: the local Retro68 presets. CI is not the
+   first compiler.
+4. **Null-rail test shape.** The `NullScenePlatformController` is the first
+   declaration in a test that projects nodes (it must outlive the nodes:
+   their terminal fact delivery reaches it during teardown; declared after
+   the nodes it is a dead stack object that Linux and ASan still tolerate
+   and MSVC Debug hangs on). No load-bearing call inside `LOKA_VERIFY`
+   whose name also appears in a plain `assert` elsewhere. Both test mains
+   include the new header.
+5. **Then push and ask the bot once.** A finding after this gate is
+   classified before it is fixed: brief gap, self-findable miss,
+   delegator's later edit, or pre-existing shape routed to its issue.
+
 ## Reviewing what comes back
 
 - Treat Codex reports as claims: independently re-verify key results
