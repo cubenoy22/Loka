@@ -76,6 +76,11 @@ endif()
 set_property(GLOBAL PROPERTY CTEST_TARGETS_ADDED 1)
 include(CTest)
 
+if(NOT WIN32 AND NOT LOKA_CLASSIC_MAC)
+  add_test(NAME scriptMameDevDisk
+    COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MameDevDiskTest.sh)
+endif()
+
 foreach(_loka_invalid_performance_runs IN ITEMS abc ON 0 2 11)
   add_test(NAME "standalonePerformanceConfigRejects-${_loka_invalid_performance_runs}"
     COMMAND ${CMAKE_COMMAND}
@@ -263,6 +268,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullEditTextContext.cpp
     ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullScrollBarContext.cpp
     ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullTextContext.cpp
+    ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullRectSurfaceContext.cpp
     ${PROJECT_SOURCE_DIR}/tests/standalone/HelloWorldStandaloneFlowAppConfig.cpp
     ${PROJECT_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
     ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
@@ -294,6 +300,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullEditTextContext.cpp
       ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullScrollBarContext.cpp
       ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullTextContext.cpp
+      ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullRectSurfaceContext.cpp
     )
     loka_enable_warnings(${target_name})
     target_include_directories(${target_name} PRIVATE

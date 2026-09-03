@@ -6318,9 +6318,18 @@ void testSimpleViewerClosesDialogFromChooserCompletion()
 {
   FlowTestPlatformContext platformContext;
   loka::core::EmitterState openDialogEvent;
-  loka::core::MutableState<bool> actualSize(false);
+  loka::core::MutableState<simpleviewer::DisplayMode> displayMode(
+      simpleviewer::DISPLAY_FIT);
+  loka::core::EmitterState fitEvent;
+  loka::core::EmitterState actualEvent;
+  loka::core::EmitterState actualScrollEvent;
   simpleviewer::MainProps props;
-  props.platformContext(&platformContext).openDialogEvent(&openDialogEvent).actualSize(&actualSize);
+  props.platformContext(&platformContext)
+      .openDialogEvent(&openDialogEvent)
+      .displayMode(&displayMode)
+      .fitEvent(&fitEvent)
+      .actualEvent(&actualEvent)
+      .actualScrollEvent(&actualScrollEvent);
   loka::app::scene::Scene scene(
       new loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(props));
   FlowScenePlatformController platform;
@@ -6395,9 +6404,18 @@ void testSimpleViewerImageLoadSessionPreservesAndReleasesCurrentImage()
   SimpleViewerRetainingPlatformContext platformContext;
   platformContext.createImageResult_ = true;
   loka::core::EmitterState openDialogEvent;
-  loka::core::MutableState<bool> actualSize(false);
+  loka::core::MutableState<simpleviewer::DisplayMode> displayMode(
+      simpleviewer::DISPLAY_FIT);
+  loka::core::EmitterState fitEvent;
+  loka::core::EmitterState actualEvent;
+  loka::core::EmitterState actualScrollEvent;
   simpleviewer::MainProps props;
-  props.platformContext(&platformContext).openDialogEvent(&openDialogEvent).actualSize(&actualSize);
+  props.platformContext(&platformContext)
+      .openDialogEvent(&openDialogEvent)
+      .displayMode(&displayMode)
+      .fitEvent(&fitEvent)
+      .actualEvent(&actualEvent)
+      .actualScrollEvent(&actualScrollEvent);
   loka::app::scene::Scene scene(
       new loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(props));
   FlowScenePlatformController platform;
@@ -6464,9 +6482,18 @@ void testSimpleViewerImageLoadStopsWhenCapacityRemainsUnavailable()
   loka::core::Managed<loka::core::resource::BlobRecord> unavailableCapacity;
   platformContext.capacityReleaseWitness_ = &unavailableCapacity;
   loka::core::EmitterState openDialogEvent;
-  loka::core::MutableState<bool> actualSize(false);
+  loka::core::MutableState<simpleviewer::DisplayMode> displayMode(
+      simpleviewer::DISPLAY_FIT);
+  loka::core::EmitterState fitEvent;
+  loka::core::EmitterState actualEvent;
+  loka::core::EmitterState actualScrollEvent;
   simpleviewer::MainProps props;
-  props.platformContext(&platformContext).openDialogEvent(&openDialogEvent).actualSize(&actualSize);
+  props.platformContext(&platformContext)
+      .openDialogEvent(&openDialogEvent)
+      .displayMode(&displayMode)
+      .fitEvent(&fitEvent)
+      .actualEvent(&actualEvent)
+      .actualScrollEvent(&actualScrollEvent);
   loka::app::scene::Scene scene(
       new loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(props));
   FlowScenePlatformController platform;

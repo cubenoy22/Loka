@@ -33,6 +33,19 @@ ToolboxRectSurfaceContext::ToolboxRectSurfaceContext(loka::app::RectSurfaceNode 
   SetRect(&rect_, 0, 0, 0, 0);
 }
 
+void ToolboxRectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                              loka::app::scene::NodeLifecycleFact next)
+{
+  // Detached or retired, the surface is no longer placed: its pending seat
+  // rows go first, while the controller back-pointer is still intact (the
+  // base clears it on RETIRED).
+  if (next != loka::app::scene::NODE_FACT_ATTACHED && this->controller())
+  {
+    this->controller()->cancelRectSurfaceExtent(node_);
+  }
+  ToolboxProjectedNodeContext::onFactChanged(previous, next);
+}
+
 ToolboxRectSurfaceContext::~ToolboxRectSurfaceContext()
 {
   if (dirtyRgn_)
@@ -60,10 +73,10 @@ short ToolboxRectSurfaceContext::layout(loka::app::scene::IPlatformController *,
   }
   rect_.left = state.x;
   rect_.top = static_cast<short>(state.y);
-  rect_.right = static_cast<short>(state.x + node_->props.width_);
-  rect_.bottom = static_cast<short>(state.y + node_->props.height_);
+  rect_.right = static_cast<short>(state.x + state.width);
+  rect_.bottom = static_cast<short>(state.y + state.height);
   state.y = static_cast<short>(rect_.bottom + state.spacing);
-  return node_->props.width_;
+  return state.width;
 }
 
 void ToolboxRectSurfaceContext::render(loka::app::scene::IPlatformController *)

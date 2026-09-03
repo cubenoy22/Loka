@@ -2,6 +2,7 @@
 #define LOKA_MAC_SCENE_PLATFORM_CONTROLLER_HPP
 
 #include <vector>
+#include "app/RectSurface.hpp"
 #include "app/scene/projection/ProjectionParentScope.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
@@ -43,6 +44,12 @@ namespace loka
 class MacScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
+  /** Retire door for a RectSurface context: takes back that surface's pending
+      seat rows so a surface reclaimed during delivery publishes nothing. */
+  void cancelRectSurfaceExtent(loka::app::RectSurfaceNode *surface)
+  {
+    this->rectSurfaceExtentLedger_.cancel(surface);
+  }
   struct LayoutState
   {
     typedef int Coordinate;
@@ -240,6 +247,7 @@ private:
   LeafLayoutHandlerRegistry leafLayoutHandlerRegistry_;
   LeafLayoutHandlerRegistry hostActionHandlerRegistry_;
   loka::app::scene::Node *rootNode_;
+  loka::app::RectSurfaceExtentLedger rectSurfaceExtentLedger_;
   loka::app::scene::NodeDirtyFlags lastChangeFlags_;
   int clientWidth_;
   int clientHeight_;
