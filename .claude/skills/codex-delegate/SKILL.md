@@ -176,8 +176,15 @@ delegator added afterwards — before the branch is pushed.
    declaration in a test that projects nodes (it must outlive the nodes:
    their terminal fact delivery reaches it during teardown; declared after
    the nodes it is a dead stack object that Linux and ASan still tolerate
-   and MSVC Debug hangs on). No load-bearing call inside `LOKA_VERIFY`
-   whose name also appears in a plain `assert` elsewhere. Both test mains
+   and MSVC Debug hangs on). Mind the assert-audit
+   coupling: `LOKA_VERIFY(x.call())` registers that call name as
+   load-bearing in `tools/ci/check_test_asserts.py`, which then reds every
+   plain `assert(y.call())` of the same name in other files. Either bind
+   the result to a local and verify the local, or convert those plain
+   asserts to `LOKA_VERIFY` in the same change — never leave the audit
+   half-converted, and never weaken a `LOKA_VERIFY` back to `assert` to
+   silence it (`assert` vanishes under `NDEBUG`; `LOKA_VERIFY` is the one
+   that keeps evaluating). Both test mains
    include the new header.
 5. **Then push and ask the bot once.** A finding after this gate is
    classified before it is fixed: brief gap, self-findable miss,
