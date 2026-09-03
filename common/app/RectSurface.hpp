@@ -338,6 +338,22 @@ namespace loka
         this->entries_.push_back(Entry(node, extent));
       }
 
+      /** A scope that later refuses (a ScrollView whose content overflowed
+          the short range after its children were placed) takes the entries
+          recorded under it back: nothing under a refused scope is a fact. */
+      std::size_t mark() const
+      {
+        return this->entries_.size();
+      }
+
+      void discardSince(std::size_t mark)
+      {
+        if (mark < this->entries_.size())
+        {
+          this->entries_.erase(this->entries_.begin() + mark, this->entries_.end());
+        }
+      }
+
       /** Delivers in traversal order; the last entry recorded for a node
           wins. Delivery may re-enter (a watcher can start a nested layout
           pass, which records newer entries and flushes them itself), so the

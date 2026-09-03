@@ -997,6 +997,7 @@ Win32ScenePlatformController::layoutScrollViewNode(loka::app::ScrollViewNode *sc
     }
 
     loka::app::scene::INestable *nestable = scrollView->asNestable();
+    const std::size_t ledgerMark = this->rectSurfaceExtentLedger_.mark();
     loka::dsl::CompositionCursor<loka::app::scene::Node> it(
         nestable ? nestable->childrenHead() : 0,
         nestable ? nestable->childrenCount() : 0);
@@ -1025,6 +1026,11 @@ Win32ScenePlatformController::layoutScrollViewNode(loka::app::ScrollViewNode *sc
     contentHeight = this->projectionParentScopes_.current().contentHeight();
     shortRangeRefused =
         this->projectionParentScopes_.current().hasShortRangeRefusal();
+      if (shortRangeRefused)
+    {
+      // Seats recorded under a refused scope are not facts.
+      this->rectSurfaceExtentLedger_.discardSince(ledgerMark);
+    }
   }
 
   if (!shortRangeRefused)

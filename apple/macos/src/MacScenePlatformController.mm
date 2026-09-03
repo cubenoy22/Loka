@@ -524,6 +524,7 @@ MacScenePlatformController::layoutScrollViewNode(
     loka::dsl::CompositionCursor<loka::app::scene::Node> it(
         nestable ? nestable->childrenHead() : 0,
         nestable ? nestable->childrenCount() : 0);
+    const std::size_t ledgerMark = this->rectSurfaceExtentLedger_.mark();
     for (loka::app::scene::Node *child = it.next(); child; child = it.next())
     {
       if (currentY < SHRT_MIN || currentY > SHRT_MAX)
@@ -549,6 +550,11 @@ MacScenePlatformController::layoutScrollViewNode(
     contentHeight = this->projectionParentScopes_.current().contentHeight();
     shortRangeRefused =
         this->projectionParentScopes_.current().hasShortRangeRefusal();
+      if (shortRangeRefused)
+    {
+      // Seats recorded under a refused scope are not facts.
+      this->rectSurfaceExtentLedger_.discardSince(ledgerMark);
+    }
   }
 
   if (!shortRangeRefused)

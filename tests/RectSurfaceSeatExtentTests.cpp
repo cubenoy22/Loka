@@ -436,3 +436,26 @@ void testRectSurfaceRefusedProjectionPublishesNoExtent()
 
   verifyFrame(extent.get(), 1, 2, 3, 4);
 }
+
+// A ScrollView whose content overflows the short range refuses after its
+// children were placed; the seats recorded under that scope are not facts.
+void testRectSurfaceRefusedScrollViewContentPublishesNoExtent()
+{
+  loka::core::MutableState<int> offset(0);
+  loka::core::MutableState<loka::core::Frame> extent(loka::core::Frame(1, 2, 3, 4));
+  loka::core::PushStateTracker tracker;
+  tracker.addState(&offset);
+  tracker.addState(&extent);
+  loka::app::scene::NodeState<int> offsetState(&offset, &tracker);
+  loka::app::scene::NodeState<loka::core::Frame> extentState(&extent, &tracker);
+  loka::app::RectSurfaceProps props;
+  props.size(100, 40).laidOutExtent(extentState);
+  loka::app::ScrollViewNode scrollView((loka::app::ScrollViewProps(offsetState)));
+  scrollView.addChild(fixedBox(100, 32730));
+  scrollView.addChild(new loka::app::RectSurfaceNode(props));
+
+  NullScenePlatformController platform;
+  platform.projectLayoutForTesting(&scrollView, layoutState(10, 20, 100, 0));
+
+  verifyFrame(extent.get(), 1, 2, 3, 4);
+}

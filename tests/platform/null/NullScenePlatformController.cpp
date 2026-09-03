@@ -641,6 +641,8 @@ int NullScenePlatformController::layoutScrollView(
   }
 
   int currentY = state.y;
+  const std::size_t ledgerMark = this->rectSurfaceExtentLedger_.mark();
+  bool refused = false;
   loka::app::scene::INestable *nestable = scrollView->asNestable();
   for (loka::app::scene::Node *child = nestable ? nestable->childrenHead() : 0;
        child;
@@ -649,6 +651,7 @@ int NullScenePlatformController::layoutScrollView(
     if (currentY < SHRT_MIN || currentY > SHRT_MAX)
     {
       this->refuseScrollViewShortRange();
+      refused = true;
       break;
     }
     loka::app::scene::LayoutState childState = state;
@@ -658,24 +661,35 @@ int NullScenePlatformController::layoutScrollView(
     {
       // A nested traversal edge already refused and counted; do not count
       // the stale return value a second time.
+      refused = true;
       break;
     }
     if (!this->projectionParentScopes_.current().tryAccumulateContentHeight(
             currentY, nextY))
     {
       this->refuseScrollViewShortRange();
+      refused = true;
       break;
     }
     currentY = nextY;
+  }
+  if (!refused && state.height <= 0 && currentY > SHRT_MAX)
+  {
+    this->refuseScrollViewShortRange();
+    refused = true;
+  }
+  if (refused)
+  {
+    // Seats recorded under a refused scope are not facts.
+    this->rectSurfaceExtentLedger_.discardSince(ledgerMark);
   }
 
   if (state.height > 0)
   {
     return state.y + state.height;
   }
-  if (currentY > SHRT_MAX)
+  if (refused)
   {
-    this->refuseScrollViewShortRange();
     return state.y;
   }
   return currentY;

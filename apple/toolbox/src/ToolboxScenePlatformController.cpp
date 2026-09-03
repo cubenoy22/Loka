@@ -580,6 +580,7 @@ short ToolboxScenePlatformController::layoutScrollView(
     loka::app::scene::LayoutState childState = state;
     childState.width = static_cast<short>(
         ToolboxScrollViewChildWidth(state.width));
+    const std::size_t ledgerMark = this->rectSurfaceExtentLedger_.mark();
     loka::dsl::CompositionCursor<loka::app::scene::Node> it(
         scrollView->childrenHead(), scrollView->childrenCount());
     for (loka::app::scene::Node *child = it.next(); child; child = it.next())
@@ -601,6 +602,11 @@ short ToolboxScenePlatformController::layoutScrollView(
     contentHeight = this->projectionParentScopes_.current().contentHeight();
     shortRangeRefused =
         this->projectionParentScopes_.current().hasShortRangeRefusal();
+      if (shortRangeRefused)
+    {
+      // Seats recorded under a refused scope are not facts.
+      this->rectSurfaceExtentLedger_.discardSince(ledgerMark);
+    }
   }
 
   if (!shortRangeRefused)
