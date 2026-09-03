@@ -138,6 +138,9 @@ namespace
 
 void testRectSurfaceFillSeatReportsRowAllocation()
 {
+  // Declared first so it outlives the nodes: their contexts deliver the
+  // terminal fact to this controller when the nodes are destroyed.
+  NullScenePlatformController platform;
   loka::core::MutableState<loka::core::Frame> extent;
   loka::core::PushStateTracker tracker;
   tracker.addState(&extent);
@@ -149,7 +152,6 @@ void testRectSurfaceFillSeatReportsRowAllocation()
   row.addChild(fixedBox(200, 40));
   row.addChild(new loka::app::RectSurfaceNode(surfaceProps));
 
-  NullScenePlatformController platform;
   platform.projectLayoutForTesting(&row, layoutState(0, 7, 500, 80));
 
   verifyFrame(extent.get(), 204, 7, 296, 80);
@@ -157,6 +159,9 @@ void testRectSurfaceFillSeatReportsRowAllocation()
 
 void testRectSurfaceExplicitSizeKeepsRowConsultationAndReportsDeclaredExtent()
 {
+  // Declared first so it outlives the nodes: their contexts deliver the
+  // terminal fact to this controller when the nodes are destroyed.
+  NullScenePlatformController platform;
   loka::core::MutableState<loka::core::Frame> extents[2];
   loka::core::PushStateTracker tracker;
   tracker.addState(&extents[0]);
@@ -176,7 +181,6 @@ void testRectSurfaceExplicitSizeKeepsRowConsultationAndReportsDeclaredExtent()
   LOKA_VERIFY(loka::app::layout::preferredChildWidthForRow(surface) == 100);
   LOKA_VERIFY(surfaceProps < otherExtentProps);
 
-  NullScenePlatformController platform;
   platform.projectLayoutForTesting(&row, layoutState(0, 7, 500, 80));
 
   verifyFrame(extents[0].get(), 204, 7, 100, 30);
@@ -184,6 +188,9 @@ void testRectSurfaceExplicitSizeKeepsRowConsultationAndReportsDeclaredExtent()
 
 void testRectSurfaceFillSeatReportsColumnRemainingHeight()
 {
+  // Declared first so it outlives the nodes: their contexts deliver the
+  // terminal fact to this controller when the nodes are destroyed.
+  NullScenePlatformController platform;
   loka::core::MutableState<loka::core::Frame> extent;
   loka::core::PushStateTracker tracker;
   tracker.addState(&extent);
@@ -195,7 +202,6 @@ void testRectSurfaceFillSeatReportsColumnRemainingHeight()
   column.addChild(fixedBox(100, 40));
   column.addChild(new loka::app::RectSurfaceNode(surfaceProps));
 
-  NullScenePlatformController platform;
   platform.projectLayoutForTesting(&column, layoutState(5, 9, 300, 100));
 
   verifyFrame(extent.get(), 5, 49, 300, 60);
@@ -203,6 +209,9 @@ void testRectSurfaceFillSeatReportsColumnRemainingHeight()
 
 void testRectSurfaceExtentChangesOnlyDuringRailLayout()
 {
+  // Declared first so it outlives the nodes: their contexts deliver the
+  // terminal fact to this controller when the nodes are destroyed.
+  NullScenePlatformController platform;
   loka::core::MutableState<loka::app::RectSurfaceModel> model;
   loka::core::MutableState<loka::core::Frame> extent;
   loka::core::PushStateTracker tracker;
@@ -215,7 +224,6 @@ void testRectSurfaceExtentChangesOnlyDuringRailLayout()
   loka::app::RectSurfaceProps surfaceProps;
   surfaceProps.model(&model).size(120, 70).laidOutExtent(extentState);
   loka::app::RectSurfaceNode surface(surfaceProps);
-  NullScenePlatformController platform;
   const loka::app::scene::LayoutState state = layoutState(3, 6, 120, 70);
 
   platform.projectLayoutForTesting(&surface, state);
@@ -247,8 +255,10 @@ void testRectSurfaceExtentChangesOnlyDuringRailLayout()
 
 void testRectSurfaceWithoutExtentStateLaysOutNormally()
 {
-  loka::app::RectSurfaceNode surface((loka::app::RectSurfaceProps()));
+  // Declared first so it outlives the nodes: their contexts deliver the
+  // terminal fact to this controller when the nodes are destroyed.
   NullScenePlatformController platform;
+  loka::app::RectSurfaceNode surface((loka::app::RectSurfaceProps()));
 
   const int resultY = platform.projectLayoutForTesting(&surface, layoutState(3, 6, 120, 70));
 
@@ -258,6 +268,9 @@ void testRectSurfaceWithoutExtentStateLaysOutNormally()
 
 void testRectSurfaceNodeStatePublicationUsesOwnerTracker()
 {
+  // Declared first so it outlives the nodes: their contexts deliver the
+  // terminal fact to this controller when the nodes are destroyed.
+  NullScenePlatformController platform;
   loka::core::MutableState<loka::core::Frame> extent;
   loka::core::PushStateTracker tracker;
   tracker.addState(&extent);
@@ -268,7 +281,6 @@ void testRectSurfaceNodeStatePublicationUsesOwnerTracker()
   loka::app::RectSurfaceProps props;
   props.laidOutExtent(extentState);
   loka::app::RectSurfaceNode surface(props);
-  NullScenePlatformController platform;
   loka::app::scene::LayoutState seat;
   seat.x = 3;
   seat.y = 6;
@@ -284,6 +296,9 @@ void testRectSurfaceNodeStatePublicationUsesOwnerTracker()
 
 void testRectSurfaceExtentPublicationCanReleaseContextAfterLayout()
 {
+  // Declared first so it outlives the nodes: their contexts deliver the
+  // terminal fact to this controller when the nodes are destroyed.
+  NullScenePlatformController platform;
   loka::core::MutableState<loka::core::Frame> extent;
   loka::core::PushStateTracker tracker;
   tracker.addState(&extent);
@@ -300,7 +315,6 @@ void testRectSurfaceExtentPublicationCanReleaseContextAfterLayout()
   loka::app::StackNode row((loka::app::StackProps(loka::app::STACK_AXIS_ROW)));
   row.addChild(surface);
   row.addChild(new LayoutTailNode(&sequence));
-  NullScenePlatformController platform;
   platform.projectLayoutForTesting(&row, layoutState(3, 6, 240, 70));
 
   LOKA_VERIFY(observer.calls == 1);
@@ -310,6 +324,9 @@ void testRectSurfaceExtentPublicationCanReleaseContextAfterLayout()
 
 void testRectSurfaceExtentPublicationFollowsLayoutTraversal()
 {
+  // Declared first so it outlives the nodes: their contexts deliver the
+  // terminal fact to this controller when the nodes are destroyed.
+  NullScenePlatformController platform;
   loka::core::MutableState<loka::core::Frame> extent;
   loka::core::PushStateTracker tracker;
   tracker.addState(&extent);
@@ -322,7 +339,6 @@ void testRectSurfaceExtentPublicationFollowsLayoutTraversal()
   loka::app::StackNode row((loka::app::StackProps(loka::app::STACK_AXIS_ROW)));
   row.addChild(new loka::app::RectSurfaceNode(props));
   row.addChild(new LayoutTailNode(&sequence));
-  NullScenePlatformController platform;
   platform.projectLayoutForTesting(&row, layoutState(3, 6, 240, 70));
 
   LOKA_VERIFY(sequence.tail > 0);
@@ -331,6 +347,9 @@ void testRectSurfaceExtentPublicationFollowsLayoutTraversal()
 
 void testRectSurfaceScrollViewExtentUsesContentCoordinates()
 {
+  // Declared first so it outlives the nodes: their contexts deliver the
+  // terminal fact to this controller when the nodes are destroyed.
+  NullScenePlatformController platform;
   loka::core::MutableState<int> offset(7);
   loka::core::MutableState<loka::core::Frame> extent;
   loka::core::PushStateTracker tracker;
@@ -343,7 +362,6 @@ void testRectSurfaceScrollViewExtentUsesContentCoordinates()
   loka::app::ScrollViewNode scrollView((loka::app::ScrollViewProps(offsetState)));
   scrollView.addChild(new loka::app::RectSurfaceNode(props));
 
-  NullScenePlatformController platform;
   platform.projectLayoutForTesting(&scrollView, layoutState(10, 20, 100, 40));
 
   verifyFrame(extent.get(), 10, 20, 100, 40);
@@ -419,6 +437,9 @@ void testRectSurfaceExtentLedgerNestedFlushKeepsNewerEntry()
 // so no seat fact is published for the surface.
 void testRectSurfaceRefusedProjectionPublishesNoExtent()
 {
+  // Declared first so it outlives the nodes: their contexts deliver the
+  // terminal fact to this controller when the nodes are destroyed.
+  NullScenePlatformController platform;
   loka::core::MutableState<int> offset(40000);
   loka::core::MutableState<loka::core::Frame> extent(loka::core::Frame(1, 2, 3, 4));
   loka::core::PushStateTracker tracker;
@@ -431,7 +452,6 @@ void testRectSurfaceRefusedProjectionPublishesNoExtent()
   loka::app::ScrollViewNode scrollView((loka::app::ScrollViewProps(offsetState)));
   scrollView.addChild(new loka::app::RectSurfaceNode(props));
 
-  NullScenePlatformController platform;
   platform.projectLayoutForTesting(&scrollView, layoutState(10, 20, 100, 40));
 
   verifyFrame(extent.get(), 1, 2, 3, 4);
@@ -441,6 +461,9 @@ void testRectSurfaceRefusedProjectionPublishesNoExtent()
 // children were placed; the seats recorded under that scope are not facts.
 void testRectSurfaceRefusedScrollViewContentPublishesNoExtent()
 {
+  // Declared first so it outlives the nodes: their contexts deliver the
+  // terminal fact to this controller when the nodes are destroyed.
+  NullScenePlatformController platform;
   loka::core::MutableState<int> offset(0);
   loka::core::MutableState<loka::core::Frame> extent(loka::core::Frame(1, 2, 3, 4));
   loka::core::PushStateTracker tracker;
@@ -454,7 +477,6 @@ void testRectSurfaceRefusedScrollViewContentPublishesNoExtent()
   scrollView.addChild(fixedBox(100, 32730));
   scrollView.addChild(new loka::app::RectSurfaceNode(props));
 
-  NullScenePlatformController platform;
   platform.projectLayoutForTesting(&scrollView, layoutState(10, 20, 100, 0));
 
   verifyFrame(extent.get(), 1, 2, 3, 4);
@@ -505,6 +527,9 @@ namespace
 {
   void verifySiblingDetachedDuringDeliveryPublishesNoExtent(loka::app::scene::NodeLifecycleFact fact)
   {
+    // Declared first so it outlives the nodes: their contexts deliver the
+    // terminal fact to this controller when the nodes are destroyed.
+    NullScenePlatformController platform;
     loka::core::MutableState<loka::core::Frame> firstExtent;
     loka::core::MutableState<loka::core::Frame> siblingExtent(loka::core::Frame(1, 2, 3, 4));
     loka::core::PushStateTracker tracker;
@@ -525,7 +550,6 @@ namespace
     loka::app::StackNode row((loka::app::StackProps(loka::app::STACK_AXIS_ROW)));
     row.addChild(new loka::app::RectSurfaceNode(firstProps));
     row.addChild(sibling);
-    NullScenePlatformController platform;
     platform.projectLayoutForTesting(&row, layoutState(0, 0, 300, 40));
 
     LOKA_VERIFY(observer.calls == 1);
