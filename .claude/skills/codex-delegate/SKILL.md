@@ -166,21 +166,26 @@ as a substitute for finishing its design.
    for its own runner identity.
 3. **Run one fresh-context adversarial pass on that committed diff.** Use
    `codex review --base <base>` from the worktree, or a read-only REFUTE
-   `codex exec` brief. Collect and classify the whole pass before editing, then
-   make one coherent correction. A same-session self-review is not independent.
-   Procedure and design-document changes receive the same cross-source check
-   against the documents, workflows, and scripts they cite.
+   `codex exec` brief. Before accepting the result, confirm its merge base and
+   changed-file list match the intended PR. Collect and classify the whole pass
+   before editing, then make one coherent correction. A same-session
+   self-review is not independent. Procedure and design-document changes
+   receive the same cross-source check against the documents, workflows, and
+   scripts they cite. A run that exits without an explicit verdict is not a
+   completed pass.
 4. **Edits invalidate final-diff evidence.** Re-run the affected deterministic
    checks and the independent pass after a correction. If two independent
    passes expose new defects on the same design, ownership, lifecycle,
    update-flow, or verification axis, stop adding case rules: return the
    change to design and split or reshape it.
-5. **Open the PR and ask the review bot once.** Treat its reports as claims,
-   batch all confirmed findings into one correction, verify the result, and
-   request at most one final full review. Do not request a new review after
-   each individual fix. A further new defect on the same axis returns the PR
-   to Draft and design instead of starting another patch-and-review round;
-   route pre-existing findings to their owning issue.
+5. **Give the opened or readied PR one bot-review trigger.** Count an automatic
+   review started by opening or leaving Draft; use `@codex review` only if no
+   review started. Treat reports as claims, batch all confirmed findings into
+   one correction, verify the result, and request at most one final full
+   review. Do not request a new review after each individual fix. Any confirmed
+   finding from that final review returns the PR to Draft: reshape it when the
+   finding belongs to this change, or route a pre-existing defect to its owning
+   issue. Do not start a third full review.
 
 ## Reviewing what comes back
 
