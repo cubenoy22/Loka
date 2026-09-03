@@ -1,4 +1,5 @@
 #include "MacRectSurfaceContext.hpp"
+#include "../MacScenePlatformController.hpp"
 #include <cassert>
 #include "../MacObjCCompat.hpp"
 #include "app/RectSurface.hpp"
