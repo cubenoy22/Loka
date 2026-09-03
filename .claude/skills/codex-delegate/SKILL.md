@@ -157,13 +157,13 @@ as a substitute for finishing its design.
    rounds do not make an over-broad shape safer. For deferred, queued, cached,
    or ledgered work, put one validity invariant and the concrete events that
    invalidate it in the implementation brief, then pin those failure modes.
-2. **Complete and verify the candidate diff.** Commit it, confirm `git status`
-   contains no accidentally omitted files, and run the affected repository
-   test, build, and platform-verification entry points. Use the owning workflow
-   or platform skill rather than copying its command list here. If local and CI
-   execution must stay identical, extract a shared script and have both call
-   it. State unavailable rig coverage in the PR; hosted CI remains the verdict
-   for its own runner identity.
+2. **Complete and verify the candidate diff.** Run the affected repository
+   test, build, and platform-verification entry points, then commit the verified
+   candidate and confirm `git status` contains no accidentally omitted files.
+   Use the owning workflow or platform skill rather than copying its command
+   list here. If local and CI execution must stay identical, extract a shared
+   script and have both call it. State unavailable rig coverage in the PR;
+   hosted CI remains the verdict for its own runner identity.
 3. **Run one fresh-context adversarial pass on that committed diff.** Use
    `codex review --base <base>` from the worktree, or a read-only REFUTE
    `codex exec` brief. Before accepting the result, confirm its merge base and
@@ -173,11 +173,12 @@ as a substitute for finishing its design.
    receive the same cross-source check against the documents, workflows, and
    scripts they cite. A run that exits without an explicit verdict is not a
    completed pass.
-4. **Edits invalidate final-diff evidence.** Re-run the affected deterministic
-   checks and the independent pass after a correction. If two independent
-   passes expose new defects on the same design, ownership, lifecycle,
-   update-flow, or verification axis, stop adding case rules: return the
-   change to design and split or reshape it.
+4. **Edits invalidate final-diff evidence.** After a correction, re-run the
+   affected deterministic checks, commit the correction, confirm clean status,
+   and then repeat the independent pass. If two independent passes expose new
+   defects on the same design, ownership, lifecycle, update-flow, or
+   verification axis, stop adding case rules: return the change to design and
+   split or reshape it.
 5. **Give the opened or readied PR one bot-review trigger.** Count an automatic
    review started by opening or leaving Draft; use `@codex review` only if no
    review started. Treat reports as claims, batch all confirmed findings into
