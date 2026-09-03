@@ -2,7 +2,7 @@
   "schema_version": 1,
   "identity": {
     "ci_interfaces": "multiversal",
-    "component_reference": "local Universal Interfaces build (post-#568 fleet refresh: Stack(axis), local recompose, ScrollView+HelloWorld responsive, Row consultation, menu checked); prior baseline 4aab2d7f+toolbox-arm",
+    "component_reference": "local Universal Interfaces build (post-#568 fleet refresh: Stack(axis), local recompose, ScrollView+HelloWorld responsive, Row consultation, menu checked); prior baseline 4aab2d7f+toolbox-arm; LokaSimpleViewer68K row re-banked at d11ec6a6 (#570 nav pane + display modes, measured by toolbox CI on main)",
     "preset": "retro68-68k-release",
     "source_commit": "1bfe80bc"
   },
@@ -22,10 +22,10 @@
       "name": "LokaSimpleViewer68K",
       "path": "example/SimpleViewer/LokaSimpleViewer68K.bin",
       "baseline": {
-        "total": 264704,
-        "CODE": 241572,
-        "DATA": 12776,
-        "RELA": 9373
+        "total": 281216,
+        "CODE": 255092,
+        "DATA": 14832,
+        "RELA": 10368
       }
     },
     {

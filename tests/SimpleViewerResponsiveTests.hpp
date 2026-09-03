@@ -1,0 +1,13 @@
+#ifndef LOKA_TESTS_SIMPLE_VIEWER_RESPONSIVE_TESTS_HPP
+#define LOKA_TESTS_SIMPLE_VIEWER_RESPONSIVE_TESTS_HPP
+
+void testSimpleViewerNavSeatsFollowModeAndRetainContentImage();
+void testSimpleViewerOpenPaneToggleStaysInsideSubNavWidthViewport();
+void testSimpleViewerDisplayArmsAndMenuChecksFollowOwnedMode();
+void testSimpleViewerDisplayModesProjectExpectedNullGeometry();
+void testSimpleViewerCommittedImageResetsRailScrollOffset();
+void testSimpleViewerPaneScrollButtonUsesMenuEmitter();
+void testSimpleViewerNarrowWindowFileMenuMaterializesDialogOutsideParkedNav();
+void testSimpleViewerProductionConfigStartsAtWideBreakpoint();
+
+#endif // LOKA_TESTS_SIMPLE_VIEWER_RESPONSIVE_TESTS_HPP
