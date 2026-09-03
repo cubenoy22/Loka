@@ -66,7 +66,12 @@ MacRectSurfaceContext::MacRectSurfaceContext(MacScenePlatformController *control
     [parent addSubview:view];
   }
   view_ = view;
-  bindModel();
+  // A context without a native view is discarded by the controller; it must
+  // not have bound anything.
+  if (view_)
+  {
+    bindModel();
+  }
 }
 
 MacRectSurfaceContext::~MacRectSurfaceContext()

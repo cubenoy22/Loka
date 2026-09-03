@@ -871,6 +871,13 @@ Win32ScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *
     {
       return LayoutNodeResult(state.width, state.y);
     }
+    if (!ctx->hasNativeSurface())
+    {
+      // No native surface was placed: nothing is installed and nothing is
+      // published; the next layout pass retries creation.
+      delete ctx;
+      return LayoutNodeResult(state.width, state.y);
+    }
     surface->setContext(ctx);
     ctx->readLifecycleFactOnAttach();
   }

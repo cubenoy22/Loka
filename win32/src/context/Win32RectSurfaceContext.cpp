@@ -24,7 +24,12 @@ Win32RectSurfaceContext::Win32RectSurfaceContext(Win32ScenePlatformController *c
   EnsureClassRegistered();
   hwnd_ = this->createNativeChildWindow(
       0, kRectSurfaceClassName, L"", WS_CHILD | WS_VISIBLE, x, y, width, height, parent, 0, GetModuleHandleW(NULL), this);
-  bindModel();
+  // A context without a native window is discarded by the controller; it
+  // must not have bound anything.
+  if (hwnd_)
+  {
+    bindModel();
+  }
 }
 
 Win32RectSurfaceContext::~Win32RectSurfaceContext()
