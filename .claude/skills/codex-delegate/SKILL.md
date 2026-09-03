@@ -138,7 +138,7 @@ something"; the file came back absent while the review found three real holes,
 one of them exactly an underdetermined ruling. This mirrors AGENTS.md
 "Shape Review Gates" gate 2, which the delegator runs on the same diff.
 
-## Pre-PR completion gate (run before the first push, not after the bot)
+## Pre-PR completion gate (run before the PR exists, not after the bot)
 
 PR #589 (2026-09-03) took ten PR-review-bot rounds, one macOS compile
 failure and one Win32 CI hang to converge on a change whose host suite was
@@ -165,7 +165,10 @@ delegator added afterwards — before the branch is pushed.
    accepted: the #589 smell report noticed the raw node pointer and then
    argued it safe. Every REFUTED item is fixed and the pass rerun clean
    before the push.
-3. **Native compile leg for every rail the host cannot build.** macOS:
+3. **Native compile leg for every rail the host cannot build.** Pushing
+   the branch as transport is fine and often required — the rigs fetch
+   through origin (fleet rule) and tahoe can also take an scp'd diff; the
+   gate is drawn at opening the PR and asking the bot, not at `git push`. macOS:
    tahoe `cmake --preset macos-debug && cmake --build --preset macos-tests`
    (~3 min). Win32: the rig's `win32-tests` build plus `LokaTestsWin32` in
    an interactive scheduled task (~5 min; an MSVC Debug assert or a
@@ -186,7 +189,7 @@ delegator added afterwards — before the branch is pushed.
    silence it (`assert` vanishes under `NDEBUG`; `LOKA_VERIFY` is the one
    that keeps evaluating). Both test mains
    include the new header.
-5. **Then push and ask the bot once.** A finding after this gate is
+5. **Then open the PR and ask the bot once.** A finding after this gate is
    classified before it is fixed: brief gap, self-findable miss,
    delegator's later edit, or pre-existing shape routed to its issue.
 
