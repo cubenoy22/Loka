@@ -7,14 +7,6 @@
 #include "core/State.hpp"
 #include "core/resource/Image.hpp"
 
-#ifndef LOKA_RECT_SURFACE_CAPACITY
-#define LOKA_RECT_SURFACE_CAPACITY 16
-#endif
-
-#if LOKA_RECT_SURFACE_CAPACITY < 1 || LOKA_RECT_SURFACE_CAPACITY > 32767
-#error "LOKA_RECT_SURFACE_CAPACITY must fit the RectSurfaceModel short count"
-#endif
-
 namespace loka
 {
   namespace app
@@ -167,7 +159,11 @@ namespace loka
     {
       enum
       {
-        kMaxSprites = LOKA_RECT_SURFACE_CAPACITY,
+        // A fixed ABI constant: the model's size and every rail core's
+        // per-sprite arrays are compiled from it, so it is not a per-target
+        // knob (a mismatch between an app and its rail core would index past
+        // the smaller array).
+        kMaxSprites = 16,
         kMaxDirtyRects = 16
       };
 
