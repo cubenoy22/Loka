@@ -677,7 +677,25 @@ void Win32RectSurfaceContext::finishPaint(loka::app::RectSurfacePaintResult resu
     {
       // WM_PAINT calls finishPaint only after EndPaint, so this update region
       // can schedule only a later message and cannot re-enter the current one.
-      InvalidateRect(hwnd_, &retryRect, FALSE);
+      //
+      // The retry invalidates the same bounded parent subtree as an ordinary
+      // model update (applyModel) so a later sibling that overlaps this
+      // surface is replayed in order on top of it. It is marked directly
+      // rather than queued on the controller: synchronize() drains that queue
+      // with RDW_UPDATENOW, whose synchronous WM_PAINT would refuse and
+      // requeue again inside the same drain while the allocation keeps
+      // failing.
+      HWND parent = GetParent(hwnd_);
+      if (parent)
+      {
+        RECT parentRect = retryRect;
+        MapWindowPoints(hwnd_, parent, reinterpret_cast<POINT *>(&parentRect), 2);
+        RedrawWindow(parent, &parentRect, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
+      }
+      else
+      {
+        InvalidateRect(hwnd_, &retryRect, FALSE);
+      }
     }
     break;
   }
