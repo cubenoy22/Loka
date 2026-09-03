@@ -157,6 +157,11 @@ as a substitute for finishing its design.
    rounds do not make an over-broad shape safer. For deferred, queued, cached,
    or ledgered work, put one validity invariant and the concrete events that
    invalidate it in the implementation brief, then pin those failure modes.
+   Put the anticipated flags and their required review lenses and evidence in
+   the brief. Reconcile them against the candidate revision and publish the
+   result in the PR body as `Review risk profile`; explicitly record a zero-flag
+   result. Use the catalog and thresholds in AGENTS.md instead of restating
+   them here.
 2. **Produce one candidate revision.** First run the affected checks that can
    inspect the working tree. Then commit, confirm clean status, and record the
    candidate SHA, merge base, and changed-file list. Run exact-ref platform
