@@ -405,6 +405,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   endfunction()
 
   if(NOT WIN32)
+    add_test(NAME scriptMameDevDisk
+      COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MameDevDiskTest.sh)
     add_test(NAME scriptMameDebugLaunch
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MameDebugLaunchTest.sh)
     add_test(NAME scriptMameRunLaunch
