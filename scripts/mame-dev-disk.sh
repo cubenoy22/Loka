@@ -46,7 +46,6 @@ fi
 
 MACBINARY_PATH="$1"
 shift
-PLAIN_DATA_PATHS=("$@")
 MAME_HDA="${MAME_HDA:-}"
 MAME_HOMEPATH="${MAME_HOMEPATH:-$HOME/.mame}"
 MAME_CONTROL_DIR="${MAME_CONTROL_DIR:-$MAME_HOMEPATH/loka}"
@@ -60,7 +59,7 @@ if [ ! -f "$MACBINARY_PATH" ]; then
   echo "Error: Retro68 MacBinary file not found: $MACBINARY_PATH" >&2
   exit 1
 fi
-for plain_data_path in "${PLAIN_DATA_PATHS[@]}"; do
+for plain_data_path in "$@"; do
   if [ ! -f "$plain_data_path" ]; then
     echo "Error: plain data file not found: $plain_data_path" >&2
     exit 1
@@ -121,7 +120,7 @@ trap cleanup EXIT
 
 HOME="$HFS_HOME" "$HFORMAT" -l LokaDev "$TEMPORARY_DISK" 1
 HOME="$HFS_HOME" "$HCOPY" -m "$MACBINARY_PATH" :
-for plain_data_path in "${PLAIN_DATA_PATHS[@]}"; do
+for plain_data_path in "$@"; do
   HOME="$HFS_HOME" "$HCOPY" -r "$plain_data_path" :
 done
 HOME="$HFS_HOME" "$HUMOUNT"
