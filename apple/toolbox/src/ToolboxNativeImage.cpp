@@ -43,6 +43,10 @@ namespace
     }
   }
 
+  // The streamed-picture header DrawPicture reads before the first getPicProc
+  // call: the Picture record plus the eight longs the header copy carries.
+  const std::size_t kPictStreamHeaderSize = sizeof(Picture) + sizeof(long) * 8;
+
   bool DrawNativePict(const loka::toolbox::ToolboxNativeImage *native, const Rect &destinationRect)
   {
     if (!native || !native->payload)
@@ -62,7 +66,10 @@ namespace
     const loka::toolbox::ToolboxPictBytesPayload *payload =
         static_cast<const loka::toolbox::ToolboxPictBytesPayload *>(native->payload);
     const std::vector<unsigned char> &bytes = payload->blob.bytes();
-    const std::size_t headerSize = sizeof(Picture) + sizeof(long) * 8;
+    const std::size_t headerSize = kPictStreamHeaderSize;
+    // MakeImageFromPictBlob refuses a range that cannot hold the streaming
+    // header, so a constructed image never reaches this refusal; it guards
+    // the byte reads below against a payload that was mutated underneath.
     if (payload->pictureEnd > bytes.size() || payload->pictureOffset + headerSize > payload->pictureEnd)
     {
       return false;
@@ -219,7 +226,11 @@ namespace loka
                           int width,
                           int height)
     {
-      if (pictureOffset >= pictureEnd || pictureEnd > blob.bytes().size() || width <= 0 || height <= 0)
+      // A range that cannot hold the streaming header is a construction
+      // error: refuse the Image here rather than hand the paint a payload it
+      // would reject permanently (and retry forever).
+      if (pictureOffset >= pictureEnd || pictureEnd > blob.bytes().size() || width <= 0 || height <= 0
+          || pictureEnd - pictureOffset < kPictStreamHeaderSize)
       {
         return loka::core::resource::Image::Empty();
       }
