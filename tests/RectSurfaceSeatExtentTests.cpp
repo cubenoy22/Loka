@@ -1,7 +1,9 @@
 #include "RectSurfaceSeatExtentTests.hpp"
 
 #include "app/RectSurface.hpp"
+#include "app/layout/FallbackControlMetrics.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
+#include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/nestable/ScrollView.hpp"
@@ -251,6 +253,33 @@ void testRectSurfaceExtentChangesOnlyDuringRailLayout()
 
   LOKA_VERIFY(extent.get() == sentinel);
   LOKA_VERIFY(extentChanges.value == 2);
+}
+
+void testRectSurfaceFillSeatBelowButtonInColumnTakesTheRemainder()
+{
+  // Declared first so it outlives the nodes: their contexts deliver the
+  // terminal fact to this controller when the nodes are destroyed.
+  NullScenePlatformController platform;
+  loka::core::MutableState<loka::core::Frame> extent;
+  loka::core::PushStateTracker tracker;
+  tracker.addState(&extent);
+  loka::app::scene::NodeState<loka::core::Frame> extentState(&extent, &tracker);
+  loka::app::RectSurfaceProps surfaceProps;
+  surfaceProps.laidOutExtent(extentState);
+
+  // A Button above a fill-seat surface: every native rail advances a Column
+  // past a Button by its control height plus the vertical spacing, so the
+  // surface takes the rest. The Null rail must not hand the Button the
+  // whole seat (SmirkBench's narrow layout, #569).
+  loka::app::StackNode column((loka::app::StackProps(loka::app::STACK_AXIS_COLUMN)));
+  column.addChild(new loka::app::ButtonNode((loka::app::ButtonProps())));
+  column.addChild(new loka::app::RectSurfaceNode(surfaceProps));
+
+  platform.projectLayoutForTesting(&column, layoutState(0, 0, 479, 300));
+
+  const int advance = loka::app::layout::FallbackControlMetrics::kButtonHeight
+                      + loka::app::layout::FallbackControlMetrics::kVerticalSpacing;
+  verifyFrame(extent.get(), 0, advance, 479, 300 - advance);
 }
 
 void testRectSurfaceWithoutExtentStateLaysOutNormally()
