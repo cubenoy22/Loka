@@ -20,27 +20,28 @@ namespace
   {
   public:
     CheckedMenuBoundary()
-        : actualSize_(0)
+        : displayMode_(0)
     {
     }
 
     virtual void composeMenu(loka::app::MenuComposition &composition)
     {
       using namespace loka::app;
-      if (!this->actualSize_)
+      if (!this->displayMode_)
       {
-        this->actualSize_ = &this->dangerouslyUseState<bool>(false);
+        this->displayMode_ = &this->dangerouslyUseState<int>(0);
       }
       composition << (Menu("View")
-                      << MenuItem("Fit to Window").attr(MenuItemAttr().checked(!this->actualSize_->get()))
-                      << MenuItem("Actual Size").attr(MenuItemAttr().checked(this->actualSize_->get())));
+                      << MenuItem("Fit to Window").attr(MenuItemAttr().checked(this->displayMode_->get() == 0))
+                      << MenuItem("Actual Size").attr(MenuItemAttr().checked(this->displayMode_->get() == 1))
+                      << MenuItem("Actual Size (Scroll)").attr(MenuItemAttr().checked(this->displayMode_->get() == 2)));
     }
 
-    void setActualSize(bool value)
+    void setDisplayMode(int value)
     {
-      assert(this->actualSize_);
+      assert(this->displayMode_);
       loka::core::StateTrackerGuard guard(this->tracker());
-      this->actualSize_->set(value);
+      this->displayMode_->set(value);
     }
 
     loka::core::PushStateTracker *pushTracker()
@@ -49,7 +50,7 @@ namespace
     }
 
   private:
-    loka::core::MutableState<bool> *actualSize_;
+    loka::core::MutableState<int> *displayMode_;
   };
 
   class CheckedMenuConfig : public AppConfigurable
@@ -188,17 +189,19 @@ void testMenuBoundaryCheckedValuesSwapOnTrackedStateRefresh()
 
   const loka::app::MenuDefinition *view = singleViewMenu(controller.defaultMenuBar());
   LOKA_VERIFY(view != 0);
-  LOKA_VERIFY(view->itemsCount() == 2);
+  LOKA_VERIFY(view->itemsCount() == 3);
   LOKA_VERIFY(view->itemsHead()->isCheckedInitial());
   LOKA_VERIFY(!view->itemsHead()->nextInComposition->isCheckedInitial());
+  LOKA_VERIFY(!view->itemsHead()->nextInComposition->nextInComposition->isCheckedInitial());
   const int initialApplyCount = applyCount;
 
-  config.menu.setActualSize(true);
+  config.menu.setDisplayMode(2);
   LOKA_VERIFY(controller.flushInvalidation(0));
   view = singleViewMenu(controller.defaultMenuBar());
   LOKA_VERIFY(view != 0);
   LOKA_VERIFY(!view->itemsHead()->isCheckedInitial());
-  LOKA_VERIFY(view->itemsHead()->nextInComposition->isCheckedInitial());
+  LOKA_VERIFY(!view->itemsHead()->nextInComposition->isCheckedInitial());
+  LOKA_VERIFY(view->itemsHead()->nextInComposition->nextInComposition->isCheckedInitial());
   LOKA_VERIFY(controller.diff().valid);
   LOKA_VERIFY(!controller.diff().fullRebuild);
   LOKA_VERIFY(controller.diff().changedCount() == 1);
@@ -218,9 +221,10 @@ void testMenuBoundaryRefreshSurvivesMenuControllerReplacement()
     LOKA_VERIFY(view != 0);
     LOKA_VERIFY(view->itemsHead()->isCheckedInitial());
     LOKA_VERIFY(!view->itemsHead()->nextInComposition->isCheckedInitial());
+    LOKA_VERIFY(!view->itemsHead()->nextInComposition->nextInComposition->isCheckedInitial());
   }
 
-  config.menu.setActualSize(true);
+  config.menu.setDisplayMode(2);
   LOKA_VERIFY(config.menuRefresh().hasPendingRequest());
 
   MenuController replacement(&config, &CountCheckedMenuApply, &applyCount);
@@ -228,7 +232,8 @@ void testMenuBoundaryRefreshSurvivesMenuControllerReplacement()
   const loka::app::MenuDefinition *view = singleViewMenu(replacement.defaultMenuBar());
   LOKA_VERIFY(view != 0);
   LOKA_VERIFY(!view->itemsHead()->isCheckedInitial());
-  LOKA_VERIFY(view->itemsHead()->nextInComposition->isCheckedInitial());
+  LOKA_VERIFY(!view->itemsHead()->nextInComposition->isCheckedInitial());
+  LOKA_VERIFY(view->itemsHead()->nextInComposition->nextInComposition->isCheckedInitial());
 }
 
 void testMenuControllerOutlivedByBoundaryDoesNotTouchIt()
@@ -247,11 +252,20 @@ void testSimpleViewerDisplayModeUpdatesRetainedImageViewProps()
   NullScenePlatformController platform;
   NullPlatformContext platformContext;
   loka::core::EmitterState openDialogEvent;
-  loka::core::MutableState<bool> actualSize(false);
+  loka::core::MutableState<simpleviewer::DisplayMode> displayMode(
+      simpleviewer::DISPLAY_FIT);
+  loka::core::EmitterState fitEvent;
+  loka::core::EmitterState actualEvent;
+  loka::core::EmitterState actualScrollEvent;
   loka::core::PushStateTracker modeTracker;
-  modeTracker.addState(&actualSize);
+  modeTracker.addState(&displayMode);
   simpleviewer::MainProps props;
-  props.platformContext(&platformContext).openDialogEvent(&openDialogEvent).actualSize(&actualSize);
+  props.platformContext(&platformContext)
+      .openDialogEvent(&openDialogEvent)
+      .displayMode(&displayMode)
+      .fitEvent(&fitEvent)
+      .actualEvent(&actualEvent)
+      .actualScrollEvent(&actualScrollEvent);
   loka::app::scene::NodeDefinitionBase *rootDefinition =
       loka::app::scene::Boundary<simpleviewer::MainNode>(props).clone();
   LOKA_VERIFY(rootDefinition != 0);
@@ -267,7 +281,7 @@ void testSimpleViewerDisplayModeUpdatesRetainedImageViewProps()
 
   {
     loka::core::StateTrackerGuard guard(&modeTracker);
-    actualSize.set(true);
+    displayMode.set(simpleviewer::DISPLAY_ACTUAL);
   }
   if (scene.hasPendingInvalidation())
   {
@@ -275,12 +289,14 @@ void testSimpleViewerDisplayModeUpdatesRetainedImageViewProps()
   }
   imageView = findOnlyImageView(loka::dsl::testing::SceneTestAccess::rootNode(scene));
   LOKA_VERIFY(imageView != 0);
-  LOKA_VERIFY(imageView == retainedImageView);
+  // Each display mode owns a distinct Match arm resident; the original Fit
+  // image is parked while Actual is active, then reused on re-entry.
+  LOKA_VERIFY(imageView != retainedImageView);
   LOKA_VERIFY(imageView->props.attr_.sizePolicyValue_ == loka::app::IMAGE_VIEW_SIZE_INTRINSIC);
 
   {
     loka::core::StateTrackerGuard guard(&modeTracker);
-    actualSize.set(false);
+    displayMode.set(simpleviewer::DISPLAY_FIT);
   }
   if (scene.hasPendingInvalidation())
   {
