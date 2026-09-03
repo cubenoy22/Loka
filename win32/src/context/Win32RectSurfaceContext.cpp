@@ -357,6 +357,9 @@ DrawRectSurfaceImage(HDC hdc, const RECT &spriteRect, const loka::app::RectSurfa
   const SIZE_T maskRowBytes = static_cast<SIZE_T>(((width + 31) / 32) * 4);
   ZeroMemory(maskBits, maskRowBytes * height);
   const BYTE *sourceBits = static_cast<const BYTE *>(dib.dsBm.bmBits);
+  // The source DIB's bits are read from the CPU below; any GDI drawing the
+  // producer batched into that section must land first.
+  GdiFlush();
   // MaskBlt copies the Image's rows from the top of the stored bitmap, so a
   // bottom-up DIB taller than the declared height must be indexed from its
   // stored height, not the declared one, for the mask rows to match.

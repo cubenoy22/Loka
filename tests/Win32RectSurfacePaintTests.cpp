@@ -43,6 +43,9 @@ namespace
                               BYTE red,
                               BYTE alpha)
   {
+    // DIB-section bits are touched from the CPU only after GDI's batch is
+    // flushed, both before rewriting them and before reading them back.
+    GdiFlush();
     for (int y = 0; y < height; ++y)
     {
       for (int x = 0; x < width; ++x)
@@ -80,6 +83,7 @@ namespace
                                   BYTE green,
                                   BYTE red)
   {
+    GdiFlush();
     const BYTE *pixel = bits + (y * width + x) * 4;
     LOKA_VERIFY(pixel[0] == blue && pixel[1] == green && pixel[2] == red);
   }
