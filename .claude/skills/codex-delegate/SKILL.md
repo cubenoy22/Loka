@@ -172,11 +172,14 @@ bot is asked (pushing the branch as transport to the rigs is fine).
    before the push.
 3. **Native legs: mirror the CI jobs whose sources the diff touches.**
    The list of what to build and run is `.github/workflows/*.yml`, not
-   this skill: for every job whose inputs the diff touches, run every
-   `run` step of that job in order — configure, builds, ctest, and the
-   steps after them (the macOS scenario scripts, the Win32 PowerShell
-   validations and Release staging, the Toolbox size gate) — on the
-   matching rig (tahoe
+   this skill: for every job whose inputs the diff touches, reproduce
+   that job's environment and run every step of it in order — the `uses`
+   steps that set the toolchain (`windows.yml` selects x64 through
+   `msvc-dev-cmd`; a rig of another architecture is a different identity
+   under the #422 reference-identity ruling, not a mirror), then
+   configure, builds, ctest, and the steps after them (the macOS scenario
+   scripts, the Win32 PowerShell validations and Release staging, the
+   Toolbox size gate) — on the matching rig (tahoe
    for `macos.yml`, the Win32 rig in an interactive scheduled task for
    `windows.yml`, local Retro68 for `toolbox.yml`, host for `linux.yml`)
    before opening the PR. Pushing the branch as transport is fine and
