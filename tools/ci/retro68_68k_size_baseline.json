@@ -22,10 +22,10 @@
       "name": "LokaSimpleViewer68K",
       "path": "example/SimpleViewer/LokaSimpleViewer68K.bin",
       "baseline": {
-        "total": 264704,
-        "CODE": 241572,
-        "DATA": 12776,
-        "RELA": 9373
+        "total": 277760,
+        "CODE": 251952,
+        "DATA": 14600,
+        "RELA": 10194
       }
     },
     {

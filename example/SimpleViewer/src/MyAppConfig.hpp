@@ -9,6 +9,10 @@
 #include "app/Menu.hpp"
 #include "MainNode.hpp"
 
+#ifdef TEST_BUILD
+class SimpleViewerTestAccess;
+#endif
+
 class SimpleViewerAppConfig : public AppConfigurable
 {
 public:
@@ -23,12 +27,15 @@ public:
   {
     c << WindowDef(
         WindowProps()
-            .frame(40, 40, 320, 240)
+            .frame(16, 16, 480, 280)
             .scene(loka::app::scene::Boundary<simpleviewer::MainNode>(
                 simpleviewer::MainProps()
                     .platformContext(this->getPlatformContext()) // TODO: Make this retrievable from inside the Node
                     .openDialogEvent(&this->openDialogEvent_)
-                    .actualSize(this->menu_.actualSizeState())))
+                    .displayMode(this->menu_.displayModeState())
+                    .fitEvent(this->menu_.fitEvent())
+                    .actualEvent(this->menu_.actualEvent())
+                    .actualScrollEvent(this->menu_.actualScrollEvent())))
             .title("LokaSimpleViewer")
             .visible(true));
   }
@@ -44,22 +51,25 @@ private:
   public:
     explicit MainMenu(loka::core::EmitterState *openDialogEvent)
         : openDialogEvent_(openDialogEvent),
-          actualSize_(0),
+          displayMode_(0),
           fitToWindowEvent_(),
-          actualSizeEvent_()
+          actualEvent_(),
+          actualScrollEvent_()
     {
       this->reserveStates(1);
       // MenuBoundary's tracked-state door is explicit because this boundary
       // owns the mode while the scene receives only a read-only State view.
-      this->actualSize_ = &this->dangerouslyUseState<bool>(false);
+      this->displayMode_ =
+          &this->dangerouslyUseState<simpleviewer::DisplayMode>(simpleviewer::DISPLAY_FIT);
     }
 
     virtual void composeMenu(loka::app::MenuComposition &c)
     {
       using namespace loka::app;
       this->bindActionForMenu(this->fitToWindowEvent_, &MainMenu::fitToWindow);
-      this->bindActionForMenu(this->actualSizeEvent_, &MainMenu::showActualSize);
-      const bool actual = this->actualSize_->get();
+      this->bindActionForMenu(this->actualEvent_, &MainMenu::showActual);
+      this->bindActionForMenu(this->actualScrollEvent_, &MainMenu::showActualScrolling);
+      const simpleviewer::DisplayMode mode = this->displayMode_->get();
       c.declare(AppMenu()                                              //
                 << MenuItem("About").actionType(MENU_ACTION_ABOUT_APP) //
                 << MenuSeparator()                                     //
@@ -68,39 +78,75 @@ private:
                 << MenuItem("Open...").onClick(this->openDialogEvent_));
       c.declare(Menu("View")
                 << MenuItem("Fit to Window")
-                       .attr(MenuItemAttr().checked(!actual))
+                       .attr(MenuItemAttr().checked(mode == simpleviewer::DISPLAY_FIT))
                        .onClick(&this->fitToWindowEvent_)
                 << MenuItem("Actual Size")
-                       .attr(MenuItemAttr().checked(actual))
-                       .onClick(&this->actualSizeEvent_));
+                       .attr(MenuItemAttr().checked(mode == simpleviewer::DISPLAY_ACTUAL))
+                       .onClick(&this->actualEvent_)
+                << MenuItem("Actual Size (Scroll)")
+                       .attr(MenuItemAttr().checked(mode == simpleviewer::DISPLAY_ACTUAL_SCROLL))
+                       .onClick(&this->actualScrollEvent_));
     }
 
-    loka::core::State<bool> *actualSizeState() const
+    loka::core::State<simpleviewer::DisplayMode> *displayModeState() const
     {
-      return this->actualSize_;
+      return this->displayMode_;
+    }
+
+    loka::core::EmitterState *fitEvent()
+    {
+      return &this->fitToWindowEvent_;
+    }
+
+    loka::core::EmitterState *actualEvent()
+    {
+      return &this->actualEvent_;
+    }
+
+    loka::core::EmitterState *actualScrollEvent()
+    {
+      return &this->actualScrollEvent_;
     }
 
   private:
-    void fitToWindow()
+#ifdef TEST_BUILD
+    friend class ::SimpleViewerTestAccess;
+#endif
+
+    void setDisplayMode(simpleviewer::DisplayMode mode)
     {
       loka::core::StateTrackerGuard guard(this->tracker());
-      this->actualSize_->set(false);
+      this->displayMode_->set(mode);
     }
 
-    void showActualSize()
+    void fitToWindow()
     {
-      loka::core::StateTrackerGuard guard(this->tracker());
-      this->actualSize_->set(true);
+      this->setDisplayMode(simpleviewer::DISPLAY_FIT);
+    }
+
+    void showActual()
+    {
+      this->setDisplayMode(simpleviewer::DISPLAY_ACTUAL);
+    }
+
+    void showActualScrolling()
+    {
+      this->setDisplayMode(simpleviewer::DISPLAY_ACTUAL_SCROLL);
     }
 
     loka::core::EmitterState *openDialogEvent_;
-    loka::core::MutableState<bool> *actualSize_;
+    loka::core::MutableState<simpleviewer::DisplayMode> *displayMode_;
     loka::core::EmitterState fitToWindowEvent_;
-    loka::core::EmitterState actualSizeEvent_;
+    loka::core::EmitterState actualEvent_;
+    loka::core::EmitterState actualScrollEvent_;
   };
 
   loka::core::EmitterState openDialogEvent_;
   MainMenu menu_;
+
+#ifdef TEST_BUILD
+  friend class ::SimpleViewerTestAccess;
+#endif
 };
 
 #endif // LOKA_SIMPLE_VIEWER_APP_CONFIG_HPP

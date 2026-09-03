@@ -65,6 +65,7 @@
 #include "RowWidthConsultationTests.hpp"
 #include "StackAxisRetentionTests.hpp"
 #include "HelloWorldResponsiveTests.hpp"
+#include "SimpleViewerResponsiveTests.hpp"
 #include "ScrollViewScopeTests.hpp"
 #include "ToolboxLayoutContractTests.hpp"
 #include "ToolboxScenePlatformContractTests.hpp"
