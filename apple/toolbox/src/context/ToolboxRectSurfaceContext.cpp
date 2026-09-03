@@ -1,6 +1,7 @@
 #include "context/ToolboxRectSurfaceContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxNativeImage.hpp"
+#include <cassert>
 
 namespace
 {
@@ -560,6 +561,16 @@ ToolboxRectSurfaceContext::paintImage(const loka::app::RectSurfaceSprite &sprite
   {
     return loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
   }
+  // A handle that is not a Toolbox native image record is a construction
+  // error, not resource pressure: refusing it would request the same
+  // rectangle on every flush forever, so it is skipped and reported by assert
+  // (the Win32 non-HBITMAP and macOS non-NSImage shapes).
+  if (!loka::toolbox::TryGetToolboxNativeImage(image))
+  {
+    assert(!"RectSurface image sprite handle is not a Toolbox native image");
+    return loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
+  }
+  // Only the lazy one-bit mask build can fail transiently (NewPtrClear).
   const BitMap *binaryMask = loka::toolbox::PrepareToolboxBinaryMask(image);
   if (!binaryMask)
   {
