@@ -576,31 +576,35 @@ ToolboxRectSurfaceContext::paintImage(const loka::app::RectSurfaceSprite &sprite
   {
     return loka::app::RECT_SURFACE_PAINT_REFUSED;
   }
+  // A bounded dirty replay paints only the dirty part of the sprite. The
+  // sprite is copied 1:1, so the clip is plain rect arithmetic on the
+  // CopyMask rects (no clip region to allocate, which could refuse and would
+  // otherwise silently paint the whole sprite over later siblings).
+  Rect paintRect = destinationRect;
+  if (dirtyRect && !SectRect(&paintRect, dirtyRect, &paintRect))
+  {
+    return loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
+  }
+  Rect sourceRect;
+  SetRect(&sourceRect,
+          static_cast<short>(paintRect.left - destinationRect.left),
+          static_cast<short>(paintRect.top - destinationRect.top),
+          static_cast<short>(paintRect.right - destinationRect.left),
+          static_cast<short>(paintRect.bottom - destinationRect.top));
   GrafPtr destinationPort = 0;
   GetPort(&destinationPort);
-  Rect sourceRect;
-  SetRect(&sourceRect, 0, 0, sprite.width, sprite.height);
   if (destinationPort)
   {
     const BitMap *destinationBits = PortBitsForCopyMask(destinationPort);
     if (destinationBits)
     {
-      if (dirtyRect && tempRgn_)
-      {
-        GetClip(tempRgn_);
-        ClipRect(dirtyRect);
-      }
       // The Universal Interfaces declare CopyMask with non-const BitMap pointers.
       CopyMask(const_cast<BitMap *>(binaryMask),
                const_cast<BitMap *>(binaryMask),
                const_cast<BitMap *>(destinationBits),
                &sourceRect,
                &sourceRect,
-               &destinationRect);
-      if (dirtyRect && tempRgn_)
-      {
-        SetClip(tempRgn_);
-      }
+               &paintRect);
     }
   }
   return loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
