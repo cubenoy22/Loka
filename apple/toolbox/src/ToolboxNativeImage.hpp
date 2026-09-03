@@ -37,10 +37,20 @@ namespace loka
 
     struct ToolboxNativeImage
     {
+      ToolboxNativeImage()
+          : magic(0),
+            kind(TOOLBOX_NATIVE_IMAGE_KIND_UNKNOWN),
+            payload(0),
+            ownsPayload(0),
+            binaryMask()
+      {
+      }
+
       unsigned long magic;
       short kind;
       void *payload;
       unsigned char ownsPayload;
+      BitMap binaryMask;
     };
 
     loka::core::resource::Image MakeImageFromPicHandle(PicHandle picture, int width, int height, bool takeOwnership);
@@ -52,6 +62,9 @@ namespace loka
                           int height);
 
     const ToolboxNativeImage *TryGetToolboxNativeImage(const loka::core::resource::Image &image);
+    /** Lazily prepares the RectSurface-only one-bit mask. The native image
+        record owns the returned bitmap until its central release door runs. */
+    const BitMap *PrepareToolboxBinaryMask(const loka::core::resource::Image &image);
 
     const unsigned long kToolboxNativeImageMagic = 0x4C4F4B41UL; // 'LOKA'
   } // namespace toolbox

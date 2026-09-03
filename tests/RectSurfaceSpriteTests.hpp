@@ -1,0 +1,13 @@
+#ifndef LOKA_TESTS_RECT_SURFACE_SPRITE_TESTS_HPP
+#define LOKA_TESTS_RECT_SURFACE_SPRITE_TESTS_HPP
+
+void testRectSurfaceModelKeepsMixedSpriteOrderAndBounds();
+void testRectSurfaceModelCapacityCountsEverySpriteKind();
+void testImageSpriteKeepsImageIdentityAndIntrinsicSize();
+void testRectSurfaceModelRefusesUnrepresentableImageDimensions();
+void testImageSpriteHandleChangeRequiresRepaintAtSameGeometry();
+void testRectSurfacePaintListKeepsMixedSpriteOrder();
+void testRectSurfaceModelClearDropsImageHoldAndNormalizesEmptyValue();
+void testRectSurfaceRefusedPaintPreservesAppliedModel();
+
+#endif // LOKA_TESTS_RECT_SURFACE_SPRITE_TESTS_HPP

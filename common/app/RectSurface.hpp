@@ -2,8 +2,10 @@
 #define LOKA_APP_RECT_SURFACE_HPP
 
 #include <assert.h>
+#include <limits.h>
 #include "app/scene/Node.hpp"
 #include "core/State.hpp"
+#include "core/resource/Image.hpp"
 
 namespace loka
 {
@@ -46,11 +48,122 @@ namespace loka
       }
     };
 
+    /** An image at intrinsic size. Alpha rails derive its per-pixel mask from
+        an alpha channel and otherwise paint it opaque; Classic uses the PICT
+        white-key mask. */
+    struct ImageSprite
+    {
+      short x;
+      short y;
+      loka::core::resource::Image image;
+
+      ImageSprite(short left, short top, const loka::core::resource::Image &imageValue)
+          : x(left),
+            y(top),
+            image(imageValue)
+      {
+      }
+    };
+
+    /** One RectSurface entry. Geometry is common to both kinds. The image
+        payload is meaningful only for KIND_IMAGE and is exposed through the
+        kind-refusing query rather than as a generally readable field. */
+    class RectSurfaceSprite
+    {
+    public:
+      enum Kind
+      {
+        KIND_RECT = 0,
+        KIND_IMAGE
+      };
+
+      short x;
+      short y;
+      short width;
+      short height;
+
+      RectSurfaceSprite()
+          : x(0),
+            y(0),
+            width(0),
+            height(0),
+            kind_(KIND_RECT),
+            image_()
+      {
+      }
+
+      RectSurfaceSprite(const RectSprite &rect)
+          : x(rect.x),
+            y(rect.y),
+            width(rect.width),
+            height(rect.height),
+            kind_(KIND_RECT),
+            image_()
+      {
+      }
+
+      RectSurfaceSprite(const ImageSprite &sprite)
+          : x(sprite.x),
+            y(sprite.y),
+            width(static_cast<short>(sprite.image.width())),
+            height(static_cast<short>(sprite.image.height())),
+            kind_(KIND_IMAGE),
+            image_(sprite.image)
+      {
+      }
+
+      Kind kind() const
+      {
+        return kind_;
+      }
+
+      bool queryImage(loka::core::resource::Image &out) const
+      {
+        if (kind_ != KIND_IMAGE)
+        {
+          return false;
+        }
+        out = image_;
+        return true;
+      }
+
+      bool operator==(const RectSurfaceSprite &other) const
+      {
+        if (kind_ != other.kind_ || x != other.x || y != other.y || width != other.width || height != other.height)
+        {
+          return false;
+        }
+        return kind_ != KIND_IMAGE || image_ == other.image_;
+      }
+
+      bool operator!=(const RectSurfaceSprite &other) const
+      {
+        return !(*this == other);
+      }
+
+    private:
+      Kind kind_;
+      loka::core::resource::Image image_;
+    };
+
+    /** Returns whether publishing current in place of previous can change the
+        pixels at their shared array position. IMAGE identity is content for
+        this decision even when its intrinsic geometry is unchanged. */
+    inline bool RectSurfaceSpriteRequiresRepaint(const RectSurfaceSprite &current,
+                                                 const RectSurfaceSprite &previous)
+    {
+      return current != previous;
+    }
+
     struct RectSurfaceModel
     {
       enum
       {
-        kMaxRects = 16,
+        // A fixed ABI constant: the model's size and every rail core's
+        // per-sprite arrays are compiled from it, so it is not a per-target
+        // knob (a mismatch between an app and its rail core would index past
+        // the smaller array).
+        kMaxSprites = 16,
         kMaxDirtyRects = 16
       };
 
@@ -87,28 +200,57 @@ namespace loka
         }
       };
 
-      short rectCount;
+    private:
+      short spriteCount_;
+      RectSurfaceSprite sprites_[kMaxSprites];
+
+    public:
       short dirtyRectCount;
-      RectSprite rects[kMaxRects];
       DirtyRect dirtyRects[kMaxDirtyRects];
 
       RectSurfaceModel()
-          : rectCount(0),
+          : spriteCount_(0),
             dirtyRectCount(0)
       {
       }
 
-      static short clampRectCount(short count)
+      short spriteCount() const
       {
-        if (count < 0)
+        return spriteCount_;
+      }
+
+      /** Returns one committed sprite without exposing mutable model storage. */
+      const RectSurfaceSprite &sprite(short index) const
+      {
+        assert(index >= 0 && index < spriteCount());
+        return sprites_[index];
+      }
+
+      /** Empties the active prefix and releases payloads before publishing the
+          new count. Inactive slots therefore never retain an Image. */
+      void clear()
+      {
+        for (short i = 0; i < spriteCount_; ++i)
         {
-          return 0;
+          sprites_[i] = RectSurfaceSprite();
         }
-        if (count > kMaxRects)
+        spriteCount_ = 0;
+      }
+
+      bool add(const RectSprite &sprite)
+      {
+        return addSprite(RectSurfaceSprite(sprite));
+      }
+
+      bool add(const ImageSprite &sprite)
+      {
+        const int width = sprite.image.width();
+        const int height = sprite.image.height();
+        if (width < 1 || width > SHRT_MAX || height < 1 || height > SHRT_MAX)
         {
-          return kMaxRects;
+          return false;
         }
-        return count;
+        return addSprite(RectSurfaceSprite(sprite));
       }
 
       static short clampDirtyRectCount(short count)
@@ -126,19 +268,18 @@ namespace loka
 
       bool operator==(const RectSurfaceModel &other) const
       {
-        assert(rectCount >= 0 && rectCount <= kMaxRects);
+        assert(spriteCount_ >= 0 && spriteCount_ <= kMaxSprites);
         assert(dirtyRectCount >= 0 && dirtyRectCount <= kMaxDirtyRects);
-        assert(other.rectCount >= 0 && other.rectCount <= kMaxRects);
+        assert(other.spriteCount_ >= 0 && other.spriteCount_ <= kMaxSprites);
         assert(other.dirtyRectCount >= 0 && other.dirtyRectCount <= kMaxDirtyRects);
-        if (rectCount != other.rectCount || dirtyRectCount != other.dirtyRectCount)
+        if (spriteCount_ != other.spriteCount_ || dirtyRectCount != other.dirtyRectCount)
         {
           return false;
         }
-        const short safeRectCount = clampRectCount(rectCount);
         const short safeDirtyRectCount = clampDirtyRectCount(dirtyRectCount);
-        for (short i = 0; i < safeRectCount; ++i)
+        for (short i = 0; i < spriteCount_; ++i)
         {
-          if (!(rects[i] == other.rects[i]))
+          if (!(sprite(i) == other.sprite(i)))
           {
             return false;
           }
@@ -176,6 +317,66 @@ namespace loka
         }
         dirtyRects[dirtyRectCount++] = DirtyRect(x, y, width, height);
       }
+
+    private:
+      bool addSprite(const RectSurfaceSprite &sprite)
+      {
+        if (spriteCount_ >= kMaxSprites)
+        {
+          return false;
+        }
+        sprites_[spriteCount_++] = sprite;
+        return true;
+      }
+    };
+
+    enum RectSurfacePaintResult
+    {
+      RECT_SURFACE_PAINT_SUCCEEDED = 0,
+      RECT_SURFACE_PAINT_REFUSED
+    };
+
+    /** Commits a model only after its pixels were applied. Refusal preserves
+        the caller-owned applied snapshot for a later retry. */
+    inline void FinishRectSurfacePaint(RectSurfacePaintResult result,
+                                       const RectSurfaceModel &requested,
+                                       RectSurfaceModel &applied)
+    {
+      switch (result)
+      {
+      case RECT_SURFACE_PAINT_SUCCEEDED:
+        applied = requested;
+        break;
+      case RECT_SURFACE_PAINT_REFUSED:
+        break;
+      }
+    }
+
+    /** Read-only array-order view used by native RectSurface paint passes. */
+    class RectSurfacePaintList
+    {
+    public:
+      explicit RectSurfacePaintList(const RectSurfaceModel &model)
+          : model_(model)
+      {
+      }
+
+      short count() const
+      {
+        return model_.spriteCount();
+      }
+
+      const RectSurfaceSprite *querySprite(short index) const
+      {
+        if (index < 0 || index >= count())
+        {
+          return 0;
+        }
+        return &model_.sprite(index);
+      }
+
+    private:
+      const RectSurfaceModel &model_;
     };
 
     class RectSurfaceNode;

@@ -77,6 +77,22 @@ public:
   }
 
 private:
+  // A full request stays pending while draw() runs, so its bool alone cannot
+  // distinguish covered pre-flush rectangles from later-flush retry work.
+  enum InvalidatePaintPhase
+  {
+    INVALIDATE_PAINT_IDLE = 0,
+    INVALIDATE_PAINT_DRAWING
+  };
+  // Both rectangle queues are reserved once at construction and never grow
+  // afterwards: a refused paint requests its retry from inside draw(), which
+  // is exactly when the application heap may be exhausted, and a vector
+  // allocation there would abort to the Finder instead of retrying later.
+  enum
+  {
+    kPendingInvalidateRectCapacity = 16
+  };
+
   static void TitleChangedThunk(void *userData);
   static void FrameChangedThunk(void *userData);
   App *app_;
@@ -84,6 +100,7 @@ private:
   ToolboxScenePlatformController *scenePlatformController_;
   ToolboxWindowContext *context_;
   bool needsInvalidate_;
+  InvalidatePaintPhase invalidatePaintPhase_;
   bool pendingDebugDump_;
   DeferredDumpCompletion pendingDebugDumpCompletion_;
   void *pendingDebugDumpUserData_;
@@ -91,6 +108,7 @@ private:
   void *pendingDeferredDebugDumpUserData_;
   int pendingDeferredDebugDumpCompletionDelay_;
   std::vector<Rect> pendingInvalidateRects_;
+  std::vector<Rect> flushingInvalidateRects_;
   short titleBarHeight_;
 
   void mountScene();

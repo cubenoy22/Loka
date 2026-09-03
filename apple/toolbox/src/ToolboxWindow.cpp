@@ -44,6 +44,7 @@ ToolboxWindow::ToolboxWindow(PlatformContext *context, const WindowProps &props)
       scenePlatformController_(0),
       context_(0),
       needsInvalidate_(false),
+      invalidatePaintPhase_(INVALIDATE_PAINT_IDLE),
       pendingDebugDump_(false),
       pendingDebugDumpCompletion_(0),
       pendingDebugDumpUserData_(0),
@@ -51,9 +52,12 @@ ToolboxWindow::ToolboxWindow(PlatformContext *context, const WindowProps &props)
       pendingDeferredDebugDumpUserData_(0),
       pendingDeferredDebugDumpCompletionDelay_(0),
       pendingInvalidateRects_(),
+      flushingInvalidateRects_(),
       titleBarHeight_(0)
 {
   window_ = 0;
+  pendingInvalidateRects_.reserve(kPendingInvalidateRectCapacity);
+  flushingInvalidateRects_.reserve(kPendingInvalidateRectCapacity);
   context_ = new ToolboxWindowContext(
 #if !defined(LOKA_TOOLBOX_CLASSIC_6)
       ToolboxWindowContext::CAP_CONTROL_MANAGER | ToolboxWindowContext::CAP_TEXT_EDIT
@@ -172,7 +176,7 @@ void ToolboxWindow::requestInvalidateRect(const Rect &rect)
   {
     scenePlatformController_->noteWindowRectRequest();
   }
-  if (needsInvalidate_)
+  if (needsInvalidate_ && invalidatePaintPhase_ == INVALIDATE_PAINT_IDLE)
   {
     return;
   }
@@ -202,6 +206,29 @@ void ToolboxWindow::requestInvalidateRect(const Rect &rect)
     }
     return;
   }
+  if (pendingInvalidateRects_.size() >= static_cast<std::size_t>(kPendingInvalidateRectCapacity))
+  {
+    // Reserved capacity is exhausted: widen the last pending rectangle instead
+    // of growing the vector. Over-invalidation is bounded; allocation is not.
+    Rect &last = pendingInvalidateRects_.back();
+    if (rect.left < last.left)
+    {
+      last.left = rect.left;
+    }
+    if (rect.top < last.top)
+    {
+      last.top = rect.top;
+    }
+    if (rect.right > last.right)
+    {
+      last.right = rect.right;
+    }
+    if (rect.bottom > last.bottom)
+    {
+      last.bottom = rect.bottom;
+    }
+    return;
+  }
   pendingInvalidateRects_.push_back(rect);
 }
 
@@ -221,25 +248,28 @@ void ToolboxWindow::flushInvalidate()
     {
       scenePlatformController_->noteWindowFlushFull();
     }
-    // Projected contexts are materialized during the tree walk and request a
-    // structure present themselves. This draw already includes them, so
-    // consume that request only after the walk completes.
-    this->draw();
-    needsInvalidate_ = false;
+    // Rect requests queued before this full paint are subsumed by it. Requests
+    // made during draw belong to later work and must survive this flush.
     pendingInvalidateRects_.clear();
+    this->draw();
+    // Projected contexts materialized by the walk request a structure present,
+    // but this draw already includes them. Consume only that full request.
+    needsInvalidate_ = false;
     return;
   }
   needsInvalidate_ = false;
-  std::vector<Rect> rects = pendingInvalidateRects_;
-  pendingInvalidateRects_.clear();
-  for (std::size_t i = 0; i < rects.size(); ++i)
+  // Swap the batch into the reserved flushing buffer (no allocation) so that
+  // rectangles requested during drawDirty land in the next flush, not this one.
+  flushingInvalidateRects_.swap(pendingInvalidateRects_);
+  for (std::size_t i = 0; i < flushingInvalidateRects_.size(); ++i)
   {
     if (scenePlatformController_)
     {
       scenePlatformController_->noteWindowFlushDirty();
     }
-    this->drawDirty(rects[i]);
+    this->drawDirty(flushingInvalidateRects_[i]);
   }
+  flushingInvalidateRects_.clear();
 }
 
 bool ToolboxWindow::hasPendingInvalidate() const
@@ -564,6 +594,7 @@ void ToolboxWindow::draw()
   if (!window_)
     return;
 
+  invalidatePaintPhase_ = INVALIDATE_PAINT_DRAWING;
   if (scenePlatformController_)
   {
     scenePlatformController_->noteWindowDraw();
@@ -581,6 +612,7 @@ void ToolboxWindow::draw()
   this->drawGrowBox();
 
   SetPort(oldPort);
+  invalidatePaintPhase_ = INVALIDATE_PAINT_IDLE;
 }
 
 void ToolboxWindow::synchronizeScenePlatform()

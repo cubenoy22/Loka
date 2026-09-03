@@ -59,6 +59,9 @@ public:
 
   void render();
   void renderDirty(const Rect &rect);
+  /** Forwards a refused RectSurface paint to the owning window's later-flush
+      rectangle queue; retry policy remains in the RectSurface context. */
+  void requestRectSurfacePaintRetry(const Rect &rect);
   bool handleMouseDown(const Point &point);
   void emitHitEmitter(loka::core::EmitterState *emitter);
   void recordButtonHit(const Rect &rect,

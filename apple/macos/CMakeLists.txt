@@ -115,6 +115,7 @@ if(NOT LOKA_MAC_OS_10_4)
     ${PROJECT_SOURCE_DIR}/tests/MacAppLocationTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacMenuProjectionTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacNodeHandlerEnsureTests.mm
+    ${PROJECT_SOURCE_DIR}/tests/MacRectSurfacePaintTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacScrollViewTests.mm
     ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/MacDisplayAppearance.mm

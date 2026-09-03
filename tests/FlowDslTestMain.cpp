@@ -21,6 +21,7 @@
 #include "MacAppLocationTests.hpp"
 #include "MacMenuProjectionTests.hpp"
 #include "MacNodeHandlerEnsureTests.hpp"
+#include "MacRectSurfacePaintTests.hpp"
 #include "MacScrollViewTests.hpp"
 #endif
 #include "DerivedStateTests.hpp"
@@ -55,6 +56,7 @@
 #include "BoundaryArenaTests.hpp"
 #include "ComponentNodeTests.hpp"
 #include "ValueTests.hpp"
+#include "RectSurfaceSpriteTests.hpp"
 #include "SceneOwnershipTests.hpp"
 #include "PhaseGuardTests.hpp"
 #include "LifecycleDetachTests.hpp"

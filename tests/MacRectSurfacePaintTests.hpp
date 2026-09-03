@@ -1,0 +1,8 @@
+#ifndef LOKA_MAC_RECT_SURFACE_PAINT_TESTS_HPP
+#define LOKA_MAC_RECT_SURFACE_PAINT_TESTS_HPP
+
+void testMacRectSurfaceImagePaintsNoAlphaSourceOpaque();
+void testMacRectSurfaceImagePaintsCapturedRepSource();
+void testMacRectSurfaceImageDrawsUprightInFlippedView();
+
+#endif
