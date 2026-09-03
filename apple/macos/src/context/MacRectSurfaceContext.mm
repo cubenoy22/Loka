@@ -78,8 +78,8 @@ MacRectSurfaceContext::MacRectSurfaceContext(MacScenePlatformController *control
 MacRectSurfaceContext::~MacRectSurfaceContext()
 {
   assert(!view_ && "terminal fact delivery must queue the native view before context reclaim");
-  // Reclaimed contexts leave no pending seat row behind (pointer compare
-  // only; the node may already be gone).
+  // Backstop for context replacement on a live node (no detach fact is
+  // delivered on that path); pointer compare only.
   if (controller_)
   {
     controller_->cancelRectSurfaceExtent(node_);
@@ -105,7 +105,13 @@ void MacRectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact pr
   else
   {
     // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
-    // (hide before the ritual destroys the native pair).
+    // (hide before the ritual destroys the native pair). Either way the
+    // surface is no longer placed: its pending seat rows go first, while
+    // the back-pointers are still intact.
+    if (controller_)
+    {
+      controller_->cancelRectSurfaceExtent(this->node_);
+    }
     this->applyDetachedPresentation();
     if (next == loka::app::scene::NODE_FACT_RETIRED)
     {

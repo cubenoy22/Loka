@@ -35,8 +35,8 @@ Win32RectSurfaceContext::Win32RectSurfaceContext(Win32ScenePlatformController *c
 Win32RectSurfaceContext::~Win32RectSurfaceContext()
 {
   assert(!hwnd_ && "terminal fact delivery must queue the HWND before context reclaim");
-  // Reclaimed contexts leave no pending seat row behind (pointer compare
-  // only; the node may already be gone).
+  // Backstop for context replacement on a live node (no detach fact is
+  // delivered on that path); pointer compare only.
   if (this->controller())
   {
     this->controller()->cancelRectSurfaceExtent(node_);
@@ -62,7 +62,13 @@ void Win32RectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact 
   else
   {
     // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
-    // (hide before the ritual destroys the native pair).
+    // (hide before the ritual destroys the native pair). Either way the
+    // surface is no longer placed: its pending seat rows go first, while
+    // the back-pointers are still intact.
+    if (this->controller())
+    {
+      this->controller()->cancelRectSurfaceExtent(this->node_);
+    }
     this->applyDetachedPresentation();
     if (next == loka::app::scene::NODE_FACT_RETIRED)
     {

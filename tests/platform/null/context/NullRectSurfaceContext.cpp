@@ -38,12 +38,25 @@ NullRectSurfaceContext::NullRectSurfaceContext(loka::app::RectSurfaceNode *node,
 
 NullRectSurfaceContext::~NullRectSurfaceContext()
 {
-  // Reclaimed contexts leave no pending seat row behind.
+  // Backstop for context replacement on a live node (no detach fact is
+  // delivered on that path).
   if (this->controller_)
   {
     this->controller_->cancelRectSurfaceExtent(this->node_);
   }
   this->node_ = 0;
+}
+
+void NullRectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                           loka::app::scene::NodeLifecycleFact next)
+{
+  (void)previous;
+  // Detached or retired, the surface is no longer placed: its pending seat
+  // rows go first.
+  if (next != loka::app::scene::NODE_FACT_ATTACHED && this->controller_)
+  {
+    this->controller_->cancelRectSurfaceExtent(this->node_);
+  }
 }
 
 void NullRectSurfaceContext::readLifecycleFactOnAttach()

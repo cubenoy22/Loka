@@ -323,7 +323,15 @@ namespace loka
     };
 
     /** Owns RectSurface layout facts until the enclosing rail layout pass has
-        completed. Pending work is represented only by stored entries. */
+        completed. Pending work is represented only by stored entries.
+
+        Invariant: a pending entry is valid only for a surface that this pass
+        actually placed and that is still placed when the entry is delivered.
+        Every door below is one edge of that sentence: a later record for the
+        same node supersedes (a nested pass re-placed it), a refused
+        projection or native context records nothing (never placed), a scope
+        that ends refused takes its entries back (placement withdrawn), and a
+        reclaimed context cancels its node's rows (no longer placed). */
     class RectSurfaceExtentLedger
     {
     public:

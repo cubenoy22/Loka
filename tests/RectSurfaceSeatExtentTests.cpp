@@ -469,6 +469,7 @@ namespace
   {
     RetireSiblingOnExtent()
         : sibling(0),
+          detachFact(0),
           calls(0)
     {
     }
@@ -483,11 +484,25 @@ namespace
       ++self->calls;
       if (self->calls == 1 && self->sibling)
       {
-        self->sibling->setContext(0);
+        if (self->detachFact)
+        {
+          // A retained detach (or a retire) delivers its fact to the
+          // context, which stays alive; the node remains in the tree.
+          loka::app::scene::NodeContext *context = self->sibling->getContext();
+          if (context)
+          {
+            context->onFactChanged(loka::app::scene::NODE_FACT_ATTACHED, *self->detachFact);
+          }
+        }
+        else
+        {
+          self->sibling->setContext(0);
+        }
       }
     }
 
     loka::app::RectSurfaceNode *sibling;
+    const loka::app::scene::NodeLifecycleFact *detachFact;
     int calls;
   };
 } // namespace
@@ -519,4 +534,50 @@ void testRectSurfaceRetiredDuringDeliveryPublishesNoExtent()
   LOKA_VERIFY(observer.calls == 1);
   LOKA_VERIFY(firstExtent.get() == loka::core::Frame(0, 0, 100, 40));
   verifyFrame(siblingExtent.get(), 1, 2, 3, 4);
+}
+
+namespace
+{
+  void verifySiblingDetachedDuringDeliveryPublishesNoExtent(loka::app::scene::NodeLifecycleFact fact)
+  {
+    loka::core::MutableState<loka::core::Frame> firstExtent;
+    loka::core::MutableState<loka::core::Frame> siblingExtent(loka::core::Frame(1, 2, 3, 4));
+    loka::core::PushStateTracker tracker;
+    tracker.addState(&firstExtent);
+    tracker.addState(&siblingExtent);
+    loka::app::scene::NodeState<loka::core::Frame> firstState(&firstExtent, &tracker);
+    loka::app::scene::NodeState<loka::core::Frame> siblingState(&siblingExtent, &tracker);
+    loka::app::RectSurfaceProps firstProps;
+    firstProps.size(100, 40).laidOutExtent(firstState);
+    loka::app::RectSurfaceProps siblingProps;
+    siblingProps.size(100, 40).laidOutExtent(siblingState);
+    loka::app::RectSurfaceNode *sibling = new loka::app::RectSurfaceNode(siblingProps);
+    RetireSiblingOnExtent observer;
+    observer.sibling = sibling;
+    observer.detachFact = &fact;
+    firstExtent.bind(&RetireSiblingOnExtent::OnExtent, &observer, false);
+
+    loka::app::StackNode row((loka::app::StackProps(loka::app::STACK_AXIS_ROW)));
+    row.addChild(new loka::app::RectSurfaceNode(firstProps));
+    row.addChild(sibling);
+    NullScenePlatformController platform;
+    platform.projectLayoutForTesting(&row, layoutState(0, 0, 300, 40));
+
+    LOKA_VERIFY(observer.calls == 1);
+    LOKA_VERIFY(firstExtent.get() == loka::core::Frame(0, 0, 100, 40));
+    verifyFrame(siblingExtent.get(), 1, 2, 3, 4);
+  }
+} // namespace
+
+// The detach facts reach the context while it stays alive (a retained branch
+// parks the surface; a retire runs the ritual before reclaim), so the
+// cancellation must ride the fact, not the destructor.
+void testRectSurfaceDetachedRetainedDuringDeliveryPublishesNoExtent()
+{
+  verifySiblingDetachedDuringDeliveryPublishesNoExtent(loka::app::scene::NODE_FACT_DETACHED_RETAINED);
+}
+
+void testRectSurfaceRetireFactDuringDeliveryPublishesNoExtent()
+{
+  verifySiblingDetachedDuringDeliveryPublishesNoExtent(loka::app::scene::NODE_FACT_RETIRED);
 }

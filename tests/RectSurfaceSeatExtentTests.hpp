@@ -14,5 +14,7 @@ void testRectSurfaceExtentLedgerNestedFlushKeepsNewerEntry();
 void testRectSurfaceRefusedProjectionPublishesNoExtent();
 void testRectSurfaceRefusedScrollViewContentPublishesNoExtent();
 void testRectSurfaceRetiredDuringDeliveryPublishesNoExtent();
+void testRectSurfaceDetachedRetainedDuringDeliveryPublishesNoExtent();
+void testRectSurfaceRetireFactDuringDeliveryPublishesNoExtent();
 
 #endif // LOKA_TESTS_RECT_SURFACE_SEAT_EXTENT_TESTS_HPP

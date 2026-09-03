@@ -33,10 +33,23 @@ ToolboxRectSurfaceContext::ToolboxRectSurfaceContext(loka::app::RectSurfaceNode 
   SetRect(&rect_, 0, 0, 0, 0);
 }
 
+void ToolboxRectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                              loka::app::scene::NodeLifecycleFact next)
+{
+  // Detached or retired, the surface is no longer placed: its pending seat
+  // rows go first, while the controller back-pointer is still intact (the
+  // base clears it on RETIRED).
+  if (next != loka::app::scene::NODE_FACT_ATTACHED && this->controller())
+  {
+    this->controller()->cancelRectSurfaceExtent(node_);
+  }
+  ToolboxProjectedNodeContext::onFactChanged(previous, next);
+}
+
 ToolboxRectSurfaceContext::~ToolboxRectSurfaceContext()
 {
-  // Reclaimed contexts leave no pending seat row behind (pointer compare
-  // only; the node may already be gone).
+  // Backstop for context replacement on a live node (no detach fact is
+  // delivered on that path); pointer compare only.
   if (this->controller())
   {
     this->controller()->cancelRectSurfaceExtent(node_);

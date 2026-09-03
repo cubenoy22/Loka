@@ -20,6 +20,8 @@ public:
   virtual ~NullRectSurfaceContext();
 
   void readLifecycleFactOnAttach();
+  virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                             loka::app::scene::NodeLifecycleFact next);
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
 
 private:
