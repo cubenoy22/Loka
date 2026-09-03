@@ -7,7 +7,67 @@
 #include "app/RectSurface.hpp"
 #include "context/Win32RectSurfaceContext.hpp"
 #include "core/State.hpp"
+#include "core/resource/Image.hpp"
 #include "testing/Win32ScenePlatformTestAccess.hpp"
+
+namespace
+{
+  void ReleaseRectSurfaceTestBitmap(void *handle, void *)
+  {
+    if (handle)
+    {
+      DeleteObject(static_cast<HBITMAP>(handle));
+    }
+  }
+
+  HBITMAP CreateRectSurfaceTestDib(int width, int height, BYTE *&bits)
+  {
+    BITMAPINFO info;
+    ZeroMemory(&info, sizeof(info));
+    info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    info.bmiHeader.biWidth = width;
+    info.bmiHeader.biHeight = -height;
+    info.bmiHeader.biPlanes = 1;
+    info.bmiHeader.biBitCount = 32;
+    info.bmiHeader.biCompression = BI_RGB;
+    bits = 0;
+    return CreateDIBSection(
+        0, &info, DIB_RGB_COLORS, reinterpret_cast<void **>(&bits), 0, 0);
+  }
+
+  void FillRectSurfaceTestDib(BYTE *bits,
+                              int width,
+                              int height,
+                              BYTE blue,
+                              BYTE green,
+                              BYTE red,
+                              BYTE alpha)
+  {
+    for (int y = 0; y < height; ++y)
+    {
+      for (int x = 0; x < width; ++x)
+      {
+        BYTE *pixel = bits + (y * width + x) * 4;
+        pixel[0] = blue;
+        pixel[1] = green;
+        pixel[2] = red;
+        pixel[3] = alpha;
+      }
+    }
+  }
+
+  void VerifyRectSurfaceTestPixel(const BYTE *bits,
+                                  int width,
+                                  int x,
+                                  int y,
+                                  BYTE blue,
+                                  BYTE green,
+                                  BYTE red)
+  {
+    const BYTE *pixel = bits + (y * width + x) * 4;
+    LOKA_VERIFY(pixel[0] == blue && pixel[1] == green && pixel[2] == red);
+  }
+} // namespace
 
 // #293: the first text-page projection paints its overlapping Text correctly,
 // then the RectSurface model's older child-only invalidation flushes last and
@@ -42,4 +102,105 @@ void testWin32RectSurfacePaintQueuesBoundedParentSubtree()
   }
   DestroyWindow(root);
   std::printf("==== [testWin32RectSurfacePaintQueuesBoundedParentSubtree] PASSED ====\n");
+}
+
+void testWin32RectSurfaceImagePaintsDdbOpaque()
+{
+  HDC screen = GetDC(NULL);
+  LOKA_VERIFY(screen != NULL);
+  HDC target = CreateCompatibleDC(screen);
+  HDC source = CreateCompatibleDC(screen);
+  LOKA_VERIFY(target != NULL && source != NULL);
+
+  BYTE *targetBits = 0;
+  HBITMAP targetBitmap = CreateRectSurfaceTestDib(4, 2, targetBits);
+  LOKA_VERIFY(targetBitmap != NULL && targetBits != 0);
+  HGDIOBJ oldTarget = SelectObject(target, targetBitmap);
+  LOKA_VERIFY(oldTarget != NULL && oldTarget != HGDI_ERROR);
+
+  HBITMAP ddb = CreateCompatibleBitmap(screen, 2, 1);
+  LOKA_VERIFY(ddb != NULL);
+  DIBSECTION ddbInfo;
+  ZeroMemory(&ddbInfo, sizeof(ddbInfo));
+  LOKA_VERIFY(GetObjectW(ddb, sizeof(ddbInfo), &ddbInfo) == static_cast<int>(sizeof(BITMAP)));
+  LOKA_VERIFY(ddbInfo.dsBm.bmBits == 0);
+  HGDIOBJ oldSource = SelectObject(source, ddb);
+  LOKA_VERIFY(oldSource != NULL && oldSource != HGDI_ERROR);
+  HBRUSH greenBrush = CreateSolidBrush(RGB(0, 255, 0));
+  LOKA_VERIFY(greenBrush != NULL);
+  RECT sourceRect = {0, 0, 2, 1};
+  LOKA_VERIFY(FillRect(source, &sourceRect, greenBrush) != 0);
+  DeleteObject(greenBrush);
+  SelectObject(source, oldSource);
+
+  {
+    const loka::core::resource::Image image = loka::core::resource::Image::FromNative(
+        ddb, 2, 1, &ReleaseRectSurfaceTestBitmap, 0);
+    LOKA_VERIFY(image.isValid());
+    const loka::app::RectSurfaceSprite sprite(loka::app::ImageSprite(0, 0, image));
+
+    FillRectSurfaceTestDib(targetBits, 4, 2, 0, 0, 255, 255);
+    RECT equalRect = {1, 0, 3, 1};
+    LOKA_VERIFY(DrawRectSurfaceImage(target, equalRect, sprite)
+                == loka::app::RECT_SURFACE_PAINT_SUCCEEDED);
+    VerifyRectSurfaceTestPixel(targetBits, 4, 0, 0, 0, 0, 255);
+    VerifyRectSurfaceTestPixel(targetBits, 4, 1, 0, 0, 255, 0);
+    VerifyRectSurfaceTestPixel(targetBits, 4, 2, 0, 0, 255, 0);
+    VerifyRectSurfaceTestPixel(targetBits, 4, 3, 0, 0, 0, 255);
+
+    FillRectSurfaceTestDib(targetBits, 4, 2, 0, 0, 255, 255);
+    RECT scaledRect = {0, 0, 4, 2};
+    LOKA_VERIFY(DrawRectSurfaceImage(target, scaledRect, sprite)
+                == loka::app::RECT_SURFACE_PAINT_SUCCEEDED);
+    for (int y = 0; y < 2; ++y)
+    {
+      for (int x = 0; x < 4; ++x)
+      {
+        VerifyRectSurfaceTestPixel(targetBits, 4, x, y, 0, 255, 0);
+      }
+    }
+  }
+
+  SelectObject(target, oldTarget);
+  DeleteObject(targetBitmap);
+  DeleteDC(source);
+  DeleteDC(target);
+  ReleaseDC(NULL, screen);
+}
+
+void testWin32RectSurfaceImageKeepsBinaryAlphaPath()
+{
+  HDC screen = GetDC(NULL);
+  LOKA_VERIFY(screen != NULL);
+  HDC target = CreateCompatibleDC(screen);
+  LOKA_VERIFY(target != NULL);
+
+  BYTE *targetBits = 0;
+  HBITMAP targetBitmap = CreateRectSurfaceTestDib(2, 1, targetBits);
+  LOKA_VERIFY(targetBitmap != NULL && targetBits != 0);
+  HGDIOBJ oldTarget = SelectObject(target, targetBitmap);
+  LOKA_VERIFY(oldTarget != NULL && oldTarget != HGDI_ERROR);
+  FillRectSurfaceTestDib(targetBits, 2, 1, 0, 0, 255, 255);
+
+  BYTE *sourceBits = 0;
+  HBITMAP sourceBitmap = CreateRectSurfaceTestDib(2, 1, sourceBits);
+  LOKA_VERIFY(sourceBitmap != NULL && sourceBits != 0);
+  FillRectSurfaceTestDib(sourceBits, 2, 1, 0, 255, 0, 0);
+  sourceBits[7] = 255;
+  {
+    const loka::core::resource::Image image = loka::core::resource::Image::FromNative(
+        sourceBitmap, 2, 1, &ReleaseRectSurfaceTestBitmap, 0);
+    LOKA_VERIFY(image.isValid());
+    const loka::app::RectSurfaceSprite sprite(loka::app::ImageSprite(0, 0, image));
+    RECT spriteRect = {0, 0, 2, 1};
+    LOKA_VERIFY(DrawRectSurfaceImage(target, spriteRect, sprite)
+                == loka::app::RECT_SURFACE_PAINT_SUCCEEDED);
+  }
+
+  VerifyRectSurfaceTestPixel(targetBits, 2, 0, 0, 0, 0, 255);
+  VerifyRectSurfaceTestPixel(targetBits, 2, 1, 0, 0, 255, 0);
+  SelectObject(target, oldTarget);
+  DeleteObject(targetBitmap);
+  DeleteDC(target);
+  ReleaseDC(NULL, screen);
 }

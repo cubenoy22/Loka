@@ -15,6 +15,10 @@ namespace loka
 
 class Win32ScenePlatformController;
 
+/** Paints one projected IMAGE sprite into a caller-owned GDI target. */
+loka::app::RectSurfacePaintResult
+DrawRectSurfaceImage(HDC hdc, const RECT &spriteRect, const loka::app::RectSurfaceSprite &sprite);
+
 class Win32RectSurfaceContext : public Win32RetirableContext
 {
 public:

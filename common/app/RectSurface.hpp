@@ -56,6 +56,9 @@ namespace loka
       }
     };
 
+    /** An image at intrinsic size. Alpha rails derive its per-pixel mask from
+        an alpha channel and otherwise paint it opaque; Classic uses the PICT
+        white-key mask. */
     struct ImageSprite
     {
       short x;

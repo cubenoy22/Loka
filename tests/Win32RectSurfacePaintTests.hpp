@@ -2,5 +2,7 @@
 #define LOKA_WIN32_RECT_SURFACE_PAINT_TESTS_HPP
 
 void testWin32RectSurfacePaintQueuesBoundedParentSubtree();
+void testWin32RectSurfaceImagePaintsDdbOpaque();
+void testWin32RectSurfaceImageKeepsBinaryAlphaPath();
 
 #endif
