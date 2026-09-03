@@ -35,6 +35,13 @@ namespace loka
             return image->props.width_;
           }
         }
+        if (loka::app::RectSurfaceNode *surface = child->asRectSurfaceNode())
+        {
+          if (surface->props.width_ > 0)
+          {
+            return surface->props.width_;
+          }
+        }
         if (loka::app::BoxNode *box = child->asBoxNode())
         {
           if (box->props.width > 0)

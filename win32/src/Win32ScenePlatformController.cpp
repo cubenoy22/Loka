@@ -72,6 +72,7 @@ public:
       return;
     }
     this->controller_->activeNativeLayoutPass_ = 0;
+    this->controller_->rectSurfaceExtentLedger_.flush();
     if (this->controller_->rootHwnd_)
     {
       RedrawWindow(this->controller_->rootHwnd_,
@@ -154,6 +155,7 @@ Win32ScenePlatformController::Win32ScenePlatformController(
     const loka::win32::Win32DisplayScale &displayScale)
     : rootHwnd_(rootHwnd),
       activeNativeLayoutPass_(0),
+      rectSurfaceExtentLedger_(),
       projectionParentScopes_(rootHwnd),
       rootNode_(0),
       clientWidth_(0),
@@ -845,13 +847,17 @@ Win32ScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *
   {
     return LayoutNodeResult(state.width, state.y);
   }
+  const int width = surface->props.width_ > 0 ? surface->props.width_ : state.width;
+  const int height = surface->props.height_ > 0 ? surface->props.height_ : state.height;
+  this->rectSurfaceExtentLedger_.record(
+      surface, loka::core::Frame(state.x, state.y, width, height));
   Win32RectSurfaceContext *ctx = static_cast<Win32RectSurfaceContext *>(surface->getContext());
   if (ctx)
   {
     ctx->relayout(projectedState.x,
                   projectedState.y,
-                  surface->props.width_,
-                  surface->props.height_);
+                  width,
+                  height);
   }
   else
   {
@@ -860,8 +866,8 @@ Win32ScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *
         this->projectionParentHwnd(),
         projectedState.x,
         projectedState.y,
-        surface->props.width_,
-        surface->props.height_,
+        width,
+        height,
         surface);
     if (!ctx)
     {
@@ -871,7 +877,7 @@ Win32ScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *
     ctx->readLifecycleFactOnAttach();
   }
   return LayoutNodeResult(
-      state.width, state.y + surface->props.height_ + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
+      state.width, state.y + height + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
 }
 
 Win32ScenePlatformController::LayoutNodeResult

@@ -87,6 +87,7 @@ MacScenePlatformController::MacScenePlatformController(void *rootView)
     : rootView_(rootView),
       projectionParentScopes_(rootView),
       rootNode_(0),
+      rectSurfaceExtentLedger_(),
       lastChangeFlags_(loka::app::scene::NODE_DIRTY_NONE),
       clientWidth_(0),
       clientHeight_(0),
@@ -356,6 +357,7 @@ void MacScenePlatformController::performLayout(int clientWidth, int clientHeight
   this->layoutNode(this->rootNode_, state);
   assert(this->projectionParentScopes_.activeDepth() == 0 &&
          "a macOS projection pass must restore the root scope");
+  this->rectSurfaceExtentLedger_.flush();
   finalizeKeyLoop();
   if (rebuildContexts)
   {
@@ -387,13 +389,17 @@ MacScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *su
   {
     return LayoutNodeResult(state.width, state.y);
   }
+  const int width = surface->props.width_ > 0 ? surface->props.width_ : state.width;
+  const int height = surface->props.height_ > 0 ? surface->props.height_ : state.height;
+  this->rectSurfaceExtentLedger_.record(
+      surface, loka::core::Frame(state.x, state.y, width, height));
   MacRectSurfaceContext *ctx = static_cast<MacRectSurfaceContext *>(surface->getContext());
   if (ctx)
   {
     ctx->relayout(projectedState.x,
                   projectedState.y,
-                  surface->props.width_,
-                  surface->props.height_);
+                  width,
+                  height);
   }
   else
   {
@@ -402,8 +408,8 @@ MacScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *su
         this->projectionParentView(),
         projectedState.x,
         projectedState.y,
-        surface->props.width_,
-        surface->props.height_,
+        width,
+        height,
         surface);
     if (!ctx)
     {
@@ -413,7 +419,7 @@ MacScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *su
     ctx->readLifecycleFactOnAttach();
   }
   return LayoutNodeResult(
-      state.width, state.y + surface->props.height_ + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
+      state.width, state.y + height + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
 }
 
 MacScenePlatformController::LayoutNodeResult

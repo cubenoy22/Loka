@@ -2,6 +2,7 @@
 #define LOKA_MAC_SCENE_PLATFORM_CONTROLLER_HPP
 
 #include <vector>
+#include "app/RectSurface.hpp"
 #include "app/scene/projection/ProjectionParentScope.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
@@ -240,6 +241,7 @@ private:
   LeafLayoutHandlerRegistry leafLayoutHandlerRegistry_;
   LeafLayoutHandlerRegistry hostActionHandlerRegistry_;
   loka::app::scene::Node *rootNode_;
+  loka::app::RectSurfaceExtentLedger rectSurfaceExtentLedger_;
   loka::app::scene::NodeDirtyFlags lastChangeFlags_;
   int clientWidth_;
   int clientHeight_;

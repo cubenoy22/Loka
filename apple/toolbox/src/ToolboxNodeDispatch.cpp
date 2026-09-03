@@ -392,8 +392,17 @@ namespace
         ctx->setBoundary(activeBoundary);
       }
       loka::app::scene::LayoutState projectedState = state;
+      const short resolvedWidth =
+          surface->props.width_ > 0 ? surface->props.width_ : state.width;
+      const short resolvedHeight =
+          surface->props.height_ > 0 ? surface->props.height_ : state.height;
+      projectedState.width = resolvedWidth;
+      projectedState.height = resolvedHeight;
       if (controller)
       {
+        controller->recordRectSurfaceExtent(
+            surface,
+            loka::core::Frame(state.x, state.y, resolvedWidth, resolvedHeight));
         // RectSurface is the one hand-routed projected leaf in this switch;
         // give it the same translation and restore discipline as handler-
         // backed leaves.

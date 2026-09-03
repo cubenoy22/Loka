@@ -382,6 +382,7 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
                                   : 0),
       rootNode_(0),
       pendingRootNode_(0),
+      rectSurfaceExtentLedger_(),
       scrollBarLedger_(kNativePoolBucketDepthCap),
       focusedText_(0),
       focusedRect_(),
@@ -1074,9 +1075,10 @@ void ToolboxScenePlatformController::render()
   }
   PROFILE_SECTION("layout");
   LayoutNode(rootNode_, state, this, 0);
-  RenderNode(rootNode_, this);
   assert(this->projectionParentScopes_.activeDepth() == 0 &&
          "a Toolbox projection pass must restore the root scope");
+  this->rectSurfaceExtentLedger_.flush();
+  RenderNode(rootNode_, this);
   debugStats_.refreshHitCounts(static_cast<int>(hitLedger_.buttonHits_.size()),
                                static_cast<int>(hitLedger_.cellHits_.size()),
                                static_cast<int>(hitLedger_.editHits_.size()),

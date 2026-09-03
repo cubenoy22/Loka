@@ -2,7 +2,10 @@
 #define LOKA_APP_RECT_SURFACE_HPP
 
 #include <assert.h>
+#include <vector>
 #include "app/scene/Node.hpp"
+#include "app/scene/state/NodeState.hpp"
+#include "core/Frame.hpp"
 #include "core/State.hpp"
 
 namespace loka
@@ -186,6 +189,7 @@ namespace loka
       typedef RectSurfaceNode NodeType;
 
       loka::core::State<RectSurfaceModel> *model_;
+      scene::NodeState<loka::core::Frame> laidOutExtent_;
       short width_;
       short height_;
       bool clearBackground_;
@@ -193,6 +197,7 @@ namespace loka
 
       RectSurfaceProps()
           : model_(0),
+            laidOutExtent_(),
             width_(0),
             height_(0),
             clearBackground_(true),
@@ -206,10 +211,20 @@ namespace loka
         return *this;
       }
 
+      /** Declares a fixed surface extent. An unspecified axis fills the seat
+          the containing layout gives that axis. */
       RectSurfaceProps &size(short width, short height)
       {
         this->width_ = width;
         this->height_ = height;
+        return *this;
+      }
+
+      /** Supplies app-owned storage for the logical extent published by the
+          layout rail after it places this surface. */
+      RectSurfaceProps &laidOutExtent(const scene::NodeState<loka::core::Frame> &state)
+      {
+        this->laidOutExtent_ = state;
         return *this;
       }
 
@@ -235,6 +250,12 @@ namespace loka
         if (model_ != other.model_)
         {
           return model_ < other.model_;
+        }
+        loka::core::MutableState<loka::core::Frame> *mine = this->laidOutExtent_.dangerouslyMutableState();
+        loka::core::MutableState<loka::core::Frame> *theirs = other.laidOutExtent_.dangerouslyMutableState();
+        if (mine != theirs)
+        {
+          return mine < theirs;
         }
         if (width_ != other.width_)
         {
@@ -272,6 +293,10 @@ namespace loka
       {
         return this;
       }
+      virtual const void *nodeTypeKey() const
+      {
+        return scene::NodeTypeToken<RectSurfaceNode>();
+      }
 
       virtual void declareDirtySources(scene::DirtySourceRegistrar &registrar)
       {
@@ -280,6 +305,69 @@ namespace loka
           registrar.markDirtyOnChange(this->props.model_, scene::NODE_DIRTY_PROPS);
         }
       }
+
+      /** Rail write door: publishes the logical rectangle the layout rail
+          chose for this surface into the app-owned fact State supplied
+          through props (the OpenFileDialog result shape: the rail writes,
+          the app watches). Called by the rail's extent ledger after layout,
+          never from paint and never by app code. */
+      void storeLaidOutExtent(const loka::core::Frame &extent)
+      {
+        if (!this->props.laidOutExtent_.isValid() || this->props.laidOutExtent_.state()->get() == extent)
+        {
+          return;
+        }
+        this->props.laidOutExtent_.set(extent);
+      }
+    };
+
+    /** Owns RectSurface layout facts until the enclosing rail layout pass has
+        completed. Pending work is represented only by stored entries. */
+    class RectSurfaceExtentLedger
+    {
+    public:
+      RectSurfaceExtentLedger()
+          : entries_()
+      {
+        this->entries_.reserve(4);
+      }
+
+      void record(RectSurfaceNode *node, const loka::core::Frame &extent)
+      {
+        this->entries_.push_back(Entry(node, extent));
+      }
+
+      void flush()
+      {
+        Entries delivery;
+        delivery.swap(this->entries_);
+        Entries::iterator entry = delivery.begin();
+        for (; entry != delivery.end(); ++entry)
+        {
+          entry->node->storeLaidOutExtent(entry->extent);
+        }
+        delivery.clear();
+        if (this->entries_.empty())
+        {
+          this->entries_.swap(delivery);
+        }
+      }
+
+    private:
+      struct Entry
+      {
+        Entry(RectSurfaceNode *nodeValue, const loka::core::Frame &extentValue)
+            : node(nodeValue),
+              extent(extentValue)
+        {
+        }
+
+        RectSurfaceNode *node;
+        loka::core::Frame extent;
+      };
+
+      typedef std::vector<Entry> Entries;
+      Entries entries_;
     };
 
     struct RectSurfaceDefinition : public scene::NodeDefinition<RectSurfaceProps, RectSurfaceNode>,
@@ -310,6 +398,12 @@ namespace loka
       RectSurfaceDefinition &size(short width, short height)
       {
         this->props.size(width, height);
+        return *this;
+      }
+
+      RectSurfaceDefinition &laidOutExtent(const scene::NodeState<loka::core::Frame> &state)
+      {
+        this->props.laidOutExtent(state);
         return *this;
       }
 

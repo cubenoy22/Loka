@@ -3,6 +3,7 @@
 
 #include <windows.h>
 #include <vector>
+#include "app/RectSurface.hpp"
 #include "app/scene/projection/ProjectionParentScope.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
@@ -377,6 +378,7 @@ private:
 
   HWND rootHwnd_;
   Win32NativeLayoutPass *activeNativeLayoutPass_;
+  loka::app::RectSurfaceExtentLedger rectSurfaceExtentLedger_;
   loka::app::scene::ProjectionParentScopeStack projectionParentScopes_;
   loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlerRegistry_;
   loka::app::scene::PlatformNodeHandlerRegistry nodeHandlerRegistry_;
