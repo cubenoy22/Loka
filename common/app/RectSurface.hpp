@@ -206,10 +206,10 @@ namespace loka
 
     private:
       short spriteCount_;
+      RectSurfaceSprite sprites_[kMaxSprites];
 
     public:
       short dirtyRectCount;
-      RectSurfaceSprite sprites[kMaxSprites];
       DirtyRect dirtyRects[kMaxDirtyRects];
 
       RectSurfaceModel()
@@ -223,13 +223,20 @@ namespace loka
         return spriteCount_;
       }
 
+      /** Returns one committed sprite without exposing mutable model storage. */
+      const RectSurfaceSprite &sprite(short index) const
+      {
+        assert(index >= 0 && index < spriteCount());
+        return sprites_[index];
+      }
+
       /** Empties the active prefix and releases payloads before publishing the
           new count. Inactive slots therefore never retain an Image. */
       void clear()
       {
         for (short i = 0; i < spriteCount_; ++i)
         {
-          sprites[i] = RectSurfaceSprite();
+          sprites_[i] = RectSurfaceSprite();
         }
         spriteCount_ = 0;
       }
@@ -276,7 +283,7 @@ namespace loka
         const short safeDirtyRectCount = clampDirtyRectCount(dirtyRectCount);
         for (short i = 0; i < spriteCount_; ++i)
         {
-          if (!(sprites[i] == other.sprites[i]))
+          if (!(sprite(i) == other.sprite(i)))
           {
             return false;
           }
@@ -322,7 +329,7 @@ namespace loka
         {
           return false;
         }
-        sprites[spriteCount_++] = sprite;
+        sprites_[spriteCount_++] = sprite;
         return true;
       }
     };
@@ -369,7 +376,7 @@ namespace loka
         {
           return 0;
         }
-        return &model_.sprites[index];
+        return &model_.sprite(index);
       }
 
     private:

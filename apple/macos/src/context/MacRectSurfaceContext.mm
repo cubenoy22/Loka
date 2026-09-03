@@ -348,9 +348,9 @@ void MacRectSurfaceContext::discardStalePreparedImages()
   for (short i = 0; i < loka::app::RectSurfaceModel::kMaxSprites; ++i)
   {
     loka::core::resource::Image current;
-    if (i < count && model.sprites[i].kind() == loka::app::RectSurfaceSprite::KIND_IMAGE)
+    if (i < count && model.sprite(i).kind() == loka::app::RectSurfaceSprite::KIND_IMAGE)
     {
-      model.sprites[i].queryImage(current);
+      model.sprite(i).queryImage(current);
     }
     preparedImages_[i].discardUnless(current);
   }

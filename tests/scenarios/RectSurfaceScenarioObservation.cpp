@@ -36,7 +36,7 @@ namespace loka
         {
           rectangles += ';';
         }
-        const app::RectSurfaceSprite &rect = model.sprites[i];
+        const app::RectSurfaceSprite &rect = model.sprite(i);
         char text[64];
         ::snprintf(text,
                    sizeof(text),
