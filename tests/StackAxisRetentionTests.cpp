@@ -300,17 +300,25 @@ namespace
     {
     }
 
+    // Read the template shape through a call so the branch conditions below
+    // are not constant expressions: MSVC 19.44 promotes C4127 ("conditional
+    // expression is constant") to an error under /WX, while 19.51 stays quiet.
+    static NestedRetentionShape shape()
+    {
+      return Shape;
+    }
+
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
       loka::app::Fragment root;
-      if (Shape == NESTED_RETENTION_DEPTH_TWO)
+      if (shape() == NESTED_RETENTION_DEPTH_TWO)
       {
         loka::app::Fragment wrapper;
         wrapper << loka::app::Stack(
             this->changed_ ? loka::app::STACK_AXIS_COLUMN : loka::app::STACK_AXIS_ROW);
         root << wrapper;
       }
-      else if (Shape == NESTED_RETENTION_DEPTH_THREE)
+      else if (shape() == NESTED_RETENTION_DEPTH_THREE)
       {
         loka::app::Fragment outerWrapper;
         loka::app::Fragment innerWrapper;
@@ -319,7 +327,7 @@ namespace
         outerWrapper << innerWrapper;
         root << outerWrapper;
       }
-      else if (Shape == NESTED_RETENTION_TAGGED_PAIR)
+      else if (shape() == NESTED_RETENTION_TAGGED_PAIR)
       {
         loka::app::Fragment wrapper;
         loka::app::Stack first(
@@ -330,7 +338,7 @@ namespace
         wrapper << first << second;
         root << wrapper;
       }
-      else if (Shape == NESTED_RETENTION_CHANGED_PARENT_AND_CHILD)
+      else if (shape() == NESTED_RETENTION_CHANGED_PARENT_AND_CHILD)
       {
         const loka::app::StackAxis axis =
             this->changed_ ? loka::app::STACK_AXIS_COLUMN : loka::app::STACK_AXIS_ROW;
@@ -338,7 +346,7 @@ namespace
         parent << loka::app::Stack(axis);
         root << parent;
       }
-      else if (Shape == NESTED_RETENTION_STRUCTURAL_CHILDREN)
+      else if (shape() == NESTED_RETENTION_STRUCTURAL_CHILDREN)
       {
         loka::app::Fragment wrapper;
         loka::app::Stack retained(
@@ -358,7 +366,7 @@ namespace
         }
         root << wrapper;
       }
-      else if (Shape == NESTED_RETENTION_MISPLACED_POLICY_SCOPE)
+      else if (shape() == NESTED_RETENTION_MISPLACED_POLICY_SCOPE)
       {
         loka::app::Fragment wrapper;
         loka::app::PolicyScopeDefinition misplacedScope;
@@ -375,7 +383,7 @@ namespace
         wrapper << misplacedScope;
         root << wrapper;
       }
-      else if (Shape == NESTED_RETENTION_REFUSING_CONTAINER)
+      else if (shape() == NESTED_RETENTION_REFUSING_CONTAINER)
       {
         RefusingContainerDefinition wrapper(
             RefusingContainerProps(this->changed_ ? 1 : 0));
@@ -383,9 +391,9 @@ namespace
             this->changed_ ? loka::app::STACK_AXIS_COLUMN : loka::app::STACK_AXIS_ROW);
         root << wrapper;
       }
-      else if (Shape == NESTED_RETENTION_DEEP_EQUIVALENT_ANONYMOUS ||
-               Shape == NESTED_RETENTION_DEEP_EQUIVALENT_METADATA ||
-               Shape == NESTED_RETENTION_DEEP_DIFFERENT_ANONYMOUS)
+      else if (shape() == NESTED_RETENTION_DEEP_EQUIVALENT_ANONYMOUS ||
+               shape() == NESTED_RETENTION_DEEP_EQUIVALENT_METADATA ||
+               shape() == NESTED_RETENTION_DEEP_DIFFERENT_ANONYMOUS)
       {
         loka::app::Fragment wrapper;
         loka::app::Stack outer(
@@ -393,7 +401,7 @@ namespace
         loka::app::Stack firstPanel(loka::app::STACK_AXIS_COLUMN);
         loka::app::Stack secondPanel(loka::app::STACK_AXIS_COLUMN);
         wrapper.tag(5575);
-        if (Shape == NESTED_RETENTION_DEEP_DIFFERENT_ANONYMOUS)
+        if (shape() == NESTED_RETENTION_DEEP_DIFFERENT_ANONYMOUS)
         {
           firstPanel << loka::app::Text("first");
           if (this->changed_)
@@ -411,7 +419,7 @@ namespace
           loka::app::TextDefinition first("first");
           loka::app::TextDefinition second("second");
           loka::app::TextDefinition third("third");
-          if (Shape == NESTED_RETENTION_DEEP_EQUIVALENT_METADATA)
+          if (shape() == NESTED_RETENTION_DEEP_EQUIVALENT_METADATA)
           {
             second.tag(this->changed_ ? 5577 : 5576);
             second.lifetimeHint(
