@@ -169,9 +169,13 @@ delegator added afterwards — before the branch is pushed.
    the branch as transport is fine and often required — the rigs fetch
    through origin (fleet rule) and tahoe can also take an scp'd diff; the
    gate is drawn at opening the PR and asking the bot, not at `git push`. macOS:
-   tahoe `cmake --preset macos-debug && cmake --build --preset macos-tests`
-   (~3 min). Win32: the rig's `win32-tests` build plus `LokaTestsWin32` in
-   an interactive scheduled task (~5 min; an MSVC Debug assert or a
+   tahoe `cmake --preset macos-debug`, then BOTH `cmake --build --preset
+   macos-debug` and `--preset macos-tests` (~3 min) — the test target
+   compiles its own subset of platform sources, so a shipping-only file
+   like `MacBootstrap.mm` never enters `macos-tests`. Win32: the rig's
+   `win32-debug` AND `win32-tests` builds (win32-verify: neither implies
+   the other) plus `LokaTestsWin32` in an interactive scheduled task
+   (~5 min; an MSVC Debug assert or a
    use-after-destruction hangs on the abort dialog, so run under a timeout
    and read the log). 68K/PPC: the local Retro68 presets. CI is not the
    first compiler.
