@@ -202,6 +202,13 @@ bot is asked (pushing the branch as transport to the rigs is fine).
    - Toolbox CI configures `-DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON` for
      both CPUs and builds both; the local presets default to Universal
      Interfaces, so configure as CI does and `cmake --build` 68K and PPC.
+   Two limits of the mirror, stated so they are not mistaken for gaps:
+   the rigs are compile-and-test legs, not the verdict identity — tahoe
+   runs a newer macOS than the `macos-15` CI image, so a pass there
+   forecasts CI but the verdict is CI's under the #422 reference-identity
+   ruling; and the standalone mains (`tests/*/StandaloneFlowMain.*`, the
+   `*-standalone-*` presets) are built by no CI job at all, so a diff
+   touching them builds those presets locally because nothing else will.
    CI is not the first compiler.
 4. **Null-rail test shape.** The `NullScenePlatformController` is the first
    declaration in a test that projects nodes (it must outlive the nodes:
