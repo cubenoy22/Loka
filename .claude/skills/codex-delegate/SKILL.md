@@ -199,10 +199,13 @@ bot is asked (pushing the branch as transport to the rigs is fine).
    asserts to `LOKA_VERIFY` in the same change — never leave the audit
    half-converted, and never weaken a `LOKA_VERIFY` back to `assert` to
    silence it (`assert` vanishes under `NDEBUG`; `LOKA_VERIFY` is the one
-   that keeps evaluating). Both test mains
+   that keeps evaluating). Explaining the coupling is not checking it: run
+   `python3 tools/ci/check_test_asserts.py` on the final diff — it is a
+   standalone step in the linux CI job, part of no test preset, so nothing
+   else in this gate executes it. Both test mains
    include the new header.
 5. **Any edit after step 2 — a REFUTED fix, a native-leg repair, a test
-   reshuffle — reruns step 2 and the affected legs.** The gate holds at a
+   reshuffle — reruns step 2, the assert audit, and the affected legs.** The gate holds at a
    fixed point: the adversarial pass and the legs saw the exact diff being
    pushed, or they are re-run. Only then:
 6. **Open the PR and ask the bot once.** The gate applies to docs diffs
