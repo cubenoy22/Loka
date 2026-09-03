@@ -79,6 +79,15 @@ namespace
     {
       gMaskGetPicUPP = NewQDGetPicUPP(ReadMaskPictBytes);
     }
+    if (!gMaskGetPicUPP)
+    {
+      // CFM builds allocate the routine descriptor, so under heap pressure it
+      // can be null; DrawPicture would then stream through a null callback.
+      // Report the allocation failure so the caller takes its retry path
+      // instead of caching an incomplete mask as a success.
+      KillPicture(picture);
+      return false;
+    }
     GrafPtr port = 0;
     GetPort(&port);
     QDProcsPtr oldProcs = port ? port->grafProcs : 0;
