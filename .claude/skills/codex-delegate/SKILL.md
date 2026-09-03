@@ -186,10 +186,15 @@ bot is asked (pushing the branch as transport to the rigs is fine).
    2026-08-22 golden rebake ran five-day-old binaries for exactly this
    reason), and CI builds them as its own step. Win32: the rig's
    `win32-debug` AND `win32-tests` builds (win32-verify: neither implies
-   the other) plus `LokaTestsWin32` in an interactive scheduled task
+   the other) plus `ctest --preset win32-tests` — not a bare
+   `LokaTestsWin32` run, which skips the registered script tests such as
+   `scriptWin32ScenarioProfile` — in an interactive scheduled task
    (~5 min; an MSVC Debug assert or a
    use-after-destruction hangs on the abort dialog, so run under a timeout
-   and read the log). 68K/PPC: the local Retro68 presets. CI is not the
+   and read the log). 68K/PPC: the local Retro68 presets, configured the way Toolbox
+   CI configures them — `-DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON` for
+   both CPUs (the local default is Universal Interfaces, so a change to
+   the compatibility headers can pass locally and fail CI). CI is not the
    first compiler.
 4. **Null-rail test shape.** The `NullScenePlatformController` is the first
    declaration in a test that projects nodes (it must outlive the nodes:
