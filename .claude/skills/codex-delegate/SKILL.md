@@ -107,6 +107,15 @@ the follow-up asks for. Session ids are in the transcripts under
   included only in the first passes Linux CI and fails macOS/Win32 CI (PR
   #532, one extra round trip). Put the sentence in the brief; Codex does not
   find the second main on its own.
+- In a test that projects nodes through `NullScenePlatformController`, declare
+  the controller before the nodes so it outlives their terminal fact delivery.
+- Run `python3 tools/ci/check_test_asserts.py` after changing test assertions.
+  `LOKA_VERIFY(x.call())` registers the call name as load-bearing, so the audit
+  will reject plain `assert(y.call())` occurrences with the same name. Convert
+  genuinely load-bearing assertions; when the same name also has
+  non-load-bearing uses, bind the result to a local and verify the local. Never
+  replace `LOKA_VERIFY` with `assert` merely to silence the audit: `assert`
+  removes the call under `NDEBUG`.
 
 ## Always ask for the smell list (required deliverable)
 
@@ -137,6 +146,45 @@ brief said "stop and write a questions file if the rulings underdetermine
 something"; the file came back absent while the review found three real holes,
 one of them exactly an underdetermined ruling. This mirrors AGENTS.md
 "Shape Review Gates" gate 2, which the delegator runs on the same diff.
+
+## Pre-PR review fixed point
+
+The goal is one independent review of a complete change, not repeated review
+as a substitute for finishing its design.
+
+1. **Apply the repository complexity gate before delegation.** A change that
+   crosses its split or hard-stop thresholds returns to design; extra review
+   rounds do not make an over-broad shape safer. For deferred, queued, cached,
+   or ledgered work, put one validity invariant and the concrete events that
+   invalidate it in the implementation brief, then pin those failure modes.
+2. **Produce one candidate revision.** First run the affected checks that can
+   inspect the working tree. Then commit, confirm clean status, and record the
+   candidate SHA, merge base, and changed-file list. Run exact-ref platform
+   rigs and one fresh-context adversarial pass against that same SHA. Use the
+   owning workflow or platform skill rather than copying command lists here;
+   if local and CI execution must stay identical, extract a shared script.
+   State unavailable rig coverage in the PR; hosted CI remains the verdict for
+   its runner identity. A candidate exists only when all claimed evidence names
+   that revision.
+3. **Make the adversarial pass independent and explicit.** Use `codex review
+   --base <base>` from the clean candidate worktree, or a read-only REFUTE
+   `codex exec` brief. A same-session self-review is not independent. Procedure
+   and design-document changes receive the same cross-source check against the
+   documents, workflows, and scripts they cite. A run that exits without an
+   explicit verdict is not a completed pass.
+4. **Any edit invalidates the candidate.** Collect and classify the whole pass
+   before editing, make one coherent correction, and produce a new candidate
+   from step 2. If two candidate revisions are rejected for new defects on the
+   same design, ownership, lifecycle, update-flow, or verification axis, stop
+   adding case rules: return the change to design and split or reshape it.
+5. **Give the opened or readied PR one bot-review trigger.** Count an automatic
+   review started by opening or leaving Draft; use `@codex review` only if no
+   review started. Treat reports as claims, batch all confirmed findings into
+   one correction, verify the result, and request at most one final full
+   review. Do not request a new review after each individual fix. Any confirmed
+   finding from that final review returns the PR to Draft: reshape it when the
+   finding belongs to this change, or route a pre-existing defect to its owning
+   issue. Do not start a third full review.
 
 ## Reviewing what comes back
 
