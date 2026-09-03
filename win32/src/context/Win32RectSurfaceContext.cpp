@@ -318,6 +318,11 @@ DrawRectSurfaceImage(HDC hdc, const RECT &spriteRect, const loka::app::RectSurfa
     assert(!"RectSurface image sprite storage is smaller than its declared size");
     return loka::app::RECT_SURFACE_PAINT_SUCCEEDED;
   }
+  // GDI cannot tell a 32-bpp DIB with an alpha channel from one whose fourth
+  // byte is unused, so the Win32 Image contract decides: a 32-bpp DIB section
+  // handed to Image::FromNative carries its alpha in that byte (the shape the
+  // WIC loader produces). Formats without an alpha byte (DDBs from
+  // captureBitmap, 24-bpp and lower DIBs) take the opaque path.
   if (bitmapBytes != static_cast<int>(sizeof(dib)) || !dib.dsBm.bmBits || dib.dsBm.bmBitsPixel != 32)
   {
     return DrawOpaqueRectSurfaceImage(hdc, spriteRect, bitmap, width, height);
