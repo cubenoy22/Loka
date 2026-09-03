@@ -3,7 +3,6 @@
 
 #include "SmirkModel.hpp"
 #include "app/core/Window.hpp"
-#include "app/layout/FallbackControlMetrics.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/controls/Button.hpp"
@@ -14,7 +13,6 @@
 #include "app/nodes/nestable/Show.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "core/String.hpp"
-#include "core/util/StateTrackerGuard.hpp"
 
 namespace smirkbench
 {
@@ -28,50 +26,7 @@ namespace smirkbench
   enum
   {
     kNavWidth = 200,
-    kNavBreakpoint = 480,
-    kNavSeatGap = 4
-  };
-
-  /** The one app-owned meaning assigned to Window geometry for both the
-      retained RectSurface declaration and the model's bounce walls. */
-  class SurfaceExtent
-  {
-  public:
-    SurfaceExtent()
-        : width_(0),
-          height_(0)
-    {
-    }
-
-    SurfaceExtent(short widthValue, short heightValue)
-        : width_(widthValue),
-          height_(heightValue)
-    {
-    }
-
-    bool operator==(const SurfaceExtent &other) const
-    {
-      return this->width_ == other.width_ && this->height_ == other.height_;
-    }
-
-    bool operator!=(const SurfaceExtent &other) const
-    {
-      return !(*this == other);
-    }
-
-    short width() const
-    {
-      return this->width_;
-    }
-
-    short height() const
-    {
-      return this->height_;
-    }
-
-  private:
-    short width_;
-    short height_;
+    kNavBreakpoint = 480
   };
 
   struct MainTypeTag
@@ -136,7 +91,7 @@ namespace smirkbench
       this->state(this->navMode_, NAV_WIDE);
       this->state(this->navOpen_, false);
       this->state(this->faceCount_, initialFaceCount);
-      this->state(this->surfaceExtent_, SurfaceExtent());
+      this->state(this->surfaceExtent_, loka::core::Frame());
       this->state(this->faceCountText_, this->faceCountLabel(initialFaceCount));
       this->state(this->addEnabled_, initialFaceCount < loka::app::RectSurfaceModel::kMaxRects);
     }
@@ -162,7 +117,7 @@ namespace smirkbench
               .otherwise(Fragment());
       toggle.setNodeTag(kToggleSeatTag);
       RectSurface surface = RectSurface(this->props.model_->surfaceModel())
-                                .size(this->surfaceExtent_.get().width(), this->surfaceExtent_.get().height())
+                                .laidOutExtent(this->surfaceExtent_)
                                 .useRegionClip(false)
                                 .TEST_ID("SmirkBench.Surface");
       surface.tag(kSurfaceSeatTag);
@@ -195,6 +150,11 @@ namespace smirkbench
     NavMode navModeForTesting() const
     {
       return this->navMode_.get();
+    }
+
+    loka::core::Frame surfaceExtentForTesting() const
+    {
+      return this->surfaceExtent_.get();
     }
 
     /** Test-only tracker observation proving identical frames do not write. */
@@ -253,6 +213,7 @@ namespace smirkbench
     {
       this->bindActionForUi(this->navToggle_, &MainNode::toggleNav);
       this->bindActionForUi(this->addFace_, &MainNode::addFace);
+      this->watchStateForUi(*this->surfaceExtent_.state(), &MainNode::refreshModelBounds);
       ::Window *window = this->windowOrNull();
       if (window)
       {
@@ -309,48 +270,16 @@ namespace smirkbench
     {
       const bool narrow = frame.width < kNavBreakpoint;
       const NavMode mode = narrow ? (this->navOpen_.get() ? NAV_NARROW_OPEN : NAV_NARROW_CLOSED) : NAV_WIDE;
-      int surfaceWidth = frame.width;
-      if (mode == NAV_WIDE || mode == NAV_NARROW_OPEN)
+      if (this->navMode_.get() != mode)
       {
-        surfaceWidth -= kNavWidth + kNavSeatGap;
-      }
-      int surfaceHeight = frame.height;
-      if (narrow)
-      {
-        surfaceHeight -= loka::app::layout::FallbackControlMetrics::kButtonHeight
-                         + loka::app::layout::FallbackControlMetrics::kVerticalSpacing;
-      }
-      const SurfaceExtent extent(this->clampDimension(surfaceWidth), this->clampDimension(surfaceHeight));
-      const bool modeChanged = this->navMode_.get() != mode;
-      const bool extentChanged = this->surfaceExtent_.get() != extent;
-      {
-        loka::core::StateTrackerGuard guard(this->tracker());
-        if (modeChanged)
-        {
-          this->navMode_.set(mode);
-        }
-        if (extentChanged)
-        {
-          this->surfaceExtent_.set(extent);
-        }
-      }
-      if (extentChanged && !modeChanged)
-      {
-        this->markViewDirty(loka::app::scene::NODE_DIRTY_CHILD);
-      }
-      if (this->props.model_)
-      {
-        this->props.model_->updateBounds(extent.width(), extent.height());
+        this->navMode_.set(mode);
       }
     }
 
-    static short clampDimension(int value)
+    void refreshModelBounds()
     {
-      if (value <= 0)
-      {
-        return 0;
-      }
-      return value > 32767 ? 32767 : static_cast<short>(value);
+      const loka::core::Frame frame = this->surfaceExtent_.get();
+      this->props.model_->updateBounds(frame.width, frame.height);
     }
 
     void applyNavMode(NavMode mode)
@@ -369,7 +298,9 @@ namespace smirkbench
     loka::app::scene::NodeState<NavMode> navMode_;
     loka::app::scene::NodeState<bool> navOpen_;
     loka::app::scene::NodeState<int> faceCount_;
-    loka::app::scene::NodeState<SurfaceExtent> surfaceExtent_;
+    /** The model's bounce walls equal the last laid-out seat the rail delivered for the surface; until the first
+        delivery they are the constructor's bounds. */
+    loka::app::scene::NodeState<loka::core::Frame> surfaceExtent_;
     loka::app::scene::NodeState<loka::core::String> faceCountText_;
     loka::app::scene::NodeState<bool> addEnabled_;
     loka::core::EmitterState navToggle_;
