@@ -170,32 +170,33 @@ bot is asked (pushing the branch as transport to the rigs is fine).
    accepted: the #589 smell report noticed the raw node pointer and then
    argued it safe. Every REFUTED item is fixed and the pass rerun clean
    before the push.
-3. **Native compile leg for every rail the host cannot build.** Pushing
-   the branch as transport is fine and often required — the rigs fetch
-   through origin (fleet rule) and tahoe can also take an scp'd diff; the
-   gate is drawn at opening the PR and asking the bot, not at `git push`. macOS:
-   tahoe `cmake --preset macos-debug`, then BOTH `cmake --build --preset
-   macos-debug` and `--preset macos-tests`, then `ctest --preset
-   macos-tests` (~3 min; the same three steps as the macos CI job) — the
-   test target compiles its own subset of platform sources, so a
-   shipping-only file like `MacBootstrap.mm` never enters `macos-tests`,
-   and a build without the ctest run misses assertion and teardown
-   failures. A diff touching a scenario driver or another scenario-only
-   source additionally builds `--preset macos-scenarios`: those app
-   bundles are `EXCLUDE_FROM_ALL` and belong to no other preset (the
-   2026-08-22 golden rebake ran five-day-old binaries for exactly this
-   reason), and CI builds them as its own step. Win32: the rig's
-   `win32-debug` AND `win32-tests` builds (win32-verify: neither implies
-   the other) plus `ctest --preset win32-tests` — not a bare
-   `LokaTestsWin32` run, which skips the registered script tests such as
-   `scriptWin32ScenarioProfile` — in an interactive scheduled task
-   (~5 min; an MSVC Debug assert or a
-   use-after-destruction hangs on the abort dialog, so run under a timeout
-   and read the log). 68K/PPC: the local Retro68 presets, configured the way Toolbox
-   CI configures them — `-DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON` for
-   both CPUs (the local default is Universal Interfaces, so a change to
-   the compatibility headers can pass locally and fail CI). CI is not the
-   first compiler.
+3. **Native legs: mirror the CI jobs whose sources the diff touches.**
+   The list of what to build and run is `.github/workflows/*.yml`, not
+   this skill: for every job whose inputs the diff touches, run that
+   job's exact configure/build/ctest sequence on the matching rig (tahoe
+   for `macos.yml`, the Win32 rig in an interactive scheduled task for
+   `windows.yml`, local Retro68 for `toolbox.yml`, host for `linux.yml`)
+   before opening the PR. Pushing the branch as transport is fine and
+   often required — the rigs fetch through origin (fleet rule) and tahoe
+   can also take an scp'd diff; the gate is drawn at opening the PR and
+   asking the bot, not at `git push`. Known ways a partial mirror has
+   lied, each a CI step that a shorter local sequence skipped:
+   - the test preset compiles its own subset of platform sources, so a
+     shipping-only file (`MacBootstrap.mm`) never enters `macos-tests` /
+     `win32-tests`; both the shipping and the test build are required
+     (win32-verify: neither implies the other);
+   - `ctest` after the builds, not a bare test binary — the registered
+     script tests (`scriptWin32ScenarioProfile`) and runtime failures on
+     macOS only show there; an MSVC Debug assert or a use-after-destruction
+     hangs on the abort dialog, so run under a timeout and read the log;
+   - `macos-scenarios` and the standalone presets are `EXCLUDE_FROM_ALL`
+     and belong to no other preset (the 2026-08-22 golden rebake ran
+     five-day-old binaries for exactly this reason); a diff touching a
+     scenario driver or a standalone main builds them;
+   - Toolbox CI configures `-DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON` for
+     both CPUs and builds both; the local presets default to Universal
+     Interfaces, so configure as CI does and `cmake --build` 68K and PPC.
+   CI is not the first compiler.
 4. **Null-rail test shape.** The `NullScenePlatformController` is the first
    declaration in a test that projects nodes (it must outlive the nodes:
    their terminal fact delivery reaches it during teardown; declared after
