@@ -144,7 +144,8 @@ PR #589 (2026-09-03) took ten PR-review-bot rounds, one macOS compile
 failure and one Win32 CI hang to converge on a change whose host suite was
 green from round one. Every one of those rounds was reachable locally. The
 gate below runs on the final diff — Codex's work plus every edit the
-delegator added afterwards — before the branch is pushed.
+delegator added afterwards — and finishes before the PR is opened and the
+bot is asked (pushing the branch as transport to the rigs is fine).
 
 1. **State the invariant of anything deferred, queued, cached, or
    ledgered in one sentence, then enumerate its negations and pin each.**
@@ -175,7 +176,11 @@ delegator added afterwards — before the branch is pushed.
    test target compiles its own subset of platform sources, so a
    shipping-only file like `MacBootstrap.mm` never enters `macos-tests`,
    and a build without the ctest run misses assertion and teardown
-   failures. Win32: the rig's
+   failures. A diff touching a scenario driver or another scenario-only
+   source additionally builds `--preset macos-scenarios`: those app
+   bundles are `EXCLUDE_FROM_ALL` and belong to no other preset (the
+   2026-08-22 golden rebake ran five-day-old binaries for exactly this
+   reason), and CI builds them as its own step. Win32: the rig's
    `win32-debug` AND `win32-tests` builds (win32-verify: neither implies
    the other) plus `LokaTestsWin32` in an interactive scheduled task
    (~5 min; an MSVC Debug assert or a
@@ -200,7 +205,11 @@ delegator added afterwards — before the branch is pushed.
    reshuffle — reruns step 2 and the affected legs.** The gate holds at a
    fixed point: the adversarial pass and the legs saw the exact diff being
    pushed, or they are re-run. Only then:
-6. **Open the PR and ask the bot once.** A finding after this gate is
+6. **Open the PR and ask the bot once.** The gate applies to docs diffs
+   too: a diff that asserts a procedure or an invariant gets the same
+   adversarial pass, aimed at contradictions with the documents, CI jobs,
+   and scripts it cites — this gate's own PR (#590) skipped that and the
+   bot found five such contradictions in the gate text itself. A finding after this gate is
    classified before it is fixed: brief gap, self-findable miss,
    delegator's later edit, or pre-existing shape routed to its issue.
 
