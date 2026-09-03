@@ -3,6 +3,7 @@
 
 #include <windows.h>
 #include <vector>
+#include "app/RectSurface.hpp"
 #include "app/scene/projection/ProjectionParentScope.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
@@ -54,6 +55,12 @@ namespace loka
 class Win32ScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
+  /** Retire door for a RectSurface context: takes back that surface's pending
+      seat rows so a surface reclaimed during delivery publishes nothing. */
+  void cancelRectSurfaceExtent(loka::app::RectSurfaceNode *surface)
+  {
+    this->rectSurfaceExtentLedger_.cancel(surface);
+  }
   enum NativePaintKind
   {
     NATIVE_PAINT_ROOT = 0,
@@ -377,6 +384,7 @@ private:
 
   HWND rootHwnd_;
   Win32NativeLayoutPass *activeNativeLayoutPass_;
+  loka::app::RectSurfaceExtentLedger rectSurfaceExtentLedger_;
   loka::app::scene::ProjectionParentScopeStack projectionParentScopes_;
   loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlerRegistry_;
   loka::app::scene::PlatformNodeHandlerRegistry nodeHandlerRegistry_;

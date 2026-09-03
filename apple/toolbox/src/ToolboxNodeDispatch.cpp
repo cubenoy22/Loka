@@ -392,6 +392,14 @@ namespace
         ctx->setBoundary(activeBoundary);
       }
       loka::app::scene::LayoutState projectedState = state;
+      const short seatX = state.x;
+      const short seatY = static_cast<short>(state.y);
+      const short resolvedWidth =
+          surface->props.width_ > 0 ? surface->props.width_ : state.width;
+      const short resolvedHeight =
+          surface->props.height_ > 0 ? surface->props.height_ : state.height;
+      projectedState.width = resolvedWidth;
+      projectedState.height = resolvedHeight;
       if (controller)
       {
         // RectSurface is the one hand-routed projected leaf in this switch;
@@ -406,6 +414,14 @@ namespace
       if (controller && !controller->restoreProjectedLayoutState(projectedState))
       {
         return 0;
+      }
+      if (controller && surface->getContext())
+      {
+        // The seat is a fact only once the surface was actually placed: a
+        // refused projection or restore, or a surface without a context,
+        // records nothing.
+        controller->recordRectSurfaceExtent(
+            surface, loka::core::Frame(seatX, seatY, resolvedWidth, resolvedHeight));
       }
       state.y = projectedState.y;
       if (boundary)

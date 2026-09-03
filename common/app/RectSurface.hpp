@@ -2,8 +2,12 @@
 #define LOKA_APP_RECT_SURFACE_HPP
 
 #include <assert.h>
+#include <cstddef>
 #include <limits.h>
+#include <vector>
 #include "app/scene/Node.hpp"
+#include "app/scene/state/NodeState.hpp"
+#include "core/Frame.hpp"
 #include "core/State.hpp"
 #include "core/resource/Image.hpp"
 
@@ -387,6 +391,7 @@ namespace loka
       typedef RectSurfaceNode NodeType;
 
       loka::core::State<RectSurfaceModel> *model_;
+      scene::NodeState<loka::core::Frame> laidOutExtent_;
       short width_;
       short height_;
       bool clearBackground_;
@@ -394,6 +399,7 @@ namespace loka
 
       RectSurfaceProps()
           : model_(0),
+            laidOutExtent_(),
             width_(0),
             height_(0),
             clearBackground_(true),
@@ -407,10 +413,20 @@ namespace loka
         return *this;
       }
 
+      /** Declares a fixed surface extent. An unspecified axis fills the seat
+          the containing layout gives that axis. */
       RectSurfaceProps &size(short width, short height)
       {
         this->width_ = width;
         this->height_ = height;
+        return *this;
+      }
+
+      /** Supplies app-owned storage for the logical extent published by the
+          layout rail after it places this surface. */
+      RectSurfaceProps &laidOutExtent(const scene::NodeState<loka::core::Frame> &state)
+      {
+        this->laidOutExtent_ = state;
         return *this;
       }
 
@@ -436,6 +452,12 @@ namespace loka
         if (model_ != other.model_)
         {
           return model_ < other.model_;
+        }
+        loka::core::MutableState<loka::core::Frame> *mine = this->laidOutExtent_.dangerouslyMutableState();
+        loka::core::MutableState<loka::core::Frame> *theirs = other.laidOutExtent_.dangerouslyMutableState();
+        if (mine != theirs)
+        {
+          return mine < theirs;
         }
         if (width_ != other.width_)
         {
@@ -473,6 +495,10 @@ namespace loka
       {
         return this;
       }
+      virtual const void *nodeTypeKey() const
+      {
+        return scene::NodeTypeToken<RectSurfaceNode>();
+      }
 
       virtual void declareDirtySources(scene::DirtySourceRegistrar &registrar)
       {
@@ -481,6 +507,139 @@ namespace loka
           registrar.markDirtyOnChange(this->props.model_, scene::NODE_DIRTY_PROPS);
         }
       }
+
+      /** Rail write door: publishes the logical rectangle the layout rail
+          chose for this surface into the app-owned fact State supplied
+          through props (the OpenFileDialog result shape: the rail writes,
+          the app watches). Called by the rail's extent ledger after layout,
+          never from paint and never by app code. */
+      void storeLaidOutExtent(const loka::core::Frame &extent)
+      {
+        if (!this->props.laidOutExtent_.isValid() || this->props.laidOutExtent_.state()->get() == extent)
+        {
+          return;
+        }
+        this->props.laidOutExtent_.set(extent);
+      }
+    };
+
+    /** Owns RectSurface layout facts until the enclosing rail layout pass has
+        completed. Pending work is represented only by stored entries.
+
+        Invariant: a pending entry is valid only for a surface that this pass
+        actually placed and that is still placed when the entry is delivered.
+        Every door below is one edge of that sentence: a later record for the
+        same node supersedes (a nested pass re-placed it), a refused
+        projection or native context records nothing (never placed), a scope
+        that ends refused takes its entries back (placement withdrawn), and a
+        detach or retire fact delivered to its context cancels its node's
+        rows (no longer placed); a newer accepted pass supersedes an older
+        row, and a row leaves the ledger before its delivery runs so a cancel
+        raised by app code cannot skip another row. */
+    class RectSurfaceExtentLedger
+    {
+    public:
+      RectSurfaceExtentLedger()
+          : entries_()
+      {
+        this->entries_.reserve(4);
+      }
+
+      void record(RectSurfaceNode *node, const loka::core::Frame &extent)
+      {
+        this->entries_.push_back(Entry(node, extent));
+      }
+
+      /** A scope that later refuses (a ScrollView whose content overflowed
+          the short range after its children were placed) takes the entries
+          recorded under it back: nothing under a refused scope is a fact. */
+      std::size_t mark() const
+      {
+        return this->entries_.size();
+      }
+
+      /** A surface whose detach or retire fact arrives while entries are
+          pending (a watcher parked or removed it during delivery) is no
+          longer placed: its rows are taken back so nothing is published for
+          it. A context replaced on a live node keeps its row (the node stays
+          placed). */
+      void cancel(const RectSurfaceNode *node)
+      {
+        std::size_t kept = 0;
+        for (std::size_t i = 0; i < this->entries_.size(); ++i)
+        {
+          if (this->entries_[i].node != node)
+          {
+            if (kept != i)
+            {
+              this->entries_[kept] = this->entries_[i];
+            }
+            ++kept;
+          }
+        }
+        this->entries_.erase(this->entries_.begin() + kept, this->entries_.end());
+      }
+
+      void discardSince(std::size_t mark)
+      {
+        if (mark < this->entries_.size())
+        {
+          this->entries_.erase(this->entries_.begin() + mark, this->entries_.end());
+        }
+      }
+
+      /** Delivers in traversal order; the last entry recorded for a node
+          wins. Delivery may re-enter (a watcher can start a nested layout
+          pass, which records newer entries and flushes them itself), so the
+          loop pops each row before delivering it, skips a row a later record
+          for the same node supersedes, and stops when a nested flush has
+          drained the vector. An older entry therefore never overwrites a
+          newer pass, and a cancel raised during delivery cannot skip a row. */
+      void flush()
+      {
+        while (!this->entries_.empty())
+        {
+          // The row leaves the ledger before any app code runs, so a
+          // cancel or discard raised by a watcher acts only on the rows
+          // that are still pending and the iteration cannot skip one.
+          const Entry entry = this->entries_.front();
+          this->entries_.erase(this->entries_.begin());
+          if (this->hasLaterEntryFor(entry.node, 0))
+          {
+            continue;
+          }
+          entry.node->storeLaidOutExtent(entry.extent);
+        }
+      }
+
+    private:
+      struct Entry
+      {
+        Entry(RectSurfaceNode *nodeValue, const loka::core::Frame &extentValue)
+            : node(nodeValue),
+              extent(extentValue)
+        {
+        }
+
+        RectSurfaceNode *node;
+        loka::core::Frame extent;
+      };
+
+      typedef std::vector<Entry> Entries;
+
+      bool hasLaterEntryFor(const RectSurfaceNode *node, std::size_t from) const
+      {
+        for (std::size_t i = from; i < this->entries_.size(); ++i)
+        {
+          if (this->entries_[i].node == node)
+          {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      Entries entries_;
     };
 
     struct RectSurfaceDefinition : public scene::NodeDefinition<RectSurfaceProps, RectSurfaceNode>,
@@ -511,6 +670,12 @@ namespace loka
       RectSurfaceDefinition &size(short width, short height)
       {
         this->props.size(width, height);
+        return *this;
+      }
+
+      RectSurfaceDefinition &laidOutExtent(const scene::NodeState<loka::core::Frame> &state)
+      {
+        this->props.laidOutExtent(state);
         return *this;
       }
 

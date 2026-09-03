@@ -1,6 +1,7 @@
 #ifndef LOKA_TOOLBOX_SCENE_PLATFORM_CONTROLLER_HPP
 #define LOKA_TOOLBOX_SCENE_PLATFORM_CONTROLLER_HPP
 
+#include "app/RectSurface.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/ProjectionParentScope.hpp"
 #include "ToolboxControlIdAllocator.hpp"
@@ -157,6 +158,17 @@ public:
   short layoutScrollView(loka::app::ScrollViewNode *scrollView,
                          loka::app::scene::LayoutState &state,
                          loka::app::scene::BoundaryNode *currentBoundary);
+  void recordRectSurfaceExtent(loka::app::RectSurfaceNode *surface,
+                               const loka::core::Frame &extent)
+  {
+    this->rectSurfaceExtentLedger_.record(surface, extent);
+  }
+  /** Retire door for a RectSurface context: takes back that surface's pending
+      seat rows so a surface reclaimed during delivery publishes nothing. */
+  void cancelRectSurfaceExtent(loka::app::RectSurfaceNode *surface)
+  {
+    this->rectSurfaceExtentLedger_.cancel(surface);
+  }
   void renderScrollView(loka::app::ScrollViewNode *scrollView);
   bool projectLayoutState(loka::app::scene::LayoutState &state)
   {
@@ -263,6 +275,7 @@ private:
   loka::app::scene::ProjectionParentScopeStack projectionParentScopes_;
   loka::app::scene::Node *rootNode_;
   loka::app::scene::Node *pendingRootNode_;
+  loka::app::RectSurfaceExtentLedger rectSurfaceExtentLedger_;
   ToolboxHitLedger hitLedger_;
   std::vector<ButtonControlBinding> buttonControls_;
   ToolboxScrollBarLedger scrollBarLedger_;

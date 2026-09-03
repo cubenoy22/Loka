@@ -433,7 +433,12 @@ Win32RectSurfaceContext::Win32RectSurfaceContext(Win32ScenePlatformController *c
   EnsureClassRegistered();
   hwnd_ = this->createNativeChildWindow(
       0, kRectSurfaceClassName, L"", WS_CHILD | WS_VISIBLE, x, y, width, height, parent, 0, GetModuleHandleW(NULL), this);
-  bindModel();
+  // A context without a native window is discarded by the controller; it
+  // must not have bound anything.
+  if (hwnd_)
+  {
+    bindModel();
+  }
 }
 
 Win32RectSurfaceContext::~Win32RectSurfaceContext()
@@ -460,7 +465,13 @@ void Win32RectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact 
   else
   {
     // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
-    // (hide before the ritual destroys the native pair).
+    // (hide before the ritual destroys the native pair). Either way the
+    // surface is no longer placed: its pending seat rows go first, while
+    // the back-pointers are still intact.
+    if (this->controller())
+    {
+      this->controller()->cancelRectSurfaceExtent(this->node_);
+    }
     this->applyDetachedPresentation();
     if (next == loka::app::scene::NODE_FACT_RETIRED)
     {

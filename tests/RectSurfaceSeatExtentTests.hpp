@@ -1,0 +1,20 @@
+#ifndef LOKA_TESTS_RECT_SURFACE_SEAT_EXTENT_TESTS_HPP
+#define LOKA_TESTS_RECT_SURFACE_SEAT_EXTENT_TESTS_HPP
+
+void testRectSurfaceFillSeatReportsRowAllocation();
+void testRectSurfaceExplicitSizeKeepsRowConsultationAndReportsDeclaredExtent();
+void testRectSurfaceFillSeatReportsColumnRemainingHeight();
+void testRectSurfaceExtentChangesOnlyDuringRailLayout();
+void testRectSurfaceWithoutExtentStateLaysOutNormally();
+void testRectSurfaceNodeStatePublicationUsesOwnerTracker();
+void testRectSurfaceExtentPublicationCanReleaseContextAfterLayout();
+void testRectSurfaceExtentPublicationFollowsLayoutTraversal();
+void testRectSurfaceScrollViewExtentUsesContentCoordinates();
+void testRectSurfaceExtentLedgerNestedFlushKeepsNewerEntry();
+void testRectSurfaceRefusedProjectionPublishesNoExtent();
+void testRectSurfaceRefusedScrollViewContentPublishesNoExtent();
+void testRectSurfaceDetachedRetainedDuringDeliveryPublishesNoExtent();
+void testRectSurfaceRetireFactDuringDeliveryPublishesNoExtent();
+void testRectSurfaceExtentLedgerCancelDuringDeliveryKeepsNextRow();
+
+#endif // LOKA_TESTS_RECT_SURFACE_SEAT_EXTENT_TESTS_HPP
