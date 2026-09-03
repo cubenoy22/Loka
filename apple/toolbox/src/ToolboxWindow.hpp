@@ -84,6 +84,14 @@ private:
     INVALIDATE_PAINT_IDLE = 0,
     INVALIDATE_PAINT_DRAWING
   };
+  // Both rectangle queues are reserved once at construction and never grow
+  // afterwards: a refused paint requests its retry from inside draw(), which
+  // is exactly when the application heap may be exhausted, and a vector
+  // allocation there would abort to the Finder instead of retrying later.
+  enum
+  {
+    kPendingInvalidateRectCapacity = 16
+  };
 
   static void TitleChangedThunk(void *userData);
   static void FrameChangedThunk(void *userData);
@@ -100,6 +108,7 @@ private:
   void *pendingDeferredDebugDumpUserData_;
   int pendingDeferredDebugDumpCompletionDelay_;
   std::vector<Rect> pendingInvalidateRects_;
+  std::vector<Rect> flushingInvalidateRects_;
   short titleBarHeight_;
 
   void mountScene();

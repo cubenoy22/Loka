@@ -52,9 +52,12 @@ ToolboxWindow::ToolboxWindow(PlatformContext *context, const WindowProps &props)
       pendingDeferredDebugDumpUserData_(0),
       pendingDeferredDebugDumpCompletionDelay_(0),
       pendingInvalidateRects_(),
+      flushingInvalidateRects_(),
       titleBarHeight_(0)
 {
   window_ = 0;
+  pendingInvalidateRects_.reserve(kPendingInvalidateRectCapacity);
+  flushingInvalidateRects_.reserve(kPendingInvalidateRectCapacity);
   context_ = new ToolboxWindowContext(
 #if !defined(LOKA_TOOLBOX_CLASSIC_6)
       ToolboxWindowContext::CAP_CONTROL_MANAGER | ToolboxWindowContext::CAP_TEXT_EDIT
@@ -203,6 +206,29 @@ void ToolboxWindow::requestInvalidateRect(const Rect &rect)
     }
     return;
   }
+  if (pendingInvalidateRects_.size() >= static_cast<std::size_t>(kPendingInvalidateRectCapacity))
+  {
+    // Reserved capacity is exhausted: widen the last pending rectangle instead
+    // of growing the vector. Over-invalidation is bounded; allocation is not.
+    Rect &last = pendingInvalidateRects_.back();
+    if (rect.left < last.left)
+    {
+      last.left = rect.left;
+    }
+    if (rect.top < last.top)
+    {
+      last.top = rect.top;
+    }
+    if (rect.right > last.right)
+    {
+      last.right = rect.right;
+    }
+    if (rect.bottom > last.bottom)
+    {
+      last.bottom = rect.bottom;
+    }
+    return;
+  }
   pendingInvalidateRects_.push_back(rect);
 }
 
@@ -232,16 +258,18 @@ void ToolboxWindow::flushInvalidate()
     return;
   }
   needsInvalidate_ = false;
-  std::vector<Rect> rects = pendingInvalidateRects_;
-  pendingInvalidateRects_.clear();
-  for (std::size_t i = 0; i < rects.size(); ++i)
+  // Swap the batch into the reserved flushing buffer (no allocation) so that
+  // rectangles requested during drawDirty land in the next flush, not this one.
+  flushingInvalidateRects_.swap(pendingInvalidateRects_);
+  for (std::size_t i = 0; i < flushingInvalidateRects_.size(); ++i)
   {
     if (scenePlatformController_)
     {
       scenePlatformController_->noteWindowFlushDirty();
     }
-    this->drawDirty(rects[i]);
+    this->drawDirty(flushingInvalidateRects_[i]);
   }
+  flushingInvalidateRects_.clear();
 }
 
 bool ToolboxWindow::hasPendingInvalidate() const
