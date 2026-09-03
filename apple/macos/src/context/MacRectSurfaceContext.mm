@@ -1,4 +1,5 @@
 #include "MacRectSurfaceContext.hpp"
+#include "../MacScenePlatformController.hpp"
 #include <cassert>
 #include "../MacObjCCompat.hpp"
 #include "app/RectSurface.hpp"
@@ -54,6 +55,7 @@ MacRectSurfaceContext::MacRectSurfaceContext(MacScenePlatformController *control
                                              int height,
                                              loka::app::RectSurfaceNode *node)
     : MacRetirableContext(controller),
+      controller_(controller),
       node_(node),
       modelState_(0),
       view_(0)
@@ -66,7 +68,12 @@ MacRectSurfaceContext::MacRectSurfaceContext(MacScenePlatformController *control
     [parent addSubview:view];
   }
   view_ = view;
-  bindModel();
+  // A context without a native view is discarded by the controller; it must
+  // not have bound anything.
+  if (view_)
+  {
+    bindModel();
+  }
 }
 
 MacRectSurfaceContext::~MacRectSurfaceContext()
@@ -93,7 +100,13 @@ void MacRectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact pr
   else
   {
     // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
-    // (hide before the ritual destroys the native pair).
+    // (hide before the ritual destroys the native pair). Either way the
+    // surface is no longer placed: its pending seat rows go first, while
+    // the back-pointers are still intact.
+    if (controller_)
+    {
+      controller_->cancelRectSurfaceExtent(this->node_);
+    }
     this->applyDetachedPresentation();
     if (next == loka::app::scene::NODE_FACT_RETIRED)
     {

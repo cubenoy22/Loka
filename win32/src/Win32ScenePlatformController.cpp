@@ -72,6 +72,7 @@ public:
       return;
     }
     this->controller_->activeNativeLayoutPass_ = 0;
+    this->controller_->rectSurfaceExtentLedger_.flush();
     if (this->controller_->rootHwnd_)
     {
       RedrawWindow(this->controller_->rootHwnd_,
@@ -154,6 +155,7 @@ Win32ScenePlatformController::Win32ScenePlatformController(
     const loka::win32::Win32DisplayScale &displayScale)
     : rootHwnd_(rootHwnd),
       activeNativeLayoutPass_(0),
+      rectSurfaceExtentLedger_(),
       projectionParentScopes_(rootHwnd),
       rootNode_(0),
       clientWidth_(0),
@@ -845,13 +847,15 @@ Win32ScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *
   {
     return LayoutNodeResult(state.width, state.y);
   }
+  const int width = surface->props.width_ > 0 ? surface->props.width_ : state.width;
+  const int height = surface->props.height_ > 0 ? surface->props.height_ : state.height;
   Win32RectSurfaceContext *ctx = static_cast<Win32RectSurfaceContext *>(surface->getContext());
   if (ctx)
   {
     ctx->relayout(projectedState.x,
                   projectedState.y,
-                  surface->props.width_,
-                  surface->props.height_);
+                  width,
+                  height);
   }
   else
   {
@@ -860,18 +864,29 @@ Win32ScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *
         this->projectionParentHwnd(),
         projectedState.x,
         projectedState.y,
-        surface->props.width_,
-        surface->props.height_,
+        width,
+        height,
         surface);
     if (!ctx)
     {
       return LayoutNodeResult(state.width, state.y);
     }
+    if (!ctx->hasNativeSurface())
+    {
+      // No native surface was placed: nothing is installed and nothing is
+      // published; the next layout pass retries creation.
+      delete ctx;
+      return LayoutNodeResult(state.width, state.y);
+    }
     surface->setContext(ctx);
     ctx->readLifecycleFactOnAttach();
   }
+  // The seat is a fact only once the surface was actually placed: a refused
+  // projection or a failed native context records nothing.
+  this->rectSurfaceExtentLedger_.record(
+      surface, loka::core::Frame(state.x, state.y, width, height));
   return LayoutNodeResult(
-      state.width, state.y + surface->props.height_ + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
+      state.width, state.y + height + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
 }
 
 Win32ScenePlatformController::LayoutNodeResult
@@ -982,6 +997,7 @@ Win32ScenePlatformController::layoutScrollViewNode(loka::app::ScrollViewNode *sc
     }
 
     loka::app::scene::INestable *nestable = scrollView->asNestable();
+    const std::size_t ledgerMark = this->rectSurfaceExtentLedger_.mark();
     loka::dsl::CompositionCursor<loka::app::scene::Node> it(
         nestable ? nestable->childrenHead() : 0,
         nestable ? nestable->childrenCount() : 0);
@@ -1010,6 +1026,11 @@ Win32ScenePlatformController::layoutScrollViewNode(loka::app::ScrollViewNode *sc
     contentHeight = this->projectionParentScopes_.current().contentHeight();
     shortRangeRefused =
         this->projectionParentScopes_.current().hasShortRangeRefusal();
+      if (shortRangeRefused)
+    {
+      // Seats recorded under a refused scope are not facts.
+      this->rectSurfaceExtentLedger_.discardSince(ledgerMark);
+    }
   }
 
   if (!shortRangeRefused)

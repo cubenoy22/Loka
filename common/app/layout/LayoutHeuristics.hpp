@@ -1,6 +1,7 @@
 #ifndef LOKA_APP_LAYOUT_HEURISTICS_HPP
 #define LOKA_APP_LAYOUT_HEURISTICS_HPP
 
+#include "app/RectSurface.hpp"
 #include "app/nodes/ImageView.hpp"
 #include "app/nodes/nestable/Box.hpp"
 #include "app/scene/Node.hpp"
@@ -43,6 +44,13 @@ namespace loka
           if (image->props.width_ > 0)
           {
             return clampToAvailable(image->props.width_, availableWidth);
+          }
+        }
+        if (loka::app::RectSurfaceNode *surface = child->asRectSurfaceNode())
+        {
+          if (surface->props.width_ > 0)
+          {
+            return clampToAvailable(surface->props.width_, availableWidth);
           }
         }
         if (loka::app::BoxNode *box = child->asBoxNode())
@@ -155,6 +163,14 @@ namespace loka
             return fallbackHeight;
           }
           return imageFallbackHeight;
+        }
+        if (loka::app::RectSurfaceNode *surface = child->asRectSurfaceNode())
+        {
+          if (surface->props.height_ > 0)
+          {
+            return surface->props.height_;
+          }
+          return fallbackHeight;
         }
         return fallbackHeight;
       }

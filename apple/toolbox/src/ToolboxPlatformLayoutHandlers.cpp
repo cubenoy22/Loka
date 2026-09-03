@@ -3,6 +3,7 @@
 
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/nestable/Grid.hpp"
+#include "app/RectSurface.hpp"
 #include "app/nodes/ImageView.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/nestable/ZStack.hpp"
@@ -28,6 +29,16 @@ namespace
         return fallbackHeight;
       }
       return ToolboxLayoutMetrics::kImageFallbackHeight;
+    }
+    // Mirrors the shared preferredChildHeightForRow (LayoutHeuristics.hpp)
+    // for RectSurface; #563 folds this local copy into the shared helper.
+    if (loka::app::RectSurfaceNode *surface = child->asRectSurfaceNode())
+    {
+      if (surface->props.height_ > 0)
+      {
+        return surface->props.height_;
+      }
+      return fallbackHeight;
     }
     return fallbackHeight;
   }

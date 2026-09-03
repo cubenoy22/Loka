@@ -267,6 +267,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullEditTextContext.cpp
     ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullScrollBarContext.cpp
     ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullTextContext.cpp
+    ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullRectSurfaceContext.cpp
     ${PROJECT_SOURCE_DIR}/tests/standalone/HelloWorldStandaloneFlowAppConfig.cpp
     ${PROJECT_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
     ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
@@ -298,6 +299,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullEditTextContext.cpp
       ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullScrollBarContext.cpp
       ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullTextContext.cpp
+      ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullRectSurfaceContext.cpp
     )
     loka_enable_warnings(${target_name})
     target_include_directories(${target_name} PRIVATE

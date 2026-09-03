@@ -382,6 +382,7 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
                                   : 0),
       rootNode_(0),
       pendingRootNode_(0),
+      rectSurfaceExtentLedger_(),
       scrollBarLedger_(kNativePoolBucketDepthCap),
       focusedText_(0),
       focusedRect_(),
@@ -579,6 +580,7 @@ short ToolboxScenePlatformController::layoutScrollView(
     loka::app::scene::LayoutState childState = state;
     childState.width = static_cast<short>(
         ToolboxScrollViewChildWidth(state.width));
+    const std::size_t ledgerMark = this->rectSurfaceExtentLedger_.mark();
     loka::dsl::CompositionCursor<loka::app::scene::Node> it(
         scrollView->childrenHead(), scrollView->childrenCount());
     for (loka::app::scene::Node *child = it.next(); child; child = it.next())
@@ -600,6 +602,11 @@ short ToolboxScenePlatformController::layoutScrollView(
     contentHeight = this->projectionParentScopes_.current().contentHeight();
     shortRangeRefused =
         this->projectionParentScopes_.current().hasShortRangeRefusal();
+      if (shortRangeRefused)
+    {
+      // Seats recorded under a refused scope are not facts.
+      this->rectSurfaceExtentLedger_.discardSince(ledgerMark);
+    }
   }
 
   if (!shortRangeRefused)
@@ -1074,9 +1081,10 @@ void ToolboxScenePlatformController::render()
   }
   PROFILE_SECTION("layout");
   LayoutNode(rootNode_, state, this, 0);
-  RenderNode(rootNode_, this);
   assert(this->projectionParentScopes_.activeDepth() == 0 &&
          "a Toolbox projection pass must restore the root scope");
+  this->rectSurfaceExtentLedger_.flush();
+  RenderNode(rootNode_, this);
   debugStats_.refreshHitCounts(static_cast<int>(hitLedger_.buttonHits_.size()),
                                static_cast<int>(hitLedger_.cellHits_.size()),
                                static_cast<int>(hitLedger_.editHits_.size()),

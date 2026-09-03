@@ -4,6 +4,7 @@
 
 #include "app/layout/PlatformBuiltinLayoutHandlers.hpp"
 #include "app/OpenFileDialog.hpp"
+#include "app/RectSurface.hpp"
 #include "app/nodes/ImageView.hpp"
 #include "app/nodes/controls/Cell.hpp"
 #include "app/nodes/controls/PopupMenu.hpp"
@@ -11,6 +12,7 @@
 #include "platform/null/context/NullButtonContext.hpp"
 #include "platform/null/context/NullEditTextContext.hpp"
 #include "platform/null/context/NullScrollBarContext.hpp"
+#include "platform/null/context/NullRectSurfaceContext.hpp"
 #include "app/scene/projection/PlatformApplyPlan.hpp"
 #include "app/scene/boundary/Boundary.hpp"
 #include "platform/null/context/NullTextContext.hpp"
@@ -82,6 +84,7 @@ NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepth
     : layoutHandlers_(),
       refusedProjectedNodeHandlers_(),
       nodeHandlers_(),
+      rectSurfaceExtentLedger_(),
       rootNode_(0),
       ledger_(),
       lastOnChangeFlags_(loka::app::scene::NODE_DIRTY_NONE),
@@ -123,6 +126,7 @@ NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepth
   RegisterNullEditTextNodeHandler(*this);
   RegisterNullScrollBarNodeHandler(*this);
   RegisterNullTextNodeHandler(*this);
+  RegisterNullRectSurfaceNodeHandler(*this);
   this->refusedProjectedNodeHandlers_.registerWith(*this);
 }
 
@@ -520,6 +524,35 @@ int NullScenePlatformController::layoutNode(loka::app::scene::Node *node,
     return this->layoutScrollView(node, state);
   }
 
+  if (loka::app::RectSurfaceNode *surface = node->asRectSurfaceNode())
+  {
+    const short width = surface->props.width_ > 0 ? surface->props.width_ : state.width;
+    const short height = surface->props.height_ > 0 ? surface->props.height_ : state.height;
+    loka::app::scene::LayoutState projectedState;
+    if (!this->projectionParentScopes_.current().project(state, projectedState))
+    {
+      this->refuseScrollViewShortRange();
+      return state.y;
+    }
+    if (!this->prepareProjectedLayout(surface, projectedState))
+    {
+      return state.y;
+    }
+    const int projectedResult = surface->layout(this, projectedState);
+    int contentResult = state.y;
+    if (!this->projectionParentScopes_.current().restoreContentY(
+            projectedResult, contentResult))
+    {
+      this->refuseScrollViewShortRange();
+      return state.y;
+    }
+    // The seat is a fact only once the surface was actually placed: a
+    // refused projection, context, or restore records nothing.
+    this->rectSurfaceExtentLedger_.record(
+        surface, loka::core::Frame(state.x, state.y, width, height));
+    return contentResult;
+  }
+
   loka::app::scene::IPlatformLayoutHandler *layoutHandler = this->layoutHandlers_.find(node);
   if (layoutHandler)
   {
@@ -608,6 +641,8 @@ int NullScenePlatformController::layoutScrollView(
   }
 
   int currentY = state.y;
+  const std::size_t ledgerMark = this->rectSurfaceExtentLedger_.mark();
+  bool refused = false;
   loka::app::scene::INestable *nestable = scrollView->asNestable();
   for (loka::app::scene::Node *child = nestable ? nestable->childrenHead() : 0;
        child;
@@ -616,6 +651,7 @@ int NullScenePlatformController::layoutScrollView(
     if (currentY < SHRT_MIN || currentY > SHRT_MAX)
     {
       this->refuseScrollViewShortRange();
+      refused = true;
       break;
     }
     loka::app::scene::LayoutState childState = state;
@@ -625,24 +661,35 @@ int NullScenePlatformController::layoutScrollView(
     {
       // A nested traversal edge already refused and counted; do not count
       // the stale return value a second time.
+      refused = true;
       break;
     }
     if (!this->projectionParentScopes_.current().tryAccumulateContentHeight(
             currentY, nextY))
     {
       this->refuseScrollViewShortRange();
+      refused = true;
       break;
     }
     currentY = nextY;
+  }
+  if (!refused && state.height <= 0 && currentY > SHRT_MAX)
+  {
+    this->refuseScrollViewShortRange();
+    refused = true;
+  }
+  if (refused)
+  {
+    // Seats recorded under a refused scope are not facts.
+    this->rectSurfaceExtentLedger_.discardSince(ledgerMark);
   }
 
   if (state.height > 0)
   {
     return state.y + state.height;
   }
-  if (currentY > SHRT_MAX)
+  if (refused)
   {
-    this->refuseScrollViewShortRange();
     return state.y;
   }
   return currentY;
@@ -662,6 +709,7 @@ int NullScenePlatformController::projectLayout(
   const int result = this->layoutNode(node, state);
   assert(this->projectionParentScopes_.activeDepth() == 0 &&
          "a projection pass must restore the root scope");
+  this->rectSurfaceExtentLedger_.flush();
   return result;
 }
 
