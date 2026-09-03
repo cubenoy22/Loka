@@ -158,7 +158,11 @@ bot is asked (pushing the branch as transport to the rigs is fine).
    delivery, node absence without a replacement row, cancellation during
    the delivery callback. Put the sentence and the negation list in the
    implementation brief; a brief without it is not ready.
-2. **Adversarial pass on the final diff, in a fresh session.** Either
+2. **Adversarial pass on the final diff, in a fresh session.** Commit
+   first: `codex review --base <base>` reads the committed diff, so an
+   untracked new file is invisible to it — the only files legitimately
+   left untracked are the ones deliberately excluded from the PR
+   (FINDINGS); `git status` before the pass confirms nothing else is. Either
    `codex review --base <base>` from the worktree (the same reviewer the
    PR bot runs, non-interactive, log to a file with the `codex exit=`
    sentinel) or a read-only `codex exec` REFUTE brief with the invariant
