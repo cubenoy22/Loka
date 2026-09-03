@@ -4,5 +4,6 @@
 void testWin32RectSurfacePaintQueuesBoundedParentSubtree();
 void testWin32RectSurfaceImagePaintsDdbOpaque();
 void testWin32RectSurfaceImageKeepsBinaryAlphaPath();
+void testWin32RectSurfaceImageMasksOversizedBottomUpDibFromTopRows();
 
 #endif

@@ -56,6 +56,22 @@ namespace
     }
   }
 
+  // A bottom-up DIB (positive biHeight): memory row 0 is the bottom scanline.
+  HBITMAP CreateRectSurfaceTestBottomUpDib(int width, int height, BYTE *&bits)
+  {
+    BITMAPINFO info;
+    ZeroMemory(&info, sizeof(info));
+    info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    info.bmiHeader.biWidth = width;
+    info.bmiHeader.biHeight = height;
+    info.bmiHeader.biPlanes = 1;
+    info.bmiHeader.biBitCount = 32;
+    info.bmiHeader.biCompression = BI_RGB;
+    bits = 0;
+    return CreateDIBSection(
+        0, &info, DIB_RGB_COLORS, reinterpret_cast<void **>(&bits), 0, 0);
+  }
+
   void VerifyRectSurfaceTestPixel(const BYTE *bits,
                                   int width,
                                   int x,
@@ -199,6 +215,51 @@ void testWin32RectSurfaceImageKeepsBinaryAlphaPath()
 
   VerifyRectSurfaceTestPixel(targetBits, 2, 0, 0, 0, 0, 255);
   VerifyRectSurfaceTestPixel(targetBits, 2, 1, 0, 0, 255, 0);
+  SelectObject(target, oldTarget);
+  DeleteObject(targetBitmap);
+  DeleteDC(target);
+  ReleaseDC(NULL, screen);
+}
+
+// A bottom-up 32-bpp DIB taller than the Image's declared height is accepted
+// by the storage check; MaskBlt copies the declared rows from the top of the
+// stored bitmap, so the mask must be built from those same rows.
+void testWin32RectSurfaceImageMasksOversizedBottomUpDibFromTopRows()
+{
+  HDC screen = GetDC(NULL);
+  LOKA_VERIFY(screen != NULL);
+  HDC target = CreateCompatibleDC(screen);
+  LOKA_VERIFY(target != NULL);
+
+  BYTE *targetBits = 0;
+  HBITMAP targetBitmap = CreateRectSurfaceTestDib(2, 1, targetBits);
+  LOKA_VERIFY(targetBitmap != NULL && targetBits != 0);
+  HGDIOBJ oldTarget = SelectObject(target, targetBitmap);
+  LOKA_VERIFY(oldTarget != NULL && oldTarget != HGDI_ERROR);
+  FillRectSurfaceTestDib(targetBits, 2, 1, 0, 0, 255, 255);
+
+  // Stored 2x2 bottom-up, declared 2x1: the Image is the top scanline, which
+  // is memory row 1. Its alpha is (opaque, transparent); the unused bottom
+  // scanline (memory row 0) carries the inverse so a mask built from the
+  // wrong rows flips both pixels.
+  BYTE *sourceBits = 0;
+  HBITMAP sourceBitmap = CreateRectSurfaceTestBottomUpDib(2, 2, sourceBits);
+  LOKA_VERIFY(sourceBitmap != NULL && sourceBits != 0);
+  FillRectSurfaceTestDib(sourceBits, 2, 2, 0, 255, 0, 0);
+  sourceBits[(1 * 2 + 0) * 4 + 3] = 255;
+  sourceBits[(0 * 2 + 1) * 4 + 3] = 255;
+  {
+    const loka::core::resource::Image image = loka::core::resource::Image::FromNative(
+        sourceBitmap, 2, 1, &ReleaseRectSurfaceTestBitmap, 0);
+    LOKA_VERIFY(image.isValid());
+    const loka::app::RectSurfaceSprite sprite(loka::app::ImageSprite(0, 0, image));
+    RECT spriteRect = {0, 0, 2, 1};
+    LOKA_VERIFY(DrawRectSurfaceImage(target, spriteRect, sprite)
+                == loka::app::RECT_SURFACE_PAINT_SUCCEEDED);
+  }
+
+  VerifyRectSurfaceTestPixel(targetBits, 2, 0, 0, 0, 255, 0);
+  VerifyRectSurfaceTestPixel(targetBits, 2, 1, 0, 0, 0, 255);
   SelectObject(target, oldTarget);
   DeleteObject(targetBitmap);
   DeleteDC(target);

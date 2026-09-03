@@ -357,9 +357,13 @@ DrawRectSurfaceImage(HDC hdc, const RECT &spriteRect, const loka::app::RectSurfa
   const SIZE_T maskRowBytes = static_cast<SIZE_T>(((width + 31) / 32) * 4);
   ZeroMemory(maskBits, maskRowBytes * height);
   const BYTE *sourceBits = static_cast<const BYTE *>(dib.dsBm.bmBits);
+  // MaskBlt copies the Image's rows from the top of the stored bitmap, so a
+  // bottom-up DIB taller than the declared height must be indexed from its
+  // stored height, not the declared one, for the mask rows to match.
+  const int storedHeight = dib.dsBm.bmHeight < 0 ? -dib.dsBm.bmHeight : dib.dsBm.bmHeight;
   for (int y = 0; y < height; ++y)
   {
-    const int sourceY = dib.dsBmih.biHeight < 0 ? y : height - y - 1;
+    const int sourceY = dib.dsBmih.biHeight < 0 ? y : storedHeight - y - 1;
     const BYTE *sourceRow = sourceBits + sourceY * dib.dsBm.bmWidthBytes;
     BYTE *maskRow = maskBits + y * maskRowBytes;
     for (int x = 0; x < width; ++x)
