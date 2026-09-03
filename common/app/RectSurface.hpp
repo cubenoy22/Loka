@@ -2,6 +2,7 @@
 #define LOKA_APP_RECT_SURFACE_HPP
 
 #include <assert.h>
+#include <cstddef>
 #include <vector>
 #include "app/scene/Node.hpp"
 #include "app/scene/state/NodeState.hpp"
@@ -337,20 +338,25 @@ namespace loka
         this->entries_.push_back(Entry(node, extent));
       }
 
+      /** Delivers in traversal order; the last entry recorded for a node
+          wins. Delivery may re-enter (a watcher can start a nested layout
+          pass, which records newer entries and flushes them itself), so the
+          loop re-reads the vector each step, copies the entry before the
+          call, skips an entry a later record for the same node supersedes,
+          and stops when a nested flush has drained the vector. An older
+          entry therefore never overwrites a newer pass. */
       void flush()
       {
-        Entries delivery;
-        delivery.swap(this->entries_);
-        Entries::iterator entry = delivery.begin();
-        for (; entry != delivery.end(); ++entry)
+        for (std::size_t i = 0; i < this->entries_.size(); ++i)
         {
-          entry->node->storeLaidOutExtent(entry->extent);
+          const Entry entry = this->entries_[i];
+          if (this->hasLaterEntryFor(entry.node, i))
+          {
+            continue;
+          }
+          entry.node->storeLaidOutExtent(entry.extent);
         }
-        delivery.clear();
-        if (this->entries_.empty())
-        {
-          this->entries_.swap(delivery);
-        }
+        this->entries_.clear();
       }
 
     private:
@@ -367,6 +373,19 @@ namespace loka
       };
 
       typedef std::vector<Entry> Entries;
+
+      bool hasLaterEntryFor(const RectSurfaceNode *node, std::size_t index) const
+      {
+        for (std::size_t i = index + 1; i < this->entries_.size(); ++i)
+        {
+          if (this->entries_[i].node == node)
+          {
+            return true;
+          }
+        }
+        return false;
+      }
+
       Entries entries_;
     };
 

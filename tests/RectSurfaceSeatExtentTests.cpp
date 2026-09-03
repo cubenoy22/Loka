@@ -348,3 +348,69 @@ void testRectSurfaceScrollViewExtentUsesContentCoordinates()
 
   verifyFrame(extent.get(), 10, 20, 100, 40);
 }
+
+namespace
+{
+  // A watcher on the first surface's fact records a newer extent for the
+  // second surface and flushes it (a nested layout pass), while the outer
+  // flush still holds the second surface's older entry.
+  struct NestedLedgerRecorder
+  {
+    NestedLedgerRecorder()
+        : ledger(0),
+          later(0),
+          calls(0)
+    {
+    }
+
+    static void OnFirstExtent(void *userData)
+    {
+      NestedLedgerRecorder *self = static_cast<NestedLedgerRecorder *>(userData);
+      if (!self || !self->ledger || !self->later)
+      {
+        return;
+      }
+      ++self->calls;
+      if (self->calls == 1)
+      {
+        self->ledger->record(self->later, loka::core::Frame(0, 0, 20, 20));
+        self->ledger->flush();
+      }
+    }
+
+    loka::app::RectSurfaceExtentLedger *ledger;
+    loka::app::RectSurfaceNode *later;
+    int calls;
+  };
+} // namespace
+
+void testRectSurfaceExtentLedgerNestedFlushKeepsNewerEntry()
+{
+  loka::core::MutableState<loka::core::Frame> firstExtent;
+  loka::core::MutableState<loka::core::Frame> laterExtent;
+  loka::core::PushStateTracker tracker;
+  tracker.addState(&firstExtent);
+  tracker.addState(&laterExtent);
+  loka::app::scene::NodeState<loka::core::Frame> firstState(&firstExtent, &tracker);
+  loka::app::scene::NodeState<loka::core::Frame> laterState(&laterExtent, &tracker);
+  loka::app::RectSurfaceProps firstProps;
+  firstProps.laidOutExtent(firstState);
+  loka::app::RectSurfaceProps laterProps;
+  laterProps.laidOutExtent(laterState);
+  loka::app::RectSurfaceNode first(firstProps);
+  loka::app::RectSurfaceNode later(laterProps);
+
+  loka::app::RectSurfaceExtentLedger ledger;
+  NestedLedgerRecorder recorder;
+  recorder.ledger = &ledger;
+  recorder.later = &later;
+  firstExtent.bind(&NestedLedgerRecorder::OnFirstExtent, &recorder, false);
+
+  ledger.record(&first, loka::core::Frame(0, 0, 10, 10));
+  ledger.record(&later, loka::core::Frame(0, 0, 2, 2));
+  ledger.flush();
+
+  LOKA_VERIFY(recorder.calls == 1);
+  LOKA_VERIFY(firstExtent.get() == loka::core::Frame(0, 0, 10, 10));
+  LOKA_VERIFY(laterExtent.get() == loka::core::Frame(0, 0, 20, 20));
+}
