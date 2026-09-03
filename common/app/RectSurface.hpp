@@ -385,22 +385,25 @@ namespace loka
       /** Delivers in traversal order; the last entry recorded for a node
           wins. Delivery may re-enter (a watcher can start a nested layout
           pass, which records newer entries and flushes them itself), so the
-          loop re-reads the vector each step, copies the entry before the
-          call, skips an entry a later record for the same node supersedes,
-          and stops when a nested flush has drained the vector. An older
-          entry therefore never overwrites a newer pass. */
+          loop pops each row before delivering it, skips a row a later record
+          for the same node supersedes, and stops when a nested flush has
+          drained the vector. An older entry therefore never overwrites a
+          newer pass, and a cancel raised during delivery cannot skip a row. */
       void flush()
       {
-        for (std::size_t i = 0; i < this->entries_.size(); ++i)
+        while (!this->entries_.empty())
         {
-          const Entry entry = this->entries_[i];
-          if (this->hasLaterEntryFor(entry.node, i))
+          // The row leaves the ledger before any app code runs, so a
+          // cancel or discard raised by a watcher acts only on the rows
+          // that are still pending and the iteration cannot skip one.
+          const Entry entry = this->entries_.front();
+          this->entries_.erase(this->entries_.begin());
+          if (this->hasLaterEntryFor(entry.node, 0))
           {
             continue;
           }
           entry.node->storeLaidOutExtent(entry.extent);
         }
-        this->entries_.clear();
       }
 
     private:
@@ -418,9 +421,9 @@ namespace loka
 
       typedef std::vector<Entry> Entries;
 
-      bool hasLaterEntryFor(const RectSurfaceNode *node, std::size_t index) const
+      bool hasLaterEntryFor(const RectSurfaceNode *node, std::size_t from) const
       {
-        for (std::size_t i = index + 1; i < this->entries_.size(); ++i)
+        for (std::size_t i = from; i < this->entries_.size(); ++i)
         {
           if (this->entries_[i].node == node)
           {

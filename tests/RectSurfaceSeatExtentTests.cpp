@@ -581,3 +581,67 @@ void testRectSurfaceRetireFactDuringDeliveryPublishesNoExtent()
 {
   verifySiblingDetachedDuringDeliveryPublishesNoExtent(loka::app::scene::NODE_FACT_RETIRED);
 }
+
+namespace
+{
+  // The first surface's watcher cancels that same surface's rows while two
+  // more surfaces are still pending (the surface detached itself).
+  struct CancelSelfOnExtent
+  {
+    CancelSelfOnExtent()
+        : ledger(0),
+          self(0),
+          calls(0)
+    {
+    }
+
+    static void OnExtent(void *userData)
+    {
+      CancelSelfOnExtent *observer = static_cast<CancelSelfOnExtent *>(userData);
+      if (!observer)
+      {
+        return;
+      }
+      ++observer->calls;
+      if (observer->ledger && observer->self)
+      {
+        observer->ledger->cancel(observer->self);
+      }
+    }
+
+    loka::app::RectSurfaceExtentLedger *ledger;
+    loka::app::RectSurfaceNode *self;
+    int calls;
+  };
+} // namespace
+
+void testRectSurfaceExtentLedgerCancelDuringDeliveryKeepsNextRow()
+{
+  loka::core::MutableState<loka::core::Frame> extents[3];
+  loka::core::PushStateTracker tracker;
+  loka::app::RectSurfaceProps props[3];
+  for (int i = 0; i < 3; ++i)
+  {
+    tracker.addState(&extents[i]);
+    props[i].laidOutExtent(loka::app::scene::NodeState<loka::core::Frame>(&extents[i], &tracker));
+  }
+  loka::app::RectSurfaceNode first(props[0]);
+  loka::app::RectSurfaceNode second(props[1]);
+  loka::app::RectSurfaceNode third(props[2]);
+
+  loka::app::RectSurfaceExtentLedger ledger;
+  CancelSelfOnExtent observer;
+  observer.ledger = &ledger;
+  observer.self = &first;
+  extents[0].bind(&CancelSelfOnExtent::OnExtent, &observer, false);
+
+  ledger.record(&first, loka::core::Frame(0, 0, 1, 1));
+  ledger.record(&second, loka::core::Frame(0, 0, 2, 2));
+  ledger.record(&third, loka::core::Frame(0, 0, 3, 3));
+  ledger.flush();
+
+  LOKA_VERIFY(observer.calls == 1);
+  LOKA_VERIFY(extents[0].get() == loka::core::Frame(0, 0, 1, 1));
+  LOKA_VERIFY(extents[1].get() == loka::core::Frame(0, 0, 2, 2));
+  LOKA_VERIFY(extents[2].get() == loka::core::Frame(0, 0, 3, 3));
+}

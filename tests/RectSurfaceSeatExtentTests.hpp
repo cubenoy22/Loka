@@ -16,5 +16,6 @@ void testRectSurfaceRefusedScrollViewContentPublishesNoExtent();
 void testRectSurfaceRetiredDuringDeliveryPublishesNoExtent();
 void testRectSurfaceDetachedRetainedDuringDeliveryPublishesNoExtent();
 void testRectSurfaceRetireFactDuringDeliveryPublishesNoExtent();
+void testRectSurfaceExtentLedgerCancelDuringDeliveryKeepsNextRow();
 
 #endif // LOKA_TESTS_RECT_SURFACE_SEAT_EXTENT_TESTS_HPP
