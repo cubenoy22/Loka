@@ -391,8 +391,6 @@ MacScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *su
   }
   const int width = surface->props.width_ > 0 ? surface->props.width_ : state.width;
   const int height = surface->props.height_ > 0 ? surface->props.height_ : state.height;
-  this->rectSurfaceExtentLedger_.record(
-      surface, loka::core::Frame(state.x, state.y, width, height));
   MacRectSurfaceContext *ctx = static_cast<MacRectSurfaceContext *>(surface->getContext());
   if (ctx)
   {
@@ -418,6 +416,10 @@ MacScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *su
     surface->setContext(ctx);
     ctx->readLifecycleFactOnAttach();
   }
+  // The seat is a fact only once the surface was actually placed: a refused
+  // projection or a failed native context records nothing.
+  this->rectSurfaceExtentLedger_.record(
+      surface, loka::core::Frame(state.x, state.y, width, height));
   return LayoutNodeResult(
       state.width, state.y + height + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
 }

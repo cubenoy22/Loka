@@ -414,3 +414,25 @@ void testRectSurfaceExtentLedgerNestedFlushKeepsNewerEntry()
   LOKA_VERIFY(firstExtent.get() == loka::core::Frame(0, 0, 10, 10));
   LOKA_VERIFY(laterExtent.get() == loka::core::Frame(0, 0, 20, 20));
 }
+
+// A refused layout (ScrollView offset beyond the short range) places nothing,
+// so no seat fact is published for the surface.
+void testRectSurfaceRefusedProjectionPublishesNoExtent()
+{
+  loka::core::MutableState<int> offset(40000);
+  loka::core::MutableState<loka::core::Frame> extent(loka::core::Frame(1, 2, 3, 4));
+  loka::core::PushStateTracker tracker;
+  tracker.addState(&offset);
+  tracker.addState(&extent);
+  loka::app::scene::NodeState<int> offsetState(&offset, &tracker);
+  loka::app::scene::NodeState<loka::core::Frame> extentState(&extent, &tracker);
+  loka::app::RectSurfaceProps props;
+  props.laidOutExtent(extentState);
+  loka::app::ScrollViewNode scrollView((loka::app::ScrollViewProps(offsetState)));
+  scrollView.addChild(new loka::app::RectSurfaceNode(props));
+
+  NullScenePlatformController platform;
+  platform.projectLayoutForTesting(&scrollView, layoutState(10, 20, 100, 40));
+
+  verifyFrame(extent.get(), 1, 2, 3, 4);
+}

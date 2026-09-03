@@ -11,5 +11,6 @@ void testRectSurfaceExtentPublicationCanReleaseContextAfterLayout();
 void testRectSurfaceExtentPublicationFollowsLayoutTraversal();
 void testRectSurfaceScrollViewExtentUsesContentCoordinates();
 void testRectSurfaceExtentLedgerNestedFlushKeepsNewerEntry();
+void testRectSurfaceRefusedProjectionPublishesNoExtent();
 
 #endif // LOKA_TESTS_RECT_SURFACE_SEAT_EXTENT_TESTS_HPP

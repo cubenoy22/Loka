@@ -528,8 +528,6 @@ int NullScenePlatformController::layoutNode(loka::app::scene::Node *node,
   {
     const short width = surface->props.width_ > 0 ? surface->props.width_ : state.width;
     const short height = surface->props.height_ > 0 ? surface->props.height_ : state.height;
-    this->rectSurfaceExtentLedger_.record(
-        surface, loka::core::Frame(state.x, state.y, width, height));
     loka::app::scene::LayoutState projectedState;
     if (!this->projectionParentScopes_.current().project(state, projectedState))
     {
@@ -548,6 +546,10 @@ int NullScenePlatformController::layoutNode(loka::app::scene::Node *node,
       this->refuseScrollViewShortRange();
       return state.y;
     }
+    // The seat is a fact only once the surface was actually placed: a
+    // refused projection, context, or restore records nothing.
+    this->rectSurfaceExtentLedger_.record(
+        surface, loka::core::Frame(state.x, state.y, width, height));
     return contentResult;
   }
 
