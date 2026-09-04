@@ -140,7 +140,7 @@ while UB2 (`arm64;x86_64`) starts with Apple Silicon-capable Xcode releases.
   - Defaults: `DEPLOYMENT_TARGET=10.4`, `ARCHS=ppc;i386`, `MAC_OS_10_4=1`
   - Intended for Snow Leopard environments with CMake/Ninja and the 10.4u SDK installed.
   - The previous five-target default set is build-verified on Snow Leopard with Xcode 3.2.6; expected merged slices are `ppc i386`. The newly enumerated ScrapbookUI bundle has not yet been build-verified on that toolchain.
-  - By default builds all six shipping app targets, including the bundled `ScrapbookUIMacOS`. Plain executables are merged directly under `universal`; ScrapbookUI is merged as `universal/ScrapbookUIMacOS.app` so its `Resources/ASSETS.LRP` remains with the executable.
+  - By default builds all seven shipping app targets, including the bundled `ScrapbookUIMacOS`. Plain executables are merged directly under `universal`; ScrapbookUI is merged as `universal/ScrapbookUIMacOS.app` so its `Resources/ASSETS.LRP` remains with the executable.
   - Xcode UI builds using a Snow Leopard-partition Xcode 3.2.6 install have also been build-verified from Lion/Mountain Lion hosts.
   - CLI builds through an Xcode 3.2.6 install on a newer host (`xcode-select` cannot select it there) work by bypassing `xcode-select`/`xcrun` rather than fighting them — verified end to end on Mavericks 10.9.5 (all five example targets, `ppc i386` fat binaries):
 
@@ -168,7 +168,7 @@ while UB2 (`arm64;x86_64`) starts with Apple Silicon-capable Xcode releases.
   - Prefers `gcc-4.2` / `g++-4.2` resolved through `xcrun` from the selected Xcode, then falls back to `PATH`.
   - The previous five-target default set is build-verified on Snow Leopard with Xcode 3.2.6; expected merged slices are `ppc7400 i386 x86_64`. The newly enumerated ScrapbookUI bundle has not yet been build-verified on that toolchain.
   - Treat this as a Snow Leopard CLI verification path, not a Leopard-hosted script path.
-  - By default builds all six shipping app targets, including the bundled `ScrapbookUIMacOS`, and creates merged outputs in `build/macos-10.5-ub1/universal`. Plain executables are emitted directly there; ScrapbookUI remains a bundle so its Resources stay intact.
+  - By default builds all seven shipping app targets, including the bundled `ScrapbookUIMacOS`, and creates merged outputs in `build/macos-10.5-ub1/universal`. Plain executables are emitted directly there; ScrapbookUI remains a bundle so its Resources stay intact.
 
 - `scripts/macos-standalone-release-ub1.sh tiger|leopard`
   - Builds the five autonomous Standalone Loop bundles plus the interactive
@@ -182,7 +182,7 @@ while UB2 (`arm64;x86_64`) starts with Apple Silicon-capable Xcode releases.
     `ppc7400 i386 x86_64`.
   - Run this with the Xcode 3.2.6 build environment after selecting the same
     SDK and compiler variables required by the underlying build script. The
-    stage is published only after all six applications contain every expected
+    stage is published only after all seven applications contain every expected
     architecture; Scrapbook's `ASSETS.LRP` remains inside its bundle.
   - The complete autonomous sets are build-verified through the Mavericks
     10.9.5 + Xcode 3.2.6 CLI route: Tiger as `ppc i386`, Leopard as
@@ -206,7 +206,7 @@ while UB2 (`arm64;x86_64`) starts with Apple Silicon-capable Xcode releases.
 - `scripts/macos/build-ub2.sh`
   - Universal Binary 2 path for modern macOS.
   - Defaults: `DEPLOYMENT_TARGET=11.0`, `ARCHS=arm64;x86_64`, `MAC_OS_10_4=0`
-  - By default builds all six shipping app targets: `LokaFloppyBirdMacOS`, `LokaHelloMacOS`, `LokaMineMacOS`, `LokaSimpleViewerMacOS`, `ScrapbookUIMacOS`, and `LokaTutorialMacOS`.
+  - By default builds all seven shipping app targets: `LokaFloppyBirdMacOS`, `LokaHelloMacOS`, `LokaMineMacOS`, `LokaSimpleViewerMacOS`, `LokaSmirkBenchMacOS`, `ScrapbookUIMacOS`, and `LokaTutorialMacOS`.
   - Treat this as a direct CLI build path for the UB2 generation, not as a fallback for legacy UB1 project generation.
 
 - `scripts/macos/build.sh`
