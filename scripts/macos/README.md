@@ -182,7 +182,7 @@ while UB2 (`arm64;x86_64`) starts with Apple Silicon-capable Xcode releases.
     `ppc7400 i386 x86_64`.
   - Run this with the Xcode 3.2.6 build environment after selecting the same
     SDK and compiler variables required by the underlying build script. The
-    stage is published only after all seven applications contain every expected
+    stage is published only after all six applications contain every expected
     architecture; Scrapbook's `ASSETS.LRP` remains inside its bundle.
   - The complete autonomous sets are build-verified through the Mavericks
     10.9.5 + Xcode 3.2.6 CLI route: Tiger as `ppc i386`, Leopard as

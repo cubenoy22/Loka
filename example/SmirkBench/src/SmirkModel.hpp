@@ -2,6 +2,7 @@
 #define LOKA_SMIRK_BENCH_SMIRK_MODEL_HPP
 
 #include <assert.h>
+#include <limits.h>
 #include "app/RectSurface.hpp"
 #include "core/StateTracker.hpp"
 #include "core/util/StateTrackerGuard.hpp"
@@ -69,8 +70,8 @@ namespace smirkbench
           surfaceModel_(),
           faces_(),
           faceCount_(0),
-          boundsWidth_(this->nonnegative(width)),
-          boundsHeight_(this->nonnegative(height)),
+          boundsWidth_(this->clampWall(width)),
+          boundsHeight_(this->clampWall(height)),
           accumulatedSeconds_(0.0),
           cachedModel_()
     {
@@ -135,10 +136,13 @@ namespace smirkbench
 
     /** Assigns Window geometry its app meaning as bounce walls and reclamps
         every face before publishing the new surface model. */
-    void updateBounds(short width, short height)
+    /** The bounce walls take a laid-out seat (int Frame axes from the rail)
+        and clamp it into sprite range: nothing below zero, nothing past
+        SHRT_MAX. */
+    void updateBounds(int width, int height)
     {
-      const short nextWidth = this->nonnegative(width);
-      const short nextHeight = this->nonnegative(height);
+      const short nextWidth = this->clampWall(width);
+      const short nextHeight = this->clampWall(height);
       if (this->boundsWidth_ == nextWidth && this->boundsHeight_ == nextHeight)
       {
         return;
@@ -199,9 +203,13 @@ namespace smirkbench
 #endif
 
   private:
-    static short nonnegative(short value)
+    static short clampWall(int value)
     {
-      return value > 0 ? value : 0;
+      if (value <= 0)
+      {
+        return 0;
+      }
+      return value > SHRT_MAX ? SHRT_MAX : static_cast<short>(value);
     }
 
     Face spawnFace(short index) const
