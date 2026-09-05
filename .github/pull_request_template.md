@@ -18,6 +18,16 @@
 | --- | --- | --- |
 | <!-- platform and OS range --> | <!-- `build-verified` or `runtime-verified` --> | <!-- command/result --> |
 
+## Review risk profile
+
+<!-- Use the complexity gate in AGENTS.md. Flags route review; they are not a quality score. -->
+
+Total triggered flags: <!-- 0 or count -->
+
+| Triggered flag | Required review lens | Evidence |
+| --- | --- | --- |
+| <!-- One row per flag; write `None (0)` when no flag applies. --> | <!-- review focus or named repository lens --> | <!-- result or link to Verification evidence --> |
+
 ## Documentation
 
 - [ ] Not a user-facing surface change.
