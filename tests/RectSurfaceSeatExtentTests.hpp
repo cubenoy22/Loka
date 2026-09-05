@@ -5,6 +5,7 @@ void testRectSurfaceFillSeatReportsRowAllocation();
 void testRectSurfaceExplicitSizeKeepsRowConsultationAndReportsDeclaredExtent();
 void testRectSurfaceFillSeatReportsColumnRemainingHeight();
 void testRectSurfaceFillSeatBelowButtonInColumnTakesTheRemainder();
+void testRectSurfaceFillSeatBelowEditTextInColumnTakesTheRemainder();
 void testRectSurfaceExtentChangesOnlyDuringRailLayout();
 void testRectSurfaceWithoutExtentStateLaysOutNormally();
 void testRectSurfaceNodeStatePublicationUsesOwnerTracker();

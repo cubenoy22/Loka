@@ -4,6 +4,7 @@
 #include "app/layout/FallbackControlMetrics.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
 #include "app/nodes/controls/Button.hpp"
+#include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/nestable/ScrollView.hpp"
@@ -278,6 +279,33 @@ void testRectSurfaceFillSeatBelowButtonInColumnTakesTheRemainder()
   platform.projectLayoutForTesting(&column, layoutState(0, 0, 479, 300));
 
   const int advance = loka::app::layout::FallbackControlMetrics::kButtonHeight
+                      + loka::app::layout::FallbackControlMetrics::kVerticalSpacing;
+  verifyFrame(extent.get(), 0, advance, 479, 300 - advance);
+}
+
+void testRectSurfaceFillSeatBelowEditTextInColumnTakesTheRemainder()
+{
+  // Declared first so it outlives the nodes: their contexts deliver the
+  // terminal fact to this controller when the nodes are destroyed.
+  NullScenePlatformController platform;
+  loka::core::MutableState<loka::core::Frame> extent;
+  loka::core::PushStateTracker tracker;
+  tracker.addState(&extent);
+  loka::app::scene::NodeState<loka::core::Frame> extentState(&extent, &tracker);
+  loka::app::RectSurfaceProps surfaceProps;
+  surfaceProps.laidOutExtent(extentState);
+
+  // An EditText above a fill-seat surface: the Win32 and macOS EditText
+  // contexts seat the control at kEditTextHeight and advance the Column by
+  // that plus the vertical spacing, so the surface takes the rest. The Null
+  // rail must not hand the EditText the whole seat (the #591 shape).
+  loka::app::StackNode column((loka::app::StackProps(loka::app::STACK_AXIS_COLUMN)));
+  column.addChild(new loka::app::EditTextNode((loka::app::EditTextProps())));
+  column.addChild(new loka::app::RectSurfaceNode(surfaceProps));
+
+  platform.projectLayoutForTesting(&column, layoutState(0, 0, 479, 300));
+
+  const int advance = loka::app::layout::FallbackControlMetrics::kEditTextHeight
                       + loka::app::layout::FallbackControlMetrics::kVerticalSpacing;
   verifyFrame(extent.get(), 0, advance, 479, 300 - advance);
 }
