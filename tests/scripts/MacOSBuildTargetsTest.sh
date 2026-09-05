@@ -10,10 +10,10 @@ fail() {
   exit 1
 }
 
-EXPECTED_TARGETS=$'LokaFloppyBirdMacOS\nLokaHelloMacOS\nLokaMineMacOS\nLokaSimpleViewerMacOS\nScrapbookUIMacOS\nLokaTutorialMacOS'
+EXPECTED_TARGETS=$'LokaFloppyBirdMacOS\nLokaHelloMacOS\nLokaMineMacOS\nLokaSimpleViewerMacOS\nLokaSmirkBenchMacOS\nScrapbookUIMacOS\nLokaTutorialMacOS'
 ACTUAL_TARGETS="$(loka_known_targets)"
 [[ "${ACTUAL_TARGETS}" == "${EXPECTED_TARGETS}" ]] ||
-  fail "default target manifest does not contain the six shipping examples"
+  fail "default target manifest does not contain the seven shipping examples"
 
 EXPECTED_STANDALONE_RELEASE_TARGETS=$'LokaSimpleViewerMacOS\nLokaScrapbookStandaloneLoopMacOS\nLokaHelloWorldStandaloneLoopMacOS\nLokaTutorialStandaloneLoopMacOS\nLokaMineSweeperStandaloneLoopMacOS\nLokaFloppyBirdStandaloneLoopMacOS'
 ACTUAL_STANDALONE_RELEASE_TARGETS="$(loka_targets_for_selection standalone-release)"
@@ -43,7 +43,7 @@ unset TARGET || true
 unset TARGET_SET || true
 loka_build_requested_or_known_targets "${FAKE_ROOT}"
 [[ "$(cat "${LOKA_TEST_BUILD_LOG}")" == "${EXPECTED_TARGETS}" ]] ||
-  fail "default build loop did not request all six shipping examples"
+  fail "default build loop did not request all seven shipping examples"
 
 : >"${LOKA_TEST_BUILD_LOG}"
 export TARGET_SET=standalone-release

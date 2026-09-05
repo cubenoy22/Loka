@@ -42,6 +42,14 @@
       "preLaunchTask": "Build: macOS FloppyBird"
     },
     {
+      "name": "Run (macOS SmirkBench)",
+      "type": "lldb-dap",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/macos/Debug/example/SmirkBench/LokaSmirkBenchMacOS",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Build: macOS SmirkBench"
+    },
+    {
       "name": "Run (macOS Tutorial)",
       "type": "lldb-dap",
       "request": "launch",
@@ -93,6 +101,15 @@
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "preLaunchTask": "Build: Win32 FloppyBird"
+    },
+    {
+      "name": "Run (Windows SmirkBench)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/win32/Debug/example/SmirkBench/LokaSmirkBenchWin32.exe",
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "preLaunchTask": "Build: Win32 SmirkBench"
     },
     {
       "name": "Run (Windows Tutorial)",

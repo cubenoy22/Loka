@@ -5623,7 +5623,7 @@ void testLokaFlowDslV1Core()
     LOKA_VERIFY(chain.run());
     assert(ctx.createImageCalls_ == 1);
     assert(image.isValid());
-    assert(image.width() == 16);
+    LOKA_VERIFY(image.width() == 16);
     assert(image.height() == 16);
     assert(capture.calls == 0);
   }
@@ -5869,7 +5869,7 @@ void testLokaFlowDslV1Core()
     assert(capture.calls == 0);
     assert(ctx.createImageCalls_ == 1);
     assert(image.isValid());
-    assert(image.width() == 16);
+    LOKA_VERIFY(image.width() == 16);
     assert(image.height() == 16);
 
     std::remove(tmpPath);
