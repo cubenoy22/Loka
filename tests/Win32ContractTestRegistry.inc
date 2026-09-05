@@ -33,3 +33,4 @@ LOKA_TEST(testWin32EveryTickGateDoesNotDispatchOnEarlyMessages)
 
 LOKA_TEST(testWin32RectSurfaceTicksRepaintOnlySurface)
 LOKA_TEST(testWin32ZStackTextShowsSiblingBeneath)
+LOKA_TEST(testWin32ManifestDeclaresTheRunningWindowsVersion)

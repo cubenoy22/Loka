@@ -136,6 +136,12 @@ namespace loka
         {
           return fallbackHeight;
         }
+        if (child->asOpenFileDialogNode())
+        {
+          // Seats nothing (see preferredChildWidthForRow): it must not raise
+          // an aligned Row's height either.
+          return 0;
+        }
         if (child->asButtonNode())
         {
           return buttonHeight;

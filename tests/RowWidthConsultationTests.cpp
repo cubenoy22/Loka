@@ -1,5 +1,7 @@
 #include "RowWidthConsultationTests.hpp"
 
+#include "app/OpenFileDialog.hpp"
+#include "app/RectSurface.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
 #include "app/nodes/ImageView.hpp"
 #include "app/nodes/Text.hpp"
@@ -10,6 +12,7 @@
 #include "app/nodes/nestable/Show.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/state/NodeState.hpp"
+#include "core/StateTracker.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
 #include "support/TestVerify.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
@@ -196,6 +199,63 @@ void testRowEmptyFragmentConsumesNeitherSeatNorGap()
   LOKA_VERIFY(record.calls == 1);
   LOKA_VERIFY(record.state.x == 0);
   LOKA_VERIFY(record.state.width == 500);
+}
+
+void testRowMaterializedDialogConsumesNeitherSeatNorGap()
+{
+  // A Show-gated OpenFileDialog materializes as a Fragment holding the
+  // dialog node while the dialog is up. The Row's width consultation must
+  // treat it like an empty branch: no seat, no gap, so the visual sibling
+  // keeps the whole width whether the dialog is open or not (#588).
+  loka::core::EmitterState onResult;
+  loka::app::OpenFileDialogProps dialogProps;
+  dialogProps.onResult(&onResult);
+  loka::app::FragmentNode *branch = new loka::app::FragmentNode((loka::app::FragmentProps()));
+  branch->setPropsTypeId(loka::app::FragmentProps::staticTypeId());
+  branch->addChild(new loka::app::OpenFileDialogNode(dialogProps));
+
+  loka::app::StackNode row((loka::app::StackProps(loka::app::STACK_AXIS_ROW)));
+  row.addChild(new RowSeatTextNode(loka::app::TextProps("text")));
+  row.addChild(branch);
+  row.addChild(new loka::app::OpenFileDialogNode(dialogProps));
+
+  RowTextSeatRecord record;
+  g_rowTextSeatRecord = &record;
+  NullScenePlatformController platform;
+  platform.projectLayoutForTesting(&row, rowState(500));
+  g_rowTextSeatRecord = 0;
+
+  LOKA_VERIFY(record.calls == 1);
+  LOKA_VERIFY(record.state.x == 0);
+  LOKA_VERIFY(record.state.width == 500);
+}
+
+void testRowMaterializedDialogDoesNotRaiseAlignedRowHeight()
+{
+  // An aligned Row measures every child for the row height. The dialog
+  // contributes no height, so a surface shorter than the fallback text
+  // height keeps the row at its own height and lands at y=0 instead of
+  // being centred inside a 20px row the dialog would have opened (#588).
+  NullScenePlatformController platform;
+  loka::core::MutableState<loka::core::Frame> extent;
+  loka::core::PushStateTracker tracker;
+  tracker.addState(&extent);
+  loka::app::scene::NodeState<loka::core::Frame> extentState(&extent, &tracker);
+  loka::app::RectSurfaceProps surfaceProps;
+  surfaceProps.size(50, 8).laidOutExtent(extentState);
+  loka::core::EmitterState onResult;
+  loka::app::OpenFileDialogProps dialogProps;
+  dialogProps.onResult(&onResult);
+
+  loka::app::StackProps rowProps(loka::app::STACK_AXIS_ROW);
+  rowProps.alignVertical(loka::app::VERTICAL_ALIGNMENT_CENTER);
+  loka::app::StackNode row(rowProps);
+  row.addChild(new loka::app::RectSurfaceNode(surfaceProps));
+  row.addChild(new loka::app::OpenFileDialogNode(dialogProps));
+
+  platform.projectLayoutForTesting(&row, rowState(500));
+
+  LOKA_VERIFY(extent.get() == loka::core::Frame(0, 0, 50, 8));
 }
 
 void testRowBranchArmSwitchRelayoutsWidthConsultation()
