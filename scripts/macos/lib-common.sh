@@ -10,6 +10,7 @@ loka_target_manifest() {
     "LokaHelloMacOS|default|executable|example/HelloWorld/LokaHelloMacOS" \
     "LokaMineMacOS|default|executable|example/MineSweeper/LokaMineMacOS" \
     "LokaSimpleViewerMacOS|default,standalone-release|executable|example/SimpleViewer/LokaSimpleViewerMacOS" \
+    "LokaSmirkBenchMacOS|default|executable|example/SmirkBench/LokaSmirkBenchMacOS" \
     "ScrapbookUIMacOS|default|bundle|example/ScrapbookUI/ScrapbookUIMacOS.app/Contents/MacOS/ScrapbookUIMacOS" \
     "LokaTutorialMacOS|default|executable|example/Tutorial/LokaTutorialMacOS" \
     "LokaScrapbookStandaloneFlowMacOS|explicit|bundle|apple/macos/LokaScrapbookStandaloneFlowMacOS.app/Contents/MacOS/LokaScrapbookStandaloneFlowMacOS" \

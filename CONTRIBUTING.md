@@ -15,6 +15,9 @@ Every PR must include:
 - Change summary.
 - Supported OS range for the change (for example: `10.4-10.6`, `10.7+`, `11+`).
 - Verification type for each claimed platform: `build-verified` (compile/link passed) or `runtime-verified` (app launched and behavior checked).
+- A `Review risk profile` produced from the complexity gate in
+  [AGENTS.md](AGENTS.md#debugging-and-review), including an explicit zero when
+  no flag is triggered.
 
 ## Testing Requirements
 
