@@ -178,7 +178,7 @@ namespace simpleviewer
       this->state(this->chooserResult_, loka::app::FileChooserResult());
       this->state(this->chooserMessage_, loka::core::String::Literal("(none)"));
       this->state(this->image_, loka::core::resource::Image::Empty());
-      this->state(this->navMode_, static_cast<int>(NAV_WIDE));
+      this->state(this->navMode_, NAV_WIDE);
       this->state(this->navOpen_, false);
       this->state(this->scrollOffset_, 0);
     }
@@ -194,13 +194,13 @@ namespace simpleviewer
       using namespace loka::app;
       this->props.assertInitialized();
 
-      MatchDefinition<int> nav = Match(*this->navMode_.state());
+      MatchDefinition<NavMode> nav = Match(*this->navMode_.state());
       nav.arm(NAV_WIDE, this->navPane(false))
           .arm(NAV_NARROW_OPEN, this->navPane(true))
           .otherwise(Fragment());
       nav.setNodeTag(kNavSeatTag);
 
-      MatchDefinition<int> navToggle = Match(*this->navMode_.state());
+      MatchDefinition<NavMode> navToggle = Match(*this->navMode_.state());
       navToggle.arm(NAV_NARROW_CLOSED, this->navToggleButton())
           .otherwise(Fragment());
       navToggle.setNodeTag(kNavToggleSeatTag);
@@ -342,7 +342,7 @@ namespace simpleviewer
       }
       const loka::core::Frame frame = window->nativeFrame().get();
       const bool narrow = frame.hasSize() && frame.width > 0 && frame.width < kNarrowBreakpoint;
-      const int mode = narrow
+      const NavMode mode = narrow
                            ? (this->navOpen_.get() ? NAV_NARROW_OPEN : NAV_NARROW_CLOSED)
                            : NAV_WIDE;
       if (this->navMode_.get() == mode)
@@ -422,7 +422,7 @@ namespace simpleviewer
     loka::app::scene::NodeState<loka::app::FileChooserResult> chooserResult_;
     loka::app::scene::NodeState<loka::core::String> chooserMessage_;
     loka::app::scene::NodeState<loka::core::resource::Image> image_;
-    loka::app::scene::NodeState<int> navMode_;
+    loka::app::scene::NodeState<NavMode> navMode_;
     loka::app::scene::NodeState<bool> navOpen_;
     loka::app::scene::NodeState<int> scrollOffset_;
     loka::core::EmitterState toggleNavEvent_;
