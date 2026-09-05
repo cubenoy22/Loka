@@ -882,6 +882,26 @@
       "problemMatcher": []
     },
     {
+      "label": "Prepare SCSI Dev Disk: SmirkBench",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
+      "args": [
+        "${workspaceFolder}/build/retro68/68k/Release/example/SmirkBench/LokaSmirkBench68K.bin"
+      ],
+      "windows": {
+        "command": "powershell.exe",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-dev-disk.ps1",
+          "build/retro68/68k/Release/example/SmirkBench/LokaSmirkBench68K.bin"
+        ]
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Prepare SCSI Dev Disk: Tutorial",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
@@ -1417,6 +1437,16 @@
       "dependsOn": [
         "Build: Retro68 68K FloppyBird",
         "Prepare SCSI Dev Disk: FloppyBird",
+        "MAME: Start"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Start in MAME via SCSI: SmirkBench",
+      "dependsOn": [
+        "Build: Retro68 68K SmirkBench",
+        "Prepare SCSI Dev Disk: SmirkBench",
         "MAME: Start"
       ],
       "dependsOrder": "sequence",
