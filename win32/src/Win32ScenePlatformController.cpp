@@ -476,21 +476,58 @@ UINT Win32ScenePlatformController::pendingInvalidationFlags(const PendingInvalid
   return flags;
 }
 
-void Win32ScenePlatformController::synchronize()
+void Win32ScenePlatformController::flushPendingInvalidations(bool updateNow)
 {
-  dumpRedrawStatsIfNeeded();
-  for (size_t i = 0; i < pendingInvalidations_.size(); ++i)
+  for (size_t i = 0; i < this->pendingInvalidations_.size(); ++i)
   {
-    PendingInvalidate &entry = pendingInvalidations_[i];
+    const PendingInvalidate &entry = this->pendingInvalidations_[i];
     if (!IsWindow(entry.hwnd))
     {
       continue;
     }
-    const UINT flags = pendingInvalidationFlags(entry) | RDW_UPDATENOW;
-    RedrawWindow(entry.hwnd, entry.fullWindow ? NULL : &entry.rect, NULL, flags);
+    RedrawWindow(entry.hwnd, entry.fullWindow ? NULL : &entry.rect, NULL,
+                 pendingInvalidationFlags(entry));
+    if (!(GetWindowLongPtrW(entry.hwnd, GWL_STYLE) & WS_CHILD))
+    {
+      continue;
+    }
+    RECT damage;
+    if (!GetClientRect(entry.hwnd, &damage))
+    {
+      continue;
+    }
+    if (!entry.fullWindow && !IntersectRect(&damage, &damage, &entry.rect))
+    {
+      continue;
+    }
+    MapWindowPoints(entry.hwnd, NULL, reinterpret_cast<POINT *>(&damage), 2);
+    // A transparent sibling needs the freshly painted ground as well as its
+    // own foreground. Clipping the source by the sibling's full bounds would
+    // preserve stale ground instead. Queue all damage before any paint runs.
+    for (HWND sibling = GetWindow(entry.hwnd, GW_HWNDNEXT); sibling;
+         sibling = GetWindow(sibling, GW_HWNDNEXT))
+    {
+      RECT bounds;
+      RECT overlap;
+      if (GetWindowRect(sibling, &bounds) && IntersectRect(&overlap, &damage, &bounds))
+      {
+        MapWindowPoints(NULL, sibling, reinterpret_cast<POINT *>(&overlap), 2);
+        RedrawWindow(sibling, &overlap, NULL, RDW_INVALIDATE | RDW_ALLCHILDREN);
+      }
+    }
   }
-  pendingInvalidations_.clear();
-  redrawStats_.reset();
+  this->pendingInvalidations_.clear();
+  if (updateNow)
+  {
+    RedrawWindow(this->rootHwnd_, NULL, NULL, RDW_UPDATENOW | RDW_ALLCHILDREN);
+  }
+}
+
+void Win32ScenePlatformController::synchronize()
+{
+  this->dumpRedrawStatsIfNeeded();
+  this->flushPendingInvalidations(true);
+  this->redrawStats_.reset();
 }
 
 bool Win32ScenePlatformController::hasPendingSync() const

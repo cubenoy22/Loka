@@ -275,7 +275,7 @@ void Win32TextContext::applyText()
     if (GetWindowRect(hwnd_, &rc))
     {
       MapWindowPoints(NULL, parent, reinterpret_cast<POINT *>(&rc), 2);
-      Win32ScenePlatformController::redrawDirtySubtreeNow(parent, &rc, TRUE);
+      Win32ScenePlatformController::requestDirtySubtree(parent, &rc, FALSE);
     }
   }
   requestRelayoutIfNeeded();

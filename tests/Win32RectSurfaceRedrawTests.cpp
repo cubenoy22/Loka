@@ -109,8 +109,10 @@ void testWin32ZStackTextShowsSiblingBeneath()
     Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
     loka::app::RectSurfaceModel initial;
     initial.rectCount = 1;
-    initial.rects[0] = loka::app::RectSprite(0, 0, 160, 80);
+    initial.rects[0] = loka::app::RectSprite(0, 40, 160, 40);
+    loka::core::PushStateTracker tracker;
     loka::core::MutableState<loka::app::RectSurfaceModel> model(initial);
+    tracker.addState(&model);
     loka::app::RectSurfaceProps props;
     props.model(&model).size(160, 80).clearBackground(true);
     loka::app::RectSurfaceNode node(props);
@@ -126,24 +128,52 @@ void testWin32ZStackTextShowsSiblingBeneath()
     pumpMessages();
     UpdateWindow(root);
 
-    loka::core::resource::Image capture;
-    LOKA_VERIFY(Access::captureWindowClientBitmap(root, capture));
-    HDC pixels = CreateCompatibleDC(NULL);
-    LOKA_VERIFY(pixels != NULL);
-    HGDIOBJ previous = SelectObject(pixels, static_cast<HBITMAP>(capture.nativeHandle()));
-    LOKA_VERIFY(previous != NULL && previous != HGDI_ERROR);
-    const COLORREF below = GetPixel(pixels, 80, 60);
-    const COLORREF overlap = GetPixel(pixels, 150, 12);
-    const COLORREF ground = GetPixel(pixels, 200, 100);
-    SelectObject(pixels, previous);
-    DeleteDC(pixels);
-    std::printf("#598 ZStack pixels: below=%08lX overlap=%08lX ground=%08lX; window=%08lX\n",
-                static_cast<unsigned long>(below), static_cast<unsigned long>(overlap),
-                static_cast<unsigned long>(ground), static_cast<unsigned long>(GetSysColor(COLOR_WINDOW)));
-    std::fflush(stdout);
-    LOKA_VERIFY(below == RGB(0, 0, 0));
-    LOKA_VERIFY(overlap == RGB(0, 0, 0));
-    LOKA_VERIFY(ground == GetSysColor(COLOR_WINDOW) && ground != RGB(0, 0, 0));
+    for (int phase = 0; phase < 2; ++phase)
+    {
+      if (phase == 1)
+      {
+        loka::app::RectSurfaceModel next;
+        next.rectCount = 1;
+        next.rects[0] = loka::app::RectSprite(0, 44, 160, 36);
+        {
+          loka::core::StateTrackerGuard guard(&tracker);
+          model.set(next);
+        }
+        Access::flushPendingInvalidations(controller);
+        pumpMessages();
+        UpdateWindow(root);
+      }
+      loka::core::resource::Image capture;
+      LOKA_VERIFY(Access::captureWindowClientBitmap(root, capture));
+      HDC pixels = CreateCompatibleDC(NULL);
+      LOKA_VERIFY(pixels != NULL);
+      HGDIOBJ previous = SelectObject(pixels, static_cast<HBITMAP>(capture.nativeHandle()));
+      LOKA_VERIFY(previous != NULL && previous != HGDI_ERROR);
+      const COLORREF below = GetPixel(pixels, 80, 60);
+      const COLORREF overlap = GetPixel(pixels, 150, 12);
+      const COLORREF ground = GetPixel(pixels, 200, 100);
+      int glyphPixels = 0;
+      for (int y = 0; y < 24; ++y)
+      {
+        for (int x = 0; x < 160; ++x)
+        {
+          if (GetPixel(pixels, x, y) == RGB(0, 0, 0))
+          {
+            ++glyphPixels;
+          }
+        }
+      }
+      SelectObject(pixels, previous);
+      DeleteDC(pixels);
+      std::printf("#598 ZStack capture %d: below=%08lX overlap=%08lX ground=%08lX; window=%08lX glyph=%d\n",
+                  phase, static_cast<unsigned long>(below), static_cast<unsigned long>(overlap),
+                  static_cast<unsigned long>(ground), static_cast<unsigned long>(GetSysColor(COLOR_WINDOW)), glyphPixels);
+      std::fflush(stdout);
+      LOKA_VERIFY(below == RGB(0, 0, 0));
+      LOKA_VERIFY(overlap == RGB(255, 255, 255));
+      LOKA_VERIFY(glyphPixels > 0);
+      LOKA_VERIFY(ground == GetSysColor(COLOR_WINDOW) && ground != RGB(0, 0, 0));
+    }
 
     text.onFactChanged(loka::app::scene::NODE_FACT_ATTACHED, loka::app::scene::NODE_FACT_RETIRED);
     surface.onFactChanged(loka::app::scene::NODE_FACT_ATTACHED, loka::app::scene::NODE_FACT_RETIRED);
