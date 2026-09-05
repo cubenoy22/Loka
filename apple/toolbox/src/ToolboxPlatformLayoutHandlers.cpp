@@ -376,6 +376,13 @@ int ComputeToolboxRowLayout(loka::app::StackNode *row,
       maxHeight = static_cast<short>(childResultY - state.y);
     }
   }
+  if (row->props.hasVerticalAlignment_)
+  {
+    // An aligned row's extent is the painted box it measured. A baseline
+    // control advances from the baseline it was handed (baseline + lineHeight
+    // + spacing), which would fold the ascent into the row's extent twice.
+    maxHeight = rowHeight;
+  }
   traversal->setLayoutResultY(static_cast<short>(state.y + maxHeight + state.spacing));
   return static_cast<short>(rowStartX - state.x);
 }

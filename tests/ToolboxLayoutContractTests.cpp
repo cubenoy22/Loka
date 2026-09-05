@@ -198,11 +198,15 @@ namespace
       LOKA_VERIFY(this->callCount_ < 7);
       this->seats_[this->callCount_] = state;
       const int width = ToolboxLayoutContractTraversal::layoutChild(child, state);
-      // Record painted bottom for baseline controls; native advance is separate.
-      const short bottom = child->asButtonNode() || child->asTextNode()
-                               ? static_cast<short>(state.y + 6)
+      // Mirror the real child handlers: a baseline control advances from the
+      // baseline it was handed by lineHeight + spacing (ToolboxButtonContext,
+      // ToolboxTextContext); other kinds consume their seat.
+      const bool baselineControl = child->asButtonNode() || child->asTextNode() || child->asEditTextNode()
+                                   || child->asPopupMenuNode();
+      const short result = baselineControl
+                               ? static_cast<short>(state.y + state.lineHeight + state.spacing)
                                : static_cast<short>(state.y + state.height);
-      this->setLayoutResultY(bottom);
+      this->setLayoutResultY(result);
       return width;
     }
 
