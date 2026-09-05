@@ -21,6 +21,7 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/SmirkBenchTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ScrollViewScopeTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ToolboxLayoutContractTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/ToolboxRectSurfaceRepaintPlanTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ToolboxScenePlatformContractTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/NullTextLayoutTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/NullPlatformContractTests.cpp

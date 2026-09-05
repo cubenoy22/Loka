@@ -1,5 +1,6 @@
 #include "context/ToolboxRectSurfaceContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
+#include "context/RectSurfaceRepaintPlan.hpp"
 
 void EnsureToolboxRectSurfaceContext(loka::app::RectSurfaceNode *node, ToolboxScenePlatformController *controller)
 {
@@ -136,70 +137,26 @@ void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
     GetClip(savedClipRgn_);
     SetClip(dirtyRgn_);
   }
-  if (node_->props.clearBackground_)
+  const loka::toolbox::RectSurfaceRepaintPlan plan(
+      this->hasPreviousModel_ ? &this->previousModel_ : 0, model,
+      loka::core::Frame(this->rect_.left, this->rect_.top,
+                        this->rect_.right - this->rect_.left, this->rect_.bottom - this->rect_.top),
+      loka::core::Frame(dirtyRect.left, dirtyRect.top,
+                        dirtyRect.right - dirtyRect.left, dirtyRect.bottom - dirtyRect.top),
+      this->node_->props.clearBackground_);
+  for (short i = 0; i < plan.eraseCount(); ++i)
   {
-    if (hasPreviousModel_)
-    {
-      for (short i = 0; i < previousModel_.rectCount; ++i)
-      {
-        Rect previousSpriteRect;
-        previousSpriteRect.left = static_cast<short>(rect_.left + previousModel_.rects[i].x);
-        previousSpriteRect.top = static_cast<short>(rect_.top + previousModel_.rects[i].y);
-        previousSpriteRect.right = static_cast<short>(previousSpriteRect.left + previousModel_.rects[i].width);
-        previousSpriteRect.bottom = static_cast<short>(previousSpriteRect.top + previousModel_.rects[i].height);
-        if (currentModelContainsRect(previousSpriteRect, model))
-        {
-          continue;
-        }
-        Rect matchingCurrentRect;
-        if (findMatchingCurrentRect(previousSpriteRect, model, matchingCurrentRect))
-        {
-          erasePreviousMinusCurrent(previousSpriteRect, matchingCurrentRect, dirtyRect);
-        }
-        else
-        {
-          eraseRectIfVisible(previousSpriteRect, dirtyRect);
-        }
-      }
-    }
-    else
-    {
-      Rect clearRect = rect_;
-      if (SectRect(&clearRect, &dirtyRect, &clearRect))
-      {
-        EraseRect(&clearRect);
-      }
-    }
+    const loka::core::Frame &frame = plan.eraseRect(i);
+    Rect rect;
+    SetRect(&rect, frame.x, frame.y, frame.x + frame.width, frame.y + frame.height);
+    EraseRect(&rect);
   }
-
-  for (short i = 0; i < model.rectCount; ++i)
+  for (short i = 0; i < plan.paintCount(); ++i)
   {
-    Rect spriteRect = rectForSprite(model.rects[i]);
-    Rect clippedRect = spriteRect;
-    if (!SectRect(&clippedRect, &dirtyRect, &clippedRect))
-    {
-      continue;
-    }
-    Rect previousSpriteRect;
-    if (previousRectForIndex(i, previousSpriteRect))
-    {
-      if (previousSpriteRect.left == spriteRect.left && previousSpriteRect.top == spriteRect.top
-          && previousSpriteRect.right == spriteRect.right && previousSpriteRect.bottom == spriteRect.bottom)
-      {
-        continue;
-      }
-      if ((previousSpriteRect.right - previousSpriteRect.left) == (spriteRect.right - spriteRect.left)
-          && (previousSpriteRect.bottom - previousSpriteRect.top) == (spriteRect.bottom - spriteRect.top))
-      {
-        paintCurrentMinusPrevious(spriteRect, previousSpriteRect, dirtyRect);
-        continue;
-      }
-    }
-    else if (hasPreviousModel_ && currentModelContainsRect(spriteRect, previousModel_))
-    {
-      continue;
-    }
-    paintRectIfVisible(spriteRect, dirtyRect);
+    const loka::core::Frame &frame = plan.paintRect(i);
+    Rect rect;
+    SetRect(&rect, frame.x, frame.y, frame.x + frame.width, frame.y + frame.height);
+    PaintRect(&rect);
   }
   if (useRegionClip)
   {
@@ -335,164 +292,6 @@ Rect ToolboxRectSurfaceContext::rectForSprite(const loka::app::RectSprite &sprit
   rect.right = static_cast<short>(rect.left + sprite.width);
   rect.bottom = static_cast<short>(rect.top + sprite.height);
   return rect;
-}
-
-bool ToolboxRectSurfaceContext::previousRectForIndex(short index, Rect &previousRect) const
-{
-  if (!hasPreviousModel_ || index < 0 || index >= previousModel_.rectCount)
-  {
-    return false;
-  }
-  previousRect = rectForSprite(previousModel_.rects[index]);
-  return true;
-}
-
-bool ToolboxRectSurfaceContext::findMatchingCurrentRect(const Rect &previousRect,
-                                                        const loka::app::RectSurfaceModel &model,
-                                                        Rect &currentRect) const
-{
-  bool foundAnyMatch = false;
-  bool foundSizeMatch = false;
-  Rect sizeMatchedRect;
-  for (short i = 0; i < model.rectCount; ++i)
-  {
-    Rect candidateRect;
-    candidateRect.left = static_cast<short>(rect_.left + model.rects[i].x);
-    candidateRect.top = static_cast<short>(rect_.top + model.rects[i].y);
-    candidateRect.right = static_cast<short>(candidateRect.left + model.rects[i].width);
-    candidateRect.bottom = static_cast<short>(candidateRect.top + model.rects[i].height);
-    Rect overlap = previousRect;
-    if (!SectRect(&overlap, &candidateRect, &overlap))
-    {
-      continue;
-    }
-    if ((candidateRect.right - candidateRect.left) == (previousRect.right - previousRect.left)
-        && (candidateRect.bottom - candidateRect.top) == (previousRect.bottom - previousRect.top))
-    {
-      sizeMatchedRect = candidateRect;
-      foundSizeMatch = true;
-      break;
-    }
-    currentRect = candidateRect;
-    foundAnyMatch = true;
-  }
-  if (foundSizeMatch)
-  {
-    currentRect = sizeMatchedRect;
-    return true;
-  }
-  return foundAnyMatch;
-}
-
-void ToolboxRectSurfaceContext::paintCurrentMinusPrevious(const Rect &currentRect,
-                                                          const Rect &previousRect,
-                                                          const Rect &dirtyRect)
-{
-  Rect overlap = currentRect;
-  if (!SectRect(&overlap, &previousRect, &overlap))
-  {
-    paintRectIfVisible(currentRect, dirtyRect);
-    return;
-  }
-
-  Rect topRect = currentRect;
-  topRect.bottom = overlap.top;
-  paintRectIfVisible(topRect, dirtyRect);
-
-  Rect bottomRect = currentRect;
-  bottomRect.top = overlap.bottom;
-  paintRectIfVisible(bottomRect, dirtyRect);
-
-  Rect leftRect = currentRect;
-  leftRect.top = overlap.top;
-  leftRect.bottom = overlap.bottom;
-  leftRect.right = overlap.left;
-  paintRectIfVisible(leftRect, dirtyRect);
-
-  Rect rightRect = currentRect;
-  rightRect.top = overlap.top;
-  rightRect.bottom = overlap.bottom;
-  rightRect.left = overlap.right;
-  paintRectIfVisible(rightRect, dirtyRect);
-}
-
-void ToolboxRectSurfaceContext::erasePreviousMinusCurrent(const Rect &previousRect,
-                                                          const Rect &currentRect,
-                                                          const Rect &dirtyRect)
-{
-  Rect overlap = previousRect;
-  if (!SectRect(&overlap, &currentRect, &overlap))
-  {
-    eraseRectIfVisible(previousRect, dirtyRect);
-    return;
-  }
-
-  Rect topRect = previousRect;
-  topRect.bottom = overlap.top;
-  eraseRectIfVisible(topRect, dirtyRect);
-
-  Rect bottomRect = previousRect;
-  bottomRect.top = overlap.bottom;
-  eraseRectIfVisible(bottomRect, dirtyRect);
-
-  Rect leftRect = previousRect;
-  leftRect.top = overlap.top;
-  leftRect.bottom = overlap.bottom;
-  leftRect.right = overlap.left;
-  eraseRectIfVisible(leftRect, dirtyRect);
-
-  Rect rightRect = previousRect;
-  rightRect.top = overlap.top;
-  rightRect.bottom = overlap.bottom;
-  rightRect.left = overlap.right;
-  eraseRectIfVisible(rightRect, dirtyRect);
-}
-
-void ToolboxRectSurfaceContext::eraseRectIfVisible(const Rect &rect, const Rect &dirtyRect)
-{
-  Rect eraseRect = rect;
-  if (!SectRect(&eraseRect, &dirtyRect, &eraseRect))
-  {
-    return;
-  }
-  if (eraseRect.left >= eraseRect.right || eraseRect.top >= eraseRect.bottom)
-  {
-    return;
-  }
-  EraseRect(&eraseRect);
-}
-
-void ToolboxRectSurfaceContext::paintRectIfVisible(const Rect &rect, const Rect &dirtyRect)
-{
-  Rect paintRect = rect;
-  if (!SectRect(&paintRect, &dirtyRect, &paintRect))
-  {
-    return;
-  }
-  if (paintRect.left >= paintRect.right || paintRect.top >= paintRect.bottom)
-  {
-    return;
-  }
-  PaintRect(&paintRect);
-}
-
-bool ToolboxRectSurfaceContext::currentModelContainsRect(const Rect &rect,
-                                                         const loka::app::RectSurfaceModel &model) const
-{
-  for (short i = 0; i < model.rectCount; ++i)
-  {
-    Rect currentRect;
-    currentRect.left = static_cast<short>(rect_.left + model.rects[i].x);
-    currentRect.top = static_cast<short>(rect_.top + model.rects[i].y);
-    currentRect.right = static_cast<short>(currentRect.left + model.rects[i].width);
-    currentRect.bottom = static_cast<short>(currentRect.top + model.rects[i].height);
-    if (currentRect.left == rect.left && currentRect.top == rect.top && currentRect.right == rect.right
-        && currentRect.bottom == rect.bottom)
-    {
-      return true;
-    }
-  }
-  return false;
 }
 
 bool ToolboxRectSurfaceContext::buildDirtyRegion(const Rect &dirtyRect, const loka::app::RectSurfaceModel &model)
