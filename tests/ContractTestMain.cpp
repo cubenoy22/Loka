@@ -53,6 +53,7 @@
 #include "SmirkBenchTests.hpp"
 #include "ScrollViewScopeTests.hpp"
 #include "ToolboxLayoutContractTests.hpp"
+#include "ToolboxRectSurfaceRepaintPlanTests.hpp"
 #include "ToolboxScenePlatformContractTests.hpp"
 #include "ToolboxScrollViewContractTests.hpp"
 #include "NullTextLayoutTests.hpp"
