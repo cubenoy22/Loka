@@ -12,37 +12,6 @@
 
 namespace
 {
-  inline short PreferredChildHeightForRow(loka::app::scene::Node *child, short fallbackHeight)
-  {
-    if (!child)
-    {
-      return fallbackHeight;
-    }
-    if (loka::app::ImageViewNode *image = child->asImageViewNode())
-    {
-      if (image->props.height_ > 0)
-      {
-        return static_cast<short>(image->props.height_);
-      }
-      if (fallbackHeight > 0)
-      {
-        return fallbackHeight;
-      }
-      return ToolboxLayoutMetrics::kImageFallbackHeight;
-    }
-    // Mirrors the shared preferredChildHeightForRow (LayoutHeuristics.hpp)
-    // for RectSurface; #563 folds this local copy into the shared helper.
-    if (loka::app::RectSurfaceNode *surface = child->asRectSurfaceNode())
-    {
-      if (surface->props.height_ > 0)
-      {
-        return surface->props.height_;
-      }
-      return fallbackHeight;
-    }
-    return fallbackHeight;
-  }
-
   inline int
   DispatchTraversalLayoutChild(void *context, loka::app::scene::Node *child, const loka::app::scene::LayoutState &state)
   {
@@ -332,7 +301,8 @@ int ComputeToolboxRowLayout(loka::app::StackNode *row,
 
   short rowStartX = state.x;
   short maxHeight = 0;
-  short rowHeight = state.lineHeight > 0 ? state.lineHeight : ToolboxLayoutMetrics::kDefaultLineHeight;
+  const short lineHeight = state.lineHeight > 0 ? state.lineHeight : ToolboxLayoutMetrics::kDefaultLineHeight;
+  short rowHeight = lineHeight;
   const size_t childCount = row->childrenCount();
   loka::app::layout::RowWidthConsultation widths(row->childrenHead(), childCount, state.width, state.spacing);
   if (row->props.hasVerticalAlignment_)
@@ -341,8 +311,9 @@ int ComputeToolboxRowLayout(loka::app::StackNode *row,
     loka::dsl::CompositionCursor<loka::app::scene::Node> measure(row->childrenHead(), childCount);
     for (loka::app::scene::Node *child = measure.next(); child; child = measure.next())
     {
-      short height = PreferredChildHeightForRow(
-          child, state.lineHeight > 0 ? state.lineHeight : ToolboxLayoutMetrics::kDefaultLineHeight);
+      short height = static_cast<short>(loka::app::layout::preferredChildHeightForRow(
+          child, lineHeight, lineHeight, lineHeight, lineHeight, lineHeight,
+          ToolboxLayoutMetrics::kImageFallbackHeight));
       if (height > rowHeight)
       {
         rowHeight = height;
@@ -367,7 +338,9 @@ int ComputeToolboxRowLayout(loka::app::StackNode *row,
     rowState.width = static_cast<short>(allocation.width());
     if (row->props.hasVerticalAlignment_)
     {
-      short childHeight = PreferredChildHeightForRow(child, rowHeight);
+      short childHeight = static_cast<short>(loka::app::layout::preferredChildHeightForRow(
+          child, rowHeight, lineHeight, lineHeight, lineHeight, lineHeight,
+          ToolboxLayoutMetrics::kImageFallbackHeight));
       short remain = static_cast<short>(rowHeight - childHeight);
       short offset = 0;
       if (remain > 0)

@@ -4,6 +4,10 @@
 
 #include "../apple/toolbox/src/ToolboxPlatformLayoutHandlers.hpp"
 #include "app/nodes/nestable/Box.hpp"
+#include "app/nodes/controls/Button.hpp"
+#include "app/nodes/Text.hpp"
+#include "app/nodes/ImageView.hpp"
+#include "app/RectSurface.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 
@@ -180,4 +184,83 @@ void testToolboxRowEmptyFragmentConsumesNoSeatOrGap()
   LOKA_VERIFY(traversal.callCount_ == 2);
   LOKA_VERIFY(traversal.lastState_.x == 10);
   LOKA_VERIFY(traversal.lastState_.width == 500);
+}
+
+namespace
+{
+  class ToolboxRowSeatTraversal : public ToolboxLayoutContractTraversal
+  {
+  public:
+    ToolboxRowSeatTraversal() : ToolboxLayoutContractTraversal(20, 0) {}
+
+    virtual int layoutChild(loka::app::scene::Node *child, const loka::app::scene::LayoutState &state)
+    {
+      LOKA_VERIFY(this->callCount_ < 7);
+      this->seats_[this->callCount_] = state;
+      const int width = ToolboxLayoutContractTraversal::layoutChild(child, state);
+      // Consume the supplied seat; native control painting is outside this fixture.
+      this->setLayoutResultY(static_cast<short>(state.y + state.height));
+      return width;
+    }
+
+    loka::app::scene::LayoutState seats_[7];
+  };
+
+  void VerifyToolboxRowChildHeightSeats(bool centered)
+  {
+    loka::app::StackProps props(loka::app::STACK_AXIS_ROW);
+    if (centered)
+    {
+      props.alignVertical(loka::app::VERTICAL_ALIGNMENT_CENTER);
+    }
+    loka::app::StackNode row(props);
+    row.addChild(new loka::app::RectSurfaceNode(loka::app::RectSurfaceProps().size(20, 60)));
+    row.addChild(new loka::app::ButtonNode(loka::app::ButtonProps()));
+    row.addChild(new loka::app::TextNode(loka::app::TextProps()));
+    loka::app::ImageViewProps imageProps;
+    imageProps.height_ = 24;
+    row.addChild(new loka::app::ImageViewNode(imageProps));
+    row.addChild(new loka::app::ImageViewNode(loka::app::ImageViewProps()));
+    row.addChild(new loka::app::RectSurfaceNode(loka::app::RectSurfaceProps().size(20, 30)));
+    row.addChild(new loka::app::RectSurfaceNode(loka::app::RectSurfaceProps()));
+    loka::app::scene::PlatformLayoutHandlerRegistry registry;
+    RegisterToolboxPlatformLayoutHandlers(registry);
+    ToolboxRowSeatTraversal traversal;
+    loka::app::scene::LayoutState state = FixedBoxInputState();
+    state.width = 500;
+    state.spacing = 4;
+    const short startY = state.y;
+    short width = 0;
+    const bool usedHandler = ApplyToolboxPlatformLayoutHandler(registry, row, state, traversal, width);
+    LOKA_VERIFY(usedHandler);
+    LOKA_VERIFY(traversal.callCount_ == 7);
+
+    const char *names[] = {"anchor", "button", "text", "image-24", "image-auto", "surface-30", "surface-auto"};
+    std::fprintf(stderr, "Toolbox Row %s: extent=%d (includes spacing=4)\n",
+                 centered ? "CENTER" : "unaligned", state.y - startY);
+    for (int i = 0; i < 7; ++i)
+    {
+      std::fprintf(stderr, "  %s: y-offset=%d seat-height=%d\n", names[i],
+                   traversal.seats_[i].y - startY, traversal.seats_[i].height);
+    }
+    // Controls use the effective line height even beside a taller surface (#563).
+    const short centeredOffsets[] = {0, 25, 25, 18, 0, 15, 0};
+    const short centeredHeights[] = {60, 10, 10, 24, 60, 30, 60};
+    LOKA_VERIFY(state.y - startY == (centered ? 64 : 44));
+    for (int i = 0; i < 7; ++i)
+    {
+      LOKA_VERIFY(traversal.seats_[i].y - startY == (centered ? centeredOffsets[i] : 0));
+      LOKA_VERIFY(traversal.seats_[i].height == (centered ? centeredHeights[i] : 40));
+    }
+  }
+} // namespace
+
+void testToolboxCenteredRowChildHeightSeats()
+{
+  VerifyToolboxRowChildHeightSeats(true);
+}
+
+void testToolboxUnalignedRowChildHeightSeats()
+{
+  VerifyToolboxRowChildHeightSeats(false);
 }
