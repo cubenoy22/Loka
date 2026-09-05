@@ -1,5 +1,6 @@
 #include "context/ToolboxPopupMenuContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
+#include "ToolboxLayoutMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "platform/StringUTF8.hpp"
 #include <cstring>
@@ -146,7 +147,7 @@ void ToolboxPopupMenuContext::draw()
   LineTo(rect_.right, rect_.bottom);
   LineTo(rect_.right, rect_.top + 2);
   SetPenState(&penState);
-  short textY = static_cast<short>(rect_.top + lineHeight_ - 2);
+  short textY = static_cast<short>(rect_.top + lineHeight_ - ToolboxLayoutMetrics::kControlAscentInset);
   DrawStringAt(static_cast<short>(rect_.left + 4), textY, label);
   short arrowRight = static_cast<short>(rect_.right - 4);
   short arrowTop = static_cast<short>(rect_.top + 4);
@@ -168,9 +169,9 @@ short ToolboxPopupMenuContext::layout(loka::app::scene::IPlatformController *con
   short width = 120;
   Rect rect;
   rect.left = state.x;
-  rect.top = static_cast<short>(state.y - state.lineHeight + 2);
+  rect.top = static_cast<short>(state.y - state.lineHeight + ToolboxLayoutMetrics::kControlAscentInset);
   rect.right = static_cast<short>(state.x + width + 8);
-  rect.bottom = static_cast<short>(state.y + 6);
+  rect.bottom = static_cast<short>(state.y + ToolboxLayoutMetrics::kControlDescent);
   updateData(node_->props.items_, node_->props.selectedIndex_, node_->props.onChange_, node_->props.enabled_);
   updateRect(rect, state.lineHeight);
   ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);

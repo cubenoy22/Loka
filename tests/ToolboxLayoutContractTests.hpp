@@ -7,4 +7,9 @@ void testToolboxRowConsultsFixedChildWidth();
 void testToolboxRowConsultsWidthOnlyBoxWidth();
 void testToolboxRowEmptyFragmentConsumesNoSeatOrGap();
 
+void testToolboxCenteredRowChildHeightSeats();
+void testToolboxUnalignedRowChildHeightSeats();
+
+void testToolboxCenteredControlOnlyRowPaintedBounds();
+
 #endif // LOKA_TESTS_TOOLBOX_LAYOUT_CONTRACT_TESTS_HPP

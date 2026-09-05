@@ -330,9 +330,9 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
   }
   Rect rect;
   rect.left = state.x;
-  rect.top = static_cast<short>(state.y - effectiveLineHeight + 2);
+  rect.top = static_cast<short>(state.y - effectiveLineHeight + ToolboxLayoutMetrics::kControlAscentInset);
   rect.right = static_cast<short>(state.x + width);
-  rect.bottom = static_cast<short>(rect.top + effectiveLineHeight + 4);
+  rect.bottom = static_cast<short>(state.y + ToolboxLayoutMetrics::kControlDescent);
   updateData(node_->props.text_);
   updateRect(rect, state.x, state.y);
   state.y = static_cast<short>(state.y + effectiveLineHeight + state.spacing);
