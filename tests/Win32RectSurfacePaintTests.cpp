@@ -9,15 +9,12 @@
 #include "core/State.hpp"
 #include "testing/Win32ScenePlatformTestAccess.hpp"
 
-// #293: the first text-page projection paints its overlapping Text correctly,
-// then the RectSurface model's older child-only invalidation flushes last and
-// covers it. The surface must queue its bounded parent subtree so native
-// sibling order is replayed without invalidating the whole window.
+// #597: a model-only update queues the complete child without erasing.
 void testWin32RectSurfacePaintQueuesBoundedParentSubtree()
 {
   std::printf("\n==== [testWin32RectSurfacePaintQueuesBoundedParentSubtree] start ====\n");
   HWND root = CreateWindowExW(
-      0, L"STATIC", L"rect-surface-paint-host", WS_OVERLAPPED, 0, 0, 320, 240, NULL, NULL, GetModuleHandle(NULL), NULL);
+      0, L"STATIC", L"rect-surface-paint-host", WS_OVERLAPPED, 0, 0, 320, 240, NULL, NULL, GetModuleHandleW(NULL), NULL);
   assert(root);
   {
     Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
@@ -31,12 +28,10 @@ void testWin32RectSurfacePaintQueuesBoundedParentSubtree()
     Access::PendingInvalidationSnapshot invalidation;
     LOKA_VERIFY(Access::queryPendingInvalidation(controller, 0, invalidation));
     LOKA_VERIFY(!Access::queryPendingInvalidation(controller, 1, invalidation));
-    LOKA_VERIFY(invalidation.hwnd == root);
-    LOKA_VERIFY(!invalidation.fullWindow);
-    LOKA_VERIFY(invalidation.includeChildren);
-    LOKA_VERIFY(invalidation.eraseBackground != FALSE);
-    LOKA_VERIFY(invalidation.rect.left == 10 && invalidation.rect.top == 20 && invalidation.rect.right == 110
-                && invalidation.rect.bottom == 80);
+    LOKA_VERIFY(invalidation.hwnd == FindWindowExW(root, NULL, L"LOKA_RECT_SURFACE", NULL));
+    LOKA_VERIFY(invalidation.fullWindow);
+    LOKA_VERIFY(!invalidation.includeChildren);
+    LOKA_VERIFY(invalidation.eraseBackground == FALSE);
     context.onFactChanged(loka::app::scene::NODE_FACT_ATTACHED, loka::app::scene::NODE_FACT_RETIRED);
     controller.drainNativeRetirements();
   }

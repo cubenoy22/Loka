@@ -30,6 +30,30 @@ namespace loka
           bool includeChildren;
         };
 
+        typedef ::Win32ScenePlatformController::RedrawStats RedrawStats;
+
+        static const RedrawStats &redrawStats(const ::Win32ScenePlatformController &controller)
+        {
+          return controller.redrawStats_;
+        }
+
+        // Match synchronize's invalidation flags, but let the message pump
+        // paint after flushing so synchronize's stats reset cannot hide it.
+        static void flushPendingInvalidations(::Win32ScenePlatformController &controller)
+        {
+          for (std::size_t i = 0; i < controller.pendingInvalidations_.size(); ++i)
+          {
+            const ::Win32ScenePlatformController::PendingInvalidate &entry = controller.pendingInvalidations_[i];
+            if (!IsWindow(entry.hwnd))
+            {
+              continue;
+            }
+            const UINT flags = ::Win32ScenePlatformController::pendingInvalidationFlags(entry);
+            RedrawWindow(entry.hwnd, entry.fullWindow ? NULL : &entry.rect, NULL, flags);
+          }
+          controller.pendingInvalidations_.clear();
+        }
+
         static void resetRedrawStats(::Win32ScenePlatformController &controller)
         {
           controller.redrawStats_.reset();

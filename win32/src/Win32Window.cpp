@@ -16,7 +16,7 @@ namespace
 {
   static bool g_classRegistered = false;
   static const wchar_t *kWndClassName = L"DevWndClass";
-  static const DWORD kWindowStyle = WS_OVERLAPPEDWINDOW;
+  static const DWORD kWindowStyle = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN;
   static const DWORD kWindowExStyle = WS_EX_CONTROLPARENT;
   // Windows SDK headers hide this message when the XP compatibility preset
   // sets _WIN32_WINNT=0x0501, although newer Windows can still send it to the
@@ -312,12 +312,14 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       if (hdc)
       {
         SetBkMode(hdc, TRANSPARENT);
+        SetBkColor(hdc, GetSysColor(COLOR_WINDOW));
       }
-      return reinterpret_cast<LRESULT>(GetStockObject(NULL_BRUSH));
+      // WS_CLIPCHILDREN pairs with STATIC erasing its own window-colour background.
+      return reinterpret_cast<LRESULT>(GetSysColorBrush(COLOR_WINDOW));
     }
     case WM_ERASEBKGND:
       Win32ScenePlatformController::noteNativePaint(hwnd, Win32ScenePlatformController::NATIVE_PAINT_ROOT, true);
-      return DefWindowProcW(hwnd, msg, wParam, lParam);
+      return 1;
     case WM_SIZE:
       if (self->scenePlatformController_)
       {
@@ -375,9 +377,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       PAINTSTRUCT ps;
       HDC hdc = BeginPaint(hwnd, &ps);
       // Clear the background with the native window color.
-      RECT rc;
-      GetClientRect(hwnd, &rc);
-      FillRect(hdc, &rc, (HBRUSH)(COLOR_WINDOW + 1));
+      FillRect(hdc, &ps.rcPaint, (HBRUSH)(COLOR_WINDOW + 1));
       EndPaint(hwnd, &ps);
       break;
     }

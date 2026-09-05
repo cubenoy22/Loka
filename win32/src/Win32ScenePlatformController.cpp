@@ -462,6 +462,20 @@ void Win32ScenePlatformController::beginApplyCycle()
   this->redrawStats_.reset();
 }
 
+UINT Win32ScenePlatformController::pendingInvalidationFlags(const PendingInvalidate &entry)
+{
+  UINT flags = RDW_INVALIDATE;
+  if (entry.eraseBackground)
+  {
+    flags |= RDW_ERASE;
+  }
+  if (entry.includeChildren)
+  {
+    flags |= RDW_ALLCHILDREN;
+  }
+  return flags;
+}
+
 void Win32ScenePlatformController::synchronize()
 {
   dumpRedrawStatsIfNeeded();
@@ -472,15 +486,7 @@ void Win32ScenePlatformController::synchronize()
     {
       continue;
     }
-    UINT flags = RDW_INVALIDATE | RDW_UPDATENOW;
-    if (entry.eraseBackground)
-    {
-      flags |= RDW_ERASE;
-    }
-    if (entry.includeChildren)
-    {
-      flags |= RDW_ALLCHILDREN;
-    }
+    const UINT flags = pendingInvalidationFlags(entry) | RDW_UPDATENOW;
     RedrawWindow(entry.hwnd, entry.fullWindow ? NULL : &entry.rect, NULL, flags);
   }
   pendingInvalidations_.clear();

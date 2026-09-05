@@ -30,3 +30,5 @@ LOKA_TEST(testWin32ProfilerConvertsExtremeRemainderWithoutOverflow)
 LOKA_TEST(testWin32IdlePacerHonorsCounterDeadline)
 LOKA_TEST(testWin32IdlePacerWakesForQueuedMessage)
 LOKA_TEST(testWin32EveryTickGateDoesNotDispatchOnEarlyMessages)
+
+LOKA_TEST(testWin32RectSurfaceTicksRepaintOnlySurface)
