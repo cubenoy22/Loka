@@ -28,6 +28,15 @@ namespace loka
           }
           return -1;
         }
+        if (child->asOpenFileDialogNode())
+        {
+          // A dialog never paints in the Row: it is a materialized resource
+          // (the Show that opens it is a node while the dialog is up), not a
+          // seat. Like an empty Fragment it takes neither width nor a gap,
+          // so opening it leaves the visual siblings' allocation unchanged
+          // (#588).
+          return 0;
+        }
         if (loka::app::ImageViewNode *image = child->asImageViewNode())
         {
           if (image->props.width_ > 0)

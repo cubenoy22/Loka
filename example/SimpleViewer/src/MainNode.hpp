@@ -146,7 +146,6 @@ namespace simpleviewer
   {
     enum
     {
-      kRootRowTag = 1,
       kNavSeatTag = 2,
       kContentTag = 3,
       kNavToggleSeatTag = 4,
@@ -220,15 +219,15 @@ namespace simpleviewer
               << OpenFileDialog().result(this->chooserResult_).testId("SimpleViewerOpenFileDialog"));
       openDialog.setNodeTag(kOpenDialogTag);
 
-      HStack rootRow = HStack().TEST_ID("SimpleViewer.RootRow");
-      rootRow.setNodeTag(kRootRowTag);
       VStack content = VStack().TEST_ID("SimpleViewer.Content");
       content.setNodeTag(kContentTag);
       content << navToggle << display;
-      rootRow << nav << content;
-      VStack root = VStack().TEST_ID("SimpleViewer.Root");
+      // The dialog is a resource, not a seat: the Row's width consultation
+      // skips it (#588), so it sits beside nav and content instead of under
+      // a VStack that kept it out of the consultation.
+      HStack root = HStack().TEST_ID("SimpleViewer.Root");
       root.setNodeTag(kRootTag);
-      c.declare(root << rootRow << openDialog);
+      c.declare(root << nav << content << openDialog);
     }
 
   protected:

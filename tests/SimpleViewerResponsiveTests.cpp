@@ -265,19 +265,25 @@ namespace
     RowSeatRecorder()
         : navCalls(0),
           contentCalls(0),
+          dialogCalls(0),
           navState(),
           contentState(),
+          dialogState(),
           navNode(0),
-          contentNode(0)
+          contentNode(0),
+          dialogNode(0)
     {
     }
 
     int navCalls;
     int contentCalls;
+    int dialogCalls;
     loka::app::scene::LayoutState navState;
     loka::app::scene::LayoutState contentState;
+    loka::app::scene::LayoutState dialogState;
     loka::app::scene::Node *navNode;
     loka::app::scene::Node *contentNode;
+    loka::app::scene::Node *dialogNode;
   };
 
   int recordRowSeat(void *context,
@@ -295,6 +301,11 @@ namespace
       ++record->contentCalls;
       record->contentState = state;
     }
+    if (record->dialogNode && node == record->dialogNode)
+    {
+      ++record->dialogCalls;
+      record->dialogState = state;
+    }
     return state.y + state.height;
   }
 
@@ -306,7 +317,12 @@ namespace
     LOKA_VERIFY(record.navNode != 0);
     record.contentNode = record.navNode->nextInComposition;
     LOKA_VERIFY(record.contentNode != 0);
-    LOKA_VERIFY(record.contentNode->nextInComposition == 0);
+    // The root Row's third child is the dialog branch (an empty Fragment
+    // while closed, the OpenFileDialog while open); it is recorded so the
+    // geometry pin can check it never takes a seat (#588).
+    record.dialogNode = record.contentNode->nextInComposition;
+    LOKA_VERIFY(record.dialogNode != 0);
+    LOKA_VERIFY(record.dialogNode->nextInComposition == 0);
 
     loka::app::scene::LayoutState state;
     state.width = 600;
@@ -382,7 +398,7 @@ void testSimpleViewerNavSeatsFollowModeAndRetainContentImage()
   simpleviewer::MainNode *main = harness.mainNode();
   LOKA_VERIFY(main != 0);
   loka::app::StackNode *rootRow = static_cast<loka::app::StackNode *>(
-      findNode(main, "SimpleViewer.RootRow"));
+      findNode(main, "SimpleViewer.Root"));
   LOKA_VERIFY(rootRow != 0);
   loka::app::ImageViewNode *retainedImage = static_cast<loka::app::ImageViewNode *>(
       findNode(main, "SimpleViewer.Image"));
@@ -400,7 +416,7 @@ void testSimpleViewerNavSeatsFollowModeAndRetainContentImage()
   LOKA_VERIFY(findNode(main, "SimpleViewer.NavPane") == 0);
   LOKA_VERIFY(findNode(main, "SimpleViewer.NavToggle") != 0);
   LOKA_VERIFY(findNode(main, "SimpleViewer.Image") == retainedImage);
-  rootRow = static_cast<loka::app::StackNode *>(findNode(main, "SimpleViewer.RootRow"));
+  rootRow = static_cast<loka::app::StackNode *>(findNode(main, "SimpleViewer.Root"));
   RowSeatRecorder closed;
   recordRootSeats(rootRow, closed);
   LOKA_VERIFY(closed.navState.width == 0);
@@ -412,7 +428,7 @@ void testSimpleViewerNavSeatsFollowModeAndRetainContentImage()
   LOKA_VERIFY(findNode(main, "SimpleViewer.NavPane") != 0);
   LOKA_VERIFY(findNode(main, "SimpleViewer.NavToggle") != 0);
   LOKA_VERIFY(findNode(main, "SimpleViewer.Image") == retainedImage);
-  rootRow = static_cast<loka::app::StackNode *>(findNode(main, "SimpleViewer.RootRow"));
+  rootRow = static_cast<loka::app::StackNode *>(findNode(main, "SimpleViewer.Root"));
   RowSeatRecorder open;
   recordRootSeats(rootRow, open);
   LOKA_VERIFY(open.navState.width == 200);
@@ -528,18 +544,19 @@ void testSimpleViewerDisplayModesProjectExpectedNullGeometry()
   LOKA_VERIFY(geometry->width == 320);
   LOKA_VERIFY(geometry->height == 240);
 
-  loka::app::StackNode *rootRow = static_cast<loka::app::StackNode *>(
-      findNode(main, "SimpleViewer.RootRow"));
-  LOKA_VERIFY(rootRow != 0);
+  // The dialog branch is a sibling of nav and content in the root Row (no
+  // VStack parks it), and while closed it is an empty Fragment that takes
+  // neither a seat nor a gap.
   loka::app::StackNode *root = static_cast<loka::app::StackNode *>(
       findNode(main, "SimpleViewer.Root"));
   LOKA_VERIFY(root != 0);
-  LOKA_VERIFY(root->childrenHead() == rootRow);
-  loka::app::scene::Node *dialogSeat = rootRow->nextInComposition;
-  LOKA_VERIFY(dialogSeat != 0);
-  LOKA_VERIFY(dialogSeat->nextInComposition == 0);
+  LOKA_VERIFY(root->props.axis_ == loka::app::STACK_AXIS_ROW);
   RowSeatRecorder seatsBeforeDialog;
-  recordRootSeats(rootRow, seatsBeforeDialog);
+  recordRootSeats(root, seatsBeforeDialog);
+  LOKA_VERIFY(seatsBeforeDialog.dialogCalls == 1);
+  LOKA_VERIFY(seatsBeforeDialog.dialogState.width == 0);
+  LOKA_VERIFY(seatsBeforeDialog.contentState.x + seatsBeforeDialog.contentState.width ==
+              seatsBeforeDialog.dialogState.x);
   loka::app::scene::LayoutState rootState;
   rootState.x = 0;
   rootState.y = 0;
@@ -557,14 +574,19 @@ void testSimpleViewerDisplayModesProjectExpectedNullGeometry()
       static_cast<loka::app::OpenFileDialogNode *>(
           findNode(main, "SimpleViewerOpenFileDialog"));
   LOKA_VERIFY(dialog != 0);
-  rootRow = static_cast<loka::app::StackNode *>(
-      findNode(main, "SimpleViewer.RootRow"));
-  LOKA_VERIFY(rootRow != 0);
   root = static_cast<loka::app::StackNode *>(
       findNode(main, "SimpleViewer.Root"));
   LOKA_VERIFY(root != 0);
+  // Materialized: the dialog now lives under the Row's third child, and the
+  // Row's consultation still hands it no width and no gap, so the visual
+  // siblings' allocation is unchanged.
   RowSeatRecorder seatsWithDialog;
-  recordRootSeats(rootRow, seatsWithDialog);
+  recordRootSeats(root, seatsWithDialog);
+  LOKA_VERIFY(findNode(seatsWithDialog.dialogNode, "SimpleViewerOpenFileDialog") == dialog);
+  LOKA_VERIFY(seatsWithDialog.dialogCalls == 1);
+  LOKA_VERIFY(seatsWithDialog.dialogState.width == 0);
+  LOKA_VERIFY(seatsWithDialog.dialogState.x == seatsBeforeDialog.dialogState.x);
+  LOKA_VERIFY(seatsWithDialog.contentState.x == seatsBeforeDialog.contentState.x);
   LOKA_VERIFY(seatsWithDialog.contentState.width ==
               seatsBeforeDialog.contentState.width);
   harness.platform.projectLayoutForTesting(root, rootState);
