@@ -462,29 +462,72 @@ void Win32ScenePlatformController::beginApplyCycle()
   this->redrawStats_.reset();
 }
 
-void Win32ScenePlatformController::synchronize()
+UINT Win32ScenePlatformController::pendingInvalidationFlags(const PendingInvalidate &entry)
 {
-  dumpRedrawStatsIfNeeded();
-  for (size_t i = 0; i < pendingInvalidations_.size(); ++i)
+  UINT flags = RDW_INVALIDATE;
+  if (entry.eraseBackground)
   {
-    PendingInvalidate &entry = pendingInvalidations_[i];
+    flags |= RDW_ERASE;
+  }
+  if (entry.includeChildren)
+  {
+    flags |= RDW_ALLCHILDREN;
+  }
+  return flags;
+}
+
+void Win32ScenePlatformController::flushPendingInvalidations(bool updateNow)
+{
+  for (size_t i = 0; i < this->pendingInvalidations_.size(); ++i)
+  {
+    const PendingInvalidate &entry = this->pendingInvalidations_[i];
     if (!IsWindow(entry.hwnd))
     {
       continue;
     }
-    UINT flags = RDW_INVALIDATE | RDW_UPDATENOW;
-    if (entry.eraseBackground)
+    RedrawWindow(entry.hwnd, entry.fullWindow ? NULL : &entry.rect, NULL,
+                 pendingInvalidationFlags(entry));
+    if (!(GetWindowLongPtrW(entry.hwnd, GWL_STYLE) & WS_CHILD))
     {
-      flags |= RDW_ERASE;
+      continue;
     }
-    if (entry.includeChildren)
+    RECT damage;
+    if (!GetClientRect(entry.hwnd, &damage))
     {
-      flags |= RDW_ALLCHILDREN;
+      continue;
     }
-    RedrawWindow(entry.hwnd, entry.fullWindow ? NULL : &entry.rect, NULL, flags);
+    if (!entry.fullWindow && !IntersectRect(&damage, &damage, &entry.rect))
+    {
+      continue;
+    }
+    MapWindowPoints(entry.hwnd, NULL, reinterpret_cast<POINT *>(&damage), 2);
+    // A transparent sibling needs the freshly painted ground as well as its
+    // own foreground. Clipping the source by the sibling's full bounds would
+    // preserve stale ground instead. Queue all damage before any paint runs.
+    for (HWND sibling = GetWindow(entry.hwnd, GW_HWNDNEXT); sibling;
+         sibling = GetWindow(sibling, GW_HWNDNEXT))
+    {
+      RECT bounds;
+      RECT overlap;
+      if (GetWindowRect(sibling, &bounds) && IntersectRect(&overlap, &damage, &bounds))
+      {
+        MapWindowPoints(NULL, sibling, reinterpret_cast<POINT *>(&overlap), 2);
+        RedrawWindow(sibling, &overlap, NULL, RDW_INVALIDATE | RDW_ALLCHILDREN);
+      }
+    }
   }
-  pendingInvalidations_.clear();
-  redrawStats_.reset();
+  this->pendingInvalidations_.clear();
+  if (updateNow)
+  {
+    RedrawWindow(this->rootHwnd_, NULL, NULL, RDW_UPDATENOW | RDW_ALLCHILDREN);
+  }
+}
+
+void Win32ScenePlatformController::synchronize()
+{
+  this->dumpRedrawStatsIfNeeded();
+  this->flushPendingInvalidations(true);
+  this->redrawStats_.reset();
 }
 
 bool Win32ScenePlatformController::hasPendingSync() const

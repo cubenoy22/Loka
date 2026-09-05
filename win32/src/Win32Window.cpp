@@ -313,11 +313,15 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       {
         SetBkMode(hdc, TRANSPARENT);
       }
+      // A STATIC stays transparent so a ZStack Text overlaps the sibling it
+      // sits on (HelloWorld's decoration); the root paints the ground under
+      // it whenever the root itself is invalidated. A surface tick no longer
+      // invalidates the root, which is what removed the per-tick flicker.
       return reinterpret_cast<LRESULT>(GetStockObject(NULL_BRUSH));
     }
     case WM_ERASEBKGND:
       Win32ScenePlatformController::noteNativePaint(hwnd, Win32ScenePlatformController::NATIVE_PAINT_ROOT, true);
-      return DefWindowProcW(hwnd, msg, wParam, lParam);
+      return 1;
     case WM_SIZE:
       if (self->scenePlatformController_)
       {
@@ -375,9 +379,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       PAINTSTRUCT ps;
       HDC hdc = BeginPaint(hwnd, &ps);
       // Clear the background with the native window color.
-      RECT rc;
-      GetClientRect(hwnd, &rc);
-      FillRect(hdc, &rc, (HBRUSH)(COLOR_WINDOW + 1));
+      FillRect(hdc, &ps.rcPaint, (HBRUSH)(COLOR_WINDOW + 1));
       EndPaint(hwnd, &ps);
       break;
     }

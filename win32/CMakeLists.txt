@@ -18,6 +18,7 @@ set(SOURCES
   src/Win32Window.cpp
   src/Win32ScenePlatformController.cpp
   src/Win32PlatformContext.cpp
+  src/Win32BitmapCapture.cpp
   src/context/Win32ButtonContext.cpp
   src/context/Win32RetirableContext.cpp
   src/context/Win32CellContext.cpp

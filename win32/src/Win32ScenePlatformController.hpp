@@ -380,6 +380,9 @@ private:
   void clearNodeContexts(loka::app::scene::Node *node);
   int measureClientWidth(int requestedWidth) const;
   void queueDirtyRect(HWND targetHwnd, const RECT *rect, BOOL eraseBackground, bool includeChildren);
+  static UINT pendingInvalidationFlags(const PendingInvalidate &entry);
+  /** Flush native damage and replay intersecting later siblings without erasing. */
+  void flushPendingInvalidations(bool updateNow);
   void dumpRedrawStatsIfNeeded();
 
   HWND rootHwnd_;
