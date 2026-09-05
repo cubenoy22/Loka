@@ -1,5 +1,6 @@
 #include "context/ToolboxButtonContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
+#include "ToolboxLayoutMetrics.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "platform/StringUTF8.hpp"
@@ -115,7 +116,7 @@ void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
     }
   }
   FrameRect(&rect_);
-  DrawStringAt(static_cast<short>(rect_.left + 4), static_cast<short>(rect_.bottom - 6), label_);
+  DrawStringAt(static_cast<short>(rect_.left + 4), static_cast<short>(rect_.bottom - ToolboxLayoutMetrics::kControlDescent), label_);
   if (controller)
   {
     controller->recordButtonHit(rect_, emitter_, enabled_, boundary_, this);
@@ -138,9 +139,9 @@ short ToolboxButtonContext::layout(loka::app::scene::IPlatformController *contro
   short width = ToolboxMeasureTextWidth(label);
   Rect rect;
   rect.left = state.x;
-  rect.top = static_cast<short>(state.y - state.lineHeight + 2);
+  rect.top = static_cast<short>(state.y - state.lineHeight + ToolboxLayoutMetrics::kControlAscentInset);
   rect.right = static_cast<short>(state.x + width);
-  rect.bottom = static_cast<short>(state.y + 6);
+  rect.bottom = static_cast<short>(state.y + ToolboxLayoutMetrics::kControlDescent);
   updateData(label, node_->props.onClick_, node_->props.enabled_, 0, node_->props.controlTag_);
   updateRect(rect);
   state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);

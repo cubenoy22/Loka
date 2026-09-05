@@ -1,5 +1,6 @@
 #include "context/ToolboxEditTextContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
+#include "ToolboxLayoutMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "platform/StringUTF8.hpp"
 #include <cstring>
@@ -117,9 +118,9 @@ short ToolboxEditTextContext::layout(loka::app::scene::IPlatformController *cont
   short width = 120;
   Rect rect;
   rect.left = state.x;
-  rect.top = static_cast<short>(state.y - state.lineHeight + 2);
+  rect.top = static_cast<short>(state.y - state.lineHeight + ToolboxLayoutMetrics::kControlAscentInset);
   rect.right = static_cast<short>(state.x + width + 3);
-  rect.bottom = static_cast<short>(state.y + 6 + 2);
+  rect.bottom = static_cast<short>(state.y + ToolboxLayoutMetrics::kEditTextDescent);
   Rect textRect = rect;
   textRect.left = static_cast<short>(textRect.left + 1);
   textRect.top = static_cast<short>(textRect.top + 2);
