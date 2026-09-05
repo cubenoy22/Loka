@@ -5,6 +5,7 @@ void testRowFixedBoxWidthLeavesOnlyRemainingSeatForText();
 void testRowWidthOnlyBoxLeavesOnlyRemainingSeatForText();
 void testRowEmptyFragmentConsumesNeitherSeatNorGap();
 void testRowMaterializedDialogConsumesNeitherSeatNorGap();
+void testRowMaterializedDialogDoesNotRaiseAlignedRowHeight();
 void testRowBranchArmSwitchRelayoutsWidthConsultation();
 void testRowWidthOnlyBranchArmForwardsWidthClaim();
 void testRowHeightOnlyBoxKeepsFlexSeat();
