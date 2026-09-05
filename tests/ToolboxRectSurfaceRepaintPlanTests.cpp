@@ -42,6 +42,8 @@ namespace
     return false;
   }
 
+  // The invariant: a grid holding the previous model's pixels, after the
+  // plan's erases then paints, holds exactly the current model's pixels.
   void
   verifyCoverage(const RectSurfaceModel &previous, const RectSurfaceModel &current, const RectSurfaceRepaintPlan &plan)
   {
@@ -49,10 +51,16 @@ namespace
     {
       for (int x = 0; x < 64; ++x)
       {
-        const bool painted = commanded(plan, true, x, y);
-        const bool erased = commanded(plan, false, x, y);
-        LOKA_VERIFY(!covered(current, x, y) || painted);
-        LOKA_VERIFY(!covered(previous, x, y) || covered(current, x, y) || erased);
+        bool pixel = covered(previous, x, y);
+        if (commanded(plan, false, x, y))
+        {
+          pixel = false;
+        }
+        if (commanded(plan, true, x, y))
+        {
+          pixel = true;
+        }
+        LOKA_VERIFY(pixel == covered(current, x, y));
       }
     }
   }
@@ -82,9 +90,43 @@ void testToolboxRepaintMovingSprite()
   const RectSurfaceRepaintPlan plan(&previous, current, surface, surface, true);
   LOKA_VERIFY(plan.eraseCount() == 1);
   LOKA_VERIFY(plan.eraseRect(0) == Frame(8, 8, 4, 24));
+  // Only the leading strip is painted: the kept overlap was painted last
+  // frame and nothing erased it (a tall pipe moving 4px costs 4 columns).
   LOKA_VERIFY(plan.paintCount() == 1);
-  LOKA_VERIFY(plan.paintRect(0) == Frame(12, 8, 24, 24));
+  LOKA_VERIFY(plan.paintRect(0) == Frame(32, 8, 4, 24));
   verifyCoverage(previous, current, plan);
+}
+
+void testToolboxRepaintKeptOverlapRepaintsOnlyWhenErased()
+{
+  // A stays put; B's trailing strip crosses A. A's kept overlap must be
+  // repainted after B's erase, and not otherwise.
+  RectSurfaceModel previous;
+  previous.rectCount = 2;
+  previous.rects[0] = RectSprite(20, 20, 24, 24);
+  previous.rects[1] = RectSprite(8, 20, 24, 24);
+  RectSurfaceModel current = previous;
+  current.rects[1].x = 40;
+  const RectSurfaceRepaintPlan crossed(&previous, current, surface, surface, true);
+  LOKA_VERIFY(crossed.eraseCount() == 1);
+  LOKA_VERIFY(crossed.eraseRect(0) == Frame(8, 20, 24, 24));
+  bool repaintedA = false;
+  for (short i = 0; i < crossed.paintCount(); ++i)
+  {
+    if (crossed.paintRect(i) == Frame(20, 20, 24, 24))
+    {
+      repaintedA = true;
+    }
+  }
+  LOKA_VERIFY(repaintedA);
+  verifyCoverage(previous, current, crossed);
+
+  RectSurfaceModel alone = previous;
+  alone.rectCount = 1;
+  const RectSurfaceRepaintPlan untouched(&alone, alone, surface, surface, true);
+  LOKA_VERIFY(untouched.eraseCount() == 0);
+  LOKA_VERIFY(untouched.paintCount() == 0);
+  verifyCoverage(alone, alone, untouched);
 }
 
 void testToolboxRepaintOverlappingSprites()

@@ -451,6 +451,7 @@ LOKA_TEST(testToolboxScrollViewOffsetClampRepublishesOnlyChangedFacts)
 LOKA_TEST(testToolboxScrollViewRangeMapsContentMinusViewport)
 
 LOKA_TEST(testToolboxRepaintMovingSprite)
+LOKA_TEST(testToolboxRepaintKeptOverlapRepaintsOnlyWhenErased)
 LOKA_TEST(testToolboxRepaintOverlappingSprites)
 LOKA_TEST(testToolboxRepaintRemovedSprite)
 LOKA_TEST(testToolboxRepaintWithoutPrevious)

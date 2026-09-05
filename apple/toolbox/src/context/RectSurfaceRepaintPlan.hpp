@@ -9,10 +9,13 @@ namespace loka
   namespace toolbox
   {
     /** Completed, allocation-free repaint commands in surface placement coordinates.
-        Execute all erases before all paints: another sprite's erase can cross
-        an unchanged portion of a current sprite. Index is sprite identity.
-        A null previous model clears the surface; clearBackground=false never
-        erases. The caller retains responsibility for the native region clip. */
+        Execute all erases before all paints. Index is sprite identity: a
+        retained sprite erases previous(i) minus current(i) and paints
+        current(i) minus previous(i); the part of current(i) it already
+        painted last frame is repainted only when some erase in this plan
+        crosses it (another sprite's trailing strip). A null previous model
+        clears the surface; clearBackground=false never erases. The caller
+        retains responsibility for the native region clip. */
     class RectSurfaceRepaintPlan
     {
     public:
@@ -68,13 +71,38 @@ namespace loka
             }
           }
         }
+        const short previousCount =
+            previous ? app::RectSurfaceModel::clampRectCount(previous->rectCount) : static_cast<short>(0);
         for (short i = 0; i < currentCount; ++i)
         {
-          const core::Frame rect = intersection(placed(current.rects[i], surface), dirty);
-          if (rect.hasSize())
+          const core::Frame newRect = placed(current.rects[i], surface);
+          if (i < previousCount)
           {
-            this->paintRects_[this->paintCount_++] = rect;
+            const core::Frame oldRect = placed(previous->rects[i], surface);
+            const core::Frame kept = intersection(oldRect, newRect);
+            if (kept.hasSize() && oldRect.width == newRect.width && oldRect.height == newRect.height)
+            {
+              // Strips of current(i) outside the kept overlap.
+              this->appendPaint(core::Frame(newRect.x, newRect.y, newRect.width, kept.y - newRect.y), dirty);
+              this->appendPaint(core::Frame(newRect.x,
+                                            kept.y + kept.height,
+                                            newRect.width,
+                                            newRect.y + newRect.height - kept.y - kept.height),
+                                dirty);
+              this->appendPaint(core::Frame(newRect.x, kept.y, kept.x - newRect.x, kept.height), dirty);
+              this->appendPaint(core::Frame(kept.x + kept.width,
+                                            kept.y,
+                                            newRect.x + newRect.width - kept.x - kept.width,
+                                            kept.height),
+                                dirty);
+              if (this->anyEraseCrosses(kept))
+              {
+                this->appendPaint(kept, dirty);
+              }
+              continue;
+            }
           }
+          this->appendPaint(newRect, dirty);
         }
       }
 
@@ -112,6 +140,28 @@ namespace loka
         return core::Frame(left, top, right - left, bottom - top);
       }
 
+      bool anyEraseCrosses(const core::Frame &rect) const
+      {
+        for (short i = 0; i < this->eraseCount_; ++i)
+        {
+          if (intersection(this->eraseRects_[i], rect).hasSize())
+          {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      void appendPaint(const core::Frame &rect, const core::Frame &dirty)
+      {
+        const core::Frame clipped = intersection(rect, dirty);
+        if (clipped.hasSize())
+        {
+          // At most four strips plus the kept overlap per current index.
+          this->paintRects_[this->paintCount_++] = clipped;
+        }
+      }
+
       void appendErase(const core::Frame &rect, const core::Frame &dirty)
       {
         const core::Frame clipped = intersection(rect, dirty);
@@ -124,7 +174,7 @@ namespace loka
       }
 
       core::Frame eraseRects_[kMaxSprites * 4];
-      core::Frame paintRects_[kMaxSprites];
+      core::Frame paintRects_[kMaxSprites * 5];
       short eraseCount_;
       short paintCount_;
     };
