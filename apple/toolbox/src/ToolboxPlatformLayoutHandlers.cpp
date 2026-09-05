@@ -302,6 +302,9 @@ int ComputeToolboxRowLayout(loka::app::StackNode *row,
   short rowStartX = state.x;
   short maxHeight = 0;
   const short lineHeight = state.lineHeight > 0 ? state.lineHeight : ToolboxLayoutMetrics::kDefaultLineHeight;
+  const short controlAscent = static_cast<short>(lineHeight - ToolboxLayoutMetrics::kControlAscentInset);
+  const short controlHeight = static_cast<short>(controlAscent + ToolboxLayoutMetrics::kControlDescent);
+  const short editTextHeight = static_cast<short>(controlAscent + ToolboxLayoutMetrics::kEditTextDescent);
   short rowHeight = lineHeight;
   const size_t childCount = row->childrenCount();
   loka::app::layout::RowWidthConsultation widths(row->childrenHead(), childCount, state.width, state.spacing);
@@ -312,7 +315,7 @@ int ComputeToolboxRowLayout(loka::app::StackNode *row,
     for (loka::app::scene::Node *child = measure.next(); child; child = measure.next())
     {
       short height = static_cast<short>(loka::app::layout::preferredChildHeightForRow(
-          child, lineHeight, lineHeight, lineHeight, lineHeight, lineHeight,
+          child, lineHeight, controlHeight, editTextHeight, controlHeight, controlHeight,
           ToolboxLayoutMetrics::kImageFallbackHeight));
       if (height > rowHeight)
       {
@@ -339,7 +342,7 @@ int ComputeToolboxRowLayout(loka::app::StackNode *row,
     if (row->props.hasVerticalAlignment_)
     {
       short childHeight = static_cast<short>(loka::app::layout::preferredChildHeightForRow(
-          child, rowHeight, lineHeight, lineHeight, lineHeight, lineHeight,
+          child, rowHeight, controlHeight, editTextHeight, controlHeight, controlHeight,
           ToolboxLayoutMetrics::kImageFallbackHeight));
       short remain = static_cast<short>(rowHeight - childHeight);
       short offset = 0;
@@ -354,7 +357,12 @@ int ComputeToolboxRowLayout(loka::app::StackNode *row,
           offset = remain;
         }
       }
-      rowState.y = static_cast<short>(state.y + offset);
+      // Controls receive a baseline; images and surfaces receive their painted top.
+      const short baselineOffset = child->asButtonNode() || child->asEditTextNode()
+                                       || child->asPopupMenuNode() || child->asTextNode()
+                                       ? controlAscent
+                                       : 0;
+      rowState.y = static_cast<short>(state.y + offset + baselineOffset);
       rowState.height = childHeight;
     }
     DispatchTraversalLayoutChild(traversal, child, rowState);

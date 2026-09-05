@@ -198,8 +198,11 @@ namespace
       LOKA_VERIFY(this->callCount_ < 7);
       this->seats_[this->callCount_] = state;
       const int width = ToolboxLayoutContractTraversal::layoutChild(child, state);
-      // Consume the supplied seat; native control painting is outside this fixture.
-      this->setLayoutResultY(static_cast<short>(state.y + state.height));
+      // Record painted bottom for baseline controls; native advance is separate.
+      const short bottom = child->asButtonNode() || child->asTextNode()
+                               ? static_cast<short>(state.y + 6)
+                               : static_cast<short>(state.y + state.height);
+      this->setLayoutResultY(bottom);
       return width;
     }
 
@@ -243,9 +246,9 @@ namespace
       std::fprintf(stderr, "  %s: y-offset=%d seat-height=%d\n", names[i],
                    traversal.seats_[i].y - startY, traversal.seats_[i].height);
     }
-    // Controls use the effective line height even beside a taller surface (#563).
-    const short centeredOffsets[] = {0, 25, 25, 18, 0, 15, 0};
-    const short centeredHeights[] = {60, 10, 10, 24, 60, 30, 60};
+    // Painted bounds center at 50: baseline 51 gives top 43 and bottom 57.
+    const short centeredOffsets[] = {0, 31, 31, 18, 0, 15, 0};
+    const short centeredHeights[] = {60, 14, 14, 24, 60, 30, 60};
     LOKA_VERIFY(state.y - startY == (centered ? 64 : 44));
     for (int i = 0; i < 7; ++i)
     {
@@ -263,4 +266,25 @@ void testToolboxCenteredRowChildHeightSeats()
 void testToolboxUnalignedRowChildHeightSeats()
 {
   VerifyToolboxRowChildHeightSeats(false);
+}
+
+void testToolboxCenteredControlOnlyRowPaintedBounds()
+{
+  loka::app::StackNode row(loka::app::StackProps(loka::app::STACK_AXIS_ROW)
+                               .alignVertical(loka::app::VERTICAL_ALIGNMENT_CENTER));
+  row.addChild(new loka::app::ButtonNode(loka::app::ButtonProps()));
+  loka::app::scene::PlatformLayoutHandlerRegistry registry;
+  RegisterToolboxPlatformLayoutHandlers(registry);
+  ToolboxRowSeatTraversal traversal;
+  loka::app::scene::LayoutState state = FixedBoxInputState();
+  state.spacing = 4;
+  short width = 0;
+  const bool usedHandler = ApplyToolboxPlatformLayoutHandler(registry, row, state, traversal, width);
+  LOKA_VERIFY(usedHandler);
+  LOKA_VERIFY(traversal.callCount_ == 1);
+  std::fprintf(stderr, "Toolbox control-only CENTER: baseline=%d height=%d extent=%d\n",
+               traversal.seats_[0].y, traversal.seats_[0].height, state.y - 20);
+  LOKA_VERIFY(traversal.seats_[0].y == 28);
+  LOKA_VERIFY(traversal.seats_[0].height == 14);
+  LOKA_VERIFY(state.y == 38);
 }
