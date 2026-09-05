@@ -1,6 +1,7 @@
 #include "Win32TextContext.hpp"
 #include <cassert>
 #include "../Win32ScenePlatformController.hpp"
+#include "../Win32BitmapCapture.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "app/nodes/Text.hpp"
@@ -100,69 +101,6 @@ namespace
     return defaultHeight;
   }
 
-  void ReleaseCapturedBitmap(void *handle, void *)
-  {
-    if (handle)
-    {
-      DeleteObject(static_cast<HBITMAP>(handle));
-    }
-  }
-
-  bool CaptureWindowBitmap(HWND hwnd, loka::core::resource::Image &out)
-  {
-    out = loka::core::resource::Image::Empty();
-    if (!hwnd)
-    {
-      return false;
-    }
-
-    RECT rc;
-    if (!GetClientRect(hwnd, &rc))
-    {
-      return false;
-    }
-    const int width = rc.right - rc.left;
-    const int height = rc.bottom - rc.top;
-    if (width <= 0 || height <= 0)
-    {
-      return false;
-    }
-
-    HDC windowDC = GetWindowDC(hwnd);
-    if (!windowDC)
-    {
-      return false;
-    }
-
-    HDC memDC = CreateCompatibleDC(windowDC);
-    if (!memDC)
-    {
-      ReleaseDC(hwnd, windowDC);
-      return false;
-    }
-
-    HBITMAP bitmap = CreateCompatibleBitmap(windowDC, width, height);
-    if (!bitmap)
-    {
-      DeleteDC(memDC);
-      ReleaseDC(hwnd, windowDC);
-      return false;
-    }
-
-    HGDIOBJ oldBitmap = SelectObject(memDC, bitmap);
-    const BOOL copied = BitBlt(memDC, 0, 0, width, height, windowDC, 0, 0, SRCCOPY);
-    SelectObject(memDC, oldBitmap);
-    DeleteDC(memDC);
-    ReleaseDC(hwnd, windowDC);
-    if (!copied)
-    {
-      DeleteObject(bitmap);
-      return false;
-    }
-
-    out = loka::core::resource::Image::FromNative(bitmap, width, height, &ReleaseCapturedBitmap, 0);
-    return out.isValid();
-  }
 } // namespace
 
 Win32TextContext::Win32TextContext(Win32ScenePlatformController *controller,
@@ -268,7 +206,7 @@ void Win32TextContext::applyDetachedPresentation()
 
 bool Win32TextContext::captureBitmap(loka::core::resource::Image &out) const
 {
-  return CaptureWindowBitmap(this->hwnd_, out);
+  return loka::win32::CaptureWindowClientBitmap(this->hwnd_, out);
 }
 
 short Win32TextContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)

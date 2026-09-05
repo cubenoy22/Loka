@@ -72,6 +72,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32App.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32Window.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32RetirableContext.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32BitmapCapture.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32ButtonContext.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32CellContext.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32TextContext.cpp

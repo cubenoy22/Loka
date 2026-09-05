@@ -32,3 +32,4 @@ LOKA_TEST(testWin32IdlePacerWakesForQueuedMessage)
 LOKA_TEST(testWin32EveryTickGateDoesNotDispatchOnEarlyMessages)
 
 LOKA_TEST(testWin32RectSurfaceTicksRepaintOnlySurface)
+LOKA_TEST(testWin32ZStackTextShowsSiblingBeneath)

@@ -3,4 +3,6 @@
 
 void testWin32RectSurfaceTicksRepaintOnlySurface();
 
+void testWin32ZStackTextShowsSiblingBeneath();
+
 #endif

@@ -2,6 +2,7 @@
 #define LOKA_WIN32_SCENE_PLATFORM_TEST_ACCESS_HPP
 
 #include "../Win32ScenePlatformController.hpp"
+#include "../Win32BitmapCapture.hpp"
 
 namespace loka
 {
@@ -12,6 +13,11 @@ namespace loka
       class Win32ScenePlatformTestAccess
       {
       public:
+        static bool captureWindowClientBitmap(HWND hwnd, ::loka::core::resource::Image &out)
+        {
+          return ::loka::win32::CaptureWindowClientBitmap(hwnd, out);
+        }
+
         struct PendingInvalidationSnapshot
         {
           PendingInvalidationSnapshot()
