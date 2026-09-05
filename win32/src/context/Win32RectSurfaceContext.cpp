@@ -6,7 +6,6 @@
 namespace
 {
   const wchar_t kRectSurfaceClassName[] = L"LOKA_RECT_SURFACE";
-  const COLORREF kRectSurfaceClearColor = RGB(255, 255, 255);
 }
 
 Win32RectSurfaceContext::Win32RectSurfaceContext(Win32ScenePlatformController *controller,
@@ -184,8 +183,9 @@ void Win32RectSurfaceContext::unbindModel()
 
 void Win32RectSurfaceContext::applyModel()
 {
-  if (!hwnd_)
+  if (this->hwnd_)
   {
+    Win32ScenePlatformController::requestDirtyRect(this->hwnd_, NULL, FALSE);
     return;
   }
   HWND parent = 0;
@@ -193,9 +193,7 @@ void Win32RectSurfaceContext::applyModel()
   if (this->queryBoundsInParent(parent, rect))
   {
     Win32ScenePlatformController::requestDirtySubtree(parent, &rect, TRUE);
-    return;
   }
-  Win32ScenePlatformController::requestDirtyRect(hwnd_, NULL, TRUE);
 }
 
 bool Win32RectSurfaceContext::queryBoundsInParent(HWND &parent, RECT &rect) const
@@ -220,29 +218,59 @@ void Win32RectSurfaceContext::ModelChangedThunk(void *userData)
 
 void Win32RectSurfaceContext::draw(HDC hdc, const RECT &rect)
 {
-  if (node_ && node_->props.clearBackground_)
-  {
-    HBRUSH backgroundBrush = CreateSolidBrush(kRectSurfaceClearColor);
-    if (backgroundBrush)
-    {
-      FillRect(hdc, &rect, backgroundBrush);
-      DeleteObject(backgroundBrush);
-    }
-  }
-  if (!node_ || !modelState_)
+  const int width = static_cast<int>(rect.right - rect.left);
+  const int height = static_cast<int>(rect.bottom - rect.top);
+  if (!hdc || width <= 0 || height <= 0)
   {
     return;
   }
-  const loka::app::RectSurfaceModel model = modelState_->get();
-  HBRUSH blackBrush = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
-  for (short i = 0; i < model.rectCount; ++i)
+  HDC memoryDC = CreateCompatibleDC(hdc);
+  HBITMAP bitmap = memoryDC ? CreateCompatibleBitmap(hdc, width, height) : NULL;
+  HGDIOBJ previous = bitmap ? SelectObject(memoryDC, bitmap) : NULL;
+  const bool buffered = previous && previous != HGDI_ERROR;
+  HDC target = buffered ? memoryDC : hdc;
+  // Without clearing, preserve the existing pixels rather than blitting
+  // uninitialized bitmap storage. Allocation failure uses the original DC.
+  if (buffered && (!this->node_ || !this->node_->props.clearBackground_))
   {
-    RECT spriteRect;
-    const loka::core::Frame logicalRect(model.rects[i].x,
-                                        model.rects[i].y,
-                                        model.rects[i].width,
-                                        model.rects[i].height);
-    this->controller()->displayScale().projectFrame(logicalRect, spriteRect);
-    FillRect(hdc, &spriteRect, blackBrush);
+    if (!BitBlt(memoryDC, 0, 0, width, height, hdc, 0, 0, SRCCOPY))
+    {
+      target = hdc;
+    }
+  }
+  if (this->node_ && this->node_->props.clearBackground_)
+  {
+    FillRect(target, &rect, static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)));
+  }
+  if (this->node_ && this->modelState_)
+  {
+    const loka::app::RectSurfaceModel model = this->modelState_->get();
+    HBRUSH blackBrush = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
+    for (short i = 0; i < model.rectCount; ++i)
+    {
+      RECT spriteRect;
+      const loka::core::Frame logicalRect(model.rects[i].x,
+                                          model.rects[i].y,
+                                          model.rects[i].width,
+                                          model.rects[i].height);
+      this->controller()->displayScale().projectFrame(logicalRect, spriteRect);
+      FillRect(target, &spriteRect, blackBrush);
+    }
+  }
+  if (target == memoryDC)
+  {
+    BitBlt(hdc, 0, 0, width, height, memoryDC, 0, 0, SRCCOPY);
+  }
+  if (buffered)
+  {
+    SelectObject(memoryDC, previous);
+  }
+  if (bitmap)
+  {
+    DeleteObject(bitmap);
+  }
+  if (memoryDC)
+  {
+    DeleteDC(memoryDC);
   }
 }

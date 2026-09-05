@@ -2,6 +2,7 @@
 #define LOKA_WIN32_SCENE_PLATFORM_TEST_ACCESS_HPP
 
 #include "../Win32ScenePlatformController.hpp"
+#include "../Win32BitmapCapture.hpp"
 
 namespace loka
 {
@@ -12,6 +13,11 @@ namespace loka
       class Win32ScenePlatformTestAccess
       {
       public:
+        static bool captureWindowClientBitmap(HWND hwnd, ::loka::core::resource::Image &out)
+        {
+          return ::loka::win32::CaptureWindowClientBitmap(hwnd, out);
+        }
+
         struct PendingInvalidationSnapshot
         {
           PendingInvalidationSnapshot()
@@ -29,6 +35,20 @@ namespace loka
           bool fullWindow;
           bool includeChildren;
         };
+
+        typedef ::Win32ScenePlatformController::RedrawStats RedrawStats;
+
+        static const RedrawStats &redrawStats(const ::Win32ScenePlatformController &controller)
+        {
+          return controller.redrawStats_;
+        }
+
+        // Match synchronize's invalidation flags, but let the message pump
+        // paint after flushing so synchronize's stats reset cannot hide it.
+        static void flushPendingInvalidations(::Win32ScenePlatformController &controller)
+        {
+          controller.flushPendingInvalidations(false);
+        }
 
         static void resetRedrawStats(::Win32ScenePlatformController &controller)
         {
