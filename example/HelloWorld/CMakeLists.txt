@@ -93,6 +93,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32WindowClientSizeTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32ProfilerTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32IdlePacerTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32ManifestCompatibilityTests.cpp
   )
   loka_enable_warnings(LokaTestsWin32)
   loka_enable_win32_visual_styles(LokaTestsWin32)

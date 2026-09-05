@@ -15,6 +15,7 @@
 #include "Win32WindowClientSizeTests.hpp"
 #include "Win32ProfilerTests.hpp"
 #include "Win32IdlePacerTests.hpp"
+#include "Win32ManifestCompatibilityTests.hpp"
 #endif
 #include "DerivedStateTests.hpp"
 #include "WindowFrameStateTests.hpp"
