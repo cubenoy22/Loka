@@ -16,7 +16,7 @@ namespace
 {
   static bool g_classRegistered = false;
   static const wchar_t *kWndClassName = L"DevWndClass";
-  static const DWORD kWindowStyle = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN;
+  static const DWORD kWindowStyle = WS_OVERLAPPEDWINDOW;
   static const DWORD kWindowExStyle = WS_EX_CONTROLPARENT;
   // Windows SDK headers hide this message when the XP compatibility preset
   // sets _WIN32_WINNT=0x0501, although newer Windows can still send it to the
@@ -312,10 +312,12 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       if (hdc)
       {
         SetBkMode(hdc, TRANSPARENT);
-        SetBkColor(hdc, GetSysColor(COLOR_WINDOW));
       }
-      // WS_CLIPCHILDREN pairs with STATIC erasing its own window-colour background.
-      return reinterpret_cast<LRESULT>(GetSysColorBrush(COLOR_WINDOW));
+      // A STATIC stays transparent so a ZStack Text overlaps the sibling it
+      // sits on (HelloWorld's decoration); the root paints the ground under
+      // it whenever the root itself is invalidated. A surface tick no longer
+      // invalidates the root, which is what removed the per-tick flicker.
+      return reinterpret_cast<LRESULT>(GetStockObject(NULL_BRUSH));
     }
     case WM_ERASEBKGND:
       Win32ScenePlatformController::noteNativePaint(hwnd, Win32ScenePlatformController::NATIVE_PAINT_ROOT, true);
