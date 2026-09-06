@@ -39,6 +39,11 @@ the shape. First instance: #518 rally 1 v2 (2026-09-06).
 6. **Alternatives** — when a second opinion (REFUTE, Codex, user) proposes
    another shape, draw it in the same lanes so the choice is a visible diff.
 
+An independent second drawing is cheap and worth it: brief Codex with this
+skill, the design summary, and the REFUTE findings — not your own page — and
+publish its version as a separate artifact. Where the two pages disagree
+(the PR split, a missing door) is where the design is still soft.
+
 ## Conventions (keep them identical across pages)
 
 - **Lanes = owners**, left to right in the direction of the data:
@@ -55,7 +60,17 @@ the shape. First instance: #518 rally 1 v2 (2026-09-06).
   in the label; that sentence is usually the ruling.
 - **Label every arrow** with the operation (`markViewDirty(PROPS)`,
   `queryPaintDamage`), not "flows to".
-- One concrete example per figure; no abstract "a State" boxes.
+- One concrete example per figure; no abstract "a State" boxes. Use the
+  **real identifiers** from the source, not a shorthand: `scoreText_.set(...)`
+  at `GameModel.hpp:163` read by the Text at `MainNode.hpp:81`, never
+  `score.set(n+1)`. A shorthand hides which owner writes and which resident
+  reads, which is usually the point of the figure (learned from the Codex
+  independent version of the #518 page).
+- **Every lifecycle state machine names the park, cancel, and reclaim
+  doors**, not only birth and death: retained-detach (parking) bypasses the
+  terminal DETACH path, a cancelled or forgotten entry must show where its
+  pending work goes, and reclaim states what it asserts. A lifecycle figure
+  without these three is the picture the REFUTE will draw for you.
 - Figure captions state the claim of the figure in one or two sentences and
   name the file:line the boxes come from. The page's last line names the
   sources (issue, rally page, REFUTE findings file).
