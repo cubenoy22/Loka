@@ -314,11 +314,14 @@ namespace allocpin
                       - before.boundaryUpdateVisits == 1);
     }
     const unsigned long allocations = CaptureAllocCount(0);
-    std::printf("FloppyBird surface tick baseline: allocations=%lu bytes=%lu\n",
-                allocations, CaptureAllocBytes(0));
+    const unsigned long bytes = CaptureAllocBytes(0);
+    std::printf("FloppyBird surface tick baseline: allocations=%lu bytes=%lu\n", allocations, bytes);
     // Characterization of this Null surface-only tick: 6 allocations / 112 bytes.
-    // Keep independent of the HelloWorld ceiling; later PRs explicitly update this baseline.
+    // Both halves are pinned so a later paint change that keeps the count but
+    // grows the sizes is visible. Kept independent of the HelloWorld ceiling;
+    // later PRs explicitly update this baseline.
     LOKA_VERIFY(allocations == 6);
+    LOKA_VERIFY(bytes == 112);
     scene.unmount();
   }
 } // namespace allocpin
