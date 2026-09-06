@@ -96,5 +96,10 @@ Do not run `--update-golden` as part of this handoff.
 
 `simpleviewer startup` captures the settled viewer without opening anything.
 It is the per-example startup golden the atomic bundle requires before any
-other SimpleViewer cell can be staged, and it records the heap facts before
-any load (`heap.free`, `heap.max_block`) with `image.load none`.
+other SimpleViewer cell can be staged, and it records `heap.probe_covers_image n/a` with `image.load none`.
+
+Raw heap numbers (`FreeMem`, the capacity probe) are not audit fields: they
+move with the scenario application's code size, so an unrelated change would
+break the byte-exact expectation. The audit keeps `heap.probe_covers_image`
+(`yes`/`no`), which is the fact #614 turns on; measured numbers live in the
+PR bodies and the issue.

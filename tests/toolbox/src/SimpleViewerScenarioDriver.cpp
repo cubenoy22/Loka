@@ -172,8 +172,11 @@ namespace loka
           std::size_t maxBlock = 0;
           if (!this->getPlatformContext()->queryLargestContiguousAllocation(maxBlock)) return false;
           SimpleViewerTestAccess::open(*this->borrowedMain_, result);
-          this->loadFacts_.setInt("heap.free", freeBytes);
-          this->loadFacts_.setInt("heap.max_block", static_cast<long>(maxBlock));
+          (void)freeBytes;
+          // Raw heap numbers move with the application's code size; keep the
+          // fact #614 turns on. The numbers themselves go to the PR body.
+          this->loadFacts_.set("heap.probe_covers_image",
+                               maxBlock >= static_cast<std::size_t>(bytes) ? "yes" : "no");
           this->loadFacts_.setInt("image.bytes", bytes);
           return this->recordStep("open-image");
         }
@@ -223,8 +226,12 @@ namespace loka
             const long freeBytes = FreeMem();
             std::size_t maxBlock = 0;
             if (!this->getPlatformContext()->queryLargestContiguousAllocation(maxBlock)) { this->fail(window); return; }
-            record.setInt("heap.free", freeBytes);
-            record.setInt("heap.max_block", static_cast<long>(maxBlock));
+            (void)freeBytes;
+            (void)maxBlock;
+            // Raw heap numbers move with the application's code size, so the
+            // audit keeps only the fact #614 turns on: whether the platform's
+            // capacity probe covers the picture (no picture in this cell).
+            record.set("heap.probe_covers_image", "n/a");
             record.setInt("image.bytes", 0);
             record.setInt("image.width", 0);
             record.setInt("image.height", 0);
@@ -243,7 +250,7 @@ namespace loka
             return;
           }
           dsl::SnapRecord record = MakeRecord(this->scenario_.c_str(), this->tick_, dsl::SnapStatusOk());
-          const char *keys[] = {"heap.free", "heap.max_block", "image.bytes"};
+          const char *keys[] = {"heap.probe_covers_image", "image.bytes"};
           for (unsigned i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i)
           {
             std::string value;
