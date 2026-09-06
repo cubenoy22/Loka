@@ -13,8 +13,11 @@ the shape. First instance: #518 rally 1 v2 (2026-09-06).
 ## When
 
 - **Design complete, before asking for a ruling** — the same moment as shape
-  review gate 1 (AGENTS.md "Shape Review Gates"). The figure *is* the gate's
-  output: a dotted arrow in the picture is a weak joint in the design.
+  review gate 1 (AGENTS.md "Shape Review Gates"). The figure supplements the
+  gate's written checklist; it never replaces it. The wall-tier,
+  test-observability, and primitive-member items of that list are still
+  written out. What the figure adds is the shape test: a dotted arrow in the
+  picture is a weak joint the written list must then name.
 - **When a REFUTE lands** — annotate the broken claims in red on the existing
   figures, add the alternative as its own figure. Never start a second page;
   the reader compares versions of one page.
@@ -23,11 +26,15 @@ the shape. First instance: #518 rally 1 v2 (2026-09-06).
 
 ## The standard set (one page, in this order)
 
-1. **Today's path** — one concrete State write in one named example app
-   (e.g. "FloppyBird: `score.set(n+1)`"), traced from the write to the pixels.
-   Every box that holds a copy of the same fact is marked as a copy.
-2. **Proposed path** — the same write through the proposed design, same lanes,
-   same example, so the eye can diff the two.
+1. **Today's path** — one concrete operation in one named example, traced
+   from its origin to its visible or externally observable effect. For a
+   rendering ruling that is a State write traced to the pixels (e.g.
+   "FloppyBird: `scoreText_.set(...)`"); for an ownership or lifetime ruling
+   it is the allocation, request, handle, or file path traced from where it
+   is created to where it is released. Every box that holds a copy of the
+   same fact is marked as a copy.
+2. **Proposed path** — the same operation through the proposed design, same
+   lanes, same example, so the eye can diff the two.
 3. **Cast table** — roles as rows (what changed / where to paint / when /
    what is on screen …), columns "today" and "after"; every struct, field,
    enum, or function that holds the fact, marked copy / retire / new. End
@@ -46,9 +53,11 @@ publish its version as a separate artifact. Where the two pages disagree
 
 ## Conventions (keep them identical across pages)
 
-- **Lanes = owners**, left to right in the direction of the data:
-  `STATE / TRACKER` → `BOUNDARY` → `SCENE / TRANSACTION` → `PLATFORM` →
-  `CONTEXT`. Time runs top to bottom.
+- **Lanes = owners**, left to right in the direction of the data. For the
+  rendering pipeline: `STATE / TRACKER` → `BOUNDARY` → `SCENE / TRANSACTION`
+  → `PLATFORM` → `CONTEXT`. For any other ruling, name the owners the fact
+  actually passes through (e.g. `APP` → `WINDOW` → `SCENE` → `ARENA`). Time
+  runs top to bottom.
 - **Box = owner of one fact.** A fact that appears in two boxes is a copy
   and gets the copy colour. If you cannot name the fact a box owns, the box
   is decoration — delete it.
@@ -83,17 +92,20 @@ publish its version as a separate artifact. Where the two pages disagree
   theme tokens for both light and dark). No libraries, no external images.
 - Publish with the Artifact tool (private). Republish the **same file path**
   to keep the URL; pass a `label` naming the revision ("v2 draft",
-  "REFUTE 反映 + 候補 C").
+  "REFUTE applied + candidate C").
 - Link the artifact URL from the Notion rally page's leading callout and
   from the session handoff. Do not commit the figure page or its URL to the
   repository: it carries Japanese and personal links (AGENTS.md language
   rule; "no personal URLs in the public repo").
-- Title the page as a name (`#518 Paint Ledger 図解`), never a caption.
+- Title the page as a name (`#518 Paint Ledger Figures`), never a caption.
+  The page body may be in the reader's language; this skill and the title
+  example stay in English because the file is tracked code-facing
+  documentation (AGENTS.md language rule).
 
 ## What the figure must be able to say
 
 If the proposed path cannot be drawn with boxes and solid lines inside one
 lane frame — if it needs a dotted arrow, a box no lane owns, or a label like
 "usually still alive" on the tick boundary — the design goes back before the
-brief is written. That is the existing rule ("点線矢印は差し戻し") applied
-with a pen instead of a paragraph.
+brief is written. That is the existing rule (a dotted arrow sends the design
+back) applied with a pen instead of a paragraph.
