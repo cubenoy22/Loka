@@ -332,8 +332,17 @@ run_case smirkbench startup 4 unset
 run_case smirkbench surface-ticks 4 unset
 run_case smirkbench add-face 4 unset
 # SimpleViewer launch-only pins: template data forks, no invented audits.
-printf '%s\n' 'simpleviewer open-sun' 'simpleviewer open-bulb' >>"$SANDBOX/repo/tests/scenarios/scenarios.txt"
+printf '%s\n' 'simpleviewer startup' 'simpleviewer open-sun' 'simpleviewer open-bulb' >>"$SANDBOX/repo/tests/scenarios/scenarios.txt"
 touch "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaSimpleViewerTestsToolbox68K.bin"
+mkdir -p "$SANDBOX/repo/tests/scenarios/expected/simpleviewer"
+cp "$REPO_DIR/tests/scenarios/expected/simpleviewer/startup.audit" \
+  "$SANDBOX/repo/tests/scenarios/expected/simpleviewer/startup.audit"
+# The startup cell stages no picture and mounts nothing.
+: >"$SANDBOX/hfs-mount-log"
+: >"$SANDBOX/picture-copy-arguments"
+RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" run_case simpleviewer startup 2 unset
+[ ! -s "$SANDBOX/hfs-mount-log" ] || fail "startup mounted the template"
+[ ! -s "$SANDBOX/picture-copy-arguments" ] || fail "startup extracted a picture"
 for picture in Sun Bulb; do
   # tr, not ${picture,,}: macOS ships Bash 3.2 and this test runs there.
   cell="open-$(printf '%s' "$picture" | tr 'A-Z' 'a-z')"

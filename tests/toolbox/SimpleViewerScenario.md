@@ -91,3 +91,10 @@ Do not run `--update-golden` as part of this handoff.
 - The previous generated-cell audits are stale and removed. Both new cells
   need delegator measurements; no expected audit or successful load outcome
   is inferred from the old cells. This handoff is build-verified only.
+
+## Startup cell
+
+`simpleviewer startup` captures the settled viewer without opening anything.
+It is the per-example startup golden the atomic bundle requires before any
+other SimpleViewer cell can be staged, and it records the heap facts before
+any load (`heap.free`, `heap.max_block`) with `image.load none`.

@@ -214,6 +214,29 @@ namespace loka
               || window->asToolboxWindow()->hasPendingInvalidate()) return;
           ++this->tick_;
           if (this->tick_ < 2) return;
+          if (this->tick_ == 2 && this->scenario_ == "startup")
+          {
+            // The startup cell captures the settled viewer without opening
+            // anything: it is the bundle's per-example startup golden and the
+            // heap facts before any load.
+            dsl::SnapRecord record = MakeRecord(this->scenario_.c_str(), this->tick_, dsl::SnapStatusOk());
+            const long freeBytes = FreeMem();
+            std::size_t maxBlock = 0;
+            if (!this->getPlatformContext()->queryLargestContiguousAllocation(maxBlock)) { this->fail(window); return; }
+            record.setInt("heap.free", freeBytes);
+            record.setInt("heap.max_block", static_cast<long>(maxBlock));
+            record.setInt("image.bytes", 0);
+            record.setInt("image.width", 0);
+            record.setInt("image.height", 0);
+            record.set("image.load", "none");
+            record.set("rail", "toolbox");
+            record.set("checkpoint", "post-settle");
+            scenario_tests::SetContentBounds(record, ContentLocalBounds(QueryCaptureContentBounds(window)));
+            if (!this->recordStep("post-settle") || !this->audit_.recordVerdict(record)) { this->fail(window); return; }
+            (void)this->terminal_.emit(dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
+            (void)this->completionPublisher_.publish(window);
+            return;
+          }
           if (this->tick_ == 2)
           {
             if (!this->recordStep("post-settle") || !this->openImage()) this->fail(window);
@@ -264,7 +287,7 @@ namespace loka
     {
       dsl::SnapTestConfig::Settings settings;
       if (!dsl::SnapTestConfig::load("LokaTest.cfg", settings) || !settings.hasScenario
-          || (settings.scenario != "open-sun" && settings.scenario != "open-bulb"))
+          || (settings.scenario != "startup" && settings.scenario != "open-sun" && settings.scenario != "open-bulb"))
       {
         (void)WriteScenarioErrorAudit("startup", MakeRecord("startup", 0, dsl::SnapStatusError()));
         return 0;

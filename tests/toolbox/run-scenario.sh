@@ -307,7 +307,13 @@ if [ "$EXAMPLE" = "scrapbook" ]; then
   fi
   DEV_DISK_ARGUMENTS+=("$STAGED_ASSETS")
 fi
-if [ "$EXAMPLE" = simpleviewer ]; then
+if [ "$EXAMPLE" = simpleviewer ] && [ "$SCENARIO" = startup ]; then
+  # Two items on the dev disk (application, LokaTest.cfg): the Finder lands on
+  # the application after an even number of Tabs, as the other two-item
+  # examples do; the picture cells add a third item and need three.
+  FINDER_TAB_COUNT=2
+fi
+if [ "$EXAMPLE" = simpleviewer ] && [ "$SCENARIO" != startup ]; then
   case "$SCENARIO" in
     open-sun) PICT_NAME=Sun.pict ;;
     open-bulb) PICT_NAME=Bulb.pict ;;
