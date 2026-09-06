@@ -137,7 +137,11 @@ them. Word the requirement so the list cannot come back empty by default:
 > type, each with its single writer, every reader outside the owning type,
 > and the existing phase, type, or return value it could not be derived from
 > — an added flag or counter is returned for reshaping unless that line
-> exists, and a foreign reader fails it even when the writer is unique. If you believe the shape is
+> exists, and a foreign reader fails it even when the writer is unique. For every door or call path the change adds, one cost line:
+> who calls it, how many times per update cycle, and whose rows it walks —
+> a walk over rows another owner holds (every ledger to find one context's
+> entries, every hit to decide whether a State still has a user) is a
+> return-for-reshaping finding, not a medium smell. If you believe the shape is
 > clean, say so per item and explain what you considered — "nothing found" with
 > nothing considered is not an accepted answer.
 
