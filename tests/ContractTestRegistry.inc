@@ -491,3 +491,5 @@ LOKA_TEST(testPaintPlanEmptyCapacityAndScopeValues)
 LOKA_TEST(testUnrenderableTextNeverBecomesPresented)
 LOKA_TEST(testRefusedReprojectionInvalidatesPlacement)
 LOKA_TEST(testStyleOnlyApplyRecoversTextHistory)
+
+LOKA_TEST(testRetainedPropsApplicationNotifiesContextExactlyOnce)
