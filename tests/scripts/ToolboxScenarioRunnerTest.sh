@@ -155,11 +155,13 @@ SH
 
 cat >"$SANDBOX/retro-tools/hmount" <<'SH'
 #!/usr/bin/env bash
+printf "%s\n" "$HOME" "$@" >>"$SANDBOX/hfs-mount-log"
 exit 0
 SH
 
 cat >"$SANDBOX/retro-tools/humount" <<'SH'
 #!/usr/bin/env bash
+printf "%s\n" "$HOME" "$@" >>"$SANDBOX/hfs-mount-log"
 exit 0
 SH
 
@@ -167,6 +169,12 @@ cat >"$SANDBOX/retro-tools/hcopy" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 destination="$3"
+if [ "$1" = "-r" ]; then
+  printf '%s\n' "$HOME" "$@" >"$SANDBOX/picture-copy-arguments"
+  [ "${FAKE_PICTURE_MISSING:-0}" != "1" ] || exit 1
+  printf 'template data fork: %s\n' "$2" >"$destination"
+  exit 0
+fi
 if [ "$2" = ":LokaTestsToolbox.capture" ]; then
   if [ "${FAKE_CAPTURE_MISSING:-0}" = "1" ]; then
     exit 1
@@ -323,28 +331,39 @@ touch "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaSmirkBenchTests
 run_case smirkbench startup 4 unset
 run_case smirkbench surface-ticks 4 unset
 run_case smirkbench add-face 4 unset
-# SimpleViewer launch-only pins: generated fixtures, no invented audits.
-mkdir -p "$SANDBOX/repo/tools/scenario"
-cp "$REPO_DIR/tools/scenario/gen_pict.py" "$SANDBOX/repo/tools/scenario/gen_pict.py"
-printf '%s\n' 'simpleviewer open-12k' 'simpleviewer open-50k' >>"$SANDBOX/repo/tests/scenarios/scenarios.txt"
+# SimpleViewer launch-only pins: template data forks, no invented audits.
+printf '%s\n' 'simpleviewer open-sun' 'simpleviewer open-bulb' >>"$SANDBOX/repo/tests/scenarios/scenarios.txt"
 touch "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaSimpleViewerTestsToolbox68K.bin"
-run_case simpleviewer open-12k 3 unset
-[ -s "$SANDBOX/repo/build/mame-scenario/assets/SV12K.PICT" ] || fail "12 KB PICT was not generated"
-grep -q 'assets/SV12K.PICT' "$SANDBOX/dev-disk-arguments" || fail "12 KB PICT was not staged"
-run_case simpleviewer open-50k 3 unset
-[ -s "$SANDBOX/repo/build/mame-scenario/assets/SV50K.PICT" ] || fail "50 KB PICT was not generated"
-grep -q 'assets/SV50K.PICT' "$SANDBOX/dev-disk-arguments" || fail "50 KB PICT was not staged"
-# Fail the generator before disk creation or launch; never reuse stale bytes.
-printf 'raise SystemExit(1)\n' >"$SANDBOX/repo/tools/scenario/gen_pict.py"
+for picture in Sun Bulb; do
+  cell="open-${picture,,}"
+  : >"$SANDBOX/hfs-mount-log"
+  RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" run_case simpleviewer "$cell" 3 unset
+  staged="$SANDBOX/repo/build/mame-scenario/simpleviewer/$cell/$picture.pict"
+  grep -Fxq -- ":Desktop Folder:Images:$picture.pict" "$SANDBOX/picture-copy-arguments" \
+    || fail "$picture template source was not extracted"
+  grep -Fxq -- "$SANDBOX/BootTemplate.hd" "$SANDBOX/hfs-mount-log" \
+    || fail "pristine template was not mounted"
+  [ "$(grep -Fc -- "/$cell/hfs-home" "$SANDBOX/hfs-mount-log")" = 2 ] \
+    || fail "template mount/unmount did not use the isolated HFS home"
+  grep -Fxq -- "$staged" "$SANDBOX/dev-disk-arguments" || fail "$picture was not staged"
+  grep -Fxq -- "template data fork: :Desktop Folder:Images:$picture.pict" "$staged" \
+    || fail "$picture data fork was not preserved"
+done
+# Missing template input must refuse before disk creation, even after a prior run.
 rm -f "$SANDBOX/tab-count" "$SANDBOX/dev-disk-arguments"
-if MAME_ENV_FILE="$SANDBOX/mame.env" env -u WSL_INTEROP \
-    bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" simpleviewer open-12k \
-    >"$SANDBOX/generator-failure.log" 2>&1; then
-  fail "failed generator was accepted"
+: >"$SANDBOX/hfs-mount-log"
+if MAME_ENV_FILE="$SANDBOX/mame.env" FAKE_PICTURE_MISSING=1 \
+    RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" env -u WSL_INTEROP \
+    bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" simpleviewer open-sun \
+    >"$SANDBOX/picture-failure.log" 2>&1; then
+  fail "missing template picture was accepted"
 fi
-grep -q 'PICT generator failed' "$SANDBOX/generator-failure.log" || fail "missing generator refusal"
-[ ! -f "$SANDBOX/tab-count" ] || fail "generator failure launched MAME"
-[ ! -f "$SANDBOX/dev-disk-arguments" ] || fail "generator failure staged stale bytes"
+grep -Fq 'could not extract template picture :Desktop Folder:Images:Sun.pict' \
+  "$SANDBOX/picture-failure.log" || fail "missing picture refusal"
+[ "$(grep -Fc '/open-sun/hfs-home' "$SANDBOX/hfs-mount-log")" = 2 ] \
+  || fail "missing picture did not unmount the template"
+[ ! -f "$SANDBOX/tab-count" ] || fail "missing picture launched MAME"
+[ ! -f "$SANDBOX/dev-disk-arguments" ] || fail "missing picture staged stale bytes"
 cp "$SANDBOX/shared-scenarios.txt" "$SANDBOX/repo/tests/scenarios/scenarios.txt"
 run_case helloworld toggle-action-probe 9 unset 9
 

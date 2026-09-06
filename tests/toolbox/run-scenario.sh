@@ -20,6 +20,37 @@ fail_stage() {
   exit 1
 }
 
+find_retro68_tool() {
+  local name="$1"
+  local candidate
+
+  if [ -n "${RETRO68_TOOLCHAIN_BIN:-}" ] \
+    && [ -x "$RETRO68_TOOLCHAIN_BIN/$name" ]; then
+    echo "$RETRO68_TOOLCHAIN_BIN/$name"
+    return
+  fi
+  if command -v "$name" >/dev/null 2>&1; then
+    command -v "$name"
+    return
+  fi
+  if [ -n "${RETRO68_BUILD_DIR:-}" ] \
+    && [ -x "$RETRO68_BUILD_DIR/toolchain/bin/$name" ]; then
+    echo "$RETRO68_BUILD_DIR/toolchain/bin/$name"
+    return
+  fi
+  for candidate in \
+    "$HOME/Retro68-build/toolchain/bin/$name" \
+    "$HOME/Documents/Projects/Retro68-build/toolchain/bin/$name"; do
+    if [ -x "$candidate" ]; then
+      echo "$candidate"
+      return
+    fi
+  done
+  echo "Retro68 tool not found: $name" >&2
+  return 1
+}
+
+
 if [ $# -lt 2 ] || [ $# -gt 3 ]; then
   usage
   exit 2
@@ -278,16 +309,33 @@ if [ "$EXAMPLE" = "scrapbook" ]; then
 fi
 if [ "$EXAMPLE" = simpleviewer ]; then
   case "$SCENARIO" in
-    open-12k) PICT_BYTES=12288; PICT_NAME=SV12K.PICT ;;
-    open-50k) PICT_BYTES=51200; PICT_NAME=SV50K.PICT ;;
+    open-sun) PICT_NAME=Sun.pict ;;
+    open-bulb) PICT_NAME=Bulb.pict ;;
     *) fail_stage mame "unsupported SimpleViewer image cell '$SCENARIO'" ;;
   esac
-  STAGED_ASSETS="$PROJECT_DIR/build/mame-scenario/assets/$PICT_NAME"
-  if ! python3 "$PROJECT_DIR/tools/scenario/gen_pict.py" --bytes "$PICT_BYTES" "$STAGED_ASSETS" \
-      >"$WORK/gen-pict.out" 2>&1; then
-    fail_stage mame "PICT generator failed; see $WORK/gen-pict.out"
+  STAGED="$WORK/$PICT_NAME"
+  if ! HMOUNT="$(find_retro68_tool hmount)"; then
+    fail_stage mame "hmount is unavailable"
   fi
-  DEV_DISK_ARGUMENTS+=("$STAGED_ASSETS")
+  if ! HCOPY="$(find_retro68_tool hcopy)"; then
+    fail_stage mame "hcopy is unavailable"
+  fi
+  if ! HUMOUNT="$(find_retro68_tool humount)"; then
+    fail_stage mame "humount is unavailable"
+  fi
+  # Read only the pristine template's data fork; isolate hfsutils mount state.
+  if ! HOME="$HFS_HOME" "$HMOUNT" "$MAME_HDA" >"$WORK/picture-hmount.out" 2>&1; then
+    fail_stage mame "could not mount the boot template; see $WORK/picture-hmount.out"
+  fi
+  if ! HOME="$HFS_HOME" "$HCOPY" -r ":Desktop Folder:Images:$PICT_NAME" "$STAGED" \
+      >"$WORK/picture-hcopy.out" 2>&1; then
+    HOME="$HFS_HOME" "$HUMOUNT" >/dev/null 2>&1 || true
+    fail_stage mame "could not extract template picture :Desktop Folder:Images:$PICT_NAME; ensure MAME_HDA carries it; see $WORK/picture-hcopy.out"
+  fi
+  if ! HOME="$HFS_HOME" "$HUMOUNT" >"$WORK/picture-humount.out" 2>&1; then
+    fail_stage mame "could not unmount the boot template; see $WORK/picture-humount.out"
+  fi
+  DEV_DISK_ARGUMENTS+=("$STAGED")
 fi
 DEV_DISK_ARGUMENTS+=("$CONFIG")
 
@@ -352,35 +400,6 @@ if [ ! -f "$LAUNCH_LOG" ] \
   SETTLE_REACHED=0
 fi
 
-find_retro68_tool() {
-  local name="$1"
-  local candidate
-
-  if [ -n "${RETRO68_TOOLCHAIN_BIN:-}" ] \
-    && [ -x "$RETRO68_TOOLCHAIN_BIN/$name" ]; then
-    echo "$RETRO68_TOOLCHAIN_BIN/$name"
-    return
-  fi
-  if command -v "$name" >/dev/null 2>&1; then
-    command -v "$name"
-    return
-  fi
-  if [ -n "${RETRO68_BUILD_DIR:-}" ] \
-    && [ -x "$RETRO68_BUILD_DIR/toolchain/bin/$name" ]; then
-    echo "$RETRO68_BUILD_DIR/toolchain/bin/$name"
-    return
-  fi
-  for candidate in \
-    "$HOME/Retro68-build/toolchain/bin/$name" \
-    "$HOME/Documents/Projects/Retro68-build/toolchain/bin/$name"; do
-    if [ -x "$candidate" ]; then
-      echo "$candidate"
-      return
-    fi
-  done
-  echo "Retro68 tool not found: $name" >&2
-  return 1
-}
 
 if ! HMOUNT="$(find_retro68_tool hmount)"; then
   fail_stage extract "hmount is unavailable"

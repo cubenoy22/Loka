@@ -151,8 +151,8 @@ namespace loka
 
         bool openImage()
         {
-          const file::File item = file::File::Application()
-              << file::File(this->scenario_ == "open-12k" ? "SV12K.PICT" : "SV50K.PICT");
+          const file::File chosen(this->scenario_ == "open-sun" ? "Sun.pict" : "Bulb.pict");
+          const file::File item = file::File::Application() << chosen;
           platform::file::FileHandle handle;
           if (!this->getPlatformContext()->openFile(item, handle) || !handle.hasSpec) return false;
           short refNum = 0;
@@ -164,7 +164,6 @@ namespace loka
           // The production dialog hands the session a display path and
           // registers its FSSpec beside it; take the same door so the
           // projection sees a chosen file rather than a path-less item.
-          const file::File chosen(this->scenario_ == "open-12k" ? "SV12K.PICT" : "SV50K.PICT");
           ToolboxPlatformContext::registerChosenFileSpec(chosen.toString(), handle.spec);
           const app::FileChooserResult result = app::FileChooserResult::File(chosen);
           // Sample before the flow allocates. Record construction happens
@@ -265,7 +264,7 @@ namespace loka
     {
       dsl::SnapTestConfig::Settings settings;
       if (!dsl::SnapTestConfig::load("LokaTest.cfg", settings) || !settings.hasScenario
-          || (settings.scenario != "open-12k" && settings.scenario != "open-50k"))
+          || (settings.scenario != "open-sun" && settings.scenario != "open-bulb"))
       {
         (void)WriteScenarioErrorAudit("startup", MakeRecord("startup", 0, dsl::SnapStatusError()));
         return 0;

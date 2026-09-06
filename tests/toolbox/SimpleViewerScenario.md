@@ -1,30 +1,31 @@
 # SimpleViewer open-image characterization
 
 Status: Provisional fixture; runtime verification on the System 7 rig is pending.
-Owns: Dialog-free image-load measurements and generated scenario inputs.
+Owns: Dialog-free image-load measurements and rig-local scenario inputs.
 Does not own: Production image-load policy or the fragmented-heap fix.
-Code truth: `src/SimpleViewerScenarioDriver.cpp`, `tools/scenario/gen_pict.py`.
-Verification: `tests/scripts/GenPictTest.py`, launch-only runner pins, and the
+Code truth: `src/SimpleViewerScenarioDriver.cpp`, `run-scenario.sh`.
+Verification: `tests/scripts/ScenarioToolsTest.py`, launch-only runner pins, and the
 Retro68 build. Expected audits must come from the rig.
 
 | Cell | Input | Sequence |
 | --- | --- | --- |
-| `simpleviewer open-12k` | `SV12K.PICT`, approximately 12,288 bytes | Settle, open, settle, capture |
-| `simpleviewer open-50k` | `SV50K.PICT`, approximately 51,200 bytes | Settle, open, settle, capture |
+| `simpleviewer open-sun` | `Sun.pict`, 11,826 bytes | Settle, open, settle, capture |
+| `simpleviewer open-bulb` | `Bulb.pict`, 13,810 bytes | Settle, open, settle, capture |
 
 The production MainNode and menu run in a 480×280 content window at (16, 41),
 keeping its structure rectangle inside the rig's 640×480 screen. As in
 SmirkBench, settled turns exclude Scene invalidation, native retirement and
-ToolboxWindow invalidation. Opening occurs on settled turn 2; capture occurs
-on the next settled turn.
+ToolboxWindow invalidation. Opening occurs on settled turn 2; capture waits on
+subsequent settled turns for a decided load outcome (up to 60 settled turns).
 
 The test-access layer begins MainNode's existing ImageLoadSession and writes
 its chooser result inside a StateTrackerGuard, without showing a dialog.
-The result contains `File::Application() << File("SV12K.PICT")` (or the 50 KB
-name). `ToolboxPlatformContext::openFile` resolves the application folder
-through Process Manager and `FSMakeFSSpec`; unlike a dialog-selected display
-path, this needs no entry in `FindChosenSpec`. The production chooser adapters,
-capacity check, data-fork read, decode and image commit all run unchanged.
+The driver resolves `File::Application() << File("Sun.pict")` (or `Bulb.pict`)
+through Process Manager and `FSMakeFSSpec`, registers the FSSpec with
+`ToolboxPlatformContext::registerChosenFileSpec`, and passes a `FileChooserResult`
+carrying the filename as its display path, just like the dialog. The production
+chooser adapters, capacity check, data-fork read, decode and image commit run
+unchanged.
 
 The record contains `image.load` (`ok` or a numeric production flow error
 code), `image.width`, `image.height`, actual `image.bytes` read via `GetEOF`,
@@ -36,35 +37,32 @@ formatter through a TEST_BUILD-only friend; unknown messages fail the fixture.
 A terminal `succeeded` means the measurement completed, including when the
 observed image load failed. Inspect `image.load` to characterize the regression.
 
-The stdlib-only generator creates original seeded monochrome artwork: a
-horizontal density gradient and solid rectangles. Its PICT has a 512-byte
-zero file header, bounded size/frame, version-2 marker, HeaderOp, uncompressed
-BitMap BitsRect with srcCopy and matching source/destination rectangles, and
-EndPic. Width is 512 pixels, rows are 64 bytes, and height supplies the requested
-file size within 2%. ParsePict recognizes the versioned stream at offset 512;
-QuickDraw interprets the bitmap opcode. QuickDraw rendering remains a rig check.
-The generator refuses paths outside this repository's `build/`, including
-symlink escapes. No downloaded artwork or generated PICT is committed.
-
-Generate manually if inspecting inputs:
+The pristine boot template (`MAME_HDA` in `.env-mame`) must contain data-fork
+pictures `:Desktop Folder:Images:Sun.pict` and `:Desktop Folder:Images:Bulb.pict`.
+These are rig-local inputs, never committed; the golden bundle keys on the rig.
+The runner reads the selected data fork from the template and places it beside
+the app on the dev disk under its original name. Its HFS tools use the cell's
+isolated `hfs-home`; a missing picture refuses before dev-disk staging.
 
 ```sh
-python3 tools/scenario/gen_pict.py --bytes 12288 build/mame-scenario/assets/SV12K.PICT
-python3 tools/scenario/gen_pict.py --bytes 51200 build/mame-scenario/assets/SV50K.PICT
+HOME="$HFS_HOME" "$HMOUNT" "$MAME_HDA"
+HOME="$HFS_HOME" "$HCOPY" -r ":Desktop Folder:Images:$PICT_NAME" "$STAGED"
+HOME="$HFS_HOME" "$HUMOUNT"
 ```
+
+`find_retro68_tool` resolves all three tools. `STAGED` is
+`build/mame-scenario/simpleviewer/<cell>/<picture>`; the template is only read.
 
 Build and run from the repository root on the delegator's rig:
 
 ```sh
 cmake --preset retro68-68k-release
 cmake --build --preset retro68-68k-release -j 8
-tests/toolbox/run-scenario.sh simpleviewer open-12k --structural-audit
-tests/toolbox/run-scenario.sh simpleviewer open-50k --structural-audit
+tests/toolbox/run-scenario.sh simpleviewer open-sun --structural-audit
+tests/toolbox/run-scenario.sh simpleviewer open-bulb --structural-audit
 ```
 
-The runner generates the selected PICT under `build/mame-scenario/assets/`
-and stages it next to the scenario APPL on the dev disk. Generator failure
-stops before staging. The existing hcopy extraction produces
+The existing hcopy extraction produces
 `build/mame-scenario/simpleviewer/<cell>/LokaTestsToolbox.audit` and the capture
 rectangle. Missing tracked expectations remain a refusal; a first measurement
 is not a passing comparison. Inspect both actual audits and captures before
@@ -86,7 +84,10 @@ Do not run `--update-golden` as part of this handoff.
 - The session advances its Flow over later settled turns; the driver waits
   up to 60 settled turns for a decided outcome (valid image or a completed
   error message) before failing the fixture.
-- Both cells currently record `image.load 1014` (`IMAGE_LOAD_REQUIRES_RELEASE`)
-  on a fresh heap: `heap.free 9976`, `heap.max_block 6374` while the
-  application zone has not yet grown toward its 1024K limit. That is #614's
-  symptom; the fix PR turns these expectations into `image.load ok`.
+- Generated 1-bit PICT variants bombed after load; generated PixMap variants
+  loaded but stalled. The rig's own `Sun.pict` (4-bit PixMap, 11,826 bytes)
+  loaded and completed. Whether the generated inputs are invalid or expose a
+  viewer defect remains a separate investigation.
+- The previous generated-cell audits are stale and removed. Both new cells
+  need delegator measurements; no expected audit or successful load outcome
+  is inferred from the old cells. This handoff is build-verified only.
