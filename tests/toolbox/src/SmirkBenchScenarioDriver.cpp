@@ -64,11 +64,15 @@ namespace loka
         virtual void compose(AppComposition &composition)
         {
           // Deliberate presentation twin of SmirkBenchAppConfig::compose:
-          // preserve its window/scene, replacing only the real-time idle source.
+          // preserve its scene, replacing only the real-time idle source. The
+          // frame differs from production (50, 50, 640, 400) on purpose: the MAME
+          // rig's screen is 640x480 and the capture record refuses a window whose
+          // structure rectangle leaves the screen, so the scenario window is
+          // placed at (1, 41) with a 636-pixel content width (structure 0..638).
           scenario_tests::ObservedMainDefinition<smirkbench::MainProps, smirkbench::MainNode> mainDefinition(
               smirkbench::MainProps(&this->model_), 0);
           composition << WindowDef(WindowProps()
-                                       .frame(50, 50, 640, 400)
+                                       .frame(1, 41, 636, 400)
                                        .scene(mainDefinition)
                                        .title("LokaSmirkBench")
                                        .visible(true)

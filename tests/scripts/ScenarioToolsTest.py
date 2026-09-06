@@ -203,14 +203,6 @@ class ExpectedAuditPinsTest(unittest.TestCase):
             self.assertEqual(len(entry), 2)
             example, scenario = entry
             audit_path = os.path.join(SCENARIO_DIR, "expected", example, scenario + ".audit")
-            # #518 PR 2a: these Toolbox-only cells require real MAME measurements.
-            # The runner still refuses missing expectations; remove this allowance
-            # when the delegator commits the three measured audits.
-            if (example == "smirkbench" and scenario in
-                    {"startup", "surface-ticks", "add-face"} and
-                    not os.path.exists(audit_path)):
-                print("[skip] unmeasured Toolbox audit: " + example + "/" + scenario)
-                continue
             registered_audits.add(os.path.relpath(audit_path, SCENARIO_DIR))
             with open(audit_path, "rb") as handle:
                 audit = handle.read()

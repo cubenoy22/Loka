@@ -205,3 +205,11 @@ outlives Scene; controller/Window views stay within the idle callback; the idle
 thunk is owned by the App's Window props with its config alive; no teardown or
 reclamation vocabulary changes. Existing creation/clone failure handling remains
 with Window/Scene. No refcounts or native handles are added to logical nodes.
+
+## Window frame on the rig
+
+The scenario window is `frame(1, 41, 636, 400)`, not production's
+`(50, 50, 640, 400)`: the MAME screen is 640x480 and the capture record
+(`LokaTestsToolbox.capture`, the structure-rectangle bbox the pixel golden is
+cropped by) refuses a window whose structure rectangle leaves the screen. The
+scene, model and menus are the production twin; only the frame is rig-local.

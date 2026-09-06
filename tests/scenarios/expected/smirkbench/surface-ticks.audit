@@ -1,0 +1,78 @@
+loka_scenario_audit version=1 scenario=surface-ticks
+step id=2 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=post-settle
+button.enabled	true
+checkpoint	post-settle
+crop_bottom	400
+crop_left	0
+crop_right	636
+crop_top	0
+face_count	1
+format_version	1
+last.control_draws	2
+node	SmirkBench.Surface
+rail	toolbox
+scenario_version	1
+schema_version	1
+status	ok
+step	surface-ticks
+surface.rects	71,72,24,24
+test	SmirkBench
+text.value	Faces: 1
+tick	2
+total.boundary_applies	1
+total.collector_visits	8
+total.control_draws	2
+step id=3 due_tick=3 tick=3 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=4 due_tick=4 tick=4 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=5 due_tick=5 tick=5 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=6 due_tick=6 tick=6 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=7 due_tick=7 tick=7 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=8 due_tick=8 tick=8 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=9 due_tick=9 tick=9 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=10 due_tick=10 tick=10 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=11 due_tick=11 tick=11 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=12 due_tick=12 tick=12 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=13 due_tick=13 tick=13 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=14 due_tick=14 tick=14 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=15 due_tick=15 tick=15 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=16 due_tick=16 tick=16 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=17 due_tick=17 tick=17 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=18 due_tick=18 tick=18 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=19 due_tick=19 tick=19 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=20 due_tick=20 tick=20 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=21 due_tick=21 tick=21 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=22 due_tick=22 tick=22 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=23 due_tick=23 tick=23 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=24 due_tick=24 tick=24 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=25 due_tick=25 tick=25 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=26 due_tick=26 tick=26 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=27 due_tick=27 tick=27 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=28 due_tick=28 tick=28 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=29 due_tick=29 tick=29 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=30 due_tick=30 tick=30 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=31 due_tick=31 tick=31 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=32 due_tick=32 tick=32 status=succeeded error_kind=0 error_code=0 name=surface-tick
+step id=33 due_tick=33 tick=33 status=succeeded error_kind=0 error_code=0 name=final
+button.enabled	true
+checkpoint	final
+crop_bottom	400
+crop_left	0
+crop_right	636
+crop_top	0
+face_count	1
+format_version	1
+last.control_draws	1
+node	SmirkBench.Surface
+rail	toolbox
+scenario_version	1
+schema_version	1
+status	ok
+step	surface-ticks
+surface.rects	11,132,24,24
+test	SmirkBench
+text.value	Faces: 1
+tick	33
+total.boundary_applies	31
+total.collector_visits	248
+total.control_draws	32
+terminal status=succeeded
