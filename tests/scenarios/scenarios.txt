@@ -18,3 +18,5 @@ smirkbench startup
 smirkbench surface-ticks
 smirkbench add-face
 smirkbench retained-text-rebind
+simpleviewer open-12k
+simpleviewer open-50k

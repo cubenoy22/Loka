@@ -323,6 +323,28 @@ touch "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaSmirkBenchTests
 run_case smirkbench startup 4 unset
 run_case smirkbench surface-ticks 4 unset
 run_case smirkbench add-face 4 unset
+# SimpleViewer launch-only pins: generated fixtures, no invented audits.
+mkdir -p "$SANDBOX/repo/tools/scenario"
+cp "$REPO_DIR/tools/scenario/gen_pict.py" "$SANDBOX/repo/tools/scenario/gen_pict.py"
+printf '%s\n' 'simpleviewer open-12k' 'simpleviewer open-50k' >>"$SANDBOX/repo/tests/scenarios/scenarios.txt"
+touch "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaSimpleViewerTestsToolbox68K.bin"
+run_case simpleviewer open-12k 4 unset
+[ -s "$SANDBOX/repo/build/mame-scenario/assets/SV12K.PICT" ] || fail "12 KB PICT was not generated"
+grep -q 'assets/SV12K.PICT' "$SANDBOX/dev-disk-arguments" || fail "12 KB PICT was not staged"
+run_case simpleviewer open-50k 4 unset
+[ -s "$SANDBOX/repo/build/mame-scenario/assets/SV50K.PICT" ] || fail "50 KB PICT was not generated"
+grep -q 'assets/SV50K.PICT' "$SANDBOX/dev-disk-arguments" || fail "50 KB PICT was not staged"
+# Fail the generator before disk creation or launch; never reuse stale bytes.
+printf 'raise SystemExit(1)\n' >"$SANDBOX/repo/tools/scenario/gen_pict.py"
+rm -f "$SANDBOX/tab-count" "$SANDBOX/dev-disk-arguments"
+if MAME_ENV_FILE="$SANDBOX/mame.env" env -u WSL_INTEROP \
+    bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" simpleviewer open-12k \
+    >"$SANDBOX/generator-failure.log" 2>&1; then
+  fail "failed generator was accepted"
+fi
+grep -q 'PICT generator failed' "$SANDBOX/generator-failure.log" || fail "missing generator refusal"
+[ ! -f "$SANDBOX/tab-count" ] || fail "generator failure launched MAME"
+[ ! -f "$SANDBOX/dev-disk-arguments" ] || fail "generator failure staged stale bytes"
 cp "$SANDBOX/shared-scenarios.txt" "$SANDBOX/repo/tests/scenarios/scenarios.txt"
 run_case helloworld toggle-action-probe 9 unset 9
 

@@ -101,6 +101,11 @@ case "$EXAMPLE" in
     FINDER_TAB_COUNT=4
     FINDER_SETTLE_TIMEOUT=120
     ;;
+  simpleviewer)
+    APPL="$PROJECT_DIR/build/retro68/68k/Release/tests/toolbox/LokaSimpleViewerTestsToolbox68K.bin"
+    TARGET="LokaSimpleViewerTestsToolbox68K_APPL"
+    FINDER_TAB_COUNT=4
+    ;;
   smirkbench)
     APPL="$PROJECT_DIR/build/retro68/68k/Release/tests/toolbox/LokaSmirkBenchTestsToolbox68K.bin"
     TARGET="LokaSmirkBenchTestsToolbox68K_APPL"
@@ -268,6 +273,19 @@ if [ "$EXAMPLE" = "scrapbook" ]; then
       --registry "$FIXTURE_REGISTRY" --scenario "$SCENARIO" \
       --source "$ASSETS" --staged "$STAGED_ASSETS" 2>&1)"; then
     fail_stage mame "$fixture_message"
+  fi
+  DEV_DISK_ARGUMENTS+=("$STAGED_ASSETS")
+fi
+if [ "$EXAMPLE" = simpleviewer ]; then
+  case "$SCENARIO" in
+    open-12k) PICT_BYTES=12288; PICT_NAME=SV12K.PICT ;;
+    open-50k) PICT_BYTES=51200; PICT_NAME=SV50K.PICT ;;
+    *) fail_stage mame "unsupported SimpleViewer image cell '$SCENARIO'" ;;
+  esac
+  STAGED_ASSETS="$PROJECT_DIR/build/mame-scenario/assets/$PICT_NAME"
+  if ! python3 "$PROJECT_DIR/tools/scenario/gen_pict.py" --bytes "$PICT_BYTES" "$STAGED_ASSETS" \
+      >"$WORK/gen-pict.out" 2>&1; then
+    fail_stage mame "PICT generator failed; see $WORK/gen-pict.out"
   fi
   DEV_DISK_ARGUMENTS+=("$STAGED_ASSETS")
 fi

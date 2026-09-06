@@ -273,6 +273,29 @@ target_include_directories(${LOKA_SMIRK_BENCH_TESTS_TOOLBOX_TARGET} PRIVATE
 )
 target_compile_definitions(${LOKA_SMIRK_BENCH_TESTS_TOOLBOX_TARGET} PRIVATE TEST_BUILD LOKA_DIAG=1)
 
+set(LOKA_SIMPLE_VIEWER_TESTS_TOOLBOX_TARGET
+  "LokaSimpleViewerTestsToolbox${LOKA_CLASSIC_TARGET_SUFFIX}"
+)
+configure_file(
+  ${CMAKE_SOURCE_DIR}/example/SimpleViewer/Size.r
+  ${CMAKE_CURRENT_BINARY_DIR}/SimpleViewerSize.r
+  COPYONLY
+)
+loka_add_toolbox_test_application(
+  ${LOKA_SIMPLE_VIEWER_TESTS_TOOLBOX_TARGET}
+  LokaAppleToolboxTestCore
+  src/SimpleViewerScenarioMain.cpp
+  src/SimpleViewerScenarioDriver.cpp
+  src/ScenarioDriverSupport.cpp
+  ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/SimpleViewerSize.r
+)
+target_include_directories(${LOKA_SIMPLE_VIEWER_TESTS_TOOLBOX_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/example/SimpleViewer/src
+)
+target_compile_definitions(${LOKA_SIMPLE_VIEWER_TESTS_TOOLBOX_TARGET} PRIVATE TEST_BUILD LOKA_DIAG=1)
+
 if(LOKA_ENABLE_STANDALONE_TARGETS)
 set(LOKA_STANDALONE_FLOW_TOOLBOX_TARGET
   # Keep the generated application name within Classic HFS's 31-character limit.

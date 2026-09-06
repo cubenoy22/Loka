@@ -428,6 +428,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/scripts/Retro68SizeReportTest.py)
     add_test(NAME scriptPngCropSelftest
       COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/scenarios/pngtool.py selftest)
+    add_test(NAME scriptGenPict
+      COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/scripts/GenPictTest.py)
     add_test(NAME scriptScenarioTools
       COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/scripts/ScenarioToolsTest.py)
     add_test(NAME scriptReleaseAssembler

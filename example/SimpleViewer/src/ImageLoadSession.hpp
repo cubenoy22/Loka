@@ -13,6 +13,10 @@
 #include "dsl/flow/Flow.hpp"
 #include "SimpleViewerFlowAdapters.hpp"
 
+#ifdef TEST_BUILD
+class SimpleViewerTestAccess;
+#endif
+
 namespace simpleviewer
 {
   class MainNode;
@@ -38,6 +42,9 @@ namespace simpleviewer
                loka::core::PushStateTracker *tracker);
 
   private:
+#ifdef TEST_BUILD
+    friend class ::SimpleViewerTestAccess;
+#endif
     static bool IsNoFileSelectedError(const loka::dsl::FlowError &error, void *);
     static bool CanReleaseCurrentImageForLoad(const loka::dsl::FlowError &error, void *userData);
     static loka::dsl::FlowHandleResult OnBlobDecodeFailure(const loka::dsl::FlowError &error, void *userData);
