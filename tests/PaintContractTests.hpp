@@ -16,4 +16,5 @@ void testPaintLifecycleAndScope();
 void testPaintPolicyScopeAndLifecycleInvalidation();
 void testPaintPlanEmptyCapacityAndScopeValues();
 void testUnrenderableTextNeverBecomesPresented();
+void testRefusedReprojectionInvalidatesPlacement();
 #endif

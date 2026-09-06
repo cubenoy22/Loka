@@ -306,6 +306,20 @@ public:
 private:
   NullScenePlatformController &controller_;
 };
+class NullScenePlatformController::PaintInvalidationVisitor : public loka::app::scene::IPaintResidentVisitor
+{
+public:
+  virtual void
+  visit(loka::app::scene::Node *node, loka::app::scene::NodeContext *context, loka::app::scene::BoundaryNode *)
+  {
+    if (paintRole(node) != NULL_PAINT_CONTEXT || !context)
+      return;
+    if (node->asRectSurfaceNode())
+      static_cast<NullRectSurfaceContext *>(context)->invalidatePresentation();
+    else if (node->asTextNode())
+      static_cast<NullTextContext *>(context)->invalidatePresentation();
+  }
+};
 loka::app::scene::PaintScope NullScenePlatformController::paintScope() const
 {
   return this->paintScope_;
@@ -854,6 +868,14 @@ int NullScenePlatformController::projectLayout(
 {
   assert(this->projectionParentScopes_.activeDepth() == 0 &&
          "a projection pass must begin at the root scope");
+  // Placement is a derived cache: clear every self-drawer's seat and history
+  // before this fallible pass, so only residents this pass actually places can
+  // be completed afterwards. A refused or skipped projection leaves them UNKNOWN.
+  if (node && node->asBoundary())
+  {
+    PaintInvalidationVisitor invalidation;
+    loka::app::scene::enumerateAttachedResidents(node->asBoundary(), invalidation);
+  }
   const loka::core::Frame rootClip(state.x, state.y, state.width, state.height);
   if (!this->projectionParentScopes_.resetRoot(this, rootClip))
   {

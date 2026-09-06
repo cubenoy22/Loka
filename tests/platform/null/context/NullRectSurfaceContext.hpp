@@ -35,6 +35,14 @@ public:
   {
     this->presented_.invalidate();
   }
+  /** Called before every fallible projection: a placement is a derived cache and is
+      re-established only by a successful layout in that pass (AGENTS.md
+      failure-degradation). A refused projection therefore leaves no stale seat. */
+  void invalidatePresentation()
+  {
+    this->presented_.invalidate();
+    this->placement_.invalidate();
+  }
 
 private:
   loka::app::scene::PaintFact<loka::app::RectSurfaceModel> presented_;

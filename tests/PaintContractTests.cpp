@@ -35,7 +35,8 @@ namespace
           queries(0),
           commits(0),
           applies(0),
-          preLayoutCommits(0)
+          preLayoutCommits(0),
+          refuseSurfaceProjection(false)
     {
     }
     virtual void beginApplyCycle()
@@ -78,8 +79,16 @@ namespace
     {
       context.invalidatePaintHistory();
     }
+    /** Simulates a refused projection of every RectSurface while set. */
+    virtual bool prepareProjectedLayout(Node *node, LayoutState &state)
+    {
+      if (refuseSurfaceProjection && node && node->asRectSurfaceNode())
+        return false;
+      return NullScenePlatformController::prepareProjectedLayout(node, state);
+    }
     Observation observations[32];
     unsigned count, queries, commits, applies, preLayoutCommits;
+    bool refuseSurfaceProjection;
   };
   void settle(Scene &scene)
   {
@@ -738,6 +747,33 @@ void testUnrenderableTextNeverBecomesPresented()
   score(scene, model.scoreText_, "Score: 2");
   refused(platform, PAINT_REFUSED_HISTORY_UNKNOWN);
   score(scene, model.scoreText_, "Score: 3");
+  exactOne(platform);
+  scene.unmount();
+}
+
+void testRefusedReprojectionInvalidatesPlacement()
+{
+  // A placed surface whose re-projection is refused before its layout() runs
+  // must lose its placement and history in that pass: the post-projection
+  // completion walk may commit only residents the pass actually placed.
+  floppybird::SharedModel model;
+  PaintPlatform platform;
+  Scene scene(Boundary<floppybird::MainNode>(floppybird::MainProps(&model)));
+  mount(scene, platform);
+  change(scene, model.surfaceModel_, 4);
+  exactOne(platform);
+  platform.refuseSurfaceProjection = true;
+  scene.requestInvalidate(NODE_DIRTY_LAYOUT);
+  settle(scene);
+  platform.beginApplyCycle();
+  change(scene, model.surfaceModel_, 6);
+  refused(platform, PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  LOKA_VERIFY(platform.commits == 1); // the Text was placed and reconstructed; the surface was not
+  platform.refuseSurfaceProjection = false;
+  scene.requestInvalidate(NODE_DIRTY_LAYOUT);
+  settle(scene);
+  platform.beginApplyCycle();
+  change(scene, model.surfaceModel_, 8);
   exactOne(platform);
   scene.unmount();
 }

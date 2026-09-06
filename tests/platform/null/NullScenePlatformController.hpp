@@ -216,6 +216,7 @@ public:
 private:
   class PaintQueryVisitor;
   class PaintCompletionVisitor;
+  class PaintInvalidationVisitor;
   class LayoutTraversal;
 
   class RefusedProjectedNodeHandlers
