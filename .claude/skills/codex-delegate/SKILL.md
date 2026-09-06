@@ -77,9 +77,12 @@ checkout; sync goes through origin only.
   "blocked at emulator launch" back; the MAME leg is always the delegator's.
   Brief Codex to stop at the Retro68 build and list the cells to run.
 - **A worktree has no `build/host/lrpc/lrpc`**, and the six scrapbook cells
-  refuse without it. Build it once per worktree before any bake
-  (`cmake -S tools/lrpc -B build/host/lrpc && cmake --build build/host/lrpc`);
-  forgetting it cost a partial bake twice (2026-09-06, 2026-09-07).
+  refuse without it. Build it before every candidate bake, not once per
+  worktree (`cmake -S tools/lrpc -B build/host/lrpc && cmake --build
+  build/host/lrpc`): the runners only check that the binary exists, so a
+  worktree that moved to another commit or touched `tools/lrpc` would stage
+  assets with a stale tool while the bake reports the current candidate.
+  Forgetting the build cost a partial bake twice (2026-09-06, 2026-09-07).
 
 ## Resuming instead of re-briefing
 
