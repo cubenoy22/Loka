@@ -28,12 +28,15 @@ class GenPictTest(unittest.TestCase):
                 self.assertGreater(height, 0)
                 self.assertEqual(data[522:526], b'\0\x11\x02\xff')
                 self.assertEqual(struct.unpack_from('>H', data, 554)[0], 64)
-                self.assertEqual(data[526:532], b'\x0c\0\xff\xff\xff\xff')
+                self.assertEqual(data[526:540], b'\x0c\0\xff\xfe\0\0\0\x48\0\0\0\x48\0\0')
+                self.assertEqual(data[540:548], data[514:522])
                 self.assertEqual(data[552:554], b'\0\x90')
                 for offset in (556, 564, 572):
                     self.assertEqual(data[offset:offset+8], data[514:522])
                 self.assertEqual(data[580:582], b'\0\0')
-                self.assertEqual(len(data), 584 + 64 * height)
+                self.assertEqual(len(data), 584 + 65 * height)
+                # Each packed row is one literal run: count byte 63 then 64 bytes.
+                self.assertEqual(data[582], 63)
                 self.assertEqual(data[-2:], b'\0\xff')
 
     def test_refuses_symlink_escape(self):
