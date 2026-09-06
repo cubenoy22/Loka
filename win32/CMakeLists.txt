@@ -225,11 +225,19 @@ if(LOKA_WIN32_TOP_LEVEL_SOURCE_NORMALIZED STREQUAL
     file(STRINGS "${_LOKA_WIN32_SCENARIO_REGISTRY}"
       _loka_win32_scenarios
       REGEX "^[a-z0-9][a-z0-9-]* [a-z0-9][a-z0-9-]*$")
+    # The registry is shared with the Toolbox rail; only the examples the
+    # Win32 runner has a vehicle for become tests here. Keep this list equal
+    # to the $Vehicles table in tests/win32/run-scenario.ps1
+    # (ScenarioToolsTest pins the two against each other).
+    set(_LOKA_WIN32_SCENARIO_VEHICLES scrapbook helloworld tutorial minesweeper floppybird)
     foreach(_loka_win32_entry IN LISTS _loka_win32_scenarios)
       string(REGEX REPLACE "^([^ ]+) ([^ ]+)$" "\\1"
         _loka_win32_example "${_loka_win32_entry}")
       string(REGEX REPLACE "^([^ ]+) ([^ ]+)$" "\\2"
         _loka_win32_scenario "${_loka_win32_entry}")
+      if(NOT _loka_win32_example IN_LIST _LOKA_WIN32_SCENARIO_VEHICLES)
+        continue()
+      endif()
       add_test(NAME "win32Scenario-${_loka_win32_example}-${_loka_win32_scenario}"
         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
           ${CMAKE_CURRENT_SOURCE_DIR}/../tests/win32/run-scenario.ps1
