@@ -131,18 +131,13 @@ short ToolboxButtonContext::layout(loka::app::scene::IPlatformController *contro
   {
     return 0;
   }
-  loka::core::String label = loka::core::String::Literal("Button");
-  if (node_->props.text_)
-  {
-    label = node_->props.text_->get();
-  }
-  short width = ToolboxMeasureTextWidth(label);
+  this->captureProps();
+  short width = ToolboxMeasureTextWidth(this->label_);
   Rect rect;
   rect.left = state.x;
   rect.top = static_cast<short>(state.y - state.lineHeight + ToolboxLayoutMetrics::kControlAscentInset);
   rect.right = static_cast<short>(state.x + width);
   rect.bottom = static_cast<short>(state.y + ToolboxLayoutMetrics::kControlDescent);
-  updateData(label, node_->props.onClick_, node_->props.enabled_, 0, node_->props.controlTag_);
   updateRect(rect);
   state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
   return width;
@@ -178,4 +173,26 @@ bool ToolboxButtonContext::handleMouseDown(const Point &point, ToolboxScenePlatf
 bool RegisterToolboxButtonNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
 {
   return registry.registerHandler(&gToolboxButtonNodeHandler);
+}
+
+void ToolboxButtonContext::captureProps()
+{
+  if (!this->node_)
+    return;
+  const loka::core::String label =
+      this->node_->props.text_ ? this->node_->props.text_->get() : loka::core::String::Literal("Button");
+  this->updateData(label,
+                   this->node_->props.onClick_,
+                   this->node_->props.enabled_,
+                   this->resourceId_,
+                   this->node_->props.controlTag_);
+}
+
+void ToolboxButtonContext::onPropsApplied()
+{
+  this->captureProps();
+  if (this->controller() && this->node_)
+  {
+    this->controller()->refreshContextProps(this->node_, this->resourceId_);
+  }
 }

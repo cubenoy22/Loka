@@ -11,6 +11,8 @@ class ToolboxScenePlatformController;
 class ToolboxButtonContext;
 class ToolboxPopupMenuContext;
 class ToolboxCellContext;
+class ToolboxTextContext;
+class ToolboxEditTextContext;
 
 /** Owns the five hit registries projected by the Toolbox controller. */
 class ToolboxHitLedger
@@ -36,6 +38,7 @@ public:
 
   struct EditHit
   {
+    ToolboxEditTextContext *context;
     Rect rect;
     loka::core::State<loka::core::String> *text;
     loka::app::scene::BoundaryNode *boundary;
@@ -43,6 +46,7 @@ public:
 
   struct TextHit
   {
+    ToolboxTextContext *context;
     Rect rect;
     short x;
     short y;

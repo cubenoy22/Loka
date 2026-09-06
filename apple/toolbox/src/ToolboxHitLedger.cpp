@@ -2,6 +2,8 @@
 #include "ToolboxScenePlatformController.hpp"
 #include "context/ToolboxButtonContext.hpp"
 #include "context/ToolboxCellContext.hpp"
+#include "context/ToolboxTextContext.hpp"
+#include "context/ToolboxEditTextContext.hpp"
 #include "context/ToolboxPopupMenuContext.hpp"
 
 bool ToolboxScenePlatformController::handleMouseDown(const Point &point)
@@ -109,12 +111,13 @@ void ToolboxScenePlatformController::recordCellHit(const Rect &rect,
   hit.context = context;
   hit.text = text;
   hitLedger_.cellHits_.push_back(hit);
-  bindTextState(text);
+  bindTextState(context->liveTextState());
 }
 
 void ToolboxScenePlatformController::recordEditHit(const Rect &rect,
                                                    loka::core::State<loka::core::String> *text,
-                                                   loka::app::scene::BoundaryNode *boundary)
+                                                   loka::app::scene::BoundaryNode *boundary,
+                                                   ToolboxEditTextContext *context)
 {
   Rect clipped;
   if (!this->intersectWithProjectionClip(rect, clipped))
@@ -122,6 +125,7 @@ void ToolboxScenePlatformController::recordEditHit(const Rect &rect,
     return;
   }
   EditHit hit;
+  hit.context = context;
   hit.rect = clipped;
   hit.text = text;
   hit.boundary = boundary;
@@ -140,7 +144,8 @@ void ToolboxScenePlatformController::recordTextHit(const Rect &rect,
                                                    loka::core::State<loka::core::String> *text,
                                                    loka::app::scene::BoundaryNode *boundary,
                                                    bool needsRelayoutOnChange,
-                                                   short visibleWidth)
+                                                   short visibleWidth,
+                                                   ToolboxTextContext *context)
 {
   Rect clipped;
   if (!text || !this->intersectWithProjectionClip(rect, clipped))
@@ -148,6 +153,7 @@ void ToolboxScenePlatformController::recordTextHit(const Rect &rect,
     return;
   }
   TextHit hit;
+  hit.context = context;
   hit.rect = clipped;
   hit.x = x;
   hit.y = y;
@@ -156,7 +162,7 @@ void ToolboxScenePlatformController::recordTextHit(const Rect &rect,
   hit.lastMeasuredWidth = visibleWidth;
   hit.needsRelayoutOnChange = needsRelayoutOnChange;
   hitLedger_.textHits_.push_back(hit);
-  bindTextState(text);
+  bindTextState(context->liveTextState());
 }
 
 void ToolboxScenePlatformController::recordPopupHit(const Rect &rect,

@@ -960,32 +960,31 @@ void ToolboxScenePlatformController::retireNodeContext(loka::app::scene::NodeCon
       }
     }
 
-    loka::core::State<loka::core::String> *projectedText = context->projectedTextState();
-    if (projectedText)
+    for (size_t i = 0; i < hitLedger_.editHits_.size();)
     {
-      retiredTextStates.push_back(projectedText);
-      for (size_t i = 0; i < hitLedger_.editHits_.size();)
+      if (hitLedger_.editHits_[i].context == context)
       {
-        if (hitLedger_.editHits_[i].text == projectedText)
+        loka::core::State<loka::core::String> *text = hitLedger_.editHits_[i].text;
+        retiredTextStates.push_back(text);
+        if (hasFocusedRect_ && focusedText_ == text && EqualRect(&focusedRect_, &hitLedger_.editHits_[i].rect))
         {
-          hitLedger_.editHits_.erase(hitLedger_.editHits_.begin() + i);
+          focusedText_ = 0;
+          hasFocusedRect_ = false;
         }
-        else
-        {
-          ++i;
-        }
+        hitLedger_.editHits_.erase(hitLedger_.editHits_.begin() + i);
       }
-      for (size_t i = 0; i < hitLedger_.textHits_.size();)
+      else
+        ++i;
+    }
+    for (size_t i = 0; i < hitLedger_.textHits_.size();)
+    {
+      if (hitLedger_.textHits_[i].context == context)
       {
-        if (hitLedger_.textHits_[i].text == projectedText)
-        {
-          hitLedger_.textHits_.erase(hitLedger_.textHits_.begin() + i);
-        }
-        else
-        {
-          ++i;
-        }
+        retiredTextStates.push_back(hitLedger_.textHits_[i].text);
+        hitLedger_.textHits_.erase(hitLedger_.textHits_.begin() + i);
       }
+      else
+        ++i;
     }
 
     for (size_t i = 0; i < retiredTextStates.size(); ++i)
@@ -1004,6 +1003,113 @@ void ToolboxScenePlatformController::retireNodeContext(loka::app::scene::NodeCon
         this->unbindEnabledState(enabled);
       }
     }
+  }
+}
+
+void ToolboxScenePlatformController::refreshContextProps(loka::app::scene::Node *node, short buttonResourceId)
+{
+  if (!node || !node->getContext())
+    return;
+  loka::app::scene::NodeContext *context = node->getContext();
+  loka::core::State<loka::core::String> *previousText = 0;
+  loka::core::State<loka::core::String> *liveText = 0;
+  loka::core::State<bool> *previousEnabled = 0;
+  loka::core::State<bool> *enabled = 0;
+
+  // Update only records already projected. Geometry and native ownership stay
+  // with the existing ledgers; a props apply never creates a native control.
+  for (size_t i = 0; i < this->hitLedger_.textHits_.size(); ++i)
+  {
+    TextHit &hit = this->hitLedger_.textHits_[i];
+    if (hit.context != context)
+      continue;
+    previousText = hit.text;
+    hit.text = hit.context->projectedTextState();
+    liveText = hit.context->liveTextState();
+  }
+  for (size_t i = 0; i < this->hitLedger_.cellHits_.size(); ++i)
+  {
+    CellHit &hit = this->hitLedger_.cellHits_[i];
+    if (hit.context != context)
+      continue;
+    previousText = hit.text;
+    hit.text = node->asCellNode()->props.text_;
+    hit.emitter = node->asCellNode()->props.onClick_;
+    liveText = hit.context->liveTextState();
+  }
+  for (size_t i = 0; i < this->hitLedger_.editHits_.size(); ++i)
+  {
+    EditHit &hit = this->hitLedger_.editHits_[i];
+    if (hit.context != context)
+      continue;
+    previousText = hit.text;
+    hit.text = hit.context->projectedTextState();
+    liveText = hit.text;
+    if (this->hasFocusedRect_ && this->focusedText_ == previousText && EqualRect(&this->focusedRect_, &hit.rect))
+    {
+      this->focusedText_ = liveText;
+      if (!liveText)
+        this->hasFocusedRect_ = false;
+    }
+  }
+  size_t editIndex = 0;
+  if (this->editControls_.find(context, editIndex))
+  {
+    EditTextControlBinding &binding = this->editControls_[editIndex];
+    previousText = binding.text;
+    binding.text = context->projectedTextState();
+    liveText = binding.text;
+    if (previousText != liveText)
+      this->syncEditTextFromState(binding);
+  }
+  for (size_t i = 0; i < this->hitLedger_.buttonHits_.size(); ++i)
+  {
+    ButtonHit &hit = this->hitLedger_.buttonHits_[i];
+    if (hit.context != context)
+      continue;
+    previousEnabled = hit.enabled;
+    hit.enabled = node->asButtonNode()->props.enabled_;
+    hit.emitter = node->asButtonNode()->props.onClick_;
+    enabled = hit.enabled;
+  }
+  for (size_t i = 0; i < this->buttonControls_.size(); ++i)
+  {
+    ButtonControlBinding &binding = this->buttonControls_[i];
+    if (!buttonResourceId || binding.resourceId != buttonResourceId)
+      continue;
+    previousEnabled = binding.enabled;
+    binding.enabled = node->asButtonNode()->props.enabled_;
+    binding.emitter = node->asButtonNode()->props.onClick_;
+    enabled = binding.enabled;
+    const loka::app::ButtonProps &props = node->asButtonNode()->props;
+    this->applyButtonControlProps(binding, props.text_ ? props.text_->get() : loka::core::String::Literal("Button"));
+    if (previousEnabled != enabled)
+      binding.needsDraw = true;
+  }
+  for (size_t i = 0; i < this->hitLedger_.popupHits_.size(); ++i)
+  {
+    PopupHit &hit = this->hitLedger_.popupHits_[i];
+    if (hit.context != context)
+      continue;
+    const loka::app::PopupMenuProps &props = node->asPopupMenuNode()->props;
+    previousEnabled = hit.enabled;
+    hit.items = props.items_;
+    hit.selectedIndex = props.selectedIndex_;
+    hit.onChange = props.onChange_;
+    hit.enabled = props.enabled_;
+    enabled = hit.enabled;
+  }
+  if (previousText != liveText)
+  {
+    this->bindTextState(liveText);
+    if (previousText && !this->hasLiveBinding(previousText))
+      this->unbindTextState(previousText);
+  }
+  if (previousEnabled != enabled)
+  {
+    this->bindEnabledState(enabled);
+    if (previousEnabled && !this->hasLiveBinding(previousEnabled))
+      this->unbindEnabledState(previousEnabled);
   }
 }
 
@@ -1433,7 +1539,7 @@ bool ToolboxScenePlatformController::hasLiveBinding(loka::core::State<loka::core
   }
   for (size_t i = 0; i < hitLedger_.cellHits_.size(); ++i)
   {
-    if (hitLedger_.cellHits_[i].text == text)
+    if (hitLedger_.cellHits_[i].context->liveTextState() == text)
     {
       return true;
     }
@@ -1447,7 +1553,7 @@ bool ToolboxScenePlatformController::hasLiveBinding(loka::core::State<loka::core
   }
   for (size_t i = 0; i < hitLedger_.textHits_.size(); ++i)
   {
-    if (hitLedger_.textHits_[i].text == text)
+    if (hitLedger_.textHits_[i].context->liveTextState() == text)
     {
       return true;
     }
@@ -1457,6 +1563,11 @@ bool ToolboxScenePlatformController::hasLiveBinding(loka::core::State<loka::core
 
 bool ToolboxScenePlatformController::hasLiveBinding(loka::core::State<bool> *enabled) const
 {
+  for (size_t i = 0; i < this->buttonControls_.size(); ++i)
+  {
+    if (this->buttonControls_[i].enabled == enabled)
+      return true;
+  }
   for (size_t i = 0; i < hitLedger_.buttonHits_.size(); ++i)
   {
     if (hitLedger_.buttonHits_[i].enabled == enabled)
@@ -1934,11 +2045,11 @@ bool ToolboxScenePlatformController::dumpDebugStatsToTimestampedFile() const
 
 void ToolboxScenePlatformController::redrawTextHit(TextHit &hit)
 {
-  if (!window_ || !window_->window() || !hit.text)
+  if (!window_ || !window_->window())
   {
     return;
   }
-  short measuredWidth = ToolboxMeasureTextWidth(hit.text->get());
+  short measuredWidth = hit.text ? ToolboxMeasureTextWidth(hit.text->get()) : 0;
   const short maxWidth = static_cast<short>(hit.rect.right - hit.rect.left);
   if (maxWidth > 0 && measuredWidth > maxWidth)
   {
@@ -1964,13 +2075,15 @@ void ToolboxScenePlatformController::redrawTextHit(TextHit &hit)
   {
     GetClip(oldClip);
     ClipRect(&dirtyRect);
-    DrawStringAt(hit.x, hit.y, hit.text->get());
+    if (hit.text)
+      DrawStringAt(hit.x, hit.y, hit.text->get());
     SetClip(oldClip);
     DisposeRgn(oldClip);
   }
   else
   {
-    DrawStringAt(hit.x, hit.y, hit.text->get());
+    if (hit.text)
+      DrawStringAt(hit.x, hit.y, hit.text->get());
   }
   hit.lastMeasuredWidth = measuredWidth;
   SetPort(oldPort);
@@ -2348,29 +2461,35 @@ bool ToolboxScenePlatformController::ensureButtonControl(short resourceId,
     binding->rect = controlRect;
     binding->needsDraw = true;
   }
+  this->applyButtonControlProps(*binding, label);
+  ShowControl(binding->control);
+  return true;
+}
+
+void ToolboxScenePlatformController::applyButtonControlProps(ButtonControlBinding &binding,
+                                                             const loka::core::String &label)
+{
   std::string labelUtf8;
   if (!loka::platform::CollectUtf8(label, labelUtf8))
   {
     labelUtf8.clear();
   }
-  if (binding->label != labelUtf8)
+  if (binding.label != labelUtf8)
   {
     Str255 title;
     CopyToPascalString(label, title);
-    SetControlTitle(binding->control, title);
-    binding->label = labelUtf8;
-    binding->needsDraw = true;
+    SetControlTitle(binding.control, title);
+    binding.label = labelUtf8;
+    binding.needsDraw = true;
   }
-  if (binding->enabled && !binding->enabled->get())
+  if (binding.enabled && !binding.enabled->get())
   {
-    HiliteControl(binding->control, 255);
+    HiliteControl(binding.control, 255);
   }
   else
   {
-    HiliteControl(binding->control, 0);
+    HiliteControl(binding.control, 0);
   }
-  ShowControl(binding->control);
-  return true;
 }
 
 void ToolboxScenePlatformController::destroyButtonControl(short resourceId,
@@ -2386,8 +2505,11 @@ void ToolboxScenePlatformController::destroyButtonControl(short resourceId,
     ControlRef control = binding.control;
     binding.control = 0;
     binding.emitter = 0;
+    loka::core::State<bool> *retiredEnabled = binding.enabled;
     binding.enabled = 0;
     buttonControls_.erase(buttonControls_.begin() + i);
+    if (retiredEnabled && !this->hasLiveBinding(retiredEnabled))
+      this->unbindEnabledState(retiredEnabled);
     controlIds_.release(resourceId);
     if (control)
     {
@@ -2528,12 +2650,13 @@ void ToolboxScenePlatformController::retireEditTextControl(
 
 void ToolboxScenePlatformController::syncEditTextFromState(EditTextControlBinding &binding)
 {
-  if (!binding.text || !binding.te)
+  if (!binding.te)
   {
     return;
   }
   std::string utf8;
-  loka::platform::CollectUtf8(binding.text->get(), utf8);
+  if (binding.text)
+    loka::platform::CollectUtf8(binding.text->get(), utf8);
   if (binding.lastText == utf8)
   {
     return;

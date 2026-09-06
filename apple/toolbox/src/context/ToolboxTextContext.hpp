@@ -43,10 +43,15 @@ class ToolboxTextContext : public ToolboxProjectedNodeContext
 public:
   ToolboxTextContext(loka::app::TextNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxTextContext();
+  virtual void onPropsApplied();
 
   void updateData(loka::core::State<loka::core::String> *text);
   void updateRect(const Rect &rect, short textX, short textY);
   short visibleWidth() const;
+  loka::core::State<loka::core::String> *liveTextState() const
+  {
+    return this->node_ && !this->node_->props.ownsText ? this->text_ : 0;
+  }
   void draw(ToolboxScenePlatformController *controller);
   virtual loka::core::State<loka::core::String> *projectedTextState()
   {
@@ -56,6 +61,7 @@ public:
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
 
 private:
+  void captureProps();
   loka::app::TextNode *node_;
   Rect rect_;
   short textX_;

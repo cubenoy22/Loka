@@ -43,6 +43,7 @@ class ToolboxButtonContext : public ToolboxProjectedNodeContext
 public:
   ToolboxButtonContext(loka::app::ButtonNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxButtonContext();
+  virtual void onPropsApplied();
 
   void updateData(const loka::core::String &label,
                   loka::core::EmitterState *emitter,
@@ -56,6 +57,7 @@ public:
   bool handleMouseDown(const Point &point, ToolboxScenePlatformController *controller);
 
 private:
+  void captureProps();
   virtual void retireNativeProjection();
   loka::app::ButtonNode *node_;
   Rect rect_;
