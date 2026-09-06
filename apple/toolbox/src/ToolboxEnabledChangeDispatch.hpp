@@ -13,6 +13,25 @@ enum ToolboxEnabledControlKind
   TOOLBOX_ENABLED_CONTROL_KIND_COUNT
 };
 
+/** Applies a synchronous sink to every row borrowing this enabled State.
+    The caller owns the range; the sink must not change its membership. */
+template <typename Iterator, typename StateType, typename Sink, typename Binding>
+bool ApplyToolboxEnabledChangeToBindings(
+    Iterator first, Iterator last, StateType *enabled,
+    Sink &sink, void (Sink::*apply)(Binding &))
+{
+  bool matched = false;
+  for (; first != last; ++first)
+  {
+    if (first->enabled == enabled)
+    {
+      (sink.*apply)(*first);
+      matched = true;
+    }
+  }
+  return matched;
+}
+
 template <typename Sink, typename StateType>
 void DispatchToolboxEnabledChange(
     Sink &sink,
@@ -25,8 +44,8 @@ void DispatchToolboxEnabledChange(
   {
     const ToolboxEnabledControlKind kind =
         static_cast<ToolboxEnabledControlKind>(rawKind);
-    // A match ends only this kind's own lookup. The same State may be bound
-    // to another control kind, so its result must not stop the outer fanout.
+    // The same State may be bound to several control kinds; a match must
+    // not stop the outer fanout.
     (sink.*apply)(kind, enabled);
   }
 }
