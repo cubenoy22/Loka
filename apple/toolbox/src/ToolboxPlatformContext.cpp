@@ -12,6 +12,7 @@
 #include "core/resource/Blob.hpp"
 #include "core/resource/Image.hpp"
 #include "ToolboxNativeImage.hpp"
+#include <LowMem.h>
 #include <MacMemory.h>
 #include <vector>
 
@@ -93,7 +94,10 @@ bool ToolboxPlatformContext::queryLargestContiguousAllocation(std::size_t &out) 
   const long largestAllocation = MaxBlock();
   THz zone = ApplicationZone();
   const char *heapTop = reinterpret_cast<const char *>(zone->bkLim);
-  const char *limit = reinterpret_cast<const char *>(GetApplLimit());
+  // LMGetApplLimit, not GetApplLimit: the Multiversal Interfaces CI builds
+  // with have no glue for the latter (needs-glue.txt), and both interface
+  // sets read the low-memory global the same way.
+  const char *limit = reinterpret_cast<const char *>(LMGetApplLimit());
   const long growth = limit > heapTop ? static_cast<long>(limit - heapTop) : 0;
   if (largestAllocation < 0)
   {
