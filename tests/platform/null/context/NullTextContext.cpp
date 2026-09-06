@@ -5,6 +5,7 @@
 #include "app/nodes/Text.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "core/StringBuffer.hpp"
+#include "platform/StringUTF8.hpp"
 
 namespace
 {
@@ -238,18 +239,31 @@ namespace
     return node->props.attr_.truncationValue_;
   }
 
+  /** materialized (optional) reports whether the String could be rendered at all. A
+      platform String that refuses UTF-8 materialization measures as nothing, and that
+      "nothing" must never become a presented value (AGENTS.md failure-degradation). */
   NullTextMeasurement MeasureText(const loka::app::TextNode *node,
                                   const loka::app::scene::LayoutState &state,
-                                  const loka::core::String *rendered = 0)
+                                  const loka::core::String *rendered = 0,
+                                  bool *materialized = 0)
   {
     const int lineHeight = state.lineHeight > 0 ? state.lineHeight : kDefaultLineHeight;
+    if (materialized)
+      *materialized = true;
     if (!node || !node->props.text_)
     {
       return NullTextMeasurement(0, ClampExtentToShort(lineHeight), 1);
     }
 
     const loka::core::String &value = rendered ? *rendered : node->props.text_->get();
-    const loka::core::StringBuffer text = value.bufferWithEncoding(loka::core::StringEncodingUtf32);
+    std::string utf8;
+    loka::core::StringBuffer text(loka::core::StringEncodingUtf32);
+    if (!loka::platform::CollectUtf8(value, utf8) || !text.assignFromUtf8(utf8))
+    {
+      if (materialized)
+        *materialized = false;
+      return NullTextMeasurement(0, ClampExtentToShort(lineHeight), 1);
+    }
     const int capacity = WrapCapacityForWidth(state.width);
     const loka::app::TextWrap wrap = ResolveWrap(node);
     LineGeometry lines;
@@ -294,8 +308,9 @@ namespace
     loka::app::scene::LayoutState measure;
     measure.width = static_cast<short>(seat.width);
     measure.lineHeight = placed.lineCount() > 0 ? placed.height() / placed.lineCount() : 0;
-    const NullTextMeasurement output = MeasureText(node, measure, &value);
-    return output.width() <= seat.width && output.height() <= seat.height;
+    bool materialized = true;
+    const NullTextMeasurement output = MeasureText(node, measure, &value, &materialized);
+    return materialized && output.width() <= seat.width && output.height() <= seat.height;
   }
 
   class NullTextNodeHandler
@@ -371,12 +386,16 @@ void NullTextContext::readLifecycleFactOnAttach()
 
 short NullTextContext::layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state)
 {
-  this->measurement_ = MeasureText(this->node_, state);
+  bool materialized = true;
+  this->measurement_ = MeasureText(this->node_, state, 0, &materialized);
   state.height = this->measurement_.height();
   this->placement_.invalidate();
   this->presented_.invalidate();
   loka::app::scene::PaintScope scope;
-  if (this->node_ && controller && static_cast<NullScenePlatformController *>(controller)->queryPaintProjectionScope(scope))
+  // An unrenderable value has no placement: the next query refuses instead of
+  // comparing against a seat that was measured from nothing.
+  if (materialized && this->node_ && controller
+      && static_cast<NullScenePlatformController *>(controller)->queryPaintProjectionScope(scope))
   {
     this->placement_.complete(loka::core::Frame(state.x, state.y, state.width, state.height), scope);
     this->placedStyle_ = NullTextPaintStyle(this->node_->props);
@@ -437,7 +456,11 @@ loka::app::scene::PaintAnswer NullTextContext::queryPaintDamage(const loka::app:
   if (equal == loka::core::StringCompareBufferRequired)
     equal = current.compare(this->presented_.value(), true);
   if (equal == loka::core::StringCompareBufferRequired)
-    return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
+  {
+    // The current value cannot be materialized, so it cannot be measured or
+    // placed; this is a placement refusal, not a stale binding.
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  }
   if (equal == loka::core::StringCompareEqual)
     return PaintAnswer::exact(damage);
   if (!FitsTextSeat(this->node_, current, seat, this->measurement_))

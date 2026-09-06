@@ -350,8 +350,8 @@ namespace allocpin
     const unsigned long bytes = CaptureAllocBytes(0);
     std::printf("FloppyBird score tick baseline: allocations=%lu bytes=%lu\n", allocations, bytes);
     // Distinct String comparison and seat verification materialize buffers.
-    LOKA_VERIFY(allocations == 14);
-    LOKA_VERIFY(bytes == 636);
+    LOKA_VERIFY(allocations == 12);
+    LOKA_VERIFY(bytes == 436);
     scene.unmount();
   }
 } // namespace allocpin

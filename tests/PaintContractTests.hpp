@@ -15,4 +15,5 @@ void testPlanHoldsNoPointersAndIsVisitLocal();
 void testPaintLifecycleAndScope();
 void testPaintPolicyScopeAndLifecycleInvalidation();
 void testPaintPlanEmptyCapacityAndScopeValues();
+void testUnrenderableTextNeverBecomesPresented();
 #endif

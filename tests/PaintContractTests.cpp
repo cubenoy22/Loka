@@ -9,6 +9,7 @@
 #include "platform/null/context/NullRectSurfaceContext.hpp"
 #include "platform/null/context/NullTextContext.hpp"
 #include "core/util/StateTrackerGuard.hpp"
+#include "platform/String.hpp"
 #include "support/RecomposingBoundary.hpp"
 #include "support/LifecycleFactTestAccess.hpp"
 #include "support/TestVerify.hpp"
@@ -116,6 +117,27 @@ namespace
     {
       StateTrackerGuard guard(SceneTestAccess::rootBoundary(scene)->tracker());
       state.set(sprite(x));
+    }
+    settle(scene);
+  }
+  /** A platform String that refuses UTF-8 materialization: nothing can render it. */
+  class RefusingUtf8String : public loka::platform::String
+  {
+  public:
+    virtual bool appendUtf8(std::string &) const
+    {
+      return false;
+    }
+  };
+  String unrenderable()
+  {
+    return String(Managed<loka::platform::String>::Wrap(new RefusingUtf8String()));
+  }
+  void scoreValue(Scene &scene, MutableState<String> &state, const String &value)
+  {
+    {
+      StateTrackerGuard guard(SceneTestAccess::rootBoundary(scene)->tracker());
+      state.set(value);
     }
     settle(scene);
   }
@@ -695,4 +717,27 @@ void testPaintPlanEmptyCapacityAndScopeValues()
   plan.widen(APPLY_PAINT_WIDEN_REFUSED, other, PAINT_REFUSED_NO_CONTEXT);
   LOKA_VERIFY(plan.exactCount() == 0 && plan.count() == 1);
   LOKA_VERIFY(plan.entry(0).scope == scope && plan.widenReason() == APPLY_PAINT_WIDEN_CAPACITY);
+}
+
+void testUnrenderableTextNeverBecomesPresented()
+{
+  // A String whose platform refuses materialization measures as nothing. That
+  // measurement must not pass the seat check, and the value must never be
+  // committed as presented; otherwise a later identical handle compares equal
+  // and answers EXACT with empty damage for pixels that were never drawn.
+  floppybird::SharedModel model;
+  PaintPlatform platform;
+  Scene scene(Boundary<floppybird::MainNode>(floppybird::MainProps(&model)));
+  mount(scene, platform);
+  scoreValue(scene, model.scoreText_, unrenderable());
+  refused(platform, PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  // The widened reconstruction must not have committed the unrenderable value.
+  scoreValue(scene, model.scoreText_, unrenderable());
+  refused(platform, PAINT_REFUSED_HISTORY_UNKNOWN);
+  // A renderable value recovers through the widened presentation, then compares exactly.
+  score(scene, model.scoreText_, "Score: 2");
+  refused(platform, PAINT_REFUSED_HISTORY_UNKNOWN);
+  score(scene, model.scoreText_, "Score: 3");
+  exactOne(platform);
+  scene.unmount();
 }
