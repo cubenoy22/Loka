@@ -328,10 +328,10 @@ mkdir -p "$SANDBOX/repo/tools/scenario"
 cp "$REPO_DIR/tools/scenario/gen_pict.py" "$SANDBOX/repo/tools/scenario/gen_pict.py"
 printf '%s\n' 'simpleviewer open-12k' 'simpleviewer open-50k' >>"$SANDBOX/repo/tests/scenarios/scenarios.txt"
 touch "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaSimpleViewerTestsToolbox68K.bin"
-run_case simpleviewer open-12k 4 unset
+run_case simpleviewer open-12k 3 unset
 [ -s "$SANDBOX/repo/build/mame-scenario/assets/SV12K.PICT" ] || fail "12 KB PICT was not generated"
 grep -q 'assets/SV12K.PICT' "$SANDBOX/dev-disk-arguments" || fail "12 KB PICT was not staged"
-run_case simpleviewer open-50k 4 unset
+run_case simpleviewer open-50k 3 unset
 [ -s "$SANDBOX/repo/build/mame-scenario/assets/SV50K.PICT" ] || fail "50 KB PICT was not generated"
 grep -q 'assets/SV50K.PICT' "$SANDBOX/dev-disk-arguments" || fail "50 KB PICT was not staged"
 # Fail the generator before disk creation or launch; never reuse stale bytes.
