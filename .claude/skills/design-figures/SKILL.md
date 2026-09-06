@@ -39,8 +39,11 @@ the shape. First instance: #518 rally 1 v2 (2026-09-06).
    what is on screen …), columns "today" and "after"; every struct, field,
    enum, or function that holds the fact, marked copy / retire / new. End
    with a tally: +N new surfaces, −N retired, missing roles.
-4. **Lifecycle state machines** — one per new owned thing (a row, a mark, a
-   batch): birth doors, death doors, read doors, and what asserts at reclaim.
+4. **Lifecycle state machines** — one per lifecycle the ruling touches: every
+   new owned thing (a row, a mark, a batch) and every existing resident (Node,
+   Boundary, platform context) whose detach, parking, cancellation, or
+   reclaim behavior changes even when no new owner is added. Each shows birth
+   doors, death doors, read doors, and what asserts at reclaim.
 5. **PR split** — boxes per PR with the rail, the red→green test, and what
    each PR alone guarantees; arrows show which are independent.
 6. **Alternatives** — when a second opinion (REFUTE, Codex, user) proposes
@@ -64,9 +67,14 @@ publish its version as a separate artifact. Where the two pages disagree
 - **Colours**: plain = existing owner; amber = copy of a fact; green = new
   seat the design adds; red = retiring, or a claim a REFUTE broke.
   Dotted = a path that bypasses an owner (native thunk, side channel).
-- **Tick boundary** = one horizontal dashed line across all lanes, labelled
-  with exactly what crosses it. If something with a pointer crosses, say so
-  in the label; that sentence is usually the ruling.
+- **Tick boundaries** = a horizontal dashed line across all lanes for each
+  clock the traced operation actually crosses, labelled with exactly what
+  crosses it: none for a fully synchronous operation, several when a
+  lifetime spans more than one owner clock (logical retirement, then
+  platform-handle disposal on the native safe point). Never invent a
+  boundary to fit the template and never omit a real one; if something with
+  a pointer crosses, say so in the label — that sentence is usually the
+  ruling.
 - **Label every arrow** with the operation (`markViewDirty(PROPS)`,
   `queryPaintDamage`), not "flows to".
 - One concrete example per figure; no abstract "a State" boxes. Use the
