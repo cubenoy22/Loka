@@ -50,6 +50,12 @@ void NullRectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact p
   (void)previous;
   // Detached or retired, the surface is no longer placed: its pending seat
   // rows go first.
+  if (next != loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->presented_.invalidate();
+    this->presentedClearBackground_.invalidate();
+    this->placement_.invalidate();
+  }
   if (next != loka::app::scene::NODE_FACT_ATTACHED && this->controller_)
   {
     this->controller_->cancelRectSurfaceExtent(this->node_);
@@ -58,7 +64,7 @@ void NullRectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact p
 
 void NullRectSurfaceContext::readLifecycleFactOnAttach()
 {
-  // The null rail has no surface presentation; layout is its only operation.
+  // Presentation is completed by the synchronous Null presenter.
 }
 
 short NullRectSurfaceContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
@@ -68,10 +74,101 @@ short NullRectSurfaceContext::layout(loka::app::scene::IPlatformController *, lo
     return state.y;
   }
   const short height = this->node_->props.height_ > 0 ? this->node_->props.height_ : state.height;
+  const short width = this->node_->props.width_ > 0 ? this->node_->props.width_ : state.width;
+  loka::app::scene::PaintScope scope;
+  this->placement_.invalidate();
+  this->presented_.invalidate();
+  if (this->controller_ && this->controller_->queryPaintProjectionScope(scope))
+    this->placement_.complete(loka::core::Frame(state.x, state.y, width, height), scope);
   return static_cast<short>(state.y + height + state.spacing);
 }
 
 void RegisterNullRectSurfaceNodeHandler(NullScenePlatformController &controller)
 {
   controller.registerNodeHandler(&gNullRectSurfaceNodeHandler);
+}
+
+namespace
+{
+  bool equalSprites(const loka::app::RectSurfaceModel &a, const loka::app::RectSurfaceModel &b)
+  {
+    const short count = loka::app::RectSurfaceModel::clampRectCount(a.rectCount);
+    if (count != loka::app::RectSurfaceModel::clampRectCount(b.rectCount))
+      return false;
+    for (short i = 0; i < count; ++i)
+      if (a.rects[i] != b.rects[i])
+        return false;
+    return true;
+  }
+} // namespace
+loka::app::scene::PaintAnswer NullRectSurfaceContext::queryPaintDamage(const loka::app::scene::PaintQuery &query) const
+{
+  using namespace loka::app::scene;
+  loka::core::Frame seat;
+  if (query.placement != PLACEMENT_ELIGIBLE || !this->placement_.query(query.scope, seat))
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  if (!this->presented_.isKnown())
+    return PaintAnswer::refused(PAINT_REFUSED_HISTORY_UNKNOWN);
+  if (this->presented_.scope() != query.scope)
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  if (!this->node_ || !this->node_->props.model_)
+    return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
+  const loka::app::RectSurfaceModel &current = this->node_->props.model_->get();
+  const bool clear = this->node_->props.clearBackground_;
+  PaintDamage damage = {
+      query.scope, seat.x, seat.y, 0, 0, clear ? PAINT_COVERAGE_PAINT_ONLY : PAINT_COVERAGE_ERASE_AND_PAINT};
+  if (this->presentedClearBackground_.value() != clear)
+  {
+    damage.width = seat.width;
+    damage.height = seat.height;
+  }
+  else if (!equalSprites(current, this->presented_.value()))
+  {
+    int left = seat.width, top = seat.height, right = 0, bottom = 0;
+    for (int pass = 0; pass < 2; ++pass)
+    {
+      const loka::app::RectSurfaceModel &model = pass ? current : this->presented_.value();
+      for (short i = 0; i < loka::app::RectSurfaceModel::clampRectCount(model.rectCount); ++i)
+      {
+        const loka::app::RectSprite &r = model.rects[i];
+        if (r.width <= 0 || r.height <= 0)
+          continue;
+        if (r.x < left)
+          left = r.x;
+        if (r.y < top)
+          top = r.y;
+        if (r.x + r.width > right)
+          right = r.x + r.width;
+        if (r.y + r.height > bottom)
+          bottom = r.y + r.height;
+      }
+    }
+    if (left < 0)
+      left = 0;
+    if (top < 0)
+      top = 0;
+    if (right > seat.width)
+      right = seat.width;
+    if (bottom > seat.height)
+      bottom = seat.height;
+    if (right > left && bottom > top)
+    {
+      damage.x += left;
+      damage.y += top;
+      damage.width = right - left;
+      damage.height = bottom - top;
+    }
+  }
+  return PaintAnswer::exact(damage);
+}
+bool NullRectSurfaceContext::commitPresented(const loka::app::RectSurfaceModel &value,
+                                             bool clearBackground,
+                                             const loka::app::scene::PaintScope &scope)
+{
+  loka::core::Frame seat;
+  if (!this->placement_.query(scope, seat))
+    return false;
+  this->presented_.commit(value, scope);
+  this->presentedClearBackground_.commit(clearBackground, scope);
+  return true;
 }

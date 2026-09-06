@@ -2,6 +2,8 @@
 #define LOKA_TESTS_PLATFORM_NULL_RECT_SURFACE_CONTEXT_HPP
 
 #include "app/scene/projection/NativeNodeContext.hpp"
+#include "app/RectSurface.hpp"
+#include "platform/null/context/NullPaintPlacement.hpp"
 
 class NullScenePlatformController;
 
@@ -24,7 +26,20 @@ public:
                              loka::app::scene::NodeLifecycleFact next);
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
 
+  virtual loka::app::scene::PaintAnswer queryPaintDamage(const loka::app::scene::PaintQuery &query) const;
+  using loka::app::scene::NativeNodeContext::commitPresented;
+  bool commitPresented(const loka::app::RectSurfaceModel &value,
+                       bool clearBackground,
+                       const loka::app::scene::PaintScope &scope);
+  void invalidatePaintHistory()
+  {
+    this->presented_.invalidate();
+  }
+
 private:
+  loka::app::scene::PaintFact<loka::app::RectSurfaceModel> presented_;
+  loka::app::scene::PaintFact<bool> presentedClearBackground_;
+  NullPaintPlacement placement_;
   loka::app::RectSurfaceNode *node_;
   NullScenePlatformController *controller_;
 };

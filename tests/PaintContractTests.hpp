@@ -1,0 +1,18 @@
+#ifndef LOKA_PAINT_CONTRACT_TESTS_HPP
+#define LOKA_PAINT_CONTRACT_TESTS_HPP
+void testRectSurfaceStateChangeExcludesSiblingTextFromPaintDamage();
+void testTextStateChangeYieldsExactTextDamageOnly();
+void testNativeControlAnswersNativeScheduledAndDoesNotWiden();
+void testRefusedDrawerWidensWholePlan();
+void testInheritedDefaultAnswersUnsupportedKind();
+void testCompressedParentIncludesNestedOwners();
+void testSameStateTwoBoundariesDamagesBothOwners();
+void testUnknownHistoryRecoversThroughWidenedPresentation();
+void testPlacementRefusals();
+void testRetainedTextRebindsToNewStateAndCompares();
+void testCapacityOverflowWidens();
+void testPlanHoldsNoPointersAndIsVisitLocal();
+void testPaintLifecycleAndScope();
+void testPaintPolicyScopeAndLifecycleInvalidation();
+void testPaintPlanEmptyCapacityAndScopeValues();
+#endif

@@ -10,12 +10,15 @@ namespace SceneTestSupport
       changes. Set UseRetainFastPaths when the test must exercise retained
       props application. New tests should use this instead of growing another
       copy. */
-  template <class NodeT, class PropsT, bool UseRetainFastPaths = false>
-  class RecomposingBoundaryNode : public loka::app::scene::BoundaryNodeFor<NodeT>
+  template <class NodeT,
+            class PropsT,
+            bool UseRetainFastPaths = false,
+            class Base = loka::app::scene::BoundaryNodeFor<NodeT> >
+  class RecomposingBoundaryNode : public Base
   {
   public:
     explicit RecomposingBoundaryNode(const PropsT &props)
-        : loka::app::scene::BoundaryNodeFor<NodeT>(props)
+        : Base(props)
     {
     }
 
@@ -28,7 +31,7 @@ namespace SceneTestSupport
     virtual void composeWithContext(loka::app::scene::ComponentContext &context,
                                     loka::app::scene::ComposeEvent event)
     {
-      typedef loka::app::scene::BoundaryNodeFor<NodeT> BaseType;
+      typedef Base BaseType;
       if (event == loka::app::scene::COMPOSE_EVENT_UPDATE &&
           !UseRetainFastPaths)
       {

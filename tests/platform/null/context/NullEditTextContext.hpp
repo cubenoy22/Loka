@@ -15,6 +15,10 @@ namespace loka
 class NullEditTextContext : public loka::app::scene::NativeNodeContext
 {
 public:
+  virtual loka::app::scene::PaintAnswer queryPaintDamage(const loka::app::scene::PaintQuery &) const
+  {
+    return loka::app::scene::PaintAnswer::nativeScheduled();
+  }
   NullEditTextContext(loka::app::EditTextNode *node, NullScenePlatformController *controller);
   virtual ~NullEditTextContext();
 
