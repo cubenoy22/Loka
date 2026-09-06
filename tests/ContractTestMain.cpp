@@ -1,3 +1,4 @@
+#include "PaintBaselineTests.hpp"
 #include "StateNotifyTests.hpp"
 #include "StateTrackerCommitTests.hpp"
 #include "BoundaryObservedStateTrackerTests.hpp"

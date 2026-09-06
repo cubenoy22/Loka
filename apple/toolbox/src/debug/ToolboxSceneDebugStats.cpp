@@ -115,6 +115,8 @@ ToolboxSceneDebugStats::ToolboxSceneDebugStats()
       totalRenderCalls(0),
       totalRenderDirtyCalls(0),
       totalControlDrawCount(0),
+      totalCollectorVisitCount(0),
+      totalBoundaryApplyCount(0),
       buttonPoolHitCount(0),
       buttonPoolMissCount(0),
       buttonPoolEvictCount(0),
@@ -130,6 +132,11 @@ ToolboxSceneDebugStats::ToolboxSceneDebugStats()
 std::string ToolboxSceneDebugStats::flagsToString(loka::app::scene::NodeDirtyFlags flags)
 {
   return DirtyFlagsToStringImpl(flags);
+}
+
+void ToolboxSceneDebugStats::noteCollectorVisit()
+{
+  ++this->totalCollectorVisitCount;
 }
 
 void ToolboxSceneDebugStats::begin(loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
@@ -240,6 +247,10 @@ std::string ToolboxSceneDebugStats::summary() const
   AppendInt(out, this->editHitCount);
   out += " ctl:";
   AppendInt(out, this->controlDrawCount);
+  out += " collector.total:";
+  AppendInt(out, this->totalCollectorVisitCount);
+  out += " apply.total:";
+  AppendInt(out, this->totalBoundaryApplyCount);
   out += " pool.btn:";
   AppendInt(out, static_cast<int>(this->buttonPoolHitCount));
   out += "/";
@@ -356,6 +367,8 @@ bool ToolboxSceneDebugStats::dumpToTimestampedFile() const
   std::fprintf(fp, "total.render=%d\n", this->totalRenderCalls);
   std::fprintf(fp, "total.render_dirty=%d\n", this->totalRenderDirtyCalls);
   std::fprintf(fp, "total.control_draws=%d\n", this->totalControlDrawCount);
+  std::fprintf(fp, "total.collector_visits=%d\n", this->totalCollectorVisitCount);
+  std::fprintf(fp, "total.boundary_applies=%d\n", this->totalBoundaryApplyCount);
   std::fprintf(fp, "pool.button.hits=%lu\n", this->buttonPoolHitCount);
   std::fprintf(fp, "pool.button.misses=%lu\n", this->buttonPoolMissCount);
   std::fprintf(fp, "pool.button.evicts=%lu\n", this->buttonPoolEvictCount);

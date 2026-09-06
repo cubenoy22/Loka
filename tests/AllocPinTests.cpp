@@ -20,6 +20,8 @@
 #include "support/TestVerify.hpp"
 
 #include "MainNode.hpp"
+#include "../example/FloppyBird/src/MainNode.hpp"
+#include "platform/null/NullScenePlatformController.hpp"
 
 #include "app/nodes/Text.hpp"
 #include "app/nodes/controls/Button.hpp"
@@ -272,5 +274,54 @@ namespace allocpin
 
     std::printf("allocation ratchet: PASS (allocs=%lu/%d bytes=%lu/%d)\n", steadyAllocs,
                 static_cast<int>(kSteadyStateAllocBudget), steadyBytes, static_cast<int>(kSteadyStateByteBudget));
+  }
+  void RunFloppyBirdSurfaceAllocPin()
+  {
+    floppybird::SharedModel model;
+    NullScenePlatformController platform;
+    Scene scene(loka::app::scene::Boundary<floppybird::MainNode>(floppybird::MainProps(&model)));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    for (int i = 0; scene.hasPendingInvalidation() && i < 8; ++i)
+      LOKA_VERIFY(scene.flushInvalidation());
+    assert(!scene.hasPendingInvalidation());
+    BoundaryNode *root = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    LOKA_VERIFY(root != 0);
+
+    // Warm up two surface-only ticks, then measure one complete State update
+    // and its Scene cycle. Score is deliberately unchanged.
+    for (int tick = 0; tick < 3; ++tick)
+    {
+      loka::app::RectSurfaceModel next;
+      next.rectCount = 1;
+      next.rects[0] = loka::app::RectSprite(static_cast<short>(tick), 10, 8, 8);
+      const loka::app::scene::testing::PaintBaselineStats before =
+          loka::app::scene::testing::paintBaselineStats();
+      if (tick == 2)
+        BeginCapture(0);
+      SetPhase(PHASE_COMMIT);
+      {
+        loka::core::StateTrackerGuard guard(root->tracker());
+        model.surfaceModel_.set(next);
+      }
+      SetPhase(PHASE_FLUSH);
+      if (scene.hasPendingInvalidation())
+        LOKA_VERIFY(scene.flushInvalidation());
+      if (tick == 2)
+        EndCapture();
+      assert(!scene.hasPendingInvalidation());
+      LOKA_VERIFY(loka::app::scene::testing::paintBaselineStats().boundaryUpdateVisits
+                      - before.boundaryUpdateVisits == 1);
+    }
+    const unsigned long allocations = CaptureAllocCount(0);
+    const unsigned long bytes = CaptureAllocBytes(0);
+    std::printf("FloppyBird surface tick baseline: allocations=%lu bytes=%lu\n", allocations, bytes);
+    // Characterization of this Null surface-only tick: 6 allocations / 112 bytes.
+    // Both halves are pinned so a later paint change that keeps the count but
+    // grows the sizes is visible. Kept independent of the HelloWorld ceiling;
+    // later PRs explicitly update this baseline.
+    LOKA_VERIFY(allocations == 6);
+    LOKA_VERIFY(bytes == 112);
+    scene.unmount();
   }
 } // namespace allocpin

@@ -87,6 +87,12 @@ public:
   int totalRenderCalls;
   int totalRenderDirtyCalls;
   int totalControlDrawCount;
+  // Cumulative only: boundary applies precede onChange (which calls begin) in a
+  // cycle that also has global work, so a per-interval copy would be reset
+  // right after it was incremented. Read these as deltas across a cycle.
+  int totalCollectorVisitCount;
+  int totalBoundaryApplyCount;
+  void noteCollectorVisit();
   unsigned long buttonPoolHitCount;
   unsigned long buttonPoolMissCount;
   unsigned long buttonPoolEvictCount;

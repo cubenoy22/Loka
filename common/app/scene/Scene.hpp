@@ -1581,10 +1581,16 @@ namespace loka
       SceneDirector::applyPendingBoundaryUpdate(Node *rootNode, BoundaryNode *root, const PlatformApplyPlan &plan) const
       {
         assert(root && (isBoundaryUpdateRoot(root) || (root == rootBoundaryFor(rootNode) && !firstPendingUpdateRoot())));
+#ifdef TEST_BUILD
+        ++testing::paintBaselineStats().boundaryUpdateVisits;
+#endif
         PlatformApplyPlan localPlan = plan.forBoundary(root);
         const BoundaryNode::LocalApplyInfo localInfo = root->localApplyInfo(localPlan);
         if (localPlan.hasBoundaryApplyWork(root) && root->scene() && root->scene()->platformController_)
         {
+#ifdef TEST_BUILD
+          ++testing::paintBaselineStats().boundaryApplyCallbacks;
+#endif
           root->scene()->platformController_->onBoundaryApply(rootNode, root, localInfo, localPlan);
         }
         root->applyPendingUpdate(localPlan);
