@@ -74,8 +74,6 @@ ToolboxSceneDebugStats::ToolboxSceneDebugStats()
       textHitCount(0),
       popupHitCount(0),
       controlDrawCount(0),
-      collectorVisitCount(0),
-      boundaryApplyCount(0),
       relayoutTextCount(0),
       textChangedCellCount(0),
       textChangedTextCount(0),
@@ -138,7 +136,6 @@ std::string ToolboxSceneDebugStats::flagsToString(loka::app::scene::NodeDirtyFla
 
 void ToolboxSceneDebugStats::noteCollectorVisit()
 {
-  ++this->collectorVisitCount;
   ++this->totalCollectorVisitCount;
 }
 
@@ -160,8 +157,6 @@ void ToolboxSceneDebugStats::begin(loka::app::scene::NodeDirtyFlags flags, bool 
   this->textHitCount = 0;
   this->popupHitCount = 0;
   this->controlDrawCount = 0;
-  this->collectorVisitCount = 0;
-  this->boundaryApplyCount = 0;
   this->relayoutTextCount = 0;
   this->textChangedCellCount = 0;
   this->textChangedTextCount = 0;
@@ -252,10 +247,10 @@ std::string ToolboxSceneDebugStats::summary() const
   AppendInt(out, this->editHitCount);
   out += " ctl:";
   AppendInt(out, this->controlDrawCount);
-  out += " collector:";
-  AppendInt(out, this->collectorVisitCount);
-  out += " apply:";
-  AppendInt(out, this->boundaryApplyCount);
+  out += " collector.total:";
+  AppendInt(out, this->totalCollectorVisitCount);
+  out += " apply.total:";
+  AppendInt(out, this->totalBoundaryApplyCount);
   out += " pool.btn:";
   AppendInt(out, static_cast<int>(this->buttonPoolHitCount));
   out += "/";
@@ -328,8 +323,6 @@ bool ToolboxSceneDebugStats::dumpToTimestampedFile() const
   std::fprintf(fp, "last.hits.text=%d\n", this->textHitCount);
   std::fprintf(fp, "last.hits.popup=%d\n", this->popupHitCount);
   std::fprintf(fp, "last.control_draws=%d\n", this->controlDrawCount);
-  std::fprintf(fp, "last.collector_visits=%d\n", this->collectorVisitCount);
-  std::fprintf(fp, "last.boundary_applies=%d\n", this->boundaryApplyCount);
   std::fprintf(fp, "last.relayout_texts=%d\n", this->relayoutTextCount);
   std::fprintf(fp, "last.relayout_preview=%s\n", this->relayoutTextPreview.c_str());
   std::fprintf(fp, "last.text_changed.cell=%d\n", this->textChangedCellCount);

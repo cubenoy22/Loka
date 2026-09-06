@@ -755,7 +755,6 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
                                                      const loka::app::scene::BoundaryLocalApplyInfo &info,
                                                      const loka::app::scene::PlatformApplyPlan &plan)
 {
-  ++debugStats_.boundaryApplyCount;
   ++debugStats_.totalBoundaryApplyCount;
   if (rootNode)
   {
