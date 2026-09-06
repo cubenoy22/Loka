@@ -213,3 +213,41 @@ The scenario window is `frame(1, 41, 636, 400)`, not production's
 (`LokaTestsToolbox.capture`, the structure-rectangle bbox the pixel golden is
 cropped by) refuses a window whose structure rectangle leaves the screen. The
 scene, model and menus are the production twin; only the frame is rig-local.
+
+
+## Retained text rebind (#604 PR C; shared with #518 PR 2b)
+
+`smirkbench retained-text-rebind` is build-verified only. It uses the existing
+`SmirkBench.FaceCount` Text and `TextDefinition::applyPropsToNode`, the production
+retained-apply door, without modifying MainNode or its composition. Its AppConfig
+owns two test States until after the App is destroyed.
+
+At turn 2 capture Faces: 1; at 3 apply A (`Rebind A`), at 4 apply B (`Rebind B`).
+Both applies require the same context with the newly captured State, then call
+`renderDirty` before any layout/draw can rebuild the TextHit. Turn 5 changes A
+and requires no TextHit notification; turn 6 changes B and requires exactly one
+TextHit notification. Turn 7 captures `Rebind B updated` and settles successfully.
+The A check observes absence of hit dispatch; it does not independently count
+observers on the old State. The final MAME screenshot must show `Rebind B updated`
+in the nav pane, with the Add face button and surface unchanged.
+
+Run on the configured rig:
+
+```sh
+tests/toolbox/run-scenario.sh smirkbench retained-text-rebind --structural-audit
+```
+
+Inspect `build/mame-scenario/smirkbench/retained-text-rebind/LokaTestsToolbox.audit`
+for the six steps (`post-settle`, `apply-A`, `apply-B-replay`,
+`A-does-not-notify-hit`, `B-notifies-hit`, `final`) and successful terminal.
+No expected audit or pixels are invented: until the measured audit is committed,
+the runner must refuse at the missing-tracked-audit comparison. ScenarioToolsTest
+has an explicit, printed allowance for this cell only. After validating repeated
+runs, commit its measured audit and remove that allowance before a full golden
+bake. The registry now contains 20 cells.
+
+Run the same cell with the six Toolbox `onPropsApplied` bodies temporarily empty:
+it must fail at `apply-A` because the context still captures the original State.
+Separately omit the TextHit refresh in `refreshContextProps`: B must fail to notify
+the TextHit at turn 6 (and replay at turn 4 shows A). These are pending mutation
+checks for the delegator, not red/green evidence from this host.

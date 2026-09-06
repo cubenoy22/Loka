@@ -34,15 +34,21 @@ class ToolboxCellContext : public ToolboxProjectedNodeContext
 public:
   ToolboxCellContext(loka::app::CellNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxCellContext();
+  virtual void onPropsApplied();
 
   void updateData(loka::core::State<loka::core::String> *text);
   void updateRect(const Rect &rect);
+  loka::core::State<loka::core::String> *liveTextState() const
+  {
+    return this->node_ && !this->node_->props.ownsText_ ? this->text_ : 0;
+  }
   void draw(ToolboxScenePlatformController *controller);
   virtual void render(loka::app::scene::IPlatformController *controller);
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   bool handleMouseDown(const Point &point, ToolboxScenePlatformController *controller);
 
 private:
+  void captureProps();
   loka::app::CellNode *node_;
   Rect rect_;
   loka::core::State<loka::core::String> *text_;

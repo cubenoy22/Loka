@@ -43,6 +43,7 @@ class ToolboxEditTextContext : public ToolboxProjectedNodeContext
 public:
   ToolboxEditTextContext(loka::app::EditTextNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxEditTextContext();
+  virtual void onPropsApplied();
 
   void updateData(loka::core::State<loka::core::String> *text);
   void updateRect(const Rect &outerRect, const Rect &textRect, short textX, short textY);
@@ -62,6 +63,7 @@ public:
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
 
 private:
+  void captureProps();
   loka::app::EditTextNode *node_;
   Rect rect_;
   Rect textRect_;

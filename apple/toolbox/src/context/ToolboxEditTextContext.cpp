@@ -103,7 +103,7 @@ void ToolboxEditTextContext::draw(ToolboxScenePlatformController *controller)
   DrawStringAt(textX_, textY_, text_->get());
   if (controller)
   {
-    controller->recordEditHit(rect_, text_, boundary_);
+    controller->recordEditHit(rect_, text_, boundary_, this);
   }
 }
 
@@ -126,7 +126,7 @@ short ToolboxEditTextContext::layout(loka::app::scene::IPlatformController *cont
   textRect.top = static_cast<short>(textRect.top + 2);
   textRect.right = static_cast<short>(textRect.right - 1);
   textRect.bottom = static_cast<short>(textRect.bottom - 1);
-  updateData(node_->props.text_);
+  this->captureProps();
   updateRect(rect, textRect, static_cast<short>(state.x + 4), state.y);
   state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
   return width;
@@ -141,4 +141,18 @@ void ToolboxEditTextContext::render(loka::app::scene::IPlatformController *contr
 bool RegisterToolboxEditTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
 {
   return registry.registerHandler(&gToolboxEditTextNodeHandler);
+}
+
+void ToolboxEditTextContext::captureProps()
+{
+  this->updateData(this->node_ ? this->node_->props.text_ : 0);
+}
+
+void ToolboxEditTextContext::onPropsApplied()
+{
+  this->captureProps();
+  if (this->controller() && this->node_)
+  {
+    this->controller()->refreshContextProps(this->node_);
+  }
 }

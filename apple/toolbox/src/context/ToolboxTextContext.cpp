@@ -281,7 +281,7 @@ void ToolboxTextContext::draw(ToolboxScenePlatformController *controller)
   if (controller)
   {
     controller->recordTextHit(
-        rect_, textX_, textY_, text_, boundary_, wrapMode_ != loka::app::TEXT_WRAP_NONE, visibleWidth());
+        rect_, textX_, textY_, text_, boundary_, wrapMode_ != loka::app::TEXT_WRAP_NONE, visibleWidth(), this);
   }
 }
 
@@ -289,20 +289,10 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
                                  loka::app::scene::LayoutState &state)
 {
   (void)controller;
+  this->captureProps();
   if (!node_ || !node_->props.text_)
   {
     return 0;
-  }
-  if (node_->props.hasAttr_)
-  {
-    wrapMode_ = node_->props.attr_.hasWrapValue_ ? node_->props.attr_.wrapValue_ : loka::app::TEXT_WRAP_NONE;
-    truncationMode_ =
-        node_->props.attr_.hasTruncationValue_ ? node_->props.attr_.truncationValue_ : loka::app::TEXT_TRUNCATION_NONE;
-  }
-  else
-  {
-    wrapMode_ = loka::app::TEXT_WRAP_NONE;
-    truncationMode_ = loka::app::TEXT_TRUNCATION_NONE;
   }
   const loka::core::String &value = node_->props.text_->get();
   short measuredWidth = ToolboxMeasureTextWidth(value);
@@ -333,7 +323,6 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
   rect.top = static_cast<short>(state.y - effectiveLineHeight + ToolboxLayoutMetrics::kControlAscentInset);
   rect.right = static_cast<short>(state.x + width);
   rect.bottom = static_cast<short>(state.y + ToolboxLayoutMetrics::kControlDescent);
-  updateData(node_->props.text_);
   updateRect(rect, state.x, state.y);
   state.y = static_cast<short>(state.y + effectiveLineHeight + state.spacing);
   return width;
@@ -348,4 +337,31 @@ void ToolboxTextContext::render(loka::app::scene::IPlatformController *controlle
 bool RegisterToolboxTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
 {
   return registry.registerHandler(&gToolboxTextNodeHandler);
+}
+
+void ToolboxTextContext::captureProps()
+{
+  this->updateData(this->node_ ? this->node_->props.text_ : 0);
+  if (!this->node_)
+    return;
+  if (node_->props.hasAttr_)
+  {
+    wrapMode_ = node_->props.attr_.hasWrapValue_ ? node_->props.attr_.wrapValue_ : loka::app::TEXT_WRAP_NONE;
+    truncationMode_ =
+        node_->props.attr_.hasTruncationValue_ ? node_->props.attr_.truncationValue_ : loka::app::TEXT_TRUNCATION_NONE;
+  }
+  else
+  {
+    wrapMode_ = loka::app::TEXT_WRAP_NONE;
+    truncationMode_ = loka::app::TEXT_TRUNCATION_NONE;
+  }
+}
+
+void ToolboxTextContext::onPropsApplied()
+{
+  this->captureProps();
+  if (this->controller() && this->node_)
+  {
+    this->controller()->refreshContextProps(this->node_);
+  }
 }

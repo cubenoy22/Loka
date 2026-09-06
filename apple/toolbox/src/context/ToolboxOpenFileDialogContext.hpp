@@ -20,6 +20,7 @@ class ToolboxOpenFileDialogContext : public loka::app::scene::NativeNodeContext
 public:
   explicit ToolboxOpenFileDialogContext(loka::app::OpenFileDialogNode *node);
   virtual ~ToolboxOpenFileDialogContext();
+  virtual void onPropsApplied();
   /** Attach-time read (late-subscriber rule): presentation from the current
       fact, called by the installing handler right after setContext. */
   void readLifecycleFactOnAttach();
@@ -28,6 +29,7 @@ public:
   void presentIfNeeded();
 
 private:
+  void captureProps();
   void applyAttachedPresentation();
   void applyDetachedPresentation();
   struct NativeDialogSession;
