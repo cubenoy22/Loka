@@ -84,12 +84,22 @@ bool ToolboxPlatformContext::openFile(const loka::file::File &item, loka::platfo
 
 bool ToolboxPlatformContext::queryLargestContiguousAllocation(std::size_t &out) const
 {
+  // What one allocation could obtain: the largest free block as the zone
+  // stands, or the room the zone can still grow toward the application
+  // limit, whichever is larger. Pure arithmetic on purpose: MaxMem compacts
+  // and purges as a side effect, and running that purge from a pre-check
+  // bombed the SimpleViewer scenario with an F-line exception on maciix
+  // (2026-09-07); the allocation itself performs any compaction it needs.
   const long largestAllocation = MaxBlock();
+  THz zone = ApplicationZone();
+  const char *heapTop = reinterpret_cast<const char *>(zone->bkLim);
+  const char *limit = reinterpret_cast<const char *>(GetApplLimit());
+  const long growth = limit > heapTop ? static_cast<long>(limit - heapTop) : 0;
   if (largestAllocation < 0)
   {
     return false;
   }
-  out = static_cast<std::size_t>(largestAllocation);
+  out = static_cast<std::size_t>(largestAllocation > growth ? largestAllocation : growth);
   return true;
 }
 

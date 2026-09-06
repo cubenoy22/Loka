@@ -31,7 +31,10 @@ The record contains `image.load` (`ok` or a numeric production flow error
 code), `image.width`, `image.height`, actual `image.bytes` read via `GetEOF`,
 and `heap.free`/`heap.max_block` sampled immediately before submitting the
 load. These are Classic `FreeMem()` and the platform's
-`queryLargestContiguousAllocation()` (`MaxBlock()`). The error code is matched
+`queryLargestContiguousAllocation()` (now a conservative `MaxMem` capacity
+including zone growth, rather than the former `MaxBlock()` reading). This
+probe compacts and purges before the production load's own capacity check;
+`heap.free` is sampled before that work. The error code is matched
 from the completed chooser message using ImageLoadSession's production
 formatter through a TEST_BUILD-only friend; unknown messages fail the fixture.
 A terminal `succeeded` means the measurement completed, including when the
