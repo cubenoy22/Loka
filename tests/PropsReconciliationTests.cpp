@@ -1,4 +1,5 @@
 #include "PropsReconciliationTests.hpp"
+#include "support/TestVerify.hpp"
 #include "support/PropsReconciliation.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
@@ -58,22 +59,32 @@ void testRetainedPropsApplicationNotifiesContextExactlyOnce()
   scene.updateAttached(true);
   settle(scene);
   ButtonNode *button = root(scene)->childrenHead()->asButtonNode();
-  assert(button);
+  LOKA_VERIFY(button != 0);
   CountingContext *context = static_cast<CountingContext *>(button->getContext());
-  assert(context && context->calls() == 0);
+  LOKA_VERIFY(context != 0);
+  LOKA_VERIFY(context->calls() == 0);
   recompose(scene); // Equivalent declaration repoints without applying props.
-  assert(root(scene)->childrenHead() == button && button->getContext() == context);
-  assert(context->calls() == 0);
+  {
+    Node *head = root(scene)->childrenHead();
+    LOKA_VERIFY(head == button && button->getContext() == context);
+  }
+  LOKA_VERIFY(context->calls() == 0);
   declaration = Button(&b);
   recompose(scene);
-  assert(root(scene)->childrenHead() == button && button->getContext() == context);
+  {
+    Node *head = root(scene)->childrenHead();
+    LOKA_VERIFY(head == button && button->getContext() == context);
+  }
   assert(button->props.text_ == &b);
-  assert(context->calls() == 1);
+  LOKA_VERIFY(context->calls() == 1);
   recompose(scene);
-  assert(context->calls() == 1);
+  LOKA_VERIFY(context->calls() == 1);
   declaration = Button(&a);
   recompose(scene);
-  assert(root(scene)->childrenHead() == button && button->getContext() == context);
-  assert(context->calls() == 2);
+  {
+    Node *head = root(scene)->childrenHead();
+    LOKA_VERIFY(head == button && button->getContext() == context);
+  }
+  LOKA_VERIFY(context->calls() == 2);
   scene.unmount();
 }

@@ -190,7 +190,20 @@ void Win32TextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previou
 
 void Win32TextContext::onPropsApplied()
 {
-  if (this->node_ && this->node_->props.text_ != this->textState_)
+  if (!this->node_)
+  {
+    return;
+  }
+  if (this->node_->props.ownsText)
+  {
+    // Props-owned text is not a live source (TextNode::declareDirtySources
+    // classifies ownsText as non-live): a literal-to-literal apply rewrites the
+    // same owned State without notifying. Treat it as an applied snapshot.
+    this->unbindText();
+    this->applyText();
+    return;
+  }
+  if (this->node_->props.text_ != this->textState_)
   {
     this->unbindText();
     this->bindText();
@@ -246,7 +259,9 @@ void Win32TextContext::bindText()
   {
     return;
   }
-  textState_ = static_cast<loka::core::State<loka::core::String> *>(node_->props.text_);
+  // Subscribe only to a borrowed live State; props-owned text is applied as a
+  // snapshot (see onPropsApplied) and never subscribed to.
+  textState_ = node_->props.ownsText ? 0 : static_cast<loka::core::State<loka::core::String> *>(node_->props.text_);
   if (textState_)
   {
     textState_->bind(&Win32TextContext::TextChangedThunk, this, false);
@@ -265,12 +280,14 @@ void Win32TextContext::unbindText()
 
 void Win32TextContext::applyText()
 {
-  if (!hwnd_ || !textState_)
+  // Always read the node's current props: for a borrowed State this is the
+  // subscribed one, for owned text it is the latest applied literal.
+  if (!hwnd_ || !node_ || !node_->props.text_)
   {
     return;
   }
   std::wstring wide;
-  if (loka::win32::MaterializeWideString(textState_->get(), wide))
+  if (loka::win32::MaterializeWideString(node_->props.text_->get(), wide))
   {
     SetWindowTextW(hwnd_, wide.c_str());
   }

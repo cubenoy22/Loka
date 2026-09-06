@@ -109,24 +109,45 @@ void testWin32RetainedTextRebindsToNewState()
     assert(text->props.text_ == &b);
     textIs(hwnd, L"same");
     assert(writes.count() == 1);
-    // Changed style forces props application while keeping the same State.
-    declaration = Text(&b).attr(TextAttr().weight(TEXT_WEIGHT_BOLD));
+    // Props-owned text: a literal is applied as a snapshot (no subscription), and
+    // a literal-to-literal apply rewrites the same owned State without notifying,
+    // so the door itself must re-apply it.
+    declaration = Text("lit1");
     recompose(scene);
-    assert(writes.count() == 1);
+    assert(root(scene)->childrenHead() == text && text->getContext() == context);
+    assert(text->props.ownsText);
+    textIs(hwnd, L"lit1");
+    assert(writes.count() == 2);
+    declaration = Text("lit2");
+    recompose(scene);
+    textIs(hwnd, L"lit2");
+    assert(writes.count() == 3);
+    {
+      StateTrackerGuard guard(root(scene)->tracker());
+      b.set(String::Literal("ignored B"));
+    }
+    settle(scene);
+    textIs(hwnd, L"lit2");
+    assert(writes.count() == 3);
+    // Back to the borrowed State B: subscribed again, value follows B.
+    declaration = Text(&b);
+    recompose(scene);
+    textIs(hwnd, L"ignored B");
+    assert(writes.count() == 4);
     {
       StateTrackerGuard guard(root(scene)->tracker());
       b.set(String::Literal("new B"));
     }
     settle(scene);
     textIs(hwnd, L"new B");
-    assert(writes.count() == 2);
+    assert(writes.count() == 5);
     {
       StateTrackerGuard guard(root(scene)->tracker());
       a.set(String::Literal("old A"));
     }
     settle(scene);
     textIs(hwnd, L"new B");
-    assert(writes.count() == 2);
+    assert(writes.count() == 5);
   }
   scene.unmount();
   controller.drainNativeRetirements();
