@@ -510,5 +510,6 @@ int main()
 {
   allocpin::RunZeroAllocPin();
   allocpin::RunFloppyBirdSurfaceAllocPin();
+  allocpin::RunFloppyBirdScoreAllocPin();
   return 0;
 }

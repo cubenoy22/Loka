@@ -2,6 +2,7 @@
 #define LOKA_CORE2_SCENE_PROJECTION_NATIVE_NODE_CONTEXT_HPP
 
 #include <cstddef>
+#include "app/scene/projection/PaintAnswer.hpp"
 #include "app/scene/Node.hpp"
 
 namespace loka
@@ -37,6 +38,14 @@ namespace loka
         }
 
         virtual ~NativeNodeContext() {}
+
+        /** Read-only enumeration door; unsupported rails preserve broad painting. */
+        virtual PaintAnswer queryPaintDamage(const PaintQuery &) const
+        {
+          return PaintAnswer::refused(PAINT_REFUSED_UNSUPPORTED_KIND);
+        }
+        /** Compatibility completion door. Typed rail presenters carry rendered values. */
+        virtual void commitPresented(const PaintScope &) {}
 
         virtual ICapturableBitmap *asCapturableBitmap()
         {

@@ -1,6 +1,7 @@
 #ifndef LOKA_TESTS_PLATFORM_NULL_SCENE_PLATFORM_CONTROLLER_HPP
 #define LOKA_TESTS_PLATFORM_NULL_SCENE_PLATFORM_CONTROLLER_HPP
 
+#include "app/scene/projection/ApplyPaintPlan.hpp"
 #include <cstddef>
 #include <vector>
 
@@ -158,6 +159,10 @@ public:
   virtual void destroy();
   virtual bool prepareProjectedLayout(loka::app::scene::Node *node,
                                       loka::app::scene::LayoutState &state);
+  /** RectSurface and Text handlers cannot be replaced (registerNodeHandler refuses):
+      the presenter addresses their contexts by concrete Null type. Every other kind
+      may be replaced; the paint walk answers native controls by kind and never
+      casts a context it did not install. */
   virtual bool registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler);
 
   /** Runs the same deterministic projection traversal as onChange with
@@ -200,7 +205,19 @@ public:
       contexts during the next apply. */
   void skipNextProjectionForTesting();
 
+  loka::app::scene::PaintScope paintScope() const;
+  bool queryPaintProjectionScope(loka::app::scene::PaintScope &scope) const;
+  void presentPaintPlan(loka::app::scene::BoundaryNode *root,
+                        const loka::app::scene::ApplyPaintPlan &plan,
+                        loka::app::scene::PaintPlacementEligibility eligibility = loka::app::scene::PLACEMENT_ELIGIBLE);
+  virtual void onPaintPlanSubmitted(loka::app::scene::BoundaryNode *, const loka::app::scene::ApplyPaintPlan &) {}
+  virtual void onPaintQueried() {}
+  virtual void onPaintCommitted() {}
+
 private:
+  class PaintQueryVisitor;
+  class PaintCompletionVisitor;
+  class PaintInvalidationVisitor;
   class LayoutTraversal;
 
   class RefusedProjectedNodeHandlers
@@ -275,6 +292,7 @@ private:
   void appendEvent(EventKind kind, int handleId);
   void recordWindowDisposed();
 
+  loka::app::scene::PaintScope paintScope_;
   loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlers_;
   RefusedProjectedNodeHandlers refusedProjectedNodeHandlers_;
   loka::app::scene::PlatformNodeHandlerRegistry nodeHandlers_;

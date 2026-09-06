@@ -1,6 +1,7 @@
 #include "platform/null/NullScenePlatformController.hpp"
 
 #include <cassert>
+#include "app/scene/projection/PaintEnumeration.hpp"
 
 #include "app/layout/PlatformBuiltinLayoutHandlers.hpp"
 #include "app/OpenFileDialog.hpp"
@@ -81,7 +82,8 @@ unsigned NullScenePlatformController::RefusedProjectedNodeHandlers::cellCount() 
 }
 
 NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepthCap)
-    : layoutHandlers_(),
+    : paintScope_(),
+      layoutHandlers_(),
       refusedProjectedNodeHandlers_(),
       nodeHandlers_(),
       rectSurfaceExtentLedger_(),
@@ -187,6 +189,183 @@ namespace
   }
 } // namespace
 
+namespace
+{
+  enum NullPaintRole
+  {
+    NULL_PAINT_SKIP,
+    NULL_PAINT_OWNED_DRAWER,   // RectSurface / Text: contexts the rail itself installs (registration refuses replacement)
+    NULL_PAINT_NATIVE_CONTROL, // Button / EditText / ScrollBar: native ownership, answered by kind, context never cast
+    NULL_PAINT_FOREIGN,        // ImageView / Cell / PopupMenu: refused by default, any installed context is foreign
+    NULL_PAINT_UNSUPPORTED
+  };
+  /** Classification is a rail contract, independent of handler registration. */
+  NullPaintRole paintRole(loka::app::scene::Node *node)
+  {
+    using namespace loka::app::scene;
+    switch (node->kind())
+    {
+    case NODE_KIND_RECT_SURFACE:
+    case NODE_KIND_TEXT:
+      return NULL_PAINT_OWNED_DRAWER;
+    case NODE_KIND_BUTTON:
+    case NODE_KIND_EDIT_TEXT:
+    case NODE_KIND_SCROLL_BAR:
+      return NULL_PAINT_NATIVE_CONTROL;
+    case NODE_KIND_IMAGE_VIEW:
+    case NODE_KIND_CELL:
+    case NODE_KIND_POPUP_MENU:
+      return NULL_PAINT_FOREIGN;
+    case NODE_KIND_OPEN_FILE_DIALOG:
+    case NODE_KIND_SCROLL_VIEW:
+    case NODE_KIND_BOX:
+    case NODE_KIND_ZSTACK:
+    case NODE_KIND_GRID:
+    case NODE_KIND_STACK:
+      return NULL_PAINT_SKIP;
+    case NODE_KIND_UNKNOWN:
+      return node->asProjectedLayoutNode() ? NULL_PAINT_UNSUPPORTED : NULL_PAINT_SKIP;
+    }
+    return NULL_PAINT_UNSUPPORTED;
+  }
+} // namespace
+class NullScenePlatformController::PaintQueryVisitor : public loka::app::scene::IPaintResidentVisitor
+{
+public:
+  PaintQueryVisitor(NullScenePlatformController &controller,
+                    loka::app::scene::ApplyPaintPlan &plan,
+                    const loka::app::scene::PaintQuery &query)
+      : controller_(controller),
+        plan_(plan),
+        query_(query)
+  {
+  }
+  virtual void
+  visit(loka::app::scene::Node *node, loka::app::scene::NodeContext *context, loka::app::scene::BoundaryNode *)
+  {
+    using namespace loka::app::scene;
+    const NullPaintRole role = paintRole(node);
+    if (role == NULL_PAINT_SKIP)
+      return;
+    PaintAnswer answer;
+    switch (role)
+    {
+    case NULL_PAINT_OWNED_DRAWER:
+      // The only cast in the paint walk; sound because registerNodeHandler refuses
+      // foreign handlers for these two kinds.
+      answer = context ? static_cast<NativeNodeContext *>(context)->queryPaintDamage(this->query_)
+                       : PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+      break;
+    case NULL_PAINT_NATIVE_CONTROL:
+      answer = PaintAnswer::nativeScheduled();
+      break;
+    case NULL_PAINT_FOREIGN:
+      answer = PaintAnswer::refused(context ? PAINT_REFUSED_UNSUPPORTED_KIND : PAINT_REFUSED_NO_CONTEXT);
+      break;
+    default:
+      answer = PaintAnswer::refused(PAINT_REFUSED_UNSUPPORTED_KIND);
+      break;
+    }
+    this->controller_.onPaintQueried();
+    switch (answer.kind)
+    {
+    case PAINT_ANSWER_NATIVE_SCHEDULED:
+      break;
+    case PAINT_ANSWER_REFUSED:
+      this->plan_.widen(APPLY_PAINT_WIDEN_REFUSED, this->query_.scope, answer.reason);
+      break;
+    case PAINT_ANSWER_EXACT:
+      if (answer.damage.scope != this->query_.scope)
+        this->plan_.widen(APPLY_PAINT_WIDEN_REFUSED, this->query_.scope, PAINT_REFUSED_PLACEMENT_UNSETTLED);
+      else if (!this->plan_.addExact(answer.damage))
+        this->plan_.widen(APPLY_PAINT_WIDEN_CAPACITY, this->query_.scope);
+      break;
+    }
+  }
+
+private:
+  NullScenePlatformController &controller_;
+  loka::app::scene::ApplyPaintPlan &plan_;
+  const loka::app::scene::PaintQuery query_;
+};
+class NullScenePlatformController::PaintCompletionVisitor : public loka::app::scene::IPaintResidentVisitor
+{
+public:
+  explicit PaintCompletionVisitor(NullScenePlatformController &controller)
+      : controller_(controller)
+  {
+  }
+  virtual void
+  visit(loka::app::scene::Node *node, loka::app::scene::NodeContext *context, loka::app::scene::BoundaryNode *)
+  {
+    if (paintRole(node) != NULL_PAINT_OWNED_DRAWER || !context)
+      return;
+    bool committed = false;
+    // Capture and commit synchronously, with no callbacks or State writes between.
+    if (loka::app::RectSurfaceNode *surface = node->asRectSurfaceNode())
+    {
+      if (surface->props.model_)
+      {
+        const loka::app::RectSurfaceModel value = surface->props.model_->get();
+        committed = static_cast<NullRectSurfaceContext *>(context)->commitPresented(
+            value, surface->props.clearBackground_, this->controller_.paintScope());
+      }
+    }
+    else if (loka::app::TextNode *text = node->asTextNode())
+    {
+      if (text->props.text_)
+      {
+        const loka::core::String value = text->props.text_->get();
+        committed = static_cast<NullTextContext *>(context)->commitPresented(value, this->controller_.paintScope());
+      }
+    }
+    if (committed)
+      this->controller_.onPaintCommitted();
+  }
+
+private:
+  NullScenePlatformController &controller_;
+};
+class NullScenePlatformController::PaintInvalidationVisitor : public loka::app::scene::IPaintResidentVisitor
+{
+public:
+  virtual void
+  visit(loka::app::scene::Node *node, loka::app::scene::NodeContext *context, loka::app::scene::BoundaryNode *)
+  {
+    if (paintRole(node) != NULL_PAINT_OWNED_DRAWER || !context)
+      return;
+    if (node->asRectSurfaceNode())
+      static_cast<NullRectSurfaceContext *>(context)->invalidatePresentation();
+    else if (node->asTextNode())
+      static_cast<NullTextContext *>(context)->invalidatePresentation();
+  }
+};
+loka::app::scene::PaintScope NullScenePlatformController::paintScope() const
+{
+  return this->paintScope_;
+}
+bool NullScenePlatformController::queryPaintProjectionScope(loka::app::scene::PaintScope &scope) const
+{
+  const loka::app::scene::ProjectionParentScope &projection = this->projectionParentScopes_.current();
+  const loka::core::Frame &clip = projection.clipRect;
+  if (projection.translationX != 0 || projection.translationY != 0 || projection.hasShortRangeRefusal()
+      || clip.x != this->paintScope_.clipX || clip.y != this->paintScope_.clipY
+      || clip.width != this->paintScope_.clipWidth || clip.height != this->paintScope_.clipHeight)
+    return false;
+  scope = this->paintScope_;
+  return true;
+}
+void NullScenePlatformController::presentPaintPlan(loka::app::scene::BoundaryNode *root,
+                                                   const loka::app::scene::ApplyPaintPlan &plan,
+                                                   loka::app::scene::PaintPlacementEligibility eligibility)
+{
+  this->onPaintPlanSubmitted(root, plan);
+  if (eligibility != loka::app::scene::PLACEMENT_ELIGIBLE)
+    return;
+  PaintCompletionVisitor completion(*this);
+  loka::app::scene::enumerateAttachedResidents(root, completion);
+}
+
 void NullScenePlatformController::onBoundaryApply(loka::app::scene::Node *rootNode,
                                                   loka::app::scene::BoundaryNode *boundary,
                                                   const loka::app::scene::BoundaryLocalApplyInfo &info,
@@ -198,6 +377,14 @@ void NullScenePlatformController::onBoundaryApply(loka::app::scene::Node *rootNo
     return;
   }
   syncScrollBarsInSubtree(static_cast<loka::app::scene::Node *>(boundary));
+  const loka::app::scene::PaintQuery query = {this->paintScope(),
+                                              plan.hasStructureWork() || plan.hasLayoutWork()
+                                                  ? loka::app::scene::PLACEMENT_PENDING
+                                                  : loka::app::scene::PLACEMENT_ELIGIBLE};
+  loka::app::scene::ApplyPaintPlan paint;
+  PaintQueryVisitor visitor(*this, paint, query);
+  loka::app::scene::enumerateAttachedResidents(boundary, visitor);
+  this->presentPaintPlan(boundary, paint, query.placement);
 }
 
 void NullScenePlatformController::synchronize() {}
@@ -254,6 +441,17 @@ bool NullScenePlatformController::prepareProjectedLayout(loka::app::scene::Node 
 
 bool NullScenePlatformController::registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler)
 {
+  // Always-on refusal, not a comment-only contract: RectSurface and Text contexts
+  // are addressed by their concrete Null type in the presenter's completion and
+  // invalidation walks, so no foreign handler may install a different context
+  // for those kinds. Every other kind may be replaced; the paint walk never
+  // casts a context it did not install (see paintRole).
+  if (handler
+      && ((handler->nodeTypeKey() == NullTextNodeHandlerKey() && !IsNullTextNodeHandler(handler))
+          || (handler->nodeTypeKey() == NullRectSurfaceNodeHandlerKey() && !IsNullRectSurfaceNodeHandler(handler))))
+  {
+    return false;
+  }
   return this->nodeHandlers_.registerHandler(handler);
 }
 
@@ -701,14 +899,30 @@ int NullScenePlatformController::projectLayout(
 {
   assert(this->projectionParentScopes_.activeDepth() == 0 &&
          "a projection pass must begin at the root scope");
+  // Placement is a derived cache: clear every self-drawer's seat and history
+  // before this fallible pass, so only residents this pass actually places can
+  // be completed afterwards. A refused or skipped projection leaves them UNKNOWN.
+  if (node && node->asBoundary())
+  {
+    PaintInvalidationVisitor invalidation;
+    loka::app::scene::enumerateAttachedResidents(node->asBoundary(), invalidation);
+  }
   const loka::core::Frame rootClip(state.x, state.y, state.width, state.height);
   if (!this->projectionParentScopes_.resetRoot(this, rootClip))
   {
     return state.y;
   }
+  const loka::app::scene::PaintScope scope = {1, 0, 0, state.x, state.y, state.width, state.height};
+  this->paintScope_ = scope;
   const int result = this->layoutNode(node, state);
   assert(this->projectionParentScopes_.activeDepth() == 0 &&
          "a projection pass must restore the root scope");
+  if (node && node->asBoundary())
+  {
+    loka::app::scene::ApplyPaintPlan paint;
+    paint.widen(loka::app::scene::APPLY_PAINT_WIDEN_UNSUPPORTED, this->paintScope());
+    this->presentPaintPlan(node->asBoundary(), paint);
+  }
   this->rectSurfaceExtentLedger_.flush();
   return result;
 }

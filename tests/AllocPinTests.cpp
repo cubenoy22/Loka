@@ -324,4 +324,34 @@ namespace allocpin
     LOKA_VERIFY(bytes == 112);
     scene.unmount();
   }
+  void RunFloppyBirdScoreAllocPin()
+  {
+    floppybird::SharedModel model;
+    NullScenePlatformController platform;
+    Scene scene(loka::app::scene::Boundary<floppybird::MainNode>(floppybird::MainProps(&model)));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    for (int i = 0; scene.hasPendingInvalidation() && i < 8; ++i)
+      LOKA_VERIFY(scene.flushInvalidation());
+    BoundaryNode *root = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    const loka::core::String next = loka::core::String::Literal("Score: 123456789012345678");
+    BeginCapture(0);
+    SetPhase(PHASE_COMMIT);
+    {
+      loka::core::StateTrackerGuard guard(root->tracker());
+      model.scoreText_.set(next);
+    }
+    SetPhase(PHASE_FLUSH);
+    if (scene.hasPendingInvalidation())
+      LOKA_VERIFY(scene.flushInvalidation());
+    EndCapture();
+    assert(!scene.hasPendingInvalidation());
+    const unsigned long allocations = CaptureAllocCount(0);
+    const unsigned long bytes = CaptureAllocBytes(0);
+    std::printf("FloppyBird score tick baseline: allocations=%lu bytes=%lu\n", allocations, bytes);
+    // Distinct String comparison and seat verification materialize buffers.
+    LOKA_VERIFY(allocations == 12);
+    LOKA_VERIFY(bytes == 436);
+    scene.unmount();
+  }
 } // namespace allocpin

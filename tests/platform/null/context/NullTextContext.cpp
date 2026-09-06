@@ -5,6 +5,7 @@
 #include "app/nodes/Text.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "core/StringBuffer.hpp"
+#include "platform/StringUTF8.hpp"
 
 namespace
 {
@@ -238,15 +239,31 @@ namespace
     return node->props.attr_.truncationValue_;
   }
 
-  NullTextMeasurement MeasureText(const loka::app::TextNode *node, const loka::app::scene::LayoutState &state)
+  /** materialized (optional) reports whether the String could be rendered at all. A
+      platform String that refuses UTF-8 materialization measures as nothing, and that
+      "nothing" must never become a presented value (AGENTS.md failure-degradation). */
+  NullTextMeasurement MeasureText(const loka::app::TextNode *node,
+                                  const loka::app::scene::LayoutState &state,
+                                  const loka::core::String *rendered = 0,
+                                  bool *materialized = 0)
   {
     const int lineHeight = state.lineHeight > 0 ? state.lineHeight : kDefaultLineHeight;
+    if (materialized)
+      *materialized = true;
     if (!node || !node->props.text_)
     {
       return NullTextMeasurement(0, ClampExtentToShort(lineHeight), 1);
     }
 
-    const loka::core::StringBuffer text = node->props.text_->get().bufferWithEncoding(loka::core::StringEncodingUtf32);
+    const loka::core::String &value = rendered ? *rendered : node->props.text_->get();
+    std::string utf8;
+    loka::core::StringBuffer text(loka::core::StringEncodingUtf32);
+    if (!loka::platform::CollectUtf8(value, utf8) || !text.assignFromUtf8(utf8))
+    {
+      if (materialized)
+        *materialized = false;
+      return NullTextMeasurement(0, ClampExtentToShort(lineHeight), 1);
+    }
     const int capacity = WrapCapacityForWidth(state.width);
     const loka::app::TextWrap wrap = ResolveWrap(node);
     LineGeometry lines;
@@ -281,6 +298,19 @@ namespace
         ClampExtentToShort(measuredWidth),
         ClampExtentToShort(measuredHeight),
         ClampExtentToShort(lines.lineCount));
+  }
+
+  bool FitsTextSeat(const loka::app::TextNode *node,
+                    const loka::core::String &value,
+                    const loka::core::Frame &seat,
+                    const NullTextMeasurement &placed)
+  {
+    loka::app::scene::LayoutState measure;
+    measure.width = static_cast<short>(seat.width);
+    measure.lineHeight = placed.lineCount() > 0 ? placed.height() / placed.lineCount() : 0;
+    bool materialized = true;
+    const NullTextMeasurement output = MeasureText(node, measure, &value, &materialized);
+    return materialized && output.width() <= seat.width && output.height() <= seat.height;
   }
 
   class NullTextNodeHandler
@@ -351,14 +381,25 @@ NullTextContext::~NullTextContext()
 
 void NullTextContext::readLifecycleFactOnAttach()
 {
-  // No native presentation on the null text context; the method exists so the
-  // shared ensure ritual stays uniform.
+  // Presentation is completed by the synchronous Null presenter.
 }
 
-short NullTextContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
+short NullTextContext::layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state)
 {
-  this->measurement_ = MeasureText(this->node_, state);
+  bool materialized = true;
+  this->measurement_ = MeasureText(this->node_, state, 0, &materialized);
   state.height = this->measurement_.height();
+  this->placement_.invalidate();
+  this->presented_.invalidate();
+  loka::app::scene::PaintScope scope;
+  // An unrenderable value has no placement: the next query refuses instead of
+  // comparing against a seat that was measured from nothing.
+  if (materialized && this->node_ && controller
+      && static_cast<NullScenePlatformController *>(controller)->queryPaintProjectionScope(scope))
+  {
+    this->placement_.complete(loka::core::Frame(state.x, state.y, state.width, state.height), scope);
+    this->placedStyle_ = NullTextPaintStyle(this->node_->props);
+  }
   return ClampCoordinateToShort(state.y + state.height + state.spacing);
 }
 
@@ -370,4 +411,98 @@ const NullTextMeasurement &NullTextContext::measurement() const
 void RegisterNullTextNodeHandler(NullScenePlatformController &controller)
 {
   controller.registerNodeHandler(&gNullTextNodeHandler);
+}
+
+NullTextPaintStyle::NullTextPaintStyle(const loka::app::TextProps &props)
+    : fontSize(0),
+      weight(loka::app::TEXT_WEIGHT_NORMAL),
+      wrap(loka::app::TEXT_WRAP_NONE),
+      truncation(loka::app::TEXT_TRUNCATION_NONE)
+{
+  if (!props.hasAttr_)
+    return;
+  const loka::app::TextAttr &attr = props.attr_;
+  fontSize = attr.fontSizeState_ ? attr.fontSizeState_->get() : (attr.hasFontSizeValue_ ? attr.fontSizeValue_ : 0);
+  if (attr.hasWeightValue_)
+    weight = attr.weightValue_;
+  if (attr.hasWrapValue_)
+    wrap = attr.wrapValue_;
+  if (attr.hasTruncationValue_)
+    truncation = attr.truncationValue_;
+}
+void NullTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact, loka::app::scene::NodeLifecycleFact next)
+{
+  if (next != loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->presented_.invalidate();
+    this->placement_.invalidate();
+  }
+}
+loka::app::scene::PaintAnswer NullTextContext::queryPaintDamage(const loka::app::scene::PaintQuery &query) const
+{
+  using namespace loka::app::scene;
+  loka::core::Frame seat;
+  if (query.placement != PLACEMENT_ELIGIBLE || !this->placement_.query(query.scope, seat))
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  if (!this->presented_.isKnown())
+    return PaintAnswer::refused(PAINT_REFUSED_HISTORY_UNKNOWN);
+  if (this->presented_.scope() != query.scope || !(this->placedStyle_ == NullTextPaintStyle(this->node_->props)))
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  if (!this->node_->props.text_)
+    return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
+  const loka::core::String &current = this->node_->props.text_->get();
+  PaintDamage damage = {query.scope, seat.x, seat.y, 0, 0, PAINT_COVERAGE_ERASE_AND_PAINT};
+  loka::core::StringCompareResult equal = current.compare(this->presented_.value(), false);
+  if (equal == loka::core::StringCompareBufferRequired)
+    equal = current.compare(this->presented_.value(), true);
+  if (equal == loka::core::StringCompareBufferRequired)
+  {
+    // The current value cannot be materialized, so it cannot be measured or
+    // placed; this is a placement refusal, not a stale binding.
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  }
+  if (equal == loka::core::StringCompareEqual)
+    return PaintAnswer::exact(damage);
+  if (!FitsTextSeat(this->node_, current, seat, this->measurement_))
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  damage.width = seat.width;
+  damage.height = seat.height;
+  return PaintAnswer::exact(damage);
+}
+bool NullTextContext::commitPresented(const loka::core::String &value, const loka::app::scene::PaintScope &scope)
+{
+  loka::core::Frame seat;
+  if (!this->placement_.query(scope, seat))
+    return false;
+  const NullTextPaintStyle current(this->node_->props);
+  const bool restyled = !(this->placedStyle_ == current);
+  if (restyled)
+  {
+    // A props-only apply can change the resolved style without a layout pass.
+    // The widened presentation reconstructs the whole seat under the current
+    // style, so adopt it here and verify coverage below; refusing forever would
+    // leave the history UNKNOWN until an unrelated layout.
+    this->presented_.invalidate();
+    this->placedStyle_ = current;
+  }
+  if (restyled || !this->presented_.isKnown()
+      || value.compare(this->presented_.value(), false) != loka::core::StringCompareEqual)
+  {
+    if (!FitsTextSeat(this->node_, value, seat, this->measurement_))
+    {
+      this->presented_.invalidate();
+      return false;
+    }
+  }
+  this->presented_.commit(value, scope);
+  return true;
+}
+
+const void *NullTextNodeHandlerKey()
+{
+  return gNullTextNodeHandler.nodeTypeKey();
+}
+bool IsNullTextNodeHandler(const loka::app::scene::IPlatformNodeHandler *handler)
+{
+  return handler == &gNullTextNodeHandler;
 }

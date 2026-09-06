@@ -44,6 +44,7 @@ namespace allocpin
   // Scenario entry point (AllocPinTests.cpp).
   void RunZeroAllocPin();
   void RunFloppyBirdSurfaceAllocPin();
+  void RunFloppyBirdScoreAllocPin();
 } // namespace allocpin
 
 #endif // LOKA_TESTS_SUPPORT_ALLOC_CENSUS_HPP

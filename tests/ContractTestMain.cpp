@@ -1,3 +1,4 @@
+#include "PaintContractTests.hpp"
 #include "PaintBaselineTests.hpp"
 #include "StateNotifyTests.hpp"
 #include "StateTrackerCommitTests.hpp"
