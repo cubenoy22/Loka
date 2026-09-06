@@ -1,0 +1,14 @@
+#ifndef LOKA_TESTS_PAINT_BASELINE_TESTS_HPP
+#define LOKA_TESTS_PAINT_BASELINE_TESTS_HPP
+
+void testLegacySurfaceOnlyPropsDamagesWholeBoundary();
+void testLegacyBoxComposeDeclaresPaintWithoutPaintSource();
+void testLegacyExamplesHaveNoCompositedOrOpaquePaintHints();
+void testLegacySiblingPaintPlansRejectSiblingRoots();
+void testLegacyParentPropsCompressesChildApply();
+void testLegacyParentChildOnlyKeepsChildApply();
+
+void testLegacyNullSurfacePropsHasNoBoundsHint();
+void testLegacySetLayoutBoundsPublishesPaintSpecificHint();
+
+#endif

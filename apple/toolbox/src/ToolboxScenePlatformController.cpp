@@ -267,12 +267,13 @@ namespace
     (void)controller;
   }
 
-  bool CollectRectSurfaceDirtyRect(loka::app::scene::Node *node, Rect &outRect)
+  bool CollectRectSurfaceDirtyRect(loka::app::scene::Node *node, Rect &outRect, ToolboxSceneDebugStats &stats)
   {
     if (!node)
     {
       return false;
     }
+    stats.noteCollectorVisit();
     bool hasRect = false;
     if (loka::app::RectSurfaceNode *surface = node->asRectSurfaceNode())
     {
@@ -293,7 +294,7 @@ namespace
       for (loka::app::scene::Node *child = it.next(); child; child = it.next())
       {
         Rect childRect;
-        if (!CollectRectSurfaceDirtyRect(child, childRect))
+        if (!CollectRectSurfaceDirtyRect(child, childRect, stats))
         {
           continue;
         }
@@ -326,12 +327,13 @@ namespace
     return hasRect;
   }
 
-  bool ContainsOnlyRectSurfacePainting(loka::app::scene::Node *node)
+  bool ContainsOnlyRectSurfacePainting(loka::app::scene::Node *node, ToolboxSceneDebugStats &stats)
   {
     if (!node)
     {
       return false;
     }
+    stats.noteCollectorVisit();
     if (node->asRectSurfaceNode())
     {
       return true;
@@ -346,7 +348,7 @@ namespace
     for (loka::app::scene::Node *child = it.next(); child; child = it.next())
     {
       hasChild = true;
-      if (!ContainsOnlyRectSurfacePainting(child))
+      if (!ContainsOnlyRectSurfacePainting(child, stats))
       {
         return false;
       }
@@ -753,6 +755,8 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
                                                      const loka::app::scene::BoundaryLocalApplyInfo &info,
                                                      const loka::app::scene::PlatformApplyPlan &plan)
 {
+  ++debugStats_.boundaryApplyCount;
+  ++debugStats_.totalBoundaryApplyCount;
   if (rootNode)
   {
     rootNode_ = rootNode;
@@ -783,8 +787,8 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
   if (!info.hasBoundsHint())
   {
     Rect surfaceDirtyRect;
-    if (info.hasPaintWork() && ContainsOnlyRectSurfacePainting(boundary)
-        && CollectRectSurfaceDirtyRect(boundary, surfaceDirtyRect))
+    if (info.hasPaintWork() && ContainsOnlyRectSurfacePainting(boundary, debugStats_)
+        && CollectRectSurfaceDirtyRect(boundary, surfaceDirtyRect, debugStats_))
     {
       window_->requestInvalidateRect(surfaceDirtyRect);
       return;
@@ -817,7 +821,7 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
   rect.right = static_cast<short>(info.bounds->x + info.bounds->width);
   rect.bottom = static_cast<short>(info.bounds->y + info.bounds->height);
   Rect surfaceDirtyRect;
-  if (CollectRectSurfaceDirtyRect(boundary, surfaceDirtyRect))
+  if (CollectRectSurfaceDirtyRect(boundary, surfaceDirtyRect, debugStats_))
   {
     if (surfaceDirtyRect.left < rect.left)
     {

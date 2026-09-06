@@ -509,5 +509,6 @@ void operator delete[](void *p, const std::nothrow_t &) throw()
 int main()
 {
   allocpin::RunZeroAllocPin();
+  allocpin::RunFloppyBirdSurfaceAllocPin();
   return 0;
 }

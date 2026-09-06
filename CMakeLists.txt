@@ -350,7 +350,12 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   # test executables. Asserts steady-state per-interaction allocations stay
   # under a fixed budget (a ceiling, not a target); prints the per-stack
   # census only when the ratchet trips.
+  # Reuse the shared Null rail inventory for the surface allocation fixture.
+  set(LOKA_ALLOC_PIN_NULL_SOURCES ${LOKA_SHARED_TEST_SOURCES})
+  list(FILTER LOKA_ALLOC_PIN_NULL_SOURCES INCLUDE REGEX "/tests/platform/null/.*\\.cpp$")
   add_executable(LokaAllocPinTests
+    ${LOKA_ALLOC_PIN_NULL_SOURCES}
+    ${PROJECT_SOURCE_DIR}/tests/TestingHooks.cpp
     ${PROJECT_SOURCE_DIR}/tests/AllocPinMain.cpp
     ${PROJECT_SOURCE_DIR}/tests/AllocPinTests.cpp
     ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp

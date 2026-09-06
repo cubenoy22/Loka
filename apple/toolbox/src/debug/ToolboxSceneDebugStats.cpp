@@ -74,6 +74,8 @@ ToolboxSceneDebugStats::ToolboxSceneDebugStats()
       textHitCount(0),
       popupHitCount(0),
       controlDrawCount(0),
+      collectorVisitCount(0),
+      boundaryApplyCount(0),
       relayoutTextCount(0),
       textChangedCellCount(0),
       textChangedTextCount(0),
@@ -115,6 +117,8 @@ ToolboxSceneDebugStats::ToolboxSceneDebugStats()
       totalRenderCalls(0),
       totalRenderDirtyCalls(0),
       totalControlDrawCount(0),
+      totalCollectorVisitCount(0),
+      totalBoundaryApplyCount(0),
       buttonPoolHitCount(0),
       buttonPoolMissCount(0),
       buttonPoolEvictCount(0),
@@ -130,6 +134,12 @@ ToolboxSceneDebugStats::ToolboxSceneDebugStats()
 std::string ToolboxSceneDebugStats::flagsToString(loka::app::scene::NodeDirtyFlags flags)
 {
   return DirtyFlagsToStringImpl(flags);
+}
+
+void ToolboxSceneDebugStats::noteCollectorVisit()
+{
+  ++this->collectorVisitCount;
+  ++this->totalCollectorVisitCount;
 }
 
 void ToolboxSceneDebugStats::begin(loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
@@ -150,6 +160,8 @@ void ToolboxSceneDebugStats::begin(loka::app::scene::NodeDirtyFlags flags, bool 
   this->textHitCount = 0;
   this->popupHitCount = 0;
   this->controlDrawCount = 0;
+  this->collectorVisitCount = 0;
+  this->boundaryApplyCount = 0;
   this->relayoutTextCount = 0;
   this->textChangedCellCount = 0;
   this->textChangedTextCount = 0;
@@ -240,6 +252,10 @@ std::string ToolboxSceneDebugStats::summary() const
   AppendInt(out, this->editHitCount);
   out += " ctl:";
   AppendInt(out, this->controlDrawCount);
+  out += " collector:";
+  AppendInt(out, this->collectorVisitCount);
+  out += " apply:";
+  AppendInt(out, this->boundaryApplyCount);
   out += " pool.btn:";
   AppendInt(out, static_cast<int>(this->buttonPoolHitCount));
   out += "/";
@@ -312,6 +328,8 @@ bool ToolboxSceneDebugStats::dumpToTimestampedFile() const
   std::fprintf(fp, "last.hits.text=%d\n", this->textHitCount);
   std::fprintf(fp, "last.hits.popup=%d\n", this->popupHitCount);
   std::fprintf(fp, "last.control_draws=%d\n", this->controlDrawCount);
+  std::fprintf(fp, "last.collector_visits=%d\n", this->collectorVisitCount);
+  std::fprintf(fp, "last.boundary_applies=%d\n", this->boundaryApplyCount);
   std::fprintf(fp, "last.relayout_texts=%d\n", this->relayoutTextCount);
   std::fprintf(fp, "last.relayout_preview=%s\n", this->relayoutTextPreview.c_str());
   std::fprintf(fp, "last.text_changed.cell=%d\n", this->textChangedCellCount);
@@ -356,6 +374,8 @@ bool ToolboxSceneDebugStats::dumpToTimestampedFile() const
   std::fprintf(fp, "total.render=%d\n", this->totalRenderCalls);
   std::fprintf(fp, "total.render_dirty=%d\n", this->totalRenderDirtyCalls);
   std::fprintf(fp, "total.control_draws=%d\n", this->totalControlDrawCount);
+  std::fprintf(fp, "total.collector_visits=%d\n", this->totalCollectorVisitCount);
+  std::fprintf(fp, "total.boundary_applies=%d\n", this->totalBoundaryApplyCount);
   std::fprintf(fp, "pool.button.hits=%lu\n", this->buttonPoolHitCount);
   std::fprintf(fp, "pool.button.misses=%lu\n", this->buttonPoolMissCount);
   std::fprintf(fp, "pool.button.evicts=%lu\n", this->buttonPoolEvictCount);

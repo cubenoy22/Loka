@@ -1,6 +1,7 @@
 #ifndef LOKA_CORE2_SCENE_BOUNDARY_BOUNDARY_HPP
 #define LOKA_CORE2_SCENE_BOUNDARY_BOUNDARY_HPP
 
+#include "PaintBaselineStats.hpp"
 #include <cstdarg>
 #include <vector>
 #include "core/diag/LifecycleAudit.hpp"
@@ -481,6 +482,9 @@ namespace loka
             BoundaryNode *boundary_;
           };
           LocalDirtySourceRegistrar registrar(owner);
+#ifdef TEST_BUILD
+          ++testing::paintBaselineStats().dirtySourceDeclarations;
+#endif
           node->declareDirtySources(registrar);
         }
         NodeDirtyFlags observedDirtyFlags() const

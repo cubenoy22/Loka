@@ -46,6 +46,10 @@ public:
   int textHitCount;
   int popupHitCount;
   int controlDrawCount;
+  // Like controlDrawCount, these cover the interval since begin/onChange.
+  // Paint-only cycles may skip onChange; use total deltas for cycle evidence.
+  int collectorVisitCount;
+  int boundaryApplyCount;
   int relayoutTextCount;
   int textChangedCellCount;
   int textChangedTextCount;
@@ -87,6 +91,9 @@ public:
   int totalRenderCalls;
   int totalRenderDirtyCalls;
   int totalControlDrawCount;
+  int totalCollectorVisitCount;
+  int totalBoundaryApplyCount;
+  void noteCollectorVisit();
   unsigned long buttonPoolHitCount;
   unsigned long buttonPoolMissCount;
   unsigned long buttonPoolEvictCount;
