@@ -335,7 +335,8 @@ run_case smirkbench add-face 4 unset
 printf '%s\n' 'simpleviewer open-sun' 'simpleviewer open-bulb' >>"$SANDBOX/repo/tests/scenarios/scenarios.txt"
 touch "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaSimpleViewerTestsToolbox68K.bin"
 for picture in Sun Bulb; do
-  cell="open-${picture,,}"
+  # tr, not ${picture,,}: macOS ships Bash 3.2 and this test runs there.
+  cell="open-$(printf '%s' "$picture" | tr 'A-Z' 'a-z')"
   : >"$SANDBOX/hfs-mount-log"
   RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" run_case simpleviewer "$cell" 3 unset
   staged="$SANDBOX/repo/build/mame-scenario/simpleviewer/$cell/$picture.pict"
