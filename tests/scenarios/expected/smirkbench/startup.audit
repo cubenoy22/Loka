@@ -1,0 +1,25 @@
+loka_scenario_audit version=1 scenario=startup
+step id=2 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=post-settle
+button.enabled	true
+checkpoint	post-settle
+crop_bottom	400
+crop_left	0
+crop_right	636
+crop_top	0
+face_count	1
+format_version	1
+last.control_draws	2
+node	SmirkBench.Surface
+rail	toolbox
+scenario_version	1
+schema_version	1
+status	ok
+step	startup
+surface.rects	71,72,24,24
+test	SmirkBench
+text.value	Faces: 1
+tick	2
+total.boundary_applies	1
+total.collector_visits	8
+total.control_draws	2
+terminal status=succeeded

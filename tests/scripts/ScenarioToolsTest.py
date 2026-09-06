@@ -196,7 +196,7 @@ class ExpectedAuditPinsTest(unittest.TestCase):
         registry = os.path.join(PROJECT_DIR, "tests", "scenarios", "scenarios.txt")
         with open(registry, "r", encoding="utf-8") as handle:
             entries = [line.split() for line in handle.read().splitlines()]
-        self.assertEqual(len(entries), 16)
+        self.assertEqual(len(entries), 19)
         self.assertEqual(len(entries), len({tuple(entry) for entry in entries}))
         registered_audits = set()
         for entry in entries:
@@ -220,6 +220,7 @@ class ExpectedAuditPinsTest(unittest.TestCase):
                 "tutorial": b"Tutorial",
                 "minesweeper": b"MineSweeper",
                 "floppybird": b"FloppyBird",
+                "smirkbench": b"SmirkBench",
             }
             identity = identities[example]
             self.assertIn(b"test\t" + identity + b"\n", audit)

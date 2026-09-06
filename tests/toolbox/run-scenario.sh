@@ -101,6 +101,11 @@ case "$EXAMPLE" in
     FINDER_TAB_COUNT=4
     FINDER_SETTLE_TIMEOUT=120
     ;;
+  smirkbench)
+    APPL="$PROJECT_DIR/build/retro68/68k/Release/tests/toolbox/LokaSmirkBenchTestsToolbox68K.bin"
+    TARGET="LokaSmirkBenchTestsToolbox68K_APPL"
+    FINDER_TAB_COUNT=4
+    ;;
   floppybird)
     APPL="$PROJECT_DIR/build/retro68/68k/Release/tests/toolbox/LokaFloppyBirdTestsToolbox68K.bin"
     TARGET="LokaFloppyBirdTestsToolbox68K_APPL"
