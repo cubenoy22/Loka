@@ -104,7 +104,7 @@ case "$EXAMPLE" in
   simpleviewer)
     APPL="$PROJECT_DIR/build/retro68/68k/Release/tests/toolbox/LokaSimpleViewerTestsToolbox68K.bin"
     TARGET="LokaSimpleViewerTestsToolbox68K_APPL"
-    FINDER_TAB_COUNT=4
+    FINDER_TAB_COUNT=3
     ;;
   smirkbench)
     APPL="$PROJECT_DIR/build/retro68/68k/Release/tests/toolbox/LokaSmirkBenchTestsToolbox68K.bin"

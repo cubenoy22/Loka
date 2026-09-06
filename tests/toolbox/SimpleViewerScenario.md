@@ -72,3 +72,21 @@ copying the measured audits to `tests/scenarios/expected/simpleviewer/` and
 committing them, then repeat the structural commands. Heap facts can vary with
 rig/partition state; repeat measurements before accepting a baseline.
 Do not run `--update-golden` as part of this handoff.
+
+## Rig facts measured on 2026-09-07 (maciix, System 7, 8 MB)
+
+- The Finder needs **three** Tabs to land on the scenario application when
+  the PICT is staged beside it (`FINDER_TAB_COUNT=3` in the runner).
+- The chosen file goes through the dialog's own door: the driver resolves the
+  application-relative FSSpec, registers it with
+  `ToolboxPlatformContext::registerChosenFileSpec`, and hands the session a
+  `FileChooserResult` whose item carries the display path. A path-less
+  application-relative item is treated by the production projection as "no
+  file selected" and cancels silently.
+- The session advances its Flow over later settled turns; the driver waits
+  up to 60 settled turns for a decided outcome (valid image or a completed
+  error message) before failing the fixture.
+- Both cells currently record `image.load 1014` (`IMAGE_LOAD_REQUIRES_RELEASE`)
+  on a fresh heap: `heap.free 9976`, `heap.max_block 6374` while the
+  application zone has not yet grown toward its 1024K limit. That is #614's
+  symptom; the fix PR turns these expectations into `image.load ok`.

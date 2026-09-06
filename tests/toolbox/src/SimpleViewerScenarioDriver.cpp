@@ -6,11 +6,13 @@
 #include "MyAppConfig.hpp"
 #include "ObservedMainDefinition.hpp"
 #include "ScenarioDriverSupport.hpp"
+#include "ToolboxPlatformContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindow.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
 #include "app/core/App.hpp"
 #include "core/util/ScopedPtr.hpp"
+#include "platform/StringUTF8.hpp"
 #include "testing/scene/ScenarioAudit.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 
@@ -36,6 +38,16 @@ public:
     node.imageLoad_.begin(node, node.props.platformContext_, node.chooserResult_.state(),
                          static_cast<loka::core::PushStateTracker *>(node.tracker()));
     node.chooserResult_.set(result, true);
+  }
+
+  /** Failure diagnostics only: what the session left behind. */
+  static void diagnose(const simpleviewer::MainNode &node, loka::dsl::SnapRecord &record)
+  {
+    std::string message;
+    (void)loka::platform::CollectUtf8(node.chooserMessage_.get(), message);
+    record.set("diag.message", message.c_str());
+    record.setInt("diag.image_valid", node.image_.get().isValid() ? 1 : 0);
+    record.setInt("diag.flow_valid", node.imageLoad_.flow_.isValid() ? 1 : 0);
   }
 
   static bool capture(const simpleviewer::MainNode &node, loka::dsl::SnapRecord &record)
@@ -149,7 +161,12 @@ namespace loka
           const OSErr sizeError = GetEOF(refNum, &bytes);
           const OSErr closeError = FSClose(refNum);
           if (sizeError != noErr || closeError != noErr || bytes < 0) return false;
-          const app::FileChooserResult result = app::FileChooserResult::File(item);
+          // The production dialog hands the session a display path and
+          // registers its FSSpec beside it; take the same door so the
+          // projection sees a chosen file rather than a path-less item.
+          const file::File chosen(this->scenario_ == "open-12k" ? "SV12K.PICT" : "SV50K.PICT");
+          ToolboxPlatformContext::registerChosenFileSpec(chosen.toString(), handle.spec);
+          const app::FileChooserResult result = app::FileChooserResult::File(chosen);
           // Sample before the flow allocates. Record construction happens
           // afterwards so it cannot perturb the measured pre-load heap.
           const long freeBytes = FreeMem();
@@ -164,10 +181,16 @@ namespace loka
 
         void fail(Window *window)
         {
-          const dsl::SnapRecord record = MakeRecord(this->scenario_.c_str(), this->tick_, dsl::SnapStatusError());
+          dsl::SnapRecord record = MakeRecord(this->scenario_.c_str(), this->tick_, dsl::SnapStatusError());
+          if (this->borrowedMain_) SimpleViewerTestAccess::diagnose(*this->borrowedMain_, record);
           (void)this->terminal_.emit(dsl::testing::SCENARIO_AUDIT_FAILED, record);
           (void)this->completionPublisher_.publish(window);
         }
+
+        enum
+        {
+          kOpenDecisionTurnBound = 60
+        };
 
         void tick(Window *window, double elapsedSeconds)
         {
@@ -208,8 +231,16 @@ namespace loka
           record.set("rail", "toolbox");
           record.set("checkpoint", "post-open");
           scenario_tests::SetContentBounds(record, ContentLocalBounds(QueryCaptureContentBounds(window)));
-          if (!SimpleViewerTestAccess::capture(*this->borrowedMain_, record)
-              || !this->recordStep("post-open") || !this->audit_.recordVerdict(record))
+          // The production session advances its Flow over later settled turns;
+          // wait for a decided outcome (valid image or a completed error
+          // message) up to a bound before calling the fixture failed.
+          if (!SimpleViewerTestAccess::capture(*this->borrowedMain_, record))
+          {
+            if (this->tick_ < kOpenDecisionTurnBound) return;
+            this->fail(window);
+            return;
+          }
+          if (!this->recordStep("post-open") || !this->audit_.recordVerdict(record))
           {
             this->fail(window);
             return;
