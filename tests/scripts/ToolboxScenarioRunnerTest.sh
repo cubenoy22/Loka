@@ -314,6 +314,16 @@ run_case minesweeper startup 4 120
 run_case minesweeper new-game-twice 4 120
 run_case floppybird startup 4 unset
 run_case floppybird fixed-step-flaps 4 unset
+# SmirkBench has no measured audit yet. These launch-only checks use the
+# fake-MAME seam, never create a tracked expectation or claim runtime evidence.
+cp "$SANDBOX/repo/tests/scenarios/scenarios.txt" "$SANDBOX/shared-scenarios.txt"
+printf '%s\n' 'smirkbench startup' 'smirkbench surface-ticks' 'smirkbench add-face' \
+  >>"$SANDBOX/repo/tests/scenarios/scenarios.txt"
+touch "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaSmirkBenchTestsToolbox68K.bin"
+run_case smirkbench startup 4 unset
+run_case smirkbench surface-ticks 4 unset
+run_case smirkbench add-face 4 unset
+cp "$SANDBOX/shared-scenarios.txt" "$SANDBOX/repo/tests/scenarios/scenarios.txt"
 run_case helloworld toggle-action-probe 9 unset 9
 
 IDENTITY_HELPER="$SANDBOX/repo/scripts/rig/toolbox/classic_golden_identity.py"

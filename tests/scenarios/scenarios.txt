@@ -14,3 +14,6 @@ minesweeper new-game-twice
 minesweeper seeded-reveal
 floppybird startup
 floppybird fixed-step-flaps
+smirkbench startup
+smirkbench surface-ticks
+smirkbench add-face

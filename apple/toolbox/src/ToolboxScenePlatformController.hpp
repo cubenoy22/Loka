@@ -384,6 +384,12 @@ public:
   void flushRetiredNativeHandles();
   std::string debugStatsSummary() const;
 #ifdef TEST_BUILD
+  /** Borrowed read-only counters for rail-local scenario captures. */
+  const ToolboxSceneDebugStats &debugStatsForTesting() const
+  {
+    return this->debugStats_;
+  }
+
   /** Reads the live TextEdit payload without synchronizing it first.
 
       Scenario probes use this const door to distinguish the native record from

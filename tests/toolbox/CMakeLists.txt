@@ -249,6 +249,30 @@ target_compile_definitions(${LOKA_FLOPPY_BIRD_TESTS_TOOLBOX_TARGET} PRIVATE
   LOKA_DIAG=1
 )
 
+set(LOKA_SMIRK_BENCH_TESTS_TOOLBOX_TARGET
+  "LokaSmirkBenchTestsToolbox${LOKA_CLASSIC_TARGET_SUFFIX}"
+)
+configure_file(
+  ${CMAKE_SOURCE_DIR}/example/SmirkBench/Size.r
+  ${CMAKE_CURRENT_BINARY_DIR}/SmirkBenchSize.r
+  COPYONLY
+)
+loka_add_toolbox_test_application(
+  ${LOKA_SMIRK_BENCH_TESTS_TOOLBOX_TARGET}
+  LokaAppleToolboxTestCore
+  src/SmirkBenchScenarioMain.cpp
+  src/SmirkBenchScenarioDriver.cpp
+  src/ScenarioDriverSupport.cpp
+  ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/RectSurfaceScenarioObservation.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/SmirkBenchSize.r
+)
+target_include_directories(${LOKA_SMIRK_BENCH_TESTS_TOOLBOX_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/example/SmirkBench/src
+)
+target_compile_definitions(${LOKA_SMIRK_BENCH_TESTS_TOOLBOX_TARGET} PRIVATE TEST_BUILD LOKA_DIAG=1)
+
 if(LOKA_ENABLE_STANDALONE_TARGETS)
 set(LOKA_STANDALONE_FLOW_TOOLBOX_TARGET
   # Keep the generated application name within Classic HFS's 31-character limit.
