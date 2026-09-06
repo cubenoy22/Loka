@@ -53,6 +53,7 @@ public:
   void readLifecycleFactOnAttach();
   virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
                              loka::app::scene::NodeLifecycleFact next);
+  virtual void onPropsApplied();
   void relayout(int x, int y, int width, int height);
 
 private:

@@ -1,0 +1,4 @@
+#ifndef LOKA_TESTS_PROPS_RECONCILIATION_TESTS_HPP
+#define LOKA_TESTS_PROPS_RECONCILIATION_TESTS_HPP
+void testRetainedPropsApplicationNotifiesContextExactlyOnce();
+#endif

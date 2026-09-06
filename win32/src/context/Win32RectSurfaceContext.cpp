@@ -72,6 +72,15 @@ void Win32RectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact 
   }
 }
 
+void Win32RectSurfaceContext::onPropsApplied()
+{
+  if (this->node_ && this->node_->props.model_ != this->modelState_)
+  {
+    this->unbindModel();
+    this->bindModel();
+  }
+}
+
 void Win32RectSurfaceContext::applyAttachedPresentation()
 {
   if (hwnd_)
@@ -167,9 +176,9 @@ void Win32RectSurfaceContext::bindModel()
   modelState_ = node_->props.model_;
   if (modelState_)
   {
-    modelState_->bind(&Win32RectSurfaceContext::ModelChangedThunk, this, true);
-    applyModel();
+    modelState_->bind(&Win32RectSurfaceContext::ModelChangedThunk, this, false);
   }
+  this->applyModel();
 }
 
 void Win32RectSurfaceContext::unbindModel()

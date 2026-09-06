@@ -32,6 +32,7 @@ public:
   virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
                              loka::app::scene::NodeLifecycleFact next);
 
+  virtual void onPropsApplied();
   void relayout(int x, int y, int width, int height);
   /** False when the native child window could not be created: the context
       then holds no surface and must not be installed on the node. */
