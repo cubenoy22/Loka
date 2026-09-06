@@ -188,6 +188,15 @@ void Win32TextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previou
   }
 }
 
+void Win32TextContext::onPropsApplied()
+{
+  if (this->node_ && this->node_->props.text_ != this->textState_)
+  {
+    this->unbindText();
+    this->bindText();
+  }
+}
+
 void Win32TextContext::applyAttachedPresentation()
 {
   if (hwnd_)
@@ -240,8 +249,9 @@ void Win32TextContext::bindText()
   textState_ = static_cast<loka::core::State<loka::core::String> *>(node_->props.text_);
   if (textState_)
   {
-    textState_->bind(&Win32TextContext::TextChangedThunk, this, true);
+    textState_->bind(&Win32TextContext::TextChangedThunk, this, false);
   }
+  this->applyText();
 }
 
 void Win32TextContext::unbindText()

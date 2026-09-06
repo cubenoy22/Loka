@@ -1,0 +1,5 @@
+#ifndef LOKA_TESTS_WIN32_PROPS_RECONCILIATION_TESTS_HPP
+#define LOKA_TESTS_WIN32_PROPS_RECONCILIATION_TESTS_HPP
+void testWin32RetainedTextRebindsToNewState();
+void testWin32RetainedRectSurfaceRebindsToNewModel();
+#endif

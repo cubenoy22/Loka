@@ -1,3 +1,4 @@
+#include "PropsReconciliationTests.hpp"
 #include "PaintContractTests.hpp"
 #include "PaintBaselineTests.hpp"
 #include "StateNotifyTests.hpp"
@@ -5,6 +6,7 @@
 #include "BoundaryObservedStateTrackerTests.hpp"
 #include "ApplicationFileTests.hpp"
 #ifdef _WIN32
+#include "Win32PropsReconciliationTests.hpp"
 #include "Win32ThreadModalScopeTests.hpp"
 #include "Win32NodeHandlerEnsureTests.hpp"
 #include "Win32LiveResizeTests.hpp"

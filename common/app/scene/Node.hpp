@@ -295,6 +295,12 @@ namespace loka
           (void)previous;
           (void)next;
         }
+        /** The kernel applied a new definition's props to this context's node while it
+            stayed the same resident (a retained recompose). Contexts that derived a
+            binding from props (a captured State pointer, a cached value) re-derive it
+            here. Default: nothing. Never called at materialization (no context exists
+            yet) and never for an equivalent-props repoint. */
+        virtual void onPropsApplied() {}
         virtual ICapturableBitmap *asCapturableBitmap()
         {
           return 0;
@@ -1198,6 +1204,8 @@ namespace loka
           {
             typed->setNodeTag(this->nodeTag());
             typed->setNativeLifetimeHint(this->nativeLifetimeHint());
+            if (node->context)
+              node->context->onPropsApplied();
           }
           return applied;
         }
