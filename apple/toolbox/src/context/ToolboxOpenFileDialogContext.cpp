@@ -84,8 +84,7 @@ ToolboxOpenFileDialogContext::ToolboxOpenFileDialogContext(loka::app::OpenFileDi
       presentation_(),
       dialog_(0)
 {
-  resultState_ = node_ ? node_->props.result_ : 0;
-  onResult_ = node_ ? node_->props.onResult_ : 0;
+  this->captureProps();
 }
 
 ToolboxOpenFileDialogContext::~ToolboxOpenFileDialogContext()
@@ -208,4 +207,15 @@ ToolboxOpenFileDialogContext::detachDialogIfActive(NativeDialogSession *dialog)
 bool RegisterToolboxOpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
 {
   return registry.registerHandler(&gToolboxOpenFileDialogNodeHandler);
+}
+
+void ToolboxOpenFileDialogContext::captureProps()
+{
+  this->resultState_ = this->node_ ? this->node_->props.result_ : 0;
+  this->onResult_ = this->node_ ? this->node_->props.onResult_ : 0;
+}
+
+void ToolboxOpenFileDialogContext::onPropsApplied()
+{
+  this->captureProps();
 }

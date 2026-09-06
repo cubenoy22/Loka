@@ -58,6 +58,8 @@ public:
   virtual void destroy();
   virtual void releaseNodeContexts(loka::app::scene::Node *node);
 
+  /** Refresh existing projection ledgers after a retained props apply. */
+  void refreshContextProps(loka::app::scene::Node *node, short buttonResourceId = 0);
   void render();
   void renderDirty(const Rect &rect);
   bool handleMouseDown(const Point &point);
@@ -74,14 +76,16 @@ public:
                      loka::core::State<loka::core::String> *text);
   void recordEditHit(const Rect &rect,
                      loka::core::State<loka::core::String> *text,
-                     loka::app::scene::BoundaryNode *boundary);
+                     loka::app::scene::BoundaryNode *boundary,
+                     ToolboxEditTextContext *context);
   void recordTextHit(const Rect &rect,
                      short x,
                      short y,
                      loka::core::State<loka::core::String> *text,
                      loka::app::scene::BoundaryNode *boundary,
                      bool needsRelayoutOnChange,
-                     short visibleWidth);
+                     short visibleWidth,
+                     ToolboxTextContext *context);
   void recordPopupHit(const Rect &rect,
                       short lineHeight,
                       const loka::Vector<loka::core::String> *items,
@@ -309,6 +313,7 @@ private:
   loka::app::scene::BoundaryNode *activeLayoutBoundary_;
 
   bool handleTextKey(char key);
+  void applyButtonControlProps(ButtonControlBinding &binding, const loka::core::String &label);
   void bindTextState(loka::core::State<loka::core::String> *text);
   void bindEnabledState(loka::core::State<bool> *enabled);
   void unbindTextState(loka::core::State<loka::core::String> *text);

@@ -172,7 +172,7 @@ short ToolboxPopupMenuContext::layout(loka::app::scene::IPlatformController *con
   rect.top = static_cast<short>(state.y - state.lineHeight + ToolboxLayoutMetrics::kControlAscentInset);
   rect.right = static_cast<short>(state.x + width + 8);
   rect.bottom = static_cast<short>(state.y + ToolboxLayoutMetrics::kControlDescent);
-  updateData(node_->props.items_, node_->props.selectedIndex_, node_->props.onChange_, node_->props.enabled_);
+  this->captureProps();
   updateRect(rect, state.lineHeight);
   ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
   if (toolbox)
@@ -254,4 +254,23 @@ short ToolboxPopupMenuContext::menuId() const
 bool RegisterToolboxPopupMenuNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
 {
   return registry.registerHandler(&gToolboxPopupMenuNodeHandler);
+}
+
+void ToolboxPopupMenuContext::captureProps()
+{
+  if (!this->node_)
+    return;
+  this->updateData(this->node_->props.items_,
+                   this->node_->props.selectedIndex_,
+                   this->node_->props.onChange_,
+                   this->node_->props.enabled_);
+}
+
+void ToolboxPopupMenuContext::onPropsApplied()
+{
+  this->captureProps();
+  if (this->controller() && this->node_)
+  {
+    this->controller()->refreshContextProps(this->node_);
+  }
 }

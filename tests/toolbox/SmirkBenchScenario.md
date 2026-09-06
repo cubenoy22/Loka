@@ -42,169 +42,42 @@ A const TEST_BUILD-only `debugStatsForTesting()` view is therefore added. It is
 borrowed only inside capture; no global, stored controller pointer, new production
 field, or paint behavior is added.
 
-## Measure before baking
+## Measured baselines
 
-Expected files intentionally do not exist. This is a byte-exact format with no
-comment-placeholder contract. ScenarioToolsTest has an explicit temporary
-allowance for only these three missing files; run-scenario still refuses them.
-Remove that allowance when all three measured expectations are committed.
+All four SmirkBench cells have committed expectations under
+`tests/scenarios/expected/smirkbench/` (`startup`, `surface-ticks`, `add-face`,
+`retained-text-rebind`), measured on the maciix rig, and the atomic golden
+bundle covers the full 20-cell registry. `run-scenario.sh` compares every run
+against those files; there is no missing-audit allowance anywhere. Do not
+overwrite a committed expectation from a single run: a paint-behaviour change
+that moves a counter must be measured on repeated runs, explained in the PR that
+changes it, and land together with the code that changed the number.
 
-On the configured MAME rig, build this branch with the release preset. Preserve
-the previous golden bundle outside `build/mame-scenario/golden` before baking
-so FloppyBird can be compared against its pre-change captures. For each cell:
+Baselines on main before #518 PR 2b: `surface-ticks` adds 30 control draws over
+its 30 steps (`final.total.control_draws - post-settle.total.control_draws == 30`,
+the #596 symptom); `add-face` adds one on the action and five over the following
+ticks. PR 2b is expected to bring the surface-tick deltas to zero and must update
+these expectations deliberately, with the measured numbers.
 
-```sh
-for cell in startup surface-ticks add-face; do
-  tests/toolbox/run-scenario.sh smirkbench "$cell" --structural-audit
-  # First run must exit 1 ONLY at "missing tracked audit" after extraction.
-  # Inspect build/mame-scenario/smirkbench/$cell/LokaTestsToolbox.audit.
-  # Require successful terminal, expected checkpoint/action counts, valid
-  # capture geometry and a settled launcher log before accepting the sample.
-done
-```
-
-Do not blindly accept failing output. On unchanged main paint behavior,
-`surface-ticks` must have 30 `surface-tick` step records and
-`final.total.control_draws - post-settle.total.control_draws == 30`.
-The two captures must keep Faces: 1 and button.enabled true and show changed
-surface rectangles. Startup has one capture and no action. Add-face has one
-emission, five ticks, Faces: 1 -> Faces: 2, and the Button stays enabled. Record
-separately the control-draw delta for post-settle -> post-add-face and
-post-add-face -> final (the latter is expected to be 5 before PR 2b).
-Do not prescribe absolute startup totals; measure them. Repeat runs to establish
-byte-identical totals before committing an expected file.
-
-One ordinary Add face does NOT toggle the Button's enabled state (capacity has
-not been reached), nor does direct emission synthesize native press feedback.
-This cell characterizes that real action; it does not prove #596's stronger
-positive control of a genuine Button enabled/text state transition. PR 2b must
-supply that additional positive-control evidence, as well as a surface-ticks
-delta of zero. Do not mislabel text redraw as Button-state-change evidence.
-
-After inspection, copy the actual files, rerun the structural comparison, and
-commit all expectations plus removal of the temporary allowance BEFORE starting
-the pixel bake (source identity must stay fixed throughout the bake):
+To re-measure after a deliberate change, run the cell in structural mode,
+inspect the actual audit, copy it over the expectation, and re-run:
 
 ```sh
-mkdir -p tests/scenarios/expected/smirkbench
-for cell in startup surface-ticks add-face; do
-  cp "build/mame-scenario/smirkbench/$cell/LokaTestsToolbox.audit" \
-    "tests/scenarios/expected/smirkbench/$cell.audit"
-  tests/toolbox/run-scenario.sh smirkbench "$cell" --structural-audit
-done
+tests/toolbox/run-scenario.sh smirkbench surface-ticks --structural-audit
+cp build/mame-scenario/smirkbench/surface-ticks/LokaTestsToolbox.audit \
+   tests/scenarios/expected/smirkbench/surface-ticks.audit
+tests/toolbox/run-scenario.sh smirkbench surface-ticks --structural-audit
 ```
 
-The registry now has 19 cells. `--update-golden` does NOT create expected audits
-and cannot publish a bundle containing only the three new cells. With a fixed
-Git HEAD and worktree status, bake the entire registry:
+Adding a cell or changing pixels re-bakes the whole registry, because the bundle
+is atomic: with a fixed Git HEAD, run every registered cell with
+`--update-golden` (scrapbook cells need `build/host/lrpc` in the same tree),
+then run every cell in normal mode and compare the untouched cells' PNGs
+byte-wise against the preserved previous bundle.
 
-```sh
-while read -r example cell; do
-  tests/toolbox/run-scenario.sh "$example" "$cell" --update-golden || exit
-done < tests/scenarios/scenarios.txt
-```
-
-This includes the explicit new commands:
-
-```sh
-tests/toolbox/run-scenario.sh smirkbench startup --update-golden
-tests/toolbox/run-scenario.sh smirkbench surface-ticks --update-golden
-tests/toolbox/run-scenario.sh smirkbench add-face --update-golden
-```
-
-Use the loop OR the explicit commands as part of the full bake, not another
-partial bake after publication. Each successful update invokes the following
-stage (example shown for surface-ticks; substitute the other cell names):
-
-```sh
-python3 scripts/rig/toolbox/classic_golden_identity.py stage-capture \
-  --bundle build/mame-scenario/golden \
-  --registry tests/scenarios/scenarios.txt \
-  --declarations tests/scenarios/startup-golden-identities.txt \
-  --descriptor scripts/rig/toolbox/rigs/toolbox-maciix.ini \
-  --current-identity build/mame-scenario/smirkbench/surface-ticks/classic-golden-identity.txt \
-  --capture build/mame-scenario/smirkbench/surface-ticks/surface-ticks.png \
-  --application build/retro68/68k/Release/tests/toolbox/LokaSmirkBenchTestsToolbox68K.bin \
-  --source-tree . --example smirkbench --scenario surface-ticks
-```
-
-The runner already does this; manual staging is only for an already normalized,
-reviewed capture with its matching identity and binary. All 19 captures enter a
-sibling `.incomplete` directory; only a complete set is published atomically.
-An old incomplete bake with another source identity must be moved aside and
-restarted. Do not invent startup-identity declarations for moving SmirkBench
-frames. Review any newly printed reference identity separately; baking does not
-authorize it or modify the tracked rig descriptor.
-
-Then run all cells normally, including these FloppyBird model commands:
-
-```sh
-tests/toolbox/run-scenario.sh floppybird startup --structural-audit
-tests/toolbox/run-scenario.sh floppybird fixed-step-flaps --structural-audit
-tests/toolbox/run-scenario.sh floppybird startup
-tests/toolbox/run-scenario.sh floppybird fixed-step-flaps
-for cell in startup surface-ticks add-face; do
-  tests/toolbox/run-scenario.sh smirkbench "$cell"
-done
-```
-
-Compare both FloppyBird normalized PNGs byte-wise with the preserved pre-change
-bundle and both actual audits with the unchanged tracked expectations. Keep
-screenshots rig-local; do not commit System-rendered pixels.
-
-## Shape review and remaining evidence
-
-Ranked candidates considered for the design and reconciled with the implementation:
-
-1. Rail-local records versus shared audit fields: native counters cannot be a
-   cross-rail invariant. Keep the entire new fixture Toolbox-only, explicitly
-   labeled, with no shared schema changes. A future host port must split the
-   evidence rather than copy these expected files. The new const accessor is a
-   test-observation door; without TEST_BUILD it is absent at compile time,
-   never a removed safety check.
-2. Driver loop versus another Flow owner: keep one logical turn counter and
-   reuse TerminalEmitter's completion phase; do not add recorded/remaining-tick
-   flags or another generic scheduler. FloppyBird's bootstrap/linger pattern is
-   intentionally repeated; application model advancement differs. Future broad
-   reuse should extract the common driver shell, not add per-cell flags.
-3. Production presentation twin: SmirkBench lacks FloppyBird's protected model
-   and productionWindowProps doors. Keep the small window/menu twin explicitly
-   cross-referenced, pending a shared presentation extraction with host support.
-   Do not add public mutable model access just to simplify this test.
-4. Manual registration/build/runner mapping and pending expected-file exception:
-   these follow current harness seams, but future cells still copy them. The
-   new launch-only runner pins cover all three mappings; missing expected files
-   still fail in the real runner. Remove the host-test allowance after MAME bake.
-
-Review risk profile: 4 flags, provisional in this note: (1) new test owner with
-AppConfig/model/audit lifetime, (2) test crosses State/Boundary/Platform to drive
-and observe, (3) stored idle thunk borrows its explicit AppConfig owner until App
-teardown, (4) temporary missing-expectation behavior in the host registry check.
-These route ownership review, native cadence measurements, callback teardown
-review, and fail-closed runner checks respectively. No production lifecycle,
-cleanup, dirty routing, or paint policy changes; no dangerously* call sites.
-
-Primitive members added to existing types: none. New driver primitives:
-`borrowedApp_` is set only by setApp and read only by tick; `tick_` is incremented
-only by tick and read inside the owner for schedule/audit facts; `lingerRemaining_`
-is decremented only by tick and read there for quit timing. Initialization is in
-the constructor. The latter two cannot be derived from the completion latch or
-each other; no foreign reader exists. Completed capture data is stack-local.
-
-Validity invariant: each capture follows presentation of the last emitted
-model/action write. Model advance, Add face, layout feedback, native exposure or
-queued invalidation can invalidate that condition. Scene/Window pending checks
-and idle separation carry the invariant; actual cadence, late OS exposure, native
-draw counts, Finder tab selection and pixel stability still require the MAME
-runs above. Mutating the runner's SmirkBench mapping is host-discriminable;
-mutating counter sources or settle gates is not. #518 PR 2a's delegator must pin
-those on MAME before merge, and PR 2b must change the measured delta deliberately.
-
-Lifecycle review: no new release/drain path; config outlives App and model
-outlives Scene; controller/Window views stay within the idle callback; the idle
-thunk is owned by the App's Window props with its config alive; no teardown or
-reclamation vocabulary changes. Existing creation/clone failure handling remains
-with Window/Scene. No refcounts or native handles are added to logical nodes.
+These cells and their expectations are Toolbox-only: native control-draw
+counters are not a cross-rail invariant, and a future host port must split out
+a neutral audit rather than compare them.
 
 ## Window frame on the rig
 
@@ -213,3 +86,27 @@ The scenario window is `frame(1, 41, 636, 400)`, not production's
 (`LokaTestsToolbox.capture`, the structure-rectangle bbox the pixel golden is
 cropped by) refuses a window whose structure rectangle leaves the screen. The
 scene, model and menus are the production twin; only the frame is rig-local.
+
+
+## Retained text rebind (#604 PR C; shared with #518 PR 2b)
+
+`smirkbench retained-text-rebind` uses the existing `SmirkBench.FaceCount` Text
+and `TextDefinition::applyPropsToNode`, the production retained-apply door,
+without modifying MainNode or its composition. Its AppConfig owns two test
+States until after the App is destroyed.
+
+At turn 2 capture Faces: 1; at 3 apply A (`Rebind A`), at 4 apply B (`Rebind B`).
+Both applies require the same context with the newly captured State, then call
+`renderDirty` before any layout/draw can rebuild the TextHit. Turn 5 changes A
+and requires no TextHit notification; turn 6 changes B and requires exactly one
+TextHit notification. Turn 7 captures `Rebind B updated` and settles. The A check
+observes absence of hit dispatch; it does not independently count observers on
+the old State.
+
+Measured on the maciix rig: all six steps (`post-settle`, `apply-A`,
+`apply-B-replay`, `A-does-not-notify-hit`, `B-notifies-hit`, `final`) succeed,
+the terminal succeeds, and the final screen shows `Rebind B updated` in the nav
+pane with the Add face button and the surface unchanged. Red side: with
+`ToolboxTextContext::onPropsApplied` emptied, `apply-A` is never recorded and the
+terminal fails. The other five kinds and the "omit the TextHit refresh" mutation
+are not pinned by a cell; #604 tracks that runtime matrix.

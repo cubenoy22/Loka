@@ -120,7 +120,7 @@ short ToolboxCellContext::layout(loka::app::scene::IPlatformController *, loka::
   rect.top = static_cast<short>(state.y);
   rect.right = static_cast<short>(state.x + width);
   rect.bottom = static_cast<short>(state.y + height);
-  updateData(node_->props.text_);
+  this->captureProps();
   updateRect(rect);
   state.y = static_cast<short>(state.y + height);
   if (state.height <= 0)
@@ -164,4 +164,18 @@ bool ToolboxCellContext::handleMouseDown(const Point &point, ToolboxScenePlatfor
 bool RegisterToolboxCellNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
 {
   return registry.registerHandler(&gToolboxCellNodeHandler);
+}
+
+void ToolboxCellContext::captureProps()
+{
+  this->updateData(this->node_ ? this->node_->props.text_ : 0);
+}
+
+void ToolboxCellContext::onPropsApplied()
+{
+  this->captureProps();
+  if (this->controller() && this->node_)
+  {
+    this->controller()->refreshContextProps(this->node_);
+  }
 }

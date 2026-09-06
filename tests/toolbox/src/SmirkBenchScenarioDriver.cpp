@@ -16,6 +16,7 @@
 #include "app/core/WindowDefinition.hpp"
 #include "core/util/ScopedPtr.hpp"
 #include "testing/scene/ScenarioAudit.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 
 namespace loka
 {
@@ -25,7 +26,7 @@ namespace loka
     {
       bool IsSmirkBenchScenario(const std::string &name)
       {
-        return name == "startup" || name == "surface-ticks" || name == "add-face";
+        return name == "startup" || name == "surface-ticks" || name == "add-face" || name == "retained-text-rebind";
       }
 
       dsl::SnapRecord MakeRecord(const char *scenario, long tick, const char *status)
@@ -47,6 +48,8 @@ namespace loka
             : AppConfigurable(context),
               model_(640, 400),
               scenario_(settings.scenario),
+              retainedTextA_(core::String::Literal("Rebind A")),
+              retainedTextB_(core::String::Literal("Rebind B")),
               audit_(ResolveScenarioAuditFile(), settings.scenario.c_str()),
               terminal_(&this->audit_),
               borrowedApp_(0),
@@ -130,7 +133,9 @@ namespace loka
           }
           record.set("button.enabled", "true");
           std::string label;
-          if (!text.get("text.value", label) || label != (this->model_.faceCount() == 1 ? "Faces: 1" : "Faces: 2"))
+          const char *expectedLabel = this->scenario_ == "retained-text-rebind" && this->tick_ == 7
+              ? "Rebind B updated" : (this->model_.faceCount() == 1 ? "Faces: 1" : "Faces: 2");
+          if (!text.get("text.value", label) || label != expectedLabel)
           {
             return false;
           }
@@ -146,6 +151,55 @@ namespace loka
           record.setInt("last.control_draws", stats.controlDrawCount);
           scenario_tests::SetContentBounds(record, ContentLocalBounds(QueryCaptureContentBounds(window)));
           return this->recordStep(checkpoint) && this->audit_.recordVerdict(record);
+        }
+
+        /** Exercise the production retained-apply door on the existing Text.
+            The config owns both sources until after App/Scene destruction. */
+        bool rebindTextStep(Window *window, ToolboxScenePlatformController &controller)
+        {
+          app::TextNode *text = 0;
+          dsl::FlowError error;
+          if (dsl::testing::LookupNodeById<app::TextNode>(window->scene(), "SmirkBench.FaceCount", text, error)
+                  != dsl::FLOW_STEP_SUCCEEDED || !text || !text->getContext())
+          {
+            return false;
+          }
+          app::scene::NodeContext *context = text->getContext();
+          if (this->tick_ == 3 || this->tick_ == 4)
+          {
+            core::State<core::String> *source = this->tick_ == 3 ? &this->retainedTextA_ : &this->retainedTextB_;
+            app::Text declaration(source);
+            if (!declaration.applyPropsToNode(text) || text->getContext() != context
+                || context->projectedTextState() != source)
+            {
+              return false;
+            }
+            // Replay BEFORE any layout/draw can replace the recorded hit.
+            // The fixed scenario content frame is declared in compose above.
+            Rect rect;
+            SetRect(&rect, 0, 0, 636, 400);
+            controller.renderDirty(rect);
+            return this->recordStep(this->tick_ == 3 ? "apply-A" : "apply-B-replay");
+          }
+          if (this->tick_ == 5 || this->tick_ == 6)
+          {
+            const long before = controller.debugStatsForTesting().textChangedTextCount;
+            {
+              core::StateTrackerGuard guard(window->getTracker());
+              if (this->tick_ == 5)
+                this->retainedTextA_.set(core::String::Literal("Retired A changed"));
+              else
+                this->retainedTextB_.set(core::String::Literal("Rebind B updated"));
+            }
+            const long after = controller.debugStatsForTesting().textChangedTextCount;
+            if (context->projectedTextState() != &this->retainedTextB_
+                || (this->tick_ == 5 ? after != before : after != before + 1))
+            {
+              return false;
+            }
+            return this->recordStep(this->tick_ == 5 ? "A-does-not-notify-hit" : "B-notifies-hit");
+          }
+          return false;
         }
 
         void fail(Window *window)
@@ -192,7 +246,8 @@ namespace loka
             return;
           }
           const bool addFace = this->scenario_ == "add-face";
-          const long finalTick = this->scenario_ == "startup" ? 2 : (addFace ? 10 : 33);
+          const long finalTick = this->scenario_ == "startup" ? 2
+              : this->scenario_ == "retained-text-rebind" ? 7 : (addFace ? 10 : 33);
           if (this->tick_ == 2 || (addFace && this->tick_ == 4) || this->tick_ == finalTick)
           {
             const char *checkpoint = this->tick_ == 2 ? "post-settle" : this->tick_ == 4 ? "post-add-face" : "final";
@@ -206,6 +261,11 @@ namespace loka
               (void)this->terminal_.emit(dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
               (void)this->completionPublisher_.publish(window);
             }
+            return;
+          }
+          if (this->scenario_ == "retained-text-rebind")
+          {
+            if (!this->rebindTextStep(window, *controller)) this->fail(window);
             return;
           }
           if (addFace && this->tick_ == 3)
@@ -230,6 +290,8 @@ namespace loka
 
         smirkbench::SmirkModel model_;
         const std::string scenario_;
+        core::MutableState<core::String> retainedTextA_;
+        core::MutableState<core::String> retainedTextB_;
         dsl::testing::ScenarioAuditFile audit_;
         dsl::testing::scenario_audit_detail::TerminalEmitter terminal_;
         App *borrowedApp_;

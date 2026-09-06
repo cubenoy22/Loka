@@ -44,6 +44,7 @@ class ToolboxPopupMenuContext : public ToolboxProjectedNodeContext
 public:
   ToolboxPopupMenuContext(loka::app::PopupMenuNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxPopupMenuContext();
+  virtual void onPropsApplied();
 
   void updateData(const loka::Vector<loka::core::String> *items,
                   loka::core::State<int> *selectedIndex,
@@ -61,6 +62,7 @@ public:
   }
 
 private:
+  void captureProps();
   short clampIndex(int index) const;
   void copyToPascalString(const loka::core::String &value, Str255 out) const;
   short menuId() const;

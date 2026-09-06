@@ -1,0 +1,52 @@
+loka_scenario_audit version=1 scenario=retained-text-rebind
+step id=2 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=post-settle
+button.enabled	true
+checkpoint	post-settle
+crop_bottom	400
+crop_left	0
+crop_right	636
+crop_top	0
+face_count	1
+format_version	1
+last.control_draws	2
+node	SmirkBench.Surface
+rail	toolbox
+scenario_version	1
+schema_version	1
+status	ok
+step	retained-text-rebind
+surface.rects	71,72,24,24
+test	SmirkBench
+text.value	Faces: 1
+tick	2
+total.boundary_applies	1
+total.collector_visits	8
+total.control_draws	2
+step id=3 due_tick=3 tick=3 status=succeeded error_kind=0 error_code=0 name=apply-A
+step id=4 due_tick=4 tick=4 status=succeeded error_kind=0 error_code=0 name=apply-B-replay
+step id=5 due_tick=5 tick=5 status=succeeded error_kind=0 error_code=0 name=A-does-not-notify-hit
+step id=6 due_tick=6 tick=6 status=succeeded error_kind=0 error_code=0 name=B-notifies-hit
+step id=7 due_tick=7 tick=7 status=succeeded error_kind=0 error_code=0 name=final
+button.enabled	true
+checkpoint	final
+crop_bottom	400
+crop_left	0
+crop_right	636
+crop_top	0
+face_count	1
+format_version	1
+last.control_draws	4
+node	SmirkBench.Surface
+rail	toolbox
+scenario_version	1
+schema_version	1
+status	ok
+step	retained-text-rebind
+surface.rects	71,72,24,24
+test	SmirkBench
+text.value	Rebind B updated
+tick	7
+total.boundary_applies	1
+total.collector_visits	8
+total.control_draws	4
+terminal status=succeeded
