@@ -22,10 +22,6 @@ namespace loka
 class NullButtonContext : public loka::app::scene::NativeNodeContext
 {
 public:
-  virtual loka::app::scene::PaintAnswer queryPaintDamage(const loka::app::scene::PaintQuery &) const
-  {
-    return loka::app::scene::PaintAnswer::nativeScheduled();
-  }
   NullButtonContext(loka::app::ButtonNode *node, NullScenePlatformController *controller);
   virtual ~NullButtonContext();
 

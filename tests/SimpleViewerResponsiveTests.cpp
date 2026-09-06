@@ -12,7 +12,6 @@
 #include "app/nodes/nestable/ScrollView.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
-#include "app/scene/projection/NativeNodeContext.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
@@ -74,8 +73,7 @@ namespace
 {
   const int kRowGap = 8;
 
-  /** Custom Null canvas handlers install NativeNodeContext, inheriting paint refusal. */
-  class NullImageGeometryContext : public loka::app::scene::NativeNodeContext
+  class NullImageGeometryContext : public loka::app::scene::NodeContext
   {
   public:
     explicit NullImageGeometryContext(loka::app::ImageViewNode *node)
@@ -148,7 +146,7 @@ namespace
     }
   };
 
-  class NullButtonGeometryContext : public loka::app::scene::NativeNodeContext
+  class NullButtonGeometryContext : public loka::app::scene::NodeContext
   {
   public:
     NullButtonGeometryContext()

@@ -4,7 +4,7 @@ void testRectSurfaceStateChangeExcludesSiblingTextFromPaintDamage();
 void testTextStateChangeYieldsExactTextDamageOnly();
 void testNativeControlAnswersNativeScheduledAndDoesNotWiden();
 void testRefusedDrawerWidensWholePlan();
-void testInheritedDefaultAnswersUnsupportedKind();
+void testForeignContextIsNeverCastAndOwnedHandlersCannotBeReplaced();
 void testCompressedParentIncludesNestedOwners();
 void testSameStateTwoBoundariesDamagesBothOwners();
 void testUnknownHistoryRecoversThroughWidenedPresentation();
@@ -17,4 +17,5 @@ void testPaintPolicyScopeAndLifecycleInvalidation();
 void testPaintPlanEmptyCapacityAndScopeValues();
 void testUnrenderableTextNeverBecomesPresented();
 void testRefusedReprojectionInvalidatesPlacement();
+void testStyleOnlyApplyRecoversTextHistory();
 #endif

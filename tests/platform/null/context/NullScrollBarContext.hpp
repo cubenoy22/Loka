@@ -13,10 +13,6 @@
 class NullScrollBarContext : public loka::app::scene::NativeNodeContext
 {
 public:
-  virtual loka::app::scene::PaintAnswer queryPaintDamage(const loka::app::scene::PaintQuery &) const
-  {
-    return loka::app::scene::PaintAnswer::nativeScheduled();
-  }
   enum Part
   {
     PART_LINE_UP,

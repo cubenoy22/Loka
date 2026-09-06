@@ -474,12 +474,19 @@ bool NullTextContext::commitPresented(const loka::core::String &value, const lok
   loka::core::Frame seat;
   if (!this->placement_.query(scope, seat))
     return false;
-  if (!(this->placedStyle_ == NullTextPaintStyle(this->node_->props)))
+  const NullTextPaintStyle current(this->node_->props);
+  const bool restyled = !(this->placedStyle_ == current);
+  if (restyled)
   {
+    // A props-only apply can change the resolved style without a layout pass.
+    // The widened presentation reconstructs the whole seat under the current
+    // style, so adopt it here and verify coverage below; refusing forever would
+    // leave the history UNKNOWN until an unrelated layout.
     this->presented_.invalidate();
-    return false;
+    this->placedStyle_ = current;
   }
-  if (!this->presented_.isKnown() || value.compare(this->presented_.value(), false) != loka::core::StringCompareEqual)
+  if (restyled || !this->presented_.isKnown()
+      || value.compare(this->presented_.value(), false) != loka::core::StringCompareEqual)
   {
     if (!FitsTextSeat(this->node_, value, seat, this->measurement_))
     {
@@ -489,4 +496,13 @@ bool NullTextContext::commitPresented(const loka::core::String &value, const lok
   }
   this->presented_.commit(value, scope);
   return true;
+}
+
+const void *NullTextNodeHandlerKey()
+{
+  return gNullTextNodeHandler.nodeTypeKey();
+}
+bool IsNullTextNodeHandler(const loka::app::scene::IPlatformNodeHandler *handler)
+{
+  return handler == &gNullTextNodeHandler;
 }

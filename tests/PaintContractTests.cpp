@@ -3,6 +3,7 @@
 #include "../example/SmirkBench/src/MainNode.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/projection/PaintEnumeration.hpp"
+#include "app/scene/projection/PlatformNodeHandler.hpp"
 #include "app/nodes/ImageView.hpp"
 #include "app/nodes/nestable/ScrollView.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
@@ -259,7 +260,11 @@ namespace
           stack << image;
         if (d.count == 0)
         {
-          stack << text;
+          // selector 3: the same State drawn bold, a style-only change of a retained Text.
+          if (d.selector == 3)
+            stack << Text(&d.a).attr(TextAttr().weight(TEXT_WEIGHT_BOLD));
+          else
+            stack << text;
         }
         for (int i = 0; i < d.count; ++i)
         {
@@ -328,10 +333,12 @@ void testNativeControlAnswersNativeScheduledAndDoesNotWiden()
   model.advanceFrame(1.0 / 60.0);
   settle(scene);
   exactOne(platform);
+  // The Button is a native control: the rail answers NATIVE_SCHEDULED by kind and
+  // never queries (or casts) its context, so the plan above stayed exact with
+  // the Button present and three residents were queried (Button, Text, surface).
   Node *button = find(SceneTestAccess::rootBoundary(scene), NODE_KIND_BUTTON);
   LOKA_VERIFY(button && button->getContext());
-  LOKA_VERIFY(static_cast<NativeNodeContext *>(button->getContext())->queryPaintDamage(query(platform)).kind
-              == PAINT_ANSWER_NATIVE_SCHEDULED);
+  LOKA_VERIFY(platform.queries == 3);
   scene.unmount();
 }
 void testRefusedDrawerWidensWholePlan()
@@ -349,16 +356,67 @@ void testRefusedDrawerWidensWholePlan()
     scene.unmount();
   }
 }
-void testInheritedDefaultAnswersUnsupportedKind()
+void testForeignContextIsNeverCastAndOwnedHandlersCannotBeReplaced()
 {
-  class InheritedContext : public NativeNodeContext
+  // A replaced ImageView handler installs a plain NodeContext (not a
+  // NativeNodeContext). The paint walk must answer UNSUPPORTED_KIND for that
+  // resident without casting it; a wrong cast is what the ASan run caught in the
+  // SimpleViewer geometry fixtures before this rule existed.
+  class PlainContext : public NodeContext
   {
   };
-  Node node;
-  node.setContext(new InheritedContext());
-  const PaintQuery q = {{1, 0, 0, 0, 0, 100, 20}, PLACEMENT_ELIGIBLE};
-  const PaintAnswer answer = static_cast<NativeNodeContext *>(node.getContext())->queryPaintDamage(q);
-  LOKA_VERIFY(answer.kind == PAINT_ANSWER_REFUSED && answer.reason == PAINT_REFUSED_UNSUPPORTED_KIND);
+  class PlainImageHandler : public IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return NodeTypeToken<ImageViewNode>();
+    }
+    virtual NodeContext *ensureContext(Node *node, IPlatformController *, const LayoutState &)
+    {
+      if (!node->getContext())
+        node->setContext(new PlainContext());
+      return node->getContext();
+    }
+  } plainImage;
+  TreeData data;
+  data.refusal = 1;
+  PaintPlatform platform;
+  LOKA_VERIFY(platform.registerNodeHandler(&plainImage));
+  Scene scene(Boundary<PaintTree>(TreeProps(&data)));
+  mount(scene, platform);
+  change(scene, data.models[0], 4);
+  refused(platform, PAINT_REFUSED_UNSUPPORTED_KIND);
+  scene.unmount();
+  // The two owned-drawer handlers are addressed by concrete type in the
+  // presenter, so a foreign handler for their kinds is refused at registration.
+  class ForeignTextHandler : public IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return NullTextNodeHandlerKey();
+    }
+    virtual NodeContext *ensureContext(Node *, IPlatformController *, const LayoutState &)
+    {
+      return 0;
+    }
+  } foreignText;
+  class ForeignSurfaceHandler : public IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return NullRectSurfaceNodeHandlerKey();
+    }
+    virtual NodeContext *ensureContext(Node *, IPlatformController *, const LayoutState &)
+    {
+      return 0;
+    }
+  } foreignSurface;
+  PaintPlatform second;
+  LOKA_VERIFY(!second.registerNodeHandler(&foreignText));
+  LOKA_VERIFY(!second.registerNodeHandler(&foreignSurface));
 }
 void testCompressedParentIncludesNestedOwners()
 {
@@ -774,6 +832,30 @@ void testRefusedReprojectionInvalidatesPlacement()
   settle(scene);
   platform.beginApplyCycle();
   change(scene, model.surfaceModel_, 8);
+  exactOne(platform);
+  scene.unmount();
+}
+
+void testStyleOnlyApplyRecoversTextHistory()
+{
+  // A retained Text whose resolved style changes through a props-only apply has
+  // no layout pass to refresh its placed style. The query refuses (widen), and
+  // the widened presentation must adopt the current style and re-establish the
+  // history, instead of refusing forever until an unrelated layout.
+  TreeData data;
+  data.count = 0;
+  PaintPlatform platform;
+  Scene scene(Boundary<PaintTree>(TreeProps(&data)));
+  mount(scene, platform);
+  BoundaryNode *root = SceneTestAccess::rootBoundary(scene);
+  Node *text = find(root, NODE_KIND_TEXT);
+  data.selector = 3;
+  root->markViewDirty(NODE_DIRTY_PROPS);
+  settle(scene);
+  LOKA_VERIFY(find(root, NODE_KIND_TEXT) == text);
+  refused(platform, PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  platform.beginApplyCycle();
+  score(scene, data.a, "GGGG");
   exactOne(platform);
   scene.unmount();
 }

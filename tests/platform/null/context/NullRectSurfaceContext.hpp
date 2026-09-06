@@ -6,6 +6,16 @@
 #include "platform/null/context/NullPaintPlacement.hpp"
 
 class NullScenePlatformController;
+namespace loka
+{
+  namespace app
+  {
+    namespace scene
+    {
+      class IPlatformNodeHandler;
+    }
+  } // namespace app
+} // namespace loka
 
 namespace loka
 {
@@ -53,5 +63,9 @@ private:
 };
 
 void RegisterNullRectSurfaceNodeHandler(NullScenePlatformController &controller);
+/** The Null presenter calls typed completion doors on these contexts, so the rail
+    refuses to let a foreign handler replace them (NullScenePlatformController::registerNodeHandler). */
+const void *NullRectSurfaceNodeHandlerKey();
+bool IsNullRectSurfaceNodeHandler(const loka::app::scene::IPlatformNodeHandler *handler);
 
 #endif // LOKA_TESTS_PLATFORM_NULL_RECT_SURFACE_CONTEXT_HPP

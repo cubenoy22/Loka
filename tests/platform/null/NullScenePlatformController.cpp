@@ -194,7 +194,9 @@ namespace
   enum NullPaintRole
   {
     NULL_PAINT_SKIP,
-    NULL_PAINT_CONTEXT,
+    NULL_PAINT_OWNED_DRAWER,   // RectSurface / Text: contexts the rail itself installs (registration refuses replacement)
+    NULL_PAINT_NATIVE_CONTROL, // Button / EditText / ScrollBar: native ownership, answered by kind, context never cast
+    NULL_PAINT_FOREIGN,        // ImageView / Cell / PopupMenu: refused by default, any installed context is foreign
     NULL_PAINT_UNSUPPORTED
   };
   /** Classification is a rail contract, independent of handler registration. */
@@ -205,13 +207,15 @@ namespace
     {
     case NODE_KIND_RECT_SURFACE:
     case NODE_KIND_TEXT:
+      return NULL_PAINT_OWNED_DRAWER;
     case NODE_KIND_BUTTON:
     case NODE_KIND_EDIT_TEXT:
     case NODE_KIND_SCROLL_BAR:
+      return NULL_PAINT_NATIVE_CONTROL;
     case NODE_KIND_IMAGE_VIEW:
     case NODE_KIND_CELL:
     case NODE_KIND_POPUP_MENU:
-      return NULL_PAINT_CONTEXT;
+      return NULL_PAINT_FOREIGN;
     case NODE_KIND_OPEN_FILE_DIALOG:
     case NODE_KIND_SCROLL_VIEW:
     case NODE_KIND_BOX:
@@ -243,9 +247,25 @@ public:
     const NullPaintRole role = paintRole(node);
     if (role == NULL_PAINT_SKIP)
       return;
-    const PaintAnswer answer = role == NULL_PAINT_UNSUPPORTED ? PaintAnswer::refused(PAINT_REFUSED_UNSUPPORTED_KIND)
-                               : context ? static_cast<NativeNodeContext *>(context)->queryPaintDamage(this->query_)
-                                         : PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+    PaintAnswer answer;
+    switch (role)
+    {
+    case NULL_PAINT_OWNED_DRAWER:
+      // The only cast in the paint walk; sound because registerNodeHandler refuses
+      // foreign handlers for these two kinds.
+      answer = context ? static_cast<NativeNodeContext *>(context)->queryPaintDamage(this->query_)
+                       : PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+      break;
+    case NULL_PAINT_NATIVE_CONTROL:
+      answer = PaintAnswer::nativeScheduled();
+      break;
+    case NULL_PAINT_FOREIGN:
+      answer = PaintAnswer::refused(context ? PAINT_REFUSED_UNSUPPORTED_KIND : PAINT_REFUSED_NO_CONTEXT);
+      break;
+    default:
+      answer = PaintAnswer::refused(PAINT_REFUSED_UNSUPPORTED_KIND);
+      break;
+    }
     this->controller_.onPaintQueried();
     switch (answer.kind)
     {
@@ -278,7 +298,7 @@ public:
   virtual void
   visit(loka::app::scene::Node *node, loka::app::scene::NodeContext *context, loka::app::scene::BoundaryNode *)
   {
-    if (paintRole(node) != NULL_PAINT_CONTEXT || !context)
+    if (paintRole(node) != NULL_PAINT_OWNED_DRAWER || !context)
       return;
     bool committed = false;
     // Capture and commit synchronously, with no callbacks or State writes between.
@@ -312,7 +332,7 @@ public:
   virtual void
   visit(loka::app::scene::Node *node, loka::app::scene::NodeContext *context, loka::app::scene::BoundaryNode *)
   {
-    if (paintRole(node) != NULL_PAINT_CONTEXT || !context)
+    if (paintRole(node) != NULL_PAINT_OWNED_DRAWER || !context)
       return;
     if (node->asRectSurfaceNode())
       static_cast<NullRectSurfaceContext *>(context)->invalidatePresentation();
@@ -421,6 +441,17 @@ bool NullScenePlatformController::prepareProjectedLayout(loka::app::scene::Node 
 
 bool NullScenePlatformController::registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler)
 {
+  // Always-on refusal, not a comment-only contract: RectSurface and Text contexts
+  // are addressed by their concrete Null type in the presenter's completion and
+  // invalidation walks, so no foreign handler may install a different context
+  // for those kinds. Every other kind may be replaced; the paint walk never
+  // casts a context it did not install (see paintRole).
+  if (handler
+      && ((handler->nodeTypeKey() == NullTextNodeHandlerKey() && !IsNullTextNodeHandler(handler))
+          || (handler->nodeTypeKey() == NullRectSurfaceNodeHandlerKey() && !IsNullRectSurfaceNodeHandler(handler))))
+  {
+    return false;
+  }
   return this->nodeHandlers_.registerHandler(handler);
 }
 

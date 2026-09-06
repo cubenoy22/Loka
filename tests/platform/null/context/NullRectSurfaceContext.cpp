@@ -172,3 +172,12 @@ bool NullRectSurfaceContext::commitPresented(const loka::app::RectSurfaceModel &
   this->presentedClearBackground_.commit(clearBackground, scope);
   return true;
 }
+
+const void *NullRectSurfaceNodeHandlerKey()
+{
+  return gNullRectSurfaceNodeHandler.nodeTypeKey();
+}
+bool IsNullRectSurfaceNodeHandler(const loka::app::scene::IPlatformNodeHandler *handler)
+{
+  return handler == &gNullRectSurfaceNodeHandler;
+}

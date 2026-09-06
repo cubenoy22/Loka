@@ -90,5 +90,9 @@ private:
 };
 
 void RegisterNullTextNodeHandler(NullScenePlatformController &controller);
+/** The Null presenter calls typed completion doors on these contexts, so the rail
+    refuses to let a foreign handler replace them (NullScenePlatformController::registerNodeHandler). */
+const void *NullTextNodeHandlerKey();
+bool IsNullTextNodeHandler(const loka::app::scene::IPlatformNodeHandler *handler);
 
 #endif // LOKA_TESTS_PLATFORM_NULL_TEXT_CONTEXT_HPP

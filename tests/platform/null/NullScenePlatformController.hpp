@@ -159,9 +159,10 @@ public:
   virtual void destroy();
   virtual bool prepareProjectedLayout(loka::app::scene::Node *node,
                                       loka::app::scene::LayoutState &state);
-  /** Installed canvas contexts must derive from NativeNodeContext. Overrides for
-      Text/RectSurface must retain their Null concrete context contract so the
-      synchronous presenter can use their typed completion doors. */
+  /** RectSurface and Text handlers cannot be replaced (registerNodeHandler refuses):
+      the presenter addresses their contexts by concrete Null type. Every other kind
+      may be replaced; the paint walk answers native controls by kind and never
+      casts a context it did not install. */
   virtual bool registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler);
 
   /** Runs the same deterministic projection traversal as onChange with
