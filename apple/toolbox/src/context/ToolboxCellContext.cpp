@@ -1,3 +1,4 @@
+#include "ToolboxPropsRefresh.hpp"
 #include "context/ToolboxCellContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
@@ -166,15 +167,18 @@ bool RegisterToolboxCellNodeHandler(loka::app::scene::PlatformNodeHandlerRegistr
   return registry.registerHandler(&gToolboxCellNodeHandler);
 }
 
-void ToolboxCellContext::captureProps()
+bool ToolboxCellContext::captureProps()
 {
-  this->updateData(this->node_ ? this->node_->props.text_ : 0);
+  loka::core::State<loka::core::String> *text = this->node_ ? this->node_->props.text_ : 0;
+  const bool changed = ToolboxTextProjectionChanged(this->text_, text);
+  this->updateData(text);
+  return changed;
 }
 
 void ToolboxCellContext::onPropsApplied()
 {
-  this->captureProps();
-  if (this->controller() && this->node_)
+  const bool changed = this->captureProps();
+  if (changed && this->controller() && this->node_)
   {
     this->controller()->refreshContextProps(this->node_);
   }

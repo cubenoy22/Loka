@@ -4,6 +4,7 @@
 #include "context/ToolboxProjectedNodeContext.hpp"
 #include "app/nodes/Text.hpp"
 #include "core/String.hpp"
+#include "ToolboxPropsRefresh.hpp"
 #include <Quickdraw.h>
 
 class ToolboxScenePlatformController;
@@ -50,7 +51,7 @@ public:
   short visibleWidth() const;
   loka::core::State<loka::core::String> *liveTextState() const
   {
-    return this->node_ && !this->node_->props.ownsText ? this->text_ : 0;
+    return this->node_ ? ToolboxLiveTextSource(this->text_, this->node_->props.ownsText) : 0;
   }
   void draw(ToolboxScenePlatformController *controller);
   virtual loka::core::State<loka::core::String> *projectedTextState()
@@ -61,7 +62,8 @@ public:
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
 
 private:
-  void captureProps();
+  /** Capture local data and report whether existing controller rows need refresh. */
+  bool captureProps();
   loka::app::TextNode *node_;
   Rect rect_;
   short textX_;

@@ -1,3 +1,4 @@
+#include "ToolboxPropsRefresh.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxLayoutMetrics.hpp"
 #include "ToolboxBuiltInSupport.hpp"
@@ -1016,95 +1017,104 @@ void ToolboxScenePlatformController::refreshContextProps(loka::app::scene::Node 
   loka::core::State<bool> *previousEnabled = 0;
   loka::core::State<bool> *enabled = 0;
 
-  // Update only records already projected. Geometry and native ownership stay
-  // with the existing ledgers; a props apply never creates a native control.
-  for (size_t i = 0; i < this->hitLedger_.textHits_.size(); ++i)
+  // Props apply only reconciles existing projections of this kind.
+  if (node->kind() == loka::app::scene::NODE_KIND_TEXT)
   {
-    TextHit &hit = this->hitLedger_.textHits_[i];
-    if (hit.context != context)
-      continue;
-    previousText = hit.text;
-    hit.text = hit.context->projectedTextState();
-    liveText = hit.context->liveTextState();
-  }
-  for (size_t i = 0; i < this->hitLedger_.cellHits_.size(); ++i)
-  {
-    CellHit &hit = this->hitLedger_.cellHits_[i];
-    if (hit.context != context)
-      continue;
-    previousText = hit.text;
-    hit.text = node->asCellNode()->props.text_;
-    hit.emitter = node->asCellNode()->props.onClick_;
-    liveText = hit.context->liveTextState();
-  }
-  for (size_t i = 0; i < this->hitLedger_.editHits_.size(); ++i)
-  {
-    EditHit &hit = this->hitLedger_.editHits_[i];
-    if (hit.context != context)
-      continue;
-    previousText = hit.text;
-    hit.text = hit.context->projectedTextState();
-    liveText = hit.text;
-    if (this->hasFocusedRect_ && this->focusedText_ == previousText && EqualRect(&this->focusedRect_, &hit.rect))
+    for (size_t i = 0; i < this->hitLedger_.textHits_.size(); ++i)
     {
-      this->focusedText_ = liveText;
-      if (!liveText)
-        this->hasFocusedRect_ = false;
+      TextHit &hit = this->hitLedger_.textHits_[i];
+      if (hit.context != context)
+        continue;
+      previousText = hit.text;
+      hit.text = hit.context->projectedTextState();
+      liveText = hit.context->liveTextState();
     }
   }
-  size_t editIndex = 0;
-  if (this->editControls_.find(context, editIndex))
+  else if (node->kind() == loka::app::scene::NODE_KIND_CELL)
   {
-    EditTextControlBinding &binding = this->editControls_[editIndex];
-    previousText = binding.text;
-    binding.text = context->projectedTextState();
-    liveText = binding.text;
-    if (previousText != liveText)
-      this->syncEditTextFromState(binding);
+    for (size_t i = 0; i < this->hitLedger_.cellHits_.size(); ++i)
+    {
+      CellHit &hit = this->hitLedger_.cellHits_[i];
+      if (hit.context != context)
+        continue;
+      previousText = hit.text;
+      hit.text = node->asCellNode()->props.text_;
+      hit.emitter = node->asCellNode()->props.onClick_;
+      liveText = hit.context->liveTextState();
+    }
   }
-  for (size_t i = 0; i < this->hitLedger_.buttonHits_.size(); ++i)
+  else if (node->kind() == loka::app::scene::NODE_KIND_EDIT_TEXT)
   {
-    ButtonHit &hit = this->hitLedger_.buttonHits_[i];
-    if (hit.context != context)
-      continue;
-    previousEnabled = hit.enabled;
-    hit.enabled = node->asButtonNode()->props.enabled_;
-    hit.emitter = node->asButtonNode()->props.onClick_;
-    enabled = hit.enabled;
+    for (size_t i = 0; i < this->hitLedger_.editHits_.size(); ++i)
+    {
+      EditHit &hit = this->hitLedger_.editHits_[i];
+      if (hit.context != context)
+        continue;
+      previousText = hit.text;
+      hit.text = hit.context->projectedTextState();
+      liveText = hit.text;
+      if (this->hasFocusedRect_ && this->focusedText_ == previousText && EqualRect(&this->focusedRect_, &hit.rect))
+      {
+        this->focusedText_ = liveText;
+        if (!liveText)
+          this->hasFocusedRect_ = false;
+      }
+    }
+    size_t editIndex = 0;
+    if (this->editControls_.find(context, editIndex))
+    {
+      EditTextControlBinding &binding = this->editControls_[editIndex];
+      previousText = binding.text;
+      binding.text = context->projectedTextState();
+      liveText = binding.text;
+      if (previousText != liveText)
+        this->syncEditTextFromState(binding);
+    }
   }
-  for (size_t i = 0; i < this->buttonControls_.size(); ++i)
+  else if (node->kind() == loka::app::scene::NODE_KIND_BUTTON)
   {
-    ButtonControlBinding &binding = this->buttonControls_[i];
-    if (!buttonResourceId || binding.resourceId != buttonResourceId)
-      continue;
-    previousEnabled = binding.enabled;
-    binding.enabled = node->asButtonNode()->props.enabled_;
-    binding.emitter = node->asButtonNode()->props.onClick_;
-    enabled = binding.enabled;
-    const loka::app::ButtonProps &props = node->asButtonNode()->props;
-    this->applyButtonControlProps(binding, props.text_ ? props.text_->get() : loka::core::String::Literal("Button"));
-    if (previousEnabled != enabled)
-      binding.needsDraw = true;
+    for (size_t i = 0; i < this->hitLedger_.buttonHits_.size(); ++i)
+    {
+      ButtonHit &hit = this->hitLedger_.buttonHits_[i];
+      if (hit.context != context)
+        continue;
+      previousEnabled = hit.enabled;
+      hit.enabled = node->asButtonNode()->props.enabled_;
+      hit.emitter = node->asButtonNode()->props.onClick_;
+      enabled = hit.enabled;
+    }
+    for (size_t i = 0; buttonResourceId && i < this->buttonControls_.size(); ++i)
+    {
+      ButtonControlBinding &binding = this->buttonControls_[i];
+      if (binding.resourceId != buttonResourceId)
+        continue;
+      previousEnabled = binding.enabled;
+      binding.enabled = node->asButtonNode()->props.enabled_;
+      binding.emitter = node->asButtonNode()->props.onClick_;
+      enabled = binding.enabled;
+      const loka::app::ButtonProps &props = node->asButtonNode()->props;
+      this->applyButtonControlProps(binding, props.text_ ? props.text_->get() : loka::core::String::Literal("Button"));
+      if (previousEnabled != enabled)
+        binding.needsDraw = true;
+    }
   }
-  for (size_t i = 0; i < this->hitLedger_.popupHits_.size(); ++i)
+  else if (node->kind() == loka::app::scene::NODE_KIND_POPUP_MENU)
   {
-    PopupHit &hit = this->hitLedger_.popupHits_[i];
-    if (hit.context != context)
-      continue;
-    const loka::app::PopupMenuProps &props = node->asPopupMenuNode()->props;
-    previousEnabled = hit.enabled;
-    hit.items = props.items_;
-    hit.selectedIndex = props.selectedIndex_;
-    hit.onChange = props.onChange_;
-    hit.enabled = props.enabled_;
-    enabled = hit.enabled;
+    for (size_t i = 0; i < this->hitLedger_.popupHits_.size(); ++i)
+    {
+      PopupHit &hit = this->hitLedger_.popupHits_[i];
+      if (hit.context != context)
+        continue;
+      const loka::app::PopupMenuProps &props = node->asPopupMenuNode()->props;
+      previousEnabled = hit.enabled;
+      hit.items = props.items_;
+      hit.selectedIndex = props.selectedIndex_;
+      hit.onChange = props.onChange_;
+      hit.enabled = props.enabled_;
+      enabled = hit.enabled;
+    }
   }
-  if (previousText != liveText)
-  {
-    this->bindTextState(liveText);
-    if (previousText && !this->hasLiveBinding(previousText))
-      this->unbindTextState(previousText);
-  }
+  ReconcileToolboxTextSubscription(*this, previousText, liveText);
   if (previousEnabled != enabled)
   {
     this->bindEnabledState(enabled);

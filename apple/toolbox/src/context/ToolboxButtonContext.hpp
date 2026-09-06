@@ -57,7 +57,8 @@ public:
   bool handleMouseDown(const Point &point, ToolboxScenePlatformController *controller);
 
 private:
-  void captureProps();
+  /** Capture local data and report whether existing controller rows need refresh. */
+  bool captureProps();
   virtual void retireNativeProjection();
   loka::app::ButtonNode *node_;
   Rect rect_;

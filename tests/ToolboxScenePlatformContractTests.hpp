@@ -3,4 +3,8 @@
 
 void testToolboxEnabledChangeUpdatesEveryMatchingControlKind();
 
+void testToolboxButtonLiteralRefreshUsesLabelValue();
+void testToolboxUnchangedProjectionsSkipRefresh();
+void testToolboxTextSubscriptionMovesLiveOwnedLive();
+
 #endif // LOKA_TESTS_TOOLBOX_SCENE_PLATFORM_CONTRACT_TESTS_HPP

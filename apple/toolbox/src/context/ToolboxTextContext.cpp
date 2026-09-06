@@ -1,3 +1,4 @@
+#include "ToolboxPropsRefresh.hpp"
 #include "context/ToolboxTextContext.hpp"
 #include "ToolboxLayoutMetrics.hpp"
 #include "ToolboxScenePlatformController.hpp"
@@ -339,11 +340,13 @@ bool RegisterToolboxTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistr
   return registry.registerHandler(&gToolboxTextNodeHandler);
 }
 
-void ToolboxTextContext::captureProps()
+bool ToolboxTextContext::captureProps()
 {
-  this->updateData(this->node_ ? this->node_->props.text_ : 0);
+  loka::core::State<loka::core::String> *text = this->node_ ? this->node_->props.text_ : 0;
+  const bool changed = ToolboxTextProjectionChanged(this->text_, text);
+  this->updateData(text);
   if (!this->node_)
-    return;
+    return changed;
   if (node_->props.hasAttr_)
   {
     wrapMode_ = node_->props.attr_.hasWrapValue_ ? node_->props.attr_.wrapValue_ : loka::app::TEXT_WRAP_NONE;
@@ -355,12 +358,13 @@ void ToolboxTextContext::captureProps()
     wrapMode_ = loka::app::TEXT_WRAP_NONE;
     truncationMode_ = loka::app::TEXT_TRUNCATION_NONE;
   }
+  return changed;
 }
 
 void ToolboxTextContext::onPropsApplied()
 {
-  this->captureProps();
-  if (this->controller() && this->node_)
+  const bool changed = this->captureProps();
+  if (changed && this->controller() && this->node_)
   {
     this->controller()->refreshContextProps(this->node_);
   }

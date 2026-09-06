@@ -63,7 +63,8 @@ public:
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
 
 private:
-  void captureProps();
+  /** Capture local data and report whether existing controller rows need refresh. */
+  bool captureProps();
   loka::app::EditTextNode *node_;
   Rect rect_;
   Rect textRect_;
