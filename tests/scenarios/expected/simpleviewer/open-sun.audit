@@ -1,0 +1,25 @@
+loka_scenario_audit version=1 scenario=open-sun
+step id=2 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=post-settle
+step id=2 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=open-image
+step id=3 due_tick=3 tick=3 status=succeeded error_kind=0 error_code=0 name=post-open
+checkpoint	post-open
+crop_bottom	280
+crop_left	0
+crop_right	480
+crop_top	0
+format_version	1
+heap.free	10136
+heap.max_block	6478
+image.bytes	11826
+image.height	0
+image.load	1014
+image.width	0
+node	SimpleViewer.Image
+rail	toolbox
+scenario_version	1
+schema_version	1
+status	ok
+step	open-sun
+test	SimpleViewer
+tick	3
+terminal status=succeeded

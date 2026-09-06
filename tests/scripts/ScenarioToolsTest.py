@@ -207,9 +207,6 @@ class ExpectedAuditPinsTest(unittest.TestCase):
             self.assertEqual(len(entry), 2)
             example, scenario = entry
             audit_path = os.path.join(SCENARIO_DIR, "expected", example, scenario + ".audit")
-            if example == "simpleviewer" and not os.path.exists(audit_path):
-                # These two cells await measured audits from the delegator's rig.
-                continue
             registered_audits.add(os.path.relpath(audit_path, SCENARIO_DIR))
             with open(audit_path, "rb") as handle:
                 audit = handle.read()
