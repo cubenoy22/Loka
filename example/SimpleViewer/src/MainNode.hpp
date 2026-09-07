@@ -230,27 +230,6 @@ namespace simpleviewer
       c.declare(root << nav << content << openDialog);
     }
 
-  protected:
-    virtual void declareLocalRecomposition(loka::app::scene::NodeComposition &composition)
-    {
-      this->composeNode(composition);
-    }
-
-    virtual void composeWithContext(loka::app::scene::ComponentContext &context,
-                                    loka::app::scene::ComposeEvent event)
-    {
-      typedef loka::app::scene::StdCompositionBoundaryNodeBase<MainProps> BaseType;
-      if (event == loka::app::scene::COMPOSE_EVENT_UPDATE &&
-          (context.dirtyFlags() & loka::app::scene::NODE_DIRTY_CHILD))
-      {
-        this->recomposeLocalCompositionWithFullFallback(
-            context, event, this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
-        this->bindUi();
-        return;
-      }
-      BaseType::composeWithContext(context, event);
-    }
-
   private:
     friend class ImageLoadSession;
 #ifdef TEST_BUILD
@@ -318,7 +297,6 @@ namespace simpleviewer
     {
       this->bindActionForUi(*this->props.openDialogEvent_, &MainNode::openDialog);
       this->bindActionForUi(this->toggleNavEvent_, &MainNode::toggleNavigation);
-      this->watchStateForUi(*this->props.displayMode_, &MainNode::refreshDisplayMode);
       ::Window *window = this->windowOrNull();
       if (window)
       {
@@ -356,11 +334,6 @@ namespace simpleviewer
     {
       this->navOpen_.set(!this->navOpen_.get());
       this->refreshLayoutMode();
-    }
-
-    void refreshDisplayMode()
-    {
-      this->markViewDirty(loka::app::scene::NODE_DIRTY_CHILD);
     }
 
     void openDialog()
