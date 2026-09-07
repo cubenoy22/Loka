@@ -269,11 +269,6 @@ namespace minesweeper
       this->markViewDirty(loka::app::scene::NODE_DIRTY_CHILD);
     }
 
-  protected:
-    /** RecomposingBoundaryFor supplies the production local-recompose form.
-        New Game changes the key bank on CHILD dirt; reveal clicks retain
-        the ordinary update path. Rebinding lives here until PR A2 (#567). */
-
   private:
     class BoardRandom
     {
