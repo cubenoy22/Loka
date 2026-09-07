@@ -67,8 +67,11 @@ public:
 
   virtual loka::app::scene::NodeContext *createNodeContext(loka::app::scene::Node *node) const = 0;
   virtual bool openFile(const loka::file::File &item, loka::platform::file::FileHandle &out) const = 0;
-  /** Reports the largest contiguous allocation the target can currently
-      satisfy. Targets without a meaningful answer decline the query. */
+  /** Estimates what one contiguous allocation could obtain now, including
+      compaction, purging and growth the allocation itself would perform.
+      The query may perform that memory-manager work and may report a
+      conservative lower bound. It does not reserve memory or guarantee a
+      later allocation. Targets without a meaningful answer decline. */
   virtual bool queryLargestContiguousAllocation(std::size_t &out) const
   {
     (void)out;

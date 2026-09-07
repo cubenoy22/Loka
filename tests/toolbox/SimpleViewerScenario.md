@@ -28,14 +28,19 @@ chooser adapters, capacity check, data-fork read, decode and image commit run
 unchanged.
 
 The record contains `image.load` (`ok` or a numeric production flow error
-code), `image.width`, `image.height`, actual `image.bytes` read via `GetEOF`,
-and `heap.free`/`heap.max_block` sampled immediately before submitting the
-load. These are Classic `FreeMem()` and the platform's
-`queryLargestContiguousAllocation()` (`MaxBlock()`). The error code is matched
-from the completed chooser message using ImageLoadSession's production
-formatter through a TEST_BUILD-only friend; unknown messages fail the fixture.
-A terminal `succeeded` means the measurement completed, including when the
-observed image load failed. Inspect `image.load` to characterize the regression.
+code), `image.width`, `image.height`, the actual `image.bytes` read via
+`GetEOF`, and `heap.probe_covers_image` (`yes`/`no`, `n/a` for the startup
+cell): whether the platform's `queryLargestContiguousAllocation()` answer,
+sampled immediately before submitting the load, covers the picture. That
+answer is the larger of `MaxBlock()` and the room between the application
+zone's top and `GetApplLimit()`; it neither compacts nor purges (a `MaxMem`
+probe was tried and rejected because its purge bombed the viewer). Raw
+`FreeMem()` / probe numbers are not audit fields: they move with the
+application's code size. The error code is matched from the completed
+chooser message using ImageLoadSession's production formatter through a
+TEST_BUILD-only friend; unknown messages fail the fixture. A terminal
+`succeeded` means the measurement completed, including when the observed
+image load failed. Inspect `image.load` to characterize the regression.
 
 The pristine boot template (`MAME_HDA` in `.env-mame`) must contain data-fork
 pictures `:Desktop Folder:Images:Sun.pict` and `:Desktop Folder:Images:Bulb.pict`.
