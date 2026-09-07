@@ -1,3 +1,4 @@
+#include "ToolboxPropsRefresh.hpp"
 #include "context/ToolboxPopupMenuContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxLayoutMetrics.hpp"
@@ -256,20 +257,25 @@ bool RegisterToolboxPopupMenuNodeHandler(loka::app::scene::PlatformNodeHandlerRe
   return registry.registerHandler(&gToolboxPopupMenuNodeHandler);
 }
 
-void ToolboxPopupMenuContext::captureProps()
+bool ToolboxPopupMenuContext::captureProps()
 {
   if (!this->node_)
-    return;
+    return false;
+  const bool changed = ToolboxPopupProjectionChanged(
+      this->items_, this->node_->props.items_,
+      this->selectedIndex_, this->node_->props.selectedIndex_,
+      this->enabled_, this->node_->props.enabled_);
   this->updateData(this->node_->props.items_,
                    this->node_->props.selectedIndex_,
                    this->node_->props.onChange_,
                    this->node_->props.enabled_);
+  return changed;
 }
 
 void ToolboxPopupMenuContext::onPropsApplied()
 {
-  this->captureProps();
-  if (this->controller() && this->node_)
+  const bool changed = this->captureProps();
+  if (changed && this->controller() && this->node_)
   {
     this->controller()->refreshContextProps(this->node_);
   }

@@ -214,6 +214,9 @@ public:
   void refuseScrollViewShortRange();
 
 private:
+  template <typename Controller>
+  friend void ReconcileToolboxTextSubscription(Controller &,
+      loka::core::State<loka::core::String> *, loka::core::State<loka::core::String> *);
   friend bool RegisterToolboxBuiltInSupport(ToolboxScenePlatformController &controller);
   template <typename Sink, typename StateType>
   friend class ToolboxEnabledStateBindingPath;

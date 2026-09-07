@@ -1,3 +1,4 @@
+#include "ToolboxPropsRefresh.hpp"
 #include "context/ToolboxEditTextContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxLayoutMetrics.hpp"
@@ -143,15 +144,18 @@ bool RegisterToolboxEditTextNodeHandler(loka::app::scene::PlatformNodeHandlerReg
   return registry.registerHandler(&gToolboxEditTextNodeHandler);
 }
 
-void ToolboxEditTextContext::captureProps()
+bool ToolboxEditTextContext::captureProps()
 {
-  this->updateData(this->node_ ? this->node_->props.text_ : 0);
+  loka::core::State<loka::core::String> *text = this->node_ ? this->node_->props.text_ : 0;
+  const bool changed = ToolboxTextProjectionChanged(this->text_, text);
+  this->updateData(text);
+  return changed;
 }
 
 void ToolboxEditTextContext::onPropsApplied()
 {
-  this->captureProps();
-  if (this->controller() && this->node_)
+  const bool changed = this->captureProps();
+  if (changed && this->controller() && this->node_)
   {
     this->controller()->refreshContextProps(this->node_);
   }

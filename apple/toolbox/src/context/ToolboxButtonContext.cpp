@@ -1,3 +1,4 @@
+#include "ToolboxPropsRefresh.hpp"
 #include "context/ToolboxButtonContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxLayoutMetrics.hpp"
@@ -175,23 +176,27 @@ bool RegisterToolboxButtonNodeHandler(loka::app::scene::PlatformNodeHandlerRegis
   return registry.registerHandler(&gToolboxButtonNodeHandler);
 }
 
-void ToolboxButtonContext::captureProps()
+bool ToolboxButtonContext::captureProps()
 {
   if (!this->node_)
-    return;
+    return false;
   const loka::core::String label =
       this->node_->props.text_ ? this->node_->props.text_->get() : loka::core::String::Literal("Button");
+  const bool changed = ToolboxButtonProjectionChanged(
+      this->label_, label, this->enabled_, this->node_->props.enabled_,
+      this->emitter_, this->node_->props.onClick_);
   this->updateData(label,
                    this->node_->props.onClick_,
                    this->node_->props.enabled_,
                    this->resourceId_,
                    this->node_->props.controlTag_);
+  return changed;
 }
 
 void ToolboxButtonContext::onPropsApplied()
 {
-  this->captureProps();
-  if (this->controller() && this->node_)
+  const bool changed = this->captureProps();
+  if (changed && this->controller() && this->node_)
   {
     this->controller()->refreshContextProps(this->node_, this->resourceId_);
   }

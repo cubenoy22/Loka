@@ -62,7 +62,8 @@ public:
   }
 
 private:
-  void captureProps();
+  /** Capture local data and report whether existing controller rows need refresh. */
+  bool captureProps();
   short clampIndex(int index) const;
   void copyToPascalString(const loka::core::String &value, Str255 out) const;
   short menuId() const;

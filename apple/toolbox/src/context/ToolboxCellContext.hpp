@@ -3,6 +3,7 @@
 
 #include "context/ToolboxProjectedNodeContext.hpp"
 #include "app/nodes/controls/Cell.hpp"
+#include "ToolboxPropsRefresh.hpp"
 #include <Quickdraw.h>
 
 class ToolboxScenePlatformController;
@@ -40,7 +41,7 @@ public:
   void updateRect(const Rect &rect);
   loka::core::State<loka::core::String> *liveTextState() const
   {
-    return this->node_ && !this->node_->props.ownsText_ ? this->text_ : 0;
+    return this->node_ ? ToolboxLiveTextSource(this->text_, this->node_->props.ownsText_) : 0;
   }
   void draw(ToolboxScenePlatformController *controller);
   virtual void render(loka::app::scene::IPlatformController *controller);
@@ -48,7 +49,8 @@ public:
   bool handleMouseDown(const Point &point, ToolboxScenePlatformController *controller);
 
 private:
-  void captureProps();
+  /** Capture local data and report whether existing controller rows need refresh. */
+  bool captureProps();
   loka::app::CellNode *node_;
   Rect rect_;
   loka::core::State<loka::core::String> *text_;
