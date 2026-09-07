@@ -204,13 +204,13 @@ namespace
       LOKA_VERIFY(root != 0);
       loka::app::scene::NodeDefinitionBase *scroll = root->childrenHead();
       LOKA_VERIFY(scroll != 0);
-      const loka::core::String scrollId = scroll->testIdValue();
+      const std::string scrollId = scroll->testIdValue();
       LOKA_VERIFY(scrollId == "HelloWorld.MainPanelsScroll");
       loka::app::scene::INestableDefinition *scrollChildren = scroll->asNestableDefinition();
       LOKA_VERIFY(scrollChildren != 0);
       loka::app::scene::NodeDefinitionBase *panels = scrollChildren->childrenHead();
       LOKA_VERIFY(panels != 0);
-      const loka::core::String panelsId = panels->testIdValue();
+      const std::string panelsId = panels->testIdValue();
       LOKA_VERIFY(panelsId == "HelloWorld.MainPanels");
       const loka::app::scene::PropsBase *props = panels->propsBase();
       LOKA_VERIFY(props && props->propsTypeId() == loka::app::StackProps::staticTypeId());
