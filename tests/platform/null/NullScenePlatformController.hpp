@@ -166,7 +166,7 @@ public:
   virtual bool registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler);
 
   /** Runs the same deterministic projection traversal as onChange with
-      caller-supplied bounds so geometry contracts can use fixed fixtures. */
+      caller-supplied bounds, retaining them for subsequent onChange calls. */
   int projectLayoutForTesting(loka::app::scene::Node *node,
                               const loka::app::scene::LayoutState &state);
 
@@ -292,6 +292,8 @@ private:
   void appendEvent(EventKind kind, int handleId);
   void recordWindowDisposed();
 
+  /** Synthetic viewport input, replaced by an explicit fixture projection. */
+  loka::app::scene::LayoutState layoutState_;
   loka::app::scene::PaintScope paintScope_;
   loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlers_;
   RefusedProjectedNodeHandlers refusedProjectedNodeHandlers_;

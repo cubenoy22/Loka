@@ -2,6 +2,8 @@
 
 ## Highly recommended
 
+- **#567 E1 scope / review risk (4 flags)**: State/Boundary/Platform span, parent-owned live inputs passed to child props, layout dirty routing changes, and State-or-value selection. E1 deliberately adds only Stack axis and Box width State props and migrates HelloWorld/SmirkBench; notification/seat pins and mutations cover the changed routing. E2 supplies Keyed seats for MineSweeper; E3 removes the recompose base. Derived layout NodeStates remain explicit app-owned plumbing until a separately designed derived-State helper can absorb them. The Null controller retains fixture viewport input across notifications; no production scheduler or lifetime protocol changes.
+
 These items address recurring bug patterns and structural risks identified during recent bugfixes (ConditionalDefinition dangling pointer, Mac platform context preservation, startup redraw).
 
 - **0.0.1 release sanity pass**: Before tagging, exercise Tutorial and the main examples as user flows, verify the intended macOS/Win32/Toolbox sample paths, review README quick-start wording, and confirm `LICENSE.md` copyright holder text.

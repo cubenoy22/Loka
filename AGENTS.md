@@ -68,10 +68,11 @@ clear boundaries, and small reusable concepts.
 
 ## DSL And Composition
 
-Boundaries that must re-declare on their own CHILD dirt derive from
-`RecomposingBoundaryFor`; the local-recompose doors are kernel-private, and
-`recomposeLocally` is the strategy seam. The kernel declares bindings first;
-`declareLocalRecomposition` then calls `composeNode`.
+An application boundary composes once per mount.
+Values that change reach nodes as State props registered by the receiving node
+as its own dirty sources; `Stack(axisState)` and `Box().width(widthState)` are
+the first two layout inputs migrated under this ruling.
+Structure that changes is a seat (Match/Show/Keyed; Keyed lands in #567 E2).
 
 - For app-facing composition-form selection, Props/Definition conventions, and
   example style, follow [docs/API_STYLE.md](docs/API_STYLE.md).

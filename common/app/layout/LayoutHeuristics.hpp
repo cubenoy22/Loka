@@ -57,7 +57,7 @@ namespace loka
         {
           if (box->props.hasFixedSize())
           {
-            return clampToAvailable(box->props.width, availableWidth);
+            return clampToAvailable(box->props.effectiveWidth(), availableWidth);
           }
         }
         return clampToAvailable(availableWidth, availableWidth);

@@ -82,7 +82,8 @@ unsigned NullScenePlatformController::RefusedProjectedNodeHandlers::cellCount() 
 }
 
 NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepthCap)
-    : paintScope_(),
+    : layoutState_(),
+      paintScope_(),
       layoutHandlers_(),
       refusedProjectedNodeHandlers_(),
       nodeHandlers_(),
@@ -111,6 +112,9 @@ NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepth
       destroyed_(false),
       eventLog_()
 {
+  this->layoutState_.width = 100;
+  this->layoutState_.height = 20;
+  this->layoutState_.lineHeight = 20;
   loka::app::layout::RowLayoutMetrics rowMetrics;
   rowMetrics.gap = 4;
   rowMetrics.fallbackHeight = 10;
@@ -156,11 +160,7 @@ void NullScenePlatformController::onChange(loka::app::scene::Node *rootNode,
     this->skipNextProjection_ = false;
     return;
   }
-  loka::app::scene::LayoutState state;
-  state.width = 100;
-  state.height = 20;
-  state.lineHeight = 20;
-  this->projectLayout(rootNode, state);
+  this->projectLayout(rootNode, this->layoutState_);
 }
 
 namespace
@@ -459,7 +459,8 @@ int NullScenePlatformController::projectLayoutForTesting(
     loka::app::scene::Node *node,
     const loka::app::scene::LayoutState &state)
 {
-  return this->projectLayout(node, state);
+  this->layoutState_ = state;
+  return this->projectLayout(node, this->layoutState_);
 }
 
 const std::vector<NullScenePlatformController::LedgerRow> &NullScenePlatformController::ledger() const

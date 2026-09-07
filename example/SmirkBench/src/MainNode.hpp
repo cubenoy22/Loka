@@ -4,12 +4,13 @@
 #include "SmirkModel.hpp"
 #include "app/core/Window.hpp"
 #include "app/nodes/Text.hpp"
-#include "app/nodes/boundary/RecomposingBoundary.hpp"
+#include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "core/String.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 
 namespace smirkbench
 {
@@ -62,7 +63,7 @@ namespace smirkbench
     SmirkModel *model_;
   };
 
-  class MainNode : public loka::app::scene::RecomposingBoundaryFor<MainNode, loka::app::scene::StdCompositionBoundaryNodeBase<MainProps> >
+  class MainNode : public loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>
   {
     enum
     {
@@ -75,8 +76,11 @@ namespace smirkbench
     typedef MainTypeTag TypeTag;
 
     explicit MainNode(const MainProps &props)
-        : loka::app::scene::RecomposingBoundaryFor<MainNode, loka::app::scene::StdCompositionBoundaryNodeBase<MainProps> >(props),
+        : loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>(props),
           orientation_(),
+          navAxis_(),
+          panelsAxis_(),
+          navWidth_(),
           faceCount_(),
           surfaceExtent_(),
           faceCountText_(),
@@ -85,6 +89,9 @@ namespace smirkbench
     {
       const int initialFaceCount = props.model_ ? props.model_->faceCount() : 0;
       this->state(this->orientation_, ORIENTATION_LANDSCAPE);
+      this->state(this->navAxis_, loka::app::STACK_AXIS_COLUMN);
+      this->state(this->panelsAxis_, loka::app::STACK_AXIS_ROW);
+      this->state(this->navWidth_, int(kNavWidth));
       this->state(this->faceCount_, initialFaceCount);
       this->state(this->surfaceExtent_, loka::core::Frame());
       this->state(this->faceCountText_, this->faceCountLabel(initialFaceCount));
@@ -95,14 +102,13 @@ namespace smirkbench
     {
       using namespace loka::app;
       this->props.assertInitialized();
-      const bool landscape = this->orientation_.get() == ORIENTATION_LANDSCAPE;
 
       // Landscape: a fixed-width Row seat (#576 width claim). Portrait: an
       // unsized Box wraps the nav row, so the Column hands the surface the
       // remaining height below it.
-      BoxDefinition navSeat = Box().size(landscape ? kNavWidth : 0, 0);
+      BoxDefinition navSeat = Box().width(this->navWidth_.state());
       navSeat.tag(kNavSeatTag);
-      navSeat << (Stack(landscape ? STACK_AXIS_COLUMN : STACK_AXIS_ROW).TEST_ID("SmirkBench.NavPane")
+      navSeat << (Stack(this->navAxis_.state()).TEST_ID("SmirkBench.NavPane")
                   << Button("Add face", &this->addFace_).enabled(this->addEnabled_.state()).TEST_ID("SmirkBench.AddFace")
                   << Text(this->faceCountText_.state()).TEST_ID("SmirkBench.FaceCount"));
 
@@ -112,10 +118,8 @@ namespace smirkbench
                                 .TEST_ID("SmirkBench.Surface");
       surface.tag(kSurfaceSeatTag);
 
-      // The root stays put; only the panels Stack below it flips its axis, so
-      // the local recompose diffs the retained Stack's props (HelloWorld
-      // keeps its flipping Stack under a constant root the same way).
-      StackDefinition panels = Stack(landscape ? STACK_AXIS_ROW : STACK_AXIS_COLUMN).TEST_ID("SmirkBench.Panels");
+      // Values reach the retained seats through their State props.
+      StackDefinition panels = Stack(this->panelsAxis_.state()).TEST_ID("SmirkBench.Panels");
       panels.tag(kPanelsTag);
       panels << navSeat << surface;
       composition.declare(Box().TEST_ID("SmirkBench.Root") << panels);
@@ -209,10 +213,11 @@ namespace smirkbench
       {
         return;
       }
+      loka::core::StateTrackerGuard guard(this->tracker());
       this->orientation_.set(orientation);
-      // No node subscribes to the orientation; the boundary recomposes on
-      // its own CHILD dirt (HelloWorld's flip, #556).
-      this->markViewDirty(loka::app::scene::NODE_DIRTY_CHILD);
+      this->navAxis_.set(portrait ? loka::app::STACK_AXIS_ROW : loka::app::STACK_AXIS_COLUMN);
+      this->panelsAxis_.set(portrait ? loka::app::STACK_AXIS_COLUMN : loka::app::STACK_AXIS_ROW);
+      this->navWidth_.set(portrait ? 0 : int(kNavWidth));
     }
 
     void refreshModelBounds()
@@ -222,6 +227,9 @@ namespace smirkbench
     }
 
     loka::app::scene::NodeState<Orientation> orientation_;
+    loka::app::scene::NodeState<loka::app::StackAxis> navAxis_;
+    loka::app::scene::NodeState<loka::app::StackAxis> panelsAxis_;
+    loka::app::scene::NodeState<int> navWidth_;
     loka::app::scene::NodeState<int> faceCount_;
     /** The model's bounce walls equal the last laid-out seat the rail delivered for the surface; until the first
         delivery they are the constructor's bounds. */

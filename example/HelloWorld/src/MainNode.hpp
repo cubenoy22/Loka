@@ -5,7 +5,7 @@
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/scene/state/NodeState.hpp"
-#include "app/nodes/boundary/RecomposingBoundary.hpp"
+#include "app/nodes/boundary/StdComposition.hpp"
 #include "core/State.hpp"
 #include "core/String.hpp"
 #include "core/Vector.hpp"
@@ -17,7 +17,7 @@ namespace helloworld
   class MainNode;
   typedef loka::app::scene::BoundaryPropsFor<MainNode> MainProps;
 
-  class MainNode : public loka::app::scene::RecomposingBoundaryFor<MainNode, loka::app::scene::BoundaryNodeFor<MainNode> >
+  class MainNode : public loka::app::scene::BoundaryNodeFor<MainNode>
   {
   public:
     MainNode(const MainProps &p);
@@ -54,7 +54,7 @@ namespace helloworld
     loka::core::EmitterState actionProbeEvent_;
     loka::app::scene::NodeState<int> fruitIndex_;
     loka::app::scene::NodeState<loka::core::String> fruitMessage_;
-    loka::app::scene::NodeState<bool> isNarrow_;
+    loka::app::scene::NodeState<loka::app::StackAxis> axis_;
     loka::app::scene::NodeState<int> scrollOffset_;
     loka::Vector<loka::core::String> fruits_;
   };

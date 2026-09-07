@@ -2,6 +2,7 @@
 #define LOKA_APP2_NODES_NESTABLE_ROWCOLUMN_HPP
 
 #include "app/scene/Node.hpp"
+#include "core/State.hpp"
 
 namespace loka
 {
@@ -38,12 +39,15 @@ namespace loka
       typedef StackTypeTag TypeTag;
       typedef StackNode NodeType;
       StackAxis axis_;
+      /** Borrowed live axis; null selects the constant value. */
+      loka::core::State<StackAxis> *axisState_;
       bool hasVerticalAlignment_;
       VerticalAlignment verticalAlignment_;
       bool hasHorizontalAlignment_;
       HorizontalAlignment horizontalAlignment_;
       StackProps()
           : axis_(STACK_AXIS_ROW),
+            axisState_(0),
             hasVerticalAlignment_(false),
             verticalAlignment_(VERTICAL_ALIGNMENT_TOP),
             hasHorizontalAlignment_(false),
@@ -52,11 +56,26 @@ namespace loka
       }
       explicit StackProps(StackAxis axis)
           : axis_(axis),
+            axisState_(0),
             hasVerticalAlignment_(false),
             verticalAlignment_(VERTICAL_ALIGNMENT_TOP),
             hasHorizontalAlignment_(false),
             horizontalAlignment_(HORIZONTAL_ALIGNMENT_LEADING)
       {
+      }
+      explicit StackProps(loka::core::State<StackAxis> *axisState)
+          : axis_(STACK_AXIS_ROW),
+            axisState_(axisState),
+            hasVerticalAlignment_(false),
+            verticalAlignment_(VERTICAL_ALIGNMENT_TOP),
+            hasHorizontalAlignment_(false),
+            horizontalAlignment_(HORIZONTAL_ALIGNMENT_LEADING)
+      {
+      }
+      /** Resolves the live input or the props-owned constant. */
+      StackAxis effectiveAxis() const
+      {
+        return this->axisState_ ? this->axisState_->get() : this->axis_;
       }
       StackProps &alignVertical(VerticalAlignment value)
       {
@@ -75,6 +94,8 @@ namespace loka
         if (rhs.propsTypeId() != propsTypeId())
           return false;
         const StackProps &other = static_cast<const StackProps &>(rhs);
+        if (this->axisState_ != other.axisState_)
+          return this->axisState_ < other.axisState_;
         if (this->axis_ != other.axis_)
           return this->axis_ < other.axis_;
         if (this->hasVerticalAlignment_ != other.hasVerticalAlignment_)
@@ -95,6 +116,10 @@ namespace loka
       StackNode(const StackProps &p)
           : props(p)
       {
+      }
+      virtual void declareDirtySources(scene::DirtySourceRegistrar &registrar)
+      {
+        registrar.markDirtyOnChange(this->props.axisState_, scene::NODE_DIRTY_LAYOUT);
       }
       virtual scene::NodeKind kind() const
       {
@@ -117,6 +142,10 @@ namespace loka
       using BaseType::operator<<;
       explicit StackDefinition(StackAxis axis)
           : BaseType(StackProps(axis))
+      {
+      }
+      explicit StackDefinition(loka::core::State<StackAxis> *axisState)
+          : BaseType(StackProps(axisState))
       {
       }
       StackDefinition(const StackDefinition &other)

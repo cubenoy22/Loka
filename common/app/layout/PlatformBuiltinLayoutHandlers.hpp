@@ -91,7 +91,7 @@ namespace loka
           {
             return state.y;
           }
-          if (stack->props.axis_ == loka::app::STACK_AXIS_COLUMN)
+          if (stack->props.effectiveAxis() == loka::app::STACK_AXIS_COLUMN)
           {
             return loka::app::layout::computeColumnLayoutResultY(
                 stack, state, traversal, &DispatchTraversalLayoutChild);

@@ -743,7 +743,7 @@ void testOwnershipDumpPinsRepresentativeHelloWorld()
       "  boundary\n"
       "    boundary\n"
       "      states: 11 (arena 11, heap 0)\n"
-      "      observed: 9\n");
+      "      observed: 10\n");
   verifyOwnershipDump(
       loka::dsl::testing::OwnershipDump::dump(scene), expected);
 }

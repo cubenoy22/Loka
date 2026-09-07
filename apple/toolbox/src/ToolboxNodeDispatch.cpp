@@ -148,7 +148,7 @@ namespace
         usedHandler = ApplyToolboxPlatformLayoutHandler(
             *controller->layoutHandlerRegistry(), *stack, state, traversal, width);
       }
-      if (!usedHandler && stack->props.axis_ == loka::app::STACK_AXIS_COLUMN)
+      if (!usedHandler && stack->props.effectiveAxis() == loka::app::STACK_AXIS_COLUMN)
       {
         loka::app::StackNode *column = stack;
         short currentY = state.y;
@@ -224,7 +224,7 @@ namespace
         childState.y = static_cast<short>(state.y + padding);
         if (hasFixedSize)
         {
-          childState.width = box->props.width;
+          childState.width = box->props.effectiveWidth();
           childState.height = box->props.height;
         }
         if (childState.width > 0)
@@ -244,7 +244,7 @@ namespace
           }
         }
         short childWidth = LayoutChildren(box->asNestable(), childState, controller, activeBoundary);
-        width = hasFixedSize ? box->props.width : static_cast<short>(childWidth + padding * 2);
+        width = hasFixedSize ? box->props.effectiveWidth() : static_cast<short>(childWidth + padding * 2);
         state.y = hasFixedSize ? static_cast<short>(state.y + box->props.height)
                                : static_cast<short>(childState.y + padding);
       }

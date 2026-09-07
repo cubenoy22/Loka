@@ -583,6 +583,40 @@ void testLokaAttrDslV1Core()
     LOKA_VERIFY(stack.props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_TRAILING);
   }
 
+  // Live layout props compare their source identity, not its current value.
+  {
+    loka::core::MutableState<loka::app::StackAxis> firstAxis(loka::app::STACK_AXIS_COLUMN);
+    loka::core::MutableState<loka::app::StackAxis> secondAxis(loka::app::STACK_AXIS_COLUMN);
+    loka::app::Stack first(&firstAxis);
+    loka::app::Stack same(&firstAxis);
+    loka::app::Stack different(&secondAxis);
+    const bool sameSource = first.hasEquivalentProps(same);
+    const bool differentSource = first.hasEquivalentProps(different);
+    const loka::app::StackAxis liveAxis = first.props.effectiveAxis();
+    LOKA_VERIFY(sameSource);
+    LOKA_VERIFY(!differentSource);
+    LOKA_VERIFY(liveAxis == loka::app::STACK_AXIS_COLUMN);
+    loka::app::Stack absent(static_cast<loka::core::State<loka::app::StackAxis> *>(0));
+    const loka::app::StackAxis defaultAxis = absent.props.effectiveAxis();
+    LOKA_VERIFY(defaultAxis == loka::app::STACK_AXIS_ROW);
+
+    loka::core::MutableState<int> firstWidth(200);
+    loka::core::MutableState<int> secondWidth(200);
+    loka::app::Box box = loka::app::Box().width(&firstWidth);
+    loka::app::Box copied(box);
+    loka::app::Box other = loka::app::Box().width(&secondWidth);
+    const bool sameWidthSource = box.hasEquivalentProps(copied);
+    const bool differentWidthSource = box.hasEquivalentProps(other);
+    const int liveWidth = copied.props.effectiveWidth();
+    LOKA_VERIFY(sameWidthSource);
+    LOKA_VERIFY(!differentWidthSource);
+    LOKA_VERIFY(liveWidth == 200);
+    copied.size(120, 80);
+    const int constantWidth = copied.props.effectiveWidth();
+    LOKA_VERIFY(copied.props.widthState_ == 0);
+    LOKA_VERIFY(constantWidth == 120);
+  }
+
   // --- Column remaining-height helper ---
   {
     assert(loka::app::layout::remainingChildHeightForColumn(400, 20, 20) == 400);
