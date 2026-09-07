@@ -167,10 +167,15 @@ clear boundaries, and small reusable concepts.
 - When adding a new example target, update `.vscode/tasks.json` so the matching build task exists for `preLaunchTask`.
 
 ### Compile-time contract pins
-`tests/compile` is enabled by `TEST_BUILD`; register each pair with
-`loka_compile_pin(<name> REFUSES <tu> ACCEPTS <tu>)`.
-The refusing TU must fail to compile; its accepting twin validates the shared
-includes and compile environment, and builds in ALL on every test toolchain.
-Diagnostics are not matched because compiler wording differs; keep twins aligned.
-`LOKA_COMPILE_PINS` enables refusal tests in the Linux gcc testing/ASan presets;
-other test toolchains still build accepting twins, and CTest build probes share a lock.
+`tests/compile` is configured only when `TEST_BUILD` is set at configure time,
+which today means the Linux `testing*` presets (the macOS and Win32 CI presets
+define `TEST_BUILD` per target, not at configure, so they do not build the
+pins). Register each pair with `loka_compile_pin(<name> REFUSES <tu> ACCEPTS <tu>)`.
+The refusing TU must fail to compile; its accepting twin shares the same
+includes and pins that the failure is the one expression, not a broken
+environment, and it is part of ALL in every configuration that builds `tests/compile`.
+Diagnostics are not matched because compiler wording differs; keep twins aligned
+by hand (a typo confined to the refusing TU is not detected). `LOKA_COMPILE_PINS`
+registers the refusal tests (ON in the `testing` and `testing-asan` presets);
+the CTest build probes share one `RESOURCE_LOCK`. Building the accepting twins
+on the macOS/Win32 toolchains is not wired yet.
