@@ -323,6 +323,10 @@ private:
   void handleTextChanged(loka::core::State<loka::core::String> *text);
   bool applyEnabledChangeForKind(ToolboxEnabledControlKind kind,
                                  loka::core::State<bool> *enabled);
+  void refreshPopupEnabled(PopupHit &binding);
+  void refreshButtonEnabled(ButtonControlBinding &binding);
+  void refreshScrollBarEnabled(ScrollBarControlBinding &binding);
+  void refreshButtonHitEnabled(ButtonHit &binding);
   bool enabledChangeDispatchReady() const
   {
     return this->window_ != 0;

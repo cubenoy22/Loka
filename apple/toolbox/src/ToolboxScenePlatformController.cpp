@@ -1735,6 +1735,56 @@ void ToolboxScenePlatformController::refreshEditTextBindingForStateChange(EditTe
   window_->requestInvalidateRect(binding.rect);
 }
 
+void ToolboxScenePlatformController::refreshPopupEnabled(PopupHit &binding)
+{
+  if (this->inBatchUpdate_)
+  {
+    this->addPendingDirty(binding.rect);
+  }
+  else
+  {
+    this->window_->requestInvalidateRect(binding.rect);
+  }
+}
+
+void ToolboxScenePlatformController::refreshButtonEnabled(ButtonControlBinding &binding)
+{
+  if (binding.control)
+  {
+    if (binding.enabled->get())
+    {
+      HiliteControl(binding.control, 0);
+    }
+    else
+    {
+      HiliteControl(binding.control, 255);
+    }
+  }
+}
+
+void ToolboxScenePlatformController::refreshScrollBarEnabled(ScrollBarControlBinding &binding)
+{
+  // A disabled bar and an unscrollable one share the inactive
+  // presentation, so re-derive from both rather than from enabled alone.
+  binding.active = binding.enabled->get() && loka::app::ScrollBarIsScrollable(binding.minimum, binding.maximum);
+  if (binding.control)
+  {
+    HiliteControl(binding.control, binding.active ? 0 : 255);
+  }
+}
+
+void ToolboxScenePlatformController::refreshButtonHitEnabled(ButtonHit &binding)
+{
+  if (this->inBatchUpdate_)
+  {
+    this->addPendingDirty(binding.rect);
+  }
+  else
+  {
+    this->window_->requestInvalidateRect(binding.rect);
+  }
+}
+
 bool ToolboxScenePlatformController::applyEnabledChangeForKind(
     ToolboxEnabledControlKind kind,
     loka::core::State<bool> *enabled)
@@ -1742,80 +1792,13 @@ bool ToolboxScenePlatformController::applyEnabledChangeForKind(
   switch (kind)
   {
   case TOOLBOX_ENABLED_POPUP_HIT:
-    for (size_t i = 0; i < hitLedger_.popupHits_.size(); ++i)
-    {
-      PopupHit &hit = hitLedger_.popupHits_[i];
-      if (hit.enabled == enabled)
-      {
-        if (inBatchUpdate_)
-        {
-          addPendingDirty(hit.rect);
-        }
-        else
-        {
-          window_->requestInvalidateRect(hit.rect);
-        }
-        return true;
-      }
-    }
-    return false;
+    return ApplyToolboxEnabledChangeToBindings(this->hitLedger_.popupHits_.begin(), this->hitLedger_.popupHits_.end(), enabled, *this, &ToolboxScenePlatformController::refreshPopupEnabled);
   case TOOLBOX_ENABLED_BUTTON_CONTROL:
-    for (size_t i = 0; i < buttonControls_.size(); ++i)
-    {
-      ButtonControlBinding &binding = buttonControls_[i];
-      if (binding.enabled == enabled)
-      {
-        if (binding.control)
-        {
-          if (enabled->get())
-          {
-            HiliteControl(binding.control, 0);
-          }
-          else
-          {
-            HiliteControl(binding.control, 255);
-          }
-        }
-        return true;
-      }
-    }
-    return false;
+    return ApplyToolboxEnabledChangeToBindings(this->buttonControls_.begin(), this->buttonControls_.end(), enabled, *this, &ToolboxScenePlatformController::refreshButtonEnabled);
   case TOOLBOX_ENABLED_SCROLL_BAR_CONTROL:
-    for (size_t i = 0; i < scrollBarLedger_.scrollBarControls_.size(); ++i)
-    {
-      ScrollBarControlBinding &binding = scrollBarLedger_.scrollBarControls_[i];
-      if (binding.enabled != enabled)
-      {
-        continue;
-      }
-      // A disabled bar and an unscrollable one share the inactive
-      // presentation, so re-derive from both rather than from enabled alone.
-      binding.active = enabled->get() && loka::app::ScrollBarIsScrollable(binding.minimum, binding.maximum);
-      if (binding.control)
-      {
-        HiliteControl(binding.control, binding.active ? 0 : 255);
-      }
-      return true;
-    }
-    return false;
+    return ApplyToolboxEnabledChangeToBindings(this->scrollBarLedger_.scrollBarControls_.begin(), this->scrollBarLedger_.scrollBarControls_.end(), enabled, *this, &ToolboxScenePlatformController::refreshScrollBarEnabled);
   case TOOLBOX_ENABLED_BUTTON_HIT:
-    for (size_t i = 0; i < hitLedger_.buttonHits_.size(); ++i)
-    {
-      ButtonHit &hit = hitLedger_.buttonHits_[i];
-      if (hit.enabled == enabled)
-      {
-        if (inBatchUpdate_)
-        {
-          addPendingDirty(hit.rect);
-        }
-        else
-        {
-          window_->requestInvalidateRect(hit.rect);
-        }
-        return true;
-      }
-    }
-    return false;
+    return ApplyToolboxEnabledChangeToBindings(this->hitLedger_.buttonHits_.begin(), this->hitLedger_.buttonHits_.end(), enabled, *this, &ToolboxScenePlatformController::refreshButtonHitEnabled);
   case TOOLBOX_ENABLED_CONTROL_KIND_COUNT:
     return false;
   }
