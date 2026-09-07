@@ -63,6 +63,26 @@ checkout; sync goes through origin only.
   `FINDINGS.md`"** — the delegator commits at harvest either way. The split is
   not only a workaround: nothing lands without having been read. Measured
   2026-08-28.
+- **Nor can it `git cherry-pick` or `rebase` there** — the sequencer directory
+  lives under the same read-only `.git/worktrees/<name>/`, so a brief that
+  opens with "cherry-pick the prerequisite branch first" dies at step one
+  (`could not create sequencer directory ... Read-only file system`,
+  2026-09-07, one run lost; a second run worked around it with `git apply`
+  and fused four prerequisite commits with its own work into one 45-file
+  commit that had to be re-split by hand). Stack the prerequisite commits on
+  the worktree yourself before launching, and say in the brief that HEAD
+  already carries them.
+- **MAME does not launch from the sandbox** (`UtilBindVsockAnyPort: socket
+  failed`, WSL vsock). A brief that asks Codex to run scenario cells gets
+  "blocked at emulator launch" back; the MAME leg is always the delegator's.
+  Brief Codex to stop at the Retro68 build and list the cells to run.
+- **A worktree has no `build/host/lrpc/lrpc`**, and the six scrapbook cells
+  refuse without it. Build it before every candidate bake, not once per
+  worktree (`cmake -S tools/lrpc -B build/host/lrpc && cmake --build
+  build/host/lrpc`): the runners only check that the binary exists, so a
+  worktree that moved to another commit or touched `tools/lrpc` would stage
+  assets with a stale tool while the bake reports the current candidate.
+  Forgetting the build cost a partial bake twice (2026-09-06, 2026-09-07).
 
 ## Resuming instead of re-briefing
 
