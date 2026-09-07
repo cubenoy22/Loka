@@ -165,3 +165,12 @@ clear boundaries, and small reusable concepts.
 - Failure-injection placement: implement `TEST_BUILD`-only hooks in a test translation unit (`tests/TestingHooks.cpp`, wired through `LOKA_SHARED_TEST_SOURCES`), never inside production translation units. Platform test executables link prebuilt core libraries (`LokaWin32Core` etc.) compiled without `TEST_BUILD`, so a hook implemented in a core `.cpp` links on Linux (which compiles common sources directly) but fails with unresolved externals on Windows/macOS.
 - When adding a new example target, update `.vscode/launch.json` to include its run config.
 - When adding a new example target, update `.vscode/tasks.json` so the matching build task exists for `preLaunchTask`.
+
+### Compile-time contract pins
+`tests/compile` is enabled by `TEST_BUILD`; register each pair with
+`loka_compile_pin(<name> REFUSES <tu> ACCEPTS <tu>)`.
+The refusing TU must fail to compile; its accepting twin validates the shared
+includes and compile environment, and builds in ALL on every test toolchain.
+Diagnostics are not matched because compiler wording differs; keep twins aligned.
+`LOKA_COMPILE_PINS` enables refusal tests in the Linux gcc testing/ASan presets;
+other test toolchains still build accepting twins, and CTest build probes share a lock.

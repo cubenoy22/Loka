@@ -273,6 +273,7 @@
       "binaryDir": "build/Testing",
       "cacheVariables": {
         "TEST_BUILD": "ON",
+        "LOKA_COMPILE_PINS": "ON",
         "LOKA_LIFECYCLE_AUDIT": "ON",
         "CMAKE_BUILD_TYPE": "Debug",
         "LOKA_WARNINGS_AS_ERRORS": "ON"
@@ -320,6 +321,7 @@
       "binaryDir": "build/Testing-ASan",
       "cacheVariables": {
         "TEST_BUILD": "ON",
+        "LOKA_COMPILE_PINS": "ON",
         "LOKA_LIFECYCLE_AUDIT": "ON",
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_FLAGS": "-fsanitize=address -fno-omit-frame-pointer -g",

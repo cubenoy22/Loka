@@ -5,6 +5,7 @@ option(LOKA_ENABLE_APPLE "Enable Apple platform targets" ON)
 option(LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS "Add explicit -fno-objc-arc flags to macOS example targets" ON)
 option(LOKA_MACOS_SUPPRESS_ARCLITE_LINK "Remove libarclite from generated macOS link settings" OFF)
 option(TEST_BUILD "Enable test build mode" OFF)
+option(LOKA_COMPILE_PINS "Register compile-refusal tests (Linux CI gate)" OFF)
 option(LOKA_MAME_SCENARIOS "Register the MAME-backed scenario tests" OFF)
 option(LOKA_WIN32_SCENARIOS "Register the rig-local Win32 scenario tests" OFF)
 option(LOKA_ENABLE_STANDALONE_TARGETS
@@ -153,6 +154,20 @@ if(NOT IOS)
   add_subdirectory(tests/toolbox)
 endif()
 
+# Shared compile environment for contract tests and their compile-only twins.
+add_library(LokaContractTestEnvironment INTERFACE)
+target_include_directories(LokaContractTestEnvironment INTERFACE
+  ${LOKA_SCRAPBOOK_R_HEADER_DIR}
+  ${PROJECT_SOURCE_DIR}/tests
+  ${PROJECT_SOURCE_DIR}/tools
+  ${PROJECT_SOURCE_DIR}/common
+)
+target_compile_definitions(LokaContractTestEnvironment INTERFACE TEST_BUILD)
+
+if(TEST_BUILD)
+  add_subdirectory(tests/compile)
+endif()
+
 # Linux/WSL headless tests.
 if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   file(GLOB_RECURSE LOKA_COMMON_SOURCES CONFIGURE_DEPENDS
@@ -188,15 +203,11 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${LOKA_COMMON_SOURCES}
   )
   loka_enable_warnings(LokaCommonTesting)
-  target_include_directories(LokaCommonTesting PUBLIC
-    ${PROJECT_SOURCE_DIR}/common
-    ${PROJECT_SOURCE_DIR}/tools
-  )
+  target_link_libraries(LokaCommonTesting PUBLIC LokaContractTestEnvironment)
   set_target_properties(LokaCommonTesting PROPERTIES
     CXX_STANDARD 98
     CXX_STANDARD_REQUIRED YES
   )
-  target_compile_definitions(LokaCommonTesting PRIVATE TEST_BUILD)
 
   set(LOKA_CONTRACT_TEST_SOURCES ${LOKA_SHARED_TEST_SOURCES})
   list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/FlowDslTests\\.cpp$")
@@ -226,16 +237,10 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${LOKA_CONTRACT_TEST_SOURCES}
   )
   loka_enable_warnings(LokaContractTests)
-  target_include_directories(LokaContractTests PRIVATE
-    ${LOKA_SCRAPBOOK_R_HEADER_DIR}
-    ${PROJECT_SOURCE_DIR}/tests
-    ${PROJECT_SOURCE_DIR}/tools
-  )
   set_target_properties(LokaContractTests PROPERTIES
     CXX_STANDARD 98
     CXX_STANDARD_REQUIRED YES
   )
-  target_compile_definitions(LokaContractTests PRIVATE TEST_BUILD)
   target_link_libraries(LokaContractTests PRIVATE LokaCommonTesting)
 
   add_executable(LokaScenarioTests
