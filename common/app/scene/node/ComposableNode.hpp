@@ -582,6 +582,7 @@ namespace loka
         }
 
       private:
+        friend class Node;
         friend class ComponentNode;
         friend class BoundaryNode;
         friend class RootBoundaryWrapper;
@@ -595,11 +596,15 @@ namespace loka
         NodeComposition &beginDeclaringWindow(ComponentContext &context)
         {
           NodeComposition &composition = this->beginComposition(context);
-          {
-            BindingToken::DeclarationScope scope(this->bindingToken_, *this);
-            this->declareBindings(this->bindingToken_);
-          }
+          this->declareBindingsWithToken();
           return composition;
+        }
+
+        /** Shares the synchronous arm/call/disarm sequence with props refresh. */
+        void declareBindingsWithToken()
+        {
+          BindingToken::DeclarationScope scope(this->bindingToken_, *this);
+          this->declareBindings(this->bindingToken_);
         }
 
       protected:

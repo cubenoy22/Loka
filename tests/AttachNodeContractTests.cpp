@@ -12,7 +12,10 @@
 #include "app/scene/node/ComponentNode.hpp"
 #include "core/State.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
+#include "platform/null/NullPlatformContext.hpp"
+#include "platform/null/NullWindow.hpp"
 #include "support/RecomposingBoundary.hpp"
+#include "testing/scene/SceneTestFlow.hpp"
 
 namespace
 {
@@ -399,6 +402,105 @@ namespace
       composition.declare(root);
     }
   };
+  class RetainedPlainBindingNode
+      : public loka::app::scene::StdCompositionBoundaryNodeBase<PointerBindProps<RetainedPlainBindingNode> >
+  {
+  public:
+    explicit RetainedPlainBindingNode(const PointerBindProps<RetainedPlainBindingNode> &p)
+        : loka::app::scene::StdCompositionBoundaryNodeBase<PointerBindProps<RetainedPlainBindingNode> >(p) {}
+  protected:
+    virtual void declareBindings(loka::app::scene::BindingToken &t)
+    {
+      t.action(*this->props.emitter, this, &RetainedPlainBindingNode::recordCall);
+    }
+  private:
+    void recordCall() { ++*this->props.calls; }
+  };
+
+  class RetainedComponentBindingNode
+      : public loka::app::scene::ComponentNodeWithProps<PointerBindProps<RetainedComponentBindingNode> >
+  {
+  public:
+    explicit RetainedComponentBindingNode(const PointerBindProps<RetainedComponentBindingNode> &p)
+        : loka::app::scene::ComponentNodeWithProps<PointerBindProps<RetainedComponentBindingNode> >(p) {}
+  protected:
+    virtual void declareBindings(loka::app::scene::BindingToken &t)
+    {
+      t.action(*this->props.emitter, this, &RetainedComponentBindingNode::recordCall);
+    }
+    virtual void composeChildren(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(loka::app::Fragment());
+    }
+  private:
+    void recordCall() { ++*this->props.calls; }
+  };
+
+  template <class ChildT> class RetainedBindingParent
+      : public loka::app::scene::RecomposingBoundaryFor<RetainedBindingParent<ChildT>,
+            loka::app::scene::BoundaryNodeFor<RetainedBindingParent<ChildT> > >
+  {
+  public:
+    explicit RetainedBindingParent(
+        const loka::app::scene::BoundaryPropsFor<RetainedBindingParent<ChildT> > &p)
+        : loka::app::scene::RecomposingBoundaryFor<RetainedBindingParent<ChildT>,
+              loka::app::scene::BoundaryNodeFor<RetainedBindingParent<ChildT> > >(p) {}
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      loka::app::Fragment root;
+      root << loka::app::scene::NodeDefinition<PointerBindProps<ChildT>, ChildT>(
+          PointerBindProps<ChildT>(g_pointerBindScenario->currentProps,
+                                  &g_pointerBindScenario->propsCalls));
+      c.declare(root);
+    }
+  };
+
+  template <class ChildT> void verifyRetainedPropsBinding()
+  {
+    PointerBindScenario scenario;
+    g_pointerBindScenario = &scenario;
+    {
+      NullPlatformContext context;
+      NullScenePlatformController platform;
+      WindowProps props;
+      props.scene(new loka::app::scene::Scene(
+          loka::app::scene::Boundary<RetainedBindingParent<ChildT> >()));
+      NullWindow window(&context, props, &platform);
+      LOKA_VERIFY(window.scene() != 0);
+      loka::app::scene::Scene &scene = *window.scene();
+      scene.updateAttached(true);
+      loka::app::scene::BoundaryNode *parent =
+          loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+      LOKA_VERIFY(parent != 0);
+      loka::app::scene::Node *child =
+          parent->compositionRootNode()->asNestable()->childrenHead();
+      LOKA_VERIFY(child != 0);
+      loka::app::scene::Node *contents = child->asNestable()->childrenHead();
+      scenario.propsOld.emit();
+      LOKA_VERIFY(scenario.propsCalls == 1);
+
+      scenario.currentProps = &scenario.propsNew;
+      parent->markViewDirty(loka::app::scene::NODE_DIRTY_CHILD);
+      const bool changed = scene.flushInvalidation();
+      LOKA_VERIFY(changed);
+      loka::app::scene::Node *retained =
+          parent->compositionRootNode()->asNestable()->childrenHead();
+      loka::app::scene::Node *retainedContents = child->asNestable()->childrenHead();
+      LOKA_VERIFY(retained == child);
+      LOKA_VERIFY(retainedContents == contents);
+      scenario.propsNew.emit();
+      LOKA_VERIFY(scenario.propsCalls == 2);
+      scenario.propsOld.emit();
+      LOKA_VERIFY(scenario.propsCalls == 2);
+    }
+    g_pointerBindScenario = 0;
+  }
+
 #ifndef LOKA_LIFECYCLE_AUDIT
   class DisarmedBindingNode;
   typedef loka::app::scene::BoundaryPropsFor<DisarmedBindingNode> DisarmedBindingProps;
@@ -541,4 +643,14 @@ void testDisarmedBindingTokenRefusesOutsideDeclaration()
 #else
   std::puts("[skip] disarmed token refusal requires a non-audit build; audit asserts");
 #endif
+}
+
+void testRetainedPropsApplyRebindsPlainBoundary()
+{
+  verifyRetainedPropsBinding<RetainedPlainBindingNode>();
+}
+
+void testRetainedPropsApplyRebindsComponent()
+{
+  verifyRetainedPropsBinding<RetainedComponentBindingNode>();
 }
