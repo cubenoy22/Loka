@@ -4779,7 +4779,8 @@ void testRecomposingBoundaryKeepsLiveSubtreeWhenLocalRecomposeAllocationIsRefuse
     GuardedRecomposeChildNode *child =
         static_cast<GuardedRecomposeChildNode *>(root->childrenHead());
     LOKA_VERIFY(child != 0);
-    LOKA_VERIFY(child->first_.isValid());
+    const bool firstMaterialized = child->first_.isValid();
+    LOKA_VERIFY(firstMaterialized);
     loka::app::scene::Node *const liveGrandchild = child->childrenHead();
     LOKA_VERIFY(liveGrandchild != 0);
     const size_t liveCount = child->childrenCount();
@@ -4790,18 +4791,23 @@ void testRecomposingBoundaryKeepsLiveSubtreeWhenLocalRecomposeAllocationIsRefuse
     scene.flushInvalidation();
     loka::core::LokaAllocSetBackend(0, 0);
     LOKA_VERIFY(g_refusingBackendRefusals > 0);
-    LOKA_VERIFY(child->composeResult().allocationFailed);
+    const bool refusedRecorded = child->composeResult().allocationFailed;
+    LOKA_VERIFY(refusedRecorded);
     // Red without the guard in RecomposingBoundaryFor::recomposeLocally: the
     // full fallback detaches the live children and cannot create the
     // replacement under the refusing backend.
-    LOKA_VERIFY(child->childrenHead() == liveGrandchild);
-    LOKA_VERIFY(child->childrenCount() == liveCount);
+    loka::app::scene::Node *const headAfterRefusal = child->childrenHead();
+    const size_t countAfterRefusal = child->childrenCount();
+    LOKA_VERIFY(headAfterRefusal == liveGrandchild);
+    LOKA_VERIFY(countAfterRefusal == liveCount);
 
     // One externally caused tick with the default backend restored.
     child->requestChildRecompose();
     scene.flushInvalidation();
-    LOKA_VERIFY(!child->composeResult().allocationFailed);
-    LOKA_VERIFY(child->first_.isValid());
+    const bool refusedAfterHeal = child->composeResult().allocationFailed;
+    const bool firstHealed = child->first_.isValid();
+    LOKA_VERIFY(!refusedAfterHeal);
+    LOKA_VERIFY(firstHealed);
   }
   loka::core::LokaAllocSetBackend(0, 0);
 }
