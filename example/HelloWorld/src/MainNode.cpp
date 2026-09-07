@@ -34,7 +34,7 @@ namespace helloworld
   } // namespace
 
   MainNode::MainNode(const MainProps &p)
-      : loka::app::scene::BoundaryNodeFor<MainNode>(p),
+      : loka::app::scene::RecomposingBoundaryFor<MainNode, loka::app::scene::BoundaryNodeFor<MainNode> >(p),
         actionSummaryCacheValid_(false),
         lastActionSummaryEnabled_(false),
         lastActionSummaryCount_(0),
@@ -322,25 +322,5 @@ namespace helloworld
     c.declare(decoration);
   }
 
-  void MainNode::declareLocalRecomposition(loka::app::scene::NodeComposition &composition)
-  {
-    this->composeNode(composition);
-  }
 
-  void MainNode::composeWithContext(loka::app::scene::ComponentContext &context,
-                                    loka::app::scene::ComposeEvent event)
-  {
-    typedef loka::app::scene::BoundaryNodeFor<MainNode> BaseType;
-    if (event == loka::app::scene::COMPOSE_EVENT_UPDATE &&
-        (context.dirtyFlags() & loka::app::scene::NODE_DIRTY_CHILD))
-    {
-      this->recomposeLocalCompositionWithFullFallback(
-          context, event, this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
-      // beginComposition releases this node's callbacks, so mirror attach's
-      // idempotent declarations after the local recompose or fallback.
-      this->bindUi();
-      return;
-    }
-    BaseType::composeWithContext(context, event);
-  }
 } // namespace helloworld

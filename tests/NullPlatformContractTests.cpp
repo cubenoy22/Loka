@@ -978,13 +978,13 @@ namespace
   typedef loka::app::scene::BoundaryPropsFor<ShowReentryBoundaryNode>
       ShowReentryBoundaryProps;
   class ShowReentryBoundaryNode
-      : public PropsRecomposingBoundaryNode<ShowReentryBoundaryNode,
-                                            ShowReentryBoundaryProps>
+      : public SceneTestSupport::RecomposingBoundaryNode<ShowReentryBoundaryNode,
+                                            ShowReentryBoundaryProps, true>
   {
   public:
     explicit ShowReentryBoundaryNode(const ShowReentryBoundaryProps &props)
-        : PropsRecomposingBoundaryNode<ShowReentryBoundaryNode,
-                                       ShowReentryBoundaryProps>(props)
+        : SceneTestSupport::RecomposingBoundaryNode<ShowReentryBoundaryNode,
+                                       ShowReentryBoundaryProps, true>(props)
     {
       g_showReentryBoundaryNode = this;
     }
@@ -1035,20 +1035,6 @@ namespace
       loka::app::FragmentDefinition root;
       root << shown;
       composition.declare(root);
-    }
-
-  protected:
-    virtual void composeWithContext(loka::app::scene::ComponentContext &context,
-                                    loka::app::scene::ComposeEvent event)
-    {
-      if (event != loka::app::scene::COMPOSE_EVENT_UPDATE)
-      {
-        typedef loka::app::scene::BoundaryNodeFor<ShowReentryBoundaryNode> BaseType;
-        BaseType::composeWithContext(context, event);
-        return;
-      }
-      this->recomposeLocalCompositionWithFullFallback(
-          context, event, this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
     }
   };
 
@@ -3631,11 +3617,11 @@ namespace
       key bank inside a button click handler, and marks itself dirty from
       there (markViewDirty flushes synchronously mid-dispatch). */
   class BankedClickBoundaryNode
-      : public loka::app::scene::StdCompositionBoundaryNodeBase<BankedClickProps>
+      : public SceneTestSupport::RecomposingBoundaryNode<BankedClickBoundaryNode, BankedClickProps, false, loka::app::scene::StdCompositionBoundaryNodeBase<BankedClickProps> >
   {
   public:
     explicit BankedClickBoundaryNode(const BankedClickProps &props)
-        : loka::app::scene::StdCompositionBoundaryNodeBase<BankedClickProps>(props),
+        : SceneTestSupport::RecomposingBoundaryNode<BankedClickBoundaryNode, BankedClickProps, false, loka::app::scene::StdCompositionBoundaryNodeBase<BankedClickProps> >(props),
           bank_(0),
           newGameClicks_(0)
     {
@@ -3691,31 +3677,21 @@ namespace
     }
 
   protected:
-    virtual void declareLocalRecomposition(loka::app::scene::NodeComposition &composition)
-    {
-      this->composeNode(composition);
-    }
-
     virtual void composeWithContext(loka::app::scene::ComponentContext &context,
                                     loka::app::scene::ComposeEvent event)
     {
-      typedef loka::app::scene::StdCompositionBoundaryNodeBase<BankedClickProps> BaseType;
       if (event == loka::app::scene::COMPOSE_EVENT_UPDATE &&
           (context.dirtyFlags() & loka::app::scene::NODE_DIRTY_CHILD))
       {
-        if (!this->recomposeLocalComposition(
-                context, event, this->LOCAL_RECOMPOSE_APPLY_SNAPSHOT))
-        {
-          if (!this->composeResult().allocationFailed)
-          {
-            this->recomposeLocalCompositionWithFullFallback(
-                context, event, this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
-          }
-        }
+        // This fixture pins snapshot-mode presentation; the production diff
+        // mode leaves zero visible controls in its first bank swap.
+        SceneTestSupport::RecomposingBoundaryNode<
+            BankedClickBoundaryNode, BankedClickProps, false,
+            loka::app::scene::StdCompositionBoundaryNodeBase<BankedClickProps> >::composeWithContext(context, event);
         this->bindUi();
         return;
       }
-      BaseType::composeWithContext(context, event);
+      loka::app::scene::StdCompositionBoundaryNodeBase<BankedClickProps>::composeWithContext(context, event);
     }
 
   private:

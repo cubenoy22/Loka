@@ -55,6 +55,108 @@ namespace loka
       inline static bool CanRelaxFullRebuildForRootBoundary(const SceneDirector::SceneUpdateSnapshot &snapshot);
       inline static PlatformApplyPlan::PaintKind ResolvePaintKind(const SceneDirector::SceneUpdateSnapshot &snapshot);
 
+      class RootBoundaryWrapper : public BoundaryNode
+      {
+      public:
+        explicit RootBoundaryWrapper(NodeDefinitionBase *def)
+            : def_(def),
+              composed_(false)
+        {
+        }
+        virtual ~RootBoundaryWrapper() {}
+
+      protected:
+        virtual void declareLocalRecomposition(NodeComposition &composition)
+        {
+          composition.declare(*def_);
+        }
+
+        void detachExistingChildren(ComponentContext &context)
+        {
+          loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
+          for (Node *child = it.next(); child; child = it.next())
+          {
+            this->composeTree(child, context, COMPOSE_EVENT_DETACH, this);
+          }
+        }
+
+        virtual void composeWithContext(ComponentContext &context, ComposeEvent event)
+        {
+          if (event == COMPOSE_EVENT_DETACH)
+          {
+            this->detachExistingChildren(context);
+            NodeComposition &composition = this->beginComposition(context);
+            this->detachNode(composition);
+            this->composed_ = false;
+            return;
+          }
+          if (event != COMPOSE_EVENT_ATTACH && event != COMPOSE_EVENT_UPDATE)
+          {
+            return;
+          }
+          if (event == COMPOSE_EVENT_UPDATE && this->isFrozen())
+          {
+            return;
+          }
+          if (!def_)
+          {
+            return;
+          }
+          if (event == COMPOSE_EVENT_UPDATE && !this->composed_)
+          {
+            return;
+          }
+          if (event == COMPOSE_EVENT_UPDATE)
+          {
+            NodeDirtyFlags flags = context.dirtyFlags();
+            if (!(flags & NODE_DIRTY_CHILD))
+            {
+              loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
+              for (Node *child = it.next(); child; child = it.next())
+              {
+                this->composeTree(child, context, event, this);
+              }
+              return;
+            }
+          }
+          NodeComposition *composition = 0;
+          if (event == COMPOSE_EVENT_ATTACH)
+          {
+            composition = &this->beginComposition(context);
+            this->clearChildren();
+            this->nodeArena()->clear();
+            this->attachNode(*composition);
+            {
+              NodeComposition::CompositionScope scope(*composition);
+              this->declareLocalRecomposition(*composition);
+            }
+            this->captureCurrentCompositionSnapshot();
+            this->rebuildCurrentCompositionDiff();
+          }
+          else
+          {
+            this->recomposeLocalCompositionWithFullFallback(
+                context, event, LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
+            this->composed_ = true;
+            return;
+          }
+          this->promoteCurrentCompositionSnapshot();
+          context.setComposition(composition);
+          Node *child = composition->createNodeTree();
+          if (child)
+          {
+            this->addChild(child);
+            this->composeTree(child, context, event, this);
+          }
+          context.setComposition(0);
+          this->composed_ = true;
+        }
+
+      private:
+        NodeDefinitionBase *def_;
+        bool composed_;
+      };
+
       class Scene LOKA_AUDITED(Scene)
       {
       public:
@@ -638,108 +740,6 @@ namespace loka
           whiteFlagFullRebuildPending_ = false;
           cycleWhiteFlagFullRebuild_ = false;
         }
-
-        class RootBoundaryWrapper : public BoundaryNode
-        {
-        public:
-          explicit RootBoundaryWrapper(NodeDefinitionBase *def)
-              : def_(def),
-                composed_(false)
-          {
-          }
-          virtual ~RootBoundaryWrapper() {}
-
-        protected:
-          virtual void declareLocalRecomposition(NodeComposition &composition)
-          {
-            composition.declare(*def_);
-          }
-
-          void detachExistingChildren(ComponentContext &context)
-          {
-            loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
-            for (Node *child = it.next(); child; child = it.next())
-            {
-              this->composeTree(child, context, COMPOSE_EVENT_DETACH, this);
-            }
-          }
-
-          virtual void composeWithContext(ComponentContext &context, ComposeEvent event)
-          {
-            if (event == COMPOSE_EVENT_DETACH)
-            {
-              this->detachExistingChildren(context);
-              NodeComposition &composition = this->beginComposition(context);
-              this->detachNode(composition);
-              this->composed_ = false;
-              return;
-            }
-            if (event != COMPOSE_EVENT_ATTACH && event != COMPOSE_EVENT_UPDATE)
-            {
-              return;
-            }
-            if (event == COMPOSE_EVENT_UPDATE && this->isFrozen())
-            {
-              return;
-            }
-            if (!def_)
-            {
-              return;
-            }
-            if (event == COMPOSE_EVENT_UPDATE && !this->composed_)
-            {
-              return;
-            }
-            if (event == COMPOSE_EVENT_UPDATE)
-            {
-              NodeDirtyFlags flags = context.dirtyFlags();
-              if (!(flags & NODE_DIRTY_CHILD))
-              {
-                loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
-                for (Node *child = it.next(); child; child = it.next())
-                {
-                  this->composeTree(child, context, event, this);
-                }
-                return;
-              }
-            }
-            NodeComposition *composition = 0;
-            if (event == COMPOSE_EVENT_ATTACH)
-            {
-              composition = &this->beginComposition(context);
-              this->clearChildren();
-              this->nodeArena()->clear();
-              this->attachNode(*composition);
-              {
-                NodeComposition::CompositionScope scope(*composition);
-                this->declareLocalRecomposition(*composition);
-              }
-              this->captureCurrentCompositionSnapshot();
-              this->rebuildCurrentCompositionDiff();
-            }
-            else
-            {
-              this->recomposeLocalCompositionWithFullFallback(
-                  context, event, LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
-              this->composed_ = true;
-              return;
-            }
-            this->promoteCurrentCompositionSnapshot();
-            context.setComposition(composition);
-            Node *child = composition->createNodeTree();
-            if (child)
-            {
-              this->addChild(child);
-              this->composeTree(child, context, event, this);
-            }
-            context.setComposition(0);
-            this->composed_ = true;
-          }
-
-        private:
-          NodeDefinitionBase *def_;
-          bool composed_;
-        };
 
         void ensureRootNode()
         {

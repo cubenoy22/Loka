@@ -48,5 +48,6 @@ void testProbeArmSeatShapeMismatchOnParkedArmKeepsNestedSeatMapping();
 void testProbeArmSeatShapeMismatchAllocationFailureKeepsParkedArms();
 void testIndexedSeatSlotPassTraversesArmsPastAnEmptyOne();
 void testBranchSeatSiblingsRejectDuplicateTags();
+void testRecomposingBoundaryKeepsLiveSubtreeWhenLocalRecomposeAllocationIsRefused();
 
 #endif // LOKA_BOUNDARY_ARENA_TESTS_HPP

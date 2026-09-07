@@ -5,7 +5,7 @@
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/scene/state/NodeState.hpp"
-#include "app/nodes/boundary/StdComposition.hpp"
+#include "app/nodes/boundary/RecomposingBoundary.hpp"
 #include "core/State.hpp"
 #include "core/String.hpp"
 #include "core/Vector.hpp"
@@ -17,7 +17,7 @@ namespace helloworld
   class MainNode;
   typedef loka::app::scene::BoundaryPropsFor<MainNode> MainProps;
 
-  class MainNode : public loka::app::scene::BoundaryNodeFor<MainNode>
+  class MainNode : public loka::app::scene::RecomposingBoundaryFor<MainNode, loka::app::scene::BoundaryNodeFor<MainNode> >
   {
   public:
     MainNode(const MainProps &p);
@@ -25,9 +25,6 @@ namespace helloworld
     virtual void composeNode(loka::app::scene::NodeComposition &c);
 
   protected:
-    virtual void declareLocalRecomposition(loka::app::scene::NodeComposition &composition);
-    virtual void composeWithContext(loka::app::scene::ComponentContext &context,
-                                    loka::app::scene::ComposeEvent event);
 
   private:
     ::Window *windowOrNull() const;

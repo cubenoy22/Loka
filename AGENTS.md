@@ -67,6 +67,14 @@ clear boundaries, and small reusable concepts.
 - Do not hand-roll a class to get type safety a plain `enum` already provides. C++98 has no implicit conversion from an integral type to an enumeration, so a plain `enum` is already safe as a parameter type, while a class of static constants costs Classic binary size and gives up `switch` coverage checking (see PHILOSOPHY "Modern Type Safety Without Modern Assumptions").
 
 ## DSL And Composition
+
+Boundaries that must re-declare on their own CHILD dirt derive from
+`RecomposingBoundaryFor`; the local-recompose doors are kernel-private, and
+`recomposeLocally` is the strategy seam. Its `declareLocalRecomposition` replays
+`attachNode` before `composeNode`, so attach-scoped bindings survive a local
+recompose without a per-consumer override (until #567 PR A2 moves bindings
+behind a token door).
+
 - For app-facing composition-form selection, Props/Definition conventions, and
   example style, follow [docs/API_STYLE.md](docs/API_STYLE.md).
 - Loka compose should use DSL-style chaining; avoid local temporary variables when possible.

@@ -14,6 +14,7 @@ namespace loka
       template <class PropsT> class StdCompositionBoundaryNodeBase : public BoundaryNode
       {
       public:
+        typedef PropsT PropsType;
         typedef typename PropsT::TypeTag TypeTag;
         PropsT props;
         StdCompositionBoundaryNodeBase(const PropsT &p)
