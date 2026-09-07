@@ -161,15 +161,16 @@ namespace scrapbook
       return this->refusedPage_.get() >= 0;
     }
 
+    virtual void declareBindings(loka::app::scene::BindingToken &t)
+    {
+      t.action(this->previousPage_, this, &MainNode::showPreviousPage);
+      t.action(this->nextPage_, this, &MainNode::showNextPage);
+    }
+
     virtual void attachNode(loka::app::scene::NodeComposition &composition)
     {
       (void)composition;
       this->props.assertInitialized();
-      // Callback redeclaration is unconditional: every attach replays the
-      // released ledger, and de-duplication makes the re-run free. Only the
-      // package-scoped work sits behind the resource-presence gate.
-      this->bindActionForUi(this->previousPage_, &MainNode::showPreviousPage);
-      this->bindActionForUi(this->nextPage_, &MainNode::showNextPage);
       if (this->package_.isOpen())
       {
         return;

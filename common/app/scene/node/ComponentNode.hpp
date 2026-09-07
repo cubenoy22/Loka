@@ -60,7 +60,7 @@ namespace loka
         }
 
       protected:
-        /** The component's single door: declare the fixed child subtree.
+        /** Declares the component's fixed child subtree after its bindings.
             Residents are already connected when this runs. */
         virtual void composeChildren(NodeComposition &composition) = 0;
 
@@ -77,7 +77,7 @@ namespace loka
           {
             return;
           }
-          NodeComposition &composition = this->beginComposition(context);
+          NodeComposition &composition = this->beginDeclaringWindow(context);
           this->attachNode(composition);
           // A parked re-entry re-attaches with the structure alive; the
           // childrenHead guard, not a flag, is what keeps re-attach from

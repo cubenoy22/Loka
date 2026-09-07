@@ -3635,12 +3635,6 @@ namespace
       }
     }
 
-    virtual void attachNode(loka::app::scene::NodeComposition &c)
-    {
-      (void)c;
-      this->bindUi();
-    }
-
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
       loka::app::FragmentDefinition root;
@@ -3688,16 +3682,15 @@ namespace
         SceneTestSupport::RecomposingBoundaryNode<
             BankedClickBoundaryNode, BankedClickProps, false,
             loka::app::scene::StdCompositionBoundaryNodeBase<BankedClickProps> >::composeWithContext(context, event);
-        this->bindUi();
         return;
       }
       loka::app::scene::StdCompositionBoundaryNodeBase<BankedClickProps>::composeWithContext(context, event);
     }
 
   private:
-    void bindUi()
+    virtual void declareBindings(loka::app::scene::BindingToken &t)
     {
-      this->bindForUi(this->newGameClick_, this, &BankedClickBoundaryNode::startNewGame);
+      t.action(this->newGameClick_, this, &BankedClickBoundaryNode::startNewGame);
     }
 
     int bank_;

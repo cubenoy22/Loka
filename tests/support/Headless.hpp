@@ -101,7 +101,7 @@ namespace loka
             return;
           }
           this->clearChildren();
-          NodeComposition &composition = this->beginComposition(context);
+          NodeComposition &composition = this->beginDeclaringWindow(context);
           this->attachNode(composition);
           {
             NodeComposition::CompositionScope scope(composition);

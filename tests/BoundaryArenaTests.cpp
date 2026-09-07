@@ -26,6 +26,7 @@
 #include "app/nodes/nestable/Show.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/node/Conditional.hpp"
+#include "app/scene/node/ComponentNode.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "support/FullRebuildLedgerDefinition.hpp"
 #include "support/RecomposingBoundary.hpp"
@@ -1253,14 +1254,24 @@ namespace
   int g_sectionOrderingChildDestructions = 0;
   int g_sectionOrderingChildDetaches = 0;
 
-  class SectionOrderingChildNode : public loka::app::scene::ComposableNode
+  struct SectionOrderingObservation
+  {
+    SectionOrderingObservation(loka::app::scene::NodeState<SectionTrackedValue> &out,
+                               const SectionTrackedValue &value)
+        : state(out), initial(value) {}
+    loka::app::scene::NodeState<SectionTrackedValue> &state;
+    const SectionTrackedValue &initial;
+  };
+  SectionOrderingObservation *g_sectionOrderingObservation = 0;
+
+  class SectionOrderingChildNode : public loka::app::scene::ComponentNode
   {
   public:
     typedef SectionOrderingChildTypeTag TypeTag;
     SectionOrderingChildProps props;
 
     explicit SectionOrderingChildNode(const SectionOrderingChildProps &p)
-        : loka::app::scene::ComposableNode(),
+        : loka::app::scene::ComponentNode(),
           props(p),
           observed_(0)
     {
@@ -1276,24 +1287,36 @@ namespace
       ++g_sectionOrderingChildDestructions;
     }
 
-    void observe(loka::core::MutableState<SectionTrackedValue> *state)
+  protected:
+    virtual void declareBindings(loka::app::scene::BindingToken &t)
     {
-      assert(state);
-      this->observed_ = state;
-      this->watchStateForUi(*state,
-                            this,
-                            &SectionOrderingChildNode::onObserved,
-                            false);
+      if (g_sectionOrderingObservation && !this->observed_)
+      {
+        // Keep the test's adopted state in the Section owner, but create it
+        // before declaring the observation instead of binding after attach.
+        SectionOrderingObservation &observation = *g_sectionOrderingObservation;
+        {
+          loka::app::scene::NodeComposition::StateBatch states(
+              this->componentContext()->stateOwner());
+          states.state(observation.state, observation.initial);
+        }
+        this->observed_ = observation.state.dangerouslyMutableState();
+      }
+      if (this->observed_)
+      {
+        t.watch(*this->observed_, this, &SectionOrderingChildNode::onObserved);
+      }
     }
 
-  protected:
-    virtual void composeWithContext(loka::app::scene::ComponentContext &,
-                                    loka::app::scene::ComposeEvent event)
+    virtual void composeChildren(loka::app::scene::NodeComposition &composition)
     {
-      if (event == loka::app::scene::COMPOSE_EVENT_DETACH)
-      {
-        ++g_sectionOrderingChildDetaches;
-      }
+      (void)composition;
+    }
+
+    virtual void detachNode(loka::app::scene::NodeComposition &composition)
+    {
+      ++g_sectionOrderingChildDetaches;
+      loka::app::scene::ComponentNode::detachNode(composition);
     }
 
   private:
@@ -3113,7 +3136,14 @@ void testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<KeyedSectionRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::app::scene::NodeState<SectionTrackedValue> oldState;
+    {
+      SectionTrackedValue initial(&oldValueAlive, 41);
+      SectionOrderingObservation observation(oldState, initial);
+      g_sectionOrderingObservation = &observation;
+      scene.updateAttached(true);
+      g_sectionOrderingObservation = 0;
+    }
 
     KeyedSectionRootNode *root = static_cast<KeyedSectionRootNode *>(
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
@@ -3122,18 +3152,13 @@ void testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement()
     assert(original && original->isArenaAllocated());
     SectionOrderingChildNode *orderingChild =
         static_cast<SectionOrderingChildNode *>(original->childrenHead());
-    assert(orderingChild);
+    // The child now declares its observation inside its own window; the
+    // test only needs it to exist (kept as a release-build check too).
+    LOKA_VERIFY(orderingChild != 0);
 
-    loka::app::scene::NodeState<SectionTrackedValue> oldState;
-    {
-      SectionTrackedValue initial(&oldValueAlive, 41);
-      loka::app::scene::NodeComposition::StateBatch states(original);
-      states.state(oldState, initial);
-    }
     assert(oldValueAlive == 1);
     assert(oldState.isValid());
     assert(oldState.dangerouslyMutableState()->isArenaAllocated());
-    orderingChild->observe(oldState.dangerouslyMutableState());
 
     // Same key retains the runtime seat and its adopted state.
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);

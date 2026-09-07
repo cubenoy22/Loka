@@ -43,11 +43,15 @@ namespace tutorial
       this->state(this->showItem3_, false);
     }
 
+    virtual void declareBindings(loka::app::scene::BindingToken &t)
+    {
+      t.action(this->addItemEvent_, this, &Step4Node::addItem);
+      t.action(this->toggleSummaryEvent_, this, &Step4Node::toggleSummary);
+    }
+
     virtual void attachNode(loka::app::scene::NodeComposition &c)
     {
       (void)c;
-      this->bindActionForUi(this->addItemEvent_, &Step4Node::addItem);
-      this->bindActionForUi(this->toggleSummaryEvent_, &Step4Node::toggleSummary);
       {
         loka::dsl::StateStream<int> itemCountStream = this->itemCount_.stream();
         this->itemSummaryFlow_ //

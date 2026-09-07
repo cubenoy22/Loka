@@ -648,6 +648,11 @@ namespace loka
         }
 
       private:
+        template <class PropsT, class NodeT> friend struct NodeDefinition;
+        /** After a successful props apply, attached composables' bindings
+            follow their new props without rebuilding their composition. */
+        void bindingsFollowProps();
+
         /** The single door. Same-value writes are silent (including R->R);
             RETIRED is terminal, so R->A / R->D assert. The three writers are
             the compose door (composeTree ATTACH), the walk door
@@ -1204,6 +1209,7 @@ namespace loka
           {
             typed->setNodeTag(this->nodeTag());
             typed->setNativeLifetimeHint(this->nativeLifetimeHint());
+            node->bindingsFollowProps();
             if (node->context)
               node->context->onPropsApplied();
           }

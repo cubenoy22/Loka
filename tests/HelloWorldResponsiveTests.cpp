@@ -5,6 +5,7 @@
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/nestable/ScrollView.hpp"
 #include "app/scene/Scene.hpp"
+#include "core/util/OwnedDef.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
 #include "platform/null/NullWindow.hpp"
@@ -183,4 +184,59 @@ void testHelloWorldResponsivePanelsFollowNativeFrameAndRetainSeats()
                loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
 
   delete window;
+}
+
+namespace
+{
+  class NarrowMountMainNode : public helloworld::MainNode
+  {
+  public:
+    explicit NarrowMountMainNode(const helloworld::MainProps &props)
+        : helloworld::MainNode(props) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      helloworld::MainNode::composeNode(composition);
+      // Inspect the declaration before a late immediate watch could trigger
+      // another composition and hide the first frame's axis.
+      loka::app::scene::INestableDefinition *root =
+          composition.root()->asNestableDefinition();
+      LOKA_VERIFY(root != 0);
+      loka::app::scene::NodeDefinitionBase *scroll = root->childrenHead();
+      LOKA_VERIFY(scroll != 0);
+      const std::string scrollId = scroll->testIdValue();
+      LOKA_VERIFY(scrollId == "HelloWorld.MainPanelsScroll");
+      loka::app::scene::INestableDefinition *scrollChildren = scroll->asNestableDefinition();
+      LOKA_VERIFY(scrollChildren != 0);
+      loka::app::scene::NodeDefinitionBase *panels = scrollChildren->childrenHead();
+      LOKA_VERIFY(panels != 0);
+      const std::string panelsId = panels->testIdValue();
+      LOKA_VERIFY(panelsId == "HelloWorld.MainPanels");
+      const loka::app::scene::PropsBase *props = panels->propsBase();
+      LOKA_VERIFY(props && props->propsTypeId() == loka::app::StackProps::staticTypeId());
+      LOKA_VERIFY(static_cast<const loka::app::StackProps *>(props)->axis_ ==
+                  loka::app::STACK_AXIS_COLUMN);
+    }
+  };
+} // namespace
+
+void testHelloWorldNarrowMountComposesColumnFirst()
+{
+  NullPlatformContext context;
+  NullScenePlatformController platform;
+  loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> root(
+      loka::app::scene::BoundaryDefinition<helloworld::MainProps, NarrowMountMainNode>().clone());
+  const bool rootCloned = root.isSet();
+  LOKA_VERIFY(rootCloned);
+  WindowProps props;
+  props.frame(50, 50, 399, 330);
+  NullWindow window(&context, props, &platform);
+  // Publish before attach; inspect the first tree without a resize/layout pass.
+  loka::app::testing::WindowTestAccess::storeNativeFrame(
+      window, loka::core::Frame(50, 50, 399, 330));
+  window.sceneManager()->commitTransaction(0, new loka::app::scene::Scene(root.take()));
+  window.mountScene();
+  window.scene()->updateAttached(true);
+  LOKA_VERIFY(findMainPanels(*window.scene())->props.axis_ ==
+              loka::app::STACK_AXIS_COLUMN);
 }

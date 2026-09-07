@@ -182,12 +182,6 @@ namespace simpleviewer
       this->state(this->scrollOffset_, 0);
     }
 
-    virtual void attachNode(loka::app::scene::NodeComposition &c)
-    {
-      (void)c;
-      this->bindUi();
-    }
-
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       using namespace loka::app;
@@ -293,14 +287,14 @@ namespace simpleviewer
       return image;
     }
 
-    void bindUi()
+    virtual void declareBindings(loka::app::scene::BindingToken &t)
     {
-      this->bindActionForUi(*this->props.openDialogEvent_, &MainNode::openDialog);
-      this->bindActionForUi(this->toggleNavEvent_, &MainNode::toggleNavigation);
+      t.action(*this->props.openDialogEvent_, this, &MainNode::openDialog);
+      t.action(this->toggleNavEvent_, this, &MainNode::toggleNavigation);
       ::Window *window = this->windowOrNull();
       if (window)
       {
-        this->watchStateForUi(window->nativeFrame(), &MainNode::refreshLayoutMode, true);
+        t.watch(window->nativeFrame(), this, &MainNode::refreshLayoutMode, true);
       }
     }
 

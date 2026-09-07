@@ -3,5 +3,11 @@
 
 void testAttachNodeReplayRestoresParkedBranchBindings();
 void testPropsSuppliedEmitterBindingFollowsDefinitionRecompose();
+void testDisarmedBindingTokenRefusesOutsideDeclaration();
+
+void testRetainedPropsApplyRebindsPlainBoundary();
+void testRetainedPropsApplyRebindsComponent();
+void testRetainedPropsApplyRebindsPlainBoundaryWithoutWindow();
+void testRetainedPropsApplyRebindsComponentWithoutWindow();
 
 #endif // LOKA_TESTS_ATTACH_NODE_CONTRACT_TESTS_HPP

@@ -40,3 +40,8 @@ loka_compile_pin(local-recompose-doors-are-internal
   REFUSES pins/refuses_local_recompose_doors.cpp
   ACCEPTS pins/accepts_local_recompose_doors.cpp
 )
+
+loka_compile_pin(bindings-need-the-token
+  REFUSES pins/refuses_bindings_need_the_token.cpp
+  ACCEPTS pins/accepts_bindings_need_the_token.cpp
+)

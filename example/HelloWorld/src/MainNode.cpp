@@ -71,24 +71,18 @@ namespace helloworld
     this->fruits_.assign(kFruitItems, kFruitItemCount);
   }
 
-  void MainNode::attachNode(loka::app::scene::NodeComposition &c)
+  void MainNode::declareBindings(loka::app::scene::BindingToken &t)
   {
-    (void)c;
-    this->bindUi();
-  }
-
-  void MainNode::bindUi()
-  {
-    this->bindActionForUi(this->toggleEvent_, &MainNode::toggleMessage);
-    this->bindActionForUi(this->toggleActionEnabledEvent_, &MainNode::toggleActionEnabled);
-    this->bindActionForUi(this->actionProbeEvent_, &MainNode::handleActionProbe);
-    this->watchStateForUi(this->heightInput_, &MainNode::refreshBmiResult);
-    this->watchStateForUi(this->weightInput_, &MainNode::refreshBmiResult);
-    this->watchStateForUi(this->fruitIndex_, &MainNode::refreshFruitMessage);
+    t.action(this->toggleEvent_, this, &MainNode::toggleMessage);
+    t.action(this->toggleActionEnabledEvent_, this, &MainNode::toggleActionEnabled);
+    t.action(this->actionProbeEvent_, this, &MainNode::handleActionProbe);
+    t.watch(this->heightInput_, this, &MainNode::refreshBmiResult);
+    t.watch(this->weightInput_, this, &MainNode::refreshBmiResult);
+    t.watch(this->fruitIndex_, this, &MainNode::refreshFruitMessage);
     ::Window *window = this->windowOrNull();
     if (window)
     {
-      this->watchStateForUi(window->nativeFrame(), &MainNode::refreshLayoutMode, true);
+      t.watch(window->nativeFrame(), this, &MainNode::refreshLayoutMode, true);
     }
     this->refreshActionSummary();
     this->refreshBmiResult();

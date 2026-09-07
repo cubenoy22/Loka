@@ -21,15 +21,12 @@ namespace helloworld
   {
   public:
     MainNode(const MainProps &p);
-    virtual void attachNode(loka::app::scene::NodeComposition &c);
+    virtual void declareBindings(loka::app::scene::BindingToken &t);
     virtual void composeNode(loka::app::scene::NodeComposition &c);
-
-  protected:
 
   private:
     ::Window *windowOrNull() const;
     loka::app::VStack mainLeftPanel();
-    void bindUi();
     void refreshLayoutMode();
     double parseBmiValue(const loka::core::String &value) const;
     void refreshBmiResult();
