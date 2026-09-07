@@ -2,6 +2,7 @@
 #include "support/TestVerify.hpp"
 
 #include <cassert>
+#include <cstdio>
 
 #include "app/nodes/boundary/RecomposingBoundary.hpp"
 #include "app/nodes/controls/Button.hpp"
@@ -75,6 +76,11 @@ namespace
       ++g_attachReplayScenario->guardedConstructions;
     }
 
+    virtual void declareBindings(loka::app::scene::BindingToken &t)
+    {
+      t.action(g_attachReplayScenario->guardedEmitter, this, &GuardedAttachComponentNode::recordCall);
+    }
+
     virtual void attachNode(loka::app::scene::NodeComposition &composition)
     {
       (void)composition;
@@ -83,8 +89,6 @@ namespace
       {
         return;
       }
-      this->bindActionForUi(g_attachReplayScenario->guardedEmitter,
-                            &GuardedAttachComponentNode::recordCall);
       this->initialized_ = true;
     }
 
@@ -116,11 +120,9 @@ namespace
     {
     }
 
-    virtual void attachNode(loka::app::scene::NodeComposition &composition)
+    virtual void declareBindings(loka::app::scene::BindingToken &t)
     {
-      (void)composition;
-      this->bindActionForUi(g_attachReplayScenario->unguardedEmitter,
-                            &UnguardedAttachComponentNode::recordCall);
+      t.action(g_attachReplayScenario->unguardedEmitter, this, &UnguardedAttachComponentNode::recordCall);
     }
 
     virtual void composeChildren(loka::app::scene::NodeComposition &composition)
@@ -179,7 +181,7 @@ namespace
   {
   };
 
-  class LegacyPointerBindBoundaryNode;
+  class PropsPointerBindBoundaryNode;
   class DefinitionPointerBindBoundaryNode;
 
   template <class NodeT>
@@ -218,25 +220,25 @@ namespace
     int *calls;
   };
 
-  typedef PointerBindProps<LegacyPointerBindBoundaryNode>
-      LegacyPointerBindProps;
+  typedef PointerBindProps<PropsPointerBindBoundaryNode>
+      PropsPointerBindProps;
   typedef PointerBindProps<DefinitionPointerBindBoundaryNode>
       DefinitionPointerBindProps;
 
-  class LegacyPointerBindBoundaryNode
-      : public loka::app::scene::StdCompositionBoundaryNodeBase<LegacyPointerBindProps>
+  class PropsPointerBindBoundaryNode
+      : public loka::app::scene::RecomposingBoundaryFor<PropsPointerBindBoundaryNode,
+            loka::app::scene::StdCompositionBoundaryNodeBase<PropsPointerBindProps> >
   {
   public:
-    explicit LegacyPointerBindBoundaryNode(const LegacyPointerBindProps &props)
-        : loka::app::scene::StdCompositionBoundaryNodeBase<LegacyPointerBindProps>(props)
+    explicit PropsPointerBindBoundaryNode(const PropsPointerBindProps &props)
+        : loka::app::scene::RecomposingBoundaryFor<PropsPointerBindBoundaryNode,
+              loka::app::scene::StdCompositionBoundaryNodeBase<PropsPointerBindProps> >(props)
     {
     }
 
-    virtual void attachNode(loka::app::scene::NodeComposition &composition)
+    virtual void declareBindings(loka::app::scene::BindingToken &t)
     {
-      (void)composition;
-      this->bindActionForUi(*this->props.emitter,
-                            &LegacyPointerBindBoundaryNode::recordCall);
+      t.action(*this->props.emitter, this, &PropsPointerBindBoundaryNode::recordCall);
     }
 
   private:
@@ -271,10 +273,13 @@ namespace
     {
     }
 
+    virtual void declareBindings(loka::app::scene::BindingToken &t)
+    {
+      t.action(*this->props.emitter, this, &DefinitionPointerBindBoundaryNode::recordCall);
+    }
+
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
-      this->bindActionForUi(*this->props.emitter,
-                            &DefinitionPointerBindBoundaryNode::recordCall);
       composition.declare(loka::app::Button("definition-bound",
                                             this->props.emitter));
     }
@@ -290,43 +295,43 @@ namespace
   {
     PointerBindScenario()
         : revision(0),
-          legacyOld(),
-          legacyNew(),
+          propsOld(),
+          propsNew(),
           definitionOld(),
           definitionNew(),
-          currentLegacy(&this->legacyOld),
+          currentProps(&this->propsOld),
           currentDefinition(&this->definitionOld),
-          legacyCalls(0),
+          propsCalls(0),
           definitionCalls(0)
     {
     }
 
     loka::core::MutableState<int> revision;
-    loka::core::EmitterState legacyOld;
-    loka::core::EmitterState legacyNew;
+    loka::core::EmitterState propsOld;
+    loka::core::EmitterState propsNew;
     loka::core::EmitterState definitionOld;
     loka::core::EmitterState definitionNew;
-    loka::core::EmitterState *currentLegacy;
+    loka::core::EmitterState *currentProps;
     loka::core::EmitterState *currentDefinition;
-    int legacyCalls;
+    int propsCalls;
     int definitionCalls;
   };
 
   PointerBindScenario *g_pointerBindScenario = 0;
 
-  class LegacyPointerBindRootNode;
-  typedef loka::app::scene::BoundaryPropsFor<LegacyPointerBindRootNode>
-      LegacyPointerBindRootProps;
+  class PropsPointerBindRootNode;
+  typedef loka::app::scene::BoundaryPropsFor<PropsPointerBindRootNode>
+      PropsPointerBindRootProps;
 
-  class LegacyPointerBindRootNode
+  class PropsPointerBindRootNode
       : public SceneTestSupport::RecomposingBoundaryNode<
-            LegacyPointerBindRootNode, LegacyPointerBindRootProps>
+            PropsPointerBindRootNode, PropsPointerBindRootProps>
   {
   public:
-    explicit LegacyPointerBindRootNode(
-        const LegacyPointerBindRootProps &props)
+    explicit PropsPointerBindRootNode(
+        const PropsPointerBindRootProps &props)
         : SceneTestSupport::RecomposingBoundaryNode<
-              LegacyPointerBindRootNode, LegacyPointerBindRootProps>(props)
+              PropsPointerBindRootNode, PropsPointerBindRootProps>(props)
     {
     }
 
@@ -346,10 +351,10 @@ namespace
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
       loka::app::Fragment root;
-      root << loka::app::scene::Boundary<LegacyPointerBindBoundaryNode>(
-          LegacyPointerBindProps(
-              g_pointerBindScenario->currentLegacy,
-              &g_pointerBindScenario->legacyCalls));
+      root << loka::app::scene::Boundary<PropsPointerBindBoundaryNode>(
+          PropsPointerBindProps(
+              g_pointerBindScenario->currentProps,
+              &g_pointerBindScenario->propsCalls));
       composition.declare(root);
     }
   };
@@ -394,6 +399,47 @@ namespace
       composition.declare(root);
     }
   };
+#ifndef LOKA_LIFECYCLE_AUDIT
+  class DisarmedBindingNode;
+  typedef loka::app::scene::BoundaryPropsFor<DisarmedBindingNode> DisarmedBindingProps;
+
+  class DisarmedBindingNode : public loka::app::scene::BoundaryNodeFor<DisarmedBindingNode>
+  {
+  public:
+    explicit DisarmedBindingNode(const DisarmedBindingProps &p = DisarmedBindingProps())
+        : loka::app::scene::BoundaryNodeFor<DisarmedBindingNode>(p),
+          token_(0), validCalls_(0), refusedCalls_(0) {}
+    void emit()
+    {
+      this->valid_.emit();
+      this->refused_.emit();
+    }
+    bool onlyDeclaredHandlerFired() const
+    {
+      return this->validCalls_ == 1 && this->refusedCalls_ == 0;
+    }
+  protected:
+    virtual void declareBindings(loka::app::scene::BindingToken &t)
+    {
+      this->token_ = &t;
+      t.action(this->valid_, this, &DisarmedBindingNode::validCall);
+    }
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      (void)c;
+      this->token_->action(this->refused_, this, &DisarmedBindingNode::refusedCall);
+      this->token_->watch(this->refused_, this, &DisarmedBindingNode::refusedCall, true);
+    }
+  private:
+    void validCall() { ++this->validCalls_; }
+    void refusedCall() { ++this->refusedCalls_; }
+    loka::app::scene::BindingToken *token_;
+    loka::core::EmitterState valid_;
+    loka::core::EmitterState refused_;
+    int validCalls_;
+    int refusedCalls_;
+  };
+#endif
 } // namespace
 
 void testAttachNodeReplayRestoresParkedBranchBindings()
@@ -424,10 +470,10 @@ void testAttachNodeReplayRestoresParkedBranchBindings()
 
     scenario.guardedEmitter.emit();
     scenario.unguardedEmitter.emit();
-    LOKA_VERIFY(scenario.guardedCalls == 1 &&
-                "the guarded fixture is the legacy negative control");
+    LOKA_VERIFY(scenario.guardedCalls == 2 &&
+                "guarded attach work cannot suppress binding declarations");
     LOKA_VERIFY(scenario.unguardedCalls == 2 &&
-                "idempotent attachNode restores the parked node's callback");
+                "declareBindings restores the parked node's callback");
   }
   g_attachReplayScenario = 0;
 }
@@ -439,23 +485,24 @@ void testPropsSuppliedEmitterBindingFollowsDefinitionRecompose()
   {
     NullScenePlatformController platform;
     loka::app::scene::Scene scene(
-        (loka::app::scene::Boundary<LegacyPointerBindRootNode>()));
+        (loka::app::scene::Boundary<PropsPointerBindRootNode>()));
     scene.mount(&platform);
     scene.updateAttached(true);
 
-    scenario.legacyOld.emit();
-    LOKA_VERIFY(scenario.legacyCalls == 1);
+    scenario.propsOld.emit();
+    LOKA_VERIFY(scenario.propsCalls == 1);
 
-    scenario.currentLegacy = &scenario.legacyNew;
+    scenario.currentProps = &scenario.propsNew;
     scenario.revision.set(1);
     assert(scene.hasPendingInvalidation());
     LOKA_VERIFY(scene.flushInvalidation());
 
-    scenario.legacyNew.emit();
-    LOKA_VERIFY(scenario.legacyCalls == 1 &&
-                "attachNode remains bound to the legacy props pointer");
-    scenario.legacyOld.emit();
-    LOKA_VERIFY(scenario.legacyCalls == 2);
+    scenario.propsNew.emit();
+    LOKA_VERIFY(scenario.propsCalls == 2 &&
+                "props-pointer binding follows the definition recompose");
+    scenario.propsOld.emit();
+    LOKA_VERIFY(scenario.propsCalls == 2 &&
+                "props-pointer recompose releases the old emitter");
   }
   {
     NullScenePlatformController platform;
@@ -479,4 +526,19 @@ void testPropsSuppliedEmitterBindingFollowsDefinitionRecompose()
                 "definition recompose must release the old props pointer");
   }
   g_pointerBindScenario = 0;
+}
+
+void testDisarmedBindingTokenRefusesOutsideDeclaration()
+{
+#ifndef LOKA_LIFECYCLE_AUDIT
+  DisarmedBindingNode node;
+  loka::app::scene::ComponentContext context;
+  context.setBoundary(&node);
+  node.compose(context, loka::app::scene::COMPOSE_EVENT_ATTACH);
+  node.emit();
+  LOKA_VERIFY(node.onlyDeclaredHandlerFired());
+  node.compose(context, loka::app::scene::COMPOSE_EVENT_DETACH);
+#else
+  std::puts("[skip] disarmed token refusal requires a non-audit build; audit asserts");
+#endif
 }

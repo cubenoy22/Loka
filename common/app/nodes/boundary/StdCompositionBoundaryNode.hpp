@@ -69,7 +69,7 @@ namespace loka
           }
           this->clearChildren();
           this->nodeArena()->clear();
-          NodeComposition &composition = this->beginComposition(context);
+          NodeComposition &composition = this->beginDeclaringWindow(context);
           {
             PROFILE_SECTION("attach");
             this->attachNode(composition);

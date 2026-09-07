@@ -25,10 +25,9 @@ namespace tutorial
       this->state(this->showDetails_, false);
     }
 
-    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    virtual void declareBindings(loka::app::scene::BindingToken &t)
     {
-      (void)c;
-      this->bindActionForUi(this->toggleDetailsEvent_, &Step3Node::toggleDetails);
+      t.action(this->toggleDetailsEvent_, this, &Step3Node::toggleDetails);
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)

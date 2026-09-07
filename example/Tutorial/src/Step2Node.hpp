@@ -27,10 +27,9 @@ namespace tutorial
       this->state(this->countText_, loka::core::String::Literal("Count: 0"));
     }
 
-    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    virtual void declareBindings(loka::app::scene::BindingToken &t)
     {
-      (void)c;
-      this->bindActionForUi(this->incrementEvent_, &Step2Node::increment);
+      t.action(this->incrementEvent_, this, &Step2Node::increment);
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)

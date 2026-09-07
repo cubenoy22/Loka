@@ -3,5 +3,6 @@
 
 void testAttachNodeReplayRestoresParkedBranchBindings();
 void testPropsSuppliedEmitterBindingFollowsDefinitionRecompose();
+void testDisarmedBindingTokenRefusesOutsideDeclaration();
 
 #endif // LOKA_TESTS_ATTACH_NODE_CONTRACT_TESTS_HPP

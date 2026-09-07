@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <vector>
+#include "app/scene/node/BindingToken.hpp"
 #include "../Node.hpp"
 #include "app/scene/context/ComponentContext.hpp"
 #include "app/scene/composition/NodeComposition.hpp"
@@ -20,6 +21,12 @@ namespace loka
     {
       class BoundaryNode;
       class Scene;
+      class ComponentNode;
+      class RootBoundaryWrapper;
+      template <class PropsT> class StdCompositionBoundaryNodeBase;
+#ifdef TEST_BUILD
+      template <class PropsT> class HeadlessNodeBase;
+#endif
 
       enum ContextPlacement
       {
@@ -87,6 +94,12 @@ namespace loka
 
       protected:
         virtual void composeWithContext(ComponentContext &context, ComposeEvent event) = 0;
+        /** Called first in every declaring window. Immediate watches run here
+            synchronously, before attach and child composition. */
+        virtual void declareBindings(BindingToken &token)
+        {
+          (void)token;
+        }
         virtual void attachNode(NodeComposition &c)
         {
           (void)c;
@@ -209,6 +222,9 @@ namespace loka
           bool valid_;
         };
 
+      private:
+        friend class BindingToken;
+
         template <class NodeT>
         void bindActionForUi(loka::core::EmitterState &emitter, NodeT *node, void (NodeT::*method)())
         {
@@ -274,6 +290,7 @@ namespace loka
           this->watchStateForUi(state, method, callImmediately);
         }
 
+      protected:
         // Registers Node-local state with the current composition owner.
         // This does not make ComposableNode a state owner; nodes that need a
         // shorter ownership scope than Boundary should expose an explicit
@@ -564,6 +581,28 @@ namespace loka
           return ensureAttached().window();
         }
 
+      private:
+        friend class ComponentNode;
+        friend class BoundaryNode;
+        friend class RootBoundaryWrapper;
+        template <class PropsT> friend class StdCompositionBoundaryNodeBase;
+#ifdef TEST_BUILD
+        template <class PropsT> friend class HeadlessNodeBase;
+#endif
+
+        /** Kernel declaring window: reset the ledger, declare bindings, then
+            disarm the capability before any attach or composition callback. */
+        NodeComposition &beginDeclaringWindow(ComponentContext &context)
+        {
+          NodeComposition &composition = this->beginComposition(context);
+          {
+            BindingToken::DeclarationScope scope(this->bindingToken_, *this);
+            this->declareBindings(this->bindingToken_);
+          }
+          return composition;
+        }
+
+      protected:
         NodeComposition &beginComposition(ComponentContext &context)
         {
           releaseCallbacks();
@@ -853,11 +892,42 @@ namespace loka
         ComponentContext *currentContext_;
         IStateOwner *nodeStateOwner_;
         NodeComposition composition_;
+      private:
+        BindingToken bindingToken_;
+      protected:
         bool isAttached_;
         AttachedContext attached_;
         std::vector<CallbackEntryBase *> callbacks_;
         std::vector<NodeStateRegistrationBase *> nodeStates_;
       };
+
+      template <class NodeT>
+      inline void BindingToken::action(loka::core::EmitterState &emitter,
+                                       NodeT *node, void (NodeT::*method)())
+      {
+#ifdef LOKA_LIFECYCLE_AUDIT
+        assert(this->owner_ && "bindings are declared only inside declareBindings");
+#endif
+        if (!this->owner_)
+        {
+          return;
+        }
+        this->owner_->bindActionForUi(emitter, node, method);
+      }
+
+      template <class StateT, class NodeT>
+      inline void BindingToken::watch(StateT &state, NodeT *node,
+                                      void (NodeT::*method)(), bool callImmediately)
+      {
+#ifdef LOKA_LIFECYCLE_AUDIT
+        assert(this->owner_ && "bindings are declared only inside declareBindings");
+#endif
+        if (!this->owner_)
+        {
+          return;
+        }
+        this->owner_->watchStateForUi(state, node, method, callImmediately);
+      }
 
     } // namespace scene
   } // namespace app

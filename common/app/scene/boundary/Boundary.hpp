@@ -1322,7 +1322,7 @@ namespace loka
                                        ComposeEvent event,
                                        LocalRecomposeMode mode)
         {
-          NodeComposition &composition = this->beginComposition(context);
+          NodeComposition &composition = this->beginDeclaringWindow(context);
           {
             NodeComposition::CompositionScope scope(composition);
             this->declareLocalRecomposition(composition);

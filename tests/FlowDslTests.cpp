@@ -840,6 +840,11 @@ namespace
     {
     }
 
+    virtual void declareBindings(loka::app::scene::BindingToken &t)
+    {
+      t.action(this->toggle_, this, &SameBoundaryConditionalProbeNode::toggle);
+    }
+
     virtual void attachNode(loka::app::scene::NodeComposition &c)
     {
       if (this->initialized_)
@@ -847,7 +852,6 @@ namespace
         return;
       }
       c.declareStates().state(this->show_, false);
-      this->bindForUi(this->toggle_, this, &SameBoundaryConditionalProbeNode::toggle);
       g_sameBoundaryConditionalProbe = this;
       this->initialized_ = true;
     }
@@ -980,6 +984,11 @@ namespace
     {
     }
 
+    virtual void declareBindings(loka::app::scene::BindingToken &t)
+    {
+      t.action(this->toggle_, this, &HeadlessScopeHostBoundaryNode::toggle);
+    }
+
     virtual void attachNode(loka::app::scene::NodeComposition &c)
     {
       if (this->initialized_)
@@ -987,7 +996,6 @@ namespace
         return;
       }
       c.declareStates().state(this->show_, true);
-      this->bindForUi(this->toggle_, this, &HeadlessScopeHostBoundaryNode::toggle);
       g_headlessScopeHost = this;
       this->initialized_ = true;
     }

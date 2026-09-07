@@ -2,5 +2,6 @@
 #define LOKA_TESTS_HELLO_WORLD_RESPONSIVE_TESTS_HPP
 
 void testHelloWorldResponsivePanelsFollowNativeFrameAndRetainSeats();
+void testHelloWorldNarrowMountComposesColumnFirst();
 
 #endif // LOKA_TESTS_HELLO_WORLD_RESPONSIVE_TESTS_HPP

@@ -122,7 +122,7 @@ namespace loka
           NodeComposition *composition = 0;
           if (event == COMPOSE_EVENT_ATTACH)
           {
-            composition = &this->beginComposition(context);
+            composition = &this->beginDeclaringWindow(context);
             this->clearChildren();
             this->nodeArena()->clear();
             this->attachNode(*composition);

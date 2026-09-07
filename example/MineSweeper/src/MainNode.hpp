@@ -98,10 +98,9 @@ namespace minesweeper
     }
 
   protected:
-    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    virtual void declareBindings(loka::app::scene::BindingToken &t)
     {
-      (void)c;
-      this->bindForUi(this->click_, this, &MineCellNode::handleClick);
+      t.action(this->click_, this, &MineCellNode::handleClick);
     }
 
     virtual void composeChildren(loka::app::scene::NodeComposition &c)
@@ -235,12 +234,6 @@ namespace minesweeper
       this->resetBoard();
     }
 
-    virtual void attachNode(loka::app::scene::NodeComposition &c)
-    {
-      (void)c;
-      this->bindUi();
-    }
-
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       using namespace loka::app;
@@ -306,9 +299,9 @@ namespace minesweeper
     bool mines_[kCellCount];
     loka::core::EmitterState newGameClick_;
 
-    void bindUi()
+    virtual void declareBindings(loka::app::scene::BindingToken &t)
     {
-      this->bindForUi(this->newGameClick_, this, &MainNode::startNewGame);
+      t.action(this->newGameClick_, this, &MainNode::startNewGame);
     }
 
     void resetBoard()

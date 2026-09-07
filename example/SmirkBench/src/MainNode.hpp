@@ -91,12 +91,6 @@ namespace smirkbench
       this->state(this->addEnabled_, initialFaceCount < loka::app::RectSurfaceModel::kMaxRects);
     }
 
-    virtual void attachNode(loka::app::scene::NodeComposition &composition)
-    {
-      (void)composition;
-      this->bindUi();
-    }
-
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
       using namespace loka::app;
@@ -159,14 +153,14 @@ namespace smirkbench
       return loka::core::String::Literal("Faces: ") + loka::core::String::FromInt(count);
     }
 
-    void bindUi()
+    virtual void declareBindings(loka::app::scene::BindingToken &t)
     {
-      this->bindActionForUi(this->addFace_, &MainNode::addFace);
-      this->watchStateForUi(*this->surfaceExtent_.state(), &MainNode::refreshModelBounds);
+      t.action(this->addFace_, this, &MainNode::addFace);
+      t.watch(*this->surfaceExtent_.state(), this, &MainNode::refreshModelBounds);
       ::Window *window = this->windowOrNull();
       if (window)
       {
-        this->watchStateForUi(window->nativeFrame(), &MainNode::refreshOrientation, true);
+        t.watch(window->nativeFrame(), this, &MainNode::refreshOrientation, true);
       }
     }
 
