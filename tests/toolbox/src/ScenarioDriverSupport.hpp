@@ -21,7 +21,6 @@ namespace loka
     scenario_tests::CaptureContentBounds QueryCaptureContentBounds(Window *window);
     scenario_tests::CaptureContentBounds ContentLocalBounds(const scenario_tests::CaptureContentBounds &screenBounds);
 
-    void CaptureRefreshCounters(Window *window, dsl::SnapRecord &record);
 
     platform::file::FileHandle ResolveScenarioAuditFile();
     bool WriteScenarioErrorAudit(const char *scenario, const dsl::SnapRecord &record);

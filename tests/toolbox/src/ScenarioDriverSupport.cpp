@@ -1,5 +1,3 @@
-#include "ToolboxScenePlatformController.hpp"
-#include "testing/scene/SceneTestFlow.hpp"
 #include "ScenarioDriverSupport.hpp"
 
 #include <cstdio>
@@ -110,16 +108,6 @@ namespace loka
       return result;
     }
 
-    void CaptureRefreshCounters(Window *window, dsl::SnapRecord &record)
-    {
-      if (!window || !window->scene()) return;
-      ToolboxScenePlatformController *controller = static_cast<ToolboxScenePlatformController *>(
-          dsl::testing::SceneTestAccess::platformController(*window->scene()));
-      if (!controller) return;
-      const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
-      record.setInt("refresh.calls", stats.totalRefreshCalls);
-      record.setInt("refresh.rows", stats.totalRefreshRowVisits);
-    }
 
     platform::file::FileHandle ResolveScenarioAuditFile()
     {

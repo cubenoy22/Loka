@@ -19,6 +19,20 @@ namespace loka
 {
   namespace toolbox_tests
   {
+    /** The refresh counters live in the TEST_BUILD diagnostic box and only the
+        rebind cells read them; the helper stays here rather than in
+        ScenarioDriverSupport, which the non-test Scrapbook vehicle compiles. */
+    inline void CaptureRefreshCounters(Window *window, dsl::SnapRecord &record)
+    {
+      if (!window || !window->scene()) return;
+      ToolboxScenePlatformController *controller = static_cast<ToolboxScenePlatformController *>(
+          dsl::testing::SceneTestAccess::platformController(*window->scene()));
+      if (!controller) return;
+      const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
+      record.setInt("refresh.calls", stats.totalRefreshCalls);
+      record.setInt("refresh.rows", stats.totalRefreshRowVisits);
+    }
+
     /** Reuse the driver's existing terminal owner, so its later stop cannot
         append a second terminal from an unstarted portable scenario. */
     template <typename Scenario>

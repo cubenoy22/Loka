@@ -1,0 +1,35 @@
+loka_scenario_audit version=1 scenario=retained-popup-rebind
+step id=1 due_tick=1 tick=1 status=succeeded error_kind=0 error_code=0 name=apply-A
+checkpoint	apply-A
+crop_bottom	330
+crop_left	0
+crop_right	420
+crop_top	0
+format_version	1
+node	retained-rebind
+rail	toolbox
+refresh.calls	1
+refresh.rows	1
+scenario_version	1
+schema_version	1
+status	ok
+step	retained-popup-rebind
+test	HelloWorld
+tick	1
+checkpoint	final
+crop_bottom	330
+crop_left	0
+crop_right	420
+crop_top	0
+format_version	1
+node	retained-rebind
+rail	toolbox
+refresh.calls	2
+refresh.rows	2
+scenario_version	1
+schema_version	1
+status	error
+step	retained-popup-rebind
+test	HelloWorld
+tick	2
+terminal status=failed
