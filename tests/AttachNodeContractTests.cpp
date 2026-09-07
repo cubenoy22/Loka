@@ -501,6 +501,44 @@ namespace
     g_pointerBindScenario = 0;
   }
 
+  /** Same contract through the public windowless mount path
+      (Scene::mount(IPlatformController*)): the composed node has a boundary
+      and a scene but no Window, and its bindings must still follow a
+      retained props apply. */
+  template <class ChildT> void verifyRetainedPropsBindingWithoutWindow()
+  {
+    PointerBindScenario scenario;
+    g_pointerBindScenario = &scenario;
+    {
+      NullScenePlatformController platform;
+      loka::app::scene::Scene scene(
+          (loka::app::scene::Boundary<RetainedBindingParent<ChildT> >()));
+      scene.mount(&platform);
+      scene.updateAttached(true);
+      loka::app::scene::BoundaryNode *parent =
+          loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+      LOKA_VERIFY(parent != 0);
+      loka::app::scene::Node *child =
+          parent->compositionRootNode()->asNestable()->childrenHead();
+      LOKA_VERIFY(child != 0);
+      scenario.propsOld.emit();
+      LOKA_VERIFY(scenario.propsCalls == 1);
+
+      scenario.currentProps = &scenario.propsNew;
+      parent->markViewDirty(loka::app::scene::NODE_DIRTY_CHILD);
+      const bool changed = scene.flushInvalidation();
+      LOKA_VERIFY(changed);
+      loka::app::scene::Node *retained =
+          parent->compositionRootNode()->asNestable()->childrenHead();
+      LOKA_VERIFY(retained == child);
+      scenario.propsNew.emit();
+      LOKA_VERIFY(scenario.propsCalls == 2);
+      scenario.propsOld.emit();
+      LOKA_VERIFY(scenario.propsCalls == 2);
+    }
+    g_pointerBindScenario = 0;
+  }
+
 #ifndef LOKA_LIFECYCLE_AUDIT
   class DisarmedBindingNode;
   typedef loka::app::scene::BoundaryPropsFor<DisarmedBindingNode> DisarmedBindingProps;
@@ -653,4 +691,14 @@ void testRetainedPropsApplyRebindsPlainBoundary()
 void testRetainedPropsApplyRebindsComponent()
 {
   verifyRetainedPropsBinding<RetainedComponentBindingNode>();
+}
+
+void testRetainedPropsApplyRebindsPlainBoundaryWithoutWindow()
+{
+  verifyRetainedPropsBindingWithoutWindow<RetainedPlainBindingNode>();
+}
+
+void testRetainedPropsApplyRebindsComponentWithoutWindow()
+{
+  verifyRetainedPropsBindingWithoutWindow<RetainedComponentBindingNode>();
 }
