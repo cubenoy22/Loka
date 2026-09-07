@@ -1,7 +1,7 @@
 #ifndef LOKA_MINESWEEPER_MAIN_NODE_HPP
 #define LOKA_MINESWEEPER_MAIN_NODE_HPP
 
-#include "app/nodes/boundary/StdComposition.hpp"
+#include "app/nodes/boundary/RecomposingBoundary.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/Cell.hpp"
 #include "app/nodes/nestable/BoundarySection.hpp"
@@ -192,7 +192,7 @@ namespace minesweeper
     unsigned long seed_;
   };
 
-  class MainNode : public loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>
+  class MainNode : public loka::app::scene::RecomposingBoundaryFor<MainNode, loka::app::scene::StdCompositionBoundaryNodeBase<MainProps> >
   {
     struct MineCellItem
     {
@@ -228,7 +228,7 @@ namespace minesweeper
     typedef MainTypeTag TypeTag;
 
     MainNode(const MainProps &p)
-        : loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>(p),
+        : loka::app::scene::RecomposingBoundaryFor<MainNode, loka::app::scene::StdCompositionBoundaryNodeBase<MainProps> >(p),
           bank_(0),
           boardRandom_(p.seed_)
     {
@@ -270,40 +270,13 @@ namespace minesweeper
     }
 
   protected:
-    // MineSweeper is the first app whose declaration itself recomposes (the
-    // key bank changes on New Game); window boundaries do not re-declare on
-    // UPDATE by default. This mirrors the test-support recomposing boundary
-    // and the Scene root wrapper's dirty-flag check until the scene-update
-    // redesign (WR-4) promotes a shared production form. Reveal clicks stay
-    // on the ordinary update path: only NODE_DIRTY_CHILD re-declares.
+    /** RecomposingBoundaryFor supplies the production local-recompose form.
+        New Game changes the key bank on CHILD dirt; reveal clicks retain
+        the ordinary update path. Rebinding lives here until PR A2 (#567). */
     virtual void declareLocalRecomposition(loka::app::scene::NodeComposition &composition)
     {
+      this->bindUi();
       this->composeNode(composition);
-    }
-
-    virtual void composeWithContext(loka::app::scene::ComponentContext &context,
-                                    loka::app::scene::ComposeEvent event)
-    {
-      typedef loka::app::scene::StdCompositionBoundaryNodeBase<MainProps> BaseType;
-      if (event == loka::app::scene::COMPOSE_EVENT_UPDATE &&
-          (context.dirtyFlags() & loka::app::scene::NODE_DIRTY_CHILD))
-      {
-        if (!this->recomposeLocalComposition(
-                context, event, this->LOCAL_RECOMPOSE_APPLY_SNAPSHOT))
-        {
-          if (!this->composeResult().allocationFailed)
-          {
-            this->recomposeLocalCompositionWithFullFallback(
-                context, event, this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
-          }
-        }
-        // beginComposition released this node's callbacks; a recomposing
-        // boundary must re-declare its UI bindings or the second New Game
-        // click emits into nothing (another WR-4 wrinkle to fold).
-        this->bindUi();
-        return;
-      }
-      BaseType::composeWithContext(context, event);
     }
 
   private:

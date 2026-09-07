@@ -24,6 +24,14 @@
 #include "core/Profiler.hpp"
 #include "platform/debug/DebugLog.hpp"
 
+#ifdef TEST_BUILD
+namespace SceneTestSupport
+{
+  template <class NodeT, class PropsT, bool UseRetainFastPaths, class Base>
+  class RecomposingBoundaryNode;
+}
+#endif
+
 namespace loka
 {
   namespace dsl
@@ -39,6 +47,9 @@ namespace loka
     namespace scene
     {
       class Scene;
+
+      template <class NodeT, class Base> class RecomposingBoundaryFor;
+      class RootBoundaryWrapper;
 
       // BoundaryNode: owns a local tracker for its subtree.
       class BoundaryNode : public ComposableNode, public IStateOwner LOKA_AUDITED_AS(BoundaryNode)
@@ -1284,17 +1295,25 @@ namespace loka
         }
 
       protected:
-        enum LocalRecomposeMode
-        {
-          LOCAL_RECOMPOSE_APPLY_SNAPSHOT = 0,
-          LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS = 1
-        };
-
         /** Declares the desired definitions for a boundary-local recompose. */
         virtual void declareLocalRecomposition(NodeComposition &composition)
         {
           (void)composition;
         }
+
+      private:
+        template <class NodeT, class Base> friend class RecomposingBoundaryFor;
+        friend class RootBoundaryWrapper;
+#ifdef TEST_BUILD
+        template <class NodeT, class PropsT, bool UseRetainFastPaths, class Base>
+        friend class ::SceneTestSupport::RecomposingBoundaryNode;
+#endif
+
+        enum LocalRecomposeMode
+        {
+          LOCAL_RECOMPOSE_APPLY_SNAPSHOT = 0,
+          LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS = 1
+        };
 
         /** Rebuilds and applies this Boundary's current local composition.
             Returns false without promoting the snapshot when no local plan
@@ -1400,6 +1419,7 @@ namespace loka
           context.setComposition(0);
         }
 
+      protected:
         /** Retires the complete arena allocation and ledger for clock-boundary reclaim. */
         void retireOwnedNodeGeneration(ComponentContext &context);
         void retireOwnedNodeGeneration()

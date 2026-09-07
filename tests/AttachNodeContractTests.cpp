@@ -3,7 +3,7 @@
 
 #include <cassert>
 
-#include "app/nodes/boundary/StdComposition.hpp"
+#include "app/nodes/boundary/RecomposingBoundary.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
 #include "app/nodes/nestable/Show.hpp"
@@ -248,35 +248,14 @@ namespace
 
   template <class NodeT, class PropsT>
   class PropsRecomposingBoundaryNode
-      : public loka::app::scene::StdCompositionBoundaryNodeBase<PropsT>
+      : public loka::app::scene::RecomposingBoundaryFor<
+            NodeT, loka::app::scene::StdCompositionBoundaryNodeBase<PropsT> >
   {
   public:
     explicit PropsRecomposingBoundaryNode(const PropsT &props)
-        : loka::app::scene::StdCompositionBoundaryNodeBase<PropsT>(props)
+        : loka::app::scene::RecomposingBoundaryFor<
+              NodeT, loka::app::scene::StdCompositionBoundaryNodeBase<PropsT> >(props)
     {
-    }
-
-  protected:
-    virtual void declareLocalRecomposition(
-        loka::app::scene::NodeComposition &composition)
-    {
-      this->composeNode(composition);
-    }
-
-    virtual void composeWithContext(
-        loka::app::scene::ComponentContext &context,
-        loka::app::scene::ComposeEvent event)
-    {
-      typedef loka::app::scene::StdCompositionBoundaryNodeBase<PropsT>
-          BaseType;
-      if (event != loka::app::scene::COMPOSE_EVENT_UPDATE)
-      {
-        BaseType::composeWithContext(context, event);
-        return;
-      }
-      this->recomposeLocalCompositionWithFullFallback(
-          context, event,
-          this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
     }
   };
 

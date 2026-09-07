@@ -35,3 +35,8 @@ loka_compile_pin(borrowed-state-is-read-only
   REFUSES pins/refuses_set_on_borrowed_state.cpp
   ACCEPTS pins/accepts_get_on_borrowed_state.cpp
 )
+
+loka_compile_pin(local-recompose-doors-are-internal
+  REFUSES pins/refuses_local_recompose_doors.cpp
+  ACCEPTS pins/accepts_local_recompose_doors.cpp
+)

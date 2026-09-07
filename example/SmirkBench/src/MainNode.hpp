@@ -4,7 +4,7 @@
 #include "SmirkModel.hpp"
 #include "app/core/Window.hpp"
 #include "app/nodes/Text.hpp"
-#include "app/nodes/boundary/StdComposition.hpp"
+#include "app/nodes/boundary/RecomposingBoundary.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
@@ -62,7 +62,7 @@ namespace smirkbench
     SmirkModel *model_;
   };
 
-  class MainNode : public loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>
+  class MainNode : public loka::app::scene::RecomposingBoundaryFor<MainNode, loka::app::scene::StdCompositionBoundaryNodeBase<MainProps> >
   {
     enum
     {
@@ -75,7 +75,7 @@ namespace smirkbench
     typedef MainTypeTag TypeTag;
 
     explicit MainNode(const MainProps &props)
-        : loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>(props),
+        : loka::app::scene::RecomposingBoundaryFor<MainNode, loka::app::scene::StdCompositionBoundaryNodeBase<MainProps> >(props),
           orientation_(),
           faceCount_(),
           surfaceExtent_(),
@@ -156,23 +156,8 @@ namespace smirkbench
   protected:
     virtual void declareLocalRecomposition(loka::app::scene::NodeComposition &composition)
     {
+      this->bindUi();
       this->composeNode(composition);
-    }
-
-    virtual void composeWithContext(loka::app::scene::ComponentContext &context, loka::app::scene::ComposeEvent event)
-    {
-      typedef loka::app::scene::StdCompositionBoundaryNodeBase<MainProps> BaseType;
-      if (event == loka::app::scene::COMPOSE_EVENT_UPDATE
-          && (context.dirtyFlags() & loka::app::scene::NODE_DIRTY_CHILD))
-      {
-        // The orientation flip changes the retained Stacks' axis props, not
-        // the structure; the diff apply carries props (HelloWorld, #556).
-        this->recomposeLocalCompositionWithFullFallback(
-            context, event, this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
-        this->bindUi();
-        return;
-      }
-      BaseType::composeWithContext(context, event);
     }
 
   private:
