@@ -19,6 +19,7 @@
 #include "core/StateTracker.hpp"
 #include <cstring>
 #include "app/nodes/boundary/StdComposition.hpp"
+#include "app/nodes/boundary/RecomposingBoundary.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/BoundarySection.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
@@ -4696,4 +4697,111 @@ void testBranchSeatSiblingsRejectDuplicateTags()
   LOKA_VERIFY(seats.plans().size() == 3 && seats.findPlan(key) == 0 &&
               "an appended third claimant does not revive a collided key");
 #endif
+}
+
+namespace
+{
+  class GuardedRecomposeChildNode;
+  typedef loka::app::scene::BoundaryPropsFor<GuardedRecomposeChildNode> GuardedRecomposeChildProps;
+
+  /** Nested consumer of the production RecomposingBoundaryFor. It redeclares
+      two node-local states on every compose pass, so a refusing allocation
+      backend makes its local recompose fail, and it keeps one child so the
+      live subtree is observable across the refusal. */
+  class GuardedRecomposeChildNode
+      : public loka::app::scene::RecomposingBoundaryFor<
+            GuardedRecomposeChildNode,
+            loka::app::scene::BoundaryNodeFor<GuardedRecomposeChildNode> >
+  {
+  public:
+    explicit GuardedRecomposeChildNode(const GuardedRecomposeChildProps &props)
+        : loka::app::scene::RecomposingBoundaryFor<
+              GuardedRecomposeChildNode,
+              loka::app::scene::BoundaryNodeFor<GuardedRecomposeChildNode> >(props),
+          first_(),
+          second_()
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      WhiteFlagStatePayload initial = {{0}};
+      composition.declareStates().state(this->first_, initial).state(this->second_, initial);
+      composition.declare(loka::app::FragmentDefinition());
+    }
+
+    void requestChildRecompose()
+    {
+      this->markViewDirty(loka::app::scene::NODE_DIRTY_CHILD);
+    }
+
+    loka::app::scene::NodeState<WhiteFlagStatePayload> first_;
+    loka::app::scene::NodeState<WhiteFlagStatePayload> second_;
+  };
+
+  class GuardedRecomposeRootNode;
+  typedef loka::app::scene::BoundaryPropsFor<GuardedRecomposeRootNode> GuardedRecomposeRootProps;
+
+  class GuardedRecomposeRootNode
+      : public loka::app::scene::BoundaryNodeFor<GuardedRecomposeRootNode>
+  {
+  public:
+    explicit GuardedRecomposeRootNode(const GuardedRecomposeRootProps &props)
+        : loka::app::scene::BoundaryNodeFor<GuardedRecomposeRootNode>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(loka::app::scene::Boundary<GuardedRecomposeChildNode>(
+          GuardedRecomposeChildProps()));
+    }
+  };
+} // namespace
+
+/** #567 PR A1 (bot P1): a RecomposingBoundaryFor consumer whose local
+    recompose is refused by the allocation backend must record the refusal
+    and keep its live subtree. The full fallback detaches and retires every
+    child before it tries to create the replacement, and under memory
+    pressure that replacement may not materialize, so the guarded seam stops
+    before it. The next externally caused tick recomposes normally. */
+void testRecomposingBoundaryKeepsLiveSubtreeWhenLocalRecomposeAllocationIsRefused()
+{
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene((loka::app::scene::Boundary<GuardedRecomposeRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    loka::app::scene::BoundaryNode *root =
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    LOKA_VERIFY(root != 0);
+    GuardedRecomposeChildNode *child =
+        static_cast<GuardedRecomposeChildNode *>(root->childrenHead());
+    LOKA_VERIFY(child != 0);
+    LOKA_VERIFY(child->first_.isValid());
+    loka::app::scene::Node *const liveGrandchild = child->childrenHead();
+    LOKA_VERIFY(liveGrandchild != 0);
+    const size_t liveCount = child->childrenCount();
+
+    g_refusingBackendRefusals = 0;
+    loka::core::LokaAllocSetBackend(&refusingBackendAlloc, &delegatingBackendFree);
+    child->requestChildRecompose();
+    scene.flushInvalidation();
+    loka::core::LokaAllocSetBackend(0, 0);
+    LOKA_VERIFY(g_refusingBackendRefusals > 0);
+    LOKA_VERIFY(child->composeResult().allocationFailed);
+    // Red without the guard in RecomposingBoundaryFor::recomposeLocally: the
+    // full fallback detaches the live children and cannot create the
+    // replacement under the refusing backend.
+    LOKA_VERIFY(child->childrenHead() == liveGrandchild);
+    LOKA_VERIFY(child->childrenCount() == liveCount);
+
+    // One externally caused tick with the default backend restored.
+    child->requestChildRecompose();
+    scene.flushInvalidation();
+    LOKA_VERIFY(!child->composeResult().allocationFailed);
+    LOKA_VERIFY(child->first_.isValid());
+  }
+  loka::core::LokaAllocSetBackend(0, 0);
 }

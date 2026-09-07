@@ -40,6 +40,20 @@ namespace loka
             not choose the strategy. */
         void recomposeLocally(ComponentContext &ctx, ComposeEvent ev)
         {
+          if (this->recomposeLocalComposition(
+                  ctx, ev, this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS))
+          {
+            return;
+          }
+          // A refused allocation is a recorded refusal, not a reason to tear the
+          // live subtree down: the full fallback detaches and retires every
+          // child before it tries to create the replacement, and under memory
+          // pressure that replacement may not materialize (bot P1 on #620;
+          // the MineSweeper form this base replaces kept the same guard).
+          if (this->composeResult().allocationFailed)
+          {
+            return;
+          }
           this->recomposeLocalCompositionWithFullFallback(
               ctx, ev, this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
         }
