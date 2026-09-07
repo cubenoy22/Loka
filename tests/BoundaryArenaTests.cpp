@@ -3152,7 +3152,9 @@ void testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement()
     assert(original && original->isArenaAllocated());
     SectionOrderingChildNode *orderingChild =
         static_cast<SectionOrderingChildNode *>(original->childrenHead());
-    assert(orderingChild);
+    // The child now declares its observation inside its own window; the
+    // test only needs it to exist (kept as a release-build check too).
+    LOKA_VERIFY(orderingChild != 0);
 
     assert(oldValueAlive == 1);
     assert(oldState.isValid());
