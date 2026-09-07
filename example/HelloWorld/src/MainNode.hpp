@@ -25,7 +25,6 @@ namespace helloworld
     virtual void composeNode(loka::app::scene::NodeComposition &c);
 
   protected:
-    virtual void declareLocalRecomposition(loka::app::scene::NodeComposition &composition);
 
   private:
     ::Window *windowOrNull() const;

@@ -17,9 +17,14 @@ namespace loka
         explicit RecomposingBoundaryFor(const PropsType &p) : Base(p) {}
 
       protected:
-        /** Local recompose declares the same composition attach did. */
+        /** A local recompose re-runs the attach-scoped declarations and then
+            declares the same composition attach did. beginComposition() has
+            already released this node's callbacks, so an attachNode that
+            binds UI (today's form; PR A2 of #567 moves bindings behind a
+            token door) is replayed here instead of by every consumer. */
         virtual void declareLocalRecomposition(NodeComposition &c)
         {
+          this->attachNode(c);
           this->composeNode(c);
         }
 

@@ -322,10 +322,5 @@ namespace helloworld
     c.declare(decoration);
   }
 
-  void MainNode::declareLocalRecomposition(loka::app::scene::NodeComposition &composition)
-  {
-    this->bindUi();
-    this->composeNode(composition);
-  }
 
 } // namespace helloworld

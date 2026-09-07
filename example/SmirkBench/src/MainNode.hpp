@@ -153,13 +153,6 @@ namespace smirkbench
     }
 #endif
 
-  protected:
-    virtual void declareLocalRecomposition(loka::app::scene::NodeComposition &composition)
-    {
-      this->bindUi();
-      this->composeNode(composition);
-    }
-
   private:
     static loka::core::String faceCountLabel(int count)
     {

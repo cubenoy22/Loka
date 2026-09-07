@@ -70,7 +70,10 @@ clear boundaries, and small reusable concepts.
 
 Boundaries that must re-declare on their own CHILD dirt derive from
 `RecomposingBoundaryFor`; the local-recompose doors are kernel-private, and
-`recomposeLocally` is the strategy seam.
+`recomposeLocally` is the strategy seam. Its `declareLocalRecomposition` replays
+`attachNode` before `composeNode`, so attach-scoped bindings survive a local
+recompose without a per-consumer override (until #567 PR A2 moves bindings
+behind a token door).
 
 - For app-facing composition-form selection, Props/Definition conventions, and
   example style, follow [docs/API_STYLE.md](docs/API_STYLE.md).

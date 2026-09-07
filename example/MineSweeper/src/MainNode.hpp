@@ -273,11 +273,6 @@ namespace minesweeper
     /** RecomposingBoundaryFor supplies the production local-recompose form.
         New Game changes the key bank on CHILD dirt; reveal clicks retain
         the ordinary update path. Rebinding lives here until PR A2 (#567). */
-    virtual void declareLocalRecomposition(loka::app::scene::NodeComposition &composition)
-    {
-      this->bindUi();
-      this->composeNode(composition);
-    }
 
   private:
     class BoardRandom
