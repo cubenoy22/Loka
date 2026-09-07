@@ -3,6 +3,7 @@
 
 import json
 import os
+import re
 import pathlib
 import struct
 import subprocess
@@ -196,8 +197,12 @@ class ExpectedAuditPinsTest(unittest.TestCase):
         registry = os.path.join(PROJECT_DIR, "tests", "scenarios", "scenarios.txt")
         with open(registry, "r", encoding="utf-8") as handle:
             entries = [line.split() for line in handle.read().splitlines()]
-        self.assertEqual(len(entries), 20)
+        self.assertEqual(len(entries), 23)
         self.assertEqual(len(entries), len({tuple(entry) for entry in entries}))
+        self.assertEqual(
+            [entry for entry in entries if entry[0] == "simpleviewer"],
+            [["simpleviewer", "startup"], ["simpleviewer", "open-sun"], ["simpleviewer", "open-bulb"]],
+        )
         registered_audits = set()
         for entry in entries:
             self.assertEqual(len(entry), 2)
@@ -221,6 +226,7 @@ class ExpectedAuditPinsTest(unittest.TestCase):
                 "minesweeper": b"MineSweeper",
                 "floppybird": b"FloppyBird",
                 "smirkbench": b"SmirkBench",
+                "simpleviewer": b"SimpleViewer",
             }
             identity = identities[example]
             self.assertIn(b"test\t" + identity + b"\n", audit)
@@ -285,6 +291,22 @@ class ExpectedAuditPinsTest(unittest.TestCase):
                     check=False,
                 )
                 self.assertNotEqual(changed.returncode, 0, example)
+
+
+class Win32ScenarioVehicleListTest(unittest.TestCase):
+    def test_cmake_vehicle_list_matches_runner_table(self):
+        """win32/CMakeLists.txt registers a registry row as a Win32 test only for
+        examples the PowerShell runner has a vehicle for; the two lists must agree
+        or a Toolbox-only cell becomes a guaranteed-failing Win32 test."""
+        cmake = open(os.path.join(PROJECT_DIR, "win32", "CMakeLists.txt"), encoding="utf-8").read()
+        match = re.search(r"set\(_LOKA_WIN32_SCENARIO_VEHICLES ([a-z0-9 -]+)\)", cmake)
+        self.assertIsNotNone(match)
+        cmake_vehicles = set(match.group(1).split())
+        runner = open(os.path.join(PROJECT_DIR, "tests", "win32", "run-scenario.ps1"), encoding="utf-8").read()
+        table = runner[runner.index("$Vehicles = @{"):]
+        table = table[:table.index("\n}")]
+        runner_vehicles = set(re.findall(r'^\s*"([a-z0-9-]+)" = @\{', table, re.MULTILINE))
+        self.assertEqual(cmake_vehicles, runner_vehicles)
 
 
 class PngToolTest(unittest.TestCase):

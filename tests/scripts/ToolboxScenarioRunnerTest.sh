@@ -155,11 +155,13 @@ SH
 
 cat >"$SANDBOX/retro-tools/hmount" <<'SH'
 #!/usr/bin/env bash
+printf "%s\n" "$HOME" "$@" >>"$SANDBOX/hfs-mount-log"
 exit 0
 SH
 
 cat >"$SANDBOX/retro-tools/humount" <<'SH'
 #!/usr/bin/env bash
+printf "%s\n" "$HOME" "$@" >>"$SANDBOX/hfs-mount-log"
 exit 0
 SH
 
@@ -167,6 +169,12 @@ cat >"$SANDBOX/retro-tools/hcopy" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 destination="$3"
+if [ "$1" = "-r" ]; then
+  printf '%s\n' "$HOME" "$@" >"$SANDBOX/picture-copy-arguments"
+  [ "${FAKE_PICTURE_MISSING:-0}" != "1" ] || exit 1
+  printf 'template data fork: %s\n' "$2" >"$destination"
+  exit 0
+fi
 if [ "$2" = ":LokaTestsToolbox.capture" ]; then
   if [ "${FAKE_CAPTURE_MISSING:-0}" = "1" ]; then
     exit 1
@@ -323,6 +331,49 @@ touch "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaSmirkBenchTests
 run_case smirkbench startup 4 unset
 run_case smirkbench surface-ticks 4 unset
 run_case smirkbench add-face 4 unset
+# SimpleViewer launch-only pins: template data forks, no invented audits.
+printf '%s\n' 'simpleviewer startup' 'simpleviewer open-sun' 'simpleviewer open-bulb' >>"$SANDBOX/repo/tests/scenarios/scenarios.txt"
+touch "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaSimpleViewerTestsToolbox68K.bin"
+mkdir -p "$SANDBOX/repo/tests/scenarios/expected/simpleviewer"
+cp "$REPO_DIR/tests/scenarios/expected/simpleviewer/startup.audit" \
+  "$SANDBOX/repo/tests/scenarios/expected/simpleviewer/startup.audit"
+# The startup cell stages no picture and mounts nothing.
+: >"$SANDBOX/hfs-mount-log"
+: >"$SANDBOX/picture-copy-arguments"
+RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" run_case simpleviewer startup 2 unset
+[ ! -s "$SANDBOX/hfs-mount-log" ] || fail "startup mounted the template"
+[ ! -s "$SANDBOX/picture-copy-arguments" ] || fail "startup extracted a picture"
+for picture in Sun Bulb; do
+  # tr, not ${picture,,}: macOS ships Bash 3.2 and this test runs there.
+  cell="open-$(printf '%s' "$picture" | tr 'A-Z' 'a-z')"
+  : >"$SANDBOX/hfs-mount-log"
+  RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" run_case simpleviewer "$cell" 3 unset
+  staged="$SANDBOX/repo/build/mame-scenario/simpleviewer/$cell/$picture.pict"
+  grep -Fxq -- ":Desktop Folder:Images:$picture.pict" "$SANDBOX/picture-copy-arguments" \
+    || fail "$picture template source was not extracted"
+  grep -Fxq -- "$SANDBOX/BootTemplate.hd" "$SANDBOX/hfs-mount-log" \
+    || fail "pristine template was not mounted"
+  [ "$(grep -Fc -- "/$cell/hfs-home" "$SANDBOX/hfs-mount-log")" = 2 ] \
+    || fail "template mount/unmount did not use the isolated HFS home"
+  grep -Fxq -- "$staged" "$SANDBOX/dev-disk-arguments" || fail "$picture was not staged"
+  grep -Fxq -- "template data fork: :Desktop Folder:Images:$picture.pict" "$staged" \
+    || fail "$picture data fork was not preserved"
+done
+# Missing template input must refuse before disk creation, even after a prior run.
+rm -f "$SANDBOX/tab-count" "$SANDBOX/dev-disk-arguments"
+: >"$SANDBOX/hfs-mount-log"
+if MAME_ENV_FILE="$SANDBOX/mame.env" FAKE_PICTURE_MISSING=1 \
+    RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" env -u WSL_INTEROP \
+    bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" simpleviewer open-sun \
+    >"$SANDBOX/picture-failure.log" 2>&1; then
+  fail "missing template picture was accepted"
+fi
+grep -Fq 'could not extract template picture :Desktop Folder:Images:Sun.pict' \
+  "$SANDBOX/picture-failure.log" || fail "missing picture refusal"
+[ "$(grep -Fc '/open-sun/hfs-home' "$SANDBOX/hfs-mount-log")" = 2 ] \
+  || fail "missing picture did not unmount the template"
+[ ! -f "$SANDBOX/tab-count" ] || fail "missing picture launched MAME"
+[ ! -f "$SANDBOX/dev-disk-arguments" ] || fail "missing picture staged stale bytes"
 cp "$SANDBOX/shared-scenarios.txt" "$SANDBOX/repo/tests/scenarios/scenarios.txt"
 run_case helloworld toggle-action-probe 9 unset 9
 
