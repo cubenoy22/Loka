@@ -3,6 +3,7 @@
 #include <cassert>
 
 #include "MainNode.hpp"
+#include "RetainedRebindScenario.hpp"
 #include "ObservedMainDefinition.hpp"
 #include "RectSurfaceScenarioObservation.hpp"
 #include "ScenarioDriverSupport.hpp"
@@ -26,7 +27,7 @@ namespace loka
     {
       bool IsSmirkBenchScenario(const std::string &name)
       {
-        return name == "startup" || name == "surface-ticks" || name == "add-face" || name == "retained-text-rebind";
+        return name == "startup" || name == "surface-ticks" || name == "add-face" || name == "retained-text-rebind" || name == "retained-button-rebind";
       }
 
       dsl::SnapRecord MakeRecord(const char *scenario, long tick, const char *status)
@@ -245,6 +246,14 @@ namespace loka
           {
             return;
           }
+          if (this->scenario_ == "retained-button-rebind")
+          {
+            const bool succeeded = this->retainedButton_.run(window, *controller, this->audit_);
+            (void)this->terminal_.emit(succeeded ? dsl::testing::SCENARIO_AUDIT_SUCCEEDED
+                                                : dsl::testing::SCENARIO_AUDIT_FAILED);
+            (void)this->completionPublisher_.publish(window);
+            return;
+          }
           const bool addFace = this->scenario_ == "add-face";
           const long finalTick = this->scenario_ == "startup" ? 2
               : this->scenario_ == "retained-text-rebind" ? 7 : (addFace ? 10 : 33);
@@ -288,6 +297,7 @@ namespace loka
           }
         }
 
+        RetainedButtonRebind retainedButton_;
         smirkbench::SmirkModel model_;
         const std::string scenario_;
         core::MutableState<core::String> retainedTextA_;

@@ -193,11 +193,25 @@ class ExpectedAuditPinsTest(unittest.TestCase):
             self.assertIn("scrapbook " + scenario, scenarios)
             self.assertRegex(fixture, r"^corrupt-bag=[0-9]+$")
 
+    def test_toolbox_rebind_cells_use_existing_vehicles_and_strict_audits(self):
+        registry = pathlib.Path(SCENARIO_DIR, "scenarios.txt").read_text()
+        cells = {"SmirkBench": ("smirkbench", ["retained-button-rebind"]),
+                 "HelloWorld": ("helloworld", ["retained-edittext-rebind", "retained-popup-rebind"]),
+                 "MineSweeper": ("minesweeper", ["retained-cell-rebind"])}
+        for driver, (example, scenarios) in cells.items():
+            source = pathlib.Path(PROJECT_DIR, "tests/toolbox/src", driver + "ScenarioDriver.cpp").read_text()
+            for scenario in scenarios:
+                self.assertIn(example + " " + scenario + "\n", registry)
+                self.assertIn('"' + scenario + '"', source)
+        probes = pathlib.Path(PROJECT_DIR, "tests/toolbox/src/RetainedRebindScenario.hpp").read_text()
+        self.assertIn("definition.applyPropsToNode(node)", probes)
+        self.assertIn("after.totalRefreshCalls == calls && after.totalRefreshRowVisits == rows", probes)
+
     def test_expected_audits_cover_registry_and_pin_app_identity(self):
         registry = os.path.join(PROJECT_DIR, "tests", "scenarios", "scenarios.txt")
         with open(registry, "r", encoding="utf-8") as handle:
             entries = [line.split() for line in handle.read().splitlines()]
-        self.assertEqual(len(entries), 23)
+        self.assertEqual(len(entries), 27)
         self.assertEqual(len(entries), len({tuple(entry) for entry in entries}))
         self.assertEqual(
             [entry for entry in entries if entry[0] == "simpleviewer"],

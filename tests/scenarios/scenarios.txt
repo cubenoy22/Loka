@@ -21,3 +21,7 @@ smirkbench retained-text-rebind
 simpleviewer startup
 simpleviewer open-sun
 simpleviewer open-bulb
+smirkbench retained-button-rebind
+helloworld retained-edittext-rebind
+helloworld retained-popup-rebind
+minesweeper retained-cell-rebind

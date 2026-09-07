@@ -374,6 +374,13 @@ grep -Fq 'could not extract template picture :Desktop Folder:Images:Sun.pict' \
   || fail "missing picture did not unmount the template"
 [ ! -f "$SANDBOX/tab-count" ] || fail "missing picture launched MAME"
 [ ! -f "$SANDBOX/dev-disk-arguments" ] || fail "missing picture staged stale bytes"
+printf '%s\n' 'smirkbench retained-button-rebind' 'helloworld retained-edittext-rebind' \
+  'helloworld retained-popup-rebind' 'minesweeper retained-cell-rebind' \
+  >>"$SANDBOX/repo/tests/scenarios/scenarios.txt"
+run_case smirkbench retained-button-rebind 4 unset
+run_case helloworld retained-edittext-rebind 2 unset
+run_case helloworld retained-popup-rebind 2 unset
+run_case minesweeper retained-cell-rebind 4 120
 cp "$SANDBOX/shared-scenarios.txt" "$SANDBOX/repo/tests/scenarios/scenarios.txt"
 run_case helloworld toggle-action-probe 9 unset 9
 

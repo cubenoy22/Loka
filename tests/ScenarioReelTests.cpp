@@ -186,7 +186,14 @@ namespace
       }
       if (entry.substr(0, space) == example)
       {
-        cells.push_back(entry.substr(space + 1));
+        const std::string cell = entry.substr(space + 1);
+        // These probes require Toolbox native records and run in the existing
+        // rail drivers. They are not portable Flow/reel cells.
+        if ((std::string(example) == "helloworld"
+             && (cell == "retained-edittext-rebind" || cell == "retained-popup-rebind"))
+            || (std::string(example) == "minesweeper" && cell == "retained-cell-rebind"))
+          continue;
+        cells.push_back(cell);
       }
     }
     LOKA_VERIFY(std::fclose(input) == 0);

@@ -92,6 +92,10 @@ public:
   // right after it was incremented. Read these as deltas across a cycle.
   int totalCollectorVisitCount;
   int totalBoundaryApplyCount;
+#ifdef TEST_BUILD
+  int totalRefreshCalls;
+  int totalRefreshRowVisits;
+#endif
   void noteCollectorVisit();
   unsigned long buttonPoolHitCount;
   unsigned long buttonPoolMissCount;

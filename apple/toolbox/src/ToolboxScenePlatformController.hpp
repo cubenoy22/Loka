@@ -402,6 +402,48 @@ public:
     return this->debugStats_;
   }
 
+  /** Copies an existing hit without rendering or repairing its sources. */
+  bool queryCellHitForTesting(ToolboxCellContext *context, ToolboxHitLedger::CellHit &out) const
+  {
+    for (size_t i = 0; i < this->hitLedger_.cellHits_.size(); ++i)
+      if (this->hitLedger_.cellHits_[i].context == context)
+      {
+        out = this->hitLedger_.cellHits_[i];
+        return true;
+      }
+    return false;
+  }
+
+  /** Copies an existing popup hit without rendering or repairing its sources. */
+  bool queryPopupHitForTesting(ToolboxPopupMenuContext *context, ToolboxHitLedger::PopupHit &out) const
+  {
+    for (size_t i = 0; i < this->hitLedger_.popupHits_.size(); ++i)
+      if (this->hitLedger_.popupHits_[i].context == context)
+      {
+        out = this->hitLedger_.popupHits_[i];
+        return true;
+      }
+    return false;
+  }
+
+  /** Reads native title and hilite, identified by the scenario's stable emitter.
+      Does not apply props or draw; absence of a native control is a refusal. */
+  bool queryButtonValueForTesting(loka::core::EmitterState *emitter, std::string &title, short &hilite) const
+  {
+    for (size_t i = 0; i < this->buttonControls_.size(); ++i)
+    {
+      const ButtonControlBinding &binding = this->buttonControls_[i];
+      if (binding.emitter != emitter || !binding.control)
+        continue;
+      Str255 text;
+      GetControlTitle(binding.control, text);
+      title.assign(reinterpret_cast<const char *>(text + 1), text[0]);
+      hilite = (**binding.control).contrlHilite;
+      return true;
+    }
+    return false;
+  }
+
   /** Reads the live TextEdit payload without synchronizing it first.
 
       Scenario probes use this const door to distinguish the native record from

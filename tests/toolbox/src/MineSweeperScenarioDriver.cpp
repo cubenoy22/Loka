@@ -5,6 +5,7 @@
 #include "MineSweeperScenarioPresentation.hpp"
 #include "MineSweeperScenarios.hpp"
 #include "ScenarioDriverSupport.hpp"
+#include "RetainedRebindScenario.hpp"
 #include "StartupScenarios.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
@@ -51,10 +52,23 @@ namespace loka
           {
             this->startupScenario_.stop();
           }
-          else
+          else if (this->scenario_.name() != "retained-cell-rebind")
           {
             this->scenario_.stop();
           }
+        }
+
+        virtual void compose(AppComposition &composition)
+        {
+          if (this->scenario_.name() != "retained-cell-rebind")
+          {
+            scenario_tests::MineSweeperScenarioPresentation::compose(composition);
+            return;
+          }
+          scenario_tests::ObservedMainDefinition<minesweeper::MainProps, minesweeper::MainNode> definition(this->mainProps(), 0);
+          WindowProps props = this->productionWindowProps(definition);
+          composition << WindowDef(props.frame(20, 45, 220, 240).idlePolicy(app::IdlePolicy::everyTick())
+                                       .onIdle(&MineSweeperScenarioAppConfig::RebindIdle, this));
         }
 
         void setApp(App *app)
@@ -63,6 +77,11 @@ namespace loka
         }
 
       private:
+        static void RebindIdle(Window *window, double elapsed, void *data)
+        {
+          static_cast<MineSweeperScenarioAppConfig *>(data)->tick(window, elapsed);
+        }
+
         virtual void onScenarioIdle(Window *window, double elapsedSeconds)
         {
           this->tick(window, elapsedSeconds);
@@ -70,6 +89,19 @@ namespace loka
 
         void tick(Window *window, double elapsedSeconds)
         {
+          if (!this->recorded_ && (this->scenario_.name() == "retained-cell-rebind"))
+          {
+            if (!window || !window->scene()) return;
+            ToolboxScenePlatformController *controller = static_cast<ToolboxScenePlatformController *>(
+                dsl::testing::SceneTestAccess::platformController(*window->scene()));
+            if (!controller || window->scene()->hasPendingInvalidation() || controller->hasPendingSync()
+                || window->asToolboxWindow()->hasPendingInvalidate()) return;
+            if (++this->tickCount_ < 2) return;
+            const bool succeeded = this->retainedCell_.run(window, *controller, this->audit_);
+            (void)PublishRebindVerdict(window, this->scenario_, "MineSweeper", this->tickCount_, succeeded);
+            this->recorded_ = true;
+            (void)this->completionPublisher_.publish(window);
+          }
           ++this->tickCount_;
           if (!this->recorded_)
           {
@@ -126,6 +158,7 @@ namespace loka
           }
         }
 
+        RetainedCellRebind retainedCell_;
         const bool startup_;
         dsl::testing::ScenarioAuditFile audit_;
         scenario_tests::StartupScenario startupScenario_;
@@ -151,7 +184,8 @@ namespace loka
       }
       if (!settings.hasScenario
           || (!scenario_tests::IsStartupScenario(settings.scenario)
-              && !scenario_tests::IsMineSweeperScenario(settings.scenario)))
+              && !scenario_tests::IsMineSweeperScenario(settings.scenario)
+              && settings.scenario != "retained-cell-rebind"))
       {
         (void)WriteScenarioErrorAudit(
             settings.hasScenario ? settings.scenario.c_str() : kDefaultScenarioName,

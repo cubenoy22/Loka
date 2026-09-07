@@ -117,6 +117,10 @@ ToolboxSceneDebugStats::ToolboxSceneDebugStats()
       totalControlDrawCount(0),
       totalCollectorVisitCount(0),
       totalBoundaryApplyCount(0),
+#ifdef TEST_BUILD
+      totalRefreshCalls(0),
+      totalRefreshRowVisits(0),
+#endif
       buttonPoolHitCount(0),
       buttonPoolMissCount(0),
       buttonPoolEvictCount(0),

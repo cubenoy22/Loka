@@ -7,6 +7,7 @@
 #include "HelloWorldScenarios.hpp"
 #include "HelloWorldScenarioPresentation.hpp"
 #include "ScenarioDriverSupport.hpp"
+#include "RetainedRebindScenario.hpp"
 #include "StartupScenarios.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindow.hpp"
@@ -530,7 +531,8 @@ namespace loka
           {
             this->startupScenario_.stop();
           }
-          else
+          else if (this->scenario_.name() != "retained-edittext-rebind"
+                   && this->scenario_.name() != "retained-popup-rebind")
           {
             this->scenario_.stop();
           }
@@ -549,6 +551,21 @@ namespace loka
 
         void tick(Window *window, double elapsedSeconds)
         {
+          if (!this->recorded_ && (this->scenario_.name() == "retained-edittext-rebind" || this->scenario_.name() == "retained-popup-rebind"))
+          {
+            if (!window || !window->scene()) return;
+            ToolboxScenePlatformController *controller = static_cast<ToolboxScenePlatformController *>(
+                dsl::testing::SceneTestAccess::platformController(*window->scene()));
+            if (!controller || window->scene()->hasPendingInvalidation() || controller->hasPendingSync()
+                || window->asToolboxWindow()->hasPendingInvalidate()) return;
+            if (++this->tickCount_ < 2) return;
+            const bool succeeded = this->scenario_.name() == "retained-edittext-rebind"
+                ? this->retainedEdit_.run(window, *controller, this->audit_)
+                : this->retainedPopup_.run(window, *controller, this->audit_);
+            (void)PublishRebindVerdict(window, this->scenario_, "HelloWorld", this->tickCount_, succeeded);
+            this->recorded_ = true;
+            (void)this->completionPublisher_.publish(window);
+          }
           ++this->tickCount_;
           if (!this->recorded_)
           {
@@ -640,6 +657,8 @@ namespace loka
           }
         }
 
+        RetainedEditTextRebind retainedEdit_;
+        RetainedPopupRebind retainedPopup_;
         const bool startup_;
         dsl::testing::ScenarioAuditFile audit_;
         scenario_tests::StartupScenario startupScenario_;
@@ -665,7 +684,9 @@ namespace loka
       }
       if (!settings.hasScenario
           || (!scenario_tests::IsStartupScenario(settings.scenario)
-              && !scenario_tests::IsHelloWorldScenario(settings.scenario)))
+              && !scenario_tests::IsHelloWorldScenario(settings.scenario)
+              && settings.scenario != "retained-edittext-rebind"
+              && settings.scenario != "retained-popup-rebind"))
       {
         (void)WriteScenarioErrorAudit(
             settings.hasScenario ? settings.scenario.c_str() : kDefaultScenarioName,

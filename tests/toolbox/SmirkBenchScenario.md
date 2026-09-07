@@ -108,5 +108,35 @@ Measured on the maciix rig: all six steps (`post-settle`, `apply-A`,
 the terminal succeeds, and the final screen shows `Rebind B updated` in the nav
 pane with the Add face button and the surface unchanged. Red side: with
 `ToolboxTextContext::onPropsApplied` emptied, `apply-A` is never recorded and the
-terminal fails. The other five kinds and the "omit the TextHit refresh" mutation
-are not pinned by a cell; #604 tracks that runtime matrix.
+terminal fails. At that measurement, the other kinds and the "omit the TextHit refresh"
+mutation were not pinned by a cell. The #615 follow-up below adds four more
+build-verified cells; their native mutation runs remain pending.
+
+## Retained Button rebind (#615 follow-up)
+
+`retained-button-rebind` runs on the existing `SmirkBench.AddFace` Button at
+the second settled idle turn. `RetainedButtonRebind`, owned by the driver
+AppConfig, supplies enabled A/B States until after App destruction. It preserves
+the real click emitter and control tag. Every apply uses `ButtonDefinition`'s
+production retained-apply door.
+
+Checkpoints: `apply-A`, `literal-B-before-render`, `enabled-B`,
+`B-disables-native`, `A-does-not-enable-native`, `B-enables-native`,
+`unchanged-B`. The literal transition uses real ButtonProps assignment and
+requires the owned `text_` address to stay equal. The controller's TEST_BUILD
+query reads the actual Control Manager title and hilite without applying or
+drawing. B must already be the native title before any render. Changing enabled
+B disables/enables the control; changing A cannot enable it. Reapplying B must
+leave both refresh counters unchanged.
+
+All new checkpoints record `refresh.calls` and `refresh.rows`; every Toolbox
+scenario driver's capture also includes them. These are cumulative TEST_BUILD
+counters: entries to refreshContextProps and rows searched by that door (including
+unsuccessful matches), excluding subscription and diagnostic-query scans.
+
+The checkout used for this follow-up contains 20 existing registry cells; four
+new cells make 24. The measured baselines above predate these counter fields.
+New and updated expected audits remain a delegator measurement task, and the
+strict missing-audit check is unchanged. These probes are build-verified only
+until the delegator runs corrected and mutated binaries on the rig. See the
+HelloWorld and MineSweeper scenario documents for the other three cells.

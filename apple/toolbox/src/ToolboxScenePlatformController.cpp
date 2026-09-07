@@ -1009,6 +1009,9 @@ void ToolboxScenePlatformController::retireNodeContext(loka::app::scene::NodeCon
 
 void ToolboxScenePlatformController::refreshContextProps(loka::app::scene::Node *node, short buttonResourceId)
 {
+#ifdef TEST_BUILD
+  ++this->debugStats_.totalRefreshCalls;
+#endif
   if (!node || !node->getContext())
     return;
   loka::app::scene::NodeContext *context = node->getContext();
@@ -1022,6 +1025,9 @@ void ToolboxScenePlatformController::refreshContextProps(loka::app::scene::Node 
   {
     for (size_t i = 0; i < this->hitLedger_.textHits_.size(); ++i)
     {
+#ifdef TEST_BUILD
+      ++this->debugStats_.totalRefreshRowVisits;
+#endif
       TextHit &hit = this->hitLedger_.textHits_[i];
       if (hit.context != context)
         continue;
@@ -1034,6 +1040,9 @@ void ToolboxScenePlatformController::refreshContextProps(loka::app::scene::Node 
   {
     for (size_t i = 0; i < this->hitLedger_.cellHits_.size(); ++i)
     {
+#ifdef TEST_BUILD
+      ++this->debugStats_.totalRefreshRowVisits;
+#endif
       CellHit &hit = this->hitLedger_.cellHits_[i];
       if (hit.context != context)
         continue;
@@ -1047,6 +1056,9 @@ void ToolboxScenePlatformController::refreshContextProps(loka::app::scene::Node 
   {
     for (size_t i = 0; i < this->hitLedger_.editHits_.size(); ++i)
     {
+#ifdef TEST_BUILD
+      ++this->debugStats_.totalRefreshRowVisits;
+#endif
       EditHit &hit = this->hitLedger_.editHits_[i];
       if (hit.context != context)
         continue;
@@ -1063,6 +1075,9 @@ void ToolboxScenePlatformController::refreshContextProps(loka::app::scene::Node 
     size_t editIndex = 0;
     if (this->editControls_.find(context, editIndex))
     {
+#ifdef TEST_BUILD
+      this->debugStats_.totalRefreshRowVisits += static_cast<int>(editIndex + 1);
+#endif
       EditTextControlBinding &binding = this->editControls_[editIndex];
       previousText = binding.text;
       binding.text = context->projectedTextState();
@@ -1070,11 +1085,18 @@ void ToolboxScenePlatformController::refreshContextProps(loka::app::scene::Node 
       if (previousText != liveText)
         this->syncEditTextFromState(binding);
     }
+#ifdef TEST_BUILD
+    else
+      this->debugStats_.totalRefreshRowVisits += static_cast<int>(this->editControls_.size());
+#endif
   }
   else if (node->kind() == loka::app::scene::NODE_KIND_BUTTON)
   {
     for (size_t i = 0; i < this->hitLedger_.buttonHits_.size(); ++i)
     {
+#ifdef TEST_BUILD
+      ++this->debugStats_.totalRefreshRowVisits;
+#endif
       ButtonHit &hit = this->hitLedger_.buttonHits_[i];
       if (hit.context != context)
         continue;
@@ -1085,6 +1107,9 @@ void ToolboxScenePlatformController::refreshContextProps(loka::app::scene::Node 
     }
     for (size_t i = 0; buttonResourceId && i < this->buttonControls_.size(); ++i)
     {
+#ifdef TEST_BUILD
+      ++this->debugStats_.totalRefreshRowVisits;
+#endif
       ButtonControlBinding &binding = this->buttonControls_[i];
       if (binding.resourceId != buttonResourceId)
         continue;
@@ -1102,6 +1127,9 @@ void ToolboxScenePlatformController::refreshContextProps(loka::app::scene::Node 
   {
     for (size_t i = 0; i < this->hitLedger_.popupHits_.size(); ++i)
     {
+#ifdef TEST_BUILD
+      ++this->debugStats_.totalRefreshRowVisits;
+#endif
       PopupHit &hit = this->hitLedger_.popupHits_[i];
       if (hit.context != context)
         continue;
