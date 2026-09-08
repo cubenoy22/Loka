@@ -124,7 +124,12 @@ namespace loka
         return *this;
       }
       /** Borrows a live width claim; a nonpositive value leaves it unconstrained.
-          A null State selects the constant width supplied by size(). */
+          A null State selects the constant width supplied by size(). The claim's
+          domain is the short of size() and of LayoutState::width on every rail;
+          effectiveWidth() narrows the State's int to it like the size() parameter
+          would, so keep the value within short range. (State<short> would carry
+          the domain in the type but costs a second State instantiation family,
+          measured +1792 bytes on LokaSmirkBench68K.) */
       BoxDefinition &width(loka::core::State<int> *value)
       {
         this->props.widthState_ = value;
