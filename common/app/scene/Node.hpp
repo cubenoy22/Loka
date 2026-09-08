@@ -817,6 +817,10 @@ namespace loka
         bool deliverWhileDetached;
       };
 
+      class BranchSeatDeclaration;
+      class BoundaryBranchSeatState;
+      class ComponentContext;
+
       /** Definition-side description of an indexed branch seat. */
       struct IBranchSeatDefinition
       {
@@ -833,6 +837,21 @@ namespace loka
           return this->armDefinition(value ? 1u : 0u);
         }
         virtual const void *branchSeatTypeId() const = 0;
+        /** Fixed arms need no declaration. A renewing seat builds a candidate
+            window without changing its committed declaration. */
+        virtual bool needsBranchDeclaration() const
+        {
+          return false;
+        }
+        virtual BranchSeatDeclaration *declareBranchCandidate(ComponentContext &)
+        {
+          return 0;
+        }
+        virtual void commitBranchDeclaration(BranchSeatDeclaration *) {}
+        virtual BoundaryBranchSeatState *declaredBranchSeats() const
+        {
+          return 0;
+        }
       };
 
       /** Definition-only branch-root annotation. It is consumed while the

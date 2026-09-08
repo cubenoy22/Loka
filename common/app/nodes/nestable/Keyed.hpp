@@ -1,0 +1,254 @@
+#ifndef LOKA_APP_KEYED_HPP
+#define LOKA_APP_KEYED_HPP
+
+#include <cstdlib>
+#include "app/nodes/nestable/Match.hpp"
+#include "app/scene/boundary/Boundary.hpp"
+#include "app/scene/boundary/detail/BranchSeatDeclaration.hpp"
+
+namespace loka
+{
+  namespace app
+  {
+
+    /** Live key identity for a declaration seat. */
+    template <class K> struct KeyedProps : MatchProps<K>
+    {
+      explicit KeyedProps(loka::core::State<K> *key)
+          : MatchProps<K>(key)
+      {
+      }
+      static const void *staticTypeId()
+      {
+        static char id;
+        return &id;
+      }
+      virtual const void *propsTypeId() const
+      {
+        return staticTypeId();
+      }
+    };
+
+    /** One branch, declared again from its enclosing boundary's current members
+        when the key changes. The boundary and key must outlive the seat.
+        Replacement never retains or reconciles the outgoing subtree. */
+    template <class K> class KeyedDefinition : public scene::NodeDefinitionBase, public scene::IBranchSeatDefinition
+    {
+      /** Cloned declaration instruction; borrows the enclosing boundary. */
+      struct DeclarerDefinition
+      {
+        virtual ~DeclarerDefinition() {}
+        virtual DeclarerDefinition *clone() const = 0;
+        virtual scene::BoundaryNode *owner() const = 0;
+        virtual void declare(scene::NodeComposition &) const = 0;
+      };
+      template <class N> struct MemberDeclarer : DeclarerDefinition
+      {
+        MemberDeclarer(N *node, void (N::*method)(scene::NodeComposition &))
+            : node_(node),
+              method_(method)
+        {
+        }
+        virtual DeclarerDefinition *clone() const
+        {
+          return new MemberDeclarer(*this);
+        }
+        virtual scene::BoundaryNode *owner() const
+        {
+          return this->method_ ? this->node_ : 0;
+        }
+        virtual void declare(scene::NodeComposition &c) const
+        {
+          (this->node_->*this->method_)(c);
+        }
+        N *node_;
+        void (N::*method_)(scene::NodeComposition &);
+      };
+      /** The committed key belongs to the declaration it describes. */
+      class Declaration : public scene::BranchSeatDeclaration
+      {
+      public:
+        explicit Declaration(loka::core::State<K> *key)
+            : key_(key),
+              value_(key->get())
+        {
+        }
+        virtual bool matchesCurrentKey() const
+        {
+          return this->value_ == this->key_->get();
+        }
+
+      private:
+        loka::core::State<K> *const key_;
+        const K value_;
+      };
+
+    public:
+      template <class N>
+      KeyedDefinition(loka::core::State<K> &key, N *owner, void (N::*method)(scene::NodeComposition &))
+          : props_(&key),
+            declarer_(new MemberDeclarer<N>(owner, method)),
+            declaration_()
+      {
+        assert(owner && method && "Keyed requires an enclosing boundary member");
+      }
+      KeyedDefinition(const KeyedDefinition &other)
+          : scene::NodeDefinitionBase(other),
+            scene::IBranchSeatDefinition(other),
+            props_(other.props_.state),
+            declarer_(other.declarer_.isSet() ? other.declarer_->clone() : 0),
+            declaration_()
+      {
+#ifdef LOKA_LIFECYCLE_AUDIT
+        if (other.declaration_.isSet())
+        {
+          assert(false && "committed Keyed declarations cannot be copied");
+          std::abort();
+        }
+#endif
+      }
+
+      virtual scene::Node *create() const
+      {
+        assert(false && "Keyed seats materialize only through Boundary plan application");
+        return 0;
+      }
+      virtual scene::Node *createInPlace(void *) const
+      {
+        assert(false && "Keyed seats have no runtime node");
+        return 0;
+      }
+      virtual size_t nodeSize() const
+      {
+        return 0;
+      }
+      virtual size_t nodeAlign() const
+      {
+        return 1;
+      }
+      virtual scene::NodeDefinitionBase *clone() const
+      {
+        KeyedDefinition *copy = new KeyedDefinition(*this);
+        if (copy && !copy->declarer_.isSet())
+        {
+          delete copy;
+          return 0;
+        }
+        return copy;
+      }
+      virtual scene::NodeKind nodeKind() const
+      {
+        return scene::NODE_KIND_UNKNOWN;
+      }
+      virtual const scene::PropsBase *propsBase() const
+      {
+        return &this->props_;
+      }
+      virtual bool hasEquivalentProps(const scene::NodeDefinitionBase &other) const
+      {
+        const scene::PropsBase *otherProps = other.propsBase();
+        if (!otherProps || otherProps->propsTypeId() != this->props_.propsTypeId())
+        {
+          return false;
+        }
+        const KeyedProps<K> &matchProps = static_cast<const KeyedProps<K> &>(*otherProps);
+        return this->props_.state == matchProps.state;
+      }
+      virtual bool repointRetainedNodeDefinition(scene::Node *) const
+      {
+        return false;
+      }
+      virtual bool applyPropsToNode(scene::Node *) const
+      {
+        return false;
+      }
+      virtual bool isCompatibleWithNode(const scene::Node *) const
+      {
+        return false;
+      }
+      virtual scene::IBranchSeatDefinition *asBranchSeatDefinition()
+      {
+        return this;
+      }
+      virtual bool requiresUniqueSiblingTag() const
+      {
+        return true;
+      }
+      virtual loka::core::StateBase *branchCondition() const
+      {
+        return this->props_.state;
+      }
+      virtual bool selectArm(unsigned &armOut) const
+      {
+        armOut = 0;
+        return this->props_.state != 0;
+      }
+      virtual unsigned armCount() const
+      {
+        return 1;
+      }
+      virtual scene::NodeDefinitionBase *armDefinition(unsigned arm) const
+      {
+        return arm == 0 && this->declaration_.isSet() ? this->declaration_->composition.root() : 0;
+      }
+      virtual const void *branchSeatTypeId() const
+      {
+        return KeyedProps<K>::staticTypeId();
+      }
+      virtual scene::NodeDefinitionBase *retainedDefinitionBranch(unsigned arm)
+      {
+        return this->armDefinition(arm);
+      }
+
+      virtual bool needsBranchDeclaration() const
+      {
+        return !this->declaration_.isSet() || !this->declaration_->matchesCurrentKey();
+      }
+      virtual scene::BranchSeatDeclaration *declareBranchCandidate(scene::ComponentContext &context)
+      {
+        const bool valid = this->declarer_.isSet() && this->declarer_->owner() == context.boundary();
+        assert(valid && "Keyed declarer must be a member of the enclosing boundary");
+        if (!valid)
+          return 0;
+        loka::core::OwnedDef<scene::BranchSeatDeclaration> candidate(new Declaration(this->props_.state));
+        if (!candidate.isSet())
+          return 0;
+        candidate->composition.setContext(&context);
+        {
+          scene::NodeComposition::CompositionScope window(candidate->composition);
+          this->declarer_->declare(candidate->composition);
+        }
+        candidate->composition.setContext(0);
+        if (!candidate->completeWindow())
+          return 0;
+        return candidate.take();
+      }
+      virtual void commitBranchDeclaration(scene::BranchSeatDeclaration *candidate)
+      {
+#ifdef LOKA_LIFECYCLE_AUDIT
+        if (this->declaration_.isSet())
+          this->declarer_->owner()->assertNoBranchSeatScopeReferences(&this->declaration_->seats);
+#endif
+        this->declaration_.reset(candidate);
+      }
+      virtual scene::BoundaryBranchSeatState *declaredBranchSeats() const
+      {
+        return this->declaration_.isSet() ? &this->declaration_->seats : 0;
+      }
+
+    private:
+      KeyedProps<K> props_;
+      loka::core::OwnedDef<DeclarerDefinition> declarer_;
+      loka::core::OwnedDef<scene::BranchSeatDeclaration> declaration_;
+      KeyedDefinition &operator=(const KeyedDefinition &);
+    };
+
+    template <class K, class N>
+    inline KeyedDefinition<K> Keyed(loka::core::State<K> &key, N *owner, void (N::*method)(scene::NodeComposition &))
+    {
+      return KeyedDefinition<K>(key, owner, method);
+    }
+
+  } // namespace app
+} // namespace loka
+#endif

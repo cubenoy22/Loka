@@ -814,6 +814,7 @@ namespace loka
           }
           else
           {
+            BoundaryNode::ObservedStatePassScope observedScope(boundary, event);
             prepareRootBoundaryCompose(boundary, rootContext, event);
             boundary->compose(rootContext, event);
             completeRootBoundaryCompose(boundary);
@@ -859,6 +860,7 @@ namespace loka
           }
           else
           {
+            BoundaryNode::ObservedStatePassScope observedScope(boundary, event);
             prepareRootBoundaryCompose(boundary, rootContext, event);
             boundary->compose(rootContext, event);
             if (event == COMPOSE_EVENT_DETACH)
@@ -905,8 +907,6 @@ namespace loka
           }
           if (event != COMPOSE_EVENT_DETACH)
           {
-            boundary->beginObservedStatePass();
-            boundary->registerBranchSeatDirtySources();
             // #127: the generic composeTree walk registers a boundary's own
             // declared dirty sources; the direct-root path bypasses composeTree,
             // so without this the root boundary's ordinary observed state is

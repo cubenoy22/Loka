@@ -789,14 +789,14 @@ void testOwnershipDumpPinsMineSweeperSections()
   scene.updateAttached(true);
 
   // The #270 ownership flip: each cell's presentation resident now lives in
-  // its own owner-scope box, and the boundary itself owns nothing -- the
-  // parent's four hand-declared arrays are gone. Every box holds exactly one
-  // arena-allocated resident.
-  std::string expected(
-      "scene\n"
-      "  boundary\n"
-      "    boundary\n"
-      "      observed: 64\n");
+  // its own owner-scope box; the parent's four hand-declared arrays are gone.
+  // The boundary owns the bank
+  // key; every cell box holds exactly one arena-allocated resident.
+  std::string expected("scene\n"
+                       "  boundary\n"
+                       "    boundary\n"
+                       "      states: 1 (arena 1, heap 0)\n"
+                       "      observed: 65\n");
   for (int i = 0; i < 64; ++i)
   {
     std::ostringstream row;
@@ -826,10 +826,9 @@ void testOwnershipDumpPinsMineSweeperNewGameRetiresCells()
 
   // A new game is an identity change: the key bank flips, so the plan
   // retires all 64 old boxes -- residents included -- and materializes 64
-  // fresh covered cells on the arena rows the old bank released. Two real
+  // fresh covered cells. Old rows are reclaimed by the next drain. Two real
   // button clicks, not direct handler calls: the second click only works if
-  // the recomposing boundary re-declared its UI bindings after
-  // beginComposition released them.
+  // the boundary's original binding remains armed across seat replacements.
   for (int round = 0; round < 2; ++round)
   {
     loka::app::scene::Node *root =
@@ -855,11 +854,11 @@ void testOwnershipDumpPinsMineSweeperNewGameRetiresCells()
                 "cell retirement must be a silent drain-only run");
 
     const int baseKey = (round == 0) ? 164 : 100;
-    std::string expected(
-        "scene\n"
-        "  boundary\n"
-        "    boundary\n"
-        "      observed: 64\n");
+    std::string expected("scene\n"
+                         "  boundary\n"
+                         "    boundary\n"
+                         "      states: 1 (arena 1, heap 0)\n"
+                         "      observed: 65\n");
     for (int i = 0; i < 64; ++i)
     {
       std::ostringstream row;

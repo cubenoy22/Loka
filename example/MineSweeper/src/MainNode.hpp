@@ -1,7 +1,8 @@
 #ifndef LOKA_MINESWEEPER_MAIN_NODE_HPP
 #define LOKA_MINESWEEPER_MAIN_NODE_HPP
 
-#include "app/nodes/boundary/RecomposingBoundary.hpp"
+#include "app/nodes/boundary/StdComposition.hpp"
+#include "app/nodes/nestable/Keyed.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/Cell.hpp"
 #include "app/nodes/nestable/BoundarySection.hpp"
@@ -191,7 +192,7 @@ namespace minesweeper
     unsigned long seed_;
   };
 
-  class MainNode : public loka::app::scene::RecomposingBoundaryFor<MainNode, loka::app::scene::StdCompositionBoundaryNodeBase<MainProps> >
+  class MainNode : public loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>
   {
     struct MineCellItem
     {
@@ -227,10 +228,11 @@ namespace minesweeper
     typedef MainTypeTag TypeTag;
 
     MainNode(const MainProps &p)
-        : loka::app::scene::RecomposingBoundaryFor<MainNode, loka::app::scene::StdCompositionBoundaryNodeBase<MainProps> >(p),
-          bank_(0),
+        : loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>(p),
+          bank_(),
           boardRandom_(p.seed_)
     {
+      this->state(this->bank_, 0);
       this->resetBoard();
     }
 
@@ -239,6 +241,13 @@ namespace minesweeper
       using namespace loka::app;
       Column content;
       content << Button("New Game", &this->newGameClick_).TEST_ID("MineSweeper.NewGameButton");
+      content << Keyed(*this->bank_.state(), this, &MainNode::declareBoard);
+      c.declare(content);
+    }
+
+    void declareBoard(loka::app::scene::NodeComposition &c)
+    {
+      using namespace loka::app;
       Grid grid;
       grid.rows(kRows).cols(kCols).TEST_ID("MineSweeper.Board");
       MineCellItem cellItems[kCellCount];
@@ -249,17 +258,14 @@ namespace minesweeper
       // For emits one owner-scope box per cell. A new game swaps the key
       // bank, so the plan retires every old box -- presentation residents
       // included -- and materializes fresh covered cells.
-      grid << For(kCellSectionKeyBase + this->bank_ * kCellCount,
-                  cellItems, MineCellFactory(this));
-      content << grid;
-      c.declare(content);
+      grid << For(kCellSectionKeyBase + this->bank_.get() * kCellCount, cellItems, MineCellFactory(this));
+      c.declare(grid);
     }
 
     void startNewGame()
     {
       this->resetBoard();
-      this->bank_ = 1 - this->bank_;
-      this->markViewDirty(loka::app::scene::NODE_DIRTY_CHILD);
+      this->bank_.set(1 - this->bank_.get());
     }
 
   private:
@@ -294,7 +300,7 @@ namespace minesweeper
       kCellSectionKeyBase = 100
     };
 
-    int bank_;
+    loka::app::scene::NodeState<int> bank_;
     BoardRandom boardRandom_;
     bool mines_[kCellCount];
     loka::core::EmitterState newGameClick_;
