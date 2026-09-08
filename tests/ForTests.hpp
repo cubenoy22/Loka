@@ -11,7 +11,6 @@ void testForVectorBuilderReadsCurrentContentsAtAppend();
 void testForWindowBuildsHandWrittenSubrange();
 void testForWindowClampsToLastValidStart();
 void testForWindowSurvivesKeyChainInBothOrders();
-void testForWindowSlideRetainsOverlappingSeatsInOrder();
 void testForWindowRejectsDuplicateKeysOutsideWindow();
 
 #endif // LOKA_FOR_TESTS_HPP

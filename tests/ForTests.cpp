@@ -24,7 +24,6 @@
 #include "app/scene/node/ComponentNode.hpp"
 #include "core/State.hpp"
 #include "core/Vector.hpp"
-#include "support/RecomposingBoundary.hpp"
 #include "support/RecordingPlatformController.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 
@@ -219,72 +218,6 @@ namespace
 
     std::size_t *indexes_;
     std::size_t *count_;
-  };
-
-  class ForWindowBoundaryNode;
-  typedef loka::app::scene::BoundaryPropsFor<ForWindowBoundaryNode>
-      ForWindowBoundaryProps;
-
-  class ForWindowBoundaryNode
-      : public SceneTestSupport::RecomposingBoundaryNode<
-            ForWindowBoundaryNode,
-            ForWindowBoundaryProps>
-  {
-  public:
-    explicit ForWindowBoundaryNode(const ForWindowBoundaryProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<
-              ForWindowBoundaryNode,
-              ForWindowBoundaryProps>(props),
-          items_(),
-          first_(0)
-    {
-      this->items_.push_back(ForItem(0, "zero"));
-      this->items_.push_back(ForItem(1, "one"));
-      this->items_.push_back(ForItem(2, "two"));
-      this->items_.push_back(ForItem(3, "three"));
-      this->items_.push_back(ForItem(4, "four"));
-      this->items_.push_back(ForItem(5, "five"));
-    }
-
-    virtual void composeNode(loka::app::scene::NodeComposition &composition)
-    {
-      loka::app::Column column;
-      column << loka::app::For(1200, this->items_, ForTextFactory())
-                    .window(this->first_, 4);
-      composition.declare(column);
-    }
-
-    void setFirst(long first)
-    {
-      this->first_ = first;
-    }
-
-    loka::app::StackNode *column() const
-    {
-      loka::app::scene::Node *root = this->compositionRootNode();
-      return root ? root->asStackNode() : 0;
-    }
-
-    loka::app::BoundarySectionNode *section(
-        loka::app::scene::NodeTag tag) const
-    {
-      loka::app::StackNode *columnNode = this->column();
-      for (loka::app::scene::Node *child =
-               columnNode ? columnNode->childrenHead() : 0;
-           child;
-           child = child->nextInComposition)
-      {
-        if (child->nodeTag() == tag)
-        {
-          return child->asBoundarySectionNode();
-        }
-      }
-      return 0;
-    }
-
-  private:
-    loka::Vector<ForItem> items_;
-    long first_;
   };
 
   void assertEquivalentDefinitionTree(
@@ -708,58 +641,6 @@ void testForWindowSurvivesKeyChainInBothOrders()
           .window(1, 2);
   assertEquivalentDefinitionTree(&arrayWindowThenKey, &arrayKeyThenWindow);
   LOKA_VERIFY(arrayWindowThenKey.childrenCount() == 2);
-}
-
-void testForWindowSlideRetainsOverlappingSeatsInOrder()
-{
-  SceneTestSupport::RecordingPlatformController platform;
-  loka::app::scene::Scene scene(
-      (loka::app::scene::Boundary<ForWindowBoundaryNode>()));
-  scene.mount(&platform);
-  scene.updateAttached(true);
-
-  ForWindowBoundaryNode *root = static_cast<ForWindowBoundaryNode *>(
-      loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
-  LOKA_VERIFY(root != 0);
-  loka::app::BoundarySectionNode *before[4] = {
-      root->section(1200),
-      root->section(1201),
-      root->section(1202),
-      root->section(1203)};
-  LOKA_VERIFY(before[0] != 0);
-  LOKA_VERIFY(before[1] != 0);
-  LOKA_VERIFY(before[2] != 0);
-  LOKA_VERIFY(before[3] != 0);
-
-  root->setFirst(1);
-  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-  LOKA_VERIFY(scene.flushInvalidation());
-
-  loka::app::BoundarySectionNode *removed = root->section(1200);
-  loka::app::BoundarySectionNode *retainedOne = root->section(1201);
-  loka::app::BoundarySectionNode *retainedTwo = root->section(1202);
-  loka::app::BoundarySectionNode *retainedThree = root->section(1203);
-  LOKA_VERIFY(removed == 0);
-  LOKA_VERIFY(retainedOne == before[1]);
-  LOKA_VERIFY(retainedTwo == before[2]);
-  LOKA_VERIFY(retainedThree == before[3]);
-  loka::app::BoundarySectionNode *fresh = root->section(1204);
-  LOKA_VERIFY(fresh != 0);
-  LOKA_VERIFY(fresh != before[0]);
-  LOKA_VERIFY(fresh != before[1]);
-  LOKA_VERIFY(fresh != before[2]);
-  LOKA_VERIFY(fresh != before[3]);
-
-  loka::app::StackNode *column = root->column();
-  LOKA_VERIFY(column != 0);
-  loka::app::scene::Node *child = column->childrenHead();
-  for (std::size_t i = 0; i < 4; ++i)
-  {
-    LOKA_VERIFY(child != 0);
-    LOKA_VERIFY(child->nodeTag() == 1201 + i);
-    child = child->nextInComposition;
-  }
-  LOKA_VERIFY(child == 0);
 }
 
 void testForWindowRejectsDuplicateKeysOutsideWindow()

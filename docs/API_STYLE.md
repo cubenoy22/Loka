@@ -32,7 +32,7 @@ owner scope.
 |---|---|---|
 | Inline helper returning a Definition | A name improves readability, but the helper needs no independent state, identity, or lifecycle | The helper adds no runtime owner or node of its own; the returned definitions materialize in the parent's composition |
 | `scene::Component(props)` with `ComponentNodeWithProps<Props>` | A class needs node-local members, state declarations, or attach/detach behavior, while its child structure remains fixed for one structural lifetime | State resolves to the nearest enclosing Section or Boundary; changing child structure requires identity replacement |
-| `scene::Boundary<Node>(props)` | A subtree needs independent ownership, recomposition, tracking, dirty routing, or a distinct composition policy | The Boundary is the visible owner and lifecycle compartment |
+| `scene::Boundary<Node>(props)` | A subtree needs independent ownership, tracking, and dirty routing | The Boundary is the visible owner and lifecycle compartment |
 
 Use an ordinary inline function first when it is sufficient. Tutorial helpers
 such as [`TutorialTitle`](../example/Tutorial/src/TutorialShared.hpp) demonstrate
@@ -49,7 +49,7 @@ small example. `scene::Component(props)` obtains its node type from
 A Component's children materialize once per structural lifetime. Props may be
 reapplied to the resident class without rebuilding that child structure. Give
 the enclosing Section or seat a new identity when structure must be replaced;
-use a Boundary when the subtree must recompose independently. The exact
+use State props for values and Match, Show, or Keyed seats for changing structure. The exact
 contract lives in
 [`ComponentNode.hpp`](../common/app/scene/node/ComponentNode.hpp) and is pinned
 by [`ComponentNodeTests.cpp`](../tests/ComponentNodeTests.cpp).
@@ -110,7 +110,7 @@ line.
 - Keep the main composition legible as DSL chaining.
 - Introduce a helper when it gives a repeated intent one name.
 - Introduce a class when its members or lifecycle are meaningful.
-- Introduce a Boundary when ownership or independent recomposition is
+- Introduce a Boundary when independent ownership is
   meaningful.
 - Avoid macros, type erasure, generic member bags, and convenience layers whose
   only result is fewer characters.

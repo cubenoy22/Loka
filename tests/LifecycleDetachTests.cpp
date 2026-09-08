@@ -12,7 +12,7 @@
 #include "app/scene/projection/PlatformController.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "support/LifecycleFactTestAccess.hpp"
-#include "support/RecomposingBoundary.hpp"
+#include "app/nodes/nestable/Keyed.hpp"
 
 namespace
 {
@@ -443,13 +443,11 @@ namespace
   RootReplacementArenaRetireBoundaryNode *g_rootReplacementArenaRetireBoundary = 0;
 
   class RootReplacementArenaRetireBoundaryNode
-      : public SceneTestSupport::RecomposingBoundaryNode<RootReplacementArenaRetireBoundaryNode,
-                                                        RootReplacementArenaRetireBoundaryProps>
+      : public loka::app::scene::BoundaryNodeFor<RootReplacementArenaRetireBoundaryNode>
   {
   public:
     explicit RootReplacementArenaRetireBoundaryNode(const RootReplacementArenaRetireBoundaryProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<RootReplacementArenaRetireBoundaryNode,
-                                                    RootReplacementArenaRetireBoundaryProps>(props),
+        : loka::app::scene::BoundaryNodeFor<RootReplacementArenaRetireBoundaryNode>(props),
           showReplacement_(),
           initialized_(false)
     {
@@ -482,6 +480,12 @@ namespace
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
+      composition.declare(loka::app::Keyed(
+          *this->showReplacement_.state(), this, &RootReplacementArenaRetireBoundaryNode::declareContent));
+    }
+
+    void declareContent(loka::app::scene::NodeComposition &composition)
+    {
       if (this->showReplacement_.get())
       {
         composition.declare(loka::app::Text("Replacement root"));
@@ -497,7 +501,8 @@ namespace
 
     loka::app::scene::Node *activeRootNode() const
     {
-      return this->compositionRootNode();
+      loka::app::scene::INestable *seat = this->compositionRootNode()->asNestable();
+      return seat ? seat->childrenHead() : 0;
     }
 
     void showReplacement()
@@ -1121,14 +1126,11 @@ namespace
   std::vector<int> *g_conditionalArenaActiveOrder = 0;
   ConditionalArenaRetireProbeNode *g_conditionalArenaRetireProbe = 0;
 
-  class ConditionalArenaRetireProbeNode
-      : public SceneTestSupport::RecomposingBoundaryNode<ConditionalArenaRetireProbeNode,
-                                                        ConditionalArenaRetireProbeProps>
+  class ConditionalArenaRetireProbeNode : public loka::app::scene::BoundaryNodeFor<ConditionalArenaRetireProbeNode>
   {
   public:
     explicit ConditionalArenaRetireProbeNode(const ConditionalArenaRetireProbeProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<ConditionalArenaRetireProbeNode,
-                                                    ConditionalArenaRetireProbeProps>(props),
+        : loka::app::scene::BoundaryNodeFor<ConditionalArenaRetireProbeNode>(props),
           showAlternate_(),
           initialized_(false)
     {
@@ -1160,6 +1162,12 @@ namespace
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(
+          loka::app::Keyed(*this->showAlternate_.state(), this, &ConditionalArenaRetireProbeNode::declareContent));
+    }
+
+    void declareContent(loka::app::scene::NodeComposition &composition)
     {
       typedef loka::app::scene::NodeDefinition<ArenaRetireProbeProps, ArenaRetireProbeNode>
           ArenaRetireProbeDefinition;
@@ -1250,9 +1258,10 @@ namespace
 
     loka::app::scene::Node *activeBranchNode() const
     {
-      loka::app::scene::Node *root = this->compositionRootNode();
-      loka::app::scene::INestable *nestable = root ? root->asNestable() : 0;
-      return nestable ? nestable->childrenHead() : 0;
+      loka::app::scene::INestable *seat = this->compositionRootNode()->asNestable();
+      loka::app::scene::Node *root = seat ? seat->childrenHead() : 0;
+      loka::app::scene::INestable *branch = root ? root->asNestable() : 0;
+      return branch ? branch->childrenHead() : 0;
     }
 
     void showAlternate()
@@ -1901,7 +1910,6 @@ void testRootReplacementDestroysRetiredArenaNodeOnNextTrackerRun()
   g_rootReplacementRetireDestructorCalls = 0;
   g_rootReplacementArenaRetireBoundary = 0;
 }
-
 
 void testRetiringNativeContextUnbindsBeforeNodeOwnedStateReclaim()
 {

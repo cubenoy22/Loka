@@ -4,7 +4,7 @@
 #include <cassert>
 #include <cstdio>
 
-#include "app/nodes/boundary/RecomposingBoundary.hpp"
+#include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
 #include "app/nodes/nestable/Show.hpp"
@@ -14,7 +14,6 @@
 #include "platform/null/NullScenePlatformController.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "platform/null/NullWindow.hpp"
-#include "support/RecomposingBoundary.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 
 namespace
@@ -228,14 +227,11 @@ namespace
   typedef PointerBindProps<DefinitionPointerBindBoundaryNode>
       DefinitionPointerBindProps;
 
-  class PropsPointerBindBoundaryNode
-      : public loka::app::scene::RecomposingBoundaryFor<PropsPointerBindBoundaryNode,
-            loka::app::scene::StdCompositionBoundaryNodeBase<PropsPointerBindProps> >
+  class PropsPointerBindBoundaryNode : public loka::app::scene::StdCompositionBoundaryNodeBase<PropsPointerBindProps>
   {
   public:
     explicit PropsPointerBindBoundaryNode(const PropsPointerBindProps &props)
-        : loka::app::scene::RecomposingBoundaryFor<PropsPointerBindBoundaryNode,
-              loka::app::scene::StdCompositionBoundaryNodeBase<PropsPointerBindProps> >(props)
+        : loka::app::scene::StdCompositionBoundaryNodeBase<PropsPointerBindProps>(props)
     {
     }
 
@@ -251,28 +247,12 @@ namespace
     }
   };
 
-  template <class NodeT, class PropsT>
-  class PropsRecomposingBoundaryNode
-      : public loka::app::scene::RecomposingBoundaryFor<
-            NodeT, loka::app::scene::StdCompositionBoundaryNodeBase<PropsT> >
-  {
-  public:
-    explicit PropsRecomposingBoundaryNode(const PropsT &props)
-        : loka::app::scene::RecomposingBoundaryFor<
-              NodeT, loka::app::scene::StdCompositionBoundaryNodeBase<PropsT> >(props)
-    {
-    }
-  };
-
   class DefinitionPointerBindBoundaryNode
-      : public PropsRecomposingBoundaryNode<
-            DefinitionPointerBindBoundaryNode, DefinitionPointerBindProps>
+      : public loka::app::scene::StdCompositionBoundaryNodeBase<DefinitionPointerBindProps>
   {
   public:
-    explicit DefinitionPointerBindBoundaryNode(
-        const DefinitionPointerBindProps &props)
-        : PropsRecomposingBoundaryNode<DefinitionPointerBindBoundaryNode,
-                                       DefinitionPointerBindProps>(props)
+    explicit DefinitionPointerBindBoundaryNode(const DefinitionPointerBindProps &props)
+        : loka::app::scene::StdCompositionBoundaryNodeBase<DefinitionPointerBindProps>(props)
     {
     }
 
@@ -297,25 +277,19 @@ namespace
   struct PointerBindScenario
   {
     PointerBindScenario()
-        : revision(0),
-          propsOld(),
+        : propsOld(),
           propsNew(),
           definitionOld(),
           definitionNew(),
-          currentProps(&this->propsOld),
-          currentDefinition(&this->definitionOld),
           propsCalls(0),
           definitionCalls(0)
     {
     }
 
-    loka::core::MutableState<int> revision;
     loka::core::EmitterState propsOld;
     loka::core::EmitterState propsNew;
     loka::core::EmitterState definitionOld;
     loka::core::EmitterState definitionNew;
-    loka::core::EmitterState *currentProps;
-    loka::core::EmitterState *currentDefinition;
     int propsCalls;
     int definitionCalls;
   };
@@ -326,15 +300,11 @@ namespace
   typedef loka::app::scene::BoundaryPropsFor<PropsPointerBindRootNode>
       PropsPointerBindRootProps;
 
-  class PropsPointerBindRootNode
-      : public SceneTestSupport::RecomposingBoundaryNode<
-            PropsPointerBindRootNode, PropsPointerBindRootProps>
+  class PropsPointerBindRootNode : public loka::app::scene::BoundaryNodeFor<PropsPointerBindRootNode>
   {
   public:
-    explicit PropsPointerBindRootNode(
-        const PropsPointerBindRootProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<
-              PropsPointerBindRootNode, PropsPointerBindRootProps>(props)
+    explicit PropsPointerBindRootNode(const PropsPointerBindRootProps &props)
+        : loka::app::scene::BoundaryNodeFor<PropsPointerBindRootNode>(props)
     {
     }
 
@@ -344,20 +314,11 @@ namespace
       return false;
     }
 
-    virtual void declareDirtySources(
-        loka::app::scene::DirtySourceRegistrar &registrar)
-    {
-      registrar.markDirtyOnChange(&g_pointerBindScenario->revision,
-                                  loka::app::scene::NODE_DIRTY_CHILD);
-    }
-
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
       loka::app::Fragment root;
       root << loka::app::scene::Boundary<PropsPointerBindBoundaryNode>(
-          PropsPointerBindProps(
-              g_pointerBindScenario->currentProps,
-              &g_pointerBindScenario->propsCalls));
+          PropsPointerBindProps(&g_pointerBindScenario->propsOld, &g_pointerBindScenario->propsCalls));
       composition.declare(root);
     }
   };
@@ -366,16 +327,11 @@ namespace
   typedef loka::app::scene::BoundaryPropsFor<DefinitionPointerBindRootNode>
       DefinitionPointerBindRootProps;
 
-  class DefinitionPointerBindRootNode
-      : public SceneTestSupport::RecomposingBoundaryNode<
-            DefinitionPointerBindRootNode, DefinitionPointerBindRootProps>
+  class DefinitionPointerBindRootNode : public loka::app::scene::BoundaryNodeFor<DefinitionPointerBindRootNode>
   {
   public:
-    explicit DefinitionPointerBindRootNode(
-        const DefinitionPointerBindRootProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<
-              DefinitionPointerBindRootNode,
-              DefinitionPointerBindRootProps>(props)
+    explicit DefinitionPointerBindRootNode(const DefinitionPointerBindRootProps &props)
+        : loka::app::scene::BoundaryNodeFor<DefinitionPointerBindRootNode>(props)
     {
     }
 
@@ -385,20 +341,11 @@ namespace
       return false;
     }
 
-    virtual void declareDirtySources(
-        loka::app::scene::DirtySourceRegistrar &registrar)
-    {
-      registrar.markDirtyOnChange(&g_pointerBindScenario->revision,
-                                  loka::app::scene::NODE_DIRTY_CHILD);
-    }
-
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
       loka::app::Fragment root;
       root << loka::app::scene::Boundary<DefinitionPointerBindBoundaryNode>(
-          DefinitionPointerBindProps(
-              g_pointerBindScenario->currentDefinition,
-              &g_pointerBindScenario->definitionCalls));
+          DefinitionPointerBindProps(&g_pointerBindScenario->definitionOld, &g_pointerBindScenario->definitionCalls));
       composition.declare(root);
     }
   };
@@ -436,15 +383,14 @@ namespace
     void recordCall() { ++*this->props.calls; }
   };
 
-  template <class ChildT> class RetainedBindingParent
-      : public loka::app::scene::RecomposingBoundaryFor<RetainedBindingParent<ChildT>,
-            loka::app::scene::BoundaryNodeFor<RetainedBindingParent<ChildT> > >
+  template <class ChildT>
+  class RetainedBindingParent : public loka::app::scene::BoundaryNodeFor<RetainedBindingParent<ChildT> >
   {
   public:
-    explicit RetainedBindingParent(
-        const loka::app::scene::BoundaryPropsFor<RetainedBindingParent<ChildT> > &p)
-        : loka::app::scene::RecomposingBoundaryFor<RetainedBindingParent<ChildT>,
-              loka::app::scene::BoundaryNodeFor<RetainedBindingParent<ChildT> > >(p) {}
+    explicit RetainedBindingParent(const loka::app::scene::BoundaryPropsFor<RetainedBindingParent<ChildT> > &p)
+        : loka::app::scene::BoundaryNodeFor<RetainedBindingParent<ChildT> >(p)
+    {
+    }
 
     virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
     {
@@ -454,8 +400,7 @@ namespace
     {
       loka::app::Fragment root;
       root << loka::app::scene::NodeDefinition<PointerBindProps<ChildT>, ChildT>(
-          PointerBindProps<ChildT>(g_pointerBindScenario->currentProps,
-                                  &g_pointerBindScenario->propsCalls));
+          PointerBindProps<ChildT>(&g_pointerBindScenario->propsOld, &g_pointerBindScenario->propsCalls));
       c.declare(root);
     }
   };
@@ -464,6 +409,8 @@ namespace
   {
     PointerBindScenario scenario;
     g_pointerBindScenario = &scenario;
+    loka::app::scene::NodeDefinition<PointerBindProps<ChildT>, ChildT> replacement(
+        PointerBindProps<ChildT>(&scenario.propsNew, &scenario.propsCalls));
     {
       NullPlatformContext context;
       NullScenePlatformController platform;
@@ -484,7 +431,7 @@ namespace
       scenario.propsOld.emit();
       LOKA_VERIFY(scenario.propsCalls == 1);
 
-      scenario.currentProps = &scenario.propsNew;
+      LOKA_VERIFY(replacement.applyPropsToNode(child));
       parent->markViewDirty(loka::app::scene::NODE_DIRTY_CHILD);
       const bool changed = scene.flushInvalidation();
       LOKA_VERIFY(changed);
@@ -509,6 +456,8 @@ namespace
   {
     PointerBindScenario scenario;
     g_pointerBindScenario = &scenario;
+    loka::app::scene::NodeDefinition<PointerBindProps<ChildT>, ChildT> replacement(
+        PointerBindProps<ChildT>(&scenario.propsNew, &scenario.propsCalls));
     {
       NullScenePlatformController platform;
       loka::app::scene::Scene scene(
@@ -524,7 +473,7 @@ namespace
       scenario.propsOld.emit();
       LOKA_VERIFY(scenario.propsCalls == 1);
 
-      scenario.currentProps = &scenario.propsNew;
+      LOKA_VERIFY(replacement.applyPropsToNode(child));
       parent->markViewDirty(loka::app::scene::NODE_DIRTY_CHILD);
       const bool changed = scene.flushInvalidation();
       LOKA_VERIFY(changed);
@@ -622,6 +571,10 @@ void testPropsSuppliedEmitterBindingFollowsDefinitionRecompose()
 {
   PointerBindScenario scenario;
   g_pointerBindScenario = &scenario;
+  loka::app::scene::BoundaryDefinition<PropsPointerBindProps, PropsPointerBindBoundaryNode> propsReplacement(
+      (PropsPointerBindProps(&scenario.propsNew, &scenario.propsCalls)));
+  loka::app::scene::BoundaryDefinition<DefinitionPointerBindProps, DefinitionPointerBindBoundaryNode>
+      definitionReplacement((DefinitionPointerBindProps(&scenario.definitionNew, &scenario.definitionCalls)));
   {
     NullScenePlatformController platform;
     loka::app::scene::Scene scene(
@@ -632,8 +585,9 @@ void testPropsSuppliedEmitterBindingFollowsDefinitionRecompose()
     scenario.propsOld.emit();
     LOKA_VERIFY(scenario.propsCalls == 1);
 
-    scenario.currentProps = &scenario.propsNew;
-    scenario.revision.set(1);
+    LOKA_VERIFY(propsReplacement.applyPropsToNode(
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene)->compositionRootNode()->asNestable()->childrenHead()));
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
     assert(scene.hasPendingInvalidation());
     LOKA_VERIFY(scene.flushInvalidation());
 
@@ -654,8 +608,9 @@ void testPropsSuppliedEmitterBindingFollowsDefinitionRecompose()
     scenario.definitionOld.emit();
     LOKA_VERIFY(scenario.definitionCalls == 1);
 
-    scenario.currentDefinition = &scenario.definitionNew;
-    scenario.revision.set(2);
+    LOKA_VERIFY(definitionReplacement.applyPropsToNode(
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene)->compositionRootNode()->asNestable()->childrenHead()));
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
     assert(scene.hasPendingInvalidation());
     LOKA_VERIFY(scene.flushInvalidation());
 

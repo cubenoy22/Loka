@@ -1,6 +1,0 @@
-#ifndef LOKA_TESTS_LOCAL_RECOMPOSE_REFUSAL_TESTS_HPP
-#define LOKA_TESTS_LOCAL_RECOMPOSE_REFUSAL_TESTS_HPP
-
-void testRefusedLocalRecomposeNeverCompletesWithStaleRetainedProps();
-
-#endif // LOKA_TESTS_LOCAL_RECOMPOSE_REFUSAL_TESTS_HPP
