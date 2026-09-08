@@ -2,6 +2,7 @@
 #define LOKA_APP2_NODES_NESTABLE_BOX_HPP
 
 #include "app/scene/Node.hpp"
+#include "core/State.hpp"
 
 namespace loka
 {
@@ -20,10 +21,13 @@ namespace loka
       int padding;
       short width;
       short height;
+      /** Borrowed live width claim; null selects the constant width. */
+      loka::core::State<int> *widthState_;
       BoxProps()
           : padding(0),
             width(0),
-            height(0)
+            height(0),
+            widthState_(0)
       {
       }
       int hash() const
@@ -39,13 +43,19 @@ namespace loka
       BoxProps &setSize(short fixedWidth, short fixedHeight)
       {
         width = fixedWidth;
+        this->widthState_ = 0;
         height = fixedHeight;
         return *this;
       }
       /** True when this container owns an explicit outer layout extent. */
       bool hasFixedSize() const
       {
-        return width > 0 && height > 0;
+        return this->effectiveWidth() > 0 && height > 0;
+      }
+      /** Resolves the width used by Box layout and its parent's seat claim. */
+      short effectiveWidth() const
+      {
+        return this->widthState_ ? static_cast<short>(this->widthState_->get()) : this->width;
       }
       bool operator<(const scene::PropsBase &rhs) const
       {
@@ -54,6 +64,8 @@ namespace loka
         const BoxProps &other = static_cast<const BoxProps &>(rhs);
         if (padding != other.padding)
           return padding < other.padding;
+        if (this->widthState_ != other.widthState_)
+          return this->widthState_ < other.widthState_;
         if (width != other.width)
           return width < other.width;
         return height < other.height;
@@ -69,6 +81,10 @@ namespace loka
           : scene::NestableNode(),
             props(p)
       {
+      }
+      virtual void declareDirtySources(scene::DirtySourceRegistrar &registrar)
+      {
+        registrar.markDirtyOnChange(this->props.widthState_, scene::NODE_DIRTY_LAYOUT);
       }
       virtual scene::NodeKind kind() const
       {
@@ -105,6 +121,18 @@ namespace loka
       BoxDefinition &padding(int value)
       {
         this->props.setPadding(value);
+        return *this;
+      }
+      /** Borrows a live width claim; a nonpositive value leaves it unconstrained.
+          A null State selects the constant width supplied by size(). The claim's
+          domain is the short of size() and of LayoutState::width on every rail;
+          effectiveWidth() narrows the State's int to it like the size() parameter
+          would, so keep the value within short range. (State<short> would carry
+          the domain in the type but costs a second State instantiation family,
+          measured +1792 bytes on LokaSmirkBench68K.) */
+      BoxDefinition &width(loka::core::State<int> *value)
+      {
+        this->props.widthState_ = value;
         return *this;
       }
       /** Declares the fixed outer area owned by this container. */

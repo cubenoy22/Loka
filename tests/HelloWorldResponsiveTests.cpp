@@ -143,7 +143,7 @@ void testHelloWorldResponsivePanelsFollowNativeFrameAndRetainSeats()
   loka::app::StackNode *mainPanels = findMainPanels(*window->scene());
   LOKA_VERIFY(mainPanelsScroll->childrenHead() == mainPanels);
   LOKA_VERIFY(mainPanels->nextInComposition == 0);
-  LOKA_VERIFY(mainPanels->props.axis_ == loka::app::STACK_AXIS_ROW);
+  LOKA_VERIFY(mainPanels->props.effectiveAxis() == loka::app::STACK_AXIS_ROW);
   loka::app::scene::Node *leftPanel = mainPanels->childrenHead();
   LOKA_VERIFY(leftPanel != 0);
   loka::app::scene::Node *rightPanel = leftPanel->nextInComposition;
@@ -151,37 +151,33 @@ void testHelloWorldResponsivePanelsFollowNativeFrameAndRetainSeats()
   LOKA_VERIFY(rightPanel->nextInComposition == 0);
   const loka::core::Frame wideDefault(50, 50, 420, 330);
   driveNativeFrameAndLayout(*window, platform, wideDefault);
-  LOKA_VERIFY(mainPanels->props.axis_ == loka::app::STACK_AXIS_ROW);
-  LOKA_VERIFY((platform.lastOnChangeFlags() &
-               loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
+  LOKA_VERIFY(mainPanels->props.effectiveAxis() == loka::app::STACK_AXIS_ROW);
+  LOKA_VERIFY(platform.lastOnChangeFlags() == loka::app::scene::NODE_DIRTY_LAYOUT);
   const unsigned long wideLayoutCount = platform.onChangeCallCount();
 
   const loka::core::Frame narrowFrame(50, 50, 399, 330);
-  driveNativeFrameAndLayout(*window, platform, narrowFrame);
+  loka::app::testing::WindowTestAccess::storeNativeFrame(*window, narrowFrame);
   LOKA_VERIFY(findMainPanelsScroll(*window->scene()) == mainPanelsScroll);
   LOKA_VERIFY(findMainPanels(*window->scene()) == mainPanels);
   LOKA_VERIFY(mainPanelsScroll->childrenHead() == mainPanels);
-  LOKA_VERIFY(mainPanels->props.axis_ == loka::app::STACK_AXIS_COLUMN);
+  LOKA_VERIFY(mainPanels->props.effectiveAxis() == loka::app::STACK_AXIS_COLUMN);
   LOKA_VERIFY(mainPanels->childrenHead() == leftPanel);
   LOKA_VERIFY(leftPanel->nextInComposition == rightPanel);
-  // A flip is two platform notifications: the scene delivers the axis
-  // props/layout change from the recompose apply (PROPS|LAYOUT - the
-  // rail-facing relayout request the wide route never needs), then the
-  // helper mirrors the rail's own resize-driven layout pass.
-  LOKA_VERIFY(platform.onChangeCallCount() == wideLayoutCount + 2);
-  LOKA_VERIFY((platform.lastOnChangeFlags() &
-               loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
+  // One platform notification per flip: the retained Stack's LAYOUT dirt.
+  // The initial helper drives its own layout call explicitly; these flips
+  // publish only the frame so this count isolates State-driven delivery.
+  LOKA_VERIFY(platform.onChangeCallCount() == wideLayoutCount + 1);
+  LOKA_VERIFY(platform.lastOnChangeFlags() == loka::app::scene::NODE_DIRTY_LAYOUT);
 
-  driveNativeFrameAndLayout(*window, platform, wideDefault);
+  loka::app::testing::WindowTestAccess::storeNativeFrame(*window, wideDefault);
   LOKA_VERIFY(findMainPanelsScroll(*window->scene()) == mainPanelsScroll);
   LOKA_VERIFY(findMainPanels(*window->scene()) == mainPanels);
   LOKA_VERIFY(mainPanelsScroll->childrenHead() == mainPanels);
-  LOKA_VERIFY(mainPanels->props.axis_ == loka::app::STACK_AXIS_ROW);
+  LOKA_VERIFY(mainPanels->props.effectiveAxis() == loka::app::STACK_AXIS_ROW);
   LOKA_VERIFY(mainPanels->childrenHead() == leftPanel);
   LOKA_VERIFY(leftPanel->nextInComposition == rightPanel);
-  LOKA_VERIFY(platform.onChangeCallCount() == wideLayoutCount + 4);
-  LOKA_VERIFY((platform.lastOnChangeFlags() &
-               loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
+  LOKA_VERIFY(platform.onChangeCallCount() == wideLayoutCount + 2);
+  LOKA_VERIFY(platform.lastOnChangeFlags() == loka::app::scene::NODE_DIRTY_LAYOUT);
 
   delete window;
 }
@@ -214,7 +210,7 @@ namespace
       LOKA_VERIFY(panelsId == "HelloWorld.MainPanels");
       const loka::app::scene::PropsBase *props = panels->propsBase();
       LOKA_VERIFY(props && props->propsTypeId() == loka::app::StackProps::staticTypeId());
-      LOKA_VERIFY(static_cast<const loka::app::StackProps *>(props)->axis_ ==
+      LOKA_VERIFY(static_cast<const loka::app::StackProps *>(props)->effectiveAxis() ==
                   loka::app::STACK_AXIS_COLUMN);
     }
   };
@@ -237,6 +233,6 @@ void testHelloWorldNarrowMountComposesColumnFirst()
   window.sceneManager()->commitTransaction(0, new loka::app::scene::Scene(root.take()));
   window.mountScene();
   window.scene()->updateAttached(true);
-  LOKA_VERIFY(findMainPanels(*window.scene())->props.axis_ ==
+  LOKA_VERIFY(findMainPanels(*window.scene())->props.effectiveAxis() ==
               loka::app::STACK_AXIS_COLUMN);
 }

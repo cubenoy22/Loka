@@ -34,7 +34,7 @@ namespace helloworld
   } // namespace
 
   MainNode::MainNode(const MainProps &p)
-      : loka::app::scene::RecomposingBoundaryFor<MainNode, loka::app::scene::BoundaryNodeFor<MainNode> >(p),
+      : loka::app::scene::BoundaryNodeFor<MainNode>(p),
         actionSummaryCacheValid_(false),
         lastActionSummaryEnabled_(false),
         lastActionSummaryCount_(0),
@@ -53,7 +53,7 @@ namespace helloworld
         actionProbeEvent_(),
         fruitIndex_(),
         fruitMessage_(),
-        isNarrow_(),
+        axis_(),
         scrollOffset_(),
         fruits_()
   {
@@ -66,7 +66,7 @@ namespace helloworld
     this->state(this->bmiResult_, String::Literal("BMI: --"));
     this->state(this->fruitIndex_, 0);
     this->state(this->fruitMessage_, String::Literal("You chose Apple."));
-    this->state(this->isNarrow_, false);
+    this->state(this->axis_, loka::app::STACK_AXIS_ROW);
     this->state(this->scrollOffset_, 0);
     this->fruits_.assign(kFruitItems, kFruitItemCount);
   }
@@ -98,18 +98,18 @@ namespace helloworld
   void MainNode::refreshLayoutMode()
   {
     ::Window *window = this->windowOrNull();
-    if (!window || !this->isNarrow_.isValid())
+    if (!window || !this->axis_.isValid())
     {
       return;
     }
     const Frame frame = window->nativeFrame().get();
     const bool isNarrow = frame.hasSize() && frame.width > 0 && frame.width < kNarrowBreakpoint;
-    if (this->isNarrow_.get() == isNarrow)
+    const loka::app::StackAxis axis = isNarrow ? loka::app::STACK_AXIS_COLUMN : loka::app::STACK_AXIS_ROW;
+    if (this->axis_.get() == axis)
     {
       return;
     }
-    this->isNarrow_.set(isNarrow);
-    this->markViewDirty(loka::app::scene::NODE_DIRTY_CHILD);
+    this->axis_.set(axis);
   }
 
   loka::app::VStack MainNode::mainLeftPanel()
@@ -295,12 +295,9 @@ namespace helloworld
     rootDefinition.TEST_ID("HelloWorld.Root");
     ZStack &root = c.declare(rootDefinition);
     loka::app::scene::NodeComposition::ParentScope scope(c, root);
-    // An unmaterialized state (allocation white flag, #132 ruling 3) must
-    // compose the wide default instead of dereferencing a missing state.
-    const bool narrowLayout = this->isNarrow_.isValid() && this->isNarrow_.get();
     ScrollView mainPanels = ScrollView(this->scrollOffset_)
                                 .TEST_ID("HelloWorld.MainPanelsScroll")
-                            << (Stack(narrowLayout ? STACK_AXIS_COLUMN : STACK_AXIS_ROW)
+                            << (Stack(this->axis_.state())
                                     .TEST_ID("HelloWorld.MainPanels")
                                 << this->mainLeftPanel()
                                 << MainRightPanel(&this->fruits_,

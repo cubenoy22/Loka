@@ -51,7 +51,7 @@ namespace
       childState.y = static_cast<short>(state.y + padding);
       if (hasFixedSize)
       {
-        childState.width = box->props.width;
+        childState.width = box->props.effectiveWidth();
         childState.height = box->props.height;
       }
       if (childState.width > 0)
@@ -89,7 +89,7 @@ namespace
       }
       traversal->setLayoutResultY(hasFixedSize ? static_cast<short>(state.y + box->props.height) : currentY);
 
-      return hasFixedSize ? box->props.width : static_cast<short>(childWidth + padding * 2);
+      return hasFixedSize ? box->props.effectiveWidth() : static_cast<short>(childWidth + padding * 2);
     }
   };
 
@@ -154,7 +154,7 @@ namespace
         return 0;
       }
 
-      if (stack->props.axis_ == loka::app::STACK_AXIS_COLUMN)
+      if (stack->props.effectiveAxis() == loka::app::STACK_AXIS_COLUMN)
       {
         loka::app::StackNode *column = stack;
         short width = 0;

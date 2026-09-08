@@ -616,7 +616,7 @@ MacScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, co
       loka::app::scene::MacPlatformLayoutTraversal traversal(this);
       resultY = handler->layoutNode(stack, handlerState, &traversal);
     }
-    else if (stack->props.axis_ == loka::app::STACK_AXIS_COLUMN)
+    else if (stack->props.effectiveAxis() == loka::app::STACK_AXIS_COLUMN)
     {
       resultY = loka::app::layout::computeColumnLayoutResultY(
           stack, state, this, &MacScenePlatformController::layoutContainerChild);

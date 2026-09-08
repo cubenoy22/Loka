@@ -28,7 +28,7 @@ namespace loka
         childState.x = layoutCoordinate<LayoutStateT>(state.x + padding);
         childState.y = layoutCoordinate<LayoutStateT>(state.y + padding);
         childState.width = layoutCoordinate<LayoutStateT>(
-            (hasFixedSize ? box->props.width : state.width) - padding * 2);
+            (hasFixedSize ? box->props.effectiveWidth() : state.width) - padding * 2);
         if (childState.width < 0)
         {
           childState.width = 0;
