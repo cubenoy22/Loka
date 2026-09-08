@@ -104,6 +104,10 @@ namespace loka
             this->updateCompositionChildren(context);
             return;
           }
+          if (this->childrenHead())
+          {
+            this->detachExistingChildren(context);
+          }
           NodeComposition *composition = &this->beginDeclaringWindow(context);
           this->clearChildren();
           this->nodeArena()->clear();
@@ -775,6 +779,11 @@ namespace loka
           if (rootDefinition_.isSet() && !rootDefinition_->isBoundary())
           {
             BoundaryNode::composeSubtree(rootNode_, rootContext, event, 0);
+            if (boundary->composeResult().allocationFailed)
+            {
+              // Keep the white flag armed; retry ATTACH on the next external refresh.
+              return;
+            }
           }
           else
           {

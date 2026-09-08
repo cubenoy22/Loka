@@ -11,6 +11,7 @@ void testHeapFallbackWhiteFlagFailsBoundaryCompose();
 void testSceneRootAllocationRefusalArmsWhiteFlagAndHealsOnRefresh();
 void testNestedConditionalSeatInContextlessMaterialization_Probe();
 void testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry();
+void testPlainRootAttachAllocationRefusalStaysUncomposedAndRetriesWithDetach();
 void testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement();
 void testBoundarySectionRetainedKeyReconcilesReplacedChild();
 void testBoundarySectionRejectsMissingAndDuplicateSiblingKeys();

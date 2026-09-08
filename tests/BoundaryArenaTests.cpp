@@ -931,6 +931,48 @@ namespace
     }
   };
 
+  struct PlainAttachRefusalRecord
+  {
+    PlainAttachRefusalRecord()
+        : constructions(0), detaches(0), destructions(0), detachesAtReplacement(0) {}
+    int constructions;
+    int detaches;
+    int destructions;
+    int detachesAtReplacement;
+  };
+
+  class PlainAttachRefusalChild;
+  struct PlainAttachRefusalProps : loka::app::scene::NodePropsBase<PlainAttachRefusalProps>
+  {
+    struct TypeTag {};
+    typedef PlainAttachRefusalChild NodeType;
+    explicit PlainAttachRefusalProps(PlainAttachRefusalRecord *value = 0) : record(value) {}
+    bool operator<(const loka::app::scene::PropsBase &) const { return false; }
+    PlainAttachRefusalRecord *record;
+  };
+
+  class PlainAttachRefusalChild : public loka::app::scene::ComposableNode
+  {
+  public:
+    typedef PlainAttachRefusalProps::TypeTag TypeTag;
+    explicit PlainAttachRefusalChild(const PlainAttachRefusalProps &p) : props(p), state_()
+    {
+      if (++this->props.record->constructions == 2)
+        this->props.record->detachesAtReplacement = this->props.record->detaches;
+      WhiteFlagStatePayload initial = {{0}};
+      this->state(this->state_, initial);
+    }
+    virtual ~PlainAttachRefusalChild() { ++this->props.record->destructions; }
+    virtual void composeWithContext(loka::app::scene::ComponentContext &,
+                                    loka::app::scene::ComposeEvent event)
+    {
+      if (event == loka::app::scene::COMPOSE_EVENT_DETACH)
+        ++this->props.record->detaches;
+    }
+    PlainAttachRefusalProps props;
+    loka::app::scene::NodeState<WhiteFlagStatePayload> state_;
+  };
+
   struct SectionTrackedValue
   {
     SectionTrackedValue(int *aliveCount, int v)
@@ -2422,6 +2464,60 @@ void testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry()
   assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
   loka::core::LokaAllocAuditCheckpoint(
       "testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry");
+#endif
+}
+
+void testPlainRootAttachAllocationRefusalStaysUncomposedAndRetriesWithDetach()
+{
+  using namespace loka::app::scene;
+  using loka::dsl::testing::SceneTestAccess;
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
+#endif
+  PlainAttachRefusalRecord record;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::FragmentDefinition *definition = new loka::app::FragmentDefinition();
+    *definition << NodeDefinition<PlainAttachRefusalProps, PlainAttachRefusalChild>(
+        PlainAttachRefusalProps(&record));
+    Scene scene(static_cast<NodeDefinitionBase *>(definition));
+    g_attachRefuseState = true;
+    g_attachStateRefusals = 0;
+    loka::core::LokaAllocSetBackend(&attachStateRefusingBackendAlloc, &delegatingBackendFree);
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    loka::core::LokaAllocSetBackend(0, 0);
+    g_attachRefuseState = false;
+
+    const bool refusedComposed = SceneTestAccess::composed(scene);
+    const bool refusedWhiteFlag = SceneTestAccess::whiteFlagFullRebuildPending(scene);
+    const size_t refusedPublications = platform.changeCount();
+    LOKA_VERIFY(g_attachStateRefusals > 0 && record.constructions == 1);
+    LOKA_VERIFY(!refusedComposed);
+    LOKA_VERIFY(refusedWhiteFlag && refusedPublications == 0);
+    LOKA_VERIFY(record.detaches == 0 && record.destructions == 0);
+    LOKA_VERIFY(!scene.flushInvalidation());
+
+    scene.requestInvalidate(NODE_DIRTY_CHILD);
+    scene.flushInvalidation();
+    const bool healedComposed = SceneTestAccess::composed(scene);
+    const bool healedWhiteFlag = SceneTestAccess::whiteFlagFullRebuildPending(scene);
+    const size_t healedPublications = platform.changeCount();
+    BoundaryNode *wrapper = SceneTestAccess::rootBoundary(scene);
+    Node *fragment = wrapper ? wrapper->childrenHead() : 0;
+    INestable *children = fragment ? fragment->asNestable() : 0;
+    LOKA_VERIFY(children);
+    PlainAttachRefusalChild *child = static_cast<PlainAttachRefusalChild *>(children->childrenHead());
+    LOKA_VERIFY(child);
+    const bool stateValid = child->state_.isValid();
+    LOKA_VERIFY(healedComposed && !healedWhiteFlag && stateValid && healedPublications > 0);
+    LOKA_VERIFY(record.constructions == 2 && record.destructions == 1);
+    LOKA_VERIFY(record.detaches == 1 && record.detachesAtReplacement == 1);
+  }
+  LOKA_VERIFY(record.destructions == 2);
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int totalLiveAfter = loka::core::LokaAllocAuditTotalLiveCount();
+  LOKA_VERIFY(totalLiveAfter == totalLiveBefore);
 #endif
 }
 
