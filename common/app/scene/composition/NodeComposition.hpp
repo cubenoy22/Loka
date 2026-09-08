@@ -756,9 +756,29 @@ namespace loka
 
         /** Internal materialization primitive. The returned allocation flag
             must be consumed by the operation's owner-side choke point. */
-        NodeMaterializationResult createNodeFromDefinitionResult(
-            NodeDefinitionBase *definition) const;
+        NodeMaterializationResult createNodeFromDefinitionResult(NodeDefinitionBase *definition,
+                                                                 Node *runtimeParent = 0,
+                                                                 BoundaryBranchSeatState *seatScope = 0) const;
 
+        /** Give a declaration its own branch root even when the authored root
+            is itself a dissolved seat. Transfer the stored definition; do not
+            clone the subtree a second time. */
+        bool encloseRoot()
+        {
+          if (!this->root_)
+            return false;
+          loka::app::FragmentDefinition *wrapper = this->store(loka::app::FragmentDefinition());
+          if (!wrapper)
+            return false;
+          NodeDefinitionBase *child = this->root_;
+          child->clearCleanupHook();
+          this->releaseStoredNode(child);
+          wrapper->addOwnedChild(child);
+          this->root_ = wrapper;
+          return true;
+        }
+
+        friend class BranchSeatDeclaration;
         friend class BoundaryNode;
         friend struct testing::NodeCompositionTestAccess;
         static NodeComposition *current_;

@@ -10,14 +10,18 @@ namespace loka
   {
     namespace scene
     {
+      class BoundaryBranchSeatState;
+
       struct BoundaryParkedBranchKey
       {
-        BoundaryParkedBranchKey(NodeTag tagValue = NODE_TAG_NONE,
-                                int slotValue = -1,
-                                const void *propsTypeValue = 0)
+        BoundaryParkedBranchKey(NodeTag tagValue,
+                                int slotValue,
+                                const void *propsTypeValue,
+                                BoundaryBranchSeatState *scopeValue)
             : tag(tagValue),
               slot(slotValue),
-              propsTypeId(propsTypeValue)
+              propsTypeId(propsTypeValue),
+              scope(scopeValue)
         {
         }
 
@@ -26,12 +30,14 @@ namespace loka
           const bool sameSeat = this->tag != NODE_TAG_NONE
                                     ? this->tag == other.tag
                                     : other.tag == NODE_TAG_NONE && this->slot == other.slot;
-          return sameSeat && this->propsTypeId == other.propsTypeId;
+          return sameSeat && this->propsTypeId == other.propsTypeId && this->scope == other.scope;
         }
 
         NodeTag tag;
         int slot;
         const void *propsTypeId;
+        /** Borrowed declaration scope; owns the plan addressed by this key. */
+        BoundaryBranchSeatState *scope;
       };
 
       /** Boundary-owned enumeration and exact-match storage for parked branches. */
@@ -99,6 +105,27 @@ namespace loka
           return static_cast<unsigned>(this->entries_.size());
         }
 #endif
+
+        bool referencesScope(const BoundaryBranchSeatState *scope) const
+        {
+          for (size_t i = 0; i < this->entries_.size(); ++i)
+            if (this->entries_[i].key.scope == scope)
+              return true;
+          return false;
+        }
+
+        Node *takeScope(const BoundaryBranchSeatState *scope)
+        {
+          for (size_t i = 0; i < this->entries_.size(); ++i)
+          {
+            if (this->entries_[i].key.scope != scope)
+              continue;
+            Node *branch = this->entries_[i].branch;
+            this->entries_.erase(this->entries_.begin() + i);
+            return branch;
+          }
+          return 0;
+        }
 
         void detachAll(std::vector<Node *> &out)
         {

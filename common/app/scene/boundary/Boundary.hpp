@@ -1,6 +1,8 @@
 #ifndef LOKA_CORE2_SCENE_BOUNDARY_BOUNDARY_HPP
 #define LOKA_CORE2_SCENE_BOUNDARY_BOUNDARY_HPP
 
+#include <cstdlib>
+
 #include "PaintBaselineStats.hpp"
 #include <cstdarg>
 #include <vector>
@@ -18,6 +20,7 @@
 #include "app/scene/boundary/detail/BoundaryRuntimeState.hpp"
 #include "app/scene/boundary/detail/BoundaryParkedBranchLedger.hpp"
 #include "app/scene/boundary/detail/BoundaryBranchSeatState.hpp"
+#include "app/scene/boundary/detail/BranchSeatDeclaration.hpp"
 #include "app/scene/boundary/BoundaryStateTypes.hpp"
 #include "core/StateTracker.hpp"
 #include "core/util/StateUtil.hpp"
@@ -408,7 +411,35 @@ namespace loka
         void beginObservedStatePass()
         {
           observedState_.beginPass();
+          this->registerBranchSeatDirtySources();
         }
+        /** Close the registration pass after every composition exit. */
+        void completeObservedStatePass()
+        {
+          this->observedState_.finishPass(&BoundaryNode::ObservedStateChangedThunk);
+        }
+        /** Keeps observation registration bounded by the composition walk,
+            including early returns; detach never opens a registration pass. */
+        class ObservedStatePassScope
+        {
+        public:
+          ObservedStatePassScope(BoundaryNode *boundary, ComposeEvent event)
+              : boundary_(event == COMPOSE_EVENT_DETACH ? 0 : boundary)
+          {
+            if (this->boundary_)
+              this->boundary_->beginObservedStatePass();
+          }
+          ~ObservedStatePassScope()
+          {
+            if (this->boundary_)
+              this->boundary_->completeObservedStatePass();
+          }
+
+        private:
+          ObservedStatePassScope(const ObservedStatePassScope &);
+          ObservedStatePassScope &operator=(const ObservedStatePassScope &);
+          BoundaryNode *boundary_;
+        };
         void clearObservedStateEntries()
         {
           observedState_.clearEntries(&BoundaryNode::ObservedStateChangedThunk);
@@ -448,7 +479,11 @@ namespace loka
         }
         void registerBranchSeatDirtySources()
         {
-          const std::vector<BoundaryBranchSeatPlanEntry> &plans = this->branchSeats_.plans();
+          this->registerBranchSeatDirtySources(this->branchSeats_);
+        }
+        void registerBranchSeatDirtySources(BoundaryBranchSeatState &scope)
+        {
+          const std::vector<BoundaryBranchSeatPlanEntry> &plans = scope.plans();
           for (size_t i = 0; i < plans.size(); ++i)
           {
             if (!plans[i].dirtySource)
@@ -458,6 +493,23 @@ namespace loka
             this->registerObservedState(
                 plans[i].dirtySource,
                 static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_LAYOUT));
+            BoundaryBranchSeatState *nested = plans[i].seat()->declaredBranchSeats();
+            if (nested)
+              this->registerBranchSeatDirtySources(*nested);
+          }
+        }
+        /** Outgoing declaration registrations stop owning their sources before
+            publication. Surviving seats and the boundary are registered again;
+            descendant nodes register in the following child walk. */
+        void forgetBranchSeatDirtySources(BoundaryBranchSeatState &scope)
+        {
+          const std::vector<BoundaryBranchSeatPlanEntry> &plans = scope.plans();
+          for (size_t i = 0; i < plans.size(); ++i)
+          {
+            this->observedState_.forgetState(plans[i].dirtySource, &BoundaryNode::ObservedStateChangedThunk);
+            BoundaryBranchSeatState *nested = plans[i].seat()->declaredBranchSeats();
+            if (nested)
+              this->forgetBranchSeatDirtySources(*nested);
           }
         }
         /** Registers a node's declared external dirty sources against the owning
@@ -512,7 +564,8 @@ namespace loka
         {
           return &nodeArena_;
         }
-        const BoundaryBranchSeatPlanEntry *branchSeatPlan(NodeDefinitionBase *definition) const
+        const BoundaryBranchSeatPlanEntry *branchSeatPlan(NodeDefinitionBase *definition,
+                                                          BoundaryBranchSeatState *scope = 0) const
         {
           if (!definition)
           {
@@ -526,14 +579,64 @@ namespace loka
           return this->branchSeats_.findPlan(
               BoundaryParkedBranchKey(definition->nodeTag(),
                                       definition->compositionSeatSlot(),
-                                      seat->branchSeatTypeId()));
+                                      seat->branchSeatTypeId(),
+                                      scope ? scope : const_cast<BoundaryBranchSeatState *>(&this->branchSeats_)));
         }
+        /** A declaration scope cannot die while either runtime ledger borrows it. */
+        void assertNoBranchSeatScopeReferences(const BoundaryBranchSeatState *scope) const
+        {
+#ifdef LOKA_LIFECYCLE_AUDIT
+          if (this->branchSeats_.referencesScope(scope) || this->parkedBranches_.referencesScope(scope))
+          {
+            assert(false && "retiring a declaration with live seat scope references");
+            std::abort();
+          }
+#else
+          (void)scope;
+#endif
+        }
+
         void registerMaterializedBranchSeat(const BoundaryBranchSeatPlanEntry &plan,
                                             Node *parent,
-                                            Node *active)
+                                            Node *active,
+                                            IStateOwner *stateOwner = 0)
         {
-          this->branchSeats_.registerRuntime(plan, parent, active);
+          this->branchSeats_.registerRuntime(plan, parent, active, stateOwner);
         }
+        /** Materializes a first declaration in its actual parent owner scope.
+            Candidate nested registrations are invisible until success. */
+        NodeMaterializationResult materializeDeclaredSeat(ComponentContext &context,
+                                                          const BoundaryBranchSeatPlanEntry &plan,
+                                                          Node *parent,
+                                                          BoundaryBranchSeatRuntimeRegistrationPlan *registrations)
+        {
+          loka::core::OwnedDef<BranchSeatDeclaration> candidate(plan.seat()->declareBranchCandidate(context));
+          if (!candidate.isSet())
+          {
+            this->noteComposeAllocationFailure();
+            NodeMaterializationResult failed = {0, true, false};
+            return failed;
+          }
+          BoundaryBranchSeatRuntimeRegistrationPlan nested;
+          NodeMaterializationResult result = this->materializeDeclaration(context, plan, *candidate, parent, nested);
+          if (result.allocationFailed || result.requiresBoundaryPlan || !result.root)
+          {
+            if (result.root)
+              this->retireSeatBranchRoot(context, result.root);
+            result.root = 0;
+            return result;
+          }
+          plan.seat()->commitBranchDeclaration(candidate.take());
+          if (registrations)
+            nested.appendTo(*registrations);
+          else
+          {
+            nested.commitTo(this->branchSeats_);
+            this->registerBranchSeatDirtySources(*plan.seat()->declaredBranchSeats());
+          }
+          return result;
+        }
+
         void appendNestedBranchSeatPlan(NodeComposition &composition)
         {
           composition.assignCompositionSeatSlots();
@@ -1724,6 +1827,7 @@ namespace loka
             }
           }
           plan.branchSeatRegistrations.commitTo(this->branchSeats_);
+          this->registerBranchSeatDirtySources();
           for (size_t i = 0; i < plan.entries.size(); ++i)
           {
             BoundaryLocalRebuildPlanEntry &entry = plan.entries[i];
@@ -1751,13 +1855,13 @@ namespace loka
           RETAINED_CHILD_PLAN_REPLACE_ALL
         };
 
-        bool buildParkedBranchReentryPlan(
-            ComponentContext &context,
-            Node *runtimeParent,
-            INestable &root,
-            INestableDefinition &desiredRoot,
-            BoundaryLocalRebuildPlan &plan,
-            RetainedChildPlanMode mode)
+        bool buildParkedBranchReentryPlan(ComponentContext &context,
+                                          Node *runtimeParent,
+                                          INestable &root,
+                                          INestableDefinition &desiredRoot,
+                                          BoundaryLocalRebuildPlan &plan,
+                                          RetainedChildPlanMode mode,
+                                          BoundaryBranchSeatState *seatScope = 0)
         {
           plan.clear();
           plan.reserve(desiredRoot.childrenCount());
@@ -1785,8 +1889,7 @@ namespace loka
             {
               effectiveDefinition = scope->scopedBranchDefinition();
             }
-            const BoundaryBranchSeatPlanEntry *seatPlan =
-                this->branchSeatPlan(effectiveDefinition);
+            const BoundaryBranchSeatPlanEntry *seatPlan = this->branchSeatPlan(effectiveDefinition, seatScope);
             BoundaryBranchSeatRuntimeEntry *seatRuntime =
                 seatPlan ? this->branchSeats_.findRuntime(seatPlan->key) : 0;
             Node *existing =
@@ -1895,7 +1998,8 @@ namespace loka
 
         bool reconcileParkedBranch(ComponentContext &context,
                                    Node *node,
-                                   NodeDefinitionBase *definition)
+                                   NodeDefinitionBase *definition,
+                                   BoundaryBranchSeatState *seatScope = 0)
         {
           if (!node || !definition || !definition->applyPropsToNode(node))
           {
@@ -1915,12 +2019,7 @@ namespace loka
 
           BoundaryLocalRebuildPlan plan;
           if (!this->buildParkedBranchReentryPlan(
-                  context,
-                  node,
-                  *root,
-                  *desiredRoot,
-                  plan,
-                  RETAINED_CHILD_PLAN_PRESERVE_MATCHES))
+                  context, node, *root, *desiredRoot, plan, RETAINED_CHILD_PLAN_PRESERVE_MATCHES, seatScope))
           {
             return false;
           }
@@ -1934,14 +2033,34 @@ namespace loka
             BoundaryLocalRebuildPlanEntry &entry = plan.entries[i];
             // A dissolved seat has no runtime node at this level. Its value-key
             // plan owns nested branch reconciliation later in this same pass.
-            if (entry.action == BoundaryLocalRebuildPlanEntry::ACTION_RETAIN &&
-                !entry.definition->asBranchSeatDefinition() &&
-                !this->reconcileParkedBranch(context, entry.node, entry.definition))
+            if (entry.action == BoundaryLocalRebuildPlanEntry::ACTION_RETAIN
+                && !entry.definition->asBranchSeatDefinition()
+                && !this->reconcileParkedBranch(context, entry.node, entry.definition, seatScope))
             {
               return false;
             }
           }
           return true;
+        }
+
+        NodeMaterializationResult materializeDeclaration(ComponentContext &context,
+                                                         const BoundaryBranchSeatPlanEntry &plan,
+                                                         BranchSeatDeclaration &candidate,
+                                                         Node *parent,
+                                                         BoundaryBranchSeatRuntimeRegistrationPlan &registrations)
+        {
+          candidate.seats.captureOwned(candidate.composition.root(), plan.key, 0);
+          candidate.composition.setContext(&context);
+          candidate.composition.collectBranchSeatRegistrationsIn(&registrations);
+          NodeMaterializationResult result = candidate.composition.createNodeFromDefinitionResult(
+              candidate.composition.root(), parent, &candidate.seats);
+          candidate.composition.collectBranchSeatRegistrationsIn(0);
+          candidate.composition.setContext(0);
+          if (result.allocationFailed)
+            this->noteComposeAllocationFailure();
+          if (result.requiresBoundaryPlan)
+            this->noteComposeBoundaryPlanRequired();
+          return result;
         }
 
         bool createCurrentBranch(ComponentContext &context,
@@ -1950,17 +2069,20 @@ namespace loka
                                  Node *&created,
                                  BoundaryBranchSeatRuntimeRegistrationPlan *registrations = 0)
         {
-          (void)parent;
           created = 0;
           loka::app::FragmentDefinition emptyBranch;
           NodeDefinitionBase *definition =
               plan.materializedBranchDefinition(emptyBranch);
           NodeComposition composition;
-          composition.setContext(&context);
+          ComponentContext branchContext(context);
+          BoundaryBranchSeatRuntimeEntry *runtime = this->branchSeats_.findRuntime(plan.key);
+          if (runtime && runtime->stateOwner)
+            branchContext.setStateOwner(runtime->stateOwner);
+          composition.setContext(&branchContext);
           composition.collectBranchSeatRegistrationsIn(registrations);
           assert(context.boundary() == this);
           NodeMaterializationResult result =
-              composition.createNodeFromDefinitionResult(definition);
+              composition.createNodeFromDefinitionResult(definition, parent, plan.key.scope);
           if (result.requiresBoundaryPlan)
           {
             this->noteComposeBoundaryPlanRequired();
@@ -2000,7 +2122,7 @@ namespace loka
             const BoundaryParkedBranchKey &ownerKey,
             unsigned ownerArm)
         {
-          BoundaryParkedBranchKey nestedKey;
+          BoundaryParkedBranchKey nestedKey(ownerKey);
           unsigned nestedArmCount = 0;
           while (this->branchSeats_.eraseOneOwnedRuntime(ownerKey,
                                                          ownerArm,
@@ -2017,6 +2139,24 @@ namespace loka
               }
             }
           }
+        }
+
+        /** Retires all parked residents before their declaration's plan scope dies.
+            Active residents remain under the outgoing root's ordinary retire door. */
+        void retireDeclarationScope(ComponentContext &context, BoundaryBranchSeatState &scope)
+        {
+          const std::vector<BoundaryBranchSeatPlanEntry> &plans = scope.plans();
+          for (size_t i = 0; i < plans.size(); ++i)
+          {
+            BoundaryBranchSeatState *nested = plans[i].seat()->declaredBranchSeats();
+            if (nested)
+              this->retireDeclarationScope(context, *nested);
+          }
+          this->branchSeats_.eraseScopeRuntime(&scope);
+          Node *parked = 0;
+          while ((parked = this->parkedBranches_.takeScope(&scope)) != 0)
+            this->retireSeatBranchRoot(context, parked);
+          this->assertNoBranchSeatScopeReferences(&scope);
         }
 
         void retireSeatBranch(ComponentContext &context,
@@ -2045,7 +2185,7 @@ namespace loka
         void retireParkedBranchForRemovedSeat(ComponentContext &context,
                                               Node *activeBranch)
         {
-          BoundaryParkedBranchKey key;
+          BoundaryParkedBranchKey key(NODE_TAG_NONE, -1, 0, &this->branchSeats_);
           unsigned activeArm = 0;
           bool hasActiveArm = false;
           unsigned armCount = 0;
@@ -2172,11 +2312,11 @@ namespace loka
           NodeDefinitionBase *definition = plan.hasSelectedArm
                                                ? plan.branch(plan.selectedArm).definition
                                                : 0;
-          if (incoming &&
-              ((!definition && !this->isMaterializedEmptyBranch(incoming)) ||
-               (definition &&
-                (!definition->isCompatibleWithNode(incoming) ||
-                 !this->reconcileParkedBranch(context, incoming, definition)))))
+          if (incoming
+              && ((!definition && !this->isMaterializedEmptyBranch(incoming))
+                  || (definition
+                      && (!definition->isCompatibleWithNode(incoming)
+                          || !this->reconcileParkedBranch(context, incoming, definition, plan.key.scope)))))
           {
             this->retireSeatBranch(context, plan.key, plan.selectedArm, incoming);
             incoming = 0;
@@ -2188,6 +2328,27 @@ namespace loka
           // retireOwnedSeatDescendants() would erase them with the old ones.
           // The local-rebuild path stages for the same reason (#511).
           BoundaryBranchSeatRuntimeRegistrationPlan nestedRegistrations;
+          loka::core::OwnedDef<BranchSeatDeclaration> candidate;
+          if (plan.seat()->needsBranchDeclaration())
+          {
+            ComponentContext declarationContext(context);
+            declarationContext.setStateOwner(runtime.stateOwner ? runtime.stateOwner : this);
+            candidate.reset(plan.seat()->declareBranchCandidate(declarationContext));
+            if (!candidate.isSet())
+            {
+              this->noteComposeAllocationFailure();
+              return false;
+            }
+            NodeMaterializationResult result =
+                this->materializeDeclaration(declarationContext, plan, *candidate, runtimeParent, nestedRegistrations);
+            if (result.allocationFailed || result.requiresBoundaryPlan || !result.root)
+            {
+              if (result.root)
+                this->retireSeatBranchRoot(declarationContext, result.root);
+              return false;
+            }
+            incoming = result.root;
+          }
           if (!incoming && !this->createCurrentBranch(context,
                                                       plan,
                                                       runtimeParent,
@@ -2209,8 +2370,12 @@ namespace loka
           INestable *parent = runtimeParent ? runtimeParent->asNestable() : 0;
           if (!parent || !parent->replaceChild(outgoing, incoming))
           {
+            this->retireSeatBranchRoot(context, incoming);
             return false;
           }
+
+          if (candidate.isSet() && plan.seat()->declaredBranchSeats())
+            this->retireDeclarationScope(context, *plan.seat()->declaredBranchSeats());
 
           if (outgoing)
           {
@@ -2235,6 +2400,15 @@ namespace loka
           {
             this->drainParkedSeat(context, plan.key, drainParkedArmCount);
           }
+          if (candidate.isSet())
+          {
+            BoundaryBranchSeatState *outgoingScope = plan.seat()->declaredBranchSeats();
+            if (outgoingScope)
+              this->forgetBranchSeatDirtySources(*outgoingScope);
+            plan.seat()->commitBranchDeclaration(candidate.take());
+            this->registerBranchSeatDirtySources();
+            declareBoundaryDirtySources(this, this);
+          }
           nestedRegistrations.commitTo(this->branchSeats_);
           BoundaryBranchSeatRuntimeEntry *committedRuntime =
               this->branchSeats_.findRuntime(plan.key);
@@ -2257,7 +2431,7 @@ namespace loka
                              NodeDefinitionBase *definition,
                              BoundaryBranchSeatRuntimeEntry &runtime)
         {
-          const BoundaryBranchSeatPlanEntry *plan = this->branchSeatPlan(definition);
+          const BoundaryBranchSeatPlanEntry *plan = this->branchSeatPlan(definition, runtime.key.scope);
           if (!plan || !plan->dirtySource)
           {
             return false;
@@ -2276,6 +2450,14 @@ namespace loka
           if (!mutablePlan)
           {
             return false;
+          }
+          if (mutablePlan->seat()->needsBranchDeclaration())
+          {
+            return this->replaceSeatBranch(context, *mutablePlan, runtime, false, false);
+          }
+          if (mutablePlan->seat()->declaredBranchSeats())
+          {
+            return true;
           }
           if (runtime.appliedGeneration == this->branchSeats_.generation())
           {
@@ -2324,8 +2506,8 @@ namespace loka
             runtime.appliedGeneration = this->branchSeats_.generation();
             return true;
           }
-          if (branchDefinition &&
-              this->reconcileParkedBranch(context, runtime.active, branchDefinition))
+          if (branchDefinition
+              && this->reconcileParkedBranch(context, runtime.active, branchDefinition, mutablePlan->key.scope))
           {
             runtime.appliedGeneration = this->branchSeats_.generation();
             return true;
@@ -2337,11 +2519,17 @@ namespace loka
                                          true);
         }
 
-        bool applyCurrentBranchSeatPlan(
-            ComponentContext &context,
-            const BoundaryLocalRebuildExclusions *exclusions)
+        bool applyCurrentBranchSeatPlan(ComponentContext &context, const BoundaryLocalRebuildExclusions *exclusions)
         {
-          const std::vector<BoundaryBranchSeatPlanEntry> &plans = this->branchSeats_.plans();
+          return this->applyScopePlans(context, exclusions, this->branchSeats_)
+                 && this->applyBoundaryParkedBranches(context, exclusions);
+        }
+
+        bool applyScopePlans(ComponentContext &context,
+                             const BoundaryLocalRebuildExclusions *exclusions,
+                             BoundaryBranchSeatState &scope)
+        {
+          const std::vector<BoundaryBranchSeatPlanEntry> &plans = scope.plans();
           for (size_t i = 0; i < plans.size(); ++i)
           {
             BoundaryBranchSeatRuntimeEntry *runtime =
@@ -2355,7 +2543,17 @@ namespace loka
             {
               return false;
             }
+            BoundaryBranchSeatState *nested = plans[i].seat()->declaredBranchSeats();
+            if (nested && !this->applyScopePlans(context, exclusions, *nested))
+            {
+              return false;
+            }
           }
+          return true;
+        }
+
+        bool applyBoundaryParkedBranches(ComponentContext &context, const BoundaryLocalRebuildExclusions *exclusions)
+        {
           for (unsigned i = 0; BoundaryParkedBranchLedger::Entry *parked = this->parkedBranches_.entry(i); ++i)
           {
             BoundaryBranchSeatPlanEntry *plan = this->branchSeats_.findPlan(parked->key);
@@ -2367,8 +2565,8 @@ namespace loka
               continue;
             }
             NodeDefinitionBase *branchDefinition = plan->branch(parked->arm).definition;
-            if (branchDefinition &&
-                !this->reconcileParkedBranch(context, parked->branch, branchDefinition))
+            if (branchDefinition
+                && !this->reconcileParkedBranch(context, parked->branch, branchDefinition, plan->key.scope))
             {
               return false;
             }
@@ -2378,54 +2576,8 @@ namespace loka
 
         NodeDefinitionBase *findBranchSeatDefinition(const BoundaryParkedBranchKey &key) const
         {
-          return this->findBranchSeatDefinitionRecursive(this->currentCompositionRootDefinition(), key);
-        }
-
-        NodeDefinitionBase *findBranchSeatDefinitionRecursive(NodeDefinitionBase *definition,
-                                                              const BoundaryParkedBranchKey &key) const
-        {
-          if (!definition)
-          {
-            return 0;
-          }
-          IBranchSeatDefinition *seat = definition->asBranchSeatDefinition();
-          if (seat)
-          {
-            BoundaryParkedBranchKey candidate(definition->nodeTag(),
-                                              definition->compositionSeatSlot(),
-                                              seat->branchSeatTypeId());
-            if (candidate.matches(key))
-            {
-              return definition;
-            }
-            for (unsigned arm = 0; arm < seat->armCount(); ++arm)
-            {
-              NodeDefinitionBase *found =
-                  this->findBranchSeatDefinitionRecursive(seat->armDefinition(arm), key);
-              if (found)
-              {
-                return found;
-              }
-            }
-            return 0;
-          }
-          IBranchPolicyScopeDefinition *scope = definition->asBranchPolicyScopeDefinition();
-          if (scope)
-          {
-            return this->findBranchSeatDefinitionRecursive(scope->scopedBranchDefinition(), key);
-          }
-          INestableDefinition *nestable = definition->asNestableDefinition();
-          for (NodeDefinitionBase *child = nestable ? nestable->childrenHead() : 0;
-               child;
-               child = child->nextInComposition)
-          {
-            NodeDefinitionBase *found = this->findBranchSeatDefinitionRecursive(child, key);
-            if (found)
-            {
-              return found;
-            }
-          }
-          return 0;
+          const BoundaryBranchSeatPlanEntry *plan = this->branchSeats_.findPlan(key);
+          return plan ? plan->definition : 0;
         }
 
         virtual void adoptState(loka::core::StateBase *state)
@@ -2535,13 +2687,9 @@ namespace loka
             }
             boundary->clearObservedDirtyFlags();
             boundary->clearPhaseResults();
-            if (event != COMPOSE_EVENT_DETACH)
-            {
-              boundary->beginObservedStatePass();
-              boundary->registerBranchSeatDirtySources();
-            }
             nextBoundary = boundary;
           }
+          ObservedStatePassScope observedScope(boundary, event);
           BoundaryComposePhaseScope composeScope =
               boundary ? boundary->beginComposePhaseScope() : BoundaryComposePhaseScope(0);
           if (boundary)

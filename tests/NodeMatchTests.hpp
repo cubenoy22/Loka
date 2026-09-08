@@ -9,4 +9,21 @@ void testNodeMatchRestoresThreeIndependentArmStates();
 void testNodeMatchDestroyOnDetachIsPerArm();
 void testNodeMatchCapacityRefusesOverflow();
 
+void testKeyedRedeclaresCurrentMembersOnceAndReclaimsOnDrain();
+void testKeyedRefusedDeclarationKeepsLiveBranchAndRetriesCurrentKey();
+void testKeyedDeclarationUsesEnclosingSectionOnMountAndUpdate();
+void testKeyedOwnsFreshNestedSeatPlansAcrossReplacement();
+
+void testKeyedFailedOuterCandidatePublishesNoNestedObservations();
+
+void testKeyedDirectSeatRootSurvivesInnerSwitchAndDrain();
+
+void testKeyedRemovesOnlyUnsharedOutgoingObservations();
+
+void testKeyedRetiresNestedParkedScopeBeforeDeclarationReset();
+
+void testKeyedComposeWriteRetainsSeatDirtyClassification();
+
+void testKeyedOutgoingSeatSourceRemainsObservedByOrdinaryNode();
+
 #endif // LOKA_NODE_MATCH_TESTS_HPP

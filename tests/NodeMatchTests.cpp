@@ -1,4 +1,7 @@
 #include "NodeMatchTests.hpp"
+#include "app/nodes/nestable/Keyed.hpp"
+#include "app/nodes/nestable/BoundarySection.hpp"
+#include "testing/scene/OwnershipDump.hpp"
 #include "support/TestVerify.hpp"
 #include <cassert>
 #if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
@@ -496,4 +499,475 @@ void testNodeMatchCapacityRefusesOverflow()
   const unsigned armCount = match.armCount();
   LOKA_VERIFY(armCount == loka::app::MatchDefinition<int>::MAX_ARMS);
 #endif
+}
+
+namespace
+{
+  using namespace loka::app::scene;
+  struct KeyedProbeNode;
+  struct KeyedProbeTag
+  {
+  };
+  struct KeyedProbeRecord
+  {
+    KeyedProbeRecord()
+        : owner(0),
+          declarations(0),
+          compositions(0),
+          bindings(0),
+          destroyed(0),
+          value(7),
+          refuse(false),
+          nested(false),
+          section(false),
+          nestedFailure(false),
+          directSeat(false),
+          sharedSource(false),
+          declarationOwner(0),
+          leaf(0),
+          switchState(false),
+          otherState(false)
+    {
+    }
+    KeyedProbeNode *owner;
+    int declarations, compositions, bindings, destroyed, value;
+    bool refuse, nested, section, nestedFailure, directSeat, sharedSource;
+    IStateOwner *declarationOwner;
+    Node *leaf;
+    loka::core::MutableState<bool> switchState;
+    loka::core::MutableState<bool> otherState;
+  };
+  struct KeyedLeafTag
+  {
+  };
+  class KeyedLeaf;
+  struct KeyedLeafProps : NodePropsBase<KeyedLeafProps>
+  {
+    typedef KeyedLeafTag TypeTag;
+    typedef KeyedLeaf NodeType;
+    KeyedLeafProps(KeyedProbeRecord *r = 0, int v = 0)
+        : record(r),
+          value(v)
+    {
+    }
+    bool operator<(const PropsBase &rhs) const
+    {
+      if (rhs.propsTypeId() != this->propsTypeId())
+        return false;
+      const KeyedLeafProps &other = static_cast<const KeyedLeafProps &>(rhs);
+      return this->value < other.value;
+    }
+    KeyedProbeRecord *record;
+    int value;
+  };
+  class KeyedLeaf : public loka::app::FragmentNode
+  {
+  public:
+    typedef KeyedLeafTag TypeTag;
+    explicit KeyedLeaf(const KeyedLeafProps &p)
+        : loka::app::FragmentNode(loka::app::FragmentProps()),
+          record_(p.record),
+          value(p.value),
+          props(p)
+    {
+      this->record_->leaf = this;
+    }
+    virtual ~KeyedLeaf()
+    {
+      ++this->record_->destroyed;
+    }
+    KeyedProbeRecord *record_;
+    int value;
+    KeyedLeafProps props;
+  };
+  class KeyedLeafDefinition : public NodeDefinition<KeyedLeafProps, KeyedLeaf>
+  {
+  public:
+    explicit KeyedLeafDefinition(KeyedProbeRecord &r)
+        : NodeDefinition<KeyedLeafProps, KeyedLeaf>(KeyedLeafProps(&r, r.value))
+    {
+    }
+    virtual NodeDefinitionBase *clone() const
+    {
+      return new KeyedLeafDefinition(*this);
+    }
+    virtual Node *create() const
+    {
+      return this->props.record->refuse ? 0 : NodeDefinition<KeyedLeafProps, KeyedLeaf>::create();
+    }
+    virtual Node *createInPlace(void *p) const
+    {
+      return this->props.record->refuse ? 0 : NodeDefinition<KeyedLeafProps, KeyedLeaf>::createInPlace(p);
+    }
+  };
+  struct KeyedProbeProps : NodePropsBase<KeyedProbeProps>
+  {
+    typedef KeyedProbeTag TypeTag;
+    typedef KeyedProbeNode NodeType;
+    explicit KeyedProbeProps(KeyedProbeRecord *r = 0)
+        : record(r)
+    {
+    }
+    bool operator<(const PropsBase &) const
+    {
+      return false;
+    }
+    KeyedProbeRecord *record;
+  };
+  struct KeyedProbeNode : StdCompositionBoundaryNodeBase<KeyedProbeProps>
+  {
+    explicit KeyedProbeNode(const KeyedProbeProps &p)
+        : StdCompositionBoundaryNodeBase<KeyedProbeProps>(p),
+          bank_()
+    {
+      this->state(this->bank_, 0);
+      this->props.record->owner = this;
+    }
+    void changeKey(int value, bool force = false)
+    {
+      this->bank_.set(value, force);
+    }
+    virtual void declareBindings(BindingToken &)
+    {
+      ++this->props.record->bindings;
+    }
+    virtual void composeNode(NodeComposition &c)
+    {
+      ++this->props.record->compositions;
+      if (this->props.record->section)
+        c.declare(loka::app::BoundarySection(810)
+                  << loka::app::Keyed(*this->bank_.state(), this, &KeyedProbeNode::declareBranch));
+      else if (this->props.record->sharedSource)
+        c.declare(loka::app::Fragment()
+                  << loka::app::Keyed(*this->bank_.state(), this, &KeyedProbeNode::declareBranch)
+                  << loka::app::Match(this->props.record->switchState).arm(false, loka::app::Fragment()));
+      else
+        c.declare(
+            loka::app::Fragment() << loka::app::Keyed(*this->bank_.state(), this, &KeyedProbeNode::declareBranch));
+    }
+    void declareBranch(NodeComposition &c)
+    {
+      KeyedProbeRecord &r = *this->props.record;
+      ++r.declarations;
+      r.declarationOwner = c.componentContext()->stateOwner();
+      if (r.directSeat)
+      {
+        loka::app::PolicyScopeDefinition first;
+        first.destroyOnDetach() << KeyedLeafDefinition(r);
+        c.declare(loka::app::Match(r.switchState).arm(false, first).arm(true, KeyedLeafDefinition(r)));
+      }
+      else if (r.nestedFailure)
+        c.declare(loka::app::Fragment() << loka::app::Keyed(r.switchState, this, &KeyedProbeNode::declareNested)
+                                        << KeyedLeafDefinition(r));
+      else if (r.nested)
+        c.declare(loka::app::Fragment() << loka::app::Match(r.switchState)
+                                               .arm(false, KeyedLeafDefinition(r))
+                                               .arm(true,
+                                                    loka::app::Fragment() << loka::app::Match(r.switchState)
+                                                                                 .arm(true, KeyedLeafDefinition(r))));
+      else
+        c.declare(KeyedLeafDefinition(r));
+    }
+    void declareNested(NodeComposition &c)
+    {
+      c.declare(loka::app::Match(this->props.record->otherState)
+                    .arm(false, KeyedLeafDefinition(*this->props.record))
+                    .arm(true, KeyedLeafDefinition(*this->props.record)));
+    }
+    NodeState<int> bank_;
+  };
+} // namespace
+
+void testKeyedRedeclaresCurrentMembersOnceAndReclaimsOnDrain()
+{
+  KeyedProbeRecord r;
+  SceneTestSupport::RecordingPlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<KeyedProbeNode>(KeyedProbeProps(&r))));
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  LOKA_VERIFY(r.declarations == 1 && r.compositions == 1 && r.bindings == 1);
+  loka::app::scene::Node *old = r.leaf;
+  loka::app::scene::Node *oldRoot = r.owner->childrenHead()->asNestable()->childrenHead();
+  const int destroyed = r.destroyed;
+  r.value = 19;
+  r.owner->changeKey(1);
+  LOKA_VERIFY(r.declarations == 2 && r.compositions == 1 && r.bindings == 1);
+  LOKA_VERIFY(r.leaf != old && static_cast<KeyedLeaf *>(r.leaf)->value == 19);
+  const loka::app::scene::NodeLifecycleFact oldFact = old->lifecycleFact();
+  const loka::app::scene::NodeLifecycleFact oldRootFact = oldRoot->lifecycleFact();
+  const loka::app::scene::Node *newRoot = r.owner->childrenHead()->asNestable()->childrenHead();
+  LOKA_VERIFY(oldFact == loka::app::scene::NODE_FACT_RETIRED);
+  LOKA_VERIFY(oldRootFact == loka::app::scene::NODE_FACT_RETIRED && newRoot != oldRoot);
+  const bool pending = scene.hasPendingInvalidation();
+  LOKA_VERIFY(r.destroyed == destroyed && pending);
+  const bool applied = scene.flushInvalidation();
+  const bool pendingAfterDrain = scene.hasPendingInvalidation();
+  LOKA_VERIFY(!applied && r.destroyed == destroyed + 1 && !pendingAfterDrain);
+  r.owner->changeKey(1);
+  r.owner->changeKey(1, true);
+  LOKA_VERIFY(r.declarations == 2 && r.compositions == 1 && r.bindings == 1);
+  const bool pendingSameKey = scene.hasPendingInvalidation();
+  LOKA_VERIFY(!pendingSameKey);
+}
+
+void testKeyedRefusedDeclarationKeepsLiveBranchAndRetriesCurrentKey()
+{
+  KeyedProbeRecord r;
+  SceneTestSupport::RecordingPlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<KeyedProbeNode>(KeyedProbeProps(&r))));
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  loka::app::scene::Node *old = r.leaf;
+  const int destroyed = r.destroyed;
+  r.refuse = true;
+  r.owner->changeKey(1);
+  const bool allocationFailed = r.owner->composeResult().allocationFailed;
+  LOKA_VERIFY(allocationFailed);
+  const loka::app::scene::NodeLifecycleFact oldFact = old->lifecycleFact();
+  LOKA_VERIFY(r.leaf == old && oldFact == loka::app::scene::NODE_FACT_ATTACHED);
+  LOKA_VERIFY(r.destroyed == destroyed && r.declarations == 2 && r.compositions == 1);
+  r.refuse = false;
+  r.value = 23;
+  r.owner->changeKey(1, true);
+  LOKA_VERIFY(r.leaf != old && static_cast<KeyedLeaf *>(r.leaf)->value == 23);
+  LOKA_VERIFY(r.declarations == 3 && r.compositions == 1);
+  const bool applied = scene.flushInvalidation();
+  LOKA_VERIFY(!applied && r.destroyed == destroyed + 1);
+}
+
+void testKeyedDeclarationUsesEnclosingSectionOnMountAndUpdate()
+{
+  KeyedProbeRecord r;
+  r.section = true;
+  SceneTestSupport::RecordingPlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<KeyedProbeNode>(KeyedProbeProps(&r))));
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  loka::app::scene::IStateOwner *section = r.declarationOwner;
+  LOKA_VERIFY(section && section != r.owner);
+  r.owner->changeKey(1);
+  LOKA_VERIFY(r.declarationOwner == section && r.declarations == 2);
+  const bool applied = scene.flushInvalidation();
+  LOKA_VERIFY(!applied);
+}
+
+void testKeyedOwnsFreshNestedSeatPlansAcrossReplacement()
+{
+  KeyedProbeRecord r;
+  r.nested = true;
+  SceneTestSupport::RecordingPlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<KeyedProbeNode>(KeyedProbeProps(&r))));
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  {
+    loka::core::StateTrackerGuard guard(r.switchState.trackerOwner());
+    r.switchState.set(true);
+  }
+  r.value = 31;
+  r.owner->changeKey(1);
+  LOKA_VERIFY(r.declarations == 2 && static_cast<KeyedLeaf *>(r.leaf)->value == 31);
+  const bool applied = scene.flushInvalidation();
+  LOKA_VERIFY(!applied);
+  {
+    loka::core::StateTrackerGuard guard(r.switchState.trackerOwner());
+    r.switchState.set(false);
+  }
+  LOKA_VERIFY(r.declarations == 2 && r.compositions == 1);
+  {
+    loka::core::StateTrackerGuard guard(r.switchState.trackerOwner());
+    r.switchState.set(true);
+  }
+  LOKA_VERIFY(r.declarations == 2 && r.compositions == 1);
+}
+
+void testKeyedFailedOuterCandidatePublishesNoNestedObservations()
+{
+  KeyedProbeRecord r;
+  SceneTestSupport::RecordingPlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<KeyedProbeNode>(KeyedProbeProps(&r))));
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  const std::string before = loka::dsl::testing::OwnershipDump::dump(scene);
+  r.nestedFailure = true;
+  r.refuse = true;
+  r.owner->changeKey(1);
+  const bool allocationFailed = r.owner->composeResult().allocationFailed;
+  LOKA_VERIFY(allocationFailed);
+  const std::string after = loka::dsl::testing::OwnershipDump::dump(scene);
+  LOKA_VERIFY(after == before);
+}
+
+void testKeyedDirectSeatRootSurvivesInnerSwitchAndDrain()
+{
+  KeyedProbeRecord r;
+  r.directSeat = true;
+  SceneTestSupport::RecordingPlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<KeyedProbeNode>(KeyedProbeProps(&r))));
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  {
+    loka::core::StateTrackerGuard guard(r.switchState.trackerOwner());
+    r.switchState.set(true);
+  }
+  const bool applied = scene.flushInvalidation();
+  LOKA_VERIFY(!applied);
+  r.value = 43;
+  r.owner->changeKey(1);
+  const bool pending = scene.hasPendingInvalidation();
+  LOKA_VERIFY(pending && r.declarations == 2);
+  const bool drained = scene.flushInvalidation();
+  LOKA_VERIFY(!drained);
+}
+
+void testKeyedRemovesOnlyUnsharedOutgoingObservations()
+{
+  for (int shared = 0; shared != 2; ++shared)
+  {
+    KeyedProbeRecord r;
+    r.nested = true;
+    r.sharedSource = shared != 0;
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene((loka::app::scene::Boundary<KeyedProbeNode>(KeyedProbeProps(&r))));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    r.nested = false;
+    r.owner->changeKey(1);
+    const bool applied = scene.flushInvalidation();
+    LOKA_VERIFY(!applied);
+    const std::string dump = loka::dsl::testing::OwnershipDump::dump(scene);
+    const std::string expected = shared ? "observed: 2" : "observed: 1";
+    const bool countsMatch = dump.find(expected) != std::string::npos;
+    LOKA_VERIFY(countsMatch);
+  }
+}
+
+void testKeyedRetiresNestedParkedScopeBeforeDeclarationReset()
+{
+  KeyedProbeRecord r;
+  r.nestedFailure = true;
+  SceneTestSupport::RecordingPlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<KeyedProbeNode>(KeyedProbeProps(&r))));
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  {
+    loka::core::StateTrackerGuard guard(r.otherState.trackerOwner());
+    r.otherState.set(true);
+  }
+  const std::string before = loka::dsl::testing::OwnershipDump::dump(scene);
+  const bool hasParked = before.find("parked\n") != std::string::npos;
+  const unsigned parkedBefore = r.owner->parkedBranchCountForTesting();
+  LOKA_VERIFY(hasParked && parkedBefore == 1 && r.destroyed == 0);
+  r.nestedFailure = false;
+  r.owner->changeKey(1);
+  const std::string after = loka::dsl::testing::OwnershipDump::dump(scene);
+  const bool hasParkedAfter = after.find("parked\n") != std::string::npos;
+  const bool pending = scene.hasPendingInvalidation();
+  const unsigned parkedAfter = r.owner->parkedBranchCountForTesting();
+  LOKA_VERIFY(!hasParkedAfter && parkedAfter == 0);
+  LOKA_VERIFY(pending && r.destroyed == 0);
+  const bool applied = scene.flushInvalidation();
+  LOKA_VERIFY(!applied && r.destroyed == 3);
+  // Force another boundary-wide parked sweep after the old scope was freed.
+  r.owner->changeKey(1, true);
+  LOKA_VERIFY(r.declarations == 2);
+}
+
+namespace
+{
+  struct ComposeSeatWriteTag
+  {
+  };
+  struct ComposeSeatWriteNode;
+  struct ComposeSeatWriteProps : NodePropsBase<ComposeSeatWriteProps>
+  {
+    typedef ComposeSeatWriteTag TypeTag;
+    typedef ComposeSeatWriteNode NodeType;
+    explicit ComposeSeatWriteProps(KeyedProbeRecord *r = 0)
+        : record(r)
+    {
+    }
+    bool operator<(const PropsBase &) const
+    {
+      return false;
+    }
+    KeyedProbeRecord *record;
+  };
+  struct ComposeSeatWriteNode : ComposableNode
+  {
+    typedef ComposeSeatWriteTag TypeTag;
+    explicit ComposeSeatWriteNode(const ComposeSeatWriteProps &p)
+        : props(p)
+    {
+    }
+    virtual void composeWithContext(ComponentContext &, ComposeEvent event)
+    {
+      if (event == COMPOSE_EVENT_UPDATE && this->props.record->owner->bank_.get() == 0)
+        this->props.record->owner->changeKey(1);
+    }
+    virtual void declareDirtySources(DirtySourceRegistrar &registrar)
+    {
+      registrar.markDirtyOnChange(&this->props.record->switchState, NODE_DIRTY_PROPS);
+    }
+    ComposeSeatWriteProps props;
+  };
+  struct ComposeSeatWriteBoundary : KeyedProbeNode
+  {
+    explicit ComposeSeatWriteBoundary(const KeyedProbeProps &p)
+        : KeyedProbeNode(p)
+    {
+    }
+    virtual void composeNode(NodeComposition &c)
+    {
+      ++this->props.record->compositions;
+      c.declare(loka::app::Fragment() << loka::app::Keyed(
+                    *this->bank_.state(), this, &ComposeSeatWriteBoundary::declareBranch)
+                                      << NodeDefinition<ComposeSeatWriteProps, ComposeSeatWriteNode>(
+                                             ComposeSeatWriteProps(this->props.record)));
+    }
+    void declareBranch(NodeComposition &c)
+    {
+      KeyedProbeNode::declareBranch(c);
+    }
+  };
+} // namespace
+
+void testKeyedComposeWriteRetainsSeatDirtyClassification()
+{
+  KeyedProbeRecord r;
+  SceneTestSupport::RecordingPlatformController platform;
+  Scene scene((Boundary<ComposeSeatWriteBoundary>(KeyedProbeProps(&r))));
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  platform.clearChanges();
+  r.owner->markViewDirty(NODE_DIRTY_PROPS);
+  const bool applied = scene.flushInvalidation();
+  (void)applied;
+  const size_t count = platform.changeCount();
+  LOKA_VERIFY(count > 0);
+  const NodeDirtyFlags flags = platform.changeAt(count - 1).flags;
+  const int expected = NODE_DIRTY_CHILD | NODE_DIRTY_LAYOUT;
+  LOKA_VERIFY(r.declarations == 2 && r.compositions == 1);
+  LOKA_VERIFY(flags == expected);
+}
+
+void testKeyedOutgoingSeatSourceRemainsObservedByOrdinaryNode()
+{
+  KeyedProbeRecord r;
+  r.nested = true;
+  SceneTestSupport::RecordingPlatformController platform;
+  Scene scene((Boundary<ComposeSeatWriteBoundary>(KeyedProbeProps(&r))));
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  r.nested = false;
+  r.owner->changeKey(1);
+  const bool drained = scene.flushInvalidation();
+  (void)drained;
+  platform.clearChanges();
+  {
+    loka::core::StateTrackerGuard transaction(r.switchState.trackerOwner());
+    r.switchState.set(true);
+  }
+  const NodeDirtyFlags flags = platform.flagsSeenForNode(r.owner);
+  LOKA_VERIFY(flags == NODE_DIRTY_PROPS && r.declarations == 2);
 }

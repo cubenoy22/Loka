@@ -188,6 +188,22 @@ namespace loka
           }
         }
 
+        /** Close the owner's registration pass after its committed tree has
+            been visited. Untouched entries no longer have a logical user. */
+        void finishPass(void (*changedThunk)(void *))
+        {
+          for (size_t i = 0; i < entries.size();)
+          {
+            if (pass.ownsEntry(entries[i]))
+            {
+              ++i;
+              continue;
+            }
+            releaseEntry(entries[i], changedThunk);
+            entries.erase(entries.begin() + i);
+          }
+        }
+
         void addDirtyFlags(NodeDirtyFlags flagsToAdd)
         {
           dirty.include(flagsToAdd);

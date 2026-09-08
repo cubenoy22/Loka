@@ -34,7 +34,8 @@ namespace loka
       struct INestable;
 
       // Pass 1: Calculate total size needed for all nodes
-      static size_t calculateTotalNodeSize(NodeDefinitionBase *def, BoundaryNode *boundary)
+      static size_t
+      calculateTotalNodeSize(NodeDefinitionBase *def, BoundaryNode *boundary, BoundaryBranchSeatState *seatScope = 0)
       {
         if (!def)
         {
@@ -43,23 +44,21 @@ namespace loka
         IBranchPolicyScopeDefinition *scope = def->asBranchPolicyScopeDefinition();
         if (scope)
         {
-          return calculateTotalNodeSize(scope->scopedBranchDefinition(), boundary);
+          return calculateTotalNodeSize(scope->scopedBranchDefinition(), boundary, seatScope);
         }
         IBranchSeatDefinition *seat = def->asBranchSeatDefinition();
         if (seat)
         {
-          const BoundaryBranchSeatPlanEntry *plan = boundary ? boundary->branchSeatPlan(def) : 0;
+          const BoundaryBranchSeatPlanEntry *plan = boundary ? boundary->branchSeatPlan(def, seatScope) : 0;
           assert(plan && plan->dirtySource &&
                  "branch seat requires a captured Boundary plan");
           if (!plan || !plan->dirtySource)
           {
             return 0;
           }
-          return calculateTotalNodeSize(
-              plan->hasSelectedArm
-                  ? plan->branch(plan->selectedArm).definition
-                  : 0,
-              boundary);
+          return calculateTotalNodeSize(plan->hasSelectedArm ? plan->branch(plan->selectedArm).definition : 0,
+                                        boundary,
+                                        seat->declaredBranchSeats() ? seat->declaredBranchSeats() : seatScope);
         }
         INestableDefinition *nestableDef = def->asNestableDefinition();
         // Add size with alignment padding (worst case)
@@ -71,7 +70,7 @@ namespace loka
           NodeDefinitionBase *child = nestableDef->childrenHead();
           while (child)
           {
-            total += calculateTotalNodeSize(child, boundary);
+            total += calculateTotalNodeSize(child, boundary, seatScope);
             child = child->nextInComposition;
           }
         }
@@ -108,7 +107,9 @@ namespace loka
                                                            long &autoIdCounter,
                                                            BoundaryNode *boundary,
                                                            Node *runtimeParent,
-                                                           BoundaryBranchSeatRuntimeRegistrationPlan *registrations)
+                                                           BoundaryBranchSeatRuntimeRegistrationPlan *registrations,
+                                                           ComponentContext &context,
+                                                           BoundaryBranchSeatState *seatScope)
       {
         if (!def)
         {
@@ -124,12 +125,14 @@ namespace loka
                                      autoIdCounter,
                                      boundary,
                                      runtimeParent,
-                                     registrations);
+                                     registrations,
+                                     context,
+                                     seatScope);
         }
         IBranchSeatDefinition *seat = def->asBranchSeatDefinition();
         if (seat)
         {
-          const BoundaryBranchSeatPlanEntry *plan = boundary ? boundary->branchSeatPlan(def) : 0;
+          const BoundaryBranchSeatPlanEntry *plan = boundary ? boundary->branchSeatPlan(def, seatScope) : 0;
           if (!plan || !plan->dirtySource)
           {
             assert(boundary == 0 &&
@@ -138,27 +141,32 @@ namespace loka
             return missingPlan;
           }
           loka::app::FragmentDefinition emptyBranch;
-          NodeDefinitionBase *branchDefinition =
-              plan->materializedBranchDefinition(emptyBranch);
-          NodeMaterializationResult active = createNodeWithArena(branchDefinition,
-                                                                 arena,
-                                                                 autoIdCounter,
-                                                                 boundary,
-                                                                 runtimeParent,
-                                                                 registrations);
+          NodeDefinitionBase *branchDefinition = plan->materializedBranchDefinition(emptyBranch);
+          NodeMaterializationResult active;
+          if (seat->needsBranchDeclaration())
+          {
+            active = boundary->materializeDeclaredSeat(context, *plan, runtimeParent, registrations);
+          }
+          else
+          {
+            active = createNodeWithArena(branchDefinition,
+                                         arena,
+                                         autoIdCounter,
+                                         boundary,
+                                         runtimeParent,
+                                         registrations,
+                                         context,
+                                         seat->declaredBranchSeats() ? seat->declaredBranchSeats() : seatScope);
+          }
           if (active.root)
           {
             if (registrations)
             {
-              registrations->record(*plan,
-                                    runtimeParent,
-                                    active.root);
+              registrations->record(*plan, runtimeParent, active.root, context.stateOwner());
             }
             else
             {
-              boundary->registerMaterializedBranchSeat(*plan,
-                                                       runtimeParent,
-                                                       active.root);
+              boundary->registerMaterializedBranchSeat(*plan, runtimeParent, active.root, context.stateOwner());
             }
           }
           return active;
@@ -193,15 +201,19 @@ namespace loka
 
         if (nestableDef && nestableNode)
         {
+          ComponentContext childContext(context);
+          IStateOwner *owner = node->asStateOwner();
+          if (owner && !node->asBoundary())
+          {
+            owner->attachEnclosingBoundary(boundary);
+            owner->attachEnclosingHoldOwner(context.stateOwner());
+            childContext.setStateOwner(owner);
+          }
           NodeDefinitionBase *child = nestableDef->childrenHead();
           while (child)
           {
-            NodeMaterializationResult childResult = createNodeWithArena(child,
-                                                                        arena,
-                                                                        autoIdCounter,
-                                                                        boundary,
-                                                                        node,
-                                                                        registrations);
+            NodeMaterializationResult childResult = createNodeWithArena(
+                child, arena, autoIdCounter, boundary, node, registrations, childContext, seatScope);
             result.allocationFailed = result.allocationFailed || childResult.allocationFailed;
             result.requiresBoundaryPlan =
                 result.requiresBoundaryPlan || childResult.requiresBoundaryPlan;
@@ -420,7 +432,7 @@ namespace loka
       }
 
       NodeMaterializationResult NodeComposition::createNodeFromDefinitionResult(
-          NodeDefinitionBase *root) const
+          NodeDefinitionBase *root, Node *runtimeParent, BoundaryBranchSeatState *seatScope) const
       {
         if (!root)
         {
@@ -441,7 +453,7 @@ namespace loka
               // not a logical materialization failure. Only a refusal to
               // materialize at BOTH doors — the arena and the final heap door —
               // becomes a compose failure (#132 ruling 3).
-              size_t totalSize = calculateTotalNodeSize(root, bnd);
+              size_t totalSize = calculateTotalNodeSize(root, bnd, seatScope);
               arena->reserve(totalSize);
             }
             long autoIdCounter = 1;
@@ -449,8 +461,10 @@ namespace loka
                                        arena,
                                        autoIdCounter,
                                        bnd,
-                                       bnd,
-                                       this->branchSeatRegistrations_);
+                                       runtimeParent ? runtimeParent : bnd,
+                                       this->branchSeatRegistrations_,
+                                       *context_,
+                                       seatScope);
           }
         }
 

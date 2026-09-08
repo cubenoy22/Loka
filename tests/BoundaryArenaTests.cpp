@@ -4707,8 +4707,7 @@ void testBranchSeatSiblingsRejectDuplicateTags()
   // 0 while both entries stand, so both seats materialize as seats without a
   // plan (requiresBoundaryPlan in its own meaning). A later append() under
   // the same key (a nested composition) cannot revive it.
-  const loka::app::scene::BoundaryParkedBranchKey key(
-      8101, 0, first.branchSeatTypeId());
+  const loka::app::scene::BoundaryParkedBranchKey key(8101, 0, first.branchSeatTypeId(), &seats);
   LOKA_VERIFY(seats.plans().size() == 2 && seats.findPlan(key) == 0 &&
               "a key with two claimants has no plan");
   loka::app::scene::testing::ProbeArmSeatDefinition third(&selection, arms, 3);

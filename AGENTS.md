@@ -72,7 +72,10 @@ An application boundary composes once per mount.
 Values that change reach nodes as State props registered by the receiving node
 as its own dirty sources; `Stack(axisState)` and `Box().width(widthState)` are
 the first two layout inputs migrated under this ruling.
-Structure that changes is a seat (Match/Show/Keyed; Keyed lands in #567 E2).
+Structure that changes is a seat: Match/Show switch arms; Keyed re-declares its
+subtree when its key changes; no boundary recomposes.
+For declaration ownership and replacement sequencing, see
+[Keyed declaration seats](docs/KeyedSeatDesign.md).
 
 - For app-facing composition-form selection, Props/Definition conventions, and
   example style, follow [docs/API_STYLE.md](docs/API_STYLE.md).

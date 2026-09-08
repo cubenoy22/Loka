@@ -45,3 +45,13 @@ loka_compile_pin(bindings-need-the-token
   REFUSES pins/refuses_bindings_need_the_token.cpp
   ACCEPTS pins/accepts_bindings_need_the_token.cpp
 )
+
+loka_compile_pin(keyed-declarer-is-a-member-of-the-boundary
+  REFUSES pins/refuses_keyed_declarer_member.cpp
+  ACCEPTS pins/accepts_keyed_declarer_member.cpp
+)
+
+loka_compile_pin(keyed-declarer-owner-is-a-boundary
+  REFUSES pins/refuses_keyed_declarer_not_a_boundary.cpp
+  ACCEPTS pins/accepts_keyed_declarer_member.cpp
+)

@@ -60,15 +60,15 @@ namespace loka
 
       struct BoundaryBranchSeatPlanEntry
       {
-        BoundaryBranchSeatPlanEntry()
-            : key(),
+        BoundaryBranchSeatPlanEntry(const BoundaryParkedBranchKey &keyValue)
+            : key(keyValue),
               dirtySource(0),
-              seat(0),
+              definition(0),
               selectedArm(0),
               hasSelectedArm(false),
               shape(),
               hasOwner(false),
-              ownerKey(),
+              ownerKey(keyValue),
               ownerArm(0)
         {
         }
@@ -76,11 +76,11 @@ namespace loka
         BoundaryBranchPlanBranch branch(unsigned arm) const
         {
           BoundaryBranchPlanBranch result;
-          if (!this->seat || arm >= this->shape.armCount)
+          if (!this->seat() || arm >= this->shape.armCount)
           {
             return result;
           }
-          result.definition = this->seat->armDefinition(arm);
+          result.definition = this->seat()->armDefinition(arm);
           IBranchPolicyScopeDefinition *scope =
               result.definition
                   ? result.definition->asBranchPolicyScopeDefinition()
@@ -96,7 +96,7 @@ namespace loka
         void snapshotSelection()
         {
           unsigned arm = 0;
-          const bool selected = this->seat && this->seat->selectArm(arm);
+          const bool selected = this->seat() && this->seat()->selectArm(arm);
           assert((!selected || arm < this->shape.armCount) &&
                  "branch seat selected an arm outside its declared arm count");
           this->hasSelectedArm = selected && arm < this->shape.armCount;
@@ -115,7 +115,11 @@ namespace loka
 
         BoundaryParkedBranchKey key;
         loka::core::StateBase *dirtySource;
-        IBranchSeatDefinition *seat;
+        NodeDefinitionBase *definition;
+        IBranchSeatDefinition *seat() const
+        {
+          return this->definition ? this->definition->asBranchSeatDefinition() : 0;
+        }
         unsigned selectedArm;
         bool hasSelectedArm;
         BoundaryBranchSeatShape shape;
@@ -134,7 +138,8 @@ namespace loka
                                        const BoundaryBranchSeatShape &shapeValue,
                                        bool hasOwnerValue,
                                        const BoundaryParkedBranchKey &ownerKeyValue,
-                                       unsigned ownerArmValue)
+                                       unsigned ownerArmValue,
+                                       IStateOwner *stateOwnerValue)
             : key(keyValue),
               parent(parentValue),
               active(activeValue),
@@ -144,7 +149,8 @@ namespace loka
               hasOwner(hasOwnerValue),
               ownerKey(ownerKeyValue),
               ownerArm(ownerArmValue),
-              appliedGeneration(0)
+              appliedGeneration(0),
+              stateOwner(stateOwnerValue)
         {
         }
 
@@ -159,6 +165,8 @@ namespace loka
         BoundaryParkedBranchKey ownerKey;
         unsigned ownerArm;
         unsigned long appliedGeneration;
+        /** Borrowed from the runtime parent scope until this mapping retires. */
+        IStateOwner *stateOwner;
       };
 
       class BoundaryBranchSeatState;
@@ -174,23 +182,33 @@ namespace loka
         {
           Entry(const BoundaryBranchSeatPlanEntry &planValue,
                 Node *parentValue,
-                Node *activeValue)
+                Node *activeValue,
+                IStateOwner *stateOwnerValue)
               : plan(planValue),
                 parent(parentValue),
-                active(activeValue)
+                active(activeValue),
+                stateOwner(stateOwnerValue)
           {
           }
 
           BoundaryBranchSeatPlanEntry plan;
           Node *parent;
           Node *active;
+          IStateOwner *stateOwner;
         };
 
-        void record(const BoundaryBranchSeatPlanEntry &plan,
-                    Node *parent,
-                    Node *active)
+        void record(const BoundaryBranchSeatPlanEntry &plan, Node *parent, Node *active, IStateOwner *stateOwner = 0)
         {
-          this->entries_.push_back(Entry(plan, parent, active));
+          this->entries_.push_back(Entry(plan, parent, active, stateOwner));
+        }
+
+        void appendTo(BoundaryBranchSeatRuntimeRegistrationPlan &target) const
+        {
+          for (size_t i = 0; i < this->entries_.size(); ++i)
+          {
+            const Entry &entry = this->entries_[i];
+            target.record(entry.plan, entry.parent, entry.active, entry.stateOwner);
+          }
         }
 
         void clear()
@@ -233,6 +251,14 @@ namespace loka
           this->assertUniqueKeys();
         }
 
+        void captureOwned(NodeDefinitionBase *root, const BoundaryParkedBranchKey &ownerKey, unsigned ownerArm)
+        {
+          this->plans_.clear();
+          ++this->generation_;
+          this->captureDefinition(root, &ownerKey, ownerArm);
+          this->assertUniqueKeys();
+        }
+
         void append(NodeDefinitionBase *root)
         {
           this->captureDefinition(root, 0, 0);
@@ -244,14 +270,17 @@ namespace loka
         void assertUniqueKeys() const
         {
 #ifndef NDEBUG
+          std::vector<IBranchSeatDefinition *> seats;
+          seats.reserve(this->plans_.size());
+          for (size_t i = 0; i < this->plans_.size(); ++i)
+            seats.push_back(this->plans_[i].seat());
           for (size_t i = 0; i < this->plans_.size(); ++i)
           {
             for (size_t j = i + 1; j < this->plans_.size(); ++j)
             {
-              assert(!(this->plans_[j].key.matches(this->plans_[i].key) &&
-                       this->plans_[j].seat != this->plans_[i].seat) &&
-                     "two branch seats share one tagged key: sibling branch seats "
-                     "and BoundarySections require unique value keys");
+              assert(!(this->plans_[j].key.matches(this->plans_[i].key) && seats[j] != seats[i])
+                     && "two branch seats share one tagged key: sibling branch seats "
+                        "and BoundarySections require unique value keys");
             }
           }
 #endif
@@ -274,6 +303,11 @@ namespace loka
             refusal, so a later append() under the same key cannot revive it. */
         BoundaryBranchSeatPlanEntry *findPlan(const BoundaryParkedBranchKey &key)
         {
+          assert(key.scope != 0);
+          if (key.scope != this)
+          {
+            return key.scope->findPlan(key);
+          }
           BoundaryBranchSeatPlanEntry *found = 0;
           for (size_t i = 0; i < this->plans_.size(); ++i)
           {
@@ -281,7 +315,7 @@ namespace loka
             {
               continue;
             }
-            if (found && this->plans_[i].seat != found->seat)
+            if (found && this->plans_[i].seat() != found->seat())
             {
               return 0;
             }
@@ -299,7 +333,7 @@ namespace loka
         {
           for (size_t i = 0; i < this->plans_.size(); ++i)
           {
-            if (this->plans_[i].key.matches(key) && this->plans_[i].seat == seat)
+            if (this->plans_[i].key.matches(key) && this->plans_[i].seat() == seat)
             {
               return &this->plans_[i];
             }
@@ -331,12 +365,14 @@ namespace loka
 
         void registerRuntime(const BoundaryBranchSeatPlanEntry &plan,
                              Node *parent,
-                             Node *active)
+                             Node *active,
+                             IStateOwner *stateOwner = 0)
         {
           BoundaryBranchSeatRuntimeEntry *existing = this->findRuntime(plan.key);
           if (existing)
           {
             existing->parent = parent;
+            existing->stateOwner = stateOwner;
             existing->active = active;
             existing->activeArm = plan.selectedArm;
             existing->hasActiveArm = plan.hasSelectedArm;
@@ -347,16 +383,16 @@ namespace loka
             existing->appliedGeneration = this->generation_;
             return;
           }
-          this->runtime_.push_back(
-              BoundaryBranchSeatRuntimeEntry(plan.key,
-                                             parent,
-                                             active,
-                                             plan.selectedArm,
-                                             plan.hasSelectedArm,
-                                             plan.shape,
-                                             plan.hasOwner,
-                                             plan.ownerKey,
-                                             plan.ownerArm));
+          this->runtime_.push_back(BoundaryBranchSeatRuntimeEntry(plan.key,
+                                                                  parent,
+                                                                  active,
+                                                                  plan.selectedArm,
+                                                                  plan.hasSelectedArm,
+                                                                  plan.shape,
+                                                                  plan.hasOwner,
+                                                                  plan.ownerKey,
+                                                                  plan.ownerArm,
+                                                                  stateOwner));
           this->runtime_.back().appliedGeneration = this->generation_;
         }
 
@@ -425,18 +461,31 @@ namespace loka
           return false;
         }
 
+        bool referencesScope(const BoundaryBranchSeatState *scope) const
+        {
+          for (size_t i = 0; i < this->runtime_.size(); ++i)
+            if (this->runtime_[i].key.scope == scope || this->runtime_[i].ownerKey.scope == scope)
+              return true;
+          return false;
+        }
+
+        void eraseScopeRuntime(const BoundaryBranchSeatState *scope)
+        {
+          for (size_t i = this->runtime_.size(); i != 0; --i)
+            if (this->runtime_[i - 1].key.scope == scope || this->runtime_[i - 1].ownerKey.scope == scope)
+              this->runtime_.erase(this->runtime_.begin() + i - 1);
+        }
+
         void clearRuntime()
         {
           this->runtime_.clear();
         }
 
       private:
-        static BoundaryParkedBranchKey keyFor(NodeDefinitionBase &definition,
-                                              IBranchSeatDefinition &seat)
+        BoundaryParkedBranchKey keyFor(NodeDefinitionBase &definition, IBranchSeatDefinition &seat)
         {
-          return BoundaryParkedBranchKey(definition.nodeTag(),
-                                         definition.compositionSeatSlot(),
-                                         seat.branchSeatTypeId());
+          return BoundaryParkedBranchKey(
+              definition.nodeTag(), definition.compositionSeatSlot(), seat.branchSeatTypeId(), this);
         }
 
         static BoundaryBranchPlanBranch foldBranchRoot(NodeDefinitionBase *definition)
@@ -499,10 +548,9 @@ namespace loka
             // A different definition under an existing key is recorded too:
             // findPlan() answers 0 for a key with more than one claimant, so
             // every seat under it materializes as a seat without a plan.
-            BoundaryBranchSeatPlanEntry entry;
-            entry.key = key;
+            BoundaryBranchSeatPlanEntry entry(key);
             entry.dirtySource = seat->branchCondition();
-            entry.seat = seat;
+            entry.definition = definition;
             for (unsigned arm = 0; arm < seat->armCount(); ++arm)
             {
               BoundaryBranchPlanBranch branch = foldBranchRoot(seat->armDefinition(arm));
@@ -519,9 +567,11 @@ namespace loka
             }
             this->plans_.push_back(entry);
             const BoundaryParkedBranchKey storedKey = entry.key;
-            for (unsigned arm = 0; arm < entry.shape.armCount; ++arm)
+            if (!seat->declaredBranchSeats())
             {
-              this->captureDefinition(entry.branch(arm).definition, &storedKey, arm);
+              // Fixed arms belong to this scope; declaring seats own their arms.
+              for (unsigned arm = 0; arm < entry.shape.armCount; ++arm)
+                this->captureDefinition(entry.branch(arm).definition, &storedKey, arm);
             }
             return;
           }
@@ -551,9 +601,7 @@ namespace loka
         for (size_t i = 0; i < this->entries_.size(); ++i)
         {
           Entry &entry = this->entries_[i];
-          state.registerRuntime(entry.plan,
-                                entry.parent,
-                                entry.active);
+          state.registerRuntime(entry.plan, entry.parent, entry.active, entry.stateOwner);
         }
         this->entries_.clear();
       }
