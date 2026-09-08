@@ -19,7 +19,7 @@
 #include "app/nodes/nestable/Show.hpp"
 #include "app/scene/node/Conditional.hpp"
 #include "core/LokaAlloc.hpp"
-#include "support/RecomposingBoundary.hpp"
+#include "app/nodes/nestable/Keyed.hpp"
 #include "support/RecordingPlatformController.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 
@@ -282,18 +282,15 @@ namespace
   typedef loka::app::scene::BoundaryPropsFor<ComponentHostRootNode>
       ComponentHostRootProps;
 
-  class ComponentHostRootNode
-      : public SceneTestSupport::RecomposingBoundaryNode<ComponentHostRootNode,
-                                                         ComponentHostRootProps>
+  class ComponentHostRootNode : public loka::app::scene::BoundaryNodeFor<ComponentHostRootNode>
   {
   public:
     explicit ComponentHostRootNode(const ComponentHostRootProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<ComponentHostRootNode,
-                                                    ComponentHostRootProps>(props),
+        : loka::app::scene::BoundaryNodeFor<ComponentHostRootNode>(props),
           useSection_(g_componentHostUseSection),
-          key_(6001),
-          revision_(0)
+          key_()
     {
+      this->state(this->key_, static_cast<loka::app::scene::NodeTag>(6001));
     }
 
     // Keep condition flips scheduled instead of flushing mid-set, so the
@@ -305,24 +302,27 @@ namespace
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
+      composition.declare(loka::app::Fragment()
+                          << loka::app::Keyed(*this->key_.state(), this, &ComponentHostRootNode::declareContent));
+    }
+
+    void declareContent(loka::app::scene::NodeComposition &composition)
+    {
       loka::app::Fragment root;
       if (g_componentHostUseSeatComponent)
       {
         TestSeatComponentDefinition seatComponent(
             (TestSeatComponentProps(g_componentObservation)));
-        loka::app::Section section(this->key_);
+        loka::app::Section section(this->key_.get());
         section << seatComponent;
         root << section;
         composition.declare(root);
         return;
       }
-      TestCellComponentDefinition component(
-          TestCellComponentProps(g_componentObservation,
-                                 g_componentTrackedAlive,
-                                 this->revision_));
+      TestCellComponentDefinition component(TestCellComponentProps(g_componentObservation, g_componentTrackedAlive, 0));
       if (this->useSection_)
       {
-        loka::app::Section section(this->key_);
+        loka::app::Section section(this->key_.get());
         section << component;
         root << section;
       }
@@ -335,12 +335,7 @@ namespace
 
     void setKey(loka::app::scene::NodeTag key)
     {
-      this->key_ = key;
-    }
-
-    void setRevision(int revision)
-    {
-      this->revision_ = revision;
+      this->key_.set(key);
     }
 
     static loka::app::scene::Node *findByTag(loka::app::scene::Node *node,
@@ -380,7 +375,8 @@ namespace
     {
       if (!this->useSection_)
       {
-        loka::app::scene::Node *root = this->compositionRootNode();
+        loka::app::scene::Node *root =
+            this->compositionRootNode()->asNestable()->childrenHead()->asNestable()->childrenHead();
         loka::app::scene::INestable *nestable = root ? root->asNestable() : 0;
         return static_cast<TestCellComponentNode *>(
             nestable ? nestable->childrenHead() : 0);
@@ -392,8 +388,7 @@ namespace
 
   private:
     bool useSection_;
-    loka::app::scene::NodeTag key_;
-    int revision_;
+    loka::app::scene::NodeState<loka::app::scene::NodeTag> key_;
   };
 
   class ComponentParkHostRootNode;
@@ -501,7 +496,7 @@ void testComponentComposesChildrenOnceAfterStatesConnect()
     loka::app::scene::Node *child = nestable->childrenHead();
     LOKA_VERIFY(child && child->kind() == loka::app::scene::NODE_KIND_CELL);
 
-    // A recompose over the same identity leaves the structure alone.
+    // An update over the same key leaves the structure alone.
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
     LOKA_VERIFY(scene.flushInvalidation());
     assert(root->component(6001) == component);
@@ -564,6 +559,7 @@ void testComponentStatesFallBackToBoundaryOwnerWithoutSection()
 void testComponentPropsReapplyWithoutTouchingSubtree()
 {
   ComponentScenario scenario;
+  TestCellComponentDefinition replacement(TestCellComponentProps(&scenario.observation, &scenario.trackedAlive, 7));
   SceneTestSupport::RecordingPlatformController platform;
   loka::app::scene::Scene scene(
       (loka::app::scene::Boundary<ComponentHostRootNode>()));
@@ -580,10 +576,8 @@ void testComponentPropsReapplyWithoutTouchingSubtree()
   (void)child;
   assert(child);
 
-  // A props change over the same identity re-applies props (the plan stops
-  // at the composable: reconcileParkedBranch returns at asComposable) and
-  // must not rebuild or retire the component's subtree.
-  root->setRevision(7);
+  // Applying props to the resident must not rebuild or retire its subtree.
+  LOKA_VERIFY(replacement.applyPropsToNode(component));
   scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
   LOKA_VERIFY(scene.flushInvalidation());
 

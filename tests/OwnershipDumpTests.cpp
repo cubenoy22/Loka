@@ -24,7 +24,9 @@
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
 #include "support/RecordingPlatformController.hpp"
-#include "support/RecomposingBoundary.hpp"
+#include "app/nodes/nestable/Show.hpp"
+#include "app/nodes/nestable/PolicyScope.hpp"
+#include "app/nodes/boundary/StdComposition.hpp"
 #include "testing/scene/OwnershipDump.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 
@@ -40,7 +42,7 @@ namespace
 
   struct OwnershipDumpScenario
   {
-    OwnershipDumpScenario()
+    OwnershipDumpScenario(bool firstHolder = true, bool secondHolder = false)
         : held(),
           arenaState(),
           dirtySource(0),
@@ -50,12 +52,16 @@ namespace
           useConditional(false),
           nestedBoundaryBranch(false),
           parkedSeatFixturePhase(-1),
+          showOriginalSeat(true),
+          showShiftedSeat(false),
           parkedSeatOuterCondition(true),
           parkedSeatInnerCondition(true),
           parkedSeatShiftedCondition(true),
           createHeld(true),
+          declareFirstHolder(firstHolder),
+          declareSecondHolder(secondHolder),
           showFirstHolder(true),
-          showSecondHolder(false),
+          showSecondHolder(true),
           createStates(true),
           releaseCount(0)
     {
@@ -66,17 +72,24 @@ namespace
     loka::core::MutableState<int> dirtySource;
     loka::core::MutableState<bool> parkedCondition;
     loka::app::scene::IStateOwner *creatorOwner;
-    bool showCreator;
+    loka::core::MutableState<bool> showCreator;
     bool useConditional;
     bool nestedBoundaryBranch;
     int parkedSeatFixturePhase;
+    loka::core::MutableState<bool> showOriginalSeat;
+    loka::core::MutableState<bool> showShiftedSeat;
     loka::core::MutableState<bool> parkedSeatOuterCondition;
     loka::core::MutableState<bool> parkedSeatInnerCondition;
     loka::core::MutableState<bool> parkedSeatShiftedCondition;
     ParkedSeatProbeRecord shiftedFalseRecord;
     bool createHeld;
-    bool showFirstHolder;
-    bool showSecondHolder;
+    // Which holders the fixture declares is fixed at construction; the Show
+    // States below only remove a declared holder later (the declaration is
+    // frozen at mount, so a State must not decide what gets declared).
+    bool declareFirstHolder;
+    bool declareSecondHolder;
+    loka::core::MutableState<bool> showFirstHolder;
+    loka::core::MutableState<bool> showSecondHolder;
     bool createStates;
     int releaseCount;
   };
@@ -422,17 +435,11 @@ namespace
   typedef loka::app::scene::BoundaryPropsFor<OwnershipDumpNestedBoundaryNode>
       OwnershipDumpNestedBoundaryProps;
 
-  class OwnershipDumpNestedBoundaryNode
-      : public SceneTestSupport::RecomposingBoundaryNode<
-            OwnershipDumpNestedBoundaryNode,
-            OwnershipDumpNestedBoundaryProps>
+  class OwnershipDumpNestedBoundaryNode : public loka::app::scene::BoundaryNodeFor<OwnershipDumpNestedBoundaryNode>
   {
   public:
-    explicit OwnershipDumpNestedBoundaryNode(
-        const OwnershipDumpNestedBoundaryProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<
-              OwnershipDumpNestedBoundaryNode,
-              OwnershipDumpNestedBoundaryProps>(props)
+    explicit OwnershipDumpNestedBoundaryNode(const OwnershipDumpNestedBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<OwnershipDumpNestedBoundaryNode>(props)
     {
     }
 
@@ -451,14 +458,11 @@ namespace
   typedef loka::app::scene::BoundaryPropsFor<OwnershipDumpRootNode>
       OwnershipDumpRootProps;
 
-  class OwnershipDumpRootNode
-      : public SceneTestSupport::RecomposingBoundaryNode<OwnershipDumpRootNode,
-                                                         OwnershipDumpRootProps>
+  class OwnershipDumpRootNode : public loka::app::scene::BoundaryNodeFor<OwnershipDumpRootNode>
   {
   public:
     explicit OwnershipDumpRootNode(const OwnershipDumpRootProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<OwnershipDumpRootNode,
-                                                    OwnershipDumpRootProps>(props)
+        : loka::app::scene::BoundaryNodeFor<OwnershipDumpRootNode>(props)
     {
       assert(g_ownershipDumpScenario);
     }
@@ -484,17 +488,9 @@ namespace
                 &scenario.parkedSeatOuterCondition,
                 &outerTrueBranch,
                 &emptyOuterBranch)));
-        root << outer;
-        composition.declare(root);
-        return;
-      }
-      if (scenario.parkedSeatFixturePhase == 1)
-      {
-        composition.declare(root);
-        return;
-      }
-      if (scenario.parkedSeatFixturePhase == 2)
-      {
+        loka::app::PolicyScopeDefinition original;
+        original.destroyOnDetach() << outer;
+        root << (loka::app::Show(scenario.showOriginalSeat) << original);
         ParkedSeatProbeDefinition slotSpacer((ParkedSeatProbeProps(200)));
         ParkedSeatProbeDefinition secondSlotSpacer((ParkedSeatProbeProps(200)));
         ParkedSeatProbeDefinition shiftedTrue((ParkedSeatProbeProps(201)));
@@ -505,29 +501,34 @@ namespace
                 &scenario.parkedSeatShiftedCondition,
                 &shiftedTrue,
                 &shiftedFalse)));
-        root << slotSpacer << secondSlotSpacer << shifted;
+        loka::app::PolicyScopeDefinition shiftedScope;
+        shiftedScope.destroyOnDetach() << slotSpacer << secondSlotSpacer << shifted;
+        root << (loka::app::Show(scenario.showShiftedSeat) << shiftedScope);
         composition.declare(root);
         return;
       }
-      if (scenario.showCreator)
       {
         loka::app::Section creator(4101);
         creator << OwnershipDumpProbeDefinition(
             OwnershipDumpProbeProps(OwnershipDumpProbeProps::ROLE_CREATE))
                        .tag(4191);
-        if (scenario.showFirstHolder)
+        if (scenario.declareFirstHolder)
         {
           loka::app::Section holder(4102);
           holder << OwnershipDumpProbeDefinition(
               OwnershipDumpProbeProps(OwnershipDumpProbeProps::ROLE_HOLD));
-          creator << holder;
+          loka::app::PolicyScopeDefinition heldScope;
+          heldScope.destroyOnDetach() << holder;
+          creator << (loka::app::Show(scenario.showFirstHolder) << heldScope);
         }
-        if (scenario.showSecondHolder)
+        if (scenario.declareSecondHolder)
         {
           loka::app::Section holder(4103);
           holder << OwnershipDumpProbeDefinition(
               OwnershipDumpProbeProps(OwnershipDumpProbeProps::ROLE_HOLD));
-          creator << holder;
+          loka::app::PolicyScopeDefinition heldScope;
+          heldScope.destroyOnDetach() << holder;
+          creator << (loka::app::Show(scenario.showSecondHolder) << heldScope);
         }
         if (scenario.useConditional)
         {
@@ -552,7 +553,9 @@ namespace
         }
         else
         {
-          root << creator;
+          loka::app::PolicyScopeDefinition creatorScope;
+          creatorScope.destroyOnDetach() << creator;
+          root << (loka::app::Show(scenario.showCreator) << creatorScope);
         }
       }
       composition.declare(root);
@@ -561,9 +564,8 @@ namespace
     virtual void declareDirtySources(
         loka::app::scene::DirtySourceRegistrar &registrar)
     {
-      registrar.markDirtyOnChange(
-          &g_ownershipDumpScenario->dirtySource,
-          loka::app::scene::NODE_DIRTY_PROPS);
+      if (g_ownershipDumpScenario->useConditional)
+        registrar.markDirtyOnChange(&g_ownershipDumpScenario->dirtySource, loka::app::scene::NODE_DIRTY_PROPS);
     }
   };
 
@@ -641,7 +643,7 @@ namespace
     return scene;
   }
 
-  void requestFixtureRecompose(loka::app::scene::Scene &scene)
+  void flushFixtureSeats(loka::app::scene::Scene &scene)
   {
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
     LOKA_VERIFY(scene.flushInvalidation());
@@ -889,7 +891,7 @@ void testOwnershipDumpPinsFullVocabulary()
         "  window[0]\n"
         "    scene\n"
         "      boundary \"MainView\"\n"
-        "        observed: 1\n"
+        "        observed: 2\n"
         "        section(4101)\n"
         "          states: 2 (arena 1, heap 1)\n"
         "          held#1 count=2 held-by [section(4101) x1, section(4102) x1]\n"
@@ -904,9 +906,8 @@ void testOwnershipDumpPinsFullVocabulary()
 
 void testOwnershipDumpHeldByNamesSurvivingOwner()
 {
-  OwnershipDumpScenario scenario;
+  OwnershipDumpScenario scenario(true, true);
   scenario.createStates = false;
-  scenario.showSecondHolder = true;
   g_ownershipDumpScenario = &scenario;
   {
     SceneTestSupport::RecordingPlatformController platform;
@@ -916,13 +917,16 @@ void testOwnershipDumpHeldByNamesSurvivingOwner()
       std::abort();
     }
     scenario.creatorOwner->detachHeldResources();
-    scenario.showFirstHolder = false;
-    requestFixtureRecompose(*scene);
+    {
+      loka::core::StateTrackerGuard guard(loka::dsl::testing::SceneTestAccess::rootBoundary(*scene)->tracker());
+      scenario.showFirstHolder.set(false);
+    }
+    flushFixtureSeats(*scene);
 
     const std::string expected(
         "scene\n"
         "  boundary \"MainView\"\n"
-        "    observed: 1\n"
+        "    observed: 3\n"
         "    section(4101)\n"
         "      section(4103)\n"
         "        held#1 count=1 held-by [section(4103) x1]\n");
@@ -954,9 +958,8 @@ void testOwnershipDumpIsDeterministic()
 
 void testOwnershipDumpWalksParkedBranches()
 {
-  OwnershipDumpScenario scenario;
+  OwnershipDumpScenario scenario(false);
   scenario.useConditional = true;
-  scenario.showFirstHolder = false;
 
   g_ownershipDumpScenario = &scenario;
   {
@@ -970,9 +973,12 @@ void testOwnershipDumpWalksParkedBranches()
     // owner. A dump that only walked childrenHead() would render the parked
     // states as unowned, which is the exact lie this tool exists to remove.
     // The condition is a registered branch-seat source, so set() itself
-    // drives the recompose that parks the branch; the park-time drop queues
+    // drives the seat apply that parks the branch; the park-time drop queues
     // the releaser on the boundary pool inside that same run.
-    scenario.parkedCondition.set(false);
+    {
+      loka::core::StateTrackerGuard guard(loka::dsl::testing::SceneTestAccess::rootBoundary(*scene)->tracker());
+      scenario.parkedCondition.set(false);
+    }
     assert(scenario.releaseCount == 0 &&
            "the drop queues the releaser; nothing may fire at the park site");
 
@@ -1006,10 +1012,9 @@ void testOwnershipDumpWalksParkedBranches()
 
 void testOwnershipDumpAdoptsParkedNestedBoundaryReleases()
 {
-  OwnershipDumpScenario scenario;
+  OwnershipDumpScenario scenario(false);
   scenario.useConditional = true;
   scenario.nestedBoundaryBranch = true;
-  scenario.showFirstHolder = false;
   g_ownershipDumpScenario = &scenario;
   {
     SceneTestSupport::RecordingPlatformController platform;
@@ -1019,7 +1024,10 @@ void testOwnershipDumpAdoptsParkedNestedBoundaryReleases()
     // The last drop happens inside the branch being parked, so the releaser
     // first lands on the nested Boundary's pool -- a clock the live-tree
     // drain walk will never reach again. The parking boundary must adopt it.
-    scenario.parkedCondition.set(false);
+    {
+      loka::core::StateTrackerGuard guard(loka::dsl::testing::SceneTestAccess::rootBoundary(*scene)->tracker());
+      scenario.parkedCondition.set(false);
+    }
     assert(scenario.releaseCount == 0 &&
            "adoption re-queues; nothing may fire at the park site");
 
@@ -1055,7 +1063,10 @@ void testOwnershipDumpRemovedOuterSeatRetiresNestedParkedBranch()
     SceneTestSupport::RecordingPlatformController platform;
     loka::app::scene::Scene *scene = createFixtureScene(platform);
 
-    scenario.parkedSeatInnerCondition.set(false);
+    {
+      loka::core::StateTrackerGuard guard(loka::dsl::testing::SceneTestAccess::rootBoundary(*scene)->tracker());
+      scenario.parkedSeatInnerCondition.set(false);
+    }
     const std::string parked =
         loka::dsl::testing::OwnershipDump::dump(*scene);
     // Observations stay outside assert(): under NDEBUG the whole expression
@@ -1063,8 +1074,11 @@ void testOwnershipDumpRemovedOuterSeatRetiresNestedParkedBranch()
     const bool innerParked = parked.find("parked\n") != std::string::npos;
     LOKA_VERIFY(innerParked && "the inner seat must park its outgoing branch before removal");
 
-    scenario.parkedSeatFixturePhase = 1;
-    requestFixtureRecompose(*scene);
+    {
+      loka::core::StateTrackerGuard guard(loka::dsl::testing::SceneTestAccess::rootBoundary(*scene)->tracker());
+      scenario.showOriginalSeat.set(false);
+    }
+    flushFixtureSeats(*scene);
     const std::string removed =
         loka::dsl::testing::OwnershipDump::dump(*scene);
     const bool parkedSurvived = removed.find("parked\n") != std::string::npos;
@@ -1085,11 +1099,21 @@ void testOwnershipDumpShiftedSlotDoesNotReuseNestedParkedBranch()
     SceneTestSupport::RecordingPlatformController platform;
     loka::app::scene::Scene *scene = createFixtureScene(platform);
 
-    scenario.parkedSeatInnerCondition.set(false);
-    scenario.parkedSeatFixturePhase = 2;
-    requestFixtureRecompose(*scene);
+    {
+      loka::core::StateTrackerGuard guard(loka::dsl::testing::SceneTestAccess::rootBoundary(*scene)->tracker());
+      scenario.parkedSeatInnerCondition.set(false);
+    }
+    {
+      loka::core::StateTrackerGuard guard(loka::dsl::testing::SceneTestAccess::rootBoundary(*scene)->tracker());
+      scenario.showOriginalSeat.set(false);
+      scenario.showShiftedSeat.set(true);
+    }
+    flushFixtureSeats(*scene);
 
-    scenario.parkedSeatShiftedCondition.set(false);
+    {
+      loka::core::StateTrackerGuard guard(loka::dsl::testing::SceneTestAccess::rootBoundary(*scene)->tracker());
+      scenario.parkedSeatShiftedCondition.set(false);
+    }
     ParkedSeatProbeNode *shiftedFalse = findLiveParkedSeatProbe(
         loka::dsl::testing::SceneTestAccess::rootNode(*scene),
         &scenario.shiftedFalseRecord);
@@ -1102,15 +1126,16 @@ void testOwnershipDumpShiftedSlotDoesNotReuseNestedParkedBranch()
 
 void testOwnershipDumpShowsPendingReleaseUntilDrain()
 {
-  OwnershipDumpScenario scenario;
+  OwnershipDumpScenario scenario(false);
   scenario.createStates = false;
-  scenario.showFirstHolder = false;
   g_ownershipDumpScenario = &scenario;
   {
     SceneTestSupport::RecordingPlatformController platform;
     loka::app::scene::Scene *scene = createFixtureScene(platform);
-    scenario.showCreator = false;
-    requestFixtureRecompose(*scene);
+    {
+      loka::core::StateTrackerGuard guard(loka::dsl::testing::SceneTestAccess::rootBoundary(*scene)->tracker());
+      scenario.showCreator.set(false);
+    }
 
     const std::string pendingExpected(
         "scene\n"

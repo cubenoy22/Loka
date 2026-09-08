@@ -97,7 +97,7 @@ LokaMine68K +6272 bytes (about +5900 from E2), LokaSmirkBench68K +4224
 other four applications +1536..+1920. The MineSweeper E2 attribution was
 48% shared seat-scope/context plumbing present in every app, 31%
 KeyedDefinition<int>/Declaration/MemberDeclarer, and 20% newly instantiated
-NodeState<int> family, minus 664 bytes for removed RecomposingBoundaryFor.
+NodeState<int> family, minus 664 bytes for the retired boundary declaration adapter.
 E3 removal of the local-recompose family (about 6.8 KB of symbols measured in
 LokaMine68K) is expected to return most of it. This is supplied candidate
 evidence, not a fresh measurement of the corrections or a passing size gate.

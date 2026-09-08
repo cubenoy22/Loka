@@ -19,17 +19,17 @@
 #include "core/StateTracker.hpp"
 #include <cstring>
 #include "app/nodes/boundary/StdComposition.hpp"
-#include "app/nodes/boundary/RecomposingBoundary.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/BoundarySection.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
 #include "app/nodes/nestable/Show.hpp"
+#include "app/nodes/nestable/PolicyScope.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/node/Conditional.hpp"
 #include "app/scene/node/ComponentNode.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "support/FullRebuildLedgerDefinition.hpp"
-#include "support/RecomposingBoundary.hpp"
+#include "app/nodes/nestable/Keyed.hpp"
 #include "support/RecordingPlatformController.hpp"
 #include "testing/core/HeldTestAccess.hpp"
 #include "testing/scene/ProbeArmSeatDefinition.hpp"
@@ -786,23 +786,6 @@ namespace
   {
   };
 
-
-  // White-flag backend fakes (#132 S3). The refusing backend surrenders every
-  // acquisition, so a compose window under it exercises both storage doors:
-  // the slab append is refused first, then the gate-routed heap fallback. The
-  // selective backend refuses only the heap-fallback site so the arena path
-  // stays real. Frees delegate to the default-compatible delete[] because the
-  // window may release storage the default backend produced.
-  int g_refusingBackendRefusals = 0;
-
-  void *refusingBackendAlloc(std::size_t size, const loka::core::LokaAllocationSite &site)
-  {
-    (void)size;
-    (void)site;
-    ++g_refusingBackendRefusals;
-    return 0;
-  }
-
   int g_heapStateRefusals = 0;
 
   void *heapStateRefusingBackendAlloc(std::size_t size, const loka::core::LokaAllocationSite &site)
@@ -841,36 +824,6 @@ namespace
     }
   };
 
-  class WhiteFlagRecomposeRootNode;
-  typedef loka::app::scene::BoundaryPropsFor<WhiteFlagRecomposeRootNode> WhiteFlagRecomposeRootProps;
-
-  /** Scene-root boundary that redeclares its node-local states on every
-      compose pass, so an externally driven recompose issues fresh gate
-      acquisitions: first the arena slab append, then the heap fallback. */
-  class WhiteFlagRecomposeRootNode
-      : public SceneTestSupport::RecomposingBoundaryNode<WhiteFlagRecomposeRootNode,
-                                                         WhiteFlagRecomposeRootProps>
-  {
-  public:
-    explicit WhiteFlagRecomposeRootNode(const WhiteFlagRecomposeRootProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<WhiteFlagRecomposeRootNode,
-                                                    WhiteFlagRecomposeRootProps>(props),
-          first_(),
-          second_()
-    {
-    }
-
-    virtual void composeNode(loka::app::scene::NodeComposition &composition)
-    {
-      WhiteFlagStatePayload initial = {{0}};
-      composition.declareStates().state(this->first_, initial).state(this->second_, initial);
-      composition.declare(loka::app::FragmentDefinition());
-    }
-
-    loka::app::scene::NodeState<WhiteFlagStatePayload> first_;
-    loka::app::scene::NodeState<WhiteFlagStatePayload> second_;
-  };
-
   // Scene-root refusal harness (#132 ruling 3 / #140 P2). On this branch the
   // root create() is still a plain `new NodeT` and cannot return 0 under the
   // gate's refusing backend (S2b/#140 is not merged here), so the refusal is
@@ -883,12 +836,11 @@ namespace
   class RefusableRootNode;
   typedef loka::app::scene::BoundaryPropsFor<RefusableRootNode> RefusableRootProps;
 
-  class RefusableRootNode
-      : public SceneTestSupport::RecomposingBoundaryNode<RefusableRootNode, RefusableRootProps>
+  class RefusableRootNode : public loka::app::scene::BoundaryNodeFor<RefusableRootNode>
   {
   public:
     explicit RefusableRootNode(const RefusableRootProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<RefusableRootNode, RefusableRootProps>(props)
+        : loka::app::scene::BoundaryNodeFor<RefusableRootNode>(props)
     {
     }
 
@@ -918,139 +870,6 @@ namespace
     }
   };
 
-  // Local-rebuild node-refusal harness (#132 ruling 3, Codex P2 hole 1). A
-  // contextless local rebuild materializes a fresh child node through a
-  // temporary NodeComposition with no ComponentContext, so the boundary is
-  // unreachable inside createNodeFromDefinition. This backend refuses only the
-  // gate-routed heap node site so the initial mount and every other allocation
-  // succeed; the refusal is armed just around the child-introducing recompose.
-  bool g_localRebuildRefuseNode = false;
-  int g_localRebuildNodeRefusals = 0;
-
-  void *localRebuildNodeRefusingBackendAlloc(std::size_t size,
-                                             const loka::core::LokaAllocationSite &site)
-  {
-    if (g_localRebuildRefuseNode && std::strcmp(site.ownerTag, "NodeDefinition") == 0)
-    {
-      ++g_localRebuildNodeRefusals;
-      return 0;
-    }
-    return new (std::nothrow) char[size];
-  }
-
-  // Whether the recomposing root declares its child this pass. Toggling it and
-  // driving an external NODE_DIRTY_CHILD tick forces a LOCAL REBUILD (not an
-  // attach) in which the newly appearing child is freshly created through the
-  // contextless composition path.
-  bool g_localRebuildShowChild = false;
-
-  class LocalRebuildRefusalRootNode;
-  typedef loka::app::scene::BoundaryPropsFor<LocalRebuildRefusalRootNode> LocalRebuildRefusalRootProps;
-
-  class LocalRebuildRefusalRootNode
-      : public SceneTestSupport::RecomposingBoundaryNode<LocalRebuildRefusalRootNode,
-                                                         LocalRebuildRefusalRootProps>
-  {
-  public:
-    explicit LocalRebuildRefusalRootNode(const LocalRebuildRefusalRootProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<LocalRebuildRefusalRootNode,
-                                                    LocalRebuildRefusalRootProps>(props)
-    {
-    }
-
-    virtual void composeNode(loka::app::scene::NodeComposition &composition)
-    {
-      loka::app::FragmentDefinition root;
-      if (g_localRebuildShowChild)
-      {
-        root << GateProbeDefinition();
-      }
-      composition.declare(root);
-    }
-
-  };
-
-  // Nested-child local-rebuild refusal harness (#132 ruling 3, Codex P2 hole 1
-  // one level deeper). The root-of-subtree case above is already caught by
-  // materializeLocalRebuildNode's `if (!created)`. This harness exercises the
-  // residual: the local rebuild introduces a NESTABLE child (an inner Fragment)
-  // whose OWN grandchild create() is refused while the inner Fragment succeeds.
-  // The contextless createNodeFromDefinition then returns a NON-NULL partial
-  // subtree (the grandchild silently dropped), so `if (!created)` is false and
-  // -- without the subtree result carrier -- the flag stays down. The
-  // grandchild refusal is definition-driven (returns 0 on demand, standing in
-  // for the gate-routed create() #140/S2b will make return 0) so exactly the
-  // grandchild is refused, never the inner Fragment.
-  bool g_nestedGrandchildRefuse = false;
-
-  struct RefusableGrandchildDefinition
-      : public loka::app::scene::NodeDefinition<GateProbeProps, GateProbeNode>
-  {
-    typedef loka::app::scene::NodeDefinition<GateProbeProps, GateProbeNode> BaseType;
-    RefusableGrandchildDefinition() : BaseType() {}
-    RefusableGrandchildDefinition(const RefusableGrandchildDefinition &other) : BaseType(other) {}
-    virtual loka::app::scene::Node *create() const
-    {
-      if (g_nestedGrandchildRefuse)
-      {
-        return 0;
-      }
-      return BaseType::create();
-    }
-    virtual loka::app::scene::NodeDefinitionBase *clone() const
-    {
-      return new RefusableGrandchildDefinition(*this);
-    }
-  };
-
-  class MaterializationResultProbeBoundary : public loka::app::scene::BoundaryNode
-  {
-  protected:
-    virtual void composeWithContext(loka::app::scene::ComponentContext &,
-                                    loka::app::scene::ComposeEvent)
-    {
-    }
-  };
-
-  // Whether the recomposing root declares its nested subtree (inner Fragment +
-  // grandchild) this pass. Toggling it and driving an external NODE_DIRTY_CHILD
-  // tick forces a LOCAL REBUILD in which the whole inner subtree is freshly
-  // materialized through one contextless materializeLocalRebuildNode call.
-  bool g_nestedShowChild = false;
-
-  class NestedLocalRebuildRefusalRootNode;
-  typedef loka::app::scene::BoundaryPropsFor<NestedLocalRebuildRefusalRootNode>
-      NestedLocalRebuildRefusalRootProps;
-
-  class NestedLocalRebuildRefusalRootNode
-      : public SceneTestSupport::RecomposingBoundaryNode<NestedLocalRebuildRefusalRootNode,
-                                                         NestedLocalRebuildRefusalRootProps>
-  {
-  public:
-    explicit NestedLocalRebuildRefusalRootNode(const NestedLocalRebuildRefusalRootProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<NestedLocalRebuildRefusalRootNode,
-                                                    NestedLocalRebuildRefusalRootProps>(props)
-    {
-    }
-
-    virtual void composeNode(loka::app::scene::NodeComposition &composition)
-    {
-      loka::app::FragmentDefinition root;
-      if (g_nestedShowChild)
-      {
-        // The introduced direct child is a nestable (inner Fragment) carrying a
-        // grandchild -- so the whole subtree is materialized by a single
-        // materializeLocalRebuildNode(innerFragment) call, with the grandchild
-        // created BELOW a non-null root: the exact nested residual.
-        loka::app::FragmentDefinition inner;
-        inner << RefusableGrandchildDefinition();
-        root << inner;
-      }
-      composition.declare(root);
-    }
-
-  };
-
   // Root-attach-refusal harness (#132 ruling 3, Codex P2 hole 2). The root
   // create() is refusable (to arm the initial white flag via a refused root),
   // and the attach compose declares a node-local state whose materialization
@@ -1074,20 +893,19 @@ namespace
   class AttachRefusalRootNode;
   typedef loka::app::scene::BoundaryPropsFor<AttachRefusalRootNode> AttachRefusalRootProps;
 
-  class AttachRefusalRootNode
-      : public SceneTestSupport::RecomposingBoundaryNode<AttachRefusalRootNode, AttachRefusalRootProps>
+  class AttachRefusalRootNode : public loka::app::scene::BoundaryNodeFor<AttachRefusalRootNode>
   {
   public:
     explicit AttachRefusalRootNode(const AttachRefusalRootProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<AttachRefusalRootNode, AttachRefusalRootProps>(props),
+        : loka::app::scene::BoundaryNodeFor<AttachRefusalRootNode>(props),
           state_()
     {
+      WhiteFlagStatePayload initial = {{0}};
+      this->state(this->state_, initial);
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
-      WhiteFlagStatePayload initial = {{0}};
-      composition.declareStates().state(this->state_, initial);
       composition.declare(loka::app::FragmentDefinition());
     }
 
@@ -1111,68 +929,6 @@ namespace
     virtual loka::app::scene::NodeDefinitionBase *clone() const
     {
       return new AttachRefusalRootDefinition(*this);
-    }
-  };
-
-  // #150 two-child local-rebuild abort harness. The recomposing root reveals
-  // two plain (non-seat) children at once; the first materializes through the
-  // contextless materializeLocalRebuildNode path (a gate-routed heap node with
-  // arenaOwner()==0), then the second child's create() is refused, so
-  // buildLocalRebuildPlan aborts AFTER the first child's node was created and
-  // stored in the raw-vector plan. Definition-driven refusal so exactly the
-  // second child fails, never the first. Before the abort-cleanup guard the
-  // first child's contextless heap node is dropped with the discarded plan and
-  // never freed -- a leak the full-rebuild fallback cannot reclaim (the node is
-  // in no arena ledger).
-  bool g_twoChildLocalRebuildShow = false;
-  bool g_twoChildLocalRebuildRefuseSecond = false;
-  int g_twoChildLocalRebuildSecondRefusals = 0;
-
-  struct RefusableSecondChildDefinition
-      : public loka::app::scene::NodeDefinition<GateProbeProps, GateProbeNode>
-  {
-    typedef loka::app::scene::NodeDefinition<GateProbeProps, GateProbeNode> BaseType;
-    RefusableSecondChildDefinition() : BaseType() {}
-    RefusableSecondChildDefinition(const RefusableSecondChildDefinition &other) : BaseType(other) {}
-    virtual loka::app::scene::Node *create() const
-    {
-      if (g_twoChildLocalRebuildRefuseSecond)
-      {
-        ++g_twoChildLocalRebuildSecondRefusals;
-        return 0;
-      }
-      return BaseType::create();
-    }
-    virtual loka::app::scene::NodeDefinitionBase *clone() const
-    {
-      return new RefusableSecondChildDefinition(*this);
-    }
-  };
-
-  class TwoChildLocalRebuildRootNode;
-  typedef loka::app::scene::BoundaryPropsFor<TwoChildLocalRebuildRootNode>
-      TwoChildLocalRebuildRootProps;
-
-  class TwoChildLocalRebuildRootNode
-      : public SceneTestSupport::RecomposingBoundaryNode<TwoChildLocalRebuildRootNode,
-                                                         TwoChildLocalRebuildRootProps>
-  {
-  public:
-    explicit TwoChildLocalRebuildRootNode(const TwoChildLocalRebuildRootProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<TwoChildLocalRebuildRootNode,
-                                                    TwoChildLocalRebuildRootProps>(props)
-    {
-    }
-
-    virtual void composeNode(loka::app::scene::NodeComposition &composition)
-    {
-      loka::app::FragmentDefinition root;
-      if (g_twoChildLocalRebuildShow)
-      {
-        root << GateProbeDefinition();
-        root << RefusableSecondChildDefinition();
-      }
-      composition.declare(root);
     }
   };
 
@@ -1331,103 +1087,81 @@ namespace
                                            SectionOrderingChildNode>
       SectionOrderingChildDefinition;
 
-  class KeyedSectionRootNode;
-  typedef loka::app::scene::BoundaryPropsFor<KeyedSectionRootNode>
-      KeyedSectionRootProps;
+  loka::app::BoundarySectionNode *findSectionByKey(loka::app::scene::Node *node, loka::app::scene::NodeTag key);
 
-  class KeyedSectionRootNode
-      : public SceneTestSupport::RecomposingBoundaryNode<KeyedSectionRootNode,
-                                                         KeyedSectionRootProps>
+  class KeyedSectionRootNode;
+  typedef loka::app::scene::BoundaryPropsFor<KeyedSectionRootNode> KeyedSectionRootProps;
+  class KeyedSectionRootNode : public loka::app::scene::BoundaryNodeFor<KeyedSectionRootNode>
   {
   public:
     explicit KeyedSectionRootNode(const KeyedSectionRootProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<KeyedSectionRootNode,
-                                                    KeyedSectionRootProps>(props),
-          reverse_(false),
-          replacementKey_(1101),
-          replaceChild_(false),
-          childRevision_(0)
+        : loka::app::scene::BoundaryNodeFor<KeyedSectionRootNode>(props),
+          key_()
     {
+      this->state(this->key_, loka::app::scene::NodeTag(1101));
     }
-
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
-      loka::app::Fragment root;
-      loka::app::Section first(this->replacementKey_);
-      if (this->replaceChild_)
-      {
-        first << GateProbeDefinition();
-      }
-      else
-      {
-        first << SectionOrderingChildDefinition(
-            SectionOrderingChildProps(this->childRevision_));
-      }
-      loka::app::Section second(1102);
-      if (this->reverse_)
-      {
-        root << second;
-        root << first;
-      }
-      else
-      {
-        root << first;
-        root << second;
-      }
-      composition.declare(root);
+      composition.declare(loka::app::Fragment()
+                          << loka::app::Keyed(*this->key_.state(), this, &KeyedSectionRootNode::declareSection));
     }
-
-    loka::app::BoundarySectionNode *section(loka::app::scene::NodeTag key) const
+    void declareSection(loka::app::scene::NodeComposition &composition)
     {
-      loka::app::scene::Node *root = this->compositionRootNode();
-      loka::app::scene::INestable *nestable = root ? root->asNestable() : 0;
-      loka::dsl::CompositionCursor<loka::app::scene::Node> it(
-          nestable ? nestable->childrenHead() : 0,
-          nestable ? nestable->childrenCount() : 0);
-      for (loka::app::scene::Node *node = it.next(); node; node = it.next())
-      {
-        if (node->nodeTag() == key)
-        {
-          return node->asBoundarySectionNode();
-        }
-      }
-      return 0;
+      composition.declare(loka::app::Fragment()
+                          << (loka::app::Section(this->key_.get()) << SectionOrderingChildDefinition()));
     }
-
-    void reverseSections()
+    loka::app::BoundarySectionNode *section(loka::app::scene::NodeTag key)
     {
-      this->reverse_ = true;
+      return findSectionByKey(this, key);
     }
-
     void replaceFirstSection()
     {
-      this->replacementKey_ = 1103;
-    }
-
-    void replaceFirstChild()
-    {
-      this->replaceChild_ = true;
-    }
-
-    void setFirstChildRevision(int revision)
-    {
-      this->childRevision_ = revision;
+      this->key_.set(1103);
     }
 
   private:
-    bool reverse_;
-    loka::app::scene::NodeTag replacementKey_;
-    bool replaceChild_;
-    int childRevision_;
+    loka::app::scene::NodeState<loka::app::scene::NodeTag> key_;
+  };
+
+  class SectionLifetimeRootNode;
+  typedef loka::app::scene::BoundaryPropsFor<SectionLifetimeRootNode> SectionLifetimeRootProps;
+  class SectionLifetimeRootNode : public loka::app::scene::BoundaryNodeFor<SectionLifetimeRootNode>
+  {
+  public:
+    explicit SectionLifetimeRootNode(const SectionLifetimeRootProps &props)
+        : loka::app::scene::BoundaryNodeFor<SectionLifetimeRootNode>(props),
+          shown_()
+    {
+      this->state(this->shown_, true);
+    }
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::PolicyScopeDefinition owner;
+      owner.destroyOnDetach() << (loka::app::Section(1101) << SectionOrderingChildDefinition());
+      composition.declare(loka::app::Fragment() << (loka::app::Show(*this->shown_.state()) << owner));
+    }
+    void retireSection()
+    {
+      this->shown_.set(false);
+    }
+
+  private:
+    loka::app::scene::NodeState<bool> shown_;
   };
 
   class SectionGridRootNode;
   typedef loka::app::scene::BoundaryPropsFor<SectionGridRootNode>
       SectionGridRootProps;
 
-  class SectionGridRootNode
-      : public SceneTestSupport::RecomposingBoundaryNode<SectionGridRootNode,
-                                                         SectionGridRootProps>
+  class SectionGridRootNode : public loka::app::scene::BoundaryNodeFor<SectionGridRootNode>
   {
   public:
     enum
@@ -1436,20 +1170,13 @@ namespace
     };
 
     explicit SectionGridRootNode(const SectionGridRootProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<SectionGridRootNode,
-                                                    SectionGridRootProps>(props),
-          populateOnCompose_(false),
+        : loka::app::scene::BoundaryNodeFor<SectionGridRootNode>(props),
           populatedSections_(0)
     {
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
-      if (this->populateOnCompose_)
-      {
-        this->populateSectionStates();
-        this->populateOnCompose_ = false;
-      }
 
       loka::app::Fragment root;
       for (int i = 0; i < kSectionCount; ++i)
@@ -1461,9 +1188,9 @@ namespace
       composition.declare(root);
     }
 
-    void populateOnNextCompose()
+    void populateSections()
     {
-      this->populateOnCompose_ = true;
+      this->populateSectionStates();
     }
 
     int populatedSections() const
@@ -1498,7 +1225,6 @@ namespace
       }
     }
 
-    bool populateOnCompose_;
     int populatedSections_;
   };
 
@@ -1667,20 +1393,14 @@ namespace
   typedef loka::app::scene::BoundaryPropsFor<SectionOwnerResolutionRootNode>
       SectionOwnerResolutionRootProps;
 
-  class SectionOwnerResolutionRootNode
-      : public SceneTestSupport::RecomposingBoundaryNode<
-            SectionOwnerResolutionRootNode,
-            SectionOwnerResolutionRootProps>
+  class SectionOwnerResolutionRootNode : public loka::app::scene::BoundaryNodeFor<SectionOwnerResolutionRootNode>
   {
   public:
-    explicit SectionOwnerResolutionRootNode(
-        const SectionOwnerResolutionRootProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<
-              SectionOwnerResolutionRootNode,
-              SectionOwnerResolutionRootProps>(props),
+    explicit SectionOwnerResolutionRootNode(const SectionOwnerResolutionRootProps &props)
+        : loka::app::scene::BoundaryNodeFor<SectionOwnerResolutionRootNode>(props),
           condition_(),
           boundaryPulse_(),
-          showSection_(true),
+          showSection_(),
           initialized_(false)
     {
       assert(g_sectionOwnerResolutionScenario);
@@ -1694,11 +1414,23 @@ namespace
       }
       composition.declareStates()
           .state(this->condition_, true)
-          .state(this->boundaryPulse_, 0);
+          .state(this->boundaryPulse_, 0)
+          .state(this->showSection_, true);
       this->initialized_ = true;
     }
 
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(loka::app::Fragment() << loka::app::Keyed(
+                              *this->showSection_.state(), this, &SectionOwnerResolutionRootNode::declareContent));
+    }
+
+    void declareContent(loka::app::scene::NodeComposition &composition)
     {
       assert(g_sectionOwnerResolutionScenario);
       SectionOwnerResolutionScenario &scenario =
@@ -1735,7 +1467,7 @@ namespace
         }
         break;
       case SectionOwnerResolutionScenario::MODE_RETIRE_WHILE_DIRTY_SOURCE:
-        if (this->showSection_)
+        if (this->showSection_.get())
         {
           loka::app::Section section(4101);
           section << primary;
@@ -1777,7 +1509,7 @@ namespace
 
     void retireSection()
     {
-      this->showSection_ = false;
+      this->showSection_.set(false);
     }
 
     void mutateBoundaryPulse()
@@ -1785,20 +1517,16 @@ namespace
       this->boundaryPulse_.set(this->boundaryPulse_.get() + 1);
     }
 
-    virtual void declareDirtySources(
-        loka::app::scene::DirtySourceRegistrar &registrar)
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
     {
       if (this->boundaryPulse_.isValid())
-      {
-        registrar.markDirtyOnChange(this->boundaryPulse_.state(),
-                                    loka::app::scene::NODE_DIRTY_PROPS);
-      }
+        registrar.markDirtyOnChange(this->boundaryPulse_.state(), loka::app::scene::NODE_DIRTY_PROPS);
     }
 
   private:
     loka::app::scene::NodeState<bool> condition_;
     loka::app::scene::NodeState<int> boundaryPulse_;
-    bool showSection_;
+    loka::app::scene::NodeState<bool> showSection_;
     bool initialized_;
   };
 
@@ -1912,24 +1640,34 @@ namespace
   typedef loka::app::scene::BoundaryPropsFor<SectionFailureRootNode>
       SectionFailureRootProps;
 
-  class SectionFailureRootNode
-      : public SceneTestSupport::RecomposingBoundaryNode<SectionFailureRootNode,
-                                                         SectionFailureRootProps>
+  class SectionFailureRootNode : public loka::app::scene::BoundaryNodeFor<SectionFailureRootNode>
   {
   public:
     explicit SectionFailureRootNode(const SectionFailureRootProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<SectionFailureRootNode,
-                                                    SectionFailureRootProps>(props),
-          injectStates_(false)
+        : loka::app::scene::BoundaryNodeFor<SectionFailureRootNode>(props),
+          injectStates_()
     {
+      this->state(this->injectStates_, false);
     }
 
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
-      if (this->injectStates_)
+      composition.declare(loka::app::Fragment()
+                          << (loka::app::Fragment() << loka::app::Section(3101) << loka::app::Section(3102))
+                          << loka::app::Keyed(
+                                 *this->injectStates_.state(), this, &SectionFailureRootNode::declareAttempt));
+    }
+    void declareAttempt(loka::app::scene::NodeComposition &composition)
+    {
+      if (this->injectStates_.get())
       {
         loka::app::BoundarySectionNode *section = this->liveSection();
         assert(section);
+        loka::core::LokaAllocSetBackend(&sectionFailureBackendAlloc, &delegatingBackendFree);
         WhiteFlagStatePayload initial = {{0}};
         loka::app::scene::NodeState<WhiteFlagStatePayload> first;
         loka::app::scene::NodeState<WhiteFlagStatePayload> second;
@@ -1937,32 +1675,27 @@ namespace
           loka::app::scene::NodeComposition::StateBatch states(section);
           states.state(first, initial).state(second, initial);
         }
-        this->injectStates_ = false;
+        loka::core::LokaAllocSetBackend(0, 0);
+        // A refused Section allocation must not publish a candidate declaration.
+        if (!first.isValid() || !second.isValid())
+          return;
       }
 
-      loka::app::Fragment root;
-      loka::app::Section first(3101);
-      loka::app::Section second(3102);
-      root << first;
-      root << second;
-      composition.declare(root);
+      composition.declare(loka::app::Fragment());
     }
 
     void injectStatesOnNextCompose()
     {
-      this->injectStates_ = true;
+      this->injectStates_.set(true);
     }
 
   private:
-    loka::app::BoundarySectionNode *liveSection() const
+    loka::app::BoundarySectionNode *liveSection()
     {
-      loka::app::scene::Node *root = this->compositionRootNode();
-      loka::app::scene::INestable *nestable = root ? root->asNestable() : 0;
-      loka::app::scene::Node *first = nestable ? nestable->childrenHead() : 0;
-      return first ? first->asBoundarySectionNode() : 0;
+      return findSectionByKey(this, 3101);
     }
 
-    bool injectStates_;
+    loka::app::scene::NodeState<bool> injectStates_;
   };
 
   class DuplicateSectionRootNode;
@@ -2034,8 +1767,8 @@ namespace
     loka::core::Held<HeldOwnerSlotPayload> refused;
     loka::app::scene::IStateOwner *creatorOwner;
     loka::app::scene::IStateOwner *descendantOwner;
-    bool showCreator;
-    bool showDescendant;
+    loka::core::MutableState<bool> showCreator;
+    loka::core::MutableState<bool> showDescendant;
     bool repeatCreatorHold;
     int releaseCount;
     int order;
@@ -2182,16 +1915,18 @@ namespace
   typedef loka::app::scene::BoundaryPropsFor<HeldOwnerSlotRootNode>
       HeldOwnerSlotRootProps;
 
-  class HeldOwnerSlotRootNode
-      : public SceneTestSupport::RecomposingBoundaryNode<HeldOwnerSlotRootNode,
-                                                         HeldOwnerSlotRootProps>
+  class HeldOwnerSlotRootNode : public loka::app::scene::BoundaryNodeFor<HeldOwnerSlotRootNode>
   {
   public:
     explicit HeldOwnerSlotRootNode(const HeldOwnerSlotRootProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<HeldOwnerSlotRootNode,
-                                                    HeldOwnerSlotRootProps>(props)
+        : loka::app::scene::BoundaryNodeFor<HeldOwnerSlotRootNode>(props)
     {
       assert(g_heldOwnerSlotScenario);
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
@@ -2202,21 +1937,7 @@ namespace
       switch (scenario.mode)
       {
       case HeldOwnerSlotScenario::MODE_BASIC:
-        if (scenario.showCreator)
-        {
-          loka::app::Section creator(5101);
-          creator << HeldOwnerSlotProbeDefinition(
-              HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_CREATE))
-                         .tag(5191);
-          if (scenario.showDescendant)
-          {
-            loka::app::Section descendant(5102);
-            descendant << HeldOwnerSlotProbeDefinition(
-                HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_HOLD));
-            creator << descendant;
-          }
-          root << creator;
-        }
+        root << loka::app::Keyed(scenario.showCreator, this, &HeldOwnerSlotRootNode::declareCreator);
         break;
       case HeldOwnerSlotScenario::MODE_FIVE_OWNERS:
         {
@@ -2261,6 +1982,30 @@ namespace
       }
       composition.declare(root);
     }
+    void declareCreator(loka::app::scene::NodeComposition &composition)
+    {
+      HeldOwnerSlotScenario &scenario = *g_heldOwnerSlotScenario;
+      loka::app::Fragment root;
+      if (scenario.showCreator.get())
+      {
+        root << (loka::app::Section(5101)
+                 << HeldOwnerSlotProbeDefinition(HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_CREATE))
+                        .tag(5191)
+                 << loka::app::Keyed(scenario.showDescendant, this, &HeldOwnerSlotRootNode::declareDescendant));
+      }
+      composition.declare(root);
+    }
+
+    void declareDescendant(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::Fragment root;
+      if (g_heldOwnerSlotScenario->showDescendant.get())
+      {
+        root << (loka::app::Section(5102)
+                 << HeldOwnerSlotProbeDefinition(HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_HOLD)));
+      }
+      composition.declare(root);
+    }
   };
 
   void runHeldInFlightDetachCallback(
@@ -2275,7 +2020,6 @@ namespace
   }
 
 } // namespace
-
 
 void testBoundaryArenaContracts()
 {
@@ -2460,84 +2204,6 @@ void testGateAllocatedNodeRejectsUnauthorizedDestruction()
 #endif
 }
 
-/** #132 S3 red test (a): a driven recompose under a backend that refuses the
-    slab (and the heap door behind it) must convert into a projection failure
-    that waits for the next externally caused tick — previous platform content
-    stands, snapshots invalidate (#70), and nothing self-schedules a retry. */
-void testComposeAllocationWhiteFlagDefersFullRebuildToNextExternalTick()
-{
-#ifdef LOKA_LIFECYCLE_AUDIT
-  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
-#endif
-  {
-    SceneTestSupport::RecordingPlatformController platform;
-    loka::app::scene::Scene scene((loka::app::scene::Boundary<WhiteFlagRecomposeRootNode>()));
-    scene.mount(&platform);
-    scene.updateAttached(true);
-
-    WhiteFlagRecomposeRootNode *root = static_cast<WhiteFlagRecomposeRootNode *>(
-        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
-    (void)root;
-    assert(root);
-    assert(root->first_.isValid());
-    assert(root->second_.isValid());
-    const size_t appliedBefore = platform.changeCount();
-    (void)appliedBefore;
-    assert(appliedBefore > 0);
-
-    // Externally driven recompose while the backend refuses every gate
-    // acquisition: the StateArena block append surrenders first, then the
-    // gate-routed heap fallback for each redeclared state.
-    g_refusingBackendRefusals = 0;
-    loka::core::LokaAllocSetBackend(&refusingBackendAlloc, &delegatingBackendFree);
-    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    scene.flushInvalidation();
-    loka::core::LokaAllocSetBackend(0, 0);
-    assert(g_refusingBackendRefusals > 0);
-
-    // No state materialized, and none is half-alive: the out handles are
-    // invalid instead of pointing at partially adopted storage.
-    assert(!root->first_.isValid());
-    assert(!root->second_.isValid());
-    // Red before #132 S3: the dead states were adopted silently, the compose
-    // completed as a success, and the half-alive cycle was projected (the
-    // recorded change count grew). Now the previously applied content is
-    // still the last thing the platform saw ...
-    assert(platform.changeCount() == appliedBefore);
-    // ... the compose window records the projection failure ...
-    assert(!root->composeResult().composed);
-    assert(root->composeResult().allocationFailed);
-    // ... the composition snapshots are invalidated per the #70 mechanism ...
-    assert(root->previousCompositionSnapshot().empty());
-    assert(root->currentCompositionSnapshot().empty());
-    // ... and the failure path did not self-schedule a tick. Without an
-    // external drive the tracker stays silent: no second refresh cycle runs.
-    assert(!scene.hasPendingInvalidation());
-    LOKA_VERIFY(!scene.flushInvalidation());
-    assert(platform.changeCount() == appliedBefore);
-
-    // One externally caused tick with the default backend restored: the
-    // recorded full rebuild rides it, recomposes from a clean slate, and the
-    // healed content reaches the platform as a full-rebuild projection.
-    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    LOKA_VERIFY(scene.flushInvalidation());
-    assert(root->first_.isValid());
-    assert(root->second_.isValid());
-    assert(root->composeResult().composed);
-    assert(!root->composeResult().allocationFailed);
-    assert(platform.changeCount() > appliedBefore);
-    assert(platform.changeAt(platform.changeCount() - 1).fullRebuild);
-  }
-  loka::core::LokaAllocSetBackend(0, 0);
-#ifdef LOKA_LIFECYCLE_AUDIT
-  // Failure paths are where leaks nest: the whole scene lifetime, including
-  // the refused cycle, must leave the audit ledger balanced.
-  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
-  loka::core::LokaAllocAuditCheckpoint(
-      "testComposeAllocationWhiteFlagDefersFullRebuildToNextExternalTick");
-#endif
-}
-
 /** #132 S3 red test (b): with the owner arena exhausted and the backend
     refusing the gate-routed heap fallback, state creation must raise the
     owner's white flag so the open compose window converts into a failure —
@@ -2652,268 +2318,6 @@ void testSceneRootAllocationRefusalArmsWhiteFlagAndHealsOnRefresh()
   assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
   loka::core::LokaAllocAuditCheckpoint(
       "testSceneRootAllocationRefusalArmsWhiteFlagAndHealsOnRefresh");
-#endif
-}
-
-/** #132 ruling 3 / Codex P2 (hole 1): a LOCAL REBUILD (not an attach) that
-    freshly materializes a child through the contextless composition path must
-    still raise the boundary white flag when that fresh create() is refused.
-    The contextless temporary NodeComposition has no ComponentContext, so
-    createNodeFromDefinition cannot reach the boundary to raise the flag itself
-    — the materializeLocalRebuildNode helper raises it at the boundary-member
-    call site. Without that raise the refused rebuild returns 0, the compose
-    completes as a success (allocationFailed == false), and the scene applies an
-    incomplete rebuild instead of deferring. With it, the compose converts into
-    a projection failure: previous content stands, snapshots invalidate (#70),
-    nothing self-schedules, and the next external tick heals from a clean slate. */
-void testLocalRebuildNodeRefusalDefersFullRebuildToNextExternalTick()
-{
-#ifdef LOKA_LIFECYCLE_AUDIT
-  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
-#endif
-  {
-    SceneTestSupport::RecordingPlatformController platform;
-    g_localRebuildShowChild = false;
-    g_localRebuildRefuseNode = false;
-    loka::app::scene::Scene scene((loka::app::scene::Boundary<LocalRebuildRefusalRootNode>()));
-    scene.mount(&platform);
-    scene.updateAttached(true);
-
-    LocalRebuildRefusalRootNode *root = static_cast<LocalRebuildRefusalRootNode *>(
-        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
-    (void)root;
-    assert(root);
-    assert(root->composeResult().composed);
-    const size_t appliedBefore = platform.changeCount();
-    (void)appliedBefore;
-    assert(appliedBefore > 0);
-
-    // Externally driven recompose that introduces a fresh child. The child's
-    // gate-routed create() is refused, so the contextless local-rebuild
-    // materialization returns 0.
-    g_localRebuildShowChild = true;
-    g_localRebuildRefuseNode = true;
-    g_localRebuildNodeRefusals = 0;
-    loka::core::LokaAllocSetBackend(&localRebuildNodeRefusingBackendAlloc, &delegatingBackendFree);
-    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    scene.flushInvalidation();
-    loka::core::LokaAllocSetBackend(0, 0);
-    g_localRebuildRefuseNode = false;
-    assert(g_localRebuildNodeRefusals > 0);
-
-    // Red before the hole-1 flag-raise: the contextless refusal was dropped,
-    // the compose completed as a success, and the incomplete rebuild applied.
-    // Now the compose window records the projection failure ...
-    assert(!root->composeResult().composed);
-    assert(root->composeResult().allocationFailed);
-    // ... the composition snapshots are invalidated per the #70 mechanism ...
-    assert(root->previousCompositionSnapshot().empty());
-    assert(root->currentCompositionSnapshot().empty());
-    // ... the previously applied content still stands (nothing published) ...
-    assert(platform.changeCount() == appliedBefore);
-    // ... the scene recorded a deferred full rebuild ...
-    assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
-    // ... and the failure path did not self-schedule a tick.
-    assert(!scene.hasPendingInvalidation());
-    LOKA_VERIFY(!scene.flushInvalidation());
-    assert(platform.changeCount() == appliedBefore);
-
-    // One externally caused tick with the child now creatable: the recorded
-    // full rebuild rides it, recomposes from a clean slate, and the healed
-    // content reaches the platform as a full-rebuild projection.
-    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    LOKA_VERIFY(scene.flushInvalidation());
-    assert(root->composeResult().composed);
-    assert(!root->composeResult().allocationFailed);
-    assert(!loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
-    assert(platform.changeCount() > appliedBefore);
-    assert(platform.changeAt(platform.changeCount() - 1).fullRebuild);
-  }
-  loka::core::LokaAllocSetBackend(0, 0);
-  g_localRebuildShowChild = false;
-  g_localRebuildRefuseNode = false;
-#ifdef LOKA_LIFECYCLE_AUDIT
-  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
-  loka::core::LokaAllocAuditCheckpoint(
-      "testLocalRebuildNodeRefusalDefersFullRebuildToNextExternalTick");
-#endif
-}
-
-/** #150: aborting buildLocalRebuildPlan after an earlier child was already
-    materialized must not leak that child's contextless heap node. A local
-    rebuild reveals two plain children; the first materializes through the
-    contextless path (a gate-routed heap node, arenaOwner()==0), then the
-    second child's create() is refused, so buildLocalRebuildPlan returns false
-    with the first child's node still parked in the discarded raw-vector plan.
-    The downstream full-rebuild fallback never reclaims it (it is in no arena
-    ledger, not parked, not retired). Red before the abort-cleanup guard: the
-    node site's live count stays above the pre-test baseline. Green: the guard
-    retires the orphaned contextless candidate and the ledger balances. The
-    scene is healed on a following external tick so only the earlier abort's
-    orphan (if any) remains outstanding at scope end. */
-void testLocalRebuildLaterChildRefusalDoesNotLeakEarlierChild()
-{
-#ifdef LOKA_LIFECYCLE_AUDIT
-  const loka::core::LokaAllocationSite nodeSite("NodeDefinition", "Node");
-  const int nodeLiveBefore = loka::core::LokaAllocAuditLiveCount(nodeSite);
-  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
-#endif
-  {
-    SceneTestSupport::RecordingPlatformController platform;
-    g_twoChildLocalRebuildShow = false;
-    g_twoChildLocalRebuildRefuseSecond = false;
-    g_twoChildLocalRebuildSecondRefusals = 0;
-    loka::app::scene::Scene scene((loka::app::scene::Boundary<TwoChildLocalRebuildRootNode>()));
-    scene.mount(&platform);
-    scene.updateAttached(true);
-
-    TwoChildLocalRebuildRootNode *root = static_cast<TwoChildLocalRebuildRootNode *>(
-        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
-    (void)root;
-    assert(root);
-    assert(root->composeResult().composed);
-
-    // Externally driven recompose introducing two fresh plain children. The
-    // first materializes; the second's create() is refused, aborting
-    // buildLocalRebuildPlan after the first child's contextless heap node was
-    // already created and stored in the raw-vector plan.
-    g_twoChildLocalRebuildShow = true;
-    g_twoChildLocalRebuildRefuseSecond = true;
-    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    scene.flushInvalidation();
-    g_twoChildLocalRebuildRefuseSecond = false;
-    assert(g_twoChildLocalRebuildSecondRefusals > 0);
-
-    // The rebuild aborted (incomplete); nothing was published.
-    assert(!root->composeResult().composed);
-
-    // Heal on the next external tick with the second child now creatable, so
-    // the scene ends in a clean, ledger-balanced state and only the earlier
-    // abort's orphan (if any) remains outstanding.
-    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    LOKA_VERIFY(scene.flushInvalidation());
-    assert(root->composeResult().composed);
-  }
-  g_twoChildLocalRebuildShow = false;
-  g_twoChildLocalRebuildRefuseSecond = false;
-#ifdef LOKA_LIFECYCLE_AUDIT
-  // The earlier child's contextless heap node must not have leaked.
-  assert(loka::core::LokaAllocAuditLiveCount(nodeSite) == nodeLiveBefore);
-  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
-  loka::core::LokaAllocAuditCheckpoint(
-      "testLocalRebuildLaterChildRefusalDoesNotLeakEarlierChild");
-#endif
-}
-
-/** #132 ruling 3 / Codex P2 (hole 1, one level deeper): a LOCAL REBUILD that
-    freshly materializes a NESTABLE child whose OWN grandchild create() is
-    refused must still raise the boundary white flag. The prior fix routed a
-    refused SUBTREE ROOT through materializeLocalRebuildNode's `if (!created)`,
-    but a refused NESTED child returns a NON-NULL partial subtree (the
-    grandchild is silently dropped by createNodeRecursive's child-root check),
-    so `if (!created)` never fires. The subtree result carrier raises the flag
-    at the owner-side choke point, converting the compose into a projection
-    failure at ANY depth. Red before the carrier: the
-    partial subtree is diffed/applied, the compose completes as a success
-    (allocationFailed == false), and the incomplete rebuild reaches the
-    platform. Green: previous content stands, snapshots invalidate (#70),
-    nothing self-schedules, and the next external tick heals from a clean
-    slate. This is the CONTEXTLESS local-rebuild path (not the initial attach,
-    which already routes via context). */
-void testNestedLocalRebuildChildRefusalDefersFullRebuildToNextExternalTick()
-{
-#ifdef LOKA_LIFECYCLE_AUDIT
-  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
-#endif
-  {
-    // Characterize the with-context arena recursion separately from the
-    // contextless local-rebuild recursion below. The root and inner Fragment
-    // materialize, while the grandchild's heap door refuses; the completed
-    // fact must retain that nested refusal through both parent child loops.
-    MaterializationResultProbeBoundary boundary;
-    loka::app::scene::ComponentContext context;
-    context.setBoundary(&boundary);
-    loka::app::scene::NodeComposition composition;
-    composition.setContext(&context);
-    loka::app::FragmentDefinition inner;
-    inner << RefusableGrandchildDefinition();
-    loka::app::FragmentDefinition definition;
-    definition << inner;
-    boundary.nodeArena()->reserve(definition.nodeSize() +
-                                  definition.nodeAlign());
-    g_nestedGrandchildRefuse = true;
-    loka::app::scene::NodeMaterializationResult result =
-        loka::app::scene::testing::NodeCompositionTestAccess::
-            createNodeFromDefinitionResult(composition, &definition);
-    g_nestedGrandchildRefuse = false;
-    (void)result;
-    assert(result.root != 0);
-    assert(result.allocationFailed);
-  }
-  {
-    SceneTestSupport::RecordingPlatformController platform;
-    g_nestedShowChild = false;
-    g_nestedGrandchildRefuse = false;
-    loka::app::scene::Scene scene(
-        (loka::app::scene::Boundary<NestedLocalRebuildRefusalRootNode>()));
-    scene.mount(&platform);
-    scene.updateAttached(true);
-
-    NestedLocalRebuildRefusalRootNode *root = static_cast<NestedLocalRebuildRefusalRootNode *>(
-        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
-    (void)root;
-    assert(root);
-    assert(root->composeResult().composed);
-    const size_t appliedBefore = platform.changeCount();
-    (void)appliedBefore;
-    assert(appliedBefore > 0);
-
-    // Externally driven recompose that introduces a nested subtree (inner
-    // Fragment + grandchild). The inner Fragment materializes fine but the
-    // grandchild create() -- created BELOW the non-null inner Fragment through
-    // the contextless composition -- is refused, so the subtree comes back a
-    // non-null partial. Without the subtree result carrier the flag would be
-    // dropped here.
-    g_nestedShowChild = true;
-    g_nestedGrandchildRefuse = true;
-    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    scene.flushInvalidation();
-    g_nestedGrandchildRefuse = false;
-
-    // Red before the subtree result carrier: the nested refusal was dropped,
-    // the compose completed as a success, and the incomplete rebuild applied.
-    // Now the compose window records the projection failure ...
-    assert(!root->composeResult().composed);
-    assert(root->composeResult().allocationFailed);
-    // ... the composition snapshots are invalidated per the #70 mechanism ...
-    assert(root->previousCompositionSnapshot().empty());
-    assert(root->currentCompositionSnapshot().empty());
-    // ... the previously applied content still stands (nothing published) ...
-    assert(platform.changeCount() == appliedBefore);
-    // ... the scene recorded a deferred full rebuild ...
-    assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
-    // ... and the failure path did not self-schedule a tick.
-    assert(!scene.hasPendingInvalidation());
-    LOKA_VERIFY(!scene.flushInvalidation());
-    assert(platform.changeCount() == appliedBefore);
-
-    // One externally caused tick with the grandchild now creatable: the
-    // recorded full rebuild rides it, recomposes from a clean slate, and the
-    // healed content reaches the platform as a full-rebuild projection.
-    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    LOKA_VERIFY(scene.flushInvalidation());
-    assert(root->composeResult().composed);
-    assert(!root->composeResult().allocationFailed);
-    assert(!loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
-    assert(platform.changeCount() > appliedBefore);
-    assert(platform.changeAt(platform.changeCount() - 1).fullRebuild);
-  }
-  g_nestedShowChild = false;
-  g_nestedGrandchildRefuse = false;
-#ifdef LOKA_LIFECYCLE_AUDIT
-  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
-  loka::core::LokaAllocAuditCheckpoint(
-      "testNestedLocalRebuildChildRefusalDefersFullRebuildToNextExternalTick");
 #endif
 }
 
@@ -3149,7 +2553,7 @@ void testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement()
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     assert(root);
     loka::app::BoundarySectionNode *original = root->section(1101);
-    assert(original && original->isArenaAllocated());
+    LOKA_VERIFY(original != 0);
     SectionOrderingChildNode *orderingChild =
         static_cast<SectionOrderingChildNode *>(original->childrenHead());
     // The child now declares its observation inside its own window; the
@@ -3160,22 +2564,11 @@ void testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement()
     assert(oldState.isValid());
     assert(oldState.dangerouslyMutableState()->isArenaAllocated());
 
-    // Same key retains the runtime seat and its adopted state.
-    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    LOKA_VERIFY(scene.flushInvalidation());
-    assert(root->section(1101) == original);
-    assert(oldValueAlive == 1);
-    assert(oldState.dangerouslyMutableState()->get().value == 41);
-
-    // The existing tag diff also retains keyed Sections across sibling reorder.
-    root->reverseSections();
-    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    LOKA_VERIFY(scene.flushInvalidation());
-    assert(root->section(1101) == original);
-    assert(oldValueAlive == 1);
-
     // A different value key creates a fresh Section and retires the old one.
-    root->replaceFirstSection();
+    {
+      loka::core::StateTrackerGuard guard(root->tracker());
+      root->replaceFirstSection();
+    }
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
     LOKA_VERIFY(scene.flushInvalidation());
     loka::app::BoundarySectionNode *fresh = root->section(1103);
@@ -3225,15 +2618,14 @@ void testBoundarySectionRetainedKeyReconcilesReplacedChild()
   g_sectionOrderingChildDetaches = 0;
   {
     SceneTestSupport::RecordingPlatformController platform;
-    loka::app::scene::Scene scene(
-        (loka::app::scene::Boundary<KeyedSectionRootNode>()));
+    loka::app::scene::Scene scene((loka::app::scene::Boundary<SectionLifetimeRootNode>()));
     scene.mount(&platform);
     scene.updateAttached(true);
 
-    KeyedSectionRootNode *root = static_cast<KeyedSectionRootNode *>(
-        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    SectionLifetimeRootNode *root =
+        static_cast<SectionLifetimeRootNode *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     assert(root);
-    loka::app::BoundarySectionNode *section = root->section(1101);
+    loka::app::BoundarySectionNode *section = findSectionByKey(root, 1101);
     assert(section);
     loka::app::scene::Node *originalChild = section->childrenHead();
     (void)originalChild;
@@ -3249,20 +2641,16 @@ void testBoundarySectionRetainedKeyReconcilesReplacedChild()
     assert(ownedState.isValid());
     assert(stateValueAlive == 1);
 
-    root->replaceFirstChild();
+    {
+      loka::core::StateTrackerGuard guard(root->tracker());
+      root->retireSection();
+    }
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
     LOKA_VERIFY(scene.flushInvalidation());
 
-    assert(root->section(1101) == section &&
-           "the keyed Section instance must survive child replacement");
-    assert(ownedState.isValid() &&
-           ownedState.dangerouslyMutableState()->get().value == 41 &&
-           "the retained Section must preserve its adopted state value");
-    loka::app::scene::Node *replacementChild = section->childrenHead();
-    (void)replacementChild;
-    assert(replacementChild && replacementChild != originalChild &&
-           replacementChild->propsTypeId() == GateProbeProps::staticTypeId() &&
-           "the retained Section must install the replacement child");
+    LOKA_VERIFY(findSectionByKey(root, 1101) == 0);
+    LOKA_VERIFY(ownedState.isValid() && ownedState.dangerouslyMutableState()->get().value == 41);
+    LOKA_VERIFY(stateValueAlive == 1 && "Section state stays readable until reclaim");
     assert(g_sectionOrderingChildDetaches == 1 &&
            "the old child must cross the synchronous detach line");
     assert(g_sectionOrderingChildDestructions == 0 &&
@@ -3273,7 +2661,7 @@ void testBoundarySectionRetainedKeyReconcilesReplacedChild()
            "child reclamation must be a silent drain-only tracker run");
     assert(g_sectionOrderingChildDestructions == 1 &&
            "the old child must reclaim at the owning clock boundary");
-    assert(stateValueAlive == 1);
+    LOKA_VERIFY(stateValueAlive == 0 && "the retired Section releases its state at the drain");
   }
   assert(stateValueAlive == 0);
   assert(g_sectionOrderingChildDestructions == 1);
@@ -3281,49 +2669,6 @@ void testBoundarySectionRetainedKeyReconcilesReplacedChild()
   assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
   loka::core::LokaAllocAuditCheckpoint(
       "testBoundarySectionRetainedKeyReconcilesReplacedChild");
-#endif
-}
-
-void testBoundarySectionRetainedKeyAppliesChangedChildPropsInPlace()
-{
-#ifdef LOKA_LIFECYCLE_AUDIT
-  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
-#endif
-  g_sectionOrderingChildDestructions = 0;
-  g_sectionOrderingChildDetaches = 0;
-  {
-    SceneTestSupport::RecordingPlatformController platform;
-    loka::app::scene::Scene scene(
-        (loka::app::scene::Boundary<KeyedSectionRootNode>()));
-    scene.mount(&platform);
-    scene.updateAttached(true);
-
-    KeyedSectionRootNode *root = static_cast<KeyedSectionRootNode *>(
-        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
-    assert(root);
-    loka::app::BoundarySectionNode *section = root->section(1101);
-    SectionOrderingChildNode *child = static_cast<SectionOrderingChildNode *>(
-        section ? section->childrenHead() : 0);
-    (void)child;
-    assert(section && child && child->props.revision == 0);
-
-    root->setFirstChildRevision(7);
-    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    LOKA_VERIFY(scene.flushInvalidation());
-
-    assert(root->section(1101) == section);
-  LOKA_VERIFY(section->childrenHead() == child &&
-           "compatible child props must update the existing child in place");
-    assert(child->props.revision == 7 &&
-           "the retained child must receive the current definition props");
-    assert(g_sectionOrderingChildDetaches == 0);
-    assert(g_sectionOrderingChildDestructions == 0);
-  }
-  assert(g_sectionOrderingChildDestructions == 1);
-#ifdef LOKA_LIFECYCLE_AUDIT
-  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
-  loka::core::LokaAllocAuditCheckpoint(
-      "testBoundarySectionRetainedKeyAppliesChangedChildPropsInPlace");
 #endif
 }
 
@@ -3369,8 +2714,6 @@ void testBoundarySectionAllocationFailureKeepsBoundaryRefusalAtomic()
   {
     g_sectionFailureHeapPosition = refusalPosition;
     g_sectionFailureHeapCalls = 0;
-    loka::core::LokaAllocSetBackend(&sectionFailureBackendAlloc,
-                                    &delegatingBackendFree);
     {
       SceneTestSupport::RecordingPlatformController platform;
       loka::app::scene::Scene scene(
@@ -3382,7 +2725,10 @@ void testBoundarySectionAllocationFailureKeepsBoundaryRefusalAtomic()
       assert(root && root->composeResult().composed);
       const size_t appliedBefore = platform.changeCount();
 
-      root->injectStatesOnNextCompose();
+      {
+        loka::core::StateTrackerGuard guard(root->tracker());
+        root->injectStatesOnNextCompose();
+      }
       scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
       scene.flushInvalidation();
 
@@ -3427,7 +2773,7 @@ void testBoundarySectionGridUsesEnclosingStateArenaEconomically()
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     assert(root);
 
-    root->populateOnNextCompose();
+    root->populateSections();
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
     LOKA_VERIFY(scene.flushInvalidation());
     assert(root->populatedSections() == SectionGridRootNode::kSectionCount);
@@ -3549,7 +2895,7 @@ void testBoundarySectionOwnedStateInvalidatesEnclosingBoundary()
     loka::app::scene::BoundaryNode *root =
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
     (void)root;
-    assert(findSectionByKey(root, 4101));
+    LOKA_VERIFY(findSectionByKey(root, 4101));
 
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
     LOKA_VERIFY(scene.flushInvalidation());
@@ -3559,6 +2905,7 @@ void testBoundarySectionOwnedStateInvalidatesEnclosingBoundary()
       loka::core::StateTrackerGuard guard(scenario.primary.tracker);
       scenario.primary.mutableState->set(23);
     }
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(platform.changeCount() == 1);
     assert(platform.changeCountForNode(root) == 1);
     assert(platform.flagsSeenForNode(root) ==
@@ -3585,7 +2932,7 @@ void testBoundarySectionRetireWhileDirtySourceDeregistersAncestorEdges()
     SectionOwnerResolutionRootNode *root =
         static_cast<SectionOwnerResolutionRootNode *>(
             loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
-    assert(root && findSectionByKey(root, 4101));
+    LOKA_VERIFY(root && findSectionByKey(root, 4101));
 
     // The second compose registers the now-materialized Section-owned state as
     // both a boundary tracker source and an observed-state ledger entry.
@@ -3596,12 +2943,13 @@ void testBoundarySectionRetireWhileDirtySourceDeregistersAncestorEdges()
     root->retireSection();
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
     LOKA_VERIFY(scene.flushInvalidation());
-    assert(!findSectionByKey(root, 4101));
+    LOKA_VERIFY(!findSectionByKey(root, 4101));
     assert(scene.hasPendingInvalidation());
     LOKA_VERIFY(!scene.flushInvalidation());
 
     platform.clearChanges();
     root->mutateBoundaryPulse();
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(platform.changeCount() == 1 &&
            "the surviving boundary tracker and observed ledger must remain usable");
   }
@@ -3628,6 +2976,7 @@ void testConditionalBranchFlipInsideSectionKeepsSectionOwner()
     assert(root && section);
     assert(scenario.primary.owner == section);
     root->flipCondition();
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(scenario.secondary.composeCount > 0);
     assert(scenario.secondary.owner == section);
     assert(scenario.secondary.mutableState &&
@@ -3666,20 +3015,16 @@ void testCurrentBoundaryStateRequiresResolvedOwnerMatchBothDirections()
 
 namespace
 {
-  bool g_heldNestedBoundaryVisible = true;
 
   class HeldNestedBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<HeldNestedBoundaryNode>
       HeldNestedBoundaryProps;
 
-  class HeldNestedBoundaryNode
-      : public SceneTestSupport::RecomposingBoundaryNode<HeldNestedBoundaryNode,
-                                                         HeldNestedBoundaryProps>
+  class HeldNestedBoundaryNode : public loka::app::scene::BoundaryNodeFor<HeldNestedBoundaryNode>
   {
   public:
     explicit HeldNestedBoundaryNode(const HeldNestedBoundaryProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<HeldNestedBoundaryNode,
-                                                    HeldNestedBoundaryProps>(props)
+        : loka::app::scene::BoundaryNodeFor<HeldNestedBoundaryNode>(props)
     {
     }
 
@@ -3696,21 +3041,29 @@ namespace
   typedef loka::app::scene::BoundaryPropsFor<HeldNestedRootNode>
       HeldNestedRootProps;
 
-  class HeldNestedRootNode
-      : public SceneTestSupport::RecomposingBoundaryNode<HeldNestedRootNode,
-                                                         HeldNestedRootProps>
+  class HeldNestedRootNode : public loka::app::scene::BoundaryNodeFor<HeldNestedRootNode>
   {
   public:
     explicit HeldNestedRootNode(const HeldNestedRootProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<HeldNestedRootNode,
-                                                    HeldNestedRootProps>(props)
+        : loka::app::scene::BoundaryNodeFor<HeldNestedRootNode>(props)
     {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
+      composition.declare(loka::app::Fragment() << loka::app::Keyed(
+                              g_heldOwnerSlotScenario->showCreator, this, &HeldNestedRootNode::declareContent));
+    }
+
+    void declareContent(loka::app::scene::NodeComposition &composition)
+    {
       loka::app::Fragment root;
-      if (g_heldNestedBoundaryVisible)
+      if (g_heldOwnerSlotScenario->showCreator.get())
       {
         loka::app::scene::BoundaryDefinition<HeldNestedBoundaryProps,
                                              HeldNestedBoundaryNode>
@@ -3726,7 +3079,6 @@ void testHeldNestedBoundaryRetireReleasesAtParentDrain()
 {
   HeldOwnerSlotScenario scenario;
   g_heldOwnerSlotScenario = &scenario;
-  g_heldNestedBoundaryVisible = true;
   {
     SceneTestSupport::RecordingPlatformController platform;
     loka::app::scene::Scene scene(
@@ -3740,7 +3092,10 @@ void testHeldNestedBoundaryRetireReleasesAtParentDrain()
     // A retired Boundary leaves the live tree carrying its own queue. The
     // releaser must still ride a tick boundary — the retiring parent's drain —
     // and never run from the retired Boundary's destructor.
-    g_heldNestedBoundaryVisible = false;
+    {
+      loka::core::StateTrackerGuard guard(scenario.showCreator.trackerOwner());
+      scenario.showCreator.set(false);
+    }
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
     LOKA_VERIFY(scene.flushInvalidation());
     assert(scenario.releaseCount == 0 &&
@@ -3756,7 +3111,6 @@ void testHeldNestedBoundaryRetireReleasesAtParentDrain()
   }
   assert(scenario.releaseCount == 1);
   g_heldOwnerSlotScenario = 0;
-  g_heldNestedBoundaryVisible = true;
 }
 
 void testHeldCreationStartsWithSectionOwnerSlot()
@@ -3792,7 +3146,10 @@ void testHeldCreationStartsWithSectionOwnerSlot()
 void testHeldDescendantAndRepeatedOwnerHoldsShareOneBlock()
 {
   HeldOwnerSlotScenario scenario;
-  scenario.showDescendant = true;
+  {
+    loka::core::StateTrackerGuard guard(scenario.showDescendant.trackerOwner());
+    scenario.showDescendant.set(true);
+  }
   scenario.repeatCreatorHold = true;
   g_heldOwnerSlotScenario = &scenario;
   {
@@ -3825,7 +3182,10 @@ void testHeldDescendantAndRepeatedOwnerHoldsShareOneBlock()
 void testHeldDescendantDetachDropsOnlyItsOwnerSlot()
 {
   HeldOwnerSlotScenario scenario;
-  scenario.showDescendant = true;
+  {
+    loka::core::StateTrackerGuard guard(scenario.showDescendant.trackerOwner());
+    scenario.showDescendant.set(true);
+  }
   g_heldOwnerSlotScenario = &scenario;
   {
     SceneTestSupport::RecordingPlatformController platform;
@@ -3838,13 +3198,18 @@ void testHeldDescendantDetachDropsOnlyItsOwnerSlot()
     loka::app::BoundarySectionNode *creator =
         findSectionByKey(root, 5101);
     (void)creator;
-    assert(root && creator && findSectionByKey(root, 5102));
+    LOKA_VERIFY(root && creator && findSectionByKey(root, 5102));
     assert(loka::core::testing::HeldTestAccess::slotCount(scenario.held) == 2);
 
-    scenario.showDescendant = false;
+    {
+
+      loka::core::StateTrackerGuard guard(scenario.showDescendant.trackerOwner());
+
+      scenario.showDescendant.set(false);
+    }
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
     LOKA_VERIFY(scene.flushInvalidation());
-    assert(!findSectionByKey(root, 5102));
+    LOKA_VERIFY(!findSectionByKey(root, 5102));
     assert(loka::core::testing::HeldTestAccess::slotCount(scenario.held) == 1);
     assert(loka::core::testing::HeldTestAccess::holdCountForOwner(
                scenario.held, creator) == 1);
@@ -3870,12 +3235,17 @@ void testHeldLastDropDefersReleaserToRetirePoolDrain()
     HeldOwnerSlotRootNode *root = static_cast<HeldOwnerSlotRootNode *>(
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     (void)root;
-    assert(root && findSectionByKey(root, 5101));
+    LOKA_VERIFY(root && findSectionByKey(root, 5101));
 
-    scenario.showCreator = false;
+    {
+
+      loka::core::StateTrackerGuard guard(scenario.showCreator.trackerOwner());
+
+      scenario.showCreator.set(false);
+    }
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
     LOKA_VERIFY(scene.flushInvalidation());
-    assert(!findSectionByKey(root, 5101));
+    LOKA_VERIFY(!findSectionByKey(root, 5101));
     assert(scenario.detachCallbackReturnOrder > 0);
     assert(scenario.releaseCount == 0 &&
            "last drop must only queue the releaser");
@@ -4091,535 +3461,6 @@ void testHeldBlockUsesEnclosingBoundaryArenaWithoutHeapControlBlock()
   assert(secondScenario.releaseCount == 1);
 }
 
-namespace
-{
-  class ProbeArmLocalBoundaryNode;
-
-  struct ProbeArmLocalRecord
-  {
-    ProbeArmLocalRecord()
-        : node(0),
-          constructions(0),
-          destructions(0),
-          nextInstanceId(0)
-    {
-    }
-
-    ProbeArmLocalBoundaryNode *node;
-    int constructions;
-    int destructions;
-    int nextInstanceId;
-  };
-
-  enum ProbeArmSeatMode
-  {
-    PROBE_ARM_SEAT_STATEFUL,
-    PROBE_ARM_SEAT_NESTED,
-    PROBE_ARM_SEAT_REMOVED,
-    PROBE_ARM_SEAT_SHAPE_INITIAL,
-    PROBE_ARM_SEAT_SHAPE_REORDERED,
-    PROBE_ARM_SEAT_SHAPE_NESTED_ARM0
-  };
-
-  struct ProbeArmSeatInputs
-  {
-    ProbeArmSeatInputs(loka::core::MutableState<unsigned> *selectionValue,
-                       loka::core::MutableState<int> *revisionValue,
-                       loka::core::MutableState<bool> *nestedValue)
-        : selection(selectionValue),
-          revision(revisionValue),
-          nestedSelection(nestedValue),
-          selectCalls(0),
-          mode(PROBE_ARM_SEAT_STATEFUL)
-    {
-    }
-
-    loka::core::MutableState<unsigned> *selection;
-    loka::core::MutableState<int> *revision;
-    loka::core::MutableState<bool> *nestedSelection;
-    ProbeArmLocalRecord records[3];
-    int selectCalls;
-    ProbeArmSeatMode mode;
-  };
-
-  ProbeArmSeatInputs *g_probeArmSeatInputs = 0;
-
-  typedef loka::app::scene::BoundaryPropsFor<ProbeArmLocalBoundaryNode>
-      ProbeArmLocalBoundaryProps;
-
-  class ProbeArmLocalBoundaryNode
-      : public loka::app::scene::BoundaryNodeFor<ProbeArmLocalBoundaryNode>
-  {
-  public:
-    explicit ProbeArmLocalBoundaryNode(const ProbeArmLocalBoundaryProps &props)
-        : loka::app::scene::BoundaryNodeFor<ProbeArmLocalBoundaryNode>(props),
-          value_(),
-          record_(0),
-          instanceId_(0)
-    {
-      this->state(this->value_, 0);
-      if (g_probeArmSeatInputs && g_probeArmSeatInputs->selection)
-      {
-        const unsigned arm = g_probeArmSeatInputs->selection->get();
-        if (arm < 3)
-        {
-          this->record_ = &g_probeArmSeatInputs->records[arm];
-          ++this->record_->constructions;
-          this->instanceId_ = ++this->record_->nextInstanceId;
-          this->record_->node = this;
-        }
-      }
-    }
-
-    virtual ~ProbeArmLocalBoundaryNode()
-    {
-      if (this->record_)
-      {
-        ++this->record_->destructions;
-        if (this->record_->node == this)
-        {
-          this->record_->node = 0;
-        }
-      }
-    }
-
-    virtual void composeNode(loka::app::scene::NodeComposition &composition)
-    {
-      composition.declare(loka::app::FragmentDefinition());
-    }
-
-    int value() const
-    {
-      return this->value_.get();
-    }
-
-    void setValue(int value)
-    {
-      this->value_.set(value);
-    }
-
-    int instanceId() const
-    {
-      return this->instanceId_;
-    }
-
-  private:
-    loka::app::scene::NodeState<int> value_;
-    ProbeArmLocalRecord *record_;
-    int instanceId_;
-  };
-
-  class ProbeArmSeatBoundaryNode;
-  typedef loka::app::scene::BoundaryPropsFor<ProbeArmSeatBoundaryNode>
-      ProbeArmSeatBoundaryProps;
-
-  class ProbeArmSeatBoundaryNode
-      : public SceneTestSupport::RecomposingBoundaryNode<ProbeArmSeatBoundaryNode,
-                                                         ProbeArmSeatBoundaryProps>
-  {
-  public:
-    explicit ProbeArmSeatBoundaryNode(const ProbeArmSeatBoundaryProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<ProbeArmSeatBoundaryNode,
-                                                    ProbeArmSeatBoundaryProps>(props)
-    {
-    }
-
-    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
-    {
-      return false;
-    }
-
-    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
-    {
-      if (g_probeArmSeatInputs && g_probeArmSeatInputs->revision)
-      {
-        registrar.markDirtyOnChange(g_probeArmSeatInputs->revision,
-                                    loka::app::scene::NODE_DIRTY_PROPS);
-      }
-    }
-
-    virtual void composeNode(loka::app::scene::NodeComposition &composition)
-    {
-      loka::app::FragmentDefinition root;
-      if (!g_probeArmSeatInputs ||
-          g_probeArmSeatInputs->mode == PROBE_ARM_SEAT_REMOVED)
-      {
-        composition.declare(root);
-        return;
-      }
-
-      loka::app::scene::BoundaryDefinition<ProbeArmLocalBoundaryProps,
-                                           ProbeArmLocalBoundaryNode>
-          stateful0 = loka::app::scene::Boundary<ProbeArmLocalBoundaryNode>();
-      loka::app::scene::BoundaryDefinition<ProbeArmLocalBoundaryProps,
-                                           ProbeArmLocalBoundaryNode>
-          stateful1 = loka::app::scene::Boundary<ProbeArmLocalBoundaryNode>();
-      loka::app::scene::BoundaryDefinition<ProbeArmLocalBoundaryProps,
-                                           ProbeArmLocalBoundaryNode>
-          stateful2 = loka::app::scene::Boundary<ProbeArmLocalBoundaryNode>();
-      loka::app::ButtonDefinition button("shape-button");
-      loka::app::FragmentDefinition empty;
-      loka::app::FragmentDefinition nestedArm;
-      loka::app::ShowDefinition nested =
-          loka::app::Show(*g_probeArmSeatInputs->nestedSelection);
-      nested << button;
-      nestedArm << stateful0 << nested;
-
-      loka::app::scene::NodeDefinitionBase *arms[3] = {
-          &stateful0, &stateful1, &stateful2};
-      if (g_probeArmSeatInputs->mode == PROBE_ARM_SEAT_NESTED)
-      {
-        arms[0] = &nestedArm;
-      }
-      else if (g_probeArmSeatInputs->mode == PROBE_ARM_SEAT_SHAPE_INITIAL)
-      {
-        arms[1] = &button;
-        arms[2] = &empty;
-      }
-      else if (g_probeArmSeatInputs->mode == PROBE_ARM_SEAT_SHAPE_REORDERED)
-      {
-        arms[1] = &empty;
-        arms[2] = &button;
-      }
-      else if (g_probeArmSeatInputs->mode == PROBE_ARM_SEAT_SHAPE_NESTED_ARM0)
-      {
-        // Same arm index as SHAPE_INITIAL's arm 0, different root type: a
-        // shape mismatch whose replacement arm carries a nested branch seat.
-        arms[0] = &nestedArm;
-        arms[1] = &button;
-        arms[2] = &empty;
-      }
-
-      loka::app::scene::testing::ProbeArmSeatDefinition seat(
-          g_probeArmSeatInputs->selection,
-          arms,
-          3,
-          &g_probeArmSeatInputs->selectCalls);
-      root << seat;
-      composition.declare(root);
-    }
-  };
-
-  template <class T>
-  void setProbeState(loka::core::MutableState<T> &state, const T &value)
-  {
-    loka::core::StateTrackerGuard guard(state.trackerOwner());
-    state.set(value);
-  }
-
-  void flushProbeState(loka::app::scene::Scene &scene)
-  {
-    assert(scene.hasPendingInvalidation()); // loka-assert-ok: pure query
-    LOKA_VERIFY(scene.flushInvalidation());
-  }
-
-  bool hasParkedArms(loka::app::scene::BoundaryNode &boundary,
-                     unsigned first,
-                     unsigned second)
-  {
-    if (boundary.parkedBranchCountForTesting() != 2)
-    {
-      return false;
-    }
-    const unsigned arm0 = boundary.parkedBranchArmForTesting(0);
-    const unsigned arm1 = boundary.parkedBranchArmForTesting(1);
-    return (arm0 == first && arm1 == second) ||
-           (arm0 == second && arm1 == first);
-  }
-} // namespace
-
-void testProbeArmSeatRestoresThreeIndependentArmStates()
-{
-  loka::core::MutableState<unsigned> selection(0);
-  loka::core::MutableState<int> revision(0);
-  loka::core::MutableState<bool> nested(false);
-  ProbeArmSeatInputs inputs(&selection, &revision, &nested);
-  g_probeArmSeatInputs = &inputs;
-  {
-    SceneTestSupport::RecordingPlatformController platform;
-    loka::app::scene::Scene scene(
-        (loka::app::scene::Boundary<ProbeArmSeatBoundaryNode>()));
-    scene.mount(&platform);
-    scene.updateAttached(true);
-    loka::app::scene::BoundaryNode *root =
-        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
-    LOKA_VERIFY(root && inputs.records[0].node);
-    LOKA_VERIFY(inputs.selectCalls == 1 &&
-                "estimate, materialization, and registration share one selected-arm snapshot");
-
-    ProbeArmLocalBoundaryNode *arm0 = inputs.records[0].node;
-    arm0->setValue(10);
-    setProbeState(selection, 1u);
-    flushProbeState(scene);
-    LOKA_VERIFY(inputs.selectCalls == 2 && inputs.records[1].node);
-    inputs.records[1].node->setValue(20);
-    LOKA_VERIFY(root->parkedBranchCountForTesting() == 1);
-    LOKA_VERIFY(root->parkedBranchArmForTesting(0) == 0);
-
-    setProbeState(selection, 2u);
-    flushProbeState(scene);
-    LOKA_VERIFY(inputs.selectCalls == 3 && inputs.records[2].node);
-    inputs.records[2].node->setValue(30);
-    LOKA_VERIFY(hasParkedArms(*root, 0, 1));
-
-    setProbeState(selection, 0u);
-    flushProbeState(scene);
-    LOKA_VERIFY(inputs.selectCalls == 4);
-    LOKA_VERIFY(inputs.records[0].node == arm0 && arm0->value() == 10);
-    LOKA_VERIFY(hasParkedArms(*root, 1, 2));
-
-    setProbeState(selection, 1u);
-    flushProbeState(scene);
-    LOKA_VERIFY(inputs.records[1].node && inputs.records[1].node->value() == 20);
-    setProbeState(selection, 2u);
-    flushProbeState(scene);
-    LOKA_VERIFY(inputs.records[2].node && inputs.records[2].node->value() == 30);
-  }
-  g_probeArmSeatInputs = 0;
-}
-
-void testRemovingThreeArmSeatDrainsNestedAndParkedRows()
-{
-  loka::core::MutableState<unsigned> selection(0);
-  loka::core::MutableState<int> revision(0);
-  loka::core::MutableState<bool> nested(false);
-  ProbeArmSeatInputs inputs(&selection, &revision, &nested);
-  inputs.mode = PROBE_ARM_SEAT_NESTED;
-  g_probeArmSeatInputs = &inputs;
-  {
-    SceneTestSupport::RecordingPlatformController platform;
-    loka::app::scene::Scene scene(
-        (loka::app::scene::Boundary<ProbeArmSeatBoundaryNode>()));
-    scene.mount(&platform);
-    scene.updateAttached(true);
-    loka::app::scene::BoundaryNode *root =
-        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
-    LOKA_VERIFY(root);
-
-    setProbeState(nested, true);
-    flushProbeState(scene);
-    setProbeState(selection, 1u);
-    flushProbeState(scene);
-    setProbeState(selection, 2u);
-    flushProbeState(scene);
-    LOKA_VERIFY(root->parkedBranchCountForTesting() == 3 &&
-                "two outer arms and the nested seat each contribute one parked row");
-
-    inputs.mode = PROBE_ARM_SEAT_REMOVED;
-    setProbeState(revision, 1);
-    flushProbeState(scene);
-    LOKA_VERIFY(root->parkedBranchCountForTesting() == 0 &&
-                "removing an N-arm seat drains every owned parked row");
-  }
-  g_probeArmSeatInputs = 0;
-}
-
-void testProbeArmSeatShapeMismatchRebuildsAndDrainsOldArms()
-{
-  loka::core::MutableState<unsigned> selection(0);
-  loka::core::MutableState<int> revision(0);
-  loka::core::MutableState<bool> nested(false);
-  ProbeArmSeatInputs inputs(&selection, &revision, &nested);
-  inputs.mode = PROBE_ARM_SEAT_SHAPE_INITIAL;
-  g_probeArmSeatInputs = &inputs;
-  {
-    SceneTestSupport::RecordingPlatformController platform;
-    loka::app::scene::Scene scene(
-        (loka::app::scene::Boundary<ProbeArmSeatBoundaryNode>()));
-    scene.mount(&platform);
-    scene.updateAttached(true);
-    loka::app::scene::BoundaryNode *root =
-        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
-    LOKA_VERIFY(root && inputs.records[0].node);
-    ProbeArmLocalBoundaryNode *oldArm0 = inputs.records[0].node;
-    const int oldInstance = oldArm0->instanceId();
-    oldArm0->setValue(77);
-
-    setProbeState(selection, 1u);
-    flushProbeState(scene);
-    LOKA_VERIFY(root->parkedBranchCountForTesting() == 1);
-
-    inputs.mode = PROBE_ARM_SEAT_SHAPE_REORDERED;
-    setProbeState(revision, 1);
-    flushProbeState(scene);
-    LOKA_VERIFY(root->parkedBranchCountForTesting() == 0 &&
-                "shape mismatch drains parked residents before the new shape can reuse them");
-
-    setProbeState(selection, 0u);
-    flushProbeState(scene);
-    LOKA_VERIFY(inputs.records[0].node &&
-                inputs.records[0].node != oldArm0 &&
-                inputs.records[0].node->instanceId() != oldInstance &&
-                inputs.records[0].node->value() == 0 &&
-                "the reordered seat must build a fresh arm instead of handing out the old row");
-  }
-  g_probeArmSeatInputs = 0;
-}
-
-void testProbeArmSeatShapeMismatchOnSameArmKeepsNestedSeatMapping()
-{
-  loka::core::MutableState<unsigned> selection(0);
-  loka::core::MutableState<int> revision(0);
-  loka::core::MutableState<bool> nested(false);
-  ProbeArmSeatInputs inputs(&selection, &revision, &nested);
-  inputs.mode = PROBE_ARM_SEAT_SHAPE_INITIAL;
-  g_probeArmSeatInputs = &inputs;
-  {
-    SceneTestSupport::RecordingPlatformController platform;
-    loka::app::scene::Scene scene(
-        (loka::app::scene::Boundary<ProbeArmSeatBoundaryNode>()));
-    scene.mount(&platform);
-    scene.updateAttached(true);
-    loka::app::scene::BoundaryNode *root =
-        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
-    LOKA_VERIFY(root && inputs.records[0].node);
-    ProbeArmLocalBoundaryNode *oldArm0 = inputs.records[0].node;
-
-    // The selected arm stays 0 while its root type changes: the seat rebuilds
-    // in place, and the replacement arm 0 contains a nested Show seat whose
-    // runtime mapping is owned by (seat key, arm 0) -- the same owner pair the
-    // outgoing arm 0 is retired under.
-    inputs.mode = PROBE_ARM_SEAT_SHAPE_NESTED_ARM0;
-    setProbeState(revision, 1);
-    flushProbeState(scene);
-    LOKA_VERIFY(inputs.records[0].node && inputs.records[0].node != oldArm0 &&
-                "the same-arm shape mismatch rebuilds arm 0");
-    LOKA_VERIFY(root->parkedBranchCountForTesting() == 0);
-    ProbeArmLocalBoundaryNode *rebuiltArm0 = inputs.records[0].node;
-
-    // The nested seat must still resolve its own selection after the rebuild:
-    // showing then hiding the button parks exactly one branch under it, and
-    // arm 0 stays the same instance (a rebuild backstop would replace it).
-    setProbeState(nested, true);
-    flushProbeState(scene);
-    setProbeState(nested, false);
-    flushProbeState(scene);
-    LOKA_VERIFY(root->parkedBranchCountForTesting() == 1 &&
-                inputs.records[0].node == rebuiltArm0 &&
-                "the nested seat installed by a same-arm rebuild keeps its runtime mapping");
-  }
-  g_probeArmSeatInputs = 0;
-}
-
-void testProbeArmSeatShapeMismatchOnParkedArmKeepsNestedSeatMapping()
-{
-  loka::core::MutableState<unsigned> selection(0);
-  loka::core::MutableState<int> revision(0);
-  loka::core::MutableState<bool> nested(false);
-  ProbeArmSeatInputs inputs(&selection, &revision, &nested);
-  inputs.mode = PROBE_ARM_SEAT_SHAPE_INITIAL;
-  g_probeArmSeatInputs = &inputs;
-  {
-    SceneTestSupport::RecordingPlatformController platform;
-    loka::app::scene::Scene scene(
-        (loka::app::scene::Boundary<ProbeArmSeatBoundaryNode>()));
-    scene.mount(&platform);
-    scene.updateAttached(true);
-    loka::app::scene::BoundaryNode *root =
-        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
-    LOKA_VERIFY(root && inputs.records[0].node);
-    ProbeArmLocalBoundaryNode *oldArm0 = inputs.records[0].node;
-
-    // Park arm 0 under the old shape.
-    setProbeState(selection, 1u);
-    flushProbeState(scene);
-    LOKA_VERIFY(root->parkedBranchCountForTesting() == 1);
-
-    // Change the shape while the recomposed seat reads a *new* selection state
-    // that already says 0 (a set() on the old state would open the dirty door
-    // first and un-park arm 0 under the old shape). The rebuilt arm 0 (now
-    // carrying a nested Show) is installed while the old parked arm 0 is still
-    // in the ledger and is drained under the same (seat key, arm 0) owner pair.
-    loka::core::MutableState<unsigned> replacementSelection(0);
-    inputs.selection = &replacementSelection;
-    inputs.mode = PROBE_ARM_SEAT_SHAPE_NESTED_ARM0;
-    setProbeState(revision, 1);
-    flushProbeState(scene);
-    LOKA_VERIFY(inputs.records[0].node && inputs.records[0].node != oldArm0 &&
-                "the shape mismatch builds a fresh arm 0 instead of reusing the parked one");
-    LOKA_VERIFY(root->parkedBranchCountForTesting() == 0 &&
-                "the old shape's parked arms are drained");
-    ProbeArmLocalBoundaryNode *rebuiltArm0 = inputs.records[0].node;
-
-    // The nested seat must resolve its own updates through its mapping. If the
-    // drain had erased that mapping, the toggle could only be honoured by the
-    // rebuild backstop, which replaces arm 0 (a fresh instance) -- the parked
-    // count alone cannot tell the two apart.
-    setProbeState(nested, true);
-    flushProbeState(scene);
-    setProbeState(nested, false);
-    flushProbeState(scene);
-    LOKA_VERIFY(root->parkedBranchCountForTesting() == 1);
-    LOKA_VERIFY(inputs.records[0].node == rebuiltArm0 &&
-                "draining the old parked arm must not erase the nested seat's fresh mapping");
-  }
-  g_probeArmSeatInputs = 0;
-}
-
-namespace
-{
-  bool g_probeArmFailEveryAllocation = false;
-
-  void *probeArmFailingBackendAlloc(std::size_t size,
-                                    const loka::core::LokaAllocationSite &)
-  {
-    if (g_probeArmFailEveryAllocation)
-    {
-      return 0;
-    }
-    return new (std::nothrow) char[size];
-  }
-
-  void probeArmFailingBackendFree(void *ptr, const loka::core::LokaAllocationSite &)
-  {
-    delete[] static_cast<char *>(ptr);
-  }
-} // namespace
-
-void testProbeArmSeatShapeMismatchAllocationFailureKeepsParkedArms()
-{
-  loka::core::MutableState<unsigned> selection(0);
-  loka::core::MutableState<int> revision(0);
-  loka::core::MutableState<bool> nested(false);
-  ProbeArmSeatInputs inputs(&selection, &revision, &nested);
-  inputs.mode = PROBE_ARM_SEAT_SHAPE_INITIAL;
-  g_probeArmSeatInputs = &inputs;
-  loka::core::LokaAllocSetBackend(&probeArmFailingBackendAlloc,
-                                  &probeArmFailingBackendFree);
-  {
-    SceneTestSupport::RecordingPlatformController platform;
-    loka::app::scene::Scene scene(
-        (loka::app::scene::Boundary<ProbeArmSeatBoundaryNode>()));
-    scene.mount(&platform);
-    scene.updateAttached(true);
-    loka::app::scene::BoundaryNode *root =
-        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
-    LOKA_VERIFY(root && inputs.records[0].node);
-    ProbeArmLocalBoundaryNode *oldArm0 = inputs.records[0].node;
-    oldArm0->setValue(77);
-
-    setProbeState(selection, 1u);
-    flushProbeState(scene);
-    LOKA_VERIFY(root->parkedBranchCountForTesting() == 1);
-
-    // The rebuild under the new shape cannot materialize its arm: the old
-    // shape must stay whole -- active arm 1 installed, arm 0 still parked
-    // with its branch-local state -- so an external retry starts from it.
-    loka::core::MutableState<unsigned> replacementSelection(0);
-    inputs.selection = &replacementSelection;
-    inputs.mode = PROBE_ARM_SEAT_SHAPE_NESTED_ARM0;
-    setProbeState(revision, 1);
-    g_probeArmFailEveryAllocation = true;
-    (void)scene.flushInvalidation();
-    g_probeArmFailEveryAllocation = false;
-    LOKA_VERIFY(root->parkedBranchCountForTesting() == 1 &&
-                inputs.records[0].node == oldArm0 && oldArm0->value() == 77 &&
-                "a failed rebuild must not have drained the old shape's parked arms");
-  }
-  loka::core::LokaAllocSetBackend(0, 0);
-  g_probeArmSeatInputs = 0;
-}
-
 void testIndexedSeatSlotPassTraversesArmsPastAnEmptyOne()
 {
   // An empty arm (null definition) before populated ones must not stop the
@@ -4721,117 +3562,4 @@ void testBranchSeatSiblingsRejectDuplicateTags()
   LOKA_VERIFY(seats.plans().size() == 3 && seats.findPlan(key) == 0 &&
               "an appended third claimant does not revive a collided key");
 #endif
-}
-
-namespace
-{
-  class GuardedRecomposeChildNode;
-  typedef loka::app::scene::BoundaryPropsFor<GuardedRecomposeChildNode> GuardedRecomposeChildProps;
-
-  /** Nested consumer of the production RecomposingBoundaryFor. It redeclares
-      two node-local states on every compose pass, so a refusing allocation
-      backend makes its local recompose fail, and it keeps one child so the
-      live subtree is observable across the refusal. */
-  class GuardedRecomposeChildNode
-      : public loka::app::scene::RecomposingBoundaryFor<
-            GuardedRecomposeChildNode,
-            loka::app::scene::BoundaryNodeFor<GuardedRecomposeChildNode> >
-  {
-  public:
-    explicit GuardedRecomposeChildNode(const GuardedRecomposeChildProps &props)
-        : loka::app::scene::RecomposingBoundaryFor<
-              GuardedRecomposeChildNode,
-              loka::app::scene::BoundaryNodeFor<GuardedRecomposeChildNode> >(props),
-          first_(),
-          second_()
-    {
-    }
-
-    virtual void composeNode(loka::app::scene::NodeComposition &composition)
-    {
-      WhiteFlagStatePayload initial = {{0}};
-      composition.declareStates().state(this->first_, initial).state(this->second_, initial);
-      composition.declare(loka::app::FragmentDefinition());
-    }
-
-    void requestChildRecompose()
-    {
-      this->markViewDirty(loka::app::scene::NODE_DIRTY_CHILD);
-    }
-
-    loka::app::scene::NodeState<WhiteFlagStatePayload> first_;
-    loka::app::scene::NodeState<WhiteFlagStatePayload> second_;
-  };
-
-  class GuardedRecomposeRootNode;
-  typedef loka::app::scene::BoundaryPropsFor<GuardedRecomposeRootNode> GuardedRecomposeRootProps;
-
-  class GuardedRecomposeRootNode
-      : public loka::app::scene::BoundaryNodeFor<GuardedRecomposeRootNode>
-  {
-  public:
-    explicit GuardedRecomposeRootNode(const GuardedRecomposeRootProps &props)
-        : loka::app::scene::BoundaryNodeFor<GuardedRecomposeRootNode>(props)
-    {
-    }
-
-    virtual void composeNode(loka::app::scene::NodeComposition &composition)
-    {
-      composition.declare(loka::app::scene::Boundary<GuardedRecomposeChildNode>(
-          GuardedRecomposeChildProps()));
-    }
-  };
-} // namespace
-
-/** #567 PR A1 (bot P1): a RecomposingBoundaryFor consumer whose local
-    recompose is refused by the allocation backend must record the refusal
-    and keep its live subtree. The full fallback detaches and retires every
-    child before it tries to create the replacement, and under memory
-    pressure that replacement may not materialize, so the guarded seam stops
-    before it. The next externally caused tick recomposes normally. */
-void testRecomposingBoundaryKeepsLiveSubtreeWhenLocalRecomposeAllocationIsRefused()
-{
-  {
-    SceneTestSupport::RecordingPlatformController platform;
-    loka::app::scene::Scene scene((loka::app::scene::Boundary<GuardedRecomposeRootNode>()));
-    scene.mount(&platform);
-    scene.updateAttached(true);
-
-    loka::app::scene::BoundaryNode *root =
-        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
-    LOKA_VERIFY(root != 0);
-    GuardedRecomposeChildNode *child =
-        static_cast<GuardedRecomposeChildNode *>(root->childrenHead());
-    LOKA_VERIFY(child != 0);
-    const bool firstMaterialized = child->first_.isValid();
-    LOKA_VERIFY(firstMaterialized);
-    loka::app::scene::Node *const liveGrandchild = child->childrenHead();
-    LOKA_VERIFY(liveGrandchild != 0);
-    const size_t liveCount = child->childrenCount();
-
-    g_refusingBackendRefusals = 0;
-    loka::core::LokaAllocSetBackend(&refusingBackendAlloc, &delegatingBackendFree);
-    child->requestChildRecompose();
-    scene.flushInvalidation();
-    loka::core::LokaAllocSetBackend(0, 0);
-    LOKA_VERIFY(g_refusingBackendRefusals > 0);
-    const bool refusedRecorded = child->composeResult().allocationFailed;
-    LOKA_VERIFY(refusedRecorded);
-    // Red without the guard in RecomposingBoundaryFor::recomposeLocally: the
-    // full fallback detaches the live children and cannot create the
-    // replacement under the refusing backend.
-    loka::app::scene::Node *const headAfterRefusal = child->childrenHead();
-    const size_t countAfterRefusal = child->childrenCount();
-    LOKA_VERIFY(headAfterRefusal == liveGrandchild);
-    LOKA_VERIFY(countAfterRefusal == liveCount);
-
-    // One externally caused tick with the default backend restored.
-    child->requestChildRecompose();
-    scene.flushInvalidation();
-    const bool refusedAfterHeal = child->composeResult().allocationFailed;
-    const bool firstHealed = child->first_.isValid();
-    LOKA_VERIFY(!refusedAfterHeal);
-    LOKA_VERIFY(firstHealed);
-  }
-  loka::core::LokaAllocSetBackend(0, 0);
 }

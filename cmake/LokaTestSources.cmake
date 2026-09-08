@@ -15,7 +15,6 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/RectSurfaceSeatExtentTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/NullLayoutTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/RowWidthConsultationTests.cpp
-  ${_LOKA_TEST_SOURCE_ROOT}/tests/StackAxisRetentionTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/HelloWorldResponsiveTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/SimpleViewerResponsiveTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/PropsReconciliationTests.cpp
@@ -35,7 +34,6 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/DerivedStateTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/WindowFrameStateTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/DefinitionCloneTests.cpp
-  ${_LOKA_TEST_SOURCE_ROOT}/tests/LocalRecomposeRefusalTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/NodeMatchTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/SceneOwnershipTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/PhaseGuardTests.cpp

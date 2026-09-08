@@ -1,7 +1,7 @@
 #ifndef LOKA_TESTS_SUPPORT_PROPS_RECONCILIATION_HPP
 #define LOKA_TESTS_SUPPORT_PROPS_RECONCILIATION_HPP
 
-#include "RecomposingBoundary.hpp"
+#include "app/nodes/boundary/StdComposition.hpp"
 #include "TestVerify.hpp"
 #include "app/scene/Scene.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
@@ -28,19 +28,9 @@ namespace PropsReconciliationSupport
     const Definition *definition;
   };
 
-  template <class Definition>
-  class Tree : public SceneTestSupport::RecomposingBoundaryNode<
-                   Tree<Definition>,
-                   Props<Definition>,
-                   true,
-                   loka::app::scene::StdCompositionBoundaryNodeBase<Props<Definition> > >
+  template <class Definition> class Tree : public loka::app::scene::StdCompositionBoundaryNodeBase<Props<Definition> >
   {
-    typedef SceneTestSupport::RecomposingBoundaryNode<
-        Tree<Definition>,
-        Props<Definition>,
-        true,
-        loka::app::scene::StdCompositionBoundaryNodeBase<Props<Definition> > >
-        Base;
+    typedef loka::app::scene::StdCompositionBoundaryNodeBase<Props<Definition> > Base;
 
   public:
     explicit Tree(const Props<Definition> &props)
@@ -69,8 +59,9 @@ namespace PropsReconciliationSupport
     return loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
   }
 
-  inline void recompose(loka::app::scene::Scene &scene)
+  template <class Definition> void applyProps(loka::app::scene::Scene &scene, const Definition &declaration)
   {
+    LOKA_VERIFY(declaration.applyPropsToNode(root(scene)->childrenHead()));
     root(scene)->markViewDirty(loka::app::scene::NODE_DIRTY_PROPS);
     settle(scene);
   }

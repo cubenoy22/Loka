@@ -11,7 +11,7 @@
 #include "app/scene/projection/PlatformController.hpp"
 #include "core/State.hpp"
 #include "support/LifecycleFactTestAccess.hpp"
-#include "support/RecomposingBoundary.hpp"
+#include "app/nodes/nestable/Keyed.hpp"
 
 // Shadow-mode pins for the lifecycle fact (S1): the enum is written through
 // the single door at the three door sites while delivery still rides the old
@@ -388,24 +388,20 @@ namespace
   class ReleaseTableBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<ReleaseTableBoundaryNode> ReleaseTableBoundaryProps;
 
-  class ReleaseTableBoundaryNode
-      : public SceneTestSupport::RecomposingBoundaryNode<ReleaseTableBoundaryNode, ReleaseTableBoundaryProps>
+  class ReleaseTableBoundaryNode : public loka::app::scene::BoundaryNodeFor<ReleaseTableBoundaryNode>
   {
   public:
     explicit ReleaseTableBoundaryNode(const ReleaseTableBoundaryProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<ReleaseTableBoundaryNode, ReleaseTableBoundaryProps>(props)
+        : loka::app::scene::BoundaryNodeFor<ReleaseTableBoundaryNode>(props)
     {
-    }
-
-    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
-    {
-      if (g_releaseTableVisible)
-      {
-        registrar.markDirtyOnChange(g_releaseTableVisible, loka::app::scene::NODE_DIRTY_CHILD);
-      }
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(loka::app::Keyed(*g_releaseTableVisible, this, &ReleaseTableBoundaryNode::declareContent));
+    }
+
+    void declareContent(loka::app::scene::NodeComposition &composition)
     {
       loka::app::FragmentDefinition root;
       if (g_releaseTableVisible && g_releaseTableVisible->get())
@@ -477,24 +473,20 @@ namespace
   class RetireProbeBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<RetireProbeBoundaryNode> RetireProbeBoundaryProps;
 
-  class RetireProbeBoundaryNode
-      : public SceneTestSupport::RecomposingBoundaryNode<RetireProbeBoundaryNode, RetireProbeBoundaryProps>
+  class RetireProbeBoundaryNode : public loka::app::scene::BoundaryNodeFor<RetireProbeBoundaryNode>
   {
   public:
     explicit RetireProbeBoundaryNode(const RetireProbeBoundaryProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<RetireProbeBoundaryNode, RetireProbeBoundaryProps>(props)
+        : loka::app::scene::BoundaryNodeFor<RetireProbeBoundaryNode>(props)
     {
-    }
-
-    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
-    {
-      if (g_retireVisible)
-      {
-        registrar.markDirtyOnChange(g_retireVisible, loka::app::scene::NODE_DIRTY_CHILD);
-      }
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(loka::app::Keyed(*g_retireVisible, this, &RetireProbeBoundaryNode::declareContent));
+    }
+
+    void declareContent(loka::app::scene::NodeComposition &composition)
     {
       loka::app::FragmentDefinition root;
       if (g_retireVisible && g_retireVisible->get())

@@ -11,7 +11,7 @@
 #include "platform/null/context/NullTextContext.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "platform/String.hpp"
-#include "support/RecomposingBoundary.hpp"
+#include "app/nodes/boundary/StdComposition.hpp"
 #include "support/LifecycleFactTestAccess.hpp"
 #include "support/TestVerify.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
@@ -220,24 +220,14 @@ namespace
     TreeData *data;
     int childIndex;
   };
-  class PaintTree : public SceneTestSupport::
-                        RecomposingBoundaryNode<PaintTree, TreeProps, true, StdCompositionBoundaryNodeBase<TreeProps> >
+  class PaintTree : public StdCompositionBoundaryNodeBase<TreeProps>
   {
   public:
     explicit PaintTree(const TreeProps &props)
-        : SceneTestSupport::
-              RecomposingBoundaryNode<PaintTree, TreeProps, true, StdCompositionBoundaryNodeBase<TreeProps> >(props)
+        : StdCompositionBoundaryNodeBase<TreeProps>(props)
     {
     }
-    virtual void composeWithContext(ComponentContext &context, ComposeEvent event)
-    {
-      if (this->props.data->count == 0)
-        SceneTestSupport::
-            RecomposingBoundaryNode<PaintTree, TreeProps, true, StdCompositionBoundaryNodeBase<TreeProps> >::
-                composeWithContext(context, event);
-      else
-        StdCompositionBoundaryNodeBase<TreeProps>::composeWithContext(context, event);
-    }
+
     virtual bool flushViewDirtyImmediately(NodeDirtyFlags) const
     {
       return false;
@@ -524,13 +514,15 @@ void testRetainedTextRebindsToNewStateAndCompares()
 {
   TreeData data;
   data.count = 0;
+  Text replacement;
   PaintPlatform platform;
   Scene scene(Boundary<PaintTree>(TreeProps(&data)));
   mount(scene, platform);
   BoundaryNode *root = SceneTestAccess::rootBoundary(scene);
   Node *text = find(root, NODE_KIND_TEXT);
   NodeContext *context = text->getContext();
-  data.selector = 1;
+  replacement = Text(&data.b);
+  LOKA_VERIFY(replacement.applyPropsToNode(text));
   root->markViewDirty(NODE_DIRTY_PROPS);
   settle(scene);
   LOKA_VERIFY(find(root, NODE_KIND_TEXT) == text && text->getContext() == context);
@@ -541,7 +533,8 @@ void testRetainedTextRebindsToNewStateAndCompares()
   LOKA_VERIFY(platform.count == 0);
   score(scene, data.b, "EEEE");
   exactOne(platform);
-  data.selector = 2;
+  replacement = Text("CCCC");
+  LOKA_VERIFY(replacement.applyPropsToNode(text));
   root->markViewDirty(NODE_DIRTY_PROPS);
   settle(scene);
   LOKA_VERIFY(find(root, NODE_KIND_TEXT) == text && text->getContext() == context);
@@ -844,12 +837,13 @@ void testStyleOnlyApplyRecoversTextHistory()
   // history, instead of refusing forever until an unrelated layout.
   TreeData data;
   data.count = 0;
+  TextDefinitionWithAttr replacement = Text(&data.a).attr(TextAttr().weight(TEXT_WEIGHT_BOLD));
   PaintPlatform platform;
   Scene scene(Boundary<PaintTree>(TreeProps(&data)));
   mount(scene, platform);
   BoundaryNode *root = SceneTestAccess::rootBoundary(scene);
   Node *text = find(root, NODE_KIND_TEXT);
-  data.selector = 3;
+  LOKA_VERIFY(replacement.applyPropsToNode(text));
   root->markViewDirty(NODE_DIRTY_PROPS);
   settle(scene);
   LOKA_VERIFY(find(root, NODE_KIND_TEXT) == text);

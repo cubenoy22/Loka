@@ -19,7 +19,6 @@
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
 #include "core/util/StateTrackerGuard.hpp"
-#include "support/RecomposingBoundary.hpp"
 #include "support/RecordingPlatformController.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 
@@ -166,14 +165,11 @@ namespace
   typedef loka::app::scene::BoundaryPropsFor<MatchRootBoundaryNode>
       MatchRootBoundaryProps;
 
-  class MatchRootBoundaryNode
-      : public SceneTestSupport::RecomposingBoundaryNode<MatchRootBoundaryNode,
-                                                         MatchRootBoundaryProps>
+  class MatchRootBoundaryNode : public loka::app::scene::BoundaryNodeFor<MatchRootBoundaryNode>
   {
   public:
     explicit MatchRootBoundaryNode(const MatchRootBoundaryProps &props)
-        : SceneTestSupport::RecomposingBoundaryNode<MatchRootBoundaryNode,
-                                                    MatchRootBoundaryProps>(props)
+        : loka::app::scene::BoundaryNodeFor<MatchRootBoundaryNode>(props)
     {
     }
     virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const

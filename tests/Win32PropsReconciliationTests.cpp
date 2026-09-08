@@ -104,7 +104,7 @@ void testWin32RetainedTextRebindsToNewState()
   {
     TextWrites writes(hwnd);
     declaration = Text(&b);
-    recompose(scene);
+    applyProps(scene, declaration);
     assert(root(scene)->childrenHead() == text && text->getContext() == context);
     assert(text->props.text_ == &b);
     textIs(hwnd, L"same");
@@ -113,13 +113,13 @@ void testWin32RetainedTextRebindsToNewState()
     // a literal-to-literal apply rewrites the same owned State without notifying,
     // so the door itself must re-apply it.
     declaration = Text("lit1");
-    recompose(scene);
+    applyProps(scene, declaration);
     assert(root(scene)->childrenHead() == text && text->getContext() == context);
     assert(text->props.ownsText);
     textIs(hwnd, L"lit1");
     assert(writes.count() == 2);
     declaration = Text("lit2");
-    recompose(scene);
+    applyProps(scene, declaration);
     textIs(hwnd, L"lit2");
     assert(writes.count() == 3);
     {
@@ -131,7 +131,7 @@ void testWin32RetainedTextRebindsToNewState()
     assert(writes.count() == 3);
     // Back to the borrowed State B: subscribed again, value follows B.
     declaration = Text(&b);
-    recompose(scene);
+    applyProps(scene, declaration);
     textIs(hwnd, L"ignored B");
     assert(writes.count() == 4);
     {
@@ -175,7 +175,7 @@ void testWin32RetainedRectSurfaceRebindsToNewModel()
   HWND hwnd = FindWindowExW(window.hwnd(), NULL, L"LOKA_RECT_SURFACE", NULL);
   assert(hwnd);
   declaration = RectSurface(&b).size(100, 60);
-  recompose(scene);
+  applyProps(scene, declaration);
   assert(root(scene)->childrenHead() == surface && surface->getContext() == context);
   assert(surface->props.model_ == &b);
   Access::flushPendingInvalidations(controller);
