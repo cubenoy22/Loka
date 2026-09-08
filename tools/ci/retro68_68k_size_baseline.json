@@ -2,9 +2,9 @@
   "schema_version": 1,
   "identity": {
     "ci_interfaces": "multiversal",
-    "component_reference": "local Universal Interfaces build (post-#606 fleet refresh: #518 PR 0/PR 1 paint contract + NativeNodeContext paint doors, #601 Row/dialog/manifest, #593/#598/#599 Toolbox and Win32 paint fixes); prior identity post-#568 fleet refresh at 1bfe80bc",
+    "component_reference": "local Universal Interfaces build (post-#621 fleet refresh: #604 PR A/PR C NodeContext::onPropsApplied and Toolbox context re-derivation, #613 enabled fan-out, #615 kind-scoped retained props refresh, #616/#617 capacity probe and SimpleViewer cells, #609 SmirkBench cells, #618/#619/#620/#621 recompose base, compile pins, declareBindings); prior identity post-#606 fleet refresh at e9575367",
     "preset": "retro68-68k-release",
-    "source_commit": "e9575367"
+    "source_commit": "70e85250"
   },
   "material_growth_bytes": 4096,
   "artifacts": [
@@ -12,70 +12,70 @@
       "name": "LokaHello68K",
       "path": "example/HelloWorld/LokaHello68K.bin",
       "baseline": {
-        "total": 269312,
-        "CODE": 244592,
-        "DATA": 13948,
-        "RELA": 9767
+        "total": 271744,
+        "CODE": 246452,
+        "DATA": 14392,
+        "RELA": 9952
       }
     },
     {
       "name": "LokaSimpleViewer68K",
       "path": "example/SimpleViewer/LokaSimpleViewer68K.bin",
       "baseline": {
-        "total": 285056,
-        "CODE": 258480,
-        "DATA": 15100,
-        "RELA": 10512
+        "total": 288384,
+        "CODE": 261720,
+        "DATA": 15132,
+        "RELA": 10633
       }
     },
     {
       "name": "LokaFloppyBird68K",
       "path": "example/FloppyBird/LokaFloppyBird68K.bin",
       "baseline": {
-        "total": 242048,
-        "CODE": 222240,
-        "DATA": 10668,
-        "RELA": 8177
+        "total": 244864,
+        "CODE": 224924,
+        "DATA": 10732,
+        "RELA": 8285
       }
     },
     {
       "name": "LokaSmirkBench68K",
       "path": "example/SmirkBench/LokaSmirkBench68K.bin",
       "baseline": {
-        "total": 244224,
-        "CODE": 222960,
-        "DATA": 11676,
-        "RELA": 8618
+        "total": 247808,
+        "CODE": 225868,
+        "DATA": 12124,
+        "RELA": 8833
       }
     },
     {
       "name": "LokaMine68K",
       "path": "example/MineSweeper/LokaMine68K.bin",
       "baseline": {
-        "total": 240384,
-        "CODE": 218392,
-        "DATA": 12348,
-        "RELA": 8656
+        "total": 243968,
+        "CODE": 221340,
+        "DATA": 12832,
+        "RELA": 8875
       }
     },
     {
       "name": "LokaTutorial68K",
       "path": "example/Tutorial/LokaTutorial68K.bin",
       "baseline": {
-        "total": 227072,
-        "CODE": 207940,
-        "DATA": 10416,
-        "RELA": 7749
+        "total": 229888,
+        "CODE": 210592,
+        "DATA": 10484,
+        "RELA": 7856
       }
     },
     {
       "name": "ScrapbookUI68K",
       "path": "example/ScrapbookUI/ScrapbookUI68K.bin",
       "baseline": {
-        "total": 259840,
-        "CODE": 237196,
-        "DATA": 12404,
-        "RELA": 9219
+        "total": 262784,
+        "CODE": 239980,
+        "DATA": 12472,
+        "RELA": 9333
       }
     }
   ]
