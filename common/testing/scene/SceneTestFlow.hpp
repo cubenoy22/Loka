@@ -205,12 +205,6 @@ namespace loka
           return snapshot.apply().opaqueLocalPaintRequired();
         }
 
-        static bool
-        snapshotLocalCompositionDiffApplicable(const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
-        {
-          return snapshot.apply().localCompositionDiffApplicable();
-        }
-
         static bool flushInvalidation(::loka::app::scene::Scene &scene)
         {
           return scene.flushInvalidation();

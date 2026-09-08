@@ -10,7 +10,6 @@ void testGateAllocatedNodeRejectsUnauthorizedDestruction();
 void testHeapFallbackWhiteFlagFailsBoundaryCompose();
 void testSceneRootAllocationRefusalArmsWhiteFlagAndHealsOnRefresh();
 void testNestedConditionalSeatInContextlessMaterialization_Probe();
-void testNestedConditionalSeatDefersProjectionAndRecoversThroughRootBoundaryWrapper();
 void testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry();
 void testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement();
 void testBoundarySectionRetainedKeyReconcilesReplacedChild();

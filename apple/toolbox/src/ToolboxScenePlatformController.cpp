@@ -81,7 +81,6 @@ namespace
     DrawString(text);
   }
 
-
   void CopyToPascalString(const loka::core::String &value, Str255 out)
   {
     std::string utf8;
@@ -356,8 +355,6 @@ namespace
     }
     return hasChild;
   }
-
-
 
   bool RectsIntersect(const Rect &a, const Rect &b)
   {
@@ -1912,37 +1909,6 @@ void ToolboxScenePlatformController::addPendingText(loka::core::State<loka::core
   pendingTextStates_.push_back(text);
 }
 
-bool ToolboxScenePlatformController::collectLocalBoundaryDirtyRects(loka::app::scene::Node *node, const Rect &fallback)
-{
-  if (!node || !window_)
-  {
-    return false;
-  }
-  bool added = false;
-  loka::app::scene::BoundaryNode *boundary = node->asBoundary();
-  if (boundary && boundary->parentBoundary() && boundary->hasLayoutBounds() && boundary->canApplyLocalCompositionDiff())
-  {
-    ++debugStats_.rectInvalidateRequests;
-    ++debugStats_.totalRectInvalidateRequests;
-    window_->requestInvalidateRect(BoundaryToRect(boundary, fallback));
-    added = true;
-  }
-  loka::app::scene::INestable *nestable = node->asNestable();
-  if (!nestable)
-  {
-    return added;
-  }
-  loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-  for (loka::app::scene::Node *child = it.next(); child; child = it.next())
-  {
-    if (collectLocalBoundaryDirtyRects(child, fallback))
-    {
-      added = true;
-    }
-  }
-  return added;
-}
-
 void ToolboxScenePlatformController::requestInvalidateForChange(loka::app::scene::Node *rootNodeForChange,
                                                                 loka::app::scene::NodeDirtyFlags flags,
                                                                 bool fullRebuild)
@@ -1968,7 +1934,6 @@ void ToolboxScenePlatformController::requestInvalidateForChange(loka::app::scene
   if (flags & loka::app::scene::NODE_DIRTY_CHILD)
   {
     // Classic redraw currently prefers broad invalidation for child changes.
-    // Narrow child-region invalidation remains below for future re-enable work.
     ++debugStats_.fullInvalidateRequests;
     ++debugStats_.totalFullInvalidateRequests;
     window_->requestInvalidateWithReason("child_dirty");
@@ -1983,30 +1948,22 @@ void ToolboxScenePlatformController::requestInvalidateForChange(loka::app::scene
   }
 
   Rect fallback = window_->window()->portRect;
-  bool queued = false;
-  if (flags & loka::app::scene::NODE_DIRTY_CHILD)
+  debugStats_.fallbackQueuedByChild = false;
+  loka::app::scene::BoundaryNode *boundary = rootNodeForChange->asBoundary();
+  debugStats_.fallbackRootIsBoundary = (boundary != 0);
+  debugStats_.fallbackRootHasLayoutBounds = boundary && boundary->hasLayoutBounds();
+  if (boundary && boundary->hasLayoutBounds())
   {
-    queued = collectLocalBoundaryDirtyRects(rootNodeForChange, fallback);
+    ++debugStats_.rectInvalidateRequests;
+    ++debugStats_.totalRectInvalidateRequests;
+    window_->requestInvalidateRect(BoundaryToRect(boundary, fallback));
   }
-  debugStats_.fallbackQueuedByChild = queued;
-  if (!queued)
+  else
   {
-    loka::app::scene::BoundaryNode *boundary = rootNodeForChange->asBoundary();
-    debugStats_.fallbackRootIsBoundary = (boundary != 0);
-    debugStats_.fallbackRootHasLayoutBounds = boundary && boundary->hasLayoutBounds();
-    if (boundary && boundary->hasLayoutBounds())
-    {
-      ++debugStats_.rectInvalidateRequests;
-      ++debugStats_.totalRectInvalidateRequests;
-      window_->requestInvalidateRect(BoundaryToRect(boundary, fallback));
-    }
-    else
-    {
-      debugStats_.fallbackUsedFullInvalidate = true;
-      ++debugStats_.rectInvalidateRequests;
-      ++debugStats_.totalRectInvalidateRequests;
-      window_->requestInvalidateRect(fallback);
-    }
+    debugStats_.fallbackUsedFullInvalidate = true;
+    ++debugStats_.rectInvalidateRequests;
+    ++debugStats_.totalRectInvalidateRequests;
+    window_->requestInvalidateRect(fallback);
   }
 }
 

@@ -174,6 +174,7 @@ namespace loka
             return requestedFullRebuild;
           }
 
+          /** Full platform re-projection, not logical root redeclaration. */
           bool effectiveFullRebuildRequired() const
           {
             return effectiveFullRebuild;
@@ -203,10 +204,8 @@ namespace loka
         {
           SceneUpdateApplySnapshot()
               : requiresLayout(false),
-                requiresStructure(false),
                 requiresCompositedPaint(false),
                 hasOpaqueLocalPaint(false),
-                canApplyLocalCompositionDiff(false),
                 localStructureWork(false)
           {
           }
@@ -214,21 +213,17 @@ namespace loka
           void clear()
           {
             requiresLayout = false;
-            requiresStructure = false;
             requiresCompositedPaint = false;
             hasOpaqueLocalPaint = false;
-            canApplyLocalCompositionDiff = false;
             localStructureWork = false;
           }
 
           void setRequirements(
-              bool layout, bool structure, bool compositedPaint, bool opaqueLocalPaint, bool localCompositionDiff)
+              bool layout, bool compositedPaint, bool opaqueLocalPaint)
           {
             requiresLayout = layout;
-            requiresStructure = structure;
             requiresCompositedPaint = compositedPaint;
             hasOpaqueLocalPaint = opaqueLocalPaint;
-            canApplyLocalCompositionDiff = localCompositionDiff;
           }
 
           bool layoutRequired() const
@@ -238,7 +233,7 @@ namespace loka
 
           bool structureRequired() const
           {
-            return requiresStructure;
+            return localStructureWork;
           }
 
           bool compositedPaintRequired() const
@@ -251,17 +246,9 @@ namespace loka
             return hasOpaqueLocalPaint;
           }
 
-          bool localCompositionDiffApplicable() const
-          {
-            return canApplyLocalCompositionDiff;
-          }
-
-          /** Ground truth from plan application: a boundary-local rebuild
-              materialized or retired nodes this cycle. Unlike the
-              conservative root-decision structure requirement, this fact is
-              not gated on the request's dirty flags -- a PROPS-driven update
-              that replaced nodes still needs the platform layout/ensure
-              pass (#277). */
+          /** Ground truth from seat plan application: nodes were materialized
+              or retired this cycle. This fact is independent of request dirt:
+              a PROPS-driven replacement still needs platform layout/ensure. */
           void noteLocalStructureWork()
           {
             localStructureWork = true;
@@ -274,10 +261,8 @@ namespace loka
 
         private:
           bool requiresLayout;
-          bool requiresStructure;
           bool requiresCompositedPaint;
           bool hasOpaqueLocalPaint;
-          bool canApplyLocalCompositionDiff;
           bool localStructureWork;
         };
 
@@ -776,7 +761,6 @@ namespace loka
         {
           explicit PendingUpdateRootAnalysis(const SceneDirector *director);
           ~PendingUpdateRootAnalysis();
-          bool hasEquivalentDescendant(BoundaryNode *root) const;
           bool hasSeenRoot(BoundaryNode *root) const;
           void recordSeenRoot(BoundaryNode *root);
           bool shouldSkip(BoundaryNode *boundary, BoundaryNode *root) const;

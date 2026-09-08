@@ -20,7 +20,6 @@
 #include "app/nodes/nestable/Show.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/composition/NodeCompositionCompare.hpp"
-#include "app/scene/composition/NodeCompositionSnapshot.hpp"
 #include "app/scene/node/ComponentNode.hpp"
 #include "core/State.hpp"
 #include "core/Vector.hpp"
@@ -275,10 +274,10 @@ namespace
     return 0;
   }
 
-  void captureForSnapshot(
+  void declareForComposition(
       const loka::Vector<ForItem> &items,
       bool derivedKeys,
-      loka::app::scene::NodeCompositionSnapshot &snapshot)
+      loka::app::scene::NodeComposition &composition)
   {
     loka::app::Fragment root;
     if (derivedKeys)
@@ -296,9 +295,7 @@ namespace
       root << loka::app::For(100, items, ForTextFactory());
     }
 
-    loka::app::scene::NodeComposition composition;
     composition.declare(root);
-    snapshot.capture(composition);
   }
 } // namespace
 
@@ -452,14 +449,14 @@ void testForDerivedKeysRetainItemSeatAcrossRemoval()
   afterItems.push_back(ForItem(1, "a"));
   afterItems.push_back(ForItem(3, "c"));
 
-  loka::app::scene::NodeCompositionSnapshot derivedBefore;
-  loka::app::scene::NodeCompositionSnapshot derivedAfter;
-  captureForSnapshot(beforeItems, true, derivedBefore);
-  captureForSnapshot(afterItems, true, derivedAfter);
+  loka::app::scene::NodeComposition derivedBefore;
+  loka::app::scene::NodeComposition derivedAfter;
+  declareForComposition(beforeItems, true, derivedBefore);
+  declareForComposition(afterItems, true, derivedAfter);
 
   loka::app::scene::NodeCompositionDiff derivedDiff;
-  LOKA_VERIFY(loka::app::scene::buildNodeCompositionSnapshotDiffByTag(
-      derivedBefore, derivedAfter, derivedDiff));
+  LOKA_VERIFY(loka::app::scene::detail::buildChildDiffByTag(
+      derivedBefore.root()->asNestableDefinition(), derivedAfter.root()->asNestableDefinition(), derivedDiff));
   loka::app::scene::NodeCompositionDiff::Entry *derivedC =
       findDiffEntry(derivedDiff, 103);
   LOKA_VERIFY(derivedC);
@@ -467,14 +464,14 @@ void testForDerivedKeysRetainItemSeatAcrossRemoval()
               loka::app::scene::NodeCompositionDiff::ACTION_RETAIN);
   LOKA_VERIFY(derivedC->previousIndex == 2 && derivedC->currentIndex == 1);
 
-  loka::app::scene::NodeCompositionSnapshot indexBefore;
-  loka::app::scene::NodeCompositionSnapshot indexAfter;
-  captureForSnapshot(beforeItems, false, indexBefore);
-  captureForSnapshot(afterItems, false, indexAfter);
+  loka::app::scene::NodeComposition indexBefore;
+  loka::app::scene::NodeComposition indexAfter;
+  declareForComposition(beforeItems, false, indexBefore);
+  declareForComposition(afterItems, false, indexAfter);
 
   loka::app::scene::NodeCompositionDiff indexDiff;
-  LOKA_VERIFY(loka::app::scene::buildNodeCompositionSnapshotDiffByTag(
-      indexBefore, indexAfter, indexDiff));
+  LOKA_VERIFY(loka::app::scene::detail::buildChildDiffByTag(
+      indexBefore.root()->asNestableDefinition(), indexAfter.root()->asNestableDefinition(), indexDiff));
   loka::app::scene::NodeCompositionDiff::Entry *oldCSeat =
       findDiffEntry(indexDiff, 102);
   LOKA_VERIFY(oldCSeat);

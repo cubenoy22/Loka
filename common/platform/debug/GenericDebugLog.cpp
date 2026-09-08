@@ -37,96 +37,13 @@ namespace loka
       std::fflush(stderr);
     }
 
-    void DebugLogSceneDecision(void *scene, int requiresStructure, int requiresLayout, int canApplyLocalDiff)
+    void DebugLogSceneDecision(void *scene, int requiresStructure, int requiresLayout)
     {
       std::fprintf(stderr,
-                   "[scene-decision] scene=%p structure=%d layout=%d localDiff=%d\n",
+                   "[scene-decision] scene=%p structure=%d layout=%d\n",
                    scene,
                    requiresStructure,
-                   requiresLayout,
-                   canApplyLocalDiff);
-      std::fflush(stderr);
-    }
-
-    void DebugLogSceneStructureRoot(void *scene,
-                                    void *boundary,
-                                    unsigned int pendingDirtyFlags,
-                                    int composed,
-                                    int hasDiff,
-                                    int emptyDiff,
-                                    int compatibleRetainOnly,
-                                    int requiresStructure)
-    {
-      std::fprintf(stderr,
-                   "[scene-structure-root] scene=%p boundary=%p pendingFlags=0x%X composed=%d hasDiff=%d empty=%d "
-                   "compatibleRetain=%d requires=%d\n",
-                   scene,
-                   boundary,
-                   pendingDirtyFlags,
-                   composed,
-                   hasDiff,
-                   emptyDiff,
-                   compatibleRetainOnly,
-                   requiresStructure);
-      std::fflush(stderr);
-    }
-
-    void DebugLogSceneRootDiffDecision(
-        void *scene, void *boundary, unsigned int dirtyFlagsSeen, int composed, int preservedNativeContexts)
-    {
-      std::fprintf(stderr,
-                   "[scene-root-diff] scene=%p boundary=%p dirtyFlagsSeen=0x%X composed=%d preserved=%d\n",
-                   scene,
-                   boundary,
-                   dirtyFlagsSeen,
-                   composed,
-                   preservedNativeContexts);
-      std::fflush(stderr);
-    }
-
-    void DebugLogSceneRootDiffShape(void *scene,
-                                    void *boundary,
-                                    int entryCount,
-                                    int hasIncompatibleRetain,
-                                    int compatibleRetainOnly,
-                                    int stableRetainOnly)
-    {
-      std::fprintf(stderr,
-                   "[scene-root-diff-shape] scene=%p boundary=%p entries=%d incompatible=%d compatibleRetainOnly=%d "
-                   "stableRetainOnly=%d\n",
-                   scene,
-                   boundary,
-                   entryCount,
-                   hasIncompatibleRetain,
-                   compatibleRetainOnly,
-                   stableRetainOnly);
-      std::fflush(stderr);
-    }
-
-    void DebugLogSceneRootIdentity(void *scene,
-                                   void *boundary,
-                                   unsigned int kind,
-                                   const char *testId,
-                                   int hasPreviousSnapshotRoot,
-                                   int hasCurrentSnapshotRoot,
-                                   int compositionDiffStateEmpty,
-                                   unsigned int childCount,
-                                   unsigned int firstChildKind,
-                                   const char *firstChildTestId)
-    {
-      std::fprintf(stderr,
-                   "[scene-root-id] scene=%p boundary=%p kind=%u testId=%s prevSnap=%d currSnap=%d diffStateEmpty=%d "
-                   "childCount=%u firstChildKind=%u firstChildTestId=%s\n",
-                   scene,
-                   boundary,
-                   kind,
-                   testId ? testId : "",
-                   hasPreviousSnapshotRoot,
-                   hasCurrentSnapshotRoot,
-                   compositionDiffStateEmpty,
-                   childCount,
-                   firstChildKind,
-                   firstChildTestId ? firstChildTestId : "");
+                   requiresLayout);
       std::fflush(stderr);
     }
 

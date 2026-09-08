@@ -28,7 +28,6 @@
 #include "app/scene/node/Conditional.hpp"
 #include "app/scene/node/ComponentNode.hpp"
 #include "core/util/StateTrackerGuard.hpp"
-#include "support/FullRebuildLedgerDefinition.hpp"
 #include "app/nodes/nestable/Keyed.hpp"
 #include "support/RecordingPlatformController.hpp"
 #include "testing/core/HeldTestAccess.hpp"
@@ -2236,7 +2235,7 @@ void testHeapFallbackWhiteFlagFailsBoundaryCompose()
                              loka::app::scene::NODE_DIRTY_PROPS);
     loka::app::scene::StateBatchBase::CreateStateFromInitial<LargeStateValue>(
         &owner, unreserved, initial);
-    owner.completeComposeResult(true);
+    owner.completeComposeResult();
     assert(g_heapStateRefusals == 1);
 
     // No half-alive state: the out handle is invalid, nothing was adopted.
@@ -2342,107 +2341,6 @@ void testNestedConditionalSeatInContextlessMaterialization_Probe()
   assert(result.requiresBoundaryPlan);
   assert(!result.allocationFailed);
   loka::app::scene::DestroyHeapNode(result.root);
-}
-
-void testNestedConditionalSeatDefersProjectionAndRecoversThroughRootBoundaryWrapper()
-{
-#ifdef LOKA_LIFECYCLE_AUDIT
-  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
-#endif
-  {
-    SceneTestSupport::RecordingPlatformController platform;
-    loka::core::MutableState<bool> condition(true);
-    bool useReplacement = false;
-
-    // The distinct direct-child tags force the local diff to replace the
-    // plain initial node with a freshly materialized nestable subtree.
-    GateProbeDefinition initialChild;
-    initialChild.tag(14301);
-    loka::app::FragmentDefinition initial;
-    initial << initialChild;
-
-    GateProbeDefinition trueBranch;
-    loka::app::FragmentDefinition falseBranch;
-    loka::app::scene::ConditionalDefinition conditional(
-        (loka::app::scene::ConditionalProps(&condition, &trueBranch, &falseBranch)));
-    loka::app::FragmentDefinition inner;
-    inner.tag(14302);
-    inner << conditional;
-    loka::app::FragmentDefinition replacement;
-    replacement << inner;
-
-    loka::app::scene::Scene scene(
-        new SceneTestSupport::FullRebuildLedgerDefinition(
-            &useReplacement, &initial, &replacement));
-    assert(!scene.getRootDefinition()->isBoundary());
-    scene.mount(&platform);
-    scene.updateAttached(true);
-
-    loka::app::scene::BoundaryNode *root =
-        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
-    assert(root);
-    assert(root->composeResult().composed);
-    assert(!root->composeResult().allocationFailed);
-    assert(!root->composeResult().boundaryPlanRequired);
-    const size_t appliedBefore = platform.changeCount();
-    (void)appliedBefore;
-    assert(appliedBefore > 0);
-
-    useReplacement = true;
-    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    LOKA_VERIFY(scene.flushInvalidation());
-
-    assert(!root->composeResult().composed);
-    assert(root->composeResult().boundaryPlanRequired);
-    assert(!root->composeResult().allocationFailed);
-    assert(root->previousCompositionSnapshot().empty());
-    assert(root->currentCompositionSnapshot().empty());
-    assert(platform.changeCount() == appliedBefore);
-    assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
-
-    // Replacing the initial child retires it at the failure tick. That queues
-    // one clock-boundary reclamation run, not a compose retry: draining it is
-    // silent, leaves the white flag armed, and publishes nothing.
-    assert(scene.hasPendingInvalidation());
-    LOKA_VERIFY(!scene.flushInvalidation());
-    assert(!scene.hasPendingInvalidation());
-    assert(!root->composeResult().composed);
-    assert(root->composeResult().boundaryPlanRequired);
-    assert(!root->composeResult().allocationFailed);
-    assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
-    assert(platform.changeCount() == appliedBefore);
-
-    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    LOKA_VERIFY(scene.flushInvalidation());
-    assert(root->composeResult().composed);
-    assert(!root->composeResult().boundaryPlanRequired);
-    assert(!root->composeResult().allocationFailed);
-    assert(!loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
-    assert(platform.changeCount() > appliedBefore);
-    assert(platform.changeAt(platform.changeCount() - 1).fullRebuild);
-
-    loka::app::scene::Node *compositionRoot = root->childrenHead();
-    loka::app::scene::INestable *rootFragment =
-        compositionRoot ? compositionRoot->asNestable() : 0;
-    loka::app::scene::Node *innerNode =
-        rootFragment ? rootFragment->childrenHead() : 0;
-    loka::app::scene::INestable *innerFragment =
-        innerNode ? innerNode->asNestable() : 0;
-    loka::app::scene::Node *activeBranch =
-        innerFragment ? innerFragment->childrenHead() : 0;
-  LOKA_VERIFY(rootFragment && rootFragment->childrenCount() == 1);
-  LOKA_VERIFY(innerFragment && innerFragment->childrenCount() == 1);
-    (void)activeBranch;
-    assert(activeBranch &&
-           activeBranch->propsTypeId() == GateProbeProps::staticTypeId());
-
-    scene.unmount();
-  }
-#ifdef LOKA_LIFECYCLE_AUDIT
-  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
-  loka::core::LokaAllocAuditCheckpoint(
-      "testNestedConditionalSeatDefersProjectionAndRecoversThroughRootBoundaryWrapper");
-#endif
 }
 
 /** #132 ruling 3 / Codex P2 (hole 2): after a refused root create() arms the
@@ -2735,8 +2633,6 @@ void testBoundarySectionAllocationFailureKeepsBoundaryRefusalAtomic()
       assert(g_sectionFailureHeapCalls == 2);
       assert(!root->composeResult().composed);
       assert(root->composeResult().allocationFailed);
-      assert(root->previousCompositionSnapshot().empty());
-      assert(root->currentCompositionSnapshot().empty());
       (void)appliedBefore;
       assert(platform.changeCount() == appliedBefore &&
              "Section-local allocation failure must refuse boundary publish");

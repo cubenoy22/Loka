@@ -27,14 +27,6 @@
 #include "core/Profiler.hpp"
 #include "platform/debug/DebugLog.hpp"
 
-#ifdef TEST_BUILD
-namespace SceneTestSupport
-{
-  template <class NodeT, class PropsT, bool UseRetainFastPaths, class Base>
-  class RecomposingBoundaryNode;
-}
-#endif
-
 namespace loka
 {
   namespace dsl
@@ -51,7 +43,6 @@ namespace loka
     {
       class Scene;
 
-      template <class NodeT, class Base> class RecomposingBoundaryFor;
       class RootBoundaryWrapper;
 
       // BoundaryNode: owns a local tracker for its subtree.
@@ -344,7 +335,7 @@ namespace loka
             boundary-plan refusal recorded, it converts the compose into a
             projection failure instead; the body lives in Boundary.cpp because
             the conversion records the deferred full rebuild on the Scene. */
-        void completeComposeResult(bool preservedNativeContexts);
+        void completeComposeResult();
         /** Allocation white flag (#132 ruling 3): a state or node failed to
             materialize during this boundary's open compose window. The flag
             only records; completeComposeResult() converts it. */
@@ -641,10 +632,11 @@ namespace loka
         {
           composition.assignCompositionSeatSlots();
           this->branchSeats_.append(composition.root());
+          this->registerBranchSeatDirtySources();
         }
         bool evaluateBranchSeatsForScheduledApply(ComponentContext &context)
         {
-          return this->applyCurrentBranchSeatPlan(context, 0);
+          return this->applyCurrentBranchSeatPlan(context);
         }
         /** Reclaims the queue snapshot owned by this Boundary at the head of
             the next tracker run. Retirees added while draining wait for a
@@ -715,14 +707,6 @@ namespace loka
           return dangerouslyUseStateWithValue(initial);
         }
 
-        bool hasCompositionDiffState() const
-        {
-          return compositionState_.hasCompositionDiffState();
-        }
-        const NodeCompositionDiff *localCompositionDiff() const
-        {
-          return compositionState_.localCompositionDiff();
-        }
         Node *compositionRootNode() const
         {
           return this->childrenHead();
@@ -731,230 +715,6 @@ namespace loka
         {
           Node *root = compositionRootNode();
           return root ? root->asNestable() : 0;
-        }
-        Node *findCompositionChildByTag(NodeTag tag) const
-        {
-          if (tag == NODE_TAG_NONE)
-          {
-            return 0;
-          }
-          INestable *nestable = compositionRootNestable();
-          if (!nestable)
-          {
-            return 0;
-          }
-          loka::dsl::CompositionCursor<Node> it(nestable->childrenHead(), nestable->childrenCount());
-          for (Node *child = it.next(); child; child = it.next())
-          {
-            if (child->nodeTag() == tag)
-            {
-              return child;
-            }
-          }
-          return 0;
-        }
-        static bool LiveSubtreeContains(Node *root, const Node *candidate)
-        {
-          if (!root || !candidate)
-          {
-            return false;
-          }
-          if (root == candidate)
-          {
-            return true;
-          }
-          INestable *nestable = root->asNestable();
-          for (Node *child = nestable ? nestable->childrenHead() : 0;
-               child;
-               child = child->nextInComposition)
-          {
-            if (LiveSubtreeContains(child, candidate))
-            {
-              return true;
-            }
-          }
-          return false;
-        }
-        bool runtimeIsExcluded(
-            const BoundaryBranchSeatRuntimeEntry &runtime,
-            const BoundaryLocalRebuildExclusions *exclusions) const
-        {
-          if (!exclusions)
-          {
-            return false;
-          }
-          for (size_t i = 0; i < exclusions->roots.size(); ++i)
-          {
-            if (LiveSubtreeContains(exclusions->roots[i], runtime.active))
-            {
-              return true;
-            }
-          }
-          return false;
-        }
-        BoundaryBranchSeatRuntimeEntry *runtimeForCurrentPlan(
-            const BoundaryBranchSeatPlanEntry &plan,
-            const BoundaryLocalRebuildExclusions *exclusions)
-        {
-          BoundaryBranchSeatRuntimeEntry *runtime =
-              this->branchSeats_.findRuntime(plan.key);
-          return runtime && !this->runtimeIsExcluded(*runtime, exclusions)
-                     ? runtime
-                     : 0;
-        }
-        void buildLocalRebuildExclusions(
-            const INestableDefinition &currentRoot,
-            BoundaryLocalRebuildExclusions &exclusions)
-        {
-          exclusions.clear();
-          INestable *root = this->compositionRootNestable();
-          Node *runtimeParent = this->compositionRootNode();
-          if (!root || !runtimeParent)
-          {
-            return;
-          }
-
-          for (Node *live = root->childrenHead();
-               live;
-               live = live->nextInComposition)
-          {
-            bool retained = false;
-            for (NodeDefinitionBase *definition = currentRoot.childrenHead();
-                 definition && !retained;
-                 definition = definition->nextInComposition)
-            {
-              NodeDefinitionBase *effectiveDefinition = definition;
-              IBranchPolicyScopeDefinition *scope =
-                  definition->asBranchPolicyScopeDefinition();
-              if (scope)
-              {
-                effectiveDefinition = scope->scopedBranchDefinition();
-              }
-              const BoundaryBranchSeatPlanEntry *seatPlan =
-                  this->branchSeatPlan(effectiveDefinition);
-              if (seatPlan)
-              {
-                BoundaryBranchSeatRuntimeEntry *runtime =
-                    this->branchSeats_.findRuntime(seatPlan->key);
-                retained = runtime && runtime->parent == runtimeParent &&
-                           runtime->active == live;
-              }
-              else if (effectiveDefinition->nodeTag() != NODE_TAG_NONE)
-              {
-                retained = effectiveDefinition->nodeTag() == live->nodeTag() &&
-                           effectiveDefinition->isCompatibleWithNode(live);
-              }
-              else if (currentRoot.childrenCount() == 1 &&
-                       root->childrenCount() == 1)
-              {
-                retained = effectiveDefinition->isCompatibleWithNode(live);
-              }
-            }
-            if (!retained)
-            {
-              exclusions.roots.push_back(live);
-            }
-          }
-        }
-        NodeDefinitionBase *findCurrentCompositionDefinitionByTag(NodeTag tag) const
-        {
-          if (tag == NODE_TAG_NONE)
-          {
-            return 0;
-          }
-          NodeDefinitionBase *root = this->composition().root();
-          INestableDefinition *nestable = root ? root->asNestableDefinition() : 0;
-          NodeDefinitionBase *child = nestable ? nestable->childrenHead() : 0;
-          while (child)
-          {
-            if (child->nodeTag() == tag)
-            {
-              return child;
-            }
-            child = child->nextInComposition;
-          }
-          return 0;
-        }
-        NodeDefinitionBase *currentCompositionRootDefinition() const
-        {
-          return this->composition().root();
-        }
-        bool resolveRetainedDiffEntry(const NodeCompositionDiff::Entry &entry,
-                                      Node *&liveNode,
-                                      NodeDefinitionBase *&definition) const
-        {
-          liveNode = 0;
-          definition = 0;
-          Node *liveRoot = this->compositionRootNode();
-          NodeDefinitionBase *currentRoot = this->currentCompositionRootDefinition();
-          if (!liveRoot || !currentRoot)
-          {
-            return false;
-          }
-
-          INestable *liveNestable = liveRoot->asNestable();
-          INestableDefinition *currentNestable = currentRoot->asNestableDefinition();
-          if (!currentNestable)
-          {
-            /* A definition without materialized children (a compose-once
-               boundary: its runtime children come from attach compose, not
-               from the definition) has exactly one retained seat — the root
-               itself. The live node being nestable is expected there. */
-            liveNode = liveRoot;
-            definition = currentRoot;
-            return true;
-          }
-          if (!liveNestable)
-          {
-            return false;
-          }
-
-          if (entry.tag != NODE_TAG_NONE)
-          {
-            definition = this->findCurrentCompositionDefinitionByTag(entry.tag);
-          }
-          else
-          {
-            int slot = 0;
-            NodeDefinitionBase *currentChild = currentNestable->childrenHead();
-            while (slot < entry.currentIndex)
-            {
-              currentChild = currentChild ? currentChild->nextInComposition : 0;
-              ++slot;
-            }
-            definition = currentChild;
-          }
-          if (!definition)
-          {
-            return false;
-          }
-
-          const BoundaryBranchSeatPlanEntry *seatPlan = this->branchSeatPlan(definition);
-          if (seatPlan)
-          {
-            const BoundaryBranchSeatRuntimeEntry *runtime =
-                this->branchSeats_.findRuntime(seatPlan->key);
-            liveNode = runtime ? runtime->active : 0;
-            return liveNode != 0;
-          }
-
-          if (entry.tag != NODE_TAG_NONE)
-          {
-            liveNode = this->findCompositionChildByTag(entry.tag);
-          }
-          else
-          {
-            int slot = 0;
-            loka::dsl::CompositionCursor<Node> liveIt(
-                liveNestable->childrenHead(), liveNestable->childrenCount());
-            while (slot < entry.currentIndex)
-            {
-              liveIt.next();
-              ++slot;
-            }
-            liveNode = liveIt.next();
-          }
-          return liveNode != 0;
         }
 
         static NodeDefinitionBase *definitionAtIndex(
@@ -1228,41 +988,6 @@ namespace loka
               liveNode, previousDefinition, currentDefinition);
         }
 
-        bool applyRetainFastPathDefinitions(ComponentContext &context)
-        {
-          NodeDefinitionBase *previousRoot =
-              this->previousCompositionSnapshot().root();
-          for (NodeCompositionDiff::Entry *entry = this->localCompositionDiff()->entriesHead();
-               entry;
-               entry = entry->nextInComposition)
-          {
-            if (entry->action != NodeCompositionDiff::ACTION_RETAIN)
-            {
-              continue;
-            }
-            Node *liveNode = 0;
-            NodeDefinitionBase *definition = 0;
-            if (!this->resolveRetainedDiffEntry(*entry, liveNode, definition))
-            {
-              return false;
-            }
-            if (definition->asBranchSeatDefinition())
-            {
-              // The seat was applied from the definition-side plan before the
-              // composition diff. Its live node is the active branch, not a
-              // runtime representation of the seat.
-              continue;
-            }
-            NodeDefinitionBase *previousDefinition = definitionAtIndex(
-                previousRoot, entry->previousIndex);
-            if (!this->applyRetainedDefinitionTree(
-                    context, liveNode, previousDefinition, definition))
-            {
-              return false;
-            }
-          }
-          return true;
-        }
         /** Materializes a fresh node during a local rebuild through a
             contextless temporary composition (intentional: the diff must not
             re-enter the arena/context). Because that composition has no
@@ -1291,238 +1016,18 @@ namespace loka
           }
           return result.root;
         }
-        bool rebuildCompositionChildrenFromCurrentSnapshot(ComponentContext &context,
-                                                           std::vector<Node *> &retainedChildren)
+      protected:
+        /** Applies scheduled seats, then walks this boundary's children once. */
+        void updateCompositionChildren(ComponentContext &context)
         {
-          INestable *root = compositionRootNestable();
-          NodeDefinitionBase *currentRootDefinition = this->composition().root();
-          INestableDefinition *currentRoot =
-              currentRootDefinition ? currentRootDefinition->asNestableDefinition() : 0;
-          if (!root || !currentRoot)
-          {
-            return false;
-          }
-
-          BoundaryLocalRebuildPlan plan;
-          BoundaryLocalRebuildExclusions exclusions;
-          this->buildLocalRebuildExclusions(*currentRoot, exclusions);
-          if (!buildLocalRebuildPlan(context, *currentRoot, exclusions, plan))
-          {
-            return false;
-          }
-          return applyLocalRebuildPlan(context, *root, plan, retainedChildren);
-        }
-        bool rebuildCompositionRootFromCurrentSnapshot(ComponentContext &context, std::vector<Node *> &retainedChildren)
-        {
-          Node *liveRoot = compositionRootNode();
-          NodeDefinitionBase *currentRoot = currentCompositionRootDefinition();
-          if (!liveRoot || !currentRoot)
-          {
-            return false;
-          }
-          if (compositionRootNestable() || currentRoot->asNestableDefinition())
-          {
-            return false;
-          }
-          if (currentRoot->isCompatibleWithNode(liveRoot))
-          {
-            if (!currentRoot->applyPropsToNode(liveRoot))
-            {
-              return false;
-            }
-            retainedChildren.push_back(liveRoot);
-            return true;
-          }
-
-          Node *created = this->materializeLocalRebuildNode(currentRoot);
-          if (!created)
-          {
-            return false;
-          }
-          if (!this->replaceChild(liveRoot, created))
-          {
-            // Error unwind: `created` is arena- or gate-created; free through
-            // the door its storage came from.
-            DestroyHeapNode(created);
-            return false;
-          }
-          this->composeTree(created, context, COMPOSE_EVENT_ATTACH, this);
-          this->retireParkedBranchForRemovedSeat(context, liveRoot);
-          this->composeTree(liveRoot, context, COMPOSE_EVENT_DETACH, this);
-          this->retireDetachedNode(context, liveRoot);
-          return true;
-        }
-        bool canApplyLocalCompositionDiff() const
-        {
-          return compositionState_.canApplyLocalCompositionDiff();
-        }
-        bool canPreserveNativeContexts() const
-        {
-          if (compositionState_.canPreserveNativeContexts())
-          {
-            return true;
-          }
-          bool sawBoundaryChild = false;
+          this->evaluateBranchSeatsForScheduledApply(context);
           loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
           for (Node *child = it.next(); child; child = it.next())
           {
-            BoundaryNode *childBoundary = child->asBoundary();
-            if (!childBoundary)
-            {
-              continue;
-            }
-            sawBoundaryChild = true;
-            const BoundaryComposeResult &childResult = childBoundary->composeResult();
-            if (!childResult.composed || !childResult.preservedNativeContexts)
-            {
-              return false;
-            }
+            this->composeTree(child, context, COMPOSE_EVENT_UPDATE, this);
           }
-          return sawBoundaryChild;
-        }
-        NodeCompositionSnapshot &previousCompositionSnapshot()
-        {
-          return compositionState_.previousCompositionSnapshot();
-        }
-        const NodeCompositionSnapshot &previousCompositionSnapshot() const
-        {
-          return compositionState_.previousCompositionSnapshot();
-        }
-        NodeCompositionSnapshot &currentCompositionSnapshot()
-        {
-          return compositionState_.currentCompositionSnapshot();
-        }
-        const NodeCompositionSnapshot &currentCompositionSnapshot() const
-        {
-          return compositionState_.currentCompositionSnapshot();
         }
 
-      protected:
-        /** Declares the desired definitions for a boundary-local recompose. */
-        virtual void declareLocalRecomposition(NodeComposition &composition)
-        {
-          (void)composition;
-        }
-
-      private:
-        template <class NodeT, class Base> friend class RecomposingBoundaryFor;
-        friend class RootBoundaryWrapper;
-#ifdef TEST_BUILD
-        template <class NodeT, class PropsT, bool UseRetainFastPaths, class Base>
-        friend class ::SceneTestSupport::RecomposingBoundaryNode;
-#endif
-
-        enum LocalRecomposeMode
-        {
-          LOCAL_RECOMPOSE_APPLY_SNAPSHOT = 0,
-          LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS = 1
-        };
-
-        /** Rebuilds and applies this Boundary's current local composition.
-            Returns false without promoting the snapshot when no local plan
-            could be applied. */
-        bool recomposeLocalComposition(ComponentContext &context,
-                                       ComposeEvent event,
-                                       LocalRecomposeMode mode)
-        {
-          NodeComposition &composition = this->beginDeclaringWindow(context);
-          {
-            NodeComposition::CompositionScope scope(composition);
-            this->declareLocalRecomposition(composition);
-          }
-          this->captureCurrentCompositionSnapshot();
-          this->rebuildCurrentCompositionDiff();
-          BoundaryLocalRebuildExclusions exclusions;
-          INestableDefinition *currentRoot =
-              this->currentCompositionSnapshot().root()
-                  ? this->currentCompositionSnapshot().root()->asNestableDefinition()
-                  : 0;
-          if (currentRoot)
-          {
-            this->buildLocalRebuildExclusions(*currentRoot, exclusions);
-          }
-          const NodeCompositionDiff *diff = this->localCompositionDiff();
-          const bool canApplyRetainedTree =
-              diff && diff->isCompatibleRetainOnly();
-          if (!this->applyCurrentBranchSeatPlan(context, &exclusions))
-          {
-            return false;
-          }
-          if (mode == LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS &&
-              !this->canApplyLocalCompositionDiff())
-          {
-            return false;
-          }
-
-          if (canApplyRetainedTree &&
-              this->applyRetainFastPathDefinitions(context))
-          {
-            this->promoteCurrentCompositionSnapshot();
-            loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
-            for (Node *child = it.next(); child; child = it.next())
-            {
-              this->composeTree(child, context, event, this);
-            }
-            return true;
-          }
-
-          // A recursive refusal re-enters the existing local rebuild below.
-          // The branch-seat plan above remains a one-shot operation, and the
-          // snapshot is promoted only after one of the apply paths completes.
-          std::vector<Node *> retainedChildren;
-          if (!this->rebuildCompositionChildrenFromCurrentSnapshot(context, retainedChildren)
-              && !this->rebuildCompositionRootFromCurrentSnapshot(context, retainedChildren))
-          {
-            return false;
-          }
-          this->promoteCurrentCompositionSnapshot();
-          for (size_t i = 0; i < retainedChildren.size(); ++i)
-          {
-            if (retainedChildren[i])
-            {
-              this->composeTree(retainedChildren[i], context, event, this);
-            }
-          }
-          return true;
-        }
-
-        /** Applies a local recompose when possible, otherwise replaces the
-            Boundary's children from the completed declaration. */
-        void recomposeLocalCompositionWithFullFallback(
-            ComponentContext &context,
-            ComposeEvent event,
-            LocalRecomposeMode mode)
-        {
-          if (this->recomposeLocalComposition(context, event, mode))
-          {
-            return;
-          }
-
-          NodeComposition &composition = this->composition();
-          this->promoteCurrentCompositionSnapshot();
-          std::vector<Node *> detached;
-          this->detachChildrenTo(detached);
-          for (size_t i = 0; i < detached.size(); ++i)
-          {
-            if (!detached[i])
-            {
-              continue;
-            }
-            this->composeTree(detached[i], context, COMPOSE_EVENT_DETACH, this);
-            this->retireDetachedNode(context, detached[i]);
-          }
-          this->retireOwnedNodeGeneration(context);
-          context.setComposition(&composition);
-          Node *child = composition.createNodeTree();
-          if (child)
-          {
-            this->addChild(child);
-            this->composeTree(child, context, COMPOSE_EVENT_ATTACH, this);
-          }
-          context.setComposition(0);
-        }
-
-      protected:
         /** Retires the complete arena allocation and ledger for clock-boundary reclaim. */
         void retireOwnedNodeGeneration(ComponentContext &context);
         void retireOwnedNodeGeneration()
@@ -1606,163 +1111,6 @@ namespace loka
           BoundaryLocalRebuildPlan *plan_;
         };
 
-        bool buildLocalRebuildPlan(ComponentContext &context,
-                                   const INestableDefinition &currentRoot,
-                                   const BoundaryLocalRebuildExclusions &exclusions,
-                                   BoundaryLocalRebuildPlan &plan)
-        {
-          // This translates the current desired child set into a concrete
-          // boundary-local apply plan. It intentionally stays one level above
-          // raw NodeCompositionDiff entries because apply needs live-node and
-          // ownership details such as previousNode for replacement cleanup.
-          plan.clear();
-          plan.reserve(currentRoot.childrenCount());
-
-          // Own the nodes this pass materializes until the plan is
-          // handed off intact. A mid-build abort (a later child refuses)
-          // otherwise drops the raw-vector plan with earlier plain children's
-          // contextless heap nodes still live and unparented -- a leak the
-          // downstream full-rebuild fallback never reclaims, since those nodes
-          // are in no arena ledger (#150).
-          //
-          // Freed only when arenaOwner()==0 (heap provenance). Arena candidates
-          // stay ledger-owned and are reclaimed by the generation retire, so
-          // freeing them here would double-destruct. Seat candidates are now
-          // exclusively plan-owned too: their runtime facts remain in the
-          // registration plan until the structural commit, so an abort cannot
-          // leave runtime->active pointing at a discarded candidate.
-          UncommittedLocalRebuildPlanGuard uncommittedGuard(plan);
-
-          INestable *root = compositionRootNestable();
-          Node *runtimeParent = compositionRootNode();
-          if (!root || !runtimeParent)
-          {
-            return false;
-          }
-
-          const NodeCompositionDiff *diff = this->localCompositionDiff();
-          NodeCompositionDiff::Entry *singleEntry = diff ? diff->entriesHead() : 0;
-          NodeDefinitionBase *definition = currentRoot.childrenHead();
-          while (definition)
-          {
-            NodeDefinitionBase *effectiveDefinition = definition;
-            IBranchPolicyScopeDefinition *scope =
-                definition->asBranchPolicyScopeDefinition();
-            if (scope)
-            {
-              effectiveDefinition = scope->scopedBranchDefinition();
-            }
-            const BoundaryBranchSeatPlanEntry *seatPlan =
-                this->branchSeatPlan(effectiveDefinition);
-            BoundaryBranchSeatRuntimeEntry *seatRuntime =
-                seatPlan ? this->runtimeForCurrentPlan(*seatPlan, &exclusions) : 0;
-            Node *existing = seatPlan
-                                 ? (seatRuntime ? seatRuntime->active : 0)
-                                 : findCompositionChildByTag(effectiveDefinition->nodeTag());
-            bool reconcileScopedAnonymous = false;
-            if (!seatPlan && !existing &&
-                effectiveDefinition->nodeTag() == NODE_TAG_NONE &&
-                diff && !diff->fullRebuild && diff->entryCount() == 1 && singleEntry &&
-                singleEntry->previousIndex == 0 && singleEntry->currentIndex == 0 &&
-                (scope ||
-                 (singleEntry->action == NodeCompositionDiff::ACTION_RETAIN &&
-                  singleEntry->compatibleType)))
-            {
-              existing = root && root->childrenCount() == 1 ? root->childrenHead() : 0;
-              // A misplaced scope dissolves into its Fragment. Reusing that
-              // runtime root is safe only when its desired subtree is also
-              // reconciled; applying Fragment props alone cannot update it.
-              reconcileScopedAnonymous = scope && existing;
-            }
-            if (existing &&
-                (seatPlan || effectiveDefinition->isCompatibleWithNode(existing)))
-            {
-              const bool reconcileRetainedSubtree =
-                  reconcileScopedAnonymous || existing->asBoundarySectionNode();
-              plan.entries.push_back(
-                  reconcileRetainedSubtree
-                      ? BoundaryLocalRebuildPlanEntry::reconcile(
-                            existing,
-                            effectiveDefinition,
-                            effectiveDefinition->nodeTag())
-                      : BoundaryLocalRebuildPlanEntry::retain(
-                            existing,
-                            effectiveDefinition,
-                            effectiveDefinition->nodeTag()));
-            }
-            else
-            {
-              Node *created = 0;
-              if (seatPlan)
-              {
-                if (!seatPlan->dirtySource)
-                {
-                  return false;
-                }
-                if (!this->createCurrentBranch(context,
-                                               *seatPlan,
-                                               runtimeParent,
-                                               created,
-                                               &plan.branchSeatRegistrations))
-                {
-                  return false;
-                }
-                plan.branchSeatRegistrations.record(*seatPlan,
-                                                    runtimeParent,
-                                                    created);
-              }
-              else
-              {
-                created = this->materializeLocalRebuildNode(effectiveDefinition);
-                if (!created)
-                {
-                  return false;
-                }
-              }
-              plan.entries.push_back(
-                  existing ? BoundaryLocalRebuildPlanEntry::replace(
-                                 created,
-                                 existing,
-                                 effectiveDefinition,
-                                 effectiveDefinition->nodeTag())
-                           : BoundaryLocalRebuildPlanEntry::attach(
-                                 created,
-                                 effectiveDefinition,
-                                 effectiveDefinition->nodeTag()));
-            }
-            definition = definition->nextInComposition;
-          }
-
-          loka::dsl::CompositionCursor<Node> it(root->childrenHead(), root->childrenCount());
-          for (Node *liveChild = it.next(); liveChild; liveChild = it.next())
-          {
-            bool representedByPlan = false;
-            for (size_t i = 0; i < plan.entries.size(); ++i)
-            {
-              BoundaryLocalRebuildPlanEntry &entry = plan.entries[i];
-              // A replacement's previous node already has one detach/retire
-              // path in the plan and must not be appended as a second retire.
-              if ((entry.keepsLiveNode() && entry.node == liveChild) ||
-                  entry.detachedNode() == liveChild)
-              {
-                representedByPlan = true;
-                break;
-              }
-            }
-            if (!representedByPlan &&
-                findCurrentCompositionDefinitionByTag(liveChild->nodeTag()) == 0)
-            {
-              plan.entries.push_back(BoundaryLocalRebuildPlanEntry::retire(liveChild, liveChild->nodeTag()));
-            }
-          }
-          // Runtime publication is part of the structural commit. Reserve its
-          // vector storage while this operation can still refuse, so cleanup
-          // and publication after detach cannot allocate or partially commit.
-          this->branchSeats_.reserveRuntimeRegistrations(
-              plan.branchSeatRegistrations.count());
-          uncommittedGuard.disarm();
-          return true;
-        }
         bool applyLocalRebuildPlan(ComponentContext &context,
                                    INestable &root,
                                    BoundaryLocalRebuildPlan &plan,
@@ -2424,6 +1772,7 @@ namespace loka
           committedRuntime->shape = plan.shape;
           committedRuntime->appliedGeneration = this->branchSeats_.generation();
           incoming->markPendingAttachForCompose();
+          this->noteLocalStructureWork();
           return true;
         }
 
@@ -2519,21 +1868,20 @@ namespace loka
                                          true);
         }
 
-        bool applyCurrentBranchSeatPlan(ComponentContext &context, const BoundaryLocalRebuildExclusions *exclusions)
+        bool applyCurrentBranchSeatPlan(ComponentContext &context)
         {
-          return this->applyScopePlans(context, exclusions, this->branchSeats_)
-                 && this->applyBoundaryParkedBranches(context, exclusions);
+          return this->applyScopePlans(context, this->branchSeats_)
+                 && this->applyBoundaryParkedBranches(context);
         }
 
         bool applyScopePlans(ComponentContext &context,
-                             const BoundaryLocalRebuildExclusions *exclusions,
                              BoundaryBranchSeatState &scope)
         {
           const std::vector<BoundaryBranchSeatPlanEntry> &plans = scope.plans();
           for (size_t i = 0; i < plans.size(); ++i)
           {
             BoundaryBranchSeatRuntimeEntry *runtime =
-                this->runtimeForCurrentPlan(plans[i], exclusions);
+                this->branchSeats_.findRuntime(plans[i].key);
             if (!runtime || !this->branchSeats_.isLive(*runtime))
             {
               continue;
@@ -2544,7 +1892,7 @@ namespace loka
               return false;
             }
             BoundaryBranchSeatState *nested = plans[i].seat()->declaredBranchSeats();
-            if (nested && !this->applyScopePlans(context, exclusions, *nested))
+            if (nested && !this->applyScopePlans(context, *nested))
             {
               return false;
             }
@@ -2552,13 +1900,13 @@ namespace loka
           return true;
         }
 
-        bool applyBoundaryParkedBranches(ComponentContext &context, const BoundaryLocalRebuildExclusions *exclusions)
+        bool applyBoundaryParkedBranches(ComponentContext &context)
         {
           for (unsigned i = 0; BoundaryParkedBranchLedger::Entry *parked = this->parkedBranches_.entry(i); ++i)
           {
             BoundaryBranchSeatPlanEntry *plan = this->branchSeats_.findPlan(parked->key);
             BoundaryBranchSeatRuntimeEntry *runtime =
-                plan ? this->runtimeForCurrentPlan(*plan, exclusions) : 0;
+                plan ? this->branchSeats_.findRuntime(plan->key) : 0;
             if (!plan || !runtime ||
                 !plan->branch(parked->arm).policies.deliverWhileDetached)
             {
@@ -2700,23 +2048,6 @@ namespace loka
                                                             static_cast<unsigned int>(event),
                                                             static_cast<unsigned int>(parentContext.dirtyFlags()),
                                                             boundary == currentBoundary ? 1 : 0);
-            if (boundary->childrenHead() && boundary->childrenCount() == 1)
-            {
-              Node *firstChild = boundary->childrenHead();
-              if (firstChild && firstChild->testId() == "PendingDefaultApplyText")
-              {
-                loka::platform::DebugLogSceneRootIdentity(static_cast<void *>(boundary->scene()),
-                                                          static_cast<void *>(boundary),
-                                                          static_cast<unsigned int>(boundary->kind()),
-                                                          "pending-default-boundary-compose",
-                                                          boundary->previousCompositionSnapshot().root() ? 1 : 0,
-                                                          boundary->currentCompositionSnapshot().root() ? 1 : 0,
-                                                          boundary->hasCompositionDiffState() ? 0 : 1,
-                                                          static_cast<unsigned int>(boundary->childrenCount()),
-                                                          static_cast<unsigned int>(firstChild->kind()),
-                                                          firstChild->testId().c_str());
-              }
-            }
 #endif
           }
           if (nextBoundary && event != COMPOSE_EVENT_DETACH)
@@ -2756,7 +2087,7 @@ namespace loka
             }
             if (boundary)
             {
-              boundary->completeComposeResult(boundary->canPreserveNativeContexts());
+              boundary->completeComposeResult();
             }
             contextForChildren = &nodeContext;
           }
@@ -2810,22 +2141,12 @@ namespace loka
           }
         }
 
-        void captureCurrentCompositionSnapshot()
+        /** Captures the attach declaration for subsequent seat updates. */
+        void captureBranchSeatPlan()
         {
           this->composition().assignCompositionSeatSlots();
           this->branchSeats_.capture(this->composition().root());
           this->registerBranchSeatDirtySources();
-          compositionState_.captureCurrentSnapshot(this->composition());
-        }
-
-        void rebuildCurrentCompositionDiff()
-        {
-          compositionState_.rebuildLocalCompositionDiff();
-        }
-
-        void promoteCurrentCompositionSnapshot()
-        {
-          compositionState_.promoteCurrentSnapshot();
         }
 
       private:
