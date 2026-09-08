@@ -12,7 +12,6 @@
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/nestable/Match.hpp"
 #include "app/scene/Node.hpp"
-#include "app/scene/composition/NodeCompositionSnapshot.hpp"
 #include "app/scene/node/Conditional.hpp"
 #include "support/LimitedCloneProbe.hpp"
 
@@ -455,35 +454,6 @@ void testNestableDefinitionCloneReturnsNullOnOomChildClone()
   assert(copy == 0);
 
   printf("==== [testNestableDefinitionCloneReturnsNullOnOomChildClone] end ====\n");
-}
-
-void testCompositionSnapshotClearsStaleRootOnOomClone()
-{
-  printf("\n==== [testCompositionSnapshotClearsStaleRootOnOomClone] start ====\n");
-
-  loka::app::scene::NodeCompositionSnapshot snapshot;
-  {
-    loka::app::scene::NodeComposition stableComposition;
-    CloneProbeDefinition stableRoot;
-    stableComposition.declare(stableRoot);
-    snapshot.capture(stableComposition);
-  }
-  assert(!snapshot.empty());
-
-  {
-    loka::app::scene::NodeComposition failingComposition;
-    LimitedCloneProbeDefinition failingRoot;
-    g_limitedCloneBudget = 1;
-    g_limitedCloneCalls = 0;
-    failingComposition.declare(failingRoot);
-    snapshot.capture(failingComposition);
-    g_limitedCloneBudget = -1;
-  }
-
-  assert(g_limitedCloneCalls == 2);
-  assert(snapshot.empty());
-
-  printf("==== [testCompositionSnapshotClearsStaleRootOnOomClone] end ====\n");
 }
 
 void testNodeCompositionSkipsOomClones()

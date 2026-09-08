@@ -338,7 +338,6 @@ private:
   void endBatchUpdate();
   void addPendingDirty(const Rect &rect);
   void addPendingText(loka::core::State<loka::core::String> *text);
-  bool collectLocalBoundaryDirtyRects(loka::app::scene::Node *node, const Rect &fallback);
   void requestInvalidateForChange(loka::app::scene::Node *rootNodeForChange,
                                   loka::app::scene::NodeDirtyFlags flags,
                                   bool fullRebuild);

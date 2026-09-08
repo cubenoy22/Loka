@@ -51,12 +51,7 @@ namespace loka
             {
               return;
             }
-            this->evaluateBranchSeatsForScheduledApply(context);
-            loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
-            for (Node *child = it.next(); child; child = it.next())
-            {
-              this->composeTree(child, context, event, this);
-            }
+            this->updateCompositionChildren(context);
             return;
           }
           if (event != COMPOSE_EVENT_ATTACH)
@@ -79,9 +74,7 @@ namespace loka
             NodeComposition::CompositionScope scope(composition);
             this->composeNode(composition);
           }
-          this->captureCurrentCompositionSnapshot();
-          this->rebuildCurrentCompositionDiff();
-          this->promoteCurrentCompositionSnapshot();
+          this->captureBranchSeatPlan();
           // Pass composition to children via context
           context.setComposition(&composition);
           Node *child;

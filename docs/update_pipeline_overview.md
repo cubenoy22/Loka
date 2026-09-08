@@ -49,31 +49,26 @@ flowchart LR
     end
 ```
 
-## 3. Hints from Dynamic to Static
+## 3. Compose Once, Update Seats
+
+Every boundary, including the scene wrapper for a plain root, declares its
+composition on ATTACH. UPDATE evaluates scheduled branch seats and walks the
+existing children once. CHILD dirt by itself does not redeclare the root.
+Change the root's shape through `SceneManager::swapScene`, or put a `Match`
+one level below it.
+
+Parked-branch re-entry retains its definition-tree comparison and local apply
+plan. That comparison belongs to the seat; there is no boundary-wide pair of
+composition snapshots. The Scene's full-rebuild request survives as a platform
+re-projection request, including recovery after an allocation refusal. It does
+not enable logical root rebuilding on UPDATE.
 
 ```mermaid
-flowchart TD
-    subgraph DynamicComposition
-        D1[previous snapshot]
-        D2[current snapshot]
-        D3[NodeCompositionDiff]
-        D4[LocalRebuildPlan]
-        D1 --> D3
-        D2 --> D3
-        D3 --> D4
-    end
-
-    subgraph Static Show / Conditional
-        S1[current structure after compose]
-        S2[reduced apply phase]
-        S3[child compose disposition]
-        S1 --> S2
-        S2 --> S3
-    end
-
-    H[shared rule: one-pass truth belongs to Boundary]
-    D4 --> H
-    S3 --> H
+flowchart LR
+    A[scheduled seat] --> B[branch selection or declaration]
+    B --> C[retain / attach / retire plan]
+    C --> D[boundary structure and paint facts]
+    D --> E[Scene platform apply plan]
 ```
 
 ## 4. Where the Local Phase Fits

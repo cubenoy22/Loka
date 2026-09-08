@@ -31,7 +31,6 @@
 #include "platform/null/NullScenePlatformController.hpp"
 #include "platform/null/NullWindow.hpp"
 #include "platform/null/context/NullScrollBarContext.hpp"
-#include "support/FullRebuildLedgerDefinition.hpp"
 #include "support/LifecycleFactTestAccess.hpp"
 #include "app/nodes/Text.hpp"
 #include "platform/null/context/NullTextContext.hpp"
@@ -39,7 +38,6 @@
 
 namespace
 {
-  using SceneTestSupport::FullRebuildLedgerDefinition;
 
   loka::core::MutableState<bool> *g_toggleVisible = 0;
   loka::app::scene::NativeLifetimeHint g_toggleHint = loka::app::scene::NATIVE_HINT_DEFAULT;
@@ -516,91 +514,6 @@ namespace
     {
       composition.declare(loka::app::scene::Boundary<ConditionalContentBoundaryNode>());
     }
-  };
-
-  class DefinitionSourceProbeDefinition
-      : public loka::app::scene::NodeDefinition<ParkedFactProps,
-                                                ParkedFactNode>
-  {
-  public:
-    typedef loka::app::scene::NodeDefinition<ParkedFactProps,
-                                              ParkedFactNode>
-        BaseType;
-
-    DefinitionSourceProbeDefinition(ParkedFactRecord *liveRecord,
-                                    ParkedFactRecord *expiredRecord)
-        : BaseType(ParkedFactProps(liveRecord)),
-          liveRecord_(liveRecord),
-          expiredRecord_(expiredRecord)
-    {
-    }
-
-    virtual ~DefinitionSourceProbeDefinition()
-    {
-      // If a retained seat reads this definition after its owner destroys it,
-      // an allocator-preserved object reports the expired source record. A
-      // poisoned/freed object instead hard-fails the same lifetime contract.
-      this->props.record = this->expiredRecord_;
-    }
-
-    virtual loka::app::scene::NodeDefinitionBase *clone() const
-    {
-      DefinitionSourceProbeDefinition *copy =
-          new DefinitionSourceProbeDefinition(this->liveRecord_, this->expiredRecord_);
-      if (copy)
-      {
-        copy->copyTestIdPolicyFrom(*this);
-      }
-      return copy;
-    }
-
-  private:
-    ParkedFactRecord *liveRecord_;
-    ParkedFactRecord *expiredRecord_;
-  };
-
-  struct TaggedPropsApplyInputs
-  {
-    explicit TaggedPropsApplyInputs(loka::core::State<bool> *conditionState)
-        : condition(conditionState)
-    {
-    }
-
-    loka::core::State<bool> *condition;
-  };
-
-  class TaggedPropsApplyConditionalDefinition
-      : public loka::app::scene::ConditionalDefinition
-  {
-  public:
-    TaggedPropsApplyConditionalDefinition(
-        const loka::app::scene::ConditionalProps &props,
-        TaggedPropsApplyInputs *inputs)
-        : loka::app::scene::ConditionalDefinition(props),
-          inputs_(inputs)
-    {
-    }
-
-    virtual loka::app::scene::NodeDefinitionBase *clone() const
-    {
-      // RootBoundaryWrapper clones the fixed scene definition each generation;
-      // read the test-owned input here so tagged props become non-equivalent.
-      TaggedPropsApplyConditionalDefinition *copy =
-          new TaggedPropsApplyConditionalDefinition(
-              loka::app::scene::ConditionalProps(
-                  this->inputs_ ? this->inputs_->condition : 0,
-                  this->ownedTrueDef,
-                  this->ownedFalseDef),
-              this->inputs_);
-      if (copy)
-      {
-        copy->copyTestIdPolicyFrom(*this);
-      }
-      return copy;
-    }
-
-  private:
-    TaggedPropsApplyInputs *inputs_;
   };
 
   loka::core::MutableState<bool> *g_deferredFlipCondition = 0;
@@ -1828,163 +1741,6 @@ void testNullPlatformContract_H7_reenteredBranchContentIsFreshAfterRecompose()
   g_contentInputs = 0;
 }
 
-
-void testFullRebuildSubsumesParkedBranchLedgerGeneration()
-{
-  ParkedFactRecord record;
-  loka::core::MutableState<bool> condition(false);
-  bool useReplacement = false;
-  ParkedFactDefinition parked((ParkedFactProps(&record)));
-  loka::app::ButtonDefinition active("full-rebuild-active");
-  loka::app::scene::ConditionalDefinition conditional(
-      (loka::app::scene::ConditionalProps(&condition, &active, &parked)));
-  loka::app::FragmentDefinition initial;
-  initial << conditional;
-  loka::app::EditTextDefinition replacement;
-  NullScenePlatformController platform;
-  loka::app::scene::Scene scene(
-      new FullRebuildLedgerDefinition(&useReplacement, &initial, &replacement));
-  mountAndAttach(scene, platform);
-
-  assert(record.constructionCount == 1);
-  condition.set(true);
-  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-  LOKA_VERIFY(scene.flushInvalidation());
-  assertParkedTransitionTable(record);
-
-  useReplacement = true;
-  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-  LOKA_VERIFY(scene.flushInvalidation());
-  assertParkedRetirementTransitionTable(record);
-
-  scene.unmount();
-}
-
-void testNullPlatformContract_H8_taggedSeatBuildsBranchFromLiveDefinition()
-{
-  ParkedFactRecord liveSourceRecord;
-  ParkedFactRecord expiredSourceRecord;
-  loka::core::MutableState<bool> firstCondition(true);
-  loka::core::MutableState<bool> secondCondition(true);
-  loka::core::MutableState<bool> currentCondition(true);
-  TaggedPropsApplyInputs inputs(&firstCondition);
-  loka::app::ButtonDefinition active("tagged-props-apply-active");
-  DefinitionSourceProbeDefinition parked(&liveSourceRecord, &expiredSourceRecord);
-  TaggedPropsApplyConditionalDefinition conditional(
-      loka::app::scene::ConditionalProps(&firstCondition, &active, &parked),
-      &inputs);
-  conditional.setNodeTag(201);
-  loka::app::FragmentDefinition *root = new loka::app::FragmentDefinition();
-  (*root) << conditional;
-  NullScenePlatformController platform;
-  loka::app::scene::Scene scene(static_cast<loka::app::scene::NodeDefinitionBase *>(root));
-  mountAndAttach(scene, platform);
-
-  assert(liveSourceRecord.constructionCount == 0);
-  assert(expiredSourceRecord.constructionCount == 0);
-
-  // Each changed condition pointer drives RootBoundaryWrapper's tagged-child
-  // props apply and turns over the snapshot generation without swapping seats.
-  inputs.condition = &secondCondition;
-  requestChildPump(scene, platform);
-  inputs.condition = &currentCondition;
-  requestChildPump(scene, platform);
-
-  currentCondition.set(false);
-  if (scene.hasPendingInvalidation())
-  {
-    LOKA_VERIFY(scene.flushInvalidation());
-  }
-  assert(liveSourceRecord.constructionCount == 1 &&
-         expiredSourceRecord.constructionCount == 0 &&
-         "the tagged Conditional builds its branch from a live-arena definition");
-
-  scene.unmount();
-}
-
-void testNullPlatformContract_H9_retainedSeatUsesReplacementCondition()
-{
-  ParkedFactRecord activeRecord;
-  ParkedFactRecord parkedRecord;
-  loka::core::MutableState<bool> previousCondition(false);
-  loka::core::MutableState<bool> replacementCondition(false);
-  TaggedPropsApplyInputs inputs(&previousCondition);
-  ParkedFactDefinition activeProbe((ParkedFactProps(&activeRecord)));
-  loka::app::ButtonDefinition activeControl("replacement-condition-active");
-  loka::app::FragmentDefinition activeBranch;
-  activeBranch << activeProbe << activeControl;
-  ParkedFactDefinition parkedProbe((ParkedFactProps(&parkedRecord)));
-  loka::app::EditTextDefinition parkedControl;
-  loka::app::FragmentDefinition parkedBranch;
-  parkedBranch << parkedProbe << parkedControl;
-  TaggedPropsApplyConditionalDefinition conditional(
-      loka::app::scene::ConditionalProps(&previousCondition, &activeBranch, &parkedBranch),
-      &inputs);
-  conditional.setNodeTag(301);
-  loka::app::FragmentDefinition *root = new loka::app::FragmentDefinition();
-  (*root) << conditional;
-  NullScenePlatformController platform;
-  loka::app::scene::Scene scene(static_cast<loka::app::scene::NodeDefinitionBase *>(root));
-  mountAndAttach(scene, platform);
-
-  assert(activeRecord.constructionCount == 0);
-  assert(parkedRecord.constructionCount == 1);
-  const int parkedConstructionsBefore = parkedRecord.constructionCount;
-  const std::size_t parkedTransitionsBefore = parkedRecord.transitions.size();
-  const NativeContextCallCounts callsBeforeRebind(platform);
-
-  inputs.condition = &replacementCondition;
-  requestChildPump(scene, platform);
-
-  (void)parkedConstructionsBefore;
-  (void)parkedTransitionsBefore;
-  assert(parkedRecord.constructionCount == parkedConstructionsBefore &&
-         parkedRecord.transitions.size() == parkedTransitionsBefore &&
-         NativeContextCallCounts(platform) == callsBeforeRebind &&
-         "re-binding the retained seat preserves its active branch and native pairs");
-
-  previousCondition.set(true);
-  assert(!scene.hasPendingInvalidation());
-  assert(activeRecord.constructionCount == 0 &&
-         parkedRecord.transitions.size() == parkedTransitionsBefore &&
-         NativeContextCallCounts(platform) == callsBeforeRebind &&
-         "the previous condition no longer drives the retained seat");
-
-  replacementCondition.set(true);
-  if (scene.hasPendingInvalidation())
-  {
-    LOKA_VERIFY(scene.flushInvalidation());
-  }
-  const NullScenePlatformController::LedgerRow *button =
-      platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
-  const NullScenePlatformController::LedgerRow *editText =
-      platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
-  assert(activeRecord.constructionCount == 1);
-  assertParkedTransitionTable(parkedRecord);
-  (void)button;
-  assert(button && button->visible);
-  (void)editText;
-  assert(editText && !editText->visible);
-
-  const int activeConstructionsBefore = activeRecord.constructionCount;
-  const std::size_t activeTransitionsBefore = activeRecord.transitions.size();
-  const NativeContextCallCounts callsBeforeSecondFlip(platform);
-  replacementCondition.set(false);
-  if (scene.hasPendingInvalidation())
-  {
-    (void)activeConstructionsBefore;
-    (void)activeTransitionsBefore;
-    assert(activeRecord.constructionCount == activeConstructionsBefore &&
-           activeRecord.transitions.size() == activeTransitionsBefore &&
-           NativeContextCallCounts(platform) == callsBeforeSecondFlip);
-    LOKA_VERIFY(scene.flushInvalidation());
-  }
-  assert(button && !button->visible);
-  assert(editText && editText->visible);
-
-  scene.unmount();
-}
-
 void testNullPlatformContract_F1_retiredQueueIsEmptyAfterFlush()
 {
   loka::core::MutableState<bool> visible(true);
@@ -2933,48 +2689,6 @@ void testStdCompositionBoundaryShowFlipPreservesSiblings()
   (void)dialog;
   assert(dialog && dialog->visible &&
          "the shown branch materializes at the scheduled apply");
-  scene.unmount();
-}
-
-void testGenerationRetirementDoesNotLeaveStaleConditionalSeatMapping()
-{
-  ParkedFactRecord record;
-  loka::core::MutableState<bool> condition(false);
-  bool useReplacement = false;
-  ParkedFactDefinition parked((ParkedFactProps(&record)));
-  loka::app::ButtonDefinition active("stale-map-active");
-  loka::app::scene::ConditionalDefinition conditional(
-      (loka::app::scene::ConditionalProps(&condition, &active, &parked)));
-  loka::app::FragmentDefinition conditionalRoot;
-  conditionalRoot << conditional;
-  loka::app::EditTextDefinition replacement;
-  NullScenePlatformController platform;
-  loka::app::scene::Scene scene(
-      new FullRebuildLedgerDefinition(&useReplacement,
-                                      &conditionalRoot,
-                                      &replacement));
-  mountAndAttach(scene, platform);
-
-  condition.set(true);
-  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-  LOKA_VERIFY(scene.flushInvalidation());
-  assertParkedTransitionTable(record);
-
-  useReplacement = true;
-  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-  LOKA_VERIFY(scene.flushInvalidation());
-  assertParkedRetirementTransitionTable(record);
-
-  useReplacement = false;
-  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-  LOKA_VERIFY(scene.flushInvalidation());
-  condition.set(false);
-  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-  LOKA_VERIFY(scene.flushInvalidation());
-  assert(record.constructionCount == 2 && record.node &&
-         record.node->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
-         "post-generation flip resolves only the recreated seat mapping");
-
   scene.unmount();
 }
 

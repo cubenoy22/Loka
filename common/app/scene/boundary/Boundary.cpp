@@ -289,21 +289,13 @@ namespace loka
         this->nodeArena_.clear();
       }
 
-      void BoundaryNode::completeComposeResult(bool preservedNativeContexts)
+      void BoundaryNode::completeComposeResult()
       {
         if (this->compositionState_.allocationFailedValue() ||
             this->compositionState_.boundaryPlanRequiredValue())
         {
-          // Projection-failure terminal: either allocation failed inside this
-          // compose window (#132 ruling 3), or a contextless materialization
-          // deterministically required a Boundary plan. Keep the distinct
-          // reason visible in the result, invalidate the composition snapshots
-          // so no stale diff can seed the next compose (the #70 mechanism),
-          // and record the deferred full rebuild on the Scene. No tick is
-          // requested anywhere on this path: the rebuild rides the next
-          // externally caused update.
+          // Refuse projection and record recovery for the next external update.
           this->compositionState_.failCompose();
-          this->compositionState_.invalidateSnapshots();
           Scene *scene = this->getScene();
           if (scene)
           {
@@ -311,7 +303,7 @@ namespace loka
           }
           return;
         }
-        this->compositionState_.completeCompose(preservedNativeContexts);
+        this->compositionState_.completeCompose();
       }
 
       void BoundaryNode::markViewDirty(NodeDirtyFlags flags)

@@ -9,7 +9,6 @@ void testConditionalDefinitionCopyDegradesToEmptyOnCloneFailure();
 void testOwnedDefOwnership();
 void testNestableDefinitionCloneReturnsNullOnOomChildClone();
 void testNestableDefinitionAssignmentPreservesStableChildOnOomClone();
-void testCompositionSnapshotClearsStaleRootOnOomClone();
 void testNodeCompositionSkipsOomClones();
 void testWindowPropsAssignmentPreservesOwnedSceneOnOomClone();
 void testWindowDefinitionCreateReturnsNullOnOomRootClone();

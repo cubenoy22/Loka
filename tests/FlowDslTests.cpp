@@ -3488,7 +3488,6 @@ void testLokaFlowDslV1Core()
                 == loka::dsl::FLOW_STEP_FAILED);
     LOKA_VERIFY(error.code == FLOW_ERROR_SCENE_TEST_INVALID_ORDINAL);
 
-
     LOKA_VERIFY(ResolveSelector<TextNode>(
                     &scene, Within("SelectorRegion").descendant<TextNode>(3), missing, error)
                 == loka::dsl::FLOW_STEP_FAILED);
@@ -4450,7 +4449,6 @@ void testLokaFlowDslV1Core()
     assert(SceneTestAccess::snapshotStructureRequired(observationAfterFlush) == false);
     assert(SceneTestAccess::snapshotCompositedPaintRequired(observationAfterFlush) == false);
     assert(SceneTestAccess::snapshotOpaqueLocalPaintRequired(observationAfterFlush) == false);
-    assert(SceneTestAccess::snapshotLocalCompositionDiffApplicable(observationAfterFlush) == false);
     const SceneDirector::SceneUpdateSnapshot &lastObservationAfterFlush = SceneTestAccess::lastUpdateSnapshot(scene);
     (void)firstGeneration;
     (void)lastObservationAfterFlush;

@@ -28,12 +28,12 @@
 #include "app/scene/node/Conditional.hpp"
 #include "app/scene/node/ComponentNode.hpp"
 #include "core/util/StateTrackerGuard.hpp"
-#include "support/FullRebuildLedgerDefinition.hpp"
 #include "app/nodes/nestable/Keyed.hpp"
 #include "support/RecordingPlatformController.hpp"
 #include "testing/core/HeldTestAccess.hpp"
 #include "testing/scene/ProbeArmSeatDefinition.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
+#include "testing/scene/OwnershipDump.hpp"
 
 namespace
 {
@@ -890,6 +890,30 @@ namespace
     return new (std::nothrow) char[size];
   }
 
+  int *g_attachRefusalHeldReleases = 0;
+
+  void releaseAttachRefusalHeld(int **counter)
+  {
+    ++**counter;
+    delete counter;
+  }
+
+  void holdAttachRefusalPayload(loka::app::scene::NodeComposition &composition,
+                                loka::core::Held<int *> &held)
+  {
+    if (g_attachRefusalHeldReleases && !held.isValid())
+    {
+      // Held shares the StateArena backend; refuse the NodeState allocation,
+      // then allow this independent payload so DETACH has a releaser to queue.
+      const bool refuseState = g_attachRefuseState;
+      g_attachRefuseState = false;
+      held = composition.hold(
+          new int *(g_attachRefusalHeldReleases), &releaseAttachRefusalHeld);
+      g_attachRefuseState = refuseState;
+      LOKA_VERIFY(held.isValid());
+    }
+  }
+
   class AttachRefusalRootNode;
   typedef loka::app::scene::BoundaryPropsFor<AttachRefusalRootNode> AttachRefusalRootProps;
 
@@ -906,10 +930,12 @@ namespace
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
+      holdAttachRefusalPayload(composition, this->held_);
       composition.declare(loka::app::FragmentDefinition());
     }
 
     loka::app::scene::NodeState<WhiteFlagStatePayload> state_;
+    loka::core::Held<int *> held_;
   };
 
   struct AttachRefusalRootDefinition
@@ -930,6 +956,61 @@ namespace
     {
       return new AttachRefusalRootDefinition(*this);
     }
+  };
+
+  struct PlainAttachRefusalRecord
+  {
+    PlainAttachRefusalRecord()
+        : constructions(0), detaches(0), destructions(0), detachesAtReplacement(0), wrapper(0), runtimeEmptyAtReplacement(false) {}
+    int constructions;
+    int detaches;
+    int destructions;
+    int detachesAtReplacement;
+    loka::app::scene::BoundaryNode *wrapper;
+    bool runtimeEmptyAtReplacement;
+  };
+
+  class PlainAttachRefusalChild;
+  struct PlainAttachRefusalProps : loka::app::scene::NodePropsBase<PlainAttachRefusalProps>
+  {
+    struct TypeTag {};
+    typedef PlainAttachRefusalChild NodeType;
+    explicit PlainAttachRefusalProps(PlainAttachRefusalRecord *value = 0) : record(value) {}
+    bool operator<(const loka::app::scene::PropsBase &) const { return false; }
+    PlainAttachRefusalRecord *record;
+  };
+
+  class PlainAttachRefusalChild : public loka::app::scene::ComposableNode
+  {
+  public:
+    typedef PlainAttachRefusalProps::TypeTag TypeTag;
+    explicit PlainAttachRefusalChild(const PlainAttachRefusalProps &p) : props(p), state_()
+    {
+      if (++this->props.record->constructions == 2)
+      {
+        this->props.record->detachesAtReplacement = this->props.record->detaches;
+        this->props.record->runtimeEmptyAtReplacement =
+            loka::dsl::testing::OwnershipDump::dumpSeatRuntime(*this->props.record->wrapper).empty();
+      }
+      WhiteFlagStatePayload initial = {{0}};
+      this->state(this->state_, initial);
+    }
+    virtual ~PlainAttachRefusalChild() { ++this->props.record->destructions; }
+    virtual void composeWithContext(loka::app::scene::ComponentContext &context,
+                                    loka::app::scene::ComposeEvent event)
+    {
+      if (event == loka::app::scene::COMPOSE_EVENT_DETACH)
+        ++this->props.record->detaches;
+      if (event == loka::app::scene::COMPOSE_EVENT_ATTACH)
+      {
+        loka::app::scene::NodeComposition composition;
+        composition.setContext(&context);
+        holdAttachRefusalPayload(composition, this->held_);
+      }
+    }
+    PlainAttachRefusalProps props;
+    loka::app::scene::NodeState<WhiteFlagStatePayload> state_;
+    loka::core::Held<int *> held_;
   };
 
   struct SectionTrackedValue
@@ -2236,7 +2317,7 @@ void testHeapFallbackWhiteFlagFailsBoundaryCompose()
                              loka::app::scene::NODE_DIRTY_PROPS);
     loka::app::scene::StateBatchBase::CreateStateFromInitial<LargeStateValue>(
         &owner, unreserved, initial);
-    owner.completeComposeResult(true);
+    owner.completeComposeResult();
     assert(g_heapStateRefusals == 1);
 
     // No half-alive state: the out handle is invalid, nothing was adopted.
@@ -2344,107 +2425,6 @@ void testNestedConditionalSeatInContextlessMaterialization_Probe()
   loka::app::scene::DestroyHeapNode(result.root);
 }
 
-void testNestedConditionalSeatDefersProjectionAndRecoversThroughRootBoundaryWrapper()
-{
-#ifdef LOKA_LIFECYCLE_AUDIT
-  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
-#endif
-  {
-    SceneTestSupport::RecordingPlatformController platform;
-    loka::core::MutableState<bool> condition(true);
-    bool useReplacement = false;
-
-    // The distinct direct-child tags force the local diff to replace the
-    // plain initial node with a freshly materialized nestable subtree.
-    GateProbeDefinition initialChild;
-    initialChild.tag(14301);
-    loka::app::FragmentDefinition initial;
-    initial << initialChild;
-
-    GateProbeDefinition trueBranch;
-    loka::app::FragmentDefinition falseBranch;
-    loka::app::scene::ConditionalDefinition conditional(
-        (loka::app::scene::ConditionalProps(&condition, &trueBranch, &falseBranch)));
-    loka::app::FragmentDefinition inner;
-    inner.tag(14302);
-    inner << conditional;
-    loka::app::FragmentDefinition replacement;
-    replacement << inner;
-
-    loka::app::scene::Scene scene(
-        new SceneTestSupport::FullRebuildLedgerDefinition(
-            &useReplacement, &initial, &replacement));
-    assert(!scene.getRootDefinition()->isBoundary());
-    scene.mount(&platform);
-    scene.updateAttached(true);
-
-    loka::app::scene::BoundaryNode *root =
-        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
-    assert(root);
-    assert(root->composeResult().composed);
-    assert(!root->composeResult().allocationFailed);
-    assert(!root->composeResult().boundaryPlanRequired);
-    const size_t appliedBefore = platform.changeCount();
-    (void)appliedBefore;
-    assert(appliedBefore > 0);
-
-    useReplacement = true;
-    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    LOKA_VERIFY(scene.flushInvalidation());
-
-    assert(!root->composeResult().composed);
-    assert(root->composeResult().boundaryPlanRequired);
-    assert(!root->composeResult().allocationFailed);
-    assert(root->previousCompositionSnapshot().empty());
-    assert(root->currentCompositionSnapshot().empty());
-    assert(platform.changeCount() == appliedBefore);
-    assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
-
-    // Replacing the initial child retires it at the failure tick. That queues
-    // one clock-boundary reclamation run, not a compose retry: draining it is
-    // silent, leaves the white flag armed, and publishes nothing.
-    assert(scene.hasPendingInvalidation());
-    LOKA_VERIFY(!scene.flushInvalidation());
-    assert(!scene.hasPendingInvalidation());
-    assert(!root->composeResult().composed);
-    assert(root->composeResult().boundaryPlanRequired);
-    assert(!root->composeResult().allocationFailed);
-    assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
-    assert(platform.changeCount() == appliedBefore);
-
-    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
-    LOKA_VERIFY(scene.flushInvalidation());
-    assert(root->composeResult().composed);
-    assert(!root->composeResult().boundaryPlanRequired);
-    assert(!root->composeResult().allocationFailed);
-    assert(!loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
-    assert(platform.changeCount() > appliedBefore);
-    assert(platform.changeAt(platform.changeCount() - 1).fullRebuild);
-
-    loka::app::scene::Node *compositionRoot = root->childrenHead();
-    loka::app::scene::INestable *rootFragment =
-        compositionRoot ? compositionRoot->asNestable() : 0;
-    loka::app::scene::Node *innerNode =
-        rootFragment ? rootFragment->childrenHead() : 0;
-    loka::app::scene::INestable *innerFragment =
-        innerNode ? innerNode->asNestable() : 0;
-    loka::app::scene::Node *activeBranch =
-        innerFragment ? innerFragment->childrenHead() : 0;
-  LOKA_VERIFY(rootFragment && rootFragment->childrenCount() == 1);
-  LOKA_VERIFY(innerFragment && innerFragment->childrenCount() == 1);
-    (void)activeBranch;
-    assert(activeBranch &&
-           activeBranch->propsTypeId() == GateProbeProps::staticTypeId());
-
-    scene.unmount();
-  }
-#ifdef LOKA_LIFECYCLE_AUDIT
-  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
-  loka::core::LokaAllocAuditCheckpoint(
-      "testNestedConditionalSeatDefersProjectionAndRecoversThroughRootBoundaryWrapper");
-#endif
-}
-
 /** #132 ruling 3 / Codex P2 (hole 2): after a refused root create() arms the
     scene white flag, an external refresh retries. If root create() now
     succeeds but the attach compose itself refuses a node-local state, the
@@ -2525,6 +2505,134 @@ void testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry()
   loka::core::LokaAllocAuditCheckpoint(
       "testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry");
 #endif
+}
+
+void testPlainRootAttachAllocationRefusalStaysUncomposedAndRetriesWithDetach()
+{
+  using namespace loka::app::scene;
+  using loka::dsl::testing::SceneTestAccess;
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
+#endif
+  PlainAttachRefusalRecord record;
+  loka::core::MutableState<bool> shown(true);
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::FragmentDefinition *definition = new loka::app::FragmentDefinition();
+    *definition << NodeDefinition<PlainAttachRefusalProps, PlainAttachRefusalChild>(
+        PlainAttachRefusalProps(&record));
+    *definition << (loka::app::Show(shown) << loka::app::ButtonDefinition("retry seat"));
+    Scene scene(static_cast<NodeDefinitionBase *>(definition));
+    g_attachRefuseState = true;
+    g_attachStateRefusals = 0;
+    loka::core::LokaAllocSetBackend(&attachStateRefusingBackendAlloc, &delegatingBackendFree);
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    loka::core::LokaAllocSetBackend(0, 0);
+    g_attachRefuseState = false;
+
+    const bool refusedComposed = SceneTestAccess::composed(scene);
+    const bool refusedWhiteFlag = SceneTestAccess::whiteFlagFullRebuildPending(scene);
+    const size_t refusedPublications = platform.changeCount();
+    LOKA_VERIFY(g_attachStateRefusals > 0 && record.constructions == 1);
+    LOKA_VERIFY(!refusedComposed);
+    LOKA_VERIFY(refusedWhiteFlag && refusedPublications == 0);
+    LOKA_VERIFY(record.detaches == 0 && record.destructions == 0);
+    LOKA_VERIFY(!scene.flushInvalidation());
+
+    BoundaryNode *refusedWrapper = SceneTestAccess::rootBoundary(scene);
+    record.wrapper = refusedWrapper;
+    Node *partial = refusedWrapper->childrenHead()->asNestable()->childrenHead();
+    const std::string refusedSeats = loka::dsl::testing::OwnershipDump::dumpSeatRuntime(*refusedWrapper);
+    LOKA_VERIFY(refusedSeats == "seat parent=attached active=attached\n");
+    scene.requestInvalidate(NODE_DIRTY_CHILD);
+    scene.flushInvalidation();
+    const bool healedComposed = SceneTestAccess::composed(scene);
+    const bool healedWhiteFlag = SceneTestAccess::whiteFlagFullRebuildPending(scene);
+    const size_t healedPublications = platform.changeCount();
+    BoundaryNode *wrapper = SceneTestAccess::rootBoundary(scene);
+    Node *fragment = wrapper ? wrapper->childrenHead() : 0;
+    INestable *children = fragment ? fragment->asNestable() : 0;
+    LOKA_VERIFY(children);
+    PlainAttachRefusalChild *child = static_cast<PlainAttachRefusalChild *>(children->childrenHead());
+    LOKA_VERIFY(child);
+    const bool stateValid = child->state_.isValid();
+    LOKA_VERIFY(healedComposed && !healedWhiteFlag && stateValid && healedPublications > 0);
+    LOKA_VERIFY(record.constructions == 2 && record.destructions == 0);
+    LOKA_VERIFY(record.detaches == 1 && record.detachesAtReplacement == 1);
+    LOKA_VERIFY(record.runtimeEmptyAtReplacement);
+    const NodeLifecycleFact partialFact = partial->lifecycleFact();
+    LOKA_VERIFY(partialFact == NODE_FACT_RETIRED);
+    const std::string healedSeats = loka::dsl::testing::OwnershipDump::dumpSeatRuntime(*wrapper);
+    LOKA_VERIFY(healedSeats == "seat parent=attached active=attached\n");
+    scene.flushInvalidation();
+    LOKA_VERIFY(record.destructions == 1);
+  }
+  LOKA_VERIFY(record.destructions == 2);
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int totalLiveAfter = loka::core::LokaAllocAuditTotalLiveCount();
+  LOKA_VERIFY(totalLiveAfter == totalLiveBefore);
+#endif
+}
+
+namespace
+{
+  void verifyRefusedAttachUnmountDrainsHeld(bool boundaryRoot)
+  {
+    using namespace loka::app::scene;
+    using loka::dsl::testing::SceneTestAccess;
+#ifdef LOKA_LIFECYCLE_AUDIT
+    const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
+#endif
+    int releases = 0;
+    PlainAttachRefusalRecord record;
+    {
+      SceneTestSupport::RecordingPlatformController platform;
+      NodeDefinitionBase *definition = 0;
+      if (boundaryRoot)
+        definition = new AttachRefusalRootDefinition();
+      else
+      {
+        loka::app::FragmentDefinition *fragment = new loka::app::FragmentDefinition();
+        *fragment << NodeDefinition<PlainAttachRefusalProps, PlainAttachRefusalChild>(
+            PlainAttachRefusalProps(&record));
+        definition = fragment;
+      }
+      Scene scene(definition);
+      g_attachRefusalHeldReleases = &releases;
+      g_attachRefuseState = true;
+      g_attachStateRefusals = 0;
+      loka::core::LokaAllocSetBackend(&attachStateRefusingBackendAlloc, &delegatingBackendFree);
+      scene.mount(&platform);
+      scene.updateAttached(true);
+      loka::core::LokaAllocSetBackend(0, 0);
+      g_attachRefuseState = false;
+      g_attachRefusalHeldReleases = 0;
+      const bool composed = SceneTestAccess::composed(scene);
+      const bool whiteFlag = SceneTestAccess::whiteFlagFullRebuildPending(scene);
+      const size_t publications = platform.changeCount();
+      LOKA_VERIFY(!composed && whiteFlag && publications == 0 && g_attachStateRefusals > 0);
+      LOKA_VERIFY(releases == 0);
+      scene.unmount();
+      LOKA_VERIFY(releases == 1);
+      if (!boundaryRoot)
+        LOKA_VERIFY(record.detaches > 0 && record.destructions == 1);
+    }
+#ifdef LOKA_LIFECYCLE_AUDIT
+    const int totalLiveAfter = loka::core::LokaAllocAuditTotalLiveCount();
+    LOKA_VERIFY(totalLiveAfter == totalLiveBefore);
+#endif
+  }
+}
+
+void testPlainRootRefusedAttachUnmountDrainsHeldAndReclaimsNodes()
+{
+  verifyRefusedAttachUnmountDrainsHeld(false);
+}
+
+void testBoundaryRootRefusedAttachUnmountDrainsHeldAndReclaimsNodes()
+{
+  verifyRefusedAttachUnmountDrainsHeld(true);
 }
 
 void testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement()
@@ -2735,8 +2843,6 @@ void testBoundarySectionAllocationFailureKeepsBoundaryRefusalAtomic()
       assert(g_sectionFailureHeapCalls == 2);
       assert(!root->composeResult().composed);
       assert(root->composeResult().allocationFailed);
-      assert(root->previousCompositionSnapshot().empty());
-      assert(root->currentCompositionSnapshot().empty());
       (void)appliedBefore;
       assert(platform.changeCount() == appliedBefore &&
              "Section-local allocation failure must refuse boundary publish");

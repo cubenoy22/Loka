@@ -967,3 +967,147 @@ void testKeyedOutgoingSeatSourceRemainsObservedByOrdinaryNode()
   const NodeDirtyFlags flags = platform.flagsSeenForNode(r.owner);
   LOKA_VERIFY(flags == NODE_DIRTY_PROPS && r.declarations == 2);
 }
+
+namespace
+{
+  /** Stack-owned observations for the plain-root traversal contract. */
+  struct PlainRootRecord
+  {
+    PlainRootRecord()
+        : selection(0), compositions(0), rootUpdates(0), childUpdates(0)
+    {
+    }
+    loka::core::MutableState<int> selection;
+    int compositions;
+    int rootUpdates;
+    int childUpdates;
+    MatchArmRecord arms[2];
+  };
+
+  struct PlainRootNode;
+  struct PlainRootChild;
+  template <class NodeT> struct PlainRootTag {};
+  template <class NodeT> struct PlainRootPropsFor : NodePropsBase<PlainRootPropsFor<NodeT> >
+  {
+    typedef PlainRootTag<NodeT> TypeTag;
+    typedef NodeT NodeType;
+    explicit PlainRootPropsFor(PlainRootRecord *value = 0, bool seatValue = false)
+        : record(value), seat(seatValue) {}
+    bool operator<(const PropsBase &) const { return false; }
+    PlainRootRecord *record;
+    bool seat;
+  };
+
+  typedef PlainRootPropsFor<PlainRootNode> PlainRootProps;
+  typedef PlainRootPropsFor<PlainRootChild> PlainRootChildProps;
+
+  struct PlainRootChild : ComposableNode
+  {
+    typedef PlainRootTag<PlainRootChild> TypeTag;
+    explicit PlainRootChild(const PlainRootChildProps &p) : props(p) {}
+    virtual void composeWithContext(ComponentContext &, ComposeEvent event)
+    {
+      if (event == COMPOSE_EVENT_UPDATE)
+        ++this->props.record->childUpdates;
+    }
+    PlainRootChildProps props;
+  };
+
+  struct PlainRootNode : ComposableNode
+  {
+    typedef PlainRootTag<PlainRootNode> TypeTag;
+    explicit PlainRootNode(const PlainRootProps &p) : props(p) {}
+    PlainRootProps props;
+    virtual void composeWithContext(ComponentContext &context, ComposeEvent event)
+    {
+      if (event == COMPOSE_EVENT_UPDATE)
+        ++this->props.record->rootUpdates;
+      if (event != COMPOSE_EVENT_ATTACH || this->childrenHead())
+        return;
+      NodeComposition &composition = this->beginComposition(context);
+      {
+        NodeComposition::CompositionScope scope(composition);
+        this->composeNode(composition);
+      }
+      context.boundary()->appendNestedBranchSeatPlan(composition);
+      context.setComposition(&composition);
+      this->addChild(composition.createNodeTree());
+      context.setComposition(0);
+    }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      ++this->props.record->compositions;
+      loka::app::Fragment root;
+      root << NodeDefinition<PlainRootChildProps, PlainRootChild>(PlainRootChildProps(this->props.record));
+      if (this->props.seat)
+      {
+        root << loka::app::Match(this->props.record->selection)
+                    .arm(0, Boundary<MatchArmBoundaryNode>(MatchArmProps(&this->props.record->arms[0])))
+                    .arm(1, Boundary<MatchArmBoundaryNode>(MatchArmProps(&this->props.record->arms[1])));
+      }
+      composition.declare(root);
+    }
+  };
+}
+
+void testPlainRootMatchUpdateComposesOnceAndWalksChildrenOnce()
+{
+  PlainRootRecord record;
+  SceneTestSupport::RecordingPlatformController platform;
+  Scene scene(new NodeDefinition<PlainRootProps, PlainRootNode>(PlainRootProps(&record, true)));
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  BoundaryNode *wrapper = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  LOKA_VERIFY(wrapper && wrapper->childrenHead() && !wrapper->childrenHead()->asBoundary());
+  Node *plainRoot = wrapper->childrenHead();
+  LOKA_VERIFY(record.compositions == 1 && record.arms[0].node && !record.arms[1].node);
+
+  for (int selection = 1; selection >= 0; --selection)
+  {
+    const int updates = record.rootUpdates;
+    const int childUpdates = record.childUpdates;
+    setMatchState(record.selection, selection);
+    // The ordinary wrapper may flush synchronously when the State commits.
+    if (scene.hasPendingInvalidation())
+      scene.flushInvalidation();
+    LOKA_VERIFY(wrapper->childrenHead() == plainRoot && record.compositions == 1);
+    LOKA_VERIFY(record.rootUpdates == updates + 1 && record.childUpdates == childUpdates + 1);
+    LOKA_VERIFY(record.arms[selection].node &&
+                record.arms[selection].node->lifecycleFact() == NODE_FACT_ATTACHED);
+    LOKA_VERIFY(!record.arms[1 - selection].node ||
+                record.arms[1 - selection].node->lifecycleFact() != NODE_FACT_ATTACHED);
+    const PlatformApplyPlan &plan = loka::dsl::testing::SceneTestAccess::lastApplyPlan(scene);
+    LOKA_VERIFY(plan.structureChanged);
+  }
+}
+
+/** Characterization: CHILD dirt alone cannot redeclare a plain root. */
+void testPlainRootChildDirtWithoutSeatOnlyWalks()
+{
+  PlainRootRecord record;
+  SceneTestSupport::RecordingPlatformController platform;
+  Scene scene(new NodeDefinition<PlainRootProps, PlainRootNode>(PlainRootProps(&record)));
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  BoundaryNode *wrapper = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  Node *plainRoot = wrapper->childrenHead();
+  LOKA_VERIFY(plainRoot && !plainRoot->asBoundary());
+  for (int update = 1; update <= 2; ++update)
+  {
+    scene.requestInvalidate(NODE_DIRTY_CHILD);
+    LOKA_VERIFY(scene.flushInvalidation());
+    LOKA_VERIFY(wrapper->childrenHead() == plainRoot && record.compositions == 1);
+    LOKA_VERIFY(record.rootUpdates == update && record.childUpdates == update);
+    const PlatformApplyPlan &plan = loka::dsl::testing::SceneTestAccess::lastApplyPlan(scene);
+    LOKA_VERIFY(!plan.structureChanged);
+  }
+  // Allocation recovery keeps its platform meaning without redeclaring the root.
+  scene.noteComposeAllocationFailure();
+  scene.requestInvalidate(NODE_DIRTY_PROPS);
+  LOKA_VERIFY(scene.flushInvalidation());
+  LOKA_VERIFY(record.compositions == 1 && wrapper->childrenHead() == plainRoot);
+  LOKA_VERIFY(record.rootUpdates == 3 && record.childUpdates == 3);
+  const PlatformApplyPlan &recoveryPlan = loka::dsl::testing::SceneTestAccess::lastApplyPlan(scene);
+  const bool fullProjection = platform.changeAt(platform.changeCount() - 1).fullRebuild;
+  LOKA_VERIFY(recoveryPlan.structureChanged && fullProjection);
+}

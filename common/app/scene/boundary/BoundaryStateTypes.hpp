@@ -175,7 +175,6 @@ namespace loka
             : event(COMPOSE_EVENT_ATTACH),
               dirtyFlagsSeen(NODE_DIRTY_NONE),
               composed(false),
-              preservedNativeContexts(false),
               allocationFailed(false),
               boundaryPlanRequired(false)
         {
@@ -186,7 +185,6 @@ namespace loka
           event = COMPOSE_EVENT_ATTACH;
           dirtyFlagsSeen = NODE_DIRTY_NONE;
           composed = false;
-          preservedNativeContexts = false;
           allocationFailed = false;
           boundaryPlanRequired = false;
         }
@@ -194,7 +192,6 @@ namespace loka
         ComposeEvent event;
         NodeDirtyFlags dirtyFlagsSeen;
         bool composed;
-        bool preservedNativeContexts;
         /** Allocation white flag (#132 ruling 3): raised inside this compose
             window when a state or node failed to materialize because the
             backend gave up. Compose completion converts it into a projection

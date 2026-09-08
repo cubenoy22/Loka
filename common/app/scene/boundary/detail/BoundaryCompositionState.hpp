@@ -5,7 +5,6 @@
 #include "app/scene/Node.hpp"
 #include "app/scene/composition/NodeCompositionCompare.hpp"
 #include "app/scene/composition/NodeCompositionDiff.hpp"
-#include "app/scene/composition/NodeCompositionSnapshot.hpp"
 #include "app/scene/boundary/BoundaryStateTypes.hpp"
 #include "app/scene/boundary/detail/BoundaryBranchSeatState.hpp"
 
@@ -151,26 +150,10 @@ namespace loka
         BoundaryBranchSeatRuntimeRegistrationPlan branchSeatRegistrations;
       };
 
-      /** Live roots the incoming definition generation will structurally
-          detach. Runtime-seat lookups treat every descendant as unavailable
-          without changing either ownership ledger before commit. */
-      struct BoundaryLocalRebuildExclusions
-      {
-        void clear()
-        {
-          roots.clear();
-        }
-
-        std::vector<Node *> roots;
-      };
-
       struct BoundaryCompositionState
       {
         BoundaryCompositionState()
-            : result(),
-              previousSnapshot(),
-              currentSnapshot(),
-              diff()
+            : result()
         {
         }
 
@@ -184,15 +167,13 @@ namespace loka
           result.event = event;
           result.dirtyFlagsSeen = dirtyFlags;
           result.composed = false;
-          result.preservedNativeContexts = false;
           result.allocationFailed = false;
           result.boundaryPlanRequired = false;
         }
 
-        void completeCompose(bool preservedNativeContexts)
+        void completeCompose()
         {
           result.composed = true;
-          result.preservedNativeContexts = preservedNativeContexts;
         }
 
         void noteAllocationFailure()
@@ -215,24 +196,10 @@ namespace loka
           return result.boundaryPlanRequired;
         }
 
-        /** White-flag terminal half A (#132 ruling 3): the compose stays a
-            failure — composed remains false and nothing may treat the local
-            diff as applicable. The recorded failure reason stays visible. */
+        /** Refuse projection while preserving the recorded failure reason. */
         void failCompose()
         {
           result.composed = false;
-          result.preservedNativeContexts = false;
-        }
-
-        /** White-flag terminal half B — the #70 mechanism: a failed compose
-            must not leave snapshots that could seed a stale retain diff. An
-            empty previous snapshot forces the next compose onto the
-            clean-slate rebuild path. */
-        void invalidateSnapshots()
-        {
-          previousSnapshot.clear();
-          currentSnapshot.clear();
-          diff.clear();
         }
 
         BoundaryComposeResult &composeResult()
@@ -245,100 +212,7 @@ namespace loka
           return result;
         }
 
-        void captureCurrentSnapshot(const NodeComposition &composition)
-        {
-          currentSnapshot.capture(composition);
-        }
-
-        void rebuildLocalCompositionDiff()
-        {
-          this->diff.clear();
-          if (!buildNodeCompositionSnapshotDiffByTag(this->previousSnapshot, this->currentSnapshot, this->diff))
-          {
-            this->diff.clear();
-          }
-        }
-
-        void promoteCurrentSnapshot()
-        {
-          previousSnapshot = currentSnapshot;
-          currentSnapshot.clear();
-        }
-
-        NodeDefinitionBase *findCurrentDefinitionByTag(NodeTag tag) const
-        {
-          if (tag == NODE_TAG_NONE)
-          {
-            return 0;
-          }
-          const INestableDefinition *root = currentRootNestableDefinition();
-          if (!root)
-          {
-            return 0;
-          }
-          NodeDefinitionBase *child = root->childrenHead();
-          while (child)
-          {
-            if (child->nodeTag() == tag)
-            {
-              return child;
-            }
-            child = child->nextInComposition;
-          }
-          return 0;
-        }
-
-        INestableDefinition *currentRootNestableDefinition() const
-        {
-          return currentSnapshot.root() ? currentSnapshot.root()->asNestableDefinition() : 0;
-        }
-
-        const NodeCompositionDiff *localCompositionDiff() const
-        {
-          return this->diff.valid ? &this->diff : 0;
-        }
-
-        bool hasCompositionDiffState() const
-        {
-          return !this->previousSnapshot.empty() || !this->currentSnapshot.empty() || !this->diff.empty();
-        }
-
-        bool canApplyLocalCompositionDiff() const
-        {
-          const NodeCompositionDiff *diff = localCompositionDiff();
-          return diff != 0 && !diff->fullRebuild && !diff->empty() && !diff->hasIncompatibleRetain();
-        }
-
-        bool canPreserveNativeContexts() const
-        {
-          const NodeCompositionDiff *diff = localCompositionDiff();
-          return diff != 0 && !diff->fullRebuild && !diff->hasIncompatibleRetain();
-        }
-
-        NodeCompositionSnapshot &previousCompositionSnapshot()
-        {
-          return previousSnapshot;
-        }
-
-        const NodeCompositionSnapshot &previousCompositionSnapshot() const
-        {
-          return previousSnapshot;
-        }
-
-        NodeCompositionSnapshot &currentCompositionSnapshot()
-        {
-          return currentSnapshot;
-        }
-
-        const NodeCompositionSnapshot &currentCompositionSnapshot() const
-        {
-          return currentSnapshot;
-        }
-
         BoundaryComposeResult result;
-        NodeCompositionSnapshot previousSnapshot;
-        NodeCompositionSnapshot currentSnapshot;
-        NodeCompositionDiff diff;
       };
     } // namespace scene
   } // namespace app

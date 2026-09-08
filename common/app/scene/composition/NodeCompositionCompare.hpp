@@ -3,7 +3,6 @@
 
 #include <vector>
 #include "app/scene/composition/NodeCompositionDiff.hpp"
-#include "app/scene/composition/NodeCompositionSnapshot.hpp"
 
 namespace loka
 {
@@ -272,51 +271,8 @@ namespace loka
 
       namespace detail
       {
-        inline bool
-        buildRootDiffByTag(NodeDefinitionBase *previousRoot, NodeDefinitionBase *currentRoot, NodeCompositionDiff &out)
-        {
-          out.clear();
-
-          if (!previousRoot && !currentRoot)
-          {
-            out.valid = true;
-            out.fullRebuild = false;
-            return true;
-          }
-          if (!previousRoot || !currentRoot)
-          {
-            return false;
-          }
-
-          INestableDefinition *previousNestable = previousRoot->asNestableDefinition();
-          INestableDefinition *currentNestable = currentRoot->asNestableDefinition();
-          if (!previousNestable && !currentNestable)
-          {
-            NodeTag rootTag = currentRoot->nodeTag();
-            if (rootTag == NODE_TAG_NONE)
-            {
-              rootTag = previousRoot->nodeTag();
-            }
-            addDiffEntry(out, rootTag, 0, previousRoot, currentRoot, 0, 0);
-            out.valid = true;
-            out.fullRebuild = false;
-            return true;
-          }
-          if (!previousNestable || !currentNestable)
-          {
-            return false;
-          }
-
-          return buildChildDiffByTag(previousNestable, currentNestable, out);
-        }
       } // namespace detail
 
-      inline bool buildNodeCompositionSnapshotDiffByTag(const NodeCompositionSnapshot &previous,
-                                                        const NodeCompositionSnapshot &current,
-                                                        NodeCompositionDiff &out)
-      {
-        return detail::buildRootDiffByTag(previous.root(), current.root(), out);
-      }
     } // namespace scene
   } // namespace app
 } // namespace loka
