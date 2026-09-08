@@ -53,9 +53,9 @@ namespace loka
         return this->effectiveWidth() > 0 && height > 0;
       }
       /** Resolves the width used by Box layout and its parent's seat claim. */
-      int effectiveWidth() const
+      short effectiveWidth() const
       {
-        return this->widthState_ ? this->widthState_->get() : this->width;
+        return this->widthState_ ? static_cast<short>(this->widthState_->get()) : this->width;
       }
       bool operator<(const scene::PropsBase &rhs) const
       {
