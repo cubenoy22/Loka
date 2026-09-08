@@ -824,8 +824,8 @@ void testOwnershipDumpPinsMineSweeperNewGameRetiresCells()
       loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
   assert(wrapper);
 
-  // A new game is an identity change: the key bank flips, so the plan
-  // retires all 64 old boxes -- residents included -- and materializes 64
+  // A new game changes the Keyed generation, retiring the entire board:
+  // all 64 old boxes -- residents included -- are replaced by 64
   // fresh covered cells. Old rows are reclaimed by the next drain. Two real
   // button clicks, not direct handler calls: the second click only works if
   // the boundary's original binding remains armed across seat replacements.
@@ -853,7 +853,7 @@ void testOwnershipDumpPinsMineSweeperNewGameRetiresCells()
     LOKA_VERIFY(!scene.flushInvalidation() &&
                 "cell retirement must be a silent drain-only run");
 
-    const int baseKey = (round == 0) ? 164 : 100;
+    const int baseKey = 100;
     std::string expected("scene\n"
                          "  boundary\n"
                          "    boundary\n"

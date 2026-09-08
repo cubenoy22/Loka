@@ -24,6 +24,7 @@
 #include "scenarios/ObservedMainDefinition.hpp"
 #include "scenarios/SceneScenarioDriver.hpp"
 #include "testing/scene/ScenarioAudit.hpp"
+#include "testing/scene/SceneTestFlow.hpp"
 
 namespace
 {
@@ -121,6 +122,50 @@ namespace
     LOKA_VERIFY(value == expected);
   }
 } // namespace
+
+void testMineSweeperNewGameKeyNeverRepeats()
+{
+  minesweeper::MainNode *main = 0;
+  loka::scenario_tests::ObservedMainDefinition<minesweeper::MainProps, minesweeper::MainNode> definition(
+      minesweeper::MainProps(loka::scenario_tests::MineSweeperScenarioSeed()), &main);
+  loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> root(definition.clone());
+  LOKA_VERIFY(root.get() != 0);
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(root.take());
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  LOKA_VERIFY(main != 0);
+
+  long idMatches = 0;
+  long typedMatches = 0;
+  loka::app::ButtonNode *button = 0;
+  loka::dsl::testing::scene_test_detail::findNodeByIdRecursive<loka::app::ButtonNode>(
+      loka::dsl::testing::SceneTestAccess::rootNode(scene),
+      std::string("MineSweeper.NewGameButton"), idMatches, typedMatches, button);
+  LOKA_VERIFY(idMatches == 1 && typedMatches == 1 && button != 0);
+
+  int keys[4];
+  keys[0] = main->gameGeneration();
+  for (int round = 1; round < 4; ++round)
+  {
+    {
+      loka::core::StateTrackerGuard guard(main->tracker());
+      button->props.onClick_->emit();
+    }
+    keys[round] = main->gameGeneration();
+    scene.flushInvalidation();
+  }
+  for (int i = 0; i < 4; ++i)
+  {
+    for (int j = i + 1; j < 4; ++j)
+    {
+      LOKA_VERIFY(keys[i] != keys[j]);
+    }
+  }
+
+  scene.unmount();
+  std::printf("testMineSweeperNewGameKeyNeverRepeats passed\n");
+}
 
 void testMineSweeperNewGameTwiceDrivesOwnerEmitter()
 {

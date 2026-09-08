@@ -24,7 +24,7 @@ namespace minesweeper
 
   /** Immutable per-game facts a cell reads from the board: the mine layout
       and adjacency never change within one game, so they travel as plain
-      values. A new game is a new identity (Section key), not new props. */
+      values. A new game replaces the Keyed board subtree, including every cell. */
   struct MineCellProps : public loka::app::scene::NodePropsBase<MineCellProps>
   {
     typedef MineCellTypeTag TypeTag;
@@ -255,17 +255,23 @@ namespace minesweeper
       {
         cellItems[i] = MineCellItem(this->mines_[i]);
       }
-      // For emits one owner-scope box per cell. A new game swaps the key
-      // bank, so the plan retires every old box -- presentation residents
-      // included -- and materializes fresh covered cells.
-      grid << For(kCellSectionKeyBase + this->bank_.get() * kCellCount, cellItems, MineCellFactory(this));
+      // For emits one owner-scope box per cell. A Keyed key change retires
+      // the old board, including its presentation residents, and
+      // materializes fresh covered cells.
+      grid << For(kCellSectionKeyBase, cellItems, MineCellFactory(this));
       c.declare(grid);
+    }
+
+    /** Read-only generation observation for scenario tests. */
+    int gameGeneration() const
+    {
+      return this->bank_.get();
     }
 
     void startNewGame()
     {
       this->resetBoard();
-      this->bank_.set(1 - this->bank_.get());
+      this->bank_.set(this->bank_.get() + 1);
     }
 
   private:

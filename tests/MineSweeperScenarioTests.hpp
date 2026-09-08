@@ -1,6 +1,7 @@
 #ifndef LOKA_TESTS_MINESWEEPER_SCENARIO_TESTS_HPP
 #define LOKA_TESTS_MINESWEEPER_SCENARIO_TESTS_HPP
 
+void testMineSweeperNewGameKeyNeverRepeats();
 void testMineSweeperNewGameTwiceDrivesOwnerEmitter();
 void testMineSweeperNewGameTwiceHoldsFinalSceneAndMatchesAudit();
 void testMineSweeperSeededRevealDrivesCells();
