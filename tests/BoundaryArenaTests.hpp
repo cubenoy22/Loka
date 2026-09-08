@@ -12,6 +12,8 @@ void testSceneRootAllocationRefusalArmsWhiteFlagAndHealsOnRefresh();
 void testNestedConditionalSeatInContextlessMaterialization_Probe();
 void testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry();
 void testPlainRootAttachAllocationRefusalStaysUncomposedAndRetriesWithDetach();
+void testPlainRootRefusedAttachUnmountDrainsHeldAndReclaimsNodes();
+void testBoundaryRootRefusedAttachUnmountDrainsHeldAndReclaimsNodes();
 void testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement();
 void testBoundarySectionRetainedKeyReconcilesReplacedChild();
 void testBoundarySectionRejectsMissingAndDuplicateSiblingKeys();

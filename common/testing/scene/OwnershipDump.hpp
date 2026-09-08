@@ -51,6 +51,27 @@ namespace loka
           return walker.output_.str();
         }
 
+        /** Runtime rows for the boundary's declared seats, including retired links. */
+        static std::string dumpSeatRuntime(const ::loka::app::scene::BoundaryNode &boundary)
+        {
+          using namespace ::loka::app::scene;
+          std::ostringstream output;
+          const std::vector<BoundaryBranchSeatPlanEntry> &plans = boundary.branchSeats_.plans();
+          for (size_t i = 0; i < plans.size(); ++i)
+          {
+            const BoundaryBranchSeatRuntimeEntry *row = boundary.branchSeats_.findRuntime(plans[i].key);
+            if (!row)
+            {
+              continue;
+            }
+            const bool parentAttached = row->parent && row->parent->lifecycleFact() == NODE_FACT_ATTACHED;
+            const bool activeAttached = row->active && row->active->lifecycleFact() == NODE_FACT_ATTACHED;
+            output << "seat parent=" << (parentAttached ? "attached" : "retired")
+                   << " active=" << (activeAttached ? "attached" : "retired") << "\n";
+          }
+          return output.str();
+        }
+
       private:
         struct OwnerLabel
         {

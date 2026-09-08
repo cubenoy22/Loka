@@ -107,10 +107,20 @@ namespace loka
           if (this->childrenHead())
           {
             this->detachExistingChildren(context);
+            std::vector<Node *> detached;
+            this->detachChildrenTo(detached);
+            for (size_t i = 0; i < detached.size(); ++i)
+            {
+              this->retireDetachedNode(context, detached[i]);
+            }
+            this->retireOwnedNodeGeneration(context);
+          }
+          else
+          {
+            this->clearChildren();
+            this->nodeArena()->clear();
           }
           NodeComposition *composition = &this->beginDeclaringWindow(context);
-          this->clearChildren();
-          this->nodeArena()->clear();
           this->attachNode(*composition);
           {
             NodeComposition::CompositionScope scope(*composition);
@@ -450,14 +460,6 @@ namespace loka
           mounted_ = false;
           platformController_ = 0;
           clearMountedUpdateState();
-          if (rootNode_)
-          {
-            // The root is gate-created (rootDefinition_->create()) or a
-            // plain-new RootBoundaryWrapper; DestroyHeapNode routes by
-            // provenance. Never arena-allocated.
-            DestroyHeapNode(rootNode_);
-            rootNode_ = 0;
-          }
         }
 
         void requestInvalidate(NodeDirtyFlags flags = NODE_DIRTY_PROPS)
@@ -973,7 +975,7 @@ namespace loka
 
         void teardownComposition()
         {
-          if (!composed_)
+          if (!rootNode_)
           {
             return;
           }
@@ -989,12 +991,9 @@ namespace loka
             platformController_->destroy();
           }
           composed_ = false;
-          if (rootNode_)
-          {
-            // Gate-created root or plain-new RootBoundaryWrapper; never arena.
-            DestroyHeapNode(rootNode_);
-            rootNode_ = 0;
-          }
+          // Gate-created root or plain-new RootBoundaryWrapper; never arena.
+          DestroyHeapNode(rootNode_);
+          rootNode_ = 0;
         }
 
         static size_t countLiveNodes(Node *node)
