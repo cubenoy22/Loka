@@ -77,6 +77,16 @@
         "DATA": 12468,
         "RELA": 9194
       }
+    },
+    {
+      "name": "LokaLazyList68K",
+      "path": "example/LazyList/LokaLazyList68K.bin",
+      "baseline": {
+        "total": 268032,
+        "CODE": 241180,
+        "DATA": 15728,
+        "RELA": 10188
+      }
     }
   ]
 }

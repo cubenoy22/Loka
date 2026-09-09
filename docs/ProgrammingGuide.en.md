@@ -520,6 +520,8 @@ The design goal is that memory and lifecycle are visible from the DSL structure.
 
 ### `LazyColumn()` / `LazyRow()`
 
+See [LazyList](../example/LazyList/README.md) for a paged card view with content edits, structural edits, and compile-time capacity builds.
+
 Use a lazy list for fixed-size component items backed by an `ObservableList`.
 Each item Props type names its `NodeType`, derived from `ComponentNodeWithProps`.
 The list and the viewport State belong to the app and must outlive the view.

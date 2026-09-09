@@ -1,5 +1,6 @@
 #include "../example/FloppyBird/src/MyAppConfig.hpp"
 #include "../example/SmirkBench/src/MyAppConfig.hpp"
+#include "../example/LazyList/src/MyAppConfig.hpp"
 #include "../example/HelloWorld/src/MyAppConfig.hpp"
 #include "../example/MineSweeper/src/MyAppConfig.hpp"
 #include "../example/SimpleViewer/src/MyAppConfig.hpp"
