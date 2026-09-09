@@ -2,6 +2,7 @@
 #define LOKA_APP_LAYOUT_PLATFORM_BUILTIN_LAYOUT_HANDLERS_HPP
 
 #include "app/layout/BoxLayout.hpp"
+#include "app/layout/CanvasLayout.hpp"
 #include "app/layout/ColumnLayout.hpp"
 #include "app/layout/GridLayout.hpp"
 #include "app/layout/RowLayout.hpp"
@@ -139,6 +140,7 @@ namespace loka
                                                         const GridLayoutMetrics *gridMetrics)
       {
         registry.registerHandler(new BoxPlatformLayoutHandler());
+        registry.registerHandler(new CanvasPlatformLayoutHandler());
         registry.registerHandler(new ZStackPlatformLayoutHandler());
         if (rowMetrics)
         {

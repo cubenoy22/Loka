@@ -16,6 +16,7 @@ namespace loka
           : scene::NodeDefinitionBase(),
             trueBranch_(),
             falseBranch_(),
+            truePolicies_(),
             props_(condition, &this->trueBranch_, &this->falseBranch_)
       {
       }
@@ -24,6 +25,7 @@ namespace loka
             scene::IBranchSeatDefinition(other),
             trueBranch_(other.trueBranch_),
             falseBranch_(other.falseBranch_),
+            truePolicies_(other.truePolicies_),
             props_(other.props_.condition, &this->trueBranch_, &this->falseBranch_)
       {
       }
@@ -34,11 +36,23 @@ namespace loka
           scene::NodeDefinitionBase::operator=(other);
           trueBranch_ = other.trueBranch_;
           falseBranch_ = other.falseBranch_;
+          this->truePolicies_ = other.truePolicies_;
           props_.condition = other.props_.condition;
           props_.trueDef = &this->trueBranch_;
           props_.falseDef = &this->falseBranch_;
         }
         return *this;
+      }
+
+      /** Destroy the true arm on hide; reshow constructs fresh descendants. */
+      ShowDefinition &destroyOnDetach()
+      {
+        this->truePolicies_.destroyOnDetach = true;
+        return *this;
+      }
+      virtual scene::BranchPolicies armPolicies(unsigned arm) const
+      {
+        return arm == 1 ? this->truePolicies_ : scene::BranchPolicies();
       }
 
       virtual scene::Node *create() const
@@ -80,7 +94,10 @@ namespace loka
         }
         const scene::ConditionalProps &otherConditionalProps =
             static_cast<const scene::ConditionalProps &>(*otherProps);
-        return this->props_.condition == otherConditionalProps.condition;
+        scene::IBranchSeatDefinition *otherSeat =
+            const_cast<scene::NodeDefinitionBase &>(other).asBranchSeatDefinition();
+        return this->props_.condition == otherConditionalProps.condition && otherSeat &&
+               this->truePolicies_.destroyOnDetach == otherSeat->armPolicies(1).destroyOnDetach;
       }
       virtual bool repointRetainedNodeDefinition(scene::Node *node) const
       {
@@ -197,6 +214,7 @@ namespace loka
     private:
       FragmentDefinition trueBranch_;
       FragmentDefinition falseBranch_;
+      scene::BranchPolicies truePolicies_;
       scene::ConditionalProps props_;
     };
 

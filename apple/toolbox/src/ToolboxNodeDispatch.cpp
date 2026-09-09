@@ -1,4 +1,5 @@
 #include "ToolboxNodeDispatch.hpp"
+#include "app/layout/CanvasLayout.hpp"
 #include "ToolboxPlatformLayoutHandlers.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "app/RectSurface.hpp"
@@ -134,6 +135,25 @@ namespace
         boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
       }
       return width;
+    }
+    // Toolbox returns width and mutates Y; shared Canvas returns an int bottom.
+    if (loka::app::CanvasNode *canvas = node->asCanvasNode())
+    {
+      loka::core::Frame extent;
+      loka::app::CanvasLayoutStatus status =
+          loka::app::layout::CanvasPlatformLayoutHandler::contentExtent(*canvas, extent);
+      if (status == loka::app::CANVAS_LAYOUT_READY &&
+          (extent.width > SHRT_MAX || extent.height > SHRT_MAX - state.y))
+        status = loka::app::CANVAS_LAYOUT_SHORT_RANGE_REFUSED;
+      if (status != loka::app::CANVAS_LAYOUT_READY)
+      {
+        canvas->recordLayoutStatus(status);
+        return 0;
+      }
+      ToolboxLayoutTraversal traversal(controller, activeBoundary);
+      loka::app::layout::CanvasPlatformLayoutHandler handler;
+      state.y = static_cast<short>(handler.layoutNode(canvas, state, &traversal));
+      return static_cast<short>(extent.width);
     }
     switch (node->kind())
     {

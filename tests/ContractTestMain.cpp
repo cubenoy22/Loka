@@ -1,4 +1,5 @@
 #include "ObservableListTests.hpp"
+#include "CanvasLayoutTests.hpp"
 #include "PropsReconciliationTests.hpp"
 #include "PaintContractTests.hpp"
 #include "PaintBaselineTests.hpp"
