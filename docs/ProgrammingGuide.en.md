@@ -290,8 +290,12 @@ update/move operations; operation-log pages can still allocate and refuse.
 and `undo()` removes the last pending operation only while the base revision
 still matches; neither cancel nor undo reverses a completed commit.
 Check `status()` and each `MirrorResult`, including its underlying model refusal;
-a failed commit preserves pending work, and provisional mirror IDs become
-model-issued IDs on successful commit.
+a failed commit preserves pending work. Provisional IDs (generation 65535)
+returned by the mirror's `insert()` belong to the mirror alone and expire at
+commit or cancel: commit remaps only the pending operations internally, so a
+provisional ID a caller kept is not turned into a model ID and a later model
+edit with it returns `EDIT_ID_NOT_FOUND`. Read the model (or the next revision)
+for the list-issued ID after a successful commit.
 
 ## 5. Boundary-First Ownership
 
