@@ -1,0 +1,17 @@
+#ifndef LOKA_OBSERVABLE_LIST_TESTS_HPP
+#define LOKA_OBSERVABLE_LIST_TESTS_HPP
+void testObservableListAttachRefusalAndLifetime();
+void testObservableListPublishesCompletedRevisions();
+void testObservableListCapacityAndAtomicBatch();
+void testObservableListIdentitiesAndExhaustion();
+void testObservableListApplySummariesAndReplay();
+void testObservableListRejectsReentrantDoors();
+void testMirroredListPagesRefusalUndoAndCancel();
+void testMirroredListCommitMapsProvisionalIds();
+void testMirroredListStaleReplayAndRefusal();
+void testMirroredListConstructionAndAttachmentChanges();
+void testMirroredListRejectsReentrantLogChanges();
+void testObservableListProtectsTrackerSettlement();
+void testObservableListNestedTransactionsAndFailedSequence();
+void testMirroredListAllSkippedAndCapacityRefusal();
+#endif

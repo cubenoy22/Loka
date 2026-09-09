@@ -1,3 +1,17 @@
+LOKA_TEST(testObservableListProtectsTrackerSettlement)
+LOKA_TEST(testObservableListNestedTransactionsAndFailedSequence)
+LOKA_TEST(testMirroredListAllSkippedAndCapacityRefusal)
+LOKA_TEST(testObservableListAttachRefusalAndLifetime)
+LOKA_TEST(testObservableListPublishesCompletedRevisions)
+LOKA_TEST(testObservableListCapacityAndAtomicBatch)
+LOKA_TEST(testObservableListIdentitiesAndExhaustion)
+LOKA_TEST(testObservableListApplySummariesAndReplay)
+LOKA_TEST(testObservableListRejectsReentrantDoors)
+LOKA_TEST(testMirroredListPagesRefusalUndoAndCancel)
+LOKA_TEST(testMirroredListCommitMapsProvisionalIds)
+LOKA_TEST(testMirroredListStaleReplayAndRefusal)
+LOKA_TEST(testMirroredListConstructionAndAttachmentChanges)
+LOKA_TEST(testMirroredListRejectsReentrantLogChanges)
 // Contract tests in the execution order established by FlowDslTestMain.cpp.
 // The marker preserves the combined platform runner's historical scenario position.
 LOKA_TEST(testLifecycleAuditedCountsEveryConstructor)
