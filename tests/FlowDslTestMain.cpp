@@ -6,6 +6,7 @@
 #include "PaintContractTests.hpp"
 #include "PaintBaselineTests.hpp"
 #include "StateNotifyTests.hpp"
+#include "StateTrackerAllocationTests.hpp"
 #include "StateTrackerCommitTests.hpp"
 #include "BoundaryObservedStateTrackerTests.hpp"
 #include "ApplicationFileTests.hpp"

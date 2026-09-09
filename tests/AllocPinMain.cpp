@@ -8,6 +8,7 @@
 //
 // Linux-only test scaffolding (glibc backtrace); never built for Retro68.
 
+#include "StateTrackerAllocationTests.hpp"
 #include "support/AllocCensus.hpp"
 
 #include <execinfo.h>
@@ -508,6 +509,9 @@ void operator delete[](void *p, const std::nothrow_t &) throw()
 
 int main()
 {
+  testStateTrackerReservedPropagation();
+  testStateTrackerCycleAndDiamond();
+  testStateTrackerRemovesSettlementBorrow();
   allocpin::RunZeroAllocPin();
   allocpin::RunFloppyBirdSurfaceAllocPin();
   allocpin::RunFloppyBirdScoreAllocPin();
