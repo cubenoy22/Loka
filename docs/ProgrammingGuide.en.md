@@ -264,6 +264,35 @@ Use `declareStates(...)` when a Node has many Node-local states and batching the
 declaration makes registration cheaper or clearer. For a small number of local
 states, prefer `this->state(...)`.
 
+### `ObservableList` And `MirroredList`
+
+[`ObservableList<T>`](../common/core/ObservableList.hpp) is a data-only model:
+its single `revision()` State publishes a `ListRevision` containing `structure`,
+`content`, and `change`. Changes are facts supplied by the data owner; the view
+does not compare snapshots to infer a diff, and `change` summarizes the last
+successful edit or apply, not a history. Each model item has a list-issued
+`ItemId` (16-bit generation and 16-bit sequence), independent of its address or
+current index.
+
+`attach(tracker, capacity)` reserves the model's entry and scratch capacity;
+the tracker must outlive attachment, and the attachment must outlive its lazy
+view. Single edits or `apply(cursor)` publish under the model's tracker guard;
+apply validates the complete replayable operation sequence before committing.
+Check `ListAttachResult` and `ListEditResult`: allocation, capacity, identity,
+index, exhaustion, attachment, and reentrant-edit refusals are explicit results,
+and refused edits leave live entries and the revision unchanged.
+
+[`MirroredList<T>`](../common/core/MirroredList.hpp) is a non-copyable working
+copy for view-side editing that borrows the model, which must outlive it.
+It reserves its working rows at construction and records pending insert/remove/
+update/move operations; operation-log pages can still allocate and refuse.
+`commit()` applies pending operations to the model, `cancel()` discards them,
+and `undo()` removes the last pending operation only while the base revision
+still matches; neither cancel nor undo reverses a completed commit.
+Check `status()` and each `MirrorResult`, including its underlying model refusal;
+a failed commit preserves pending work, and provisional mirror IDs become
+model-issued IDs on successful commit.
+
 ## 5. Boundary-First Ownership
 
 Mutable state is not "something anyone can touch." In Loka, the normal owner is
@@ -523,7 +552,7 @@ The design goal is that memory and lifecycle are visible from the DSL structure.
 See [LazyList](../example/LazyList/README.md) for a paged card view with content edits, structural edits, and compile-time capacity builds.
 
 Use a lazy list for fixed-size component items backed by an `ObservableList`.
-Each item Props type names its `NodeType`, derived from `ComponentNodeWithProps`.
+Each item Props type `T` names its `NodeType`, derived from `ComponentNodeWithProps<T>`.
 The list and the viewport State belong to the app and must outlive the view.
 
 ```cpp
@@ -535,14 +564,24 @@ across the other axis; `LazyFlex<CardProps>(cards).axis(STACK_AXIS_COLUMN)`
 is the explicit form. The app writes the viewport rectangle in content coordinates.
 An empty initial viewport creates no item controls until the first sized value.
 
-Each item has a logical visibility seat. Visible items materialize their
-components and native controls; leaving the viewport destroys those components.
-A visible content edit reapplies Props and refreshes `declareBindings`, preserving
-other local state. A hidden item reads its current value when it next appears.
-Inserting, removing, or moving items replaces the entire generation.
+Each item has a logical visibility seat using `Show(...).destroyOnDetach()`.
+Visible items materialize their components and native controls; leaving the
+viewport destroys those components, leaving no item native control or native
+ledger row. The visibility seat survives, and a hidden item is built from its
+current model value when it next appears.
 
-`LazyFlexNode::status()` reports capacity refusal when the attached list exceeds
-`LOKA_LAZYFLEX_MAX_ITEMS` (256 by default); a refused view declares no items.
+A visible content edit uses `NodeDefinition::applyPropsToNode` and refreshes
+`declareBindings` without re-declaration, preserving other item-local node state.
+Inserting, removing, moving, or resetting items successfully replaces the entire
+LazyScope generation: none of that generation's item-local state survives.
+Put facts that must survive paging or structure changes in the model.
+Scrolling out also ends the item's focus; LazyFlex does not restore focus when
+it returns (native focus behavior still awaits runtime verification).
+
+`LazyFlexNode::status()` reports `LAZY_FLEX_CAPACITY_REFUSED` when the attached
+list's reserved capacity exceeds `LOKA_LAZYFLEX_MAX_ITEMS`, even if its current
+size fits; a refused view declares no items. The default cap is 256, provisional
+pending the MAME measurement in #639.
 Viewport and list changes settle through the scene's normal queued update flush.
 
 ## 12. DSL And Composition
@@ -572,6 +611,21 @@ Use a Boundary when you need:
 - independent update tracking
 - a lifetime boundary
 - a meaningful composition scope
+
+### `For()` Or A Lazy List
+
+Use [`For()`](../common/app/nodes/nestable/For.hpp) for a fixed set of items
+whose declared children should all materialize: it expands once into owned
+Section definitions when appended to its parent. Its `.window(first, count)`
+selects a range at declaration time; it does not observe a moving viewport.
+Use `LazyColumn()` / `LazyRow()` for an `ObservableList` whose native controls
+should exist only within the viewport.
+
+Think of a Ferris wheel: M gondolas are the logical item seats, the visible arc
+holds native controls, and the queue is the model supplying item values.
+Moving the window writes viewport State and flips visibility seats; it does
+not recompose the Boundary. Replacing the whole structure uses a Keyed /
+LazyScope generation replacement; the kernel has no recompose door.
 
 ### Props And Definitions
 

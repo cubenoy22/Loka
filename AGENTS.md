@@ -22,6 +22,8 @@ clear boundaries, and small reusable concepts.
 - Use English for code comments, code-facing docs, and API/design notes that ship with the repository; keep non-English prose for user conversation only unless a file already has an established localized convention.
 
 ## Ownership And State
+- List changes are data-side facts: `ObservableList<T>` in `common/core` has no view dependency and publishes one `State<ListRevision>` carrying `structure`, `content`, and `change`; the view consumes that publication and never infers a diff. Model identity is the list-issued `ItemId` (16-bit generation plus 16-bit sequence), never a pointer. `MirroredList<T>` is a non-copyable working copy for view-side edits, with pending operations and commit/cancel/undo; undo and cancel affect only uncommitted work.
+- Generation-scoped state belongs in a box with that specific role, not a nested Boundary: `LazyScope` is a Keyed-shaped seat whose runtime root owns the arm's states and declares the arm. Its states use the tagged heap gate, never the enclosing Boundary's bump-only `StateArena`, so repeated generation replacement can reclaim their storage.
 - Bindings are declared in `declareBindings(BindingToken&)`, which `ComposableNode` calls when opening a declaring window, including attach; `Node::bindingsFollowProps()` also refreshes bindings on retained props application. A Keyed declaration does not reopen its enclosing boundary's binding window; newly materialized descendants open their own attach windows. The token is the only door; immediate watches run synchronously inside that call, before `composeNode` reads any state they write. The node-owned token is armed only during that call; disarmed use asserts in lifecycle-audit builds and refuses without binding otherwise. `attachNode` remains for attach-scoped resource work, gated by the resource's own presence; initial values and one-time computations belong in state declarations or constructors.
 - Keep scopes small by default. Prefer immutable completed values, explicit owners for mutation, and small encapsulated types when a feature needs multiple pieces of internal state.
 - Before adding new variables, especially member fields, consider whether they introduce long-term ownership/lifecycle/cleanup complexity. Prefer reusing an existing owner or encapsulating the state so management does not become more fragmented over time.
@@ -74,11 +76,17 @@ as its own dirty sources; `Stack(axisState)` and `Box().width(widthState)` are
 the first two layout inputs migrated under this ruling.
 Structure that changes is a seat: Match/Show switch arms; Keyed re-declares its
 subtree when its key changes; no boundary recomposes.
+A moving window changes viewport State and flips visibility seats; replacing
+all items is a Keyed / LazyScope generation replacement. The kernel has no
+recompose door; do not reintroduce one.
 For declaration ownership and replacement sequencing, see
 [Keyed declaration seats](docs/KeyedSeatDesign.md).
 
 - For app-facing composition-form selection, Props/Definition conventions, and
   example style, follow [docs/API_STYLE.md](docs/API_STYLE.md).
+- LazyFlex keeps one logical visibility seat per item and native controls only for visible items: `Show(*visible_[i]).destroyOnDetach() << LazyItem<T>(list, i)`. Hidden items have no item component, native control, or native ledger row; their logical seats remain, and returning items are built from the current model value. The public `LOKA_LAZYFLEX_MAX_ITEMS` cap defaults to 256 and is provisional pending the MAME measurement in #639; refusal checks the attached list's capacity, not its current size.
+- Lazy-list items are Component Props: `T::NodeType` must derive from `ComponentNodeWithProps<T>`. Content updates reapply props through `NodeDefinition::applyPropsToNode`, with bindings following props and no re-declaration; successful structure changes replace the generation and its item-local state.
+- Lazy-list focus v1: scrolling an item out destroys its branch and loses its focus; returning constructs a fresh item with no LazyFlex focus restoration. The native focus acceptance check remains pending; the merged EditText pin verifies native identity retirement only.
 - Loka compose should use DSL-style chaining; avoid local temporary variables when possible.
 - Prefer `this->` for member access; keep it consistent across the codebase.
 - Prefer `deferBind` for UI projection or lazy updates; use `bind` only when immediate recompute is required.
@@ -104,6 +112,7 @@ For declaration ownership and replacement sequencing, see
 - Win32 path policy: never hand a path flattened to UTF-8 to a narrow CRT call (`fopen`, `_open`, `stat`); go through `loka::platform::file::OpenRead` or another seam that materializes the native path. The Toolbox preference for `fopen`/`fread` under Performance And Retro Targets is about Classic paths and does not license a narrow open on Win32.
 
 ## Performance And Retro Targets
+- Cost lines are part of a door's definition (see Shape Review Gates): name the caller, frequency, and owner of the rows walked. For LazyFlex, a viewport write copies State into the stable Boundary and generation, evaluates n item Derived states, toggles entering/leaving Shows, and visits O(S) seats in that Boundary; Canvas additionally seeks O(first) and visits candidate cells. A content update seeks O(change.first) through its own Canvas arms and applies props to materialized items in O(change.count) visits (`LIST_BATCH` visits all n arms); a structure change replaces O(n) old/new generation content, in addition to the existing seat-ledger and observation costs described in [KeyedSeatDesign.md](docs/KeyedSeatDesign.md).
 - Toolbox/68k binary size policy: avoid `std::fstream`/iostream-based file I/O in Classic paths because it pulls large libstdc++ locale/stream machinery; prefer C stdio (`fopen`/`fread`) or platform file APIs.
 - Prefer intrusive linked lists over `std::vector` when elements are heap-allocated anyway; adding a `next_` pointer avoids separate allocations and reallocation costs. On 68k, this primitive approach often outperforms "smart" containers.
 - When users report performance issues or ask for speedups, first measure or propose a measurement plan; profiling support already exists in the codebase.
