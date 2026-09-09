@@ -18,7 +18,10 @@ namespace loka
       MIRROR_MODEL_REFUSED,
       MIRROR_NOT_USABLE,
       MIRROR_NOTHING_TO_UNDO,
-      MIRROR_REENTRANT
+      MIRROR_REENTRANT,
+      /** The mirror's own provisional id space (generation 65535) is used up;
+          the model was not consulted. Recovery is a new mirror, not a retry. */
+      MIRROR_SEQ_EXHAUSTED
     };
     /** Carries the original model refusal without conflating it with page refusal. */
     struct MirrorResult
@@ -193,7 +196,7 @@ namespace loka
         if (ready.kind != MIRROR_OK)
           return ready;
         if (this->provisionalSeq_ == 65535)
-          return MirrorResult(MIRROR_MODEL_REFUSED, EDIT_SEQ_EXHAUSTED);
+          return MirrorResult(MIRROR_SEQ_EXHAUSTED);
         ItemId id(65535, static_cast<unsigned short>(this->provisionalSeq_ + 1));
         MirrorResult result = this->record(ListOp<T>(INSERT, id, index, value));
         if (result.kind == MIRROR_OK)
@@ -340,6 +343,7 @@ namespace loka
         typename list_detail::OpLog<T>::Cursor cursor_;
         const bool stale_;
       };
+      friend struct testing::ObservableListAccessForTesting;
       MirroredList(const MirroredList &);
       MirroredList &operator=(const MirroredList &);
       MirrorResult ready() const

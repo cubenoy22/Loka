@@ -6,6 +6,7 @@ void testObservableListCapacityAndAtomicBatch();
 void testObservableListIdentitiesAndExhaustion();
 void testObservableListApplySummariesAndReplay();
 void testObservableListRejectsReentrantDoors();
+void testMirroredListProvisionalIdExhaustionIsMirrorLocal();
 void testMirroredListPagesRefusalUndoAndCancel();
 void testMirroredListCommitMapsProvisionalIds();
 void testMirroredListStaleReplayAndRefusal();

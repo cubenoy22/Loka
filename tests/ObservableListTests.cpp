@@ -20,6 +20,10 @@ namespace loka
         {
           list.generation_ = 65534;
         }
+        template <class T> static void exhaustProvisionalSequenceForTesting(MirroredList<T> &mirror)
+        {
+          mirror.provisionalSeq_ = 65534;
+        }
       };
     } // namespace testing
   } // namespace core
@@ -308,6 +312,26 @@ void testObservableListRejectsReentrantDoors()
   probe.expect(1, 0, LIST_INSERT, 0, 1, 1, 1);
   LOKA_VERIFY(list.insert(0, 1) == EDIT_OK);
   LOKA_VERIFY(probe.calls == 1 && list.at(0).value == 1);
+}
+
+void testMirroredListProvisionalIdExhaustionIsMirrorLocal()
+{
+  GateScope gate;
+  PushStateTracker tracker;
+  ObservableList<int> list;
+  LOKA_VERIFY(list.attach(&tracker, 8) == ATTACH_OK);
+  MirroredList<int> mirror(list);
+  LOKA_VERIFY(mirror.status().kind == MIRROR_OK);
+  testing::ObservableListAccessForTesting::exhaustProvisionalSequenceForTesting(mirror);
+  ItemId last;
+  LOKA_VERIFY(mirror.insert(0, 1, &last).kind == MIRROR_OK);
+  LOKA_VERIFY(last.generation == 65535 && last.seq == 65535);
+  const ListRevision before = list.revision().get();
+  const MirrorResult exhausted = mirror.insert(1, 2);
+  LOKA_VERIFY(exhausted.kind == MIRROR_SEQ_EXHAUSTED && exhausted.edit == EDIT_OK);
+  LOKA_VERIFY(mirror.opCount() == 1 && mirror.size() == 1);
+  LOKA_VERIFY(!(list.revision().get() != before) && list.size() == 0);
+  LOKA_VERIFY(mirror.commit().kind == MIRROR_COMMITTED && list.size() == 1);
 }
 
 void testMirroredListPagesRefusalUndoAndCancel()
