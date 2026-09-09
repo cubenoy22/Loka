@@ -335,7 +335,7 @@ namespace loka
         {
           scene::Node *item = arm->asNestable()->childrenHead();
           if (item)
-            LazyItem<T>(*this->props.list, i).applyPropsToNode(item);
+            LazyItem<T>(*this->props.list, static_cast<unsigned short>(i)).applyPropsToNode(item);
         }
       }
       scene::NodeState<loka::core::Frame> viewport_;
