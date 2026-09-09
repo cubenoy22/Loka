@@ -1,0 +1,6 @@
+#ifndef LOKA_STATE_TRACKER_ALLOCATION_TESTS_HPP
+#define LOKA_STATE_TRACKER_ALLOCATION_TESTS_HPP
+void testStateTrackerReservedPropagation();
+void testStateTrackerCycleAndDiamond();
+void testStateTrackerRemovesSettlementBorrow();
+#endif

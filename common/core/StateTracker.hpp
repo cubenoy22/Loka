@@ -6,7 +6,6 @@
 #include <functional>
 #include <map>
 #include <string>
-#include <set>
 
 namespace loka
 {
@@ -57,6 +56,10 @@ namespace loka
       void addState(StateBase *state);
       void addStateUnchecked(StateBase *state);
       void removeState(StateBase *state);
+      /** Reserves additional state entries and at least count dirty-state slots
+          in every transaction buffer. Writes/settlement within that bound do
+          not grow those buffers; unreserved or larger owners retain growth.
+          Deferred callbacks have separate, unreserved storage. */
       void reserveStates(size_t count);
       bool end();
       /** Returns whether the current (or just-ended) transaction marked any state dirty. */
@@ -135,7 +138,14 @@ namespace loka
       // Typedefs to avoid nested template closers in C++98
       typedef std::pair<void (*)(void *), void *> DeferredEntry;
       typedef std::vector<DeferredEntry> DeferredList;
-      typedef std::map<StateBase *, StateList> DependencyMap;
+      /** Dependency rows own their active recursive-path stamp. Zero is idle. */
+      struct Dependents
+      {
+        Dependents() : states(), visitPass(0) {}
+        StateList states;
+        unsigned long visitPass;
+      };
+      typedef std::map<StateBase *, Dependents> DependencyMap;
 
       /** Mutable intake owned by one side of a tracker transaction. */
       struct TransactionIntake
@@ -194,14 +204,18 @@ namespace loka
       InvalidateFn invalidateFn_;
       void *invalidateUserData_;
       const void *invalidateTarget_;
-      /// visiting_: temporary set used to detect cycles during recursive propagation.
-      std::set<StateBase *> visiting_;
+      /** Advanced only by the top-level markDirty door, independently of
+          transaction nesting and settlement phase. Zero is never a walk. */
+      unsigned long visitPass_;
+      /** Borrowed settlement batch; retains storage across iterations. */
+      StateList scratch_;
       /// states: linked list (head/tail for O(1) append)
       StateEntry *statesHead_;
       StateEntry *statesTail_;
       StateEntry *freeEntries_;
       StateEntryChunk *chunks_;
 
+      void propagateDirty(StateBase *state, unsigned long pass);
       StateEntry *allocateEntry(StateBase *state);
       void allocateEntries(size_t count);
       void releaseEntries();

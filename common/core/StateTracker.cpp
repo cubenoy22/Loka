@@ -15,6 +15,7 @@ namespace loka
           invalidateFn_(0),
           invalidateUserData_(0),
           invalidateTarget_(0),
+          visitPass_(0),
           statesHead_(0),
           statesTail_(0),
           freeEntries_(0),
@@ -30,6 +31,7 @@ namespace loka
           invalidateFn_(0),
           invalidateUserData_(0),
           invalidateTarget_(0),
+          visitPass_(0),
           statesHead_(0),
           statesTail_(0),
           freeEntries_(0),
@@ -76,35 +78,45 @@ namespace loka
       {
         return;
       }
+      // Every completed walk clears its active stamps. On unsigned wrap,
+      // skip the idle sentinel; no graph-wide reset is needed.
+      if (++this->visitPass_ == 0)
+        ++this->visitPass_;
+      this->propagateDirty(state, this->visitPass_);
+    }
+
+    void PushStateTracker::propagateDirty(StateBase *state, unsigned long pass)
+    {
       TransactionIntake &intake = transaction_.intake(phase_);
       intake.dirty = true;
       transaction_.anyDirty = true;
       pendingDirty_ = true;
-      if (visiting_.count(state))
-      {
-        fprintf(stderr, "[Loka] Circular state dependency detected: StateBase %p\n", (void *)state);
-        return;
-      }
-      visiting_.insert(state);
       DependencyMap::iterator it = dependents.find(state);
       if (it != dependents.end())
       {
-        for (size_t i = 0; i < it->second.size(); ++i)
+        Dependents &row = it->second;
+        if (row.visitPass == pass)
         {
-          StateBase *dependent = it->second[i];
-          markDirty(dependent);
+          fprintf(stderr, "[Loka] Circular state dependency detected: StateBase %p\n", (void *)state);
+          return;
         }
+        row.visitPass = pass;
+        for (size_t i = 0; i < row.states.size(); ++i)
+        {
+          this->propagateDirty(row.states[i], pass);
+        }
+        row.visitPass = 0;
       }
+      // A walk stamp describes the active path, not intake membership across
+      // separate writes. Keep the duplicate scan for both rows and leaves.
       for (size_t i = 0; i < intake.dirtyStates.size(); ++i)
       {
         if (intake.dirtyStates[i] == state)
         {
-          visiting_.erase(state);
           return;
         }
       }
       intake.dirtyStates.push_back(state);
-      visiting_.erase(state);
     }
 
     void PushStateTracker::addState(StateBase *state)
@@ -216,11 +228,17 @@ namespace loka
       }
 
       transaction_.removeState(state);
+      // Preserve the active loop index when a recompute removes a later state.
+      for (size_t i = 0; i < this->scratch_.size(); ++i)
+      {
+        if (this->scratch_[i] == state)
+          this->scratch_[i] = 0;
+      }
 
       dependents.erase(state);
       for (DependencyMap::iterator it = dependents.begin(); it != dependents.end(); ++it)
       {
-        StateList &list = it->second;
+        StateList &list = it->second.states;
         for (size_t i = 0; i < list.size();)
         {
           if (list[i] == state)
@@ -233,7 +251,6 @@ namespace loka
           }
         }
       }
-      visiting_.erase(state);
       if (state->currentTracker == this)
       {
         state->currentTracker = 0;
@@ -246,6 +263,10 @@ namespace loka
       {
         return;
       }
+      transaction_.current.dirtyStates.reserve(count);
+      transaction_.next.dirtyStates.reserve(count);
+      transaction_.committedDirtyStates.reserve(count);
+      this->scratch_.reserve(count);
       allocateEntries(count);
     }
 
@@ -313,11 +334,12 @@ namespace loka
       while (!transaction_.current.dirtyStates.empty() && iterationsRemaining > 0)
       {
         --iterationsRemaining;
-        StateList current = transaction_.current.dirtyStates;
-        transaction_.current.dirtyStates.clear();
-        for (size_t i = 0; i < current.size(); ++i)
+        this->scratch_.swap(transaction_.current.dirtyStates);
+        for (size_t i = 0; i < this->scratch_.size(); ++i)
         {
-          StateBase *state = current[i];
+          StateBase *state = this->scratch_[i];
+          if (!state)
+            continue;
           bool alreadyCommitted = false;
           for (size_t committedIndex = 0;
                committedIndex < transaction_.committedDirtyStates.size();
@@ -343,12 +365,13 @@ namespace loka
             continue;
           }
           for (size_t dependentIndex = 0;
-               dependentIndex < it->second.size();
+               dependentIndex < it->second.states.size();
                ++dependentIndex)
           {
-            markDirty(it->second[dependentIndex]);
+            markDirty(it->second.states[dependentIndex]);
           }
         }
+        this->scratch_.clear();
       }
       return transaction_.current.dirtyStates.empty();
     }
@@ -503,7 +526,7 @@ namespace loka
       {
         return;
       }
-      StateList &list = dependents[dependency];
+      StateList &list = dependents[dependency].states;
       for (size_t i = 0; i < list.size(); ++i)
       {
         if (list[i] == dependent)
