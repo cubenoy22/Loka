@@ -20,9 +20,9 @@ namespace lazylist
     kWindowWidth = 640,
     kMargin = 8,
     kCellWidth = kWindowWidth - 2 * kMargin,
-    kCellHeight = 20,
+    kCellHeight = 32,
     kViewportHeight = 8 * kCellHeight,
-    kWindowHeight = 244
+    kWindowHeight = 340
   };
 
   /** App-owned cards and content-coordinate viewport; destroy views before this model. */

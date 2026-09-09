@@ -9,9 +9,9 @@ while paging away or changing structure destroys the materialization and its
 selection. All strings and symbols are original; there are no third-party assets.
 
 The app config and model share boot geometry, following SmirkBench's constructor
-bounds pattern: a 640×244 content window, 8-pixel margins, a 40-pixel button bar,
-a 624×160 list seat, and a 20-pixel status line with two 4-pixel gaps. The initial
-content-coordinate viewport is `(0, 0, 624, 160)`, so eight 20-pixel cards appear
+bounds pattern: a 640×340 content window, 8-pixel margins, a 40-pixel button bar,
+a 624×256 list seat, and a 20-pixel status line with two 4-pixel gaps. The initial
+content-coordinate viewport is `(0, 0, 624, 256)`, so eight 32-pixel cards appear
 on the first mount. Cell dimensions and the list seat stay fixed when the window
 resizes; this example demonstrates paging, not responsive cell sizing.
 

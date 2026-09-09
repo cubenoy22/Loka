@@ -161,7 +161,7 @@ void testLazyListPagesAndClamps()
     LOKA_VERIFY(constructions[i] == (i < 8 ? 1u : 0u));
   f.click("LazyList.Next");
   f.pageLabels(8);
-  LOKA_VERIFY(f.model.viewport().get().y == 160);
+  LOKA_VERIFY(f.model.viewport().get().y == 256);
   f.click("LazyList.Prev");
   f.pageLabels(0);
   LOKA_VERIFY(constructions[0] == 2);
@@ -170,10 +170,10 @@ void testLazyListPagesAndClamps()
   for (unsigned i = 0; i < 20; ++i)
     f.click("LazyList.Next");
   f.pageLabels(92);
-  LOKA_VERIFY(f.model.viewport().get().y == 1840);
+  LOKA_VERIFY(f.model.viewport().get().y == 2944);
   LOKA_VERIFY(f.model.removeFirst() == EDIT_OK);
   f.drain();
-  LOKA_VERIFY(f.model.viewport().get().y == 1820);
+  LOKA_VERIFY(f.model.viewport().get().y == 2912);
   f.pageLabels(92);
 }
 
