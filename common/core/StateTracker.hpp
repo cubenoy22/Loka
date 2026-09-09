@@ -23,6 +23,10 @@ namespace loka
     };
 
     class PushStateTracker; // forward declaration
+    namespace testing
+    {
+      struct PushStateTrackerTestAccess;
+    }
 
     class StateTracker
     {
@@ -215,6 +219,7 @@ namespace loka
       StateEntry *freeEntries_;
       StateEntryChunk *chunks_;
 
+      friend struct testing::PushStateTrackerTestAccess;
       void propagateDirty(StateBase *state, unsigned long pass);
       StateEntry *allocateEntry(StateBase *state);
       void allocateEntries(size_t count);

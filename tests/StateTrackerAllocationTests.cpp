@@ -99,6 +99,24 @@ namespace
   };
 } // namespace
 
+namespace loka
+{
+  namespace core
+  {
+    namespace testing
+    {
+      /** Seeds the walk counter so a pin can cross the unsigned wrap. */
+      struct PushStateTrackerTestAccess
+      {
+        static void seedVisitPass(PushStateTracker &tracker, unsigned long value)
+        {
+          tracker.visitPass_ = value;
+        }
+      };
+    } // namespace testing
+  } // namespace core
+} // namespace loka
+
 void testStateTrackerReservedPropagation()
 {
   using namespace loka::core;
@@ -269,4 +287,58 @@ void testStateTrackerRemovesSettlementBorrow()
   LOKA_VERIFY(tracker.end());
   assert(survivor.calls == 2);
   LOKA_VERIFY(tracker.committedDirtyStates().size() == 1);
+}
+
+void testStateTrackerVisitPassWrapsPastZero()
+{
+  using namespace loka::core;
+  // The walk counter skips the idle sentinel on wrap: seeded at ULONG_MAX, the
+  // next walk is 1, propagation still reaches the dependent once, and a cycle
+  // is still refused exactly once instead of recursing forever.
+  RecomputeCount a, b, c, d;
+  PushStateTracker tracker;
+  tracker.reserveStates(4);
+  tracker.addState(&a);
+  tracker.addState(&b);
+  tracker.addState(&c);
+  tracker.addState(&d);
+  tracker.registerDependency(&b, &a);
+  tracker.registerDependency(&d, &c);
+  tracker.registerDependency(&c, &d);
+  testing::PushStateTrackerTestAccess::seedVisitPass(tracker, ~0ul);
+#if defined(__linux__)
+  std::FILE *capture = std::tmpfile();
+  LOKA_VERIFY(capture != 0);
+  const int saved = dup(fileno(stderr));
+  LOKA_VERIFY(saved >= 0);
+  LOKA_VERIFY(std::fflush(stderr) == 0);
+  LOKA_VERIFY(dup2(fileno(capture), fileno(stderr)) >= 0);
+#endif
+  tracker.begin();
+  tracker.markDirty(&a); // walk wraps: ULONG_MAX + 1 == 0 is skipped, pass 1
+  tracker.markDirty(&c); // pass 2, the cycle c <-> d is refused once
+  LOKA_VERIFY(tracker.end());
+  assert(a.calls == 1);
+  assert(b.calls == 1);
+  assert(c.calls == 1);
+  assert(d.calls == 1);
+  LOKA_VERIFY(tracker.committedDirtyStates().size() == 4);
+#if defined(__linux__)
+  LOKA_VERIFY(std::fflush(stderr) == 0);
+  LOKA_VERIFY(dup2(saved, fileno(stderr)) >= 0);
+  close(saved);
+  std::rewind(capture);
+  char line[160];
+  int diagnostics = 0;
+  while (std::fgets(line, sizeof(line), capture))
+  {
+    if (std::strstr(line, "[Loka] Circular state dependency detected: StateBase ") == line)
+      ++diagnostics;
+  }
+  std::fclose(capture);
+  const bool refusedOnce = (diagnostics == 1);
+  LOKA_VERIFY(refusedOnce);
+#else
+  std::printf("[skip] exact cycle diagnostic capture requires Linux; dirty-count pins still run.\n");
+#endif
 }
