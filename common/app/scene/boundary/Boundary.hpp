@@ -89,6 +89,17 @@ namespace loka
           stateArena_.clear();
         }
 
+        using ComposableNode::compose;
+        virtual void compose(ComponentContext &context, ComposeEvent event)
+        {
+          if (event == COMPOSE_EVENT_DETACH && this->composition().root())
+          {
+            this->retireDeclarationScope(context, this->branchSeats_);
+            this->forgetBranchSeatDirtySources(this->branchSeats_);
+          }
+          ComposableNode::compose(context, event);
+        }
+
         virtual BoundaryNode *asBoundary()
         {
           return this;
@@ -1400,8 +1411,7 @@ namespace loka
           candidate.seats.captureOwned(candidate.composition.root(), plan.key, 0);
           candidate.composition.setContext(&context);
           candidate.composition.collectBranchSeatRegistrationsIn(&registrations);
-          NodeMaterializationResult result = candidate.composition.createNodeFromDefinitionResult(
-              candidate.composition.root(), parent, &candidate.seats);
+          NodeMaterializationResult result = candidate.materialize(context, parent);
           candidate.composition.collectBranchSeatRegistrationsIn(0);
           candidate.composition.setContext(0);
           if (result.allocationFailed)
@@ -1485,6 +1495,15 @@ namespace loka
               {
                 this->retireSeatBranchRoot(context, parkedBranch);
               }
+            }
+            NodeDefinitionBase *definition = this->findBranchSeatDefinition(nestedKey);
+            IBranchSeatDefinition *seat = definition ? definition->asBranchSeatDefinition() : 0;
+            BoundaryBranchSeatState *scope = seat ? seat->declaredBranchSeats() : 0;
+            if (scope)
+            {
+              this->retireDeclarationScope(context, *scope);
+              this->forgetBranchSeatDirtySources(*scope);
+              seat->commitBranchDeclaration(0);
             }
           }
         }

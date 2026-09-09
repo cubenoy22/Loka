@@ -779,6 +779,7 @@ namespace loka
         }
 
         friend class BranchSeatDeclaration;
+        template <class K, class NodeT> friend class LazyScopeDefinition;
         friend class BoundaryNode;
         friend struct testing::NodeCompositionTestAccess;
         static NodeComposition *current_;

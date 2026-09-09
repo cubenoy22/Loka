@@ -496,3 +496,11 @@ LOKA_TEST(testShowDestroyModifierCopiesTrueArmOnly)
 
 LOKA_TEST(testCanvasSubtractsLargeWorldOriginBeforeNarrowing)
 LOKA_TEST(testCanvasHorizontalWrapAndEmptyContent)
+
+LOKA_TEST(testLazyScopeMaterializesOwnedDeclaration)
+LOKA_TEST(testLazyScopeOwnTrackerAppliesShow)
+LOKA_TEST(testLazyScopeCrossesTrackersInOneUpdate)
+LOKA_TEST(testLazyScopeKeyReplacementRetiresOwner)
+LOKA_TEST(testLazyScopeStateRefusalPreservesArm)
+LOKA_TEST(testLazyScopeUnmountCancelsWatch)
+LOKA_TEST(testLazyScopeOuterDestroyRecreatesOwner)
