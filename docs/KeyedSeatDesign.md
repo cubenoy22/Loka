@@ -107,7 +107,14 @@ evidence, not a fresh measurement of the corrections or a passing size gate.
 LazyScope is a keyed declaration seat whose arm root is a LazyScopeNode.
 Its props are copied values; its key is borrowed live State. The runtime root
 is constructed through the ordinary node factory before its member declarer
-runs. Constructor state declarations queue registrations; the candidate window
+runs. The root owns generation-scoped state through its concrete inner owner,
+without introducing a nested Boundary. Its states use the tagged heap gate,
+never the enclosing Boundary's bump-only StateArena: destroying an arena state
+does not reclaim its block, so repeated replacements would otherwise accumulate
+storage for the Boundary's lifetime. Heap state storage is reclaimed with the
+generation through the existing retirement clock.
+
+Constructor state declarations queue registrations; the candidate window
 connects them to the root's concrete inner owner before bindings and declareScope.
 An allocation refusal records LAZY_SCOPE_STATES_REFUSED and rejects the candidate,
 preserving the committed arm and key snapshot. No attach-time declaration commits
