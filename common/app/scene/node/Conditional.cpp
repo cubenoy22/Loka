@@ -116,7 +116,11 @@ namespace loka
         }
         const ConditionalProps &otherConditionalProps =
             static_cast<const ConditionalProps &>(*otherProps);
-        return this->props.condition == otherConditionalProps.condition;
+        IBranchSeatDefinition *otherSeat =
+            const_cast<NodeDefinitionBase &>(other).asBranchSeatDefinition();
+        // Show shares ConditionalProps; a direct destroy policy changes equivalence.
+        return this->props.condition == otherConditionalProps.condition && otherSeat &&
+               !otherSeat->armPolicies(1).destroyOnDetach;
       }
 
       ConditionalDefinition::~ConditionalDefinition()

@@ -222,6 +222,7 @@ namespace
     case NODE_KIND_ZSTACK:
     case NODE_KIND_GRID:
     case NODE_KIND_STACK:
+    case NODE_KIND_CANVAS:
       return NULL_PAINT_SKIP;
     case NODE_KIND_UNKNOWN:
       return node->asProjectedLayoutNode() ? NULL_PAINT_UNSUPPORTED : NULL_PAINT_SKIP;

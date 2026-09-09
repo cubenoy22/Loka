@@ -496,26 +496,19 @@ operand is a `State<bool>` reference.
 << (*this->detailsVisible_.state() << this->detailsDefinition_)
 ```
 
-The other policy is explicit. Placing `PolicyScope` at the root of a
-conditional branch declares how that one branch behaves on detach:
+The other policy is explicit: `Show(condition).destroyOnDetach()` declares
+that hiding the true arm destroys it. Re-showing constructs fresh descendants
+whose local state starts from its initial values.
 
 ```cpp
-<< (Show(*this->isDialogShown_.state())
-    << (PolicyScope().destroyOnDetach()
-        << OpenFileDialog().result(this->chooserResult_)))
+<< (Show(*this->isDialogShown_.state()).destroyOnDetach()
+    << OpenFileDialog().result(this->chooserResult_))
 ```
 
-With `destroyOnDetach()`, hiding destroys the branch; re-showing constructs a
-fresh subtree whose local state starts from its initial values.
-
-Three rules keep the policy surface small:
-
-- `PolicyScope` never materializes a runtime node — it is a definition-only
-  annotation.
-- It is legal only as the immediate root of a conditional branch.
-- A policy applies only to the branch it annotates. The switch itself
-  (`Show()`) behaves the same either way, and nested conditional branches do
-  not inherit it — annotate each nested branch that needs the policy.
+The policy belongs to that Show's true arm. Nested seats keep their own policy.
+The deprecated `PolicyScope` annotation remains supported as the sole branch
+root, including its existing `deliverWhileDetached()` behavior. The new Show
+modifier adds no runtime node.
 
 Modal nodes such as `OpenFileDialog` want the destroy side: the native dialog
 dismisses itself on completion, so there is nothing worth keeping in the
@@ -569,6 +562,34 @@ Constant props and live state must stay distinct:
   live state
 
 This avoids turning every literal into a global or shared `State<T>`.
+
+### Fixed-Cell Layout
+
+`Canvas` places ordinary composition children in fixed cells, in declaration
+order. Its constant props select an axis, cell extents, and wrapping count;
+its borrowed `State<Frame>*` viewport is the only live input. The viewport's
+owner controls its content-space origin and size. Canvas owns no State and
+performs no scrolling.
+
+```cpp
+Canvas(80, 20, this->viewport_.state()).wrap(3)
+    << firstItem << secondItem << thirdItem;
+```
+
+`STACK_AXIS_COLUMN` (the default) fills columns before advancing down;
+`STACK_AXIS_ROW` mirrors this by filling rows before advancing right.
+Placement subtracts the viewport origin in int coordinates before narrowing
+and adds the parent layout origin. The far-edge row is included even when it
+just touches the viewport. Children outside the candidate rows are not laid
+out; within those rows, the cross-axis intersection is also checked. This is
+a placement container, not a native visibility or clipping owner. Previously
+placed native children are not hidden or detached by changing the viewport.
+
+The reported extent is the full content height, not the viewport height.
+`CanvasNode::layoutStatus()` reports invalid inputs or coordinate range
+refusals for the latest attempted layout; checks remain active in release
+builds. The linked composition cursor costs O(first index) to reach the visible
+range, then O(candidate children), with no full child measurement pass.
 
 ## 13. Events And Updates
 

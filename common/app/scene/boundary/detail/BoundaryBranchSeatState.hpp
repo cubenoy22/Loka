@@ -90,6 +90,9 @@ namespace loka
             result.definition = scope->scopedBranchDefinition();
             result.policies = scope->branchPolicies();
           }
+          const BranchPolicies direct = this->seat()->armPolicies(arm);
+          result.policies.destroyOnDetach = result.policies.destroyOnDetach || direct.destroyOnDetach;
+          result.policies.deliverWhileDetached = result.policies.deliverWhileDetached || direct.deliverWhileDetached;
           return result;
         }
 

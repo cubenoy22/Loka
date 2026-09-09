@@ -1,0 +1,15 @@
+#ifndef LOKA_TESTS_CANVAS_LAYOUT_TESTS_HPP
+#define LOKA_TESTS_CANVAS_LAYOUT_TESTS_HPP
+
+void testCanvasVerticalVisibleRangeAndViewportMovement();
+void testCanvasWrapUsesDeclarationOrderAndRowRange();
+void testCanvasHorizontalMirrorsVertical();
+void testCanvasReportsFullExtentToColumn();
+void testCanvasRefusesNarrowingAndRecovers();
+void testCanvasEmptyInvalidAndCrossAxisViewports();
+void testShowDestroyOnDetachAndCanvasLiveViewport();
+void testShowDestroyModifierCopiesTrueArmOnly();
+void testCanvasSubtractsLargeWorldOriginBeforeNarrowing();
+void testCanvasHorizontalWrapAndEmptyContent();
+
+#endif

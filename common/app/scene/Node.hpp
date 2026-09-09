@@ -118,7 +118,8 @@ namespace loka
         NODE_KIND_IMAGE_VIEW = 12,
         NODE_KIND_RECT_SURFACE = 13,
         NODE_KIND_SCROLL_BAR = 14,
-        NODE_KIND_SCROLL_VIEW = 15
+        NODE_KIND_SCROLL_VIEW = 15,
+        NODE_KIND_CANVAS = 16
       };
 
       typedef unsigned short NodeTag;
@@ -193,6 +194,7 @@ namespace loka
     class PopupMenuNode;
     class ScrollBarNode;
     class ScrollViewNode;
+    class CanvasNode;
     class OpenFileDialogNode;
     class ImageViewNode;
     class RectSurfaceNode;
@@ -548,6 +550,10 @@ namespace loka
         {
           return 0;
         }
+        virtual ::loka::app::CanvasNode *asCanvasNode()
+        {
+          return 0;
+        }
         virtual ::loka::app::ScrollViewNode *asScrollViewNode()
         {
           return 0;
@@ -830,6 +836,11 @@ namespace loka
         /** Selects this visit's arm. False denotes the seat's empty state. */
         virtual bool selectArm(unsigned &armOut) const = 0;
         virtual unsigned armCount() const = 0;
+        /** Definition-authored policy for this arm, combined with legacy root annotations. */
+        virtual BranchPolicies armPolicies(unsigned) const
+        {
+          return BranchPolicies();
+        }
         virtual NodeDefinitionBase *armDefinition(unsigned arm) const = 0;
         /** Compatibility door for callers written against the two-arm seat. */
         NodeDefinitionBase *branchDefinition(bool value) const

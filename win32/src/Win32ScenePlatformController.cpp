@@ -1,4 +1,5 @@
 #include "Win32ScenePlatformController.hpp"
+#include "app/layout/CanvasLayout.hpp"
 #include "Win32BuiltInSupport.hpp"
 #include "app/scene/boundary/Boundary.hpp"
 #include <cassert>
@@ -1124,6 +1125,19 @@ Win32ScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, 
   if (loka::app::ScrollViewNode *scrollView = node->asScrollViewNode())
   {
     return this->layoutScrollViewNode(scrollView, state);
+  }
+  // Canvas shares geometry with Null; this rail only adapts its result channel.
+  if (node->asCanvasNode())
+  {
+    loka::app::scene::LayoutState handlerState;
+    if (!this->narrowLayoutState(state, handlerState, false))
+    {
+      node->asCanvasNode()->recordLayoutStatus(loka::app::CANVAS_LAYOUT_SHORT_RANGE_REFUSED);
+      return LayoutNodeResult(state.width, state.y);
+    }
+    loka::app::scene::Win32PlatformLayoutTraversal traversal(this);
+    loka::app::layout::CanvasPlatformLayoutHandler handler;
+    return LayoutNodeResult(state.width, handler.layoutNode(node, handlerState, &traversal));
   }
   if (loka::app::StackNode *stack = node->asStackNode())
   {
