@@ -140,6 +140,7 @@ add_subdirectory(example/SimpleViewer)
 add_subdirectory(example/ScrapbookUI)
 add_subdirectory(example/FloppyBird)
 add_subdirectory(example/SmirkBench)
+add_subdirectory(example/LazyList)
 add_subdirectory(example/Tutorial)
 
 if(WIN32 AND TARGET LokaStandaloneLoopWin32All)

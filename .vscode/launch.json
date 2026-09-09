@@ -50,6 +50,14 @@
       "preLaunchTask": "Build: macOS SmirkBench"
     },
     {
+      "name": "Run (macOS LazyList)",
+      "type": "lldb-dap",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/macos/Debug/example/LazyList/LokaLazyListMacOS",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Build: macOS LazyList"
+    },
+    {
       "name": "Run (macOS Tutorial)",
       "type": "lldb-dap",
       "request": "launch",
@@ -110,6 +118,15 @@
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "preLaunchTask": "Build: Win32 SmirkBench"
+    },
+    {
+      "name": "Run (Windows LazyList)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/win32/Debug/example/LazyList/LokaLazyListWin32.exe",
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "preLaunchTask": "Build: Win32 LazyList"
     },
     {
       "name": "Run (Windows Tutorial)",
