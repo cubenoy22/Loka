@@ -150,12 +150,12 @@ namespace
       this->tracker.addState(&this->otherView);
       LOKA_VERIFY(this->list.attach(&this->tracker, capacity) == ATTACH_OK);
       for (int i = 0; i < count; ++i)
-        LOKA_VERIFY(this->list.insert(i, CardProps(String("old"), i)) == EDIT_OK);
+        LOKA_VERIFY(this->list.insert(static_cast<unsigned short>(i), CardProps(String("old"), static_cast<short>(i))) == EDIT_OK);
       if (two)
       {
         LOKA_VERIFY(this->second.attach(&this->tracker, capacity) == ATTACH_OK);
         for (int i = 0; i < count; ++i)
-          LOKA_VERIFY(this->second.insert(i, CardProps(String("other"), i + 32)) == EDIT_OK);
+          LOKA_VERIFY(this->second.insert(static_cast<unsigned short>(i), CardProps(String("other"), static_cast<short>(i + 32))) == EDIT_OK);
         this->r.second = &this->second;
         this->r.otherViewport = &this->otherView;
       }
