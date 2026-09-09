@@ -50,3 +50,23 @@ loka_compile_pin(keyed-declarer-owner-is-a-boundary
   REFUSES pins/refuses_keyed_declarer_not_a_boundary.cpp
   ACCEPTS pins/accepts_keyed_declarer_member.cpp
 )
+
+loka_compile_pin(observablelist-copy
+  REFUSES pins/refuses_observablelist_copy.cpp
+  ACCEPTS pins/accepts_observablelist_copy.cpp
+)
+
+loka_compile_pin(observablelist-assign
+  REFUSES pins/refuses_observablelist_assign.cpp
+  ACCEPTS pins/accepts_observablelist_assign.cpp
+)
+
+loka_compile_pin(mirroredlist-copy
+  REFUSES pins/refuses_mirroredlist_copy.cpp
+  ACCEPTS pins/accepts_mirroredlist_copy.cpp
+)
+
+loka_compile_pin(mirroredlist-assign
+  REFUSES pins/refuses_mirroredlist_assign.cpp
+  ACCEPTS pins/accepts_mirroredlist_assign.cpp
+)
