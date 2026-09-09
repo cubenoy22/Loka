@@ -225,6 +225,12 @@ namespace loka
           return observedState.entries.size();
         }
 
+        static const ::loka::app::scene::BoundaryObservedStateBinding *firstBinding(
+            const ::loka::app::scene::BoundaryObservedState &observedState)
+        {
+          return observedState.entries.empty() ? 0 : observedState.entries[0].binding;
+        }
+
         static void appendObservedEntry(::loka::app::scene::BoundaryObservedState &observedState,
                                         ::loka::core::StateBase *state,
                                         ::loka::app::scene::NodeDirtyFlags flags)

@@ -1,4 +1,6 @@
 #include "BoundaryObservedStateTrackerTests.hpp"
+#include "support/TestVerify.hpp"
+#include "testing/scene/SceneTestFlow.hpp"
 
 #include <cassert>
 #include <cstdio>
@@ -360,4 +362,41 @@ void testObservedStateDoesNotJoinChildBoundaryTracker()
   scene.updateAttached(false);
   scene.unmount();
   std::printf("==== [testObservedStateDoesNotJoinChildBoundaryTracker] end ====\n");
+}
+
+namespace
+{
+  class LifetimeGuardBoundary : public loka::app::scene::BoundaryNodeFor<LifetimeGuardBoundary>
+  {
+  public:
+    explicit LifetimeGuardBoundary(const loka::app::scene::BoundaryPropsFor<LifetimeGuardBoundary> &props
+        = loka::app::scene::BoundaryPropsFor<LifetimeGuardBoundary>())
+        : loka::app::scene::BoundaryNodeFor<LifetimeGuardBoundary>(props) {}
+    virtual void composeNode(loka::app::scene::NodeComposition &) {}
+  };
+  void lifetimeGuardChanged(void *) {}
+}
+
+void testObservedStateGuardSharesRegistrationTokenAndUnbindsLate()
+{
+  using namespace loka::app::scene;
+  using loka::core::StateBase;
+  using loka::dsl::testing::BoundaryObservedStateTestAccess;
+  LifetimeGuardBoundary boundary;
+  BoundaryObservedState observed;
+  loka::core::MutableState<int> *state = new loka::core::MutableState<int>(0);
+  observed.beginPass();
+  observed.registerState(&boundary, state, NODE_DIRTY_PROPS, &lifetimeGuardChanged);
+  const BoundaryObservedStateBinding *binding = BoundaryObservedStateTestAccess::firstBinding(observed);
+  LOKA_VERIFY(binding != 0);
+  LOKA_VERIFY(binding->stateLifetimeToken != 0);
+  void *registered = state->retainExternalLifetimeToken();
+  LOKA_VERIFY(binding->stateLifetimeToken == registered);
+  LOKA_VERIFY(StateBase::isExternalLifetimeTokenAlive(registered));
+  delete state;
+  LOKA_VERIFY(!StateBase::isExternalLifetimeTokenAlive(binding->stateLifetimeToken));
+  observed.clearEntries(&lifetimeGuardChanged);
+  LOKA_VERIFY(BoundaryObservedStateTestAccess::entryCount(observed) == 0);
+  LOKA_VERIFY(!StateBase::isExternalLifetimeTokenAlive(registered));
+  StateBase::releaseExternalLifetimeToken(registered);
 }

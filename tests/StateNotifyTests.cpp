@@ -1,4 +1,6 @@
 #include "StateNotifyTests.hpp"
+#include "support/TestVerify.hpp"
+#include <new>
 #include <cassert>
 #include <cstdio>
 #include <vector>
@@ -457,4 +459,115 @@ void testStateNotify()
   }
 
   printf("==== [testStateNotify] end ====\n");
+}
+
+namespace
+{
+  class NotifyTokenProbe : public loka::core::MutableState<int>
+  {
+  public:
+    void *captureFrameToken() const { return this->retainNotifyToken(); }
+  };
+
+  // Mirrors the completion ordering on Toolbox, Win32 and macOS. The result
+  // callback may destroy a different State even if that State has no observers.
+  void completeWithExternalGuard(loka::core::MutableState<int> &result, loka::core::EmitterState *event)
+  {
+    void *token = event->retainExternalLifetimeToken();
+    LOKA_VERIFY(token != 0);
+    result.set(1, true);
+    if (loka::core::StateBase::isExternalLifetimeTokenAlive(token))
+      event->emit();
+    loka::core::StateBase::releaseExternalLifetimeToken(token);
+  }
+}
+
+void testStateDeferredNotifySelfDeletion()
+{
+  for (int force = 0; force < 2; ++force)
+  {
+    SafetyCtx ctx = {0, new loka::core::MutableState<int>(0), 0, 0};
+    ctx.valueState->deferBind(&deleteValueState, &ctx);
+    ctx.valueState->deferBind(&countSibling, &ctx);
+    loka::core::PushStateTracker tracker;
+    {
+      loka::core::StateTrackerGuard guard(&tracker);
+      ctx.valueState->set(1, force != 0);
+    }
+    LOKA_VERIFY(ctx.valueState == 0);
+    LOKA_VERIFY(ctx.primaryCalls == 1);
+    LOKA_VERIFY(ctx.siblingCalls == 0);
+  }
+  SafetyCtx ctx = {new loka::core::EmitterState(), 0, 0, 0};
+  ctx.emitter->deferBind(&deleteEmitter, &ctx);
+  ctx.emitter->deferBind(&countSibling, &ctx);
+  ctx.emitter->emit();
+  LOKA_VERIFY(ctx.emitter == 0);
+  LOKA_VERIFY(ctx.primaryCalls == 1);
+  LOKA_VERIFY(ctx.siblingCalls == 0);
+}
+
+void testStateLifetimeTokenIdentity()
+{
+  using loka::core::StateBase;
+  LOKA_VERIFY(!StateBase::isExternalLifetimeTokenAlive(0));
+  NotifyTokenProbe source;
+  void *empty = source.captureFrameToken();
+  StateBase::releaseExternalLifetimeToken(empty);
+  LOKA_VERIFY(empty == 0);
+  int count = 0;
+  source.bind(&increment, &count, false);
+  void *original = source.retainExternalLifetimeToken();
+  NotifyTokenProbe copy(source);
+  empty = copy.captureFrameToken();
+  StateBase::releaseExternalLifetimeToken(empty);
+  LOKA_VERIFY(empty == 0);
+  void *copied = copy.retainExternalLifetimeToken();
+  LOKA_VERIFY(copied != original);
+  copy = source;
+  void *assigned = copy.retainExternalLifetimeToken();
+  LOKA_VERIFY(assigned == copied);
+  StateBase::releaseExternalLifetimeToken(assigned);
+  StateBase::releaseExternalLifetimeToken(copied);
+  source.unbind(&increment, &count);
+  void *unbound = source.captureFrameToken();
+  LOKA_VERIFY(unbound == original);
+  StateBase::releaseExternalLifetimeToken(unbound);
+  StateBase::releaseExternalLifetimeToken(original);
+}
+
+void testStateExternalGuardSurvivesDestructionAndAddressReuse()
+{
+  using loka::core::StateBase;
+  void *storage = ::operator new(sizeof(NotifyTokenProbe));
+  NotifyTokenProbe *state = new (storage) NotifyTokenProbe();
+  void *old = state->retainExternalLifetimeToken();
+  LOKA_VERIFY(old != 0);
+  LOKA_VERIFY(StateBase::isExternalLifetimeTokenAlive(old));
+  state->~NotifyTokenProbe();
+  LOKA_VERIFY(!StateBase::isExternalLifetimeTokenAlive(old));
+  state = new (storage) NotifyTokenProbe();
+  void *fresh = state->retainExternalLifetimeToken();
+  LOKA_VERIFY(fresh != old);
+  LOKA_VERIFY(StateBase::isExternalLifetimeTokenAlive(fresh));
+  LOKA_VERIFY(!StateBase::isExternalLifetimeTokenAlive(old));
+  StateBase::releaseExternalLifetimeToken(old);
+  state->~NotifyTokenProbe();
+  LOKA_VERIFY(!StateBase::isExternalLifetimeTokenAlive(fresh));
+  StateBase::releaseExternalLifetimeToken(fresh);
+  ::operator delete(storage);
+}
+
+void testDialogExternalGuardProtectsUnobservedEmitter()
+{
+  SafetyCtx ctx = {new loka::core::EmitterState(), 0, 0, 0};
+  loka::core::MutableState<int> result(0);
+  result.bind(&deleteEmitter, &ctx, false);
+  loka::core::PushStateTracker tracker;
+  {
+    loka::core::StateTrackerGuard guard(&tracker);
+    completeWithExternalGuard(result, ctx.emitter);
+  }
+  LOKA_VERIFY(ctx.emitter == 0);
+  LOKA_VERIFY(ctx.primaryCalls == 1);
 }

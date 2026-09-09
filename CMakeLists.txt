@@ -364,6 +364,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/TestingHooks.cpp
     ${PROJECT_SOURCE_DIR}/tests/AllocPinMain.cpp
     ${PROJECT_SOURCE_DIR}/tests/AllocPinTests.cpp
+    ${PROJECT_SOURCE_DIR}/tests/LazyFlexTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/StateTrackerAllocationTests.cpp
     ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
   )
@@ -377,7 +378,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     CXX_STANDARD 98
     CXX_STANDARD_REQUIRED YES
   )
-  target_compile_definitions(LokaAllocPinTests PRIVATE TEST_BUILD LOKA_STATE_TRACKER_ALLOC_CENSUS)
+  target_compile_definitions(LokaAllocPinTests PRIVATE TEST_BUILD LOKA_STATE_TRACKER_ALLOC_CENSUS LOKA_LAZYFLEX_ALLOC_CENSUS)
   target_link_libraries(LokaAllocPinTests PRIVATE LokaCommonTesting)
   if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     # Export symbols so backtrace_symbols can attribute census stacks.

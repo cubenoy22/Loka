@@ -512,6 +512,8 @@ int main()
   testStateTrackerReservedPropagation();
   testStateTrackerCycleAndDiamond();
   testStateTrackerRemovesSettlementBorrow();
+  allocpin::RunLazyFlexPageFlipAllocPin();
+  allocpin::RunStateLifetimeTokenAllocPin();
   allocpin::RunZeroAllocPin();
   allocpin::RunFloppyBirdSurfaceAllocPin();
   allocpin::RunFloppyBirdScoreAllocPin();
