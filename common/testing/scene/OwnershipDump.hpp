@@ -11,6 +11,7 @@
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/BoundarySection.hpp"
 #include "app/scene/boundary/Boundary.hpp"
+#include "app/scene/boundary/LazyScopeNode.hpp"
 #include "core/Held.hpp"
 #include "testing/core/HeldTestAccess.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
@@ -54,25 +55,33 @@ namespace loka
         /** Runtime rows for the boundary's declared seats, including retired links. */
         static std::string dumpSeatRuntime(const ::loka::app::scene::BoundaryNode &boundary)
         {
-          using namespace ::loka::app::scene;
           std::ostringstream output;
-          const std::vector<BoundaryBranchSeatPlanEntry> &plans = boundary.branchSeats_.plans();
-          for (size_t i = 0; i < plans.size(); ++i)
-          {
-            const BoundaryBranchSeatRuntimeEntry *row = boundary.branchSeats_.findRuntime(plans[i].key);
-            if (!row)
-            {
-              continue;
-            }
-            const bool parentAttached = row->parent && row->parent->lifecycleFact() == NODE_FACT_ATTACHED;
-            const bool activeAttached = row->active && row->active->lifecycleFact() == NODE_FACT_ATTACHED;
-            output << "seat parent=" << (parentAttached ? "attached" : "retired")
-                   << " active=" << (activeAttached ? "attached" : "retired") << "\n";
-          }
+          dumpScopeRuntime(boundary, boundary.branchSeats_, output);
           return output.str();
         }
 
       private:
+        static void dumpScopeRuntime(const ::loka::app::scene::BoundaryNode &boundary,
+                                     const ::loka::app::scene::BoundaryBranchSeatState &scope,
+                                     std::ostringstream &output)
+        {
+          using namespace ::loka::app::scene;
+          const std::vector<BoundaryBranchSeatPlanEntry> &plans = scope.plans();
+          for (size_t i = 0; i < plans.size(); ++i)
+          {
+            const BoundaryBranchSeatRuntimeEntry *row = boundary.branchSeats_.findRuntime(plans[i].key);
+            if (row)
+            {
+              const bool parentAttached = row->parent && row->parent->lifecycleFact() == NODE_FACT_ATTACHED;
+              const bool activeAttached = row->active && row->active->lifecycleFact() == NODE_FACT_ATTACHED;
+              output << "seat parent=" << (parentAttached ? "attached" : "retired")
+                     << " active=" << (activeAttached ? "attached" : "retired") << "\n";
+            }
+            const BoundaryBranchSeatState *nested = plans[i].seat()->declaredBranchSeats();
+            if (nested) dumpScopeRuntime(boundary, *nested, output);
+          }
+        }
+
         struct OwnerLabel
         {
           OwnerLabel(::loka::app::scene::IStateOwner *ownerValue,
@@ -152,6 +161,10 @@ namespace loka
           {
             this->owners_.push_back(
                 OwnerLabel(section, sectionLabel(*section)));
+          }
+          else if (node->nodeTypeKey() == ::loka::app::scene::NodeTypeToken< ::loka::app::scene::LazyScopeNode>())
+          {
+            this->owners_.push_back(OwnerLabel(node->asStateOwner(), "lazy-scope"));
           }
           ::loka::app::scene::INestable *nestable = node->asNestable();
           for (::loka::app::scene::Node *child =
@@ -234,6 +247,14 @@ namespace loka
           else if (section)
           {
             this->renderSection(*section, depth);
+            childDepth = depth + 1;
+          }
+          else if (node->nodeTypeKey() == ::loka::app::scene::NodeTypeToken< ::loka::app::scene::LazyScopeNode>())
+          {
+            ::loka::app::scene::LazyScopeNode &scope =
+                *static_cast< ::loka::app::scene::LazyScopeNode *>(node);
+            this->line(depth, "lazy-scope");
+            this->renderOwner(scope.stateOwner_.ownedStates_, scope.stateOwner_.holdLedger_, depth + 1);
             childDepth = depth + 1;
           }
           ::loka::app::scene::INestable *nestable = node->asNestable();

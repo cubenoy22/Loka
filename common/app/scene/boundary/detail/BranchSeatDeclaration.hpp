@@ -20,6 +20,14 @@ namespace loka
         virtual ~BranchSeatDeclaration() {}
         virtual bool matchesCurrentKey() const = 0;
 
+        /** Materialize this completed declaration within its captured plan scope.
+            Specialized declarations may supply an already constructed arm owner. */
+        virtual NodeMaterializationResult materialize(ComponentContext &, Node *parent)
+        {
+          return this->composition.createNodeFromDefinitionResult(
+              this->composition.root(), parent, &this->seats);
+        }
+
         /** Complete the window with a distinct runtime branch root. */
         bool completeWindow()
         {

@@ -101,3 +101,21 @@ NodeState<int> family, minus 664 bytes for the retired boundary declaration adap
 E3 removal of the local-recompose family (about 6.8 KB of symbols measured in
 LokaMine68K) is expected to return most of it. This is supplied candidate
 evidence, not a fresh measurement of the corrections or a passing size gate.
+
+## LazyScope
+
+LazyScope is a keyed declaration seat whose arm root is a LazyScopeNode.
+Its props are copied values; its key is borrowed live State. The runtime root
+is constructed through the ordinary node factory before its member declarer
+runs. Constructor state declarations queue registrations; the candidate window
+connects them to the root's concrete inner owner before bindings and declareScope.
+An allocation refusal records LAZY_SCOPE_STATES_REFUSED and rejects the candidate,
+preserving the committed arm and key snapshot. No attach-time declaration commits
+structure. The completed declaration supplies its prepared root at materialization.
+Nested seat plans live in that declaration, and runtime rows live in the enclosing
+Boundary. Discovery, source registration, replacement, and scope retirement use
+Keyed's existing recursion. Inner tracker commits invalidate the enclosing Boundary.
+Children and registrations are released before the inner owner is destroyed.
+Each UPDATE visits the scope's seats; tracker begin/end visits its own states.
+Each binding window allocates one callback entry per watch, in addition to binding
+storage. These costs do not make a scope update constant-time.

@@ -70,3 +70,8 @@ loka_compile_pin(mirroredlist-assign
   REFUSES pins/refuses_mirroredlist_assign.cpp
   ACCEPTS pins/accepts_mirroredlist_assign.cpp
 )
+
+loka_compile_pin(lazyscope-requires-owning-node
+  REFUSES pins/refuses_lazyscope_component.cpp
+  ACCEPTS pins/accepts_lazyscope_owner.cpp
+)
