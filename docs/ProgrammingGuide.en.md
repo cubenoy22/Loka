@@ -518,6 +518,31 @@ debug assert enforces that at least one completion binding exists.
 
 The design goal is that memory and lifecycle are visible from the DSL structure.
 
+### `LazyColumn()` / `LazyRow()`
+
+Use a lazy list for fixed-size component items backed by an `ObservableList`.
+Each item Props type names its `NodeType`, derived from `ComponentNodeWithProps`.
+The list and the viewport State belong to the app and must outlive the view.
+
+```cpp
+c.declare(LazyColumn(cards).cells(200, 20).viewport(*this->viewport_.state()));
+```
+
+`LazyRow(cards)` selects horizontal progression. `.wrap(count)` groups cells
+across the other axis; `LazyFlex<CardProps>(cards).axis(STACK_AXIS_COLUMN)`
+is the explicit form. The app writes the viewport rectangle in content coordinates.
+An empty initial viewport creates no item controls until the first sized value.
+
+Each item has a logical visibility seat. Visible items materialize their
+components and native controls; leaving the viewport destroys those components.
+A visible content edit reapplies Props and refreshes `declareBindings`, preserving
+other local state. A hidden item reads its current value when it next appears.
+Inserting, removing, or moving items replaces the entire generation.
+
+`LazyFlexNode::status()` reports capacity refusal when the attached list exceeds
+`LOKA_LAZYFLEX_MAX_ITEMS` (256 by default); a refused view declares no items.
+Viewport and list changes settle through the scene's normal queued update flush.
+
 ## 12. DSL And Composition
 
 The normative app-facing conventions live in

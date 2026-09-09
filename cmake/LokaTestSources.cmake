@@ -5,6 +5,8 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ObservableListTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/CanvasLayoutTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/LazyScopeTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/LazyFlexTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/LazyFlexCapacityTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/TestingHooks.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ExampleAppConfigCompileTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ApplicationFileTests.cpp
