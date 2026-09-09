@@ -12,6 +12,5 @@ void testLazyFlexTwoListsStayIndependent();
 void testLazyFlexBatchRefreshesAllVisibleItems();
 void testLazyFlexRefusedGenerationKeepsOldPresentation();
 void testLazyFlexUnmountCancelsForeignWatches();
-void testLazyFlexOverriddenCapacityAccepts300();
 void testLazyFlexRowWrapUsesHalfOpenCells();
 #endif
