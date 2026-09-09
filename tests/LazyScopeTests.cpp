@@ -272,7 +272,7 @@ void testLazyScopeMaterializesOwnedDeclaration()
       ++count;
   LOKA_VERIFY(count == 5); // One LazyScope row plus four Show rows in the Boundary ledger.
   const std::string owners = loka::dsl::testing::OwnershipDump::dump(scene);
-  const bool fiveStates = owners.find("states: 5 (arena 5, heap 0)") != std::string::npos;
+  const bool fiveStates = owners.find("states: 5 (arena 0, heap 5)") != std::string::npos;
   LOKA_VERIFY(fiveStates);
 }
 void testLazyScopeOwnTrackerAppliesShow()
@@ -369,6 +369,32 @@ void testLazyScopeKeyReplacementRetiresOwner()
   printf("LazyScope after replacement and drain:\n%s", owners.c_str());
   {
     const bool verified = (root(scene)->seat()->declaredBranchSeats()->plans().size() == 4);
+    LOKA_VERIFY(verified);
+  }
+  // Generation storage never touches the Boundary's bump-only StateArena:
+  // ten more replacements leave the Boundary's arena rows unchanged and every
+  // lazy-scope state on the heap, so nothing accumulates across generations.
+  for (int key = 3; key <= 12; ++key)
+  {
+    root(scene)->key.set(key);
+    scene.flushInvalidation();
+    platform.drainNativeRetirements();
+  }
+  const std::string after = loka::dsl::testing::OwnershipDump::dump(scene);
+  {
+    const bool verified = (r.constructed == 12 && r.destroyed == 11);
+    LOKA_VERIFY(verified);
+  }
+  {
+    const bool verified = (after.find("states: 5 (arena 0, heap 5)") != std::string::npos);
+    LOKA_VERIFY(verified);
+  }
+  {
+    const bool verified = (after.find("states: 3 (arena 3, heap 0)") != std::string::npos && after.find("(arena 3, heap 0)") == after.rfind("(arena 3, heap 0)"));
+    LOKA_VERIFY(verified);
+  }
+  {
+    const bool verified = (platform.ledger().size() == 4);
     LOKA_VERIFY(verified);
   }
 }

@@ -47,21 +47,13 @@ namespace loka
             this->setInvalidateCallback(&LazyScopeStateOwner::InvalidateThunk, this);
           }
         }
-        // Keep the arena/ancestor protocol paired with BoundarySectionNode.
-        virtual void reserveStateArena(size_t bytes)
-        {
-          if (this->enclosingBoundary())
-            this->enclosingBoundary()->reserveStateArena(bytes);
-        }
-        virtual void *allocateStateMemory(size_t bytes, size_t align)
-        {
-          return this->enclosingBoundary() ? this->enclosingBoundary()->allocateStateMemory(bytes, align) : 0;
-        }
-        virtual void registerStateMemory(loka::core::StateBase *state, void (*destroy)(loka::core::StateBase *))
-        {
-          assert(this->enclosingBoundary());
-          this->enclosingBoundary()->registerStateMemory(state, destroy);
-        }
+        /** Generation storage policy: never the enclosing Boundary's StateArena.
+            That arena is bump-only (releaseState destroys without reclaiming a
+            block), so a keyed arm replaced repeatedly would grow it by one
+            generation per replacement for the Boundary's whole life. The base
+            defaults leave the arena door closed and the ordinary state factory
+            takes the tagged heap gate instead, so each generation's states are
+            freed with the generation. Refusal at the gate is the only refusal. */
 
       protected:
         virtual void detachOwnedStateFromAncestors(loka::core::StateBase *state)
@@ -71,10 +63,8 @@ namespace loka
         }
         virtual void destroyOwnedStateStorage(loka::core::StateBase *state)
         {
-          if (state->isArenaAllocated())
-            this->enclosingBoundary()->releaseInnerArenaStateMemory(state);
-          else
-            DestroyAdoptedHeapState(state);
+          assert(!state->isArenaAllocated() && "LazyScope states never live in the Boundary arena");
+          DestroyAdoptedHeapState(state);
         }
 
       private:
