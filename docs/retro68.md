@@ -152,25 +152,28 @@ observation, never a zero-live or zero-chunk assertion. Snapshot collection is
 allocation-free; file formatting uses the existing diagnostic writer.
 Pool quantities do not enter scenario audit expectations.
 
-Measured on headless MAME (maciix, 8 MB, System 7, Release), one run per cell,
-comparing `main` immediately before the pool landed with `main` after it. Times
-are emulated `TickCount`/60. MineSweeper and HelloWorld run at their 384 KiB
-minimum partition, LazyList at its shipped 1 MiB, SimpleViewer at both its
-512 KiB minimum and 1 MiB preferred. Timing cells use the machine the whole
-#642 probe series used (Mac II / 68020); the SimpleViewer cells use the pinned
-maciix scenario rig.
+Measured on headless MAME, 8 MB, System 7, Release, one run per cell, comparing
+`main` immediately before the pool landed with `main` after it. Times are
+emulated `TickCount`/60. Provenance differs by row group and hardware class
+materially affects these timings, so each group names its own machine: the
+**timing** rows ran on **macii (Mac II, 68020)**, the machine the whole #642
+probe series used, so their before/after pairs are comparable with the earlier
+probes; the **churn-replace** rows ran on the pinned **maciix (68030)** scenario
+rig, which owns the tracked audits. MineSweeper and HelloWorld run at their
+384 KiB minimum partition, LazyList at its shipped 1 MiB, SimpleViewer at both
+its 512 KiB minimum and 1 MiB preferred.
 
-| Application / partition | Cell | Before | After |
-| --- | --- | ---: | ---: |
-| MineSweeper / 384 KiB | board mount | 7.72 s | **0.63 s** |
-| MineSweeper / 384 KiB | first paint | 11.07 s | **2.23 s** |
-| HelloWorld / 384 KiB | cold mount | 1.15 s | **0.48 s** |
-| HelloWorld / 384 KiB | first paint | 2.75 s | **1.95 s** |
-| LazyList / 1 MiB | cold mount | 18.10 s | **1.42 s** |
-| LazyList / 1 MiB | first paint | 21.70 s | **3.92 s** |
-| LazyList / 1 MiB | page flip | 4.67 s | **1.53 s** |
-| SimpleViewer / 512 KiB | churn-replace | n/a (cell added with the pool) | ten `image.load ok`, audit matches |
-| SimpleViewer / 1 MiB | churn-replace | n/a (cell added with the pool) | ten `image.load ok`, audit matches |
+| Application / partition | Cell | Machine | Before | After |
+| --- | --- | --- | ---: | ---: |
+| MineSweeper / 384 KiB | board mount | macii | 7.72 s | **0.63 s** |
+| MineSweeper / 384 KiB | first paint | macii | 11.07 s | **2.23 s** |
+| HelloWorld / 384 KiB | cold mount | macii | 1.15 s | **0.48 s** |
+| HelloWorld / 384 KiB | first paint | macii | 2.75 s | **1.95 s** |
+| LazyList / 1 MiB | cold mount | macii | 18.10 s | **1.42 s** |
+| LazyList / 1 MiB | first paint | macii | 21.70 s | **3.92 s** |
+| LazyList / 1 MiB | page flip | macii | 4.67 s | **1.53 s** |
+| SimpleViewer / 512 KiB | churn-replace | maciix | n/a (cell added with the pool) | ten `image.load ok`, audit matches |
+| SimpleViewer / 1 MiB | churn-replace | maciix | n/a (cell added with the pool) | ten `image.load ok`, audit matches |
 
 The churn-replace cells are the retention acceptance: ten loads in one process
 (eight alternating replacements, then a final replacement) still all succeed at
