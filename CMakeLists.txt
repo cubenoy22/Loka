@@ -365,6 +365,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/AllocPinMain.cpp
     ${PROJECT_SOURCE_DIR}/tests/AllocPinTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/LazyFlexTests.cpp
+    ${PROJECT_SOURCE_DIR}/tests/SmallObjectPoolTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/StateTrackerAllocationTests.cpp
     ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
   )
