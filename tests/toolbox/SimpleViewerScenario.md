@@ -1,7 +1,9 @@
 # SimpleViewer open-image characterization
 
-Status: Open-image cells have successful tracked System 7 audits; churn-replace
-is provisional pending runtime verification on both application partitions.
+Status: Open-image and churn-replace cells all have successful tracked System 7
+audits. churn-replace was runtime-verified on the maciix/System 7/8 MB rig at
+both the 512 KiB and 1 MiB application partitions (ten `image.load ok` results
+each, identical to the tracked `churn-replace.audit`).
 Owns: Dialog-free image-load measurements and rig-local scenario inputs.
 Does not own: Production image-load policy or the fragmented-heap fix.
 Code truth: `src/SimpleViewerScenarioDriver.cpp`, `run-scenario.sh`.
@@ -136,13 +138,14 @@ The scenario target copies the shipping SIZE resource: 512 KiB minimum and
 scenario APPL, then reconfigure to restore the shipping preferred size and
 rebuild for the 1 MiB run. Machine RAM is not the application partition.
 
-The first run intentionally refuses at the missing tracked audit after extracting
-it. Preserve each partition's audit and snapshots before another run wipes the
-cell directory. Inspect ten successful `image.load` results, the final Bulb
-(158×189, 13,810 bytes), terminal success, and the launch log's settled marker.
-Only after both measured audits agree, copy one to
-`tests/scenarios/expected/simpleviewer/churn-replace.audit`, remove its
-`.audit.pending.md` marker, and rerun both partitions for byte-exact comparison.
-Do not synthesize an audit from the sequence or from the existing image cells.
+`tests/scenarios/expected/simpleviewer/churn-replace.audit` is already tracked
+from the verified 1 MiB bake and matched the 512 KiB run byte-for-byte, so an
+ordinary `run-scenario.sh simpleviewer churn-replace` verifies against it. Re-run
+both partitions after any driver, picture, or partition change: inspect ten
+successful `image.load` results, the final Bulb (158×189, 13,810 bytes), terminal
+success, and the launch log's settled marker, and confirm the audit still matches.
+Refresh the tracked audit deliberately (never synthesized from the sequence or the
+existing image cells) only when a real behavior change makes both partitions agree
+on a new expectation.
 `--update-golden` does not bake structural audits; it still requires their
 comparison and stages a complete rig-local pixel bundle for separate confirmation.
