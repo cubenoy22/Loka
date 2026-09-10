@@ -93,6 +93,57 @@ namespace
     }
   }
 
+  struct BindOnAssignValue;
+  struct BindOnAssignContext
+  {
+    loka::core::MutableState<BindOnAssignValue> *state;
+    int assignments;
+    int calls;
+  };
+
+  struct BindOnAssignValue
+  {
+    BindOnAssignContext *context;
+    explicit BindOnAssignValue(BindOnAssignContext *ctx = 0) : context(ctx) {}
+    bool operator!=(const BindOnAssignValue &other) const
+    {
+      return this->context != other.context;
+    }
+    BindOnAssignValue &operator=(const BindOnAssignValue &other);
+  };
+
+  static void deleteAssignedState(void *user)
+  {
+    BindOnAssignContext *ctx = static_cast<BindOnAssignContext *>(user);
+    ++ctx->calls;
+    delete ctx->state;
+    ctx->state = 0;
+  }
+
+  BindOnAssignValue &BindOnAssignValue::operator=(const BindOnAssignValue &other)
+  {
+    this->context = other.context;
+    if (this->context)
+    {
+      ++this->context->assignments;
+      this->context->state->bind(&deleteAssignedState, this->context, false);
+    }
+    return *this;
+  }
+
+  static void verifyBindDuringAssignmentSelfDeletion(bool forceUpdate)
+  {
+    BindOnAssignContext ctx = {new loka::core::MutableState<BindOnAssignValue>(), 0, 0};
+    loka::core::PushStateTracker tracker;
+    {
+      loka::core::StateTrackerGuard guard(&tracker);
+      ctx.state->set(BindOnAssignValue(&ctx), forceUpdate);
+    }
+    LOKA_VERIFY(ctx.assignments == 1);
+    LOKA_VERIFY(ctx.calls == 1);
+    LOKA_VERIFY(ctx.state == 0);
+  }
+
   static void countSibling(void *user)
   {
     SafetyCtx *ctx = static_cast<SafetyCtx *>(user);
@@ -482,6 +533,16 @@ namespace
   }
 }
 
+void testStateAssignmentBindSelfDeletion()
+{
+  verifyBindDuringAssignmentSelfDeletion(false);
+}
+
+void testStateForcedAssignmentBindSelfDeletion()
+{
+  verifyBindDuringAssignmentSelfDeletion(true);
+}
+
 void testStateDeferredNotifySelfDeletion()
 {
   for (int force = 0; force < 2; ++force)
@@ -539,14 +600,19 @@ void testStateLifetimeTokenIdentity()
 void testStateExternalGuardSurvivesDestructionAndAddressReuse()
 {
   using loka::core::StateBase;
-  void *storage = ::operator new(sizeof(NotifyTokenProbe));
-  NotifyTokenProbe *state = new (storage) NotifyTokenProbe();
+  union
+  {
+    char bytes[sizeof(NotifyTokenProbe)];
+    double doubleAlignment;
+    long longAlignment;
+  } storage;
+  NotifyTokenProbe *state = new (storage.bytes) NotifyTokenProbe();
   void *old = state->retainExternalLifetimeToken();
   LOKA_VERIFY(old != 0);
   LOKA_VERIFY(StateBase::isExternalLifetimeTokenAlive(old));
   state->~NotifyTokenProbe();
   LOKA_VERIFY(!StateBase::isExternalLifetimeTokenAlive(old));
-  state = new (storage) NotifyTokenProbe();
+  state = new (storage.bytes) NotifyTokenProbe();
   void *fresh = state->retainExternalLifetimeToken();
   LOKA_VERIFY(fresh != old);
   LOKA_VERIFY(StateBase::isExternalLifetimeTokenAlive(fresh));
@@ -555,7 +621,6 @@ void testStateExternalGuardSurvivesDestructionAndAddressReuse()
   state->~NotifyTokenProbe();
   LOKA_VERIFY(!StateBase::isExternalLifetimeTokenAlive(fresh));
   StateBase::releaseExternalLifetimeToken(fresh);
-  ::operator delete(storage);
 }
 
 void testDialogExternalGuardProtectsUnobservedEmitter()

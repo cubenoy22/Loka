@@ -170,7 +170,8 @@ namespace loka
           this->lifetimeToken_ = new LifetimeToken();
       }
 
-      /** Internal frames never allocate: without a token there are no handlers. */
+      /** Internal frames never allocate. Capture after value assignment or other
+          user-code hooks that could register the first observer. */
       LifetimeToken *retainNotifyToken() const
       {
         retainLifetimeToken(lifetimeToken_);
@@ -222,7 +223,9 @@ namespace loka
       // - Snapshots both lists before iterating so bind/unbind or self-deletion
       //   inside a callback does not corrupt the loop.
       // - Skips any handler that was dynamically unbound by a sibling callback.
-      void notifyHandlers()
+      /** Return whether this State survived notification; callers must stop
+          accessing it when a callback destroyed it. */
+      bool notifyHandlers()
       {
         LifetimeToken *token = retainNotifyToken();
         std::vector<Handler> snapshot = handlers;
@@ -239,7 +242,7 @@ namespace loka
           if (!isNotifyTokenAlive(token))
           {
             releaseNotifyToken(token);
-            return;
+            return false;
           }
         }
         std::vector<Handler> snapshotDeferred = deferredHandlers;
@@ -254,10 +257,11 @@ namespace loka
           if (!isNotifyTokenAlive(token))
           {
             releaseNotifyToken(token);
-            return;
+            return false;
           }
         }
         releaseNotifyToken(token);
+        return true;
       }
 
       friend class PushStateTracker;
@@ -411,21 +415,22 @@ namespace loka
         return true;
       }
 
-      virtual void setStoredValue(const T &v)
+      virtual bool setStoredValue(const T &v)
       {
         if (this->assignValueIfChanged(v))
         {
-          this->notifyStateChanged();
+          return this->notifyStateChanged();
         }
+        return true;
       }
       virtual void setValue(const T &v)
       {
         setStoredValue(v);
       }
       // setValue(const ValueHolderBase&) removed as no longer needed
-      void notifyStateChanged()
+      bool notifyStateChanged()
       {
-        notifyHandlers();
+        return this->notifyHandlers();
       }
 
       T value;
@@ -514,9 +519,9 @@ namespace loka
 
     protected:
       // Event notification API - Used by derived classes like EmitterState
-      void notifyStateChanged()
+      bool notifyStateChanged()
       {
-        notifyHandlers();
+        return this->notifyHandlers();
       }
     };
 
@@ -563,29 +568,19 @@ namespace loka
       }
       void set(const T &v, bool forceUpdate)
       {
-        StateBase::LifetimeToken *token = this->retainNotifyToken();
         if (forceUpdate)
         {
           this->assignValueIfChanged(v);
-          this->notifyStateChanged();
-          if (!StateBase::isNotifyTokenAlive(token))
-          {
-            StateBase::releaseNotifyToken(token);
+          if (!this->notifyStateChanged())
             return;
-          }
         }
         else
         {
-          State<T>::setStoredValue(v);
-          if (!StateBase::isNotifyTokenAlive(token))
-          {
-            StateBase::releaseNotifyToken(token);
+          if (!State<T>::setStoredValue(v))
             return;
-          }
         }
         if (this->currentTracker)
           this->currentTracker->markDirty(this);
-        StateBase::releaseNotifyToken(token);
       }
     };
 
