@@ -2,9 +2,9 @@
   "schema_version": 1,
   "identity": {
     "ci_interfaces": "multiversal",
-    "component_reference": "local Universal Interfaces build (post-#627 fleet refresh: #567 compose-once series E1/E2/E3 \u2014 #622 State-prop Stack axis and Box width, #624 Keyed seat, #625 recomposing base removed, #627 kernel local-recompose machinery removed and plain scene root on the ordinary boundary UPDATE); prior identity post-#621 fleet refresh at 70e85250",
+    "component_reference": "local Universal Interfaces build (#642 A2 Classic SmallObjectPool wiring; full Release refresh includes accumulated post-18ec273b changes; A2 alone adds 512 bytes per application versus the #642 A1 pool type; A1 rebased onto merged #644/#645)",
     "preset": "retro68-68k-release",
-    "source_commit": "18ec273b"
+    "source_commit": "#642 A1 (SmallObjectPool type, rebased on #644/#645) + A2 Classic pool wiring"
   },
   "material_growth_bytes": 4096,
   "artifacts": [
@@ -12,80 +12,80 @@
       "name": "LokaHello68K",
       "path": "example/HelloWorld/LokaHello68K.bin",
       "baseline": {
-        "total": 267904,
-        "CODE": 243100,
-        "DATA": 14116,
-        "RELA": 9785
+        "total": 270848,
+        "CODE": 245756,
+        "DATA": 14228,
+        "RELA": 9893
       }
     },
     {
       "name": "LokaSimpleViewer68K",
       "path": "example/SimpleViewer/LokaSimpleViewer68K.bin",
       "baseline": {
-        "total": 283008,
-        "CODE": 256332,
-        "DATA": 15176,
-        "RELA": 10491
+        "total": 285952,
+        "CODE": 259088,
+        "DATA": 15288,
+        "RELA": 10611
       }
     },
     {
       "name": "LokaFloppyBird68K",
       "path": "example/FloppyBird/LokaFloppyBird68K.bin",
       "baseline": {
-        "total": 239232,
-        "CODE": 219460,
-        "DATA": 10700,
-        "RELA": 8132
+        "total": 242048,
+        "CODE": 222012,
+        "DATA": 10800,
+        "RELA": 8219
       }
     },
     {
       "name": "LokaSmirkBench68K",
       "path": "example/SmirkBench/LokaSmirkBench68K.bin",
       "baseline": {
-        "total": 244864,
-        "CODE": 223292,
-        "DATA": 11852,
-        "RELA": 8698
+        "total": 247552,
+        "CODE": 225784,
+        "DATA": 11956,
+        "RELA": 8804
       }
     },
     {
       "name": "LokaMine68K",
       "path": "example/MineSweeper/LokaMine68K.bin",
       "baseline": {
-        "total": 242688,
-        "CODE": 220036,
-        "DATA": 12844,
-        "RELA": 8840
+        "total": 245376,
+        "CODE": 222556,
+        "DATA": 12960,
+        "RELA": 8940
       }
     },
     {
       "name": "LokaTutorial68K",
       "path": "example/Tutorial/LokaTutorial68K.bin",
       "baseline": {
-        "total": 224256,
-        "CODE": 205128,
-        "DATA": 10480,
-        "RELA": 7703
+        "total": 226944,
+        "CODE": 207636,
+        "DATA": 10560,
+        "RELA": 7787
       }
     },
     {
       "name": "ScrapbookUI68K",
       "path": "example/ScrapbookUI/ScrapbookUI68K.bin",
       "baseline": {
-        "total": 257408,
-        "CODE": 234832,
-        "DATA": 12468,
-        "RELA": 9194
+        "total": 260352,
+        "CODE": 237536,
+        "DATA": 12576,
+        "RELA": 9300
       }
     },
     {
       "name": "LokaLazyList68K",
       "path": "example/LazyList/LokaLazyList68K.bin",
       "baseline": {
-        "total": 268032,
-        "CODE": 241180,
-        "DATA": 15728,
-        "RELA": 10188
+        "total": 268800,
+        "CODE": 241844,
+        "DATA": 15740,
+        "RELA": 10218
       }
     }
   ]

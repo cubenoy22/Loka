@@ -1,8 +1,10 @@
 #include "debug/ToolboxSceneDebugStats.hpp"
 #include "core/LokaAlloc.hpp"
 #include <cstdio>
+#include <cstring>
 #if LOKA_RETRO68_DIAGNOSTICS
 #include <ctime>
+#include "ToolboxSmallObjectPool.hpp"
 #endif
 
 namespace
@@ -281,7 +283,7 @@ void ToolboxSceneDebugStats::reset()
 }
 
 #if LOKA_RETRO68_DIAGNOSTICS
-bool ToolboxSceneDebugStats::dumpToTimestampedFile() const
+bool ToolboxSceneDebugStats::dumpToTimestampedFile(const char *overrideName) const
 {
   std::time_t now = std::time(0);
   std::tm *local = std::localtime(&now);
@@ -291,7 +293,15 @@ bool ToolboxSceneDebugStats::dumpToTimestampedFile() const
   }
 
   char path[13];
-  BuildRedrawDumpFileName(path, *local);
+  if (overrideName)
+  {
+    std::strncpy(path, overrideName, sizeof(path) - 1);
+    path[sizeof(path) - 1] = 0;
+  }
+  else
+  {
+    BuildRedrawDumpFileName(path, *local);
+  }
 
   FILE *fp = std::fopen(path, "wb");
   if (!fp)
@@ -379,6 +389,27 @@ bool ToolboxSceneDebugStats::dumpToTimestampedFile() const
   std::fprintf(fp, "pool.edit.depth=%d\n", this->editPoolDepth);
   std::fprintf(fp, "pool.intake_audit_fails=%d\n", this->poolIntakeAuditFailCount);
   loka::core::LokaAllocCensusDump(fp);
+  // Process-cumulative pool facts, independent of resettable scene total.*.
+  // Collection uses only this stack POD; the existing file writer owns I/O.
+  loka::core::SmallObjectPoolReport pool;
+  LokaClassicPoolReport(pool);
+  std::fprintf(fp, "smallpool.rows=%lu\n", pool.rows);
+  // Labels follow SmallObjectPool::classSize in core/SmallObjectPool.hpp.
+  static const unsigned short sizes[10] = {8, 16, 24, 32, 48, 64, 96, 128, 192, 256};
+  for (unsigned int i = 0; i < 10; ++i)
+  {
+    std::fprintf(fp, "smallpool.chunks.%u=%lu\n", static_cast<unsigned int>(sizes[i]), pool.chunks[i]);
+    std::fprintf(fp, "smallpool.free.%u=%lu\n", static_cast<unsigned int>(sizes[i]), pool.freeSlots[i]);
+  }
+  std::fprintf(fp, "smallpool.live=%lu\n", pool.live);
+  std::fprintf(fp, "smallpool.unused_bytes=%lu\n", pool.unusedBytes);
+  std::fprintf(fp, "smallpool.refills=%lu\n", pool.refills);
+  std::fprintf(fp, "smallpool.larges=%lu\n", pool.larges);
+  std::fprintf(fp, "smallpool.directs=%lu\n", pool.directs);
+  std::fprintf(fp, "smallpool.fallbacks=%lu\n", pool.fallbacks);
+  std::fprintf(fp, "smallpool.refused=%lu\n", pool.refused);
+  std::fprintf(fp, "smallpool.poison_violations=%lu\n", pool.poisonViolations);
+  std::fprintf(fp, "smallpool.valid=%d\n", pool.valid ? 1 : 0);
   std::fclose(fp);
   return true;
 }

@@ -123,6 +123,45 @@ gate is a drift detector, not a budget: intentional feature growth is banked by
 refreshing rows deliberately, and only runaway growth — hundreds of kilobytes
 on a tens-of-kilobytes-class application — would justify a hard ceiling.
 
+### Small-object pool
+
+Every target linking `ToolboxOperatorNew.cpp` (Retro68, RetroPPC, RetroCarbon)
+serves allocations up to 256 bytes from process-lifetime, 2 KiB size-class
+chunks backed by `NewPtr`. Larger requests pass through without a header.
+Each size class is a multiple of 8, and the Source declares the target's
+maximum fundamental alignment (8 on PowerPC/Carbon, 4 on 68K), so pooled slots
+are aligned at least as strictly as any type they can hold; large/direct/fallback
+requests keep NewPtr's own alignment.
+Chunk refusal retries the single request; nothrow forms return 0 on refusal,
+and plain new aborts. All delete forms share the pool release door. The
+LokaAlloc gate and its site census remain unchanged.
+
+With `LOKA_RETRO68_DIAGNOSTICS`, timestamped debug-stats dumps include
+`smallpool.rows`, `smallpool.chunks.<size>`, `smallpool.free.<size>`,
+`smallpool.live`, `smallpool.unused_bytes`, `smallpool.refills`,
+`smallpool.larges`, `smallpool.directs`, `smallpool.fallbacks`,
+`smallpool.refused`, `smallpool.poison_violations`, and `smallpool.valid`.
+The pool's in-memory counters follow `defined(LOKA_DIAG) || defined(LOKA_RETRO68_DIAGNOSTICS)`; the file output above and the `LokaClassicPoolReport` accessor are gated on `LOKA_RETRO68_DIAGNOSTICS` alone, so a `LOKA_DIAG`-only build keeps the counters but writes no pool dump. These are process-cumulative facts (live/free values are current snapshots),
+independent of resettable scene totals. `live` counts pooled slots only;
+`refused` counts a failed chunk plus failed single-request fallback, not failed
+large/direct requests. Invalid lists leave live/unused bytes zero; check valid.
+Platform-context teardown writes the pool report to a distinct fixed file
+(`POOLTERM.TXT`) after App/config destruction, with empty scene totals, so it
+cannot overwrite a same-second scene redraw dump. Static clients may remain: this is an
+observation, never a zero-live or zero-chunk assertion. Snapshot collection is
+allocation-free; file formatting uses the existing diagnostic writer.
+Pool quantities do not enter scenario audit expectations.
+
+MAME acceptance is pending with the delegator; fill this table from those runs.
+
+| Application / partition | Acceptance measurements |
+|---|---|
+| MineSweeper / 384 KiB | measured by the delegator |
+| HelloWorld / 384 KiB | measured by the delegator |
+| LazyList / 1 MiB | measured by the delegator |
+| SimpleViewer / 512 KiB churn-replace | measured by the delegator |
+| SimpleViewer / 1 MiB churn-replace | measured by the delegator |
+
 The preset name describes the target and build policy, not the host. There is
 no separate `local` preset: every host uses the same repository Release preset,
 so the Classic size and linker policy cannot drift between local and shared
