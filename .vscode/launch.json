@@ -66,6 +66,14 @@
       "preLaunchTask": "Build: macOS Tutorial"
     },
     {
+      "name": "Run (macOS SmirkyCard)",
+      "type": "lldb-dap",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/macos/Debug/example/SmirkyCard/LokaSmirkyCardMacOS",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Build: macOS SmirkyCard"
+    },
+    {
       "name": "Run (Windows HelloWorld)",
       "type": "cppvsdbg",
       "request": "launch",
@@ -136,6 +144,15 @@
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "preLaunchTask": "Build: Win32 Tutorial"
+    },
+    {
+      "name": "Run (Windows SmirkyCard)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/win32/Debug/example/SmirkyCard/LokaSmirkyCardWin32.exe",
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "preLaunchTask": "Build: Win32 SmirkyCard"
     }
   ]
 }
