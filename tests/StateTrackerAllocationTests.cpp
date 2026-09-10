@@ -149,10 +149,26 @@ void testStateTrackerRegistrationGrowth()
     single.addState(&states[0]);
 #ifdef LOKA_STATE_TRACKER_ALLOC_CENSUS
     allocpin::EndCapture();
-    // MineSweeper has many one-state owners; do not inflate each into a batch.
-    LOKA_VERIFY(allocpin::CaptureAllocCount(0) <= 2);
-    LOKA_VERIFY(allocpin::CaptureAllocBytes(0) <= 64);
+    // MineSweeper's one-state owners must use their inline registration row.
+    LOKA_VERIFY(allocpin::CaptureAllocCount(0) == 0);
+    LOKA_VERIFY(allocpin::CaptureAllocBytes(0) == 0);
 #endif
+  }
+  {
+    PushStateTracker::StateList initial;
+    initial.push_back(0);
+    initial.push_back(&states[0]);
+    initial.push_back(&states[0]);
+#ifdef LOKA_STATE_TRACKER_ALLOC_CENSUS
+    allocpin::BeginCapture(0);
+#endif
+    PushStateTracker fromVector(initial);
+#ifdef LOKA_STATE_TRACKER_ALLOC_CENSUS
+    allocpin::EndCapture();
+    LOKA_VERIFY(allocpin::CaptureAllocCount(0) == 0);
+#endif
+    StateBase *singleOrder[] = {&states[0]};
+    LOKA_VERIFY(testing::PushStateTrackerTestAccess::hasOrder(fromVector, singleOrder, 1));
   }
 #ifdef LOKA_STATE_TRACKER_ALLOC_CENSUS
   allocpin::BeginCapture(0);
@@ -177,7 +193,7 @@ void testStateTrackerRegistrationGrowth()
   const unsigned long bytes = allocpin::CaptureAllocBytes(0);
   std::printf("tracker 33 registrations: heap=%lu bytes=%lu\n", calls, bytes);
   // Budget both heap traffic and slack: preallocating a huge array is not a win.
-  LOKA_VERIFY(calls <= 8);
+  LOKA_VERIFY(calls <= 4);
   LOKA_VERIFY(bytes <= 1024);
 #endif
   LOKA_VERIFY(testing::PushStateTrackerTestAccess::hasOrder(tracker, order, kStates));

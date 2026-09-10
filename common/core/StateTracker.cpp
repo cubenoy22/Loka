@@ -16,9 +16,10 @@ namespace loka
           invalidateUserData_(0),
           invalidateTarget_(0),
           visitPass_(0),
+          initialEntry_(),
           statesHead_(0),
           statesTail_(0),
-          freeEntries_(0),
+          freeEntries_(&initialEntry_),
           chunks_(0)
     {
     }
@@ -32,9 +33,10 @@ namespace loka
           invalidateUserData_(0),
           invalidateTarget_(0),
           visitPass_(0),
+          initialEntry_(),
           statesHead_(0),
           statesTail_(0),
-          freeEntries_(0),
+          freeEntries_(&initialEntry_),
           chunks_(0)
     {
       for (size_t i = 0; i < states.size(); ++i)
@@ -461,11 +463,10 @@ namespace loka
       }
       else
       {
-        // Keep one-state owners small, then amortize unreserved growth: one
-        // array/header pair per state is costly on Classic. Existing storage
-        // selects the growth phase; removals keep recycling the same free list.
+        // The first row is inline; amortize further unreserved growth. The
+        // chunk chain owns only heap rows, and removals recycle either kind.
         enum { kEntryChunkCapacity = 16 };
-        allocateEntries(chunks_ ? kEntryChunkCapacity : 1);
+        allocateEntries(kEntryChunkCapacity);
         entry = freeEntries_;
         freeEntries_ = freeEntries_->next;
       }

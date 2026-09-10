@@ -116,6 +116,9 @@ namespace loka
       ~PushStateTracker();
 
     private:
+      PushStateTracker(const PushStateTracker &);
+      PushStateTracker &operator=(const PushStateTracker &);
+
       struct StateEntry
       {
         StateEntry()
@@ -213,6 +216,8 @@ namespace loka
       unsigned long visitPass_;
       /** Borrowed settlement batch; retains storage across iterations. */
       StateList scratch_;
+      /** The first registration row shares this tracker's identity and lifetime. */
+      StateEntry initialEntry_;
       /// states: linked list (head/tail for O(1) append)
       StateEntry *statesHead_;
       StateEntry *statesTail_;
