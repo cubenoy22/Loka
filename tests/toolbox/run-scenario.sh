@@ -315,11 +315,11 @@ if [ "$EXAMPLE" = simpleviewer ] && [ "$SCENARIO" = startup ]; then
 fi
 if [ "$EXAMPLE" = simpleviewer ] && [ "$SCENARIO" != startup ]; then
   case "$SCENARIO" in
-    open-sun) PICT_NAME=Sun.pict ;;
-    open-bulb) PICT_NAME=Bulb.pict ;;
+    open-sun) PICT_NAMES=(Sun.pict) ;;
+    open-bulb) PICT_NAMES=(Bulb.pict) ;;
+    churn-replace) PICT_NAMES=(Sun.pict Bulb.pict); FINDER_TAB_COUNT=4 ;;
     *) fail_stage mame "unsupported SimpleViewer image cell '$SCENARIO'" ;;
   esac
-  STAGED="$WORK/$PICT_NAME"
   if ! HMOUNT="$(find_retro68_tool hmount)"; then
     fail_stage mame "hmount is unavailable"
   fi
@@ -333,15 +333,18 @@ if [ "$EXAMPLE" = simpleviewer ] && [ "$SCENARIO" != startup ]; then
   if ! HOME="$HFS_HOME" "$HMOUNT" "$MAME_HDA" >"$WORK/picture-hmount.out" 2>&1; then
     fail_stage mame "could not mount the boot template; see $WORK/picture-hmount.out"
   fi
-  if ! HOME="$HFS_HOME" "$HCOPY" -r ":Desktop Folder:Images:$PICT_NAME" "$STAGED" \
-      >"$WORK/picture-hcopy.out" 2>&1; then
-    HOME="$HFS_HOME" "$HUMOUNT" >/dev/null 2>&1 || true
-    fail_stage mame "could not extract template picture :Desktop Folder:Images:$PICT_NAME; ensure MAME_HDA carries it; see $WORK/picture-hcopy.out"
-  fi
+  for PICT_NAME in "${PICT_NAMES[@]}"; do
+    STAGED="$WORK/$PICT_NAME"
+    if ! HOME="$HFS_HOME" "$HCOPY" -r ":Desktop Folder:Images:$PICT_NAME" "$STAGED" \
+        >"$WORK/picture-hcopy.out" 2>&1; then
+      HOME="$HFS_HOME" "$HUMOUNT" >/dev/null 2>&1 || true
+      fail_stage mame "could not extract template picture :Desktop Folder:Images:$PICT_NAME; ensure MAME_HDA carries it; see $WORK/picture-hcopy.out"
+    fi
+    DEV_DISK_ARGUMENTS+=("$STAGED")
+  done
   if ! HOME="$HFS_HOME" "$HUMOUNT" >"$WORK/picture-humount.out" 2>&1; then
     fail_stage mame "could not unmount the boot template; see $WORK/picture-humount.out"
   fi
-  DEV_DISK_ARGUMENTS+=("$STAGED")
 fi
 DEV_DISK_ARGUMENTS+=("$CONFIG")
 

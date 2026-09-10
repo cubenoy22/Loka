@@ -50,16 +50,21 @@ public:
     record.setInt("diag.flow_valid", node.imageLoad_.flow_.isValid() ? 1 : 0);
   }
 
-  static bool capture(const simpleviewer::MainNode &node, loka::dsl::SnapRecord &record)
+  enum LoadOutcome
   {
+    LOAD_PENDING,
+    LOAD_FAILED,
+    LOAD_SUCCEEDED
+  };
+
+  static LoadOutcome capture(const simpleviewer::MainNode &node, const loka::file::File &requested,
+                      loka::dsl::SnapRecord &record)
+  {
+    // A retained image is not the result of the outstanding request.
+    if (node.imageLoad_.flow_.isValid()) return LOAD_PENDING;
     const loka::core::resource::Image &image = node.image_.get();
     record.setInt("image.width", image.width());
     record.setInt("image.height", image.height());
-    if (image.isValid())
-    {
-      record.set("image.load", "ok");
-      return true;
-    }
     // The production session consumes handled errors and releases its Flow.
     // Decode its completed message using the production formatter, not a
     // second error-message table or a callback that changes Flow lifetime.
@@ -86,10 +91,18 @@ public:
       if (node.chooserMessage_.get().equals(ImageLoadSession::buildErrorMessage(error)))
       {
         record.setInt("image.load", codes[i]);
-        return true;
+        return LOAD_FAILED;
       }
     }
-    return false;
+    ChooserContext expected;
+    loka::dsl::FlowError error;
+    ChooserToContextAdapter().run(loka::app::FileChooserResult::File(requested), expected, error);
+    if (image.isValid() && node.chooserMessage_.get().equals(expected.message))
+    {
+      record.set("image.load", "ok");
+      return LOAD_SUCCEEDED;
+    }
+    return LOAD_PENDING;
   }
 };
 
@@ -108,6 +121,50 @@ namespace loka
         return record;
       }
 
+      /** Immutable cell parameters; churn counts replacements after the initial Sun. */
+      struct ImageCell
+      {
+        const char *name;
+        const char *firstPicture;
+        unsigned churnReplacements;
+
+        unsigned loadCount() const { return this->churnReplacements ? this->churnReplacements + 2 : 1; }
+        const char *picture(unsigned number) const
+        {
+          return this->churnReplacements ? (number % 2 ? "Sun.pict" : "Bulb.pict") : this->firstPicture;
+        }
+      };
+
+      const ImageCell *FindImageCell(const std::string &name)
+      {
+        static const ImageCell cells[] = {
+          {"open-sun", "Sun.pict", 0},
+          {"open-bulb", "Bulb.pict", 0},
+          {"churn-replace", "Sun.pict", 8}
+        };
+        for (unsigned i = 0; i < sizeof(cells) / sizeof(cells[0]); ++i)
+          if (name == cells[i].name) return &cells[i];
+        return 0;
+      }
+
+      /** One issued attempt, replaced as a value only after its own result is captured.
+          Number zero means no request; no Image/Flow lifetime is extended. */
+      class PendingImageLoad
+      {
+      public:
+        PendingImageLoad() : number_(0), issuedTick_(0), chosen_() {}
+        PendingImageLoad(unsigned number, long tick, const char *picture)
+            : number_(number), issuedTick_(tick), chosen_(picture) {}
+        unsigned nextNumber() const { return this->number_ + 1; }
+        bool isLast(const ImageCell &cell) const { return this->number_ == cell.loadCount(); }
+        bool expired(long tick) const { return tick >= this->issuedTick_ + 60; }
+        const file::File &chosen() const { return this->chosen_; }
+      private:
+        unsigned number_;
+        long issuedTick_;
+        file::File chosen_;
+      };
+
       /** Measurement owner; the borrowed MainNode is used only during idle
           while its App-owned Window/Scene are alive, never during teardown. */
       class SimpleViewerScenarioAppConfig : public SimpleViewerAppConfig
@@ -118,7 +175,7 @@ namespace loka
               audit_(ResolveScenarioAuditFile(), settings.scenario.c_str()), terminal_(&this->audit_),
               borrowedApp_(0), borrowedMain_(0), tick_(0),
               lingerRemaining_(settings.hasLingerSeconds ? settings.lingerSeconds : 0.0),
-              loadFacts_(), completionPublisher_()
+              loadFacts_(), pendingLoad_(), completionPublisher_()
         {
         }
 
@@ -149,9 +206,11 @@ namespace loka
               dsl::FLOW_STEP_SUCCEEDED, dsl::FlowError()));
         }
 
-        bool openImage()
+        bool openImage(const ImageCell &cell)
         {
-          const file::File chosen(this->scenario_ == "open-sun" ? "Sun.pict" : "Bulb.pict");
+          const unsigned number = this->pendingLoad_.nextNumber();
+          const PendingImageLoad pending(number, this->tick_, cell.picture(number));
+          const file::File &chosen = pending.chosen();
           const file::File item = file::File::Application() << chosen;
           platform::file::FileHandle handle;
           if (!this->getPlatformContext()->openFile(item, handle) || !handle.hasSpec) return false;
@@ -171,6 +230,7 @@ namespace loka
           const long freeBytes = FreeMem();
           std::size_t maxBlock = 0;
           if (!this->getPlatformContext()->queryLargestContiguousAllocation(maxBlock)) return false;
+          this->pendingLoad_ = pending;
           SimpleViewerTestAccess::open(*this->borrowedMain_, result);
           (void)freeBytes;
           // Raw heap numbers move with the application's code size; keep the
@@ -188,11 +248,6 @@ namespace loka
           (void)this->terminal_.emit(dsl::testing::SCENARIO_AUDIT_FAILED, record);
           (void)this->completionPublisher_.publish(window);
         }
-
-        enum
-        {
-          kOpenDecisionTurnBound = 60
-        };
 
         void tick(Window *window, double elapsedSeconds)
         {
@@ -244,9 +299,11 @@ namespace loka
             (void)this->completionPublisher_.publish(window);
             return;
           }
+          const ImageCell *cell = FindImageCell(this->scenario_);
+          if (!cell) { this->fail(window); return; }
           if (this->tick_ == 2)
           {
-            if (!this->recordStep("post-settle") || !this->openImage()) this->fail(window);
+            if (!this->recordStep("post-settle") || !this->openImage(*cell)) this->fail(window);
             return;
           }
           dsl::SnapRecord record = MakeRecord(this->scenario_.c_str(), this->tick_, dsl::SnapStatusOk());
@@ -261,11 +318,12 @@ namespace loka
           record.set("checkpoint", "post-open");
           scenario_tests::SetContentBounds(record, ContentLocalBounds(QueryCaptureContentBounds(window)));
           // The production session advances its Flow over later settled turns;
-          // wait for a decided outcome (valid image or a completed error
-          // message) up to a bound before calling the fixture failed.
-          if (!SimpleViewerTestAccess::capture(*this->borrowedMain_, record))
+          // wait for this request to finish, with a fresh bound for each load.
+          const SimpleViewerTestAccess::LoadOutcome outcome =
+              SimpleViewerTestAccess::capture(*this->borrowedMain_, this->pendingLoad_.chosen(), record);
+          if (outcome == SimpleViewerTestAccess::LOAD_PENDING)
           {
-            if (this->tick_ < kOpenDecisionTurnBound) return;
+            if (cell->churnReplacements ? !this->pendingLoad_.expired(this->tick_) : this->tick_ < 60) return;
             this->fail(window);
             return;
           }
@@ -273,6 +331,19 @@ namespace loka
           {
             this->fail(window);
             return;
+          }
+          if (cell->churnReplacements)
+          {
+            if (outcome != SimpleViewerTestAccess::LOAD_SUCCEEDED)
+            {
+              this->fail(window);
+              return;
+            }
+            if (!this->pendingLoad_.isLast(*cell))
+            {
+              if (!this->openImage(*cell)) this->fail(window);
+              return;
+            }
           }
           (void)this->terminal_.emit(dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
           (void)this->completionPublisher_.publish(window);
@@ -286,6 +357,7 @@ namespace loka
         long tick_;
         double lingerRemaining_;
         dsl::SnapRecord loadFacts_;
+        PendingImageLoad pendingLoad_;
         ScenarioCompletionPublisher completionPublisher_;
       };
     } // namespace
@@ -294,7 +366,7 @@ namespace loka
     {
       dsl::SnapTestConfig::Settings settings;
       if (!dsl::SnapTestConfig::load("LokaTest.cfg", settings) || !settings.hasScenario
-          || (settings.scenario != "startup" && settings.scenario != "open-sun" && settings.scenario != "open-bulb"))
+          || (settings.scenario != "startup" && !FindImageCell(settings.scenario)))
       {
         (void)WriteScenarioErrorAudit("startup", MakeRecord("startup", 0, dsl::SnapStatusError()));
         return 0;

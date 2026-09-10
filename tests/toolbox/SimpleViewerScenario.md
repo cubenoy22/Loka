@@ -1,6 +1,7 @@
 # SimpleViewer open-image characterization
 
-Status: Provisional fixture; runtime verification on the System 7 rig is pending.
+Status: Open-image cells have successful tracked System 7 audits; churn-replace
+is provisional pending runtime verification on both application partitions.
 Owns: Dialog-free image-load measurements and rig-local scenario inputs.
 Does not own: Production image-load policy or the fragmented-heap fix.
 Code truth: `src/SimpleViewerScenarioDriver.cpp`, `run-scenario.sh`.
@@ -11,12 +12,17 @@ Retro68 build. Expected audits must come from the rig.
 | --- | --- | --- |
 | `simpleviewer open-sun` | `Sun.pict`, 11,826 bytes | Settle, open, settle, capture |
 | `simpleviewer open-bulb` | `Bulb.pict`, 13,810 bytes | Settle, open, settle, capture |
+| `simpleviewer churn-replace` | Both pictures above | Sun, eight alternating replacements (Bulb, Sun × 4), final Bulb |
 
 The production MainNode and menu run in a 480×280 content window at (16, 41),
 keeping its structure rectangle inside the rig's 640×480 screen. As in
 SmirkBench, settled turns exclude Scene invalidation, native retirement and
 ToolboxWindow invalidation. Opening occurs on settled turn 2; capture waits on
-subsequent settled turns for a decided load outcome (up to 60 settled turns).
+subsequent settled turns for a decided load outcome (through turn 60 for the
+single-open cells). Churn gives each attempt 60 settled turns from issue.
+All ten loads occur in one process, and each completed load is audited before
+the next is requested. `ImageCell` in the driver owns the bounded count (8);
+there is no environment override. The final load is Bulb, replacing Sun.
 
 The test-access layer begins MainNode's existing ImageLoadSession and writes
 its chooser result inside a StateTrackerGuard, without showing a dialog.
@@ -25,7 +31,11 @@ through Process Manager and `FSMakeFSSpec`, registers the FSSpec with
 `ToolboxPlatformContext::registerChosenFileSpec`, and passes a `FileChooserResult`
 carrying the filename as its display path, just like the dialog. The production
 chooser adapters, capacity check, data-fork read, decode and image commit run
-unchanged.
+unchanged. Capture first waits until the session has released its Flow, then
+checks completed errors before considering the retained image. Success requires
+the production chooser message for the requested filename as well as a valid
+image. With one outstanding request and alternating filenames, the previous
+image/message cannot certify the new load. Unknown outcomes time out.
 
 The record contains `image.load` (`ok` or a numeric production flow error
 code), `image.width`, `image.height`, the actual `image.bytes` read via
@@ -40,12 +50,15 @@ application's code size. The error code is matched from the completed
 chooser message using ImageLoadSession's production formatter through a
 TEST_BUILD-only friend; unknown messages fail the fixture. A terminal
 `succeeded` means the measurement completed, including when the observed
-image load failed. Inspect `image.load` to characterize the regression.
+image load failed in the single-open characterization cells. The churn cell
+requires `image.load=ok` at every load, including the final replacement; a handled
+load failure emits its numeric result and then fails the cell. Terminal success
+alone is never the allocator acceptance criterion.
 
 The pristine boot template (`MAME_HDA` in `.env-mame`) must contain data-fork
 pictures `:Desktop Folder:Images:Sun.pict` and `:Desktop Folder:Images:Bulb.pict`.
 These are rig-local inputs, never committed; the golden bundle keys on the rig.
-The runner reads the selected data fork from the template and places it beside
+The runner reads the selected data fork(s) from the template and places them beside
 the app on the dev disk under its original name. Its HFS tools use the cell's
 isolated `hfs-home`; a missing picture refuses before dev-disk staging.
 
@@ -93,9 +106,10 @@ Do not run `--update-golden` as part of this handoff.
   loaded but stalled. The rig's own `Sun.pict` (4-bit PixMap, 11,826 bytes)
   loaded and completed. Whether the generated inputs are invalid or expose a
   viewer defect remains a separate investigation.
-- The previous generated-cell audits are stale and removed. Both new cells
-  need delegator measurements; no expected audit or successful load outcome
-  is inferred from the old cells. This handoff is build-verified only.
+- The previous generated-cell audits are stale and removed. The tracked
+  `open-sun.audit` and `open-bulb.audit` now both record `image.load ok`.
+  These establish the existing single-open baselines; they do not establish
+  churn behavior. The churn expectation is deliberately absent until measured.
 
 ## Startup cell
 
@@ -108,3 +122,27 @@ move with the scenario application's code size, so an unrelated change would
 break the byte-exact expectation. The audit keeps `heap.probe_covers_image`
 (`yes`/`no`), which is the fact #614 turns on; measured numbers live in the
 PR bodies and the issue.
+
+## Churn acceptance bake (#642 PR 0)
+
+Run `tests/toolbox/run-scenario.sh simpleviewer churn-replace --structural-audit`
+on the maciix/System 7/8 MB rig with both template pictures. Four dev-disk items
+use `FINDER_TAB_COUNT=4`; verify that navigation and the final Bulb capture on the
+rig (host launch pins verify the selected count, not Finder behavior).
+
+The scenario target copies the shipping SIZE resource: 512 KiB minimum and
+1 MiB preferred. Test once with preferred forced to 512 KiB in the generated
+`build/retro68/68k/Release/tests/toolbox/SimpleViewerSize.r`, rebuilding the
+scenario APPL, then reconfigure to restore the shipping preferred size and
+rebuild for the 1 MiB run. Machine RAM is not the application partition.
+
+The first run intentionally refuses at the missing tracked audit after extracting
+it. Preserve each partition's audit and snapshots before another run wipes the
+cell directory. Inspect ten successful `image.load` results, the final Bulb
+(158×189, 13,810 bytes), terminal success, and the launch log's settled marker.
+Only after both measured audits agree, copy one to
+`tests/scenarios/expected/simpleviewer/churn-replace.audit`, remove its
+`.audit.pending.md` marker, and rerun both partitions for byte-exact comparison.
+Do not synthesize an audit from the sequence or from the existing image cells.
+`--update-golden` does not bake structural audits; it still requires their
+comparison and stages a complete rig-local pixel bundle for separate confirmation.

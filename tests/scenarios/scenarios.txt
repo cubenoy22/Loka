@@ -21,3 +21,4 @@ smirkbench retained-text-rebind
 simpleviewer startup
 simpleviewer open-sun
 simpleviewer open-bulb
+simpleviewer churn-replace

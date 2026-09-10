@@ -170,8 +170,9 @@ cat >"$SANDBOX/retro-tools/hcopy" <<'SH'
 set -euo pipefail
 destination="$3"
 if [ "$1" = "-r" ]; then
-  printf '%s\n' "$HOME" "$@" >"$SANDBOX/picture-copy-arguments"
+  printf '%s\n' "$HOME" "$@" >>"$SANDBOX/picture-copy-arguments"
   [ "${FAKE_PICTURE_MISSING:-0}" != "1" ] || exit 1
+  [ "$2" != "${FAKE_MISSING_PICTURE_PATH:-}" ] || exit 1
   printf 'template data fork: %s\n' "$2" >"$destination"
   exit 0
 fi
@@ -332,7 +333,7 @@ run_case smirkbench startup 4 unset
 run_case smirkbench surface-ticks 4 unset
 run_case smirkbench add-face 4 unset
 # SimpleViewer launch-only pins: template data forks, no invented audits.
-printf '%s\n' 'simpleviewer startup' 'simpleviewer open-sun' 'simpleviewer open-bulb' >>"$SANDBOX/repo/tests/scenarios/scenarios.txt"
+printf '%s\n' 'simpleviewer startup' 'simpleviewer open-sun' 'simpleviewer open-bulb' 'simpleviewer churn-replace' >>"$SANDBOX/repo/tests/scenarios/scenarios.txt"
 touch "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaSimpleViewerTestsToolbox68K.bin"
 mkdir -p "$SANDBOX/repo/tests/scenarios/expected/simpleviewer"
 cp "$REPO_DIR/tests/scenarios/expected/simpleviewer/startup.audit" \
@@ -358,6 +359,34 @@ for picture in Sun Bulb; do
   grep -Fxq -- "$staged" "$SANDBOX/dev-disk-arguments" || fail "$picture was not staged"
   grep -Fxq -- "template data fork: :Desktop Folder:Images:$picture.pict" "$staged" \
     || fail "$picture data fork was not preserved"
+done
+# Four staged items: both data forks must survive the same template mount.
+: >"$SANDBOX/hfs-mount-log"
+: >"$SANDBOX/picture-copy-arguments"
+RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" run_case simpleviewer churn-replace 4 unset
+for picture in Sun Bulb; do
+  staged="$SANDBOX/repo/build/mame-scenario/simpleviewer/churn-replace/$picture.pict"
+  grep -Fxq -- "$staged" "$SANDBOX/dev-disk-arguments" || fail "churn did not stage $picture"
+  grep -Fxq -- "template data fork: :Desktop Folder:Images:$picture.pict" "$staged" \
+    || fail "churn lost $picture data fork"
+done
+[ "$(grep -Fc '/churn-replace/hfs-home' "$SANDBOX/hfs-mount-log")" = 2 ] \
+  || fail "churn template mount/unmount was not isolated"
+for missing in Sun Bulb; do
+  rm -f "$SANDBOX/tab-count" "$SANDBOX/dev-disk-arguments"
+  : >"$SANDBOX/hfs-mount-log"
+  if MAME_ENV_FILE="$SANDBOX/mame.env" FAKE_MISSING_PICTURE_PATH=":Desktop Folder:Images:$missing.pict" \
+      RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" env -u WSL_INTEROP \
+      bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" simpleviewer churn-replace \
+      >"$SANDBOX/churn-picture-failure.log" 2>&1; then
+    fail "churn accepted missing $missing"
+  fi
+  grep -Fq "could not extract template picture :Desktop Folder:Images:$missing.pict" \
+    "$SANDBOX/churn-picture-failure.log" || fail "churn missing input refusal"
+  [ "$(grep -Fc '/churn-replace/hfs-home' "$SANDBOX/hfs-mount-log")" = 2 ] \
+    || fail "churn missing input did not unmount"
+  [ ! -f "$SANDBOX/tab-count" ] || fail "churn missing input launched MAME"
+  [ ! -f "$SANDBOX/dev-disk-arguments" ] || fail "churn missing input staged stale bytes"
 done
 # Missing template input must refuse before disk creation, even after a prior run.
 rm -f "$SANDBOX/tab-count" "$SANDBOX/dev-disk-arguments"
