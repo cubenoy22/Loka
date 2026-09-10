@@ -1,0 +1,213 @@
+loka_scenario_audit version=1 scenario=churn-replace
+step id=2 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=post-settle
+step id=2 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=open-image
+step id=3 due_tick=3 tick=3 status=succeeded error_kind=0 error_code=0 name=post-open
+checkpoint	post-open
+crop_bottom	280
+crop_left	0
+crop_right	480
+crop_top	0
+format_version	1
+heap.probe_covers_image	yes
+image.bytes	11826
+image.height	256
+image.load	ok
+image.width	256
+node	SimpleViewer.Image
+rail	toolbox
+scenario_version	1
+schema_version	1
+status	ok
+step	churn-replace
+test	SimpleViewer
+tick	3
+step id=3 due_tick=3 tick=3 status=succeeded error_kind=0 error_code=0 name=open-image
+step id=4 due_tick=4 tick=4 status=succeeded error_kind=0 error_code=0 name=post-open
+checkpoint	post-open
+crop_bottom	280
+crop_left	0
+crop_right	480
+crop_top	0
+format_version	1
+heap.probe_covers_image	yes
+image.bytes	13810
+image.height	189
+image.load	ok
+image.width	158
+node	SimpleViewer.Image
+rail	toolbox
+scenario_version	1
+schema_version	1
+status	ok
+step	churn-replace
+test	SimpleViewer
+tick	4
+step id=4 due_tick=4 tick=4 status=succeeded error_kind=0 error_code=0 name=open-image
+step id=5 due_tick=5 tick=5 status=succeeded error_kind=0 error_code=0 name=post-open
+checkpoint	post-open
+crop_bottom	280
+crop_left	0
+crop_right	480
+crop_top	0
+format_version	1
+heap.probe_covers_image	yes
+image.bytes	11826
+image.height	256
+image.load	ok
+image.width	256
+node	SimpleViewer.Image
+rail	toolbox
+scenario_version	1
+schema_version	1
+status	ok
+step	churn-replace
+test	SimpleViewer
+tick	5
+step id=5 due_tick=5 tick=5 status=succeeded error_kind=0 error_code=0 name=open-image
+step id=6 due_tick=6 tick=6 status=succeeded error_kind=0 error_code=0 name=post-open
+checkpoint	post-open
+crop_bottom	280
+crop_left	0
+crop_right	480
+crop_top	0
+format_version	1
+heap.probe_covers_image	yes
+image.bytes	13810
+image.height	189
+image.load	ok
+image.width	158
+node	SimpleViewer.Image
+rail	toolbox
+scenario_version	1
+schema_version	1
+status	ok
+step	churn-replace
+test	SimpleViewer
+tick	6
+step id=6 due_tick=6 tick=6 status=succeeded error_kind=0 error_code=0 name=open-image
+step id=7 due_tick=7 tick=7 status=succeeded error_kind=0 error_code=0 name=post-open
+checkpoint	post-open
+crop_bottom	280
+crop_left	0
+crop_right	480
+crop_top	0
+format_version	1
+heap.probe_covers_image	yes
+image.bytes	11826
+image.height	256
+image.load	ok
+image.width	256
+node	SimpleViewer.Image
+rail	toolbox
+scenario_version	1
+schema_version	1
+status	ok
+step	churn-replace
+test	SimpleViewer
+tick	7
+step id=7 due_tick=7 tick=7 status=succeeded error_kind=0 error_code=0 name=open-image
+step id=8 due_tick=8 tick=8 status=succeeded error_kind=0 error_code=0 name=post-open
+checkpoint	post-open
+crop_bottom	280
+crop_left	0
+crop_right	480
+crop_top	0
+format_version	1
+heap.probe_covers_image	yes
+image.bytes	13810
+image.height	189
+image.load	ok
+image.width	158
+node	SimpleViewer.Image
+rail	toolbox
+scenario_version	1
+schema_version	1
+status	ok
+step	churn-replace
+test	SimpleViewer
+tick	8
+step id=8 due_tick=8 tick=8 status=succeeded error_kind=0 error_code=0 name=open-image
+step id=9 due_tick=9 tick=9 status=succeeded error_kind=0 error_code=0 name=post-open
+checkpoint	post-open
+crop_bottom	280
+crop_left	0
+crop_right	480
+crop_top	0
+format_version	1
+heap.probe_covers_image	yes
+image.bytes	11826
+image.height	256
+image.load	ok
+image.width	256
+node	SimpleViewer.Image
+rail	toolbox
+scenario_version	1
+schema_version	1
+status	ok
+step	churn-replace
+test	SimpleViewer
+tick	9
+step id=9 due_tick=9 tick=9 status=succeeded error_kind=0 error_code=0 name=open-image
+step id=10 due_tick=10 tick=10 status=succeeded error_kind=0 error_code=0 name=post-open
+checkpoint	post-open
+crop_bottom	280
+crop_left	0
+crop_right	480
+crop_top	0
+format_version	1
+heap.probe_covers_image	yes
+image.bytes	13810
+image.height	189
+image.load	ok
+image.width	158
+node	SimpleViewer.Image
+rail	toolbox
+scenario_version	1
+schema_version	1
+status	ok
+step	churn-replace
+test	SimpleViewer
+tick	10
+step id=10 due_tick=10 tick=10 status=succeeded error_kind=0 error_code=0 name=open-image
+step id=11 due_tick=11 tick=11 status=succeeded error_kind=0 error_code=0 name=post-open
+checkpoint	post-open
+crop_bottom	280
+crop_left	0
+crop_right	480
+crop_top	0
+format_version	1
+heap.probe_covers_image	yes
+image.bytes	11826
+image.height	256
+image.load	ok
+image.width	256
+node	SimpleViewer.Image
+rail	toolbox
+scenario_version	1
+schema_version	1
+status	ok
+step	churn-replace
+test	SimpleViewer
+tick	11
+step id=11 due_tick=11 tick=11 status=succeeded error_kind=0 error_code=0 name=open-image
+step id=12 due_tick=12 tick=12 status=succeeded error_kind=0 error_code=0 name=post-open
+checkpoint	post-open
+crop_bottom	280
+crop_left	0
+crop_right	480
+crop_top	0
+format_version	1
+heap.probe_covers_image	yes
+image.bytes	13810
+image.height	189
+image.load	ok
+image.width	158
+node	SimpleViewer.Image
+rail	toolbox
+scenario_version	1
+schema_version	1
+status	ok
+step	churn-replace
+test	SimpleViewer
+tick	12
+terminal status=succeeded
