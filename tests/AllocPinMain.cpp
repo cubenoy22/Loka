@@ -509,6 +509,7 @@ void operator delete[](void *p, const std::nothrow_t &) throw()
 
 int main()
 {
+  testStateTrackerRegistrationGrowth();
   testStateTrackerReservedPropagation();
   testStateTrackerCycleAndDiamond();
   testStateTrackerRemovesSettlementBorrow();

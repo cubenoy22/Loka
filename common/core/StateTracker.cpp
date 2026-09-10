@@ -461,7 +461,11 @@ namespace loka
       }
       else
       {
-        allocateEntries(1);
+        // Keep one-state owners small, then amortize unreserved growth: one
+        // array/header pair per state is costly on Classic. Existing storage
+        // selects the growth phase; removals keep recycling the same free list.
+        enum { kEntryChunkCapacity = 16 };
+        allocateEntries(chunks_ ? kEntryChunkCapacity : 1);
         entry = freeEntries_;
         freeEntries_ = freeEntries_->next;
       }

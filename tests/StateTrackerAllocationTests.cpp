@@ -105,17 +105,120 @@ namespace loka
   {
     namespace testing
     {
-      /** Seeds the walk counter so a pin can cross the unsigned wrap. */
+      /** Test-only access to walk identity and tracker-owned registration rows. */
       struct PushStateTrackerTestAccess
       {
         static void seedVisitPass(PushStateTracker &tracker, unsigned long value)
         {
           tracker.visitPass_ = value;
         }
+        static size_t freeEntryCount(const PushStateTracker &tracker)
+        {
+          size_t count = 0;
+          for (PushStateTracker::StateEntry *e = tracker.freeEntries_; e; e = e->next)
+            ++count;
+          return count;
+        }
+        static bool hasOrder(const PushStateTracker &tracker, StateBase *const *states, size_t count)
+        {
+          PushStateTracker::StateEntry *entry = tracker.statesHead_;
+          for (size_t i = 0; i < count; ++i)
+          {
+            if (!entry || entry->state != states[i])
+              return false;
+            entry = entry->next;
+          }
+          return entry == 0;
+        }
       };
     } // namespace testing
   } // namespace core
 } // namespace loka
+
+void testStateTrackerRegistrationGrowth()
+{
+  using namespace loka::core;
+  enum { kStates = 33 };
+  MutableState<int> states[kStates];
+  StateBase *order[kStates];
+  {
+    PushStateTracker single;
+#ifdef LOKA_STATE_TRACKER_ALLOC_CENSUS
+    allocpin::BeginCapture(0);
+#endif
+    single.addState(&states[0]);
+#ifdef LOKA_STATE_TRACKER_ALLOC_CENSUS
+    allocpin::EndCapture();
+    // MineSweeper has many one-state owners; do not inflate each into a batch.
+    LOKA_VERIFY(allocpin::CaptureAllocCount(0) <= 2);
+    LOKA_VERIFY(allocpin::CaptureAllocBytes(0) <= 64);
+#endif
+  }
+#ifdef LOKA_STATE_TRACKER_ALLOC_CENSUS
+  allocpin::BeginCapture(0);
+#endif
+  PushStateTracker tracker;
+#ifdef LOKA_STATE_TRACKER_ALLOC_CENSUS
+  allocpin::EndCapture();
+  LOKA_VERIFY(allocpin::CaptureAllocCount(0) == 0);
+  allocpin::BeginCapture(0);
+#endif
+  for (int i = 0; i < kStates; ++i)
+  {
+    order[i] = &states[i];
+    if (i % 2)
+      tracker.addStateUnchecked(order[i]);
+    else
+      tracker.addState(order[i]);
+  }
+#ifdef LOKA_STATE_TRACKER_ALLOC_CENSUS
+  allocpin::EndCapture();
+  const unsigned long calls = allocpin::CaptureAllocCount(0);
+  const unsigned long bytes = allocpin::CaptureAllocBytes(0);
+  std::printf("tracker 33 registrations: heap=%lu bytes=%lu\n", calls, bytes);
+  // Budget both heap traffic and slack: preallocating a huge array is not a win.
+  LOKA_VERIFY(calls <= 8);
+  LOKA_VERIFY(bytes <= 1024);
+#endif
+  LOKA_VERIFY(testing::PushStateTrackerTestAccess::hasOrder(tracker, order, kStates));
+  for (int i = 0; i < kStates; ++i)
+    tracker.removeState(&states[i]);
+#ifdef LOKA_STATE_TRACKER_ALLOC_CENSUS
+  allocpin::BeginCapture(0);
+#endif
+  for (int i = 0; i < kStates; ++i)
+  {
+    order[i] = &states[kStates - 1 - i];
+    tracker.addState(order[i]);
+    tracker.addState(order[i]); // duplicate registration must remain inert
+  }
+#ifdef LOKA_STATE_TRACKER_ALLOC_CENSUS
+  allocpin::EndCapture();
+  LOKA_VERIFY(allocpin::CaptureAllocCount(0) == 0);
+#endif
+  LOKA_VERIFY(testing::PushStateTrackerTestAccess::hasOrder(tracker, order, kStates));
+  {
+    StateTrackerGuard guard(&tracker);
+    for (int i = 0; i < kStates; ++i)
+    {
+      StateTracker *owner = states[i].trackerOwner();
+      LOKA_VERIFY(owner == &tracker);
+      states[i].set(i + 1);
+    }
+  }
+  for (int i = 0; i < kStates; ++i)
+  {
+    LOKA_VERIFY(states[i].get() == i + 1);
+    StateTracker *owner = states[i].trackerOwner();
+    LOKA_VERIFY(owner == 0);
+  }
+  // Explicit reservation remains additional even when reusable capacity exists.
+  tracker.removeState(&states[0]);
+  const size_t before = testing::PushStateTrackerTestAccess::freeEntryCount(tracker);
+  LOKA_VERIFY(before > 0);
+  tracker.reserveStates(3);
+  LOKA_VERIFY(testing::PushStateTrackerTestAccess::freeEntryCount(tracker) == before + 3);
+}
 
 void testStateTrackerReservedPropagation()
 {

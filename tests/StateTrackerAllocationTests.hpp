@@ -4,4 +4,5 @@ void testStateTrackerReservedPropagation();
 void testStateTrackerCycleAndDiamond();
 void testStateTrackerRemovesSettlementBorrow();
 void testStateTrackerVisitPassWrapsPastZero();
+void testStateTrackerRegistrationGrowth();
 #endif
