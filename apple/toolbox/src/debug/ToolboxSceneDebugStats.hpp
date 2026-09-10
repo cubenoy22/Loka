@@ -26,7 +26,10 @@ public:
 #if LOKA_RETRO68_DIAGNOSTICS
   // Diagnostic profile only (#135): the fprintf/localtime chain this pulls
   // from newlib is compiled out of compact builds.
-  bool dumpToTimestampedFile() const;
+  // A null overrideName uses the timestamped scene-dump filename; a caller
+  // that observes at a different phase (e.g. process teardown) passes a
+  // distinct 8.3 name so its report cannot overwrite a scene dump.
+  bool dumpToTimestampedFile(const char *overrideName = 0) const;
 #endif
 
   unsigned long changeSequence;

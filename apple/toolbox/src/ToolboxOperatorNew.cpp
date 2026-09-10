@@ -7,6 +7,9 @@
 // the linker from pulling libstdc++'s definitions, so the unwinder
 // machinery is never referenced and gc-sections drops it.
 //
+// Small requests try a chunk, then the single request, then refuse with 0;
+// requests above 256 bytes pass straight to NewPtr without a header.
+// All six delete forms funnel through scalar delete and the pool release door.
 // Contract:
 // - Plain new/new[] never return 0: allocation failure aborts via the
 //   repository's fatal-abort convention (std::abort, as in LokaAlloc).
@@ -19,17 +22,58 @@
 // This TU is only compiled into LokaAppleToolboxCore (Classic targets);
 // host and test builds keep the toolchain-default operators.
 
+#include "core/SmallObjectPool.hpp"
+#include "ToolboxSmallObjectPool.hpp"
+#include <MacMemory.h>
 #include <cstdlib>
 #include <new>
 #include <string>
 
+namespace
+{
+  /** Memory Manager storage for every target linking this Classic rail. */
+  struct ClassicMemorySource
+  {
+    // The target's maximum fundamental alignment, which NewPtr meets or
+    // exceeds: 8 on PowerPC/Carbon (a double or long long needs 8, and the
+    // Memory Manager aligns to at least that), 4 on 68K (where the m68k ABI's
+    // strictest fundamental type is 4-aligned and NewPtr returns 4-aligned
+    // blocks). Every size class is a multiple of 8, so each slot inherits the
+    // chunk base's alignment and stays >= this promise. Large/direct/fallback
+    // requests bypass the pool and keep NewPtr's own alignment, unchanged from
+    // the pre-pool operator new.
+#if defined(__ppc__) || defined(__POWERPC__)
+    enum { kAlignment = 8 };
+#else
+    enum { kAlignment = 4 };
+#endif
+
+    static void *acquire(std::size_t size)
+    {
+      return NewPtr(size);
+    }
+
+    static void release(void *storage)
+    {
+      DisposePtr(static_cast<Ptr>(storage));
+    }
+  };
+
+  // POD in zero-initialized BSS: usable before main and after static teardown.
+  // Chunks belong to the process and are never returned to the zone.
+  static loka::core::SmallObjectPool<ClassicMemorySource> gPool;
+} // namespace
+
+#if LOKA_RETRO68_DIAGNOSTICS
+void LokaClassicPoolReport(loka::core::SmallObjectPoolReport &out)
+{
+  gPool.report(out);
+}
+#endif
+
 void *operator new(std::size_t size)
 {
-  if (size == 0)
-  {
-    size = 1;
-  }
-  void *storage = std::malloc(size);
+  void *storage = gPool.allocate(size);
   if (!storage)
   {
     std::abort();
@@ -44,11 +88,7 @@ void *operator new[](std::size_t size)
 
 void *operator new(std::size_t size, const std::nothrow_t &) throw()
 {
-  if (size == 0)
-  {
-    size = 1;
-  }
-  return std::malloc(size);
+  return gPool.allocate(size);
 }
 
 void *operator new[](std::size_t size, const std::nothrow_t &nothrowTag) throw()
@@ -58,33 +98,34 @@ void *operator new[](std::size_t size, const std::nothrow_t &nothrowTag) throw()
 
 void operator delete(void *storage) throw()
 {
-  std::free(storage);
+  if (!storage) return;
+  gPool.release(storage);
 }
 
 void operator delete[](void *storage) throw()
 {
-  std::free(storage);
+  operator delete(storage);
 }
 
 // Sized forms: the prebuilt libstdc++ objects reference these.
 void operator delete(void *storage, std::size_t) throw()
 {
-  std::free(storage);
+  operator delete(storage);
 }
 
 void operator delete[](void *storage, std::size_t) throw()
 {
-  std::free(storage);
+  operator delete(storage);
 }
 
 void operator delete(void *storage, const std::nothrow_t &) throw()
 {
-  std::free(storage);
+  operator delete(storage);
 }
 
 void operator delete[](void *storage, const std::nothrow_t &) throw()
 {
-  std::free(storage);
+  operator delete(storage);
 }
 
 // libstdc++'s functexcept.o is the other __cxa_throw carrier: container
