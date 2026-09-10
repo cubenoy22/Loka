@@ -90,3 +90,8 @@ loka_compile_pin(tracker-assign
   REFUSES pins/refuses_tracker_assign.cpp
   ACCEPTS pins/accepts_tracker_construction.cpp
 )
+
+loka_compile_pin(small-object-pool-source-alignment
+  REFUSES pins/refuses_small_object_pool_unaligned_source.cpp
+  ACCEPTS pins/accepts_small_object_pool_aligned_source.cpp
+)

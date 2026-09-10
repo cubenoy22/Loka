@@ -15,6 +15,9 @@
 #include <LowMem.h>
 #include <MacMemory.h>
 #include <vector>
+#if LOKA_RETRO68_DIAGNOSTICS
+#include "debug/ToolboxSceneDebugStats.hpp"
+#endif
 
 namespace
 {
@@ -41,7 +44,16 @@ namespace
 } // namespace
 
 ToolboxPlatformContext::ToolboxPlatformContext() {}
-ToolboxPlatformContext::~ToolboxPlatformContext() {}
+ToolboxPlatformContext::~ToolboxPlatformContext()
+{
+#if LOKA_RETRO68_DIAGNOSTICS
+  // App/config are gone; static clients may remain. Observe, never assert.
+  const ToolboxSceneDebugStats stats;
+  // Distinct 8.3 filename: the teardown pool report must not overwrite a
+  // same-second scene redraw dump.
+  stats.dumpToTimestampedFile("POOLTERM.TXT");
+#endif
+}
 
 App *ToolboxPlatformContext::createApp(AppConfigurable *config, HINSTANCE, int) const
 {
