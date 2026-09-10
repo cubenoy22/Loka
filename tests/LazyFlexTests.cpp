@@ -477,3 +477,27 @@ void testLazyFlexRowWrapUsesHalfOpenCells()
   f.platform.drainNativeRetirements();
   rows(f, 0);
 }
+
+#ifdef LOKA_LAZYFLEX_ALLOC_CENSUS
+#include "support/AllocCensus.hpp"
+
+void allocpin::RunLazyFlexPageFlipAllocPin()
+{
+  Fixture f;
+  f.page(200);
+  f.page(0);
+  for (int capture = 0; capture < 2; ++capture)
+  {
+    BeginCapture(capture);
+    f.page(capture == 0 ? 200 : 0);
+    EndCapture();
+    rows(f, 8);
+  }
+  std::fprintf(stderr, "LazyFlex warmed eight-card page flip: %lu / %lu allocations\n",
+               CaptureAllocCount(0), CaptureAllocCount(1));
+  // A ceiling for a full warmed page flip, including materialization and retirement.
+  enum { kWarmedPageFlipAllocBudget = 257 };
+  LOKA_VERIFY(CaptureAllocCount(0) <= kWarmedPageFlipAllocBudget);
+  LOKA_VERIFY(CaptureAllocCount(1) <= kWarmedPageFlipAllocBudget);
+}
+#endif

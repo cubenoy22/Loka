@@ -2,5 +2,12 @@
 #define LOKA_STATE_NOTIFY_TESTS_HPP
 
 void testStateNotify();
+void testStateAssignmentBindSelfDeletion();
+void testStateForcedAssignmentBindSelfDeletion();
+void testStateDeferredNotifySelfDeletion();
+void testStateLifetimeTokenIdentity();
+void testStateExternalGuardSurvivesDestructionAndAddressReuse();
+void testDialogExternalGuardProtectsUnobservedEmitter();
+
 
 #endif // LOKA_STATE_NOTIFY_TESTS_HPP

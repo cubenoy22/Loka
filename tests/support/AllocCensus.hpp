@@ -42,6 +42,8 @@ namespace allocpin
   void PrintCensusReport();
 
   // Scenario entry point (AllocPinTests.cpp).
+  void RunStateLifetimeTokenAllocPin();
+  void RunLazyFlexPageFlipAllocPin();
   void RunZeroAllocPin();
   void RunFloppyBirdSurfaceAllocPin();
   void RunFloppyBirdScoreAllocPin();

@@ -44,7 +44,7 @@ namespace loka
             currentTracker(0),
             arenaAllocated_(false),
             gateAllocated_(false),
-            lifetimeToken_(new LifetimeToken())
+            lifetimeToken_(0)
       {
       }
       StateBase(const StateBase &rhs)
@@ -56,7 +56,7 @@ namespace loka
             currentTracker(0),
             arenaAllocated_(rhs.arenaAllocated_),
             gateAllocated_(false),
-            lifetimeToken_(new LifetimeToken())
+            lifetimeToken_(0)
       {
       }
       StateBase &operator=(const StateBase &rhs)
@@ -162,6 +162,16 @@ namespace loka
         }
       }
 
+      /** Create the State-owned token before installing an observer or lending
+          an external guard. Plain new follows the platform fatal-OOM policy. */
+      void ensureLifetimeToken() const
+      {
+        if (!this->lifetimeToken_)
+          this->lifetimeToken_ = new LifetimeToken();
+      }
+
+      /** Internal frames never allocate. Capture after value assignment or other
+          user-code hooks that could register the first observer. */
       LifetimeToken *retainNotifyToken() const
       {
         retainLifetimeToken(lifetimeToken_);
@@ -175,7 +185,8 @@ namespace loka
 
       static bool isNotifyTokenAlive(const LifetimeToken *token)
       {
-        return token && token->alive;
+        // Null is live only for internal frames: no observer could have run.
+        return !token || token->alive;
       }
 
       // Handler and handler lists shared by all State specializations.
@@ -212,7 +223,9 @@ namespace loka
       // - Snapshots both lists before iterating so bind/unbind or self-deletion
       //   inside a callback does not corrupt the loop.
       // - Skips any handler that was dynamically unbound by a sibling callback.
-      void notifyHandlers()
+      /** Return whether this State survived notification; callers must stop
+          accessing it when a callback destroyed it. */
+      bool notifyHandlers()
       {
         LifetimeToken *token = retainNotifyToken();
         std::vector<Handler> snapshot = handlers;
@@ -229,7 +242,7 @@ namespace loka
           if (!isNotifyTokenAlive(token))
           {
             releaseNotifyToken(token);
-            return;
+            return false;
           }
         }
         std::vector<Handler> snapshotDeferred = deferredHandlers;
@@ -244,10 +257,11 @@ namespace loka
           if (!isNotifyTokenAlive(token))
           {
             releaseNotifyToken(token);
-            return;
+            return false;
           }
         }
         releaseNotifyToken(token);
+        return true;
       }
 
       friend class PushStateTracker;
@@ -283,9 +297,11 @@ namespace loka
       {
         return currentTracker;
       }
+      /** Retain a real guard even when another State's callback can destroy us. */
       void *retainExternalLifetimeToken() const
       {
-        return retainNotifyToken();
+        this->ensureLifetimeToken();
+        return this->retainNotifyToken();
       }
       static void releaseExternalLifetimeToken(void *token)
       {
@@ -293,7 +309,7 @@ namespace loka
       }
       static bool isExternalLifetimeTokenAlive(const void *token)
       {
-        return isNotifyTokenAlive(static_cast<const LifetimeToken *>(token));
+        return token && isNotifyTokenAlive(static_cast<const LifetimeToken *>(token));
       }
     };
 
@@ -321,6 +337,7 @@ namespace loka
       virtual void
       bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0)
       {
+        this->ensureLifetimeToken();
         Handler h = {cb, userData, callOnce, priority};
         typename std::vector<Handler>::iterator it = this->handlers.begin();
         for (; it != this->handlers.end(); ++it)
@@ -356,6 +373,7 @@ namespace loka
       }
       virtual void deferBind(OnChangeFn cb, void *userData, int priority = 0) const
       {
+        this->ensureLifetimeToken();
         Handler h = {cb, userData, false, priority};
         typename std::vector<Handler>::iterator it = this->deferredHandlers.begin();
         for (; it != this->deferredHandlers.end(); ++it)
@@ -397,21 +415,22 @@ namespace loka
         return true;
       }
 
-      virtual void setStoredValue(const T &v)
+      virtual bool setStoredValue(const T &v)
       {
         if (this->assignValueIfChanged(v))
         {
-          this->notifyStateChanged();
+          return this->notifyStateChanged();
         }
+        return true;
       }
       virtual void setValue(const T &v)
       {
         setStoredValue(v);
       }
       // setValue(const ValueHolderBase&) removed as no longer needed
-      void notifyStateChanged()
+      bool notifyStateChanged()
       {
-        notifyHandlers();
+        return this->notifyHandlers();
       }
 
       T value;
@@ -433,6 +452,7 @@ namespace loka
       virtual void
       bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0)
       {
+        this->ensureLifetimeToken();
         Handler h = {cb, userData, callOnce, priority};
         std::vector<Handler>::iterator it = handlers.begin();
         for (; it != handlers.end(); ++it)
@@ -468,6 +488,7 @@ namespace loka
       }
       virtual void deferBind(OnChangeFn cb, void *userData, int priority = 0) const
       {
+        this->ensureLifetimeToken();
         Handler h = {cb, userData, false, priority};
         std::vector<Handler>::iterator it = deferredHandlers.begin();
         for (; it != deferredHandlers.end(); ++it)
@@ -498,9 +519,9 @@ namespace loka
 
     protected:
       // Event notification API - Used by derived classes like EmitterState
-      void notifyStateChanged()
+      bool notifyStateChanged()
       {
-        notifyHandlers();
+        return this->notifyHandlers();
       }
     };
 
@@ -547,29 +568,19 @@ namespace loka
       }
       void set(const T &v, bool forceUpdate)
       {
-        StateBase::LifetimeToken *token = this->retainNotifyToken();
         if (forceUpdate)
         {
           this->assignValueIfChanged(v);
-          this->notifyStateChanged();
-          if (!StateBase::isNotifyTokenAlive(token))
-          {
-            StateBase::releaseNotifyToken(token);
+          if (!this->notifyStateChanged())
             return;
-          }
         }
         else
         {
-          State<T>::setStoredValue(v);
-          if (!StateBase::isNotifyTokenAlive(token))
-          {
-            StateBase::releaseNotifyToken(token);
+          if (!State<T>::setStoredValue(v))
             return;
-          }
         }
         if (this->currentTracker)
           this->currentTracker->markDirty(this);
-        StateBase::releaseNotifyToken(token);
       }
     };
 

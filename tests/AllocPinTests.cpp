@@ -355,3 +355,99 @@ namespace allocpin
     scene.unmount();
   }
 } // namespace allocpin
+
+namespace
+{
+  template <typename T> class TokenAllocProbe : public loka::core::State<T>
+  {
+  public:
+    void reserveHandlerStorage()
+    {
+      this->handlers.reserve(2);
+      this->deferredHandlers.reserve(2);
+    }
+  };
+
+  void tokenAllocNoop(void *) {}
+
+  template <typename T> void captureFirstObserverToken(bool deferred, unsigned long &first, unsigned long &later)
+  {
+    TokenAllocProbe<T> state;
+    // Isolate the token from vector capacity allocation; registration remains real.
+    state.reserveHandlerStorage();
+    allocpin::BeginCapture(0);
+    if (deferred)
+      state.deferBind(&tokenAllocNoop, 0);
+    else
+      state.bind(&tokenAllocNoop, 0, false);
+    allocpin::EndCapture();
+    first = allocpin::CaptureAllocCount(0);
+    allocpin::BeginCapture(1);
+    state.bind(&tokenAllocNoop, 0, false);
+    state.deferBind(&tokenAllocNoop, 0);
+    allocpin::EndCapture();
+    later = allocpin::CaptureAllocCount(1);
+  }
+}
+
+void allocpin::RunStateLifetimeTokenAllocPin()
+{
+  using loka::core::MutableState;
+  using loka::core::StateBase;
+  enum { kStates = 32 };
+  BeginCapture(0);
+  for (int i = 0; i < kStates; ++i)
+  {
+    MutableState<int> state(i);
+  }
+  EndCapture();
+  const unsigned long constructed = CaptureAllocCount(0);
+  MutableState<int> source(7);
+  source.bind(&tokenAllocNoop, 0, false);
+  BeginCapture(1);
+  for (int i = 0; i < kStates; ++i)
+  {
+    MutableState<int> copy(source);
+  }
+  EndCapture();
+  const unsigned long copied = CaptureAllocCount(1);
+  unsigned long first[4], later[4];
+  captureFirstObserverToken<int>(false, first[0], later[0]);
+  captureFirstObserverToken<int>(true, first[1], later[1]);
+  captureFirstObserverToken<void>(false, first[2], later[2]);
+  captureFirstObserverToken<void>(true, first[3], later[3]);
+
+  MutableState<int> unobserved(0);
+  loka::core::PushStateTracker tracker;
+  BeginCapture(0);
+  {
+    loka::core::StateTrackerGuard guard(&tracker);
+    unobserved.set(1);
+    unobserved.set(2, true);
+  }
+  EndCapture();
+  const unsigned long notified = CaptureAllocCount(0);
+  BeginCapture(0);
+  void *external = unobserved.retainExternalLifetimeToken();
+  EndCapture();
+  const unsigned long guarded = CaptureAllocCount(0);
+  BeginCapture(1);
+  void *second = unobserved.retainExternalLifetimeToken();
+  StateBase::releaseExternalLifetimeToken(second);
+  StateBase::releaseExternalLifetimeToken(external);
+  EndCapture();
+  const unsigned long reguarded = CaptureAllocCount(1);
+  std::fprintf(stderr, "State tokens: construct %d=%lu copy %d=%lu; first bind int/void immediate/deferred=%lu/%lu/%lu/%lu; later=%lu/%lu/%lu/%lu; unobserved set=%lu; external=%lu then %lu\n",
+      kStates, constructed, kStates, copied, first[0], first[1], first[2], first[3],
+      later[0], later[1], later[2], later[3], notified, guarded, reguarded);
+  LOKA_VERIFY(constructed == 0);
+  LOKA_VERIFY(copied == 0);
+  for (int i = 0; i < 4; ++i)
+  {
+    LOKA_VERIFY(first[i] == 1);
+    LOKA_VERIFY(later[i] == 0);
+  }
+  LOKA_VERIFY(notified == 0);
+  LOKA_VERIFY(guarded == 1);
+  LOKA_VERIFY(reguarded == 0);
+}
