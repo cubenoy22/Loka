@@ -1796,11 +1796,10 @@ namespace loka
         }
 
         bool applyBranchSeat(ComponentContext &context,
-                             NodeDefinitionBase *definition,
+                             BoundaryBranchSeatPlanEntry &mutablePlan,
                              BoundaryBranchSeatRuntimeEntry &runtime)
         {
-          const BoundaryBranchSeatPlanEntry *plan = this->branchSeatPlan(definition, runtime.key.scope);
-          if (!plan || !plan->dirtySource)
+          if (!mutablePlan.dirtySource)
           {
             return false;
           }
@@ -1808,52 +1807,44 @@ namespace loka
           {
             return false;
           }
-          if (!this->branchSeats_.isLive(runtime))
+          // Liveness is guaranteed by the sole caller, applyScopePlans, which
+          // skips non-live runtimes before resolving the plan; the former
+          // second isLive() here was a redundant owner-chain scan.
+          if (mutablePlan.seat()->needsBranchDeclaration())
           {
-            return true;
+            return this->replaceSeatBranch(context, mutablePlan, runtime, false, false);
           }
-
-          BoundaryBranchSeatPlanEntry *mutablePlan =
-              this->branchSeats_.findPlan(plan->key);
-          if (!mutablePlan)
-          {
-            return false;
-          }
-          if (mutablePlan->seat()->needsBranchDeclaration())
-          {
-            return this->replaceSeatBranch(context, *mutablePlan, runtime, false, false);
-          }
-          if (mutablePlan->seat()->declaredBranchSeats())
+          if (mutablePlan.seat()->declaredBranchSeats())
           {
             return true;
           }
           if (runtime.appliedGeneration == this->branchSeats_.generation())
           {
-            mutablePlan->snapshotSelection();
+            mutablePlan.snapshotSelection();
           }
 
-          if (!runtime.shape.matches(mutablePlan->shape))
+          if (!runtime.shape.matches(mutablePlan.shape))
           {
             // Rebuild under the new shape; the old shape's parked arms are
             // drained inside the replacement, between the outgoing retire and
             // the commit of the incoming arm's nested mappings.
             return this->replaceSeatBranch(context,
-                                           *mutablePlan,
+                                           mutablePlan,
                                            runtime,
                                            false,
                                            false,
                                            runtime.shape.armCount);
           }
 
-          if (mutablePlan->hasSelectedArm != runtime.hasActiveArm ||
-              (mutablePlan->hasSelectedArm &&
-               mutablePlan->selectedArm != runtime.activeArm))
+          if (mutablePlan.hasSelectedArm != runtime.hasActiveArm ||
+              (mutablePlan.hasSelectedArm &&
+               mutablePlan.selectedArm != runtime.activeArm))
           {
             const bool parkOutgoing =
                 runtime.hasActiveArm &&
-                !mutablePlan->branch(runtime.activeArm).policies.destroyOnDetach;
+                !mutablePlan.branch(runtime.activeArm).policies.destroyOnDetach;
             return this->replaceSeatBranch(context,
-                                           *mutablePlan,
+                                           mutablePlan,
                                            runtime,
                                            parkOutgoing,
                                            true);
@@ -1863,9 +1854,9 @@ namespace loka
           {
             return true;
           }
-          NodeDefinitionBase *branchDefinition = mutablePlan->hasSelectedArm
-                                                     ? mutablePlan->branch(
-                                                           mutablePlan->selectedArm)
+          NodeDefinitionBase *branchDefinition = mutablePlan.hasSelectedArm
+                                                     ? mutablePlan.branch(
+                                                           mutablePlan.selectedArm)
                                                            .definition
                                                      : 0;
           if (!branchDefinition &&
@@ -1875,13 +1866,13 @@ namespace loka
             return true;
           }
           if (branchDefinition
-              && this->reconcileParkedBranch(context, runtime.active, branchDefinition, mutablePlan->key.scope))
+              && this->reconcileParkedBranch(context, runtime.active, branchDefinition, mutablePlan.key.scope))
           {
             runtime.appliedGeneration = this->branchSeats_.generation();
             return true;
           }
           return this->replaceSeatBranch(context,
-                                         *mutablePlan,
+                                         mutablePlan,
                                          runtime,
                                          false,
                                          true);
@@ -1905,8 +1896,16 @@ namespace loka
             {
               continue;
             }
-            NodeDefinitionBase *definition = this->findBranchSeatDefinition(plans[i].key);
-            if (!definition || !this->applyBranchSeat(context, definition, *runtime))
+            // One checked plan resolution per live seat. findPlan() still runs
+            // its full multiplicity scan (0 on a contested key), so the release
+            // wall stands; the plan supplies both the accepted definition and
+            // the mutable entry applyBranchSeat() consumes. This replaces the
+            // former findBranchSeatDefinition() + branchSeatPlan() +
+            // findPlan(plan->key) triple, which all re-derived this same result.
+            BoundaryBranchSeatPlanEntry *plan =
+                this->branchSeats_.findPlan(plans[i].key);
+            if (!plan || !plan->definition ||
+                !this->applyBranchSeat(context, *plan, *runtime))
             {
               return false;
             }
