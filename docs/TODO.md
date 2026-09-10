@@ -2,6 +2,20 @@
 
 ## Highly recommended
 
+- **#642 tracker entry growth (2026-09-10)**: an unreserved tracker keeps its
+  first registration as a single row and grows by 16-row chunks afterwards, so
+  MineSweeper's 64 singleton owners no longer pay a 16-row array each (about
+  8 KB) while multi-state owners stop allocating per registration. Allocation
+  counts scale the ROM `_NewPtr` cost linearly; the quadratic part (one heap
+  walk per `NewPtr`) is the Classic small-object allocator design tracked on
+  #642, not further slices.
+- **#642 inline first tracker row (2026-09-10)**: PushStateTracker owns its
+  first registration row inline, so a singleton owner registers with zero heap
+  allocations (MineSweeper production-root Null census: 130 fewer calls). The
+  tracker is non-copyable (an embedded row would alias on copy). Scene mount on
+  a 68020 is still dominated by the per-call cost of ROM `_NewPtr`; that is the
+  Classic small-object allocator design on #642.
+
 - **#567 E1 scope / review risk (4 flags)**: State/Boundary/Platform span, parent-owned live inputs passed to child props, layout dirty routing changes, and State-or-value selection. E1 deliberately adds only Stack axis and Box width State props and migrates HelloWorld/SmirkBench; notification/seat pins and mutations cover the changed routing. E2 supplies Keyed seats for MineSweeper; E3 removes the recompose base. Derived layout NodeStates remain explicit app-owned plumbing until a separately designed derived-State helper can absorb them. The Null controller retains fixture viewport input across notifications; no production scheduler or lifetime protocol changes.
 
 These items address recurring bug patterns and structural risks identified during recent bugfixes (ConditionalDefinition dangling pointer, Mac platform context preservation, startup redraw).

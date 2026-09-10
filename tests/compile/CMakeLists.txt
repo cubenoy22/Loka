@@ -80,3 +80,13 @@ loka_compile_pin(lazyflex-requires-component-props
   REFUSES pins/refuses_lazyflex_component_props.cpp
   ACCEPTS pins/accepts_lazyflex_component_props.cpp
 )
+
+loka_compile_pin(tracker-copy
+  REFUSES pins/refuses_tracker_copy.cpp
+  ACCEPTS pins/accepts_tracker_construction.cpp
+)
+
+loka_compile_pin(tracker-assign
+  REFUSES pins/refuses_tracker_assign.cpp
+  ACCEPTS pins/accepts_tracker_construction.cpp
+)
