@@ -73,9 +73,7 @@ facts into native behavior.
 | What must a PR claim and verify? | [CONTRIBUTING.md](CONTRIBUTING.md) and the review gates in [AGENTS.md](AGENTS.md) | Presets, CI workflows, and the PR's exact diff |
 
 The [Programming Guide](docs/ProgrammingGuide.en.md) is the broad tutorial
-reference; the former Japanese edition is archived, unmaintained, at
-[docs/archives/ProgrammingGuide.ja.md](docs/archives/ProgrammingGuide.ja.md).
-Neither replaces the headers for exact API facts.
+reference. It does not replace the headers for exact API facts.
 
 ## Document Status And Scope
 
