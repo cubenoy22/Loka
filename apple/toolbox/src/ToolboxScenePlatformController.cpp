@@ -2332,6 +2332,7 @@ void ToolboxScenePlatformController::syncNativePoolStats()
                                         textEditBucket_.missCount(),
                                         textEditBucket_.evictCount(),
                                         static_cast<int>(textEditBucket_.depth()),
+                                        static_cast<int>(scrollBarLedger_.scrollBarBucket_.depth()),
                                         poolIntakeAuditFailCount_);
 }
 

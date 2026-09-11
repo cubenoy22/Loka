@@ -19,6 +19,7 @@ namespace loka
   {
     namespace scene
     {
+      class ComposableNodeTestAccess;
       class BoundaryNode;
       class Scene;
       class ComponentNode;
@@ -904,6 +905,7 @@ namespace loka
       protected:
         bool isAttached_;
         AttachedContext attached_;
+        friend class ComposableNodeTestAccess;
         std::vector<CallbackEntryBase *> callbacks_;
         std::vector<NodeStateRegistrationBase *> nodeStates_;
       };

@@ -127,6 +127,7 @@ ToolboxSceneDebugStats::ToolboxSceneDebugStats()
       editPoolMissCount(0),
       editPoolEvictCount(0),
       editPoolDepth(0),
+      scrollBarPoolDepth(0),
       poolIntakeAuditFailCount(0)
 {
 }
@@ -207,6 +208,7 @@ void ToolboxSceneDebugStats::refreshNativePoolCounters(unsigned long buttonHits,
                                                        unsigned long editMisses,
                                                        unsigned long editEvicts,
                                                        int editDepth,
+                                                       int scrollBarDepth,
                                                        int intakeAuditFails)
 {
   this->buttonPoolHitCount = buttonHits;
@@ -217,6 +219,7 @@ void ToolboxSceneDebugStats::refreshNativePoolCounters(unsigned long buttonHits,
   this->editPoolMissCount = editMisses;
   this->editPoolEvictCount = editEvicts;
   this->editPoolDepth = editDepth;
+  this->scrollBarPoolDepth = scrollBarDepth;
   this->poolIntakeAuditFailCount = intakeAuditFails;
 }
 
@@ -269,6 +272,8 @@ std::string ToolboxSceneDebugStats::summary() const
   AppendInt(out, static_cast<int>(this->editPoolEvictCount));
   out += "@";
   AppendInt(out, this->editPoolDepth);
+  out += " pool.scroll.depth:";
+  AppendInt(out, this->scrollBarPoolDepth);
   if (this->poolIntakeAuditFailCount > 0)
   {
     out += " pool.audit_fail:";
@@ -387,6 +392,7 @@ bool ToolboxSceneDebugStats::dumpToTimestampedFile(const char *overrideName) con
   std::fprintf(fp, "pool.edit.misses=%lu\n", this->editPoolMissCount);
   std::fprintf(fp, "pool.edit.evicts=%lu\n", this->editPoolEvictCount);
   std::fprintf(fp, "pool.edit.depth=%d\n", this->editPoolDepth);
+  std::fprintf(fp, "pool.scroll.depth=%d\n", this->scrollBarPoolDepth);
   std::fprintf(fp, "pool.intake_audit_fails=%d\n", this->poolIntakeAuditFailCount);
   loka::core::LokaAllocCensusDump(fp);
   // Process-cumulative pool facts, independent of resettable scene total.*.

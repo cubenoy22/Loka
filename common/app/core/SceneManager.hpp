@@ -43,6 +43,15 @@ namespace loka
           return this->head_ == 0;
         }
 
+        /** Counts this pool's pending retirement rows without cached state. */
+        size_t size() const
+        {
+          size_t count = 0;
+          for (const loka::app::scene::Scene *entry = this->head_; entry; entry = entry->retiredNextScene_)
+            ++count;
+          return count;
+        }
+
         void retire(loka::app::scene::Scene *scene)
         {
           if (!scene || this->contains(scene))

@@ -13,6 +13,17 @@ namespace loka
       class SceneManagerTestAccess
       {
       public:
+        static const ::loka::core::PushStateTracker &tracker(const SceneManager &manager)
+        {
+          return manager.tracker_;
+        }
+
+        /** Number of scenes waiting in the Window retirement pool. */
+        static size_t retiredSceneCount(const SceneManager &manager)
+        {
+          return manager.retiredScenes_.size();
+        }
+
         static size_t pendingTransactionCount(const SceneManager &manager)
         {
           return manager.pendingTransactions_.getRef().size();
