@@ -59,6 +59,8 @@ nested: the enclosing generic walk stops at that boundary after dispatching
 compose for either event. Custom boundary strategies that leave child traversal
 to the generic walker retain that behavior through the default
 `ownsChildTraversal(ComposeEvent)` contract.
+On parked re-entry, an already composed Std boundary replays ATTACH through
+its retained children without declaring its composition again.
 Change the root's shape through `SceneManager::swapScene`, or put a `Match`
 one level below it.
 

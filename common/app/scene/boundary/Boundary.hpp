@@ -1039,12 +1039,19 @@ namespace loka
         void updateCompositionChildren(ComponentContext &context)
         {
           this->evaluateBranchSeatsForScheduledApply(context);
+          this->composeOwnedChildren(context, COMPOSE_EVENT_UPDATE);
+        }
+
+        /** Dispatches one event through this owner's existing children, resolving
+            pending attachments for both UPDATE and retained ATTACH replay. */
+        void composeOwnedChildren(ComponentContext &context, ComposeEvent event)
+        {
           loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
           for (Node *child = it.next(); child; child = it.next())
           {
             // Seat replacement can leave a direct child pending ATTACH. Use
             // the same lifecycle resolver as composeTree's generic child walk.
-            ComposeEvent childEvent = child->resolveChildComposeEvent(COMPOSE_EVENT_UPDATE);
+            ComposeEvent childEvent = child->resolveChildComposeEvent(event);
             this->composeTree(child, context, childEvent, this);
           }
         }

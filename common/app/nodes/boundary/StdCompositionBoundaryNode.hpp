@@ -25,7 +25,7 @@ namespace loka
         }
         virtual ~StdCompositionBoundaryNodeBase() {}
 
-        /** ATTACH builds and walks children; UPDATE evaluates seats and walks them. */
+        /** ATTACH builds or replays children; UPDATE evaluates seats and walks them. */
         virtual bool ownsChildTraversal(ComposeEvent event) const
         {
           return event == COMPOSE_EVENT_ATTACH || event == COMPOSE_EVENT_UPDATE;
@@ -66,6 +66,7 @@ namespace loka
           }
           if (composed_)
           {
+            this->composeOwnedChildren(context, event);
             return;
           }
           this->clearChildren();
