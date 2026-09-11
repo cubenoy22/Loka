@@ -33,44 +33,13 @@ namespace loka
       class LazyScopeDefinition : public NodeDefinitionBase, public IBranchSeatDefinition
       {
         /** The committed key belongs to the declaration it describes. */
-        class Declaration : public BranchSeatDeclaration
+        class Declaration : public GenerationDeclaration
         {
         public:
           explicit Declaration(loka::core::State<K> *key)
               : key_(key),
-                value_(key->get()),
-                pending_(0)
+                value_(key->get())
           {
-          }
-          virtual ~Declaration()
-          {
-            if (this->pending_)
-            {
-              this->pending_->asStateOwner()->detachHeldResources();
-              if (this->pending_->arenaOwner())
-                this->pending_->arenaOwner()->releaseNode(this->pending_);
-              else
-                DestroyHeapNode(this->pending_);
-            }
-          }
-          void prepare(NodeT *node)
-          {
-            this->pending_ = node;
-          }
-          virtual NodeMaterializationResult materialize(ComponentContext &context, Node *)
-          {
-            NodeT *root = this->pending_;
-            assert(root);
-            ComponentContext childContext(context);
-            childContext.setStateOwner(root->asStateOwner());
-            this->composition.setContext(&childContext);
-            NodeMaterializationResult result = BranchSeatDeclaration::materialize(childContext, root);
-            this->composition.setContext(0);
-            if (result.root)
-              root->addChild(result.root);
-            result.root = root;
-            this->pending_ = 0;
-            return result;
           }
           virtual bool matchesCurrentKey() const
           {
@@ -80,7 +49,6 @@ namespace loka
         private:
           loka::core::State<K> *const key_;
           const K value_;
-          NodeT *pending_;
         };
 
       public:
@@ -203,14 +171,9 @@ namespace loka
           loka::core::OwnedDef<Declaration> candidate(new Declaration(this->props_.state));
           if (!candidate.isSet())
             return 0;
-          NodeDefinition<typename NodeT::Props, NodeT> factory(this->nodeProps_);
-          candidate->composition.setContext(&context);
-          NodeMaterializationResult created = candidate->composition.createNodeFromDefinitionResult(&factory);
-          candidate->composition.setContext(0);
-          if (!created.root)
+          NodeT *node = candidate->template createRoot<NodeT>(this->nodeProps_, context);
+          if (!node)
             return 0;
-          NodeT *node = static_cast<NodeT *>(created.root);
-          candidate->prepare(node);
           ComponentContext declarationContext(context);
           LazyScopeNode *owner = node;
           owner->prepareScope(declarationContext, candidate->composition);

@@ -793,7 +793,7 @@ void testOwnershipDumpPinsMineSweeperSections()
   // The #270 ownership flip: each cell's presentation resident now lives in
   // its own owner-scope box; the parent's four hand-declared arrays are gone.
   // The boundary owns the bank
-  // key; every cell box holds exactly one arena-allocated resident.
+  // key; every cell box holds exactly one gate-allocated heap resident.
   std::string expected("scene\n"
                        "  boundary\n"
                        "    boundary\n"
@@ -803,7 +803,7 @@ void testOwnershipDumpPinsMineSweeperSections()
   {
     std::ostringstream row;
     row << "      section(" << (100 + i) << ")\n"
-        << "        states: 1 (arena 1, heap 0)\n";
+        << "        states: 1 (arena 0, heap 1)\n";
     expected += row.str();
   }
   verifyOwnershipDump(
@@ -865,7 +865,7 @@ void testOwnershipDumpPinsMineSweeperNewGameRetiresCells()
     {
       std::ostringstream row;
       row << "      section(" << (baseKey + i) << ")\n"
-          << "        states: 1 (arena 1, heap 0)\n";
+          << "        states: 1 (arena 0, heap 1)\n";
       expected += row.str();
     }
     verifyOwnershipDump(

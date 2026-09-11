@@ -731,7 +731,7 @@ void testKeyedRefusedDeclarationKeepsLiveBranchAndRetriesCurrentKey()
   LOKA_VERIFY(!applied && r.destroyed == destroyed + 1);
 }
 
-void testKeyedDeclarationUsesEnclosingSectionOnMountAndUpdate()
+void testKeyedDeclarationUsesGenerationOwnerInsideSectionOnMountAndUpdate()
 {
   KeyedProbeRecord r;
   r.section = true;
@@ -742,7 +742,8 @@ void testKeyedDeclarationUsesEnclosingSectionOnMountAndUpdate()
   loka::app::scene::IStateOwner *section = r.declarationOwner;
   LOKA_VERIFY(section && section != r.owner);
   r.owner->changeKey(1);
-  LOKA_VERIFY(r.declarationOwner == section && r.declarations == 2);
+  // Each declaration now receives its own terminal generation provider.
+  LOKA_VERIFY(r.declarationOwner != section && r.declarationOwner != r.owner && r.declarations == 2);
   const bool applied = scene.flushInvalidation();
   LOKA_VERIFY(!applied);
 }

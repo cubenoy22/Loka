@@ -585,6 +585,7 @@ namespace loka
         friend class Node;
         friend class ComponentNode;
         friend class LazyScopeNode;
+        friend class GenerationRoot;
         friend class BoundaryNode;
         friend class RootBoundaryWrapper;
         template <class PropsT> friend class StdCompositionBoundaryNodeBase;

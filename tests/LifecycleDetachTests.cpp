@@ -440,6 +440,8 @@ namespace
         return;
       }
       composition.declareStates().state(this->showReplacement_, false);
+      // Reserve explicitly: these pins require arena residents even with the generation root.
+      this->nodeArena()->reserve(16384);
       g_rootReplacementArenaRetireBoundary = this;
       this->initialized_ = true;
     }
@@ -476,7 +478,9 @@ namespace
 
     loka::app::scene::Node *activeRootNode() const
     {
-      loka::app::scene::INestable *seat = this->compositionRootNode()->asNestable();
+      // Keyed now encloses its declaration Fragment in a runtime generation owner.
+      loka::app::scene::INestable *generation = this->compositionRootNode()->asNestable();
+      loka::app::scene::INestable *seat = generation->childrenHead()->asNestable();
       return seat ? seat->childrenHead() : 0;
     }
 
@@ -1038,6 +1042,8 @@ namespace
         return;
       }
       composition.declareStates().state(this->showAlternate_, false);
+      // Initial residents must use the arena; replacement tests exhaust it explicitly.
+      this->nodeArena()->reserve(16384);
       g_conditionalArenaRetireProbe = this;
       this->initialized_ = true;
     }
@@ -1148,7 +1154,9 @@ namespace
 
     loka::app::scene::Node *activeBranchNode() const
     {
-      loka::app::scene::INestable *seat = this->compositionRootNode()->asNestable();
+      // Keyed now encloses its declaration Fragment in a runtime generation owner.
+      loka::app::scene::INestable *generation = this->compositionRootNode()->asNestable();
+      loka::app::scene::INestable *seat = generation->childrenHead()->asNestable();
       loka::app::scene::Node *root = seat ? seat->childrenHead() : 0;
       loka::app::scene::INestable *branch = root ? root->asNestable() : 0;
       return branch ? branch->childrenHead() : 0;
@@ -1161,6 +1169,14 @@ namespace
 
     void setAlternate(bool value)
     {
+      // Pin heap fallback independently of runtime wrapper sizes.
+      while (this->nodeArena()->allocate(256, 1))
+      {
+      }
+      while (this->nodeArena()->allocate(1, 1))
+      {
+      }
+
       this->showAlternate_.set(value, true);
       this->markViewDirty(loka::app::scene::NODE_DIRTY_CHILD);
     }

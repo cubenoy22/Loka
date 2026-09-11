@@ -11,7 +11,7 @@ void testNodeMatchCapacityRefusesOverflow();
 
 void testKeyedRedeclaresCurrentMembersOnceAndReclaimsOnDrain();
 void testKeyedRefusedDeclarationKeepsLiveBranchAndRetriesCurrentKey();
-void testKeyedDeclarationUsesEnclosingSectionOnMountAndUpdate();
+void testKeyedDeclarationUsesGenerationOwnerInsideSectionOnMountAndUpdate();
 void testKeyedOwnsFreshNestedSeatPlansAcrossReplacement();
 
 void testKeyedFailedOuterCandidatePublishesNoNestedObservations();

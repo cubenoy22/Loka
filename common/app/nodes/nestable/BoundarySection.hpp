@@ -57,8 +57,7 @@ namespace loka
     };
 
     /** Runtime owner-scope box inside a Boundary. Its logical ownership rows
-        and tracker live here; state storage comes from the enclosing
-        Boundary's StateArena and is returned there when this node is reclaimed. */
+        and tracker live here; storage follows the provider bound at attachment. */
     class BoundarySectionNode : public scene::NestableNode,
                                 public scene::BoundaryInnerStateOwner
     {
@@ -69,7 +68,8 @@ namespace loka
       explicit BoundarySectionNode(const SectionProps &p)
           : scene::NestableNode(),
             scene::BoundaryInnerStateOwner(),
-            props(p)
+            props(p),
+            storageOwner_(0)
       {
         assert(this->props.key() != scene::NODE_TAG_NONE &&
                "BoundarySectionNode requires a value key");
@@ -99,6 +99,26 @@ namespace loka
               &BoundarySectionNode::InvalidateEnclosingBoundaryThunk,
               this);
         }
+      }
+
+      virtual bool attachStateOwner(scene::BoundaryNode *boundary, scene::IStateOwner *parent)
+      {
+        scene::IStateOwner *provider = parent ? parent->stateStorageOwner() : 0;
+        if (!boundary || !provider || provider == this || (this->storageOwner_ && this->storageOwner_ != provider))
+        {
+          if (boundary)
+            boundary->noteStateAllocationFailure();
+          return false;
+        }
+        scene::BoundaryInnerStateOwner::attachStateOwner(boundary, parent);
+        if (!this->storageOwner_)
+          this->storageOwner_ = provider;
+        return true;
+      }
+
+      virtual scene::IStateOwner *stateStorageOwner()
+      {
+        return this->storageOwner_;
       }
 
       virtual BoundarySectionNode *asBoundarySectionNode()
@@ -136,37 +156,27 @@ namespace loka
 
       virtual void noteStateAllocationFailure()
       {
-        scene::BoundaryNode *boundary = this->requireEnclosingBoundary();
-        if (boundary)
-        {
-          boundary->noteStateAllocationFailure();
-        }
+        if (this->enclosingBoundary())
+          this->enclosingBoundary()->noteStateAllocationFailure();
       }
 
       virtual void reserveStateArena(size_t totalSize)
       {
-        scene::BoundaryNode *boundary = this->requireEnclosingBoundary();
-        if (boundary)
-        {
-          boundary->reserveStateArena(totalSize);
-        }
+        if (this->storageOwner_)
+          this->storageOwner_->reserveStateArena(totalSize);
       }
 
       virtual void *allocateStateMemory(size_t size, size_t align)
       {
-        scene::BoundaryNode *boundary = this->requireEnclosingBoundary();
-        return boundary ? boundary->allocateStateMemory(size, align) : 0;
+        return this->storageOwner_ ? this->storageOwner_->allocateStateMemory(size, align) : 0;
       }
 
       virtual void registerStateMemory(
           loka::core::StateBase *state,
           void (*destroy)(loka::core::StateBase *))
       {
-        scene::BoundaryNode *boundary = this->requireEnclosingBoundary();
-        if (boundary)
-        {
-          boundary->registerStateMemory(state, destroy);
-        }
+        if (this->storageOwner_)
+          this->storageOwner_->registerStateMemory(state, destroy);
       }
 
     protected:
@@ -199,6 +209,9 @@ namespace loka
       }
 
     private:
+      /** Write-once ancestor borrow, retained until child-first reclamation. */
+      scene::IStateOwner *storageOwner_;
+
       static void InvalidateEnclosingBoundaryThunk(void *userData)
       {
         BoundarySectionNode *self =

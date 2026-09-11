@@ -510,12 +510,28 @@ void testComponentComposesChildrenOnceAfterStatesConnect()
 #endif
 }
 
+/** Stable fixture for Boundary-lifetime ownership; replacement tests below
+    retain the Keyed host and its shorter generation lifetime. */
+class StableComponentHostRootNode : public ComponentHostRootNode
+{
+public:
+  explicit StableComponentHostRootNode(const ComponentHostRootProps &props)
+      : ComponentHostRootNode(props)
+  {
+  }
+  virtual void composeNode(loka::app::scene::NodeComposition &composition)
+  {
+    this->declareContent(composition);
+  }
+};
+
 void testComponentStatesResolveNearestSectionOwner()
 {
   ComponentScenario scenario;
   SceneTestSupport::RecordingPlatformController platform;
   loka::app::scene::Scene scene(
-      (loka::app::scene::Boundary<ComponentHostRootNode>()));
+      (loka::app::scene::BoundaryDefinition<ComponentHostRootProps, StableComponentHostRootNode>(
+          (ComponentHostRootProps()))));
   scene.mount(&platform);
   scene.updateAttached(true);
 
@@ -539,7 +555,8 @@ void testComponentStatesFallBackToBoundaryOwnerWithoutSection()
   g_componentHostUseSection = false;
   SceneTestSupport::RecordingPlatformController platform;
   loka::app::scene::Scene scene(
-      (loka::app::scene::Boundary<ComponentHostRootNode>()));
+      (loka::app::scene::BoundaryDefinition<ComponentHostRootProps, StableComponentHostRootNode>(
+          (ComponentHostRootProps()))));
   scene.mount(&platform);
   scene.updateAttached(true);
   g_componentHostUseSection = true;
@@ -547,7 +564,8 @@ void testComponentStatesFallBackToBoundaryOwnerWithoutSection()
   ComponentHostRootNode *root = static_cast<ComponentHostRootNode *>(
       loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
   assert(root);
-  TestCellComponentNode *component = root->component(0);
+  TestCellComponentNode *component =
+      static_cast<TestCellComponentNode *>(root->compositionRootNode()->asNestable()->childrenHead());
   (void)component;
   assert(component);
   assert(scenario.observation.lastOwner ==

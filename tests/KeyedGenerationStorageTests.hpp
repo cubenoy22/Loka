@@ -2,4 +2,16 @@
 #define LOKA_TESTS_KEYED_GENERATION_STORAGE_TESTS_HPP
 void testKeyedSectionGenerationStoragePlateaus();
 void testKeyedComponentGenerationStoragePlateaus();
+void testNestedKeyedGenerationStoragePlateausAndOuterDestroyDrains();
+void testNestedKeyedBoundaryTeardownDrainsRetiredGenerations();
+void testKeyedMultipleReplacementsBeforeSingleDrain();
+void testKeyedForSectionBoardStoragePlateausAndClicksStayLive();
+void testUnboundSectionRefusesStateAndMaterialization();
+void testKeyedParkedGenerationKeepsHeapStatesAlive();
+void testSectionStorageProviderFlattensAndBoundaryStartsArena();
+void testLocalRebuildSectionMaterializesChildrenWithBoundaryProvider();
+void testLocalRebuildRefusalPreservesInstalledSubtree();
+void testPublishedLazyScopeSectionRefusalKeepsScopeReady();
+void testKeyedDirectDeclarerHeapRefusalRejectsPendingRootAndRetries();
+void testNestedKeyedOuterThenInnerBeforeDrainPreservesProviders();
 #endif

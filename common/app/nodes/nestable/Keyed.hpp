@@ -3,13 +3,45 @@
 
 #include <cstdlib>
 #include "app/nodes/nestable/Match.hpp"
-#include "app/scene/boundary/Boundary.hpp"
+#include "app/scene/boundary/GenerationRoot.hpp"
 #include "app/scene/boundary/detail/BranchSeatDeclaration.hpp"
 
 namespace loka
 {
   namespace app
   {
+
+    namespace scene
+    {
+      class KeyedGenerationRoot;
+      struct KeyedGenerationProps : NodePropsBase<KeyedGenerationProps>
+      {
+        typedef KeyedGenerationRoot NodeType;
+        bool operator<(const PropsBase &) const
+        {
+          return false;
+        }
+      };
+
+      /** Runtime owner of one Keyed arm, independent of its definition lifetime. */
+      class KeyedGenerationRoot : public GenerationRoot
+      {
+      public:
+        explicit KeyedGenerationRoot(const KeyedGenerationProps &) {}
+        virtual const void *nodeTypeKey() const
+        {
+          return NodeTypeToken<KeyedGenerationRoot>();
+        }
+      };
+      /** Runtime generation roots are transferred once, never props-reconciled. */
+      template <> struct NodePropsApplier<KeyedGenerationRoot, KeyedGenerationProps>
+      {
+        static bool apply(KeyedGenerationRoot *, const KeyedGenerationProps &)
+        {
+          return false;
+        }
+      };
+    } // namespace scene
 
     /** Live key identity for a declaration seat. */
     template <class K> struct KeyedProps : MatchProps<K>
@@ -65,7 +97,7 @@ namespace loka
         void (N::*method_)(scene::NodeComposition &);
       };
       /** The committed key belongs to the declaration it describes. */
-      class Declaration : public scene::BranchSeatDeclaration
+      class Declaration : public scene::GenerationDeclaration
       {
       public:
         explicit Declaration(loka::core::State<K> *key)
@@ -210,16 +242,22 @@ namespace loka
         assert(valid && "Keyed declarer must be a member of the enclosing boundary");
         if (!valid)
           return 0;
-        loka::core::OwnedDef<scene::BranchSeatDeclaration> candidate(new Declaration(this->props_.state));
+        loka::core::OwnedDef<Declaration> candidate(new Declaration(this->props_.state));
         if (!candidate.isSet())
           return 0;
-        candidate->composition.setContext(&context);
+        scene::KeyedGenerationRoot *root =
+            candidate->template createRoot<scene::KeyedGenerationRoot>(scene::KeyedGenerationProps(), context);
+        if (!root)
+          return 0;
+        scene::ComponentContext declarationContext(context);
+        declarationContext.setStateOwner(root->asStateOwner());
+        candidate->composition.setContext(&declarationContext);
         {
           scene::NodeComposition::CompositionScope window(candidate->composition);
           this->declarer_->declare(candidate->composition);
         }
         candidate->composition.setContext(0);
-        if (!candidate->completeWindow())
+        if (root->scopeStatus() != scene::LAZY_SCOPE_READY || !candidate->completeWindow())
           return 0;
         return candidate.take();
       }

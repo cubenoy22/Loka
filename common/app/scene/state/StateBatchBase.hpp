@@ -69,6 +69,12 @@ namespace loka
         template <typename T>
         static void CreateStateFromInitial(IStateOwner *owner, NodeState<T> &out, const T &initial)
         {
+          if (owner && !owner->stateStorageOwner())
+          {
+            owner->noteStateAllocationFailure();
+            out = NodeState<T>();
+            return;
+          }
           loka::core::MutableState<T> *state = 0;
           size_t align = detail::AlignOf<loka::core::MutableState<T> >::value;
           void *mem = owner ? owner->allocateStateMemory(sizeof(loka::core::MutableState<T>), align) : 0;
