@@ -64,7 +64,7 @@ Start with this flow:
 1. `State` holds application facts.
 2. UI reads those facts.
 3. Events update `State`.
-4. Only affected areas are recomposed, projected, laid out, or redrawn.
+4. Only affected areas are updated, projected, laid out, or redrawn.
 
 This is the core of Loka.
 
@@ -100,7 +100,7 @@ model are the source of truth.
 Loka avoids hiding too much behavior inside a large runtime. Convenience is
 important, but ownership and update flow must remain traceable.
 
-When something redraws or recomposes, it should be possible to answer:
+When something redraws or updates, it should be possible to answer:
 
 - which state changed?
 - who owns that state?
@@ -606,9 +606,10 @@ Bidirectional UI can accidentally create loops:
 3. The control emits another change.
 4. The same state changes again.
 
-Platform contexts should guard against this with explicit flags such as
-`applyingFromState_` or `updatingFromControl_`, and state writes should be
-tracked.
+The platform layer guards against this echo when it projects state into a
+control, so application code does not add its own re-entrancy flags. Keep
+state writes inside tracked transactions and decide which side has authority,
+as described below.
 
 For numeric controls, sliders, conversions, or formatted text, prefer explicit
 input/result state or a Flow adapter instead of letting two mutable states
