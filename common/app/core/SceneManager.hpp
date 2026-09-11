@@ -47,8 +47,7 @@ namespace loka
         size_t size() const
         {
           size_t count = 0;
-          for (const loka::app::scene::Scene *entry = this->head_; entry;
-               entry = entry->retiredNextScene_)
+          for (const loka::app::scene::Scene *entry = this->head_; entry; entry = entry->retiredNextScene_)
             ++count;
           return count;
         }
@@ -254,11 +253,6 @@ public:
   bool hasRetiredScenes() const
   {
     return !this->retiredScenes_.empty();
-  }
-  /** Number of scenes waiting in the Window retirement pool. */
-  size_t retiredSceneCount() const
-  {
-    return this->retiredScenes_.size();
   }
   void reclaimRetiredScenes()
   {

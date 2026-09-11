@@ -1105,7 +1105,7 @@ void testSceneReplacementRoundTripReturnsCensusToBaseline()
   const SceneRoundTripCensus baseline(*window);
   printf("P1 baseline: scenes=%d handles=%lu callbacks=%lu retired=%lu window current=%lu next=%lu deferred=%lu manager current=%lu next=%lu deferred=%lu\n",
          baseline.scenes, baseline.handles, static_cast<unsigned long>(baseline.callbacks),
-         static_cast<unsigned long>(window->sceneManager()->retiredSceneCount()),
+         static_cast<unsigned long>(loka::app::testing::SceneManagerTestAccess::retiredSceneCount(*window->sceneManager())),
          static_cast<unsigned long>(loka::core::testing::PushStateTrackerTestAccess::currentDirtyCount(*window->getTracker()->asPushTracker())),
          static_cast<unsigned long>(loka::core::testing::PushStateTrackerTestAccess::nextDirtyCount(*window->getTracker()->asPushTracker())),
          static_cast<unsigned long>(loka::core::testing::PushStateTrackerTestAccess::nextDeferredCount(*window->getTracker()->asPushTracker())),
@@ -1119,7 +1119,7 @@ void testSceneReplacementRoundTripReturnsCensusToBaseline()
     LOKA_VERIFY(actual.scenes == baseline.scenes);
     LOKA_VERIFY(actual.handles == baseline.handles);
     LOKA_VERIFY(actual.callbacks == baseline.callbacks);
-    LOKA_VERIFY(window->sceneManager()->retiredSceneCount() == 0);
+    LOKA_VERIFY(loka::app::testing::SceneManagerTestAccess::retiredSceneCount(*window->sceneManager()) == 0);
     VerifySceneCensusIntake(*window->getTracker()->asPushTracker());
     VerifySceneCensusIntake(loka::app::testing::SceneManagerTestAccess::tracker(*window->sceneManager()));
   }

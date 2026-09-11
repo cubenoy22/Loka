@@ -18,6 +18,12 @@ namespace loka
           return manager.tracker_;
         }
 
+        /** Number of scenes waiting in the Window retirement pool. */
+        static size_t retiredSceneCount(const SceneManager &manager)
+        {
+          return manager.retiredScenes_.size();
+        }
+
         static size_t pendingTransactionCount(const SceneManager &manager)
         {
           return manager.pendingTransactions_.getRef().size();
