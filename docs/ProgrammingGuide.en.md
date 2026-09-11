@@ -68,6 +68,10 @@ Start with this flow:
 
 This is the core of Loka.
 
+For a first walkthrough, read [First Example: Counter](#11-first-example-counter)
+and [Toggle UI Driven By State](#12-toggle-ui-driven-by-state), then follow the
+same logical UI into [Platform Projection](#16-platform-projection).
+
 ## 1. Basic Philosophy
 
 ### UI Is A Result Of Values
@@ -489,7 +493,50 @@ blindly write to each other.
 
 Future work should include better loop detection and state update result APIs.
 
-## 11. StdComposition And Boundary
+## 11. First Example: Counter
+
+A counter brings the basic flow together: local state holds the count, an
+`EmitterState` receives the button event, a handler updates state, and the UI
+reads the result. Follow the current implementation in
+[`Step2Node.hpp`](../example/Tutorial/src/Step2Node.hpp).
+
+Read it in this order:
+
+1. The constructor registers `count_` and `countText_` with `this->state(...)`.
+2. `declareBindings(BindingToken&)` connects the increment event to its handler.
+3. `composeNode()` declares a column containing the text and increment button.
+4. The handler increments the count and builds the displayed text from it.
+
+`Text` receives `countText_.state()`, a read-only live input. The button receives
+an event emitter. These inputs make the direction of the update visible:
+`state -> event -> state update -> UI projection`.
+
+For a group of state writes, `StateTrackerGuard` provides a RAII transaction;
+see [StateTracker](#8-statetracker). C++98 callback APIs often use a function
+pointer plus `void *userData`: a static thunk recovers the object and calls its
+method. The tutorial's binding token connects the member method directly.
+
+The base class names describe the ownership shape. `BoundaryNodeFor<MyNode>`
+gives the class a Boundary, and `BoundaryPropsFor<MyNode>` supplies its basic
+input type. Use custom props when the Boundary needs additional inputs, keeping
+parent-provided inputs distinct from the state it owns.
+
+## 12. Toggle UI Driven By State
+
+Start with the fact that changes: whether details are visible. Keep the event
+that changes it separate from the condition that the UI reads. The current
+[`Step3Node.hpp`](../example/Tutorial/src/Step3Node.hpp) shows the complete example.
+
+Its constructor registers a boolean state initialized to false. A button emits
+the toggle event, and the bound handler negates that state. `Show()` reads the
+boolean to control the details branch. The state is the fact, the event is the
+trigger, and `Show()` is the structural switch.
+
+Before introducing a larger structural replacement, look for a state-driven
+switch that expresses the intent. For the attach/detach policies and their
+lifetime effects, see [Show](#show).
+
+## 13. StdComposition And Boundary
 
 StdComposition is Loka's current standard composition model. It deliberately
 keeps the core algorithm small and predictable.
@@ -599,7 +646,7 @@ second; larger lists on 68K hardware should expect that curve. A short, fixed
 visible set whose values merely change is better served by plain State-driven
 children than by a lazy list.
 
-## 12. DSL And Composition
+## 14. DSL And Composition
 
 The normative app-facing conventions live in
 [`API_STYLE.md`](API_STYLE.md). This section is their tutorial form.
@@ -687,7 +734,7 @@ refusals for the latest attempted layout; checks remain active in release
 builds. The linked composition cursor costs O(first index) to reach the visible
 range, then O(candidate children), with no full child measurement pass.
 
-## 13. Events And Updates
+## 15. Events And Updates
 
 Prefer `deferBind` for UI projection and lazy updates. Use `bind` only when
 immediate recompute is required.
@@ -699,7 +746,7 @@ random write to a widely shared object. It should have:
 - a clear transaction/update context
 - a clear projection path
 
-## 14. Platform Projection
+## 16. Platform Projection
 
 The logical UI is the truth. Platform code projects it into native objects.
 
@@ -717,7 +764,52 @@ project changes into native controls.
 This separation is what lets Loka keep one application model across many eras
 and platforms.
 
-## 15. Dialogs, Windows, And App Scope
+### One Logical UI On Toolbox And macOS
+
+The logical node can stay the same when the projection target changes:
+
+```cpp
+#include "app/nodes/boundary/StdComposition.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
+#include "app/nodes/Text.hpp"
+#include "app/nodes/controls/Button.hpp"
+
+class HelloNode : public loka::app::scene::BoundaryNodeFor<HelloNode>
+{
+public:
+  typedef loka::app::scene::BoundaryPropsFor<HelloNode> PropsType;
+
+  HelloNode(const PropsType &p)
+      : loka::app::scene::BoundaryNodeFor<HelloNode>(p)
+  {
+  }
+
+  virtual void composeNode(loka::app::scene::NodeComposition &c)
+  {
+    c.declare(loka::app::VStack()
+              << loka::app::Text("Hello from Loka")
+              << loka::app::Button("OK"));
+  }
+};
+```
+
+The application's `compose` method places the Boundary in a window. See
+[`TutorialAppConfig`](../example/Tutorial/src/MyAppConfig.hpp) for the current
+scene definition and window declaration.
+
+The platform/app layer supplies the Toolbox or macOS projection. The logical
+node needs no native control identifiers. Prefer the scene definition overload
+for ordinary DSL code; the low-level pointer overload's ownership transfer is
+described under [Keep Allocation Failure Narrow](#keep-allocation-failure-narrow).
+
+Projection need not be immediate. State changes are collected by the tracker,
+and the Scene and platform controller organize the resulting update work.
+Timers, dialogs, and deferred native callbacks can return later; their results
+must still belong to the current logical lifetime. Keep ownership decisions in
+the State and Boundary model rather than asking a native context to decide
+which application facts are current.
+
+## 17. Dialogs, Windows, And App Scope
 
 Dialogs and windows are not just controls. They interact with application-level
 policy, native modality, focus, menus, and platform conventions.
@@ -732,7 +824,7 @@ Future APIs should make it clear whether a dialog is:
 The DSL should make it hard to accidentally declare multiple competing native
 dialogs when the platform expects one active dialog.
 
-## 16. Ownership And Resource Management
+## 18. Ownership And Resource Management
 
 Loka should make ordinary application code feel like it has modern lifecycle
 management while remaining compatible with C++98 and old platforms.
@@ -753,7 +845,7 @@ clock instead of running observable cleanup from an arbitrary handle destructor.
 Testing can render those facts as `held-by [section(...)]` rather than only an
 unexplained count.
 
-## 17. Mutability
+## 19. Mutability
 
 Prefer immutable completed values for:
 
@@ -778,7 +870,7 @@ If a broad object needs many setters, consider splitting it:
 
 This avoids turning every object into a mutable bag of lifecycle hazards.
 
-## 18. Patterns
+## 20. Patterns
 
 ### Put Shared Facts In The Parent
 
@@ -829,7 +921,7 @@ flush cycle closes, and reclaims all remaining current, queued, or retired Scene
 when the Window is destroyed. Prefer the definition overload in ordinary DSL
 composition because it keeps this ownership transfer structural.
 
-## 19. Framework Comparisons
+## 21. Framework Comparisons
 
 Loka shares ideas with modern declarative UI frameworks, but it is not trying to
 copy their runtime model.
@@ -849,7 +941,7 @@ It is:
 State facts + explicit ownership + Boundary-scoped composition + native projection
 ```
 
-## 20. Rust / React Style Ownership Questions
+## 22. Rust / React Style Ownership Questions
 
 From a React perspective, Loka can feel stricter because it does not encourage
 arbitrary mutable state hidden behind closures or hooks.
@@ -868,7 +960,7 @@ and the owning clock controls release. Mutable facts still belong to a meaningfu
 State owner; unrelated shared immutable payloads belong in repositories or
 caches.
 
-## 21. First Instincts To Build
+## 23. First Instincts To Build
 
 When writing Loka code, ask:
 
@@ -881,7 +973,7 @@ When writing Loka code, ask:
 
 If the answer is unclear, the API or design is probably too vague.
 
-## 22. What To Read Next
+## 24. What To Read Next
 
 After this guide, read:
 
