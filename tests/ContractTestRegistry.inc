@@ -1,3 +1,5 @@
+LOKA_TEST(testKeyedSectionGenerationStoragePlateaus)
+LOKA_TEST(testKeyedComponentGenerationStoragePlateaus)
 LOKA_TEST(testSmallObjectPoolClassesAndAlignment)
 LOKA_TEST(testSmallObjectPoolReuseAndNull)
 LOKA_TEST(testSmallObjectPoolSortedRowsAndEdges)

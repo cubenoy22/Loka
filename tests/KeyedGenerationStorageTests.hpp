@@ -1,0 +1,5 @@
+#ifndef LOKA_TESTS_KEYED_GENERATION_STORAGE_TESTS_HPP
+#define LOKA_TESTS_KEYED_GENERATION_STORAGE_TESTS_HPP
+void testKeyedSectionGenerationStoragePlateaus();
+void testKeyedComponentGenerationStoragePlateaus();
+#endif
