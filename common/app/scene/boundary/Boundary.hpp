@@ -104,6 +104,13 @@ namespace loka
         {
           return this;
         }
+        /** Whether this boundary's composition strategy owns child traversal for
+            this event, including the decision to skip it. Custom boundaries
+            default to the generic composeTree child walk. */
+        virtual bool ownsChildTraversal(ComposeEvent) const
+        {
+          return false;
+        }
         virtual IStateOwner *asStateOwner()
         {
           return this;
@@ -1032,10 +1039,20 @@ namespace loka
         void updateCompositionChildren(ComponentContext &context)
         {
           this->evaluateBranchSeatsForScheduledApply(context);
+          this->composeOwnedChildren(context, COMPOSE_EVENT_UPDATE);
+        }
+
+        /** Dispatches one event through this owner's existing children, resolving
+            pending attachments for both UPDATE and retained ATTACH replay. */
+        void composeOwnedChildren(ComponentContext &context, ComposeEvent event)
+        {
           loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
           for (Node *child = it.next(); child; child = it.next())
           {
-            this->composeTree(child, context, COMPOSE_EVENT_UPDATE, this);
+            // Seat replacement can leave a direct child pending ATTACH. Use
+            // the same lifecycle resolver as composeTree's generic child walk.
+            ComposeEvent childEvent = child->resolveChildComposeEvent(event);
+            this->composeTree(child, context, childEvent, this);
           }
         }
 
@@ -2113,7 +2130,7 @@ namespace loka
           {
             contextForChildren = &nodeContext;
           }
-          if (!nestable)
+          if (!nestable || (boundary && boundary->ownsChildTraversal(event)))
           {
             if (event == COMPOSE_EVENT_DETACH && nodeStateOwner)
             {
