@@ -3,14 +3,13 @@
 This guide tracks the current development source. For the guide as it stood
 for a published release, read this file at that release's tag.
 
-Japanese version: [ProgrammingGuide.md](ProgrammingGuide.md)
-
 This guide explains how to write Loka applications and how to think about
 Loka's state, ownership, composition, and platform projection model.
 
-The Japanese version of this guide is currently the most detailed design note.
-This English edition is written as a readable programming guide rather than a
-line-by-line translation.
+This is the canonical guide. The former Japanese edition is archived at
+[archives/ProgrammingGuide.ja.md](archives/ProgrammingGuide.ja.md) and is not
+maintained; its remaining Japanese-only chapters are being carried into this
+guide.
 
 ## Introduction
 
@@ -584,9 +583,21 @@ it returns (native focus behavior still awaits runtime verification).
 
 `LazyFlexNode::status()` reports `LAZY_FLEX_CAPACITY_REFUSED` when the attached
 list's reserved capacity exceeds `LOKA_LAZYFLEX_MAX_ITEMS`, even if its current
-size fits; a refused view declares no items. The default cap is 256, provisional
-pending the MAME measurement in #639.
+size fits; a refused view declares no items. The default cap is 256; it is a
+capacity contract over reserved entries, not a performance bound.
 Viewport and list changes settle through the scene's normal queued update flush.
+
+The cost of a viewport update (a page flip or scroll) grows superlinearly
+with the number of declared items, not with the number visible: state
+propagation, observed-state matching, and the visibility-seat walk each scale
+with the item count. Content edits are different: `refreshContent` visits only
+the changed range, and only a structure replacement is O(n). Measured on the LazyList
+example (headless MAME, Macintosh IIx, 8 MB, one populated `Show` per item), a
+steady page flip took about 0.43 s at 25 items, 0.97 s at 100, and 2.5 s at
+200. In that configuration roughly 100 items keeps a page flip near one
+second; larger lists on 68K hardware should expect that curve. A short, fixed
+visible set whose values merely change is better served by plain State-driven
+children than by a lazy list.
 
 ## 12. DSL And Composition
 

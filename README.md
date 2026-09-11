@@ -81,7 +81,7 @@ Strong static typing, no exceptions, no RTTI, and only a small STL surface.
 
 Use [DESIGN.md](DESIGN.md) to route a design question to its authoritative
 document, code, and tests. For broader tutorials, see
-[docs/ProgrammingGuide.md](docs/ProgrammingGuide.md) and
+[docs/ProgrammingGuide.en.md](docs/ProgrammingGuide.en.md) and
 [docs/environments.md](docs/environments.md).
 
 ---
