@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 project(Loka VERSION 0.0.5 LANGUAGES CXX)
 
 option(LOKA_ENABLE_APPLE "Enable Apple platform targets" ON)
+option(LOKA_BUILD_SMIRKYCARD "Build the optional QuickJS Scene-switching experiment" OFF)
 option(LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS "Add explicit -fno-objc-arc flags to macOS example targets" ON)
 option(LOKA_MACOS_SUPPRESS_ARCLITE_LINK "Remove libarclite from generated macOS link settings" OFF)
 option(TEST_BUILD "Enable test build mode" OFF)
@@ -546,6 +547,11 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     COMMAND "$<TARGET_FILE:LokaAllocPinTests>")
   set_tests_properties(testZeroAllocationPin PROPERTIES
     WORKING_DIRECTORY "${_loka_allocpin_work_dir}")
+endif()
+
+if(LOKA_BUILD_SMIRKYCARD)
+  enable_language(C)
+  add_subdirectory(example/SmirkyCard)
 endif()
 
 # Pin the target-local warning contract after every platform/example target

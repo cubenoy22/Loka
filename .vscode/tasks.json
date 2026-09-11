@@ -147,6 +147,36 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Configure: macOS SmirkyCard",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--preset",
+        "macos-debug",
+        "-DLOKA_BUILD_SMIRKYCARD=ON"
+      ],
+      "hide": true,
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Build: macOS SmirkyCard",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "macos-debug",
+        "--target",
+        "LokaSmirkyCardMacOS"
+      ],
+      "dependsOn": [
+        "Configure: macOS SmirkyCard"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Build: macOS Tests",
       "type": "shell",
       "command": "cmake",
@@ -326,6 +356,36 @@
         "win32-debug",
         "--target",
         "LokaTutorialWin32"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Configure: Win32 SmirkyCard",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--preset",
+        "win32-debug",
+        "-DLOKA_BUILD_SMIRKYCARD=ON"
+      ],
+      "hide": true,
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Build: Win32 SmirkyCard",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "win32-debug",
+        "--target",
+        "LokaSmirkyCardWin32"
+      ],
+      "dependsOn": [
+        "Configure: Win32 SmirkyCard"
       ],
       "group": "build",
       "problemMatcher": "$msCompile"
