@@ -1,4 +1,6 @@
 #include "NodeMatchTests.hpp"
+#include "platform/null/NullScenePlatformController.hpp"
+#include <cstdio>
 #include "app/nodes/nestable/Keyed.hpp"
 #include "app/nodes/nestable/BoundarySection.hpp"
 #include "testing/scene/OwnershipDump.hpp"
@@ -1079,6 +1081,77 @@ void testPlainRootMatchUpdateComposesOnceAndWalksChildrenOnce()
     const PlatformApplyPlan &plan = loka::dsl::testing::SceneTestAccess::lastApplyPlan(scene);
     LOKA_VERIFY(plan.structureChanged);
   }
+}
+
+namespace
+{
+  template <int Depth> struct NestedWalkBoundary;
+  template <int Depth>
+  struct NestedWalkBoundary
+      : StdCompositionBoundaryNodeBase<PlainRootPropsFor<NestedWalkBoundary<Depth> > >
+  {
+    typedef PlainRootPropsFor<NestedWalkBoundary<Depth> > Props;
+    explicit NestedWalkBoundary(const Props &p)
+        : StdCompositionBoundaryNodeBase<Props>(p) {}
+    virtual void composeNode(NodeComposition &composition)
+    {
+      composition.declare(Boundary<NestedWalkBoundary<Depth - 1> >(
+          PlainRootPropsFor<NestedWalkBoundary<Depth - 1> >(this->props.record)));
+    }
+  };
+
+  template <> struct NestedWalkBoundary<0>
+      : StdCompositionBoundaryNodeBase<PlainRootPropsFor<NestedWalkBoundary<0> > >
+  {
+    typedef PlainRootPropsFor<NestedWalkBoundary<0> > Props;
+    explicit NestedWalkBoundary(const Props &p)
+        : StdCompositionBoundaryNodeBase<Props>(p) {}
+    virtual void composeNode(NodeComposition &composition)
+    {
+      composition.declare(NodeDefinition<PlainRootChildProps, PlainRootChild>(
+          PlainRootChildProps(this->props.record)));
+    }
+  };
+
+  template <int Depth> void verifyNestedBoundaryUpdateWalk()
+  {
+    PlainRootRecord record;
+    NullScenePlatformController platform;
+    Scene scene(new BoundaryDefinition<PlainRootPropsFor<NestedWalkBoundary<Depth> >,
+                                       NestedWalkBoundary<Depth> >(
+        PlainRootPropsFor<NestedWalkBoundary<Depth> >(&record)));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    const int before = record.childUpdates;
+    scene.requestInvalidate(NODE_DIRTY_CHILD);
+    LOKA_VERIFY(scene.flushInvalidation());
+    const int visits = record.childUpdates - before;
+    std::fprintf(stderr, "nested Std depth %d: leaf UPDATE visits = %d\n", Depth, visits);
+    LOKA_VERIFY(visits == 1);
+
+    BoundaryNode *root = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    LOKA_VERIFY(root && root->childrenHead());
+    BoundaryNode *nested = root->childrenHead()->asBoundary();
+    LOKA_VERIFY(nested);
+    nested->setFrozen(true);
+    scene.requestInvalidate(NODE_DIRTY_CHILD);
+    LOKA_VERIFY(scene.flushInvalidation());
+    LOKA_VERIFY(record.childUpdates == before + 1);
+    nested->setFrozen(false);
+    scene.requestInvalidate(NODE_DIRTY_CHILD);
+    LOKA_VERIFY(scene.flushInvalidation());
+    LOKA_VERIFY(record.childUpdates == before + 2);
+  }
+}
+
+void testNestedStdBoundaryUpdateWalksChildrenOnce()
+{
+  verifyNestedBoundaryUpdateWalk<1>();
+}
+
+void testDoublyNestedStdBoundaryUpdateWalksChildrenOnce()
+{
+  verifyNestedBoundaryUpdateWalk<2>();
 }
 
 /** Characterization: CHILD dirt alone cannot redeclare a plain root. */

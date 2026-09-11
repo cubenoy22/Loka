@@ -54,6 +54,10 @@ flowchart LR
 Every boundary, including the scene wrapper for a plain root, declares its
 composition on ATTACH. UPDATE evaluates scheduled branch seats and walks the
 existing children once. CHILD dirt by itself does not redeclare the root.
+Std boundaries own their child UPDATE traversal, including when nested: the
+enclosing generic walk stops at that boundary after dispatching compose. Custom
+boundary strategies that leave child traversal to the generic walker retain
+that behavior through the default `ownsChildUpdateTraversal()` contract.
 Change the root's shape through `SceneManager::swapScene`, or put a `Match`
 one level below it.
 

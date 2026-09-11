@@ -63,6 +63,12 @@ namespace loka
         }
         virtual ~RootBoundaryWrapper() {}
 
+        /** The plain-root wrapper owns the same child UPDATE walk as Std. */
+        virtual bool ownsChildUpdateTraversal() const
+        {
+          return true;
+        }
+
       protected:
         void detachExistingChildren(ComponentContext &context)
         {

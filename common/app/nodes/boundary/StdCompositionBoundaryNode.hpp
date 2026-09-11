@@ -25,6 +25,12 @@ namespace loka
         }
         virtual ~StdCompositionBoundaryNodeBase() {}
 
+        /** UPDATE evaluates seats and walks children inside composeWithContext. */
+        virtual bool ownsChildUpdateTraversal() const
+        {
+          return true;
+        }
+
         // Build node definitions into composition container (default: no children)
         // Making this non-pure allows instantiation via NodeDefinition<StdCompositionProps, StdCompositionNode>
         virtual void composeNode(NodeComposition &c)

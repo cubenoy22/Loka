@@ -27,6 +27,8 @@ void testKeyedComposeWriteRetainsSeatDirtyClassification();
 void testKeyedOutgoingSeatSourceRemainsObservedByOrdinaryNode();
 
 void testPlainRootMatchUpdateComposesOnceAndWalksChildrenOnce();
+void testNestedStdBoundaryUpdateWalksChildrenOnce();
+void testDoublyNestedStdBoundaryUpdateWalksChildrenOnce();
 void testPlainRootChildDirtWithoutSeatOnlyWalks();
 
 #endif // LOKA_NODE_MATCH_TESTS_HPP
