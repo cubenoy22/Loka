@@ -64,9 +64,16 @@ Start with this flow:
 1. `State` holds application facts.
 2. UI reads those facts.
 3. Events update `State`.
-4. Only affected areas are recomposed, projected, laid out, or redrawn.
+4. Only affected areas are updated, projected, laid out, or redrawn.
 
 This is the core of Loka.
+
+For a first walkthrough, read [First Example: Counter](#11-first-example-counter)
+and [Toggle UI Driven By State](#12-toggle-ui-driven-by-state), then follow the
+same logical UI into [Platform Projection](#16-platform-projection).
+For larger applications, continue with [Flow](#9-flow),
+[Boundary-First Ownership](#5-boundary-first-ownership), and
+[Scope Of Responsibility](#24-scope-of-responsibility).
 
 ## 1. Basic Philosophy
 
@@ -93,7 +100,7 @@ model are the source of truth.
 Loka avoids hiding too much behavior inside a large runtime. Convenience is
 important, but ownership and update flow must remain traceable.
 
-When something redraws or recomposes, it should be possible to answer:
+When something redraws or updates, it should be possible to answer:
 
 - which state changed?
 - who owns that state?
@@ -147,6 +154,11 @@ from another state, prefer deriving it over introducing another mutable owner.
 `Boundary` is also a kind of `Node`, but it adds ownership and update scope. A
 Boundary owns state storage, state tracking, composition/update boundaries, and
 resource lifetime decisions associated with its subtree.
+
+A Boundary need not correspond to a native view or control. It can be a
+headless logical scope, so counting Boundaries does not tell you how many native
+objects the platform will create. Its role is to make ownership and update
+responsibility local and inspectable.
 
 Conceptually:
 
@@ -309,6 +321,31 @@ The common routes are:
 Avoid passing raw `MutableState<T>*` across unrelated components as a mutation
 channel. It makes the dependency graph flat and hard to debug.
 
+### Choose The Owner Before Passing The State
+
+Choose a parent owner when a value must survive replacement of a child or
+keep the whole screen consistent. A window-wide search string or selected item
+are examples. Application-wide settings need an owner with application-wide
+lifetime. For the shared/local distinction, see the
+[ownership patterns](#20-patterns).
+
+A parent can group the inputs its child borrows:
+
+```cpp
+struct ChildRefs
+{
+  loka::core::State<loka::core::String> *title_;
+  loka::core::State<bool> *enabled_;
+  loka::core::EmitterState *clicked_;
+};
+```
+
+The child reads the values and emits the event. These references do not transfer
+ownership; their owner must outlive their use. If a reference points at a
+temporary State while the child remains alive, a working update path does not
+make the lifetime safe. Decide whose fact it is and how long it must survive
+before deciding where to allocate it.
+
 ### `currentBoundary()`
 
 `currentBoundary()` is an owner-side path. It is for code operating on the
@@ -392,6 +429,22 @@ can see what changed and decide what to update.
 In ordinary code, prefer RAII guard helpers instead of manually opening and
 closing transactions.
 
+The tracker groups writes, remembers dirty state, and settles dependent
+recomputation before running deferred side effects for that transaction. Use a
+guard around related writes in an owner method. For example, with `count_` and
+`label_` declared as local `NodeState` members:
+
+```cpp
+loka::core::StateTrackerGuard guard(this->tracker());
+this->count_.set(this->count_.get() + 1);
+this->label_.set(loka::core::String::Literal("Updated"));
+```
+
+Deferred work is useful when an effect should see the settled values rather
+than an intermediate write. See
+[`StateTrackerGuard.hpp`](../common/core/util/StateTrackerGuard.hpp) and
+[`StateTracker.cpp`](../common/core/StateTracker.cpp) for transaction handling.
+
 Future versions should expose better error/result handling for failed or
 looping updates so Flow can react to state update failures without relying on
 ad-hoc checks.
@@ -426,6 +479,80 @@ paths need to update a value. Prefer:
 - an explicit owner facade
 
 This keeps update loops and lifecycle relationships visible.
+
+### Make The Procedure Visible
+
+A chain of callbacks can scatter the order of work, error handling, and UI
+updates across several places. Flow brings those decisions into one pipeline
+so that a reader can follow the procedure as well as the state dependencies.
+It is useful for synchronous stages too; its role is to make steps,
+conversions, branches, and side effects visible.
+
+Read `Step` as one meaningful operation and `Flow` as the pipeline connecting
+operations. `onSuccess` and `onFailure` describe completion handling and, when
+configured with a destination step, the next transition. Retry and skip paths
+should be explicit in that procedure.
+
+For example, opening a file, decoding its contents, and applying the result to
+UI state are distinct stages. Split at those meaningful boundaries. A handler
+is often clearer for a single state write; there is no need to wrap every
+small operation in a one-step Flow.
+
+### Procedures Without `async` / `await`
+
+A procedure can start work, wait for completion, convert the result, and pass
+it to the next stage without a coroutine. A step that cannot finish yet can
+return `FLOW_STEP_PENDING`; later completion resumes the flow at the appropriate
+step. See [`Flow.hpp`](../common/dsl/flow/Flow.hpp) and the pending/resume cases
+in [`FlowDslTests.cpp`](../tests/FlowDslTests.cpp) for the current API.
+
+The application path is:
+
+1. A button or menu emits an event.
+2. The event starts the Flow.
+3. The Flow performs its stages.
+4. The owning application code applies the result to state on the Main Thread.
+5. The UI projects that state.
+
+This keeps the UI event handler small while giving multi-stage work an explicit
+home. Flow and UI/DSL logic run on the Main Thread. If a platform service does
+work elsewhere, its completion must return there before updating application
+state; declaring a Flow does not itself move work to a worker thread.
+
+### Keep The Pipeline With Its Owner
+
+Separate building the pipeline from keeping it alive. A builder describes the
+steps; a Node member [`FlowSlot<T>`](../common/app/scene/state/FlowSlot.hpp) keeps
+the resulting chain with its owner. Its `set()`, `bindTrigger()`, and
+`withTracker()` methods configure the held chain. The slot also exposes
+`run()`, `runResult()`, `resumeResult()`, and `cancel()`, so ordinary callers do
+not need to manage a raw Flow pointer.
+
+This is especially useful when a dialog, callback, or file operation completes
+later. The Flow's lifetime must remain part of the Node or Boundary's lifetime.
+See the FlowSlot owner-destruction cases in
+[`FlowDslTests.cpp`](../tests/FlowDslTests.cpp) for cleanup behavior.
+
+A useful division of responsibility is:
+
+```text
+read-only input state
+  -> Flow-local parse / validate / convert
+  -> Flow result
+  -> owner method applies the result to owner state
+```
+
+This makes it clear which stage reads a fact and which owner finally changes it.
+It also keeps a second Flow from becoming an implicit continuation merely
+because it observes the same writable state.
+
+### Reuse Procedures In Scenarios
+
+The same staged approach is useful for repeatable UI scenarios. Drive events,
+wait for the relevant update, and check the resulting state or presentation.
+The [`Tutorial scenarios`](../tests/scenarios/TutorialScenarios.cpp) provide a
+maintained example: increment a count, hide and restore a summary, then capture
+its text. This gives tests an ordered procedure as well as a final assertion.
 
 ### `Match()`
 
@@ -479,17 +606,71 @@ Bidirectional UI can accidentally create loops:
 3. The control emits another change.
 4. The same state changes again.
 
-Platform contexts should guard against this with explicit flags such as
-`applyingFromState_` or `updatingFromControl_`, and state writes should be
-tracked.
+The platform layer guards against this echo when it projects state into a
+control, so application code does not add its own re-entrancy flags. Keep
+state writes inside tracked transactions and decide which side has authority,
+as described below.
 
 For numeric controls, sliders, conversions, or formatted text, prefer explicit
 input/result state or a Flow adapter instead of letting two mutable states
 blindly write to each other.
 
+When two inputs convert each other's values, decide which input currently has
+authority. Keep the text being edited separate from the committed numeric value.
+Formatting and floating-point conversion can otherwise send slightly different
+values back and forth even when they represent the same quantity.
+
+For continuous inputs, choose an explicit integer-step, fixed-point, or
+quantization policy. If floating-point values return to UI state, make the
+comparison tolerance explicit. Avoid another `set()` when the displayed result
+would not change.
+
 Future work should include better loop detection and state update result APIs.
 
-## 11. StdComposition And Boundary
+## 11. First Example: Counter
+
+A counter brings the basic flow together: local state holds the count, an
+`EmitterState` receives the button event, a handler updates state, and the UI
+reads the result. Follow the current implementation in
+[`Step2Node.hpp`](../example/Tutorial/src/Step2Node.hpp).
+
+Read it in this order:
+
+1. The constructor registers `count_` and `countText_` with `this->state(...)`.
+2. `declareBindings(BindingToken&)` connects the increment event to its handler.
+3. `composeNode()` declares a column containing the text and increment button.
+4. The handler increments the count and builds the displayed text from it.
+
+`Text` receives `countText_.state()`, a read-only live input. The button receives
+an event emitter. These inputs make the direction of the update visible:
+`state -> event -> state update -> UI projection`.
+
+For a group of state writes, `StateTrackerGuard` provides a RAII transaction;
+see [StateTracker](#8-statetracker). C++98 callback APIs often use a function
+pointer plus `void *userData`: a static thunk recovers the object and calls its
+method. The tutorial's binding token connects the member method directly.
+
+The base class names describe the ownership shape. `BoundaryNodeFor<MyNode>`
+gives the class a Boundary, and `BoundaryPropsFor<MyNode>` supplies its basic
+input type. Use custom props when the Boundary needs additional inputs, keeping
+parent-provided inputs distinct from the state it owns.
+
+## 12. Toggle UI Driven By State
+
+Start with the fact that changes: whether details are visible. Keep the event
+that changes it separate from the condition that the UI reads. The current
+[`Step3Node.hpp`](../example/Tutorial/src/Step3Node.hpp) shows the complete example.
+
+Its constructor registers a boolean state initialized to false. A button emits
+the toggle event, and the bound handler negates that state. `Show()` reads the
+boolean to control the details branch. The state is the fact, the event is the
+trigger, and `Show()` is the structural switch.
+
+Before introducing a larger structural replacement, look for a state-driven
+switch that expresses the intent. For the attach/detach policies and their
+lifetime effects, see [Show](#show).
+
+## 13. StdComposition And Boundary
 
 StdComposition is Loka's current standard composition model. It deliberately
 keeps the core algorithm small and predictable.
@@ -506,6 +687,22 @@ Composition is owned by Boundary.
 State tracking is owned by Boundary.
 Projection carries the logical result into native controls.
 ```
+
+### Nested Boundaries
+
+The parent places a child Boundary as a Node; the child owns its internal state
+and tracking. Application code in the parent should use the child's declared
+inputs and outward results rather than inspect the child's internal nodes to
+decide how to update it.
+
+The child reports dirty/layout/paint results for projection. This lets the
+surrounding layout respond to a child's changed size without making the parent
+application code depend on the reason for that change. See
+[`Boundary.hpp`](../common/app/scene/boundary/Boundary.hpp) for the update result
+and layout-bounds surface.
+
+For choosing the smallest composition scope, see
+[DSL And Composition](#14-dsl-and-composition).
 
 ### `Show()`
 
@@ -599,7 +796,7 @@ second; larger lists on 68K hardware should expect that curve. A short, fixed
 visible set whose values merely change is better served by plain State-driven
 children than by a lazy list.
 
-## 12. DSL And Composition
+## 14. DSL And Composition
 
 The normative app-facing conventions live in
 [`API_STYLE.md`](API_STYLE.md). This section is their tutorial form.
@@ -647,6 +844,10 @@ LazyScope generation replacement; the kernel has no recompose door.
 `Props` is the full API surface. `Definition` setters are shorthand for common
 DSL callsites.
 
+Read Props as the Node's public inputs: the live state it reads, events it uses,
+constant settings, and references needed to construct it. That surface shows
+what the child needs and how much it depends on its parent.
+
 Do not duplicate every field as a shorthand setter. For uncommon or advanced
 fields, construct `Props` explicitly.
 
@@ -657,7 +858,9 @@ Constant props and live state must stay distinct:
 - platform code should bind only values that the logical layer classified as
   live state
 
-This avoids turning every literal into a global or shared `State<T>`.
+This avoids turning every literal into a global or shared `State<T>`. Fixed
+menu items and unchanging configuration also belong in Props or Definitions;
+only inputs that actually change need live State.
 
 ### Fixed-Cell Layout
 
@@ -687,7 +890,7 @@ refusals for the latest attempted layout; checks remain active in release
 builds. The linked composition cursor costs O(first index) to reach the visible
 range, then O(candidate children), with no full child measurement pass.
 
-## 13. Events And Updates
+## 15. Events And Updates
 
 Prefer `deferBind` for UI projection and lazy updates. Use `bind` only when
 immediate recompute is required.
@@ -699,7 +902,7 @@ random write to a widely shared object. It should have:
 - a clear transaction/update context
 - a clear projection path
 
-## 14. Platform Projection
+## 16. Platform Projection
 
 The logical UI is the truth. Platform code projects it into native objects.
 
@@ -717,7 +920,52 @@ project changes into native controls.
 This separation is what lets Loka keep one application model across many eras
 and platforms.
 
-## 15. Dialogs, Windows, And App Scope
+### One Logical UI On Toolbox And macOS
+
+The logical node can stay the same when the projection target changes:
+
+```cpp
+#include "app/nodes/boundary/StdComposition.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
+#include "app/nodes/Text.hpp"
+#include "app/nodes/controls/Button.hpp"
+
+class HelloNode : public loka::app::scene::BoundaryNodeFor<HelloNode>
+{
+public:
+  typedef loka::app::scene::BoundaryPropsFor<HelloNode> PropsType;
+
+  HelloNode(const PropsType &p)
+      : loka::app::scene::BoundaryNodeFor<HelloNode>(p)
+  {
+  }
+
+  virtual void composeNode(loka::app::scene::NodeComposition &c)
+  {
+    c.declare(loka::app::VStack()
+              << loka::app::Text("Hello from Loka")
+              << loka::app::Button("OK"));
+  }
+};
+```
+
+The application's `compose` method places the Boundary in a window. See
+[`TutorialAppConfig`](../example/Tutorial/src/MyAppConfig.hpp) for the current
+scene definition and window declaration.
+
+The platform/app layer supplies the Toolbox or macOS projection. The logical
+node needs no native control identifiers. Prefer the scene definition overload
+for ordinary DSL code; the low-level pointer overload's ownership transfer is
+described under [Keep Allocation Failure Narrow](#keep-allocation-failure-narrow).
+
+Projection need not be immediate. State changes are collected by the tracker,
+and the Scene and platform controller organize the resulting update work.
+Timers, dialogs, and deferred native callbacks can return later; their results
+must still belong to the current logical lifetime. Keep ownership decisions in
+the State and Boundary model rather than asking a native context to decide
+which application facts are current.
+
+## 17. Dialogs, Windows, And App Scope
 
 Dialogs and windows are not just controls. They interact with application-level
 policy, native modality, focus, menus, and platform conventions.
@@ -732,7 +980,7 @@ Future APIs should make it clear whether a dialog is:
 The DSL should make it hard to accidentally declare multiple competing native
 dialogs when the platform expects one active dialog.
 
-## 16. Ownership And Resource Management
+## 18. Ownership And Resource Management
 
 Loka should make ordinary application code feel like it has modern lifecycle
 management while remaining compatible with C++98 and old platforms.
@@ -753,7 +1001,7 @@ clock instead of running observable cleanup from an arbitrary handle destructor.
 Testing can render those facts as `held-by [section(...)]` rather than only an
 unexplained count.
 
-## 17. Mutability
+## 19. Mutability
 
 Prefer immutable completed values for:
 
@@ -778,7 +1026,7 @@ If a broad object needs many setters, consider splitting it:
 
 This avoids turning every object into a mutable bag of lifecycle hazards.
 
-## 18. Patterns
+## 20. Patterns
 
 ### Put Shared Facts In The Parent
 
@@ -829,10 +1077,22 @@ flush cycle closes, and reclaims all remaining current, queued, or retired Scene
 when the Window is destroyed. Prefer the definition overload in ordinary DSL
 composition because it keeps this ownership transfer structural.
 
-## 19. Framework Comparisons
+## 21. Framework Comparisons
 
 Loka shares ideas with modern declarative UI frameworks, but it is not trying to
 copy their runtime model.
+
+These rough correspondences can help with the first reading:
+
+| Familiar concept | Loka starting point |
+|---|---|
+| React state / `useState` | `MutableState<T>` |
+| Solid.js signal | `State<T>` and `MutableState<T>` |
+| SwiftUI / Compose local state | `NodeState<T>` |
+| UI event callback | `EmitterState` |
+| Computed value | `DerivedState<T>` |
+
+These are conceptual analogies, not equivalent runtime or lifetime contracts.
 
 Key differences:
 
@@ -849,7 +1109,7 @@ It is:
 State facts + explicit ownership + Boundary-scoped composition + native projection
 ```
 
-## 20. Rust / React Style Ownership Questions
+## 22. Rust / React Style Ownership Questions
 
 From a React perspective, Loka can feel stricter because it does not encourage
 arbitrary mutable state hidden behind closures or hooks.
@@ -868,7 +1128,11 @@ and the owning clock controls release. Mutable facts still belong to a meaningfu
 State owner; unrelated shared immutable payloads belong in repositories or
 caches.
 
-## 21. First Instincts To Build
+## 23. First Instincts To Build
+
+You do not need to understand every Boundary or tracker internal to begin.
+Start with the [state types](#4-main-state-types) and
+[transaction rule](#8-statetracker), and establish an owner for each fact.
 
 When writing Loka code, ask:
 
@@ -881,7 +1145,27 @@ When writing Loka code, ask:
 
 If the answer is unclear, the API or design is probably too vague.
 
-## 22. What To Read Next
+## 24. Scope Of Responsibility
+
+Loka builds logical UI and state transitions and projects them into native
+platform behavior. An application can keep specialized video/audio processing,
+a document model, or a DOM-like editing core in another library or layer, then
+use Loka for the state-driven UI above it. Choosing Loka does not require those
+specialized engines to become part of the framework.
+
+Native projection also means that detailed text-editing and control behavior
+can depend on the target OS and its constraints.
+
+### Modern Technology At The Application Edge
+
+The portable framework keeps its C++98 baseline so the same application model
+can reach older systems. Consumer applications targeting modern systems can
+combine it with modern C++ or Swift in their application, use-case, or domain
+layers. Keep that integration at a clear boundary so it does not impose a
+modern-only dependency on the portable core. See
+[Modern Code Is Welcome At The Edges](../PHILOSOPHY.md#modern-code-is-welcome-at-the-edges).
+
+## 25. What To Read Next
 
 After this guide, read:
 

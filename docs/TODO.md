@@ -44,6 +44,8 @@ These items address recurring bug patterns and structural risks identified durin
 
 ## Open
 
+- Input-shaping facilities for bidirectional and continuous inputs (an interaction group, a Flow gate, distinct/quantize/throttle/debounce policies, stale-result rejection, and a stall/resume rule for hidden nodes) are an idea carried over from the archived Japanese guide, not an API; they stay here until a concrete input case needs one.
+
 - **Window placement type split**: `Window` currently carries a platform
   desktop-placement `x`/`y` and logical content `width`/`height` in one
   `Frame`. Before mobile/windowing families or explicit unit overloads make
