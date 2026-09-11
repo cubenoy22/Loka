@@ -431,6 +431,80 @@ paths need to update a value. Prefer:
 
 This keeps update loops and lifecycle relationships visible.
 
+### Make The Procedure Visible
+
+A chain of callbacks can scatter the order of work, error handling, and UI
+updates across several places. Flow brings those decisions into one pipeline
+so that a reader can follow the procedure as well as the state dependencies.
+It is useful for synchronous stages too; its role is to make steps,
+conversions, branches, and side effects visible.
+
+Read `Step` as one meaningful operation and `Flow` as the pipeline connecting
+operations. `onSuccess` and `onFailure` describe completion handling and, when
+configured with a destination step, the next transition. Retry and skip paths
+should be explicit in that procedure.
+
+For example, opening a file, decoding its contents, and applying the result to
+UI state are distinct stages. Split at those meaningful boundaries. A handler
+is often clearer for a single state write; there is no need to wrap every
+small operation in a one-step Flow.
+
+### Procedures Without `async` / `await`
+
+A procedure can start work, wait for completion, convert the result, and pass
+it to the next stage without a coroutine. A step that cannot finish yet can
+return `FLOW_STEP_PENDING`; later completion resumes the flow at the appropriate
+step. See [`Flow.hpp`](../common/dsl/flow/Flow.hpp) and the pending/resume cases
+in [`FlowDslTests.cpp`](../tests/FlowDslTests.cpp) for the current API.
+
+The application path is:
+
+1. A button or menu emits an event.
+2. The event starts the Flow.
+3. The Flow performs its stages.
+4. The owning application code applies the result to state on the Main Thread.
+5. The UI projects that state.
+
+This keeps the UI event handler small while giving multi-stage work an explicit
+home. Flow and UI/DSL logic run on the Main Thread. If a platform service does
+work elsewhere, its completion must return there before updating application
+state; declaring a Flow does not itself move work to a worker thread.
+
+### Keep The Pipeline With Its Owner
+
+Separate building the pipeline from keeping it alive. A builder describes the
+steps; a Node member [`FlowSlot<T>`](../common/app/scene/state/FlowSlot.hpp) keeps
+the resulting chain with its owner. Its `set()`, `bindTrigger()`, and
+`withTracker()` methods configure the held chain. The slot also exposes
+`run()`, `runResult()`, `resumeResult()`, and `cancel()`, so ordinary callers do
+not need to manage a raw Flow pointer.
+
+This is especially useful when a dialog, callback, or file operation completes
+later. The Flow's lifetime must remain part of the Node or Boundary's lifetime.
+See the FlowSlot owner-destruction cases in
+[`FlowDslTests.cpp`](../tests/FlowDslTests.cpp) for cleanup behavior.
+
+A useful division of responsibility is:
+
+```text
+read-only input state
+  -> Flow-local parse / validate / convert
+  -> Flow result
+  -> owner method applies the result to owner state
+```
+
+This makes it clear which stage reads a fact and which owner finally changes it.
+It also keeps a second Flow from becoming an implicit continuation merely
+because it observes the same writable state.
+
+### Reuse Procedures In Scenarios
+
+The same staged approach is useful for repeatable UI scenarios. Drive events,
+wait for the relevant update, and check the resulting state or presentation.
+The [`Tutorial scenarios`](../tests/scenarios/TutorialScenarios.cpp) provide a
+maintained example: increment a count, hide and restore a summary, then capture
+its text. This gives tests an ordered procedure as well as a final assertion.
+
 ### `Match()`
 
 The `onFailure` list is already a first-match-wins router: matchers are tried
@@ -490,6 +564,16 @@ tracked.
 For numeric controls, sliders, conversions, or formatted text, prefer explicit
 input/result state or a Flow adapter instead of letting two mutable states
 blindly write to each other.
+
+When two inputs convert each other's values, decide which input currently has
+authority. Keep the text being edited separate from the committed numeric value.
+Formatting and floating-point conversion can otherwise send slightly different
+values back and forth even when they represent the same quantity.
+
+For continuous inputs, choose an explicit integer-step, fixed-point, or
+quantization policy. If floating-point values return to UI state, make the
+comparison tolerance explicit. Avoid another `set()` when the displayed result
+would not change.
 
 Future work should include better loop detection and state update result APIs.
 
