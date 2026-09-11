@@ -806,6 +806,7 @@ class StandaloneDebugEntryPointTest(unittest.TestCase):
                 "Run (macOS ScrapbookUI)",
                 "Run (macOS FloppyBird)",
                 "Run (macOS Tutorial)",
+                "Run (macOS SmirkyCard)",
                 "Run (Windows HelloWorld)",
                 "Run (Windows MineSweeper)",
                 "Run (Windows SimpleViewer)",
@@ -814,6 +815,7 @@ class StandaloneDebugEntryPointTest(unittest.TestCase):
                 "Run (Windows ScrapbookUI)",
                 "Run (Windows FloppyBird)",
                 "Run (Windows Tutorial)",
+                "Run (Windows SmirkyCard)",
             },
         )
         self.assertEqual(len(names), len(set(names)))
