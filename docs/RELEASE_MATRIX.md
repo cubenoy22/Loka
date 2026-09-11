@@ -59,7 +59,7 @@ Deliberately **not** on this list, and not to be "fixed" by a sweep:
   present.
 - `scripts/ios/legacy/README.md` records the version SpringBoard actually
   enumerated during a past device run. Bumping it would falsify evidence.
-- `docs/ProgrammingGuide.md` body passages labelled with the release whose
+- `docs/ProgrammingGuide.en.md` body passages labelled with the release whose
   semantics they describe. If such a pattern still holds, drop the label rather
   than advancing it; if it no longer holds, the passage needs rewriting, not a
   version bump.
@@ -71,7 +71,7 @@ Deliberately **not** on this list, and not to be "fixed" by a sweep:
   walked. They were hardcoded once and went stale at the 0.0.4 -> 0.0.5 bump.
 - `scripts/release/README.md` takes the tag from `$TAG` so its example never
   goes stale.
-- `docs/ProgrammingGuide.md` / `.en.md` name no release at all. The guide tracks
+- `docs/ProgrammingGuide.en.md` names no release at all. The guide tracks
   the development source, and a reader who wants the guide as it stood for a
   published release reads the file at that release's tag. Do not reintroduce a
   version line: it was one, it went stale, and the tag already carries the fact.

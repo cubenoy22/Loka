@@ -72,10 +72,10 @@ facts into native behavior.
 | What applies to Win32 text, paths, and native windows? | The Win32 rules in [AGENTS.md](AGENTS.md) | [`win32/`](win32/) and the Win32 bridge/path tests |
 | What must a PR claim and verify? | [CONTRIBUTING.md](CONTRIBUTING.md) and the review gates in [AGENTS.md](AGENTS.md) | Presets, CI workflows, and the PR's exact diff |
 
-The Japanese [Programming Guide](docs/ProgrammingGuide.md) is the broad tutorial
-reference. Its shorter English counterpart is
-[docs/ProgrammingGuide.en.md](docs/ProgrammingGuide.en.md). Neither replaces the
-headers for exact API facts.
+The [Programming Guide](docs/ProgrammingGuide.en.md) is the broad tutorial
+reference; the former Japanese edition is archived, unmaintained, at
+[docs/archives/ProgrammingGuide.ja.md](docs/archives/ProgrammingGuide.ja.md).
+Neither replaces the headers for exact API facts.
 
 ## Document Status And Scope
 

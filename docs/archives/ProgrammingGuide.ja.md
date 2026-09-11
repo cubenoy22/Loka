@@ -1,9 +1,10 @@
-# Loka Programming Guide
+# Loka Programming Guide(日本語版・アーカイブ)
 
-This guide tracks the current development source. For the guide as it stood
-for a published release, read this file at that release's tag.
-
-English version: [ProgrammingGuide.en.md](ProgrammingGuide.en.md)
+> **2026-09-11 以降は保守していません。** 正本は英語版
+> [../ProgrammingGuide.en.md](../ProgrammingGuide.en.md) です。この日本語版だけに
+> あった章(Counter / Toggle / Toolbox と macOS への投影の例、Flow と async、State の
+> 所有者 ほか)は英語版へ順次移植中で、移植完了後にこのファイルは削除されます。
+> LazyFlex / compose-once など 2026-09 以降の API はここには反映されていません。
 
 ## はじめに
 

@@ -31,8 +31,8 @@ Total triggered flags: <!-- 0 or count -->
 ## Documentation
 
 - [ ] Not a user-facing surface change.
-- [ ] DSL / user-facing surface changed and the Programming Guide (both
-      languages) is updated in this PR: <!-- section -->
+- [ ] DSL / user-facing surface changed and the Programming Guide
+      (`docs/ProgrammingGuide.en.md`) is updated in this PR: <!-- section -->
 
 ## UI changes
 

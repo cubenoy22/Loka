@@ -3,14 +3,13 @@
 This guide tracks the current development source. For the guide as it stood
 for a published release, read this file at that release's tag.
 
-Japanese version: [ProgrammingGuide.md](ProgrammingGuide.md)
-
 This guide explains how to write Loka applications and how to think about
 Loka's state, ownership, composition, and platform projection model.
 
-The Japanese version of this guide is currently the most detailed design note.
-This English edition is written as a readable programming guide rather than a
-line-by-line translation.
+This is the canonical guide. The former Japanese edition is archived at
+[archives/ProgrammingGuide.ja.md](archives/ProgrammingGuide.ja.md) and is not
+maintained; its remaining Japanese-only chapters are being carried into this
+guide.
 
 ## Introduction
 
