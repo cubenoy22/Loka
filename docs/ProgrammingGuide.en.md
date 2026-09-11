@@ -584,8 +584,18 @@ it returns (native focus behavior still awaits runtime verification).
 
 `LazyFlexNode::status()` reports `LAZY_FLEX_CAPACITY_REFUSED` when the attached
 list's reserved capacity exceeds `LOKA_LAZYFLEX_MAX_ITEMS`, even if its current
-size fits; a refused view declares no items. The default cap is 256, provisional
-pending the MAME measurement in #639.
+size fits; a refused view declares no items. The default cap is 256; it is a
+capacity contract over reserved entries, not a performance bound.
+
+Per-update cost grows superlinearly with the number of declared items, not
+with the number visible: state propagation, observed-state matching, and the
+visibility-seat walk each scale with the item count. Measured on the LazyList
+example (headless MAME, Macintosh IIx, 8 MB, one populated `Show` per item), a
+steady page flip took about 0.43 s at 25 items, 0.97 s at 100, and 2.5 s at
+200. In that configuration roughly 100 items keeps a page flip near one
+second; larger lists on 68K hardware should expect that curve. A short, fixed
+visible set whose values merely change is better served by plain State-driven
+children than by a lazy list.
 Viewport and list changes settle through the scene's normal queued update flush.
 
 ## 12. DSL And Composition
