@@ -14,8 +14,12 @@ namespace loka
     namespace scene
     {
       class KeyedGenerationRoot;
+      struct KeyedGenerationTypeTag
+      {
+      };
       struct KeyedGenerationProps : NodePropsBase<KeyedGenerationProps>
       {
+        typedef KeyedGenerationTypeTag TypeTag;
         typedef KeyedGenerationRoot NodeType;
         bool operator<(const PropsBase &) const
         {
@@ -27,6 +31,7 @@ namespace loka
       class KeyedGenerationRoot : public GenerationRoot
       {
       public:
+        typedef KeyedGenerationTypeTag TypeTag;
         explicit KeyedGenerationRoot(const KeyedGenerationProps &) {}
         virtual const void *nodeTypeKey() const
         {

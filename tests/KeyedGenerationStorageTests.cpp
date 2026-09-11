@@ -843,7 +843,7 @@ void testLocalRebuildSectionMaterializesChildrenWithBoundaryProvider()
     desired << (Section(12) << Text("child"));
     const bool reconciled = root->reconcile(desired, scene, platform);
     BoundarySectionNode *section = findSection(root, 12);
-    const unsigned children = section ? section->childrenCount() : 0;
+    const unsigned children = section ? static_cast<unsigned>(section->childrenCount()) : 0u;
     const bool failure = root->composeResult().allocationFailed;
     std::fprintf(stderr, "local Section: reconcile=%d failure=%d children=%u\n", reconciled, failure, children);
     LOKA_VERIFY(reconciled && !failure && children == 1);
