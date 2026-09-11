@@ -67,23 +67,23 @@ namespace
     AllocationProbe(const AllocationProbe &);
     AllocationProbe &operator=(const AllocationProbe &);
   };
-  AllocationProbe *probe = 0;
+  AllocationProbe *activeProbe = 0;
 
   void *allocate(std::size_t size, const loka::core::LokaAllocationSite &site)
   {
-    if (std::strcmp(site.ownerTag, "StateOwner") == 0 && probe->heapRequestsBeforeRefusal >= 0)
+    if (std::strcmp(site.ownerTag, "StateOwner") == 0 && activeProbe->heapRequestsBeforeRefusal >= 0)
     {
-      if (probe->heapRequestsBeforeRefusal-- == 0)
+      if (activeProbe->heapRequestsBeforeRefusal-- == 0)
       {
-        ++probe->heapRefusals;
+        ++activeProbe->heapRefusals;
         return 0;
       }
     }
     void *ptr = new (std::nothrow) char[size];
     if (ptr)
     {
-      probe->live[ptr] = size;
-      StorageCount *count = probe->count(site);
+      activeProbe->live[ptr] = size;
+      StorageCount *count = activeProbe->count(site);
       if (count)
       {
         ++count->allocations;
@@ -94,29 +94,29 @@ namespace
   }
   void freeAllocation(void *ptr, const loka::core::LokaAllocationSite &site)
   {
-    std::map<void *, std::size_t>::iterator found = probe->live.find(ptr);
-    LOKA_VERIFY(found != probe->live.end());
-    StorageCount *count = probe->count(site);
+    std::map<void *, std::size_t>::iterator found = activeProbe->live.find(ptr);
+    LOKA_VERIFY(found != activeProbe->live.end());
+    StorageCount *count = activeProbe->count(site);
     if (count)
     {
       ++count->frees;
       count->bytes -= found->second;
     }
-    probe->live.erase(found);
+    activeProbe->live.erase(found);
     delete[] static_cast<char *>(ptr);
   }
   AllocationProbe::AllocationProbe()
       : heapRequestsBeforeRefusal(-1),
         heapRefusals(0)
   {
-    LOKA_VERIFY(probe == 0);
-    probe = this;
+    LOKA_VERIFY(activeProbe == 0);
+    activeProbe = this;
     loka::core::LokaAllocSetBackend(&allocate, &freeAllocation);
   }
   AllocationProbe::~AllocationProbe()
   {
     loka::core::LokaAllocSetBackend(0, 0);
-    probe = 0;
+    activeProbe = 0;
   }
 
   struct ComponentLifetime;
