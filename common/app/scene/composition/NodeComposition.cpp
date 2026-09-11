@@ -196,19 +196,22 @@ namespace loka
 
         NodeMaterializationResult result = {node, false, false};
 
+        ComponentContext childContext(context);
+        IStateOwner *owner = node->asStateOwner();
+        if (owner)
+        {
+          if (!owner->attachStateOwner(boundary, context.stateOwner()))
+          {
+            result.allocationFailed = true;
+            return result;
+          }
+          childContext.setStateOwner(owner);
+        }
         INestableDefinition *nestableDef = def->asNestableDefinition();
         INestable *nestableNode = node->asNestable();
 
         if (nestableDef && nestableNode)
         {
-          ComponentContext childContext(context);
-          IStateOwner *owner = node->asStateOwner();
-          if (owner && !node->asBoundary())
-          {
-            owner->attachEnclosingBoundary(boundary);
-            owner->attachEnclosingHoldOwner(context.stateOwner());
-            childContext.setStateOwner(owner);
-          }
           NodeDefinitionBase *child = nestableDef->childrenHead();
           while (child)
           {
@@ -229,11 +232,8 @@ namespace loka
       }
 
       // Fallback: create without arena
-      static NodeMaterializationResult createNodeRecursive(NodeDefinitionBase *def,
-                                                           long &autoIdCounter,
-                                                           BoundaryNode *boundary,
-                                                           Node *runtimeParent,
-                                                           BoundaryBranchSeatRuntimeRegistrationPlan *registrations)
+      static NodeMaterializationResult
+      createNodeRecursive(NodeDefinitionBase *def, long &autoIdCounter, ComponentContext &context)
       {
         if (!def)
         {
@@ -244,47 +244,14 @@ namespace loka
         IBranchPolicyScopeDefinition *scope = def->asBranchPolicyScopeDefinition();
         if (scope)
         {
-          return createNodeRecursive(scope->scopedBranchDefinition(),
-                                     autoIdCounter,
-                                     boundary,
-                                     runtimeParent,
-                                     registrations);
+          return createNodeRecursive(scope->scopedBranchDefinition(), autoIdCounter, context);
         }
-        IBranchSeatDefinition *seat = def->asBranchSeatDefinition();
-        if (seat)
+        if (def->asBranchSeatDefinition())
         {
-          const BoundaryBranchSeatPlanEntry *plan = boundary ? boundary->branchSeatPlan(def) : 0;
-          if (!plan || !plan->dirtySource)
-          {
-            assert(boundary == 0 &&
-                   "a boundary-backed compose must have captured this seat's plan");
-            NodeMaterializationResult missingPlan = {0, false, true};
-            return missingPlan;
-          }
-          loka::app::FragmentDefinition emptyBranch;
-          NodeDefinitionBase *branchDefinition =
-              plan->materializedBranchDefinition(emptyBranch);
-          NodeMaterializationResult active = createNodeRecursive(branchDefinition,
-                                                                 autoIdCounter,
-                                                                 boundary,
-                                                                 runtimeParent,
-                                                                 registrations);
-          if (active.root)
-          {
-            if (registrations)
-            {
-              registrations->record(*plan,
-                                    runtimeParent,
-                                    active.root);
-            }
-            else
-            {
-              boundary->registerMaterializedBranchSeat(*plan,
-                                                       runtimeParent,
-                                                       active.root);
-            }
-          }
-          return active;
+          // Local heap materialization has no captured seat plan. The caller
+          // must reject the completed result rather than publish a partial tree.
+          NodeMaterializationResult missingPlan = {0, false, true};
+          return missingPlan;
         }
 
         Node *node = def->create();
@@ -297,6 +264,17 @@ namespace loka
 
         NodeMaterializationResult result = {node, false, false};
 
+        ComponentContext childContext(context);
+        IStateOwner *owner = node->asStateOwner();
+        if (owner)
+        {
+          if (!owner->attachStateOwner(context.boundary(), context.stateOwner()))
+          {
+            result.allocationFailed = true;
+            return result;
+          }
+          childContext.setStateOwner(owner);
+        }
         INestableDefinition *nestableDef = def->asNestableDefinition();
         INestable *nestableNode = node->asNestable();
 
@@ -305,11 +283,7 @@ namespace loka
           NodeDefinitionBase *child = nestableDef->childrenHead();
           while (child)
           {
-            NodeMaterializationResult childResult = createNodeRecursive(child,
-                                                                        autoIdCounter,
-                                                                        boundary,
-                                                                        node,
-                                                                        registrations);
+            NodeMaterializationResult childResult = createNodeRecursive(child, autoIdCounter, childContext);
             result.allocationFailed = result.allocationFailed || childResult.allocationFailed;
             result.requiresBoundaryPlan =
                 result.requiresBoundaryPlan || childResult.requiresBoundaryPlan;
@@ -468,20 +442,15 @@ namespace loka
           }
         }
 
-        // Fallback without arena. The boundary here is always null (the
-        // with-context arena path above returns whenever context_->boundary()
-        // is non-null), so this contextless path never touches a boundary's
-        // seat/arena state — the branch-seat plan lookup and materialized-seat
-        // registration in createNodeRecursive stay disabled exactly as on main.
-        // The completed result carries any allocation or boundary-plan
-        // refusal instead, without a boundary being involved.
+        ComponentContext fallbackContext;
+        return NodeComposition::createNodeWithoutArenaResult(root, context_ ? *context_ : fallbackContext);
+      }
+
+      NodeMaterializationResult NodeComposition::createNodeWithoutArenaResult(NodeDefinitionBase *definition,
+                                                                              ComponentContext &context)
+      {
         long autoIdCounter = 1;
-        BoundaryNode *boundary = context_ ? context_->boundary() : 0;
-        return createNodeRecursive(root,
-                                   autoIdCounter,
-                                   boundary,
-                                   boundary,
-                                   this->branchSeatRegistrations_);
+        return createNodeRecursive(definition, autoIdCounter, context);
       }
 
       BoundaryNode *NodeComposition::boundary() const

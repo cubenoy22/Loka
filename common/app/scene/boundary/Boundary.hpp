@@ -1006,34 +1006,30 @@ namespace loka
               liveNode, previousDefinition, currentDefinition);
         }
 
-        /** Materializes a fresh node during a local rebuild through a
-            contextless temporary composition (intentional: the diff must not
-            re-enter the arena/context). Because that composition has no
-            ComponentContext, node materialization cannot reach this boundary
-            on its own. We consume the completed materialization result here:
-            its refusal flags are the monotonic OR across the whole subtree,
-            and let this boundary (this IS the owning boundary) route a
-            refusal into the projection-failure terminal the context-carrying
-            paths use. The composition still carries no ComponentContext and
-            no boundary, so
-            the branch-seat plan lookup / materialized-seat registration inside
-            createNodeRecursive stay disabled exactly as on main — the only new
-            effect is the completed value being returned. */
-        Node *materializeLocalRebuildNode(NodeDefinitionBase *definition)
+        /** Local rebuilds allocate heap nodes but retain the caller's logical
+            owner and this Boundary's storage/lifetime context. Refusal never
+            yields a publishable partial root. */
+        Node *materializeLocalRebuildNode(ComponentContext &context, NodeDefinitionBase *definition)
         {
-          NodeComposition composition;
+          ComponentContext materializationContext(context);
+          materializationContext.setBoundary(this);
+          if (!materializationContext.stateOwner())
+            materializationContext.setStateOwner(this);
           NodeMaterializationResult result =
-              composition.createNodeFromDefinitionResult(definition);
+              NodeComposition::createNodeWithoutArenaResult(definition, materializationContext);
           if (result.requiresBoundaryPlan)
-          {
             this->noteComposeBoundaryPlanRequired();
-          }
-          else if (!result.root || result.allocationFailed)
-          {
+          if (!result.root || result.allocationFailed)
             this->noteComposeAllocationFailure();
+          if (result.requiresBoundaryPlan || result.allocationFailed || !result.root)
+          {
+            if (result.root)
+              this->retireSeatBranchRoot(materializationContext, result.root);
+            return 0;
           }
           return result.root;
         }
+
       protected:
         /** Applies scheduled seats, then walks this boundary's children once. */
         void updateCompositionChildren(ComponentContext &context)
@@ -1327,7 +1323,7 @@ namespace loka
               }
               else
               {
-                created = this->materializeLocalRebuildNode(effectiveDefinition);
+                created = this->materializeLocalRebuildNode(context, effectiveDefinition);
               }
               if (!created)
               {
@@ -2033,14 +2029,12 @@ namespace loka
           }
 
           IStateOwner *nodeStateOwner = node->asStateOwner();
-          if (nodeStateOwner && nodeStateOwner != boundary)
+          if (nodeStateOwner && event != COMPOSE_EVENT_DETACH
+              && !nodeStateOwner->attachStateOwner(currentBoundary, parentContext.stateOwner()))
           {
-            nodeStateOwner->attachEnclosingBoundary(currentBoundary);
-          }
-          if (nodeStateOwner && event != COMPOSE_EVENT_DETACH)
-          {
-            nodeStateOwner->attachEnclosingHoldOwner(
-                parentContext.stateOwner());
+            if (currentBoundary)
+              currentBoundary->noteStateAllocationFailure();
+            return;
           }
 
           if (boundary && event == COMPOSE_EVENT_DETACH)

@@ -760,6 +760,11 @@ namespace loka
                                                                  Node *runtimeParent = 0,
                                                                  BoundaryBranchSeatState *seatScope = 0) const;
 
+        /** Materialize nodes on the heap while retaining explicit state-owner
+            context. No arena reservation or branch-seat publication occurs. */
+        static NodeMaterializationResult createNodeWithoutArenaResult(NodeDefinitionBase *definition,
+                                                                      ComponentContext &context);
+
         /** Give a declaration its own branch root even when the authored root
             is itself a dissolved seat. Transfer the stored definition; do not
             clone the subtree a second time. */
@@ -779,7 +784,7 @@ namespace loka
         }
 
         friend class BranchSeatDeclaration;
-        template <class K, class NodeT> friend class LazyScopeDefinition;
+        friend class GenerationDeclaration;
         friend class BoundaryNode;
         friend struct testing::NodeCompositionTestAccess;
         static NodeComposition *current_;

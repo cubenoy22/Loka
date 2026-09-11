@@ -62,6 +62,23 @@ namespace loka
           (void)boundary;
         }
 
+        /** Effective storage provider. Boundary and generation owners terminate
+            the route; forwarding owners return their already flattened borrow.
+            Null means unbound and forbids both allocation doors. */
+        virtual IStateOwner *stateStorageOwner()
+        {
+          return this;
+        }
+
+        /** Attach all owner relationships before connecting state registrations.
+            False refuses materialization in every build. */
+        virtual bool attachStateOwner(BoundaryNode *boundary, IStateOwner *parent)
+        {
+          this->attachEnclosingBoundary(boundary);
+          this->attachEnclosingHoldOwner(parent);
+          return true;
+        }
+
         void attachEnclosingHoldOwner(IStateOwner *owner)
         {
           core::HoldLedger *ledger = this->holdLedger();

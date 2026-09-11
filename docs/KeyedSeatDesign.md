@@ -15,9 +15,11 @@ snapshot, definitions, and nested seat plans. A fresh candidate owns those same
 facts separately until materialization succeeds. Failure preserves the current
 branch and key snapshot, so a later external update can retry the current key.
 
-The seat window uses a separate NodeComposition and the current boundary or
-Section state owner. It never opens the boundary's declaring window: boundary
-composition and bindings persist. Nodes created beneath the candidate still
+The seat window uses a separate NodeComposition and a runtime generation state
+owner. States created inside a Keyed/LazyScope runtime generation use the tagged
+heap state gate; a Section stays their logical owner; Boundary-lifetime states
+and Sections outside such generations keep the StateArena. It never opens the
+boundary's declaring window: boundary composition and bindings persist. Nodes created beneath the candidate still
 open their ordinary binding windows at attach. The declarer supplies a root
 with `c.declare`; the declaration encloses that definition in a Fragment so a
 nested seat can switch its root without changing the outer seat's root identity.
@@ -116,8 +118,11 @@ generation through the existing retirement clock.
 
 Constructor state declarations queue registrations; the candidate window
 connects them to the root's concrete inner owner before bindings and declareScope.
-An allocation refusal records LAZY_SCOPE_STATES_REFUSED and rejects the candidate,
-preserving the committed arm and key snapshot. No attach-time declaration commits
+A refusal of those root-owned registrations records LAZY_SCOPE_STATES_REFUSED
+and rejects the candidate,
+preserving the committed arm and key snapshot. A descendant Section reports its
+allocation refusal to the enclosing Boundary without changing the generation
+root's status. No attach-time declaration commits
 structure. The completed declaration supplies its prepared root at materialization.
 Nested seat plans live in that declaration, and runtime rows live in the enclosing
 Boundary. Discovery, source registration, replacement, and scope retirement use

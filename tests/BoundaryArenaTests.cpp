@@ -1507,8 +1507,13 @@ namespace
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
-      composition.declare(loka::app::Fragment() << loka::app::Keyed(
-                              *this->showSection_.state(), this, &SectionOwnerResolutionRootNode::declareContent));
+      // Only the retirement scenario needs a replaceable generation. The
+      // other scenarios pin Boundary-lifetime owner and arena routing.
+      if (g_sectionOwnerResolutionScenario->mode == SectionOwnerResolutionScenario::MODE_RETIRE_WHILE_DIRTY_SOURCE)
+        composition.declare(loka::app::Fragment() << loka::app::Keyed(
+                                *this->showSection_.state(), this, &SectionOwnerResolutionRootNode::declareContent));
+      else
+        this->declareContent(composition);
     }
 
     void declareContent(loka::app::scene::NodeComposition &composition)
@@ -2670,7 +2675,8 @@ void testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement()
 
     assert(oldValueAlive == 1);
     assert(oldState.isValid());
-    assert(oldState.dangerouslyMutableState()->isArenaAllocated());
+    assert(!oldState.dangerouslyMutableState()->isArenaAllocated());
+    assert(oldState.dangerouslyMutableState()->isGateAllocated());
 
     // A different value key creates a fresh Section and retires the old one.
     {

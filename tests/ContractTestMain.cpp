@@ -1,3 +1,4 @@
+#include "KeyedGenerationStorageTests.hpp"
 #include "ObservableListTests.hpp"
 #include "CanvasLayoutTests.hpp"
 #include "LazyScopeTests.hpp"
