@@ -1,3 +1,7 @@
+#include "platform/null/NullWindow.hpp"
+#include "testing/core/StateTrackerTestAccess.hpp"
+#include "testing/app/ComposableNodeTestAccess.hpp"
+#include "testing/scene/SceneTestFlow.hpp"
 #include "SceneOwnershipTests.hpp"
 #include "support/TestVerify.hpp"
 #include <cassert>
@@ -948,7 +952,7 @@ void testAppWindowReclaimDrainsRetiredScenesExactlyOnce()
   WindowRetirementTestApp app;
   app.install(window);
 
-  assert(window->sceneManager()->hasRetiredScenes());
+  LOKA_VERIFY(window->sceneManager()->hasRetiredScenes());
   app.requestWindowClose(window);
   assert(retiredSceneDestructions == 0);
   assert(currentSceneDestructions == 0);
@@ -1032,4 +1036,93 @@ void testAppDrainsPendingWindowClosuresAtDestruction()
   assert(g_windowRetirementWindowsAlive == 0);
 
   printf("==== [testAppDrainsPendingWindowClosuresAtDestruction] end ====\n");
+}
+
+namespace
+{
+  class SceneCensusProbe : public loka::app::scene::Scene
+  {
+  public:
+    explicit SceneCensusProbe(const char *label)
+        : loka::app::scene::Scene(loka::app::Button(label).clone())
+    {
+      ++g_sceneOwnershipScenesAlive;
+    }
+    virtual ~SceneCensusProbe() { --g_sceneOwnershipScenesAlive; }
+  };
+
+  size_t SceneRootUiCallbackCount(const loka::app::scene::Scene &scene)
+  {
+    loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+    // A replacement is not mounted on this rail yet (#657). An absent root
+    // owns zero callbacks; the census must report that baseline faithfully.
+    return root ? loka::app::scene::ComposableNodeTestAccess::uiCallbackCount(
+                      *root->asComposable()) : 0;
+  }
+
+  struct SceneRoundTripCensus
+  {
+    explicit SceneRoundTripCensus(NullWindow &window)
+        : scenes(g_sceneOwnershipScenesAlive),
+          handles(window.scenePlatformController()->createdCount() -
+                  window.scenePlatformController()->disposedCount()),
+          callbacks(SceneRootUiCallbackCount(*window.scene()))
+    {
+    }
+    const int scenes;
+    const unsigned long handles;
+    const size_t callbacks;
+  };
+
+  void RunSceneCensusRoundTrip(NullWindow *window)
+  {
+    window->sceneManager()->commitTransaction(window->scene(), new SceneCensusProbe("Two"));
+    window->flushSceneInvalidation();
+    window->flushSceneInvalidation();
+    window->sceneManager()->commitTransaction(window->scene(), new SceneCensusProbe("One"));
+    window->flushSceneInvalidation();
+    window->flushSceneInvalidation();
+  }
+
+  void VerifySceneCensusIntake(const loka::core::PushStateTracker &tracker)
+  {
+    typedef loka::core::testing::PushStateTrackerTestAccess Access;
+    LOKA_VERIFY(Access::nextDirtyCount(tracker) == 0);
+    LOKA_VERIFY(Access::nextDeferredCount(tracker) == 0);
+  }
+}
+
+void testSceneReplacementRoundTripReturnsCensusToBaseline()
+{
+  LOKA_VERIFY(g_sceneOwnershipScenesAlive == 0);
+  WindowCreatingPlatformContext context;
+  WindowProps props;
+  props.scene(new SceneCensusProbe("One"));
+  NullWindow *window = new NullWindow(&context, props);
+  window->flushSceneInvalidation();
+  LOKA_VERIFY(window->scenePlatformController()->createdCount() > 0);
+  RunSceneCensusRoundTrip(window);
+  const SceneRoundTripCensus baseline(*window);
+  printf("P1 baseline: scenes=%d handles=%lu callbacks=%lu retired=%lu window current=%lu next=%lu deferred=%lu manager current=%lu next=%lu deferred=%lu\n",
+         baseline.scenes, baseline.handles, static_cast<unsigned long>(baseline.callbacks),
+         static_cast<unsigned long>(window->sceneManager()->retiredSceneCount()),
+         static_cast<unsigned long>(loka::core::testing::PushStateTrackerTestAccess::currentDirtyCount(*window->getTracker()->asPushTracker())),
+         static_cast<unsigned long>(loka::core::testing::PushStateTrackerTestAccess::nextDirtyCount(*window->getTracker()->asPushTracker())),
+         static_cast<unsigned long>(loka::core::testing::PushStateTrackerTestAccess::nextDeferredCount(*window->getTracker()->asPushTracker())),
+         static_cast<unsigned long>(loka::core::testing::PushStateTrackerTestAccess::currentDirtyCount(loka::app::testing::SceneManagerTestAccess::tracker(*window->sceneManager()))),
+         static_cast<unsigned long>(loka::core::testing::PushStateTrackerTestAccess::nextDirtyCount(loka::app::testing::SceneManagerTestAccess::tracker(*window->sceneManager()))),
+         static_cast<unsigned long>(loka::core::testing::PushStateTrackerTestAccess::nextDeferredCount(loka::app::testing::SceneManagerTestAccess::tracker(*window->sceneManager()))));
+  for (int round = 1; round < 8; ++round)
+  {
+    RunSceneCensusRoundTrip(window);
+    const SceneRoundTripCensus actual(*window);
+    LOKA_VERIFY(actual.scenes == baseline.scenes);
+    LOKA_VERIFY(actual.handles == baseline.handles);
+    LOKA_VERIFY(actual.callbacks == baseline.callbacks);
+    LOKA_VERIFY(window->sceneManager()->retiredSceneCount() == 0);
+    VerifySceneCensusIntake(*window->getTracker()->asPushTracker());
+    VerifySceneCensusIntake(loka::app::testing::SceneManagerTestAccess::tracker(*window->sceneManager()));
+  }
+  delete window;
+  LOKA_VERIFY(g_sceneOwnershipScenesAlive == 0);
 }

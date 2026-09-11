@@ -20,6 +20,7 @@ public:
                                  unsigned long editMisses,
                                  unsigned long editEvicts,
                                  int editDepth,
+                                 int scrollBarDepth,
                                  int intakeAuditFails);
   std::string summary() const;
   void reset();
@@ -104,6 +105,7 @@ public:
   unsigned long editPoolMissCount;
   unsigned long editPoolEvictCount;
   int editPoolDepth;
+  int scrollBarPoolDepth;
   int poolIntakeAuditFailCount;
 };
 
