@@ -71,6 +71,9 @@ This is the core of Loka.
 For a first walkthrough, read [First Example: Counter](#11-first-example-counter)
 and [Toggle UI Driven By State](#12-toggle-ui-driven-by-state), then follow the
 same logical UI into [Platform Projection](#16-platform-projection).
+For larger applications, continue with [Flow](#9-flow),
+[Boundary-First Ownership](#5-boundary-first-ownership), and
+[Scope Of Responsibility](#24-scope-of-responsibility).
 
 ## 1. Basic Philosophy
 
@@ -151,6 +154,11 @@ from another state, prefer deriving it over introducing another mutable owner.
 `Boundary` is also a kind of `Node`, but it adds ownership and update scope. A
 Boundary owns state storage, state tracking, composition/update boundaries, and
 resource lifetime decisions associated with its subtree.
+
+A Boundary need not correspond to a native view or control. It can be a
+headless logical scope, so counting Boundaries does not tell you how many native
+objects the platform will create. Its role is to make ownership and update
+responsibility local and inspectable.
 
 Conceptually:
 
@@ -313,6 +321,31 @@ The common routes are:
 Avoid passing raw `MutableState<T>*` across unrelated components as a mutation
 channel. It makes the dependency graph flat and hard to debug.
 
+### Choose The Owner Before Passing The State
+
+Choose a parent owner when a value must survive replacement of a child or
+keep the whole screen consistent. A window-wide search string or selected item
+are examples. Application-wide settings need an owner with application-wide
+lifetime. For the shared/local distinction, see the
+[ownership patterns](#20-patterns).
+
+A parent can group the inputs its child borrows:
+
+```cpp
+struct ChildRefs
+{
+  loka::core::State<loka::core::String> *title_;
+  loka::core::State<bool> *enabled_;
+  loka::core::EmitterState *clicked_;
+};
+```
+
+The child reads the values and emits the event. These references do not transfer
+ownership; their owner must outlive their use. If a reference points at a
+temporary State while the child remains alive, a working update path does not
+make the lifetime safe. Decide whose fact it is and how long it must survive
+before deciding where to allocate it.
+
 ### `currentBoundary()`
 
 `currentBoundary()` is an owner-side path. It is for code operating on the
@@ -395,6 +428,22 @@ can see what changed and decide what to update.
 
 In ordinary code, prefer RAII guard helpers instead of manually opening and
 closing transactions.
+
+The tracker groups writes, remembers dirty state, and settles dependent
+recomputation before running deferred side effects for that transaction. Use a
+guard around related writes in an owner method. For example, with `count_` and
+`label_` declared as local `NodeState` members:
+
+```cpp
+loka::core::StateTrackerGuard guard(this->tracker());
+this->count_.set(this->count_.get() + 1);
+this->label_.set(loka::core::String::Literal("Updated"));
+```
+
+Deferred work is useful when an effect should see the settled values rather
+than an intermediate write. See
+[`StateTrackerGuard.hpp`](../common/core/util/StateTrackerGuard.hpp) and
+[`StateTracker.cpp`](../common/core/StateTracker.cpp) for transaction handling.
 
 Future versions should expose better error/result handling for failed or
 looping updates so Flow can react to state update failures without relying on
@@ -638,6 +687,22 @@ State tracking is owned by Boundary.
 Projection carries the logical result into native controls.
 ```
 
+### Nested Boundaries
+
+The parent places a child Boundary as a Node; the child owns its internal state
+and tracking. Application code in the parent should use the child's declared
+inputs and outward results rather than inspect the child's internal nodes to
+decide how to update it.
+
+The child reports dirty/layout/paint results for projection. This lets the
+surrounding layout respond to a child's changed size without making the parent
+application code depend on the reason for that change. See
+[`Boundary.hpp`](../common/app/scene/boundary/Boundary.hpp) for the update result
+and layout-bounds surface.
+
+For choosing the smallest composition scope, see
+[DSL And Composition](#14-dsl-and-composition).
+
 ### `Show()`
 
 `Show()` should be understood as an attach/detach mechanism rather than merely
@@ -778,6 +843,10 @@ LazyScope generation replacement; the kernel has no recompose door.
 `Props` is the full API surface. `Definition` setters are shorthand for common
 DSL callsites.
 
+Read Props as the Node's public inputs: the live state it reads, events it uses,
+constant settings, and references needed to construct it. That surface shows
+what the child needs and how much it depends on its parent.
+
 Do not duplicate every field as a shorthand setter. For uncommon or advanced
 fields, construct `Props` explicitly.
 
@@ -788,7 +857,9 @@ Constant props and live state must stay distinct:
 - platform code should bind only values that the logical layer classified as
   live state
 
-This avoids turning every literal into a global or shared `State<T>`.
+This avoids turning every literal into a global or shared `State<T>`. Fixed
+menu items and unchanging configuration also belong in Props or Definitions;
+only inputs that actually change need live State.
 
 ### Fixed-Cell Layout
 
@@ -1010,6 +1081,18 @@ composition because it keeps this ownership transfer structural.
 Loka shares ideas with modern declarative UI frameworks, but it is not trying to
 copy their runtime model.
 
+These rough correspondences can help with the first reading:
+
+| Familiar concept | Loka starting point |
+|---|---|
+| React state / `useState` | `MutableState<T>` |
+| Solid.js signal | `State<T>` and `MutableState<T>` |
+| SwiftUI / Compose local state | `NodeState<T>` |
+| UI event callback | `EmitterState` |
+| Computed value | `DerivedState<T>` |
+
+These are conceptual analogies, not equivalent runtime or lifetime contracts.
+
 Key differences:
 
 - Loka does not rely on garbage collection.
@@ -1046,6 +1129,10 @@ caches.
 
 ## 23. First Instincts To Build
 
+You do not need to understand every Boundary or tracker internal to begin.
+Start with the [state types](#4-main-state-types) and
+[transaction rule](#8-statetracker), and establish an owner for each fact.
+
 When writing Loka code, ask:
 
 1. What is the application fact?
@@ -1057,7 +1144,27 @@ When writing Loka code, ask:
 
 If the answer is unclear, the API or design is probably too vague.
 
-## 24. What To Read Next
+## 24. Scope Of Responsibility
+
+Loka builds logical UI and state transitions and projects them into native
+platform behavior. An application can keep specialized video/audio processing,
+a document model, or a DOM-like editing core in another library or layer, then
+use Loka for the state-driven UI above it. Choosing Loka does not require those
+specialized engines to become part of the framework.
+
+Native projection also means that detailed text-editing and control behavior
+can depend on the target OS and its constraints.
+
+### Modern Technology At The Application Edge
+
+The portable framework keeps its C++98 baseline so the same application model
+can reach older systems. Consumer applications targeting modern systems can
+combine it with modern C++ or Swift in their application, use-case, or domain
+layers. Keep that integration at a clear boundary so it does not impose a
+modern-only dependency on the portable core. See
+[Modern Code Is Welcome At The Edges](../PHILOSOPHY.md#modern-code-is-welcome-at-the-edges).
+
+## 25. What To Read Next
 
 After this guide, read:
 
