@@ -104,10 +104,10 @@ namespace loka
         {
           return this;
         }
-        /** Whether this boundary's composition strategy owns child UPDATE
-            traversal, including the decision to skip it. Custom boundaries
+        /** Whether this boundary's composition strategy owns child traversal for
+            this event, including the decision to skip it. Custom boundaries
             default to the generic composeTree child walk. */
-        virtual bool ownsChildUpdateTraversal() const
+        virtual bool ownsChildTraversal(ComposeEvent) const
         {
           return false;
         }
@@ -2123,8 +2123,7 @@ namespace loka
           {
             contextForChildren = &nodeContext;
           }
-          if (!nestable || (boundary && event == COMPOSE_EVENT_UPDATE &&
-                            boundary->ownsChildUpdateTraversal()))
+          if (!nestable || (boundary && boundary->ownsChildTraversal(event)))
           {
             if (event == COMPOSE_EVENT_DETACH && nodeStateOwner)
             {

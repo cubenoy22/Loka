@@ -25,10 +25,10 @@ namespace loka
         }
         virtual ~StdCompositionBoundaryNodeBase() {}
 
-        /** UPDATE evaluates seats and walks children inside composeWithContext. */
-        virtual bool ownsChildUpdateTraversal() const
+        /** ATTACH builds and walks children; UPDATE evaluates seats and walks them. */
+        virtual bool ownsChildTraversal(ComposeEvent event) const
         {
-          return true;
+          return event == COMPOSE_EVENT_ATTACH || event == COMPOSE_EVENT_UPDATE;
         }
 
         // Build node definitions into composition container (default: no children)

@@ -63,10 +63,10 @@ namespace loka
         }
         virtual ~RootBoundaryWrapper() {}
 
-        /** The plain-root wrapper owns the same child UPDATE walk as Std. */
-        virtual bool ownsChildUpdateTraversal() const
+        /** The plain-root wrapper owns child traversal on ATTACH and UPDATE. */
+        virtual bool ownsChildTraversal(ComposeEvent event) const
         {
-          return true;
+          return event == COMPOSE_EVENT_ATTACH || event == COMPOSE_EVENT_UPDATE;
         }
 
       protected:

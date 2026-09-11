@@ -1249,6 +1249,67 @@ void testDirectRootKeyedReplacementAttachesBeforeUpdatingLeaf()
   LOKA_VERIFY(incoming.attaches == 1 && incoming.updates == 1);
 }
 
+namespace
+{
+  struct KeyedNestedWalkArm
+      : StdCompositionBoundaryNodeBase<KeyedRootWalkProps<KeyedNestedWalkArm> >
+  {
+    typedef KeyedRootWalkProps<KeyedNestedWalkArm> Props;
+    explicit KeyedNestedWalkArm(const Props &p) : StdCompositionBoundaryNodeBase<Props>(p) {}
+    virtual void composeNode(NodeComposition &composition)
+    {
+      composition.declare(NodeDefinition<KeyedRootWalkProps<KeyedRootWalkLeaf>, KeyedRootWalkLeaf>(
+          KeyedRootWalkProps<KeyedRootWalkLeaf>(this->props.record)));
+    }
+  };
+
+  struct KeyedNestedWalkRoot
+      : StdCompositionBoundaryNodeBase<KeyedRootWalkProps<KeyedNestedWalkRoot> >
+  {
+    typedef KeyedRootWalkProps<KeyedNestedWalkRoot> Props;
+    explicit KeyedNestedWalkRoot(const Props &p) : StdCompositionBoundaryNodeBase<Props>(p) {}
+    virtual void composeNode(NodeComposition &composition)
+    {
+      composition.declare(loka::app::Keyed(this->props.record->key, this,
+                                          &KeyedNestedWalkRoot::declareArm));
+    }
+    void declareArm(NodeComposition &composition)
+    {
+      composition.declare(Boundary<KeyedNestedWalkArm>(KeyedNestedWalkArm::Props(this->props.record)));
+    }
+  };
+}
+
+void testDirectRootKeyedNestedBoundaryAttachesLeafOnce()
+{
+  KeyedRootWalkRecord record;
+  NullScenePlatformController platform;
+  Scene scene(new BoundaryDefinition<KeyedNestedWalkRoot::Props, KeyedNestedWalkRoot>(
+      KeyedNestedWalkRoot::Props(&record)));
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  std::fprintf(stderr, "nested arm initial mount: ATTACH = %d, UPDATE = %d\n",
+               record.leaves[0].attaches, record.leaves[0].updates);
+  LOKA_VERIFY(record.leaves[0].constructions == 1 && record.leaves[1].constructions == 0);
+
+  setMatchState(record.key, 1);
+  if (scene.hasPendingInvalidation())
+    scene.flushInvalidation();
+  const KeyedRootLeafEvents &incoming = record.leaves[1];
+  std::fprintf(stderr, "nested arm replacement: ATTACH = %d, UPDATE = %d\n",
+               incoming.attaches, incoming.updates);
+  LOKA_VERIFY(incoming.constructions == 1);
+  LOKA_VERIFY(incoming.attaches == 1 && incoming.updates == 0);
+  LOKA_VERIFY(record.leaves[0].attaches == 1 && record.leaves[0].updates == 0);
+
+  scene.requestInvalidate(NODE_DIRTY_CHILD);
+  LOKA_VERIFY(scene.flushInvalidation());
+  std::fprintf(stderr, "nested arm next refresh: ATTACH = %d, UPDATE = %d\n",
+               incoming.attaches, incoming.updates);
+  LOKA_VERIFY(incoming.constructions == 1);
+  LOKA_VERIFY(incoming.attaches == 1 && incoming.updates == 1);
+}
+
 /** Characterization: CHILD dirt alone cannot redeclare a plain root. */
 void testPlainRootChildDirtWithoutSeatOnlyWalks()
 {
