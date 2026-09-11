@@ -8,6 +8,8 @@
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
 #include "app/nodes/nestable/Show.hpp"
+#include "app/nodes/nestable/Match.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/node/ComponentNode.hpp"
 #include "core/State.hpp"
@@ -565,6 +567,103 @@ void testAttachNodeReplayRestoresParkedBranchBindings()
                 "declareBindings restores the parked node's callback");
   }
   g_attachReplayScenario = 0;
+}
+
+namespace
+{
+  class NestedReplayBoundary : public loka::app::scene::BoundaryNodeFor<NestedReplayBoundary>
+  {
+  public:
+    explicit NestedReplayBoundary(const loka::app::scene::BoundaryPropsFor<NestedReplayBoundary> &p)
+        : loka::app::scene::BoundaryNodeFor<NestedReplayBoundary>(p) {}
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::scene::NodeDefinition<GuardedAttachComponentProps, GuardedAttachComponentNode>
+          guarded = loka::app::scene::Component(GuardedAttachComponentProps());
+      loka::app::scene::NodeDefinition<UnguardedAttachComponentProps, UnguardedAttachComponentNode>
+          unguarded = loka::app::scene::Component(UnguardedAttachComponentProps());
+      guarded.setTestId("nested-guarded");
+      unguarded.setTestId("nested-unguarded");
+      composition.declare(loka::app::Fragment() << guarded << unguarded);
+    }
+  };
+
+  template <bool UseMatch> class NestedReplayRootNode : public AttachReplayRootNode
+  {
+  public:
+    explicit NestedReplayRootNode(const AttachReplayRootProps &p) : AttachReplayRootNode(p) {}
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      if (UseMatch)
+        composition.declare(loka::app::Match(g_attachReplayScenario->visible)
+            .arm(true, loka::app::scene::Boundary<NestedReplayBoundary>())
+            .arm(false, loka::app::Fragment()));
+      else
+        composition.declare(loka::app::Show(g_attachReplayScenario->visible)
+            << loka::app::scene::Boundary<NestedReplayBoundary>());
+    }
+  };
+
+  template <bool UseMatch> void verifyNestedBoundaryParkedReplay()
+  {
+    using namespace loka::app::scene;
+    AttachReplayScenario scenario;
+    g_attachReplayScenario = &scenario;
+    {
+      NullScenePlatformController platform;
+      Scene scene((Boundary<NestedReplayRootNode<UseMatch> >(AttachReplayRootProps())));
+      scene.mount(&platform);
+      scene.updateAttached(true);
+      Node *guarded = 0;
+      Node *unguarded = 0;
+      loka::dsl::FlowError error;
+      LOKA_VERIFY(loka::dsl::testing::LookupNodeById<Node>(&scene, "nested-guarded", guarded, error)
+                  == loka::dsl::FLOW_STEP_SUCCEEDED);
+      LOKA_VERIFY(loka::dsl::testing::LookupNodeById<Node>(&scene, "nested-unguarded", unguarded, error)
+                  == loka::dsl::FLOW_STEP_SUCCEEDED);
+      LOKA_VERIFY(scenario.guardedAttaches == 1 && scenario.guardedConstructions == 1);
+      scenario.guardedEmitter.emit();
+      scenario.unguardedEmitter.emit();
+      LOKA_VERIFY(scenario.guardedCalls == 1 && scenario.unguardedCalls == 1);
+
+      {
+        loka::core::StateTrackerGuard transaction(scenario.visible.trackerOwner());
+        scenario.visible.set(false);
+      }
+      LOKA_VERIFY(scene.flushInvalidation());
+      const bool bothParked = guarded->lifecycleFact() == NODE_FACT_DETACHED_RETAINED &&
+                              unguarded->lifecycleFact() == NODE_FACT_DETACHED_RETAINED;
+      LOKA_VERIFY(bothParked);
+
+      {
+        loka::core::StateTrackerGuard transaction(scenario.visible.trackerOwner());
+        scenario.visible.set(true);
+      }
+      LOKA_VERIFY(scene.flushInvalidation());
+      std::fprintf(stderr, "%s nested parked replay: attaches=%d, guarded fact=%d, unguarded fact=%d\n",
+                   UseMatch ? "Match" : "Show", scenario.guardedAttaches,
+                   static_cast<int>(guarded->lifecycleFact()), static_cast<int>(unguarded->lifecycleFact()));
+      LOKA_VERIFY(scenario.guardedConstructions == 1);
+      LOKA_VERIFY(scenario.guardedAttaches == 2);
+      const bool bothAttached = guarded->lifecycleFact() == NODE_FACT_ATTACHED &&
+                                unguarded->lifecycleFact() == NODE_FACT_ATTACHED;
+      LOKA_VERIFY(bothAttached);
+      scenario.guardedEmitter.emit();
+      scenario.unguardedEmitter.emit();
+      LOKA_VERIFY(scenario.guardedCalls == 2 && scenario.unguardedCalls == 2);
+    }
+    g_attachReplayScenario = 0;
+  }
+}
+
+void testShowReentryReplaysAttachBelowParkedStdBoundary()
+{
+  verifyNestedBoundaryParkedReplay<false>();
+}
+
+void testMatchReentryReplaysAttachBelowParkedStdBoundary()
+{
+  verifyNestedBoundaryParkedReplay<true>();
 }
 
 void testPropsSuppliedEmitterBindingFollowsDefinitionRecompose()

@@ -25,6 +25,12 @@ namespace loka
         }
         virtual ~StdCompositionBoundaryNodeBase() {}
 
+        /** ATTACH builds or replays children; UPDATE evaluates seats and walks them. */
+        virtual bool ownsChildTraversal(ComposeEvent event) const
+        {
+          return event == COMPOSE_EVENT_ATTACH || event == COMPOSE_EVENT_UPDATE;
+        }
+
         // Build node definitions into composition container (default: no children)
         // Making this non-pure allows instantiation via NodeDefinition<StdCompositionProps, StdCompositionNode>
         virtual void composeNode(NodeComposition &c)
@@ -60,6 +66,7 @@ namespace loka
           }
           if (composed_)
           {
+            this->composeOwnedChildren(context, event);
             return;
           }
           this->clearChildren();

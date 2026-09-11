@@ -2,6 +2,8 @@
 #define LOKA_TESTS_ATTACH_NODE_CONTRACT_TESTS_HPP
 
 void testAttachNodeReplayRestoresParkedBranchBindings();
+void testShowReentryReplaysAttachBelowParkedStdBoundary();
+void testMatchReentryReplaysAttachBelowParkedStdBoundary();
 void testPropsSuppliedEmitterBindingFollowsDefinitionRecompose();
 void testDisarmedBindingTokenRefusesOutsideDeclaration();
 

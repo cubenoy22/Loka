@@ -6,10 +6,8 @@ for a published release, read this file at that release's tag.
 This guide explains how to write Loka applications and how to think about
 Loka's state, ownership, composition, and platform projection model.
 
-This is the canonical guide. The former Japanese edition is archived at
-[archives/ProgrammingGuide.ja.md](archives/ProgrammingGuide.ja.md) and is not
-maintained; its remaining Japanese-only chapters are being carried into this
-guide.
+This is the canonical guide; the former Japanese edition has been carried into
+it and removed.
 
 ## Introduction
 

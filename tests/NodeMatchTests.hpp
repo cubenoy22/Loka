@@ -27,6 +27,10 @@ void testKeyedComposeWriteRetainsSeatDirtyClassification();
 void testKeyedOutgoingSeatSourceRemainsObservedByOrdinaryNode();
 
 void testPlainRootMatchUpdateComposesOnceAndWalksChildrenOnce();
+void testNestedStdBoundaryUpdateWalksChildrenOnce();
+void testDoublyNestedStdBoundaryUpdateWalksChildrenOnce();
+void testDirectRootKeyedReplacementAttachesBeforeUpdatingLeaf();
+void testDirectRootKeyedNestedBoundaryAttachesLeafOnce();
 void testPlainRootChildDirtWithoutSeatOnlyWalks();
 
 #endif // LOKA_NODE_MATCH_TESTS_HPP
