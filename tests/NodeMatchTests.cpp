@@ -1154,6 +1154,101 @@ void testDoublyNestedStdBoundaryUpdateWalksChildrenOnce()
   verifyNestedBoundaryUpdateWalk<2>();
 }
 
+namespace
+{
+  /** Per-generation observations distinguish the incoming leaf from its predecessor. */
+  struct KeyedRootLeafEvents
+  {
+    KeyedRootLeafEvents() : constructions(0), attaches(0), updates(0) {}
+    int constructions;
+    int attaches;
+    int updates;
+  };
+
+  struct KeyedRootWalkRecord
+  {
+    KeyedRootWalkRecord() : key(0) {}
+    loka::core::MutableState<int> key;
+    KeyedRootLeafEvents leaves[2];
+  };
+
+  template <class NodeT> struct KeyedRootWalkProps : NodePropsBase<KeyedRootWalkProps<NodeT> >
+  {
+    typedef PlainRootTag<NodeT> TypeTag;
+    typedef NodeT NodeType;
+    explicit KeyedRootWalkProps(KeyedRootWalkRecord *value) : record(value) {}
+    bool operator<(const PropsBase &) const { return false; }
+    KeyedRootWalkRecord *record;
+  };
+
+  struct KeyedRootWalkLeaf : ComposableNode
+  {
+    typedef PlainRootTag<KeyedRootWalkLeaf> TypeTag;
+    explicit KeyedRootWalkLeaf(const KeyedRootWalkProps<KeyedRootWalkLeaf> &p)
+        : props(p), events_(p.record->leaves[p.record->key.get()])
+    {
+      ++this->events_.constructions;
+    }
+    virtual void composeWithContext(ComponentContext &, ComposeEvent event)
+    {
+      if (event == COMPOSE_EVENT_ATTACH)
+        ++this->events_.attaches;
+      else if (event == COMPOSE_EVENT_UPDATE)
+        ++this->events_.updates;
+    }
+    KeyedRootWalkProps<KeyedRootWalkLeaf> props;
+
+  private:
+    KeyedRootLeafEvents &events_;
+  };
+
+  struct KeyedRootWalkBoundary
+      : StdCompositionBoundaryNodeBase<KeyedRootWalkProps<KeyedRootWalkBoundary> >
+  {
+    typedef KeyedRootWalkProps<KeyedRootWalkBoundary> Props;
+    explicit KeyedRootWalkBoundary(const Props &p) : StdCompositionBoundaryNodeBase<Props>(p) {}
+    virtual void composeNode(NodeComposition &composition)
+    {
+      composition.declare(loka::app::Keyed(this->props.record->key, this,
+                                          &KeyedRootWalkBoundary::declareLeaf));
+    }
+    void declareLeaf(NodeComposition &composition)
+    {
+      composition.declare(NodeDefinition<KeyedRootWalkProps<KeyedRootWalkLeaf>, KeyedRootWalkLeaf>(
+          KeyedRootWalkProps<KeyedRootWalkLeaf>(this->props.record)));
+    }
+  };
+}
+
+void testDirectRootKeyedReplacementAttachesBeforeUpdatingLeaf()
+{
+  KeyedRootWalkRecord record;
+  NullScenePlatformController platform;
+  Scene scene(new BoundaryDefinition<KeyedRootWalkBoundary::Props, KeyedRootWalkBoundary>(
+      KeyedRootWalkBoundary::Props(&record)));
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  LOKA_VERIFY(record.leaves[0].constructions == 1 && record.leaves[0].attaches == 1);
+  LOKA_VERIFY(record.leaves[1].constructions == 0);
+
+  setMatchState(record.key, 1);
+  // State commit may apply the replacement synchronously before this drain.
+  if (scene.hasPendingInvalidation())
+    scene.flushInvalidation();
+  const KeyedRootLeafEvents &incoming = record.leaves[1];
+  std::fprintf(stderr, "direct-root Keyed replacement: ATTACH = %d, UPDATE = %d\n",
+               incoming.attaches, incoming.updates);
+  LOKA_VERIFY(incoming.constructions == 1);
+  LOKA_VERIFY(incoming.attaches == 1 && incoming.updates == 0);
+
+  scene.requestInvalidate(NODE_DIRTY_CHILD);
+  LOKA_VERIFY(scene.flushInvalidation());
+  std::fprintf(stderr, "direct-root Keyed next refresh: ATTACH = %d, UPDATE = %d\n",
+               incoming.attaches, incoming.updates);
+  LOKA_VERIFY(incoming.constructions == 1);
+  LOKA_VERIFY(incoming.attaches == 1 && incoming.updates == 1);
+}
+
 /** Characterization: CHILD dirt alone cannot redeclare a plain root. */
 void testPlainRootChildDirtWithoutSeatOnlyWalks()
 {
