@@ -59,7 +59,8 @@ private:
 
   void createNativeWindow();
   void destroyNativeWindow();
-  static void VisibilityChangedThunk(void *userData);
+  virtual bool hasPendingNativeVisibility() const;
+  virtual void applyNativeVisibility();
   static void TitleChangedThunk(void *userData);
   static void FrameChangedThunk(void *userData);
   virtual bool mountReplacementScene(loka::app::scene::Scene *next);

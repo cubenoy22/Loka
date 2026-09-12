@@ -104,7 +104,6 @@ MacWindow::MacWindow(PlatformContext *context, const WindowProps &props)
       closing_(false),
       scenePlatformController_(0)
 {
-  this->observeNativeState(this->visibilityState(), &MacWindow::VisibilityChangedThunk, this);
   this->observeNativeState(this->displayTitleState(), &MacWindow::TitleChangedThunk, this);
   this->observeNativeState(this->frameState(), &MacWindow::FrameChangedThunk, this);
 }
@@ -145,32 +144,30 @@ void MacWindow::setApp(App *app)
   }
 }
 
-void MacWindow::VisibilityChangedThunk(void *userData)
+// Deliberate counterpart of Win32Window's native-identity comparison.
+bool MacWindow::hasPendingNativeVisibility() const
 {
-  MacWindow *self = static_cast<MacWindow *>(userData);
-  if (!self)
+  return this->visibility_->get() != (this->window_ != nil);
+}
+
+void MacWindow::applyNativeVisibility()
+{
+  if (!this->hasPendingNativeVisibility())
   {
     return;
   }
-  bool visible = self->visibilityState().get();
-  if (visible)
+  if (this->visibility_->get())
   {
-    if (!self->window_)
+    this->createNativeWindow();
+    if (this->window_)
     {
-      self->createNativeWindow();
-    }
-    if (self->window_)
-    {
-      self->onShow();
+      this->onShow();
     }
   }
   else
   {
-    if (self->window_)
-    {
-      self->onHide();
-      self->destroyNativeWindow();
-    }
+    this->onHide();
+    this->destroyNativeWindow();
   }
 }
 
@@ -360,7 +357,16 @@ void MacWindow::destroyNativeWindow()
   {
     return;
   }
+  this->teardownScene();
+  // Like Win32's cleared GWLP_USERDATA, detach callback access before close.
+  [window setDelegate:nil];
+  [(LokaWindowDelegate *)this->delegate_ setOwner:0];
+  [(LokaFlippedView *)this->contentView_ setOwner:0];
   [window close];
+  // Preserve handleWindowWillClose's 10.6 native-release policy on hide too.
+  this->window_ = 0;
+  this->contentView_ = 0;
+  this->delegate_ = 0;
 }
 
 bool MacWindow::queryDisplayScalePercent(int &out) const
@@ -436,7 +442,7 @@ bool MacWindow::queryDisplayAppearance(DisplayAppearance &out) const
 
 void MacWindow::onCreate()
 {
-  // Native creation is entered from VisibilityChangedThunk; it reads the
+  // Native creation is entered from App admission; it reads the
   // application's intent and never writes it back (no forced re-notify).
   Window::onCreate();
 }
@@ -496,7 +502,7 @@ void MacWindow::handleWindowWillClose()
   {
     [(LokaFlippedView *)contentView setOwner:0];
   }
-  teardownScene();
+  // Closed fact only: App reclamation tears down the scene in ~MacWindow.
   this->onDestroy();
   window_ = 0;
   contentView_ = 0;

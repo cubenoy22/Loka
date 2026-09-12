@@ -35,6 +35,7 @@
 #include "MacMenuProjectionTests.hpp"
 #include "MacNodeHandlerEnsureTests.hpp"
 #include "MacScrollViewTests.hpp"
+#include "MacWindowAdmissionTests.hpp"
 #endif
 #include "DerivedStateTests.hpp"
 #include "WindowFrameStateTests.hpp"

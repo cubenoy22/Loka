@@ -71,16 +71,20 @@ the old scene remains installed. Preparation withholds global native projection;
 a refusal synchronously cleans the partial candidate, preserves the old scene,
 and leaves the desired identity for retry at the next admission. After candidate
 composition, preparation revalidates the Window's controller and native window;
-loss of a mounted rail uses the same refusal cleanup. On Null and Win32, visibility writes carry close/show intent only. App admission
+loss of a mounted rail uses the same refusal cleanup. On Null, Win32, and macOS,
+visibility writes carry close/show intent only. App admission
 compares visibility with native presence and applies the final value before scene
 work; false then true before admission performs no native work. Writes during
 prepare or apply wait for the next admission for the same Window or an
 already-applied row, preserving its live rail, while an earlier row's prepare
 callback can still change a later, not-yet-applied row's visibility in the same
 admission because visibility is read per row at apply time. Other
-rails retain their existing visibility behavior. Win32 WM_DESTROY remains a
-closed fact: it severs the native reference and requests Window reclamation.
-WM_CLOSE still takes the default native destruction path. Installation
+rails retain their existing visibility behavior. Win32 WM_DESTROY and macOS
+windowWillClose remain closed facts: they sever native references and request
+Window reclamation; scene teardown belongs to the App close drain. WM_CLOSE and
+the macOS close box still take the default native destruction path. Programmatic
+hide detaches native callback access before closing, keeping the logical Window
+available for show. Installation
 detaches the old scene, publishes the installed State, attaches the new scene,
 projects the prepared root on the reused controller, then publishes ON_ATTACH.
 Reentrant adoption during preparation or attachment only changes the next desired identity.
