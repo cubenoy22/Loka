@@ -17,3 +17,14 @@ card-switching behavior across multiple click sequences:
 
 - `tahoe-launch.png` — SmirkyCard launch verification on Tahoe (macOS 26.6.2)
 
+
+## macOS Tahoe AX Click Sequence
+
+Tahoe macOS 26.6.2 real run of `LokaSmirkyCardMacOS` at commit `e5589926`:
+
+- `tahoe-click0.png` — Before clicks
+- `tahoe-click5.png` — After 5 AX clicks
+- `tahoe-click10.png` — After 10 AX clicks
+- `tahoe-click15.png` — After 15 AX clicks
+- `tahoe-click20.png` — After 20 AX clicks
+- `tahoe-closed.png` — After AX close
