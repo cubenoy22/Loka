@@ -52,12 +52,29 @@ namespace loka
         return *state;
       }
 
+      /**
+       * Create an emitter owned by this menu scope, alive until callbacks have
+       * been unbound. Menu scopes have no node state-declaration window, so
+       * construction uses the same explicit allocation door as menu values.
+       * Events remain untracked: emitting dispatches actions without making
+       * the emitter itself a menu-refresh dirty source.
+       */
+      loka::core::EmitterState &dangerouslyUseEmitter()
+      {
+        loka::core::EmitterState *emitter = new loka::core::EmitterState();
+        this->ownedStates_.push_back(emitter);
+        return *emitter;
+      }
+
       void reserveStates(size_t count)
       {
         ownedStates_.reserve(ownedStates_.size() + count);
         tracker_.reserveStates(count);
       }
 
+      /** The emitter must outlive callback teardown. Use dangerouslyUseEmitter
+       * for menu-local events; a derived emitter member cannot meet this
+       * contract because it dies before the MenuBoundary base destructor. */
       template <class NodeT>
       void bindActionForMenu(loka::core::EmitterState &emitter, NodeT *node, void (NodeT::*method)())
       {

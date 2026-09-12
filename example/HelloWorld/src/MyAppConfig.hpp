@@ -69,7 +69,7 @@ private:
   public:
     explicit MainMenu(unsigned long seed)
         : rebuildBound_(false),
-          rebuildEvent_(),
+          rebuildEvent_(this->dangerouslyUseEmitter()),
           random_(seed)
     {
     }
@@ -128,7 +128,7 @@ private:
     void handleRebuild() {}
 
     bool rebuildBound_;
-    loka::core::EmitterState rebuildEvent_;
+    loka::core::EmitterState &rebuildEvent_;
     MenuRandom random_;
   };
 

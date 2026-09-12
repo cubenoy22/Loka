@@ -52,9 +52,9 @@ private:
     explicit MainMenu(loka::core::EmitterState *openDialogEvent)
         : openDialogEvent_(openDialogEvent),
           displayMode_(0),
-          fitToWindowEvent_(),
-          actualEvent_(),
-          actualScrollEvent_()
+          fitToWindowEvent_(this->dangerouslyUseEmitter()),
+          actualEvent_(this->dangerouslyUseEmitter()),
+          actualScrollEvent_(this->dangerouslyUseEmitter())
     {
       this->reserveStates(1);
       // MenuBoundary's tracked-state door is explicit because this boundary
@@ -136,9 +136,9 @@ private:
 
     loka::core::EmitterState *openDialogEvent_;
     loka::core::MutableState<simpleviewer::DisplayMode> *displayMode_;
-    loka::core::EmitterState fitToWindowEvent_;
-    loka::core::EmitterState actualEvent_;
-    loka::core::EmitterState actualScrollEvent_;
+    loka::core::EmitterState &fitToWindowEvent_;
+    loka::core::EmitterState &actualEvent_;
+    loka::core::EmitterState &actualScrollEvent_;
   };
 
   loka::core::EmitterState openDialogEvent_;
