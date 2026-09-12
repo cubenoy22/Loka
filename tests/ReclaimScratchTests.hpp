@@ -9,4 +9,6 @@ void testReclaimScratchPartitionDeep();
 void testReclaimScratchOverflow();
 void testReclaimScratchNestedBoundary();
 void testReclaimScratchPartitionUnattached();
+void testReclaimScratchPartitionBoundaryChild();
+void testReclaimScratchPartitionBoundaryKeepsOwnChildren();
 #endif

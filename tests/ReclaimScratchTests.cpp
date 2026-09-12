@@ -52,6 +52,30 @@ namespace
       this->log.order[this->log.count++] = this->id;
     }
   };
+  struct BoundaryOwnershipProbe : BoundaryProbe
+  {
+    Log &log;
+    explicit BoundaryOwnershipProbe(Log &value)
+        : log(value)
+    {
+      this->log.alive[0] = true;
+    }
+    ~BoundaryOwnershipProbe()
+    {
+      LOKA_VERIFY(this->log.count == 1 && this->log.order[0] == 1);
+      // Pure queries stay in assert: a LOKA_VERIFY here would register
+      // childrenCount/childrenHead/isArenaAllocated as load-bearing names
+      // project-wide (check_test_asserts roster, #684).
+      assert(this->childrenCount() == 2); // loka-assert-ok: pure child-count query
+      Node *first = this->childrenHead();
+      assert(first && first->isArenaAllocated());
+      assert(first->nextInComposition && !first->nextInComposition->isArenaAllocated());
+      assert(!first->nextInComposition->nextInComposition);
+      (void)first;
+      this->log.alive[0] = false;
+      this->log.order[this->log.count++] = 0;
+    }
+  };
   class Capture
   {
   public:
@@ -330,4 +354,53 @@ void testReclaimScratchPartitionUnattached()
     LOKA_VERIFY(partition.destroy(root, layout));
   }
   LOKA_VERIFY(log.count == 3 && log.order[0] == 2 && log.order[1] == 1 && log.order[2] == 0);
+}
+
+void testReclaimScratchPartitionBoundaryChild()
+{
+  Log log;
+  NodePartition partition;
+  const NodeSlotLayout layouts[] = {NodeSlotLayout::of<BoundaryProbe>(1), NodeSlotLayout::of<Probe>(1)};
+  LOKA_VERIFY(partition.boot(layouts, 2));
+  if (!legacy())
+    LOKA_VERIFY(partition.reserveReclaimScratch(2));
+  void *parentStorage = partition.allocate(layouts[0]);
+  void *childStorage = partition.allocate(layouts[1]);
+  LOKA_VERIFY(parentStorage && childStorage);
+  BoundaryProbe *parent = new (parentStorage) BoundaryProbe();
+  Probe *child = new (childStorage) Probe(log, 0, -1);
+  LOKA_VERIFY(partition.registerNode(parent, 0));
+  LOKA_VERIFY(partition.registerNode(child, parent));
+  parent->addChild(child);
+  LOKA_VERIFY(partition.destroy(parent, layouts[0]));
+  LOKA_VERIFY(log.count == 1 && !log.alive[0]);
+}
+
+void testReclaimScratchPartitionBoundaryKeepsOwnChildren()
+{
+  Log log;
+  NodePartition partition;
+  const NodeSlotLayout layouts[] = {NodeSlotLayout::of<BoundaryOwnershipProbe>(1), NodeSlotLayout::of<Probe>(1)};
+  LOKA_VERIFY(partition.boot(layouts, 2));
+  LOKA_VERIFY(partition.reserveReclaimScratch(2));
+  void *parentStorage = partition.allocate(layouts[0]);
+  void *childStorage = partition.allocate(layouts[1]);
+  LOKA_VERIFY(parentStorage && childStorage);
+  BoundaryOwnershipProbe *parent = new (parentStorage) BoundaryOwnershipProbe(log);
+  Probe *child = new (childStorage) Probe(log, 1, 0);
+  LOKA_VERIFY(partition.registerNode(parent, 0));
+  LOKA_VERIFY(partition.registerNode(child, parent));
+  NodeArena &arena = *parent->nodeArena();
+  arena.reserve(sizeof(Probe) + AlignOf<Probe>::value);
+  void *ownStorage = arena.allocate(sizeof(Probe), AlignOf<Probe>::value);
+  LOKA_VERIFY(ownStorage);
+  Probe *ownArenaChild = new (ownStorage) Probe(log, 2, -1);
+  arena.registerNode(ownArenaChild);
+  parent->addChild(ownArenaChild);
+  parent->addChild(child);
+  parent->addChild(heap(log, 3, -1));
+  // The two-frame budget excludes children left to the nested landlord.
+  LOKA_VERIFY(partition.destroy(parent, layouts[0]));
+  LOKA_VERIFY(log.count == 4 && log.order[0] == 1 && log.order[1] == 0);
+  LOKA_VERIFY(!log.alive[0] && !log.alive[1] && !log.alive[2] && !log.alive[3]);
 }

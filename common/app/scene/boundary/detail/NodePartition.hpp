@@ -98,6 +98,10 @@ namespace loka
           {
             Node *node;
             Node *owner;
+            bool ownedBy(Node *provider) const
+            {
+              return this->node && this->owner == provider;
+            }
           };
           struct Class
           {
@@ -255,7 +259,12 @@ namespace loka
           }
 
           /** Destroys a transferred root and its dependents, then returns its slot.
-              A still-owned child must be reclaimed through its owner. */
+              A still-owned child must be reclaimed through its owner. A registered
+              Boundary is not an ownership wall for this partition's dependents:
+              attached residents registered with it as owner are planned through
+              nextDependent and their child edges are severed before destruction.
+              Children in that Boundary's own landlord storage remain attached for
+              its destructor; this partition never walks the nested landlord ledger. */
           bool destroy(void *p, const NodeSlotLayout &layout)
           {
             Class *c = this->findClass(layout);
@@ -271,7 +280,7 @@ namespace loka
                 this->reclaimScratch_, ReclaimScratch::Plan::ALL_CHILDREN, &NodePartition::nextDependent, this);
             if (!plan.append(c->residents[s].node))
               return false;
-            plan.severChildren();
+            this->severChildren(plan);
             for (size_t i = 0; i < plan.count(); ++i)
               this->destroyOne(plan.node(i));
             return true;
@@ -356,6 +365,33 @@ namespace loka
                 return this->heap_ + h;
             return 0;
           }
+          /** Partition commit, once per successful plan. Normal edges use the
+              shared walk. At registered Boundaries, retain foreign child edges
+              in order and remove only dependencies selected by nextDependent.
+              O(plan rows + Boundary child edges * (classes + heap rows)), over
+              this partition's resident index; no nested landlord ledger scan. */
+          void severChildren(const ReclaimScratch::Plan &plan)
+          {
+            plan.severChildren();
+            for (size_t i = 0; i < plan.count(); ++i)
+            {
+              Node *node = plan.node(i);
+              if (!node->asBoundary() || !this->resident(node))
+                continue;
+              INestable *boundary = node->asNestable();
+              Node *child = boundary->detachChildren();
+              while (child)
+              {
+                Node *next = child->nextInComposition;
+                child->nextInComposition = 0;
+                Resident *resident = this->resident(child);
+                if (!resident || !resident->ownedBy(node))
+                  boundary->addChild(child);
+                child = next;
+              }
+            }
+          }
+
           /** Planner callback: advances through this partition's own rows once
               per node. Class lookup costs O(K) per returned dependency. */
           static Node *nextDependent(void *context, Node *owner, size_t &cursor)
@@ -368,7 +404,7 @@ namespace loka
               for (size_t s = cursor > base ? cursor - base : 0; s < c.count; ++s)
               {
                 cursor = base + s + 1;
-                if (c.residents[s].node && c.residents[s].owner == owner)
+                if (c.residents[s].ownedBy(owner))
                   return c.residents[s].node;
               }
               base += c.count;
@@ -376,7 +412,7 @@ namespace loka
             for (size_t h = cursor > base ? cursor - base : 0; h < self.heapCount_; ++h)
             {
               cursor = base + h + 1;
-              if (self.heap_[h].node && self.heap_[h].owner == owner)
+              if (self.heap_[h].ownedBy(owner))
                 return self.heap_[h].node;
             }
             return 0;
@@ -385,10 +421,10 @@ namespace loka
           {
             for (size_t i = 0; i < this->classCount_; ++i)
               for (size_t s = 0; s < this->classes_[i].count; ++s)
-                if (this->classes_[i].residents[s].owner == owner)
+                if (this->classes_[i].residents[s].ownedBy(owner))
                   this->destroyTree(this->classes_[i].residents[s].node);
             for (size_t h = 0; h < this->heapCount_; ++h)
-              if (this->heap_[h].owner == owner)
+              if (this->heap_[h].ownedBy(owner))
                 this->destroyTree(this->heap_[h].node);
           }
           void destroyTree(Node *node)
