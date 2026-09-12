@@ -6,6 +6,8 @@
 #include "platform/null/NullScenePlatformController.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 #include "core/util/StateTrackerGuard.hpp"
+#include "app/scene/node/ComponentNode.hpp"
+#include "testing/core/HeldTestAccess.hpp"
 #include <cstdlib>
 
 using namespace loka::app;
@@ -516,4 +518,140 @@ namespace
 void testSeatBuildRequestKeyedNoEventAdmission()
 {
   keyedWaitingScenario(1);
+}
+
+namespace
+{
+  struct AttachHoldScenario
+  {
+    AttachHoldScenario()
+        : creator(0),
+          attached(0),
+          attaches(0)
+    {
+    }
+    loka::core::Held<int> held;
+    IStateOwner *creator;
+    IStateOwner *attached;
+    int attaches;
+  };
+  AttachHoldScenario *attachHoldScenario = 0;
+  void releaseAttachPayload(int *value)
+  {
+    delete value;
+  }
+  class AttachHoldNode;
+  struct AttachHoldTag
+  {
+  };
+  struct AttachHoldProps : NodePropsBase<AttachHoldProps>
+  {
+    typedef AttachHoldTag TypeTag;
+    typedef AttachHoldNode NodeType;
+    bool operator<(const PropsBase &) const
+    {
+      return false;
+    }
+  };
+  class AttachHoldNode : public ComponentNodeWithProps<AttachHoldProps>
+  {
+  public:
+    explicit AttachHoldNode(const AttachHoldProps &p)
+        : ComponentNodeWithProps<AttachHoldProps>(p)
+    {
+    }
+
+  protected:
+    virtual void composeChildren(NodeComposition &) {}
+    virtual void attachNode(NodeComposition &c)
+    {
+      if (this->acquired_.isValid())
+        return;
+      this->acquired_ = c.hold(attachHoldScenario->held);
+      require(this->acquired_.isValid());
+      attachHoldScenario->attached = c.componentContext()->stateOwner();
+      ++attachHoldScenario->attaches;
+    }
+  private:
+    loka::core::Held<int> acquired_;
+  };
+  struct AttachHoldOwner : BoundaryNodeFor<AttachHoldOwner>
+  {
+    explicit AttachHoldOwner(const BoundaryPropsFor<AttachHoldOwner> &p)
+        : BoundaryNodeFor<AttachHoldOwner>(p),
+          builds(0)
+    {
+      this->state(this->outer, 0);
+      this->state(this->inner, 0);
+    }
+    virtual bool flushViewDirtyImmediately(NodeDirtyFlags) const
+    {
+      return false;
+    }
+    void composeNode(NodeComposition &c)
+    {
+      c.declare(Fragment() << Keyed(*this->outer.state(),
+                                    this,
+                                    &AttachHoldOwner::arm,
+                                    reservation::SeatNodes<reservation::Nodes<FragmentNode, 1, reservation::End> >()));
+    }
+    void arm(NodeComposition &c)
+    {
+      attachHoldScenario->creator = c.componentContext()->stateOwner();
+      attachHoldScenario->held = c.hold(new int(7), &releaseAttachPayload);
+      c.declare(
+          Fragment() << Keyed(*this->inner.state(),
+                              this,
+                              &AttachHoldOwner::childArm,
+                              reservation::SeatNodes<reservation::Nodes<AttachHoldNode, 1, reservation::End> >()));
+    }
+    void childArm(NodeComposition &c)
+    {
+      ++this->builds;
+      c.declare(NodeDefinition<AttachHoldProps, AttachHoldNode>());
+    }
+    NodeState<int> outer, inner;
+    int builds;
+  };
+} // namespace
+
+void testSeatBuildRequestNestedAttachPreservesHeldOwner()
+{
+  AttachHoldScenario scenario;
+  attachHoldScenario = &scenario;
+  {
+    NullScenePlatformController platform;
+    Scene scene((Boundary<AttachHoldOwner>()));
+    scene.mount(&platform);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
+    AttachHoldOwner *owner = static_cast<AttachHoldOwner *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    require(owner != 0);
+    typedef loka::core::testing::HeldTestAccess HeldAccess;
+    // Establish the ordinary replacement's ancestry before enabling the fixture.
+    {
+      loka::core::StateTrackerGuard guard(owner->tracker());
+      owner->inner.set(1);
+    }
+    scene.flushInvalidation();
+    assert(owner->builds == 2 && scenario.attaches == 2);
+    IStateOwner *ordinaryParent = HeldAccess::enclosingOwner(*scenario.attached->holdLedger());
+    assert(ordinaryParent == scenario.creator);
+    const SeatReservation *seat = loka::dsl::testing::SeatBuildRequestAccess::nestedReservation(*owner);
+    require(seat != 0);
+    NodePartition *bank = owner->installPartitionFixture(seat->layoutTable());
+    require(bank != 0);
+    seat->request().activateFixture(*bank, owner->inner.state());
+    {
+      loka::core::StateTrackerGuard guard(owner->tracker());
+      owner->inner.set(2);
+    }
+    scene.flushInvalidation();
+    assert(owner->builds == 2 && seat->request().waiting());
+    scene.flushInvalidation();
+    assert(owner->builds == 3 && scenario.attaches == 3 && !seat->request().waiting());
+    assert(HeldAccess::enclosingOwner(*scenario.attached->holdLedger()) == ordinaryParent);
+    assert(HeldAccess::holdCountForOwner(scenario.held, scenario.attached) == 1);
+    (void)ordinaryParent;
+  }
+  attachHoldScenario = 0;
 }

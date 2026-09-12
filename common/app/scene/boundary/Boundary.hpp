@@ -1456,6 +1456,16 @@ namespace loka
           return result;
         }
 
+        /** Carries the seat's installed enclosing owner into build and attach.
+            Called once per branch operation; reads only the supplied runtime. */
+        ComponentContext branchRuntimeContext(ComponentContext &context,
+                                              const BoundaryBranchSeatRuntimeEntry &runtime)
+        {
+          ComponentContext result(context);
+          result.setStateOwner(runtime.stateOwner ? runtime.stateOwner : this);
+          return result;
+        }
+
         bool createCurrentBranch(ComponentContext &context,
                                  const BoundaryBranchSeatPlanEntry &plan,
                                  Node *parent,
@@ -1749,8 +1759,7 @@ namespace loka
           PendingSubtree pending(&BoundaryNode::ReclaimPendingSeatRoot, &context);
           if (plan.seat()->needsBranchDeclaration())
           {
-            ComponentContext declarationContext(context);
-            declarationContext.setStateOwner(runtime.stateOwner ? runtime.stateOwner : this);
+            ComponentContext declarationContext = this->branchRuntimeContext(context, runtime);
             candidate.reset(plan.seat()->declareBranchCandidate(declarationContext));
             if (!candidate.isSet())
             {
@@ -1871,7 +1880,10 @@ namespace loka
               return false;
             BoundaryBranchSeatRuntimeEntry *installed = this->owner_.branchSeats_.findRuntime(this->plan_.key);
             if (installed && installed->active)
-              this->owner_.composeTree(installed->active, this->context_, COMPOSE_EVENT_ATTACH, &this->owner_);
+            {
+              ComponentContext attachContext = this->owner_.branchRuntimeContext(this->context_, *installed);
+              this->owner_.composeTree(installed->active, attachContext, COMPOSE_EVENT_ATTACH, &this->owner_);
+            }
             return true;
           }
         private:

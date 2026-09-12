@@ -7,4 +7,5 @@ void testSeatBuildRequestCancelAndAddressReuse();
 void testSeatBuildRequestParkedAndNestedOccupancy();
 void testSeatBuildRequestSerialConsumption();
 void testSeatBuildRequestKeyedNoEventAdmission();
+void testSeatBuildRequestNestedAttachPreservesHeldOwner();
 #endif
