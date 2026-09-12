@@ -2,6 +2,7 @@
 #define LOKA_GENERATION_ROOT_HPP
 
 #include "app/scene/boundary/Boundary.hpp"
+#include "app/scene/boundary/PendingSubtree.hpp"
 #include "app/scene/boundary/BoundaryInnerStateOwner.hpp"
 #include "app/scene/node/ComposableNode.hpp"
 #include "app/scene/boundary/detail/BranchSeatDeclaration.hpp"
@@ -139,33 +140,22 @@ namespace loka
       {
       public:
         GenerationDeclaration()
-            : pending_(0)
+            : pending_()
         {
-        }
-        virtual ~GenerationDeclaration()
-        {
-          if (this->pending_)
-          {
-            this->pending_->asStateOwner()->detachHeldResources();
-            if (this->pending_->arenaOwner())
-              this->pending_->arenaOwner()->releaseNode(this->pending_);
-            else
-              DestroyHeapNode(this->pending_);
-          }
         }
         template <class NodeT, class PropsT> NodeT *createRoot(const PropsT &props, ComponentContext &context)
         {
-          assert(!this->pending_);
+          assert(!this->pending_.root());
           NodeDefinition<PropsT, NodeT> factory(props);
           this->composition.setContext(&context);
           NodeMaterializationResult created = this->composition.createNodeFromDefinitionResult(&factory);
           this->composition.setContext(0);
-          this->pending_ = static_cast<NodeT *>(created.root);
-          return created.allocationFailed ? 0 : static_cast<NodeT *>(this->pending_);
+          this->pending_.prepare(created.root);
+          return created.allocationFailed ? 0 : static_cast<NodeT *>(this->pending_.root());
         }
         virtual NodeMaterializationResult materialize(ComponentContext &context, Node *)
         {
-          GenerationRoot *root = this->pending_;
+          GenerationRoot *root = static_cast<GenerationRoot *>(this->pending_.root());
           assert(root);
           ComponentContext childContext(context);
           childContext.setStateOwner(root->asStateOwner());
@@ -174,13 +164,12 @@ namespace loka
           this->composition.setContext(0);
           if (result.root)
             root->addChild(result.root);
-          result.root = root;
-          this->pending_ = 0;
+          result.root = this->pending_.take();
           return result;
         }
 
       private:
-        GenerationRoot *pending_;
+        PendingSubtree pending_;
       };
     } // namespace scene
   } // namespace app
