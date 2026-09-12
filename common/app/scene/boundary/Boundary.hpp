@@ -21,6 +21,7 @@
 #include "app/scene/boundary/detail/BoundaryParkedBranchLedger.hpp"
 #include "app/scene/boundary/detail/BoundaryBranchSeatState.hpp"
 #include "app/scene/boundary/detail/BranchSeatDeclaration.hpp"
+#include "app/scene/boundary/PendingSubtree.hpp"
 #include "app/scene/boundary/BoundaryStateTypes.hpp"
 #include "core/StateTracker.hpp"
 #include "core/util/StateUtil.hpp"
@@ -1667,6 +1668,15 @@ namespace loka
           }
         }
 
+        /** Pending candidate refusal uses the existing detach/retire door.
+            Called once per refused candidate; walks only that candidate's
+            subtree, then queues it on its Boundary's retirement clock. */
+        static void ReclaimPendingSeatRoot(Node *root, void *data)
+        {
+          ComponentContext &context = *static_cast<ComponentContext *>(data);
+          context.boundary()->retireSeatBranchRoot(context, root);
+        }
+
         /** Installs the plan's selected arm in place of the runtime's active
             one. `drainParkedArmCount` > 0 means the seat is rebuilding under a
             new shape: every arm parked under the old shape (0..count-1) is
@@ -1709,6 +1719,7 @@ namespace loka
           // The local-rebuild path stages for the same reason (#511).
           BoundaryBranchSeatRuntimeRegistrationPlan nestedRegistrations;
           loka::core::OwnedDef<BranchSeatDeclaration> candidate;
+          PendingSubtree pending(&BoundaryNode::ReclaimPendingSeatRoot, &context);
           if (plan.seat()->needsBranchDeclaration())
           {
             ComponentContext declarationContext(context);
@@ -1721,13 +1732,15 @@ namespace loka
             }
             NodeMaterializationResult result =
                 this->materializeDeclaration(declarationContext, plan, *candidate, runtimeParent, nestedRegistrations);
+            PendingSubtree materialized(&BoundaryNode::ReclaimPendingSeatRoot, &declarationContext);
+            materialized.prepare(result.root);
             if (result.allocationFailed || result.requiresBoundaryPlan || !result.root)
             {
-              if (result.root)
-                this->retireSeatBranchRoot(declarationContext, result.root);
+              materialized.reclaim();
               return false;
             }
-            incoming = result.root;
+            pending.prepare(materialized.take());
+            incoming = pending.root();
           }
           if (!incoming && !this->createCurrentBranch(context,
                                                       plan,
@@ -1750,9 +1763,14 @@ namespace loka
           INestable *parent = runtimeParent ? runtimeParent->asNestable() : 0;
           if (!parent || !parent->replaceChild(outgoing, incoming))
           {
-            this->retireSeatBranchRoot(context, incoming);
+            if (pending.root())
+              pending.reclaim();
+            else
+              this->retireSeatBranchRoot(context, incoming);
             return false;
           }
+
+          pending.take();
 
           if (candidate.isSet() && plan.seat()->declaredBranchSeats())
             this->retireDeclarationScope(context, *plan.seat()->declaredBranchSeats());
