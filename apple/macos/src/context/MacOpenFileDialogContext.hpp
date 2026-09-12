@@ -2,7 +2,7 @@
 #define LOKA_MAC_OPEN_FILE_DIALOG_CONTEXT_HPP
 
 #include "MacRetirableContext.hpp"
-#include "app/OpenFileDialog.hpp"
+#include "app/core/DialogResultTransport.hpp"
 #include "core/String.hpp"
 
 namespace loka
@@ -17,6 +17,7 @@ namespace loka
 } // namespace loka
 
 class MacScenePlatformController;
+class MacDialogResultTestAccess;
 
 class MacOpenFileDialogContext : public MacRetirableContext
 {
@@ -32,23 +33,26 @@ public:
                              loka::app::scene::NodeLifecycleFact next);
   void presentIfNeeded();
   void presentDeferred();
+  virtual void onPropsApplied();
 
 private:
   void applyAttachedPresentation();
   void applyDetachedPresentation();
-  struct NativeDialogSession;
-
   void presentDialog();
-  void setResult(const loka::app::FileChooserResult &result);
   void disposeDialog();
-  NativeDialogSession *detachDialogIfActive(NativeDialogSession *dialog);
+  friend class MacDialogResultTestAccess;
+#ifdef TEST_BUILD
+  /** Borrow the presenter's scheduled timer for cancellation verification. */
+  void *scheduledTimerForTesting() const;
+#endif
+  MacOpenFileDialogContext(const MacOpenFileDialogContext &);
+  MacOpenFileDialogContext &operator=(const MacOpenFileDialogContext &);
 
   loka::app::OpenFileDialogNode *node_;
-  loka::app::scene::NodeState<loka::app::FileChooserResult> resultState_;
-  loka::core::EmitterState *onResult_;
+  loka::app::DialogResultTransport *transport_;
   loka::app::OpenFileDialogPresentationPhase presentation_;
   void *deferredPresenter_;
-  NativeDialogSession *dialog_;
+  loka::app::DialogResultTransport::Registration *registration_;
 };
 
 void RegisterMacOpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
