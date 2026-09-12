@@ -86,10 +86,14 @@ protected:
   void projectInitialVisibilityChunks();
   /** App clock admission: applies seats before Scene runs; nested window work is refused. */
   void flushWindowInvalidations();
+  /** Pre-wait progress: close rows or serviceable Window completion work. */
+  bool hasPendingWindowAdmission() const;
   /** Drains one queue snapshot; requests made during the drain wait for the next flush. */
   void flushPendingWindowClosures();
 
 private:
+  struct AdmittedWindow;
+  bool isWindowClosePending(Window *window) const;
   std::vector<Window *> pendingWindowClosures_;
   bool flushingWindowWork_;
 

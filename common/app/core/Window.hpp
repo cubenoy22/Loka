@@ -1,6 +1,8 @@
 #ifndef LOKA_WINDOW_HPP
 #define LOKA_WINDOW_HPP
 
+#include "app/core/DialogResultDelivery.hpp"
+
 #include <cassert>
 #include <new>
 #include "core/diag/LifecycleAudit.hpp"
@@ -619,6 +621,10 @@ protected:
 
 private:
   friend class App;
+  /** Rails without deferred dialog delivery carry no transport storage. */
+  virtual loka::app::DialogResultDelivery *dialogResultDelivery() { return 0; }
+  typedef loka::app::DialogResultDelivery::Retirement *DialogRetirements;
+  virtual void closeDialogResults() {}
   /** App admission polls native visibility before scene work. Rails opt in by
       comparing visibility with their native identity; no pending flag is stored. */
   virtual bool hasPendingNativeVisibility() const { return false; }

@@ -3,7 +3,10 @@
 
 #include <windows.h>
 #include "app/scene/projection/NativeNodeContext.hpp"
-#include "app/OpenFileDialog.hpp"
+#include "app/core/DialogResultTransport.hpp"
+
+class Win32DialogResultTestAccess;
+class Win32Window;
 
 namespace loka
 {
@@ -19,7 +22,8 @@ namespace loka
 class Win32OpenFileDialogContext : public loka::app::scene::NativeNodeContext
 {
 public:
-  Win32OpenFileDialogContext(HWND parent, loka::app::OpenFileDialogNode *node);
+  Win32OpenFileDialogContext(HWND parent, loka::app::OpenFileDialogNode *node,
+                             Win32Window *window = 0);
   virtual ~Win32OpenFileDialogContext();
   /** Attach-time read (late-subscriber rule): presentation from the current
       fact, called by the installing handler right after setContext. */
@@ -27,47 +31,26 @@ public:
   virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
                              loka::app::scene::NodeLifecycleFact next);
   void presentIfNeeded();
+  virtual void onPropsApplied();
   static UINT deferredResultMessage();
   static bool handlePostedResultMessage(UINT message, WPARAM wParam, LPARAM lParam);
 
 private:
   void applyAttachedPresentation();
   void applyDetachedPresentation();
-  struct NativeDialogSession;
-
-  struct DeferredResultDelivery
-  {
-    DeferredResultDelivery()
-        : resultState(),
-          onResult(0),
-          result(),
-          owner(0),
-          dialog(0)
-    {
-    }
-
-    ~DeferredResultDelivery();
-
-    loka::app::scene::NodeState<loka::app::FileChooserResult> resultState;
-    loka::core::EmitterState *onResult;
-    loka::app::FileChooserResult result;
-    Win32OpenFileDialogContext *owner;
-    NativeDialogSession *dialog;
-  };
-
   void presentDialog();
-  void setResult(const loka::app::FileChooserResult &result, NativeDialogSession *dialogSession);
-  void queueDeferredResult(const loka::app::FileChooserResult &result, NativeDialogSession *dialogSession);
+  static void queueDeferredResult(loka::app::DialogResultTransport::ReturnPort &port,
+                                  const loka::app::FileChooserResult &result);
   void detachOwnedDialog();
-
-  static void DeliverDeferredResultThunk(void *userData);
+  friend class Win32DialogResultTestAccess;
+  Win32OpenFileDialogContext(const Win32OpenFileDialogContext &);
+  Win32OpenFileDialogContext &operator=(const Win32OpenFileDialogContext &);
 
   HWND parent_;
   loka::app::OpenFileDialogNode *node_;
-  loka::app::scene::NodeState<loka::app::FileChooserResult> resultState_;
-  loka::core::EmitterState *onResult_;
+  loka::app::DialogResultTransport *transport_;
   loka::app::OpenFileDialogPresentationPhase presentation_;
-  NativeDialogSession *dialog_;
+  loka::app::DialogResultTransport::Registration *registration_;
 };
 
 void RegisterWin32OpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);

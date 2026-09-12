@@ -1,0 +1,7 @@
+#ifndef LOKA_WIN32_OPEN_FILE_DIALOG_TRANSPORT_TESTS_HPP
+#define LOKA_WIN32_OPEN_FILE_DIALOG_TRANSPORT_TESTS_HPP
+void testWin32OpenFileDialogRetiredBeforePostedWake();
+void testWin32OpenFileDialogOwnerReclaimedBeforePostedWake();
+void testWin32OpenFileDialogLiveAdmissionAndLostHwnd();
+void testWin32OpenFileDialogMissingHwndUsesAdmission();
+#endif

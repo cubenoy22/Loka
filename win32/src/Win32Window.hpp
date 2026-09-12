@@ -2,6 +2,7 @@
 #define LOKA_WIN32WINDOW_HPP
 
 #include "app/core/Window.hpp"
+#include "app/core/DialogResultTransport.hpp"
 #include <windows.h>
 #include <string>
 
@@ -25,6 +26,8 @@ class Win32ScenePlatformController;
 class Win32Window : public Window
 {
 public:
+  /** Concrete rail owns enrollment; App sees only its admission interface. */
+  loka::app::DialogResultTransport &dialogResults() { return this->dialogResults_; }
   Win32Window(PlatformContext *context, const WindowProps &props);
   virtual ~Win32Window();
   virtual Win32Window *asWin32Window()
@@ -66,6 +69,14 @@ protected:
   virtual void onCreate();
 
 private:
+  virtual void closeDialogResults() { this->dialogResults_.close(); }
+  // Deliberate Win32/Null counterparts: stable service across native recreation.
+  virtual loka::app::DialogResultDelivery *dialogResultDelivery()
+  {
+    return &this->dialogResults_;
+  }
+  loka::app::DialogResultTransport dialogResults_;
+
   void createNativeWindow();
   void destroyNativeWindow();
   virtual bool hasPendingNativeVisibility() const;

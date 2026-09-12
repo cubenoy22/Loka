@@ -137,6 +137,30 @@ the incoming install completes, and the following admission remounts the desired
 scene with a fresh root generation. Window destruction disposes pending and
 installed scenes even when no subsequent admission occurs.
 
+Win32 OpenFileDialog completion uses the common `DialogResultTransport` owned by
+its concrete Win32 Window (the Null test rail owns the same transport). Base
+`Window` exposes only a nullable `DialogResultDelivery` admission view and stores
+no transport. Its close hook also defaults to no work. Toolbox and macOS use
+these defaults; the common admission path cannot pull in concrete dialog
+bindings or result payload code. The service
+identity remains stable for the Window lifetime, including native hide/reopen.
+The context owns a one-shot registration and deletes it on terminal
+retirement, retained detach, or props retarget. Retained detach abandons a produced
+result without emitting Canceled; reattach starts a fresh operation. Native return
+seals through a revocable stack port, and posted wakes carry no C++ payload.
+Failed posts and missing HWNDs leave completion work pending for admission.
+
+Within App admission, native visibility applies first, followed by a finite batch
+of that Window's results, then scene work. Delivery uses the full NodeState route.
+Synchronous result observers may revoke the operation; emission requires both the
+still-live registration and the emitter token acquired before the write. Active
+entries survive those callbacks; retired entries are reclaimed silently from the
+suffix captured at admission. All close and shutdown paths revoke transport work
+before owners disappear. Win32's pre-wait progress query includes pending Window
+closures as well as serviceable completion work, so observer-triggered close does
+not need another native input. These completion semantics are pinned by the Null
+contract adapter; they do not establish macOS or Toolbox modal-return coverage.
+
 This protocol spans adoption ownership, admission exclusion, preparation,
 attachment, and four platform rails. Its risk review covers five areas: new
 lifecycle paths, multiple identity fields, State/Boundary/Platform boundaries,
