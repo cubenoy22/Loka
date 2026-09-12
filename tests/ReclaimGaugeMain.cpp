@@ -62,6 +62,27 @@ void reclaimGaugeEnd()
   LOKA_VERIFY(after.bytesAcquired == before.bytesAcquired && after.failures == before.failures);
   LOKA_VERIFY(allocations == allocationsBefore);
 }
+void reclaimGaugeBeginFallback()
+{
+  before = pool.snapshot();
+  allocationsBefore = allocations;
+  denied = false;
+}
+void reclaimGaugeEndFallback()
+{
+  const loka::core::UpstreamGauge after = pool.snapshot();
+  std::fprintf(stderr,
+               "fallback gauge: attempts=%lu successes=%lu bytes=%lu failures=%lu new=%lu\n",
+               after.attempts - before.attempts,
+               after.successes - before.successes,
+               after.bytesAcquired - before.bytesAcquired,
+               after.failures - before.failures,
+               allocations - allocationsBefore);
+  LOKA_VERIFY(!before.saturated && !after.saturated);
+  LOKA_VERIFY(after.attempts > before.attempts && after.successes > before.successes);
+  LOKA_VERIFY(after.bytesAcquired > before.bytesAcquired && after.failures == before.failures);
+  LOKA_VERIFY(allocations > allocationsBefore);
+}
 void *operator new(size_t size) throw(std::bad_alloc)
 {
   void *p = allocate(size ? size : 1);
@@ -112,7 +133,8 @@ void operator delete[](void *p, size_t) throw()
 #endif
 int main(int argc, char **argv)
 {
-  const char *names[] = {"boundary-wide",
+  const char *names[] = {"boundary-overflow-fallback",
+                         "boundary-wide",
                          "boundary-deep",
                          "generation-wide",
                          "generation-deep",
@@ -120,7 +142,8 @@ int main(int argc, char **argv)
                          "partition-deep",
                          "overflow",
                          "unattached"};
-  void (*tests[])() = {testReclaimScratchBoundaryWide,
+  void (*tests[])() = {testReclaimScratchBoundaryOverflowFallback,
+                       testReclaimScratchBoundaryWide,
                        testReclaimScratchBoundaryDeep,
                        testReclaimScratchGenerationWide,
                        testReclaimScratchGenerationDeep,

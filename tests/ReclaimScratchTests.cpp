@@ -19,6 +19,7 @@ namespace
   struct BoundaryProbe : BoundaryNode
   {
     using BoundaryNode::retireDetachedNode;
+    using BoundaryNode::retireOwnedNodeGeneration;
     virtual void composeWithContext(ComponentContext &, ComposeEvent) {}
   };
   struct Log
@@ -76,6 +77,23 @@ namespace
       this->log.order[this->log.count++] = 0;
     }
   };
+#ifdef NDEBUG
+  struct FallbackRoot : Probe
+  {
+    explicit FallbackRoot(Log &log)
+        : Probe(log, 0, -1)
+    {
+    }
+    ~FallbackRoot()
+    {
+#ifdef LOKA_RECLAIM_GAUGE_PIN
+      reclaimGaugeEndFallback();
+      // The rest of this same drain must return to the bounded path.
+      reclaimGaugeBegin();
+#endif
+    }
+  };
+#endif
   class Capture
   {
   public:
@@ -303,7 +321,10 @@ void testReclaimScratchOverflow()
   for (int i = BOUNDARY; i <= PARTITION; ++i)
   {
 #ifdef NDEBUG
-    overflow(static_cast<Door>(i));
+    // Boundary drains now recover by legacy fallback; only the explicit
+    // arena/partition refusal doors retain this refusal-and-retry contract.
+    if (i != BOUNDARY)
+      overflow(static_cast<Door>(i));
 #elif defined(__linux__) && !defined(__SANITIZE_ADDRESS__)
     const pid_t child = fork();
     LOKA_VERIFY(child >= 0);
@@ -403,4 +424,75 @@ void testReclaimScratchPartitionBoundaryKeepsOwnChildren()
   LOKA_VERIFY(partition.destroy(parent, layouts[0]));
   LOKA_VERIFY(log.count == 4 && log.order[0] == 1 && log.order[1] == 0);
   LOKA_VERIFY(!log.alive[0] && !log.alive[1] && !log.alive[2] && !log.alive[3]);
+}
+
+void testReclaimScratchBoundaryOverflowFallback()
+{
+#ifdef NDEBUG
+  Log log;
+  BoundaryProbe boundary;
+  LOKA_VERIFY(boundary.nodeArena()->reserveReclaimScratch(2));
+  ComponentContext context;
+  FallbackRoot *oversized = new FallbackRoot(log);
+  for (int i = 1; i <= 64; ++i)
+    oversized->addChild(heap(log, i, 0));
+  Probe *fitting = heap(log, 65, -1);
+  fitting->addChild(heap(log, 66, 65));
+  boundary.retireDetachedNode(context, oversized);
+  boundary.retireDetachedNode(context, fitting);
+#ifdef LOKA_RECLAIM_GAUGE_PIN
+  reclaimGaugeBeginFallback();
+#endif
+  boundary.drainRetiredSubtreesAtNextTrackerRun();
+  std::fprintf(stderr, "overflow fallback: destroyed=%lu expected=67\n", static_cast<unsigned long>(log.count));
+  LOKA_VERIFY(log.count == 67);
+#ifdef LOKA_RECLAIM_GAUGE_PIN
+  reclaimGaugeEnd();
+#endif
+  LOKA_VERIFY(log.order[64] == 0 && log.order[65] == 66 && log.order[66] == 65);
+  Probe *later = heap(log, 67, -1);
+  later->addChild(heap(log, 68, 67));
+  boundary.retireDetachedNode(context, later);
+  {
+    Capture capture;
+    boundary.drainRetiredSubtreesAtNextTrackerRun();
+  }
+  LOKA_VERIFY(log.count == 69 && log.order[67] == 68 && log.order[68] == 67);
+#endif
+}
+
+void testReclaimScratchGenerationOverflowFallback()
+{
+#ifdef NDEBUG
+  Log log;
+  BoundaryProbe boundary;
+  LOKA_VERIFY(boundary.nodeArena()->reserveReclaimScratch(2));
+  ComponentContext context;
+  int id = 0;
+  for (int count = 3; count >= 2; --count)
+  {
+    NodeArena &arena = *boundary.nodeArena();
+    arena.reserve((sizeof(Probe) + AlignOf<Probe>::value) * count);
+    Probe *root = 0;
+    const int parent = id;
+    for (int i = 0; i < count; ++i)
+    {
+      void *storage = arena.allocate(sizeof(Probe), AlignOf<Probe>::value);
+      LOKA_VERIFY(storage);
+      Probe *node = new (storage) Probe(log, id++, i == 0 ? -1 : parent);
+      arena.registerNode(node);
+      if (root)
+        root->addChild(node);
+      else
+        root = node;
+    }
+    boundary.retireOwnedNodeGeneration(context);
+  }
+  boundary.drainRetiredSubtreesAtNextTrackerRun();
+  LOKA_VERIFY(log.count == 5);
+  LOKA_VERIFY(log.order[0] == 2 && log.order[1] == 1 && log.order[2] == 0);
+  LOKA_VERIFY(log.order[3] == 4 && log.order[4] == 3);
+  boundary.drainRetiredSubtreesAtNextTrackerRun();
+  LOKA_VERIFY(log.count == 5);
+#endif
 }

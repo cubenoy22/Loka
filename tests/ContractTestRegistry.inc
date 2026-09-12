@@ -1,3 +1,5 @@
+LOKA_TEST(testReclaimScratchGenerationOverflowFallback)
+LOKA_TEST(testReclaimScratchBoundaryOverflowFallback)
 LOKA_TEST(testReclaimScratchPartitionBoundaryKeepsOwnChildren)
 LOKA_TEST(testReclaimScratchPartitionBoundaryChild)
 LOKA_TEST(testReclaimScratchBoundaryWide)

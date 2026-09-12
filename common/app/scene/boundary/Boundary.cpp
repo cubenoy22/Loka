@@ -260,24 +260,6 @@ namespace loka
 
         detail::ReclaimScratch &scratch = this->nodeArena_.reclaimScratch();
         const bool planned = bounded && scratch.isReserved();
-        if (planned)
-        {
-          // Preflight every outgoing subtree before consuming any queue. The
-          // reservation bounds one subtree/generation, reused across the snapshot.
-          for (Node *node = this->retiredSubtreesHead_; node; node = node->nextInComposition)
-          {
-            detail::ReclaimScratch::Plan plan(scratch);
-            if (!plan.append(node))
-              return;
-          }
-          for (size_t i = 0; i < this->retiredGenerations_.size(); ++i)
-          {
-            detail::ReclaimScratch::Plan plan(scratch, detail::ReclaimScratch::Plan::HEAP_CHILDREN);
-            if (!detail::NodeArena::planRetiredGeneration(this->retiredGenerations_[i], plan))
-              return;
-          }
-        }
-
         Node *snapshot = this->retiredSubtreesHead_;
         this->retiredSubtreesHead_ = 0;
         this->retiredSubtreesTail_ = 0;
@@ -295,25 +277,14 @@ namespace loka
           if (planned)
           {
             detail::ReclaimScratch::Plan plan(scratch);
-            const bool fits = plan.append(snapshot);
-            assert(fits && "retired subtree changed after preflight");
-            if (!fits)
+            if (plan.append(snapshot))
             {
-              // A nested landlord may deliver Held releases. If that work grew
-              // a later root, retain it and the remaining snapshot for retry.
-              snapshot->nextInComposition = next;
-              Node *tail = snapshot;
-              while (tail->nextInComposition)
-                tail = tail->nextInComposition;
-              tail->nextInComposition = this->retiredSubtreesHead_;
-              this->retiredSubtreesHead_ = snapshot;
-              if (!this->retiredSubtreesTail_)
-                this->retiredSubtreesTail_ = tail;
-              break;
+              plan.severChildren();
+              for (size_t i = 0; i < plan.count(); ++i)
+                this->destroyRetiredNode(plan.node(i));
             }
-            plan.severChildren();
-            for (size_t i = 0; i < plan.count(); ++i)
-              this->destroyRetiredNode(plan.node(i));
+            else
+              this->destroyRetiredSubtree(snapshot);
           }
           else
             this->destroyRetiredSubtree(snapshot);
@@ -321,14 +292,7 @@ namespace loka
         }
         for (size_t i = 0; i < generationSnapshot.size(); ++i)
         {
-          if (planned)
-          {
-            const bool destroyed = detail::NodeArena::destroyRetiredGeneration(generationSnapshot[i], scratch);
-            assert(destroyed && "retired generation changed after preflight");
-            if (!destroyed)
-              this->retiredGenerations_.push_back(generationSnapshot[i]);
-          }
-          else
+          if (!planned || !detail::NodeArena::destroyRetiredGeneration(generationSnapshot[i], scratch))
             detail::NodeArena::destroyRetiredGeneration(generationSnapshot[i]);
         }
         generationSnapshot.clear();

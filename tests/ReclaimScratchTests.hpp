@@ -11,4 +11,6 @@ void testReclaimScratchNestedBoundary();
 void testReclaimScratchPartitionUnattached();
 void testReclaimScratchPartitionBoundaryChild();
 void testReclaimScratchPartitionBoundaryKeepsOwnChildren();
+void testReclaimScratchBoundaryOverflowFallback();
+void testReclaimScratchGenerationOverflowFallback();
 #endif
