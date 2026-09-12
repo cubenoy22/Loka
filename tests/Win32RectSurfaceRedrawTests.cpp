@@ -1,3 +1,4 @@
+#include "support/WindowAdmissionTestApp.hpp"
 #include "Win32RectSurfaceRedrawTests.hpp"
 #include "support/TestVerify.hpp"
 #include <cstdio>
@@ -102,6 +103,8 @@ void testWin32ZStackTextShowsSiblingBeneath()
     loka::core::StateTrackerGuard guard(window.getTracker());
     window.visibilityState().set(true);
   }
+  WindowAdmissionTestApp admission(window);
+  admission.flush();
   HWND root = window.hwnd();
   LOKA_VERIFY(root != NULL);
   ShowWindow(root, SW_HIDE);

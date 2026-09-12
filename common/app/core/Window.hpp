@@ -619,6 +619,13 @@ protected:
 
 private:
   friend class App;
+  /** App admission polls native visibility before scene work. Rails opt in by
+      comparing visibility with their native identity; no pending flag is stored. */
+  virtual bool hasPendingNativeVisibility() const { return false; }
+  /** Applies the final visibility intent once at the App clock, before scene work.
+      Callback writes during this application remain pending for a later admission. */
+  virtual void applyNativeVisibility() {}
+
   /** App admission only: captures eligible retirees, then prepares/applies one seat. */
   loka::app::scene::Scene *applySceneWork();
   /** App closes the admitted flush by reclaiming only the captured pool suffix. */

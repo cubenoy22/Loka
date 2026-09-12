@@ -71,9 +71,16 @@ the old scene remains installed. Preparation withholds global native projection;
 a refusal synchronously cleans the partial candidate, preserves the old scene,
 and leaves the desired identity for retry at the next admission. After candidate
 composition, preparation revalidates the Window's controller and native window;
-loss of a mounted rail uses the same refusal cleanup. Visibility-driven native
-teardown can still unmount the applied scene, but refusal does not replace its
-installed identity. Installation
+loss of a mounted rail uses the same refusal cleanup. On Null and Win32, visibility writes carry close/show intent only. App admission
+compares visibility with native presence and applies the final value before scene
+work; false then true before admission performs no native work. Writes during
+prepare or apply wait for the next admission for the same Window or an
+already-applied row, preserving its live rail, while an earlier row's prepare
+callback can still change a later, not-yet-applied row's visibility in the same
+admission because visibility is read per row at apply time. Other
+rails retain their existing visibility behavior. Win32 WM_DESTROY remains a
+closed fact: it severs the native reference and requests Window reclamation.
+WM_CLOSE still takes the default native destruction path. Installation
 detaches the old scene, publishes the installed State, attaches the new scene,
 projects the prepared root on the reused controller, then publishes ON_ATTACH.
 Reentrant adoption during preparation or attachment only changes the next desired identity.
@@ -108,6 +115,8 @@ all selected seats, then runs their Scene flushes and native/Scene drains. Thus
 an adoption during X's Scene run waits for the next App admission even on Y.
 The existing App window-work guard refuses nested admission and close reclamation;
 queued closes keep removed snapshot Windows alive until the following close drain.
+Before applying each row, App excludes identities queued for terminal close by an
+earlier callback, so their missing native presence cannot trigger recreation.
 A direct `Scene::invalidate()` run can be active outside that App guard. App
 excludes its Window from admission and Scene reclamation using the Scene's
 tracker-derived `isRunInProgress()` capability; desired work waits until an

@@ -1,3 +1,4 @@
+#include "support/WindowAdmissionTestApp.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 #include "Win32PropsReconciliationTests.hpp"
 #include "support/PropsReconciliation.hpp"
@@ -20,8 +21,12 @@ namespace
 
   void show(Win32Window &window)
   {
-    StateTrackerGuard guard(window.getTracker());
-    window.visibilityState().set(true);
+    {
+      StateTrackerGuard guard(window.getTracker());
+      window.visibilityState().set(true);
+    }
+    WindowAdmissionTestApp admission(window);
+    admission.flush();
   }
 
   void textIs(HWND hwnd, const wchar_t *expected)

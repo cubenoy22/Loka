@@ -16,4 +16,6 @@ void testDirectSceneRunDefersDetachUntilNextAppAdmission();
 
 void testRequestFromDetachObserverWaitsForFollowingAdmission();
 void testSeatRequestAppliesToReplacementInstalledAtAdmission();
+void testVisibilityHideDuringApplyWaitsForNextAdmission();
+void testVisibilityToggleDuringApplyUsesFinalValue();
 #endif // LOKA_PHASE_GUARD_TESTS_HPP

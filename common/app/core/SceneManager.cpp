@@ -123,8 +123,8 @@ bool SceneManager::applyReplacement()
   const bool mounted = this->window_->mountReplacementScene(next);
   if (mounted && next->mounted_)
     next->composeIfNeeded(loka::app::scene::COMPOSE_EVENT_ATTACH, false);
-  // ATTACH composition can synchronously hide the Window and destroy its rail.
-  // Validate the owner again before installing through the candidate's borrow.
+  // Validate the owner after ATTACH callbacks before installing through the
+  // candidate's borrow; rails not yet using deferred visibility can lose it.
   if (!mounted || (next->mounted_ &&
                    (!this->window_->hasLiveScenePlatform() || !next->composed_)))
   {

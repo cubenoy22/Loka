@@ -1,3 +1,4 @@
+#include "support/WindowAdmissionTestApp.hpp"
 #include "Win32WindowClientSizeTests.hpp"
 #include "support/TestVerify.hpp"
 #include <cassert>
@@ -26,8 +27,12 @@ namespace
 
   void setWindowVisibility(Win32Window &window, bool visible)
   {
-    loka::core::StateTrackerGuard guard(window.getTracker());
-    window.visibilityState().set(visible, true);
+    {
+      loka::core::StateTrackerGuard guard(window.getTracker());
+      window.visibilityState().set(visible, true);
+    }
+    WindowAdmissionTestApp admission(window);
+    admission.flush();
   }
 
   void setWindowFrame(Win32Window &window, const loka::core::Frame &frame)

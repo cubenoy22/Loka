@@ -75,7 +75,8 @@ namespace
   enum ApplyStructureRequest
   {
     APPLY_REPLACE, APPLY_DETACH, APPLY_REARM_TWICE,
-    APPLY_DETACH_REARM, APPLY_REARM_DETACH, APPLY_DETACH_TWICE
+    APPLY_DETACH_REARM, APPLY_REARM_DETACH, APPLY_DETACH_TWICE,
+    APPLY_HIDE, APPLY_HIDE_SHOW
   };
 
   /** Stack-owned observation outlives the scene and every callback it records. */
@@ -155,6 +156,15 @@ namespace
       SceneManager *seat = observation->window->sceneManager();
       switch (observation->request)
       {
+      case APPLY_HIDE:
+      case APPLY_HIDE_SHOW:
+      {
+        loka::core::StateTrackerGuard guard(observation->window->getTracker());
+        observation->window->visibilityState().set(false);
+        if (observation->request == APPLY_HIDE_SHOW)
+          observation->window->visibilityState().set(true);
+        break;
+      }
       case APPLY_REPLACE:
         seat->commitTransaction(observation->scene, observation->replacement);
         break;
@@ -493,4 +503,81 @@ void testSeatRequestAppliesToReplacementInstalledAtAdmission()
   const bool composed = loka::dsl::testing::SceneTestAccess::composed(*next);
   LOKA_VERIFY(composed);
   LOKA_VERIFY(!window.sceneManager()->hasRetiredScenes());
+}
+
+namespace
+{
+  void VerifyVisibilityRequestedDuringApply(bool showAgain, bool directRun)
+  {
+#ifdef LOKA_LIFECYCLE_AUDIT
+    const int liveBefore = loka::core::LokaAllocAuditTotalLiveCount();
+#endif
+    {
+      ApplyStructureObservation observation(showAgain ? APPLY_HIDE_SHOW : APPLY_HIDE);
+      ApplyStructureController controller(observation);
+      NullPlatformContext context;
+      WindowProps props;
+      observation.scene = new ApplyStructureScene(observation);
+      props.scene(observation.scene);
+      NullWindow window(&context, props, &controller);
+      observation.window = &window;
+      WindowAdmissionTestApp admission(window);
+      observation.app = &admission;
+      loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(*window.scene());
+      observation.scene->requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
+      if (directRun)
+        observation.scene->invalidate();
+      else
+        admission.flush();
+      LOKA_VERIFY(observation.callbackCalls == 1);
+      LOKA_VERIFY(observation.rootSurvived);
+      LOKA_VERIFY(observation.phaseSurvived);
+      LOKA_VERIFY(observation.applyCompletedOnRoot);
+      LOKA_VERIFY(observation.generationDestructions == 0);
+      LOKA_VERIFY(window.scenePlatformController() == &controller);
+      const unsigned long disposedBeforeAdmission = controller.eventCount(NullScenePlatformController::EVENT_WINDOW_DISPOSED);
+      LOKA_VERIFY(disposedBeforeAdmission == 0);
+      admission.flush();
+      if (showAgain)
+      {
+        // Last value wins: no native destruction or remount for false -> true.
+        LOKA_VERIFY(window.scenePlatformController() == &controller);
+        LOKA_VERIFY(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()) == root);
+        LOKA_VERIFY(observation.generations == 1);
+        LOKA_VERIFY(observation.generationDestructions == 0);
+        const unsigned long disposedWindows = controller.eventCount(NullScenePlatformController::EVENT_WINDOW_DISPOSED);
+        LOKA_VERIFY(disposedWindows == 0);
+      }
+      else
+      {
+        LOKA_VERIFY(window.scenePlatformController() == 0);
+        LOKA_VERIFY(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()) == 0);
+        LOKA_VERIFY(observation.generationDestructions == 1);
+        const unsigned long disposedWindows = controller.eventCount(NullScenePlatformController::EVENT_WINDOW_DISPOSED);
+        const unsigned long liveHandles = controller.createdCount() - controller.disposedCount();
+        const size_t retiredHandles = controller.retiredCount();
+        LOKA_VERIFY(disposedWindows == 1);
+        LOKA_VERIFY(liveHandles == 0);
+        LOKA_VERIFY(retiredHandles == 0);
+      }
+      admission.flush();
+      LOKA_VERIFY(!window.sceneManager()->hasRetiredScenes());
+    }
+#ifdef LOKA_LIFECYCLE_AUDIT
+    const int liveAfter = loka::core::LokaAllocAuditTotalLiveCount();
+    LOKA_VERIFY(liveAfter == liveBefore);
+#endif
+  }
+}
+
+void testVisibilityHideDuringApplyWaitsForNextAdmission()
+{
+  VerifyVisibilityRequestedDuringApply(false, false);
+  VerifyVisibilityRequestedDuringApply(false, true);
+}
+
+void testVisibilityToggleDuringApplyUsesFinalValue()
+{
+  VerifyVisibilityRequestedDuringApply(true, false);
+  VerifyVisibilityRequestedDuringApply(true, true);
 }
