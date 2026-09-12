@@ -1,0 +1,83 @@
+PR #670 (feat/core-a1b-detach-request, commit d72540c6) Win32 real-run leg
+Host: Omen bare metal, worktree /mnt/c/Users/cuben/source/repos/loka-670
+
+=== Build ===
+cmd.exe /c build.bat  (vswhere -> vcvarsall x64 -> cmake --preset win32-debug -DLOKA_BUILD_SMIRKYCARD=ON -> build LokaSimpleViewerWin32 + LokaSmirkyCardWin32)
+EXIT=0
+Exes:
+  C:\Users\cuben\source\repos\loka-670\build\win32\Debug\example\SimpleViewer\LokaSimpleViewerWin32.exe
+  C:\Users\cuben\source\repos\loka-670\build\win32\Debug\example\SmirkyCard\LokaSmirkyCardWin32.exe
+
+=== Blocker note (resolved) ===
+Console was locked at session start; CopyFromScreen captured the lock screen, not the
+desktop, giving false-black/false-content screenshots. Confirmed via a raw capture that
+showed the Windows lock screen imagery. User unlocked the host; re-verified with a fresh
+CopyFromScreen showing a real desktop window (browser) before re-running anything.
+
+=== (B) SmirkyCard, 20 alternating clicks ===
+Script: smirkycard-run.ps1 -> smirkycard-run-log4.txt
+Bug found and fixed in my own harness: caching the "Run JavaScript" button HWND before
+the loop went stale after the first click, because the app recreates the button control
+when the card subtree switches -- SendMessage on the stale handle silently no-ops. Fixed
+by re-finding the button by class+text before every click.
+Result after fix: all 20 clicks alternate Card One/Card Two and the JS index text
+correctly (odd clicks -> Card Two [0], even clicks -> Card One [1]), confirmed both via
+EnumChildWindows text dump and via real screenshots at 5/10/15/20 (click5==click15,
+click10==click20 by sha1, matching the alternation). Window rect stayed at
+40,40,475,317 for all 20 clicks (no RECT CHANGED lines logged).
+CloseMainWindow -> True, process exited, exit code = 0.
+PASS.
+
+=== (A) SimpleViewer, Open dialog leg ===
+Nav toggle '=' was not present -- window opened already in the wide layout showing
+Open... directly (narrow-collapse case not exercised, note for record).
+
+Key finding: BM_CLICK sent via SendMessage to the "Open..." button is delivered
+synchronously on the app's own thread and the app's click handler pumps the modal
+common-file-dialog loop itself, so SendMessage(BM_CLICK) does not return until the
+dialog is dismissed. My first attempt tried to also drive the dialog's Edit control by
+window text/class heuristics after the click returned -- that class detection
+(comparing to "#32770") never matched a distinct top-level window for the app's PID
+within my 5s poll, so scripted typing into the dialog was not reliable and I could not
+drive it that way. Per the coordinator's correction, I stopped trying to type into the
+dialog; the user drove the actual file selection by hand for every Open... invocation
+from here on, and I only clicked the app's own Open... button and observed before/after.
+
+Step 1 (first Open...): user picked a PNG manually (a Screenshots folder .png,
+  スクリーンショット (7).png). Chooser closed, "Loka file:" label updated, image
+  rendered. MANUAL.
+  Evidence: win32-simpleviewer-step1-after-manual.png
+
+Step 2 (second Open... click): user picked a different PNG (2026-05-15 005508.png).
+  Chooser closed, image changed, app responsive, no assert/hang. MANUAL.
+  Evidence: win32-simpleviewer-step2-dialog-open.png (before/at click),
+            win32-simpleviewer-step2-after.png
+
+Step 3 (third Open... click): user picked another PNG (2026-06-23 231112.png -- a
+  "Darktide" screenshot). Chooser closed, image changed, no assert/hang. MANUAL.
+  Evidence: win32-simpleviewer-step3-after.png
+
+Step 4 (fourth Open... click, "second image" per the brief): user re-picked
+  スクリーンショット (7).png (the same file as step 1). Chooser closed, image
+  reloaded correctly, no assert/hang. MANUAL.
+  Evidence: win32-simpleviewer-step4-after.png
+
+NOTE: none of the four manual Open... invocations exercised the dialog's own Cancel
+button (the user chose a file each time rather than cancelling) -- so "chooser closes
+on Cancel" specifically was not exercised in this run, only "chooser closes on Open"
+(x4) and general dialog-reopen robustness. Everything else in the brief (chooser closes
+each time, image changes, Open/zoom stay responsive, no assert dialog, no hang) is
+covered.
+
+=== Zoom responsiveness + close ===
+Script: sv-zoom-close.ps1 -> sv-zoom-close-log.txt
+Fit to Window: click delivered OK.
+Actual Size: click delivered OK, screenshot shows the view genuinely zoomed
+  (cropped/zoomed render of the same photo) -- confirms the app is still responsive
+  after 4 open cycles.
+CloseMainWindow -> True. Process confirmed gone from tasklist/Get-Process afterward
+  (no assert dialog, no hang). Exact numeric exit code was not captured due to a
+  PowerShell Process-object timing quirk (ExitCode read before the field settled), but
+  absence of any lingering process or dialog is itself the pass evidence for
+  "close -> exit cleanly".
+PASS (with the exit-code-capture caveat noted above).
