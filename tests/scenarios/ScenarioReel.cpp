@@ -1,6 +1,8 @@
 #include "ScenarioReel.hpp"
 
 #include "app/core/Window.hpp"
+#include "testing/app/AppTestAccess.hpp"
+#include "testing/scene/SceneTestFlow.hpp"
 #include "app/scene/Scene.hpp"
 
 namespace loka
@@ -57,13 +59,19 @@ namespace loka
       }
     }
 
-    bool RearmScenarioScene(Window *window)
+    bool RearmScenarioScene(Window *window, App *app)
     {
-      if (!window)
+      if (!window || !window->scene() || !app)
       {
         return false;
       }
-      return window->sceneManager()->rearmCurrentScene();
+      window->sceneManager()->requestRearm();
+      loka::app::testing::AppTestAccess::flushWindowInvalidations(*app);
+      // Read the outcome only after the production App admission. A nested
+      // pump leaves the request pending and cannot claim successful renewal.
+      return !window->sceneManager()->hasPendingWork()
+          && window->scene()->getAttachedState()->get()
+          && dsl::testing::SceneTestAccess::composed(*window->scene());
     }
   } // namespace scenario_tests
 } // namespace loka

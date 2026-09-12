@@ -61,7 +61,7 @@ namespace
           mainNode(0)
     {
       this->scene.mount(&this->platform);
-      this->scene.updateAttached(true);
+      loka::dsl::testing::SceneTestAccess::updateAttached(this->scene, true);
       this->mainNode =
           static_cast<smirkbench::MainNode *>(loka::dsl::testing::SceneTestAccess::rootBoundary(this->scene));
       LOKA_VERIFY(this->mainNode != 0);
@@ -69,7 +69,7 @@ namespace
 
     ~SmirkBenchFixture()
     {
-      this->scene.unmount();
+      loka::dsl::testing::SceneTestAccess::unmount(this->scene);
     }
 
     smirkbench::SmirkModel model;

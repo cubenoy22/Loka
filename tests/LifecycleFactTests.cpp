@@ -1,3 +1,4 @@
+#include "testing/scene/SceneTestFlow.hpp"
 #include "LifecycleFactTests.hpp"
 
 #include <cassert>
@@ -542,7 +543,7 @@ void testLifecycleFactBornAttachedAndSwapWritesRetainedDetach()
   loka::app::scene::Scene scene((loka::app::scene::Boundary<SwapProbeBoundaryNode>()));
   NoopPlatformController platform;
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   assert(record.node && "the probe must be materialized on attach");
   assert(record.node->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
@@ -564,7 +565,7 @@ void testLifecycleFactBornAttachedAndSwapWritesRetainedDetach()
   assert(record.attachFacts.size() == 2);
   assert(record.attachFacts[1] == loka::app::scene::NODE_FACT_ATTACHED);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   g_swapRecord = 0;
   g_swapCondition = 0;
 }
@@ -579,10 +580,10 @@ void testLifecycleFactTerminalDetachObservesRetired()
     loka::app::scene::Scene scene((loka::app::scene::Boundary<SwapProbeBoundaryNode>()));
     NoopPlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     assert(record.detachFacts.empty());
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
   assert(record.detachFacts.size() == 1);
   assert(record.detachFacts[0] == loka::app::scene::NODE_FACT_RETIRED &&
@@ -602,7 +603,7 @@ void testLifecycleFactCompositionRetireObservesRetired()
   loka::app::scene::Scene scene((loka::app::scene::Boundary<RetireProbeBoundaryNode>()));
   NoopPlatformController platform;
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   assert(record.attachFacts.size() == 1);
 
   visible.set(false);
@@ -612,7 +613,7 @@ void testLifecycleFactCompositionRetireObservesRetired()
   assert(record.detachFacts[0] == loka::app::scene::NODE_FACT_RETIRED &&
          "a composition retire writes RETIRED before releaseNodeContexts peels the probe");
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   g_retireRecord = 0;
   g_retireVisible = 0;
 }
@@ -628,7 +629,7 @@ void testPlatformControllerReleaseDropsRetiredNodeHitEntriesAndBindings()
   loka::app::scene::Scene scene((loka::app::scene::Boundary<ReleaseTableBoundaryNode>()));
   ReleaseTablePlatformController platform;
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   assert(record.node && record.context);
   platform.record(record.context);
@@ -648,7 +649,7 @@ void testPlatformControllerReleaseDropsRetiredNodeHitEntriesAndBindings()
          "releaseNodeContexts must drop controller-side raw pointers at the detach line");
   assert(platform.boundStateReadCount() == 0 && platform.hitReadTotal() == 0);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   g_releaseTableRecord = 0;
   g_releaseTableVisible = 0;
 }
@@ -663,7 +664,7 @@ void testLifecycleFactWalkIsSilentAndDeliveryIsDiffBased()
       (loka::app::scene::Boundary<DeferredSwapProbeBoundaryNode>()));
   NoopPlatformController platform;
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   assert(record.node && record.attachFacts.size() == 1);
 
   condition.set(false);
@@ -683,7 +684,7 @@ void testLifecycleFactWalkIsSilentAndDeliveryIsDiffBased()
          record.detachFacts[0] == loka::app::scene::NODE_FACT_DETACHED_RETAINED &&
          "a one-way scheduled apply delivers exactly once");
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   g_swapRecord = 0;
   g_swapCondition = 0;
 }
@@ -699,7 +700,7 @@ void testLifecycleFactChildAdoptedUnderHiddenAncestorInheritsDetached()
   loka::app::scene::Scene scene((loka::app::scene::Boundary<HiddenAdoptBoundaryNode>()));
   NoopPlatformController platform;
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   assert(!record.node && "the probe branch must not exist before the inner condition flips");
 
   ancestorVisible.set(false);
@@ -716,7 +717,7 @@ void testLifecycleFactChildAdoptedUnderHiddenAncestorInheritsDetached()
   assert(record.node->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
          "the ancestor's re-attach walk restores ATTACHED for the then-active path");
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   g_hiddenRecord = 0;
   g_hiddenAncestorVisible = 0;
   g_hiddenInnerCondition = 0;

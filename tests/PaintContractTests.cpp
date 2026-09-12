@@ -274,7 +274,7 @@ namespace
   void mount(Scene &scene, PaintPlatform &platform)
   {
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     settle(scene);
     platform.beginApplyCycle();
   }
@@ -294,7 +294,7 @@ void testRectSurfaceStateChangeExcludesSiblingTextFromPaintDamage()
   LOKA_VERIFY(d.width < loka_floppy_bird::kWindowWidth && d.height < loka_floppy_bird::kWindowHeight);
   LOKA_VERIFY(d.y >= 20 && d.y + d.height <= 20 + loka_floppy_bird::kWindowHeight);
   LOKA_VERIFY(platform.queries == 2 && platform.commits == 2);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
 void testTextStateChangeYieldsExactTextDamageOnly()
 {
@@ -312,7 +312,7 @@ void testTextStateChangeYieldsExactTextDamageOnly()
         "This unwrapped score is deliberately longer than the six hundred and forty pixel seat: one hundred and sixty "
         "characters are insufficient to fit all of this deliberately verbose score text.");
   refused(platform, PAINT_REFUSED_PLACEMENT_UNSETTLED);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
 void testNativeControlAnswersNativeScheduledAndDoesNotWiden()
 {
@@ -329,7 +329,7 @@ void testNativeControlAnswersNativeScheduledAndDoesNotWiden()
   Node *button = find(SceneTestAccess::rootBoundary(scene), NODE_KIND_BUTTON);
   LOKA_VERIFY(button && button->getContext());
   LOKA_VERIFY(platform.queries == 3);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
 void testRefusedDrawerWidensWholePlan()
 {
@@ -343,7 +343,7 @@ void testRefusedDrawerWidensWholePlan()
     change(scene, data.models[0], 4);
     refused(platform, PAINT_REFUSED_NO_CONTEXT);
     LOKA_VERIFY(platform.queries == 2);
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 }
 void testForeignContextIsNeverCastAndOwnedHandlersCannotBeReplaced()
@@ -377,7 +377,7 @@ void testForeignContextIsNeverCastAndOwnedHandlersCannotBeReplaced()
   mount(scene, platform);
   change(scene, data.models[0], 4);
   refused(platform, PAINT_REFUSED_UNSUPPORTED_KIND);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   // The two owned-drawer handlers are addressed by concrete type in the
   // presenter, so a foreign handler for their kinds is refused at registration.
   class ForeignTextHandler : public IPlatformNodeHandler
@@ -435,7 +435,7 @@ void testCompressedParentIncludesNestedOwners()
       LOKA_VERIFY(only(platform).entry(0).y != only(platform).entry(1).y);
       LOKA_VERIFY(platform.queries == 3 && platform.commits == 3);
     }
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 }
 void testSameStateTwoBoundariesDamagesBothOwners()
@@ -462,7 +462,7 @@ void testSameStateTwoBoundariesDamagesBothOwners()
   LOKA_VERIFY(platform.count == 2);
   LOKA_VERIFY(platform.observations[0].plan.precision() == APPLY_PAINT_NONE);
   LOKA_VERIFY(platform.observations[1].plan.precision() == APPLY_PAINT_NONE);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
 void testUnknownHistoryRecoversThroughWidenedPresentation()
 {
@@ -477,7 +477,7 @@ void testUnknownHistoryRecoversThroughWidenedPresentation()
   LOKA_VERIFY(platform.commits == 1);
   change(scene, data.models[0], 4);
   exactOne(platform);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
 void testPlacementRefusals()
 {
@@ -495,15 +495,15 @@ void testPlacementRefusals()
   LOKA_VERIFY(context->queryPaintDamage(query(platform)).kind == PAINT_ANSWER_EXACT);
   context->onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_DETACHED_RETAINED);
   LOKA_VERIFY(context->queryPaintDamage(query(platform)).reason == PAINT_REFUSED_PLACEMENT_UNSETTLED);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   NullScenePlatformController skipped;
   Scene second(Boundary<PaintTree>(TreeProps(&data)));
   skipped.skipNextProjectionForTesting();
   second.mount(&skipped);
-  second.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(second, true);
   Node *unplaced = find(SceneTestAccess::rootBoundary(second), NODE_KIND_RECT_SURFACE);
   LOKA_VERIFY(unplaced && !unplaced->getContext());
-  second.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(second);
   NullTextContext absent(0);
   LayoutState state;
   absent.layout(&skipped, state);
@@ -543,7 +543,7 @@ void testRetainedTextRebindsToNewStateAndCompares()
   platform.beginApplyCycle();
   score(scene, data.b, "FFFF");
   LOKA_VERIFY(platform.count == 0);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
 void testCapacityOverflowWidens()
 {
@@ -568,7 +568,7 @@ void testCapacityOverflowWidens()
       LOKA_VERIFY(only(platform).widenReason() == APPLY_PAINT_WIDEN_CAPACITY);
     }
     LOKA_VERIFY(platform.queries == 9 && platform.commits == 9);
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 }
 void testPlanHoldsNoPointersAndIsVisitLocal()
@@ -581,7 +581,7 @@ void testPlanHoldsNoPointersAndIsVisitLocal()
     mount(scene, platform);
     change(scene, data.models[0], 3);
     observation = only(platform);
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
   {
     TreeData data;
@@ -590,7 +590,7 @@ void testPlanHoldsNoPointersAndIsVisitLocal()
     mount(scene, platform);
     change(scene, data.models[0], 9);
     LOKA_VERIFY(only(platform).entry(0).x == 9);
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
   // Source-reviewed types contain enums, integer coordinates and fixed value arrays only.
   LOKA_VERIFY(observation.precision() == APPLY_PAINT_EXACT && observation.entry(0).width == 8);
@@ -606,7 +606,7 @@ void testPaintLifecycleAndScope()
   change(scene, data.models[0], 3);
   refused(platform, PAINT_REFUSED_PLACEMENT_UNSETTLED);
   LOKA_VERIFY(platform.commits == 0);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   class Census : public IPaintResidentVisitor
   {
   public:
@@ -737,7 +737,7 @@ void testPaintPolicyScopeAndLifecycleInvalidation()
   LifecycleFactTestAccess::DeliverFacts(root);
   LOKA_VERIFY(surfaceContext->queryPaintDamage(query(platform)).reason == PAINT_REFUSED_PLACEMENT_UNSETTLED);
   LOKA_VERIFY(textContext->queryPaintDamage(query(platform)).reason == PAINT_REFUSED_PLACEMENT_UNSETTLED);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
 void testPaintPlanEmptyCapacityAndScopeValues()
 {
@@ -799,7 +799,7 @@ void testUnrenderableTextNeverBecomesPresented()
   refused(platform, PAINT_REFUSED_HISTORY_UNKNOWN);
   score(scene, model.scoreText_, "Score: 3");
   exactOne(platform);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
 
 void testRefusedReprojectionInvalidatesPlacement()
@@ -826,7 +826,7 @@ void testRefusedReprojectionInvalidatesPlacement()
   platform.beginApplyCycle();
   change(scene, model.surfaceModel_, 8);
   exactOne(platform);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
 
 void testStyleOnlyApplyRecoversTextHistory()
@@ -851,5 +851,5 @@ void testStyleOnlyApplyRecoversTextHistory()
   platform.beginApplyCycle();
   score(scene, data.a, "GGGG");
   exactOne(platform);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }

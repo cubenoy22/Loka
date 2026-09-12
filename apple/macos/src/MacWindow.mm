@@ -573,7 +573,7 @@ void MacWindow::teardownScene()
   loka::app::scene::Scene *currentScene = this->scene();
   if (currentScene)
   {
-    currentScene->unmount();
+    this->unmountSceneForTeardown(*currentScene);
   }
   if (scenePlatformController_)
   {

@@ -1,6 +1,8 @@
 #ifndef LOKA_SCENE_TESTS_HPP
 #define LOKA_SCENE_TESTS_HPP
 
+#include "testing/scene/SceneTestFlow.hpp"
+
 #include <cassert>
 #include <stdio.h>
 #include <vector>
@@ -80,21 +82,21 @@ namespace SceneTests
     Scene scene(RootBoundary());
     SceneTestSupport::RecordingPlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     assert(g_rootComposeCount == 1);
     assert(g_childComposeCount == 1);
     assert(platform.lastMaterialized_ != 0);
     assert(!platform.destroyed_);
 
-    scene.updateAttached(false);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, false);
     assert(platform.destroyed_);
 
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     assert(g_rootComposeCount == 2);
     assert(g_childComposeCount == 2);
 
     // Unmount before stack-allocated platform is destroyed
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   void test_Text_state_change_records_props_dirty_notification()
@@ -115,7 +117,7 @@ namespace SceneTests
     Scene scene(rootDefinition);
     SceneTestSupport::RecordingPlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Node *rootNode = platform.lastMaterialized_;
     assert(rootNode != 0);
@@ -138,7 +140,7 @@ namespace SceneTests
     assert(platform.changeAt(0).callOrder == 0);
     assert(!platform.changeAt(0).fullRebuild);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   class FlowSlotProbe
@@ -260,16 +262,16 @@ namespace SceneTests
     Scene scene(NodeLocalStateBoundary());
     SceneTestSupport::RecordingPlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     assert(g_nodeLocalAttachCount == 1);
 
-    scene.updateAttached(false);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, false);
     assert(platform.destroyed_);
 
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     assert(g_nodeLocalAttachCount == 2);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   class LateNodeLocalStateNode;
@@ -324,9 +326,9 @@ namespace SceneTests
     Scene scene(LateNodeLocalStateBoundary());
     SceneTestSupport::RecordingPlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     assert(g_lateNodeLocalAttachCount == 1);
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   class NodeLocalReleaseOwner : public loka::app::scene::IStateOwner
@@ -720,8 +722,8 @@ namespace SceneTests
     Scene scene(NodeLocalConditionalReleaseBoundary());
     SceneTestSupport::RecordingPlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
     assert(g_nodeLocalConditionalReleaseCount == 1);
   }
 

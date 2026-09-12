@@ -294,7 +294,7 @@ void testScrapbookRenderedNavigationButtonsMoveAndStopAtEndpoints()
   NullScenePlatformController platform;
   loka::app::scene::Scene scene(mainDefinition.clone());
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   scrapbook_navigation_test::MainNode *mainNode =
       static_cast<scrapbook_navigation_test::MainNode *>(
@@ -339,7 +339,7 @@ void testScrapbookRenderedNextButtonAdvancesOnTwoConsecutiveClicks()
   LOKA_VERIFY(rootDefinition != 0);
   loka::app::scene::Scene scene(rootDefinition);
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   scrapbook_navigation_test::MainNode *mainNode =
       static_cast<scrapbook_navigation_test::MainNode *>(
@@ -369,7 +369,7 @@ void testScrapbookSizedPageContainerOwnsBothPresentations()
   NullScenePlatformController platform;
   loka::app::scene::Scene scene(mainDefinition.clone());
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   scrapbook_navigation_test::MainNode *mainNode =
       static_cast<scrapbook_navigation_test::MainNode *>(

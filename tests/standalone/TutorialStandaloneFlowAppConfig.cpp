@@ -94,7 +94,7 @@ namespace loka
             this->scenario_.replaceAndRearmScene(
                 new (std::nothrow) scenario_tests::TutorialScenario(
                     scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, 0),
-                window),
+                window, this->runControl_.app()),
             window);
       }
     }

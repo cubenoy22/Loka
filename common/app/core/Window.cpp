@@ -1,10 +1,15 @@
 #include "app/core/Window.hpp"
 #include "app/scene/Scene.hpp"
 
-loka::app::scene::Scene *Window::applySceneReplacement()
+void Window::unmountSceneForTeardown(loka::app::scene::Scene &scene)
+{
+  scene.unmount();
+}
+
+loka::app::scene::Scene *Window::applySceneWork()
 {
   loka::app::scene::Scene *retired = this->sceneManager_.retiredScenes_.snapshot();
-  if (this->sceneManager_.applyReplacement())
+  if (this->sceneManager_.applyPendingWork())
     this->synchronizeScenePlatform();
   return retired;
 }

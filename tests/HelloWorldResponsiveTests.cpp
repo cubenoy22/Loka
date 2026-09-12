@@ -137,7 +137,7 @@ void testHelloWorldResponsivePanelsFollowNativeFrameAndRetainSeats()
   props.scene(new loka::app::scene::Scene(rootDefinition));
   NullWindow *window = new NullWindow(&context, props, &platform);
   LOKA_VERIFY(window->scene() != 0);
-  window->scene()->updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(*window->scene(), true);
 
   loka::app::ScrollViewNode *mainPanelsScroll =
       findMainPanelsScroll(*window->scene());

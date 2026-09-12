@@ -92,7 +92,7 @@ namespace loka
             this->scenario_.replaceAndRearmScene(
                 new (std::nothrow) scenario_tests::ScrapbookScenario(
                     scenario_tests::ScenarioLaunchPlan::StandaloneTour(), 0),
-                window),
+                window, this->runControl_.app()),
             window);
       }
     }

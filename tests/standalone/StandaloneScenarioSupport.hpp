@@ -60,6 +60,8 @@ namespace loka
           CompletionMode completionMode = CONFIGURED_COMPLETION_MODE);
 
       void setApp(App *app);
+      /** Existing App borrow used to admit a scenario rearm between steps. */
+      App *app() const { return this->borrowedApp_; }
       /** Decorates the application title and returns the existing reel-owned
           read-only native projection. Call while constructing the Window. */
       core::State<core::String> *displayTitleState(const char *productionTitle);
@@ -138,9 +140,9 @@ namespace loka
 
           A refused candidate leaves both the live rail and Scene untouched;
           a successful replacement stops the old rail before Scene teardown. */
-      bool replaceAndRearmScene(ScenarioT *candidate, Window *window)
+      bool replaceAndRearmScene(ScenarioT *candidate, Window *window, App *app)
       {
-        return this->replace(candidate) && scenario_tests::RearmScenarioScene(window);
+        return this->replace(candidate) && scenario_tests::RearmScenarioScene(window, app);
       }
 
       void stop()

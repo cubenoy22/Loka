@@ -24,7 +24,7 @@
 // update queued before detach lives in the director's updateTransaction_ as a
 // RAW BoundaryNode* target. Without clearing it on detach, a re-attach + flush
 // swaps that stale transaction active and dispatches through the freed boundary
-// -- a use-after-free. unmount() already calls clearMountedUpdateState(); detach
+// -- a dangling reference. unmount() already calls clearMountedUpdateState(); detach
 // must match.
 //
 // Deterministic pin: the queued update must be gone after detach
@@ -43,7 +43,7 @@ void testDetachClearsQueuedBoundaryUpdate()
     loka::app::scene::Scene scene(new loka::app::BoxDefinition());
     SceneTestSupport::RecordingPlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     assert(!loka::dsl::testing::SceneTestAccess::hasRequestedInput(scene));
 
     // Queue a boundary update targeting the current root boundary.
@@ -52,16 +52,16 @@ void testDetachClearsQueuedBoundaryUpdate()
 
     // Detach destroys that root boundary; the queued update must be dropped so
     // it cannot outlive its target.
-    scene.updateAttached(false);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, false);
     assert(!loka::dsl::testing::SceneTestAccess::hasRequestedInput(scene));
 
     // Full path: re-attach builds a fresh root, then flush. Before the fix this
     // swaps the stale transaction active and dispatches through the freed
-    // boundary (heap-use-after-free / ASan).
-    scene.updateAttached(true);
+    // boundary (a lifetime hazard detected by ASan).
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     scene.flushInvalidation();
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 #ifdef LOKA_LIFECYCLE_AUDIT
   assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
@@ -72,12 +72,19 @@ void testDetachClearsQueuedBoundaryUpdate()
 
 namespace
 {
+  enum ApplyStructureRequest
+  {
+    APPLY_REPLACE, APPLY_DETACH, APPLY_REARM_TWICE,
+    APPLY_DETACH_REARM, APPLY_REARM_DETACH, APPLY_DETACH_TWICE
+  };
+
   /** Stack-owned observation outlives the scene and every callback it records. */
   struct ApplyStructureObservation
   {
-    explicit ApplyStructureObservation(bool replaceScene)
+    explicit ApplyStructureObservation(ApplyStructureRequest value)
         : tracker(), pulse(0), window(0), scene(0), replacement(0),
-          replace(replaceScene), callbackCalls(0), sceneDestructions(0),
+          request(value), callbackCalls(0), sceneDestructions(0),
+          generations(0), generationDestructions(0), app(0),
           phaseAtCallback(loka::app::scene::SceneDirector::UPDATE_CYCLE_IDLE),
           rootSurvived(false), phaseSurvived(false), applyCompletedOnRoot(false)
     {
@@ -89,9 +96,12 @@ namespace
     NullWindow *window;
     loka::app::scene::Scene *scene;
     loka::app::scene::Scene *replacement;
-    const bool replace;
+    const ApplyStructureRequest request;
     int callbackCalls;
     int sceneDestructions;
+    int generations;
+    int generationDestructions;
+    WindowAdmissionTestApp *app;
     loka::app::scene::SceneDirector::UpdateCyclePhase phaseAtCallback;
     bool rootSurvived;
     bool phaseSurvived;
@@ -119,7 +129,11 @@ namespace
     typedef loka::app::scene::ComponentNodeWithProps<ApplyStructureProps> Base;
   public:
     typedef ApplyStructureTypeTag TypeTag;
-    explicit ApplyStructureNode(const ApplyStructureProps &p) : Base(p) {}
+    explicit ApplyStructureNode(const ApplyStructureProps &p) : Base(p)
+    {
+      ++this->props.observation->generations;
+    }
+    virtual ~ApplyStructureNode() { ++this->props.observation->generationDestructions; }
     virtual void declareBindings(loka::app::scene::BindingToken &token)
     {
       token.watch(this->props.observation->pulse, this, &ApplyStructureNode::requestStructure);
@@ -138,10 +152,36 @@ namespace
       ++observation->callbackCalls;
       observation->phaseAtCallback =
           loka::dsl::testing::SceneTestAccess::director(*observation->scene).phase();
-      if (observation->replace)
-        observation->window->sceneManager()->commitTransaction(observation->scene, observation->replacement);
-      else
-        observation->scene->updateAttached(false);
+      SceneManager *seat = observation->window->sceneManager();
+      switch (observation->request)
+      {
+      case APPLY_REPLACE:
+        seat->commitTransaction(observation->scene, observation->replacement);
+        break;
+      case APPLY_DETACH:
+        seat->requestDetach();
+        break;
+      case APPLY_REARM_TWICE:
+        seat->requestRearm();
+        seat->requestRearm();
+        break;
+      case APPLY_DETACH_REARM:
+        seat->requestDetach();
+        seat->requestRearm();
+        break;
+      case APPLY_REARM_DETACH:
+        seat->requestRearm();
+        seat->requestDetach();
+        break;
+      case APPLY_DETACH_TWICE:
+        seat->requestDetach();
+        seat->requestDetach();
+        break;
+      }
+      // A direct Window flush and nested native pump cannot admit this request.
+      observation->window->flushSceneInvalidation();
+      if (observation->app)
+        observation->app->flush();
     }
   };
 
@@ -175,6 +215,9 @@ namespace
         this->observation_.pulse.set(this->observation_.pulse.get() + 1);
       }
       this->observation_.rootSurvived = root && root == Access::rootNode(*this->observation_.scene);
+      // Stop before the red implementation returns to a dangling reference.
+      LOKA_VERIFY(this->observation_.rootSurvived);
+      LOKA_VERIFY(this->observation_.generationDestructions == 0);
       this->observation_.phaseSurvived = Access::director(*this->observation_.scene).phase() ==
           loka::app::scene::SceneDirector::UPDATE_CYCLE_APPLY;
     }
@@ -199,9 +242,11 @@ namespace
     ApplyStructureObservation &observation_;
   };
 
-  void VerifyStructureRequestedDuringApply(bool replace)
+  void VerifyStructureRequestedDuringApply(ApplyStructureRequest request, bool directRun = false)
   {
-    ApplyStructureObservation observation(replace);
+    const bool replace = request == APPLY_REPLACE;
+    const bool rearm = request == APPLY_REARM_TWICE || request == APPLY_DETACH_REARM;
+    ApplyStructureObservation observation(request);
     ApplyStructureController controller(observation);
     NullPlatformContext context;
     WindowProps props;
@@ -210,10 +255,16 @@ namespace
     NullWindow window(&context, props, &controller);
     observation.window = &window;
     WindowAdmissionTestApp admission(window);
+    observation.app = &admission;
     if (replace)
       observation.replacement = new loka::app::scene::Scene(loka::app::Button("B").clone());
     observation.scene->requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
-    admission.flush();
+    if (directRun)
+      observation.scene->invalidate();
+    else
+      admission.flush();
+    LOKA_VERIFY(observation.generations == 1);
+    LOKA_VERIFY(observation.generationDestructions == 0);
     printf("P%d: callbacks=%d phase=%d rootSurvived=%d phaseSurvived=%d applyCompletedOnRoot=%d sceneDestructions=%d retired=%lu currentIsB=%d attached=%d\n",
            replace ? 2 : 3, observation.callbackCalls, static_cast<int>(observation.phaseAtCallback),
            observation.rootSurvived, observation.phaseSurvived, observation.applyCompletedOnRoot,
@@ -241,16 +292,28 @@ namespace
     }
     else
     {
+      LOKA_VERIFY(window.sceneManager()->hasPendingWork());
+      LOKA_VERIFY(window.scene()->getAttachedState()->get());
       admission.flush();
-      LOKA_VERIFY(!window.scene()->getAttachedState()->get());
-      LOKA_VERIFY(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()) == 0);
+      LOKA_VERIFY(window.scene()->getAttachedState()->get() == rearm);
+      LOKA_VERIFY((loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()) != 0) == rearm);
+      LOKA_VERIFY(window.scene()->getLifecycleState()->get() == (rearm ? ON_ATTACH : ON_DETACH));
+      LOKA_VERIFY(observation.generations == (rearm ? 2 : 1));
+      LOKA_VERIFY(observation.generationDestructions == 1);
+      LOKA_VERIFY(!window.sceneManager()->hasPendingWork());
+      admission.flush();
+      LOKA_VERIFY(observation.generations == (rearm ? 2 : 1));
+      LOKA_VERIFY(observation.generationDestructions == 1);
+      printf("Seat request %d direct=%d: generations=%d destroyed=%d attached=%d pending=0\n",
+             static_cast<int>(request), directRun, observation.generations,
+             observation.generationDestructions, window.scene()->getAttachedState()->get());
     }
   }
 }
 
 void testSceneReplacementRequestedDuringApplyIsAppliedAtNextAdmission()
 {
-  VerifyStructureRequestedDuringApply(true);
+  VerifyStructureRequestedDuringApply(APPLY_REPLACE);
 }
 
 namespace
@@ -342,4 +405,92 @@ void testDirectSceneRunDefersReplacementUntilAppAdmission()
 void testCrossWindowCallbackDefersReplacementUntilNextAppAdmission()
 {
   VerifyCallbackAdmission(true);
+}
+
+void testDetachRequestedDuringApplyIsAppliedAtNextAdmission()
+{
+  VerifyStructureRequestedDuringApply(APPLY_DETACH);
+}
+
+void testRearmRequestedTwiceDuringApplyRenewsOnceAtNextAdmission()
+{
+  VerifyStructureRequestedDuringApply(APPLY_REARM_TWICE);
+}
+
+void testDetachAndRearmRequestsUseLastRequestAtAdmission()
+{
+  VerifyStructureRequestedDuringApply(APPLY_DETACH_REARM);
+  VerifyStructureRequestedDuringApply(APPLY_REARM_DETACH);
+  VerifyStructureRequestedDuringApply(APPLY_DETACH_TWICE);
+}
+
+void testDirectSceneRunDefersDetachUntilNextAppAdmission()
+{
+  VerifyStructureRequestedDuringApply(APPLY_DETACH, true);
+}
+
+namespace
+{
+  struct DetachObserverRequest
+  {
+    SceneManager *seat;
+    WindowAdmissionTestApp *app;
+    int calls;
+    static void onAttached(void *data)
+    {
+      DetachObserverRequest *self = static_cast<DetachObserverRequest *>(data);
+      ++self->calls;
+      if (!self->seat->getCurrentScene().get()->getAttachedState()->get())
+      {
+        self->seat->requestRearm();
+        self->app->flush();
+      }
+    }
+  };
+}
+
+void testRequestFromDetachObserverWaitsForFollowingAdmission()
+{
+  NullPlatformContext context;
+  WindowProps props;
+  props.scene(new loka::app::scene::Scene(loka::app::Button("A").clone()));
+  NullWindow window(&context, props);
+  WindowAdmissionTestApp app(window);
+  DetachObserverRequest observer = { window.sceneManager(), &app, 0 };
+  window.scene()->getAttachedState()->bind(&DetachObserverRequest::onAttached, &observer, false);
+  window.sceneManager()->requestDetach();
+  app.flush();
+  LOKA_VERIFY(observer.calls == 1);
+  LOKA_VERIFY(!window.scene()->getAttachedState()->get());
+  LOKA_VERIFY(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()) == 0);
+  LOKA_VERIFY(window.sceneManager()->hasPendingWork());
+  window.scene()->getAttachedState()->unbind(&DetachObserverRequest::onAttached, &observer);
+  app.flush();
+  LOKA_VERIFY(window.scene()->getAttachedState()->get());
+  const bool composed = loka::dsl::testing::SceneTestAccess::composed(*window.scene());
+  LOKA_VERIFY(composed);
+  LOKA_VERIFY(!window.sceneManager()->hasPendingWork());
+}
+
+void testSeatRequestAppliesToReplacementInstalledAtAdmission()
+{
+  NullPlatformContext context;
+  WindowProps props;
+  props.scene(new loka::app::scene::Scene(loka::app::Button("A").clone()));
+  NullWindow window(&context, props);
+  WindowAdmissionTestApp app(window);
+  loka::app::scene::Scene *next = new loka::app::scene::Scene(loka::app::Button("B").clone());
+  window.sceneManager()->requestDetach();
+  LOKA_VERIFY(window.sceneManager()->commitTransaction(window.scene(), next));
+  app.flush();
+  LOKA_VERIFY(window.scene() == next);
+  LOKA_VERIFY(!next->getAttachedState()->get());
+  LOKA_VERIFY(loka::dsl::testing::SceneTestAccess::rootNode(*next) == 0);
+  window.sceneManager()->requestRearm();
+  app.flush();
+  LOKA_VERIFY(window.scene() == next);
+  LOKA_VERIFY(next->getAttachedState()->get());
+  const bool composed = loka::dsl::testing::SceneTestAccess::composed(*next);
+  LOKA_VERIFY(composed);
+  LOKA_VERIFY(!window.sceneManager()->hasRetiredScenes());
 }

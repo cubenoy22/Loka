@@ -1,3 +1,4 @@
+#include "testing/scene/SceneTestFlow.hpp"
 #include "StartupScenarioTests.hpp"
 
 #include "support/TestVerify.hpp"
@@ -70,7 +71,7 @@ namespace
     NullScenePlatformController platform;
     loka::app::scene::Scene scene(ownedRoot.take());
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     {
       loka::platform::file::FileHandle destination;
@@ -106,7 +107,7 @@ namespace
     LOKA_VERIFY(actual == expected);
     std::remove(actualPath);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 } // namespace
 

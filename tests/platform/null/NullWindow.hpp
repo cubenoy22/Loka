@@ -69,7 +69,7 @@ public:
     loka::app::scene::Scene *currentScene = this->scene();
     if (currentScene)
     {
-      currentScene->unmount();
+      this->unmountSceneForTeardown(*currentScene);
     }
     this->mountedScene_ = false;
   }

@@ -95,3 +95,28 @@ loka_compile_pin(small-object-pool-source-alignment
   REFUSES pins/refuses_small_object_pool_unaligned_source.cpp
   ACCEPTS pins/accepts_small_object_pool_aligned_source.cpp
 )
+
+loka_compile_pin(scene-detach-is-seat-owned
+  REFUSES pins/refuses_scene_detach.cpp
+  ACCEPTS pins/accepts_scene_requests.cpp
+)
+
+loka_compile_pin(scene-attach-is-seat-owned
+  REFUSES pins/refuses_scene_attach.cpp
+  ACCEPTS pins/accepts_scene_requests.cpp
+)
+
+loka_compile_pin(scene-unmount-is-seat-owned
+  REFUSES pins/refuses_scene_unmount.cpp
+  ACCEPTS pins/accepts_scene_requests.cpp
+)
+
+loka_compile_pin(scene-lifecycle-is-seat-owned
+  REFUSES pins/refuses_scene_lifecycle.cpp
+  ACCEPTS pins/accepts_scene_requests.cpp
+)
+
+loka_compile_pin(scene-teardown-is-window-owned
+  REFUSES pins/refuses_window_scene_teardown.cpp
+  ACCEPTS pins/accepts_external_window_scene_teardown.cpp
+)

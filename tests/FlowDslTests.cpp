@@ -2362,7 +2362,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     loka::app::TextNode *lightChild = 0;
     loka::dsl::FlowError lookupError;
@@ -2371,7 +2371,7 @@ void testLokaFlowDslV1Core()
         != loka::dsl::FLOW_STEP_FAILED);
     assert(lightChild != 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -3194,7 +3194,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
     loka::dsl::SnapRecord capture;
@@ -3211,7 +3211,7 @@ void testLokaFlowDslV1Core()
     LOKA_VERIFY(capture.get("text.value", capturedText));
     assert(capturedText == "Hello Flow");
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -3303,7 +3303,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
 
@@ -3316,7 +3316,7 @@ void testLokaFlowDslV1Core()
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -3337,7 +3337,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     ConditionalProjectedProbeController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     assert(g_conditionalProjectedProbeLayoutCalls == 0);
     assert(g_conditionalProjectedProbePrepareCalls == 0);
@@ -3354,7 +3354,7 @@ void testLokaFlowDslV1Core()
     assert(g_conditionalProjectedProbeLayoutCalls > 0);
     assert(g_conditionalProjectedProbePrepareCalls > 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -3372,7 +3372,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
 
@@ -3386,7 +3386,7 @@ void testLokaFlowDslV1Core()
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -3402,7 +3402,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
     loka::dsl::SnapRecord captured;
@@ -3436,7 +3436,7 @@ void testLokaFlowDslV1Core()
     assert(failCapture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO);
     assert(failCapture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_NODE_NOT_FOUND);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -3453,7 +3453,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     const NodeSelector<TextNode> secondText = Within("SelectorRegion").descendant<TextNode>(2);
     TextNode *text = 0;
@@ -3505,7 +3505,7 @@ void testLokaFlowDslV1Core()
     LOKA_VERIFY(std::strcmp(SceneNodeCast<CellNode>::name(), "Cell") == 0);
     LOKA_VERIFY(std::strcmp(SceneNodeCast<EditTextNode>::name(), "EditText") == 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -3525,7 +3525,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     TextNode *text = 0;
     loka::dsl::FlowError error;
@@ -3537,7 +3537,7 @@ void testLokaFlowDslV1Core()
                 == loka::dsl::FLOW_STEP_FAILED);
     LOKA_VERIFY(error.code == FLOW_ERROR_SCENE_TEST_MISSING_TEST_ID);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -3555,7 +3555,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     TextNode *text = 0;
     loka::dsl::FlowError error;
@@ -3564,7 +3564,7 @@ void testLokaFlowDslV1Core()
                 == loka::dsl::FLOW_STEP_FAILED);
     LOKA_VERIFY(error.code == FLOW_ERROR_SCENE_TEST_DUPLICATE_TEST_ID);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -3584,7 +3584,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     const NodeSelector<TextNode> selector = Within("ConditionalRegion").descendant<TextNode>(1);
     TextNode *first = 0;
@@ -3618,7 +3618,7 @@ void testLokaFlowDslV1Core()
                 && loka::platform::CollectUtf8(replacement->props.text_->get(), replacementText));
     LOKA_VERIFY(replacementText == "Replacement materialized");
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -3643,7 +3643,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *sceneInput = &scene;
     Scene *sceneOutput = 0;
@@ -3662,7 +3662,7 @@ void testLokaFlowDslV1Core()
 
     buttonClick.unbind(&incrementNotificationCount, &buttonClicks);
     cellClick.unbind(&incrementNotificationCount, &cellClicks);
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -3678,7 +3678,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
 
@@ -3701,7 +3701,7 @@ void testLokaFlowDslV1Core()
     assert(failCapture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT);
     assert(failCapture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -3717,7 +3717,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     loka::app::scene::Node *actionButton = 0;
     loka::dsl::FlowError lookupError;
     LOKA_VERIFY(loka::dsl::testing::LookupNodeById<loka::app::scene::Node>(
@@ -3740,7 +3740,7 @@ void testLokaFlowDslV1Core()
     assert(bitmap.width == 64);
     assert(bitmap.height == 32);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -3756,7 +3756,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     loka::app::scene::Node *actionButton = 0;
     loka::dsl::FlowError lookupError;
     LOKA_VERIFY(loka::dsl::testing::LookupNodeById<loka::app::scene::Node>(
@@ -3778,7 +3778,7 @@ void testLokaFlowDslV1Core()
     assert(bitmap.width == 80);
     assert(bitmap.height == 40);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -3794,7 +3794,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
     loka::dsl::SnapRecord captured;
@@ -3811,7 +3811,7 @@ void testLokaFlowDslV1Core()
 
     LOKA_VERIFY(chain.run());
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -3827,7 +3827,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
     loka::dsl::SnapRecord captured;
@@ -3844,7 +3844,7 @@ void testLokaFlowDslV1Core()
     assert(captured.getInt("view.context.present", contextPresent));
     assert(contextPresent == 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -3860,7 +3860,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
     loka::dsl::SnapRecord captured;
@@ -3876,7 +3876,7 @@ void testLokaFlowDslV1Core()
 
     LOKA_VERIFY(chain.run());
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -3894,7 +3894,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
 
@@ -3908,7 +3908,7 @@ void testLokaFlowDslV1Core()
     LOKA_VERIFY(okChain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -3926,7 +3926,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
 
@@ -3940,7 +3940,7 @@ void testLokaFlowDslV1Core()
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -3960,7 +3960,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
 
@@ -3972,7 +3972,7 @@ void testLokaFlowDslV1Core()
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_LAYOUT) == 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -3994,7 +3994,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
 
@@ -4006,7 +4006,7 @@ void testLokaFlowDslV1Core()
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) == 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -4020,7 +4020,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
 
@@ -4040,7 +4040,7 @@ void testLokaFlowDslV1Core()
     LOKA_VERIFY(postToggleChain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
     g_sameBoundaryConditionalProbe = 0;
   }
 
@@ -4059,7 +4059,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
 
@@ -4097,7 +4097,7 @@ void testLokaFlowDslV1Core()
     (void)firstProbe;
     assert(g_headlessScopeProbe == firstProbe);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
     g_headlessScopeProbe = 0;
     g_headlessScopeHost = 0;
   }
@@ -4117,7 +4117,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     assert(g_headlessOwnedProbe != 0);
     assert(g_headlessOwnedHost != 0);
@@ -4144,7 +4144,7 @@ void testLokaFlowDslV1Core()
     assert(g_headlessOwnedDestroyCount == 0);
     assert(g_headlessOwnedProbe->summaryText().equals(loka::core::String::Literal("Owned 1")));
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
     g_headlessOwnedProbe = 0;
     g_headlessOwnedHost = 0;
   }
@@ -4164,7 +4164,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     HeadlessOwnedProbeNode *firstOwnedProbe = g_headlessOwnedProbe;
     (void)firstOwnedProbe;
@@ -4178,7 +4178,7 @@ void testLokaFlowDslV1Core()
     assert(g_headlessOwnedAttachCount == 1);
     assert(g_headlessOwnedDestroyCount == 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
     g_headlessOwnedProbe = 0;
     g_headlessOwnedHost = 0;
   }
@@ -4201,7 +4201,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     assert(g_headlessOwnedMultiProbeA != 0);
     assert(g_headlessOwnedMultiProbeB != 0);
@@ -4240,7 +4240,7 @@ void testLokaFlowDslV1Core()
     assert(g_headlessOwnedMultiProbeA->summaryText().equals(loka::core::String::Literal("OwnedA 0")));
     assert(g_headlessOwnedMultiProbeB->summaryText().equals(loka::core::String::Literal("OwnedB 0")));
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
     g_headlessOwnedMultiProbeA = 0;
     g_headlessOwnedMultiProbeB = 0;
     g_headlessOwnedMultiHost = 0;
@@ -4263,7 +4263,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     assert(g_headlessOwnedPersistentProbe != 0);
     assert(g_headlessOwnedProbe != 0);
@@ -4294,7 +4294,7 @@ void testLokaFlowDslV1Core()
     assert(g_headlessOwnedAttachCount == 1);
     assert(g_headlessOwnedDestroyCount == 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
     g_headlessOwnedProbe = 0;
     g_headlessOwnedPersistentProbe = 0;
   }
@@ -4314,7 +4314,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
 
@@ -4325,7 +4325,7 @@ void testLokaFlowDslV1Core()
     LOKA_VERIFY(chain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -4343,7 +4343,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
     loka::dsl::SnapRecord captured;
@@ -4373,7 +4373,7 @@ void testLokaFlowDslV1Core()
     assert(captured.getInt("platform.calls", platformCalls));
     assert(platformCalls >= 1);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -4413,7 +4413,7 @@ void testLokaFlowDslV1Core()
     Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
     (void)rootBoundary;
@@ -4496,7 +4496,7 @@ void testLokaFlowDslV1Core()
     assert(SceneTestAccess::projectionTransactionGeneration(scene) == 0);
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
     const SceneDirector::SceneUpdateSnapshot &observationAfterUnmount = SceneTestAccess::updateSnapshot(scene);
     (void)observationAfterUnmount;
     assert(SceneTestAccess::snapshotGeneration(observationAfterUnmount) == 0);
@@ -4522,7 +4522,7 @@ void testLokaFlowDslV1Core()
     Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
     (void)rootBoundary;
@@ -4552,7 +4552,7 @@ void testLokaFlowDslV1Core()
     assert(SceneTestAccess::projectionTransactionGeneration(scene) == 0);
     assert(SceneTestAccess::projectionTransactionFirstTargetNode(scene) == 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -4563,7 +4563,7 @@ void testLokaFlowDslV1Core()
     Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
     (void)rootBoundary;
@@ -4577,7 +4577,7 @@ void testLokaFlowDslV1Core()
     assert(plan.paintRoot == rootBoundary);
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -4597,7 +4597,7 @@ void testLokaFlowDslV1Core()
     Scene scene((BoundaryDefinition<PendingDefaultApplyProbeBoundaryProps, PendingDefaultApplyProbeBoundaryNode>()));
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     scene.requestInvalidate(static_cast<NodeDirtyFlags>(NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT));
     BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
@@ -4630,7 +4630,7 @@ void testLokaFlowDslV1Core()
     assert(g_defaultApplyCompositedPaintCalls == 1);
     assert(SceneTestAccess::lastApplyPlan(scene).structureChanged == false);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -4641,7 +4641,7 @@ void testLokaFlowDslV1Core()
     Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
     assert(rootBoundary != 0);
@@ -4661,7 +4661,7 @@ void testLokaFlowDslV1Core()
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
     assert(SceneTestAccess::projectionTransactionGeneration(scene) == 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -4675,7 +4675,7 @@ void testLokaFlowDslV1Core()
     Scene scene((BoundaryDefinition<PendingLayoutBoundaryProps, PendingLayoutBoundaryNode>()));
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
     loka::dsl::SnapRecord captured;
@@ -4708,7 +4708,7 @@ void testLokaFlowDslV1Core()
     assert(ok);
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
     g_pendingLayoutWidthState = 0;
   }
 
@@ -4724,7 +4724,7 @@ void testLokaFlowDslV1Core()
     FlowScenePlatformController platform;
     platform.skipGlobalChangeForBoundaryLocalPaint_ = true;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     platform.calls_ = 0;
     platform.boundaryApplyCalls_ = 0;
     platform.lastFlags_ = loka::app::scene::NODE_DIRTY_NONE;
@@ -4752,7 +4752,7 @@ void testLokaFlowDslV1Core()
     assert(platform.lastBoundaryApplyPlan_.hasBoundaryApplyWork(rootBoundary));
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -4763,7 +4763,7 @@ void testLokaFlowDslV1Core()
     Scene scene((BoundaryDefinition<PendingApplyProbeBoundaryProps, PendingApplyProbeBoundaryNode>()));
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
     assert(rootBoundary != 0);
@@ -4772,7 +4772,7 @@ void testLokaFlowDslV1Core()
     LOKA_VERIFY(scene.flushInvalidation());
     assert(SceneTestAccess::lastApplyPlan(scene).paintKind == PlatformApplyPlan::PAINT_LOCAL_OPAQUE);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -4790,7 +4790,7 @@ void testLokaFlowDslV1Core()
     Scene scene((BoundaryDefinition<PendingApplySiblingsRootProps, PendingApplySiblingsRootNode>()));
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
     assert(rootBoundary != 0);
@@ -4825,7 +4825,7 @@ void testLokaFlowDslV1Core()
     assert(platform.lastBoundaryApplyBoundary_ == siblingB || platform.lastBoundaryApplyBoundary_ == siblingA);
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -4841,7 +4841,7 @@ void testLokaFlowDslV1Core()
     Scene scene((BoundaryDefinition<PendingApplyDefersSiblingsRootProps, PendingApplyDefersSiblingsRootNode>()));
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
     assert(rootBoundary != 0);
@@ -4875,7 +4875,7 @@ void testLokaFlowDslV1Core()
     assert(g_pendingApplyDefersSiblingBCalls == 1);
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -4895,7 +4895,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
 
@@ -4907,7 +4907,7 @@ void testLokaFlowDslV1Core()
     LOKA_VERIFY(chain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -4927,7 +4927,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
     loka::dsl::SnapRecord captured;
@@ -4959,7 +4959,7 @@ void testLokaFlowDslV1Core()
     assert(captured.getInt("platform.calls", platformCalls));
     assert(platformCalls >= 1);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -4977,7 +4977,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
     loka::dsl::SnapRecord captured;
@@ -5006,7 +5006,7 @@ void testLokaFlowDslV1Core()
     assert(captured.getInt("platform.calls", platformCalls));
     assert(platformCalls >= 1);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -5024,7 +5024,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
 
@@ -5036,7 +5036,7 @@ void testLokaFlowDslV1Core()
     LOKA_VERIFY(chain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -5055,7 +5055,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
 
@@ -5068,7 +5068,7 @@ void testLokaFlowDslV1Core()
     LOKA_VERIFY(chain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -5238,7 +5238,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
     loka::dsl::SnapRecord captured;
@@ -5266,7 +5266,7 @@ void testLokaFlowDslV1Core()
     assert(failCapture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT);
     assert(failCapture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -5282,7 +5282,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
     Scene *sameScene = 0;
@@ -5308,7 +5308,7 @@ void testLokaFlowDslV1Core()
     assert(failCapture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT);
     assert(failCapture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -5324,7 +5324,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
 
@@ -5347,7 +5347,7 @@ void testLokaFlowDslV1Core()
     assert(capture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT);
     assert(capture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -5363,7 +5363,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
     FlowErrorCapture capture = {0, 0, 0};
@@ -5379,7 +5379,7 @@ void testLokaFlowDslV1Core()
     assert(capture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO);
     assert(capture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_NODE_TYPE_MISMATCH);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -5396,7 +5396,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
     FlowErrorCapture capture = {0, 0, 0};
@@ -5412,7 +5412,7 @@ void testLokaFlowDslV1Core()
     assert(capture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO);
     assert(capture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_DUPLICATE_TEST_ID);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -5431,7 +5431,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
     loka::dsl::FlowChain<Scene *, Scene *> chain =
@@ -5458,7 +5458,7 @@ void testLokaFlowDslV1Core()
     assert(textNotificationCount == 2);
 
     text.unbind(&incrementNotificationCount, &textNotificationCount);
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -5477,7 +5477,7 @@ void testLokaFlowDslV1Core()
     Scene scene(rootDefinition);
     FlowScenePlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     Scene *scenePtr = &scene;
     loka::dsl::FlowChain<Scene *, Scene *> chain =
@@ -5500,7 +5500,7 @@ void testLokaFlowDslV1Core()
     assert(capture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_NODE_TYPE_MISMATCH);
     assert(clickCount == 1);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   {
@@ -6340,7 +6340,7 @@ void testSimpleViewerClosesDialogFromChooserCompletion()
       new loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(props));
   FlowScenePlatformController platform;
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   loka::app::OpenFileDialogNode *dialog = findSimpleViewerOpenFileDialog(scene);
   assert(!dialog);
@@ -6393,7 +6393,7 @@ void testSimpleViewerClosesDialogFromChooserCompletion()
     assert(!dialog && "every delivered chooser result closes SimpleViewer's owning Show");
   }
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
 
 void testSimpleViewerImageLoadSessionPreservesAndReleasesCurrentImage()
@@ -6426,7 +6426,7 @@ void testSimpleViewerImageLoadSessionPreservesAndReleasesCurrentImage()
       new loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(props));
   FlowScenePlatformController platform;
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   openDialogEvent.emit();
   if (scene.hasPendingInvalidation())
@@ -6468,7 +6468,7 @@ void testSimpleViewerImageLoadSessionPreservesAndReleasesCurrentImage()
   assert(platformContext.observedBlob_.isValid());
   assert(platformContext.observedBlob_ != previousBlob && "the second read must publish a fresh blob");
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   LOKA_VERIFY(std::remove(path) == 0);
 }
 
@@ -6504,7 +6504,7 @@ void testSimpleViewerImageLoadStopsWhenCapacityRemainsUnavailable()
       new loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(props));
   FlowScenePlatformController platform;
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   openDialogEvent.emit();
   loka::app::OpenFileDialogNode *dialog = findSimpleViewerOpenFileDialog(scene);
@@ -6516,7 +6516,7 @@ void testSimpleViewerImageLoadStopsWhenCapacityRemainsUnavailable()
          && "an unavailable allocation with no current image must terminate instead of looping the GoTo");
   assert(platformContext.createImageCalls_ == 0 && "capacity refusal must happen before image decoding");
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   LOKA_VERIFY(std::remove(path) == 0);
 }
 
@@ -7250,7 +7250,7 @@ void testSceneFlowWaitUntilAppliedWaitsForProjection()
   Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
   FlowScenePlatformController platform;
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   const int callsBeforeAction = platform.calls_;
   int actionCalls = 0;
@@ -7280,7 +7280,7 @@ void testSceneFlowWaitUntilAppliedWaitsForProjection()
   LOKA_VERIFY(actionCalls == 1);
   LOKA_VERIFY(platform.calls_ == callsAfterApply);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
 
 void testSceneFlowWaitUntilAppliedRetainsBaselineWhileActionPending()
@@ -7290,7 +7290,7 @@ void testSceneFlowWaitUntilAppliedRetainsBaselineWhileActionPending()
   Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
   FlowScenePlatformController platform;
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   const int callsBeforeAction = platform.calls_;
   int actionCalls = 0;
@@ -7313,7 +7313,7 @@ void testSceneFlowWaitUntilAppliedRetainsBaselineWhileActionPending()
   LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
   LOKA_VERIFY(actionCalls == 2);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
 
 void testSceneFlowWaitUntilPresentedWaitsForPlatformSynchronization()
@@ -7324,7 +7324,7 @@ void testSceneFlowWaitUntilPresentedWaitsForPlatformSynchronization()
   FlowScenePlatformController platform;
   platform.queuePendingSyncOnChange_ = true;
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   platform.synchronize();
 
   int actionCalls = 0;
@@ -7349,7 +7349,7 @@ void testSceneFlowWaitUntilPresentedWaitsForPlatformSynchronization()
   LOKA_VERIFY(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
   LOKA_VERIFY(actionCalls == 1);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
 
 void testSceneFlowWaitUntilAppliedDoesNotWaitForPlatformSynchronization()
@@ -7360,7 +7360,7 @@ void testSceneFlowWaitUntilAppliedDoesNotWaitForPlatformSynchronization()
   FlowScenePlatformController platform;
   platform.queuePendingSyncOnChange_ = true;
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   platform.synchronize();
 
   int actionCalls = 0;
@@ -7379,7 +7379,7 @@ void testSceneFlowWaitUntilAppliedDoesNotWaitForPlatformSynchronization()
   LOKA_VERIFY(actionCalls == 1);
 
   platform.synchronize();
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
 
 void testSceneFlowWaitUntilAppliedRefusesMissingProjection()
@@ -7389,7 +7389,7 @@ void testSceneFlowWaitUntilAppliedRefusesMissingProjection()
   Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
   FlowScenePlatformController platform;
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   Scene *scenePtr = &scene;
   loka::dsl::testing::ScenarioClock clock;
@@ -7407,7 +7407,7 @@ void testSceneFlowWaitUntilAppliedRefusesMissingProjection()
   LOKA_VERIFY(failure.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO);
   LOKA_VERIFY(failure.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_EXPECTED_APPLY);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
 
 void testFlowMatchRunsOnlyFirstMatchingArm()

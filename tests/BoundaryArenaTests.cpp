@@ -2360,7 +2360,7 @@ void testSceneRootAllocationRefusalArmsWhiteFlagAndHealsOnRefresh()
     g_refuseRootCreate = true;
     loka::app::scene::Scene scene((RefusableRootDefinition()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     // No crash, no assert. The root was never created, the scene stays
     // uncomposed, and the white flag is armed for a later external retry.
@@ -2453,7 +2453,7 @@ void testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry()
     g_attachRefuseState = false;
     loka::app::scene::Scene scene((AttachRefusalRootDefinition()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     assert(loka::dsl::testing::SceneTestAccess::rootBoundary(scene) == 0);
     assert(!loka::dsl::testing::SceneTestAccess::composed(scene));
     assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
@@ -2532,7 +2532,7 @@ void testPlainRootAttachAllocationRefusalStaysUncomposedAndRetriesWithDetach()
     g_attachStateRefusals = 0;
     loka::core::LokaAllocSetBackend(&attachStateRefusingBackendAlloc, &delegatingBackendFree);
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     loka::core::LokaAllocSetBackend(0, 0);
     g_attachRefuseState = false;
 
@@ -2609,7 +2609,7 @@ namespace
       g_attachStateRefusals = 0;
       loka::core::LokaAllocSetBackend(&attachStateRefusingBackendAlloc, &delegatingBackendFree);
       scene.mount(&platform);
-      scene.updateAttached(true);
+      loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
       loka::core::LokaAllocSetBackend(0, 0);
       g_attachRefuseState = false;
       g_attachRefusalHeldReleases = 0;
@@ -2618,7 +2618,7 @@ namespace
       const size_t publications = platform.changeCount();
       LOKA_VERIFY(!composed && whiteFlag && publications == 0 && g_attachStateRefusals > 0);
       LOKA_VERIFY(releases == 0);
-      scene.unmount();
+      loka::dsl::testing::SceneTestAccess::unmount(scene);
       LOKA_VERIFY(releases == 1);
       if (!boundaryRoot)
         LOKA_VERIFY(record.detaches > 0 && record.destructions == 1);
@@ -2658,7 +2658,7 @@ void testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement()
       SectionTrackedValue initial(&oldValueAlive, 41);
       SectionOrderingObservation observation(oldState, initial);
       g_sectionOrderingObservation = &observation;
-      scene.updateAttached(true);
+      loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
       g_sectionOrderingObservation = 0;
     }
 
@@ -2734,7 +2734,7 @@ void testBoundarySectionRetainedKeyReconcilesReplacedChild()
     SceneTestSupport::RecordingPlatformController platform;
     loka::app::scene::Scene scene((loka::app::scene::Boundary<SectionLifetimeRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     SectionLifetimeRootNode *root =
         static_cast<SectionLifetimeRootNode *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
@@ -2806,7 +2806,7 @@ void testBoundarySectionRejectsMissingAndDuplicateSiblingKeys()
         loka::app::scene::Scene scene(
             (loka::app::scene::Boundary<DuplicateSectionRootNode>()));
         scene.mount(&platform);
-        scene.updateAttached(true);
+        loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
       }
       _exit(0);
     }
@@ -2833,7 +2833,7 @@ void testBoundarySectionAllocationFailureKeepsBoundaryRefusalAtomic()
       loka::app::scene::Scene scene(
           (loka::app::scene::Boundary<SectionFailureRootNode>()));
       scene.mount(&platform);
-      scene.updateAttached(true);
+      loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
       SectionFailureRootNode *root = static_cast<SectionFailureRootNode *>(
           loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
       assert(root && root->composeResult().composed);
@@ -2880,7 +2880,7 @@ void testBoundarySectionGridUsesEnclosingStateArenaEconomically()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<SectionGridRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     SectionGridRootNode *root = static_cast<SectionGridRootNode *>(
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     assert(root);
@@ -2924,7 +2924,7 @@ void testNodeCompositionFallsBackToBoundaryOwnerWithoutSection()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<SectionOwnerResolutionRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     SectionOwnerResolutionRootNode *root =
         static_cast<SectionOwnerResolutionRootNode *>(
             loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
@@ -2949,7 +2949,7 @@ void testNodeCompositionResolvesNearestSectionOwner()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<SectionOwnerResolutionRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     loka::app::scene::BoundaryNode *root =
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
     loka::app::BoundarySectionNode *section = findSectionByKey(root, 4101);
@@ -2979,7 +2979,7 @@ void testNodeCompositionResolvesInnermostSectionOwner()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<SectionOwnerResolutionRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     loka::app::scene::BoundaryNode *root =
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
     loka::app::BoundarySectionNode *outer = findSectionByKey(root, 4101);
@@ -3003,7 +3003,7 @@ void testBoundarySectionOwnedStateInvalidatesEnclosingBoundary()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<SectionOwnerResolutionRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     loka::app::scene::BoundaryNode *root =
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
     (void)root;
@@ -3040,7 +3040,7 @@ void testBoundarySectionRetireWhileDirtySourceDeregistersAncestorEdges()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<SectionOwnerResolutionRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     SectionOwnerResolutionRootNode *root =
         static_cast<SectionOwnerResolutionRootNode *>(
             loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
@@ -3079,7 +3079,7 @@ void testConditionalBranchFlipInsideSectionKeepsSectionOwner()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<SectionOwnerResolutionRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     SectionOwnerResolutionRootNode *root =
         static_cast<SectionOwnerResolutionRootNode *>(
             loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
@@ -3107,7 +3107,7 @@ void testCurrentBoundaryStateRequiresResolvedOwnerMatchBothDirections()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<SectionOwnerResolutionRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     loka::app::scene::BoundaryNode *root =
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
     loka::app::BoundarySectionNode *section = findSectionByKey(root, 4101);
@@ -3196,7 +3196,7 @@ void testHeldNestedBoundaryRetireReleasesAtParentDrain()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<HeldNestedRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     assert(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     assert(scenario.held.isValid());
     assert(scenario.releaseCount == 0);
@@ -3234,7 +3234,7 @@ void testHeldCreationStartsWithSectionOwnerSlot()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<HeldOwnerSlotRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     loka::app::scene::BoundaryNode *root =
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
@@ -3269,7 +3269,7 @@ void testHeldDescendantAndRepeatedOwnerHoldsShareOneBlock()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<HeldOwnerSlotRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     loka::app::scene::BoundaryNode *root =
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
@@ -3304,7 +3304,7 @@ void testHeldDescendantDetachDropsOnlyItsOwnerSlot()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<HeldOwnerSlotRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     HeldOwnerSlotRootNode *root = static_cast<HeldOwnerSlotRootNode *>(
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     loka::app::BoundarySectionNode *creator =
@@ -3343,7 +3343,7 @@ void testHeldLastDropDefersReleaserToRetirePoolDrain()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<HeldOwnerSlotRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     HeldOwnerSlotRootNode *root = static_cast<HeldOwnerSlotRootNode *>(
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     (void)root;
@@ -3404,7 +3404,7 @@ void testHeldFifthOwnerRefusalIsFailureAtomic()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<HeldOwnerSlotRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     assert(scenario.held.isValid());
     assert(!scenario.refused.isValid());
     assert(scenario.refusalWasFailureAtomic);
@@ -3431,7 +3431,7 @@ void testHeldCrossBranchHoldIsRefusedBySubtreeWall()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<HeldOwnerSlotRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     assert(scenario.held.isValid());
     assert(!scenario.refused.isValid());
     assert(scenario.refusalWasFailureAtomic);
@@ -3450,7 +3450,7 @@ void testHeldHandleCopiesDoNotChangeOwnerSlots()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<HeldOwnerSlotRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     loka::app::scene::IStateOwner *creator = scenario.creatorOwner;
     assert(creator);
     const unsigned slotsBefore =
@@ -3519,7 +3519,7 @@ void testHeldBlockUsesEnclosingBoundaryArenaWithoutHeapControlBlock()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<HeldOwnerSlotRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     loka::app::scene::BoundaryNode *root =
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
     loka::app::BoundarySectionNode *creator =

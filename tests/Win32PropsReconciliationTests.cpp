@@ -1,3 +1,4 @@
+#include "testing/scene/SceneTestFlow.hpp"
 #include "Win32PropsReconciliationTests.hpp"
 #include "support/PropsReconciliation.hpp"
 #include "Win32Window.hpp"
@@ -93,7 +94,7 @@ void testWin32RetainedTextRebindsToNewState()
   Text declaration(&a);
   Scene scene((Boundary<Tree<Text> >(Props<Text>(&declaration))));
   scene.mount(&controller);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   settle(scene);
   TextNode *text = root(scene)->childrenHead()->asTextNode();
   assert(text);
@@ -149,7 +150,7 @@ void testWin32RetainedTextRebindsToNewState()
     textIs(hwnd, L"new B");
     assert(writes.count() == 5);
   }
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   controller.drainNativeRetirements();
 }
 
@@ -166,7 +167,7 @@ void testWin32RetainedRectSurfaceRebindsToNewModel()
   RectSurface declaration = RectSurface(&a).size(100, 60);
   Scene scene((Boundary<Tree<RectSurface> >(Props<RectSurface>(&declaration))));
   scene.mount(&controller);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   settle(scene);
   RectSurfaceNode *surface = root(scene)->childrenHead()->asRectSurfaceNode();
   assert(surface);
@@ -199,6 +200,6 @@ void testWin32RetainedRectSurfaceRebindsToNewModel()
   assert(!Access::queryPendingInvalidation(controller, 0, pending)); // loka-assert-ok: pure query; output unused
   settle(scene);
   assert(!Access::queryPendingInvalidation(controller, 0, pending)); // loka-assert-ok: pure query; output unused
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   controller.drainNativeRetirements();
 }

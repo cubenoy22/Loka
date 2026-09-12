@@ -1,3 +1,4 @@
+#include "testing/scene/SceneTestFlow.hpp"
 #include "LifecycleDetachTests.hpp"
 #include "support/TestVerify.hpp"
 
@@ -465,7 +466,9 @@ namespace
     {
       if (this->showReplacement_.get())
       {
-        composition.declare(loka::app::Text("Replacement root"));
+        // The probe needs the stored base definition, not a typed clone wrapper.
+        composition.declare(static_cast<const loka::app::scene::NodeDefinitionBase &>(
+            loka::app::Text("Replacement root")));
       }
       else
       {
@@ -1399,10 +1402,10 @@ void testSceneUnmountNotifiesPlainNodeContextDetached()
   DetachProbePlatformController platform;
 
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   assert(counts.detachCalls == 0);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 
   assert(counts.detachCalls == 1);
 }
@@ -1419,11 +1422,11 @@ void testSceneUpdateAttachedFalseNotifiesPlainNodeContextDetachedOnce()
   DetachProbePlatformController platform;
 
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   assert(counts.attachCalls == 1);
   assert(counts.detachCalls == 0);
 
-  scene.updateAttached(false);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, false);
 
   assert(counts.detachCalls == 1);
 }
@@ -1438,11 +1441,11 @@ void testSceneTeardownNotifiesBoundaryInternalNodeContextDetachedOnce()
   DetachProbePlatformController platform;
 
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   assert(counts.attachCalls == 1);
   assert(counts.detachCalls == 0);
 
-  scene.updateAttached(false);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, false);
 
   assert(counts.detachCalls == 1);
   g_boundaryInternalCounts = 0;
@@ -1458,8 +1461,8 @@ void testRootDetachChildWalkRetainsBoundaryStateOwner()
   {
     Scene scene((Boundary<RootDetachStateOwnerBoundaryNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   assert(rootObservation.detachCalls == 1);
@@ -1474,8 +1477,8 @@ void testRootDetachChildWalkRetainsBoundaryStateOwner()
   {
     Scene scene((Boundary<NestedDetachStateOwnerHarnessNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   assert(nestedObservation.detachCalls == 1);
@@ -1499,7 +1502,7 @@ void testConditionalBranchSwapDestroysRetiredArenaNodeOnNextTrackerRun()
     Scene scene((Boundary<ConditionalArenaRetireProbeNode>()));
 
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     assert(g_conditionalArenaRetireProbe != 0);
     Node *retiringBranch = g_conditionalArenaRetireProbe->activeBranchNode();
@@ -1586,7 +1589,7 @@ void testRootReplacementDestroysRetiredArenaNodeOnNextTrackerRun()
     Scene scene((Boundary<RootReplacementArenaRetireBoundaryNode>()));
 
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     assert(g_rootReplacementArenaRetireBoundary != 0);
     Node *retiringRoot = g_rootReplacementArenaRetireBoundary->activeRootNode();
@@ -1632,7 +1635,7 @@ void testRetiringNativeContextUnbindsBeforeNodeOwnedStateReclaim()
     Scene scene((Boundary<ConditionalArenaRetireProbeNode>()));
 
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     assert(g_conditionalArenaRetireProbe != 0);
     assert(g_nativeBindingStateBoundary != 0);
@@ -1659,7 +1662,7 @@ void testSceneDestructionUnbindsNativeContextBeforeNodeOwnedStateReclaim()
   {
     Scene scene((Boundary<NativeBindingStateBoundaryNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     assert(g_nativeBindingStateBoundary != 0);
     LOKA_VERIFY(g_nativeBindingStateBoundary->getContext() != 0);
@@ -1683,7 +1686,7 @@ void testSceneTeardownDrainsNonEmptyRetiredArenaSubtreeExactlyOnce()
     DetachProbePlatformController platform;
     Scene scene((Boundary<ConditionalArenaRetireProbeNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     assert(g_conditionalArenaRetireProbe != 0);
     Node *retiringBranch = g_conditionalArenaRetireProbe->activeBranchNode();
@@ -1734,7 +1737,7 @@ void testConditionalBranchSwapDestroysRetiredArenaSubtreeChildrenFirst()
     DetachProbePlatformController platform;
     Scene scene((Boundary<ConditionalArenaRetireProbeNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     assert(g_conditionalArenaRetireProbe != 0);
     Node *retiringBranch = g_conditionalArenaRetireProbe->activeBranchNode();
@@ -1779,7 +1782,7 @@ void testRetiredArenaParentDestroysHeapChildExactlyOnceAtDrain()
     DetachProbePlatformController platform;
     Scene scene((Boundary<ConditionalArenaRetireProbeNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     assert(g_conditionalArenaRetireProbe != 0);
     Node *retiringBranch = g_conditionalArenaRetireProbe->activeBranchNode();
@@ -1824,7 +1827,7 @@ void testConditionalBranchSwapBackDestroysRetiredHeapNodeOnNextTrackerRun()
     DetachProbePlatformController platform;
     Scene scene((Boundary<ConditionalArenaRetireProbeNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     assert(g_conditionalArenaRetireProbe != 0);
     Node *initialBranch = g_conditionalArenaRetireProbe->activeBranchNode();
@@ -1877,7 +1880,7 @@ void testPendingChildBoundaryUpdateSurvivesHeapSubtreeReplacement()
     DetachProbePlatformController platform;
     Scene scene((Boundary<ConditionalArenaRetireProbeNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     assert(g_conditionalArenaRetireProbe != 0);
     g_conditionalArenaRetireProbe->showAlternate();
@@ -2002,7 +2005,7 @@ void testRetiredSubtreeDestroysNestedBoundaryArenaExactlyOnce()
     DetachProbePlatformController platform;
     Scene scene((Boundary<ConditionalArenaRetireProbeNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     assert(g_conditionalArenaRetireProbe != 0);
     Node *retiringBranch = g_conditionalArenaRetireProbe->activeBranchNode();
@@ -2052,7 +2055,7 @@ void testRetiredBoundaryOwnedStateMutationIsQuiescent()
     DetachProbePlatformController platform;
     Scene scene((Boundary<ConditionalArenaRetireProbeNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     assert(g_conditionalArenaRetireProbe != 0);
     OwnedStateCorpseBoundaryNode *retired = g_ownedStateCorpseBoundary;
@@ -2093,7 +2096,7 @@ void testRetiredBoundaryIsQuiescentBeforeNextTrackerRun()
     DetachProbePlatformController platform;
     Scene scene((Boundary<CorpseRetireHarnessBoundaryNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     assert(g_corpseRetireHarness != 0);
     ObservedCorpseBoundaryNode *retired = g_corpseRetireHarness->observedBranch();
@@ -2132,7 +2135,7 @@ void testDirectRootBoundaryReRegistersObservedStateAcrossReattach()
     DetachProbePlatformController platform;
     Scene scene((Boundary<DirectRootObservedBoundaryNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     assert(g_directRootObserved != 0);
 
@@ -2149,8 +2152,8 @@ void testDirectRootBoundaryReRegistersObservedStateAcrossReattach()
     // Re-attach (the stated #127 acceptance scenario): detach tears the root
     // node down, re-attach builds a fresh instance that must re-register its
     // observed state so a later write is still heard.
-    scene.updateAttached(false);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, false);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     assert(g_directRootObserved != 0);
 
     {
@@ -2181,7 +2184,7 @@ void testSceneTeardownReleasesBothConditionalBranchContextsOnce()
     DetachProbePlatformController platform;
 
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     assert(falseCounts.attachCalls == 1);
     assert(trueCounts.attachCalls == 0);
 
@@ -2192,7 +2195,7 @@ void testSceneTeardownReleasesBothConditionalBranchContextsOnce()
     assert(falseCounts.detachCalls == 1 &&
            "a retained detach must deliver the detach fact to the branch's contexts");
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
 
     // Teardown releases each branch context exactly once more.
     assert(trueCounts.detachCalls == 1);
@@ -2224,12 +2227,12 @@ void testConditionalConditionWriteDuringDetachDoesNotMaterializeBranch()
     DetachProbePlatformController platform;
     Scene scene(conditionalRoot);
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     assert(falseCounts.attachCalls == 1);
     assert(trueCounts.attachCalls == 0);
 
-    scene.updateAttached(false);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, false);
 
     assert(condition.get());
     assert(trueCounts.attachCalls == 0 &&

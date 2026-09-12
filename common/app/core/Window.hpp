@@ -620,17 +620,17 @@ protected:
 private:
   friend class App;
   /** App admission only: captures eligible retirees, then prepares/applies one seat. */
-  loka::app::scene::Scene *applySceneReplacement();
+  loka::app::scene::Scene *applySceneWork();
   /** App closes the admitted flush by reclaiming only the captured pool suffix. */
   void reclaimScenes(loka::app::scene::Scene *retired);
 
 public:
-  /** Flushes current Scene/platform work; never admits or reclaims a replacement. */
+  /** Flushes current Scene/platform work; never admits seat requests or reclaims scenes. */
   bool flushSceneInvalidation();
   bool hasPendingSceneInvalidation() const
   {
     const loka::app::scene::Scene *current = this->scene();
-    return this->sceneManager_.hasPendingReplacement() ||
+    return this->sceneManager_.hasPendingWork() ||
            (current && current->hasPendingInvalidation()) || this->sceneManager_.hasRetiredScenes();
   }
   virtual bool hasPendingScenePlatformSync() const
@@ -844,6 +844,11 @@ public:
   }
 
 protected:
+  /** Synchronously unmounts this Window's Scene before platform teardown.
+      Only for Window death at the App reclaim boundary; ordinary detach
+      requests belong to SceneManager's seat. */
+  void unmountSceneForTeardown(loka::app::scene::Scene &scene);
+
   void storeNativeFrame(const loka::core::Frame &frame)
   {
     if (this->nativeFrame_.get() == frame)

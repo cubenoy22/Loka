@@ -13,6 +13,11 @@ namespace loka
       class SceneManagerTestAccess
       {
       public:
+        static bool hasPendingRequest(const SceneManager &manager)
+        {
+          return manager.request_ != SceneManager::REQUEST_NONE;
+        }
+
         static const ::loka::core::PushStateTracker &tracker(const SceneManager &manager)
         {
           return manager.tracker_;

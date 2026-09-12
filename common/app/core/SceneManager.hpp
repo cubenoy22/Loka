@@ -134,9 +134,19 @@ public:
                          loka::app::scene::Scene *to);
   // Return the currently attached scene state.
   const loka::core::State<loka::app::scene::Scene *> &getCurrentScene() const;
-  /** Detaches and re-attaches the installed scene in one owner transaction.
-      Returns true only when the fresh attachment composed successfully. */
-  bool rearmCurrentScene();
+  /** Records detach for the next App admission; the last request wins.
+      Callback callers do O(1) work and walk no composition rows. */
+  void requestDetach();
+  /** Requests one fresh root generation at the next App admission.
+      A refused composition retries at the following admission unless newer
+      intent supersedes it. Duplicate requests collapse; callback cost is O(1),
+      with no row walk. */
+  void requestRearm();
+  /** App scheduling query: O(1) per Window, with no row walk. */
+  bool hasPendingWork() const
+  {
+    return this->request_ != REQUEST_NONE || this->hasPendingReplacement();
+  }
   /** The admission predicate is derived from the desired and installed identities. */
   bool hasPendingReplacement() const
   {
@@ -161,8 +171,16 @@ private:
   friend class Window;
 
   void seedScene(loka::app::scene::Scene *scene);
+  /** One admission snapshot. Replacement runs first; its installed result
+      receives the captured request. Observer requests wait for next admission. */
+  bool applyPendingWork();
   bool applyReplacement();
   void installScene(loka::app::scene::Scene *scene);
+
+  /** Seat-owned last-request-wins value; no Scene pointer can dangle here. */
+  enum SceneRequest { REQUEST_NONE, REQUEST_DETACH, REQUEST_REARM };
+  void request(SceneRequest value) { this->request_ = value; }
+  SceneRequest request_;
 
   loka::core::MutableState<loka::app::scene::Scene *> currentScene_;
   loka::app::scene::Scene *desired_;

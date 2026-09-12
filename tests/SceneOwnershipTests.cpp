@@ -1314,6 +1314,58 @@ namespace
   typedef loka::app::scene::BoundaryDefinition<ReplacementRefusableProps, ReplacementRefusableRoot>
       ReplacementRefusableDefinition;
 
+  /** Records newer seat intent during the candidate's refused preparation. */
+  class ReplacementRearmingRefusableRoot : public ReplacementRefusableRoot
+  {
+  public:
+    explicit ReplacementRearmingRefusableRoot(const ReplacementRefusableProps &props)
+        : ReplacementRefusableRoot(props) {}
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      if (this->props.refusal && *this->props.refusal)
+        this->scene()->getWindow()->sceneManager()->requestRearm();
+      ReplacementRefusableRoot::composeNode(composition);
+    }
+  };
+
+  void VerifyInitialPrepareRefusalPreservesRequest(bool newerRearm)
+  {
+    typedef loka::app::testing::SceneManagerTestAccess SeatAccess;
+    typedef loka::dsl::testing::SceneTestAccess SceneAccess;
+    WindowCreatingPlatformContext context;
+    bool refusal = true;
+    NullWindow window(&context, WindowProps());
+    WindowAdmissionTestApp admission(window);
+    LOKA_VERIFY(window.scene() == 0);
+    loka::app::scene::Scene *candidate = newerRearm
+        ? new loka::app::scene::Scene(new loka::app::scene::BoundaryDefinition<
+              ReplacementRefusableProps, ReplacementRearmingRefusableRoot>(ReplacementRefusableProps(&refusal)))
+        : new loka::app::scene::Scene(new ReplacementRefusableDefinition(ReplacementRefusableProps(&refusal)));
+    LOKA_VERIFY(window.sceneManager()->commitTransaction(0, candidate));
+    window.sceneManager()->requestDetach();
+    admission.flush();
+    const bool refused = SeatAccess::lastPrepareRefusal(*window.sceneManager()) == candidate;
+    const bool pending = SeatAccess::hasPendingRequest(*window.sceneManager());
+    printf("Initial prepare refusal: newerRearm=%d refused=%d installed=%d requestPending=%d\n",
+           newerRearm, refused, window.scene() != 0, pending);
+    LOKA_VERIFY(refused);
+    LOKA_VERIFY(window.scene() == 0);
+    // Before the fix, instrumentation reported a refused candidate and an
+    // empty seat, but no pending detach: clearing the snapshot lost the intent.
+    LOKA_VERIFY(pending);
+    LOKA_VERIFY(SeatAccess::desiredScene(*window.sceneManager()) == candidate);
+
+    refusal = false;
+    admission.flush();
+    printf("Initial prepare retry: newerRearm=%d installed=%d attached=%d requestPending=%d\n",
+           newerRearm, window.scene() == candidate, candidate->getAttachedState()->get(),
+           SeatAccess::hasPendingRequest(*window.sceneManager()));
+    LOKA_VERIFY(window.scene() == candidate);
+    LOKA_VERIFY(candidate->getAttachedState()->get() == newerRearm);
+    LOKA_VERIFY((SceneAccess::rootNode(*candidate) != 0) == newerRearm);
+    LOKA_VERIFY(!window.sceneManager()->hasPendingWork());
+  }
+
   struct AttachReplacementRequest
   {
     AttachReplacementRequest(Window &owner, loka::app::scene::Scene *candidate,
@@ -1350,6 +1402,64 @@ void testSceneReplacementSupersedesUnattachedDesiredScene()
 void testSceneReplacementReturnsToAppliedWithoutDetach()
 {
   VerifySupersededReplacement(true);
+}
+
+void testEmptyWindowConsumesSceneRequestsWithoutReadmission()
+{
+  class AdmissionObservedWindow : public NullWindow
+  {
+  public:
+    explicit AdmissionObservedWindow(PlatformContext *context)
+        : NullWindow(context, WindowProps()), flushCalls_(0) {}
+    virtual void drainNativeRetirements()
+    {
+      // Window::flushSceneInvalidation calls this exactly once, even without a Scene.
+      ++this->flushCalls_;
+      NullWindow::drainNativeRetirements();
+    }
+    int flushCalls() const { return this->flushCalls_; }
+
+  private:
+    int flushCalls_;
+  };
+
+  for (int requests = 1; requests <= 3; ++requests)
+  {
+    WindowCreatingPlatformContext context;
+    AdmissionObservedWindow window(&context);
+    WindowAdmissionTestApp admission(window);
+    LOKA_VERIFY(window.scene() == 0);
+    LOKA_VERIFY(!window.sceneManager()->hasPendingWork());
+    admission.flush();
+    LOKA_VERIFY(window.flushCalls() == 0);
+
+    if (requests & 1)
+      window.sceneManager()->requestDetach();
+    if (requests & 2)
+      window.sceneManager()->requestRearm();
+    LOKA_VERIFY(window.sceneManager()->hasPendingWork());
+    admission.flush();
+    const bool pending = window.sceneManager()->hasPendingWork();
+    const int firstFlushCalls = window.flushCalls();
+    admission.flushWindowInvalidations();
+    printf("Empty seat requests=%d: pending=%d firstFlushCalls=%d totalFlushCalls=%d\n",
+           requests, pending, firstFlushCalls, window.flushCalls());
+    LOKA_VERIFY(!pending);
+    LOKA_VERIFY(firstFlushCalls == 1);
+    LOKA_VERIFY(window.flushCalls() == 1);
+    LOKA_VERIFY(!window.sceneManager()->hasPendingWork());
+    LOKA_VERIFY(window.scene() == 0);
+  }
+}
+
+void testInitialScenePrepareRefusalPreservesDetachRequest()
+{
+  VerifyInitialPrepareRefusalPreservesRequest(false);
+}
+
+void testInitialScenePrepareRefusalPreservesNewerRearmRequest()
+{
+  VerifyInitialPrepareRefusalPreservesRequest(true);
 }
 
 void testSceneReplacementPreservesAppliedOnPrepareRefusal()

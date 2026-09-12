@@ -258,7 +258,7 @@ void testNodeMatchSelectsFirstDeclaredValueArm()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<MatchRootBoundaryNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     LOKA_VERIFY(inputs.records[0].node);
     assert(inputs.records[0].constructions == 1);
     assert(inputs.records[1].constructions == 0);
@@ -283,7 +283,7 @@ void testNodeMatchPredicatePrecedesValueArmAndRunsOncePerVisit()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<MatchRootBoundaryNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     LOKA_VERIFY(inputs.records[0].node);
     assert(inputs.records[1].constructions == 0 &&
            "the earlier predicate wins over a matching value arm");
@@ -322,7 +322,7 @@ void testNodeMatchEmptySeatRematerializes()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<MatchRootBoundaryNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     assert(inputs.records[0].constructions == 0);
 
     setMatchState(selection, 1);
@@ -377,7 +377,7 @@ void testNodeMatchRestoresThreeIndependentArmStates()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<MatchRootBoundaryNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     loka::app::scene::BoundaryNode *root = rootBoundary(scene);
     LOKA_VERIFY(root && inputs.records[0].node);
     MatchArmBoundaryNode *arm0 = inputs.records[0].node;
@@ -423,7 +423,7 @@ void testNodeMatchDestroyOnDetachIsPerArm()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<MatchRootBoundaryNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     loka::app::scene::BoundaryNode *root = rootBoundary(scene);
     LOKA_VERIFY(root && inputs.records[0].node);
     MatchArmBoundaryNode *arm0 = inputs.records[0].node;
@@ -682,7 +682,7 @@ void testKeyedRedeclaresCurrentMembersOnceAndReclaimsOnDrain()
   SceneTestSupport::RecordingPlatformController platform;
   loka::app::scene::Scene scene((loka::app::scene::Boundary<KeyedProbeNode>(KeyedProbeProps(&r))));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   LOKA_VERIFY(r.declarations == 1 && r.compositions == 1 && r.bindings == 1);
   loka::app::scene::Node *old = r.leaf;
   loka::app::scene::Node *oldRoot = r.owner->childrenHead()->asNestable()->childrenHead();
@@ -714,7 +714,7 @@ void testKeyedRefusedDeclarationKeepsLiveBranchAndRetriesCurrentKey()
   SceneTestSupport::RecordingPlatformController platform;
   loka::app::scene::Scene scene((loka::app::scene::Boundary<KeyedProbeNode>(KeyedProbeProps(&r))));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   loka::app::scene::Node *old = r.leaf;
   const int destroyed = r.destroyed;
   r.refuse = true;
@@ -740,7 +740,7 @@ void testKeyedDeclarationUsesGenerationOwnerInsideSectionOnMountAndUpdate()
   SceneTestSupport::RecordingPlatformController platform;
   loka::app::scene::Scene scene((loka::app::scene::Boundary<KeyedProbeNode>(KeyedProbeProps(&r))));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   loka::app::scene::IStateOwner *section = r.declarationOwner;
   LOKA_VERIFY(section && section != r.owner);
   r.owner->changeKey(1);
@@ -757,7 +757,7 @@ void testKeyedOwnsFreshNestedSeatPlansAcrossReplacement()
   SceneTestSupport::RecordingPlatformController platform;
   loka::app::scene::Scene scene((loka::app::scene::Boundary<KeyedProbeNode>(KeyedProbeProps(&r))));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   {
     loka::core::StateTrackerGuard guard(r.switchState.trackerOwner());
     r.switchState.set(true);
@@ -785,7 +785,7 @@ void testKeyedFailedOuterCandidatePublishesNoNestedObservations()
   SceneTestSupport::RecordingPlatformController platform;
   loka::app::scene::Scene scene((loka::app::scene::Boundary<KeyedProbeNode>(KeyedProbeProps(&r))));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   const std::string before = loka::dsl::testing::OwnershipDump::dump(scene);
   r.nestedFailure = true;
   r.refuse = true;
@@ -803,7 +803,7 @@ void testKeyedDirectSeatRootSurvivesInnerSwitchAndDrain()
   SceneTestSupport::RecordingPlatformController platform;
   loka::app::scene::Scene scene((loka::app::scene::Boundary<KeyedProbeNode>(KeyedProbeProps(&r))));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   {
     loka::core::StateTrackerGuard guard(r.switchState.trackerOwner());
     r.switchState.set(true);
@@ -828,7 +828,7 @@ void testKeyedRemovesOnlyUnsharedOutgoingObservations()
     SceneTestSupport::RecordingPlatformController platform;
     loka::app::scene::Scene scene((loka::app::scene::Boundary<KeyedProbeNode>(KeyedProbeProps(&r))));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     r.nested = false;
     r.owner->changeKey(1);
     const bool applied = scene.flushInvalidation();
@@ -847,7 +847,7 @@ void testKeyedRetiresNestedParkedScopeBeforeDeclarationReset()
   SceneTestSupport::RecordingPlatformController platform;
   loka::app::scene::Scene scene((loka::app::scene::Boundary<KeyedProbeNode>(KeyedProbeProps(&r))));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   {
     loka::core::StateTrackerGuard guard(r.otherState.trackerOwner());
@@ -937,7 +937,7 @@ void testKeyedComposeWriteRetainsSeatDirtyClassification()
   SceneTestSupport::RecordingPlatformController platform;
   Scene scene((Boundary<ComposeSeatWriteBoundary>(KeyedProbeProps(&r))));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   platform.clearChanges();
   r.owner->markViewDirty(NODE_DIRTY_PROPS);
   const bool applied = scene.flushInvalidation();
@@ -957,7 +957,7 @@ void testKeyedOutgoingSeatSourceRemainsObservedByOrdinaryNode()
   SceneTestSupport::RecordingPlatformController platform;
   Scene scene((Boundary<ComposeSeatWriteBoundary>(KeyedProbeProps(&r))));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   r.nested = false;
   r.owner->changeKey(1);
   const bool drained = scene.flushInvalidation();
@@ -1059,7 +1059,7 @@ void testPlainRootMatchUpdateComposesOnceAndWalksChildrenOnce()
   SceneTestSupport::RecordingPlatformController platform;
   Scene scene(new NodeDefinition<PlainRootProps, PlainRootNode>(PlainRootProps(&record, true)));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   BoundaryNode *wrapper = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
   LOKA_VERIFY(wrapper && wrapper->childrenHead() && !wrapper->childrenHead()->asBoundary());
   Node *plainRoot = wrapper->childrenHead();
@@ -1122,7 +1122,7 @@ namespace
                                        NestedWalkBoundary<Depth> >(
         PlainRootPropsFor<NestedWalkBoundary<Depth> >(&record)));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     const int before = record.childUpdates;
     scene.requestInvalidate(NODE_DIRTY_CHILD);
     LOKA_VERIFY(scene.flushInvalidation());
@@ -1228,7 +1228,7 @@ void testDirectRootKeyedReplacementAttachesBeforeUpdatingLeaf()
   Scene scene(new BoundaryDefinition<KeyedRootWalkBoundary::Props, KeyedRootWalkBoundary>(
       KeyedRootWalkBoundary::Props(&record)));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   LOKA_VERIFY(record.leaves[0].constructions == 1 && record.leaves[0].attaches == 1);
   LOKA_VERIFY(record.leaves[1].constructions == 0);
 
@@ -1288,7 +1288,7 @@ void testDirectRootKeyedNestedBoundaryAttachesLeafOnce()
   Scene scene(new BoundaryDefinition<KeyedNestedWalkRoot::Props, KeyedNestedWalkRoot>(
       KeyedNestedWalkRoot::Props(&record)));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   std::fprintf(stderr, "nested arm initial mount: ATTACH = %d, UPDATE = %d\n",
                record.leaves[0].attaches, record.leaves[0].updates);
   LOKA_VERIFY(record.leaves[0].constructions == 1 && record.leaves[1].constructions == 0);
@@ -1318,7 +1318,7 @@ void testPlainRootChildDirtWithoutSeatOnlyWalks()
   SceneTestSupport::RecordingPlatformController platform;
   Scene scene(new NodeDefinition<PlainRootProps, PlainRootNode>(PlainRootProps(&record)));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   BoundaryNode *wrapper = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
   Node *plainRoot = wrapper->childrenHead();
   LOKA_VERIFY(plainRoot && !plainRoot->asBoundary());

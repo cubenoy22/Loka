@@ -1,3 +1,5 @@
+#include "support/WindowAdmissionTestApp.hpp"
+#include "testing/scene/SceneTestFlow.hpp"
 #include "ScenarioReelTests.hpp"
 
 #include "support/TestVerify.hpp"
@@ -50,6 +52,34 @@ namespace
     (void)site;
     delete[] static_cast<char *>(ptr);
   }
+
+  // Same detach-triggered refusal mechanism as the A-1b REFUTE B1 probe:
+  // replacement-driver allocation succeeds before fresh Scene composition fails.
+  void RefuseScenarioCompositionAtDetach(void *userData)
+  {
+    loka::app::scene::Scene *scene = static_cast<loka::app::scene::Scene *>(userData);
+    if (!scene->getAttachedState()->get())
+      loka::core::LokaAllocSetBackend(
+          &scenarioRearmRefusingBackendAlloc, &scenarioRearmDelegatingBackendFree);
+  }
+
+  void RequestDetachOnRearmAttachment(void *userData)
+  {
+    loka::app::scene::Scene *scene = static_cast<loka::app::scene::Scene *>(userData);
+    if (scene->getAttachedState()->get())
+      scene->getWindow()->sceneManager()->requestDetach();
+  }
+
+  class ScenarioLoopAdmissionTestApp : public NullApp
+  {
+  public:
+    explicit ScenarioLoopAdmissionTestApp(Window &window) : NullApp(0)
+    {
+      this->group_ = new AppComponentGroup(std::vector<AppComponent *>(1, &window));
+    }
+    virtual ~ScenarioLoopAdmissionTestApp() { this->group_->build(); }
+    void flush() { this->flushWindowInvalidations(); }
+  };
 
   class NativeTitleObserverProbeWindow : public Window
   {
@@ -320,6 +350,7 @@ namespace
                                     ReelFrameFn frame,
                                     std::vector<std::string> *operatorTitles = 0)
   {
+    WindowAdmissionTestApp admission(window);
     std::vector<std::string> frames;
     for (long tick = 0; tick < maxTicks && !reel.finished(); ++tick)
     {
@@ -337,7 +368,7 @@ namespace
           operatorTitles->push_back(operatorTitle);
         }
       }
-      reel.tick(&window, 0.1, window.getTracker());
+      reel.tick(&window, &admission, 0.1, window.getTracker());
     }
     return frames;
   }
@@ -413,9 +444,10 @@ void testScenarioSceneRearmRebuildsExampleStateFromDefinition()
   WindowProps windowProps;
   windowProps.scene(new loka::app::scene::Scene(root.take()));
   NullWindow window(&context, windowProps);
+  WindowAdmissionTestApp admission(window);
   LOKA_VERIFY(window.scene() != 0);
   loka::app::scene::Scene *const installedScene = window.scene();
-  window.scene()->updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
   const std::size_t mountedNodeCount = window.scene()->liveNodeCount();
   LOKA_VERIFY(mountedNodeCount > 0);
 
@@ -428,7 +460,7 @@ void testScenarioSceneRearmRebuildsExampleStateFromDefinition()
   attachmentObservation.manager = window.sceneManager();
   window.scene()->getAttachedState()->bind(
       &ObserveAttachmentTransaction, &attachmentObservation, false);
-  LOKA_VERIFY(loka::scenario_tests::RearmScenarioScene(&window));
+  LOKA_VERIFY(loka::scenario_tests::RearmScenarioScene(&window, &admission));
   window.scene()->getAttachedState()->unbind(
       &ObserveAttachmentTransaction, &attachmentObservation);
   LOKA_VERIFY(attachmentObservation.calls == 2);
@@ -441,7 +473,7 @@ void testScenarioSceneRearmRebuildsExampleStateFromDefinition()
   LOKA_VERIFY(secondBoard == firstBoard);
 
   // A window without a mounted scene declines instead of substituting one.
-  LOKA_VERIFY(!loka::scenario_tests::RearmScenarioScene(0));
+  LOKA_VERIFY(!loka::scenario_tests::RearmScenarioScene(0, &admission));
 
   std::printf("testScenarioSceneRearmRebuildsExampleStateFromDefinition passed\n");
 }
@@ -455,7 +487,7 @@ void testScenarioReelRunsEveryMineSweeperCellEveryCycle()
   windowProps.scene(new loka::app::scene::Scene(root.take()));
   NullWindow window(&context, windowProps);
   LOKA_VERIFY(window.scene() != 0);
-  window.scene()->updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
   const std::size_t mountedNodeCount = window.scene()->liveNodeCount();
 
   loka::scenario_tests::ScenarioReel<loka::scenario_tests::MineSweeperScenario> reel(
@@ -508,7 +540,7 @@ void testScenarioReelRunsEveryHelloWorldCellEveryCycle()
   windowProps.scene(new loka::app::scene::Scene(root.take()));
   NullWindow window(&context, windowProps);
   LOKA_VERIFY(window.scene() != 0);
-  window.scene()->updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
   const std::size_t mountedNodeCount = window.scene()->liveNodeCount();
 
   loka::scenario_tests::ScenarioReel<loka::scenario_tests::HelloWorldScenario> reel(
@@ -542,6 +574,134 @@ void testScenarioReelRunsEveryHelloWorldCellEveryCycle()
   LOKA_VERIFY(window.scene()->liveNodeCount() == mountedNodeCount);
 
   std::printf("testScenarioReelRunsEveryHelloWorldCellEveryCycle passed\n");
+}
+
+void testScenarioReelCompositionRefusalRetriesSameRequestAndContinues()
+{
+  loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> root(CloneHelloWorldRoot());
+  LOKA_VERIFY(root.get() != 0);
+  NullPlatformContext context;
+  WindowProps props;
+  props.scene(new loka::app::scene::Scene(root.take()));
+  NullWindow window(&context, props);
+  WindowAdmissionTestApp app(window);
+  loka::app::scene::Scene *scene = window.scene();
+  const std::size_t mountedNodeCount = scene->liveNodeCount();
+  loka::scenario_tests::ScenarioReel<loka::scenario_tests::HelloWorldScenario> reel(
+      loka::scenario_tests::HelloWorldReelCells(),
+      loka::scenario_tests::STARTUP_EXAMPLE_HELLO_WORLD,
+      &loka::scenario_tests::MakeHelloWorldDriverErrorRecord, 2402, 0.0, 2);
+
+  g_scenarioRearmAllocationRefusals = 0;
+  scene->getAttachedState()->bind(&RefuseScenarioCompositionAtDetach, scene, false);
+  for (int tick = 0; tick < 512 && !g_scenarioRearmAllocationRefusals; ++tick)
+    reel.tick(&window, &app, 0.1, window.getTracker());
+  loka::core::LokaAllocSetBackend(0, 0);
+  scene->getAttachedState()->unbind(&RefuseScenarioCompositionAtDetach, scene);
+
+  const bool composedAfterRefusal = loka::dsl::testing::SceneTestAccess::composed(*scene);
+  std::printf("rearm refusal: refusals=%d pending=%d composed=%d finished=%d cycles=%ld\n",
+              g_scenarioRearmAllocationRefusals, window.sceneManager()->hasPendingWork(),
+              composedAfterRefusal, reel.finished(), reel.completedCycles());
+  LOKA_VERIFY(g_scenarioRearmAllocationRefusals == 1);
+  LOKA_VERIFY(!composedAfterRefusal);
+  LOKA_VERIFY(window.sceneManager()->hasPendingWork());
+  LOKA_VERIFY(!reel.finished());
+  LOKA_VERIFY(reel.completedCycles() == 0);
+
+  // No second request and no explicit white-flag invalidation: admission alone
+  // must retry the refused renewal on the same installed Scene.
+  app.flush();
+  LOKA_VERIFY(window.scene() == scene);
+  const bool composedAfterRetry = loka::dsl::testing::SceneTestAccess::composed(*scene);
+  const std::size_t recoveredNodeCount = scene->liveNodeCount();
+  LOKA_VERIFY(composedAfterRetry);
+  LOKA_VERIFY(!window.sceneManager()->hasPendingWork());
+  LOKA_VERIFY(recoveredNodeCount == mountedNodeCount);
+  for (int tick = 0; tick < 2048 && !reel.finished(); ++tick)
+    reel.tick(&window, &app, 0.1, window.getTracker());
+  LOKA_VERIFY(reel.finished());
+  LOKA_VERIFY(reel.completedCycles() == 2);
+  std::printf("rearm recovery: pending=%d composed=%d finished=%d cycles=%ld\n",
+              window.sceneManager()->hasPendingWork(),
+              loka::dsl::testing::SceneTestAccess::composed(*scene),
+              reel.finished(), reel.completedCycles());
+  std::printf("testScenarioReelCompositionRefusalRetriesSameRequestAndContinues passed\n");
+}
+
+void testSceneRearmRefusalPreservesNewerDetachRequest()
+{
+  loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> root(CloneHelloWorldRoot());
+  LOKA_VERIFY(root.get() != 0);
+  NullPlatformContext context;
+  WindowProps props;
+  props.scene(new loka::app::scene::Scene(root.take()));
+  NullWindow window(&context, props);
+  WindowAdmissionTestApp app(window);
+  loka::app::scene::Scene *scene = window.scene();
+  g_scenarioRearmAllocationRefusals = 0;
+  scene->getAttachedState()->bind(&RefuseScenarioCompositionAtDetach, scene, false);
+  scene->getAttachedState()->bind(&RequestDetachOnRearmAttachment, scene, false);
+  window.sceneManager()->requestRearm();
+  app.flush();
+  loka::core::LokaAllocSetBackend(0, 0);
+  scene->getAttachedState()->unbind(&RefuseScenarioCompositionAtDetach, scene);
+  scene->getAttachedState()->unbind(&RequestDetachOnRearmAttachment, scene);
+  LOKA_VERIFY(g_scenarioRearmAllocationRefusals == 1);
+  LOKA_VERIFY(window.sceneManager()->hasPendingWork());
+  app.flush();
+  LOKA_VERIFY(!scene->getAttachedState()->get());
+  LOKA_VERIFY(!window.sceneManager()->hasPendingWork());
+  const bool composedAfterDetach = loka::dsl::testing::SceneTestAccess::composed(*scene);
+  LOKA_VERIFY(!composedAfterDetach);
+  std::printf("testSceneRearmRefusalPreservesNewerDetachRequest passed\n");
+}
+
+void testScenarioLoopCompositionRefusalDoesNotQuit()
+{
+  NullPlatformContext context;
+  typedef loka::scenario_tests::ScenarioLoopAppConfig<
+      loka::scenario_tests::HelloWorldScenarioPresentation,
+      loka::scenario_tests::HelloWorldScenario> HelloWorldLoopConfig;
+  HelloWorldLoopConfig config(&context, HelloWorldMenuSeed::FromWallClock(0x13579BDFUL),
+      loka::scenario_tests::HelloWorldReelCells(),
+      loka::scenario_tests::STARTUP_EXAMPLE_HELLO_WORLD,
+      &loka::scenario_tests::MakeHelloWorldDriverErrorRecord, 2402, 0.0, 2);
+  AppComposition composition(&context);
+  config.compose(composition);
+  std::vector<AppComponent *> components = composition.build();
+  LOKA_VERIFY(components.size() == 1);
+  Window *window = components[0]->asWindow();
+  LOKA_VERIFY(window != 0);
+  {
+    ScenarioLoopAdmissionTestApp app(*window);
+    config.setApp(&app);
+    loka::app::scene::Scene *scene = window->scene();
+    g_scenarioRearmAllocationRefusals = 0;
+    scene->getAttachedState()->bind(&RefuseScenarioCompositionAtDetach, scene, false);
+    for (int tick = 0; tick < 512 && !g_scenarioRearmAllocationRefusals; ++tick)
+      LOKA_VERIFY(window->handleIdle(0.1));
+    loka::core::LokaAllocSetBackend(0, 0);
+    scene->getAttachedState()->unbind(&RefuseScenarioCompositionAtDetach, scene);
+    LOKA_VERIFY(g_scenarioRearmAllocationRefusals == 1);
+    std::printf("loop refusal: quit=%d pending=%d\n",
+                app.quitRequested(), window->sceneManager()->hasPendingWork());
+    LOKA_VERIFY(!app.quitRequested());
+    LOKA_VERIFY(window->sceneManager()->hasPendingWork());
+    app.flush();
+    const bool composedAfterRetry = loka::dsl::testing::SceneTestAccess::composed(*scene);
+    LOKA_VERIFY(composedAfterRetry);
+    LOKA_VERIFY(!window->sceneManager()->hasPendingWork());
+    LOKA_VERIFY(!app.quitRequested());
+    for (int tick = 0; tick < 2048 && !app.quitRequested(); ++tick)
+      LOKA_VERIFY(window->handleIdle(0.1));
+    LOKA_VERIFY(app.quitRequested());
+    LOKA_VERIFY(window->displayTitleState().get().equals(
+        loka::core::String::Literal("LokaSample - bmi-roundtrip (cycle 2)")));
+    config.setApp(0);
+  }
+  delete window;
+  std::printf("testScenarioLoopCompositionRefusalDoesNotQuit passed\n");
 }
 
 void testScenarioWindowDisplayTitlePreservesLogicalTitleAndDropsNativeObserver()
@@ -628,8 +788,9 @@ void testScenarioReelDriverAllocationRefusalRetiresInsteadOfWedging()
   WindowProps windowProps;
   windowProps.scene(new loka::app::scene::Scene(root.take()));
   NullWindow window(&context, windowProps);
+  WindowAdmissionTestApp admission(window);
   LOKA_VERIFY(window.scene() != 0);
-  window.scene()->updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
 
   loka::scenario_tests::ScenarioReel<loka::scenario_tests::HelloWorldScenario> reel(
       loka::scenario_tests::HelloWorldReelCells(),
@@ -644,7 +805,7 @@ void testScenarioReelDriverAllocationRefusalRetiresInsteadOfWedging()
   loka::scenario_tests::testing::failScenarioReelDriverAllocations(1);
   for (long tick = 0; tick < 512 && !reel.finished(); ++tick)
   {
-    reel.tick(&window, 0.1, window.getTracker());
+    reel.tick(&window, &admission, 0.1, window.getTracker());
   }
   loka::scenario_tests::testing::allowScenarioReelDriverAllocations();
 
@@ -725,8 +886,9 @@ void testStandaloneScenarioRailReplacementIsFailureAtomic()
   WindowProps windowProps;
   windowProps.scene(new loka::app::scene::Scene(root.take()));
   NullWindow window(&context, windowProps);
+  WindowAdmissionTestApp admission(window);
   LOKA_VERIFY(window.scene() != 0);
-  window.scene()->updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
   AttachmentTransactionObservation attachmentObservation;
   attachmentObservation.manager = window.sceneManager();
   window.scene()->getAttachedState()->bind(
@@ -738,13 +900,13 @@ void testStandaloneScenarioRailReplacementIsFailureAtomic()
     loka::standalone_tests::StandaloneScenarioRail<StandaloneScenarioRailProbe> rail(
         new StandaloneScenarioRailProbe(&first));
     LOKA_VERIFY(rail.isValid());
-    LOKA_VERIFY(!rail.replaceAndRearmScene(0, &window));
+    LOKA_VERIFY(!rail.replaceAndRearmScene(0, &window, &admission));
     LOKA_VERIFY(first.stops == 0);
     LOKA_VERIFY(first.destructions == 0);
     LOKA_VERIFY(attachmentObservation.calls == 0);
 
     LOKA_VERIFY(rail.replaceAndRearmScene(
-        new StandaloneScenarioRailProbe(&second), &window));
+        new StandaloneScenarioRailProbe(&second), &window, &admission));
     LOKA_VERIFY(first.stops == 1);
     LOKA_VERIFY(first.destructions == 1);
     LOKA_VERIFY(second.stops == 0);
@@ -779,9 +941,10 @@ void testStandaloneSceneRearmAllocationRefusalDoesNotCommitNextPass()
       .displayTitleState(runControl.displayTitleState("Loka Probe"))
       .scene(new loka::app::scene::Scene(root.take()));
   NullWindow window(&context, windowProps);
+  WindowAdmissionTestApp admission(window);
   runControl.setApp(&app);
   LOKA_VERIFY(window.scene() != 0);
-  window.scene()->updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
   const std::size_t mountedNodeCount = window.scene()->liveNodeCount();
   LOKA_VERIFY(mountedNodeCount > 0);
   LOKA_VERIFY(runControl.advance(true)
@@ -808,7 +971,7 @@ void testStandaloneSceneRearmAllocationRefusalDoesNotCommitNextPass()
     loka::core::LokaAllocSetBackend(
         &scenarioRearmRefusingBackendAlloc, &scenarioRearmDelegatingBackendFree);
     const bool rearmed = rail.replaceAndRearmScene(
-        new StandaloneScenarioRailProbe(&second), &window);
+        new StandaloneScenarioRailProbe(&second), &window, &admission);
     loka::core::LokaAllocSetBackend(0, 0);
 
     LOKA_VERIFY(!rearmed);

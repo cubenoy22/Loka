@@ -80,7 +80,28 @@ Reentrant adoption during preparation or attachment only changes the next desire
 The constructor's initial scene is a synchronous seed; native creation mounts
 it later. A Window without native resources likewise installs without mounting.
 
-Only `App::flushWindowInvalidations` admits replacements, through private Window
+The seat also owns a last-request-wins detach/rearm value. Requesting either is
+O(1) and never tears down the caller's composition. Detach destroys the installed
+root and publishes ON_DETACH at admission. Rearm is forced generation renewal:
+it detaches, creates a fresh root from the retained definition, and publishes
+ON_ATTACH. Two equal requests collapse; detach then rearm means rearm, and the
+reverse means detach. This is not representable by a final attached bool.
+
+Admission takes the request before callbacks, attempts any desired replacement,
+then applies the captured request to the resulting installed scene (the old
+scene if replacement preparation was refused). Requests made by lifecycle
+observers remain pending for the following admission. These requests own no
+Scene identity and cannot retain a dangling reference. Rearm retains the previous
+allocation-refusal behavior: an unsuccessful fresh composition is observable as
+uncomposed. Its rearm request remains pending for the next admission unless a
+newer observer request supersedes it; the existing white-flag recovery remains
+available too. Scenario reels continue after this recoverable refusal. The request
+has no synchronous success result. Scene's synchronous attach/detach, lifecycle
+publication, and unmount
+primitives are private to the seat, concrete Window teardown, and fixture access;
+the initial mount/attach seed remains synchronous.
+
+Only `App::flushWindowInvalidations` admits seat work, through private Window
 members. The public Window flush runs current Scene/platform work and cannot
 apply or reclaim replacements. App snapshots its admitted Window rows, applies
 all selected seats, then runs their Scene flushes and native/Scene drains. Thus

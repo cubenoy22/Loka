@@ -118,7 +118,7 @@ namespace
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<RowBranchWidthBoundaryNode<BoxHeight> >()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     RowBranchWidthBoundaryNode<BoxHeight> *boundary = static_cast<RowBranchWidthBoundaryNode<BoxHeight> *>(
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
@@ -139,7 +139,7 @@ namespace
     LOKA_VERIFY(record.state.x == 24);
     LOKA_VERIFY(record.state.width == 76);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
     g_rowTextSeatRecord = 0;
   }
 } // namespace

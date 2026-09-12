@@ -1,3 +1,4 @@
+#include "testing/scene/SceneTestFlow.hpp"
 #include "LazyFlexTests.hpp"
 #include "support/TestVerify.hpp"
 #include "app/nodes/nestable/LazyFlex.hpp"
@@ -164,12 +165,12 @@ namespace
       bounds.width = 200;
       bounds.height = 400;
       this->platform.projectLayoutForTesting(loka::dsl::testing::SceneTestAccess::rootBoundary(this->scene), bounds);
-      this->scene.updateAttached(true);
+      loka::dsl::testing::SceneTestAccess::updateAttached(this->scene, true);
       this->drain();
     }
     ~Fixture()
     {
-      this->scene.unmount();
+      loka::dsl::testing::SceneTestAccess::unmount(this->scene);
       this->drain();
     }
     void drain()
@@ -433,7 +434,7 @@ void testLazyFlexRefusedGenerationKeepsOldPresentation()
 void testLazyFlexUnmountCancelsForeignWatches()
 {
   Fixture f;
-  f.scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(f.scene);
   f.drain();
   const int before = f.r.updates;
   f.page(200);
@@ -446,7 +447,7 @@ void testLazyFlexUnmountCancelsForeignWatches()
 void testLazyFlexRowWrapUsesHalfOpenCells()
 {
   Fixture f(32, 20, true);
-  f.scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(f.scene);
   f.drain();
   {
     StateTrackerGuard guard(&f.tracker);
@@ -454,7 +455,7 @@ void testLazyFlexRowWrapUsesHalfOpenCells()
   }
   Scene scene(LazyRow(f.list).cells(40, 40).wrap(2).viewport(f.view));
   scene.mount(&f.platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   rows(f, 4);
   for (int i = 0; i < 20; ++i)
     LOKA_VERIFY(f.r.constructions[i] == (i < 4 ? 1 : 0));

@@ -163,7 +163,7 @@ namespace allocpin
     Scene scene(rootDefinition);
     AllocPinPlatformController platform;
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     // Settle the mount before anything is measured.
     for (int i = 0; scene.hasPendingInvalidation() && i < 8; ++i)
     {
@@ -210,7 +210,7 @@ namespace allocpin
     // interactions, otherwise the census misses the flatten suspects.
     assert(platform.textsFlattened_ > textsBeforeCaptures);
 
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
 
     // THE RATCHET: a CEILING, not a target. This is not "the framework
     // should allocate this much" -- it is "the framework must not allocate
@@ -281,7 +281,7 @@ namespace allocpin
     NullScenePlatformController platform;
     Scene scene(loka::app::scene::Boundary<floppybird::MainNode>(floppybird::MainProps(&model)));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     for (int i = 0; scene.hasPendingInvalidation() && i < 8; ++i)
       LOKA_VERIFY(scene.flushInvalidation());
     assert(!scene.hasPendingInvalidation());
@@ -322,7 +322,7 @@ namespace allocpin
     // later PRs explicitly update this baseline.
     LOKA_VERIFY(allocations == 6);
     LOKA_VERIFY(bytes == 112);
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
   void RunFloppyBirdScoreAllocPin()
   {
@@ -330,7 +330,7 @@ namespace allocpin
     NullScenePlatformController platform;
     Scene scene(loka::app::scene::Boundary<floppybird::MainNode>(floppybird::MainProps(&model)));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     for (int i = 0; scene.hasPendingInvalidation() && i < 8; ++i)
       LOKA_VERIFY(scene.flushInvalidation());
     BoundaryNode *root = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
@@ -352,7 +352,7 @@ namespace allocpin
     // Distinct String comparison and seat verification materialize buffers.
     LOKA_VERIFY(allocations == 12);
     LOKA_VERIFY(bytes == 436);
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 } // namespace allocpin
 

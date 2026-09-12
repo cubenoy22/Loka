@@ -113,7 +113,7 @@ namespace loka
                     ConfiguredMineSweeperScenarioName(),
                     scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE,
                     0),
-                window),
+                window, this->runControl_.app()),
             window);
       }
     }

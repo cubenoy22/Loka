@@ -1,3 +1,4 @@
+#include "testing/scene/SceneTestFlow.hpp"
 #include "HelloWorldScenarioTests.hpp"
 
 #include "support/TestVerify.hpp"
@@ -108,7 +109,7 @@ void testHelloWorldToggleActionProbeDrivesOwnerCommands()
   HelloWorldScenarioPlatform platform;
   loka::app::scene::Scene scene(root.take());
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   RecordingHelloWorldAudit audit;
   loka::scenario_tests::HelloWorldScenario scenario(loka::scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED, &audit);
@@ -148,7 +149,7 @@ void testHelloWorldToggleActionProbeDrivesOwnerCommands()
   LOKA_VERIFY(audit.terminals[0] == loka::dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
   LOKA_VERIFY(audit.verdicts.size() == 1);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   std::printf("testHelloWorldToggleActionProbeDrivesOwnerCommands passed\n");
 }
 
@@ -161,7 +162,7 @@ void testHelloWorldToggleActionProbeHoldsFinalScene()
   HelloWorldScenarioPlatform platform;
   loka::app::scene::Scene scene(root.take());
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   RecordingHelloWorldAudit audit;
   loka::scenario_tests::HelloWorldScenario scenario(loka::scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, &audit);
@@ -184,7 +185,7 @@ void testHelloWorldToggleActionProbeHoldsFinalScene()
   LOKA_VERIFY(audit.terminals[0] == loka::dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
   LOKA_VERIFY(audit.verdicts.size() == 1);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   std::printf("testHelloWorldToggleActionProbeHoldsFinalScene passed\n");
 }
 
@@ -199,7 +200,7 @@ void testHelloWorldBmiRoundtripDrivesEditTextInput()
   windowProps.scene(new loka::app::scene::Scene(root.take()));
   NullWindow window(&context, windowProps);
   LOKA_VERIFY(window.scene() != 0);
-  window.scene()->updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
 
   RecordingHelloWorldAudit audit;
   loka::scenario_tests::SceneScenarioDriver<loka::scenario_tests::HelloWorldScenario> driver(

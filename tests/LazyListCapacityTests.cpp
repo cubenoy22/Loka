@@ -28,7 +28,7 @@ void testLazyListCapacityRefusal300()
   loka::app::scene::Scene scene(
       loka::app::scene::Boundary<lazylist_capacity_test::MainNode>(lazylist_capacity_test::MainProps(&model)));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   scene.flushInvalidation();
   loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
   // Main -> Box -> Column -> (bar, list seat, status).
@@ -42,7 +42,7 @@ void testLazyListCapacityRefusal300()
     const bool fact = platform.ledger().size() == 6;
     LOKA_VERIFY(fact);
   }
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   scene.flushInvalidation();
   platform.drainNativeRetirements();
   {
