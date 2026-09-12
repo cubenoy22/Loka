@@ -141,25 +141,19 @@ namespace loka
     {
       typedef OpenFileDialogTypeTag TypeTag;
       typedef OpenFileDialogNode NodeType;
-      loka::core::MutableState<FileChooserResult> *result_;
+      loka::app::scene::NodeState<FileChooserResult> result_;
       loka::core::EmitterState *onResult_;
       void *windowToAttach_;
       OpenFileDialogProps()
-          : result_(0),
+          : result_(),
             onResult_(0),
             windowToAttach_(0)
       {
       }
 
-      OpenFileDialogProps &result(loka::core::MutableState<FileChooserResult> *state)
-      {
-        this->result_ = state;
-        return *this;
-      }
-
       OpenFileDialogProps &result(const loka::app::scene::NodeState<FileChooserResult> &state)
       {
-        this->result_ = state.dangerouslyMutableState();
+        this->result_ = state;
         return *this;
       }
 
@@ -180,8 +174,8 @@ namespace loka
         if (rhs.propsTypeId() != propsTypeId())
           return false;
         const OpenFileDialogProps &other = static_cast<const OpenFileDialogProps &>(rhs);
-        if (result_ != other.result_)
-          return result_ < other.result_;
+        if (result_.state() != other.result_.state())
+          return result_.state() < other.result_.state();
         if (onResult_ != other.onResult_)
           return onResult_ < other.onResult_;
         return windowToAttach_ < other.windowToAttach_;
@@ -196,7 +190,7 @@ namespace loka
       OpenFileDialogNode(const OpenFileDialogProps &p)
           : props(p)
       {
-        assert((props.result_ || props.onResult_) &&
+        assert((props.result_.isValid() || props.onResult_) &&
                "OpenFileDialog delivers completion only through result/onResult; "
                "bind one and close the owning Show from it");
       }
@@ -250,12 +244,6 @@ namespace loka
       OpenFileDialogDefinition &attachToWindow(void *window)
       {
         this->props.windowToAttach_ = window;
-        return *this;
-      }
-
-      OpenFileDialogDefinition &result(loka::core::MutableState<FileChooserResult> *state)
-      {
-        this->props.result_ = state;
         return *this;
       }
 

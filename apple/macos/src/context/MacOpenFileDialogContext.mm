@@ -93,14 +93,14 @@ namespace
     bool disposed;
   };
 
-  static void DeliverOpenFileDialogResult(loka::core::MutableState<loka::app::FileChooserResult> *resultState,
+  static void DeliverOpenFileDialogResult(loka::app::scene::NodeState<loka::app::FileChooserResult> resultState,
                                           loka::core::EmitterState *onResult,
                                           const loka::app::FileChooserResult &result)
   {
     void *onResultToken = onResult ? onResult->retainExternalLifetimeToken() : 0;
-    if (resultState)
+    if (resultState.isValid())
     {
-      resultState->set(result, true);
+      resultState.set(result, true);
     }
     if (onResult && loka::core::StateBase::isExternalLifetimeTokenAlive(onResultToken))
     {
@@ -151,14 +151,14 @@ MacOpenFileDialogContext::MacOpenFileDialogContext(MacScenePlatformController *c
                                                    loka::app::OpenFileDialogNode *node)
     : MacRetirableContext(controller),
       node_(node),
-      resultState_(0),
+      resultState_(),
       onResult_(0),
       presentation_(),
       deferredPresenter_(0),
       dialog_(0)
 {
   (void)parentView;
-  resultState_ = node_ ? node_->props.result_ : 0;
+  resultState_ = node_ ? node_->props.result_ : loka::app::scene::NodeState<loka::app::FileChooserResult>();
   onResult_ = node_ ? node_->props.onResult_ : 0;
   deferredPresenter_ = [[LokaMacOpenFileDialogDeferredPresenter alloc] initWithOwner:this];
 }
@@ -194,7 +194,7 @@ void MacOpenFileDialogContext::onFactChanged(loka::app::scene::NodeLifecycleFact
       [(LokaMacOpenFileDialogDeferredPresenter *)this->deferredPresenter_ detachOwner];
       this->retireNativeObject(this->deferredPresenter_);
       this->node_ = 0;
-      this->resultState_ = 0;
+      this->resultState_ = loka::app::scene::NodeState<loka::app::FileChooserResult>();
       this->onResult_ = 0;
     }
   }
@@ -246,7 +246,7 @@ void MacOpenFileDialogContext::presentDialog()
   {
     return;
   }
-  loka::core::MutableState<loka::app::FileChooserResult> *resultState = resultState_;
+  loka::app::scene::NodeState<loka::app::FileChooserResult> resultState = resultState_;
   loka::core::EmitterState *onResult = onResult_;
   NSOpenPanel *panel = [NSOpenPanel openPanel];
   if (!panel)

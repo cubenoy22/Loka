@@ -120,3 +120,13 @@ loka_compile_pin(scene-teardown-is-window-owned
   REFUSES pins/refuses_window_scene_teardown.cpp
   ACCEPTS pins/accepts_external_window_scene_teardown.cpp
 )
+
+loka_compile_pin(open-file-dialog-props-requires-node-state
+  REFUSES pins/refuses_open_file_dialog_props_raw_state.cpp
+  ACCEPTS pins/accepts_open_file_dialog_node_state.cpp
+)
+
+loka_compile_pin(open-file-dialog-definition-requires-node-state
+  REFUSES pins/refuses_open_file_dialog_definition_raw_state.cpp
+  ACCEPTS pins/accepts_open_file_dialog_node_state.cpp
+)
