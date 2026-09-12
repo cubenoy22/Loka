@@ -5,7 +5,6 @@
 #include "app/scene/Scene.hpp"
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
-#include "dsl/composition/CompositionList.hpp"
 
 class Window;
 
@@ -26,7 +25,7 @@ namespace loka
       public:
         SceneRetirePool()
             : head_(0),
-              draining_(false)
+              draining_(0)
         {
         }
 
@@ -70,36 +69,49 @@ namespace loka
             return;
           }
 
-          loka::app::scene::Scene *pending = this->head_;
-          this->head_ = 0;
-          this->draining_ = true;
-          while (pending)
+          this->drainSnapshot(this->head_);
+        }
+
+        /** Captures the eligible suffix at admission; newer retirements wait. */
+        loka::app::scene::Scene *snapshot() const { return this->head_; }
+
+        void drainSnapshot(loka::app::scene::Scene *first)
+        {
+          if (this->draining_ || !first)
+            return;
+          loka::app::scene::Scene **link = &this->head_;
+          while (*link && *link != first)
+            link = &(*link)->retiredNextScene_;
+          assert(*link == first);
+          if (!*link)
+            return;
+          *link = 0;
+          this->draining_ = first;
+          while (this->draining_)
           {
-            loka::app::scene::Scene *scene = pending;
-            pending = scene->retiredNextScene_;
-            scene->retiredNextScene_ = 0;
+            loka::app::scene::Scene *scene = this->draining_;
+            loka::app::scene::Scene *next = scene->retiredNextScene_;
             delete scene;
+            this->draining_ = next;
           }
-          this->draining_ = false;
+        }
+
+        bool contains(loka::app::scene::Scene *scene) const
+        {
+          return containsIn(this->head_, scene) || containsIn(this->draining_, scene);
         }
 
       private:
-        bool contains(loka::app::scene::Scene *scene) const
+        static bool containsIn(loka::app::scene::Scene *entry, loka::app::scene::Scene *scene)
         {
-          loka::app::scene::Scene *entry = this->head_;
-          while (entry)
-          {
+          for (; entry; entry = entry->retiredNextScene_)
             if (entry == scene)
-            {
               return true;
-            }
-            entry = entry->retiredNextScene_;
-          }
           return false;
         }
 
         loka::app::scene::Scene *head_;
-        bool draining_;
+        loka::app::scene::Scene *draining_;
 
         SceneRetirePool(const SceneRetirePool &);
         SceneRetirePool &operator=(const SceneRetirePool &);
@@ -111,163 +123,30 @@ namespace loka
 class SceneManager LOKA_AUDITED(SceneManager)
 {
 public:
-  struct SceneTransaction
-  {
-    SceneTransaction()
-        : to(0),
-          nextInComposition(0)
-    {
-    }
-
-    explicit SceneTransaction(loka::app::scene::Scene *toScene)
-        : to(toScene),
-          nextInComposition(0)
-    {
-    }
-
-    SceneTransaction(const SceneTransaction &other)
-        : to(other.to),
-          nextInComposition(0)
-    {
-    }
-
-    SceneTransaction &operator=(const SceneTransaction &other)
-    {
-      if (this == &other)
-        return *this;
-      this->to = other.to;
-      this->nextInComposition = 0;
-      return *this;
-    }
-
-    SceneTransaction *clone() const
-    {
-      return new SceneTransaction(*this);
-    }
-
-    loka::app::scene::Scene *to;
-    SceneTransaction *nextInComposition;
-  };
-
-  class SceneTransactionList
-  {
-  public:
-    SceneTransactionList()
-        : list_(),
-          id_(nextId())
-    {
-    }
-    SceneTransactionList(const SceneTransactionList &other)
-        : list_(),
-          id_(other.id_)
-    {
-      copyFrom(other);
-    }
-    ~SceneTransactionList()
-    {
-      list_.clear();
-    }
-
-    SceneTransactionList &operator=(const SceneTransactionList &other)
-    {
-      if (this == &other)
-        return *this;
-      list_.clear();
-      copyFrom(other);
-      id_ = other.id_;
-      return *this;
-    }
-
-    bool operator!=(const SceneTransactionList &other) const
-    {
-      return id_ != other.id_;
-    }
-    bool operator==(const SceneTransactionList &other) const
-    {
-      return id_ == other.id_;
-    }
-
-    void push(loka::app::scene::Scene *to)
-    {
-      list_.appendOwned(new SceneTransaction(to));
-      id_ = nextId();
-    }
-
-    bool empty() const
-    {
-      return list_.count() == 0;
-    }
-    size_t size() const
-    {
-      return list_.count();
-    }
-    SceneTransaction *head() const
-    {
-      return list_.head();
-    }
-
-    void popFront()
-    {
-      SceneTransaction *item = list_.head();
-      if (!item)
-        return;
-      if (list_.remove(item))
-      {
-        delete item;
-        id_ = nextId();
-      }
-    }
-
-  private:
-    void copyFrom(const SceneTransactionList &other)
-    {
-      SceneTransaction *cur = other.list_.head();
-      while (cur)
-      {
-        list_.appendClone(*cur);
-        cur = cur->nextInComposition;
-      }
-    }
-
-    loka::dsl::CompositionList<SceneTransaction> list_;
-    unsigned long id_;
-    static unsigned long nextId_;
-    static unsigned long nextId()
-    {
-      return nextId_++;
-    }
-  };
-
   SceneManager();
   ~SceneManager();
 
-  /** Queue and apply a scene transition immediately. The installed scene is
-      authoritative; ignoredFrom is retained only for source compatibility. */
-  void commitTransaction(loka::app::scene::Scene *ignoredFrom,
+  /** Adopts the desired scene for the next Window admission. Returns false
+      for a retired identity; retirement cannot be reversed. ignoredFrom is
+      retained for source compatibility. Null requests and requests without a
+      live Window owner are refused; a refused new target remains caller-owned. */
+  bool commitTransaction(loka::app::scene::Scene *ignoredFrom,
                          loka::app::scene::Scene *to);
   // Return the currently attached scene state.
   const loka::core::State<loka::app::scene::Scene *> &getCurrentScene() const;
   /** Detaches and re-attaches the installed scene in one owner transaction.
       Returns true only when the fresh attachment composed successfully. */
   bool rearmCurrentScene();
+  /** The admission predicate is derived from the desired and installed identities. */
+  bool hasPendingReplacement() const
+  {
+    return this->desired_ != this->currentScene_.get();
+  }
   bool hasRetiredScenes() const
   {
     return !this->retiredScenes_.empty();
   }
-  void reclaimRetiredScenes()
-  {
-    this->retiredScenes_.drain();
-  }
 
-protected:
-  // Return the pending transition queue snapshot.
-  SceneTransactionList getPendingTransactions() const;
-  // Consume the next queued transition.
-  void handleNextTransaction();
-  // Apply the actual scene swap side effects.
-  void swapScene(loka::app::scene::Scene *oldScene, loka::app::scene::Scene *newScene);
-
-public:
   void setWindow(Window *window)
   {
     window_ = window;
@@ -279,12 +158,22 @@ public:
 
 private:
   friend class loka::app::testing::SceneManagerTestAccess;
+  friend class Window;
+
+  void seedScene(loka::app::scene::Scene *scene);
+  bool applyReplacement();
+  void installScene(loka::app::scene::Scene *scene);
 
   loka::core::MutableState<loka::app::scene::Scene *> currentScene_;
-  loka::core::MutableState<SceneTransactionList> pendingTransactions_;
+  loka::app::scene::Scene *desired_;
+  loka::app::scene::Scene *applying_;
   loka::core::PushStateTracker tracker_;
   loka::app::detail::SceneRetirePool retiredScenes_;
   Window *window_;
+#ifdef TEST_BUILD
+  /** Last refused candidate, owned as desired or retired until the next admission. */
+  loka::app::scene::Scene *lastPrepareRefusal_;
+#endif
 };
 
 #endif // LOKA_SCENEMANAGER_HPP

@@ -262,8 +262,8 @@ void MacApp::dispatchNativeMenuCommand(int commandId)
     if (commands_[i].emitter)
     {
       commands_[i].emitter->emit();
-      this->flushWindowInvalidations();
-      MacScenePlatformController::flushPendingRelayouts();
+      // State writes/adoptions leave pending invalidation for handleFlush's App clock.
+      // Keep replacement and relayout out of this native menu callback.
     }
     if (commands_[i].action == loka::app::MENU_ACTION_REBUILD_MENU)
     {

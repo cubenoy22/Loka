@@ -154,6 +154,8 @@ void NullScenePlatformController::onChange(loka::app::scene::Node *rootNode,
   this->lastOnChangeFlags_ = flags;
   ++this->onChangeCallCount_;
   this->rootNode_ = rootNode;
+  if (rootNode)
+    this->destroyed_ = false;
 
   if (this->skipNextProjection_)
   {

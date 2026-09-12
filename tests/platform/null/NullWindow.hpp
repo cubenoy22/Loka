@@ -25,6 +25,13 @@ public:
 
   virtual ~NullWindow()
   {
+    this->destroyScenePlatform();
+  }
+
+  /** Null-only synchronous native teardown hook. The visibility-refusal pin
+      calls this from its visibility observer, mirroring Win32 teardown. */
+  void destroyScenePlatform()
+  {
     this->teardownScene();
     if (this->controller_)
     {
@@ -45,7 +52,7 @@ public:
     {
       return;
     }
-    currentScene->mount(this->controller_);
+    this->mountReplacementScene(currentScene);
     this->mountedScene_ = true;
   }
 
@@ -91,6 +98,22 @@ public:
     {
       this->controller_->drainNativeRetirements();
     }
+  }
+
+protected:
+  virtual bool hasLiveScenePlatform() const
+  {
+    return this->controller_ && this->mountedScene_;
+  }
+
+  virtual bool mountReplacementScene(loka::app::scene::Scene *next)
+  {
+    if (this->controller_)
+    {
+      next->mount(this->controller_);
+      this->mountedScene_ = true;
+    }
+    return true;
   }
 
 private:

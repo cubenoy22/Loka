@@ -503,6 +503,13 @@ namespace loka
           return nextTickTracker_.run(&Scene::RefreshThunk, &Scene::ApplyThunk, this);
         }
 
+        /** True throughout refresh and apply, including direct invalidate()
+            runs. Admission must preserve this Scene until the run returns. */
+        bool isRunInProgress() const
+        {
+          return this->nextTickTracker_.inProgress();
+        }
+
         bool hasPendingInvalidation() const
         {
           return nextTickTracker_.hasPendingRequest();
@@ -759,7 +766,7 @@ namespace loka
           boundary->setParentBoundary(0);
         }
 
-        void composeIfNeeded(ComposeEvent event)
+        void composeIfNeeded(ComposeEvent event, bool publish = true)
         {
           if (composed_ || !platformController_)
           {
@@ -814,7 +821,8 @@ namespace loka
               return;
             }
           }
-          platformController_->onChange(rootNode_, NODE_DIRTY_INITIAL, true);
+          if (publish)
+            platformController_->onChange(rootNode_, NODE_DIRTY_INITIAL, true);
           composed_ = true;
         }
 

@@ -606,13 +606,20 @@ bool ToolboxWindow::hasPendingScenePlatformSync() const
 
 void ToolboxWindow::mountScene()
 {
-  loka::app::scene::Scene *currentScene = this->scene();
-  if (!currentScene || scenePlatformController_ || !window_)
-  {
-    return;
-  }
-  scenePlatformController_ = new ToolboxScenePlatformController(this);
-  currentScene->mount(scenePlatformController_);
+  if (this->scene() && !this->scenePlatformController_)
+    this->mountReplacementScene(this->scene());
+}
+
+bool ToolboxWindow::mountReplacementScene(loka::app::scene::Scene *next)
+{
+  if (!this->window_)
+    return true;
+  if (!this->scenePlatformController_)
+    this->scenePlatformController_ = new ToolboxScenePlatformController(this);
+  if (!this->scenePlatformController_)
+    return false;
+  next->mount(this->scenePlatformController_);
+  return true;
 }
 
 bool ToolboxWindow::dumpDebugStatsToTimestampedFile()

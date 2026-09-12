@@ -57,7 +57,7 @@ namespace loka
     };
 
     /** Re-arms a mounted scene by running the framework's own detach and
-        rebuild pair, the same pair SceneManager::swapScene runs across a scene
+        rebuild pair, the same pair the Window root seat runs across a scene
         transition: the detach tears the composed tree down, drains the live
         Boundary retire queues, releases every native node context, calls
         IPlatformController::destroy() and destroys the root node; the
