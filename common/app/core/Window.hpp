@@ -844,6 +844,11 @@ public:
   }
 
 protected:
+  /** Synchronously unmounts this Window's Scene before platform teardown.
+      Only for Window death at the App reclaim boundary; ordinary detach
+      requests belong to SceneManager's seat. */
+  void unmountSceneForTeardown(loka::app::scene::Scene &scene);
+
   void storeNativeFrame(const loka::core::Frame &frame)
   {
     if (this->nativeFrame_.get() == frame)

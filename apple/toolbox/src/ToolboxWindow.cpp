@@ -753,7 +753,7 @@ void ToolboxWindow::teardownScene()
     loka::app::scene::Scene *currentScene = this->scene();
     if (currentScene)
     {
-      currentScene->unmount();
+      this->unmountSceneForTeardown(*currentScene);
     }
     delete scenePlatformController_;
     scenePlatformController_ = 0;

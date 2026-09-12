@@ -21,10 +21,6 @@
 
 class Window;
 class SceneManager;
-class NullWindow;
-class Win32Window;
-class MacWindow;
-class ToolboxWindow;
 
 enum SceneLifecycle
 {
@@ -577,10 +573,7 @@ namespace loka
 
         // SceneManager owns lifecycle_/attached mutations.
         friend class ::SceneManager;
-        friend class ::NullWindow;
-        friend class ::Win32Window;
-        friend class ::MacWindow;
-        friend class ::ToolboxWindow;
+        friend class ::Window;
         friend class loka::app::detail::SceneRetirePool;
         friend class SceneDirector;
         friend class ::loka::dsl::testing::SceneTestAccess;

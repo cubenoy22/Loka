@@ -115,3 +115,8 @@ loka_compile_pin(scene-lifecycle-is-seat-owned
   REFUSES pins/refuses_scene_lifecycle.cpp
   ACCEPTS pins/accepts_scene_requests.cpp
 )
+
+loka_compile_pin(scene-teardown-is-window-owned
+  REFUSES pins/refuses_window_scene_teardown.cpp
+  ACCEPTS pins/accepts_external_window_scene_teardown.cpp
+)
