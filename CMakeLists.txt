@@ -425,6 +425,10 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       COMMAND "$<TARGET_FILE:${target}>" "${_loka_test_name}")
     set_tests_properties("${_loka_test_name}" PROPERTIES
       WORKING_DIRECTORY "${_loka_test_work_dir}")
+    if(_loka_test_name MATCHES "^testExpectedRed")
+      set_tests_properties("${_loka_test_name}" PROPERTIES
+        LABELS "expected-red" SKIP_RETURN_CODE 77)
+    endif()
   endfunction()
 
   if(NOT WIN32)
