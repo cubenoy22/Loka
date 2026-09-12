@@ -1,3 +1,4 @@
+#include "ReclaimScratchTests.hpp"
 #include "NodePartitionTests.hpp"
 #include "UpstreamGaugeTests.hpp"
 #include "PartialTreePublicationTests.hpp"

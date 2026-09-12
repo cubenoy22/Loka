@@ -1493,6 +1493,8 @@ namespace loka
         virtual void addChild(Node *child) = 0;
         virtual bool replaceChild(Node *oldChild, Node *newChild) = 0;
         virtual void detachChildrenTo(std::vector<Node *> &out) = 0;
+        /** Transfer child edges as an intact sibling chain, without allocation. */
+        virtual Node *detachChildren() = 0;
         virtual Node *childrenHead() const = 0;
         virtual size_t childrenCount() const = 0;
       };
@@ -1522,6 +1524,11 @@ namespace loka
         virtual bool replaceChild(Node *oldChild, Node *newChild)
         {
           return children_.replace(oldChild, newChild);
+        }
+
+        virtual Node *detachChildren()
+        {
+          return this->children_.detach();
         }
 
         virtual void detachChildrenTo(std::vector<Node *> &out)

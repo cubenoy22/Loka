@@ -2250,6 +2250,8 @@ namespace loka
 
         void retireSubtree(Node *node);
         void destroyRetiredSubtree(Node *node);
+        void destroyRetiredNode(Node *node);
+        void drainRetiredSubtrees(bool bounded);
         void drainAllRetiredSubtrees();
         void releaseOwnedNodeStorage();
 
