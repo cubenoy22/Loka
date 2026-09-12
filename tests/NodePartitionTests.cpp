@@ -54,6 +54,15 @@ namespace
       ++deaths;
     }
   };
+  Probe *gateProbe(Probe *provider = 0, bool *alive = 0)
+  {
+    void *storage = loka::core::LokaAllocRaw(sizeof(Probe), NodeHeapAllocationSite());
+    LOKA_VERIFY(storage);
+    Probe *node = new (storage) Probe(provider, alive);
+    node->setGateAllocated(true);
+    return node;
+  }
+
   struct Wide : Probe
   {
     char padding[73];
@@ -172,17 +181,13 @@ void testNodePartitionTopology()
     Probe *orphan = new (orphanStorage) Probe(parent, &orphanAlive);
     LOKA_VERIFY(partition.registerNode(orphan, parent));
     child->addChild(new Probe(child));
-    void *heapStorage = loka::core::LokaAllocRaw(sizeof(Probe), NodeHeapAllocationSite());
-    LOKA_VERIFY(heapStorage);
-    Probe *gateChild = new (heapStorage) Probe(child);
-    gateChild->setGateAllocated(true);
-    child->addChild(gateChild);
-    LOKA_VERIFY(partition.registerHeap(new Probe(orphan), orphan));
+    child->addChild(gateProbe(child));
+    LOKA_VERIFY(partition.registerHeap(gateProbe(orphan), orphan));
     LOKA_VERIFY(!partition.destroy(childStorage, layout));
     LOKA_VERIFY(parentAlive && childAlive && orphanAlive && deaths == 0);
   }
   LOKA_VERIFY(!parentAlive && !childAlive && !orphanAlive);
-  LOKA_VERIFY(deaths == 6 && frees == 2);
+  LOKA_VERIFY(deaths == 6 && frees == 3);
   // Reusing heap row zero must not make it a root ahead of its row-one owner.
   {
     NodePartition partition;
@@ -190,15 +195,15 @@ void testNodePartitionTopology()
     void *p = partition.allocate(layout);
     Probe *temporary = new (p) Probe();
     LOKA_VERIFY(partition.registerNode(temporary, 0));
-    LOKA_VERIFY(partition.registerHeap(new Probe(), temporary));
-    Probe *parent = new Probe(0, &parentAlive);
+    LOKA_VERIFY(partition.registerHeap(gateProbe(), temporary));
+    Probe *parent = gateProbe(0, &parentAlive);
     LOKA_VERIFY(partition.registerHeap(parent, 0));
     LOKA_VERIFY(partition.destroy(p, layout));
-    Probe *child = new Probe(parent);
+    Probe *child = gateProbe(parent);
     LOKA_VERIFY(partition.registerHeap(child, parent));
     parent->addChild(child);
   }
-  LOKA_VERIFY(!parentAlive && deaths == 10 && frees == 3);
+  LOKA_VERIFY(!parentAlive && deaths == 10 && frees == 7);
 }
 
 void testNodePartitionAlignmentOverflow()
@@ -247,4 +252,40 @@ void testNodePartitionBootRefusal()
   LOKA_VERIFY(acquisitions == 2);
   void *p = partition.allocate(layout);
   LOKA_VERIFY(p && partition.cancel(p, layout));
+}
+
+void testNodePartitionHeapRejectsForeignPartition()
+{
+  Backend backend;
+  const NodeSlotLayout layout = NodeSlotLayout::of<Probe>(1);
+  {
+    NodePartition a, b;
+    LOKA_VERIFY(a.boot(&layout, 1, 1));
+    LOKA_VERIFY(b.boot(&layout, 1, 1));
+    void *storage = a.allocate(layout);
+    LOKA_VERIFY(storage);
+    Probe *node = new (storage) Probe();
+    LOKA_VERIFY(a.registerNode(node, 0));
+    // The old door accepted this second owner; ASan verified that B then
+    // handed A's interior slot address to global delete during teardown.
+    LOKA_VERIFY(!b.registerHeap(node, 0));
+    LOKA_VERIFY(deaths == 0 && frees == 0);
+  }
+  LOKA_VERIFY(deaths == 1 && acquisitions == 2 && frees == 2);
+}
+
+void testNodePartitionHeapRejectsPlainNew()
+{
+  Backend backend;
+  const NodeSlotLayout layout = NodeSlotLayout::of<Probe>(1);
+  {
+    NodePartition partition;
+    LOKA_VERIFY(partition.boot(&layout, 1, 1));
+    Probe *node = new Probe();
+    LOKA_VERIFY(!partition.registerHeap(node, 0));
+    LOKA_VERIFY(deaths == 0);
+    DestroyHeapNode(node);
+    LOKA_VERIFY(deaths == 1);
+  }
+  LOKA_VERIFY(acquisitions == 1 && frees == 1 && deaths == 1);
 }

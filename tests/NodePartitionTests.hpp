@@ -5,4 +5,6 @@ void testNodePartitionReturnValidation();
 void testNodePartitionTopology();
 void testNodePartitionAlignmentOverflow();
 void testNodePartitionBootRefusal();
+void testNodePartitionHeapRejectsForeignPartition();
+void testNodePartitionHeapRejectsPlainNew();
 #endif

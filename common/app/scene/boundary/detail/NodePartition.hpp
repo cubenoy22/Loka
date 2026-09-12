@@ -215,10 +215,13 @@ namespace loka
             return true;
           }
 
-          /** Owns an unpublished heap candidate; capacity was fixed at boot. */
+          /** Owns an unpublished heap candidate; capacity was fixed at boot.
+              An unpublished heap candidate is allocation-gate storage; partition
+              storage from any partition and plain new are refused. */
           bool registerHeap(Node *node, Node *owner)
           {
-            if (!node || node->isArenaAllocated() || this->resident(node) || (owner && !this->resident(owner)))
+            if (!node || !node->isGateAllocated() || node->isArenaAllocated() || this->resident(node)
+                || (owner && !this->resident(owner)))
               return false;
             for (size_t i = 0; i < this->classCount_; ++i)
             {
