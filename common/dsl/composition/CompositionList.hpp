@@ -59,6 +59,15 @@ namespace loka
         count_ += 1;
       }
 
+      /** Transfer the intact sibling chain without allocating or deleting. */
+      DefT *detach()
+      {
+        DefT *out = this->head_;
+        this->head_ = this->tail_ = 0;
+        this->count_ = 0;
+        return out;
+      }
+
       void detachTo(std::vector<DefT *> &out)
       {
         out.clear();

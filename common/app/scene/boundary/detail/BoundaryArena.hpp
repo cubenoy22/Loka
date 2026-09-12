@@ -5,6 +5,7 @@
 #include <new>
 #include <vector>
 #include "app/scene/Node.hpp"
+#include "app/scene/boundary/detail/ReclaimScratch.hpp"
 #include "app/scene/detail/ArenaMath.hpp"
 #include "core/Held.hpp"
 #include "core/LokaAlloc.hpp"
@@ -150,6 +151,61 @@ namespace loka
             return true;
           }
 
+          /** Cold provisioning for explicit drains only, including Boundary drains. */
+          bool reserveReclaimScratch(size_t nodes)
+          {
+            return this->reclaimScratch_.reserve(nodes);
+          }
+          ReclaimScratch &reclaimScratch()
+          {
+            return this->reclaimScratch_;
+          }
+
+          /** Read-only preflight over this generation's ledger and heap edges.
+              Heap destructors precede reverse-creation-order arena destructors,
+              preserving the existing provider/borrower lifetime contract. */
+          static bool planRetiredGeneration(RetiredNodeGeneration &gen, ReclaimScratch::Plan &plan)
+          {
+            for (size_t i = 0; i < gen.heapRoots.size(); ++i)
+              if (!plan.append(gen.heapRoots[i]))
+                return false;
+            for (size_t i = 0; i < gen.nodes.size(); ++i)
+            {
+              Node *node = gen.nodes[i];
+              INestable *nestable = node && !node->asBoundary() ? node->asNestable() : 0;
+              for (Node *child = nestable ? nestable->childrenHead() : 0; child; child = child->nextInComposition)
+                if (!child->isArenaAllocated() && !plan.append(child))
+                  return false;
+            }
+            for (size_t i = gen.nodes.size(); i > 0; --i)
+              if (!plan.appendLeaf(gen.nodes[i - 1]))
+                return false;
+            return true;
+          }
+
+          /** Explicit reclaim: O(ledger + heap edges), bounded before mutation.
+              On overflow the caller retains the complete generation for retry.
+              The one-argument destructor path below is deliberately unchanged. */
+          static bool destroyRetiredGeneration(RetiredNodeGeneration &gen, ReclaimScratch &scratch)
+          {
+            ReclaimScratch::Plan plan(scratch, ReclaimScratch::Plan::HEAP_CHILDREN);
+            if (!planRetiredGeneration(gen, plan))
+              return false;
+            plan.severChildren();
+            for (size_t i = 0; i < plan.count(); ++i)
+            {
+              Node *node = plan.node(i);
+              if (node->isArenaAllocated())
+                node->~Node();
+              else
+                DestroyHeapNode(node);
+            }
+            gen.heapRoots.clear();
+            gen.nodes.clear();
+            freeGeneration(gen);
+            return true;
+          }
+
           static void destroyRetiredGeneration(RetiredNodeGeneration &gen)
           {
             // Heap roots go first, while every arena node they may still
@@ -203,6 +259,17 @@ namespace loka
               }
             }
             gen.nodes.clear();
+            freeGeneration(gen);
+          }
+
+          bool hasCapacity() const
+          {
+            return buffer_ != 0;
+          }
+
+        private:
+          static void freeGeneration(RetiredNodeGeneration &gen)
+          {
             if (gen.raw)
             {
               loka::core::LokaFreeRaw(gen.raw, slabSite());
@@ -214,13 +281,7 @@ namespace loka
             gen.buffer = 0;
             gen.raw = 0;
           }
-
-          bool hasCapacity() const
-          {
-            return buffer_ != 0;
-          }
-
-        private:
+          ReclaimScratch reclaimScratch_;
           /** One static gate site per slab kind: reserve() and
               destroyRetiredGeneration() must free through the tags the
               acquisition used so the audit ledger balances. */

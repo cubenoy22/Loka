@@ -399,6 +399,15 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   target_link_libraries(LokaUpstreamGaugePins PRIVATE LokaCommonTesting)
   add_test(NAME LokaUpstreamGaugePins COMMAND LokaUpstreamGaugePins)
 
+  # Isolated S1 pool simulation: deny Source and count global new during reclaim.
+  add_executable(LokaReclaimGaugePins tests/ReclaimGaugeMain.cpp tests/ReclaimScratchTests.cpp)
+  loka_enable_warnings(LokaReclaimGaugePins)
+  target_include_directories(LokaReclaimGaugePins PRIVATE tests)
+  target_compile_definitions(LokaReclaimGaugePins PRIVATE TEST_BUILD LOKA_RECLAIM_GAUGE_PIN)
+  set_target_properties(LokaReclaimGaugePins PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
+  target_link_libraries(LokaReclaimGaugePins PRIVATE LokaCommonTesting)
+  add_test(NAME LokaReclaimGaugePins COMMAND LokaReclaimGaugePins)
+
   # Host-command regression fixture. This is the production lrpc entry point,
   # built only into the native test graph so command tests exercise the real
   # create/write/cleanup/rename path rather than a duplicated file helper.

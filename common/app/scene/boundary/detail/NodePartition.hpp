@@ -3,6 +3,7 @@
 
 #include "app/scene/Node.hpp"
 #include <cstring>
+#include "app/scene/boundary/detail/ReclaimScratch.hpp"
 
 namespace loka
 {
@@ -98,14 +99,19 @@ namespace loka
             Callers transfer detached, reclaim-eligible roots. Existing Boundary parked
             ledgers must release their branches through their ordinary retirement door
             first; this primitive cannot remove private Boundary ledger references.
-            Destructors may not reenter this storage. Child extraction uses the existing
-            vector scratch; this type makes no scratch/no-whole-cycle allocation claim. */
+            Destructors may not reenter this storage. Explicit destroy uses a bounded
+            preflight when reserveReclaimScratch was called; whole-store destructor
+            teardown retains legacy scratch and is outside that certification. */
         class NodePartition
         {
           struct Resident
           {
             Node *node;
             Node *owner;
+            bool ownedBy(Node *provider) const
+            {
+              return this->node && this->owner == provider;
+            }
           };
           struct Class
           {
@@ -269,21 +275,55 @@ namespace loka
           }
 
           /** Destroys a transferred root and its dependents, then returns its slot.
-              A still-owned child must be reclaimed through its owner. */
+              A still-owned child must be reclaimed through its owner. A registered
+              Boundary is not an ownership wall for this partition's dependents:
+              attached residents registered with it as owner are planned through
+              nextDependent and their child edges are severed before destruction.
+              Children in that Boundary's own landlord storage remain attached for
+              its destructor; this partition never walks the nested landlord ledger. */
           bool destroy(void *p, const NodeSlotLayout &layout)
           {
             Class *c = this->findClass(layout);
             size_t s = 0;
             if (!c || !locate(*c, p, s) || !occupied(*c, s) || !c->residents[s].node || c->residents[s].owner)
               return false;
-            this->destroyTree(c->residents[s].node);
-            return true;
+            if (!this->reclaimScratch_.isReserved())
+            {
+              this->destroyTree(c->residents[s].node);
+              return true;
+            }
+            return this->reclaimTree(c->residents[s].node, &DestroyResident, this);
+          }
+
+          /** Cold explicit-door provisioning; destructor teardown stays legacy. */
+          bool reserveReclaimScratch(size_t nodes)
+          {
+            return this->reclaimScratch_.reserve(nodes);
           }
 
         private:
           friend class ::loka::app::scene::BoundaryNode;
           friend class SeatReservations;
           typedef void (*ReclaimNode)(Node *, void *);
+
+          /** Bounded explicit reclaim shared with the Boundary clock. The callback
+              releases a completed row through its storage owner, without walking
+              children again. Refusal leaves all edges intact for legacy fallback. */
+          bool reclaimTree(Node *node, ReclaimNode reclaim, void *context)
+          {
+            ReclaimScratch::Plan plan(
+                this->reclaimScratch_, ReclaimScratch::Plan::ALL_CHILDREN, &NodePartition::nextDependent, this);
+            if (!plan.append(node))
+              return false;
+            this->severChildren(plan);
+            for (size_t i = 0; i < plan.count(); ++i)
+              reclaim(plan.node(i), context);
+            return true;
+          }
+          static void DestroyResident(Node *node, void *context)
+          {
+            static_cast<NodePartition *>(context)->destroyResident(node);
+          }
 
           /** Existing clock callback owns traversal and nested-landlord ordering.
               Only owner-edge candidates absent from child lists remain here. */
@@ -377,14 +417,66 @@ namespace loka
                 return this->heap_ + h;
             return 0;
           }
+          /** Partition commit, once per successful plan. Normal edges use the
+              shared walk. At registered Boundaries, retain foreign child edges
+              in order and remove only dependencies selected by nextDependent.
+              O(plan rows + Boundary child edges * (classes + heap rows)), over
+              this partition's resident index; no nested landlord ledger scan. */
+          void severChildren(const ReclaimScratch::Plan &plan)
+          {
+            plan.severChildren();
+            for (size_t i = 0; i < plan.count(); ++i)
+            {
+              Node *node = plan.node(i);
+              if (!node->asBoundary() || !this->resident(node))
+                continue;
+              INestable *boundary = node->asNestable();
+              Node *child = boundary->detachChildren();
+              while (child)
+              {
+                Node *next = child->nextInComposition;
+                child->nextInComposition = 0;
+                Resident *resident = this->resident(child);
+                if (!resident || !resident->ownedBy(node))
+                  boundary->addChild(child);
+                child = next;
+              }
+            }
+          }
+
+          /** Planner callback: advances through this partition's own rows once
+              per node. Class lookup costs O(K) per returned dependency. */
+          static Node *nextDependent(void *context, Node *owner, size_t &cursor)
+          {
+            NodePartition &self = *static_cast<NodePartition *>(context);
+            size_t base = 0;
+            for (size_t i = 0; i < self.classCount_; ++i)
+            {
+              Class &c = self.classes_[i];
+              for (size_t s = cursor > base ? cursor - base : 0; s < c.count; ++s)
+              {
+                cursor = base + s + 1;
+                if (c.residents[s].ownedBy(owner))
+                  return c.residents[s].node;
+              }
+              base += c.count;
+            }
+            for (size_t h = cursor > base ? cursor - base : 0; h < self.heapCount_; ++h)
+            {
+              cursor = base + h + 1;
+              if (self.heap_[h].ownedBy(owner))
+                return self.heap_[h].node;
+            }
+            return 0;
+          }
           void destroyDependents(Node *owner, ReclaimNode reclaim, void *context)
           {
             for (size_t i = 0; i < this->classCount_; ++i)
               for (size_t s = 0; s < this->classes_[i].count; ++s)
-                if (this->classes_[i].residents[s].owner == owner)
+                if (this->classes_[i].residents[s].ownedBy(owner))
                   reclaim(this->classes_[i].residents[s].node, context);
             for (size_t h = 0; h < this->heapCount_; ++h)
-              if (this->heap_[h].owner == owner)
+              if (this->heap_[h].ownedBy(owner))
                 reclaim(this->heap_[h].node, context);
           }
           static void DestroyTree(Node *node, void *context)
@@ -433,6 +525,7 @@ namespace loka
             this->reclaimRoots(&DestroyTree, this);
             core::LokaFreeRaw(this->raw_, site());
           }
+          ReclaimScratch reclaimScratch_;
           char *raw_;
           Class *classes_;
           size_t classCount_;
