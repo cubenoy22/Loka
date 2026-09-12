@@ -1,4 +1,5 @@
 #include "SmallObjectPoolTests.hpp"
+#include "UpstreamGaugeTests.hpp"
 #include "core/SmallObjectPool.hpp"
 #include "support/TestVerify.hpp"
 #include <cstdlib>
@@ -349,4 +350,94 @@ void testSmallObjectPoolReportValidity()
 #else
   std::puts("[skip] SmallObjectPool report validity: diagnostics disabled");
 #endif
+}
+
+namespace
+{
+  void gaugeEquals(const Pool &pool, unsigned long attempts, unsigned long successes,
+                   unsigned long bytes, unsigned long failures)
+  {
+    const loka::core::UpstreamGauge g = pool.snapshot();
+    LOKA_VERIFY(!g.saturated);
+    LOKA_VERIFY(g.attempts == attempts);
+    LOKA_VERIFY(g.successes == successes);
+    LOKA_VERIFY(g.bytesAcquired == bytes);
+    LOKA_VERIFY(g.failures == failures);
+  }
+}
+
+void testUpstreamGaugeLarge()
+{
+  Fixture f;
+  const loka::core::UpstreamGauge before = f.pool.snapshot();
+  gaugeEquals(f.pool, 0, 0, 0, 0);
+  void *p = f.pool.allocate(257);
+  LOKA_VERIFY(p);
+  gaugeEquals(f.pool, 1, 1, 257, 0);
+  f.pool.release(p);
+  f.source.refuseAll = true;
+  LOKA_VERIFY(f.pool.allocate(300) == 0);
+  gaugeEquals(f.pool, 2, 1, 257, 1);
+  LOKA_VERIFY(before.attempts == 0 && before.bytesAcquired == 0);
+}
+
+void testUpstreamGaugeRefillAndFallback()
+{
+  Fixture f;
+  void *p = f.pool.allocate(16);
+  LOKA_VERIFY(p);
+  gaugeEquals(f.pool, 1, 1, 2048, 0);
+  f.pool.release(p);
+  LOKA_VERIFY(f.pool.allocate(16) == p);
+  gaugeEquals(f.pool, 1, 1, 2048, 0);
+  f.source.refuseChunks = true;
+  void *fallback = f.pool.allocate(24);
+  LOKA_VERIFY(fallback);
+  gaugeEquals(f.pool, 3, 2, 2072, 1);
+  f.pool.release(fallback);
+  f.source.refuseAll = true;
+  LOKA_VERIFY(f.pool.allocate(32) == 0);
+  gaugeEquals(f.pool, 5, 2, 2072, 3);
+}
+
+void testUpstreamGaugeDirect()
+{
+  Fixture f;
+  for (unsigned int i = 0; i < 128 * 8; ++i)
+    LOKA_VERIFY(f.pool.allocate(256));
+  gaugeEquals(f.pool, 128, 128, 128UL * 2048, 0);
+  void *p = f.pool.allocate(24);
+  LOKA_VERIFY(p);
+  gaugeEquals(f.pool, 129, 129, 128UL * 2048 + 24, 0);
+  f.pool.release(p);
+  f.source.refuseAll = true;
+  LOKA_VERIFY(f.pool.allocate(24) == 0);
+  gaugeEquals(f.pool, 130, 129, 128UL * 2048 + 24, 1);
+}
+
+namespace
+{
+  // Accounting-only source: the huge successful request is an opaque token.
+  // No storage is dereferenced or released; this tests arithmetic, not malloc.
+  struct GaugeLimitSource
+  {
+    enum { kAlignment = 16 };
+    static void *acquire(size_t) { static int token; return &token; }
+    static void release(void *) {}
+  };
+}
+void testUpstreamGaugeSaturation()
+{
+  typedef loka::core::SmallObjectPool<GaugeLimitSource> LimitPool;
+  LimitPool pool = LimitPool();
+  LOKA_VERIFY(pool.allocate(ULONG_MAX - 1));
+  const loka::core::UpstreamGauge before = pool.snapshot();
+  LOKA_VERIFY(!before.saturated && before.bytesAcquired == ULONG_MAX - 1);
+  LOKA_VERIFY(pool.allocate(257));
+  const loka::core::UpstreamGauge after = pool.snapshot();
+  LOKA_VERIFY(after.saturated && after.bytesAcquired == ULONG_MAX);
+  LOKA_VERIFY(after.attempts == 2 && after.successes == 2 && after.failures == 0);
+  LOKA_VERIFY(pool.allocate(300));
+  LOKA_VERIFY(pool.snapshot().saturated && pool.snapshot().bytesAcquired == ULONG_MAX);
+  LOKA_VERIFY(!before.saturated && before.bytesAcquired == ULONG_MAX - 1);
 }

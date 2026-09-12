@@ -1,3 +1,4 @@
+#include "support/OrdinaryFlowPin.hpp"
 #include "FlowDslTests.hpp"
 #include "support/TestVerify.hpp"
 
@@ -5734,7 +5735,7 @@ void testLokaFlowDslV1Core()
     result.bind(&captureFlowResultTrackerPhase, &observation, false);
 
     loka::dsl::FlowChain<int, int> chain =
-        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input).onSuccess(&result, port);
+        ordinary_flow_pin::make(&input, &result, port);
 
     chain.withTracker(port);
     LOKA_VERIFY(chain.run());
@@ -6961,7 +6962,7 @@ void testFlowOnSuccessBracketsGenericTrackerTransaction()
   assert(port->asPushTracker() == 0); // pure query: the port is deliberately not a push tracker
 
   loka::dsl::FlowChain<int, int> chain =
-      loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input).onSuccess(&result, port);
+      ordinary_flow_pin::make(&input, &result, port);
 
   LOKA_VERIFY(chain.run());
   LOKA_VERIFY(result.get() == 10);

@@ -1,3 +1,7 @@
+LOKA_TEST(testUpstreamGaugeSaturation)
+LOKA_TEST(testUpstreamGaugeLarge)
+LOKA_TEST(testUpstreamGaugeRefillAndFallback)
+LOKA_TEST(testUpstreamGaugeDirect)
 LOKA_TEST(testLocalRebuildSectionMaterializesChildrenWithBoundaryProvider)
 LOKA_TEST(testLocalRebuildRefusalPreservesInstalledSubtree)
 LOKA_TEST(testPublishedLazyScopeSectionRefusalKeepsScopeReady)
