@@ -113,6 +113,7 @@ MacWindow::MacWindow(PlatformContext *context, const WindowProps &props)
 
 MacWindow::~MacWindow()
 {
+  this->dialogResults().close();
   this->detachNativeStateObservers();
   teardownScene();
   NSWindow *window = (NSWindow *)window_;
@@ -136,6 +137,12 @@ MacWindow::~MacWindow()
     [(id)delegate_ release];
     delegate_ = 0;
   }
+}
+
+MacWindow *MacWindow::fromRootView(void *rootView)
+{
+  // Deliberate counterpart of Win32's root HWND / GWLP_USERDATA lookup.
+  return [(LokaWindowDelegate *)[[(NSView *)rootView window] delegate] owner];
 }
 
 void MacWindow::setApp(App *app)
@@ -346,6 +353,7 @@ void MacWindow::createNativeWindow()
   this->storeNativeFrame(NativeContentFrame(window));
 
   [window makeKeyAndOrderFront:nil];
+  this->dialogResults().open(*this);
   this->onCreate();
   this->mountScene();
 }
@@ -357,6 +365,7 @@ bool MacWindow::handleKeyPress(char key)
 
 void MacWindow::destroyNativeWindow()
 {
+  this->dialogResults().close();
   NSWindow *window = (NSWindow *)window_;
   if (!window)
   {
@@ -496,6 +505,7 @@ bool MacWindow::hasPendingScenePlatformSync() const
 
 void MacWindow::handleWindowWillClose()
 {
+  this->dialogResults().close();
   if (closing_)
   {
     return;

@@ -1,6 +1,7 @@
 #include "MacOpenFileDialogContext.hpp"
 #include <cassert>
 #include "../MacScenePlatformController.hpp"
+#include "../MacWindow.hpp"
 #include "MacObjCCompat.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "Utf8String.hpp"
@@ -17,9 +18,18 @@
 - (void)cancelPresent;
 - (void)detachOwner;
 - (void)onTimer:(NSTimer *)timer;
+#ifdef TEST_BUILD
+@property(nonatomic, assign, readonly) NSTimer *scheduledTimerForTesting;
+#endif
 @end
 
 @implementation LokaMacOpenFileDialogDeferredPresenter
+#ifdef TEST_BUILD
+- (NSTimer *)scheduledTimerForTesting
+{
+  return timer_;
+}
+#endif
 - (id)initWithOwner:(MacOpenFileDialogContext *)owner
 {
   self = [super init];
@@ -81,37 +91,15 @@
 }
 @end
 
+#ifdef TEST_BUILD
+void *MacOpenFileDialogContext::scheduledTimerForTesting() const
+{
+  return [(LokaMacOpenFileDialogDeferredPresenter *)this->deferredPresenter_ scheduledTimerForTesting];
+}
+#endif
+
 namespace
 {
-  struct MacOpenNativeDialogSession
-  {
-    MacOpenNativeDialogSession()
-        : disposed(false)
-    {
-    }
-
-    bool disposed;
-  };
-
-  static void DeliverOpenFileDialogResult(loka::app::scene::NodeState<loka::app::FileChooserResult> resultState,
-                                          loka::core::EmitterState *onResult,
-                                          const loka::app::FileChooserResult &result)
-  {
-    void *onResultToken = onResult ? onResult->retainExternalLifetimeToken() : 0;
-    if (resultState.isValid())
-    {
-      resultState.set(result, true);
-    }
-    if (onResult && loka::core::StateBase::isExternalLifetimeTokenAlive(onResultToken))
-    {
-      onResult->emit();
-    }
-    if (onResultToken)
-    {
-      loka::core::StateBase::releaseExternalLifetimeToken(onResultToken);
-    }
-  }
-
   class MacOpenFileDialogNodeHandler
       : public loka::app::scene::RetainedNodeHandler<MacOpenFileDialogNodeHandler,
                                                      loka::app::OpenFileDialogNode,
@@ -132,6 +120,11 @@ namespace
       return new MacOpenFileDialogContext(mac, mac->rootView(), dialog);
     }
 
+    static void refresh(MacOpenFileDialogContext *ctx, const loka::app::scene::LayoutState &)
+    {
+      ctx->presentIfNeeded();
+    }
+
     static void afterAttach(MacOpenFileDialogContext *ctx)
     {
       // Keep presentation in the shared after-attach slot; see RetainedNodeHandler.
@@ -142,30 +135,24 @@ namespace
   MacOpenFileDialogNodeHandler gMacOpenFileDialogNodeHandler;
 } // namespace
 
-struct MacOpenFileDialogContext::NativeDialogSession : public MacOpenNativeDialogSession
-{
-};
-
 MacOpenFileDialogContext::MacOpenFileDialogContext(MacScenePlatformController *controller,
                                                    void *parentView,
                                                    loka::app::OpenFileDialogNode *node)
     : MacRetirableContext(controller),
       node_(node),
-      resultState_(),
-      onResult_(0),
+      transport_(0),
       presentation_(),
       deferredPresenter_(0),
-      dialog_(0)
+      registration_(0)
 {
-  (void)parentView;
-  resultState_ = node_ ? node_->props.result_ : loka::app::scene::NodeState<loka::app::FileChooserResult>();
-  onResult_ = node_ ? node_->props.onResult_ : 0;
+  MacWindow *window = MacWindow::fromRootView(parentView);
+  this->transport_ = window ? &window->dialogResults() : 0;
   deferredPresenter_ = [[LokaMacOpenFileDialogDeferredPresenter alloc] initWithOwner:this];
 }
 
 MacOpenFileDialogContext::~MacOpenFileDialogContext()
 {
-  assert(!deferredPresenter_ && !dialog_ && "terminal fact delivery must queue the presenter before context reclaim");
+  assert(!deferredPresenter_ && !registration_ && "terminal fact delivery must queue the presenter before context reclaim");
 }
 
 void MacOpenFileDialogContext::readLifecycleFactOnAttach()
@@ -194,15 +181,13 @@ void MacOpenFileDialogContext::onFactChanged(loka::app::scene::NodeLifecycleFact
       [(LokaMacOpenFileDialogDeferredPresenter *)this->deferredPresenter_ detachOwner];
       this->retireNativeObject(this->deferredPresenter_);
       this->node_ = 0;
-      this->resultState_ = loka::app::scene::NodeState<loka::app::FileChooserResult>();
-      this->onResult_ = 0;
     }
   }
 }
 
 void MacOpenFileDialogContext::applyAttachedPresentation()
 {
-  presentIfNeeded();
+  this->presentation_.markDetached();
 }
 
 void MacOpenFileDialogContext::applyDetachedPresentation()
@@ -215,19 +200,35 @@ void MacOpenFileDialogContext::applyDetachedPresentation()
   this->disposeDialog();
 }
 
+void MacOpenFileDialogContext::onPropsApplied()
+{
+  if (this->registration_ && this->node_ && !this->registration_->matches(this->node_->props))
+  {
+    this->applyDetachedPresentation();
+    // Like Win32, retarget abandons this operation; reattach permits a new one.
+    this->presentation_.markPresented();
+  }
+}
+
 void MacOpenFileDialogContext::presentIfNeeded()
 {
-  if (dialog_ || !presentation_.beginPresent())
+  if (this->registration_ || !this->transport_ || !this->node_
+      || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
+    return;
+  if (!this->presentation_.beginPresent())
+    return;
+  this->registration_ = this->transport_->reserve(this->node_->props);
+  if (!this->registration_)
   {
+    this->presentation_.markDetached();
     return;
   }
-  dialog_ = new NativeDialogSession();
-  if (deferredPresenter_)
+  if (this->deferredPresenter_)
   {
-    [(LokaMacOpenFileDialogDeferredPresenter *)deferredPresenter_ schedulePresent];
+    [(LokaMacOpenFileDialogDeferredPresenter *)this->deferredPresenter_ schedulePresent];
     return;
   }
-  presentDialog();
+  this->presentDialog();
 }
 
 void MacOpenFileDialogContext::presentDeferred()
@@ -237,28 +238,20 @@ void MacOpenFileDialogContext::presentDeferred()
 
 void MacOpenFileDialogContext::presentDialog()
 {
-  if (!presentation_.isPresenting())
+  // Native close revokes the captured props before Scene teardown cancels
+  // the timer. Refuse that queued presenter as well as a retargeted operation.
+  if (!this->presentation_.isPresenting() || !this->registration_ || !this->node_
+      || !this->registration_->matches(this->node_->props))
   {
     return;
   }
-  NativeDialogSession *dialog = dialog_;
-  if (!dialog || dialog->disposed)
-  {
-    return;
-  }
-  loka::app::scene::NodeState<loka::app::FileChooserResult> resultState = resultState_;
-  loka::core::EmitterState *onResult = onResult_;
+  loka::app::DialogResultTransport::ReturnPort port(this->registration_);
+  this->presentation_.markPresented();
+  // From here through modal return, only the revocable stack port is borrowed.
   NSOpenPanel *panel = [NSOpenPanel openPanel];
   if (!panel)
   {
-    dialog = this->detachDialogIfActive(dialog);
-    if (!dialog)
-    {
-      return;
-    }
-    presentation_.markPresented();
-    DeliverOpenFileDialogResult(resultState, onResult, loka::app::FileChooserResult::Error(1));
-    delete dialog;
+    port.seal(loka::app::FileChooserResult::Error(1));
     return;
   }
 
@@ -282,42 +275,16 @@ void MacOpenFileDialogContext::presentDialog()
       result = loka::app::FileChooserResult::Error(2);
     }
   }
-  dialog = this->detachDialogIfActive(dialog);
-  if (!dialog)
-  {
-    return;
-  }
-  presentation_.markPresented();
-  DeliverOpenFileDialogResult(resultState, onResult, result);
-  delete dialog;
-}
-
-void MacOpenFileDialogContext::setResult(const loka::app::FileChooserResult &result)
-{
-  DeliverOpenFileDialogResult(resultState_, onResult_, result);
+  // MacApp's repeating admission timer services this pending fact. No callback,
+  // context access or separate wake allocation is needed on the native return.
+  port.seal(result);
 }
 
 void MacOpenFileDialogContext::disposeDialog()
 {
-  if (!dialog_)
-  {
-    return;
-  }
-  dialog_->disposed = true;
-  delete dialog_;
-  dialog_ = 0;
-}
-
-MacOpenFileDialogContext::NativeDialogSession *
-MacOpenFileDialogContext::detachDialogIfActive(NativeDialogSession *dialog)
-{
-  if (!dialog || dialog_ != dialog || dialog->disposed)
-  {
-    return 0;
-  }
-  dialog_ = 0;
-  dialog->disposed = true;
-  return dialog;
+  loka::app::DialogResultTransport::Registration *registration = this->registration_;
+  this->registration_ = 0;
+  delete registration;
 }
 
 void RegisterMacOpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)

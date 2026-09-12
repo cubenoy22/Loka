@@ -38,6 +38,7 @@
 #include "MacNodeHandlerEnsureTests.hpp"
 #include "MacScrollViewTests.hpp"
 #include "MacWindowAdmissionTests.hpp"
+#include "MacOpenFileDialogTests.hpp"
 #endif
 #include "DerivedStateTests.hpp"
 #include "WindowFrameStateTests.hpp"
