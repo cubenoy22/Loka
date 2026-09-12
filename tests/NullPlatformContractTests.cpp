@@ -3637,7 +3637,10 @@ void testOpenFileDialogPresentationPoliciesInComposeOnceBoundary()
 void testOpenFileDialogRequiresCompletionBinding()
 {
   loka::core::MutableState<loka::app::FileChooserResult> result;
-  loka::app::OpenFileDialogNode resultNode((loka::app::OpenFileDialogProps().result(&result)));
+  loka::core::PushStateTracker tracker;
+  tracker.addState(&result);
+  loka::app::scene::NodeState<loka::app::FileChooserResult> resultChannel(&result, &tracker);
+  loka::app::OpenFileDialogNode resultNode((loka::app::OpenFileDialogProps().result(resultChannel)));
   loka::core::EmitterState onResult;
   loka::app::OpenFileDialogNode eventNode((loka::app::OpenFileDialogProps().onResult(&onResult)));
   (void)resultNode;

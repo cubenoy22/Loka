@@ -20,14 +20,14 @@ namespace
     bool disposed;
   };
 
-  static void DeliverOpenFileDialogResult(loka::core::MutableState<loka::app::FileChooserResult> *resultState,
+  static void DeliverOpenFileDialogResult(loka::app::scene::NodeState<loka::app::FileChooserResult> resultState,
                                           loka::core::EmitterState *onResult,
                                           const loka::app::FileChooserResult &result)
   {
     void *onResultToken = onResult ? onResult->retainExternalLifetimeToken() : 0;
-    if (resultState)
+    if (resultState.isValid())
     {
-      resultState->set(result, true);
+      resultState.set(result, true);
     }
     if (onResult && loka::core::StateBase::isExternalLifetimeTokenAlive(onResultToken))
     {
@@ -100,12 +100,12 @@ bool Win32OpenFileDialogContext::handlePostedResultMessage(UINT message, WPARAM,
 Win32OpenFileDialogContext::Win32OpenFileDialogContext(HWND parent, loka::app::OpenFileDialogNode *node)
     : parent_(parent),
       node_(node),
-      resultState_(0),
+      resultState_(),
       onResult_(0),
       presentation_(),
       dialog_(0)
 {
-  resultState_ = node_ ? node_->props.result_ : 0;
+  resultState_ = node_ ? node_->props.result_ : loka::app::scene::NodeState<loka::app::FileChooserResult>();
   onResult_ = node_ ? node_->props.onResult_ : 0;
 }
 
@@ -251,9 +251,9 @@ void Win32OpenFileDialogContext::queueDeferredResult(const loka::app::FileChoose
   }
 
   loka::core::PushStateTracker *tracker = 0;
-  if (delivery->resultState && delivery->resultState->trackerOwner())
+  if (delivery->resultState.isValid() && delivery->resultState.dangerouslyTracker())
   {
-    tracker = delivery->resultState->trackerOwner()->asPushTracker();
+    tracker = delivery->resultState.dangerouslyTracker()->asPushTracker();
   }
   if (!tracker && delivery->onResult && delivery->onResult->trackerOwner())
   {
