@@ -38,7 +38,7 @@ private:
   struct DeferredResultDelivery
   {
     DeferredResultDelivery()
-        : resultState(0),
+        : resultState(),
           onResult(0),
           result(),
           owner(0),
@@ -48,7 +48,7 @@ private:
 
     ~DeferredResultDelivery();
 
-    loka::core::MutableState<loka::app::FileChooserResult> *resultState;
+    loka::app::scene::NodeState<loka::app::FileChooserResult> resultState;
     loka::core::EmitterState *onResult;
     loka::app::FileChooserResult result;
     Win32OpenFileDialogContext *owner;
@@ -64,7 +64,7 @@ private:
 
   HWND parent_;
   loka::app::OpenFileDialogNode *node_;
-  loka::core::MutableState<loka::app::FileChooserResult> *resultState_;
+  loka::app::scene::NodeState<loka::app::FileChooserResult> resultState_;
   loka::core::EmitterState *onResult_;
   loka::app::OpenFileDialogPresentationPhase presentation_;
   NativeDialogSession *dialog_;

@@ -16,14 +16,14 @@ namespace
     bool disposed;
   };
 
-  static void DeliverOpenFileDialogResult(loka::core::MutableState<loka::app::FileChooserResult> *resultState,
+  static void DeliverOpenFileDialogResult(loka::app::scene::NodeState<loka::app::FileChooserResult> resultState,
                                           loka::core::EmitterState *onResult,
                                           const loka::app::FileChooserResult &result)
   {
     void *onResultToken = onResult ? onResult->retainExternalLifetimeToken() : 0;
-    if (resultState)
+    if (resultState.isValid())
     {
-      resultState->set(result, true);
+      resultState.set(result, true);
     }
     if (onResult && loka::core::StateBase::isExternalLifetimeTokenAlive(onResultToken))
     {
@@ -79,7 +79,7 @@ static loka::core::String displayPathFromSpec(const FSSpec &spec)
 
 ToolboxOpenFileDialogContext::ToolboxOpenFileDialogContext(loka::app::OpenFileDialogNode *node)
     : node_(node),
-      resultState_(0),
+      resultState_(),
       onResult_(0),
       presentation_(),
       dialog_(0)
@@ -148,7 +148,7 @@ void ToolboxOpenFileDialogContext::presentDialog()
   {
     return;
   }
-  loka::core::MutableState<loka::app::FileChooserResult> *resultState = resultState_;
+  loka::app::scene::NodeState<loka::app::FileChooserResult> resultState = resultState_;
   loka::core::EmitterState *onResult = onResult_;
 
   StandardFileReply reply;
@@ -211,7 +211,7 @@ bool RegisterToolboxOpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHand
 
 void ToolboxOpenFileDialogContext::captureProps()
 {
-  this->resultState_ = this->node_ ? this->node_->props.result_ : 0;
+  this->resultState_ = this->node_ ? this->node_->props.result_ : loka::app::scene::NodeState<loka::app::FileChooserResult>();
   this->onResult_ = this->node_ ? this->node_->props.onResult_ : 0;
 }
 

@@ -2290,9 +2290,9 @@ namespace
   void deliverSimpleViewerOpenFileDialogResult(loka::app::OpenFileDialogNode *dialog,
                                                const loka::app::FileChooserResult &result)
   {
-    assert(dialog && dialog->props.result_);
-    loka::core::StateTrackerGuard guard(dialog->props.result_->trackerOwner());
-    dialog->props.result_->set(result, true);
+    assert(dialog && dialog->props.result_.isValid());
+    loka::app::scene::NodeState<loka::app::FileChooserResult> resultState = dialog->props.result_;
+    resultState.set(result, true);
   }
 } // namespace
 
@@ -6351,7 +6351,7 @@ void testSimpleViewerClosesDialogFromChooserCompletion()
     LOKA_VERIFY(scene.flushInvalidation());
   }
   dialog = findSimpleViewerOpenFileDialog(scene);
-  assert(dialog && dialog->props.result_);
+  assert(dialog && dialog->props.result_.isValid());
 
   deliverSimpleViewerOpenFileDialogResult(dialog, loka::app::FileChooserResult());
   if (scene.hasPendingInvalidation())
