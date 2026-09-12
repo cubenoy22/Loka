@@ -1034,7 +1034,9 @@ namespace
       }
       context.boundary()->appendNestedBranchSeatPlan(composition);
       context.setComposition(&composition);
-      this->addChild(composition.createNodeTree());
+      const NodeMaterializationResult result = composition.createNodeTreeCompleted();
+      assert(!result.allocationFailed && !result.requiresBoundaryPlan);
+      this->addChild(result.root);
       context.setComposition(0);
     }
     virtual void composeNode(NodeComposition &composition)

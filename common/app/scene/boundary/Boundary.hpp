@@ -2188,6 +2188,32 @@ namespace loka
           }
         }
 
+        /** Reject an incomplete initial capture before any factory runs.
+            Cost: once per capture; reset visits this composition's definitions.
+            A surviving nonempty root is the established replay instruction. */
+        bool finishInitialDeclaration()
+        {
+          if (this->compositionState_.allocationFailedValue())
+          {
+            this->composition().reset();
+            return false;
+          }
+          this->captureBranchSeatPlan();
+          return true;
+        }
+
+        /** Materialize initial children, preserving seat-free instructions on
+            factory refusal. Seat-bearing declarations retain their existing
+            acceptance/replay behavior until attempt-scoped declarations and
+            participation are available (hole B 2c). Descendant ATTACH still
+            follows linkage; this is not the whole-tree candidate wall.
+
+            Cost: once per mount attempt; walks this declaration's factories and
+            admitted children. Plan eligibility and slot transfer are O(1).
+            Refused roots queue on this Boundary's existing reclaim clock. */
+        bool materializeInitialChildren(ComponentContext &context);
+        static void RetireUnattachedCandidate(Node *root, void *data);
+
         /** Captures the attach declaration for subsequent seat updates. */
         void captureBranchSeatPlan()
         {

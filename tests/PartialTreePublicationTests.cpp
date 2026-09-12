@@ -297,7 +297,7 @@ namespace
   }
 } // namespace
 
-void testExpectedRedPartialTree629()
+void testPartialTree629()
 {
   partialPin(PLAIN, 2);
 }
@@ -305,7 +305,7 @@ void testExpectedRedPartialTree144()
 {
   partialPin(CONDITIONAL, 2);
 }
-void testExpectedRedPartialTree100Children()
+void testPartialTree100Children()
 {
   partialPin(PLAIN, 100);
 }
@@ -412,4 +412,274 @@ void testPartialTreeConditionalSectionRoundTrip271()
   LOKA_VERIFY(refreshedSectionStateRetained);
   LOKA_VERIFY(check("section-refresh", scene, platform));
   LOKA_VERIFY(data.declarations == 1 && data.bindings == bindings);
+}
+
+namespace
+{
+  enum FreshCaptureDoor
+  {
+    FRESH_FACTORY,
+    FRESH_ROOT_CLONE,
+    FRESH_CHILD_CLONE,
+    FRESH_COPY_CLONE,
+    FRESH_EMPTY
+  };
+
+  struct FreshFixture
+  {
+    const FreshCaptureDoor door;
+    const NodeTag refusedTag;
+    bool refusing;
+    NodeTag factoryTag;
+    int declarations;
+    int bindings;
+    int cloneRefusals;
+    int factoryRefusals;
+    int factoryAttempts;
+    int gateLive;
+    int leafAlive;
+    int attaches;
+    int detaches;
+    std::vector<NodeTag> declared;
+
+    FreshFixture(FreshCaptureDoor captureDoor, NodeTag tag)
+        : door(captureDoor), refusedTag(tag), refusing(true), factoryTag(0),
+          declarations(0), bindings(0), cloneRefusals(0), factoryRefusals(0),
+          factoryAttempts(0), gateLive(0), leafAlive(0), attaches(0), detaches(0), declared()
+    {
+      if (door != FRESH_EMPTY)
+        for (NodeTag i = 1; i <= 3; ++i)
+          this->declared.push_back(i);
+    }
+  };
+  FreshFixture *fresh = 0;
+
+  void *freshAlloc(std::size_t size, const loka::core::LokaAllocationSite &site)
+  {
+    if (std::strcmp(site.ownerTag, "NodeDefinition") == 0)
+    {
+      if (fresh->door == FRESH_FACTORY && fresh->refusing && fresh->factoryTag == fresh->refusedTag)
+      {
+        ++fresh->factoryRefusals;
+        return 0;
+      }
+      ++fresh->gateLive;
+    }
+    return new (std::nothrow) char[size];
+  }
+  void freshFree(void *storage, const loka::core::LokaAllocationSite &site)
+  {
+    if (std::strcmp(site.ownerTag, "NodeDefinition") == 0)
+      --fresh->gateLive;
+    delete[] static_cast<char *>(storage);
+  }
+
+  class FreshFixtureScope
+  {
+  public:
+    explicit FreshFixtureScope(FreshFixture &data)
+    {
+      assert(!fresh);
+      fresh = &data;
+      loka::core::LokaAllocSetBackend(&freshAlloc, &freshFree);
+    }
+    ~FreshFixtureScope()
+    {
+      loka::core::LokaAllocSetBackend(0, 0);
+      fresh = 0;
+    }
+  private:
+    FreshFixtureScope(const FreshFixtureScope &);
+    FreshFixtureScope &operator=(const FreshFixtureScope &);
+  };
+
+  class FreshLeaf;
+  struct FreshLeafTag {};
+  struct FreshLeafProps : NodePropsBase<FreshLeafProps>
+  {
+    typedef FreshLeafTag TypeTag;
+    typedef FreshLeaf NodeType;
+    bool operator<(const PropsBase &) const { return false; }
+  };
+  class FreshLeaf : public ComponentNodeWithProps<FreshLeafProps>
+  {
+  public:
+    explicit FreshLeaf(const FreshLeafProps &props) : ComponentNodeWithProps<FreshLeafProps>(props)
+    {
+      ++fresh->leafAlive;
+    }
+    virtual ~FreshLeaf() { --fresh->leafAlive; }
+  protected:
+    virtual void composeChildren(NodeComposition &) {}
+    virtual void attachNode(NodeComposition &) { ++fresh->attaches; }
+    virtual void detachNode(NodeComposition &composition)
+    {
+      ++fresh->detaches;
+      ComponentNode::detachNode(composition);
+    }
+  };
+  struct FreshLeafDefinition : NodeDefinition<FreshLeafProps, FreshLeaf>
+  {
+    virtual size_t nodeSize() const { return 0; }
+    virtual Node *create() const
+    {
+      ++fresh->factoryAttempts;
+      fresh->factoryTag = this->nodeTag();
+      Node *node = NodeDefinition<FreshLeafProps, FreshLeaf>::create();
+      fresh->factoryTag = 0;
+      return node;
+    }
+    virtual NodeDefinitionBase *clone() const
+    {
+      if ((fresh->door == FRESH_CHILD_CLONE || fresh->door == FRESH_COPY_CLONE) && fresh->refusing)
+      {
+        ++fresh->cloneRefusals;
+        return 0;
+      }
+      return new FreshLeafDefinition(*this);
+    }
+  };
+  struct FreshRootDefinition : FragmentDefinition
+  {
+    virtual NodeDefinitionBase *clone() const
+    {
+      if (fresh->door == FRESH_ROOT_CLONE && fresh->refusing)
+      {
+        ++fresh->cloneRefusals;
+        return 0;
+      }
+      return new FreshRootDefinition(*this);
+    }
+  };
+  void declareFreshChildren(FreshRootDefinition &root)
+  {
+    for (NodeTag i = 1; i <= 3; ++i)
+    {
+      FreshLeafDefinition leaf;
+      leaf.setNodeTag(i);
+      root.addChild(&leaf);
+    }
+  }
+  class FreshBoundary : public BoundaryNodeFor<FreshBoundary>
+  {
+  public:
+    explicit FreshBoundary(const BoundaryPropsFor<FreshBoundary> &props) : BoundaryNodeFor<FreshBoundary>(props) {}
+    virtual void declareBindings(BindingToken &) { ++fresh->bindings; }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      ++fresh->declarations;
+      if (fresh->door == FRESH_EMPTY)
+        return;
+      FreshRootDefinition root;
+      const bool refusing = fresh->refusing;
+      if (fresh->door == FRESH_COPY_CLONE)
+        fresh->refusing = false;
+      declareFreshChildren(root);
+      fresh->refusing = refusing;
+      if (fresh->door == FRESH_COPY_CLONE)
+        composition.declareTagged(NODE_TAG_NONE, root);
+      else
+        composition.declare(root);
+    }
+  };
+
+  bool freshInvariant(Scene &scene, PublicationObserver &platform, const char *stage)
+  {
+    return SceneTestSupport::PublishedTreeMatchesDeclarationOrWhiteFlag(
+        platform.published, fresh->declared,
+        SceneTestAccess::whiteFlagFullRebuildPending(scene), stage);
+  }
+
+  void freshRefusalPin(FreshCaptureDoor door, NodeTag refusedTag, bool plainRoot = false)
+  {
+    FreshFixture data(door, refusedTag);
+    FreshFixtureScope scope(data);
+    {
+      PublicationObserver platform;
+      NodeDefinitionBase *definition;
+      if (plainRoot)
+      {
+        FreshRootDefinition *root = new FreshRootDefinition();
+        declareFreshChildren(*root);
+        definition = root;
+      }
+      else
+        definition = Boundary<FreshBoundary>().clone();
+      Scene scene(definition);
+      scene.mount(&platform);
+      SceneTestAccess::updateAttached(scene, true);
+      BoundaryNode *boundary = SceneTestAccess::rootBoundary(scene);
+      LOKA_VERIFY(freshInvariant(scene, platform, "fresh-refusal"));
+      assert(SceneTestAccess::whiteFlagFullRebuildPending(scene)); // loka-assert-ok: pure accessor
+      assert(!boundary->childrenHead()); // loka-assert-ok: pure accessor
+      assert(platform.changeCount() == 0); // loka-assert-ok: pure accessor
+      assert(data.attaches == 0 && data.detaches == 0);
+      if (door == FRESH_FACTORY)
+      {
+        assert(data.factoryRefusals == 1 && data.factoryAttempts == 3);
+        assert(data.leafAlive == 2);
+      }
+      else
+      {
+        // Actual clone-refusal instrumentation distinguishes this from an
+        // intentional empty declaration: no factory was reached at all.
+        assert(data.cloneRefusals > 0 && data.factoryAttempts == 0);
+      }
+      const int ownerBaseline = data.gateLive - data.leafAlive;
+      (void)ownerBaseline;
+      boundary->drainRetiredSubtreesAtNextTrackerRun();
+      assert(data.leafAlive == 0 && data.gateLive == ownerBaseline);
+      assert(data.detaches == 0);
+      const int firstDeclarations = data.declarations;
+      refresh(scene);
+      LOKA_VERIFY(freshInvariant(scene, platform, "fresh-persistent-refusal"));
+      assert(SceneTestAccess::whiteFlagFullRebuildPending(scene)); // loka-assert-ok: pure accessor
+      assert(!boundary->childrenHead()); // loka-assert-ok: pure accessor
+      assert(data.attaches == 0 && data.detaches == 0);
+      boundary->drainRetiredSubtreesAtNextTrackerRun();
+      assert(data.leafAlive == 0 && data.gateLive == ownerBaseline);
+      data.refusing = false;
+      refresh(scene);
+      LOKA_VERIFY(freshInvariant(scene, platform, "fresh-healed"));
+      assert(!SceneTestAccess::whiteFlagFullRebuildPending(scene)); // loka-assert-ok: pure accessor
+      assert(platform.published == data.declared);
+      assert(data.leafAlive == 3 && data.attaches == 3);
+      const int expectedDeclarations = plainRoot ? 0 : (door == FRESH_FACTORY ? firstDeclarations : 3);
+      std::fprintf(stderr,
+                   "fresh recovery door=%d plain=%d declarations=%d bindings=%d expected=%d cloneRefusals=%d factoryRefusals=%d\n",
+                   static_cast<int>(door), plainRoot, data.declarations, data.bindings, expectedDeclarations,
+                   data.cloneRefusals, data.factoryRefusals);
+      assert(data.declarations == expectedDeclarations);
+      assert(data.bindings == expectedDeclarations);
+      const int attempts = data.factoryAttempts;
+      (void)attempts;
+      refresh(scene);
+      LOKA_VERIFY(freshInvariant(scene, platform, "fresh-settled"));
+      assert(data.declarations == expectedDeclarations && data.factoryAttempts == attempts);
+    }
+    assert(data.leafAlive == 0 && data.gateLive == 0);
+  }
+}
+
+void testPartialTreeFirstFactoryRefusal() { freshRefusalPin(FRESH_FACTORY, 1); }
+void testPartialTreeMiddleFactoryRefusal() { freshRefusalPin(FRESH_FACTORY, 2); }
+void testPartialTreeLastFactoryRefusal() { freshRefusalPin(FRESH_FACTORY, 3); }
+void testPartialTreePlainRootFactoryRefusal() { freshRefusalPin(FRESH_FACTORY, 2, true); }
+void testPartialTreePlainRootCloneRefusal() { freshRefusalPin(FRESH_ROOT_CLONE, 2, true); }
+void testPartialTreeInitialRootCloneRefusal() { freshRefusalPin(FRESH_ROOT_CLONE, 2); }
+void testPartialTreeInitialTaggedCopyRefusal() { freshRefusalPin(FRESH_COPY_CLONE, 2); }
+void testPartialTreeInitialChildCloneRefusal() { freshRefusalPin(FRESH_CHILD_CLONE, 2); }
+void testPartialTreeEmptyDeclarationComposesOnce()
+{
+  FreshFixture data(FRESH_EMPTY, 0);
+  FreshFixtureScope scope(data);
+  PublicationObserver platform;
+  Scene scene((Boundary<FreshBoundary>()));
+  scene.mount(&platform);
+  SceneTestAccess::updateAttached(scene, true);
+  LOKA_VERIFY(freshInvariant(scene, platform, "empty-attach"));
+  assert(!SceneTestAccess::whiteFlagFullRebuildPending(scene)); // loka-assert-ok: pure accessor
+  refresh(scene);
+  LOKA_VERIFY(freshInvariant(scene, platform, "empty-refresh"));
+  assert(data.declarations == 1 && data.bindings == 1 && data.factoryAttempts == 0);
 }

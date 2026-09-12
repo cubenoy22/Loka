@@ -607,10 +607,20 @@ LOKA_TEST(testOpenFileDialogTransportRetargetDuringWriteCannotUnlinkReplacement)
 LOKA_TEST(testOpenFileDialogTransportEmitterTokenChecksDeliveryLifetime)
 LOKA_TEST(testOpenFileDialogTransportCrossWindowCloseCancelsLaterBatch)
 
-// Expected-red partial publication pins: opt in with LOKA_EXPECTED_RED=1.
-LOKA_TEST(testExpectedRedPartialTree629)
+// Only #144 remains expected-red: opt in with LOKA_EXPECTED_RED=1.
+LOKA_TEST(testPartialTree629)
 LOKA_TEST(testExpectedRedPartialTree144)
-LOKA_TEST(testExpectedRedPartialTree100Children)
+LOKA_TEST(testPartialTree100Children)
 LOKA_TEST(testPartialTreeHealthyControl)
 LOKA_TEST(testPartialTreeNullRootSwitchRecovery)
 LOKA_TEST(testPartialTreeConditionalSectionRoundTrip271)
+
+LOKA_TEST(testPartialTreeFirstFactoryRefusal)
+LOKA_TEST(testPartialTreeMiddleFactoryRefusal)
+LOKA_TEST(testPartialTreeLastFactoryRefusal)
+LOKA_TEST(testPartialTreePlainRootFactoryRefusal)
+LOKA_TEST(testPartialTreeInitialRootCloneRefusal)
+LOKA_TEST(testPartialTreeInitialChildCloneRefusal)
+LOKA_TEST(testPartialTreeEmptyDeclarationComposesOnce)
+LOKA_TEST(testPartialTreePlainRootCloneRefusal)
+LOKA_TEST(testPartialTreeInitialTaggedCopyRefusal)

@@ -112,7 +112,9 @@ namespace loka
             context.boundary()->appendNestedBranchSeatPlan(composition);
           }
           context.setComposition(&composition);
-          Node *child = composition.createNodeTree();
+          const NodeMaterializationResult result = composition.createNodeTreeCompleted();
+          assert(!result.allocationFailed && !result.requiresBoundaryPlan);
+          Node *child = result.root;
           if (child)
           {
             this->addChild(child);

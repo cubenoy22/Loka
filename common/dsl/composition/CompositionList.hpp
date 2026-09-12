@@ -31,10 +31,14 @@ namespace loka
         return head_;
       }
 
-      void appendClone(const DefT &def)
+      /** Append only a completed clone; report nullable refusal to the caller. */
+      bool appendClone(const DefT &def)
       {
         loka::core::OwnedDef<DefT> node(def.clone());
+        if (!node.isSet())
+          return false;
         appendOwned(node.take());
+        return true;
       }
 
       void appendOwned(DefT *node)

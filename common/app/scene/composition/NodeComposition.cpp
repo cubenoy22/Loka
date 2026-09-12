@@ -298,15 +298,23 @@ namespace loka
         return result;
       }
 
-      Node *NodeComposition::createNodeTree() const
+      void NodeComposition::noteCaptureRefusal()
       {
-        return this->createNodeTreeCompleted().root;
+        if (this->context_ && this->context_->boundary())
+          this->context_->boundary()->noteComposeAllocationFailure();
+      }
+
+      void NoteDefinitionCaptureRefusal()
+      {
+        NodeComposition *composition = NodeComposition::current();
+        if (composition)
+          composition->noteCaptureRefusal();
       }
 
       NodeMaterializationResult NodeComposition::createNodeTreeCompleted() const
       {
         assert(context_ && context_->boundary() &&
-               "NodeComposition::createNodeTree requires BoundaryNode context");
+               "NodeComposition::createNodeTreeCompleted requires BoundaryNode context");
         NodeMaterializationResult result =
             this->createNodeFromDefinitionResult(this->root());
         if (result.requiresBoundaryPlan)
