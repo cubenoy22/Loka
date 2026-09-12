@@ -131,3 +131,46 @@ Children and registrations are released before the inner owner is destroyed.
 Each UPDATE visits the scope's seats; tracker begin/end visits its own states.
 Each binding window allocates one callback entry per watch, in addition to binding
 storage. These costs do not make a scope update constant-time.
+
+## Typed dormant reservation
+
+Keyed requires a `reservation::SeatNodes<List>` argument at both the helper and
+its direct definition constructor. `Nodes<T, N, Tail>` describes completed,
+accessible, unambiguous Node-derived runtime types and positive counts; `End`
+terminates the list. An explicit empty payload is legal. The constructor forces
+structural validation even when the descriptor was only named by a typedef.
+The header owns the bounded installation capacity and exact diagnostics.
+
+The internal Keyed recipe adds its generation root and the Fragment inserted by
+`BranchSeatDeclaration::completeWindow`. Applications describe authored payloads,
+including descendants created by their components. Equal target size/alignment
+pairs merge with checked addition; this is aggregate layout accounting, not a
+concrete-type whitelist. Keyed has one conservative envelope, with no profiles.
+
+At the seat's first declaration attempt, its enclosing Boundary installs an
+immutable normalized copy and its checked reservation byte count. No production
+NodePartition is created or booted: the table is the only retained allocation.
+Invalid emission, normalization or footprint calculation publishes nothing; the
+metadata copy retains ordinary nullable allocation handling. Installed facts stay
+with that Boundary until reclamation, independently of candidates or replacement
+declarations. A missing node envelope can never suppress the live board.
+Uncommitted definition clones install distinct tables; no clone borrows another
+instruction's mutable installation state. Installation workspace never escapes.
+
+Production allocation still follows the existing routes, with no duplicate
+backing reservation. Tests boot their own isolated NodePartition; a synchronous
+`NodePartition::buildFixture` operation demonstrates one noncopyable entitlement
+through root construction and attach descendants. It rejects over-quota layouts before
+placement construction, asserts educationally in debug, and refuses without
+fallback in release. A declined factory returns its unconstructed slot; it does
+not replenish the ticket. The caller exclusively lends the partition for the
+whole operation. This fixture does not enforce production Boundary builds.
+
+Show/Conditional/Match/LazyFlex descriptor doors, reclaim scheduling, scratch,
+waiting requests, production routing, and window resize policy remain later work.
+Nested Boundary runtime nodes count in their outer payload; inner residents and
+banks belong to the inner Boundary. Repeated nested-landlord workloads remain
+outside certification until ancestor-backed provisioning exists. Nested Keyed
+instructions install their own metadata; tables from ended nested instruction
+lifetimes remain until the enclosing Boundary is reclaimed. Production node
+backing and its cleanup are deferred to PR 6.

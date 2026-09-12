@@ -302,8 +302,25 @@ namespace
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
-      composition.declare(loka::app::Fragment()
-                          << loka::app::Keyed(*this->key_.state(), this, &ComponentHostRootNode::declareContent));
+      composition.declare(
+          loka::app::Fragment() << loka::app::Keyed(
+              *this->key_.state(),
+              this,
+              &ComponentHostRootNode::declareContent,
+              loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+                  loka::app::FragmentNode,
+                  2,
+                  loka::app::reservation::Nodes<
+                      loka::app::BoundarySectionNode,
+                      1,
+                      loka::app::reservation::Nodes<
+                          TestSeatComponentNode,
+                          1,
+                          loka::app::reservation::Nodes<
+                              TestCellComponentNode,
+                              1,
+                              loka::app::reservation::
+                                  Nodes<loka::app::CellNode, 1, loka::app::reservation::End> > > > > >()));
     }
 
     void declareContent(loka::app::scene::NodeComposition &composition)

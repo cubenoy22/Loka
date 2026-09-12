@@ -612,6 +612,11 @@ namespace
     }
     KeyedProbeRecord *record;
   };
+  /** Covers retained Match arms; nested Keyed payloads have their own bank. */
+  typedef loka::app::reservation::SeatNodes<
+      loka::app::reservation::Nodes<loka::app::FragmentNode, 6,
+      loka::app::reservation::Nodes<KeyedLeaf, 3> > > KeyedProbeNodes;
+
   struct KeyedProbeNode : StdCompositionBoundaryNodeBase<KeyedProbeProps>
   {
     explicit KeyedProbeNode(const KeyedProbeProps &p)
@@ -633,15 +638,25 @@ namespace
     {
       ++this->props.record->compositions;
       if (this->props.record->section)
-        c.declare(loka::app::BoundarySection(810)
-                  << loka::app::Keyed(*this->bank_.state(), this, &KeyedProbeNode::declareBranch));
+        c.declare(loka::app::BoundarySection(810) << loka::app::Keyed(
+                      *this->bank_.state(),
+                      this,
+                      &KeyedProbeNode::declareBranch,
+                      KeyedProbeNodes()));
       else if (this->props.record->sharedSource)
-        c.declare(loka::app::Fragment()
-                  << loka::app::Keyed(*this->bank_.state(), this, &KeyedProbeNode::declareBranch)
-                  << loka::app::Match(this->props.record->switchState).arm(false, loka::app::Fragment()));
-      else
         c.declare(
-            loka::app::Fragment() << loka::app::Keyed(*this->bank_.state(), this, &KeyedProbeNode::declareBranch));
+            loka::app::Fragment()
+            << loka::app::Keyed(*this->bank_.state(),
+                                this,
+                                &KeyedProbeNode::declareBranch,
+                                KeyedProbeNodes())
+            << loka::app::Match(this->props.record->switchState).arm(false, loka::app::Fragment()));
+      else
+        c.declare(loka::app::Fragment() << loka::app::Keyed(
+                      *this->bank_.state(),
+                      this,
+                      &KeyedProbeNode::declareBranch,
+                      KeyedProbeNodes()));
     }
     void declareBranch(NodeComposition &c)
     {
@@ -655,7 +670,14 @@ namespace
         c.declare(loka::app::Match(r.switchState).arm(false, first).arm(true, KeyedLeafDefinition(r)));
       }
       else if (r.nestedFailure)
-        c.declare(loka::app::Fragment() << loka::app::Keyed(r.switchState, this, &KeyedProbeNode::declareNested)
+        c.declare(loka::app::Fragment() << loka::app::Keyed(
+                      r.switchState,
+                      this,
+                      &KeyedProbeNode::declareNested,
+                      loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+                          loka::app::FragmentNode,
+                          2,
+                          loka::app::reservation::Nodes<KeyedLeaf, 2, loka::app::reservation::End> > >())
                                         << KeyedLeafDefinition(r));
       else if (r.nested)
         c.declare(loka::app::Fragment() << loka::app::Match(r.switchState)
@@ -920,7 +942,10 @@ namespace
     {
       ++this->props.record->compositions;
       c.declare(loka::app::Fragment() << loka::app::Keyed(
-                    *this->bank_.state(), this, &ComposeSeatWriteBoundary::declareBranch)
+                    *this->bank_.state(),
+                    this,
+                    &ComposeSeatWriteBoundary::declareBranch,
+                    KeyedProbeNodes())
                                       << NodeDefinition<ComposeSeatWriteProps, ComposeSeatWriteNode>(
                                              ComposeSeatWriteProps(this->props.record)));
     }
@@ -1212,8 +1237,12 @@ namespace
     explicit KeyedRootWalkBoundary(const Props &p) : StdCompositionBoundaryNodeBase<Props>(p) {}
     virtual void composeNode(NodeComposition &composition)
     {
-      composition.declare(loka::app::Keyed(this->props.record->key, this,
-                                          &KeyedRootWalkBoundary::declareLeaf));
+      composition.declare(
+          loka::app::Keyed(this->props.record->key,
+                           this,
+                           &KeyedRootWalkBoundary::declareLeaf,
+                           loka::app::reservation::SeatNodes<
+                               loka::app::reservation::Nodes<KeyedRootWalkLeaf, 1, loka::app::reservation::End> >()));
     }
     void declareLeaf(NodeComposition &composition)
     {
@@ -1273,8 +1302,12 @@ namespace
     explicit KeyedNestedWalkRoot(const Props &p) : StdCompositionBoundaryNodeBase<Props>(p) {}
     virtual void composeNode(NodeComposition &composition)
     {
-      composition.declare(loka::app::Keyed(this->props.record->key, this,
-                                          &KeyedNestedWalkRoot::declareArm));
+      composition.declare(
+          loka::app::Keyed(this->props.record->key,
+                           this,
+                           &KeyedNestedWalkRoot::declareArm,
+                           loka::app::reservation::SeatNodes<
+                               loka::app::reservation::Nodes<KeyedNestedWalkArm, 1, loka::app::reservation::End> >()));
     }
     void declareArm(NodeComposition &composition)
     {

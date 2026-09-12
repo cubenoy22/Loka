@@ -8,6 +8,7 @@
 #include <vector>
 #include "core/diag/LifecycleAudit.hpp"
 #include "app/scene/boundary/detail/BoundaryArena.hpp"
+#include "app/scene/boundary/detail/SeatReservation.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/node/ComposableNode.hpp"
@@ -568,6 +569,12 @@ namespace loka
         {
           const loka::core::PushStateTracker *pushTracker = this->tracker_.asPushTracker();
           return observedState_.dirtyFlagsForCommittedStates(pushTracker);
+        }
+
+        /** Cold seat installation belongs to this Boundary, independent of arm replacement. */
+        const detail::SeatReservation *installSeatReservation(const detail::SeatLayoutTable &table)
+        {
+          return this->seatReservations_.install(table);
         }
 
         NodeArena *nodeArena()
@@ -2269,6 +2276,7 @@ namespace loka
         BoundaryObservedState observedState_;
         BoundaryParkedBranchLedger parkedBranches_;
         BoundaryBranchSeatState branchSeats_;
+        detail::SeatReservations seatReservations_;
         NodeArena nodeArena_;
         StateArena stateArena_;
         loka::core::HoldLedger holdLedger_;

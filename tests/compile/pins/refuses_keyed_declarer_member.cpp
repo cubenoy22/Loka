@@ -18,7 +18,8 @@ public:
   void declare(NodeComposition &) {}
   virtual void composeNode(NodeComposition &c)
   {
-    c.declare(loka::app::Keyed(key, this, &Other::declare));
+    c.declare(
+        loka::app::Keyed(key, this, &Other::declare, loka::app::reservation::SeatNodes<loka::app::reservation::End>()));
   }
   loka::core::MutableState<int> key;
 };
