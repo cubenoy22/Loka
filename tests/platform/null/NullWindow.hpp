@@ -2,12 +2,15 @@
 #define LOKA_TESTS_PLATFORM_NULL_WINDOW_HPP
 
 #include "app/core/Window.hpp"
+#include "app/core/DialogResultTransport.hpp"
 #include "app/scene/Scene.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
 
 class NullWindow : public Window
 {
 public:
+  /** Concrete rail owns enrollment; App sees only its admission interface. */
+  loka::app::DialogResultTransport &dialogResults() { return this->dialogResults_; }
   NullWindow(PlatformContext *context,
              const WindowProps &props,
              NullScenePlatformController *borrowedController = 0)
@@ -118,6 +121,14 @@ protected:
   }
 
 private:
+  virtual void closeDialogResults() { this->dialogResults_.close(); }
+  // Deliberate Win32/Null counterparts: stable service across native recreation.
+  virtual loka::app::DialogResultDelivery *dialogResultDelivery()
+  {
+    return &this->dialogResults_;
+  }
+  loka::app::DialogResultTransport dialogResults_;
+
   // Deliberate counterpart of Win32's HWND comparison. This rail uses its
   // controller identity as fake native presence, independently of scene mount.
   virtual bool hasPendingNativeVisibility() const

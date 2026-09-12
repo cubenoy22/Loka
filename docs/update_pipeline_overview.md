@@ -134,7 +134,13 @@ scene with a fresh root generation. Window destruction disposes pending and
 installed scenes even when no subsequent admission occurs.
 
 Win32 OpenFileDialog completion uses the common `DialogResultTransport` owned by
-its Window. The context owns a one-shot registration and deletes it on terminal
+its concrete Win32 Window (the Null test rail owns the same transport). Base
+`Window` exposes only a nullable `DialogResultDelivery` admission view and stores
+no transport. Its close hook also defaults to no work. Toolbox and macOS use
+these defaults; the common admission path cannot pull in concrete dialog
+bindings or result payload code. The service
+identity remains stable for the Window lifetime, including native hide/reopen.
+The context owns a one-shot registration and deletes it on terminal
 retirement, retained detach, or props retarget. Retained detach abandons a produced
 result without emitting Canceled; reattach starts a fresh operation. Native return
 seals through a revocable stack port, and posted wakes carry no C++ payload.

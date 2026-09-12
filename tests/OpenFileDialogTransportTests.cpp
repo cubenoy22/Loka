@@ -41,7 +41,7 @@ namespace
   using namespace loka::app::scene;
   typedef DialogResultTransport Transport;
   typedef loka::app::testing::DialogResultTestAccess Access;
-  Window *g_window = 0;
+  NullWindow *g_window = 0;
   bool g_destroyOnDetach = false;
   class DialogOwner;
   DialogOwner *g_owner = 0;
@@ -161,7 +161,7 @@ namespace
       LOKA_VERIFY(this->window.sceneManager()->commitTransaction(
           0, new Scene(new NodeDefinition<DialogOwnerProps, DialogOwner>(DialogOwnerProps()))));
       this->app.flush();
-      assert(g_owner && g_context);
+      LOKA_VERIFY(g_owner && g_context);
     }
     ~Fixture()
     {
@@ -230,7 +230,7 @@ namespace
       CloseProbe &probe = *static_cast<CloseProbe *>(data);
       probe.app->requestWindowClose(probe.window);
       probe.app->flush();
-      assert(*probe.deaths == 0);
+      LOKA_VERIFY(*probe.deaths == 0);
     }
   };
 } // namespace
@@ -242,16 +242,16 @@ void testOpenFileDialogTransportRetiredNodeDropsProducedResult()
   g_owner->result_.bind(&countEvent, &writes, false);
   g_owner->emitter_.bind(&countEvent, &emits, false);
   g_context->produce();
-  assert(Access::census(fixture.window.dialogResults()) == 1);
+  LOKA_VERIFY(Access::census(fixture.window.dialogResults()) == 1);
   // Retire the actual node via its lifecycle door while ancestor targets survive.
   g_owner->shown_.set(false);
   fixture.window.flushSceneInvalidation();
-  assert(!g_context);
+  LOKA_VERIFY(!g_context);
   const size_t contextEvents = fixture.events.size();
   fixture.app.flush();
-  assert(writes == 0 && emits == 0);
-  assert(fixture.events.size() == contextEvents);
-  assert(Access::census(fixture.window.dialogResults()) == 0);
+  LOKA_VERIFY(writes == 0 && emits == 0);
+  LOKA_VERIFY(fixture.events.size() == contextEvents);
+  LOKA_VERIFY(Access::census(fixture.window.dialogResults()) == 0);
   g_owner->result_.unbind(&countEvent, &writes);
   g_owner->emitter_.unbind(&countEvent, &emits);
 }
@@ -266,17 +266,17 @@ void testOpenFileDialogTransportRetainedDetachAndFreshReattach()
   g_context->produce();
   g_owner->shown_.set(false);
   fixture.window.flushSceneInvalidation();
-  assert(g_context == context && !context->registration_);
+  LOKA_VERIFY(g_context == context && !context->registration_);
   fixture.app.flush();
-  assert(writes == 0 && emits == 0 && Access::census(fixture.window.dialogResults()) == 0);
+  LOKA_VERIFY(writes == 0 && emits == 0 && Access::census(fixture.window.dialogResults()) == 0);
   g_owner->shown_.set(true);
   fixture.app.flush();
-  assert(g_context == context && context->registration_);
+  LOKA_VERIFY(g_context == context && context->registration_);
   g_context->produce();
   fixture.app.flush();
-  assert(writes == 1 && emits == 1);
+  LOKA_VERIFY(writes == 1 && emits == 1);
   fixture.app.flush();
-  assert(writes == 1 && emits == 1 && Access::census(fixture.window.dialogResults()) == 0);
+  LOKA_VERIFY(writes == 1 && emits == 1 && Access::census(fixture.window.dialogResults()) == 0);
   g_owner->result_.unbind(&countEvent, &writes);
   g_owner->emitter_.unbind(&countEvent, &emits);
 }
@@ -286,9 +286,9 @@ void testOpenFileDialogTransportOwnerReclaimDropsProducedResult()
   Fixture fixture;
   g_context->produce();
   fixture.window.teardownScene();
-  assert(!g_owner && !g_context);
+  LOKA_VERIFY(!g_owner && !g_context);
   fixture.app.flush();
-  assert(Access::census(fixture.window.dialogResults()) == 0);
+  LOKA_VERIFY(Access::census(fixture.window.dialogResults()) == 0);
 }
 
 void testOpenFileDialogTransportObserverCancellationSuppressesEmitter()
@@ -299,9 +299,9 @@ void testOpenFileDialogTransportObserverCancellationSuppressesEmitter()
   g_owner->emitter_.bind(&countEvent, &emits, false);
   g_context->produce();
   fixture.app.flush();
-  assert(g_owner->result_.get().kind == FileChooserResult::RESULT_FILE && emits == 0);
+  LOKA_VERIFY(g_owner->result_.get().kind == FileChooserResult::RESULT_FILE && emits == 0);
   fixture.app.flush();
-  assert(Access::census(fixture.window.dialogResults()) == 0);
+  LOKA_VERIFY(Access::census(fixture.window.dialogResults()) == 0);
   g_owner->result_.unbind(&cancelObserver, 0);
   g_owner->emitter_.unbind(&countEvent, &emits);
 }
@@ -328,9 +328,9 @@ void testOpenFileDialogTransportCloseMakesProgressWithoutInput()
   Transport::ReturnPort laterPort(later);
   LOKA_VERIFY(laterPort.seal(FileChooserResult::Canceled()) == window);
   app.flush();
-  assert(deaths == 0 && emits == 0 && app.pending());
+  LOKA_VERIFY(deaths == 0 && emits == 0 && app.pending());
   app.flush();
-  assert(deaths == 1 && !app.pending());
+  LOKA_VERIFY(deaths == 1 && !app.pending());
   delete registration;
   delete later;
   channel.unbind(&CloseProbe::close, &probe);
@@ -344,10 +344,10 @@ void testOpenFileDialogTransportReservedReturnIsRevoked()
   loka::core::EmitterState emitter;
   Transport::Registration *registration = window.dialogResults().reserve(OpenFileDialogProps().onResult(&emitter));
   Transport::ReturnPort port(registration);
-  assert(!window.dialogResults().hasRunnableWork());
+  LOKA_VERIFY(!window.dialogResults().hasRunnableWork());
   window.dialogResults().close();
   app.flush();
-  assert(Access::census(window.dialogResults()) == 0);
+  LOKA_VERIFY(Access::census(window.dialogResults()) == 0);
   LOKA_VERIFY(port.seal(FileChooserResult::Canceled()) == 0);
   delete registration;
 
@@ -356,7 +356,7 @@ void testOpenFileDialogTransportReservedReturnIsRevoked()
   g_owner->shown_.set(false);
   fixture.window.flushSceneInvalidation();
   fixture.app.flush();
-  assert(Access::census(fixture.window.dialogResults()) == 0);
+  LOKA_VERIFY(Access::census(fixture.window.dialogResults()) == 0);
   LOKA_VERIFY(contextPort.seal(FileChooserResult::Canceled()) == 0);
 }
 
@@ -371,19 +371,20 @@ namespace
     static void admit(void *data)
     {
       CommitProbe &probe = *static_cast<CommitProbe *>(data);
-      assert(probe.tracker->phase() == loka::core::TRACKER_COMMIT);
+      const loka::core::TrackerPhase phase = probe.tracker->phase();
+      LOKA_VERIFY(phase == loka::core::TRACKER_COMMIT);
       const loka::core::PushStateTracker::StateList &dirty = probe.tracker->committedDirtyStates();
       if (probe.commits->empty())
       {
         probe.commits->push_back(1);
         probe.app->flush();
         LOKA_VERIFY(loka::core::testing::PushStateTrackerTestAccess::nextDirtyCount(*probe.tracker) == 1);
-        assert(dirty.size() == 1 && dirty[0] != probe.result);
+        LOKA_VERIFY(dirty.size() == 1 && dirty[0] != probe.result);
       }
       else
       {
         probe.commits->push_back(2);
-        assert(dirty.size() == 1 && dirty[0] == probe.result);
+        LOKA_VERIFY(dirty.size() == 1 && dirty[0] == probe.result);
       }
     }
   };
@@ -429,7 +430,7 @@ void testOpenFileDialogTransportCommitIntakeUsesNext()
     loka::core::StateTrackerGuard guard(&tracker);
     trigger.set(1);
   }
-  assert(commits.size() == 2 && commits[0] == 1 && commits[1] == 2 && emits == 1);
+  LOKA_VERIFY(commits.size() == 2 && commits[0] == 1 && commits[1] == 2 && emits == 1);
   tracker.setInvalidateCallback(0, 0);
   app.flush();
   delete registration;
@@ -446,13 +447,13 @@ void testOpenFileDialogTransportRetargetAndFiniteBatch()
   OpenFileDialogDefinition same;
   same.result(g_owner->result_).onResult(&g_owner->emitter_);
   LOKA_VERIFY(same.applyPropsToNode(g_context->node_));
-  assert(g_context->registration_);
+  LOKA_VERIFY(g_context->registration_);
   OpenFileDialogDefinition changed;
   changed.onResult(&replacement);
   LOKA_VERIFY(changed.applyPropsToNode(g_context->node_));
-  assert(!g_context->registration_);
+  LOKA_VERIFY(!g_context->registration_);
   fixture.app.flush();
-  assert(g_owner->result_.get().kind == FileChooserResult::RESULT_NONE && emits == 0);
+  LOKA_VERIFY(g_owner->result_.get().kind == FileChooserResult::RESULT_NONE && emits == 0);
 
   loka::core::EmitterState first;
   ReentrantProducer probe = {&fixture.window.dialogResults(), 0, &replacement, &fixture.app};
@@ -462,11 +463,11 @@ void testOpenFileDialogTransportRetargetAndFiniteBatch()
   Transport::ReturnPort port(registration);
   LOKA_VERIFY(port.seal(FileChooserResult::Canceled()) == &fixture.window);
   fixture.app.flush();
-  assert(emits == 0);
+  LOKA_VERIFY(emits == 0);
   fixture.app.flush();
-  assert(emits == 1);
+  LOKA_VERIFY(emits == 1);
   fixture.app.flush();
-  assert(Access::census(fixture.window.dialogResults()) == 0);
+  LOKA_VERIFY(Access::census(fixture.window.dialogResults()) == 0);
   delete registration;
   delete probe.registration;
   first.unbind(&ReentrantProducer::produce, &probe);
@@ -491,7 +492,7 @@ void testOpenFileDialogTransportShutdownRevokesBothPopulations()
     LOKA_VERIFY(secondPort.seal(FileChooserResult::Canceled()) == second);
     app.requestWindowClose(first);
   }
-  assert(deaths == 2 && emits == 0);
+  LOKA_VERIFY(deaths == 2 && emits == 0);
   delete firstRegistration;
   delete secondRegistration;
   emitter.unbind(&countEvent, &emits);
@@ -512,9 +513,9 @@ namespace
     {
       if (!this->app)
         return;
-      assert(this->window->scene()->isRunInProgress()); // loka-assert-ok: read-only run exclusion query
+      LOKA_VERIFY(this->window->scene()->isRunInProgress()); // loka-assert-ok: read-only run exclusion query
       this->app->flush();
-      assert(*this->emits == 0);
+      LOKA_VERIFY(*this->emits == 0);
     }
     WindowAdmissionTestApp *app;
     Window *window;
@@ -560,10 +561,10 @@ void testOpenFileDialogTransportSceneRunExcludesAdmission()
   controller.window = &window;
   controller.emits = &emits;
   window.scene()->invalidate();
-  assert(emits == 0);
+  LOKA_VERIFY(emits == 0);
   controller.app = 0;
   app.flush();
-  assert(emits == 1);
+  LOKA_VERIFY(emits == 1);
   app.flush();
   delete registration;
   emitter.unbind(&countEvent, &emits);
@@ -580,11 +581,11 @@ void testOpenFileDialogTransportRetargetDuringWriteCannotUnlinkReplacement()
   g_owner->result_.bind(&RetargetObserver::retarget, &probe, false);
   g_context->produce();
   fixture.app.flush();
-  assert(oldEmits == 0 && newEmits == 0 && g_context->registration_ == probe.replacement);
+  LOKA_VERIFY(oldEmits == 0 && newEmits == 0 && g_context->registration_ == probe.replacement);
   fixture.app.flush();
-  assert(oldEmits == 0 && newEmits == 1);
+  LOKA_VERIFY(oldEmits == 0 && newEmits == 1);
   fixture.app.flush();
-  assert(Access::census(fixture.window.dialogResults()) == 0);
+  LOKA_VERIFY(Access::census(fixture.window.dialogResults()) == 0);
   g_owner->result_.unbind(&RetargetObserver::retarget, &probe);
   g_owner->emitter_.unbind(&countEvent, &oldEmits);
   replacement.unbind(&countEvent, &newEmits);
@@ -605,9 +606,9 @@ void testOpenFileDialogTransportEmitterTokenChecksDeliveryLifetime()
   Transport::ReturnPort port(registration);
   LOKA_VERIFY(port.seal(FileChooserResult::Canceled()) == &window);
   app.flush();
-  assert(!emitter && channel.get().kind == FileChooserResult::RESULT_CANCELED);
+  LOKA_VERIFY(!emitter && channel.get().kind == FileChooserResult::RESULT_CANCELED);
   app.flush();
-  assert(Access::census(window.dialogResults()) == 0);
+  LOKA_VERIFY(Access::census(window.dialogResults()) == 0);
   delete registration;
   channel.unbind(&destroyEmitter, &emitter);
 }
@@ -629,9 +630,9 @@ void testOpenFileDialogTransportCrossWindowCloseCancelsLaterBatch()
   LOKA_VERIFY(portA.seal(FileChooserResult::Canceled()) == first);
   LOKA_VERIFY(portB.seal(FileChooserResult::Canceled()) == second);
   app.flush();
-  assert(deaths == 0 && emits == 0 && app.pending());
+  LOKA_VERIFY(deaths == 0 && emits == 0 && app.pending());
   app.flush();
-  assert(deaths == 1 && emits == 0);
+  LOKA_VERIFY(deaths == 1 && emits == 0);
   delete a;
   delete b;
   closer.unbind(&CloseProbe::close, &probe);

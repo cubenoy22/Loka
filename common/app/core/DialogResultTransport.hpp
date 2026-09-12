@@ -2,6 +2,7 @@
 #define LOKA_DIALOG_RESULT_TRANSPORT_HPP
 
 #include "app/OpenFileDialog.hpp"
+#include "app/core/DialogResultDelivery.hpp"
 
 class Window;
 namespace loka
@@ -15,7 +16,7 @@ namespace loka
 
     /** Window-owned dialog envelopes. Only App admission invokes their bindings.
         Context registrations own permission; native wakes own no storage. */
-    class DialogResultTransport
+    class DialogResultTransport : public DialogResultDelivery
     {
     public:
       class Registration;
@@ -72,16 +73,16 @@ namespace loka
       };
 
       DialogResultTransport();
-      ~DialogResultTransport();
+      virtual ~DialogResultTransport();
       void open(Window &window);
       void close();
       /** Refuses closed enrollment or a result channel without its owner tracker.
           The declaring scope must enclose the context and every invocation. */
       Registration *reserve(const OpenFileDialogProps &props);
-      bool hasRunnableWork() const;
+      virtual bool hasRunnableWork() const;
 
     private:
-      struct Entry
+      struct Entry : Retirement
       {
         explicit Entry(DialogResultTransport &owner);
         DialogResultTransport &transport;
@@ -110,16 +111,15 @@ namespace loka
       };
       static void revoke(Entry &entry);
       void cancel(Entry &entry);
-      void deliver();
-      Entry *retirementSnapshot() const;
-      void reclaim(Entry *snapshot);
+      virtual void deliver();
+      virtual Retirement *retirementSnapshot() const;
+      virtual void reclaim(Retirement *snapshot);
 
       Window *window_;
       Chain reserved_;
       Chain pending_;
       Chain active_;
       Chain retired_;
-      friend class ::Window;
       friend class testing::DialogResultTestAccess;
       DialogResultTransport(const DialogResultTransport &);
       DialogResultTransport &operator=(const DialogResultTransport &);

@@ -28,7 +28,7 @@ namespace
     {
       (void)state;
       Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
-      Window *window = win32->rootHwnd()
+      Win32Window *window = win32->rootHwnd()
                            ? reinterpret_cast<Win32Window *>(GetWindowLongPtr(win32->rootHwnd(), GWLP_USERDATA))
                            : 0;
       return new Win32OpenFileDialogContext(win32->rootHwnd(), dialog, window);
@@ -60,7 +60,7 @@ bool Win32OpenFileDialogContext::handlePostedResultMessage(UINT message, WPARAM,
 }
 
 Win32OpenFileDialogContext::Win32OpenFileDialogContext(HWND parent, loka::app::OpenFileDialogNode *node,
-                                                     Window *window)
+                                                     Win32Window *window)
     : parent_(parent), node_(node), transport_(window ? &window->dialogResults() : 0),
       presentation_(), registration_(0)
 {

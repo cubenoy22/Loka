@@ -207,13 +207,14 @@ namespace loka
         emitter->emit();
     }
 
-    DialogResultTransport::Entry *DialogResultTransport::retirementSnapshot() const
+    DialogResultDelivery::Retirement *DialogResultTransport::retirementSnapshot() const
     {
       return this->retired_.head;
     }
 
-    void DialogResultTransport::reclaim(Entry *snapshot)
+    void DialogResultTransport::reclaim(Retirement *retired)
     {
+      Entry *snapshot = static_cast<Entry *>(retired);
       while (snapshot)
       {
         Entry *next = snapshot->next;

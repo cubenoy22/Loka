@@ -6,6 +6,7 @@
 #include "app/core/DialogResultTransport.hpp"
 
 class Win32DialogResultTestAccess;
+class Win32Window;
 
 namespace loka
 {
@@ -22,7 +23,7 @@ class Win32OpenFileDialogContext : public loka::app::scene::NativeNodeContext
 {
 public:
   Win32OpenFileDialogContext(HWND parent, loka::app::OpenFileDialogNode *node,
-                             Window *window = 0);
+                             Win32Window *window = 0);
   virtual ~Win32OpenFileDialogContext();
   /** Attach-time read (late-subscriber rule): presentation from the current
       fact, called by the installing handler right after setContext. */

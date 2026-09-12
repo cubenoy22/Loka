@@ -1,7 +1,7 @@
 #ifndef LOKA_WINDOW_HPP
 #define LOKA_WINDOW_HPP
 
-#include "app/core/DialogResultTransport.hpp"
+#include "app/core/DialogResultDelivery.hpp"
 
 #include <cassert>
 #include <new>
@@ -588,7 +588,6 @@ public:
   }
   virtual ~Window()
   {
-    this->dialogResults_.close();
     if (this->tracker_)
     {
       assert(this->tracker_->phase() == loka::core::TRACKER_IDLE &&
@@ -598,9 +597,6 @@ public:
     }
     menuBarDefinition_.reset();
   }
-
-  /** Internal native completion enrollment; the Window owns every envelope. */
-  loka::app::DialogResultTransport &dialogResults() { return this->dialogResults_; }
 
   PlatformContext *context() const
   {
@@ -625,10 +621,10 @@ protected:
 
 private:
   friend class App;
-  typedef loka::app::DialogResultTransport::Entry *DialogRetirements;
-  DialogRetirements captureDialogRetirements() const { return this->dialogResults_.retirementSnapshot(); }
-  void deliverDialogResults() { this->dialogResults_.deliver(); }
-  void reclaimDialogResults(DialogRetirements retired) { this->dialogResults_.reclaim(retired); }
+  /** Rails without deferred dialog delivery carry no transport storage. */
+  virtual loka::app::DialogResultDelivery *dialogResultDelivery() { return 0; }
+  typedef loka::app::DialogResultDelivery::Retirement *DialogRetirements;
+  virtual void closeDialogResults() {}
   /** App admission polls native visibility before scene work. Rails opt in by
       comparing visibility with their native identity; no pending flag is stored. */
   virtual bool hasPendingNativeVisibility() const { return false; }
@@ -890,7 +886,6 @@ protected:
 
   PlatformContext *context_;
   loka::core::StateTracker *tracker_;
-  loka::app::DialogResultTransport dialogResults_;
   SceneManager sceneManager_;
   loka::core::MutableState<loka::core::String> titleStorage_;
   loka::core::MutableState<bool> visibilityStorage_;
