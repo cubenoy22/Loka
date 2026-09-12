@@ -8,4 +8,12 @@ void testDirectSceneRunDefersReplacementUntilAppAdmission();
 
 void testCrossWindowCallbackDefersReplacementUntilNextAppAdmission();
 
+void testDetachRequestedDuringApplyIsAppliedAtNextAdmission();
+
+void testRearmRequestedTwiceDuringApplyRenewsOnceAtNextAdmission();
+void testDetachAndRearmRequestsUseLastRequestAtAdmission();
+void testDirectSceneRunDefersDetachUntilNextAppAdmission();
+
+void testRequestFromDetachObserverWaitsForFollowingAdmission();
+void testSeatRequestAppliesToReplacementInstalledAtAdmission();
 #endif // LOKA_PHASE_GUARD_TESTS_HPP

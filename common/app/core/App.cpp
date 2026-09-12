@@ -127,7 +127,7 @@ void App::projectInitialVisibilityChunks()
 
 void App::flushWindowInvalidations()
 {
-  // The App clock admits replacements; native command callbacks only request work.
+  // The App clock admits seat requests; native command callbacks only request work.
   // The close drain also uses this guard, so its callbacks cannot enter admission.
   if (this->flushingWindowWork_)
     return;
@@ -156,7 +156,7 @@ void App::flushWindowInvalidations()
   // Snapshot our rows before callbacks can remove a Window from the group.
   // All seats apply before any Scene run: adoption from X's run waits even for Y.
   for (size_t i = 0; i < admitted.size(); ++i)
-    admitted[i].second = admitted[i].first->applySceneReplacement();
+    admitted[i].second = admitted[i].first->applySceneWork();
   for (size_t i = 0; i < admitted.size(); ++i)
   {
     admitted[i].first->flushSceneInvalidation();

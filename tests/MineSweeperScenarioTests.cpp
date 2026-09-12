@@ -133,7 +133,7 @@ void testMineSweeperNewGameKeyNeverRepeats()
   NullScenePlatformController platform;
   loka::app::scene::Scene scene(root.take());
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   LOKA_VERIFY(main != 0);
 
   long idMatches = 0;
@@ -163,7 +163,7 @@ void testMineSweeperNewGameKeyNeverRepeats()
     }
   }
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   std::printf("testMineSweeperNewGameKeyNeverRepeats passed\n");
 }
 
@@ -175,7 +175,7 @@ void testMineSweeperNewGameTwiceDrivesOwnerEmitter()
   NullScenePlatformController platform;
   loka::app::scene::Scene scene(root.take());
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   RecordingMineSweeperAudit audit;
   loka::scenario_tests::MineSweeperScenario scenario(
@@ -203,7 +203,7 @@ void testMineSweeperNewGameTwiceDrivesOwnerEmitter()
   LOKA_VERIFY(audit.terminals[0] == loka::dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
   LOKA_VERIFY(audit.verdicts.size() == 1);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   std::printf("testMineSweeperNewGameTwiceDrivesOwnerEmitter passed\n");
 }
 
@@ -217,7 +217,7 @@ void testMineSweeperNewGameTwiceHoldsFinalSceneAndMatchesAudit()
   NullScenePlatformController platform;
   loka::app::scene::Scene scene(root.take());
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   {
     loka::platform::file::FileHandle destination;
@@ -244,7 +244,7 @@ void testMineSweeperNewGameTwiceHoldsFinalSceneAndMatchesAudit()
   LOKA_VERIFY(actual == expected);
   std::remove(actualPath);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   std::printf("testMineSweeperNewGameTwiceHoldsFinalSceneAndMatchesAudit passed\n");
 }
 
@@ -258,7 +258,7 @@ void testMineSweeperSeededRevealDrivesCells()
   windowProps.scene(new loka::app::scene::Scene(root.take()));
   NullWindow window(&context, windowProps);
   LOKA_VERIFY(window.scene() != 0);
-  window.scene()->updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
 
   RecordingMineSweeperAudit audit;
   loka::scenario_tests::SceneScenarioDriver<loka::scenario_tests::MineSweeperScenario> driver(
@@ -307,7 +307,7 @@ void testMineSweeperDifferentSeedRefusesFixedBoardAudit()
   NullScenePlatformController platform;
   loka::app::scene::Scene scene(root.take());
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   {
     loka::platform::file::FileHandle destination;
@@ -332,7 +332,7 @@ void testMineSweeperDifferentSeedRefusesFixedBoardAudit()
   assert(actual.find("terminal status=failed") != std::string::npos);
   std::remove(actualPath);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   std::printf("testMineSweeperDifferentSeedRefusesFixedBoardAudit passed\n");
 }
 

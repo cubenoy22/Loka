@@ -422,7 +422,7 @@ namespace
       NullWindow window(&context, props, &platform);
       LOKA_VERIFY(window.scene() != 0);
       loka::app::scene::Scene &scene = *window.scene();
-      scene.updateAttached(true);
+      loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
       loka::app::scene::BoundaryNode *parent =
           loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
       LOKA_VERIFY(parent != 0);
@@ -465,7 +465,7 @@ namespace
       loka::app::scene::Scene scene(
           (loka::app::scene::Boundary<RetainedBindingParent<ChildT> >()));
       scene.mount(&platform);
-      scene.updateAttached(true);
+      loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
       loka::app::scene::BoundaryNode *parent =
           loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
       LOKA_VERIFY(parent != 0);
@@ -542,7 +542,7 @@ void testAttachNodeReplayRestoresParkedBranchBindings()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<AttachReplayRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     scenario.guardedEmitter.emit();
     scenario.unguardedEmitter.emit();
@@ -613,7 +613,7 @@ namespace
       NullScenePlatformController platform;
       Scene scene((Boundary<NestedReplayRootNode<UseMatch> >(AttachReplayRootProps())));
       scene.mount(&platform);
-      scene.updateAttached(true);
+      loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
       Node *guarded = 0;
       Node *unguarded = 0;
       loka::dsl::FlowError error;
@@ -679,7 +679,7 @@ void testPropsSuppliedEmitterBindingFollowsDefinitionRecompose()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<PropsPointerBindRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     scenario.propsOld.emit();
     LOKA_VERIFY(scenario.propsCalls == 1);
@@ -702,7 +702,7 @@ void testPropsSuppliedEmitterBindingFollowsDefinitionRecompose()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<DefinitionPointerBindRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     scenario.definitionOld.emit();
     LOKA_VERIFY(scenario.definitionCalls == 1);

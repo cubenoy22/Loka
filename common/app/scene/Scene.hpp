@@ -21,6 +21,10 @@
 
 class Window;
 class SceneManager;
+class NullWindow;
+class Win32Window;
+class MacWindow;
+class ToolboxWindow;
 
 enum SceneLifecycle
 {
@@ -418,8 +422,9 @@ namespace loka
           return &attached_;
         }
 
-        // Public wrappers for controlled lifecycle and attached updates.
-        // SceneManager is the main caller; other callers must manage side effects via StateTracker.
+      private:
+        /** Structural lifecycle primitives belong to the seat and Window death
+            path. Application callers use SceneManager requests at admission. */
         void updateAttached(bool v)
         {
           setAttached(v);
@@ -447,6 +452,7 @@ namespace loka
           setLifecycle(v);
         }
 
+      public:
         void mount(IPlatformController *platformController)
         {
           assert(platformController && "Scene::mount requires a platform controller");
@@ -459,6 +465,7 @@ namespace loka
           }
         }
 
+      private:
         void unmount()
         {
           notifyComposeEvent(COMPOSE_EVENT_DETACH);
@@ -468,6 +475,7 @@ namespace loka
           clearMountedUpdateState();
         }
 
+      public:
         void requestInvalidate(NodeDirtyFlags flags = NODE_DIRTY_PROPS)
         {
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
@@ -569,6 +577,10 @@ namespace loka
 
         // SceneManager owns lifecycle_/attached mutations.
         friend class ::SceneManager;
+        friend class ::NullWindow;
+        friend class ::Win32Window;
+        friend class ::MacWindow;
+        friend class ::ToolboxWindow;
         friend class loka::app::detail::SceneRetirePool;
         friend class SceneDirector;
         friend class ::loka::dsl::testing::SceneTestAccess;

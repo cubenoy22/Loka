@@ -1,3 +1,4 @@
+#include "testing/scene/SceneTestFlow.hpp"
 #include "StateTrackerCommitTests.hpp"
 #include <cassert>
 #include <cstdio>
@@ -302,7 +303,7 @@ void testStateTrackerCommitWriteReachesNextSceneApply()
       (loka::app::scene::Boundary<CommitWindowBoundaryNode>()));
   CommitWindowPlatformController platform;
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   assert(g_commitWindowBoundary != 0);
 
   const int callsBeforeWrite = platform.onChangeCalls;
@@ -316,8 +317,8 @@ void testStateTrackerCommitWriteReachesNextSceneApply()
   (void)callsBeforeWrite;
   assert(platform.onChangeCalls == callsBeforeWrite + 2);
 
-  scene.updateAttached(false);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, false);
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   printf("==== [testStateTrackerCommitWriteReachesNextSceneApply] end ====\n");
 }
 

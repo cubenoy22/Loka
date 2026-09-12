@@ -178,7 +178,7 @@ namespace
     BaselinePlatform platform;
     Scene scene((Boundary<PairBoundary>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     settle(scene);
     BoundaryNode *parent = SceneTestAccess::rootBoundary(scene);
     BoundaryNode *child = firstChildBoundary(parent);
@@ -201,7 +201,7 @@ namespace
                 after.boundaryUpdateVisits - before.boundaryUpdateVisits,
                 after.dirtySourceDeclarations - before.dirtySourceDeclarations,
                 after.boundaryApplyCallbacks - before.boundaryApplyCallbacks);
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
   template <class Definition> void checkExample(const char *name, const Definition &definition)
@@ -210,7 +210,7 @@ namespace
     platform.observation = BaselinePlatform::OBSERVE_EXAMPLE_HINTS;
     Scene scene(definition);
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     settle(scene);
     LOKA_VERIFY(platform.hintChecks > 0);
     const unsigned mountChecks = platform.hintChecks;
@@ -228,7 +228,7 @@ namespace
                 after.boundaryUpdateVisits - before.boundaryUpdateVisits,
                 after.dirtySourceDeclarations - before.dirtySourceDeclarations,
                 after.boundaryApplyCallbacks - before.boundaryApplyCallbacks);
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 } // namespace
 
@@ -240,7 +240,7 @@ namespace
     BaselinePlatform platform;
     Scene scene(Boundary<floppybird::MainNode>(floppybird::MainProps(&model)));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     settle(scene);
     BoundaryNode *root = SceneTestAccess::rootBoundary(scene);
     platform.applied.clear();
@@ -269,7 +269,7 @@ namespace
     LOKA_VERIFY(after.boundaryApplyCallbacks - before.boundaryApplyCallbacks == 1);
     LOKA_VERIFY(after.dirtySourceDeclarations - before.dirtySourceDeclarations == 4);
     platform.observation = BaselinePlatform::OBSERVE_APPLIES;
-    scene.unmount();
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 
 } // namespace
@@ -295,14 +295,14 @@ void testLegacyBoxComposeDeclaresPaintWithoutPaintSource()
   platform.observation = BaselinePlatform::OBSERVE_BOX_PAINT;
   Scene scene((Boundary<BoxBoundary>()));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   settle(scene);
   platform.applied.clear();
   scene.requestInvalidate(NODE_DIRTY_PROPS);
   LOKA_VERIFY(scene.flushInvalidation());
   LOKA_VERIFY(platform.applied.size() == 1);
   platform.observation = BaselinePlatform::OBSERVE_APPLIES;
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
 
 void testLegacyExamplesHaveNoCompositedOrOpaquePaintHints()
@@ -332,7 +332,7 @@ void testLegacySiblingPaintPlansRejectSiblingRoots()
   BaselinePlatform platform;
   Scene scene((Boundary<PairBoundary>()));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   settle(scene);
   BoundaryNode *a = firstChildBoundary(SceneTestAccess::rootBoundary(scene));
   BoundaryNode *b = a->nextInComposition->asBoundary();
@@ -346,7 +346,7 @@ void testLegacySiblingPaintPlansRejectSiblingRoots()
   LOKA_VERIFY(platform.applied.size() == 2);
   LOKA_VERIFY(platform.applied[0] != platform.applied[1]);
   platform.foreignRoots.clear();
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
 
 void testLegacyParentPropsCompressesChildApply()

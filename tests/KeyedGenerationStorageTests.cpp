@@ -253,7 +253,7 @@ namespace
       NullScenePlatformController platform;
       Scene scene((Boundary<Root<WithSection> >()));
       scene.mount(&platform);
-      scene.updateAttached(true);
+      loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
       Root<WithSection> *root =
           static_cast<Root<WithSection> *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
       LOKA_VERIFY(root != 0);
@@ -384,7 +384,7 @@ namespace
       NullScenePlatformController platform;
       Scene scene((Boundary<NestedRoot>()));
       scene.mount(&platform);
-      scene.updateAttached(true);
+      loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
       NestedRoot *root = static_cast<NestedRoot *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
       const Snapshot warm(allocations);
       LOKA_VERIFY(warm.heap == 2);
@@ -527,7 +527,7 @@ void testKeyedMultipleReplacementsBeforeSingleDrain()
     NullScenePlatformController platform;
     Scene scene((BoundaryDefinition<BoundaryPropsFor<Root<true> >, BatchedRoot>((BoundaryPropsFor<Root<true> >()))));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     Root<true> *root = static_cast<Root<true> *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     const Snapshot warm(allocations);
     for (int i = 1; i <= 8; ++i)
@@ -549,7 +549,7 @@ void testKeyedForSectionBoardStoragePlateausAndClicksStayLive()
     NullScenePlatformController platform;
     Scene scene((Boundary<BoardRoot>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     BoardRoot *root = static_cast<BoardRoot *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     const Snapshot warm(allocations);
     LOKA_VERIFY(warm.heap == 16);
@@ -633,7 +633,7 @@ void testKeyedParkedGenerationKeepsHeapStatesAlive()
     NullScenePlatformController platform;
     Scene scene((BoundaryDefinition<BoundaryPropsFor<Root<true> >, ParkedRoot>((BoundaryPropsFor<Root<true> >()))));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     ParkedRoot *root = static_cast<ParkedRoot *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     const Snapshot warm(allocations);
     for (int i = 0; i < 4; ++i)
@@ -741,10 +741,12 @@ namespace
     }
   };
 
+  struct DescendantRefusalTypeTag {};
   class DescendantRefusalScope;
   struct DescendantRefusalProps : NodePropsBase<DescendantRefusalProps>
   {
     typedef DescendantRefusalScope NodeType;
+    typedef DescendantRefusalTypeTag TypeTag;
     bool operator<(const PropsBase &) const
     {
       return false;
@@ -754,6 +756,7 @@ namespace
   {
   public:
     typedef DescendantRefusalProps Props;
+    typedef DescendantRefusalTypeTag TypeTag;
     Props props;
     explicit DescendantRefusalScope(const Props &p)
         : props(p)
@@ -836,7 +839,7 @@ void testLocalRebuildSectionMaterializesChildrenWithBoundaryProvider()
     NullScenePlatformController platform;
     Scene scene((Boundary<LocalReconcileRoot>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     LocalReconcileRoot *root =
         static_cast<LocalReconcileRoot *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     Fragment desired;
@@ -860,7 +863,7 @@ void testLocalRebuildRefusalPreservesInstalledSubtree()
     NullScenePlatformController platform;
     Scene scene((Boundary<LocalReconcileRoot>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     LocalReconcileRoot *root =
         static_cast<LocalReconcileRoot *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     Fragment initial;
@@ -889,7 +892,7 @@ void testPublishedLazyScopeSectionRefusalKeepsScopeReady()
     NullScenePlatformController platform;
     Scene scene((Boundary<DescendantRefusalRoot>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     BoundaryNode *root = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
     LazyScopeNode *scope = static_cast<LazyScopeNode *>(findType(root, NodeTypeToken<LazyScopeNode>()));
     BoundarySectionNode *section = findSection(root, 77);
@@ -920,7 +923,7 @@ void testKeyedDirectDeclarerHeapRefusalRejectsPendingRootAndRetries()
     NullScenePlatformController platform;
     Scene scene((Boundary<DirectStateRoot>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     DirectStateRoot *root = static_cast<DirectStateRoot *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     Node *old = root->compositionRootNode()->asNestable()->childrenHead();
     loka::core::State<int> *oldFirst = root->first;
@@ -961,7 +964,7 @@ void testNestedKeyedOuterThenInnerBeforeDrainPreservesProviders()
     NullScenePlatformController platform;
     Scene scene((Boundary<NestedRoot>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     NestedRoot *root = static_cast<NestedRoot *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     const Snapshot before(allocations);
     BoundarySectionNode *oldOuter = findSection(root, 6401), *oldInner = findSection(root, 6404);

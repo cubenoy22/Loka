@@ -335,7 +335,7 @@ void testObservedStateDoesNotJoinChildBoundaryTracker()
       loka::app::scene::Boundary<DoubleClockParentBoundaryNode>(
           DoubleClockParentProps(&trace)));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   assert(trace.parent);
   assert(trace.child);
@@ -359,8 +359,8 @@ void testObservedStateDoesNotJoinChildBoundaryTracker()
   assert(trace.ownerAfterChild == trace.parentTracker);
   assert(trace.ownerBeforeSecondWrite == trace.parentTracker);
 
-  scene.updateAttached(false);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, false);
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   std::printf("==== [testObservedStateDoesNotJoinChildBoundaryTracker] end ====\n");
 }
 

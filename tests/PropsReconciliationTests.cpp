@@ -1,3 +1,4 @@
+#include "testing/scene/SceneTestFlow.hpp"
 #include "PropsReconciliationTests.hpp"
 #include "support/TestVerify.hpp"
 #include "support/PropsReconciliation.hpp"
@@ -56,7 +57,7 @@ void testRetainedPropsApplicationNotifiesContextExactlyOnce()
   LOKA_VERIFY(platform.registerNodeHandler(&handler));
   Scene scene((Boundary<Tree<Button> >(Props<Button>(&declaration))));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   settle(scene);
   ButtonNode *button = root(scene)->childrenHead()->asButtonNode();
   LOKA_VERIFY(button != 0);
@@ -86,5 +87,5 @@ void testRetainedPropsApplicationNotifiesContextExactlyOnce()
     LOKA_VERIFY(head == button && button->getContext() == context);
   }
   LOKA_VERIFY(context->calls() == 2);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }

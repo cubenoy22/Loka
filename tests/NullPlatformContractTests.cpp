@@ -670,7 +670,7 @@ namespace
   void mountAndAttach(loka::app::scene::Scene &scene, NullScenePlatformController &platform)
   {
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   }
 
   void retireProjectedContextsWithoutApply(loka::app::scene::Scene &scene,
@@ -962,7 +962,7 @@ void testNullPlatformContract_A5_windowFlushDrainsNativeRetirementsAtReclaimBoun
     NullWindow window(&context, props, &platform);
     loka::app::scene::Scene *scene = window.scene();
     assert(scene);
-    scene->updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*scene, true);
     visible.set(false);
     scene->requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
 
@@ -1198,7 +1198,7 @@ void testNullPlatformContract_C3_hintChangesReachNextObservation()
   assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 0 &&
          "nothing pools under the fresh hint");
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   g_toggleVisible = 0;
   g_toggleHint = loka::app::scene::NATIVE_HINT_DEFAULT;
 }
@@ -1222,7 +1222,7 @@ void testNullPlatformContract_C3_safePointDrainsFreshHint()
 
   assert(platform.disposedCount() >= 1);
   assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 0);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   g_toggleVisible = 0;
   g_toggleHint = loka::app::scene::NATIVE_HINT_DEFAULT;
 }
@@ -1361,7 +1361,7 @@ void testNullPlatformContract_D4_controllerDrainPrecedesWindowDispose()
   (void)windowSequence;
   assert(windowSequence > drainSequence);
   assertDisposalsAreInsideSafePoints(platform);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   g_toggleVisible = 0;
 }
 
@@ -1402,7 +1402,7 @@ void testNullPlatformContract_D4_safePointDrainPrecedesWindowDrain()
   (void)windowSequence;
   assert(windowSequence > drainSequence);
   assertDisposalsAreInsideSafePoints(platform);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   g_toggleVisible = 0;
 }
 
@@ -1498,7 +1498,7 @@ void testNullPlatformContract_E3_parkedBranchRetiresAtTheDoorNotAtReclaim()
   assert(platform.eventLog().size() == eventsBeforeDrain &&
          "the final drain is silent too");
   assert(platform.retiredCount() == 0);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   assert(platform.createdCount() == platform.disposedCount() + platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth &&
          "teardown closes every pair: disposed or pooled, nothing lost");
   g_parkedSubtreeVisible = 0;
@@ -1533,7 +1533,7 @@ void testNullPlatformContract_E3_safePointSettlesRetireDoorIntake()
   LOKA_VERIFY(!scene.flushInvalidation());
   assert(platform.eventLog().size() == eventsBeforeDrain);
   assert(platform.retiredCount() == 0);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   assert(platform.createdCount() ==
          platform.disposedCount() +
              platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth);
@@ -1611,7 +1611,7 @@ void testNullPlatformContract_H3_conditionFlipIsProjectedAtNextScheduledApply()
   (void)editText;
   assert(editText && editText->visible);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   g_deferredFlipCondition = 0;
   g_deferredTrueRecord = 0;
   g_deferredFalseRecord = 0;
@@ -1654,7 +1654,7 @@ void testNullPlatformContract_H4_retiringBoundaryReportsEveryParkedBranchRetired
   assertParkedRetirementTransitionTable(firstRecord);
   assertParkedRetirementTransitionTable(secondRecord);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   g_enumeratedSubtreeVisible = 0;
   g_enumeratedFirstCondition = 0;
   g_enumeratedSecondCondition = 0;
@@ -1692,7 +1692,7 @@ void testNullPlatformContract_H6_activeBranchContentIsFreshAfterRecompose()
               && "native presentation must already match the current State");
   LOKA_VERIFY(parkedRecord.constructionCount == constructions);
   LOKA_VERIFY(!recordedTransitionTo(parkedRecord, loka::app::scene::NODE_FACT_RETIRED, transitions));
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   g_contentInputs = 0;
 }
 
@@ -1737,7 +1737,7 @@ void testNullPlatformContract_H7_reenteredBranchContentIsFreshAfterRecompose()
               && "native presentation must already match the current State");
   LOKA_VERIFY(parkedRecord.constructionCount == constructions);
   LOKA_VERIFY(!recordedTransitionTo(parkedRecord, loka::app::scene::NODE_FACT_RETIRED, transitions));
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   g_contentInputs = 0;
 }
 
@@ -1780,7 +1780,7 @@ void testNullPlatformContract_F2_createdHandlesAreDisposedAtTeardown()
   mountAndAttach(scene, platform);
   assert(platform.createdCount() == 2);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 
   assert(platform.ledger().empty());
   assert(platform.retiredCount() == 0);
@@ -1830,7 +1830,7 @@ void testNullWindowScenePathMountsAndTearsDownBeforeControllerDelete()
     NullWindow *window = new NullWindow(&platformContext, props, &platform);
     loka::app::scene::Scene *scene = window->scene();
     assert(scene);
-    scene->updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*scene, true);
     assert(platform.ledger().size() == 1);
     assert(platform.ledger()[0].visible);
 
@@ -1854,7 +1854,7 @@ void testNullWindowScenePathMountsAndTearsDownBeforeControllerDelete()
     props.scene(new loka::app::scene::Scene(rootDefinition));
     Window *window = platformContext.createWindow(props);
     LOKA_VERIFY(window->scene());
-    window->scene()->updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window->scene(), true);
     delete window;
   }
 }
@@ -2689,7 +2689,7 @@ void testStdCompositionBoundaryShowFlipPreservesSiblings()
   (void)dialog;
   assert(dialog && dialog->visible &&
          "the shown branch materializes at the scheduled apply");
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
 
 namespace
@@ -3462,7 +3462,7 @@ void testPolicyScopeIsDefinitionOnlyAndPreservesContentNativeHint()
   assert(policies.branchPolicies().destroyOnDetach &&
          policies.branchPolicies().deliverWhileDetached &&
          "PolicyScope exposes only the branch lifecycle/diff policy payload");
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
 
 void testPolicyScopeHandlesNonBranchRootPlacementGracefully()
@@ -3495,7 +3495,7 @@ void testPolicyScopeHandlesNonBranchRootPlacementGracefully()
   assert(contentRecord.constructionCount == 1 &&
          contentRecord.node->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
          "a misplaced PolicyScope ignores destroyOnDetach and uses default parking");
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   clearPolicyGlobals();
 }
 
@@ -3534,7 +3534,7 @@ void testPolicyScopeDestroyOnDetachWorksInComposeOnceBoundary()
   }
   assert(scopedRecord.constructionCount == 2 &&
          "compose-once destroyOnDetach reshow creates a fresh branch");
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   clearPolicyGlobals();
 }
 
@@ -3573,7 +3573,7 @@ void testPolicyScopeDeliverWhileDetachedWorksInComposeOnceBoundary()
   assert(scopedRecord.value == 1 &&
          scopedRecord.applies > scopedAppliesBefore &&
          "compose-once delivery reconciles the parked child at the door");
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   clearPolicyGlobals();
 }
 
@@ -3630,7 +3630,7 @@ void testOpenFileDialogPresentationPoliciesInComposeOnceBoundary()
                                           defaultInstanceId,
                                           destroyInstanceId);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   clearDialogPresentationGlobals();
 }
 
@@ -3779,7 +3779,7 @@ void testStep4ShapeSettlesAfterShowFlip()
   {
     LOKA_VERIFY(scene.flushInvalidation());
   }
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
 
 namespace
@@ -3866,7 +3866,7 @@ void testConditionalSeatInitiallyNullCanMaterialize()
                                              loka::app::scene::NODE_FACT_ATTACHED &&
          "the initially-null seat remains live across later flips");
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   clearNullConditionalBranchGlobals();
 }
 
@@ -3898,7 +3898,7 @@ void testNullConditionalBranchParksAndReentersShownBranch()
          original->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
          "the shown branch must reenter from the null side without reconstruction");
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   clearNullConditionalBranchGlobals();
 }
 

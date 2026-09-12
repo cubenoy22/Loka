@@ -13,6 +13,7 @@
 #include "core/util/ScopedPtr.hpp"
 
 class Window;
+class App;
 
 namespace loka
 {
@@ -56,18 +57,10 @@ namespace loka
       long completedCycles_;
     };
 
-    /** Re-arms a mounted scene by running the framework's own detach and
-        rebuild pair, the same pair the Window root seat runs across a scene
-        transition: the detach tears the composed tree down, drains the live
-        Boundary retire queues, releases every native node context, calls
-        IPlatformController::destroy() and destroys the root node; the
-        re-attach builds a fresh root node from the scene's root definition and
-        recomposes it. Nothing is reset in place, so the example's state is new
-        because its nodes are new.
-
-        Returns false when the window has no mounted scene to re-arm or the
-        fresh attachment cannot compose. */
-    bool RearmScenarioScene(Window *window);
+    /** Requests a fresh Scene generation, drives App admission, then reads
+        the applied composition. Returns false if admission was excluded or
+        the attachment could not compose. Called between scenario steps. */
+    bool RearmScenarioScene(Window *window, App *app);
 
     /** Runs one example's registered cells endlessly in one process: step the
         current cell to its terminal record, hold the settled scene, then
@@ -103,7 +96,7 @@ namespace loka
       }
 
       /** One idle tick from the platform pump. */
-      void tick(Window *window, double elapsedSeconds, core::StateTracker *presentationTracker)
+      void tick(Window *window, App *app, double elapsedSeconds, core::StateTracker *presentationTracker)
       {
         if (this->position_.exhausted() || this->phase_ == REEL_FAILED || !this->driver_.get())
         {
@@ -116,7 +109,7 @@ namespace loka
           {
             return;
           }
-          this->rearm(window, presentationTracker);
+          this->rearm(window, app, presentationTracker);
           return;
         }
         ++this->tick_;
@@ -184,7 +177,7 @@ namespace loka
         REEL_FAILED
       };
 
-      void rearm(Window *window, core::StateTracker *presentationTracker)
+      void rearm(Window *window, App *app, core::StateTracker *presentationTracker)
       {
         this->position_.advance();
         // The rail goes first: its Flow observes nodes the teardown destroys.
@@ -203,7 +196,9 @@ namespace loka
           this->phase_ = REEL_FAILED;
           return;
         }
-        (void)RearmScenarioScene(window);
+        // Composition refusal is recoverable: the seat retains the request
+        // for the next admission, and the fresh driver continues the loop.
+        (void)RearmScenarioScene(window, app);
         this->driver_.reset(replacement.release());
         this->resetDriverClock();
         this->operatorTitle_.publish(

@@ -271,7 +271,7 @@ void testSimpleViewerDisplayModeUpdatesRetainedImageViewProps()
   LOKA_VERIFY(rootDefinition != 0);
   loka::app::scene::Scene scene(rootDefinition);
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   loka::app::ImageViewNode *imageView = findOnlyImageView(
       loka::dsl::testing::SceneTestAccess::rootNode(scene));
@@ -307,5 +307,5 @@ void testSimpleViewerDisplayModeUpdatesRetainedImageViewProps()
   LOKA_VERIFY(imageView == retainedImageView);
   LOKA_VERIFY(imageView->props.attr_.sizePolicyValue_ == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }

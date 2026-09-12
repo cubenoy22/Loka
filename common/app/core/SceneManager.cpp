@@ -4,7 +4,7 @@
 #include "core/util/StateTrackerGuard.hpp"
 
 SceneManager::SceneManager()
-    : currentScene_(0), desired_(0), applying_(0), tracker_(), retiredScenes_(), window_(0)
+    : request_(REQUEST_NONE), currentScene_(0), desired_(0), applying_(0), tracker_(), retiredScenes_(), window_(0)
 {
 #ifdef TEST_BUILD
   this->lastPrepareRefusal_ = 0;
@@ -45,15 +45,52 @@ const loka::core::State<loka::app::scene::Scene *> &SceneManager::getCurrentScen
   return this->currentScene_;
 }
 
-bool SceneManager::rearmCurrentScene()
+void SceneManager::requestDetach()
 {
-  loka::app::scene::Scene *current = this->currentScene_.get();
-  if (!current)
+  this->request(REQUEST_DETACH);
+}
+
+void SceneManager::requestRearm()
+{
+  this->request(REQUEST_REARM);
+}
+
+bool SceneManager::applyPendingWork()
+{
+  if (this->applying_)
     return false;
-  loka::core::StateTrackerGuard guard(&this->tracker_);
-  current->updateAttached(false);
-  current->updateAttached(true);
-  return current->composed_;
+  const SceneRequest request = this->request_;
+  this->request_ = REQUEST_NONE;
+  const bool replaced = this->applyReplacement();
+  loka::app::scene::Scene *current = this->currentScene_.get();
+  if (!current || request == REQUEST_NONE)
+    return replaced;
+
+  // Protect the installed identity against adoption by synchronous observers.
+  // Only this Scene's owned composition is walked, once per admitted request.
+  this->applying_ = current;
+  {
+    loka::core::StateTrackerGuard guard(&this->tracker_);
+    current->updateAttached(false);
+    current->updateLifecycle(ON_DETACH);
+    switch (request)
+    {
+    case REQUEST_NONE:
+    case REQUEST_DETACH:
+      break;
+    case REQUEST_REARM:
+      current->updateAttached(true);
+      current->updateLifecycle(ON_ATTACH);
+      break;
+    }
+  }
+  // A refused fresh composition still owes this seat a renewal. Preserve any
+  // newer observer intent; retry only at the following App admission.
+  if (request == REQUEST_REARM && current->mounted_ && !current->composed_
+      && this->request_ == REQUEST_NONE)
+    this->request(request);
+  this->applying_ = 0;
+  return true;
 }
 
 void SceneManager::seedScene(loka::app::scene::Scene *scene)

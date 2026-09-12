@@ -266,7 +266,7 @@ void testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene()
   NullScenePlatformController platform;
   loka::app::scene::Scene scene(root.take());
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   scrapbook::MainNode *mainNode =
       static_cast<scrapbook::MainNode *>(loka::dsl::testing::SceneTestAccess::rootNode(scene));
@@ -483,7 +483,7 @@ void testScrapbookObservedStringAuditMatchesTrackedExpectation()
   NullScenePlatformController platform;
   loka::app::scene::Scene scene(root.take());
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   scrapbook::MainNode *mainNode =
       static_cast<scrapbook::MainNode *>(loka::dsl::testing::SceneTestAccess::rootNode(scene));
   LOKA_VERIFY(mainNode != 0);
@@ -517,7 +517,7 @@ void testScrapbookObservedStringAuditMatchesTrackedExpectation()
     }
     LOKA_VERIFY(scenario.publishVerdict(record));
   }
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 
   const std::string actual = ReadBytes(actualPath);
   const std::string expectedPath =

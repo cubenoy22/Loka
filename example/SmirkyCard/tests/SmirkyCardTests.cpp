@@ -54,7 +54,7 @@ namespace
     props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
     NullWindow window(&context, props, &platform);
   WindowAdmissionTestApp admission(window);
-    window.scene()->updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
 
     for (int i = 0; i < 20; ++i)
     {

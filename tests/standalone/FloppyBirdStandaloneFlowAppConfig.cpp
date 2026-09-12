@@ -97,7 +97,7 @@ namespace loka
         const bool rearmed = this->scenario_.replaceAndRearmScene(
             new (std::nothrow) scenario_tests::FloppyBirdScenario(
                 scenario_tests::SCENARIO_COMPLETION_HOLD_FINAL_SCENE, 0),
-            window);
+            window, this->runControl_.app());
         if (rearmed)
         {
           this->game_.reset(scenario_tests::FloppyBirdScenarioSeed());

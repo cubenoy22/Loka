@@ -620,17 +620,17 @@ protected:
 private:
   friend class App;
   /** App admission only: captures eligible retirees, then prepares/applies one seat. */
-  loka::app::scene::Scene *applySceneReplacement();
+  loka::app::scene::Scene *applySceneWork();
   /** App closes the admitted flush by reclaiming only the captured pool suffix. */
   void reclaimScenes(loka::app::scene::Scene *retired);
 
 public:
-  /** Flushes current Scene/platform work; never admits or reclaims a replacement. */
+  /** Flushes current Scene/platform work; never admits seat requests or reclaims scenes. */
   bool flushSceneInvalidation();
   bool hasPendingSceneInvalidation() const
   {
     const loka::app::scene::Scene *current = this->scene();
-    return this->sceneManager_.hasPendingReplacement() ||
+    return this->sceneManager_.hasPendingWork() ||
            (current && current->hasPendingInvalidation()) || this->sceneManager_.hasRetiredScenes();
   }
   virtual bool hasPendingScenePlatformSync() const

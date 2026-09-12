@@ -1,3 +1,4 @@
+#include "testing/scene/SceneTestFlow.hpp"
 #include "LazyScopeTests.hpp"
 #include "support/TestVerify.hpp"
 #include "app/scene/boundary/LazyScopeDefinition.hpp"
@@ -248,7 +249,7 @@ void testLazyScopeMaterializesOwnedDeclaration()
   NullScenePlatformController platform;
   Scene scene((Boundary<Root>()));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   {
     const bool verified = (r.constructed == 1 && r.declared == 1);
     LOKA_VERIFY(verified);
@@ -282,7 +283,7 @@ void testLazyScopeOwnTrackerAppliesShow()
   NullScenePlatformController platform;
   Scene scene((Boundary<Root>()));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   int originalHandles[4];
   for (int i = 0; i < 4; ++i)
     originalHandles[i] = platform.ledger()[i].handle->id;
@@ -316,7 +317,7 @@ void testLazyScopeCrossesTrackersInOneUpdate()
   NullScenePlatformController platform;
   Scene scene((Boundary<Root>()));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   const int before = r.updates;
   root(scene)->source.set(-1);
   scene.flushInvalidation();
@@ -341,7 +342,7 @@ void testLazyScopeKeyReplacementRetiresOwner()
   NullScenePlatformController platform;
   Scene scene((Boundary<Root>()));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   ProbeScopeNode *old = r.current;
   root(scene)->key.set(2);
   {
@@ -408,7 +409,7 @@ void testLazyScopeStateRefusalPreservesArm()
     NullScenePlatformController platform;
     Scene scene((Boundary<Root>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     ProbeScopeNode *old = r.current;
     refuse = true;
     root(scene)->key.set(2);
@@ -452,12 +453,12 @@ void testLazyScopeUnmountCancelsWatch()
   {
     Scene scene((Boundary<Root>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     const int calls = r.copyCalls;
     {
       loka::core::StateTrackerGuard guard(&tracker);
       tracker.defer(&writePendingSource, &source);
-      scene.unmount();
+      loka::dsl::testing::SceneTestAccess::unmount(scene);
     }
     LOKA_VERIFY(r.copyCalls == calls);
   }
@@ -479,7 +480,7 @@ void testLazyScopeOuterDestroyRecreatesOwner()
   NullScenePlatformController platform;
   Scene scene((Boundary<Root>()));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   root(scene)->shown.set(false);
   scene.flushInvalidation();
   platform.drainNativeRetirements();

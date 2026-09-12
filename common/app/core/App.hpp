@@ -13,6 +13,13 @@ class AppComposition;
 
 namespace loka
 {
+  namespace app
+  {
+    namespace testing
+    {
+      class AppTestAccess;
+    }
+  }
   namespace dsl
   {
     namespace testing
@@ -89,6 +96,7 @@ private:
   static void ApplyMenuBarThunk(void *userData, Window *activeWindow);
 
   friend class loka::dsl::testing::OwnershipDump;
+  friend class loka::app::testing::AppTestAccess;
 };
 
 #endif // LOKA_APP_HPP

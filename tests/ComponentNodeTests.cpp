@@ -476,7 +476,7 @@ void testComponentComposesChildrenOnceAfterStatesConnect()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<ComponentHostRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     ComponentHostRootNode *root = static_cast<ComponentHostRootNode *>(
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
@@ -533,7 +533,7 @@ void testComponentStatesResolveNearestSectionOwner()
       (loka::app::scene::BoundaryDefinition<ComponentHostRootProps, StableComponentHostRootNode>(
           (ComponentHostRootProps()))));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   ComponentHostRootNode *root = static_cast<ComponentHostRootNode *>(
       loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
@@ -558,7 +558,7 @@ void testComponentStatesFallBackToBoundaryOwnerWithoutSection()
       (loka::app::scene::BoundaryDefinition<ComponentHostRootProps, StableComponentHostRootNode>(
           (ComponentHostRootProps()))));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   g_componentHostUseSection = true;
 
   ComponentHostRootNode *root = static_cast<ComponentHostRootNode *>(
@@ -582,7 +582,7 @@ void testComponentPropsReapplyWithoutTouchingSubtree()
   loka::app::scene::Scene scene(
       (loka::app::scene::Boundary<ComponentHostRootNode>()));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   ComponentHostRootNode *root = static_cast<ComponentHostRootNode *>(
       loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
@@ -622,7 +622,7 @@ void testComponentRefusesBranchSeatWholeBox()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<ComponentHostRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     g_componentHostUseSeatComponent = false;
     g_componentSeatCondition = 0;
 
@@ -655,7 +655,7 @@ void testComponentRefusesBranchSeatWholeBox()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<ComponentHostRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     _exit(0);
   }
   int status = 0;
@@ -678,7 +678,7 @@ void testComponentParkedReentryKeepsSubtreeSingular()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<ComponentParkHostRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     ComponentParkHostRootNode *root = static_cast<ComponentParkHostRootNode *>(
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
@@ -733,7 +733,7 @@ void testComponentKeySwapRetiresResidentsTwoPhase()
     loka::app::scene::Scene scene(
         (loka::app::scene::Boundary<ComponentHostRootNode>()));
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     ComponentHostRootNode *root = static_cast<ComponentHostRootNode *>(
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene));

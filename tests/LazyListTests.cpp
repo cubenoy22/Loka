@@ -83,12 +83,12 @@ namespace
       bounds.width = lazylist::kWindowWidth;
       bounds.height = lazylist::kWindowHeight;
       this->platform.projectLayoutForTesting(this->root(), bounds);
-      this->scene.updateAttached(true);
+      loka::dsl::testing::SceneTestAccess::updateAttached(this->scene, true);
       this->drain();
     }
     ~Fixture()
     {
-      this->scene.unmount();
+      loka::dsl::testing::SceneTestAccess::unmount(this->scene);
       this->drain();
     }
     Node *root()
@@ -235,7 +235,7 @@ void testLazyListRefusalsAndUnmount()
                   .equals(String::Literal("List full: remove a card before inserting")));
   LOKA_VERIFY(f.model.insertAtTop() == EDIT_CAPACITY_EXCEEDED);
   LOKA_VERIFY(f.model.renameCard(100) == EDIT_INDEX_OUT_OF_RANGE);
-  f.scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(f.scene);
   f.drain();
   {
     const bool fact = f.platform.ledger().size() == 0;

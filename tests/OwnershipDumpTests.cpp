@@ -194,7 +194,7 @@ namespace
     LOKA_VERIFY(rootDefinition != 0);
     Scene scene(rootDefinition);
     scene.mount(&platform);
-    scene.updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
     std::vector<std::vector<int> > games;
     for (int game = 0; game < gameCount; ++game)
@@ -632,7 +632,7 @@ namespace
                                          OwnershipDumpRootNode> root;
     loka::app::scene::Scene *scene = new loka::app::scene::Scene(root);
     scene->mount(&platform);
-    scene->updateAttached(true);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*scene, true);
     loka::app::scene::BoundaryNode *boundary =
         loka::dsl::testing::SceneTestAccess::rootBoundary(*scene);
     if (!boundary)
@@ -738,7 +738,7 @@ void testOwnershipDumpPinsRepresentativeHelloWorld()
   LOKA_VERIFY(rootDefinition != 0);
   Scene scene(rootDefinition);
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   const std::string expected(
       "scene\n"
@@ -788,7 +788,7 @@ void testOwnershipDumpPinsMineSweeperSections()
   LOKA_VERIFY(rootDefinition != 0);
   Scene scene(rootDefinition);
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   // The #270 ownership flip: each cell's presentation resident now lives in
   // its own owner-scope box; the parent's four hand-declared arrays are gone.
@@ -820,7 +820,7 @@ void testOwnershipDumpPinsMineSweeperNewGameRetiresCells()
   LOKA_VERIFY(rootDefinition != 0);
   Scene scene(rootDefinition);
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   loka::app::scene::BoundaryNode *wrapper =
       loka::dsl::testing::SceneTestAccess::rootBoundary(scene);

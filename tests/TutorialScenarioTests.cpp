@@ -1,3 +1,4 @@
+#include "testing/scene/SceneTestFlow.hpp"
 #include "TutorialScenarioTests.hpp"
 
 #include "support/TestVerify.hpp"
@@ -131,7 +132,7 @@ void testTutorialIncrementSummaryToggleDrivesUiCommands()
   NullScenePlatformController platform;
   loka::app::scene::Scene scene(root.take());
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   RecordingTutorialAudit audit;
   loka::scenario_tests::TutorialScenario scenario(loka::scenario_tests::SCENARIO_COMPLETION_DRIVER_OWNED, &audit);
@@ -164,7 +165,7 @@ void testTutorialIncrementSummaryToggleDrivesUiCommands()
   LOKA_VERIFY(audit.terminals[0] == loka::dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
   LOKA_VERIFY(audit.verdicts.size() == 1);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   std::printf("testTutorialIncrementSummaryToggleDrivesUiCommands passed\n");
 }
 
@@ -177,7 +178,7 @@ void testTutorialIncrementSummaryToggleHoldsFinalSceneAndMatchesAudit()
   NullScenePlatformController platform;
   loka::app::scene::Scene scene(root.take());
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   {
     loka::platform::file::FileHandle destination;
@@ -204,7 +205,7 @@ void testTutorialIncrementSummaryToggleHoldsFinalSceneAndMatchesAudit()
   LOKA_VERIFY(actual == expected);
   std::remove(actualPath);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   std::printf("testTutorialIncrementSummaryToggleHoldsFinalSceneAndMatchesAudit passed\n");
 }
 

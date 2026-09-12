@@ -361,7 +361,7 @@ namespace
       this->scene = new loka::app::scene::Scene(rootDefinition);
       LOKA_VERIFY(this->scene != 0);
       this->scene->mount(&this->platform);
-      this->scene->updateAttached(true);
+      loka::dsl::testing::SceneTestAccess::updateAttached(*this->scene, true);
       this->menuController.requestInvalidation();
       LOKA_VERIFY(this->menuController.flushInvalidation(0));
     }
@@ -370,7 +370,7 @@ namespace
     {
       if (this->scene)
       {
-        this->scene->unmount();
+        loka::dsl::testing::SceneTestAccess::unmount(*this->scene);
         delete this->scene;
       }
     }
@@ -723,7 +723,7 @@ void testSimpleViewerNarrowWindowFileMenuMaterializesDialogOutsideParkedNav()
   LOKA_VERIFY(window.scene() != 0);
   loka::app::testing::WindowTestAccess::storeNativeFrame(
       window, loka::core::Frame(40, 40, 320, 240));
-  window.scene()->updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
   if (window.hasPendingSceneInvalidation())
   {
     LOKA_VERIFY(window.flushSceneInvalidation());

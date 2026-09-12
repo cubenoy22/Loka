@@ -256,7 +256,7 @@ void testShowDestroyOnDetachAndCanvasLiveViewport()
   NullScenePlatformController platform;
   Scene scene((Boundary<CanvasOwner>()));
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   CanvasOwner *owner = static_cast<CanvasOwner *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
   LOKA_VERIFY(owner && owner->composeCalls == 1);
   const bool ledgerFact1 = constructions == 1 && platform.ledger().size() == 1;
@@ -276,7 +276,7 @@ void testShowDestroyOnDetachAndCanvasLiveViewport()
   const bool ledgerFact3 = constructions == 2 && platform.ledger().size() == 1;
   LOKA_VERIFY(ledgerFact3);
   LOKA_VERIFY(owner->composeCalls == 1);
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
 
 void testShowDestroyModifierCopiesTrueArmOnly()

@@ -25,6 +25,17 @@ namespace loka
       class SceneTestAccess
       {
       public:
+        /** Synchronous fixture setup and sequence probes, outside a Scene run. */
+        static void updateAttached(::loka::app::scene::Scene &scene, bool attached)
+        {
+          assert(!scene.isRunInProgress());
+          scene.updateAttached(attached);
+        }
+        static void unmount(::loka::app::scene::Scene &scene)
+        {
+          assert(!scene.isRunInProgress());
+          scene.unmount();
+        }
         static ::loka::app::scene::Node *rootNode(const ::loka::app::scene::Scene &scene)
         {
           return scene.rootNode_;

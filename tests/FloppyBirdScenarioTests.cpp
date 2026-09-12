@@ -1,3 +1,4 @@
+#include "testing/scene/SceneTestFlow.hpp"
 #include "FloppyBirdScenarioTests.hpp"
 
 #include "support/TestVerify.hpp"
@@ -151,7 +152,7 @@ void testFloppyBirdFixedStepFlapsDriveSeededGame()
   NullScenePlatformController platform;
   loka::app::scene::Scene scene(root.take());
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   RecordingFloppyBirdAudit audit;
   loka::scenario_tests::FloppyBirdScenario scenario(
@@ -196,7 +197,7 @@ void testFloppyBirdFixedStepFlapsDriveSeededGame()
   LOKA_VERIFY(audit.terminals[0] == loka::dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
   LOKA_VERIFY(audit.verdicts.size() == 1);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   std::printf("testFloppyBirdFixedStepFlapsDriveSeededGame passed\n");
 }
 
@@ -208,7 +209,7 @@ void testFloppyBirdGameModelResetReplaysSeededScenario()
   NullScenePlatformController platform;
   loka::app::scene::Scene scene(root.take());
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   loka::scenario_tests::CaptureContentBounds bounds;
   loka::dsl::SnapRecord firstRecord;
@@ -223,8 +224,8 @@ void testFloppyBirdGameModelResetReplaysSeededScenario()
                         loka::scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY);
   }
 
-  scene.updateAttached(false);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, false);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   game.reset(loka::scenario_tests::FloppyBirdScenarioSeed());
   loka::app::scene::Scene *checkedScene = 0;
   loka::dsl::FlowError textError;
@@ -249,7 +250,7 @@ void testFloppyBirdGameModelResetReplaysSeededScenario()
   LOKA_VERIFY(secondRecord.get("surface.rects", secondSurface));
   LOKA_VERIFY(secondSurface == firstSurface);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   std::printf("testFloppyBirdGameModelResetReplaysSeededScenario passed\n");
 }
 
@@ -263,7 +264,7 @@ void testFloppyBirdFixedStepFlapsHoldFinalSceneAndMatchAudit()
   NullScenePlatformController platform;
   loka::app::scene::Scene scene(root.take());
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   {
     loka::platform::file::FileHandle destination;
@@ -294,7 +295,7 @@ void testFloppyBirdFixedStepFlapsHoldFinalSceneAndMatchAudit()
   LOKA_VERIFY(actual == expected);
   std::remove(actualPath);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   std::printf("testFloppyBirdFixedStepFlapsHoldFinalSceneAndMatchesAudit passed\n");
 }
 
@@ -308,7 +309,7 @@ void testFloppyBirdDifferentSeedRefusesFixedCheckpointAudit()
   NullScenePlatformController platform;
   loka::app::scene::Scene scene(root.take());
   scene.mount(&platform);
-  scene.updateAttached(true);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
   {
     loka::platform::file::FileHandle destination;
@@ -340,7 +341,7 @@ void testFloppyBirdDifferentSeedRefusesFixedCheckpointAudit()
   assert(actual.find("terminal status=failed") != std::string::npos);
   std::remove(actualPath);
 
-  scene.unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
   std::printf("testFloppyBirdDifferentSeedRefusesFixedCheckpointAudit passed\n");
 }
 
