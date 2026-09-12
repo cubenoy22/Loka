@@ -1,3 +1,4 @@
+#include "PartialTreePublicationTests.hpp"
 #include "KeyedGenerationStorageTests.hpp"
 #include "ObservableListTests.hpp"
 #include "CanvasLayoutTests.hpp"
