@@ -44,7 +44,7 @@ namespace loka
           {
             NodeComposition &composition = this->beginComposition(context);
             this->detachNode(composition);
-            composed_ = false;
+            this->composed_ = false;
             return;
           }
           if (event == COMPOSE_EVENT_UPDATE)
@@ -53,49 +53,44 @@ namespace loka
             {
               return;
             }
-            if (!composed_)
+            if (this->composed_)
             {
+              this->updateCompositionChildren(context);
               return;
             }
-            this->updateCompositionChildren(context);
-            return;
+            // No admitted tree: recovery is ATTACH, never an UPDATE declaration.
+            event = COMPOSE_EVENT_ATTACH;
           }
           if (event != COMPOSE_EVENT_ATTACH)
           {
             return;
           }
-          if (composed_)
+          if (this->composed_)
           {
             this->composeOwnedChildren(context, event);
             return;
           }
-          this->clearChildren();
-          this->nodeArena()->clear();
-          NodeComposition &composition = this->beginDeclaringWindow(context);
+          if (!this->composition().root())
           {
-            PROFILE_SECTION("attach");
-            this->attachNode(composition);
+            if (this->childrenHead())
+            {
+              this->clearChildren();
+              this->nodeArena()->clear();
+            }
+            NodeComposition &composition = this->beginDeclaringWindow(context);
+            {
+              PROFILE_SECTION("attach");
+              this->attachNode(composition);
+            }
+            {
+              PROFILE_SECTION("compNode");
+              NodeComposition::CompositionScope scope(composition);
+              this->composeNode(composition);
+            }
+            if (!this->finishInitialDeclaration())
+              return;
           }
-          {
-            PROFILE_SECTION("compNode");
-            NodeComposition::CompositionScope scope(composition);
-            this->composeNode(composition);
-          }
-          this->captureBranchSeatPlan();
-          // Pass composition to children via context
-          context.setComposition(&composition);
-          Node *child;
-          {
-            PROFILE_SECTION("create");
-            child = composition.createNodeTree();
-          }
-          if (child)
-          {
-            this->addChild(child);
-            this->composeTree(child, context, event, this);
-          }
-          context.setComposition(0);
-          composed_ = true;
+          this->composed_ = this->materializeInitialChildren(context);
         }
 
       private:

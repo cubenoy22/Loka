@@ -61,6 +61,29 @@ to the generic walker retain that behavior through the default
 `ownsChildTraversal(ComposeEvent)` contract.
 On parked re-entry, an already composed Std boundary replays ATTACH through
 its retained children without declaring its composition again.
+
+Initial capture and materialization have different retry inputs. If a definition
+clone is refused while capturing a Std/plain-root declaration, the incomplete
+capture is discarded and recovery enters a fresh ATTACH declaring window. No
+established declaration was consumed. A successful empty mount remains completed.
+Child-clone refusal in an active composition window also fails that capture;
+definitions constructed outside a window have no Boundary result to report to.
+
+For an initial declaration **without branch seats**, factory refusal keeps its
+captured instructions and hands the unlinked partial root to `PendingSubtree` for
+retirement on the existing Boundary clock. White-flag refresh materializes those
+instructions again without re-running `composeNode` or its bindings. The arena
+is not cleared across those attempts while it owns queued candidates. The pins
+in `PartialTreePublicationTests.cpp` distinguish capture retries from factory
+retries, including first/middle/last child refusal and plain-root wrapping.
+
+This bounded factory guarantee does not yet cover seat-bearing declarations or
+refusal during descendant ATTACH. Seat acceptance still needs attempt-scoped
+declaration lifetime and isolated State/Flow/binding participation before partial
+seat candidates can be withdrawn and replayed safely. Descendant ATTACH still
+follows child linkage. `testExpectedRedPartialTree144` records that remaining
+publication gap; retained/parked reconciliation is also outside this guarantee.
+
 Change the root's shape through `SceneManager::commitTransaction`, or put a
 `Match` one level below it. Scene adoption updates a desired identity; `scene()`
 and `getCurrentScene()` continue to expose the installed scene until the next

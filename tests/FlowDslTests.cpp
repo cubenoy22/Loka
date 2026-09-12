@@ -5728,13 +5728,15 @@ void testLokaFlowDslV1Core()
     int input = 7;
     loka::core::MutableState<int> result;
     loka::core::PushStateTracker tracker;
-    FlowResultTrackerObservation observation(&tracker);
+    loka::core::StateTracker *port = &tracker;
+    FlowResultTrackerObservation observation(port);
     tracker.addState(&result);
     result.bind(&captureFlowResultTrackerPhase, &observation, false);
 
     loka::dsl::FlowChain<int, int> chain =
-        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input).onSuccess(&result, &tracker);
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input).onSuccess(&result, port);
 
+    chain.withTracker(port);
     LOKA_VERIFY(chain.run());
     assert(result.get() == 14);
     assert(observation.calls == 1);
@@ -5914,7 +5916,8 @@ void testLokaFlowDslV1Core()
     loka::core::MutableState<int> valueState;
     loka::core::MutableState<int> extraState;
     loka::core::PushStateTracker tracker;
-    FlowResultTrackerObservation observation(&tracker);
+    loka::core::StateTracker *port = &tracker;
+    FlowResultTrackerObservation observation(port);
     tracker.addState(&valueState);
     tracker.addState(&extraState);
     valueState.bind(&captureFlowResultTrackerPhase, &observation, false);
@@ -5923,10 +5926,10 @@ void testLokaFlowDslV1Core()
                                                            | loka::dsl::Step(1, FlowTestFieldAdapter())
                                                                  .input(&input)
                                                                  .onSuccess(&valueState,
-                                                                            &tracker,
+                                                                            port,
                                                                             &FlowTestFieldOutput::value)
                                                                  .onSuccess(&extraState,
-                                                                            &tracker,
+                                                                            port,
                                                                             &FlowTestFieldOutput::extra);
 
     LOKA_VERIFY(chain.run());

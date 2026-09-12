@@ -102,12 +102,12 @@ namespace loka
     struct MutableStateBinding
     {
       void *statePtr;
-      loka::core::PushStateTracker *tracker;
-      void (*setter)(void *statePtr, const void *valuePtr, loka::core::PushStateTracker *tracker);
+      loka::core::StateTracker *tracker;
+      void (*setter)(void *statePtr, const void *valuePtr, loka::core::StateTracker *tracker);
     };
 
     template <typename T>
-    static void ApplyMutableStateValue(void *statePtr, const T &value, loka::core::PushStateTracker *tracker)
+    static void ApplyMutableStateValue(void *statePtr, const T &value, loka::core::StateTracker *tracker)
     {
       assert(statePtr != 0 && "ApplyMutableStateValue requires a target state");
       assert(tracker != 0 && "ApplyMutableStateValue requires a tracker");
@@ -116,7 +116,7 @@ namespace loka
     }
 
     template <typename T>
-    static void MutableStateSetter(void *statePtr, const void *valuePtr, loka::core::PushStateTracker *tracker)
+    static void MutableStateSetter(void *statePtr, const void *valuePtr, loka::core::StateTracker *tracker)
     {
       ApplyMutableStateValue<T>(statePtr, *static_cast<const T *>(valuePtr), tracker);
     }
@@ -124,11 +124,11 @@ namespace loka
     struct MutableStateFieldBinding
     {
       void *statePtr;
-      loka::core::PushStateTracker *tracker;
+      loka::core::StateTracker *tracker;
       void (*setter)(void *statePtr,
                      const void *outputPtr,
                      std::size_t offset,
-                     loka::core::PushStateTracker *tracker);
+                     loka::core::StateTracker *tracker);
       std::size_t offset;
     };
 
@@ -136,7 +136,7 @@ namespace loka
     static void MutableStateFieldSetter(void *statePtr,
                                         const void *outputPtr,
                                         std::size_t offset,
-                                        loka::core::PushStateTracker *tracker)
+                                        loka::core::StateTracker *tracker)
     {
       const char *base = static_cast<const char *>(outputPtr);
       const FieldT *field = reinterpret_cast<const FieldT *>(base + offset);
@@ -223,7 +223,7 @@ namespace loka
 
       /** Applies a successful output to borrowed State within its owner's
           borrowed tracker transaction. Both must outlive Flow execution. */
-      StepSpec &onSuccess(loka::core::MutableState<Out> *state, loka::core::PushStateTracker *tracker)
+      StepSpec &onSuccess(loka::core::MutableState<Out> *state, loka::core::StateTracker *tracker)
       {
         assert(state != 0 && "StepSpec::onSuccess requires a target state");
         assert(tracker != 0 && "StepSpec::onSuccess requires a tracker");
@@ -237,7 +237,7 @@ namespace loka
 
       template <typename FieldT, typename ClassT>
       StepSpec &onSuccess(loka::core::MutableState<FieldT> *state,
-                          loka::core::PushStateTracker *tracker,
+                          loka::core::StateTracker *tracker,
                           FieldT ClassT::*member)
       {
         typedef char LokaFieldBindingTypeMismatch[(flow_detail::IsSame<Out, ClassT>::value) ? 1 : -1];
@@ -506,7 +506,7 @@ namespace loka
       void (*finallyFn_)(void *);
       void *finallyUser_;
       bool *loadingState_;
-      loka::core::PushStateTracker *tracker_;
+      loka::core::StateTracker *tracker_;
 
       // Trigger state members
       loka::core::StateBase *triggerState_;
@@ -1283,7 +1283,7 @@ namespace loka
         return *this;
       }
 
-      FlowChain &withTracker(loka::core::PushStateTracker *tracker)
+      FlowChain &withTracker(loka::core::StateTracker *tracker)
       {
         this->detachIfShared();
         this->impl_->tracker_ = tracker;

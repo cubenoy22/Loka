@@ -397,6 +397,7 @@ namespace loka
           loka::core::OwnedDef<NodeDefinitionBase> cloned(def.clone());
           if (!cloned.isSet())
           {
+            this->noteCaptureRefusal();
             return 0;
           }
           cloned->setCleanupHook(&NodeComposition::cleanupStoredNode, this);
@@ -523,6 +524,7 @@ namespace loka
           loka::core::OwnedDef<NodeDefinitionBase> tagged(def.clone());
           if (!tagged.isSet())
           {
+            this->noteCaptureRefusal();
             return const_cast<NodeDefinitionBase &>(def);
           }
           tagged->setNodeTag(tag);
@@ -591,12 +593,13 @@ namespace loka
           branchSeatRegistrations_ = 0;
         }
 
-        // Create node tree
-        Node *createNodeTree() const;
-        /** Same materialization and boundary-refusal routing as
-            createNodeTree(), but hands the completed result back so the
-            caller can keep failure atomicity: a partial root must not be
-            published (#150's guard is the plan-side precedent). */
+        /** Report a refused definition clone to this capture's Boundary result.
+            No state is added: the open compose result owns the refusal fact. */
+        void noteCaptureRefusal();
+
+        /** Materialize and return the entire outcome, including partial roots.
+            The caller owns every returned root and must handle both refusal
+            reasons before admitting it to its supported publication path. */
         NodeMaterializationResult createNodeTreeCompleted() const;
         void assignCompositionSeatSlots();
 

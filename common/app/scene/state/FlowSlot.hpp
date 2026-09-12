@@ -135,7 +135,7 @@ namespace loka
           }
         }
 
-        FlowSlot &withTracker(loka::core::PushStateTracker *tracker)
+        FlowSlot &withTracker(loka::core::StateTracker *tracker)
         {
           assert(flow_ && "FlowSlot::withTracker requires a flow");
           flow_->withTracker(tracker);

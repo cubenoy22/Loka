@@ -10,6 +10,36 @@ namespace loka
   {
     namespace scene
     {
+      void BoundaryNode::RetireUnattachedCandidate(Node *root, void *data)
+      {
+        ComponentContext &context = *static_cast<ComponentContext *>(data);
+        // Factory-only candidates have never entered ATTACH. Drop actual owner
+        // slots through the existing owner walk without invoking detachNode.
+        DropRetainedHeldSlots(root);
+        context.boundary()->retireDetachedNode(context, root);
+      }
+
+      bool BoundaryNode::materializeInitialChildren(ComponentContext &context)
+      {
+        NodeComposition &composition = this->composition();
+        composition.setContext(&context);
+        context.setComposition(&composition);
+        const NodeMaterializationResult result = composition.createNodeTreeCompleted();
+        PendingSubtree candidate(&RetireUnattachedCandidate, &context);
+        candidate.prepare(result.root);
+        const bool retryFactory = (result.allocationFailed || result.requiresBoundaryPlan)
+                                  && this->branchSeats_.plans().empty();
+        if (!retryFactory && candidate.root())
+        {
+          Node *child = candidate.take();
+          this->addChild(child);
+          this->composeTree(child, context, COMPOSE_EVENT_ATTACH, this);
+        }
+        composition.setContext(0);
+        context.setComposition(0);
+        return !retryFactory;
+      }
+
       void BoundaryNode::destroyUncommittedLocalRebuildCandidates(
           BoundaryLocalRebuildPlan &plan)
       {
