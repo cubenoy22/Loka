@@ -2,6 +2,7 @@
 #define LOKA_MAC_WINDOW_HPP
 
 #include "app/core/Window.hpp"
+#include "app/core/DialogResultTransport.hpp"
 
 class App;
 class MacScenePlatformController;
@@ -27,6 +28,8 @@ namespace loka
 class MacWindow : public Window
 {
 public:
+  /** Concrete rail owns enrollment; App sees only its admission interface. */
+  loka::app::DialogResultTransport &dialogResults() { return this->dialogResults_; }
   MacWindow(PlatformContext *context, const WindowProps &props);
   virtual ~MacWindow();
   virtual MacWindow *asMacWindow()
@@ -34,6 +37,8 @@ public:
     return this;
   }
 
+  /** Borrow the owner of this rail's root view while its delegate is attached. */
+  static MacWindow *fromRootView(void *rootView);
   void setApp(App *app);
 
   virtual void onShow();
@@ -56,6 +61,14 @@ protected:
 
 private:
   friend class ::loka::dsl::testing::MacWindowTestAccess;
+
+  // Deliberate Win32/Null counterpart: stable across native recreation.
+  virtual void closeDialogResults() { this->dialogResults_.close(); }
+  virtual loka::app::DialogResultDelivery *dialogResultDelivery()
+  {
+    return &this->dialogResults_;
+  }
+  loka::app::DialogResultTransport dialogResults_;
 
   void createNativeWindow();
   void destroyNativeWindow();

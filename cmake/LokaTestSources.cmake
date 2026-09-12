@@ -101,6 +101,7 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/OwnershipDumpTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/AttrDslTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/MenuCheckedTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/PartialTreePublicationTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/BoundaryArenaTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ComponentNodeTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/StartupRedrawTests.cpp

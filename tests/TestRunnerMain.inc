@@ -1,6 +1,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 #ifdef _MSC_VER
 #include <stdlib.h>
 #endif
@@ -43,8 +44,20 @@ namespace
 #undef LOKA_TEST
 #endif
 
+  bool lokaSkipExpectedRed(const LokaRegisteredTest &test)
+  {
+    const char *enabled = std::getenv("LOKA_EXPECTED_RED");
+    return std::strncmp(test.name, "testExpectedRed", 15) == 0 &&
+        (!enabled || std::strcmp(enabled, "1") != 0);
+  }
+
   void lokaRunTest(const LokaRegisteredTest &test)
   {
+    if (lokaSkipExpectedRed(test))
+    {
+      std::printf("SKIP expected-red: %s (set LOKA_EXPECTED_RED=1)\n", test.name);
+      return;
+    }
     test.function();
     LOKA_AUDIT_CHECKPOINT(test.name);
   }
@@ -178,8 +191,9 @@ int main(int argc, char **argv)
     const LokaRegisteredTest *test = lokaFindTest(argv[1]);
     if (test)
     {
+      const bool skipped = lokaSkipExpectedRed(*test);
       lokaRunTest(*test);
-      return 0;
+      return skipped ? 77 : 0;
     }
     std::fprintf(stderr, "Unknown test: %s\n", argv[1]);
     return 1;
