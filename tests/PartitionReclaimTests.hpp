@@ -5,4 +5,6 @@ void testPartitionReclaimRetainsBackingTwentyRounds();
 void testPartitionReclaimParkedArm();
 void testPartitionReclaimNestedAndFailedCandidate();
 void testPartitionReclaimLandlordCensus();
+void testPartitionReclaimLegacyLandlordTeardown();
+void testPartitionReclaimLegacyGenerationSnapshot();
 #endif

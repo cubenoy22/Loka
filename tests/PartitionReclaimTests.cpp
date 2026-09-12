@@ -72,6 +72,7 @@ namespace
   typedef loka::core::SmallObjectPool<Source> Pool;
   Pool *activePool = 0;
   int backingFrees = 0;
+  int heapNodeFrees = 0;
   void *allocate(size_t n, const loka::core::LokaAllocationSite &)
   {
     return activePool->allocate(n);
@@ -80,6 +81,9 @@ namespace
   {
     if (std::strcmp(site.ownerTag, "NodePartition") == 0)
       ++backingFrees;
+    const loka::core::LokaAllocationSite &heap = NodeHeapAllocationSite();
+    if (std::strcmp(site.ownerTag, heap.ownerTag) == 0 && std::strcmp(site.typeTag, heap.typeTag) == 0)
+      ++heapNodeFrees;
     activePool->release(p);
   }
   struct Backend
@@ -90,6 +94,7 @@ namespace
     {
       activePool = &this->pool;
       backingFrees = 0;
+      heapNodeFrees = 0;
       Source::denied = false;
       loka::core::LokaAllocSetBackend(&allocate, &release);
     }
@@ -358,4 +363,92 @@ void testPartitionReclaimLandlordCensus()
 #ifdef LOKA_LIFECYCLE_AUDIT
   assert(loka::core::LokaAllocAuditTotalLiveCount() == baseline);
 #endif
+}
+
+namespace
+{
+  struct MixedOwner : Owner
+  {
+    NodePartition *bank;
+    Leaf *queued;
+    int &checked;
+    explicit MixedOwner(int &count)
+        : bank(0),
+          queued(0),
+          checked(count)
+    {
+    }
+    ~MixedOwner()
+    {
+      // Observe the queued slot while its landlord and backing are still alive.
+      // The live sibling must remain occupied until Boundary base cleanup.
+      this->drainRetiredSubtreesAtNextTrackerRun();
+      const NodeSlotLayout layout = NodeSlotLayout::of<Leaf>(1);
+      LOKA_VERIFY(!this->bank->cancel(this->queued, layout));
+      void *slot = this->bank->allocate(layout);
+      assert(slot == this->queued);
+      LOKA_VERIFY(!this->bank->allocate(layout));
+      LOKA_VERIFY(this->bank->cancel(slot, layout));
+      ++this->checked;
+    }
+  };
+
+  void mixedLegacyLandlord(bool snapshot)
+  {
+    Backend backend;
+    int deaths = 0, checked = 0;
+    loka::core::UpstreamGauge before = {};
+#ifdef LOKA_LIFECYCLE_AUDIT
+    const int baseline = loka::core::LokaAllocAuditTotalLiveCount();
+#endif
+    {
+      Owner outer;
+      NodeArena &arena = *outer.nodeArena();
+      arena.reserve(sizeof(MixedOwner));
+      void *storage = arena.allocate(sizeof(MixedOwner), AlignOf<MixedOwner>::value);
+      assert(storage);
+      MixedOwner *nested = new (storage) MixedOwner(checked);
+      arena.registerNode(nested);
+      outer.addChild(nested);
+      nested->bank = seat<Leaf>(*nested, 2);
+      // On 814ddf9e ASan observed this live child's interior slot address reach
+      // DestroyHeapNode in both the arena.clear and generation-snapshot walks.
+      nested->addChild(leaf(*nested->bank, deaths));
+      nested->queued = leaf(*nested->bank, deaths);
+      retire(*nested, nested->queued);
+      before = backend.pool.snapshot();
+      Source::denied = true;
+      if (snapshot)
+      {
+        std::vector<Node *> detached;
+        outer.detachChildrenTo(detached);
+        assert(detached.size() == 1 && detached[0] == nested);
+        retire(outer, nested);
+        outer.retireOwnedNodeGeneration();
+        assert(deaths == 0 && checked == 0 && backingFrees == 0);
+        outer.drainRetiredSubtreesAtNextTrackerRun();
+        assert(deaths == 2 && checked == 1 && backingFrees == 1);
+      }
+      else
+      {
+        // Leave the legacy resident to outer landlord teardown's arena.clear().
+        assert(deaths == 0 && checked == 0);
+      }
+    }
+    checkZero(before, backend.pool.snapshot());
+    assert(deaths == 2 && checked == 1 && backingFrees == 1 && heapNodeFrees == 0);
+#ifdef LOKA_LIFECYCLE_AUDIT
+    assert(loka::core::LokaAllocAuditTotalLiveCount() == baseline);
+#endif
+  }
+} // namespace
+
+void testPartitionReclaimLegacyLandlordTeardown()
+{
+  mixedLegacyLandlord(false);
+}
+
+void testPartitionReclaimLegacyGenerationSnapshot()
+{
+  mixedLegacyLandlord(true);
 }
