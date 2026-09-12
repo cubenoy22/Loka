@@ -1,11 +1,22 @@
 #include "app/core/DialogResultTransport.hpp"
 #include <new>
 #include <cassert>
+#include "app/core/Window.hpp"
+#include "core/LokaAlloc.hpp"
 
 namespace loka
 {
   namespace app
   {
+    namespace
+    {
+      const loka::core::LokaAllocationSite &entrySite()
+      {
+        static const loka::core::LokaAllocationSite site("DialogResultTransport", "Entry");
+        return site;
+      }
+    }
+
     DialogResultTransport::Entry::Entry(DialogResultTransport &owner)
         : transport(owner),
           registration(0),
@@ -113,17 +124,35 @@ namespace loka
         return 0;
       Registration *registration = new (std::nothrow) Registration(props);
       if (!registration)
-        return 0;
-      Entry *entry = new (std::nothrow) Entry(*this);
-      if (!entry)
       {
-        delete registration;
+        this->retryEnrollment();
         return 0;
       }
+      // Entry storage returns through the same site in reclaim().
+      void *storage = loka::core::LokaAllocRaw(sizeof(Entry), entrySite());
+      if (!storage)
+      {
+        delete registration;
+        this->retryEnrollment();
+        return 0;
+      }
+      Entry *entry = new (storage) Entry(*this);
       registration->entry_ = entry;
       entry->registration = registration;
       entry->moveTo(this->reserved_);
       return registration;
+    }
+
+    void DialogResultTransport::retryEnrollment()
+    {
+      if (this->window_->scene())
+      {
+        // Native enrollment runs in platform apply, after the refresh drain.
+        // The white flag prevents CHILD relaxation from dropping the retry;
+        // invalidation admits the Window again without flushing this callback.
+        this->window_->scene()->noteComposeAllocationFailure();
+        this->window_->scene()->requestInvalidate(scene::NODE_DIRTY_CHILD);
+      }
     }
 
     void DialogResultTransport::revoke(Entry &entry)
@@ -219,7 +248,8 @@ namespace loka
       {
         Entry *next = snapshot->next;
         snapshot->unlink();
-        delete snapshot;
+        snapshot->~Entry();
+        loka::core::LokaFreeRaw(snapshot, entrySite());
         snapshot = next;
       }
     }

@@ -77,6 +77,7 @@ namespace loka
       void open(Window &window);
       void close();
       /** Refuses closed enrollment or a result channel without its owner tracker.
+          Allocation refusal requests projection at the next App admission.
           The declaring scope must enclose the context and every invocation. */
       Registration *reserve(const OpenFileDialogProps &props);
       virtual bool hasRunnableWork() const;
@@ -111,6 +112,7 @@ namespace loka
       };
       static void revoke(Entry &entry);
       void cancel(Entry &entry);
+      void retryEnrollment();
       virtual void deliver();
       virtual Retirement *retirementSnapshot() const;
       virtual void reclaim(Retirement *snapshot);

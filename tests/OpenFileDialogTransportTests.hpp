@@ -13,4 +13,5 @@ void testOpenFileDialogTransportSceneRunExcludesAdmission();
 void testOpenFileDialogTransportRetargetDuringWriteCannotUnlinkReplacement();
 void testOpenFileDialogTransportEmitterTokenChecksDeliveryLifetime();
 void testOpenFileDialogTransportCrossWindowCloseCancelsLaterBatch();
+void testOpenFileDialogTransportEnrollmentRefusalRetriesOnAdmission();
 #endif

@@ -10,6 +10,8 @@
 #include "testing/scene/SceneTestFlow.hpp"
 #include <cassert>
 #include <vector>
+#include <cstring>
+#include "core/LokaAlloc.hpp"
 
 namespace loka
 {
@@ -68,15 +70,18 @@ namespace
     void readLifecycleFactOnAttach()
     {
       if (this->node_->lifecycleFact() == NODE_FACT_ATTACHED)
-        this->attach();
+        this->presentation_.markDetached();
     }
     virtual void onFactChanged(NodeLifecycleFact, NodeLifecycleFact next)
     {
       g_events->push_back(4);
       if (next == NODE_FACT_ATTACHED)
-        this->attach();
+        this->presentation_.markDetached();
       else
+      {
+        this->presentation_.markDetached();
         this->cancel();
+      }
     }
     virtual void onPropsApplied()
     {
@@ -85,8 +90,19 @@ namespace
     }
     void attach()
     {
+      // Deliberate Win32 producer twin: attach records intent; projection
+      // attempts enrollment once, with phase and binding guarding repeats.
+      if (this->registration_ || this->node_->lifecycleFact() != NODE_FACT_ATTACHED
+          || !this->presentation_.beginPresent())
+        return;
+      this->registration_ = g_window->dialogResults().reserve(this->node_->props);
       if (!this->registration_)
-        this->registration_ = g_window->dialogResults().reserve(this->node_->props);
+      {
+        this->presentation_.markDetached();
+        return;
+      }
+      this->presentation_.markPresented();
+      g_events->push_back(5);
     }
     void cancel()
     {
@@ -99,6 +115,7 @@ namespace
       Transport::ReturnPort port(this->registration_);
       LOKA_VERIFY(port.seal(FileChooserResult::File(loka::file::File("accepted-dialog-result.png"))) == g_window);
     }
+    OpenFileDialogPresentationPhase presentation_;
     OpenFileDialogNode *node_;
     Transport::Registration *registration_;
   };
@@ -106,6 +123,8 @@ namespace
   class DialogHandler : public RetainedNodeHandler<DialogHandler, OpenFileDialogNode, DialogContext>
   {
   public:
+    static void afterAttach(DialogContext *context) { context->attach(); }
+    static void refresh(DialogContext *context, const LayoutState &) { context->attach(); }
     static OpenFileDialogNode *cast(Node *node)
     {
       return node->asOpenFileDialogNode();
@@ -174,6 +193,30 @@ namespace
     NullWindow window;
     WindowAdmissionTestApp app;
   };
+
+  int g_enrollmentRefusals = 0;
+  int g_enrollmentAttempts = 0;
+  int g_enrollmentLive = 0;
+  void *enrollmentAlloc(size_t size, const loka::core::LokaAllocationSite &site)
+  {
+    if (std::strcmp(site.ownerTag, "DialogResultTransport") == 0)
+    {
+      ++g_enrollmentAttempts;
+      if (g_enrollmentRefusals)
+      {
+        --g_enrollmentRefusals;
+        return 0;
+      }
+      ++g_enrollmentLive;
+    }
+    return new (std::nothrow) char[size];
+  }
+  void enrollmentFree(void *storage, const loka::core::LokaAllocationSite &site)
+  {
+    if (std::strcmp(site.ownerTag, "DialogResultTransport") == 0)
+      --g_enrollmentLive;
+    delete[] static_cast<char *>(storage);
+  }
 
   void cancelObserver(void *)
   {
@@ -531,6 +574,8 @@ namespace
       OpenFileDialogDefinition changed;
       changed.onResult(probe.emitter);
       LOKA_VERIFY(changed.applyPropsToNode(g_context->node_));
+      // Explicitly start the replacement operation while the old write runs.
+      g_context->presentation_.markDetached();
       g_context->attach();
       probe.replacement = g_context->registration_;
       g_context->produce();
@@ -637,4 +682,40 @@ void testOpenFileDialogTransportCrossWindowCloseCancelsLaterBatch()
   delete b;
   closer.unbind(&CloseProbe::close, &probe);
   observer.unbind(&countEvent, &emits);
+}
+
+void testOpenFileDialogTransportEnrollmentRefusalRetriesOnAdmission()
+{
+  g_enrollmentAttempts = 0;
+  g_enrollmentLive = 0;
+  g_enrollmentRefusals = 0;
+  loka::core::LokaAllocSetBackend(&enrollmentAlloc, &enrollmentFree);
+  {
+    Fixture fixture;
+    g_owner->shown_.set(false);
+    fixture.app.flush();
+    fixture.app.flush();
+    fixture.events.clear();
+    g_enrollmentAttempts = 0;
+    g_enrollmentRefusals = 1;
+    g_owner->shown_.set(true);
+    LOKA_VERIFY(g_enrollmentAttempts == 1);
+    LOKA_VERIFY(!g_context->registration_);
+    LOKA_VERIFY(g_context->presentation_.value == OPEN_FILE_DIALOG_PRESENTATION_PENDING_ATTACH);
+    LOKA_VERIFY(Access::census(fixture.window.dialogResults()) == 0 && g_enrollmentLive == 0);
+    const bool pending = fixture.window.hasPendingSceneInvalidation();
+    LOKA_VERIFY(pending);
+    LOKA_VERIFY(fixture.events.size() == 1 && fixture.events[0] == 4);
+    fixture.events.clear();
+    g_enrollmentRefusals = 0;
+    fixture.app.flush();
+    LOKA_VERIFY(g_enrollmentAttempts == 2 && g_enrollmentLive == 1);
+    LOKA_VERIFY(g_context->registration_);
+    LOKA_VERIFY(g_context->presentation_.value == OPEN_FILE_DIALOG_PRESENTATION_PRESENTED);
+    LOKA_VERIFY(fixture.events.size() == 1 && fixture.events[0] == 5);
+    fixture.app.flush();
+    LOKA_VERIFY(g_enrollmentAttempts == 2 && fixture.events.size() == 1);
+  }
+  LOKA_VERIFY(g_enrollmentLive == 0);
+  loka::core::LokaAllocSetBackend(0, 0);
 }

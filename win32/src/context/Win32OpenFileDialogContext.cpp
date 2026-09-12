@@ -34,6 +34,11 @@ namespace
       return new Win32OpenFileDialogContext(win32->rootHwnd(), dialog, window);
     }
 
+    static void refresh(Win32OpenFileDialogContext *ctx, const loka::app::scene::LayoutState &)
+    {
+      ctx->presentIfNeeded();
+    }
+
     static void afterAttach(Win32OpenFileDialogContext *ctx)
     {
       // Keep presentation in the shared after-attach slot; see RetainedNodeHandler.
@@ -102,7 +107,8 @@ void Win32OpenFileDialogContext::onFactChanged(loka::app::scene::NodeLifecycleFa
 
 void Win32OpenFileDialogContext::applyAttachedPresentation()
 {
-  this->presentIfNeeded();
+  // Record intent here; afterAttach/refresh owns the presentation attempt.
+  this->presentation_.markDetached();
 }
 
 void Win32OpenFileDialogContext::applyDetachedPresentation()
@@ -113,7 +119,8 @@ void Win32OpenFileDialogContext::applyDetachedPresentation()
 
 void Win32OpenFileDialogContext::presentIfNeeded()
 {
-  if (this->registration_ || !this->transport_ || !this->node_)
+  if (this->registration_ || !this->transport_ || !this->node_
+      || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
     return;
   if (!this->presentation_.beginPresent())
     return;
