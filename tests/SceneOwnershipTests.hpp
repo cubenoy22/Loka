@@ -22,6 +22,8 @@ void testAppDrainsPendingWindowClosuresAtDestruction();
 void testSceneReplacementSupersedesUnattachedDesiredScene();
 void testSceneReplacementReturnsToAppliedWithoutDetach();
 void testSceneReplacementPreservesAppliedOnPrepareRefusal();
+void testInitialScenePrepareRefusalPreservesDetachRequest();
+void testInitialScenePrepareRefusalPreservesNewerRearmRequest();
 void testSceneReplacementRefusesControllerLostDuringAttach();
 void testSceneReplacementAdoptedDuringAttachWaitsForNextAdmission();
 

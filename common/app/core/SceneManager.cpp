@@ -63,7 +63,15 @@ bool SceneManager::applyPendingWork()
   this->request_ = REQUEST_NONE;
   const bool replaced = this->applyReplacement();
   loka::app::scene::Scene *current = this->currentScene_.get();
-  if (!current || request == REQUEST_NONE)
+  if (!current)
+  {
+    // No installed Scene can receive the captured request after refusal.
+    // Keep it for the next admission unless preparation recorded newer intent.
+    if (this->request_ == REQUEST_NONE)
+      this->request(request);
+    return replaced;
+  }
+  if (request == REQUEST_NONE)
     return replaced;
 
   // Protect the installed identity against adoption by synchronous observers.
