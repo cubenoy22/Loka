@@ -104,6 +104,9 @@ MacWindow::MacWindow(PlatformContext *context, const WindowProps &props)
       closing_(false),
       scenePlatformController_(0)
 {
+  // Initial visibility is a seed, not a request. Keep creation and mount
+  // synchronous; subsequent visibility changes enter through App admission.
+  this->applyNativeVisibility();
   this->observeNativeState(this->displayTitleState(), &MacWindow::TitleChangedThunk, this);
   this->observeNativeState(this->frameState(), &MacWindow::FrameChangedThunk, this);
 }
@@ -454,7 +457,7 @@ bool MacWindow::queryDisplayAppearance(DisplayAppearance &out) const
 
 void MacWindow::onCreate()
 {
-  // Native creation is entered from App admission; it reads the
+  // Native creation is entered from the seed or App admission; it reads the
   // application's intent and never writes it back (no forced re-notify).
   Window::onCreate();
 }
