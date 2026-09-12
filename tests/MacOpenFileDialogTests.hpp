@@ -1,0 +1,10 @@
+#ifndef LOKA_MAC_OPEN_FILE_DIALOG_TESTS_HPP
+#define LOKA_MAC_OPEN_FILE_DIALOG_TESTS_HPP
+
+void testMacOpenFileDialogRetiredBeforeCompletion();
+void testMacOpenFileDialogRetainedDetachDropsResult();
+void testMacOpenFileDialogCompletionDuringSceneWaitsForAdmission();
+void testMacOpenFileDialogCloseDropsPendingAtDrain();
+void testMacOpenFileDialogRetargetDropsResult();
+
+#endif

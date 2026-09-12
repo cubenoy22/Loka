@@ -137,10 +137,10 @@ the incoming install completes, and the following admission remounts the desired
 scene with a fresh root generation. Window destruction disposes pending and
 installed scenes even when no subsequent admission occurs.
 
-Win32 OpenFileDialog completion uses the common `DialogResultTransport` owned by
-its concrete Win32 Window (the Null test rail owns the same transport). Base
+Win32 and macOS OpenFileDialog completion uses the common `DialogResultTransport` owned by
+each concrete Window (the Null test rail owns the same transport). Base
 `Window` exposes only a nullable `DialogResultDelivery` admission view and stores
-no transport. Its close hook also defaults to no work. Toolbox and macOS use
+no transport. Its close hook also defaults to no work. Toolbox uses
 these defaults; the common admission path cannot pull in concrete dialog
 bindings or result payload code. The service
 identity remains stable for the Window lifetime, including native hide/reopen.
@@ -159,7 +159,10 @@ suffix captured at admission. All close and shutdown paths revoke transport work
 before owners disappear. Win32's pre-wait progress query includes pending Window
 closures as well as serviceable completion work, so observer-triggered close does
 not need another native input. These completion semantics are pinned by the Null
-contract adapter; they do not establish macOS or Toolbox modal-return coverage.
+contract adapter and macOS admission pins. macOS keeps its cancelable scheduled
+presenter; native modal return only seals the revocable port, and MacApp's
+repeating timer admits the result. This does not certify general native modal
+stack safety or Toolbox completion.
 
 This protocol spans adoption ownership, admission exclusion, preparation,
 attachment, and four platform rails. Its risk review covers five areas: new
