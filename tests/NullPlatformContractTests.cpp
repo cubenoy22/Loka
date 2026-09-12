@@ -65,7 +65,14 @@ namespace
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
-      composition.declare(loka::app::Keyed(*g_toggleVisible, this, &ToggleControlBoundaryNode::declareContent));
+      composition.declare(loka::app::Keyed(
+          *g_toggleVisible,
+          this,
+          &ToggleControlBoundaryNode::declareContent,
+          loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+              loka::app::FragmentNode,
+              1,
+              loka::app::reservation::Nodes<loka::app::ButtonNode, 1, loka::app::reservation::End> > >()));
     }
 
     void declareContent(loka::app::scene::NodeComposition &composition)
@@ -149,7 +156,17 @@ namespace
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
-      composition.declare(loka::app::Keyed(*g_recipeMode, this, &RecipeBoundaryNode::declareContent));
+      composition.declare(loka::app::Keyed(
+          *g_recipeMode,
+          this,
+          &RecipeBoundaryNode::declareContent,
+          loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+              loka::app::FragmentNode,
+              1,
+              loka::app::reservation::Nodes<
+                  loka::app::ButtonNode,
+                  1,
+                  loka::app::reservation::Nodes<loka::app::EditTextNode, 1, loka::app::reservation::End> > > >()));
     }
 
     void declareContent(loka::app::scene::NodeComposition &composition)
@@ -182,7 +199,14 @@ namespace
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
-      composition.declare(loka::app::Keyed(*g_multipleVisible, this, &MultipleButtonBoundaryNode::declareContent));
+      composition.declare(loka::app::Keyed(
+          *g_multipleVisible,
+          this,
+          &MultipleButtonBoundaryNode::declareContent,
+          loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+              loka::app::FragmentNode,
+              1,
+              loka::app::reservation::Nodes<loka::app::ButtonNode, 2, loka::app::reservation::End> > >()));
     }
 
     void declareContent(loka::app::scene::NodeComposition &composition)
@@ -237,8 +261,14 @@ namespace
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
-      composition.declare(
-          loka::app::Keyed(*g_parkedSubtreeVisible, this, &ParkedBranchRetireBoundaryNode::declareContent));
+      composition.declare(loka::app::Keyed(
+          *g_parkedSubtreeVisible,
+          this,
+          &ParkedBranchRetireBoundaryNode::declareContent,
+          loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+              loka::app::FragmentNode,
+              1,
+              loka::app::reservation::Nodes<ParkedBranchInnerBoundaryNode, 1, loka::app::reservation::End> > >()));
     }
 
     void declareContent(loka::app::scene::NodeComposition &composition)
@@ -608,7 +638,14 @@ namespace
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
       composition.declare(
-          loka::app::Keyed(*g_enumeratedSubtreeVisible, this, &EnumeratedBranchesRetireBoundaryNode::declareContent));
+          loka::app::Keyed(*g_enumeratedSubtreeVisible,
+                           this,
+                           &EnumeratedBranchesRetireBoundaryNode::declareContent,
+                           loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+                               loka::app::FragmentNode,
+                               1,
+                               loka::app::reservation::
+                                   Nodes<EnumeratedBranchesInnerBoundaryNode, 1, loka::app::reservation::End> > >()));
     }
 
     void declareContent(loka::app::scene::NodeComposition &composition)
@@ -1899,8 +1936,18 @@ namespace
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
-      composition.declare(loka::app::Fragment()
-                          << loka::app::Keyed(*this->bank_.state(), this, &BankedSectionBoundaryNode::declareContent));
+      composition.declare(
+          loka::app::Fragment() << loka::app::Keyed(
+              *this->bank_.state(),
+              this,
+              &BankedSectionBoundaryNode::declareContent,
+              loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+                  loka::app::FragmentNode,
+                  1,
+                  loka::app::reservation::Nodes<
+                      loka::app::BoundarySectionNode,
+                      2,
+                      loka::app::reservation::Nodes<loka::app::ButtonNode, 2, loka::app::reservation::End> > > >()));
     }
 
     void declareContent(loka::app::scene::NodeComposition &composition)
@@ -2234,7 +2281,17 @@ namespace
       loka::app::FragmentDefinition root;
       loka::app::ButtonDefinition game("game", &this->newGameClick_);
       root << game;
-      root << loka::app::Keyed(*this->bank_.state(), this, &BankedClickBoundaryNode::declareCells);
+      root << loka::app::Keyed(
+          *this->bank_.state(),
+          this,
+          &BankedClickBoundaryNode::declareCells,
+          loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+              loka::app::FragmentNode,
+              1,
+              loka::app::reservation::Nodes<
+                  loka::app::BoundarySectionNode,
+                  2,
+                  loka::app::reservation::Nodes<loka::app::ButtonNode, 2, loka::app::reservation::End> > > >());
       composition.declare(root);
     }
 
@@ -4024,8 +4081,15 @@ namespace
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
-      composition.declare(loka::app::Fragment()
-                          << loka::app::Keyed(*this->present_.state(), this, &ScrollBarBoundaryNode::declareBar));
+      composition.declare(
+          loka::app::Fragment() << loka::app::Keyed(
+              *this->present_.state(),
+              this,
+              &ScrollBarBoundaryNode::declareBar,
+              loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+                  loka::app::FragmentNode,
+                  1,
+                  loka::app::reservation::Nodes<loka::app::ScrollBarNode, 1, loka::app::reservation::End> > >()));
     }
 
     void declareBar(loka::app::scene::NodeComposition &composition)

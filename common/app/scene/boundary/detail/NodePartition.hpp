@@ -11,6 +11,7 @@ namespace loka
   {
     namespace scene
     {
+      class BoundaryNode;
       namespace detail
       {
 
@@ -19,6 +20,13 @@ namespace loka
         class NodeSlotLayout
         {
         public:
+          /** Empty workspace slot; normalization refuses it until populated. */
+          NodeSlotLayout()
+              : size_(0),
+                alignment_(0),
+                count_(0)
+          {
+          }
           NodeSlotLayout(size_t size, size_t alignment, size_t count)
               : size_(size),
                 alignment_(alignment),
@@ -75,6 +83,8 @@ namespace loka
         private:
           size_t size_, alignment_, count_;
         };
+
+        class NodeBuildOperation;
 
         /** Isolated reusable node storage. Boot once, then pop/register/destroy without
             growing its class, occupancy or resident metadata. It is not a NodeArena
@@ -192,6 +202,12 @@ namespace loka
             return true;
           }
 
+          /** Synchronous fixture only: the operation owns one ticket through root,
+              recursive construction, attach, and cleanup. The caller exclusively
+              lends this partition for the entire call; callbacks must not reenter
+              the partition or retain the ticket. Production routing is separate. */
+          bool buildFixture(const NodeSlotLayout *demand, size_t count, NodeBuildOperation &operation);
+
           /** Exact layout match; no larger-class borrowing and no upstream fallback. */
           void *allocate(const NodeSlotLayout &layout)
           {
@@ -276,14 +292,7 @@ namespace loka
               this->destroyTree(c->residents[s].node);
               return true;
             }
-            ReclaimScratch::Plan plan(
-                this->reclaimScratch_, ReclaimScratch::Plan::ALL_CHILDREN, &NodePartition::nextDependent, this);
-            if (!plan.append(c->residents[s].node))
-              return false;
-            this->severChildren(plan);
-            for (size_t i = 0; i < plan.count(); ++i)
-              this->destroyOne(plan.node(i));
-            return true;
+            return this->reclaimTree(c->residents[s].node, &DestroyResident, this);
           }
 
           /** Cold explicit-door provisioning; destructor teardown stays legacy. */
@@ -293,6 +302,49 @@ namespace loka
           }
 
         private:
+          friend class ::loka::app::scene::BoundaryNode;
+          friend class SeatReservations;
+          typedef void (*ReclaimNode)(Node *, void *);
+
+          /** Bounded explicit reclaim shared with the Boundary clock. The callback
+              releases a completed row through its storage owner, without walking
+              children again. Refusal leaves all edges intact for legacy fallback. */
+          bool reclaimTree(Node *node, ReclaimNode reclaim, void *context)
+          {
+            ReclaimScratch::Plan plan(
+                this->reclaimScratch_, ReclaimScratch::Plan::ALL_CHILDREN, &NodePartition::nextDependent, this);
+            if (!plan.append(node))
+              return false;
+            this->severChildren(plan);
+            for (size_t i = 0; i < plan.count(); ++i)
+              reclaim(plan.node(i), context);
+            return true;
+          }
+          static void DestroyResident(Node *node, void *context)
+          {
+            static_cast<NodePartition *>(context)->destroyResident(node);
+          }
+
+          /** Existing clock callback owns traversal and nested-landlord ordering.
+              Only owner-edge candidates absent from child lists remain here. */
+          void reclaimAfterChildren(Node *node, ReclaimNode reclaim, void *context)
+          {
+            this->destroyDependents(node, reclaim, context);
+            this->destroyResident(node);
+          }
+          void reclaimRoots(ReclaimNode reclaim, void *context)
+          {
+            for (size_t i = 0; i < this->classCount_; ++i)
+              for (size_t s = 0; s < this->classes_[i].count; ++s)
+              {
+                Resident &r = this->classes_[i].residents[s];
+                if (r.node && !r.owner)
+                  reclaim(r.node, context);
+              }
+            for (size_t h = 0; h < this->heapCount_; ++h)
+              if (this->heap_[h].node && !this->heap_[h].owner)
+                reclaim(this->heap_[h].node, context);
+          }
           NodePartition(const NodePartition &);
           NodePartition &operator=(const NodePartition &);
           static const core::LokaAllocationSite &site()
@@ -417,15 +469,19 @@ namespace loka
             }
             return 0;
           }
-          void destroyDependents(Node *owner)
+          void destroyDependents(Node *owner, ReclaimNode reclaim, void *context)
           {
             for (size_t i = 0; i < this->classCount_; ++i)
               for (size_t s = 0; s < this->classes_[i].count; ++s)
                 if (this->classes_[i].residents[s].ownedBy(owner))
-                  this->destroyTree(this->classes_[i].residents[s].node);
+                  reclaim(this->classes_[i].residents[s].node, context);
             for (size_t h = 0; h < this->heapCount_; ++h)
               if (this->heap_[h].ownedBy(owner))
-                this->destroyTree(this->heap_[h].node);
+                reclaim(this->heap_[h].node, context);
+          }
+          static void DestroyTree(Node *node, void *context)
+          {
+            static_cast<NodePartition *>(context)->destroyTree(node);
           }
           void destroyTree(Node *node)
           {
@@ -435,10 +491,9 @@ namespace loka
               nestable->detachChildrenTo(children);
             for (size_t i = 0; i < children.size(); ++i)
               this->destroyTree(children[i]);
-            this->destroyDependents(node);
-            this->destroyOne(node);
+            this->reclaimAfterChildren(node, &DestroyTree, this);
           }
-          void destroyOne(Node *node)
+          void destroyResident(Node *node)
           {
             Resident *r = this->resident(node);
             for (size_t i = 0; r && i < this->classCount_; ++i)
@@ -449,6 +504,9 @@ namespace loka
               if (address < begin || address - begin >= c.count * c.stride)
                 continue;
               const size_t s = (address - begin) / c.stride;
+              assert(occupied(c, s) && "reclaim requires this partition's occupied slot");
+              if (!occupied(c, s))
+                return;
               node->~Node();
               r->node = 0;
               r->owner = 0;
@@ -464,16 +522,7 @@ namespace loka
           }
           void clear()
           {
-            for (size_t i = 0; i < this->classCount_; ++i)
-              for (size_t s = 0; s < this->classes_[i].count; ++s)
-              {
-                Resident &r = this->classes_[i].residents[s];
-                if (r.node && !r.owner)
-                  this->destroyTree(r.node);
-              }
-            for (size_t h = 0; h < this->heapCount_; ++h)
-              if (this->heap_[h].node && !this->heap_[h].owner)
-                this->destroyTree(this->heap_[h].node);
+            this->reclaimRoots(&DestroyTree, this);
             core::LokaFreeRaw(this->raw_, site());
           }
           ReclaimScratch reclaimScratch_;

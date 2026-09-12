@@ -1,4 +1,6 @@
 #include "ReclaimScratchTests.hpp"
+#include "PartitionReclaimTests.hpp"
+#include "SeatReservationTests.hpp"
 #include "NodePartitionTests.hpp"
 #include "UpstreamGaugeTests.hpp"
 #include "PartialTreePublicationTests.hpp"

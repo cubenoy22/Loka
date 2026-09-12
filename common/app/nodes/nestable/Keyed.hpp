@@ -2,6 +2,7 @@
 #define LOKA_APP_KEYED_HPP
 
 #include <cstdlib>
+#include "app/reservation/SeatNodes.hpp"
 #include "app/nodes/nestable/Match.hpp"
 #include "app/scene/boundary/GenerationRoot.hpp"
 #include "app/scene/boundary/detail/BranchSeatDeclaration.hpp"
@@ -46,6 +47,12 @@ namespace loka
           return false;
         }
       };
+      /** Generated scaffold for the root factory and completed declaration window. */
+      template <class List> struct KeyedNodeRecipe
+      {
+        // createRoot below and BranchSeatDeclaration::completeWindow insert these two nodes.
+        typedef reservation::Nodes<scene::KeyedGenerationRoot, 1, reservation::Nodes<FragmentNode, 1, List> > Type;
+      };
     } // namespace scene
 
     /** Live key identity for a declaration seat. */
@@ -78,17 +85,19 @@ namespace loka
         virtual DeclarerDefinition *clone() const = 0;
         virtual scene::BoundaryNode *owner() const = 0;
         virtual void declare(scene::NodeComposition &) const = 0;
+        virtual bool installReservation() = 0;
       };
-      template <class N> struct MemberDeclarer : DeclarerDefinition
+      template <class N, class List> struct MemberDeclarer : DeclarerDefinition
       {
         MemberDeclarer(N *node, void (N::*method)(scene::NodeComposition &))
             : node_(node),
-              method_(method)
+              method_(method),
+              reservation_(0)
         {
         }
         virtual DeclarerDefinition *clone() const
         {
-          return new MemberDeclarer(*this);
+          return new MemberDeclarer(this->node_, this->method_);
         }
         virtual scene::BoundaryNode *owner() const
         {
@@ -98,8 +107,19 @@ namespace loka
         {
           (this->node_->*this->method_)(c);
         }
+        virtual bool installReservation()
+        {
+          if (this->reservation_)
+            return true;
+          scene::detail::SeatLayoutTable table;
+          if (!reservation::detail::Emitter<typename scene::KeyedNodeRecipe<List>::Type>::emit(table))
+            return false;
+          this->reservation_ = this->node_->installSeatReservation(table);
+          return this->reservation_ != 0;
+        }
         N *node_;
         void (N::*method_)(scene::NodeComposition &);
+        const scene::detail::SeatReservation *reservation_;
       };
       /** The committed key belongs to the declaration it describes. */
       class Declaration : public scene::GenerationDeclaration
@@ -121,12 +141,16 @@ namespace loka
       };
 
     public:
-      template <class N>
-      KeyedDefinition(loka::core::State<K> &key, N *owner, void (N::*method)(scene::NodeComposition &))
+      template <class N, class List>
+      KeyedDefinition(loka::core::State<K> &key,
+                      N *owner,
+                      void (N::*method)(scene::NodeComposition &),
+                      reservation::SeatNodes<List>)
           : props_(&key),
-            declarer_(new MemberDeclarer<N>(owner, method)),
+            declarer_(new MemberDeclarer<N, List>(owner, method)),
             declaration_()
       {
+        reservation::detail::validate<typename scene::KeyedNodeRecipe<List>::Type>();
         assert(owner && method && "Keyed requires an enclosing boundary member");
       }
       KeyedDefinition(const KeyedDefinition &other)
@@ -245,7 +269,7 @@ namespace loka
       {
         const bool valid = this->declarer_.isSet() && this->declarer_->owner() == context.boundary();
         assert(valid && "Keyed declarer must be a member of the enclosing boundary");
-        if (!valid)
+        if (!valid || !this->declarer_->installReservation())
           return 0;
         loka::core::OwnedDef<Declaration> candidate(new Declaration(this->props_.state));
         if (!candidate.isSet())
@@ -286,10 +310,13 @@ namespace loka
       KeyedDefinition &operator=(const KeyedDefinition &);
     };
 
-    template <class K, class N>
-    inline KeyedDefinition<K> Keyed(loka::core::State<K> &key, N *owner, void (N::*method)(scene::NodeComposition &))
+    template <class K, class N, class List>
+    inline KeyedDefinition<K> Keyed(loka::core::State<K> &key,
+                                    N *owner,
+                                    void (N::*method)(scene::NodeComposition &),
+                                    reservation::SeatNodes<List> descriptor)
     {
-      return KeyedDefinition<K>(key, owner, method);
+      return KeyedDefinition<K>(key, owner, method, descriptor);
     }
 
   } // namespace app

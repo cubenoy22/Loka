@@ -389,7 +389,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
 
   # Separate host simulation of Classic pool routing; original heap ratchets stay intact.
   get_target_property(LOKA_UPSTREAM_PIN_SOURCES LokaAllocPinTests SOURCES)
-  add_executable(LokaUpstreamGaugePins ${LOKA_UPSTREAM_PIN_SOURCES})
+  add_executable(LokaUpstreamGaugePins ${LOKA_UPSTREAM_PIN_SOURCES}
+    ${PROJECT_SOURCE_DIR}/tests/SeatReservationTests.cpp)
   loka_enable_warnings(LokaUpstreamGaugePins)
   target_include_directories(LokaUpstreamGaugePins PRIVATE tests example/HelloWorld/src tools)
   set_target_properties(LokaUpstreamGaugePins PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)

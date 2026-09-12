@@ -8,6 +8,7 @@
 #include <vector>
 #include "core/diag/LifecycleAudit.hpp"
 #include "app/scene/boundary/detail/BoundaryArena.hpp"
+#include "app/scene/boundary/detail/SeatReservation.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/node/ComposableNode.hpp"
@@ -35,6 +36,7 @@ namespace loka
     namespace testing
     {
       class OwnershipDump;
+      class PartitionReclaimAccess;
     }
   } // namespace dsl
 
@@ -568,6 +570,20 @@ namespace loka
         {
           const loka::core::PushStateTracker *pushTracker = this->tracker_.asPushTracker();
           return observedState_.dirtyFlagsForCommittedStates(pushTracker);
+        }
+
+#ifdef TEST_BUILD
+        /** Internal fixture admission; no production factory consults this bank. */
+        detail::NodePartition *installPartitionFixture(const detail::SeatLayoutTable &table)
+        {
+          return this->seatReservations_.installFixture(table);
+        }
+#endif
+
+        /** Cold seat installation belongs to this Boundary, independent of arm replacement. */
+        const detail::SeatReservation *installSeatReservation(const detail::SeatLayoutTable &table)
+        {
+          return this->seatReservations_.install(table);
         }
 
         NodeArena *nodeArena()
@@ -2252,9 +2268,12 @@ namespace loka
         }
 
         void retireSubtree(Node *node);
-        void destroyRetiredSubtree(Node *node);
+        void destroyRetiredSubtree(Node *node, bool bounded = false);
         void destroyRetiredNode(Node *node);
         void drainRetiredSubtrees(bool bounded);
+        static void ReclaimPartitionNode(Node *node, void *owner);
+        static void ReclaimBoundedPartitionNode(Node *node, void *owner);
+        static void ReclaimPlannedNode(Node *node, void *owner);
         void drainAllRetiredSubtrees();
         void releaseOwnedNodeStorage();
 
@@ -2274,6 +2293,7 @@ namespace loka
         BoundaryObservedState observedState_;
         BoundaryParkedBranchLedger parkedBranches_;
         BoundaryBranchSeatState branchSeats_;
+        detail::SeatReservations seatReservations_;
         NodeArena nodeArena_;
         StateArena stateArena_;
         loka::core::HoldLedger holdLedger_;
@@ -2285,6 +2305,9 @@ namespace loka
         bool drainingRetiredSubtrees_;
 
         friend class ::loka::dsl::testing::OwnershipDump;
+#ifdef TEST_BUILD
+        friend class ::loka::dsl::testing::PartitionReclaimAccess;
+#endif
 
       };
 

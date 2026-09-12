@@ -217,12 +217,19 @@ namespace loka
               DestroyHeapNode(gen.heapRoots[i]);
             }
             gen.heapRoots.clear();
-            // Sever every parent-to-child edge while the whole ledger is alive.
+            // Sever this landlord's child edges while the whole ledger is alive.
             std::vector<Node *> detachedChildren;
             std::vector<Node *> detachedHeapRoots;
             for (size_t i = 0; i < gen.nodes.size(); ++i)
             {
               Node *node = gen.nodes[i];
+              // A nested landlord owns its child storage. Leave those edges for
+              // its virtual destructor below: non-arena does not imply heap
+              // inside a Boundary (its children may occupy a NodePartition).
+              if (node && node->asBoundary())
+              {
+                continue;
+              }
               INestable *nestable = node ? node->asNestable() : 0;
               if (nestable)
               {
