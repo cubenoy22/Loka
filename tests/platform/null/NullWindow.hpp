@@ -45,7 +45,7 @@ public:
     {
       return;
     }
-    currentScene->mount(this->controller_);
+    this->mountReplacementScene(currentScene);
     this->mountedScene_ = true;
   }
 
@@ -91,6 +91,17 @@ public:
     {
       this->controller_->drainNativeRetirements();
     }
+  }
+
+protected:
+  virtual bool mountReplacementScene(loka::app::scene::Scene *next)
+  {
+    if (this->controller_)
+    {
+      next->mount(this->controller_);
+      this->mountedScene_ = true;
+    }
+    return true;
   }
 
 private:

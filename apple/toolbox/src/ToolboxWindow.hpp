@@ -93,6 +93,7 @@ private:
   std::vector<Rect> pendingInvalidateRects_;
   short titleBarHeight_;
 
+  virtual bool mountReplacementScene(loka::app::scene::Scene *next);
   void mountScene();
   void teardownScene();
   loka::core::Frame nativeContentFrame() const;

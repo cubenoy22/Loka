@@ -4738,7 +4738,7 @@ void testLokaFlowDslV1Core()
     assert(g_pendingApplyCallCount == 1);
     assert(g_pendingApplyWhileApplyingCount == 1);
     assert(platform.boundaryApplyCalls_ == 1);
-    assert(platform.lastBoundaryApplyRoot_ == SceneTestAccess::rootNode(scene));
+    assert(platform.lastBoundaryApplyRoot_ == SceneTestAccess::rootNode(scene)); // loka-assert-ok: rootNode is a pure test reader
     assert(platform.lastBoundaryApplyBoundary_ == rootBoundary);
     const PlatformApplyPlan &plan = SceneTestAccess::lastApplyPlan(scene);
     (void)plan;

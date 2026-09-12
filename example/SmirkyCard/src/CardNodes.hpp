@@ -14,8 +14,8 @@
 
 namespace smirkycard
 {
-  /** SceneManager owns the logical swap; this sample supplies the existing
-      Window's projection to the replacement before its first attachment. */
+  /** Adopts navigation intent; the App clock prepares and projects the replacement
+      through the existing Window before publishing its ON_ATTACH lifecycle event. */
   class CardScene : public loka::app::scene::Scene
   {
   public:
@@ -26,8 +26,7 @@ namespace smirkycard
 
     void replaceWith(CardScene *next)
     {
-      assert(next && this->platformController_ && this->getWindow());
-      next->mount(this->platformController_);
+      assert(next && this->getWindow());
       this->getWindow()->sceneManager()->commitTransaction(this, next);
     }
   };

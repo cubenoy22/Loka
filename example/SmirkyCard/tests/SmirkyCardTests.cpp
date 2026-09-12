@@ -2,6 +2,7 @@
 #include "platform/null/NullPlatformContext.hpp"
 #include "platform/null/NullWindow.hpp"
 #include "support/TestVerify.hpp"
+#include "support/WindowAdmissionTestApp.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 #include <cstdio>
 #include <cstring>
@@ -52,6 +53,7 @@ namespace
     WindowProps props;
     props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
     NullWindow window(&context, props, &platform);
+  WindowAdmissionTestApp admission(window);
     window.scene()->updateAttached(true);
 
     for (int i = 0; i < 20; ++i)
@@ -67,13 +69,16 @@ namespace
       LOKA_VERIFY(button && button->asButtonNode());
       // Exercise the actual binding: C++ button -> JS -> SceneManager handoff.
       button->asButtonNode()->props.getOnClick()->emit();
+      LOKA_VERIFY(window.scene() == previous);
+      LOKA_VERIFY(window.sceneManager()->hasPendingReplacement());
+      admission.flush();
       LOKA_VERIFY(window.scene() != previous);
       LOKA_VERIFY(!previous->getAttachedState()->get());
       LOKA_VERIFY(window.sceneManager()->hasRetiredScenes());
 
       // The replacement must already be mounted by the production path.
       LOKA_VERIFY(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()) != 0);
-      window.flushSceneInvalidation();
+      admission.flush();
       LOKA_VERIFY(!window.sceneManager()->hasRetiredScenes());
     }
     // Window teardown exercises cleanup of the final mounted card as well.

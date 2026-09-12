@@ -10,6 +10,7 @@
 #include "platform/null/NullScenePlatformController.hpp"
 #include "platform/null/NullWindow.hpp"
 #include "support/TestVerify.hpp"
+#include "support/WindowAdmissionTestApp.hpp"
 #include "testing/app/WindowTestAccess.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 
@@ -227,12 +228,12 @@ void testHelloWorldNarrowMountComposesColumnFirst()
   WindowProps props;
   props.frame(50, 50, 399, 330);
   NullWindow window(&context, props, &platform);
+  WindowAdmissionTestApp admission(window);
   // Publish before attach; inspect the first tree without a resize/layout pass.
   loka::app::testing::WindowTestAccess::storeNativeFrame(
       window, loka::core::Frame(50, 50, 399, 330));
   window.sceneManager()->commitTransaction(0, new loka::app::scene::Scene(root.take()));
-  window.mountScene();
-  window.scene()->updateAttached(true);
+  admission.flush();
   LOKA_VERIFY(findMainPanels(*window.scene())->props.effectiveAxis() ==
               loka::app::STACK_AXIS_COLUMN);
 }

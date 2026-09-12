@@ -77,13 +77,14 @@ protected:
   void clearMenuDiff();
 
   void projectInitialVisibilityChunks();
+  /** App clock admission: applies seats before Scene runs; nested window work is refused. */
   void flushWindowInvalidations();
   /** Drains one queue snapshot; requests made during the drain wait for the next flush. */
   void flushPendingWindowClosures();
 
 private:
   std::vector<Window *> pendingWindowClosures_;
-  bool flushingPendingWindowClosures_;
+  bool flushingWindowWork_;
 
   static void ApplyMenuBarThunk(void *userData, Window *activeWindow);
 

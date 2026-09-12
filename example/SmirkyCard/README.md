@@ -10,11 +10,13 @@ borrow it. The interpreter returns a card identifier and releases its result
 before navigation; there are no JS-held Node pointers or JS callbacks. A small
 C seam keeps QuickJS's modern header macros out of the C++98 application.
 
-`CardScene::replaceWith` mounts the replacement on the existing Window-owned
-controller before SceneManager attaches it. SceneManager does not perform that
-projection handoff by itself. Evaluation/definition allocation errors leave the
-old card installed. This example does **not** add rollback for a failure during
-the new Scene's native attachment.
+`CardScene::replaceWith` adopts the replacement through SceneManager. The Window
+root seat mounts and composes it at the next App admission, then installs it on
+the existing controller. A refused preparation preserves the old card and leaves
+the replacement pending for the next admission. The outgoing Scene is reclaimed
+at the following admission. Evaluation/definition allocation errors likewise
+leave the old card installed; native projection failures after installation do
+not have a rollback protocol.
 
 ## Build
 

@@ -552,17 +552,20 @@ void MacWindow::handleWindowDidBecomeKey()
 
 void MacWindow::mountScene()
 {
-  if (scenePlatformController_ || !window_ || !contentView_)
-  {
-    return;
-  }
-  loka::app::scene::Scene *currentScene = this->scene();
-  if (!currentScene)
-  {
-    return;
-  }
-  scenePlatformController_ = new MacScenePlatformController(contentView_);
-  currentScene->mount(scenePlatformController_);
+  if (this->scene() && !this->scenePlatformController_)
+    this->mountReplacementScene(this->scene());
+}
+
+bool MacWindow::mountReplacementScene(loka::app::scene::Scene *next)
+{
+  if (!this->window_ || !this->contentView_)
+    return true;
+  if (!this->scenePlatformController_)
+    this->scenePlatformController_ = new MacScenePlatformController(this->contentView_);
+  if (!this->scenePlatformController_)
+    return false;
+  next->mount(this->scenePlatformController_);
+  return true;
 }
 
 void MacWindow::teardownScene()

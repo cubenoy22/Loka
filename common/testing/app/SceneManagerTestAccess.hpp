@@ -24,10 +24,18 @@ namespace loka
           return manager.retiredScenes_.size();
         }
 
-        static size_t pendingTransactionCount(const SceneManager &manager)
+        static loka::app::scene::Scene *desiredScene(const SceneManager &manager)
         {
-          return manager.pendingTransactions_.getRef().size();
+          return manager.desired_;
         }
+
+#ifdef TEST_BUILD
+        /** Last refused identity, valid until the next App admission or manager destruction. */
+        static loka::app::scene::Scene *lastPrepareRefusal(const SceneManager &manager)
+        {
+          return manager.lastPrepareRefusal_;
+        }
+#endif
 
         static ::loka::core::TrackerPhase trackerPhase(const SceneManager &manager)
         {

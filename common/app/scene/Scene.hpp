@@ -759,7 +759,7 @@ namespace loka
           boundary->setParentBoundary(0);
         }
 
-        void composeIfNeeded(ComposeEvent event)
+        void composeIfNeeded(ComposeEvent event, bool publish = true)
         {
           if (composed_ || !platformController_)
           {
@@ -814,7 +814,8 @@ namespace loka
               return;
             }
           }
-          platformController_->onChange(rootNode_, NODE_DIRTY_INITIAL, true);
+          if (publish)
+            platformController_->onChange(rootNode_, NODE_DIRTY_INITIAL, true);
           composed_ = true;
         }
 

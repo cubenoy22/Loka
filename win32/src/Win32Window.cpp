@@ -586,18 +586,21 @@ bool Win32Window::queryDisplayAppearance(DisplayAppearance &out) const
 
 void Win32Window::mountScene()
 {
-  if (scenePlatformController_ || !this->hwnd_)
-  {
-    return;
-  }
-  loka::app::scene::Scene *currentScene = this->scene();
-  if (!currentScene)
-  {
-    return;
-  }
-  scenePlatformController_ = new Win32ScenePlatformController(
-      this->hwnd_, loka::win32::Win32DisplayScale::forWindow(this->hwnd_));
-  currentScene->mount(scenePlatformController_);
+  if (this->scene() && !this->scenePlatformController_)
+    this->mountReplacementScene(this->scene());
+}
+
+bool Win32Window::mountReplacementScene(loka::app::scene::Scene *next)
+{
+  if (!this->hwnd_)
+    return true;
+  if (!this->scenePlatformController_)
+    this->scenePlatformController_ = new Win32ScenePlatformController(
+        this->hwnd_, loka::win32::Win32DisplayScale::forWindow(this->hwnd_));
+  if (!this->scenePlatformController_)
+    return false;
+  next->mount(this->scenePlatformController_);
+  return true;
 }
 
 void Win32Window::teardownScene()

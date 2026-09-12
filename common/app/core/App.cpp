@@ -5,6 +5,7 @@
 #include "core/util/StateTrackerGuard.hpp"
 #include "app/scene/Scene.hpp"
 #include <algorithm>
+#include <utility>
 
 App::App(AppConfigurable *config)
     : group_(0),
@@ -14,7 +15,7 @@ App::App(AppConfigurable *config)
       activeWindow_(0),
       idleAccumulatedSeconds_(0.0),
       pendingWindowClosures_(),
-      flushingPendingWindowClosures_(false)
+      flushingWindowWork_(false)
 {
 }
 
@@ -126,26 +127,38 @@ void App::projectInitialVisibilityChunks()
 
 void App::flushWindowInvalidations()
 {
-  // Platform loops call this only after the native callback/notification that
-  // requested a close has unwound. This is the App clock's reclaim boundary.
-  flushPendingWindowClosures();
-  if (!group_)
-  {
+  // The App clock admits replacements; native command callbacks only request work.
+  // The close drain also uses this guard, so its callbacks cannot enter admission.
+  if (this->flushingWindowWork_)
     return;
-  }
-  const std::vector<AppComponent *> &comps = group_->getComponents();
+  this->flushPendingWindowClosures();
+  if (!this->group_)
+    return;
+
+  this->flushingWindowWork_ = true;
+  typedef std::pair<Window *, loka::app::scene::Scene *> AdmittedWindow;
+  std::vector<AdmittedWindow> admitted;
+  const std::vector<AppComponent *> &comps = this->group_->getComponents();
   for (size_t i = 0; i < comps.size(); ++i)
   {
     Window *win = comps[i] ? comps[i]->asWindow() : 0;
-    if (win)
+    if (win && (win->hasPendingSceneInvalidation() || win->hasPendingScenePlatformSync()))
     {
-      if (!win->hasPendingSceneInvalidation() && !win->hasPendingScenePlatformSync())
-      {
-        continue;
-      }
-      win->flushSceneInvalidation();
+      if (admitted.empty())
+        admitted.reserve(comps.size());
+      admitted.push_back(AdmittedWindow(win, static_cast<loka::app::scene::Scene *>(0)));
     }
   }
+  // Snapshot our rows before callbacks can remove a Window from the group.
+  // All seats apply before any Scene run: adoption from X's run waits even for Y.
+  for (size_t i = 0; i < admitted.size(); ++i)
+    admitted[i].second = admitted[i].first->applySceneReplacement();
+  for (size_t i = 0; i < admitted.size(); ++i)
+  {
+    admitted[i].first->flushSceneInvalidation();
+    admitted[i].first->reclaimScenes(admitted[i].second);
+  }
+  this->flushingWindowWork_ = false;
 }
 
 void App::windowClosed(Window *window)
@@ -223,19 +236,19 @@ void App::requestWindowClose(Window *window)
 
 void App::flushPendingWindowClosures()
 {
-  if (flushingPendingWindowClosures_ || pendingWindowClosures_.empty())
+  if (flushingWindowWork_ || pendingWindowClosures_.empty())
   {
     return;
   }
 
   std::vector<Window *> pending;
   pending.swap(pendingWindowClosures_);
-  flushingPendingWindowClosures_ = true;
+  flushingWindowWork_ = true;
   for (size_t i = 0; i < pending.size(); ++i)
   {
     this->windowClosed(pending[i]);
   }
-  flushingPendingWindowClosures_ = false;
+  flushingWindowWork_ = false;
 }
 
 bool App::handleMenuCommand(int commandId, Window *window)

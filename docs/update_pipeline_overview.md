@@ -61,8 +61,49 @@ to the generic walker retain that behavior through the default
 `ownsChildTraversal(ComposeEvent)` contract.
 On parked re-entry, an already composed Std boundary replays ATTACH through
 its retained children without declaring its composition again.
-Change the root's shape through `SceneManager::swapScene`, or put a `Match`
-one level below it.
+Change the root's shape through `SceneManager::commitTransaction`, or put a
+`Match` one level below it. Scene adoption updates a desired identity; `scene()`
+and `getCurrentScene()` continue to expose the installed scene until the next
+App admission. Pending replacement is the comparison of those identities.
+
+The Window root seat prepares the candidate on its rail and composes it while
+the old scene remains installed. Preparation withholds global native projection;
+a refusal synchronously cleans the partial candidate, preserves the old scene,
+and leaves the desired identity for retry at the next admission. Installation
+detaches the old scene, publishes the installed State, attaches the new scene,
+projects the prepared root on the reused controller, then publishes ON_ATTACH.
+Reentrant adoption during preparation or attachment only changes the next desired identity.
+The constructor's initial scene is a synchronous seed; native creation mounts
+it later. A Window without native resources likewise installs without mounting.
+
+Only `App::flushWindowInvalidations` admits replacements, through private Window
+members. The public Window flush runs current Scene/platform work and cannot
+apply or reclaim replacements. App snapshots its admitted Window rows, applies
+all selected seats, then runs their Scene flushes and native/Scene drains. Thus
+an adoption during X's Scene run waits for the next App admission even on Y.
+The existing App window-work guard refuses nested admission and close reclamation;
+queued closes keep removed snapshot Windows alive until the following close drain.
+Native command handlers request work; macOS's timer tick is its App clock.
+Each Window captures its own retirement suffix before seat apply. Only that
+suffix is reclaimed after its flush; newer retirements wait for the next one.
+Thus a replacement requested during Scene apply requires the following admission to
+install and one further admission to reclaim the outgoing scene. Superseded
+unattached desired scenes enter the same pool immediately. Retired identities
+cannot be adopted again. Outgoing-readoption contract: a scene adopted during
+its own detach remains the detached desired scene without entering retirement;
+the incoming install completes, and the following admission remounts the desired
+scene with a fresh root generation. Window destruction disposes pending and
+installed scenes even when no subsequent admission occurs.
+
+This protocol spans adoption ownership, admission exclusion, preparation,
+attachment, and four platform rails. Its risk review covers five areas: new
+lifecycle paths, multiple identity fields, State/Boundary/Platform boundaries,
+changed detach/dirty ordering, and preparation before native creation. Null
+ownership/refusal/reentry pins cover the portable behavior. Win32 and macOS
+SmirkyCard real clicks and Toolbox replacement on the Classic rig remain the
+runtime verification legs; host and Retro68 compilation do not prove those
+native behaviors. Native close, direct detach/rearm, posted callback cancellation,
+and Toolbox pool retention policy remain separate hardening work.
 
 Parked-branch re-entry retains its definition-tree comparison and local apply
 plan. That comparison belongs to the seat; there is no boundary-wide pair of

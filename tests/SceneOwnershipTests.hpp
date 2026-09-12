@@ -19,4 +19,13 @@ void testAppWindowCloseRequestsAreIdempotent();
 void testAppWindowClosedRejectsUndetachedOrActiveWindow();
 void testAppDrainsPendingWindowClosuresAtDestruction();
 
+void testSceneReplacementSupersedesUnattachedDesiredScene();
+void testSceneReplacementReturnsToAppliedWithoutDetach();
+void testSceneReplacementPreservesAppliedOnPrepareRefusal();
+void testSceneReplacementAdoptedDuringAttachWaitsForNextAdmission();
+
+void testSceneReplacementReadoptsOutgoingDuringDetach();
+
+void testAppKeepsAdmissionSnapshotAliveDuringWindowClose();
+
 #endif // LOKA_SCENE_OWNERSHIP_TESTS_HPP

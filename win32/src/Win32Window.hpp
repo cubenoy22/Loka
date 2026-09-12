@@ -71,6 +71,7 @@ private:
   static void VisibilityChangedThunk(void *userData);
   static void TitleChangedThunk(void *userData);
   static void FrameChangedThunk(void *userData);
+  virtual bool mountReplacementScene(loka::app::scene::Scene *next);
   void mountScene();
   void teardownScene();
   bool handleCommand(WPARAM wParam, LPARAM lParam);

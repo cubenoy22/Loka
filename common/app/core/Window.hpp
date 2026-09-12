@@ -581,7 +581,7 @@ public:
     loka::app::scene::Scene *initialScene = props.takeInitialScene();
     if (initialScene)
     {
-      sceneManager_.commitTransaction(0, initialScene);
+      sceneManager_.seedScene(initialScene);
     }
   }
   virtual ~Window()
@@ -608,11 +608,27 @@ public:
   {
     return &sceneManager_;
   }
+protected:
+  friend class SceneManager;
+  /** Binds the candidate to this rail without publishing it. A Window without
+      native resources succeeds; its ordinary mount will run after creation. */
+  virtual bool mountReplacementScene(loka::app::scene::Scene *) { return true; }
+
+private:
+  friend class App;
+  /** App admission only: captures eligible retirees, then prepares/applies one seat. */
+  loka::app::scene::Scene *applySceneReplacement();
+  /** App closes the admitted flush by reclaiming only the captured pool suffix. */
+  void reclaimScenes(loka::app::scene::Scene *retired);
+
+public:
+  /** Flushes current Scene/platform work; never admits or reclaims a replacement. */
   bool flushSceneInvalidation();
   bool hasPendingSceneInvalidation() const
   {
     const loka::app::scene::Scene *current = this->scene();
-    return (current && current->hasPendingInvalidation()) || sceneManager_.hasRetiredScenes();
+    return this->sceneManager_.hasPendingReplacement() ||
+           (current && current->hasPendingInvalidation()) || this->sceneManager_.hasRetiredScenes();
   }
   virtual bool hasPendingScenePlatformSync() const
   {
