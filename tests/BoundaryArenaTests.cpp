@@ -1187,8 +1187,18 @@ namespace
     }
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
-      composition.declare(loka::app::Fragment()
-                          << loka::app::Keyed(*this->key_.state(), this, &KeyedSectionRootNode::declareSection));
+      composition.declare(
+          loka::app::Fragment() << loka::app::Keyed(
+              *this->key_.state(),
+              this,
+              &KeyedSectionRootNode::declareSection,
+              loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+                  loka::app::FragmentNode,
+                  1,
+                  loka::app::reservation::Nodes<
+                      loka::app::BoundarySectionNode,
+                      1,
+                      loka::app::reservation::Nodes<SectionOrderingChildNode, 1, loka::app::reservation::End> > > >()));
     }
     void declareSection(loka::app::scene::NodeComposition &composition)
     {
@@ -1510,8 +1520,18 @@ namespace
       // Only the retirement scenario needs a replaceable generation. The
       // other scenarios pin Boundary-lifetime owner and arena routing.
       if (g_sectionOwnerResolutionScenario->mode == SectionOwnerResolutionScenario::MODE_RETIRE_WHILE_DIRTY_SOURCE)
-        composition.declare(loka::app::Fragment() << loka::app::Keyed(
-                                *this->showSection_.state(), this, &SectionOwnerResolutionRootNode::declareContent));
+        composition.declare(
+            loka::app::Fragment() << loka::app::Keyed(
+                *this->showSection_.state(),
+                this,
+                &SectionOwnerResolutionRootNode::declareContent,
+                loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+                    loka::app::FragmentNode,
+                    1,
+                    loka::app::reservation::Nodes<
+                        loka::app::BoundarySectionNode,
+                        1,
+                        loka::app::reservation::Nodes<SectionOwnerProbeNode, 1, loka::app::reservation::End> > > >()));
       else
         this->declareContent(composition);
     }
@@ -1742,10 +1762,15 @@ namespace
     }
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
-      composition.declare(loka::app::Fragment()
-                          << (loka::app::Fragment() << loka::app::Section(3101) << loka::app::Section(3102))
-                          << loka::app::Keyed(
-                                 *this->injectStates_.state(), this, &SectionFailureRootNode::declareAttempt));
+      composition.declare(
+          loka::app::Fragment()
+          << (loka::app::Fragment() << loka::app::Section(3101) << loka::app::Section(3102))
+          << loka::app::Keyed(
+                 *this->injectStates_.state(),
+                 this,
+                 &SectionFailureRootNode::declareAttempt,
+                 loka::app::reservation::SeatNodes<
+                     loka::app::reservation::Nodes<loka::app::FragmentNode, 1, loka::app::reservation::End> >()));
     }
     void declareAttempt(loka::app::scene::NodeComposition &composition)
     {
@@ -2023,7 +2048,17 @@ namespace
       switch (scenario.mode)
       {
       case HeldOwnerSlotScenario::MODE_BASIC:
-        root << loka::app::Keyed(scenario.showCreator, this, &HeldOwnerSlotRootNode::declareCreator);
+        root << loka::app::Keyed(
+            scenario.showCreator,
+            this,
+            &HeldOwnerSlotRootNode::declareCreator,
+            loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+                loka::app::FragmentNode,
+                1,
+                loka::app::reservation::Nodes<
+                    loka::app::BoundarySectionNode,
+                    1,
+                    loka::app::reservation::Nodes<HeldOwnerSlotProbeNode, 1, loka::app::reservation::End> > > >());
         break;
       case HeldOwnerSlotScenario::MODE_FIVE_OWNERS:
         {
@@ -2074,10 +2109,20 @@ namespace
       loka::app::Fragment root;
       if (scenario.showCreator.get())
       {
-        root << (loka::app::Section(5101)
-                 << HeldOwnerSlotProbeDefinition(HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_CREATE))
-                        .tag(5191)
-                 << loka::app::Keyed(scenario.showDescendant, this, &HeldOwnerSlotRootNode::declareDescendant));
+        root
+            << (loka::app::Section(5101)
+                << HeldOwnerSlotProbeDefinition(HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_CREATE)).tag(5191)
+                << loka::app::Keyed(scenario.showDescendant,
+                                    this,
+                                    &HeldOwnerSlotRootNode::declareDescendant,
+                                    loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+                                        loka::app::FragmentNode,
+                                        1,
+                                        loka::app::reservation::Nodes<
+                                            loka::app::BoundarySectionNode,
+                                            1,
+                                            loka::app::reservation::
+                                                Nodes<HeldOwnerSlotProbeNode, 1, loka::app::reservation::End> > > >()));
       }
       composition.declare(root);
     }
@@ -3168,8 +3213,15 @@ namespace
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
-      composition.declare(loka::app::Fragment() << loka::app::Keyed(
-                              g_heldOwnerSlotScenario->showCreator, this, &HeldNestedRootNode::declareContent));
+      composition.declare(
+          loka::app::Fragment() << loka::app::Keyed(
+              g_heldOwnerSlotScenario->showCreator,
+              this,
+              &HeldNestedRootNode::declareContent,
+              loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+                  loka::app::FragmentNode,
+                  1,
+                  loka::app::reservation::Nodes<HeldNestedBoundaryNode, 1, loka::app::reservation::End> > >()));
     }
 
     void declareContent(loka::app::scene::NodeComposition &composition)

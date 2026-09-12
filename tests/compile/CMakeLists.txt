@@ -130,3 +130,58 @@ loka_compile_pin(open-file-dialog-definition-requires-node-state
   REFUSES pins/refuses_open_file_dialog_definition_raw_state.cpp
   ACCEPTS pins/accepts_open_file_dialog_node_state.cpp
 )
+
+loka_compile_pin(seat-descriptor-non-node
+  REFUSES pins/refuses_seat_non_node.cpp
+  ACCEPTS pins/accepts_seat_descriptor.cpp
+)
+
+loka_compile_pin(seat-descriptor-private-node
+  REFUSES pins/refuses_seat_private_node.cpp
+  ACCEPTS pins/accepts_seat_descriptor.cpp
+)
+
+loka_compile_pin(seat-descriptor-ambiguous-node
+  REFUSES pins/refuses_seat_ambiguous_node.cpp
+  ACCEPTS pins/accepts_seat_descriptor.cpp
+)
+
+loka_compile_pin(seat-descriptor-incomplete-node
+  REFUSES pins/refuses_seat_incomplete_node.cpp
+  ACCEPTS pins/accepts_seat_descriptor.cpp
+)
+
+loka_compile_pin(seat-descriptor-zero
+  REFUSES pins/refuses_seat_zero.cpp
+  ACCEPTS pins/accepts_seat_descriptor.cpp
+)
+
+loka_compile_pin(seat-descriptor-negative
+  REFUSES pins/refuses_seat_negative.cpp
+  ACCEPTS pins/accepts_seat_descriptor.cpp
+)
+
+loka_compile_pin(seat-descriptor-unterminated
+  REFUSES pins/refuses_seat_unterminated.cpp
+  ACCEPTS pins/accepts_seat_descriptor.cpp
+)
+
+loka_compile_pin(seat-descriptor-missing
+  REFUSES pins/refuses_seat_missing.cpp
+  ACCEPTS pins/accepts_seat_descriptor.cpp
+)
+
+loka_compile_pin(seat-descriptor-missing-direct
+  REFUSES pins/refuses_seat_missing_direct.cpp
+  ACCEPTS pins/accepts_seat_descriptor.cpp
+)
+
+loka_compile_pin(seat-descriptor-wrong-wrapper
+  REFUSES pins/refuses_seat_wrong_wrapper.cpp
+  ACCEPTS pins/accepts_seat_descriptor.cpp
+)
+
+loka_compile_pin(seat-ticket-copy
+  REFUSES pins/refuses_seat_ticket_copy.cpp
+  ACCEPTS pins/accepts_seat_ticket_borrow.cpp
+)

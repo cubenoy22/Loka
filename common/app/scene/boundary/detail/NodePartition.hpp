@@ -18,6 +18,13 @@ namespace loka
         class NodeSlotLayout
         {
         public:
+          /** Empty workspace slot; normalization refuses it until populated. */
+          NodeSlotLayout()
+              : size_(0),
+                alignment_(0),
+                count_(0)
+          {
+          }
           NodeSlotLayout(size_t size, size_t alignment, size_t count)
               : size_(size),
                 alignment_(alignment),
@@ -74,6 +81,8 @@ namespace loka
         private:
           size_t size_, alignment_, count_;
         };
+
+        class NodeBuildOperation;
 
         /** Isolated reusable node storage. Boot once, then pop/register/destroy without
             growing its class, occupancy or resident metadata. It is not a NodeArena
@@ -185,6 +194,12 @@ namespace loka
             this->raw_ = raw;
             return true;
           }
+
+          /** Synchronous fixture only: the operation owns one ticket through root,
+              recursive construction, attach, and cleanup. The caller exclusively
+              lends this partition for the entire call; callbacks must not reenter
+              the partition or retain the ticket. Production routing is separate. */
+          bool buildFixture(const NodeSlotLayout *demand, size_t count, NodeBuildOperation &operation);
 
           /** Exact layout match; no larger-class borrowing and no upstream fallback. */
           void *allocate(const NodeSlotLayout &layout)

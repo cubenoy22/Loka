@@ -441,6 +441,7 @@ namespace allocpin
 
 #ifdef LOKA_UPSTREAM_GAUGE_PIN
 #include "support/UpstreamGaugePin.inc"
+#include "SeatReservationTests.hpp"
 #else
 static void *upstreamPinAllocate(std::size_t size) { return std::malloc(size); }
 static void upstreamPinRelease(void *p) { std::free(p); }
@@ -522,6 +523,7 @@ int main()
   testStateTrackerRemovesSettlementBorrow();
 #ifdef LOKA_UPSTREAM_GAUGE_PIN
   runUpstreamFlowPin();
+  testSeatReservationMineSweeperNoBacking();
 #endif
   allocpin::RunLazyFlexPageFlipAllocPin();
 #ifndef LOKA_UPSTREAM_GAUGE_PIN

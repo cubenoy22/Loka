@@ -459,7 +459,13 @@ namespace
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
       composition.declare(loka::app::Keyed(
-          *this->showReplacement_.state(), this, &RootReplacementArenaRetireBoundaryNode::declareContent));
+          *this->showReplacement_.state(),
+          this,
+          &RootReplacementArenaRetireBoundaryNode::declareContent,
+          loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+              loka::app::TextNode,
+              1,
+              loka::app::reservation::Nodes<ArenaRetireProbeNode, 1, loka::app::reservation::End> > >()));
     }
 
     void declareContent(loka::app::scene::NodeComposition &composition)
@@ -1063,7 +1069,40 @@ namespace
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
       composition.declare(
-          loka::app::Keyed(*this->showAlternate_.state(), this, &ConditionalArenaRetireProbeNode::declareContent));
+          loka::app::Keyed(*this->showAlternate_.state(),
+                           this,
+                           &ConditionalArenaRetireProbeNode::declareContent,
+                           loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+                               loka::app::FragmentNode,
+                               1,
+                               loka::app::reservation::Nodes<
+                                   ArenaRetireOrderParentNode,
+                                   1,
+                                   loka::app::reservation::Nodes<
+                                       ArenaRetireOrderLeafNode,
+                                       1,
+                                       loka::app::reservation::Nodes<
+                                           ArenaParentWithHeapChildNode,
+                                           1,
+                                           loka::app::reservation::Nodes<
+                                               HeapRetireChildNode,
+                                               1,
+                                               loka::app::reservation::Nodes<
+                                                   NestedArenaRetireOuterNode,
+                                                   1,
+                                                   loka::app::reservation::Nodes<
+                                                       NestedArenaRetireBoundaryNode,
+                                                       1,
+                                                       loka::app::reservation::Nodes<
+                                                           NativeBindingStateBoundaryNode,
+                                                           1,
+                                                           loka::app::reservation::Nodes<
+                                                               OwnedStateCorpseBoundaryNode,
+                                                               1,
+                                                               loka::app::reservation::Nodes<
+                                                                   ArenaRetireProbeNode,
+                                                                   1,
+                                                                   loka::app::reservation::End> > > > > > > > > > >()));
     }
 
     void declareContent(loka::app::scene::NodeComposition &composition)

@@ -399,7 +399,14 @@ namespace
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
-      composition.declare(loka::app::Keyed(*g_releaseTableVisible, this, &ReleaseTableBoundaryNode::declareContent));
+      composition.declare(loka::app::Keyed(
+          *g_releaseTableVisible,
+          this,
+          &ReleaseTableBoundaryNode::declareContent,
+          loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+              loka::app::FragmentNode,
+              1,
+              loka::app::reservation::Nodes<ReleaseTableProbeNode, 1, loka::app::reservation::End> > >()));
     }
 
     void declareContent(loka::app::scene::NodeComposition &composition)
@@ -484,7 +491,14 @@ namespace
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
-      composition.declare(loka::app::Keyed(*g_retireVisible, this, &RetireProbeBoundaryNode::declareContent));
+      composition.declare(
+          loka::app::Keyed(*g_retireVisible,
+                           this,
+                           &RetireProbeBoundaryNode::declareContent,
+                           loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+                               loka::app::FragmentNode,
+                               1,
+                               loka::app::reservation::Nodes<FactProbeNode, 1, loka::app::reservation::End> > >()));
     }
 
     void declareContent(loka::app::scene::NodeComposition &composition)

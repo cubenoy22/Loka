@@ -164,6 +164,27 @@ namespace minesweeper
   {
   };
 
+  enum
+  {
+    kRows = 8,
+    kCols = 8,
+    kCellCount = kRows * kCols
+  };
+
+  /** Runtime payload for one board; Keyed supplies its own scaffold. */
+  typedef loka::app::reservation::Nodes<
+      loka::app::GridNode,
+      1,
+      loka::app::reservation::Nodes<
+          loka::app::BoundarySectionNode,
+          kCellCount,
+          loka::app::reservation::Nodes<
+              MineCellNode,
+              kCellCount,
+              loka::app::reservation::Nodes<loka::app::CellNode, kCellCount, loka::app::reservation::End> > > >
+      BoardNodeList;
+  typedef loka::app::reservation::SeatNodes<BoardNodeList> BoardNodes;
+
   class MainNode;
 
   /** Completed startup input for a MineSweeper board sequence. The caller
@@ -241,7 +262,7 @@ namespace minesweeper
       using namespace loka::app;
       Column content;
       content << Button("New Game", &this->newGameClick_).TEST_ID("MineSweeper.NewGameButton");
-      content << Keyed(*this->bank_.state(), this, &MainNode::declareBoard);
+      content << Keyed(*this->bank_.state(), this, &MainNode::declareBoard, BoardNodes());
       c.declare(content);
     }
 
@@ -299,9 +320,6 @@ namespace minesweeper
 
     enum
     {
-      kRows = 8,
-      kCols = 8,
-      kCellCount = kRows * kCols,
       kMineCount = 10,
       kCellSectionKeyBase = 100
     };

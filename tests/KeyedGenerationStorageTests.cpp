@@ -192,7 +192,17 @@ namespace
     }
     virtual void composeNode(NodeComposition &c)
     {
-      c.declare(Fragment() << Keyed(*this->key.state(), this, &Root::declareArm));
+      c.declare(Fragment() << Keyed(
+                    *this->key.state(),
+                    this,
+                    &Root::declareArm,
+                    loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+                        loka::app::FragmentNode,
+                        1,
+                        loka::app::reservation::Nodes<
+                            loka::app::BoundarySectionNode,
+                            1,
+                            loka::app::reservation::Nodes<ResidentNode, 1, loka::app::reservation::End> > > >()));
     }
     void declareArm(NodeComposition &c)
     {
@@ -317,7 +327,16 @@ namespace
     virtual void composeNode(NodeComposition &c)
     {
       c.declare(Show(*this->shown.state()).destroyOnDetach()
-                << Keyed(*this->outer.state(), this, &NestedRoot::declareOuter));
+                << Keyed(*this->outer.state(),
+                         this,
+                         &NestedRoot::declareOuter,
+                         loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+                             loka::app::FragmentNode,
+                             1,
+                             loka::app::reservation::Nodes<
+                                 loka::app::BoundarySectionNode,
+                                 2,
+                                 loka::app::reservation::Nodes<ResidentNode, 1, loka::app::reservation::End> > > >()));
     }
     virtual bool flushViewDirtyImmediately(NodeDirtyFlags) const
     {
@@ -325,8 +344,16 @@ namespace
     }
     void declareOuter(NodeComposition &c)
     {
-      c.declare(Fragment() << (Section(6401) << Component(ResidentProps(activeLifetime)))
-                           << (Section(6402) << Keyed(*this->inner.state(), this, &NestedRoot::declareInner)));
+      c.declare(
+          Fragment() << (Section(6401) << Component(ResidentProps(activeLifetime)))
+                     << (Section(6402) << Keyed(
+                             *this->inner.state(),
+                             this,
+                             &NestedRoot::declareInner,
+                             loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+                                 loka::app::BoundarySectionNode,
+                                 2,
+                                 loka::app::reservation::Nodes<ResidentNode, 1, loka::app::reservation::End> > >())));
     }
     void declareInner(NodeComposition &c)
     {
@@ -484,7 +511,21 @@ namespace
     }
     virtual void composeNode(NodeComposition &c)
     {
-      c.declare(Fragment() << Keyed(*this->key.state(), this, &BoardRoot::declareBoard));
+      c.declare(
+          Fragment() << Keyed(*this->key.state(),
+                              this,
+                              &BoardRoot::declareBoard,
+                              loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+                                  loka::app::FragmentNode,
+                                  1,
+                                  loka::app::reservation::Nodes<
+                                      loka::app::BoundarySectionNode,
+                                      16,
+                                      loka::app::reservation::Nodes<
+                                          BoardCellNode,
+                                          16,
+                                          loka::app::reservation::
+                                              Nodes<loka::app::CellNode, 16, loka::app::reservation::End> > > > >()));
     }
     void declareBoard(NodeComposition &c)
     {
@@ -618,8 +659,18 @@ namespace
     }
     virtual void composeNode(NodeComposition &c)
     {
-      c.declare(Fragment() << (Show(*this->shown.state())
-                               << Keyed(*this->key.state(), static_cast<Root<true> *>(this), &Root<true>::declareArm)));
+      c.declare(Fragment()
+                << (Show(*this->shown.state()) << Keyed(
+                        *this->key.state(),
+                        static_cast<Root<true> *>(this),
+                        &Root<true>::declareArm,
+                        loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+                            loka::app::FragmentNode,
+                            1,
+                            loka::app::reservation::Nodes<
+                                loka::app::BoundarySectionNode,
+                                1,
+                                loka::app::reservation::Nodes<ResidentNode, 1, loka::app::reservation::End> > > >())));
     }
     NodeState<bool> shown;
   };
@@ -795,7 +846,12 @@ namespace
     }
     virtual void composeNode(NodeComposition &c)
     {
-      c.declare(Fragment() << Keyed(*this->key.state(), this, &DirectStateRoot::declareArm));
+      c.declare(Fragment() << Keyed(
+                    *this->key.state(),
+                    this,
+                    &DirectStateRoot::declareArm,
+                    loka::app::reservation::SeatNodes<
+                        loka::app::reservation::Nodes<loka::app::FragmentNode, 1, loka::app::reservation::End> >()));
     }
     void declareArm(NodeComposition &c)
     {
