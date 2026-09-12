@@ -10,6 +10,7 @@ namespace loka
   {
     namespace scene
     {
+      class BoundaryNode;
       namespace detail
       {
 
@@ -280,6 +281,30 @@ namespace loka
           }
 
         private:
+          friend class ::loka::app::scene::BoundaryNode;
+          friend class SeatReservations;
+          typedef void (*ReclaimNode)(Node *, void *);
+
+          /** Existing clock callback owns traversal and nested-landlord ordering.
+              Only owner-edge candidates absent from child lists remain here. */
+          void reclaimAfterChildren(Node *node, ReclaimNode reclaim, void *context)
+          {
+            this->destroyDependents(node, reclaim, context);
+            this->destroyResident(node);
+          }
+          void reclaimRoots(ReclaimNode reclaim, void *context)
+          {
+            for (size_t i = 0; i < this->classCount_; ++i)
+              for (size_t s = 0; s < this->classes_[i].count; ++s)
+              {
+                Resident &r = this->classes_[i].residents[s];
+                if (r.node && !r.owner)
+                  reclaim(r.node, context);
+              }
+            for (size_t h = 0; h < this->heapCount_; ++h)
+              if (this->heap_[h].node && !this->heap_[h].owner)
+                reclaim(this->heap_[h].node, context);
+          }
           NodePartition(const NodePartition &);
           NodePartition &operator=(const NodePartition &);
           static const core::LokaAllocationSite &site()
@@ -352,15 +377,19 @@ namespace loka
                 return this->heap_ + h;
             return 0;
           }
-          void destroyDependents(Node *owner)
+          void destroyDependents(Node *owner, ReclaimNode reclaim, void *context)
           {
             for (size_t i = 0; i < this->classCount_; ++i)
               for (size_t s = 0; s < this->classes_[i].count; ++s)
                 if (this->classes_[i].residents[s].owner == owner)
-                  this->destroyTree(this->classes_[i].residents[s].node);
+                  reclaim(this->classes_[i].residents[s].node, context);
             for (size_t h = 0; h < this->heapCount_; ++h)
               if (this->heap_[h].owner == owner)
-                this->destroyTree(this->heap_[h].node);
+                reclaim(this->heap_[h].node, context);
+          }
+          static void DestroyTree(Node *node, void *context)
+          {
+            static_cast<NodePartition *>(context)->destroyTree(node);
           }
           void destroyTree(Node *node)
           {
@@ -370,7 +399,10 @@ namespace loka
               nestable->detachChildrenTo(children);
             for (size_t i = 0; i < children.size(); ++i)
               this->destroyTree(children[i]);
-            this->destroyDependents(node);
+            this->reclaimAfterChildren(node, &DestroyTree, this);
+          }
+          void destroyResident(Node *node)
+          {
             Resident *r = this->resident(node);
             for (size_t i = 0; r && i < this->classCount_; ++i)
             {
@@ -380,6 +412,9 @@ namespace loka
               if (address < begin || address - begin >= c.count * c.stride)
                 continue;
               const size_t s = (address - begin) / c.stride;
+              assert(occupied(c, s) && "reclaim requires this partition's occupied slot");
+              if (!occupied(c, s))
+                return;
               node->~Node();
               r->node = 0;
               r->owner = 0;
@@ -395,16 +430,7 @@ namespace loka
           }
           void clear()
           {
-            for (size_t i = 0; i < this->classCount_; ++i)
-              for (size_t s = 0; s < this->classes_[i].count; ++s)
-              {
-                Resident &r = this->classes_[i].residents[s];
-                if (r.node && !r.owner)
-                  this->destroyTree(r.node);
-              }
-            for (size_t h = 0; h < this->heapCount_; ++h)
-              if (this->heap_[h].node && !this->heap_[h].owner)
-                this->destroyTree(this->heap_[h].node);
+            this->reclaimRoots(&DestroyTree, this);
             core::LokaFreeRaw(this->raw_, site());
           }
           char *raw_;

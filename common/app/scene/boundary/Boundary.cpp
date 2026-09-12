@@ -83,7 +83,16 @@ namespace loka
         {
           Node *next = retired->nextInComposition;
           retired->nextInComposition = 0;
-          if (retired->arenaOwner() == this->nodeArena())
+          if (this->seatReservations_.partitionFor(retired))
+          {
+            // Partition backing stays with the landlord, never with a snapshot.
+            if (keptTail)
+              keptTail->nextInComposition = retired;
+            else
+              keptHead = retired;
+            keptTail = retired;
+          }
+          else if (retired->arenaOwner() == this->nodeArena())
           {
             // Subsumed: the generation ledger already owns this corpse.
           }
@@ -190,6 +199,11 @@ namespace loka
         }
       }
 
+      void BoundaryNode::ReclaimPartitionNode(Node *node, void *owner)
+      {
+        static_cast<BoundaryNode *>(owner)->destroyRetiredSubtree(node);
+      }
+
       void BoundaryNode::destroyRetiredSubtree(Node *node)
       {
         if (!node)
@@ -197,6 +211,7 @@ namespace loka
           return;
         }
 
+        detail::NodePartition *partition = this->seatReservations_.partitionFor(node);
         BoundaryNode *nestedBoundary = node->asBoundary();
         if (nestedBoundary && nestedBoundary != this)
         {
@@ -221,7 +236,11 @@ namespace loka
           }
         }
 
-        if (node->isArenaAllocated())
+        if (partition)
+        {
+          partition->reclaimAfterChildren(node, &ReclaimPartitionNode, this);
+        }
+        else if (node->isArenaAllocated())
         {
           assert(node->arenaOwner() == this->nodeArena() &&
                  "retired arena node must belong to the retiring Boundary arena");
@@ -314,8 +333,18 @@ namespace loka
         {
           this->destroyRetiredSubtree(parkedBranches[i]);
         }
-        // Detach the owner edge before NodeArena severs and destroys its ledger.
-        this->clearChildren();
+        std::vector<Node *> children;
+        this->detachChildrenTo(children);
+        for (size_t i = 0; i < children.size(); ++i)
+        {
+          Node *child = children[i];
+          if (this->seatReservations_.partitionFor(child))
+            this->destroyRetiredSubtree(child);
+          else if (!child->isArenaAllocated())
+            DestroyHeapNode(child);
+        }
+        this->seatReservations_.reclaimPartitionRoots(&ReclaimPartitionNode, this);
+        // Legacy arena residents retain their existing ledger destruction order.
         this->nodeArena_.clear();
       }
 
