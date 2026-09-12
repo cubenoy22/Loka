@@ -177,7 +177,7 @@ namespace scrapbook
       }
       this->package_.open(this->props.platformContext_);
       this->refusedBadgeImage_.set(this->package_.refusedBadgeImage());
-      this->pageFlow_.set(buildFlow(*this)).withTracker(static_cast<loka::core::PushStateTracker *>(this->tracker()));
+      this->pageFlow_.set(buildFlow(*this)).withTracker(this->tracker());
       this->loadSelectedPage();
     }
 

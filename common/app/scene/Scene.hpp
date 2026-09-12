@@ -101,13 +101,18 @@ namespace loka
           {
             return;
           }
-          if (event == COMPOSE_EVENT_UPDATE && !this->composed_)
-          {
-            return;
-          }
           if (event == COMPOSE_EVENT_UPDATE)
           {
-            this->updateCompositionChildren(context);
+            if (this->composed_)
+            {
+              this->updateCompositionChildren(context);
+              return;
+            }
+            event = COMPOSE_EVENT_ATTACH;
+          }
+          if (this->composition().root() && !this->composed_)
+          {
+            this->composed_ = this->materializeInitialChildren(context);
             return;
           }
           if (this->childrenHead())
@@ -124,7 +129,6 @@ namespace loka
           else
           {
             this->clearChildren();
-            this->nodeArena()->clear();
           }
           NodeComposition *composition = &this->beginDeclaringWindow(context);
           this->attachNode(*composition);
@@ -132,16 +136,9 @@ namespace loka
             NodeComposition::CompositionScope scope(*composition);
             composition->declare(*def_);
           }
-          this->captureBranchSeatPlan();
-          context.setComposition(composition);
-          Node *child = composition->createNodeTree();
-          if (child)
-          {
-            this->addChild(child);
-            this->composeTree(child, context, event, this);
-          }
-          context.setComposition(0);
-          this->composed_ = true;
+          if (!this->finishInitialDeclaration())
+            return;
+          this->composed_ = this->materializeInitialChildren(context);
         }
 
       private:

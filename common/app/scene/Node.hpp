@@ -1317,6 +1317,11 @@ namespace loka
       };
 
       // --- Helper base class for nestable definitions owning children ---
+      /** Report a child clone refused inside the active declaration window.
+          Implemented at the composition layer; a definition built outside a
+          window has no Boundary result to report to. */
+      void NoteDefinitionCaptureRefusal();
+
       class NestableDefinitionBase : public INestableDefinition
       {
       public:
@@ -1349,7 +1354,8 @@ namespace loka
           {
             return;
           }
-          children_.appendClone(*child);
+          if (!this->children_.appendClone(*child))
+            NoteDefinitionCaptureRefusal();
         }
 
         virtual void addOwnedChild(NodeDefinitionBase *child)
@@ -1396,6 +1402,7 @@ namespace loka
             loka::core::OwnedDef<NodeDefinitionBase> child(cur ? cur->clone() : 0);
             if (!child.isSet())
             {
+              NoteDefinitionCaptureRefusal();
               return false;
             }
             newChildren.appendOwned(child.take());

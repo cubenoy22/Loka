@@ -7,15 +7,18 @@ namespace loka
 {
   namespace core
   {
-    // RAII transaction guard for StateTracker.
+    // RAII transaction guard for any StateTracker. The transaction itself goes
+    // through the abstract port, so a non-push tracker (a preparation-scope
+    // port, a test double) still brackets its writes with begin()/end(); only
+    // the optional invalidate callback needs the push tracker's dirt query.
     struct StateTrackerGuard
     {
       typedef void (*InvalidateFn)(void *userData);
-      PushStateTracker *tracker;
+      StateTracker *tracker;
       InvalidateFn invalidateFn;
       void *invalidateUserData;
       StateTrackerGuard(StateTracker *t, InvalidateFn fn = 0, void *userData = 0)
-          : tracker(t ? t->asPushTracker() : 0),
+          : tracker(t),
             invalidateFn(fn),
             invalidateUserData(userData)
       {
@@ -28,9 +31,11 @@ namespace loka
         {
           bool settled = tracker->end();
           assert(settled && "StateTracker transaction did not settle");
-          if (settled && invalidateFn && tracker->phase() == TRACKER_IDLE && tracker->transactionDirty())
+          if (settled && invalidateFn && tracker->phase() == TRACKER_IDLE)
           {
-            invalidateFn(invalidateUserData);
+            PushStateTracker *push = tracker->asPushTracker();
+            if (push && push->transactionDirty())
+              invalidateFn(invalidateUserData);
           }
         }
       }
