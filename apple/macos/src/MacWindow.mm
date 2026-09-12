@@ -313,6 +313,8 @@ void MacWindow::createNativeWindow()
                                                  styleMask:style
                                                    backing:NSBackingStoreBuffered
                                                      defer:NO];
+  // MacWindow owns the allocation; hide and destruction release after close.
+  [window setReleasedWhenClosed:NO];
   NSScreen *screen = [NSScreen mainScreen];
   NSRect frame = FrameRectForContent(x, y, width, height, style, screen);
   [window setFrame:frame display:NO];
@@ -362,10 +364,20 @@ void MacWindow::destroyNativeWindow()
   [window setDelegate:nil];
   [(LokaWindowDelegate *)this->delegate_ setOwner:0];
   [(LokaFlippedView *)this->contentView_ setOwner:0];
+  // Like Win32's hide path, retire the active identity. Clear before close so
+  // a replacement window's key notification can establish the new active one.
+  if (this->app_ && this->app_->activeWindow() == this)
+  {
+    this->app_->setActiveWindow(0);
+  }
   [window close];
-  // Preserve handleWindowWillClose's 10.6 native-release policy on hide too.
-  this->window_ = 0;
+  // Match ~MacWindow's release order; the no-release policy belongs only to
+  // handleWindowWillClose while AppKit is unwinding its delegate callback.
+  [(id)this->contentView_ release];
   this->contentView_ = 0;
+  [(id)this->window_ release];
+  this->window_ = 0;
+  [(id)this->delegate_ release];
   this->delegate_ = 0;
 }
 

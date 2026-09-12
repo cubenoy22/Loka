@@ -112,12 +112,64 @@ namespace
     }
   };
   typedef loka::app::scene::BoundaryDefinition<AdmissionProps, AdmissionRoot> AdmissionDefinition;
+
+  void verifyReusableHideReleasesNativeObjects()
+  {
+    NullPlatformContext context;
+    AdmissionProbe probe;
+    AdmissionApp app;
+    WindowProps props;
+    props.scene(new loka::app::scene::Scene(AdmissionDefinition(AdmissionProps(&probe))));
+    MacWindow *window = new MacWindow(&context, props);
+    app.install(window);
+    // Zeroing weak observations do not prolong any of the three native lives.
+    NSHashTable *nativeObjects = [[NSHashTable alloc]
+        initWithOptions:NSPointerFunctionsWeakMemory | NSPointerFunctionsObjectPointerPersonality
+               capacity:3];
+    const int cycles = 8;
+    for (int cycle = 0; cycle < cycles; ++cycle)
+    {
+      NSAutoreleasePool *cyclePool = [[NSAutoreleasePool alloc] init];
+      {
+        loka::core::StateTrackerGuard guard(window->getTracker());
+        window->visibilityState().set(true);
+      }
+      AppAccess::flushWindowInvalidations(app);
+      NSWindow *native = (NSWindow *)NativeAccess::nativeWindow(*window);
+      LOKA_VERIFY(native != nil);
+      LOKA_VERIFY(![native isReleasedWhenClosed]);
+      [nativeObjects addObject:native];
+      [nativeObjects addObject:(id)NativeAccess::contentView(*window)];
+      [nativeObjects addObject:[native delegate]];
+      LOKA_VERIFY([[nativeObjects allObjects] count] == 3);
+      // Make activation deterministic even when the test runner is not frontmost.
+      window->handleWindowDidBecomeKey();
+      LOKA_VERIFY(app.activeWindow() == window);
+      {
+        loka::core::StateTrackerGuard guard(window->getTracker());
+        window->visibilityState().set(false);
+      }
+      AppAccess::flushWindowInvalidations(app);
+      LOKA_VERIFY(NativeAccess::nativeWindow(*window) == 0);
+      LOKA_VERIFY(NativeAccess::contentView(*window) == 0);
+      LOKA_VERIFY(app.activeWindow() == 0);
+      LOKA_VERIFY(AppAccess::pendingWindowCloseCount(app) == 0);
+      LOKA_VERIFY(app.closes == 0);
+      LOKA_VERIFY(probe.mounts == cycle + 1 && probe.unmounts == cycle + 1);
+      [cyclePool drain];
+      // AppKit temporaries have drained: the previous window, view and delegate
+      // must all be deallocated before another generation is admitted.
+      LOKA_VERIFY([[nativeObjects allObjects] count] == 0);
+    }
+    [nativeObjects release];
+  }
 }
 
 void testMacWindowVisibilityAdmissionAndDelegateClose()
 {
   NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
   [NSApplication sharedApplication];
+  verifyReusableHideReleasesNativeObjects();
   {
     NullPlatformContext context;
     AdmissionProbe probe;
