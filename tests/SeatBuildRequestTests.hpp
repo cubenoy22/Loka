@@ -1,0 +1,10 @@
+#ifndef LOKA_SEAT_BUILD_REQUEST_TESTS_HPP
+#define LOKA_SEAT_BUILD_REQUEST_TESTS_HPP
+void testSeatBuildRequestResamplesLatestBoard();
+void testSeatBuildRequestFreshReturnToA();
+void testSeatBuildRequestWaitsForFullReturn();
+void testSeatBuildRequestCancelAndAddressReuse();
+void testSeatBuildRequestParkedAndNestedOccupancy();
+void testSeatBuildRequestSerialConsumption();
+void testSeatBuildRequestKeyedNoEventAdmission();
+#endif

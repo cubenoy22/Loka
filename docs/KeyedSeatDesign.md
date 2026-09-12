@@ -166,11 +166,51 @@ fallback in release. A declined factory returns its unconstructed slot; it does
 not replenish the ticket. The caller exclusively lends the partition for the
 whole operation. This fixture does not enforce production Boundary builds.
 
-Show/Conditional/Match/LazyFlex descriptor doors, reclaim scheduling, scratch,
-waiting requests, production routing, and window resize policy remain later work.
+Show/Conditional/Match/LazyFlex descriptor doors, bounded reclaim scratch,
+production routing, and window resize policy remain later work.
 Nested Boundary runtime nodes count in their outer payload; inner residents and
 banks belong to the inner Boundary. Repeated nested-landlord workloads remain
 outside certification until ancestor-backed provisioning exists. Nested Keyed
 instructions install their own metadata; tables from ended nested instruction
 lifetimes remain until the enclosing Boundary is reclaimed. Production node
 backing and its cleanup are deferred to PR 6.
+
+## Dormant waiting admission
+
+A Keyed reservation now contains one `SeatBuildRequest`. Only the internal
+partition fixture enables this path; production still uses its existing node
+allocation and replacement route. The request stores demand, not a key value or
+candidate root. A committed seat's source only marks demand. A fresh Keyed
+Declaration samples the current key when its admitted factory runs, so changes
+while waiting coalesce and returning to the retired key constructs a fresh arm.
+
+On destructive retirement the surviving Boundary removes the active child,
+retains its logical insertion position in the reservation, cancels descendant
+requests and observations before disposing their declaration scopes, and queues
+the old root on the existing clock. Canceling demand does not clear the root's
+return obligation. The root return includes the partition's registered provider
+dependents and complete nested-landlord destruction. Legacy generation snapshots
+keep request identities until the whole snapshot has been destroyed. No completion
+callback escapes the storage landlord.
+
+At admission the existing scope traversal visits each seat serially. The bank
+checks the normalized class-count envelope against its own free lists and the
+request's outgoing obligation. Unsupported classes/counts assert and refuse;
+insufficient current free counts retain the demand without partial entitlement.
+The storage owner constructs a noncopyable `ReturnedSeatStorage` on the stack,
+and the synchronous operation holds a `NodeBuildTicket` through its attach walk.
+The node-routing connection remains PR 6 work. Parked residents still occupy
+slots; changing selection does not make them destructive predecessors.
+
+The existing drain requests structural refresh when surviving demand remains.
+It does not call the factory. The following structural traversal can therefore
+build without a new State event. Request cancellation withdraws its source and
+vacant-position borrows synchronously; the reservation and node-return identity
+remain with the Boundary until its ordinary storage cleanup.
+
+Costs are owner-local: notification marks one row; admission walks the bank's
+class free lists up to the requested counts; vacant-child edits walk the owning
+parent's children and the Boundary's reservation rows; each complete node return
+visits those reservation rows. Legacy snapshot completion matches outstanding
+requests against that snapshot's node/root identities. This change does not claim
+bounded reclaim scratch, non-node storage return, or whole-cycle zero acquisition.

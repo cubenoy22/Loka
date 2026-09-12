@@ -1,7 +1,8 @@
 #ifndef LOKA_SEAT_RESERVATION_HPP
 #define LOKA_SEAT_RESERVATION_HPP
 
-#include "app/scene/boundary/detail/NodePartition.hpp"
+#include "app/scene/boundary/detail/SeatBuildRequest.hpp"
+#include "app/scene/boundary/detail/BoundaryArena.hpp"
 
 namespace loka
 {
@@ -47,6 +48,7 @@ namespace loka
         class SeatReservation
         {
         public:
+          SeatBuildRequest &request() const { return this->request_; }
           const SeatLayoutTable &layoutTable() const
           {
             return this->table_;
@@ -69,6 +71,7 @@ namespace loka
           ~SeatReservation();
           SeatReservation(const SeatReservation &);
           SeatReservation &operator=(const SeatReservation &);
+          mutable SeatBuildRequest request_;
           const SeatLayoutTable table_;
           const size_t bytes_;
           NodePartition *partition_;
@@ -94,6 +97,12 @@ namespace loka
 
           /** Search only this landlord's reservations and each partition's own rows. */
           NodePartition *partitionFor(Node *node);
+          bool removeSeatChild(SeatBuildRequest &request, Node *parent, Node *outgoing, int order);
+          bool installSeatChild(SeatBuildRequest &request, Node *incoming);
+          void reclaimGeneration(NodeArena::RetiredNodeGeneration &generation);
+          void returnedNode(Node *node);
+          void cancelRequests();
+          bool hasWaitingRequests() const;
           void reclaimPartitionRoots(NodePartition::ReclaimNode reclaim, void *context);
 
         private:

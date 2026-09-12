@@ -254,6 +254,9 @@ namespace loka
           // or plain-new; DestroyHeapNode routes by provenance.
           DestroyHeapNode(node);
         }
+        // Complete destruction includes provider dependents and nested landlords.
+        // The comparison uses identity only; no destroyed Node is inspected.
+        this->seatReservations_.returnedNode(node);
       }
 
       void BoundaryNode::drainRetiredSubtreesAtNextTrackerRun()
@@ -285,7 +288,7 @@ namespace loka
         }
         for (size_t i = 0; i < generationSnapshot.size(); ++i)
         {
-          detail::NodeArena::destroyRetiredGeneration(generationSnapshot[i]);
+          this->seatReservations_.reclaimGeneration(generationSnapshot[i]);
         }
         generationSnapshot.clear();
         while (heldSnapshot)
@@ -297,6 +300,8 @@ namespace loka
           heldSnapshot = next;
         }
         this->drainingRetiredSubtrees_ = false;
+        if (this->seatReservations_.hasWaitingRequests())
+          this->markViewDirty(static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_LAYOUT));
       }
 
       void BoundaryNode::drainPendingHeldReleases()

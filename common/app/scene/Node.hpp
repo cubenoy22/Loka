@@ -827,10 +827,17 @@ namespace loka
       class BoundaryBranchSeatState;
       class ComponentContext;
 
+      namespace detail
+      {
+        class SeatReservation;
+      }
+
       /** Definition-side description of an indexed branch seat. */
       struct IBranchSeatDefinition
       {
         virtual ~IBranchSeatDefinition() {}
+        /** Keyed's persistent node reservation; fixed and unreserved seats decline. */
+        virtual const detail::SeatReservation *seatReservation() const { return 0; }
         /** Dirty source whose changes require the Boundary to visit this seat. */
         virtual loka::core::StateBase *branchCondition() const = 0;
         /** Selects this visit's arm. False denotes the seat's empty state. */

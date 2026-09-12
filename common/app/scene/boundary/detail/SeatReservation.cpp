@@ -107,6 +107,101 @@ namespace loka
               r->partition_->reclaimRoots(reclaim, context);
         }
 
+        bool SeatReservations::removeSeatChild(SeatBuildRequest &request, Node *parent, Node *outgoing, int order)
+        {
+          INestable *nestable = parent ? parent->asNestable() : 0;
+          if (!nestable || !outgoing)
+            return false;
+          size_t index = 0;
+          Node *child = nestable->childrenHead();
+          for (; child && child != outgoing; child = child->nextInComposition)
+            ++index;
+          if (!child)
+            return false;
+          std::vector<Node *> children;
+          nestable->detachChildrenTo(children);
+          for (size_t i = 0; i < children.size(); ++i)
+            if (children[i] != outgoing)
+              nestable->addChild(children[i]);
+          for (SeatReservation *r = this->head_; r; r = r->next_)
+            if (r->request_.position_.parent == parent && r->request_.position_.index > index)
+              --r->request_.position_.index;
+          request.position_.parent = parent;
+          request.position_.index = index;
+          request.position_.order = order;
+          request.retire(outgoing);
+          return true;
+        }
+
+        bool SeatReservations::installSeatChild(SeatBuildRequest &request, Node *incoming)
+        {
+          Node *parent = request.position_.parent;
+          INestable *nestable = parent ? parent->asNestable() : 0;
+          if (!nestable || !incoming)
+            return false;
+          const size_t index = request.position_.index;
+          const int order = request.position_.order;
+          std::vector<Node *> children;
+          nestable->detachChildrenTo(children);
+          for (size_t i = 0; i <= children.size(); ++i)
+          {
+            if (i == index)
+              nestable->addChild(incoming);
+            if (i < children.size())
+              nestable->addChild(children[i]);
+          }
+          assert(index <= children.size());
+          for (SeatReservation *r = this->head_; r; r = r->next_)
+            if (r->request_.position_.parent == parent
+                && (r->request_.position_.index > index
+                    || (r->request_.position_.index == index && r->request_.position_.order > order)))
+              ++r->request_.position_.index;
+          request.position_ = SeatBuildRequest::Position();
+          return index <= children.size();
+        }
+
+        void SeatReservations::reclaimGeneration(NodeArena::RetiredNodeGeneration &generation)
+        {
+          // Snapshot identities before the arena clears its rows. This scratch
+          // borrows only this landlord's requests and ends before its reclamation.
+          std::vector<SeatBuildRequest *> completed;
+          for (SeatReservation *r = this->head_; r; r = r->next_)
+          {
+            Node *outgoing = r->request_.outgoing_;
+            if (!outgoing)
+              continue;
+            for (size_t i = 0; i < generation.nodes.size(); ++i)
+              if (generation.nodes[i] == outgoing)
+                completed.push_back(&r->request_);
+            for (size_t i = 0; i < generation.heapRoots.size(); ++i)
+              if (generation.heapRoots[i] == outgoing)
+                completed.push_back(&r->request_);
+          }
+          NodeArena::destroyRetiredGeneration(generation);
+          for (size_t i = 0; i < completed.size(); ++i)
+            completed[i]->returned(completed[i]->outgoing_);
+        }
+
+        void SeatReservations::returnedNode(Node *node)
+        {
+          for (SeatReservation *r = this->head_; r; r = r->next_)
+            r->request_.returned(node);
+        }
+
+        void SeatReservations::cancelRequests()
+        {
+          for (SeatReservation *r = this->head_; r; r = r->next_)
+            r->request_.cancel();
+        }
+
+        bool SeatReservations::hasWaitingRequests() const
+        {
+          for (SeatReservation *r = this->head_; r; r = r->next_)
+            if (r->request_.waiting())
+              return true;
+          return false;
+        }
+
         const core::LokaAllocationSite &SeatReservations::site()
         {
           static const core::LokaAllocationSite site("SeatReservation", "table");

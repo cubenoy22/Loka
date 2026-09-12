@@ -8,7 +8,7 @@
 #include <vector>
 #include "core/diag/LifecycleAudit.hpp"
 #include "app/scene/boundary/detail/BoundaryArena.hpp"
-#include "app/scene/boundary/detail/SeatReservation.hpp"
+#include "app/scene/boundary/detail/NodeBuildTicket.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/node/ComposableNode.hpp"
@@ -37,6 +37,7 @@ namespace loka
     {
       class OwnershipDump;
       class PartitionReclaimAccess;
+      class SeatBuildRequestAccess;
     }
   } // namespace dsl
 
@@ -80,6 +81,7 @@ namespace loka
         }
         virtual ~BoundaryNode()
         {
+          this->seatReservations_.cancelRequests();
           this->holdLedger_.auditEmptyBeforeReclaim();
 #ifdef LOKA_LIFECYCLE_AUDIT
           assert(!this->pendingHeldReleasesHead_ &&
@@ -502,6 +504,9 @@ namespace loka
             {
               continue;
             }
+            const detail::SeatReservation *reservation = plans[i].seat()->seatReservation();
+            if (reservation)
+              reservation->request().observe(plans[i].dirtySource);
             this->registerObservedState(
                 plans[i].dirtySource,
                 static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_LAYOUT));
@@ -1528,6 +1533,9 @@ namespace loka
             }
             NodeDefinitionBase *definition = this->findBranchSeatDefinition(nestedKey);
             IBranchSeatDefinition *seat = definition ? definition->asBranchSeatDefinition() : 0;
+            const detail::SeatReservation *reservation = seat ? seat->seatReservation() : 0;
+            if (reservation)
+              reservation->request().cancel();
             BoundaryBranchSeatState *scope = seat ? seat->declaredBranchSeats() : 0;
             if (scope)
             {
@@ -1545,6 +1553,9 @@ namespace loka
           const std::vector<BoundaryBranchSeatPlanEntry> &plans = scope.plans();
           for (size_t i = 0; i < plans.size(); ++i)
           {
+            const detail::SeatReservation *reservation = plans[i].seat()->seatReservation();
+            if (reservation)
+              reservation->request().cancel();
             BoundaryBranchSeatState *nested = plans[i].seat()->declaredBranchSeats();
             if (nested)
               this->retireDeclarationScope(context, *nested);
@@ -1777,7 +1788,11 @@ namespace loka
           this->branchSeats_.reserveRuntimeRegistrations(nestedRegistrations.count());
 
           INestable *parent = runtimeParent ? runtimeParent->asNestable() : 0;
-          if (!parent || !parent->replaceChild(outgoing, incoming))
+          const detail::SeatReservation *reservation = plan.seat()->seatReservation();
+          const bool installed = outgoing
+              ? parent && parent->replaceChild(outgoing, incoming)
+              : reservation && this->seatReservations_.installSeatChild(reservation->request(), incoming);
+          if (!installed)
           {
             if (pending.root())
               pending.reclaim();
@@ -1842,6 +1857,68 @@ namespace loka
           return true;
         }
 
+        /** One serial admitted Keyed build; the ticket lives through ATTACH. */
+        class WaitingSeatBuild : public detail::NodeBuildOperation
+        {
+        public:
+          WaitingSeatBuild(BoundaryNode &owner, ComponentContext &context,
+                           const BoundaryBranchSeatPlanEntry &plan,
+                           const BoundaryBranchSeatRuntimeEntry &runtime)
+              : owner_(owner), context_(context), plan_(plan), runtime_(runtime) {}
+          virtual bool buildAndAttach(detail::NodeBuildTicket &)
+          {
+            if (!this->owner_.replaceSeatBranch(this->context_, this->plan_, this->runtime_, false, false))
+              return false;
+            BoundaryBranchSeatRuntimeEntry *installed = this->owner_.branchSeats_.findRuntime(this->plan_.key);
+            if (installed && installed->active)
+              this->owner_.composeTree(installed->active, this->context_, COMPOSE_EVENT_ATTACH, &this->owner_);
+            return true;
+          }
+        private:
+          BoundaryNode &owner_;
+          ComponentContext &context_;
+          const BoundaryBranchSeatPlanEntry &plan_;
+          const BoundaryBranchSeatRuntimeEntry &runtime_;
+        };
+
+        bool applyWaitingKeyedSeat(ComponentContext &context,
+                                   BoundaryBranchSeatPlanEntry &plan,
+                                   BoundaryBranchSeatRuntimeEntry &runtime,
+                                   const detail::SeatReservation &reservation)
+        {
+          detail::SeatBuildRequest &request = reservation.request();
+          if (runtime.active && !plan.seat()->needsBranchDeclaration())
+          {
+            request.settle();
+            return true;
+          }
+          request.mark();
+          if (runtime.active)
+          {
+            Node *outgoing = runtime.active;
+            if (!this->seatReservations_.removeSeatChild(request, runtime.parent, outgoing, plan.key.slot))
+              return false;
+            BoundaryBranchSeatState *scope = plan.seat()->declaredBranchSeats();
+            if (scope)
+            {
+              this->retireDeclarationScope(context, *scope);
+              this->forgetBranchSeatDirtySources(*scope);
+            }
+            plan.seat()->commitBranchDeclaration(0);
+            this->retireSeatBranchRoot(context, outgoing);
+            BoundaryBranchSeatRuntimeEntry *surviving = this->branchSeats_.findRuntime(plan.key);
+            if (!surviving)
+              return false;
+            surviving->active = 0;
+            surviving->hasActiveArm = false;
+            this->noteLocalStructureWork();
+            return true;
+          }
+          WaitingSeatBuild build(*this, context, plan, runtime);
+          request.admit(reservation.layoutTable(), build);
+          return true;
+        }
+
         bool applyBranchSeat(ComponentContext &context,
                              BoundaryBranchSeatPlanEntry &mutablePlan,
                              BoundaryBranchSeatRuntimeEntry &runtime)
@@ -1850,6 +1927,9 @@ namespace loka
           {
             return false;
           }
+          const detail::SeatReservation *reservation = mutablePlan.seat()->seatReservation();
+          if (reservation && reservation->request().enabled())
+            return this->applyWaitingKeyedSeat(context, mutablePlan, runtime, *reservation);
           if (!runtime.active)
           {
             return false;
@@ -2300,6 +2380,7 @@ namespace loka
         friend class ::loka::dsl::testing::OwnershipDump;
 #ifdef TEST_BUILD
         friend class ::loka::dsl::testing::PartitionReclaimAccess;
+        friend class ::loka::dsl::testing::SeatBuildRequestAccess;
 #endif
 
       };
