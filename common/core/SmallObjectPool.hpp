@@ -10,11 +10,28 @@ namespace loka
 {
   namespace core
   {
+    /** Cumulative Source acquisitions, independent of releases and diagnostic builds.
+     * bytesAcquired sums requested bytes of successful calls (including full chunks),
+     * not allocator overhead or live storage. saturated means at least one count
+     * reached ULONG_MAX; only unsaturated snapshots support exact subtraction.
+     * Native allocations and operator-new calls bypassing this pool are excluded.
+     */
+    struct UpstreamGauge
+    {
+      unsigned long attempts, successes, bytesAcquired, failures;
+      bool saturated;
+    };
+
 #if defined(LOKA_DIAG) || defined(LOKA_RETRO68_DIAGNOSTICS)
     /** Allocation-free diagnostic snapshot; invalid lists leave live/unusedBytes zero. */
     struct SmallObjectPoolReport
     {
       unsigned long rows, chunks[10], freeSlots[10], live, unusedBytes;
+      // Legacy saturating event counts (no overflow fact): refills = acquired
+      // chunks; larges = successful >256 requests; directs = successful small
+      // requests with all 128 rows occupied; fallbacks = successful individual
+      // requests after refused refill; refused = failed fallback ONLY (not all
+      // Source failures). poisonViolations = damaged poison words found on pop.
       unsigned long refills, larges, directs, fallbacks, refused, poisonViolations;
       bool valid;
     };
@@ -32,7 +49,7 @@ namespace loka
      *
      * Validity invariant: every registered chunk stays at its address and size until process exit; the rows are sorted by base with disjoint extents; every usable slot of a registered chunk is either handed out (allocated and not yet released) or occurs exactly once in the free list of its chunk's class.
      * Transitions: allocate-pop, allocate-refill (row insertion + carve), allocate-large/direct/fallback (no pool state change), release-push, release-foreign (no pool state change), refused acquisition (no pool state change).
-     * Diagnostic event counters are the exception to "no pool state change".
+     * Upstream and diagnostic event counters are the exception to "no pool state change".
      *
      * Costs, per caller request, over this pool's own rows only:
      * allocate = class lookup (<= 10 compares) + pop O(1); on refill +
@@ -55,7 +72,7 @@ namespace loka
       {
         if (size > 256)
         {
-          void *p = Source::acquire(size);
+          void *p = this->acquireUpstream(size);
 #if defined(LOKA_DIAG) || defined(LOKA_RETRO68_DIAGNOSTICS)
           if (p) increment(this->larges_);
 #endif
@@ -67,16 +84,16 @@ namespace loka
         if (this->free_[cls]) return this->pop(cls);
         if (this->rows_ == 128)
         {
-          void *p = Source::acquire(size);
+          void *p = this->acquireUpstream(size);
 #if defined(LOKA_DIAG) || defined(LOKA_RETRO68_DIAGNOSTICS)
           if (p) increment(this->directs_);
 #endif
           return p;
         }
-        char *base = static_cast<char *>(Source::acquire(2048));
+        char *base = static_cast<char *>(this->acquireUpstream(2048));
         if (!base)
         {
-          void *p = Source::acquire(size);
+          void *p = this->acquireUpstream(size);
 #if defined(LOKA_DIAG) || defined(LOKA_RETRO68_DIAGNOSTICS)
           if (p) increment(this->fallbacks_);
           else increment(this->refused_);
@@ -99,6 +116,20 @@ namespace loka
         increment(this->refills_);
 #endif
         return this->pop(cls);
+      }
+
+      /** Explicit samplers call once per interval endpoint; O(1), no row walk.
+       * A value copy remains independent of subsequent allocations/releases.
+       */
+      UpstreamGauge snapshot() const
+      {
+        const UpstreamGauge out = {this->upstream_.attempts, this->upstream_.successes,
+                                   this->upstream_.bytesAcquired, this->upstream_.failures,
+                                   this->upstream_.attempts == ULONG_MAX ||
+                                   this->upstream_.successes == ULONG_MAX ||
+                                   this->upstream_.bytesAcquired == ULONG_MAX ||
+                                   this->upstream_.failures == ULONG_MAX};
+        return out;
       }
 
       void release(void *p)
@@ -150,6 +181,35 @@ namespace loka
 #endif
 
     private:
+      /** Edge history owned by this pool; acquireUpstream is the sole writer. */
+      struct UpstreamCounts
+      {
+        unsigned long attempts, successes, bytesAcquired, failures;
+      };
+      UpstreamCounts upstream_;
+
+      static unsigned long cappedAdd(unsigned long count, size_t amount)
+      {
+        if (amount > ULONG_MAX || count >= ULONG_MAX - amount) return ULONG_MAX;
+        return count + static_cast<unsigned long>(amount);
+      }
+
+      /** All four allocation paths call once per actual Source attempt; O(1),
+       * no rows walked, no allocation beyond the unchanged Source request.
+       */
+      void *acquireUpstream(size_t size)
+      {
+        this->upstream_.attempts = cappedAdd(this->upstream_.attempts, 1);
+        void *p = Source::acquire(size);
+        if (p)
+        {
+          this->upstream_.successes = cappedAdd(this->upstream_.successes, 1);
+          this->upstream_.bytesAcquired = cappedAdd(this->upstream_.bytesAcquired, size);
+        }
+        else this->upstream_.failures = cappedAdd(this->upstream_.failures, 1);
+        return p;
+      }
+
       struct Row { char *base; unsigned char cls; };
       Row table_[128];
       unsigned int rows_;

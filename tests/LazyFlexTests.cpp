@@ -1,3 +1,6 @@
+#ifdef LOKA_UPSTREAM_GAUGE_PIN
+#include "support/UpstreamGaugePin.hpp"
+#endif
 #include "testing/scene/SceneTestFlow.hpp"
 #include "LazyFlexTests.hpp"
 #include "support/TestVerify.hpp"
@@ -490,9 +493,29 @@ void allocpin::RunLazyFlexPageFlipAllocPin()
   for (int capture = 0; capture < 2; ++capture)
   {
     BeginCapture(capture);
+#ifdef LOKA_UPSTREAM_GAUGE_PIN
+    const loka::core::UpstreamGauge upstreamBefore = upstreamPinSnapshot();
+#endif
     f.page(capture == 0 ? 200 : 0);
     EndCapture();
+#ifdef LOKA_UPSTREAM_GAUGE_PIN
+    // Measured ceilings for the host pool simulation, including the reclaim clock.
+#ifdef LOKA_LIFECYCLE_AUDIT
+    upstreamPinCheck("LazyFlex", upstreamBefore, upstreamPinSnapshot(), capture == 0 ? 57 : 56,
+                     capture == 0 ? 21312 : 19264);
+#else
+    upstreamPinCheck("LazyFlex", upstreamBefore, upstreamPinSnapshot(), capture == 0 ? 33 : 32,
+                     capture == 0 ? 14208 : 12160);
+#endif
+#endif
     rows(f, 8);
+#ifdef LOKA_UPSTREAM_GAUGE_PIN
+    const bool settled = !f.scene.hasPendingInvalidation();
+    LOKA_VERIFY(settled);
+    for (int i = 0; i < 20; ++i)
+      LOKA_VERIFY((f.r.cards[i] != 0) ==
+                  (capture == 0 ? (i >= 10 && i < 18) : i < 8));
+#endif
   }
   std::fprintf(stderr, "LazyFlex warmed eight-card page flip: %lu / %lu allocations\n",
                CaptureAllocCount(0), CaptureAllocCount(1));

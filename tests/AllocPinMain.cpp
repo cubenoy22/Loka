@@ -439,9 +439,16 @@ namespace allocpin
 
 // ---- global allocation operator replacements (binary-wide) ----
 
+#ifdef LOKA_UPSTREAM_GAUGE_PIN
+#include "support/UpstreamGaugePin.inc"
+#else
+static void *upstreamPinAllocate(std::size_t size) { return std::malloc(size); }
+static void upstreamPinRelease(void *p) { std::free(p); }
+#endif
+
 void *operator new(std::size_t size) throw(std::bad_alloc)
 {
-  void *p = std::malloc(size ? size : 1);
+  void *p = upstreamPinAllocate(size ? size : 1);
   if (!p)
   {
     std::fprintf(stderr, "AllocPin: operator new(%lu) failed\n", static_cast<unsigned long>(size));
@@ -453,7 +460,7 @@ void *operator new(std::size_t size) throw(std::bad_alloc)
 
 void *operator new[](std::size_t size) throw(std::bad_alloc)
 {
-  void *p = std::malloc(size ? size : 1);
+  void *p = upstreamPinAllocate(size ? size : 1);
   if (!p)
   {
     std::fprintf(stderr, "AllocPin: operator new[](%lu) failed\n", static_cast<unsigned long>(size));
@@ -465,7 +472,7 @@ void *operator new[](std::size_t size) throw(std::bad_alloc)
 
 void *operator new(std::size_t size, const std::nothrow_t &) throw()
 {
-  void *p = std::malloc(size ? size : 1);
+  void *p = upstreamPinAllocate(size ? size : 1);
   if (p)
   {
     allocpin::NoteAllocation(p, size);
@@ -475,7 +482,7 @@ void *operator new(std::size_t size, const std::nothrow_t &) throw()
 
 void *operator new[](std::size_t size, const std::nothrow_t &) throw()
 {
-  void *p = std::malloc(size ? size : 1);
+  void *p = upstreamPinAllocate(size ? size : 1);
   if (p)
   {
     allocpin::NoteAllocation(p, size);
@@ -486,25 +493,25 @@ void *operator new[](std::size_t size, const std::nothrow_t &) throw()
 void operator delete(void *p) throw()
 {
   allocpin::NoteFree(p);
-  std::free(p);
+  upstreamPinRelease(p);
 }
 
 void operator delete[](void *p) throw()
 {
   allocpin::NoteFree(p);
-  std::free(p);
+  upstreamPinRelease(p);
 }
 
 void operator delete(void *p, const std::nothrow_t &) throw()
 {
   allocpin::NoteFree(p);
-  std::free(p);
+  upstreamPinRelease(p);
 }
 
 void operator delete[](void *p, const std::nothrow_t &) throw()
 {
   allocpin::NoteFree(p);
-  std::free(p);
+  upstreamPinRelease(p);
 }
 
 int main()
@@ -513,10 +520,17 @@ int main()
   testStateTrackerReservedPropagation();
   testStateTrackerCycleAndDiamond();
   testStateTrackerRemovesSettlementBorrow();
+#ifdef LOKA_UPSTREAM_GAUGE_PIN
+  runUpstreamFlowPin();
+#endif
   allocpin::RunLazyFlexPageFlipAllocPin();
+#ifndef LOKA_UPSTREAM_GAUGE_PIN
   allocpin::RunStateLifetimeTokenAllocPin();
+#endif
   allocpin::RunZeroAllocPin();
+#ifndef LOKA_UPSTREAM_GAUGE_PIN
   allocpin::RunFloppyBirdSurfaceAllocPin();
   allocpin::RunFloppyBirdScoreAllocPin();
+#endif
   return 0;
 }

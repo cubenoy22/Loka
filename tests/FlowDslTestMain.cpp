@@ -1,3 +1,4 @@
+#include "UpstreamGaugeTests.hpp"
 #include "PartialTreePublicationTests.hpp"
 #include "KeyedGenerationStorageTests.hpp"
 #include "ObservableListTests.hpp"

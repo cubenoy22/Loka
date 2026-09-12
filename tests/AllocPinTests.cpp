@@ -1,3 +1,6 @@
+#ifdef LOKA_UPSTREAM_GAUGE_PIN
+#include "support/UpstreamGaugePin.hpp"
+#endif
 // Allocation ratchet scenario: one steady-state UI interaction on the real
 // HelloWorld MainNode, driven headlessly, must not exceed a fixed heap
 // allocation budget (design ruling 2026-07-20).
@@ -196,9 +199,27 @@ namespace allocpin
     for (int captureIndex = 0; captureIndex < 2; ++captureIndex)
     {
       BeginCapture(captureIndex);
+#ifdef LOKA_UPSTREAM_GAUGE_PIN
+    const loka::core::UpstreamGauge upstreamBefore = upstreamPinSnapshot();
+#endif
       flushes[captureIndex] = runInteraction(scene, probeButton, rootBoundary);
       EndCapture();
+#ifdef LOKA_UPSTREAM_GAUGE_PIN
+    upstreamPinCheck("HelloWorld", upstreamBefore, upstreamPinSnapshot(), 0, 0);
+#endif
     }
+#ifdef LOKA_UPSTREAM_GAUGE_PIN
+    long idMatches = 0, typedMatches = 0;
+    loka::app::TextNode *summary = 0;
+    loka::dsl::testing::scene_test_detail::findNodeByIdRecursive<loka::app::TextNode>(
+        loka::dsl::testing::SceneTestAccess::rootNode(scene),
+        std::string("HelloWorld.LeftPanel.ActionSummary"), idMatches, typedMatches, summary);
+    LOKA_VERIFY(idMatches == 1 && typedMatches == 1 && summary && summary->props.text_);
+    LOKA_VERIFY(summary->props.text_->get().equals(
+        loka::core::String::Literal("Button enabled: yes / clicks: 4")));
+    const bool settled = !scene.hasPendingInvalidation();
+    LOKA_VERIFY(settled);
+#endif
     const int flushes0 = flushes[0];
     const int flushes1 = flushes[1];
 
