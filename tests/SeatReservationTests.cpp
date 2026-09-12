@@ -144,7 +144,10 @@ namespace
     LOKA_VERIFY(WIFSIGNALED(status));
     LOKA_VERIFY(WTERMSIG(status) == SIGABRT);
 #else
+    // Debug builds without fork (macOS CI): the abort case is not executed
+    // here; keep the function referenced so -Wunused-function stays clean.
     (void)unknown;
+    (void)&quotaCase;
 #endif
   }
   bool refuseBacking = false;
