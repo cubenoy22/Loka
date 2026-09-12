@@ -20,6 +20,7 @@ void testSimpleViewerImageLoadStopsWhenCapacityRemainsUnavailable();
 void testSimpleViewerBlobAdapterClearsPreviousOutputBeforeFailure();
 void testFlowChainHandleCopiesShareImplementationLifetime();
 void testFlowChainRunPinDefersImplementationDeletion();
+void testFlowOnSuccessBracketsGenericTrackerTransaction();
 void testFlowSlotClearDefersRunningFlowDeletion();
 void testFlowSlotSetDefersRunningFlowDeletion();
 void testFlowSlotOwnerDestructionDefersRunningFlowDeletion();
