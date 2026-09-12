@@ -17,6 +17,7 @@ public:
   }
   virtual ~WindowAdmissionTestApp() { this->group_->build(); }
   virtual void quit() {}
+  using App::flushWindowInvalidations;
   void flush() { this->flushWindowInvalidations(); }
 };
 

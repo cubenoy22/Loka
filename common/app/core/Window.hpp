@@ -613,6 +613,9 @@ protected:
   /** Binds the candidate to this rail without publishing it. A Window without
       native resources succeeds; its ordinary mount will run after creation. */
   virtual bool mountReplacementScene(loka::app::scene::Scene *) { return true; }
+  /** Revalidates a mounted candidate's rail after composition callbacks.
+      Each concrete rail requires both its controller and native window. */
+  virtual bool hasLiveScenePlatform() const { return false; }
 
 private:
   friend class App;

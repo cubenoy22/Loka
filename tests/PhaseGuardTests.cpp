@@ -268,11 +268,17 @@ namespace
       loka::app::scene::Scene *scene = this->running->scene();
       loka::app::scene::Node *root = Access::rootNode(*scene);
       loka::app::scene::Scene *oldTarget = this->target->scene();
+      // Keep an eligible retiree so the nested admission also tests reclaim exclusion.
+      LOKA_VERIFY(this->target->sceneManager()->commitTransaction(
+          0, new loka::app::scene::Scene(loka::app::Button("Superseded").clone())));
       LOKA_VERIFY(this->target->sceneManager()->commitTransaction(0, this->candidate));
+      typedef loka::app::testing::SceneManagerTestAccess SeatAccess;
+      const size_t retirees = SeatAccess::retiredSceneCount(*this->target->sceneManager());
+      LOKA_VERIFY(retirees == 1);
       this->target->flushSceneInvalidation();
-      // Nested App admission is also refused when this callback runs on its clock.
+      // Simulate a nested native pump, including inside a direct Scene run.
       if (this->app)
-        this->app->flush();
+        this->app->flushWindowInvalidations();
       const bool rootSurvived = root && root == Access::rootNode(*scene);
       const bool targetDeferred = this->target->scene() == oldTarget;
       printf("App admission pin: crossWindow=%d rootSurvived=%d targetDeferred=%d\n",
@@ -281,6 +287,7 @@ namespace
       // Stop before returning to a run with a dangling reference on the red implementation.
       LOKA_VERIFY(rootSurvived);
       LOKA_VERIFY(targetDeferred);
+      LOKA_VERIFY(SeatAccess::retiredSceneCount(*this->target->sceneManager()) == retirees);
     }
     Window *running;
     Window *target;
@@ -300,13 +307,13 @@ namespace
     otherProps.scene(new loka::app::scene::Scene(loka::app::Button("Y").clone()));
     NullWindow other(&context, otherProps);
     WindowAdmissionTestApp app(running, &other);
+    controller.app = &app;
     controller.running = &running;
     controller.target = crossWindow ? &other : &running;
     controller.candidate = new loka::app::scene::Scene(loka::app::Button("Replacement").clone());
     loka::app::scene::Scene *oldTarget = controller.target->scene();
     if (crossWindow)
     {
-      controller.app = &app;
       // Admit Y as well: a per-window apply/run loop would install Y after X's callback.
       other.scene()->requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
       running.scene()->requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);

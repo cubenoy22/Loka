@@ -94,6 +94,11 @@ private:
   short titleBarHeight_;
 
   virtual bool mountReplacementScene(loka::app::scene::Scene *next);
+  // Deliberate rail counterpart of mountReplacementScene's resource checks.
+  virtual bool hasLiveScenePlatform() const
+  {
+    return this->scenePlatformController_ && this->window_;
+  }
   void mountScene();
   void teardownScene();
   loka::core::Frame nativeContentFrame() const;

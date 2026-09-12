@@ -69,7 +69,11 @@ App admission. Pending replacement is the comparison of those identities.
 The Window root seat prepares the candidate on its rail and composes it while
 the old scene remains installed. Preparation withholds global native projection;
 a refusal synchronously cleans the partial candidate, preserves the old scene,
-and leaves the desired identity for retry at the next admission. Installation
+and leaves the desired identity for retry at the next admission. After candidate
+composition, preparation revalidates the Window's controller and native window;
+loss of a mounted rail uses the same refusal cleanup. Visibility-driven native
+teardown can still unmount the applied scene, but refusal does not replace its
+installed identity. Installation
 detaches the old scene, publishes the installed State, attaches the new scene,
 projects the prepared root on the reused controller, then publishes ON_ATTACH.
 Reentrant adoption during preparation or attachment only changes the next desired identity.
@@ -83,6 +87,10 @@ all selected seats, then runs their Scene flushes and native/Scene drains. Thus
 an adoption during X's Scene run waits for the next App admission even on Y.
 The existing App window-work guard refuses nested admission and close reclamation;
 queued closes keep removed snapshot Windows alive until the following close drain.
+A direct `Scene::invalidate()` run can be active outside that App guard. App
+excludes its Window from admission and Scene reclamation using the Scene's
+tracker-derived `isRunInProgress()` capability; desired work waits until an
+admission after the run returns.
 Native command handlers request work; macOS's timer tick is its App clock.
 Each Window captures its own retirement suffix before seat apply. Only that
 suffix is reclaimed after its flush; newer retirements wait for the next one.

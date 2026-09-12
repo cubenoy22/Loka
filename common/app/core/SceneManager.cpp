@@ -78,7 +78,10 @@ bool SceneManager::applyReplacement()
   const bool mounted = this->window_->mountReplacementScene(next);
   if (mounted && next->mounted_)
     next->composeIfNeeded(loka::app::scene::COMPOSE_EVENT_ATTACH, false);
-  if (!mounted || (next->mounted_ && !next->composed_))
+  // ATTACH composition can synchronously hide the Window and destroy its rail.
+  // Validate the owner again before installing through the candidate's borrow.
+  if (!mounted || (next->mounted_ &&
+                   (!this->window_->hasLiveScenePlatform() || !next->composed_)))
   {
     // Preparation has not projected native contexts. Drop the borrowed rail
     // before this candidate can outlive the concrete Window's controller.

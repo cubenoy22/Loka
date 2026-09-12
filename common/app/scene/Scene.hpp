@@ -503,6 +503,13 @@ namespace loka
           return nextTickTracker_.run(&Scene::RefreshThunk, &Scene::ApplyThunk, this);
         }
 
+        /** True throughout refresh and apply, including direct invalidate()
+            runs. Admission must preserve this Scene until the run returns. */
+        bool isRunInProgress() const
+        {
+          return this->nextTickTracker_.inProgress();
+        }
+
         bool hasPendingInvalidation() const
         {
           return nextTickTracker_.hasPendingRequest();

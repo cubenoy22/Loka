@@ -142,6 +142,10 @@ void App::flushWindowInvalidations()
   for (size_t i = 0; i < comps.size(); ++i)
   {
     Window *win = comps[i] ? comps[i]->asWindow() : 0;
+    // Direct Scene::invalidate() can enter a run outside this App guard.
+    // Exclude the entire row so neither replacement nor reclaim touches it.
+    if (win && win->scene() && win->scene()->isRunInProgress())
+      continue;
     if (win && (win->hasPendingSceneInvalidation() || win->hasPendingScenePlatformSync()))
     {
       if (admitted.empty())

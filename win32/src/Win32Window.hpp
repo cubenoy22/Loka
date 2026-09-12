@@ -72,6 +72,11 @@ private:
   static void TitleChangedThunk(void *userData);
   static void FrameChangedThunk(void *userData);
   virtual bool mountReplacementScene(loka::app::scene::Scene *next);
+  // Deliberate rail counterpart of mountReplacementScene's resource checks.
+  virtual bool hasLiveScenePlatform() const
+  {
+    return this->scenePlatformController_ && this->hwnd_;
+  }
   void mountScene();
   void teardownScene();
   bool handleCommand(WPARAM wParam, LPARAM lParam);

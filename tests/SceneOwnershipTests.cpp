@@ -1416,6 +1416,79 @@ void testSceneReplacementPreservesAppliedOnPrepareRefusal()
   LOKA_VERIFY(g_sceneOwnershipScenesAlive == 0);
 }
 
+namespace
+{
+  /** Reuses the census root's props and projection; its immediate ATTACH
+      binding writes visibility while replacement preparation borrows the rail. */
+  class HideWindowOnAttachRoot : public SceneCensusRoot
+  {
+  public:
+    explicit HideWindowOnAttachRoot(const SceneCensusProps &props) : SceneCensusRoot(props) {}
+    virtual void declareBindings(loka::app::scene::BindingToken &token)
+    {
+      token.watch(*this->scene()->getAttachedState(), this,
+                  &HideWindowOnAttachRoot::hideWindow, true);
+    }
+    void hideWindow()
+    {
+      Window *window = this->scene()->getWindow();
+      LOKA_VERIFY(window != 0);
+      loka::core::StateTrackerGuard guard(window->getTracker());
+      window->visibilityState().set(false);
+    }
+  };
+  typedef loka::app::scene::BoundaryDefinition<SceneCensusProps, HideWindowOnAttachRoot>
+      HideWindowOnAttachDefinition;
+
+  void DestroyNullWindowOnHide(void *data)
+  {
+    NullWindow *window = static_cast<NullWindow *>(data);
+    if (!window->visibilityState().get())
+      window->destroyScenePlatform();
+  }
+}
+
+void testSceneReplacementRefusesControllerLostDuringAttach()
+{
+  WindowCreatingPlatformContext context;
+  WindowProps props;
+  props.scene(new SceneCensusProbe("Applied"));
+  NullWindow window(&context, props);
+  WindowAdmissionTestApp admission(window);
+  admission.flush();
+  loka::app::scene::Scene *applied = window.scene();
+  {
+    loka::core::StateTrackerGuard guard(window.getTracker());
+    window.visibilityState().set(true);
+  }
+  window.visibilityState().bind(&DestroyNullWindowOnHide, &window, false);
+  loka::app::scene::Scene *candidate = new loka::app::scene::Scene(
+      HideWindowOnAttachDefinition(SceneCensusProps("Candidate")));
+  LOKA_VERIFY(window.sceneManager()->commitTransaction(0, candidate));
+  admission.flush();
+  typedef loka::app::testing::SceneManagerTestAccess SeatAccess;
+  typedef loka::dsl::testing::SceneTestAccess SceneAccess;
+  const bool refused = SeatAccess::lastPrepareRefusal(*window.sceneManager()) == candidate;
+  printf("Controller-loss pin: refused=%d appliedIntact=%d controllerGone=%d\n",
+         refused, window.scene() == applied, window.scenePlatformController() == 0);
+  fflush(stdout);
+  LOKA_VERIFY(!window.visibilityState().get());
+  LOKA_VERIFY(window.scenePlatformController() == 0);
+  LOKA_VERIFY(refused);
+  LOKA_VERIFY(window.scene() == applied);
+  LOKA_VERIFY(applied->getAttachedState()->get());
+  const SceneLifecycle appliedLifecycle = applied->getLifecycleState()->get();
+  LOKA_VERIFY(appliedLifecycle == ON_ATTACH);
+  LOKA_VERIFY(SeatAccess::desiredScene(*window.sceneManager()) == candidate);
+  LOKA_VERIFY(window.sceneManager()->hasPendingReplacement());
+  LOKA_VERIFY(!window.sceneManager()->hasRetiredScenes());
+  const bool candidateClean = candidate->getWindow() == 0 &&
+      !candidate->getAttachedState()->get() && !SceneAccess::composed(*candidate) &&
+      SceneAccess::rootNode(*candidate) == 0 && SceneAccess::platformController(*candidate) == 0;
+  LOKA_VERIFY(candidateClean);
+  window.visibilityState().unbind(&DestroyNullWindowOnHide, &window);
+}
+
 void testSceneReplacementAdoptedDuringAttachWaitsForNextAdmission()
 {
   WindowCreatingPlatformContext context;
