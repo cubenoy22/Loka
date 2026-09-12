@@ -1404,6 +1404,54 @@ void testSceneReplacementReturnsToAppliedWithoutDetach()
   VerifySupersededReplacement(true);
 }
 
+void testEmptyWindowConsumesSceneRequestsWithoutReadmission()
+{
+  class AdmissionObservedWindow : public NullWindow
+  {
+  public:
+    explicit AdmissionObservedWindow(PlatformContext *context)
+        : NullWindow(context, WindowProps()), flushCalls_(0) {}
+    virtual void drainNativeRetirements()
+    {
+      // Window::flushSceneInvalidation calls this exactly once, even without a Scene.
+      ++this->flushCalls_;
+      NullWindow::drainNativeRetirements();
+    }
+    int flushCalls() const { return this->flushCalls_; }
+
+  private:
+    int flushCalls_;
+  };
+
+  for (int requests = 1; requests <= 3; ++requests)
+  {
+    WindowCreatingPlatformContext context;
+    AdmissionObservedWindow window(&context);
+    WindowAdmissionTestApp admission(window);
+    LOKA_VERIFY(window.scene() == 0);
+    LOKA_VERIFY(!window.sceneManager()->hasPendingWork());
+    admission.flush();
+    LOKA_VERIFY(window.flushCalls() == 0);
+
+    if (requests & 1)
+      window.sceneManager()->requestDetach();
+    if (requests & 2)
+      window.sceneManager()->requestRearm();
+    LOKA_VERIFY(window.sceneManager()->hasPendingWork());
+    admission.flush();
+    const bool pending = window.sceneManager()->hasPendingWork();
+    const int firstFlushCalls = window.flushCalls();
+    admission.flushWindowInvalidations();
+    printf("Empty seat requests=%d: pending=%d firstFlushCalls=%d totalFlushCalls=%d\n",
+           requests, pending, firstFlushCalls, window.flushCalls());
+    LOKA_VERIFY(!pending);
+    LOKA_VERIFY(firstFlushCalls == 1);
+    LOKA_VERIFY(window.flushCalls() == 1);
+    LOKA_VERIFY(!window.sceneManager()->hasPendingWork());
+    LOKA_VERIFY(window.scene() == 0);
+  }
+}
+
 void testInitialScenePrepareRefusalPreservesDetachRequest()
 {
   VerifyInitialPrepareRefusalPreservesRequest(false);

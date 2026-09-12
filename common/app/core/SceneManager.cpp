@@ -65,9 +65,9 @@ bool SceneManager::applyPendingWork()
   loka::app::scene::Scene *current = this->currentScene_.get();
   if (!current)
   {
-    // No installed Scene can receive the captured request after refusal.
-    // Keep it for the next admission unless preparation recorded newer intent.
-    if (this->request_ == REQUEST_NONE)
+    // Retry refused preparation unless it recorded newer intent.
+    // An empty seat with no pending replacement consumes the request as a no-op.
+    if (this->hasPendingReplacement() && this->request_ == REQUEST_NONE)
       this->request(request);
     return replaced;
   }

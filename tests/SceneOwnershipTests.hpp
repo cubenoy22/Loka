@@ -23,6 +23,7 @@ void testSceneReplacementSupersedesUnattachedDesiredScene();
 void testSceneReplacementReturnsToAppliedWithoutDetach();
 void testSceneReplacementPreservesAppliedOnPrepareRefusal();
 void testInitialScenePrepareRefusalPreservesDetachRequest();
+void testEmptyWindowConsumesSceneRequestsWithoutReadmission();
 void testInitialScenePrepareRefusalPreservesNewerRearmRequest();
 void testSceneReplacementRefusesControllerLostDuringAttach();
 void testSceneReplacementAdoptedDuringAttachWaitsForNextAdmission();
