@@ -5,7 +5,6 @@
 #include "core/util/StateTrackerGuard.hpp"
 #include "app/scene/Scene.hpp"
 #include <algorithm>
-#include <utility>
 
 App::App(AppConfigurable *config)
     : group_(0),
@@ -21,6 +20,18 @@ App::App(AppConfigurable *config)
 
 App::~App()
 {
+  for (size_t i = 0; i < this->pendingWindowClosures_.size(); ++i)
+    this->pendingWindowClosures_[i]->dialogResults().close();
+  if (this->group_)
+  {
+    const std::vector<AppComponent *> &components = this->group_->getComponents();
+    for (size_t i = 0; i < components.size(); ++i)
+    {
+      Window *window = components[i] ? components[i]->asWindow() : 0;
+      if (window)
+        window->dialogResults().close();
+    }
+  }
   while (!pendingWindowClosures_.empty())
   {
     flushPendingWindowClosures();
@@ -125,6 +136,39 @@ void App::projectInitialVisibilityChunks()
   }
 }
 
+bool App::hasPendingWindowAdmission() const
+{
+  if (!this->pendingWindowClosures_.empty())
+    return true;
+  if (!this->group_)
+    return false;
+  const std::vector<AppComponent *> &components = this->group_->getComponents();
+  for (size_t i = 0; i < components.size(); ++i)
+  {
+    Window *window = components[i] ? components[i]->asWindow() : 0;
+    if (window && (!window->scene() || !window->scene()->isRunInProgress()) &&
+        window->dialogResults().hasRunnableWork())
+      return true;
+  }
+  return false;
+}
+
+/** Borrowed admission rows remain owned by the App group or close queue. */
+struct App::AdmittedWindow
+{
+  explicit AdmittedWindow(Window *value)
+      : window(value), scenes(0), dialogRetirements(value->captureDialogRetirements()) {}
+  Window *window;
+  loka::app::scene::Scene *scenes;
+  Window::DialogRetirements dialogRetirements;
+};
+
+bool App::isWindowClosePending(Window *window) const
+{
+  return std::find(this->pendingWindowClosures_.begin(), this->pendingWindowClosures_.end(), window) !=
+         this->pendingWindowClosures_.end();
+}
+
 void App::flushWindowInvalidations()
 {
   // The App clock admits seat requests; native command callbacks only request work.
@@ -136,7 +180,6 @@ void App::flushWindowInvalidations()
     return;
 
   this->flushingWindowWork_ = true;
-  typedef std::pair<Window *, loka::app::scene::Scene *> AdmittedWindow;
   std::vector<AdmittedWindow> admitted;
   const std::vector<AppComponent *> &comps = this->group_->getComponents();
   for (size_t i = 0; i < comps.size(); ++i)
@@ -147,11 +190,12 @@ void App::flushWindowInvalidations()
     if (win && win->scene() && win->scene()->isRunInProgress())
       continue;
     if (win && (win->hasPendingNativeVisibility() ||
-                win->hasPendingSceneInvalidation() || win->hasPendingScenePlatformSync()))
+                win->hasPendingSceneInvalidation() || win->hasPendingScenePlatformSync() ||
+                win->dialogResults().hasRunnableWork()))
     {
       if (admitted.empty())
         admitted.reserve(comps.size());
-      admitted.push_back(AdmittedWindow(win, static_cast<loka::app::scene::Scene *>(0)));
+      admitted.push_back(AdmittedWindow(win));
     }
   }
   // Snapshot our rows before callbacks can remove a Window from the group.
@@ -160,21 +204,29 @@ void App::flushWindowInvalidations()
   {
     // An earlier row's callback may have delivered a terminal close for this
     // snapshot row. The App owns both lists; never recreate a close-queued rail.
-    if (std::find(this->pendingWindowClosures_.begin(), this->pendingWindowClosures_.end(),
-                  admitted[i].first) != this->pendingWindowClosures_.end())
+    if (this->isWindowClosePending(admitted[i].window))
     {
-      admitted[i].first = 0;
+      admitted[i].window = 0;
       continue;
     }
-    admitted[i].first->applyNativeVisibility();
-    admitted[i].second = admitted[i].first->applySceneWork();
+    admitted[i].window->applyNativeVisibility();
+    if (this->isWindowClosePending(admitted[i].window))
+      continue;
+    admitted[i].window->deliverDialogResults();
+    if (this->isWindowClosePending(admitted[i].window))
+      continue;
+    admitted[i].scenes = admitted[i].window->applySceneWork();
   }
   for (size_t i = 0; i < admitted.size(); ++i)
   {
-    if (!admitted[i].first)
+    if (!admitted[i].window ||
+        this->isWindowClosePending(admitted[i].window))
       continue;
-    admitted[i].first->flushSceneInvalidation();
-    admitted[i].first->reclaimScenes(admitted[i].second);
+    admitted[i].window->flushSceneInvalidation();
+    if (this->isWindowClosePending(admitted[i].window))
+      continue;
+    admitted[i].window->reclaimScenes(admitted[i].scenes);
+    admitted[i].window->reclaimDialogResults(admitted[i].dialogRetirements);
   }
   this->flushingWindowWork_ = false;
 }
@@ -195,6 +247,7 @@ void App::windowClosed(Window *window)
     }
   }
   assert(activeWindow_ != window && "A retired Window cannot remain active at reclaim");
+  window->dialogResults().close();
   delete window;
 }
 
@@ -236,6 +289,7 @@ void App::requestWindowClose(Window *window)
   // Reserve before changing ownership so an allocation failure cannot leave
   // a detached Window without a queue owner.
   pendingWindowClosures_.reserve(pendingWindowClosures_.size() + 1);
+  window->dialogResults().close();
   if (!group_->remove(window))
   {
     return;

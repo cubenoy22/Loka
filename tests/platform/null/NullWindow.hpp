@@ -20,6 +20,7 @@ public:
     {
       this->controller_ = new NullScenePlatformController();
     }
+    this->dialogResults().open(*this);
     this->mountScene();
   }
 
@@ -31,6 +32,7 @@ public:
   /** Native teardown body used by App admission and terminal destruction. */
   void destroyScenePlatform()
   {
+    this->dialogResults().close();
     this->teardownScene();
     if (this->controller_)
     {
@@ -131,6 +133,7 @@ private:
     {
       this->controller_ = new NullScenePlatformController();
       this->ownsController_ = true;
+      this->dialogResults().open(*this);
       this->mountScene();
     }
     else

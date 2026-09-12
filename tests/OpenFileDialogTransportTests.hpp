@@ -1,0 +1,16 @@
+#ifndef LOKA_OPEN_FILE_DIALOG_TRANSPORT_TESTS_HPP
+#define LOKA_OPEN_FILE_DIALOG_TRANSPORT_TESTS_HPP
+void testOpenFileDialogTransportRetiredNodeDropsProducedResult();
+void testOpenFileDialogTransportRetainedDetachAndFreshReattach();
+void testOpenFileDialogTransportOwnerReclaimDropsProducedResult();
+void testOpenFileDialogTransportCommitIntakeUsesNext();
+void testOpenFileDialogTransportObserverCancellationSuppressesEmitter();
+void testOpenFileDialogTransportCloseMakesProgressWithoutInput();
+void testOpenFileDialogTransportReservedReturnIsRevoked();
+void testOpenFileDialogTransportRetargetAndFiniteBatch();
+void testOpenFileDialogTransportShutdownRevokesBothPopulations();
+void testOpenFileDialogTransportSceneRunExcludesAdmission();
+void testOpenFileDialogTransportRetargetDuringWriteCannotUnlinkReplacement();
+void testOpenFileDialogTransportEmitterTokenChecksDeliveryLifetime();
+void testOpenFileDialogTransportCrossWindowCloseCancelsLaterBatch();
+#endif

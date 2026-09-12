@@ -1,5 +1,6 @@
 #include "Win32OpenFileDialogContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
+#include "../Win32Window.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include <commdlg.h>
 #include <string>
@@ -9,35 +10,6 @@
 namespace
 {
   const UINT kWin32OpenFileDialogDeferredResultMessage = WM_APP + 41;
-
-  struct Win32OpenNativeDialogSession
-  {
-    Win32OpenNativeDialogSession()
-        : disposed(false)
-    {
-    }
-
-    bool disposed;
-  };
-
-  static void DeliverOpenFileDialogResult(loka::app::scene::NodeState<loka::app::FileChooserResult> resultState,
-                                          loka::core::EmitterState *onResult,
-                                          const loka::app::FileChooserResult &result)
-  {
-    void *onResultToken = onResult ? onResult->retainExternalLifetimeToken() : 0;
-    if (resultState.isValid())
-    {
-      resultState.set(result, true);
-    }
-    if (onResult && loka::core::StateBase::isExternalLifetimeTokenAlive(onResultToken))
-    {
-      onResult->emit();
-    }
-    if (onResultToken)
-    {
-      loka::core::StateBase::releaseExternalLifetimeToken(onResultToken);
-    }
-  }
 
   class Win32OpenFileDialogNodeHandler
       : public loka::app::scene::RetainedNodeHandler<Win32OpenFileDialogNodeHandler,
@@ -56,7 +28,10 @@ namespace
     {
       (void)state;
       Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
-      return new Win32OpenFileDialogContext(win32->rootHwnd(), dialog);
+      Window *window = win32->rootHwnd()
+                           ? reinterpret_cast<Win32Window *>(GetWindowLongPtr(win32->rootHwnd(), GWLP_USERDATA))
+                           : 0;
+      return new Win32OpenFileDialogContext(win32->rootHwnd(), dialog, window);
     }
 
     static void afterAttach(Win32OpenFileDialogContext *ctx)
@@ -69,44 +44,32 @@ namespace
   Win32OpenFileDialogNodeHandler gWin32OpenFileDialogNodeHandler;
 } // namespace
 
-struct Win32OpenFileDialogContext::NativeDialogSession : public Win32OpenNativeDialogSession
-{
-};
-
-Win32OpenFileDialogContext::DeferredResultDelivery::~DeferredResultDelivery()
-{
-  if (dialog)
-  {
-    delete dialog;
-    dialog = 0;
-  }
-}
-
 UINT Win32OpenFileDialogContext::deferredResultMessage()
 {
   return kWin32OpenFileDialogDeferredResultMessage;
 }
 
-bool Win32OpenFileDialogContext::handlePostedResultMessage(UINT message, WPARAM, LPARAM lParam)
+bool Win32OpenFileDialogContext::handlePostedResultMessage(UINT message, WPARAM, LPARAM)
 {
   if (message != kWin32OpenFileDialogDeferredResultMessage)
   {
     return false;
   }
-  DeliverDeferredResultThunk(reinterpret_cast<void *>(lParam));
+  // A wake carries no entry identity and never invokes application code.
   return true;
 }
 
-Win32OpenFileDialogContext::Win32OpenFileDialogContext(HWND parent, loka::app::OpenFileDialogNode *node)
-    : parent_(parent),
-      node_(node),
-      resultState_(),
-      onResult_(0),
-      presentation_(),
-      dialog_(0)
+Win32OpenFileDialogContext::Win32OpenFileDialogContext(HWND parent, loka::app::OpenFileDialogNode *node,
+                                                     Window *window)
+    : parent_(parent), node_(node), transport_(window ? &window->dialogResults() : 0),
+      presentation_(), registration_(0)
 {
-  resultState_ = node_ ? node_->props.result_ : loka::app::scene::NodeState<loka::app::FileChooserResult>();
-  onResult_ = node_ ? node_->props.onResult_ : 0;
+}
+
+void Win32OpenFileDialogContext::onPropsApplied()
+{
+  if (this->registration_ && this->node_ && !this->registration_->matches(this->node_->props))
+    this->detachOwnedDialog();
 }
 
 Win32OpenFileDialogContext::~Win32OpenFileDialogContext()
@@ -132,44 +95,42 @@ void Win32OpenFileDialogContext::onFactChanged(loka::app::scene::NodeLifecycleFa
   }
   else
   {
-    // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
-    // (hide before the ritual destroys the native pair).
+    // Retained detach abandons the old operation just like terminal retirement.
     this->applyDetachedPresentation();
   }
 }
 
 void Win32OpenFileDialogContext::applyAttachedPresentation()
 {
-  presentIfNeeded();
+  this->presentIfNeeded();
 }
 
 void Win32OpenFileDialogContext::applyDetachedPresentation()
 {
-  presentation_.markDetached();
+  this->presentation_.markDetached();
   this->detachOwnedDialog();
 }
 
 void Win32OpenFileDialogContext::presentIfNeeded()
 {
-  if (dialog_ || !presentation_.beginPresent())
+  if (this->registration_ || !this->transport_ || !this->node_)
+    return;
+  if (!this->presentation_.beginPresent())
+    return;
+  this->registration_ = this->transport_->reserve(this->node_->props);
+  if (!this->registration_)
   {
+    this->presentation_.markDetached();
     return;
   }
-  dialog_ = new NativeDialogSession();
-  presentDialog();
+  this->presentDialog();
 }
 
 void Win32OpenFileDialogContext::presentDialog()
 {
-  if (!presentation_.isPresenting())
-  {
-    return;
-  }
-  if (!dialog_ || dialog_->disposed)
-  {
-    return;
-  }
-  NativeDialogSession *dialogSession = dialog_;
+  loka::app::DialogResultTransport::ReturnPort port(this->registration_);
+  const HWND parent = this->parent_;
+  this->presentation_.markPresented();
 
   // The W dialog, not the A one: GetOpenFileNameA returns the path in the
   // process ANSI code page, and handing those bytes to loka::core::String --
@@ -182,7 +143,7 @@ void Win32OpenFileDialogContext::presentDialog()
   OPENFILENAMEW ofn;
   ZeroMemory(&ofn, sizeof(ofn));
   ofn.lStructSize = sizeof(ofn);
-  ofn.hwndOwner = parent_;
+  ofn.hwndOwner = parent;
   ofn.lpstrFile = buffer;
   ofn.nMaxFile = MAX_PATH;
   ofn.lpstrFilter = L"Images\0*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff\0All Files\0*.*\0";
@@ -191,7 +152,7 @@ void Win32OpenFileDialogContext::presentDialog()
 
   BOOL accepted;
   {
-    loka::win32::ThreadModalDialogScope threadModal(parent_);
+    loka::win32::ThreadModalDialogScope threadModal(parent);
     accepted = GetOpenFileNameW(&ofn);
   }
 
@@ -215,96 +176,25 @@ void Win32OpenFileDialogContext::presentDialog()
     }
   }
 
-  // Result delivery may complete synchronously on fallback paths, so finish the
-  // presentation state transition before handing control to delivery.
-  presentation_.markPresented();
-  setResult(result, dialogSession);
+  // Native return has only the revocable stack port; the context may be gone.
+  queueDeferredResult(port, result);
 }
 
-void Win32OpenFileDialogContext::setResult(const loka::app::FileChooserResult &result,
-                                           NativeDialogSession *dialogSession)
+void Win32OpenFileDialogContext::queueDeferredResult(loka::app::DialogResultTransport::ReturnPort &port,
+                                                     const loka::app::FileChooserResult &result)
 {
-  this->queueDeferredResult(result, dialogSession);
-}
-
-void Win32OpenFileDialogContext::queueDeferredResult(const loka::app::FileChooserResult &result,
-                                                     NativeDialogSession *dialogSession)
-{
-  DeferredResultDelivery *delivery = new DeferredResultDelivery();
-  delivery->resultState = resultState_;
-  delivery->onResult = onResult_;
-  delivery->result = result;
-  delivery->owner = this;
-  delivery->dialog = dialogSession;
-
-  if (dialog_ == dialogSession)
-  {
-    dialog_ = 0;
-  }
-
-  if (parent_ && IsWindow(parent_))
-  {
-    if (PostMessage(parent_, kWin32OpenFileDialogDeferredResultMessage, 0, reinterpret_cast<LPARAM>(delivery)))
-    {
-      return;
-    }
-  }
-
-  loka::core::PushStateTracker *tracker = 0;
-  if (delivery->resultState.isValid() && delivery->resultState.dangerouslyTracker())
-  {
-    tracker = delivery->resultState.dangerouslyTracker()->asPushTracker();
-  }
-  if (!tracker && delivery->onResult && delivery->onResult->trackerOwner())
-  {
-    tracker = delivery->onResult->trackerOwner()->asPushTracker();
-  }
-  if (!tracker)
-  {
-    DeliverDeferredResultThunk(delivery);
-    return;
-  }
-
-  if (tracker->phase() == loka::core::TRACKER_IDLE)
-  {
-    tracker->begin();
-    tracker->defer(&Win32OpenFileDialogContext::DeliverDeferredResultThunk, delivery);
-    tracker->end();
-    return;
-  }
-
-  tracker->defer(&Win32OpenFileDialogContext::DeliverDeferredResultThunk, delivery);
+  Window *window = port.seal(result);
+  Win32Window *win32 = window ? window->asWin32Window() : 0;
+  if (win32 && win32->hwnd())
+    PostMessage(win32->hwnd(), kWin32OpenFileDialogDeferredResultMessage, 0, 0);
+  // Failed posts and missing HWNDs leave the same pending work for App admission.
 }
 
 void Win32OpenFileDialogContext::detachOwnedDialog()
 {
-  if (!dialog_)
-  {
-    return;
-  }
-  dialog_->disposed = true;
-  dialog_ = 0;
-}
-
-void Win32OpenFileDialogContext::DeliverDeferredResultThunk(void *userData)
-{
-  DeferredResultDelivery *delivery = static_cast<DeferredResultDelivery *>(userData);
-  if (!delivery)
-  {
-    return;
-  }
-  if (!delivery->dialog || delivery->dialog->disposed)
-  {
-    delete delivery;
-    return;
-  }
-  if (delivery->owner && delivery->owner->dialog_ == delivery->dialog)
-  {
-    delivery->owner->dialog_ = 0;
-    delivery->dialog->disposed = true;
-  }
-  DeliverOpenFileDialogResult(delivery->resultState, delivery->onResult, delivery->result);
-  delete delivery;
+  loka::app::DialogResultTransport::Registration *registration = this->registration_;
+  this->registration_ = 0;
+  delete registration;
 }
 
 void RegisterWin32OpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
