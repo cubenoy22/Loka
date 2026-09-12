@@ -267,10 +267,13 @@ namespace
     scene.mount(&platform);
     SceneTestAccess::updateAttached(scene, true);
     // Instrumented Q1/Q3 trace: ATTACH arms white and withholds publication.
-    LOKA_VERIFY(SceneTestAccess::whiteFlagFullRebuildPending(scene));
-    LOKA_VERIFY(platform.changeCount() == 0);
+    const bool initialWhitePending = SceneTestAccess::whiteFlagFullRebuildPending(scene);
+    LOKA_VERIFY(initialWhitePending);
+    const bool initialPublicationWithheld = platform.changeCount() == 0;
+    LOKA_VERIFY(initialPublicationWithheld);
     LOKA_VERIFY(data.refusals > 0 && data.attempts == data.refusals);
-    LOKA_VERIFY(platform.published.empty());
+    const bool initialPublicationEmpty = platform.published.empty();
+    LOKA_VERIFY(initialPublicationEmpty);
     const int initialAttempts = data.attempts;
     bool valid = check("ATTACH", scene, platform);
     const int bindings = data.bindings;
@@ -289,7 +292,8 @@ namespace
     LOKA_VERIFY(valid);
     LOKA_VERIFY(data.attempts > initialAttempts);
     LOKA_VERIFY(platform.published == data.declared);
-    LOKA_VERIFY(!SceneTestAccess::whiteFlagFullRebuildPending(scene));
+    const bool healedWhiteCleared = !SceneTestAccess::whiteFlagFullRebuildPending(scene);
+    LOKA_VERIFY(healedWhiteCleared);
   }
 } // namespace
 
@@ -315,17 +319,21 @@ void testPartialTreeHealthyControl()
   scene.mount(&platform);
   SceneTestAccess::updateAttached(scene, true);
   LOKA_VERIFY(check("healthy-ATTACH", scene, platform));
-  LOKA_VERIFY(platform.changeCount() == 1 && data.attempts == 1 && data.refusals == 0);
+  const bool healthyInitialCounts = platform.changeCount() == 1 && data.attempts == 1 && data.refusals == 0;
+  LOKA_VERIFY(healthyInitialCounts);
   Node *first = SceneTestAccess::rootBoundary(scene)->childrenHead();
   Node *childOne = first->asNestable()->childrenHead();
   Node *childTwo = childOne->nextInComposition;
   const int bindings = data.bindings;
   refresh(scene);
   LOKA_VERIFY(check("healthy-refresh", scene, platform));
-  LOKA_VERIFY(first == SceneTestAccess::rootBoundary(scene)->childrenHead());
-  LOKA_VERIFY(first->asNestable()->childrenHead() == childOne && childOne->nextInComposition == childTwo);
+  const bool rootChildRetained = first == SceneTestAccess::rootBoundary(scene)->childrenHead();
+  LOKA_VERIFY(rootChildRetained);
+  const bool childrenRetained = first->asNestable()->childrenHead() == childOne && childOne->nextInComposition == childTwo;
+  LOKA_VERIFY(childrenRetained);
   LOKA_VERIFY(data.declarations == 1 && data.bindings == bindings && data.attempts == 1);
-  LOKA_VERIFY(platform.changeCount() == 2);
+  const bool healthyRefreshPublished = platform.changeCount() == 2;
+  LOKA_VERIFY(healthyRefreshPublished);
 }
 
 void testPartialTreeNullRootSwitchRecovery()
@@ -336,21 +344,25 @@ void testPartialTreeNullRootSwitchRecovery()
   Scene scene((Boundary<Root>()));
   scene.mount(&platform);
   SceneTestAccess::updateAttached(scene, true);
-  LOKA_VERIFY(platform.changeCount() == 1 && data.attempts == 0);
+  const bool initialSwitchCounts = platform.changeCount() == 1 && data.attempts == 0;
+  LOKA_VERIFY(initialSwitchCounts);
   const int bindings = data.bindings;
   {
     loka::core::StateTrackerGuard guard(SceneTestAccess::rootBoundary(scene)->tracker());
     data.condition.set(true);
   }
   LOKA_VERIFY(check("switch-refused", scene, platform));
-  LOKA_VERIFY(data.attempts == 1 && data.refusals == 1 && platform.changeCount() == 1);
+  const bool refusedSwitchCounts = data.attempts == 1 && data.refusals == 1 && platform.changeCount() == 1;
+  LOKA_VERIFY(refusedSwitchCounts);
   refresh(scene);
   LOKA_VERIFY(check("switch-refusing-refresh", scene, platform));
-  LOKA_VERIFY(data.attempts == 2 && data.refusals == 2 && platform.changeCount() == 1);
+  const bool refusingRefreshCounts = data.attempts == 2 && data.refusals == 2 && platform.changeCount() == 1;
+  LOKA_VERIFY(refusingRefreshCounts);
   data.refusing = false;
   refresh(scene);
   LOKA_VERIFY(check("switch-healed", scene, platform));
-  LOKA_VERIFY(data.attempts == 3 && data.refusals == 2 && platform.changeCount() == 2);
+  const bool healedSwitchCounts = data.attempts == 3 && data.refusals == 2 && platform.changeCount() == 2;
+  LOKA_VERIFY(healedSwitchCounts);
   LOKA_VERIFY(platform.published == data.declared);
   LOKA_VERIFY(data.declarations == 1 && data.bindings == bindings);
 }
@@ -365,14 +377,16 @@ void testPartialTreeConditionalSectionRoundTrip271()
   SceneTestAccess::updateAttached(scene, true);
   BoundaryNode *boundary = SceneTestAccess::rootBoundary(scene);
   Node *section = boundary->childrenHead();
-  LOKA_VERIFY(section && section->asBoundarySectionNode());
+  const bool sectionPresent = section && section->asBoundarySectionNode();
+  LOKA_VERIFY(sectionPresent);
   // State belongs to the Section owner; the stable pointer is borrowed only
   // through this retained park/re-entry round trip, never across reclamation.
   BoundarySectionNode *owner = section->asBoundarySectionNode();
   SectionStateNode *component =
       static_cast<SectionStateNode *>(section->asNestable()->childrenHead()->nextInComposition);
   const loka::core::State<int> *state = component->value();
-  LOKA_VERIFY(state && component->owner() == owner);
+  const bool stateOwnedBySection = state && component->owner() == owner;
+  LOKA_VERIFY(stateOwnedBySection);
   LOKA_VERIFY(check("section-ATTACH", scene, platform));
   const int bindings = data.bindings;
   {
@@ -380,17 +394,22 @@ void testPartialTreeConditionalSectionRoundTrip271()
     data.condition.set(false);
   }
   scene.flushInvalidation();
-  LOKA_VERIFY(boundary->childrenHead() != section);
+  const bool sectionParked = boundary->childrenHead() != section;
+  LOKA_VERIFY(sectionParked);
   {
     loka::core::StateTrackerGuard guard(boundary->tracker());
     data.condition.set(true);
   }
-  LOKA_VERIFY(boundary->childrenHead() == section);
-  LOKA_VERIFY(boundary->childrenHead()->asBoundarySectionNode() == owner);
-  LOKA_VERIFY(component->owner() == owner && component->value() == state && state->get() == 17);
+  const bool sectionReturned = boundary->childrenHead() == section;
+  LOKA_VERIFY(sectionReturned);
+  const bool sectionOwnerRetained = boundary->childrenHead()->asBoundarySectionNode() == owner;
+  LOKA_VERIFY(sectionOwnerRetained);
+  const bool sectionStateRetained = component->owner() == owner && component->value() == state && state->get() == 17;
+  LOKA_VERIFY(sectionStateRetained);
   LOKA_VERIFY(check("section-reentry", scene, platform));
   refresh(scene);
-  LOKA_VERIFY(boundary->childrenHead() == section && state->get() == 17);
+  const bool refreshedSectionStateRetained = boundary->childrenHead() == section && state->get() == 17;
+  LOKA_VERIFY(refreshedSectionStateRetained);
   LOKA_VERIFY(check("section-refresh", scene, platform));
   LOKA_VERIFY(data.declarations == 1 && data.bindings == bindings);
 }
