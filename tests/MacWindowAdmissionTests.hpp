@@ -1,0 +1,6 @@
+#ifndef LOKA_MAC_WINDOW_ADMISSION_TESTS_HPP
+#define LOKA_MAC_WINDOW_ADMISSION_TESTS_HPP
+
+void testMacWindowVisibilityAdmissionAndDelegateClose();
+
+#endif

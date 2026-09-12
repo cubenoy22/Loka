@@ -9,10 +9,15 @@ namespace loka
   {
     namespace testing
     {
-      /** Test-only access to the content view owned by MacWindow. */
+      /** Test-only access to native identities owned by MacWindow. */
       class MacWindowTestAccess
       {
       public:
+        static void *nativeWindow(const ::MacWindow &window)
+        {
+          return window.window_;
+        }
+
         static void *contentView(const ::MacWindow &window)
         {
           return window.contentView_;

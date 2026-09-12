@@ -13,6 +13,11 @@ namespace loka
       class AppTestAccess
       {
       public:
+        static size_t pendingWindowCloseCount(const App &app)
+        {
+          return app.pendingWindowClosures_.size();
+        }
+
         static void flushWindowInvalidations(App &app)
         {
           app.flushWindowInvalidations();

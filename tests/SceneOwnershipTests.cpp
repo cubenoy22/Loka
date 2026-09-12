@@ -879,7 +879,7 @@ void testAppDefersWindowReclaimUntilInvalidationFlush()
   assert(notification.calls == 1);
   assert(g_windowRetirementWindowsAlive == 1);
   assert(g_sceneOwnershipScenesAlive == 1);
-  assert(app.activeWindow() == 0);
+  assert(app.activeWindow() == 0); // loka-assert-ok: activeWindow is a pure reader
   assert(app.appliedWindow == 0);
   assert(app.applyMenuCalls == 2);
   assert(app.quitCalls == 1);
@@ -909,7 +909,7 @@ void testAppDefersReentrantWindowCloseRequestUntilNextFlush()
   app.closeDuringReclaim = second;
 
   app.requestWindowClose(first);
-  assert(app.activeWindow() == second);
+  assert(app.activeWindow() == second); // loka-assert-ok: activeWindow is a pure reader
   assert(app.appliedWindow == second);
   assert(app.applyMenuCalls == 2);
   assert(g_windowRetirementWindowsAlive == 2);
@@ -918,7 +918,7 @@ void testAppDefersReentrantWindowCloseRequestUntilNextFlush()
   assert(app.reclaimCalls == 1);
   assert(app.windowsAliveDuringNestedFlush == 2);
   assert(g_windowRetirementWindowsAlive == 1);
-  assert(app.activeWindow() == 0);
+  assert(app.activeWindow() == 0); // loka-assert-ok: activeWindow is a pure reader
   assert(app.appliedWindow == 0);
   assert(app.applyMenuCalls == 3);
   assert(app.quitCalls == 1);
@@ -1010,7 +1010,7 @@ void testAppWindowCloseRequestsAreIdempotent()
 
   app.requestWindowClose(foreign);
   app.flush();
-  assert(app.activeWindow() == owned);
+  assert(app.activeWindow() == owned); // loka-assert-ok: activeWindow is a pure reader
   assert(app.appliedWindow == owned);
   assert(app.applyMenuCalls == 1);
   assert(app.quitCalls == 0);
