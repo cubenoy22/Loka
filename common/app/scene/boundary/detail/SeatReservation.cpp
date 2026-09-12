@@ -59,6 +59,54 @@ namespace loka
           return reservation;
         }
 
+        SeatReservation::~SeatReservation()
+        {
+          if (this->partition_)
+          {
+            this->partition_->~NodePartition();
+            core::LokaFreeRaw(this->partition_, SeatReservations::site());
+          }
+        }
+
+#ifdef TEST_BUILD
+        NodePartition *SeatReservations::installFixture(SeatLayoutTable table)
+        {
+          if (!table.normalize())
+            return 0;
+          void *storage = core::LokaAllocRaw(sizeof(NodePartition), site());
+          if (!storage)
+            return 0;
+          NodePartition *partition = new (storage) NodePartition();
+          if (partition->boot(table.layouts(), table.count()))
+          {
+            const SeatReservation *reservation = this->install(table);
+            if (reservation)
+            {
+              this->head_->partition_ = partition;
+              return partition;
+            }
+          }
+          partition->~NodePartition();
+          core::LokaFreeRaw(partition, site());
+          return 0;
+        }
+#endif
+
+        NodePartition *SeatReservations::partitionFor(Node *node)
+        {
+          for (SeatReservation *r = this->head_; r; r = r->next_)
+            if (r->partition_ && r->partition_->resident(node))
+              return r->partition_;
+          return 0;
+        }
+
+        void SeatReservations::reclaimPartitionRoots(NodePartition::ReclaimNode reclaim, void *context)
+        {
+          for (SeatReservation *r = this->head_; r; r = r->next_)
+            if (r->partition_)
+              r->partition_->reclaimRoots(reclaim, context);
+        }
+
         const core::LokaAllocationSite &SeatReservations::site()
         {
           static const core::LokaAllocationSite site("SeatReservation", "table");

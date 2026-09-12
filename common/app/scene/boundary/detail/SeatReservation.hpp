@@ -41,8 +41,9 @@ namespace loka
           size_t count_;
         };
 
-        /** Boundary-lifetime immutable reservation facts. Production retains only this
-            table and its checked footprint; no node backing is acquired. */
+        /** Boundary-lifetime immutable reservation facts, with optional owned storage.
+            Only the internal fixture admission boots a partition. Production retains
+            the table and its checked footprint without acquiring node backing. */
         class SeatReservation
         {
         public:
@@ -61,13 +62,16 @@ namespace loka
           SeatReservation(const SeatLayoutTable &table, size_t bytes)
               : table_(table),
                 bytes_(bytes),
+                partition_(0),
                 next_(0)
           {
           }
+          ~SeatReservation();
           SeatReservation(const SeatReservation &);
           SeatReservation &operator=(const SeatReservation &);
           const SeatLayoutTable table_;
           const size_t bytes_;
+          NodePartition *partition_;
           SeatReservation *next_;
         };
 
@@ -83,7 +87,17 @@ namespace loka
           ~SeatReservations();
           const SeatReservation *install(SeatLayoutTable table);
 
+#ifdef TEST_BUILD
+          /** Internal reserved seat only. Production allocation remains dormant. */
+          NodePartition *installFixture(SeatLayoutTable table);
+#endif
+
+          /** Search only this landlord's reservations and each partition's own rows. */
+          NodePartition *partitionFor(Node *node);
+          void reclaimPartitionRoots(NodePartition::ReclaimNode reclaim, void *context);
+
         private:
+          friend class SeatReservation;
           SeatReservations(const SeatReservations &);
           SeatReservations &operator=(const SeatReservations &);
           static const core::LokaAllocationSite &site();

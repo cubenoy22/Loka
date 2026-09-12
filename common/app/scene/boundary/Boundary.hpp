@@ -36,6 +36,7 @@ namespace loka
     namespace testing
     {
       class OwnershipDump;
+      class PartitionReclaimAccess;
     }
   } // namespace dsl
 
@@ -570,6 +571,14 @@ namespace loka
           const loka::core::PushStateTracker *pushTracker = this->tracker_.asPushTracker();
           return observedState_.dirtyFlagsForCommittedStates(pushTracker);
         }
+
+#ifdef TEST_BUILD
+        /** Internal fixture admission; no production factory consults this bank. */
+        detail::NodePartition *installPartitionFixture(const detail::SeatLayoutTable &table)
+        {
+          return this->seatReservations_.installFixture(table);
+        }
+#endif
 
         /** Cold seat installation belongs to this Boundary, independent of arm replacement. */
         const detail::SeatReservation *installSeatReservation(const detail::SeatLayoutTable &table)
@@ -2257,6 +2266,7 @@ namespace loka
 
         void retireSubtree(Node *node);
         void destroyRetiredSubtree(Node *node);
+        static void ReclaimPartitionNode(Node *node, void *owner);
         void drainAllRetiredSubtrees();
         void releaseOwnedNodeStorage();
 
@@ -2288,6 +2298,9 @@ namespace loka
         bool drainingRetiredSubtrees_;
 
         friend class ::loka::dsl::testing::OwnershipDump;
+#ifdef TEST_BUILD
+        friend class ::loka::dsl::testing::PartitionReclaimAccess;
+#endif
 
       };
 
