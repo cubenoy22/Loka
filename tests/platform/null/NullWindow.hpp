@@ -28,8 +28,7 @@ public:
     this->destroyScenePlatform();
   }
 
-  /** Null-only synchronous native teardown hook. The visibility-refusal pin
-      calls this from its visibility observer, mirroring Win32 teardown. */
+  /** Native teardown body used by App admission and terminal destruction. */
   void destroyScenePlatform()
   {
     this->teardownScene();
@@ -117,6 +116,27 @@ protected:
   }
 
 private:
+  // Deliberate counterpart of Win32's HWND comparison. This rail uses its
+  // controller identity as fake native presence, independently of scene mount.
+  virtual bool hasPendingNativeVisibility() const
+  {
+    return this->visibility_->get() != (this->controller_ != 0);
+  }
+
+  virtual void applyNativeVisibility()
+  {
+    if (!this->hasPendingNativeVisibility())
+      return;
+    if (this->visibility_->get())
+    {
+      this->controller_ = new NullScenePlatformController();
+      this->ownsController_ = true;
+      this->mountScene();
+    }
+    else
+      this->destroyScenePlatform();
+  }
+
   NullScenePlatformController *controller_;
   bool ownsController_;
   bool mountedScene_;

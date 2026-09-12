@@ -146,7 +146,8 @@ void App::flushWindowInvalidations()
     // Exclude the entire row so neither replacement nor reclaim touches it.
     if (win && win->scene() && win->scene()->isRunInProgress())
       continue;
-    if (win && (win->hasPendingSceneInvalidation() || win->hasPendingScenePlatformSync()))
+    if (win && (win->hasPendingNativeVisibility() ||
+                win->hasPendingSceneInvalidation() || win->hasPendingScenePlatformSync()))
     {
       if (admitted.empty())
         admitted.reserve(comps.size());
@@ -156,9 +157,22 @@ void App::flushWindowInvalidations()
   // Snapshot our rows before callbacks can remove a Window from the group.
   // All seats apply before any Scene run: adoption from X's run waits even for Y.
   for (size_t i = 0; i < admitted.size(); ++i)
+  {
+    // An earlier row's callback may have delivered a terminal close for this
+    // snapshot row. The App owns both lists; never recreate a close-queued rail.
+    if (std::find(this->pendingWindowClosures_.begin(), this->pendingWindowClosures_.end(),
+                  admitted[i].first) != this->pendingWindowClosures_.end())
+    {
+      admitted[i].first = 0;
+      continue;
+    }
+    admitted[i].first->applyNativeVisibility();
     admitted[i].second = admitted[i].first->applySceneWork();
+  }
   for (size_t i = 0; i < admitted.size(); ++i)
   {
+    if (!admitted[i].first)
+      continue;
     admitted[i].first->flushSceneInvalidation();
     admitted[i].first->reclaimScenes(admitted[i].second);
   }

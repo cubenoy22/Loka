@@ -53,7 +53,6 @@ Win32Window::Win32Window(PlatformContext *context, const WindowProps &props)
       scenePlatformController_(0)
 {
   // Track logical states and project them into native Win32 state.
-  this->observeNativeState(this->visibilityState(), &Win32Window::VisibilityChangedThunk, this);
   this->observeNativeState(this->displayTitleState(), &Win32Window::TitleChangedThunk, this);
   this->observeNativeState(this->frameState(), &Win32Window::FrameChangedThunk, this);
 }
@@ -196,29 +195,26 @@ void Win32Window::setApp(App *app)
   }
 }
 
-// static thunk for loka::core::State<bool>::OnChangeFn
-void Win32Window::VisibilityChangedThunk(void *userData)
+// Deliberate counterpart of NullWindow's controller-identity comparison.
+bool Win32Window::hasPendingNativeVisibility() const
 {
-  Win32Window *self = static_cast<Win32Window *>(userData);
-  if (!self)
+  return this->visibility_->get() != (this->hwnd_ != NULL);
+}
+
+void Win32Window::applyNativeVisibility()
+{
+  if (!this->hasPendingNativeVisibility())
     return;
-  bool visible = self->visibilityState().get();
-  if (visible)
+  if (this->visibility_->get())
   {
-    if (!self->hwnd_)
-    {
-      self->createNativeWindow();
-    }
-    if (self->hwnd_)
-      self->onShow();
+    this->createNativeWindow();
+    if (this->hwnd_)
+      this->onShow();
   }
   else
   {
-    if (self->hwnd_)
-    {
-      self->onHide();
-      self->destroyNativeWindow();
-    }
+    this->onHide();
+    this->destroyNativeWindow();
   }
 }
 
@@ -483,7 +479,7 @@ void Win32Window::destroyNativeWindow()
 
 void Win32Window::onCreate()
 {
-  // Native creation is entered from VisibilityChangedThunk; it reads the
+  // Native creation is entered from App admission; it reads the
   // application's intent and never writes it back (no forced re-notify).
   Window::onCreate();
 }

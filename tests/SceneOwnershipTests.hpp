@@ -25,11 +25,14 @@ void testSceneReplacementPreservesAppliedOnPrepareRefusal();
 void testInitialScenePrepareRefusalPreservesDetachRequest();
 void testEmptyWindowConsumesSceneRequestsWithoutReadmission();
 void testInitialScenePrepareRefusalPreservesNewerRearmRequest();
-void testSceneReplacementRefusesControllerLostDuringAttach();
+void testSceneReplacementRefusesControllerLostDuringPrepare();
+void testSceneReplacementHideDuringAttachWaitsForNextAdmission();
 void testSceneReplacementAdoptedDuringAttachWaitsForNextAdmission();
 
 void testSceneReplacementReadoptsOutgoingDuringDetach();
 
 void testAppKeepsAdmissionSnapshotAliveDuringWindowClose();
+
+void testClosedAdmittedWindowIsNotRecreatedByEarlierSeatCallback();
 
 #endif // LOKA_SCENE_OWNERSHIP_TESTS_HPP
