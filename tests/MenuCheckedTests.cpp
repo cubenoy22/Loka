@@ -16,6 +16,35 @@
 
 namespace
 {
+  class OwnedEmitterMenuBoundary : public loka::app::MenuBoundary
+  {
+  public:
+    explicit OwnedEmitterMenuBoundary(int &actions)
+        : event_(this->dangerouslyUseEmitter()),
+          actions_(actions)
+    {
+    }
+
+    virtual void composeMenu(loka::app::MenuComposition &)
+    {
+      this->bindActionForMenu(this->event_, &OwnedEmitterMenuBoundary::onAction);
+    }
+
+    loka::core::EmitterState &event()
+    {
+      return this->event_;
+    }
+
+  private:
+    void onAction()
+    {
+      ++this->actions_;
+    }
+
+    loka::core::EmitterState &event_;
+    int &actions_;
+  };
+
   class CheckedMenuBoundary : public loka::app::MenuBoundary
   {
   public:
@@ -308,4 +337,30 @@ void testSimpleViewerDisplayModeUpdatesRetainedImageViewProps()
   LOKA_VERIFY(imageView->props.attr_.sizePolicyValue_ == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT);
 
   loka::dsl::testing::SceneTestAccess::unmount(scene);
+}
+
+void testMenuBoundaryOwnedEmitterSurvivesDerivedTeardown()
+{
+  int actions = 0;
+  void *lifetime = 0;
+  {
+    OwnedEmitterMenuBoundary *menu = new OwnedEmitterMenuBoundary(actions);
+    loka::app::MenuComposition composition(0);
+    menu->composeMenu(composition);
+    menu->composeMenu(composition);
+    lifetime = menu->event().retainExternalLifetimeToken();
+    LOKA_VERIFY(loka::core::StateBase::isExternalLifetimeTokenAlive(lifetime));
+    // Owning storage must preserve the event's untracked identity, immediate
+    // dispatch, and duplicate-bind refusal.
+    LOKA_VERIFY(menu->event().trackerOwner() == 0);
+    menu->event().emit();
+    LOKA_VERIFY(actions == 1);
+    loka::app::MenuBoundary *base = menu;
+    delete base;
+  }
+  LOKA_VERIFY(actions == 1);
+  LOKA_VERIFY(!loka::core::StateBase::isExternalLifetimeTokenAlive(lifetime));
+  loka::core::StateBase::releaseExternalLifetimeToken(lifetime);
+  // The shared test runner's lifecycle checkpoint also requires the owned
+  // emitter and tracker census to return to zero after this scope.
 }
