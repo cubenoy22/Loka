@@ -197,6 +197,8 @@ void Win32App::run()
       idlePacer.reset();
       this->flushMenuInvalidation();
       this->flushWindowInvalidations();
+      if (this->hasPendingWindowAdmission())
+        continue;
       if (!handledMessage)
       {
         WaitMessage();
@@ -226,6 +228,8 @@ void Win32App::run()
       idlePacer.reset();
       continue;
     }
+    if (this->hasPendingWindowAdmission())
+      continue;
     idlePacer.wait(waitPolicy, idleDispatched, now.QuadPart, frequency.QuadPart);
   }
 }

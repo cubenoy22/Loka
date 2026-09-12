@@ -59,6 +59,7 @@ Win32Window::Win32Window(PlatformContext *context, const WindowProps &props)
 
 Win32Window::~Win32Window()
 {
+  this->dialogResults().close();
   this->detachNativeStateObservers();
   if (this->hwnd_)
   {
@@ -380,8 +381,9 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       break;
     }
     case WM_DESTROY:
-      self->onDestroy();
+      self->dialogResults().close();
       self->hwnd_ = NULL;
+      self->onDestroy();
       if (self->app_)
       {
         self->app_->requestWindowClose(static_cast<Window *>(self));
@@ -456,6 +458,7 @@ void Win32Window::createNativeWindow()
     }
     TitleChangedThunk(this);
     UpdateWindow(hwnd);
+    this->dialogResults().open(*this);
     this->onCreate();
     this->mountScene();
   }
@@ -463,6 +466,7 @@ void Win32Window::createNativeWindow()
 
 void Win32Window::destroyNativeWindow()
 {
+  this->dialogResults().close();
   if (this->hwnd_)
   {
     App *appToClear = this->app_ && this->app_->activeWindow() == this ? this->app_ : 0;
