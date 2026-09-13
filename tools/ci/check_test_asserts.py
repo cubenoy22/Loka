@@ -8,10 +8,12 @@ LOKA_VERIFY for that; plain assert stays for pure comparisons.
 
 Nothing in a build can catch the regression: a reintroduced side-effect assert
 compiles fine and, under NDEBUG, usually just makes a test check less than it
-claims. So this check reads the corpus instead of a hand-kept list: any call
-already written inside a LOKA_VERIFY somewhere in the tree is known to carry
-work, and must not appear inside a plain assert. A new load-bearing API earns
-its place in the list the first time someone wraps it correctly.
+claims. This line-based heuristic learns call names from LOKA_VERIFY within
+each source file and flags matching plain asserts in that same file. A verified
+query in another file must not classify an unrelated same-named call as work.
+It does not resolve receiver types: same-file name collisions still need the
+escape hatch, and a file with no qualifying LOKA_VERIFY supplies no learned
+names. Cross-file-only evidence is deliberately outside this check's scope.
 
 Escape hatch for a genuine false positive: append `// loka-assert-ok: <reason>`
 to the assert line.
@@ -150,34 +152,36 @@ def main():
     root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     files = sorted(source_files(root))
 
-    load_bearing = set()
+    findings = []
+    learned_pairs = 0
     for path in files:
         with open(path, "r", encoding="utf-8", errors="replace") as handle:
-            for line in handle:
-                if VERIFY_LINE.search(line):
-                    name, _arguments = subject_call(line, "LOKA_VERIFY")
-                    if name:
-                        load_bearing.add(name)
-    load_bearing -= ACCESSOR_NAMES
-    load_bearing.discard("LOKA_VERIFY")
+            lines = handle.readlines()
 
-    if not load_bearing:
+        load_bearing = set()
+        for line in lines:
+            if VERIFY_LINE.search(line):
+                name, _arguments = subject_call(line, "LOKA_VERIFY")
+                if name:
+                    load_bearing.add(name)
+        load_bearing -= ACCESSOR_NAMES
+        load_bearing.discard("LOKA_VERIFY")
+        learned_pairs += len(load_bearing)
+
+        for number, line in enumerate(lines, 1):
+            if not ASSERT_LINE.search(line) or ALLOW.search(line):
+                continue
+            if VERIFY_LINE.search(line):
+                continue
+            name, arguments = subject_call(line, "assert")
+            if name and name in load_bearing and not pure_find_query(name, arguments):
+                findings.append(
+                    (os.path.relpath(path, root), number, [name], line.strip())
+                )
+
+    if not learned_pairs:
         print("check_test_asserts: no LOKA_VERIFY corpus found", file=sys.stderr)
         return 1
-
-    findings = []
-    for path in files:
-        with open(path, "r", encoding="utf-8", errors="replace") as handle:
-            for number, line in enumerate(handle, 1):
-                if not ASSERT_LINE.search(line) or ALLOW.search(line):
-                    continue
-                if VERIFY_LINE.search(line):
-                    continue
-                name, arguments = subject_call(line, "assert")
-                if name and name in load_bearing and not pure_find_query(name, arguments):
-                    findings.append(
-                        (os.path.relpath(path, root), number, [name], line.strip())
-                    )
 
     if findings:
         print("Load-bearing calls inside a plain assert (use LOKA_VERIFY):\n")
@@ -194,8 +198,8 @@ def main():
         return 1
 
     print(
-        "check_test_asserts: %d files, %d load-bearing call names, no findings"
-        % (len(files), len(load_bearing))
+        "check_test_asserts: %d files, %d learned file/name pairs, no findings"
+        % (len(files), learned_pairs)
     )
     return 0
 
