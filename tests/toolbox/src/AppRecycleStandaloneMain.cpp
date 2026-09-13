@@ -81,6 +81,7 @@ namespace
       return 1;
     long baselineFree = 0;
     long baselineBlock = 0;
+    long baselineCompact = 0;
     for (int pass = 1; pass <= kPasses; ++pass)
     {
       const unsigned long start = TickCount();
@@ -98,12 +99,16 @@ namespace
       {
         baselineFree = sample.freeBytes;
         baselineBlock = sample.maxBlock;
+        baselineCompact = sample.compactBlock;
       }
       if (pass == kPasses)
       {
         const long freeLoss = baselineFree - sample.freeBytes;
         const long blockLoss = baselineBlock - sample.maxBlock;
-        const long growth = freeLoss > blockLoss ? freeLoss : blockLoss;
+        const long compactLoss = baselineCompact - sample.compactBlock;
+        long growth = freeLoss > blockLoss ? freeLoss : blockLoss;
+        if (compactLoss > growth)
+          growth = compactLoss;
         // More available memory is not growth. Report the larger loss in bytes.
         if (std::fprintf(log, "app-recycle DONE\r") < 0)
           return 1;
