@@ -53,6 +53,7 @@ namespace loka
           {
             return this->table_;
           }
+          NodePartition &partition() const { return this->partition_; }
           bool reservationBytes(size_t &out) const
           {
             out = this->bytes_;
@@ -64,7 +65,7 @@ namespace loka
           SeatReservation(const SeatLayoutTable &table, size_t bytes)
               : table_(table),
                 bytes_(bytes),
-                partition_(0),
+                partition_(),
                 next_(0)
           {
           }
@@ -74,7 +75,7 @@ namespace loka
           mutable SeatBuildRequest request_;
           const SeatLayoutTable table_;
           const size_t bytes_;
-          NodePartition *partition_;
+          mutable NodePartition partition_;
           SeatReservation *next_;
         };
 

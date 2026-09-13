@@ -2,6 +2,7 @@
 #include "app/scene/boundary/detail/BoundaryArena.hpp"
 #include "app/scene/detail/ArenaMath.hpp"
 #include "app/scene/Scene.hpp"
+#include "app/scene/boundary/detail/NodeBuildTicket.hpp"
 #include "app/scene/boundary/Boundary.hpp"
 #include "app/core/Window.hpp"
 #include <cstdio>
@@ -175,9 +176,13 @@ namespace loka
         // Allocate from arena
         size_t nodeSize = def->nodeSize();
         size_t nodeAlign = def->nodeAlign();
-        void *mem = arena->allocate(nodeSize, nodeAlign);
+        void *mem = context.nodeStorage() ? 0 : arena->allocate(nodeSize, nodeAlign);
         Node *node;
-        if (mem)
+        if (context.nodeStorage())
+        {
+          node = context.nodeStorage()->create(*def, runtimeParent);
+        }
+        else if (mem)
         {
           node = def->createInPlace(mem);
           arena->registerNode(node);
@@ -197,6 +202,7 @@ namespace loka
         NodeMaterializationResult result = {node, false, false};
 
         ComponentContext childContext(context);
+        childContext.setOwner(node);
         IStateOwner *owner = node->asStateOwner();
         if (owner)
         {
@@ -254,7 +260,9 @@ namespace loka
           return missingPlan;
         }
 
-        Node *node = def->create();
+        Node *node = context.nodeStorage()
+                         ? context.nodeStorage()->create(*def, context.owner())
+                         : def->create();
         if (!node)
         {
           NodeMaterializationResult refused = {0, true, false};
@@ -265,6 +273,7 @@ namespace loka
         NodeMaterializationResult result = {node, false, false};
 
         ComponentContext childContext(context);
+        childContext.setOwner(node);
         IStateOwner *owner = node->asStateOwner();
         if (owner)
         {
@@ -429,7 +438,7 @@ namespace loka
           if (bnd)
           {
             NodeArena *arena = bnd->nodeArena();
-            if (!arena->hasCapacity())
+            if (!context_->nodeStorage() && !arena->hasCapacity())
             {
               // An arena reservation refusal is storage-strategy degradation,
               // not a logical materialization failure. Only a refusal to

@@ -226,13 +226,17 @@ namespace loka
               Storage must contain a completed placement construction of T. */
           template <class T> bool registerNode(T *node, Node *owner)
           {
-            Node *base = node;
-            const NodeSlotLayout layout = NodeSlotLayout::of<T>(1);
+            return this->registerPlaced(node, node, NodeSlotLayout::of<T>(1), owner);
+          }
+
+          bool registerPlaced(Node *base, void *storage, const NodeSlotLayout &layout, Node *owner)
+          {
             Class *c = this->findClass(layout);
             size_t s = 0;
-            if (!c || !locate(*c, node, s) || !occupied(*c, s) || c->residents[s].node
+            if (!c || !locate(*c, storage, s) || !occupied(*c, s) || c->residents[s].node
                 || (owner && !this->resident(owner)))
               return false;
+            base->setPartitionAllocated();
             c->residents[s].node = base;
             c->residents[s].owner = owner;
             return true;
@@ -290,6 +294,7 @@ namespace loka
         private:
           friend class ::loka::app::scene::BoundaryNode;
           friend class SeatReservations;
+          friend class NodeBuildTicket;
           friend class SeatBuildRequest;
           bool admitReturned(SeatBuildRequest &request, const SeatLayoutTable &demand, NodeBuildOperation &operation);
           typedef void (*ReclaimNode)(Node *, void *);

@@ -1,3 +1,4 @@
+#include "StrictNodeRouteTests.hpp"
 #include "SeatBuildRequestTests.hpp"
 #include "PartitionReclaimTests.hpp"
 #include "SeatReservationTests.hpp"

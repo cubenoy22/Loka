@@ -181,7 +181,7 @@ namespace loka
                 for (size_t childIndex = 0; childIndex < detachedChildren.size(); ++childIndex)
                 {
                   Node *child = detachedChildren[childIndex];
-                  if (child && !child->isArenaAllocated())
+                  if (child && !child->isArenaAllocated() && !child->isPartitionAllocated())
                   {
                     detachedHeapRoots.push_back(child);
                   }

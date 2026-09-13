@@ -34,6 +34,31 @@ namespace loka
           return 0;
         }
 
+        Node *NodeBuildTicket::create(NodeDefinitionBase &definition, Node *owner)
+        {
+          const NodeSlotLayout layout(definition.nodeSize(), definition.nodeAlign(), 1);
+          void *storage = this->consumeAndAllocate(layout);
+          if (!storage)
+            return 0;
+          Node *node = definition.createInPlace(storage);
+          if (!node)
+          {
+            this->partition_.cancel(storage, layout);
+            return 0;
+          }
+          if (owner && !this->partition_.resident(owner))
+            owner = 0;
+          const bool registered = this->partition_.registerPlaced(node, storage, layout, owner);
+          assert(registered && "strict node construction must register its owner edge");
+          if (!registered)
+          {
+            node->~Node();
+            this->partition_.cancel(storage, layout);
+            return 0;
+          }
+          return node;
+        }
+
         bool NodePartition::buildFixture(const NodeSlotLayout *demand, size_t count, NodeBuildOperation &operation)
         {
           if (!demand || !count || count > SeatLayoutTable::capacity)

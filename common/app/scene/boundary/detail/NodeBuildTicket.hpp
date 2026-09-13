@@ -40,6 +40,8 @@ namespace loka
             return node;
           }
 
+          Node *create(NodeDefinitionBase &definition, Node *owner);
+
         private:
           friend class NodePartition;
           NodeBuildTicket(NodePartition &partition, const SeatLayoutTable &demand);
@@ -49,6 +51,19 @@ namespace loka
           NodePartition &partition_;
           const SeatLayoutTable demand_;
           size_t remaining_[SeatLayoutTable::capacity];
+        };
+
+        /** Borrowed strict route for one synchronous generation build. */
+        class SeatNodeStorageView
+        {
+        public:
+          explicit SeatNodeStorageView(NodeBuildTicket &ticket) : ticket_(ticket) {}
+          Node *create(NodeDefinitionBase &definition, Node *owner)
+          { return this->ticket_.create(definition, owner); }
+        private:
+          SeatNodeStorageView(const SeatNodeStorageView &);
+          SeatNodeStorageView &operator=(const SeatNodeStorageView &);
+          NodeBuildTicket &ticket_;
         };
 
         /** A complete synchronous fixture build, including attach and failure cleanup.

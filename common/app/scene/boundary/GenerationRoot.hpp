@@ -159,6 +159,7 @@ namespace loka
           assert(root);
           ComponentContext childContext(context);
           childContext.setStateOwner(root->asStateOwner());
+          childContext.setOwner(root);
           this->composition.setContext(&childContext);
           NodeMaterializationResult result = BranchSeatDeclaration::materialize(childContext, root);
           this->composition.setContext(0);

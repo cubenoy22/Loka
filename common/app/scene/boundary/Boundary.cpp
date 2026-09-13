@@ -51,7 +51,7 @@ namespace loka
               entry.action == BoundaryLocalRebuildPlanEntry::ACTION_REPLACE;
           const bool exclusivelyPlanOwned = entry.definition != 0;
           if (materialized && exclusivelyPlanOwned && entry.node &&
-              entry.node->arenaOwner() == 0)
+              entry.node->arenaOwner() == 0 && !entry.node->isPartitionAllocated())
           {
             DestroyHeapNode(entry.node);
             entry.node = 0;

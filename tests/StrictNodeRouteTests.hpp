@@ -1,0 +1,4 @@
+#ifndef LOKA_STRICT_NODE_ROUTE_TESTS_HPP
+#define LOKA_STRICT_NODE_ROUTE_TESTS_HPP
+void testStrictNodeRouteMineSweeperReuse();
+#endif

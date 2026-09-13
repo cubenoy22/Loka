@@ -63,6 +63,8 @@ namespace loka
           IStateOwner *owner = root->asStateOwner();
           if (owner)
             owner->detachHeldResources();
+          if (root->isPartitionAllocated())
+            return;
           if (root->arenaOwner())
             root->arenaOwner()->releaseNode(root);
           else

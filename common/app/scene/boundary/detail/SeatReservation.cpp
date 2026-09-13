@@ -54,6 +54,13 @@ namespace loka
           if (!storage)
             return 0;
           SeatReservation *reservation = new (storage) SeatReservation(table, bytes);
+          if (!reservation->partition_.boot(table.layouts(), table.count()))
+          {
+            reservation->~SeatReservation();
+            core::LokaFreeRaw(reservation, site());
+            return 0;
+          }
+          reservation->request_.bank_ = &reservation->partition_;
           reservation->next_ = this->head_;
           this->head_ = reservation;
           return reservation;
@@ -61,50 +68,29 @@ namespace loka
 
         SeatReservation::~SeatReservation()
         {
-          if (this->partition_)
-          {
-            this->partition_->~NodePartition();
-            core::LokaFreeRaw(this->partition_, SeatReservations::site());
-          }
+
         }
 
 #ifdef TEST_BUILD
         NodePartition *SeatReservations::installFixture(SeatLayoutTable table)
         {
-          if (!table.normalize())
-            return 0;
-          void *storage = core::LokaAllocRaw(sizeof(NodePartition), site());
-          if (!storage)
-            return 0;
-          NodePartition *partition = new (storage) NodePartition();
-          if (partition->boot(table.layouts(), table.count()))
-          {
-            const SeatReservation *reservation = this->install(table);
-            if (reservation)
-            {
-              this->head_->partition_ = partition;
-              return partition;
-            }
-          }
-          partition->~NodePartition();
-          core::LokaFreeRaw(partition, site());
-          return 0;
+          const SeatReservation *reservation = this->install(table);
+          return reservation ? &reservation->partition() : 0;
         }
 #endif
 
         NodePartition *SeatReservations::partitionFor(Node *node)
         {
           for (SeatReservation *r = this->head_; r; r = r->next_)
-            if (r->partition_ && r->partition_->resident(node))
-              return r->partition_;
+            if (r->partition_.resident(node))
+              return &r->partition_;
           return 0;
         }
 
         void SeatReservations::reclaimPartitionRoots(NodePartition::ReclaimNode reclaim, void *context)
         {
           for (SeatReservation *r = this->head_; r; r = r->next_)
-            if (r->partition_)
-              r->partition_->reclaimRoots(reclaim, context);
+            r->partition_.reclaimRoots(reclaim, context);
         }
 
         bool SeatReservations::removeSeatChild(SeatBuildRequest &request, Node *parent, Node *outgoing, int order)

@@ -376,7 +376,7 @@ namespace loka
               propsTypeId_(0),
               nativeLifetimeHint_(NATIVE_HINT_DEFAULT),
               lifecycleFact_(NODE_FACT_ATTACHED),
-              gateAllocated_(false)
+              storageOrigin_(STORAGE_HEAP)
         {
         }
 
@@ -394,10 +394,14 @@ namespace loka
           // back to the wrong allocator. The base subobject is still alive in
           // this body, so unlike a check in operator delete the read is
           // well-defined and cannot be optimised away.
-          assert(!gateAllocated_ && "gate-allocated Node storage requires DestroyHeapNode");
+          assert(!this->isGateAllocated() && "gate-allocated Node storage requires DestroyHeapNode");
           this->applyLifecycleFact(NODE_FACT_RETIRED);
           this->releaseContext();
         }
+
+        /** Partition provenance is distinct from the bump arena landlord. */
+        bool isPartitionAllocated() const { return this->storageOrigin_ == STORAGE_PARTITION; }
+        void setPartitionAllocated() { this->storageOrigin_ = STORAGE_PARTITION; }
 
         void setArenaOwner(detail::NodeArena *owner)
         {
@@ -420,11 +424,11 @@ namespace loka
         // placement-constructed into slab storage the arena owns).
         void setGateAllocated(bool v)
         {
-          gateAllocated_ = v;
+          this->storageOrigin_ = v ? STORAGE_GATE : STORAGE_HEAP;
         }
         bool isGateAllocated() const
         {
-          return gateAllocated_;
+          return this->storageOrigin_ == STORAGE_GATE;
         }
         void markPendingAttachForCompose()
         {
@@ -469,7 +473,7 @@ namespace loka
         static void operator delete(void *ptr)
         {
           Node *node = static_cast<Node *>(ptr);
-          if (node && node->arenaOwner_)
+          if (node && (node->arenaOwner_ || node->isPartitionAllocated()))
           {
             // Arena handles memory, don't free
             return;
@@ -683,7 +687,8 @@ namespace loka
         static void DeliverLifecycleFactsSubtree(Node *node);
 
         NodeLifecycleFact lifecycleFact_;
-        bool gateAllocated_;
+        enum StorageOrigin { STORAGE_HEAP, STORAGE_GATE, STORAGE_PARTITION };
+        unsigned char storageOrigin_;
 
         friend class BoundaryNode;
         friend class Scene;
@@ -838,6 +843,7 @@ namespace loka
         virtual ~IBranchSeatDefinition() {}
         /** Keyed's persistent node reservation; fixed and unreserved seats decline. */
         virtual const detail::SeatReservation *seatReservation() const { return 0; }
+        virtual bool prepareSeatReservation() { return true; }
         /** Dirty source whose changes require the Boundary to visit this seat. */
         virtual loka::core::StateBase *branchCondition() const = 0;
         /** Selects this visit's arm. False denotes the seat's empty state. */
@@ -1565,7 +1571,7 @@ namespace loka
             {
               continue;
             }
-            if (!deleteArenaChildren && child->isArenaAllocated())
+            if (child->isPartitionAllocated() || (!deleteArenaChildren && child->isArenaAllocated()))
             {
               continue;
             }

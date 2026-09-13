@@ -275,6 +275,9 @@ void testSeatReservationOwnerRetry()
       LOKA_VERIFY(tableAllocations == 0);
       refuseBacking = true;
       installed = owner.install(temporary);
+      LOKA_VERIFY(!installed);
+      refuseBacking = false;
+      installed = owner.install(temporary);
       LOKA_VERIFY(installed);
     }
     LOKA_VERIFY(installed->layoutTable().count() == 1);
@@ -282,12 +285,12 @@ void testSeatReservationOwnerRetry()
     size_t bytes = 0;
     LOKA_VERIFY(installed->reservationBytes(bytes));
     LOKA_VERIFY(bytes > 9 * sizeof(Item));
-    LOKA_VERIFY(backingAllocations == 0);
-    LOKA_VERIFY(tableAllocations == 1);
+    LOKA_VERIFY(backingAllocations == 2);
+    LOKA_VERIFY(tableAllocations == 2);
     LOKA_VERIFY(backingFrees == 0);
   }
-  LOKA_VERIFY(backingFrees == 0);
-  LOKA_VERIFY(tableFrees == 1);
+  LOKA_VERIFY(backingFrees == 1);
+  LOKA_VERIFY(tableFrees == 2);
   refuseBacking = false;
   loka::core::LokaAllocSetBackend(0, 0);
 }
@@ -371,41 +374,20 @@ void testSeatReservationKeyedColdInstall()
     loka::core::MutableState<int> key(0);
     typedef reservation::SeatNodes<reservation::Nodes<FragmentNode, 1> > Descriptor;
     KeyedDefinition<int> seat(key, &owner, &ColdOwner::declare, Descriptor());
-    ComponentContext context;
-    context.setBoundary(&owner);
-    context.setOwner(&owner);
-    context.setStateOwner(&owner);
     refuseBacking = true;
-
-    {
-      loka::core::OwnedDef<BranchSeatDeclaration> candidate(seat.declareBranchCandidate(context));
-      const bool created = candidate.isSet();
-      LOKA_VERIFY(created);
-    }
-    LOKA_VERIFY(backingAllocations == 0);
-    LOKA_VERIFY(tableAllocations == 1);
-    {
-      loka::core::OwnedDef<BranchSeatDeclaration> candidate(seat.declareBranchCandidate(context));
-      const bool created = candidate.isSet();
-      LOKA_VERIFY(created);
-    }
-    LOKA_VERIFY(backingAllocations == 0);
-    LOKA_VERIFY(tableAllocations == 1);
-    {
-      loka::core::OwnedDef<NodeDefinitionBase> clone(seat.clone());
-      LOKA_VERIFY(clone.get());
-      loka::core::OwnedDef<BranchSeatDeclaration> candidate(
-          clone->asBranchSeatDefinition()->declareBranchCandidate(context));
-      const bool created = candidate.isSet();
-      LOKA_VERIFY(created);
-    }
-    LOKA_VERIFY(backingAllocations == 0);
+    const bool refused = seat.prepareSeatReservation();
+    LOKA_VERIFY(!refused);
+    LOKA_VERIFY(backingAllocations == 1);
+    refuseBacking = false;
+    const bool installed = seat.prepareSeatReservation();
+    LOKA_VERIFY(installed);
+    const bool repeated = seat.prepareSeatReservation();
+    LOKA_VERIFY(repeated);
+    LOKA_VERIFY(backingAllocations == 2);
     LOKA_VERIFY(tableAllocations == 2);
-    LOKA_VERIFY(backingFrees == 0);
   }
-  LOKA_VERIFY(backingFrees == 0);
+  LOKA_VERIFY(backingFrees == 1);
   LOKA_VERIFY(tableFrees == 2);
-  refuseBacking = false;
   loka::core::LokaAllocSetBackend(0, 0);
 }
 
@@ -423,12 +405,12 @@ namespace
   }
 } // namespace
 
-void testSeatReservationMineSweeperNoBacking()
+void testSeatReservationMineSweeperColdBacking()
 {
   backingAllocations = backingFrees = tableAllocations = tableFrees = 0;
   tableBytes = 0;
   tableStorage = 0;
-  refuseBacking = true;
+  refuseBacking = false;
   loka::core::LokaAllocSetBackend(allocateBacking, freeBacking);
   {
     NullScenePlatformController platform;
@@ -436,7 +418,7 @@ void testSeatReservationMineSweeperNoBacking()
     scene.mount(&platform);
     loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     LOKA_VERIFY(countMineCells(loka::dsl::testing::SceneTestAccess::rootNode(scene)) == 64);
-    LOKA_VERIFY(backingAllocations == 0);
+    LOKA_VERIFY(backingAllocations == 1);
     LOKA_VERIFY(tableAllocations == 1);
     LOKA_VERIFY(tableBytes == sizeof(SeatReservation));
     LOKA_VERIFY(tableStorage);
@@ -454,7 +436,7 @@ void testSeatReservationMineSweeperNoBacking()
     LOKA_VERIFY(fixtureTable.normalize());
     LOKA_VERIFY(NodePartition::reservationBytes(fixtureTable.layouts(), fixtureTable.count(), 0, fixtureBytes));
     LOKA_VERIFY(bytes == fixtureBytes);
-    std::printf("MineSweeper dormant census: table=%lu bytes/%d allocation; partition=%d; cells=64; slots=%lu; "
+    std::printf("MineSweeper cold census: table=%lu bytes/%d allocation; partition=%d; cells=64; slots=%lu; "
                 "classes=6; planned=%lu\n",
                 static_cast<unsigned long>(tableBytes),
                 tableAllocations,
@@ -462,7 +444,7 @@ void testSeatReservationMineSweeperNoBacking()
                 static_cast<unsigned long>(slots),
                 static_cast<unsigned long>(bytes));
   }
-  LOKA_VERIFY(backingFrees == 0);
+  LOKA_VERIFY(backingFrees == 1);
   LOKA_VERIFY(tableFrees == 1);
   refuseBacking = false;
   loka::core::LokaAllocSetBackend(0, 0);
