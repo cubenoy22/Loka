@@ -132,10 +132,11 @@ artifact on both sides: adding or moving an application without that path in the
 base is refused, not silently measured as zero or against a stale bank. Such
 inventory migrations need a separately defined comparison policy.
 
-Per the 2026-09-02 ruling the
-gate is a drift detector, not a budget: intentional feature growth is banked by
-refreshing rows deliberately, and only runaway growth — hundreds of kilobytes
-on a tens-of-kilobytes-class application — would justify a hard ceiling.
+The size audit remains a drift detector rather than an absolute application-size
+budget. A bank refresh updates the absolute record and the local bank gate; it
+cannot waive above-allowance growth in a measured PR comparison. Accepting such
+growth requires an explicit review of the allowance or gating policy. Automated
+bank refresh does not make that decision, and this change adds no per-PR waiver.
 
 ### Small-object pool
 
