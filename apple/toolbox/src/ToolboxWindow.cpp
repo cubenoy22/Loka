@@ -23,19 +23,77 @@ namespace
       std::memcpy(out + 1, value.data(), length);
   }
 
-  short WindowTitleBarHeight(WindowPtr window)
+  Rect PrimaryWorkArea()
   {
-    WindowPeek peek = reinterpret_cast<WindowPeek>(window);
-    if (!peek || !peek->strucRgn || !peek->contRgn)
-    {
-      return 0;
-    }
-    Rect struc = (*peek->strucRgn)->rgnBBox;
-    Rect cont = (*peek->contRgn)->rgnBBox;
-    short height = static_cast<short>(cont.top - struc.top);
-    return height > 0 ? height : 0;
+    Rect work = qd.screenBits.bounds;
+    work.top = static_cast<short>(work.top + GetMBarHeight());
+    return work;
+  }
+
+  Rect ContentLimits(const ToolboxWindowChrome &chrome)
+  {
+    Rect limits = PrimaryWorkArea();
+    limits.left = static_cast<short>(limits.left + chrome.left());
+    limits.top = static_cast<short>(limits.top + chrome.top());
+    limits.right = static_cast<short>(limits.right - chrome.right());
+    limits.bottom = static_cast<short>(limits.bottom - chrome.bottom());
+    return limits;
+  }
+
+  // Placement owns no rows: one content rectangle and its native chrome.
+  void ClampStructureToScreen(Rect &content, const ToolboxWindowChrome &chrome)
+  {
+    const Rect limits = ContentLimits(chrome);
+    short width = static_cast<short>(content.right - content.left);
+    short height = static_cast<short>(content.bottom - content.top);
+    if (width > limits.right - limits.left)
+      width = static_cast<short>(limits.right - limits.left);
+    if (height > limits.bottom - limits.top)
+      height = static_cast<short>(limits.bottom - limits.top);
+    if (content.left + width > limits.right)
+      content.left = static_cast<short>(limits.right - width);
+    if (content.top + height > limits.bottom)
+      content.top = static_cast<short>(limits.bottom - height);
+    if (content.left < limits.left)
+      content.left = limits.left;
+    if (content.top < limits.top)
+      content.top = limits.top;
+    content.right = static_cast<short>(content.left + width);
+    content.bottom = static_cast<short>(content.top + height);
+  }
+
+  // The shipped convention, inherited from the original open(): the logical
+  // frame is the CONTENT origin, with y measured from one row below the menu
+  // bar (content top = y + menu height + 1). Every Toolbox scenario golden was
+  // baked with it, so it stays (#712); nativeContentFrame() is the exact
+  // inverse, and the chrome value only enters through the clamp.
+  const short kContentTopBelowMenu = 1;
+
+  Rect RequestedContentBounds(const loka::core::Frame &frame)
+  {
+    Rect content;
+    const short left = static_cast<short>(frame.x);
+    const short top = static_cast<short>(frame.y + GetMBarHeight() + kContentTopBelowMenu);
+    SetRect(&content, left, top,
+            static_cast<short>(left + frame.width), static_cast<short>(top + frame.height));
+    return content;
   }
 } // namespace
+
+ToolboxWindowChrome::ToolboxWindowChrome(WindowPtr window)
+{
+  SetRect(&this->insets_, 0, 0, 0, 0);
+  if (window)
+  {
+    const WindowPeek peek = reinterpret_cast<WindowPeek>(window);
+    const Rect structure = (*peek->strucRgn)->rgnBBox;
+    const Rect content = (*peek->contRgn)->rgnBBox;
+    SetRect(&this->insets_, static_cast<short>(content.left - structure.left),
+            static_cast<short>(content.top - structure.top),
+            static_cast<short>(structure.right - content.right),
+            static_cast<short>(structure.bottom - content.bottom));
+  }
+}
 
 ToolboxWindow::ToolboxWindow(PlatformContext *context, const WindowProps &props)
     : Window(context, props),
@@ -46,7 +104,7 @@ ToolboxWindow::ToolboxWindow(PlatformContext *context, const WindowProps &props)
       needsInvalidate_(false),
       pendingDebugDump_(false),
       pendingInvalidateRects_(),
-      titleBarHeight_(0)
+      chrome_()
 {
   window_ = 0;
   context_ = new ToolboxWindowContext(
@@ -98,38 +156,17 @@ void ToolboxWindow::open()
     return;
   }
   const loka::core::Frame defaultFrame = Window::defaultFrame();
-  Rect bounds;
-  short left = static_cast<short>(this->hasPosition() ? this->positionX() : defaultFrame.x);
-  short top = static_cast<short>(this->hasPosition() ? this->positionY() : defaultFrame.y);
-  short menuHeight = GetMBarHeight();
-  if (menuHeight > 0)
-  {
-    top = static_cast<short>(top + menuHeight + 1);
-  }
-  short width = static_cast<short>(this->hasSize() ? this->width() : defaultFrame.width);
-  short height = static_cast<short>(this->hasSize() ? this->height() : defaultFrame.height);
-  SetRect(&bounds, left, top, static_cast<short>(left + width), static_cast<short>(top + height));
-
-  {
-    const Rect screen = qd.screenBits.bounds;
-    const short screenW = static_cast<short>(screen.right - screen.left);
-    const short screenH = static_cast<short>(screen.bottom - screen.top - menuHeight - 1);
-    if (width > screenW)
-      width = screenW;
-    if (height > screenH)
-      height = screenH;
-    left = bounds.left;
-    top = bounds.top;
-    if (left + width > screen.right)
-      left = static_cast<short>(screen.right - width);
-    if (top + height > screen.bottom)
-      top = static_cast<short>(screen.bottom - height);
-    if (left < screen.left)
-      left = screen.left;
-    if (top < static_cast<short>(screen.top + menuHeight + 1))
-      top = static_cast<short>(screen.top + menuHeight + 1);
-    SetRect(&bounds, left, top, static_cast<short>(left + width), static_cast<short>(top + height));
-  }
+  const loka::core::Frame requested(
+      this->hasPosition() ? this->positionX() : defaultFrame.x,
+      this->hasPosition() ? this->positionY() : defaultFrame.y,
+      this->hasSize() ? this->width() : defaultFrame.width,
+      this->hasSize() ? this->height() : defaultFrame.height);
+  // Chrome is not measurable until the window exists and is visible: the
+  // Window Manager keeps strucRgn/contRgn empty for an invisible window, so a
+  // hidden probe reads zero insets (measured on the maciix rig, #712). Create
+  // at the requested bounds, measure, then let the thunk clamp: the window is
+  // visible at the requested bounds for one event turn, as it was before #712.
+  Rect bounds = RequestedContentBounds(requested);
 
   loka::core::String titleValue = this->displayTitleState().get();
   if (titleValue.empty())
@@ -153,7 +190,11 @@ void ToolboxWindow::open()
   CopyToPascalString(title, titleStr);
 
   window_ = NewWindow(0, &bounds, titleStr, true, documentProc, (WindowPtr)-1, true, 0);
-  titleBarHeight_ = WindowTitleBarHeight(window_);
+  if (!this->window_)
+  {
+    return;
+  }
+  this->chrome_ = ToolboxWindowChrome(this->window_);
   FrameChangedThunk(this);
   TitleChangedThunk(this);
   this->storeCurrentNativeContentFrame();
@@ -284,53 +325,21 @@ void ToolboxWindow::FrameChangedThunk(void *userData)
   {
     return;
   }
-  loka::core::Frame frame = self->frameState().get();
-
-  const Rect screen = qd.screenBits.bounds;
-  const short menuHeight = GetMBarHeight();
-  const short screenW = static_cast<short>(screen.right - screen.left);
-  const short titleBar = self->titleBarHeight_ > 0 ? self->titleBarHeight_ : 0;
-  const short contentTop = static_cast<short>(screen.top + (menuHeight > 0 ? menuHeight + 1 : 0) + titleBar);
-  const short screenH = static_cast<short>(screen.bottom - contentTop);
-
-  short w = static_cast<short>(frame.hasSize() ? frame.width : (self->window_->portRect.right - self->window_->portRect.left));
-  short h = static_cast<short>(frame.hasSize() ? frame.height : (self->window_->portRect.bottom - self->window_->portRect.top));
-  if (w > screenW)
-    w = screenW;
-  if (h > screenH)
-    h = screenH;
-
-  if (frame.hasSize())
+  const loka::core::Frame frame = self->frameState().get();
+  const loka::core::Frame actual = self->nativeContentFrame();
+  const loka::core::Frame requested(frame.hasPosition() ? frame.x : actual.x,
+                                    frame.hasPosition() ? frame.y : actual.y,
+                                    frame.hasSize() ? frame.width : actual.width,
+                                    frame.hasSize() ? frame.height : actual.height);
+  Rect content = RequestedContentBounds(requested);
+  ClampStructureToScreen(content, self->chrome_);
+  const short width = static_cast<short>(content.right - content.left);
+  const short height = static_cast<short>(content.bottom - content.top);
+  if (actual.width != width || actual.height != height)
   {
-    const int currentWidth = self->window_->portRect.right - self->window_->portRect.left;
-    const int currentHeight = self->window_->portRect.bottom - self->window_->portRect.top;
-    if (currentWidth != w || currentHeight != h)
-    {
-      SizeWindow(self->window_, w, h, true);
-    }
+    SizeWindow(self->window_, width, height, true);
   }
-  if (frame.hasPosition())
-  {
-    short x = static_cast<short>(frame.x >= 0 ? frame.x : 0);
-    short y = static_cast<short>(frame.y >= 0 ? frame.y : 0);
-    if (menuHeight > 0)
-    {
-      y = static_cast<short>(y + menuHeight);
-    }
-    if (titleBar > 0)
-    {
-      y = static_cast<short>(y + titleBar);
-    }
-    if (x + w > screen.right)
-      x = static_cast<short>(screen.right - w);
-    if (y + h > screen.bottom)
-      y = static_cast<short>(screen.bottom - h);
-    if (x < screen.left)
-      x = screen.left;
-    if (y < contentTop)
-      y = contentTop;
-    MoveWindow(self->window_, x, y, false);
-  }
+  MoveWindow(self->window_, content.left, content.top, false);
 }
 
 loka::core::Frame ToolboxWindow::nativeContentFrame() const
@@ -349,8 +358,9 @@ loka::core::Frame ToolboxWindow::nativeContentFrame() const
   LocalToGlobal(&topLeft);
   SetPort(oldPort);
   const short menuHeight = GetMBarHeight();
+  // Exact inverse of RequestedContentBounds.
   return loka::core::Frame(topLeft.h,
-                           static_cast<int>(topLeft.v) - menuHeight - 1,
+                           static_cast<int>(topLeft.v) - menuHeight - kContentTopBelowMenu,
                            portRect.right - portRect.left,
                            portRect.bottom - portRect.top);
 }
@@ -411,11 +421,16 @@ void ToolboxWindow::handleGrow(const Point &globalPoint)
   Rect sizeRect;
   // Rect is {top, left, bottom, right}; SetRect takes (left, top, right, bottom):
   // left/top = minimum width/height, right/bottom = maximum width/height.
-  SetRect(&sizeRect,
-          kMinimumGrowWidth,
-          kMinimumGrowHeight,
-          static_cast<short>(qd.screenBits.bounds.right - qd.screenBits.bounds.left),
-          static_cast<short>(qd.screenBits.bounds.bottom - qd.screenBits.bounds.top));
+  const Rect limits = ContentLimits(this->chrome_);
+  const Rect content = RequestedContentBounds(this->nativeContentFrame());
+  // GrowWindow keeps the top-left fixed, so bound the available remainder.
+  const short maxWidth = static_cast<short>(limits.right - content.left);
+  const short maxHeight = static_cast<short>(limits.bottom - content.top);
+  if (maxWidth < kMinimumGrowWidth || maxHeight < kMinimumGrowHeight)
+  {
+    return;
+  }
+  SetRect(&sizeRect, kMinimumGrowWidth, kMinimumGrowHeight, maxWidth, maxHeight);
   const long grown = GrowWindow(window_, globalPoint, &sizeRect);
   if (grown == 0)
   {
