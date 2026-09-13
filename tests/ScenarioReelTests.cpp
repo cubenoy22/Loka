@@ -35,6 +35,50 @@ namespace
 {
   const char *const kProbeCells[] = {"startup", "first", "second"};
 
+  struct ReelDriverObservation
+  {
+    ReelDriverObservation() : constructions(0), stops(0), destructions(0), detaches(0) {}
+    int constructions;
+    int stops;
+    int destructions;
+    int detaches;
+    std::string constructedCell;
+  };
+
+  ReelDriverObservation g_reelDriverObservation;
+
+  class ReelProbeScenario
+  {
+  public:
+    ReelProbeScenario(const std::string &cell, loka::scenario_tests::ScenarioCompletionPolicy,
+                      loka::dsl::testing::ScenarioAuditSink *)
+    {
+      ++g_reelDriverObservation.constructions;
+      g_reelDriverObservation.constructedCell = cell;
+    }
+    ~ReelProbeScenario() { ++g_reelDriverObservation.destructions; }
+    void stop() { ++g_reelDriverObservation.stops; }
+    bool publishVerdict(const loka::dsl::SnapRecord &) { return true; }
+    loka::scenario_tests::ScenarioAdvance step(
+        long, loka::app::scene::Scene *, const loka::scenario_tests::CaptureContentBounds &,
+        loka::dsl::SnapRecord &)
+    {
+      return loka::scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY;
+    }
+  };
+
+  void ObserveReelDriverAtDetach(void *userData)
+  {
+    loka::app::scene::Scene *scene = static_cast<loka::app::scene::Scene *>(userData);
+    if (!scene->getAttachedState()->get())
+    {
+      ++g_reelDriverObservation.detaches;
+      LOKA_VERIFY(g_reelDriverObservation.constructions == 2);
+      LOKA_VERIFY(g_reelDriverObservation.stops == 1);
+      LOKA_VERIFY(g_reelDriverObservation.destructions == 1);
+    }
+  }
+
   int g_scenarioRearmAllocationRefusals = 0;
 
   void *scenarioRearmRefusingBackendAlloc(
@@ -576,7 +620,7 @@ void testScenarioReelRunsEveryHelloWorldCellEveryCycle()
   std::printf("testScenarioReelRunsEveryHelloWorldCellEveryCycle passed\n");
 }
 
-void testScenarioReelCompositionRefusalRetriesSameRequestAndContinues()
+void testScenarioReelCompositionRefusalIsTerminal()
 {
   loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> root(CloneHelloWorldRoot());
   LOKA_VERIFY(root.get() != 0);
@@ -594,8 +638,9 @@ void testScenarioReelCompositionRefusalRetriesSameRequestAndContinues()
 
   g_scenarioRearmAllocationRefusals = 0;
   scene->getAttachedState()->bind(&RefuseScenarioCompositionAtDetach, scene, false);
+  loka::scenario_tests::ScenarioReelResult result = loka::scenario_tests::SCENARIO_REEL_RUNNING;
   for (int tick = 0; tick < 512 && !g_scenarioRearmAllocationRefusals; ++tick)
-    reel.tick(&window, &app, 0.1, window.getTracker());
+    result = reel.tick(&window, &app, 0.1, window.getTracker());
   loka::core::LokaAllocSetBackend(0, 0);
   scene->getAttachedState()->unbind(&RefuseScenarioCompositionAtDetach, scene);
 
@@ -605,12 +650,16 @@ void testScenarioReelCompositionRefusalRetriesSameRequestAndContinues()
               composedAfterRefusal, reel.finished(), reel.completedCycles());
   LOKA_VERIFY(g_scenarioRearmAllocationRefusals == 1);
   LOKA_VERIFY(!composedAfterRefusal);
+  LOKA_VERIFY(result == loka::scenario_tests::SCENARIO_REEL_FAILED);
   LOKA_VERIFY(window.sceneManager()->hasPendingWork());
-  LOKA_VERIFY(!reel.finished());
+  LOKA_VERIFY(reel.finished());
+  LOKA_VERIFY(std::string(reel.cell()) == "startup");
+  LOKA_VERIFY(reel.operatorTitle().equals(loka::core::String::Literal("startup (cycle 1)")));
   LOKA_VERIFY(reel.completedCycles() == 0);
 
   // No second request and no explicit white-flag invalidation: admission alone
-  // must retry the refused renewal on the same installed Scene.
+  // retries the refused renewal on the same installed Scene, but cannot
+  // restart the failed reel.
   app.flush();
   LOKA_VERIFY(window.scene() == scene);
   const bool composedAfterRetry = loka::dsl::testing::SceneTestAccess::composed(*scene);
@@ -618,15 +667,16 @@ void testScenarioReelCompositionRefusalRetriesSameRequestAndContinues()
   LOKA_VERIFY(composedAfterRetry);
   LOKA_VERIFY(!window.sceneManager()->hasPendingWork());
   LOKA_VERIFY(recoveredNodeCount == mountedNodeCount);
-  for (int tick = 0; tick < 2048 && !reel.finished(); ++tick)
-    reel.tick(&window, &app, 0.1, window.getTracker());
+  for (int tick = 0; tick < 3; ++tick)
+    LOKA_VERIFY(reel.tick(&window, &app, 0.1, window.getTracker()) ==
+                loka::scenario_tests::SCENARIO_REEL_FAILED);
   LOKA_VERIFY(reel.finished());
-  LOKA_VERIFY(reel.completedCycles() == 2);
+  LOKA_VERIFY(reel.completedCycles() == 0);
   std::printf("rearm recovery: pending=%d composed=%d finished=%d cycles=%ld\n",
               window.sceneManager()->hasPendingWork(),
               loka::dsl::testing::SceneTestAccess::composed(*scene),
               reel.finished(), reel.completedCycles());
-  std::printf("testScenarioReelCompositionRefusalRetriesSameRequestAndContinues passed\n");
+  std::printf("testScenarioReelCompositionRefusalIsTerminal passed\n");
 }
 
 void testSceneRearmRefusalPreservesNewerDetachRequest()
@@ -657,7 +707,7 @@ void testSceneRearmRefusalPreservesNewerDetachRequest()
   std::printf("testSceneRearmRefusalPreservesNewerDetachRequest passed\n");
 }
 
-void testScenarioLoopCompositionRefusalDoesNotQuit()
+void testScenarioLoopCompositionRefusalQuits()
 {
   NullPlatformContext context;
   typedef loka::scenario_tests::ScenarioLoopAppConfig<
@@ -686,22 +736,22 @@ void testScenarioLoopCompositionRefusalDoesNotQuit()
     LOKA_VERIFY(g_scenarioRearmAllocationRefusals == 1);
     std::printf("loop refusal: quit=%d pending=%d\n",
                 app.quitRequested(), window->sceneManager()->hasPendingWork());
-    LOKA_VERIFY(!app.quitRequested());
+    LOKA_VERIFY(app.quitRequested());
     LOKA_VERIFY(window->sceneManager()->hasPendingWork());
     app.flush();
     const bool composedAfterRetry = loka::dsl::testing::SceneTestAccess::composed(*scene);
     LOKA_VERIFY(composedAfterRetry);
     LOKA_VERIFY(!window->sceneManager()->hasPendingWork());
-    LOKA_VERIFY(!app.quitRequested());
-    for (int tick = 0; tick < 2048 && !app.quitRequested(); ++tick)
+    LOKA_VERIFY(app.quitRequested());
+    for (int tick = 0; tick < 3; ++tick)
       LOKA_VERIFY(window->handleIdle(0.1));
     LOKA_VERIFY(app.quitRequested());
     LOKA_VERIFY(window->displayTitleState().get().equals(
-        loka::core::String::Literal("LokaSample - bmi-roundtrip (cycle 2)")));
+        loka::core::String::Literal("LokaSample - startup (cycle 1)")));
     config.setApp(0);
   }
   delete window;
-  std::printf("testScenarioLoopCompositionRefusalDoesNotQuit passed\n");
+  std::printf("testScenarioLoopCompositionRefusalQuits passed\n");
 }
 
 void testScenarioWindowDisplayTitlePreservesLogicalTitleAndDropsNativeObserver()
@@ -810,10 +860,76 @@ void testScenarioReelDriverAllocationRefusalRetiresInsteadOfWedging()
   loka::scenario_tests::testing::allowScenarioReelDriverAllocations();
 
   LOKA_VERIFY(reel.finished());
+  LOKA_VERIFY(std::string(reel.cell()) == "startup");
+  LOKA_VERIFY(reel.completedCycles() == 0);
+  LOKA_VERIFY(reel.operatorTitle().equals(loka::core::String::Literal("startup (cycle 1)")));
   LOKA_VERIFY(window.scene() != 0);
   LOKA_VERIFY(window.scene()->liveNodeCount() > 0);
 
   std::printf("testScenarioReelDriverAllocationRefusalRetiresInsteadOfWedging passed\n");
+}
+
+void testScenarioReelReplacementPreservesDriverAndStopsBeforeDetach()
+{
+  using namespace loka::scenario_tests;
+  for (int refuse = 0; refuse != 2; ++refuse)
+  {
+    loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> root(CloneHelloWorldRoot());
+    LOKA_VERIFY(root.get() != 0);
+    NullPlatformContext context;
+    WindowProps props;
+    props.scene(new loka::app::scene::Scene(root.take()));
+    NullWindow window(&context, props);
+    WindowAdmissionTestApp app(window);
+    g_reelDriverObservation = ReelDriverObservation();
+    window.scene()->getAttachedState()->bind(&ObserveReelDriverAtDetach, window.scene(), false);
+    {
+      ScenarioReel<ReelProbeScenario> reel(
+          ScenarioCellTable(kProbeCells + 1, refuse ? 1 : 2), STARTUP_EXAMPLE_HELLO_WORLD,
+          &MakeHelloWorldDriverErrorRecord, 2402, 0.0, refuse ? 0 : 1);
+      LOKA_VERIFY(reel.tick(&window, &app, 0.1, window.getTracker()) == SCENARIO_REEL_RUNNING);
+      if (refuse)
+        testing::failScenarioReelDriverAllocations(1);
+      const ScenarioReelResult result = reel.tick(&window, &app, 0.1, window.getTracker());
+      testing::allowScenarioReelDriverAllocations();
+      LOKA_VERIFY(reel.completedCycles() == 0);
+      if (refuse)
+      {
+        LOKA_VERIFY(result == SCENARIO_REEL_FAILED);
+        LOKA_VERIFY(reel.tick(&window, &app, 0.1, window.getTracker()) == SCENARIO_REEL_FAILED);
+        LOKA_VERIFY(g_reelDriverObservation.stops == 0);
+        LOKA_VERIFY(g_reelDriverObservation.destructions == 0);
+        LOKA_VERIFY(g_reelDriverObservation.constructions == 1);
+        LOKA_VERIFY(g_reelDriverObservation.detaches == 0);
+        LOKA_VERIFY(std::string(reel.cell()) == "first");
+        LOKA_VERIFY(reel.operatorTitle().equals(loka::core::String::Literal("first (cycle 1)")));
+        LOKA_VERIFY(reel.finished());
+      }
+      else
+      {
+        LOKA_VERIFY(result == SCENARIO_REEL_RUNNING);
+        LOKA_VERIFY(g_reelDriverObservation.constructedCell == "second");
+        LOKA_VERIFY(g_reelDriverObservation.detaches == 1);
+        LOKA_VERIFY(std::string(reel.cell()) == "second");
+        LOKA_VERIFY(reel.operatorTitle().equals(loka::core::String::Literal("second (cycle 1)")));
+        LOKA_VERIFY(!reel.finished());
+        LOKA_VERIFY(reel.tick(&window, &app, 0.1, window.getTracker()) == SCENARIO_REEL_RUNNING);
+        LOKA_VERIFY(reel.tick(&window, &app, 0.1, window.getTracker()) == SCENARIO_REEL_COMPLETE);
+        LOKA_VERIFY(reel.tick(&window, &app, 0.1, window.getTracker()) == SCENARIO_REEL_COMPLETE);
+        LOKA_VERIFY(reel.finished());
+        LOKA_VERIFY(reel.completedCycles() == 1);
+        LOKA_VERIFY(reel.cell() == 0);
+        LOKA_VERIFY(g_reelDriverObservation.constructions == 2);
+        LOKA_VERIFY(g_reelDriverObservation.stops == 2);
+        LOKA_VERIFY(g_reelDriverObservation.detaches == 1);
+        LOKA_VERIFY(reel.operatorTitle().equals(loka::core::String::Literal("second (cycle 1)")));
+      }
+      window.scene()->getAttachedState()->unbind(&ObserveReelDriverAtDetach, window.scene());
+    }
+    LOKA_VERIFY(g_reelDriverObservation.stops == g_reelDriverObservation.constructions);
+    LOKA_VERIFY(g_reelDriverObservation.destructions == g_reelDriverObservation.constructions);
+  }
+  std::printf("testScenarioReelReplacementPreservesDriverAndStopsBeforeDetach passed\n");
 }
 
 void testStandaloneRunControlRearmsCompletedSceneWithoutQuittingApp()
