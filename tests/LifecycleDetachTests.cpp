@@ -17,6 +17,24 @@
 
 namespace
 {
+  /** Isolated bump-arena retirement fixture. These tests intentionally retain
+      the old build-before-retire schedule to exercise NodeArena snapshots;
+      production Keyed partition reuse is pinned in StrictNodeRouteTests. */
+  template <class K> class ArenaDeclarationFixture : public loka::app::KeyedDefinition<K>
+  {
+    typedef loka::app::KeyedDefinition<K> Base;
+  public:
+    template <class N, class List>
+    ArenaDeclarationFixture(loka::core::State<K> &key, N *owner,
+                            void (N::*declare)(loka::app::scene::NodeComposition &),
+                            loka::app::reservation::SeatNodes<List> nodes)
+        : Base(key, owner, declare, nodes) {}
+    ArenaDeclarationFixture(const ArenaDeclarationFixture &other) : Base(other) {}
+    virtual const loka::app::scene::detail::SeatReservation *seatReservation() const { return 0; }
+    virtual loka::app::scene::NodeDefinitionBase *clone() const
+    { return new ArenaDeclarationFixture(*this); }
+  };
+
   struct DetachHookCounts
   {
     DetachHookCounts()
@@ -458,7 +476,7 @@ namespace
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
-      composition.declare(loka::app::Keyed(
+      composition.declare(ArenaDeclarationFixture<bool>(
           *this->showReplacement_.state(),
           this,
           &RootReplacementArenaRetireBoundaryNode::declareContent,
@@ -1069,7 +1087,7 @@ namespace
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
       composition.declare(
-          loka::app::Keyed(*this->showAlternate_.state(),
+          ArenaDeclarationFixture<bool>(*this->showAlternate_.state(),
                            this,
                            &ConditionalArenaRetireProbeNode::declareContent,
                            loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
@@ -1743,7 +1761,7 @@ void testSceneTeardownDrainsNonEmptyRetiredArenaSubtreeExactlyOnce()
   assert(destroyOrder.size() == 4);
   assert(destroyOrder[0] == 1 && destroyOrder[1] == 2 &&
          "Scene teardown must drain the retired subtree before clearing live arena storage");
-  assert(destroyOrder[2] == 4 && destroyOrder[3] == 3);
+  assert(destroyOrder[2] == 3 && destroyOrder[3] == 4 && "live owner tree also reclaims children before parents");
 
   g_conditionalArenaRetireOrder = 0;
   g_conditionalArenaActiveOrder = 0;

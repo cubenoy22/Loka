@@ -523,7 +523,7 @@ int main()
   testStateTrackerRemovesSettlementBorrow();
 #ifdef LOKA_UPSTREAM_GAUGE_PIN
   runUpstreamFlowPin();
-  testSeatReservationMineSweeperNoBacking();
+  testSeatReservationMineSweeperColdBacking();
 #endif
   allocpin::RunLazyFlexPageFlipAllocPin();
 #ifndef LOKA_UPSTREAM_GAUGE_PIN

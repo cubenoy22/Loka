@@ -21,6 +21,14 @@ namespace loka
 
       bool BoundaryNode::materializeInitialChildren(ComponentContext &context)
       {
+        // A refused mount owns its slots until the ordinary clock drains them.
+        // UPDATE may revisit the white flag before that drain; do not readmit it.
+        if (!this->seatReservations_.empty()
+            && (this->retiredSubtreesHead_ || !this->retiredGenerations_.empty()))
+        {
+          this->noteComposeAllocationFailure();
+          return false;
+        }
         NodeComposition &composition = this->composition();
         composition.setContext(&context);
         context.setComposition(&composition);
@@ -31,13 +39,36 @@ namespace loka
                                   && this->branchSeats_.plans().empty();
         if (!retryFactory && candidate.root())
         {
-          Node *child = candidate.take();
-          this->addChild(child);
+          Node *child = candidate.root();
+          if (this->seatReservations_.empty())
+            this->addChild(candidate.take());
+          else
+            candidate.prepare(candidate.take(), &ReclaimPendingSeatRoot, &context);
           this->composeTree(child, context, COMPOSE_EVENT_ATTACH, this);
+          if (candidate.root() && !this->compositionState_.allocationFailedValue())
+            this->addChild(candidate.take());
+        }
+        const bool rejectedAttach = !retryFactory && candidate.root()
+                                    && this->compositionState_.allocationFailedValue();
+        if (rejectedAttach)
+        {
+          this->retireSeatBranchRoot(context, candidate.take());
+          this->retireDeclarationScope(context, this->branchSeats_);
+          this->forgetBranchSeatDirtySources(this->branchSeats_);
+          this->branchSeats_.clearRuntime();
+          // Remove plans appended by runtime nodes before disposing declarations.
+          // The retained mount definition and its cold reservations survive replay.
+          this->branchSeats_.capture(composition.root());
+          const std::vector<BoundaryBranchSeatPlanEntry> &plans = this->branchSeats_.plans();
+          for (size_t i = 0; i < plans.size(); ++i)
+            plans[i].seat()->commitBranchDeclaration(0);
+          this->seatReservations_.resetInitialBuildRequests();
+          this->captureBranchSeatPlan();
+          this->noteComposeAllocationFailure();
         }
         composition.setContext(0);
         context.setComposition(0);
-        return !retryFactory;
+        return !retryFactory && !rejectedAttach;
       }
 
       void BoundaryNode::destroyUncommittedLocalRebuildCandidates(
@@ -51,7 +82,7 @@ namespace loka
               entry.action == BoundaryLocalRebuildPlanEntry::ACTION_REPLACE;
           const bool exclusivelyPlanOwned = entry.definition != 0;
           if (materialized && exclusivelyPlanOwned && entry.node &&
-              entry.node->arenaOwner() == 0)
+              entry.node->arenaOwner() == 0 && !entry.node->isPartitionAllocated())
           {
             DestroyHeapNode(entry.node);
             entry.node = 0;
@@ -393,11 +424,9 @@ namespace loka
         this->detachChildrenTo(children);
         for (size_t i = 0; i < children.size(); ++i)
         {
-          Node *child = children[i];
-          if (this->seatReservations_.partitionFor(child))
-            this->destroyRetiredSubtree(child);
-          else if (!child->isArenaAllocated())
-            DestroyHeapNode(child);
+          // Follow the live owner tree before sweeping orphan partition roots.
+          // An arena child can enclose several nested partition generations.
+          this->destroyRetiredSubtree(children[i]);
         }
         this->seatReservations_.reclaimPartitionRoots(&ReclaimPartitionNode, this);
         // Legacy arena residents retain their existing ledger destruction order.

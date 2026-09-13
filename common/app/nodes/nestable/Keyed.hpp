@@ -171,6 +171,11 @@ namespace loka
 #endif
       }
 
+      virtual bool prepareSeatReservation()
+      {
+        return this->declarer_.isSet() && this->declarer_->installReservation();
+      }
+
       virtual const scene::detail::SeatReservation *seatReservation() const
       {
         return this->declarer_.isSet() ? this->declarer_->reservation() : 0;

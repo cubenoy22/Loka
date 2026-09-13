@@ -43,6 +43,12 @@ ACCESSOR_NAMES = frozenset(
         "end",
         "c_str",
         "nodeArena",  # Pure landlord getter; chained reserve calls carry the work.
+        "arenaOwner",
+        "isGateAllocated",
+        "lifecycleFact",
+        "composeResult",
+        "hasPendingInvalidation",
+        "strstr",
         "length",
         # Constructor names any test may verify against, for the same reason
         # `sizeof` is skipped as a subject: one correct

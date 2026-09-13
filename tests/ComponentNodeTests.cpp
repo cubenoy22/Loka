@@ -769,18 +769,17 @@ void testComponentKeySwapRetiresResidentsTwoPhase()
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
     LOKA_VERIFY(scene.flushInvalidation());
 
+    assert(root->component(6002) == 0 && root->section(6001) == 0);
+    assert(scene.hasPendingInvalidation());
+    assert(scenario.trackedAlive == aliveAfterMount);
+    assert(original->lifecycleFact() == loka::app::scene::NODE_FACT_RETIRED);
+    LOKA_VERIFY(scene.flushInvalidation() && "returned slots admit the fresh component");
     TestCellComponentNode *fresh = root->component(6002);
     (void)fresh;
-    assert(fresh && fresh != original);
-    assert(root->section(6001) == 0);
-    assert(scene.hasPendingInvalidation());
-    assert(scenario.trackedAlive == 2 * aliveAfterMount &&
-           "retired component residents must remain touchable until the drain");
+    assert(fresh);
     assert(scenario.observation.composeChildrenCalls == 2);
     assert(scenario.observation.statesValidAtComposeChildren == 2);
 
-    LOKA_VERIFY(!scene.flushInvalidation() &&
-                "component retirement must be a silent drain-only run");
     assert(scenario.trackedAlive == aliveAfterMount &&
            "the retired component must release its residents at the drain");
   }

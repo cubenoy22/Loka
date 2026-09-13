@@ -641,6 +641,52 @@ namespace loka
                                                           Node *parent,
                                                           BoundaryBranchSeatRuntimeRegistrationPlan *registrations)
         {
+          if (!plan.seat()->prepareSeatReservation())
+          {
+            this->noteComposeAllocationFailure();
+            NodeMaterializationResult refused = {0, true, false};
+            return refused;
+          }
+          const detail::SeatReservation *reservation = plan.seat()->seatReservation();
+          if (!reservation)
+            return this->materializeAdmittedSeat(context, plan, parent, registrations);
+          ColdSeatBuild build(*this, context, plan, parent, registrations);
+          reservation->partition().build(reservation->layoutTable().layouts(),
+                                                reservation->layoutTable().count(), build);
+          return build.result;
+        }
+
+        class ColdSeatBuild : public detail::NodeBuildOperation
+        {
+        public:
+          ColdSeatBuild(BoundaryNode &owner, ComponentContext &context,
+                        const BoundaryBranchSeatPlanEntry &plan, Node *parent,
+                        BoundaryBranchSeatRuntimeRegistrationPlan *registrations)
+              : owner_(owner), context_(context), plan_(plan), parent_(parent), registrations_(registrations)
+          { this->result.root = 0; this->result.allocationFailed = true; this->result.requiresBoundaryPlan = false; }
+          virtual bool buildAndAttach(detail::NodeBuildTicket &ticket)
+          {
+            detail::SeatNodeStorageView storage(ticket);
+            ComponentContext context(this->context_);
+            context.setNodeStorage(&storage);
+            context.setOwner(this->parent_);
+            this->result = this->owner_.materializeAdmittedSeat(context, this->plan_, this->parent_, this->registrations_);
+            return this->result.root != 0 && !this->result.allocationFailed;
+          }
+          NodeMaterializationResult result;
+        private:
+          BoundaryNode &owner_;
+          ComponentContext &context_;
+          const BoundaryBranchSeatPlanEntry &plan_;
+          Node *parent_;
+          BoundaryBranchSeatRuntimeRegistrationPlan *registrations_;
+        };
+
+        NodeMaterializationResult materializeAdmittedSeat(ComponentContext &context,
+                                                          const BoundaryBranchSeatPlanEntry &plan,
+                                                          Node *parent,
+                                                          BoundaryBranchSeatRuntimeRegistrationPlan *registrations)
+        {
           loka::core::OwnedDef<BranchSeatDeclaration> candidate(plan.seat()->declareBranchCandidate(context));
           if (!candidate.isSet())
           {
@@ -1771,6 +1817,11 @@ namespace loka
             }
             NodeMaterializationResult result =
                 this->materializeDeclaration(declarationContext, plan, *candidate, runtimeParent, nestedRegistrations);
+            if (context.nodeStorage() && result.root && !result.allocationFailed && !result.requiresBoundaryPlan)
+            {
+              this->composeTree(result.root, declarationContext, COMPOSE_EVENT_ATTACH, this);
+              result.allocationFailed = this->compositionState_.allocationFailedValue();
+            }
             PendingSubtree materialized(&BoundaryNode::ReclaimPendingSeatRoot, &declarationContext);
             materialized.prepare(result.root);
             if (result.allocationFailed || result.requiresBoundaryPlan || !result.root)
@@ -1864,7 +1915,10 @@ namespace loka
           committedRuntime->hasActiveArm = plan.hasSelectedArm;
           committedRuntime->shape = plan.shape;
           committedRuntime->appliedGeneration = this->branchSeats_.generation();
-          incoming->markPendingAttachForCompose();
+          if (context.nodeStorage())
+            incoming->markPrecomposedAttach();
+          else
+            incoming->markPendingAttachForCompose();
           this->noteLocalStructureWork();
           return true;
         }
@@ -1877,17 +1931,13 @@ namespace loka
                            const BoundaryBranchSeatPlanEntry &plan,
                            const BoundaryBranchSeatRuntimeEntry &runtime)
               : owner_(owner), context_(context), plan_(plan), runtime_(runtime) {}
-          virtual bool buildAndAttach(detail::NodeBuildTicket &)
+          virtual bool buildAndAttach(detail::NodeBuildTicket &ticket)
           {
-            if (!this->owner_.replaceSeatBranch(this->context_, this->plan_, this->runtime_, false, false))
-              return false;
-            BoundaryBranchSeatRuntimeEntry *installed = this->owner_.branchSeats_.findRuntime(this->plan_.key);
-            if (installed && installed->active)
-            {
-              ComponentContext attachContext = this->owner_.branchRuntimeContext(this->context_, *installed);
-              this->owner_.composeTree(installed->active, attachContext, COMPOSE_EVENT_ATTACH, &this->owner_);
-            }
-            return true;
+            detail::SeatNodeStorageView storage(ticket);
+            ComponentContext context(this->context_);
+            context.setNodeStorage(&storage);
+            context.setOwner(this->runtime_.parent);
+            return this->owner_.replaceSeatBranch(context, this->plan_, this->runtime_, false, false);
           }
         private:
           BoundaryNode &owner_;
@@ -2147,6 +2197,20 @@ namespace loka
           {
             return;
           }
+          if (node->consumePrecomposedAttach(event)) return;
+          detail::NodePartition *partition = node->partitionOwner();
+          if (event == COMPOSE_EVENT_ATTACH && partition
+              && (!parentContext.nodeStorage() || !parentContext.nodeStorage()->uses(partition)))
+          {
+            // Cold materialization and the normal ATTACH walk share the bank's
+            // bounded quota. No sibling ATTACH is moved ahead of its creator.
+            detail::NodeBuildTicket ticket(*partition);
+            detail::SeatNodeStorageView storage(ticket);
+            ComponentContext context(parentContext);
+            context.setNodeStorage(&storage);
+            composeTree(node, context, event, currentBoundary);
+            return;
+          }
           BoundaryNode *boundary;
           ComposableNode *composable;
           INestable *nestable;
@@ -2223,6 +2287,8 @@ namespace loka
                                           ? nodeStateOwner
                                           : parentContext.stateOwner());
             nodeContext.setBoundary(nextBoundary);
+            nodeContext.setOwner(node);
+            nodeContext.setNodeStorage(boundary ? 0 : parentContext.nodeStorage());
             nodeContext.setPlatformController(parentContext.platformController());
             Scene *scene = nextBoundary ? nextBoundary->getScene() : 0;
             nodeContext.setScene(scene);
@@ -2396,6 +2462,7 @@ namespace loka
         std::vector<detail::NodeArena::RetiredNodeGeneration> retiredGenerations_;
         bool drainingRetiredSubtrees_;
 
+        friend class GenerationDeclaration;
         friend class ::loka::dsl::testing::OwnershipDump;
 #ifdef TEST_BUILD
         friend class ::loka::dsl::testing::PartitionReclaimAccess;
