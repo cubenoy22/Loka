@@ -21,7 +21,7 @@
       "name": "Run (macOS SimpleViewer)",
       "type": "lldb-dap",
       "request": "launch",
-      "program": "${workspaceFolder}/build/macos/Debug/example/SimpleViewer/LokaSimpleViewerMacOS",
+      "program": "${workspaceFolder}/build/macos/Debug/example/SimpleViewer/LokaSimpleViewerMacOS.app/Contents/MacOS/LokaSimpleViewerMacOS",
       "cwd": "${workspaceFolder}",
       "preLaunchTask": "Build: macOS SimpleViewer"
     },

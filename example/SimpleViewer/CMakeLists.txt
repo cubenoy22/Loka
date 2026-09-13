@@ -45,8 +45,12 @@ if(APPLE)
   )
   file(GLOB_RECURSE MACOS_HEADERS src/*.hpp)
 
-  add_executable(LokaSimpleViewerMacOS ${MACOS_SOURCES} ${MACOS_HEADERS})
+  add_executable(LokaSimpleViewerMacOS MACOSX_BUNDLE ${MACOS_SOURCES} ${MACOS_HEADERS})
   loka_enable_warnings(LokaSimpleViewerMacOS)
+  set_target_properties(LokaSimpleViewerMacOS PROPERTIES
+    MACOSX_BUNDLE_GUI_IDENTIFIER "org.loka.simpleviewer"
+    MACOSX_BUNDLE_BUNDLE_NAME "LokaSimpleViewerMacOS"
+  )
 
   target_include_directories(LokaSimpleViewerMacOS PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common

@@ -210,7 +210,8 @@ else
     }
     visit_catalog "$BUILD_CATALOG" validate_loop_app
 
-    SIMPLE_VIEWER="$BUILD_ROOT/example/SimpleViewer/LokaSimpleViewerMacOS"
+    SIMPLE_VIEWER_APP="$BUILD_ROOT/example/SimpleViewer/LokaSimpleViewerMacOS.app"
+    SIMPLE_VIEWER="$SIMPLE_VIEWER_APP/Contents/MacOS/LokaSimpleViewerMacOS"
     if [[ ! -x "$SIMPLE_VIEWER" ]]; then
       echo "SimpleViewer Release executable not found: $SIMPLE_VIEWER" >&2
       exit 1
@@ -231,8 +232,7 @@ else
         /usr/bin/ditto "$BUILD_APP_ROOT/$loop_target.app" "$destination/$loop_target.app"
       }
       visit_catalog "$BUILD_CATALOG" copy_loop_entry
-      cp "$SIMPLE_VIEWER" "$destination/LokaSimpleViewerMacOS"
-      chmod +x "$destination/LokaSimpleViewerMacOS"
+      /usr/bin/ditto "$SIMPLE_VIEWER_APP" "$destination/LokaSimpleViewerMacOS.app"
       # Same derivation as loka_source_version in standalone-release-stage.sh;
       # inlined because this script deliberately avoids the lib-common/Xcode
       # coupling that sourcing the stage library's siblings would bring.
