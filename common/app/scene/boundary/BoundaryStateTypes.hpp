@@ -278,9 +278,7 @@ namespace loka
 
         void clear()
         {
-          actualBoundsChanged = false;
-          affectsAncestorLayout = false;
-          structureWork = false;
+          clearTransitionFacts();
           bounds.clear();
           paintBounds.clear();
           paint.clear();
@@ -307,11 +305,6 @@ namespace loka
         void noteLocalStructureWork()
         {
           structureWork = true;
-        }
-
-        void clearStructureWork()
-        {
-          structureWork = false;
         }
 
         /** Clear per-cycle transition facts while preserving durable paint
@@ -464,11 +457,6 @@ namespace loka
         void noteLocalStructureWork()
         {
           result.noteLocalStructureWork();
-        }
-
-        void clearStructureWork()
-        {
-          result.clearStructureWork();
         }
 
         void clearTransitionFacts()
