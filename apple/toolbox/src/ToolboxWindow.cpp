@@ -62,14 +62,18 @@ namespace
     content.bottom = static_cast<short>(content.top + height);
   }
 
-  // Inherited from the shipped thunk: X is content-left, Y is the outer origin
-  // below the menu bar. Keep this asymmetry for every Toolbox scenario golden
-  // (#712); nativeContentFrame() is the exact inverse.
-  Rect RequestedContentBounds(const loka::core::Frame &frame, const ToolboxWindowChrome &chrome)
+  // The shipped convention, inherited from the original open(): the logical
+  // frame is the CONTENT origin, with y measured from one row below the menu
+  // bar (content top = y + menu height + 1). Every Toolbox scenario golden was
+  // baked with it, so it stays (#712); nativeContentFrame() is the exact
+  // inverse, and the chrome value only enters through the clamp.
+  const short kContentTopBelowMenu = 1;
+
+  Rect RequestedContentBounds(const loka::core::Frame &frame)
   {
     Rect content;
     const short left = static_cast<short>(frame.x);
-    const short top = static_cast<short>(frame.y + GetMBarHeight() + chrome.top());
+    const short top = static_cast<short>(frame.y + GetMBarHeight() + kContentTopBelowMenu);
     SetRect(&content, left, top,
             static_cast<short>(left + frame.width), static_cast<short>(top + frame.height));
     return content;
@@ -159,11 +163,10 @@ void ToolboxWindow::open()
       this->hasSize() ? this->height() : defaultFrame.height);
   // Chrome is not measurable until the window exists and is visible: the
   // Window Manager keeps strucRgn/contRgn empty for an invisible window, so a
-  // hidden probe reads zero insets (measured on the maciix rig, #712). These
-  // seed bounds use the empty chrome value; the thunk applies measured
-  // placement below, so the window is visible at the requested bounds for one
-  // event turn, as it was before #712.
-  Rect bounds = RequestedContentBounds(requested, this->chrome_);
+  // hidden probe reads zero insets (measured on the maciix rig, #712). Create
+  // at the requested bounds, measure, then let the thunk clamp: the window is
+  // visible at the requested bounds for one event turn, as it was before #712.
+  Rect bounds = RequestedContentBounds(requested);
 
   loka::core::String titleValue = this->displayTitleState().get();
   if (titleValue.empty())
@@ -328,7 +331,7 @@ void ToolboxWindow::FrameChangedThunk(void *userData)
                                     frame.hasPosition() ? frame.y : actual.y,
                                     frame.hasSize() ? frame.width : actual.width,
                                     frame.hasSize() ? frame.height : actual.height);
-  Rect content = RequestedContentBounds(requested, self->chrome_);
+  Rect content = RequestedContentBounds(requested);
   ClampStructureToScreen(content, self->chrome_);
   const short width = static_cast<short>(content.right - content.left);
   const short height = static_cast<short>(content.bottom - content.top);
@@ -355,9 +358,9 @@ loka::core::Frame ToolboxWindow::nativeContentFrame() const
   LocalToGlobal(&topLeft);
   SetPort(oldPort);
   const short menuHeight = GetMBarHeight();
-  // Paired with RequestedContentBounds: content X, outer Y below the menu bar.
+  // Exact inverse of RequestedContentBounds.
   return loka::core::Frame(topLeft.h,
-                           static_cast<int>(topLeft.v) - menuHeight - this->chrome_.top(),
+                           static_cast<int>(topLeft.v) - menuHeight - kContentTopBelowMenu,
                            portRect.right - portRect.left,
                            portRect.bottom - portRect.top);
 }
@@ -419,7 +422,7 @@ void ToolboxWindow::handleGrow(const Point &globalPoint)
   // Rect is {top, left, bottom, right}; SetRect takes (left, top, right, bottom):
   // left/top = minimum width/height, right/bottom = maximum width/height.
   const Rect limits = ContentLimits(this->chrome_);
-  const Rect content = RequestedContentBounds(this->nativeContentFrame(), this->chrome_);
+  const Rect content = RequestedContentBounds(this->nativeContentFrame());
   // GrowWindow keeps the top-left fixed, so bound the available remainder.
   const short maxWidth = static_cast<short>(limits.right - content.left);
   const short maxHeight = static_cast<short>(limits.bottom - content.top);

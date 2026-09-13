@@ -128,7 +128,7 @@ namespace
       const bool reportsActual =
           reported
           == loka::core::Frame(
-              content.left, structure.top - menu, content.right - content.left, content.bottom - content.top);
+              content.left, content.top - menu - 1, content.right - content.left, content.bottom - content.top);
       const int leftInset = content.left - structure.left;
       const int rightInset = structure.right - content.right;
       const bool widthFits = !fullScreen
