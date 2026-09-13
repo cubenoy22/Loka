@@ -1,6 +1,8 @@
 #ifndef LOKA_SCRAPBOOK_UI_MAIN_NODE_HPP
 #define LOKA_SCRAPBOOK_UI_MAIN_NODE_HPP
 
+#include "app/scene/BorrowedKeys.hpp"
+
 #include <cassert>
 
 #include "ScrapbookFlowAdapters.hpp"
@@ -30,33 +32,35 @@ namespace scrapbook
     typedef MainTypeTag TypeTag;
     typedef MainNode NodeType;
 
-    MainProps()
-        : platformContext_(0)
-    {
-    }
-
     MainProps &platformContext(PlatformContext *context)
     {
-      this->platformContext_ = context;
+      this->keys_.set(KEY_PLATFORM, context);
       return *this;
+    }
+
+    PlatformContext *platformContext() const
+    {
+      return static_cast<PlatformContext *>(const_cast<void *>(this->keys_.get(KEY_PLATFORM)));
     }
 
     void assertInitialized() const
     {
-      assert(this->platformContext_);
+      assert(this->keys_.complete());
     }
 
     bool operator<(const loka::app::scene::PropsBase &rhs) const
     {
-      if (rhs.propsTypeId() != propsTypeId())
-      {
-        return false;
-      }
-      const MainProps &other = static_cast<const MainProps &>(rhs);
-      return this->platformContext_ < other.platformContext_;
+      return rhs.propsTypeId() == this->propsTypeId() &&
+             this->keys_ < static_cast<const MainProps &>(rhs).keys_;
     }
 
-    PlatformContext *platformContext_;
+  private:
+    enum
+    {
+      KEY_PLATFORM,
+      KEY_COUNT
+    };
+    loka::app::scene::BorrowedKeys<KEY_COUNT> keys_;
   };
 
   class MainNode : public loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>
@@ -175,7 +179,7 @@ namespace scrapbook
       {
         return;
       }
-      this->package_.open(this->props.platformContext_);
+      this->package_.open(this->props.platformContext());
       this->refusedBadgeImage_.set(this->package_.refusedBadgeImage());
       this->pageFlow_.set(buildFlow(*this)).withTracker(this->tracker());
       this->loadSelectedPage();

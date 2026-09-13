@@ -1,6 +1,8 @@
 #ifndef LOKA_SMIRK_BENCH_MAIN_NODE_HPP
 #define LOKA_SMIRK_BENCH_MAIN_NODE_HPP
 
+#include "app/scene/BorrowedKeys.hpp"
+
 #include "SmirkModel.hpp"
 #include "app/core/Window.hpp"
 #include "app/nodes/Text.hpp"
@@ -41,26 +43,33 @@ namespace smirkbench
     typedef MainNode NodeType;
 
     explicit MainProps(SmirkModel *model = 0)
-        : model_(model)
     {
+      this->keys_.set(KEY_MODEL, model);
+    }
+
+    SmirkModel *model() const
+    {
+      return static_cast<SmirkModel *>(const_cast<void *>(this->keys_.get(KEY_MODEL)));
     }
 
     void assertInitialized() const
     {
-      assert(this->model_);
+      assert(this->keys_.complete());
     }
 
     bool operator<(const loka::app::scene::PropsBase &rhs) const
     {
-      if (rhs.propsTypeId() != this->propsTypeId())
-      {
-        return false;
-      }
-      const MainProps &other = static_cast<const MainProps &>(rhs);
-      return this->model_ < other.model_;
+      return rhs.propsTypeId() == this->propsTypeId() &&
+             this->keys_ < static_cast<const MainProps &>(rhs).keys_;
     }
 
-    SmirkModel *model_;
+  private:
+    enum
+    {
+      KEY_MODEL,
+      KEY_COUNT
+    };
+    loka::app::scene::BorrowedKeys<KEY_COUNT> keys_;
   };
 
   class MainNode : public loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>
@@ -87,7 +96,7 @@ namespace smirkbench
           addEnabled_(),
           addFace_()
     {
-      const int initialFaceCount = props.model_ ? props.model_->faceCount() : 0;
+      const int initialFaceCount = props.model() ? props.model()->faceCount() : 0;
       this->state(this->orientation_, ORIENTATION_LANDSCAPE);
       this->state(this->navAxis_, loka::app::STACK_AXIS_COLUMN);
       this->state(this->panelsAxis_, loka::app::STACK_AXIS_ROW);
@@ -112,7 +121,7 @@ namespace smirkbench
                   << Button("Add face", &this->addFace_).enabled(this->addEnabled_.state()).TEST_ID("SmirkBench.AddFace")
                   << Text(this->faceCountText_.state()).TEST_ID("SmirkBench.FaceCount"));
 
-      RectSurface surface = RectSurface(this->props.model_->surfaceModel())
+      RectSurface surface = RectSurface(this->props.model()->surfaceModel())
                                 .laidOutExtent(this->surfaceExtent_)
                                 .useRegionClip(false)
                                 .TEST_ID("SmirkBench.Surface");
@@ -176,17 +185,17 @@ namespace smirkbench
 
     void addFace()
     {
-      if (!this->props.model_ || !this->props.model_->addFace())
+      if (!this->props.model() || !this->props.model()->addFace())
       {
         return;
       }
-      const int count = this->props.model_->faceCount();
+      const int count = this->props.model()->faceCount();
       if (this->faceCount_.get() != count)
       {
         this->faceCount_.set(count);
       }
       this->faceCountText_.set(this->faceCountLabel(count));
-      const bool enabled = this->props.model_->canAddFace();
+      const bool enabled = this->props.model()->canAddFace();
       if (this->addEnabled_.get() != enabled)
       {
         this->addEnabled_.set(enabled);
@@ -223,7 +232,7 @@ namespace smirkbench
     void refreshModelBounds()
     {
       const loka::core::Frame frame = this->surfaceExtent_.get();
-      this->props.model_->updateBounds(frame.width, frame.height);
+      this->props.model()->updateBounds(frame.width, frame.height);
     }
 
     loka::app::scene::NodeState<Orientation> orientation_;

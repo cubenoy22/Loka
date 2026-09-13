@@ -760,3 +760,35 @@ void testSimpleViewerProductionConfigStartsAtWideBreakpoint()
     delete components[i];
   }
 }
+
+void testSimpleViewerMainPropsCompareEveryBorrowedSource()
+{
+  NullPlatformContext platform;
+  NullPlatformContext otherPlatform;
+  loka::core::EmitterState open, fit, actual, scroll, replacement;
+  loka::core::MutableState<simpleviewer::DisplayMode> mode(simpleviewer::DISPLAY_FIT);
+  loka::core::MutableState<simpleviewer::DisplayMode> otherMode(simpleviewer::DISPLAY_FIT);
+  const simpleviewer::MainProps original = simpleviewer::MainProps()
+      .platformContext(&platform).openDialogEvent(&open).displayMode(&mode)
+      .fitEvent(&fit).actualEvent(&actual).actualScrollEvent(&scroll);
+  original.assertInitialized();
+  LOKA_VERIFY(original.platformContext() == &platform);
+  LOKA_VERIFY(original.openDialogEvent() == &open);
+  LOKA_VERIFY(original.displayMode() == &mode);
+  LOKA_VERIFY(original.fitEvent() == &fit);
+  LOKA_VERIFY(original.actualEvent() == &actual);
+  LOKA_VERIFY(original.actualScrollEvent() == &scroll);
+  const simpleviewer::MainProps copy(original);
+  LOKA_VERIFY(!(original < copy) && !(copy < original));
+  simpleviewer::MainProps changed[6];
+  for (int i = 0; i < 6; ++i)
+    changed[i] = original;
+  changed[0].platformContext(&otherPlatform);
+  changed[1].openDialogEvent(&replacement);
+  changed[2].displayMode(&otherMode);
+  changed[3].fitEvent(&replacement);
+  changed[4].actualEvent(&replacement);
+  changed[5].actualScrollEvent(&replacement);
+  for (int i = 0; i < 6; ++i)
+    LOKA_VERIFY((original < changed[i]) != (changed[i] < original));
+}
