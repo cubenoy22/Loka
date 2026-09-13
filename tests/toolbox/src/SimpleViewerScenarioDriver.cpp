@@ -35,7 +35,7 @@ public:
   static void open(simpleviewer::MainNode &node, const loka::app::FileChooserResult &result)
   {
     loka::core::StateTrackerGuard guard(node.tracker());
-    node.imageLoad_.begin(node, node.props.platformContext_, node.chooserResult_.state(),
+    node.imageLoad_.begin(node, node.props.platformContext(), node.chooserResult_.state(),
                          static_cast<loka::core::PushStateTracker *>(node.tracker()));
     node.chooserResult_.set(result, true);
   }
