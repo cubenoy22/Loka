@@ -31,9 +31,14 @@ namespace loka
                                   && this->branchSeats_.plans().empty();
         if (!retryFactory && candidate.root())
         {
-          Node *child = candidate.take();
-          this->addChild(child);
+          Node *child = candidate.root();
+          if (this->seatReservations_.empty())
+            this->addChild(candidate.take());
+          else
+            candidate.prepare(candidate.take(), &ReclaimPendingSeatRoot, &context);
           this->composeTree(child, context, COMPOSE_EVENT_ATTACH, this);
+          if (candidate.root() && !this->compositionState_.allocationFailedValue())
+            this->addChild(candidate.take());
         }
         composition.setContext(0);
         context.setComposition(0);
@@ -204,7 +209,17 @@ namespace loka
         static_cast<BoundaryNode *>(owner)->destroyRetiredSubtree(node);
       }
 
-      void BoundaryNode::destroyRetiredSubtree(Node *node)
+      void BoundaryNode::ReclaimBoundedPartitionNode(Node *node, void *owner)
+      {
+        static_cast<BoundaryNode *>(owner)->destroyRetiredSubtree(node, true);
+      }
+
+      void BoundaryNode::ReclaimPlannedNode(Node *node, void *owner)
+      {
+        static_cast<BoundaryNode *>(owner)->destroyRetiredNode(node);
+      }
+
+      void BoundaryNode::destroyRetiredSubtree(Node *node, bool bounded)
       {
         if (!node)
         {
@@ -212,6 +227,40 @@ namespace loka
         }
 
         detail::NodePartition *partition = this->seatReservations_.partitionFor(node);
+        if (bounded && partition && partition->reclaimScratch_.isReserved()
+            && partition->reclaimTree(node, &ReclaimPlannedNode, this))
+          return;
+        BoundaryNode *nestedBoundary = node->asBoundary();
+        if (!nestedBoundary || nestedBoundary == this)
+        {
+          INestable *nestable = node->asNestable();
+          if (nestable)
+          {
+            std::vector<Node *> children;
+            nestable->detachChildrenTo(children);
+            for (size_t i = 0; i < children.size(); ++i)
+            {
+              this->destroyRetiredSubtree(children[i], bounded);
+            }
+          }
+        }
+
+        if (partition)
+        {
+          if (nestedBoundary && nestedBoundary != this)
+            nestedBoundary->drainPendingHeldReleases();
+          partition->reclaimAfterChildren(
+              node, bounded ? &ReclaimBoundedPartitionNode : &ReclaimPartitionNode, this);
+          // The partition fallback bypasses destroyRetiredNode. Its dependents
+          // and destructor have completed, and its slot is now on the free list.
+          this->seatReservations_.returnedNode(node);
+        }
+        else
+          this->destroyRetiredNode(node);
+      }
+
+      void BoundaryNode::destroyRetiredNode(Node *node)
+      {
         BoundaryNode *nestedBoundary = node->asBoundary();
         if (nestedBoundary && nestedBoundary != this)
         {
@@ -222,24 +271,9 @@ namespace loka
           // observable app code on the reclaim path.
           nestedBoundary->drainPendingHeldReleases();
         }
-        if (!nestedBoundary || nestedBoundary == this)
-        {
-          INestable *nestable = node->asNestable();
-          if (nestable)
-          {
-            std::vector<Node *> children;
-            nestable->detachChildrenTo(children);
-            for (size_t i = 0; i < children.size(); ++i)
-            {
-              this->destroyRetiredSubtree(children[i]);
-            }
-          }
-        }
-
+        detail::NodePartition *partition = this->seatReservations_.partitionFor(node);
         if (partition)
-        {
-          partition->reclaimAfterChildren(node, &ReclaimPartitionNode, this);
-        }
+          partition->destroyResident(node);
         else if (node->isArenaAllocated())
         {
           assert(node->arenaOwner() == this->nodeArena() &&
@@ -261,6 +295,11 @@ namespace loka
 
       void BoundaryNode::drainRetiredSubtreesAtNextTrackerRun()
       {
+        this->drainRetiredSubtrees(true);
+      }
+
+      void BoundaryNode::drainRetiredSubtrees(bool bounded)
+      {
         if (this->drainingRetiredSubtrees_ ||
             (!this->retiredSubtreesHead_ &&
              this->retiredGenerations_.empty() &&
@@ -269,6 +308,8 @@ namespace loka
           return;
         }
 
+        detail::ReclaimScratch &scratch = this->nodeArena_.reclaimScratch();
+        const bool planned = bounded && scratch.isReserved();
         Node *snapshot = this->retiredSubtreesHead_;
         this->retiredSubtreesHead_ = 0;
         this->retiredSubtreesTail_ = 0;
@@ -283,12 +324,27 @@ namespace loka
         {
           Node *next = snapshot->nextInComposition;
           snapshot->nextInComposition = 0;
-          this->destroyRetiredSubtree(snapshot);
+          if (bounded && this->seatReservations_.partitionFor(snapshot))
+            this->destroyRetiredSubtree(snapshot, true);
+          else if (planned)
+          {
+            detail::ReclaimScratch::Plan plan(scratch);
+            if (plan.append(snapshot))
+            {
+              plan.severChildren();
+              for (size_t i = 0; i < plan.count(); ++i)
+                this->destroyRetiredSubtree(plan.node(i), bounded);
+            }
+            else
+              this->destroyRetiredSubtree(snapshot, bounded);
+          }
+          else
+            this->destroyRetiredSubtree(snapshot, bounded);
           snapshot = next;
         }
         for (size_t i = 0; i < generationSnapshot.size(); ++i)
         {
-          this->seatReservations_.reclaimGeneration(generationSnapshot[i]);
+          this->seatReservations_.reclaimGeneration(generationSnapshot[i], planned ? &scratch : 0);
         }
         generationSnapshot.clear();
         while (heldSnapshot)
@@ -325,7 +381,7 @@ namespace loka
                !this->retiredGenerations_.empty() ||
                this->pendingHeldReleasesHead_)
         {
-          this->drainRetiredSubtreesAtNextTrackerRun();
+          this->drainRetiredSubtrees(false);
         }
       }
 
@@ -342,11 +398,9 @@ namespace loka
         this->detachChildrenTo(children);
         for (size_t i = 0; i < children.size(); ++i)
         {
-          Node *child = children[i];
-          if (this->seatReservations_.partitionFor(child))
-            this->destroyRetiredSubtree(child);
-          else if (!child->isArenaAllocated())
-            DestroyHeapNode(child);
+          // Follow the live owner tree before sweeping orphan partition roots.
+          // An arena child can enclose several nested partition generations.
+          this->destroyRetiredSubtree(children[i]);
         }
         this->seatReservations_.reclaimPartitionRoots(&ReclaimPartitionNode, this);
         // Legacy arena residents retain their existing ledger destruction order.

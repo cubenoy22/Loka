@@ -180,7 +180,7 @@ namespace loka
         Node *node;
         if (context.nodeStorage())
         {
-          node = context.nodeStorage()->create(*def, runtimeParent);
+          node = context.nodeStorage()->create(*def, context.owner());
         }
         else if (mem)
         {

@@ -651,7 +651,7 @@ namespace loka
           if (!reservation)
             return this->materializeAdmittedSeat(context, plan, parent, registrations);
           ColdSeatBuild build(*this, context, plan, parent, registrations);
-          reservation->partition().buildFixture(reservation->layoutTable().layouts(),
+          reservation->partition().build(reservation->layoutTable().layouts(),
                                                 reservation->layoutTable().count(), build);
           return build.result;
         }
@@ -696,11 +696,6 @@ namespace loka
           }
           BoundaryBranchSeatRuntimeRegistrationPlan nested;
           NodeMaterializationResult result = this->materializeDeclaration(context, plan, *candidate, parent, nested);
-          if (context.nodeStorage() && result.root && !result.allocationFailed && !result.requiresBoundaryPlan)
-          {
-            this->composeTree(result.root, context, COMPOSE_EVENT_ATTACH, this);
-            result.allocationFailed = this->compositionState_.allocationFailedValue();
-          }
           if (result.allocationFailed || result.requiresBoundaryPlan || !result.root)
           {
             if (result.root)
@@ -731,7 +726,10 @@ namespace loka
         }
         /** Reclaims the queue snapshot owned by this Boundary at the head of
             the next tracker run. Retirees added while draining wait for a
-            later tracker run. */
+            later tracker run. Capacity overflow asserts in Debug; Release reclaims
+            that entry with the legacy walk in this run, then continues bounded
+            reclamation for fitting entries. A fallback entry is outside the
+            zero-upstream claim; no retry request is issued for overflow. */
         void drainRetiredSubtreesAtNextTrackerRun();
         /** Runs the queued releasers of blocks this Boundary is the last
             dropping owner for. Reclamation paths call it before destroying
@@ -1917,7 +1915,9 @@ namespace loka
           committedRuntime->hasActiveArm = plan.hasSelectedArm;
           committedRuntime->shape = plan.shape;
           committedRuntime->appliedGeneration = this->branchSeats_.generation();
-          if (!context.nodeStorage())
+          if (context.nodeStorage())
+            incoming->markPrecomposedAttach();
+          else
             incoming->markPendingAttachForCompose();
           this->noteLocalStructureWork();
           return true;
@@ -2197,6 +2197,20 @@ namespace loka
           {
             return;
           }
+          if (node->consumePrecomposedAttach(event)) return;
+          detail::NodePartition *partition = node->partitionOwner();
+          if (event == COMPOSE_EVENT_ATTACH && partition
+              && (!parentContext.nodeStorage() || !parentContext.nodeStorage()->uses(partition)))
+          {
+            // Cold materialization and the normal ATTACH walk share the bank's
+            // bounded quota. No sibling ATTACH is moved ahead of its creator.
+            detail::NodeBuildTicket ticket(*partition);
+            detail::SeatNodeStorageView storage(ticket);
+            ComponentContext context(parentContext);
+            context.setNodeStorage(&storage);
+            composeTree(node, context, event, currentBoundary);
+            return;
+          }
           BoundaryNode *boundary;
           ComposableNode *composable;
           INestable *nestable;
@@ -2412,8 +2426,12 @@ namespace loka
         }
 
         void retireSubtree(Node *node);
-        void destroyRetiredSubtree(Node *node);
+        void destroyRetiredSubtree(Node *node, bool bounded = false);
+        void destroyRetiredNode(Node *node);
+        void drainRetiredSubtrees(bool bounded);
         static void ReclaimPartitionNode(Node *node, void *owner);
+        static void ReclaimBoundedPartitionNode(Node *node, void *owner);
+        static void ReclaimPlannedNode(Node *node, void *owner);
         void drainAllRetiredSubtrees();
         void releaseOwnedNodeStorage();
 
@@ -2444,6 +2462,7 @@ namespace loka
         std::vector<detail::NodeArena::RetiredNodeGeneration> retiredGenerations_;
         bool drainingRetiredSubtrees_;
 
+        friend class GenerationDeclaration;
         friend class ::loka::dsl::testing::OwnershipDump;
 #ifdef TEST_BUILD
         friend class ::loka::dsl::testing::PartitionReclaimAccess;

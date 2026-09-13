@@ -9,29 +9,20 @@ namespace loka
       namespace detail
       {
 
-        NodeBuildTicket::NodeBuildTicket(NodePartition &partition, const SeatLayoutTable &demand)
-            : partition_(partition),
-              demand_(demand)
-        {
-          for (size_t i = 0; i < demand.count(); ++i)
-            this->remaining_[i] = demand.layouts()[i].count();
-        }
-
         void *NodeBuildTicket::consumeAndAllocate(const NodeSlotLayout &layout)
+        { return this->partition_.consumeBuildSlot(layout); }
+
+        void *NodePartition::consumeBuildSlot(const NodeSlotLayout &layout)
         {
-          for (size_t i = 0; i < this->demand_.count(); ++i)
-            if (this->demand_.layouts()[i].size() == layout.size()
-                && this->demand_.layouts()[i].alignment() == layout.alignment() && this->remaining_[i])
-            {
-              void *storage = this->partition_.allocate(layout);
-              if (storage)
-                --this->remaining_[i];
-              return storage;
-            }
-          assert(false
-                 && "seat node declaration incomplete: declare every descendant layout and maximum count, including "
-                    "attach children");
-          return 0;
+          Class *entry = this->findClass(layout);
+          if (!entry || !entry->buildQuota.consume())
+          {
+            assert(false && "seat node declaration incomplete: include every descendant and ATTACH child");
+            return 0;
+          }
+          void *storage = this->allocate(layout);
+          assert(storage && "admitted node class has no free slot");
+          return storage;
         }
 
         Node *NodeBuildTicket::create(NodeDefinitionBase &definition, Node *owner)
@@ -59,7 +50,7 @@ namespace loka
           return node;
         }
 
-        bool NodePartition::buildFixture(const NodeSlotLayout *demand, size_t count, NodeBuildOperation &operation)
+        bool NodePartition::build(const NodeSlotLayout *demand, size_t count, NodeBuildOperation &operation)
         {
           if (!demand || !count || count > SeatLayoutTable::capacity)
             return false;
@@ -78,7 +69,10 @@ namespace loka
               return false;
             }
           }
-          NodeBuildTicket ticket(*this, table);
+          for (size_t i = 0; i < this->classCount_; ++i) this->classes_[i].buildQuota = BuildQuota();
+          for (size_t i = 0; i < table.count(); ++i)
+            this->findClass(table.layouts()[i])->buildQuota = BuildQuota(table.layouts()[i].count());
+          NodeBuildTicket ticket(*this);
           return operation.buildAndAttach(ticket);
         }
 

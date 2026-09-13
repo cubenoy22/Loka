@@ -706,54 +706,43 @@ void testKeyedRedeclaresCurrentMembersOnceAndReclaimsOnDrain()
   scene.mount(&platform);
   loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   LOKA_VERIFY(r.declarations == 1 && r.compositions == 1 && r.bindings == 1);
-  loka::app::scene::Node *old = r.leaf;
-  loka::app::scene::Node *oldRoot = r.owner->childrenHead()->asNestable()->childrenHead();
-  const int destroyed = r.destroyed;
+  Node *old = r.leaf;
   r.value = 19;
   r.owner->changeKey(1);
-  LOKA_VERIFY(r.declarations == 2 && r.compositions == 1 && r.bindings == 1);
-  LOKA_VERIFY(r.leaf != old && static_cast<KeyedLeaf *>(r.leaf)->value == 19);
-  const loka::app::scene::NodeLifecycleFact oldFact = old->lifecycleFact();
-  const loka::app::scene::NodeLifecycleFact oldRootFact = oldRoot->lifecycleFact();
-  const loka::app::scene::Node *newRoot = r.owner->childrenHead()->asNestable()->childrenHead();
-  LOKA_VERIFY(oldFact == loka::app::scene::NODE_FACT_RETIRED);
-  LOKA_VERIFY(oldRootFact == loka::app::scene::NODE_FACT_RETIRED && newRoot != oldRoot);
-  const bool pending = scene.hasPendingInvalidation();
-  LOKA_VERIFY(r.destroyed == destroyed && pending);
-  const bool applied = scene.flushInvalidation();
-  const bool pendingAfterDrain = scene.hasPendingInvalidation();
-  LOKA_VERIFY(!applied && r.destroyed == destroyed + 1 && !pendingAfterDrain);
+  LOKA_VERIFY(r.declarations == 1 && r.destroyed == 0);
+  LOKA_VERIFY(old->lifecycleFact() == NODE_FACT_RETIRED);
+  LOKA_VERIFY(scene.hasPendingInvalidation());
+  const bool built = scene.flushInvalidation();
+  LOKA_VERIFY(built && r.declarations == 2 && r.destroyed == 1);
+  LOKA_VERIFY(static_cast<KeyedLeaf *>(r.leaf)->value == 19);
   r.owner->changeKey(1);
   r.owner->changeKey(1, true);
   LOKA_VERIFY(r.declarations == 2 && r.compositions == 1 && r.bindings == 1);
-  const bool pendingSameKey = scene.hasPendingInvalidation();
-  LOKA_VERIFY(!pendingSameKey);
+  LOKA_VERIFY(!scene.hasPendingInvalidation());
 }
+
 
 void testKeyedRefusedDeclarationKeepsLiveBranchAndRetriesCurrentKey()
 {
+  // Historical name: strict Keyed now retires before attempting the candidate.
   KeyedProbeRecord r;
   SceneTestSupport::RecordingPlatformController platform;
   loka::app::scene::Scene scene((loka::app::scene::Boundary<KeyedProbeNode>(KeyedProbeProps(&r))));
   scene.mount(&platform);
   loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
-  loka::app::scene::Node *old = r.leaf;
-  const int destroyed = r.destroyed;
   r.refuse = true;
   r.owner->changeKey(1);
-  const bool allocationFailed = r.owner->composeResult().allocationFailed;
-  LOKA_VERIFY(allocationFailed);
-  const loka::app::scene::NodeLifecycleFact oldFact = old->lifecycleFact();
-  LOKA_VERIFY(r.leaf == old && oldFact == loka::app::scene::NODE_FACT_ATTACHED);
-  LOKA_VERIFY(r.destroyed == destroyed && r.declarations == 2 && r.compositions == 1);
+  scene.flushInvalidation();
+  LOKA_VERIFY(r.owner->composeResult().allocationFailed);
+  LOKA_VERIFY(r.destroyed == 1 && r.declarations == 2 && r.compositions == 1);
   r.refuse = false;
   r.value = 23;
   r.owner->changeKey(1, true);
-  LOKA_VERIFY(r.leaf != old && static_cast<KeyedLeaf *>(r.leaf)->value == 23);
+  scene.flushInvalidation();
   LOKA_VERIFY(r.declarations == 3 && r.compositions == 1);
-  const bool applied = scene.flushInvalidation();
-  LOKA_VERIFY(!applied && r.destroyed == destroyed + 1);
+  LOKA_VERIFY(static_cast<KeyedLeaf *>(r.leaf)->value == 23);
 }
+
 
 void testKeyedDeclarationUsesGenerationOwnerInsideSectionOnMountAndUpdate()
 {
@@ -766,8 +755,9 @@ void testKeyedDeclarationUsesGenerationOwnerInsideSectionOnMountAndUpdate()
   loka::app::scene::IStateOwner *section = r.declarationOwner;
   LOKA_VERIFY(section && section != r.owner);
   r.owner->changeKey(1);
-  // Each declaration now receives its own terminal generation provider.
-  LOKA_VERIFY(r.declarationOwner != section && r.declarationOwner != r.owner && r.declarations == 2);
+  scene.flushInvalidation();
+  // The slot can reuse an address after its terminal provider was reclaimed.
+  LOKA_VERIFY(r.declarationOwner && r.declarationOwner != r.owner && r.declarations == 2);
   const bool applied = scene.flushInvalidation();
   LOKA_VERIFY(!applied);
 }
@@ -786,6 +776,7 @@ void testKeyedOwnsFreshNestedSeatPlansAcrossReplacement()
   }
   r.value = 31;
   r.owner->changeKey(1);
+  scene.flushInvalidation();
   LOKA_VERIFY(r.declarations == 2 && static_cast<KeyedLeaf *>(r.leaf)->value == 31);
   const bool applied = scene.flushInvalidation();
   LOKA_VERIFY(!applied);
@@ -808,14 +799,16 @@ void testKeyedFailedOuterCandidatePublishesNoNestedObservations()
   loka::app::scene::Scene scene((loka::app::scene::Boundary<KeyedProbeNode>(KeyedProbeProps(&r))));
   scene.mount(&platform);
   loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
-  const std::string before = loka::dsl::testing::OwnershipDump::dump(scene);
+
   r.nestedFailure = true;
   r.refuse = true;
   r.owner->changeKey(1);
+  scene.flushInvalidation();
   const bool allocationFailed = r.owner->composeResult().allocationFailed;
   LOKA_VERIFY(allocationFailed);
   const std::string after = loka::dsl::testing::OwnershipDump::dump(scene);
-  LOKA_VERIFY(after == before);
+  LOKA_VERIFY(after.find("parked\n") == std::string::npos);
+  LOKA_VERIFY(r.declarations == 2);
 }
 
 void testKeyedDirectSeatRootSurvivesInnerSwitchAndDrain()
@@ -835,9 +828,9 @@ void testKeyedDirectSeatRootSurvivesInnerSwitchAndDrain()
   r.value = 43;
   r.owner->changeKey(1);
   const bool pending = scene.hasPendingInvalidation();
-  LOKA_VERIFY(pending && r.declarations == 2);
+  LOKA_VERIFY(pending && r.declarations == 1);
   const bool drained = scene.flushInvalidation();
-  LOKA_VERIFY(!drained);
+  LOKA_VERIFY(drained);
 }
 
 void testKeyedRemovesOnlyUnsharedOutgoingObservations()
@@ -854,7 +847,7 @@ void testKeyedRemovesOnlyUnsharedOutgoingObservations()
     r.nested = false;
     r.owner->changeKey(1);
     const bool applied = scene.flushInvalidation();
-    LOKA_VERIFY(!applied);
+    LOKA_VERIFY(applied);
     const std::string dump = loka::dsl::testing::OwnershipDump::dump(scene);
     const std::string expected = shared ? "observed: 2" : "observed: 1";
     const bool countsMatch = dump.find(expected) != std::string::npos;
@@ -888,7 +881,7 @@ void testKeyedRetiresNestedParkedScopeBeforeDeclarationReset()
   LOKA_VERIFY(!hasParkedAfter && parkedAfter == 0);
   LOKA_VERIFY(pending && r.destroyed == 0);
   const bool applied = scene.flushInvalidation();
-  LOKA_VERIFY(!applied && r.destroyed == 3);
+  LOKA_VERIFY(applied && r.destroyed == 3);
   // Force another boundary-wide parked sweep after the old scope was freed.
   r.owner->changeKey(1, true);
   LOKA_VERIFY(r.declarations == 2);
@@ -967,6 +960,7 @@ void testKeyedComposeWriteRetainsSeatDirtyClassification()
   r.owner->markViewDirty(NODE_DIRTY_PROPS);
   const bool applied = scene.flushInvalidation();
   (void)applied;
+  scene.flushInvalidation();
   const size_t count = platform.changeCount();
   LOKA_VERIFY(count > 0);
   const NodeDirtyFlags flags = platform.changeAt(count - 1).flags;

@@ -11,9 +11,10 @@ namespace loka
       namespace detail
       {
 
-        /** One build's aggregate layout entitlement. Noncopyable and constructible only
-            inside NodePartition::buildFixture. Cancellation restores unconstructed
-            storage, never the entitlement already spent on a construction attempt. */
+        /** Stack-local access to the partition's bounded admission quota.
+            Cold ATTACH resumes that quota in normal sibling order; a warm build
+            keeps one access through materialization and ATTACH. Cancellation
+            restores storage, never quota spent on a construction attempt. */
         class NodeBuildTicket
         {
         public:
@@ -41,16 +42,17 @@ namespace loka
           }
 
           Node *create(NodeDefinitionBase &definition, Node *owner);
+          NodePartition &partition() const { return this->partition_; }
 
         private:
           friend class NodePartition;
-          NodeBuildTicket(NodePartition &partition, const SeatLayoutTable &demand);
+          friend class ::loka::app::scene::BoundaryNode;
+          explicit NodeBuildTicket(NodePartition &partition) : partition_(partition) {}
           NodeBuildTicket(const NodeBuildTicket &);
           NodeBuildTicket &operator=(const NodeBuildTicket &);
           void *consumeAndAllocate(const NodeSlotLayout &layout);
           NodePartition &partition_;
-          const SeatLayoutTable demand_;
-          size_t remaining_[SeatLayoutTable::capacity];
+
         };
 
         /** Borrowed strict route for one synchronous generation build. */
@@ -60,14 +62,16 @@ namespace loka
           explicit SeatNodeStorageView(NodeBuildTicket &ticket) : ticket_(ticket) {}
           Node *create(NodeDefinitionBase &definition, Node *owner)
           { return this->ticket_.create(definition, owner); }
+          bool uses(NodePartition *partition) const { return &this->ticket_.partition() == partition; }
         private:
           SeatNodeStorageView(const SeatNodeStorageView &);
           SeatNodeStorageView &operator=(const SeatNodeStorageView &);
           NodeBuildTicket &ticket_;
         };
 
-        /** A complete synchronous fixture build, including attach and failure cleanup.
-            Returning ends entitlement; occupied slots remain charged to the partition. */
+        /** Synchronous admitted construction. Warm replacement includes ATTACH;
+            cold installation resumes its owned quota during normal tree ATTACH.
+            Occupied slots remain charged to the partition until reclamation. */
         class NodeBuildOperation
         {
         public:

@@ -3,6 +3,7 @@
 
 #include "app/scene/boundary/detail/SeatBuildRequest.hpp"
 #include "app/scene/boundary/detail/BoundaryArena.hpp"
+#include "app/scene/boundary/detail/ReclaimScratch.hpp"
 
 namespace loka
 {
@@ -42,9 +43,10 @@ namespace loka
           size_t count_;
         };
 
-        /** Boundary-lifetime immutable reservation facts, with optional owned storage.
-            Only the internal fixture admission boots a partition. Production retains
-            the table and its checked footprint without acquiring node backing. */
+        /** Boundary-owned immutable reservation facts and boot-once node storage.
+            The partition's bounded construction quota spans cold materialization
+            and the subsequent ordinary ATTACH walk. Warm admissions reset it only
+            after the outgoing occupant has fully returned. */
         class SeatReservation
         {
         public:
@@ -89,10 +91,11 @@ namespace loka
           {
           }
           ~SeatReservations();
+          bool empty() const { return this->head_ == 0; }
           const SeatReservation *install(SeatLayoutTable table);
 
 #ifdef TEST_BUILD
-          /** Internal reserved seat only. Production allocation remains dormant. */
+          /** Internal fixture installation using the same cold storage door. */
           NodePartition *installFixture(SeatLayoutTable table);
 #endif
 
@@ -100,7 +103,10 @@ namespace loka
           NodePartition *partitionFor(Node *node);
           bool removeSeatChild(SeatBuildRequest &request, Node *parent, Node *outgoing, int order);
           bool installSeatChild(SeatBuildRequest &request, Node *incoming);
-          void reclaimGeneration(NodeArena::RetiredNodeGeneration &generation);
+          /** Destroys a retired generation snapshot (bounded plan when scratch is
+              supplied and fits, legacy walk otherwise) and then clears the outgoing
+              obligations of this landlord's requests that pointed into it. */
+          void reclaimGeneration(NodeArena::RetiredNodeGeneration &generation, ReclaimScratch *scratch);
           void returnedNode(Node *node);
           void cancelRequests();
           bool hasWaitingRequests() const;
@@ -110,6 +116,7 @@ namespace loka
           friend class SeatReservation;
           SeatReservations(const SeatReservations &);
           SeatReservations &operator=(const SeatReservations &);
+          static void ReturnedGenerationNode(Node *node, void *owner);
           static const core::LokaAllocationSite &site();
           SeatReservation *head_;
         };

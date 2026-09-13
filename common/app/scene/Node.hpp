@@ -72,7 +72,8 @@ namespace loka
       enum ComposeAttachState
       {
         COMPOSE_ATTACH_STATE_NONE = 0,
-        COMPOSE_ATTACH_STATE_PENDING_ATTACH = 1
+        COMPOSE_ATTACH_STATE_PENDING_ATTACH = 1,
+        COMPOSE_ATTACH_STATE_PRECOMPOSED = 2
       };
 
       struct ComposeAttachLifecycle
@@ -163,6 +164,7 @@ namespace loka
       namespace detail
       {
         class NodeArena;
+        class NodePartition;
       }
 
       template <typename NodeT> struct NodeTypeTokenStorage
@@ -354,7 +356,11 @@ namespace loka
         NodeContext *context;
         loka::core::MutableState<NodeDirtyFlags> dirty;
         Node *nextInComposition;
-        detail::NodeArena *arenaOwner_;
+        union
+        {
+          detail::NodeArena *arenaOwner_;
+          detail::NodePartition *partitionOwner_;
+        };
         // Compose-only signal used to upgrade a child update pass into an
         // attach pass when a parent swaps in a freshly created child.
         // Platform/native code should not depend on this compose-local state
@@ -401,19 +407,23 @@ namespace loka
 
         /** Partition provenance is distinct from the bump arena landlord. */
         bool isPartitionAllocated() const { return this->storageOrigin_ == STORAGE_PARTITION; }
-        void setPartitionAllocated() { this->storageOrigin_ = STORAGE_PARTITION; }
+        void setPartitionOwner(detail::NodePartition *owner)
+        { this->partitionOwner_ = owner; this->storageOrigin_ = STORAGE_PARTITION; }
+        detail::NodePartition *partitionOwner() const
+        { return this->isPartitionAllocated() ? this->partitionOwner_ : 0; }
 
         void setArenaOwner(detail::NodeArena *owner)
         {
           arenaOwner_ = owner;
+          this->storageOrigin_ = owner ? STORAGE_ARENA : STORAGE_HEAP;
         }
         detail::NodeArena *arenaOwner() const
         {
-          return arenaOwner_;
+          return this->storageOrigin_ == STORAGE_ARENA ? arenaOwner_ : 0;
         }
         bool isArenaAllocated() const
         {
-          return arenaOwner_ != 0;
+          return this->storageOrigin_ == STORAGE_ARENA;
         }
         // Storage provenance for the allocation gate (LokaAlloc), mirroring
         // StateBase::setGateAllocated: set only by the creation path that
@@ -429,6 +439,15 @@ namespace loka
         bool isGateAllocated() const
         {
           return this->storageOrigin_ == STORAGE_GATE;
+        }
+        /** An admitted build already attached this subtree before publication. */
+        void markPrecomposedAttach()
+        { this->composeAttachLifecycle_.state = COMPOSE_ATTACH_STATE_PRECOMPOSED; }
+        bool consumePrecomposedAttach(ComposeEvent event)
+        {
+          if (this->composeAttachLifecycle_.state != COMPOSE_ATTACH_STATE_PRECOMPOSED) return false;
+          this->composeAttachLifecycle_.state = COMPOSE_ATTACH_STATE_NONE;
+          return event != COMPOSE_EVENT_DETACH;
         }
         void markPendingAttachForCompose()
         {
@@ -464,18 +483,15 @@ namespace loka
           return composeAttachLifecycle_.resolveChildComposeEvent(parentEvent);
         }
 
-        /** Node storage has three allocation doors but only one Node* comes
-            out: arena slabs set arenaOwner_, allocation-gate storage sets
-            gateAllocated_, and plain global new sets neither. Gate storage
-            never reaches this function -- DestroyHeapNode returns it through
-            LokaFreeRaw, and ~Node asserts on anything that tries to leave by
-            another route -- so only the arena bit is decided here. */
+        /** Arena and partition storage returns through its landlord, so delete
+            must not free either backing address. Tagged heap nodes instead use
+            DestroyHeapNode; plain global-new nodes use global delete. */
         static void operator delete(void *ptr)
         {
           Node *node = static_cast<Node *>(ptr);
-          if (node && (node->arenaOwner_ || node->isPartitionAllocated()))
+          if (node && (node->isArenaAllocated() || node->isPartitionAllocated()))
           {
-            // Arena handles memory, don't free
+            // The storage landlord owns the backing address.
             return;
           }
           ::operator delete(ptr);
@@ -687,7 +703,7 @@ namespace loka
         static void DeliverLifecycleFactsSubtree(Node *node);
 
         NodeLifecycleFact lifecycleFact_;
-        enum StorageOrigin { STORAGE_HEAP, STORAGE_GATE, STORAGE_PARTITION };
+        enum StorageOrigin { STORAGE_HEAP, STORAGE_GATE, STORAGE_PARTITION, STORAGE_ARENA };
         unsigned char storageOrigin_;
 
         friend class BoundaryNode;
@@ -1506,6 +1522,8 @@ namespace loka
         virtual void addChild(Node *child) = 0;
         virtual bool replaceChild(Node *oldChild, Node *newChild) = 0;
         virtual void detachChildrenTo(std::vector<Node *> &out) = 0;
+        /** Transfer child edges as an intact sibling chain, without allocation. */
+        virtual Node *detachChildren() = 0;
         virtual Node *childrenHead() const = 0;
         virtual size_t childrenCount() const = 0;
       };
@@ -1535,6 +1553,11 @@ namespace loka
         virtual bool replaceChild(Node *oldChild, Node *newChild)
         {
           return children_.replace(oldChild, newChild);
+        }
+
+        virtual Node *detachChildren()
+        {
+          return this->children_.detach();
         }
 
         virtual void detachChildrenTo(std::vector<Node *> &out)

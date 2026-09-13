@@ -146,8 +146,16 @@ namespace loka
           return index <= children.size();
         }
 
-        void SeatReservations::reclaimGeneration(NodeArena::RetiredNodeGeneration &generation)
+        void SeatReservations::ReturnedGenerationNode(Node *node, void *owner)
         {
+          static_cast<SeatReservations *>(owner)->returnedNode(node);
+        }
+
+        void SeatReservations::reclaimGeneration(NodeArena::RetiredNodeGeneration &generation, ReclaimScratch *scratch)
+        {
+          if (scratch && NodeArena::destroyRetiredGeneration(generation, *scratch,
+                                                            &ReturnedGenerationNode, this))
+            return;
           // Snapshot identities before the arena clears its rows. This scratch
           // borrows only this landlord's requests and ends before its reclamation.
           std::vector<SeatBuildRequest *> completed;

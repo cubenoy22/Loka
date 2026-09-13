@@ -1,3 +1,16 @@
+LOKA_TEST(testReclaimScratchGenerationOverflowFallback)
+LOKA_TEST(testReclaimScratchBoundaryOverflowFallback)
+LOKA_TEST(testReclaimScratchPartitionBoundaryKeepsOwnChildren)
+LOKA_TEST(testReclaimScratchPartitionBoundaryChild)
+LOKA_TEST(testReclaimScratchBoundaryWide)
+LOKA_TEST(testReclaimScratchBoundaryDeep)
+LOKA_TEST(testReclaimScratchGenerationWide)
+LOKA_TEST(testReclaimScratchGenerationDeep)
+LOKA_TEST(testReclaimScratchPartitionWide)
+LOKA_TEST(testReclaimScratchPartitionDeep)
+LOKA_TEST(testReclaimScratchOverflow)
+LOKA_TEST(testReclaimScratchNestedBoundary)
+LOKA_TEST(testReclaimScratchPartitionUnattached)
 LOKA_TEST(testUpstreamGaugeSaturation)
 LOKA_TEST(testUpstreamGaugeLarge)
 LOKA_TEST(testUpstreamGaugeRefillAndFallback)
@@ -663,3 +676,11 @@ LOKA_TEST(testSeatBuildRequestKeyedNoEventAdmission)
 LOKA_TEST(testSeatBuildRequestNestedAttachPreservesHeldOwner)
 
 LOKA_TEST(testStrictNodeRouteMineSweeperReuse)
+
+LOKA_TEST(testStrictNodeRouteArenaRefusal)
+LOKA_TEST(testStrictNodeRouteRecursiveRefusal)
+LOKA_TEST(testStrictNodeRouteLocalRefusal)
+
+LOKA_TEST(testStrictNodeRouteKeyedAttachRefusal)
+
+LOKA_TEST(testStrictNodeRoutePartitionDeleteGuard)

@@ -222,34 +222,42 @@ void testSeatBuildRequestFreshReturnToA()
 void testSeatBuildRequestWaitsForFullReturn()
 {
   keyedWaitingScenario(1);
-  Counts counts;
-  Owner owner;
-  NodePartition *bank = owner.installPartitionFixture(table(2));
-  require(bank != 0);
-  const SeatReservation &seat = request(owner, *bank, 2);
-  int key = 0, model = 0;
-  Build build(counts, key, model);
-  require(bank->buildFixture(seat.layoutTable().layouts(), seat.layoutTable().count(), build));
-  replace(owner, seat, build.root);
-  ++key;
-  require(!seat.request().admit(seat.layoutTable(), build));
-  assert(seat.request().retiring() && counts.builds == 1);
-  owner.drainRetiredSubtreesAtNextTrackerRun();
-  assert(!seat.request().retiring() && counts.deaths == 2);
-  assert(counts.builds == 1);
-  require(seat.request().admit(seat.layoutTable(), build));
-  assert(counts.builds == 2 && counts.key == 1);
-  const SeatReservation &legacy = request(owner, *bank, 1);
-  owner.nodeArena()->reserve(sizeof(Resident));
-  void *storage = owner.nodeArena()->allocate(sizeof(Resident), AlignOf<Resident>::value);
-  require(storage != 0);
-  Resident *legacyRoot = new (storage) Resident(counts);
-  owner.nodeArena()->registerNode(legacyRoot);
-  replace(owner, legacy, legacyRoot);
-  owner.retireOwnedNodeGeneration();
-  assert(legacy.request().retiring());
-  owner.drainRetiredSubtreesAtNextTrackerRun();
-  assert(!legacy.request().retiring());
+  for (int bounded = 0; bounded != 2; ++bounded)
+  {
+    Counts counts;
+    Owner owner;
+    NodePartition *bank = owner.installPartitionFixture(table(2));
+    require(bank != 0);
+    if (bounded)
+    {
+      require(bank->reserveReclaimScratch(4));
+      require(owner.nodeArena()->reserveReclaimScratch(4));
+    }
+    const SeatReservation &seat = request(owner, *bank, 2);
+    int key = 0, model = 0;
+    Build build(counts, key, model);
+    require(bank->buildFixture(seat.layoutTable().layouts(), seat.layoutTable().count(), build));
+    replace(owner, seat, build.root);
+    ++key;
+    require(!seat.request().admit(seat.layoutTable(), build));
+    assert(seat.request().retiring() && counts.builds == 1);
+    owner.drainRetiredSubtreesAtNextTrackerRun();
+    assert(!seat.request().retiring() && counts.deaths == 2);
+    assert(counts.builds == 1);
+    require(seat.request().admit(seat.layoutTable(), build));
+    assert(counts.builds == 2 && counts.key == 1);
+    const SeatReservation &legacy = request(owner, *bank, 1);
+    owner.nodeArena()->reserve(sizeof(Resident));
+    void *storage = owner.nodeArena()->allocate(sizeof(Resident), AlignOf<Resident>::value);
+    require(storage != 0);
+    Resident *legacyRoot = new (storage) Resident(counts);
+    owner.nodeArena()->registerNode(legacyRoot);
+    replace(owner, legacy, legacyRoot);
+    owner.retireOwnedNodeGeneration();
+    assert(legacy.request().retiring());
+    owner.drainRetiredSubtreesAtNextTrackerRun();
+    assert(!legacy.request().retiring());
+  }
 }
 
 void testSeatBuildRequestCancelAndAddressReuse()
@@ -416,9 +424,7 @@ namespace
     require(owner != 0);
     const SeatReservation *seat = loka::dsl::testing::SeatBuildRequestAccess::firstReservation(*owner);
     require(seat != 0);
-    NodePartition *bank = owner->installPartitionFixture(seat->layoutTable());
-    require(bank != 0);
-    seat->request().activateFixture(*bank, owner->key.state());
+    require(seat->request().enabled());
     {
       loka::core::StateTrackerGuard guard(owner->tracker());
       owner->model = 1;
@@ -488,11 +494,7 @@ namespace
     const SeatReservation *outer = Access::firstReservation(*owner);
     const SeatReservation *inner = Access::nestedReservation(*owner);
     require(outer != 0 && inner != 0);
-    NodePartition *outerBank = owner->installPartitionFixture(outer->layoutTable());
-    NodePartition *innerBank = owner->installPartitionFixture(inner->layoutTable());
-    require(outerBank != 0 && innerBank != 0);
-    outer->request().activateFixture(*outerBank, owner->outer.state());
-    inner->request().activateFixture(*innerBank, owner->inner.state());
+    require(outer->request().enabled() && inner->request().enabled());
     {
       loka::core::StateTrackerGuard guard(owner->tracker());
       owner->inner.set(1);
@@ -627,20 +629,19 @@ void testSeatBuildRequestNestedAttachPreservesHeldOwner()
     AttachHoldOwner *owner = static_cast<AttachHoldOwner *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     require(owner != 0);
     typedef loka::core::testing::HeldTestAccess HeldAccess;
-    // Establish the ordinary replacement's ancestry before enabling the fixture.
+    // Both replacements now use production waiting admission.
     {
       loka::core::StateTrackerGuard guard(owner->tracker());
       owner->inner.set(1);
     }
+    scene.flushInvalidation();
     scene.flushInvalidation();
     assert(owner->builds == 2 && scenario.attaches == 2);
     IStateOwner *ordinaryParent = HeldAccess::enclosingOwner(*scenario.attached->holdLedger());
     assert(ordinaryParent == scenario.creator);
     const SeatReservation *seat = loka::dsl::testing::SeatBuildRequestAccess::nestedReservation(*owner);
     require(seat != 0);
-    NodePartition *bank = owner->installPartitionFixture(seat->layoutTable());
-    require(bank != 0);
-    seat->request().activateFixture(*bank, owner->inner.state());
+    require(seat->request().enabled());
     {
       loka::core::StateTrackerGuard guard(owner->tracker());
       owner->inner.set(2);

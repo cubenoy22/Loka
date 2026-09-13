@@ -2730,15 +2730,17 @@ void testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement()
     }
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
     LOKA_VERIFY(scene.flushInvalidation());
-    loka::app::BoundarySectionNode *fresh = root->section(1103);
-    assert(fresh && fresh != original);
-    assert(root->section(1101) == 0);
+    assert(root->section(1101) == 0 && root->section(1103) == 0);
     assert(scene.hasPendingInvalidation());
     assert(oldValueAlive == 1 &&
            "retired Section state must remain touchable until the drain");
     assert(oldState.dangerouslyMutableState()->get().value == 41);
     assert(g_sectionOrderingChildDestructions == 0);
 
+    LOKA_VERIFY(scene.flushInvalidation() && "returned slots admit the replacement Section");
+    assert(oldValueAlive == 0 && g_sectionOrderingChildDestructions == 1);
+    loka::app::BoundarySectionNode *fresh = root->section(1103);
+    assert(fresh);
     loka::app::scene::NodeState<SectionTrackedValue> freshState;
     {
       SectionTrackedValue initial(&freshValueAlive, 73);
@@ -2746,11 +2748,7 @@ void testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement()
       states.state(freshState, initial);
     }
     assert(freshValueAlive == 1);
-    assert(freshState.dangerouslyMutableState() !=
-           oldState.dangerouslyMutableState());
 
-    LOKA_VERIFY(!scene.flushInvalidation() &&
-           "Section reclamation must be a silent drain-only tracker run");
     assert(oldValueAlive == 0 &&
            "the retired Section must release its state at the drain");
     assert(freshValueAlive == 1);
@@ -2890,16 +2888,20 @@ void testBoundarySectionAllocationFailureKeepsBoundaryRefusalAtomic()
       }
       scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
       scene.flushInvalidation();
+      const size_t beforeCandidate = platform.changeCount();
+      (void)beforeCandidate;
+      scene.flushInvalidation();
 
       assert(g_sectionFailureHeapCalls == 2);
       assert(!root->composeResult().composed);
       assert(root->composeResult().allocationFailed);
       (void)appliedBefore;
-      assert(platform.changeCount() == appliedBefore &&
+      assert(platform.changeCount() == beforeCandidate &&
              "Section-local allocation failure must refuse boundary publish");
       assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
+      scene.flushInvalidation();
       assert(!scene.hasPendingInvalidation() &&
-             "allocation refusal must wait for an external retry");
+             "after failed-candidate reclaim, refusal waits for external retry");
     }
     loka::core::LokaAllocSetBackend(0, 0);
   }
@@ -3102,7 +3104,7 @@ void testBoundarySectionRetireWhileDirtySourceDeregistersAncestorEdges()
     LOKA_VERIFY(scene.flushInvalidation());
     LOKA_VERIFY(!findSectionByKey(root, 4101));
     assert(scene.hasPendingInvalidation());
-    LOKA_VERIFY(!scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
 
     platform.clearChanges();
     root->mutateBoundaryPulse();
@@ -3266,7 +3268,7 @@ void testHeldNestedBoundaryRetireReleasesAtParentDrain()
            "retiring a Boundary must only queue its Held releasers");
     assert(scene.hasPendingInvalidation());
 
-    LOKA_VERIFY(!scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(scenario.releaseCount == 1);
     // The handle is only a view into the creator's storage. This creator was
     // the retired Boundary itself, so its arena went with it; only the
@@ -3379,7 +3381,7 @@ void testHeldDescendantDetachDropsOnlyItsOwnerSlot()
                scenario.held, creator) == 1);
     assert(scenario.releaseCount == 0 && scenario.held.isValid());
     assert(scene.hasPendingInvalidation());
-    LOKA_VERIFY(!scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(scenario.releaseCount == 0 && scenario.held.isValid());
   }
   assert(scenario.releaseCount == 1);
@@ -3416,7 +3418,7 @@ void testHeldLastDropDefersReleaserToRetirePoolDrain()
     assert(loka::core::testing::HeldTestAccess::slotCount(scenario.held) == 0);
     assert(scene.hasPendingInvalidation());
 
-    LOKA_VERIFY(!scene.flushInvalidation());
+    LOKA_VERIFY(scene.flushInvalidation());
     assert(scenario.releaseCount == 1);
     assert(scenario.releaseOrder > scenario.detachCallbackReturnOrder);
     assert(loka::core::testing::HeldTestAccess::released(scenario.held));
