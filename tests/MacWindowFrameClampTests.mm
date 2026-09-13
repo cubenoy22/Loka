@@ -11,7 +11,7 @@ namespace
 {
   typedef loka::dsl::testing::MacWindowTestAccess NativeAccess;
 
-  void verifyPlacedFrame(MacWindow &window)
+  void verifyPlacedFrame(MacWindow &window, NSSize expectedContentSize)
   {
     NSWindow *native = (NSWindow *)NativeAccess::nativeWindow(window);
     LOKA_VERIFY(native != nil);
@@ -21,7 +21,7 @@ namespace
     const NSRect frame = [native frame];
     LOKA_VERIFY(NSContainsRect([screen visibleFrame], frame));
     const NSRect content = [native contentRectForFrameRect:frame];
-    LOKA_VERIFY(content.size.width == 257 && content.size.height == 163);
+    LOKA_VERIFY(NSEqualSizes(content.size, expectedContentSize));
 
     // Deliberately mirror NativeContentFrame / VisibleTopForScreen in
     // MacWindow.mm, including the menu-bar fallback and integer truncation.
@@ -59,7 +59,7 @@ void testMacWindowDeclaredFrameStaysInsideVisibleFrame()
     // Like the admission sibling's initial seed, construction enters the
     // visibility path and makeKeyAndOrderFront: synchronously.
     MacWindow window(&context, props);
-    verifyPlacedFrame(window);
+    verifyPlacedFrame(window, NSMakeSize(257, 163));
 
     const loka::core::Frame first = window.nativeFrame().get();
     {
@@ -69,8 +69,28 @@ void testMacWindowDeclaredFrameStaysInsideVisibleFrame()
       window.frameState().set(loka::core::Frame(
           static_cast<int>(NSMaxX(visible)) + 100, 40, 257, 163));
     }
-    verifyPlacedFrame(window);
+    verifyPlacedFrame(window, NSMakeSize(257, 163));
     LOKA_VERIFY(window.nativeFrame().get() != first);
+  }
+  {
+    NullPlatformContext context;
+    NSScreen *screen = [NSScreen mainScreen];
+    LOKA_VERIFY(screen != nil);
+    const NSRect visible = [screen visibleFrame];
+    const int width = static_cast<int>(visible.size.width) + 100;
+    const int height = static_cast<int>(visible.size.height) + 100;
+    WindowProps props;
+    props.frame(static_cast<int>(NSMinX(visible)), 0, width, height);
+    props.visible(true);
+    MacWindow window(&context, props);
+    NSWindow *native = (NSWindow *)NativeAccess::nativeWindow(window);
+    LOKA_VERIFY(native != nil);
+    // An oversized request fills the work area with the outer frame; content
+    // must leave room for the native chrome rather than retaining its request.
+    const NSRect expectedContent = [native contentRectForFrameRect:visible];
+    verifyPlacedFrame(window, expectedContent.size);
+    LOKA_VERIFY(window.nativeFrame().get().width < width);
+    LOKA_VERIFY(window.nativeFrame().get().height < height);
   }
   [pool drain];
 }
