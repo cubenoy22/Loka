@@ -109,17 +109,29 @@ if [ -n "$MAME_ROMPATH" ]; then
 fi
 
 if [ -n "$MAME_HDA" ]; then
-  MAME_ARGS+=(-hard1 "$MAME_BOOT_HDA")
+  case "$MAME_MACHINE" in
+    macplus|macse|mac128k|mac512k|mac512ke)
+      MAME_ARGS+=(-hard "$MAME_BOOT_HDA") ;;
+    *)
+      MAME_ARGS+=(-hard1 "$MAME_BOOT_HDA") ;;
+  esac
 fi
 
-MAME_ARGS+=(-scsi:5 harddisk)
-if [ -f "$MAME_DEV_HDA" ]; then
-  MAME_ARGS+=(-hard2 "$MAME_DEV_HDA")
-fi
-
-MAME_ARGS+=(
-  -autoboot_script "$SCRIPT_DIR/mame-floppy-service.lua"
-)
+case "$MAME_MACHINE" in
+  macplus|macse|mac128k|mac512k|mac512ke)
+    # Single SCSI slot; no dev disk, no floppy service (IWM floppy
+    # images do not mount under MAME 0.289).
+    ;;
+  *)
+    MAME_ARGS+=(-scsi:5 harddisk)
+    if [ -f "$MAME_DEV_HDA" ]; then
+      MAME_ARGS+=(-hard2 "$MAME_DEV_HDA")
+    fi
+    MAME_ARGS+=(
+      -autoboot_script "$SCRIPT_DIR/mame-floppy-service.lua"
+    )
+    ;;
+esac
 
 # MAME_DEBUG=1 exposes the CPU to gdb: MAME halts at reset and listens on
 # MAME_DEBUG_PORT until a gdb (e.g. gdb-multiarch via the "Attach (MAME 68K

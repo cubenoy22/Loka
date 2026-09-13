@@ -128,18 +128,27 @@ $mameArguments = @(
 if ($env:MAME_ROMPATH) {
     $mameArguments += @("-rompath", $env:MAME_ROMPATH)
 }
+$singleScsiMachines = @("macplus", "macse", "mac128k", "mac512k", "mac512ke")
 if ($env:MAME_HDA) {
-    $mameArguments += @("-hard1", $bootDisk)
+    if ($singleScsiMachines -contains $machine) {
+        $mameArguments += @("-hard", $bootDisk)
+    } else {
+        $mameArguments += @("-hard1", $bootDisk)
+    }
 }
 
-$mameArguments += @("-scsi:5", "harddisk")
-if (Test-Path -LiteralPath $developmentDisk) {
-    $mameArguments += @("-hard2", (Resolve-Path -LiteralPath $developmentDisk).Path)
+if ($singleScsiMachines -contains $machine) {
+    # Single SCSI slot; no dev disk, no floppy service (IWM floppy
+    # images do not mount under MAME 0.289).
+} else {
+    $mameArguments += @("-scsi:5", "harddisk")
+    if (Test-Path -LiteralPath $developmentDisk) {
+        $mameArguments += @("-hard2", (Resolve-Path -LiteralPath $developmentDisk).Path)
+    }
+    $mameArguments += @(
+        "-autoboot_script", (Join-Path $ScriptDirectory "mame-floppy-service.lua")
+    )
 }
-
-$mameArguments += @(
-    "-autoboot_script", (Join-Path $ScriptDirectory "mame-floppy-service.lua")
-)
 
 # Mirrors mame-run.sh: MAME_DEBUG=1 halts at reset with the gdbstub listening
 # on MAME_DEBUG_PORT (default 23946) until a gdb connects and continues.
