@@ -40,9 +40,9 @@ function Assert-BytesEqual([string]$Expected, [string]$Actual, [string]$Message)
     }
 }
 
-function Invoke-Stage {
+function Invoke-Stage([string]$Action = "Stage") {
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $Subject `
-        -Action Stage -Architecture x64 `
+        -Action $Action -Architecture x64 `
         -BuildDirectory $BuildRoot -StageDirectory $StageRoot *> $null
     return $LASTEXITCODE
 }
@@ -57,14 +57,25 @@ try {
     )
     for ($index = 0; $index -lt $Catalog.Count; ++$index) {
         $entry = $Catalog[$index]
-        New-TestPe (Join-Path $builtDirectory ($entry[1] + ".exe")) `
+        $appDirectory = Join-Path $builtDirectory $entry[0]
+        $loopDirectory = Join-Path $BuildRoot ("standalone-loop/" + $entry[0])
+        New-Item -ItemType Directory -Path $appDirectory, $loopDirectory | Out-Null
+        New-TestPe (Join-Path $loopDirectory ($entry[1].Replace("StandaloneFlow", "StandaloneLoop") + ".exe")) `
+            ([byte](0x40 + $index))
+        New-TestPe (Join-Path $appDirectory ($entry[1] + ".exe")) `
             ([byte](0x20 + $index))
         $catalogLines += ($entry[0] + "`t" + $entry[1] + "`t" +
             "tests/scenarios/expected/" + $entry[2])
     }
     $buildCatalog = Join-Path $BuildRoot "standalone-flow-catalog.tsv"
     [System.IO.File]::WriteAllLines($buildCatalog, $catalogLines)
-    $builtAssets = Join-Path $builtDirectory "ASSETS.LRP"
+    $viewerDirectory = Join-Path $BuildRoot "example/SimpleViewer"
+    New-Item -ItemType Directory -Path $viewerDirectory | Out-Null
+    $viewerExecutable = Join-Path $viewerDirectory "LokaSimpleViewerWin32.exe"
+    New-TestPe $viewerExecutable 0x60
+    $loopAssets = Join-Path $BuildRoot "standalone-loop/scrapbook/ASSETS.LRP"
+    [System.IO.File]::WriteAllText($loopAssets, "loop assets")
+    $builtAssets = Join-Path $builtDirectory "scrapbook/ASSETS.LRP"
     [System.IO.File]::WriteAllText($builtAssets, "new assets")
     $sentinel = Join-Path $StageRoot "completed-stage-sentinel.txt"
     [System.IO.File]::WriteAllText($sentinel, "old completed stage")
@@ -105,12 +116,7 @@ try {
         throw "Failed Stage left transaction directories behind."
     }
 
-    try {
-        $stageExitCode = Invoke-Stage
-    } finally {
-        $env:PATH = $previousPath
-        $env:VSCMD_ARG_TGT_ARCH = $previousTarget
-    }
+    $stageExitCode = Invoke-Stage
     if ($stageExitCode -ne 0) {
         throw "Completed Stage failed with exit code $stageExitCode."
     }
@@ -120,15 +126,15 @@ try {
 
     foreach ($entry in $Catalog) {
         Assert-BytesEqual `
-            (Join-Path $builtDirectory ($entry[1] + ".exe")) `
-            (Join-Path $StageRoot ($entry[1] + ".exe")) `
+            (Join-Path $builtDirectory ($entry[0] + "/" + $entry[1] + ".exe")) `
+            (Join-Path $StageRoot ($entry[0] + "/" + $entry[1] + ".exe")) `
             "Completed Stage did not install $($entry[0])."
         Assert-BytesEqual `
             (Join-Path $ProjectDirectory ("tests/scenarios/expected/" + $entry[2])) `
             (Join-Path $StageRoot ("expected/" + $entry[0] + ".audit")) `
             "Completed Stage did not install the $($entry[0]) expected audit."
     }
-    Assert-BytesEqual $builtAssets (Join-Path $StageRoot "ASSETS.LRP") `
+    Assert-BytesEqual $builtAssets (Join-Path $StageRoot "scrapbook/ASSETS.LRP") `
         "Completed Stage did not install the built assets."
     Assert-BytesEqual $buildCatalog `
         (Join-Path $StageRoot "standalone-flow-catalog.tsv") `
@@ -143,7 +149,67 @@ try {
         throw "Completed Stage left transaction directories behind."
     }
 
-    Write-Output "Win32 five-app Stage is failure-atomic and portable."
+    if (Test-Path -LiteralPath (Join-Path $StageRoot "ASSETS.LRP")) {
+        throw "Stage left shared assets beside the application directories."
+    }
+    foreach ($entry in $Catalog) {
+        if (Test-Path -LiteralPath (Join-Path $StageRoot ($entry[1] + ".exe"))) {
+            throw "Stage left a flat executable for $($entry[0])."
+        }
+    }
+
+    # Release replaces the finite package atomically and keeps SimpleViewer
+    # in its own folder alongside the five autonomous application folders.
+    $lockedAssets = [System.IO.File]::Open(
+        $loopAssets, [System.IO.FileMode]::Open,
+        [System.IO.FileAccess]::Read, [System.IO.FileShare]::None)
+    $previousErrorAction = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $releaseExitCode = Invoke-Stage "Release"
+    } finally {
+        $ErrorActionPreference = $previousErrorAction
+        $lockedAssets.Dispose()
+    }
+    if ($releaseExitCode -eq 0) {
+        throw "Release unexpectedly succeeded with locked assets."
+    }
+    Assert-BytesEqual $Subject (Join-Path $StageRoot "Verify-StandaloneFlow.ps1") `
+        "Failed Release destroyed the prior completed Stage."
+
+    $releaseExitCode = Invoke-Stage "Release"
+    if ($releaseExitCode -ne 0) {
+        throw "Release failed with exit code $releaseExitCode."
+    }
+    foreach ($entry in $Catalog) {
+        $loopName = $entry[1].Replace("StandaloneFlow", "StandaloneLoop") + ".exe"
+        Assert-BytesEqual `
+            (Join-Path $BuildRoot ("standalone-loop/" + $entry[0] + "/" + $loopName)) `
+            (Join-Path $StageRoot ($entry[0] + "/" + $loopName)) `
+            "Release did not install the $($entry[0]) loop."
+    }
+    Assert-BytesEqual $loopAssets (Join-Path $StageRoot "scrapbook/ASSETS.LRP") `
+        "Release did not install Scrapbook's own assets."
+    Assert-BytesEqual $viewerExecutable `
+        (Join-Path $StageRoot "simpleviewer/LokaSimpleViewerWin32.exe") `
+        "Release did not install SimpleViewer in its own directory."
+    $rootFiles = @(Get-ChildItem -LiteralPath $StageRoot -File)
+    if ($rootFiles.Count -ne 1 -or $rootFiles[0].Name -ne "README.txt") {
+        throw "Release retained flat executables, shared sidecars, or stale Stage files."
+    }
+    $folders = @(Get-ChildItem -LiteralPath $StageRoot -Directory)
+    if ($folders.Count -ne 6) {
+        throw "Release must contain one directory per application."
+    }
+    $transactionResidue = @(Get-ChildItem -LiteralPath $TestRoot -Force | Where-Object {
+        $_.Name -like ".completed stage.*"
+    })
+    if ($transactionResidue.Count -ne 0) {
+        throw "Release left transaction directories behind."
+    }
+    Write-Output "Win32 Stage and Release isolate application files and publish atomically."
 } finally {
+    if ($null -ne $previousPath) { $env:PATH = $previousPath }
+    if ($null -ne $previousTarget) { $env:VSCMD_ARG_TGT_ARCH = $previousTarget }
     Remove-Item -LiteralPath $TestRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
