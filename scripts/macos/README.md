@@ -170,6 +170,12 @@ while UB2 (`arm64;x86_64`) starts with Apple Silicon-capable Xcode releases.
   - Treat this as a Snow Leopard CLI verification path, not a Leopard-hosted script path.
   - By default builds all eight shipping app targets, including the bundled `ScrapbookUIMacOS`, and creates merged outputs in `build/macos-10.5-ub1/universal`. Plain executables are emitted directly there; ScrapbookUI remains a bundle so its Resources stay intact.
 
+macOS bundle targets use the project-owned
+`cmake/macos/MacOSXBundleInfo.plist.in` through CMake's default-template lookup.
+It declares `NSHighResolutionCapable` explicitly for legacy and modern SDKs.
+The legacy build evidence below predates this template change; the updated
+metadata still needs legacy build verification and Retina runtime verification.
+
 - `scripts/macos-standalone-release-ub1.sh tiger|leopard`
   - Builds the five autonomous Standalone Loop bundles plus the interactive
     SimpleViewer through the same per-architecture build and failure-atomic

@@ -98,6 +98,10 @@ This is the environment where binaries are actually built.
   `LOKA_STANDALONE_MACOS_ARCH=i386 scripts/macos-standalone-flow.sh Release`.
   In **Standalone: macOS Release Action**, choose Release for the equivalent
   VS Code action.
+  macOS bundles now explicitly declare high-resolution capability in the
+  project-owned `cmake/macos/MacOSXBundleInfo.plist.in`. The legacy build
+  evidence below predates this template change; the updated bundle metadata
+  still needs legacy build verification and Retina runtime verification.
   In an Xcode 3.2.6 build environment, use
   `scripts/macos-standalone-release-ub1.sh tiger` for a `ppc;i386` set or
   `scripts/macos-standalone-release-ub1.sh leopard` for a

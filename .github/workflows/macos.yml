@@ -50,6 +50,8 @@ jobs:
       # and atomic completion contract; Tahoe owns the pixel verdict.
       - run: cmake --build --preset macos-scenarios
         if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
+      - run: python3 tests/scripts/MacOSBundlePlistTest.py build/macos/Debug
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       # Every Scrapbook cell stages its package through lrpc now, including the
       # two that declare no fixture, so the host tool is a prerequisite of the
       # scenario steps rather than of the asset bake alone.
