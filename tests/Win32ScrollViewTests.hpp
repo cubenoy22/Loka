@@ -4,6 +4,7 @@
 void testWin32ScrollViewParentsAndClipsProjectedChildren();
 void testWin32ScrollViewOffsetIsRelayoutInput();
 void testWin32ScrollViewMessagePublishesOffsetFact();
+void testWin32ScrollViewWheelStepsOffsetThroughLinePath();
 void testWin32ScrollViewResizeReclampsOffsetOnce();
 void testWin32NestedScrollViewRefusesWithoutDisturbingOuterScope();
 

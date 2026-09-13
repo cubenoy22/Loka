@@ -28,6 +28,11 @@ function Resolve-ProjectPath([string]$Path) {
     return Join-Path $ProjectDirectory $Path
 }
 
+# The catalog key is the application directory in build output and packages.
+function Get-ApplicationExecutable([string]$Root, [string]$Key, [string]$Target) {
+    return Join-Path (Join-Path $Root $Key) ($Target + ".exe")
+}
+
 function Get-PeArchitecture([string]$Path) {
     $stream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Open,
         [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
@@ -267,17 +272,17 @@ if (-not $IsPackagedVerifier) {
 
 $catalog = Get-StandaloneCatalog $catalogPath
 if (-not $Architecture) {
-    $firstExecutable = Join-Path $stageRoot ($catalog[0].Target + ".exe")
+    $firstExecutable = Get-ApplicationExecutable $stageRoot $catalog[0].Key $catalog[0].Target
     $Architecture = Get-PeArchitecture $firstExecutable
 }
 
 if ($IsReleasePackage) {
     $loopExecutableRoot = Join-Path $buildRoot "standalone-loop"
-    $loopAssets = Join-Path $loopExecutableRoot "ASSETS.LRP"
+    $loopAssets = Join-Path $loopExecutableRoot "scrapbook/ASSETS.LRP"
     $simpleViewer = Join-Path $buildRoot "example/SimpleViewer/LokaSimpleViewerWin32.exe"
     foreach ($entry in $catalog) {
         $loopTarget = $entry.Target.Replace("StandaloneFlow", "StandaloneLoop")
-        $loopExecutable = Join-Path $loopExecutableRoot ($loopTarget + ".exe")
+        $loopExecutable = Get-ApplicationExecutable $loopExecutableRoot $entry.Key $loopTarget
         if (-not (Test-Path -LiteralPath $loopExecutable -PathType Leaf)) {
             throw "Autonomous loop executable not found: $loopExecutable"
         }
@@ -297,19 +302,21 @@ if ($IsReleasePackage) {
 
         foreach ($entry in $catalog) {
             $loopTarget = $entry.Target.Replace("StandaloneFlow", "StandaloneLoop")
-            $sourceExecutable = Join-Path $loopExecutableRoot ($loopTarget + ".exe")
-            $destinationExecutable = Join-Path $Destination ($loopTarget + ".exe")
+            $sourceExecutable = Get-ApplicationExecutable $loopExecutableRoot $entry.Key $loopTarget
+            New-Item -ItemType Directory -Path (Join-Path $Destination $entry.Key) | Out-Null
+            $destinationExecutable = Get-ApplicationExecutable $Destination $entry.Key $loopTarget
             Copy-Item -LiteralPath $sourceExecutable -Destination $destinationExecutable
             Assert-ExecutableArchitecture $destinationExecutable $Architecture
             Assert-FileCopy $sourceExecutable $destinationExecutable
         }
+        New-Item -ItemType Directory -Path (Join-Path $Destination "simpleviewer") | Out-Null
         Copy-Item -LiteralPath $simpleViewer `
-            -Destination (Join-Path $Destination "LokaSimpleViewerWin32.exe")
+            -Destination (Join-Path $Destination "simpleviewer/LokaSimpleViewerWin32.exe")
         Copy-Item -LiteralPath $loopAssets `
-            -Destination (Join-Path $Destination "ASSETS.LRP")
+            -Destination (Join-Path $Destination "scrapbook/ASSETS.LRP")
         Assert-FileCopy $simpleViewer `
-            (Join-Path $Destination "LokaSimpleViewerWin32.exe")
-        Assert-FileCopy $loopAssets (Join-Path $Destination "ASSETS.LRP")
+            (Join-Path $Destination "simpleviewer/LokaSimpleViewerWin32.exe")
+        Assert-FileCopy $loopAssets (Join-Path $Destination "scrapbook/ASSETS.LRP")
         $sourceVersionMatch = Select-String -LiteralPath (Join-Path $ProjectDirectory "CMakeLists.txt") `
             -Pattern '^project\(Loka VERSION ([0-9.]+) LANGUAGES CXX\)$'
         if (-not $sourceVersionMatch) {
@@ -320,6 +327,8 @@ if ($IsReleasePackage) {
             (Join-Path $Destination "README.txt"),
             "Loka $sourceVersion Release applications`r`n`r`n" +
             "The five StandaloneLoop applications run their UI tour repeatedly.`r`n" +
+            "Open an application's folder and launch its executable.`r`n" +
+            "Keep each executable with its folder: its LOG.TXT and resources belong there.`r`n" +
             "Close a loop application's window to stop it. SimpleViewer remains interactive.`r`n")
     }.GetNewClosure()
     Install-LokaPresentationStageDirectory `
@@ -329,11 +338,11 @@ if ($IsReleasePackage) {
 }
 
 $builtExecutableRoot = if ($buildRoot) { Join-Path $buildRoot "standalone-flow" } else { $null }
-$builtAssets = if ($builtExecutableRoot) { Join-Path $builtExecutableRoot "ASSETS.LRP" } else { $null }
+$builtAssets = if ($builtExecutableRoot) { Join-Path $builtExecutableRoot "scrapbook/ASSETS.LRP" } else { $null }
 
 if (-not $IsPackagedVerifier) {
     foreach ($entry in $catalog) {
-        $builtExecutable = Join-Path $builtExecutableRoot ($entry.Target + ".exe")
+        $builtExecutable = Get-ApplicationExecutable $builtExecutableRoot $entry.Key $entry.Target
         if (-not (Test-Path -LiteralPath $builtExecutable -PathType Leaf)) {
             throw "Standalone Flow executable not found: $builtExecutable"
         }
@@ -356,11 +365,11 @@ if (-not $IsPackagedVerifier) {
         $expectedRoot = Join-Path $Destination "expected"
         New-Item -ItemType Directory -Path $expectedRoot | Out-Null
         Copy-Item -LiteralPath $buildCatalog -Destination (Join-Path $Destination $CatalogName)
-        Copy-Item -LiteralPath $builtAssets -Destination (Join-Path $Destination "ASSETS.LRP")
         Copy-Item -LiteralPath $sourceVerifier -Destination (Join-Path $Destination "Verify-StandaloneFlow.ps1")
         foreach ($entry in $catalog) {
-            $sourceExecutable = Join-Path $builtExecutableRoot ($entry.Target + ".exe")
-            $destinationExecutable = Join-Path $Destination ($entry.Target + ".exe")
+            $sourceExecutable = Get-ApplicationExecutable $builtExecutableRoot $entry.Key $entry.Target
+            New-Item -ItemType Directory -Path (Join-Path $Destination $entry.Key) | Out-Null
+            $destinationExecutable = Get-ApplicationExecutable $Destination $entry.Key $entry.Target
             $sourceExpected = Join-Path $ProjectDirectory $entry.ExpectedAudit
             $destinationExpected = Join-Path $expectedRoot ($entry.Key + ".audit")
             Copy-Item -LiteralPath $sourceExecutable -Destination $destinationExecutable
@@ -369,8 +378,9 @@ if (-not $IsPackagedVerifier) {
             Assert-FileCopy $sourceExecutable $destinationExecutable
             Assert-FileCopy $sourceExpected $destinationExpected
         }
+        Copy-Item -LiteralPath $builtAssets -Destination (Join-Path $Destination "scrapbook/ASSETS.LRP")
         Assert-FileCopy $buildCatalog (Join-Path $Destination $CatalogName)
-        Assert-FileCopy $builtAssets (Join-Path $Destination "ASSETS.LRP")
+        Assert-FileCopy $builtAssets (Join-Path $Destination "scrapbook/ASSETS.LRP")
         Assert-FileCopy $sourceVerifier (Join-Path $Destination "Verify-StandaloneFlow.ps1")
     }.GetNewClosure()
     Install-LokaPresentationStageDirectory -StageRoot $stageRoot -Populate $populateStage
@@ -381,12 +391,12 @@ if (-not $IsPackagedVerifier) {
     }
 }
 
-$stagedAssets = Join-Path $stageRoot "ASSETS.LRP"
+$stagedAssets = Join-Path $stageRoot "scrapbook/ASSETS.LRP"
 if (-not (Test-Path -LiteralPath $stagedAssets -PathType Leaf)) {
     throw "Staged Standalone Flow assets not found: $stagedAssets"
 }
 foreach ($entry in $catalog) {
-    $stagedExecutable = Join-Path $stageRoot ($entry.Target + ".exe")
+    $stagedExecutable = Get-ApplicationExecutable $stageRoot $entry.Key $entry.Target
     $expectedAuditPath = Join-Path (Join-Path $stageRoot "expected") `
         ($entry.Key + ".audit")
     if (-not (Test-Path -LiteralPath $stagedExecutable -PathType Leaf)) {
@@ -405,9 +415,10 @@ foreach ($entry in $catalog) {
         -Force -ErrorAction SilentlyContinue
 }
 
-$auditPath = Join-Path $stageRoot "LOG.TXT"
 foreach ($entry in $catalog) {
-    $stagedExecutable = Join-Path $stageRoot ($entry.Target + ".exe")
+    $applicationRoot = Join-Path $stageRoot $entry.Key
+    $auditPath = Join-Path $applicationRoot "LOG.TXT"
+    $stagedExecutable = Get-ApplicationExecutable $stageRoot $entry.Key $entry.Target
     $expectedAuditPath = Join-Path (Join-Path $stageRoot "expected") ($entry.Key + ".audit")
     $actualAuditPath = Join-Path $actualRoot ($entry.Key + ".audit")
     Remove-Item -LiteralPath $auditPath -Force -ErrorAction SilentlyContinue
@@ -419,7 +430,7 @@ foreach ($entry in $catalog) {
             $env:LOKA_STANDALONE_AUDIT_FIXTURE = Join-Path `
                 $env:LOKA_STANDALONE_AUDIT_FIXTURE_DIR ($entry.Key + ".audit")
         }
-        $process = Start-Process -FilePath $stagedExecutable -WorkingDirectory $stageRoot -PassThru
+        $process = Start-Process -FilePath $stagedExecutable -WorkingDirectory $applicationRoot -PassThru
         $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
         while ([DateTime]::UtcNow -lt $deadline) {
             if (Test-Path -LiteralPath $auditPath) {
@@ -458,7 +469,7 @@ foreach ($entry in $catalog) {
         }
         $env:LOKA_STANDALONE_AUDIT_FIXTURE = $previousAuditFixture
     }
+    Remove-Item -LiteralPath $auditPath -Force -ErrorAction SilentlyContinue
 }
 
-Remove-Item -LiteralPath $auditPath -Force -ErrorAction SilentlyContinue
 Write-Output "Runtime-verified all five $Architecture Win32 Standalone Flow Release executables: $actualRoot"
