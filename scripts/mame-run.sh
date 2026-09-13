@@ -90,9 +90,6 @@ if [ -n "$MAME_HDA" ]; then
     exit 1
   fi
 fi
-export LOKA_MAME_FLOPPY_REQUEST="$MAME_CONTROL_DIR/floppy.request"
-export LOKA_MAME_FLOPPY_RESPONSE="$MAME_CONTROL_DIR/floppy.response"
-
 # Keep launcher policy aligned with mame-run.ps1; only shell mechanics differ.
 MAME_ARGS=(
   "$MAME_MACHINE"
@@ -119,17 +116,13 @@ fi
 
 case "$MAME_MACHINE" in
   macplus|macse|mac128k|mac512k|mac512ke)
-    # Single SCSI slot; no dev disk, no floppy service (IWM floppy
-    # images do not mount under MAME 0.289).
+    # Single SCSI slot; no dev disk.
     ;;
   *)
     MAME_ARGS+=(-scsi:5 harddisk)
     if [ -f "$MAME_DEV_HDA" ]; then
       MAME_ARGS+=(-hard2 "$MAME_DEV_HDA")
     fi
-    MAME_ARGS+=(
-      -autoboot_script "$SCRIPT_DIR/mame-floppy-service.lua"
-    )
     ;;
 esac
 

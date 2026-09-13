@@ -1,13 +1,7 @@
 # MAME development workflow
 
-The VS Code tasks provide two Retro68 application delivery paths for MAME:
-
-- floppy tasks keep MAME running and insert a generated `.dsk` on demand;
-- SCSI tasks rebuild a development hard disk and start MAME with that disk at
-  SCSI ID 5.
-
-The SCSI path is the faster default for application iteration. The floppy path
-remains available for live disk insertion without restarting MAME.
+The VS Code tasks deliver Retro68 applications to MAME via a SCSI development
+hard disk at SCSI ID 5.
 
 ## Quick start
 
@@ -20,8 +14,7 @@ remains available for live disk insertion without restarting MAME.
    `Build & Start in MAME via SCSI: HelloWorld` (or another example).
 
 The task configures and builds the Retro68 application, creates the generated
-`LokaDev` SCSI disk, and starts MAME. For the live floppy workflow, start
-`MAME: Start` first and then run an app-specific `Build & Mount in MAME` task.
+`LokaDev` SCSI disk, and starts MAME.
 When VS Code is connected to WSL, the same tasks prepare the disk with the WSL
 Retro68 tools and delegate MAME startup to the Windows PowerShell launcher.
 Use Windows paths for the MAME executable, ROMs, and boot HDA in `.env-mame`.
@@ -248,18 +241,6 @@ the image bytes, then present or mount that image on the Classic Mac and open
 the reel application. This is the same transportable `.dsk` route used by the
 standalone Flow stage; it needs no sidecar assets.
 
-## Floppy workflow
-
-Run `MAME: Start` once, then use `MAME: Mount .dsk (pick app)` or one of the
-app-specific mount tasks. A small MAME Lua service accepts mount and eject
-requests through files under `MAME_CONTROL_DIR`. The combined `Build & Mount`
-tasks eject before rebuilding so Retro68 never rewrites a mounted `.dsk`.
-
-For the standalone presentation, run **Stage & Mount in Running MAME:
-Scrapbook Standalone Flow**. It ejects the current floppy, rebuilds the
-failure-atomic stage, and inserts the staged self-contained `.dsk`. The same
-image is also available as **Scrapbook Standalone Flow (staged)** in the disk
-picker.
 
 ## Automated runtime verification
 
@@ -944,8 +925,7 @@ Hard-won mechanics, each paid for in lost sessions:
 ## Verification status
 
 - macOS Tahoe: runtime-verified on Intel and Apple silicon (A18 Pro) with MAME
-  0.288 on a 68030 machine, including live floppy insertion and the generated
-  `LokaDev` SCSI volume.
+  0.288 on a 68030 machine via the generated `LokaDev` SCSI volume.
 - Windows through WSL: runtime-verified with MAME 0.287 on a 68030 machine,
   including the combined Retro68 build, generated `LokaDev` SCSI disk, and
   host-side MAME startup from a WSL-hosted VS Code window.
