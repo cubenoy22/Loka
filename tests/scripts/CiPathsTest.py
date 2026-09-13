@@ -37,6 +37,18 @@ class CiPathsTest(unittest.TestCase):
                      "cmake/LokaTestSources.cmake", "CMakeLists.txt"):
             self.check_paths([path], (True, True, True))
 
+    def test_shared_test_sources_run_every_job(self):
+        # cmake/LokaTestSources.cmake compiles these into every platform's
+        # test executable, so an otherwise skippable apple/toolbox path runs.
+        for job in ("macos", "win32", "toolbox-build"):
+            run, reason = ci_paths.classify(job, ["apple/toolbox/src/PictParser.cpp"])
+            self.assertTrue(run, reason)
+            self.assertIn("shared test source", reason)
+        run, reason = ci_paths.classify(
+            "win32", ["apple/toolbox/src/ToolboxPlatformLayoutHandlers.hpp"])
+        self.assertTrue(run, reason)
+        self.assertFalse(ci_paths.classify("win32", ["apple/toolbox/src/ToolboxWindow.cpp"])[0])
+
     def test_platform_trees(self):
         for path, expected in (
             ("apple/toolbox/src/Control.cpp", (True, False, False)),

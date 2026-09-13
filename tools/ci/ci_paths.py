@@ -40,15 +40,48 @@ JOBS = {
 }
 
 
-def classify(job, paths):
+SHARED_TEST_SOURCES = Path(__file__).resolve().parents[2] / "cmake" / "LokaTestSources.cmake"
+
+
+def shared_test_inputs(cmake_file=SHARED_TEST_SOURCES):
+    """Paths listed in LOKA_SHARED_TEST_SOURCES (plus their sibling headers).
+
+    These translation units compile into every platform's test executable, so a
+    change to one of them must run every job even when its directory is
+    otherwise skippable for that job (apple/toolbox/* for macOS and Win32).
+    """
+    inputs = set()
+    try:
+        text = cmake_file.read_text()
+    except OSError:
+        return inputs
+    marker = "${_LOKA_TEST_SOURCE_ROOT}/"
+    for line in text.splitlines():
+        line = line.strip()
+        if not line.startswith(marker):
+            continue
+        rel = line[len(marker):].rstrip(")").strip()
+        inputs.add(rel)
+        for ext in (".cpp", ".mm", ".c"):
+            if rel.endswith(ext):
+                inputs.add(rel[: -len(ext)] + ".hpp")
+                inputs.add(rel[: -len(ext)] + ".h")
+    return inputs
+
+
+def classify(job, paths, shared=None):
     """Return (run, reason) for a complete diff; never infer safety by suffix."""
     policy = JOBS[job]
     if not paths:
         return True, "empty diff; run conservatively"
     if policy["workflow"] in paths:
         return True, "own workflow " + policy["workflow"]
+    if shared is None:
+        shared = shared_test_inputs()
     skipped = set()
     for path in paths:
+        if path in shared:
+            return True, json.dumps(path, ensure_ascii=True) + " is a shared test source (cmake/LokaTestSources.cmake)"
         match = next((glob for glob in policy["may_skip"]
                       if fnmatchcase(path, glob)), None)
         if match is not None:
