@@ -11,4 +11,6 @@ void testLegacyParentChildOnlyKeepsChildApply();
 void testLegacyNullSurfacePropsHasNoBoundsHint();
 void testLegacySetLayoutBoundsPublishesPaintSpecificHint();
 
+void testDirectRootBoundsTransitionIsConsumedPerCycle();
+
 #endif

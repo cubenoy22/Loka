@@ -894,7 +894,7 @@ namespace loka
           }
           else
           {
-            boundary->clearStructureWorkForCycle();
+            boundary->clearTransitionFactsForCycle();
           }
           if (event != COMPOSE_EVENT_DETACH)
           {
