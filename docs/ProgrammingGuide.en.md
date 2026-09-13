@@ -822,6 +822,25 @@ Use a Boundary when you need:
 - a lifetime boundary
 - a meaningful composition scope
 
+### `Section()` And Tagged Siblings
+
+[`Section(k)`](../common/app/nodes/nestable/BoundarySection.hpp) groups children
+in a named state-owning scope inside the enclosing Boundary. Its required,
+non-zero key identifies the Section among its immediate siblings.
+
+**A sibling list containing a Section must be fully tagged**, with unique,
+non-zero tags. This also applies to the Sections emitted by `For()`. An
+anonymous `Text` or `Button` beside them prevents keyed reconciliation of the
+whole sibling list and loses its retained state; debug builds assert when the
+composition is completed.
+
+Give the other sibling a tag, for example
+`Column() << Text("Items").tag(1) << For(100, items, factory)`.
+Or group the generated items with `Section(k) << For(...)`, for example
+`Column() << Text("Items").tag(1) << (Section(2) << For(100, items, factory))`.
+The wrapper gives the list one identity at the outer level; its outer siblings
+still need tags. Tags inside the Section are local to its own child list.
+
 ### `For()` Or A Lazy List
 
 Use [`For()`](../common/app/nodes/nestable/For.hpp) for a fixed set of items
@@ -830,6 +849,77 @@ Section definitions when appended to its parent. Its `.window(first, count)`
 selects a range at declaration time; it does not observe a moving viewport.
 Use `LazyColumn()` / `LazyRow()` for an `ObservableList` whose native controls
 should exist only within the viewport.
+
+There are three forms:
+
+- `For(base, items)` takes a `Vector<Item>` of Component Props whose `NodeType`
+  names the component class; the default factory returns `scene::Component(item)`.
+- `For(base, items, factory)` takes a `Vector<Item>` and a C++98 functor returning
+  a child Definition. It is called as `factory(item, index)`, with the item as
+  `const Item &` and its zero-based index as `std::size_t`.
+- `For(base, arrayItems, factory)` accepts a fixed C++ array and deduces its
+  length. The item model needs no heap allocation; the generated definitions
+  still allocate. This form requires the factory argument.
+
+`base` is required and must be in `1..65535`. Each Section tag is `base` plus
+the key expression's integer result, defaulting to `loka::dsl::Index()`.
+Final tags must also be in `1..65535`, unique among siblings. Keep the items
+alive until the builder is appended to its parent; use the builder as a
+compose-time temporary, not a stored view of a changing list.
+
+The [MineSweeper board](../example/MineSweeper/src/MainNode.hpp) uses a fixed
+array and `MineCellFactory`. Here is a smaller label list using the Vector +
+functor form, following [the For tests](../tests/ForTests.cpp):
+
+```cpp
+struct Item
+{
+    int id;
+    const char *label;
+};
+
+struct LabelFactory
+{
+    loka::app::TextDefinition operator()(const Item &item, std::size_t) const
+    {
+        return loka::app::Text(item.label);
+    }
+};
+```
+
+Inside `composeNode`, with `c` as its `NodeComposition` argument:
+
+```cpp
+using namespace loka::app;
+loka::Vector<Item> items;
+const Item a = {1, "a"};
+const Item b = {2, "b"};
+const Item cItem = {3, "c"};
+items.push_back(a);
+items.push_back(b);
+items.push_back(cItem);
+c.declare(Column() << For(100, items, LabelFactory()));
+```
+
+To derive identity from `Item::id`, replace the last line with the Stream Lite
+member expression below. The builder's `slot` represents the current item:
+
+```cpp
+typedef ForBuilder<Item, LabelFactory,
+    loka::dsl::Expr<int, loka::dsl::IndexExpr> > ItemBuilder;
+ItemBuilder list = For(100, items, LabelFactory());
+c.declare(Column() << list.key(list.slot.member<int, &Item::id>()));
+```
+
+When Section children are reconciled from `[a, b, c]` to `[a, c]`, these derived
+tags are `[101, 102, 103]` then `[101, 103]`: `c` keeps its seat and Section
+state, while `b` retires. Default positional keys instead produce
+`[100, 101, 102]` then `[100, 101]`: `c`'s old seat retires and `c` takes the seat
+formerly used by `b`, so state follows the position rather than the item.
+This describes matching Sections within a surviving scope. `For()` does not
+observe edits to `items`, and changing a [`Keyed` key](../common/app/nodes/nestable/Keyed.hpp)
+replaces the entire generation, including its Sections and their state,
+regardless of these item keys.
 
 Think of a Ferris wheel: M gondolas are the logical item seats, the visible arc
 holds native controls, and the queue is the model supplying item values.
