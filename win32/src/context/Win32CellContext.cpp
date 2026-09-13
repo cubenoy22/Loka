@@ -65,6 +65,19 @@ Win32CellContext::~Win32CellContext()
   assert(!hwnd_ && "terminal fact delivery must queue the HWND before context reclaim");
 }
 
+/** The text observer has redrawn this HWND subtree with erase=true. */
+loka::app::scene::PaintAnswer Win32CellContext::queryPaintDamage(const loka::app::scene::PaintQuery &query) const
+{
+  using namespace loka::app::scene;
+  if (!this->hwnd_)
+    return PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+  if (query.placement != PLACEMENT_ELIGIBLE)
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  if (!this->node_ || this->node_->props.text_ != this->textState_)
+    return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
+  return PaintAnswer::nativeScheduled();
+}
+
 void Win32CellContext::readLifecycleFactOnAttach()
 {
   if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)

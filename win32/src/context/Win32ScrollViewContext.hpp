@@ -21,6 +21,7 @@ public:
                          int height,
                          loka::app::ScrollViewNode *node);
   virtual ~Win32ScrollViewContext();
+  virtual loka::app::scene::PaintAnswer queryPaintDamage(const loka::app::scene::PaintQuery &query) const;
 
   void readLifecycleFactOnAttach();
   virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,

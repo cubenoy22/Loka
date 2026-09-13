@@ -36,6 +36,34 @@ Win32RectSurfaceContext::~Win32RectSurfaceContext()
   assert(!hwnd_ && "terminal fact delivery must queue the HWND before context reclaim");
 }
 
+/** A clearing surface owes its own HWND client rect, without erase or children.
+    A non-clearing surface refuses: its WM_ERASEBKGND does not restore
+    ground, so an own-HWND erase request could not discharge that obligation. */
+loka::app::scene::PaintAnswer Win32RectSurfaceContext::queryPaintDamage(const loka::app::scene::PaintQuery &query) const
+{
+  using namespace loka::app::scene;
+  RECT rect;
+  if (!this->hwnd_)
+    return PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+  if (query.placement != PLACEMENT_ELIGIBLE || query.scope != paintScope() || !GetClientRect(this->hwnd_, &rect))
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  if (!this->node_ || !this->modelState_ || this->node_->props.model_ != this->modelState_)
+    return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
+  // A non-clearing paint can preserve old sprites even after committing the
+  // new model. It cannot certify backing, including an empty EXACT answer.
+  if (!this->node_->props.clearBackground_)
+    return PaintAnswer::refused(PAINT_REFUSED_UNSUPPORTED_KIND);
+  if (!this->presented_.isKnown())
+    return PaintAnswer::refused(PAINT_REFUSED_HISTORY_UNKNOWN);
+  PaintDamage damage = {query.scope, rect.left, rect.top, 0, 0, PAINT_COVERAGE_PAINT_ONLY};
+  if (this->modelState_->get() != this->presented_.value())
+  {
+    damage.width = rect.right - rect.left;
+    damage.height = rect.bottom - rect.top;
+  }
+  return PaintAnswer::exact(damage);
+}
+
 void Win32RectSurfaceContext::readLifecycleFactOnAttach()
 {
   if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
@@ -62,6 +90,7 @@ void Win32RectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact 
     {
       this->controller()->cancelRectSurfaceExtent(this->node_);
     }
+    this->presented_.invalidate();
     this->applyDetachedPresentation();
     if (next == loka::app::scene::NODE_FACT_RETIRED)
     {
@@ -74,6 +103,7 @@ void Win32RectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact 
 
 void Win32RectSurfaceContext::onPropsApplied()
 {
+  this->presented_.invalidate();
   if (this->node_ && this->node_->props.model_ != this->modelState_)
   {
     this->unbindModel();
@@ -103,6 +133,7 @@ void Win32RectSurfaceContext::relayout(int x, int y, int width, int height)
   {
     return;
   }
+  this->presented_.invalidate();
   this->positionNativeWindow(this->hwnd_, x, y, width, height);
   HWND parent = 0;
   RECT rect;
@@ -144,6 +175,12 @@ LRESULT CALLBACK Win32RectSurfaceContext::WndProc(HWND hwnd, UINT msg, WPARAM wP
 
   switch (msg)
   {
+  case WM_SIZE:
+    if (self)
+    {
+      self->presented_.invalidate();
+    }
+    break;
   case WM_ERASEBKGND:
     Win32ScenePlatformController::noteNativePaint(hwnd, Win32ScenePlatformController::NATIVE_PAINT_RECT_SURFACE, true);
     return 1;
@@ -227,12 +264,20 @@ void Win32RectSurfaceContext::ModelChangedThunk(void *userData)
 
 void Win32RectSurfaceContext::draw(HDC hdc, const RECT &rect)
 {
+  this->presented_.invalidate();
   const int width = static_cast<int>(rect.right - rect.left);
   const int height = static_cast<int>(rect.bottom - rect.top);
   if (!hdc || width <= 0 || height <= 0)
   {
     return;
   }
+  // A partial/complex native clip cannot establish a whole-client fact.
+  RECT clip;
+  const bool complete = GetClipBox(hdc, &clip) == SIMPLEREGION && EqualRect(&clip, &rect);
+  const loka::app::RectSurfaceModel model =
+      this->modelState_ ? this->modelState_->get() : loka::app::RectSurfaceModel();
+  const bool clear = this->node_ && this->node_->props.clearBackground_;
+  bool painted = true;
   HDC memoryDC = CreateCompatibleDC(hdc);
   HBITMAP bitmap = memoryDC ? CreateCompatibleBitmap(hdc, width, height) : NULL;
   HGDIOBJ previous = bitmap ? SelectObject(memoryDC, bitmap) : NULL;
@@ -249,11 +294,10 @@ void Win32RectSurfaceContext::draw(HDC hdc, const RECT &rect)
   }
   if (this->node_ && this->node_->props.clearBackground_)
   {
-    FillRect(target, &rect, static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)));
+    painted = FillRect(target, &rect, static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH))) != 0;
   }
   if (this->node_ && this->modelState_)
   {
-    const loka::app::RectSurfaceModel model = this->modelState_->get();
     HBRUSH blackBrush = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
     for (short i = 0; i < model.rectCount; ++i)
     {
@@ -263,12 +307,18 @@ void Win32RectSurfaceContext::draw(HDC hdc, const RECT &rect)
                                           model.rects[i].width,
                                           model.rects[i].height);
       this->controller()->displayScale().projectFrame(logicalRect, spriteRect);
-      FillRect(target, &spriteRect, blackBrush);
+      if (!FillRect(target, &spriteRect, blackBrush))
+        painted = false;
     }
   }
   if (target == memoryDC)
   {
-    BitBlt(hdc, 0, 0, width, height, memoryDC, 0, 0, SRCCOPY);
+    if (!BitBlt(hdc, 0, 0, width, height, memoryDC, 0, 0, SRCCOPY))
+      painted = false;
+  }
+  if (complete && painted && clear && this->node_ && this->modelState_)
+  {
+    this->presented_.commit(model, paintScope());
   }
   if (buffered)
   {

@@ -114,7 +114,8 @@ Win32TextContext::Win32TextContext(Win32ScenePlatformController *controller,
       node_(node),
       hwnd_(NULL),
       textState_(0),
-      didInitialApply_(false)
+      didInitialApply_(false),
+      textDelivery_(loka::app::scene::PaintAnswer::refused(loka::app::scene::PAINT_REFUSED_HISTORY_UNKNOWN))
 {
   DWORD style = WS_VISIBLE | WS_CHILD | SS_LEFT;
   if (node_ && node_->props.hasAttr_)
@@ -158,6 +159,23 @@ Win32TextContext::~Win32TextContext()
   assert(!hwnd_ && "terminal fact delivery must queue the HWND before context reclaim");
 }
 
+/** A changed STATIC text has already requested its parent rectangle with
+    erase=false, children=true. An unchanged native string owes no new damage. */
+loka::app::scene::PaintAnswer Win32TextContext::queryPaintDamage(const loka::app::scene::PaintQuery &query) const
+{
+  using namespace loka::app::scene;
+  if (!this->hwnd_)
+    return PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+  if (query.placement != PLACEMENT_ELIGIBLE)
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  if (!this->node_ || (!this->node_->props.ownsText && this->node_->props.text_ != this->textState_))
+    return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
+  PaintAnswer answer = this->textDelivery_;
+  if (answer.kind == PAINT_ANSWER_EXACT)
+    answer.damage.scope = query.scope;
+  return answer;
+}
+
 void Win32TextContext::readLifecycleFactOnAttach()
 {
   if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
@@ -178,6 +196,7 @@ void Win32TextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previou
   {
     // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
     // (hide before the ritual destroys the native pair).
+    this->textDelivery_ = loka::app::scene::PaintAnswer::refused(loka::app::scene::PAINT_REFUSED_HISTORY_UNKNOWN);
     this->applyDetachedPresentation();
     if (next == loka::app::scene::NODE_FACT_RETIRED)
     {
@@ -280,6 +299,8 @@ void Win32TextContext::unbindText()
 
 void Win32TextContext::applyText()
 {
+  using namespace loka::app::scene;
+  this->textDelivery_ = PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
   // Always read the node's current props: for a borrowed State this is the
   // subscribed one, for owned text it is the latest applied literal.
   if (!hwnd_ || !node_ || !node_->props.text_)
@@ -287,14 +308,18 @@ void Win32TextContext::applyText()
     return;
   }
   std::wstring wide;
-  if (loka::win32::MaterializeWideString(node_->props.text_->get(), wide))
-  {
-    SetWindowTextW(hwnd_, wide.c_str());
-  }
-  else
-  {
-    SetWindowTextW(hwnd_, L"");
-  }
+  if (!loka::win32::MaterializeWideString(node_->props.text_->get(), wide))
+    wide.clear();
+  // Compare lengths first; only matching short strings need a native read.
+  // Longer strings conservatively count as changed, so comparison never
+  // allocates a previous-text buffer on the apply path.
+  wchar_t previous[256];
+  const int length = GetWindowTextLengthW(this->hwnd_);
+  const bool unchanged = this->didInitialApply_ && static_cast<size_t>(length) == wide.size()
+                         && wide.size() < sizeof(previous) / sizeof(previous[0])
+                         && GetWindowTextW(this->hwnd_, previous, sizeof(previous) / sizeof(previous[0])) == length
+                         && wide == previous;
+  const bool applied = SetWindowTextW(this->hwnd_, wide.c_str()) != FALSE;
   HWND parent = GetParent(hwnd_);
   if (parent)
   {
@@ -303,6 +328,11 @@ void Win32TextContext::applyText()
     {
       MapWindowPoints(NULL, parent, reinterpret_cast<POINT *>(&rc), 2);
       Win32ScenePlatformController::requestDirtySubtree(parent, &rc, FALSE);
+      if (applied)
+      {
+        const PaintDamage empty = {paintScope(), 0, 0, 0, 0, PAINT_COVERAGE_PAINT_ONLY};
+        this->textDelivery_ = unchanged ? PaintAnswer::exact(empty) : PaintAnswer::nativeScheduled();
+      }
     }
   }
   requestRelayoutIfNeeded();

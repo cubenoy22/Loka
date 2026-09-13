@@ -83,6 +83,20 @@ Win32ButtonContext::~Win32ButtonContext()
   assert(!hwnd_ && "terminal fact delivery must queue the HWND before context reclaim");
 }
 
+/** Text and enabled observers have requested this HWND, erase=true, children=false. */
+loka::app::scene::PaintAnswer Win32ButtonContext::queryPaintDamage(const loka::app::scene::PaintQuery &query) const
+{
+  using namespace loka::app::scene;
+  if (!this->hwnd_)
+    return PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+  if (query.placement != PLACEMENT_ELIGIBLE)
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  if (!this->node_ || this->node_->props.text_ != this->textState_
+      || this->node_->props.enabled_ != this->enabledState_)
+    return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
+  return PaintAnswer::nativeScheduled();
+}
+
 void Win32ButtonContext::readLifecycleFactOnAttach()
 {
   if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
