@@ -118,7 +118,11 @@ For declaration ownership and replacement sequencing, see
 - Prefer intrusive linked lists over `std::vector` when elements are heap-allocated anyway; adding a `next_` pointer avoids separate allocations and reallocation costs. On 68k, this primitive approach often outperforms "smart" containers.
 - When users report performance issues or ask for speedups, first measure or propose a measurement plan; profiling support already exists in the codebase.
 - Performance targeting policy: optimize primarily for 68030-era hardware and the repository's supported platform baselines; avoid regressions on low-end 68k (68000 / 68020) targets, but do not force 68k-first micro-optimizations without evidence.
-- [68k hot paths](docs/REVIEW_HISTORY.md#classic-redraw-heuristics-pre-paint-ledger)
+- On 68k hot paths, avoid `StateStream` unless justified; manual `bind` + compute can be significantly faster for startup/compose.
+- Performance triage steps: 1) reproduce on modern OS with profiling on, 2) capture tick breakdown, 3) isolate by commenting out components or toggling features, 4) optimize top hotspots first, 5) re-measure, 6) record findings in docs/TODO.md.
+- For animated Classic UIs, prefer quantized output gating before expensive updates: if integer-position/rendered output is unchanged, skip rebuilding props/models and avoid `MutableState::set()`.
+- On Toolbox hot paths, prefer simple `NodeContext`-local previous-state caching over pushing detailed dirty metadata through shared DSL/app models when the optimization is platform-specific.
+- Superseded dirty-rect heuristics (redraw triage order, redraw-area reduction, moving-rect erase): [history](docs/REVIEW_HISTORY.md#classic-redraw-heuristics-pre-paint-ledger); the #518 ruling of 2026-09-13 replaces them.
 - [Performance triage steps](docs/REVIEW_HISTORY.md#classic-redraw-heuristics-pre-paint-ledger)
 - [Redraw/performance triage](docs/REVIEW_HISTORY.md#classic-redraw-heuristics-pre-paint-ledger)
 - [Classic/68k redraw policy](docs/REVIEW_HISTORY.md#classic-redraw-heuristics-pre-paint-ledger)
