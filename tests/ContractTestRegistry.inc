@@ -1,3 +1,5 @@
+LOKA_TEST(testSimpleViewerMainPropsCompareEveryBorrowedSource)
+LOKA_TEST(testBorrowedKeysAddressContract)
 LOKA_TEST(testReclaimScratchGenerationOverflowFallback)
 LOKA_TEST(testReclaimScratchBoundaryOverflowFallback)
 LOKA_TEST(testReclaimScratchPartitionBoundaryKeepsOwnChildren)
