@@ -396,14 +396,14 @@ void testWin32ScrollViewMessagePublishesOffsetFact()
                 "a click inside the viewport must reach the Loka handler");
 
     SendMessageW(viewport, WM_VSCROLL, MAKEWPARAM(SB_LINEDOWN, 0), 0);
-    assert(offset.state().get() == 1 &&
+    assert(offset.state().get() == 16 &&
            "WM_VSCROLL must publish through the ScrollView NodeState door");
     controller.relayout(300, 140);
     const RECT after = childRectInParent(buttons[0], viewport);
-    assert(after.top == before.top - 1);
+    assert(after.top == before.top - 16);
 
     SendMessageW(viewport, WM_VSCROLL, MAKEWPARAM(SB_THUMBTRACK, 10), 0);
-    assert(offset.state().get() == 1 &&
+    assert(offset.state().get() == 16 &&
            "thumb tracking is visual-only until the value settles");
     assert(scrollInfo(viewport).nPos == 10);
     SendMessageW(viewport, WM_VSCROLL, MAKEWPARAM(SB_THUMBPOSITION, 10), 0);
@@ -423,6 +423,12 @@ void testWin32ScrollViewMessagePublishesOffsetFact()
     SendMessageW(viewport, WM_VSCROLL, MAKEWPARAM(SB_LINEDOWN, 0), 0);
     assert(offset.state().get() == rangeEnd &&
            "line scrolling at the range end must clamp without another write");
+    offset.state().set(rangeEnd - 3);
+    SendMessageW(viewport, WM_VSCROLL, MAKEWPARAM(SB_LINEDOWN, 0), 0);
+    assert(offset.state().get() == rangeEnd && "a partial final line must clamp to the maximum");
+    offset.state().set(3);
+    SendMessageW(viewport, WM_VSCROLL, MAKEWPARAM(SB_LINEUP, 0), 0);
+    assert(offset.state().get() == 0 && "a partial first line must clamp to zero");
 
     controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
   }
@@ -464,7 +470,11 @@ void testWin32ScrollViewWheelStepsOffsetThroughLinePath()
     {
       lines = 3;
     }
-    const UINT distance = lines == WHEEL_PAGESCROLL ? info.nPage : lines;
+    LOKA_VERIFY(maximum > 3 * 16 && "default wheel distance must not hit the fixture's range end");
+    // Clamp before multiplication so even a large system line setting cannot overflow.
+    const UINT distance = lines == WHEEL_PAGESCROLL ? info.nPage
+                         : lines > static_cast<UINT>(maximum) / 16
+                             ? static_cast<UINT>(maximum) : lines * 16;
     const int expected = distance > static_cast<UINT>(maximum)
                              ? maximum : static_cast<int>(distance);
     POINT point = {5, 5};
@@ -636,11 +646,11 @@ void testWin32NestedScrollViewRefusesWithoutDisturbingOuterScope()
     assert(outerButtons.size() == 6);
     const RECT before = childRectInParent(outerButtons[0], viewport);
     SendMessageW(viewport, WM_VSCROLL, MAKEWPARAM(SB_LINEDOWN, 0), 0);
-    assert(outerOffset.state().get() == 6);
+    assert(outerOffset.state().get() == 21);
     assert(innerOffset.state().get() == 3);
     controller.relayout(300, 140);
     const RECT after = childRectInParent(outerButtons[0], viewport);
-    assert(after.top == before.top - 1 &&
+    assert(after.top == before.top - 16 &&
            "the outer scope must remain live after the inner refusal");
 
     controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);

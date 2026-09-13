@@ -9,6 +9,11 @@
 namespace
 {
   const wchar_t kScrollViewClassName[] = L"LOKA_SCROLL_VIEW";
+  // One line is 16 logical pixels, following the WPF/WinUI convention:
+  // the default three system wheel lines move 48 pixels per notch. This is
+  // a Win32 rail default, like AppKit's lineScroll, not a logical Props door;
+  // a later per-window platform parameter (#720) may override it.
+  const int kLineStepPixels = 16;
 }
 
 Win32ScrollViewContext::Win32ScrollViewContext(Win32ScenePlatformController *controller,
@@ -167,17 +172,11 @@ bool Win32ScrollViewContext::handleVerticalScroll(int command,
   switch (command)
   {
   case SB_LINEUP:
-    if (next > 0)
-    {
-      --next;
-    }
+    next = next < kLineStepPixels ? 0 : next - kLineStepPixels;
     this->publishOffset(next);
     return true;
   case SB_LINEDOWN:
-    if (next < maximum)
-    {
-      ++next;
-    }
+    next = maximum - next < kLineStepPixels ? maximum : next + kLineStepPixels;
     this->publishOffset(next);
     return true;
   case SB_PAGEUP:
@@ -344,19 +343,13 @@ LRESULT CALLBACK Win32ScrollViewContext::WndProc(HWND hwnd,
     const bool page = lines == WHEEL_PAGESCROLL;
     const int command = page ? (detents > 0 ? SB_PAGEUP : SB_PAGEDOWN)
                              : (detents > 0 ? SB_LINEUP : SB_LINEDOWN);
-    SCROLLINFO info;
-    if (self->readScrollInfo(info))
+    const UINT steps = page ? 1 : lines;
+    const int count = detents < 0 ? -detents : detents;
+    for (int detent = 0; detent < count; ++detent)
     {
-      // Beyond the range, further line steps can only repeat the clamped fact.
-      const UINT maximum = static_cast<UINT>(self->maximumOffset(info));
-      const UINT steps = page ? 1 : (lines < maximum ? lines : maximum);
-      const int count = detents < 0 ? -detents : detents;
-      for (int detent = 0; detent < count; ++detent)
+      for (UINT step = 0; step < steps; ++step)
       {
-        for (UINT step = 0; step < steps; ++step)
-        {
-          self->handleVerticalScroll(command, 0);
-        }
+        self->handleVerticalScroll(command, 0);
       }
     }
     return 0;
