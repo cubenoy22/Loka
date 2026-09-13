@@ -1315,6 +1315,15 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     render();
     return;
   }
+  if (!scrollBarLedger_.viewportScrollBars_.empty())
+  {
+    // The invalidation half of #518 can name exact window damage, but Cell
+    // and Popup dirty replay still lack complete placement-plus-clip facts.
+    // Keep the one viewport render fallback until that shared projection
+    // contract is resolved; individual drawer exceptions are not sufficient.
+    render();
+    return;
+  }
   if (hitLedger_.textHits_.empty() && hitLedger_.popupHits_.empty() && buttonControls_.empty() && scrollBarLedger_.scrollBarControls_.empty()
       && editControls_.empty())
   {
