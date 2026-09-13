@@ -19,6 +19,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       # No build can catch a reintroduced side-effect assert: it compiles, and
       # under NDEBUG it just makes a test check less than it claims (#264).
+      - run: python3 tests/scripts/TestAssertCheckerTest.py
       - run: python3 tools/ci/check_test_asserts.py
       - run: python3 tools/ci/check_native_includes.py
       - run: cmake --preset testing
