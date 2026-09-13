@@ -35,13 +35,27 @@ NATIVE_HEADERS = {
     "numberformatting.h", "datetimeutils.h", "deviceserial.h",
     "carbonevents.h", "hiview.h", "hitoolbox.h", "atsui.h",
 }
+# Generic Toolbox basenames (`<Files.h>`, `<Memory.h>`, `<Events.h>`, ...).
+# They are only treated as native when included the way the Universal
+# Interfaces are written: angle brackets, no directory, capitalized. A portable
+# Loka header that carries the same lowercase name (`"core/files.h"`) or a C
+# library header (`<strings.h>`, `<memory.h>`) is not matched.
+GENERIC_TOOLBOX_HEADERS = {
+    "types.h", "memory.h", "errors.h", "events.h", "files.h", "strings.h",
+    "controls.h", "dialogs.h", "menus.h", "fonts.h", "resources.h",
+    "sound.h", "timer.h", "script.h", "lists.h", "icons.h", "drag.h",
+    "printing.h", "devices.h", "desk.h", "traps.h", "serial.h",
+    "notification.h", "power.h", "palettes.h", "processes.h", "scrap.h",
+    "balloons.h", "collections.h", "windows.h", "fixmath.h", "textutils.h",
+}
 NATIVE_FRAMEWORKS = (
     "carbon/", "cocoa/", "appkit/", "hitoolbox/", "applicationservices/",
-    "coreservices/", "quickdraw/",
+    "coreservices/", "quickdraw/", "foundation/", "corefoundation/",
+    "coregraphics/", "coretext/", "quartzcore/", "iokit/", "objc/",
 )
 # Bare NS*.h GUI headers can also be included without their AppKit directory.
 APPKIT_HEADER = re.compile(r"ns[a-z0-9_]+\.h$")
-INCLUDE = re.compile(r'^\s*#\s*(?:include|import)\s*[<"]([^>"\n]+)[>"]', re.MULTILINE)
+INCLUDE = re.compile(r'^\s*#\s*(?:include|import)\s*([<"])([^>"\n]+)[>"]', re.MULTILINE)
 COMMENTS = re.compile(r'/\*.*?\*/|//[^\n]*', re.DOTALL)
 
 
@@ -51,11 +65,16 @@ def native_includes(source):
     source = re.sub(r"\\\r?\n", "", source)
     source = COMMENTS.sub(lambda match: " " + "\n" * match[0].count("\n"), source)
     for match in INCLUDE.finditer(source):
-        name = match[1].replace("\\", "/").lower()
+        raw = match[2].replace("\\", "/")
+        name = raw.lower()
         basename = name.rsplit("/", 1)[-1]
+        angle_bare_capitalized = (match[1] == "<" and "/" not in raw
+                                  and raw[:1].isupper())
         if (basename in NATIVE_HEADERS or name.startswith(NATIVE_FRAMEWORKS)
-                or APPKIT_HEADER.fullmatch(basename)):
-            yield source.count("\n", 0, match.start(1)) + 1, match[1]
+                or APPKIT_HEADER.fullmatch(basename)
+                or (angle_bare_capitalized
+                    and basename in GENERIC_TOOLBOX_HEADERS)):
+            yield source.count("\n", 0, match.start(2)) + 1, match[2]
 
 
 def main():
