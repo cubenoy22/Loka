@@ -232,65 +232,35 @@ namespace
     return NULL_PAINT_UNSUPPORTED;
   }
 } // namespace
-class NullScenePlatformController::PaintQueryVisitor : public loka::app::scene::IPaintResidentVisitor
+bool NullScenePlatformController::queryPaintAnswer(loka::app::scene::Node *node,
+                                                   loka::app::scene::NodeContext *context,
+                                                   const loka::app::scene::PaintQuery &query,
+                                                   loka::app::scene::PaintAnswer &answer)
 {
-public:
-  PaintQueryVisitor(NullScenePlatformController &controller,
-                    loka::app::scene::ApplyPaintPlan &plan,
-                    const loka::app::scene::PaintQuery &query)
-      : controller_(controller),
-        plan_(plan),
-        query_(query)
+  using namespace loka::app::scene;
+  switch (paintRole(node))
   {
+  case NULL_PAINT_SKIP:
+    return false;
+  case NULL_PAINT_OWNED_DRAWER:
+    // Safe by the rail's installation contract: registerNodeHandler refuses
+    // foreign handlers for Text and RectSurface. Common never casts contexts.
+    answer = context ? static_cast<NativeNodeContext *>(context)->queryPaintDamage(query)
+                     : PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+    break;
+  case NULL_PAINT_NATIVE_CONTROL:
+    answer = PaintAnswer::nativeScheduled();
+    break;
+  case NULL_PAINT_FOREIGN:
+    answer = PaintAnswer::refused(context ? PAINT_REFUSED_UNSUPPORTED_KIND : PAINT_REFUSED_NO_CONTEXT);
+    break;
+  case NULL_PAINT_UNSUPPORTED:
+    answer = PaintAnswer::refused(PAINT_REFUSED_UNSUPPORTED_KIND);
+    break;
   }
-  virtual void
-  visit(loka::app::scene::Node *node, loka::app::scene::NodeContext *context, loka::app::scene::BoundaryNode *)
-  {
-    using namespace loka::app::scene;
-    const NullPaintRole role = paintRole(node);
-    if (role == NULL_PAINT_SKIP)
-      return;
-    PaintAnswer answer;
-    switch (role)
-    {
-    case NULL_PAINT_OWNED_DRAWER:
-      // The only cast in the paint walk; sound because registerNodeHandler refuses
-      // foreign handlers for these two kinds.
-      answer = context ? static_cast<NativeNodeContext *>(context)->queryPaintDamage(this->query_)
-                       : PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
-      break;
-    case NULL_PAINT_NATIVE_CONTROL:
-      answer = PaintAnswer::nativeScheduled();
-      break;
-    case NULL_PAINT_FOREIGN:
-      answer = PaintAnswer::refused(context ? PAINT_REFUSED_UNSUPPORTED_KIND : PAINT_REFUSED_NO_CONTEXT);
-      break;
-    default:
-      answer = PaintAnswer::refused(PAINT_REFUSED_UNSUPPORTED_KIND);
-      break;
-    }
-    this->controller_.onPaintQueried();
-    switch (answer.kind)
-    {
-    case PAINT_ANSWER_NATIVE_SCHEDULED:
-      break;
-    case PAINT_ANSWER_REFUSED:
-      this->plan_.widen(APPLY_PAINT_WIDEN_REFUSED, this->query_.scope, answer.reason);
-      break;
-    case PAINT_ANSWER_EXACT:
-      if (answer.damage.scope != this->query_.scope)
-        this->plan_.widen(APPLY_PAINT_WIDEN_REFUSED, this->query_.scope, PAINT_REFUSED_PLACEMENT_UNSETTLED);
-      else if (!this->plan_.addExact(answer.damage))
-        this->plan_.widen(APPLY_PAINT_WIDEN_CAPACITY, this->query_.scope);
-      break;
-    }
-  }
-
-private:
-  NullScenePlatformController &controller_;
-  loka::app::scene::ApplyPaintPlan &plan_;
-  const loka::app::scene::PaintQuery query_;
-};
+  this->onPaintQueried();
+  return true;
+}
 class NullScenePlatformController::PaintCompletionVisitor : public loka::app::scene::IPaintResidentVisitor
 {
 public:
@@ -384,9 +354,11 @@ void NullScenePlatformController::onBoundaryApply(loka::app::scene::Node *rootNo
                                               plan.hasStructureWork() || plan.hasLayoutWork()
                                                   ? loka::app::scene::PLACEMENT_PENDING
                                                   : loka::app::scene::PLACEMENT_ELIGIBLE};
-  loka::app::scene::ApplyPaintPlan paint;
-  PaintQueryVisitor visitor(*this, paint, query);
-  loka::app::scene::enumerateAttachedResidents(boundary, visitor);
+  loka::app::scene::PaintAnswerBuffer<> answers;
+  const loka::app::scene::PaintApplyVerdict verdict =
+      loka::app::scene::CollectPaintAnswers(*boundary, query, answers, *this);
+  this->onPaintAnswersCollected(boundary, info, answers, verdict);
+  const loka::app::scene::ApplyPaintPlan paint = loka::app::scene::BuildApplyPaintPlan(query.scope, answers, verdict);
   this->presentPaintPlan(boundary, paint, query.placement);
 }
 
