@@ -6,4 +6,5 @@ void testStrictNodeRouteRecursiveRefusal();
 void testStrictNodeRouteLocalRefusal();
 void testStrictNodeRouteKeyedAttachRefusal();
 void testStrictNodeRoutePartitionDeleteGuard();
+void testStrictNodeRouteInitialAttachRetry();
 #endif

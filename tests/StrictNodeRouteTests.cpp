@@ -1,5 +1,6 @@
 #include "StrictNodeRouteTests.hpp"
 #include "support/TestVerify.hpp"
+#include "testing/scene/OwnershipDump.hpp"
 #include "../example/MineSweeper/src/MainNode.hpp"
 #include "app/scene/Scene.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
@@ -358,4 +359,106 @@ void testStrictNodeRoutePartitionDeleteGuard()
   LOKA_VERIFY(bank.build(&layout, 1, build));
   LOKA_VERIFY(bank.destroy(build.node, layout));
   LOKA_VERIFY(build.deaths == 2);
+}
+
+namespace
+{
+  unsigned mountStateRefusals = 0, mountPartitionBoots = 0;
+  void *refuseFirstMountState(size_t bytes, const loka::core::LokaAllocationSite &site)
+  {
+    if (std::strcmp(site.ownerTag, "NodePartition") == 0) ++mountPartitionBoots;
+    if (!mountStateRefusals && std::strcmp(site.ownerTag, "StateOwner") == 0)
+    {
+      ++mountStateRefusals;
+      return 0;
+    }
+    return std::malloc(bytes);
+  }
+  void freeMountState(void *storage, const loka::core::LokaAllocationSite &) { std::free(storage); }
+  class RetryMountComponent;
+  struct RetryMountTag {};
+  struct RetryMountProps : NodePropsBase<RetryMountProps>
+  {
+    typedef RetryMountTag TypeTag;
+    typedef RetryMountComponent NodeType;
+    bool operator<(const PropsBase &) const { return false; }
+  };
+  class RetryMountComponent : public ComponentNodeWithProps<RetryMountProps>
+  {
+  public:
+    explicit RetryMountComponent(const RetryMountProps &props) : ComponentNodeWithProps<RetryMountProps>(props)
+    { this->state(this->value, 73); }
+    virtual void composeChildren(NodeComposition &composition)
+    {
+      if (this->value.isValid())
+        composition.declare(Fragment());
+    }
+    NodeState<int> value;
+  };
+  struct RetryMountOwner : BoundaryNodeFor<RetryMountOwner>
+  {
+    explicit RetryMountOwner(const BoundaryPropsFor<RetryMountOwner> &props) : BoundaryNodeFor<RetryMountOwner>(props)
+    { this->state(this->key, 0); }
+    void composeNode(NodeComposition &composition)
+    {
+      typedef reservation::Nodes<RetryMountComponent, 1, reservation::Nodes<FragmentNode, 1> > Payload;
+      composition.declare(Fragment() << Keyed(*this->key.state(), this, &RetryMountOwner::arm, reservation::SeatNodes<Payload>()));
+    }
+    void arm(NodeComposition &composition) { composition.declare(Component(RetryMountProps())); }
+    NodeState<int> key;
+  };
+}
+void testStrictNodeRouteInitialAttachRetry()
+{
+  using loka::dsl::testing::SceneTestAccess;
+  using loka::dsl::testing::OwnershipDump;
+  mountStateRefusals = mountPartitionBoots = 0;
+  loka::core::LokaAllocSetBackend(&refuseFirstMountState, &freeMountState);
+  {
+    NullScenePlatformController platform;
+    Scene scene((Boundary<RetryMountOwner>()));
+    scene.mount(&platform);
+    SceneTestAccess::updateAttached(scene, true);
+    RetryMountOwner *owner = static_cast<RetryMountOwner *>(SceneTestAccess::rootBoundary(scene));
+    LOKA_VERIFY(mountStateRefusals == 1);
+    LOKA_VERIFY(owner && owner->composeResult().allocationFailed);
+    LOKA_VERIFY(owner->childrenHead() == 0);
+    // Read before reclaim: this detects retired runtime identities without
+    // dereferencing dangling pointers merely to establish the HEAD failure.
+    const std::string refusedRows = OwnershipDump::dumpSeatRuntime(*owner);
+    LOKA_VERIFY(refusedRows.empty());
+    owner->drainRetiredSubtreesAtNextTrackerRun();
+    const std::string reclaimedRows = OwnershipDump::dumpSeatRuntime(*owner);
+    LOKA_VERIFY(reclaimedRows.empty());
+    SceneTestAccess::updateAttached(scene, true);
+    LOKA_VERIFY(owner->childrenHead() != 0);
+    LOKA_VERIFY(!owner->composeResult().allocationFailed);
+    std::vector<Node *> recovered;
+    unsigned cells = 0, values = 0;
+    collect(owner, recovered, cells);
+    for (size_t i = 0; i < recovered.size(); ++i)
+      if (recovered[i]->propsTypeId() == RetryMountProps::staticTypeId())
+      {
+        RetryMountComponent *component = static_cast<RetryMountComponent *>(recovered[i]);
+        LOKA_VERIFY(component->value.isValid() && component->value.get() == 73);
+        ++values;
+      }
+    LOKA_VERIFY(values == 1 && mountPartitionBoots == 1);
+    const std::string recoveredRows = OwnershipDump::dumpSeatRuntime(*owner);
+    LOKA_VERIFY(recoveredRows == "seat parent=attached active=attached\n");
+    // The recovered reservation must still observe later replacement demand.
+    {
+      loka::core::StateTrackerGuard transaction(owner->tracker());
+      owner->key.set(1);
+    }
+    for (int i = 0; i < 4; ++i)
+    {
+      owner->drainRetiredSubtreesAtNextTrackerRun();
+      SceneTestAccess::updateAttached(scene, true);
+    }
+    const std::string replacedRows = OwnershipDump::dumpSeatRuntime(*owner);
+    LOKA_VERIFY(replacedRows == recoveredRows);
+    LOKA_VERIFY(owner->childrenHead() != 0 && mountPartitionBoots == 1);
+  }
+  loka::core::LokaAllocSetBackend(0, 0);
 }

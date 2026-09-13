@@ -21,6 +21,14 @@ namespace loka
 
       bool BoundaryNode::materializeInitialChildren(ComponentContext &context)
       {
+        // A refused mount owns its slots until the ordinary clock drains them.
+        // UPDATE may revisit the white flag before that drain; do not readmit it.
+        if (!this->seatReservations_.empty()
+            && (this->retiredSubtreesHead_ || !this->retiredGenerations_.empty()))
+        {
+          this->noteComposeAllocationFailure();
+          return false;
+        }
         NodeComposition &composition = this->composition();
         composition.setContext(&context);
         context.setComposition(&composition);
@@ -40,9 +48,27 @@ namespace loka
           if (candidate.root() && !this->compositionState_.allocationFailedValue())
             this->addChild(candidate.take());
         }
+        const bool rejectedAttach = !retryFactory && candidate.root()
+                                    && this->compositionState_.allocationFailedValue();
+        if (rejectedAttach)
+        {
+          this->retireSeatBranchRoot(context, candidate.take());
+          this->retireDeclarationScope(context, this->branchSeats_);
+          this->forgetBranchSeatDirtySources(this->branchSeats_);
+          this->branchSeats_.clearRuntime();
+          // Remove plans appended by runtime nodes before disposing declarations.
+          // The retained mount definition and its cold reservations survive replay.
+          this->branchSeats_.capture(composition.root());
+          const std::vector<BoundaryBranchSeatPlanEntry> &plans = this->branchSeats_.plans();
+          for (size_t i = 0; i < plans.size(); ++i)
+            plans[i].seat()->commitBranchDeclaration(0);
+          this->seatReservations_.resetInitialBuildRequests();
+          this->captureBranchSeatPlan();
+          this->noteComposeAllocationFailure();
+        }
         composition.setContext(0);
         context.setComposition(0);
-        return !retryFactory;
+        return !retryFactory && !rejectedAttach;
       }
 
       void BoundaryNode::destroyUncommittedLocalRebuildCandidates(

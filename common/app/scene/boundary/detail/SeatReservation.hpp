@@ -109,6 +109,9 @@ namespace loka
           void reclaimGeneration(NodeArena::RetiredNodeGeneration &generation, ReclaimScratch *scratch);
           void returnedNode(Node *node);
           void cancelRequests();
+          /** Abandons initial candidate borrows while retaining cold banks for
+              mount replay. Once per refused mount, over this owner's requests. */
+          void resetInitialBuildRequests();
           bool hasWaitingRequests() const;
           void reclaimPartitionRoots(NodePartition::ReclaimNode reclaim, void *context);
 

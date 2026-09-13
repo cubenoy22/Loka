@@ -182,6 +182,15 @@ namespace loka
             r->request_.returned(node);
         }
 
+        void SeatReservations::resetInitialBuildRequests()
+        {
+          for (SeatReservation *r = this->head_; r; r = r->next_)
+          {
+            r->request_.cancel();
+            r->request_.phase_ = SeatBuildRequest::IDLE;
+          }
+        }
+
         void SeatReservations::cancelRequests()
         {
           for (SeatReservation *r = this->head_; r; r = r->next_)
