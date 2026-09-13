@@ -29,6 +29,7 @@ public:
                         int height,
                         loka::app::PopupMenuNode *node);
   virtual ~Win32PopupMenuContext();
+  virtual loka::app::scene::PaintAnswer queryPaintDamage(const loka::app::scene::PaintQuery &query) const;
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   /** Attach-time read (late-subscriber rule): presentation from the current
       fact, called by the installing handler right after setContext. */
@@ -70,6 +71,8 @@ private:
   bool updatingFromControl_;
   int baseHeight_;
   int baseWidth_;
+  /** Completed outcome of the latest native submission, never a future promise. */
+  loka::app::scene::PaintAnswer controlDelivery_;
 };
 
 void RegisterWin32PopupMenuNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);

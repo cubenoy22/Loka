@@ -2,6 +2,13 @@
 #include "app/layout/CanvasLayout.hpp"
 #include "Win32BuiltInSupport.hpp"
 #include "app/scene/boundary/Boundary.hpp"
+#include "app/scene/projection/CollectPaintAnswers.hpp"
+#include "app/nodes/Text.hpp"
+#include "app/nodes/controls/Button.hpp"
+#include "app/nodes/controls/EditText.hpp"
+#include "app/nodes/controls/Cell.hpp"
+#include "app/nodes/controls/PopupMenu.hpp"
+#include "app/nodes/ImageView.hpp"
 #include <cassert>
 #include <climits>
 #include <windows.h>
@@ -35,6 +42,74 @@
 
 namespace
 {
+  /** One installation contract for registration protection and paint lookup.
+      Unknown handler contexts are never cast by the paint walk. */
+  struct PaintContextKind
+  {
+    loka::app::scene::NodeKind kind;
+    const void *typeKey;
+  };
+  const PaintContextKind kPaintContextKinds[] = {
+      {loka::app::scene::NODE_KIND_RECT_SURFACE, loka::app::scene::NodeTypeToken<loka::app::RectSurfaceNode>()},
+      {loka::app::scene::NODE_KIND_TEXT, loka::app::scene::NodeTypeToken<loka::app::TextNode>()},
+      {loka::app::scene::NODE_KIND_BUTTON, loka::app::scene::NodeTypeToken<loka::app::ButtonNode>()},
+      {loka::app::scene::NODE_KIND_EDIT_TEXT, loka::app::scene::NodeTypeToken<loka::app::EditTextNode>()},
+      {loka::app::scene::NODE_KIND_POPUP_MENU, loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>()},
+      {loka::app::scene::NODE_KIND_CELL, loka::app::scene::NodeTypeToken<loka::app::CellNode>()},
+      {loka::app::scene::NODE_KIND_IMAGE_VIEW, loka::app::scene::NodeTypeToken<loka::app::ImageViewNode>()},
+      {loka::app::scene::NODE_KIND_SCROLL_VIEW, loka::app::scene::NodeTypeToken<loka::app::ScrollViewNode>()}};
+
+  /** Read-only adapter: one query per attached native resident. The table is
+      fixed rail metadata, not a walk through another owner's live rows. */
+  struct Win32PaintAnswerSource
+  {
+    bool queryPaintAnswer(loka::app::scene::Node *node,
+                          loka::app::scene::NodeContext *context,
+                          const loka::app::scene::PaintQuery &query,
+                          loka::app::scene::PaintAnswer &answer)
+    {
+      using namespace loka::app::scene;
+      for (size_t i = 0; i < sizeof(kPaintContextKinds) / sizeof(kPaintContextKinds[0]); ++i)
+      {
+        if (node->kind() == kPaintContextKinds[i].kind)
+        {
+          if (node->nodeTypeKey() != kPaintContextKinds[i].typeKey)
+            answer = PaintAnswer::refused(PAINT_REFUSED_UNSUPPORTED_KIND);
+          else
+            answer = context ? static_cast<Win32RetirableContext *>(context)->queryPaintDamage(query)
+                             : PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+          return true;
+        }
+      }
+      switch (node->kind())
+      {
+      case NODE_KIND_OPEN_FILE_DIALOG:
+      case NODE_KIND_BOX:
+      case NODE_KIND_ZSTACK:
+      case NODE_KIND_GRID:
+      case NODE_KIND_STACK:
+      case NODE_KIND_CANVAS:
+        return false;
+      case NODE_KIND_UNKNOWN:
+        if (!node->asProjectedLayoutNode())
+          return false;
+        break;
+      case NODE_KIND_SCROLL_BAR:
+      case NODE_KIND_RECT_SURFACE:
+      case NODE_KIND_TEXT:
+      case NODE_KIND_BUTTON:
+      case NODE_KIND_EDIT_TEXT:
+      case NODE_KIND_POPUP_MENU:
+      case NODE_KIND_CELL:
+      case NODE_KIND_IMAGE_VIEW:
+      case NODE_KIND_SCROLL_VIEW:
+        break;
+      }
+      answer = PaintAnswer::refused(context ? PAINT_REFUSED_UNSUPPORTED_KIND : PAINT_REFUSED_NO_CONTEXT);
+      return true;
+    }
+  };
+
   typedef std::map<HWND, Win32ScenePlatformController *> Win32ControllerMap;
   Win32ControllerMap gControllersByRootHwnd;
 
@@ -214,6 +289,14 @@ void Win32ScenePlatformController::requestDirtyRect(HWND targetHwnd, const RECT 
 
 bool Win32ScenePlatformController::registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler)
 {
+  if (!handler)
+    return false;
+  // Built-ins register privately through RegisterWin32BuiltInSupport. Like
+  // Null's owned drawers, these contexts cannot be replaced by a foreign type:
+  // the paint adapter and EXACT translator rely on this always-on wall.
+  for (size_t i = 0; i < sizeof(kPaintContextKinds) / sizeof(kPaintContextKinds[0]); ++i)
+    if (handler->nodeTypeKey() == kPaintContextKinds[i].typeKey)
+      return false;
   return this->nodeHandlerRegistry_.registerHandler(handler);
 }
 
@@ -417,11 +500,30 @@ void Win32ScenePlatformController::onBoundaryApply(loka::app::scene::Node *rootN
     return;
   }
 
+  using namespace loka::app::scene;
+  const PaintQuery query = {Win32RetirableContext::paintScope(), PLACEMENT_ELIGIBLE};
+  PaintAnswerBuffer<> answers;
+  Win32PaintAnswerSource source;
+  const PaintApplyVerdict verdict = CollectPaintAnswers(*boundary, query, answers, source);
+  if (verdict.canSkipBroadPaint(info))
+  {
+    // Borrowed residents end here. The existing native queue stores HWNDs and
+    // device-pixel rectangles only; it coalesces with observer-owned requests.
+    for (unsigned i = 0; i < answers.count(); ++i)
+    {
+      const PaintAnswerRecord &record = answers.entry(i);
+      Win32RetirableContext *context = static_cast<Win32RetirableContext *>(record.resident->getContext());
+      const PaintDamage &damage = record.damage;
+      const RECT rect = {damage.x, damage.y, damage.x + damage.width, damage.y + damage.height};
+      this->queueDirtyRect(
+          context->paintHwnd(), &rect, damage.coverage == PAINT_COVERAGE_ERASE_AND_PAINT ? TRUE : FALSE, false);
+    }
+    return;
+  }
+
   const bool eraseBackground = !info.paintIsOpaque;
-  // #725: the root WM_PAINT fills COLOR_WINDOW; the logical tree paints in
-  // child HWNDs. Delivery must cross the WS_CLIPCHILDREN ScrollView viewport
-  // or that root fill can remain over its children. #518 will replace this
-  // broad root request with context-owned damage.
+  // #727: the root WM_PAINT fills its ground even without WM_ERASEBKGND.
+  // Every broad fallback must restore child pixels, including under viewports.
   const bool includeChildren = true;
   if (info.hasCompositedPaintWork())
   {

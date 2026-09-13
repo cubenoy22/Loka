@@ -39,6 +39,7 @@ public:
                      int height,
                      loka::app::ButtonNode *node);
   virtual ~Win32ButtonContext();
+  virtual loka::app::scene::PaintAnswer queryPaintDamage(const loka::app::scene::PaintQuery &query) const;
   virtual loka::app::scene::ICapturableBitmap *asCapturableBitmap()
   {
     return this;

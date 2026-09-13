@@ -38,6 +38,7 @@ public:
                    int height,
                    loka::app::TextNode *node);
   virtual ~Win32TextContext();
+  virtual loka::app::scene::PaintAnswer queryPaintDamage(const loka::app::scene::PaintQuery &query) const;
   virtual loka::app::scene::ICapturableBitmap *asCapturableBitmap()
   {
     return this;
@@ -69,6 +70,8 @@ private:
   HWND hwnd_;
   loka::core::State<loka::core::String> *textState_;
   bool didInitialApply_;
+  /** Completed outcome of applyText's native submission, never a future promise. */
+  loka::app::scene::PaintAnswer textDelivery_;
 };
 
 void RegisterWin32TextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);

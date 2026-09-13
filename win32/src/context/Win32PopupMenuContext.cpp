@@ -54,7 +54,8 @@ Win32PopupMenuContext::Win32PopupMenuContext(Win32ScenePlatformController *contr
       applyingFromState_(false),
       updatingFromControl_(false),
       baseHeight_(height),
-      baseWidth_(width)
+      baseWidth_(width),
+      controlDelivery_(loka::app::scene::PaintAnswer::refused(loka::app::scene::PAINT_REFUSED_HISTORY_UNKNOWN))
 {
   // Unicode window: CB_ADDSTRING sent via SendMessageW would otherwise be
   // thunked through the system ACP by an ANSI combo box, losing out-of-ACP
@@ -87,6 +88,24 @@ Win32PopupMenuContext::~Win32PopupMenuContext()
   assert(!hwnd_ && "terminal fact delivery must queue the HWND before context reclaim");
 }
 
+/** COMBOBOX owns repaint after CB_SETCURSEL, EnableWindow, and item submission.
+    Equal selection/enabled applies owe no new damage; no framework erase/child request. */
+loka::app::scene::PaintAnswer Win32PopupMenuContext::queryPaintDamage(const loka::app::scene::PaintQuery &query) const
+{
+  using namespace loka::app::scene;
+  if (!this->hwnd_)
+    return PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+  if (query.placement != PLACEMENT_ELIGIBLE)
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  if (!this->node_ || this->node_->props.selectedIndex_ != this->selectionState_
+      || this->node_->props.enabled_ != this->enabledState_)
+    return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
+  PaintAnswer answer = this->controlDelivery_;
+  if (answer.kind == PAINT_ANSWER_EXACT)
+    answer.damage.scope = query.scope;
+  return answer;
+}
+
 void Win32PopupMenuContext::readLifecycleFactOnAttach()
 {
   if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
@@ -107,6 +126,7 @@ void Win32PopupMenuContext::onFactChanged(loka::app::scene::NodeLifecycleFact pr
   {
     // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
     // (hide before the ritual destroys the native pair).
+    this->controlDelivery_ = loka::app::scene::PaintAnswer::refused(loka::app::scene::PAINT_REFUSED_HISTORY_UNKNOWN);
     this->applyDetachedPresentation();
     if (next == loka::app::scene::NODE_FACT_RETIRED)
     {
@@ -225,15 +245,20 @@ bool Win32PopupMenuContext::itemsMatchApplied() const
 
 void Win32PopupMenuContext::applyItems()
 {
+  using namespace loka::app::scene;
+  this->controlDelivery_ = PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
   if (!hwnd_ || !node_)
   {
     return;
   }
-  SendMessage(hwnd_, CB_RESETCONTENT, 0, 0);
+  const LRESULT previousCount = SendMessageW(this->hwnd_, CB_GETCOUNT, 0, 0);
+  const PaintDamage empty = {paintScope(), 0, 0, 0, 0, PAINT_COVERAGE_PAINT_ONLY};
+  SendMessageW(hwnd_, CB_RESETCONTENT, 0, 0);
   const loka::Vector<loka::core::String> *items = node_->props.items_;
   if (!items)
   {
     this->appliedItems_.clear();
+    this->controlDelivery_ = previousCount == 0 ? PaintAnswer::exact(empty) : PaintAnswer::nativeScheduled();
     this->applyDropGeometry();
     return;
   }
@@ -256,6 +281,8 @@ void Win32PopupMenuContext::applyItems()
   if (appliedAllItems)
   {
     this->appliedItems_ = *items;
+    this->controlDelivery_ =
+        previousCount == 0 && items->empty() ? PaintAnswer::exact(empty) : PaintAnswer::nativeScheduled();
   }
   else
   {
@@ -309,6 +336,8 @@ void Win32PopupMenuContext::applyDropGeometry()
 
 void Win32PopupMenuContext::applySelection()
 {
+  using namespace loka::app::scene;
+  this->controlDelivery_ = PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
   if (!hwnd_ || !selectionState_)
   {
     return;
@@ -318,18 +347,37 @@ void Win32PopupMenuContext::applySelection()
   {
     index = -1;
   }
+  const PaintDamage empty = {paintScope(), 0, 0, 0, 0, PAINT_COVERAGE_PAINT_ONLY};
+  if (SendMessageW(this->hwnd_, CB_GETCURSEL, 0, 0) == index)
+  {
+    this->controlDelivery_ = PaintAnswer::exact(empty);
+    return;
+  }
   applyingFromState_ = true;
-  SendMessage(hwnd_, CB_SETCURSEL, static_cast<WPARAM>(index), 0);
+  const LRESULT selected = SendMessageW(this->hwnd_, CB_SETCURSEL, static_cast<WPARAM>(index), 0);
   applyingFromState_ = false;
+  // CB_ERR is the successful deselection result for index -1 as well.
+  if (selected != CB_ERR || index == -1)
+    this->controlDelivery_ = PaintAnswer::nativeScheduled();
 }
 
 void Win32PopupMenuContext::applyEnabled()
 {
+  using namespace loka::app::scene;
+  this->controlDelivery_ = PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
   if (!hwnd_ || !enabledState_)
   {
     return;
   }
-  EnableWindow(hwnd_, enabledState_->get() ? TRUE : FALSE);
+  const bool enabled = this->enabledState_->get();
+  if ((IsWindowEnabled(this->hwnd_) != FALSE) == enabled)
+  {
+    const PaintDamage empty = {paintScope(), 0, 0, 0, 0, PAINT_COVERAGE_PAINT_ONLY};
+    this->controlDelivery_ = PaintAnswer::exact(empty);
+    return;
+  }
+  EnableWindow(this->hwnd_, enabled ? TRUE : FALSE);
+  this->controlDelivery_ = PaintAnswer::nativeScheduled();
 }
 
 void Win32PopupMenuContext::syncStateFromControl()

@@ -53,6 +53,20 @@ Win32ScrollViewContext::~Win32ScrollViewContext()
   assert(!this->hwnd_ && "terminal fact delivery must queue the ScrollView HWND before context reclaim");
 }
 
+/** The viewport has no paint-only State input: offset is LAYOUT, delivered
+    by the native layout pass. During a settled paint-only visit it owes no
+    client damage; descendant HWND obligations are enumerated separately. */
+loka::app::scene::PaintAnswer Win32ScrollViewContext::queryPaintDamage(const loka::app::scene::PaintQuery &query) const
+{
+  using namespace loka::app::scene;
+  if (!this->hwnd_)
+    return PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+  if (query.placement != PLACEMENT_ELIGIBLE)
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  const PaintDamage empty = {query.scope, 0, 0, 0, 0, PAINT_COVERAGE_PAINT_ONLY};
+  return PaintAnswer::exact(empty);
+}
+
 void Win32ScrollViewContext::readLifecycleFactOnAttach()
 {
   if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
