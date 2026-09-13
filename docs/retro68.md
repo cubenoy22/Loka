@@ -127,11 +127,20 @@ on a tens-of-kilobytes-class application — would justify a hard ceiling.
 
 Every target linking `ToolboxOperatorNew.cpp` (Retro68, RetroPPC, RetroCarbon)
 serves allocations up to 256 bytes from process-lifetime, 2 KiB size-class
-chunks backed by `NewPtr`. Larger requests pass through without a header.
+chunks backed by the Classic memory source (`ToolboxMemorySource.hpp`).
 Each size class is a multiple of 8, and the Source declares the target's
 maximum fundamental alignment (8 on PowerPC/Carbon, 4 on 68K), so pooled slots
-are aligned at least as strictly as any type they can hold; large/direct/fallback
-requests keep NewPtr's own alignment.
+are aligned at least as strictly as any type they can hold.
+On 68K the source itself guarantees that alignment: pre-7.5 Memory Managers
+can hand `NewPtr` blocks back at 2-mod-4 addresses (System 7.0 on a Plus/SE
+class machine), so the source asks for `size + 4`, advances 1..4 bytes to the
+next 4-aligned address, stores that distance in the byte just before the
+returned pointer, and recovers the native block from that byte at release.
+Every source block — a 2 KiB chunk, or a large/direct/fallback request above
+256 bytes — carries that one recovery byte; pooled slots never do. PowerPC and
+Carbon keep the 8-aligned `NewPtr` pass-through with no prefix. Sizes that
+would overflow the Memory Manager's signed `Size` after the +4 are refused
+before allocating.
 Chunk refusal retries the single request; nothrow forms return 0 on refusal,
 and plain new aborts. All delete forms share the pool release door. The
 LokaAlloc gate and its site census remain unchanged.
