@@ -8,7 +8,7 @@ namespace loka
   namespace standalone_tests
   {
     /** Runs Tutorial's increment/summary scenario until the user quits. */
-    int RunTutorialStandaloneFlowApplication(HINSTANCE hInstance = 0, int nCmdShow = 0);
+    int RunTutorialStandaloneFlowApplication(NativeModuleHandle hInstance = 0, int nCmdShow = 0);
   } // namespace standalone_tests
 } // namespace loka
 

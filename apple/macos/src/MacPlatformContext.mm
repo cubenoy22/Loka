@@ -15,7 +15,7 @@
 MacPlatformContext::MacPlatformContext() {}
 MacPlatformContext::~MacPlatformContext() {}
 
-App *MacPlatformContext::createApp(AppConfigurable *config, HINSTANCE, int) const
+App *MacPlatformContext::createApp(AppConfigurable *config, NativeModuleHandle, int) const
 {
   return new MacApp(config);
 }

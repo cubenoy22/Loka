@@ -8,7 +8,7 @@ namespace loka
   namespace standalone_tests
   {
     /** Runs FloppyBird's fixed-step flap tour until the user quits. */
-    int RunFloppyBirdStandaloneFlowApplication(HINSTANCE hInstance = 0, int nCmdShow = 0);
+    int RunFloppyBirdStandaloneFlowApplication(NativeModuleHandle hInstance = 0, int nCmdShow = 0);
   } // namespace standalone_tests
 } // namespace loka
 

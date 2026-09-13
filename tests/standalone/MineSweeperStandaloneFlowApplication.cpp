@@ -7,7 +7,7 @@ namespace loka
 {
   namespace standalone_tests
   {
-    int RunMineSweeperStandaloneFlowApplication(HINSTANCE hInstance, int nCmdShow)
+    int RunMineSweeperStandaloneFlowApplication(NativeModuleHandle hInstance, int nCmdShow)
     {
       return RunStandaloneFlowWithConfig<MineSweeperStandaloneFlowAppConfig>(hInstance, nCmdShow);
     }
