@@ -1,4 +1,5 @@
 #include "PaintContractTests.hpp"
+#include "app/scene/projection/CollectPaintAnswers.hpp"
 #include "../example/FloppyBird/src/MainNode.hpp"
 #include "../example/SmirkBench/src/MainNode.hpp"
 #include "app/scene/Scene.hpp"
@@ -852,4 +853,299 @@ void testStyleOnlyApplyRecoversTextHistory()
   score(scene, data.a, "GGGG");
   exactOne(platform);
   loka::dsl::testing::SceneTestAccess::unmount(scene);
+}
+
+namespace
+{
+  /** Inspects borrowed residents synchronously; only completed counts escape. */
+  class AnswerPlatform : public PaintPlatform
+  {
+  public:
+    enum Expectation
+    {
+      IGNORE,
+      ONE_DAMAGE,
+      ONE_REFUSAL,
+      TWO_DAMAGE
+    };
+    AnswerPlatform()
+        : expectation(IGNORE),
+          inspections(0)
+    {
+    }
+    virtual void onPaintAnswersCollected(BoundaryNode *owner,
+                                         const BoundaryLocalApplyInfo &info,
+                                         const PaintAnswerBuffer<> &answers,
+                                         const PaintApplyVerdict &verdict)
+    {
+      if (expectation == IGNORE)
+        return;
+      ++inspections;
+      LOKA_VERIFY(!info.hasLayoutWork && !info.hasStructureWork);
+      LOKA_VERIFY(verdict.nativeScheduledCount() == 0);
+      LOKA_VERIFY(verdict.overflowCount() == 0);
+      if (expectation == ONE_REFUSAL)
+      {
+        LOKA_VERIFY(!verdict.canSkipBroadPaint(info));
+        LOKA_VERIFY(verdict.refusedCount() == 1);
+        LOKA_VERIFY(verdict.exactCount() == 1);
+        return;
+      }
+      LOKA_VERIFY(verdict.canSkipBroadPaint(info));
+      LOKA_VERIFY(verdict.exactCount() == 2);
+      LOKA_VERIFY(verdict.refusedCount() == 0);
+      LOKA_VERIFY(answers.count() == (expectation == ONE_DAMAGE ? 1u : 2u));
+      unsigned index = 0;
+      Node *written = find(owner, NODE_KIND_RECT_SURFACE, index);
+      LOKA_VERIFY(answers.entry(0).resident == written);
+      const PaintDamage &damage = answers.entry(0).damage;
+      const PaintAnswer direct =
+          static_cast<NativeNodeContext *>(written->getContext())->queryPaintDamage(query(*this));
+      LOKA_VERIFY(direct.kind == PAINT_ANSWER_EXACT);
+      LOKA_VERIFY(damage.scope == direct.damage.scope);
+      LOKA_VERIFY(damage.x == direct.damage.x && damage.y == direct.damage.y);
+      LOKA_VERIFY(damage.width == direct.damage.width && damage.height == direct.damage.height);
+      LOKA_VERIFY(damage.coverage == direct.damage.coverage);
+      BoundaryLocalApplyInfo composited = info;
+      composited.paintKind = LOCAL_APPLY_PAINT_COMPOSITED;
+      LOKA_VERIFY(!verdict.canSkipBroadPaint(composited));
+      BoundaryLocalApplyInfo layout = info;
+      layout.hasLayoutWork = true;
+      LOKA_VERIFY(!verdict.canSkipBroadPaint(layout));
+      if (expectation == TWO_DAMAGE)
+      {
+        PaintAnswerBuffer<1> small;
+        const PaintApplyVerdict overflow = CollectPaintAnswers(*owner, query(*this), small, *this);
+        LOKA_VERIFY(!overflow.canSkipBroadPaint(info));
+        LOKA_VERIFY(overflow.exactCount() == 2);
+        LOKA_VERIFY(overflow.refusedCount() == 0);
+        LOKA_VERIFY(overflow.overflowCount() == 1);
+        LOKA_VERIFY(small.count() == 1);
+        const ApplyPaintPlan widened = BuildApplyPaintPlan(query(*this).scope, small, overflow);
+        LOKA_VERIFY(widened.precision() == APPLY_PAINT_WIDENED);
+        LOKA_VERIFY(widened.widenReason() == APPLY_PAINT_WIDEN_CAPACITY);
+        // Nested collection owns its own buffer and must not reset the outer visit.
+        LOKA_VERIFY(answers.count() == 2);
+        unsigned siblingIndex = 1;
+        LOKA_VERIFY(answers.entry(1).resident == find(owner, NODE_KIND_RECT_SURFACE, siblingIndex));
+      }
+    }
+    Expectation expectation;
+    unsigned inspections;
+  };
+} // namespace
+
+void testPaintAnswersHandOverWrittenResident()
+{
+  TreeData data;
+  data.count = 2;
+  AnswerPlatform platform;
+  Scene scene(Boundary<PaintTree>(TreeProps(&data)));
+  mount(scene, platform);
+  change(scene, data.models[0], 2); // Establish presentation history for both drawers.
+  platform.expectation = AnswerPlatform::ONE_DAMAGE;
+  change(scene, data.models[0], 4);
+  LOKA_VERIFY(platform.inspections == 1);
+  SceneTestAccess::unmount(scene);
+}
+
+void testPaintAnswersRefusalDisablesGate()
+{
+  TreeData data;
+  data.count = 2;
+  AnswerPlatform platform;
+  Scene scene(Boundary<PaintTree>(TreeProps(&data)));
+  mount(scene, platform);
+  change(scene, data.models[0], 2);
+  unsigned index = 1;
+  Node *sibling = find(SceneTestAccess::rootBoundary(scene), NODE_KIND_RECT_SURFACE, index);
+  LOKA_VERIFY(sibling && sibling->getContext());
+  platform.forget(*static_cast<NullRectSurfaceContext *>(sibling->getContext()));
+  platform.expectation = AnswerPlatform::ONE_REFUSAL;
+  change(scene, data.models[0], 4);
+  LOKA_VERIFY(platform.inspections == 1);
+  refused(platform, PAINT_REFUSED_HISTORY_UNKNOWN);
+  SceneTestAccess::unmount(scene);
+}
+
+void testPaintAnswersCapacityDisablesGate()
+{
+  TreeData data;
+  data.count = 2;
+  AnswerPlatform platform;
+  Scene scene(Boundary<PaintTree>(TreeProps(&data)));
+  mount(scene, platform);
+  change(scene, data.models[0], 2);
+  platform.expectation = AnswerPlatform::TWO_DAMAGE;
+  {
+    StateTrackerGuard guard(SceneTestAccess::rootBoundary(scene)->tracker());
+    data.models[0].set(sprite(4));
+    data.models[1].set(sprite(6));
+  }
+  settle(scene);
+  LOKA_VERIFY(platform.inspections == 1);
+  SceneTestAccess::unmount(scene);
+}
+
+namespace
+{
+  /** Alters completed answers, while using real attached Null drawers. */
+  class AnswerPolicyProbe
+  {
+  public:
+    enum Mode
+    {
+      EMPTY,
+      NATIVE,
+      WRONG_SCOPE,
+      REFUSE
+    };
+    AnswerPolicyProbe(Mode mode, PaintRefusalReason reason = PAINT_REFUSED_UNSUPPORTED_KIND)
+        : mode_(mode),
+          reason_(reason)
+    {
+    }
+    bool queryPaintAnswer(Node *node, NodeContext *, const PaintQuery &q, PaintAnswer &answer)
+    {
+      if (!node->asRectSurfaceNode())
+        return false;
+      const PaintDamage empty = {q.scope, 0, 0, 0, 0, PAINT_COVERAGE_PAINT_ONLY};
+      switch (this->mode_)
+      {
+      case EMPTY:
+        answer = PaintAnswer::exact(empty);
+        break;
+      case NATIVE:
+        answer = PaintAnswer::nativeScheduled();
+        break;
+      case WRONG_SCOPE:
+        answer = PaintAnswer::exact(empty);
+        ++answer.damage.scope.ownerKey;
+        break;
+      case REFUSE:
+        answer = PaintAnswer::refused(this->reason_);
+        break;
+      }
+      return true;
+    }
+
+  private:
+    const Mode mode_;
+    const PaintRefusalReason reason_;
+  };
+} // namespace
+
+void testPaintAnswerVerdictCountsAndBufferReuse()
+{
+  TreeData data;
+  data.count = 2;
+  PaintPlatform platform;
+  Scene scene(Boundary<PaintTree>(TreeProps(&data)));
+  mount(scene, platform);
+  BoundaryNode &root = *SceneTestAccess::rootBoundary(scene);
+  BoundaryLocalApplyInfo info;
+  info.paintKind = LOCAL_APPLY_PAINT_GENERIC;
+  const PaintQuery q = query(platform);
+  PaintAnswerBuffer<1> answers;
+  const PaintDamage stale = {q.scope, 0, 0, 1, 1, PAINT_COVERAGE_PAINT_ONLY};
+  LOKA_VERIFY(answers.append(&root, stale));
+  AnswerPolicyProbe empty(AnswerPolicyProbe::EMPTY);
+  const PaintApplyVerdict unchanged = CollectPaintAnswers(root, q, answers, empty);
+  LOKA_VERIFY(unchanged.canSkipBroadPaint(info));
+  LOKA_VERIFY(unchanged.exactCount() == 2 && unchanged.nativeScheduledCount() == 0);
+  LOKA_VERIFY(unchanged.refusedCount() == 0 && unchanged.overflowCount() == 0);
+  LOKA_VERIFY(answers.count() == 0);
+  LOKA_VERIFY(BuildApplyPaintPlan(q.scope, answers, unchanged).precision() == APPLY_PAINT_NONE);
+  AnswerPolicyProbe native(AnswerPolicyProbe::NATIVE);
+  const PaintApplyVerdict scheduled = CollectPaintAnswers(root, q, answers, native);
+  LOKA_VERIFY(scheduled.canSkipBroadPaint(info));
+  LOKA_VERIFY(scheduled.exactCount() == 0 && scheduled.nativeScheduledCount() == 2);
+  LOKA_VERIFY(scheduled.refusedCount() == 0 && scheduled.overflowCount() == 0);
+  LOKA_VERIFY(answers.count() == 0);
+  BoundaryLocalApplyInfo composited = info;
+  composited.paintKind = LOCAL_APPLY_PAINT_COMPOSITED;
+  LOKA_VERIFY(!scheduled.canSkipBroadPaint(composited));
+  BoundaryLocalApplyInfo structure = info;
+  structure.hasStructureWork = true;
+  LOKA_VERIFY(!scheduled.canSkipBroadPaint(structure));
+  info.paintKind = LOCAL_APPLY_PAINT_NONE;
+  LOKA_VERIFY(!scheduled.canSkipBroadPaint(info));
+  info.paintKind = LOCAL_APPLY_PAINT_GENERIC;
+  AnswerPolicyProbe wrongScope(AnswerPolicyProbe::WRONG_SCOPE);
+  const PaintApplyVerdict mismatch = CollectPaintAnswers(root, q, answers, wrongScope);
+  LOKA_VERIFY(!mismatch.canSkipBroadPaint(info));
+  LOKA_VERIFY(mismatch.exactCount() == 0 && mismatch.refusedCount() == 2);
+  LOKA_VERIFY(mismatch.refusalReason() == PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  const PaintRefusalReason reasons[] = {PAINT_REFUSED_UNSUPPORTED_KIND,
+                                        PAINT_REFUSED_NO_CONTEXT,
+                                        PAINT_REFUSED_PLACEMENT_UNSETTLED,
+                                        PAINT_REFUSED_HISTORY_UNKNOWN,
+                                        PAINT_REFUSED_PROPS_UNRECONCILED};
+  for (unsigned i = 0; i < sizeof(reasons) / sizeof(reasons[0]); ++i)
+  {
+    AnswerPolicyProbe refusal(AnswerPolicyProbe::REFUSE, reasons[i]);
+    const PaintApplyVerdict refusedAnswer = CollectPaintAnswers(root, q, answers, refusal);
+    LOKA_VERIFY(!refusedAnswer.canSkipBroadPaint(info));
+    LOKA_VERIFY(refusedAnswer.refusedCount() == 2 && refusedAnswer.overflowCount() == 0);
+    LOKA_VERIFY(refusedAnswer.widenReason() == APPLY_PAINT_WIDEN_REFUSED);
+    LOKA_VERIFY(refusedAnswer.refusalReason() == reasons[i]);
+  }
+  SceneTestAccess::unmount(scene);
+}
+
+namespace
+{
+  class AnswerSequence
+  {
+  public:
+    AnswerSequence(const PaintAnswer *answers)
+        : answers_(answers),
+          index_(0)
+    {
+    }
+    bool queryPaintAnswer(Node *node, NodeContext *, const PaintQuery &, PaintAnswer &answer)
+    {
+      if (!node->asRectSurfaceNode())
+        return false;
+      LOKA_VERIFY(this->index_ < 4);
+      answer = this->answers_[this->index_++];
+      return true;
+    }
+
+  private:
+    const PaintAnswer *answers_;
+    unsigned index_;
+  };
+} // namespace
+
+void testPaintAnswerFirstWidenReasonSurvivesLaterAnswers()
+{
+  TreeData data;
+  data.count = 4;
+  PaintPlatform platform;
+  Scene scene(Boundary<PaintTree>(TreeProps(&data)));
+  mount(scene, platform);
+  const PaintQuery q = query(platform);
+  const PaintDamage damage = {q.scope, 1, 2, 3, 4, PAINT_COVERAGE_ERASE_AND_PAINT};
+  for (int overflowFirst = 0; overflowFirst < 2; ++overflowFirst)
+  {
+    const PaintAnswer answer[] = {
+        PaintAnswer::exact(damage),
+        overflowFirst ? PaintAnswer::exact(damage) : PaintAnswer::refused(PAINT_REFUSED_HISTORY_UNKNOWN),
+        overflowFirst ? PaintAnswer::refused(PAINT_REFUSED_HISTORY_UNKNOWN) : PaintAnswer::exact(damage),
+        PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT)};
+    AnswerSequence source(answer);
+    PaintAnswerBuffer<1> buffer;
+    const PaintApplyVerdict verdict = CollectPaintAnswers(*SceneTestAccess::rootBoundary(scene), q, buffer, source);
+    LOKA_VERIFY(verdict.exactCount() == 2 && verdict.refusedCount() == 2);
+    LOKA_VERIFY(verdict.overflowCount() == 1 && buffer.count() == 1);
+    LOKA_VERIFY(verdict.widenReason() == (overflowFirst ? APPLY_PAINT_WIDEN_CAPACITY : APPLY_PAINT_WIDEN_REFUSED));
+    if (!overflowFirst)
+      LOKA_VERIFY(verdict.refusalReason() == PAINT_REFUSED_HISTORY_UNKNOWN);
+    const ApplyPaintPlan plan = BuildApplyPaintPlan(q.scope, buffer, verdict);
+    LOKA_VERIFY(plan.precision() == APPLY_PAINT_WIDENED);
+    LOKA_VERIFY(plan.widenReason() == verdict.widenReason());
+    LOKA_VERIFY(plan.refusalReason() == verdict.refusalReason());
+  }
+  SceneTestAccess::unmount(scene);
 }

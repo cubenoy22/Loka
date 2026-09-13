@@ -18,4 +18,9 @@ void testPaintPlanEmptyCapacityAndScopeValues();
 void testUnrenderableTextNeverBecomesPresented();
 void testRefusedReprojectionInvalidatesPlacement();
 void testStyleOnlyApplyRecoversTextHistory();
+void testPaintAnswersHandOverWrittenResident();
+void testPaintAnswersRefusalDisablesGate();
+void testPaintAnswersCapacityDisablesGate();
+void testPaintAnswerVerdictCountsAndBufferReuse();
+void testPaintAnswerFirstWidenReasonSurvivesLaterAnswers();
 #endif

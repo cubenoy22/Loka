@@ -1,7 +1,7 @@
 #ifndef LOKA_TESTS_PLATFORM_NULL_SCENE_PLATFORM_CONTROLLER_HPP
 #define LOKA_TESTS_PLATFORM_NULL_SCENE_PLATFORM_CONTROLLER_HPP
 
-#include "app/scene/projection/ApplyPaintPlan.hpp"
+#include "app/scene/projection/CollectPaintAnswers.hpp"
 #include <cstddef>
 #include <vector>
 
@@ -211,11 +211,22 @@ public:
                         const loka::app::scene::ApplyPaintPlan &plan,
                         loka::app::scene::PaintPlacementEligibility eligibility = loka::app::scene::PLACEMENT_ELIGIBLE);
   virtual void onPaintPlanSubmitted(loka::app::scene::BoundaryNode *, const loka::app::scene::ApplyPaintPlan &) {}
+  /** Rail policy for the common collector; false excludes logical non-drawers. */
+  bool queryPaintAnswer(loka::app::scene::Node *,
+                        loka::app::scene::NodeContext *,
+                        const loka::app::scene::PaintQuery &,
+                        loka::app::scene::PaintAnswer &);
+  /** Null-only synchronous observation seam; borrowed rows must not escape. */
+  virtual void onPaintAnswersCollected(loka::app::scene::BoundaryNode *,
+                                       const loka::app::scene::BoundaryLocalApplyInfo &,
+                                       const loka::app::scene::PaintAnswerBuffer<> &,
+                                       const loka::app::scene::PaintApplyVerdict &)
+  {
+  }
   virtual void onPaintQueried() {}
   virtual void onPaintCommitted() {}
 
 private:
-  class PaintQueryVisitor;
   class PaintCompletionVisitor;
   class PaintInvalidationVisitor;
   class LayoutTraversal;
