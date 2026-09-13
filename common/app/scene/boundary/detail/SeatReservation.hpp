@@ -3,6 +3,7 @@
 
 #include "app/scene/boundary/detail/SeatBuildRequest.hpp"
 #include "app/scene/boundary/detail/BoundaryArena.hpp"
+#include "app/scene/boundary/detail/ReclaimScratch.hpp"
 
 namespace loka
 {
@@ -99,7 +100,10 @@ namespace loka
           NodePartition *partitionFor(Node *node);
           bool removeSeatChild(SeatBuildRequest &request, Node *parent, Node *outgoing, int order);
           bool installSeatChild(SeatBuildRequest &request, Node *incoming);
-          void reclaimGeneration(NodeArena::RetiredNodeGeneration &generation);
+          /** Destroys a retired generation snapshot (bounded plan when scratch is
+              supplied and fits, legacy walk otherwise) and then clears the outgoing
+              obligations of this landlord's requests that pointed into it. */
+          void reclaimGeneration(NodeArena::RetiredNodeGeneration &generation, ReclaimScratch *scratch);
           void returnedNode(Node *node);
           void cancelRequests();
           bool hasWaitingRequests() const;
@@ -109,6 +113,7 @@ namespace loka
           friend class SeatReservation;
           SeatReservations(const SeatReservations &);
           SeatReservations &operator=(const SeatReservations &);
+          static void ReturnedGenerationNode(Node *node, void *owner);
           static const core::LokaAllocationSite &site();
           SeatReservation *head_;
         };

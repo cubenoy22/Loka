@@ -42,6 +42,7 @@ ACCESSOR_NAMES = frozenset(
         "begin",
         "end",
         "c_str",
+        "nodeArena",  # Pure landlord getter; chained reserve calls carry the work.
         "length",
         # Constructor names any test may verify against, for the same reason
         # `sizeof` is skipped as a subject: one correct

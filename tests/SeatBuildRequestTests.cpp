@@ -222,34 +222,42 @@ void testSeatBuildRequestFreshReturnToA()
 void testSeatBuildRequestWaitsForFullReturn()
 {
   keyedWaitingScenario(1);
-  Counts counts;
-  Owner owner;
-  NodePartition *bank = owner.installPartitionFixture(table(2));
-  require(bank != 0);
-  const SeatReservation &seat = request(owner, *bank, 2);
-  int key = 0, model = 0;
-  Build build(counts, key, model);
-  require(bank->buildFixture(seat.layoutTable().layouts(), seat.layoutTable().count(), build));
-  replace(owner, seat, build.root);
-  ++key;
-  require(!seat.request().admit(seat.layoutTable(), build));
-  assert(seat.request().retiring() && counts.builds == 1);
-  owner.drainRetiredSubtreesAtNextTrackerRun();
-  assert(!seat.request().retiring() && counts.deaths == 2);
-  assert(counts.builds == 1);
-  require(seat.request().admit(seat.layoutTable(), build));
-  assert(counts.builds == 2 && counts.key == 1);
-  const SeatReservation &legacy = request(owner, *bank, 1);
-  owner.nodeArena()->reserve(sizeof(Resident));
-  void *storage = owner.nodeArena()->allocate(sizeof(Resident), AlignOf<Resident>::value);
-  require(storage != 0);
-  Resident *legacyRoot = new (storage) Resident(counts);
-  owner.nodeArena()->registerNode(legacyRoot);
-  replace(owner, legacy, legacyRoot);
-  owner.retireOwnedNodeGeneration();
-  assert(legacy.request().retiring());
-  owner.drainRetiredSubtreesAtNextTrackerRun();
-  assert(!legacy.request().retiring());
+  for (int bounded = 0; bounded != 2; ++bounded)
+  {
+    Counts counts;
+    Owner owner;
+    NodePartition *bank = owner.installPartitionFixture(table(2));
+    require(bank != 0);
+    if (bounded)
+    {
+      require(bank->reserveReclaimScratch(4));
+      require(owner.nodeArena()->reserveReclaimScratch(4));
+    }
+    const SeatReservation &seat = request(owner, *bank, 2);
+    int key = 0, model = 0;
+    Build build(counts, key, model);
+    require(bank->buildFixture(seat.layoutTable().layouts(), seat.layoutTable().count(), build));
+    replace(owner, seat, build.root);
+    ++key;
+    require(!seat.request().admit(seat.layoutTable(), build));
+    assert(seat.request().retiring() && counts.builds == 1);
+    owner.drainRetiredSubtreesAtNextTrackerRun();
+    assert(!seat.request().retiring() && counts.deaths == 2);
+    assert(counts.builds == 1);
+    require(seat.request().admit(seat.layoutTable(), build));
+    assert(counts.builds == 2 && counts.key == 1);
+    const SeatReservation &legacy = request(owner, *bank, 1);
+    owner.nodeArena()->reserve(sizeof(Resident));
+    void *storage = owner.nodeArena()->allocate(sizeof(Resident), AlignOf<Resident>::value);
+    require(storage != 0);
+    Resident *legacyRoot = new (storage) Resident(counts);
+    owner.nodeArena()->registerNode(legacyRoot);
+    replace(owner, legacy, legacyRoot);
+    owner.retireOwnedNodeGeneration();
+    assert(legacy.request().retiring());
+    owner.drainRetiredSubtreesAtNextTrackerRun();
+    assert(!legacy.request().retiring());
+  }
 }
 
 void testSeatBuildRequestCancelAndAddressReuse()

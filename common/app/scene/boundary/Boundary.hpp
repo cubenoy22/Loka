@@ -680,7 +680,10 @@ namespace loka
         }
         /** Reclaims the queue snapshot owned by this Boundary at the head of
             the next tracker run. Retirees added while draining wait for a
-            later tracker run. */
+            later tracker run. Capacity overflow asserts in Debug; Release reclaims
+            that entry with the legacy walk in this run, then continues bounded
+            reclamation for fitting entries. A fallback entry is outside the
+            zero-upstream claim; no retry request is issued for overflow. */
         void drainRetiredSubtreesAtNextTrackerRun();
         /** Runs the queued releasers of blocks this Boundary is the last
             dropping owner for. Reclamation paths call it before destroying
@@ -2357,8 +2360,12 @@ namespace loka
         }
 
         void retireSubtree(Node *node);
-        void destroyRetiredSubtree(Node *node);
+        void destroyRetiredSubtree(Node *node, bool bounded = false);
+        void destroyRetiredNode(Node *node);
+        void drainRetiredSubtrees(bool bounded);
         static void ReclaimPartitionNode(Node *node, void *owner);
+        static void ReclaimBoundedPartitionNode(Node *node, void *owner);
+        static void ReclaimPlannedNode(Node *node, void *owner);
         void drainAllRetiredSubtrees();
         void releaseOwnedNodeStorage();
 
