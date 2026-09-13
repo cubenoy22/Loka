@@ -312,7 +312,7 @@ if(LOKA_WIN32_TOP_LEVEL_SOURCE_NORMALIZED STREQUAL
       set_target_properties(${_loka_standalone_target} PROPERTIES
         CXX_STANDARD 98
         CXX_STANDARD_REQUIRED YES
-        RUNTIME_OUTPUT_DIRECTORY "${LOKA_STANDALONE_FLOW_OUTPUT_DIRECTORY}"
+        RUNTIME_OUTPUT_DIRECTORY "${LOKA_STANDALONE_FLOW_OUTPUT_DIRECTORY}/${key}"
       )
       if(MSVC)
         target_compile_options(${_loka_standalone_target} PRIVATE /utf-8)
@@ -324,7 +324,7 @@ if(LOKA_WIN32_TOP_LEVEL_SOURCE_NORMALIZED STREQUAL
     )
     target_compile_definitions(${loop_target} PRIVATE LOKA_STANDALONE_FLOW_LOOP=1)
     set_target_properties(${loop_target} PROPERTIES
-      RUNTIME_OUTPUT_DIRECTORY "${LOKA_STANDALONE_LOOP_OUTPUT_DIRECTORY}"
+      RUNTIME_OUTPUT_DIRECTORY "${LOKA_STANDALONE_LOOP_OUTPUT_DIRECTORY}/${key}"
     )
     add_dependencies(LokaStandaloneFlowWin32All ${target})
     add_dependencies(LokaStandaloneLoopWin32All ${loop_target})
@@ -392,21 +392,15 @@ if(LOKA_WIN32_TOP_LEVEL_SOURCE_NORMALIZED STREQUAL
     ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/RectSurfaceScenarioObservation.cpp
   )
 
-  set(LOKA_STANDALONE_FLOW_ASSET_OUTPUT_DIRECTORY
-    "${LOKA_STANDALONE_FLOW_OUTPUT_DIRECTORY}"
-  )
-  set(LOKA_STANDALONE_LOOP_ASSET_OUTPUT_DIRECTORY
-    "${LOKA_STANDALONE_LOOP_OUTPUT_DIRECTORY}"
-  )
+  # Read the owners' paths instead of restating the catalog-key directory.
+  # TARGET_FILE_DIR would add reverse dependencies with the CMake 3.15 policy.
+  get_target_property(LOKA_STANDALONE_FLOW_ASSET_OUTPUT_DIRECTORY
+    LokaScrapbookStandaloneFlowWin32 RUNTIME_OUTPUT_DIRECTORY)
+  get_target_property(LOKA_STANDALONE_LOOP_ASSET_OUTPUT_DIRECTORY
+    LokaScrapbookStandaloneLoopWin32 RUNTIME_OUTPUT_DIRECTORY)
   if(CMAKE_CONFIGURATION_TYPES)
-    # Multi-config generators append the selected configuration to the
-    # runtime directory. Keep the sidecar on the same target-owned path.
-    set(LOKA_STANDALONE_FLOW_ASSET_OUTPUT_DIRECTORY
-      "${LOKA_STANDALONE_FLOW_OUTPUT_DIRECTORY}/$<CONFIG>"
-    )
-    set(LOKA_STANDALONE_LOOP_ASSET_OUTPUT_DIRECTORY
-      "${LOKA_STANDALONE_LOOP_OUTPUT_DIRECTORY}/$<CONFIG>"
-    )
+    string(APPEND LOKA_STANDALONE_FLOW_ASSET_OUTPUT_DIRECTORY "/$<CONFIG>")
+    string(APPEND LOKA_STANDALONE_LOOP_ASSET_OUTPUT_DIRECTORY "/$<CONFIG>")
   endif()
 
   add_custom_target(LokaStandaloneWin32Assets
