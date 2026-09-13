@@ -67,6 +67,7 @@ while IFS='|' read -r target_name memberships output_shape rel_path; do
       bundle_root="${UNIVERSAL_ROOT}/$(basename "${bundle_rel_path}")"
       output_path="${bundle_root}/Contents/MacOS/$(basename "${rel_path}")"
       mkdir -p "$(dirname "${output_path}")" "${bundle_root}/Contents/Resources"
+      printf '%s\n' "metadata-${target_name}" >"${bundle_root}/Contents/Info.plist"
       printf '%s\n' "${target_name}" >"${output_path}"
       chmod +x "${output_path}"
       if [[ "${target_name}" == "LokaScrapbookStandaloneLoopMacOS" ]]; then
@@ -85,8 +86,12 @@ LOKA_TEST_BUILD_LOG="${BUILD_LOG}" LOKA_LIPO_BIN="${FAKE_LIPO}" \
   fail "the Tiger build did not select the complete standalone UB1 set"
 
 RELEASE_ROOT="${FAKE_REPO}/build/release/macos-tiger-ub1"
-[[ -x "${RELEASE_ROOT}/LokaSimpleViewerMacOS" ]] ||
+[[ -x "${RELEASE_ROOT}/LokaSimpleViewerMacOS.app/Contents/MacOS/LokaSimpleViewerMacOS" ]] ||
   fail "the UB1 release omitted SimpleViewer"
+[[ "$(cat "${RELEASE_ROOT}/LokaSimpleViewerMacOS.app/Contents/Info.plist")" == "metadata-LokaSimpleViewerMacOS" ]] ||
+  fail "the release lost SimpleViewer bundle metadata"
+[[ ! -e "${RELEASE_ROOT}/LokaSimpleViewerMacOS" ]] ||
+  fail "the release retained an unbundled SimpleViewer executable"
 [[ -x "${RELEASE_ROOT}/LokaHelloWorldStandaloneLoopMacOS.app/Contents/MacOS/LokaHelloWorldStandaloneLoopMacOS" ]] ||
   fail "the UB1 release omitted an autonomous loop"
 [[ -f "${RELEASE_ROOT}/LokaScrapbookStandaloneLoopMacOS.app/Contents/Resources/ASSETS.LRP" ]] ||
