@@ -408,14 +408,14 @@ namespace loka
         /** Partition provenance is distinct from the bump arena landlord. */
         bool isPartitionAllocated() const { return this->storageOrigin_ == STORAGE_PARTITION; }
         void setPartitionOwner(detail::NodePartition *owner)
-        { this->partitionOwner_ = owner; this->storageOrigin_ = STORAGE_PARTITION; }
+        { this->partitionOwner_ = owner; this->storageOrigin_ = static_cast<unsigned char>(STORAGE_PARTITION); }
         detail::NodePartition *partitionOwner() const
         { return this->isPartitionAllocated() ? this->partitionOwner_ : 0; }
 
         void setArenaOwner(detail::NodeArena *owner)
         {
           arenaOwner_ = owner;
-          this->storageOrigin_ = owner ? STORAGE_ARENA : STORAGE_HEAP;
+          this->storageOrigin_ = static_cast<unsigned char>(owner ? STORAGE_ARENA : STORAGE_HEAP);
         }
         detail::NodeArena *arenaOwner() const
         {

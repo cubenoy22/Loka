@@ -233,7 +233,9 @@ namespace
 #elif defined(NDEBUG)
     refusalRoute(route);
 #else
+    // Debug without fork (macOS CI): keep the helper referenced for -Wunused-function.
     (void)route;
+    (void)&refusalRoute;
 #endif
   }
 }
@@ -321,6 +323,8 @@ void testStrictNodeRouteKeyedAttachRefusal()
   verifyCapacityDeath(pid, diagnostic[0]);
 #elif defined(NDEBUG)
   keyedRefusal();
+#else
+  (void)&keyedRefusal;
 #endif
 }
 
