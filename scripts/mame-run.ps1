@@ -57,8 +57,9 @@ $developmentDisk = if ($env:MAME_DEV_HDA) { $env:MAME_DEV_HDA } else {
     Join-Path $ProjectDirectory "build/mame-dev/LokaDev.hd"
 }
 $bootDisk = if ($env:MAME_BOOT_HDA) { $env:MAME_BOOT_HDA } else {
-    Join-Path $ProjectDirectory "build/mame-run/Boot.hd"
+    Join-Path $ProjectDirectory "build/mame-run/$machine/Boot.hd"
 }
+$bootDisk = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($bootDisk)
 New-Item -ItemType Directory -Path $mameHome -Force | Out-Null
 New-Item -ItemType Directory -Path $controlDirectory -Force | Out-Null
 
@@ -67,16 +68,19 @@ New-Item -ItemType Directory -Path $controlDirectory -Force | Out-Null
 # goldens are made of live inside it. Boot a copy under build/ instead. The copy
 # persists so an interactive session keeps its state; wiping build/ resets it.
 function Resolve-FileIdentity([string]$Path) {
-    # Same path spelled twice, and one symlink hop. NTFS hard links share a file
+    # Same path spelled twice, and symlink chains. NTFS hard links share a file
     # id that Windows PowerShell cannot read without extra tooling, so that case
     # is caught by the shell twin's -ef test rather than here.
-    $full = [System.IO.Path]::GetFullPath($Path)
+    $full = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
     $item = Get-Item -LiteralPath $full -Force -ErrorAction SilentlyContinue
-    if ($item -and $item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+    while ($item -and ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
         $target = $item.Target
-        if ($target) {
-            $full = [System.IO.Path]::GetFullPath($target)
+        if (-not $target) { break }
+        if (-not [System.IO.Path]::IsPathRooted($target)) {
+            $target = Join-Path (Split-Path -Parent $full) $target
         }
+        $full = [System.IO.Path]::GetFullPath($target)
+        $item = Get-Item -LiteralPath $full -Force -ErrorAction SilentlyContinue
     }
     return $full
 }
@@ -92,18 +96,38 @@ if ($env:MAME_HDA) {
         ((Resolve-FileIdentity $bootDisk) -ieq (Resolve-FileIdentity $env:MAME_HDA))) {
         throw "MAME_BOOT_HDA resolves to the boot template itself: $bootDisk"
     }
-    # Copy through a temporary and rename, so an interrupted copy cannot leave a
-    # truncated image that every later run would find, skip the copy for, and
-    # boot.
-    if (-not (Test-Path -LiteralPath $bootDisk -PathType Leaf)) {
+    # Deliberate twin of mame-run.sh: UTF-8 without BOM, two LF-terminated
+    # lines (resolved path, lowercase SHA-256). Hash the template every launch.
+    $templatePath = Resolve-FileIdentity $env:MAME_HDA
+    $templateSha = (Get-FileHash -LiteralPath $templatePath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $source = "$bootDisk.source"
+    $oldSource = @(if (Test-Path -LiteralPath $source -PathType Leaf) {
+        @([System.IO.File]::ReadAllLines($source))
+    } else { @() })
+    $reason = if (-not (Test-Path -LiteralPath $bootDisk -PathType Leaf)) {
+        "copy missing"
+    } elseif (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
+        "source missing"
+    } elseif ([System.IO.File]::ReadAllText($source) -cne "$templatePath`n$templateSha`n") {
+        "template changed: $($oldSource | Select-Object -First 1) $([char]0x2192) $templatePath"
+    }
+    if ($reason) {
         $partial = "$bootDisk.partial"
         try {
-            Copy-Item -LiteralPath $env:MAME_HDA -Destination $partial -Force
+            Copy-Item -LiteralPath $templatePath -Destination $partial -Force
+            [System.IO.File]::WriteAllText("$source.partial", "$templatePath`n$templateSha`n",
+                (New-Object System.Text.UTF8Encoding($false)))
+            # Invalidate before committing: a failed second rename must retry.
+            if (Test-Path -LiteralPath $source) { Remove-Item -LiteralPath $source -Force }
             Move-Item -LiteralPath $partial -Destination $bootDisk -Force
+            Move-Item -LiteralPath "$source.partial" -Destination $source -Force
         } catch {
-            Remove-Item -LiteralPath $partial -Force -ErrorAction SilentlyContinue
+            Remove-Item -LiteralPath $partial, "$source.partial" -Force -ErrorAction SilentlyContinue
             throw
         }
+        Write-Host "boot copy: refreshed ($reason)"
+    } else {
+        Write-Host "boot copy: reused (same template)"
     }
     # Unconditional, not part of the copy: a copy this run did not make can be
     # read-only too -- one an earlier launcher left behind, or one restored from

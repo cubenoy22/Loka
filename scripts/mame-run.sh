@@ -48,7 +48,7 @@ MAME_HOMEPATH="${MAME_HOMEPATH:-$HOME/.mame}"
 MAME_EXECUTABLE="${MAME_EXECUTABLE:-mame}"
 MAME_CONTROL_DIR="${MAME_CONTROL_DIR:-$MAME_HOMEPATH/loka}"
 MAME_DEV_HDA="${MAME_DEV_HDA:-$PROJECT_DIR/build/mame-dev/LokaDev.hd}"
-MAME_BOOT_HDA="${MAME_BOOT_HDA:-$PROJECT_DIR/build/mame-run/Boot.hd}"
+MAME_BOOT_HDA="${MAME_BOOT_HDA:-$PROJECT_DIR/build/mame-run/$MAME_MACHINE/Boot.hd}"
 
 mkdir -p "$MAME_HOMEPATH" "$MAME_CONTROL_DIR"
 
@@ -70,16 +70,50 @@ if [ -n "$MAME_HDA" ]; then
     echo "MAME_BOOT_HDA resolves to the boot template itself: $MAME_BOOT_HDA" >&2
     exit 1
   fi
-  # Copy through a temporary and rename, so an interrupted copy cannot leave a
-  # truncated image behind: this run would exit, but every later run would find
-  # a regular file, skip the copy, and boot the corrupt one.
+  # Format and refresh policy deliberately mirror mame-run.ps1: UTF-8, no
+  # BOM, LF-terminated resolved path and lowercase SHA-256. Hash every launch.
+  TEMPLATE_PATH="$(cd "$(dirname "$MAME_HDA")" && pwd -P)/$(basename "$MAME_HDA")"
+  while [ -L "$TEMPLATE_PATH" ]; do
+    TARGET="$(readlink "$TEMPLATE_PATH")"
+    case "$TARGET" in
+      /*) TEMPLATE_PATH="$TARGET" ;;
+      *) TEMPLATE_PATH="$(dirname "$TEMPLATE_PATH")/$TARGET" ;;
+    esac
+    TEMPLATE_PATH="$(cd "$(dirname "$TEMPLATE_PATH")" && pwd -P)/$(basename "$TEMPLATE_PATH")"
+  done
+  if command -v sha256sum >/dev/null 2>&1; then
+    TEMPLATE_SHA="$(sha256sum < "$TEMPLATE_PATH" | cut -d' ' -f1)"
+  else
+    TEMPLATE_SHA="$(shasum -a 256 < "$TEMPLATE_PATH" | cut -d' ' -f1)"
+  fi
+  SOURCE="$MAME_BOOT_HDA.source"
+  OLD_PATH=""
+  if [ -f "$SOURCE" ]; then
+    { IFS= read -r OLD_PATH || true; } < "$SOURCE"
+  fi
+  REASON=""
   if [ ! -f "$MAME_BOOT_HDA" ]; then
-    if ! cp -f "$MAME_HDA" "$MAME_BOOT_HDA.partial" ||
-       ! mv -f "$MAME_BOOT_HDA.partial" "$MAME_BOOT_HDA"; then
-      rm -f "$MAME_BOOT_HDA.partial"
+    REASON="copy missing"
+  elif [ ! -f "$SOURCE" ]; then
+    REASON="source missing"
+  elif ! printf '%s\n%s\n' "$TEMPLATE_PATH" "$TEMPLATE_SHA" | cmp -s - "$SOURCE"; then
+    REASON="template changed: $OLD_PATH → $TEMPLATE_PATH"
+  fi
+  if [ -n "$REASON" ]; then
+    # Stage both files first. Invalidate the old record before committing the
+    # disk: interruption between renames must force a refresh on the next run.
+    if ! cp -f "$TEMPLATE_PATH" "$MAME_BOOT_HDA.partial" ||
+       ! printf '%s\n%s\n' "$TEMPLATE_PATH" "$TEMPLATE_SHA" > "$SOURCE.partial" ||
+       ! rm -f "$SOURCE" ||
+       ! mv -f "$MAME_BOOT_HDA.partial" "$MAME_BOOT_HDA" ||
+       ! mv -f "$SOURCE.partial" "$SOURCE"; then
+      rm -f "$MAME_BOOT_HDA.partial" "$SOURCE.partial"
       echo "could not copy the boot hard disk template to $MAME_BOOT_HDA" >&2
       exit 1
     fi
+    printf 'boot copy: refreshed (%s)\n' "$REASON"
+  else
+    echo 'boot copy: reused (same template)'
   fi
   # Unconditional, not part of the copy: a copy this run did not make can be
   # read-only too -- one an earlier launcher left behind, or one restored from

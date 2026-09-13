@@ -40,6 +40,7 @@ for argument in "$@"; do
   previous="$argument"
 done
 if [ -n "$boot" ]; then
+  cp "$boot" "$SANDBOX/boot-received"
   printf 'WRITTEN-BY-EMULATOR' > "$boot"
 fi
 EOF
@@ -85,7 +86,19 @@ run_launcher() {
     bash "$SANDBOX/scripts/mame-run.sh"
 }
 
-BOOT_COPY="$SANDBOX/build/mame-run/Boot.hd"
+# Profile switches must replace the bytes MAME actually receives (#741).
+SECOND_TEMPLATE="$SANDBOX/second template.hda"
+printf 'SECOND-SYSTEM' > "$SECOND_TEMPLATE"
+for selected in "$TEMPLATE" "$SECOND_TEMPLATE" "$TEMPLATE"; do
+  printf 'MAME_HDA="%s"\n' "$selected" >> "$SANDBOX/mame.env"
+  run_launcher >"$SANDBOX/profile-switch.log" 2>&1 ||
+    fail profile-switch "launcher failed"
+  cmp -s "$selected" "$SANDBOX/boot-received" ||
+    fail profile-switch "MAME received stale template bytes"
+done
+pass profile-switch
+
+BOOT_COPY="$SANDBOX/build/mame-run/maciix/Boot.hd"
 
 # --- the emulator receives a copy, and the template survives the write --------
 rm -rf "$SANDBOX/build/mame-run"
@@ -106,8 +119,33 @@ run_launcher >"$SANDBOX/copy-persists.log" 2>&1 ||
   fail copy-persists "the launcher exited non-zero"
 grep -Fxq 'WRITTEN-BY-EMULATOR' "$BOOT_COPY" ||
   fail copy-persists "the emulator did not write to the persisted copy"
+grep -Fxq 'SESSION-STATE' "$SANDBOX/boot-received" ||
+  fail copy-persists "session state was replaced"
+grep -Fxq 'boot copy: reused (same template)' "$SANDBOX/copy-persists.log" ||
+  fail copy-persists "reuse was not reported"
+printf '%s\n%s\n' "$TEMPLATE" "$TEMPLATE_DIGEST" > "$SANDBOX/expected.source"
+cmp -s "$SANDBOX/expected.source" "$BOOT_COPY.source" ||
+  fail sidecar-format "expected two LF-terminated lines"
 assert_template_pristine copy-persists
 pass copy-persists
+
+# Same path with changed contents, and missing/malformed provenance, invalidate.
+for invalidation in digest source-missing source-malformed copy-missing; do
+  case "$invalidation" in
+    digest) printf 'UPDATED-SYSTEM' > "$TEMPLATE" ;;
+    source-missing) rm "$BOOT_COPY.source" ;;
+    source-malformed) printf 'extra\n' >> "$BOOT_COPY.source" ;;
+    copy-missing) rm "$BOOT_COPY" ;;
+  esac
+  run_launcher >"$SANDBOX/invalidation.log" 2>&1 ||
+    fail "$invalidation" "launcher failed"
+  cmp -s "$TEMPLATE" "$SANDBOX/boot-received" ||
+    fail "$invalidation" "stale session survived invalidation"
+  grep -Fq 'boot copy: refreshed (' "$SANDBOX/invalidation.log" ||
+    fail "$invalidation" "refresh reason missing"
+  pass "$invalidation"
+done
+printf 'PRISTINE-TEMPLATE-BYTES' > "$TEMPLATE"
 
 # --- MAME_BOOT_HDA relocates the copy ----------------------------------------
 rm -rf "$SANDBOX/build/mame-run"
@@ -118,6 +156,14 @@ run_launcher "MAME_BOOT_HDA=$ELSEWHERE" >"$SANDBOX/override.log" 2>&1 ||
   fail boot-copy-override "expected -hard1 $ELSEWHERE, got $(hard1_value)"
 assert_template_pristine boot-copy-override
 pass boot-copy-override
+printf 'MAME_HDA="%s"\n' "$SECOND_TEMPLATE" >> "$SANDBOX/mame.env"
+run_launcher "MAME_BOOT_HDA=$ELSEWHERE" >"$SANDBOX/override-switch.log" 2>&1 ||
+  fail override-switch "launcher failed"
+cmp -s "$SECOND_TEMPLATE" "$SANDBOX/boot-received" ||
+  fail override-switch "override skipped source validation"
+printf 'MAME_HDA="%s"\n' "$TEMPLATE" >> "$SANDBOX/mame.env"
+pass override-switch
+
 
 # --- the copy is whole, and no partial is left behind ------------------------
 # The copy goes through a temporary and is renamed, so an interrupted run cannot
@@ -134,6 +180,47 @@ run_launcher >"$SANDBOX/copy-is-complete.log" 2>&1 ||
   fail copy-is-complete "the boot copy is empty"
 assert_template_pristine copy-is-complete
 pass copy-is-complete
+
+# Failed staging preserves the old disk; failed sidecar commit must retry even
+# if the next launch switches back to the formerly recorded template.
+mkdir -p "$SANDBOX/bin"
+REAL_CP="$(command -v cp)"
+REAL_MV="$(command -v mv)"
+export REAL_CP REAL_MV
+cat > "$SANDBOX/bin/cp" <<'EOF'
+#!/usr/bin/env bash
+if [ "${FAIL_BOOT_COPY:-}" = 1 ] && [[ "${*: -1}" = *.partial ]]; then exit 1; fi
+exec "$REAL_CP" "$@"
+EOF
+cat > "$SANDBOX/bin/mv" <<'EOF'
+#!/usr/bin/env bash
+if [ "${FAIL_SOURCE_COMMIT:-}" = 1 ] && [[ "${*: -1}" = *.source ]]; then exit 1; fi
+exec "$REAL_MV" "$@"
+EOF
+chmod +x "$SANDBOX/bin/cp" "$SANDBOX/bin/mv"
+for failure in FAIL_BOOT_COPY FAIL_SOURCE_COMMIT; do
+  run_launcher > "$SANDBOX/prepare.log" 2>&1
+  cp "$BOOT_COPY" "$SANDBOX/previous-boot"
+  printf 'MAME_HDA="%s"\n' "$SECOND_TEMPLATE" >> "$SANDBOX/mame.env"
+  rm -f "$SANDBOX/mame.argv"
+  if run_launcher "PATH=$SANDBOX/bin:$PATH" "$failure=1" > "$SANDBOX/failure.log" 2>&1; then
+    fail "$failure" "injected failure was ignored"
+  fi
+  [ ! -f "$SANDBOX/mame.argv" ] || fail "$failure" "launched after failed copy"
+  [ ! -e "$BOOT_COPY.partial" ] && [ ! -e "$BOOT_COPY.source.partial" ] ||
+    fail "$failure" "partial files survived"
+  if [ "$failure" = FAIL_BOOT_COPY ]; then
+    cmp -s "$BOOT_COPY" "$SANDBOX/previous-boot" || fail "$failure" "old disk lost"
+  else
+    [ ! -e "$BOOT_COPY.source" ] || fail "$failure" "stale provenance survived"
+  fi
+  printf 'MAME_HDA="%s"\n' "$TEMPLATE" >> "$SANDBOX/mame.env"
+  run_launcher > "$SANDBOX/recovery.log" 2>&1
+  if [ "$failure" = FAIL_SOURCE_COMMIT ]; then
+    cmp -s "$TEMPLATE" "$SANDBOX/boot-received" || fail "$failure" "recovery reused wrong disk"
+  fi
+  pass "$failure"
+done
 
 # --- a boot copy that aliases the template is refused ------------------------
 # Without this the existence check passes and -hard1 names the template after
@@ -186,7 +273,8 @@ pass writable-copy
 # and normalising the mode must not cost the session state the copy exists to
 # keep.
 rm -rf "$SANDBOX/build/mame-run"
-mkdir -p "$SANDBOX/build/mame-run"
+mkdir -p "$(dirname "$BOOT_COPY")"
+printf '%s\n%s\n' "$TEMPLATE" "$TEMPLATE_DIGEST" > "$BOOT_COPY.source"
 printf 'STATE-FROM-AN-EARLIER-SESSION' > "$BOOT_COPY"
 chmod a-w "$BOOT_COPY"
 run_launcher >"$SANDBOX/existing-copy.log" 2>&1 ||
@@ -279,6 +367,23 @@ tr -d '\r' < "$SANDBOX/mame.argv.txt" | grep -Fq "$(basename "$PS_TEMPLATE")" &&
 [ "$(sha256sum "$PS_TEMPLATE" | cut -d' ' -f1)" = "$PS_TEMPLATE_DIGEST" ] ||
   fail ps-boots-a-copy "the template was modified"
 pass ps-boots-a-copy
+
+# Exercise the same profile cycle and exact sidecar bytes on Windows.
+for selected in "$SECOND_TEMPLATE" "$PS_TEMPLATE" "$PS_TEMPLATE"; do
+  printf 'MAME_HDA="%s"\n' "$(to_host_path "$selected")" >> "$SANDBOX/ps.env"
+  "$POWERSHELL" -NoProfile -ExecutionPolicy Bypass \
+    -File "$(to_host_path "$SANDBOX/scripts/mame-run.ps1")" \
+    -EnvironmentFile "$(to_host_path "$SANDBOX/ps.env")" \
+    >"$SANDBOX/ps-profile.log" 2>&1 || fail ps-profile "launcher failed"
+  cmp -s "$selected" "$BOOT_COPY" || fail ps-profile "stale boot bytes"
+  printf '%s\n%s\n' "$(to_host_path "$selected")" \
+    "$(sha256sum < "$selected" | cut -d' ' -f1)" > "$SANDBOX/expected.source"
+  cmp -s "$SANDBOX/expected.source" "$BOOT_COPY.source" ||
+    fail ps-profile "sidecar format differs"
+done
+grep -Fq 'boot copy: reused (same template)' "$SANDBOX/ps-profile.log" ||
+  fail ps-profile "unchanged template was not reused"
+pass ps-profile
 
 MAME_BOOT_HDA_HOST="$(to_host_path "$PS_TEMPLATE")"
 cat >>"$SANDBOX/ps.env" <<EOF
