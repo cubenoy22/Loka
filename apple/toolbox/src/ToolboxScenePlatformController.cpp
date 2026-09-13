@@ -47,9 +47,69 @@
 #include "context/ToolboxLayoutUtil.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/boundary/Boundary.hpp"
+#include "app/scene/projection/CollectPaintAnswers.hpp"
 
 namespace
 {
+  /** Only these built-in drawers are cast. Registration protects the same
+      type keys, including in release builds, as on the Win32 rail. */
+  bool IsToolboxPaintDrawerType(const void *key)
+  {
+    return key == loka::app::scene::NodeTypeToken<loka::app::RectSurfaceNode>()
+           || key == loka::app::scene::NodeTypeToken<loka::app::ButtonNode>()
+           || key == loka::app::scene::NodeTypeToken<loka::app::TextNode>();
+  }
+
+  struct ToolboxPaintAnswerSource
+  {
+    explicit ToolboxPaintAnswerSource(ToolboxSceneDebugStats &stats) : stats_(stats) {}
+
+    bool queryPaintAnswer(loka::app::scene::Node *node,
+                          loka::app::scene::NodeContext *context,
+                          const loka::app::scene::PaintQuery &query,
+                          loka::app::scene::PaintAnswer &answer)
+    {
+      using namespace loka::app::scene;
+      this->stats_.noteCollectorVisit();
+      if (IsToolboxPaintDrawerType(node->nodeTypeKey()))
+      {
+        answer = context ? static_cast<NativeNodeContext *>(context)->queryPaintDamage(query)
+                         : PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+        return true;
+      }
+      switch (node->kind())
+      {
+      case NODE_KIND_OPEN_FILE_DIALOG:
+      case NODE_KIND_SCROLL_VIEW:
+      case NODE_KIND_BOX:
+      case NODE_KIND_ZSTACK:
+      case NODE_KIND_GRID:
+      case NODE_KIND_STACK:
+      case NODE_KIND_CANVAS:
+        return false;
+      case NODE_KIND_UNKNOWN:
+        if (!node->asProjectedLayoutNode())
+          return false;
+        break;
+      case NODE_KIND_RECT_SURFACE:
+      case NODE_KIND_TEXT:
+      case NODE_KIND_BUTTON:
+      case NODE_KIND_POPUP_MENU:
+      case NODE_KIND_SCROLL_BAR:
+      case NODE_KIND_EDIT_TEXT:
+      case NODE_KIND_CELL:
+      case NODE_KIND_IMAGE_VIEW:
+        break;
+      }
+      // In particular, a TE data sync or a Popup ledger refresh is not a
+      // completed Control Manager/TE paint submission. Preserve widening.
+      answer = PaintAnswer::refused(context ? PAINT_REFUSED_UNSUPPORTED_KIND : PAINT_REFUSED_NO_CONTEXT);
+      return true;
+    }
+
+    ToolboxSceneDebugStats &stats_;
+  };
+
 #if !defined(pushButProc) && !defined(LOKA_TOOLBOX_MULTIVERSAL_INTERFACES)
   enum
   {
@@ -434,6 +494,8 @@ ToolboxScenePlatformController::~ToolboxScenePlatformController()
 
 bool ToolboxScenePlatformController::registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler)
 {
+  if (!handler || IsToolboxPaintDrawerType(handler->nodeTypeKey()))
+    return false;
   return this->nodeHandlerRegistry_.registerHandler(handler);
 }
 
@@ -767,16 +829,28 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
     return;
   }
 
+  using namespace loka::app::scene;
+  const PaintQuery query = {ToolboxPaintScope(),
+                           plan.hasStructureWork() || plan.hasLayoutWork() ? PLACEMENT_PENDING : PLACEMENT_ELIGIBLE};
+  PaintAnswerBuffer<> answers;
+  ToolboxPaintAnswerSource source(this->debugStats_);
+  const PaintApplyVerdict verdict = CollectPaintAnswers(*boundary, query, answers, source);
+  if (verdict.canSkipBroadPaint(info))
+  {
+    for (unsigned i = 0; i < answers.count(); ++i)
+    {
+      const PaintDamage &damage = answers.entry(i).damage;
+      const Rect rect = {static_cast<short>(damage.y), static_cast<short>(damage.x),
+                         static_cast<short>(damage.y + damage.height), static_cast<short>(damage.x + damage.width)};
+      this->window_->requestInvalidateRect(rect);
+    }
+    return;
+  }
+
   if (!this->scrollBarLedger_.viewportScrollBars_.empty())
   {
-    // Boundary bounds are recorded in content coordinates; inside a scrolled
-    // viewport they no longer name window pixels, and a rect invalidation
-    // would leave the OS update region clipping the redraw to the wrong
-    // place. Escalate to a full-window invalidation whenever a viewport is
-    // installed - the same conservative fallback renderDirty already takes:
-    // overpaint, never stale pixels. Projecting per-boundary bounds through
-    // the scope is the recorded alternative for a later pass (#518's
-    // projection-target track).
+    // Only the fallback reaches here. Refused or composited work cannot use
+    // content-coordinate Boundary bounds as window pixels (frozen #518 ruling).
     window_->requestInvalidate();
     return;
   }
@@ -1244,13 +1318,6 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
   if (forceFullRedraw_)
   {
     forceFullRedraw_ = false;
-    render();
-    return;
-  }
-  if (!scrollBarLedger_.viewportScrollBars_.empty())
-  {
-    // Direct dirty RectSurface replay bypasses the node render switch. Keep
-    // the viewport's central clip authoritative whenever one is installed.
     render();
     return;
   }
@@ -1997,6 +2064,16 @@ void ToolboxScenePlatformController::redrawTextHit(TextHit &hit)
 {
   if (!window_ || !window_->window())
   {
+    return;
+  }
+  if (hit.context)
+  {
+    GrafPtr previous;
+    GetPort(&previous);
+    SetPort(this->window_->window());
+    hit.context->repaint();
+    hit.lastMeasuredWidth = hit.context->visibleWidth();
+    SetPort(previous);
     return;
   }
   short measuredWidth = hit.text ? ToolboxMeasureTextWidth(hit.text->get()) : 0;

@@ -220,6 +220,8 @@ private:
   friend bool RegisterToolboxBuiltInSupport(ToolboxScenePlatformController &controller);
   template <typename Sink, typename StateType>
   friend class ToolboxEnabledStateBindingPath;
+  friend class ToolboxTextContext;
+  friend class ToolboxRectSurfaceContext;
 
   typedef ToolboxHitLedger::ButtonHit ButtonHit;
   typedef ToolboxHitLedger::CellHit CellHit;

@@ -68,6 +68,29 @@ ToolboxButtonContext::ToolboxButtonContext(loka::app::ButtonNode *node, ToolboxS
 
 ToolboxButtonContext::~ToolboxButtonContext() {}
 
+loka::app::scene::PaintAnswer ToolboxButtonContext::queryPaintDamage(const loka::app::scene::PaintQuery &query) const
+{
+  using namespace loka::app::scene;
+  if (query.placement != PLACEMENT_ELIGIBLE || query.scope != ToolboxPaintScope())
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  if (!this->node_ || !this->presented_.isKnown())
+    return PaintAnswer::refused(PAINT_REFUSED_HISTORY_UNKNOWN);
+  const ToolboxButtonPaintValue current(
+      this->node_->props.text_ ? this->node_->props.text_->get() : loka::core::String::Literal("Button"),
+      !this->node_->props.enabled_ || this->node_->props.enabled_->get());
+  if (!(current == this->presented_.value()))
+    return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
+  return ToolboxExactPaint(this->rect_, false);
+}
+
+void ToolboxButtonContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                        loka::app::scene::NodeLifecycleFact next)
+{
+  if (next != loka::app::scene::NODE_FACT_ATTACHED)
+    this->presented_.invalidate();
+  ToolboxProjectedNodeContext::onFactChanged(previous, next);
+}
+
 void ToolboxButtonContext::retireNativeProjection()
 {
   if (this->controller())
@@ -100,11 +123,13 @@ void ToolboxButtonContext::updateData(const loka::core::String &label,
 
 void ToolboxButtonContext::updateRect(const Rect &rect)
 {
+  this->presented_.invalidate();
   rect_ = rect;
 }
 
 void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
 {
+  this->presented_.invalidate();
   if (controller && resourceId_ <= 0)
   {
     resourceId_ = controller->allocateControlId();
@@ -113,6 +138,8 @@ void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
   {
     if (controller->ensureButtonControl(resourceId_, rect_, label_, emitter_, enabled_, lifetimeHint()))
     {
+      this->presented_.commit(ToolboxButtonPaintValue(this->label_, !this->enabled_ || this->enabled_->get()),
+                              ToolboxPaintScope());
       return;
     }
   }
@@ -195,6 +222,7 @@ bool ToolboxButtonContext::captureProps()
 
 void ToolboxButtonContext::onPropsApplied()
 {
+  this->presented_.invalidate();
   const bool changed = this->captureProps();
   if (changed && this->controller() && this->node_)
   {

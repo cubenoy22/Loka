@@ -32,12 +32,12 @@ namespace
 
   ToolboxTextNodeHandler gToolboxTextNodeHandler;
 
-  void DrawStringAt(short x, short y, const loka::core::String &value)
+  bool DrawStringAt(short x, short y, const loka::core::String &value)
   {
     std::string utf8;
     if (!loka::platform::CollectUtf8(value, utf8))
     {
-      return;
+      return false;
     }
     std::size_t length = utf8.size();
     if (length > 255)
@@ -52,6 +52,7 @@ namespace
     }
     MoveTo(x, y);
     DrawString(text);
+    return true;
   }
 
   void DrawUtf8At(short x, short y, const std::string &utf8)
@@ -203,6 +204,7 @@ ToolboxTextContext::ToolboxTextContext(loka::app::TextNode *node, ToolboxScenePl
     : ToolboxProjectedNodeContext(controller),
       node_(node),
       rect_(),
+      paintRect_(),
       textX_(0),
       textY_(0),
       maxWidth_(0),
@@ -214,6 +216,33 @@ ToolboxTextContext::ToolboxTextContext(loka::app::TextNode *node, ToolboxScenePl
 
 ToolboxTextContext::~ToolboxTextContext() {}
 
+loka::app::scene::PaintAnswer ToolboxTextContext::queryPaintDamage(
+    const loka::app::scene::PaintQuery &query) const
+{
+  using namespace loka::app::scene;
+  if (query.placement != PLACEMENT_ELIGIBLE || query.scope != ToolboxPaintScope())
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  if (!this->node_ || !this->text_ || this->node_->props.text_ != this->text_)
+    return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
+  if (!this->presented_.isKnown())
+    return PaintAnswer::refused(PAINT_REFUSED_HISTORY_UNKNOWN);
+  loka::core::State<loka::core::String> *live = this->liveTextState();
+  PaintAnswer answer = ToolboxExactPaint(this->paintRect_, live && !live->get().equals(this->presented_.value()));
+  answer.damage.coverage = PAINT_COVERAGE_ERASE_AND_PAINT;
+  return answer;
+}
+
+void ToolboxTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                      loka::app::scene::NodeLifecycleFact next)
+{
+  if (next != loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->presented_.invalidate();
+    SetRect(&this->paintRect_, 0, 0, 0, 0);
+  }
+  ToolboxProjectedNodeContext::onFactChanged(previous, next);
+}
+
 void ToolboxTextContext::updateData(loka::core::State<loka::core::String> *text)
 {
   text_ = text;
@@ -222,6 +251,10 @@ void ToolboxTextContext::updateData(loka::core::State<loka::core::String> *text)
 void ToolboxTextContext::updateRect(const Rect &rect, short textX, short textY)
 {
   rect_ = rect;
+  this->presented_.invalidate();
+  this->paintRect_ = rect;
+  if (this->controller() && !this->controller()->intersectWithProjectionClip(rect, this->paintRect_))
+    SetRect(&this->paintRect_, 0, 0, 0, 0);
   textX_ = textX;
   textY_ = textY;
 }
@@ -241,49 +274,56 @@ short ToolboxTextContext::visibleWidth() const
   return width;
 }
 
-void ToolboxTextContext::draw(ToolboxScenePlatformController *controller)
+void ToolboxTextContext::paint()
 {
-  if (!text_)
+  this->presented_.invalidate();
+  if (!this->text_)
+    return;
+  RgnHandle saved = NewRgn();
+  RgnHandle clip = NewRgn();
+  if (!saved || !clip)
   {
+    if (saved)
+      DisposeRgn(saved);
+    if (clip)
+      DisposeRgn(clip);
     return;
   }
-  if (maxWidth_ > 0)
+  GetClip(saved);
+  RectRgn(clip, &this->paintRect_);
+  SectRgn(saved, clip, clip);
+  SetClip(clip);
+  bool painted = false;
+  if (this->maxWidth_ > 0 && this->truncationMode_ == loka::app::TEXT_TRUNCATION_ELLIPSIS)
   {
-    Rect clipRect = rect_;
-    short oldX = textX_;
-    short oldY = textY_;
-    RgnHandle oldClip = NewRgn();
-    if (oldClip != 0)
-    {
-      GetClip(oldClip);
-      ClipRect(&clipRect);
-      if (truncationMode_ == loka::app::TEXT_TRUNCATION_ELLIPSIS)
-      {
-        const std::string truncated = TruncateWithEllipsis(text_->get(), maxWidth_);
-        DrawUtf8At(oldX, oldY, truncated);
-      }
-      else
-      {
-        DrawStringAt(oldX, oldY, text_->get());
-      }
-      SetClip(oldClip);
-      DisposeRgn(oldClip);
-    }
-    else
-    {
-      // Low-memory fallback: draw without changing clip state.
-      DrawStringAt(oldX, oldY, text_->get());
-    }
+    const std::string truncated = TruncateWithEllipsis(this->text_->get(), this->maxWidth_);
+    DrawUtf8At(this->textX_, this->textY_, truncated);
+    // The legacy truncator cannot report conversion refusal, so it cannot
+    // establish a completed value. Keep its answer conservative.
   }
   else
   {
-    DrawStringAt(textX_, textY_, text_->get());
+    painted = DrawStringAt(this->textX_, this->textY_, this->text_->get());
   }
-  if (controller)
-  {
-    controller->recordTextHit(
-        rect_, textX_, textY_, text_, boundary_, wrapMode_ != loka::app::TEXT_WRAP_NONE, visibleWidth(), this);
-  }
+  if (painted && ToolboxPaintClipCovers(clip, this->paintRect_))
+    this->presented_.commit(this->text_->get(), ToolboxPaintScope());
+  SetClip(saved);
+  DisposeRgn(clip);
+  DisposeRgn(saved);
+}
+
+void ToolboxTextContext::repaint()
+{
+  EraseRect(&this->paintRect_);
+  this->paint();
+}
+
+void ToolboxTextContext::draw(ToolboxScenePlatformController *controller)
+{
+  this->paint();
+  if (controller && this->text_)
+    controller->recordTextHit(this->rect_, this->textX_, this->textY_, this->text_, this->boundary_,
+                              this->wrapMode_ != loka::app::TEXT_WRAP_NONE, this->visibleWidth(), this);
 }
 
 short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controller,
@@ -363,6 +403,7 @@ bool ToolboxTextContext::captureProps()
 
 void ToolboxTextContext::onPropsApplied()
 {
+  this->presented_.invalidate();
   const bool changed = this->captureProps();
   if (changed && this->controller() && this->node_)
   {

@@ -5,6 +5,7 @@
 #include "app/nodes/Text.hpp"
 #include "core/String.hpp"
 #include "ToolboxPropsRefresh.hpp"
+#include "context/ToolboxPaintSupport.hpp"
 #include <Quickdraw.h>
 
 class ToolboxScenePlatformController;
@@ -45,6 +46,11 @@ public:
   ToolboxTextContext(loka::app::TextNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxTextContext();
   virtual void onPropsApplied();
+  virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                             loka::app::scene::NodeLifecycleFact next);
+  virtual loka::app::scene::PaintAnswer queryPaintDamage(const loka::app::scene::PaintQuery &query) const;
+  /** Repaint the captured visible placement without registering another hit. */
+  void repaint();
 
   void updateData(loka::core::State<loka::core::String> *text);
   void updateRect(const Rect &rect, short textX, short textY);
@@ -64,8 +70,11 @@ public:
 private:
   /** Capture local data and report whether existing controller rows need refresh. */
   bool captureProps();
+  void paint();
   loka::app::TextNode *node_;
   Rect rect_;
+  Rect paintRect_;
+  loka::app::scene::PaintFact<loka::core::String> presented_;
   short textX_;
   short textY_;
   short maxWidth_;
