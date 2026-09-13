@@ -5,6 +5,7 @@ name: Toolbox Build CI
 # rig-local golden evidence.
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   push:
     branches:
       - main
@@ -22,7 +23,7 @@ concurrency:
 jobs:
   toolbox-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       RETRO68_IMAGE: ghcr.io/autc04/retro68@sha256:459dd3ea9856262162615527021be7b64f198631dc59cca8cedbf197b7656019
     steps:
@@ -68,9 +69,48 @@ jobs:
               cmake --build --preset retro68-ppc-release
             '
 
+      - name: Build the PR comparison commit
+        id: comparison
+        if: ${{ (github.event_name != 'pull_request' || steps.changes.outputs.run == 'true') && github.event_name == 'pull_request' }}
+        shell: bash
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # HEAD is the CI merge candidate. Compare that tested integration to
+          # its target, never to a moving branch tip or the cumulative bank.
+          base=$(git merge-base "$PR_BASE_SHA" HEAD)
+          echo "commit=$base" >> "$GITHUB_OUTPUT"
+          git worktree add --detach "$RUNNER_TEMP/retro68-size-base" "$base"
+          # Deliberate twin of the candidate 68K setup above: same container
+          # mount path, pinned image, interfaces, preset and generator.
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            --env INTERFACES=multiversal \
+            --env RETRO68_BUILD_DIR=/Retro68-build \
+            --volume "$RUNNER_TEMP/retro68-size-base:/workspace" \
+            --workdir /workspace \
+            "$RETRO68_IMAGE" \
+            /bin/bash -ceu '
+              cmake --preset retro68-68k-release -G "Unix Makefiles" \
+                -DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON
+              cmake --build --preset retro68-68k-release
+            '
+
       - name: Report and gate Toolbox 68K binary sizes
-        run: python3 tools/ci/retro68_size_report.py build/retro68/68k/Release
         if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
+        shell: bash
+        env:
+          LOKA_SIZE_NOTE: ${{ contains(github.event.pull_request.labels.*.name, 'size-note') && '1' || '0' }}
+          COMPARISON_REF: ${{ steps.comparison.outputs.commit }}
+          IS_PR: ${{ github.event_name == 'pull_request' }}
+        run: |
+          args=()
+          if [ "$IS_PR" = true ]; then
+            test -n "$COMPARISON_REF"
+            args=(--compare-build-root "$RUNNER_TEMP/retro68-size-base/build/retro68/68k/Release"
+                  --comparison-ref "$COMPARISON_REF")
+          fi
+          python3 tools/ci/retro68_size_report.py build/retro68/68k/Release "${args[@]}"
 
       - name: Check Toolbox 68K size headroom
         id: headroom
@@ -106,7 +146,8 @@ jobs:
             const report = fs.existsSync(reportPath) ? fs.readFileSync(reportPath, 'utf8') : '';
             const body = marker + '\n' + report + '\nRun the [size bank refresh workflow](https://github.com/' +
               context.repo.owner + '/' + context.repo.repo +
-              '/actions/workflows/size-bank-refresh.yml) on main before the allowance is exhausted.';
+              '/actions/workflows/size-bank-refresh.yml) on main to update the absolute record. ' +
+              'This bank warning is informational; the PR gate compares to its built base.';
             const params = { ...context.repo, issue_number: context.issue.number };
             const comments = await github.paginate(github.rest.issues.listComments, params);
             const existing = comments.find(comment =>

@@ -42,12 +42,12 @@ class SizeBankRefreshTest(unittest.TestCase):
         return status, output.getvalue()
 
     def test_headroom_is_strict_and_never_writes(self):
-        for threshold, expected in [(128, 0), (129, 2), (0, 0), (-1, 1)]:
+        for threshold, expected in [(256, 0), (257, 2), (0, 0), (-1, 1)]:
             status, output = self.run_tool("--check-headroom", str(threshold))
             self.assertEqual(status, expected)
             self.assertEqual(self.path.read_bytes(), self.original)
             if expected == 2:
-                self.assertIn("| Fixture68K | 128 |", output)
+                self.assertIn("| Fixture68K | 256 |", output)
 
     def test_measurement_error_is_not_low_headroom(self):
         self.artifact.unlink()
@@ -71,7 +71,7 @@ class SizeBankRefreshTest(unittest.TestCase):
         self.assertIn("accumulated #3, #12 since", reference)
         self.assertNotIn("#99", reference)
         self.assertEqual(updated["schema_version"], 1)
-        self.assertEqual(updated["material_growth_bytes"], 256)
+        self.assertEqual(updated["cumulative_stop_bytes"], 256)
         self.assertIn("| Fixture68K |", body.read_text())
         self.assertIn("+128 |", body.read_text())
         self.assertIn("Allow GitHub Actions to create", body.read_text())

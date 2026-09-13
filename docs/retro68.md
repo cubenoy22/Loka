@@ -105,23 +105,53 @@ python3 tools/ci/retro68_size_report.py build/retro68/68k/Release
 ```
 
 The report reads each final `.bin` resource fork and prints its total file size
-and CODE/DATA/RELA payload composition. The checked-in baseline manifest owns
-the shipping application list and allows at most 4096 bytes of total growth per
-application before the command fails. Component deltas are always printed for
-attribution. The 4 KiB allowance ignores small toolchain/resource-alignment
-churn while still catching the multi-kilobyte framework expansions that
-motivated the size audit. It is cumulative from the checked-in baseline, so a
-series of smaller increases cannot silently reset the allowance: only a
-deliberate, reviewed baseline refresh moves the reference point. A deliberate
-baseline refresh is its own reviewed change, or rides the change that introduces
-the growth with the explanation in that PR. The command also refuses a newly
-built final application that has no explicit baseline entry. Toolbox CI runs
-the same command after its pinned 68K build. Update baseline facts only with a
-fresh full Release build and a reviewed explanation for the accepted growth.
-Per the 2026-09-02 ruling the
-gate is a drift detector, not a budget: intentional feature growth is banked by
-refreshing rows deliberately, and only runaway growth — hundreds of kilobytes
-on a tens-of-kilobytes-class application — would justify a hard ceiling.
+and CODE/DATA/RELA payload composition. The checked-in manifest owns the shipping
+application inventory and growth thresholds. Growth means CODE+DATA (text+data),
+excluding RELA and MacBinary overhead; the file total remains visible for attribution.
+The default local command compares against the bank and fails above 200 KB of
+cumulative growth per application. Here 1 KB = 1,024 bytes.
+
+The maintainer ruling of 2026-09-14 sets these per-application PR bands:
+
+| CODE+DATA delta from the built merge-base | Verdict |
+| --- | --- |
+| <50 KB | ok; no explanation required |
+| 50 KB to <100 KB | Requires a PR body size note and the `size-note` label |
+| >=100 KB | REGRESSION even with a note; a ruling is required (bank refresh PR with a design note) |
+
+The workflow maps `size-note` to `LOKA_SIZE_NOTE=1` and reruns on label changes.
+Local runs can use `--acknowledge-growth` or that environment variable. The gate
+cannot inspect the PR body. The manifest stores the ok ceiling and note floor
+(both 51,200 bytes), stop (102,400 bytes), and cumulative limit (204,800 bytes).
+
+For PRs, Toolbox CI builds a fresh comparison worktree using the same pinned
+image, Multiversal Interfaces, Release preset, generator and container mount path
+as the candidate. It compares the **CI merge candidate** to its merge-base with
+the event's immutable target SHA (normally that target SHA itself). Thus a stacked
+PR uses its target branch, and already-landed growth is not charged again. The
+report command takes `--compare-build-root <base Release directory>` together
+with `--comparison-ref <base commit>`; the latter labels the evidence, while the
+workflow is responsible for building that commit. This costs one extra 68K build
+per non-skipped PR; PPC is built only for the candidate. No size cache is reused.
+
+The checked-in bank remains the absolute record. Main/dispatch CI enforces the
+cumulative guard: growth above 200 KB prints
+`CUMULATIVE GROWTH: <app> +<bytes> since bank <sha>` and fails the job. Exactly
+200 KB is allowed. Even local `--report-only` cannot bypass this guard. The PR
+headroom comment remains informational and measures room to the cumulative limit.
+Refresh the bank only with a fresh full Release build and an explicit inventory
+and design note for accepted growth. A failed main check remains visible until
+that refresh; a later per-PR ok verdict does not clear it.
+
+Malformed or missing artifacts and unlisted candidate applications still fail,
+including in report-only mode. A measured comparison requires every manifest
+artifact on both sides: adding or moving an application without that path in the
+base is refused, not silently measured as zero or against a stale bank. Such
+inventory migrations need a separately defined comparison policy.
+
+The size audit is a drift detector. A bank refresh updates the absolute record;
+it cannot waive the unconditional stop in a measured PR comparison. Changing
+that stop requires an explicit ruling, not an acknowledgment flag.
 
 ### Small-object pool
 
