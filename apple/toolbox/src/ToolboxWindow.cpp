@@ -45,11 +45,6 @@ ToolboxWindow::ToolboxWindow(PlatformContext *context, const WindowProps &props)
       context_(0),
       needsInvalidate_(false),
       pendingDebugDump_(false),
-      pendingDebugDumpCompletion_(0),
-      pendingDebugDumpUserData_(0),
-      pendingDeferredDebugDumpCompletion_(0),
-      pendingDeferredDebugDumpUserData_(0),
-      pendingDeferredDebugDumpCompletionDelay_(0),
       pendingInvalidateRects_(),
       titleBarHeight_(0)
 {
@@ -70,11 +65,6 @@ ToolboxWindow::~ToolboxWindow()
   this->detachNativeStateObservers();
   needsInvalidate_ = false;
   pendingDebugDump_ = false;
-  pendingDebugDumpCompletion_ = 0;
-  pendingDebugDumpUserData_ = 0;
-  pendingDeferredDebugDumpCompletion_ = 0;
-  pendingDeferredDebugDumpUserData_ = 0;
-  pendingDeferredDebugDumpCompletionDelay_ = 0;
   pendingInvalidateRects_.clear();
   teardownScene();
   delete context_;
@@ -483,26 +473,6 @@ bool ToolboxWindow::handleKeyDown(char key)
   return scenePlatformController_->handleKeyDown(key);
 }
 
-void ToolboxWindow::dispatchDeferredDebugDumpCompletion()
-{
-  if (pendingDeferredDebugDumpCompletion_)
-  {
-    if (pendingDeferredDebugDumpCompletionDelay_ > 0)
-    {
-      --pendingDeferredDebugDumpCompletionDelay_;
-    }
-    else
-    {
-      DeferredDumpCompletion completion = pendingDeferredDebugDumpCompletion_;
-      void *userData = pendingDeferredDebugDumpUserData_;
-      pendingDeferredDebugDumpCompletion_ = 0;
-      pendingDeferredDebugDumpUserData_ = 0;
-      pendingDeferredDebugDumpCompletionDelay_ = 0;
-      completion(userData);
-    }
-  }
-}
-
 void ToolboxWindow::idleControls(ActivationPhase phase)
 {
   if (scenePlatformController_)
@@ -683,21 +653,6 @@ void ToolboxWindow::resetDebugStats()
 void ToolboxWindow::requestDeferredDebugDump()
 {
   pendingDebugDump_ = true;
-  pendingDebugDumpCompletion_ = 0;
-  pendingDebugDumpUserData_ = 0;
-  pendingDeferredDebugDumpCompletion_ = 0;
-  pendingDeferredDebugDumpUserData_ = 0;
-  pendingDeferredDebugDumpCompletionDelay_ = 0;
-}
-
-void ToolboxWindow::requestDeferredDebugDumpWithCompletion(DeferredDumpCompletion completion, void *userData)
-{
-  pendingDebugDump_ = true;
-  pendingDebugDumpCompletion_ = completion;
-  pendingDebugDumpUserData_ = userData;
-  pendingDeferredDebugDumpCompletion_ = 0;
-  pendingDeferredDebugDumpUserData_ = 0;
-  pendingDeferredDebugDumpCompletionDelay_ = 0;
 }
 
 void ToolboxWindow::flushDeferredDebugDump()
@@ -712,16 +667,6 @@ void ToolboxWindow::flushDeferredDebugDump()
   }
   pendingDebugDump_ = false;
   dumpDebugStatsToTimestampedFile();
-  DeferredDumpCompletion completion = pendingDebugDumpCompletion_;
-  void *userData = pendingDebugDumpUserData_;
-  pendingDebugDumpCompletion_ = 0;
-  pendingDebugDumpUserData_ = 0;
-  if (completion)
-  {
-    pendingDeferredDebugDumpCompletion_ = completion;
-    pendingDeferredDebugDumpUserData_ = userData;
-    pendingDeferredDebugDumpCompletionDelay_ = 1;
-  }
 }
 
 bool ToolboxWindow::queryDisplayScalePercent(int &out) const
