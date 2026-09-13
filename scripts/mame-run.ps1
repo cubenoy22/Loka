@@ -111,9 +111,6 @@ if ($env:MAME_HDA) {
     # the attribute leaves the persisted session state untouched.
     Set-ItemProperty -LiteralPath $bootDisk -Name IsReadOnly -Value $false
 }
-$env:LOKA_MAME_FLOPPY_REQUEST = Join-Path $controlDirectory "floppy.request"
-$env:LOKA_MAME_FLOPPY_RESPONSE = Join-Path $controlDirectory "floppy.response"
-
 # Keep launcher policy aligned with mame-run.sh; only shell mechanics differ.
 $mameArguments = @(
     $machine,
@@ -138,16 +135,12 @@ if ($env:MAME_HDA) {
 }
 
 if ($singleScsiMachines -contains $machine) {
-    # Single SCSI slot; no dev disk, no floppy service (IWM floppy
-    # images do not mount under MAME 0.289).
+    # Single SCSI slot; no dev disk.
 } else {
     $mameArguments += @("-scsi:5", "harddisk")
     if (Test-Path -LiteralPath $developmentDisk) {
         $mameArguments += @("-hard2", (Resolve-Path -LiteralPath $developmentDisk).Path)
     }
-    $mameArguments += @(
-        "-autoboot_script", (Join-Path $ScriptDirectory "mame-floppy-service.lua")
-    )
 }
 
 # Mirrors mame-run.sh: MAME_DEBUG=1 halts at reset with the gdbstub listening

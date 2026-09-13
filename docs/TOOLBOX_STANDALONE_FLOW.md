@@ -48,23 +48,6 @@ HFS volume, and put `ASSETS.LRP` beside the resulting application. As an
 alternative, write or mount the `.dsk` with a tool that preserves a raw HFS
 floppy image; that image already contains both required files.
 
-## MAME floppy
-
-The checked-in MAME tasks remain the 68K runtime-verification path. PPC
-artifacts are intended for compatible real hardware or a separately configured
-PPC emulator.
-
-Configure `.env-mame` as described in `docs/MAME_DEVELOPMENT.md`, start MAME,
-then run the VS Code task **Stage & Mount in Running MAME: Scrapbook Standalone
-Flow**. The equivalent manual mount command from the repository root is:
-
-```sh
-./scripts/mame-mount.sh \
-  build/presentation/toolbox-68k-release/LokaScrapbookStandaloneFlow68K.dsk
-```
-
-Open `LokaScrapbookStandaloneFlow68K` from the inserted floppy.
-
 ## MAME SCSI
 
 Stop MAME before rebuilding its development disk, then run **Stage & Start in

@@ -23,7 +23,6 @@ trap cleanup EXIT
 
 mkdir -p "$SANDBOX/scripts" "$SANDBOX/build"
 cp "$SUBJECT" "$SANDBOX/scripts/mame-run.sh"
-touch "$SANDBOX/scripts/mame-floppy-service.lua"
 chmod +x "$SANDBOX/scripts/mame-run.sh"
 
 # Stands in for the emulator: records its argv, then writes to the disk it was
