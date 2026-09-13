@@ -47,9 +47,71 @@
 #include "context/ToolboxLayoutUtil.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/boundary/Boundary.hpp"
+#include "app/scene/projection/CollectPaintAnswers.hpp"
 
 namespace
 {
+  const char kViewportPaintWidenReason[] = "paint-widened-viewport-render";
+
+  /** Only these built-in drawers are cast. Registration protects the same
+      type keys, including in release builds, as on the Win32 rail. */
+  bool IsToolboxPaintDrawerType(const void *key)
+  {
+    return key == loka::app::scene::NodeTypeToken<loka::app::RectSurfaceNode>()
+           || key == loka::app::scene::NodeTypeToken<loka::app::ButtonNode>()
+           || key == loka::app::scene::NodeTypeToken<loka::app::TextNode>();
+  }
+
+  struct ToolboxPaintAnswerSource
+  {
+    explicit ToolboxPaintAnswerSource(ToolboxSceneDebugStats &stats) : stats_(stats) {}
+
+    bool queryPaintAnswer(loka::app::scene::Node *node,
+                          loka::app::scene::NodeContext *context,
+                          const loka::app::scene::PaintQuery &query,
+                          loka::app::scene::PaintAnswer &answer)
+    {
+      using namespace loka::app::scene;
+      this->stats_.noteCollectorVisit();
+      if (IsToolboxPaintDrawerType(node->nodeTypeKey()))
+      {
+        answer = context ? static_cast<NativeNodeContext *>(context)->queryPaintDamage(query)
+                         : PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+        return true;
+      }
+      switch (node->kind())
+      {
+      case NODE_KIND_OPEN_FILE_DIALOG:
+      case NODE_KIND_SCROLL_VIEW:
+      case NODE_KIND_BOX:
+      case NODE_KIND_ZSTACK:
+      case NODE_KIND_GRID:
+      case NODE_KIND_STACK:
+      case NODE_KIND_CANVAS:
+        return false;
+      case NODE_KIND_UNKNOWN:
+        if (!node->asProjectedLayoutNode())
+          return false;
+        break;
+      case NODE_KIND_RECT_SURFACE:
+      case NODE_KIND_TEXT:
+      case NODE_KIND_BUTTON:
+      case NODE_KIND_POPUP_MENU:
+      case NODE_KIND_SCROLL_BAR:
+      case NODE_KIND_EDIT_TEXT:
+      case NODE_KIND_CELL:
+      case NODE_KIND_IMAGE_VIEW:
+        break;
+      }
+      // In particular, a TE data sync or a Popup ledger refresh is not a
+      // completed Control Manager/TE paint submission. Preserve widening.
+      answer = PaintAnswer::refused(context ? PAINT_REFUSED_UNSUPPORTED_KIND : PAINT_REFUSED_NO_CONTEXT);
+      return true;
+    }
+
+    ToolboxSceneDebugStats &stats_;
+  };
+
 #if !defined(pushButProc) && !defined(LOKA_TOOLBOX_MULTIVERSAL_INTERFACES)
   enum
   {
@@ -81,14 +143,8 @@ namespace
     DrawString(text);
   }
 
-  void CopyToPascalString(const loka::core::String &value, Str255 out)
+  void CopyUtf8ToPascalString(const std::string &utf8, Str255 out)
   {
-    std::string utf8;
-    if (!loka::platform::CollectUtf8(value, utf8))
-    {
-      out[0] = 0;
-      return;
-    }
     std::size_t length = utf8.size();
     if (length > 255)
     {
@@ -434,6 +490,8 @@ ToolboxScenePlatformController::~ToolboxScenePlatformController()
 
 bool ToolboxScenePlatformController::registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler)
 {
+  if (!handler || IsToolboxPaintDrawerType(handler->nodeTypeKey()))
+    return false;
   return this->nodeHandlerRegistry_.registerHandler(handler);
 }
 
@@ -767,17 +825,45 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
     return;
   }
 
+  using namespace loka::app::scene;
+  // Layout/structure and composited work cannot use exact delivery. Keep
+  // their existing fallback walk instead of collecting answers before it.
+  if (info.hasPaintWork() && !info.hasStructureWork && !info.hasLayoutWork
+      && !info.hasCompositedPaintWork() && !plan.hasStructureWork() && !plan.hasLayoutWork())
+  {
+    const PaintQuery query = {ToolboxPaintScope(),
+                             PLACEMENT_ELIGIBLE};
+    PaintAnswerBuffer<> answers;
+    ToolboxPaintAnswerSource source(this->debugStats_);
+    const PaintApplyVerdict verdict = CollectPaintAnswers(*boundary, query, answers, source);
+    if (!this->scrollBarLedger_.viewportScrollBars_.empty())
+    {
+      // WIDENED: viewport renderDirty still replays the viewport. A drawer's
+      // exact invalidation cannot safely supply that replay's erase coverage.
+      this->window_->requestInvalidateWithReason(kViewportPaintWidenReason);
+      return;
+    }
+    if (verdict.canSkipBroadPaint(info))
+    {
+      for (unsigned i = 0; i < answers.count(); ++i)
+      {
+        const PaintDamage &damage = answers.entry(i).damage;
+        const Rect rect = {static_cast<short>(damage.y), static_cast<short>(damage.x),
+                           static_cast<short>(damage.y + damage.height), static_cast<short>(damage.x + damage.width)};
+        this->window_->requestInvalidateRect(rect);
+      }
+      return;
+    }
+    // A refusal already completed the one resident visit. Widen directly;
+    // re-running the legacy surface collector would be a second traversal.
+    this->window_->requestInvalidate();
+    return;
+  }
+
   if (!this->scrollBarLedger_.viewportScrollBars_.empty())
   {
-    // Boundary bounds are recorded in content coordinates; inside a scrolled
-    // viewport they no longer name window pixels, and a rect invalidation
-    // would leave the OS update region clipping the redraw to the wrong
-    // place. Escalate to a full-window invalidation whenever a viewport is
-    // installed - the same conservative fallback renderDirty already takes:
-    // overpaint, never stale pixels. Projecting per-boundary bounds through
-    // the scope is the recorded alternative for a later pass (#518's
-    // projection-target track).
-    window_->requestInvalidate();
+    // Layout/composited viewport work needs the same broad presentation.
+    window_->requestInvalidateWithReason(kViewportPaintWidenReason);
     return;
   }
 
@@ -1249,8 +1335,10 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
   }
   if (!scrollBarLedger_.viewportScrollBars_.empty())
   {
-    // Direct dirty RectSurface replay bypasses the node render switch. Keep
-    // the viewport's central clip authoritative whenever one is installed.
+    // The invalidation half of #518 can name exact window damage, but Cell
+    // and Popup dirty replay still lack complete placement-plus-clip facts.
+    // Keep the one viewport render fallback until that shared projection
+    // contract is resolved; individual drawer exceptions are not sufficient.
     render();
     return;
   }
@@ -1349,8 +1437,7 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     }
     redrawTextHit(hit);
   }
-  const size_t editReplayCount = editControls_.size();
-  for (size_t i = 0; i < editReplayCount; ++i)
+  for (size_t i = 0; i < editControls_.size(); ++i)
   {
     EditTextControlBinding &binding = editControls_[i];
     if (!binding.ownerContext || !binding.te || !binding.usedThisFrame)
@@ -1365,14 +1452,9 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     {
       continue;
     }
-    // draw() re-enters ensureEditTextControl, which can add to editControls_,
-    // so the owner is read out before the call and the bound is a snapshot:
-    // the binding reference must not survive a reallocation, and the replay
-    // must not iterate entries it created. Same wall as the cell replay above.
-    ToolboxEditTextContext *owner = binding.ownerContext;
-    owner->draw(this);
-    assert(editControls_.size() == editReplayCount
-           && "edit controls register on the render walk; the dirty replay must not grow the registry it iterates (#315)");
+    // Replay borrows established TE placement; it never reprojects or changes
+    // the registry after the viewport's projection scope has popped.
+    binding.ownerContext->repaint(binding.te);
   }
   drawControlsInRect(rect);
 }
@@ -1999,6 +2081,16 @@ void ToolboxScenePlatformController::redrawTextHit(TextHit &hit)
   {
     return;
   }
+  if (hit.context)
+  {
+    GrafPtr previous;
+    GetPort(&previous);
+    SetPort(this->window_->window());
+    hit.context->repaint();
+    hit.lastMeasuredWidth = hit.context->visibleWidth();
+    SetPort(previous);
+    return;
+  }
   short measuredWidth = hit.text ? ToolboxMeasureTextWidth(hit.text->get()) : 0;
   const short maxWidth = static_cast<short>(hit.rect.right - hit.rect.left);
   if (maxWidth > 0 && measuredWidth > maxWidth)
@@ -2412,23 +2504,23 @@ bool ToolboxScenePlatformController::ensureButtonControl(short resourceId,
     binding->rect = controlRect;
     binding->needsDraw = true;
   }
-  this->applyButtonControlProps(*binding, label);
+  const bool submitted = this->applyButtonControlProps(*binding, label);
   ShowControl(binding->control);
-  return true;
+  return submitted;
 }
 
-void ToolboxScenePlatformController::applyButtonControlProps(ButtonControlBinding &binding,
+bool ToolboxScenePlatformController::applyButtonControlProps(ButtonControlBinding &binding,
                                                              const loka::core::String &label)
 {
   std::string labelUtf8;
   if (!loka::platform::CollectUtf8(label, labelUtf8))
   {
-    labelUtf8.clear();
+    return false;
   }
   if (binding.label != labelUtf8)
   {
     Str255 title;
-    CopyToPascalString(label, title);
+    CopyUtf8ToPascalString(labelUtf8, title);
     SetControlTitle(binding.control, title);
     binding.label = labelUtf8;
     binding.needsDraw = true;
@@ -2441,6 +2533,7 @@ void ToolboxScenePlatformController::applyButtonControlProps(ButtonControlBindin
   {
     HiliteControl(binding.control, 0);
   }
+  return true;
 }
 
 void ToolboxScenePlatformController::destroyButtonControl(short resourceId,
@@ -2618,6 +2711,20 @@ void ToolboxScenePlatformController::syncEditTextFromState(EditTextControlBindin
 }
 
 #ifdef TEST_BUILD
+bool ToolboxScenePlatformController::queryEditTextGeometryForTesting(
+    ToolboxEditTextContext *ownerContext, EditTextGeometry &out) const
+{
+  size_t index = 0;
+  if (!ownerContext || !this->editControls_.find(ownerContext, index))
+    return false;
+  TEHandle te = this->editControls_[index].te;
+  if (!te || !*te)
+    return false;
+  out.destination = (**te).destRect;
+  out.view = (**te).viewRect;
+  return true;
+}
+
 bool ToolboxScenePlatformController::queryEditTextValueForTesting(
     ToolboxEditTextContext *ownerContext,
     std::string &out) const

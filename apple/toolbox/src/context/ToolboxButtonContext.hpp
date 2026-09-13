@@ -2,6 +2,7 @@
 #define LOKA_TOOLBOX_BUTTON_CONTEXT_HPP
 
 #include "context/ToolboxProjectedNodeContext.hpp"
+#include "context/ToolboxPaintSupport.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "core/String.hpp"
 #include <Quickdraw.h>
@@ -38,12 +39,30 @@ namespace loka
   } // namespace core
 } // namespace loka
 
+/** Completed native button inputs; comparisons never inspect controller rows. */
+class ToolboxButtonPaintValue
+{
+public:
+  ToolboxButtonPaintValue() : label_(), enabled_(false) {}
+  ToolboxButtonPaintValue(const loka::core::String &label, bool enabled) : label_(label), enabled_(enabled) {}
+  bool operator==(const ToolboxButtonPaintValue &other) const
+  {
+    return this->enabled_ == other.enabled_ && this->label_.equals(other.label_);
+  }
+private:
+  loka::core::String label_;
+  bool enabled_;
+};
+
 class ToolboxButtonContext : public ToolboxProjectedNodeContext
 {
 public:
   ToolboxButtonContext(loka::app::ButtonNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxButtonContext();
   virtual void onPropsApplied();
+  virtual loka::app::scene::PaintAnswer queryPaintDamage(const loka::app::scene::PaintQuery &query) const;
+  virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                             loka::app::scene::NodeLifecycleFact next);
 
   void updateData(const loka::core::String &label,
                   loka::core::EmitterState *emitter,
@@ -66,6 +85,7 @@ private:
   loka::core::EmitterState *emitter_;
   loka::core::State<bool> *enabled_;
   short resourceId_;
+  loka::app::scene::PaintFact<ToolboxButtonPaintValue> presented_;
 };
 
 bool RegisterToolboxButtonNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);

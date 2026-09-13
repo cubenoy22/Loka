@@ -2,6 +2,7 @@
 #define LOKA_PAINT_CONTRACT_TESTS_HPP
 void testRectSurfaceStateChangeExcludesSiblingTextFromPaintDamage();
 void testTextStateChangeYieldsExactTextDamageOnly();
+void testTextFirstPaintRefusesUnknownHistory();
 void testNativeControlAnswersNativeScheduledAndDoesNotWiden();
 void testRefusedDrawerWidensWholePlan();
 void testForeignContextIsNeverCastAndOwnedHandlersCannotBeReplaced();

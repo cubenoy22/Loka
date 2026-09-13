@@ -220,6 +220,9 @@ private:
   friend bool RegisterToolboxBuiltInSupport(ToolboxScenePlatformController &controller);
   template <typename Sink, typename StateType>
   friend class ToolboxEnabledStateBindingPath;
+  friend class ToolboxTextContext;
+  friend class ToolboxEditTextContext;
+  friend class ToolboxRectSurfaceContext;
 
   typedef ToolboxHitLedger::ButtonHit ButtonHit;
   typedef ToolboxHitLedger::CellHit CellHit;
@@ -316,7 +319,7 @@ private:
   loka::app::scene::BoundaryNode *activeLayoutBoundary_;
 
   bool handleTextKey(char key);
-  void applyButtonControlProps(ButtonControlBinding &binding, const loka::core::String &label);
+  bool applyButtonControlProps(ButtonControlBinding &binding, const loka::core::String &label);
   void bindTextState(loka::core::State<loka::core::String> *text);
   void bindEnabledState(loka::core::State<bool> *enabled);
   void unbindTextState(loka::core::State<loka::core::String> *text);
@@ -407,6 +410,13 @@ public:
       its bound State; calling ensureEditTextControl would repair the value and
       make the probe non-discriminating. */
   bool queryEditTextValueForTesting(ToolboxEditTextContext *ownerContext, std::string &out) const;
+  /** Native TE geometry, for the viewport dirty-replay contract pin. */
+  struct EditTextGeometry
+  {
+    Rect destination;
+    Rect view;
+  };
+  bool queryEditTextGeometryForTesting(ToolboxEditTextContext *ownerContext, EditTextGeometry &out) const;
 #endif
   void noteWindowDraw()
   {

@@ -297,6 +297,27 @@ void testRectSurfaceStateChangeExcludesSiblingTextFromPaintDamage()
   LOKA_VERIFY(platform.queries == 2 && platform.commits == 2);
   loka::dsl::testing::SceneTestAccess::unmount(scene);
 }
+void testTextFirstPaintRefusesUnknownHistory()
+{
+  NullScenePlatformController platform;
+  TextNode node(TextProps("First paint"));
+  NullTextContext context(&node);
+  LayoutState state;
+  state.width = 100;
+  state.lineHeight = 14;
+  context.layout(&platform, state);
+  const PaintQuery eligible = {platform.paintScope(), PLACEMENT_ELIGIBLE};
+  const PaintAnswer first = context.queryPaintDamage(eligible);
+  // Placement alone is not presentation, even when the first apply is
+  // paint-only and the current string has never changed.
+  LOKA_VERIFY(first.kind == PAINT_ANSWER_REFUSED);
+  LOKA_VERIFY(first.reason == PAINT_REFUSED_HISTORY_UNKNOWN);
+  LOKA_VERIFY(context.commitPresented(node.props.text_->get(), platform.paintScope()));
+  const PaintAnswer drawn = context.queryPaintDamage(eligible);
+  LOKA_VERIFY(drawn.kind == PAINT_ANSWER_EXACT);
+  LOKA_VERIFY(drawn.damage.width == 0 && drawn.damage.height == 0);
+}
+
 void testTextStateChangeYieldsExactTextDamageOnly()
 {
   floppybird::SharedModel model;

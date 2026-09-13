@@ -3,6 +3,7 @@
 
 #include "context/ToolboxProjectedNodeContext.hpp"
 #include "app/RectSurface.hpp"
+#include "context/ToolboxPaintSupport.hpp"
 #include <Quickdraw.h>
 
 class ToolboxRectSurfaceContext : public ToolboxProjectedNodeContext
@@ -10,6 +11,8 @@ class ToolboxRectSurfaceContext : public ToolboxProjectedNodeContext
 public:
   ToolboxRectSurfaceContext(loka::app::RectSurfaceNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxRectSurfaceContext();
+  virtual loka::app::scene::PaintAnswer queryPaintDamage(const loka::app::scene::PaintQuery &query) const;
+  virtual void onPropsApplied();
   virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
                              loka::app::scene::NodeLifecycleFact next);
 
@@ -22,12 +25,11 @@ private:
   Rect rectForSprite(const loka::app::RectSprite &sprite) const;
   bool buildDirtyRegion(const Rect &dirtyRect, const loka::app::RectSurfaceModel &model);
   void unionSpriteRectsIntoRegion(const loka::app::RectSurfaceModel &model, const Rect &dirtyRect);
-  void rememberCurrentModel();
 
   loka::app::RectSurfaceNode *node_;
   Rect rect_;
-  loka::app::RectSurfaceModel previousModel_;
-  bool hasPreviousModel_;
+  Rect paintRect_;
+  loka::app::scene::PaintFact<loka::app::RectSurfaceModel> presented_;
   RgnHandle dirtyRgn_;
   RgnHandle tempRgn_;
   RgnHandle savedClipRgn_;

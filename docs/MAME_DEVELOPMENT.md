@@ -300,10 +300,35 @@ back to whatever it boots, and the Classic goldens are made of the System fonts
 and control chrome inside that image, so a launch that mutates it silently moves
 the baseline. Stop MAME, copy the configured boot HDA, and point `-hard1` at the
 copy. Every launcher in this repository already does this: the scenario rail
-copies per scenario, `mame-debug.sh` and `mame-run.*` copy once into `build/`
-(`MAME_BOOT_HDA`, default `build/mame-run/Boot.hd`) and reuse it afterwards, so
-an interactive session keeps its state and wiping `build/` resets it to the
-template. Generate a scenario-local `LokaDev.hd` with
+copies per scenario; `mame-debug.sh` keeps its separate `build/mame-debug/Boot.hd`.
+The `mame-run.sh` and `mame-run.ps1` launchers keep
+`build/mame-run/<MAME_MACHINE>/Boot.hd`; `MAME_BOOT_HDA` selects an explicit
+copy path instead. Beside that copy, `<copy-path>.source` contains exactly two
+UTF-8 lines without a BOM, each terminated by LF: the resolved absolute
+`MAME_HDA` template path, then its lowercase SHA-256 digest. Both launchers
+use this same layout and format (paths use the host's native spelling).
+Comparison deliberately differs by host: the shell launcher compares exactly;
+Windows compares the SHA first, then full paths with trailing separators removed
+and case ignored. A casing-only Windows path change preserves the guest session.
+
+Every launch hashes the template; reading a roughly 100 MB template on each
+host launch is an accepted cost for this check. The two-line record does not
+store size/mtime metadata. A missing copy or source record, or a changed
+path/digest, refreshes the copy through `.partial` files and rename. The launcher
+stages the sidecar first, retains the old disk as `<copy>.previous` and its source
+record as `<copy>.source.previous`, and removes these backups only after both
+new files are published. A failed commit restores the previous disk and source
+record, removes partials, reports the rollback, and refuses to launch. Recovery
+files left by a terminated process require attention before another refresh. An unchanged
+template reuses the copy and preserves guest session changes. The launcher
+prints `boot copy: reused (same template)` or `boot copy: refreshed (...)`
+with the reason; template changes name the old and new paths. Switching profiles
+on the same machine therefore resets the copy to the selected system, including
+when switching back. Legacy copies without a source record refresh once; the old
+`build/mame-run/Boot.hd` is no longer selected by default. Stop the emulator
+before switching profiles or replacing a template; simultaneous launches sharing
+a copy are not supported. Wiping `build/` resets the default copies to their
+templates. Generate a scenario-local `LokaDev.hd` with
 `scripts/mame-dev-disk.sh` or `scripts/mame-dev-disk.ps1`, and attach it as
 `hard2` at SCSI ID 5. The source HDA and MAME installation then remain inputs,
 while all mutable state stays under `build/`.

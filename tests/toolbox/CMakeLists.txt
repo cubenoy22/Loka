@@ -132,6 +132,22 @@ target_compile_definitions(${LOKA_WINDOW_CLAMP_TARGET} PRIVATE TEST_BUILD LOKA_D
 set_property(TARGET ${LOKA_WINDOW_CLAMP_TARGET} PROPERTY EXCLUDE_FROM_ALL TRUE)
 set_property(TARGET ${LOKA_WINDOW_CLAMP_TARGET}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
 
+set(LOKA_PAINT_DAMAGE_TARGET "LokaPaintDamage${LOKA_CLASSIC_TARGET_SUFFIX}")
+loka_add_toolbox_test_application(
+  ${LOKA_PAINT_DAMAGE_TARGET}
+  LokaAppleToolboxTestCore
+  src/PaintDamageStandaloneMain.cpp
+  ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/WindowClampSize.r
+)
+target_include_directories(${LOKA_PAINT_DAMAGE_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/tests/standalone
+  ${CMAKE_SOURCE_DIR}/tests/scenarios
+)
+target_compile_definitions(${LOKA_PAINT_DAMAGE_TARGET} PRIVATE TEST_BUILD LOKA_DIAG=1)
+set_property(TARGET ${LOKA_PAINT_DAMAGE_TARGET} PROPERTY EXCLUDE_FROM_ALL TRUE)
+set_property(TARGET ${LOKA_PAINT_DAMAGE_TARGET}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
+
 set(LOKA_TESTS_TOOLBOX_SOURCES
   src/main.cpp
   src/ScenarioDriver.cpp
@@ -448,6 +464,29 @@ loka_configure_toolbox_standalone_target(
   ${CMAKE_SOURCE_DIR}/example/HelloWorld/src
   ${LOKA_STANDALONE_FLOW_TOOLBOX_ALL_TARGET}
 )
+
+# Eight fresh menu-bearing App lifetimes in one process (#406).
+set(LOKA_APP_RECYCLE_TARGET "LokaAppRecycle${LOKA_CLASSIC_TARGET_SUFFIX}")
+loka_add_toolbox_test_application(
+  ${LOKA_APP_RECYCLE_TARGET}
+  LokaAppleToolboxTestCore
+  src/AppRecycleStandaloneMain.cpp
+  ${CMAKE_SOURCE_DIR}/tests/standalone/HelloWorldStandaloneFlowAppConfig.cpp
+  ${CMAKE_SOURCE_DIR}/tests/standalone/StandalonePerformance.cpp
+  ${LOKA_STANDALONE_FLOW_TOOLBOX_SUPPORT_SOURCES}
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/HelloWorldScenarios.cpp
+  ${CMAKE_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/HelloWorldStandaloneSize.r
+)
+target_include_directories(${LOKA_APP_RECYCLE_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/tests/standalone
+  ${CMAKE_SOURCE_DIR}/example/HelloWorld/src
+)
+target_compile_definitions(${LOKA_APP_RECYCLE_TARGET} PRIVATE
+  TEST_BUILD LOKA_DIAG=1 LOKA_STANDALONE_PERFORMANCE_RUNS=8
+)
+set_property(TARGET ${LOKA_APP_RECYCLE_TARGET} PROPERTY EXCLUDE_FROM_ALL TRUE)
+set_property(TARGET ${LOKA_APP_RECYCLE_TARGET}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
 
 configure_file(
   ${CMAKE_SOURCE_DIR}/example/Tutorial/Size.r
