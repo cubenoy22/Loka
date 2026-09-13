@@ -1,12 +1,19 @@
 #include "Win32ScrollViewContext.hpp"
 
 #include <cassert>
+#include <cwchar>
+#include <windowsx.h>
 
 #include "../Win32ScenePlatformController.hpp"
 
 namespace
 {
   const wchar_t kScrollViewClassName[] = L"LOKA_SCROLL_VIEW";
+  // One line is 16 logical pixels, following the WPF/WinUI convention:
+  // the default three system wheel lines move 48 pixels per notch. This is
+  // a Win32 rail default, like AppKit's lineScroll, not a logical Props door;
+  // a later per-window platform parameter (#720) may override it.
+  const int kLineStepPixels = 16;
 }
 
 Win32ScrollViewContext::Win32ScrollViewContext(Win32ScenePlatformController *controller,
@@ -165,17 +172,11 @@ bool Win32ScrollViewContext::handleVerticalScroll(int command,
   switch (command)
   {
   case SB_LINEUP:
-    if (next > 0)
-    {
-      --next;
-    }
+    next = next < kLineStepPixels ? 0 : next - kLineStepPixels;
     this->publishOffset(next);
     return true;
   case SB_LINEDOWN:
-    if (next < maximum)
-    {
-      ++next;
-    }
+    next = maximum - next < kLineStepPixels ? maximum : next + kLineStepPixels;
     this->publishOffset(next);
     return true;
   case SB_PAGEUP:
@@ -265,6 +266,32 @@ void Win32ScrollViewContext::publishOffset(int value)
   this->node_->props.offset_.set(value);
 }
 
+bool Win32ScrollViewContext::forwardMouseWheel(HWND root, WPARAM wParam, LPARAM lParam)
+{
+  const POINT point = {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+  HWND target = WindowFromPoint(point);
+  if (!target || GetAncestor(target, GA_ROOT) != root)
+  {
+    return false;
+  }
+  for (; target && target != root; target = GetParent(target))
+  {
+    wchar_t className[256];
+    if (GetClassNameW(target, className, sizeof(className) / sizeof(className[0])) &&
+        std::wcscmp(className, kScrollViewClassName) == 0 &&
+        GetWindowLongPtr(target, GWLP_USERDATA))
+    {
+      // One forwarding site: Win32Window's context routing calls here for
+      // root-directed wheels (including default propagation from controls
+      // outside a viewport). Children inside a viewport propagate directly
+      // to its WndProc; no per-control wheel handlers are needed.
+      SendMessageW(target, WM_MOUSEWHEEL, wParam, lParam);
+      return true;
+    }
+  }
+  return false;
+}
+
 void Win32ScrollViewContext::EnsureClassRegistered()
 {
   static bool registered = false;
@@ -301,6 +328,30 @@ LRESULT CALLBACK Win32ScrollViewContext::WndProc(HWND hwnd,
   if (msg == WM_VSCROLL && self &&
       self->handleVerticalScroll(LOWORD(wParam), HIWORD(wParam)))
   {
+    return 0;
+  }
+  if (msg == WM_MOUSEWHEEL && self)
+  {
+    UINT lines = 3;
+    if (!SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &lines, 0))
+    {
+      lines = 3;
+    }
+    // Whole detents only: this context has no gesture lifetime in which to
+    // own a sub-detent remainder. Keep all offset writes in the line/page path.
+    const int detents = GET_WHEEL_DELTA_WPARAM(wParam) / WHEEL_DELTA;
+    const bool page = lines == WHEEL_PAGESCROLL;
+    const int command = page ? (detents > 0 ? SB_PAGEUP : SB_PAGEDOWN)
+                             : (detents > 0 ? SB_LINEUP : SB_LINEDOWN);
+    const UINT steps = page ? 1 : lines;
+    const int count = detents < 0 ? -detents : detents;
+    for (int detent = 0; detent < count; ++detent)
+    {
+      for (UINT step = 0; step < steps; ++step)
+      {
+        self->handleVerticalScroll(command, 0);
+      }
+    }
     return 0;
   }
   if (msg == WM_COMMAND && self && self->controller() &&
