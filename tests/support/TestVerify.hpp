@@ -17,9 +17,21 @@
 
     Use it whenever the expression builds, writes, opens, registers, flushes,
     or fills an out-parameter. Keep plain `assert` for pure comparisons. */
+// A verified expression is sometimes a compile-time fact (`sizeof(A) ==
+// sizeof(B)`). MSVC 19.44 reports C4127 for the resulting constant `if`, and
+// the warnings-as-errors presets turn that into a build failure the hosted
+// 19.51 runner never shows. Suppress it at the one place the `if` is written
+// instead of reshaping each such test (#586 did that per site).
+#if defined(_MSC_VER)
+#define LOKA_VERIFY_CONSTANT_CONDITION_OK __pragma(warning(suppress : 4127))
+#else
+#define LOKA_VERIFY_CONSTANT_CONDITION_OK
+#endif
+
 #define LOKA_VERIFY(expr)                                                      \
   do                                                                           \
   {                                                                            \
+    LOKA_VERIFY_CONSTANT_CONDITION_OK                                          \
     if (!(expr))                                                               \
     {                                                                          \
       std::fprintf(stderr, "%s:%d: LOKA_VERIFY failed: %s\n", __FILE__,        \

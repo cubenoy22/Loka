@@ -8,7 +8,7 @@ namespace loka
   namespace standalone_tests
   {
     /** Runs the compiled Scrapbook presentation until the user quits. */
-    int RunStandaloneFlowApplication(HINSTANCE hInstance = 0, int nCmdShow = 0);
+    int RunStandaloneFlowApplication(NativeModuleHandle hInstance = 0, int nCmdShow = 0);
   } // namespace standalone_tests
 } // namespace loka
 

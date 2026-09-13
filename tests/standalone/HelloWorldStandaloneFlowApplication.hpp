@@ -8,7 +8,7 @@ namespace loka
   namespace standalone_tests
   {
     /** Runs HelloWorld's typed toggle/action probe until the user quits. */
-    int RunHelloWorldStandaloneFlowApplication(HINSTANCE hInstance = 0, int nCmdShow = 0);
+    int RunHelloWorldStandaloneFlowApplication(NativeModuleHandle hInstance = 0, int nCmdShow = 0);
   } // namespace standalone_tests
 } // namespace loka
 

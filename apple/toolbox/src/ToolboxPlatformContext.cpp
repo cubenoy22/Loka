@@ -55,7 +55,7 @@ ToolboxPlatformContext::~ToolboxPlatformContext()
 #endif
 }
 
-App *ToolboxPlatformContext::createApp(AppConfigurable *config, HINSTANCE, int) const
+App *ToolboxPlatformContext::createApp(AppConfigurable *config, NativeModuleHandle, int) const
 {
   return new ToolboxApp(config);
 }

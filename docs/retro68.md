@@ -600,19 +600,17 @@ This means:
 
 Do not treat them as one bug.
 
-### 4. Dump chaining is useful, but completion semantics matter
+### 4. Historical dump chaining and completion semantics
 
 `Profile Toggle x2` was only reliable after dump completion was chained through
-an explicit deferred path.
+an explicit deferred path. That unused completion door was removed under #678.
 
 However, "dump finished" and "UI/event-loop is stable enough for the next
 action" are not the same thing on Classic Toolbox.
 
-Practical rule:
-
-- use chained dumps for comparison
-- but do not assume a deferred callback means redraw/update events have fully
-  drained
+The historical chained-dump mechanism is no longer available. A deferred
+callback should not be taken as evidence that redraw/update events have fully
+drained.
 
 ### 5. Prefer simple sample subtraction before deeper backend work
 

@@ -12,7 +12,7 @@ class Win32PlatformContext : public PlatformContext
 public:
   Win32PlatformContext();
   ~Win32PlatformContext();
-  virtual App *createApp(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow) const;
+  virtual App *createApp(AppConfigurable *config, NativeModuleHandle hInstance, int nCmdShow) const;
 
   virtual Window *createWindow(const WindowProps &props);
 
