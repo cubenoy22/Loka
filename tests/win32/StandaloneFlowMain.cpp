@@ -1,4 +1,5 @@
 #define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 
 #if !defined(LOKA_STANDALONE_FLOW_CONFIG_HEADER)
 #error StandaloneFlowMain requires LOKA_STANDALONE_FLOW_CONFIG_HEADER

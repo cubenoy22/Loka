@@ -7,11 +7,10 @@
 #if !defined(UNICODE) || !defined(_UNICODE)
 #error "Loka Win32 targets require UNICODE and _UNICODE"
 #endif
-#include <windows.h>
-#else
-// Provide a placeholder type for non-Windows builds
-typedef void *HINSTANCE;
 #endif
+
+/** Borrowed native module identity for bootstrap; interpreted only by the platform. */
+typedef void *NativeModuleHandle;
 
 class AppConfigurable;
 class PlatformContext;
@@ -60,7 +59,7 @@ public:
   virtual ~PlatformContext() {}
 
   // Creates the platform-specific App instance.
-  virtual App *createApp(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow) const = 0;
+  virtual App *createApp(AppConfigurable *config, NativeModuleHandle hInstance, int nCmdShow) const = 0;
 
   // Creates a platform-specific Window. Implementations should assert on invalid owner state.
   virtual Window *createWindow(const WindowProps &props) = 0;

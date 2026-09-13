@@ -304,7 +304,7 @@ namespace
 
   struct WindowCreatingPlatformContext : public PlatformContext
   {
-    virtual App *createApp(AppConfigurable *, HINSTANCE, int) const
+    virtual App *createApp(AppConfigurable *, NativeModuleHandle, int) const
     {
       return 0;
     }
