@@ -11,5 +11,6 @@ void testWin32RepeatedAppDestructionDetachesMenuBeforeDestroyingHandle();
 void testWin32NativeWindowDestructionReleasesMenuWithoutStateNotification();
 void testWin32DisplayScaleProjectsLogicalEdges();
 void testWin32DpiChangeAcceptsSuggestedWindowRect();
+void testWin32WindowFrameIsClampedToWorkArea();
 
 #endif // LOKA_WIN32_WINDOW_CLIENT_SIZE_TESTS_HPP
