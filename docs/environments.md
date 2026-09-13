@@ -88,7 +88,7 @@ This is the environment where binaries are actually built.
 - To stage the standalone macOS application payload rather than the finite audit
   rail, run `scripts/macos-standalone-flow.sh Release`. The result under
   `build/release/macos-<architecture>` contains five autonomous loop bundles
-  plus the ordinary interactive `LokaSimpleViewerMacOS` executable. A loop
+  plus the ordinary interactive `LokaSimpleViewerMacOS.app` bundle. A loop
   keeps its Config, App, and native Window; after its current scenario has
   published a successful terminal audit, it replaces the rail and re-arms the
   Scene. Closing its window stops it. SimpleViewer is built but is never

@@ -209,7 +209,7 @@ export TARGET_SET=standalone-release
 loka_merge_requested_or_known_targets_two_arch \
   "${STANDALONE_ROOT}" Release ppc i386
 unset TARGET_SET
-[[ "$(cat "${STANDALONE_ROOT}/universal/LokaSimpleViewerMacOS")" == "universal" ]] ||
+[[ "$(cat "${STANDALONE_ROOT}/universal/LokaSimpleViewerMacOS.app/Contents/MacOS/LokaSimpleViewerMacOS")" == "universal" ]] ||
   fail "standalone-release merge omitted SimpleViewer"
 [[ "$(cat "${STANDALONE_ROOT}/universal/LokaHelloWorldStandaloneLoopMacOS.app/Contents/MacOS/LokaHelloWorldStandaloneLoopMacOS")" == "universal" ]] ||
   fail "standalone-release merge omitted an autonomous loop bundle"
