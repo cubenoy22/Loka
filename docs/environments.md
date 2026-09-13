@@ -88,7 +88,7 @@ This is the environment where binaries are actually built.
 - To stage the standalone macOS application payload rather than the finite audit
   rail, run `scripts/macos-standalone-flow.sh Release`. The result under
   `build/release/macos-<architecture>` contains five autonomous loop bundles
-  plus the ordinary interactive `LokaSimpleViewerMacOS` executable. A loop
+  plus the ordinary interactive `LokaSimpleViewerMacOS.app` bundle. A loop
   keeps its Config, App, and native Window; after its current scenario has
   published a successful terminal audit, it replaces the rail and re-arms the
   Scene. Closing its window stops it. SimpleViewer is built but is never
@@ -103,10 +103,12 @@ This is the environment where binaries are actually built.
   `scripts/macos-standalone-release-ub1.sh leopard` for a
   `ppc;i386;x86_64` set. These use the existing split-build and `lipo` merge
   paths and publish under `build/release/macos-<profile>-ub1` only after every
-  application contains every expected slice. These complete autonomous sets
-  are build-verified through the Mavericks 10.9.5 + Xcode 3.2.6 CLI route;
-  GCC 4.2 records the Leopard PPC slice as `ppc7400`. Runtime on a PowerPC Mac
-  remains a separate verification step.
+  application contains every expected slice. Before SimpleViewer was converted
+  to an `.app` bundle, these complete autonomous sets were build-verified
+  through the Mavericks 10.9.5 + Xcode 3.2.6 CLI route. SimpleViewer's new
+  bundle packaging remains pending build verification on that route for both
+  Tiger and Leopard. GCC 4.2 records the Leopard PPC slice as `ppc7400`.
+  Runtime on a PowerPC Mac remains a separate verification step.
   On Big Sur or newer with an Apple Silicon-capable Xcode, run
   `scripts/macos-standalone-release-ub2.sh` for the corresponding
   `arm64;x86_64` autonomous set. It stages the same five loops plus SimpleViewer

@@ -59,6 +59,7 @@ stage_fake_build() {
     if [[ "${output_shape}" == "bundle" ]]; then
       bundle_root="${output_path%%/Contents/MacOS/*}"
       mkdir -p "${bundle_root}/Contents/Resources"
+      printf '%s\n' "metadata-${target_name}" >"${bundle_root}/Contents/Info.plist"
       if [[ "${target_name}" == "LokaScrapbookStandaloneLoopMacOS" ]]; then
         printf '%s\n' "${marker}-assets" \
           >"${bundle_root}/Contents/Resources/ASSETS.LRP"
@@ -78,9 +79,13 @@ BUILD_DIR="${BUILD_ROOT}" LOKA_TEST_BUILD_LOG="${BUILD_LOG}" \
   fail "the UB2 build did not select the complete standalone target set"
 
 RELEASE_ROOT="${FAKE_REPO}/build/release/macos-ub2"
-[[ -x "${RELEASE_ROOT}/LokaSimpleViewerMacOS" ]] ||
+[[ -x "${RELEASE_ROOT}/LokaSimpleViewerMacOS.app/Contents/MacOS/LokaSimpleViewerMacOS" ]] ||
   fail "the UB2 release omitted SimpleViewer"
-[[ "$(cat "${RELEASE_ROOT}/LokaSimpleViewerMacOS")" == \
+[[ "$(cat "${RELEASE_ROOT}/LokaSimpleViewerMacOS.app/Contents/Info.plist")" == "metadata-LokaSimpleViewerMacOS" ]] ||
+  fail "the release lost SimpleViewer bundle metadata"
+[[ ! -e "${RELEASE_ROOT}/LokaSimpleViewerMacOS" ]] ||
+  fail "the release retained an unbundled SimpleViewer executable"
+[[ "$(cat "${RELEASE_ROOT}/LokaSimpleViewerMacOS.app/Contents/MacOS/LokaSimpleViewerMacOS")" == \
   "custom-LokaSimpleViewerMacOS" ]] ||
   fail "the UB2 release staged stale output instead of the configured BUILD_DIR"
 [[ -x "${RELEASE_ROOT}/LokaHelloWorldStandaloneLoopMacOS.app/Contents/MacOS/LokaHelloWorldStandaloneLoopMacOS" ]] ||
