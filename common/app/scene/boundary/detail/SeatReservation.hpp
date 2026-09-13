@@ -1,7 +1,9 @@
 #ifndef LOKA_SEAT_RESERVATION_HPP
 #define LOKA_SEAT_RESERVATION_HPP
 
-#include "app/scene/boundary/detail/NodePartition.hpp"
+#include "app/scene/boundary/detail/SeatBuildRequest.hpp"
+#include "app/scene/boundary/detail/BoundaryArena.hpp"
+#include "app/scene/boundary/detail/ReclaimScratch.hpp"
 
 namespace loka
 {
@@ -47,6 +49,7 @@ namespace loka
         class SeatReservation
         {
         public:
+          SeatBuildRequest &request() const { return this->request_; }
           const SeatLayoutTable &layoutTable() const
           {
             return this->table_;
@@ -69,6 +72,7 @@ namespace loka
           ~SeatReservation();
           SeatReservation(const SeatReservation &);
           SeatReservation &operator=(const SeatReservation &);
+          mutable SeatBuildRequest request_;
           const SeatLayoutTable table_;
           const size_t bytes_;
           NodePartition *partition_;
@@ -94,12 +98,22 @@ namespace loka
 
           /** Search only this landlord's reservations and each partition's own rows. */
           NodePartition *partitionFor(Node *node);
+          bool removeSeatChild(SeatBuildRequest &request, Node *parent, Node *outgoing, int order);
+          bool installSeatChild(SeatBuildRequest &request, Node *incoming);
+          /** Destroys a retired generation snapshot (bounded plan when scratch is
+              supplied and fits, legacy walk otherwise) and then clears the outgoing
+              obligations of this landlord's requests that pointed into it. */
+          void reclaimGeneration(NodeArena::RetiredNodeGeneration &generation, ReclaimScratch *scratch);
+          void returnedNode(Node *node);
+          void cancelRequests();
+          bool hasWaitingRequests() const;
           void reclaimPartitionRoots(NodePartition::ReclaimNode reclaim, void *context);
 
         private:
           friend class SeatReservation;
           SeatReservations(const SeatReservations &);
           SeatReservations &operator=(const SeatReservations &);
+          static void ReturnedGenerationNode(Node *node, void *owner);
           static const core::LokaAllocationSite &site();
           SeatReservation *head_;
         };

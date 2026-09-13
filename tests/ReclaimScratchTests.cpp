@@ -176,6 +176,19 @@ namespace
       if (parent >= 0)
         nodes[parent]->addChild(nodes[i]);
     }
+    SeatReservations requests;
+    const SeatReservation *rootRequest = 0;
+    const SeatReservation *tailRequest = 0;
+    if (door == GENERATION && !legacy())
+    {
+      SeatLayoutTable table;
+      LOKA_VERIFY(table.append(layout));
+      rootRequest = requests.install(table);
+      tailRequest = requests.install(table);
+      LOKA_VERIFY(rootRequest && tailRequest);
+      rootRequest->request().retire(nodes[0]);
+      tailRequest->request().retire(nodes[count - 1]);
+    }
     ComponentContext context;
     if (door == BOUNDARY)
       boundary.retireDetachedNode(context, nodes[0]);
@@ -192,13 +205,15 @@ namespace
         if (legacy())
           NodeArena::destroyRetiredGeneration(generation);
         else
-          LOKA_VERIFY(NodeArena::destroyRetiredGeneration(generation, arena.reclaimScratch()));
+          requests.reclaimGeneration(generation, &arena.reclaimScratch());
         break;
       case PARTITION:
         LOKA_VERIFY(partition.destroy(nodes[0], layout));
         break;
       }
     }
+    assert(!rootRequest || !rootRequest->request().retiring());
+    assert(!tailRequest || !tailRequest->request().retiring());
     LOKA_VERIFY(log.count == size_t(count));
     if (deep)
       for (int i = 0; i < count; ++i)
