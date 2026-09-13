@@ -103,7 +103,7 @@ namespace loka
             // precedent). requiresBoundaryPlan is a branch seat declared
             // under a component -- seats materialize only through Boundary
             // plan application, so the whole box refuses.
-            if (result.root && result.root->arenaOwner() == 0)
+            if (result.root && result.root->arenaOwner() == 0 && !result.root->isPartitionAllocated())
             {
               DestroyHeapNode(result.root);
             }

@@ -424,9 +424,7 @@ namespace
     require(owner != 0);
     const SeatReservation *seat = loka::dsl::testing::SeatBuildRequestAccess::firstReservation(*owner);
     require(seat != 0);
-    NodePartition *bank = owner->installPartitionFixture(seat->layoutTable());
-    require(bank != 0);
-    seat->request().activateFixture(*bank, owner->key.state());
+    require(seat->request().enabled());
     {
       loka::core::StateTrackerGuard guard(owner->tracker());
       owner->model = 1;
@@ -496,11 +494,7 @@ namespace
     const SeatReservation *outer = Access::firstReservation(*owner);
     const SeatReservation *inner = Access::nestedReservation(*owner);
     require(outer != 0 && inner != 0);
-    NodePartition *outerBank = owner->installPartitionFixture(outer->layoutTable());
-    NodePartition *innerBank = owner->installPartitionFixture(inner->layoutTable());
-    require(outerBank != 0 && innerBank != 0);
-    outer->request().activateFixture(*outerBank, owner->outer.state());
-    inner->request().activateFixture(*innerBank, owner->inner.state());
+    require(outer->request().enabled() && inner->request().enabled());
     {
       loka::core::StateTrackerGuard guard(owner->tracker());
       owner->inner.set(1);
@@ -635,20 +629,19 @@ void testSeatBuildRequestNestedAttachPreservesHeldOwner()
     AttachHoldOwner *owner = static_cast<AttachHoldOwner *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     require(owner != 0);
     typedef loka::core::testing::HeldTestAccess HeldAccess;
-    // Establish the ordinary replacement's ancestry before enabling the fixture.
+    // Both replacements now use production waiting admission.
     {
       loka::core::StateTrackerGuard guard(owner->tracker());
       owner->inner.set(1);
     }
+    scene.flushInvalidation();
     scene.flushInvalidation();
     assert(owner->builds == 2 && scenario.attaches == 2);
     IStateOwner *ordinaryParent = HeldAccess::enclosingOwner(*scenario.attached->holdLedger());
     assert(ordinaryParent == scenario.creator);
     const SeatReservation *seat = loka::dsl::testing::SeatBuildRequestAccess::nestedReservation(*owner);
     require(seat != 0);
-    NodePartition *bank = owner->installPartitionFixture(seat->layoutTable());
-    require(bank != 0);
-    seat->request().activateFixture(*bank, owner->inner.state());
+    require(seat->request().enabled());
     {
       loka::core::StateTrackerGuard guard(owner->tracker());
       owner->inner.set(2);

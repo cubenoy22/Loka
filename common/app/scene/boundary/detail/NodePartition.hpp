@@ -115,9 +115,25 @@ namespace loka
               return this->node && this->owner == provider;
             }
           };
+          /** Remaining entitlement for one admitted class, including cold ATTACH.
+              Returning a failed factory's slot never refunds construction quota. */
+          class BuildQuota
+          {
+          public:
+            explicit BuildQuota(size_t count = 0) : remaining_(count) {}
+            bool consume()
+            {
+              if (!this->remaining_) return false;
+              --this->remaining_;
+              return true;
+            }
+          private:
+            size_t remaining_;
+          };
           struct Class
           {
             size_t size, alignment, count, stride;
+            BuildQuota buildQuota;
             char *begin;
             void *head;
             unsigned char *occupied;
@@ -204,11 +220,15 @@ namespace loka
             return true;
           }
 
-          /** Synchronous fixture only: the operation owns one ticket through root,
+          /** Synchronous admitted build: the operation owns one ticket through root,
               recursive construction, attach, and cleanup. The caller exclusively
               lends this partition for the entire call; callbacks must not reenter
-              the partition or retain the ticket. Production routing is separate. */
-          bool buildFixture(const NodeSlotLayout *demand, size_t count, NodeBuildOperation &operation);
+              the partition or retain the ticket. */
+          bool build(const NodeSlotLayout *demand, size_t count, NodeBuildOperation &operation);
+#ifdef TEST_BUILD
+          bool buildFixture(const NodeSlotLayout *demand, size_t count, NodeBuildOperation &operation)
+          { return this->build(demand, count, operation); }
+#endif
 
           /** Current class counts from this bank's own free lists. Unsupported
               demand is a capacity contract error, distinct from pending returns. */
@@ -232,13 +252,17 @@ namespace loka
               Storage must contain a completed placement construction of T. */
           template <class T> bool registerNode(T *node, Node *owner)
           {
-            Node *base = node;
-            const NodeSlotLayout layout = NodeSlotLayout::of<T>(1);
+            return this->registerPlaced(node, node, NodeSlotLayout::of<T>(1), owner);
+          }
+
+          bool registerPlaced(Node *base, void *storage, const NodeSlotLayout &layout, Node *owner)
+          {
             Class *c = this->findClass(layout);
             size_t s = 0;
-            if (!c || !locate(*c, node, s) || !occupied(*c, s) || c->residents[s].node
+            if (!c || !locate(*c, storage, s) || !occupied(*c, s) || c->residents[s].node
                 || (owner && !this->resident(owner)))
               return false;
+            base->setPartitionOwner(this);
             c->residents[s].node = base;
             c->residents[s].owner = owner;
             return true;
@@ -302,6 +326,20 @@ namespace loka
             return this->reclaimTree(c->residents[s].node, &DestroyResident, this);
           }
 
+          /** Returns a detached subtree through its storage landlords, then
+              reports completed identities. Uses this partition's bounded plan
+              when reserved; legacy traversal remains the overflow fallback. */
+          static void reclaimDetached(Node *node, void (*returned)(Node *, void *), void *owner)
+          {
+            if (!node) return;
+            NodePartition *partition = node->partitionOwner();
+            DetachedReclaim completion(returned, owner, partition);
+            if (partition && partition->reclaimScratch_.isReserved()
+                && partition->reclaimTree(node, &ReclaimDetachedRow, &completion))
+              return;
+            ReclaimDetachedTree(node, &completion);
+          }
+
           /** Cold explicit-door provisioning; destructor teardown stays legacy. */
           bool reserveReclaimScratch(size_t nodes)
           {
@@ -309,8 +347,57 @@ namespace loka
           }
 
         private:
+          struct DetachedReclaim
+          {
+            DetachedReclaim(void (*callback)(Node *, void *), void *context, NodePartition *landlord)
+                : returned(callback), owner(context), partition(landlord) {}
+            void (*returned)(Node *, void *);
+            void *owner;
+            NodePartition *partition;
+          };
+          static void ReclaimDetachedTree(Node *node, void *context)
+          {
+            INestable *nestable = node->asBoundary() ? 0 : node->asNestable();
+            Node *child = nestable ? nestable->detachChildren() : 0;
+            while (child)
+            {
+              Node *next = child->nextInComposition;
+              child->nextInComposition = 0;
+              if (!child->isArenaAllocated())
+              {
+                if (child->partitionOwner() && child->partitionOwner() != node->partitionOwner())
+                {
+                  DetachedReclaim &completion = *static_cast<DetachedReclaim *>(context);
+                  reclaimDetached(child, completion.returned, completion.owner);
+                }
+                else
+                  ReclaimDetachedTree(child, context);
+              }
+              child = next;
+            }
+            ReclaimDetachedRow(node, context);
+          }
+          static void ReclaimDetachedRow(Node *node, void *context)
+          {
+            if (node->isArenaAllocated())
+              return;
+            DetachedReclaim &completion = *static_cast<DetachedReclaim *>(context);
+            NodePartition *partition = node->partitionOwner();
+            // PR2 fixture banks may also register tagged heap dependents. Their
+            // origin remains heap, but the borrowing landlord must clear its row.
+            if (!partition && completion.partition && completion.partition->resident(node))
+              partition = completion.partition;
+            if (partition)
+              partition->reclaimAfterChildren(node, &ReclaimDetachedTree, context);
+            else
+              DestroyHeapNode(node);
+            if (completion.returned)
+              completion.returned(node, completion.owner);
+          }
           friend class ::loka::app::scene::BoundaryNode;
           friend class SeatReservations;
+          friend class NodeBuildTicket;
+          void *consumeBuildSlot(const NodeSlotLayout &layout);
           friend class SeatBuildRequest;
           bool admitReturned(SeatBuildRequest &request, const SeatLayoutTable &demand, NodeBuildOperation &operation);
           typedef void (*ReclaimNode)(Node *, void *);

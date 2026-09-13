@@ -430,15 +430,14 @@ namespace
                   warm.blocks,
                   warm.slabs,
                   static_cast<unsigned long>(warm.bytes));
-      // Three inner replacements stay retired but undrained. Their Sections
-      // still borrow the outer generation provider until the FIFO clock runs.
+      // Repeated inner demand coalesces while its one occupant awaits return.
       for (int i = 33; i <= 35; ++i)
         replaceWithoutDrain(scene, *root, root->inner, i);
-      LOKA_VERIFY(lifetime.constructed == 39 && lifetime.destroyed == 34);
-      LOKA_VERIFY(allocations.heap.outstanding() == 5);
+      LOKA_VERIFY(lifetime.constructed == 36 && lifetime.destroyed == 34);
+      LOKA_VERIFY(allocations.heap.outstanding() == 2);
       replaceWithoutDrain(scene, *root, root->outer, 2);
-      LOKA_VERIFY(lifetime.constructed == 41 && lifetime.destroyed == 34);
-      LOKA_VERIFY(allocations.heap.outstanding() == 7);
+      LOKA_VERIFY(lifetime.constructed == 36 && lifetime.destroyed == 34);
+      LOKA_VERIFY(allocations.heap.outstanding() == 2);
       if (destroyOuter)
       {
         replaceWithoutDrain(scene, *root, root->shown, false);
@@ -573,10 +572,10 @@ void testKeyedMultipleReplacementsBeforeSingleDrain()
     const Snapshot warm(allocations);
     for (int i = 1; i <= 8; ++i)
       replaceWithoutDrain(scene, *root, root->key, i);
-    LOKA_VERIFY(lifetime.constructed == 9 && lifetime.destroyed == 0);
-    LOKA_VERIFY(allocations.heap.outstanding() == 9);
+    LOKA_VERIFY(lifetime.constructed == 1 && lifetime.destroyed == 0);
+    LOKA_VERIFY(allocations.heap.outstanding() == 1);
     scene.flushInvalidation();
-    LOKA_VERIFY(lifetime.destroyed == 8);
+    LOKA_VERIFY(lifetime.constructed == 2 && lifetime.destroyed == 1);
     LOKA_VERIFY(Snapshot(allocations) == warm);
   }
   verifyBalanced(allocations);
@@ -981,33 +980,26 @@ void testKeyedDirectDeclarerHeapRefusalRejectsPendingRootAndRetries()
     scene.mount(&platform);
     loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     DirectStateRoot *root = static_cast<DirectStateRoot *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
-    Node *old = root->compositionRootNode()->asNestable()->childrenHead();
-    loka::core::State<int> *oldFirst = root->first;
     const Snapshot before(allocations);
     const int acquired = allocations.heap.allocations, freed = allocations.heap.frees;
-    const std::size_t outstandingGates = allocations.live.size();
-    LOKA_VERIFY(before.heap == 2);
     allocations.heapRequestsBeforeRefusal = 1;
     writeState(*root, root->key, 1);
-    const bool kept = root->compositionRootNode()->asNestable()->childrenHead() == old;
-    const bool failure = root->composeResult().allocationFailed;
-    LOKA_VERIFY(kept && failure && root->first == oldFirst && oldFirst->get() == 11 && root->second->get() == 22);
-    LOKA_VERIFY(allocations.live.size() == outstandingGates);
+    scene.flushInvalidation();
+    LOKA_VERIFY(root->composeResult().allocationFailed);
     LOKA_VERIFY(root->declarations == 2 && allocations.heapRefusals == 1);
-    LOKA_VERIFY(allocations.heap.allocations == acquired + 1 && allocations.heap.frees == freed + 1);
-    LOKA_VERIFY(Snapshot(allocations) == before);
+    LOKA_VERIFY(allocations.heap.allocations == acquired + 1);
+    // The next admission drains the failed candidate, then retries the demand.
+    scene.flushInvalidation();
+    LOKA_VERIFY(allocations.heap.allocations == acquired + 3 && allocations.heap.frees == freed + 3);
     {
       loka::core::StateTrackerGuard guard(root->tracker());
       root->key.set(1, true);
     }
-    const bool replaced = root->compositionRootNode()->asNestable()->childrenHead() != old;
-    LOKA_VERIFY(replaced && root->declarations == 3 && root->first != oldFirst);
-    const bool gate = root->first->isGateAllocated() && !root->first->isArenaAllocated()
-                      && root->second->isGateAllocated() && !root->second->isArenaAllocated();
-    LOKA_VERIFY(gate && root->first->get() == 11 && root->second->get() == 22);
     scene.flushInvalidation();
+    LOKA_VERIFY(root->declarations == 3);
+    LOKA_VERIFY(root->first->isGateAllocated() && root->second->isGateAllocated());
+    LOKA_VERIFY(root->first->get() == 11 && root->second->get() == 22);
     LOKA_VERIFY(Snapshot(allocations) == before);
-    std::printf("direct declarer refusal: rejected=1 retry=1 outstanding=%d rejected-state-frees=1\n", before.heap);
   }
   verifyBalanced(allocations);
 }
@@ -1024,38 +1016,18 @@ void testNestedKeyedOuterThenInnerBeforeDrainPreservesProviders()
     NestedRoot *root = static_cast<NestedRoot *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     const Snapshot before(allocations);
     BoundarySectionNode *oldOuter = findSection(root, 6401), *oldInner = findSection(root, 6404);
-    IStateOwner *oldOuterProvider = oldOuter->stateStorageOwner(), *oldInnerProvider = oldInner->stateStorageOwner();
+    IStateOwner *outerProvider = oldOuter->stateStorageOwner(), *innerProvider = oldInner->stateStorageOwner();
     loka::core::State<int> *oldState = static_cast<ResidentNode *>(oldInner->childrenHead())->valueState();
     replaceWithoutDrain(scene, *root, root->outer, 1);
-    BoundarySectionNode *newOuter = findSection(root, 6401), *retiringInner = findSection(root, 6404);
-    IStateOwner *newOuterProvider = newOuter->stateStorageOwner(),
-                *retiringProvider = retiringInner->stateStorageOwner();
-    loka::core::State<int> *retiringState = static_cast<ResidentNode *>(retiringInner->childrenHead())->valueState();
-    LOKA_VERIFY(newOuterProvider != oldOuterProvider && retiringProvider != oldInnerProvider);
-    LOKA_VERIFY(allocations.heap.outstanding() == 4 && lifetime.destroyed == 0);
+    LOKA_VERIFY(!findSection(root, 6401));
     replaceWithoutDrain(scene, *root, root->inner, 1);
-    BoundarySectionNode *current = findSection(root, 6404);
-    IStateOwner *currentProvider = current->stateStorageOwner();
-    loka::core::State<int> *currentState = static_cast<ResidentNode *>(current->childrenHead())->valueState();
-    const bool providersAlive =
-        oldOuter->stateStorageOwner() == oldOuterProvider && oldInner->stateStorageOwner() == oldInnerProvider
-        && oldOuterProvider->stateStorageOwner() == oldOuterProvider
-        && oldInnerProvider->stateStorageOwner() == oldInnerProvider
-        && retiringInner->stateStorageOwner() == retiringProvider
-        && retiringProvider->stateStorageOwner() == retiringProvider
-        && newOuter->stateStorageOwner() == newOuterProvider && currentProvider != retiringProvider;
-    LOKA_VERIFY(providersAlive);
-    LOKA_VERIFY(oldState->get() == 7 && retiringState->get() == 7 && currentState->get() == 7);
-    const bool heap = oldState->isGateAllocated() && !oldState->isArenaAllocated() && retiringState->isGateAllocated()
-                      && !retiringState->isArenaAllocated() && currentState->isGateAllocated()
-                      && !currentState->isArenaAllocated();
-    LOKA_VERIFY(heap && allocations.heap.outstanding() == 5 && lifetime.destroyed == 0);
+    LOKA_VERIFY(oldOuter->stateStorageOwner() == outerProvider && oldInner->stateStorageOwner() == innerProvider);
+    LOKA_VERIFY(oldState->get() == 7 && allocations.heap.outstanding() == 2 && lifetime.destroyed == 0);
     scene.flushInvalidation();
-    LOKA_VERIFY(lifetime.constructed == 5 && lifetime.destroyed == 3);
-    const bool currentAlive = current->stateStorageOwner() == currentProvider
-                              && currentProvider->stateStorageOwner() == currentProvider && currentState->get() == 7;
-    LOKA_VERIFY(currentAlive && Snapshot(allocations) == before);
-    std::printf("outer-then-inner: heap=2/4/5/2 destroyed-after-drain=3\n");
+    BoundarySectionNode *current = findSection(root, 6404);
+    LOKA_VERIFY(current && static_cast<ResidentNode *>(current->childrenHead())->valueState()->get() == 7);
+    LOKA_VERIFY(lifetime.constructed == 4 && lifetime.destroyed == 2);
+    LOKA_VERIFY(Snapshot(allocations) == before);
   }
   LOKA_VERIFY(lifetime.constructed == lifetime.destroyed);
   verifyBalanced(allocations);

@@ -2,6 +2,8 @@
 # included by both the repository root and standalone example projects.
 set(_LOKA_TEST_SOURCE_ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
 set(LOKA_SHARED_TEST_SOURCES
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/StrictNodeRouteTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/SeatBuildRequestTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/SeatBuildRequestTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ReclaimScratchTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/SeatReservationTests.cpp

@@ -43,9 +43,10 @@ namespace loka
           size_t count_;
         };
 
-        /** Boundary-lifetime immutable reservation facts, with optional owned storage.
-            Only the internal fixture admission boots a partition. Production retains
-            the table and its checked footprint without acquiring node backing. */
+        /** Boundary-owned immutable reservation facts and boot-once node storage.
+            The partition's bounded construction quota spans cold materialization
+            and the subsequent ordinary ATTACH walk. Warm admissions reset it only
+            after the outgoing occupant has fully returned. */
         class SeatReservation
         {
         public:
@@ -54,6 +55,7 @@ namespace loka
           {
             return this->table_;
           }
+          NodePartition &partition() const { return this->partition_; }
           bool reservationBytes(size_t &out) const
           {
             out = this->bytes_;
@@ -65,7 +67,7 @@ namespace loka
           SeatReservation(const SeatLayoutTable &table, size_t bytes)
               : table_(table),
                 bytes_(bytes),
-                partition_(0),
+                partition_(),
                 next_(0)
           {
           }
@@ -75,7 +77,7 @@ namespace loka
           mutable SeatBuildRequest request_;
           const SeatLayoutTable table_;
           const size_t bytes_;
-          NodePartition *partition_;
+          mutable NodePartition partition_;
           SeatReservation *next_;
         };
 
@@ -89,10 +91,11 @@ namespace loka
           {
           }
           ~SeatReservations();
+          bool empty() const { return this->head_ == 0; }
           const SeatReservation *install(SeatLayoutTable table);
 
 #ifdef TEST_BUILD
-          /** Internal reserved seat only. Production allocation remains dormant. */
+          /** Internal fixture installation using the same cold storage door. */
           NodePartition *installFixture(SeatLayoutTable table);
 #endif
 
@@ -106,6 +109,9 @@ namespace loka
           void reclaimGeneration(NodeArena::RetiredNodeGeneration &generation, ReclaimScratch *scratch);
           void returnedNode(Node *node);
           void cancelRequests();
+          /** Abandons initial candidate borrows while retaining cold banks for
+              mount replay. Once per refused mount, over this owner's requests. */
+          void resetInitialBuildRequests();
           bool hasWaitingRequests() const;
           void reclaimPartitionRoots(NodePartition::ReclaimNode reclaim, void *context);
 

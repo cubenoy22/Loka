@@ -218,7 +218,7 @@ namespace
         loka::core::StateTrackerGuard guard(wrapper->tracker());
         button->props.onClick_->emit();
       }
-      LOKA_VERIFY(!scene.flushInvalidation());
+      LOKA_VERIFY(scene.flushInvalidation());
     }
     return games;
   }
@@ -852,8 +852,8 @@ void testOwnershipDumpPinsMineSweeperNewGameRetiresCells()
     }
     assert(scene.hasPendingInvalidation() &&
            "retired cell boxes must wait for the drain");
-    LOKA_VERIFY(!scene.flushInvalidation() &&
-                "cell retirement must be a silent drain-only run");
+    LOKA_VERIFY(scene.flushInvalidation() &&
+                "returned cell slots admit the next board");
 
     const int baseKey = 100;
     std::string expected("scene\n"
