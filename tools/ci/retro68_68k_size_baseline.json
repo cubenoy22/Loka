@@ -6,7 +6,10 @@
     "preset": "retro68-68k-release",
     "source_commit": "a8f670342d59236cfdaa994c18b70a16bd2b42c8"
   },
-  "material_growth_bytes": 4096,
+  "per_pr_ok_bytes": 51200,
+  "per_pr_note_bytes": 51200,
+  "per_pr_stop_bytes": 102400,
+  "cumulative_stop_bytes": 204800,
   "artifacts": [
     {
       "name": "LokaHello68K",
