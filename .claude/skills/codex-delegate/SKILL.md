@@ -145,25 +145,27 @@ ranked list naming the places the delivered shape reads as bolted-on. AGENTS.md
 file while working is fine but **must not be committed** — say so in the brief.
 Asking for a `.<slice>-smells.md` deliverable without that caveat put four
 stray markdown files on the ScrapbookUI stack and cost a rebuild to remove
-them. Word the requirement so the list cannot come back empty by default:
+them. Word the requirement so the walk cannot be skipped by default (there is no numeric quota; the quota produced padding on small diffs, #729):
 
-> List at least three places where this change reads as bolted-on, ranked, with
-> the reasoning for each: a door or field that duplicates the shape of an
-> existing one; a check whose absence in some build configuration is worse than
-> "undetected"; a step added to one reclamation or teardown path that other
-> paths reaching the same point still lack; a field a type never reads itself;
-> an API shape chosen for test observability. Separately, enumerate every
-> primitive member (`bool`, counter, index) the change adds to an existing
-> type, each with its single writer, every reader outside the owning type,
-> and the existing phase, type, or return value it could not be derived from
-> — an added flag or counter is returned for reshaping unless that line
-> exists, and a foreign reader fails it even when the writer is unique. For every door or call path the change adds, one cost line:
-> who calls it, how many times per update cycle, and whose rows it walks —
-> a walk over rows another owner holds (every ledger to find one context's
-> entries, every hit to decide whether a State still has a user) is a
-> return-for-reshaping finding, not a medium smell. If you believe the shape is
-> clean, say so per item and explain what you considered — "nothing found" with
-> nothing considered is not an accepted answer.
+> Walk the review lenses below and, for each, either name the finding (ranked
+> by how much it would cost to fix later) or say what you considered and why
+> it does not apply. The lenses: a door or field that duplicates the shape of
+> an existing one; a check whose absence in some build configuration is worse
+> than "undetected"; a step added to one reclamation or teardown path that
+> other paths reaching the same point still lack; a field a type never reads
+> itself; an API shape chosen for test observability. Separately, enumerate
+> every primitive member (`bool`, counter, index) the change adds to an
+> existing type, each with its single writer, every reader outside the owning
+> type, and the existing phase, type, or return value it could not be derived
+> from — an added flag or counter is returned for reshaping unless that line
+> exists, and a foreign reader fails it even when the writer is unique. For
+> every door or call path the change adds, one cost line: who calls it, how
+> many times per update cycle, and whose rows it walks — a walk over rows
+> another owner holds is a return-for-reshaping finding, not a medium smell.
+> "No applicable structural change" is an accepted answer only with the lens
+> walk written out; "looks good" without it is not. For a class E or C change
+> (AGENTS.md "Review Paths") the lens walk is replaced by that class's required
+> statement.
 
 Reason for the forced output: a passive escape hatch does not fire. The S3
 brief said "stop and write a questions file if the rulings underdetermine
