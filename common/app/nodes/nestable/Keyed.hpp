@@ -86,6 +86,7 @@ namespace loka
         virtual scene::BoundaryNode *owner() const = 0;
         virtual void declare(scene::NodeComposition &) const = 0;
         virtual bool installReservation() = 0;
+        virtual const scene::detail::SeatReservation *reservation() const = 0;
       };
       template <class N, class List> struct MemberDeclarer : DeclarerDefinition
       {
@@ -117,6 +118,7 @@ namespace loka
           this->reservation_ = this->node_->installSeatReservation(table);
           return this->reservation_ != 0;
         }
+        virtual const scene::detail::SeatReservation *reservation() const { return this->reservation_; }
         N *node_;
         void (N::*method_)(scene::NodeComposition &);
         const scene::detail::SeatReservation *reservation_;
@@ -167,6 +169,11 @@ namespace loka
           std::abort();
         }
 #endif
+      }
+
+      virtual const scene::detail::SeatReservation *seatReservation() const
+      {
+        return this->declarer_.isSet() ? this->declarer_->reservation() : 0;
       }
 
       virtual scene::Node *create() const
