@@ -34,6 +34,10 @@ public:
       logical offset represented by that state. */
   int setScrollMetrics(int contentHeight, int viewportHeight, int offset);
 
+  /** Routes a root-window wheel message to its nearest viewport at the
+      message's screen position; refuses targets outside that root. */
+  static bool forwardMouseWheel(HWND root, WPARAM wParam, LPARAM lParam);
+
 private:
   void applyAttachedPresentation();
   void applyDetachedPresentation();

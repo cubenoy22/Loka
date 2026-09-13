@@ -230,6 +230,44 @@ namespace
     return frameRect;
   }
 
+  // Deliberate counterpart of Win32's ClampOuterRectToWorkArea and Toolbox's
+  // ClampStructureToScreen. AppKit's constraint only keeps the title bar
+  // reachable; declared placement must fit the entire frame, including chrome.
+  static NSRect ClampFrameToVisibleFrame(NSRect frame, NSScreen *screen)
+  {
+    if (!screen)
+    {
+      return frame;
+    }
+    const NSRect visible = [screen visibleFrame];
+    if (frame.size.width > visible.size.width)
+    {
+      frame.size.width = visible.size.width;
+    }
+    if (frame.size.height > visible.size.height)
+    {
+      frame.size.height = visible.size.height;
+    }
+    if (NSMaxX(frame) > NSMaxX(visible))
+    {
+      frame.origin.x = NSMaxX(visible) - frame.size.width;
+    }
+    // AppKit is bottom-up: correct right/bottom before left/top.
+    if (NSMinY(frame) < NSMinY(visible))
+    {
+      frame.origin.y = NSMinY(visible);
+    }
+    if (NSMinX(frame) < NSMinX(visible))
+    {
+      frame.origin.x = NSMinX(visible);
+    }
+    if (NSMaxY(frame) > NSMaxY(visible))
+    {
+      frame.origin.y = NSMaxY(visible) - frame.size.height;
+    }
+    return frame;
+  }
+
   static loka::core::Frame NativeContentFrame(NSWindow *window)
   {
     if (!window)
@@ -302,6 +340,7 @@ void MacWindow::FrameChangedThunk(void *userData)
   {
     nextFrame.origin.y = currentFrame.origin.y;
   }
+  nextFrame = ClampFrameToVisibleFrame(nextFrame, screen);
   [window setFrame:nextFrame display:YES];
 }
 
@@ -327,6 +366,7 @@ void MacWindow::createNativeWindow()
   [window setReleasedWhenClosed:NO];
   NSScreen *screen = [NSScreen mainScreen];
   NSRect frame = FrameRectForContent(x, y, width, height, style, screen);
+  frame = ClampFrameToVisibleFrame(frame, screen);
   [window setFrame:frame display:NO];
   std::string utf8;
   if (loka::platform::CollectUtf8(this->displayTitleState().get(), utf8))

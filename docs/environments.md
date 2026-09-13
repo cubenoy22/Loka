@@ -171,8 +171,10 @@ This is the environment where binaries are actually built.
 
   Substitute `x86` or `arm64` while using the matching compiler environment.
   The script uses a separate CMake cache per architecture, verifies every PE
-  header, and stages five independent executables with `ASSETS.LRP`, a generated
-  application catalog, and all tracked expected audits under
+  header, and stages five application directories named by the catalog keys.
+  Each executable owns its directory and `LOG.TXT`; only `scrapbook` carries
+  `ASSETS.LRP`. The generated application catalog, verifier, and tracked expected
+  audits stay at the package root under
   `build/presentation/win32-<architecture>-release`. ScrapbookUI, HelloWorld,
   Tutorial, MineSweeper, and FloppyBird are included; SimpleViewer is explicitly
   omitted because it requires an interactive file chooser. Use `-Action Verify`
@@ -180,7 +182,8 @@ This is the environment where binaries are actually built.
   directory to the target machine and run
   `powershell -ExecutionPolicy Bypass -File .\Verify-StandaloneFlow.ps1`
   there for a hardware check. The staged verifier derives the architecture
-  from its sibling PEs, starts each presentation, waits for its exact tracked
+  from the application PEs, starts each presentation in its own directory,
+  waits for its exact tracked
   audit, stops the final-scene hold, and stores the five target-local verdicts
   under `actual`. For a VAIO P, build x86 from a VS2017 `x64_x86 Cross Tools`
   session. **Standalone: Win32 Release Action** is the VS Code shortcut;
@@ -188,8 +191,12 @@ This is the environment where binaries are actually built.
 
   For the standalone application payload, use `-Action Release` instead of
   `-Action Stage`. It writes `build/release/win32-<architecture>` with five
-  autonomous loop executables, `LokaSimpleViewerWin32.exe`, ScrapbookUI's
-  `ASSETS.LRP`, and a short README. Each loop keeps its App and native Window;
+  autonomous loop directories (`scrapbook`, `helloworld`, `tutorial`,
+  `minesweeper`, `floppybird`), a `simpleviewer` directory containing
+  `LokaSimpleViewerWin32.exe`, and a shared README. Keep each executable in its
+  directory; ScrapbookUI's `ASSETS.LRP` and each app's `LOG.TXT` belong there.
+  The CMake Standalone Flow/Loop build outputs use the same catalog-key
+  directories, so direct launches also keep sidecars separate. Each loop keeps its App and native Window;
   a completed pass receives a fresh scenario rail and a re-armed Scene.
   Closing it manually does not relaunch it.
   SimpleViewer remains interactive and is not started by either audit
@@ -198,6 +205,23 @@ This is the environment where binaries are actually built.
   VS Code action;
   launch VS Code from the matching Visual Studio Developer Command Prompt so
   the Task inherits the intended compiler architecture.
+
+  To verify application-sidecar isolation in an interactive Windows session,
+  use a freshly staged Release package and a new evidence directory:
+
+  ```powershell
+  powershell -NoProfile -ExecutionPolicy Bypass -File tests/scripts/Win32StandaloneIsolationTest.ps1 -StageRoot build/release/win32-x64 -EvidenceDirectory build/isolation-check
+  ```
+
+  This opens Scrapbook and HelloWorld concurrently from the same working
+  directory, requires both application-local audits to succeed, retains them
+  in the evidence directory, and closes only the processes it started. It
+  refuses existing logs. The same check accepts the CMake `standalone-loop`
+  output directory for direct-build launch coverage. For Visual Studio or
+  Ninja Multi-Config outputs, also pass `-Configuration Release` (or the
+  configuration you built); executable and audit paths then use
+  `<root>/<app>/<configuration>/`. Omit this argument for staged packages
+  and single-config outputs.
 
   To measure a Standalone Flow, configure a separate cache with
   `LOKA_STANDALONE_PERFORMANCE_RUNS` set from 3 through 10 and build its

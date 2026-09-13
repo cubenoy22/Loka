@@ -71,22 +71,27 @@ try {
     New-Item -ItemType Directory -Path $expectedRoot, $fixtureRoot | Out-Null
     Copy-Item -LiteralPath $Subject `
         -Destination (Join-Path $TestRoot "Verify-StandaloneFlow.ps1")
-    [System.IO.File]::WriteAllBytes(
-        (Join-Path $TestRoot "ASSETS.LRP"),
-        [System.Text.Encoding]::ASCII.GetBytes("fixture-assets"))
     Write-Catalog
 
     foreach ($entry in $Catalog) {
         $trackedAudit = Join-Path $ProjectDirectory `
             ("tests/scenarios/expected/" + $entry[2])
+        $applicationRoot = Join-Path $TestRoot $entry[0]
+        New-Item -ItemType Directory -Path $applicationRoot | Out-Null
         Copy-Item -LiteralPath $FixtureExecutable `
-            -Destination (Join-Path $TestRoot ($entry[1] + ".exe"))
+            -Destination (Join-Path $applicationRoot ($entry[1] + ".exe"))
         Copy-Item -LiteralPath $trackedAudit `
             -Destination (Join-Path $expectedRoot ($entry[0] + ".audit"))
         Copy-Item -LiteralPath $trackedAudit `
             -Destination (Join-Path $fixtureRoot ($entry[0] + ".audit"))
     }
 
+    [System.IO.File]::WriteAllBytes(
+        (Join-Path $TestRoot "scrapbook/ASSETS.LRP"),
+        [System.Text.Encoding]::ASCII.GetBytes("fixture-assets"))
+    # A root-side log is unrelated to every application and must remain intact.
+    $rootLog = Join-Path $TestRoot "LOG.TXT"
+    [System.IO.File]::WriteAllText($rootLog, "unrelated root log")
     $accepted = Invoke-Verifier
     if ($accepted.ExitCode -ne 0) {
         throw "The tracked five-app catalog was refused:`n$($accepted.Output)"
@@ -101,6 +106,15 @@ try {
             ($entry[0] + ".audit")
         if (-not (Test-Path -LiteralPath $actualAudit)) {
             throw "The verifier did not retain actual evidence for $($entry[0])."
+        }
+    }
+
+    if ([System.IO.File]::ReadAllText($rootLog) -ne "unrelated root log") {
+        throw "The verifier modified a shared root log."
+    }
+    foreach ($entry in $Catalog) {
+        if (Test-Path -LiteralPath (Join-Path $TestRoot ($entry[0] + "/LOG.TXT"))) {
+            throw "The verifier retained a consumed temporary audit for $($entry[0])."
         }
     }
 
@@ -125,7 +139,7 @@ try {
 
     Write-Catalog
     $missingExecutable = Join-Path $TestRoot `
-        "LokaFloppyBirdStandaloneFlowWin32.exe"
+        "floppybird/LokaFloppyBirdStandaloneFlowWin32.exe"
     Remove-Item -LiteralPath $missingExecutable -Force
     Remove-Item -LiteralPath (Join-Path $TestRoot "actual") `
         -Recurse -Force -ErrorAction SilentlyContinue
