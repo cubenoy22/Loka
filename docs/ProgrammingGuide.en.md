@@ -1292,7 +1292,3 @@ Avoid black boxes.
 
 If application code reads naturally while ownership and lifecycle remain
 inspectable, it is moving in the right direction for Loka.
-
-## From AGENTS.md
-
-Do not expose `NodeState<T>` across boundary lines or use it as a foreign mutation channel. The one sanctioned exception is the rail result channel: a Props door that borrows the app's `NodeState<T>` so the platform rail can write a fact into it (`OpenFileDialogProps::result`, `ScrollViewProps::offset`, `RectSurfaceProps::laidOutExtent`); the node writes only through `NodeState::set` and reads the handle only for props identity.
