@@ -12,6 +12,7 @@ namespace loka
   {
     namespace scene
     {
+      namespace detail { class SeatNodeStorageView; }
       class BoundaryNode;
       class Node;
       class IStateOwner;
@@ -37,6 +38,7 @@ namespace loka
               platformController_(0),
               scene_(0),
               window_(0),
+              nodeStorage_(0),
               composition_(0),
               dirtyFlags_(NODE_DIRTY_NONE)
         {
@@ -49,6 +51,7 @@ namespace loka
               platformController_(0),
               scene_(0),
               window_(0),
+              nodeStorage_(0),
               composition_(0),
               dirtyFlags_(NODE_DIRTY_NONE)
         {
@@ -110,6 +113,8 @@ namespace loka
         {
           window_ = window;
         }
+        detail::SeatNodeStorageView *nodeStorage() const { return this->nodeStorage_; }
+        void setNodeStorage(detail::SeatNodeStorageView *storage) { this->nodeStorage_ = storage; }
         NodeComposition *composition() const
         {
           return composition_;
@@ -136,6 +141,7 @@ namespace loka
         IPlatformController *platformController_;
         Scene *scene_;
         ::Window *window_;
+        detail::SeatNodeStorageView *nodeStorage_;
         NodeComposition *composition_;
         NodeDirtyFlags dirtyFlags_;
       };

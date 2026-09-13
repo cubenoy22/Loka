@@ -12,8 +12,10 @@
 A Keyed definition borrows its enclosing boundary and a member declarer. The
 boundary must outlive the definition. Each committed declaration owns its key
 snapshot, definitions, and nested seat plans. A fresh candidate owns those same
-facts separately until materialization succeeds. Failure preserves the current
-branch and key snapshot, so a later external update can retry the current key.
+facts separately until materialization succeeds. A replacement retires its old
+occupant first and waits for its node slots to return. The vacant interval is
+observable; a refused candidate never restores the old incarnation. The surviving
+request resamples the current key when it can build again.
 
 The seat window uses a separate NodeComposition and a runtime generation state
 owner. States created inside a Keyed/LazyScope runtime generation use the tagged
@@ -40,10 +42,11 @@ Definitions may copy the uncommitted declarer instruction. A committed
 Declaration is not cloneable: its plan identities belong to its own scope.
 Lifecycle-audit builds reject copying a definition after declaration commit.
 
-Key changes use the normal synchronous boundary UPDATE path. Successful
-replacement detaches and retires the outgoing branch through the Match retire
-door. Reclamation runs at the next owning clock boundary; the explicit follow-up
-flush is silent. No scheduling override or retry flag is introduced.
+Key changes enter the normal boundary UPDATE path. Destructive replacement
+first detaches and retires the outgoing branch. Reclamation runs at the owning
+clock boundary; the next eligible admission can build the replacement from those
+same slots and report structural work. Several key writes before that admission
+coalesce. Address inequality does not distinguish fresh generations.
 
 Observation registration describes the committed tree. An ObservedStatePassScope
 begins before traversal and completes on every exit, including a non-nestable
@@ -132,85 +135,100 @@ Each UPDATE visits the scope's seats; tracker begin/end visits its own states.
 Each binding window allocates one callback entry per watch, in addition to binding
 storage. These costs do not make a scope update constant-time.
 
-## Typed dormant reservation
+## Typed reservation and strict node route
 
 Keyed requires a `reservation::SeatNodes<List>` argument at both the helper and
 its direct definition constructor. `Nodes<T, N, Tail>` describes completed,
 accessible, unambiguous Node-derived runtime types and positive counts; `End`
-terminates the list. An explicit empty payload is legal. The constructor forces
-structural validation even when the descriptor was only named by a typedef.
-The header owns the bounded installation capacity and exact diagnostics.
+terminates the list. An explicit empty payload is legal. The internal recipe
+adds the generation root and declaration Fragment. Applications declare authored
+payloads, including component ATTACH descendants. Equal size/alignment pairs
+merge with checked addition; the envelope accounts for layouts, not type names.
 
-The internal Keyed recipe adds its generation root and the Fragment inserted by
-`BranchSeatDeclaration::completeWindow`. Applications describe authored payloads,
-including descendants created by their components. Equal target size/alignment
-pairs merge with checked addition; this is aggregate layout accounting, not a
-concrete-type whitelist. Keyed has one conservative envelope, with no profiles.
+At cold installation the enclosing Boundary owns an immutable normalized table
+and its checked byte count, and boots its embedded NodePartition through the
+existing tagged allocation gate. Failed metadata or backing acquisition publishes
+nothing and follows nullable mount refusal. Successful installation never boots
+again for later keys. Uncommitted definition clones install separate reservations;
+no clone borrows another instruction's mutable installation state.
 
-At the seat's first declaration attempt, its enclosing Boundary installs an
-immutable normalized copy and its checked reservation byte count. No production
-NodePartition is created or booted: the table is the only retained allocation.
-Invalid emission, normalization or footprint calculation publishes nothing; the
-metadata copy retains ordinary nullable allocation handling. Installed facts stay
-with that Boundary until reclamation, independently of candidates or replacement
-declarations. A missing node envelope can never suppress the live board.
-Uncommitted definition clones install distinct tables; no clone borrows another
-instruction's mutable installation state. Installation workspace never escapes.
+Every materialization reached in a Keyed build uses a stack-local
+`SeatNodeStorageView`: generation root, Fragment scaffold, ordinary definition
+recursion, contextless recursion, local rebuilding and component ATTACH children.
+The view borrows a noncopyable ticket. The partition owns one bounded remaining
+quota per layout class, reset only at admission. Consumption precedes placement
+construction. Unknown or exhausted classes assert educationally in Debug and
+return the existing materialization refusal in Release, without heap fallback or
+another reservation. Returning an unconstructed slot does not refund quota.
 
-Production allocation still follows the existing routes, with no duplicate
-backing reservation. Tests boot their own isolated NodePartition; a synchronous
-`NodePartition::buildFixture` operation demonstrates one noncopyable entitlement
-through root construction and attach descendants. It rejects over-quota layouts before
-placement construction, asserts educationally in debug, and refuses without
-fallback in release. A declined factory returns its unconstructed slot; it does
-not replenish the ticket. The caller exclusively lends the partition for the
-whole operation. This fixture does not enforce production Boundary builds.
+Cold declaration and materialization precede the surrounding normal ATTACH walk.
+The class quota remains with the Boundary-owned partition until that walk reaches
+its nodes; a new stack-local ticket resumes the same quota, without resetting it.
+This preserves sibling order, including an earlier sibling that creates a Held
+payload. Warm replacement holds its ticket through candidate ATTACH before
+publication. The existing compose-attach lifecycle records that the subtree has
+already attached, so the ordinary traversal does not attach or update it twice
+in that admission. No borrowed stack view is stored on a runtime node.
 
-Show/Conditional/Match/LazyFlex descriptor doors, bounded reclaim scratch,
-production routing, and window resize policy remain later work.
-Nested Boundary runtime nodes count in their outer payload; inner residents and
-banks belong to the inner Boundary. Repeated nested-landlord workloads remain
-outside certification until ancestor-backed provisioning exists. Nested Keyed
-instructions install their own metadata; tables from ended nested instruction
-lifetimes remain until the enclosing Boundary is reclaimed. Production node
-backing and its cleanup are deferred to PR 6.
+Node storage provenance carries a typed arena-or-partition landlord in one union.
+`arenaOwner()` remains a NodeArena pointer and is null for partition nodes.
+Partition nodes are never classified as heap by child cleanup or arena snapshots.
+The deallocation-function guard is a no-op for partition storage, as for arenas;
+normal destruction and slot return still belong exclusively to the partition's
+reclaim protocol. The live child tree is reclaimed before orphan partition roots,
+so nested partition providers cannot be destroyed ahead of enclosing borrowers.
+Failed declaration roots queue on the Boundary clock. Unpublished component
+children keep their registered resident-owner edge until whole-candidate reclaim.
 
-## Dormant waiting admission
+## Waiting admission and completion
 
-A Keyed reservation now contains one `SeatBuildRequest`. Only the internal
-partition fixture enables this path; production still uses its existing node
-allocation and replacement route. The request stores demand, not a key value or
-candidate root. A committed seat's source only marks demand. A fresh Keyed
-Declaration samples the current key when its admitted factory runs, so changes
-while waiting coalesce and returning to the retired key constructs a fresh arm.
+Each reservation contains one enabled `SeatBuildRequest`. It stores coalescing
+demand, not a captured key or candidate. A committed source marks that demand.
+Destructive retirement removes the active child and retains its insertion position
+in the surviving reservation. It cancels descendant requests and observations
+before disposing their declaration scopes and queues the old root on the existing
+clock. Cancellation does not discard the outgoing node-return obligation.
 
-On destructive retirement the surviving Boundary removes the active child,
-retains its logical insertion position in the reservation, cancels descendant
-requests and observations before disposing their declaration scopes, and queues
-the old root on the existing clock. Canceling demand does not clear the root's
-return obligation. The root return includes the partition's registered provider
-dependents and complete nested-landlord destruction. Legacy generation snapshots
-keep request identities until the whole snapshot has been destroyed. No completion
-callback escapes the storage landlord.
+Admission visits valid requests serially in the existing scope/seat order. The
+bank checks current free class counts and the outgoing obligation. Unavailable
+capacity pending known returns waits without partial entitlement; an unsupported
+envelope asserts and refuses. `ReturnedSeatStorage` authorizes the subsequent
+build. Node return includes registered provider dependents, parked descendants,
+unpublished residents and complete owned nested-landlord destruction. The bounded
+reclaim paths report completion for every destroyed node; bounded generation
+snapshots use a stack-local callback. No completion callback escapes its landlord.
 
-At admission the existing scope traversal visits each seat serially. The bank
-checks the normalized class-count envelope against its own free lists and the
-request's outgoing obligation. Unsupported classes/counts assert and refuse;
-insufficient current free counts retain the demand without partial entitlement.
-The storage owner constructs a noncopyable `ReturnedSeatStorage` on the stack,
-and the synchronous operation holds a `NodeBuildTicket` through its attach walk.
-The node-routing connection remains PR 6 work. Parked residents still occupy
-slots; changing selection does not make them destructive predecessors.
+The drain requests structural refresh when surviving demand remains; it does not
+invoke the factory. A following admission can therefore build without another
+State event. A failed candidate keeps demand pending while its occupied slots
+return. Parked arms remain occupied residents until actually retired.
 
-The existing drain requests structural refresh when surviving demand remains.
-It does not call the factory. The following structural traversal can therefore
-build without a new State event. Request cancellation withdraws its source and
-vacant-position borrows synchronously; the reservation and node-return identity
-remain with the Boundary until its ordinary storage cleanup.
+Costs remain explicit: notification marks one request; admission scans its bank's
+class free lists up to the requested counts; allocation searches that bank's
+layout classes. The traversal reads storage provenance in O(1) and walks the
+candidate's children. Vacant-child edits walk that parent's children and the
+owning Boundary's reservation rows. Complete node return visits that Boundary's
+request rows. Legacy snapshot completion matches outstanding requests against
+its own snapshot identities; bounded completion uses its existing planned rows.
 
-Costs are owner-local: notification marks one row; admission walks the bank's
-class free lists up to the requested counts; vacant-child edits walk the owning
-parent's children and the Boundary's reservation rows; each complete node return
-visits those reservation rows. Legacy snapshot completion matches outstanding
-requests against that snapshot's node/root identities. This change does not claim
-bounded reclaim scratch, non-node storage return, or whole-cycle zero acquisition.
+## Migration and certification limits
+
+This route certifies Keyed node storage, not non-node State, Flow, Held or String
+storage and not whole-cycle zero acquisition. Those returns remain named later
+slices. LazyFlex window-bank routing, Show item entitlements and
+Conditional/Match retained-arm routing remain separate follow-ups, with no
+permanent app-facing bypass. Later transitions through those doors still use their
+existing routes; descendants materialized as part of a strict Keyed build consume
+that build's declared envelope.
+
+Sections are logical owners within the declared Keyed payload; they are not by
+that fact independent allocation landlords. A nested Boundary node belongs to
+its outer payload, while the nested Boundary's residents and banks belong to it.
+Nested Keyed seats install their own reservations. Ancestor-backed provisioning
+for repeatedly remounted nested landlords remains excluded from the warmed-cycle
+claim. The outer occupant's completion still waits for owned nested teardown.
+
+Verification lives in StrictNodeRouteTests, the Keyed/request/reclaim contract
+pins, and the unchanged MineSweeper scenario goldens. The legacy bump-arena
+retirement fixtures explicitly use their isolated arena route; they do not
+establish production Keyed behavior.

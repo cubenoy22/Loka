@@ -34,7 +34,7 @@ namespace loka
 
         bool ReturnedSeatStorage::build(const SeatLayoutTable &demand, NodeBuildOperation &operation)
         {
-          return this->bank_.buildFixture(demand.layouts(), demand.count(), operation);
+          return this->bank_.build(demand.layouts(), demand.count(), operation);
         }
 
         void SeatBuildRequest::observe(core::StateBase *source)

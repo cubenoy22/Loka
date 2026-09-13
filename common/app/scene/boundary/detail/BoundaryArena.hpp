@@ -6,6 +6,7 @@
 #include <vector>
 #include "app/scene/Node.hpp"
 #include "app/scene/boundary/detail/ReclaimScratch.hpp"
+#include "app/scene/boundary/detail/NodePartition.hpp"
 #include "app/scene/detail/ArenaMath.hpp"
 #include "core/Held.hpp"
 #include "core/LokaAlloc.hpp"
@@ -185,7 +186,7 @@ namespace loka
 
           /** Explicit reclaim: O(ledger + heap edges), bounded before mutation.
               On overflow the caller retains the complete generation for retry.
-              The one-argument destructor path below is deliberately unchanged. */
+              Partition leaves keep their edges for their own landlord's plan. */
           static bool destroyRetiredGeneration(RetiredNodeGeneration &gen, ReclaimScratch &scratch,
                                                void (*returned)(Node *, void *) = 0, void *owner = 0)
           {
@@ -199,28 +200,27 @@ namespace loka
               if (node->isArenaAllocated())
                 node->~Node();
               else
-                DestroyHeapNode(node);
+                NodePartition::reclaimDetached(node, returned, owner);
             }
             gen.heapRoots.clear();
-            gen.nodes.clear();
             freeGeneration(gen);
-            // Plan entries retain identities without borrowing destroyed objects.
-            // Publish only after all destructors and storage returns complete.
+            // Arena identities complete only after their backing is returned.
             if (returned)
-              for (size_t i = 0; i < plan.count(); ++i)
-                returned(plan.node(i), owner);
+              for (size_t i = 0; i < gen.nodes.size(); ++i)
+                if (gen.nodes[i]) returned(gen.nodes[i], owner);
+            gen.nodes.clear();
             return true;
           }
 
-          static void destroyRetiredGeneration(RetiredNodeGeneration &gen)
+          static void destroyRetiredGeneration(RetiredNodeGeneration &gen,
+                                               void (*returned)(Node *, void *) = 0, void *owner = 0)
           {
             // Heap roots go first, while every arena node they may still
             // reference is alive: their destructors skip arena children.
             for (size_t i = 0; i < gen.heapRoots.size(); ++i)
             {
-              // Heap roots are non-arena by construction; DestroyHeapNode
-              // routes gate storage back through the gate.
-              DestroyHeapNode(gen.heapRoots[i]);
+              // Non-arena roots retain their heap or partition provenance.
+              NodePartition::reclaimDetached(gen.heapRoots[i], returned, owner);
             }
             gen.heapRoots.clear();
             // Sever this landlord's child edges while the whole ledger is alive.
@@ -252,8 +252,8 @@ namespace loka
             }
             for (size_t i = 0; i < detachedHeapRoots.size(); ++i)
             {
-              // detachedHeapRoots collected only non-arena children above.
-              DestroyHeapNode(detachedHeapRoots[i]);
+              // Detached non-arena roots include partition-backed generations.
+              NodePartition::reclaimDetached(detachedHeapRoots[i], returned, owner);
             }
             // Creation is parent-first, so reverse order destroys children first.
             for (size_t i = gen.nodes.size(); i > 0; --i)
@@ -264,8 +264,11 @@ namespace loka
                 node->~Node();
               }
             }
-            gen.nodes.clear();
             freeGeneration(gen);
+            if (returned)
+              for (size_t i = 0; i < gen.nodes.size(); ++i)
+                if (gen.nodes[i]) returned(gen.nodes[i], owner);
+            gen.nodes.clear();
           }
 
           bool hasCapacity() const

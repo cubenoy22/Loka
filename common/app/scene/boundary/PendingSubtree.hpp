@@ -41,6 +41,14 @@ namespace loka
           assert(!this->root_);
           this->root_ = root;
         }
+        /** Install an unpublished root with its enclosing clock handoff. */
+        void prepare(Node *root, ReclaimRoot reclaim, void *context)
+        {
+          assert(!this->root_ && reclaim);
+          this->reclaim_ = reclaim;
+          this->context_ = context;
+          this->root_ = root;
+        }
         Node *root() const
         {
           return this->root_;
@@ -63,6 +71,7 @@ namespace loka
           IStateOwner *owner = root->asStateOwner();
           if (owner)
             owner->detachHeldResources();
+          assert(!root->isPartitionAllocated() && "partition candidates require their Boundary reclaim door");
           if (root->arenaOwner())
             root->arenaOwner()->releaseNode(root);
           else

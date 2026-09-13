@@ -50,8 +50,7 @@ namespace loka
         /** One coalescing demand in a persistent Boundary reservation. No key
             value or candidate is retained. Source and vacant child position are
             scoped borrows, canceled before scope disposal. Cancellation never ends
-            the outgoing node obligation. The bank is a same-landlord borrow;
-            only fixture activation currently supplies it. */
+            the outgoing node obligation. The bank is a same-landlord borrow supplied by cold reservation installation. */
         class SeatBuildRequest
         {
         public:

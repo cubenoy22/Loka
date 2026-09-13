@@ -150,7 +150,10 @@ namespace loka
           this->composition.setContext(&context);
           NodeMaterializationResult created = this->composition.createNodeFromDefinitionResult(&factory);
           this->composition.setContext(0);
-          this->pending_.prepare(created.root);
+          if (context.nodeStorage())
+            this->pending_.prepare(created.root, &BoundaryNode::RetireUnattachedCandidate, &context);
+          else
+            this->pending_.prepare(created.root);
           return created.allocationFailed ? 0 : static_cast<NodeT *>(this->pending_.root());
         }
         virtual NodeMaterializationResult materialize(ComponentContext &context, Node *)
@@ -159,6 +162,7 @@ namespace loka
           assert(root);
           ComponentContext childContext(context);
           childContext.setStateOwner(root->asStateOwner());
+          childContext.setOwner(root);
           this->composition.setContext(&childContext);
           NodeMaterializationResult result = BranchSeatDeclaration::materialize(childContext, root);
           this->composition.setContext(0);
