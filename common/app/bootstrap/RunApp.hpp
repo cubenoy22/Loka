@@ -11,7 +11,7 @@ namespace loka
 {
   namespace platform
   {
-    template <class ConfigT> int RunApp(HINSTANCE hInstance, int nCmdShow)
+    template <class ConfigT> int RunApp(NativeModuleHandle hInstance, int nCmdShow)
     {
       InitPlatformRuntime();
       loka::core::ScopedPtr<PlatformContext> platformContext(CreatePlatformContext());

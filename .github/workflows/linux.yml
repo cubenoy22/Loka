@@ -20,6 +20,7 @@ jobs:
       # No build can catch a reintroduced side-effect assert: it compiles, and
       # under NDEBUG it just makes a test check less than it claims (#264).
       - run: python3 tools/ci/check_test_asserts.py
+      - run: python3 tools/ci/check_native_includes.py
       - run: cmake --preset testing
       - run: cmake --build --preset testing
       - run: ctest --preset testing --output-on-failure

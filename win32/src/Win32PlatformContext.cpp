@@ -1,5 +1,6 @@
 #include "Win32PlatformContext.hpp"
 
+#include <windows.h>
 #include "core/resource/BlobRange.hpp"
 #include "Win32Window.hpp"
 #include "platform/file/AppLocation.hpp"
@@ -15,9 +16,9 @@
 Win32PlatformContext::Win32PlatformContext() {}
 Win32PlatformContext::~Win32PlatformContext() {}
 
-App *Win32PlatformContext::createApp(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow) const
+App *Win32PlatformContext::createApp(AppConfigurable *config, NativeModuleHandle hInstance, int nCmdShow) const
 {
-  App *app = new Win32App(config, hInstance, nCmdShow);
+  App *app = new Win32App(config, static_cast<HINSTANCE>(hInstance), nCmdShow);
   return app;
 }
 

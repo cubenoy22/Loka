@@ -25,7 +25,7 @@ void NullPlatformContext::setApplicationDirectory(const loka::core::String &dir)
       loka::platform::CollectUtf8(this->applicationDirectory_, bytes) && !bytes.empty();
 }
 
-App *NullPlatformContext::createApp(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow) const
+App *NullPlatformContext::createApp(AppConfigurable *config, NativeModuleHandle hInstance, int nCmdShow) const
 {
   (void)hInstance;
   (void)nCmdShow;

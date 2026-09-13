@@ -8,7 +8,7 @@ namespace loka
   namespace standalone_tests
   {
     /** Runs MineSweeper's fixed-seed New Game tour until the user quits. */
-    int RunMineSweeperStandaloneFlowApplication(HINSTANCE hInstance = 0, int nCmdShow = 0);
+    int RunMineSweeperStandaloneFlowApplication(NativeModuleHandle hInstance = 0, int nCmdShow = 0);
   } // namespace standalone_tests
 } // namespace loka
 

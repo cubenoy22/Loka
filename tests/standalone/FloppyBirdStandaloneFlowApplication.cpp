@@ -7,7 +7,7 @@ namespace loka
 {
   namespace standalone_tests
   {
-    int RunFloppyBirdStandaloneFlowApplication(HINSTANCE hInstance, int nCmdShow)
+    int RunFloppyBirdStandaloneFlowApplication(NativeModuleHandle hInstance, int nCmdShow)
     {
       return RunStandaloneFlowWithConfig<FloppyBirdStandaloneFlowAppConfig>(hInstance, nCmdShow);
     }

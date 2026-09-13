@@ -12,7 +12,7 @@ public:
 
   void setApplicationDirectory(const loka::core::String &dir);
 
-  virtual App *createApp(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow) const;
+  virtual App *createApp(AppConfigurable *config, NativeModuleHandle hInstance, int nCmdShow) const;
   virtual Window *createWindow(const WindowProps &props);
   virtual loka::app::scene::NodeContext *createNodeContext(loka::app::scene::Node *node) const;
   virtual bool openFile(const loka::file::File &item,

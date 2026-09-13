@@ -20,7 +20,7 @@ namespace loka
   {
     namespace standalone_flow_runner_detail
     {
-      template <class Config> int RunPass(PlatformContext *platformContext, HINSTANCE hInstance, int nCmdShow)
+      template <class Config> int RunPass(PlatformContext *platformContext, NativeModuleHandle hInstance, int nCmdShow)
       {
         Config config(platformContext);
         if (config.exitCode() != 0)
@@ -41,7 +41,7 @@ namespace loka
 
     /** Runs one ordinary Standalone Flow pass, or a bounded measured set when
         LOKA_STANDALONE_PERFORMANCE_RUNS is enabled for the target. */
-    template <class Config> int RunStandaloneFlowWithConfig(HINSTANCE hInstance, int nCmdShow)
+    template <class Config> int RunStandaloneFlowWithConfig(NativeModuleHandle hInstance, int nCmdShow)
     {
       platform::InitPlatformRuntime();
       core::ScopedPtr<PlatformContext> platformContext(platform::CreatePlatformContext());

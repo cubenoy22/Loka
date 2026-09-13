@@ -1,6 +1,8 @@
 #ifndef LOKA_SIMPLE_VIEWER_MAIN_NODE_HPP
 #define LOKA_SIMPLE_VIEWER_MAIN_NODE_HPP
 
+#include "app/scene/BorrowedKeys.hpp"
+
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
 #include "app/nodes/controls/Button.hpp"
@@ -56,90 +58,96 @@ namespace simpleviewer
   {
     typedef MainTypeTag TypeTag;
     typedef MainNode NodeType;
-    PlatformContext *platformContext_;
-    loka::core::EmitterState *openDialogEvent_;
-    loka::core::State<DisplayMode> *displayMode_;
-    loka::core::EmitterState *fitEvent_;
-    loka::core::EmitterState *actualEvent_;
-    loka::core::EmitterState *actualScrollEvent_;
-
-    MainProps()
-        : platformContext_(0),
-          openDialogEvent_(0),
-          displayMode_(0),
-          fitEvent_(0),
-          actualEvent_(0),
-          actualScrollEvent_(0)
-    {
-    }
 
     MainProps &platformContext(PlatformContext *context)
     {
-      this->platformContext_ = context;
+      this->keys_.set(KEY_PLATFORM, context);
       return *this;
+    }
+
+    PlatformContext *platformContext() const
+    {
+      return static_cast<PlatformContext *>(const_cast<void *>(this->keys_.get(KEY_PLATFORM)));
     }
 
     MainProps &openDialogEvent(loka::core::EmitterState *eventState)
     {
-      this->openDialogEvent_ = eventState;
+      this->keys_.set(KEY_OPEN_DIALOG, eventState);
       return *this;
+    }
+
+    loka::core::EmitterState *openDialogEvent() const
+    {
+      return static_cast<loka::core::EmitterState *>(const_cast<void *>(this->keys_.get(KEY_OPEN_DIALOG)));
     }
 
     MainProps &displayMode(loka::core::State<DisplayMode> *state)
     {
-      this->displayMode_ = state;
+      this->keys_.set(KEY_DISPLAY_MODE, state);
       return *this;
+    }
+
+    loka::core::State<DisplayMode> *displayMode() const
+    {
+      return static_cast<loka::core::State<DisplayMode> *>(const_cast<void *>(this->keys_.get(KEY_DISPLAY_MODE)));
     }
 
     MainProps &fitEvent(loka::core::EmitterState *eventState)
     {
-      this->fitEvent_ = eventState;
+      this->keys_.set(KEY_FIT, eventState);
       return *this;
+    }
+
+    loka::core::EmitterState *fitEvent() const
+    {
+      return static_cast<loka::core::EmitterState *>(const_cast<void *>(this->keys_.get(KEY_FIT)));
     }
 
     MainProps &actualEvent(loka::core::EmitterState *eventState)
     {
-      this->actualEvent_ = eventState;
+      this->keys_.set(KEY_ACTUAL, eventState);
       return *this;
+    }
+
+    loka::core::EmitterState *actualEvent() const
+    {
+      return static_cast<loka::core::EmitterState *>(const_cast<void *>(this->keys_.get(KEY_ACTUAL)));
     }
 
     MainProps &actualScrollEvent(loka::core::EmitterState *eventState)
     {
-      this->actualScrollEvent_ = eventState;
+      this->keys_.set(KEY_ACTUAL_SCROLL, eventState);
       return *this;
+    }
+
+    loka::core::EmitterState *actualScrollEvent() const
+    {
+      return static_cast<loka::core::EmitterState *>(const_cast<void *>(this->keys_.get(KEY_ACTUAL_SCROLL)));
     }
 
     void assertInitialized() const
     {
-      assert(this->platformContext_);
-      assert(this->openDialogEvent_);
-      assert(this->displayMode_);
-      assert(this->fitEvent_);
-      assert(this->actualEvent_);
-      assert(this->actualScrollEvent_);
+      assert(this->keys_.complete());
     }
 
     bool operator<(const loka::app::scene::PropsBase &rhs) const
     {
-      if (rhs.propsTypeId() != propsTypeId())
-      {
-        return false;
-      }
-      const MainProps &other = static_cast<const MainProps &>(rhs);
-      if (this->platformContext_ != other.platformContext_)
-        return this->platformContext_ < other.platformContext_;
-      if (this->openDialogEvent_ != other.openDialogEvent_)
-        return this->openDialogEvent_ < other.openDialogEvent_;
-      if (this->displayMode_ != other.displayMode_)
-        return this->displayMode_ < other.displayMode_;
-      if (this->fitEvent_ != other.fitEvent_)
-        return this->fitEvent_ < other.fitEvent_;
-      if (this->actualEvent_ != other.actualEvent_)
-        return this->actualEvent_ < other.actualEvent_;
-      if (this->actualScrollEvent_ != other.actualScrollEvent_)
-        return this->actualScrollEvent_ < other.actualScrollEvent_;
-      return false;
+      return rhs.propsTypeId() == this->propsTypeId() &&
+             this->keys_ < static_cast<const MainProps &>(rhs).keys_;
     }
+
+  private:
+    enum
+    {
+      KEY_PLATFORM,
+      KEY_OPEN_DIALOG,
+      KEY_DISPLAY_MODE,
+      KEY_FIT,
+      KEY_ACTUAL,
+      KEY_ACTUAL_SCROLL,
+      KEY_COUNT
+    };
+    loka::app::scene::BorrowedKeys<KEY_COUNT> keys_;
   };
 
   class MainNode : public loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>
@@ -198,7 +206,7 @@ namespace simpleviewer
           .otherwise(Fragment());
       navToggle.setNodeTag(kNavToggleSeatTag);
 
-      MatchDefinition<DisplayMode> display = Match(*this->props.displayMode_);
+      MatchDefinition<DisplayMode> display = Match(*this->props.displayMode());
       display.arm(DISPLAY_FIT, this->imageView(IMAGE_VIEW_SIZE_FILL_PARENT))
           .arm(DISPLAY_ACTUAL, this->imageView(IMAGE_VIEW_SIZE_INTRINSIC))
           .arm(DISPLAY_ACTUAL_SCROLL,
@@ -255,18 +263,18 @@ namespace simpleviewer
       {
         contents << this->navToggleHeader();
       }
-      contents << Button("Open...").onClick(this->props.openDialogEvent_)
+      contents << Button("Open...").onClick(this->props.openDialogEvent())
                << Text("Loka file:")
                << Text(this->chooserMessage_.state())
                       .attr(TextAttr().wrap(TEXT_WRAP_CHAR).truncation(TEXT_TRUNCATION_NONE))
                << Button("Fit to Window")
-                      .onClick(this->props.fitEvent_)
+                      .onClick(this->props.fitEvent())
                       .TEST_ID("SimpleViewer.Mode.Fit")
                << Button("Actual Size")
-                      .onClick(this->props.actualEvent_)
+                      .onClick(this->props.actualEvent())
                       .TEST_ID("SimpleViewer.Mode.Actual")
                << Button("Actual Size (Scroll)")
-                      .onClick(this->props.actualScrollEvent_)
+                      .onClick(this->props.actualScrollEvent())
                       .TEST_ID("SimpleViewer.Mode.ActualScroll");
       return Box()
                  .size(kNavWidth, 0)
@@ -289,7 +297,7 @@ namespace simpleviewer
 
     virtual void declareBindings(loka::app::scene::BindingToken &t)
     {
-      t.action(*this->props.openDialogEvent_, this, &MainNode::openDialog);
+      t.action(*this->props.openDialogEvent(), this, &MainNode::openDialog);
       t.action(this->toggleNavEvent_, this, &MainNode::toggleNavigation);
       ::Window *window = this->windowOrNull();
       if (window)
@@ -334,7 +342,7 @@ namespace simpleviewer
     {
       this->imageLoad_.begin(
           *this,
-          this->props.platformContext_,
+          this->props.platformContext(),
           this->chooserResult_.state(),
           static_cast<loka::core::PushStateTracker *>(this->tracker()));
       this->isDialogShown_.set(true, true);

@@ -7,7 +7,7 @@ namespace loka
 {
   namespace standalone_tests
   {
-    int RunTutorialStandaloneFlowApplication(HINSTANCE hInstance, int nCmdShow)
+    int RunTutorialStandaloneFlowApplication(NativeModuleHandle hInstance, int nCmdShow)
     {
       return RunStandaloneFlowWithConfig<TutorialStandaloneFlowAppConfig>(hInstance, nCmdShow);
     }
