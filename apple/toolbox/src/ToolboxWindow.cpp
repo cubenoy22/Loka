@@ -157,8 +157,12 @@ void ToolboxWindow::open()
       this->hasPosition() ? this->positionY() : defaultFrame.y,
       this->hasSize() ? this->width() : defaultFrame.width,
       this->hasSize() ? this->height() : defaultFrame.height);
-  // Chrome is not measurable until NewWindow exists. These hidden seed bounds
-  // use the empty chrome value; the thunk applies measured placement below.
+  // Chrome is not measurable until the window exists and is visible: the
+  // Window Manager keeps strucRgn/contRgn empty for an invisible window, so a
+  // hidden probe reads zero insets (measured on the maciix rig, #712). These
+  // seed bounds use the empty chrome value; the thunk applies measured
+  // placement below, so the window is visible at the requested bounds for one
+  // event turn, as it was before #712.
   Rect bounds = RequestedContentBounds(requested, this->chrome_);
 
   loka::core::String titleValue = this->displayTitleState().get();
@@ -182,15 +186,13 @@ void ToolboxWindow::open()
   Str255 titleStr;
   CopyToPascalString(title, titleStr);
 
-  window_ = NewWindow(0, &bounds, titleStr, false, documentProc, (WindowPtr)-1, true, 0);
+  window_ = NewWindow(0, &bounds, titleStr, true, documentProc, (WindowPtr)-1, true, 0);
   if (!this->window_)
   {
     return;
   }
   this->chrome_ = ToolboxWindowChrome(this->window_);
   FrameChangedThunk(this);
-  // Toolbox has no visibility observer; expose only the completed placement.
-  ShowWindow(this->window_);
   TitleChangedThunk(this);
   this->storeCurrentNativeContentFrame();
 }
