@@ -77,9 +77,9 @@ namespace loka
         The retired rail is destroyed rather than rewound. Its terminal state
         is a one-way latch and its audit emitter refuses a second emission by
         design, so a loop that reset either of them would be running a
-        different mechanism than a fresh launch does. Rail destruction happens
-        before the scene teardown because the rail's Flow observes nodes the
-        teardown destroys. */
+        different mechanism than a fresh launch does. Stop the rail's Flow
+        before scene teardown, but retain the driver until successful re-arm:
+        a refused scene leaves the stopped installed driver owned by the reel. */
     template <class InteractionScenario> class ScenarioReel
     {
     public:
@@ -206,8 +206,8 @@ namespace loka
           this->phase_ = REEL_FAILED;
           return SCENARIO_REEL_FAILED;
         }
-        // The old driver's destructor stops its Flow before observed nodes detach.
-        this->driver_.reset(0);
+        // Stop observation before detach; retain the installed driver until commit.
+        this->driver_->stop();
         if (!RearmScenarioScene(window, app))
         {
           this->phase_ = REEL_FAILED;

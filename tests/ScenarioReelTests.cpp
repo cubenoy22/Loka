@@ -35,6 +35,14 @@ namespace
 {
   const char *const kProbeCells[] = {"startup", "first", "second"};
 
+  struct ReelDriverLifetime
+  {
+    ReelDriverLifetime() : identity(0), stops(0), destructions(0) {}
+    const void *identity;
+    int stops;
+    int destructions;
+  };
+
   struct ReelDriverObservation
   {
     ReelDriverObservation() : constructions(0), stops(0), destructions(0), detaches(0) {}
@@ -43,6 +51,7 @@ namespace
     int destructions;
     int detaches;
     std::string constructedCell;
+    ReelDriverLifetime drivers[2];
   };
 
   ReelDriverObservation g_reelDriverObservation;
@@ -52,12 +61,25 @@ namespace
   public:
     ReelProbeScenario(const std::string &cell, loka::scenario_tests::ScenarioCompletionPolicy,
                       loka::dsl::testing::ScenarioAuditSink *)
+        : lifetime_(g_reelDriverObservation.drivers[g_reelDriverObservation.constructions])
     {
+      this->lifetime_.identity = this;
       ++g_reelDriverObservation.constructions;
       g_reelDriverObservation.constructedCell = cell;
     }
-    ~ReelProbeScenario() { ++g_reelDriverObservation.destructions; }
-    void stop() { ++g_reelDriverObservation.stops; }
+    ~ReelProbeScenario()
+    {
+      ++this->lifetime_.destructions;
+      ++g_reelDriverObservation.destructions;
+    }
+    void stop()
+    {
+      if (this->lifetime_.stops == 0)
+      {
+        ++this->lifetime_.stops;
+        ++g_reelDriverObservation.stops;
+      }
+    }
     bool publishVerdict(const loka::dsl::SnapRecord &) { return true; }
     loka::scenario_tests::ScenarioAdvance step(
         long, loka::app::scene::Scene *, const loka::scenario_tests::CaptureContentBounds &,
@@ -65,6 +87,9 @@ namespace
     {
       return loka::scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY;
     }
+
+  private:
+    ReelDriverLifetime &lifetime_;
   };
 
   void ObserveReelDriverAtDetach(void *userData)
@@ -75,7 +100,7 @@ namespace
       ++g_reelDriverObservation.detaches;
       LOKA_VERIFY(g_reelDriverObservation.constructions == 2);
       LOKA_VERIFY(g_reelDriverObservation.stops == 1);
-      LOKA_VERIFY(g_reelDriverObservation.destructions == 1);
+      LOKA_VERIFY(g_reelDriverObservation.destructions == 0);
     }
   }
 
@@ -872,7 +897,7 @@ void testScenarioReelDriverAllocationRefusalRetiresInsteadOfWedging()
 void testScenarioReelReplacementPreservesDriverAndStopsBeforeDetach()
 {
   using namespace loka::scenario_tests;
-  for (int refuse = 0; refuse != 2; ++refuse)
+  for (int refuse = 0; refuse != 3; ++refuse)
   {
     loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> root(CloneHelloWorldRoot());
     LOKA_VERIFY(root.get() != 0);
@@ -888,19 +913,43 @@ void testScenarioReelReplacementPreservesDriverAndStopsBeforeDetach()
           ScenarioCellTable(kProbeCells + 1, refuse ? 1 : 2), STARTUP_EXAMPLE_HELLO_WORLD,
           &MakeHelloWorldDriverErrorRecord, 2402, 0.0, refuse ? 0 : 1);
       LOKA_VERIFY(reel.tick(&window, &app, 0.1, window.getTracker()) == SCENARIO_REEL_RUNNING);
-      if (refuse)
+      const void *const installedIdentity = g_reelDriverObservation.drivers[0].identity;
+      LOKA_VERIFY(installedIdentity != 0);
+      if (refuse == 1)
         testing::failScenarioReelDriverAllocations(1);
+      if (refuse == 2)
+      {
+        g_scenarioRearmAllocationRefusals = 0;
+        window.scene()->getAttachedState()->bind(&RefuseScenarioCompositionAtDetach, window.scene(), false);
+      }
       const ScenarioReelResult result = reel.tick(&window, &app, 0.1, window.getTracker());
       testing::allowScenarioReelDriverAllocations();
+      if (refuse == 2)
+      {
+        loka::core::LokaAllocSetBackend(0, 0);
+        window.scene()->getAttachedState()->unbind(&RefuseScenarioCompositionAtDetach, window.scene());
+        LOKA_VERIFY(g_scenarioRearmAllocationRefusals == 1);
+      }
       LOKA_VERIFY(reel.completedCycles() == 0);
       if (refuse)
       {
         LOKA_VERIFY(result == SCENARIO_REEL_FAILED);
         LOKA_VERIFY(reel.tick(&window, &app, 0.1, window.getTracker()) == SCENARIO_REEL_FAILED);
-        LOKA_VERIFY(g_reelDriverObservation.stops == 0);
-        LOKA_VERIFY(g_reelDriverObservation.destructions == 0);
-        LOKA_VERIFY(g_reelDriverObservation.constructions == 1);
-        LOKA_VERIFY(g_reelDriverObservation.detaches == 0);
+        LOKA_VERIFY(g_reelDriverObservation.drivers[0].identity == installedIdentity);
+        LOKA_VERIFY(g_reelDriverObservation.drivers[0].destructions == 0);
+        LOKA_VERIFY(g_reelDriverObservation.drivers[0].stops == (refuse == 2 ? 1 : 0));
+        if (refuse == 2)
+        {
+          LOKA_VERIFY(g_reelDriverObservation.constructions == 2);
+          LOKA_VERIFY(g_reelDriverObservation.detaches == 1);
+          LOKA_VERIFY(g_reelDriverObservation.drivers[1].stops == 1);
+          LOKA_VERIFY(g_reelDriverObservation.drivers[1].destructions == 1);
+        }
+        else
+        {
+          LOKA_VERIFY(g_reelDriverObservation.constructions == 1);
+          LOKA_VERIFY(g_reelDriverObservation.detaches == 0);
+        }
         LOKA_VERIFY(std::string(reel.cell()) == "first");
         LOKA_VERIFY(reel.operatorTitle().equals(loka::core::String::Literal("first (cycle 1)")));
         LOKA_VERIFY(reel.finished());
@@ -908,6 +957,9 @@ void testScenarioReelReplacementPreservesDriverAndStopsBeforeDetach()
       else
       {
         LOKA_VERIFY(result == SCENARIO_REEL_RUNNING);
+        LOKA_VERIFY(g_reelDriverObservation.drivers[0].stops == 1);
+        LOKA_VERIFY(g_reelDriverObservation.drivers[0].destructions == 1);
+        LOKA_VERIFY(g_reelDriverObservation.drivers[1].destructions == 0);
         LOKA_VERIFY(g_reelDriverObservation.constructedCell == "second");
         LOKA_VERIFY(g_reelDriverObservation.detaches == 1);
         LOKA_VERIFY(std::string(reel.cell()) == "second");
