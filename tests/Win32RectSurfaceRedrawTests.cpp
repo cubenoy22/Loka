@@ -13,6 +13,11 @@
 #include "core/State.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "testing/Win32ScenePlatformTestAccess.hpp"
+#include "Win32BuiltInSupport.hpp"
+#include "app/nodes/nestable/Box.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
+#include "app/nodes/nestable/ScrollView.hpp"
+#include "support/PropsReconciliation.hpp"
 
 namespace
 {
@@ -88,6 +93,115 @@ void testWin32RectSurfaceTicksRepaintOnlySurface()
   }
   SetWindowLongPtrW(root, GWLP_WNDPROC, original);
   DestroyWindow(root);
+}
+
+void testWin32PaintOnlyChangeUnderScrollViewKeepsSiblingPixels()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  using namespace PropsReconciliationSupport;
+  typedef loka::dsl::testing::Win32ScenePlatformTestAccess Access;
+  typedef loka::dsl::testing::SceneTestAccess SceneAccess;
+
+  NullPlatformContext platform;
+  WindowProps windowProps;
+  windowProps.frame(40, 40, 320, 240).visible(false);
+  Win32Window window(&platform, windowProps);
+  {
+    loka::core::StateTrackerGuard guard(window.getTracker());
+    window.visibilityState().set(true);
+  }
+  WindowAdmissionTestApp admission(window);
+  admission.flush();
+  HWND rootHwnd = window.hwnd();
+  LOKA_VERIFY(rootHwnd != NULL);
+  Win32ScenePlatformController controller(rootHwnd, loka::win32::Win32DisplayScale(96));
+  RegisterWin32BuiltInSupport(controller);
+
+  // RectSurface's palette is white ground and black sprites. Start with two
+  // distinct solid surfaces, then change only A's model from white to black.
+  RectSurfaceModel black;
+  black.rectCount = 1;
+  black.rects[0] = RectSprite(0, 0, 100, 60);
+  loka::core::MutableState<RectSurfaceModel> a((RectSurfaceModel()));
+  loka::core::MutableState<RectSurfaceModel> b(black);
+  ScrollView declaration = ScrollView() << (VStack()
+      << RectSurface(&a).size(100, 60)
+      << Box().size(100, 20)
+      << RectSurface(&b).size(100, 60));
+  Scene scene((Boundary<Tree<ScrollView> >(Props<ScrollView>(&declaration))));
+  scene.mount(&controller);
+  SceneAccess::updateAttached(scene, true);
+  settle(scene);
+  BoundaryNode *boundary = SceneAccess::rootBoundary(scene);
+  LOKA_VERIFY(boundary != 0);
+  controller.onChange(boundary, NODE_DIRTY_NONE, false);
+  controller.relayout(320, 240);
+  settle(scene);
+  Access::flushPendingInvalidations(controller);
+  pumpMessages();
+  UpdateWindow(rootHwnd);
+
+  HWND viewport = FindWindowExW(rootHwnd, NULL, L"LOKA_SCROLL_VIEW", NULL);
+  LOKA_VERIFY(viewport != NULL);
+  LOKA_VERIFY((GetWindowLongPtrW(viewport, GWL_STYLE) & WS_CLIPCHILDREN) != 0);
+  HWND first = FindWindowExW(viewport, NULL, L"LOKA_RECT_SURFACE", NULL);
+  LOKA_VERIFY(first != NULL);
+  HWND second = FindWindowExW(viewport, first, L"LOKA_RECT_SURFACE", NULL);
+  LOKA_VERIFY(second != NULL);
+  RECT firstRect, secondRect;
+  LOKA_VERIFY(GetWindowRect(first, &firstRect));
+  LOKA_VERIFY(GetWindowRect(second, &secondRect));
+  // Native z-order need not match declaration order; A is the upper surface.
+  const RECT aRect = firstRect.top < secondRect.top ? firstRect : secondRect;
+  const RECT bRect = firstRect.top < secondRect.top ? secondRect : firstRect;
+  LOKA_VERIFY(aRect.bottom < bRect.top);
+  POINT aPoint = {(aRect.left + aRect.right) / 2, (aRect.top + aRect.bottom) / 2};
+  POINT bPoint = {(bRect.left + bRect.right) / 2, (bRect.top + bRect.bottom) / 2};
+  LOKA_VERIFY(ScreenToClient(rootHwnd, &aPoint));
+  LOKA_VERIFY(ScreenToClient(rootHwnd, &bPoint));
+
+  for (int phase = 0; phase < 2; ++phase)
+  {
+    if (phase == 1)
+    {
+      // Same RectSurfaceModel write as the no-LAYOUT PaintBaseline pin.
+      {
+        loka::core::StateTrackerGuard guard(boundary->tracker());
+        a.set(black);
+      }
+      settle(scene);
+      const PlatformApplyPlan &plan = SceneAccess::lastApplyPlan(scene);
+      LOKA_VERIFY(plan.hasPaintWork());
+      LOKA_VERIFY(!plan.hasLayoutWork());
+      LOKA_VERIFY(Access::onBoundaryApplyCalls(controller) > 0);
+      LOKA_VERIFY(Access::queuedGenericPaintInvalidates(controller) > 0);
+      LOKA_VERIFY(!Access::lastOnChangeRequiredLayout(controller));
+      Access::flushPendingInvalidations(controller);
+      pumpMessages();
+      UpdateWindow(rootHwnd);
+    }
+    loka::core::resource::Image capture;
+    LOKA_VERIFY(Access::captureWindowClientBitmap(rootHwnd, capture));
+    HDC pixels = CreateCompatibleDC(NULL);
+    LOKA_VERIFY(pixels != NULL);
+    HGDIOBJ previous = SelectObject(pixels, static_cast<HBITMAP>(capture.nativeHandle()));
+    LOKA_VERIFY(previous != NULL && previous != HGDI_ERROR);
+    const COLORREF aPixel = GetPixel(pixels, aPoint.x, aPoint.y);
+    const COLORREF bPixel = GetPixel(pixels, bPoint.x, bPoint.y);
+    SelectObject(pixels, previous);
+    DeleteDC(pixels);
+    const Access::RedrawStats &stats = Access::redrawStats(controller);
+    std::printf("#725 phase %d: A=%08lX B=%08lX window=%08lX; root paint=%d erase=%d surface paint=%d\n",
+                phase, static_cast<unsigned long>(aPixel), static_cast<unsigned long>(bPixel),
+                static_cast<unsigned long>(GetSysColor(COLOR_WINDOW)),
+                stats.rootPaintCount, stats.rootEraseCount, stats.rectSurfacePaintCount);
+    std::fflush(stdout);
+    LOKA_VERIFY(bPixel == RGB(0, 0, 0) && "paint-only root delivery must preserve the sibling under ScrollView");
+    LOKA_VERIFY(aPixel == (phase == 0 ? RGB(255, 255, 255) : RGB(0, 0, 0)));
+  }
+  SceneAccess::unmount(scene);
+  controller.drainNativeRetirements();
 }
 
 void testWin32ZStackTextShowsSiblingBeneath()
