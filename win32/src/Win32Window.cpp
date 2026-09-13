@@ -44,6 +44,58 @@ namespace
     outerHeight = rect.bottom - rect.top;
     return true;
   }
+
+  // The declared frame is a request (#712): the outer rectangle, chrome
+  // included, is placed inside the work area of the monitor it mostly covers.
+  // Size shrinks first, then the right/bottom edges move in, then the
+  // left/top edges so the title bar always stays reachable. Every path that
+  // positions the top-level window goes through here: the frame observer and
+  // the create path via applyNativeContentFrame, and the DPI-change handler
+  // with the rectangle Windows suggests for the destination monitor.
+  bool ClampOuterRectToWorkArea(RECT &outer)
+  {
+    MONITORINFO monitorInfo = {};
+    monitorInfo.cbSize = sizeof(monitorInfo);
+    if (!GetMonitorInfoW(MonitorFromRect(&outer, MONITOR_DEFAULTTONEAREST),
+                         &monitorInfo))
+    {
+      return false;
+    }
+    const RECT &work = monitorInfo.rcWork;
+    int width = outer.right - outer.left;
+    int height = outer.bottom - outer.top;
+    if (width > work.right - work.left)
+    {
+      width = work.right - work.left;
+    }
+    if (height > work.bottom - work.top)
+    {
+      height = work.bottom - work.top;
+    }
+    int x = outer.left;
+    int y = outer.top;
+    if (x + width > work.right)
+    {
+      x = work.right - width;
+    }
+    if (y + height > work.bottom)
+    {
+      y = work.bottom - height;
+    }
+    if (x < work.left)
+    {
+      x = work.left;
+    }
+    if (y < work.top)
+    {
+      y = work.top;
+    }
+    outer.left = x;
+    outer.top = y;
+    outer.right = x + width;
+    outer.bottom = y + height;
+    return true;
+  }
 } // namespace
 
 Win32Window::Win32Window(PlatformContext *context, const WindowProps &props)
@@ -132,13 +184,21 @@ bool Win32Window::applyNativeContentFrame(const loka::core::Frame &frame)
   }
   const int x = frame.x >= 0 ? frame.x : windowRect.left;
   const int y = frame.y >= 0 ? frame.y : windowRect.top;
-  if (x == windowRect.left && y == windowRect.top &&
-      outerWidth == windowRect.right - windowRect.left &&
-      outerHeight == windowRect.bottom - windowRect.top)
+  RECT outer = {x, y, x + outerWidth, y + outerHeight};
+  if (!ClampOuterRectToWorkArea(outer))
+  {
+    return false;
+  }
+  if (EqualRect(&outer, &windowRect))
   {
     return true;
   }
-  return MoveWindow(this->hwnd_, x, y, outerWidth, outerHeight, TRUE) != FALSE;
+  return MoveWindow(this->hwnd_,
+                    outer.left,
+                    outer.top,
+                    outer.right - outer.left,
+                    outer.bottom - outer.top,
+                    TRUE) != FALSE;
 }
 
 bool Win32Window::detachMenuForTeardown(HMENU expectedMenu)
@@ -341,13 +401,20 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       const RECT *suggested = reinterpret_cast<const RECT *>(lParam);
       if (suggested)
       {
-        SetWindowPos(hwnd,
-                     NULL,
-                     suggested->left,
-                     suggested->top,
-                     suggested->right - suggested->left,
-                     suggested->bottom - suggested->top,
-                     SWP_NOZORDER | SWP_NOACTIVATE);
+        // Windows sizes the suggestion for the destination DPI but does not
+        // keep it inside that monitor's work area; a frame fitted against
+        // the source monitor's edge would otherwise land partly off-screen.
+        RECT outer = *suggested;
+        if (ClampOuterRectToWorkArea(outer))
+        {
+          SetWindowPos(hwnd,
+                       NULL,
+                       outer.left,
+                       outer.top,
+                       outer.right - outer.left,
+                       outer.bottom - outer.top,
+                       SWP_NOZORDER | SWP_NOACTIVATE);
+        }
       }
       if (self->scenePlatformController_)
       {

@@ -71,6 +71,28 @@ namespace
     return rect;
   }
 
+  // The clamp targets the monitor the placed rectangle mostly covers, so on a
+  // multi-monitor host a frame pushed past the primary's edge may legitimately
+  // land on the neighbour: compare against the window's own monitor.
+  RECT readWindowWorkArea(HWND hwnd)
+  {
+    MONITORINFO monitorInfo = {};
+    monitorInfo.cbSize = sizeof(monitorInfo);
+    LOKA_VERIFY(GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST),
+                               &monitorInfo));
+    return monitorInfo.rcWork;
+  }
+
+  void assertWindowInsideItsWorkArea(HWND hwnd)
+  {
+    const RECT work = readWindowWorkArea(hwnd);
+    const RECT outer = readWindowRect(hwnd);
+    LOKA_VERIFY(outer.left >= work.left);
+    LOKA_VERIFY(outer.top >= work.top);
+    LOKA_VERIFY(outer.right <= work.right);
+    LOKA_VERIFY(outer.bottom <= work.bottom);
+  }
+
   void pumpWindowMessages(unsigned int settleCycles)
   {
     for (unsigned int cycle = 0; cycle < settleCycles; ++cycle)
@@ -197,6 +219,65 @@ void testWin32DpiChangeAcceptsSuggestedWindowRect()
 
   setWindowVisibility(window, false);
   printf("==== [testWin32DpiChangeAcceptsSuggestedWindowRect] PASSED ====\n");
+}
+
+void testWin32WindowFrameIsClampedToWorkArea()
+{
+  printf("\n==== [testWin32WindowFrameIsClampedToWorkArea] start ====\n");
+  MONITORINFO monitorInfo = {};
+  monitorInfo.cbSize = sizeof(monitorInfo);
+  LOKA_VERIFY(GetMonitorInfoW(MonitorFromWindow(NULL, MONITOR_DEFAULTTOPRIMARY),
+                             &monitorInfo));
+  const RECT work = monitorInfo.rcWork;
+  NullPlatformContext context;
+  WindowProps props;
+  props.frame(work.right - 50, work.bottom - 50, 257, 163).visible(false);
+  Win32Window window(&context, props);
+  setWindowVisibility(window, true);
+  HWND hwnd = window.hwnd();
+  LOKA_VERIFY(hwnd && IsWindow(hwnd));
+  assertWindowInsideItsWorkArea(hwnd);
+  assertLogicalClientSize(hwnd, 257, 163);
+
+  setWindowFrame(window, loka::core::Frame(work.right - 25, work.bottom - 25, 257, 163));
+  pumpWindowMessages(4);
+  assertWindowInsideItsWorkArea(hwnd);
+  assertLogicalClientSize(hwnd, 257, 163);
+
+  // A DPI transition arrives with a rectangle Windows sized for the
+  // destination monitor but never fitted to its work area.
+  const RECT placedWork = readWindowWorkArea(hwnd);
+  RECT suggested = {placedWork.right - 40, placedWork.bottom - 40,
+                    placedWork.right + 560, placedWork.bottom + 460};
+  SendMessageW(hwnd,
+               WM_DPICHANGED,
+               MAKEWPARAM(192, 192),
+               reinterpret_cast<LPARAM>(&suggested));
+  assertWindowInsideItsWorkArea(hwnd);
+  setWindowVisibility(window, false);
+
+  const int oversizedWidth = work.right - work.left + 400;
+  const int oversizedHeight = work.bottom - work.top + 400;
+  WindowProps oversizedProps;
+  oversizedProps.frame(work.left, work.top, oversizedWidth, oversizedHeight).visible(false);
+  Win32Window oversizedWindow(&context, oversizedProps);
+  setWindowVisibility(oversizedWindow, true);
+  HWND oversizedHwnd = oversizedWindow.hwnd();
+  LOKA_VERIFY(oversizedHwnd && IsWindow(oversizedHwnd));
+  assertWindowInsideItsWorkArea(oversizedHwnd);
+  RECT client;
+  LOKA_VERIFY(GetClientRect(oversizedHwnd, &client));
+  const loka::core::Frame placed = oversizedWindow.nativeFrame().get();
+  const loka::core::Frame actual =
+      loka::win32::Win32DisplayScale::forWindow(oversizedHwnd)
+          .windowContentFrameFromNative(readWindowRect(oversizedHwnd),
+                                        client.right - client.left,
+                                        client.bottom - client.top);
+  LOKA_VERIFY(placed == actual);
+  LOKA_VERIFY(placed.width < oversizedWidth);
+  LOKA_VERIFY(placed.height < oversizedHeight);
+  setWindowVisibility(oversizedWindow, false);
+  printf("==== [testWin32WindowFrameIsClampedToWorkArea] PASSED ====\n");
 }
 
 void testWin32DeclaredWindowSizeMeansClientArea()
