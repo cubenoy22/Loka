@@ -20,25 +20,47 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      # Deliberate twins across platform workflows; ci_paths.py owns the policy.
+      - name: Classify PR paths
+        id: changes
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        env:
+          BASE: ${{ github.base_ref }}
+        run: |
+          git diff --name-only --no-renames "origin/$BASE...HEAD" -- > "$RUNNER_TEMP/ci-paths.txt"
+          python3 tools/ci/ci_paths.py --job win32 --summary "$GITHUB_STEP_SUMMARY" \
+            < "$RUNNER_TEMP/ci-paths.txt" | tee -a "$GITHUB_OUTPUT"
       - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
         with:
           arch: x64
       - name: Verify Ninja
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
         run: ninja --version
       - run: cmake --preset win32-debug
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       # Two builds, because neither target set implies the other: win32-debug
       # builds the production targets (the test executable compiles only a
       # slice of the platform layer, so a green test run alone would not mean
       # the app still builds), while win32-tests builds the EXCLUDE_FROM_ALL
       # unit-test and scenario vehicles, which win32-debug does not.
       - run: cmake --build --preset win32-debug
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: cmake --build --preset win32-tests
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       # Hosted CI does not cover the local rig's ARM64 build or ACP=932
       # full-width-path behavior; those remain manually verified per #172.
       - run: ctest --preset win32-tests --output-on-failure
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/scripts/Win32PngCompareTest.ps1
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/scripts/Win32PresentationStageTest.ps1
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       # Exercise the same clean Release entry point used to prepare portable
       # device builds: five autonomous loops, SimpleViewer, and their assets.
       - name: Build and stage Win32 standalone Release set
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
         run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/win32-standalone-flow.ps1 -Action Release -Architecture x64
