@@ -62,6 +62,14 @@ namespace loka
         the attachment could not compose. Called between scenario steps. */
     bool RearmScenarioScene(Window *window, App *app);
 
+    /** Outcome of an idle tick, including terminal allocation or Scene refusal. */
+    enum ScenarioReelResult
+    {
+      SCENARIO_REEL_RUNNING,
+      SCENARIO_REEL_COMPLETE,
+      SCENARIO_REEL_FAILED
+    };
+
     /** Runs one example's registered cells endlessly in one process: step the
         current cell to its terminal record, hold the settled scene, then
         re-arm and start the next cell, wrapping at the end of the table.
@@ -69,9 +77,9 @@ namespace loka
         The retired rail is destroyed rather than rewound. Its terminal state
         is a one-way latch and its audit emitter refuses a second emission by
         design, so a loop that reset either of them would be running a
-        different mechanism than a fresh launch does. Rail destruction happens
-        before the scene teardown because the rail's Flow observes nodes the
-        teardown destroys. */
+        different mechanism than a fresh launch does. Stop the rail's Flow
+        before scene teardown, but retain the driver until successful re-arm:
+        a refused scene leaves the stopped installed driver owned by the reel. */
     template <class InteractionScenario> class ScenarioReel
     {
     public:
@@ -95,22 +103,25 @@ namespace loka
         this->arm();
       }
 
-      /** One idle tick from the platform pump. */
-      void tick(Window *window, App *app, double elapsedSeconds, core::StateTracker *presentationTracker)
+      /** One idle tick; failure remains terminal on subsequent ticks. */
+      ScenarioReelResult tick(Window *window, App *app, double elapsedSeconds, core::StateTracker *presentationTracker)
       {
-        if (this->position_.exhausted() || this->phase_ == REEL_FAILED || !this->driver_.get())
+        if (this->phase_ == REEL_FAILED)
         {
-          return;
+          return SCENARIO_REEL_FAILED;
+        }
+        if (this->position_.exhausted())
+        {
+          return SCENARIO_REEL_COMPLETE;
         }
         if (this->phase_ == REEL_HOLDING)
         {
           this->holdRemaining_ -= elapsedSeconds;
           if (this->holdRemaining_ > 0.0)
           {
-            return;
+            return SCENARIO_REEL_RUNNING;
           }
-          this->rearm(window, app, presentationTracker);
-          return;
+          return this->rearm(window, app, presentationTracker);
         }
         ++this->tick_;
         dsl::SnapRecord record;
@@ -125,6 +136,7 @@ namespace loka
           this->holdRemaining_ = this->holdSeconds_;
           break;
         }
+        return SCENARIO_REEL_RUNNING;
       }
 
       /** True once a bounded budget is spent or the reel cannot continue. */
@@ -177,32 +189,37 @@ namespace loka
         REEL_FAILED
       };
 
-      void rearm(Window *window, App *app, core::StateTracker *presentationTracker)
+      ScenarioReelResult rearm(Window *window, App *app, core::StateTracker *presentationTracker)
       {
-        this->position_.advance();
-        // The rail goes first: its Flow observes nodes the teardown destroys.
-        this->driver_.reset(0);
-        if (this->position_.exhausted())
+        ScenarioReelPosition next(this->position_);
+        next.advance();
+        if (next.exhausted())
         {
-          return;
+          this->driver_.reset(0);
+          this->position_.advance();
+          return SCENARIO_REEL_COMPLETE;
         }
         core::ScopedPtr<SceneScenarioDriver<InteractionScenario> > replacement(
-            this->allocateDriver(this->position_.cell()));
+            this->allocateDriver(next.cell()));
         if (!replacement.get())
         {
-          // Retire loudly instead of leaving an endless reel idle forever.
-          // The settled scene stays visible until ScenarioLoopAppConfig sees
-          // finished() and quits to the platform's terminal presentation.
           this->phase_ = REEL_FAILED;
-          return;
+          return SCENARIO_REEL_FAILED;
         }
-        // Composition refusal is recoverable: the seat retains the request
-        // for the next admission, and the fresh driver continues the loop.
-        (void)RearmScenarioScene(window, app);
+        // Stop observation before detach; retain the installed driver until commit.
+        this->driver_->stop();
+        if (!RearmScenarioScene(window, app))
+        {
+          this->phase_ = REEL_FAILED;
+          return SCENARIO_REEL_FAILED;
+        }
         this->driver_.reset(replacement.release());
+        // Advance the installed position only at commit, as in StandaloneRunControl.
+        this->position_.advance();
         this->resetDriverClock();
         this->operatorTitle_.publish(
             this->position_.cell(), this->position_.completedCycles(), presentationTracker);
+        return SCENARIO_REEL_RUNNING;
       }
 
       void arm()

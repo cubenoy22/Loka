@@ -61,6 +61,13 @@ namespace loka
 
       virtual ~SceneScenarioDriver()
       {
+        this->stop();
+      }
+
+      /** Stops observation without releasing the driver; repeated calls are
+          inert through the scenario's terminal stop contract. */
+      void stop()
+      {
         if (this->startup_)
         {
           this->startupScenario_.stop();
