@@ -58,3 +58,7 @@ notification and tracker settlement use allocating containers, so a process-wide
 allocation-free publication guarantee is outside this change. Tracker state
 registration also retains its existing non-refusing allocation behavior; only
 the list's buffer reservations have the new typed attach refusal.
+
+## From AGENTS.md
+
+Model identity is the list-issued `ItemId` (16-bit generation plus 16-bit sequence), never a pointer. `MirroredList<T>` is a non-copyable working copy for view-side edits, with pending operations and commit/cancel/undo; undo and cancel affect only uncommitted work.

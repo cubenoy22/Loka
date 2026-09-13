@@ -232,3 +232,7 @@ Verification lives in StrictNodeRouteTests, the Keyed/request/reclaim contract
 pins, and the unchanged MineSweeper scenario goldens. The legacy bump-arena
 retirement fixtures explicitly use their isolated arena route; they do not
 establish production Keyed behavior.
+
+## From AGENTS.md
+
+For LazyFlex, a viewport write copies State into the stable Boundary and generation, evaluates n item Derived states, toggles entering/leaving Shows, and visits O(S) seats in that Boundary; Canvas additionally seeks O(first) and visits candidate cells. A content update seeks O(change.first) through its own Canvas arms and applies props to materialized items in O(change.count) visits (`LIST_BATCH` visits all n arms); a structure change replaces O(n) old/new generation content, in addition to the existing seat-ledger and observation costs described in [KeyedSeatDesign.md](#review-risk-profile).
