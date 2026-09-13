@@ -423,7 +423,7 @@ void testWin32EditTextPaintDelivery()
       loka::core::StateTrackerGuard guard(&tracker);
       LOKA_VERIFY(context.handleCommand(MAKEWPARAM(0, EN_CHANGE), 0));
     }
-    LOKA_VERIFY(value.get() == loka::core::String::Literal("native"));
+    LOKA_VERIFY(value.get().equals(loka::core::String::Literal("native")));
     LOKA_VERIFY(context.queryPaintDamage(query).kind == PAINT_ANSWER_EXACT);
     node.props.text(&replacement);
     LOKA_VERIFY(context.queryPaintDamage(query).reason == PAINT_REFUSED_PROPS_UNRECONCILED);
