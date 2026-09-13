@@ -18,9 +18,18 @@ In VS Code, choose Release from **Standalone: Toolbox 68K Release Action** or
 The release under `build/release/toolbox-68k` or `build/release/toolbox-ppc`
 contains five autonomous Standalone Loop applications plus the matching
 interactive `LokaSimpleViewer68K` or `LokaSimpleViewerPPC`.
-Each application is provided as both a MacBinary (`.bin`) and an 800 KiB HFS
-disk (`.dsk`). The Scrapbook loop disk also contains `ASSETS.LRP`; the same
-asset file is included separately for MacBinary and SCSI-disk workflows.
+Each application has its own folder: `scrapbook`, `helloworld`, `tutorial`,
+`minesweeper`, `floppybird`, and `simpleviewer`. Each folder contains both a
+MacBinary (`.bin`) and an 800 KiB HFS disk (`.dsk`). Only `scrapbook` also
+contains a loose `ASSETS.LRP`; its disk includes the same asset. `README.md`
+is shared at the release root.
+
+When decoding MacBinary files onto a shared HFS volume, keep each decoded
+application in its own folder and keep Scrapbook's `ASSETS.LRP` beside it.
+Do not flatten the applications into one directory: each loop writes
+`LOG.TXT` beside its application, and sharing that directory prevents the
+second loop from opening its audit. Individual `.dsk` images already provide
+separate volumes; their internal layout remains unchanged.
 
 The loop applications keep one App and native Window alive, replace their
 completed scenario rail, and re-arm the current Scene until the user closes

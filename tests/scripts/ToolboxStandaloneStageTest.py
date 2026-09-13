@@ -149,10 +149,11 @@ rm -f "$HOME/mounted-disk"
             check=False,
         )
 
-    def _run_release(self, cpu=None):
+    def _run_release(self, cpu=None, **environment_overrides):
         environment = os.environ.copy()
         environment["PATH"] = str(self.fixture / "tools") + os.pathsep + environment["PATH"]
         environment["RETRO68_TOOLCHAIN_BIN"] = str(self.fixture / "tools")
+        environment.update(environment_overrides)
         command = ["bash", "scripts/toolbox-standalone-flow.sh", "Release"]
         if cpu is not None:
             command.append(cpu)
@@ -221,49 +222,64 @@ rm -f "$HOME/mounted-disk"
             (stage / "LokaScrapbookStandaloneFlowPPC.dsk").read_bytes(),
         )
 
-    def test_release_contains_five_loops_and_interactive_simpleviewer(self):
-        result = self._run_release()
-        self.assertEqual(result.returncode, 0, result.stderr)
+    def test_release_isolates_each_application_on_both_cpus(self):
+        applications = {
+            "scrapbook": "LokaScrapbookStandaloneLoop",
+            "helloworld": "LokaHelloStandaloneLoop",
+            "tutorial": "LokaTutorialStandaloneLoop",
+            "minesweeper": "LokaMineStandaloneLoop",
+            "floppybird": "LokaFloppyStandaloneLoop",
+            "simpleviewer": "LokaSimpleViewer",
+        }
+        for cpu, suffix in (("68k", "68K"), ("ppc", "PPC")):
+            with self.subTest(cpu=cpu):
+                result = self._run_release(cpu)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                release = self.fixture / "build" / "release" / ("toolbox-" + cpu)
+                self.assertEqual(
+                    {path.name for path in release.iterdir()},
+                    set(applications) | {"README.md"},
+                )
+                for key, base in applications.items():
+                    name = base + suffix
+                    directory = release / key
+                    expected = {name + ".bin", name + ".dsk"}
+                    if key == "scrapbook":
+                        expected.add("ASSETS.LRP")
+                        self.assertEqual(
+                            (directory / "ASSETS.LRP").read_bytes(),
+                            b"fixture-assets\x00\xff",
+                        )
+                        self.assertIn(
+                            b"ASSETS.LRP\n", (directory / (name + ".dsk")).read_bytes()
+                        )
+                    self.assertEqual({path.name for path in directory.iterdir()}, expected)
+                    payload = (b"fixture-simpleviewer" if key == "simpleviewer"
+                               else ("fixture-macbinary-" + name).encode())
+                    self.assertEqual((directory / (name + ".bin")).read_bytes(), payload)
 
-        release = self.fixture / "build" / "release" / "toolbox-68k"
-        expected = {"ASSETS.LRP", "README.md"}
-        for name in (
-            "LokaScrapbookStandaloneLoop68K",
-            "LokaHelloStandaloneLoop68K",
-            "LokaTutorialStandaloneLoop68K",
-            "LokaMineStandaloneLoop68K",
-            "LokaFloppyStandaloneLoop68K",
-            "LokaSimpleViewer68K",
-        ):
-            expected.add(f"{name}.bin")
-            expected.add(f"{name}.dsk")
-        self.assertEqual({path.name for path in release.iterdir()}, expected)
-        self.assertIn(
-            b"ASSETS.LRP\n",
-            (release / "LokaScrapbookStandaloneLoop68K.dsk").read_bytes(),
-        )
-
-    def test_ppc_release_contains_native_ppc_artifacts(self):
-        result = self._run_release("ppc")
-        self.assertEqual(result.returncode, 0, result.stderr)
-
-        release = self.fixture / "build" / "release" / "toolbox-ppc"
-        expected = {"ASSETS.LRP", "README.md"}
-        for name in (
-            "LokaScrapbookStandaloneLoopPPC",
-            "LokaHelloStandaloneLoopPPC",
-            "LokaTutorialStandaloneLoopPPC",
-            "LokaMineStandaloneLoopPPC",
-            "LokaFloppyStandaloneLoopPPC",
-            "LokaSimpleViewerPPC",
-        ):
-            expected.add(f"{name}.bin")
-            expected.add(f"{name}.dsk")
-        self.assertEqual({path.name for path in release.iterdir()}, expected)
-        self.assertIn(
-            b"ASSETS.LRP\n",
-            (release / "LokaScrapbookStandaloneLoopPPC.dsk").read_bytes(),
-        )
+    def test_release_failure_preserves_previous_layout_and_retry_replaces_it(self):
+        for cpu in ("68k", "ppc"):
+            with self.subTest(cpu=cpu):
+                release = self.fixture / "build" / "release" / ("toolbox-" + cpu)
+                release.mkdir(parents=True)
+                # Simulate the old flat release and an audit left by its user.
+                (release / "old.bin").write_bytes(b"old application")
+                (release / "ASSETS.LRP").write_bytes(b"old assets")
+                (release / "LOG.TXT").write_bytes(b"old audit")
+                previous = {p.name: p.read_bytes() for p in release.iterdir()}
+                failed = self._run_release(cpu, FAKE_HCOPY_FAIL="1")
+                self.assertNotEqual(failed.returncode, 0)
+                self.assertEqual(
+                    {p.name: p.read_bytes() for p in release.iterdir()}, previous
+                )
+                retry = self._run_release(cpu)
+                self.assertEqual(retry.returncode, 0, retry.stderr)
+                self.assertTrue((release / "scrapbook" / "ASSETS.LRP").is_file())
+                for old_name in previous:
+                    self.assertFalse((release / old_name).exists())
+                self.assertEqual(list(release.parent.glob(".*.staging.*")), [])
+                self.assertEqual(list(release.parent.glob(".*.previous.*")), [])
 
     def test_vscode_tasks_use_the_completed_stage_for_scsi(self):
         tasks_document = json.loads((PROJECT_DIR / ".vscode" / "tasks.json").read_text())
