@@ -41,13 +41,13 @@ class CiPathsTest(unittest.TestCase):
         # cmake/LokaTestSources.cmake compiles these into every platform's
         # test executable, so an otherwise skippable apple/toolbox path runs.
         for job in ("macos", "win32", "toolbox-build"):
-            run, reason = ci_paths.classify(job, ["apple/toolbox/src/PictParser.cpp"])
+            run, reason = CI.classify(job, ["apple/toolbox/src/PictParser.cpp"])
             self.assertTrue(run, reason)
             self.assertIn("shared test source", reason)
-        run, reason = ci_paths.classify(
+        run, reason = CI.classify(
             "win32", ["apple/toolbox/src/ToolboxPlatformLayoutHandlers.hpp"])
         self.assertTrue(run, reason)
-        self.assertFalse(ci_paths.classify("win32", ["apple/toolbox/src/ToolboxWindow.cpp"])[0])
+        self.assertFalse(CI.classify("win32", ["apple/toolbox/src/ToolboxWindow.cpp"])[0])
 
     def test_platform_trees(self):
         for path, expected in (
@@ -143,14 +143,20 @@ class CiPathsTest(unittest.TestCase):
             for step in steps[2:]:
                 with self.subTest(workflow=name, step=step.splitlines()[0]):
                     self.assertEqual(step.count("        if:"), 1)
+                    # The Toolbox comment step deliberately runs on every same-repo
+                    # PR (a reverted, now-skippable diff must clear its warning).
+                    if name == "toolbox" and "size headroom comment" in step:
+                        continue
                     self.assertIn(GUARD, step)
             if name == "macos":
                 self.assertIn("failure() && (" + GUARD + ")", steps[-1])
             if name == "toolbox":
                 self.assertIn("!cancelled() && github.event_name == 'pull_request'", steps[-2])
                 self.assertIn("--check-headroom 1024", steps[-2])
-                self.assertIn("steps.headroom.outcome != 'skipped'", steps[-1])
+                self.assertNotIn(GUARD, steps[-1])
+                self.assertIn("!cancelled() && github.event_name == 'pull_request'", steps[-1])
                 self.assertIn("github.event.pull_request.head.repo.full_name == github.repository", steps[-1])
+                self.assertIn("fs.existsSync(reportPath)", steps[-1])
 
     def test_workflow_diff_handles_deletion_rename_and_failure(self):
         # Execute the actual Bash step against a local git history, including
