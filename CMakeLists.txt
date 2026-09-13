@@ -43,6 +43,9 @@ endif()
 set(LOKA_MACOS OFF)
 if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   set(LOKA_MACOS ON)
+  # CMake looks up its default bundle template through CMAKE_MODULE_PATH.
+  # Keep Retina capability explicit for old-SDK builds and future app bundles.
+  list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/macos")
 endif()
 
 # Compact vs diagnostic Classic profile (#135). Compact (the default) ships
