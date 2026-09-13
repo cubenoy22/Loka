@@ -105,19 +105,33 @@ python3 tools/ci/retro68_size_report.py build/retro68/68k/Release
 ```
 
 The report reads each final `.bin` resource fork and prints its total file size
-and CODE/DATA/RELA payload composition. The checked-in baseline manifest owns
-the shipping application list and allows at most 4096 bytes of total growth per
-application before the command fails. Component deltas are always printed for
-attribution. The 4 KiB allowance ignores small toolchain/resource-alignment
-churn while still catching the multi-kilobyte framework expansions that
-motivated the size audit. It is cumulative from the checked-in baseline, so a
-series of smaller increases cannot silently reset the allowance: only a
-deliberate, reviewed baseline refresh moves the reference point. A deliberate
-baseline refresh is its own reviewed change, or rides the change that introduces
-the growth with the explanation in that PR. The command also refuses a newly
-built final application that has no explicit baseline entry. Toolbox CI runs
-the same command after its pinned 68K build. Update baseline facts only with a
-fresh full Release build and a reviewed explanation for the accepted growth.
+and CODE/DATA/RELA payload composition. The checked-in manifest owns the shipping
+application inventory and material-growth allowance. By default the local command
+compares against that bank and fails if any application's total growth exceeds
+the allowance. Component deltas are printed for attribution.
+
+For PRs, Toolbox CI builds a fresh comparison worktree using the same pinned
+image, Multiversal Interfaces, Release preset, generator and container mount path
+as the candidate. It compares the **CI merge candidate** to its merge-base with
+the event's immutable target SHA (normally that target SHA itself). Thus a stacked
+PR uses its target branch, and already-landed growth is not charged again. The
+report command takes `--compare-build-root <base Release directory>` together
+with `--comparison-ref <base commit>`; the latter labels the evidence, while the
+workflow is responsible for building that commit. This costs one extra 68K build
+per non-skipped PR; PPC is built only for the candidate. No size cache is reused.
+
+The checked-in bank remains the absolute record. Main/dispatch CI uses
+`--report-only`, so cumulative bank growth is visible without failing a post-merge
+check. The PR headroom comment is informational. The default local bank gate and
+manual reviewed bank refresh remain available. Update bank facts only with a
+fresh full Release build and a reviewed explanation for accepted growth.
+
+Malformed or missing artifacts and unlisted candidate applications still fail,
+including in report-only mode. A measured comparison requires every manifest
+artifact on both sides: adding or moving an application without that path in the
+base is refused, not silently measured as zero or against a stale bank. Such
+inventory migrations need a separately defined comparison policy.
+
 Per the 2026-09-02 ruling the
 gate is a drift detector, not a budget: intentional feature growth is banked by
 refreshing rows deliberately, and only runaway growth — hundreds of kilobytes

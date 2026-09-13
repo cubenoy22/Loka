@@ -25,8 +25,7 @@ def measure(build_root, baseline):
     measurements = []
     for artifact in baseline["artifacts"]:
         path = build_root / artifact["path"]
-        resources = size_report.resource_payload_sizes(path)
-        measurements.append(dict(total=path.stat().st_size, **resources))
+        measurements.append(size_report.artifact_sizes(path))
     return measurements
 
 

@@ -201,7 +201,15 @@ def signed(value):
     return "%+d" % value
 
 
-def report(build_root, baseline):
+def artifact_sizes(path):
+    """Measure one final artifact using the same parser for both sides."""
+    if not path.is_file():
+        raise SizeReportError("required artifact is missing: %s" % path)
+    return dict(total=path.stat().st_size, **resource_payload_sizes(path))
+
+
+def report(build_root, baseline, compare_build_root=None, comparison_ref=None,
+           report_only=False):
     threshold = baseline["material_growth_bytes"]
     identity = baseline["identity"]
     declared_paths = set(artifact["path"] for artifact in baseline["artifacts"])
@@ -223,6 +231,10 @@ def report(build_root, baseline):
     print("Retro68 68K final MacBinary size report")
     if identity_text:
         print("Baseline identity: %s" % identity_text)
+    if compare_build_root is not None:
+        print("Comparison build: %s (%s)" % (compare_build_root, comparison_ref))
+    if report_only:
+        print("Informational bank comparison; growth does not fail this report")
     print("Material total-growth allowance: %d bytes" % threshold)
     print(
         "%-26s %9s %9s %9s %9s %9s %9s %9s %9s %s"
@@ -243,15 +255,12 @@ def report(build_root, baseline):
     regressions = []
     for artifact in baseline["artifacts"]:
         path = build_root / pathlib.PurePosixPath(artifact["path"])
-        if not path.is_file():
-            raise SizeReportError("required artifact is missing: %s" % path)
-        resources = resource_payload_sizes(path)
-        current = {"total": path.stat().st_size}
-        current.update(resources)
-        facts = artifact["baseline"]
+        current = artifact_sizes(path)
+        facts = (artifact_sizes(compare_build_root / artifact["path"])
+                 if compare_build_root is not None else artifact["baseline"])
         deltas = {key: current[key] - facts[key] for key in current}
         material = deltas["total"] > threshold
-        verdict = "REGRESSION" if material else "ok"
+        verdict = ("growth" if report_only else "REGRESSION") if material else "ok"
         if material:
             regressions.append((artifact["name"], deltas["total"]))
         print(
@@ -270,7 +279,7 @@ def report(build_root, baseline):
             )
         )
 
-    if regressions:
+    if regressions and not report_only:
         print("Material Retro68 binary growth detected:", file=sys.stderr)
         for name, growth in regressions:
             print("  %s: +%d bytes" % (name, growth), file=sys.stderr)
@@ -289,14 +298,25 @@ def parse_arguments(arguments):
         default=pathlib.Path(__file__).with_name("retro68_68k_size_baseline.json"),
         help="checked-in size baseline manifest",
     )
-    return parser.parse_args(arguments)
+    parser.add_argument("--compare-build-root", type=pathlib.Path,
+                        help="measure reference artifacts instead of using bank sizes")
+    parser.add_argument("--comparison-ref", help="source commit of the reference build")
+    parser.add_argument("--report-only", action="store_true",
+                        help="report bank drift without failing on growth (errors still fail)")
+    options = parser.parse_args(arguments)
+    if (options.compare_build_root is None) != (options.comparison_ref is None):
+        parser.error("--compare-build-root and --comparison-ref must be supplied together")
+    if options.report_only and options.compare_build_root is not None:
+        parser.error("--report-only cannot disable the measured comparison gate")
+    return options
 
 
 def main(arguments=None):
     options = parse_arguments(arguments)
     try:
         baseline = load_baseline(options.baseline)
-        return report(options.build_root, baseline)
+        return report(options.build_root, baseline, options.compare_build_root,
+                      options.comparison_ref, options.report_only)
     except (OSError, SizeReportError) as error:
         print("retro68_size_report: %s" % error, file=sys.stderr)
         return 2

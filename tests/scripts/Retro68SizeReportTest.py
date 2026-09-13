@@ -3,6 +3,8 @@
 
 import importlib.util
 import json
+import os
+import textwrap
 import pathlib
 import struct
 import subprocess
@@ -15,9 +17,8 @@ PROJECT_DIR = pathlib.Path(__file__).resolve().parents[2]
 REPORT_TOOL = PROJECT_DIR / "tools" / "ci" / "retro68_size_report.py"
 TOOLBOX_WORKFLOW = PROJECT_DIR / ".github" / "workflows" / "toolbox.yml"
 SIZE_GATE_INVOCATION = (
-    "      - name: Report and gate Toolbox 68K binary sizes\n"
-    "        run: python3 tools/ci/retro68_size_report.py "
-    "build/retro68/68k/Release\n"
+    'python3 tools/ci/retro68_size_report.py '
+    'build/retro68/68k/Release "${args[@]}"'
 )
 sys.dont_write_bytecode = True
 
@@ -110,14 +111,157 @@ class Retro68SizeReportTest(unittest.TestCase):
         mutations = {
             "invocation removed": workflow.replace(SIZE_GATE_INVOCATION, "", 1),
             "build root drifted": workflow.replace(
-                "build/retro68/68k/Release",
-                "build/retro68/68k/Unexpected",
+                SIZE_GATE_INVOCATION,
+                SIZE_GATE_INVOCATION.replace("Release", "Unexpected"),
                 1,
             ),
         }
         for name, mutated in mutations.items():
             with self.subTest(name=name):
                 self.assertEqual(mutated.count(SIZE_GATE_INVOCATION), 0)
+
+    def workflow_script(self, name):
+        step = TOOLBOX_WORKFLOW.read_text().split("      - name: " + name + "\n", 1)[1]
+        step = step.split("\n      - name:", 1)[0]
+        return textwrap.dedent(step.split("        run: |\n", 1)[1])
+
+    def test_workflow_gate_selects_pr_base_and_refuses_absent_identity(self):
+        script = self.workflow_script("Report and gate Toolbox 68K binary sizes")
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            probe = root / "python3"
+            probe.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
+            probe.chmod(0o755)
+            for is_pr, ref, expected in (("false", "", "--report-only"),
+                                         ("true", "commit", "--compare-build-root"),
+                                         ("true", "", None)):
+                with self.subTest(is_pr=is_pr, ref=ref):
+                    env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"],
+                               IS_PR=is_pr, COMPARISON_REF=ref, RUNNER_TEMP=str(root))
+                    result = subprocess.run(["bash", "-eu", "-c", script], env=env,
+                                            capture_output=True, text=True)
+                    if expected is None:
+                        self.assertNotEqual(result.returncode, 0)
+                        self.assertEqual(result.stdout, "")
+                    else:
+                        self.assertEqual(result.returncode, 0, result.stderr)
+                        self.assertIn(expected, result.stdout.splitlines())
+                        if is_pr == "true":
+                            self.assertIn("commit", result.stdout.splitlines())
+                            self.assertNotIn("--report-only", result.stdout)
+
+    def test_workflow_builds_the_immutable_target_of_the_ci_merge(self):
+        script = self.workflow_script("Build the PR comparison commit")
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            repo = root / "repo"
+            repo.mkdir()
+            env = dict(os.environ, GIT_AUTHOR_NAME="Fixture", GIT_AUTHOR_EMAIL="fixture@example.invalid",
+                       GIT_COMMITTER_NAME="Fixture", GIT_COMMITTER_EMAIL="fixture@example.invalid",
+                       GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+            def git(*args):
+                return subprocess.check_output(["git", *args], cwd=repo, env=env,
+                                               stderr=subprocess.DEVNULL, text=True).strip()
+            git("init", "-b", "target")
+            git("commit", "--allow-empty", "-m", "root")
+            git("switch", "-c", "topic")
+            git("commit", "--allow-empty", "-m", "PR")
+            git("switch", "target")
+            git("commit", "--allow-empty", "-m", "target advanced")
+            target = git("rev-parse", "HEAD")
+            git("merge", "--no-ff", "topic", "-m", "CI merge")
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            docker = bin_dir / "docker"
+            docker.write_text('#!/bin/sh\nprintf "%s\\n" "$@" > "$RUNNER_TEMP/docker-args"\n')
+            docker.chmod(0o755)
+            env.update(PATH=str(bin_dir) + os.pathsep + os.environ["PATH"],
+                       RUNNER_TEMP=str(root), GITHUB_OUTPUT=str(root / "output"),
+                       PR_BASE_SHA=target, RETRO68_IMAGE="fixture-pinned-image")
+            result = subprocess.run(["bash", "-eu", "-c", script], cwd=repo, env=env,
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((root / "output").read_text().strip(), "commit=" + target)
+            self.assertEqual(git("-C", str(root / "retro68-size-base"), "rev-parse", "HEAD"), target)
+            docker_args = (root / "docker-args").read_text()
+            self.assertIn("fixture-pinned-image", docker_args)
+            self.assertIn("INTERFACES=multiversal", docker_args)
+            self.assertIn("retro68-68k-release", docker_args)
+            self.assertNotIn("retro68-ppc-release", docker_args)
+
+    def comparison_fixture(self, root, base_code=100, head_code=228, allowance=128):
+        relative = "example/Fixture68K.bin"
+        for folder, count in (("base", base_code), ("head", head_code)):
+            artifact = root / folder / relative
+            artifact.parent.mkdir(parents=True)
+            artifact.write_bytes(make_macbinary(
+                [("CODE", b"x" * count), ("DATA", b"data"), ("RELA", b"rela")]
+            ))
+        # The bank is far behind both builds: the old cumulative gate fails.
+        bank = root / "bank.json"
+        bank.write_text(json.dumps(baseline_for(relative, 1, 1, 1, 1, allowance)))
+        return [sys.executable, str(REPORT_TOOL), str(root / "head"),
+                "--baseline", str(bank)]
+
+    def run_cli(self, args):
+        return subprocess.run(args, capture_output=True, text=True, check=False)
+
+    def test_stacked_growth_is_charged_only_to_the_measured_base(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            args = self.comparison_fixture(root)
+            self.assertEqual(self.run_cli(args).returncode, 1)
+            result = self.run_cli(args + ["--compare-build-root", str(root / "base"),
+                                          "--comparison-ref", "fixture-base-commit"])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("fixture-base-commit", result.stdout)
+            self.assertIn("+128", result.stdout)
+            self.assertNotIn("REGRESSION", result.stdout)
+
+    def test_material_growth_against_base_still_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            args = self.comparison_fixture(root, head_code=356)
+            result = self.run_cli(args + ["--compare-build-root", str(root / "base"),
+                                          "--comparison-ref", "base"])
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn("Fixture68K: +256 bytes", result.stderr)
+
+    def test_missing_or_corrupt_base_never_falls_back_to_the_bank(self):
+        for corrupt in (False, True):
+            with self.subTest(corrupt=corrupt), tempfile.TemporaryDirectory() as directory:
+                root = pathlib.Path(directory)
+                args = self.comparison_fixture(root)
+                artifact = root / "base/example/Fixture68K.bin"
+                if corrupt:
+                    artifact.write_bytes(b"broken")
+                else:
+                    artifact.unlink()
+                result = self.run_cli(args + ["--compare-build-root", str(root / "base"),
+                                              "--comparison-ref", "base"])
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("base/example/Fixture68K.bin", result.stderr)
+
+    def test_report_only_ignores_growth_but_not_missing_artifacts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            args = self.comparison_fixture(root) + ["--report-only"]
+            result = self.run_cli(args)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("Informational bank comparison", result.stdout)
+            (root / "head/example/Fixture68K.bin").unlink()
+            self.assertEqual(self.run_cli(args).returncode, 2)
+
+    def test_comparison_requires_identity_and_cannot_be_report_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            args = self.comparison_fixture(root)
+            for options in (["--compare-build-root", str(root / "base")],
+                            ["--comparison-ref", "base"],
+                            ["--compare-build-root", str(root / "base"),
+                             "--comparison-ref", "base", "--report-only"]):
+                with self.subTest(options=options):
+                    self.assertEqual(self.run_cli(args + options).returncode, 2)
 
     def test_sums_multiple_resources_of_the_same_type(self):
         tool = load_report_tool()
