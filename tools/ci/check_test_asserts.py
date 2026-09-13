@@ -48,6 +48,8 @@ ACCESSOR_NAMES = frozenset(
         "lifecycleFact",
         "composeResult",
         "hasPendingInvalidation",
+        "hasPaintWork",
+        "hasLayoutWork",
         "strstr",
         "length",
         # Constructor names any test may verify against, for the same reason

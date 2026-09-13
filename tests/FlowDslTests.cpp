@@ -4627,7 +4627,11 @@ void testLokaFlowDslV1Core()
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == rootBoundary);
     LOKA_VERIFY(scene.flushInvalidation());
     assert(g_defaultApplyStructureCalls == 0);
-    assert(g_defaultApplyLayoutCalls == 1);
+    // #695: A CHILD invalidation that does not change actual bounds must
+    // not trigger layout.  Before the fix, stale actualBoundsChanged from
+    // the first cycle's bounds publication leaked into this cycle and
+    // promoted every later request to LAYOUT.
+    assert(g_defaultApplyLayoutCalls == 0);
     assert(g_defaultApplyCompositedPaintCalls == 1);
     assert(SceneTestAccess::lastApplyPlan(scene).structureChanged == false);
 
