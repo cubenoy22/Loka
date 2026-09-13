@@ -690,3 +690,9 @@ LOKA_TEST(testStrictNodeRouteLocalRefusal)
 LOKA_TEST(testStrictNodeRouteKeyedAttachRefusal)
 
 LOKA_TEST(testStrictNodeRoutePartitionDeleteGuard)
+
+LOKA_TEST(testPaintAnswersHandOverWrittenResident)
+LOKA_TEST(testPaintAnswersRefusalDisablesGate)
+LOKA_TEST(testPaintAnswersCapacityDisablesGate)
+LOKA_TEST(testPaintAnswerVerdictCountsAndBufferReuse)
+LOKA_TEST(testPaintAnswerFirstWidenReasonSurvivesLaterAnswers)
