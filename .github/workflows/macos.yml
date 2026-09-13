@@ -21,30 +21,56 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      # Deliberate twins across platform workflows; ci_paths.py owns the policy.
+      - name: Classify PR paths
+        id: changes
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        env:
+          BASE: ${{ github.base_ref }}
+        run: |
+          git diff --name-only --no-renames "origin/$BASE...HEAD" -- > "$RUNNER_TEMP/ci-paths.txt"
+          python3 tools/ci/ci_paths.py --job macos --summary "$GITHUB_STEP_SUMMARY" \
+            < "$RUNNER_TEMP/ci-paths.txt" | tee -a "$GITHUB_OUTPUT"
       - run: cmake --preset macos-debug
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       # As on Win32, the production build excludes the test executable and
       # the test target covers only a slice of the platform layer. Build both
       # target sets so CI proves the application and the tests still build.
       - run: cmake --build --preset macos-debug
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: cmake --build --preset macos-tests
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: ctest --preset macos-tests --output-on-failure
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       # Hosted runners have no persistent display-profile golden. They still
       # prove the real AppKit runner, bounded settle, exact audit, profile,
       # and atomic completion contract; Tahoe owns the pixel verdict.
       - run: cmake --build --preset macos-scenarios
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       # Every Scrapbook cell stages its package through lrpc now, including the
       # two that declare no fixture, so the host tool is a prerequisite of the
       # scenario steps rather than of the asset bake alone.
       - run: cmake -S tools/lrpc -B build/host/lrpc
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: cmake --build build/host/lrpc
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: tests/macos/run-scenario.sh scrapbook startup --ci-structural
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: tests/macos/run-scenario.sh scrapbook flip-forward-back --ci-structural
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: tests/macos/run-scenario.sh helloworld startup --ci-structural
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: tests/macos/run-scenario.sh tutorial startup --ci-structural
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: tests/macos/run-scenario.sh minesweeper startup --ci-structural
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: tests/macos/run-scenario.sh floppybird startup --ci-structural
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - name: Upload macOS scenario failure artifacts
-        if: failure()
+        if: ${{ failure() && (github.event_name != 'pull_request' || steps.changes.outputs.run == 'true') }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: macos-scenario-artifacts
