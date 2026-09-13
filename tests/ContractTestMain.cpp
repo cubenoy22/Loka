@@ -1,3 +1,4 @@
+#include "BorrowedKeysTests.hpp"
 #include "StrictNodeRouteTests.hpp"
 #include "SeatBuildRequestTests.hpp"
 #include "SeatBuildRequestTests.hpp"
