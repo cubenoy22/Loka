@@ -274,25 +274,16 @@ short ToolboxTextContext::visibleWidth() const
   return width;
 }
 
-void ToolboxTextContext::paint()
+void ToolboxTextContext::paint(bool erase)
 {
   this->presented_.invalidate();
   if (!this->text_)
     return;
-  RgnHandle saved = NewRgn();
-  RgnHandle clip = NewRgn();
-  if (!saved || !clip)
-  {
-    if (saved)
-      DisposeRgn(saved);
-    if (clip)
-      DisposeRgn(clip);
+  ToolboxPaintClip clip(this->paintRect_);
+  if (!clip.isActive())
     return;
-  }
-  GetClip(saved);
-  RectRgn(clip, &this->paintRect_);
-  SectRgn(saved, clip, clip);
-  SetClip(clip);
+  if (erase)
+    EraseRect(&this->paintRect_);
   bool painted = false;
   if (this->maxWidth_ > 0 && this->truncationMode_ == loka::app::TEXT_TRUNCATION_ELLIPSIS)
   {
@@ -305,22 +296,18 @@ void ToolboxTextContext::paint()
   {
     painted = DrawStringAt(this->textX_, this->textY_, this->text_->get());
   }
-  if (painted && ToolboxPaintClipCovers(clip, this->paintRect_))
+  if (painted && clip.covers(this->paintRect_))
     this->presented_.commit(this->text_->get(), ToolboxPaintScope());
-  SetClip(saved);
-  DisposeRgn(clip);
-  DisposeRgn(saved);
 }
 
 void ToolboxTextContext::repaint()
 {
-  EraseRect(&this->paintRect_);
-  this->paint();
+  this->paint(true);
 }
 
 void ToolboxTextContext::draw(ToolboxScenePlatformController *controller)
 {
-  this->paint();
+  this->paint(false);
   if (controller && this->text_)
     controller->recordTextHit(this->rect_, this->textX_, this->textY_, this->text_, this->boundary_,
                               this->wrapMode_ != loka::app::TEXT_WRAP_NONE, this->visibleWidth(), this);

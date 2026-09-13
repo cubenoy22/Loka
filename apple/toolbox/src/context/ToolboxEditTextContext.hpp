@@ -5,6 +5,7 @@
 #include "app/nodes/controls/EditText.hpp"
 #include "core/String.hpp"
 #include <Quickdraw.h>
+#include <TextEdit.h>
 
 class ToolboxScenePlatformController;
 namespace loka
@@ -48,6 +49,8 @@ public:
   void updateData(loka::core::State<loka::core::String> *text);
   void updateRect(const Rect &outerRect, const Rect &textRect, short textX, short textY);
   void draw(ToolboxScenePlatformController *controller);
+  /** Replay established native placement without creating or reprojecting TE. */
+  void repaint(TEHandle te);
   /** The rect draw() frames. The retained binding carries the inset text rect,
       which TEUpdate needs, so a dirty replay gated on that one would skip a
       region covering only the chrome the frame lands on. */
@@ -67,6 +70,7 @@ private:
   bool captureProps();
   loka::app::EditTextNode *node_;
   Rect rect_;
+  Rect paintRect_;
   Rect textRect_;
   short textX_;
   short textY_;

@@ -141,14 +141,8 @@ namespace
     DrawString(text);
   }
 
-  void CopyToPascalString(const loka::core::String &value, Str255 out)
+  void CopyUtf8ToPascalString(const std::string &utf8, Str255 out)
   {
-    std::string utf8;
-    if (!loka::platform::CollectUtf8(value, utf8))
-    {
-      out[0] = 0;
-      return;
-    }
     std::size_t length = utf8.size();
     if (length > 255)
     {
@@ -1416,8 +1410,7 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     }
     redrawTextHit(hit);
   }
-  const size_t editReplayCount = editControls_.size();
-  for (size_t i = 0; i < editReplayCount; ++i)
+  for (size_t i = 0; i < editControls_.size(); ++i)
   {
     EditTextControlBinding &binding = editControls_[i];
     if (!binding.ownerContext || !binding.te || !binding.usedThisFrame)
@@ -1432,14 +1425,9 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     {
       continue;
     }
-    // draw() re-enters ensureEditTextControl, which can add to editControls_,
-    // so the owner is read out before the call and the bound is a snapshot:
-    // the binding reference must not survive a reallocation, and the replay
-    // must not iterate entries it created. Same wall as the cell replay above.
-    ToolboxEditTextContext *owner = binding.ownerContext;
-    owner->draw(this);
-    assert(editControls_.size() == editReplayCount
-           && "edit controls register on the render walk; the dirty replay must not grow the registry it iterates (#315)");
+    // Replay borrows established TE placement; it never reprojects or changes
+    // the registry after the viewport's projection scope has popped.
+    binding.ownerContext->repaint(binding.te);
   }
   drawControlsInRect(rect);
 }
@@ -2489,23 +2477,23 @@ bool ToolboxScenePlatformController::ensureButtonControl(short resourceId,
     binding->rect = controlRect;
     binding->needsDraw = true;
   }
-  this->applyButtonControlProps(*binding, label);
+  const bool submitted = this->applyButtonControlProps(*binding, label);
   ShowControl(binding->control);
-  return true;
+  return submitted;
 }
 
-void ToolboxScenePlatformController::applyButtonControlProps(ButtonControlBinding &binding,
+bool ToolboxScenePlatformController::applyButtonControlProps(ButtonControlBinding &binding,
                                                              const loka::core::String &label)
 {
   std::string labelUtf8;
   if (!loka::platform::CollectUtf8(label, labelUtf8))
   {
-    labelUtf8.clear();
+    return false;
   }
   if (binding.label != labelUtf8)
   {
     Str255 title;
-    CopyToPascalString(label, title);
+    CopyUtf8ToPascalString(labelUtf8, title);
     SetControlTitle(binding.control, title);
     binding.label = labelUtf8;
     binding.needsDraw = true;
@@ -2518,6 +2506,7 @@ void ToolboxScenePlatformController::applyButtonControlProps(ButtonControlBindin
   {
     HiliteControl(binding.control, 0);
   }
+  return true;
 }
 
 void ToolboxScenePlatformController::destroyButtonControl(short resourceId,
@@ -2695,6 +2684,20 @@ void ToolboxScenePlatformController::syncEditTextFromState(EditTextControlBindin
 }
 
 #ifdef TEST_BUILD
+bool ToolboxScenePlatformController::queryEditTextGeometryForTesting(
+    ToolboxEditTextContext *ownerContext, EditTextGeometry &out) const
+{
+  size_t index = 0;
+  if (!ownerContext || !this->editControls_.find(ownerContext, index))
+    return false;
+  TEHandle te = this->editControls_[index].te;
+  if (!te || !*te)
+    return false;
+  out.destination = (**te).destRect;
+  out.view = (**te).viewRect;
+  return true;
+}
+
 bool ToolboxScenePlatformController::queryEditTextValueForTesting(
     ToolboxEditTextContext *ownerContext,
     std::string &out) const

@@ -13,6 +13,8 @@
 #include "app/nodes/nestable/ZStack.hpp"
 #include "app/RectSurface.hpp"
 #include "app/nodes/Text.hpp"
+#include "app/nodes/controls/EditText.hpp"
+#include "context/ToolboxEditTextContext.hpp"
 #include "app/scene/projection/CollectPaintAnswers.hpp"
 #include "app/scene/projection/NativeNodeContext.hpp"
 #include "context/ToolboxPaintSupport.hpp"
@@ -50,7 +52,7 @@ namespace
       composition.declare(Box().size(240, 180)
                           << (ScrollView()
                               << (Column()
-                                  << RectSurface(this->first_.state()).size(180, 50).TEST_ID("PaintDamage.First")
+                                  << RectSurface(this->first_.state()).size(180, 50).useRegionClip(true).TEST_ID("PaintDamage.First")
                                   << RectSurface(this->sibling_.state()).size(180, 50).TEST_ID("PaintDamage.Sibling")
                                   << Text(this->text_.state()))));
     }
@@ -84,7 +86,9 @@ namespace
     }
     virtual void composeNode(NodeComposition &composition)
     {
-      composition.declare(ZStack() << RectSurface(this->model_.state()).size(150, 70) << Text("ZStack"));
+      composition.declare(Box().size(180, 110)
+                          << (ScrollView()
+                              << (ZStack() << RectSurface(this->model_.state()).size(150, 70) << Text("ZStack"))));
     }
     void advance()
     {
@@ -97,18 +101,56 @@ namespace
     NodeState<RectSurfaceModel> model_;
   };
 
+  class EditDamageNode;
+  typedef BoundaryPropsFor<EditDamageNode> EditDamageProps;
+  class EditDamageNode : public StdCompositionBoundaryNodeBase<EditDamageProps>
+  {
+  public:
+    typedef EditDamageProps::TypeTag TypeTag;
+    explicit EditDamageNode(const EditDamageProps &props)
+        : StdCompositionBoundaryNodeBase<EditDamageProps>(props)
+    {
+      this->state(this->text_, loka::core::String::Literal("Clipped edit"));
+    }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      composition.declare(Box().size(180, 50)
+                          << (ScrollView()
+                              << (Column() << Box().size(150, 48)
+                                  << EditText(this->text_).TEST_ID("PaintDamage.Edit"))));
+    }
+  private:
+    NodeState<loka::core::String> text_;
+  };
+
+  struct FindEdit : public IPaintResidentVisitor
+  {
+    FindEdit() : context(0) {}
+    virtual void visit(Node *node, NodeContext *native, BoundaryNode *)
+    {
+      if (node->testId() == "PaintDamage.Edit")
+        this->context = static_cast<ToolboxEditTextContext *>(native);
+    }
+    ToolboxEditTextContext *context;
+  };
+
   /** This fixture installs only the two concrete production drawer kinds.
       Recollecting their read-only answers observes the gate without adding a
       production telemetry door or retaining the collector's resident borrows. */
   struct ProbeSource
   {
-    ProbeSource() : siblingX(0), siblingY(0), foundSibling(false) {}
+    ProbeSource() : siblingX(0), siblingY(0), foundSibling(false), first(0), firstDamage() {}
     bool queryPaintAnswer(Node *node, NodeContext *context, const PaintQuery &query, PaintAnswer &answer)
     {
       if (node->kind() != NODE_KIND_RECT_SURFACE && node->kind() != NODE_KIND_TEXT)
         return false;
       answer = context ? static_cast<NativeNodeContext *>(context)->queryPaintDamage(query)
                        : PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+      if (node->testId() == "PaintDamage.First" && answer.kind == PAINT_ANSWER_EXACT)
+      {
+        this->first = context;
+        this->firstDamage = answer.damage;
+      }
       if (node->testId() == "PaintDamage.Sibling" && answer.kind == PAINT_ANSWER_EXACT)
       {
         this->siblingX = answer.damage.x + 40;
@@ -119,14 +161,16 @@ namespace
     }
     int siblingX, siblingY;
     bool foundSibling;
+    NodeContext *first;
+    PaintDamage firstDamage;
   };
 
   class PaintDamageConfig : public AppConfigurable
   {
   public:
     explicit PaintDamageConfig(PlatformContext *context)
-        : AppConfigurable(context), app_(0), node_(0), composited_(0), log_(0), phase_(SETTLE), result_(0),
-          initial_(), marker_(), gate_(false)
+        : AppConfigurable(context), app_(0), node_(0), composited_(0), edit_(0), log_(0), phase_(SETTLE), result_(0),
+          initial_(), marker_(), gate_(false), editGeometry_()
     {
       if (loka::platform::file::ResolveApplicationSidecar(
               loka::file::File::Application() << loka::file::File("LOG.TXT"), this->file_))
@@ -153,13 +197,20 @@ namespace
                                    CompositedDamageProps(), &this->composited_))
                                .visible(true).idlePolicy(IdlePolicy::everyTick())
                                .onIdle(&PaintDamageConfig::OnCompositedIdle, this));
+      composition << WindowDef(WindowProps().frame(350, 250, 220, 160).title("Edit replay")
+                               .scene(loka::scenario_tests::ObservedMainDefinition<EditDamageProps, EditDamageNode>(
+                                   EditDamageProps(), &this->edit_))
+                               .visible(true).idlePolicy(IdlePolicy::everyTick())
+                               .onIdle(&PaintDamageConfig::OnEditIdle, this));
     }
 
   private:
-    enum Phase { SETTLE, WRITE, CHECK, COMPOSITED_WRITE, COMPOSITED_CHECK, COMPLETE };
+    enum Phase { SETTLE, WRITE, CHECK, INVALIDATED_WRITE, INVALIDATED_CHECK,
+                 COMPOSITED_WRITE, COMPOSITED_CHECK, EDIT_WRITE, EDIT_CHECK, COMPLETE };
     App *app_;
     PaintDamageNode *node_;
     CompositedDamageNode *composited_;
+    EditDamageNode *edit_;
     loka::platform::file::FileHandle file_;
     std::FILE *log_;
     Phase phase_;
@@ -167,6 +218,7 @@ namespace
     ToolboxSceneDebugStats initial_;
     Point marker_;
     bool gate_;
+    ToolboxScenePlatformController::EditTextGeometry editGeometry_;
 
     void finish(bool pass)
     {
@@ -180,7 +232,8 @@ namespace
     static void OnIdle(Window *window, double, void *data)
     {
       PaintDamageConfig *self = static_cast<PaintDamageConfig *>(data);
-      if (self->phase_ != SETTLE && self->phase_ != WRITE && self->phase_ != CHECK)
+      if (self->phase_ != SETTLE && self->phase_ != WRITE && self->phase_ != CHECK
+          && self->phase_ != INVALIDATED_WRITE && self->phase_ != INVALIDATED_CHECK)
         return;
       ToolboxWindow *native = window ? window->asToolboxWindow() : 0;
       if (!native || !window->scene() || !self->node_)
@@ -200,6 +253,49 @@ namespace
       GrafPtr previousPort;
       GetPort(&previousPort);
       SetPort(native->window());
+      if (self->phase_ == INVALIDATED_WRITE)
+      {
+        const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
+        PaintAnswerBuffer<> answers;
+        ProbeSource source;
+        CollectPaintAnswers(*self->node_, query, answers, source);
+        if (!source.first)
+        {
+          SetPort(previousPort);
+          self->finish(false);
+          return;
+        }
+        self->marker_.h = static_cast<short>(source.firstDamage.x + 18);
+        self->marker_.v = static_cast<short>(source.firstDamage.y + 8);
+        const bool oldPixelBlack = GetPixel(self->marker_.h, self->marker_.v) != 0;
+        self->initial_ = controller->debugStatsForTesting();
+        self->node_->advance();
+        // Freeze the real exact request before invalidating presentation
+        // history through the retained-props lifecycle door. The pending
+        // window delivery must reconstruct all ground with region clipping on.
+        loka::dsl::testing::SceneTestAccess::flushInvalidation(*window->scene());
+        source.first->onPropsApplied();
+        self->phase_ = INVALIDATED_CHECK;
+        SetPort(previousPort);
+        if (!oldPixelBlack)
+          self->finish(false);
+        return;
+      }
+      if (self->phase_ == INVALIDATED_CHECK)
+      {
+        const bool erased = GetPixel(self->marker_.h, self->marker_.v) == 0;
+        const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
+        const int whole = stats.windowFullRequestCount - self->initial_.windowFullRequestCount;
+        const int dirty = stats.windowFlushDirtyCount - self->initial_.windowFlushDirtyCount;
+        std::fprintf(self->log_, "unknown_history_old_pixel_erased=%d whole_window=%d dirty_flushes=%d\n",
+                     erased ? 1 : 0, whole, dirty);
+        SetPort(previousPort);
+        if (erased && whole == 0 && dirty > 0)
+          self->phase_ = COMPOSITED_WRITE;
+        else
+          self->finish(false);
+        return;
+      }
       if (self->phase_ == WRITE)
       {
         const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
@@ -238,7 +334,7 @@ namespace
                      self->gate_ ? 1 : 0, rects, whole, draws, siblingPreserved ? 1 : 0);
         SetPort(previousPort);
         if (self->gate_ && rects == 1 && whole == 0 && siblingPreserved)
-          self->phase_ = COMPOSITED_WRITE;
+          self->phase_ = INVALIDATED_WRITE;
         else
           self->finish(false);
         return;
@@ -273,8 +369,7 @@ namespace
         return;
       }
       const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
-      const int broad = stats.windowFullRequestCount - self->initial_.windowFullRequestCount
-                        + stats.windowRectRequestCount - self->initial_.windowRectRequestCount;
+      const int broad = stats.windowFullRequestCount - self->initial_.windowFullRequestCount;
       const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
       PaintAnswerBuffer<> answers;
       ProbeSource source;
@@ -283,7 +378,53 @@ namespace
       info.paintKind = LOCAL_APPLY_PAINT_COMPOSITED;
       const bool gate = verdict.canSkipBroadPaint(info);
       std::fprintf(self->log_, "zstack_gate=%d broad_requests=%d\n", gate ? 1 : 0, broad);
-      self->finish(!gate && broad > 0);
+      if (!gate && broad > 0)
+        self->phase_ = EDIT_WRITE;
+      else
+        self->finish(false);
+    }
+    static void OnEditIdle(Window *window, double, void *data)
+    {
+      PaintDamageConfig *self = static_cast<PaintDamageConfig *>(data);
+      if (self->phase_ != EDIT_WRITE && self->phase_ != EDIT_CHECK)
+        return;
+      ToolboxWindow *native = window ? window->asToolboxWindow() : 0;
+      if (!native || !window->scene() || !self->edit_)
+      {
+        self->finish(false);
+        return;
+      }
+      if (native->hasPendingInvalidate() || window->scene()->hasPendingInvalidation())
+        return;
+      ToolboxScenePlatformController *controller = static_cast<ToolboxScenePlatformController *>(
+          loka::dsl::testing::SceneTestAccess::platformController(*window->scene()));
+      FindEdit edit;
+      enumerateAttachedResidents(self->edit_, edit);
+      ToolboxScenePlatformController::EditTextGeometry geometry;
+      if (!controller || !controller->queryEditTextGeometryForTesting(edit.context, geometry))
+      {
+        self->finish(false);
+        return;
+      }
+      if (self->phase_ == EDIT_WRITE)
+      {
+        const Rect chrome = edit.context->chromeRect();
+        const bool clipped = geometry.view.bottom < chrome.bottom - 1;
+        std::fprintf(self->log_, "edit_initially_clipped=%d\n", clipped ? 1 : 0);
+        if (!clipped)
+        {
+          self->finish(false);
+          return;
+        }
+        self->editGeometry_ = geometry;
+        native->requestInvalidateRect(chrome);
+        self->phase_ = EDIT_CHECK;
+        return;
+      }
+      const bool same = EqualRect(&geometry.destination, &self->editGeometry_.destination)
+                        && EqualRect(&geometry.view, &self->editGeometry_.view);
+      std::fprintf(self->log_, "edit_replay_preserves_projection=%d\n", same ? 1 : 0);
+      self->finish(same);
     }
   };
 }

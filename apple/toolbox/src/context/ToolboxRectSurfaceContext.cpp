@@ -162,7 +162,8 @@ void ToolboxRectSurfaceContext::renderDirty(const Rect &requestedDirtyRect)
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
   bool useRegionClip = false;
   useRegionClip =
-      node_->props.useRegionClip_ && buildDirtyRegion(dirtyRect, model) && dirtyRgn_ != 0 && savedClipRgn_ != 0;
+      this->presented_.isKnown() && node_->props.useRegionClip_
+      && buildDirtyRegion(dirtyRect, model) && dirtyRgn_ != 0 && savedClipRgn_ != 0;
   if (useRegionClip)
   {
     GetClip(savedClipRgn_);

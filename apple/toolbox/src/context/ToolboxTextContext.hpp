@@ -70,7 +70,7 @@ public:
 private:
   /** Capture local data and report whether existing controller rows need refresh. */
   bool captureProps();
-  void paint();
+  void paint(bool erase);
   loka::app::TextNode *node_;
   Rect rect_;
   Rect paintRect_;
