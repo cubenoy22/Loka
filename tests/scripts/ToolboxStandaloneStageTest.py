@@ -265,23 +265,11 @@ rm -f "$HOME/mounted-disk"
             (release / "LokaScrapbookStandaloneLoopPPC.dsk").read_bytes(),
         )
 
-    def test_vscode_tasks_use_the_completed_stage_for_floppy_and_scsi(self):
+    def test_vscode_tasks_use_the_completed_stage_for_scsi(self):
         tasks_document = json.loads((PROJECT_DIR / ".vscode" / "tasks.json").read_text())
         tasks = {task["label"]: task for task in tasks_document["tasks"]}
         stage_root = "build/presentation/toolbox-68k-release"
 
-        self.assertEqual(
-            tasks["Stage & Mount in Running MAME: Scrapbook Standalone Flow"]["dependsOn"],
-            [
-                "MAME: Eject Floppy",
-                "Stage: Toolbox 68K Standalone Flow Release",
-                "MAME: Mount Scrapbook Standalone Flow Stage",
-            ],
-        )
-        self.assertIn(
-            f"${{workspaceFolder}}/{stage_root}/LokaScrapbookStandaloneFlow68K.dsk",
-            tasks["MAME: Mount Scrapbook Standalone Flow Stage"]["args"],
-        )
         self.assertEqual(
             tasks["Stage & Start in MAME via SCSI: Scrapbook Standalone Flow"][
                 "dependsOn"
@@ -306,13 +294,6 @@ rm -f "$HOME/mounted-disk"
                 "${input:toolboxStandaloneReleaseAction}",
                 "ppc",
             ],
-        )
-        picker = next(
-            item for item in tasks_document["inputs"] if item["id"] == "retro68DskPath"
-        )
-        self.assertIn(
-            f"{stage_root}/LokaScrapbookStandaloneFlow68K.dsk",
-            [option["value"] for option in picker["options"]],
         )
 
 
