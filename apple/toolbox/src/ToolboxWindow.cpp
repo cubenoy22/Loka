@@ -120,6 +120,27 @@ void ToolboxWindow::open()
   short height = static_cast<short>(this->hasSize() ? this->height() : defaultFrame.height);
   SetRect(&bounds, left, top, static_cast<short>(left + width), static_cast<short>(top + height));
 
+  {
+    const Rect screen = qd.screenBits.bounds;
+    const short screenW = static_cast<short>(screen.right - screen.left);
+    const short screenH = static_cast<short>(screen.bottom - screen.top - menuHeight - 1);
+    if (width > screenW)
+      width = screenW;
+    if (height > screenH)
+      height = screenH;
+    left = bounds.left;
+    top = bounds.top;
+    if (left + width > screen.right)
+      left = static_cast<short>(screen.right - width);
+    if (top + height > screen.bottom)
+      top = static_cast<short>(screen.bottom - height);
+    if (left < screen.left)
+      left = screen.left;
+    if (top < static_cast<short>(screen.top + menuHeight + 1))
+      top = static_cast<short>(screen.top + menuHeight + 1);
+    SetRect(&bounds, left, top, static_cast<short>(left + width), static_cast<short>(top + height));
+  }
+
   loka::core::String titleValue = this->displayTitleState().get();
   if (titleValue.empty())
   {
@@ -143,6 +164,7 @@ void ToolboxWindow::open()
 
   window_ = NewWindow(0, &bounds, titleStr, true, documentProc, (WindowPtr)-1, true, 0);
   titleBarHeight_ = WindowTitleBarHeight(window_);
+  FrameChangedThunk(this);
   TitleChangedThunk(this);
   this->storeCurrentNativeContentFrame();
 }
@@ -273,28 +295,51 @@ void ToolboxWindow::FrameChangedThunk(void *userData)
     return;
   }
   loka::core::Frame frame = self->frameState().get();
-  if (frame.hasPosition())
-  {
-    short y = static_cast<short>(frame.y >= 0 ? frame.y : 0);
-    short menuHeight = GetMBarHeight();
-    if (menuHeight > 0)
-    {
-      y = static_cast<short>(y + menuHeight);
-    }
-    if (self->titleBarHeight_ > 0)
-    {
-      y = static_cast<short>(y + self->titleBarHeight_);
-    }
-    MoveWindow(self->window_, static_cast<short>(frame.x), y, false);
-  }
+
+  const Rect screen = qd.screenBits.bounds;
+  const short menuHeight = GetMBarHeight();
+  const short screenW = static_cast<short>(screen.right - screen.left);
+  const short titleBar = self->titleBarHeight_ > 0 ? self->titleBarHeight_ : 0;
+  const short contentTop = static_cast<short>(screen.top + (menuHeight > 0 ? menuHeight + 1 : 0) + titleBar);
+  const short screenH = static_cast<short>(screen.bottom - contentTop);
+
+  short w = static_cast<short>(frame.hasSize() ? frame.width : (self->window_->portRect.right - self->window_->portRect.left));
+  short h = static_cast<short>(frame.hasSize() ? frame.height : (self->window_->portRect.bottom - self->window_->portRect.top));
+  if (w > screenW)
+    w = screenW;
+  if (h > screenH)
+    h = screenH;
+
   if (frame.hasSize())
   {
     const int currentWidth = self->window_->portRect.right - self->window_->portRect.left;
     const int currentHeight = self->window_->portRect.bottom - self->window_->portRect.top;
-    if (currentWidth != frame.width || currentHeight != frame.height)
+    if (currentWidth != w || currentHeight != h)
     {
-      SizeWindow(self->window_, static_cast<short>(frame.width), static_cast<short>(frame.height), true);
+      SizeWindow(self->window_, w, h, true);
     }
+  }
+  if (frame.hasPosition())
+  {
+    short x = static_cast<short>(frame.x >= 0 ? frame.x : 0);
+    short y = static_cast<short>(frame.y >= 0 ? frame.y : 0);
+    if (menuHeight > 0)
+    {
+      y = static_cast<short>(y + menuHeight);
+    }
+    if (titleBar > 0)
+    {
+      y = static_cast<short>(y + titleBar);
+    }
+    if (x + w > screen.right)
+      x = static_cast<short>(screen.right - w);
+    if (y + h > screen.bottom)
+      y = static_cast<short>(screen.bottom - h);
+    if (x < screen.left)
+      x = screen.left;
+    if (y < contentTop)
+      y = contentTop;
+    MoveWindow(self->window_, x, y, false);
   }
 }
 
