@@ -8,7 +8,8 @@
 // machinery is never referenced and gc-sections drops it.
 //
 // Small requests try a chunk, then the single request, then refuse with 0;
-// requests above 256 bytes pass straight to NewPtr without a header.
+// Requests above 256 bytes use the same aligned source directly; only source
+// blocks carry a recovery byte, never individual pool slots.
 // All six delete forms funnel through scalar delete and the pool release door.
 // Contract:
 // - Plain new/new[] never return 0: allocation failure aborts via the
@@ -24,44 +25,16 @@
 
 #include "core/SmallObjectPool.hpp"
 #include "ToolboxSmallObjectPool.hpp"
-#include <MacMemory.h>
+#include "ToolboxMemorySource.hpp"
 #include <cstdlib>
 #include <new>
 #include <string>
 
 namespace
 {
-  /** Memory Manager storage for every target linking this Classic rail. */
-  struct ClassicMemorySource
-  {
-    // The target's maximum fundamental alignment, which NewPtr meets or
-    // exceeds: 8 on PowerPC/Carbon (a double or long long needs 8, and the
-    // Memory Manager aligns to at least that), 4 on 68K (where the m68k ABI's
-    // strictest fundamental type is 4-aligned and NewPtr returns 4-aligned
-    // blocks). Every size class is a multiple of 8, so each slot inherits the
-    // chunk base's alignment and stays >= this promise. Large/direct/fallback
-    // requests bypass the pool and keep NewPtr's own alignment, unchanged from
-    // the pre-pool operator new.
-#if defined(__ppc__) || defined(__POWERPC__)
-    enum { kAlignment = 8 };
-#else
-    enum { kAlignment = 4 };
-#endif
-
-    static void *acquire(std::size_t size)
-    {
-      return NewPtr(size);
-    }
-
-    static void release(void *storage)
-    {
-      DisposePtr(static_cast<Ptr>(storage));
-    }
-  };
-
   // POD in zero-initialized BSS: usable before main and after static teardown.
   // Chunks belong to the process and are never returned to the zone.
-  static loka::core::SmallObjectPool<ClassicMemorySource> gPool;
+  static loka::core::SmallObjectPool<loka::toolbox::ClassicMemorySource> gPool;
 } // namespace
 
 #if LOKA_RETRO68_DIAGNOSTICS

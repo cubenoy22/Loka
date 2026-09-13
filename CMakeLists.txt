@@ -399,6 +399,15 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   target_link_libraries(LokaUpstreamGaugePins PRIVATE LokaCommonTesting)
   add_test(NAME LokaUpstreamGaugePins COMMAND LokaUpstreamGaugePins)
 
+  # Exercise the Classic source itself against a host Memory Manager substitute.
+  add_executable(LokaToolboxMemorySourceTests tests/ToolboxMemorySourceTests.cpp)
+  loka_enable_warnings(LokaToolboxMemorySourceTests)
+  target_include_directories(LokaToolboxMemorySourceTests PRIVATE
+    tests/support/classic-memory tests apple/toolbox/src common)
+  set_target_properties(LokaToolboxMemorySourceTests PROPERTIES
+    CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
+  add_test(NAME LokaToolboxMemorySourceTests COMMAND LokaToolboxMemorySourceTests)
+
   # Isolated S1 pool simulation: deny Source and count global new during reclaim.
   add_executable(LokaReclaimGaugePins tests/ReclaimGaugeMain.cpp tests/ReclaimScratchTests.cpp)
   loka_enable_warnings(LokaReclaimGaugePins)

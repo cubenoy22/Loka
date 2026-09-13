@@ -2453,9 +2453,11 @@ void testLrpkReadBagIntoWalksTheSameRefusalOrder()
   // Refusal 7. The size is right, so this cannot be refusal 6 wearing a
   // different name: only the address is wrong.
   {
-    std::vector<unsigned char> shifted(stored + 1, 0);
+    std::vector<unsigned char> shifted(stored + 2, 0);
     assert(reinterpret_cast<std::size_t>(&shifted[0]) % kPayloadAlign == 0);
     LOKA_VERIFY(reader.readBagInto(0, &shifted[1], stored) ==
+           Reader::BAG_MISALIGNED_BUFFER);
+    LOKA_VERIFY(reader.readBagInto(0, &shifted[2], stored) ==
            Reader::BAG_MISALIGNED_BUFFER);
     assert(!reader.isBagOpen(0));
   }
