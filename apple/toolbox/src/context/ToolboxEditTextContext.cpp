@@ -1,5 +1,6 @@
 #include "ToolboxPropsRefresh.hpp"
 #include "context/ToolboxEditTextContext.hpp"
+#include "context/ToolboxPaintSupport.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxLayoutMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
@@ -59,6 +60,7 @@ ToolboxEditTextContext::ToolboxEditTextContext(loka::app::EditTextNode *node,
     : ToolboxProjectedNodeContext(controller),
       node_(node),
       rect_(),
+      paintRect_(),
       textRect_(),
       textX_(0),
       textY_(0),
@@ -76,9 +78,24 @@ void ToolboxEditTextContext::updateData(loka::core::State<loka::core::String> *t
 void ToolboxEditTextContext::updateRect(const Rect &outerRect, const Rect &textRect, short textX, short textY)
 {
   rect_ = outerRect;
+  this->paintRect_ = outerRect;
+  if (this->controller() && !this->controller()->intersectWithProjectionClip(outerRect, this->paintRect_))
+    SetRect(&this->paintRect_, 0, 0, 0, 0);
   textRect_ = textRect;
   textX_ = textX;
   textY_ = textY;
+}
+
+void ToolboxEditTextContext::repaint(TEHandle te)
+{
+  if (!te || !*te)
+    return;
+  ToolboxPaintClip clip(this->paintRect_);
+  if (!clip.isActive())
+    return;
+  const Rect view = (**te).viewRect;
+  TEUpdate(&view, te);
+  FrameRect(&this->rect_);
 }
 
 void ToolboxEditTextContext::draw(ToolboxScenePlatformController *controller)

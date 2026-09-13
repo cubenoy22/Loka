@@ -25,13 +25,32 @@ ToolboxRectSurfaceContext::ToolboxRectSurfaceContext(loka::app::RectSurfaceNode 
     : ToolboxProjectedNodeContext(controller),
       node_(node),
       rect_(),
-      previousModel_(),
-      hasPreviousModel_(false),
+      paintRect_(),
       dirtyRgn_(NewRgn()),
       tempRgn_(NewRgn()),
       savedClipRgn_(NewRgn())
 {
   SetRect(&rect_, 0, 0, 0, 0);
+}
+
+loka::app::scene::PaintAnswer ToolboxRectSurfaceContext::queryPaintDamage(
+    const loka::app::scene::PaintQuery &query) const
+{
+  using namespace loka::app::scene;
+  if (query.placement != PLACEMENT_ELIGIBLE || query.scope != ToolboxPaintScope())
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  if (!this->node_ || !this->node_->props.model_)
+    return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
+  if (!this->node_->props.clearBackground_)
+    return PaintAnswer::refused(PAINT_REFUSED_UNSUPPORTED_KIND);
+  if (!this->presented_.isKnown())
+    return PaintAnswer::refused(PAINT_REFUSED_HISTORY_UNKNOWN);
+  return ToolboxExactPaint(this->paintRect_, this->presented_.value() != this->node_->props.model_->get());
+}
+
+void ToolboxRectSurfaceContext::onPropsApplied()
+{
+  this->presented_.invalidate();
 }
 
 void ToolboxRectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
@@ -40,9 +59,12 @@ void ToolboxRectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFac
   // Detached or retired, the surface is no longer placed: its pending seat
   // rows go first, while the controller back-pointer is still intact (the
   // base clears it on RETIRED).
-  if (next != loka::app::scene::NODE_FACT_ATTACHED && this->controller())
+  if (next != loka::app::scene::NODE_FACT_ATTACHED)
   {
-    this->controller()->cancelRectSurfaceExtent(node_);
+    this->presented_.invalidate();
+    SetRect(&this->paintRect_, 0, 0, 0, 0);
+    if (this->controller())
+      this->controller()->cancelRectSurfaceExtent(node_);
   }
   ToolboxProjectedNodeContext::onFactChanged(previous, next);
 }
@@ -76,19 +98,24 @@ short ToolboxRectSurfaceContext::layout(loka::app::scene::IPlatformController *,
   rect_.top = static_cast<short>(state.y);
   rect_.right = static_cast<short>(state.x + state.width);
   rect_.bottom = static_cast<short>(state.y + state.height);
+  this->presented_.invalidate();
+  this->paintRect_ = this->rect_;
+  if (this->controller() && !this->controller()->intersectWithProjectionClip(this->rect_, this->paintRect_))
+    SetRect(&this->paintRect_, 0, 0, 0, 0);
   state.y = static_cast<short>(rect_.bottom + state.spacing);
   return state.width;
 }
 
 void ToolboxRectSurfaceContext::render(loka::app::scene::IPlatformController *)
 {
+  this->presented_.invalidate();
   if (!node_ || !node_->props.model_)
   {
     return;
   }
   // A walk can run under a clip that excludes this surface entirely (the #412
   // dirty escalation clips render() to the damaged rect). Painting would be a
-  // no-op there, but rememberCurrentModel() would still overwrite the previous
+  // no-op there, but committing history would still overwrite the previous
   // sprite positions, and the surface's own pending dirty flush then loses the
   // old rects it must erase. If nothing here can be painted, do not claim a
   // paint happened. The snapshot stays older, which only widens a later dirty
@@ -113,32 +140,38 @@ void ToolboxRectSurfaceContext::render(loka::app::scene::IPlatformController *)
     Rect spriteRect = rectForSprite(model.rects[i]);
     PaintRect(&spriteRect);
   }
-  rememberCurrentModel();
+  this->presented_.invalidate();
+  if (this->tempRgn_)
+  {
+    GetClip(this->tempRgn_);
+    if (ToolboxPaintClipCovers(this->tempRgn_, this->paintRect_))
+      this->presented_.commit(model, ToolboxPaintScope());
+  }
 }
 
-void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
+void ToolboxRectSurfaceContext::renderDirty(const Rect &requestedDirtyRect)
 {
   if (!node_ || !node_->props.model_)
   {
     return;
   }
-  if (dirtyRect.right < rect_.left || dirtyRect.left > rect_.right || dirtyRect.bottom < rect_.top
-      || dirtyRect.top > rect_.bottom)
-  {
+  Rect dirtyRect;
+  if (!SectRect(&requestedDirtyRect, &this->paintRect_, &dirtyRect))
     return;
-  }
 
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
   bool useRegionClip = false;
   useRegionClip =
-      node_->props.useRegionClip_ && buildDirtyRegion(dirtyRect, model) && dirtyRgn_ != 0 && savedClipRgn_ != 0;
+      this->presented_.isKnown() && node_->props.useRegionClip_
+      && buildDirtyRegion(dirtyRect, model) && dirtyRgn_ != 0 && savedClipRgn_ != 0;
   if (useRegionClip)
   {
     GetClip(savedClipRgn_);
+    SectRgn(dirtyRgn_, savedClipRgn_, dirtyRgn_);
     SetClip(dirtyRgn_);
   }
   const loka::toolbox::RectSurfaceRepaintPlan plan(
-      this->hasPreviousModel_ ? &this->previousModel_ : 0, model,
+      this->presented_.isKnown() ? &this->presented_.value() : 0, model,
       loka::core::Frame(this->rect_.left, this->rect_.top,
                         this->rect_.right - this->rect_.left, this->rect_.bottom - this->rect_.top),
       loka::core::Frame(dirtyRect.left, dirtyRect.top,
@@ -162,7 +195,15 @@ void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
   {
     SetClip(savedClipRgn_);
   }
-  rememberCurrentModel();
+  this->presented_.invalidate();
+  if (this->tempRgn_)
+  {
+    GetClip(this->tempRgn_);
+    if (ToolboxPaintClipCovers(this->tempRgn_, this->paintRect_)
+        && dirtyRect.left <= this->paintRect_.left && dirtyRect.top <= this->paintRect_.top
+        && dirtyRect.right >= this->paintRect_.right && dirtyRect.bottom >= this->paintRect_.bottom)
+      this->presented_.commit(model, ToolboxPaintScope());
+  }
 }
 
 bool ToolboxRectSurfaceContext::dirtyRect(Rect &outRect) const
@@ -170,6 +211,11 @@ bool ToolboxRectSurfaceContext::dirtyRect(Rect &outRect) const
   if (!node_ || !node_->props.model_)
   {
     return false;
+  }
+  if (!this->presented_.isKnown())
+  {
+    outRect = this->rect_;
+    return outRect.left < outRect.right && outRect.top < outRect.bottom;
   }
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
   bool hasBounds = false;
@@ -213,14 +259,14 @@ bool ToolboxRectSurfaceContext::dirtyRect(Rect &outRect) const
       outRect.bottom = bottom;
     }
   }
-  if (hasPreviousModel_)
+  if (this->presented_.isKnown())
   {
-    for (short i = 0; i < previousModel_.rectCount; ++i)
+    for (short i = 0; i < this->presented_.value().rectCount; ++i)
     {
-      const short left = static_cast<short>(rect_.left + previousModel_.rects[i].x);
-      const short top = static_cast<short>(rect_.top + previousModel_.rects[i].y);
-      const short right = static_cast<short>(left + previousModel_.rects[i].width);
-      const short bottom = static_cast<short>(top + previousModel_.rects[i].height);
+      const short left = static_cast<short>(rect_.left + this->presented_.value().rects[i].x);
+      const short top = static_cast<short>(rect_.top + this->presented_.value().rects[i].y);
+      const short right = static_cast<short>(left + this->presented_.value().rects[i].width);
+      const short bottom = static_cast<short>(top + this->presented_.value().rects[i].height);
       if (!hasBounds)
       {
         outRect.left = left;
@@ -272,18 +318,6 @@ bool ToolboxRectSurfaceContext::dirtyRect(Rect &outRect) const
   return outRect.left < outRect.right && outRect.top < outRect.bottom;
 }
 
-void ToolboxRectSurfaceContext::rememberCurrentModel()
-{
-  if (!node_ || !node_->props.model_)
-  {
-    hasPreviousModel_ = false;
-    previousModel_ = loka::app::RectSurfaceModel();
-    return;
-  }
-  previousModel_ = node_->props.model_->get();
-  hasPreviousModel_ = true;
-}
-
 Rect ToolboxRectSurfaceContext::rectForSprite(const loka::app::RectSprite &sprite) const
 {
   Rect rect;
@@ -302,9 +336,9 @@ bool ToolboxRectSurfaceContext::buildDirtyRegion(const Rect &dirtyRect, const lo
   }
   SetEmptyRgn(dirtyRgn_);
   unionSpriteRectsIntoRegion(model, dirtyRect);
-  if (hasPreviousModel_)
+  if (this->presented_.isKnown())
   {
-    unionSpriteRectsIntoRegion(previousModel_, dirtyRect);
+    unionSpriteRectsIntoRegion(this->presented_.value(), dirtyRect);
   }
   Rect bounds = (**dirtyRgn_).rgnBBox;
   return bounds.left < bounds.right && bounds.top < bounds.bottom;

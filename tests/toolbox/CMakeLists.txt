@@ -132,6 +132,22 @@ target_compile_definitions(${LOKA_WINDOW_CLAMP_TARGET} PRIVATE TEST_BUILD LOKA_D
 set_property(TARGET ${LOKA_WINDOW_CLAMP_TARGET} PROPERTY EXCLUDE_FROM_ALL TRUE)
 set_property(TARGET ${LOKA_WINDOW_CLAMP_TARGET}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
 
+set(LOKA_PAINT_DAMAGE_TARGET "LokaPaintDamage${LOKA_CLASSIC_TARGET_SUFFIX}")
+loka_add_toolbox_test_application(
+  ${LOKA_PAINT_DAMAGE_TARGET}
+  LokaAppleToolboxTestCore
+  src/PaintDamageStandaloneMain.cpp
+  ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/WindowClampSize.r
+)
+target_include_directories(${LOKA_PAINT_DAMAGE_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/tests/standalone
+  ${CMAKE_SOURCE_DIR}/tests/scenarios
+)
+target_compile_definitions(${LOKA_PAINT_DAMAGE_TARGET} PRIVATE TEST_BUILD LOKA_DIAG=1)
+set_property(TARGET ${LOKA_PAINT_DAMAGE_TARGET} PROPERTY EXCLUDE_FROM_ALL TRUE)
+set_property(TARGET ${LOKA_PAINT_DAMAGE_TARGET}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
+
 set(LOKA_TESTS_TOOLBOX_SOURCES
   src/main.cpp
   src/ScenarioDriver.cpp
