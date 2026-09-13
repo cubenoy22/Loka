@@ -217,7 +217,11 @@ This is the environment where binaries are actually built.
   directory, requires both application-local audits to succeed, retains them
   in the evidence directory, and closes only the processes it started. It
   refuses existing logs. The same check accepts the CMake `standalone-loop`
-  output directory for direct-build launch coverage.
+  output directory for direct-build launch coverage. For Visual Studio or
+  Ninja Multi-Config outputs, also pass `-Configuration Release` (or the
+  configuration you built); executable and audit paths then use
+  `<root>/<app>/<configuration>/`. Omit this argument for staged packages
+  and single-config outputs.
 
   To measure a Standalone Flow, configure a separate cache with
   `LOKA_STANDALONE_PERFORMANCE_RUNS` set from 3 through 10 and build its

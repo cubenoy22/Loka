@@ -3,6 +3,7 @@ param(
     [string]$StageRoot,
     [Parameter(Mandatory = $true)]
     [string]$EvidenceDirectory,
+    [string]$Configuration = "",
     [int]$TimeoutSeconds = 120
 )
 
@@ -13,6 +14,13 @@ $Applications = @(
     @{ Key = "helloworld"; Target = "LokaHelloWorldStandaloneLoopWin32"; Scenario = "toggle-action-probe" }
 )
 $processes = @()
+
+# Packaged and single-config outputs have no configuration subdirectory.
+function Get-ApplicationDirectory([string]$Key) {
+    $directory = Join-Path $StageRoot $Key
+    if ($Configuration) { return Join-Path $directory $Configuration }
+    return $directory
+}
 
 function Read-Audit([string]$Path) {
     $stream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Open,
@@ -26,7 +34,7 @@ function Read-Audit([string]$Path) {
 # This test opens two real app windows. Run in an interactive Windows session.
 # Refuse existing audits rather than destroying evidence from another run.
 foreach ($entry in $Applications) {
-    $directory = Join-Path $StageRoot $entry.Key
+    $directory = Get-ApplicationDirectory $entry.Key
     if (-not (Test-Path -LiteralPath (Join-Path $directory ($entry.Target + ".exe")))) {
         throw "Missing application: $($entry.Key)"
     }
@@ -41,7 +49,7 @@ New-Item -ItemType Directory -Path $EvidenceDirectory -ErrorAction Stop | Out-Nu
 
 try {
     foreach ($entry in $Applications) {
-        $executable = Join-Path (Join-Path $StageRoot $entry.Key) ($entry.Target + ".exe")
+        $executable = Join-Path (Get-ApplicationDirectory $entry.Key) ($entry.Target + ".exe")
         # The SAME working directory deliberately cannot provide isolation.
         # Only each executable's application-sidecar directory can do so.
         $processes += Start-Process -FilePath $executable -WorkingDirectory $StageRoot -PassThru
@@ -56,7 +64,7 @@ try {
         }
         $complete = 0
         foreach ($entry in $Applications) {
-            $audit = Join-Path (Join-Path $StageRoot $entry.Key) "LOG.TXT"
+            $audit = Join-Path (Get-ApplicationDirectory $entry.Key) "LOG.TXT"
             if (-not (Test-Path -LiteralPath $audit)) { continue }
             try { $content = Read-Audit $audit } catch [System.IO.IOException] { continue }
             if ($content -match "(?m)^terminal status=(failed|canceled)\r?$") {
@@ -75,7 +83,7 @@ try {
     } while ([DateTime]::UtcNow -lt $deadline)
     if ($complete -ne $Applications.Count) { throw "Timed out waiting for both independent audits." }
     foreach ($entry in $Applications) {
-        Copy-Item -LiteralPath (Join-Path (Join-Path $StageRoot $entry.Key) "LOG.TXT") `
+        Copy-Item -LiteralPath (Join-Path (Get-ApplicationDirectory $entry.Key) "LOG.TXT") `
             -Destination (Join-Path $EvidenceDirectory ($entry.Key + ".audit"))
     }
     Write-Output "Runtime-verified: Scrapbook and HelloWorld completed independent audits while running concurrently."
