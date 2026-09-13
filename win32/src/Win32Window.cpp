@@ -130,8 +130,42 @@ bool Win32Window::applyNativeContentFrame(const loka::core::Frame &frame)
     assert(false && "Win32 client size must convert to an outer window size");
     return false;
   }
-  const int x = frame.x >= 0 ? frame.x : windowRect.left;
-  const int y = frame.y >= 0 ? frame.y : windowRect.top;
+  int x = frame.x >= 0 ? frame.x : windowRect.left;
+  int y = frame.y >= 0 ? frame.y : windowRect.top;
+  const RECT requestedOuterRect = {x, y, x + outerWidth, y + outerHeight};
+  MONITORINFO monitorInfo = {};
+  monitorInfo.cbSize = sizeof(monitorInfo);
+  if (!GetMonitorInfoW(MonitorFromRect(&requestedOuterRect, MONITOR_DEFAULTTONEAREST),
+                       &monitorInfo))
+  {
+    return false;
+  }
+  const RECT &work = monitorInfo.rcWork;
+  if (outerWidth > work.right - work.left)
+  {
+    outerWidth = work.right - work.left;
+  }
+  if (outerHeight > work.bottom - work.top)
+  {
+    outerHeight = work.bottom - work.top;
+  }
+  // Fit the chrome as well as the client, then keep the title bar in view.
+  if (x + outerWidth > work.right)
+  {
+    x = work.right - outerWidth;
+  }
+  if (y + outerHeight > work.bottom)
+  {
+    y = work.bottom - outerHeight;
+  }
+  if (x < work.left)
+  {
+    x = work.left;
+  }
+  if (y < work.top)
+  {
+    y = work.top;
+  }
   if (x == windowRect.left && y == windowRect.top &&
       outerWidth == windowRect.right - windowRect.left &&
       outerHeight == windowRect.bottom - windowRect.top)
