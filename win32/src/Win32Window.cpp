@@ -8,6 +8,7 @@
 #include "app/scene/Scene.hpp"
 #include "Win32ScenePlatformController.hpp"
 #include "context/Win32OpenFileDialogContext.hpp"
+#include "context/Win32ScrollViewContext.hpp"
 #include "core/String.hpp"
 #include "platform/Win32String.hpp"
 #include "platform/Win32DisplayScale.hpp"
@@ -270,6 +271,12 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
     }
     switch (msg)
     {
+    case WM_MOUSEWHEEL:
+      if (Win32ScrollViewContext::forwardMouseWheel(hwnd, wParam, lParam))
+      {
+        return 0;
+      }
+      break;
     case WM_COMMAND:
       if (self->handleCommand(wParam, lParam))
       {

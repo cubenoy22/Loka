@@ -9,6 +9,11 @@
 #include <windows.h>
 
 #include "Win32BuiltInSupport.hpp"
+#include "Win32Window.hpp"
+#include "context/Win32EditTextBridge.hpp"
+#include "platform/null/NullPlatformContext.hpp"
+#include "support/WindowAdmissionTestApp.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "Win32ScenePlatformController.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
@@ -423,6 +428,113 @@ void testWin32ScrollViewMessagePublishesOffsetFact()
   }
   LOKA_VERIFY(DestroyWindow(root));
   std::printf("==== [testWin32ScrollViewMessagePublishesOffsetFact] PASSED ====\n");
+}
+
+void testWin32ScrollViewWheelStepsOffsetThroughLinePath()
+{
+  std::printf("\n==== [testWin32ScrollViewWheelStepsOffsetThroughLinePath] start ====\n");
+  NullPlatformContext platform;
+  WindowProps props;
+  props.frame(40, 40, 360, 280).visible(false);
+  Win32Window window(&platform, props);
+  {
+    loka::core::StateTrackerGuard guard(window.getTracker());
+    window.visibilityState().set(true, true);
+  }
+  WindowAdmissionTestApp admission(window);
+  admission.flush();
+  HWND root = window.hwnd();
+  LOKA_VERIFY(root);
+  {
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
+    RegisterWin32BuiltInSupport(controller);
+    // Nodes after the controller: see the parents-and-clips pin.
+    OffsetFact offset(0);
+    loka::app::scene::NodeState<int> &offsetState = offset.state();
+    loka::app::ScrollViewNode scrollView(
+        (loka::app::ScrollViewProps(offset.state())));
+    addButtonColumn(scrollView, 6);
+    establishLayout(controller, &scrollView, 300, 140);
+    HWND viewport = findChildWindowByClass(root, L"LOKA_SCROLL_VIEW");
+    LOKA_VERIFY(viewport);
+    const SCROLLINFO info = scrollInfo(viewport);
+    const int maximum = maximumOffset(info);
+    UINT lines = 3;
+    if (!SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &lines, 0))
+    {
+      lines = 3;
+    }
+    const UINT distance = lines == WHEEL_PAGESCROLL ? info.nPage : lines;
+    const int expected = distance > static_cast<UINT>(maximum)
+                             ? maximum : static_cast<int>(distance);
+    POINT point = {5, 5};
+    LOKA_VERIFY(ClientToScreen(viewport, &point));
+    const LPARAM position = MAKELPARAM(point.x, point.y);
+    const WPARAM down = MAKEWPARAM(0, -WHEEL_DELTA);
+    const WPARAM up = MAKEWPARAM(0, WHEEL_DELTA);
+    LOKA_VERIFY(SendMessageW(viewport, WM_MOUSEWHEEL, down, position) == 0);
+    LOKA_VERIFY(offsetState.get() == expected);
+    controller.relayout(300, 140);
+    const SCROLLINFO afterWheel = scrollInfo(viewport);
+    LOKA_VERIFY(afterWheel.nPos == expected);
+    SendMessageW(viewport, WM_MOUSEWHEEL, up, position);
+    LOKA_VERIFY(offsetState.get() == 0);
+    SendMessageW(viewport, WM_MOUSEWHEEL, MAKEWPARAM(0, -WHEEL_DELTA / 2), position);
+    LOKA_VERIFY(offsetState.get() == 0 && "sub-detent remainders are dropped");
+
+    offsetState.set(maximum);
+    controller.relayout(300, 140);
+    offset.resetChangeCount();
+    SendMessageW(viewport, WM_MOUSEWHEEL, down, position);
+    LOKA_VERIFY(offsetState.get() == maximum);
+    const int clampedChanges = offset.changeCount();
+    LOKA_VERIFY(clampedChanges == 0);
+    offsetState.set(0);
+    controller.relayout(300, 140);
+
+    std::vector<HWND> buttons = directChildWindowsByClass(viewport, L"Button");
+    LOKA_VERIFY(!buttons.empty());
+    SetFocus(buttons[0]);
+    LOKA_VERIFY(GetFocus() == buttons[0]);
+    SendMessageW(GetFocus(), WM_MOUSEWHEEL, down, position);
+    LOKA_VERIFY(offsetState.get() == expected && "focused Button must propagate to the viewport");
+    offsetState.set(0);
+
+    // Use the shipping single-line EditText style to exercise native default
+    // propagation, without introducing a per-control subclass for the test.
+    HWND edit = loka::win32::CreateEditTextControl(viewport, 10, 10, 80, 24);
+    LOKA_VERIFY(edit);
+    SetFocus(edit);
+    LOKA_VERIFY(GetFocus() == edit);
+    SendMessageW(GetFocus(), WM_MOUSEWHEEL, down, position);
+    LOKA_VERIFY(offsetState.get() == expected && "focused EditText must propagate to the viewport");
+    LOKA_VERIFY(DestroyWindow(edit));
+    offsetState.set(0);
+
+    // The real Win32Window WndProc must route by the message's screen point.
+    LOKA_VERIFY(SetWindowPos(root, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE));
+    LOKA_VERIFY(GetAncestor(WindowFromPoint(point), GA_ROOT) == root);
+    SetFocus(root);
+    LOKA_VERIFY(GetFocus() == root);
+    SendMessageW(GetFocus(), WM_MOUSEWHEEL, down, position);
+    LOKA_VERIFY(offsetState.get() == expected && "root-directed wheel must find the viewport");
+    offsetState.set(0);
+    HWND outside = CreateWindowExW(0, L"BUTTON", L"", WS_CHILD | WS_VISIBLE,
+                                   310, 10, 30, 24, root, NULL, GetModuleHandleW(NULL), NULL);
+    LOKA_VERIFY(outside);
+    SetFocus(outside);
+    LOKA_VERIFY(GetFocus() == outside);
+    SendMessageW(GetFocus(), WM_MOUSEWHEEL, down, position);
+    LOKA_VERIFY(offsetState.get() == expected && "child outside viewport must propagate through root routing");
+    LOKA_VERIFY(DestroyWindow(outside));
+    offsetState.set(0);
+    POINT outsidePoint = {320, 200};
+    LOKA_VERIFY(ClientToScreen(root, &outsidePoint));
+    SendMessageW(root, WM_MOUSEWHEEL, down, MAKELPARAM(outsidePoint.x, outsidePoint.y));
+    LOKA_VERIFY(offsetState.get() == 0 && "root routing must refuse a point outside the viewport");
+    controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
+  }
+  std::printf("==== [testWin32ScrollViewWheelStepsOffsetThroughLinePath] PASSED ====\n");
 }
 
 void testWin32ScrollViewResizeReclampsOffsetOnce()
