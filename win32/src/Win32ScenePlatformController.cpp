@@ -418,7 +418,11 @@ void Win32ScenePlatformController::onBoundaryApply(loka::app::scene::Node *rootN
   }
 
   const bool eraseBackground = !info.paintIsOpaque;
-  const bool includeChildren = info.hasCompositedPaintWork();
+  // #725: the root WM_PAINT fills COLOR_WINDOW; the logical tree paints in
+  // child HWNDs. Delivery must cross the WS_CLIPCHILDREN ScrollView viewport
+  // or that root fill can remain over its children. #518 will replace this
+  // broad root request with context-owned damage.
+  const bool includeChildren = true;
   if (info.hasCompositedPaintWork())
   {
     ++this->redrawStats_.queuedCompositedInvalidates;
