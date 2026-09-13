@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Report and gate final Retro68 68K MacBinary application sizes.
 
-The checked-in baseline owns the shipping artifact paths and the material-growth
+The checked-in baseline owns the shipping artifact paths and the growth
 policy.  This tool reads each MacBinary resource fork directly so local and CI
 runs measure the final file and the same CODE/DATA/RELA payloads.
 """
 
 import argparse
 import json
+import os
 import pathlib
 import struct
 import sys
@@ -150,6 +151,8 @@ def load_baseline(path):
     identity = baseline.get("identity")
     if not isinstance(identity, dict) or not identity:
         raise SizeReportError("%s: identity must be a non-empty object" % path)
+    if not identity.get("source_commit"):
+        raise SizeReportError("%s: identity source_commit is required" % path)
     for key, value in identity.items():
         if not isinstance(key, str) or not key:
             raise SizeReportError("%s: identity keys must be non-empty strings" % path)
@@ -157,11 +160,12 @@ def load_baseline(path):
             raise SizeReportError(
                 "%s: identity values must be non-empty strings" % path
             )
-    positive_integer(
-        baseline.get("material_growth_bytes"),
-        "%s material_growth_bytes" % path,
-        allow_zero=True,
-    )
+    for key in ("per_pr_ok_bytes", "per_pr_note_bytes", "per_pr_stop_bytes",
+                "cumulative_stop_bytes"):
+        positive_integer(baseline.get(key), "%s %s" % (path, key))
+    if not (baseline["per_pr_ok_bytes"] == baseline["per_pr_note_bytes"]
+            < baseline["per_pr_stop_bytes"]):
+        raise SizeReportError("per-PR ok ceiling must equal note floor and be below stop")
     artifacts = baseline.get("artifacts")
     if not isinstance(artifacts, list) or not artifacts:
         raise SizeReportError("%s: artifacts must be a non-empty list" % path)
@@ -208,9 +212,13 @@ def artifact_sizes(path):
     return dict(total=path.stat().st_size, **resource_payload_sizes(path))
 
 
+def growth_bytes(current, reference):
+    """Charge text+data (CODE+DATA), excluding relocation and container overhead."""
+    return sum(current[kind] - reference[kind] for kind in ("CODE", "DATA"))
+
+
 def report(build_root, baseline, compare_build_root=None, comparison_ref=None,
-           report_only=False):
-    threshold = baseline["material_growth_bytes"]
+           report_only=False, acknowledge_growth=False):
     identity = baseline["identity"]
     declared_paths = set(artifact["path"] for artifact in baseline["artifacts"])
     example_root = build_root / "example"
@@ -234,8 +242,8 @@ def report(build_root, baseline, compare_build_root=None, comparison_ref=None,
     if compare_build_root is not None:
         print("Comparison build: %s (%s)" % (compare_build_root, comparison_ref))
     if report_only:
-        print("Informational bank comparison; growth does not fail this report")
-    print("Material total-growth allowance: %d bytes" % threshold)
+        print("Informational bank comparison; cumulative guard remains enforced")
+    print("Growth metric: CODE+DATA bytes")
     print(
         "%-26s %9s %9s %9s %9s %9s %9s %9s %9s %s"
         % (
@@ -259,10 +267,24 @@ def report(build_root, baseline, compare_build_root=None, comparison_ref=None,
         facts = (artifact_sizes(compare_build_root / artifact["path"])
                  if compare_build_root is not None else artifact["baseline"])
         deltas = {key: current[key] - facts[key] for key in current}
-        material = deltas["total"] > threshold
-        verdict = ("growth" if report_only else "REGRESSION") if material else "ok"
-        if material:
-            regressions.append((artifact["name"], deltas["total"]))
+        growth = growth_bytes(current, facts)
+        reason = None
+        if compare_build_root is not None:
+            if growth >= baseline["per_pr_stop_bytes"]:
+                reason = ("at or above %d bytes: a ruling is required "
+                          "(bank refresh PR with a design note)"
+                          % baseline["per_pr_stop_bytes"])
+            elif growth >= baseline["per_pr_note_bytes"] and not acknowledge_growth:
+                reason = ("%d to <%d bytes band requires a PR body size note and "
+                          "the size-note label (local: --acknowledge-growth)"
+                          % (baseline["per_pr_note_bytes"], baseline["per_pr_stop_bytes"]))
+        elif growth > baseline["cumulative_stop_bytes"]:
+            print("CUMULATIVE GROWTH: %s +%d since bank %s" % (
+                artifact["name"], growth, identity["source_commit"]))
+            reason = "cumulative limit exceeded; refresh the bank with an explicit inventory"
+        verdict = "REGRESSION" if reason else "ok"
+        if reason:
+            regressions.append((artifact["name"], growth, reason))
         print(
             "%-26s %9d %9s %9d %9s %9d %9s %9d %9s %s"
             % (
@@ -279,10 +301,10 @@ def report(build_root, baseline, compare_build_root=None, comparison_ref=None,
             )
         )
 
-    if regressions and not report_only:
-        print("Material Retro68 binary growth detected:", file=sys.stderr)
-        for name, growth in regressions:
-            print("  %s: +%d bytes" % (name, growth), file=sys.stderr)
+    if regressions:
+        print("Retro68 binary growth detected:", file=sys.stderr)
+        for name, growth, reason in regressions:
+            print("  %s: +%d bytes: %s" % (name, growth, reason), file=sys.stderr)
         return 1
     return 0
 
@@ -302,7 +324,13 @@ def parse_arguments(arguments):
                         help="measure reference artifacts instead of using bank sizes")
     parser.add_argument("--comparison-ref", help="source commit of the reference build")
     parser.add_argument("--report-only", action="store_true",
-                        help="report bank drift without failing on growth (errors still fail)")
+                        help="report bank drift; the cumulative guard still fails above 200 KB")
+    parser.add_argument("--acknowledge-growth", action="store_true",
+                        default=os.environ.get("LOKA_SIZE_NOTE") == "1",
+                        help="acknowledge a size note (or LOKA_SIZE_NOTE=1): per PR, "
+                             "<50 KB ok; 50 to <100 KB requires size-note label; "
+                             ">=100 KB requires a ruling regardless (1 KB = 1024 bytes; "
+                             "thresholds owned by --baseline)")
     options = parser.parse_args(arguments)
     if (options.compare_build_root is None) != (options.comparison_ref is None):
         parser.error("--compare-build-root and --comparison-ref must be supplied together")
@@ -316,7 +344,7 @@ def main(arguments=None):
     try:
         baseline = load_baseline(options.baseline)
         return report(options.build_root, baseline, options.compare_build_root,
-                      options.comparison_ref, options.report_only)
+                      options.comparison_ref, options.report_only, options.acknowledge_growth)
     except (OSError, SizeReportError) as error:
         print("retro68_size_report: %s" % error, file=sys.stderr)
         return 2

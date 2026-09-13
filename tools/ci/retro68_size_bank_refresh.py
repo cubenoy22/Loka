@@ -86,9 +86,9 @@ def refresh(build_root, baseline_path, baseline, body_path):
     lines.extend([
         "", "All %d banked `*_APPL` targets rebuilt with `retro68-68k-release`; "
         "all %d total/CODE/DATA/RELA deltas are zero. Schema, artifact paths, "
-        "and the %s B material-growth allowance are unchanged." % (
+        "and the per-PR bands and %s B cumulative limit are unchanged." % (
             len(candidate["artifacts"]), len(candidate["artifacts"]) * 4,
-            format(baseline["material_growth_bytes"], ",")),
+            format(baseline["cumulative_stop_bytes"], ",")),
         "", "Automation uses `GITHUB_TOKEN` with `contents: write` and "
         "`pull-requests: write`. If PR creation is blocked, enable repository "
         "Settings → Actions → General → Workflow permissions → "
@@ -105,7 +105,7 @@ def refresh(build_root, baseline_path, baseline, body_path):
 def check_headroom(build_root, baseline, threshold):
     rows = []
     for artifact, current in zip(baseline["artifacts"], measure(build_root, baseline)):
-        remaining = baseline["material_growth_bytes"] - (current["total"] - artifact["baseline"]["total"])
+        remaining = baseline["cumulative_stop_bytes"] - size_report.growth_bytes(current, artifact["baseline"])
         if remaining < threshold:
             rows.append("| %s | %d |" % (artifact["name"], remaining))
     if not rows:

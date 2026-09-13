@@ -5,6 +5,7 @@ name: Toolbox Build CI
 # rig-local golden evidence.
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   push:
     branches:
       - main
@@ -99,10 +100,11 @@ jobs:
         if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
         shell: bash
         env:
+          LOKA_SIZE_NOTE: ${{ contains(github.event.pull_request.labels.*.name, 'size-note') && '1' || '0' }}
           COMPARISON_REF: ${{ steps.comparison.outputs.commit }}
           IS_PR: ${{ github.event_name == 'pull_request' }}
         run: |
-          args=(--report-only)
+          args=()
           if [ "$IS_PR" = true ]; then
             test -n "$COMPARISON_REF"
             args=(--compare-build-root "$RUNNER_TEMP/retro68-size-base/build/retro68/68k/Release"

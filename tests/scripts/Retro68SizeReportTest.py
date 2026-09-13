@@ -83,11 +83,14 @@ def make_macbinary(resources):
     return bytes(macbinary) + pad_128(resource_fork)
 
 
-def baseline_for(path, total, code, data, rela, allowance=4096):
+def baseline_for(path, total, code, data, rela, allowance=204800):
     return {
         "schema_version": 1,
-        "identity": {"fixture": "test"},
-        "material_growth_bytes": allowance,
+        "identity": {"source_commit": "fixture-bank"},
+        "per_pr_ok_bytes": 51200,
+        "per_pr_note_bytes": 51200,
+        "per_pr_stop_bytes": 102400,
+        "cumulative_stop_bytes": allowance,
         "artifacts": [
             {
                 "name": "Fixture68K",
@@ -132,7 +135,7 @@ class Retro68SizeReportTest(unittest.TestCase):
             probe = root / "python3"
             probe.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
             probe.chmod(0o755)
-            for is_pr, ref, expected in (("false", "", "--report-only"),
+            for is_pr, ref, expected in (("false", "", "build/retro68/68k/Release"),
                                          ("true", "commit", "--compare-build-root"),
                                          ("true", "", None)):
                 with self.subTest(is_pr=is_pr, ref=ref):
@@ -189,7 +192,7 @@ class Retro68SizeReportTest(unittest.TestCase):
             self.assertIn("retro68-68k-release", docker_args)
             self.assertNotIn("retro68-ppc-release", docker_args)
 
-    def comparison_fixture(self, root, base_code=100, head_code=228, allowance=128):
+    def comparison_fixture(self, root, base_code=100, head_code=228, allowance=204800):
         relative = "example/Fixture68K.bin"
         for folder, count in (("base", base_code), ("head", head_code)):
             artifact = root / folder / relative
@@ -197,19 +200,20 @@ class Retro68SizeReportTest(unittest.TestCase):
             artifact.write_bytes(make_macbinary(
                 [("CODE", b"x" * count), ("DATA", b"data"), ("RELA", b"rela")]
             ))
-        # The bank is far behind both builds: the old cumulative gate fails.
+        # The bank is independent of the measured comparison builds.
         bank = root / "bank.json"
         bank.write_text(json.dumps(baseline_for(relative, 1, 1, 1, 1, allowance)))
         return [sys.executable, str(REPORT_TOOL), str(root / "head"),
                 "--baseline", str(bank)]
 
     def run_cli(self, args):
-        return subprocess.run(args, capture_output=True, text=True, check=False)
+        return subprocess.run(args, capture_output=True, text=True, check=False,
+                              env=dict(os.environ, LOKA_SIZE_NOTE="0"))
 
     def test_stacked_growth_is_charged_only_to_the_measured_base(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
-            args = self.comparison_fixture(root)
+            args = self.comparison_fixture(root, base_code=210000, head_code=210128)
             self.assertEqual(self.run_cli(args).returncode, 1)
             result = self.run_cli(args + ["--compare-build-root", str(root / "base"),
                                           "--comparison-ref", "fixture-base-commit"])
@@ -221,11 +225,79 @@ class Retro68SizeReportTest(unittest.TestCase):
     def test_material_growth_against_base_still_fails(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
-            args = self.comparison_fixture(root, head_code=356)
+            args = self.comparison_fixture(root, head_code=100 + 100 * 1024)
             result = self.run_cli(args + ["--compare-build-root", str(root / "base"),
                                           "--comparison-ref", "base"])
             self.assertEqual(result.returncode, 1, result.stderr)
-            self.assertIn("Fixture68K: +256 bytes", result.stderr)
+            self.assertIn("Fixture68K: +102400 bytes", result.stderr)
+
+    def test_per_pr_bands(self):
+        for kb, note, status in ((49, False, 0), (60, False, 1),
+                                 (60, True, 0), (100, True, 1)):
+            with self.subTest(kb=kb, note=note), tempfile.TemporaryDirectory() as directory:
+                root = pathlib.Path(directory)
+                args = self.comparison_fixture(root, head_code=100 + kb * 1024)
+                args += ["--compare-build-root", str(root / "base"),
+                         "--comparison-ref", "base"]
+                if note:
+                    args.append("--acknowledge-growth")
+                result = self.run_cli(args)
+                self.assertEqual(result.returncode, status, result.stderr)
+                if status:
+                    self.assertIn("REGRESSION", result.stdout)
+                    self.assertIn("ruling" if kb == 100 else "size-note", result.stderr)
+                else:
+                    self.assertIn("ok", result.stdout)
+
+    def test_environment_note_and_exact_boundaries(self):
+        for growth, note, status in ((51200 - 1, "0", 0), (51200, "0", 1),
+                                     (51200, "1", 0), (102400 - 1, "1", 0),
+                                     (102400, "1", 1), (61440, "true", 1)):
+            with self.subTest(growth=growth, note=note), tempfile.TemporaryDirectory() as directory:
+                root = pathlib.Path(directory)
+                args = self.comparison_fixture(root, head_code=100 + growth)
+                result = subprocess.run(args + ["--compare-build-root", str(root / "base"),
+                                               "--comparison-ref", "base"],
+                                        env=dict(os.environ, LOKA_SIZE_NOTE=note),
+                                        capture_output=True, text=True)
+                self.assertEqual(result.returncode, status, result.stderr)
+
+    def test_workflow_label_wiring(self):
+        workflow = TOOLBOX_WORKFLOW.read_text()
+        self.assertIn("LOKA_SIZE_NOTE: ${{ contains(github.event.pull_request.labels.*.name, "
+                      "'size-note') && '1' || '0' }}", workflow)
+        self.assertIn("types: [opened, synchronize, reopened, labeled, unlabeled]", workflow)
+        self.assertNotIn("args=(--report-only)", workflow)
+
+    def test_manifest_policy_validation(self):
+        tool = load_report_tool()
+        for key, value in (("per_pr_ok_bytes", 1), ("per_pr_note_bytes", 102400),
+                           ("per_pr_stop_bytes", 51200), ("cumulative_stop_bytes", 0)):
+            with self.subTest(key=key), tempfile.TemporaryDirectory() as directory:
+                baseline = baseline_for("example/Fixture68K.bin", 1, 1, 1, 1)
+                baseline[key] = value
+                path = pathlib.Path(directory) / "bank.json"
+                path.write_text(json.dumps(baseline))
+                with self.assertRaises(tool.SizeReportError):
+                    tool.load_baseline(path)
+
+    def test_exact_cumulative_limit_is_allowed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            args = self.comparison_fixture(root, head_code=200 * 1024 - 2)
+            result = self.run_cli(args)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotIn("CUMULATIVE GROWTH", result.stdout)
+
+    def test_cumulative_guard(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            args = self.comparison_fixture(root, head_code=201 * 1024 - 2)
+            result = self.run_cli(args)
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn("CUMULATIVE GROWTH: Fixture68K +", result.stdout)
+            self.assertIn("+205824 since bank fixture-bank", result.stdout)
+            self.assertEqual(self.run_cli(args + ["--report-only"]).returncode, 1)
 
     def test_missing_or_corrupt_base_never_falls_back_to_the_bank(self):
         for corrupt in (False, True):
@@ -310,7 +382,7 @@ class Retro68SizeReportTest(unittest.TestCase):
                 "resource fork is missing or truncated", str(caught.exception)
             )
 
-    def test_cli_reports_component_deltas_and_fails_only_material_total_growth(self):
+    def test_cli_reports_component_deltas_and_gates_code_plus_data(self):
         with tempfile.TemporaryDirectory(prefix="retro68-size-") as directory:
             root = pathlib.Path(directory)
             relative = "example/Fixture68K.bin"
@@ -346,7 +418,7 @@ class Retro68SizeReportTest(unittest.TestCase):
             self.assertIn("ok", accepted.stdout)
 
             baseline_path.write_text(
-                json.dumps(baseline_for(relative, total - 128, 3, 5, 4, allowance=127)),
+                json.dumps(baseline_for(relative, total - 128, 0, 0, 4, allowance=7)),
                 encoding="utf-8",
             )
             rejected = subprocess.run(
@@ -364,7 +436,7 @@ class Retro68SizeReportTest(unittest.TestCase):
             )
             self.assertEqual(rejected.returncode, 1)
             self.assertIn("REGRESSION", rejected.stdout)
-            self.assertIn("Fixture68K: +128 bytes", rejected.stderr)
+            self.assertIn("Fixture68K: +8 bytes", rejected.stderr)
 
     def test_baseline_path_cannot_escape_the_build_root(self):
         tool = load_report_tool()

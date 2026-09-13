@@ -106,9 +106,23 @@ python3 tools/ci/retro68_size_report.py build/retro68/68k/Release
 
 The report reads each final `.bin` resource fork and prints its total file size
 and CODE/DATA/RELA payload composition. The checked-in manifest owns the shipping
-application inventory and material-growth allowance. By default the local command
-compares against that bank and fails if any application's total growth exceeds
-the allowance. Component deltas are printed for attribution.
+application inventory and growth thresholds. Growth means CODE+DATA (text+data),
+excluding RELA and MacBinary overhead; the file total remains visible for attribution.
+The default local command compares against the bank and fails above 200 KB of
+cumulative growth per application. Here 1 KB = 1,024 bytes.
+
+The maintainer ruling of 2026-09-14 sets these per-application PR bands:
+
+| CODE+DATA delta from the built merge-base | Verdict |
+| --- | --- |
+| <50 KB | ok; no explanation required |
+| 50 KB to <100 KB | Requires a PR body size note and the `size-note` label |
+| >=100 KB | REGRESSION even with a note; a ruling is required (bank refresh PR with a design note) |
+
+The workflow maps `size-note` to `LOKA_SIZE_NOTE=1` and reruns on label changes.
+Local runs can use `--acknowledge-growth` or that environment variable. The gate
+cannot inspect the PR body. The manifest stores the ok ceiling and note floor
+(both 51,200 bytes), stop (102,400 bytes), and cumulative limit (204,800 bytes).
 
 For PRs, Toolbox CI builds a fresh comparison worktree using the same pinned
 image, Multiversal Interfaces, Release preset, generator and container mount path
@@ -120,11 +134,14 @@ with `--comparison-ref <base commit>`; the latter labels the evidence, while the
 workflow is responsible for building that commit. This costs one extra 68K build
 per non-skipped PR; PPC is built only for the candidate. No size cache is reused.
 
-The checked-in bank remains the absolute record. Main/dispatch CI uses
-`--report-only`, so cumulative bank growth is visible without failing a post-merge
-check. The PR headroom comment is informational. The default local bank gate and
-manual reviewed bank refresh remain available. Update bank facts only with a
-fresh full Release build and a reviewed explanation for accepted growth.
+The checked-in bank remains the absolute record. Main/dispatch CI enforces the
+cumulative guard: growth above 200 KB prints
+`CUMULATIVE GROWTH: <app> +<bytes> since bank <sha>` and fails the job. Exactly
+200 KB is allowed. Even local `--report-only` cannot bypass this guard. The PR
+headroom comment remains informational and measures room to the cumulative limit.
+Refresh the bank only with a fresh full Release build and an explicit inventory
+and design note for accepted growth. A failed main check remains visible until
+that refresh; a later per-PR ok verdict does not clear it.
 
 Malformed or missing artifacts and unlisted candidate applications still fail,
 including in report-only mode. A measured comparison requires every manifest
@@ -132,11 +149,9 @@ artifact on both sides: adding or moving an application without that path in the
 base is refused, not silently measured as zero or against a stale bank. Such
 inventory migrations need a separately defined comparison policy.
 
-The size audit remains a drift detector rather than an absolute application-size
-budget. A bank refresh updates the absolute record and the local bank gate; it
-cannot waive above-allowance growth in a measured PR comparison. Accepting such
-growth requires an explicit review of the allowance or gating policy. Automated
-bank refresh does not make that decision, and this change adds no per-PR waiver.
+The size audit is a drift detector. A bank refresh updates the absolute record;
+it cannot waive the unconditional stop in a measured PR comparison. Changing
+that stop requires an explicit ruling, not an acknowledgment flag.
 
 ### Small-object pool
 
