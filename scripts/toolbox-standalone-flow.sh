@@ -179,44 +179,41 @@ populate_toolbox_stage() {
 populate_toolbox_release() {
   local destination="$1"
   local artifact=""
+  local entry=""
+  local application_dir=""
   local built_root=""
   local built_name=""
-  local release_names=(
-    "LokaScrapbookStandaloneLoop$CLASSIC_SUFFIX"
-    "LokaHelloStandaloneLoop$CLASSIC_SUFFIX"
-    "LokaTutorialStandaloneLoop$CLASSIC_SUFFIX"
-    "LokaMineStandaloneLoop$CLASSIC_SUFFIX"
-    "LokaFloppyStandaloneLoop$CLASSIC_SUFFIX"
+  local simpleviewer_root="$PROJECT_DIR/build/retro68/$CLASSIC_CPU/Standalone/Release/example/SimpleViewer"
+  local release_apps=(
+    "scrapbook|$BUILD_ROOT/LokaScrapbookStandaloneLoop$CLASSIC_SUFFIX"
+    "helloworld|$BUILD_ROOT/LokaHelloStandaloneLoop$CLASSIC_SUFFIX"
+    "tutorial|$BUILD_ROOT/LokaTutorialStandaloneLoop$CLASSIC_SUFFIX"
+    "minesweeper|$BUILD_ROOT/LokaMineStandaloneLoop$CLASSIC_SUFFIX"
+    "floppybird|$BUILD_ROOT/LokaFloppyStandaloneLoop$CLASSIC_SUFFIX"
+    "simpleviewer|$simpleviewer_root/LokaSimpleViewer$CLASSIC_SUFFIX"
   )
 
-  for built_name in "${release_names[@]}"; do
-    built_root="$BUILD_ROOT/$built_name"
+  for entry in "${release_apps[@]}"; do
+    application_dir="$destination/${entry%%|*}"
+    built_root="${entry#*|}"
+    built_name="${built_root##*/}"
+    mkdir -p "$application_dir"
     for artifact in bin dsk; do
       if [[ ! -s "$built_root.$artifact" ]]; then
         echo "Toolbox Release artifact not found: $built_root.$artifact" >&2
         return 1
       fi
-      cp "$built_root.$artifact" "$destination/$built_name.$artifact"
+      cp "$built_root.$artifact" "$application_dir/$built_name.$artifact"
     done
   done
 
-  built_name="LokaSimpleViewer$CLASSIC_SUFFIX"
-  built_root="$PROJECT_DIR/build/retro68/$CLASSIC_CPU/Standalone/Release"
-  built_root="$built_root/example/SimpleViewer/$built_name"
-  for artifact in bin dsk; do
-    if [[ ! -s "$built_root.$artifact" ]]; then
-      echo "SimpleViewer Release artifact not found: $built_root.$artifact" >&2
-      return 1
-    fi
-    cp "$built_root.$artifact" "$destination/$built_name.$artifact"
-  done
-
-  cp "$BUILT_ASSETS" "$destination/ASSETS.LRP"
+  cp "$BUILT_ASSETS" "$destination/scrapbook/ASSETS.LRP"
   cp "$STAGE_README" "$destination/README.md"
   populate_scrapbook_disk \
-    "$destination/LokaScrapbookStandaloneLoop$CLASSIC_SUFFIX.dsk" \
+    "$destination/scrapbook/LokaScrapbookStandaloneLoop$CLASSIC_SUFFIX.dsk" \
     "LokaScrapbookStandaloneLoop$CLASSIC_SUFFIX" \
     "$destination"
+
 }
 
 if [[ "$ACTION" == "Release" ]]; then
