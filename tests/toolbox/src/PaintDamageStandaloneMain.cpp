@@ -165,17 +165,40 @@ namespace
     PaintDamage firstDamage;
   };
 
+  /** Window borrows remain inside the configuration that owns this finite run. */
+  class ObservedWindowDefinition : public WindowDefinition<WindowProps>
+  {
+  public:
+    ObservedWindowDefinition(const WindowProps &props, Window **result)
+        : WindowDefinition<WindowProps>(props), result_(result) {}
+    virtual WindowDefinitionBase *clone() const
+    {
+      return new (std::nothrow) ObservedWindowDefinition(*this);
+    }
+    virtual Window *create(PlatformContext *context) const
+    {
+      Window *window = WindowDefinition<WindowProps>::create(context);
+      *this->result_ = window;
+      return window;
+    }
+  private:
+    Window **result_;
+  };
+
   class PaintDamageConfig : public AppConfigurable
   {
   public:
     explicit PaintDamageConfig(PlatformContext *context)
         : AppConfigurable(context), app_(0), node_(0), composited_(0), edit_(0), log_(0), phase_(SETTLE), result_(0),
-          initial_(), marker_(), gate_(false), editGeometry_()
+          initial_(), marker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0)
     {
       if (loka::platform::file::ResolveApplicationSidecar(
               loka::file::File::Application() << loka::file::File("LOG.TXT"), this->file_))
         this->log_ = loka::platform::file::OpenWriteTruncate(this->file_);
       if (!this->log_)
+        this->result_ = 1;
+      else if (std::fprintf(this->log_, "paint-damage BEGIN\n") < 0
+               || !loka::platform::file::FlushWrite(this->log_, this->file_))
         this->result_ = 1;
     }
     virtual ~PaintDamageConfig()
@@ -187,21 +210,21 @@ namespace
     int exitCode() const { return this->result_; }
     virtual void compose(AppComposition &composition)
     {
-      composition << WindowDef(WindowProps().frame(50, 50, 280, 220).title("Paint damage")
+      composition << ObservedWindowDefinition(WindowProps().frame(50, 50, 280, 220).title("Paint damage")
                                .scene(loka::scenario_tests::ObservedMainDefinition<PaintDamageProps, PaintDamageNode>(
                                    PaintDamageProps(), &this->node_))
                                .visible(true).idlePolicy(IdlePolicy::everyTick())
-                               .onIdle(&PaintDamageConfig::OnIdle, this));
-      composition << WindowDef(WindowProps().frame(350, 50, 220, 160).title("Composited damage")
+                               .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->paintWindow_);
+      composition << ObservedWindowDefinition(WindowProps().frame(350, 50, 220, 160).title("Composited damage")
                                .scene(loka::scenario_tests::ObservedMainDefinition<CompositedDamageProps, CompositedDamageNode>(
                                    CompositedDamageProps(), &this->composited_))
                                .visible(true).idlePolicy(IdlePolicy::everyTick())
-                               .onIdle(&PaintDamageConfig::OnCompositedIdle, this));
-      composition << WindowDef(WindowProps().frame(350, 250, 220, 160).title("Edit replay")
+                               .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->compositedWindow_);
+      composition << ObservedWindowDefinition(WindowProps().frame(350, 250, 220, 160).title("Edit replay")
                                .scene(loka::scenario_tests::ObservedMainDefinition<EditDamageProps, EditDamageNode>(
                                    EditDamageProps(), &this->edit_))
                                .visible(true).idlePolicy(IdlePolicy::everyTick())
-                               .onIdle(&PaintDamageConfig::OnEditIdle, this));
+                               .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->editWindow_);
     }
 
   private:
@@ -220,9 +243,62 @@ namespace
     bool gate_;
     ToolboxScenePlatformController::EditTextGeometry editGeometry_;
 
+    Window *paintWindow_;
+    Window *compositedWindow_;
+    Window *editWindow_;
+
+    void recordArm(const char *name, bool pass, Phase next)
+    {
+      if (!pass)
+        this->result_ = 1;
+      if (std::fprintf(this->log_, "%s %s\n", name, pass ? "PASS" : "FAIL") < 0
+          || !loka::platform::file::FlushWrite(this->log_, this->file_))
+        this->result_ = 1;
+      this->phase_ = next;
+    }
+
+    /** Only the active Window receives idle. Any active window drives the
+        same finite sequence over the three explicit fixture borrows. */
+    static void DispatchIdle(Window *, double elapsed, void *data)
+    {
+      PaintDamageConfig *self = static_cast<PaintDamageConfig *>(data);
+      Window *target = 0;
+      switch (self->phase_)
+      {
+      case SETTLE: case WRITE: case CHECK: case INVALIDATED_WRITE: case INVALIDATED_CHECK:
+        target = self->paintWindow_;
+        break;
+      case COMPOSITED_WRITE: case COMPOSITED_CHECK:
+        target = self->compositedWindow_;
+        break;
+      case EDIT_WRITE: case EDIT_CHECK:
+        target = self->editWindow_;
+        break;
+      case COMPLETE:
+        return;
+      }
+      ToolboxWindow *native = target ? target->asToolboxWindow() : 0;
+      if (!native)
+      {
+        self->finish(false);
+        return;
+      }
+      // One bounded delivery per phase; never wait for a permanently pending
+      // flag. Native drawing may itself publish work for the following phase.
+      target->flushSceneInvalidation();
+      native->flushInvalidate();
+      if (target == self->paintWindow_)
+        OnIdle(target, elapsed, data);
+      else if (target == self->compositedWindow_)
+        OnCompositedIdle(target, elapsed, data);
+      else
+        OnEditIdle(target, elapsed, data);
+    }
+
     void finish(bool pass)
     {
       this->phase_ = COMPLETE;
+      pass = pass && this->result_ == 0;
       this->result_ = pass ? 0 : 1;
       if (std::fprintf(this->log_, "paint-damage %s\n", pass ? "PASS" : "FAIL") < 0
           || !loka::platform::file::FlushWrite(this->log_, this->file_))
@@ -243,8 +319,11 @@ namespace
       }
       ToolboxScenePlatformController *controller = static_cast<ToolboxScenePlatformController *>(
           loka::dsl::testing::SceneTestAccess::platformController(*window->scene()));
-      if (!controller || native->hasPendingInvalidate() || window->scene()->hasPendingInvalidation())
+      if (!controller)
+      {
+        self->finish(false);
         return;
+      }
       if (self->phase_ == SETTLE)
       {
         self->phase_ = WRITE;
@@ -262,7 +341,7 @@ namespace
         if (!source.first)
         {
           SetPort(previousPort);
-          self->finish(false);
+          self->recordArm("unknown-history-setup", false, COMPOSITED_WRITE);
           return;
         }
         self->marker_.h = static_cast<short>(source.firstDamage.x + 18);
@@ -278,7 +357,7 @@ namespace
         self->phase_ = INVALIDATED_CHECK;
         SetPort(previousPort);
         if (!oldPixelBlack)
-          self->finish(false);
+          self->recordArm("unknown-history-setup", false, COMPOSITED_WRITE);
         return;
       }
       if (self->phase_ == INVALIDATED_CHECK)
@@ -290,10 +369,7 @@ namespace
         std::fprintf(self->log_, "unknown_history_old_pixel_erased=%d whole_window=%d dirty_flushes=%d\n",
                      erased ? 1 : 0, whole, dirty);
         SetPort(previousPort);
-        if (erased && whole == 0 && dirty > 0)
-          self->phase_ = COMPOSITED_WRITE;
-        else
-          self->finish(false);
+        self->recordArm("unknown-history", erased && whole == 0 && dirty > 0, COMPOSITED_WRITE);
         return;
       }
       if (self->phase_ == WRITE)
@@ -308,7 +384,7 @@ namespace
         if (!source.foundSibling)
         {
           SetPort(previousPort);
-          self->finish(false);
+          self->recordArm("viewport-sibling-setup", false, INVALIDATED_WRITE);
           return;
         }
         self->marker_.h = static_cast<short>(source.siblingX);
@@ -333,10 +409,8 @@ namespace
         std::fprintf(self->log_, "gate=%d invalidate_rects=%d whole_window=%d control_draws=%d sibling_preserved=%d\n",
                      self->gate_ ? 1 : 0, rects, whole, draws, siblingPreserved ? 1 : 0);
         SetPort(previousPort);
-        if (self->gate_ && rects == 1 && whole == 0 && siblingPreserved)
-          self->phase_ = INVALIDATED_WRITE;
-        else
-          self->finish(false);
+        self->recordArm("viewport-sibling", self->gate_ && rects == 1 && whole == 0 && siblingPreserved,
+                        INVALIDATED_WRITE);
         return;
       }
       SetPort(previousPort);
@@ -352,8 +426,6 @@ namespace
         self->finish(false);
         return;
       }
-      if (native->hasPendingInvalidate() || window->scene()->hasPendingInvalidation())
-        return;
       ToolboxScenePlatformController *controller = static_cast<ToolboxScenePlatformController *>(
           loka::dsl::testing::SceneTestAccess::platformController(*window->scene()));
       if (!controller)
@@ -363,6 +435,17 @@ namespace
       }
       if (self->phase_ == COMPOSITED_WRITE)
       {
+        // The pre-PR Text painter draws baseline ink above the viewport top
+        // (24). The captured intersection regression erased this entire strip.
+        GrafPtr previousPort;
+        GetPort(&previousPort);
+        SetPort(native->window());
+        bool ink = false;
+        for (short y = 12; y < 24; ++y)
+          for (short x = 12; x < 70; ++x)
+            ink = ink || GetPixel(x, y) != 0;
+        SetPort(previousPort);
+        self->recordArm("startup-text-baseline", ink, COMPOSITED_WRITE);
         self->initial_ = controller->debugStatsForTesting();
         self->composited_->advance();
         self->phase_ = COMPOSITED_CHECK;
@@ -378,10 +461,9 @@ namespace
       info.paintKind = LOCAL_APPLY_PAINT_COMPOSITED;
       const bool gate = verdict.canSkipBroadPaint(info);
       std::fprintf(self->log_, "zstack_gate=%d broad_requests=%d\n", gate ? 1 : 0, broad);
-      if (!gate && broad > 0)
-        self->phase_ = EDIT_WRITE;
-      else
-        self->finish(false);
+      self->recordArm("clipped-text-history", verdict.refusedCount() == 1
+                      && verdict.refusalReason() == PAINT_REFUSED_HISTORY_UNKNOWN, COMPOSITED_CHECK);
+      self->recordArm("zstack", !gate && broad > 0, EDIT_WRITE);
     }
     static void OnEditIdle(Window *window, double, void *data)
     {
@@ -394,8 +476,6 @@ namespace
         self->finish(false);
         return;
       }
-      if (native->hasPendingInvalidate() || window->scene()->hasPendingInvalidation())
-        return;
       ToolboxScenePlatformController *controller = static_cast<ToolboxScenePlatformController *>(
           loka::dsl::testing::SceneTestAccess::platformController(*window->scene()));
       FindEdit edit;
@@ -424,7 +504,8 @@ namespace
       const bool same = EqualRect(&geometry.destination, &self->editGeometry_.destination)
                         && EqualRect(&geometry.view, &self->editGeometry_.view);
       std::fprintf(self->log_, "edit_replay_preserves_projection=%d\n", same ? 1 : 0);
-      self->finish(same);
+      self->recordArm("edit-replay", same, COMPLETE);
+      self->finish(true);
     }
   };
 }

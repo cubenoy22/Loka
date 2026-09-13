@@ -824,20 +824,30 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
   }
 
   using namespace loka::app::scene;
-  const PaintQuery query = {ToolboxPaintScope(),
-                           plan.hasStructureWork() || plan.hasLayoutWork() ? PLACEMENT_PENDING : PLACEMENT_ELIGIBLE};
-  PaintAnswerBuffer<> answers;
-  ToolboxPaintAnswerSource source(this->debugStats_);
-  const PaintApplyVerdict verdict = CollectPaintAnswers(*boundary, query, answers, source);
-  if (verdict.canSkipBroadPaint(info))
+  // Layout/structure and composited work cannot use exact delivery. Keep
+  // their existing fallback walk instead of collecting answers before it.
+  if (info.hasPaintWork() && !info.hasStructureWork && !info.hasLayoutWork
+      && !info.hasCompositedPaintWork() && !plan.hasStructureWork() && !plan.hasLayoutWork())
   {
-    for (unsigned i = 0; i < answers.count(); ++i)
+    const PaintQuery query = {ToolboxPaintScope(),
+                             PLACEMENT_ELIGIBLE};
+    PaintAnswerBuffer<> answers;
+    ToolboxPaintAnswerSource source(this->debugStats_);
+    const PaintApplyVerdict verdict = CollectPaintAnswers(*boundary, query, answers, source);
+    if (verdict.canSkipBroadPaint(info))
     {
-      const PaintDamage &damage = answers.entry(i).damage;
-      const Rect rect = {static_cast<short>(damage.y), static_cast<short>(damage.x),
-                         static_cast<short>(damage.y + damage.height), static_cast<short>(damage.x + damage.width)};
-      this->window_->requestInvalidateRect(rect);
+      for (unsigned i = 0; i < answers.count(); ++i)
+      {
+        const PaintDamage &damage = answers.entry(i).damage;
+        const Rect rect = {static_cast<short>(damage.y), static_cast<short>(damage.x),
+                           static_cast<short>(damage.y + damage.height), static_cast<short>(damage.x + damage.width)};
+        this->window_->requestInvalidateRect(rect);
+      }
+      return;
     }
+    // A refusal already completed the one resident visit. Widen directly;
+    // re-running the legacy surface collector would be a second traversal.
+    this->window_->requestInvalidate();
     return;
   }
 

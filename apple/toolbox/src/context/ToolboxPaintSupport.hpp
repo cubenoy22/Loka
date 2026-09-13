@@ -23,18 +23,22 @@ inline bool ToolboxPaintClipCovers(RgnHandle clip, const Rect &rect)
          && bounds.right >= rect.right && bounds.bottom >= rect.bottom;
 }
 
-/** Stack-owned intersection with the current QuickDraw clip. Nested drawing
+/** Stack-owned QuickDraw clip. REPLACE preserves legacy broad Text drawing;
+    exact delivery uses INTERSECT. Nested drawing
     cannot consume another caller's save, including on allocation refusal. */
 class ToolboxPaintClip
 {
 public:
-  explicit ToolboxPaintClip(const Rect &rect) : saved_(NewRgn()), clip_(NewRgn())
+  enum Operation { INTERSECT, REPLACE };
+  explicit ToolboxPaintClip(const Rect &rect, Operation operation = INTERSECT)
+      : saved_(NewRgn()), clip_(NewRgn())
   {
     if (!this->isActive())
       return;
     GetClip(this->saved_);
     RectRgn(this->clip_, &rect);
-    SectRgn(this->saved_, this->clip_, this->clip_);
+    if (operation == INTERSECT)
+      SectRgn(this->saved_, this->clip_, this->clip_);
     SetClip(this->clip_);
   }
   ~ToolboxPaintClip()
