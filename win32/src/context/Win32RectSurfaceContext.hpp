@@ -4,6 +4,7 @@
 #include <windows.h>
 #include "app/RectSurface.hpp"
 #include "Win32RetirableContext.hpp"
+#include "app/scene/projection/PaintFact.hpp"
 
 namespace loka
 {
@@ -26,6 +27,7 @@ public:
                           int height,
                           loka::app::RectSurfaceNode *node);
   virtual ~Win32RectSurfaceContext();
+  virtual loka::app::scene::PaintAnswer queryPaintDamage(const loka::app::scene::PaintQuery &query) const;
   /** Attach-time read (late-subscriber rule): presentation from the current
       fact, called by the installing handler right after setContext. */
   void readLifecycleFactOnAttach();
@@ -36,6 +38,10 @@ public:
   void relayout(int x, int y, int width, int height);
   /** False when the native child window could not be created: the context
       then holds no surface and must not be installed on the node. */
+  virtual HWND paintHwnd() const
+  {
+    return this->hwnd_;
+  }
   bool hasNativeSurface() const
   {
     return this->hwnd_ != 0;
@@ -53,6 +59,7 @@ private:
   bool queryBoundsInParent(HWND &parent, RECT &rect) const;
   void draw(HDC hdc, const RECT &rect);
 
+  loka::app::scene::PaintFact<loka::app::RectSurfaceModel> presented_;
   loka::app::RectSurfaceNode *node_;
   HWND hwnd_;
   loka::core::State<loka::app::RectSurfaceModel> *modelState_;

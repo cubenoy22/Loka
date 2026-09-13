@@ -14,6 +14,19 @@ class Win32RetirableContext : public loka::app::scene::NativeNodeContext
 public:
   explicit Win32RetirableContext(Win32ScenePlatformController *controller);
   virtual ~Win32RetirableContext();
+  /** EXACT damage uses device pixels in this HWND's client coordinates.
+      Only contexts that return non-empty EXACT need to expose a target. */
+  virtual HWND paintHwnd() const
+  {
+    return 0;
+  }
+  /** A visit-local coordinate convention, not a retained HWND identity.
+      Each answer record's context supplies its own native destination. */
+  static loka::app::scene::PaintScope paintScope()
+  {
+    const loka::app::scene::PaintScope scope = {1, 0, 0, 0, 0, 0, 0};
+    return scope;
+  }
 
 protected:
   void retireWindow(HWND &hwnd);

@@ -39,6 +39,7 @@ public:
                        int height,
                        loka::app::EditTextNode *node);
   virtual ~Win32EditTextContext();
+  virtual loka::app::scene::PaintAnswer queryPaintDamage(const loka::app::scene::PaintQuery &query) const;
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   /** Attach-time read (late-subscriber rule): presentation from the current
       fact, called by the installing handler right after setContext. */
@@ -67,6 +68,8 @@ private:
   loka::core::State<loka::core::String> *textState_;
   bool applyingFromState_;
   bool updatingFromControl_;
+  /** Completed outcome of the latest native submission, never a future promise. */
+  loka::app::scene::PaintAnswer textDelivery_;
 };
 
 void RegisterWin32EditTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
