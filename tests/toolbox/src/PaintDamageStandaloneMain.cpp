@@ -94,6 +94,7 @@ namespace
     {
       composition.declare(Box().size(180, 110)
                           << (ScrollView()
+                              << Text("Baseline").TEST_ID("PaintDamage.Baseline")
                               << (ZStack() << RectSurface(this->model_.state()).size(150, 70) << Text("ZStack"))));
     }
     void advance()
@@ -461,17 +462,34 @@ namespace
       }
       if (self->phase_ == COMPOSITED_WRITE)
       {
-        // The pre-PR Text painter draws baseline ink above the viewport top
-        // (24). The captured intersection regression erased this entire strip.
+        // This fixture's viewport starts at the root seat y = 24. Require a
+        // complete recorded Text placement and visible ink inside that seat.
+        TextNode *text = 0;
+        loka::dsl::FlowError error;
+        loka::dsl::testing::LookupNodeById<TextNode>(
+            window->scene(), "PaintDamage.Baseline", text, error);
+        const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
+        const PaintAnswer answer = text && text->getContext()
+            ? static_cast<NativeNodeContext *>(text->getContext())->queryPaintDamage(query)
+            : PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+        const bool placedInside = answer.kind == PAINT_ANSWER_EXACT && answer.damage.y >= 24;
         GrafPtr previousPort;
         GetPort(&previousPort);
         SetPort(native->window());
-        bool ink = false;
-        for (short y = 12; y < 24; ++y)
+        bool above = false;
+        bool inside = false;
+        for (short y = 12; y < 38; ++y)
           for (short x = 12; x < 70; ++x)
-            ink = ink || GetPixel(x, y) != 0;
+            if (GetPixel(x, y))
+            {
+              if (y < 24)
+                above = true;
+              else
+                inside = true;
+            }
         SetPort(previousPort);
-        self->recordArm("startup-text-baseline", ink, COMPOSITED_WRITE);
+        self->recordArm("scrollview-first-text-placement", placedInside, COMPOSITED_WRITE);
+        self->recordArm("startup-text-baseline", !above && inside, COMPOSITED_WRITE);
         self->initial_ = controller->debugStatsForTesting();
         self->composited_->advance();
         self->phase_ = COMPOSITED_CHECK;
@@ -487,8 +505,7 @@ namespace
       info.paintKind = LOCAL_APPLY_PAINT_COMPOSITED;
       const bool gate = verdict.canSkipBroadPaint(info);
       std::fprintf(self->log_, "zstack_gate=%d broad_requests=%d\r", gate ? 1 : 0, broad);
-      self->recordArm("clipped-text-history", verdict.refusedCount() == 1
-                      && verdict.refusalReason() == PAINT_REFUSED_HISTORY_UNKNOWN, COMPOSITED_CHECK);
+      self->recordArm("contained-text-history", verdict.refusedCount() == 0, COMPOSITED_CHECK);
       self->recordArm("zstack", !gate && broad > 0, EDIT_WRITE);
     }
     static void OnEditIdle(Window *window, double, void *data)

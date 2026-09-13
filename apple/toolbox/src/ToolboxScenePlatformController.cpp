@@ -636,12 +636,30 @@ short ToolboxScenePlatformController::layoutScrollView(
     }
 
     loka::app::scene::LayoutState childState = state;
+    // ScrollView owns a top-edge seat; Text and controls consume a baseline
+    // (ToolboxTextContext::layout). The lead belongs to scrolled content.
+    const int firstBaseline = static_cast<int>(seatY)
+        + (state.lineHeight > 0 ? state.lineHeight
+                                : ToolboxLayoutMetrics::kDefaultLineHeight)
+        - ToolboxLayoutMetrics::kControlAscentInset;
+    if (firstBaseline < SHRT_MIN || firstBaseline > SHRT_MAX ||
+        !this->projectionParentScopes_.current().tryAccumulateContentHeight(
+            seatY, firstBaseline))
+    {
+      this->refuseScrollViewShortRange();
+    }
+    else
+    {
+      childState.y = static_cast<short>(firstBaseline);
+    }
     childState.width = static_cast<short>(
         ToolboxScrollViewChildWidth(state.width));
     const std::size_t ledgerMark = this->rectSurfaceExtentLedger_.mark();
     loka::dsl::CompositionCursor<loka::app::scene::Node> it(
         scrollView->childrenHead(), scrollView->childrenCount());
-    for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+    for (loka::app::scene::Node *child = it.next();
+         child && !this->projectionParentScopes_.current().hasShortRangeRefusal();
+         child = it.next())
     {
       const int childStartY = childState.y;
       LayoutNode(child, childState, this, currentBoundary);
