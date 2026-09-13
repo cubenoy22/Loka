@@ -62,11 +62,13 @@ namespace
     content.bottom = static_cast<short>(content.top + height);
   }
 
-  // Exact inverse of nativeContentFrame(): outer origin below the menu bar.
+  // Inherited from the shipped thunk: X is content-left, Y is the outer origin
+  // below the menu bar. Keep this asymmetry for every Toolbox scenario golden
+  // (#712); nativeContentFrame() is the exact inverse.
   Rect RequestedContentBounds(const loka::core::Frame &frame, const ToolboxWindowChrome &chrome)
   {
     Rect content;
-    const short left = static_cast<short>(frame.x + chrome.left());
+    const short left = static_cast<short>(frame.x);
     const short top = static_cast<short>(frame.y + GetMBarHeight() + chrome.top());
     SetRect(&content, left, top,
             static_cast<short>(left + frame.width), static_cast<short>(top + frame.height));
@@ -351,8 +353,8 @@ loka::core::Frame ToolboxWindow::nativeContentFrame() const
   LocalToGlobal(&topLeft);
   SetPort(oldPort);
   const short menuHeight = GetMBarHeight();
-  // Paired with RequestedContentBounds: size is content, origin is structure.
-  return loka::core::Frame(static_cast<int>(topLeft.h) - this->chrome_.left(),
+  // Paired with RequestedContentBounds: content X, outer Y below the menu bar.
+  return loka::core::Frame(topLeft.h,
                            static_cast<int>(topLeft.v) - menuHeight - this->chrome_.top(),
                            portRect.right - portRect.left,
                            portRect.bottom - portRect.top);
