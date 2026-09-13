@@ -186,7 +186,8 @@ namespace loka
           /** Explicit reclaim: O(ledger + heap edges), bounded before mutation.
               On overflow the caller retains the complete generation for retry.
               The one-argument destructor path below is deliberately unchanged. */
-          static bool destroyRetiredGeneration(RetiredNodeGeneration &gen, ReclaimScratch &scratch)
+          static bool destroyRetiredGeneration(RetiredNodeGeneration &gen, ReclaimScratch &scratch,
+                                               void (*returned)(Node *, void *) = 0, void *owner = 0)
           {
             ReclaimScratch::Plan plan(scratch, ReclaimScratch::Plan::HEAP_CHILDREN);
             if (!planRetiredGeneration(gen, plan))
@@ -203,6 +204,11 @@ namespace loka
             gen.heapRoots.clear();
             gen.nodes.clear();
             freeGeneration(gen);
+            // Plan entries retain identities without borrowing destroyed objects.
+            // Publish only after all destructors and storage returns complete.
+            if (returned)
+              for (size_t i = 0; i < plan.count(); ++i)
+                returned(plan.node(i), owner);
             return true;
           }
 

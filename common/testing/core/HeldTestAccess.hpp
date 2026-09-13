@@ -14,6 +14,12 @@ namespace loka
     {
       struct HeldTestAccess
       {
+        static loka::app::scene::IStateOwner *enclosingOwner(
+            const loka::core::HoldLedger &ledger)
+        {
+          return ledger.enclosingOwner_;
+        }
+
         static const loka::core::detail::HoldSlot *firstSlot(
             const loka::core::HoldLedger &ledger)
         {

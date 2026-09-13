@@ -85,6 +85,8 @@ namespace loka
         };
 
         class NodeBuildOperation;
+        class SeatBuildRequest;
+        class SeatLayoutTable;
 
         /** Isolated reusable node storage. Boot once, then pop/register/destroy without
             growing its class, occupancy or resident metadata. It is not a NodeArena
@@ -208,6 +210,11 @@ namespace loka
               the partition or retain the ticket. Production routing is separate. */
           bool buildFixture(const NodeSlotLayout *demand, size_t count, NodeBuildOperation &operation);
 
+          /** Current class counts from this bank's own free lists. Unsupported
+              demand is a capacity contract error, distinct from pending returns. */
+          enum BuildCapacity { BUILD_AVAILABLE, BUILD_WAIT, BUILD_OVERFLOW };
+          BuildCapacity buildCapacity(const NodeSlotLayout *demand, size_t count) const;
+
           /** Exact layout match; no larger-class borrowing and no upstream fallback. */
           void *allocate(const NodeSlotLayout &layout)
           {
@@ -304,6 +311,8 @@ namespace loka
         private:
           friend class ::loka::app::scene::BoundaryNode;
           friend class SeatReservations;
+          friend class SeatBuildRequest;
+          bool admitReturned(SeatBuildRequest &request, const SeatLayoutTable &demand, NodeBuildOperation &operation);
           typedef void (*ReclaimNode)(Node *, void *);
 
           /** Bounded explicit reclaim shared with the Boundary clock. The callback

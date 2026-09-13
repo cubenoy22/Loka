@@ -246,6 +246,9 @@ namespace loka
             nestedBoundary->drainPendingHeldReleases();
           partition->reclaimAfterChildren(
               node, bounded ? &ReclaimBoundedPartitionNode : &ReclaimPartitionNode, this);
+          // The partition fallback bypasses destroyRetiredNode. Its dependents
+          // and destructor have completed, and its slot is now on the free list.
+          this->seatReservations_.returnedNode(node);
         }
         else
           this->destroyRetiredNode(node);
@@ -280,6 +283,9 @@ namespace loka
           // or plain-new; DestroyHeapNode routes by provenance.
           DestroyHeapNode(node);
         }
+        // Complete destruction includes provider dependents and nested landlords.
+        // The comparison uses identity only; no destroyed Node is inspected.
+        this->seatReservations_.returnedNode(node);
       }
 
       void BoundaryNode::drainRetiredSubtreesAtNextTrackerRun()
@@ -333,8 +339,7 @@ namespace loka
         }
         for (size_t i = 0; i < generationSnapshot.size(); ++i)
         {
-          if (!planned || !detail::NodeArena::destroyRetiredGeneration(generationSnapshot[i], scratch))
-            detail::NodeArena::destroyRetiredGeneration(generationSnapshot[i]);
+          this->seatReservations_.reclaimGeneration(generationSnapshot[i], planned ? &scratch : 0);
         }
         generationSnapshot.clear();
         while (heldSnapshot)
@@ -346,6 +351,8 @@ namespace loka
           heldSnapshot = next;
         }
         this->drainingRetiredSubtrees_ = false;
+        if (this->seatReservations_.hasWaitingRequests())
+          this->markViewDirty(static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_LAYOUT));
       }
 
       void BoundaryNode::drainPendingHeldReleases()
