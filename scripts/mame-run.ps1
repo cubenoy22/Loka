@@ -82,7 +82,7 @@ function Resolve-FileIdentity([string]$Path) {
         $full = [System.IO.Path]::GetFullPath($target)
         $item = Get-Item -LiteralPath $full -Force -ErrorAction SilentlyContinue
     }
-    return $full
+    return [System.IO.Path]::GetFullPath($full).TrimEnd([char[]]"\/")
 }
 
 if ($env:MAME_HDA) {
@@ -104,27 +104,67 @@ if ($env:MAME_HDA) {
     $oldSource = @(if (Test-Path -LiteralPath $source -PathType Leaf) {
         @([System.IO.File]::ReadAllLines($source))
     } else { @() })
+    # SHA is the primary key. Malformed recorded paths are cache misses.
+    $oldTemplatePath = if ($oldSource.Count -eq 2 -and $oldSource[1] -ceq $templateSha) {
+        try { Resolve-FileIdentity $oldSource[0] } catch { $null }
+    }
+    $previous = "$bootDisk.previous"
+    if ((Test-Path -LiteralPath $previous) -or (Test-Path -LiteralPath "$source.previous") -or
+        (Test-Path -LiteralPath $bootDisk -PathType Container) -or
+        (Test-Path -LiteralPath $source -PathType Container)) {
+        throw "boot copy: refresh failed (destination or recovery path needs attention)"
+    }
     $reason = if (-not (Test-Path -LiteralPath $bootDisk -PathType Leaf)) {
         "copy missing"
     } elseif (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
         "source missing"
-    } elseif ([System.IO.File]::ReadAllText($source) -cne "$templatePath`n$templateSha`n") {
+    # Format is shared with mame-run.sh; Windows identity is deliberately
+    # SHA-first, then full paths without trailing separators, ignoring case.
+    } elseif ($oldSource.Count -ne 2 -or $oldSource[1] -cne $templateSha -or
+              $oldTemplatePath -ine $templatePath) {
         "template changed: $($oldSource | Select-Object -First 1) $([char]0x2192) $templatePath"
     }
     if ($reason) {
         $partial = "$bootDisk.partial"
+        $phase = "staging"
         try {
-            Copy-Item -LiteralPath $templatePath -Destination $partial -Force
             [System.IO.File]::WriteAllText("$source.partial", "$templatePath`n$templateSha`n",
                 (New-Object System.Text.UTF8Encoding($false)))
-            # Invalidate before committing: a failed second rename must retry.
-            if (Test-Path -LiteralPath $source) { Remove-Item -LiteralPath $source -Force }
+            Copy-Item -LiteralPath $templatePath -Destination $partial -Force
+            if (Test-Path -LiteralPath $source -PathType Leaf) {
+                Copy-Item -LiteralPath $source -Destination "$source.previous" -Force
+            }
+            if (Test-Path -LiteralPath $bootDisk) {
+                Move-Item -LiteralPath $bootDisk -Destination $previous -Force
+            }
+            $phase = "backed-up"
             Move-Item -LiteralPath $partial -Destination $bootDisk -Force
+            $phase = "installed"
             Move-Item -LiteralPath "$source.partial" -Destination $source -Force
+            $phase = "published"
+            if (Test-Path -LiteralPath $previous) { Remove-Item -LiteralPath $previous -Force }
+            $phase = "complete"
         } catch {
-            Remove-Item -LiteralPath $partial, "$source.partial" -Force -ErrorAction SilentlyContinue
+            # If rollback itself fails, retain recovery files and refuse launch.
+            if (Test-Path -LiteralPath $previous) {
+                Move-Item -LiteralPath $previous -Destination $bootDisk -Force
+            } elseif ($phase -eq "installed" -or $phase -eq "published") {
+                Remove-Item -LiteralPath $bootDisk -Force
+            }
+            if ($phase -eq "published") {
+                if (Test-Path -LiteralPath "$source.previous" -PathType Leaf) {
+                    Move-Item -LiteralPath "$source.previous" -Destination $source -Force
+                } else { Remove-Item -LiteralPath $source -Force }
+            }
+            Remove-Item -LiteralPath $partial, "$source.partial", "$source.previous" -Force -ErrorAction SilentlyContinue
+            if ($phase -eq "staging") {
+                Write-Host "boot copy: refresh failed (previous copy unchanged)"
+            } else {
+                Write-Host "boot copy: refresh failed (previous copy restored)"
+            }
             throw
         }
+        Remove-Item -LiteralPath "$source.previous" -Force -ErrorAction SilentlyContinue
         Write-Host "boot copy: refreshed ($reason)"
     } else {
         Write-Host "boot copy: reused (same template)"

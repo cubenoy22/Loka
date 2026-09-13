@@ -72,6 +72,8 @@ if [ -n "$MAME_HDA" ]; then
   fi
   # Format and refresh policy deliberately mirror mame-run.ps1: UTF-8, no
   # BOM, LF-terminated resolved path and lowercase SHA-256. Hash every launch.
+  # Comparison is deliberately host-specific: exact here on Linux; the Windows
+  # twin compares SHA first, then normalised paths case-insensitively.
   TEMPLATE_PATH="$(cd "$(dirname "$MAME_HDA")" && pwd -P)/$(basename "$MAME_HDA")"
   while [ -L "$TEMPLATE_PATH" ]; do
     TARGET="$(readlink "$TEMPLATE_PATH")"
@@ -91,6 +93,13 @@ if [ -n "$MAME_HDA" ]; then
   if [ -f "$SOURCE" ]; then
     { IFS= read -r OLD_PATH || true; } < "$SOURCE"
   fi
+  # Keep rollback files until both new files have been published. Refuse
+  # leftovers from an interrupted process rather than overwrite its recovery.
+  if [ -e "$MAME_BOOT_HDA.previous" ] || [ -e "$SOURCE.previous" ] ||
+     [ -d "$MAME_BOOT_HDA" ] || [ -d "$SOURCE" ]; then
+    echo 'boot copy: refresh failed (destination or recovery path needs attention)' >&2
+    exit 1
+  fi
   REASON=""
   if [ ! -f "$MAME_BOOT_HDA" ]; then
     REASON="copy missing"
@@ -100,17 +109,51 @@ if [ -n "$MAME_HDA" ]; then
     REASON="template changed: $OLD_PATH → $TEMPLATE_PATH"
   fi
   if [ -n "$REASON" ]; then
-    # Stage both files first. Invalidate the old record before committing the
-    # disk: interruption between renames must force a refresh on the next run.
-    if ! cp -f "$TEMPLATE_PATH" "$MAME_BOOT_HDA.partial" ||
-       ! printf '%s\n%s\n' "$TEMPLATE_PATH" "$TEMPLATE_SHA" > "$SOURCE.partial" ||
-       ! rm -f "$SOURCE" ||
-       ! mv -f "$MAME_BOOT_HDA.partial" "$MAME_BOOT_HDA" ||
-       ! mv -f "$SOURCE.partial" "$SOURCE"; then
-      rm -f "$MAME_BOOT_HDA.partial" "$SOURCE.partial"
-      echo "could not copy the boot hard disk template to $MAME_BOOT_HDA" >&2
-      exit 1
-    fi
+    (
+      PHASE=staging
+      finish_boot_copy() {
+        status=$?
+        trap - EXIT
+        if [ "$status" -ne 0 ]; then
+          if [ -e "$MAME_BOOT_HDA.previous" ]; then
+            mv -f "$MAME_BOOT_HDA.previous" "$MAME_BOOT_HDA" || {
+              echo 'boot copy: refresh failed (rollback failed; recovery files retained)' >&2
+              exit 1
+            }
+          elif [ "$PHASE" = installed ] || [ "$PHASE" = published ]; then
+            rm -f "$MAME_BOOT_HDA" || exit 1
+          fi
+          if [ "$PHASE" = published ]; then
+            if [ -f "$SOURCE.previous" ]; then
+              mv -f "$SOURCE.previous" "$SOURCE" || exit 1
+            else
+              rm -f "$SOURCE" || exit 1
+            fi
+          fi
+          if [ "$PHASE" = staging ]; then
+            echo 'boot copy: refresh failed (previous copy unchanged)' >&2
+          else
+            echo 'boot copy: refresh failed (previous copy restored)' >&2
+          fi
+        fi
+        rm -f "$MAME_BOOT_HDA.partial" "$SOURCE.partial" "$SOURCE.previous"
+        exit "$status"
+      }
+      trap finish_boot_copy EXIT
+      printf '%s\n%s\n' "$TEMPLATE_PATH" "$TEMPLATE_SHA" > "$SOURCE.partial"
+      cp -f "$TEMPLATE_PATH" "$MAME_BOOT_HDA.partial"
+      if [ -f "$SOURCE" ]; then cp -f "$SOURCE" "$SOURCE.previous"; fi
+      if [ -e "$MAME_BOOT_HDA" ]; then
+        mv -f "$MAME_BOOT_HDA" "$MAME_BOOT_HDA.previous"
+      fi
+      PHASE=backed-up
+      mv -f "$MAME_BOOT_HDA.partial" "$MAME_BOOT_HDA"
+      PHASE=installed
+      mv -f "$SOURCE.partial" "$SOURCE"
+      PHASE=published
+      rm -f "$MAME_BOOT_HDA.previous"
+      PHASE=complete
+    )
     printf 'boot copy: refreshed (%s)\n' "$REASON"
   else
     echo 'boot copy: reused (same template)'

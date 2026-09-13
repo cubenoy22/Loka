@@ -181,8 +181,8 @@ run_launcher >"$SANDBOX/copy-is-complete.log" 2>&1 ||
 assert_template_pristine copy-is-complete
 pass copy-is-complete
 
-# Failed staging preserves the old disk; failed sidecar commit must retry even
-# if the next launch switches back to the formerly recorded template.
+# Failed staging or sidecar commit preserves the old disk and its provenance,
+# including guest session bytes that do not exist in the pristine template.
 mkdir -p "$SANDBOX/bin"
 REAL_CP="$(command -v cp)"
 REAL_MV="$(command -v mv)"
@@ -194,13 +194,15 @@ exec "$REAL_CP" "$@"
 EOF
 cat > "$SANDBOX/bin/mv" <<'EOF'
 #!/usr/bin/env bash
-if [ "${FAIL_SOURCE_COMMIT:-}" = 1 ] && [[ "${*: -1}" = *.source ]]; then exit 1; fi
+if [ "${FAIL_SOURCE_COMMIT:-}" = 1 ] && [[ "${*: -2:1}" = *.source.partial ]]; then exit 1; fi
+if [ "${FAIL_DISK_COMMIT:-}" = 1 ] && [[ "${*: -2:1}" = */Boot.hd.partial ]]; then exit 1; fi
 exec "$REAL_MV" "$@"
 EOF
 chmod +x "$SANDBOX/bin/cp" "$SANDBOX/bin/mv"
-for failure in FAIL_BOOT_COPY FAIL_SOURCE_COMMIT; do
+for failure in FAIL_BOOT_COPY FAIL_DISK_COMMIT FAIL_SOURCE_COMMIT; do
   run_launcher > "$SANDBOX/prepare.log" 2>&1
   cp "$BOOT_COPY" "$SANDBOX/previous-boot"
+  cp "$BOOT_COPY.source" "$SANDBOX/previous-source"
   printf 'MAME_HDA="%s"\n' "$SECOND_TEMPLATE" >> "$SANDBOX/mame.env"
   rm -f "$SANDBOX/mame.argv"
   if run_launcher "PATH=$SANDBOX/bin:$PATH" "$failure=1" > "$SANDBOX/failure.log" 2>&1; then
@@ -209,18 +211,32 @@ for failure in FAIL_BOOT_COPY FAIL_SOURCE_COMMIT; do
   [ ! -f "$SANDBOX/mame.argv" ] || fail "$failure" "launched after failed copy"
   [ ! -e "$BOOT_COPY.partial" ] && [ ! -e "$BOOT_COPY.source.partial" ] ||
     fail "$failure" "partial files survived"
-  if [ "$failure" = FAIL_BOOT_COPY ]; then
-    cmp -s "$BOOT_COPY" "$SANDBOX/previous-boot" || fail "$failure" "old disk lost"
-  else
-    [ ! -e "$BOOT_COPY.source" ] || fail "$failure" "stale provenance survived"
+  cmp -s "$BOOT_COPY" "$SANDBOX/previous-boot" || fail "$failure" "old disk lost"
+  cmp -s "$BOOT_COPY.source" "$SANDBOX/previous-source" || fail "$failure" "old source lost"
+  [ ! -e "$BOOT_COPY.previous" ] && [ ! -e "$BOOT_COPY.source.previous" ] ||
+    fail "$failure" "rollback left backups"
+  if [ "$failure" = FAIL_SOURCE_COMMIT ]; then
+    grep -Fq 'boot copy: refresh failed (previous copy restored)' "$SANDBOX/failure.log" ||
+      fail "$failure" "rollback was not reported"
   fi
   printf 'MAME_HDA="%s"\n' "$TEMPLATE" >> "$SANDBOX/mame.env"
   run_launcher > "$SANDBOX/recovery.log" 2>&1
-  if [ "$failure" = FAIL_SOURCE_COMMIT ]; then
-    cmp -s "$TEMPLATE" "$SANDBOX/boot-received" || fail "$failure" "recovery reused wrong disk"
-  fi
+  cmp -s "$SANDBOX/previous-boot" "$SANDBOX/boot-received" ||
+    fail "$failure" "recovery lost guest session"
   pass "$failure"
 done
+
+# An interrupted publication may leave new disk bytes beside old provenance.
+# Refuse even a would-be reuse until the retained recovery files are handled.
+cp "$BOOT_COPY" "$BOOT_COPY.previous"
+rm -f "$SANDBOX/mame.argv"
+if run_launcher > "$SANDBOX/recovery-needed.log" 2>&1; then
+  fail recovery-needed "reused a potentially incomplete transaction"
+fi
+[ ! -f "$SANDBOX/mame.argv" ] || fail recovery-needed "launched despite recovery file"
+cmp -s "$BOOT_COPY" "$BOOT_COPY.previous" || fail recovery-needed "recovery file changed"
+rm "$BOOT_COPY.previous"
+pass recovery-needed
 
 # --- a boot copy that aliases the template is refused ------------------------
 # Without this the existence check passes and -hard1 names the template after
@@ -384,6 +400,20 @@ done
 grep -Fq 'boot copy: reused (same template)' "$SANDBOX/ps-profile.log" ||
   fail ps-profile "unchanged template was not reused"
 pass ps-profile
+
+# Windows keeps a guest session when only the recorded path's casing or
+# trailing separator differs; Linux intentionally uses exact path comparison.
+printf 'WINDOWS-SESSION' > "$BOOT_COPY"
+printf '%s\\\n%s\n' "$(to_host_path "$PS_TEMPLATE" | tr '[:lower:]' '[:upper:]')" \
+  "$PS_TEMPLATE_DIGEST" > "$BOOT_COPY.source"
+"$POWERSHELL" -NoProfile -ExecutionPolicy Bypass \
+  -File "$(to_host_path "$SANDBOX/scripts/mame-run.ps1")" \
+  -EnvironmentFile "$(to_host_path "$SANDBOX/ps.env")" \
+  >"$SANDBOX/ps-path-case.log" 2>&1 || fail ps-path-case "launcher failed"
+grep -Fxq 'WINDOWS-SESSION' "$BOOT_COPY" || fail ps-path-case "session replaced"
+grep -Fq 'boot copy: reused (same template)' "$SANDBOX/ps-path-case.log" ||
+  fail ps-path-case "equivalent Windows path refreshed"
+pass ps-path-case
 
 MAME_BOOT_HDA_HOST="$(to_host_path "$PS_TEMPLATE")"
 cat >>"$SANDBOX/ps.env" <<EOF

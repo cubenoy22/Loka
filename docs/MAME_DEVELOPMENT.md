@@ -307,11 +307,19 @@ copy path instead. Beside that copy, `<copy-path>.source` contains exactly two
 UTF-8 lines without a BOM, each terminated by LF: the resolved absolute
 `MAME_HDA` template path, then its lowercase SHA-256 digest. Both launchers
 use this same layout and format (paths use the host's native spelling).
+Comparison deliberately differs by host: the shell launcher compares exactly;
+Windows compares the SHA first, then full paths with trailing separators removed
+and case ignored. A casing-only Windows path change preserves the guest session.
 
 Every launch hashes the template; reading a roughly 100 MB template on each
 host launch is an accepted cost for this check. The two-line record does not
 store size/mtime metadata. A missing copy or source record, or a changed
-path/digest, refreshes the copy through `.partial` files and rename. An unchanged
+path/digest, refreshes the copy through `.partial` files and rename. The launcher
+stages the sidecar first, retains the old disk as `<copy>.previous` and its source
+record as `<copy>.source.previous`, and removes these backups only after both
+new files are published. A failed commit restores the previous disk and source
+record, removes partials, reports the rollback, and refuses to launch. Recovery
+files left by a terminated process require attention before another refresh. An unchanged
 template reuses the copy and preserves guest session changes. The launcher
 prints `boot copy: reused (same template)` or `boot copy: refreshed (...)`
 with the reason; template changes name the old and new paths. Switching profiles
