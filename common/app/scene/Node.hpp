@@ -434,7 +434,7 @@ namespace loka
         // placement-constructed into slab storage the arena owns).
         void setGateAllocated(bool v)
         {
-          this->storageOrigin_ = v ? STORAGE_GATE : STORAGE_HEAP;
+          this->storageOrigin_ = static_cast<unsigned char>(v ? STORAGE_GATE : STORAGE_HEAP);
         }
         bool isGateAllocated() const
         {
