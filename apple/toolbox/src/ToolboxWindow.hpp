@@ -10,6 +10,20 @@ class App;
 class ToolboxScenePlatformController;
 class ToolboxWindowContext;
 
+/** Native definition-procedure insets, measured once for a created window. */
+class ToolboxWindowChrome
+{
+public:
+  explicit ToolboxWindowChrome(WindowPtr window = 0);
+  short left() const { return this->insets_.left; }
+  short top() const { return this->insets_.top; }
+  short right() const { return this->insets_.right; }
+  short bottom() const { return this->insets_.bottom; }
+
+private:
+  Rect insets_;
+};
+
 class ToolboxWindow : public Window
 {
 public:
@@ -83,7 +97,7 @@ private:
   bool needsInvalidate_;
   bool pendingDebugDump_;
   std::vector<Rect> pendingInvalidateRects_;
-  short titleBarHeight_;
+  ToolboxWindowChrome chrome_;
 
   virtual bool mountReplacementScene(loka::app::scene::Scene *next);
   // Deliberate rail counterpart of mountReplacementScene's resource checks.
