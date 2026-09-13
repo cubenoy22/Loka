@@ -286,7 +286,12 @@ void ToolboxTextContext::paint(bool erase)
   const bool contained = EqualRect(&this->paintRect_, &this->rect_);
   ToolboxPaintClip clip(this->rect_, contained ? ToolboxPaintClip::INTERSECT : ToolboxPaintClip::REPLACE);
   if (!clip.isActive())
+  {
+    // Classic low-memory fallback: keep the caller's clip and still draw.
+    // No complete clip coverage was established, so history stays unknown.
+    DrawStringAt(this->textX_, this->textY_, this->text_->get());
     return;
+  }
   if (erase)
     EraseRect(&this->paintRect_);
   bool painted = false;

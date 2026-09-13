@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstring>
 
 #include "StandaloneFlowRunner.hpp"
 #include "ObservedMainDefinition.hpp"
@@ -29,16 +30,17 @@ namespace
   using namespace loka::app;
   using namespace loka::app::scene;
 
-  class PaintDamageNode;
-  typedef BoundaryPropsFor<PaintDamageNode> PaintDamageProps;
+  template <bool HasViewport> class PaintDamageNode;
 
   /** The Boundary owns both models and the live text for the whole pin. */
-  class PaintDamageNode : public StdCompositionBoundaryNodeBase<PaintDamageProps>
+  template <bool HasViewport>
+  class PaintDamageNode : public StdCompositionBoundaryNodeBase<BoundaryPropsFor<PaintDamageNode<HasViewport> > >
   {
   public:
-    typedef PaintDamageProps::TypeTag TypeTag;
-    explicit PaintDamageNode(const PaintDamageProps &props)
-        : StdCompositionBoundaryNodeBase<PaintDamageProps>(props)
+    typedef BoundaryPropsFor<PaintDamageNode<HasViewport> > Props;
+    typedef typename Props::TypeTag TypeTag;
+    explicit PaintDamageNode(const Props &props)
+        : StdCompositionBoundaryNodeBase<Props>(props)
     {
       RectSurfaceModel model;
       model.rectCount = 1;
@@ -49,12 +51,13 @@ namespace
     }
     virtual void composeNode(NodeComposition &composition)
     {
-      composition.declare(Box().size(240, 180)
-                          << (ScrollView()
-                              << (Column()
-                                  << RectSurface(this->first_.state()).size(180, 50).useRegionClip(true).TEST_ID("PaintDamage.First")
-                                  << RectSurface(this->sibling_.state()).size(180, 50).TEST_ID("PaintDamage.Sibling")
-                                  << Text(this->text_.state()))));
+      Column surfaces = Column()
+                        << RectSurface(this->first_.state()).size(180, 50).useRegionClip(true).TEST_ID("PaintDamage.First")
+                        << RectSurface(this->sibling_.state()).size(180, 50).TEST_ID("PaintDamage.Sibling");
+      if (HasViewport)
+        composition.declare(Box().size(240, 180) << (ScrollView() << (surfaces << Text(this->text_.state()))));
+      else
+        composition.declare(surfaces);
     }
     void advance()
     {
@@ -69,6 +72,9 @@ namespace
     NodeState<RectSurfaceModel> sibling_;
     NodeState<loka::core::String> text_;
   };
+
+  typedef PaintDamageNode<true> ViewportDamageNode;
+  typedef PaintDamageNode<false> PlainDamageNode;
 
   class CompositedDamageNode;
   typedef BoundaryPropsFor<CompositedDamageNode> CompositedDamageProps;
@@ -153,8 +159,8 @@ namespace
       }
       if (node->testId() == "PaintDamage.Sibling" && answer.kind == PAINT_ANSWER_EXACT)
       {
-        this->siblingX = answer.damage.x + 40;
-        this->siblingY = answer.damage.y + 20;
+        this->siblingX = answer.damage.x + 8;
+        this->siblingY = answer.damage.y + 8;
         this->foundSibling = true;
       }
       return true;
@@ -190,7 +196,7 @@ namespace
   public:
     explicit PaintDamageConfig(PlatformContext *context)
         : AppConfigurable(context), app_(0), node_(0), composited_(0), edit_(0), log_(0), phase_(SETTLE), result_(0),
-          initial_(), marker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0)
+          initial_(), marker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0)
     {
       if (loka::platform::file::ResolveApplicationSidecar(
               loka::file::File::Application() << loka::file::File("LOG.TXT"), this->file_))
@@ -211,10 +217,15 @@ namespace
     virtual void compose(AppComposition &composition)
     {
       composition << ObservedWindowDefinition(WindowProps().frame(50, 50, 280, 220).title("Paint damage")
-                               .scene(loka::scenario_tests::ObservedMainDefinition<PaintDamageProps, PaintDamageNode>(
-                                   PaintDamageProps(), &this->node_))
+                               .scene(loka::scenario_tests::ObservedMainDefinition<ViewportDamageNode::Props, ViewportDamageNode>(
+                                   ViewportDamageNode::Props(), &this->node_))
                                .visible(true).idlePolicy(IdlePolicy::everyTick())
                                .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->paintWindow_);
+      composition << ObservedWindowDefinition(WindowProps().frame(50, 285, 280, 165).title("Exact damage")
+                               .scene(loka::scenario_tests::ObservedMainDefinition<PlainDamageNode::Props, PlainDamageNode>(
+                                   PlainDamageNode::Props(), &this->plain_))
+                               .visible(true).idlePolicy(IdlePolicy::everyTick())
+                               .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->plainWindow_);
       composition << ObservedWindowDefinition(WindowProps().frame(350, 50, 220, 160).title("Composited damage")
                                .scene(loka::scenario_tests::ObservedMainDefinition<CompositedDamageProps, CompositedDamageNode>(
                                    CompositedDamageProps(), &this->composited_))
@@ -228,10 +239,10 @@ namespace
     }
 
   private:
-    enum Phase { SETTLE, WRITE, CHECK, INVALIDATED_WRITE, INVALIDATED_CHECK,
+    enum Phase { SETTLE, WRITE, CHECK, PLAIN_WRITE, PLAIN_CHECK, INVALIDATED_WRITE, INVALIDATED_CHECK,
                  COMPOSITED_WRITE, COMPOSITED_CHECK, EDIT_WRITE, EDIT_CHECK, COMPLETE };
     App *app_;
-    PaintDamageNode *node_;
+    ViewportDamageNode *node_;
     CompositedDamageNode *composited_;
     EditDamageNode *edit_;
     loka::platform::file::FileHandle file_;
@@ -246,27 +257,32 @@ namespace
     Window *paintWindow_;
     Window *compositedWindow_;
     Window *editWindow_;
+    PlainDamageNode *plain_;
+    Window *plainWindow_;
 
-    void recordArm(const char *name, bool pass, Phase next, const char *acceptedVerdict = "PASS")
+    void recordArm(const char *name, bool pass, Phase next)
     {
       if (!pass)
         this->result_ = 1;
-      if (std::fprintf(this->log_, "%s %s\r", name, pass ? acceptedVerdict : "FAIL") < 0
+      if (std::fprintf(this->log_, "%s %s\r", name, pass ? "PASS" : "FAIL") < 0
           || !loka::platform::file::FlushWrite(this->log_, this->file_))
         this->result_ = 1;
       this->phase_ = next;
     }
 
     /** Only the active Window receives idle. Any active window drives the
-        same finite sequence over the three explicit fixture borrows. */
+        same finite sequence over the four explicit fixture borrows. */
     static void DispatchIdle(Window *, double elapsed, void *data)
     {
       PaintDamageConfig *self = static_cast<PaintDamageConfig *>(data);
       Window *target = 0;
       switch (self->phase_)
       {
-      case SETTLE: case WRITE: case CHECK: case INVALIDATED_WRITE: case INVALIDATED_CHECK:
+      case SETTLE: case WRITE: case CHECK:
         target = self->paintWindow_;
+        break;
+      case PLAIN_WRITE: case PLAIN_CHECK: case INVALIDATED_WRITE: case INVALIDATED_CHECK:
+        target = self->plainWindow_;
         break;
       case COMPOSITED_WRITE: case COMPOSITED_CHECK:
         target = self->compositedWindow_;
@@ -288,7 +304,9 @@ namespace
       target->flushSceneInvalidation();
       native->flushInvalidate();
       if (target == self->paintWindow_)
-        OnIdle(target, elapsed, data);
+        OnPaintIdle(target, self->node_, self);
+      else if (target == self->plainWindow_)
+        OnPaintIdle(target, self->plain_, self);
       else if (target == self->compositedWindow_)
         OnCompositedIdle(target, elapsed, data);
       else
@@ -305,14 +323,11 @@ namespace
         this->result_ = 1;
       this->app_->quit();
     }
-    static void OnIdle(Window *window, double, void *data)
+    template <bool HasViewport>
+    static void OnPaintIdle(Window *window, PaintDamageNode<HasViewport> *node, PaintDamageConfig *self)
     {
-      PaintDamageConfig *self = static_cast<PaintDamageConfig *>(data);
-      if (self->phase_ != SETTLE && self->phase_ != WRITE && self->phase_ != CHECK
-          && self->phase_ != INVALIDATED_WRITE && self->phase_ != INVALIDATED_CHECK)
-        return;
       ToolboxWindow *native = window ? window->asToolboxWindow() : 0;
-      if (!native || !window->scene() || !self->node_)
+      if (!native || !window->scene() || !node)
       {
         self->finish(false);
         return;
@@ -337,7 +352,7 @@ namespace
         const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
         PaintAnswerBuffer<> answers;
         ProbeSource source;
-        CollectPaintAnswers(*self->node_, query, answers, source);
+        CollectPaintAnswers(*node, query, answers, source);
         if (!source.first)
         {
           SetPort(previousPort);
@@ -348,7 +363,7 @@ namespace
         self->marker_.v = static_cast<short>(source.firstDamage.y + 8);
         const bool oldPixelBlack = GetPixel(self->marker_.h, self->marker_.v) != 0;
         self->initial_ = controller->debugStatsForTesting();
-        self->node_->advance();
+        node->advance();
         // Freeze the real exact request before invalidating presentation
         // history through the retained-props lifecycle door. The pending
         // window delivery must reconstruct all ground with region clipping on.
@@ -372,32 +387,36 @@ namespace
         self->recordArm("unknown-history", erased && whole == 0 && dirty > 0, COMPOSITED_WRITE);
         return;
       }
-      if (self->phase_ == WRITE)
+      if (self->phase_ == WRITE || self->phase_ == PLAIN_WRITE)
       {
         const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
         PaintAnswerBuffer<> answers;
         ProbeSource source;
-        const PaintApplyVerdict verdict = CollectPaintAnswers(*self->node_, query, answers, source);
+        const PaintApplyVerdict verdict = CollectPaintAnswers(*node, query, answers, source);
         BoundaryLocalApplyInfo info;
         info.paintKind = LOCAL_APPLY_PAINT_GENERIC;
         self->gate_ = verdict.canSkipBroadPaint(info);
         if (!source.foundSibling)
         {
           SetPort(previousPort);
-          self->recordArm("viewport-sibling-setup", false, INVALIDATED_WRITE);
+          self->recordArm(HasViewport ? "viewport-broad-fallback-setup" : "plain-exact-setup", false,
+                          HasViewport ? PLAIN_WRITE : INVALIDATED_WRITE);
           return;
         }
         self->marker_.h = static_cast<short>(source.siblingX);
         self->marker_.v = static_cast<short>(source.siblingY);
-        // A black pixel in the sibling's otherwise white ground is erased if
-        // the production render path repaints that clearing surface. The rig
-        // must establish the expected-red result before treating this as a pin.
-        Rect marker = {self->marker_.v, self->marker_.h,
-                       static_cast<short>(self->marker_.v + 1), static_cast<short>(self->marker_.h + 1)};
-        PaintRect(&marker);
+        // Sample actual sibling ink: a correct full repaint preserves it.
+        // An artificial pixel in white ground would reject that valid repaint.
+        if (!GetPixel(self->marker_.h, self->marker_.v))
+        {
+          SetPort(previousPort);
+          self->recordArm(HasViewport ? "viewport-broad-fallback-setup" : "plain-exact-setup", false,
+                          HasViewport ? PLAIN_WRITE : INVALIDATED_WRITE);
+          return;
+        }
         self->initial_ = controller->debugStatsForTesting();
-        self->node_->advance();
-        self->phase_ = CHECK;
+        node->advance();
+        self->phase_ = HasViewport ? CHECK : PLAIN_CHECK;
       }
       else
       {
@@ -409,9 +428,15 @@ namespace
         std::fprintf(self->log_, "gate=%d invalidate_rects=%d whole_window=%d control_draws=%d sibling_preserved=%d\r",
                      self->gate_ ? 1 : 0, rects, whole, draws, siblingPreserved ? 1 : 0);
         SetPort(previousPort);
-        // #518 rally 2 supplies the render half; translation must already pass.
-        self->recordArm("viewport-sibling", self->gate_ && rects >= 1 && whole == 0,
-                        INVALIDATED_WRITE, siblingPreserved ? "PASS" : "DEFERRED (#518 rally 2: render half)");
+        const bool viewportReason = stats.windowFullRequestSource
+                                    && std::strcmp(stats.windowFullRequestSource, "paint-widened-viewport-render") == 0;
+        std::fprintf(self->log_, "delivery=%s reason=%s\r", HasViewport ? "WIDENED" : "EXACT",
+                     HasViewport && stats.windowFullRequestSource ? stats.windowFullRequestSource : "none");
+        self->recordArm(HasViewport ? "viewport-broad-fallback" : "plain-exact",
+                        self->gate_ && siblingPreserved
+                        && (HasViewport ? whole == 1 && viewportReason
+                                        : rects == 1 && whole == 0),
+                        HasViewport ? PLAIN_WRITE : INVALIDATED_WRITE);
         return;
       }
       SetPort(previousPort);

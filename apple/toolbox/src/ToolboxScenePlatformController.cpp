@@ -51,6 +51,8 @@
 
 namespace
 {
+  const char kViewportPaintWidenReason[] = "paint-widened-viewport-render";
+
   /** Only these built-in drawers are cast. Registration protects the same
       type keys, including in release builds, as on the Win32 rail. */
   bool IsToolboxPaintDrawerType(const void *key)
@@ -834,6 +836,13 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
     PaintAnswerBuffer<> answers;
     ToolboxPaintAnswerSource source(this->debugStats_);
     const PaintApplyVerdict verdict = CollectPaintAnswers(*boundary, query, answers, source);
+    if (!this->scrollBarLedger_.viewportScrollBars_.empty())
+    {
+      // WIDENED: viewport renderDirty still replays the viewport. A drawer's
+      // exact invalidation cannot safely supply that replay's erase coverage.
+      this->window_->requestInvalidateWithReason(kViewportPaintWidenReason);
+      return;
+    }
     if (verdict.canSkipBroadPaint(info))
     {
       for (unsigned i = 0; i < answers.count(); ++i)
@@ -853,9 +862,8 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
 
   if (!this->scrollBarLedger_.viewportScrollBars_.empty())
   {
-    // Only the fallback reaches here. Refused or composited work cannot use
-    // content-coordinate Boundary bounds as window pixels (frozen #518 ruling).
-    window_->requestInvalidate();
+    // Layout/composited viewport work needs the same broad presentation.
+    window_->requestInvalidateWithReason(kViewportPaintWidenReason);
     return;
   }
 
