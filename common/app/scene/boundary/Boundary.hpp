@@ -384,15 +384,17 @@ namespace loka
           compositionState_.clearResult();
           updateState_.clearResult();
         }
-        /** The structure self-report is a per-cycle fact. The walk path
-            clears the whole phase result at cycle entry, but the direct-root
-            UPDATE path deliberately preserves its results across cycles --
-            there, only the structure bit may be reset, or a single rebuild
-            would escalate every later paint-only update through the
-            layout/ensure pass forever (#279 review). */
-        void clearStructureWorkForCycle()
+        /** Per-cycle transition facts: structure self-report, bounds
+            transition and ancestor-layout promotion. The walk path clears
+            the whole phase result at cycle entry, but the direct-root
+            UPDATE path deliberately preserves durable paint metadata and
+            bounds hints across cycles -- only transition booleans are
+            reset, or a single rebuild would escalate every later
+            paint-only update through the layout/ensure pass forever
+            (#279 review, #695). */
+        void clearTransitionFactsForCycle()
         {
-          updateState_.clearStructureWork();
+          updateState_.clearTransitionFacts();
         }
         void noteLocalPaintWork()
         {

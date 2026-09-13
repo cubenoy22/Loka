@@ -357,3 +357,51 @@ void testLegacyParentChildOnlyKeepsChildApply()
 {
   checkCompression(NODE_DIRTY_CHILD, 2);
 }
+
+// #695: A direct Scene-root Boundary publishes bounds on its first layout.
+// That transition must be consumed at the end of the cycle that published it;
+// a later paint-only State write must not be promoted to LAYOUT.  An explicit
+// LAYOUT dirty flag still produces layout after the fix.
+void testDirectRootBoundsTransitionIsConsumedPerCycle()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  using loka::dsl::testing::SceneTestAccess;
+
+  floppybird::SharedModel model;
+  BaselinePlatform platform;
+  Scene scene(Boundary<floppybird::MainNode>(floppybird::MainProps(&model)));
+  scene.mount(&platform);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
+  settle(scene);
+
+  BoundaryNode *root = SceneTestAccess::rootBoundary(scene);
+  LOKA_VERIFY(root != 0);
+
+  // Inject initial layout bounds (simulates the platform's first render).
+  root->setLayoutBounds(0, 0, 320, 240);
+
+  // Arm 1: paint-only State write must NOT be promoted to LAYOUT.
+  {
+    loka::core::StateTrackerGuard guard(root->tracker());
+    RectSurfaceModel next;
+    next.rectCount = 1;
+    next.rects[0].width = 10;
+    next.rects[0].height = 10;
+    model.surfaceModel_.set(next);
+  }
+  settle(scene);
+
+  const PlatformApplyPlan &paintPlan = SceneTestAccess::lastApplyPlan(scene);
+  LOKA_VERIFY(!paintPlan.hasLayoutWork());
+  LOKA_VERIFY(paintPlan.hasPaintWork());
+
+  // Arm 2: an explicit LAYOUT invalidation still yields layout.
+  scene.requestInvalidate(NODE_DIRTY_LAYOUT);
+  settle(scene);
+
+  const PlatformApplyPlan &layoutPlan = SceneTestAccess::lastApplyPlan(scene);
+  LOKA_VERIFY(layoutPlan.hasLayoutWork());
+
+  loka::dsl::testing::SceneTestAccess::unmount(scene);
+}

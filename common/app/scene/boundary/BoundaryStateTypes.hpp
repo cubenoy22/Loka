@@ -314,6 +314,18 @@ namespace loka
           structureWork = false;
         }
 
+        /** Clear per-cycle transition facts while preserving durable paint
+            metadata and bounds hints. actualBoundsChanged and
+            affectsAncestorLayout are consumed facts of the cycle that
+            published them; keeping them across direct-root UPDATE cycles
+            falsely promotes paint-only work to LAYOUT (#695). */
+        void clearTransitionFacts()
+        {
+          actualBoundsChanged = false;
+          affectsAncestorLayout = false;
+          structureWork = false;
+        }
+
         bool hasStructureWork() const
         {
           return structureWork;
@@ -457,6 +469,11 @@ namespace loka
         void clearStructureWork()
         {
           result.clearStructureWork();
+        }
+
+        void clearTransitionFacts()
+        {
+          result.clearTransitionFacts();
         }
 
         void noteCompositedPaint()
