@@ -326,6 +326,20 @@ namespace loka
             return this->reclaimTree(c->residents[s].node, &DestroyResident, this);
           }
 
+          /** Returns a detached subtree through its storage landlords, then
+              reports completed identities. Uses this partition's bounded plan
+              when reserved; legacy traversal remains the overflow fallback. */
+          static void reclaimDetached(Node *node, void (*returned)(Node *, void *), void *owner)
+          {
+            if (!node) return;
+            NodePartition *partition = node->partitionOwner();
+            DetachedReclaim completion(returned, owner, partition);
+            if (partition && partition->reclaimScratch_.isReserved()
+                && partition->reclaimTree(node, &ReclaimDetachedRow, &completion))
+              return;
+            ReclaimDetachedTree(node, &completion);
+          }
+
           /** Cold explicit-door provisioning; destructor teardown stays legacy. */
           bool reserveReclaimScratch(size_t nodes)
           {
@@ -333,6 +347,53 @@ namespace loka
           }
 
         private:
+          struct DetachedReclaim
+          {
+            DetachedReclaim(void (*callback)(Node *, void *), void *context, NodePartition *landlord)
+                : returned(callback), owner(context), partition(landlord) {}
+            void (*returned)(Node *, void *);
+            void *owner;
+            NodePartition *partition;
+          };
+          static void ReclaimDetachedTree(Node *node, void *context)
+          {
+            INestable *nestable = node->asBoundary() ? 0 : node->asNestable();
+            Node *child = nestable ? nestable->detachChildren() : 0;
+            while (child)
+            {
+              Node *next = child->nextInComposition;
+              child->nextInComposition = 0;
+              if (!child->isArenaAllocated())
+              {
+                if (child->partitionOwner() && child->partitionOwner() != node->partitionOwner())
+                {
+                  DetachedReclaim &completion = *static_cast<DetachedReclaim *>(context);
+                  reclaimDetached(child, completion.returned, completion.owner);
+                }
+                else
+                  ReclaimDetachedTree(child, context);
+              }
+              child = next;
+            }
+            ReclaimDetachedRow(node, context);
+          }
+          static void ReclaimDetachedRow(Node *node, void *context)
+          {
+            if (node->isArenaAllocated())
+              return;
+            DetachedReclaim &completion = *static_cast<DetachedReclaim *>(context);
+            NodePartition *partition = node->partitionOwner();
+            // PR2 fixture banks may also register tagged heap dependents. Their
+            // origin remains heap, but the borrowing landlord must clear its row.
+            if (!partition && completion.partition && completion.partition->resident(node))
+              partition = completion.partition;
+            if (partition)
+              partition->reclaimAfterChildren(node, &ReclaimDetachedTree, context);
+            else
+              DestroyHeapNode(node);
+            if (completion.returned)
+              completion.returned(node, completion.owner);
+          }
           friend class ::loka::app::scene::BoundaryNode;
           friend class SeatReservations;
           friend class NodeBuildTicket;

@@ -140,7 +140,7 @@ namespace loka
               for (size_t i = 0; i < this->count_; ++i)
               {
                 Node *node = this->rows()[i];
-                INestable *nestable = node->asBoundary() ? 0 : node->asNestable();
+                INestable *nestable = this->traversedChildren(node);
                 if (nestable)
                 {
                   Node *child = nestable->detachChildren();
@@ -172,6 +172,13 @@ namespace loka
                   return true;
               return false;
             }
+            /** Arena generation plans borrow partition roots as leaves. Their
+                landlord must retain child edges until its own reclaim walk. */
+            INestable *traversedChildren(Node *node) const
+            {
+              return node->asBoundary() || (this->edges_ == HEAP_CHILDREN && node->partitionOwner())
+                         ? 0 : node->asNestable();
+            }
             bool push(Node *node, size_t &depth)
             {
               if (this->count_ + depth == this->scratch_.capacity_)
@@ -182,7 +189,7 @@ namespace loka
               }
               Frame &frame = *new (this->frames() + depth++) Frame();
               frame.node = node;
-              INestable *nestable = node->asBoundary() ? 0 : node->asNestable();
+              INestable *nestable = this->traversedChildren(node);
               frame.child = nestable ? nestable->childrenHead() : 0;
               frame.dependency = 0;
               return true;

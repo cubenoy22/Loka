@@ -675,6 +675,8 @@ LOKA_TEST(testSeatBuildRequestSerialConsumption)
 LOKA_TEST(testSeatBuildRequestKeyedNoEventAdmission)
 LOKA_TEST(testSeatBuildRequestNestedAttachPreservesHeldOwner)
 
+LOKA_TEST(testStrictNodeRouteLegacyGenerationPartitionChild)
+LOKA_TEST(testStrictNodeRoutePlannedGenerationPartitionChild)
 LOKA_TEST(testStrictNodeRouteInitialAttachRetry)
 LOKA_TEST(testStrictNodeRouteMineSweeperReuse)
 

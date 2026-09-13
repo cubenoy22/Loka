@@ -7,4 +7,6 @@ void testStrictNodeRouteLocalRefusal();
 void testStrictNodeRouteKeyedAttachRefusal();
 void testStrictNodeRoutePartitionDeleteGuard();
 void testStrictNodeRouteInitialAttachRetry();
+void testStrictNodeRouteLegacyGenerationPartitionChild();
+void testStrictNodeRoutePlannedGenerationPartitionChild();
 #endif

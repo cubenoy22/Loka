@@ -466,3 +466,97 @@ void testStrictNodeRouteInitialAttachRetry()
   }
   loka::core::LokaAllocSetBackend(0, 0);
 }
+
+namespace
+{
+  unsigned snapshotDeaths = 0;
+  class SnapshotComponent;
+  struct SnapshotTag {};
+  struct SnapshotProps : NodePropsBase<SnapshotProps>
+  {
+    typedef SnapshotTag TypeTag;
+    typedef SnapshotComponent NodeType;
+    bool operator<(const PropsBase &) const { return false; }
+  };
+  class SnapshotComponent : public ComponentNodeWithProps<SnapshotProps>
+  {
+  public:
+    explicit SnapshotComponent(const SnapshotProps &props) : ComponentNodeWithProps<SnapshotProps>(props) {}
+    virtual ~SnapshotComponent() { ++snapshotDeaths; }
+    virtual void composeChildren(NodeComposition &composition) { composition.declare(Fragment()); }
+  };
+  struct SnapshotOwner : BoundaryNodeFor<SnapshotOwner>
+  {
+    explicit SnapshotOwner(const BoundaryPropsFor<SnapshotOwner> &props) : BoundaryNodeFor<SnapshotOwner>(props)
+    { this->state(this->key, 0); }
+    virtual bool flushViewDirtyImmediately(NodeDirtyFlags) const { return false; }
+    void composeNode(NodeComposition &composition)
+    {
+      typedef reservation::Nodes<SnapshotComponent, 1, reservation::Nodes<FragmentNode, 2> > Payload;
+      composition.declare(Fragment() << Keyed(*this->key.state(), this, &SnapshotOwner::arm, reservation::SeatNodes<Payload>()));
+    }
+    void arm(NodeComposition &composition) { composition.declare(Fragment() << Component(SnapshotProps())); }
+    using BoundaryNode::retireOwnedNodeGeneration;
+    using BoundaryNode::retireDetachedNode;
+    using BoundaryNode::composeTree;
+    using ComposableNode::composition;
+    NodeState<int> key;
+  };
+  struct SnapshotReadmission : loka::app::scene::detail::NodeBuildOperation
+  {
+    SnapshotReadmission() : node(0) {}
+    SnapshotComponent *construct(void *storage) { return new (storage) SnapshotComponent(SnapshotProps()); }
+    virtual bool buildAndAttach(loka::app::scene::detail::NodeBuildTicket &ticket)
+    {
+      this->node = ticket.create<SnapshotComponent>(*this);
+      return this->node != 0;
+    }
+    SnapshotComponent *node;
+  };
+  void snapshotPartitionChild(bool planned)
+  {
+    using namespace loka::app::scene::detail;
+    using loka::dsl::testing::SceneTestAccess;
+    snapshotDeaths = 0;
+    NullScenePlatformController platform;
+    Scene scene((Boundary<SnapshotOwner>()));
+    scene.mount(&platform);
+    SceneTestAccess::updateAttached(scene, true);
+    SnapshotOwner *owner = static_cast<SnapshotOwner *>(SceneTestAccess::rootBoundary(scene));
+    Node *parent = owner->childrenHead();
+    Node *generationRoot = parent->asNestable()->childrenHead();
+    const SeatReservation *seat = owner->composition().root()->asNestableDefinition()->childrenHead()->asBranchSeatDefinition()->seatReservation();
+    SeatBuildRequest &pending = seat->request();
+    LOKA_VERIFY(parent->arenaOwner() == owner->nodeArena());
+    LOKA_VERIFY(generationRoot->partitionOwner() == &seat->partition());
+    if (planned)
+    {
+      LOKA_VERIFY(owner->nodeArena()->reserveReclaimScratch(16));
+      LOKA_VERIFY(seat->partition().reserveReclaimScratch(16));
+    }
+    // The root travels inside its arena parent's snapshot, not as a separately
+    // queued partition root. The request must complete from that generation drain.
+    pending.retire(generationRoot);
+    Node *detached = owner->detachChildren();
+    LOKA_VERIFY(detached == parent);
+    ComponentContext context;
+    context.setBoundary(owner);
+    owner->composeTree(parent, context, COMPOSE_EVENT_DETACH, owner);
+    owner->retireDetachedNode(context, parent);
+    owner->retireOwnedNodeGeneration(context);
+    LOKA_VERIFY(snapshotDeaths == 0 && pending.retiring());
+    owner->drainRetiredSubtreesAtNextTrackerRun();
+    LOKA_VERIFY(snapshotDeaths == 1);
+    const NodePartition::BuildCapacity capacity = seat->partition().buildCapacity(seat->layoutTable().layouts(), seat->layoutTable().count());
+    LOKA_VERIFY(capacity == NodePartition::BUILD_AVAILABLE);
+    LOKA_VERIFY(!pending.retiring());
+    SnapshotReadmission next;
+    LOKA_VERIFY(pending.admit(seat->layoutTable(), next));
+    LOKA_VERIFY(next.node && next.node->partitionOwner() == &seat->partition());
+    owner->retireDetachedNode(context, next.node);
+    owner->drainRetiredSubtreesAtNextTrackerRun();
+    LOKA_VERIFY(snapshotDeaths == 2);
+  }
+}
+void testStrictNodeRouteLegacyGenerationPartitionChild() { snapshotPartitionChild(false); }
+void testStrictNodeRoutePlannedGenerationPartitionChild() { snapshotPartitionChild(true); }
