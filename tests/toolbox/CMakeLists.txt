@@ -111,6 +111,27 @@ function(loka_add_toolbox_test_application target core_target)
   endif()
 endfunction()
 
+# One finite native placement pin; no scenario registry or extra rig cells.
+set(LOKA_WINDOW_CLAMP_TARGET "LokaWindowClamp${LOKA_CLASSIC_TARGET_SUFFIX}")
+configure_file(
+  ${CMAKE_SOURCE_DIR}/example/HelloWorld/Size.r
+  ${CMAKE_CURRENT_BINARY_DIR}/WindowClampSize.r
+  COPYONLY
+)
+loka_add_toolbox_test_application(
+  ${LOKA_WINDOW_CLAMP_TARGET}
+  LokaAppleToolboxTestCore
+  src/WindowClampStandaloneMain.cpp
+  ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/WindowClampSize.r
+)
+target_include_directories(${LOKA_WINDOW_CLAMP_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/tests/standalone
+)
+target_compile_definitions(${LOKA_WINDOW_CLAMP_TARGET} PRIVATE TEST_BUILD LOKA_DIAG=1)
+set_property(TARGET ${LOKA_WINDOW_CLAMP_TARGET} PROPERTY EXCLUDE_FROM_ALL TRUE)
+set_property(TARGET ${LOKA_WINDOW_CLAMP_TARGET}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
+
 set(LOKA_TESTS_TOOLBOX_SOURCES
   src/main.cpp
   src/ScenarioDriver.cpp
