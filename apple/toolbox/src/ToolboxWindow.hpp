@@ -9,7 +9,6 @@
 class App;
 class ToolboxScenePlatformController;
 class ToolboxWindowContext;
-typedef void (*DeferredDumpCompletion)(void *userData);
 
 class ToolboxWindow : public Window
 {
@@ -24,7 +23,6 @@ public:
   void setApp(App *app);
   void ensureSceneMounted();
   void open();
-  void dispatchDeferredDebugDumpCompletion();
   void requestInvalidate();
   void requestInvalidateWithReason(const char *reason);
   void requestInvalidateRect(const Rect &rect);
@@ -54,7 +52,6 @@ public:
   virtual bool dumpDebugStatsToTimestampedFile();
   virtual void resetDebugStats();
   virtual void requestDeferredDebugDump();
-  virtual void requestDeferredDebugDumpWithCompletion(DeferredDumpCompletion completion, void *userData);
   virtual void flushDeferredDebugDump();
   virtual bool queryDisplayScalePercent(int &out) const;
   virtual bool queryDisplayDepth(int &out) const;
@@ -85,11 +82,6 @@ private:
   ToolboxWindowContext *context_;
   bool needsInvalidate_;
   bool pendingDebugDump_;
-  DeferredDumpCompletion pendingDebugDumpCompletion_;
-  void *pendingDebugDumpUserData_;
-  DeferredDumpCompletion pendingDeferredDebugDumpCompletion_;
-  void *pendingDeferredDebugDumpUserData_;
-  int pendingDeferredDebugDumpCompletionDelay_;
   std::vector<Rect> pendingInvalidateRects_;
   short titleBarHeight_;
 
