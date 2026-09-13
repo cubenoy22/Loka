@@ -1,0 +1,79 @@
+name: Refresh Retro68 68K size bank
+
+# Manual-only: no weekly schedule is enabled.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: size-bank-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Keep the image and interface/build setup aligned with toolbox.yml.
+      RETRO68_IMAGE: ghcr.io/autc04/retro68@sha256:459dd3ea9856262162615527021be7b64f198631dc59cca8cedbf197b7656019
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Pull Retro68 toolchain
+        run: docker pull "$RETRO68_IMAGE"
+
+      - name: Build all eight Toolbox 68K applications
+        run: |
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            --env INTERFACES=multiversal \
+            --env RETRO68_BUILD_DIR=/Retro68-build \
+            --volume "$GITHUB_WORKSPACE:/workspace" \
+            --workdir /workspace \
+            "$RETRO68_IMAGE" \
+            /bin/bash -ceu '
+              cmake --preset retro68-68k-release -G "Unix Makefiles" \
+                -DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON
+              cmake --build --preset retro68-68k-release --target \
+                LokaHello68K_APPL LokaSimpleViewer68K_APPL \
+                LokaFloppyBird68K_APPL LokaSmirkBench68K_APPL \
+                LokaMine68K_APPL LokaTutorial68K_APPL \
+                ScrapbookUI68K_APPL LokaLazyList68K_APPL
+            '
+
+      - name: Refresh and verify bank
+        run: |
+          python3 tools/ci/retro68_size_bank_refresh.py build/retro68/68k/Release \
+            --body "$RUNNER_TEMP/size-bank-body.md"
+          cat "$RUNNER_TEMP/size-bank-body.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open refresh PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(git rev-parse --short=8 HEAD)
+          branch="chore/size-bank-refresh-$sha"
+          title="Refresh the Retro68 68K size bank to main $sha (CI Release refresh)"
+          # Re-runs reuse the same branch and PR; never overwrite an existing branch.
+          if ! git ls-remote --exit-code --heads origin "$branch"; then
+            git switch -c "$branch"
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add tools/ci/retro68_68k_size_baseline.json
+            if git diff --cached --quiet; then
+              exit 0
+            fi
+            git commit -m "$title"
+            git push origin "HEAD:refs/heads/$branch"
+          fi
+          existing=$(gh pr list --head "$branch" --base main --state all --json number --jq 'length')
+          if [ "$existing" = 0 ]; then
+            gh pr create --base main --head "$branch" --title "$title" \
+              --body-file "$RUNNER_TEMP/size-bank-body.md"
+          fi
