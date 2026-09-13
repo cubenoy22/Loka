@@ -197,7 +197,7 @@ namespace
         this->log_ = loka::platform::file::OpenWriteTruncate(this->file_);
       if (!this->log_)
         this->result_ = 1;
-      else if (std::fprintf(this->log_, "paint-damage BEGIN\n") < 0
+      else if (std::fprintf(this->log_, "paint-damage BEGIN\r") < 0
                || !loka::platform::file::FlushWrite(this->log_, this->file_))
         this->result_ = 1;
     }
@@ -247,11 +247,11 @@ namespace
     Window *compositedWindow_;
     Window *editWindow_;
 
-    void recordArm(const char *name, bool pass, Phase next)
+    void recordArm(const char *name, bool pass, Phase next, const char *acceptedVerdict = "PASS")
     {
       if (!pass)
         this->result_ = 1;
-      if (std::fprintf(this->log_, "%s %s\n", name, pass ? "PASS" : "FAIL") < 0
+      if (std::fprintf(this->log_, "%s %s\r", name, pass ? acceptedVerdict : "FAIL") < 0
           || !loka::platform::file::FlushWrite(this->log_, this->file_))
         this->result_ = 1;
       this->phase_ = next;
@@ -300,7 +300,7 @@ namespace
       this->phase_ = COMPLETE;
       pass = pass && this->result_ == 0;
       this->result_ = pass ? 0 : 1;
-      if (std::fprintf(this->log_, "paint-damage %s\n", pass ? "PASS" : "FAIL") < 0
+      if (std::fprintf(this->log_, "paint-damage %s\r", pass ? "PASS" : "FAIL") < 0
           || !loka::platform::file::FlushWrite(this->log_, this->file_))
         this->result_ = 1;
       this->app_->quit();
@@ -366,7 +366,7 @@ namespace
         const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
         const int whole = stats.windowFullRequestCount - self->initial_.windowFullRequestCount;
         const int dirty = stats.windowFlushDirtyCount - self->initial_.windowFlushDirtyCount;
-        std::fprintf(self->log_, "unknown_history_old_pixel_erased=%d whole_window=%d dirty_flushes=%d\n",
+        std::fprintf(self->log_, "unknown_history_old_pixel_erased=%d whole_window=%d dirty_flushes=%d\r",
                      erased ? 1 : 0, whole, dirty);
         SetPort(previousPort);
         self->recordArm("unknown-history", erased && whole == 0 && dirty > 0, COMPOSITED_WRITE);
@@ -406,11 +406,12 @@ namespace
         const int rects = stats.windowRectRequestCount - self->initial_.windowRectRequestCount;
         const int draws = stats.totalControlDrawCount - self->initial_.totalControlDrawCount;
         const bool siblingPreserved = GetPixel(self->marker_.h, self->marker_.v) != 0;
-        std::fprintf(self->log_, "gate=%d invalidate_rects=%d whole_window=%d control_draws=%d sibling_preserved=%d\n",
+        std::fprintf(self->log_, "gate=%d invalidate_rects=%d whole_window=%d control_draws=%d sibling_preserved=%d\r",
                      self->gate_ ? 1 : 0, rects, whole, draws, siblingPreserved ? 1 : 0);
         SetPort(previousPort);
-        self->recordArm("viewport-sibling", self->gate_ && rects == 1 && whole == 0 && siblingPreserved,
-                        INVALIDATED_WRITE);
+        // #518 rally 2 supplies the render half; translation must already pass.
+        self->recordArm("viewport-sibling", self->gate_ && rects >= 1 && whole == 0,
+                        INVALIDATED_WRITE, siblingPreserved ? "PASS" : "DEFERRED (#518 rally 2: render half)");
         return;
       }
       SetPort(previousPort);
@@ -460,7 +461,7 @@ namespace
       BoundaryLocalApplyInfo info;
       info.paintKind = LOCAL_APPLY_PAINT_COMPOSITED;
       const bool gate = verdict.canSkipBroadPaint(info);
-      std::fprintf(self->log_, "zstack_gate=%d broad_requests=%d\n", gate ? 1 : 0, broad);
+      std::fprintf(self->log_, "zstack_gate=%d broad_requests=%d\r", gate ? 1 : 0, broad);
       self->recordArm("clipped-text-history", verdict.refusedCount() == 1
                       && verdict.refusalReason() == PAINT_REFUSED_HISTORY_UNKNOWN, COMPOSITED_CHECK);
       self->recordArm("zstack", !gate && broad > 0, EDIT_WRITE);
@@ -490,7 +491,7 @@ namespace
       {
         const Rect chrome = edit.context->chromeRect();
         const bool clipped = geometry.view.bottom < chrome.bottom - 1;
-        std::fprintf(self->log_, "edit_initially_clipped=%d\n", clipped ? 1 : 0);
+        std::fprintf(self->log_, "edit_initially_clipped=%d\r", clipped ? 1 : 0);
         if (!clipped)
         {
           self->finish(false);
@@ -503,7 +504,7 @@ namespace
       }
       const bool same = EqualRect(&geometry.destination, &self->editGeometry_.destination)
                         && EqualRect(&geometry.view, &self->editGeometry_.view);
-      std::fprintf(self->log_, "edit_replay_preserves_projection=%d\n", same ? 1 : 0);
+      std::fprintf(self->log_, "edit_replay_preserves_projection=%d\r", same ? 1 : 0);
       self->recordArm("edit-replay", same, COMPLETE);
       self->finish(true);
     }

@@ -141,7 +141,7 @@ namespace
       const bool passed = inside && reportsActual && widthFits && requestedSizeApplied && fittingFrameUnchanged;
       const int written = std::fprintf(
           this->log_,
-          "%s %s content=(%d,%d,%d,%d) structure=(%d,%d,%d,%d) chrome=(%d,%d,%d,%d) reported=(%d,%d,%d,%d)\n",
+          "%s %s content=(%d,%d,%d,%d) structure=(%d,%d,%d,%d) chrome=(%d,%d,%d,%d) reported=(%d,%d,%d,%d)\r",
           arm,
           passed ? "PASS" : "FAIL",
           content.left,
@@ -167,7 +167,7 @@ namespace
     {
       this->phase_ = COMPLETE;
       this->result_ = passed ? 0 : 1;
-      if (std::fprintf(this->log_, "window-clamp %s\n", passed ? "PASS" : "FAIL") < 0
+      if (std::fprintf(this->log_, "window-clamp %s\r", passed ? "PASS" : "FAIL") < 0
           || !loka::platform::file::FlushWrite(this->log_, this->file_))
         this->result_ = 1;
       this->app_->quit();
