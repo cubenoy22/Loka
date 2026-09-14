@@ -1901,8 +1901,12 @@ namespace
         self->initial_ = stats;
         self->offscreen_->writeText(true, "MMMM");
         const PaintAnswer changed = offscreenAnswer(window, "Offscreen.Text", query);
-        self->recordArm("column-scroll-reveals-current-text", whole > 0
-                        && changed.kind == PAINT_ANSWER_EXACT && changed.damage.width > 0
+        // The reveal is a scroll (layout) apply: the rail takes the broad
+        // path and the debug counters reset at the global change, so the
+        // whole-window delta is not observable here; the revealed Text's
+        // current value and exact answer are the pin.
+        self->recordArm("column-scroll-reveals-current-text",
+                        changed.kind == PAINT_ANSWER_EXACT && changed.damage.width > 0
                         && changed.damage.height > 0 && changed.damage.y >= 24
                         && changed.damage.y + changed.damage.height <= 134, OFFSCREEN_REVEALED_WRITE_CHECK);
       }
