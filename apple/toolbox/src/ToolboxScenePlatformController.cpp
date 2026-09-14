@@ -60,7 +60,8 @@ namespace
     return key == loka::app::scene::NodeTypeToken<loka::app::RectSurfaceNode>()
            || key == loka::app::scene::NodeTypeToken<loka::app::ButtonNode>()
            || key == loka::app::scene::NodeTypeToken<loka::app::TextNode>()
-           || key == loka::app::scene::NodeTypeToken<loka::app::EditTextNode>();
+           || key == loka::app::scene::NodeTypeToken<loka::app::EditTextNode>()
+           || key == loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>();
   }
 
   struct ToolboxPaintAnswerSource
