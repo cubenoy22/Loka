@@ -59,6 +59,7 @@ ToolboxButtonContext::ToolboxButtonContext(loka::app::ButtonNode *node, ToolboxS
     : ToolboxProjectedNodeContext(controller),
       node_(node),
       rect_(),
+      paintRect_(),
       label_(loka::core::String::Literal("Button")),
       emitter_(0),
       enabled_(0),
@@ -78,9 +79,12 @@ loka::app::scene::PaintAnswer ToolboxButtonContext::queryPaintDamage(const loka:
   const ToolboxButtonPaintValue current(
       this->node_->props.text_ ? this->node_->props.text_->get() : loka::core::String::Literal("Button"),
       !this->node_->props.enabled_ || this->node_->props.enabled_->get());
-  if (!(current == this->presented_.value()))
-    return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
-  return ToolboxExactPaint(this->rect_, false);
+  // The control's width is derived from its title (layout), so a title whose
+  // measured width differs from the presented one moves this button and its
+  // Row siblings: that is layout work, not paint, and exact delivery refuses.
+  if (ToolboxMeasureTextWidth(current.label()) != ToolboxMeasureTextWidth(this->presented_.value().label()))
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  return ToolboxExactPaint(this->paintRect_, !(current == this->presented_.value()));
 }
 
 void ToolboxButtonContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
@@ -123,15 +127,19 @@ void ToolboxButtonContext::updateData(const loka::core::String &label,
 
 void ToolboxButtonContext::updateRect(const Rect &rect)
 {
-  if (!EqualRect(&this->rect_, &rect))
+  Rect paintRect = rect;
+  if (this->controller() && !this->controller()->intersectWithProjectionClip(rect, paintRect))
+    SetRect(&paintRect, 0, 0, 0, 0);
+  if (!EqualRect(&this->rect_, &rect) || !EqualRect(&this->paintRect_, &paintRect))
     this->presented_.invalidate();
-  rect_ = rect;
+  this->rect_ = rect;
+  this->paintRect_ = paintRect;
 }
 
 void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
 {
-  ToolboxPaintClip clip(this->rect_);
-  const bool paints = !clip.isActive() || clip.touches(this->rect_);
+  ToolboxPaintClip clip(this->paintRect_);
+  const bool paints = !clip.isActive() || clip.touches(this->paintRect_);
   if (paints)
     this->presented_.invalidate();
   // ensureButtonControl also marks the native control used by this render.
@@ -142,9 +150,9 @@ void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
   }
   if (controller && resourceId_ > 0)
   {
-    if (controller->ensureButtonControl(resourceId_, rect_, label_, emitter_, enabled_, lifetimeHint()))
+    if (controller->ensureButtonControl(resourceId_, rect_, label_, emitter_, enabled_, lifetimeHint(), this))
     {
-      if (clip.covers(this->rect_))
+      if (!EmptyRect(&this->paintRect_) && clip.covers(this->paintRect_))
         this->presented_.commit(ToolboxButtonPaintValue(this->label_, !this->enabled_ || this->enabled_->get()),
                                 ToolboxPaintScope());
       return;
@@ -159,6 +167,50 @@ void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
   {
     controller->recordButtonHit(rect_, emitter_, enabled_, boundary_, this);
   }
+}
+
+bool ReconcileToolboxButtonControl(ControlRef control, const loka::core::String &label,
+                                   loka::core::State<bool> *enabled, std::string &installedLabel)
+{
+  if (!control)
+    return false;
+  std::string labelUtf8;
+  if (!loka::platform::CollectUtf8(label, labelUtf8))
+    return false;
+  if (installedLabel != labelUtf8)
+  {
+    const std::size_t length = labelUtf8.size() > 255 ? 255 : labelUtf8.size();
+    Str255 title;
+    title[0] = static_cast<unsigned char>(length);
+    if (length > 0)
+      std::memcpy(title + 1, labelUtf8.data(), length);
+    SetControlTitle(control, title);
+    installedLabel = labelUtf8;
+  }
+  HiliteControl(control, enabled && !enabled->get() ? 255 : 0);
+  return true;
+}
+
+void ToolboxButtonContext::repaint(ControlRef control, std::string &installedLabel)
+{
+  ToolboxPaintClip clip(this->paintRect_);
+  if (clip.isActive() && !clip.touches(this->paintRect_))
+    return;
+  this->presented_.invalidate();
+  if (!this->node_ || !control)
+    return;
+  const loka::core::String label = this->node_->props.text_
+      ? this->node_->props.text_->get() : loka::core::String::Literal("Button");
+  const bool submitted = ReconcileToolboxButtonControl(control, label, this->node_->props.enabled_, installedLabel);
+  Draw1Control(control);
+  if (submitted && !EmptyRect(&this->paintRect_) && clip.covers(this->paintRect_))
+    this->presented_.commit(ToolboxButtonPaintValue(label,
+        !this->node_->props.enabled_ || this->node_->props.enabled_->get()), ToolboxPaintScope());
+}
+
+void ToolboxButtonContext::forgetPresentedControl()
+{
+  this->presented_.invalidate();
 }
 
 short ToolboxButtonContext::layout(loka::app::scene::IPlatformController *controller,

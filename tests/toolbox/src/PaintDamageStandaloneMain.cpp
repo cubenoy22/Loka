@@ -17,6 +17,7 @@
 #include "app/nodes/ImageView.hpp"
 #include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/controls/Cell.hpp"
+#include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/PopupMenu.hpp"
 #include "context/ToolboxEditTextContext.hpp"
 #include "context/ToolboxPopupMenuContext.hpp"
@@ -273,6 +274,69 @@ namespace
   private:
     NodeState<loka::core::String> text_;
     NodeState<RectSurfaceModel> model_;
+  };
+
+  class ButtonExactNode;
+  typedef BoundaryPropsFor<ButtonExactNode> ButtonExactProps;
+  /** Each arm owns its button input and unchanged siblings in one Boundary. */
+  class ButtonExactNode : public StdCompositionBoundaryNodeBase<ButtonExactProps>
+  {
+  public:
+    typedef ButtonExactProps::TypeTag TypeTag;
+    explicit ButtonExactNode(const ButtonExactProps &props)
+        : StdCompositionBoundaryNodeBase<ButtonExactProps>(props)
+    {
+      this->state(this->enabled_, true);
+      this->state(this->title_, loka::core::String::Literal("MMMMMMMM"));
+      RectSurfaceModel model;
+      model.rectCount = 1;
+      model.rects[0] = RectSprite(4, 4, 12, 12);
+      this->state(this->model_, model);
+    }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      composition.declare(Column()
+                          << loka::app::Button(this->title_.state()).enabled(this->enabled_.state()).controlTag(911).TEST_ID("ButtonExact.Button")
+                          << Text("Sibling ink").TEST_ID("ButtonExact.Text")
+                          << RectSurface(this->model_.state()).size(150, 40)
+                              .clearBackground(true).TEST_ID("ButtonExact.Surface"));
+    }
+    void advance(bool label)
+    {
+      loka::core::StateTrackerGuard guard(this->tracker());
+      if (label)
+        this->title_.set(loka::core::String::Literal("IIIIIIII"));
+      else
+        this->enabled_.set(false);
+    }
+  private:
+    NodeState<bool> enabled_;
+    NodeState<loka::core::String> title_;
+    NodeState<RectSurfaceModel> model_;
+  };
+
+  /** Samples only the title interior, excluding the standard CDEF border. */
+  class ButtonTitlePixels
+  {
+  public:
+    ButtonTitlePixels() : pixels_() {}
+    void capture(const Rect &rect)
+    {
+      for (int y = 0; y < 8; ++y)
+        for (int x = 0; x < 48; ++x)
+          this->pixels_[y * 48 + x] = GetPixel(rect.left + 8 + x, rect.top + 3 + y) != 0;
+    }
+    int erasedInk(const Rect &rect) const
+    {
+      int count = 0;
+      for (int y = 0; y < 8; ++y)
+        for (int x = 0; x < 48; ++x)
+          if (this->pixels_[y * 48 + x] && !GetPixel(rect.left + 8 + x, rect.top + 3 + y))
+            ++count;
+      return count;
+    }
+  private:
+    bool pixels_[48 * 8];
   };
 
   class PopupExactNode;
@@ -544,7 +608,7 @@ namespace
   public:
     explicit PaintDamageConfig(PlatformContext *context)
         : AppConfigurable(context), app_(0), node_(0), composited_(0), edit_(0), log_(0), phase_(SETTLE), result_(0),
-          initial_(), marker_(), scrollTextMarker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0), cellWindow_(0), popupWindow_(0), overflowWindow_(0), imageWindow_(0), popupRow_(), editExact_(0), editExactWindow_(0), editZStack_(0), editZStackWindow_(0), popupExact_(0), popupExactWindow_(0), popupFaceRows_(), history_(0), historyWindow_(0), popupHistory_(0), popupHistoryWindow_(0)
+          initial_(), marker_(), scrollTextMarker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0), cellWindow_(0), popupWindow_(0), overflowWindow_(0), imageWindow_(0), popupRow_(), editExact_(0), editExactWindow_(0), editZStack_(0), editZStackWindow_(0), popupExact_(0), popupExactWindow_(0), popupFaceRows_(), history_(0), historyWindow_(0), popupHistory_(0), popupHistoryWindow_(0), buttonEnabled_(0), buttonEnabledWindow_(0), buttonLabel_(0), buttonLabelWindow_(0), buttonTitlePixels_()
     {
       if (loka::platform::file::ResolveApplicationSidecar(
               loka::file::File::Application() << loka::file::File("LOG.TXT"), this->file_))
@@ -634,13 +698,24 @@ namespace
                                    HistoryNode<true>::Props(), &this->popupHistory_))
                                .visible(false).idlePolicy(IdlePolicy::everyTick())
                                .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->popupHistoryWindow_);
+      composition << ObservedWindowDefinition(WindowProps().frame(350, 250, 220, 180).title("Button enabled exact")
+                               .scene(loka::scenario_tests::ObservedMainDefinition<ButtonExactProps, ButtonExactNode>(
+                                   ButtonExactProps(), &this->buttonEnabled_))
+                               .visible(false).idlePolicy(IdlePolicy::everyTick())
+                               .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->buttonEnabledWindow_);
+      composition << ObservedWindowDefinition(WindowProps().frame(350, 250, 220, 180).title("Button label exact")
+                               .scene(loka::scenario_tests::ObservedMainDefinition<ButtonExactProps, ButtonExactNode>(
+                                   ButtonExactProps(), &this->buttonLabel_))
+                               .visible(false).idlePolicy(IdlePolicy::everyTick())
+                               .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->buttonLabelWindow_);
     }
 
   private:
     enum Phase { SETTLE, WRITE, CHECK, PLAIN_WRITE, PLAIN_CHECK, INVALIDATED_WRITE, INVALIDATED_CHECK,
                  COMPOSITED_WRITE, COMPOSITED_CHECK, EDIT_WRITE, EDIT_CHECK, BOUNDS_SHOW, BOUNDS_CHECK, CELL_SHOW, CELL_REPLAY, CELL_CHECK,
                  POPUP_SHOW, POPUP_REPLAY, POPUP_CHECK, OVERFLOW_SHOW, OVERFLOW_REPLAY, OVERFLOW_CHECK, IMAGE_SHOW, IMAGE_WRITE, IMAGE_CHECK, EDIT_EXACT_SHOW, EDIT_EXACT_WRITE, EDIT_EXACT_CHECK, EDIT_ZSTACK_SHOW, EDIT_ZSTACK_WRITE, EDIT_ZSTACK_CHECK, POPUP_EXACT_SHOW, POPUP_SIBLING_WRITE, POPUP_SIBLING_CHECK, POPUP_SELECTION_CHECK, HISTORY_SHOW, HISTORY_FIRST, HISTORY_SECOND, HISTORY_CHECK,
-                 POPUP_HISTORY_SHOW, POPUP_HISTORY_FIRST, POPUP_HISTORY_SECOND, POPUP_HISTORY_CHECK, COMPLETE };
+                 POPUP_HISTORY_SHOW, POPUP_HISTORY_FIRST, POPUP_HISTORY_SECOND, POPUP_HISTORY_CHECK, BUTTON_ENABLED_SHOW, BUTTON_ENABLED_WRITE, BUTTON_ENABLED_CHECK,
+                 BUTTON_LABEL_SHOW, BUTTON_LABEL_WRITE, BUTTON_LABEL_CHECK, COMPLETE };
     App *app_;
     ViewportDamageNode *node_;
     CompositedDamageNode *composited_;
@@ -677,6 +752,11 @@ namespace
     Window *historyWindow_;
     HistoryNode<true> *popupHistory_;
     Window *popupHistoryWindow_;
+    ButtonExactNode *buttonEnabled_;
+    Window *buttonEnabledWindow_;
+    ButtonExactNode *buttonLabel_;
+    Window *buttonLabelWindow_;
+    ButtonTitlePixels buttonTitlePixels_;
 
     void recordArm(const char *name, bool pass, Phase next)
     {
@@ -738,6 +818,12 @@ namespace
       case POPUP_HISTORY_SHOW: case POPUP_HISTORY_FIRST: case POPUP_HISTORY_SECOND: case POPUP_HISTORY_CHECK:
         target = self->popupHistoryWindow_;
         break;
+      case BUTTON_ENABLED_SHOW: case BUTTON_ENABLED_WRITE: case BUTTON_ENABLED_CHECK:
+        target = self->buttonEnabledWindow_;
+        break;
+      case BUTTON_LABEL_SHOW: case BUTTON_LABEL_WRITE: case BUTTON_LABEL_CHECK:
+        target = self->buttonLabelWindow_;
+        break;
       case COMPLETE:
         return;
       }
@@ -771,6 +857,10 @@ namespace
         OnHistoryIdle(target, self->history_, self);
       else if (target == self->popupHistoryWindow_)
         OnHistoryIdle(target, self->popupHistory_, self);
+      else if (target == self->buttonEnabledWindow_)
+        OnButtonIdle(target, self->buttonEnabled_, false, self);
+      else if (target == self->buttonLabelWindow_)
+        OnButtonIdle(target, self->buttonLabel_, true, self);
       else if (target == self->imageWindow_)
         OnImageIdle(target, self);
       else
@@ -1639,10 +1729,98 @@ namespace
       std::fprintf(self->log_, "%s whole_window=%d rect_requests=%d sprite_preserved=%d new_text_visible=%d\r",
                    name, whole, rects, sprite ? 1 : 0, ink ? 1 : 0);
       self->recordArm(name, whole == 0 && rects >= 1 && sprite && ink,
-                      Popup ? COMPLETE : POPUP_HISTORY_SHOW);
-      if (Popup)
-        self->finish(true);
+                      Popup ? BUTTON_ENABLED_SHOW : POPUP_HISTORY_SHOW);
     }
+    static void OnButtonIdle(Window *window, ButtonExactNode *node, bool label, PaintDamageConfig *self)
+    {
+      ToolboxWindow *native = window->asToolboxWindow();
+      if (self->phase_ == (label ? BUTTON_LABEL_SHOW : BUTTON_ENABLED_SHOW))
+      {
+        ShowWindow(native->window());
+        SelectWindow(native->window());
+        native->requestInvalidate();
+        self->phase_ = label ? BUTTON_LABEL_WRITE : BUTTON_ENABLED_WRITE;
+        return;
+      }
+      ToolboxScenePlatformController *controller = window->scene()
+          ? static_cast<ToolboxScenePlatformController *>(
+              loka::dsl::testing::SceneTestAccess::platformController(*window->scene())) : 0;
+      Node *button = 0;
+      Node *surface = 0;
+      loka::dsl::FlowError error;
+      loka::dsl::testing::LookupNodeById<Node>(window->scene(), "ButtonExact.Button", button, error);
+      loka::dsl::testing::LookupNodeById<Node>(window->scene(), "ButtonExact.Surface", surface, error);
+      if (!controller || !node || !button || !button->getContext() || !surface || !surface->getContext())
+      {
+        self->finish(false);
+        return;
+      }
+      const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
+      NativeNodeContext *context = static_cast<NativeNodeContext *>(button->getContext());
+      GrafPtr previousPort;
+      GetPort(&previousPort);
+      SetPort(native->window());
+      if (self->phase_ == (label ? BUTTON_LABEL_WRITE : BUTTON_ENABLED_WRITE))
+      {
+        const PaintAnswer face = context->queryPaintDamage(query);
+        const PaintAnswer sprite = static_cast<NativeNodeContext *>(surface->getContext())->queryPaintDamage(query);
+        SetRect(&self->editGeometry_.view, face.damage.x, face.damage.y, face.damage.x + 64, face.damage.y + 14);
+        self->marker_.h = static_cast<short>(sprite.damage.x + 8);
+        self->marker_.v = static_cast<short>(sprite.damage.y + 8);
+        self->buttonTitlePixels_.capture(self->editGeometry_.view);
+        const bool setup = face.kind == PAINT_ANSWER_EXACT && sprite.kind == PAINT_ANSWER_EXACT
+                           && GetPixel(self->marker_.h, self->marker_.v);
+        SetPort(previousPort);
+        self->recordArm(label ? "button-label-setup" : "button-enabled-setup", setup,
+                        label ? BUTTON_LABEL_CHECK : BUTTON_ENABLED_CHECK);
+        self->initial_ = controller->debugStatsForTesting();
+        node->advance(label);
+        return;
+      }
+      // Disabled CDEF text removes alternating black title pixels. Changing
+      // M to I removes title ink too; neither sample includes the button frame.
+      const int erased = self->buttonTitlePixels_.erasedInk(self->editGeometry_.view);
+      const bool sprite = GetPixel(self->marker_.h, self->marker_.v) != 0;
+      SetPort(previousPort);
+      const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
+      const int whole = stats.windowFullRequestCount - self->initial_.windowFullRequestCount;
+      const int rects = stats.windowRectRequestCount - self->initial_.windowRectRequestCount;
+      const char *name = label ? "button-label-exact" : "button-enabled-exact";
+      std::fprintf(self->log_, "%s whole_window=%d rect_requests=%d title_ink_removed=%d sprite_preserved=%d\r",
+                   name, whole, rects, erased, sprite ? 1 : 0);
+      self->recordArm(name, whole == 0 && rects >= 1 && erased > 0 && sprite,
+                      label ? COMPLETE : BUTTON_LABEL_SHOW);
+      const PaintAnswer unchanged = context->queryPaintDamage(query);
+      self->recordArm(label ? "button-label-presented-empty" : "button-enabled-presented-empty",
+                      unchanged.kind == PAINT_ANSWER_EXACT && unchanged.damage.width == 0,
+                      label ? COMPLETE : BUTTON_LABEL_SHOW);
+      if (label)
+      {
+        PaintQuery unsettled = query;
+        unsettled.placement = PLACEMENT_PENDING;
+        self->recordArm("button-placement-refuses",
+                        context->queryPaintDamage(unsettled).kind == PAINT_ANSWER_REFUSED, COMPLETE);
+        GetPort(&previousPort);
+        SetPort(native->window());
+        Rect partial = self->editGeometry_.view;
+        partial.right = static_cast<short>(partial.left + 24);
+        {
+          ToolboxPaintClip clip(partial);
+          controller->drawControlsInRect(partial);
+        }
+        self->recordArm("button-partial-history-refuses",
+                        context->queryPaintDamage(query).kind == PAINT_ANSWER_REFUSED, COMPLETE);
+        controller->drawControlsInRect(native->window()->portRect);
+        self->recordArm("button-full-history-restored",
+                        context->queryPaintDamage(query).kind == PAINT_ANSWER_EXACT, COMPLETE);
+        SetPort(previousPort);
+        controller->destroyButtonControl(911, NATIVE_HINT_DEFAULT);
+        self->recordArm("button-native-retired-refuses",
+                        context->queryPaintDamage(query).kind == PAINT_ANSWER_REFUSED, COMPLETE);
+        self->finish(true);
+      }
+    }
+
     static void OnEditIdle(Window *window, double, void *data)
     {
       PaintDamageConfig *self = static_cast<PaintDamageConfig *>(data);
