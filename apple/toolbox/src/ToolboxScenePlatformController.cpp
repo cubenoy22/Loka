@@ -60,7 +60,8 @@ namespace
     return key == loka::app::scene::NodeTypeToken<loka::app::RectSurfaceNode>()
            || key == loka::app::scene::NodeTypeToken<loka::app::ButtonNode>()
            || key == loka::app::scene::NodeTypeToken<loka::app::TextNode>()
-           || key == loka::app::scene::NodeTypeToken<loka::app::EditTextNode>();
+           || key == loka::app::scene::NodeTypeToken<loka::app::EditTextNode>()
+           || key == loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>();
   }
 
   struct ToolboxPaintAnswerSource
@@ -105,7 +106,7 @@ namespace
         break;
       }
       // A ledger refresh alone is not a completed paint submission. Drawers
-      // without their own exact answer (including Popup) preserve widening.
+      // without their own exact answer preserve widening.
       answer = PaintAnswer::refused(context ? PAINT_REFUSED_UNSUPPORTED_KIND : PAINT_REFUSED_NO_CONTEXT);
       return true;
     }

@@ -19,6 +19,7 @@
 #include "app/nodes/controls/Cell.hpp"
 #include "app/nodes/controls/PopupMenu.hpp"
 #include "context/ToolboxEditTextContext.hpp"
+#include "context/ToolboxPopupMenuContext.hpp"
 #include "app/scene/projection/CollectPaintAnswers.hpp"
 #include "app/scene/projection/NativeNodeContext.hpp"
 #include "context/ToolboxPaintSupport.hpp"
@@ -274,6 +275,79 @@ namespace
     NodeState<RectSurfaceModel> model_;
   };
 
+  class PopupExactNode;
+  typedef BoundaryPropsFor<PopupExactNode> PopupExactProps;
+  /** One Boundary owns the popup inputs and the siblings visited on each write. */
+  class PopupExactNode : public StdCompositionBoundaryNodeBase<PopupExactProps>
+  {
+  public:
+    typedef PopupExactProps::TypeTag TypeTag;
+    explicit PopupExactNode(const PopupExactProps &props)
+        : StdCompositionBoundaryNodeBase<PopupExactProps>(props)
+    {
+      this->items_.push_back(loka::core::String::Literal(""));
+      this->items_.push_back(loka::core::String::Literal("HHHH"));
+      this->state(this->selection_, 0);
+      this->state(this->text_, loka::core::String::Literal("Sibling ink"));
+      RectSurfaceModel model;
+      model.rectCount = 1;
+      model.rects[0] = RectSprite(4, 4, 12, 12);
+      this->state(this->model_, model);
+    }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      composition.declare(Box().size(180, 140)
+                          << (ScrollView()
+                              << (Column()
+                                  << PopupMenu(this->items_).selectedIndex(this->selection_)
+                                      .TEST_ID("PopupExact.Popup")
+                                  << Text(this->text_.state())
+                                  << RectSurface(this->model_.state()).size(150, 40)
+                                      .clearBackground(true).TEST_ID("PopupExact.Surface"))));
+    }
+    void writeSibling()
+    {
+      loka::core::StateTrackerGuard guard(this->tracker());
+      this->text_.set(loka::core::String::Literal("Changed ink"));
+    }
+    void selectNext()
+    {
+      loka::core::StateTrackerGuard guard(this->tracker());
+      this->selection_.set(1);
+    }
+  private:
+    loka::Vector<loka::core::String> items_;
+    NodeState<int> selection_;
+    NodeState<loka::core::String> text_;
+    NodeState<RectSurfaceModel> model_;
+  };
+
+  /** Snapshot two finite face rows in the fixture's window coordinates. */
+  class PopupFaceRows
+  {
+  public:
+    PopupFaceRows() : frame_(), label_() {}
+    void capture(const Rect &rect)
+    {
+      for (int x = 0; x < 128; ++x)
+      {
+        this->frame_[x] = GetPixel(rect.left + x, rect.top + 7) != 0;
+        this->label_[x] = GetPixel(rect.left + x, rect.top + 9) != 0;
+      }
+    }
+    bool matches(const Rect &rect, bool label) const
+    {
+      for (int x = 0; x < 128; ++x)
+        if ((label ? this->label_[x] : this->frame_[x])
+            != (GetPixel(rect.left + x, rect.top + (label ? 9 : 7)) != 0))
+          return false;
+      return true;
+    }
+  private:
+    bool frame_[128];
+    bool label_[128];
+  };
+
   class SurfaceBoundsNode;
   typedef BoundaryPropsFor<SurfaceBoundsNode> SurfaceBoundsProps;
   /** A fixed model overhangs the declared surface by eight pixels on two sides. */
@@ -417,7 +491,7 @@ namespace
   public:
     explicit PaintDamageConfig(PlatformContext *context)
         : AppConfigurable(context), app_(0), node_(0), composited_(0), edit_(0), log_(0), phase_(SETTLE), result_(0),
-          initial_(), marker_(), scrollTextMarker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0), cellWindow_(0), popupWindow_(0), overflowWindow_(0), imageWindow_(0), popupRow_(), editExact_(0), editExactWindow_(0), editZStack_(0), editZStackWindow_(0)
+          initial_(), marker_(), scrollTextMarker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0), cellWindow_(0), popupWindow_(0), overflowWindow_(0), imageWindow_(0), popupRow_(), editExact_(0), editExactWindow_(0), editZStack_(0), editZStackWindow_(0), popupExact_(0), popupExactWindow_(0), popupFaceRows_()
     {
       if (loka::platform::file::ResolveApplicationSidecar(
               loka::file::File::Application() << loka::file::File("LOG.TXT"), this->file_))
@@ -492,12 +566,17 @@ namespace
                                    EditZStackProps(), &this->editZStack_))
                                .visible(false).idlePolicy(IdlePolicy::everyTick())
                                .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->editZStackWindow_);
+      composition << ObservedWindowDefinition(WindowProps().frame(350, 250, 220, 180).title("Popup exact")
+                               .scene(loka::scenario_tests::ObservedMainDefinition<PopupExactProps, PopupExactNode>(
+                                   PopupExactProps(), &this->popupExact_))
+                               .visible(false).idlePolicy(IdlePolicy::everyTick())
+                               .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->popupExactWindow_);
     }
 
   private:
     enum Phase { SETTLE, WRITE, CHECK, PLAIN_WRITE, PLAIN_CHECK, INVALIDATED_WRITE, INVALIDATED_CHECK,
                  COMPOSITED_WRITE, COMPOSITED_CHECK, EDIT_WRITE, EDIT_CHECK, BOUNDS_SHOW, BOUNDS_CHECK, CELL_SHOW, CELL_REPLAY, CELL_CHECK,
-                 POPUP_SHOW, POPUP_REPLAY, POPUP_CHECK, OVERFLOW_SHOW, OVERFLOW_REPLAY, OVERFLOW_CHECK, IMAGE_SHOW, IMAGE_WRITE, IMAGE_CHECK, EDIT_EXACT_SHOW, EDIT_EXACT_WRITE, EDIT_EXACT_CHECK, EDIT_ZSTACK_SHOW, EDIT_ZSTACK_WRITE, EDIT_ZSTACK_CHECK, COMPLETE };
+                 POPUP_SHOW, POPUP_REPLAY, POPUP_CHECK, OVERFLOW_SHOW, OVERFLOW_REPLAY, OVERFLOW_CHECK, IMAGE_SHOW, IMAGE_WRITE, IMAGE_CHECK, EDIT_EXACT_SHOW, EDIT_EXACT_WRITE, EDIT_EXACT_CHECK, EDIT_ZSTACK_SHOW, EDIT_ZSTACK_WRITE, EDIT_ZSTACK_CHECK, POPUP_EXACT_SHOW, POPUP_SIBLING_WRITE, POPUP_SIBLING_CHECK, POPUP_SELECTION_CHECK, COMPLETE };
     App *app_;
     ViewportDamageNode *node_;
     CompositedDamageNode *composited_;
@@ -527,6 +606,9 @@ namespace
     Window *editExactWindow_;
     EditZStackNode *editZStack_;
     Window *editZStackWindow_;
+    PopupExactNode *popupExact_;
+    Window *popupExactWindow_;
+    PopupFaceRows popupFaceRows_;
 
     void recordArm(const char *name, bool pass, Phase next)
     {
@@ -579,6 +661,9 @@ namespace
       case EDIT_ZSTACK_SHOW: case EDIT_ZSTACK_WRITE: case EDIT_ZSTACK_CHECK:
         target = self->editZStackWindow_;
         break;
+      case POPUP_EXACT_SHOW: case POPUP_SIBLING_WRITE: case POPUP_SIBLING_CHECK: case POPUP_SELECTION_CHECK:
+        target = self->popupExactWindow_;
+        break;
       case COMPLETE:
         return;
       }
@@ -606,6 +691,8 @@ namespace
         OnEditExactIdle(target, self);
       else if (target == self->editZStackWindow_)
         OnEditZStackIdle(target, self);
+      else if (target == self->popupExactWindow_)
+        OnPopupExactIdle(target, self);
       else if (target == self->imageWindow_)
         OnImageIdle(target, self);
       else
@@ -1277,8 +1364,119 @@ namespace
                    whole, rects, sprite ? 1 : 0, newInk && newValue ? 1 : 0,
                    dirtyFlushed ? 1 : 0, sameGeometry ? 1 : 0);
       self->recordArm("edittext-zstack-order", whole == 0 && rects >= 1 && sprite
-                      && newInk && newValue && sameGeometry && dirtyFlushed, COMPLETE);
-      self->finish(true);
+                      && newInk && newValue && sameGeometry && dirtyFlushed, POPUP_EXACT_SHOW);
+    }
+    static void OnPopupExactIdle(Window *window, PaintDamageConfig *self)
+    {
+      ToolboxWindow *native = window->asToolboxWindow();
+      if (self->phase_ == POPUP_EXACT_SHOW)
+      {
+        ShowWindow(native->window());
+        SelectWindow(native->window());
+        native->requestInvalidate();
+        self->phase_ = POPUP_SIBLING_WRITE;
+        return;
+      }
+      ToolboxScenePlatformController *controller = window->scene()
+          ? static_cast<ToolboxScenePlatformController *>(
+              loka::dsl::testing::SceneTestAccess::platformController(*window->scene())) : 0;
+      Node *popup = 0;
+      Node *surface = 0;
+      loka::dsl::FlowError error;
+      loka::dsl::testing::LookupNodeById<Node>(window->scene(), "PopupExact.Popup", popup, error);
+      loka::dsl::testing::LookupNodeById<Node>(window->scene(), "PopupExact.Surface", surface, error);
+      ToolboxPopupMenuContext *context = popup && popup->getContext()
+          ? static_cast<ToolboxPopupMenuContext *>(popup->getContext()) : 0;
+      if (!controller || !context || !surface || !surface->getContext() || !self->popupExact_)
+      {
+        self->recordArm("popup-exact-geometry", false, COMPLETE);
+        self->finish(false);
+        return;
+      }
+      GrafPtr previousPort;
+      GetPort(&previousPort);
+      SetPort(native->window());
+      const Rect rect = context->rect();
+      if (self->phase_ == POPUP_SIBLING_WRITE)
+      {
+        const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
+        const PaintAnswer answer = static_cast<NativeNodeContext *>(surface->getContext())->queryPaintDamage(query);
+        self->marker_.h = static_cast<short>(answer.damage.x + 8);
+        self->marker_.v = static_cast<short>(answer.damage.y + 8);
+        const bool setup = answer.kind == PAINT_ANSWER_EXACT && rect.right - rect.left == 128
+                           && GetPixel(rect.left, rect.top + 7) != 0
+                           && GetPixel(self->marker_.h, self->marker_.v) != 0;
+        self->popupFaceRows_.capture(rect);
+        SetPort(previousPort);
+        self->recordArm("popup-exact-setup", setup, POPUP_SIBLING_CHECK);
+        if (!setup)
+        {
+          self->finish(false);
+          return;
+        }
+        self->initial_ = controller->debugStatsForTesting();
+        self->popupExact_->writeSibling();
+        return;
+      }
+      const bool sibling = self->phase_ == POPUP_SIBLING_CHECK;
+      const bool frameSame = self->popupFaceRows_.matches(rect, false);
+      const bool labelSame = self->popupFaceRows_.matches(rect, true);
+      const bool sprite = GetPixel(self->marker_.h, self->marker_.v) != 0;
+      SetPort(previousPort);
+      const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
+      const int whole = stats.windowFullRequestCount - self->initial_.windowFullRequestCount;
+      const int rects = stats.windowRectRequestCount - self->initial_.windowRectRequestCount;
+      std::fprintf(self->log_, "popup_%s_whole_window=%d rect_requests=%d frame_row_same=%d label_row_same=%d sprite_preserved=%d\r",
+                   sibling ? "sibling" : "selection", whole, rects, frameSame ? 1 : 0, labelSame ? 1 : 0, sprite ? 1 : 0);
+      self->recordArm(sibling ? "popup-sibling-exact" : "popup-selection-exact",
+                      whole == 0 && rects >= 1 && sprite && (sibling ? frameSame && labelSame : !labelSame),
+                      sibling ? POPUP_SELECTION_CHECK : COMPLETE);
+      if (sibling)
+      {
+        self->initial_ = controller->debugStatsForTesting();
+        self->popupExact_->selectNext();
+      }
+      else
+      {
+        const PaintQuery settled = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
+        const PaintAnswer unchanged = context->queryPaintDamage(settled);
+        self->recordArm("popup-presented-empty", unchanged.kind == PAINT_ANSWER_EXACT
+                        && unchanged.damage.width == 0 && unchanged.damage.height == 0, COMPLETE);
+        PaintQuery pending = settled;
+        pending.placement = PLACEMENT_PENDING;
+        PaintQuery foreign = settled;
+        ++foreign.scope.ownerKey;
+        self->recordArm("popup-placement-refuses",
+                        context->queryPaintDamage(pending).kind == PAINT_ANSWER_REFUSED
+                        && context->queryPaintDamage(foreign).kind == PAINT_ANSWER_REFUSED, COMPLETE);
+        PopupMenuNode *popupNode = popup->asPopupMenuNode();
+        loka::core::MutableState<int> *selection = popupNode->props.selectedIndex_;
+        popupNode->props.selectedIndex_ = 0;
+        self->recordArm("popup-unreconciled-refuses",
+                        context->queryPaintDamage(settled).kind == PAINT_ANSWER_REFUSED, COMPLETE);
+        popupNode->props.selectedIndex_ = selection;
+        SetPort(native->window());
+        {
+          Rect partial = rect;
+          partial.right = partial.left + 2;
+          ToolboxPaintClip clip(partial);
+          context->repaint();
+        }
+        self->recordArm("popup-partial-history-refuses",
+                        context->queryPaintDamage(settled).kind == PAINT_ANSWER_REFUSED, COMPLETE);
+        context->repaint();
+        self->recordArm("popup-full-history-restored",
+                        context->queryPaintDamage(settled).kind == PAINT_ANSWER_EXACT, COMPLETE);
+        context->updateRect(rect, 16);
+        self->recordArm("popup-layout-history-refuses",
+                        context->queryPaintDamage(settled).kind == PAINT_ANSWER_REFUSED, COMPLETE);
+        context->repaint();
+        context->onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_DETACHED_RETAINED);
+        self->recordArm("popup-detached-refuses",
+                        context->queryPaintDamage(settled).kind == PAINT_ANSWER_REFUSED, COMPLETE);
+        SetPort(previousPort);
+        self->finish(true);
+      }
     }
     static void OnEditIdle(Window *window, double, void *data)
     {
