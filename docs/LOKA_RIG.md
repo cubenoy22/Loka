@@ -79,3 +79,30 @@ only when it matches `reference_identity_sha256` in the tracked rig descriptor;
 
 Every other manifest field is either immutable run identity, adapter-specific
 description, or a SHA-256 entry for a finalized regular file in the archive.
+
+## Stage the last scenario capture
+
+After a normal run, use `tests/toolbox/run-scenario.sh <example> <scenario>
+--stage-last` to stage its normalized capture without launching MAME again.
+The receipt in `build/mame-scenario/<example>/<scenario>/scenario-run-provenance.txt`
+must match the current APPL digest, source-tree identity (the existing helper's
+HEAD plus porcelain-status digest), registry digest, and capture adapter. Missing
+or malformed receipts, unattestable source identity, missing capture/audit, an
+unmatched or changed audit, and receipts from probe/structural runs are refused.
+A normal run records its receipt before launch; receipt write failures fail the
+`provenance` stage. Flags are exclusive: `--stage-last` cannot accompany
+`--update-golden`, `--probe`, or `--structural-audit`.
+Staging uses the same bundle gate as `--update-golden`: publication waits for all
+cells, and a fresh bake cannot authorize its own reference identity.
+
+## Run every registered cell
+
+`tests/toolbox/run-all-cells.sh [--stage-last | --update-golden]` visits the
+scenario registry in order, one foreground child at a time, and continues after
+failures. Its final table lists each cell's outcome and work directory; child
+output remains under `build/mame-scenario/batch/`. In staging modes, `pass`
+means that cell staged successfully (the bundle may still be incomplete).
+Only `pass` and `differs <px>` leave `bake: possible`; audit differences,
+refusals, and failed stages appear in the complete blocker list. The command
+exits nonzero for any non-pass outcome, including pixel differences. Unknown or
+combined flags are refused. This summary does not grant reference approval.
