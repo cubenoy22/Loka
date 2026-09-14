@@ -9,7 +9,7 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 loka_load_retro68_environment "$PROJECT_DIR"
 
 usage() {
-  echo "Usage: $0 <example> <scenario from scenarios.txt> [--update-golden | --probe | --structural-audit]" >&2
+  echo "Usage: $0 <example> <scenario from scenarios.txt> [--stage-last | --update-golden | --probe | --structural-audit]" >&2
 }
 
 fail_stage() {
@@ -51,6 +51,14 @@ find_retro68_tool() {
 }
 
 
+if [ $# -gt 3 ]; then
+  for argument in "${@:3}"; do
+    if [ "$argument" = --stage-last ]; then
+      WORK="$PROJECT_DIR/build/mame-scenario/$1/$2"
+      fail_stage arguments "--stage-last cannot be combined with other flags"
+    fi
+  done
+fi
 if [ $# -lt 2 ] || [ $# -gt 3 ]; then
   usage
   exit 2
@@ -60,6 +68,7 @@ EXAMPLE="$1"
 SCENARIO="$2"
 SCENARIO_REGISTRY="$PROJECT_DIR/tests/scenarios/scenarios.txt"
 STARTUP_IDENTITY_DECLARATIONS="$PROJECT_DIR/tests/scenarios/startup-golden-identities.txt"
+STAGE_LAST=0
 UPDATE_GOLDEN=0
 STRUCTURAL_AUDIT=0
 if [[ ! "$EXAMPLE" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
@@ -76,6 +85,7 @@ PROBE_CELLS="helloworld bmi-roundtrip
 helloworld toggle-action-probe"
 if [ $# -eq 3 ]; then
   case "$3" in
+    --stage-last) STAGE_LAST=1 ;;
     --update-golden) UPDATE_GOLDEN=1 ;;
     --structural-audit) STRUCTURAL_AUDIT=1 ;;
     --probe)
@@ -93,13 +103,16 @@ if [ $# -eq 3 ]; then
 fi
 
 WORK="$PROJECT_DIR/build/mame-scenario/$EXAMPLE/$SCENARIO"
-if [ -d "$WORK" ]; then
-  if ! rm -rf "$WORK"; then
-    fail_stage mame "could not wipe the previous work directory"
+if [ "$STAGE_LAST" -eq 0 ]; then
+  if [ -d "$WORK" ]; then
+    if ! rm -rf "$WORK"; then
+      fail_stage mame "could not wipe the previous work directory"
+    fi
   fi
-fi
-if ! mkdir -p "$WORK"; then
-  fail_stage mame "could not create the work directory"
+  if ! mkdir -p "$WORK"; then
+    fail_stage mame "could not create the work directory"
+  fi
+
 fi
 
 ENV_FILE="${MAME_ENV_FILE:-$PROJECT_DIR/.env-mame}"
@@ -151,6 +164,63 @@ case "$EXAMPLE" in
     fail_stage mame "unsupported example '$EXAMPLE'"
     ;;
 esac
+AUDIT="$WORK/LokaTestsToolbox.audit"
+CAPTURE_RECTANGLE="$WORK/LokaTestsToolbox.capture"
+EXPECTED_AUDIT="$PROJECT_DIR/tests/scenarios/expected/$EXAMPLE/$SCENARIO.audit"
+RAW_IMAGE="$WORK/$SCENARIO.full-screen.png"
+ACTUAL_IMAGE="$WORK/$SCENARIO.png"
+# Goldens are rig-local, not tracked: the pixels depend on the local boot
+# image's System resources (fonts, control chrome) and contain Apple-rendered
+# glyphs, which the licensing rule keeps out of the tree. They survive work
+# directory wipes and regenerate with --update-golden; reviewers see the
+# captures through the pr-assets evidence branch instead.
+GOLDEN="$PROJECT_DIR/build/mame-scenario/golden/$EXAMPLE/$SCENARIO.png"
+GOLDEN_BUNDLE="$PROJECT_DIR/build/mame-scenario/golden"
+GOLDEN_IDENTITY_HELPER="$PROJECT_DIR/scripts/rig/toolbox/classic_golden_identity.py"
+PACKAGE_FIXTURE_GUARD="$PROJECT_DIR/scripts/rig/package_fixture_guard.py"
+RIG_DESCRIPTOR="$PROJECT_DIR/scripts/rig/toolbox/rigs/toolbox-maciix.ini"
+CAPTURE_ADAPTER="${LOKA_TOOLBOX_CAPTURE_ADAPTER:-mame-screen-snapshot.v2}"
+BUILD_PROVENANCE="$(dirname "$APPL")/classic-build-provenance.txt"
+CURRENT_IDENTITY="$WORK/classic-golden-identity.txt"
+MACHINE_VERDICT="$WORK/machine-verdict.txt"
+RUN_PROVENANCE="$WORK/scenario-run-provenance.txt"
+RUN_PROVENANCE_HELPER="$PROJECT_DIR/scripts/rig/toolbox/scenario_run_provenance.py"
+RUN_MODE=capture
+if [ "$PROBE" -eq 1 ]; then RUN_MODE=probe; fi
+if [ "$STRUCTURAL_AUDIT" -eq 1 ]; then RUN_MODE=structural-audit; fi
+PROVENANCE_ARGUMENTS=(
+  --provenance "$RUN_PROVENANCE" --application "$APPL"
+  --source-tree "$PROJECT_DIR" --registry "$SCENARIO_REGISTRY"
+  --capture-adapter "$CAPTURE_ADAPTER" --mode "$RUN_MODE"
+)
+
+stage_golden() {
+  if ! python3 "$GOLDEN_IDENTITY_HELPER" stage-capture \
+      --bundle "$GOLDEN_BUNDLE" \
+      --registry "$SCENARIO_REGISTRY" \
+      --declarations "$STARTUP_IDENTITY_DECLARATIONS" \
+      --descriptor "$RIG_DESCRIPTOR" \
+      --current-identity "$CURRENT_IDENTITY" \
+      --capture "$ACTUAL_IMAGE" \
+      --application "$APPL" \
+      --source-tree "$PROJECT_DIR" \
+      --example "$EXAMPLE" \
+      --scenario "$SCENARIO"; then
+    fail_stage golden "could not stage the complete atomic golden bundle"
+  fi
+  echo "Reminder: attach before/after visual evidence to the PR."
+}
+
+if [ "$STAGE_LAST" -eq 1 ]; then
+  if ! provenance_message="$(python3 "$RUN_PROVENANCE_HELPER" verify \
+      "${PROVENANCE_ARGUMENTS[@]}" --capture "$ACTUAL_IMAGE" \
+      --audit "$AUDIT" --expected-audit "$EXPECTED_AUDIT" 2>&1)"; then
+    fail_stage provenance "$provenance_message"
+  fi
+  stage_golden
+  exit 0
+fi
+
 if [ ! -f "$APPL" ]; then
   fail_stage mame \
     "missing $APPL; build it with: cmake --preset retro68-68k-release && cmake --build --preset retro68-68k-release --target $TARGET"
@@ -196,25 +266,6 @@ CONFIG="$WORK/LokaTest.cfg"
 LAUNCHER="$WORK/mame-launch.lua"
 MAME_OUT="$WORK/mame.out"
 LAUNCH_LOG="$WORK/mame-launch.log"
-AUDIT="$WORK/LokaTestsToolbox.audit"
-CAPTURE_RECTANGLE="$WORK/LokaTestsToolbox.capture"
-EXPECTED_AUDIT="$PROJECT_DIR/tests/scenarios/expected/$EXAMPLE/$SCENARIO.audit"
-RAW_IMAGE="$WORK/$SCENARIO.full-screen.png"
-ACTUAL_IMAGE="$WORK/$SCENARIO.png"
-# Goldens are rig-local, not tracked: the pixels depend on the local boot
-# image's System resources (fonts, control chrome) and contain Apple-rendered
-# glyphs, which the licensing rule keeps out of the tree. They survive work
-# directory wipes and regenerate with --update-golden; reviewers see the
-# captures through the pr-assets evidence branch instead.
-GOLDEN="$PROJECT_DIR/build/mame-scenario/golden/$EXAMPLE/$SCENARIO.png"
-GOLDEN_BUNDLE="$PROJECT_DIR/build/mame-scenario/golden"
-GOLDEN_IDENTITY_HELPER="$PROJECT_DIR/scripts/rig/toolbox/classic_golden_identity.py"
-PACKAGE_FIXTURE_GUARD="$PROJECT_DIR/scripts/rig/package_fixture_guard.py"
-RIG_DESCRIPTOR="$PROJECT_DIR/scripts/rig/toolbox/rigs/toolbox-maciix.ini"
-CAPTURE_ADAPTER="${LOKA_TOOLBOX_CAPTURE_ADAPTER:-mame-screen-snapshot.v2}"
-BUILD_PROVENANCE="$(dirname "$APPL")/classic-build-provenance.txt"
-CURRENT_IDENTITY="$WORK/classic-golden-identity.txt"
-MACHINE_VERDICT="$WORK/machine-verdict.txt"
 HOME_DIR="$WORK/home"
 CFG_DIR="$WORK/cfg"
 NVRAM_DIR="$WORK/nvram"
@@ -348,6 +399,11 @@ if [ "$EXAMPLE" = simpleviewer ] && [ "$SCENARIO" != startup ]; then
 fi
 DEV_DISK_ARGUMENTS+=("$CONFIG")
 
+if ! provenance_message="$(python3 "$RUN_PROVENANCE_HELPER" record \
+    "${PROVENANCE_ARGUMENTS[@]}" 2>&1)"; then
+  fail_stage provenance "$provenance_message"
+fi
+
 # A scenario-local control dir keeps mame-dev-disk.sh's hfsutils state
 # (current mounted volume) isolated, so parallel ctest runs of the two
 # scenarios cannot cross-mount each other's development disks.
@@ -441,6 +497,10 @@ fi
 if ! cmp "$EXPECTED_AUDIT" "$AUDIT"; then
   fail_stage verdict "audit differs from $EXPECTED_AUDIT; see $AUDIT"
 fi
+if ! provenance_message="$(python3 "$RUN_PROVENANCE_HELPER" audit-matched \
+    --provenance "$RUN_PROVENANCE" --audit "$AUDIT" 2>&1)"; then
+  fail_stage provenance "$provenance_message"
+fi
 if [ "$SETTLE_REACHED" -ne 1 ]; then
   fail_stage settle "pixel stability was not reached; see $LAUNCH_LOG"
 fi
@@ -468,22 +528,13 @@ if ! reported_rectangle="$(python3 "$PNG_TOOL" normalize \
     "$RAW_IMAGE" "$CAPTURE_RECTANGLE" "$ACTUAL_IMAGE" 2>&1)"; then
   fail_stage normalize "$reported_rectangle"
 fi
+if ! provenance_message="$(python3 "$RUN_PROVENANCE_HELPER" capture-ready \
+    --provenance "$RUN_PROVENANCE" --capture "$ACTUAL_IMAGE" 2>&1)"; then
+  fail_stage provenance "$provenance_message"
+fi
 
 if [ "$UPDATE_GOLDEN" -eq 1 ]; then
-  if ! python3 "$GOLDEN_IDENTITY_HELPER" stage-capture \
-      --bundle "$GOLDEN_BUNDLE" \
-      --registry "$SCENARIO_REGISTRY" \
-      --declarations "$STARTUP_IDENTITY_DECLARATIONS" \
-      --descriptor "$RIG_DESCRIPTOR" \
-      --current-identity "$CURRENT_IDENTITY" \
-      --capture "$ACTUAL_IMAGE" \
-      --application "$APPL" \
-      --source-tree "$PROJECT_DIR" \
-      --example "$EXAMPLE" \
-      --scenario "$SCENARIO"; then
-    fail_stage golden "could not stage the complete atomic golden bundle"
-  fi
-  echo "Reminder: attach before/after visual evidence to the PR."
+  stage_golden
   exit 0
 fi
 

@@ -1049,6 +1049,7 @@ class RunnerRigScriptReferenceTest(unittest.TestCase):
         "tests/toolbox/run-scenario.sh": {
             "scripts/rig/package_fixture_guard.py",
             "scripts/rig/toolbox/classic_golden_identity.py",
+            "scripts/rig/toolbox/scenario_run_provenance.py",
         },
     }
 
