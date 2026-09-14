@@ -19,8 +19,8 @@ surface.rects	71,72,24,24
 test	SmirkBench
 text.value	Faces: 1
 tick	2
-total.boundary_applies	1
-total.collector_visits	8
+total.boundary_applies	0
+total.collector_visits	0
 total.control_draws	2
 step id=3 due_tick=3 tick=3 status=succeeded error_kind=0 error_code=0 name=apply-A
 step id=4 due_tick=4 tick=4 status=succeeded error_kind=0 error_code=0 name=apply-B-replay
@@ -46,7 +46,7 @@ surface.rects	71,72,24,24
 test	SmirkBench
 text.value	Rebind B updated
 tick	7
-total.boundary_applies	1
-total.collector_visits	8
+total.boundary_applies	0
+total.collector_visits	0
 total.control_draws	4
 terminal status=succeeded

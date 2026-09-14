@@ -478,8 +478,8 @@ namespace loka
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
           loka::platform::DebugLogSceneUpdateTracked(static_cast<void *>(self), static_cast<void *>(scene));
 #endif
-          NodeDirtyFlags flags = self->observedDirtyFlagsForCommittedStates();
-          if (flags == NODE_DIRTY_NONE)
+          NodeDirtyFlags flags = NODE_DIRTY_NONE;
+          if (!self->observedDirtyFlagsForCommittedStates(flags))
           {
             flags = self->observedDirtyFlags();
           }
