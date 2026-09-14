@@ -61,7 +61,7 @@ crop_right	636
 crop_top	0
 face_count	1
 format_version	1
-last.control_draws	1
+last.control_draws	2
 node	SmirkBench.Surface
 rail	toolbox
 scenario_version	1
@@ -74,5 +74,5 @@ text.value	Faces: 1
 tick	33
 total.boundary_applies	31
 total.collector_visits	248
-total.control_draws	32
+total.control_draws	2
 terminal status=succeeded
