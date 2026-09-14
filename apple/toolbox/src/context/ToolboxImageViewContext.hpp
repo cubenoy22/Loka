@@ -27,6 +27,9 @@ public:
   virtual short layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state);
   virtual void render(loka::app::scene::IPlatformController *);
 
+  /** Placed window coordinates used to select dirty image replay. */
+  const Rect &rect() const { return this->rect_; }
+
 private:
   void draw();
   void updateRect(short x, short y, short width, short height);
