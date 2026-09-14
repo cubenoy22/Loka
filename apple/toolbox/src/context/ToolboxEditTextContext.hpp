@@ -4,6 +4,7 @@
 #include "context/ToolboxProjectedNodeContext.hpp"
 #include "app/nodes/controls/EditText.hpp"
 #include "core/String.hpp"
+#include "app/scene/projection/PaintFact.hpp"
 #include <Quickdraw.h>
 #include <TextEdit.h>
 
@@ -45,6 +46,9 @@ public:
   ToolboxEditTextContext(loka::app::EditTextNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxEditTextContext();
   virtual void onPropsApplied();
+  virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                             loka::app::scene::NodeLifecycleFact next);
+  virtual loka::app::scene::PaintAnswer queryPaintDamage(const loka::app::scene::PaintQuery &query) const;
 
   void updateData(loka::core::State<loka::core::String> *text);
   void updateRect(const Rect &outerRect, const Rect &textRect, short textX, short textY);
@@ -66,6 +70,11 @@ public:
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
 
 private:
+  friend class ToolboxScenePlatformController;
+  /** Native retirement revokes the proof even if this context stays attached. */
+  void invalidateNativePresentation() { this->presented_.invalidate(); }
+  /** Known only after full TE presentation, and while its binding is installed. */
+  loka::app::scene::PaintFact<loka::core::String> presented_;
   /** Capture local data and report whether existing controller rows need refresh. */
   bool captureProps();
   loka::app::EditTextNode *node_;

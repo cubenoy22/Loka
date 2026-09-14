@@ -250,11 +250,15 @@ void ToolboxTextContext::updateData(loka::core::State<loka::core::String> *text)
 
 void ToolboxTextContext::updateRect(const Rect &rect, short textX, short textY)
 {
+  const Rect previousRect = this->rect_;
+  const Rect previousPaintRect = this->paintRect_;
+
   rect_ = rect;
-  this->presented_.invalidate();
   this->paintRect_ = rect;
   if (this->controller() && !this->controller()->intersectWithProjectionClip(rect, this->paintRect_))
     SetRect(&this->paintRect_, 0, 0, 0, 0);
+  if (!EqualRect(&previousRect, &this->rect_) || !EqualRect(&previousPaintRect, &this->paintRect_) || this->textX_ != textX || this->textY_ != textY)
+    this->presented_.invalidate();
   textX_ = textX;
   textY_ = textY;
 }
@@ -276,10 +280,12 @@ short ToolboxTextContext::visibleWidth() const
 
 void ToolboxTextContext::paint(bool erase)
 {
+  ToolboxPaintClip clip(this->paintRect_);
+  if (clip.isActive() && !clip.touches(this->paintRect_))
+    return;
   this->presented_.invalidate();
   if (!this->text_)
     return;
-  ToolboxPaintClip clip(this->paintRect_);
   if (!clip.isActive())
   {
     // Classic low-memory fallback: keep the caller's clip and still draw.

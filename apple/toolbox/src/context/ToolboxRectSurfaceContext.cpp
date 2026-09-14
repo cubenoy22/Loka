@@ -90,6 +90,9 @@ ToolboxRectSurfaceContext::~ToolboxRectSurfaceContext()
 
 short ToolboxRectSurfaceContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
+  const Rect previousRect = this->rect_;
+  const Rect previousPaintRect = this->paintRect_;
+
   if (!node_)
   {
     return 0;
@@ -98,39 +101,25 @@ short ToolboxRectSurfaceContext::layout(loka::app::scene::IPlatformController *,
   rect_.top = static_cast<short>(state.y);
   rect_.right = static_cast<short>(state.x + state.width);
   rect_.bottom = static_cast<short>(state.y + state.height);
-  this->presented_.invalidate();
   this->paintRect_ = this->rect_;
   if (this->controller() && !this->controller()->intersectWithProjectionClip(this->rect_, this->paintRect_))
     SetRect(&this->paintRect_, 0, 0, 0, 0);
+  if (!EqualRect(&previousRect, &this->rect_) || !EqualRect(&previousPaintRect, &this->paintRect_))
+    this->presented_.invalidate();
   state.y = static_cast<short>(rect_.bottom + state.spacing);
   return state.width;
 }
 
 void ToolboxRectSurfaceContext::render(loka::app::scene::IPlatformController *)
 {
-  this->presented_.invalidate();
-  if (!node_ || !node_->props.model_)
-  {
-    return;
-  }
-  // A walk can run under a clip that excludes this surface entirely (the #412
-  // dirty escalation clips render() to the damaged rect). Painting would be a
-  // no-op there, but committing history would still overwrite the previous
-  // sprite positions, and the surface's own pending dirty flush then loses the
-  // old rects it must erase. If nothing here can be painted, do not claim a
-  // paint happened. The snapshot stays older, which only widens a later dirty
-  // region -- overpaint, never stale pixels.
-  if (tempRgn_)
-  {
-    GetClip(tempRgn_);
-    const Rect clipBounds = (**tempRgn_).rgnBBox;
-    if (clipBounds.right < rect_.left || clipBounds.left > rect_.right || clipBounds.bottom < rect_.top
-        || clipBounds.top > rect_.bottom)
-    {
-      return;
-    }
-  }
   ToolboxPaintClip clip(this->paintRect_);
+  // The #412 clipped full walk may exclude this surface entirely. Preserve
+  // its last painted sprite positions so a pending dirty flush can erase them.
+  if (clip.isActive() && !clip.touches(this->paintRect_))
+    return;
+  this->presented_.invalidate();
+  if (!this->node_ || !this->node_->props.model_)
+    return;
   if (node_->props.clearBackground_)
   {
     EraseRect(&rect_);

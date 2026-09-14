@@ -102,7 +102,8 @@ public:
                            const loka::core::String &label,
                            loka::core::EmitterState *emitter,
                            loka::core::State<bool> *enabled,
-                           loka::app::scene::NativeLifetimeHint lifetimeHint = loka::app::scene::NATIVE_HINT_DEFAULT);
+                           loka::app::scene::NativeLifetimeHint lifetimeHint = loka::app::scene::NATIVE_HINT_DEFAULT,
+                           ToolboxButtonContext *context = 0);
   void destroyButtonControl(short resourceId, loka::app::scene::NativeLifetimeHint lifetimeHint);
   /** Creates or refreshes the scrollBarProc control for one ScrollBar node.
       The declared range and the bound value are pushed on every projection,
@@ -216,6 +217,7 @@ private:
   friend class ToolboxEnabledStateBindingPath;
   friend class ToolboxTextContext;
   friend class ToolboxCellContext;
+  friend class ToolboxButtonContext;
   friend class ToolboxPopupMenuContext;
   friend class ToolboxEditTextContext;
   friend class ToolboxRectSurfaceContext;
@@ -233,6 +235,7 @@ private:
 
   struct ButtonControlBinding
   {
+    ToolboxButtonContext *context;
     short resourceId;
     ControlRef control;
     loka::core::EmitterState *emitter;
@@ -244,7 +247,6 @@ private:
         Three sites in one dance, which is why the bit gets a sentence the
         name alone cannot carry. */
     bool usedThisFrame;
-    bool needsDraw;
     Rect rect;
     std::string label;
     loka::app::scene::NativeLifetimeHint lifetimeHint;
@@ -315,7 +317,6 @@ private:
   loka::app::scene::BoundaryNode *activeLayoutBoundary_;
 
   bool handleTextKey(char key);
-  bool applyButtonControlProps(ButtonControlBinding &binding, const loka::core::String &label);
   void bindTextState(loka::core::State<loka::core::String> *text);
   void bindEnabledState(loka::core::State<bool> *enabled);
   void unbindTextState(loka::core::State<loka::core::String> *text);
@@ -384,6 +385,8 @@ private:
   void refreshEditTextBindingForStateChange(EditTextControlBinding &binding);
   void syncEditTextFromState(EditTextControlBinding &binding);
   void updateStateFromEdit(EditTextControlBinding &binding);
+  /** Revoke presentation and queue the TE on every native retirement path. */
+  void retireEditTextBinding(EditTextControlBinding &binding, loka::app::scene::NativeLifetimeHint lifetimeHint);
   void retireEditTextControlAt(std::size_t index, loka::app::scene::NativeLifetimeHint lifetimeHint);
   void retireEditTextControl(loka::app::scene::NodeContext *ownerContext,
                              loka::app::scene::NativeLifetimeHint lifetimeHint);

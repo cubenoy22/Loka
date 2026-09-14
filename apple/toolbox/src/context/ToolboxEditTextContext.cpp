@@ -70,6 +70,34 @@ ToolboxEditTextContext::ToolboxEditTextContext(loka::app::EditTextNode *node,
 
 ToolboxEditTextContext::~ToolboxEditTextContext() {}
 
+loka::app::scene::PaintAnswer ToolboxEditTextContext::queryPaintDamage(
+    const loka::app::scene::PaintQuery &query) const
+{
+  using namespace loka::app::scene;
+  if (query.placement != PLACEMENT_ELIGIBLE || query.scope != ToolboxPaintScope())
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  if (!this->node_ || !this->text_ || this->node_->props.text_ != this->text_)
+    return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
+  if (EmptyRect(&this->paintRect_))
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  // Only repaint of an installed TE can establish this fact. Native retirement
+  // revokes it, including retirement without a logical detach.
+  if (!this->presented_.isKnown())
+    return PaintAnswer::refused(PAINT_REFUSED_HISTORY_UNKNOWN);
+  return ToolboxExactPaint(this->paintRect_, !this->text_->get().equals(this->presented_.value()));
+}
+
+void ToolboxEditTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                          loka::app::scene::NodeLifecycleFact next)
+{
+  if (next != loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->presented_.invalidate();
+    SetRect(&this->paintRect_, 0, 0, 0, 0);
+  }
+  ToolboxProjectedNodeContext::onFactChanged(previous, next);
+}
+
 void ToolboxEditTextContext::updateData(loka::core::State<loka::core::String> *text)
 {
   text_ = text;
@@ -77,10 +105,16 @@ void ToolboxEditTextContext::updateData(loka::core::State<loka::core::String> *t
 
 void ToolboxEditTextContext::updateRect(const Rect &outerRect, const Rect &textRect, short textX, short textY)
 {
+  const Rect previousRect = this->rect_;
+  const Rect previousPaintRect = this->paintRect_;
+
   rect_ = outerRect;
   this->paintRect_ = outerRect;
   if (this->controller() && !this->controller()->intersectWithProjectionClip(outerRect, this->paintRect_))
     SetRect(&this->paintRect_, 0, 0, 0, 0);
+  if (!EqualRect(&previousRect, &this->rect_) || !EqualRect(&previousPaintRect, &this->paintRect_) || !EqualRect(&this->textRect_, &textRect)
+      || this->textX_ != textX || this->textY_ != textY)
+    this->presented_.invalidate();
   textRect_ = textRect;
   textX_ = textX;
   textY_ = textY;
@@ -88,41 +122,41 @@ void ToolboxEditTextContext::updateRect(const Rect &outerRect, const Rect &textR
 
 void ToolboxEditTextContext::repaint(TEHandle te)
 {
-  if (!te || !*te)
-    return;
   ToolboxPaintClip clip(this->paintRect_);
-  if (!clip.isActive())
+  if (clip.isActive() && !clip.touches(this->paintRect_))
+    return;
+  this->presented_.invalidate();
+  if (!te || !*te || !this->text_)
     return;
   const Rect view = (**te).viewRect;
   TEUpdate(&view, te);
   FrameRect(&this->rect_);
+  if (clip.covers(this->paintRect_))
+    this->presented_.commit(this->text_->get(), ToolboxPaintScope());
 }
 
 void ToolboxEditTextContext::draw(ToolboxScenePlatformController *controller)
 {
-  if (!text_)
-  {
-    FrameRect(&rect_);
-    return;
-  }
-  if (controller)
+  // The render walk rebuilds native usage even for disjoint painters.
+  if (controller && this->text_)
   {
     TEHandle te = controller->ensureEditTextControl(this, textRect_, text_, lifetimeHint());
     if (te)
     {
-      controller->beginClip(textRect_);
-      TEUpdate(&textRect_, te);
-      controller->endClip();
-      FrameRect(&rect_);
+      this->repaint(te);
       return;
     }
   }
-  FrameRect(&rect_);
-  DrawStringAt(textX_, textY_, text_->get());
-  if (controller)
+  ToolboxPaintClip clip(this->paintRect_);
+  if (!clip.isActive() || clip.touches(this->paintRect_))
   {
-    controller->recordEditHit(rect_, text_, boundary_, this);
+    this->presented_.invalidate();
+    FrameRect(&this->rect_);
+    if (this->text_)
+      DrawStringAt(this->textX_, this->textY_, this->text_->get());
   }
+  if (controller && this->text_)
+    controller->recordEditHit(rect_, text_, boundary_, this);
 }
 
 short ToolboxEditTextContext::layout(loka::app::scene::IPlatformController *controller,

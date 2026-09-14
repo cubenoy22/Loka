@@ -59,7 +59,9 @@ namespace
   {
     return key == loka::app::scene::NodeTypeToken<loka::app::RectSurfaceNode>()
            || key == loka::app::scene::NodeTypeToken<loka::app::ButtonNode>()
-           || key == loka::app::scene::NodeTypeToken<loka::app::TextNode>();
+           || key == loka::app::scene::NodeTypeToken<loka::app::TextNode>()
+           || key == loka::app::scene::NodeTypeToken<loka::app::EditTextNode>()
+           || key == loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>();
   }
 
   struct ToolboxPaintAnswerSource
@@ -103,8 +105,8 @@ namespace
       case NODE_KIND_IMAGE_VIEW:
         break;
       }
-      // In particular, a TE data sync or a Popup ledger refresh is not a
-      // completed Control Manager/TE paint submission. Preserve widening.
+      // A ledger refresh alone is not a completed paint submission. Drawers
+      // without their own exact answer preserve widening.
       answer = PaintAnswer::refused(context ? PAINT_REFUSED_UNSUPPORTED_KIND : PAINT_REFUSED_NO_CONTEXT);
       return true;
     }
@@ -141,20 +143,6 @@ namespace
     }
     MoveTo(x, y);
     DrawString(text);
-  }
-
-  void CopyUtf8ToPascalString(const std::string &utf8, Str255 out)
-  {
-    std::size_t length = utf8.size();
-    if (length > 255)
-    {
-      length = 255;
-    }
-    out[0] = static_cast<unsigned char>(length);
-    if (length > 0)
-    {
-      std::memcpy(out + 1, utf8.data(), length);
-    }
   }
 
   bool UseBoundaryDirty(const loka::app::scene::BoundaryNode *boundary)
@@ -1221,9 +1209,8 @@ void ToolboxScenePlatformController::refreshContextProps(loka::app::scene::Node 
       binding.emitter = node->asButtonNode()->props.onClick_;
       enabled = binding.enabled;
       const loka::app::ButtonProps &props = node->asButtonNode()->props;
-      this->applyButtonControlProps(binding, props.text_ ? props.text_->get() : loka::core::String::Literal("Button"));
-      if (previousEnabled != enabled)
-        binding.needsDraw = true;
+      ReconcileToolboxButtonControl(binding.control,
+          props.text_ ? props.text_->get() : loka::core::String::Literal("Button"), binding.enabled, binding.label);
     }
   }
   else if (node->kind() == loka::app::scene::NODE_KIND_POPUP_MENU)
@@ -1389,15 +1376,18 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     }
     return;
   }
+  // Any drawer whose kind order the replay below does not preserve (text-like
+  // drawers replay after surfaces and images regardless of composition order)
+  // sends a ZStack window through the clipped full render instead.
   bool dirtyIntersectsText = false;
-  for (size_t i = 0; i < hitLedger_.textHits_.size(); ++i)
-  {
-    if (RectsIntersect(rect, hitLedger_.textHits_[i].rect))
-    {
-      dirtyIntersectsText = true;
-      break;
-    }
-  }
+  for (size_t i = 0; i < hitLedger_.textHits_.size() && !dirtyIntersectsText; ++i)
+    dirtyIntersectsText = RectsIntersect(rect, hitLedger_.textHits_[i].rect);
+  for (size_t i = 0; i < editControls_.size() && !dirtyIntersectsText; ++i)
+    dirtyIntersectsText = editControls_[i].te && RectsIntersect(rect, editControls_[i].rect);
+  for (size_t i = 0; i < hitLedger_.cellHits_.size() && !dirtyIntersectsText; ++i)
+    dirtyIntersectsText = RectsIntersect(rect, hitLedger_.cellHits_[i].rect);
+  for (size_t i = 0; i < hitLedger_.popupHits_.size() && !dirtyIntersectsText; ++i)
+    dirtyIntersectsText = RectsIntersect(rect, hitLedger_.popupHits_[i].rect);
   if (dirtyIntersectsText && HasZStackNode(rootNode_))
   {
     // A ZStack declares shared pixels. Rebuild the registries only before any
@@ -2225,6 +2215,8 @@ void ToolboxScenePlatformController::clearControls()
 {
   for (size_t i = 0; i < buttonControls_.size(); ++i)
   {
+    if (buttonControls_[i].context)
+      buttonControls_[i].context->forgetPresentedControl();
     if (buttonControls_[i].control)
     {
       HideControl(buttonControls_[i].control);
@@ -2246,12 +2238,7 @@ void ToolboxScenePlatformController::clearControls()
   scrollBarLedger_.viewportScrollBars_.clear();
   for (size_t i = 0; i < editControls_.size(); ++i)
   {
-    if (editControls_[i].te)
-    {
-      TEDeactivate(editControls_[i].te);
-      queueRetiredTextEdit(editControls_[i].te, editControls_[i].lifetimeHint);
-      editControls_[i].te = 0;
-    }
+    this->retireEditTextBinding(this->editControls_[i], this->editControls_[i].lifetimeHint);
   }
   editControls_.clear();
 }
@@ -2432,7 +2419,8 @@ bool ToolboxScenePlatformController::ensureButtonControl(short resourceId,
                                                          const loka::core::String &label,
                                                          loka::core::EmitterState *emitter,
                                                          loka::core::State<bool> *enabled,
-                                                         loka::app::scene::NativeLifetimeHint lifetimeHint)
+                                                         loka::app::scene::NativeLifetimeHint lifetimeHint,
+                                                         ToolboxButtonContext *context)
 {
   if (!window_ || !window_->window() || resourceId <= 0)
   {
@@ -2477,12 +2465,12 @@ bool ToolboxScenePlatformController::ensureButtonControl(short resourceId,
       HideControl(control);
     }
     ButtonControlBinding entry;
+    entry.context = context;
     entry.resourceId = resourceId;
     entry.control = control;
     entry.emitter = emitter;
     entry.enabled = enabled;
     entry.usedThisFrame = true;
-    entry.needsDraw = true;
     entry.rect = controlRect;
     entry.label = "";
     entry.lifetimeHint = lifetimeHint;
@@ -2490,6 +2478,7 @@ bool ToolboxScenePlatformController::ensureButtonControl(short resourceId,
     binding = &buttonControls_.back();
     created = true;
   }
+  binding->context = context;
   binding->emitter = emitter;
   binding->enabled = enabled;
   binding->lifetimeHint = lifetimeHint;
@@ -2501,38 +2490,10 @@ bool ToolboxScenePlatformController::ensureButtonControl(short resourceId,
     MoveControl(binding->control, controlRect.left, controlRect.top);
     SizeControl(binding->control, controlRect.right - controlRect.left, controlRect.bottom - controlRect.top);
     binding->rect = controlRect;
-    binding->needsDraw = true;
   }
-  const bool submitted = this->applyButtonControlProps(*binding, label);
+  const bool submitted = ReconcileToolboxButtonControl(binding->control, label, binding->enabled, binding->label);
   ShowControl(binding->control);
   return submitted;
-}
-
-bool ToolboxScenePlatformController::applyButtonControlProps(ButtonControlBinding &binding,
-                                                             const loka::core::String &label)
-{
-  std::string labelUtf8;
-  if (!loka::platform::CollectUtf8(label, labelUtf8))
-  {
-    return false;
-  }
-  if (binding.label != labelUtf8)
-  {
-    Str255 title;
-    CopyUtf8ToPascalString(labelUtf8, title);
-    SetControlTitle(binding.control, title);
-    binding.label = labelUtf8;
-    binding.needsDraw = true;
-  }
-  if (binding.enabled && !binding.enabled->get())
-  {
-    HiliteControl(binding.control, 255);
-  }
-  else
-  {
-    HiliteControl(binding.control, 0);
-  }
-  return true;
 }
 
 void ToolboxScenePlatformController::destroyButtonControl(short resourceId,
@@ -2545,6 +2506,8 @@ void ToolboxScenePlatformController::destroyButtonControl(short resourceId,
     {
       continue;
     }
+    if (binding.context)
+      binding.context->forgetPresentedControl();
     ControlRef control = binding.control;
     binding.control = 0;
     binding.emitter = 0;
@@ -2661,18 +2624,27 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(ToolboxEditTextCo
   return binding ? binding->te : 0;
 }
 
-void ToolboxScenePlatformController::retireEditTextControlAt(
-    std::size_t index,
+void ToolboxScenePlatformController::retireEditTextBinding(
+    EditTextControlBinding &binding,
     loka::app::scene::NativeLifetimeHint lifetimeHint)
 {
-  EditTextControlBinding &binding = editControls_[index];
-  loka::core::State<loka::core::String> *retiredText = binding.text;
+  if (binding.ownerContext)
+    binding.ownerContext->invalidateNativePresentation();
   if (binding.te)
   {
     TEDeactivate(binding.te);
     queueRetiredTextEdit(binding.te, lifetimeHint);
     binding.te = 0;
   }
+}
+
+void ToolboxScenePlatformController::retireEditTextControlAt(
+    std::size_t index,
+    loka::app::scene::NativeLifetimeHint lifetimeHint)
+{
+  EditTextControlBinding &binding = editControls_[index];
+  loka::core::State<loka::core::String> *retiredText = binding.text;
+  this->retireEditTextBinding(binding, lifetimeHint);
   editControls_.erase(index);
   if (retiredText && !this->hasLiveBinding(retiredText))
   {
@@ -2813,10 +2785,12 @@ void ToolboxScenePlatformController::drawControlsInRect(const Rect &rect)
     {
       continue;
     }
-    Draw1Control(binding.control);
+    if (binding.context)
+      binding.context->repaint(binding.control, binding.label);
+    else
+      Draw1Control(binding.control);
     ++debugStats_.controlDrawCount;
     ++debugStats_.totalControlDrawCount;
-    binding.needsDraw = false;
   }
   for (size_t i = 0; i < scrollBarLedger_.scrollBarControls_.size(); ++i)
   {
