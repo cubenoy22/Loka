@@ -123,13 +123,19 @@ void ToolboxButtonContext::updateData(const loka::core::String &label,
 
 void ToolboxButtonContext::updateRect(const Rect &rect)
 {
-  this->presented_.invalidate();
+  if (!EqualRect(&this->rect_, &rect))
+    this->presented_.invalidate();
   rect_ = rect;
 }
 
 void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
 {
-  this->presented_.invalidate();
+  ToolboxPaintClip clip(this->rect_);
+  const bool paints = !clip.isActive() || clip.touches(this->rect_);
+  if (paints)
+    this->presented_.invalidate();
+  // ensureButtonControl also marks the native control used by this render.
+  // Keep that registration even when its pixels are outside the caller's clip.
   if (controller && resourceId_ <= 0)
   {
     resourceId_ = controller->allocateControlId();
@@ -138,13 +144,17 @@ void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
   {
     if (controller->ensureButtonControl(resourceId_, rect_, label_, emitter_, enabled_, lifetimeHint()))
     {
-      this->presented_.commit(ToolboxButtonPaintValue(this->label_, !this->enabled_ || this->enabled_->get()),
-                              ToolboxPaintScope());
+      if (clip.covers(this->rect_))
+        this->presented_.commit(ToolboxButtonPaintValue(this->label_, !this->enabled_ || this->enabled_->get()),
+                                ToolboxPaintScope());
       return;
     }
   }
-  FrameRect(&rect_);
-  DrawStringAt(static_cast<short>(rect_.left + 4), static_cast<short>(rect_.bottom - ToolboxLayoutMetrics::kControlDescent), label_);
+  if (paints)
+  {
+    FrameRect(&rect_);
+    DrawStringAt(static_cast<short>(rect_.left + 4), static_cast<short>(rect_.bottom - ToolboxLayoutMetrics::kControlDescent), label_);
+  }
   if (controller)
   {
     controller->recordButtonHit(rect_, emitter_, enabled_, boundary_, this);

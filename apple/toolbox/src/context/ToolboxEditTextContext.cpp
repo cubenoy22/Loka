@@ -105,11 +105,16 @@ void ToolboxEditTextContext::updateData(loka::core::State<loka::core::String> *t
 
 void ToolboxEditTextContext::updateRect(const Rect &outerRect, const Rect &textRect, short textX, short textY)
 {
-  this->presented_.invalidate();
+  const Rect previousRect = this->rect_;
+  const Rect previousPaintRect = this->paintRect_;
+
   rect_ = outerRect;
   this->paintRect_ = outerRect;
   if (this->controller() && !this->controller()->intersectWithProjectionClip(outerRect, this->paintRect_))
     SetRect(&this->paintRect_, 0, 0, 0, 0);
+  if (!EqualRect(&previousRect, &this->rect_) || !EqualRect(&previousPaintRect, &this->paintRect_) || !EqualRect(&this->textRect_, &textRect)
+      || this->textX_ != textX || this->textY_ != textY)
+    this->presented_.invalidate();
   textRect_ = textRect;
   textX_ = textX;
   textY_ = textY;
@@ -117,11 +122,11 @@ void ToolboxEditTextContext::updateRect(const Rect &outerRect, const Rect &textR
 
 void ToolboxEditTextContext::repaint(TEHandle te)
 {
+  ToolboxPaintClip clip(this->paintRect_);
+  if (clip.isActive() && !clip.touches(this->paintRect_))
+    return;
   this->presented_.invalidate();
   if (!te || !*te || !this->text_)
-    return;
-  ToolboxPaintClip clip(this->paintRect_);
-  if (!clip.isActive())
     return;
   const Rect view = (**te).viewRect;
   TEUpdate(&view, te);
@@ -132,13 +137,8 @@ void ToolboxEditTextContext::repaint(TEHandle te)
 
 void ToolboxEditTextContext::draw(ToolboxScenePlatformController *controller)
 {
-  this->presented_.invalidate();
-  if (!text_)
-  {
-    FrameRect(&rect_);
-    return;
-  }
-  if (controller)
+  // The render walk rebuilds native usage even for disjoint painters.
+  if (controller && this->text_)
   {
     TEHandle te = controller->ensureEditTextControl(this, textRect_, text_, lifetimeHint());
     if (te)
@@ -147,12 +147,16 @@ void ToolboxEditTextContext::draw(ToolboxScenePlatformController *controller)
       return;
     }
   }
-  FrameRect(&rect_);
-  DrawStringAt(textX_, textY_, text_->get());
-  if (controller)
+  ToolboxPaintClip clip(this->paintRect_);
+  if (!clip.isActive() || clip.touches(this->paintRect_))
   {
-    controller->recordEditHit(rect_, text_, boundary_, this);
+    this->presented_.invalidate();
+    FrameRect(&this->rect_);
+    if (this->text_)
+      DrawStringAt(this->textX_, this->textY_, this->text_->get());
   }
+  if (controller && this->text_)
+    controller->recordEditHit(rect_, text_, boundary_, this);
 }
 
 short ToolboxEditTextContext::layout(loka::app::scene::IPlatformController *controller,

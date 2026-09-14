@@ -322,6 +322,59 @@ namespace
     NodeState<RectSurfaceModel> model_;
   };
 
+  /** Both distant drawers share the Boundary whose answers are collected. */
+  template <bool Popup>
+  class HistoryNode : public StdCompositionBoundaryNodeBase<BoundaryPropsFor<HistoryNode<Popup> > >
+  {
+  public:
+    typedef BoundaryPropsFor<HistoryNode<Popup> > Props;
+    typedef typename Props::TypeTag TypeTag;
+    explicit HistoryNode(const Props &props) : StdCompositionBoundaryNodeBase<Props>(props)
+    {
+      this->state(this->first_, loka::core::String::Literal("AAAA"));
+      this->state(this->second_, loka::core::String::Literal("    "));
+      this->state(this->selection_, 0);
+      this->items_.push_back(loka::core::String::Literal("    "));
+      this->items_.push_back(loka::core::String::Literal("HHHH"));
+      RectSurfaceModel model;
+      model.rectCount = 1;
+      model.rects[0] = RectSprite(4, 4, 12, 12);
+      this->state(this->model_, model);
+    }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      Column drawers = Column() << Text(this->first_.state()).TEST_ID("History.A")
+                               << Box().size(150, 48);
+      if (Popup)
+        drawers << PopupMenu(this->items_).selectedIndex(this->selection_).TEST_ID("History.B");
+      else
+        drawers << Text(this->second_.state()).TEST_ID("History.B");
+      drawers << Box().size(150, 24)
+              << RectSurface(this->model_.state()).size(150, 24)
+                  .clearBackground(true).TEST_ID("History.Surface");
+      composition.declare(ZStack() << drawers);
+    }
+    void writeFirst()
+    {
+      loka::core::StateTrackerGuard guard(this->tracker());
+      this->first_.set(loka::core::String::Literal("HHHH"));
+    }
+    void writeSecond()
+    {
+      loka::core::StateTrackerGuard guard(this->tracker());
+      if (Popup)
+        this->selection_.set(1);
+      else
+        this->second_.set(loka::core::String::Literal("HHHH"));
+    }
+  private:
+    NodeState<loka::core::String> first_;
+    NodeState<loka::core::String> second_;
+    NodeState<int> selection_;
+    NodeState<RectSurfaceModel> model_;
+    loka::Vector<loka::core::String> items_;
+  };
+
   /** Snapshot two finite face rows in the fixture's window coordinates. */
   class PopupFaceRows
   {
@@ -491,7 +544,7 @@ namespace
   public:
     explicit PaintDamageConfig(PlatformContext *context)
         : AppConfigurable(context), app_(0), node_(0), composited_(0), edit_(0), log_(0), phase_(SETTLE), result_(0),
-          initial_(), marker_(), scrollTextMarker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0), cellWindow_(0), popupWindow_(0), overflowWindow_(0), imageWindow_(0), popupRow_(), editExact_(0), editExactWindow_(0), editZStack_(0), editZStackWindow_(0), popupExact_(0), popupExactWindow_(0), popupFaceRows_()
+          initial_(), marker_(), scrollTextMarker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0), cellWindow_(0), popupWindow_(0), overflowWindow_(0), imageWindow_(0), popupRow_(), editExact_(0), editExactWindow_(0), editZStack_(0), editZStackWindow_(0), popupExact_(0), popupExactWindow_(0), popupFaceRows_(), history_(0), historyWindow_(0), popupHistory_(0), popupHistoryWindow_(0)
     {
       if (loka::platform::file::ResolveApplicationSidecar(
               loka::file::File::Application() << loka::file::File("LOG.TXT"), this->file_))
@@ -571,12 +624,23 @@ namespace
                                    PopupExactProps(), &this->popupExact_))
                                .visible(false).idlePolicy(IdlePolicy::everyTick())
                                .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->popupExactWindow_);
+      composition << ObservedWindowDefinition(WindowProps().frame(350, 250, 220, 220).title("History replay")
+                               .scene(loka::scenario_tests::ObservedMainDefinition<HistoryNode<false>::Props, HistoryNode<false> >(
+                                   HistoryNode<false>::Props(), &this->history_))
+                               .visible(false).idlePolicy(IdlePolicy::everyTick())
+                               .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->historyWindow_);
+      composition << ObservedWindowDefinition(WindowProps().frame(350, 250, 220, 220).title("History replay")
+                               .scene(loka::scenario_tests::ObservedMainDefinition<HistoryNode<true>::Props, HistoryNode<true> >(
+                                   HistoryNode<true>::Props(), &this->popupHistory_))
+                               .visible(false).idlePolicy(IdlePolicy::everyTick())
+                               .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->popupHistoryWindow_);
     }
 
   private:
     enum Phase { SETTLE, WRITE, CHECK, PLAIN_WRITE, PLAIN_CHECK, INVALIDATED_WRITE, INVALIDATED_CHECK,
                  COMPOSITED_WRITE, COMPOSITED_CHECK, EDIT_WRITE, EDIT_CHECK, BOUNDS_SHOW, BOUNDS_CHECK, CELL_SHOW, CELL_REPLAY, CELL_CHECK,
-                 POPUP_SHOW, POPUP_REPLAY, POPUP_CHECK, OVERFLOW_SHOW, OVERFLOW_REPLAY, OVERFLOW_CHECK, IMAGE_SHOW, IMAGE_WRITE, IMAGE_CHECK, EDIT_EXACT_SHOW, EDIT_EXACT_WRITE, EDIT_EXACT_CHECK, EDIT_ZSTACK_SHOW, EDIT_ZSTACK_WRITE, EDIT_ZSTACK_CHECK, POPUP_EXACT_SHOW, POPUP_SIBLING_WRITE, POPUP_SIBLING_CHECK, POPUP_SELECTION_CHECK, COMPLETE };
+                 POPUP_SHOW, POPUP_REPLAY, POPUP_CHECK, OVERFLOW_SHOW, OVERFLOW_REPLAY, OVERFLOW_CHECK, IMAGE_SHOW, IMAGE_WRITE, IMAGE_CHECK, EDIT_EXACT_SHOW, EDIT_EXACT_WRITE, EDIT_EXACT_CHECK, EDIT_ZSTACK_SHOW, EDIT_ZSTACK_WRITE, EDIT_ZSTACK_CHECK, POPUP_EXACT_SHOW, POPUP_SIBLING_WRITE, POPUP_SIBLING_CHECK, POPUP_SELECTION_CHECK, HISTORY_SHOW, HISTORY_FIRST, HISTORY_SECOND, HISTORY_CHECK,
+                 POPUP_HISTORY_SHOW, POPUP_HISTORY_FIRST, POPUP_HISTORY_SECOND, POPUP_HISTORY_CHECK, COMPLETE };
     App *app_;
     ViewportDamageNode *node_;
     CompositedDamageNode *composited_;
@@ -609,6 +673,10 @@ namespace
     PopupExactNode *popupExact_;
     Window *popupExactWindow_;
     PopupFaceRows popupFaceRows_;
+    HistoryNode<false> *history_;
+    Window *historyWindow_;
+    HistoryNode<true> *popupHistory_;
+    Window *popupHistoryWindow_;
 
     void recordArm(const char *name, bool pass, Phase next)
     {
@@ -664,6 +732,12 @@ namespace
       case POPUP_EXACT_SHOW: case POPUP_SIBLING_WRITE: case POPUP_SIBLING_CHECK: case POPUP_SELECTION_CHECK:
         target = self->popupExactWindow_;
         break;
+      case HISTORY_SHOW: case HISTORY_FIRST: case HISTORY_SECOND: case HISTORY_CHECK:
+        target = self->historyWindow_;
+        break;
+      case POPUP_HISTORY_SHOW: case POPUP_HISTORY_FIRST: case POPUP_HISTORY_SECOND: case POPUP_HISTORY_CHECK:
+        target = self->popupHistoryWindow_;
+        break;
       case COMPLETE:
         return;
       }
@@ -693,6 +767,10 @@ namespace
         OnEditZStackIdle(target, self);
       else if (target == self->popupExactWindow_)
         OnPopupExactIdle(target, self);
+      else if (target == self->historyWindow_)
+        OnHistoryIdle(target, self->history_, self);
+      else if (target == self->popupHistoryWindow_)
+        OnHistoryIdle(target, self->popupHistory_, self);
       else if (target == self->imageWindow_)
         OnImageIdle(target, self);
       else
@@ -1475,8 +1553,95 @@ namespace
         self->recordArm("popup-detached-refuses",
                         context->queryPaintDamage(settled).kind == PAINT_ANSWER_REFUSED, COMPLETE);
         SetPort(previousPort);
-        self->finish(true);
+        self->phase_ = HISTORY_SHOW;
       }
+    }
+    template <bool Popup>
+    static void OnHistoryIdle(Window *window, HistoryNode<Popup> *node, PaintDamageConfig *self)
+    {
+      ToolboxWindow *native = window->asToolboxWindow();
+      if (self->phase_ == (Popup ? POPUP_HISTORY_SHOW : HISTORY_SHOW))
+      {
+        ShowWindow(native->window());
+        SelectWindow(native->window());
+        native->requestInvalidate();
+        self->phase_ = Popup ? POPUP_HISTORY_FIRST : HISTORY_FIRST;
+        return;
+      }
+      ToolboxScenePlatformController *controller = window->scene()
+          ? static_cast<ToolboxScenePlatformController *>(
+              loka::dsl::testing::SceneTestAccess::platformController(*window->scene())) : 0;
+      Node *second = 0;
+      Node *surface = 0;
+      loka::dsl::FlowError error;
+      loka::dsl::testing::LookupNodeById<Node>(window->scene(), "History.B", second, error);
+      loka::dsl::testing::LookupNodeById<Node>(window->scene(), "History.Surface", surface, error);
+      if (!controller || !node || !second || !second->getContext() || !surface || !surface->getContext())
+      {
+        self->finish(false);
+        return;
+      }
+      const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
+      if (self->phase_ == (Popup ? POPUP_HISTORY_FIRST : HISTORY_FIRST))
+      {
+        const PaintAnswer b = static_cast<NativeNodeContext *>(second->getContext())->queryPaintDamage(query);
+        const PaintAnswer sprite = static_cast<NativeNodeContext *>(surface->getContext())->queryPaintDamage(query);
+        if (b.kind != PAINT_ANSWER_EXACT || sprite.kind != PAINT_ANSWER_EXACT)
+        {
+          self->finish(false);
+          return;
+        }
+        SetRect(&self->editGeometry_.view, b.damage.x, b.damage.y,
+                b.damage.x + 36, b.damage.y + 14);
+        self->marker_.h = static_cast<short>(sprite.damage.x + 8);
+        self->marker_.v = static_cast<short>(sprite.damage.y + 8);
+        GrafPtr previousPort;
+        GetPort(&previousPort);
+        SetPort(native->window());
+        bool blank = true;
+        for (int y = b.damage.y + 3; y < b.damage.y + 11; ++y)
+          for (int x = b.damage.x + 4; x < b.damage.x + 36; ++x)
+            blank = GetPixel(static_cast<short>(x), static_cast<short>(y)) == 0 && blank;
+        const bool spriteVisible = GetPixel(self->marker_.h, self->marker_.v) != 0;
+        SetPort(previousPort);
+        self->recordArm(Popup ? "popup-history-setup" : "history-setup", blank && spriteVisible,
+                        Popup ? POPUP_HISTORY_SECOND : HISTORY_SECOND);
+        self->initial_ = controller->debugStatsForTesting();
+        node->writeFirst();
+        self->phase_ = Popup ? POPUP_HISTORY_SECOND : HISTORY_SECOND;
+        return;
+      }
+      if (self->phase_ == (Popup ? POPUP_HISTORY_SECOND : HISTORY_SECOND))
+      {
+        const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
+        const bool flushed = stats.totalRenderDirtyCalls > self->initial_.totalRenderDirtyCalls
+                             && stats.windowFullRequestCount == self->initial_.windowFullRequestCount;
+        self->recordArm(Popup ? "popup-history-first-clipped" : "history-first-clipped", flushed,
+                        Popup ? POPUP_HISTORY_CHECK : HISTORY_CHECK);
+        self->initial_ = stats;
+        node->writeSecond();
+        return;
+      }
+      GrafPtr previousPort;
+      GetPort(&previousPort);
+      SetPort(native->window());
+      const Rect &rect = self->editGeometry_.view;
+      bool ink = false;
+      for (int y = rect.top + 3; y < rect.bottom - 3; ++y)
+        for (int x = rect.left + 4; x < rect.left + 36; ++x)
+          ink = GetPixel(static_cast<short>(x), static_cast<short>(y)) != 0 || ink;
+      const bool sprite = GetPixel(self->marker_.h, self->marker_.v) != 0;
+      SetPort(previousPort);
+      const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
+      const int whole = stats.windowFullRequestCount - self->initial_.windowFullRequestCount;
+      const int rects = stats.windowRectRequestCount - self->initial_.windowRectRequestCount;
+      const char *name = Popup ? "popup-history-survives" : "history-survives-clipped-render";
+      std::fprintf(self->log_, "%s whole_window=%d rect_requests=%d sprite_preserved=%d new_text_visible=%d\r",
+                   name, whole, rects, sprite ? 1 : 0, ink ? 1 : 0);
+      self->recordArm(name, whole == 0 && rects >= 1 && sprite && ink,
+                      Popup ? COMPLETE : POPUP_HISTORY_SHOW);
+      if (Popup)
+        self->finish(true);
     }
     static void OnEditIdle(Window *window, double, void *data)
     {

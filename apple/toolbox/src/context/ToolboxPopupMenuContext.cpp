@@ -113,7 +113,9 @@ void ToolboxPopupMenuContext::updateData(const loka::Vector<loka::core::String> 
 
 void ToolboxPopupMenuContext::updateRect(const Rect &rect, short lineHeight)
 {
-  this->presented_.invalidate();
+  const Rect previousRect = this->rect_;
+  const Rect previousPaintRect = this->paintRect_;
+
   this->rect_ = rect;
   // The gray shadow occupies the right/bottom pixels outside the face's
   // half-open geometry. Only the paint bounds include that extra pixel.
@@ -123,6 +125,8 @@ void ToolboxPopupMenuContext::updateRect(const Rect &rect, short lineHeight)
   this->paintRect_ = paintBounds;
   if (this->controller() && !this->controller()->intersectWithProjectionClip(paintBounds, this->paintRect_))
     SetRect(&this->paintRect_, 0, 0, 0, 0);
+  if (!EqualRect(&previousRect, &this->rect_) || !EqualRect(&previousPaintRect, &this->paintRect_) || this->lineHeight_ != lineHeight)
+    this->presented_.invalidate();
   lineHeight_ = lineHeight;
 }
 
@@ -187,9 +191,12 @@ ToolboxPopupMenuContext::FaceValue ToolboxPopupMenuContext::faceValue() const
 
 void ToolboxPopupMenuContext::paintFace(const ToolboxPaintClip &clip)
 {
-  // Mirrors EditText: partial replay cannot establish completed presentation.
+  // Mirrors Text/EditText: disjoint replay preserves the completed fact;
+  // allocation refusal still draws under the caller's clip, without a commit.
+  if (clip.isActive() && !clip.touches(this->paintRect_))
+    return;
   this->presented_.invalidate();
-  if (!this->node_ || !clip.isActive())
+  if (!this->node_)
     return;
   const FaceValue face = this->faceValue();
   PenState penState;
