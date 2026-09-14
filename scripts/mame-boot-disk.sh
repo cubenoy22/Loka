@@ -1,0 +1,194 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+ENV_FILE="${MAME_ENV_FILE:-$PROJECT_DIR/.env-mame}"
+. "$SCRIPT_DIR/retro68-env.sh"
+
+loka_load_retro68_environment "$PROJECT_DIR"
+
+import_mame_environment() {
+  local path="$1"
+  loka_import_environment_file "$path"
+}
+
+normalize_host_path() {
+  local path="$1"
+  if [[ "$path" =~ ^[A-Za-z]:\\ ]] && command -v wslpath >/dev/null 2>&1; then
+    wslpath -u "$path"
+  else
+    printf '%s' "$path"
+  fi
+}
+
+PRESET_BOOT_HDA="${MAME_BOOT_HDA:-}"
+PRESET_CONTROL_DIR="${MAME_CONTROL_DIR:-}"
+if [ -f "$ENV_FILE" ]; then
+  import_mame_environment "$ENV_FILE"
+fi
+if [ -n "$PRESET_BOOT_HDA" ]; then
+  MAME_BOOT_HDA="$PRESET_BOOT_HDA"
+fi
+if [ -n "$PRESET_CONTROL_DIR" ]; then
+  MAME_CONTROL_DIR="$PRESET_CONTROL_DIR"
+fi
+
+MAME_MACHINE="${MAME_MACHINE:-macplus}"
+MAME_HDA="${MAME_HDA:-}"
+MAME_HOMEPATH="${MAME_HOMEPATH:-$HOME/.mame}"
+MAME_CONTROL_DIR="${MAME_CONTROL_DIR:-$MAME_HOMEPATH/loka}"
+MAME_BOOT_HDA="${MAME_BOOT_HDA:-$PROJECT_DIR/build/mame-run/$MAME_MACHINE/Boot.hd}"
+MAME_HDA="$(normalize_host_path "$MAME_HDA")"
+MAME_HOMEPATH="$(normalize_host_path "$MAME_HOMEPATH")"
+MAME_CONTROL_DIR="$(normalize_host_path "$MAME_CONTROL_DIR")"
+MAME_BOOT_HDA="$(normalize_host_path "$MAME_BOOT_HDA")"
+
+STAGE_ALL=0
+MACBINARY_PATHS=()
+PLAIN_DATA_PATHS=()
+
+if [ $# -ge 1 ] && { [ "$1" = "--all" ] || [ "$1" = "-a" ]; }; then
+  STAGE_ALL=1
+  RELEASE_BUILD_ROOT="$PROJECT_DIR/build/retro68/68k/Release/example"
+  ALL_APPS=(
+    "$RELEASE_BUILD_ROOT/HelloWorld/LokaHello68K.bin"
+    "$RELEASE_BUILD_ROOT/MineSweeper/LokaMine68K.bin"
+    "$RELEASE_BUILD_ROOT/SimpleViewer/LokaSimpleViewer68K.bin"
+    "$RELEASE_BUILD_ROOT/FloppyBird/LokaFloppyBird68K.bin"
+    "$RELEASE_BUILD_ROOT/SmirkBench/LokaSmirkBench68K.bin"
+    "$RELEASE_BUILD_ROOT/LazyList/LokaLazyList68K.bin"
+    "$RELEASE_BUILD_ROOT/Tutorial/LokaTutorial68K.bin"
+    "$RELEASE_BUILD_ROOT/ScrapbookUI/ScrapbookUI68K.bin"
+  )
+  for app in "${ALL_APPS[@]}"; do
+    if [ ! -f "$app" ]; then
+      echo "Error: Application binary not found: $app (build Retro68 68K first)" >&2
+      exit 1
+    fi
+    MACBINARY_PATHS+=("$app")
+  done
+  SCRAPBOOK_ASSETS="$PROJECT_DIR/example/ScrapbookUI/ASSETS.LRP"
+  if [ -f "$SCRAPBOOK_ASSETS" ]; then
+    PLAIN_DATA_PATHS+=("$SCRAPBOOK_ASSETS")
+  fi
+elif [ $# -ge 1 ]; then
+  MACBINARY_PATHS+=("$1")
+  shift
+  for plain_data_path in "$@"; do
+    if [ ! -f "$plain_data_path" ]; then
+      echo "Error: plain data file not found: $plain_data_path" >&2
+      exit 1
+    fi
+    PLAIN_DATA_PATHS+=("$plain_data_path")
+  done
+else
+  echo "Usage: $0 --all | <Retro68-MacBinary-file> [plain-data-file ...]" >&2
+  exit 2
+fi
+
+for bin in "${MACBINARY_PATHS[@]}"; do
+  if [ ! -f "$bin" ]; then
+    echo "Error: Retro68 MacBinary file not found: $bin" >&2
+    exit 1
+  fi
+done
+
+find_retro68_tool() {
+  local name="$1"
+  local candidate
+
+  if [ -n "${RETRO68_TOOLCHAIN_BIN:-}" ] \
+    && [ -x "$RETRO68_TOOLCHAIN_BIN/$name" ]; then
+    echo "$RETRO68_TOOLCHAIN_BIN/$name"
+    return
+  fi
+  if command -v "$name" >/dev/null 2>&1; then
+    command -v "$name"
+    return
+  fi
+  if [ -n "${RETRO68_BUILD_DIR:-}" ] \
+    && [ -x "$RETRO68_BUILD_DIR/toolchain/bin/$name" ]; then
+    echo "$RETRO68_BUILD_DIR/toolchain/bin/$name"
+    return
+  fi
+  for candidate in \
+    "$HOME/Retro68-build/toolchain/bin/$name" \
+    "$HOME/Documents/Projects/Retro68-build/toolchain/bin/$name"; do
+    if [ -x "$candidate" ]; then
+      echo "$candidate"
+      return
+    fi
+  done
+  echo "Error: Retro68 tool not found: $name" >&2
+  exit 1
+}
+
+HMOUNT="$(find_retro68_tool hmount)"
+HCOPY="$(find_retro68_tool hcopy)"
+HLS="$(find_retro68_tool hls)"
+HMKDIR="$(find_retro68_tool hmkdir)"
+HUMOUNT="$(find_retro68_tool humount)"
+HFS_HOME="$MAME_CONTROL_DIR/hfsutils"
+
+mkdir -p "$(dirname "$MAME_BOOT_HDA")" "$HFS_HOME"
+
+if [ ! -f "$MAME_BOOT_HDA" ]; then
+  if [ -z "$MAME_HDA" ] || [ ! -f "$MAME_HDA" ]; then
+    echo "Error: MAME_HDA must point to the boot hard disk template: $MAME_HDA" >&2
+    exit 1
+  fi
+  echo "Initializing boot copy from template: $MAME_HDA"
+  cp "$MAME_HDA" "$MAME_BOOT_HDA"
+  chmod u+w "$MAME_BOOT_HDA"
+  # The .source record must match what mame-run.sh writes and compares
+  # exactly (resolved template path, then lowercase SHA-256): a record made
+  # from the unresolved path reads as "template changed" on the next launch,
+  # and mame-run.sh would refresh the copy and discard everything staged here.
+  TEMPLATE_PATH="$(cd "$(dirname "$MAME_HDA")" && pwd -P)/$(basename "$MAME_HDA")"
+  while [ -L "$TEMPLATE_PATH" ]; do
+    TARGET="$(readlink "$TEMPLATE_PATH")"
+    case "$TARGET" in
+      /*) TEMPLATE_PATH="$TARGET" ;;
+      *) TEMPLATE_PATH="$(dirname "$TEMPLATE_PATH")/$TARGET" ;;
+    esac
+    TEMPLATE_PATH="$(cd "$(dirname "$TEMPLATE_PATH")" && pwd -P)/$(basename "$TEMPLATE_PATH")"
+  done
+  if command -v sha256sum >/dev/null 2>&1; then
+    TEMPLATE_SHA="$(sha256sum < "$TEMPLATE_PATH" | cut -d' ' -f1)"
+  else
+    TEMPLATE_SHA="$(shasum -a 256 < "$TEMPLATE_PATH" | cut -d' ' -f1)"
+  fi
+  printf '%s\n%s\n' "$TEMPLATE_PATH" "$TEMPLATE_SHA" > "$MAME_BOOT_HDA.source"
+fi
+
+chmod u+w "$MAME_BOOT_HDA"
+
+cleanup() {
+  HOME="$HFS_HOME" "$HUMOUNT" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+HOME="$HFS_HOME" "$HMOUNT" "$MAME_BOOT_HDA"
+
+DEST_DIR=":Loka:"
+if ! HOME="$HFS_HOME" "$HLS" -d :Loka >/dev/null 2>&1; then
+  HOME="$HFS_HOME" "$HMKDIR" :Loka
+fi
+
+for bin in "${MACBINARY_PATHS[@]}"; do
+  HOME="$HFS_HOME" "$HCOPY" -m "$bin" "$DEST_DIR"
+done
+
+for plain_data in "${PLAIN_DATA_PATHS[@]}"; do
+  HOME="$HFS_HOME" "$HCOPY" -r "$plain_data" "$DEST_DIR"
+done
+
+HOME="$HFS_HOME" "$HUMOUNT"
+trap - EXIT
+
+if [ "$STAGE_ALL" -eq 1 ]; then
+  echo "Staged all 68K applications to boot disk ($DEST_DIR): $MAME_BOOT_HDA"
+else
+  echo "Staged to boot disk ($DEST_DIR): $MAME_BOOT_HDA"
+fi

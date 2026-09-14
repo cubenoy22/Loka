@@ -84,6 +84,8 @@ include(CTest)
 if(NOT WIN32 AND NOT LOKA_CLASSIC_MAC)
   add_test(NAME scriptMameDevDisk
     COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MameDevDiskTest.sh)
+  add_test(NAME scriptMameBootDisk
+    COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MameBootDiskTest.sh)
 endif()
 
 foreach(_loka_invalid_performance_runs IN ITEMS abc ON 0 2 11)
