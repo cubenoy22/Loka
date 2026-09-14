@@ -1537,6 +1537,7 @@ void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
   }
   beginBatchUpdate();
   addPendingDirty(rect);
+  loka::core::StateTrackerGuard _(window_ ? window_->getTracker() : 0);
   mutableIndex->set(newIndex, true);
   if (onChange)
   {

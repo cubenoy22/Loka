@@ -1,12 +1,14 @@
 #include "MacPopupMenuContext.hpp"
 #include <cassert>
 #include "../MacScenePlatformController.hpp"
+#include "../MacWindow.hpp"
 #include "MacObjCCompat.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "platform/StringUTF8.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 
 namespace
 {
@@ -300,6 +302,8 @@ void MacPopupMenuContext::syncStateFromControl()
   }
   updatingFromControl_ = true;
   NSInteger index = [popup indexOfSelectedItem];
+  MacWindow *window = MacWindow::fromRootView(popup_);
+  loka::core::StateTrackerGuard _(window ? window->getTracker() : 0);
   mutableState->set(static_cast<int>(index), true);
   updatingFromControl_ = false;
   if (node_ && node_->props.onChange_)

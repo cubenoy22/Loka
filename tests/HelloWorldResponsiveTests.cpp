@@ -369,6 +369,17 @@ void testHelloWorldDerivedTextSeatsCoverInputsAndActions()
     fruitPicker->props.selectedIndex_->set(0);
   }
   LOKA_VERIFY(fruit->props.text_->get().equals(String::Literal("You chose Apple.")));
+  // PopupMenuProps receives this raw mutable dependency through
+  // NodeState::dangerouslyMutableState(). An idle rail write intentionally
+  // leaves DerivedState dirt queued until an owner transaction settles it.
+  loka::core::MutableState<int> *rawFruitIndex = fruitPicker->props.selectedIndex_;
+  rawFruitIndex->set(1, true);
+  LOKA_VERIFY(fruit->props.text_->get().equals(String::Literal("You chose Apple.")));
+  {
+    StateTrackerGuard guard(owner->tracker());
+    rawFruitIndex->set(2, true);
+  }
+  LOKA_VERIFY(fruit->props.text_->get().equals(String::Literal("You chose Cherry.")));
   probe->props.onClick_->emit();
   LOKA_VERIFY(summary->props.text_->get().equals(String::Literal("Button enabled: yes / clicks: 1")));
   toggle->props.onClick_->emit();
