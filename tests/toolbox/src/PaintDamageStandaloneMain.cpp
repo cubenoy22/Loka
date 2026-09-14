@@ -5,6 +5,8 @@
 #include "ObservedMainDefinition.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindow.hpp"
+#include "ToolboxLayoutMetrics.hpp"
+#include "context/ToolboxLayoutUtil.hpp"
 #include "app/core/AppComposition.hpp"
 #include "app/core/AppConfigurable.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
@@ -388,6 +390,65 @@ namespace
     NodeState<RectSurfaceModel> model_;
   };
 
+  class TextWidthNode;
+  typedef BoundaryPropsFor<TextWidthNode> TextWidthProps;
+  /** One Boundary owns a Row whose first Text grows wider; the Row seats its
+      Texts by flex allocation, so the sibling must keep its column. */
+  class TextWidthNode : public StdCompositionBoundaryNodeBase<TextWidthProps>
+  {
+  public:
+    typedef TextWidthProps::TypeTag TypeTag;
+    explicit TextWidthNode(const TextWidthProps &props)
+        : StdCompositionBoundaryNodeBase<TextWidthProps>(props), siblingBefore_(), siblingInk_(0)
+    {
+      this->state(this->first_, loka::core::String::Literal("II"));
+      RectSurfaceModel model;
+      model.rectCount = 1;
+      model.rects[0] = RectSprite(4, 4, 12, 12);
+      this->state(this->model_, model);
+    }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      composition.declare(Column()
+                          << (Row() << Text(this->first_.state()).TEST_ID("TextWidth.First")
+                                    << Text("Sibling").TEST_ID("TextWidth.Second")
+                                    << RectSurface(this->model_.state()).size(40, 40)
+                                        .clearBackground(true).TEST_ID("TextWidth.Surface")));
+    }
+    void advance()
+    {
+      loka::core::StateTrackerGuard guard(this->tracker());
+      this->first_.set(loka::core::String::Literal("MMMMMMMM"));
+    }
+    bool captureSibling(const PaintDamage &damage)
+    {
+      this->siblingBefore_ = damage;
+      this->siblingInk_ = 0;
+      // Unchanged EXACT answers retain x/y but have zero extent. Sample the
+      // default Text line, just as ButtonTitlePixels samples its title interior.
+      for (int y = 0; y < ToolboxLayoutMetrics::kDefaultLineHeight; ++y)
+        if (GetPixel(damage.x + 2, damage.y + y))
+          this->siblingInk_ |= 1UL << y;
+      return this->siblingInk_ != 0;
+    }
+    /** The sibling answers the same column and every captured ink pixel survives. */
+    bool siblingSeated(const PaintDamage &damage) const
+    {
+      if (damage.x != this->siblingBefore_.x || damage.y != this->siblingBefore_.y)
+        return false;
+      for (int y = 0; y < ToolboxLayoutMetrics::kDefaultLineHeight; ++y)
+        if ((this->siblingInk_ & (1UL << y)) && !GetPixel(damage.x + 2, damage.y + y))
+          return false;
+      return true;
+    }
+    short siblingColumn() const { return this->siblingBefore_.x; }
+  private:
+    NodeState<loka::core::String> first_;
+    NodeState<RectSurfaceModel> model_;
+    PaintDamage siblingBefore_;
+    unsigned long siblingInk_;
+  };
+
   /** Samples only the title interior, excluding the standard CDEF border. */
   class ButtonTitlePixels
   {
@@ -693,7 +754,7 @@ namespace
   public:
     explicit PaintDamageConfig(PlatformContext *context)
         : AppConfigurable(context), app_(0), node_(0), composited_(0), edit_(0), log_(0), phase_(SETTLE), result_(0),
-          initial_(), marker_(), scrollTextMarker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0), cellWindow_(0), popupWindow_(0), overflowWindow_(0), imageWindow_(0), popupRow_(), editExact_(0), editExactWindow_(0), editZStack_(0), editZStackWindow_(0), popupExact_(0), popupExactWindow_(0), popupFaceRows_(), history_(0), historyWindow_(0), popupHistory_(0), popupHistoryWindow_(0), buttonEnabled_(0), buttonEnabledWindow_(0), buttonLabel_(0), buttonLabelWindow_(0), buttonTitlePixels_(), offscreen_(0), offscreenWindow_(0)
+          initial_(), marker_(), scrollTextMarker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0), cellWindow_(0), popupWindow_(0), overflowWindow_(0), imageWindow_(0), popupRow_(), editExact_(0), editExactWindow_(0), editZStack_(0), editZStackWindow_(0), popupExact_(0), popupExactWindow_(0), popupFaceRows_(), history_(0), historyWindow_(0), popupHistory_(0), popupHistoryWindow_(0), buttonEnabled_(0), buttonEnabledWindow_(0), buttonLabel_(0), buttonLabelWindow_(0), buttonTitlePixels_(), textWidth_(0), textWidthWindow_(0), offscreen_(0), offscreenWindow_(0)
     {
       if (loka::platform::file::ResolveApplicationSidecar(
               loka::file::File::Application() << loka::file::File("LOG.TXT"), this->file_))
@@ -793,6 +854,11 @@ namespace
                                    ButtonExactProps(), &this->buttonLabel_))
                                .visible(false).idlePolicy(IdlePolicy::everyTick())
                                .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->buttonLabelWindow_);
+      composition << ObservedWindowDefinition(WindowProps().frame(350, 250, 260, 180).title("Text width refusal")
+                               .scene(loka::scenario_tests::ObservedMainDefinition<TextWidthProps, TextWidthNode>(
+                                   TextWidthProps(), &this->textWidth_))
+                               .visible(false).idlePolicy(IdlePolicy::everyTick())
+                               .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->textWidthWindow_);
       composition << ObservedWindowDefinition(WindowProps().frame(350, 250, 220, 180).title("Column overflow exact")
                                .scene(loka::scenario_tests::ObservedMainDefinition<OffscreenDamageProps, OffscreenDamageNode>(
                                    OffscreenDamageProps(), &this->offscreen_))
@@ -806,6 +872,7 @@ namespace
                  POPUP_SHOW, POPUP_REPLAY, POPUP_CHECK, OVERFLOW_SHOW, OVERFLOW_REPLAY, OVERFLOW_CHECK, IMAGE_SHOW, IMAGE_WRITE, IMAGE_CHECK, EDIT_EXACT_SHOW, EDIT_EXACT_WRITE, EDIT_EXACT_CHECK, EDIT_ZSTACK_SHOW, EDIT_ZSTACK_WRITE, EDIT_ZSTACK_CHECK, POPUP_EXACT_SHOW, POPUP_SIBLING_WRITE, POPUP_SIBLING_CHECK, POPUP_SELECTION_CHECK, HISTORY_SHOW, HISTORY_FIRST, HISTORY_SECOND, HISTORY_CHECK,
                  POPUP_HISTORY_SHOW, POPUP_HISTORY_FIRST, POPUP_HISTORY_SECOND, POPUP_HISTORY_CHECK, BUTTON_ENABLED_SHOW, BUTTON_ENABLED_WRITE, BUTTON_ENABLED_CHECK,
                  BUTTON_LABEL_SHOW, BUTTON_LABEL_WRITE, BUTTON_LABEL_CHECK,
+                 TEXT_WIDTH_SHOW, TEXT_WIDTH_WRITE, TEXT_WIDTH_CHECK,
                  OFFSCREEN_SHOW, OFFSCREEN_WRITE, OFFSCREEN_SIBLING_CHECK, OFFSCREEN_TEXT_CHECK, OFFSCREEN_HIDDEN_CHECK, OFFSCREEN_REVEAL_CHECK, OFFSCREEN_REVEALED_WRITE_CHECK, OFFSCREEN_DETACH_CHECK, COMPLETE };
     App *app_;
     ViewportDamageNode *node_;
@@ -848,6 +915,8 @@ namespace
     ButtonExactNode *buttonLabel_;
     Window *buttonLabelWindow_;
     ButtonTitlePixels buttonTitlePixels_;
+    TextWidthNode *textWidth_;
+    Window *textWidthWindow_;
     OffscreenDamageNode *offscreen_;
     Window *offscreenWindow_;
 
@@ -917,6 +986,9 @@ namespace
       case BUTTON_LABEL_SHOW: case BUTTON_LABEL_WRITE: case BUTTON_LABEL_CHECK:
         target = self->buttonLabelWindow_;
         break;
+      case TEXT_WIDTH_SHOW: case TEXT_WIDTH_WRITE: case TEXT_WIDTH_CHECK:
+        target = self->textWidthWindow_;
+        break;
       case OFFSCREEN_SHOW: case OFFSCREEN_WRITE: case OFFSCREEN_SIBLING_CHECK:
       case OFFSCREEN_TEXT_CHECK: case OFFSCREEN_HIDDEN_CHECK: case OFFSCREEN_REVEAL_CHECK: case OFFSCREEN_REVEALED_WRITE_CHECK: case OFFSCREEN_DETACH_CHECK:
         target = self->offscreenWindow_;
@@ -968,6 +1040,8 @@ namespace
         OnButtonIdle(target, self->buttonEnabled_, false, self);
       else if (target == self->buttonLabelWindow_)
         OnButtonIdle(target, self->buttonLabel_, true, self);
+      else if (target == self->textWidthWindow_)
+        OnTextWidthIdle(target, self->textWidth_, self);
       else if (target == self->imageWindow_)
         OnImageIdle(target, self);
       else
@@ -2017,6 +2091,77 @@ namespace
       }
     }
 
+    static void OnTextWidthIdle(Window *window, TextWidthNode *node, PaintDamageConfig *self)
+    {
+      ToolboxWindow *native = window->asToolboxWindow();
+      if (self->phase_ == TEXT_WIDTH_SHOW)
+      {
+        ShowWindow(native->window());
+        SelectWindow(native->window());
+        native->requestInvalidate();
+        self->phase_ = TEXT_WIDTH_WRITE;
+        return;
+      }
+      ToolboxScenePlatformController *controller = window->scene()
+          ? static_cast<ToolboxScenePlatformController *>(
+              loka::dsl::testing::SceneTestAccess::platformController(*window->scene())) : 0;
+      Node *first = 0;
+      Node *second = 0;
+      Node *surface = 0;
+      loka::dsl::FlowError error;
+      loka::dsl::testing::LookupNodeById<Node>(window->scene(), "TextWidth.First", first, error);
+      loka::dsl::testing::LookupNodeById<Node>(window->scene(), "TextWidth.Second", second, error);
+      loka::dsl::testing::LookupNodeById<Node>(window->scene(), "TextWidth.Surface", surface, error);
+      if (!controller || !node || !first || !first->getContext() || !second || !second->getContext()
+          || !surface || !surface->getContext())
+      {
+        self->finish(false);
+        return;
+      }
+      const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
+      NativeNodeContext *firstContext = static_cast<NativeNodeContext *>(first->getContext());
+      NativeNodeContext *secondContext = static_cast<NativeNodeContext *>(second->getContext());
+      GrafPtr previousPort;
+      GetPort(&previousPort);
+      SetPort(native->window());
+      const PaintAnswer sibling = secondContext->queryPaintDamage(query);
+      if (self->phase_ == TEXT_WIDTH_WRITE)
+      {
+        const PaintAnswer before = firstContext->queryPaintDamage(query);
+        const PaintAnswer sprite = static_cast<NativeNodeContext *>(surface->getContext())->queryPaintDamage(query);
+        const bool setup = before.kind == PAINT_ANSWER_EXACT && sibling.kind == PAINT_ANSWER_EXACT
+                           && sprite.kind == PAINT_ANSWER_EXACT
+                           && GetPixel(sprite.damage.x + 8, sprite.damage.y + 8)
+                           && node->captureSibling(sibling.damage)
+                           && ToolboxMeasureTextWidth(loka::core::String::Literal("MMMMMMMM"))
+                              > ToolboxMeasureTextWidth(loka::core::String::Literal("II"));
+        std::fprintf(self->log_, "row-text-seat-setup sibling_x=%d sibling_y=%d\r",
+                     sibling.damage.x, sibling.damage.y);
+        self->recordArm("row-text-seat-setup", setup, TEXT_WIDTH_CHECK);
+        self->initial_ = controller->debugStatsForTesting();
+        node->advance();
+        // The Row seats a Text by flex allocation, not by its measured value,
+        // so a wider value is exact paint inside the same seat: no refusal,
+        // and the damage stops before the sibling's column.
+        const PaintAnswer wider = firstContext->queryPaintDamage(query);
+        std::fprintf(self->log_, "row-text-wider-exact answer=%d reason=%d right=%d sibling_x=%d\r",
+                     static_cast<int>(wider.kind), static_cast<int>(wider.reason),
+                     wider.damage.x + wider.damage.width, static_cast<int>(node->siblingColumn()));
+        self->recordArm("row-text-wider-exact", wider.kind == PAINT_ANSWER_EXACT && wider.damage.width > 0
+                        && wider.damage.x + wider.damage.width <= node->siblingColumn(), TEXT_WIDTH_CHECK);
+        SetPort(previousPort);
+        return;
+      }
+      const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
+      const int whole = stats.windowFullRequestCount - self->initial_.windowFullRequestCount;
+      const int rects = stats.windowRectRequestCount - self->initial_.windowRectRequestCount;
+      const bool seated = sibling.kind == PAINT_ANSWER_EXACT && node->siblingSeated(sibling.damage);
+      SetPort(previousPort);
+      std::fprintf(self->log_, "row-text-sibling-seated whole_window=%d rect_requests=%d sibling_x=%d seated=%d\r",
+                   whole, rects, sibling.damage.x, seated ? 1 : 0);
+      self->recordArm("row-text-sibling-seated", whole == 0 && rects >= 1 && seated, OFFSCREEN_SHOW);
+    }
+
     static void OnButtonIdle(Window *window, ButtonExactNode *node, bool label, PaintDamageConfig *self)
     {
       ToolboxWindow *native = window->asToolboxWindow();
@@ -2103,7 +2248,7 @@ namespace
         controller->destroyButtonControl(911, NATIVE_HINT_DEFAULT);
         self->recordArm("button-native-retired-refuses",
                         context->queryPaintDamage(query).kind == PAINT_ANSWER_REFUSED, COMPLETE);
-        self->phase_ = OFFSCREEN_SHOW;
+        self->phase_ = TEXT_WIDTH_SHOW;
       }
     }
 
