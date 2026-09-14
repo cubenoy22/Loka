@@ -2167,7 +2167,7 @@ void ToolboxScenePlatformController::redrawPopupHit(const PopupHit &hit)
   LineTo(hit.rect.right, hit.rect.bottom);
   LineTo(hit.rect.right, hit.rect.top + 2);
   SetPenState(&penState);
-  short textY = static_cast<short>(hit.rect.top + hit.lineHeight - 2);
+  short textY = static_cast<short>(hit.rect.top + hit.lineHeight - ToolboxLayoutMetrics::kControlAscentInset);
   DrawStringAt(static_cast<short>(hit.rect.left + 4), textY, label);
   short arrowRight = static_cast<short>(hit.rect.right - 4);
   short arrowTop = static_cast<short>(hit.rect.top + 4);

@@ -65,7 +65,7 @@ short ToolboxScrollBarContext::layout(loka::app::scene::IPlatformController *con
   const short thickness = static_cast<short>(loka::app::SCROLL_BAR_THICKNESS);
   Rect rect;
   rect.left = state.x;
-  rect.top = static_cast<short>(state.y - state.lineHeight + 2);
+  rect.top = state.y;
   short usedWidth = thickness;
   if (node_->props.orientation_ == loka::app::SCROLL_BAR_HORIZONTAL)
   {

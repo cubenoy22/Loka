@@ -136,16 +136,18 @@ short ToolboxEditTextContext::layout(loka::app::scene::IPlatformController *cont
   short width = 120;
   Rect rect;
   rect.left = state.x;
-  rect.top = static_cast<short>(state.y - state.lineHeight + ToolboxLayoutMetrics::kControlAscentInset);
+  rect.top = state.y;
   rect.right = static_cast<short>(state.x + width + 3);
-  rect.bottom = static_cast<short>(state.y + ToolboxLayoutMetrics::kEditTextDescent);
+  rect.bottom = static_cast<short>(state.y + state.lineHeight - ToolboxLayoutMetrics::kControlAscentInset
+                                   + ToolboxLayoutMetrics::kEditTextDescent);
   Rect textRect = rect;
   textRect.left = static_cast<short>(textRect.left + 1);
   textRect.top = static_cast<short>(textRect.top + 2);
   textRect.right = static_cast<short>(textRect.right - 1);
   textRect.bottom = static_cast<short>(textRect.bottom - 1);
   this->captureProps();
-  updateRect(rect, textRect, static_cast<short>(state.x + 4), state.y);
+  updateRect(rect, textRect, static_cast<short>(state.x + 4),
+             static_cast<short>(state.y + state.lineHeight - ToolboxLayoutMetrics::kControlAscentInset));
   state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
   return width;
 }

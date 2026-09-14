@@ -6,7 +6,8 @@ struct ToolboxLayoutMetrics
 {
   static const short kDefaultLineHeight = 12;
   static const short kImageFallbackHeight = 80;
-  /** Baseline controls paint from y - lineHeight + ascentInset to y + descent. */
+  /** LayoutState.y is the top edge of the node's box on every rail;
+   * baseline nodes draw their text at y + lineHeight - kControlAscentInset. */
   static const short kControlAscentInset = 2;
   static const short kControlDescent = 6;
   static const short kEditTextDescent = 8;

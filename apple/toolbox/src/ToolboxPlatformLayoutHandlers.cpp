@@ -357,12 +357,8 @@ int ComputeToolboxRowLayout(loka::app::StackNode *row,
           offset = remain;
         }
       }
-      // Controls receive a baseline; images and surfaces receive their painted top.
-      const short baselineOffset = child->asButtonNode() || child->asEditTextNode()
-                                       || child->asPopupMenuNode() || child->asTextNode()
-                                       ? controlAscent
-                                       : 0;
-      rowState.y = static_cast<short>(state.y + offset + baselineOffset);
+      // Every child receives its painted box top, including text controls.
+      rowState.y = static_cast<short>(state.y + offset);
       rowState.height = childHeight;
     }
     DispatchTraversalLayoutChild(traversal, child, rowState);
@@ -378,9 +374,8 @@ int ComputeToolboxRowLayout(loka::app::StackNode *row,
   }
   if (row->props.hasVerticalAlignment_)
   {
-    // An aligned row's extent is the painted box it measured. A baseline
-    // control advances from the baseline it was handed (baseline + lineHeight
-    // + spacing), which would fold the ascent into the row's extent twice.
+    // An aligned row's extent is the painted box it measured; child advances
+    // include spacing and need not equal their painted heights.
     maxHeight = rowHeight;
   }
   traversal->setLayoutResultY(static_cast<short>(state.y + maxHeight + state.spacing));
