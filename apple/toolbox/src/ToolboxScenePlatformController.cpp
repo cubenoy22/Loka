@@ -59,7 +59,8 @@ namespace
   {
     return key == loka::app::scene::NodeTypeToken<loka::app::RectSurfaceNode>()
            || key == loka::app::scene::NodeTypeToken<loka::app::ButtonNode>()
-           || key == loka::app::scene::NodeTypeToken<loka::app::TextNode>();
+           || key == loka::app::scene::NodeTypeToken<loka::app::TextNode>()
+           || key == loka::app::scene::NodeTypeToken<loka::app::EditTextNode>();
   }
 
   struct ToolboxPaintAnswerSource
@@ -103,8 +104,8 @@ namespace
       case NODE_KIND_IMAGE_VIEW:
         break;
       }
-      // In particular, a TE data sync or a Popup ledger refresh is not a
-      // completed Control Manager/TE paint submission. Preserve widening.
+      // A ledger refresh alone is not a completed paint submission. Drawers
+      // without their own exact answer (including Popup) preserve widening.
       answer = PaintAnswer::refused(context ? PAINT_REFUSED_UNSUPPORTED_KIND : PAINT_REFUSED_NO_CONTEXT);
       return true;
     }
@@ -2246,12 +2247,7 @@ void ToolboxScenePlatformController::clearControls()
   scrollBarLedger_.viewportScrollBars_.clear();
   for (size_t i = 0; i < editControls_.size(); ++i)
   {
-    if (editControls_[i].te)
-    {
-      TEDeactivate(editControls_[i].te);
-      queueRetiredTextEdit(editControls_[i].te, editControls_[i].lifetimeHint);
-      editControls_[i].te = 0;
-    }
+    this->retireEditTextBinding(this->editControls_[i], this->editControls_[i].lifetimeHint);
   }
   editControls_.clear();
 }
@@ -2661,18 +2657,27 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(ToolboxEditTextCo
   return binding ? binding->te : 0;
 }
 
-void ToolboxScenePlatformController::retireEditTextControlAt(
-    std::size_t index,
+void ToolboxScenePlatformController::retireEditTextBinding(
+    EditTextControlBinding &binding,
     loka::app::scene::NativeLifetimeHint lifetimeHint)
 {
-  EditTextControlBinding &binding = editControls_[index];
-  loka::core::State<loka::core::String> *retiredText = binding.text;
+  if (binding.ownerContext)
+    binding.ownerContext->invalidateNativePresentation();
   if (binding.te)
   {
     TEDeactivate(binding.te);
     queueRetiredTextEdit(binding.te, lifetimeHint);
     binding.te = 0;
   }
+}
+
+void ToolboxScenePlatformController::retireEditTextControlAt(
+    std::size_t index,
+    loka::app::scene::NativeLifetimeHint lifetimeHint)
+{
+  EditTextControlBinding &binding = editControls_[index];
+  loka::core::State<loka::core::String> *retiredText = binding.text;
+  this->retireEditTextBinding(binding, lifetimeHint);
   editControls_.erase(index);
   if (retiredText && !this->hasLiveBinding(retiredText))
   {
