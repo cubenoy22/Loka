@@ -1,7 +1,7 @@
 // SIZE partition for the paint-damage standalone pin bundle (#766).
 //
-// LokaPaintDamage68K mounts one hidden window per pinned arm (twenty as of
-// #766), each with its own scene, so it stopped fitting in the HelloWorld
+// LokaPaintDamage68K composes eighteen windows (fourteen of them hidden, as
+// of #770), each with its own scene, so it stopped fitting in the HelloWorld
 // shipping partition it used to borrow (memFullErr, "type 25", before the
 // first arm ran). This is a pin vehicle, not an example: it gets its own
 // budget so adding an arm never measures the ceiling instead of the arm.

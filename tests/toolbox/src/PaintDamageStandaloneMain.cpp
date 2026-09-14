@@ -872,7 +872,7 @@ namespace
                  POPUP_SHOW, POPUP_REPLAY, POPUP_CHECK, OVERFLOW_SHOW, OVERFLOW_REPLAY, OVERFLOW_CHECK, IMAGE_SHOW, IMAGE_WRITE, IMAGE_CHECK, EDIT_EXACT_SHOW, EDIT_EXACT_WRITE, EDIT_EXACT_CHECK, EDIT_ZSTACK_SHOW, EDIT_ZSTACK_WRITE, EDIT_ZSTACK_CHECK, POPUP_EXACT_SHOW, POPUP_SIBLING_WRITE, POPUP_SIBLING_CHECK, POPUP_SELECTION_CHECK, HISTORY_SHOW, HISTORY_FIRST, HISTORY_SECOND, HISTORY_CHECK,
                  POPUP_HISTORY_SHOW, POPUP_HISTORY_FIRST, POPUP_HISTORY_SECOND, POPUP_HISTORY_CHECK, BUTTON_ENABLED_SHOW, BUTTON_ENABLED_WRITE, BUTTON_ENABLED_CHECK,
                  BUTTON_LABEL_SHOW, BUTTON_LABEL_WRITE, BUTTON_LABEL_CHECK,
-                 TEXT_WIDTH_SHOW, TEXT_WIDTH_WRITE, TEXT_WIDTH_CHECK,
+                 TEXT_WIDTH_SHOW, TEXT_WIDTH_WRITE, TEXT_WIDTH_CHECK, TEXT_WIDTH_RELAYOUT,
                  OFFSCREEN_SHOW, OFFSCREEN_WRITE, OFFSCREEN_SIBLING_CHECK, OFFSCREEN_TEXT_CHECK, OFFSCREEN_HIDDEN_CHECK, OFFSCREEN_REVEAL_CHECK, OFFSCREEN_REVEALED_WRITE_CHECK, OFFSCREEN_DETACH_CHECK, COMPLETE };
     App *app_;
     ViewportDamageNode *node_;
@@ -986,7 +986,7 @@ namespace
       case BUTTON_LABEL_SHOW: case BUTTON_LABEL_WRITE: case BUTTON_LABEL_CHECK:
         target = self->buttonLabelWindow_;
         break;
-      case TEXT_WIDTH_SHOW: case TEXT_WIDTH_WRITE: case TEXT_WIDTH_CHECK:
+      case TEXT_WIDTH_SHOW: case TEXT_WIDTH_WRITE: case TEXT_WIDTH_CHECK: case TEXT_WIDTH_RELAYOUT:
         target = self->textWidthWindow_;
         break;
       case OFFSCREEN_SHOW: case OFFSCREEN_WRITE: case OFFSCREEN_SIBLING_CHECK:
@@ -2152,14 +2152,29 @@ namespace
         SetPort(previousPort);
         return;
       }
-      const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
-      const int whole = stats.windowFullRequestCount - self->initial_.windowFullRequestCount;
-      const int rects = stats.windowRectRequestCount - self->initial_.windowRectRequestCount;
-      const bool seated = sibling.kind == PAINT_ANSWER_EXACT && node->siblingSeated(sibling.damage);
+      if (self->phase_ == TEXT_WIDTH_CHECK)
+      {
+        const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
+        const int whole = stats.windowFullRequestCount - self->initial_.windowFullRequestCount;
+        const int rects = stats.windowRectRequestCount - self->initial_.windowRectRequestCount;
+        const bool seated = sibling.kind == PAINT_ANSWER_EXACT && node->siblingSeated(sibling.damage);
+        SetPort(previousPort);
+        std::fprintf(self->log_, "row-text-sibling-seated whole_window=%d rect_requests=%d sibling_x=%d seated=%d\r",
+                     whole, rects, sibling.damage.x, seated ? 1 : 0);
+        self->recordArm("row-text-sibling-seated", whole == 0 && rects >= 1 && seated, TEXT_WIDTH_RELAYOUT);
+        // The dirty replay above ran no Row layout, so the sibling's column was
+        // still its pre-write placement. Force a full render, which lays the
+        // Row out again with the wider value, and check the seat once more.
+        native->requestInvalidate();
+        return;
+      }
+      const bool relaid = sibling.kind == PAINT_ANSWER_EXACT && node->siblingSeated(sibling.damage);
+      const PaintAnswer wider = firstContext->queryPaintDamage(query);
       SetPort(previousPort);
-      std::fprintf(self->log_, "row-text-sibling-seated whole_window=%d rect_requests=%d sibling_x=%d seated=%d\r",
-                   whole, rects, sibling.damage.x, seated ? 1 : 0);
-      self->recordArm("row-text-sibling-seated", whole == 0 && rects >= 1 && seated, OFFSCREEN_SHOW);
+      std::fprintf(self->log_, "row-text-relayout-keeps-seat sibling_x=%d seated=%d first_right=%d\r",
+                   sibling.damage.x, relaid ? 1 : 0, wider.damage.x + wider.damage.width);
+      self->recordArm("row-text-relayout-keeps-seat", relaid && wider.kind == PAINT_ANSWER_EXACT
+                      && wider.damage.x + wider.damage.width <= node->siblingColumn(), OFFSCREEN_SHOW);
     }
 
     static void OnButtonIdle(Window *window, ButtonExactNode *node, bool label, PaintDamageConfig *self)
