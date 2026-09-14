@@ -130,6 +130,7 @@ void ToolboxRectSurfaceContext::render(loka::app::scene::IPlatformController *)
       return;
     }
   }
+  ToolboxPaintClip clip(this->paintRect_);
   if (node_->props.clearBackground_)
   {
     EraseRect(&rect_);
@@ -140,13 +141,8 @@ void ToolboxRectSurfaceContext::render(loka::app::scene::IPlatformController *)
     Rect spriteRect = rectForSprite(model.rects[i]);
     PaintRect(&spriteRect);
   }
-  this->presented_.invalidate();
-  if (this->tempRgn_)
-  {
-    GetClip(this->tempRgn_);
-    if (ToolboxPaintClipCovers(this->tempRgn_, this->paintRect_))
-      this->presented_.commit(model, ToolboxPaintScope());
-  }
+  if (clip.isActive() && clip.covers(this->paintRect_))
+    this->presented_.commit(model, ToolboxPaintScope());
 }
 
 void ToolboxRectSurfaceContext::renderDirty(const Rect &requestedDirtyRect)
