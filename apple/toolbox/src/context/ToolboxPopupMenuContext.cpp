@@ -82,6 +82,8 @@ loka::app::scene::PaintAnswer ToolboxPopupMenuContext::queryPaintDamage(
       || this->selectedIndex_ != this->node_->props.selectedIndex_
       || this->enabled_ != this->node_->props.enabled_)
     return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
+  if (ToolboxPaintIsClippedOut(this->rect_, this->paintRect_, this->deliveredFact()))
+    return ToolboxExactPaint(this->paintRect_, false);
   if (EmptyRect(&this->paintRect_))
     return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
   if (!this->presented_.isKnown())

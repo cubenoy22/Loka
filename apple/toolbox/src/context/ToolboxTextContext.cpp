@@ -224,6 +224,8 @@ loka::app::scene::PaintAnswer ToolboxTextContext::queryPaintDamage(
     return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
   if (!this->node_ || !this->text_ || this->node_->props.text_ != this->text_)
     return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
+  if (ToolboxPaintIsClippedOut(this->rect_, this->paintRect_, this->deliveredFact()))
+    return ToolboxExactPaint(this->paintRect_, false);
   if (!this->presented_.isKnown())
     return PaintAnswer::refused(PAINT_REFUSED_HISTORY_UNKNOWN);
   loka::core::State<loka::core::String> *live = this->liveTextState();
