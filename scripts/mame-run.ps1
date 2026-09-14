@@ -6,6 +6,7 @@ $ErrorActionPreference = "Stop"
 
 $ScriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDirectory = Split-Path -Parent $ScriptDirectory
+. (Join-Path $ScriptDirectory "mame-boot-copy.ps1")
 if (-not $EnvironmentFile) {
     $EnvironmentFile = if ($env:MAME_ENV_FILE) {
         $env:MAME_ENV_FILE
@@ -63,117 +64,8 @@ $bootDisk = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSP
 New-Item -ItemType Directory -Path $mameHome -Force | Out-Null
 New-Item -ItemType Directory -Path $controlDirectory -Force | Out-Null
 
-# Mirrors mame-run.sh: MAME writes back to whatever it boots, so never hand it
-# MAME_HDA itself. That image is the Classic rail's template, and the pixels the
-# goldens are made of live inside it. Boot a copy under build/ instead. The copy
-# persists so an interactive session keeps its state; wiping build/ resets it.
-function Resolve-FileIdentity([string]$Path) {
-    # Same path spelled twice, and symlink chains. NTFS hard links share a file
-    # id that Windows PowerShell cannot read without extra tooling, so that case
-    # is caught by the shell twin's -ef test rather than here.
-    $full = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
-    $item = Get-Item -LiteralPath $full -Force -ErrorAction SilentlyContinue
-    while ($item -and ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
-        $target = $item.Target
-        if (-not $target) { break }
-        if (-not [System.IO.Path]::IsPathRooted($target)) {
-            $target = Join-Path (Split-Path -Parent $full) $target
-        }
-        $full = [System.IO.Path]::GetFullPath($target)
-        $item = Get-Item -LiteralPath $full -Force -ErrorAction SilentlyContinue
-    }
-    return [System.IO.Path]::GetFullPath($full).TrimEnd([char[]]"\/")
-}
-
 if ($env:MAME_HDA) {
-    if (-not (Test-Path -LiteralPath $env:MAME_HDA -PathType Leaf)) {
-        throw "boot hard disk template not found: $($env:MAME_HDA)"
-    }
-    New-Item -ItemType Directory -Path (Split-Path -Parent $bootDisk) -Force | Out-Null
-    # An alias defeats the whole point: the existence check would pass and
-    # -hard1 would name the template after all.
-    if ((Test-Path -LiteralPath $bootDisk) -and
-        ((Resolve-FileIdentity $bootDisk) -ieq (Resolve-FileIdentity $env:MAME_HDA))) {
-        throw "MAME_BOOT_HDA resolves to the boot template itself: $bootDisk"
-    }
-    # Deliberate twin of mame-run.sh: UTF-8 without BOM, two LF-terminated
-    # lines (resolved path, lowercase SHA-256). Hash the template every launch.
-    $templatePath = Resolve-FileIdentity $env:MAME_HDA
-    $templateSha = (Get-FileHash -LiteralPath $templatePath -Algorithm SHA256).Hash.ToLowerInvariant()
-    $source = "$bootDisk.source"
-    $oldSource = @(if (Test-Path -LiteralPath $source -PathType Leaf) {
-        @([System.IO.File]::ReadAllLines($source))
-    } else { @() })
-    # SHA is the primary key. Malformed recorded paths are cache misses.
-    $oldTemplatePath = if ($oldSource.Count -eq 2 -and $oldSource[1] -ceq $templateSha) {
-        try { Resolve-FileIdentity $oldSource[0] } catch { $null }
-    }
-    $previous = "$bootDisk.previous"
-    if ((Test-Path -LiteralPath $previous) -or (Test-Path -LiteralPath "$source.previous") -or
-        (Test-Path -LiteralPath $bootDisk -PathType Container) -or
-        (Test-Path -LiteralPath $source -PathType Container)) {
-        throw "boot copy: refresh failed (destination or recovery path needs attention)"
-    }
-    $reason = if (-not (Test-Path -LiteralPath $bootDisk -PathType Leaf)) {
-        "copy missing"
-    } elseif (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
-        "source missing"
-    # Format is shared with mame-run.sh; Windows identity is deliberately
-    # SHA-first, then full paths without trailing separators, ignoring case.
-    } elseif ($oldSource.Count -ne 2 -or $oldSource[1] -cne $templateSha -or
-              $oldTemplatePath -ine $templatePath) {
-        "template changed: $($oldSource | Select-Object -First 1) $([char]0x2192) $templatePath"
-    }
-    if ($reason) {
-        $partial = "$bootDisk.partial"
-        $phase = "staging"
-        try {
-            [System.IO.File]::WriteAllText("$source.partial", "$templatePath`n$templateSha`n",
-                (New-Object System.Text.UTF8Encoding($false)))
-            Copy-Item -LiteralPath $templatePath -Destination $partial -Force
-            if (Test-Path -LiteralPath $source -PathType Leaf) {
-                Copy-Item -LiteralPath $source -Destination "$source.previous" -Force
-            }
-            if (Test-Path -LiteralPath $bootDisk) {
-                Move-Item -LiteralPath $bootDisk -Destination $previous -Force
-            }
-            $phase = "backed-up"
-            Move-Item -LiteralPath $partial -Destination $bootDisk -Force
-            $phase = "installed"
-            Move-Item -LiteralPath "$source.partial" -Destination $source -Force
-            $phase = "published"
-            if (Test-Path -LiteralPath $previous) { Remove-Item -LiteralPath $previous -Force }
-            $phase = "complete"
-        } catch {
-            # If rollback itself fails, retain recovery files and refuse launch.
-            if (Test-Path -LiteralPath $previous) {
-                Move-Item -LiteralPath $previous -Destination $bootDisk -Force
-            } elseif ($phase -eq "installed" -or $phase -eq "published") {
-                Remove-Item -LiteralPath $bootDisk -Force
-            }
-            if ($phase -eq "published") {
-                if (Test-Path -LiteralPath "$source.previous" -PathType Leaf) {
-                    Move-Item -LiteralPath "$source.previous" -Destination $source -Force
-                } else { Remove-Item -LiteralPath $source -Force }
-            }
-            Remove-Item -LiteralPath $partial, "$source.partial", "$source.previous" -Force -ErrorAction SilentlyContinue
-            if ($phase -eq "staging") {
-                Write-Host "boot copy: refresh failed (previous copy unchanged)"
-            } else {
-                Write-Host "boot copy: refresh failed (previous copy restored)"
-            }
-            throw
-        }
-        Remove-Item -LiteralPath "$source.previous" -Force -ErrorAction SilentlyContinue
-        Write-Host "boot copy: refreshed ($reason)"
-    } else {
-        Write-Host "boot copy: reused (same template)"
-    }
-    # Unconditional, not part of the copy: a copy this run did not make can be
-    # read-only too -- one an earlier launcher left behind, or one restored from
-    # a read-only source. MAME needs to write to it either way, and normalising
-    # the attribute leaves the persisted session state untouched.
-    Set-ItemProperty -LiteralPath $bootDisk -Name IsReadOnly -Value $false
+    Prepare-LokaBootCopy $env:MAME_HDA $bootDisk
 }
 # Keep launcher policy aligned with mame-run.sh; only shell mechanics differ.
 $mameArguments = @(

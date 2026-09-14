@@ -27,6 +27,13 @@ cat > "$SANDBOX/bin/hcopy" <<'EOF'
 printf 'hcopy' >> "$MAME_BOOT_DISK_TEST_LOG"
 printf ' <%s>' "$@" >> "$MAME_BOOT_DISK_TEST_LOG"
 printf '\n' >> "$MAME_BOOT_DISK_TEST_LOG"
+if [ -n "${MAME_BOOT_DISK_FAIL_HCOPY_COUNTER:-}" ]; then
+  count=0
+  [ -f "$MAME_BOOT_DISK_FAIL_HCOPY_COUNTER" ] && count="$(cat "$MAME_BOOT_DISK_FAIL_HCOPY_COUNTER")"
+  count=$((count + 1))
+  printf '%s\n' "$count" > "$MAME_BOOT_DISK_FAIL_HCOPY_COUNTER"
+  [ "$count" -eq 2 ] && exit 1
+fi
 EOF
 
 cat > "$SANDBOX/bin/hls" <<'EOF'
@@ -70,7 +77,7 @@ run_case() {
 }
 
 run_case single-app "$SANDBOX/app.bin"
-grep -Fx "hmount <$SANDBOX/single-app.hd>" "$SANDBOX/single-app.log" >/dev/null ||
+grep -Fx "hmount <$SANDBOX/single-app.hd.staging>" "$SANDBOX/single-app.log" >/dev/null ||
   fail "single-app hmount failed"
 grep -Fx "hcopy <-m> <$SANDBOX/app.bin> <:Loka:>" "$SANDBOX/single-app.log" >/dev/null ||
   fail "single-app hcopy failed"
@@ -106,5 +113,35 @@ RESOLVED_TEMPLATE="$(cd "$SANDBOX" && pwd -P)/boot-template.hd"
 TEMPLATE_SHA="$(sha256sum < "$SANDBOX/boot-template.hd" | cut -d' ' -f1)"
 printf '%s\n%s\n' "$RESOLVED_TEMPLATE" "$TEMPLATE_SHA" | cmp -s - "$SANDBOX/fresh-copy.hd.source" ||
   fail ".source record does not match mame-run.sh's resolved-path format: $(cat "$SANDBOX/fresh-copy.hd.source")"
+
+# A stale source record refreshes the disk before hmount sees the staging copy.
+printf 'STALE-DISK' > "$SANDBOX/stale-copy.hd"
+printf 'wrong\nsource\n' > "$SANDBOX/stale-copy.hd.source"
+run_case stale-copy "$SANDBOX/app.bin"
+printf '%s\n%s\n' "$RESOLVED_TEMPLATE" "$TEMPLATE_SHA" | cmp -s - "$SANDBOX/stale-copy.hd.source" || fail "stale source was not refreshed"
+grep -Fx "hmount <$SANDBOX/stale-copy.hd.staging>" "$SANDBOX/stale-copy.log" >/dev/null || fail "stale refresh did not mount staging"
+cmp -s "$SANDBOX/stale-copy.hd" "$SANDBOX/boot-template.hd" || fail "stale copy was not refreshed before staging"
+
+# Alias refusal happens before chmod or hmount, preserving the template.
+ln -s "$SANDBOX/boot-template.hd" "$SANDBOX/alias.hd"
+if MAME_BOOT_DISK_TEST_LOG="$SANDBOX/alias.log" MAME_ENV_FILE="$SANDBOX/missing.env" MAME_MACHINE="macplus" MAME_HDA="$SANDBOX/boot-template.hd" MAME_HOMEPATH="$SANDBOX/home" MAME_BOOT_HDA="$SANDBOX/alias.hd" RETRO68_TOOLCHAIN_BIN="$SANDBOX/bin" /bin/bash "$SUBJECT" "$SANDBOX/app.bin" >/dev/null 2>&1; then
+  fail "alias unexpectedly succeeded"
+fi
+[ ! -s "$SANDBOX/alias.log" ] || fail "alias reached hmount"
+cmp -s "$SANDBOX/boot-template.hd" <(printf 'boot-template\n') || fail "alias changed template"
+
+# A failed second copy discards staging and preserves the prepared disk.
+printf 'PREVIOUS-DISK' > "$SANDBOX/partial-failure.hd"
+printf '%s\n%s\n' "$RESOLVED_TEMPLATE" "$TEMPLATE_SHA" > "$SANDBOX/partial-failure.hd.source"
+cp "$SANDBOX/partial-failure.hd" "$SANDBOX/partial-before"
+if MAME_BOOT_DISK_FAIL_HCOPY_COUNTER="$SANDBOX/hcopy-count" MAME_BOOT_DISK_TEST_LOG="$SANDBOX/partial-failure.log" MAME_ENV_FILE="$SANDBOX/missing.env" MAME_MACHINE="macplus" MAME_HDA="$SANDBOX/boot-template.hd" MAME_HOMEPATH="$SANDBOX/home" MAME_BOOT_HDA="$SANDBOX/partial-failure.hd" RETRO68_TOOLCHAIN_BIN="$SANDBOX/bin" /bin/bash "$SUBJECT" "$SANDBOX/app.bin" "$SANDBOX/second-data" >/dev/null 2>&1; then
+  fail "partial failure unexpectedly succeeded"
+fi
+cmp -s "$SANDBOX/partial-before" "$SANDBOX/partial-failure.hd" || fail "partial failure changed boot disk"
+[ ! -e "$SANDBOX/partial-failure.hd.staging" ] || fail "partial failure left staging"
+
+# Successful staging publishes after unmount and leaves no staging image.
+[ ! -e "$SANDBOX/single-app.hd.staging" ] || fail "successful staging left staging"
+cmp -s "$SANDBOX/single-app.hd" "$SANDBOX/boot-template.hd" || fail "successful staging did not publish the image"
 
 printf 'ok: mame-boot-disk supports single-app and plain-data staging\n'

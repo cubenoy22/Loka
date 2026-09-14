@@ -12,6 +12,7 @@ $ErrorActionPreference = "Stop"
 
 $ScriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDirectory = Split-Path -Parent $ScriptDirectory
+. (Join-Path $ScriptDirectory "mame-boot-copy.ps1")
 $EnvironmentFile = if ($env:MAME_ENV_FILE) {
     $env:MAME_ENV_FILE
 } else {
@@ -67,24 +68,6 @@ function Find-Retro68Tool([string]$Name) {
     throw "Retro68 tool not found: $Name"
 }
 
-function Resolve-FileIdentity([string]$Path) {
-    # Mirrors mame-run.ps1: the .source record it compares against holds the
-    # resolved template path, so the record written here must resolve the
-    # same way or the next launch treats the copy as "template changed".
-    $full = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
-    $item = Get-Item -LiteralPath $full -Force -ErrorAction SilentlyContinue
-    while ($item -and ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
-        $target = $item.Target
-        if (-not $target) { break }
-        if (-not [System.IO.Path]::IsPathRooted($target)) {
-            $target = Join-Path (Split-Path -Parent $full) $target
-        }
-        $full = [System.IO.Path]::GetFullPath($target)
-        $item = Get-Item -LiteralPath $full -Force -ErrorAction SilentlyContinue
-    }
-    return [System.IO.Path]::GetFullPath($full).TrimEnd([char[]]"\/")
-}
-
 $machine = if ($env:MAME_MACHINE) { $env:MAME_MACHINE } else { "macplus" }
 $mameHome = if ($env:MAME_HOMEPATH) { $env:MAME_HOMEPATH } else {
     Join-Path $HOME ".mame"
@@ -132,19 +115,7 @@ if ($All) {
     throw "Usage: mame-boot-disk.ps1 -All | <MacBinaryPath> [PlainDataPaths ...]"
 }
 
-if (-not (Test-Path -LiteralPath $bootDisk)) {
-    if (-not $env:MAME_HDA -or -not (Test-Path -LiteralPath $env:MAME_HDA)) {
-        throw "MAME_HDA must point to the boot hard disk template: $($env:MAME_HDA)"
-    }
-    New-Item -ItemType Directory -Path (Split-Path -Parent $bootDisk) -Force | Out-Null
-    $templatePath = Resolve-FileIdentity $env:MAME_HDA
-    Copy-Item -LiteralPath $templatePath -Destination $bootDisk -Force
-    Set-ItemProperty -LiteralPath $bootDisk -Name IsReadOnly -Value $false
-    $templateSha = (Get-FileHash -LiteralPath $templatePath -Algorithm SHA256).Hash.ToLowerInvariant()
-    [System.IO.File]::WriteAllText("$bootDisk.source", "$templatePath`n$templateSha`n",
-        (New-Object System.Text.UTF8Encoding($false)))
-}
-Set-ItemProperty -LiteralPath $bootDisk -Name IsReadOnly -Value $false
+Prepare-LokaBootCopy $env:MAME_HDA $bootDisk
 
 $hfsHome = Join-Path $controlDirectory "hfsutils"
 $hmount = Find-Retro68Tool "hmount"
@@ -155,10 +126,19 @@ $humount = Find-Retro68Tool "humount"
 
 New-Item -ItemType Directory -Path $hfsHome -Force | Out-Null
 
+$staging = "$bootDisk.staging"
+if (Test-Path -LiteralPath $staging) {
+    throw "staging: failed (destination needs attention)"
+}
+$mounted = $false
+$published = $false
 $originalHome = $env:HOME
 try {
+    Copy-Item -LiteralPath $bootDisk -Destination $staging -Force
+    Set-ItemProperty -LiteralPath $staging -Name IsReadOnly -Value $false
     $env:HOME = $hfsHome
-    & $hmount $bootDisk
+    $mounted = $true
+    & $hmount $staging
     if ($LASTEXITCODE) { throw "hmount failed with exit code $LASTEXITCODE" }
 
     $destDir = ":Loka:"
@@ -177,8 +157,16 @@ try {
     }
     & $humount
     if ($LASTEXITCODE) { throw "humount failed with exit code $LASTEXITCODE" }
+    $mounted = $false
+    Move-Item -LiteralPath $staging -Destination $bootDisk -Force
+    $published = $true
 } finally {
+    if ($mounted) { & $humount 2>$null | Out-Null }
     $env:HOME = $originalHome
+    if (-not $published) {
+        Remove-Item -LiteralPath $staging -Force -ErrorAction SilentlyContinue
+        [Console]::Error.WriteLine("staging: failed (previous disk kept)")
+    }
 }
 
 if ($All) {

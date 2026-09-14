@@ -23,6 +23,7 @@ trap cleanup EXIT
 
 mkdir -p "$SANDBOX/scripts" "$SANDBOX/build"
 cp "$SUBJECT" "$SANDBOX/scripts/mame-run.sh"
+cp "$REPO_DIR/scripts/mame-boot-copy.sh" "$SANDBOX/scripts/mame-boot-copy.sh"
 chmod +x "$SANDBOX/scripts/mame-run.sh"
 
 # Stands in for the emulator: records its argv, then writes to the disk it was
@@ -345,6 +346,7 @@ if [ -z "$POWERSHELL" ]; then
 fi
 
 cp "$SUBJECT_PS1" "$SANDBOX/scripts/mame-run.ps1"
+cp "$REPO_DIR/scripts/mame-boot-copy.ps1" "$SANDBOX/scripts/mame-boot-copy.ps1"
 
 to_host_path() {
   if command -v wslpath >/dev/null 2>&1; then

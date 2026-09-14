@@ -44,6 +44,9 @@ MAME_HOMEPATH="$(normalize_host_path "$MAME_HOMEPATH")"
 MAME_CONTROL_DIR="$(normalize_host_path "$MAME_CONTROL_DIR")"
 MAME_BOOT_HDA="$(normalize_host_path "$MAME_BOOT_HDA")"
 
+# shellcheck source=mame-boot-copy.sh
+. "$SCRIPT_DIR/mame-boot-copy.sh"
+
 STAGE_ALL=0
 MACBINARY_PATHS=()
 PLAIN_DATA_PATHS=()
@@ -132,44 +135,30 @@ HUMOUNT="$(find_retro68_tool humount)"
 HFS_HOME="$MAME_CONTROL_DIR/hfsutils"
 
 mkdir -p "$(dirname "$MAME_BOOT_HDA")" "$HFS_HOME"
+loka_prepare_boot_copy "$MAME_HDA" "$MAME_BOOT_HDA"
 
-if [ ! -f "$MAME_BOOT_HDA" ]; then
-  if [ -z "$MAME_HDA" ] || [ ! -f "$MAME_HDA" ]; then
-    echo "Error: MAME_HDA must point to the boot hard disk template: $MAME_HDA" >&2
-    exit 1
-  fi
-  echo "Initializing boot copy from template: $MAME_HDA"
-  cp "$MAME_HDA" "$MAME_BOOT_HDA"
-  chmod u+w "$MAME_BOOT_HDA"
-  # The .source record must match what mame-run.sh writes and compares
-  # exactly (resolved template path, then lowercase SHA-256): a record made
-  # from the unresolved path reads as "template changed" on the next launch,
-  # and mame-run.sh would refresh the copy and discard everything staged here.
-  TEMPLATE_PATH="$(cd "$(dirname "$MAME_HDA")" && pwd -P)/$(basename "$MAME_HDA")"
-  while [ -L "$TEMPLATE_PATH" ]; do
-    TARGET="$(readlink "$TEMPLATE_PATH")"
-    case "$TARGET" in
-      /*) TEMPLATE_PATH="$TARGET" ;;
-      *) TEMPLATE_PATH="$(dirname "$TEMPLATE_PATH")/$TARGET" ;;
-    esac
-    TEMPLATE_PATH="$(cd "$(dirname "$TEMPLATE_PATH")" && pwd -P)/$(basename "$TEMPLATE_PATH")"
-  done
-  if command -v sha256sum >/dev/null 2>&1; then
-    TEMPLATE_SHA="$(sha256sum < "$TEMPLATE_PATH" | cut -d' ' -f1)"
-  else
-    TEMPLATE_SHA="$(shasum -a 256 < "$TEMPLATE_PATH" | cut -d' ' -f1)"
-  fi
-  printf '%s\n%s\n' "$TEMPLATE_PATH" "$TEMPLATE_SHA" > "$MAME_BOOT_HDA.source"
+STAGING="$MAME_BOOT_HDA.staging"
+if [ -e "$STAGING" ]; then
+  echo 'staging: failed (destination needs attention)' >&2
+  exit 1
 fi
-
-chmod u+w "$MAME_BOOT_HDA"
-
-cleanup() {
-  HOME="$HFS_HOME" "$HUMOUNT" >/dev/null 2>&1 || true
+MOUNTED=0
+cleanup_staging() {
+  status=$?
+  trap - EXIT
+  if [ "$MOUNTED" -eq 1 ]; then HOME="$HFS_HOME" "$HUMOUNT" >/dev/null 2>&1 || true; fi
+  if [ "$status" -ne 0 ]; then
+    rm -f "$STAGING"
+    echo 'staging: failed (previous disk kept)' >&2
+  fi
+  exit "$status"
 }
-trap cleanup EXIT
+trap cleanup_staging EXIT
+cp -f "$MAME_BOOT_HDA" "$STAGING"
+chmod u+w "$STAGING"
 
-HOME="$HFS_HOME" "$HMOUNT" "$MAME_BOOT_HDA"
+MOUNTED=1
+HOME="$HFS_HOME" "$HMOUNT" "$STAGING"
 
 DEST_DIR=":Loka:"
 if ! HOME="$HFS_HOME" "$HLS" -d :Loka >/dev/null 2>&1; then
@@ -185,6 +174,8 @@ for plain_data in "${PLAIN_DATA_PATHS[@]}"; do
 done
 
 HOME="$HFS_HOME" "$HUMOUNT"
+MOUNTED=0
+mv -f "$STAGING" "$MAME_BOOT_HDA"
 trap - EXIT
 
 if [ "$STAGE_ALL" -eq 1 ]; then
