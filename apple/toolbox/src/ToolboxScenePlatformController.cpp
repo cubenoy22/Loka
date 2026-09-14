@@ -145,20 +145,6 @@ namespace
     DrawString(text);
   }
 
-  void CopyUtf8ToPascalString(const std::string &utf8, Str255 out)
-  {
-    std::size_t length = utf8.size();
-    if (length > 255)
-    {
-      length = 255;
-    }
-    out[0] = static_cast<unsigned char>(length);
-    if (length > 0)
-    {
-      std::memcpy(out + 1, utf8.data(), length);
-    }
-  }
-
   bool UseBoundaryDirty(const loka::app::scene::BoundaryNode *boundary)
   {
     return boundary && boundary->parentBoundary() && boundary->hasLayoutBounds();
@@ -1223,9 +1209,8 @@ void ToolboxScenePlatformController::refreshContextProps(loka::app::scene::Node 
       binding.emitter = node->asButtonNode()->props.onClick_;
       enabled = binding.enabled;
       const loka::app::ButtonProps &props = node->asButtonNode()->props;
-      this->applyButtonControlProps(binding, props.text_ ? props.text_->get() : loka::core::String::Literal("Button"));
-      if (previousEnabled != enabled)
-        binding.needsDraw = true;
+      ReconcileToolboxButtonControl(binding.control,
+          props.text_ ? props.text_->get() : loka::core::String::Literal("Button"), binding.enabled, binding.label);
     }
   }
   else if (node->kind() == loka::app::scene::NODE_KIND_POPUP_MENU)
@@ -2230,6 +2215,8 @@ void ToolboxScenePlatformController::clearControls()
 {
   for (size_t i = 0; i < buttonControls_.size(); ++i)
   {
+    if (buttonControls_[i].context)
+      buttonControls_[i].context->forgetPresentedControl();
     if (buttonControls_[i].control)
     {
       HideControl(buttonControls_[i].control);
@@ -2432,7 +2419,8 @@ bool ToolboxScenePlatformController::ensureButtonControl(short resourceId,
                                                          const loka::core::String &label,
                                                          loka::core::EmitterState *emitter,
                                                          loka::core::State<bool> *enabled,
-                                                         loka::app::scene::NativeLifetimeHint lifetimeHint)
+                                                         loka::app::scene::NativeLifetimeHint lifetimeHint,
+                                                         ToolboxButtonContext *context)
 {
   if (!window_ || !window_->window() || resourceId <= 0)
   {
@@ -2477,12 +2465,12 @@ bool ToolboxScenePlatformController::ensureButtonControl(short resourceId,
       HideControl(control);
     }
     ButtonControlBinding entry;
+    entry.context = context;
     entry.resourceId = resourceId;
     entry.control = control;
     entry.emitter = emitter;
     entry.enabled = enabled;
     entry.usedThisFrame = true;
-    entry.needsDraw = true;
     entry.rect = controlRect;
     entry.label = "";
     entry.lifetimeHint = lifetimeHint;
@@ -2490,6 +2478,7 @@ bool ToolboxScenePlatformController::ensureButtonControl(short resourceId,
     binding = &buttonControls_.back();
     created = true;
   }
+  binding->context = context;
   binding->emitter = emitter;
   binding->enabled = enabled;
   binding->lifetimeHint = lifetimeHint;
@@ -2501,38 +2490,10 @@ bool ToolboxScenePlatformController::ensureButtonControl(short resourceId,
     MoveControl(binding->control, controlRect.left, controlRect.top);
     SizeControl(binding->control, controlRect.right - controlRect.left, controlRect.bottom - controlRect.top);
     binding->rect = controlRect;
-    binding->needsDraw = true;
   }
-  const bool submitted = this->applyButtonControlProps(*binding, label);
+  const bool submitted = ReconcileToolboxButtonControl(binding->control, label, binding->enabled, binding->label);
   ShowControl(binding->control);
   return submitted;
-}
-
-bool ToolboxScenePlatformController::applyButtonControlProps(ButtonControlBinding &binding,
-                                                             const loka::core::String &label)
-{
-  std::string labelUtf8;
-  if (!loka::platform::CollectUtf8(label, labelUtf8))
-  {
-    return false;
-  }
-  if (binding.label != labelUtf8)
-  {
-    Str255 title;
-    CopyUtf8ToPascalString(labelUtf8, title);
-    SetControlTitle(binding.control, title);
-    binding.label = labelUtf8;
-    binding.needsDraw = true;
-  }
-  if (binding.enabled && !binding.enabled->get())
-  {
-    HiliteControl(binding.control, 255);
-  }
-  else
-  {
-    HiliteControl(binding.control, 0);
-  }
-  return true;
 }
 
 void ToolboxScenePlatformController::destroyButtonControl(short resourceId,
@@ -2545,6 +2506,8 @@ void ToolboxScenePlatformController::destroyButtonControl(short resourceId,
     {
       continue;
     }
+    if (binding.context)
+      binding.context->forgetPresentedControl();
     ControlRef control = binding.control;
     binding.control = 0;
     binding.emitter = 0;
@@ -2822,10 +2785,12 @@ void ToolboxScenePlatformController::drawControlsInRect(const Rect &rect)
     {
       continue;
     }
-    Draw1Control(binding.control);
+    if (binding.context)
+      binding.context->repaint(binding.control, binding.label);
+    else
+      Draw1Control(binding.control);
     ++debugStats_.controlDrawCount;
     ++debugStats_.totalControlDrawCount;
-    binding.needsDraw = false;
   }
   for (size_t i = 0; i < scrollBarLedger_.scrollBarControls_.size(); ++i)
   {

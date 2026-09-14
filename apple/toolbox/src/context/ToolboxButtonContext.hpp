@@ -6,6 +6,12 @@
 #include "app/nodes/controls/Button.hpp"
 #include "core/String.hpp"
 #include <Quickdraw.h>
+#include <Controls.h>
+#include <string>
+
+/** Reconcile one installed control; the controller owns its title cache. */
+bool ReconcileToolboxButtonControl(ControlRef control, const loka::core::String &label,
+                                   loka::core::State<bool> *enabled, std::string &installedLabel);
 
 class ToolboxScenePlatformController;
 namespace loka
@@ -71,6 +77,10 @@ public:
                   int controlTag);
   void updateRect(const Rect &rect);
   void draw(ToolboxScenePlatformController *controller);
+  /** Replay borrows the controller's current row only for this call. */
+  void repaint(ControlRef control, std::string &installedLabel);
+  /** Native removal revokes the completed installation/presentation fact. */
+  void forgetPresentedControl();
   virtual void render(loka::app::scene::IPlatformController *controller);
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   bool handleMouseDown(const Point &point, ToolboxScenePlatformController *controller);
@@ -81,6 +91,7 @@ private:
   virtual void retireNativeProjection();
   loka::app::ButtonNode *node_;
   Rect rect_;
+  Rect paintRect_;
   loka::core::String label_;
   loka::core::EmitterState *emitter_;
   loka::core::State<bool> *enabled_;
