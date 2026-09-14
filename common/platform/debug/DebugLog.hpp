@@ -1,10 +1,28 @@
 #ifndef LOKA_PLATFORM_DEBUG_LOG_HPP
 #define LOKA_PLATFORM_DEBUG_LOG_HPP
 
+#ifndef NDEBUG
+#include <cstdio>
+#endif
+
 namespace loka
 {
   namespace platform
   {
+    /** Educational diagnostic; private working state may legitimately have no
+        local view observer. StateBase identity is available without a ledger. */
+#ifndef NDEBUG
+    inline void DebugLogUnobservedState(void *state)
+    {
+      std::fprintf(stderr,
+                   "[scene-update] committed StateBase %p is not observed by this Boundary; "
+                   "no local dirty flags contributed\n", state);
+      std::fflush(stderr);
+    }
+#else
+    inline void DebugLogUnobservedState(void *) {}
+#endif
+
 #if defined(LOKA_DEBUG_SCENE_UPDATE)
     void DebugLogSceneUpdateTracked(void *boundary, void *scene);
     void DebugLogSceneUpdateQueued(void *scene);

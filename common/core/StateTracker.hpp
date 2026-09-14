@@ -79,6 +79,11 @@ namespace loka
       {
         return transaction_.committedDirtyStates;
       }
+      /** False once deferred removal erased a committed identity. */
+      bool committedIdentitiesComplete() const
+      {
+        return !transaction_.committedIdentitiesErased;
+      }
       void setInvalidateCallback(InvalidateFn fn, void *userData)
       {
         invalidateFn_ = fn;
@@ -181,6 +186,7 @@ namespace loka
             : current(),
               next(),
               committedDirtyStates(),
+              committedIdentitiesErased(false),
               anyDirty(false)
         {
         }
@@ -193,6 +199,9 @@ namespace loka
         TransactionIntake current;
         TransactionIntake next;
         StateList committedDirtyStates;
+        /** Deferred removal erased a committed identity: the list is no longer
+            the complete commit set and readers must treat it as unknown. */
+        bool committedIdentitiesErased;
         bool anyDirty;
       };
 
