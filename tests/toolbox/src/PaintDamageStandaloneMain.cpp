@@ -50,6 +50,7 @@ namespace
       this->state(this->first_, model);
       this->state(this->sibling_, model);
       this->state(this->text_, loka::core::String::Literal("Viewport paint damage"));
+      this->state(this->offset_, 32);
     }
     virtual void composeNode(NodeComposition &composition)
     {
@@ -57,7 +58,11 @@ namespace
                         << RectSurface(this->first_.state()).size(180, 50).useRegionClip(true).TEST_ID("PaintDamage.First")
                         << RectSurface(this->sibling_.state()).size(180, 50).TEST_ID("PaintDamage.Sibling");
       if (HasViewport)
-        composition.declare(Box().size(240, 180) << (ScrollView() << (surfaces << Text(this->text_.state()))));
+        composition.declare(Box().size(240, 180)
+                            << (ScrollView(this->offset_)
+                                << (Column() << Box().size(180, 48) << surfaces
+                                    << Text(this->text_.state()).TEST_ID("PaintDamage.ScrollText")
+                                    << Box().size(180, 160))));
       else
         composition.declare(surfaces);
     }
@@ -73,6 +78,7 @@ namespace
     NodeState<RectSurfaceModel> first_;
     NodeState<RectSurfaceModel> sibling_;
     NodeState<loka::core::String> text_;
+    NodeState<int> offset_;
   };
 
   typedef PaintDamageNode<true> ViewportDamageNode;
@@ -277,7 +283,7 @@ namespace
   public:
     explicit PaintDamageConfig(PlatformContext *context)
         : AppConfigurable(context), app_(0), node_(0), composited_(0), edit_(0), log_(0), phase_(SETTLE), result_(0),
-          initial_(), marker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0), cellWindow_(0), popupWindow_(0), overflowWindow_(0), popupRow_()
+          initial_(), marker_(), scrollTextMarker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0), cellWindow_(0), popupWindow_(0), overflowWindow_(0), popupRow_()
     {
       if (loka::platform::file::ResolveApplicationSidecar(
               loka::file::File::Application() << loka::file::File("LOG.TXT"), this->file_))
@@ -342,7 +348,7 @@ namespace
   private:
     enum Phase { SETTLE, WRITE, CHECK, PLAIN_WRITE, PLAIN_CHECK, INVALIDATED_WRITE, INVALIDATED_CHECK,
                  COMPOSITED_WRITE, COMPOSITED_CHECK, EDIT_WRITE, EDIT_CHECK, BOUNDS_SHOW, BOUNDS_CHECK, CELL_SHOW, CELL_REPLAY, CELL_CHECK,
-                 POPUP_SHOW, POPUP_REPLAY, POPUP_CHECK, OVERFLOW_SHOW, OVERFLOW_CHECK, COMPLETE };
+                 POPUP_SHOW, POPUP_REPLAY, POPUP_CHECK, OVERFLOW_SHOW, OVERFLOW_REPLAY, OVERFLOW_CHECK, COMPLETE };
     App *app_;
     ViewportDamageNode *node_;
     CompositedDamageNode *composited_;
@@ -353,6 +359,7 @@ namespace
     int result_;
     ToolboxSceneDebugStats initial_;
     Point marker_;
+    Point scrollTextMarker_;
     bool gate_;
     ToolboxScenePlatformController::EditTextGeometry editGeometry_;
 
@@ -406,7 +413,7 @@ namespace
       case POPUP_SHOW: case POPUP_REPLAY: case POPUP_CHECK:
         target = self->popupWindow_;
         break;
-      case OVERFLOW_SHOW: case OVERFLOW_CHECK:
+      case OVERFLOW_SHOW: case OVERFLOW_REPLAY: case OVERFLOW_CHECK:
         target = self->overflowWindow_;
         break;
       case COMPLETE:
@@ -522,7 +529,7 @@ namespace
         if (!source.foundSibling)
         {
           SetPort(previousPort);
-          self->recordArm(HasViewport ? "viewport-broad-fallback-setup" : "plain-exact-setup", false,
+          self->recordArm(HasViewport ? "viewport-exact-setup" : "plain-exact-setup", false,
                           HasViewport ? PLAIN_WRITE : INVALIDATED_WRITE);
           return;
         }
@@ -533,9 +540,28 @@ namespace
         if (!GetPixel(self->marker_.h, self->marker_.v))
         {
           SetPort(previousPort);
-          self->recordArm(HasViewport ? "viewport-broad-fallback-setup" : "plain-exact-setup", false,
+          self->recordArm(HasViewport ? "viewport-exact-setup" : "plain-exact-setup", false,
                           HasViewport ? PLAIN_WRITE : INVALIDATED_WRITE);
           return;
+        }
+        if (HasViewport)
+        {
+          // Root y=24, leading space=48, initial offset=32: surface y=40.
+          // Text follows both 50px surfaces at y=140. Find real sibling ink.
+          bool foundText = false;
+          for (short y = 140; y < 156 && !foundText; ++y)
+            for (short x = 12; x < 180 && !foundText; ++x)
+              if (GetPixel(x, y))
+              {
+                self->scrollTextMarker_.h = x;
+                self->scrollTextMarker_.v = y;
+                foundText = true;
+              }
+          const bool scrolled = source.firstDamage.y == 40;
+          const bool oldBlack = GetPixel(20, 48) != 0;
+          const bool newWhite = GetPixel(32, 48) == 0;
+          self->recordArm("viewport-scroll-replay-setup",
+                          scrolled && foundText && oldBlack && newWhite, WRITE);
         }
         self->initial_ = controller->debugStatsForTesting();
         node->advance();
@@ -550,15 +576,23 @@ namespace
         const bool siblingPreserved = GetPixel(self->marker_.h, self->marker_.v) != 0;
         std::fprintf(self->log_, "gate=%d invalidate_rects=%d whole_window=%d control_draws=%d sibling_preserved=%d\r",
                      self->gate_ ? 1 : 0, rects, whole, draws, siblingPreserved ? 1 : 0);
+        if (HasViewport)
+        {
+          const bool textPreserved = GetPixel(self->scrollTextMarker_.h, self->scrollTextMarker_.v) != 0;
+          const bool oldErased = GetPixel(20, 48) == 0;
+          const bool newPainted = GetPixel(32, 48) != 0;
+          std::fprintf(self->log_, "scrolled_text_preserved=%d old_erased=%d new_painted=%d\r",
+                       textPreserved ? 1 : 0, oldErased ? 1 : 0, newPainted ? 1 : 0);
+          self->recordArm("viewport-scroll-replay",
+                          whole == 0 && rects >= 1 && textPreserved && oldErased && newPainted
+                          && stats.totalRenderCalls == self->initial_.totalRenderCalls
+                          && stats.totalRenderDirtyCalls > self->initial_.totalRenderDirtyCalls, CHECK);
+        }
         SetPort(previousPort);
-        const bool viewportReason = stats.windowFullRequestSource
-                                    && std::strcmp(stats.windowFullRequestSource, "paint-widened-viewport-render") == 0;
-        std::fprintf(self->log_, "delivery=%s reason=%s\r", HasViewport ? "WIDENED" : "EXACT",
-                     HasViewport && stats.windowFullRequestSource ? stats.windowFullRequestSource : "none");
-        self->recordArm(HasViewport ? "viewport-broad-fallback" : "plain-exact",
-                        self->gate_ && siblingPreserved
-                        && (HasViewport ? whole == 1 && viewportReason
-                                        : rects == 1 && whole == 0),
+        std::fprintf(self->log_, "delivery=EXACT\r");
+        self->recordArm(HasViewport ? "viewport-exact" : "plain-exact",
+                        self->gate_ && siblingPreserved && whole == 0
+                        && (HasViewport ? rects >= 1 : rects == 1),
                         HasViewport ? PLAIN_WRITE : INVALIDATED_WRITE);
         return;
       }
@@ -685,7 +719,7 @@ namespace
         SelectWindow(native->window());
         native->requestInvalidate();
         self->phase_ = self->phase_ == CELL_SHOW ? CELL_REPLAY
-                       : self->phase_ == POPUP_SHOW ? POPUP_REPLAY : OVERFLOW_CHECK;
+                       : self->phase_ == POPUP_SHOW ? POPUP_REPLAY : OVERFLOW_REPLAY;
         return;
       }
       ToolboxScenePlatformController *controller = window->scene()
@@ -758,6 +792,21 @@ namespace
                         cell ? POPUP_SHOW : OVERFLOW_SHOW);
         return;
       }
+      if (self->phase_ == OVERFLOW_REPLAY)
+      {
+        // A Cell-only registry must reach the Cell replay loop.
+        Rect damage;
+        SetRect(&damage, 60, 24, 68, 48);
+        self->initial_ = controller->debugStatsForTesting();
+        native->requestInvalidateRect(damage);
+        self->phase_ = OVERFLOW_CHECK;
+        SetPort(previousPort);
+        return;
+      }
+      const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
+      self->recordArm("cell-only-dirty-replay",
+                      stats.totalRenderCalls == self->initial_.totalRenderCalls
+                      && stats.totalRenderDirtyCalls > self->initial_.totalRenderDirtyCalls, OVERFLOW_CHECK);
       // The narrow Cell is [60,68) x [24,48). Its centered seven-W label
       // is wider than the box in the same font used by the production drawer.
       const unsigned char label[] = {7, 'W', 'W', 'W', 'W', 'W', 'W', 'W'};

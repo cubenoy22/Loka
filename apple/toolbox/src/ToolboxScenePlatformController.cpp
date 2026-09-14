@@ -836,13 +836,6 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
     PaintAnswerBuffer<> answers;
     ToolboxPaintAnswerSource source(this->debugStats_);
     const PaintApplyVerdict verdict = CollectPaintAnswers(*boundary, query, answers, source);
-    if (!this->scrollBarLedger_.viewportScrollBars_.empty())
-    {
-      // WIDENED: viewport renderDirty still replays the viewport. A drawer's
-      // exact invalidation cannot safely supply that replay's erase coverage.
-      this->window_->requestInvalidateWithReason(kViewportPaintWidenReason);
-      return;
-    }
     if (verdict.canSkipBroadPaint(info))
     {
       for (unsigned i = 0; i < answers.count(); ++i)
@@ -1330,17 +1323,8 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     render();
     return;
   }
-  if (!scrollBarLedger_.viewportScrollBars_.empty())
-  {
-    // The invalidation half of #518 can name exact window damage, but Cell
-    // and Popup dirty replay still lack complete placement-plus-clip facts.
-    // Keep the one viewport render fallback until that shared projection
-    // contract is resolved; individual drawer exceptions are not sufficient.
-    render();
-    return;
-  }
-  if (hitLedger_.textHits_.empty() && hitLedger_.popupHits_.empty() && buttonControls_.empty() && scrollBarLedger_.scrollBarControls_.empty()
-      && editControls_.empty())
+  if (hitLedger_.textHits_.empty() && hitLedger_.popupHits_.empty() && hitLedger_.cellHits_.empty()
+      && buttonControls_.empty() && scrollBarLedger_.scrollBarControls_.empty() && editControls_.empty())
   {
     if (HasRectSurfaceNode(rootNode_))
     {
