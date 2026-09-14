@@ -384,6 +384,8 @@ private:
   void refreshEditTextBindingForStateChange(EditTextControlBinding &binding);
   void syncEditTextFromState(EditTextControlBinding &binding);
   void updateStateFromEdit(EditTextControlBinding &binding);
+  /** Revoke presentation and queue the TE on every native retirement path. */
+  void retireEditTextBinding(EditTextControlBinding &binding, loka::app::scene::NativeLifetimeHint lifetimeHint);
   void retireEditTextControlAt(std::size_t index, loka::app::scene::NativeLifetimeHint lifetimeHint);
   void retireEditTextControl(loka::app::scene::NodeContext *ownerContext,
                              loka::app::scene::NativeLifetimeHint lifetimeHint);

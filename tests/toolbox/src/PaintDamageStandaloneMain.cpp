@@ -206,6 +206,74 @@ namespace
     NodeState<loka::core::String> text_;
   };
 
+  class EditZStackNode;
+  typedef BoundaryPropsFor<EditZStackNode> EditZStackProps;
+  /** The live edit and its later overlapping surface share one Boundary. */
+  class EditZStackNode : public StdCompositionBoundaryNodeBase<EditZStackProps>
+  {
+  public:
+    typedef EditZStackProps::TypeTag TypeTag;
+    explicit EditZStackNode(const EditZStackProps &props)
+        : StdCompositionBoundaryNodeBase<EditZStackProps>(props)
+    {
+      this->state(this->text_, loka::core::String::Literal(""));
+      RectSurfaceModel model;
+      model.rectCount = 1;
+      model.rects[0] = RectSprite(4, 4, 12, 12);
+      this->state(this->model_, model);
+    }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      composition.declare(ZStack()
+                          << EditText(this->text_).TEST_ID("PaintDamage.Edit")
+                          << RectSurface(this->model_.state()).size(16, 20).TEST_ID("EditZStack.Surface"));
+    }
+    void advance()
+    {
+      loka::core::StateTrackerGuard guard(this->tracker());
+      this->text_.set(loka::core::String::Literal("    HHHH"));
+    }
+  private:
+    NodeState<loka::core::String> text_;
+    NodeState<RectSurfaceModel> model_;
+  };
+
+  class EditExactNode;
+  typedef BoundaryPropsFor<EditExactNode> EditExactProps;
+  /** One owner makes the paint walk visit the edit and both siblings. */
+  class EditExactNode : public StdCompositionBoundaryNodeBase<EditExactProps>
+  {
+  public:
+    typedef EditExactProps::TypeTag TypeTag;
+    explicit EditExactNode(const EditExactProps &props)
+        : StdCompositionBoundaryNodeBase<EditExactProps>(props)
+    {
+      this->state(this->text_, loka::core::String::Literal(""));
+      RectSurfaceModel model;
+      model.rectCount = 1;
+      model.rects[0] = RectSprite(4, 4, 12, 12);
+      this->state(this->model_, model);
+    }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      composition.declare(Box().size(180, 140)
+                          << (ScrollView()
+                              << (Column()
+                                  << EditText(this->text_).TEST_ID("PaintDamage.Edit")
+                                  << Text("Sibling ink").TEST_ID("EditExact.Text")
+                                  << RectSurface(this->model_.state()).size(150, 40)
+                                      .clearBackground(true).TEST_ID("EditExact.Surface"))));
+    }
+    void advance()
+    {
+      loka::core::StateTrackerGuard guard(this->tracker());
+      this->text_.set(loka::core::String::Literal("HHHH"));
+    }
+  private:
+    NodeState<loka::core::String> text_;
+    NodeState<RectSurfaceModel> model_;
+  };
+
   class SurfaceBoundsNode;
   typedef BoundaryPropsFor<SurfaceBoundsNode> SurfaceBoundsProps;
   /** A fixed model overhangs the declared surface by eight pixels on two sides. */
@@ -349,7 +417,7 @@ namespace
   public:
     explicit PaintDamageConfig(PlatformContext *context)
         : AppConfigurable(context), app_(0), node_(0), composited_(0), edit_(0), log_(0), phase_(SETTLE), result_(0),
-          initial_(), marker_(), scrollTextMarker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0), cellWindow_(0), popupWindow_(0), overflowWindow_(0), imageWindow_(0), popupRow_()
+          initial_(), marker_(), scrollTextMarker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0), cellWindow_(0), popupWindow_(0), overflowWindow_(0), imageWindow_(0), popupRow_(), editExact_(0), editExactWindow_(0), editZStack_(0), editZStackWindow_(0)
     {
       if (loka::platform::file::ResolveApplicationSidecar(
               loka::file::File::Application() << loka::file::File("LOG.TXT"), this->file_))
@@ -414,12 +482,22 @@ namespace
                                    ImageOverlapProps(), 0))
                                .visible(false).idlePolicy(IdlePolicy::everyTick())
                                .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->imageWindow_);
+      composition << ObservedWindowDefinition(WindowProps().frame(350, 250, 220, 180).title("Edit exact")
+                               .scene(loka::scenario_tests::ObservedMainDefinition<EditExactProps, EditExactNode>(
+                                   EditExactProps(), &this->editExact_))
+                               .visible(false).idlePolicy(IdlePolicy::everyTick())
+                               .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->editExactWindow_);
+      composition << ObservedWindowDefinition(WindowProps().frame(350, 250, 220, 180).title("Edit ZStack order")
+                               .scene(loka::scenario_tests::ObservedMainDefinition<EditZStackProps, EditZStackNode>(
+                                   EditZStackProps(), &this->editZStack_))
+                               .visible(false).idlePolicy(IdlePolicy::everyTick())
+                               .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->editZStackWindow_);
     }
 
   private:
     enum Phase { SETTLE, WRITE, CHECK, PLAIN_WRITE, PLAIN_CHECK, INVALIDATED_WRITE, INVALIDATED_CHECK,
                  COMPOSITED_WRITE, COMPOSITED_CHECK, EDIT_WRITE, EDIT_CHECK, BOUNDS_SHOW, BOUNDS_CHECK, CELL_SHOW, CELL_REPLAY, CELL_CHECK,
-                 POPUP_SHOW, POPUP_REPLAY, POPUP_CHECK, OVERFLOW_SHOW, OVERFLOW_REPLAY, OVERFLOW_CHECK, IMAGE_SHOW, IMAGE_WRITE, IMAGE_CHECK, COMPLETE };
+                 POPUP_SHOW, POPUP_REPLAY, POPUP_CHECK, OVERFLOW_SHOW, OVERFLOW_REPLAY, OVERFLOW_CHECK, IMAGE_SHOW, IMAGE_WRITE, IMAGE_CHECK, EDIT_EXACT_SHOW, EDIT_EXACT_WRITE, EDIT_EXACT_CHECK, EDIT_ZSTACK_SHOW, EDIT_ZSTACK_WRITE, EDIT_ZSTACK_CHECK, COMPLETE };
     App *app_;
     ViewportDamageNode *node_;
     CompositedDamageNode *composited_;
@@ -445,6 +523,10 @@ namespace
     Window *overflowWindow_;
     Window *imageWindow_;
     PopupRow popupRow_;
+    EditExactNode *editExact_;
+    Window *editExactWindow_;
+    EditZStackNode *editZStack_;
+    Window *editZStackWindow_;
 
     void recordArm(const char *name, bool pass, Phase next)
     {
@@ -491,6 +573,12 @@ namespace
       case IMAGE_SHOW: case IMAGE_WRITE: case IMAGE_CHECK:
         target = self->imageWindow_;
         break;
+      case EDIT_EXACT_SHOW: case EDIT_EXACT_WRITE: case EDIT_EXACT_CHECK:
+        target = self->editExactWindow_;
+        break;
+      case EDIT_ZSTACK_SHOW: case EDIT_ZSTACK_WRITE: case EDIT_ZSTACK_CHECK:
+        target = self->editZStackWindow_;
+        break;
       case COMPLETE:
         return;
       }
@@ -514,6 +602,10 @@ namespace
         OnEditIdle(target, elapsed, data);
       else if (target == self->boundsWindow_)
         OnBoundsIdle(target, self);
+      else if (target == self->editExactWindow_)
+        OnEditExactIdle(target, self);
+      else if (target == self->editZStackWindow_)
+        OnEditZStackIdle(target, self);
       else if (target == self->imageWindow_)
         OnImageIdle(target, self);
       else
@@ -987,7 +1079,205 @@ namespace
       SetPort(previousPort);
       std::fprintf(self->log_, "image_whole_window=%d rect_requests=%d placeholder_ink=%d dirty_replayed=%d\r",
                    whole, rects, ink ? 1 : 0, replayed ? 1 : 0);
-      self->recordArm("image-overlap-replay", whole == 0 && rects >= 1 && ink && replayed, COMPLETE);
+      self->recordArm("image-overlap-replay", whole == 0 && rects >= 1 && ink && replayed, EDIT_EXACT_SHOW);
+    }
+    static void OnEditExactIdle(Window *window, PaintDamageConfig *self)
+    {
+      ToolboxWindow *native = window->asToolboxWindow();
+      if (self->phase_ == EDIT_EXACT_SHOW)
+      {
+        ShowWindow(native->window());
+        SelectWindow(native->window());
+        native->requestInvalidate();
+        self->phase_ = EDIT_EXACT_WRITE;
+        return;
+      }
+      ToolboxScenePlatformController *controller = window->scene()
+          ? static_cast<ToolboxScenePlatformController *>(
+              loka::dsl::testing::SceneTestAccess::platformController(*window->scene())) : 0;
+      FindEdit edit;
+      enumerateAttachedResidents(self->editExact_, edit);
+      ToolboxScenePlatformController::EditTextGeometry geometry;
+      if (!controller || !self->editExact_
+          || !controller->queryEditTextGeometryForTesting(edit.context, geometry))
+      {
+        self->recordArm("edittext-exact-geometry", false, COMPLETE);
+        self->finish(false);
+        return;
+      }
+      GrafPtr previousPort;
+      GetPort(&previousPort);
+      SetPort(native->window());
+      if (self->phase_ == EDIT_EXACT_WRITE)
+      {
+        Node *surface = 0;
+        TextNode *text = 0;
+        loka::dsl::FlowError error;
+        loka::dsl::testing::LookupNodeById<Node>(window->scene(), "EditExact.Surface", surface, error);
+        loka::dsl::testing::LookupNodeById<TextNode>(window->scene(), "EditExact.Text", text, error);
+        const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
+        const PaintAnswer surfaceAnswer = surface && surface->getContext()
+            ? static_cast<NativeNodeContext *>(surface->getContext())->queryPaintDamage(query)
+            : PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+        const PaintAnswer textAnswer = text && text->getContext()
+            ? static_cast<NativeNodeContext *>(text->getContext())->queryPaintDamage(query)
+            : PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+        bool foundText = false;
+        if (textAnswer.kind == PAINT_ANSWER_EXACT)
+          for (int y = textAnswer.damage.y; y < textAnswer.damage.y + 14 && !foundText; ++y)
+            for (int x = textAnswer.damage.x; x < textAnswer.damage.x + 60 && !foundText; ++x)
+              if (GetPixel(static_cast<short>(x), static_cast<short>(y)))
+              {
+                self->scrollTextMarker_.h = static_cast<short>(x);
+                self->scrollTextMarker_.v = static_cast<short>(y);
+                foundText = true;
+              }
+        self->marker_.h = static_cast<short>(surfaceAnswer.damage.x + 8);
+        self->marker_.v = static_cast<short>(surfaceAnswer.damage.y + 8);
+        bool editWhite = true;
+        for (int y = geometry.view.top; y < geometry.view.bottom; ++y)
+          for (int x = geometry.view.left; x < geometry.view.right; ++x)
+            editWhite = GetPixel(static_cast<short>(x), static_cast<short>(y)) == 0 && editWhite;
+        const bool setup = surfaceAnswer.kind == PAINT_ANSWER_EXACT && foundText && editWhite
+                           && GetPixel(self->marker_.h, self->marker_.v) != 0;
+        SetPort(previousPort);
+        self->recordArm("edittext-exact-setup", setup, EDIT_EXACT_CHECK);
+        if (!setup)
+        {
+          self->finish(false);
+          return;
+        }
+        self->editGeometry_ = geometry;
+        self->initial_ = controller->debugStatsForTesting();
+        self->editExact_->advance();
+        return;
+      }
+      bool editInk = false;
+      for (int y = geometry.view.top; y < geometry.view.bottom; ++y)
+        for (int x = geometry.view.left; x < geometry.view.right; ++x)
+          editInk = GetPixel(static_cast<short>(x), static_cast<short>(y)) != 0 || editInk;
+      const bool sprite = GetPixel(self->marker_.h, self->marker_.v) != 0;
+      const bool textInk = GetPixel(self->scrollTextMarker_.h, self->scrollTextMarker_.v) != 0;
+      SetPort(previousPort);
+      std::string value;
+      const bool newValue = controller->queryEditTextValueForTesting(edit.context, value) && value == "HHHH";
+      const bool sameGeometry = EqualRect(&geometry.view, &self->editGeometry_.view)
+                                && EqualRect(&geometry.destination, &self->editGeometry_.destination);
+      const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
+      const int whole = stats.windowFullRequestCount - self->initial_.windowFullRequestCount;
+      const int rects = stats.windowRectRequestCount - self->initial_.windowRectRequestCount;
+      std::fprintf(self->log_, "edittext_whole_window=%d rect_requests=%d sprite_preserved=%d text_preserved=%d new_text_visible=%d\r",
+                   whole, rects, sprite ? 1 : 0, textInk ? 1 : 0, editInk && newValue ? 1 : 0);
+      self->recordArm("edittext-exact", whole == 0 && rects >= 1 && sprite && textInk
+                      && editInk && newValue && sameGeometry, EDIT_EXACT_CHECK);
+      const PaintQuery settled = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
+      const PaintAnswer unchanged = edit.context->queryPaintDamage(settled);
+      self->recordArm("edittext-presented-empty", unchanged.kind == PAINT_ANSWER_EXACT
+                      && unchanged.damage.width == 0 && unchanged.damage.height == 0, EDIT_EXACT_CHECK);
+      PaintQuery pending = settled;
+      pending.placement = PLACEMENT_PENDING;
+      PaintQuery foreign = settled;
+      ++foreign.scope.ownerKey;
+      self->recordArm("edittext-placement-refuses",
+                      edit.context->queryPaintDamage(pending).kind == PAINT_ANSWER_REFUSED
+                      && edit.context->queryPaintDamage(foreign).kind == PAINT_ANSWER_REFUSED, EDIT_EXACT_CHECK);
+      // Revoke the installed binding while the context still exists. History
+      // alone must not keep granting EXACT after the native TE has retired.
+      controller->retireNodeContext(edit.context, edit.context->lifetimeHint());
+      self->recordArm("edittext-native-retired-refuses",
+                      !controller->queryEditTextGeometryForTesting(edit.context, geometry)
+                      && edit.context->queryPaintDamage(settled).kind == PAINT_ANSWER_REFUSED, EDIT_ZSTACK_SHOW);
+    }
+    static void OnEditZStackIdle(Window *window, PaintDamageConfig *self)
+    {
+      ToolboxWindow *native = window->asToolboxWindow();
+      if (self->phase_ == EDIT_ZSTACK_SHOW)
+      {
+        ShowWindow(native->window());
+        SelectWindow(native->window());
+        native->requestInvalidate();
+        self->phase_ = EDIT_ZSTACK_WRITE;
+        return;
+      }
+      ToolboxScenePlatformController *controller = window->scene()
+          ? static_cast<ToolboxScenePlatformController *>(
+              loka::dsl::testing::SceneTestAccess::platformController(*window->scene())) : 0;
+      FindEdit edit;
+      enumerateAttachedResidents(self->editZStack_, edit);
+      ToolboxScenePlatformController::EditTextGeometry geometry;
+      if (!controller || !self->editZStack_
+          || !controller->queryEditTextGeometryForTesting(edit.context, geometry))
+      {
+        self->recordArm("edittext-zstack-order-geometry", false, COMPLETE);
+        self->finish(false);
+        return;
+      }
+      GrafPtr previousPort;
+      GetPort(&previousPort);
+      SetPort(native->window());
+      if (self->phase_ == EDIT_ZSTACK_WRITE)
+      {
+        Node *surface = 0;
+        loka::dsl::FlowError error;
+        loka::dsl::testing::LookupNodeById<Node>(window->scene(), "EditZStack.Surface", surface, error);
+        const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
+        const PaintAnswer answer = surface && surface->getContext()
+            ? static_cast<NativeNodeContext *>(surface->getContext())->queryPaintDamage(query)
+            : PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+        // The later sprite occupies local [4,16) x [4,16). The narrow
+        // surface leaves the right TE strip clear for the new H glyphs.
+        self->marker_.h = static_cast<short>(answer.damage.x + 10);
+        self->marker_.v = static_cast<short>(answer.damage.y + 10);
+        // Leading spaces keep the sample free of glyph ink on a bad replay.
+        const unsigned char prefix[] = {4, ' ', ' ', ' ', ' '};
+        const bool blankPrefix = StringWidth(prefix) > self->marker_.h - geometry.view.left;
+        const bool overlaps = geometry.view.left < answer.damage.x + 4
+                              && geometry.view.right >= answer.damage.x + 16
+                              && geometry.view.top <= answer.damage.y + 4
+                              && geometry.view.bottom >= answer.damage.y + 16;
+        bool uncoveredWhite = true;
+        for (int y = geometry.view.top; y < geometry.view.bottom; ++y)
+          for (int x = answer.damage.x + 16; x < geometry.view.right; ++x)
+            uncoveredWhite = GetPixel(static_cast<short>(x), static_cast<short>(y)) == 0 && uncoveredWhite;
+        const bool sprite = GetPixel(self->marker_.h, self->marker_.v) != 0;
+        SetPort(previousPort);
+        std::fprintf(self->log_, "edittext_zstack_setup_sprite_black=%d uncovered_white=%d overlaps_te=%d te=(%d,%d,%d,%d) sample=(%d,%d)\r",
+                     sprite ? 1 : 0, uncoveredWhite ? 1 : 0, overlaps ? 1 : 0,
+                     geometry.view.left, geometry.view.top, geometry.view.right, geometry.view.bottom,
+                     self->marker_.h, self->marker_.v);
+        const bool setup = answer.kind == PAINT_ANSWER_EXACT && overlaps && blankPrefix && uncoveredWhite && sprite;
+        self->recordArm("edittext-zstack-order-setup", setup, EDIT_ZSTACK_CHECK);
+        if (!setup)
+        {
+          self->finish(false);
+          return;
+        }
+        self->editGeometry_ = geometry;
+        self->initial_ = controller->debugStatsForTesting();
+        self->editZStack_->advance();
+        return;
+      }
+      bool newInk = false;
+      // Reuse the setup's all-white strip, excluding the sprite and chrome.
+      for (int y = geometry.view.top; y < geometry.view.bottom; ++y)
+        for (int x = self->marker_.h + 6; x < geometry.view.right; ++x)
+          newInk = GetPixel(static_cast<short>(x), static_cast<short>(y)) != 0 || newInk;
+      const bool sprite = GetPixel(self->marker_.h, self->marker_.v) != 0;
+      SetPort(previousPort);
+      std::string value;
+      const bool newValue = controller->queryEditTextValueForTesting(edit.context, value) && value == "    HHHH";
+      const bool sameGeometry = EqualRect(&geometry.view, &self->editGeometry_.view)
+                                && EqualRect(&geometry.destination, &self->editGeometry_.destination);
+      const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
+      const int whole = stats.windowFullRequestCount - self->initial_.windowFullRequestCount;
+      const int rects = stats.windowRectRequestCount - self->initial_.windowRectRequestCount;
+      const bool dirtyFlushed = stats.totalRenderDirtyCalls > self->initial_.totalRenderDirtyCalls
+                                && stats.windowFlushDirtyCount > self->initial_.windowFlushDirtyCount;
+      std::fprintf(self->log_, "edittext_zstack_whole_window=%d rect_requests=%d sprite_black=%d new_text_visible=%d dirty_flushed=%d same_geometry=%d\r",
+                   whole, rects, sprite ? 1 : 0, newInk && newValue ? 1 : 0,
+                   dirtyFlushed ? 1 : 0, sameGeometry ? 1 : 0);
+      self->recordArm("edittext-zstack-order", whole == 0 && rects >= 1 && sprite
+                      && newInk && newValue && sameGeometry && dirtyFlushed, COMPLETE);
       self->finish(true);
     }
     static void OnEditIdle(Window *window, double, void *data)
