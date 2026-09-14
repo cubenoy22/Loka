@@ -271,6 +271,30 @@ namespace
     return false;
   }
 
+  bool HasImageViewNode(loka::app::scene::Node *node)
+  {
+    if (!node)
+    {
+      return false;
+    }
+    if (node->kind() == loka::app::scene::NODE_KIND_IMAGE_VIEW)
+    {
+      return true;
+    }
+    if (loka::app::scene::INestable *nestable = node->asNestable())
+    {
+      loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+      {
+        if (HasImageViewNode(child))
+        {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   bool HasZStackNode(loka::app::scene::Node *node)
   {
     if (!node)
@@ -321,6 +345,34 @@ namespace
       }
     }
     (void)controller;
+  }
+
+  void RenderDirtyImageViews(loka::app::scene::Node *node,
+                             ToolboxScenePlatformController *controller,
+                             const Rect &dirtyRect)
+  {
+    if (!node)
+    {
+      return;
+    }
+    if (loka::app::ImageViewNode *image = node->asImageViewNode())
+    {
+      ToolboxImageViewContext *ctx = static_cast<ToolboxImageViewContext *>(image->getContext());
+      Rect intersection;
+      if (ctx && SectRect(&ctx->rect(), &dirtyRect, &intersection))
+      {
+        ctx->render(controller);
+      }
+      return;
+    }
+    if (loka::app::scene::INestable *nestable = node->asNestable())
+    {
+      loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+      {
+        RenderDirtyImageViews(child, controller, dirtyRect);
+      }
+    }
   }
 
   bool CollectRectSurfaceDirtyRect(loka::app::scene::Node *node, Rect &outRect, ToolboxSceneDebugStats &stats)
@@ -1326,9 +1378,10 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
   if (hitLedger_.textHits_.empty() && hitLedger_.popupHits_.empty() && hitLedger_.cellHits_.empty()
       && buttonControls_.empty() && scrollBarLedger_.scrollBarControls_.empty() && editControls_.empty())
   {
-    if (HasRectSurfaceNode(rootNode_))
+    if (HasRectSurfaceNode(rootNode_) || HasImageViewNode(rootNode_))
     {
       RenderDirtyRectSurfaces(rootNode_, this, rect);
+      RenderDirtyImageViews(rootNode_, this, rect);
     }
     else
     {
@@ -1379,6 +1432,7 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
   {
     RenderDirtyRectSurfaces(rootNode_, this, rect);
   }
+  RenderDirtyImageViews(rootNode_, this, rect);
   for (size_t i = 0; i < hitLedger_.popupHits_.size(); ++i)
   {
     PopupHit &hit = hitLedger_.popupHits_[i];

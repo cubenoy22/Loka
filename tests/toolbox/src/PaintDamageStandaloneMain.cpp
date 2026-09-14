@@ -14,6 +14,7 @@
 #include "app/nodes/nestable/ZStack.hpp"
 #include "app/RectSurface.hpp"
 #include "app/nodes/Text.hpp"
+#include "app/nodes/ImageView.hpp"
 #include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/controls/Cell.hpp"
 #include "app/nodes/controls/PopupMenu.hpp"
@@ -114,6 +115,71 @@ namespace
     }
   private:
     NodeState<RectSurfaceModel> model_;
+  };
+
+  class ImageSurfaceNode;
+  typedef BoundaryPropsFor<ImageSurfaceNode> ImageSurfaceProps;
+  /** Only this Boundary owns and changes the overlapping surface model. */
+  class ImageSurfaceNode : public StdCompositionBoundaryNodeBase<ImageSurfaceProps>
+  {
+  public:
+    typedef ImageSurfaceProps::TypeTag TypeTag;
+    explicit ImageSurfaceNode(const ImageSurfaceProps &props)
+        : StdCompositionBoundaryNodeBase<ImageSurfaceProps>(props)
+    {
+      this->setTestId("ImageDamage.Owner");
+      RectSurfaceModel model;
+      model.rectCount = 1;
+      model.rects[0] = RectSprite(0, 0, 120, 24);
+      this->state(this->model_, model);
+    }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      composition.declare(RectSurface(this->model_.state()).size(150, 70)
+                          .clearBackground(true).TEST_ID("ImageDamage.Surface"));
+    }
+    void advance()
+    {
+      RectSurfaceModel model = this->model_.get();
+      model.rects[0].x = 128;
+      loka::core::StateTrackerGuard guard(this->tracker());
+      this->model_.set(model);
+    }
+  private:
+    NodeState<RectSurfaceModel> model_;
+  };
+
+  class ImagePlaceholderNode;
+  typedef BoundaryPropsFor<ImagePlaceholderNode> ImagePlaceholderProps;
+  /** The image has a separate paint-answer scope from the changing surface. */
+  class ImagePlaceholderNode : public StdCompositionBoundaryNodeBase<ImagePlaceholderProps>
+  {
+  public:
+    typedef ImagePlaceholderProps::TypeTag TypeTag;
+    explicit ImagePlaceholderNode(const ImagePlaceholderProps &props)
+        : StdCompositionBoundaryNodeBase<ImagePlaceholderProps>(props) {}
+    virtual void composeNode(NodeComposition &composition)
+    {
+      composition.declare(ImageView().size(150, 70));
+    }
+  };
+
+  class ImageOverlapNode;
+  typedef BoundaryPropsFor<ImageOverlapNode> ImageOverlapProps;
+  class ImageOverlapNode : public StdCompositionBoundaryNodeBase<ImageOverlapProps>
+  {
+  public:
+    typedef ImageOverlapProps::TypeTag TypeTag;
+    explicit ImageOverlapNode(const ImageOverlapProps &props)
+        : StdCompositionBoundaryNodeBase<ImageOverlapProps>(props) {}
+    virtual void composeNode(NodeComposition &composition)
+    {
+      composition.declare(Box().size(180, 110)
+                          << (ScrollView()
+                              << (ZStack()
+                                  << loka::app::scene::Boundary<ImageSurfaceNode>()
+                                  << loka::app::scene::Boundary<ImagePlaceholderNode>())));
+    }
   };
 
   class EditDamageNode;
@@ -283,7 +349,7 @@ namespace
   public:
     explicit PaintDamageConfig(PlatformContext *context)
         : AppConfigurable(context), app_(0), node_(0), composited_(0), edit_(0), log_(0), phase_(SETTLE), result_(0),
-          initial_(), marker_(), scrollTextMarker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0), cellWindow_(0), popupWindow_(0), overflowWindow_(0), popupRow_()
+          initial_(), marker_(), scrollTextMarker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0), cellWindow_(0), popupWindow_(0), overflowWindow_(0), imageWindow_(0), popupRow_()
     {
       if (loka::platform::file::ResolveApplicationSidecar(
               loka::file::File::Application() << loka::file::File("LOG.TXT"), this->file_))
@@ -343,12 +409,17 @@ namespace
                                    DrawerDamageNode<CELL_OVERFLOW>::Props(), 0))
                                .visible(false).idlePolicy(IdlePolicy::everyTick())
                                .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->overflowWindow_);
+      composition << ObservedWindowDefinition(WindowProps().frame(350, 250, 220, 160).title("Image replay")
+                               .scene(loka::scenario_tests::ObservedMainDefinition<ImageOverlapProps, ImageOverlapNode>(
+                                   ImageOverlapProps(), 0))
+                               .visible(false).idlePolicy(IdlePolicy::everyTick())
+                               .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->imageWindow_);
     }
 
   private:
     enum Phase { SETTLE, WRITE, CHECK, PLAIN_WRITE, PLAIN_CHECK, INVALIDATED_WRITE, INVALIDATED_CHECK,
                  COMPOSITED_WRITE, COMPOSITED_CHECK, EDIT_WRITE, EDIT_CHECK, BOUNDS_SHOW, BOUNDS_CHECK, CELL_SHOW, CELL_REPLAY, CELL_CHECK,
-                 POPUP_SHOW, POPUP_REPLAY, POPUP_CHECK, OVERFLOW_SHOW, OVERFLOW_REPLAY, OVERFLOW_CHECK, COMPLETE };
+                 POPUP_SHOW, POPUP_REPLAY, POPUP_CHECK, OVERFLOW_SHOW, OVERFLOW_REPLAY, OVERFLOW_CHECK, IMAGE_SHOW, IMAGE_WRITE, IMAGE_CHECK, COMPLETE };
     App *app_;
     ViewportDamageNode *node_;
     CompositedDamageNode *composited_;
@@ -372,6 +443,7 @@ namespace
     Window *cellWindow_;
     Window *popupWindow_;
     Window *overflowWindow_;
+    Window *imageWindow_;
     PopupRow popupRow_;
 
     void recordArm(const char *name, bool pass, Phase next)
@@ -416,6 +488,9 @@ namespace
       case OVERFLOW_SHOW: case OVERFLOW_REPLAY: case OVERFLOW_CHECK:
         target = self->overflowWindow_;
         break;
+      case IMAGE_SHOW: case IMAGE_WRITE: case IMAGE_CHECK:
+        target = self->imageWindow_;
+        break;
       case COMPLETE:
         return;
       }
@@ -439,6 +514,8 @@ namespace
         OnEditIdle(target, elapsed, data);
       else if (target == self->boundsWindow_)
         OnBoundsIdle(target, self);
+      else if (target == self->imageWindow_)
+        OnImageIdle(target, self);
       else
         OnDrawerIdle(target, self);
     }
@@ -830,7 +907,83 @@ namespace
             outsideWhite = outsideWhite && GetPixel(x, y) == 0;
       const bool setup = StringWidth(label) > 8 && GetPixel(60, 24) != 0;
       SetPort(previousPort);
-      self->recordArm("cell-ink-clipped-to-rect", setup && outsideWhite, COMPLETE);
+      self->recordArm("cell-ink-clipped-to-rect", setup && outsideWhite, IMAGE_SHOW);
+    }
+    static void OnImageIdle(Window *window, PaintDamageConfig *self)
+    {
+      ToolboxWindow *native = window->asToolboxWindow();
+      if (self->phase_ == IMAGE_SHOW)
+      {
+        ShowWindow(native->window());
+        SelectWindow(native->window());
+        native->requestInvalidate();
+        self->phase_ = IMAGE_WRITE;
+        return;
+      }
+      ToolboxScenePlatformController *controller = window->scene()
+          ? static_cast<ToolboxScenePlatformController *>(
+              loka::dsl::testing::SceneTestAccess::platformController(*window->scene())) : 0;
+      if (!controller)
+      {
+        self->finish(false);
+        return;
+      }
+      GrafPtr previousPort;
+      GetPort(&previousPort);
+      SetPort(native->window());
+      if (self->phase_ == IMAGE_WRITE)
+      {
+        Node *ownerNode = 0;
+        Node *surfaceNode = 0;
+        loka::dsl::FlowError error;
+        loka::dsl::testing::LookupNodeById<Node>(
+            window->scene(), "ImageDamage.Owner", ownerNode, error);
+        loka::dsl::testing::LookupNodeById<Node>(
+            window->scene(), "ImageDamage.Surface", surfaceNode, error);
+        ImageSurfaceNode *owner = ownerNode && ownerNode->asBoundary()
+            ? static_cast<ImageSurfaceNode *>(ownerNode) : 0;
+        RectSurfaceNode *surface = surfaceNode ? surfaceNode->asRectSurfaceNode() : 0;
+        const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
+        const PaintAnswer answer = surface && surface->getContext()
+            ? static_cast<NativeNodeContext *>(surface->getContext())->queryPaintDamage(query)
+            : PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+        bool foundInk = false;
+        if (owner && answer.kind == PAINT_ANSWER_EXACT)
+        {
+          // Sample the placeholder interior, excluding its frame. The old
+          // sprite covers this area; its new position starts at local x=128.
+          for (short y = answer.damage.y + 2; y < answer.damage.y + 14 && !foundInk; ++y)
+            for (short x = answer.damage.x + 6; x < answer.damage.x + 100 && !foundInk; ++x)
+              if (GetPixel(x, y))
+              {
+                self->marker_.h = x;
+                self->marker_.v = y;
+                foundInk = true;
+              }
+        }
+        std::fprintf(self->log_, "image_placeholder_setup=%d\r", foundInk ? 1 : 0);
+        self->recordArm("image-overlap-replay-setup", foundInk, IMAGE_CHECK);
+        if (foundInk)
+        {
+          self->initial_ = controller->debugStatsForTesting();
+          owner->advance();
+        }
+        SetPort(previousPort);
+        if (!foundInk)
+          self->finish(false);
+        return;
+      }
+      const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
+      const int whole = stats.windowFullRequestCount - self->initial_.windowFullRequestCount;
+      const int rects = stats.windowRectRequestCount - self->initial_.windowRectRequestCount;
+      const bool ink = GetPixel(self->marker_.h, self->marker_.v) != 0;
+      const bool replayed = stats.totalRenderCalls == self->initial_.totalRenderCalls
+                            && stats.totalRenderDirtyCalls > self->initial_.totalRenderDirtyCalls
+                            && stats.windowFlushDirtyCount > self->initial_.windowFlushDirtyCount;
+      SetPort(previousPort);
+      std::fprintf(self->log_, "image_whole_window=%d rect_requests=%d placeholder_ink=%d dirty_replayed=%d\r",
+                   whole, rects, ink ? 1 : 0, replayed ? 1 : 0);
+      self->recordArm("image-overlap-replay", whole == 0 && rects >= 1 && ink && replayed, COMPLETE);
       self->finish(true);
     }
     static void OnEditIdle(Window *window, double, void *data)
