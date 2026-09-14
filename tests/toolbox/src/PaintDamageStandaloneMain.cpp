@@ -660,9 +660,22 @@ namespace
       BoundaryLocalApplyInfo info;
       info.paintKind = LOCAL_APPLY_PAINT_COMPOSITED;
       const bool gate = verdict.canSkipBroadPaint(info);
-      std::fprintf(self->log_, "zstack_gate=%d broad_requests=%d\r", gate ? 1 : 0, broad);
+      const int rects = stats.windowRectRequestCount - self->initial_.windowRectRequestCount;
+      // The ZStack is not classified composited by the Boundary, so the write
+      // is delivered exactly; renderDirty's ZStack branch re-renders the dirty
+      // rect under a clip so the overlapping Text keeps its ink. Sample the
+      // Text ink right of the moved sprite (sprite now spans x 28-40 at y 52-64).
+      GrafPtr zPort;
+      GetPort(&zPort);
+      SetPort(native->window());
+      bool textInk = false;
+      for (short y = 50; y < 62; ++y)
+        for (short x = 44; x < 58; ++x)
+          textInk = textInk || GetPixel(x, y) != 0;
+      SetPort(zPort);
+      std::fprintf(self->log_, "zstack_gate=%d broad_requests=%d rect_requests=%d text_ink=%d\r", gate ? 1 : 0, broad, rects, textInk ? 1 : 0);
       self->recordArm("contained-text-history", verdict.refusedCount() == 0, COMPOSITED_CHECK);
-      self->recordArm("zstack", !gate && broad > 0, EDIT_WRITE);
+      self->recordArm("zstack-overlap-replay", !gate && broad == 0 && rects >= 1 && textInk, EDIT_WRITE);
     }
     static void OnBoundsIdle(Window *window, PaintDamageConfig *self)
     {
