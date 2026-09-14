@@ -138,7 +138,7 @@ loka_add_toolbox_test_application(
   LokaAppleToolboxTestCore
   src/PaintDamageStandaloneMain.cpp
   ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
-  ${CMAKE_CURRENT_BINARY_DIR}/WindowClampSize.r
+  ${CMAKE_CURRENT_SOURCE_DIR}/PaintDamageSize.r
 )
 target_include_directories(${LOKA_PAINT_DAMAGE_TARGET} PRIVATE
   ${CMAKE_SOURCE_DIR}/tests/standalone
