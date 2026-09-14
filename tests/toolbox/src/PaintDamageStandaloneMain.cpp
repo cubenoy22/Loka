@@ -132,6 +132,29 @@ namespace
     NodeState<loka::core::String> text_;
   };
 
+  class SurfaceBoundsNode;
+  typedef BoundaryPropsFor<SurfaceBoundsNode> SurfaceBoundsProps;
+  /** A fixed model overhangs the declared surface by eight pixels on two sides. */
+  class SurfaceBoundsNode : public StdCompositionBoundaryNodeBase<SurfaceBoundsProps>
+  {
+  public:
+    typedef SurfaceBoundsProps::TypeTag TypeTag;
+    explicit SurfaceBoundsNode(const SurfaceBoundsProps &props)
+        : StdCompositionBoundaryNodeBase<SurfaceBoundsProps>(props)
+    {
+      RectSurfaceModel model;
+      model.rectCount = 1;
+      model.rects[0] = RectSprite(52, 32, 16, 16);
+      this->state(this->model_, model);
+    }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      composition.declare(RectSurface(this->model_.state()).clearBackground(true).size(60, 40));
+    }
+  private:
+    NodeState<RectSurfaceModel> model_;
+  };
+
   struct FindEdit : public IPaintResidentVisitor
   {
     FindEdit() : context(0) {}
@@ -199,7 +222,7 @@ namespace
   public:
     explicit PaintDamageConfig(PlatformContext *context)
         : AppConfigurable(context), app_(0), node_(0), composited_(0), edit_(0), log_(0), phase_(SETTLE), result_(0),
-          initial_(), marker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0)
+          initial_(), marker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0)
     {
       if (loka::platform::file::ResolveApplicationSidecar(
               loka::file::File::Application() << loka::file::File("LOG.TXT"), this->file_))
@@ -239,11 +262,16 @@ namespace
                                    EditDamageProps(), &this->edit_))
                                .visible(true).idlePolicy(IdlePolicy::everyTick())
                                .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->editWindow_);
+      composition << ObservedWindowDefinition(WindowProps().frame(350, 250, 220, 160).title("Surface bounds")
+                               .scene(loka::scenario_tests::ObservedMainDefinition<SurfaceBoundsProps, SurfaceBoundsNode>(
+                                   SurfaceBoundsProps(), 0))
+                               .visible(false).idlePolicy(IdlePolicy::everyTick())
+                               .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->boundsWindow_);
     }
 
   private:
     enum Phase { SETTLE, WRITE, CHECK, PLAIN_WRITE, PLAIN_CHECK, INVALIDATED_WRITE, INVALIDATED_CHECK,
-                 COMPOSITED_WRITE, COMPOSITED_CHECK, EDIT_WRITE, EDIT_CHECK, COMPLETE };
+                 COMPOSITED_WRITE, COMPOSITED_CHECK, EDIT_WRITE, EDIT_CHECK, BOUNDS_SHOW, BOUNDS_CHECK, COMPLETE };
     App *app_;
     ViewportDamageNode *node_;
     CompositedDamageNode *composited_;
@@ -262,6 +290,7 @@ namespace
     Window *editWindow_;
     PlainDamageNode *plain_;
     Window *plainWindow_;
+    Window *boundsWindow_;
 
     void recordArm(const char *name, bool pass, Phase next)
     {
@@ -274,7 +303,7 @@ namespace
     }
 
     /** Only the active Window receives idle. Any active window drives the
-        same finite sequence over the four explicit fixture borrows. */
+        same finite sequence over the explicit fixture borrows. */
     static void DispatchIdle(Window *, double elapsed, void *data)
     {
       PaintDamageConfig *self = static_cast<PaintDamageConfig *>(data);
@@ -292,6 +321,9 @@ namespace
         break;
       case EDIT_WRITE: case EDIT_CHECK:
         target = self->editWindow_;
+        break;
+      case BOUNDS_SHOW: case BOUNDS_CHECK:
+        target = self->boundsWindow_;
         break;
       case COMPLETE:
         return;
@@ -312,8 +344,10 @@ namespace
         OnPaintIdle(target, self->plain_, self);
       else if (target == self->compositedWindow_)
         OnCompositedIdle(target, elapsed, data);
-      else
+      else if (target == self->editWindow_)
         OnEditIdle(target, elapsed, data);
+      else
+        OnBoundsIdle(target, self);
     }
 
     void finish(bool pass)
@@ -510,6 +544,31 @@ namespace
       self->recordArm("contained-text-history", verdict.refusedCount() == 0, COMPOSITED_CHECK);
       self->recordArm("zstack", !gate && broad > 0, EDIT_WRITE);
     }
+    static void OnBoundsIdle(Window *window, PaintDamageConfig *self)
+    {
+      ToolboxWindow *native = window->asToolboxWindow();
+      if (self->phase_ == BOUNDS_SHOW)
+      {
+        // Keep this window hidden until all earlier fixture arms have finished.
+        ShowWindow(native->window());
+        SelectWindow(native->window());
+        native->requestInvalidate();
+        self->phase_ = BOUNDS_CHECK;
+        return;
+      }
+      GrafPtr previousPort;
+      GetPort(&previousPort);
+      SetPort(native->window());
+      // The root layout starts at (12, 24). Both samples lie in the sprite's
+      // row; only the first lies inside the 60 x 40 surface.
+      const bool insideBlack = GetPixel(12 + 56, 24 + 36) != 0;
+      const bool outsideWhite = GetPixel(12 + 64, 24 + 36) == 0;
+      SetPort(previousPort);
+      std::fprintf(self->log_, "surface_inside_black=%d outside_white=%d\r",
+                   insideBlack ? 1 : 0, outsideWhite ? 1 : 0);
+      self->recordArm("surface-bounds-clip", insideBlack && outsideWhite, COMPLETE);
+      self->finish(true);
+    }
     static void OnEditIdle(Window *window, double, void *data)
     {
       PaintDamageConfig *self = static_cast<PaintDamageConfig *>(data);
@@ -551,8 +610,7 @@ namespace
       const bool same = EqualRect(&geometry.destination, &self->editGeometry_.destination)
                         && EqualRect(&geometry.view, &self->editGeometry_.view);
       std::fprintf(self->log_, "edit_replay_preserves_projection=%d\r", same ? 1 : 0);
-      self->recordArm("edit-replay", same, COMPLETE);
-      self->finish(true);
+      self->recordArm("edit-replay", same, BOUNDS_SHOW);
     }
   };
 }

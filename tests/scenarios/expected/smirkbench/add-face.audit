@@ -32,7 +32,7 @@ crop_right	636
 crop_top	0
 face_count	2
 format_version	1
-last.control_draws	1
+last.control_draws	2
 node	SmirkBench.Surface
 rail	toolbox
 scenario_version	1
@@ -45,7 +45,7 @@ text.value	Faces: 2
 tick	4
 total.boundary_applies	3
 total.collector_visits	24
-total.control_draws	3
+total.control_draws	2
 step id=5 due_tick=5 tick=5 status=succeeded error_kind=0 error_code=0 name=surface-tick
 step id=6 due_tick=6 tick=6 status=succeeded error_kind=0 error_code=0 name=surface-tick
 step id=7 due_tick=7 tick=7 status=succeeded error_kind=0 error_code=0 name=surface-tick
@@ -60,7 +60,7 @@ crop_right	636
 crop_top	0
 face_count	2
 format_version	1
-last.control_draws	1
+last.control_draws	2
 node	SmirkBench.Surface
 rail	toolbox
 scenario_version	1
@@ -73,5 +73,5 @@ text.value	Faces: 2
 tick	10
 total.boundary_applies	8
 total.collector_visits	64
-total.control_draws	8
+total.control_draws	2
 terminal status=succeeded
