@@ -22,6 +22,7 @@ namespace derived_node_test
   static int destructions = 0;
   static int allocations = 0;
   static int frees = 0;
+  static int gateStateAllocations = 0;
   static int refusals = 0;
   static MutableState<bool> *visible = 0;
 
@@ -36,7 +37,11 @@ namespace derived_node_test
     }
     void *storage = new (std::nothrow) char[size];
     if (storage)
+    {
       ++allocations;
+      if (std::strcmp(site.ownerTag, "StateOwner") == 0)
+        ++gateStateAllocations;
+    }
     return storage;
   }
   void release(void *storage, const LokaAllocationSite &)
@@ -49,7 +54,7 @@ namespace derived_node_test
     explicit Probe(Declaration mode)
     {
       declaration = mode;
-      evaluations = destructions = allocations = frees = refusals = 0;
+      evaluations = destructions = allocations = frees = refusals = gateStateAllocations = 0;
       LokaAllocSetBackend(&allocate, &release);
     }
     ~Probe()
@@ -107,8 +112,9 @@ namespace derived_node_test
     }
     virtual void *allocateStateMemory(size_t size, size_t align)
     {
-      if (declaration == REFUSED_DEPENDENCY)
-        return 0; // Force the mutable dependency through the existing heap gate.
+      if (declaration == REFUSED_DEPENDENCY ||
+          (declaration == REFUSED_DERIVED && size == sizeof(DerivedState<String>)))
+        return 0; // Decline this seat's arena slot so its gate path is exercised.
       return BoundaryNodeFor<Fixture>::allocateStateMemory(size, align);
     }
     virtual void composeNode(NodeComposition &c) { c.declare(loka::app::Fragment()); }
@@ -206,6 +212,9 @@ void testDerivedNodeStateTransactionsAndTeardown()
     loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     Fixture *node = root(scene);
     LOKA_VERIFY(node && node->sum_.isValid() && evaluations == 1);
+    LOKA_VERIFY(node->sum_.state()->isArenaAllocated());
+    LOKA_VERIFY(!node->sum_.state()->isGateAllocated());
+    LOKA_VERIFY(gateStateAllocations == 0);
     Observer observer(*node);
     node->sum_.bind(&Observer::changed, &observer, false);
     node->writeA(10);

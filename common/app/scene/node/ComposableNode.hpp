@@ -990,8 +990,8 @@ namespace loka
         std::vector<NodeStateRegistrationBase *> nodeStates_;
       };
 
-      /** Heap-only derived registration, sharing the ordered connect/release
-          protocol with NodeStateRegistration and completed state batches. */
+      /** Derived registration, sharing the ordered connect/release protocol
+          with NodeStateRegistration and completed state batches. */
       template <typename T>
       struct NodeDerivedStateRegistration : public ComposableNode::NodeStateRegistrationBase
       {
@@ -1002,7 +1002,12 @@ namespace loka
             : out_(out), dep1_(dep1), dep2_(dep2), eval_(eval), owner_(0), state_(0) {}
         virtual ~NodeDerivedStateRegistration() { delete this->eval_; }
         bool matches(const void *out) const { return this->out_ == out; }
-        size_t pendingArenaBytes() const { return 0; }
+        size_t pendingArenaBytes() const
+        {
+          return (this->out_ && !this->out_->isValid())
+                     ? StateBatchBase::ArenaBytesForDerivedState<T>()
+                     : 0;
+        }
 
         void connect(IStateOwner *owner)
         {
@@ -1025,20 +1030,37 @@ namespace loka
               owner->noteStateAllocationFailure();
             return;
           }
-          loka::core::DerivedState<T> *state = this->dep2_.isPresent()
-              ? loka::core::LokaNew<loka::core::DerivedState<T> >(
-                    HeapStateAllocationSite(), dep1, dep2, this->eval_)
-              : loka::core::LokaNew<loka::core::DerivedState<T> >(
-                    HeapStateAllocationSite(), dep1, this->eval_);
+          loka::core::DerivedState<T> *state = 0;
+          const size_t align = detail::AlignOf<loka::core::DerivedState<T> >::value;
+          void *mem = owner->allocateStateMemory(sizeof(loka::core::DerivedState<T>), align);
+          if (mem)
+          {
+            state = this->dep2_.isPresent()
+                ? new (mem) loka::core::DerivedState<T>(dep1, dep2, this->eval_)
+                : new (mem) loka::core::DerivedState<T>(dep1, this->eval_);
+            state->setArenaAllocated(true);
+            owner->registerStateMemory(state, &StateBatchBase::DestroyDerivedState<T>);
+          }
+          else
+          {
+            state = this->dep2_.isPresent()
+                ? loka::core::LokaNew<loka::core::DerivedState<T> >(
+                      HeapStateAllocationSite(), dep1, dep2, this->eval_)
+                : loka::core::LokaNew<loka::core::DerivedState<T> >(
+                      HeapStateAllocationSite(), dep1, this->eval_);
+          }
           if (!state)
           {
             owner->noteStateAllocationFailure();
             return;
           }
-          assert(static_cast<void *>(static_cast<loka::core::StateBase *>(state)) ==
-                     static_cast<void *>(state) &&
-                 "gate frees through StateBase; its subobject must sit at the storage address");
-          state->setGateAllocated(true);
+          if (!state->isArenaAllocated())
+          {
+            assert(static_cast<void *>(static_cast<loka::core::StateBase *>(state)) ==
+                       static_cast<void *>(state) &&
+                   "gate frees through StateBase; its subobject must sit at the storage address");
+            state->setGateAllocated(true);
+          }
           this->eval_ = 0;
           owner->adoptStateUnchecked(state);
           this->owner_ = owner;

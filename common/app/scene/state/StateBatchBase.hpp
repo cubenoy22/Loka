@@ -50,6 +50,16 @@ namespace loka
           }
         }
 
+        template <typename T> static void DestroyDerivedState(loka::core::StateBase *state)
+        {
+          loka::core::DerivedState<T> *typed = static_cast<loka::core::DerivedState<T> *>(state);
+          if (typed)
+          {
+            typedef loka::core::DerivedState<T> DerivedStateType;
+            typed->~DerivedStateType();
+          }
+        }
+
         /** Worst-case owner arena bytes one CreateStateFromInitial call can
             consume for T: the MutableState object plus the alignment padding
             the arena may insert. Padding is bounded by the arena's effective
@@ -62,6 +72,15 @@ namespace loka
         {
           return sizeof(loka::core::MutableState<T>) +
                  detail::NormalizeArenaAlign(detail::AlignOf<loka::core::MutableState<T> >::value);
+        }
+
+        /** Worst-case owner arena bytes one derived-state declaration can
+            consume. Kept beside ArenaBytesForState so registration batches
+            reserve with the exact type their connect path constructs. */
+        template <typename T> static size_t ArenaBytesForDerivedState()
+        {
+          return sizeof(loka::core::DerivedState<T>) +
+                 detail::NormalizeArenaAlign(detail::AlignOf<loka::core::DerivedState<T> >::value);
         }
 
         /** Creates from capacity already reserved by the caller, falling back
