@@ -364,7 +364,8 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
                                    + ToolboxLayoutMetrics::kControlDescent);
   updateRect(rect, state.x,
              static_cast<short>(state.y + effectiveLineHeight - ToolboxLayoutMetrics::kControlAscentInset));
-  state.y = static_cast<short>(state.y + effectiveLineHeight + state.spacing);
+  // Advance by the painted box, as the other rails do: y is the top edge.
+  state.y = static_cast<short>(rect.bottom + state.spacing);
   return width;
 }
 

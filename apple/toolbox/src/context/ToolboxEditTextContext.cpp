@@ -148,7 +148,8 @@ short ToolboxEditTextContext::layout(loka::app::scene::IPlatformController *cont
   this->captureProps();
   updateRect(rect, textRect, static_cast<short>(state.x + 4),
              static_cast<short>(state.y + state.lineHeight - ToolboxLayoutMetrics::kControlAscentInset));
-  state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
+  // Advance by the painted box, as the other rails do: y is the top edge.
+  state.y = static_cast<short>(rect.bottom + state.spacing);
   return width;
 }
 
