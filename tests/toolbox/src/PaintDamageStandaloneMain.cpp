@@ -952,12 +952,16 @@ namespace
         {
           // Sample the placeholder interior, excluding its frame. The old
           // sprite covers this area; its new position starts at local x=128.
-          for (short y = answer.damage.y + 2; y < answer.damage.y + 14 && !foundInk; ++y)
-            for (short x = answer.damage.x + 6; x < answer.damage.x + 100 && !foundInk; ++x)
-              if (GetPixel(x, y))
+          const int top = answer.damage.y + 2;
+          const int bottom = answer.damage.y + 14;
+          const int left = answer.damage.x + 6;
+          const int right = answer.damage.x + 100;
+          for (int y = top; y < bottom && !foundInk; ++y)
+            for (int x = left; x < right && !foundInk; ++x)
+              if (GetPixel(static_cast<short>(x), static_cast<short>(y)))
               {
-                self->marker_.h = x;
-                self->marker_.v = y;
+                self->marker_.h = static_cast<short>(x);
+                self->marker_.v = static_cast<short>(y);
                 foundInk = true;
               }
         }
