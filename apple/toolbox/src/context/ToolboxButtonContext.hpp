@@ -55,6 +55,7 @@ public:
   {
     return this->enabled_ == other.enabled_ && this->label_.equals(other.label_);
   }
+  const loka::core::String &label() const { return this->label_; }
 private:
   loka::core::String label_;
   bool enabled_;

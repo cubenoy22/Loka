@@ -79,6 +79,11 @@ loka::app::scene::PaintAnswer ToolboxButtonContext::queryPaintDamage(const loka:
   const ToolboxButtonPaintValue current(
       this->node_->props.text_ ? this->node_->props.text_->get() : loka::core::String::Literal("Button"),
       !this->node_->props.enabled_ || this->node_->props.enabled_->get());
+  // The control's width is derived from its title (layout), so a title whose
+  // measured width differs from the presented one moves this button and its
+  // Row siblings: that is layout work, not paint, and exact delivery refuses.
+  if (ToolboxMeasureTextWidth(current.label()) != ToolboxMeasureTextWidth(this->presented_.value().label()))
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
   return ToolboxExactPaint(this->paintRect_, !(current == this->presented_.value()));
 }
 
