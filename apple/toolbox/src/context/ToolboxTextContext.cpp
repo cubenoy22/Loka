@@ -279,12 +279,7 @@ void ToolboxTextContext::paint(bool erase)
   this->presented_.invalidate();
   if (!this->text_)
     return;
-  // The legacy Text painter replaces the incoming clip with its full text
-  // bounds. Baseline ink can precede a ScrollView's top edge (HelloWorld's
-  // first line). Preserve that broad-render behavior until viewport geometry
-  // is reconciled; it cannot establish a clipped EXACT presentation fact.
-  const bool contained = EqualRect(&this->paintRect_, &this->rect_);
-  ToolboxPaintClip clip(this->rect_, contained ? ToolboxPaintClip::INTERSECT : ToolboxPaintClip::REPLACE);
+  ToolboxPaintClip clip(this->paintRect_);
   if (!clip.isActive())
   {
     // Classic low-memory fallback: keep the caller's clip and still draw.
@@ -306,7 +301,7 @@ void ToolboxTextContext::paint(bool erase)
   {
     painted = DrawStringAt(this->textX_, this->textY_, this->text_->get());
   }
-  if (contained && painted && clip.covers(this->paintRect_))
+  if (painted && clip.covers(this->paintRect_))
     this->presented_.commit(this->text_->get(), ToolboxPaintScope());
 }
 

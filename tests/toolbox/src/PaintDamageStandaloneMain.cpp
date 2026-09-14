@@ -149,7 +149,13 @@ namespace
     }
     virtual void composeNode(NodeComposition &composition)
     {
-      composition.declare(RectSurface(this->model_.state()).clearBackground(true).size(60, 40));
+      composition.declare(Column()
+                          << (Box().size(180, 40)
+                              << RectSurface(this->model_.state()).clearBackground(true).size(60, 40))
+                          << (Box().size(180, 54)
+                              << (ScrollView()
+                                  << (Column() << Box().size(150, 48)
+                                      << Text("HHHH").TEST_ID("PaintDamage.ClippedText")))));
     }
   private:
     NodeState<RectSurfaceModel> model_;
@@ -563,7 +569,29 @@ namespace
       // row; only the first lies inside the 60 x 40 surface.
       const bool insideBlack = GetPixel(12 + 56, 24 + 36) != 0;
       const bool outsideWhite = GetPixel(12 + 64, 24 + 36) == 0;
+      // The second seat starts at y=64: its viewport ends at 118, while
+      // Text starts at 112 with baseline 124. H has ink on both sampled rows.
+      bool textInsideBlack = false;
+      bool textOutsideWhite = true;
+      for (short x = 12; x < 60; ++x)
+      {
+        textInsideBlack = GetPixel(x, 117) != 0 || textInsideBlack;
+        textOutsideWhite = GetPixel(x, 119) == 0 && textOutsideWhite;
+      }
       SetPort(previousPort);
+      TextNode *text = 0;
+      loka::dsl::FlowError error;
+      loka::dsl::testing::LookupNodeById<TextNode>(
+          window->scene(), "PaintDamage.ClippedText", text, error);
+      const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
+      const PaintAnswer answer = text && text->getContext()
+          ? static_cast<NativeNodeContext *>(text->getContext())->queryPaintDamage(query)
+          : PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+      const bool clippedHistory = answer.kind == PAINT_ANSWER_EXACT && answer.damage.y == 112;
+      std::fprintf(self->log_, "text_inside_black=%d outside_white=%d clipped_history=%d\r",
+                   textInsideBlack ? 1 : 0, textOutsideWhite ? 1 : 0, clippedHistory ? 1 : 0);
+      self->recordArm("text-clipped-to-viewport",
+                      textInsideBlack && textOutsideWhite && clippedHistory, BOUNDS_CHECK);
       std::fprintf(self->log_, "surface_inside_black=%d outside_white=%d\r",
                    insideBlack ? 1 : 0, outsideWhite ? 1 : 0);
       self->recordArm("surface-bounds-clip", insideBlack && outsideWhite, COMPLETE);
