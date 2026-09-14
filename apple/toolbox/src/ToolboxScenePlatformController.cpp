@@ -105,7 +105,7 @@ namespace
         break;
       }
       // A ledger refresh alone is not a completed paint submission. Drawers
-      // without their own exact answer (including Popup) preserve widening.
+      // without their own exact answer preserve widening.
       answer = PaintAnswer::refused(context ? PAINT_REFUSED_UNSUPPORTED_KIND : PAINT_REFUSED_NO_CONTEXT);
       return true;
     }

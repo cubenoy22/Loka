@@ -32,12 +32,12 @@ namespace
 
   ToolboxPopupMenuNodeHandler gToolboxPopupMenuNodeHandler;
 
-  void DrawStringAt(short x, short y, const loka::core::String &value)
+  bool DrawStringAt(short x, short y, const loka::core::String &value)
   {
     std::string utf8;
     if (!loka::platform::CollectUtf8(value, utf8))
     {
-      return;
+      return false;
     }
     std::size_t length = utf8.size();
     if (length > 255)
@@ -52,6 +52,7 @@ namespace
     }
     MoveTo(x, y);
     DrawString(text);
+    return true;
   }
 } // namespace
 
@@ -71,11 +72,31 @@ ToolboxPopupMenuContext::ToolboxPopupMenuContext(loka::app::PopupMenuNode *node,
 
 ToolboxPopupMenuContext::~ToolboxPopupMenuContext() {}
 
+loka::app::scene::PaintAnswer ToolboxPopupMenuContext::queryPaintDamage(
+    const loka::app::scene::PaintQuery &query) const
+{
+  using namespace loka::app::scene;
+  if (query.placement != PLACEMENT_ELIGIBLE || query.scope != ToolboxPaintScope())
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  if (!this->node_ || this->items_ != this->node_->props.items_
+      || this->selectedIndex_ != this->node_->props.selectedIndex_
+      || this->enabled_ != this->node_->props.enabled_)
+    return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
+  if (EmptyRect(&this->paintRect_))
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  if (!this->presented_.isKnown())
+    return PaintAnswer::refused(PAINT_REFUSED_HISTORY_UNKNOWN);
+  return ToolboxExactPaint(this->paintRect_, !this->faceValue().equals(this->presented_.value()));
+}
+
 void ToolboxPopupMenuContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
                                             loka::app::scene::NodeLifecycleFact next)
 {
   if (next != loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->presented_.invalidate();
     SetRect(&this->paintRect_, 0, 0, 0, 0);
+  }
   ToolboxProjectedNodeContext::onFactChanged(previous, next);
 }
 
@@ -92,6 +113,7 @@ void ToolboxPopupMenuContext::updateData(const loka::Vector<loka::core::String> 
 
 void ToolboxPopupMenuContext::updateRect(const Rect &rect, short lineHeight)
 {
+  this->presented_.invalidate();
   this->rect_ = rect;
   // The gray shadow occupies the right/bottom pixels outside the face's
   // half-open geometry. Only the paint bounds include that extra pixel.
@@ -144,33 +166,32 @@ void ToolboxPopupMenuContext::copyToPascalString(const loka::core::String &value
 void ToolboxPopupMenuContext::draw()
 {
   ToolboxPaintClip clip(this->paintRect_);
-  this->paintFace();
+  this->paintFace(clip);
 }
 
 void ToolboxPopupMenuContext::repaint()
 {
   ToolboxPaintClip clip(this->paintRect_);
-  EraseRect(&this->paintRect_);
-  this->paintFace();
+  if (clip.isActive())
+    EraseRect(&this->paintRect_);
+  this->paintFace(clip);
 }
 
-void ToolboxPopupMenuContext::paintFace()
+ToolboxPopupMenuContext::FaceValue ToolboxPopupMenuContext::faceValue() const
 {
-  if (!node_)
-  {
+  const int selectedIndex = this->selectedIndex_ ? this->selectedIndex_->get() : 0;
+  const loka::core::String label = this->items_ && this->items_->size() > 0
+      ? (*this->items_)[this->clampIndex(selectedIndex)] : loka::core::String::Literal("Select");
+  return FaceValue(label, selectedIndex, !this->enabled_ || this->enabled_->get());
+}
+
+void ToolboxPopupMenuContext::paintFace(const ToolboxPaintClip &clip)
+{
+  // Mirrors EditText: partial replay cannot establish completed presentation.
+  this->presented_.invalidate();
+  if (!this->node_ || !clip.isActive())
     return;
-  }
-  loka::core::String label = loka::core::String::Literal("Select");
-  int selectedIndex = 0;
-  if (selectedIndex_)
-  {
-    selectedIndex = selectedIndex_->get();
-  }
-  if (items_ && items_->size() > 0)
-  {
-    short clamped = clampIndex(selectedIndex);
-    label = (*items_)[clamped];
-  }
+  const FaceValue face = this->faceValue();
   PenState penState;
   GetPenState(&penState);
   FrameRect(&rect_);
@@ -180,7 +201,7 @@ void ToolboxPopupMenuContext::paintFace()
   LineTo(rect_.right, rect_.top + 2);
   SetPenState(&penState);
   short textY = static_cast<short>(rect_.top + lineHeight_ - ToolboxLayoutMetrics::kControlAscentInset);
-  DrawStringAt(static_cast<short>(rect_.left + 4), textY, label);
+  const bool labelDrawn = DrawStringAt(static_cast<short>(rect_.left + 4), textY, face.label());
   short arrowRight = static_cast<short>(rect_.right - 4);
   short arrowTop = static_cast<short>(rect_.top + 4);
   short arrowBottom = static_cast<short>(rect_.bottom - 4);
@@ -189,6 +210,8 @@ void ToolboxPopupMenuContext::paintFace()
   LineTo(arrowRight, arrowMidY - 3);
   LineTo(static_cast<short>(arrowRight - 3), arrowMidY + 3);
   LineTo(static_cast<short>(arrowRight - 6), arrowMidY - 3);
+  if (labelDrawn && clip.covers(this->paintRect_))
+    this->presented_.commit(face, ToolboxPaintScope());
 }
 
 short ToolboxPopupMenuContext::layout(loka::app::scene::IPlatformController *controller,
