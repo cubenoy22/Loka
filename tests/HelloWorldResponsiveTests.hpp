@@ -3,5 +3,6 @@
 
 void testHelloWorldResponsivePanelsFollowNativeFrameAndRetainSeats();
 void testHelloWorldNarrowMountComposesColumnFirst();
+void testHelloWorldDerivedTextSeatsCoverInputsAndActions();
 
 #endif // LOKA_TESTS_HELLO_WORLD_RESPONSIVE_TESTS_HPP

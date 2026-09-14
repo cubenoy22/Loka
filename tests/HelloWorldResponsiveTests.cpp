@@ -4,6 +4,7 @@
 #include "app/core/Window.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/nestable/ScrollView.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "app/scene/Scene.hpp"
 #include "core/util/OwnedDef.hpp"
 #include "platform/null/NullPlatformContext.hpp"
@@ -123,6 +124,51 @@ namespace
     LOKA_VERIFY(scrollView != 0);
     return scrollView;
   }
+
+  loka::app::scene::Node *findByTestId(loka::app::scene::Node *node, const char *id)
+  {
+    if (!node)
+      return 0;
+    if (node->testId() == id)
+      return node;
+    loka::app::scene::INestable *nestable = node->asNestable();
+    for (loka::app::scene::Node *child = nestable ? nestable->childrenHead() : 0;
+         child;
+         child = child->nextInComposition)
+    {
+      loka::app::scene::Node *found = findByTestId(child, id);
+      if (found)
+        return found;
+    }
+    return 0;
+  }
+
+  loka::app::scene::Node *findDescendantByKind(loka::app::scene::Node *node,
+                                                loka::app::scene::NodeKind kind,
+                                                int &skip)
+  {
+    if (!node)
+      return 0;
+    if (node->kind() == kind && skip-- == 0)
+      return node;
+    loka::app::scene::INestable *nestable = node->asNestable();
+    for (loka::app::scene::Node *child = nestable ? nestable->childrenHead() : 0;
+         child;
+         child = child->nextInComposition)
+    {
+      loka::app::scene::Node *found = findDescendantByKind(child, kind, skip);
+      if (found)
+        return found;
+    }
+    return 0;
+  }
+
+  struct TextObserver
+  {
+    TextObserver() : calls(0) {}
+    static void changed(void *data) { ++static_cast<TextObserver *>(data)->calls; }
+    int calls;
+  };
 } // namespace
 
 void testHelloWorldResponsivePanelsFollowNativeFrameAndRetainSeats()
@@ -236,4 +282,98 @@ void testHelloWorldNarrowMountComposesColumnFirst()
   admission.flush();
   LOKA_VERIFY(findMainPanels(*window.scene())->props.effectiveAxis() ==
               loka::app::STACK_AXIS_COLUMN);
+}
+
+void testHelloWorldDerivedTextSeatsCoverInputsAndActions()
+{
+  using loka::core::String;
+  using loka::core::StateTrackerGuard;
+  using loka::dsl::testing::SceneTestAccess;
+
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<helloworld::MainNode>()));
+  scene.mount(&platform);
+  SceneTestAccess::updateAttached(scene, true);
+  loka::app::scene::Node *root = SceneTestAccess::rootNode(scene);
+  loka::app::TextNode *summary = findByTestId(root, "HelloWorld.LeftPanel.ActionSummary")->asTextNode();
+  loka::app::TextNode *fruit = findByTestId(root, "HelloWorld.RightPanel.FruitMessage")->asTextNode();
+  loka::app::scene::Node *bmiRoot = findByTestId(root, "HelloWorld.Bmi");
+  int bmiTextSkip = 3;
+  int heightSkip = 0;
+  int weightSkip = 1;
+  loka::app::TextNode *bmi = static_cast<loka::app::TextNode *>(
+      findDescendantByKind(bmiRoot, loka::app::scene::NODE_KIND_TEXT, bmiTextSkip)->asTextNode());
+  loka::app::PopupMenuNode *fruitPicker =
+      findByTestId(root, "HelloWorld.RightPanel.FruitPopup")->asPopupMenuNode();
+  loka::app::EditTextNode *height =
+      static_cast<loka::app::EditTextNode *>(findDescendantByKind(
+          bmiRoot, loka::app::scene::NODE_KIND_EDIT_TEXT, heightSkip)->asEditTextNode());
+  loka::app::EditTextNode *weight =
+      static_cast<loka::app::EditTextNode *>(findDescendantByKind(
+          bmiRoot, loka::app::scene::NODE_KIND_EDIT_TEXT, weightSkip)->asEditTextNode());
+  loka::app::ButtonNode *probe =
+      findByTestId(root, "HelloWorld.LeftPanel.ProbeButton")->asButtonNode();
+  loka::app::ButtonNode *toggle =
+      findByTestId(root, "HelloWorld.LeftPanel.ToggleEnabledButton")->asButtonNode();
+  LOKA_VERIFY(summary && fruit && bmi && fruitPicker && height && weight && probe && toggle);
+  LOKA_VERIFY(summary->props.text_->get().equals(String::Literal("Button enabled: yes / clicks: 0")));
+  LOKA_VERIFY(fruit->props.text_->get().equals(String::Literal("You chose Apple.")));
+  LOKA_VERIFY(bmi->props.text_->get().equals(String::Literal("BMI: 20.76")));
+
+  TextObserver observer;
+  bmi->props.text_->bind(&TextObserver::changed, &observer, false);
+  loka::app::scene::BoundaryNode *owner = SceneTestAccess::rootBoundary(scene);
+  {
+    StateTrackerGuard guard(owner->tracker());
+    height->props.text_->set(String::Literal("invalid"));
+  }
+  LOKA_VERIFY(bmi->props.text_->get().equals(String::Literal("BMI: --")) && observer.calls == 1);
+  {
+    StateTrackerGuard guard(owner->tracker());
+    height->props.text_->set(String::Literal("170.0"));
+  }
+  LOKA_VERIFY(bmi->props.text_->get().equals(String::Literal("BMI: 20.76")) && observer.calls == 2);
+  {
+    StateTrackerGuard guard(owner->tracker());
+    height->props.text_->set(String::Literal("0"));
+  }
+  LOKA_VERIFY(bmi->props.text_->get().equals(String::Literal("BMI: --")) && observer.calls == 3);
+  {
+    StateTrackerGuard guard(owner->tracker());
+    height->props.text_->set(String::Literal("100"));
+    weight->props.text_->set(String::Literal("20.6249"));
+  }
+  LOKA_VERIFY(bmi->props.text_->get().equals(String::Literal("BMI: 20.62")));
+  const int callsBeforeEqualOutput = observer.calls;
+  {
+    StateTrackerGuard guard(owner->tracker());
+    weight->props.text_->set(String::Literal("20.625"));
+  }
+  LOKA_VERIFY(bmi->props.text_->get().equals(String::Literal("BMI: 20.62")));
+  LOKA_VERIFY(observer.calls == callsBeforeEqualOutput);
+  {
+    StateTrackerGuard guard(owner->tracker());
+    weight->props.text_->set(String::Literal("20.635"));
+  }
+  LOKA_VERIFY(bmi->props.text_->get().equals(String::Literal("BMI: 20.64")));
+  LOKA_VERIFY(observer.calls == callsBeforeEqualOutput + 1);
+  bmi->props.text_->unbind(&TextObserver::changed, &observer);
+
+  {
+    StateTrackerGuard guard(owner->tracker());
+    fruitPicker->props.selectedIndex_->set(99);
+  }
+  LOKA_VERIFY(fruit->props.text_->get().equals(String::Literal("You chose Apple.")));
+  {
+    StateTrackerGuard guard(owner->tracker());
+    fruitPicker->props.selectedIndex_->set(0);
+  }
+  LOKA_VERIFY(fruit->props.text_->get().equals(String::Literal("You chose Apple.")));
+  probe->props.onClick_->emit();
+  LOKA_VERIFY(summary->props.text_->get().equals(String::Literal("Button enabled: yes / clicks: 1")));
+  toggle->props.onClick_->emit();
+  LOKA_VERIFY(summary->props.text_->get().equals(String::Literal("Button enabled: no / clicks: 1")));
+  probe->props.onClick_->emit();
+  LOKA_VERIFY(summary->props.text_->get().equals(String::Literal("Button enabled: no / clicks: 1")));
+  SceneTestAccess::unmount(scene);
 }
