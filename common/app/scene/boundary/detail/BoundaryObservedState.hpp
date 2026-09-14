@@ -5,6 +5,7 @@
 #include "app/scene/Node.hpp"
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
+#include "platform/debug/DebugLog.hpp"
 
 namespace loka
 {
@@ -247,17 +248,27 @@ namespace loka
           entries.push_back(entry);
         }
 
-        NodeDirtyFlags dirtyFlagsForCommittedStates(const loka::core::PushStateTracker *pushTracker) const
+        /** Returns false when commit identities are unavailable. A known set
+            may yield NONE: none of its states has a current local observation. */
+        bool dirtyFlagsForCommittedStates(const loka::core::PushStateTracker *pushTracker,
+                                          NodeDirtyFlags &flags) const
         {
-          NodeDirtyFlags flags = NODE_DIRTY_NONE;
+          flags = NODE_DIRTY_NONE;
           if (!pushTracker)
           {
-            return flags;
+            return false;
           }
           const std::vector<loka::core::StateBase *> &dirtyStates = pushTracker->committedDirtyStates();
+          // Deferred removal can erase commit identities before invalidation;
+          // a partially erased set is as unknown as an empty one.
+          if (dirtyStates.empty() || !pushTracker->committedIdentitiesComplete())
+          {
+            return false;
+          }
           for (size_t stateIndex = 0; stateIndex < dirtyStates.size(); ++stateIndex)
           {
             loka::core::StateBase *dirtyState = dirtyStates[stateIndex];
+            NodeDirtyFlags stateFlags = NODE_DIRTY_NONE;
             for (size_t entryIndex = 0; entryIndex < entries.size(); ++entryIndex)
             {
               if (entries[entryIndex].state == dirtyState)
@@ -266,11 +277,16 @@ namespace loka
                 {
                   continue;
                 }
-                flags = static_cast<NodeDirtyFlags>(flags | entries[entryIndex].flags);
+                stateFlags = static_cast<NodeDirtyFlags>(stateFlags | entries[entryIndex].flags);
               }
             }
+            if (stateFlags == NODE_DIRTY_NONE)
+            {
+              loka::platform::DebugLogUnobservedState(dirtyState);
+            }
+            flags = static_cast<NodeDirtyFlags>(flags | stateFlags);
           }
-          return flags;
+          return true;
         }
 
       private:

@@ -4,9 +4,14 @@
 
 #include <cassert>
 #include <cstdio>
+#include <cstring>
+#if defined(__linux__)
+#include <unistd.h>
+#endif
 
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/controls/Button.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "core/State.hpp"
@@ -399,4 +404,172 @@ void testObservedStateGuardSharesRegistrationTokenAndUnbindsLate()
   LOKA_VERIFY(BoundaryObservedStateTestAccess::entryCount(observed) == 0);
   LOKA_VERIFY(!StateBase::isExternalLifetimeTokenAlive(registered));
   StateBase::releaseExternalLifetimeToken(registered);
+}
+
+namespace
+{
+  struct RemoveCommittedState
+  {
+    loka::core::PushStateTracker *tracker;
+    loka::core::StateBase *state;
+    static void run(void *data)
+    {
+      RemoveCommittedState *removal = static_cast<RemoveCommittedState *>(data);
+      removal->tracker->removeState(removal->state);
+    }
+  };
+
+  class UnobservedCommitBoundary
+      : public loka::app::scene::BoundaryNodeFor<UnobservedCommitBoundary>
+  {
+  public:
+    explicit UnobservedCommitBoundary(
+        const loka::app::scene::BoundaryPropsFor<UnobservedCommitBoundary> &props)
+        : loka::app::scene::BoundaryNodeFor<UnobservedCommitBoundary>(props)
+    {
+      this->state(this->layout, loka::app::STACK_AXIS_COLUMN);
+      this->state(this->paint, true);
+      this->state(this->privateCount, 0);
+    }
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(loka::app::Stack(this->layout.state())
+                          << loka::app::Button("paint").enabled(this->paint.state()));
+    }
+    loka::app::scene::NodeState<loka::app::StackAxis> layout;
+    loka::app::scene::NodeState<bool> paint;
+    loka::app::scene::NodeState<int> privateCount;
+  };
+}
+
+void testUnobservedCommitDoesNotDirtyBoundary()
+{
+  using namespace loka::app::scene;
+  using loka::dsl::testing::SceneTestAccess;
+  DoubleClockPlatformController platform;
+  Scene scene((Boundary<UnobservedCommitBoundary>()));
+  scene.mount(&platform);
+  SceneTestAccess::updateAttached(scene, true);
+  UnobservedCommitBoundary *boundary =
+      static_cast<UnobservedCommitBoundary *>(SceneTestAccess::rootBoundary(scene));
+  LOKA_VERIFY(boundary != 0);
+  LOKA_VERIFY(boundary->dirty.get() == NODE_DIRTY_NONE);
+  LOKA_VERIFY(SceneTestAccess::director(scene).pendingDirtyFlagsForBoundary(boundary) == NODE_DIRTY_NONE);
+  LOKA_VERIFY(!scene.hasPendingInvalidation());
+#if defined(__linux__) && !defined(NDEBUG)
+  // Follow the existing StateTracker diagnostic capture fixture.
+  std::FILE *capture = std::tmpfile();
+  LOKA_VERIFY(capture != 0);
+  const int saved = dup(fileno(stderr));
+  LOKA_VERIFY(saved >= 0);
+  LOKA_VERIFY(std::fflush(stderr) == 0);
+  LOKA_VERIFY(dup2(fileno(capture), fileno(stderr)) >= 0);
+#endif
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    boundary->privateCount.set(1);
+  }
+#if defined(__linux__) && !defined(NDEBUG)
+  LOKA_VERIFY(std::fflush(stderr) == 0);
+  LOKA_VERIFY(dup2(saved, fileno(stderr)) >= 0);
+  LOKA_VERIFY(close(saved) == 0);
+  std::rewind(capture);
+  char diagnostic[512];
+  const size_t bytes = std::fread(diagnostic, 1, sizeof(diagnostic) - 1, capture);
+  diagnostic[bytes] = 0;
+  char expected[256];
+  std::sprintf(expected, "committed StateBase %p is not observed by this Boundary",
+               static_cast<void *>(boundary->privateCount.state()));
+  LOKA_VERIFY(std::strstr(diagnostic, expected) != 0);
+  LOKA_VERIFY(std::fclose(capture) == 0);
+#else
+  std::printf("[skip] unobserved State diagnostic capture requires Linux debug; routing pins still run.\n");
+#endif
+  std::fprintf(stderr, "unobserved commit: dirty=%u pending=%d\n",
+               static_cast<unsigned int>(SceneTestAccess::director(scene).pendingDirtyFlagsForBoundary(boundary)),
+               scene.hasPendingInvalidation() ? 1 : 0);
+  LOKA_VERIFY(boundary->dirty.get() == NODE_DIRTY_NONE);
+  LOKA_VERIFY(SceneTestAccess::director(scene).pendingDirtyFlagsForBoundary(boundary) == NODE_DIRTY_NONE);
+  LOKA_VERIFY(!scene.hasPendingInvalidation());
+  boundary->layout.set(loka::app::STACK_AXIS_ROW);
+  LOKA_VERIFY(SceneTestAccess::director(scene).pendingDirtyFlagsForBoundary(boundary) == NODE_DIRTY_LAYOUT);
+  LOKA_VERIFY(scene.hasPendingInvalidation());
+  scene.flushInvalidation();
+  boundary->paint.set(false);
+  LOKA_VERIFY(SceneTestAccess::director(scene).pendingDirtyFlagsForBoundary(boundary) == NODE_DIRTY_PROPS);
+  LOKA_VERIFY(scene.hasPendingInvalidation());
+  scene.flushInvalidation();
+
+  // A mixed commit contributes only its observed source, even if the private
+  // source is processed before or after it.
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    boundary->privateCount.set(2);
+    boundary->paint.set(true);
+  }
+  LOKA_VERIFY(SceneTestAccess::director(scene).pendingDirtyFlagsForBoundary(boundary) == NODE_DIRTY_PROPS);
+  scene.flushInvalidation();
+
+  // Deferred removal erases the last identity before the tracker callback.
+  RemoveCommittedState removal;
+  removal.tracker = boundary->tracker()->asPushTracker();
+  removal.state = boundary->privateCount.state();
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    boundary->privateCount.set(3);
+    boundary->tracker()->defer(&RemoveCommittedState::run, &removal);
+  }
+  LOKA_VERIFY(removal.tracker->committedDirtyStates().empty());
+  LOKA_VERIFY(SceneTestAccess::director(scene).pendingDirtyFlagsForBoundary(boundary) ==
+              static_cast<NodeDirtyFlags>(NODE_DIRTY_LAYOUT | NODE_DIRTY_PROPS));
+  scene.flushInvalidation();
+
+  // Deferred removal that erases one of several committed identities leaves a
+  // nonempty but incomplete set: the Boundary must fall back to the union, not
+  // apply only the survivor's flags (a removed LAYOUT source must not downgrade
+  // the update to PROPS).
+  RemoveCommittedState partialRemoval;
+  partialRemoval.tracker = boundary->tracker()->asPushTracker();
+  partialRemoval.state = boundary->layout.state();
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    boundary->layout.set(loka::app::STACK_AXIS_ROW);
+    boundary->paint.set(false);
+    boundary->tracker()->defer(&RemoveCommittedState::run, &partialRemoval);
+  }
+  LOKA_VERIFY(!partialRemoval.tracker->committedDirtyStates().empty());
+  LOKA_VERIFY(!partialRemoval.tracker->committedIdentitiesComplete());
+  LOKA_VERIFY(SceneTestAccess::director(scene).pendingDirtyFlagsForBoundary(boundary) ==
+              static_cast<NodeDirtyFlags>(NODE_DIRTY_LAYOUT | NODE_DIRTY_PROPS));
+  scene.flushInvalidation();
+
+  // The inner-owner notification must use the same known-NONE policy.
+  loka::core::MutableState<int> innerPrivate(0);
+  loka::core::PushStateTracker innerTracker;
+  innerTracker.addState(&innerPrivate);
+  LifetimeGuardBoundary otherBoundary;
+  otherBoundary.registerObservedState(&innerPrivate, NODE_DIRTY_LAYOUT);
+  {
+    loka::core::StateTrackerGuard guard(&innerTracker);
+    innerPrivate.set(1);
+  }
+  boundary->noteInnerTrackerCommit(&innerTracker);
+  LOKA_VERIFY(!scene.hasPendingInvalidation());
+  LOKA_VERIFY(SceneTestAccess::director(scene).pendingDirtyFlagsForBoundary(boundary) == NODE_DIRTY_NONE);
+
+  // Removal loses commit identities, so an empty list is conservative/unknown.
+  innerTracker.removeState(&innerPrivate);
+  boundary->noteInnerTrackerCommit(&innerTracker);
+  LOKA_VERIFY(SceneTestAccess::director(scene).pendingDirtyFlagsForBoundary(boundary) ==
+              static_cast<NodeDirtyFlags>(NODE_DIRTY_LAYOUT | NODE_DIRTY_PROPS));
+  scene.flushInvalidation();
+  boundary->noteInnerTrackerCommit(0);
+  LOKA_VERIFY(SceneTestAccess::director(scene).pendingDirtyFlagsForBoundary(boundary) ==
+              static_cast<NodeDirtyFlags>(NODE_DIRTY_LAYOUT | NODE_DIRTY_PROPS));
+  scene.flushInvalidation();
+  SceneTestAccess::unmount(scene);
 }

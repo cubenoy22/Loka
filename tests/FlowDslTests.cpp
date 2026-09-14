@@ -4393,17 +4393,21 @@ void testLokaFlowDslV1Core()
       loka::core::StateTrackerGuard guard(&tracker);
       observedValue.set(2, true);
     }
-    assert(observedState.dirtyFlagsForCommittedStates(&tracker) == NODE_DIRTY_PROPS);
+    NodeDirtyFlags committedFlags = NODE_DIRTY_NONE;
+    LOKA_VERIFY(observedState.dirtyFlagsForCommittedStates(&tracker, committedFlags));
+    assert(committedFlags == NODE_DIRTY_PROPS);
 
     observedState.beginPass();
     {
       loka::core::StateTrackerGuard guard(&tracker);
       observedValue.set(3, true);
     }
-    assert(observedState.dirtyFlagsForCommittedStates(&tracker) == NODE_DIRTY_NONE);
+    LOKA_VERIFY(observedState.dirtyFlagsForCommittedStates(&tracker, committedFlags));
+    assert(committedFlags == NODE_DIRTY_NONE);
 
     BoundaryObservedStateTestAccess::updateFirstEntryForCurrentPass(observedState, NODE_DIRTY_LAYOUT);
-    assert(observedState.dirtyFlagsForCommittedStates(&tracker) == NODE_DIRTY_LAYOUT);
+    LOKA_VERIFY(observedState.dirtyFlagsForCommittedStates(&tracker, committedFlags));
+    assert(committedFlags == NODE_DIRTY_LAYOUT);
   }
 
   {

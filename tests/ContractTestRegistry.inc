@@ -697,3 +697,5 @@ LOKA_TEST(testPaintAnswersRefusalDisablesGate)
 LOKA_TEST(testPaintAnswersCapacityDisablesGate)
 LOKA_TEST(testPaintAnswerVerdictCountsAndBufferReuse)
 LOKA_TEST(testPaintAnswerFirstWidenReasonSurvivesLaterAnswers)
+
+LOKA_TEST(testUnobservedCommitDoesNotDirtyBoundary)
