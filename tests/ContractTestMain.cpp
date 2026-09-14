@@ -41,6 +41,7 @@
 #include "Win32ManifestCompatibilityTests.hpp"
 #endif
 #include "DerivedStateTests.hpp"
+#include "DerivedNodeStateTests.hpp"
 #ifdef __APPLE__
 #include "MacWindowAdmissionTests.hpp"
 #include "MacWindowFrameClampTests.hpp"

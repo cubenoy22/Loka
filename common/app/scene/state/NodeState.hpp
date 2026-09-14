@@ -20,6 +20,43 @@ namespace loka
   {
     namespace scene
     {
+      template <typename T> struct NodeDerivedStateRegistration;
+
+      /** Read-only node-local seat; the composition owner holds its storage. */
+      template <typename T> class DerivedNodeState
+      {
+      public:
+        DerivedNodeState() : state_(0), owner_(0) {}
+
+        bool isValid() const { return this->state_ != 0; }
+        loka::core::State<T> *state() const { return this->state_; }
+        T get() const
+        {
+          assert(this->state_ && "DerivedNodeState::get requires a state");
+          return this->state_->get();
+        }
+        void bind(typename loka::core::State<T>::OnChangeFn cb,
+                  void *userData, bool callImmediately = true,
+                  bool callOnce = false, int priority = 0)
+        {
+          if (this->state_)
+            this->state_->bind(cb, userData, callImmediately, callOnce, priority);
+        }
+        void unbind(typename loka::core::State<T>::OnChangeFn cb, void *userData)
+        {
+          if (this->state_)
+            this->state_->unbind(cb, userData);
+        }
+        loka::dsl::StateStream<T> stream() const;
+
+      private:
+        friend struct NodeDerivedStateRegistration<T>;
+        DerivedNodeState(loka::core::State<T> *state, IStateOwner *owner)
+            : state_(state), owner_(owner) {}
+        loka::core::State<T> *state_;
+        IStateOwner *owner_;
+      };
+
       template <typename T> class BorrowedState
       {
       public:

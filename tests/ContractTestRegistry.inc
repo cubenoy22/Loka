@@ -149,6 +149,9 @@ LOKA_TEST(testGenericFlushWriteRefusesClosedDurabilityDoor)
 #include "MacOSContractTestRegistry.inc"
 #endif
 LOKA_TEST(testDerivedStateCore)
+LOKA_TEST(testDerivedNodeStateTransactionsAndTeardown)
+LOKA_TEST(testDerivedNodeStateRefusalsAndBatchOrder)
+LOKA_TEST(testDerivedNodeStateRetainedReattach)
 LOKA_TEST(testWindowFrameStateDrivesDerivedState)
 LOKA_TEST(testWindowNativeFrameDrivesDerivedStateWithoutEchoingIntent)
 LOKA_TEST(testConditionalDefinitionCloneOwnership)

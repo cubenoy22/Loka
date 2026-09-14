@@ -1,5 +1,6 @@
 #include "DerivedStateTests.hpp"
 #include <cassert>
+#include "support/TestVerify.hpp"
 #include <cstdio>
 #include "core/Frame.hpp"
 #include "core/State.hpp"
@@ -23,6 +24,7 @@ namespace
   }
 
   static int g_evalFnDestroyed = 0;
+  static int g_sumEvaluations = 0;
 
   struct SumEval : public loka::core::DerivedState<int>::EvalFn
   {
@@ -39,6 +41,7 @@ namespace
     }
     virtual int operator()()
     {
+      ++g_sumEvaluations;
       return (a ? a->get() : 0) + (b ? b->get() : 0);
     }
   };
@@ -91,6 +94,21 @@ void testDerivedStateCore()
     loka::core::MutableState<int> b(2);
     loka::core::DerivedState<int> sum(&a, &b, new SumEval(&a, &b));
     assert(sum.get() == 3);
+  }
+
+  // Every constructor evaluates exactly once, including vector dependencies.
+  {
+    loka::core::MutableState<int> a(1), b(2);
+    std::vector<loka::core::StateBase *> deps;
+    deps.push_back(&a);
+    deps.push_back(&b);
+    g_sumEvaluations = 0;
+    loka::core::DerivedState<int> vectorSum(deps, new SumEval(&a, &b));
+    LOKA_VERIFY(g_sumEvaluations == 1 && vectorSum.get() == 3);
+    loka::core::DerivedState<int> singleSum(&a, new SumEval(&a, 0));
+    LOKA_VERIFY(g_sumEvaluations == 2 && singleSum.get() == 1);
+    loka::core::DerivedState<int> pairSum(&a, &b, new SumEval(&a, &b));
+    LOKA_VERIFY(g_sumEvaluations == 3 && pairSum.get() == 3);
   }
 
   // --- ~DerivedState deletes its EvalFn exactly once ---

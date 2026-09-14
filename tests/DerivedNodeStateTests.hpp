@@ -1,0 +1,6 @@
+#ifndef LOKA_DERIVED_NODE_STATE_TESTS_HPP
+#define LOKA_DERIVED_NODE_STATE_TESTS_HPP
+void testDerivedNodeStateTransactionsAndTeardown();
+void testDerivedNodeStateRefusalsAndBatchOrder();
+void testDerivedNodeStateRetainedReattach();
+#endif

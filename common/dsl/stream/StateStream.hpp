@@ -399,6 +399,13 @@ namespace loka
   {
     namespace scene
     {
+      template <typename T> inline loka::dsl::StateStream<T> DerivedNodeState<T>::stream() const
+      {
+        return loka::dsl::StateStream<T>(this->state_,
+                                        this->owner_ ? this->owner_->tracker() : 0,
+                                        this->owner_);
+      }
+
       template <typename T> inline loka::dsl::StateStream<T> NodeState<T>::stream() const
       {
         return loka::dsl::StateStream<T>(this->state_, this->tracker_, this->owner_);

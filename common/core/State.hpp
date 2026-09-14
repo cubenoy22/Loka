@@ -595,14 +595,14 @@ namespace loka
         virtual T operator()() = 0;
       };
       DerivedState(const std::vector<StateBase *> &deps, EvalFn *eval)
-          : State<T>(eval ? (*eval)() : T()),
+          : State<T>(T()),
             dependencies(deps),
             evalFn(eval)
       {
         this->value = evalFn ? (*evalFn)() : T();
       }
       DerivedState(StateBase *dep, EvalFn *eval)
-          : State<T>(eval ? (*eval)() : T()),
+          : State<T>(T()),
             evalFn(eval)
       {
         if (dep)
@@ -610,7 +610,7 @@ namespace loka
         this->value = evalFn ? (*evalFn)() : T();
       }
       DerivedState(StateBase *dep1, StateBase *dep2, EvalFn *eval)
-          : State<T>(eval ? (*eval)() : T()),
+          : State<T>(T()),
             evalFn(eval)
       {
         dependencies.reserve(2);
