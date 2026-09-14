@@ -51,7 +51,15 @@ public:
       DisposeRgn(this->saved_);
   }
   bool isActive() const { return this->saved_ && this->clip_; }
-  bool covers(const Rect &rect) const { return ToolboxPaintClipCovers(this->clip_, rect); }
+  /** Unknown coverage must still draw under the caller's clip on refusal. */
+  bool touches(const Rect &rect) const
+  {
+    return !this->isActive() || RectInRgn(&rect, this->clip_);
+  }
+  bool covers(const Rect &rect) const
+  {
+    return this->isActive() && ToolboxPaintClipCovers(this->clip_, rect);
+  }
 private:
   ToolboxPaintClip(const ToolboxPaintClip &);
   ToolboxPaintClip &operator=(const ToolboxPaintClip &);
