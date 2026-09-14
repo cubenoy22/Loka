@@ -176,8 +176,12 @@ void ToolboxPopupMenuContext::draw()
 void ToolboxPopupMenuContext::repaint()
 {
   ToolboxPaintClip clip(this->paintRect_);
-  if (clip.isActive())
-    EraseRect(&this->paintRect_);
+  if (clip.isActive() && !clip.touches(this->paintRect_))
+    return;
+  // Erase under whichever clip is in force: the intersected one, or the
+  // caller's when region allocation was refused, so a shorter label does
+  // not leave the previous face's glyphs behind.
+  EraseRect(&this->paintRect_);
   this->paintFace(clip);
 }
 
