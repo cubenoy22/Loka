@@ -1390,15 +1390,18 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     }
     return;
   }
+  // Any drawer whose kind order the replay below does not preserve (text-like
+  // drawers replay after surfaces and images regardless of composition order)
+  // sends a ZStack window through the clipped full render instead.
   bool dirtyIntersectsText = false;
-  for (size_t i = 0; i < hitLedger_.textHits_.size(); ++i)
-  {
-    if (RectsIntersect(rect, hitLedger_.textHits_[i].rect))
-    {
-      dirtyIntersectsText = true;
-      break;
-    }
-  }
+  for (size_t i = 0; i < hitLedger_.textHits_.size() && !dirtyIntersectsText; ++i)
+    dirtyIntersectsText = RectsIntersect(rect, hitLedger_.textHits_[i].rect);
+  for (size_t i = 0; i < editControls_.size() && !dirtyIntersectsText; ++i)
+    dirtyIntersectsText = editControls_[i].te && RectsIntersect(rect, editControls_[i].rect);
+  for (size_t i = 0; i < hitLedger_.cellHits_.size() && !dirtyIntersectsText; ++i)
+    dirtyIntersectsText = RectsIntersect(rect, hitLedger_.cellHits_[i].rect);
+  for (size_t i = 0; i < hitLedger_.popupHits_.size() && !dirtyIntersectsText; ++i)
+    dirtyIntersectsText = RectsIntersect(rect, hitLedger_.popupHits_[i].rect);
   if (dirtyIntersectsText && HasZStackNode(rootNode_))
   {
     // A ZStack declares shared pixels. Rebuild the registries only before any
