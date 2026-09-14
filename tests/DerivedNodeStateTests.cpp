@@ -221,7 +221,6 @@ void testDerivedNodeStateTransactionsAndTeardown()
     LOKA_VERIFY(evaluations == 5 && observer.calls_ == 3);
     LOKA_VERIFY(stateValuesEqual(observer.value_, String::Literal("large")));
     node->sum_.unbind(&Observer::changed, &observer);
-    { loka::dsl::StateStream<String> stream = node->sum_.stream(); }
     LOKA_VERIFY(destructions == 0);
   }
   LOKA_VERIFY(destructions == 1 && allocations == frees);

@@ -47,7 +47,9 @@ namespace loka
           if (this->state_)
             this->state_->unbind(cb, userData);
         }
-        loka::dsl::StateStream<T> stream() const;
+        // No stream(): StateStream::combine would seat a derived-of-derived
+        // value, the chain derived() refuses until dependency-ordered
+        // settlement exists (docs/TODO.md).
 
       private:
         friend struct NodeDerivedStateRegistration<T>;
