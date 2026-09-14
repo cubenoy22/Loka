@@ -73,6 +73,20 @@ namespace
                           const loka::app::scene::PaintQuery &query,
                           loka::app::scene::PaintAnswer &answer)
     {
+      const bool drawer = this->queryDrawerAnswer(node, context, query, answer);
+      if (drawer && answer.kind == loka::app::scene::PAINT_ANSWER_REFUSED)
+      {
+        this->stats_.lastPaintRefusalReason = answer.reason;
+        this->stats_.lastPaintRefusalKind = node->kind();
+      }
+      return drawer;
+    }
+
+    bool queryDrawerAnswer(loka::app::scene::Node *node,
+                          loka::app::scene::NodeContext *context,
+                          const loka::app::scene::PaintQuery &query,
+                          loka::app::scene::PaintAnswer &answer)
+    {
       using namespace loka::app::scene;
       this->stats_.noteCollectorVisit();
       if (IsToolboxPaintDrawerType(node->nodeTypeKey()))

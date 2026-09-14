@@ -87,6 +87,65 @@ namespace
   typedef PaintDamageNode<true> ViewportDamageNode;
   typedef PaintDamageNode<false> PlainDamageNode;
 
+  class OffscreenDamageNode;
+  typedef BoundaryPropsFor<OffscreenDamageNode> OffscreenDamageProps;
+  /** One column overflows without truncation or wrapping, like HelloWorld. */
+  class OffscreenDamageNode : public StdCompositionBoundaryNodeBase<OffscreenDamageProps>
+  {
+  public:
+    typedef OffscreenDamageProps::TypeTag TypeTag;
+    explicit OffscreenDamageNode(const OffscreenDamageProps &props)
+        : StdCompositionBoundaryNodeBase<OffscreenDamageProps>(props)
+    {
+      this->state(this->sibling_, loka::core::String::Literal("MMMM"));
+      this->state(this->text_, loka::core::String::Literal("MMMM"));
+      this->state(this->hidden_, loka::core::String::Literal("MMMM"));
+      this->state(this->edit_, loka::core::String::Literal("Edit"));
+      this->state(this->offset_, 0);
+      this->state(this->button_, loka::core::String::Literal("Button"));
+      this->items_.push_back(loka::core::String::Literal("Fruit"));
+    }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      composition.declare(Box().size(180, 110)
+                          << (ScrollView(this->offset_)
+                              << (Column() << Text(this->sibling_.state())
+                                  << Text(this->text_.state()).TEST_ID("Offscreen.VisibleText")
+                                  << Box().size(150, 140)
+                                  << Text(this->hidden_.state()).TEST_ID("Offscreen.Text")
+                                  << EditText(this->edit_).TEST_ID("Offscreen.Edit")
+                                  << PopupMenu(this->items_).TEST_ID("Offscreen.Popup")
+                                  << loka::app::Button(this->button_.state()).TEST_ID("Offscreen.Button"))));
+    }
+    void writeSibling()
+    {
+      loka::core::StateTrackerGuard guard(this->tracker());
+      this->sibling_.set(loka::core::String::Literal("IIII"));
+    }
+    void writeText(bool hidden, const char *value = "IIII")
+    {
+      loka::core::StateTrackerGuard guard(this->tracker());
+      if (hidden)
+        this->hidden_.set(loka::core::String::Literal(value));
+      else
+        this->text_.set(loka::core::String::Literal("IIII"));
+    }
+    void writeButton(bool wider)
+    {
+      loka::core::StateTrackerGuard guard(this->tracker());
+      this->button_.set(loka::core::String::Literal(wider ? "Much wider button title" : "Button"));
+    }
+    void reveal()
+    {
+      loka::core::StateTrackerGuard guard(this->tracker());
+      this->offset_.set(160);
+    }
+  private:
+    NodeState<loka::core::String> sibling_, text_, hidden_, edit_, button_;
+    NodeState<int> offset_;
+    loka::Vector<loka::core::String> items_;
+  };
+
   class CompositedDamageNode;
   typedef BoundaryPropsFor<CompositedDamageNode> CompositedDamageProps;
   class CompositedDamageNode : public StdCompositionBoundaryNodeBase<CompositedDamageProps>
@@ -608,7 +667,7 @@ namespace
   public:
     explicit PaintDamageConfig(PlatformContext *context)
         : AppConfigurable(context), app_(0), node_(0), composited_(0), edit_(0), log_(0), phase_(SETTLE), result_(0),
-          initial_(), marker_(), scrollTextMarker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0), cellWindow_(0), popupWindow_(0), overflowWindow_(0), imageWindow_(0), popupRow_(), editExact_(0), editExactWindow_(0), editZStack_(0), editZStackWindow_(0), popupExact_(0), popupExactWindow_(0), popupFaceRows_(), history_(0), historyWindow_(0), popupHistory_(0), popupHistoryWindow_(0), buttonEnabled_(0), buttonEnabledWindow_(0), buttonLabel_(0), buttonLabelWindow_(0), buttonTitlePixels_()
+          initial_(), marker_(), scrollTextMarker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0), cellWindow_(0), popupWindow_(0), overflowWindow_(0), imageWindow_(0), popupRow_(), editExact_(0), editExactWindow_(0), editZStack_(0), editZStackWindow_(0), popupExact_(0), popupExactWindow_(0), popupFaceRows_(), history_(0), historyWindow_(0), popupHistory_(0), popupHistoryWindow_(0), buttonEnabled_(0), buttonEnabledWindow_(0), buttonLabel_(0), buttonLabelWindow_(0), buttonTitlePixels_(), offscreen_(0), offscreenWindow_(0)
     {
       if (loka::platform::file::ResolveApplicationSidecar(
               loka::file::File::Application() << loka::file::File("LOG.TXT"), this->file_))
@@ -708,6 +767,11 @@ namespace
                                    ButtonExactProps(), &this->buttonLabel_))
                                .visible(false).idlePolicy(IdlePolicy::everyTick())
                                .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->buttonLabelWindow_);
+      composition << ObservedWindowDefinition(WindowProps().frame(350, 250, 220, 180).title("Column overflow exact")
+                               .scene(loka::scenario_tests::ObservedMainDefinition<OffscreenDamageProps, OffscreenDamageNode>(
+                                   OffscreenDamageProps(), &this->offscreen_))
+                               .visible(false).idlePolicy(IdlePolicy::everyTick())
+                               .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->offscreenWindow_);
     }
 
   private:
@@ -715,7 +779,8 @@ namespace
                  COMPOSITED_WRITE, COMPOSITED_CHECK, EDIT_WRITE, EDIT_CHECK, BOUNDS_SHOW, BOUNDS_CHECK, CELL_SHOW, CELL_REPLAY, CELL_CHECK,
                  POPUP_SHOW, POPUP_REPLAY, POPUP_CHECK, OVERFLOW_SHOW, OVERFLOW_REPLAY, OVERFLOW_CHECK, IMAGE_SHOW, IMAGE_WRITE, IMAGE_CHECK, EDIT_EXACT_SHOW, EDIT_EXACT_WRITE, EDIT_EXACT_CHECK, EDIT_ZSTACK_SHOW, EDIT_ZSTACK_WRITE, EDIT_ZSTACK_CHECK, POPUP_EXACT_SHOW, POPUP_SIBLING_WRITE, POPUP_SIBLING_CHECK, POPUP_SELECTION_CHECK, HISTORY_SHOW, HISTORY_FIRST, HISTORY_SECOND, HISTORY_CHECK,
                  POPUP_HISTORY_SHOW, POPUP_HISTORY_FIRST, POPUP_HISTORY_SECOND, POPUP_HISTORY_CHECK, BUTTON_ENABLED_SHOW, BUTTON_ENABLED_WRITE, BUTTON_ENABLED_CHECK,
-                 BUTTON_LABEL_SHOW, BUTTON_LABEL_WRITE, BUTTON_LABEL_CHECK, COMPLETE };
+                 BUTTON_LABEL_SHOW, BUTTON_LABEL_WRITE, BUTTON_LABEL_CHECK,
+                 OFFSCREEN_SHOW, OFFSCREEN_WRITE, OFFSCREEN_SIBLING_CHECK, OFFSCREEN_TEXT_CHECK, OFFSCREEN_HIDDEN_CHECK, OFFSCREEN_REVEAL_CHECK, OFFSCREEN_REVEALED_WRITE_CHECK, COMPLETE };
     App *app_;
     ViewportDamageNode *node_;
     CompositedDamageNode *composited_;
@@ -757,6 +822,8 @@ namespace
     ButtonExactNode *buttonLabel_;
     Window *buttonLabelWindow_;
     ButtonTitlePixels buttonTitlePixels_;
+    OffscreenDamageNode *offscreen_;
+    Window *offscreenWindow_;
 
     void recordArm(const char *name, bool pass, Phase next)
     {
@@ -824,6 +891,10 @@ namespace
       case BUTTON_LABEL_SHOW: case BUTTON_LABEL_WRITE: case BUTTON_LABEL_CHECK:
         target = self->buttonLabelWindow_;
         break;
+      case OFFSCREEN_SHOW: case OFFSCREEN_WRITE: case OFFSCREEN_SIBLING_CHECK:
+      case OFFSCREEN_TEXT_CHECK: case OFFSCREEN_HIDDEN_CHECK: case OFFSCREEN_REVEAL_CHECK: case OFFSCREEN_REVEALED_WRITE_CHECK:
+        target = self->offscreenWindow_;
+        break;
       case COMPLETE:
         return;
       }
@@ -861,6 +932,8 @@ namespace
         OnButtonIdle(target, self->buttonEnabled_, false, self);
       else if (target == self->buttonLabelWindow_)
         OnButtonIdle(target, self->buttonLabel_, true, self);
+      else if (target == self->offscreenWindow_)
+        OnOffscreenIdle(target, self);
       else if (target == self->imageWindow_)
         OnImageIdle(target, self);
       else
@@ -1013,7 +1086,10 @@ namespace
                           && stats.totalRenderDirtyCalls > self->initial_.totalRenderDirtyCalls, CHECK);
         }
         SetPort(previousPort);
-        std::fprintf(self->log_, "delivery=EXACT\r");
+        std::fprintf(self->log_, "delivery=%s reason=%d kind=%d\r",
+                     whole == 0 ? "EXACT" : "FULL",
+                     static_cast<int>(stats.lastPaintRefusalReason),
+                     static_cast<int>(stats.lastPaintRefusalKind));
         self->recordArm(HasViewport ? "viewport-exact" : "plain-exact",
                         self->gate_ && siblingPreserved && whole == 0
                         && (HasViewport ? rects >= 1 : rects == 1),
@@ -1731,6 +1807,114 @@ namespace
       self->recordArm(name, whole == 0 && rects >= 1 && sprite && ink,
                       Popup ? BUTTON_ENABLED_SHOW : POPUP_HISTORY_SHOW);
     }
+    static PaintAnswer offscreenAnswer(Window *window, const char *id, const PaintQuery &query)
+    {
+      Node *node = 0;
+      loka::dsl::FlowError error;
+      loka::dsl::testing::LookupNodeById<Node>(window->scene(), id, node, error);
+      return node && node->getContext()
+          ? static_cast<NativeNodeContext *>(node->getContext())->queryPaintDamage(query)
+          : PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+    }
+
+    static void OnOffscreenIdle(Window *window, PaintDamageConfig *self)
+    {
+      ToolboxWindow *native = window->asToolboxWindow();
+      if (self->phase_ == OFFSCREEN_SHOW)
+      {
+        ShowWindow(native->window());
+        SelectWindow(native->window());
+        native->requestInvalidate();
+        self->phase_ = OFFSCREEN_WRITE;
+        return;
+      }
+      ToolboxScenePlatformController *controller = window->scene()
+          ? static_cast<ToolboxScenePlatformController *>(
+              loka::dsl::testing::SceneTestAccess::platformController(*window->scene())) : 0;
+      if (!controller || !self->offscreen_)
+      {
+        self->finish(false);
+        return;
+      }
+      const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
+      if (self->phase_ == OFFSCREEN_WRITE)
+      {
+        const char *ids[] = {"Offscreen.Text", "Offscreen.Edit", "Offscreen.Popup", "Offscreen.Button"};
+        for (int i = 0; i < 4; ++i)
+        {
+          const PaintAnswer answer = offscreenAnswer(window, ids[i], query);
+          std::fprintf(self->log_, "%s answer=%d reason=%d\r", ids[i],
+                       static_cast<int>(answer.kind), static_cast<int>(answer.reason));
+          self->recordArm(ids[i], answer.kind == PAINT_ANSWER_EXACT
+                          && answer.damage.width == 0 && answer.damage.height == 0, OFFSCREEN_WRITE);
+          PaintQuery pending = query;
+          pending.placement = PLACEMENT_PENDING;
+          PaintQuery foreign = query;
+          ++foreign.scope.ownerKey;
+          self->recordArm("offscreen-placement-refuses",
+                          offscreenAnswer(window, ids[i], pending).kind == PAINT_ANSWER_REFUSED
+                          && offscreenAnswer(window, ids[i], foreign).kind == PAINT_ANSWER_REFUSED, OFFSCREEN_WRITE);
+        }
+        self->offscreen_->writeButton(true);
+        const PaintAnswer wider = offscreenAnswer(window, "Offscreen.Button", query);
+        self->recordArm("offscreen-button-width-refuses", wider.kind == PAINT_ANSWER_REFUSED
+                        && wider.reason == PAINT_REFUSED_PLACEMENT_UNSETTLED, OFFSCREEN_WRITE);
+        self->offscreen_->writeButton(false);
+        self->initial_ = controller->debugStatsForTesting();
+        self->offscreen_->writeSibling();
+        self->phase_ = OFFSCREEN_SIBLING_CHECK;
+        return;
+      }
+      const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
+      const int whole = stats.windowFullRequestCount - self->initial_.windowFullRequestCount;
+      const int rects = stats.windowRectRequestCount - self->initial_.windowRectRequestCount;
+      std::fprintf(self->log_, "column_phase=%d delivery=%s reason=%d kind=%d whole_window=%d rects=%d\r",
+                   static_cast<int>(self->phase_), whole == 0 ? "EXACT" : "FULL",
+                   static_cast<int>(stats.lastPaintRefusalReason), static_cast<int>(stats.lastPaintRefusalKind),
+                   whole, rects);
+      if (self->phase_ == OFFSCREEN_SIBLING_CHECK)
+      {
+        self->recordArm("column-offscreen-sibling-exact", whole == 0 && rects >= 1, OFFSCREEN_TEXT_CHECK);
+        self->initial_ = stats;
+        self->offscreen_->writeText(false);
+        const PaintAnswer changed = offscreenAnswer(window, "Offscreen.VisibleText", query);
+        self->recordArm("column-visible-text-damage", changed.kind == PAINT_ANSWER_EXACT
+                        && changed.damage.width > 0 && changed.damage.height > 0, OFFSCREEN_TEXT_CHECK);
+      }
+      else if (self->phase_ == OFFSCREEN_TEXT_CHECK)
+      {
+        const PaintAnswer presented = offscreenAnswer(window, "Offscreen.VisibleText", query);
+        self->recordArm("column-visible-text-exact", whole == 0 && rects >= 1
+                        && presented.kind == PAINT_ANSWER_EXACT && presented.damage.width == 0, OFFSCREEN_HIDDEN_CHECK);
+        self->initial_ = stats;
+        self->offscreen_->writeText(true);
+      }
+      else if (self->phase_ == OFFSCREEN_HIDDEN_CHECK)
+      {
+        self->recordArm("column-offscreen-write-empty", whole == 0 && rects == 0, OFFSCREEN_REVEAL_CHECK);
+        self->initial_ = stats;
+        self->offscreen_->reveal();
+      }
+      else if (self->phase_ == OFFSCREEN_REVEAL_CHECK)
+      {
+        // Re-entry must establish history before another paint-only write.
+        self->initial_ = stats;
+        self->offscreen_->writeText(true, "MMMM");
+        const PaintAnswer changed = offscreenAnswer(window, "Offscreen.Text", query);
+        self->recordArm("column-scroll-reveals-current-text", whole > 0
+                        && changed.kind == PAINT_ANSWER_EXACT && changed.damage.width > 0
+                        && changed.damage.height > 0 && changed.damage.y >= 24
+                        && changed.damage.y + changed.damage.height <= 134, OFFSCREEN_REVEALED_WRITE_CHECK);
+      }
+      else
+      {
+        const PaintAnswer presented = offscreenAnswer(window, "Offscreen.Text", query);
+        self->recordArm("column-revealed-text-exact", whole == 0 && rects >= 1
+                        && presented.kind == PAINT_ANSWER_EXACT && presented.damage.width == 0, COMPLETE);
+        self->finish(true);
+      }
+    }
+
     static void OnButtonIdle(Window *window, ButtonExactNode *node, bool label, PaintDamageConfig *self)
     {
       ToolboxWindow *native = window->asToolboxWindow();
@@ -1817,7 +2001,7 @@ namespace
         controller->destroyButtonControl(911, NATIVE_HINT_DEFAULT);
         self->recordArm("button-native-retired-refuses",
                         context->queryPaintDamage(query).kind == PAINT_ANSWER_REFUSED, COMPLETE);
-        self->finish(true);
+        self->phase_ = OFFSCREEN_SHOW;
       }
     }
 

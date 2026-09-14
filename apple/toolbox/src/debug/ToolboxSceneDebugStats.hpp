@@ -2,6 +2,7 @@
 #define LOKA_TOOLBOX_SCENE_DEBUG_STATS_HPP
 
 #include "app/scene/Node.hpp"
+#include "app/scene/projection/PaintAnswer.hpp"
 #include <string>
 
 class ToolboxSceneDebugStats
@@ -77,6 +78,9 @@ public:
   int windowFlushDirtyCount;
   int windowUpdateEvtDrawCount;
   const char *windowFullRequestSource;
+  /** Last refused drawer, retained across begin(); observation only. */
+  loka::app::scene::PaintRefusalReason lastPaintRefusalReason;
+  loka::app::scene::NodeKind lastPaintRefusalKind;
   int requestInvalidateCallCount;
   bool requestInvalidateFirstRootPresent;
   bool requestInvalidateFirstFullRebuild;

@@ -78,6 +78,8 @@ loka::app::scene::PaintAnswer ToolboxEditTextContext::queryPaintDamage(
     return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
   if (!this->node_ || !this->text_ || this->node_->props.text_ != this->text_)
     return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
+  if (ToolboxPaintIsClippedOut(this->rect_, this->paintRect_, this->deliveredFact()))
+    return ToolboxExactPaint(this->paintRect_, false);
   if (EmptyRect(&this->paintRect_))
     return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
   // Only repaint of an installed TE can establish this fact. Native retirement

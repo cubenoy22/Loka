@@ -3,6 +3,7 @@
 
 #include <Quickdraw.h>
 #include "app/scene/projection/PaintFact.hpp"
+#include "app/scene/Node.hpp"
 
 /** Visit-local convention: every Toolbox answer names pixels in its owning
     window. The rail consumes it before returning from onBoundaryApply. */
@@ -10,6 +11,17 @@ inline loka::app::scene::PaintScope ToolboxPaintScope()
 {
   const loka::app::scene::PaintScope scope = {1, 0, 0, 0, 0, 0, 0};
   return scope;
+}
+
+/** A settled, attached layout clipped entirely out of the viewport owes no
+    visible pixels, even without paint history. A default/unplaced rectangle
+    or detached context is not evidence of clipping. Call after query scope
+    and props checks; layout changes must still use the broad delivery path. */
+inline bool ToolboxPaintIsClippedOut(const Rect &layoutRect, const Rect &paintRect,
+                                    loka::app::scene::NodeLifecycleFact fact)
+{
+  return fact == loka::app::scene::NODE_FACT_ATTACHED
+         && !EmptyRect(&layoutRect) && EmptyRect(&paintRect);
 }
 
 /** Only a rectangular clip covering the entire projected visible placement
