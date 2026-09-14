@@ -30,6 +30,8 @@ cp "$RUNNER" "$SANDBOX/repo/tests/toolbox/run-scenario.sh"
 cp "$LAUNCHER" "$SANDBOX/repo/tests/toolbox/mame-launch.lua"
 cp "$REPO_DIR/scripts/rig/toolbox/classic_golden_identity.py" \
   "$SANDBOX/repo/scripts/rig/toolbox/classic_golden_identity.py"
+cp "$REPO_DIR/scripts/rig/toolbox/scenario_run_provenance.py" \
+  "$SANDBOX/repo/scripts/rig/toolbox/scenario_run_provenance.py"
 cp "$REPO_DIR/scripts/rig/golden_identity_guard.py" \
   "$SANDBOX/repo/scripts/rig/golden_identity_guard.py"
 cp "$REPO_DIR/scripts/rig/package_fixture_guard.py" \
@@ -266,8 +268,31 @@ run_case() {
     fi
   fi
 
-  [ -f "$SANDBOX/tab-count" ] \
-    || fail "$example did not launch fake MAME"
+  if [ ! -f "$SANDBOX/tab-count" ]; then
+    cat "$SANDBOX/runner.log" >&2
+    fail "$example did not launch fake MAME"
+  fi
+  python3 - "$SANDBOX/repo" "$example" "$scenario" <<'PY'
+import hashlib
+import pathlib
+import sys
+
+root = pathlib.Path(sys.argv[1])
+sys.path.insert(0, str(root / "scripts/rig/toolbox"))
+from classic_golden_identity import source_tree_identity
+
+work = root / "build/mame-scenario" / sys.argv[2] / sys.argv[3]
+receipt = dict(line.split("=", 1) for line in
+               (work / "scenario-run-provenance.txt").read_text().splitlines())
+assert receipt["source_tree_identity"] == source_tree_identity(root)
+assert receipt["registry_sha256"] == hashlib.sha256(
+    (root / "tests/scenarios/scenarios.txt").read_bytes()).hexdigest()
+assert receipt["application_sha256"] == hashlib.sha256(b"").hexdigest()
+assert receipt["capture_adapter"] == "mame-screen-snapshot.v2"
+assert receipt["mode"] == "capture"
+assert receipt["audit_verdict"] == "not-matched"
+assert receipt["audit_sha256"] == "none"
+PY
   actual_tab_count="$(cat "$SANDBOX/tab-count")"
   [ "$actual_tab_count" = "$expected_tab_count" ] \
     || fail "$example forwarded tab count '$actual_tab_count', expected '$expected_tab_count'"
