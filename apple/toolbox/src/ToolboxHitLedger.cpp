@@ -166,13 +166,7 @@ void ToolboxScenePlatformController::recordTextHit(const Rect &rect,
 }
 
 void ToolboxScenePlatformController::recordPopupHit(const Rect &rect,
-                                                    short lineHeight,
-                                                    const loka::Vector<loka::core::String> *items,
-                                                    loka::core::State<int> *selectedIndex,
-                                                    loka::core::EmitterState *onChange,
                                                     loka::core::State<bool> *enabled,
-                                                    loka::app::scene::BoundaryNode *boundary,
-                                                    short menuId,
                                                     ToolboxPopupMenuContext *context)
 {
   Rect clipped;
@@ -182,13 +176,7 @@ void ToolboxScenePlatformController::recordPopupHit(const Rect &rect,
   }
   PopupHit hit;
   hit.rect = clipped;
-  hit.lineHeight = lineHeight;
-  hit.items = items;
-  hit.selectedIndex = selectedIndex;
-  hit.onChange = onChange;
   hit.enabled = enabled;
-  hit.boundary = boundary;
-  hit.menuId = menuId;
   hit.context = context;
   hitLedger_.popupHits_.push_back(hit);
   bindEnabledState(enabled);

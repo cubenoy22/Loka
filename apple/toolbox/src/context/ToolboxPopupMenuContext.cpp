@@ -1,4 +1,5 @@
 #include "ToolboxPropsRefresh.hpp"
+#include "context/ToolboxPaintSupport.hpp"
 #include "context/ToolboxPopupMenuContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxLayoutMetrics.hpp"
@@ -59,6 +60,7 @@ ToolboxPopupMenuContext::ToolboxPopupMenuContext(loka::app::PopupMenuNode *node,
     : ToolboxProjectedNodeContext(controller),
       node_(node),
       rect_(),
+      paintRect_(),
       lineHeight_(0),
       items_(0),
       selectedIndex_(0),
@@ -68,6 +70,14 @@ ToolboxPopupMenuContext::ToolboxPopupMenuContext(loka::app::PopupMenuNode *node,
 }
 
 ToolboxPopupMenuContext::~ToolboxPopupMenuContext() {}
+
+void ToolboxPopupMenuContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                            loka::app::scene::NodeLifecycleFact next)
+{
+  if (next != loka::app::scene::NODE_FACT_ATTACHED)
+    SetRect(&this->paintRect_, 0, 0, 0, 0);
+  ToolboxProjectedNodeContext::onFactChanged(previous, next);
+}
 
 void ToolboxPopupMenuContext::updateData(const loka::Vector<loka::core::String> *items,
                                          loka::core::State<int> *selectedIndex,
@@ -82,7 +92,15 @@ void ToolboxPopupMenuContext::updateData(const loka::Vector<loka::core::String> 
 
 void ToolboxPopupMenuContext::updateRect(const Rect &rect, short lineHeight)
 {
-  rect_ = rect;
+  this->rect_ = rect;
+  // The gray shadow occupies the right/bottom pixels outside the face's
+  // half-open geometry. Only the paint bounds include that extra pixel.
+  Rect paintBounds = rect;
+  ++paintBounds.right;
+  ++paintBounds.bottom;
+  this->paintRect_ = paintBounds;
+  if (this->controller() && !this->controller()->intersectWithProjectionClip(paintBounds, this->paintRect_))
+    SetRect(&this->paintRect_, 0, 0, 0, 0);
   lineHeight_ = lineHeight;
 }
 
@@ -124,6 +142,19 @@ void ToolboxPopupMenuContext::copyToPascalString(const loka::core::String &value
 }
 
 void ToolboxPopupMenuContext::draw()
+{
+  ToolboxPaintClip clip(this->paintRect_);
+  this->paintFace();
+}
+
+void ToolboxPopupMenuContext::repaint()
+{
+  ToolboxPaintClip clip(this->paintRect_);
+  EraseRect(&this->paintRect_);
+  this->paintFace();
+}
+
+void ToolboxPopupMenuContext::paintFace()
 {
   if (!node_)
   {
@@ -179,15 +210,7 @@ short ToolboxPopupMenuContext::layout(loka::app::scene::IPlatformController *con
   ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
   if (toolbox)
   {
-    toolbox->recordPopupHit(rect_,
-                            lineHeight_,
-                            node_->props.items_,
-                            node_->props.selectedIndex_,
-                            node_->props.onChange_,
-                            node_->props.enabled_,
-                            boundary_,
-                            menuId(),
-                            this);
+    toolbox->recordPopupHit(this->rect_, this->enabled_, this);
   }
   // Advance by the painted box, as the other rails do: y is the top edge.
   state.y = static_cast<short>(rect.bottom + state.spacing);

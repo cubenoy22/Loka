@@ -45,6 +45,8 @@ public:
   ToolboxPopupMenuContext(loka::app::PopupMenuNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxPopupMenuContext();
   virtual void onPropsApplied();
+  virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                            loka::app::scene::NodeLifecycleFact next);
 
   void updateData(const loka::Vector<loka::core::String> *items,
                   loka::core::State<int> *selectedIndex,
@@ -52,6 +54,8 @@ public:
                   loka::core::State<bool> *enabled);
   void updateRect(const Rect &rect, short lineHeight);
   void draw();
+  /** Replay erases visible paint bounds before painting the captured face. */
+  void repaint();
   virtual void render(loka::app::scene::IPlatformController *controller);
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   bool handleMouseDown(const Point &point, ToolboxScenePlatformController *controller);
@@ -64,12 +68,14 @@ public:
 private:
   /** Capture local data and report whether existing controller rows need refresh. */
   bool captureProps();
+  void paintFace();
   short clampIndex(int index) const;
   void copyToPascalString(const loka::core::String &value, Str255 out) const;
   short menuId() const;
 
   loka::app::PopupMenuNode *node_;
   Rect rect_;
+  Rect paintRect_;
   short lineHeight_;
   const loka::Vector<loka::core::String> *items_;
   loka::core::State<int> *selectedIndex_;

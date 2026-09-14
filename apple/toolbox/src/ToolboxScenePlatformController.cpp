@@ -1190,9 +1190,6 @@ void ToolboxScenePlatformController::refreshContextProps(loka::app::scene::Node 
         continue;
       const loka::app::PopupMenuProps &props = node->asPopupMenuNode()->props;
       previousEnabled = hit.enabled;
-      hit.items = props.items_;
-      hit.selectedIndex = props.selectedIndex_;
-      hit.onChange = props.onChange_;
       hit.enabled = props.enabled_;
       enabled = hit.enabled;
     }
@@ -2133,50 +2130,14 @@ void ToolboxScenePlatformController::redrawTextHit(TextHit &hit)
 
 void ToolboxScenePlatformController::redrawPopupHit(const PopupHit &hit)
 {
-  if (!window_ || !window_->window())
+  if (!window_ || !window_->window() || !hit.context)
   {
     return;
   }
   GrafPtr oldPort;
   GetPort(&oldPort);
   SetPort(window_->window());
-  EraseRect(&hit.rect);
-  loka::core::String label = loka::core::String::Literal("Select");
-  int selectedIndex = 0;
-  if (hit.selectedIndex)
-  {
-    selectedIndex = hit.selectedIndex->get();
-  }
-  if (hit.items && hit.items->size() > 0)
-  {
-    if (selectedIndex < 0)
-    {
-      selectedIndex = 0;
-    }
-    if (static_cast<std::size_t>(selectedIndex) >= hit.items->size())
-    {
-      selectedIndex = static_cast<int>(hit.items->size() - 1);
-    }
-    label = (*hit.items)[selectedIndex];
-  }
-  FrameRect(&hit.rect);
-  PenState penState;
-  GetPenState(&penState);
-  PenPat(&qd.gray);
-  MoveTo(hit.rect.left + 2, hit.rect.bottom);
-  LineTo(hit.rect.right, hit.rect.bottom);
-  LineTo(hit.rect.right, hit.rect.top + 2);
-  SetPenState(&penState);
-  short textY = static_cast<short>(hit.rect.top + hit.lineHeight - ToolboxLayoutMetrics::kControlAscentInset);
-  DrawStringAt(static_cast<short>(hit.rect.left + 4), textY, label);
-  short arrowRight = static_cast<short>(hit.rect.right - 4);
-  short arrowTop = static_cast<short>(hit.rect.top + 4);
-  short arrowBottom = static_cast<short>(hit.rect.bottom - 4);
-  short arrowMidY = static_cast<short>((arrowTop + arrowBottom) / 2);
-  MoveTo(static_cast<short>(arrowRight - 6), arrowMidY - 3);
-  LineTo(arrowRight, arrowMidY - 3);
-  LineTo(static_cast<short>(arrowRight - 3), arrowMidY + 3);
-  LineTo(static_cast<short>(arrowRight - 6), arrowMidY - 3);
+  hit.context->repaint();
   SetPort(oldPort);
 }
 

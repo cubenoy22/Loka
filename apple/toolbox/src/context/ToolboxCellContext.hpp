@@ -36,6 +36,8 @@ public:
   ToolboxCellContext(loka::app::CellNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxCellContext();
   virtual void onPropsApplied();
+  virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                            loka::app::scene::NodeLifecycleFact next);
 
   void updateData(loka::core::State<loka::core::String> *text);
   void updateRect(const Rect &rect);
@@ -53,6 +55,7 @@ private:
   bool captureProps();
   loka::app::CellNode *node_;
   Rect rect_;
+  Rect paintRect_;
   loka::core::State<loka::core::String> *text_;
 };
 
