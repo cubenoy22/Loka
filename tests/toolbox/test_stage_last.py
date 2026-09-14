@@ -40,6 +40,7 @@ class StageLastTests(unittest.TestCase):
                      '--capture-adapter', 'mame-screen-snapshot.v2', '--mode', 'capture']
         self.command(['python3', str(self.helper), 'record', *self.args])
         self.command(['python3', str(self.helper), 'audit-matched', '--provenance', str(self.receipt), '--audit', str(self.audit)])
+        self.command(['python3', str(self.helper), 'capture-ready', '--provenance', str(self.receipt), '--capture', str(self.capture)])
 
     def tearDown(self):
         self.temp.cleanup()
@@ -62,7 +63,7 @@ class StageLastTests(unittest.TestCase):
 
     def test_identity_fields(self):
         original = self.receipt.read_text()
-        for field in ('application_sha256', 'source_tree_identity', 'registry_sha256', 'capture_adapter', 'mode', 'audit_verdict', 'audit_sha256'):
+        for field in ('application_sha256', 'source_tree_identity', 'registry_sha256', 'capture_adapter', 'mode', 'audit_verdict', 'audit_sha256', 'capture_sha256'):
             with self.subTest(field=field):
                 self.receipt.write_text('\n'.join(field + '=changed' if line.startswith(field + '=') else line for line in original.splitlines()) + '\n')
                 self.refuse(field)
@@ -83,6 +84,15 @@ class StageLastTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(name, result.stderr)
                 path.write_bytes(content)
+
+    def test_changed_capture(self):
+        self.capture.write_bytes(b'edited after the attested run')
+        self.refuse('capture_sha256 differs from the attested run')
+
+    def test_capture_not_normalized(self):
+        self.command(['python3', str(self.helper), 'record', *self.args])
+        self.command(['python3', str(self.helper), 'audit-matched', '--provenance', str(self.receipt), '--audit', str(self.audit)])
+        self.refuse('capture_sha256 is unset')
 
     def test_changed_tracked_audit(self):
         self.expected.write_text('changed')

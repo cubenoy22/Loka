@@ -528,6 +528,10 @@ if ! reported_rectangle="$(python3 "$PNG_TOOL" normalize \
     "$RAW_IMAGE" "$CAPTURE_RECTANGLE" "$ACTUAL_IMAGE" 2>&1)"; then
   fail_stage normalize "$reported_rectangle"
 fi
+if ! provenance_message="$(python3 "$RUN_PROVENANCE_HELPER" capture-ready \
+    --provenance "$RUN_PROVENANCE" --capture "$ACTUAL_IMAGE" 2>&1)"; then
+  fail_stage provenance "$provenance_message"
+fi
 
 if [ "$UPDATE_GOLDEN" -eq 1 ]; then
   stage_golden

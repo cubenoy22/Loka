@@ -17,7 +17,7 @@ from classic_golden_identity import (
 
 FIELDS = {
     "application_sha256", "source_tree_identity", "registry_sha256",
-    "capture_adapter", "mode", "audit_verdict", "audit_sha256",
+    "capture_adapter", "mode", "audit_verdict", "audit_sha256", "capture_sha256",
 }
 
 
@@ -26,6 +26,13 @@ def run(args):
         fields = _read_strict_fields(args.provenance, FIELDS)
         fields["audit_verdict"] = "matched"
         fields["audit_sha256"] = sha256_file(args.audit)
+        _write_fields_atomic(args.provenance, tuple(fields.items()))
+        return
+    if args.command == "capture-ready":
+        # Bind the normalized capture to the receipt so --stage-last publishes
+        # only the bytes this attested run produced.
+        fields = _read_strict_fields(args.provenance, FIELDS)
+        fields["capture_sha256"] = sha256_file(args.capture)
         _write_fields_atomic(args.provenance, tuple(fields.items()))
         return
 
@@ -37,7 +44,7 @@ def run(args):
         "mode": args.mode,
     }
     if args.command == "record":
-        current.update(audit_verdict="not-matched", audit_sha256="none")
+        current.update(audit_verdict="not-matched", audit_sha256="none", capture_sha256="none")
         _write_fields_atomic(args.provenance, tuple(current.items()))
         return
 
@@ -57,23 +64,28 @@ def run(args):
         raise IdentityError("audit_sha256 differs from the matched run")
     if fields["audit_sha256"] != sha256_file(args.expected_audit):
         raise IdentityError("tracked audit_sha256 differs from the matched run")
+    if fields["capture_sha256"] == "none":
+        raise IdentityError("capture_sha256 is unset: the run did not normalize a capture")
+    if fields["capture_sha256"] != sha256_file(args.capture):
+        raise IdentityError("capture_sha256 differs from the attested run")
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
-    for command in ("record", "audit-matched", "verify"):
+    for command in ("record", "audit-matched", "capture-ready", "verify"):
         sub = commands.add_parser(command)
         sub.add_argument("--provenance", type=pathlib.Path, required=True)
-        if command != "audit-matched":
+        if command not in ("audit-matched", "capture-ready"):
             for name in ("application", "source-tree", "registry"):
                 sub.add_argument("--" + name, type=pathlib.Path, required=True)
             sub.add_argument("--capture-adapter", required=True)
             sub.add_argument("--mode", choices=("capture", "probe", "structural-audit"), required=True)
-        if command != "record":
+        if command in ("audit-matched", "verify"):
             sub.add_argument("--audit", type=pathlib.Path, required=True)
-        if command == "verify":
+        if command in ("capture-ready", "verify"):
             sub.add_argument("--capture", type=pathlib.Path, required=True)
+        if command == "verify":
             sub.add_argument("--expected-audit", type=pathlib.Path, required=True)
     try:
         run(parser.parse_args())

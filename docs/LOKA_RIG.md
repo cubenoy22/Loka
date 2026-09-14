@@ -88,7 +88,8 @@ The receipt in `build/mame-scenario/<example>/<scenario>/scenario-run-provenance
 must match the current APPL digest, source-tree identity (the existing helper's
 HEAD plus porcelain-status digest), registry digest, and capture adapter. Missing
 or malformed receipts, unattestable source identity, missing capture/audit, an
-unmatched or changed audit, and receipts from probe/structural runs are refused.
+unmatched or changed audit, a capture that differs from the digest recorded after
+normalization, and receipts from probe/structural runs are refused.
 A normal run records its receipt before launch; receipt write failures fail the
 `provenance` stage. Flags are exclusive: `--stage-last` cannot accompany
 `--update-golden`, `--probe`, or `--structural-audit`.

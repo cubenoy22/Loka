@@ -292,6 +292,7 @@ assert receipt["capture_adapter"] == "mame-screen-snapshot.v2"
 assert receipt["mode"] == "capture"
 assert receipt["audit_verdict"] == "not-matched"
 assert receipt["audit_sha256"] == "none"
+assert receipt["capture_sha256"] == "none"
 PY
   actual_tab_count="$(cat "$SANDBOX/tab-count")"
   [ "$actual_tab_count" = "$expected_tab_count" ] \
