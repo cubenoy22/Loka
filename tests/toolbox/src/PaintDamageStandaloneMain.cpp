@@ -121,7 +121,10 @@ namespace
     }
     virtual void composeNode(NodeComposition &composition)
     {
-      composition.declare(Box().size(180, 50)
+      // The viewport spans the seat plus its first-baseline lead (12 px at the
+      // default line height); 62 keeps the EditText chrome partially clipped
+      // by the same 14 px it was before the lead existed.
+      composition.declare(Box().size(180, 62)
                           << (ScrollView()
                               << (Column() << Box().size(150, 48)
                                   << EditText(this->text_).TEST_ID("PaintDamage.Edit"))));
@@ -526,6 +529,8 @@ namespace
       ToolboxScenePlatformController::EditTextGeometry geometry;
       if (!controller || !controller->queryEditTextGeometryForTesting(edit.context, geometry))
       {
+        // A missing native geometry is a fixture failure, not a silent end.
+        self->recordArm("edit-geometry", false, COMPLETE);
         self->finish(false);
         return;
       }
