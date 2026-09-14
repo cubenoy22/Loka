@@ -4,4 +4,6 @@
 void testObservedStateDoesNotJoinChildBoundaryTracker();
 void testObservedStateGuardSharesRegistrationTokenAndUnbindsLate();
 
+void testUnobservedCommitDoesNotDirtyBoundary();
+
 #endif // LOKA_TESTS_BOUNDARY_OBSERVED_STATE_TRACKER_TESTS_HPP

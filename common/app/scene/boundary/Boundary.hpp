@@ -482,9 +482,8 @@ namespace loka
         void noteInnerTrackerCommit(
             const loka::core::PushStateTracker *innerTracker)
         {
-          NodeDirtyFlags flags =
-              this->observedState_.dirtyFlagsForCommittedStates(innerTracker);
-          if (flags == NODE_DIRTY_NONE)
+          NodeDirtyFlags flags = NODE_DIRTY_NONE;
+          if (!this->observedState_.dirtyFlagsForCommittedStates(innerTracker, flags))
           {
             flags = this->observedDirtyFlags();
           }
@@ -573,10 +572,10 @@ namespace loka
         {
           return observedState_.currentDirtyFlags();
         }
-        NodeDirtyFlags observedDirtyFlagsForCommittedStates() const
+        bool observedDirtyFlagsForCommittedStates(NodeDirtyFlags &flags) const
         {
           const loka::core::PushStateTracker *pushTracker = this->tracker_.asPushTracker();
-          return observedState_.dirtyFlagsForCommittedStates(pushTracker);
+          return observedState_.dirtyFlagsForCommittedStates(pushTracker, flags);
         }
 
 #ifdef TEST_BUILD
