@@ -96,9 +96,6 @@ void ToolboxPopupMenuContext::onFactChanged(loka::app::scene::NodeLifecycleFact 
 {
   if (next != loka::app::scene::NODE_FACT_ATTACHED)
   {
-    // A context that is not attached has no placement: clear the layout
-    // rect too so a clipped-out test cannot mistake it for a placed drawer.
-    SetRect(&this->rect_, 0, 0, 0, 0);
     this->presented_.invalidate();
     SetRect(&this->paintRect_, 0, 0, 0, 0);
   }

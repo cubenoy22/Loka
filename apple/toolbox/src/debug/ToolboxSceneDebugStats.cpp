@@ -103,8 +103,6 @@ ToolboxSceneDebugStats::ToolboxSceneDebugStats()
       windowFlushDirtyCount(0),
       windowUpdateEvtDrawCount(0),
       windowFullRequestSource(0),
-      lastPaintRefusalReason(loka::app::scene::PAINT_REFUSED_UNSUPPORTED_KIND),
-      lastPaintRefusalKind(loka::app::scene::NODE_KIND_UNKNOWN),
       requestInvalidateCallCount(0),
       requestInvalidateFirstRootPresent(false),
       requestInvalidateFirstFullRebuild(false),

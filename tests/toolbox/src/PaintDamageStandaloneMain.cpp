@@ -11,6 +11,7 @@
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/nestable/ScrollView.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
+#include "app/nodes/nestable/Show.hpp"
 #include "app/nodes/nestable/ZStack.hpp"
 #include "app/RectSurface.hpp"
 #include "app/nodes/Text.hpp"
@@ -103,6 +104,7 @@ namespace
       this->state(this->edit_, loka::core::String::Literal("Edit"));
       this->state(this->offset_, 0);
       this->state(this->button_, loka::core::String::Literal("Button"));
+      this->state(this->drawersShown_, true);
       this->items_.push_back(loka::core::String::Literal("Fruit"));
     }
     virtual void composeNode(NodeComposition &composition)
@@ -112,10 +114,11 @@ namespace
                               << (Column() << Text(this->sibling_.state())
                                   << Text(this->text_.state()).TEST_ID("Offscreen.VisibleText")
                                   << Box().size(150, 140)
-                                  << Text(this->hidden_.state()).TEST_ID("Offscreen.Text")
-                                  << EditText(this->edit_).TEST_ID("Offscreen.Edit")
-                                  << PopupMenu(this->items_).TEST_ID("Offscreen.Popup")
-                                  << loka::app::Button(this->button_.state()).TEST_ID("Offscreen.Button"))));
+                                  << (Show(*this->drawersShown_.state())
+                                      << Text(this->hidden_.state()).TEST_ID("Offscreen.Text")
+                                      << EditText(this->edit_).TEST_ID("Offscreen.Edit")
+                                      << PopupMenu(this->items_).TEST_ID("Offscreen.Popup")
+                                      << loka::app::Button(this->button_.state()).TEST_ID("Offscreen.Button")))));
     }
     void writeSibling()
     {
@@ -135,6 +138,16 @@ namespace
       loka::core::StateTrackerGuard guard(this->tracker());
       this->button_.set(loka::core::String::Literal(wider ? "Much wider button title" : "Button"));
     }
+    void hideDrawers()
+    {
+      loka::core::StateTrackerGuard guard(this->tracker());
+      this->drawersShown_.set(false);
+    }
+    void scrollToTop()
+    {
+      loka::core::StateTrackerGuard guard(this->tracker());
+      this->offset_.set(0);
+    }
     void reveal()
     {
       loka::core::StateTrackerGuard guard(this->tracker());
@@ -143,6 +156,7 @@ namespace
   private:
     NodeState<loka::core::String> sibling_, text_, hidden_, edit_, button_;
     NodeState<int> offset_;
+    NodeState<bool> drawersShown_;
     loka::Vector<loka::core::String> items_;
   };
 
@@ -411,6 +425,7 @@ namespace
       this->items_.push_back(loka::core::String::Literal(""));
       this->items_.push_back(loka::core::String::Literal("HHHH"));
       this->state(this->selection_, 0);
+      this->state(this->popupShown_, true);
       this->state(this->text_, loka::core::String::Literal("Sibling ink"));
       RectSurfaceModel model;
       model.rectCount = 1;
@@ -422,8 +437,9 @@ namespace
       composition.declare(Box().size(180, 140)
                           << (ScrollView()
                               << (Column()
-                                  << PopupMenu(this->items_).selectedIndex(this->selection_)
-                                      .TEST_ID("PopupExact.Popup")
+                                  << (Show(*this->popupShown_.state())
+                                      << PopupMenu(this->items_).selectedIndex(this->selection_)
+                                          .TEST_ID("PopupExact.Popup"))
                                   << Text(this->text_.state())
                                   << RectSurface(this->model_.state()).size(150, 40)
                                       .clearBackground(true).TEST_ID("PopupExact.Surface"))));
@@ -433,6 +449,11 @@ namespace
       loka::core::StateTrackerGuard guard(this->tracker());
       this->text_.set(loka::core::String::Literal("Changed ink"));
     }
+    void hidePopup()
+    {
+      loka::core::StateTrackerGuard guard(this->tracker());
+      this->popupShown_.set(false);
+    }
     void selectNext()
     {
       loka::core::StateTrackerGuard guard(this->tracker());
@@ -441,6 +462,7 @@ namespace
   private:
     loka::Vector<loka::core::String> items_;
     NodeState<int> selection_;
+    NodeState<bool> popupShown_;
     NodeState<loka::core::String> text_;
     NodeState<RectSurfaceModel> model_;
   };
@@ -611,18 +633,21 @@ namespace
     ToolboxEditTextContext *context;
   };
 
-  /** This fixture installs only the two concrete production drawer kinds.
-      Recollecting their read-only answers observes the gate without adding a
-      production telemetry door or retaining the collector's resident borrows. */
+  /** Fixture-local answers, including the first refusal's kind to pair with
+      PaintApplyVerdict::refusalReason(). No observation survives a collection. */
   struct ProbeSource
   {
-    ProbeSource() : siblingX(0), siblingY(0), foundSibling(false), first(0), firstDamage() {}
+    ProbeSource() : siblingX(0), siblingY(0), foundSibling(false), first(0), firstDamage(), refusingKind(NODE_KIND_UNKNOWN) {}
     bool queryPaintAnswer(Node *node, NodeContext *context, const PaintQuery &query, PaintAnswer &answer)
     {
-      if (node->kind() != NODE_KIND_RECT_SURFACE && node->kind() != NODE_KIND_TEXT)
+      if (node->kind() != NODE_KIND_RECT_SURFACE && node->kind() != NODE_KIND_TEXT
+          && node->kind() != NODE_KIND_EDIT_TEXT && node->kind() != NODE_KIND_POPUP_MENU
+          && node->kind() != NODE_KIND_BUTTON)
         return false;
       answer = context ? static_cast<NativeNodeContext *>(context)->queryPaintDamage(query)
                        : PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+      if (answer.kind == PAINT_ANSWER_REFUSED && this->refusingKind == NODE_KIND_UNKNOWN)
+        this->refusingKind = node->kind();
       if (node->testId() == "PaintDamage.First" && answer.kind == PAINT_ANSWER_EXACT)
       {
         this->first = context;
@@ -640,6 +665,7 @@ namespace
     bool foundSibling;
     NodeContext *first;
     PaintDamage firstDamage;
+    NodeKind refusingKind;
   };
 
   /** Window borrows remain inside the configuration that owns this finite run. */
@@ -780,7 +806,7 @@ namespace
                  POPUP_SHOW, POPUP_REPLAY, POPUP_CHECK, OVERFLOW_SHOW, OVERFLOW_REPLAY, OVERFLOW_CHECK, IMAGE_SHOW, IMAGE_WRITE, IMAGE_CHECK, EDIT_EXACT_SHOW, EDIT_EXACT_WRITE, EDIT_EXACT_CHECK, EDIT_ZSTACK_SHOW, EDIT_ZSTACK_WRITE, EDIT_ZSTACK_CHECK, POPUP_EXACT_SHOW, POPUP_SIBLING_WRITE, POPUP_SIBLING_CHECK, POPUP_SELECTION_CHECK, HISTORY_SHOW, HISTORY_FIRST, HISTORY_SECOND, HISTORY_CHECK,
                  POPUP_HISTORY_SHOW, POPUP_HISTORY_FIRST, POPUP_HISTORY_SECOND, POPUP_HISTORY_CHECK, BUTTON_ENABLED_SHOW, BUTTON_ENABLED_WRITE, BUTTON_ENABLED_CHECK,
                  BUTTON_LABEL_SHOW, BUTTON_LABEL_WRITE, BUTTON_LABEL_CHECK,
-                 OFFSCREEN_SHOW, OFFSCREEN_WRITE, OFFSCREEN_SIBLING_CHECK, OFFSCREEN_TEXT_CHECK, OFFSCREEN_HIDDEN_CHECK, OFFSCREEN_REVEAL_CHECK, OFFSCREEN_REVEALED_WRITE_CHECK, COMPLETE };
+                 OFFSCREEN_SHOW, OFFSCREEN_WRITE, OFFSCREEN_SIBLING_CHECK, OFFSCREEN_TEXT_CHECK, OFFSCREEN_HIDDEN_CHECK, OFFSCREEN_REVEAL_CHECK, OFFSCREEN_REVEALED_WRITE_CHECK, OFFSCREEN_DETACH_CHECK, COMPLETE };
     App *app_;
     ViewportDamageNode *node_;
     CompositedDamageNode *composited_;
@@ -892,7 +918,7 @@ namespace
         target = self->buttonLabelWindow_;
         break;
       case OFFSCREEN_SHOW: case OFFSCREEN_WRITE: case OFFSCREEN_SIBLING_CHECK:
-      case OFFSCREEN_TEXT_CHECK: case OFFSCREEN_HIDDEN_CHECK: case OFFSCREEN_REVEAL_CHECK: case OFFSCREEN_REVEALED_WRITE_CHECK:
+      case OFFSCREEN_TEXT_CHECK: case OFFSCREEN_HIDDEN_CHECK: case OFFSCREEN_REVEAL_CHECK: case OFFSCREEN_REVEALED_WRITE_CHECK: case OFFSCREEN_DETACH_CHECK:
         target = self->offscreenWindow_;
         break;
       case COMPLETE:
@@ -907,6 +933,16 @@ namespace
       // One bounded delivery per phase; never wait for a permanently pending
       // flag. Native drawing may itself publish work for the following phase.
       target->flushSceneInvalidation();
+      if (target == self->offscreenWindow_ && self->offscreen_)
+      {
+        const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
+        PaintAnswerBuffer<> answers;
+        ProbeSource source;
+        const PaintApplyVerdict verdict = CollectPaintAnswers(*self->offscreen_, query, answers, source);
+        native->flushInvalidate();
+        OnOffscreenIdle(target, self, verdict, source.refusingKind);
+        return;
+      }
       native->flushInvalidate();
       if (target == self->paintWindow_)
         OnPaintIdle(target, self->node_, self);
@@ -932,8 +968,6 @@ namespace
         OnButtonIdle(target, self->buttonEnabled_, false, self);
       else if (target == self->buttonLabelWindow_)
         OnButtonIdle(target, self->buttonLabel_, true, self);
-      else if (target == self->offscreenWindow_)
-        OnOffscreenIdle(target, self);
       else if (target == self->imageWindow_)
         OnImageIdle(target, self);
       else
@@ -1086,10 +1120,14 @@ namespace
                           && stats.totalRenderDirtyCalls > self->initial_.totalRenderDirtyCalls, CHECK);
         }
         SetPort(previousPort);
+        const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
+        PaintAnswerBuffer<> answers;
+        ProbeSource source;
+        const PaintApplyVerdict verdict = CollectPaintAnswers(*node, query, answers, source);
         std::fprintf(self->log_, "delivery=%s reason=%d kind=%d\r",
                      whole == 0 ? "EXACT" : "FULL",
-                     static_cast<int>(stats.lastPaintRefusalReason),
-                     static_cast<int>(stats.lastPaintRefusalKind));
+                     verdict.refusedCount() ? static_cast<int>(verdict.refusalReason()) : -1,
+                     verdict.refusedCount() ? static_cast<int>(source.refusingKind) : -1);
         self->recordArm(HasViewport ? "viewport-exact" : "plain-exact",
                         self->gate_ && siblingPreserved && whole == 0
                         && (HasViewport ? rects >= 1 : rects == 1),
@@ -1715,9 +1753,14 @@ namespace
         self->recordArm("popup-layout-history-refuses",
                         context->queryPaintDamage(settled).kind == PAINT_ANSWER_REFUSED, COMPLETE);
         context->repaint();
-        context->onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_DETACHED_RETAINED);
+        // Show retains this branch: the borrows stay valid across its kernel detach.
+        self->popupExact_->hidePopup();
+        window->flushSceneInvalidation();
         self->recordArm("popup-detached-refuses",
-                        context->queryPaintDamage(settled).kind == PAINT_ANSWER_REFUSED, COMPLETE);
+                        popup->lifecycleFact() == NODE_FACT_DETACHED_RETAINED
+                        && popup->getContext() == context
+                        && context->deliveredFact() == NODE_FACT_DETACHED_RETAINED
+                        && context->queryPaintDamage(settled).kind == PAINT_ANSWER_REFUSED, COMPLETE);
         SetPort(previousPort);
         self->phase_ = HISTORY_SHOW;
       }
@@ -1817,7 +1860,8 @@ namespace
           : PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
     }
 
-    static void OnOffscreenIdle(Window *window, PaintDamageConfig *self)
+    static void OnOffscreenIdle(Window *window, PaintDamageConfig *self,
+                                const PaintApplyVerdict &verdict, NodeKind refusingKind)
     {
       ToolboxWindow *native = window->asToolboxWindow();
       if (self->phase_ == OFFSCREEN_SHOW)
@@ -1859,7 +1903,22 @@ namespace
         const PaintAnswer wider = offscreenAnswer(window, "Offscreen.Button", query);
         self->recordArm("offscreen-button-width-refuses", wider.kind == PAINT_ANSWER_REFUSED
                         && wider.reason == PAINT_REFUSED_PLACEMENT_UNSETTLED, OFFSCREEN_WRITE);
+        {
+          PaintAnswerBuffer<> answers;
+          ProbeSource source;
+          const PaintApplyVerdict refused = CollectPaintAnswers(*self->offscreen_, query, answers, source);
+          self->recordArm("column-local-refusal", refused.refusedCount() == 1
+                          && refused.refusalReason() == PAINT_REFUSED_PLACEMENT_UNSETTLED
+                          && source.refusingKind == NODE_KIND_BUTTON, OFFSCREEN_WRITE);
+        }
         self->offscreen_->writeButton(false);
+        {
+          PaintAnswerBuffer<> answers;
+          ProbeSource source;
+          const PaintApplyVerdict exact = CollectPaintAnswers(*self->offscreen_, query, answers, source);
+          self->recordArm("column-local-refusal-cleared", exact.refusedCount() == 0
+                          && source.refusingKind == NODE_KIND_UNKNOWN, OFFSCREEN_WRITE);
+        }
         self->initial_ = controller->debugStatsForTesting();
         self->offscreen_->writeSibling();
         self->phase_ = OFFSCREEN_SIBLING_CHECK;
@@ -1870,7 +1929,8 @@ namespace
       const int rects = stats.windowRectRequestCount - self->initial_.windowRectRequestCount;
       std::fprintf(self->log_, "column_phase=%d delivery=%s reason=%d kind=%d whole_window=%d rects=%d\r",
                    static_cast<int>(self->phase_), whole == 0 ? "EXACT" : "FULL",
-                   static_cast<int>(stats.lastPaintRefusalReason), static_cast<int>(stats.lastPaintRefusalKind),
+                   verdict.refusedCount() ? static_cast<int>(verdict.refusalReason()) : -1,
+                   verdict.refusedCount() ? static_cast<int>(refusingKind) : -1,
                    whole, rects);
       if (self->phase_ == OFFSCREEN_SIBLING_CHECK)
       {
@@ -1910,11 +1970,49 @@ namespace
                         && changed.damage.height > 0 && changed.damage.y >= 24
                         && changed.damage.y + changed.damage.height <= 134, OFFSCREEN_REVEALED_WRITE_CHECK);
       }
-      else
+      else if (self->phase_ == OFFSCREEN_REVEALED_WRITE_CHECK)
       {
         const PaintAnswer presented = offscreenAnswer(window, "Offscreen.Text", query);
         self->recordArm("column-revealed-text-exact", whole == 0 && rects >= 1
-                        && presented.kind == PAINT_ANSWER_EXACT && presented.damage.width == 0, COMPLETE);
+                        && presented.kind == PAINT_ANSWER_EXACT && presented.damage.width == 0, OFFSCREEN_DETACH_CHECK);
+        self->offscreen_->scrollToTop();
+      }
+      else
+      {
+        const char *ids[] = {"Offscreen.Text", "Offscreen.Edit", "Offscreen.Popup", "Offscreen.Button"};
+        Node *drawers[4] = {};
+        NativeNodeContext *contexts[4] = {};
+        for (int i = 0; i < 4; ++i)
+        {
+          loka::dsl::FlowError error;
+          loka::dsl::testing::LookupNodeById<Node>(window->scene(), ids[i], drawers[i], error);
+          contexts[i] = drawers[i] ? static_cast<NativeNodeContext *>(drawers[i]->getContext()) : 0;
+          if (!contexts[i])
+          {
+            self->recordArm("offscreen-detach-setup", false, COMPLETE);
+            self->finish(false);
+            return;
+          }
+          const PaintAnswer before = contexts[i]->queryPaintDamage(query);
+          self->recordArm("offscreen-detach-setup", drawers[i]->lifecycleFact() == NODE_FACT_ATTACHED
+                          && contexts[i]->deliveredFact() == NODE_FACT_ATTACHED
+                          && before.kind == PAINT_ANSWER_EXACT
+                          && before.damage.width == 0 && before.damage.height == 0, OFFSCREEN_DETACH_CHECK);
+        }
+        // Default Show parks all four drawers; borrows last only through this apply.
+        self->offscreen_->hideDrawers();
+        window->flushSceneInvalidation();
+        for (int i = 0; i < 4; ++i)
+        {
+          const PaintAnswer detached = contexts[i]->queryPaintDamage(query);
+          std::fprintf(self->log_, "%s detached_fact=%d answer=%d reason=%d\r", ids[i],
+                       static_cast<int>(contexts[i]->deliveredFact()), static_cast<int>(detached.kind),
+                       static_cast<int>(detached.reason));
+          self->recordArm("offscreen-detached-refuses", drawers[i]->lifecycleFact() == NODE_FACT_DETACHED_RETAINED
+                          && drawers[i]->getContext() == contexts[i]
+                          && contexts[i]->deliveredFact() == NODE_FACT_DETACHED_RETAINED
+                          && detached.kind == PAINT_ANSWER_REFUSED, COMPLETE);
+        }
         self->finish(true);
       }
     }

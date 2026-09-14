@@ -101,12 +101,7 @@ void ToolboxButtonContext::onFactChanged(loka::app::scene::NodeLifecycleFact pre
                                         loka::app::scene::NodeLifecycleFact next)
 {
   if (next != loka::app::scene::NODE_FACT_ATTACHED)
-  {
-    // A context that is not attached has no placement: clear the layout
-    // rect too so a clipped-out test cannot mistake it for a placed drawer.
-    SetRect(&this->rect_, 0, 0, 0, 0);
     this->presented_.invalidate();
-  }
   ToolboxProjectedNodeContext::onFactChanged(previous, next);
 }
 
