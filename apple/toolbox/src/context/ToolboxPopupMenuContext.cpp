@@ -170,9 +170,10 @@ short ToolboxPopupMenuContext::layout(loka::app::scene::IPlatformController *con
   short width = 120;
   Rect rect;
   rect.left = state.x;
-  rect.top = static_cast<short>(state.y - state.lineHeight + ToolboxLayoutMetrics::kControlAscentInset);
+  rect.top = state.y;
   rect.right = static_cast<short>(state.x + width + 8);
-  rect.bottom = static_cast<short>(state.y + ToolboxLayoutMetrics::kControlDescent);
+  rect.bottom = static_cast<short>(state.y + state.lineHeight - ToolboxLayoutMetrics::kControlAscentInset
+                                   + ToolboxLayoutMetrics::kControlDescent);
   this->captureProps();
   updateRect(rect, state.lineHeight);
   ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
@@ -188,7 +189,8 @@ short ToolboxPopupMenuContext::layout(loka::app::scene::IPlatformController *con
                             menuId(),
                             this);
   }
-  state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
+  // Advance by the painted box, as the other rails do: y is the top edge.
+  state.y = static_cast<short>(rect.bottom + state.spacing);
   return width;
 }
 

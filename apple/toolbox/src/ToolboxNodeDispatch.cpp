@@ -121,7 +121,6 @@ namespace
     loka::app::scene::BoundaryNode *activeBoundary = boundary ? boundary : currentBoundary;
     const short startX = state.x;
     const short startY = state.y;
-    const short startTop = static_cast<short>(startY - state.lineHeight + 2);
     if (loka::app::scene::IProjectedLayoutNode *projected = node->asProjectedLayoutNode())
     {
       ActiveLayoutBoundaryScope boundaryScope(controller, activeBoundary);
@@ -132,7 +131,7 @@ namespace
       }
       if (boundary)
       {
-        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
+        boundary->setLayoutBounds(startX, startY, width, static_cast<short>(state.y - startY));
       }
       return width;
     }
@@ -220,7 +219,7 @@ namespace
       }
       if (boundary)
       {
-        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
+        boundary->setLayoutBounds(startX, startY, width, static_cast<short>(state.y - startY));
       }
       return width;
     }
@@ -270,7 +269,7 @@ namespace
       }
       if (boundary)
       {
-        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
+        boundary->setLayoutBounds(startX, startY, width, static_cast<short>(state.y - startY));
       }
       return width;
     }
@@ -314,7 +313,7 @@ namespace
       state.y = maxY;
       if (boundary)
       {
-        boundary->setLayoutBounds(startX, startTop, maxWidth, static_cast<short>(state.y - startTop));
+        boundary->setLayoutBounds(startX, startY, maxWidth, static_cast<short>(state.y - startY));
       }
       return maxWidth;
     }
@@ -395,7 +394,7 @@ namespace
       }
       if (boundary)
       {
-        boundary->setLayoutBounds(startX, startTop, maxWidth, static_cast<short>(state.y - startTop));
+        boundary->setLayoutBounds(startX, startY, maxWidth, static_cast<short>(state.y - startY));
       }
       return maxWidth;
     }
@@ -446,7 +445,7 @@ namespace
       state.y = projectedState.y;
       if (boundary)
       {
-        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
+        boundary->setLayoutBounds(startX, startY, width, static_cast<short>(state.y - startY));
       }
       return width;
     }
@@ -460,8 +459,8 @@ namespace
                         : 0;
       if (boundary)
       {
-        boundary->setLayoutBounds(startX, startTop, width,
-                                  static_cast<short>(state.y - startTop));
+        boundary->setLayoutBounds(startX, startY, width,
+                                  static_cast<short>(state.y - startY));
       }
       return width;
     }
@@ -471,7 +470,7 @@ namespace
     short width = LayoutChildren(node->asNestable(), state, controller, activeBoundary);
     if (boundary)
     {
-      boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
+      boundary->setLayoutBounds(startX, startY, width, static_cast<short>(state.y - startY));
     }
     return width;
   }

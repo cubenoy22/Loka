@@ -198,8 +198,8 @@ namespace
       LOKA_VERIFY(this->callCount_ < 7);
       this->seats_[this->callCount_] = state;
       const int width = ToolboxLayoutContractTraversal::layoutChild(child, state);
-      // Mirror the real child handlers: a baseline control advances from the
-      // baseline it was handed by lineHeight + spacing (ToolboxButtonContext,
+      // Mirror the real child handlers: a text control advances from the
+      // box top it was handed by lineHeight + spacing (ToolboxButtonContext,
       // ToolboxTextContext); other kinds consume their seat.
       const bool baselineControl = child->asButtonNode() || child->asTextNode() || child->asEditTextNode()
                                    || child->asPopupMenuNode();
@@ -250,8 +250,8 @@ namespace
       std::fprintf(stderr, "  %s: y-offset=%d seat-height=%d\n", names[i],
                    traversal.seats_[i].y - startY, traversal.seats_[i].height);
     }
-    // Painted bounds center at 50: baseline 51 gives top 43 and bottom 57.
-    const short centeredOffsets[] = {0, 31, 31, 18, 0, 15, 0};
+    // Top-origin controls center at 50 with top 43 and bottom 57, without an ascent lead.
+    const short centeredOffsets[] = {0, 23, 23, 18, 0, 15, 0};
     const short centeredHeights[] = {60, 14, 14, 24, 60, 30, 60};
     LOKA_VERIFY(state.y - startY == (centered ? 64 : 44));
     for (int i = 0; i < 7; ++i)
@@ -286,9 +286,10 @@ void testToolboxCenteredControlOnlyRowPaintedBounds()
   const bool usedHandler = ApplyToolboxPlatformLayoutHandler(registry, row, state, traversal, width);
   LOKA_VERIFY(usedHandler);
   LOKA_VERIFY(traversal.callCount_ == 1);
-  std::fprintf(stderr, "Toolbox control-only CENTER: baseline=%d height=%d extent=%d\n",
+  std::fprintf(stderr, "Toolbox control-only CENTER: top=%d height=%d extent=%d\n",
                traversal.seats_[0].y, traversal.seats_[0].height, state.y - 20);
-  LOKA_VERIFY(traversal.seats_[0].y == 28);
+  // A top-origin control starts at the row top; its painted height stays 14.
+  LOKA_VERIFY(traversal.seats_[0].y == 20);
   LOKA_VERIFY(traversal.seats_[0].height == 14);
   LOKA_VERIFY(state.y == 38);
 }

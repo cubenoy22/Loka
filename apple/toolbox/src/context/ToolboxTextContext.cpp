@@ -358,11 +358,14 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
   }
   Rect rect;
   rect.left = state.x;
-  rect.top = static_cast<short>(state.y - effectiveLineHeight + ToolboxLayoutMetrics::kControlAscentInset);
+  rect.top = state.y;
   rect.right = static_cast<short>(state.x + width);
-  rect.bottom = static_cast<short>(state.y + ToolboxLayoutMetrics::kControlDescent);
-  updateRect(rect, state.x, state.y);
-  state.y = static_cast<short>(state.y + effectiveLineHeight + state.spacing);
+  rect.bottom = static_cast<short>(state.y + effectiveLineHeight - ToolboxLayoutMetrics::kControlAscentInset
+                                   + ToolboxLayoutMetrics::kControlDescent);
+  updateRect(rect, state.x,
+             static_cast<short>(state.y + effectiveLineHeight - ToolboxLayoutMetrics::kControlAscentInset));
+  // Advance by the painted box, as the other rails do: y is the top edge.
+  state.y = static_cast<short>(rect.bottom + state.spacing);
   return width;
 }
 
