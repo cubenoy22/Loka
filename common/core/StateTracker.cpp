@@ -419,6 +419,7 @@ namespace loka
       current.clear();
       next.clear();
       committedDirtyStates.clear();
+      committedIdentitiesErased = false;
       anyDirty = false;
     }
 
@@ -434,6 +435,7 @@ namespace loka
       current.swap(next);
       next.clear();
       committedDirtyStates.clear();
+      committedIdentitiesErased = false;
     }
 
     void PushStateTracker::TrackerTransaction::removeState(StateBase *state)
@@ -445,6 +447,7 @@ namespace loka
         if (committedDirtyStates[i] == state)
         {
           committedDirtyStates.erase(committedDirtyStates.begin() + i);
+          committedIdentitiesErased = true;
         }
         else
         {

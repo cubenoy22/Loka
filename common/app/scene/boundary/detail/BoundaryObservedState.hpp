@@ -259,8 +259,9 @@ namespace loka
             return false;
           }
           const std::vector<loka::core::StateBase *> &dirtyStates = pushTracker->committedDirtyStates();
-          // Deferred removal can erase commit identities before invalidation.
-          if (dirtyStates.empty())
+          // Deferred removal can erase commit identities before invalidation;
+          // a partially erased set is as unknown as an empty one.
+          if (dirtyStates.empty() || !pushTracker->committedIdentitiesComplete())
           {
             return false;
           }

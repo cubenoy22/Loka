@@ -528,6 +528,25 @@ void testUnobservedCommitDoesNotDirtyBoundary()
               static_cast<NodeDirtyFlags>(NODE_DIRTY_LAYOUT | NODE_DIRTY_PROPS));
   scene.flushInvalidation();
 
+  // Deferred removal that erases one of several committed identities leaves a
+  // nonempty but incomplete set: the Boundary must fall back to the union, not
+  // apply only the survivor's flags (a removed LAYOUT source must not downgrade
+  // the update to PROPS).
+  RemoveCommittedState partialRemoval;
+  partialRemoval.tracker = boundary->tracker()->asPushTracker();
+  partialRemoval.state = boundary->layout.state();
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    boundary->layout.set(loka::app::STACK_AXIS_ROW);
+    boundary->paint.set(false);
+    boundary->tracker()->defer(&RemoveCommittedState::run, &partialRemoval);
+  }
+  LOKA_VERIFY(!partialRemoval.tracker->committedDirtyStates().empty());
+  LOKA_VERIFY(!partialRemoval.tracker->committedIdentitiesComplete());
+  LOKA_VERIFY(SceneTestAccess::director(scene).pendingDirtyFlagsForBoundary(boundary) ==
+              static_cast<NodeDirtyFlags>(NODE_DIRTY_LAYOUT | NODE_DIRTY_PROPS));
+  scene.flushInvalidation();
+
   // The inner-owner notification must use the same known-NONE policy.
   loka::core::MutableState<int> innerPrivate(0);
   loka::core::PushStateTracker innerTracker;
