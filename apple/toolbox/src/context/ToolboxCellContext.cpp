@@ -1,4 +1,5 @@
 #include "ToolboxPropsRefresh.hpp"
+#include "context/ToolboxPaintSupport.hpp"
 #include "context/ToolboxCellContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
@@ -56,11 +57,20 @@ ToolboxCellContext::ToolboxCellContext(loka::app::CellNode *node, ToolboxScenePl
     : ToolboxProjectedNodeContext(controller),
       node_(node),
       rect_(),
+      paintRect_(),
       text_(0)
 {
 }
 
 ToolboxCellContext::~ToolboxCellContext() {}
+
+void ToolboxCellContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                       loka::app::scene::NodeLifecycleFact next)
+{
+  if (next != loka::app::scene::NODE_FACT_ATTACHED)
+    SetRect(&this->paintRect_, 0, 0, 0, 0);
+  ToolboxProjectedNodeContext::onFactChanged(previous, next);
+}
 
 void ToolboxCellContext::updateData(loka::core::State<loka::core::String> *text)
 {
@@ -69,13 +79,17 @@ void ToolboxCellContext::updateData(loka::core::State<loka::core::String> *text)
 
 void ToolboxCellContext::updateRect(const Rect &rect)
 {
-  rect_ = rect;
+  this->rect_ = rect;
+  this->paintRect_ = rect;
+  if (this->controller() && !this->controller()->intersectWithProjectionClip(rect, this->paintRect_))
+    SetRect(&this->paintRect_, 0, 0, 0, 0);
 }
 
 void ToolboxCellContext::draw(ToolboxScenePlatformController *controller)
 {
   (void)controller;
-  Rect drawRect = rect_;
+  ToolboxPaintClip clip(this->paintRect_);
+  Rect drawRect = this->rect_;
   EraseRect(&drawRect);
   FrameRect(&drawRect);
   if (!text_)

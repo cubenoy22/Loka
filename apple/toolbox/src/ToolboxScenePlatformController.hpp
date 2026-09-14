@@ -87,13 +87,7 @@ public:
                      short visibleWidth,
                      ToolboxTextContext *context);
   void recordPopupHit(const Rect &rect,
-                      short lineHeight,
-                      const loka::Vector<loka::core::String> *items,
-                      loka::core::State<int> *selectedIndex,
-                      loka::core::EmitterState *onChange,
                       loka::core::State<bool> *enabled,
-                      loka::app::scene::BoundaryNode *boundary,
-                      short menuId,
                       ToolboxPopupMenuContext *context);
   void applyPopupSelectionChange(const Rect &rect,
                                  loka::app::scene::BoundaryNode *boundary,
@@ -221,6 +215,8 @@ private:
   template <typename Sink, typename StateType>
   friend class ToolboxEnabledStateBindingPath;
   friend class ToolboxTextContext;
+  friend class ToolboxCellContext;
+  friend class ToolboxPopupMenuContext;
   friend class ToolboxEditTextContext;
   friend class ToolboxRectSurfaceContext;
 

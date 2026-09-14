@@ -15,6 +15,8 @@
 #include "app/RectSurface.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/controls/EditText.hpp"
+#include "app/nodes/controls/Cell.hpp"
+#include "app/nodes/controls/PopupMenu.hpp"
 #include "context/ToolboxEditTextContext.hpp"
 #include "app/scene/projection/CollectPaintAnswers.hpp"
 #include "app/scene/projection/NativeNodeContext.hpp"
@@ -161,6 +163,53 @@ namespace
     NodeState<RectSurfaceModel> model_;
   };
 
+  enum DrawerFixture { CELL_VIEWPORT, POPUP_VIEWPORT, CELL_OVERFLOW };
+
+  template <DrawerFixture Kind>
+  class DrawerDamageNode : public StdCompositionBoundaryNodeBase<BoundaryPropsFor<DrawerDamageNode<Kind> > >
+  {
+  public:
+    typedef BoundaryPropsFor<DrawerDamageNode<Kind> > Props;
+    typedef typename Props::TypeTag TypeTag;
+    explicit DrawerDamageNode(const Props &props) : StdCompositionBoundaryNodeBase<Props>(props) {}
+    virtual void composeNode(NodeComposition &composition)
+    {
+      if (Kind == CELL_VIEWPORT)
+        composition.declare(Row() << (Box().size(180, 62)
+                            << (ScrollView().TEST_ID("Drawer.Viewport")
+                                << (Column() << (Box().size(100, 24) << Cell("One"))
+                                    << (Box().size(100, 24) << Cell("Two"))
+                                    << (Box().size(100, 24) << Cell("Three"))))) << Text("Rail"));
+      else if (Kind == POPUP_VIEWPORT)
+        composition.declare(Box().size(96, 62)
+                            << (ScrollView().TEST_ID("Drawer.Viewport") << PopupMenu()));
+      else
+        composition.declare(Row() << Box().size(42, 24)
+                            << (Box().size(8, 24) << Cell("WWWWWWW")));
+    }
+  };
+
+  /** Finite pixel snapshot owned by the fixture, never a production cache. */
+  class PopupRow
+  {
+  public:
+    PopupRow() : pixels_() {}
+    void capture()
+    {
+      for (short x = 12; x < 156; ++x)
+        this->pixels_[x - 12] = GetPixel(x, 31) != 0;
+    }
+    bool matches() const
+    {
+      for (short x = 12; x < 156; ++x)
+        if (this->pixels_[x - 12] != (GetPixel(x, 31) != 0))
+          return false;
+      return true;
+    }
+  private:
+    bool pixels_[144];
+  };
+
   struct FindEdit : public IPaintResidentVisitor
   {
     FindEdit() : context(0) {}
@@ -228,7 +277,7 @@ namespace
   public:
     explicit PaintDamageConfig(PlatformContext *context)
         : AppConfigurable(context), app_(0), node_(0), composited_(0), edit_(0), log_(0), phase_(SETTLE), result_(0),
-          initial_(), marker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0)
+          initial_(), marker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0), cellWindow_(0), popupWindow_(0), overflowWindow_(0), popupRow_()
     {
       if (loka::platform::file::ResolveApplicationSidecar(
               loka::file::File::Application() << loka::file::File("LOG.TXT"), this->file_))
@@ -273,11 +322,27 @@ namespace
                                    SurfaceBoundsProps(), 0))
                                .visible(false).idlePolicy(IdlePolicy::everyTick())
                                .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->boundsWindow_);
+      composition << ObservedWindowDefinition(WindowProps().frame(350, 250, 220, 160).title("Cell replay")
+                               .scene(loka::scenario_tests::ObservedMainDefinition<DrawerDamageNode<CELL_VIEWPORT>::Props, DrawerDamageNode<CELL_VIEWPORT> >(
+                                   DrawerDamageNode<CELL_VIEWPORT>::Props(), 0))
+                               .visible(false).idlePolicy(IdlePolicy::everyTick())
+                               .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->cellWindow_);
+      composition << ObservedWindowDefinition(WindowProps().frame(350, 250, 220, 160).title("Popup replay")
+                               .scene(loka::scenario_tests::ObservedMainDefinition<DrawerDamageNode<POPUP_VIEWPORT>::Props, DrawerDamageNode<POPUP_VIEWPORT> >(
+                                   DrawerDamageNode<POPUP_VIEWPORT>::Props(), 0))
+                               .visible(false).idlePolicy(IdlePolicy::everyTick())
+                               .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->popupWindow_);
+      composition << ObservedWindowDefinition(WindowProps().frame(350, 250, 220, 160).title("Cell ink")
+                               .scene(loka::scenario_tests::ObservedMainDefinition<DrawerDamageNode<CELL_OVERFLOW>::Props, DrawerDamageNode<CELL_OVERFLOW> >(
+                                   DrawerDamageNode<CELL_OVERFLOW>::Props(), 0))
+                               .visible(false).idlePolicy(IdlePolicy::everyTick())
+                               .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->overflowWindow_);
     }
 
   private:
     enum Phase { SETTLE, WRITE, CHECK, PLAIN_WRITE, PLAIN_CHECK, INVALIDATED_WRITE, INVALIDATED_CHECK,
-                 COMPOSITED_WRITE, COMPOSITED_CHECK, EDIT_WRITE, EDIT_CHECK, BOUNDS_SHOW, BOUNDS_CHECK, COMPLETE };
+                 COMPOSITED_WRITE, COMPOSITED_CHECK, EDIT_WRITE, EDIT_CHECK, BOUNDS_SHOW, BOUNDS_CHECK, CELL_SHOW, CELL_REPLAY, CELL_CHECK,
+                 POPUP_SHOW, POPUP_REPLAY, POPUP_CHECK, OVERFLOW_SHOW, OVERFLOW_CHECK, COMPLETE };
     App *app_;
     ViewportDamageNode *node_;
     CompositedDamageNode *composited_;
@@ -297,6 +362,10 @@ namespace
     PlainDamageNode *plain_;
     Window *plainWindow_;
     Window *boundsWindow_;
+    Window *cellWindow_;
+    Window *popupWindow_;
+    Window *overflowWindow_;
+    PopupRow popupRow_;
 
     void recordArm(const char *name, bool pass, Phase next)
     {
@@ -331,6 +400,15 @@ namespace
       case BOUNDS_SHOW: case BOUNDS_CHECK:
         target = self->boundsWindow_;
         break;
+      case CELL_SHOW: case CELL_REPLAY: case CELL_CHECK:
+        target = self->cellWindow_;
+        break;
+      case POPUP_SHOW: case POPUP_REPLAY: case POPUP_CHECK:
+        target = self->popupWindow_;
+        break;
+      case OVERFLOW_SHOW: case OVERFLOW_CHECK:
+        target = self->overflowWindow_;
+        break;
       case COMPLETE:
         return;
       }
@@ -352,8 +430,10 @@ namespace
         OnCompositedIdle(target, elapsed, data);
       else if (target == self->editWindow_)
         OnEditIdle(target, elapsed, data);
-      else
+      else if (target == self->boundsWindow_)
         OnBoundsIdle(target, self);
+      else
+        OnDrawerIdle(target, self);
     }
 
     void finish(bool pass)
@@ -594,7 +674,101 @@ namespace
                       textInsideBlack && textOutsideWhite && clippedHistory, BOUNDS_CHECK);
       std::fprintf(self->log_, "surface_inside_black=%d outside_white=%d\r",
                    insideBlack ? 1 : 0, outsideWhite ? 1 : 0);
-      self->recordArm("surface-bounds-clip", insideBlack && outsideWhite, COMPLETE);
+      self->recordArm("surface-bounds-clip", insideBlack && outsideWhite, CELL_SHOW);
+    }
+    static void OnDrawerIdle(Window *window, PaintDamageConfig *self)
+    {
+      ToolboxWindow *native = window->asToolboxWindow();
+      if (self->phase_ == CELL_SHOW || self->phase_ == POPUP_SHOW || self->phase_ == OVERFLOW_SHOW)
+      {
+        ShowWindow(native->window());
+        SelectWindow(native->window());
+        native->requestInvalidate();
+        self->phase_ = self->phase_ == CELL_SHOW ? CELL_REPLAY
+                       : self->phase_ == POPUP_SHOW ? POPUP_REPLAY : OVERFLOW_CHECK;
+        return;
+      }
+      ToolboxScenePlatformController *controller = window->scene()
+          ? static_cast<ToolboxScenePlatformController *>(
+              loka::dsl::testing::SceneTestAccess::platformController(*window->scene())) : 0;
+      if (!controller)
+      {
+        self->finish(false);
+        return;
+      }
+      GrafPtr previousPort;
+      GetPort(&previousPort);
+      SetPort(native->window());
+      if (self->phase_ == CELL_REPLAY || self->phase_ == POPUP_REPLAY)
+      {
+        const bool cell = self->phase_ == CELL_REPLAY;
+        Node *viewportNode = 0;
+        loka::dsl::FlowError error;
+        loka::dsl::testing::LookupNodeById<Node>(window->scene(), "Drawer.Viewport", viewportNode, error);
+        ScrollViewNode *viewport = viewportNode ? viewportNode->asScrollViewNode() : 0;
+        if (!viewport)
+        {
+          SetPort(previousPort);
+          self->finish(false);
+          return;
+        }
+        // Isolate replay while c-1 retains the production viewport fallback.
+        // Retire only the native scrollbar after full presentation; the
+        // drawer's captured projection and clipped hit rows remain intact.
+        controller->destroyViewportScrollBarControl(viewport, viewport->nativeLifetimeHint());
+        Rect damage;
+        SetRect(&damage, 12, cell ? 72 : 24, cell ? 112 : 156, cell ? 96 : 44);
+        if (!cell)
+          self->popupRow_.capture();
+        bool ink = cell ? GetPixel(12, 80) != 0 && GetPixel(12, 90) == 0
+                        : GetPixel(12, 31) != 0;
+        if (!cell)
+        {
+          bool labelInk = false;
+          for (short x = 16; x < 55; ++x)
+            labelInk = labelInk || GetPixel(x, 31) != 0;
+          ink = ink && labelInk;
+        }
+        self->initial_ = controller->debugStatsForTesting();
+        native->requestInvalidateRect(damage);
+        SetPort(previousPort);
+        self->recordArm(cell ? "cell-replay-setup" : "popup-replay-setup", ink,
+                        cell ? CELL_CHECK : POPUP_CHECK);
+        return;
+      }
+      if (self->phase_ == CELL_CHECK || self->phase_ == POPUP_CHECK)
+      {
+        const bool cell = self->phase_ == CELL_CHECK;
+        const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
+        const bool replayed = stats.totalRenderCalls == self->initial_.totalRenderCalls
+                              && stats.totalRenderDirtyCalls > self->initial_.totalRenderDirtyCalls
+                              && stats.windowFlushDirtyCount > self->initial_.windowFlushDirtyCount;
+        bool pass = cell ? GetPixel(12, 80) != 0 && GetPixel(12, 90) == 0
+                         : self->popupRow_.matches();
+        // The projection clip ends at x=108; the 16px scrollbar only
+        // reduces the child layout width, not the viewport clip.
+        // The retired scrollbar no longer contributes native ink here.
+        if (!cell)
+          for (short y = 24; y < 42; ++y)
+            for (short x = 108; x < 156; ++x)
+              pass = pass && GetPixel(x, y) == 0;
+        SetPort(previousPort);
+        std::fprintf(self->log_, "drawer_dirty_replayed=%d pixels_match=%d\r", replayed ? 1 : 0, pass ? 1 : 0);
+        self->recordArm(cell ? "cell-replay-clipped" : "popup-replay-geometry", replayed && pass,
+                        cell ? POPUP_SHOW : OVERFLOW_SHOW);
+        return;
+      }
+      // The narrow Cell is [60,68) x [24,48). Its centered seven-W label
+      // is wider than the box in the same font used by the production drawer.
+      const unsigned char label[] = {7, 'W', 'W', 'W', 'W', 'W', 'W', 'W'};
+      bool outsideWhite = true;
+      for (short y = 25; y < 47; ++y)
+        for (short x = 12; x < 120; ++x)
+          if (x < 60 || x >= 68)
+            outsideWhite = outsideWhite && GetPixel(x, y) == 0;
+      const bool setup = StringWidth(label) > 8 && GetPixel(60, 24) != 0;
+      SetPort(previousPort);
+      self->recordArm("cell-ink-clipped-to-rect", setup && outsideWhite, COMPLETE);
       self->finish(true);
     }
     static void OnEditIdle(Window *window, double, void *data)
