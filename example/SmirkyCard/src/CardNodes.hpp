@@ -61,6 +61,7 @@ namespace smirkycard
 
   private:
     friend class IJsNodeLowering;
+    friend class ScriptRuntime;
     void fail(const loka::core::String &message);
     loka::app::scene::NodeDefinitionBase *lower(JSContext *context, JSValueConst tree, int depth);
     int handlerSlot(JSContext *context, JSValueConst handler);
@@ -74,11 +75,15 @@ namespace smirkycard
     void fire5();
     void fire6();
     void fire7();
+    void declareRefusal(loka::app::scene::NodeComposition &composition);
+    JsEngine *engine_;
+    JsEngineRef engineRef_;
     bool constructing_;
     bool failed_;
     JSValue instance_;
     loka::core::String failure_;
     loka::core::EmitterState emitters_[8];
+    loka::core::EmitterState reloadEmitter_;
     int usedStates_;
     JSValue seats_[8], handlers_[8], errorSeat_, tree_, onAttach_, onDetach_;
     int seatKinds_[8];

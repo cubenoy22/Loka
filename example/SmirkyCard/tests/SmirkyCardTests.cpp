@@ -169,6 +169,22 @@ namespace
              "'SmirkyCard.Status'))}});";
   }
 
+  std::string constReloadCardSource(const char *title)
+  {
+    return std::string("const T='") + title
+           + "';card('first',class{constructor(){}compose(){return VStack(Text(T).TEST_ID('SmirkyCard.Title'),"
+             "Button('r',()=>reload()).TEST_ID('Reload'),Text(this.error).TEST_ID('SmirkyCard.Status'))}});";
+  }
+
+  void printCurrentEngineMemory(smirkycard::ScriptRuntime &runtime)
+  {
+    JSMemoryUsage usage;
+    JS_ComputeMemoryUsage(runtime.currentEngine()->jsRuntime(), &usage);
+    std::printf("SmirkyCard QuickJS current after reload: malloc_size=%lld memory_used=%lld\n",
+                static_cast<long long>(usage.malloc_size),
+                static_cast<long long>(usage.memory_used_size));
+  }
+
   std::string mountedTitle(smirkycard::ScriptRuntime &runtime, NullPlatformContext &context)
   {
     NullScenePlatformController platform;
@@ -229,8 +245,8 @@ namespace
     LOKA_VERIFY(loaded.mainSource() == smirkycard::ScriptRuntime::MAIN_SOURCE_FILE);
     LOKA_VERIFY(mountedTitle(loaded, context) == "Loaded First");
 
-    // The native button takes reload() through the active card, validates the
-    // replacement in a scratch runtime, and admits a replacement Scene.
+    // The native button takes reload() through the active card, admits the
+    // evaluated candidate engine, and then admits a replacement Scene.
     {
       NullScenePlatformController platform;
       WindowProps props;
@@ -239,28 +255,76 @@ namespace
       WindowAdmissionTestApp admission(window);
       loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
       loka::app::scene::Scene *before = window.scene();
+      smirkycard::JsEngine *beforeEngine = loaded.currentEngine();
       writeMain(path, reloadCardSource("Reloaded First"));
       loka::app::scene::Node *reload = find(loka::dsl::testing::SceneTestAccess::rootNode(*before), "Reload");
       LOKA_VERIFY(reload && reload->asButtonNode());
       reload->asButtonNode()->props.getOnClick()->emit();
       LOKA_VERIFY(window.scene() == before);
+      LOKA_VERIFY(loaded.currentEngine() != beforeEngine);
+      LOKA_VERIFY(loaded.retiredEngineCount() == 1);
       admission.flush();
       LOKA_VERIFY(window.scene() != before);
+      // The outgoing card may be reclaimed by this admission's unmount path;
+      // in either case no generation survives beyond the following flush.
+      LOKA_VERIFY(loaded.retiredEngineCount() <= 1);
       loka::app::scene::Node *title =
           find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), "SmirkyCard.Title");
       LOKA_VERIFY(title && title->asTextNode() && textValue(title->asTextNode()) == "Reloaded First");
+      printCurrentEngineMemory(loaded);
+      admission.flush();
+      LOKA_VERIFY(loaded.retiredEngineCount() == 0);
+
+      // Each reload evaluates once in a fresh global scope, so a top-level
+      // lexical declaration can be reloaded repeatedly without redeclaration.
+      writeMain(path, constReloadCardSource("Const Reloaded"));
+      reload = find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), "Reload");
+      reload->asButtonNode()->props.getOnClick()->emit();
+      admission.flush();
+      admission.flush();
+      title = find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), "SmirkyCard.Title");
+      LOKA_VERIFY(title && title->asTextNode() && textValue(title->asTextNode()) == "Const Reloaded");
+      writeMain(path, constReloadCardSource("Const Reloaded"));
+      reload = find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), "Reload");
+      reload->asButtonNode()->props.getOnClick()->emit();
+      admission.flush();
+      admission.flush();
+      title = find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), "SmirkyCard.Title");
+      LOKA_VERIFY(title && title->asTextNode() && textValue(title->asTextNode()) == "Const Reloaded");
+
+      // Evaluation alone is not admission: the requested card must exist in
+      // the candidate, or both the Scene and current engine stay unchanged.
+      writeMain(path, "card('second',class{constructor(){}compose(){return VStack()}});");
+      loka::app::scene::Scene *stable = window.scene();
+      smirkycard::JsEngine *stableEngine = loaded.currentEngine();
+      reload = find(loka::dsl::testing::SceneTestAccess::rootNode(*stable), "Reload");
+      reload->asButtonNode()->props.getOnClick()->emit();
+      LOKA_VERIFY(window.scene() == stable);
+      LOKA_VERIFY(loaded.currentEngine() == stableEngine);
+      loka::app::scene::Node *status =
+          find(loka::dsl::testing::SceneTestAccess::rootNode(*stable), "SmirkyCard.Status");
+      LOKA_VERIFY(status && status->asTextNode()
+                  && textValue(status->asTextNode()).find("MAIN.JS: card 'first' is not defined") != std::string::npos);
 
       // A syntax error leaves the mounted card in place and writes its error
       // seat, rather than admitting an incomplete replacement.
       writeMain(path, "(");
-      loka::app::scene::Scene *stable = window.scene();
       reload = find(loka::dsl::testing::SceneTestAccess::rootNode(*stable), "Reload");
       reload->asButtonNode()->props.getOnClick()->emit();
       LOKA_VERIFY(window.scene() == stable);
-      loka::app::scene::Node *status =
-          find(loka::dsl::testing::SceneTestAccess::rootNode(*stable), "SmirkyCard.Status");
+      status = find(loka::dsl::testing::SceneTestAccess::rootNode(*stable), "SmirkyCard.Status");
       LOKA_VERIFY(status && status->asTextNode()
                   && textValue(status->asTextNode()).find("MAIN.JS:") != std::string::npos);
+
+      // Reload evaluation is nested inside the old engine's button call, but
+      // the candidate engine still receives the shared interrupt budget.
+      writeMain(path, "for(;;){}");
+      reload = find(loka::dsl::testing::SceneTestAccess::rootNode(*stable), "Reload");
+      reload->asButtonNode()->props.getOnClick()->emit();
+      LOKA_VERIFY(window.scene() == stable);
+      status = find(loka::dsl::testing::SceneTestAccess::rootNode(*stable), "SmirkyCard.Status");
+      LOKA_VERIFY(status && status->asTextNode()
+                  && textValue(status->asTextNode()).find("interrupted") != std::string::npos);
 
       // A throwing candidate can mutate its scratch context, but never the
       // live one.
@@ -279,9 +343,34 @@ namespace
       status = find(loka::dsl::testing::SceneTestAccess::rootNode(*stable), "SmirkyCard.Status");
       LOKA_VERIFY(status && status->asTextNode()
                   && textValue(status->asTextNode()).find("file is missing") != std::string::npos);
+
+      // A registered card may still refuse while being constructed. Its
+      // refusal tree retains a native reload door so editing the file recovers.
+      writeMain(path,
+                "card('first',class{constructor(){throw new Error('constructor broken')}compose(){return "
+                "VStack()}});");
+      reload = find(loka::dsl::testing::SceneTestAccess::rootNode(*stable), "Reload");
+      reload->asButtonNode()->props.getOnClick()->emit();
+      admission.flush();
+      loka::app::scene::Scene *refusal = window.scene();
+      LOKA_VERIFY(refusal != stable);
+      status = find(loka::dsl::testing::SceneTestAccess::rootNode(*refusal), "SmirkyCard.Status");
+      LOKA_VERIFY(status && status->asTextNode()
+                  && textValue(status->asTextNode()).find("Card constructor failed") != std::string::npos);
+      admission.flush();
+      writeMain(path, reloadCardSource("Recovered First"));
+      reload = find(loka::dsl::testing::SceneTestAccess::rootNode(*refusal), "SmirkyCard.Reload");
+      LOKA_VERIFY(reload && reload->asButtonNode());
+      reload->asButtonNode()->props.getOnClick()->emit();
+      admission.flush();
+      title = find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), "SmirkyCard.Title");
+      LOKA_VERIFY(title && title->asTextNode() && textValue(title->asTextNode()) == "Recovered First");
+      admission.flush();
+      LOKA_VERIFY(loaded.retiredEngineCount() == 0);
     }
 
     // A built-in card can reload a file which appears after startup.
+    LOKA_VERIFY(std::remove(path) == 0);
     smirkycard::ScriptRuntime builtin;
     builtin.loadMain(&context);
     LOKA_VERIFY(builtin.mainSource() == smirkycard::ScriptRuntime::MAIN_SOURCE_BUILTIN);

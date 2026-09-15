@@ -8,6 +8,8 @@
 #else
 #include "core/resource/lrpk/LrpkStdioByteSource.hpp"
 #endif
+#include <cassert>
+#include <new>
 
 namespace smirkycard
 {
@@ -39,11 +41,111 @@ namespace smirkycard
       return copy;
     }
   } // namespace
-  ScriptRuntime::ScriptRuntime()
-      : registry_(),
-        script_(0),
+  JsEngine::JsEngine(ScriptRuntime &runtime, const JsCardBindingRegistry &registry)
+      : runtime_(&runtime),
+        script_(SmirkyScriptCreate()),
         first_(JS_UNDEFINED),
         second_(JS_UNDEFINED),
+        cardCount_(0),
+        nextRetired_(0)
+  {
+    if (!this->script_)
+      return;
+    JS_SetContextOpaque(this->context(), &runtime);
+    JS_SetRuntimeOpaque(this->jsRuntime(), this);
+    if (!registry.install(this->context()))
+    {
+      SmirkyScriptDestroy(this->script_);
+      this->script_ = 0;
+    }
+  }
+
+  JsEngine::~JsEngine()
+  {
+    assert(!this->cardCount_);
+    if (this->script_)
+    {
+      JS_FreeValue(this->context(), this->first_);
+      JS_FreeValue(this->context(), this->second_);
+    }
+    SmirkyScriptDestroy(this->script_);
+  }
+
+  JSContext *JsEngine::context() const
+  {
+    return SmirkyScriptContext(this->script_);
+  }
+
+  JSRuntime *JsEngine::jsRuntime() const
+  {
+    return SmirkyScriptRuntime(this->script_);
+  }
+
+  JSValue JsEngine::constructorFor(SmirkyCardId id) const
+  {
+    switch (id)
+    {
+    case SMIRKY_CARD_ERROR:
+      return JS_UNDEFINED;
+    case SMIRKY_CARD_FIRST:
+      return JS_DupValue(this->context(), this->first_);
+    case SMIRKY_CARD_SECOND:
+      return JS_DupValue(this->context(), this->second_);
+    }
+    return JS_UNDEFINED;
+  }
+
+  bool JsEngine::hasConstructor(SmirkyCardId id) const
+  {
+    switch (id)
+    {
+    case SMIRKY_CARD_ERROR:
+      return false;
+    case SMIRKY_CARD_FIRST:
+      return !JS_IsUndefined(this->first_);
+    case SMIRKY_CARD_SECOND:
+      return !JS_IsUndefined(this->second_);
+    }
+    return false;
+  }
+
+  void JsEngine::markRetired()
+  {
+    assert(this->runtime_ && this->runtime_->currentEngine_ != this && !this->nextRetired_);
+    this->nextRetired_ = this->runtime_->retiredEngines_;
+    this->runtime_->retiredEngines_ = this;
+    if (!this->cardCount_)
+      this->runtime_->destroyRetiredEngine(this);
+  }
+
+  JsEngineRef::JsEngineRef(JsEngine *engine)
+      : engine_(engine)
+  {
+    if (this->engine_)
+      ++this->engine_->cardCount_;
+  }
+
+  JsEngineRef::~JsEngineRef()
+  {
+    this->release();
+  }
+
+  void JsEngineRef::release()
+  {
+    if (!this->engine_)
+      return;
+    JsEngine *engine = this->engine_;
+    this->engine_ = 0;
+    assert(engine->cardCount_);
+    --engine->cardCount_;
+    if (!engine->cardCount_ && engine->runtime_->currentEngine_ != engine)
+      engine->runtime_->destroyRetiredEngine(engine);
+  }
+
+  ScriptRuntime::ScriptRuntime()
+      : registry_(),
+        currentEngine_(0),
+        retiredEngines_(0),
         active_(0),
         mainSource_(MAIN_SOURCE_BUILTIN),
         mainContext_(0),
@@ -51,30 +153,46 @@ namespace smirkycard
         mainErrorScope_(MAIN_ERROR_NONE)
   {
     if (RegisterSmirkyCardBindings(this->registry_))
-      this->openEngine();
+      this->currentEngine_ = this->createEngine();
   }
-  void ScriptRuntime::openEngine()
+
+  ScriptRuntime::~ScriptRuntime()
   {
-    this->script_ = SmirkyScriptCreate();
-    this->first_ = JS_UNDEFINED;
-    this->second_ = JS_UNDEFINED;
-    if (!this->script_)
-      return;
-    JS_SetContextOpaque(this->context(), this);
-    if (!this->registry_.install(this->context()))
-      this->closeEngine();
+    assert(!this->interrupts_.top);
+    assert(!this->retiredEngines_ && "retired JS engines must outlive no cards at runtime teardown");
+    delete this->currentEngine_;
   }
-  void ScriptRuntime::closeEngine()
+
+  JsEngine *ScriptRuntime::createEngine()
   {
-    if (this->script_)
+    JsEngine *engine = new (std::nothrow) JsEngine(*this, this->registry_);
+    if (engine && !engine->context())
     {
-      JS_FreeValue(this->context(), this->first_);
-      JS_FreeValue(this->context(), this->second_);
+      delete engine;
+      engine = 0;
     }
-    SmirkyScriptDestroy(this->script_);
-    this->script_ = 0;
-    this->first_ = JS_UNDEFINED;
-    this->second_ = JS_UNDEFINED;
+    return engine;
+  }
+
+  void ScriptRuntime::replaceCurrentEngine(JsEngine *engine)
+  {
+    assert(engine && engine != this->currentEngine_);
+    JsEngine *old = this->currentEngine_;
+    this->currentEngine_ = engine;
+    if (old)
+      old->markRetired();
+  }
+
+  void ScriptRuntime::destroyRetiredEngine(JsEngine *engine)
+  {
+    assert(engine && engine != this->currentEngine_ && !engine->cardCount_);
+    JsEngine **entry = &this->retiredEngines_;
+    while (*entry && *entry != engine)
+      entry = &(*entry)->nextRetired_;
+    assert(*entry == engine);
+    *entry = engine->nextRetired_;
+    engine->nextRetired_ = 0;
+    delete engine;
   }
   int ScriptRuntime::interrupt(JSRuntime *, void *opaque)
   {
@@ -85,38 +203,53 @@ namespace smirkycard
     return 0;
   }
 
-  ScriptRuntime::InterruptWindow::InterruptWindow(ScriptRuntime &runtime)
-      : runtime_(runtime)
+  ScriptRuntime::InterruptWindow::InterruptWindow(ScriptRuntime &runtime, JsEngine &engine)
+      : runtime_(runtime),
+        engine_(engine),
+        previous_(0),
+        installed_(false)
   {
-    this->runtime_.openInterruptWindow();
+    this->runtime_.openInterruptWindow(*this);
   }
 
   ScriptRuntime::InterruptWindow::~InterruptWindow()
   {
-    this->runtime_.closeInterruptWindow();
+    this->runtime_.closeInterruptWindow(*this);
   }
 
-  void ScriptRuntime::openInterruptWindow()
+  void ScriptRuntime::openInterruptWindow(InterruptWindow &window)
   {
-    if (!this->interrupts_.depth++)
-    {
+    window.previous_ = this->interrupts_.top;
+    if (!window.previous_)
       this->interrupts_.remaining = 100;
-      JS_SetInterruptHandler(this->jsRuntime(), &ScriptRuntime::interrupt, &this->interrupts_.remaining);
+    window.installed_ = true;
+    for (InterruptWindow *outer = window.previous_; outer; outer = outer->previous_)
+      if (&outer->engine_ == &window.engine_)
+      {
+        window.installed_ = false;
+        break;
+      }
+    this->interrupts_.top = &window;
+    if (window.installed_)
+    {
+      JS_SetInterruptHandler(window.engine_.jsRuntime(), &ScriptRuntime::interrupt, &this->interrupts_.remaining);
     }
   }
 
-  void ScriptRuntime::closeInterruptWindow()
+  void ScriptRuntime::closeInterruptWindow(InterruptWindow &window)
   {
-    assert(this->interrupts_.depth);
-    if (!--this->interrupts_.depth)
-      JS_SetInterruptHandler(this->jsRuntime(), 0, 0);
+    assert(this->interrupts_.top == &window);
+    if (window.installed_)
+      JS_SetInterruptHandler(window.engine_.jsRuntime(), 0, 0);
+    this->interrupts_.top = window.previous_;
   }
 
-  bool ScriptRuntime::captureException(loka::core::String &error)
+  bool ScriptRuntime::captureException(JsEngine &engine, loka::core::String &error)
   {
-    JSValue exception = JS_GetException(this->context());
+    JSContext *context = engine.context();
+    JSValue exception = JS_GetException(context);
     size_t length = 0;
-    const char *text = JS_ToCStringLen(this->context(), &length, exception);
+    const char *text = JS_ToCStringLen(context, &length, exception);
     if (text)
     {
       if (length > 511)
@@ -126,81 +259,94 @@ namespace smirkycard
           --length;
       }
       error = loka::core::String::Utf8(text, length);
-      JS_FreeCString(this->context(), text);
+      JS_FreeCString(context, text);
     }
     else
       error = loka::core::String::Literal("JavaScript interrupted.");
-    JS_FreeValue(this->context(), exception);
+    JS_FreeValue(context, exception);
     return false;
   }
 
-  bool ScriptRuntime::callConstructor(JSValueConst ctor, JSValue &result, loka::core::String &error)
+  bool ScriptRuntime::callConstructor(JsEngine &engine, JSValueConst ctor, JSValue &result, loka::core::String &error)
   {
-    InterruptWindow interrupt(*this);
-    result = JS_CallConstructor(this->context(), ctor, 0, 0);
+    InterruptWindow interrupt(*this, engine);
+    result = JS_CallConstructor(engine.context(), ctor, 0, 0);
     if (JS_IsException(result))
     {
-      JS_FreeValue(this->context(), result);
+      JS_FreeValue(engine.context(), result);
       result = JS_UNDEFINED;
-      return this->captureException(error);
+      return this->captureException(engine, error);
     }
     error = loka::core::String();
     return true;
   }
 
-  bool ScriptRuntime::call(
-      JSValueConst fn, JSValueConst receiver, int argc, JSValueConst *argv, JSValue &result, loka::core::String &error)
+  bool ScriptRuntime::call(JsEngine &engine,
+                           JSValueConst fn,
+                           JSValueConst receiver,
+                           int argc,
+                           JSValueConst *argv,
+                           JSValue &result,
+                           loka::core::String &error)
   {
-    InterruptWindow interrupt(*this);
-    result = JS_Call(this->context(), fn, receiver, argc, argv);
+    InterruptWindow interrupt(*this, engine);
+    result = JS_Call(engine.context(), fn, receiver, argc, argv);
     if (JS_IsException(result))
     {
-      JS_FreeValue(this->context(), result);
+      JS_FreeValue(engine.context(), result);
       result = JS_UNDEFINED;
-      return this->captureException(error);
+      return this->captureException(engine, error);
     }
     error = loka::core::String();
     return true;
   }
 
-  bool ScriptRuntime::evalMain(const char *source, std::size_t length, const char *name, loka::core::String &error)
+  bool ScriptRuntime::evalMain(
+      JsEngine &engine, const char *source, std::size_t length, const char *name, loka::core::String &error)
   {
-    InterruptWindow interrupt(*this);
+    InterruptWindow interrupt(*this, engine);
     JSValue result;
-    result = JS_Eval(this->context(), source, length, name, JS_EVAL_TYPE_GLOBAL);
+    result = JS_Eval(engine.context(), source, length, name, JS_EVAL_TYPE_GLOBAL);
     if (JS_IsException(result))
     {
-      JS_FreeValue(this->context(), result);
-      return this->captureException(error);
+      JS_FreeValue(engine.context(), result);
+      return this->captureException(engine, error);
     }
-    JS_FreeValue(this->context(), result);
+    JS_FreeValue(engine.context(), result);
     error = loka::core::String();
     return true;
   }
   JSContext *ScriptRuntime::context() const
   {
-    return SmirkyScriptContext(this->script_);
+    return this->currentEngine_ ? this->currentEngine_->context() : 0;
   }
   JSRuntime *ScriptRuntime::jsRuntime() const
   {
-    return SmirkyScriptRuntime(this->script_);
+    return this->currentEngine_ ? this->currentEngine_->jsRuntime() : 0;
+  }
+
+  JsCardNode *ScriptRuntime::active(JSContext *context) const
+  {
+    return this->active_ && this->active_->engine_->context() == context ? this->active_ : 0;
   }
 
   JSValue ScriptRuntime::card(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv)
   {
     ScriptRuntime *self = static_cast<ScriptRuntime *>(JS_GetContextOpaque(ctx));
+    JsEngine *engine = static_cast<JsEngine *>(JS_GetRuntimeOpaque(JS_GetRuntime(ctx)));
     size_t length = 0;
     const char *name;
-    if (!self || argc != 2 || !JS_IsString(argv[0]) || !JS_IsFunction(ctx, argv[1]))
+    if (!self || !engine || engine->runtime_ != self || argc != 2 || !JS_IsString(argv[0])
+        || !JS_IsFunction(ctx, argv[1]))
       return JS_ThrowTypeError(ctx, "card(name, Class) requires a name and class");
     name = JS_ToCStringLen(ctx, &length, argv[0]);
     if (!name)
       return JS_EXCEPTION;
     JSValue *slot = 0;
     if (length == 5 && !memcmp(name, "first", 5))
-      slot = &self->first_;
+      slot = &engine->first_;
     if (length == 6 && !memcmp(name, "second", 6))
-      slot = &self->second_;
+      slot = &engine->second_;
     JS_FreeCString(ctx, name);
     if (!slot)
       return JS_ThrowRangeError(ctx, "unknown card name");
@@ -212,9 +358,10 @@ namespace smirkycard
   JSValue ScriptRuntime::state(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv)
   {
     ScriptRuntime *self = static_cast<ScriptRuntime *>(JS_GetContextOpaque(ctx));
-    if (!self || !self->active() || argc != 1)
+    JsCardNode *active = self ? self->active(ctx) : 0;
+    if (!active || argc != 1)
       return JS_ThrowTypeError(ctx, "state() is only valid during card construction");
-    return self->active()->mintState(ctx, argv[0]);
+    return active->mintState(ctx, argv[0]);
   }
 
   JSValue ScriptRuntime::testId(JSContext *ctx, JSValueConst thisValue, int argc, JSValueConst *argv)
@@ -238,22 +385,24 @@ namespace smirkycard
   JSValue ScriptRuntime::declare(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv)
   {
     ScriptRuntime *self = static_cast<ScriptRuntime *>(JS_GetContextOpaque(ctx));
-    if (!self || !self->active() || argc != 1)
+    JsCardNode *active = self ? self->active(ctx) : 0;
+    if (!active || argc != 1)
       return JS_ThrowTypeError(ctx, "declare(tree) requires an active card and tree");
-    return self->active()->setComposeTree(ctx, argv[0]) ? JS_UNDEFINED : JS_EXCEPTION;
+    return active->setComposeTree(ctx, argv[0]) ? JS_UNDEFINED : JS_EXCEPTION;
   }
 
   JSValue ScriptRuntime::go(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv)
   {
     ScriptRuntime *self = static_cast<ScriptRuntime *>(JS_GetContextOpaque(ctx));
+    JsCardNode *active = self ? self->active(ctx) : 0;
     size_t length = 0;
     const char *name;
-    if (!self || !self->active() || argc != 1 || !JS_IsString(argv[0]))
+    if (!active || argc != 1 || !JS_IsString(argv[0]))
       return JS_ThrowTypeError(ctx, "go(name) requires an active card and string name");
     name = JS_ToCStringLen(ctx, &length, argv[0]);
     if (!name)
       return JS_EXCEPTION;
-    self->active()->requestGo(name, length);
+    active->requestGo(name, length);
     JS_FreeCString(ctx, name);
     return JS_UNDEFINED;
   }
@@ -261,20 +410,21 @@ namespace smirkycard
   JSValue ScriptRuntime::reload(JSContext *ctx, JSValueConst, int argc, JSValueConst *)
   {
     ScriptRuntime *self = static_cast<ScriptRuntime *>(JS_GetContextOpaque(ctx));
-    if (!self || !self->active() || argc != 0)
+    JsCardNode *active = self ? self->active(ctx) : 0;
+    if (!active || argc != 0)
       return JS_ThrowTypeError(ctx, "reload() requires an active card");
-    self->active()->requestReload();
+    active->requestReload();
     return JS_UNDEFINED;
   }
 
   bool ScriptRuntime::loadBuiltin(const char *source, loka::core::String &error)
   {
-    if (!this->context())
+    if (!this->currentEngine_)
     {
       error = loka::core::String::Literal("JavaScript runtime is unavailable.");
       return false;
     }
-    return this->evalMain(source, strlen(source), "BuiltinCards.js", error);
+    return this->evalMain(*this->currentEngine_, source, strlen(source), "BuiltinCards.js", error);
   }
 
   loka::core::String ScriptRuntime::mainErrorFor(SmirkyCardId card) const
@@ -297,7 +447,7 @@ namespace smirkycard
     loka::core::String error;
     if (this->readMain(text, error))
     {
-      if (this->evalMain(text.data(), text.size(), "MAIN.JS", error))
+      if (this->evalMain(*this->currentEngine_, text.data(), text.size(), "MAIN.JS", error))
       {
         this->mainSource_ = MAIN_SOURCE_FILE;
         return;
@@ -305,11 +455,11 @@ namespace smirkycard
       this->mainError_ =
           loka::core::String::Literal("MAIN.JS: ") + error + loka::core::String::Literal("; using built-in cards");
       this->mainErrorScope_ = MAIN_ERROR_EVERY_CARD;
-      // The failed script may have redefined globals or registered cards;
-      // the fallback runs in a fresh context, never the poisoned one.
-      this->closeEngine();
-      this->openEngine();
-      if (!this->context())
+      // The failed candidate may have redefined globals or registered cards;
+      // built-ins run in a fresh engine, never the poisoned one.
+      delete this->currentEngine_;
+      this->currentEngine_ = this->createEngine();
+      if (!this->currentEngine_)
         return;
     }
     else
@@ -365,25 +515,46 @@ namespace smirkycard
     }
   }
 
-  bool ScriptRuntime::reloadMain(loka::core::String &error)
+  bool ScriptRuntime::reloadMain(SmirkyCardId card, loka::core::String &error)
   {
     std::string text;
     if (!this->readMain(text, error))
       return false;
-    ScriptRuntime scratch;
-    if (!scratch.context() || !scratch.evalMain(text.data(), text.size(), "MAIN.JS", error))
+    JsEngine *candidate = this->createEngine();
+    if (!candidate)
     {
+      error = loka::core::String::Literal("MAIN.JS: JavaScript runtime is unavailable.");
+      return false;
+    }
+    if (!this->evalMain(*candidate, text.data(), text.size(), "MAIN.JS", error))
+    {
+      delete candidate;
       error = loka::core::String::Literal("MAIN.JS: ") + error;
       return false;
     }
-    if (!this->context() || !this->evalMain(text.data(), text.size(), "MAIN.JS", error))
+    if (!candidate->hasConstructor(card))
     {
-      error = loka::core::String::Literal("MAIN.JS: ") + error;
+      const char *name = card == SMIRKY_CARD_FIRST ? "first" : card == SMIRKY_CARD_SECOND ? "second" : "unknown";
+      delete candidate;
+      error = loka::core::String::Literal("MAIN.JS: card '") + loka::core::String::Literal(name)
+              + loka::core::String::Literal("' is not defined");
       return false;
     }
+    this->replaceCurrentEngine(candidate);
     this->mainSource_ = MAIN_SOURCE_FILE;
     this->mainError_ = loka::core::String();
     this->mainErrorScope_ = MAIN_ERROR_NONE;
+    error = loka::core::String();
     return true;
   }
+
+#ifdef TEST_BUILD
+  unsigned int ScriptRuntime::retiredEngineCount() const
+  {
+    unsigned int count = 0;
+    for (JsEngine *engine = this->retiredEngines_; engine; engine = engine->nextRetired_)
+      ++count;
+    return count;
+  }
+#endif
 } // namespace smirkycard
