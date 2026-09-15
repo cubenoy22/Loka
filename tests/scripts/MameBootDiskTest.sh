@@ -114,6 +114,28 @@ TEMPLATE_SHA="$(sha256sum < "$SANDBOX/boot-template.hd" | cut -d' ' -f1)"
 printf '%s\n%s\n' "$RESOLVED_TEMPLATE" "$TEMPLATE_SHA" | cmp -s - "$SANDBOX/fresh-copy.hd.source" ||
   fail ".source record does not match mame-run.sh's resolved-path format: $(cat "$SANDBOX/fresh-copy.hd.source")"
 
+# On a Windows-mounted checkout the WSL staging path and PowerShell launch path
+# name the same file differently. The sidecar must use the host spelling so
+# MAME: Start does not refresh away the applications that were just staged.
+if [ -n "${WSL_INTEROP:-}" ] && command -v wslpath >/dev/null 2>&1 \
+  && [[ "$REPO_DIR" =~ ^/mnt/[A-Za-z]/ ]]; then
+  DRVFS_SANDBOX="$(mktemp -d "$REPO_DIR/build/mame-boot-disk-test.XXXXXX")"
+  mkdir -p "$DRVFS_SANDBOX/home"
+  printf 'drvfs-template\n' > "$DRVFS_SANDBOX/template.hd"
+  MAME_BOOT_DISK_TEST_LOG="$DRVFS_SANDBOX/host-path.log" \
+  MAME_ENV_FILE="$SANDBOX/missing.env" \
+  MAME_MACHINE="macplus" \
+  MAME_HDA="$DRVFS_SANDBOX/template.hd" \
+  MAME_HOMEPATH="$DRVFS_SANDBOX/home" \
+  MAME_BOOT_HDA="$DRVFS_SANDBOX/Boot.hd" \
+  RETRO68_TOOLCHAIN_BIN="$SANDBOX/bin" \
+    /bin/bash "$SUBJECT" "$SANDBOX/app.bin" >/dev/null
+  DRVFS_SHA="$(sha256sum < "$DRVFS_SANDBOX/template.hd" | cut -d' ' -f1)"
+  printf '%s\n%s\n' "$(wslpath -w "$DRVFS_SANDBOX/template.hd")" "$DRVFS_SHA" |
+    cmp -s - "$DRVFS_SANDBOX/Boot.hd.source" || fail "WSL sidecar did not use the Windows template identity"
+  rm -rf "$DRVFS_SANDBOX"
+fi
+
 # A stale source record refreshes the disk before hmount sees the staging copy.
 printf 'STALE-DISK' > "$SANDBOX/stale-copy.hd"
 printf 'wrong\nsource\n' > "$SANDBOX/stale-copy.hd.source"
