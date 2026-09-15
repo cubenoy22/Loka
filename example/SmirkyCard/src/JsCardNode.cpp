@@ -354,6 +354,12 @@ namespace smirkycard
   void JsCardNode::composeNode(loka::app::scene::NodeComposition &c)
   {
     using namespace loka::app;
+    // A MAIN.JS startup failure is the runtime's fact; the card only shows it.
+    {
+      const loka::core::String mainError = props.runtime->mainErrorFor(props.card);
+      if (!mainError.empty())
+        error_.set(mainError);
+    }
     if (!failed_ && JS_IsUndefined(tree_))
     {
       JSContext *ctx = props.runtime->context();

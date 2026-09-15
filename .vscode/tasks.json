@@ -964,7 +964,8 @@
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
       "args": [
-        "${workspaceFolder}/build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin"
+        "${workspaceFolder}/build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin",
+        "${workspaceFolder}/example/SmirkyCard/MAIN.JS"
       ],
       "windows": {
         "command": "powershell.exe",
@@ -974,7 +975,8 @@
           "Bypass",
           "-File",
           "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin"
+          "build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin",
+          "example/SmirkyCard/MAIN.JS"
         ]
       },
       "problemMatcher": []

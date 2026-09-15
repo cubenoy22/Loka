@@ -8,6 +8,12 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+#if defined(_WIN32)
+#include <direct.h>
+#else
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
 
 namespace
 {
@@ -128,6 +134,111 @@ namespace
   {
     const loka::core::StringBuffer buffer = text->props.text_->get().bufferWithEncoding(loka::core::StringEncodingUtf8);
     return std::string(static_cast<const char *>(buffer.data()), buffer.length());
+  }
+
+  bool makeDirectory(const char *path)
+  {
+#if defined(_WIN32)
+    return _mkdir(path) == 0;
+#else
+    return mkdir(path, 0755) == 0;
+#endif
+  }
+
+  bool removeDirectory(const char *path)
+  {
+#if defined(_WIN32)
+    return _rmdir(path) == 0;
+#else
+    return rmdir(path) == 0;
+#endif
+  }
+
+  void writeMain(const char *path, const std::string &text)
+  {
+    std::FILE *file = std::fopen(path, "wb");
+    LOKA_VERIFY(file != 0);
+    LOKA_VERIFY(std::fwrite(text.data(), 1, text.size(), file) == text.size());
+    LOKA_VERIFY(std::fclose(file) == 0);
+  }
+
+  std::string mountedTitle(smirkycard::ScriptRuntime &runtime, NullPlatformContext &context)
+  {
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    loka::app::scene::Node *title =
+        find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), "SmirkyCard.Title");
+    return title && title->asTextNode() ? textValue(title->asTextNode()) : std::string();
+  }
+
+  std::string mountedStatus(smirkycard::ScriptRuntime &runtime, NullPlatformContext &context, SmirkyCardId card)
+  {
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(card, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    loka::app::scene::Node *status =
+        find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), "SmirkyCard.Status");
+    return status && status->asTextNode() ? textValue(status->asTextNode()) : std::string();
+  }
+
+  void checkMainJsLoad()
+  {
+    const char *directory = "_smirkycard_main_fixture";
+    const char *path = "_smirkycard_main_fixture/MAIN.JS";
+    std::remove(path);
+    removeDirectory(directory);
+    LOKA_VERIFY(makeDirectory(directory));
+    NullPlatformContext context;
+    context.setApplicationDirectory(loka::core::String::Literal(directory));
+
+    smirkycard::ScriptRuntime missing;
+    missing.loadMain(&context);
+    LOKA_VERIFY(missing.mainSource() == smirkycard::ScriptRuntime::MAIN_SOURCE_BUILTIN);
+    LOKA_VERIFY(mountedTitle(missing, context) == "Card One");
+
+    writeMain(
+        path,
+        "card('first',class{constructor(){}compose(){return VStack(Text('Loaded First').TEST_ID('SmirkyCard.Title'),"
+        "Text(this.error).TEST_ID('SmirkyCard.Status'))}});");
+    smirkycard::ScriptRuntime loaded;
+    loaded.loadMain(&context);
+    LOKA_VERIFY(loaded.mainSource() == smirkycard::ScriptRuntime::MAIN_SOURCE_FILE);
+    LOKA_VERIFY(mountedTitle(loaded, context) == "Loaded First");
+
+    writeMain(path, "(");
+    smirkycard::ScriptRuntime broken;
+    broken.loadMain(&context);
+    LOKA_VERIFY(broken.mainSource() == smirkycard::ScriptRuntime::MAIN_SOURCE_BUILTIN);
+    LOKA_VERIFY(mountedTitle(broken, context) == "Card One");
+    LOKA_VERIFY(mountedStatus(broken, context, SMIRKY_CARD_FIRST).find("MAIN.JS:") != std::string::npos);
+    LOKA_VERIFY(mountedStatus(broken, context, SMIRKY_CARD_SECOND).find("MAIN.JS:") != std::string::npos);
+
+    // A script that poisons a global before throwing must not reach the
+    // fallback cards: the context is rebuilt before the built-in text runs.
+    writeMain(path,
+              "globalThis.Text = null; card('first', class { compose() { return VStack(); } }); throw new "
+              "Error('poison');");
+    smirkycard::ScriptRuntime poisoned;
+    poisoned.loadMain(&context);
+    LOKA_VERIFY(poisoned.mainSource() == smirkycard::ScriptRuntime::MAIN_SOURCE_BUILTIN);
+    LOKA_VERIFY(mountedTitle(poisoned, context) == "Card One");
+    LOKA_VERIFY(mountedStatus(poisoned, context, SMIRKY_CARD_SECOND).find("poison") != std::string::npos);
+
+    writeMain(path, std::string(64u * 1024u + 1u, 'x'));
+    smirkycard::ScriptRuntime tooLarge;
+    tooLarge.loadMain(&context);
+    LOKA_VERIFY(mountedTitle(tooLarge, context) == "Card One");
+    LOKA_VERIFY(mountedStatus(tooLarge, context, SMIRKY_CARD_FIRST).find("64 KiB") != std::string::npos);
+    LOKA_VERIFY(mountedStatus(tooLarge, context, SMIRKY_CARD_SECOND).empty());
+    LOKA_VERIFY(std::remove(path) == 0);
+    LOKA_VERIFY(removeDirectory(directory));
   }
 
   void printMemory(const char *phase, smirkycard::ScriptRuntime &runtime)
@@ -455,11 +566,14 @@ int main()
   checkArrayChildren();
   checkLifecycleHooks();
   smirkycard::ScriptRuntime runtime;
+  loka::core::String builtinError;
+  LOKA_VERIFY(runtime.loadBuiltin(smirkycard::BuiltinMainJs(), builtinError));
   checkEvaluation(runtime);
   checkMessageBox(runtime);
   checkSceneSwitching(runtime);
   checkRequiredRefusals();
   checkRetiredSeatAndIntegerRefusal();
+  checkMainJsLoad();
   LOKA_VERIFY(!smirkycard::CreateCard(SMIRKY_CARD_ERROR, runtime));
   std::puts("SmirkyCard: message box, evaluation, failure recovery, and 20 Scene switches passed.");
   return 0;
