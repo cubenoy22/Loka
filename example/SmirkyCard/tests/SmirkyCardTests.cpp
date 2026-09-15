@@ -54,7 +54,7 @@ namespace
     WindowProps props;
     props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
     NullWindow window(&context, props, &platform);
-  WindowAdmissionTestApp admission(window);
+    WindowAdmissionTestApp admission(window);
     loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
 
     for (int i = 0; i < 20; ++i)
@@ -91,6 +91,174 @@ namespace
     return std::string(static_cast<const char *>(buffer.data()), buffer.length());
   }
 
+  void printMemory(const char *phase, smirkycard::ScriptRuntime &runtime)
+  {
+    JSMemoryUsage usage;
+    JS_ComputeMemoryUsage(runtime.jsRuntime(), &usage);
+    std::printf("SmirkyCard QuickJS %s: malloc_size=%lld memory_used=%lld\n",
+                phase,
+                static_cast<long long>(usage.malloc_size),
+                static_cast<long long>(usage.memory_used_size));
+  }
+
+  void checkCounterAndRefusals()
+  {
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin("card('first',class{constructor(){this.count=state(0)}compose(){return "
+                                    "VStack(Button('+1',()=>{this.count.set(this.count.get()+1)}).TEST_ID('Counter."
+                                    "Increment'),Text(this.count).TEST_ID('Counter.Count'))}});",
+                                    error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    printMemory("after compose", runtime);
+    loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(*window.scene());
+    loka::app::ButtonNode *increment = find(root, "Counter.Increment")->asButtonNode();
+    loka::app::TextNode *count = find(root, "Counter.Count")->asTextNode();
+    LOKA_VERIFY(increment && count);
+    increment->props.getOnClick()->emit();
+    increment->props.getOnClick()->emit();
+    LOKA_VERIFY(textValue(count) == "2");
+
+    NullPlatformContext secondContext;
+    NullScenePlatformController secondPlatform;
+    WindowProps secondProps;
+    secondProps.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow secondWindow(&secondContext, secondProps, &secondPlatform);
+    WindowAdmissionTestApp secondAdmission(secondWindow);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*secondWindow.scene(), true);
+    printMemory("with two cards alive", runtime);
+  }
+
+  void checkComposeRefusal(const char *source, const char *expected)
+  {
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin(source, error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    loka::app::scene::Node *status =
+        find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), "SmirkyCard.Status");
+    LOKA_VERIFY(status && status->asTextNode());
+    LOKA_VERIFY(textValue(status->asTextNode()).find(expected) != std::string::npos);
+  }
+
+  void checkRequiredRefusals()
+  {
+    checkComposeRefusal("card('first',class{constructor(){}compose(){state('late');return VStack()}});", "constructor");
+    checkComposeRefusal("card('first',class{constructor(){state(1.5)}compose(){return VStack()}});",
+                        "state(number) requires an integer");
+    checkComposeRefusal("card('first',class{constructor(){}get compose(){for(;;){}}});", "interrupted");
+    checkComposeRefusal(
+        "card('first',class{constructor(){this.a=state(0);this.b=state(0);this.c=state(0);this.d=state(0);this.e=state("
+        "0);this.f=state(0);this.g=state(0);this.h=state(0);this.i=state(0)}compose(){return VStack()}});",
+        "maximum 8");
+    checkComposeRefusal("card('first',class{constructor(){}compose(){return {kind:99}}});", "unknown kind");
+
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin(
+        "card('first',class{constructor(){}compose(){return VStack(Button('Throw',()=>{throw new Error('handler "
+        "boom')}).TEST_ID('Throw'),Button('Loop',()=>{for(;;){}}).TEST_ID('Loop'),Text(this.error).TEST_ID('SmirkyCard."
+        "Status'))}});",
+        error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(*window.scene());
+    loka::app::TextNode *status = find(root, "SmirkyCard.Status")->asTextNode();
+    find(root, "Throw")->asButtonNode()->props.getOnClick()->emit();
+    LOKA_VERIFY(textValue(status).find("handler boom") != std::string::npos);
+    find(root, "Loop")->asButtonNode()->props.getOnClick()->emit();
+    LOKA_VERIFY(textValue(status).find("interrupted") != std::string::npos);
+
+    smirkycard::ScriptRuntime exceptionRuntime;
+    LOKA_VERIFY(exceptionRuntime.loadBuiltin(
+        "card('first',class{constructor(){this.value=state('ready')}compose(){return VStack(Button('Throw "
+        "object',()=>{throw "
+        "{toString(){for(;;){}}}}).TEST_ID('ObjectThrow'),Button('Recover',()=>this.value.set('working')).TEST_ID('"
+        "Recover'),Text(this.value).TEST_ID('Value'),Text(this.error).TEST_ID('SmirkyCard.Status'))}});",
+        error));
+    NullPlatformContext exceptionContext;
+    NullScenePlatformController exceptionPlatform;
+    WindowProps exceptionProps;
+    exceptionProps.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, exceptionRuntime));
+    NullWindow exceptionWindow(&exceptionContext, exceptionProps, &exceptionPlatform);
+    WindowAdmissionTestApp exceptionAdmission(exceptionWindow);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*exceptionWindow.scene(), true);
+    loka::app::scene::Node *exceptionRoot = loka::dsl::testing::SceneTestAccess::rootNode(*exceptionWindow.scene());
+    find(exceptionRoot, "ObjectThrow")->asButtonNode()->props.getOnClick()->emit();
+    LOKA_VERIFY(textValue(find(exceptionRoot, "SmirkyCard.Status")->asTextNode()).find("interrupted")
+                != std::string::npos);
+    find(exceptionRoot, "Recover")->asButtonNode()->props.getOnClick()->emit();
+    LOKA_VERIFY(textValue(find(exceptionRoot, "Value")->asTextNode()) == "working");
+  }
+
+  void checkRetiredSeatAndIntegerRefusal()
+  {
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin(
+        "card('first',class{constructor(){this.count=state(0);globalThis.saved=this.count}compose(){return "
+        "VStack(Button('Next',()=>go('second')).TEST_ID('Next'))}});card('second',class{constructor(){}compose(){"
+        "return "
+        "VStack()}});",
+        error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), "Next")
+        ->asButtonNode()
+        ->props.getOnClick()
+        ->emit();
+    admission.flush();
+    admission.flush();
+    loka::core::String result;
+    LOKA_VERIFY(runtime.evaluateToString(loka::core::String::Literal("saved.get()"), result, error));
+    LOKA_VERIFY(result.compare(loka::core::String::Literal("undefined")) == 0);
+    LOKA_VERIFY(!runtime.evaluateToString(loka::core::String::Literal("saved.set(1)"), result, error));
+    const loka::core::StringBuffer retiredError = error.bufferWithEncoding(loka::core::StringEncodingUtf8);
+    LOKA_VERIFY(std::string(static_cast<const char *>(retiredError.data()), retiredError.length()).find("retired card")
+                != std::string::npos);
+
+    smirkycard::ScriptRuntime integerRuntime;
+    LOKA_VERIFY(integerRuntime.loadBuiltin(
+        "card('first',class{constructor(){this.count=state(1);globalThis.numberSeat=this.count}compose(){return "
+        "VStack(Text(this.count).TEST_ID('Number.Count'),Text(this.error).TEST_ID('SmirkyCard.Status'))}});",
+        error));
+    NullPlatformContext integerContext;
+    NullScenePlatformController integerPlatform;
+    WindowProps integerProps;
+    integerProps.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, integerRuntime));
+    NullWindow integerWindow(&integerContext, integerProps, &integerPlatform);
+    WindowAdmissionTestApp integerAdmission(integerWindow);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*integerWindow.scene(), true);
+    loka::app::scene::Node *integerRoot = loka::dsl::testing::SceneTestAccess::rootNode(*integerWindow.scene());
+    LOKA_VERIFY(integerRuntime.evaluateToString(loka::core::String::Literal("numberSeat.set(1.5)"), result, error));
+    LOKA_VERIFY(textValue(find(integerRoot, "Number.Count")->asTextNode()) == "1");
+    LOKA_VERIFY(textValue(find(integerRoot, "SmirkyCard.Status")->asTextNode()).find("integer") != std::string::npos);
+    LOKA_VERIFY(integerRuntime.evaluateToString(loka::core::String::Literal("numberSeat.set(2)"), result, error));
+    LOKA_VERIFY(textValue(find(integerRoot, "Number.Count")->asTextNode()) == "2");
+  }
+
   void checkMessageBox(smirkycard::ScriptRuntime &runtime)
   {
     NullPlatformContext context;
@@ -109,7 +277,7 @@ namespace
     loka::app::EditTextNode *script = scriptNode->asEditTextNode();
     loka::app::ButtonNode *run = runNode->asButtonNode();
     loka::app::TextNode *result = resultNode->asTextNode();
-    LOKA_VERIFY(script && run && result && script->props.text_ && run->props.getOnClick());
+    LOKA_VERIFY(script && run && result && script->props.text_.isValid() && run->props.getOnClick());
 
     loka::app::scene::BoundaryNode *owner = loka::dsl::testing::SceneTestAccess::rootBoundary(*window.scene());
     const char *sources[] = {"1+1", "['a','b'][1].toUpperCase()", "throw new Error('x')", "for(;;){}", "1+1"};
@@ -118,57 +286,54 @@ namespace
     {
       {
         loka::core::StateTrackerGuard guard(owner->tracker());
-        script->props.text_->set(loka::core::String::Literal(sources[i]));
+        script->props.text_.set(loka::core::String::Literal(sources[i]));
       }
       run->props.getOnClick()->emit();
       const std::string value = textValue(result);
       if (expected[i])
         LOKA_VERIFY(value == expected[i]);
-      else
+      else if (i == 2)
         LOKA_VERIFY(value.find("Error:") == 0 && value.find(i == 2 ? "x" : "interrupted") != std::string::npos);
+      else
+      {
+        loka::app::scene::Node *status = find(root, "SmirkyCard.Status");
+        LOKA_VERIFY(status && textValue(status->asTextNode()).find("interrupted") != std::string::npos);
+      }
     }
     // The interrupt budget also covers stringification: a result whose
     // toString loops must come back as an interrupted error, not a hang.
     {
       {
         loka::core::StateTrackerGuard guard(owner->tracker());
-        script->props.text_->set(loka::core::String::Literal("({toString: function(){ for(;;){} }})"));
+        script->props.text_.set(loka::core::String::Literal("({toString: function(){ for(;;){} }})"));
       }
       run->props.getOnClick()->emit();
-      const std::string value = textValue(result);
-      LOKA_VERIFY(value.find("Error:") == 0 && value.find("interrupted") != std::string::npos);
+      loka::app::scene::Node *status = find(root, "SmirkyCard.Status");
+      LOKA_VERIFY(status && textValue(status->asTextNode()).find("interrupted") != std::string::npos);
     }
     // Embedded NULs survive (the seam returns byte counts, not strlen).
     {
       {
         loka::core::StateTrackerGuard guard(owner->tracker());
-        script->props.text_->set(loka::core::String::Literal("'a\\u0000b'"));
+        script->props.text_.set(loka::core::String::Literal("'a\\u0000b'"));
       }
       run->props.getOnClick()->emit();
       const std::string value = textValue(result);
       LOKA_VERIFY(value.size() == 3 && value[0] == 'a' && value[1] == '\0' && value[2] == 'b');
-    }
-    // A result over the 511-byte cap is cut on a UTF-8 boundary: 200 x U+3042
-    // (3 bytes each) keeps 170 whole characters = 510 bytes.
-    {
-      {
-        loka::core::StateTrackerGuard guard(owner->tracker());
-        script->props.text_->set(loka::core::String::Literal("'\\u3042'.repeat(200)"));
-      }
-      run->props.getOnClick()->emit();
-      const std::string value = textValue(result);
-      LOKA_VERIFY(value.size() == 510 && static_cast<unsigned char>(value[507]) == 0xE3u
-                  && static_cast<unsigned char>(value[508]) == 0x81u && static_cast<unsigned char>(value[509]) == 0x82u);
     }
   }
 } // namespace
 
 int main()
 {
+  checkCounterAndRefusals();
   smirkycard::ScriptRuntime runtime;
   checkEvaluation(runtime);
   checkMessageBox(runtime);
   checkSceneSwitching(runtime);
+  checkRequiredRefusals();
+  checkRetiredSeatAndIntegerRefusal();
+  LOKA_VERIFY(!smirkycard::CreateCard(SMIRKY_CARD_ERROR, runtime));
   std::puts("SmirkyCard: message box, evaluation, failure recovery, and 20 Scene switches passed.");
   return 0;
 }

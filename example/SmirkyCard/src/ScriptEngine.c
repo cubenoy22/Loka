@@ -92,6 +92,9 @@ void SmirkyScriptDestroy(SmirkyScript *script)
   free(script);
 }
 
+JSContext *SmirkyScriptContext(SmirkyScript *script) { return script ? script->context : NULL; }
+JSRuntime *SmirkyScriptRuntime(SmirkyScript *script) { return script ? script->runtime : NULL; }
+
 /* Each evaluation owns its instruction budget on the stack. */
 static int interruptScript(JSRuntime *runtime, void *opaque)
 {
