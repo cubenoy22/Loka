@@ -402,7 +402,7 @@ void testWin32EditTextPaintDelivery()
     loka::core::MutableState<loka::core::String> value(loka::core::String::Literal("before"));
     loka::core::MutableState<loka::core::String> replacement(loka::core::String::Literal("foreign"));
     tracker.addState(&value);
-    EditTextNode node((EditTextProps(&value)));
+    EditTextNode node((EditTextProps(loka::app::scene::WriteSeat<loka::core::String>(&value))));
     Win32EditTextContext context(&controller, root, 0, 0, 100, 24, &node);
     const PaintQuery query = {Win32RetirableContext::paintScope(), PLACEMENT_ELIGIBLE};
     {
@@ -426,9 +426,9 @@ void testWin32EditTextPaintDelivery()
     }
     LOKA_VERIFY(value.get().equals(loka::core::String::Literal("native")));
     LOKA_VERIFY(context.queryPaintDamage(query).kind == PAINT_ANSWER_EXACT);
-    node.props.text(&replacement);
+    node.props.text(loka::app::scene::WriteSeat<loka::core::String>(&replacement));
     LOKA_VERIFY(context.queryPaintDamage(query).reason == PAINT_REFUSED_PROPS_UNRECONCILED);
-    node.props.text(&value);
+    node.props.text(loka::app::scene::WriteSeat<loka::core::String>(&value));
     context.onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_DETACHED_RETAINED);
     LOKA_VERIFY(context.queryPaintDamage(query).reason == PAINT_REFUSED_HISTORY_UNKNOWN);
     context.onFactChanged(NODE_FACT_DETACHED_RETAINED, NODE_FACT_RETIRED);
