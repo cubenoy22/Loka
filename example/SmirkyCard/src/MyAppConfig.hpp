@@ -23,7 +23,9 @@ public:
                                  .frame(60, 60, 420, 240)
                                  .title("SmirkyCard")
                                  .visible(true)
-                                 .scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, this->runtime_)));
+                                 .scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, this->runtime_))
+                                 .idlePolicy(loka::app::IdlePolicy::everyTick())
+                                 .onIdle(&SmirkyCardAppConfig::OnWindowIdle, this));
   }
 
   virtual void composeMenu(loka::app::MenuComposition &composition)
@@ -32,7 +34,17 @@ public:
     composition.declare(AppMenu() << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));
   }
 
+protected:
+  virtual void onWindowIdle(Window *, double) {}
+
 private:
+  static void OnWindowIdle(Window *window, double elapsedSeconds, void *userData)
+  {
+    SmirkyCardAppConfig *self = static_cast<SmirkyCardAppConfig *>(userData);
+    if (self)
+      self->onWindowIdle(window, elapsedSeconds);
+  }
+
   smirkycard::ScriptRuntime runtime_;
 };
 #endif

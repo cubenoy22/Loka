@@ -53,6 +53,9 @@ set(LOKA_MINESWEEPER_TESTS_TOOLBOX_TARGET
 set(LOKA_FLOPPY_BIRD_TESTS_TOOLBOX_TARGET
   "LokaFloppyBirdTestsToolbox${LOKA_CLASSIC_TARGET_SUFFIX}"
 )
+if(LOKA_BUILD_SMIRKYCARD)
+  set(LOKA_SMIRKYCARD_TESTS_TOOLBOX_TARGET "LokaSmirkyCardTestsToolbox${LOKA_CLASSIC_TARGET_SUFFIX}")
+endif()
 
 # The pixel rail reads this clean-build artifact instead of asking the running
 # application or reconstructing compiler provenance at verdict time. Retro68
@@ -203,6 +206,28 @@ target_compile_definitions(${LOKA_HELLO_WORLD_TESTS_TOOLBOX_TARGET} PRIVATE
   TEST_BUILD
   LOKA_DIAG=1
 )
+
+if(LOKA_BUILD_SMIRKYCARD)
+  configure_file(
+    ${CMAKE_SOURCE_DIR}/example/SmirkyCard/Size.r
+    ${CMAKE_CURRENT_BINARY_DIR}/SmirkyCardTestSize.r
+    COPYONLY
+  )
+  loka_add_toolbox_test_application(
+    ${LOKA_SMIRKYCARD_TESTS_TOOLBOX_TARGET}
+    LokaAppleToolboxTestCore
+    src/SmirkyCardScenarioMain.cpp
+    src/SmirkyCardScenarioDriver.cpp
+    src/ScenarioDriverSupport.cpp
+    ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
+    ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+    ${CMAKE_SOURCE_DIR}/tests/scenarios/SmirkyCardScenarios.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/SmirkyCardTestSize.r
+  )
+  target_include_directories(${LOKA_SMIRKYCARD_TESTS_TOOLBOX_TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/example/SmirkyCard/src)
+  target_link_libraries(${LOKA_SMIRKYCARD_TESTS_TOOLBOX_TARGET} PRIVATE smirkycard_script)
+  target_compile_definitions(${LOKA_SMIRKYCARD_TESTS_TOOLBOX_TARGET} PRIVATE TEST_BUILD LOKA_DIAG=1)
+endif()
 
 set(LOKA_TUTORIAL_TESTS_TOOLBOX_SOURCES
   src/TutorialScenarioMain.cpp

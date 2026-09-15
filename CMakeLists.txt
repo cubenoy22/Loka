@@ -256,12 +256,14 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/FlowDslTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/OwnershipDumpTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/HelloWorldScenarioTests.cpp
+    $<$<BOOL:${LOKA_BUILD_SMIRKYCARD}>:${PROJECT_SOURCE_DIR}/tests/SmirkyCardScenarioTests.cpp>
     ${PROJECT_SOURCE_DIR}/tests/ScenarioReelTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/StandalonePerformanceTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
     ${PROJECT_SOURCE_DIR}/tests/standalone/StandalonePerformance.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioReel.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/HelloWorldScenarios.cpp
+    $<$<BOOL:${LOKA_BUILD_SMIRKYCARD}>:${PROJECT_SOURCE_DIR}/tests/scenarios/SmirkyCardScenarios.cpp>
     ${PROJECT_SOURCE_DIR}/tests/TutorialScenarioTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/scenarios/TutorialScenarios.cpp
     ${PROJECT_SOURCE_DIR}/tests/standalone/TutorialStandaloneFlowAppConfig.cpp
@@ -285,6 +287,11 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
     ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
   )
+  if(LOKA_BUILD_SMIRKYCARD)
+    target_include_directories(LokaScenarioTests PRIVATE ${PROJECT_SOURCE_DIR}/example/SmirkyCard/src)
+    target_link_libraries(LokaScenarioTests PRIVATE smirkycard_script)
+    target_compile_definitions(LokaScenarioTests PRIVATE LOKA_BUILD_SMIRKYCARD=1)
+  endif()
   loka_enable_warnings(LokaScenarioTests)
   target_include_directories(LokaScenarioTests PRIVATE
     ${PROJECT_SOURCE_DIR}/tests

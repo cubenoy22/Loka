@@ -134,6 +134,15 @@ case "$EXAMPLE" in
     TARGET="LokaHelloWorldTestsToolbox68K_APPL"
     FINDER_TAB_COUNT=2
     ;;
+  smirkycard)
+    APPL="$PROJECT_DIR/build/retro68/68k/Release/tests/toolbox/LokaSmirkyCardTestsToolbox68K.bin"
+    TARGET="LokaSmirkyCardTestsToolbox68K_APPL"
+    FINDER_TAB_COUNT=2
+    if [ ! -f "$APPL" ]; then
+      echo "skip smirkycard: LOKA_BUILD_SMIRKYCARD is off or the 68K test APPL has not been built"
+      exit 0
+    fi
+    ;;
   tutorial)
     APPL="$PROJECT_DIR/build/retro68/68k/Release/tests/toolbox/LokaTutorialTestsToolbox68K.bin"
     TARGET="LokaTutorialTestsToolbox68K_APPL"

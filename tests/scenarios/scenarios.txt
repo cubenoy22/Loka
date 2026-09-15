@@ -7,6 +7,8 @@ scrapbook open-text-page-refused
 helloworld startup
 helloworld toggle-action-probe
 helloworld bmi-roundtrip
+smirkycard startup
+smirkycard run-javascript
 tutorial startup
 tutorial increment-summary-toggle
 minesweeper startup

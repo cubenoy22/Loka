@@ -1,6 +1,9 @@
 #include "FlowDslTests.hpp"
 #include "OwnershipDumpTests.hpp"
 #include "HelloWorldScenarioTests.hpp"
+#if defined(LOKA_BUILD_SMIRKYCARD)
+#include "SmirkyCardScenarioTests.hpp"
+#endif
 #include "TutorialScenarioTests.hpp"
 #include "MineSweeperScenarioTests.hpp"
 #include "FloppyBirdScenarioTests.hpp"

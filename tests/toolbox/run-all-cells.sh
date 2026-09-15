@@ -56,7 +56,13 @@ PY
     pass|differs\ *) ;;
     *) BLOCKED+=("$cell") ;;
   esac
-done <"$PROJECT_DIR/tests/scenarios/scenarios.txt"
+done < <(while read -r example scenario; do
+  if [ "$example" = smirkycard ] && [ ! -f "$PROJECT_DIR/build/retro68/68k/Release/tests/toolbox/LokaSmirkyCardTestsToolbox68K.bin" ]; then
+    echo "skip smirkycard/$scenario: LOKA_BUILD_SMIRKYCARD is off or its 68K test APPL is absent" >&2
+    continue
+  fi
+  echo "$example $scenario"
+done <"$PROJECT_DIR/tests/scenarios/scenarios.txt")
 
 printf '\ncell | outcome | work dir\n'
 printf '%s\n' "${ROWS[@]}"

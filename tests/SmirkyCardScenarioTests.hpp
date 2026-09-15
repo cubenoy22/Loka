@@ -1,0 +1,6 @@
+#ifndef LOKA_TESTS_SMIRKY_CARD_SCENARIO_TESTS_HPP
+#define LOKA_TESTS_SMIRKYCARD_SCENARIO_TESTS_HPP
+
+void testSmirkyCardScenarioCellsUseAppAdmission();
+
+#endif
