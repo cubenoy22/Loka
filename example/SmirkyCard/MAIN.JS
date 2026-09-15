@@ -17,6 +17,7 @@ card('first', class {
       }).TEST_ID('SmirkyCard.RunScript'),
       Text(this.result).TEST_ID('SmirkyCard.Result'),
       Button('Run JavaScript', () => go('second')).TEST_ID('SmirkyCard.Run'),
+      Button('Reload MAIN.JS', () => reload()).TEST_ID('SmirkyCard.Reload'),
       Text(this.error).TEST_ID('SmirkyCard.Status')
     );
   }
@@ -43,4 +44,3 @@ card('second', class {
     );
   }
 });
-

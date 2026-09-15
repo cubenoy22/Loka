@@ -100,6 +100,8 @@ namespace smirkycard
   }
   JsCardNode::JsCardNode(const JsCardProps &p)
       : loka::app::scene::StdCompositionBoundaryNodeBase<JsCardProps>(p),
+        engine_(p.runtime ? p.runtime->currentEngine() : 0),
+        engineRef_(this->engine_),
         constructing_(false),
         failed_(false),
         instance_(JS_UNDEFINED),
@@ -116,18 +118,18 @@ namespace smirkycard
       seatKinds_[i] = -1;
     }
     this->state(error_, loka::core::String::Literal(""));
-    JSContext *ctx = p.runtime ? p.runtime->context() : 0;
-    JSValue ctor = ctx ? p.runtime->constructorFor(p.card) : JS_UNDEFINED;
+    JSContext *ctx = this->engine_ ? this->engine_->context() : 0;
+    JSValue ctor = ctx ? this->engine_->constructorFor(p.card) : JS_UNDEFINED;
     loka::core::String error;
     if (!ctx || JS_IsUndefined(ctor))
     {
       fail("Card is not registered.");
       return;
     }
-    ScriptRuntime::InterruptWindow interrupt(*p.runtime);
+    ScriptRuntime::InterruptWindow interrupt(*p.runtime, *this->engine_);
     p.runtime->setActive(this);
     constructing_ = true;
-    bool ok = p.runtime->callConstructor(ctor, instance_, error);
+    bool ok = p.runtime->callConstructor(*this->engine_, ctor, instance_, error);
     constructing_ = false;
     p.runtime->setActive(0);
     JS_FreeValue(ctx, ctor);
@@ -144,7 +146,7 @@ namespace smirkycard
       JS_FreeValue(ctx, attach);
       JS_FreeValue(ctx, detach);
     }
-    if (ok && ensureSeatClass(p.runtime->jsRuntime()))
+    if (ok && ensureSeatClass(this->engine_->jsRuntime()))
     {
       errorSeat_ = JS_NewObjectClass(ctx, seatClassId);
       JS_SetOpaque(errorSeat_, this);
@@ -155,9 +157,9 @@ namespace smirkycard
   }
   JsCardNode::~JsCardNode()
   {
-    if (props.runtime)
+    if (this->engine_)
     {
-      JSContext *ctx = props.runtime->context();
+      JSContext *ctx = this->engine_->context();
       if (JS_IsObject(errorSeat_))
         JS_SetOpaque(errorSeat_, 0);
       for (int i = 0; i < 8; ++i)
@@ -221,7 +223,7 @@ namespace smirkycard
       fail("state() initial value is unsupported.");
       return JS_UNDEFINED;
     }
-    if (!ensureSeatClass(props.runtime->jsRuntime()))
+    if (!ensureSeatClass(this->engine_->jsRuntime()))
     {
       fail("Could not create state seat.");
       return JS_UNDEFINED;
@@ -298,6 +300,10 @@ namespace smirkycard
       fail("go() requires first or second.");
       return;
     }
+    requestGo(card);
+  }
+  void JsCardNode::requestGo(SmirkyCardId card)
+  {
     CardScene *scene = static_cast<CardScene *>(this->scene());
     if (!scene)
     {
@@ -312,6 +318,33 @@ namespace smirkycard
     else
       fail("Could not create the next card.");
   }
+  void JsCardNode::requestReload()
+  {
+    CardScene *scene = static_cast<CardScene *>(this->scene());
+    if (!scene)
+    {
+      fail("reload() is unavailable while the card is detaching.");
+      return;
+    }
+    loka::core::String error;
+    JsEngine *candidate = props.runtime->prepareReload(props.card, error);
+    if (!candidate)
+    {
+      fail(error);
+      return;
+    }
+    // Build the replacement Scene first; the engine swap and the visible card
+    // then change together, or neither does.
+    CardScene *next = CreateCard(props.card, *props.runtime);
+    if (!next)
+    {
+      props.runtime->discardReload(candidate);
+      fail("Could not create the reloaded card.");
+      return;
+    }
+    props.runtime->commitReload(candidate);
+    scene->replaceWith(next);
+  }
   void JsCardNode::declareBindings(loka::app::scene::BindingToken &t)
   {
     t.action(emitters_[0], this, &JsCardNode::fire0);
@@ -322,6 +355,7 @@ namespace smirkycard
     t.action(emitters_[5], this, &JsCardNode::fire5);
     t.action(emitters_[6], this, &JsCardNode::fire6);
     t.action(emitters_[7], this, &JsCardNode::fire7);
+    t.action(reloadEmitter_, this, &JsCardNode::requestReload);
   }
   // The card hooks ride the root boundary's own attach/detach doors
   // (ComponentNode::composeWithContext -> attachNode/detachNode), which every
@@ -330,15 +364,15 @@ namespace smirkycard
   // ATTACHED and teardown marks it RETIRED directly.
   void JsCardNode::callHook(JSValueConst hook)
   {
-    if (!JS_IsFunction(props.runtime->context(), hook))
+    if (!JS_IsFunction(this->engine_->context(), hook))
       return;
     loka::core::String error;
     JSValue result = JS_UNDEFINED;
     props.runtime->setActive(this);
-    if (!props.runtime->call(hook, instance_, 0, 0, result, error))
+    if (!props.runtime->call(*this->engine_, hook, instance_, 0, 0, result, error))
       error_.set(error);
     props.runtime->setActive(0);
-    JS_FreeValue(props.runtime->context(), result);
+    JS_FreeValue(this->engine_->context(), result);
   }
   void JsCardNode::attachNode(loka::app::scene::NodeComposition &composition)
   {
@@ -362,8 +396,8 @@ namespace smirkycard
     }
     if (!failed_ && JS_IsUndefined(tree_))
     {
-      JSContext *ctx = props.runtime->context();
-      ScriptRuntime::InterruptWindow interrupt(*props.runtime);
+      JSContext *ctx = this->engine_->context();
+      ScriptRuntime::InterruptWindow interrupt(*props.runtime, *this->engine_);
       JSValue compose = JS_GetPropertyStr(ctx, instance_, "compose");
       JSValue result = JS_UNDEFINED;
       loka::core::String error;
@@ -373,10 +407,11 @@ namespace smirkycard
       props.runtime->setActive(this);
       if (JS_IsException(compose))
       {
-        props.runtime->captureException(error);
+        props.runtime->captureException(*this->engine_, error);
         fail(error);
       }
-      else if (!JS_IsFunction(ctx, compose) || !props.runtime->call(compose, instance_, 1, &delegate, result, error))
+      else if (!JS_IsFunction(ctx, compose)
+               || !props.runtime->call(*this->engine_, compose, instance_, 1, &delegate, result, error))
         fail(error.empty() ? loka::core::String::Literal("JavaScript compose() failed.") : error);
       else if (JS_IsObject(result))
         setComposeTree(ctx, result);
@@ -390,14 +425,14 @@ namespace smirkycard
     if (failed_)
     {
       error_.set(failure_);
-      c.declare(Text(error_.state()).TEST_ID("SmirkyCard.Status"));
+      this->declareRefusal(c);
       return;
     }
-    ScriptRuntime::InterruptWindow interrupt(*props.runtime);
-    loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> definition(lower(props.runtime->context(), tree_, 0));
+    ScriptRuntime::InterruptWindow interrupt(*props.runtime, *this->engine_);
+    loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> definition(lower(this->engine_->context(), tree_, 0));
     if (!definition.isSet())
     {
-      c.declare(Text(error_.state()).TEST_ID("SmirkyCard.Status"));
+      this->declareRefusal(c);
       return;
     }
     c.declare(*definition.get());
@@ -405,6 +440,12 @@ namespace smirkycard
   void JsCardNode::fail(const char *message)
   {
     fail(loka::core::String::Literal(message));
+  }
+  void JsCardNode::declareRefusal(loka::app::scene::NodeComposition &c)
+  {
+    using namespace loka::app;
+    c.declare(VStack() << Text(error_.state()).TEST_ID("SmirkyCard.Status")
+                       << Button("Reload MAIN.JS", &reloadEmitter_).TEST_ID("SmirkyCard.Reload"));
   }
   void JsCardNode::fail(const loka::core::String &message)
   {
@@ -588,10 +629,10 @@ namespace smirkycard
     loka::core::String error;
     JSValue result = JS_UNDEFINED;
     props.runtime->setActive(this);
-    if (!props.runtime->call(handlers_[slot], instance_, 0, 0, result, error))
+    if (!props.runtime->call(*this->engine_, handlers_[slot], instance_, 0, 0, result, error))
       error_.set(error);
     props.runtime->setActive(0);
-    JS_FreeValue(props.runtime->context(), result);
+    JS_FreeValue(this->engine_->context(), result);
   }
   void JsCardNode::fire0()
   {
