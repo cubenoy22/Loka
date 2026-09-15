@@ -98,6 +98,34 @@ scripts/retro68-cmake.sh --preset retro68-68k-release
 scripts/retro68-cmake.sh --build --preset retro68-68k-release
 ```
 
+### Host-tool failure after a Homebrew update
+
+If a host tool such as `Rez` aborts under `dyld` with `Symbol not found` and
+names a Homebrew `libboost_*.dylib`, the installed Retro68 tool was built
+against an older Boost ABI. This is outside the Loka build: deleting Loka's
+build directory does not repair the host tool.
+
+Reconfigure and reinstall Retro68's host tools against the currently installed
+Boost. Replace the two root paths below with the paths to the adjacent Retro68
+source and build trees:
+
+```sh
+cmake -S /path/to/Retro68 -B /path/to/Retro68-build/build-host \
+  -UBoost_DIR \
+  -DCMAKE_PREFIX_PATH="$(brew --prefix boost)" \
+  -DCMAKE_INSTALL_PREFIX=/path/to/Retro68-build/toolchain \
+  -DCMAKE_BUILD_TYPE=Debug
+cmake --build /path/to/Retro68-build/build-host --target install
+```
+
+The `-UBoost_DIR` removes a cached package directory that may point at a
+Homebrew version that no longer exists. Confirm that the repaired executable
+starts before retrying the Loka build:
+
+```sh
+/path/to/Retro68-build/toolchain/bin/Rez --help
+```
+
 Report the final 68K MacBinary application sizes after the build with:
 
 ```sh
