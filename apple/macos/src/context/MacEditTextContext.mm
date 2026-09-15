@@ -1,6 +1,7 @@
 #include "MacEditTextContext.hpp"
 #include <cassert>
 #include "../MacScenePlatformController.hpp"
+#include "../MacWindow.hpp"
 #include "MacObjCCompat.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
@@ -253,9 +254,8 @@ void MacEditTextContext::syncStateFromControl()
   }
   updatingFromControl_ = true;
   std::string utf8 = loka::macos::Utf8FromNSString([field stringValue]);
-  // The state's own tracker is its Boundary's, which settles the derived
-  // states that read this input; the Window tracker is a different one.
-  loka::core::StateTrackerGuard _(mutableState->trackerOwner());
+  MacWindow *window = MacWindow::fromRootView(field_);
+  loka::core::StateTrackerGuard _(window ? window->getTracker() : 0);
   mutableState->set(loka::core::String(utf8), true);
   updatingFromControl_ = false;
 }
