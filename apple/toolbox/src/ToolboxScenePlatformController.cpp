@@ -1572,21 +1572,34 @@ bool ToolboxScenePlatformController::handleTextKey(char key)
   {
     return false;
   }
+  // This is the nullable Classic fallback: TENew refused, so the EditText was
+  // drawn from its hit alone and has no editControls_ binding. The hit's
+  // context carries the write seat; the focused native binding is only a
+  // second source when one exists.
   loka::app::scene::BoundaryNode *boundary = 0;
+  loka::app::scene::WriteSeat<loka::core::String> seat;
   for (size_t i = 0; i < hitLedger_.editHits_.size(); ++i)
   {
     const EditHit &hit = hitLedger_.editHits_[i];
     if (hit.text == focusedText_ && hasFocusedRect_ && EqualRect(&hit.rect, &focusedRect_))
     {
       boundary = hit.boundary;
+      if (hit.context)
+        seat = hit.context->projectedWriteSeat();
       break;
     }
   }
-  loka::core::StateTrackerGuard _(boundary ? boundary->tracker() : 0);
-  EditTextControlBinding *focusedEdit = editControls_.focused();
-  if (!focusedEdit)
+  if (!seat.isValid())
+  {
+    EditTextControlBinding *focusedEdit = editControls_.focused();
+    if (!focusedEdit)
+      return false;
+    seat = focusedEdit->textSeat;
+  }
+  if (!seat.isValid())
     return false;
-  focusedEdit->textSeat.set(loka::core::String(utf8));
+  loka::core::StateTrackerGuard _(boundary ? boundary->tracker() : 0);
+  seat.set(loka::core::String(utf8));
   return true;
 }
 
@@ -2593,6 +2606,7 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(ToolboxEditTextCo
     EditTextControlBinding entry;
     entry.ownerContext = ownerContext;
     entry.text = text;
+    entry.textSeat = ownerContext->projectedWriteSeat();
     entry.te = te;
     entry.rect = controlRect;
     entry.usedThisFrame = true;
