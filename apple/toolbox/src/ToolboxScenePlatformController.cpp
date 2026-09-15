@@ -1537,7 +1537,9 @@ void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
   }
   beginBatchUpdate();
   addPendingDirty(rect);
-  loka::core::StateTrackerGuard _(window_ ? window_->getTracker() : 0);
+  // The state's own tracker is its Boundary's; the Window tracker is a
+  // different one and would leave the Boundary's derived states unsettled.
+  loka::core::StateTrackerGuard _(mutableIndex->trackerOwner());
   mutableIndex->set(newIndex, true);
   if (onChange)
   {
@@ -1579,7 +1581,7 @@ bool ToolboxScenePlatformController::handleTextKey(char key)
   {
     return false;
   }
-  loka::core::StateTrackerGuard _(window_ ? window_->getTracker() : 0);
+  loka::core::StateTrackerGuard _(mutableText->trackerOwner());
   mutableText->set(loka::core::String(utf8));
   return true;
 }
@@ -2765,7 +2767,7 @@ void ToolboxScenePlatformController::updateStateFromEdit(EditTextControlBinding 
     utf8.assign(ptr, static_cast<size_t>(length));
     HUnlock(reinterpret_cast<Handle>(textHandle));
   }
-  loka::core::StateTrackerGuard _(window_ ? window_->getTracker() : 0);
+  loka::core::StateTrackerGuard _(mutableText->trackerOwner());
   // State notification fans out to every binding. Mark the typing source
   // current first so its sync is a no-op and preserves the active selection.
   binding.lastText = utf8;

@@ -375,8 +375,12 @@ void testHelloWorldDerivedTextSeatsCoverInputsAndActions()
   loka::core::MutableState<int> *rawFruitIndex = fruitPicker->props.selectedIndex_;
   rawFruitIndex->set(1, true);
   LOKA_VERIFY(fruit->props.text_->get().equals(String::Literal("You chose Apple.")));
+  // The rails open the guard on the state's own tracker (the Boundary that
+  // adopted it, MainNode's, not the outer main Boundary and not a Window
+  // tracker); settling it there is what publishes the derived Text.
+  LOKA_VERIFY(rawFruitIndex->trackerOwner() != 0 && rawFruitIndex->trackerOwner() != owner->tracker());
   {
-    StateTrackerGuard guard(owner->tracker());
+    StateTrackerGuard guard(rawFruitIndex->trackerOwner());
     rawFruitIndex->set(2, true);
   }
   LOKA_VERIFY(fruit->props.text_->get().equals(String::Literal("You chose Cherry.")));
