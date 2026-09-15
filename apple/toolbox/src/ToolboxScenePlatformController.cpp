@@ -1536,8 +1536,12 @@ void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
   }
   beginBatchUpdate();
   addPendingDirty(rect);
-  loka::core::StateTrackerGuard _(boundary ? boundary->tracker() : 0);
-  mutableIndex->set(newIndex, true);
+  {
+    // Settle before onChange: the guard's end is what publishes derived
+    // states that read the selection.
+    loka::core::StateTrackerGuard _(boundary ? boundary->tracker() : 0);
+    mutableIndex->set(newIndex, true);
+  }
   if (onChange)
   {
     onChange->emit();

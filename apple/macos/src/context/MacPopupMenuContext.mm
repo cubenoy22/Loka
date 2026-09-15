@@ -302,8 +302,12 @@ void MacPopupMenuContext::syncStateFromControl()
   }
   updatingFromControl_ = true;
   NSInteger index = [popup indexOfSelectedItem];
-  loka::core::StateTrackerGuard _(this->boundary() ? this->boundary()->tracker() : 0);
-  mutableState->set(static_cast<int>(index), true);
+  {
+    // Settle before onChange: the guard's end is what publishes derived
+    // states that read the selection.
+    loka::core::StateTrackerGuard _(this->boundary() ? this->boundary()->tracker() : 0);
+    mutableState->set(static_cast<int>(index), true);
+  }
   updatingFromControl_ = false;
   if (node_ && node_->props.onChange_)
   {
