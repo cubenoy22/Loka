@@ -162,6 +162,13 @@ namespace
     LOKA_VERIFY(std::fclose(file) == 0);
   }
 
+  std::string reloadCardSource(const char *title)
+  {
+    return std::string("card('first',class{constructor(){}compose(){return VStack(Text('") + title
+           + "').TEST_ID('SmirkyCard.Title'),Button('r',()=>reload()).TEST_ID('Reload'),Text(this.error).TEST_ID("
+             "'SmirkyCard.Status'))}});";
+  }
+
   std::string mountedTitle(smirkycard::ScriptRuntime &runtime, NullPlatformContext &context)
   {
     NullScenePlatformController platform;
@@ -188,8 +195,21 @@ namespace
     return status && status->asTextNode() ? textValue(status->asTextNode()) : std::string();
   }
 
+  void printScratchMemory()
+  {
+    smirkycard::ScriptRuntime scratch;
+    loka::core::String error;
+    LOKA_VERIFY(scratch.loadBuiltin(smirkycard::BuiltinMainJs(), error));
+    JSMemoryUsage usage;
+    JS_ComputeMemoryUsage(scratch.jsRuntime(), &usage);
+    std::printf("SmirkyCard QuickJS scratch after built-in: malloc_size=%lld memory_used=%lld\n",
+                static_cast<long long>(usage.malloc_size),
+                static_cast<long long>(usage.memory_used_size));
+  }
+
   void checkMainJsLoad()
   {
+    printScratchMemory();
     const char *directory = "_smirkycard_main_fixture";
     const char *path = "_smirkycard_main_fixture/MAIN.JS";
     std::remove(path);
@@ -203,14 +223,85 @@ namespace
     LOKA_VERIFY(missing.mainSource() == smirkycard::ScriptRuntime::MAIN_SOURCE_BUILTIN);
     LOKA_VERIFY(mountedTitle(missing, context) == "Card One");
 
-    writeMain(
-        path,
-        "card('first',class{constructor(){}compose(){return VStack(Text('Loaded First').TEST_ID('SmirkyCard.Title'),"
-        "Text(this.error).TEST_ID('SmirkyCard.Status'))}});");
+    writeMain(path, reloadCardSource("Loaded First"));
     smirkycard::ScriptRuntime loaded;
     loaded.loadMain(&context);
     LOKA_VERIFY(loaded.mainSource() == smirkycard::ScriptRuntime::MAIN_SOURCE_FILE);
     LOKA_VERIFY(mountedTitle(loaded, context) == "Loaded First");
+
+    // The native button takes reload() through the active card, validates the
+    // replacement in a scratch runtime, and admits a replacement Scene.
+    {
+      NullScenePlatformController platform;
+      WindowProps props;
+      props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, loaded));
+      NullWindow window(&context, props, &platform);
+      WindowAdmissionTestApp admission(window);
+      loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+      loka::app::scene::Scene *before = window.scene();
+      writeMain(path, reloadCardSource("Reloaded First"));
+      loka::app::scene::Node *reload = find(loka::dsl::testing::SceneTestAccess::rootNode(*before), "Reload");
+      LOKA_VERIFY(reload && reload->asButtonNode());
+      reload->asButtonNode()->props.getOnClick()->emit();
+      LOKA_VERIFY(window.scene() == before);
+      admission.flush();
+      LOKA_VERIFY(window.scene() != before);
+      loka::app::scene::Node *title =
+          find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), "SmirkyCard.Title");
+      LOKA_VERIFY(title && title->asTextNode() && textValue(title->asTextNode()) == "Reloaded First");
+
+      // A syntax error leaves the mounted card in place and writes its error
+      // seat, rather than admitting an incomplete replacement.
+      writeMain(path, "(");
+      loka::app::scene::Scene *stable = window.scene();
+      reload = find(loka::dsl::testing::SceneTestAccess::rootNode(*stable), "Reload");
+      reload->asButtonNode()->props.getOnClick()->emit();
+      LOKA_VERIFY(window.scene() == stable);
+      loka::app::scene::Node *status =
+          find(loka::dsl::testing::SceneTestAccess::rootNode(*stable), "SmirkyCard.Status");
+      LOKA_VERIFY(status && status->asTextNode()
+                  && textValue(status->asTextNode()).find("MAIN.JS:") != std::string::npos);
+
+      // A throwing candidate can mutate its scratch context, but never the
+      // live one.
+      writeMain(path, "globalThis.touched=1;throw new Error('reload broken');");
+      reload = find(loka::dsl::testing::SceneTestAccess::rootNode(*stable), "Reload");
+      reload->asButtonNode()->props.getOnClick()->emit();
+      LOKA_VERIFY(window.scene() == stable);
+      loka::core::String result, error;
+      LOKA_VERIFY(loaded.evaluateToString(loka::core::String::Literal("String(globalThis.touched)"), result, error));
+      LOKA_VERIFY(result.compare(loka::core::String::Literal("undefined")) == 0);
+
+      LOKA_VERIFY(std::remove(path) == 0);
+      reload = find(loka::dsl::testing::SceneTestAccess::rootNode(*stable), "Reload");
+      reload->asButtonNode()->props.getOnClick()->emit();
+      LOKA_VERIFY(window.scene() == stable);
+      status = find(loka::dsl::testing::SceneTestAccess::rootNode(*stable), "SmirkyCard.Status");
+      LOKA_VERIFY(status && status->asTextNode()
+                  && textValue(status->asTextNode()).find("file is missing") != std::string::npos);
+    }
+
+    // A built-in card can reload a file which appears after startup.
+    smirkycard::ScriptRuntime builtin;
+    builtin.loadMain(&context);
+    LOKA_VERIFY(builtin.mainSource() == smirkycard::ScriptRuntime::MAIN_SOURCE_BUILTIN);
+    {
+      NullScenePlatformController platform;
+      WindowProps props;
+      props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, builtin));
+      NullWindow window(&context, props, &platform);
+      WindowAdmissionTestApp admission(window);
+      loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+      writeMain(path, reloadCardSource("Appeared First"));
+      loka::app::scene::Node *reload =
+          find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), "SmirkyCard.Reload");
+      LOKA_VERIFY(reload && reload->asButtonNode());
+      reload->asButtonNode()->props.getOnClick()->emit();
+      admission.flush();
+      loka::app::scene::Node *title =
+          find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), "SmirkyCard.Title");
+      LOKA_VERIFY(title && title->asTextNode() && textValue(title->asTextNode()) == "Appeared First");
+    }
 
     writeMain(path, "(");
     smirkycard::ScriptRuntime broken;

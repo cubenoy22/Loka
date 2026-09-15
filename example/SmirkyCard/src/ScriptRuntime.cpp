@@ -46,6 +46,7 @@ namespace smirkycard
         second_(JS_UNDEFINED),
         active_(0),
         mainSource_(MAIN_SOURCE_BUILTIN),
+        mainContext_(0),
         mainError_(),
         mainErrorScope_(MAIN_ERROR_NONE)
   {
@@ -257,6 +258,15 @@ namespace smirkycard
     return JS_UNDEFINED;
   }
 
+  JSValue ScriptRuntime::reload(JSContext *ctx, JSValueConst, int argc, JSValueConst *)
+  {
+    ScriptRuntime *self = static_cast<ScriptRuntime *>(JS_GetContextOpaque(ctx));
+    if (!self || !self->active() || argc != 0)
+      return JS_ThrowTypeError(ctx, "reload() requires an active card");
+    self->active()->requestReload();
+    return JS_UNDEFINED;
+  }
+
   bool ScriptRuntime::loadBuiltin(const char *source, loka::core::String &error)
   {
     if (!this->context())
@@ -277,18 +287,48 @@ namespace smirkycard
 
   void ScriptRuntime::loadMain(PlatformContext *context)
   {
+    this->mainContext_ = context;
     this->mainSource_ = MAIN_SOURCE_BUILTIN;
     this->mainError_ = loka::core::String();
     this->mainErrorScope_ = MAIN_ERROR_NONE;
     if (!this->context())
       return; // unavailable runtime: every later call reports it (loadBuiltin's path)
+    std::string text;
+    loka::core::String error;
+    if (this->readMain(text, error))
+    {
+      if (this->evalMain(text.data(), text.size(), "MAIN.JS", error))
+      {
+        this->mainSource_ = MAIN_SOURCE_FILE;
+        return;
+      }
+      this->mainError_ =
+          loka::core::String::Literal("MAIN.JS: ") + error + loka::core::String::Literal("; using built-in cards");
+      this->mainErrorScope_ = MAIN_ERROR_EVERY_CARD;
+      // The failed script may have redefined globals or registered cards;
+      // the fallback runs in a fresh context, never the poisoned one.
+      this->closeEngine();
+      this->openEngine();
+      if (!this->context())
+        return;
+    }
+    else
+    {
+      this->mainError_ = error + loka::core::String::Literal("; using built-in cards");
+      this->mainErrorScope_ = MAIN_ERROR_FIRST_CARD;
+    }
+    loka::core::String ignored;
+    this->loadBuiltin(BuiltinMainJs(), ignored);
+  }
+
+  bool ScriptRuntime::readMain(std::string &text, loka::core::String &error) const
+  {
     const loka::file::File item = loka::file::File::Application() << loka::file::File("MAIN.JS");
     loka::platform::file::FileHandle handle;
-    if (!context || !context->openFile(item, handle))
+    if (!this->mainContext_ || !this->mainContext_->openFile(item, handle))
     {
-      loka::core::String ignored;
-      this->loadBuiltin(BuiltinMainJs(), ignored);
-      return;
+      error = loka::core::String::Literal("MAIN.JS: file is missing");
+      return false;
     }
 #if defined(LOKA_RETRO68)
     loka::toolbox::ToolboxByteSource source;
@@ -298,51 +338,52 @@ namespace smirkycard
     if (handle.displayPath.empty() || !source.open(handle.displayPath))
 #endif
     {
-      this->mainError_ = loka::core::String::Literal("MAIN.JS: could not read; using built-in cards");
-      this->mainErrorScope_ = MAIN_ERROR_FIRST_CARD;
-      loka::core::String ignored;
-      this->loadBuiltin(BuiltinMainJs(), ignored);
-      return;
+      error = loka::core::String::Literal("MAIN.JS: file is missing or could not read");
+      return false;
     }
     std::size_t length = 0;
     if (!source.size(length))
     {
-      this->mainError_ = loka::core::String::Literal("MAIN.JS: could not read; using built-in cards");
-      this->mainErrorScope_ = MAIN_ERROR_FIRST_CARD;
+      error = loka::core::String::Literal("MAIN.JS: could not read");
+      return false;
     }
     else if (length > 64u * 1024u)
     {
-      this->mainError_ = loka::core::String::Literal("MAIN.JS: exceeds 64 KiB; using built-in cards");
-      this->mainErrorScope_ = MAIN_ERROR_FIRST_CARD;
+      error = loka::core::String::Literal("MAIN.JS: exceeds 64 KiB");
+      return false;
     }
     else
     {
-      std::string text(length, '\0');
+      text.assign(length, '\0');
       if (!source.readAt(0, length ? reinterpret_cast<unsigned char *>(&text[0]) : 0, length))
       {
-        this->mainError_ = loka::core::String::Literal("MAIN.JS: could not read; using built-in cards");
-        this->mainErrorScope_ = MAIN_ERROR_FIRST_CARD;
+        error = loka::core::String::Literal("MAIN.JS: could not read");
+        return false;
       }
-      else
-      {
-        loka::core::String error;
-        if (this->evalMain(text.data(), text.size(), "MAIN.JS", error))
-        {
-          this->mainSource_ = MAIN_SOURCE_FILE;
-          return;
-        }
-        this->mainError_ =
-            loka::core::String::Literal("MAIN.JS: ") + error + loka::core::String::Literal("; using built-in cards");
-        this->mainErrorScope_ = MAIN_ERROR_EVERY_CARD;
-        // The failed script may have redefined globals or registered cards;
-        // the fallback runs in a fresh context, never the poisoned one.
-        this->closeEngine();
-        this->openEngine();
-        if (!this->context())
-          return;
-      }
+      error = loka::core::String();
+      return true;
     }
-    loka::core::String ignored;
-    this->loadBuiltin(BuiltinMainJs(), ignored);
+  }
+
+  bool ScriptRuntime::reloadMain(loka::core::String &error)
+  {
+    std::string text;
+    if (!this->readMain(text, error))
+      return false;
+    ScriptRuntime scratch;
+    if (!scratch.context() || !scratch.evalMain(text.data(), text.size(), "MAIN.JS", error))
+    {
+      error = loka::core::String::Literal("MAIN.JS: ") + error;
+      return false;
+    }
+    if (!this->context() || !this->evalMain(text.data(), text.size(), "MAIN.JS", error))
+    {
+      error = loka::core::String::Literal("MAIN.JS: ") + error;
+      return false;
+    }
+    this->mainSource_ = MAIN_SOURCE_FILE;
+    this->mainError_ = loka::core::String();
+    this->mainErrorScope_ = MAIN_ERROR_NONE;
+    return true;
   }
 } // namespace smirkycard

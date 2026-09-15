@@ -46,6 +46,8 @@ namespace smirkycard
     JSValue seatSet(JSContext *context, JSValueConst seat, JSValueConst value);
     JSValue errorSeatGet(JSContext *context);
     void requestGo(const char *name, size_t length);
+    void requestGo(SmirkyCardId card);
+    void requestReload();
     bool setComposeTree(JSContext *context, JSValueConst tree);
     loka::app::scene::NodeDefinitionBase *lowerText(JSContext *context, JSValueConst tree);
     loka::app::scene::NodeDefinitionBase *lowerEditText(JSContext *context, JSValueConst tree);

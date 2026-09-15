@@ -70,6 +70,8 @@ namespace smirkycard
     bool loadBuiltin(const char *source, loka::core::String &error);
     /** Selects MAIN.JS once through the application's portable file door. */
     void loadMain(PlatformContext *context);
+    /** Replaces registered card constructors only after MAIN.JS validates. */
+    bool reloadMain(loka::core::String &error);
     MainSource mainSource() const
     {
       return this->mainSource_;
@@ -141,6 +143,8 @@ namespace smirkycard
     static JSValue card(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     static JSValue state(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     static JSValue go(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
+    static JSValue reload(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
+    bool readMain(std::string &text, loka::core::String &error) const;
     enum MainErrorScope
     {
       MAIN_ERROR_NONE,
@@ -153,6 +157,7 @@ namespace smirkycard
     JSValue second_;
     JsCardNode *active_;
     MainSource mainSource_;
+    PlatformContext *mainContext_;
     loka::core::String mainError_;
     MainErrorScope mainErrorScope_;
     struct InterruptState

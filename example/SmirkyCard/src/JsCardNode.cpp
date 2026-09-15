@@ -298,6 +298,10 @@ namespace smirkycard
       fail("go() requires first or second.");
       return;
     }
+    requestGo(card);
+  }
+  void JsCardNode::requestGo(SmirkyCardId card)
+  {
     CardScene *scene = static_cast<CardScene *>(this->scene());
     if (!scene)
     {
@@ -311,6 +315,23 @@ namespace smirkycard
       scene->replaceWith(next);
     else
       fail("Could not create the next card.");
+  }
+  void JsCardNode::requestReload()
+  {
+    CardScene *scene = static_cast<CardScene *>(this->scene());
+    if (!scene)
+    {
+      fail("reload() is unavailable while the card is detaching.");
+      return;
+    }
+    loka::core::String error;
+    if (!props.runtime->reloadMain(error))
+    {
+      fail(error);
+      return;
+    }
+    // The same card, rebuilt from the constructor the reload just registered.
+    requestGo(props.card);
   }
   void JsCardNode::declareBindings(loka::app::scene::BindingToken &t)
   {
