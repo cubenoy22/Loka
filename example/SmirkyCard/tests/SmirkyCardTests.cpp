@@ -127,6 +127,39 @@ namespace
       else
         LOKA_VERIFY(value.find("Error:") == 0 && value.find(i == 2 ? "x" : "interrupted") != std::string::npos);
     }
+    // The interrupt budget also covers stringification: a result whose
+    // toString loops must come back as an interrupted error, not a hang.
+    {
+      {
+        loka::core::StateTrackerGuard guard(owner->tracker());
+        script->props.text_->set(loka::core::String::Literal("({toString: function(){ for(;;){} }})"));
+      }
+      run->props.getOnClick()->emit();
+      const std::string value = textValue(result);
+      LOKA_VERIFY(value.find("Error:") == 0 && value.find("interrupted") != std::string::npos);
+    }
+    // Embedded NULs survive (the seam returns byte counts, not strlen).
+    {
+      {
+        loka::core::StateTrackerGuard guard(owner->tracker());
+        script->props.text_->set(loka::core::String::Literal("'a\\u0000b'"));
+      }
+      run->props.getOnClick()->emit();
+      const std::string value = textValue(result);
+      LOKA_VERIFY(value.size() == 3 && value[0] == 'a' && value[1] == '\0' && value[2] == 'b');
+    }
+    // A result over the 511-byte cap is cut on a UTF-8 boundary: 200 x U+3042
+    // (3 bytes each) keeps 170 whole characters = 510 bytes.
+    {
+      {
+        loka::core::StateTrackerGuard guard(owner->tracker());
+        script->props.text_->set(loka::core::String::Literal("'\\u3042'.repeat(200)"));
+      }
+      run->props.getOnClick()->emit();
+      const std::string value = textValue(result);
+      LOKA_VERIFY(value.size() == 510 && static_cast<unsigned char>(value[507]) == 0xE3u
+                  && static_cast<unsigned char>(value[508]) == 0x81u && static_cast<unsigned char>(value[509]) == 0x82u);
+    }
   }
 } // namespace
 

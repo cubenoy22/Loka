@@ -20,7 +20,7 @@ public:
   virtual void compose(AppComposition &composition)
   {
     composition << WindowDef(WindowProps()
-                                 .frame(60, 60, 420, 240)
+                                 .frame(60, 60, 420, 340)
                                  .title("SmirkyCard")
                                  .visible(true)
                                  .scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, this->runtime_)));

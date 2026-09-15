@@ -34,15 +34,17 @@ namespace smirkycard
       const loka::core::StringBuffer sourceBuffer = source.bufferWithEncoding(loka::core::StringEncodingUtf8);
       const char *sourceBytes = static_cast<const char *>(sourceBuffer.data());
       const std::string sourceUtf8(sourceBytes ? sourceBytes : "", sourceBuffer.length());
-      if (SmirkyScriptEvaluateToString(this->script_, sourceUtf8.c_str(), resultBuffer, sizeof(resultBuffer), errorBuffer,
-                                       sizeof(errorBuffer)))
+      size_t resultLength = 0;
+      size_t errorLength = 0;
+      if (SmirkyScriptEvaluateToString(this->script_, sourceUtf8.c_str(), resultBuffer, sizeof(resultBuffer),
+                                       &resultLength, errorBuffer, sizeof(errorBuffer), &errorLength))
       {
-        result = loka::core::String::Utf8(resultBuffer, std::strlen(resultBuffer));
+        result = loka::core::String::Utf8(resultBuffer, resultLength);
         error = loka::core::String();
         return true;
       }
       result = loka::core::String();
-      error = loka::core::String::Utf8(errorBuffer, std::strlen(errorBuffer));
+      error = loka::core::String::Utf8(errorBuffer, errorLength);
       return false;
     }
 
