@@ -1097,7 +1097,7 @@ Win32ScenePlatformController::layoutScrollViewNode(loka::app::ScrollViewNode *sc
   }
 
   int requestedOffset = scrollView->props.offset_.isValid()
-                            ? scrollView->props.offset_.get()
+                            ? scrollView->props.offset_.state()->get()
                             : 0;
   if (requestedOffset < 0)
   {
@@ -1200,7 +1200,7 @@ Win32ScenePlatformController::layoutScrollViewNode(loka::app::ScrollViewNode *sc
     const int clampedOffset =
         ctx->setScrollMetrics(contentHeight, state.height, requestedOffset);
     if (scrollView->props.offset_.isValid() &&
-        scrollView->props.offset_.get() != clampedOffset)
+        scrollView->props.offset_.state()->get() != clampedOffset)
     {
       // Publish through the complete NodeState door after the scope has
       // popped. A dirty notification may schedule/re-enter projection, and

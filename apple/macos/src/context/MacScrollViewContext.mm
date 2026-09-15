@@ -251,7 +251,7 @@ int MacScrollViewContext::maximumOffset() const
 
 void MacScrollViewContext::publishOffset(int value)
 {
-  if (!this->node_ || !this->node_->props.offset_.isValid() || this->node_->props.offset_.get() == value)
+  if (!this->node_ || !this->node_->props.offset_.isValid() || this->node_->props.offset_.state()->get() == value)
   {
     return;
   }

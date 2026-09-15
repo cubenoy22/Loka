@@ -189,7 +189,8 @@ void MacPopupMenuContext::bindSelection()
   {
     return;
   }
-  selectionState_ = static_cast<loka::core::State<int> *>(node_->props.selectedIndex_);
+  selectionState_ = node_->props.selectedIndex_.state();
+  selectionSeat_ = node_->props.selectedIndex_;
   if (selectionState_)
   {
     selectionState_->deferBind(&MacPopupMenuContext::SelectionChangedThunk, this);
@@ -203,6 +204,7 @@ void MacPopupMenuContext::unbindSelection()
   {
     selectionState_->deferUnbind(&MacPopupMenuContext::SelectionChangedThunk, this);
     selectionState_ = 0;
+    selectionSeat_ = loka::app::scene::WriteSeat<int>();
   }
 }
 
@@ -295,18 +297,13 @@ void MacPopupMenuContext::syncStateFromControl()
   {
     return;
   }
-  loka::core::MutableState<int> *mutableState = dynamic_cast<loka::core::MutableState<int> *>(selectionState_);
-  if (!mutableState)
-  {
-    return;
-  }
   updatingFromControl_ = true;
   NSInteger index = [popup indexOfSelectedItem];
   {
     // Settle before onChange: the guard's end is what publishes derived
     // states that read the selection.
     loka::core::StateTrackerGuard _(this->boundary() ? this->boundary()->tracker() : 0);
-    mutableState->set(static_cast<int>(index), true);
+    selectionSeat_.set(static_cast<int>(index), true);
   }
   updatingFromControl_ = false;
   if (node_ && node_->props.onChange_)

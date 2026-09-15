@@ -76,7 +76,7 @@ loka::app::scene::PaintAnswer ToolboxEditTextContext::queryPaintDamage(
   using namespace loka::app::scene;
   if (query.placement != PLACEMENT_ELIGIBLE || query.scope != ToolboxPaintScope())
     return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
-  if (!this->node_ || !this->text_ || this->node_->props.text_ != this->text_)
+  if (!this->node_ || !this->text_ || this->node_->props.text_.state() != this->text_)
     return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
   if (ToolboxPaintIsClippedOut(this->rect_, this->paintRect_, this->deliveredFact()))
     return ToolboxExactPaint(this->paintRect_, false);
@@ -202,7 +202,7 @@ bool RegisterToolboxEditTextNodeHandler(loka::app::scene::PlatformNodeHandlerReg
 
 bool ToolboxEditTextContext::captureProps()
 {
-  loka::core::State<loka::core::String> *text = this->node_ ? this->node_->props.text_ : 0;
+  loka::core::State<loka::core::String> *text = this->node_ ? this->node_->props.text_.state() : 0;
   const bool changed = ToolboxTextProjectionChanged(this->text_, text);
   this->updateData(text);
   return changed;

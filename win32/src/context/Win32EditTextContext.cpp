@@ -89,7 +89,7 @@ loka::app::scene::PaintAnswer Win32EditTextContext::queryPaintDamage(const loka:
     return PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
   if (query.placement != PLACEMENT_ELIGIBLE)
     return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
-  if (!this->node_ || this->node_->props.text_ != this->textState_)
+  if (!this->node_ || this->node_->props.text_.state() != this->textState_)
     return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
   PaintAnswer answer = this->textDelivery_;
   if (answer.kind == PAINT_ANSWER_EXACT)
@@ -181,7 +181,8 @@ void Win32EditTextContext::bindText()
   {
     return;
   }
-  textState_ = static_cast<loka::core::State<loka::core::String> *>(node_->props.text_);
+  textState_ = node_->props.text_.state();
+  textSeat_ = node_->props.text_;
   if (textState_)
   {
     textState_->bind(&Win32EditTextContext::TextChangedThunk, this, true);
@@ -194,6 +195,7 @@ void Win32EditTextContext::unbindText()
   {
     textState_->unbind(&Win32EditTextContext::TextChangedThunk, this);
     textState_ = 0;
+    textSeat_ = loka::app::scene::WriteSeat<loka::core::String>();
   }
 }
 
@@ -240,15 +242,9 @@ void Win32EditTextContext::syncStateFromControl()
   {
     return;
   }
-  loka::core::MutableState<loka::core::String> *mutableState =
-      dynamic_cast<loka::core::MutableState<loka::core::String> *>(textState_);
-  if (!mutableState)
-  {
-    return;
-  }
   updatingFromControl_ = true;
   loka::core::StateTrackerGuard _(this->boundary() ? this->boundary()->tracker() : 0);
-  mutableState->set(loka::win32::ReadEditTextString(hwnd_), true);
+  textSeat_.set(loka::win32::ReadEditTextString(hwnd_), true);
   updatingFromControl_ = false;
 }
 

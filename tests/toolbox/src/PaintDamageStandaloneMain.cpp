@@ -1806,8 +1806,8 @@ namespace
                         context->queryPaintDamage(pending).kind == PAINT_ANSWER_REFUSED
                         && context->queryPaintDamage(foreign).kind == PAINT_ANSWER_REFUSED, COMPLETE);
         PopupMenuNode *popupNode = popup->asPopupMenuNode();
-        loka::core::MutableState<int> *selection = popupNode->props.selectedIndex_;
-        popupNode->props.selectedIndex_ = 0;
+        loka::app::scene::WriteSeat<int> selection = popupNode->props.selectedIndex_;
+        popupNode->props.selectedIndex_ = loka::app::scene::WriteSeat<int>();
         self->recordArm("popup-unreconciled-refuses",
                         context->queryPaintDamage(settled).kind == PAINT_ANSWER_REFUSED, COMPLETE);
         popupNode->props.selectedIndex_ = selection;

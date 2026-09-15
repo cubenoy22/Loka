@@ -2526,12 +2526,7 @@ namespace loka
             error.code = FLOW_ERROR_SCENE_TEST_ROOT_UNAVAILABLE;
             return FLOW_STEP_FAILED;
           }
-          ::loka::core::MutableState< ::loka::core::String> *mutableText =
-              editText->props.text_
-                  ? static_cast< ::loka::core::MutableState< ::loka::core::String> *>(
-                        editText->props.text_->asMutableState())
-                  : 0;
-          if (!mutableText)
+          if (!editText->props.text_.isValid())
           {
             error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
             error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
@@ -2539,7 +2534,7 @@ namespace loka
           }
           {
             ::loka::core::StateTrackerGuard guard(boundary->tracker());
-            mutableText->set(::loka::core::String(value_), true);
+            editText->props.text_.set(::loka::core::String(value_), true);
           }
           return FlushSceneInvalidation().run(out, out, error);
         }

@@ -4,6 +4,7 @@
 #include "MacRetirableContext.hpp"
 #include "core/State.hpp"
 #include "core/String.hpp"
+#include "app/scene/state/WriteSeat.hpp"
 
 namespace loka
 {
@@ -54,6 +55,7 @@ private:
   void *field_;
   void *delegate_;
   loka::core::State<loka::core::String> *textState_;
+  loka::app::scene::WriteSeat<loka::core::String> textSeat_;
   bool applyingFromState_;
   bool updatingFromControl_;
 };

@@ -57,6 +57,7 @@ private:
   void *popup_;
   void *target_;
   loka::core::State<int> *selectionState_;
+  loka::app::scene::WriteSeat<int> selectionSeat_;
   loka::core::State<bool> *enabledState_;
   bool applyingFromState_;
   bool updatingFromControl_;
