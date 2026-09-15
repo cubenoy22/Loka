@@ -52,6 +52,7 @@ namespace smirkycard
 
   private:
     void fail(const char *message);
+    void fail(const loka::core::String &message);
     loka::app::scene::NodeDefinitionBase *lower(JSContext *context, JSValueConst tree, int depth);
     loka::app::scene::NodeDefinitionBase *lowerChild(JSContext *context, JSValueConst tree, int depth);
     int handlerSlot(JSContext *context, JSValueConst handler);

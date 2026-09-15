@@ -27,13 +27,13 @@ namespace smirkycard
     JSValue seatGetNative(JSContext *ctx, JSValueConst thisValue, int, JSValueConst *)
     {
       JsCardNode *node = static_cast<JsCardNode *>(JS_GetOpaque2(ctx, thisValue, seatClassId));
-      return node ? node->seatGet(ctx, thisValue) : JS_EXCEPTION;
+      return node ? node->seatGet(ctx, thisValue) : JS_UNDEFINED;
     }
     JSValue seatSetNative(JSContext *ctx, JSValueConst thisValue, int argc, JSValueConst *argv)
     {
       JsCardNode *node = static_cast<JsCardNode *>(JS_GetOpaque2(ctx, thisValue, seatClassId));
       if (!node)
-        return JS_EXCEPTION;
+        return JS_ThrowTypeError(ctx, "seat belongs to a retired card");
       if (argc != 1)
         return JS_ThrowTypeError(ctx, "seat.set(value) requires one value");
       return node->seatSet(ctx, thisValue, argv[0]);
@@ -41,12 +41,21 @@ namespace smirkycard
     JSValue errorGetNative(JSContext *ctx, JSValueConst thisValue, int, JSValueConst *)
     {
       JsCardNode *node = static_cast<JsCardNode *>(JS_GetOpaque2(ctx, thisValue, seatClassId));
-      return node ? node->errorSeatGet(ctx) : JS_EXCEPTION;
+      return node ? node->errorSeatGet(ctx) : JS_UNDEFINED;
     }
     JSValue jsString(JSContext *ctx, const loka::core::String &value)
     {
       const loka::core::StringBuffer buffer = value.bufferWithEncoding(loka::core::StringEncodingUtf8);
       return JS_NewStringLen(ctx, static_cast<const char *>(buffer.data()), buffer.length());
+    }
+    bool integerNumber(JSContext *ctx, JSValueConst value, int32_t &out)
+    {
+      double number = 0;
+      if (!JS_IsNumber(value) || JS_ToFloat64(ctx, &number, value) || number != number || number < -2147483648.0
+          || number > 2147483647.0 || static_cast<double>(static_cast<int32_t>(number)) != number)
+        return false;
+      out = static_cast<int32_t>(number);
+      return true;
     }
     class FormatIntEval : public loka::core::DerivedState<loka::core::String>::EvalFn
     {
@@ -113,6 +122,7 @@ namespace smirkycard
       fail("Card is not registered.");
       return;
     }
+    ScriptRuntime::InterruptWindow interrupt(*p.runtime);
     p.runtime->setActive(this);
     constructing_ = true;
     bool ok = p.runtime->callConstructor(ctor, instance_, error);
@@ -134,13 +144,19 @@ namespace smirkycard
   {
     if (props.runtime)
     {
-      JS_FreeValue(props.runtime->context(), instance_);
-      JS_FreeValue(props.runtime->context(), tree_);
-      JS_FreeValue(props.runtime->context(), errorSeat_);
+      JSContext *ctx = props.runtime->context();
+      if (JS_IsObject(errorSeat_))
+        JS_SetOpaque(errorSeat_, 0);
+      for (int i = 0; i < 8; ++i)
+        if (JS_IsObject(seats_[i]))
+          JS_SetOpaque(seats_[i], 0);
+      JS_FreeValue(ctx, instance_);
+      JS_FreeValue(ctx, tree_);
+      JS_FreeValue(ctx, errorSeat_);
       for (int i = 0; i < 8; ++i)
       {
-        JS_FreeValue(props.runtime->context(), seats_[i]);
-        JS_FreeValue(props.runtime->context(), handlers_[i]);
+        JS_FreeValue(ctx, seats_[i]);
+        JS_FreeValue(ctx, handlers_[i]);
       }
     }
   }
@@ -170,9 +186,9 @@ namespace smirkycard
     else if (JS_IsNumber(initial))
     {
       int32_t value = 0;
-      if (JS_ToInt32(ctx, &value, initial))
+      if (!integerNumber(ctx, initial, value))
       {
-        fail("state() initial value is unsupported.");
+        fail("state(number) requires an integer");
         return JS_UNDEFINED;
       }
       this->state(ints_[usedStates_], static_cast<int>(value));
@@ -235,8 +251,11 @@ namespace smirkycard
         if (seatKinds_[i] == 1 && JS_IsNumber(value))
         {
           int32_t v = 0;
-          if (JS_ToInt32(ctx, &v, value))
-            break;
+          if (!integerNumber(ctx, value, v))
+          {
+            error_.set(loka::core::String::Literal("state(number) requires an integer"));
+            return JS_UNDEFINED;
+          }
           ints_[i].writeSeat().set(static_cast<int>(v), true);
           return JS_UNDEFINED;
         }
@@ -287,6 +306,7 @@ namespace smirkycard
     if (!failed_ && JS_IsUndefined(tree_))
     {
       JSContext *ctx = props.runtime->context();
+      ScriptRuntime::InterruptWindow interrupt(*props.runtime);
       JSValue compose = JS_GetPropertyStr(ctx, instance_, "compose");
       JSValue result = JS_UNDEFINED;
       loka::core::String error;
@@ -294,8 +314,13 @@ namespace smirkycard
       JS_SetPropertyStr(ctx, delegate, "declare", JS_NewCFunction(ctx, &ScriptRuntime::declare, "declare", 1));
       JS_FreezeObject(ctx, delegate);
       props.runtime->setActive(this);
-      if (!JS_IsFunction(ctx, compose) || !props.runtime->call(compose, instance_, 1, &delegate, result, error))
-        fail("JavaScript compose() failed.");
+      if (JS_IsException(compose))
+      {
+        props.runtime->captureException(error);
+        fail(error);
+      }
+      else if (!JS_IsFunction(ctx, compose) || !props.runtime->call(compose, instance_, 1, &delegate, result, error))
+        fail(error.empty() ? loka::core::String::Literal("JavaScript compose() failed.") : error);
       else if (JS_IsObject(result))
         setComposeTree(ctx, result);
       else if (JS_IsUndefined(tree_))
@@ -311,6 +336,7 @@ namespace smirkycard
       c.declare(Text(error_.state()).TEST_ID("SmirkyCard.Status"));
       return;
     }
+    ScriptRuntime::InterruptWindow interrupt(*props.runtime);
     loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> definition(lower(props.runtime->context(), tree_, 0));
     if (!definition.isSet())
     {
@@ -321,8 +347,12 @@ namespace smirkycard
   }
   void JsCardNode::fail(const char *message)
   {
+    fail(loka::core::String::Literal(message));
+  }
+  void JsCardNode::fail(const loka::core::String &message)
+  {
     failed_ = true;
-    failure_ = loka::core::String::Literal(message);
+    failure_ = message;
     if (error_.isValid())
       error_.set(failure_);
   }
@@ -544,6 +574,14 @@ namespace smirkycard
   }
   CardScene *CreateCard(SmirkyCardId card, ScriptRuntime &runtime)
   {
+    switch (card)
+    {
+    case SMIRKY_CARD_ERROR:
+      return 0;
+    case SMIRKY_CARD_FIRST:
+    case SMIRKY_CARD_SECOND:
+      break;
+    }
     loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> root;
     root.reset(loka::app::scene::Boundary<JsCardNode>(JsCardProps(&runtime, card)).clone());
     if (!root.isSet())

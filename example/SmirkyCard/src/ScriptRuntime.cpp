@@ -7,51 +7,50 @@ namespace smirkycard
   {
     // Kept as one readable JavaScript text (C++98: adjacent literals, one
     // source line per literal) so the built-in cards double as the sample.
-    return
-        "// MAIN.JS — the built-in cards. Each card is a class: the constructor\n"
-        "// declares its seats with state(initial); compose() returns the card's\n"
-        "// tree using the Loka Node DSL names.\n"
-        "card('first', class {\n"
-        "  constructor() {\n"
-        "    this.script = state('1+1');\n"
-        "    this.result = state('Ready');\n"
-        "  }\n"
-        "  compose() {\n"
-        "    return VStack(\n"
-        "      Text('Card One').TEST_ID('SmirkyCard.Title'),\n"
-        "      Text('This Scene is defined in JavaScript.'),\n"
-        "      EditText(this.script).TEST_ID('SmirkyCard.Script'),\n"
-        "      Button('Run', () => {\n"
-        "        try { this.result.set(String(eval(this.script.get()))); }\n"
-        "        catch (e) { this.result.set('Error: ' + e); }\n"
-        "      }).TEST_ID('SmirkyCard.RunScript'),\n"
-        "      Text(this.result).TEST_ID('SmirkyCard.Result'),\n"
-        "      Button('Run JavaScript', () => go('second')).TEST_ID('SmirkyCard.Run'),\n"
-        "      Text(this.error).TEST_ID('SmirkyCard.Status')\n"
-        "    );\n"
-        "  }\n"
-        "});\n"
-        "card('second', class {\n"
-        "  constructor() {\n"
-        "    this.script = state('2+2');\n"
-        "    this.result = state('Ready');\n"
-        "  }\n"
-        "  compose() {\n"
-        "    return VStack(\n"
-        "      Text('Card Two').TEST_ID('SmirkyCard.Title'),\n"
-        "      Text('This Scene is defined in JavaScript.'),\n"
-        "      EditText(this.script).TEST_ID('SmirkyCard.Script'),\n"
-        "      Button('Run', () => {\n"
-        "        try { this.result.set(String(eval(this.script.get()))); }\n"
-        "        catch (e) { this.result.set('Error: ' + e); }\n"
-        "      }).TEST_ID('SmirkyCard.RunScript'),\n"
-        "      Text(this.result).TEST_ID('SmirkyCard.Result'),\n"
-        "      Button('Run JavaScript', () => go('first')).TEST_ID('SmirkyCard.Run'),\n"
-        "      Text(this.error).TEST_ID('SmirkyCard.Status')\n"
-        "    );\n"
-        "  }\n"
-        "});\n"
-        "\n";
+    return "// MAIN.JS — the built-in cards. Each card is a class: the constructor\n"
+           "// declares its seats with state(initial); compose() returns the card's\n"
+           "// tree using the Loka Node DSL names.\n"
+           "card('first', class {\n"
+           "  constructor() {\n"
+           "    this.script = state('1+1');\n"
+           "    this.result = state('Ready');\n"
+           "  }\n"
+           "  compose() {\n"
+           "    return VStack(\n"
+           "      Text('Card One').TEST_ID('SmirkyCard.Title'),\n"
+           "      Text('This Scene is defined in JavaScript.'),\n"
+           "      EditText(this.script).TEST_ID('SmirkyCard.Script'),\n"
+           "      Button('Run', () => {\n"
+           "        try { this.result.set(String(eval(this.script.get()))); }\n"
+           "        catch (e) { this.result.set('Error: ' + e); }\n"
+           "      }).TEST_ID('SmirkyCard.RunScript'),\n"
+           "      Text(this.result).TEST_ID('SmirkyCard.Result'),\n"
+           "      Button('Run JavaScript', () => go('second')).TEST_ID('SmirkyCard.Run'),\n"
+           "      Text(this.error).TEST_ID('SmirkyCard.Status')\n"
+           "    );\n"
+           "  }\n"
+           "});\n"
+           "card('second', class {\n"
+           "  constructor() {\n"
+           "    this.script = state('2+2');\n"
+           "    this.result = state('Ready');\n"
+           "  }\n"
+           "  compose() {\n"
+           "    return VStack(\n"
+           "      Text('Card Two').TEST_ID('SmirkyCard.Title'),\n"
+           "      Text('This Scene is defined in JavaScript.'),\n"
+           "      EditText(this.script).TEST_ID('SmirkyCard.Script'),\n"
+           "      Button('Run', () => {\n"
+           "        try { this.result.set(String(eval(this.script.get()))); }\n"
+           "        catch (e) { this.result.set('Error: ' + e); }\n"
+           "      }).TEST_ID('SmirkyCard.RunScript'),\n"
+           "      Text(this.result).TEST_ID('SmirkyCard.Result'),\n"
+           "      Button('Run JavaScript', () => go('first')).TEST_ID('SmirkyCard.Run'),\n"
+           "      Text(this.error).TEST_ID('SmirkyCard.Status')\n"
+           "    );\n"
+           "  }\n"
+           "});\n"
+           "\n";
   }
   namespace
   {
@@ -96,6 +95,33 @@ namespace smirkycard
     return 0;
   }
 
+  ScriptRuntime::InterruptWindow::InterruptWindow(ScriptRuntime &runtime)
+      : runtime_(runtime)
+  {
+    this->runtime_.openInterruptWindow();
+  }
+
+  ScriptRuntime::InterruptWindow::~InterruptWindow()
+  {
+    this->runtime_.closeInterruptWindow();
+  }
+
+  void ScriptRuntime::openInterruptWindow()
+  {
+    if (!this->interrupts_.depth++)
+    {
+      this->interrupts_.remaining = 100;
+      JS_SetInterruptHandler(this->jsRuntime(), &ScriptRuntime::interrupt, &this->interrupts_.remaining);
+    }
+  }
+
+  void ScriptRuntime::closeInterruptWindow()
+  {
+    assert(this->interrupts_.depth);
+    if (!--this->interrupts_.depth)
+      JS_SetInterruptHandler(this->jsRuntime(), 0, 0);
+  }
+
   bool ScriptRuntime::captureException(loka::core::String &error)
   {
     JSValue exception = JS_GetException(this->context());
@@ -113,17 +139,15 @@ namespace smirkycard
       JS_FreeCString(this->context(), text);
     }
     else
-      error = loka::core::String::Literal("JavaScript call failed.");
+      error = loka::core::String::Literal("JavaScript interrupted.");
     JS_FreeValue(this->context(), exception);
     return false;
   }
 
   bool ScriptRuntime::callConstructor(JSValueConst ctor, JSValue &result, loka::core::String &error)
   {
-    unsigned int remaining = 100;
-    JS_SetInterruptHandler(this->jsRuntime(), &ScriptRuntime::interrupt, &remaining);
+    InterruptWindow interrupt(*this);
     result = JS_CallConstructor(this->context(), ctor, 0, 0);
-    JS_SetInterruptHandler(this->jsRuntime(), 0, 0);
     if (JS_IsException(result))
     {
       JS_FreeValue(this->context(), result);
@@ -137,10 +161,8 @@ namespace smirkycard
   bool ScriptRuntime::call(
       JSValueConst fn, JSValueConst receiver, int argc, JSValueConst *argv, JSValue &result, loka::core::String &error)
   {
-    unsigned int remaining = 100;
-    JS_SetInterruptHandler(this->jsRuntime(), &ScriptRuntime::interrupt, &remaining);
+    InterruptWindow interrupt(*this);
     result = JS_Call(this->context(), fn, receiver, argc, argv);
-    JS_SetInterruptHandler(this->jsRuntime(), 0, 0);
     if (JS_IsException(result))
     {
       JS_FreeValue(this->context(), result);
@@ -153,11 +175,9 @@ namespace smirkycard
 
   bool ScriptRuntime::evalBuiltin(const char *source, loka::core::String &error)
   {
-    unsigned int remaining = 100;
+    InterruptWindow interrupt(*this);
     JSValue result;
-    JS_SetInterruptHandler(this->jsRuntime(), &ScriptRuntime::interrupt, &remaining);
     result = JS_Eval(this->context(), source, strlen(source), "BuiltinCards.js", JS_EVAL_TYPE_GLOBAL);
-    JS_SetInterruptHandler(this->jsRuntime(), 0, 0);
     if (JS_IsException(result))
     {
       JS_FreeValue(this->context(), result);

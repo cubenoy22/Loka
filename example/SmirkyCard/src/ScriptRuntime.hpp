@@ -16,6 +16,19 @@ namespace smirkycard
   class ScriptRuntime
   {
   public:
+    /** Keeps QuickJS interruption enabled across a complete JS-facing operation. */
+    class InterruptWindow
+    {
+    public:
+      explicit InterruptWindow(ScriptRuntime &runtime);
+      ~InterruptWindow();
+
+    private:
+      ScriptRuntime &runtime_;
+      InterruptWindow(const InterruptWindow &);
+      InterruptWindow &operator=(const InterruptWindow &);
+    };
+
     ScriptRuntime()
         : script_(SmirkyScriptCreate()),
           first_(JS_UNDEFINED),
@@ -68,7 +81,16 @@ namespace smirkycard
     }
     JSValue constructorFor(SmirkyCardId id) const
     {
-      return JS_DupValue(this->context(), id == SMIRKY_CARD_FIRST ? this->first_ : this->second_);
+      switch (id)
+      {
+      case SMIRKY_CARD_ERROR:
+        return JS_UNDEFINED;
+      case SMIRKY_CARD_FIRST:
+        return JS_DupValue(this->context(), this->first_);
+      case SMIRKY_CARD_SECOND:
+        return JS_DupValue(this->context(), this->second_);
+      }
+      return JS_UNDEFINED;
     }
     bool loadBuiltin(const char *source, loka::core::String &error);
     /** Every JS invocation passes through one of these doors.  Success values
@@ -119,6 +141,9 @@ namespace smirkycard
     }
 
   private:
+    friend class JsCardNode;
+    void openInterruptWindow();
+    void closeInterruptWindow();
     static int interrupt(JSRuntime *, void *opaque);
     bool captureException(loka::core::String &error);
     static JSValue card(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
@@ -132,6 +157,16 @@ namespace smirkycard
     JSValue first_;
     JSValue second_;
     JsCardNode *active_;
+    struct InterruptState
+    {
+      InterruptState()
+          : depth(0),
+            remaining(0)
+      {
+      }
+      unsigned int depth;
+      unsigned int remaining;
+    } interrupts_;
     ScriptRuntime(const ScriptRuntime &);
     ScriptRuntime &operator=(const ScriptRuntime &);
   };
