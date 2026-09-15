@@ -41,7 +41,7 @@ namespace smirkycard
   } // namespace
   ScriptRuntime::ScriptRuntime()
       : registry_(),
-        script_(SmirkyScriptCreate()),
+        script_(0),
         first_(JS_UNDEFINED),
         second_(JS_UNDEFINED),
         active_(0),
@@ -49,12 +49,31 @@ namespace smirkycard
         mainError_(),
         mainErrorScope_(MAIN_ERROR_NONE)
   {
+    if (RegisterSmirkyCardBindings(this->registry_))
+      this->openEngine();
+  }
+  void ScriptRuntime::openEngine()
+  {
+    this->script_ = SmirkyScriptCreate();
+    this->first_ = JS_UNDEFINED;
+    this->second_ = JS_UNDEFINED;
+    if (!this->script_)
+      return;
+    JS_SetContextOpaque(this->context(), this);
+    if (!this->registry_.install(this->context()))
+      this->closeEngine();
+  }
+  void ScriptRuntime::closeEngine()
+  {
     if (this->script_)
     {
-      JS_SetContextOpaque(this->context(), this);
-      if (!RegisterSmirkyCardBindings(this->registry_) || !this->registry_.install(this->context()))
-        return;
+      JS_FreeValue(this->context(), this->first_);
+      JS_FreeValue(this->context(), this->second_);
     }
+    SmirkyScriptDestroy(this->script_);
+    this->script_ = 0;
+    this->first_ = JS_UNDEFINED;
+    this->second_ = JS_UNDEFINED;
   }
   int ScriptRuntime::interrupt(JSRuntime *, void *opaque)
   {
@@ -261,6 +280,8 @@ namespace smirkycard
     this->mainSource_ = MAIN_SOURCE_BUILTIN;
     this->mainError_ = loka::core::String();
     this->mainErrorScope_ = MAIN_ERROR_NONE;
+    if (!this->context())
+      return; // unavailable runtime: every later call reports it (loadBuiltin's path)
     const loka::file::File item = loka::file::File::Application() << loka::file::File("MAIN.JS");
     loka::platform::file::FileHandle handle;
     if (!context || !context->openFile(item, handle))
@@ -313,6 +334,12 @@ namespace smirkycard
         this->mainError_ =
             loka::core::String::Literal("MAIN.JS: ") + error + loka::core::String::Literal("; using built-in cards");
         this->mainErrorScope_ = MAIN_ERROR_EVERY_CARD;
+        // The failed script may have redefined globals or registered cards;
+        // the fallback runs in a fresh context, never the poisoned one.
+        this->closeEngine();
+        this->openEngine();
+        if (!this->context())
+          return;
       }
     }
     loka::core::String ignored;

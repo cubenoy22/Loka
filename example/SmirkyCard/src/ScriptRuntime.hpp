@@ -41,12 +41,7 @@ namespace smirkycard
     ScriptRuntime();
     ~ScriptRuntime()
     {
-      if (this->script_)
-      {
-        JS_FreeValue(this->context(), this->first_);
-        JS_FreeValue(this->context(), this->second_);
-      }
-      SmirkyScriptDestroy(this->script_);
+      this->closeEngine();
     }
 
     JSContext *context() const;
@@ -134,6 +129,11 @@ namespace smirkycard
     friend class JsCardNode;
     friend class JsCardBindingRegistry;
     friend bool RegisterSmirkyCardBindings(JsCardBindingRegistry &registry);
+    /** The engine (runtime + context + installed globals) is opened once at
+        construction and again after a MAIN.JS that failed, so a script that
+        poisoned a global before throwing never reaches the fallback cards. */
+    void openEngine();
+    void closeEngine();
     void openInterruptWindow();
     void closeInterruptWindow();
     static int interrupt(JSRuntime *, void *opaque);

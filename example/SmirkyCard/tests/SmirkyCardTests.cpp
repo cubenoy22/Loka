@@ -220,6 +220,17 @@ namespace
     LOKA_VERIFY(mountedStatus(broken, context, SMIRKY_CARD_FIRST).find("MAIN.JS:") != std::string::npos);
     LOKA_VERIFY(mountedStatus(broken, context, SMIRKY_CARD_SECOND).find("MAIN.JS:") != std::string::npos);
 
+    // A script that poisons a global before throwing must not reach the
+    // fallback cards: the context is rebuilt before the built-in text runs.
+    writeMain(path,
+              "globalThis.Text = null; card('first', class { compose() { return VStack(); } }); throw new "
+              "Error('poison');");
+    smirkycard::ScriptRuntime poisoned;
+    poisoned.loadMain(&context);
+    LOKA_VERIFY(poisoned.mainSource() == smirkycard::ScriptRuntime::MAIN_SOURCE_BUILTIN);
+    LOKA_VERIFY(mountedTitle(poisoned, context) == "Card One");
+    LOKA_VERIFY(mountedStatus(poisoned, context, SMIRKY_CARD_SECOND).find("poison") != std::string::npos);
+
     writeMain(path, std::string(64u * 1024u + 1u, 'x'));
     smirkycard::ScriptRuntime tooLarge;
     tooLarge.loadMain(&context);
