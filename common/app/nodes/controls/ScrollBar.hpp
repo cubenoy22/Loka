@@ -70,7 +70,7 @@ namespace loka
       typedef ScrollBarNode NodeType;
       /** Two-way binding. Only settled values ever reach it -- see the arms:
           the write happens after the tracking loop returns, never during. */
-      loka::core::MutableState<int> *value_;
+      loka::app::scene::WriteSeat<int> value_;
       /** Static like PopupMenu's items: a range change is a recompose, not a
           State notification, so the range cannot drift out from under a
           tracking loop that is already running.
@@ -101,7 +101,7 @@ namespace loka
       }
 
       explicit ScrollBarProps(loka::core::MutableState<int> *value)
-          : value_(value),
+          : value_(loka::app::scene::WriteSeat<int>(value)),
             min_(0),
             max_(0),
             orientation_(SCROLL_BAR_VERTICAL),
@@ -114,7 +114,7 @@ namespace loka
       }
 
       explicit ScrollBarProps(const loka::app::scene::NodeState<int> &value)
-          : value_(value.dangerouslyMutableState()),
+          : value_(value.writeSeat()),
             min_(0),
             max_(0),
             orientation_(SCROLL_BAR_VERTICAL),
@@ -128,13 +128,13 @@ namespace loka
 
       ScrollBarProps &value(loka::core::MutableState<int> *value)
       {
-        this->value_ = value;
+        this->value_ = loka::app::scene::WriteSeat<int>(value);
         return *this;
       }
 
       ScrollBarProps &value(const loka::app::scene::NodeState<int> &value)
       {
-        this->value_ = value.dangerouslyMutableState();
+        this->value_ = value.writeSeat();
         return *this;
       }
 
@@ -210,8 +210,8 @@ namespace loka
           return lineStep_ < other.lineStep_;
         if (pageStep_ != other.pageStep_)
           return pageStep_ < other.pageStep_;
-        if (value_ != other.value_)
-          return value_ < other.value_;
+        if (value_.state() != other.value_.state())
+          return value_.state() < other.value_.state();
         // A recompose that swaps only the handler must not be "equivalent",
         // or the retained fast path keeps gesturing at the old one.
         if (onChange_ != other.onChange_)
@@ -260,9 +260,9 @@ namespace loka
       }
       virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
       {
-        if (this->props.value_)
+        if (this->props.value_.isValid())
         {
-          registrar.markDirtyOnChange(this->props.value_, loka::app::scene::NODE_DIRTY_PROPS);
+          registrar.markDirtyOnChange(this->props.value_.state(), loka::app::scene::NODE_DIRTY_PROPS);
         }
         if (this->props.enabled_)
         {
@@ -274,7 +274,7 @@ namespace loka
           keeps every arm clamping identically. */
       int displayValue() const
       {
-        const int bound = this->props.value_ ? this->props.value_->get() : this->props.min_;
+        const int bound = this->props.value_.isValid() ? this->props.value_.state()->get() : this->props.min_;
         return ScrollBarClampValue(bound, this->props.min_, this->props.max_);
       }
 

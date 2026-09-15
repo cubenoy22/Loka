@@ -79,7 +79,7 @@ loka::app::scene::PaintAnswer ToolboxPopupMenuContext::queryPaintDamage(
   if (query.placement != PLACEMENT_ELIGIBLE || query.scope != ToolboxPaintScope())
     return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
   if (!this->node_ || this->items_ != this->node_->props.items_
-      || this->selectedIndex_ != this->node_->props.selectedIndex_
+      || this->selectedIndex_ != this->node_->props.selectedIndex_.state()
       || this->enabled_ != this->node_->props.enabled_)
     return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
   if (ToolboxPaintIsClippedOut(this->rect_, this->paintRect_, this->deliveredFact()))
@@ -104,11 +104,13 @@ void ToolboxPopupMenuContext::onFactChanged(loka::app::scene::NodeLifecycleFact 
 
 void ToolboxPopupMenuContext::updateData(const loka::Vector<loka::core::String> *items,
                                          loka::core::State<int> *selectedIndex,
+                                         const loka::app::scene::WriteSeat<int> &selectedIndexSeat,
                                          loka::core::EmitterState *onChange,
                                          loka::core::State<bool> *enabled)
 {
   items_ = items;
   selectedIndex_ = selectedIndex;
+  selectedIndexSeat_ = selectedIndexSeat;
   onChange_ = onChange;
   enabled_ = enabled;
 }
@@ -292,7 +294,7 @@ bool ToolboxPopupMenuContext::handleMouseDown(const Point &point, ToolboxScenePl
   short item = static_cast<short>(choice & 0xFFFF);
   if (item > 0 && controller)
   {
-    controller->applyPopupSelectionChange(rect, boundary, selectedIndex, onChange, static_cast<int>(item - 1));
+    controller->applyPopupSelectionChange(rect, boundary, selectedIndex, selectedIndexSeat_, onChange, static_cast<int>(item - 1));
   }
   DeleteMenu(menuIdValue);
   DisposeMenu(menu);
@@ -324,10 +326,10 @@ bool ToolboxPopupMenuContext::captureProps()
     return false;
   const bool changed = ToolboxPopupProjectionChanged(
       this->items_, this->node_->props.items_,
-      this->selectedIndex_, this->node_->props.selectedIndex_,
+      this->selectedIndex_, this->node_->props.selectedIndex_.state(),
       this->enabled_, this->node_->props.enabled_);
   this->updateData(this->node_->props.items_,
-                   this->node_->props.selectedIndex_,
+                   this->node_->props.selectedIndex_.state(), this->node_->props.selectedIndex_,
                    this->node_->props.onChange_,
                    this->node_->props.enabled_);
   return changed;

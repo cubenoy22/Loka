@@ -53,6 +53,7 @@ public:
 
   void updateData(const loka::Vector<loka::core::String> *items,
                   loka::core::State<int> *selectedIndex,
+                  const loka::app::scene::WriteSeat<int> &selectedIndexSeat,
                   loka::core::EmitterState *onChange,
                   loka::core::State<bool> *enabled);
   void updateRect(const Rect &rect, short lineHeight);
@@ -102,6 +103,7 @@ private:
   short lineHeight_;
   const loka::Vector<loka::core::String> *items_;
   loka::core::State<int> *selectedIndex_;
+  loka::app::scene::WriteSeat<int> selectedIndexSeat_;
   loka::core::EmitterState *onChange_;
   loka::core::State<bool> *enabled_;
 };

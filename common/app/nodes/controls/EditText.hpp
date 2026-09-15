@@ -22,7 +22,7 @@ namespace loka
       typedef EditTextTypeTag TypeTag;
       typedef EditTextNode NodeType;
       /** Two-way binding: user edits are written back to this state. */
-      loka::core::MutableState<loka::core::String> *text_;
+      scene::WriteSeat<loka::core::String> text_;
       int controlTag_;
       EditTextProps()
           : text_(0),
@@ -30,23 +30,23 @@ namespace loka
       {
       }
       EditTextProps(loka::core::MutableState<loka::core::String> *state)
-          : text_(state),
+          : text_(scene::WriteSeat<loka::core::String>(state)),
             controlTag_(0)
       {
       }
       EditTextProps(const scene::NodeState<loka::core::String> &state)
-          : text_(state.dangerouslyMutableState()),
+          : text_(state.writeSeat()),
             controlTag_(0)
       {
       }
       EditTextProps &text(loka::core::MutableState<loka::core::String> *state)
       {
-        this->text_ = state;
+        this->text_ = scene::WriteSeat<loka::core::String>(state);
         return *this;
       }
       EditTextProps &text(const scene::NodeState<loka::core::String> &state)
       {
-        this->text_ = state.dangerouslyMutableState();
+        this->text_ = state.writeSeat();
         return *this;
       }
       EditTextProps &controlTag(int tag)
@@ -61,8 +61,8 @@ namespace loka
         const EditTextProps &other = static_cast<const EditTextProps &>(rhs);
         if (controlTag_ != other.controlTag_)
           return controlTag_ < other.controlTag_;
-        if (text_ != other.text_)
-          return text_ < other.text_;
+        if (text_.state() != other.text_.state())
+          return text_.state() < other.text_.state();
         return false;
       }
     };
@@ -106,9 +106,9 @@ namespace loka
       }
       virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
       {
-        if (this->props.text_)
+        if (this->props.text_.isValid())
         {
-          registrar.markDirtyOnChange(this->props.text_, loka::app::scene::NODE_DIRTY_PROPS);
+          registrar.markDirtyOnChange(this->props.text_.state(), loka::app::scene::NODE_DIRTY_PROPS);
         }
       }
     };

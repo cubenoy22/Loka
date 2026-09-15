@@ -65,6 +65,7 @@ private:
   loka::app::PopupMenuNode *node_;
   HWND hwnd_;
   loka::core::State<int> *selectionState_;
+  loka::app::scene::WriteSeat<int> selectionSeat_;
   loka::core::State<bool> *enabledState_;
   loka::Vector<loka::core::String> appliedItems_;
   bool applyingFromState_;

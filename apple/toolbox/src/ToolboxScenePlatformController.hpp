@@ -92,6 +92,7 @@ public:
   void applyPopupSelectionChange(const Rect &rect,
                                  loka::app::scene::BoundaryNode *boundary,
                                  loka::core::State<int> *selectedIndex,
+                                 const loka::app::scene::WriteSeat<int> &selectedIndexSeat,
                                  loka::core::EmitterState *onChange,
                                  int newIndex);
   bool handleKeyDown(char key);
@@ -259,6 +260,7 @@ private:
   {
     ToolboxEditTextContext *ownerContext;
     loka::core::State<loka::core::String> *text;
+    loka::app::scene::WriteSeat<loka::core::String> textSeat;
     TEHandle te;
     Rect rect;
     bool usedThisFrame;

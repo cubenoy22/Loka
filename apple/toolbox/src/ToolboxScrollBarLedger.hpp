@@ -4,6 +4,7 @@
 #include "app/scene/projection/NativeHandlePool.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "core/State.hpp"
+#include "app/scene/state/WriteSeat.hpp"
 #include <Quickdraw.h>
 #include <Controls.h>
 #include <cstddef>
@@ -31,6 +32,7 @@ public:
     short resourceId;
     ControlRef control;
     loka::core::State<int> *value;
+    loka::app::scene::WriteSeat<int> valueSeat;
     loka::core::EmitterState *onChange;
     loka::core::State<bool> *enabled;
     int minimum;

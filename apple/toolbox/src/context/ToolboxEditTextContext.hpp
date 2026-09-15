@@ -66,6 +66,10 @@ public:
   {
     return text_;
   }
+  loka::app::scene::WriteSeat<loka::core::String> projectedWriteSeat() const
+  {
+    return this->node_ ? this->node_->props.text_ : loka::app::scene::WriteSeat<loka::core::String>();
+  }
   virtual void render(loka::app::scene::IPlatformController *controller);
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
 

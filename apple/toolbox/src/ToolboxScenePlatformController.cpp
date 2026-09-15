@@ -638,7 +638,7 @@ short ToolboxScenePlatformController::layoutScrollView(
   viewportRect.bottom = static_cast<short>(viewportBottom);
 
   const int requestedFact = scrollView->props.offset_.isValid()
-                                ? scrollView->props.offset_.get()
+                                ? scrollView->props.offset_.state()->get()
                                 : 0;
   int projectedOffset = requestedFact;
   if (projectedOffset < 0)
@@ -714,7 +714,7 @@ short ToolboxScenePlatformController::layoutScrollView(
         state.height, requestedFact);
     if (scrollView->props.offset_.isValid() &&
         ToolboxScrollViewShouldRepublish(
-            scrollView->props.offset_.get(), clampedOffset))
+            scrollView->props.offset_.state()->get(), clampedOffset))
     {
       // The NodeState door opens the ScrollView owner's tracker when idle.
       // Publish only after the projection-parent scope has popped.
@@ -1182,6 +1182,7 @@ void ToolboxScenePlatformController::refreshContextProps(loka::app::scene::Node 
       EditTextControlBinding &binding = this->editControls_[editIndex];
       previousText = binding.text;
       binding.text = context->projectedTextState();
+      binding.textSeat = static_cast<ToolboxEditTextContext *>(context)->projectedWriteSeat();
       liveText = binding.text;
       if (previousText != liveText)
         this->syncEditTextFromState(binding);
@@ -1521,16 +1522,11 @@ bool ToolboxScenePlatformController::handleKeyDown(char key)
 void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
                                                                loka::app::scene::BoundaryNode *boundary,
                                                                loka::core::State<int> *selectedIndex,
+                                                               const loka::app::scene::WriteSeat<int> &selectedIndexSeat,
                                                                loka::core::EmitterState *onChange,
                                                                int newIndex)
 {
   if (!selectedIndex)
-  {
-    return;
-  }
-  loka::core::MutableState<int> *mutableIndex =
-      static_cast<loka::core::MutableState<int> *>(selectedIndex->asMutableState());
-  if (!mutableIndex)
   {
     return;
   }
@@ -1540,7 +1536,7 @@ void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
     // Settle before onChange: the guard's end is what publishes derived
     // states that read the selection.
     loka::core::StateTrackerGuard _(boundary ? boundary->tracker() : 0);
-    mutableIndex->set(newIndex, true);
+    selectedIndexSeat.set(newIndex, true);
   }
   if (onChange)
   {
@@ -1552,12 +1548,6 @@ void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
 bool ToolboxScenePlatformController::handleTextKey(char key)
 {
   if (!focusedText_)
-  {
-    return false;
-  }
-  loka::core::MutableState<loka::core::String> *mutableText =
-      static_cast<loka::core::MutableState<loka::core::String> *>(focusedText_->asMutableState());
-  if (!mutableText)
   {
     return false;
   }
@@ -1593,7 +1583,10 @@ bool ToolboxScenePlatformController::handleTextKey(char key)
     }
   }
   loka::core::StateTrackerGuard _(boundary ? boundary->tracker() : 0);
-  mutableText->set(loka::core::String(utf8));
+  EditTextControlBinding *focusedEdit = editControls_.focused();
+  if (!focusedEdit)
+    return false;
+  focusedEdit->textSeat.set(loka::core::String(utf8));
   return true;
 }
 
@@ -2575,6 +2568,7 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(ToolboxEditTextCo
     binding = &editControls_[bindingIndex];
     previousText = binding->text;
     binding->text = text;
+    binding->textSeat = ownerContext->projectedWriteSeat();
   }
   if (!binding)
   {
@@ -2650,6 +2644,7 @@ void ToolboxScenePlatformController::retireEditTextBinding(
     queueRetiredTextEdit(binding.te, lifetimeHint);
     binding.te = 0;
   }
+  binding.textSeat = loka::app::scene::WriteSeat<loka::core::String>();
 }
 
 void ToolboxScenePlatformController::retireEditTextControlAt(
@@ -2758,12 +2753,6 @@ void ToolboxScenePlatformController::updateStateFromEdit(EditTextControlBinding 
   {
     return;
   }
-  loka::core::MutableState<loka::core::String> *mutableText =
-      static_cast<loka::core::MutableState<loka::core::String> *>(binding.text->asMutableState());
-  if (!mutableText)
-  {
-    return;
-  }
   CharsHandle textHandle = TEGetText(binding.te);
   long length = 0;
   if (binding.te && *binding.te)
@@ -2785,7 +2774,7 @@ void ToolboxScenePlatformController::updateStateFromEdit(EditTextControlBinding 
   // State notification fans out to every binding. Mark the typing source
   // current first so its sync is a no-op and preserves the active selection.
   binding.lastText = utf8;
-  mutableText->set(loka::core::String(utf8));
+  binding.textSeat.set(loka::core::String(utf8));
 }
 
 void ToolboxScenePlatformController::drawControlsInRect(const Rect &rect)

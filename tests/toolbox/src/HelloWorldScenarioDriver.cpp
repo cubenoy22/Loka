@@ -140,8 +140,8 @@ namespace loka
         ToolboxEditTextContext *editContext =
             heightInput ? static_cast<ToolboxEditTextContext *>(heightInput->getContext()) : 0;
         core::MutableState<core::String> *heightState =
-            heightInput && heightInput->props.text_
-                ? static_cast<core::MutableState<core::String> *>(heightInput->props.text_->asMutableState())
+            heightInput && heightInput->props.text_.isValid()
+                ? static_cast<core::MutableState<core::String> *>(heightInput->props.text_.state()->asMutableState())
                 : 0;
         app::scene::BoundaryNode *rootBoundary =
             dsl::testing::SceneTestAccess::rootBoundary(*window->scene());

@@ -179,11 +179,12 @@ bool ToolboxScenePlatformController::ensureScrollBarControl(short resourceId,
   {
     return true;
   }
-  binding->value = props.value_;
+  binding->value = props.value_.state();
+  binding->valueSeat = props.value_;
   binding->onChange = props.onChange_;
   binding->enabled = props.enabled_;
   bindEnabledState(props.enabled_);
-  const int bound = props.value_ ? props.value_->get() : props.min_;
+  const int bound = props.value_.isValid() ? props.value_.state()->get() : props.min_;
   const int shown = loka::app::ScrollBarClampValue(bound, props.min_, props.max_);
   SetControlValue(binding->control, static_cast<short>(shown));
   binding->appliedValue = shown;
@@ -211,6 +212,7 @@ void ToolboxScenePlatformController::destroyScrollBarControl(short resourceId,
     loka::core::State<bool> *enabled = binding.enabled;
     binding.control = 0;
     binding.value = 0;
+    binding.valueSeat = loka::app::scene::WriteSeat<int>();
     binding.onChange = 0;
     binding.enabled = 0;
     scrollBarLedger_.scrollBarControls_.erase(scrollBarLedger_.scrollBarControls_.begin() + i);
@@ -339,12 +341,6 @@ void ToolboxScenePlatformController::commitScrollBarValueAt(std::size_t index)
     // deliberately abandoned.
     return;
   }
-  loka::core::MutableState<int> *mutableValue =
-      static_cast<loka::core::MutableState<int> *>(binding.value->asMutableState());
-  if (!mutableValue)
-  {
-    return;
-  }
   // Copy out before the batch: publishing re-enters projection, which can
   // reallocate scrollBarControls_ underneath this reference.
   const Rect rect = binding.rect;
@@ -361,7 +357,7 @@ void ToolboxScenePlatformController::commitScrollBarValueAt(std::size_t index)
     loka::core::StateTrackerGuard _(window_ ? window_->getTracker() : 0);
     // Order is the contract (ruling 1): the binding holds the settled value
     // before any handler runs.
-    mutableValue->set(settled, true);
+    binding.valueSeat.set(settled, true);
     if (onChange)
     {
       onChange->emit();
