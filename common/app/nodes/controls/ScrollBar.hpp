@@ -4,6 +4,7 @@
 #include "core/State.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/state/NodeState.hpp"
+#include "app/scene/state/WriteSeat.hpp"
 
 namespace loka
 {
@@ -100,8 +101,8 @@ namespace loka
       {
       }
 
-      explicit ScrollBarProps(loka::core::MutableState<int> *value)
-          : value_(loka::app::scene::WriteSeat<int>(value)),
+      explicit ScrollBarProps(const loka::app::scene::WriteSeat<int> &value)
+          : value_(value),
             min_(0),
             max_(0),
             orientation_(SCROLL_BAR_VERTICAL),
@@ -126,9 +127,9 @@ namespace loka
       {
       }
 
-      ScrollBarProps &value(loka::core::MutableState<int> *value)
+      ScrollBarProps &value(const loka::app::scene::WriteSeat<int> &value)
       {
-        this->value_ = loka::app::scene::WriteSeat<int>(value);
+        this->value_ = value;
         return *this;
       }
 
@@ -302,7 +303,7 @@ namespace loka
           : loka::app::scene::NodeDefinition<ScrollBarProps, ScrollBarNode>(p)
       {
       }
-      explicit ScrollBarDefinition(loka::core::MutableState<int> *value)
+      explicit ScrollBarDefinition(const loka::app::scene::WriteSeat<int> &value)
           : loka::app::scene::NodeDefinition<ScrollBarProps, ScrollBarNode>(ScrollBarProps(value))
       {
       }
@@ -311,7 +312,7 @@ namespace loka
       {
       }
 
-      ScrollBarDefinition &value(loka::core::MutableState<int> *value)
+      ScrollBarDefinition &value(const loka::app::scene::WriteSeat<int> &value)
       {
         this->props.value(value);
         return *this;

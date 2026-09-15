@@ -7,6 +7,7 @@
 #include "core/Vector.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/state/NodeState.hpp"
+#include "app/scene/state/WriteSeat.hpp"
 
 namespace loka
 {
@@ -115,9 +116,9 @@ namespace loka
         return *this;
       }
 
-      PopupMenuProps &selectedIndex(loka::core::MutableState<int> *index)
+      PopupMenuProps &selectedIndex(const scene::WriteSeat<int> &index)
       {
-        this->selectedIndex_ = scene::WriteSeat<int>(index);
+        this->selectedIndex_ = index;
         return *this;
       }
 
@@ -318,7 +319,7 @@ namespace loka
         return *this;
       }
 
-      PopupMenuDefinition &selectedIndex(loka::core::MutableState<int> *index)
+      PopupMenuDefinition &selectedIndex(const loka::app::scene::WriteSeat<int> &index)
       {
         this->props.selectedIndex(index);
         return *this;
