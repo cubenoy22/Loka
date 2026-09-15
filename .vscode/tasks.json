@@ -1219,6 +1219,46 @@
       "problemMatcher": []
     },
     {
+      "label": "Prepare Boot Disk: All Apps",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-boot-disk.sh",
+      "args": [
+        "--all"
+      ],
+      "windows": {
+        "command": "powershell.exe",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-boot-disk.ps1",
+          "-All"
+        ]
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Prepare Boot Disk: HelloWorld",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-boot-disk.sh",
+      "args": [
+        "${workspaceFolder}/build/retro68/68k/Release/example/HelloWorld/LokaHello68K.bin"
+      ],
+      "windows": {
+        "command": "powershell.exe",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-boot-disk.ps1",
+          "build/retro68/68k/Release/example/HelloWorld/LokaHello68K.bin"
+        ]
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "MAME: Start",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-run.sh",
@@ -1384,6 +1424,26 @@
       "dependsOn": [
         "Stage: Toolbox 68K Standalone Flow Release",
         "Prepare SCSI Dev Disk: Scrapbook Standalone Flow",
+        "MAME: Start"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Start in MAME via Copied Boot.hd: All Apps",
+      "dependsOn": [
+        "Build: Retro68 68K",
+        "Prepare Boot Disk: All Apps",
+        "MAME: Start"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Start in MAME via Copied Boot.hd: HelloWorld",
+      "dependsOn": [
+        "Build: Retro68 68K HelloWorld",
+        "Prepare Boot Disk: HelloWorld",
         "MAME: Start"
       ],
       "dependsOrder": "sequence",

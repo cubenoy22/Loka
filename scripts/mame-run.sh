@@ -50,6 +50,9 @@ MAME_CONTROL_DIR="${MAME_CONTROL_DIR:-$MAME_HOMEPATH/loka}"
 MAME_DEV_HDA="${MAME_DEV_HDA:-$PROJECT_DIR/build/mame-dev/LokaDev.hd}"
 MAME_BOOT_HDA="${MAME_BOOT_HDA:-$PROJECT_DIR/build/mame-run/$MAME_MACHINE/Boot.hd}"
 
+# shellcheck source=mame-boot-copy.sh
+. "$SCRIPT_DIR/mame-boot-copy.sh"
+
 mkdir -p "$MAME_HOMEPATH" "$MAME_CONTROL_DIR"
 
 # MAME writes back to whatever it boots, so never hand it MAME_HDA itself: that
@@ -58,114 +61,7 @@ mkdir -p "$MAME_HOMEPATH" "$MAME_CONTROL_DIR"
 # mame-debug.sh uses. The copy persists so an interactive session keeps its
 # state; wiping build/ resets it to the template.
 if [ -n "$MAME_HDA" ]; then
-  if [ ! -f "$MAME_HDA" ]; then
-    echo "boot hard disk template not found: $MAME_HDA" >&2
-    exit 1
-  fi
-  mkdir -p "$(dirname "$MAME_BOOT_HDA")"
-  # An alias defeats the whole point: the existence check would pass and -hard1
-  # would name the template after all. -ef compares device and inode, so a
-  # symlink or hard link is caught as well as the same path spelled twice.
-  if [ -e "$MAME_BOOT_HDA" ] && [ "$MAME_BOOT_HDA" -ef "$MAME_HDA" ]; then
-    echo "MAME_BOOT_HDA resolves to the boot template itself: $MAME_BOOT_HDA" >&2
-    exit 1
-  fi
-  # Format and refresh policy deliberately mirror mame-run.ps1: UTF-8, no
-  # BOM, LF-terminated resolved path and lowercase SHA-256. Hash every launch.
-  # Comparison is deliberately host-specific: exact here on Linux; the Windows
-  # twin compares SHA first, then normalised paths case-insensitively.
-  TEMPLATE_PATH="$(cd "$(dirname "$MAME_HDA")" && pwd -P)/$(basename "$MAME_HDA")"
-  while [ -L "$TEMPLATE_PATH" ]; do
-    TARGET="$(readlink "$TEMPLATE_PATH")"
-    case "$TARGET" in
-      /*) TEMPLATE_PATH="$TARGET" ;;
-      *) TEMPLATE_PATH="$(dirname "$TEMPLATE_PATH")/$TARGET" ;;
-    esac
-    TEMPLATE_PATH="$(cd "$(dirname "$TEMPLATE_PATH")" && pwd -P)/$(basename "$TEMPLATE_PATH")"
-  done
-  if command -v sha256sum >/dev/null 2>&1; then
-    TEMPLATE_SHA="$(sha256sum < "$TEMPLATE_PATH" | cut -d' ' -f1)"
-  else
-    TEMPLATE_SHA="$(shasum -a 256 < "$TEMPLATE_PATH" | cut -d' ' -f1)"
-  fi
-  SOURCE="$MAME_BOOT_HDA.source"
-  OLD_PATH=""
-  if [ -f "$SOURCE" ]; then
-    { IFS= read -r OLD_PATH || true; } < "$SOURCE"
-  fi
-  # Keep rollback files until both new files have been published. Refuse
-  # leftovers from an interrupted process rather than overwrite its recovery.
-  if [ -e "$MAME_BOOT_HDA.previous" ] || [ -e "$SOURCE.previous" ] ||
-     [ -d "$MAME_BOOT_HDA" ] || [ -d "$SOURCE" ]; then
-    echo 'boot copy: refresh failed (destination or recovery path needs attention)' >&2
-    exit 1
-  fi
-  REASON=""
-  if [ ! -f "$MAME_BOOT_HDA" ]; then
-    REASON="copy missing"
-  elif [ ! -f "$SOURCE" ]; then
-    REASON="source missing"
-  elif ! printf '%s\n%s\n' "$TEMPLATE_PATH" "$TEMPLATE_SHA" | cmp -s - "$SOURCE"; then
-    REASON="template changed: $OLD_PATH → $TEMPLATE_PATH"
-  fi
-  if [ -n "$REASON" ]; then
-    (
-      PHASE=staging
-      finish_boot_copy() {
-        status=$?
-        trap - EXIT
-        if [ "$status" -ne 0 ]; then
-          if [ -e "$MAME_BOOT_HDA.previous" ]; then
-            mv -f "$MAME_BOOT_HDA.previous" "$MAME_BOOT_HDA" || {
-              echo 'boot copy: refresh failed (rollback failed; recovery files retained)' >&2
-              exit 1
-            }
-          elif [ "$PHASE" = installed ] || [ "$PHASE" = published ]; then
-            rm -f "$MAME_BOOT_HDA" || exit 1
-          fi
-          if [ "$PHASE" = published ]; then
-            if [ -f "$SOURCE.previous" ]; then
-              mv -f "$SOURCE.previous" "$SOURCE" || exit 1
-            else
-              rm -f "$SOURCE" || exit 1
-            fi
-          fi
-          if [ "$PHASE" = staging ]; then
-            echo 'boot copy: refresh failed (previous copy unchanged)' >&2
-          else
-            echo 'boot copy: refresh failed (previous copy restored)' >&2
-          fi
-        fi
-        rm -f "$MAME_BOOT_HDA.partial" "$SOURCE.partial" "$SOURCE.previous"
-        exit "$status"
-      }
-      trap finish_boot_copy EXIT
-      printf '%s\n%s\n' "$TEMPLATE_PATH" "$TEMPLATE_SHA" > "$SOURCE.partial"
-      cp -f "$TEMPLATE_PATH" "$MAME_BOOT_HDA.partial"
-      if [ -f "$SOURCE" ]; then cp -f "$SOURCE" "$SOURCE.previous"; fi
-      if [ -e "$MAME_BOOT_HDA" ]; then
-        mv -f "$MAME_BOOT_HDA" "$MAME_BOOT_HDA.previous"
-      fi
-      PHASE=backed-up
-      mv -f "$MAME_BOOT_HDA.partial" "$MAME_BOOT_HDA"
-      PHASE=installed
-      mv -f "$SOURCE.partial" "$SOURCE"
-      PHASE=published
-      rm -f "$MAME_BOOT_HDA.previous"
-      PHASE=complete
-    )
-    printf 'boot copy: refreshed (%s)\n' "$REASON"
-  else
-    echo 'boot copy: reused (same template)'
-  fi
-  # Unconditional, not part of the copy: a copy this run did not make can be
-  # read-only too -- one an earlier launcher left behind, or one restored from
-  # a read-only source. MAME needs to write to it either way, and normalising
-  # the mode leaves the persisted session state untouched.
-  if ! chmod u+w "$MAME_BOOT_HDA"; then
-    echo "could not make the boot hard disk copy writable: $MAME_BOOT_HDA" >&2
-    exit 1
-  fi
+  loka_prepare_boot_copy "$MAME_HDA" "$MAME_BOOT_HDA"
 fi
 # Keep launcher policy aligned with mame-run.ps1; only shell mechanics differ.
 MAME_ARGS=(
