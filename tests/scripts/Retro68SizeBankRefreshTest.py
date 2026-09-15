@@ -56,6 +56,15 @@ class SizeBankRefreshTest(unittest.TestCase):
         self.assertEqual(self.run_tool("--check-headroom", "1024")[0], 1)
         self.assertEqual(self.path.read_bytes(), self.original)
 
+    def test_refresh_skips_an_absent_optional_artifact(self):
+        self.baseline["artifacts"].append({
+            "name": "Optional68K", "path": "example/Optional68K.bin", "optional": True,
+            "baseline": {"total": 512, "CODE": 4, "DATA": 4, "RELA": 4},
+        })
+        self.path.write_text(json.dumps(self.baseline))
+        with mock.patch.object(refresh, "git", side_effect=["b" * 40, ""]):
+            self.assertEqual(self.run_tool()[0], 0)
+
     def test_refresh_identity_and_all_four_measurements(self):
         body = self.root / "body.md"
         with mock.patch.object(refresh, "git", side_effect=["b" * 40,

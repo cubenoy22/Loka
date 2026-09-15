@@ -2,7 +2,7 @@
   "schema_version": 1,
   "identity": {
     "ci_interfaces": "multiversal",
-    "component_reference": "Multiversal Interfaces build (main a8f67034 full Release refresh; accumulated #698, #699, #701, #702, #703 since the previous cc55e846 identity)",
+    "component_reference": "Multiversal Interfaces build (main a8f67034 full Release refresh; accumulated #698, #699, #701, #702, #703 since the previous cc55e846 identity); LokaSmirkyCard68K is opt-in.",
     "preset": "retro68-68k-release",
     "source_commit": "a8f670342d59236cfdaa994c18b70a16bd2b42c8"
   },
@@ -89,6 +89,17 @@
         "CODE": 253612,
         "DATA": 16228,
         "RELA": 10677
+      }
+    },
+    {
+      "name": "LokaSmirkyCard68K",
+      "path": "example/SmirkyCard/LokaSmirkyCard68K.bin",
+      "optional": true,
+      "baseline": {
+        "total": 893952,
+        "CODE": 766016,
+        "DATA": 98508,
+        "RELA": 28491
       }
     }
   ]

@@ -25,7 +25,9 @@ def measure(build_root, baseline):
     measurements = []
     for artifact in baseline["artifacts"]:
         path = build_root / artifact["path"]
-        measurements.append(size_report.artifact_sizes(path))
+        if artifact.get("optional") and not path.is_file():
+            continue
+        measurements.append((artifact, size_report.artifact_sizes(path)))
     return measurements
 
 
@@ -33,7 +35,7 @@ def verify_zero(build_root, baseline):
     """The ordinary gate allows growth; a refreshed bank must match exactly."""
     if size_report.report(build_root, baseline) != 0 or any(
         current != artifact["baseline"]
-        for artifact, current in zip(baseline["artifacts"], measure(build_root, baseline))
+        for artifact, current in measure(build_root, baseline)
     ):
         raise size_report.SizeReportError("refreshed bank has non-zero deltas")
 
@@ -69,7 +71,11 @@ def refresh(build_root, baseline_path, baseline, body_path):
         "| App | Old bank | Measured (new bank) | Delta absorbed |",
         "|---|---:|---:|---:|",
     ]
-    for artifact, current in zip(candidate["artifacts"], measure(build_root, baseline)):
+    candidate_by_path = dict((artifact["path"], artifact)
+                             for artifact in candidate["artifacts"])
+    measurements = measure(build_root, baseline)
+    for artifact, current in measurements:
+        artifact = candidate_by_path[artifact["path"]]
         old_total = artifact["baseline"]["total"]
         lines.append("| %s | %d | %d | %+d |" % (
             artifact["name"], old_total, current["total"], current["total"] - old_total
@@ -87,7 +93,7 @@ def refresh(build_root, baseline_path, baseline, body_path):
         "", "All %d banked `*_APPL` targets rebuilt with `retro68-68k-release`; "
         "all %d total/CODE/DATA/RELA deltas are zero. Schema, artifact paths, "
         "and the per-PR bands and %s B cumulative limit are unchanged." % (
-            len(candidate["artifacts"]), len(candidate["artifacts"]) * 4,
+            len(measurements), len(measurements) * 4,
             format(baseline["cumulative_stop_bytes"], ",")),
         "", "Automation uses `GITHUB_TOKEN` with `contents: write` and "
         "`pull-requests: write`. If PR creation is blocked, enable repository "
@@ -104,7 +110,7 @@ def refresh(build_root, baseline_path, baseline, body_path):
 
 def check_headroom(build_root, baseline, threshold):
     rows = []
-    for artifact, current in zip(baseline["artifacts"], measure(build_root, baseline)):
+    for artifact, current in measure(build_root, baseline):
         remaining = baseline["cumulative_stop_bytes"] - size_report.growth_bytes(current, artifact["baseline"])
         if remaining < threshold:
             rows.append("| %s | %d |" % (artifact["name"], remaining))

@@ -32,8 +32,17 @@ SmirkyScript *SmirkyScriptCreate(void)
     free(script);
     return NULL;
   }
+#if defined(LOKA_RETRO68)
+  /* Classic budget from the 68K engine probe on an 8 MB IIx (2026-09-15):
+     S2 (200 objects, JSON round trip, closures) peaked at 291 KB of
+     allocator payload, so 1 MiB leaves room for real card scripts; the
+     32 KiB JS stack reached recursion depth 79 and 64 KiB reached 162. */
+  JS_SetMemoryLimit(script->runtime, 1 * 1024 * 1024);
+  JS_SetMaxStackSize(script->runtime, 64 * 1024);
+#else
   JS_SetMemoryLimit(script->runtime, 8 * 1024 * 1024);
   JS_SetMaxStackSize(script->runtime, 256 * 1024);
+#endif
   script->context = JS_NewContext(script->runtime);
   if (!script->context)
   {
