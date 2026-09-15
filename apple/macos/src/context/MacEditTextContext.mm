@@ -196,7 +196,8 @@ void MacEditTextContext::bindText()
   {
     return;
   }
-  textState_ = static_cast<loka::core::State<loka::core::String> *>(node_->props.text_);
+  textState_ = node_->props.text_.state();
+  textSeat_ = node_->props.text_;
   if (textState_)
   {
     textState_->deferBind(&MacEditTextContext::TextChangedThunk, this);
@@ -210,6 +211,7 @@ void MacEditTextContext::unbindText()
   {
     textState_->deferUnbind(&MacEditTextContext::TextChangedThunk, this);
     textState_ = 0;
+    textSeat_ = loka::app::scene::WriteSeat<loka::core::String>();
   }
 }
 
@@ -246,16 +248,10 @@ void MacEditTextContext::syncStateFromControl()
   {
     return;
   }
-  loka::core::MutableState<loka::core::String> *mutableState =
-      dynamic_cast<loka::core::MutableState<loka::core::String> *>(textState_);
-  if (!mutableState)
-  {
-    return;
-  }
   updatingFromControl_ = true;
   std::string utf8 = loka::macos::Utf8FromNSString([field stringValue]);
   loka::core::StateTrackerGuard _(this->boundary() ? this->boundary()->tracker() : 0);
-  mutableState->set(loka::core::String(utf8), true);
+  textSeat_.set(loka::core::String(utf8), true);
   updatingFromControl_ = false;
 }
 

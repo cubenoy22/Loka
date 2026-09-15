@@ -29,6 +29,7 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/RowWidthConsultationTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/HelloWorldResponsiveTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/SimpleViewerResponsiveTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/WriteSeatTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/PropsReconciliationTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/PaintContractTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/PaintBaselineTests.cpp

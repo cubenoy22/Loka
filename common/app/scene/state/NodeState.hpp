@@ -5,6 +5,7 @@
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
 #include "app/scene/state/StateOwner.hpp"
+#include "app/scene/state/WriteSeat.hpp"
 
 namespace loka
 {
@@ -136,6 +137,10 @@ namespace loka
         {
           return state_;
         }
+        WriteSeat<T> writeSeat() const
+        {
+          return WriteSeat<T>(state_, tracker_);
+        }
         loka::core::StateTracker *dangerouslyTracker() const
         {
           return tracker_;
@@ -158,14 +163,7 @@ namespace loka
         void set(const T &value, bool forceUpdate = false)
         {
           assert(state_ && "NodeState::set requires a state");
-          if (tracker_ && tracker_->phase() == loka::core::TRACKER_IDLE)
-          {
-            tracker_->begin();
-            state_->set(value, forceUpdate);
-            tracker_->end();
-            return;
-          }
-          state_->set(value, forceUpdate);
+          this->writeSeat().set(value, forceUpdate);
         }
 
         void bind(typename loka::core::State<T>::OnChangeFn cb,
