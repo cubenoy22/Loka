@@ -405,9 +405,24 @@ namespace smirkycard
       return 0;
     }
     loka::app::scene::NodeDefinitionBase *out = 0;
-    if (kind == 1)
+    if (kind == 1 || kind == 5)
     {
-      VStack *stack = new (std::nothrow) VStack();
+      // 1 = VStack, 5 = Row: both are nestable Stack definitions. Keep the
+      // definition and its nestable face as two views of the same object.
+      loka::app::scene::NodeDefinitionBase *stack = 0;
+      loka::app::scene::INestableDefinition *nest = 0;
+      if (kind == 1)
+      {
+        VStack *column = new (std::nothrow) VStack();
+        stack = column;
+        nest = column;
+      }
+      else
+      {
+        Row *row = new (std::nothrow) Row();
+        stack = row;
+        nest = row;
+      }
       if (!stack)
       {
         fail("Could not allocate JavaScript tree.");
@@ -419,7 +434,7 @@ namespace smirkycard
       {
         JS_FreeValue(ctx, children);
         delete stack;
-        fail("JavaScript VStack has invalid children.");
+        fail("JavaScript stack has invalid children.");
         return 0;
       }
       for (uint32_t i = 0; i < static_cast<uint32_t>(length); ++i)
@@ -433,7 +448,7 @@ namespace smirkycard
           delete stack;
           return 0;
         }
-        stack->addOwnedChild(definition);
+        nest->addOwnedChild(definition);
       }
       JS_FreeValue(ctx, children);
       out = stack;

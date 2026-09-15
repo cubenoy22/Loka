@@ -46,6 +46,8 @@ namespace smirkycard
         JS_SetPropertyStr(
             this->context(), global, "VStack", JS_NewCFunction(this->context(), &ScriptRuntime::vstack, "VStack", 1));
         JS_SetPropertyStr(
+            this->context(), global, "Row", JS_NewCFunction(this->context(), &ScriptRuntime::row, "Row", 1));
+        JS_SetPropertyStr(
             this->context(), global, "Text", JS_NewCFunction(this->context(), &ScriptRuntime::text, "Text", 1));
         JS_SetPropertyStr(this->context(),
                           global,
@@ -149,6 +151,7 @@ namespace smirkycard
     static JSValue card(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     static JSValue state(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     static JSValue vstack(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
+    static JSValue row(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     static JSValue text(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     static JSValue editText(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     static JSValue button(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);

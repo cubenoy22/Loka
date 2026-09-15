@@ -40,12 +40,14 @@ namespace smirkycard
            "      Text('Card Two').TEST_ID('SmirkyCard.Title'),\n"
            "      Text('This Scene is defined in JavaScript.'),\n"
            "      EditText(this.script).TEST_ID('SmirkyCard.Script'),\n"
-           "      Button('Run', () => {\n"
-           "        try { this.result.set(String(eval(this.script.get()))); }\n"
-           "        catch (e) { this.result.set('Error: ' + e); }\n"
-           "      }).TEST_ID('SmirkyCard.RunScript'),\n"
-           "      Text(this.result).TEST_ID('SmirkyCard.Result'),\n"
-           "      Button('Run JavaScript', () => go('first')).TEST_ID('SmirkyCard.Run'),\n"
+           "      Row(\n"
+           "        Button('Run', () => {\n"
+           "          try { this.result.set(String(eval(this.script.get()))); }\n"
+           "          catch (e) { this.result.set('Error: ' + e); }\n"
+           "        }).TEST_ID('SmirkyCard.RunScript'),\n"
+           "        Text(this.result).TEST_ID('SmirkyCard.Result'),\n"
+           "        Button('Run JavaScript', () => go('first')).TEST_ID('SmirkyCard.Run')\n"
+           "      ),\n"
            "      Text(this.error).TEST_ID('SmirkyCard.Status')\n"
            "    );\n"
            "  }\n"
@@ -59,7 +61,8 @@ namespace smirkycard
       JS_TREE_VSTACK = 1,
       JS_TREE_TEXT,
       JS_TREE_EDIT_TEXT,
-      JS_TREE_BUTTON
+      JS_TREE_BUTTON,
+      JS_TREE_ROW = 5
     };
     JSValue newTree(JSContext *ctx, int kind)
     {
@@ -242,35 +245,47 @@ namespace smirkycard
     return self->active()->setComposeTree(ctx, argv[0]) ? JS_UNDEFINED : JS_EXCEPTION;
   }
 
+  namespace
+  {
+    JSValue newStackTree(JSContext *ctx, int kind, const char *name, int argc, JSValueConst *argv)
+    {
+      if (argc > 16)
+        return JS_ThrowRangeError(ctx, "%s accepts at most 16 children", name);
+      JSValue node = newTree(ctx, kind);
+      JSValue children = JS_NewArray(ctx);
+      for (int i = 0; i < argc; ++i)
+      {
+        JSValue childKind;
+        if (!JS_IsObject(argv[i]) || JS_IsArray(argv[i]))
+        {
+          JS_FreeValue(ctx, children);
+          JS_FreeValue(ctx, node);
+          return JS_ThrowTypeError(ctx, "%s children must be tree nodes, not arrays", name);
+        }
+        childKind = JS_GetPropertyStr(ctx, argv[i], "kind");
+        if (!JS_IsNumber(childKind))
+        {
+          JS_FreeValue(ctx, childKind);
+          JS_FreeValue(ctx, children);
+          JS_FreeValue(ctx, node);
+          return JS_ThrowTypeError(ctx, "%s children must be tree nodes", name);
+        }
+        JS_FreeValue(ctx, childKind);
+        JS_SetPropertyUint32(ctx, children, static_cast<uint32_t>(i), JS_DupValue(ctx, argv[i]));
+      }
+      JS_SetPropertyStr(ctx, node, "children", children);
+      JS_FreezeObject(ctx, node);
+      return node;
+    }
+  } // namespace
+
   JSValue ScriptRuntime::vstack(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv)
   {
-    if (argc > 16)
-      return JS_ThrowRangeError(ctx, "VStack accepts at most 16 children");
-    JSValue node = newTree(ctx, JS_TREE_VSTACK);
-    JSValue children = JS_NewArray(ctx);
-    for (int i = 0; i < argc; ++i)
-    {
-      JSValue kind;
-      if (!JS_IsObject(argv[i]) || JS_IsArray(argv[i]))
-      {
-        JS_FreeValue(ctx, children);
-        JS_FreeValue(ctx, node);
-        return JS_ThrowTypeError(ctx, "VStack children must be tree nodes, not arrays");
-      }
-      kind = JS_GetPropertyStr(ctx, argv[i], "kind");
-      if (!JS_IsNumber(kind))
-      {
-        JS_FreeValue(ctx, kind);
-        JS_FreeValue(ctx, children);
-        JS_FreeValue(ctx, node);
-        return JS_ThrowTypeError(ctx, "VStack children must be tree nodes");
-      }
-      JS_FreeValue(ctx, kind);
-      JS_SetPropertyUint32(ctx, children, static_cast<uint32_t>(i), JS_DupValue(ctx, argv[i]));
-    }
-    JS_SetPropertyStr(ctx, node, "children", children);
-    JS_FreezeObject(ctx, node);
-    return node;
+    return newStackTree(ctx, JS_TREE_VSTACK, "VStack", argc, argv);
+  }
+  JSValue ScriptRuntime::row(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv)
+  {
+    return newStackTree(ctx, JS_TREE_ROW, "Row", argc, argv);
   }
   JSValue ScriptRuntime::text(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv)
   {
