@@ -482,6 +482,19 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Configure: Retro68 68K SmirkyCard",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
+      "args": [
+        "--preset",
+        "retro68-68k-release",
+        "-DLOKA_BUILD_SMIRKYCARD=ON"
+      ],
+      "detail": "In WSL, add -DFETCHCONTENT_SOURCE_DIR_SMIRKYCARD_QUICKJS=<path> when FetchContent cannot download QuickJS.",
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Build: Retro68 68K",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
@@ -628,6 +641,23 @@
       ],
       "dependsOn": [
         "Configure: Retro68 68K"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Build: Retro68 68K SmirkyCard",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
+      "args": [
+        "--build",
+        "--preset",
+        "retro68-68k-release",
+        "--target",
+        "LokaSmirkyCard68K_APPL"
+      ],
+      "dependsOn": [
+        "Configure: Retro68 68K SmirkyCard"
       ],
       "group": "build",
       "problemMatcher": "$gcc"
@@ -925,6 +955,26 @@
           "-File",
           "scripts/mame-dev-disk.ps1",
           "build/retro68/68k/Release/example/HelloWorld/LokaHello68K.bin"
+        ]
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Prepare SCSI Dev Disk: SmirkyCard",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
+      "args": [
+        "${workspaceFolder}/build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin"
+      ],
+      "windows": {
+        "command": "powershell.exe",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-dev-disk.ps1",
+          "build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin"
         ]
       },
       "problemMatcher": []
@@ -1284,6 +1334,16 @@
       "dependsOn": [
         "Build: Retro68 68K HelloWorld",
         "Prepare SCSI Dev Disk: HelloWorld",
+        "MAME: Start"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Start in MAME via SCSI: SmirkyCard",
+      "dependsOn": [
+        "Build: Retro68 68K SmirkyCard",
+        "Prepare SCSI Dev Disk: SmirkyCard",
         "MAME: Start"
       ],
       "dependsOrder": "sequence",
