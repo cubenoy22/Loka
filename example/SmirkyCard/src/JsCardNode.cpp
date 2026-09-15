@@ -298,9 +298,17 @@ namespace smirkycard
       fail("go() requires first or second.");
       return;
     }
+    CardScene *scene = static_cast<CardScene *>(this->scene());
+    if (!scene)
+    {
+      // The detach line clears the scene before detachNode runs, so go()
+      // from onDetach has nowhere to hand the next card.
+      fail("go() is unavailable while the card is detaching.");
+      return;
+    }
     CardScene *next = CreateCard(card, *props.runtime);
     if (next)
-      static_cast<CardScene *>(this->scene())->replaceWith(next);
+      scene->replaceWith(next);
     else
       fail("Could not create the next card.");
   }
@@ -315,13 +323,13 @@ namespace smirkycard
     t.action(emitters_[6], this, &JsCardNode::fire6);
     t.action(emitters_[7], this, &JsCardNode::fire7);
   }
-  void JsCardNode::onLifecycleFactChanged(loka::app::scene::NodeLifecycleFact previous,
-                                          loka::app::scene::NodeLifecycleFact next)
+  // The card hooks ride the root boundary's own attach/detach doors
+  // (ComponentNode::composeWithContext -> attachNode/detachNode), which every
+  // path reaches: first mount, Scene::updateAttached, unmount and the
+  // SceneManager switch. The lifecycle fact is not that door: a root starts
+  // ATTACHED and teardown marks it RETIRED directly.
+  void JsCardNode::callHook(JSValueConst hook)
   {
-    (void)previous;
-    JSValue hook = next == loka::app::scene::NODE_FACT_ATTACHED            ? onAttach_
-                   : next == loka::app::scene::NODE_FACT_DETACHED_RETAINED ? onDetach_
-                                                                           : JS_UNDEFINED;
     if (!JS_IsFunction(props.runtime->context(), hook))
       return;
     loka::core::String error;
@@ -331,6 +339,17 @@ namespace smirkycard
       error_.set(error);
     props.runtime->setActive(0);
     JS_FreeValue(props.runtime->context(), result);
+  }
+  void JsCardNode::attachNode(loka::app::scene::NodeComposition &composition)
+  {
+    StdCompositionBoundaryNodeBase<JsCardProps>::attachNode(composition);
+    callHook(onAttach_);
+  }
+  void JsCardNode::detachNode(loka::app::scene::NodeComposition &composition)
+  {
+    // Before the base drops the owner slots, so the hook can still write seats.
+    callHook(onDetach_);
+    StdCompositionBoundaryNodeBase<JsCardProps>::detachNode(composition);
   }
   void JsCardNode::composeNode(loka::app::scene::NodeComposition &c)
   {

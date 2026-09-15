@@ -54,8 +54,8 @@ namespace smirkycard
     loka::app::scene::NodeDefinitionBase *lowerChild(JSContext *context, JSValueConst tree, int depth);
     virtual void declareBindings(loka::app::scene::BindingToken &token);
     virtual void composeNode(loka::app::scene::NodeComposition &composition);
-    virtual void onLifecycleFactChanged(loka::app::scene::NodeLifecycleFact previous,
-                                        loka::app::scene::NodeLifecycleFact next);
+    virtual void attachNode(loka::app::scene::NodeComposition &composition);
+    virtual void detachNode(loka::app::scene::NodeComposition &composition);
 
   private:
     friend class IJsNodeLowering;
@@ -63,6 +63,7 @@ namespace smirkycard
     loka::app::scene::NodeDefinitionBase *lower(JSContext *context, JSValueConst tree, int depth);
     int handlerSlot(JSContext *context, JSValueConst handler);
     void fire(int slot);
+    void callHook(JSValueConst hook);
     void fire0();
     void fire1();
     void fire2();

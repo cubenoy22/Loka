@@ -179,7 +179,7 @@ namespace
     loka::core::String error;
     LOKA_VERIFY(runtime.loadBuiltin("card('first',class{constructor(){this.on=state(true)}compose(){return "
                                     "VStack(Button('flip',()=>this.on.set(!this.on.get())).TEST_ID('Flip'),Button('"
-                                    "target',()=>{}).enabled(this.on).TEST_ID('Target'))}});",
+                                    "target',()=>{}).TEST_ID('Target').enabled(this.on))}});",
                                     error));
     NullPlatformContext context;
     NullScenePlatformController platform;
@@ -189,7 +189,9 @@ namespace
     WindowAdmissionTestApp admission(window);
     loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
     loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(*window.scene());
-    loka::app::ButtonNode *target = find(root, "Target")->asButtonNode();
+    loka::app::scene::Node *targetNode = find(root, "Target");
+    LOKA_VERIFY(targetNode);
+    loka::app::ButtonNode *target = targetNode->asButtonNode();
     LOKA_VERIFY(target && target->props.getEnabled() && target->props.getEnabled()->get());
     find(root, "Flip")->asButtonNode()->props.getOnClick()->emit();
     LOKA_VERIFY(!target->props.getEnabled()->get());
@@ -240,14 +242,20 @@ namespace
     LOKA_VERIFY(runtime.evaluateToString(loka::core::String::Literal("detached"), result, error));
     LOKA_VERIFY(result.compare(loka::core::String::Literal("detached")) == 0);
     smirkycard::ScriptRuntime throwing;
-    LOKA_VERIFY(throwing.loadBuiltin(
-        "card('first',class{onAttach(){throw new Error('attach boom')}compose(){return VStack()}});", error));
+    LOKA_VERIFY(throwing.loadBuiltin("card('first',class{onAttach(){throw new Error('attach boom')}compose(){return "
+                                     "VStack(Text(this.error).TEST_ID('SmirkyCard.Status'))}});",
+                                     error));
     WindowProps throwingProps;
     throwingProps.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, throwing));
     NullWindow throwingWindow(&context, throwingProps, &platform);
     WindowAdmissionTestApp throwingAdmission(throwingWindow);
     loka::dsl::testing::SceneTestAccess::updateAttached(*throwingWindow.scene(), true);
-    LOKA_VERIFY(find(loka::dsl::testing::SceneTestAccess::rootNode(*throwingWindow.scene()), "SmirkyCard.Status"));
+    throwingAdmission.flush();
+    // A throwing hook lands in the error seat; the card itself stays mounted.
+    loka::app::scene::Node *status =
+        find(loka::dsl::testing::SceneTestAccess::rootNode(*throwingWindow.scene()), "SmirkyCard.Status");
+    LOKA_VERIFY(status);
+    LOKA_VERIFY(textValue(status->asTextNode()).find("attach boom") != std::string::npos);
   }
 
   void checkComposeRefusal(const char *source, const char *expected)
@@ -445,6 +453,7 @@ int main()
   checkCounterAndRefusals();
   checkEnabledSeat();
   checkArrayChildren();
+  checkLifecycleHooks();
   smirkycard::ScriptRuntime runtime;
   checkEvaluation(runtime);
   checkMessageBox(runtime);

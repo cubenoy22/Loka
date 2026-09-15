@@ -58,7 +58,11 @@ namespace smirkycard
   {
     JSValue copyTreeWithId(JSContext *ctx, JSValueConst source, JSValueConst id)
     {
-      const char *names[] = {"kind", "children", "text", "seat", "label", "handler", "enabledSeat"};
+      // Every modifier copies the whole node, including the other modifiers'
+      // results ("testId", "enabledSeat") and the modifier functions
+      // themselves, so TEST_ID and enabled chain in either order.
+      const char *names[] = {
+          "kind", "children", "text", "seat", "label", "handler", "testId", "enabledSeat", "enabled"};
       JSValue copy = JS_NewObject(ctx);
       for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i)
       {
@@ -69,7 +73,8 @@ namespace smirkycard
           JS_FreeValue(ctx, value);
       }
       JS_SetPropertyStr(ctx, copy, "TEST_ID", JS_NewCFunction(ctx, &ScriptRuntime::testId, "TEST_ID", 1));
-      JS_SetPropertyStr(ctx, copy, "testId", JS_DupValue(ctx, id));
+      if (!JS_IsUndefined(id))
+        JS_SetPropertyStr(ctx, copy, "testId", JS_DupValue(ctx, id));
       return copy;
     }
   } // namespace
