@@ -17,6 +17,7 @@ card('first', class {
       }).TEST_ID('SmirkyCard.RunScript'),
       Text(this.result).TEST_ID('SmirkyCard.Result'),
       Button('Run JavaScript', () => go('second')).TEST_ID('SmirkyCard.Run'),
+      Button('Reload MAIN.JS', () => reload()).TEST_ID('SmirkyCard.Reload'),
       Text(this.error).TEST_ID('SmirkyCard.Status')
     );
   }
@@ -29,7 +30,7 @@ card('second', class {
   compose() {
     return VStack(
       Text('Card Two').TEST_ID('SmirkyCard.Title'),
-      Text('This Scene is defined in JavaScript.'),
+      Text('This Scene is also defined in JavaScript.'),
       EditText(this.script).TEST_ID('SmirkyCard.Script'),
       Row(
         Button('Run', () => {
@@ -43,4 +44,3 @@ card('second', class {
     );
   }
 });
-

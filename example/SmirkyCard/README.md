@@ -13,8 +13,14 @@ retired through SceneManager.
 launch. On Windows it lives beside the executable; on macOS it is a bundle
 Resource; on Classic it is a plain data-fork file beside the application. The
 repository's `MAIN.JS` is the built-in sample, so it is a useful starting point.
-Edit the file on the disk and launch again to see changed cards; B2 deliberately
-does not reload a running application. Stage Classic with:
+Edit the file on the disk and launch again to see changed cards. While the app
+is running, press **Reload MAIN.JS** on Card One to re-read it and rebuild the
+current card by name. Reload releases the previous script generation after its
+outgoing card is reclaimed; card fields, counters, and other state are not
+carried over. A reload failure stays on the current card and appears in its
+status text. A card that throws while it is constructed or composed shows an
+error with its own **Reload MAIN.JS** button, so fixing the file does not require
+relaunching. Stage Classic with:
 
 ```sh
 scripts/mame-dev-disk.sh build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin example/SmirkyCard/MAIN.JS

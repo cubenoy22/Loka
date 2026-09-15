@@ -14,9 +14,53 @@ class PlatformContext;
 namespace smirkycard
 {
   class JsCardNode;
+  class ScriptRuntime;
+
+  /** One independently evaluated QuickJS generation. Cards retain the engine
+      they were born in; reload overlap lasts at most the admission cycle in
+      which the old Scene is retired. */
+  class JsEngine
+  {
+  public:
+    JSContext *context() const;
+    JSRuntime *jsRuntime() const;
+    JSValue constructorFor(SmirkyCardId id) const;
+    bool hasConstructor(SmirkyCardId id) const;
+
+  private:
+    friend class JsEngineRef;
+    friend class ScriptRuntime;
+    JsEngine(ScriptRuntime &runtime, const JsCardBindingRegistry &registry);
+    ~JsEngine();
+    void markRetired();
+    ScriptRuntime *runtime_;
+    SmirkyScript *script_;
+    JSValue first_;
+    JSValue second_;
+    unsigned int cardCount_;
+    JsEngine *nextRetired_;
+    JsEngine(const JsEngine &);
+    JsEngine &operator=(const JsEngine &);
+  };
+
+  /** The only writer of JsEngine's live-card ledger. */
+  class JsEngineRef
+  {
+  public:
+    explicit JsEngineRef(JsEngine *engine = 0);
+    ~JsEngineRef();
+
+  private:
+    void release();
+    JsEngine *engine_;
+    JsEngineRef(const JsEngineRef &);
+    JsEngineRef &operator=(const JsEngineRef &);
+  };
+
   /** Built-in card definitions shared by the app bootstrap and tests. */
   const char *BuiltinMainJs();
-  /** App-owned runtime; card boundaries borrow it and store no JS values. */
+  /** App-owned runtime; card boundaries borrow it while retaining their birth
+      engine through JsEngineRef. */
   class ScriptRuntime
   {
   public:
@@ -29,47 +73,45 @@ namespace smirkycard
     class InterruptWindow
     {
     public:
-      explicit InterruptWindow(ScriptRuntime &runtime);
+      InterruptWindow(ScriptRuntime &runtime, JsEngine &engine);
       ~InterruptWindow();
 
     private:
+      friend class ScriptRuntime;
       ScriptRuntime &runtime_;
+      JsEngine &engine_;
+      InterruptWindow *previous_;
+      bool installed_;
       InterruptWindow(const InterruptWindow &);
       InterruptWindow &operator=(const InterruptWindow &);
     };
 
     ScriptRuntime();
-    ~ScriptRuntime()
-    {
-      this->closeEngine();
-    }
+    ~ScriptRuntime();
 
+    JsEngine *currentEngine() const
+    {
+      return this->currentEngine_;
+    }
     JSContext *context() const;
     JSRuntime *jsRuntime() const;
     void setActive(JsCardNode *node)
     {
       this->active_ = node;
     }
-    JsCardNode *active() const
-    {
-      return this->active_;
-    }
-    JSValue constructorFor(SmirkyCardId id) const
-    {
-      switch (id)
-      {
-      case SMIRKY_CARD_ERROR:
-        return JS_UNDEFINED;
-      case SMIRKY_CARD_FIRST:
-        return JS_DupValue(this->context(), this->first_);
-      case SMIRKY_CARD_SECOND:
-        return JS_DupValue(this->context(), this->second_);
-      }
-      return JS_UNDEFINED;
-    }
+    JsCardNode *active(JSContext *context) const;
     bool loadBuiltin(const char *source, loka::core::String &error);
     /** Selects MAIN.JS once through the application's portable file door. */
     void loadMain(PlatformContext *context);
+    /** Reload is two doors so the runtime truth and the visible card change
+        together: prepareReload evaluates MAIN.JS in a new engine and returns
+        it uncommitted (0 with a message on any failure, including a candidate
+        that does not define the requested card); the caller builds the
+        replacement Scene from it and then either commitReload (the candidate
+        becomes current, the previous engine retires) or discardReload. */
+    JsEngine *prepareReload(SmirkyCardId card, loka::core::String &error);
+    void commitReload(JsEngine *candidate);
+    void discardReload(JsEngine *candidate);
     MainSource mainSource() const
     {
       return this->mainSource_;
@@ -77,16 +119,18 @@ namespace smirkycard
     /** A startup MAIN.JS failure belongs on the first card, or every card
         when the file reached QuickJS but could not evaluate. */
     loka::core::String mainErrorFor(SmirkyCardId card) const;
-    /** Every JS invocation passes through one of these doors.  Success values
+    /** Every JS invocation passes through one of these doors. Success values
         are transferred to the caller, which must either own or free them. */
-    bool callConstructor(JSValueConst ctor, JSValue &result, loka::core::String &error);
-    bool call(JSValueConst fn,
+    bool callConstructor(JsEngine &engine, JSValueConst ctor, JSValue &result, loka::core::String &error);
+    bool call(JsEngine &engine,
+              JSValueConst fn,
               JSValueConst receiver,
               int argc,
               JSValueConst *argv,
               JSValue &result,
               loka::core::String &error);
-    bool evalMain(const char *source, std::size_t length, const char *name, loka::core::String &error);
+    bool
+    evalMain(JsEngine &engine, const char *source, std::size_t length, const char *name, loka::core::String &error);
     /* Helper callback is public only so the local tree factory can install it. */
     static JSValue testId(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     static JSValue enabled(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
@@ -94,7 +138,7 @@ namespace smirkycard
 
     SmirkyCardId evaluate(const char *source, char *error, size_t capacity)
     {
-      return SmirkyScriptEvaluate(this->script_, source, error, capacity);
+      return SmirkyScriptEvaluate(this->currentEngine_ ? this->currentEngine_->script_ : 0, source, error, capacity);
     }
 
     /** Evaluates UTF-8 source. Result and error are capped at 511 UTF-8 bytes. */
@@ -107,7 +151,7 @@ namespace smirkycard
       const std::string sourceUtf8(sourceBytes ? sourceBytes : "", sourceBuffer.length());
       size_t resultLength = 0;
       size_t errorLength = 0;
-      if (SmirkyScriptEvaluateToString(this->script_,
+      if (SmirkyScriptEvaluateToString(this->currentEngine_ ? this->currentEngine_->script_ : 0,
                                        sourceUtf8.c_str(),
                                        resultBuffer,
                                        sizeof(resultBuffer),
@@ -125,22 +169,28 @@ namespace smirkycard
       return false;
     }
 
+#ifdef TEST_BUILD
+    unsigned int retiredEngineCount() const;
+#endif
+
   private:
     friend class JsCardNode;
+    friend class JsEngine;
+    friend class JsEngineRef;
     friend class JsCardBindingRegistry;
     friend bool RegisterSmirkyCardBindings(JsCardBindingRegistry &registry);
-    /** The engine (runtime + context + installed globals) is opened once at
-        construction and again after a MAIN.JS that failed, so a script that
-        poisoned a global before throwing never reaches the fallback cards. */
-    void openEngine();
-    void closeEngine();
-    void openInterruptWindow();
-    void closeInterruptWindow();
+    JsEngine *createEngine();
+    void replaceCurrentEngine(JsEngine *engine);
+    void destroyRetiredEngine(JsEngine *engine);
+    void openInterruptWindow(InterruptWindow &window);
+    void closeInterruptWindow(InterruptWindow &window);
     static int interrupt(JSRuntime *, void *opaque);
-    bool captureException(loka::core::String &error);
+    bool captureException(JsEngine &engine, loka::core::String &error);
     static JSValue card(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     static JSValue state(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     static JSValue go(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
+    static JSValue reload(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
+    bool readMain(std::string &text, loka::core::String &error) const;
     enum MainErrorScope
     {
       MAIN_ERROR_NONE,
@@ -148,21 +198,21 @@ namespace smirkycard
       MAIN_ERROR_EVERY_CARD
     };
     JsCardBindingRegistry registry_;
-    SmirkyScript *script_;
-    JSValue first_;
-    JSValue second_;
+    JsEngine *currentEngine_;
+    JsEngine *retiredEngines_;
     JsCardNode *active_;
     MainSource mainSource_;
+    PlatformContext *mainContext_;
     loka::core::String mainError_;
     MainErrorScope mainErrorScope_;
     struct InterruptState
     {
       InterruptState()
-          : depth(0),
+          : top(0),
             remaining(0)
       {
       }
-      unsigned int depth;
+      InterruptWindow *top;
       unsigned int remaining;
     } interrupts_;
     ScriptRuntime(const ScriptRuntime &);

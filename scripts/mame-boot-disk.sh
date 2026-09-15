@@ -63,6 +63,7 @@ if [ $# -ge 1 ] && { [ "$1" = "--all" ] || [ "$1" = "-a" ]; }; then
     "$RELEASE_BUILD_ROOT/LazyList/LokaLazyList68K.bin"
     "$RELEASE_BUILD_ROOT/Tutorial/LokaTutorial68K.bin"
     "$RELEASE_BUILD_ROOT/ScrapbookUI/ScrapbookUI68K.bin"
+    "$RELEASE_BUILD_ROOT/SmirkyCard/LokaSmirkyCard68K.bin"
   )
   for app in "${ALL_APPS[@]}"; do
     if [ ! -f "$app" ]; then
@@ -74,6 +75,10 @@ if [ $# -ge 1 ] && { [ "$1" = "--all" ] || [ "$1" = "-a" ]; }; then
   SCRAPBOOK_ASSETS="$PROJECT_DIR/example/ScrapbookUI/ASSETS.LRP"
   if [ -f "$SCRAPBOOK_ASSETS" ]; then
     PLAIN_DATA_PATHS+=("$SCRAPBOOK_ASSETS")
+  fi
+  SMIRKYCARD_MAIN="$PROJECT_DIR/example/SmirkyCard/MAIN.JS"
+  if [ -f "$SMIRKYCARD_MAIN" ]; then
+    PLAIN_DATA_PATHS+=("$SMIRKYCARD_MAIN")
   fi
 elif [ $# -ge 1 ]; then
   MACBINARY_PATHS+=("$1")
