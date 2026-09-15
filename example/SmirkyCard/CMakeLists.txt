@@ -1,9 +1,4 @@
-# SOURCE_SUBDIR lets FetchContent populate a dependency without adding its CLI.
 cmake_minimum_required(VERSION 3.18)
-
-if(LOKA_CLASSIC_MAC)
-  message(FATAL_ERROR "SmirkyCard's first experiment uses QuickJS-ng on desktop hosts. The macQJS/Retro68 port is not integrated yet; leave LOKA_BUILD_SMIRKYCARD=OFF for Classic builds.")
-endif()
 
 include(cmake/QuickJS.cmake)
 
@@ -22,6 +17,10 @@ else()
   if(LOKA_WARNINGS_AS_ERRORS)
     target_compile_options(smirkycard_script PRIVATE -Werror)
   endif()
+endif()
+
+if(LOKA_CLASSIC_MAC)
+  target_compile_definitions(smirkycard_script PRIVATE LOKA_RETRO68=1)
 endif()
 
 function(smirkycard_cpp_target target)
@@ -48,6 +47,28 @@ elseif(LOKA_MACOS AND LOKA_ENABLE_APPLE)
   target_link_libraries(LokaSmirkyCardMacOS PRIVATE LokaMacOSCore)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS)
     target_compile_options(LokaSmirkyCardMacOS PRIVATE -fno-objc-arc)
+  endif()
+endif()
+
+if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
+  set(LOKA_SMIRKYCARD_CLASSIC_TARGET "LokaSmirkyCard${LOKA_CLASSIC_TARGET_SUFFIX}")
+  add_application(${LOKA_SMIRKYCARD_CLASSIC_TARGET}
+    src/ToolboxMain.cpp
+    Size.r
+  )
+  smirkycard_cpp_target(${LOKA_SMIRKYCARD_CLASSIC_TARGET})
+  target_link_libraries(${LOKA_SMIRKYCARD_CLASSIC_TARGET} PRIVATE LokaAppleToolboxCore)
+  target_compile_definitions(${LOKA_SMIRKYCARD_CLASSIC_TARGET} PRIVATE LOKA_RETRO68=1)
+  target_compile_options(${LOKA_SMIRKYCARD_CLASSIC_TARGET} PRIVATE
+    -Os
+    -ffunction-sections
+    -fdata-sections
+    -fno-exceptions
+    -fno-rtti
+  )
+  target_link_options(${LOKA_SMIRKYCARD_CLASSIC_TARGET} PRIVATE -Wl,--gc-sections)
+  if(CMAKE_SYSTEM_NAME STREQUAL "Retro68" AND NOT LOKA_RETRO68_DIAGNOSTICS)
+    target_link_options(${LOKA_SMIRKYCARD_CLASSIC_TARGET} PRIVATE -Wl,--mac-strip-macsbug)
   endif()
 endif()
 

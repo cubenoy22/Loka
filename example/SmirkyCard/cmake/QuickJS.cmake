@@ -10,15 +10,33 @@ FetchContent_Declare(smirkycard_quickjs
 )
 FetchContent_MakeAvailable(smirkycard_quickjs)
 
+set(smirkycard_quickjs_source_dir "${smirkycard_quickjs_SOURCE_DIR}")
+if(LOKA_CLASSIC_MAC)
+  find_package(Python3 3.9 REQUIRED COMPONENTS Interpreter)
+  set(smirkycard_quickjs_classic_source
+    "${CMAKE_CURRENT_BINARY_DIR}/smirkycard-quickjs-classic-source")
+  execute_process(
+    COMMAND "${Python3_EXECUTABLE}"
+      "${CMAKE_CURRENT_LIST_DIR}/prepare_quickjs68k.py"
+      "${smirkycard_quickjs_SOURCE_DIR}"
+      "${smirkycard_quickjs_classic_source}"
+    RESULT_VARIABLE smirkycard_quickjs_prepare_result
+  )
+  if(NOT smirkycard_quickjs_prepare_result EQUAL 0)
+    message(FATAL_ERROR "Classic QuickJS source preparation failed")
+  endif()
+  set(smirkycard_quickjs_source_dir "${smirkycard_quickjs_classic_source}")
+endif()
+
 # QuickJS-ng v0.16.2. Keep the dependency's C dialect and platform flags local.
 add_library(smirkycard_quickjs STATIC
-  ${smirkycard_quickjs_SOURCE_DIR}/quickjs.c
-  ${smirkycard_quickjs_SOURCE_DIR}/dtoa.c
-  ${smirkycard_quickjs_SOURCE_DIR}/libregexp.c
-  ${smirkycard_quickjs_SOURCE_DIR}/libunicode.c
+  ${smirkycard_quickjs_source_dir}/quickjs.c
+  ${smirkycard_quickjs_source_dir}/dtoa.c
+  ${smirkycard_quickjs_source_dir}/libregexp.c
+  ${smirkycard_quickjs_source_dir}/libunicode.c
 )
 set_target_properties(smirkycard_quickjs PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED YES)
-target_include_directories(smirkycard_quickjs SYSTEM PUBLIC ${smirkycard_quickjs_SOURCE_DIR})
+target_include_directories(smirkycard_quickjs SYSTEM PUBLIC ${smirkycard_quickjs_source_dir})
 # The experiment executes synchronously on the main thread; no Atomics/workers.
 target_compile_definitions(smirkycard_quickjs PRIVATE _GNU_SOURCE __STDC_NO_ATOMICS__=1)
 if(MSVC)
@@ -26,4 +44,9 @@ if(MSVC)
   target_compile_definitions(smirkycard_quickjs PRIVATE _CRT_SECURE_NO_WARNINGS)
 else()
   target_link_libraries(smirkycard_quickjs PRIVATE m)
+endif()
+if(LOKA_CLASSIC_MAC)
+  target_compile_definitions(smirkycard_quickjs PRIVATE LOKA_SMIRKYCARD_QUICKJS_68K=1)
+  target_compile_options(smirkycard_quickjs PRIVATE -Os -ffunction-sections -fdata-sections)
+  target_sources(smirkycard_quickjs PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../src/ToolboxClock.c")
 endif()
