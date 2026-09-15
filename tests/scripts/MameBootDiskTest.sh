@@ -92,6 +92,42 @@ grep -Fx "hcopy <-r> <$SANDBOX/first data> <:Loka:>" "$SANDBOX/with-data.log" >/
 grep -Fx "hcopy <-r> <$SANDBOX/second-data> <:Loka:>" "$SANDBOX/with-data.log" >/dev/null ||
   fail "second data path was not copied"
 
+# The all-apps route must keep SmirkyCard's application and editable script
+# together. Run from a temporary repository shape because the subject derives
+# these inputs from its own project root.
+ALL_PROJECT="$SANDBOX/all-project"
+mkdir -p "$ALL_PROJECT/scripts" "$ALL_PROJECT/example/ScrapbookUI" "$ALL_PROJECT/example/SmirkyCard"
+cp "$SUBJECT" "$ALL_PROJECT/scripts/mame-boot-disk.sh"
+cp "$REPO_DIR/scripts/mame-boot-copy.sh" "$ALL_PROJECT/scripts/mame-boot-copy.sh"
+cp "$REPO_DIR/scripts/retro68-env.sh" "$ALL_PROJECT/scripts/retro68-env.sh"
+cp "$REPO_DIR/scripts/env-file.sh" "$ALL_PROJECT/scripts/env-file.sh"
+for app in \
+  HelloWorld/LokaHello68K.bin \
+  MineSweeper/LokaMine68K.bin \
+  SimpleViewer/LokaSimpleViewer68K.bin \
+  FloppyBird/LokaFloppyBird68K.bin \
+  SmirkBench/LokaSmirkBench68K.bin \
+  LazyList/LokaLazyList68K.bin \
+  Tutorial/LokaTutorial68K.bin \
+  ScrapbookUI/ScrapbookUI68K.bin \
+  SmirkyCard/LokaSmirkyCard68K.bin; do
+  mkdir -p "$ALL_PROJECT/build/retro68/68k/Release/example/$(dirname "$app")"
+  touch "$ALL_PROJECT/build/retro68/68k/Release/example/$app"
+done
+touch "$ALL_PROJECT/example/ScrapbookUI/ASSETS.LRP" "$ALL_PROJECT/example/SmirkyCard/MAIN.JS"
+MAME_BOOT_DISK_TEST_LOG="$SANDBOX/all-apps.log" \
+MAME_ENV_FILE="$SANDBOX/missing.env" \
+MAME_MACHINE="macplus" \
+MAME_HDA="$SANDBOX/boot-template.hd" \
+MAME_HOMEPATH="$SANDBOX/home" \
+MAME_BOOT_HDA="$SANDBOX/all-apps.hd" \
+RETRO68_TOOLCHAIN_BIN="$SANDBOX/bin" \
+  /bin/bash "$ALL_PROJECT/scripts/mame-boot-disk.sh" --all >/dev/null
+grep -Fx "hcopy <-m> <$ALL_PROJECT/build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin> <:Loka:>" "$SANDBOX/all-apps.log" >/dev/null ||
+  fail "all-apps did not copy SmirkyCard"
+grep -Fx "hcopy <-r> <$ALL_PROJECT/example/SmirkyCard/MAIN.JS> <:Loka:>" "$SANDBOX/all-apps.log" >/dev/null ||
+  fail "all-apps did not copy SmirkyCard MAIN.JS"
+
 # A fresh boot copy must carry the same .source record mame-run.sh writes
 # (resolved template path + sha256), or the next launch refreshes the copy
 # and drops the staged applications. Reach the template through a symlink

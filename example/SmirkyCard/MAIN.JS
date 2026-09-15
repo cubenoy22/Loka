@@ -29,7 +29,7 @@ card('second', class {
   compose() {
     return VStack(
       Text('Card Two').TEST_ID('SmirkyCard.Title'),
-      Text('This Scene is defined in JavaScript.'),
+      Text('This Scene is also defined in JavaScript.'),
       EditText(this.script).TEST_ID('SmirkyCard.Script'),
       Row(
         Button('Run', () => {

@@ -93,7 +93,8 @@ if ($All) {
         "SmirkBench/LokaSmirkBench68K.bin",
         "LazyList/LokaLazyList68K.bin",
         "Tutorial/LokaTutorial68K.bin",
-        "ScrapbookUI/ScrapbookUI68K.bin"
+        "ScrapbookUI/ScrapbookUI68K.bin",
+        "SmirkyCard/LokaSmirkyCard68K.bin"
     )
     foreach ($rel in $allApps) {
         $p = Join-Path $releaseBuildRoot $rel
@@ -105,6 +106,10 @@ if ($All) {
     $assets = Join-Path $ProjectDirectory "example/ScrapbookUI/ASSETS.LRP"
     if (Test-Path -LiteralPath $assets) {
         $plainData += (Resolve-Path -LiteralPath $assets).Path
+    }
+    $smirkyCardMain = Join-Path $ProjectDirectory "example/SmirkyCard/MAIN.JS"
+    if (Test-Path -LiteralPath $smirkyCardMain) {
+        $plainData += (Resolve-Path -LiteralPath $smirkyCardMain).Path
     }
 } elseif ($MacBinaryPath) {
     $macBinaries += (Resolve-Path -LiteralPath $MacBinaryPath).Path
