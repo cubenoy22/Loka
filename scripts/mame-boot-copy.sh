@@ -2,7 +2,7 @@
 
 # Prepare MAME's persistent, writable copy of a boot-disk template.
 loka_prepare_boot_copy() {
-  local template="$1" boot="$2" template_path target template_sha source old_path reason
+  local template="$1" boot="$2" template_path template_identity target template_sha source old_path reason
   if [ ! -f "$template" ]; then
     echo "boot hard disk template not found: $template" >&2
     return 1
@@ -21,6 +21,15 @@ loka_prepare_boot_copy() {
     esac
     template_path="$(cd "$(dirname "$template_path")" && pwd -P)/$(basename "$template_path")"
   done
+  template_identity="$template_path"
+  # MAME launch delegates from WSL to Windows PowerShell. Use the Windows
+  # spelling for DrvFS templates so both sides publish the same provenance;
+  # otherwise Start mistakes /mnt/c/... and C:\... for different templates
+  # and replaces the just-staged disk with the pristine source image.
+  if [ -n "${WSL_INTEROP:-}" ] && command -v wslpath >/dev/null 2>&1 \
+    && [[ "$template_path" =~ ^/mnt/[A-Za-z]/ ]]; then
+    template_identity="$(wslpath -w "$template_path")"
+  fi
   if command -v sha256sum >/dev/null 2>&1; then
     template_sha="$(sha256sum < "$template_path" | cut -d' ' -f1)"
   else
@@ -39,8 +48,8 @@ loka_prepare_boot_copy() {
     reason="copy missing"
   elif [ ! -f "$source" ]; then
     reason="source missing"
-  elif ! printf '%s\n%s\n' "$template_path" "$template_sha" | cmp -s - "$source"; then
-    reason="template changed: $old_path → $template_path"
+  elif ! printf '%s\n%s\n' "$template_identity" "$template_sha" | cmp -s - "$source"; then
+    reason="template changed: $old_path → $template_identity"
   fi
   if [ -n "$reason" ]; then
     (
@@ -63,7 +72,7 @@ loka_prepare_boot_copy() {
         exit "$status"
       }
       trap finish_boot_copy EXIT
-      printf '%s\n%s\n' "$template_path" "$template_sha" > "$source.partial"
+      printf '%s\n%s\n' "$template_identity" "$template_sha" > "$source.partial"
       cp -f "$template_path" "$boot.partial"
       if [ -f "$source" ]; then cp -f "$source" "$source.previous"; fi
       if [ -e "$boot" ]; then mv -f "$boot" "$boot.previous"; fi
