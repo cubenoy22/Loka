@@ -2,6 +2,7 @@
 #define SMIRKYCARD_SCRIPT_RUNTIME_HPP
 
 #include "ScriptEngine.h"
+#include "JsCardBindingRegistry.hpp"
 #include "quickjs.h"
 #include "core/String.hpp"
 #include <cstring>
@@ -29,38 +30,7 @@ namespace smirkycard
       InterruptWindow &operator=(const InterruptWindow &);
     };
 
-    ScriptRuntime()
-        : script_(SmirkyScriptCreate()),
-          first_(JS_UNDEFINED),
-          second_(JS_UNDEFINED),
-          active_(0)
-    {
-      if (this->script_)
-      {
-        JS_SetContextOpaque(this->context(), this);
-        JSValue global = JS_GetGlobalObject(this->context());
-        JS_SetPropertyStr(
-            this->context(), global, "card", JS_NewCFunction(this->context(), &ScriptRuntime::card, "card", 2));
-        JS_SetPropertyStr(
-            this->context(), global, "state", JS_NewCFunction(this->context(), &ScriptRuntime::state, "state", 1));
-        JS_SetPropertyStr(
-            this->context(), global, "VStack", JS_NewCFunction(this->context(), &ScriptRuntime::vstack, "VStack", 1));
-        JS_SetPropertyStr(
-            this->context(), global, "Row", JS_NewCFunction(this->context(), &ScriptRuntime::row, "Row", 1));
-        JS_SetPropertyStr(
-            this->context(), global, "Text", JS_NewCFunction(this->context(), &ScriptRuntime::text, "Text", 1));
-        JS_SetPropertyStr(this->context(),
-                          global,
-                          "EditText",
-                          JS_NewCFunction(this->context(), &ScriptRuntime::editText, "EditText", 1));
-        JS_SetPropertyStr(
-            this->context(), global, "Button", JS_NewCFunction(this->context(), &ScriptRuntime::button, "Button", 2));
-        JS_SetPropertyStr(this->context(), global, "go", JS_NewCFunction(this->context(), &ScriptRuntime::go, "go", 1));
-        JS_FreeValue(this->context(), global);
-        loka::core::String ignored;
-        this->loadBuiltin(BuiltinMainJs(), ignored);
-      }
-    }
+    ScriptRuntime();
     ~ScriptRuntime()
     {
       if (this->script_)
@@ -107,6 +77,7 @@ namespace smirkycard
     bool evalBuiltin(const char *source, loka::core::String &error);
     /* Helper callback is public only so the local tree factory can install it. */
     static JSValue testId(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
+    static JSValue enabled(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     static JSValue declare(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
 
     SmirkyCardId evaluate(const char *source, char *error, size_t capacity)
@@ -144,18 +115,16 @@ namespace smirkycard
 
   private:
     friend class JsCardNode;
+    friend class JsCardBindingRegistry;
+    friend bool RegisterSmirkyCardBindings(JsCardBindingRegistry &registry);
     void openInterruptWindow();
     void closeInterruptWindow();
     static int interrupt(JSRuntime *, void *opaque);
     bool captureException(loka::core::String &error);
     static JSValue card(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     static JSValue state(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
-    static JSValue vstack(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
-    static JSValue row(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
-    static JSValue text(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
-    static JSValue editText(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
-    static JSValue button(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     static JSValue go(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
+    JsCardBindingRegistry registry_;
     SmirkyScript *script_;
     JSValue first_;
     JSValue second_;

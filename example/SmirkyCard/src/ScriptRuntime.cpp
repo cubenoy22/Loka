@@ -56,24 +56,9 @@ namespace smirkycard
   }
   namespace
   {
-    enum JsTreeKind
-    {
-      JS_TREE_VSTACK = 1,
-      JS_TREE_TEXT,
-      JS_TREE_EDIT_TEXT,
-      JS_TREE_BUTTON,
-      JS_TREE_ROW = 5
-    };
-    JSValue newTree(JSContext *ctx, int kind)
-    {
-      JSValue node = JS_NewObject(ctx);
-      JS_DefinePropertyValueStr(ctx, node, "kind", JS_NewInt32(ctx, kind), JS_PROP_ENUMERABLE);
-      JS_SetPropertyStr(ctx, node, "TEST_ID", JS_NewCFunction(ctx, &ScriptRuntime::testId, "TEST_ID", 1));
-      return node;
-    }
     JSValue copyTreeWithId(JSContext *ctx, JSValueConst source, JSValueConst id)
     {
-      const char *names[] = {"kind", "children", "text", "seat", "label", "handler"};
+      const char *names[] = {"kind", "children", "text", "seat", "label", "handler", "enabledSeat"};
       JSValue copy = JS_NewObject(ctx);
       for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i)
       {
@@ -85,10 +70,25 @@ namespace smirkycard
       }
       JS_SetPropertyStr(ctx, copy, "TEST_ID", JS_NewCFunction(ctx, &ScriptRuntime::testId, "TEST_ID", 1));
       JS_SetPropertyStr(ctx, copy, "testId", JS_DupValue(ctx, id));
-      JS_FreezeObject(ctx, copy);
       return copy;
     }
   } // namespace
+  ScriptRuntime::ScriptRuntime()
+      : registry_(),
+        script_(SmirkyScriptCreate()),
+        first_(JS_UNDEFINED),
+        second_(JS_UNDEFINED),
+        active_(0)
+  {
+    if (this->script_)
+    {
+      JS_SetContextOpaque(this->context(), this);
+      if (!RegisterSmirkyCardBindings(this->registry_) || !this->registry_.install(this->context()))
+        return;
+      loka::core::String ignored;
+      this->loadBuiltin(BuiltinMainJs(), ignored);
+    }
+  }
   int ScriptRuntime::interrupt(JSRuntime *, void *opaque)
   {
     unsigned int *remaining = static_cast<unsigned int *>(opaque);
@@ -234,7 +234,18 @@ namespace smirkycard
   {
     if (argc != 1 || !JS_IsString(argv[0]))
       return JS_ThrowTypeError(ctx, "TEST_ID(id) requires a string");
-    return copyTreeWithId(ctx, thisValue, argv[0]);
+    JSValue copy = copyTreeWithId(ctx, thisValue, argv[0]);
+    JS_FreezeObject(ctx, copy);
+    return copy;
+  }
+  JSValue ScriptRuntime::enabled(JSContext *ctx, JSValueConst thisValue, int argc, JSValueConst *argv)
+  {
+    if (argc != 1)
+      return JS_ThrowTypeError(ctx, "enabled(seat) requires one seat");
+    JSValue copy = copyTreeWithId(ctx, thisValue, JS_UNDEFINED);
+    JS_SetPropertyStr(ctx, copy, "enabledSeat", JS_DupValue(ctx, argv[0]));
+    JS_FreezeObject(ctx, copy);
+    return copy;
   }
 
   JSValue ScriptRuntime::declare(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv)
@@ -245,76 +256,6 @@ namespace smirkycard
     return self->active()->setComposeTree(ctx, argv[0]) ? JS_UNDEFINED : JS_EXCEPTION;
   }
 
-  namespace
-  {
-    JSValue newStackTree(JSContext *ctx, int kind, const char *name, int argc, JSValueConst *argv)
-    {
-      if (argc > 16)
-        return JS_ThrowRangeError(ctx, "%s accepts at most 16 children", name);
-      JSValue node = newTree(ctx, kind);
-      JSValue children = JS_NewArray(ctx);
-      for (int i = 0; i < argc; ++i)
-      {
-        JSValue childKind;
-        if (!JS_IsObject(argv[i]) || JS_IsArray(argv[i]))
-        {
-          JS_FreeValue(ctx, children);
-          JS_FreeValue(ctx, node);
-          return JS_ThrowTypeError(ctx, "%s children must be tree nodes, not arrays", name);
-        }
-        childKind = JS_GetPropertyStr(ctx, argv[i], "kind");
-        if (!JS_IsNumber(childKind))
-        {
-          JS_FreeValue(ctx, childKind);
-          JS_FreeValue(ctx, children);
-          JS_FreeValue(ctx, node);
-          return JS_ThrowTypeError(ctx, "%s children must be tree nodes", name);
-        }
-        JS_FreeValue(ctx, childKind);
-        JS_SetPropertyUint32(ctx, children, static_cast<uint32_t>(i), JS_DupValue(ctx, argv[i]));
-      }
-      JS_SetPropertyStr(ctx, node, "children", children);
-      JS_FreezeObject(ctx, node);
-      return node;
-    }
-  } // namespace
-
-  JSValue ScriptRuntime::vstack(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv)
-  {
-    return newStackTree(ctx, JS_TREE_VSTACK, "VStack", argc, argv);
-  }
-  JSValue ScriptRuntime::row(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv)
-  {
-    return newStackTree(ctx, JS_TREE_ROW, "Row", argc, argv);
-  }
-  JSValue ScriptRuntime::text(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv)
-  {
-    if (argc != 1)
-      return JS_ThrowTypeError(ctx, "Text(value) requires one value");
-    JSValue node = newTree(ctx, JS_TREE_TEXT);
-    JS_SetPropertyStr(ctx, node, "text", JS_DupValue(ctx, argv[0]));
-    JS_FreezeObject(ctx, node);
-    return node;
-  }
-  JSValue ScriptRuntime::editText(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv)
-  {
-    if (argc != 1)
-      return JS_ThrowTypeError(ctx, "EditText(seat) requires one seat");
-    JSValue node = newTree(ctx, JS_TREE_EDIT_TEXT);
-    JS_SetPropertyStr(ctx, node, "seat", JS_DupValue(ctx, argv[0]));
-    JS_FreezeObject(ctx, node);
-    return node;
-  }
-  JSValue ScriptRuntime::button(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv)
-  {
-    if (argc != 2 || !JS_IsString(argv[0]) || !JS_IsFunction(ctx, argv[1]))
-      return JS_ThrowTypeError(ctx, "Button(label, handler) requires a string and function");
-    JSValue node = newTree(ctx, JS_TREE_BUTTON);
-    JS_SetPropertyStr(ctx, node, "label", JS_DupValue(ctx, argv[0]));
-    JS_SetPropertyStr(ctx, node, "handler", JS_DupValue(ctx, argv[1]));
-    JS_FreezeObject(ctx, node);
-    return node;
-  }
   JSValue ScriptRuntime::go(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv)
   {
     ScriptRuntime *self = static_cast<ScriptRuntime *>(JS_GetContextOpaque(ctx));
