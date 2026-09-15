@@ -1495,6 +1495,7 @@
       "label": "Build & Start in MAME via Copied Boot.hd: All Apps",
       "dependsOn": [
         "Build: Retro68 68K",
+        "Build: Retro68 68K SmirkyCard",
         "Prepare Boot Disk: All Apps",
         "MAME: Start"
       ],
