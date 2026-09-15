@@ -482,6 +482,35 @@ class Retro68SizeReportTest(unittest.TestCase):
                 str(caught.exception),
             )
 
+    def test_optional_artifact_is_compared_when_present_and_ignored_when_absent(self):
+        tool = load_report_tool()
+        with tempfile.TemporaryDirectory(prefix="retro68-size-") as directory:
+            root = pathlib.Path(directory)
+            mandatory = root / "example/Fixture68K.bin"
+            optional = root / "example/Optional68K.bin"
+            mandatory.parent.mkdir(parents=True)
+            encoded = make_macbinary(
+                [("CODE", b"code"), ("DATA", b"data"), ("RELA", b"rela")]
+            )
+            mandatory.write_bytes(encoded)
+            optional.write_bytes(encoded)
+            baseline = baseline_for("example/Fixture68K.bin", mandatory.stat().st_size,
+                                    4, 4, 4)
+            baseline["artifacts"].append({
+                "name": "Optional68K", "path": "example/Optional68K.bin",
+                "optional": True,
+                "baseline": {"total": optional.stat().st_size,
+                "CODE": 4, "DATA": 4, "RELA": 4},
+            })
+            self.assertEqual(tool.report(root, baseline), 0)
+            comparison = root / "comparison"
+            comparison_fixture = comparison / "example/Fixture68K.bin"
+            comparison_fixture.parent.mkdir(parents=True)
+            comparison_fixture.write_bytes(encoded)
+            self.assertEqual(tool.report(root, baseline, comparison, "fixture-base"), 0)
+            optional.unlink()
+            self.assertEqual(tool.report(root, baseline), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -182,6 +182,8 @@ def load_baseline(path):
             raise SizeReportError("%s name must be non-empty" % context)
         if not isinstance(relative_path, str) or not relative_path:
             raise SizeReportError("%s path must be non-empty" % context)
+        if "optional" in artifact and not isinstance(artifact["optional"], bool):
+            raise SizeReportError("%s optional must be a boolean" % context)
         candidate = pathlib.PurePosixPath(relative_path)
         if candidate.is_absolute() or ".." in candidate.parts:
             raise SizeReportError("%s path must stay under the build root" % context)
@@ -263,9 +265,17 @@ def report(build_root, baseline, compare_build_root=None, comparison_ref=None,
     regressions = []
     for artifact in baseline["artifacts"]:
         path = build_root / pathlib.PurePosixPath(artifact["path"])
+        if artifact.get("optional") and not path.is_file():
+            continue
         current = artifact_sizes(path)
-        facts = (artifact_sizes(compare_build_root / artifact["path"])
-                 if compare_build_root is not None else artifact["baseline"])
+        comparison_path = (compare_build_root / artifact["path"]
+                           if compare_build_root is not None else None)
+        if comparison_path is not None:
+            facts = (artifact_sizes(comparison_path)
+                     if comparison_path.is_file() or not artifact.get("optional")
+                     else artifact["baseline"])
+        else:
+            facts = artifact["baseline"]
         deltas = {key: current[key] - facts[key] for key in current}
         growth = growth_bytes(current, facts)
         reason = None
