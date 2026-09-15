@@ -15,6 +15,7 @@
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/nestable/ScrollView.hpp"
 #include "app/scene/state/NodeState.hpp"
+#include "app/scene/state/WriteSeat.hpp"
 #include "context/Win32PopupMenuContext.hpp"
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
@@ -243,7 +244,7 @@ void testWin32PopupRelayoutPreservesNativeItems()
     loka::core::MutableState<int> selection(1);
     int materializeAttempts = 0;
     loka::app::PopupMenuProps props;
-    props.items(itemLiterals, 3).selectedIndex(&selection);
+    props.items(itemLiterals, 3).selectedIndex(loka::app::scene::WriteSeat<int>(&selection));
     loka::app::PopupMenuNode node(props);
     Win32PopupMenuContext context(&controller, root, 10, 10, 120, 24, &node);
     HWND popup = context.hwnd();

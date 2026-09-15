@@ -24,6 +24,7 @@
 #include "app/scene/Scene.hpp"
 #include "app/scene/node/ComposableNode.hpp"
 #include "app/scene/node/Conditional.hpp"
+#include "app/scene/state/WriteSeat.hpp"
 #include "core/State.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
@@ -2585,7 +2586,7 @@ namespace
 
   template <typename PropsT, typename ValueT> struct ControlValueBindingDoorProbe
   {
-    typedef PropsT &(PropsT::*MutableDoor)(loka::core::MutableState<ValueT> *);
+    typedef PropsT &(PropsT::*MutableDoor)(const loka::app::scene::WriteSeat<ValueT> &);
   };
 
   template <typename PropsT> struct EditTextImmutableValueDoorProbe
@@ -2639,7 +2640,7 @@ namespace
       ScrollBarValueDoorProbe;
 }
 
-void testControlValueBindingsRequireMutableState()
+void testControlValueBindingsRequireWriteSeat()
 {
   EditTextValueDoorProbe::MutableDoor editTextDoor = &loka::app::EditTextProps::text;
   PopupMenuValueDoorProbe::MutableDoor popupMenuDoor = &loka::app::PopupMenuProps::selectedIndex;
@@ -4056,7 +4057,7 @@ namespace
 
   loka::app::ScrollBarDefinition scrollBarDefinition()
   {
-    loka::app::ScrollBarDefinition bar(g_scrollBarValue);
+    loka::app::ScrollBarDefinition bar((loka::app::scene::WriteSeat<int>(g_scrollBarValue)));
     bar.range(g_scrollBarMin, g_scrollBarMax)
         .orientation(g_scrollBarOrientation)
         .enabled(g_scrollBarEnabled)
@@ -4250,7 +4251,7 @@ void testNullPlatformContract_S2_heldArrowSettlesExactlyOnceAfterTheStateWrite()
 void testNullPlatformContract_S2_directProjectionRefreshesBoundDisplayValue()
 {
   loka::core::MutableState<int> value(0);
-  loka::app::ScrollBarProps props(&value);
+  loka::app::ScrollBarProps props((loka::app::scene::WriteSeat<int>(&value)));
   props.range(0, 4);
   NullScenePlatformController platform;
   loka::app::ScrollBarNode scrollBar(props);
@@ -4289,7 +4290,7 @@ void testNullPlatformContract_S3_declaredOrientationAndStepsDriveTheControl()
 
   // Orientation is carried, never inferred from the projected geometry.
   assert(context->orientation() == loka::app::SCROLL_BAR_HORIZONTAL);
-  assert(loka::app::ScrollBarDefinition(&value).props.orientation_ == loka::app::SCROLL_BAR_VERTICAL &&
+  assert(loka::app::ScrollBarDefinition(loka::app::scene::WriteSeat<int>(&value)).props.orientation_ == loka::app::SCROLL_BAR_VERTICAL &&
          "vertical is the default; horizontal must be asked for");
 
   context->simulatePress(NullScrollBarContext::PART_LINE_UP, 1);
@@ -4387,7 +4388,7 @@ void testNullPlatformContract_S5_recomposedRangeClampsTheDisplayWithoutWritingBa
 void testNullPlatformContract_S5_directProjectionClampsNarrowedRangeWithoutWriteBack()
 {
   loka::core::MutableState<int> value(9);
-  loka::app::ScrollBarProps props(&value);
+  loka::app::ScrollBarProps props((loka::app::scene::WriteSeat<int>(&value)));
   props.range(0, 20);
   NullScenePlatformController platform;
   loka::app::ScrollBarNode scrollBar(props);
@@ -4574,7 +4575,7 @@ void testNullPlatformContract_S8_rangeEdgesClampTheDisplayAndOnlyTheDisplay()
 void testNullPlatformContract_S8_directProjectionRefreshesRangeEdges()
 {
   loka::core::MutableState<int> value(2);
-  loka::app::ScrollBarProps props(&value);
+  loka::app::ScrollBarProps props((loka::app::scene::WriteSeat<int>(&value)));
   props.range(5, 20);
   NullScenePlatformController platform;
   loka::app::ScrollBarNode scrollBar(props);

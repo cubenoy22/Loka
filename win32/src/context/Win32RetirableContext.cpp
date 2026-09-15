@@ -5,7 +5,6 @@
 
 Win32RetirableContext::Win32RetirableContext(Win32ScenePlatformController *controller)
     : loka::app::scene::NativeNodeContext(),
-      boundary_(0),
       controller_(controller)
 {
 }
