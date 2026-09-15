@@ -1,9 +1,11 @@
 # SmirkyCard runtime experiment
 
-This optional example has two **C++-defined Scenes**. Press **Run JavaScript**
-on either card: QuickJS evaluates the displayed expression, returns `"first"`
-or `"second"`, and C++ installs that card in the same Window. Each visit creates
-a fresh Scene; the old Scene is retired through SceneManager.
+This optional example has two **C++-defined Scenes**. Each card has an editable
+script box; press **Run** to evaluate it with QuickJS and show its string result
+or exception. **Run JavaScript** remains the navigation experiment: it evaluates
+the displayed expression, returns `"first"` or `"second"`, and C++ installs
+that card in the same Window. Each visit creates a fresh Scene; the old Scene is
+retired through SceneManager.
 
 The AppConfig owns one runtime/context and outlives all windows. Card boundaries
 borrow it. The interpreter returns a card identifier and releases its result
@@ -68,8 +70,8 @@ mounted title and deferred Scene retirement, then destroys the final Window.
 
 ## Deliberate limits
 
-- Fixed synchronous scripts, defined beside the cards in `src/CardNodes.hpp`.
-  No editor, file watching, module loader, Promise job pump, or JS UI DSL yet.
+- Synchronous global scripts only. No file watching, module loader, Promise job
+  pump, or JS UI DSL.
 - One runtime with an 8 MiB engine allocation limit, 256 KiB JS stack limit,
   and an evaluation-local interrupt budget. These are experiment limits, not
   measurements or a supported Classic memory profile.
