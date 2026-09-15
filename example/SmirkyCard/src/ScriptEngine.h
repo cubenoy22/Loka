@@ -20,6 +20,12 @@ extern "C"
   typedef struct SmirkyScript SmirkyScript;
   SmirkyScript *SmirkyScriptCreate(void);
   void SmirkyScriptDestroy(SmirkyScript *script);
+  /* C++ card boundary uses these opaque handles; QuickJS values never cross
+     the application-facing API. */
+  struct JSContext;
+  struct JSRuntime;
+  struct JSContext *SmirkyScriptContext(SmirkyScript *script);
+  struct JSRuntime *SmirkyScriptRuntime(SmirkyScript *script);
 
   /** Evaluates a synchronous script returning "first" or "second". Copies an
       error into the supplied buffer on failure; no JS value crosses this door. */

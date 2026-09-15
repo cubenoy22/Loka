@@ -24,9 +24,15 @@ if(LOKA_CLASSIC_MAC)
 endif()
 
 function(smirkycard_cpp_target target)
+  target_sources(${target} PRIVATE src/ScriptRuntime.cpp src/JsCardNode.cpp)
   loka_enable_warnings(${target})
   set_target_properties(${target} PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
   target_link_libraries(${target} PRIVATE smirkycard_script)
+  # JsCardNode is the deliberately small C++ owner of values crossing the
+  # QuickJS boundary.  The engine remains a C target; its public header is
+  # safe to include from this C++98 boundary.
+  target_link_libraries(${target} PRIVATE smirkycard_quickjs)
+  target_include_directories(${target} SYSTEM PRIVATE ${smirkycard_quickjs_source_dir})
   target_include_directories(${target} PRIVATE ${PROJECT_SOURCE_DIR}/common)
   if(MSVC)
     target_compile_options(${target} PRIVATE /utf-8)

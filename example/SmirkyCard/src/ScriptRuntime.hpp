@@ -2,24 +2,88 @@
 #define SMIRKYCARD_SCRIPT_RUNTIME_HPP
 
 #include "ScriptEngine.h"
+#include "quickjs.h"
 #include "core/String.hpp"
 #include <cstring>
 #include <string>
 
 namespace smirkycard
 {
+  class JsCardNode;
+  /** Built-in card definitions shared by the app bootstrap and tests. */
+  const char *BuiltinMainJs();
   /** App-owned runtime; card boundaries borrow it and store no JS values. */
   class ScriptRuntime
   {
   public:
     ScriptRuntime()
-        : script_(SmirkyScriptCreate())
+        : script_(SmirkyScriptCreate()),
+          first_(JS_UNDEFINED),
+          second_(JS_UNDEFINED),
+          active_(0)
     {
+      if (this->script_)
+      {
+        JS_SetContextOpaque(this->context(), this);
+        JSValue global = JS_GetGlobalObject(this->context());
+        JS_SetPropertyStr(
+            this->context(), global, "card", JS_NewCFunction(this->context(), &ScriptRuntime::card, "card", 2));
+        JS_SetPropertyStr(
+            this->context(), global, "state", JS_NewCFunction(this->context(), &ScriptRuntime::state, "state", 1));
+        JS_SetPropertyStr(
+            this->context(), global, "VStack", JS_NewCFunction(this->context(), &ScriptRuntime::vstack, "VStack", 1));
+        JS_SetPropertyStr(
+            this->context(), global, "Text", JS_NewCFunction(this->context(), &ScriptRuntime::text, "Text", 1));
+        JS_SetPropertyStr(this->context(),
+                          global,
+                          "EditText",
+                          JS_NewCFunction(this->context(), &ScriptRuntime::editText, "EditText", 1));
+        JS_SetPropertyStr(
+            this->context(), global, "Button", JS_NewCFunction(this->context(), &ScriptRuntime::button, "Button", 2));
+        JS_SetPropertyStr(this->context(), global, "go", JS_NewCFunction(this->context(), &ScriptRuntime::go, "go", 1));
+        JS_FreeValue(this->context(), global);
+        loka::core::String ignored;
+        this->loadBuiltin(BuiltinMainJs(), ignored);
+      }
     }
     ~ScriptRuntime()
     {
+      if (this->script_)
+      {
+        JS_FreeValue(this->context(), this->first_);
+        JS_FreeValue(this->context(), this->second_);
+      }
       SmirkyScriptDestroy(this->script_);
     }
+
+    JSContext *context() const;
+    JSRuntime *jsRuntime() const;
+    void setActive(JsCardNode *node)
+    {
+      this->active_ = node;
+    }
+    JsCardNode *active() const
+    {
+      return this->active_;
+    }
+    JSValue constructorFor(SmirkyCardId id) const
+    {
+      return JS_DupValue(this->context(), id == SMIRKY_CARD_FIRST ? this->first_ : this->second_);
+    }
+    bool loadBuiltin(const char *source, loka::core::String &error);
+    /** Every JS invocation passes through one of these doors.  Success values
+        are transferred to the caller, which must either own or free them. */
+    bool callConstructor(JSValueConst ctor, JSValue &result, loka::core::String &error);
+    bool call(JSValueConst fn,
+              JSValueConst receiver,
+              int argc,
+              JSValueConst *argv,
+              JSValue &result,
+              loka::core::String &error);
+    bool evalBuiltin(const char *source, loka::core::String &error);
+    /* Helper callback is public only so the local tree factory can install it. */
+    static JSValue testId(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
+    static JSValue declare(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
 
     SmirkyCardId evaluate(const char *source, char *error, size_t capacity)
     {
@@ -36,8 +100,14 @@ namespace smirkycard
       const std::string sourceUtf8(sourceBytes ? sourceBytes : "", sourceBuffer.length());
       size_t resultLength = 0;
       size_t errorLength = 0;
-      if (SmirkyScriptEvaluateToString(this->script_, sourceUtf8.c_str(), resultBuffer, sizeof(resultBuffer),
-                                       &resultLength, errorBuffer, sizeof(errorBuffer), &errorLength))
+      if (SmirkyScriptEvaluateToString(this->script_,
+                                       sourceUtf8.c_str(),
+                                       resultBuffer,
+                                       sizeof(resultBuffer),
+                                       &resultLength,
+                                       errorBuffer,
+                                       sizeof(errorBuffer),
+                                       &errorLength))
       {
         result = loka::core::String::Utf8(resultBuffer, resultLength);
         error = loka::core::String();
@@ -49,7 +119,19 @@ namespace smirkycard
     }
 
   private:
+    static int interrupt(JSRuntime *, void *opaque);
+    bool captureException(loka::core::String &error);
+    static JSValue card(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
+    static JSValue state(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
+    static JSValue vstack(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
+    static JSValue text(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
+    static JSValue editText(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
+    static JSValue button(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
+    static JSValue go(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     SmirkyScript *script_;
+    JSValue first_;
+    JSValue second_;
+    JsCardNode *active_;
     ScriptRuntime(const ScriptRuntime &);
     ScriptRuntime &operator=(const ScriptRuntime &);
   };

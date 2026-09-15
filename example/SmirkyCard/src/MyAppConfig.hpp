@@ -15,6 +15,8 @@ public:
       : AppConfigurable(context),
         runtime_()
   {
+    loka::core::String error;
+    runtime_.loadBuiltin(smirkycard::BuiltinMainJs(), error);
   }
 
   virtual void compose(AppComposition &composition)
