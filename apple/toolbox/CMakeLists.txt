@@ -112,6 +112,12 @@ target_include_directories(LokaAppleToolbox INTERFACE
   ${CMAKE_CURRENT_LIST_DIR}
 )
 
+# Case-insensitive hosts resolve newlib's <strings.h> to the Toolbox Strings.h;
+# see compat/newlib/strings.h. First on the path so it wins on every host.
+target_include_directories(LokaAppleToolbox BEFORE INTERFACE
+  ${CMAKE_CURRENT_LIST_DIR}/compat/newlib
+)
+
 if(LOKA_TOOLBOX_MULTIVERSAL_INTERFACES)
   target_include_directories(LokaAppleToolbox BEFORE INTERFACE
     ${CMAKE_CURRENT_LIST_DIR}/compat/multiversal
