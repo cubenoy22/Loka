@@ -5,7 +5,6 @@
 #include "app/scene/boundary/Boundary.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "platform/Win32String.hpp"
-#include "core/util/StateTrackerGuard.hpp"
 #include <string>
 #include <tchar.h>
 
@@ -392,13 +391,7 @@ void Win32PopupMenuContext::syncStateFromControl()
   }
   updatingFromControl_ = true;
   LRESULT index = SendMessage(hwnd_, CB_GETCURSEL, 0, 0);
-  {
-    // The guard ends the transaction and settles the derived states that
-    // read the selection; emit onChange only after that, so a handler
-    // reading a DerivedNodeState sees the new value.
-    loka::core::StateTrackerGuard _(this->boundary() ? this->boundary()->tracker() : 0);
-    selectionSeat_.set(static_cast<int>(index), true);
-  }
+  selectionSeat_.set(static_cast<int>(index), true);
   updatingFromControl_ = false;
   if (node_ && node_->props.onChange_)
   {
