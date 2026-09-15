@@ -1,0 +1,68 @@
+#ifndef SMIRKYCARD_JS_CARD_BINDING_REGISTRY_HPP
+#define SMIRKYCARD_JS_CARD_BINDING_REGISTRY_HPP
+
+#include "quickjs.h"
+
+namespace loka
+{
+  namespace app
+  {
+    namespace scene
+    {
+      class NodeDefinitionBase;
+    }
+  } // namespace app
+} // namespace loka
+
+namespace smirkycard
+{
+  class JsCardNode;
+
+  struct IJsNodeLowering
+  {
+    const char *name;
+    int kind;
+    virtual ~IJsNodeLowering() {}
+    virtual JSValue build(JSContext *context, int argc, JSValueConst *argv) = 0;
+    virtual loka::app::scene::NodeDefinitionBase *
+    lower(JsCardNode &node, JSContext *context, JSValueConst tree, int depth) = 0;
+  };
+
+  struct IJsGlobal
+  {
+    const char *name;
+    JSCFunction *fn;
+    int length;
+  };
+
+  /** Per-runtime map between the JavaScript tree ABI and Loka lowerings. */
+  class JsCardBindingRegistry
+  {
+  public:
+    JsCardBindingRegistry()
+        : lowerings_(0),
+          globals_(0),
+          nextKind_(1)
+    {
+    }
+    ~JsCardBindingRegistry();
+    bool registerLowering(IJsNodeLowering *lowering);
+    bool registerGlobal(const IJsGlobal &global);
+    IJsNodeLowering *lookup(int kind) const;
+    bool install(JSContext *context) const;
+
+  private:
+    struct LoweringEntry;
+    struct GlobalEntry;
+    LoweringEntry *lowerings_;
+    GlobalEntry *globals_;
+    int nextKind_;
+    static JSValue build(JSContext *context, JSValueConst, int argc, JSValueConst *argv, int magic);
+    JsCardBindingRegistry(const JsCardBindingRegistry &);
+    JsCardBindingRegistry &operator=(const JsCardBindingRegistry &);
+  };
+
+  bool RegisterSmirkyCardBindings(JsCardBindingRegistry &registry);
+} // namespace smirkycard
+
+#endif

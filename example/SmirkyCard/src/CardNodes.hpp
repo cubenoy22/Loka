@@ -47,16 +47,23 @@ namespace smirkycard
     JSValue errorSeatGet(JSContext *context);
     void requestGo(const char *name, size_t length);
     bool setComposeTree(JSContext *context, JSValueConst tree);
+    loka::app::scene::NodeDefinitionBase *lowerText(JSContext *context, JSValueConst tree);
+    loka::app::scene::NodeDefinitionBase *lowerEditText(JSContext *context, JSValueConst tree);
+    loka::app::scene::NodeDefinitionBase *lowerButton(JSContext *context, JSValueConst tree);
+    void fail(const char *message);
+    loka::app::scene::NodeDefinitionBase *lowerChild(JSContext *context, JSValueConst tree, int depth);
     virtual void declareBindings(loka::app::scene::BindingToken &token);
     virtual void composeNode(loka::app::scene::NodeComposition &composition);
+    virtual void attachNode(loka::app::scene::NodeComposition &composition);
+    virtual void detachNode(loka::app::scene::NodeComposition &composition);
 
   private:
-    void fail(const char *message);
+    friend class IJsNodeLowering;
     void fail(const loka::core::String &message);
     loka::app::scene::NodeDefinitionBase *lower(JSContext *context, JSValueConst tree, int depth);
-    loka::app::scene::NodeDefinitionBase *lowerChild(JSContext *context, JSValueConst tree, int depth);
     int handlerSlot(JSContext *context, JSValueConst handler);
     void fire(int slot);
+    void callHook(JSValueConst hook);
     void fire0();
     void fire1();
     void fire2();
@@ -71,7 +78,7 @@ namespace smirkycard
     loka::core::String failure_;
     loka::core::EmitterState emitters_[8];
     int usedStates_;
-    JSValue seats_[8], handlers_[8], errorSeat_, tree_;
+    JSValue seats_[8], handlers_[8], errorSeat_, tree_, onAttach_, onDetach_;
     int seatKinds_[8];
     loka::app::scene::NodeState<loka::core::String> strings_[8], script_, result_, error_;
     loka::app::scene::NodeState<int> ints_[8];
