@@ -63,11 +63,16 @@ SmirkyScript *SmirkyScriptCreate(void)
     return NULL;
   }
 #if defined(LOKA_RETRO68)
-  /* Classic budget from the 68K engine probe on an 8 MB IIx (2026-09-15):
-     S2 (200 objects, JSON round trip, closures) peaked at 291 KB of
-     allocator payload, so 1 MiB leaves room for real card scripts; the
+  /* Classic budget, coupled to the SIZE partition (Size.r): a reload keeps
+     two engines alive for one admission cycle, so the per-engine ceiling is
+     half of what the partition can spare after CODE/DATA/UI (~0.8 MB):
+     2 x 512 KiB + 0.8 MB fits the 2 MiB preferred size. The 68K engine
+     probe on an 8 MB IIx (2026-09-15) peaked at 291 KB of allocator payload
+     for S2 (200 objects, JSON round trip, closures), so 512 KiB still leaves
+     room for real card scripts; a script that needs more gets QuickJS's
+     out-of-memory exception (a refusal on the card, not a crash). The
      32 KiB JS stack reached recursion depth 79 and 64 KiB reached 162. */
-  JS_SetMemoryLimit(script->runtime, 1 * 1024 * 1024);
+  JS_SetMemoryLimit(script->runtime, 512 * 1024);
   JS_SetMaxStackSize(script->runtime, 64 * 1024);
 #else
   JS_SetMemoryLimit(script->runtime, 8 * 1024 * 1024);
@@ -92,8 +97,14 @@ void SmirkyScriptDestroy(SmirkyScript *script)
   free(script);
 }
 
-JSContext *SmirkyScriptContext(SmirkyScript *script) { return script ? script->context : NULL; }
-JSRuntime *SmirkyScriptRuntime(SmirkyScript *script) { return script ? script->runtime : NULL; }
+JSContext *SmirkyScriptContext(SmirkyScript *script)
+{
+  return script ? script->context : NULL;
+}
+JSRuntime *SmirkyScriptRuntime(SmirkyScript *script)
+{
+  return script ? script->runtime : NULL;
+}
 
 /* Each evaluation owns its instruction budget on the stack. */
 static int interruptScript(JSRuntime *runtime, void *opaque)
@@ -110,8 +121,8 @@ static int interruptScript(JSRuntime *runtime, void *opaque)
    handler before and clears it after every stringification, since toString
    runs user JavaScript too). Owns any exception value; the caller owns a
    successful result and must JS_FreeValue it. */
-static JSValue evaluateGlobal(SmirkyScript *script, const char *source, char *error, size_t errorCapacity,
-                              size_t *errorLength, int *succeeded)
+static JSValue evaluateGlobal(
+    SmirkyScript *script, const char *source, char *error, size_t errorCapacity, size_t *errorLength, int *succeeded)
 {
   JSValue result;
   *succeeded = 0;
@@ -180,8 +191,14 @@ SmirkyCardId SmirkyScriptEvaluate(SmirkyScript *script, const char *source, char
   return card;
 }
 
-int SmirkyScriptEvaluateToString(SmirkyScript *script, const char *source, char *result, size_t resultCapacity,
-                                 size_t *resultLength, char *error, size_t errorCapacity, size_t *errorLength)
+int SmirkyScriptEvaluateToString(SmirkyScript *script,
+                                 const char *source,
+                                 char *result,
+                                 size_t resultCapacity,
+                                 size_t *resultLength,
+                                 char *error,
+                                 size_t errorCapacity,
+                                 size_t *errorLength)
 {
   JSValue value;
   int succeeded;
