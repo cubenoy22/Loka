@@ -5,6 +5,7 @@
 
 MacRetirableContext::MacRetirableContext(MacScenePlatformController *controller)
     : loka::app::scene::NativeNodeContext(),
+      boundary_(0),
       controller_(controller)
 {
 }

@@ -2,10 +2,12 @@
 #include <cassert>
 #include "../Win32ScenePlatformController.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
+#include "app/scene/boundary/Boundary.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include <vector>
 #include "app/nodes/controls/EditText.hpp"
 #include "core/State.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "Win32EditTextBridge.hpp"
 
 namespace
@@ -245,6 +247,7 @@ void Win32EditTextContext::syncStateFromControl()
     return;
   }
   updatingFromControl_ = true;
+  loka::core::StateTrackerGuard _(this->boundary() ? this->boundary()->tracker() : 0);
   mutableState->set(loka::win32::ReadEditTextString(hwnd_), true);
   updatingFromControl_ = false;
 }

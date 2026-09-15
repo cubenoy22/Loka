@@ -7,6 +7,7 @@
 #include "core/util/StateTrackerGuard.hpp"
 #include "platform/StringUTF8.hpp"
 
+#include <new>
 #include <cstdio>
 #include <cstdlib>
 
@@ -33,14 +34,90 @@ namespace helloworld
     static const int kNarrowBreakpoint = 400;
   } // namespace
 
+  class MainNode::ActionSummaryEvalFn : public DerivedState<String>::EvalFn
+  {
+  public:
+    ActionSummaryEvalFn(const loka::app::scene::NodeState<bool> &enabled,
+                        const loka::app::scene::NodeState<int> &count)
+        : enabled_(enabled), count_(count) {}
+
+    virtual String operator()()
+    {
+      const String enabledText = this->enabled_.get() ? String::Literal("yes") : String::Literal("no");
+      return String::Literal("Button enabled: ") + enabledText + String::Literal(" / clicks: ")
+             + String::FromInt(this->count_.get());
+    }
+
+  private:
+    const loka::app::scene::NodeState<bool> &enabled_;
+    const loka::app::scene::NodeState<int> &count_;
+  };
+
+  class MainNode::FruitMessageEvalFn : public DerivedState<String>::EvalFn
+  {
+  public:
+    FruitMessageEvalFn(const loka::app::scene::NodeState<int> &index,
+                       const loka::Vector<String> &fruits)
+        : index_(index), fruits_(fruits) {}
+
+    virtual String operator()()
+    {
+      if (this->fruits_.empty())
+        return String::Literal("You chose .");
+      int index = this->index_.get();
+      if (index < 0 || static_cast<std::size_t>(index) >= this->fruits_.size())
+        index = 0;
+      return String::Literal("You chose ") + this->fruits_[static_cast<std::size_t>(index)]
+             + String::Literal(".");
+    }
+
+  private:
+    const loka::app::scene::NodeState<int> &index_;
+    const loka::Vector<String> &fruits_;
+  };
+
+  class MainNode::BmiResultEvalFn : public DerivedState<String>::EvalFn
+  {
+  public:
+    BmiResultEvalFn(const loka::app::scene::NodeState<String> &height,
+                    const loka::app::scene::NodeState<String> &weight)
+        : height_(height), weight_(weight) {}
+
+    virtual String operator()()
+    {
+      const double heightCm = this->parseBmiValue(this->height_.get());
+      const double weightKg = this->parseBmiValue(this->weight_.get());
+      if (heightCm <= 0.0 || weightKg <= 0.0)
+        return String::Literal("BMI: --");
+      const double heightM = heightCm / 100.0;
+      if (heightM <= 0.0)
+        return String::Literal("BMI: --");
+      const double bmi = weightKg / (heightM * heightM);
+      if (bmi <= 0.0)
+        return String::Literal("BMI: --");
+      char buf[64];
+      std::snprintf(buf, sizeof(buf), "BMI: %.2f", bmi);
+      return String(std::string(buf));
+    }
+
+  private:
+    static double parseBmiValue(const String &value)
+    {
+      std::string utf8;
+      if (!loka::platform::CollectUtf8(value, utf8))
+        return 0.0;
+      const char *start = utf8.c_str();
+      char *endPtr = 0;
+      const double parsed = std::strtod(start, &endPtr);
+      return endPtr == start ? 0.0 : parsed;
+    }
+
+    const loka::app::scene::NodeState<String> &height_;
+    const loka::app::scene::NodeState<String> &weight_;
+  };
+
   MainNode::MainNode(const MainProps &p)
       : loka::app::scene::BoundaryNodeFor<MainNode>(p),
-        actionSummaryCacheValid_(false),
-        lastActionSummaryEnabled_(false),
-        lastActionSummaryCount_(0),
-        bmiCacheValid_(false),
-        lastBmiWasValid_(false),
-        lastBmiHundredths_(0),
         message_(),
         toggleEvent_(),
         actionEnabled_(),
@@ -60,15 +137,18 @@ namespace helloworld
     this->state(this->message_, String::Literal("Hello, Loka!"));
     this->state(this->actionEnabled_, true);
     this->state(this->actionProbeCount_, 0);
-    this->state(this->actionSummary_, String::Literal("Button enabled: yes / clicks: 0"));
     this->state(this->heightInput_, String::Literal("170.0"));
     this->state(this->weightInput_, String::Literal("60.0"));
-    this->state(this->bmiResult_, String::Literal("BMI: --"));
     this->state(this->fruitIndex_, 0);
-    this->state(this->fruitMessage_, String::Literal("You chose Apple."));
     this->state(this->axis_, loka::app::STACK_AXIS_ROW);
     this->state(this->scrollOffset_, 0);
     this->fruits_.assign(kFruitItems, kFruitItemCount);
+    this->derived(this->actionSummary_, this->actionEnabled_, this->actionProbeCount_,
+                  new (std::nothrow) ActionSummaryEvalFn(this->actionEnabled_, this->actionProbeCount_));
+    this->derived(this->fruitMessage_, this->fruitIndex_,
+                  new (std::nothrow) FruitMessageEvalFn(this->fruitIndex_, this->fruits_));
+    this->derived(this->bmiResult_, this->heightInput_, this->weightInput_,
+                  new (std::nothrow) BmiResultEvalFn(this->heightInput_, this->weightInput_));
   }
 
   void MainNode::declareBindings(loka::app::scene::BindingToken &t)
@@ -76,17 +156,11 @@ namespace helloworld
     t.action(this->toggleEvent_, this, &MainNode::toggleMessage);
     t.action(this->toggleActionEnabledEvent_, this, &MainNode::toggleActionEnabled);
     t.action(this->actionProbeEvent_, this, &MainNode::handleActionProbe);
-    t.watch(this->heightInput_, this, &MainNode::refreshBmiResult);
-    t.watch(this->weightInput_, this, &MainNode::refreshBmiResult);
-    t.watch(this->fruitIndex_, this, &MainNode::refreshFruitMessage);
     ::Window *window = this->windowOrNull();
     if (window)
     {
       t.watch(window->nativeFrame(), this, &MainNode::refreshLayoutMode, true);
     }
-    this->refreshActionSummary();
-    this->refreshBmiResult();
-    this->refreshFruitMessage();
   }
 
   ::Window *MainNode::windowOrNull() const
@@ -127,79 +201,6 @@ namespace helloworld
                   .TEST_ID("HelloWorld.LeftPanel.ToggleEnabledButton");
   }
 
-  double MainNode::parseBmiValue(const String &value) const
-  {
-    std::string utf8;
-    if (!loka::platform::CollectUtf8(value, utf8))
-    {
-      return 0.0;
-    }
-    const char *start = utf8.c_str();
-    char *endPtr = 0;
-    const double parsed = std::strtod(start, &endPtr);
-    if (endPtr == start)
-    {
-      return 0.0;
-    }
-    return parsed;
-  }
-
-  void MainNode::refreshBmiResult()
-  {
-    if (!this->heightInput_.isValid() || !this->weightInput_.isValid() || !this->bmiResult_.isValid())
-    {
-      return;
-    }
-    const double heightCm = this->parseBmiValue(this->heightInput_.get());
-    const double weightKg = this->parseBmiValue(this->weightInput_.get());
-    if (heightCm <= 0.0 || weightKg <= 0.0)
-    {
-      if (this->bmiCacheValid_ && !this->lastBmiWasValid_)
-      {
-        return;
-      }
-      this->bmiCacheValid_ = true;
-      this->lastBmiWasValid_ = false;
-      this->bmiResult_.set(String::Literal("BMI: --"));
-      return;
-    }
-    const double heightM = heightCm / 100.0;
-    if (heightM <= 0.0)
-    {
-      if (this->bmiCacheValid_ && !this->lastBmiWasValid_)
-      {
-        return;
-      }
-      this->bmiCacheValid_ = true;
-      this->lastBmiWasValid_ = false;
-      this->bmiResult_.set(String::Literal("BMI: --"));
-      return;
-    }
-    const double bmi = weightKg / (heightM * heightM);
-    if (bmi <= 0.0)
-    {
-      if (this->bmiCacheValid_ && !this->lastBmiWasValid_)
-      {
-        return;
-      }
-      this->bmiCacheValid_ = true;
-      this->lastBmiWasValid_ = false;
-      this->bmiResult_.set(String::Literal("BMI: --"));
-      return;
-    }
-    const int bmiHundredths = static_cast<int>(bmi * 100.0 + 0.5);
-    if (this->bmiCacheValid_ && this->lastBmiWasValid_ && this->lastBmiHundredths_ == bmiHundredths)
-    {
-      return;
-    }
-    this->bmiCacheValid_ = true;
-    this->lastBmiWasValid_ = true;
-    this->lastBmiHundredths_ = bmiHundredths;
-    char buf[64];
-    std::snprintf(buf, sizeof(buf), "BMI: %.2f", bmi);
-    this->bmiResult_.set(String(std::string(buf)));
-  }
-
   void MainNode::toggleMessage()
   {
     if (!this->message_.isValid())
@@ -233,7 +234,6 @@ namespace helloworld
       return;
     }
     this->actionEnabled_.set(!this->actionEnabled_.get());
-    this->refreshActionSummary();
   }
 
   void MainNode::handleActionProbe()
@@ -243,49 +243,6 @@ namespace helloworld
       return;
     }
     this->actionProbeCount_.set(this->actionProbeCount_.get() + 1);
-    this->refreshActionSummary();
-  }
-
-  void MainNode::refreshActionSummary()
-  {
-    if (!this->actionEnabled_.isValid() || !this->actionProbeCount_.isValid() || !this->actionSummary_.isValid())
-    {
-      return;
-    }
-    const bool enabled = this->actionEnabled_.get();
-    const int count = this->actionProbeCount_.get();
-    if (this->actionSummaryCacheValid_ && this->lastActionSummaryEnabled_ == enabled
-        && this->lastActionSummaryCount_ == count)
-    {
-      return;
-    }
-    this->actionSummaryCacheValid_ = true;
-    this->lastActionSummaryEnabled_ = enabled;
-    this->lastActionSummaryCount_ = count;
-    const String enabledText = enabled ? String::Literal("yes") : String::Literal("no");
-    const String countText = String::FromInt(count);
-    this->actionSummary_.set(String::Literal("Button enabled: ") + enabledText + String::Literal(" / clicks: ")
-                             + countText);
-  }
-
-  void MainNode::refreshFruitMessage()
-  {
-    if (!this->fruitIndex_.isValid() || !this->fruitMessage_.isValid())
-    {
-      return;
-    }
-    if (this->fruits_.empty())
-    {
-      this->fruitMessage_.set(String::Literal("You chose ."));
-      return;
-    }
-    int index = this->fruitIndex_.get();
-    if (index < 0 || static_cast<std::size_t>(index) >= this->fruits_.size())
-    {
-      index = 0;
-    }
-    this->fruitMessage_.set(String::Literal("You chose ") + this->fruits_[static_cast<std::size_t>(index)]
-                            + String::Literal("."));
   }
 
   void MainNode::composeNode(loka::app::scene::NodeComposition &c)

@@ -142,6 +142,14 @@ public:
   {
     return rootHwnd_;
   }
+  void setActiveLayoutBoundary(loka::app::scene::BoundaryNode *boundary)
+  {
+    this->activeLayoutBoundary_ = boundary;
+  }
+  loka::app::scene::BoundaryNode *activeLayoutBoundary() const
+  {
+    return this->activeLayoutBoundary_;
+  }
   /** Native parent for a projected child. The root remains the default;
       an active ScrollView scope supplies its viewport HWND. */
   HWND projectionParentHwnd() const
@@ -394,6 +402,7 @@ private:
   LeafLayoutHandlerRegistry leafLayoutHandlerRegistry_;
   LeafLayoutHandlerRegistry hostActionHandlerRegistry_;
   loka::app::scene::Node *rootNode_;
+  loka::app::scene::BoundaryNode *activeLayoutBoundary_;
   int clientWidth_;
   int clientHeight_;
   loka::win32::Win32DisplayScale displayScale_;

@@ -25,35 +25,29 @@ namespace helloworld
     virtual void composeNode(loka::app::scene::NodeComposition &c);
 
   private:
+    class ActionSummaryEvalFn;
+    class FruitMessageEvalFn;
+    class BmiResultEvalFn;
+
     ::Window *windowOrNull() const;
     loka::app::VStack mainLeftPanel();
     void refreshLayoutMode();
-    double parseBmiValue(const loka::core::String &value) const;
-    void refreshBmiResult();
     void toggleMessage();
     void toggleActionEnabled();
     void handleActionProbe();
-    void refreshActionSummary();
-    void refreshFruitMessage();
 
-    bool actionSummaryCacheValid_;
-    bool lastActionSummaryEnabled_;
-    int lastActionSummaryCount_;
-    bool bmiCacheValid_;
-    bool lastBmiWasValid_;
-    int lastBmiHundredths_;
     loka::app::scene::NodeState<loka::core::String> message_;
     loka::core::EmitterState toggleEvent_;
     loka::app::scene::NodeState<bool> actionEnabled_;
     loka::app::scene::NodeState<int> actionProbeCount_;
-    loka::app::scene::NodeState<loka::core::String> actionSummary_;
+    loka::app::scene::DerivedNodeState<loka::core::String> actionSummary_;
     loka::app::scene::NodeState<loka::core::String> heightInput_;
     loka::app::scene::NodeState<loka::core::String> weightInput_;
-    loka::app::scene::NodeState<loka::core::String> bmiResult_;
+    loka::app::scene::DerivedNodeState<loka::core::String> bmiResult_;
     loka::core::EmitterState toggleActionEnabledEvent_;
     loka::core::EmitterState actionProbeEvent_;
     loka::app::scene::NodeState<int> fruitIndex_;
-    loka::app::scene::NodeState<loka::core::String> fruitMessage_;
+    loka::app::scene::DerivedNodeState<loka::core::String> fruitMessage_;
     loka::app::scene::NodeState<loka::app::StackAxis> axis_;
     loka::app::scene::NodeState<int> scrollOffset_;
     loka::Vector<loka::core::String> fruits_;
