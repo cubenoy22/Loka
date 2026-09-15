@@ -23,6 +23,7 @@
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/state/FlowSlot.hpp"
+#include "app/scene/state/WriteSeat.hpp"
 #include "support/Headless.hpp"
 #include "dsl/flow/Expr.hpp"
 #include "dsl/stream/StateStream.hpp"
@@ -3637,7 +3638,7 @@ void testLokaFlowDslV1Core()
 
     NodeComposition composition;
     BoxDefinition &root = composition.declare(Box().testId("ActionRegion"));
-    root << EditText(&input) << Button("Press").onClick(&buttonClick) << Cell("Open").onClick(&cellClick);
+    root << EditText(loka::app::scene::WriteSeat<loka::core::String>(&input)) << Button("Press").onClick(&buttonClick) << Cell("Open").onClick(&cellClick);
 
     NodeDefinitionBase *rootDefinition = composition.root()->clone();
     LOKA_VERIFY(rootDefinition != 0);
@@ -5433,7 +5434,7 @@ void testLokaFlowDslV1Core()
     text.bind(&incrementNotificationCount, &textNotificationCount, false);
     NodeComposition composition;
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
-    root << EditText(&text).testId("ScenarioEditText");
+    root << EditText(loka::app::scene::WriteSeat<loka::core::String>(&text)).testId("ScenarioEditText");
 
     NodeDefinitionBase *rootDefinition = composition.root()->clone();
     LOKA_VERIFY(rootDefinition != 0);

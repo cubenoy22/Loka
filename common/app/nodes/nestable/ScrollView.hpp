@@ -3,6 +3,7 @@
 
 #include "app/scene/Node.hpp"
 #include "app/scene/state/NodeState.hpp"
+#include "app/scene/state/WriteSeat.hpp"
 #include "core/State.hpp"
 
 namespace loka
@@ -55,9 +56,9 @@ namespace loka
           rail consumes it yet — the intent pipe is wired in a later PR with
           zoom as its first consumer (#537), not as a side effect of a rail
           landing. */
-      ScrollViewProps &scrollTo(loka::core::MutableState<int> *value)
+      ScrollViewProps &scrollTo(const scene::WriteSeat<int> &value)
       {
-        this->scrollTo_ = scene::WriteSeat<int>(value);
+        this->scrollTo_ = value;
         return *this;
       }
 
@@ -154,7 +155,7 @@ namespace loka
         return *this;
       }
 
-      ScrollViewDefinition &scrollTo(loka::core::MutableState<int> *value)
+      ScrollViewDefinition &scrollTo(const scene::WriteSeat<int> &value)
       {
         this->props.scrollTo(value);
         return *this;

@@ -131,6 +131,11 @@ loka_compile_pin(open-file-dialog-definition-requires-node-state
   ACCEPTS pins/accepts_open_file_dialog_node_state.cpp
 )
 
+loka_compile_pin(edittext-requires-write-seat
+  REFUSES pins/refuses_edittext_raw_mutable_state.cpp
+  ACCEPTS pins/accepts_edittext_write_seat.cpp
+)
+
 loka_compile_pin(seat-descriptor-non-node
   REFUSES pins/refuses_seat_non_node.cpp
   ACCEPTS pins/accepts_seat_descriptor.cpp

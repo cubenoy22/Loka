@@ -106,14 +106,6 @@ public:
   static MacScenePlatformController *findForRootView(void *rootView);
   static void flushPendingRelayouts();
   void *rootView() const { return rootView_; }
-  void setActiveLayoutBoundary(loka::app::scene::BoundaryNode *boundary)
-  {
-    this->activeLayoutBoundary_ = boundary;
-  }
-  loka::app::scene::BoundaryNode *activeLayoutBoundary() const
-  {
-    return this->activeLayoutBoundary_;
-  }
   /** Native parent for a projected child. The root remains the default;
       an active ScrollView scope supplies its document view. */
   void *projectionParentView() const
@@ -255,7 +247,6 @@ private:
   LeafLayoutHandlerRegistry leafLayoutHandlerRegistry_;
   LeafLayoutHandlerRegistry hostActionHandlerRegistry_;
   loka::app::scene::Node *rootNode_;
-  loka::app::scene::BoundaryNode *activeLayoutBoundary_;
   loka::app::RectSurfaceExtentLedger rectSurfaceExtentLedger_;
   loka::app::scene::NodeDirtyFlags lastChangeFlags_;
   int clientWidth_;
