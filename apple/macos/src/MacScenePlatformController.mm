@@ -491,7 +491,7 @@ MacScenePlatformController::layoutScrollViewNode(
   }
 
   int requestedOffset = scrollView->props.offset_.isValid()
-                            ? scrollView->props.offset_.get()
+                            ? scrollView->props.offset_.state()->get()
                             : 0;
   if (requestedOffset < 0)
   {
@@ -575,7 +575,7 @@ MacScenePlatformController::layoutScrollViewNode(
     const int clampedOffset =
         ctx->setScrollMetrics(contentHeight, state.height, requestedOffset);
     if (scrollView->props.offset_.isValid() &&
-        scrollView->props.offset_.get() != clampedOffset)
+        scrollView->props.offset_.state()->get() != clampedOffset)
     {
       // A fact write may schedule another layout. Publish only after the
       // document scope has popped so every projection pass starts at root.
@@ -976,7 +976,7 @@ void *MacScenePlatformController::findFocusedEditTextState(loka::app::scene::Nod
       {
         const_cast<MacScenePlatformController *>(this)->focusedEditTextControlTag_ = edit->props.controlTag_;
       }
-      return edit->props.text_;
+      return edit->props.text_.state();
     }
   }
   if (loka::app::scene::INestable *nestable = node->asNestable())
@@ -1004,7 +1004,7 @@ void *MacScenePlatformController::findFieldForFocusedEdit(loka::app::scene::Node
   {
     const bool controlTagMatches =
         focusedEditTextControlTag_ != 0 && edit->props.controlTag_ == focusedEditTextControlTag_;
-    const bool stateMatches = focusedEditTextState_ != 0 && edit->props.text_ == focusedEditTextState_;
+    const bool stateMatches = focusedEditTextState_ != 0 && edit->props.text_.state() == focusedEditTextState_;
     if (controlTagMatches || (focusedEditTextControlTag_ == 0 && stateMatches))
     {
       MacEditTextContext *ctx = static_cast<MacEditTextContext *>(edit->getContext());
