@@ -40,7 +40,7 @@ jobs:
       - name: Verify Ninja
         if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
         run: ninja --version
-      - run: cmake --preset win32-debug
+      - run: cmake --preset win32-debug -DLOKA_BUILD_SMIRKYCARD=ON
         if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       # Two builds, because neither target set implies the other: win32-debug
       # builds the production targets (the test executable compiles only a
