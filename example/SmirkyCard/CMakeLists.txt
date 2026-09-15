@@ -35,6 +35,7 @@ endif()
 
 if(LOKA_CLASSIC_MAC)
   target_compile_definitions(smirkycard_script PRIVATE LOKA_RETRO68=1)
+  target_link_libraries(smirkycard_script PRIVATE LokaClassicNewlibCompat)
 endif()
 
 function(smirkycard_cpp_target target)

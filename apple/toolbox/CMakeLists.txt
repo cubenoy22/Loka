@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.15)
 
 # Toolbox builds are expected to use a separate toolchain (e.g. Retro68).
+add_library(LokaClassicNewlibCompat INTERFACE)
+target_include_directories(LokaClassicNewlibCompat BEFORE INTERFACE
+  ${CMAKE_CURRENT_LIST_DIR}/compat/newlib
+)
+
 add_library(LokaAppleToolbox INTERFACE)
 
 set(LOKA_TOOLBOX_SOURCES
@@ -105,17 +110,12 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC)$")
 endif()
 
 target_link_libraries(LokaAppleToolbox INTERFACE
+  LokaClassicNewlibCompat
   LokaAppleCommonCarbon
 )
 
 target_include_directories(LokaAppleToolbox INTERFACE
   ${CMAKE_CURRENT_LIST_DIR}
-)
-
-# Case-insensitive hosts resolve newlib's <strings.h> to the Toolbox Strings.h;
-# see compat/newlib/strings.h. First on the path so it wins on every host.
-target_include_directories(LokaAppleToolbox BEFORE INTERFACE
-  ${CMAKE_CURRENT_LIST_DIR}/compat/newlib
 )
 
 if(LOKA_TOOLBOX_MULTIVERSAL_INTERFACES)
