@@ -169,7 +169,8 @@ for bin in "${MACBINARY_PATHS[@]}"; do
   HOME="$HFS_HOME" "$HCOPY" -m "$bin" "$DEST_DIR"
 done
 
-for plain_data in "${PLAIN_DATA_PATHS[@]}"; do
+# bash 3.2 (macOS) treats an empty array expansion as unbound under set -u.
+for plain_data in ${PLAIN_DATA_PATHS[@]+"${PLAIN_DATA_PATHS[@]}"}; do
   HOME="$HFS_HOME" "$HCOPY" -r "$plain_data" "$DEST_DIR"
 done
 
