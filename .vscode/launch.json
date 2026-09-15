@@ -69,7 +69,7 @@
       "name": "Run (macOS SmirkyCard)",
       "type": "lldb-dap",
       "request": "launch",
-      "program": "${workspaceFolder}/build/macos/Debug/example/SmirkyCard/LokaSmirkyCardMacOS",
+      "program": "${workspaceFolder}/build/macos/Debug/example/SmirkyCard/LokaSmirkyCardMacOS.app/Contents/MacOS/LokaSmirkyCardMacOS",
       "cwd": "${workspaceFolder}",
       "preLaunchTask": "Build: macOS SmirkyCard"
     },

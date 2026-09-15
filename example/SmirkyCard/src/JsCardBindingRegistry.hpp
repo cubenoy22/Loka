@@ -9,7 +9,7 @@ namespace loka
   {
     namespace scene
     {
-      class NodeDefinitionBase;
+      struct NodeDefinitionBase;
     }
   } // namespace app
 } // namespace loka

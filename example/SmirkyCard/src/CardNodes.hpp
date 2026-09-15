@@ -60,7 +60,7 @@ namespace smirkycard
     virtual void detachNode(loka::app::scene::NodeComposition &composition);
 
   private:
-    friend class IJsNodeLowering;
+    friend struct IJsNodeLowering;
     friend class ScriptRuntime;
     void fail(const loka::core::String &message);
     loka::app::scene::NodeDefinitionBase *lower(JSContext *context, JSValueConst tree, int depth);
