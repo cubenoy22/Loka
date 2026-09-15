@@ -1,8 +1,8 @@
 #include "Win32PopupMenuContext.hpp"
 #include <cassert>
 #include "../Win32ScenePlatformController.hpp"
-#include "../Win32Window.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
+#include "app/scene/boundary/Boundary.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "platform/Win32String.hpp"
 #include "core/util/StateTrackerGuard.hpp"
@@ -395,11 +395,7 @@ void Win32PopupMenuContext::syncStateFromControl()
   }
   updatingFromControl_ = true;
   LRESULT index = SendMessage(hwnd_, CB_GETCURSEL, 0, 0);
-  Win32Window *window = this->controller() && this->controller()->rootHwnd()
-                            ? reinterpret_cast<Win32Window *>(
-                                  GetWindowLongPtrW(this->controller()->rootHwnd(), GWLP_USERDATA))
-                            : 0;
-  loka::core::StateTrackerGuard _(window ? window->getTracker() : 0);
+  loka::core::StateTrackerGuard _(this->boundary() ? this->boundary()->tracker() : 0);
   mutableState->set(static_cast<int>(index), true);
   updatingFromControl_ = false;
   if (node_ && node_->props.onChange_)

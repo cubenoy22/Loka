@@ -7,17 +7,31 @@ class MacScenePlatformController;
 
 /** Transfers retained Objective-C projection objects to the controller's
     safe-point queue before the synchronous C++ context reclaim. */
-class MacRetirableContext : public loka::app::scene::NativeNodeContext
+class MacRetirableContext : public loka::app::scene::NativeNodeContext,
+                            public loka::app::scene::IBoundaryTaggedContext
 {
 public:
   explicit MacRetirableContext(MacScenePlatformController *controller);
   virtual ~MacRetirableContext();
+  virtual loka::app::scene::IBoundaryTaggedContext *asBoundaryTagged()
+  {
+    return this;
+  }
+  virtual void setBoundary(loka::app::scene::BoundaryNode *boundary)
+  {
+    this->boundary_ = boundary;
+  }
+  virtual loka::app::scene::BoundaryNode *boundary() const
+  {
+    return this->boundary_;
+  }
 
 protected:
   void retireNativeObjects(void *&primary, void *&auxiliary);
   void retireNativeObject(void *&primary);
 
 private:
+  loka::app::scene::BoundaryNode *boundary_;
   MacScenePlatformController *controller_;
 };
 

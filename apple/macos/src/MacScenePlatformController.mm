@@ -88,6 +88,7 @@ MacScenePlatformController::MacScenePlatformController(void *rootView)
     : rootView_(rootView),
       projectionParentScopes_(rootView),
       rootNode_(0),
+      activeLayoutBoundary_(0),
       rectSurfaceExtentLedger_(),
       lastChangeFlags_(loka::app::scene::NODE_DIRTY_NONE),
       clientWidth_(0),
@@ -142,7 +143,18 @@ bool MacScenePlatformController::prepareProjectedLayout(loka::app::scene::Node *
     assert(false && "no node handler registered for this node type -- register the handler or an explicit RefusedNodeHandler");
     return false;
   }
-  return handler->ensureContext(node, this, handlerState) != 0;
+  loka::app::scene::NodeContext *context = handler->ensureContext(node, this, handlerState);
+  if (!context)
+  {
+    return false;
+  }
+  // Type-safe hookup: only contexts that opt in through asBoundaryTagged
+  // receive the current owning Boundary tag.
+  if (loka::app::scene::IBoundaryTaggedContext *tagged = context->asBoundaryTagged())
+  {
+    tagged->setBoundary(this->activeLayoutBoundary());
+  }
+  return true;
 }
 
 int MacScenePlatformController::layoutNodeFromSceneState(loka::app::scene::Node *node,
@@ -593,6 +605,26 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
   {
     return state.y;
   }
+  class ActiveLayoutBoundaryScope
+  {
+  public:
+    ActiveLayoutBoundaryScope(MacScenePlatformController *controller,
+                              loka::app::scene::BoundaryNode *boundary)
+        : controller_(controller),
+          previous_(controller ? controller->activeLayoutBoundary() : 0)
+    {
+      if (controller_)
+        controller_->setActiveLayoutBoundary(boundary ? boundary : previous_);
+    }
+    ~ActiveLayoutBoundaryScope()
+    {
+      if (controller_)
+        controller_->setActiveLayoutBoundary(previous_);
+    }
+  private:
+    MacScenePlatformController *controller_;
+    loka::app::scene::BoundaryNode *previous_;
+  } boundaryScope(this, node->asBoundary());
   return this->applyBoundaryLayoutResult(node->asBoundary(), state.x, state.y, this->computeLayoutResult(node, state));
 }
 

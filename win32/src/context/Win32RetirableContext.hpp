@@ -9,11 +9,26 @@ class Win32ScenePlatformController;
 /** Platform-context base that transfers an HWND to its controller at the
     terminal lifecycle fact. The context dies synchronously; the HWND does
     not cross its native destruction line until the App safe point. */
-class Win32RetirableContext : public loka::app::scene::NativeNodeContext
+class Win32RetirableContext : public loka::app::scene::NativeNodeContext,
+                              public loka::app::scene::IBoundaryTaggedContext
 {
 public:
   explicit Win32RetirableContext(Win32ScenePlatformController *controller);
   virtual ~Win32RetirableContext();
+  // Rail writes must settle the owning Boundary's derived states; the Window
+  // tracker is a different tracker and cannot settle this Boundary.
+  virtual loka::app::scene::IBoundaryTaggedContext *asBoundaryTagged()
+  {
+    return this;
+  }
+  virtual void setBoundary(loka::app::scene::BoundaryNode *boundary)
+  {
+    this->boundary_ = boundary;
+  }
+  virtual loka::app::scene::BoundaryNode *boundary() const
+  {
+    return this->boundary_;
+  }
   /** EXACT damage uses device pixels in this HWND's client coordinates.
       Only contexts that return non-empty EXACT need to expose a target. */
   virtual HWND paintHwnd() const
@@ -50,6 +65,7 @@ protected:
   }
 
 private:
+  loka::app::scene::BoundaryNode *boundary_;
   Win32ScenePlatformController *controller_;
 };
 

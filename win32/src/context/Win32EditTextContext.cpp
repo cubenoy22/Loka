@@ -1,8 +1,8 @@
 #include "Win32EditTextContext.hpp"
 #include <cassert>
 #include "../Win32ScenePlatformController.hpp"
-#include "../Win32Window.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
+#include "app/scene/boundary/Boundary.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include <vector>
 #include "app/nodes/controls/EditText.hpp"
@@ -247,11 +247,7 @@ void Win32EditTextContext::syncStateFromControl()
     return;
   }
   updatingFromControl_ = true;
-  Win32Window *window = this->controller() && this->controller()->rootHwnd()
-                            ? reinterpret_cast<Win32Window *>(
-                                  GetWindowLongPtrW(this->controller()->rootHwnd(), GWLP_USERDATA))
-                            : 0;
-  loka::core::StateTrackerGuard _(window ? window->getTracker() : 0);
+  loka::core::StateTrackerGuard _(this->boundary() ? this->boundary()->tracker() : 0);
   mutableState->set(loka::win32::ReadEditTextString(hwnd_), true);
   updatingFromControl_ = false;
 }
