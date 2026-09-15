@@ -4,6 +4,7 @@
 #include <windows.h>
 #include "Win32RetirableContext.hpp"
 #include "core/String.hpp"
+#include "app/scene/state/WriteSeat.hpp"
 
 namespace loka
 {
@@ -66,6 +67,7 @@ private:
   loka::app::EditTextNode *node_;
   HWND hwnd_;
   loka::core::State<loka::core::String> *textState_;
+  loka::app::scene::WriteSeat<loka::core::String> textSeat_;
   bool applyingFromState_;
   bool updatingFromControl_;
   /** Completed outcome of the latest native submission, never a future promise. */

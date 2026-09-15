@@ -99,7 +99,7 @@ loka::app::scene::PaintAnswer Win32PopupMenuContext::queryPaintDamage(const loka
     return PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
   if (query.placement != PLACEMENT_ELIGIBLE)
     return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
-  if (!this->node_ || this->node_->props.selectedIndex_ != this->selectionState_
+  if (!this->node_ || this->node_->props.selectedIndex_.state() != this->selectionState_
       || this->node_->props.enabled_ != this->enabledState_)
     return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
   PaintAnswer answer = this->controlDelivery_;
@@ -195,7 +195,8 @@ void Win32PopupMenuContext::bindSelection()
   {
     return;
   }
-  selectionState_ = static_cast<loka::core::State<int> *>(node_->props.selectedIndex_);
+  selectionState_ = node_->props.selectedIndex_.state();
+  selectionSeat_ = node_->props.selectedIndex_;
   if (selectionState_)
   {
     selectionState_->bind(&Win32PopupMenuContext::SelectionChangedThunk, this, true);
@@ -209,6 +210,7 @@ void Win32PopupMenuContext::unbindSelection()
   {
     selectionState_->unbind(&Win32PopupMenuContext::SelectionChangedThunk, this);
     selectionState_ = 0;
+    selectionSeat_ = loka::app::scene::WriteSeat<int>();
   }
 }
 
@@ -388,11 +390,6 @@ void Win32PopupMenuContext::syncStateFromControl()
   {
     return;
   }
-  loka::core::MutableState<int> *mutableState = dynamic_cast<loka::core::MutableState<int> *>(selectionState_);
-  if (!mutableState)
-  {
-    return;
-  }
   updatingFromControl_ = true;
   LRESULT index = SendMessage(hwnd_, CB_GETCURSEL, 0, 0);
   {
@@ -400,7 +397,7 @@ void Win32PopupMenuContext::syncStateFromControl()
     // read the selection; emit onChange only after that, so a handler
     // reading a DerivedNodeState sees the new value.
     loka::core::StateTrackerGuard _(this->boundary() ? this->boundary()->tracker() : 0);
-    mutableState->set(static_cast<int>(index), true);
+    selectionSeat_.set(static_cast<int>(index), true);
   }
   updatingFromControl_ = false;
   if (node_ && node_->props.onChange_)

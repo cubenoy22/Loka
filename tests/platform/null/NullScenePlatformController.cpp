@@ -794,7 +794,7 @@ int NullScenePlatformController::layoutScrollView(
     return state.y;
   }
 
-  const int offset = scrollView->props.offset_.isValid() ? scrollView->props.offset_.get() : 0;
+  const int offset = scrollView->props.offset_.isValid() ? scrollView->props.offset_.state()->get() : 0;
   const loka::core::Frame clip(state.x, state.y, state.width, state.height);
   loka::app::scene::ProjectionParentScope childScope;
   const loka::app::scene::ProjectionParentScope &parentScope =

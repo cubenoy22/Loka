@@ -325,35 +325,35 @@ void testHelloWorldDerivedTextSeatsCoverInputsAndActions()
   loka::app::scene::BoundaryNode *owner = SceneTestAccess::rootBoundary(scene);
   {
     StateTrackerGuard guard(owner->tracker());
-    height->props.text_->set(String::Literal("invalid"));
+    height->props.text_.set(String::Literal("invalid"));
   }
   LOKA_VERIFY(bmi->props.text_->get().equals(String::Literal("BMI: --")) && observer.calls == 1);
   {
     StateTrackerGuard guard(owner->tracker());
-    height->props.text_->set(String::Literal("170.0"));
+    height->props.text_.set(String::Literal("170.0"));
   }
   LOKA_VERIFY(bmi->props.text_->get().equals(String::Literal("BMI: 20.76")) && observer.calls == 2);
   {
     StateTrackerGuard guard(owner->tracker());
-    height->props.text_->set(String::Literal("0"));
+    height->props.text_.set(String::Literal("0"));
   }
   LOKA_VERIFY(bmi->props.text_->get().equals(String::Literal("BMI: --")) && observer.calls == 3);
   {
     StateTrackerGuard guard(owner->tracker());
-    height->props.text_->set(String::Literal("100"));
-    weight->props.text_->set(String::Literal("20.6249"));
+    height->props.text_.set(String::Literal("100"));
+    weight->props.text_.set(String::Literal("20.6249"));
   }
   LOKA_VERIFY(bmi->props.text_->get().equals(String::Literal("BMI: 20.62")));
   const int callsBeforeEqualOutput = observer.calls;
   {
     StateTrackerGuard guard(owner->tracker());
-    weight->props.text_->set(String::Literal("20.625"));
+    weight->props.text_.set(String::Literal("20.625"));
   }
   LOKA_VERIFY(bmi->props.text_->get().equals(String::Literal("BMI: 20.62")));
   LOKA_VERIFY(observer.calls == callsBeforeEqualOutput);
   {
     StateTrackerGuard guard(owner->tracker());
-    weight->props.text_->set(String::Literal("20.635"));
+    weight->props.text_.set(String::Literal("20.635"));
   }
   LOKA_VERIFY(bmi->props.text_->get().equals(String::Literal("BMI: 20.64")));
   LOKA_VERIFY(observer.calls == callsBeforeEqualOutput + 1);
@@ -361,24 +361,15 @@ void testHelloWorldDerivedTextSeatsCoverInputsAndActions()
 
   {
     StateTrackerGuard guard(owner->tracker());
-    fruitPicker->props.selectedIndex_->set(99);
+    fruitPicker->props.selectedIndex_.set(99);
   }
   LOKA_VERIFY(fruit->props.text_->get().equals(String::Literal("You chose Apple.")));
   {
     StateTrackerGuard guard(owner->tracker());
-    fruitPicker->props.selectedIndex_->set(0);
+    fruitPicker->props.selectedIndex_.set(0);
   }
   LOKA_VERIFY(fruit->props.text_->get().equals(String::Literal("You chose Apple.")));
-  // PopupMenuProps receives this raw mutable dependency through
-  // NodeState::dangerouslyMutableState(). An idle rail write intentionally
-  // leaves DerivedState dirt queued until an owner transaction settles it.
-  loka::core::MutableState<int> *rawFruitIndex = fruitPicker->props.selectedIndex_;
-  rawFruitIndex->set(1, true);
-  LOKA_VERIFY(fruit->props.text_->get().equals(String::Literal("You chose Apple.")));
-  {
-    StateTrackerGuard guard(owner->tracker());
-    rawFruitIndex->set(2, true);
-  }
+  fruitPicker->props.selectedIndex_.set(2, true);
   LOKA_VERIFY(fruit->props.text_->get().equals(String::Literal("You chose Cherry.")));
   probe->props.onClick_->emit();
   LOKA_VERIFY(summary->props.text_->get().equals(String::Literal("Button enabled: yes / clicks: 1")));

@@ -24,7 +24,7 @@ namespace loka
       typedef PopupMenuTypeTag TypeTag;
       virtual ~IPopupMenuProps() {}
       virtual const loka::Vector<loka::core::String> *getItems() const = 0;
-      virtual loka::core::MutableState<int> *getSelectedIndex() const = 0;
+      virtual loka::core::State<int> *getSelectedIndex() const = 0;
       virtual loka::core::State<bool> *getEnabled() const = 0;
       virtual loka::core::EmitterState *getOnChange() const = 0;
     };
@@ -37,7 +37,7 @@ namespace loka
       loka::Vector<loka::core::String> ownedItems_;
       bool ownsItems_;
       /** Two-way binding: user selection is written back to this state. */
-      loka::core::MutableState<int> *selectedIndex_;
+      scene::WriteSeat<int> selectedIndex_;
       loka::core::State<bool> *enabled_;
       loka::core::EmitterState *onChange_;
       int controlTag_;
@@ -117,13 +117,13 @@ namespace loka
 
       PopupMenuProps &selectedIndex(loka::core::MutableState<int> *index)
       {
-        this->selectedIndex_ = index;
+        this->selectedIndex_ = scene::WriteSeat<int>(index);
         return *this;
       }
 
       PopupMenuProps &selectedIndex(const loka::app::scene::NodeState<int> &index)
       {
-        this->selectedIndex_ = index.dangerouslyMutableState();
+        this->selectedIndex_ = index.writeSeat();
         return *this;
       }
 
@@ -148,9 +148,9 @@ namespace loka
       {
         return items_;
       }
-      virtual loka::core::MutableState<int> *getSelectedIndex() const
+      virtual loka::core::State<int> *getSelectedIndex() const
       {
-        return selectedIndex_;
+        return selectedIndex_.state();
       }
       virtual loka::core::State<bool> *getEnabled() const
       {
@@ -165,7 +165,7 @@ namespace loka
       {
         std::size_t h = 17;
         h = h * 31 + reinterpret_cast<std::size_t>(items_);
-        h = h * 31 + reinterpret_cast<std::size_t>(selectedIndex_);
+        h = h * 31 + reinterpret_cast<std::size_t>(selectedIndex_.state());
         h = h * 31 + reinterpret_cast<std::size_t>(enabled_);
         h = h * 31 + reinterpret_cast<std::size_t>(onChange_);
         h = h * 31 + static_cast<std::size_t>(controlTag_);
@@ -214,8 +214,8 @@ namespace loka
           return itemCompare < 0;
         if (controlTag_ != other.controlTag_)
           return controlTag_ < other.controlTag_;
-        if (selectedIndex_ != other.selectedIndex_)
-          return selectedIndex_ < other.selectedIndex_;
+        if (selectedIndex_.state() != other.selectedIndex_.state())
+          return selectedIndex_.state() < other.selectedIndex_.state();
         if (onChange_ != other.onChange_)
           return onChange_ < other.onChange_;
         return enabled_ < other.enabled_;
@@ -262,9 +262,9 @@ namespace loka
       }
       virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
       {
-        if (this->props.selectedIndex_)
+        if (this->props.selectedIndex_.isValid())
         {
-          registrar.markDirtyOnChange(this->props.selectedIndex_, loka::app::scene::NODE_DIRTY_PROPS);
+          registrar.markDirtyOnChange(this->props.selectedIndex_.state(), loka::app::scene::NODE_DIRTY_PROPS);
         }
         if (this->props.enabled_)
         {

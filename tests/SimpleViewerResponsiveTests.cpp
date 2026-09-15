@@ -657,7 +657,7 @@ void testSimpleViewerCommittedImageResetsRailScrollOffset()
       findNode(main, "SimpleViewer.ActualScroll"));
   LOKA_VERIFY(scroll != 0);
   scroll->props.offset_.set(73);
-  LOKA_VERIFY(scroll->props.offset_.get() == 73);
+  LOKA_VERIFY(scroll->props.offset_.state()->get() == 73);
 
   SimpleViewerTestAccess::setDisplayMode(harness.config,
                                          simpleviewer::DISPLAY_FIT);
@@ -668,7 +668,7 @@ void testSimpleViewerCommittedImageResetsRailScrollOffset()
   scroll = static_cast<loka::app::ScrollViewNode *>(
       findNode(main, "SimpleViewer.ActualScroll"));
   LOKA_VERIFY(scroll != 0);
-  LOKA_VERIFY(scroll->props.offset_.get() == 73);
+  LOKA_VERIFY(scroll->props.offset_.state()->get() == 73);
 
   const loka::core::resource::Image nextImage =
       loka::core::resource::Image::FromNative(reinterpret_cast<void *>(2),
@@ -677,7 +677,7 @@ void testSimpleViewerCommittedImageResetsRailScrollOffset()
                                               0,
                                               0);
   SimpleViewerTestAccess::setLoadedImage(*main, nextImage);
-  LOKA_VERIFY(scroll->props.offset_.get() == 0);
+  LOKA_VERIFY(scroll->props.offset_.state()->get() == 0);
 }
 
 void testSimpleViewerPaneScrollButtonUsesMenuEmitter()

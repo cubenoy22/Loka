@@ -29,8 +29,8 @@ namespace loka
           through offset_.set(), which opens the owner's tracker when idle
           (#533). Storing only the raw MutableState pointer would discard the
           tracker and owner and let a rail write bypass the transaction. */
-      scene::NodeState<int> offset_;
-      loka::core::MutableState<int> *scrollTo_;
+      scene::WriteSeat<int> offset_;
+      scene::WriteSeat<int> scrollTo_;
 
       ScrollViewProps()
           : offset_(),
@@ -39,7 +39,7 @@ namespace loka
       }
 
       explicit ScrollViewProps(const scene::NodeState<int> &offset)
-          : offset_(offset),
+          : offset_(offset.writeSeat()),
             scrollTo_(0)
       {
       }
@@ -47,7 +47,7 @@ namespace loka
       /** Binds the rail-published scroll offset fact. */
       ScrollViewProps &offset(const scene::NodeState<int> &value)
       {
-        this->offset_ = value;
+        this->offset_ = value.writeSeat();
         return *this;
       }
 
@@ -57,13 +57,13 @@ namespace loka
           landing. */
       ScrollViewProps &scrollTo(loka::core::MutableState<int> *value)
       {
-        this->scrollTo_ = value;
+        this->scrollTo_ = scene::WriteSeat<int>(value);
         return *this;
       }
 
       ScrollViewProps &scrollTo(const scene::NodeState<int> &value)
       {
-        this->scrollTo_ = value.dangerouslyMutableState();
+        this->scrollTo_ = value.writeSeat();
         return *this;
       }
 
@@ -74,13 +74,13 @@ namespace loka
           return false;
         }
         const ScrollViewProps &other = static_cast<const ScrollViewProps &>(rhs);
-        loka::core::MutableState<int> *mine = this->offset_.dangerouslyMutableState();
-        loka::core::MutableState<int> *theirs = other.offset_.dangerouslyMutableState();
+        loka::core::State<int> *mine = this->offset_.state();
+        loka::core::State<int> *theirs = other.offset_.state();
         if (mine != theirs)
         {
           return mine < theirs;
         }
-        return this->scrollTo_ < other.scrollTo_;
+        return this->scrollTo_.state() < other.scrollTo_.state();
       }
     };
 

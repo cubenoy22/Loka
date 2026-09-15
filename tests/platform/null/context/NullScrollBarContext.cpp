@@ -216,7 +216,7 @@ void NullScrollBarContext::commitTrackedValue()
     // appliedValue gate, mirrored so both arms hold one contract).
     return;
   }
-  loka::core::State<int> *value = this->node_->props.value_;
+  loka::core::State<int> *value = this->node_->props.value_.state();
   if (!value)
   {
     return;

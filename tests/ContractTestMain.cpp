@@ -77,6 +77,7 @@
 #include "RowWidthConsultationTests.hpp"
 #include "HelloWorldResponsiveTests.hpp"
 #include "SimpleViewerResponsiveTests.hpp"
+#include "WriteSeatTests.hpp"
 #include "SmirkBenchTests.hpp"
 #include "LazyListTests.hpp"
 #include "ScrollViewScopeTests.hpp"

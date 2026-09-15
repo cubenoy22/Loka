@@ -1,4 +1,8 @@
 LOKA_TEST(testSimpleViewerMainPropsCompareEveryBorrowedSource)
+LOKA_TEST(testWriteSeatSettlesIdleOwnerTracker)
+LOKA_TEST(testWriteSeatJoinsOpenTracker)
+LOKA_TEST(testWriteSeatRawAndInvalid)
+LOKA_TEST(testWriteSeatPropsIdentity)
 LOKA_TEST(testBorrowedKeysAddressContract)
 LOKA_TEST(testReclaimScratchGenerationOverflowFallback)
 LOKA_TEST(testReclaimScratchBoundaryOverflowFallback)
