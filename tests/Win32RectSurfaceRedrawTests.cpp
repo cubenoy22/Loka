@@ -4,6 +4,7 @@
 #include "context/Win32PopupMenuContext.hpp"
 #include "support/PropsReconciliation.hpp"
 #include "app/nodes/nestable/ScrollView.hpp"
+#include "app/scene/state/WriteSeat.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/nestable/Box.hpp"
 #include "Win32BuiltInSupport.hpp"
@@ -138,7 +139,7 @@ exercisePaintOnlyChangeUnderScrollView(bool refused, bool clearSurface = true, b
   // The fallback case uses a genuinely unsupported non-clearing B surface.
   VStack content = VStack() << RectSurface(&a).size(100, 60).clearBackground(clearSurface) << Box().size(100, 20)
                             << RectSurface(&b).size(100, 60).clearBackground(!refused)
-                            << PopupMenu(items, 2).selectedIndex(&selection).enabled(&enabled) << EditText(&editText);
+                            << PopupMenu(items, 2).selectedIndex(loka::app::scene::WriteSeat<int>(&selection)).enabled(&enabled) << EditText(loka::app::scene::WriteSeat<loka::core::String>(&editText));
   ScrollView declaration = ScrollView() << content;
   Scene scene((Boundary<Tree<ScrollView> >(Props<ScrollView>(&declaration))));
   scene.mount(&controller);
@@ -459,7 +460,7 @@ void testWin32PopupMenuPaintDelivery()
     tracker.addState(&enabled);
     const char *items[] = {"one", "two"};
     PopupMenuProps props;
-    props.items(items, 2).selectedIndex(&selection).enabled(&enabled);
+    props.items(items, 2).selectedIndex(loka::app::scene::WriteSeat<int>(&selection)).enabled(&enabled);
     PopupMenuNode node(props);
     Win32PopupMenuContext context(&controller, root, 0, 0, 100, 24, &node);
     const PaintQuery query = {Win32RetirableContext::paintScope(), PLACEMENT_ELIGIBLE};
@@ -500,9 +501,9 @@ void testWin32PopupMenuPaintDelivery()
       selection.set(-1, true);
     }
     LOKA_VERIFY(context.queryPaintDamage(query).kind == PAINT_ANSWER_EXACT);
-    node.props.selectedIndex(&replacement);
+    node.props.selectedIndex(loka::app::scene::WriteSeat<int>(&replacement));
     LOKA_VERIFY(context.queryPaintDamage(query).reason == PAINT_REFUSED_PROPS_UNRECONCILED);
-    node.props.selectedIndex(&selection).enabled(&replacementEnabled);
+    node.props.selectedIndex(loka::app::scene::WriteSeat<int>(&selection)).enabled(&replacementEnabled);
     LOKA_VERIFY(context.queryPaintDamage(query).reason == PAINT_REFUSED_PROPS_UNRECONCILED);
     node.props.enabled(&enabled);
     context.onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_DETACHED_RETAINED);

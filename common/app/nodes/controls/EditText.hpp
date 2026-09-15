@@ -6,6 +6,7 @@
 #include "core/String.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/state/NodeState.hpp"
+#include "app/scene/state/WriteSeat.hpp"
 
 namespace loka
 {
@@ -29,8 +30,8 @@ namespace loka
             controlTag_(0)
       {
       }
-      EditTextProps(loka::core::MutableState<loka::core::String> *state)
-          : text_(scene::WriteSeat<loka::core::String>(state)),
+      EditTextProps(const scene::WriteSeat<loka::core::String> &state)
+          : text_(state),
             controlTag_(0)
       {
       }
@@ -39,9 +40,9 @@ namespace loka
             controlTag_(0)
       {
       }
-      EditTextProps &text(loka::core::MutableState<loka::core::String> *state)
+      EditTextProps &text(const scene::WriteSeat<loka::core::String> &state)
       {
-        this->text_ = scene::WriteSeat<loka::core::String>(state);
+        this->text_ = state;
         return *this;
       }
       EditTextProps &text(const scene::NodeState<loka::core::String> &state)
@@ -124,7 +125,7 @@ namespace loka
           : loka::app::scene::NodeDefinition<EditTextProps, EditTextNode>(p)
       {
       }
-      EditTextDefinition(loka::core::MutableState<loka::core::String> *state)
+      EditTextDefinition(const scene::WriteSeat<loka::core::String> &state)
           : loka::app::scene::NodeDefinition<EditTextProps, EditTextNode>(EditTextProps(state))
       {
       }
