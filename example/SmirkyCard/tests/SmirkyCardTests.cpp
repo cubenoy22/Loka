@@ -6,6 +6,7 @@
 #include "testing/scene/SceneTestFlow.hpp"
 #include <cstdio>
 #include <cstring>
+#include <string>
 
 namespace
 {
@@ -83,13 +84,58 @@ namespace
     }
     // Window teardown exercises cleanup of the final mounted card as well.
   }
+
+  std::string textValue(loka::app::TextNode *text)
+  {
+    const loka::core::StringBuffer buffer = text->props.text_->get().bufferWithEncoding(loka::core::StringEncodingUtf8);
+    return std::string(static_cast<const char *>(buffer.data()), buffer.length());
+  }
+
+  void checkMessageBox(smirkycard::ScriptRuntime &runtime)
+  {
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+
+    loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(*window.scene());
+    loka::app::scene::Node *scriptNode = find(root, "SmirkyCard.Script");
+    loka::app::scene::Node *runNode = find(root, "SmirkyCard.RunScript");
+    loka::app::scene::Node *resultNode = find(root, "SmirkyCard.Result");
+    LOKA_VERIFY(scriptNode && runNode && resultNode);
+    loka::app::EditTextNode *script = scriptNode->asEditTextNode();
+    loka::app::ButtonNode *run = runNode->asButtonNode();
+    loka::app::TextNode *result = resultNode->asTextNode();
+    LOKA_VERIFY(script && run && result && script->props.text_ && run->props.getOnClick());
+
+    loka::app::scene::BoundaryNode *owner = loka::dsl::testing::SceneTestAccess::rootBoundary(*window.scene());
+    const char *sources[] = {"1+1", "['a','b'][1].toUpperCase()", "throw new Error('x')", "for(;;){}", "1+1"};
+    const char *expected[] = {"2", "B", 0, 0, "2"};
+    for (size_t i = 0; i < sizeof(sources) / sizeof(sources[0]); ++i)
+    {
+      {
+        loka::core::StateTrackerGuard guard(owner->tracker());
+        script->props.text_->set(loka::core::String::Literal(sources[i]));
+      }
+      run->props.getOnClick()->emit();
+      const std::string value = textValue(result);
+      if (expected[i])
+        LOKA_VERIFY(value == expected[i]);
+      else
+        LOKA_VERIFY(value.find("Error:") == 0 && value.find(i == 2 ? "x" : "interrupted") != std::string::npos);
+    }
+  }
 } // namespace
 
 int main()
 {
   smirkycard::ScriptRuntime runtime;
   checkEvaluation(runtime);
+  checkMessageBox(runtime);
   checkSceneSwitching(runtime);
-  std::puts("SmirkyCard: evaluation, failure recovery, and 20 Scene switches passed.");
+  std::puts("SmirkyCard: message box, evaluation, failure recovery, and 20 Scene switches passed.");
   return 0;
 }

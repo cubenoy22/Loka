@@ -25,6 +25,12 @@ extern "C"
       error into the supplied buffer on failure; no JS value crosses this door. */
   SmirkyCardId SmirkyScriptEvaluate(SmirkyScript *script, const char *source, char *error, size_t errorCapacity);
 
+  /** Evaluates a synchronous global script and copies its stringified result.
+      On failure, copies the stringified exception to error. No JS value crosses
+      this door. */
+  int SmirkyScriptEvaluateToString(SmirkyScript *script, const char *source, char *result, size_t resultCapacity,
+                                   char *error, size_t errorCapacity);
+
 #ifdef __cplusplus
 }
 #endif

@@ -21,6 +21,23 @@ static void copyError(char *out, size_t capacity, const char *message)
   }
 }
 
+static int copyJsString(JSContext *context, JSValue value, char *out, size_t capacity)
+{
+  size_t length;
+  const char *text = JS_ToCStringLen(context, &length, value);
+  if (!text)
+    return 0;
+  if (out && capacity)
+  {
+    if (length >= capacity)
+      length = capacity - 1;
+    memcpy(out, text, length);
+    out[length] = '\0';
+  }
+  JS_FreeCString(context, text);
+  return 1;
+}
+
 SmirkyScript *SmirkyScriptCreate(void)
 {
   SmirkyScript *script = (SmirkyScript *)calloc(1, sizeof(*script));
@@ -73,30 +90,46 @@ static int interruptScript(JSRuntime *runtime, void *opaque)
   return 0;
 }
 
-SmirkyCardId SmirkyScriptEvaluate(SmirkyScript *script, const char *source, char *error, size_t errorCapacity)
+/* Owns the interrupt window and any exception value. The caller owns a
+   successful result and must JS_FreeValue it. */
+static JSValue evaluateGlobal(SmirkyScript *script, const char *source, char *error, size_t errorCapacity,
+                              int *succeeded)
 {
   unsigned int remaining = 100;
-  SmirkyCardId card = SMIRKY_CARD_ERROR;
   JSValue result;
+  *succeeded = 0;
   copyError(error, errorCapacity, "");
   if (!script || !source)
   {
     copyError(error, errorCapacity, "JavaScript runtime is unavailable.");
-    return card;
+    return JS_UNDEFINED;
   }
   JS_UpdateStackTop(script->runtime);
   JS_SetInterruptHandler(script->runtime, interruptScript, &remaining);
   result = JS_Eval(script->context, source, strlen(source), "card.js", JS_EVAL_TYPE_GLOBAL);
+  JS_SetInterruptHandler(script->runtime, NULL, NULL);
   if (JS_IsException(result))
   {
     JSValue exception = JS_GetException(script->context);
-    const char *message = JS_ToCString(script->context, exception);
-    copyError(error, errorCapacity, message ? message : "JavaScript evaluation failed.");
-    if (message)
-      JS_FreeCString(script->context, message);
+    if (!copyJsString(script->context, exception, error, errorCapacity))
+      copyError(error, errorCapacity, "JavaScript evaluation failed.");
     JS_FreeValue(script->context, exception);
+    JS_FreeValue(script->context, result);
+    return JS_UNDEFINED;
   }
-  else if (JS_IsString(result))
+  *succeeded = 1;
+  return result;
+}
+
+SmirkyCardId SmirkyScriptEvaluate(SmirkyScript *script, const char *source, char *error, size_t errorCapacity)
+{
+  SmirkyCardId card = SMIRKY_CARD_ERROR;
+  JSValue result;
+  int succeeded;
+  result = evaluateGlobal(script, source, error, errorCapacity, &succeeded);
+  if (!succeeded)
+    return card;
+  if (JS_IsString(result))
   {
     size_t length;
     const char *name = JS_ToCStringLen(script->context, &length, result);
@@ -116,6 +149,27 @@ SmirkyCardId SmirkyScriptEvaluate(SmirkyScript *script, const char *source, char
     copyError(error, errorCapacity, "The script must return a card name string.");
   }
   JS_FreeValue(script->context, result);
-  JS_SetInterruptHandler(script->runtime, NULL, NULL);
   return card;
+}
+
+int SmirkyScriptEvaluateToString(SmirkyScript *script, const char *source, char *result, size_t resultCapacity,
+                                 char *error, size_t errorCapacity)
+{
+  JSValue value;
+  int succeeded;
+  copyError(result, resultCapacity, "");
+  value = evaluateGlobal(script, source, error, errorCapacity, &succeeded);
+  if (!succeeded)
+    return 0;
+  if (!copyJsString(script->context, value, result, resultCapacity))
+  {
+    JSValue exception = JS_GetException(script->context);
+    if (!copyJsString(script->context, exception, error, errorCapacity))
+      copyError(error, errorCapacity, "JavaScript result could not be converted to text.");
+    JS_FreeValue(script->context, exception);
+    JS_FreeValue(script->context, value);
+    return 0;
+  }
+  JS_FreeValue(script->context, value);
+  return 1;
 }

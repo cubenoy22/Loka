@@ -7,6 +7,7 @@
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/controls/Button.hpp"
+#include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/Text.hpp"
 #include "core/util/OwnedDef.hpp"
 #include <new>
@@ -59,15 +60,21 @@ namespace smirkycard
     explicit CardNode(const CardProps<Card> &p)
         : loka::app::scene::StdCompositionBoundaryNodeBase<CardProps<Card> >(p),
           run_(),
+          runMessage_(),
+          script_(),
+          result_(),
           error_()
     {
       assert(p.runtime);
+      this->state(this->script_, loka::core::String::Literal(Script()));
+      this->state(this->result_, loka::core::String::Literal("Ready"));
       this->state(this->error_, loka::core::String::Literal("Ready"));
     }
 
     virtual void declareBindings(loka::app::scene::BindingToken &token)
     {
-      token.action(this->run_, this, &CardNode::runScript);
+      token.action(this->run_, this, &CardNode::runNavigation);
+      token.action(this->runMessage_, this, &CardNode::runScript);
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
@@ -78,6 +85,9 @@ namespace smirkycard
                               << Text(Card == SMIRKY_CARD_FIRST ? "Card One" : "Card Two").TEST_ID("SmirkyCard.Title")
                               << Text("This Scene is defined in C++.")
                               << Text(loka::core::String::Literal("JS: ") + loka::core::String::Literal(Script()))
+                              << EditText(this->script_).TEST_ID("SmirkyCard.Script")
+                              << Button("Run", &this->runMessage_).TEST_ID("SmirkyCard.RunScript")
+                              << Text(this->result_.state()).TEST_ID("SmirkyCard.Result")
                               << Button("Run JavaScript", &this->run_).TEST_ID("SmirkyCard.Run")
                               << Text(this->error_.state()).TEST_ID("SmirkyCard.Status")));
     }
@@ -88,7 +98,7 @@ namespace smirkycard
       return Card == SMIRKY_CARD_FIRST ? "['first', 'second'][1]" : "['first', 'second'][0]";
     }
 
-    void runScript()
+    void runNavigation()
     {
       char error[256];
       ScriptRuntime &runtime = *this->props.runtime;
@@ -110,7 +120,22 @@ namespace smirkycard
       static_cast<CardScene *>(this->scene())->replaceWith(scene);
     }
 
+    void runScript()
+    {
+      loka::core::String result;
+      loka::core::String error;
+      if (this->props.runtime->evaluateToString(this->script_.get(), result, error))
+      {
+        this->result_.set(result);
+        return;
+      }
+      this->result_.set(loka::core::String::Literal("Error: ") + error);
+    }
+
     loka::core::EmitterState run_;
+    loka::core::EmitterState runMessage_;
+    loka::app::scene::NodeState<loka::core::String> script_;
+    loka::app::scene::NodeState<loka::core::String> result_;
     loka::app::scene::NodeState<loka::core::String> error_;
   };
 
