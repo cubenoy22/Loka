@@ -515,22 +515,22 @@ namespace smirkycard
     }
   }
 
-  bool ScriptRuntime::reloadMain(SmirkyCardId card, loka::core::String &error)
+  JsEngine *ScriptRuntime::prepareReload(SmirkyCardId card, loka::core::String &error)
   {
     std::string text;
     if (!this->readMain(text, error))
-      return false;
+      return 0;
     JsEngine *candidate = this->createEngine();
     if (!candidate)
     {
       error = loka::core::String::Literal("MAIN.JS: JavaScript runtime is unavailable.");
-      return false;
+      return 0;
     }
     if (!this->evalMain(*candidate, text.data(), text.size(), "MAIN.JS", error))
     {
       delete candidate;
       error = loka::core::String::Literal("MAIN.JS: ") + error;
-      return false;
+      return 0;
     }
     if (!candidate->hasConstructor(card))
     {
@@ -538,14 +538,21 @@ namespace smirkycard
       delete candidate;
       error = loka::core::String::Literal("MAIN.JS: card '") + loka::core::String::Literal(name)
               + loka::core::String::Literal("' is not defined");
-      return false;
+      return 0;
     }
+    error = loka::core::String();
+    return candidate;
+  }
+  void ScriptRuntime::commitReload(JsEngine *candidate)
+  {
     this->replaceCurrentEngine(candidate);
     this->mainSource_ = MAIN_SOURCE_FILE;
     this->mainError_ = loka::core::String();
     this->mainErrorScope_ = MAIN_ERROR_NONE;
-    error = loka::core::String();
-    return true;
+  }
+  void ScriptRuntime::discardReload(JsEngine *candidate)
+  {
+    delete candidate;
   }
 
 #ifdef TEST_BUILD

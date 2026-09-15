@@ -103,8 +103,15 @@ namespace smirkycard
     bool loadBuiltin(const char *source, loka::core::String &error);
     /** Selects MAIN.JS once through the application's portable file door. */
     void loadMain(PlatformContext *context);
-    /** Admits one evaluated engine only when it defines the requested card. */
-    bool reloadMain(SmirkyCardId card, loka::core::String &error);
+    /** Reload is two doors so the runtime truth and the visible card change
+        together: prepareReload evaluates MAIN.JS in a new engine and returns
+        it uncommitted (0 with a message on any failure, including a candidate
+        that does not define the requested card); the caller builds the
+        replacement Scene from it and then either commitReload (the candidate
+        becomes current, the previous engine retires) or discardReload. */
+    JsEngine *prepareReload(SmirkyCardId card, loka::core::String &error);
+    void commitReload(JsEngine *candidate);
+    void discardReload(JsEngine *candidate);
     MainSource mainSource() const
     {
       return this->mainSource_;

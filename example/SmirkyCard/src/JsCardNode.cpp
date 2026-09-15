@@ -327,13 +327,23 @@ namespace smirkycard
       return;
     }
     loka::core::String error;
-    if (!props.runtime->reloadMain(props.card, error))
+    JsEngine *candidate = props.runtime->prepareReload(props.card, error);
+    if (!candidate)
     {
       fail(error);
       return;
     }
-    // The same card, rebuilt from the constructor the reload just registered.
-    requestGo(props.card);
+    // Build the replacement Scene first; the engine swap and the visible card
+    // then change together, or neither does.
+    CardScene *next = CreateCard(props.card, *props.runtime);
+    if (!next)
+    {
+      props.runtime->discardReload(candidate);
+      fail("Could not create the reloaded card.");
+      return;
+    }
+    props.runtime->commitReload(candidate);
+    scene->replaceWith(next);
   }
   void JsCardNode::declareBindings(loka::app::scene::BindingToken &t)
   {
