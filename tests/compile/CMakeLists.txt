@@ -185,3 +185,13 @@ loka_compile_pin(seat-ticket-copy
   REFUSES pins/refuses_seat_ticket_copy.cpp
   ACCEPTS pins/accepts_seat_ticket_borrow.cpp
 )
+
+loka_compile_pin(derived-node-state-is-read-only
+  REFUSES pins/refuses_derived_node_state_set.cpp
+  ACCEPTS pins/accepts_derived_node_state_read.cpp
+)
+
+loka_compile_pin(derived-node-needs-mutable-input
+  REFUSES pins/refuses_derived_node_derived_dependency.cpp
+  ACCEPTS pins/accepts_derived_node_mutable_dependency.cpp
+)

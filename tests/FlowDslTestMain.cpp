@@ -51,6 +51,7 @@
 #include "MacOpenFileDialogTests.hpp"
 #endif
 #include "DerivedStateTests.hpp"
+#include "DerivedNodeStateTests.hpp"
 #include "WindowFrameStateTests.hpp"
 #include "DefinitionCloneTests.hpp"
 #include "FlowDslTests.hpp"

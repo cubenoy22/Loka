@@ -77,7 +77,7 @@ These items address recurring bug patterns and structural risks identified durin
   nullable/OOM surface for `0.0.x`. Audit concrete clone/create implementations
   that still use plain `new` (including constructors that allocate internally)
   before claiming end-to-end OOM recovery in no-exception builds.
-- DerivedState::EvalFn ownership/cleanup and dependency registration policy.
+- DerivedNodeState follow-up: derived-to-derived chains (need dependency-ordered settlement) and a batch declaration door.
 - Boundary lifecycle policy follow-up: current default is scene/tree-owned rather than native-view-owned. If a future opt-in `view-scoped` boundary lifecycle is needed, define it explicitly as a separate policy instead of overloading `detach`/visibility semantics.
 - Wire Node.dirty with IPlatformController::synchronize (diff-based redraw path).
 - Smart redraw scheduler at Window/Scene scope: collect dirty rects per tick and flush once via platform invalidate APIs.

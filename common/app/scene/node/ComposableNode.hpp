@@ -29,6 +29,37 @@ namespace loka
       template <class PropsT> class HeadlessNodeBase;
 #endif
 
+      namespace detail
+      {
+        template <class Seat> struct MutableNodeDependencyTraits;
+        template <typename T> struct MutableNodeDependencyTraits<NodeState<T> >
+        {
+          static loka::core::StateBase *read(const void *seat, IStateOwner *&owner)
+          {
+            const NodeState<T> &value = *static_cast<const NodeState<T> *>(seat);
+            owner = value.dangerouslyOwner();
+            return value.state();
+          }
+        };
+
+        /** Borrows a mutable seat address, resolved only at registration connect. */
+        struct NodeStateDependency
+        {
+          NodeStateDependency() : seat_(0), read_(0) {}
+          template <class Seat> explicit NodeStateDependency(Seat &seat)
+              : seat_(&seat), read_(&MutableNodeDependencyTraits<Seat>::read) {}
+          loka::core::StateBase *resolve(IStateOwner *&owner) const
+          {
+            owner = 0;
+            return this->read_ ? this->read_(this->seat_, owner) : 0;
+          }
+          bool isPresent() const { return this->seat_ != 0; }
+        private:
+          const void *seat_;
+          loka::core::StateBase *(*read_)(const void *, IStateOwner *&);
+        };
+      }
+
       enum ContextPlacement
       {
         CONTEXT_PLACEMENT_BOUNDARY = 0,
@@ -309,6 +340,30 @@ namespace loka
           NodeStateRegistration<T> *entry = new NodeStateRegistration<T>(&out, initial);
           nodeStates_.push_back(entry);
           this->connectNodeStateRegistration(entry);
+        }
+
+        /** Seats a derived value from one or two mutable NodeState inputs.
+            Completed registration order is dependency order: declareStates()
+            registers when the batch's last copy dies; end it before derived().
+            Takes ownership of eval at entry, including refusal. EvalFn must be
+            pure (no State writes or lifecycle calls); immutable node reads are
+            allowed. Its destructor is cleanup-only and must never read node
+            members or dependencies. Called once at declaration and connect,
+            never during updates; scans only this node's registration rows. */
+        template <class T, class D1>
+        void derived(DerivedNodeState<T> &out, D1 &dep,
+                     typename loka::core::DerivedState<T>::EvalFn *eval)
+        {
+          this->registerDerived(out, detail::NodeStateDependency(dep),
+                                detail::NodeStateDependency(), eval);
+        }
+
+        template <class T, class D1, class D2>
+        void derived(DerivedNodeState<T> &out, D1 &dep1, D2 &dep2,
+                     typename loka::core::DerivedState<T>::EvalFn *eval)
+        {
+          this->registerDerived(out, detail::NodeStateDependency(dep1),
+                                detail::NodeStateDependency(dep2), eval);
         }
 
         class NodeStateBatch : private StateBatchBase
@@ -634,6 +689,31 @@ namespace loka
         }
 
       protected:
+        template <typename T> friend struct NodeDerivedStateRegistration;
+
+      private:
+        template <typename T>
+        void registerDerived(DerivedNodeState<T> &out,
+                             const detail::NodeStateDependency &dep1,
+                             const detail::NodeStateDependency &dep2,
+                             typename loka::core::DerivedState<T>::EvalFn *eval)
+        {
+          for (size_t i = 0; i < this->nodeStates_.size(); ++i)
+          {
+            if (this->nodeStates_[i] && this->nodeStates_[i]->matches(&out))
+            {
+              delete eval;
+              assert(false && "ComposableNode::derived registered the same seat twice");
+              return;
+            }
+          }
+          NodeDerivedStateRegistration<T> *entry =
+              new NodeDerivedStateRegistration<T>(&out, dep1, dep2, eval);
+          this->nodeStates_.push_back(entry);
+          this->connectNodeStateRegistration(entry);
+        }
+
+      protected:
         struct NodeStateRegistrationBase
         {
           virtual ~NodeStateRegistrationBase() {}
@@ -908,6 +988,102 @@ namespace loka
         friend class ComposableNodeTestAccess;
         std::vector<CallbackEntryBase *> callbacks_;
         std::vector<NodeStateRegistrationBase *> nodeStates_;
+      };
+
+      /** Derived registration, sharing the ordered connect/release protocol
+          with NodeStateRegistration and completed state batches. */
+      template <typename T>
+      struct NodeDerivedStateRegistration : public ComposableNode::NodeStateRegistrationBase
+      {
+        NodeDerivedStateRegistration(DerivedNodeState<T> *out,
+                                     const detail::NodeStateDependency &dep1,
+                                     const detail::NodeStateDependency &dep2,
+                                     typename loka::core::DerivedState<T>::EvalFn *eval)
+            : out_(out), dep1_(dep1), dep2_(dep2), eval_(eval), owner_(0), state_(0) {}
+        virtual ~NodeDerivedStateRegistration() { delete this->eval_; }
+        bool matches(const void *out) const { return this->out_ == out; }
+        size_t pendingArenaBytes() const
+        {
+          return (this->out_ && !this->out_->isValid())
+                     ? StateBatchBase::ArenaBytesForDerivedState<T>()
+                     : 0;
+        }
+
+        void connect(IStateOwner *owner)
+        {
+          if (this->out_->isValid())
+          {
+            assert(this->out_->owner_ == owner && "Node-local state reattached to a different owner");
+            this->owner_ = this->out_->owner_;
+            this->state_ = this->out_->state_;
+            return;
+          }
+          IStateOwner *owner1 = 0;
+          IStateOwner *owner2 = 0;
+          loka::core::StateBase *dep1 = this->dep1_.resolve(owner1);
+          loka::core::StateBase *dep2 = this->dep2_.resolve(owner2);
+          if (!owner || !owner->stateStorageOwner() || !this->eval_ ||
+              !dep1 || owner1 != owner ||
+              (this->dep2_.isPresent() && (!dep2 || owner2 != owner)))
+          {
+            if (owner)
+              owner->noteStateAllocationFailure();
+            return;
+          }
+          loka::core::DerivedState<T> *state = 0;
+          const size_t align = detail::AlignOf<loka::core::DerivedState<T> >::value;
+          void *mem = owner->allocateStateMemory(sizeof(loka::core::DerivedState<T>), align);
+          if (mem)
+          {
+            state = this->dep2_.isPresent()
+                ? new (mem) loka::core::DerivedState<T>(dep1, dep2, this->eval_)
+                : new (mem) loka::core::DerivedState<T>(dep1, this->eval_);
+            state->setArenaAllocated(true);
+            owner->registerStateMemory(state, &StateBatchBase::DestroyDerivedState<T>);
+          }
+          else
+          {
+            state = this->dep2_.isPresent()
+                ? loka::core::LokaNew<loka::core::DerivedState<T> >(
+                      HeapStateAllocationSite(), dep1, dep2, this->eval_)
+                : loka::core::LokaNew<loka::core::DerivedState<T> >(
+                      HeapStateAllocationSite(), dep1, this->eval_);
+          }
+          if (!state)
+          {
+            owner->noteStateAllocationFailure();
+            return;
+          }
+          if (!state->isArenaAllocated())
+          {
+            assert(static_cast<void *>(static_cast<loka::core::StateBase *>(state)) ==
+                       static_cast<void *>(state) &&
+                   "gate frees through StateBase; its subobject must sit at the storage address");
+            state->setGateAllocated(true);
+          }
+          this->eval_ = 0;
+          owner->adoptStateUnchecked(state);
+          this->owner_ = owner;
+          this->state_ = state;
+          *this->out_ = DerivedNodeState<T>(state, owner);
+        }
+
+        void disconnect()
+        {
+          if (this->owner_ && this->state_)
+            this->owner_->releaseState(this->state_);
+          this->owner_ = 0;
+          this->state_ = 0;
+          this->out_ = 0;
+        }
+
+      private:
+        DerivedNodeState<T> *out_;
+        detail::NodeStateDependency dep1_;
+        detail::NodeStateDependency dep2_;
+        typename loka::core::DerivedState<T>::EvalFn *eval_;
+        IStateOwner *owner_;
+        loka::core::State<T> *state_;
       };
 
       template <class NodeT>
