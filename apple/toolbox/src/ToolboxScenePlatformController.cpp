@@ -19,7 +19,6 @@
 #include <Menus.h>
 
 #include "platform/StringUTF8.hpp"
-#include "core/util/StateTrackerGuard.hpp"
 #include "core/String.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/controls/Button.hpp"
@@ -1520,7 +1519,7 @@ bool ToolboxScenePlatformController::handleKeyDown(char key)
 }
 
 void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
-                                                               loka::app::scene::BoundaryNode *boundary,
+                                                               loka::app::scene::BoundaryNode *,
                                                                loka::core::State<int> *selectedIndex,
                                                                const loka::app::scene::WriteSeat<int> &selectedIndexSeat,
                                                                loka::core::EmitterState *onChange,
@@ -1532,12 +1531,7 @@ void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
   }
   beginBatchUpdate();
   addPendingDirty(rect);
-  {
-    // Settle before onChange: the guard's end is what publishes derived
-    // states that read the selection.
-    loka::core::StateTrackerGuard _(boundary ? boundary->tracker() : 0);
-    selectedIndexSeat.set(newIndex, true);
-  }
+  selectedIndexSeat.set(newIndex, true);
   if (onChange)
   {
     onChange->emit();
@@ -1576,14 +1570,12 @@ bool ToolboxScenePlatformController::handleTextKey(char key)
   // drawn from its hit alone and has no editControls_ binding. The hit's
   // context carries the write seat; the focused native binding is only a
   // second source when one exists.
-  loka::app::scene::BoundaryNode *boundary = 0;
   loka::app::scene::WriteSeat<loka::core::String> seat;
   for (size_t i = 0; i < hitLedger_.editHits_.size(); ++i)
   {
     const EditHit &hit = hitLedger_.editHits_[i];
     if (hit.text == focusedText_ && hasFocusedRect_ && EqualRect(&hit.rect, &focusedRect_))
     {
-      boundary = hit.boundary;
       if (hit.context)
         seat = hit.context->projectedWriteSeat();
       break;
@@ -1598,7 +1590,6 @@ bool ToolboxScenePlatformController::handleTextKey(char key)
   }
   if (!seat.isValid())
     return false;
-  loka::core::StateTrackerGuard _(boundary ? boundary->tracker() : 0);
   seat.set(loka::core::String(utf8));
   return true;
 }
@@ -2781,10 +2772,6 @@ void ToolboxScenePlatformController::updateStateFromEdit(EditTextControlBinding 
     utf8.assign(ptr, static_cast<size_t>(length));
     HUnlock(reinterpret_cast<Handle>(textHandle));
   }
-  loka::core::StateTrackerGuard _(
-      binding.ownerContext && binding.ownerContext->boundary()
-          ? binding.ownerContext->boundary()->tracker()
-          : 0);
   // State notification fans out to every binding. Mark the typing source
   // current first so its sync is a no-op and preserves the active selection.
   binding.lastText = utf8;

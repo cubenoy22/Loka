@@ -234,7 +234,6 @@ Win32ScenePlatformController::Win32ScenePlatformController(
       rectSurfaceExtentLedger_(),
       projectionParentScopes_(rootHwnd),
       rootNode_(0),
-      activeLayoutBoundary_(0),
       clientWidth_(0),
       clientHeight_(0),
       displayScale_(displayScale),
@@ -325,12 +324,6 @@ bool Win32ScenePlatformController::prepareProjectedLayout(loka::app::scene::Node
   if (!context)
   {
     return false;
-  }
-  // Type-safe hookup: only contexts that opt in through asBoundaryTagged
-  // receive the current owning Boundary tag.
-  if (loka::app::scene::IBoundaryTaggedContext *tagged = context->asBoundaryTagged())
-  {
-    tagged->setBoundary(this->activeLayoutBoundary());
   }
   return true;
 }
@@ -1234,26 +1227,6 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
     // that poisoned value.
     return state.y;
   }
-  class ActiveLayoutBoundaryScope
-  {
-  public:
-    ActiveLayoutBoundaryScope(Win32ScenePlatformController *controller,
-                              loka::app::scene::BoundaryNode *boundary)
-        : controller_(controller),
-          previous_(controller ? controller->activeLayoutBoundary() : 0)
-    {
-      if (controller_)
-        controller_->setActiveLayoutBoundary(boundary ? boundary : previous_);
-    }
-    ~ActiveLayoutBoundaryScope()
-    {
-      if (controller_)
-        controller_->setActiveLayoutBoundary(previous_);
-    }
-  private:
-    Win32ScenePlatformController *controller_;
-    loka::app::scene::BoundaryNode *previous_;
-  } boundaryScope(this, node->asBoundary());
   return this->applyBoundaryLayoutResult(node->asBoundary(), state.x, state.y, this->computeLayoutResult(node, state));
 }
 

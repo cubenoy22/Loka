@@ -7,7 +7,6 @@
 #include <vector>
 #include "app/nodes/controls/EditText.hpp"
 #include "core/State.hpp"
-#include "core/util/StateTrackerGuard.hpp"
 #include "Win32EditTextBridge.hpp"
 
 namespace
@@ -243,7 +242,6 @@ void Win32EditTextContext::syncStateFromControl()
     return;
   }
   updatingFromControl_ = true;
-  loka::core::StateTrackerGuard _(this->boundary() ? this->boundary()->tracker() : 0);
   textSeat_.set(loka::win32::ReadEditTextString(hwnd_), true);
   updatingFromControl_ = false;
 }

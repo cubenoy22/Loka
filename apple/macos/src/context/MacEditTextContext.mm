@@ -9,7 +9,6 @@
 #include <AppKit/AppKit.h>
 #include "app/nodes/controls/EditText.hpp"
 #include "core/State.hpp"
-#include "core/util/StateTrackerGuard.hpp"
 #include "platform/StringUTF8.hpp"
 
 namespace
@@ -250,7 +249,6 @@ void MacEditTextContext::syncStateFromControl()
   }
   updatingFromControl_ = true;
   std::string utf8 = loka::macos::Utf8FromNSString([field stringValue]);
-  loka::core::StateTrackerGuard _(this->boundary() ? this->boundary()->tracker() : 0);
   textSeat_.set(loka::core::String(utf8), true);
   updatingFromControl_ = false;
 }
