@@ -2,6 +2,20 @@ cmake_minimum_required(VERSION 3.18)
 
 include(cmake/QuickJS.cmake)
 
+set(SMIRKYCARD_BUILTIN_MAIN_JS ${CMAKE_CURRENT_SOURCE_DIR}/MAIN.JS)
+set(SMIRKYCARD_BUILTIN_MAIN_HEADER ${CMAKE_CURRENT_BINARY_DIR}/BuiltinMainJs.inc)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${SMIRKYCARD_BUILTIN_MAIN_JS})
+execute_process(
+  COMMAND ${CMAKE_COMMAND}
+    -DINPUT=${SMIRKYCARD_BUILTIN_MAIN_JS}
+    -DOUTPUT=${SMIRKYCARD_BUILTIN_MAIN_HEADER}
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/EmbedMainJs.cmake
+  RESULT_VARIABLE smirkycard_embed_main_result
+)
+if(NOT smirkycard_embed_main_result EQUAL 0)
+  message(FATAL_ERROR "Could not embed SmirkyCard MAIN.JS")
+endif()
+
 # A C-only seam keeps quickjs.h's modern macros out of Loka's C++98 code.
 add_library(smirkycard_script STATIC src/ScriptEngine.c)
 target_link_libraries(smirkycard_script PRIVATE smirkycard_quickjs)
@@ -34,6 +48,7 @@ function(smirkycard_cpp_target target)
   target_link_libraries(${target} PRIVATE smirkycard_quickjs)
   target_include_directories(${target} SYSTEM PRIVATE ${smirkycard_quickjs_source_dir})
   target_include_directories(${target} PRIVATE ${PROJECT_SOURCE_DIR}/common)
+  target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
   if(MSVC)
     target_compile_options(${target} PRIVATE /utf-8)
   endif()
@@ -45,10 +60,18 @@ if(WIN32)
   smirkycard_cpp_target(LokaSmirkyCardWin32)
   loka_enable_win32_visual_styles(LokaSmirkyCardWin32)
   target_link_libraries(LokaSmirkyCardWin32 PRIVATE LokaWin32Core)
+  configure_file(MAIN.JS MAIN.JS COPYONLY)
 elseif(LOKA_MACOS AND LOKA_ENABLE_APPLE)
   enable_language(OBJCXX)
   loka_suppress_arclite_link()
-  add_executable(LokaSmirkyCardMacOS src/MacOSMain.mm)
+  set(SMIRKYCARD_MACOS_RESOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/macos-resources)
+  file(MAKE_DIRECTORY ${SMIRKYCARD_MACOS_RESOURCE_DIR})
+  configure_file(MAIN.JS ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MAIN.JS COPYONLY)
+  set_source_files_properties(${SMIRKYCARD_MACOS_RESOURCE_DIR}/MAIN.JS PROPERTIES
+    GENERATED TRUE
+    MACOSX_PACKAGE_LOCATION Resources
+  )
+  add_executable(LokaSmirkyCardMacOS MACOSX_BUNDLE src/MacOSMain.mm ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MAIN.JS)
   smirkycard_cpp_target(LokaSmirkyCardMacOS)
   target_link_libraries(LokaSmirkyCardMacOS PRIVATE LokaMacOSCore)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS)
@@ -65,6 +88,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
   smirkycard_cpp_target(${LOKA_SMIRKYCARD_CLASSIC_TARGET})
   target_link_libraries(${LOKA_SMIRKYCARD_CLASSIC_TARGET} PRIVATE LokaAppleToolboxCore)
   target_compile_definitions(${LOKA_SMIRKYCARD_CLASSIC_TARGET} PRIVATE LOKA_RETRO68=1)
+  target_include_directories(${LOKA_SMIRKYCARD_CLASSIC_TARGET} PRIVATE ${PROJECT_SOURCE_DIR}/apple/toolbox/src)
   target_compile_options(${LOKA_SMIRKYCARD_CLASSIC_TARGET} PRIVATE
     -Os
     -ffunction-sections

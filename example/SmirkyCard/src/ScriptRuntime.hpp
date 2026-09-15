@@ -5,8 +5,11 @@
 #include "JsCardBindingRegistry.hpp"
 #include "quickjs.h"
 #include "core/String.hpp"
+#include <cstddef>
 #include <cstring>
 #include <string>
+
+class PlatformContext;
 
 namespace smirkycard
 {
@@ -17,6 +20,11 @@ namespace smirkycard
   class ScriptRuntime
   {
   public:
+    enum MainSource
+    {
+      MAIN_SOURCE_BUILTIN,
+      MAIN_SOURCE_FILE
+    };
     /** Keeps QuickJS interruption enabled across a complete JS-facing operation. */
     class InterruptWindow
     {
@@ -65,6 +73,15 @@ namespace smirkycard
       return JS_UNDEFINED;
     }
     bool loadBuiltin(const char *source, loka::core::String &error);
+    /** Selects MAIN.JS once through the application's portable file door. */
+    void loadMain(PlatformContext *context);
+    MainSource mainSource() const
+    {
+      return this->mainSource_;
+    }
+    /** A startup MAIN.JS failure belongs on the first card, or every card
+        when the file reached QuickJS but could not evaluate. */
+    loka::core::String mainErrorFor(SmirkyCardId card) const;
     /** Every JS invocation passes through one of these doors.  Success values
         are transferred to the caller, which must either own or free them. */
     bool callConstructor(JSValueConst ctor, JSValue &result, loka::core::String &error);
@@ -74,7 +91,7 @@ namespace smirkycard
               JSValueConst *argv,
               JSValue &result,
               loka::core::String &error);
-    bool evalBuiltin(const char *source, loka::core::String &error);
+    bool evalMain(const char *source, std::size_t length, const char *name, loka::core::String &error);
     /* Helper callback is public only so the local tree factory can install it. */
     static JSValue testId(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     static JSValue enabled(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
@@ -124,11 +141,20 @@ namespace smirkycard
     static JSValue card(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     static JSValue state(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     static JSValue go(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
+    enum MainErrorScope
+    {
+      MAIN_ERROR_NONE,
+      MAIN_ERROR_FIRST_CARD,
+      MAIN_ERROR_EVERY_CARD
+    };
     JsCardBindingRegistry registry_;
     SmirkyScript *script_;
     JSValue first_;
     JSValue second_;
     JsCardNode *active_;
+    MainSource mainSource_;
+    loka::core::String mainError_;
+    MainErrorScope mainErrorScope_;
     struct InterruptState
     {
       InterruptState()

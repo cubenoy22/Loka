@@ -1,58 +1,19 @@
 #include "ScriptRuntime.hpp"
 #include "CardNodes.hpp"
+#include "app/PlatformContext.hpp"
+#include "core/io/File.hpp"
+#include "platform/file/FileHandle.hpp"
+#if defined(LOKA_RETRO68)
+#include "ToolboxByteSource.hpp"
+#else
+#include "core/resource/lrpk/LrpkStdioByteSource.hpp"
+#endif
 
 namespace smirkycard
 {
   const char *BuiltinMainJs()
   {
-    // Kept as one readable JavaScript text (C++98: adjacent literals, one
-    // source line per literal) so the built-in cards double as the sample.
-    return "// MAIN.JS — the built-in cards. Each card is a class: the constructor\n"
-           "// declares its seats with state(initial); compose() returns the card's\n"
-           "// tree using the Loka Node DSL names.\n"
-           "card('first', class {\n"
-           "  constructor() {\n"
-           "    this.script = state('1+1');\n"
-           "    this.result = state('Ready');\n"
-           "  }\n"
-           "  compose() {\n"
-           "    return VStack(\n"
-           "      Text('Card One').TEST_ID('SmirkyCard.Title'),\n"
-           "      Text('This Scene is defined in JavaScript.'),\n"
-           "      EditText(this.script).TEST_ID('SmirkyCard.Script'),\n"
-           "      Button('Run', () => {\n"
-           "        try { this.result.set(String(eval(this.script.get()))); }\n"
-           "        catch (e) { this.result.set('Error: ' + e); }\n"
-           "      }).TEST_ID('SmirkyCard.RunScript'),\n"
-           "      Text(this.result).TEST_ID('SmirkyCard.Result'),\n"
-           "      Button('Run JavaScript', () => go('second')).TEST_ID('SmirkyCard.Run'),\n"
-           "      Text(this.error).TEST_ID('SmirkyCard.Status')\n"
-           "    );\n"
-           "  }\n"
-           "});\n"
-           "card('second', class {\n"
-           "  constructor() {\n"
-           "    this.script = state('2+2');\n"
-           "    this.result = state('Ready');\n"
-           "  }\n"
-           "  compose() {\n"
-           "    return VStack(\n"
-           "      Text('Card Two').TEST_ID('SmirkyCard.Title'),\n"
-           "      Text('This Scene is defined in JavaScript.'),\n"
-           "      EditText(this.script).TEST_ID('SmirkyCard.Script'),\n"
-           "      Row(\n"
-           "        Button('Run', () => {\n"
-           "          try { this.result.set(String(eval(this.script.get()))); }\n"
-           "          catch (e) { this.result.set('Error: ' + e); }\n"
-           "        }).TEST_ID('SmirkyCard.RunScript'),\n"
-           "        Text(this.result).TEST_ID('SmirkyCard.Result'),\n"
-           "        Button('Run JavaScript', () => go('first')).TEST_ID('SmirkyCard.Run')\n"
-           "      ),\n"
-           "      Text(this.error).TEST_ID('SmirkyCard.Status')\n"
-           "    );\n"
-           "  }\n"
-           "});\n"
-           "\n";
+#include "BuiltinMainJs.inc"
   }
   namespace
   {
@@ -83,15 +44,16 @@ namespace smirkycard
         script_(SmirkyScriptCreate()),
         first_(JS_UNDEFINED),
         second_(JS_UNDEFINED),
-        active_(0)
+        active_(0),
+        mainSource_(MAIN_SOURCE_BUILTIN),
+        mainError_(),
+        mainErrorScope_(MAIN_ERROR_NONE)
   {
     if (this->script_)
     {
       JS_SetContextOpaque(this->context(), this);
       if (!RegisterSmirkyCardBindings(this->registry_) || !this->registry_.install(this->context()))
         return;
-      loka::core::String ignored;
-      this->loadBuiltin(BuiltinMainJs(), ignored);
     }
   }
   int ScriptRuntime::interrupt(JSRuntime *, void *opaque)
@@ -181,11 +143,11 @@ namespace smirkycard
     return true;
   }
 
-  bool ScriptRuntime::evalBuiltin(const char *source, loka::core::String &error)
+  bool ScriptRuntime::evalMain(const char *source, std::size_t length, const char *name, loka::core::String &error)
   {
     InterruptWindow interrupt(*this);
     JSValue result;
-    result = JS_Eval(this->context(), source, strlen(source), "BuiltinCards.js", JS_EVAL_TYPE_GLOBAL);
+    result = JS_Eval(this->context(), source, length, name, JS_EVAL_TYPE_GLOBAL);
     if (JS_IsException(result))
     {
       JS_FreeValue(this->context(), result);
@@ -283,6 +245,77 @@ namespace smirkycard
       error = loka::core::String::Literal("JavaScript runtime is unavailable.");
       return false;
     }
-    return this->evalBuiltin(source, error);
+    return this->evalMain(source, strlen(source), "BuiltinCards.js", error);
+  }
+
+  loka::core::String ScriptRuntime::mainErrorFor(SmirkyCardId card) const
+  {
+    if (this->mainErrorScope_ == MAIN_ERROR_EVERY_CARD
+        || (this->mainErrorScope_ == MAIN_ERROR_FIRST_CARD && card == SMIRKY_CARD_FIRST))
+      return this->mainError_;
+    return loka::core::String();
+  }
+
+  void ScriptRuntime::loadMain(PlatformContext *context)
+  {
+    this->mainSource_ = MAIN_SOURCE_BUILTIN;
+    this->mainError_ = loka::core::String();
+    this->mainErrorScope_ = MAIN_ERROR_NONE;
+    const loka::file::File item = loka::file::File::Application() << loka::file::File("MAIN.JS");
+    loka::platform::file::FileHandle handle;
+    if (!context || !context->openFile(item, handle))
+    {
+      loka::core::String ignored;
+      this->loadBuiltin(BuiltinMainJs(), ignored);
+      return;
+    }
+#if defined(LOKA_RETRO68)
+    loka::toolbox::ToolboxByteSource source;
+    if (!handle.hasSpec || !source.open(handle.spec))
+#else
+    loka::core::resource::lrpk::StdioByteSource source;
+    if (handle.displayPath.empty() || !source.open(handle.displayPath))
+#endif
+    {
+      this->mainError_ = loka::core::String::Literal("MAIN.JS: could not read; using built-in cards");
+      this->mainErrorScope_ = MAIN_ERROR_FIRST_CARD;
+      loka::core::String ignored;
+      this->loadBuiltin(BuiltinMainJs(), ignored);
+      return;
+    }
+    std::size_t length = 0;
+    if (!source.size(length))
+    {
+      this->mainError_ = loka::core::String::Literal("MAIN.JS: could not read; using built-in cards");
+      this->mainErrorScope_ = MAIN_ERROR_FIRST_CARD;
+    }
+    else if (length > 64u * 1024u)
+    {
+      this->mainError_ = loka::core::String::Literal("MAIN.JS: exceeds 64 KiB; using built-in cards");
+      this->mainErrorScope_ = MAIN_ERROR_FIRST_CARD;
+    }
+    else
+    {
+      std::string text(length, '\0');
+      if (!source.readAt(0, length ? reinterpret_cast<unsigned char *>(&text[0]) : 0, length))
+      {
+        this->mainError_ = loka::core::String::Literal("MAIN.JS: could not read; using built-in cards");
+        this->mainErrorScope_ = MAIN_ERROR_FIRST_CARD;
+      }
+      else
+      {
+        loka::core::String error;
+        if (this->evalMain(text.data(), text.size(), "MAIN.JS", error))
+        {
+          this->mainSource_ = MAIN_SOURCE_FILE;
+          return;
+        }
+        this->mainError_ =
+            loka::core::String::Literal("MAIN.JS: ") + error + loka::core::String::Literal("; using built-in cards");
+        this->mainErrorScope_ = MAIN_ERROR_EVERY_CARD;
+      }
+    }
+    loka::core::String ignored;
+    this->loadBuiltin(BuiltinMainJs(), ignored);
   }
 } // namespace smirkycard

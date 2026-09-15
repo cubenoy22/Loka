@@ -7,6 +7,22 @@ the displayed expression, returns `"first"` or `"second"`, and C++ installs
 that card in the same Window. Each visit creates a fresh Scene; the old Scene is
 retired through SceneManager.
 
+## MAIN.JS cards
+
+`MAIN.JS` beside the application replaces the built-in card definitions at
+launch. On Windows it lives beside the executable; on macOS it is a bundle
+Resource; on Classic it is a plain data-fork file beside the application. The
+repository's `MAIN.JS` is the built-in sample, so it is a useful starting point.
+Edit the file on the disk and launch again to see changed cards; B2 deliberately
+does not reload a running application. Stage Classic with:
+
+```sh
+scripts/mame-dev-disk.sh build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin example/SmirkyCard/MAIN.JS
+```
+
+`mame-boot-disk.sh` takes the same application binary followed by `MAIN.JS` as
+a plain-data argument.
+
 The AppConfig owns one runtime/context and outlives all windows. Card boundaries
 borrow it. The interpreter returns a card identifier and releases its result
 before navigation; there are no JS-held Node pointers or JS callbacks. A small
