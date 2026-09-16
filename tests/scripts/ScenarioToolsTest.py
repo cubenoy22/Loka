@@ -750,11 +750,6 @@ class StandaloneDebugEntryPointTest(unittest.TestCase):
             "Build: Retro68 68K MineSweeper Standalone Flow",
             "Build: Retro68 68K FloppyBird Standalone Flow",
             "Stage: Toolbox 68K Standalone Flow Release",
-            "Prepare SCSI Dev Disk: Scrapbook Standalone Flow",
-            "Prepare SCSI Dev Disk: HelloWorld Standalone Flow",
-            "Prepare SCSI Dev Disk: Tutorial Standalone Flow",
-            "Prepare SCSI Dev Disk: MineSweeper Standalone Flow",
-            "Prepare SCSI Dev Disk: FloppyBird Standalone Flow",
         ]
         for label in hidden_dependencies:
             self.assertTrue(tasks[label].get("hide", False), label)

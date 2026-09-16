@@ -940,11 +940,12 @@
       "problemMatcher": "$gcc"
     },
     {
-      "label": "Prepare SCSI Dev Disk: HelloWorld",
+      "label": "Build: Retro68 68K target",
       "type": "shell",
-      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
+      "command": "${workspaceFolder}/scripts/mame-dev-disk-app.sh",
       "args": [
-        "${workspaceFolder}/build/retro68/68k/Release/example/HelloWorld/LokaHello68K.bin"
+        "--build",
+        "${input:lokaScsiApp}"
       ],
       "windows": {
         "command": "powershell.exe",
@@ -953,19 +954,20 @@
           "-ExecutionPolicy",
           "Bypass",
           "-File",
-          "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Release/example/HelloWorld/LokaHello68K.bin"
+          "scripts/mame-dev-disk-app.ps1",
+          "${input:lokaScsiApp}",
+          "-Build"
         ]
       },
-      "problemMatcher": []
+      "group": "build",
+      "problemMatcher": "$gcc"
     },
     {
-      "label": "Prepare SCSI Dev Disk: SmirkyCard",
+      "label": "Prepare SCSI Dev Disk",
       "type": "shell",
-      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
+      "command": "${workspaceFolder}/scripts/mame-dev-disk-app.sh",
       "args": [
-        "${workspaceFolder}/build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin",
-        "${workspaceFolder}/example/SmirkyCard/MAIN.JS"
+        "${input:lokaScsiApp}"
       ],
       "windows": {
         "command": "powershell.exe",
@@ -974,298 +976,8 @@
           "-ExecutionPolicy",
           "Bypass",
           "-File",
-          "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin",
-          "example/SmirkyCard/MAIN.JS"
-        ]
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Prepare SCSI Dev Disk: MineSweeper",
-      "type": "shell",
-      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
-      "args": [
-        "${workspaceFolder}/build/retro68/68k/Release/example/MineSweeper/LokaMine68K.bin"
-      ],
-      "windows": {
-        "command": "powershell.exe",
-        "args": [
-          "-NoProfile",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-File",
-          "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Release/example/MineSweeper/LokaMine68K.bin"
-        ]
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Prepare SCSI Dev Disk: SimpleViewer",
-      "type": "shell",
-      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
-      "args": [
-        "${workspaceFolder}/build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.bin"
-      ],
-      "windows": {
-        "command": "powershell.exe",
-        "args": [
-          "-NoProfile",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-File",
-          "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.bin"
-        ]
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Prepare SCSI Dev Disk: FloppyBird",
-      "type": "shell",
-      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
-      "args": [
-        "${workspaceFolder}/build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.bin"
-      ],
-      "windows": {
-        "command": "powershell.exe",
-        "args": [
-          "-NoProfile",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-File",
-          "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.bin"
-        ]
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Prepare SCSI Dev Disk: SmirkBench",
-      "type": "shell",
-      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
-      "args": [
-        "${workspaceFolder}/build/retro68/68k/Release/example/SmirkBench/LokaSmirkBench68K.bin"
-      ],
-      "windows": {
-        "command": "powershell.exe",
-        "args": [
-          "-NoProfile",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-File",
-          "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Release/example/SmirkBench/LokaSmirkBench68K.bin"
-        ]
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Prepare SCSI Dev Disk: LazyList",
-      "type": "shell",
-      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
-      "args": [
-        "${workspaceFolder}/build/retro68/68k/Release/example/LazyList/LokaLazyList68K.bin"
-      ],
-      "windows": {
-        "command": "powershell.exe",
-        "args": [
-          "-NoProfile",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-File",
-          "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Release/example/LazyList/LokaLazyList68K.bin"
-        ]
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Prepare SCSI Dev Disk: Tutorial",
-      "type": "shell",
-      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
-      "args": [
-        "${workspaceFolder}/build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.bin"
-      ],
-      "windows": {
-        "command": "powershell.exe",
-        "args": [
-          "-NoProfile",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-File",
-          "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.bin"
-        ]
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Prepare SCSI Dev Disk: ScrapbookUI",
-      "type": "shell",
-      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
-      "args": [
-        "${workspaceFolder}/build/retro68/68k/Release/example/ScrapbookUI/ScrapbookUI68K.bin",
-        "${workspaceFolder}/build/retro68/68k/Release/example/ScrapbookUI/ASSETS.LRP"
-      ],
-      "windows": {
-        "command": "powershell.exe",
-        "args": [
-          "-NoProfile",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-File",
-          "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Release/example/ScrapbookUI/ScrapbookUI68K.bin",
-          "build/retro68/68k/Release/example/ScrapbookUI/ASSETS.LRP"
-        ]
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Prepare SCSI Dev Disk: Scrapbook Standalone Flow",
-      "type": "shell",
-      "hide": true,
-      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
-      "args": [
-        "${workspaceFolder}/build/presentation/toolbox-68k-release/LokaScrapbookStandaloneFlow68K.bin",
-        "${workspaceFolder}/build/presentation/toolbox-68k-release/ASSETS.LRP"
-      ],
-      "windows": {
-        "command": "powershell.exe",
-        "args": [
-          "-NoProfile",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-File",
-          "scripts/mame-dev-disk.ps1",
-          "build/presentation/toolbox-68k-release/LokaScrapbookStandaloneFlow68K.bin",
-          "build/presentation/toolbox-68k-release/ASSETS.LRP"
-        ]
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Prepare SCSI Dev Disk: HelloWorld Standalone Flow",
-      "type": "shell",
-      "hide": true,
-      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
-      "args": [
-        "${workspaceFolder}/build/retro68/68k/Standalone/Release/tests/toolbox/LokaHelloStandaloneFlow68K.bin"
-      ],
-      "windows": {
-        "command": "powershell.exe",
-        "args": [
-          "-NoProfile",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-File",
-          "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Standalone/Release/tests/toolbox/LokaHelloStandaloneFlow68K.bin"
-        ]
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Prepare SCSI Dev Disk: Tutorial Standalone Flow",
-      "type": "shell",
-      "hide": true,
-      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
-      "args": [
-        "${workspaceFolder}/build/retro68/68k/Standalone/Release/tests/toolbox/LokaTutorialStandaloneFlow68K.bin"
-      ],
-      "windows": {
-        "command": "powershell.exe",
-        "args": [
-          "-NoProfile",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-File",
-          "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Standalone/Release/tests/toolbox/LokaTutorialStandaloneFlow68K.bin"
-        ]
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Prepare SCSI Dev Disk: MineSweeper Standalone Flow",
-      "type": "shell",
-      "hide": true,
-      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
-      "args": [
-        "${workspaceFolder}/build/retro68/68k/Standalone/Release/tests/toolbox/LokaMineStandaloneFlow68K.bin"
-      ],
-      "windows": {
-        "command": "powershell.exe",
-        "args": [
-          "-NoProfile",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-File",
-          "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Standalone/Release/tests/toolbox/LokaMineStandaloneFlow68K.bin"
-        ]
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Prepare SCSI Dev Disk: FloppyBird Standalone Flow",
-      "type": "shell",
-      "hide": true,
-      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
-      "args": [
-        "${workspaceFolder}/build/retro68/68k/Standalone/Release/tests/toolbox/LokaFloppyStandaloneFlow68K.bin"
-      ],
-      "windows": {
-        "command": "powershell.exe",
-        "args": [
-          "-NoProfile",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-File",
-          "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Standalone/Release/tests/toolbox/LokaFloppyStandaloneFlow68K.bin"
-        ]
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Prepare SCSI Dev Disk: HelloWorld Scenario Loop",
-      "type": "shell",
-      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
-      "args": [
-        "${workspaceFolder}/build/retro68/68k/Release/tests/toolbox/LokaHelloScenarioLoop68K.bin"
-      ],
-      "windows": {
-        "command": "powershell.exe",
-        "args": [
-          "-NoProfile",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-File",
-          "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Release/tests/toolbox/LokaHelloScenarioLoop68K.bin"
-        ]
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Prepare SCSI Dev Disk: MineSweeper Scenario Loop",
-      "type": "shell",
-      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
-      "args": [
-        "${workspaceFolder}/build/retro68/68k/Release/tests/toolbox/LokaMineScenarioLoop68K.bin"
-      ],
-      "windows": {
-        "command": "powershell.exe",
-        "args": [
-          "-NoProfile",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-File",
-          "scripts/mame-dev-disk.ps1",
-          "build/retro68/68k/Release/tests/toolbox/LokaMineScenarioLoop68K.bin"
+          "scripts/mame-dev-disk-app.ps1",
+          "${input:lokaScsiApp}"
         ]
       },
       "problemMatcher": []
@@ -1332,160 +1044,10 @@
       "problemMatcher": []
     },
     {
-      "label": "Build & Start in MAME via SCSI: HelloWorld",
+      "label": "Build & Start in MAME via SCSI",
       "dependsOn": [
-        "Build: Retro68 68K HelloWorld",
-        "Prepare SCSI Dev Disk: HelloWorld",
-        "MAME: Start"
-      ],
-      "dependsOrder": "sequence",
-      "problemMatcher": []
-    },
-    {
-      "label": "Build & Start in MAME via SCSI: SmirkyCard",
-      "dependsOn": [
-        "Build: Retro68 68K SmirkyCard",
-        "Prepare SCSI Dev Disk: SmirkyCard",
-        "MAME: Start"
-      ],
-      "dependsOrder": "sequence",
-      "problemMatcher": []
-    },
-    {
-      "label": "Build & Start in MAME via SCSI: HelloWorld Standalone Flow",
-      "dependsOn": [
-        "Build: Retro68 68K HelloWorld Standalone Flow",
-        "Prepare SCSI Dev Disk: HelloWorld Standalone Flow",
-        "MAME: Start"
-      ],
-      "dependsOrder": "sequence",
-      "problemMatcher": []
-    },
-    {
-      "label": "Build & Start in MAME via SCSI: Tutorial Standalone Flow",
-      "dependsOn": [
-        "Build: Retro68 68K Tutorial Standalone Flow",
-        "Prepare SCSI Dev Disk: Tutorial Standalone Flow",
-        "MAME: Start"
-      ],
-      "dependsOrder": "sequence",
-      "problemMatcher": []
-    },
-    {
-      "label": "Build & Start in MAME via SCSI: MineSweeper Standalone Flow",
-      "dependsOn": [
-        "Build: Retro68 68K MineSweeper Standalone Flow",
-        "Prepare SCSI Dev Disk: MineSweeper Standalone Flow",
-        "MAME: Start"
-      ],
-      "dependsOrder": "sequence",
-      "problemMatcher": []
-    },
-    {
-      "label": "Build & Start in MAME via SCSI: FloppyBird Standalone Flow",
-      "dependsOn": [
-        "Build: Retro68 68K FloppyBird Standalone Flow",
-        "Prepare SCSI Dev Disk: FloppyBird Standalone Flow",
-        "MAME: Start"
-      ],
-      "dependsOrder": "sequence",
-      "problemMatcher": []
-    },
-    {
-      "label": "Build & Start in MAME via SCSI: HelloWorld Scenario Loop",
-      "dependsOn": [
-        "Build: Retro68 68K HelloWorld Scenario Loop",
-        "Prepare SCSI Dev Disk: HelloWorld Scenario Loop",
-        "MAME: Start"
-      ],
-      "dependsOrder": "sequence",
-      "problemMatcher": []
-    },
-    {
-      "label": "Build & Start in MAME via SCSI: MineSweeper Scenario Loop",
-      "dependsOn": [
-        "Build: Retro68 68K MineSweeper Scenario Loop",
-        "Prepare SCSI Dev Disk: MineSweeper Scenario Loop",
-        "MAME: Start"
-      ],
-      "dependsOrder": "sequence",
-      "problemMatcher": []
-    },
-    {
-      "label": "Build & Start in MAME via SCSI: MineSweeper",
-      "dependsOn": [
-        "Build: Retro68 68K MineSweeper",
-        "Prepare SCSI Dev Disk: MineSweeper",
-        "MAME: Start"
-      ],
-      "dependsOrder": "sequence",
-      "problemMatcher": []
-    },
-    {
-      "label": "Build & Start in MAME via SCSI: SimpleViewer",
-      "dependsOn": [
-        "Build: Retro68 68K SimpleViewer",
-        "Prepare SCSI Dev Disk: SimpleViewer",
-        "MAME: Start"
-      ],
-      "dependsOrder": "sequence",
-      "problemMatcher": []
-    },
-    {
-      "label": "Build & Start in MAME via SCSI: FloppyBird",
-      "dependsOn": [
-        "Build: Retro68 68K FloppyBird",
-        "Prepare SCSI Dev Disk: FloppyBird",
-        "MAME: Start"
-      ],
-      "dependsOrder": "sequence",
-      "problemMatcher": []
-    },
-    {
-      "label": "Build & Start in MAME via SCSI: SmirkBench",
-      "dependsOn": [
-        "Build: Retro68 68K SmirkBench",
-        "Prepare SCSI Dev Disk: SmirkBench",
-        "MAME: Start"
-      ],
-      "dependsOrder": "sequence",
-      "problemMatcher": []
-    },
-    {
-      "label": "Build & Start in MAME via SCSI: LazyList",
-      "dependsOn": [
-        "Build: Retro68 68K LazyList",
-        "Prepare SCSI Dev Disk: LazyList",
-        "MAME: Start"
-      ],
-      "dependsOrder": "sequence",
-      "problemMatcher": []
-    },
-    {
-      "label": "Build & Start in MAME via SCSI: Tutorial",
-      "dependsOn": [
-        "Build: Retro68 68K Tutorial",
-        "Prepare SCSI Dev Disk: Tutorial",
-        "MAME: Start"
-      ],
-      "dependsOrder": "sequence",
-      "problemMatcher": []
-    },
-    {
-      "label": "Build & Start in MAME via SCSI: ScrapbookUI",
-      "dependsOn": [
-        "Build: Retro68 68K ScrapbookUI",
-        "Prepare SCSI Dev Disk: ScrapbookUI",
-        "MAME: Start"
-      ],
-      "dependsOrder": "sequence",
-      "problemMatcher": []
-    },
-    {
-      "label": "Stage & Start in MAME via SCSI: Scrapbook Standalone Flow",
-      "dependsOn": [
-        "Stage: Toolbox 68K Standalone Flow Release",
-        "Prepare SCSI Dev Disk: Scrapbook Standalone Flow",
+        "Build: Retro68 68K target",
+        "Prepare SCSI Dev Disk",
         "MAME: Start"
       ],
       "dependsOrder": "sequence",
@@ -1583,6 +1145,30 @@
     }
   ],
   "inputs": [
+    {
+      "id": "lokaScsiApp",
+      "type": "pickString",
+      "description": "Select the application to build and copy to the SCSI development disk",
+      "default": "HelloWorld",
+      "options": [
+        "HelloWorld",
+        "SmirkyCard",
+        "MineSweeper",
+        "SimpleViewer",
+        "FloppyBird",
+        "SmirkBench",
+        "LazyList",
+        "Tutorial",
+        "ScrapbookUI",
+        "ScrapbookStandaloneFlow",
+        "HelloWorldStandaloneFlow",
+        "TutorialStandaloneFlow",
+        "MineSweeperStandaloneFlow",
+        "FloppyBirdStandaloneFlow",
+        "HelloWorldScenarioLoop",
+        "MineSweeperScenarioLoop"
+      ]
+    },
     {
       "id": "standaloneReleaseAction",
       "type": "pickString",

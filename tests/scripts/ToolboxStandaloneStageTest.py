@@ -284,25 +284,28 @@ rm -f "$HOME/mounted-disk"
     def test_vscode_tasks_use_the_completed_stage_for_scsi(self):
         tasks_document = json.loads((PROJECT_DIR / ".vscode" / "tasks.json").read_text())
         tasks = {task["label"]: task for task in tasks_document["tasks"]}
-        stage_root = "build/presentation/toolbox-68k-release"
+        inputs = {entry["id"]: entry for entry in tasks_document["inputs"]}
 
         self.assertEqual(
-            tasks["Stage & Start in MAME via SCSI: Scrapbook Standalone Flow"][
-                "dependsOn"
-            ],
+            tasks["Build & Start in MAME via SCSI"]["dependsOn"],
             [
-                "Stage: Toolbox 68K Standalone Flow Release",
-                "Prepare SCSI Dev Disk: Scrapbook Standalone Flow",
+                "Build: Retro68 68K target",
+                "Prepare SCSI Dev Disk",
                 "MAME: Start",
             ],
         )
-        self.assertEqual(
-            tasks["Prepare SCSI Dev Disk: Scrapbook Standalone Flow"]["args"],
-            [
-                f"${{workspaceFolder}}/{stage_root}/LokaScrapbookStandaloneFlow68K.bin",
-                f"${{workspaceFolder}}/{stage_root}/ASSETS.LRP",
-            ],
+        self.assertIn(
+            "ScrapbookStandaloneFlow",
+            inputs["lokaScsiApp"]["options"],
         )
+        wrapper = (PROJECT_DIR / "scripts" / "mame-dev-disk-app.sh").read_text()
+        self.assertIn('if [ "$key" = "ScrapbookStandaloneFlow" ]; then', wrapper)
+        self.assertIn('exec "$script_dir/toolbox-standalone-flow.sh" Stage', wrapper)
+        self.assertIn(
+            "build/presentation/toolbox-68k-release/LokaScrapbookStandaloneFlow68K.bin",
+            wrapper,
+        )
+        self.assertIn("build/presentation/toolbox-68k-release/ASSETS.LRP", wrapper)
         self.assertEqual(
             tasks["Standalone: Toolbox PPC Release Action"]["args"],
             [
