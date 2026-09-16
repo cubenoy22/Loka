@@ -93,6 +93,9 @@ cross-platform verification, and the missing native ScrollBar arms tracked by
 [#224](https://github.com/cubenoy22/Loka/issues/224) do not make the example
 inapplicable because its shared UI uses Previous/Next buttons.
 
+`SmirkyCard` is experimental — no pixel golden cells; build + launch evidence
+only.
+
 ## Grades
 
 | Grade | Meaning | Automation |

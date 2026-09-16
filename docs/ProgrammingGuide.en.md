@@ -653,6 +653,37 @@ gives the class a Boundary, and `BoundaryPropsFor<MyNode>` supplies its basic
 input type. Use custom props when the Boundary needs additional inputs, keeping
 parent-provided inputs distinct from the state it owns.
 
+### SmirkyCard: cards in JavaScript (experimental)
+
+SmirkyCard loads cards from `MAIN.JS` beside the application. Its first card is:
+
+```js
+card('first', class {
+  constructor() {
+    this.script = state('1+1');
+    this.result = state('Ready');
+  }
+  compose() {
+    return VStack(
+      Text('Card One').TEST_ID('SmirkyCard.Title'),
+      Text('This Scene is defined in JavaScript.'),
+      EditText(this.script).TEST_ID('SmirkyCard.Script'),
+      Button('Run', () => {
+        try { this.result.set(String(eval(this.script.get()))); }
+        catch (e) { this.result.set('Error: ' + e); }
+      }).TEST_ID('SmirkyCard.RunScript'),
+      Text(this.result).TEST_ID('SmirkyCard.Result'),
+      Button('Run JavaScript', () => go('second')).TEST_ID('SmirkyCard.Run'),
+      Button('Reload MAIN.JS', () => reload()).TEST_ID('SmirkyCard.Reload'),
+      Text(this.error).TEST_ID('SmirkyCard.Status')
+    );
+  }
+});
+```
+
+To try it, edit `MAIN.JS`, choose **Run** to evaluate the text in the card, and
+choose **Reload MAIN.JS** to load your saved card definitions again.
+
 ## 12. Toggle UI Driven By State
 
 Start with the fact that changes: whether details are visible. Keep the event
