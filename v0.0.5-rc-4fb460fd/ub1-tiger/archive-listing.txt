@@ -1,0 +1,25 @@
+Length Name
+-------- ----
+1088 LokaFloppyBirdStandaloneLoopMacOS.app/Contents/Info.plist
+1594148 LokaFloppyBirdStandaloneLoopMacOS.app/Contents/MacOS/LokaFloppyBirdStandaloneLoopMacOS
+1088 LokaHelloWorldStandaloneLoopMacOS.app/Contents/Info.plist
+1874504 LokaHelloWorldStandaloneLoopMacOS.app/Contents/MacOS/LokaHelloWorldStandaloneLoopMacOS
+1090 LokaMineSweeperStandaloneLoopMacOS.app/Contents/Info.plist
+1840328 LokaMineSweeperStandaloneLoopMacOS.app/Contents/MacOS/LokaMineSweeperStandaloneLoopMacOS
+1086 LokaScrapbookStandaloneLoopMacOS.app/Contents/Info.plist
+1837004 LokaScrapbookStandaloneLoopMacOS.app/Contents/MacOS/LokaScrapbookStandaloneLoopMacOS
+3436 LokaScrapbookStandaloneLoopMacOS.app/Contents/Resources/ASSETS.LRP
+1068 LokaSimpleViewerMacOS.app/Contents/Info.plist
+2077760 LokaSimpleViewerMacOS.app/Contents/MacOS/LokaSimpleViewerMacOS
+1084 LokaTutorialStandaloneLoopMacOS.app/Contents/Info.plist
+1677124 LokaTutorialStandaloneLoopMacOS.app/Contents/MacOS/LokaTutorialStandaloneLoopMacOS
+223 README.txt
+-------- 
+10911031 
+----
+build/release/macos-tiger-ub1/LokaFloppyBirdStandaloneLoopMacOS.app/Contents/MacOS/LokaFloppyBirdStandaloneLoopMacOS: 
+build/release/macos-tiger-ub1/LokaHelloWorldStandaloneLoopMacOS.app/Contents/MacOS/LokaHelloWorldStandaloneLoopMacOS: 
+build/release/macos-tiger-ub1/LokaMineSweeperStandaloneLoopMacOS.app/Contents/MacOS/LokaMineSweeperStandaloneLoopMacOS: 
+build/release/macos-tiger-ub1/LokaScrapbookStandaloneLoopMacOS.app/Contents/MacOS/LokaScrapbookStandaloneLoopMacOS: 
+build/release/macos-tiger-ub1/LokaSimpleViewerMacOS.app/Contents/MacOS/LokaSimpleViewerMacOS: 
+build/release/macos-tiger-ub1/LokaTutorialStandaloneLoopMacOS.app/Contents/MacOS/LokaTutorialStandaloneLoopMacOS: 
