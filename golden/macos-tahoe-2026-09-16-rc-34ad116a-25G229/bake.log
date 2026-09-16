@@ -1,0 +1,38 @@
+start Wed Sep 16 11:27:55 JST 2026 HEAD=34ad116a 25G229
+build exit=0
+=== STAGE
+stage scrapbook startup: ok
+stage scrapbook open-first-page-refused: ok
+stage scrapbook flip-forward-back: ok
+stage scrapbook refused-flip-keeps-page: ok
+stage scrapbook open-text-page: ok
+stage scrapbook open-text-page-refused: ok
+stage helloworld startup: ok
+stage helloworld toggle-action-probe: ok
+stage helloworld bmi-roundtrip: ok
+stage tutorial startup: ok
+stage tutorial increment-summary-toggle: ok
+stage minesweeper startup: ok
+stage minesweeper new-game-twice: ok
+stage minesweeper seeded-reveal: ok
+stage floppybird startup: ok
+stage floppybird fixed-step-flaps: ok
+=== VERIFY
+verify scrapbook startup: pass
+verify scrapbook open-first-page-refused: pass
+verify scrapbook flip-forward-back: pass
+verify scrapbook refused-flip-keeps-page: pass
+verify scrapbook open-text-page: pass
+verify scrapbook open-text-page-refused: pass
+verify helloworld startup: pass
+verify helloworld toggle-action-probe: pass
+verify helloworld bmi-roundtrip: pass
+verify tutorial startup: pass
+verify tutorial increment-summary-toggle: pass
+verify minesweeper startup: pass
+verify minesweeper new-game-twice: pass
+verify minesweeper seeded-reveal: pass
+verify floppybird startup: pass
+verify floppybird fixed-step-flaps: pass
+verify pass: 16/16
+bake done Wed Sep 16 11:29:13 JST 2026
