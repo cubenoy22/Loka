@@ -1,0 +1,8 @@
+# v0.0.5 macOS UB1 (Tiger profile) standalone release allowlist (added
+# 2026-09-16 after the Tiger stage was restored on the Mavericks rig, #797):
+# five autonomous presentation loops plus SimpleViewer as ppc;i386 universal
+# binaries built with Xcode 3.2.6 / GCC 4.0 against the 10.4u SDK, staged by
+# scripts/macos-standalone-release-ub1.sh tiger and zipped by ditto so the .app
+# bundles enter the archive as one file. First UB1 release; runtime-verified
+# only where the release PR says so.
+build	build/release/Loka-macos-standalone-UB1-tiger.zip	macOS/Loka-macos-standalone-UB1-tiger.zip
