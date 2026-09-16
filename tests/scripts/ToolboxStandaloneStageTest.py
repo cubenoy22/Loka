@@ -289,10 +289,13 @@ rm -f "$HOME/mounted-disk"
         self.assertEqual(
             tasks["Build & Start in MAME via SCSI"]["dependsOn"],
             [
-                "Build: Retro68 68K target",
-                "Prepare SCSI Dev Disk",
+                "Build & Prepare SCSI Dev Disk",
                 "MAME: Start",
             ],
+        )
+        self.assertEqual(
+            tasks["Build & Prepare SCSI Dev Disk"]["args"],
+            ["--build-and-prepare", "${input:lokaScsiApp}"],
         )
         self.assertIn(
             "ScrapbookStandaloneFlow",
@@ -300,7 +303,8 @@ rm -f "$HOME/mounted-disk"
         )
         wrapper = (PROJECT_DIR / "scripts" / "mame-dev-disk-app.sh").read_text()
         self.assertIn('if [ "$key" = "ScrapbookStandaloneFlow" ]; then', wrapper)
-        self.assertIn('exec "$script_dir/toolbox-standalone-flow.sh" Stage', wrapper)
+        self.assertIn('"$script_dir/toolbox-standalone-flow.sh" Stage', wrapper)
+        self.assertIn('if [ "$mode" = "--build-and-prepare" ]; then', wrapper)
         self.assertIn(
             "build/presentation/toolbox-68k-release/LokaScrapbookStandaloneFlow68K.bin",
             wrapper,

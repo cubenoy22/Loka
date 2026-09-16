@@ -124,8 +124,8 @@ This is the environment where binaries are actually built.
   user closes it. It reads no `LokaTest.cfg` and publishes no audit or capture
   marker.
 
-  On Classic, use **Build & Start in MAME via SCSI: HelloWorld Scenario Loop**
-  or **Build & Start in MAME via SCSI: MineSweeper Scenario Loop**. The same
+  On Classic, run **Build & Start in MAME via SCSI** and pick
+  `HelloWorldScenarioLoop` or `MineSweeperScenarioLoop` from the prompt. The same
   build emits self-contained `.dsk` images for real hardware; see
   [Classic scenario loop reels](MAME_DEVELOPMENT.md#classic-scenario-loop-reels)
   for the exact build, MAME, and SD-SCSI routes.

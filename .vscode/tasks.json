@@ -983,6 +983,29 @@
       "problemMatcher": []
     },
     {
+      "label": "Build & Prepare SCSI Dev Disk",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-dev-disk-app.sh",
+      "args": [
+        "--build-and-prepare",
+        "${input:lokaScsiApp}"
+      ],
+      "windows": {
+        "command": "powershell.exe",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-dev-disk-app.ps1",
+          "${input:lokaScsiApp}",
+          "-BuildAndPrepare"
+        ]
+      },
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Prepare Boot Disk: All Apps",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-boot-disk.sh",
@@ -1046,8 +1069,7 @@
     {
       "label": "Build & Start in MAME via SCSI",
       "dependsOn": [
-        "Build: Retro68 68K target",
-        "Prepare SCSI Dev Disk",
+        "Build & Prepare SCSI Dev Disk",
         "MAME: Start"
       ],
       "dependsOrder": "sequence",

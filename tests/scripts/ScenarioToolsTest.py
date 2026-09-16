@@ -710,6 +710,14 @@ class StandaloneDebugEntryPointTest(unittest.TestCase):
             visible_entry_points,
         )
         self.assertNotIn("standaloneMode", inputs)
+        self.assertEqual(
+            tasks["Build & Start in MAME via SCSI"]["dependsOn"],
+            ["Build & Prepare SCSI Dev Disk", "MAME: Start"],
+        )
+        self.assertEqual(
+            tasks["Build & Prepare SCSI Dev Disk"]["windows"]["args"][-2:],
+            ["${input:lokaScsiApp}", "-BuildAndPrepare"],
+        )
 
         self.assertEqual(
             tasks["Standalone: macOS Release Action"]["args"],

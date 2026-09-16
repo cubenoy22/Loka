@@ -6,12 +6,12 @@ script_dir=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 workspace_dir=$(CDPATH= cd -- "$script_dir/.." && pwd)
 
 usage() {
-    echo "usage: $0 [--target|--build] <key>" >&2
+    echo "usage: $0 [--target|--build|--build-and-prepare] <key>" >&2
     exit 2
 }
 
 mode=prepare
-if [ "${1-}" = "--target" ] || [ "${1-}" = "--build" ]; then
+if [ "${1-}" = "--target" ] || [ "${1-}" = "--build" ] || [ "${1-}" = "--build-and-prepare" ]; then
     mode=$1
     shift
 fi
@@ -101,21 +101,30 @@ case "$key" in
         ;;
 esac
 
-if [ "$mode" = "--target" ]; then
-    printf '%s\n' "$target"
-elif [ "$mode" = "--build" ]; then
+build_app() {
     if [ "$key" = "ScrapbookStandaloneFlow" ]; then
-        exec "$script_dir/toolbox-standalone-flow.sh" Stage
+        "$script_dir/toolbox-standalone-flow.sh" Stage
+        return
     fi
     if [ "$key" = "SmirkyCard" ]; then
         "$script_dir/retro68-cmake.sh" --preset "$preset" -DLOKA_BUILD_SMIRKYCARD=ON
     else
         "$script_dir/retro68-cmake.sh" --preset "$preset"
     fi
-    target=$("$script_dir/mame-dev-disk-app.sh" --target "$key")
-    exec "$script_dir/retro68-cmake.sh" --build --preset "$preset" --target "$target"
-elif [ -n "$data" ]; then
-    exec "$script_dir/mame-dev-disk.sh" "$workspace_dir/$bin" "$workspace_dir/$data"
+    "$script_dir/retro68-cmake.sh" --build --preset "$preset" --target "$target"
+}
+
+if [ "$mode" = "--target" ]; then
+    printf '%s\n' "$target"
+elif [ "$mode" = "--build" ]; then
+    build_app
 else
-    exec "$script_dir/mame-dev-disk.sh" "$workspace_dir/$bin"
+    if [ "$mode" = "--build-and-prepare" ]; then
+        build_app
+    fi
+    if [ -n "$data" ]; then
+        exec "$script_dir/mame-dev-disk.sh" "$workspace_dir/$bin" "$workspace_dir/$data"
+    else
+        exec "$script_dir/mame-dev-disk.sh" "$workspace_dir/$bin"
+    fi
 fi

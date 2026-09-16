@@ -59,11 +59,11 @@ floppy image; that image already contains both required files.
 
 ## MAME SCSI
 
-Stop MAME before rebuilding its development disk, then run **Stage & Start in
-MAME via SCSI: Scrapbook Standalone Flow**. The task derives the local
-`build/mame-dev/LokaDev.hd` from the boot-disk template configured by
-`MAME_HDA`, copies this stage's `.bin` and `ASSETS.LRP` to it, and starts MAME
-with that disk at SCSI ID 5.
+Stop MAME before rebuilding its development disk, then run **Build & Start in
+MAME via SCSI** and pick `ScrapbookStandaloneFlow` from the prompt. The task
+derives the local `build/mame-dev/LokaDev.hd` from the boot-disk template
+configured by `MAME_HDA`, copies this stage's `.bin` and `ASSETS.LRP` to it,
+and starts MAME with that disk at SCSI ID 5.
 
 The stage intentionally does not contain a boot or SCSI hard-disk image: that
 image depends on the local licensed Classic Mac OS installation and is safely

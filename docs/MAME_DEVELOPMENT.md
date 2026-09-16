@@ -10,8 +10,8 @@ hard disk at SCSI ID 5.
 2. Copy `.env-mame.example` to `.env-mame` and set `MAME_HDA`. Also set
    `MAME_EXECUTABLE` and `MAME_ROMPATH` when MAME cannot find them
    automatically.
-3. In VS Code, run **Tasks: Run Task** and select
-   `Build & Start in MAME via SCSI: HelloWorld` (or another example).
+3. In VS Code, run **Tasks: Run Task**, run **Build & Start in MAME via
+   SCSI**, and pick `HelloWorld` (or another example) from the prompt.
 
 The task configures and builds the Retro68 application, creates the generated
 `LokaDev` SCSI disk, and starts MAME.
@@ -36,7 +36,8 @@ settings. Native Windows launchers may still use `RETRO68_TOOLCHAIN_BIN` in
 
 ## SCSI workflow
 
-Run `Build & Start in MAME via SCSI: <App>`. The task:
+Run **Build & Start in MAME via SCSI** and pick `<App>` from the prompt. The
+task:
 
 1. builds the app's Retro68 `_APPL` target;
 2. copies the configured boot HDA to a temporary generated image;
@@ -69,7 +70,8 @@ scenario controller. It advances through the Scrapbook pages using stable
 TEST_ID selectors and real Button actions, then holds the final page until the
 user quits.
 
-In VS Code, run **Stage & Start in MAME via SCSI: Scrapbook Standalone Flow**.
+In VS Code, run **Build & Start in MAME via SCSI** and pick
+`ScrapbookStandaloneFlow` from the prompt.
 The task builds and stages the excluded target, then puts the staged MacBinary
 plus `ASSETS.LRP` on the generated `LokaDev` disk. Open the application from
 that disk after Classic Mac OS boots. This presentation target is for human
@@ -101,7 +103,8 @@ is ignored, and then holds the final `Button enabled: no / clicks: 1` scene
 until the user quits. Terminal step results are written to the application-side
 `LOG.TXT` audit file; no Snap artifact or completion marker is published.
 
-In VS Code, run **Build & Start in MAME via SCSI: HelloWorld Standalone Flow**.
+In VS Code, run **Build & Start in MAME via SCSI** and pick
+`HelloWorldStandaloneFlow` from the prompt.
 The task builds the excluded target, puts its MacBinary on the generated
 `LokaDev` disk, and starts MAME. Open `LokaHelloStandaloneFlow68K` from that
 disk after Classic Mac OS boots. This is a human-facing presentation path; the
@@ -126,7 +129,8 @@ final `Items: 2` scene until the user quits. Tutorial intentionally exercises
 no EditText path. Application-level text-entry verification belongs to
 HelloWorld's BMI controls and its `bmi-roundtrip` scenario.
 
-In VS Code, run **Build & Start in MAME via SCSI: Tutorial Standalone Flow**.
+In VS Code, run **Build & Start in MAME via SCSI** and pick
+`TutorialStandaloneFlow` from the prompt.
 The task builds the excluded APPL target, puts its MacBinary on `LokaDev`, and
 starts MAME. Open `LokaTutorialStandaloneFlow68K` after Classic Mac OS boots.
 The application writes `LOG.TXT` beside itself. After copying that file back
@@ -149,11 +153,12 @@ caller-owned seed makes the initial board and both New Game results stable by
 design; the shipping MineSweeper applications continue to derive their seed
 from the clock. The presentation holds the third board until the user quits.
 
-In VS Code, run **Build & Start in MAME via SCSI: MineSweeper Standalone
-Flow**. The task builds the excluded APPL target, puts its MacBinary on
-`LokaDev`, and starts MAME. Open `LokaMineStandaloneFlow68K` after Classic Mac
-OS boots. The application writes `LOG.TXT` beside itself. After copying that
-file back to the host, require a byte-for-byte match with the tracked audit:
+In VS Code, run **Build & Start in MAME via SCSI** and pick
+`MineSweeperStandaloneFlow` from the prompt. The task builds the excluded APPL
+target, puts its MacBinary on `LokaDev`, and starts MAME. Open
+`LokaMineStandaloneFlow68K` after Classic Mac OS boots. The application writes
+`LOG.TXT` beside itself. After copying that file back to the host, require a
+byte-for-byte match with the tracked audit:
 
 ```sh
 tests/toolbox/verify-standalone-audit.sh \
@@ -208,11 +213,11 @@ scripts/retro68-cmake.sh --build --preset retro68-68k-release --target \
   LokaHelloScenarioLoop68K_APPL LokaMineScenarioLoop68K_APPL
 ```
 
-For MAME, run **Build & Start in MAME via SCSI: HelloWorld Scenario Loop** or
-**Build & Start in MAME via SCSI: MineSweeper Scenario Loop**. Each task builds
-the selected APPL, passes its MacBinary to `scripts/mame-dev-disk.sh`, and then
-starts MAME with the generated `LokaDev` disk at SCSI ID 5. The equivalent
-manual HelloWorld route is:
+For MAME, run **Build & Start in MAME via SCSI** and pick
+`HelloWorldScenarioLoop` or `MineSweeperScenarioLoop` from the prompt. The task
+builds the selected APPL, passes its MacBinary to `scripts/mame-dev-disk.sh`,
+and then starts MAME with the generated `LokaDev` disk at SCSI ID 5. The
+equivalent manual HelloWorld route is:
 
 ```sh
 ./scripts/mame-dev-disk.sh \

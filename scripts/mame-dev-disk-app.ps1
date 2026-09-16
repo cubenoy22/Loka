@@ -2,7 +2,8 @@ param(
     [Parameter(Mandatory = $true, Position = 0)]
     [string]$Key,
     [switch]$Target,
-    [switch]$Build
+    [switch]$Build,
+    [switch]$BuildAndPrepare
 )
 
 $ErrorActionPreference = "Stop"
@@ -30,9 +31,7 @@ switch ($Key) {
     default { throw "unknown SCSI app key: $Key" }
 }
 
-if ($Target) {
-    Write-Output $cmakeTarget
-} elseif ($Build) {
+function Build-App {
     if ($Key -eq "ScrapbookStandaloneFlow") {
         & bash "$PSScriptRoot/toolbox-standalone-flow.sh" Stage
     } else {
@@ -42,12 +41,18 @@ if ($Target) {
             & bash "$PSScriptRoot/retro68-cmake.sh" --preset $preset
         }
         if ($LASTEXITCODE -eq 0) {
-            $cmakeTarget = & $PSCommandPath $Key -Target
             & bash "$PSScriptRoot/retro68-cmake.sh" --build --preset $preset --target $cmakeTarget
         }
     }
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+
+if ($Target) {
+    Write-Output $cmakeTarget
+} elseif ($Build) {
+    Build-App
 } else {
+    if ($BuildAndPrepare) { Build-App }
     $arguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "$PSScriptRoot/mame-dev-disk.ps1", (Join-Path $workspace $bin))
     if ($data) { $arguments += (Join-Path $workspace $data) }
     & powershell.exe @arguments
