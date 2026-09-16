@@ -1,0 +1,942 @@
+[12:27:08] session 1 user Lihi-AI
+**********************************************************************
+** Visual Studio 2022 Developer Command Prompt v17.14.39
+** Copyright (c) 2025 Microsoft Corporation
+**********************************************************************
+[vcvarsall.bat] Environment initialized for: 'x64'
+From https://github.com/cubenoy22/Loka
+ * branch              main       -> FETCH_HEAD
+34ad116ae5c7f6c02f05b42a45b458f64d201d4a
+Preset CMake variables:
+
+  CMAKE_BUILD_TYPE="Debug"
+  CMAKE_EXPORT_COMPILE_COMMANDS="ON"
+  LOKA_WARNINGS_AS_ERRORS="ON"
+
+-- Configuring done (0.4s)
+-- Generating done (0.2s)
+-- Build files have been written to: C:/loka/build/win32/Debug
+[0/2] Re-checking globbed directories...
+[1/4] C:\WINDOWS\system32\cmd.exe /C "cd /D C:\loka\build\win32\Debug\tests\toolbox && "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E echo "LokaTestsToolbox requires a Retro68 Toolbox toolchain. No app is built for this platform.""
+LokaTestsToolbox requires a Retro68 Toolbox toolchain. No app is built for this platform.
+[2/4] Building CXX object example\SmirkyCard\CMakeFiles\LokaSmirkyCardWin32.dir\src\ScriptRuntime.cpp.obj
+[3/4] Linking CXX executable example\SmirkyCard\LokaSmirkyCardWin32.exe
+[0/2] Re-checking globbed directories...
+[1/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\tests\TestingHooks.cpp.obj
+[2/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\tests\scenarios\RectSurfaceScenarioObservation.cpp.obj
+[3/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\tests\scenarios\StartupScenarios.cpp.obj
+[4/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\src\Win32Bootstrap.cpp.obj
+[5/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\tests\win32\ScenarioDriverSupport.cpp.obj
+[6/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\tests\win32\ScrapbookScenarioMain.cpp.obj
+[7/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\src\Win32BuiltInSupport.cpp.obj
+[8/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\src\Win32App.cpp.obj
+[9/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\src\Win32BitmapCapture.cpp.obj
+[10/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\src\Win32ScenePlatformController.cpp.obj
+[11/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\src\Win32Window.cpp.obj
+[12/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\src\context\Win32ButtonContext.cpp.obj
+[13/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\src\context\Win32RetirableContext.cpp.obj
+[14/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\src\Win32PlatformContext.cpp.obj
+[15/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\src\context\Win32TextContext.cpp.obj
+[16/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\src\context\Win32CellContext.cpp.obj
+[17/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\src\context\Win32EditTextContext.cpp.obj
+[18/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\src\context\Win32ImageViewContext.cpp.obj
+[19/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\src\platform\Win32DebugLog.cpp.obj
+[20/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\src\context\Win32OpenFileDialogContext.cpp.obj
+[21/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\src\context\Win32PopupMenuContext.cpp.obj
+[22/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\src\context\Win32RectSurfaceContext.cpp.obj
+[23/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\src\platform\Win32DisplayFont.cpp.obj
+[24/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\src\platform\Win32DisplayScale.cpp.obj
+[25/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\src\platform\Win32IdlePacer.cpp.obj
+[26/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\common\app\MenuComposition.cpp.obj
+[27/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\src\context\Win32ScrollViewContext.cpp.obj
+[28/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\common\app\core\AppComposition.cpp.obj
+[29/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\common\app\core\DialogResultTransport.cpp.obj
+[30/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\common\app\core\MenuController.cpp.obj
+[31/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\common\app\core\App.cpp.obj
+[32/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\common\app\core\SceneManager.cpp.obj
+[33/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\common\app\layout\LayoutHeuristics.cpp.obj
+[34/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\common\app\scene\Node.cpp.obj
+[35/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\common\app\core\Window.cpp.obj
+[36/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\common\app\scene\boundary\detail\SeatBuildRequest.cpp.obj
+[37/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\common\app\scene\boundary\detail\SeatReservation.cpp.obj
+[38/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\common\app\scene\boundary\Boundary.cpp.obj
+[39/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\common\app\scene\boundary\detail\NodeBuildTicket.cpp.obj
+[40/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\common\app\scene\boundary\BoundaryInnerStateOwner.cpp.obj
+[41/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\common\app\scene\node\Conditional.cpp.obj
+[42/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\common\platform\debug\GenericDebugLog.cpp.obj
+[43/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\common\app\scene\projection\PlatformController.cpp.obj
+[44/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\common\core\StateTracker.cpp.obj
+[45/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\common\testing\scene\ScenarioAudit.cpp.obj
+[46/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\common\app\scene\composition\NodeComposition.cpp.obj
+[47/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\example\ScrapbookUI\src\ScrapbookPackage.cpp.obj
+[48/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\tests\scenarios\StartupScenarios.cpp.obj
+[49/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\tests\scenarios\RectSurfaceScenarioObservation.cpp.obj
+[50/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\tests\win32\HelloWorldScenarioDriver.cpp.obj
+[51/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\tests\win32\ScenarioDriverSupport.cpp.obj
+[52/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\tests\TestingHooks.cpp.obj
+[53/528] Building CXX object win32\CMakeFiles\LokaScrapbookScenarioWin32.dir\__\tests\scenarios\ScrapbookScenarios.cpp.obj
+[54/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\src\Win32BuiltInSupport.cpp.obj
+[55/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\src\Win32Bootstrap.cpp.obj
+[56/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\src\Win32App.cpp.obj
+[57/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\src\Win32BitmapCapture.cpp.obj
+[58/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\src\Win32Window.cpp.obj
+[59/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\src\Win32PlatformContext.cpp.obj
+[60/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\src\Win32ScenePlatformController.cpp.obj
+[61/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\src\context\Win32RetirableContext.cpp.obj
+[62/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\src\context\Win32ButtonContext.cpp.obj
+[63/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\src\context\Win32TextContext.cpp.obj
+[64/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\src\context\Win32CellContext.cpp.obj
+[65/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\src\context\Win32OpenFileDialogContext.cpp.obj
+[66/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\src\context\Win32EditTextContext.cpp.obj
+[67/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\src\context\Win32ImageViewContext.cpp.obj
+[68/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\src\platform\Win32DebugLog.cpp.obj
+[69/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\src\context\Win32PopupMenuContext.cpp.obj
+[70/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\src\context\Win32RectSurfaceContext.cpp.obj
+[71/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\src\context\Win32ScrollViewContext.cpp.obj
+[72/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\src\platform\Win32DisplayScale.cpp.obj
+[73/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\src\platform\Win32IdlePacer.cpp.obj
+[74/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\src\platform\Win32DisplayFont.cpp.obj
+[75/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\common\app\MenuComposition.cpp.obj
+[76/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\common\app\core\AppComposition.cpp.obj
+[77/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\common\app\core\App.cpp.obj
+[78/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\common\app\core\DialogResultTransport.cpp.obj
+[79/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\common\app\core\MenuController.cpp.obj
+[80/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\common\app\layout\LayoutHeuristics.cpp.obj
+[81/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\common\app\core\SceneManager.cpp.obj
+[82/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\common\app\scene\Node.cpp.obj
+[83/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\common\app\scene\boundary\detail\SeatBuildRequest.cpp.obj
+[84/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\common\app\scene\boundary\detail\NodeBuildTicket.cpp.obj
+[85/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\common\app\core\Window.cpp.obj
+[86/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\common\app\scene\boundary\detail\SeatReservation.cpp.obj
+[87/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\common\app\scene\boundary\BoundaryInnerStateOwner.cpp.obj
+[88/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\common\app\scene\boundary\Boundary.cpp.obj
+[89/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\common\platform\debug\GenericDebugLog.cpp.obj
+[90/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\common\app\scene\projection\PlatformController.cpp.obj
+[91/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\common\app\scene\node\Conditional.cpp.obj
+[92/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\common\core\StateTracker.cpp.obj
+[93/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\common\testing\scene\ScenarioAudit.cpp.obj
+[94/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\common\app\scene\composition\NodeComposition.cpp.obj
+[95/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\tests\scenarios\HelloWorldScenarios.cpp.obj
+[96/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioWin32.dir\__\example\HelloWorld\src\MainNode.cpp.obj
+[97/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\tests\scenarios\StartupScenarios.cpp.obj
+[98/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\tests\scenarios\RectSurfaceScenarioObservation.cpp.obj
+[99/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\tests\win32\TutorialScenarioDriver.cpp.obj
+[100/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\tests\win32\ScenarioDriverSupport.cpp.obj
+[101/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\tests\TestingHooks.cpp.obj
+[102/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\src\Win32Bootstrap.cpp.obj
+[103/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\src\Win32BuiltInSupport.cpp.obj
+[104/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\src\Win32App.cpp.obj
+[105/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\src\Win32BitmapCapture.cpp.obj
+[106/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\src\Win32ScenePlatformController.cpp.obj
+[107/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\src\Win32Window.cpp.obj
+[108/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\src\context\Win32ButtonContext.cpp.obj
+[109/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\src\context\Win32RetirableContext.cpp.obj
+[110/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\src\Win32PlatformContext.cpp.obj
+[111/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\src\context\Win32CellContext.cpp.obj
+[112/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\src\context\Win32TextContext.cpp.obj
+[113/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\src\context\Win32EditTextContext.cpp.obj
+[114/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\src\context\Win32ImageViewContext.cpp.obj
+[115/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\src\context\Win32PopupMenuContext.cpp.obj
+[116/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\src\platform\Win32DebugLog.cpp.obj
+[117/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\src\context\Win32OpenFileDialogContext.cpp.obj
+[118/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\src\platform\Win32DisplayScale.cpp.obj
+[119/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\src\platform\Win32IdlePacer.cpp.obj
+[120/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\src\context\Win32RectSurfaceContext.cpp.obj
+[121/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\src\platform\Win32DisplayFont.cpp.obj
+[122/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\src\context\Win32ScrollViewContext.cpp.obj
+[123/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\common\app\MenuComposition.cpp.obj
+[124/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\common\app\core\App.cpp.obj
+[125/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\common\app\core\DialogResultTransport.cpp.obj
+[126/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\common\app\core\AppComposition.cpp.obj
+[127/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\common\app\core\MenuController.cpp.obj
+[128/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\common\app\core\SceneManager.cpp.obj
+[129/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\common\app\core\Window.cpp.obj
+[130/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\common\app\layout\LayoutHeuristics.cpp.obj
+[131/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\common\app\scene\Node.cpp.obj
+[132/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\common\app\scene\boundary\BoundaryInnerStateOwner.cpp.obj
+[133/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\common\app\scene\boundary\detail\NodeBuildTicket.cpp.obj
+[134/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\common\app\scene\boundary\detail\SeatBuildRequest.cpp.obj
+[135/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\common\app\scene\boundary\detail\SeatReservation.cpp.obj
+[136/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\common\app\scene\boundary\Boundary.cpp.obj
+[137/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\common\platform\debug\GenericDebugLog.cpp.obj
+[138/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\common\app\scene\node\Conditional.cpp.obj
+[139/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\common\app\scene\projection\PlatformController.cpp.obj
+[140/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\common\core\StateTracker.cpp.obj
+[141/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\common\app\scene\composition\NodeComposition.cpp.obj
+[142/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\common\testing\scene\ScenarioAudit.cpp.obj
+[143/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\tests\scenarios\StartupScenarios.cpp.obj
+[144/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\tests\win32\ScenarioDriverSupport.cpp.obj
+[145/528] Building CXX object win32\CMakeFiles\LokaTutorialScenarioWin32.dir\__\tests\scenarios\TutorialScenarios.cpp.obj
+[146/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\tests\scenarios\RectSurfaceScenarioObservation.cpp.obj
+[147/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\tests\win32\MineSweeperScenarioDriver.cpp.obj
+[148/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\tests\TestingHooks.cpp.obj
+[149/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\src\Win32Bootstrap.cpp.obj
+[150/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\src\Win32App.cpp.obj
+[151/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\src\Win32BuiltInSupport.cpp.obj
+[152/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\src\Win32Window.cpp.obj
+[153/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\src\Win32BitmapCapture.cpp.obj
+[154/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\src\Win32PlatformContext.cpp.obj
+[155/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\src\Win32ScenePlatformController.cpp.obj
+[156/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\src\context\Win32RetirableContext.cpp.obj
+[157/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\src\context\Win32ButtonContext.cpp.obj
+[158/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\src\context\Win32CellContext.cpp.obj
+[159/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\src\context\Win32TextContext.cpp.obj
+[160/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\src\context\Win32RectSurfaceContext.cpp.obj
+[161/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\src\context\Win32EditTextContext.cpp.obj
+[162/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\src\context\Win32OpenFileDialogContext.cpp.obj
+[163/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\src\context\Win32ImageViewContext.cpp.obj
+[164/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\src\platform\Win32DebugLog.cpp.obj
+[165/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\src\context\Win32PopupMenuContext.cpp.obj
+[166/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\src\platform\Win32DisplayFont.cpp.obj
+[167/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\src\platform\Win32DisplayScale.cpp.obj
+[168/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\src\platform\Win32IdlePacer.cpp.obj
+[169/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\src\context\Win32ScrollViewContext.cpp.obj
+[170/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\common\app\MenuComposition.cpp.obj
+[171/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\common\app\core\App.cpp.obj
+[172/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\common\app\core\AppComposition.cpp.obj
+[173/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\common\app\core\DialogResultTransport.cpp.obj
+[174/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\common\app\core\MenuController.cpp.obj
+[175/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\common\app\scene\Node.cpp.obj
+[176/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\common\app\layout\LayoutHeuristics.cpp.obj
+[177/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\common\app\core\SceneManager.cpp.obj
+[178/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\common\app\core\Window.cpp.obj
+[179/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\common\app\scene\boundary\Boundary.cpp.obj
+[180/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\common\app\scene\boundary\detail\NodeBuildTicket.cpp.obj
+[181/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\common\app\scene\boundary\BoundaryInnerStateOwner.cpp.obj
+[182/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\common\app\scene\boundary\detail\SeatReservation.cpp.obj
+[183/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\common\app\scene\boundary\detail\SeatBuildRequest.cpp.obj
+[184/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\common\platform\debug\GenericDebugLog.cpp.obj
+[185/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\common\app\scene\projection\PlatformController.cpp.obj
+[186/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\common\app\scene\node\Conditional.cpp.obj
+[187/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\common\core\StateTracker.cpp.obj
+[188/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\common\testing\scene\ScenarioAudit.cpp.obj
+[189/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\common\app\scene\composition\NodeComposition.cpp.obj
+[190/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\tests\scenarios\StartupScenarios.cpp.obj
+[191/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\tests\win32\ScenarioDriverSupport.cpp.obj
+[192/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\tests\scenarios\RectSurfaceScenarioObservation.cpp.obj
+[193/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\tests\win32\FloppyBirdScenarioDriver.cpp.obj
+[194/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\tests\TestingHooks.cpp.obj
+[195/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioWin32.dir\__\tests\scenarios\MineSweeperScenarios.cpp.obj
+[196/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\src\Win32BuiltInSupport.cpp.obj
+[197/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\src\Win32Bootstrap.cpp.obj
+[198/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\src\Win32App.cpp.obj
+[199/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\src\Win32BitmapCapture.cpp.obj
+[200/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\src\Win32PlatformContext.cpp.obj
+[201/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\src\Win32Window.cpp.obj
+[202/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\src\Win32ScenePlatformController.cpp.obj
+[203/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\src\context\Win32ButtonContext.cpp.obj
+[204/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\src\context\Win32RetirableContext.cpp.obj
+[205/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\src\context\Win32CellContext.cpp.obj
+[206/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\src\context\Win32TextContext.cpp.obj
+[207/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\src\context\Win32EditTextContext.cpp.obj
+[208/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\src\platform\Win32DebugLog.cpp.obj
+[209/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\src\context\Win32ImageViewContext.cpp.obj
+[210/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\src\context\Win32RectSurfaceContext.cpp.obj
+[211/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\src\context\Win32OpenFileDialogContext.cpp.obj
+[212/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\src\context\Win32PopupMenuContext.cpp.obj
+[213/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\src\platform\Win32IdlePacer.cpp.obj
+[214/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\src\platform\Win32DisplayFont.cpp.obj
+[215/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\src\platform\Win32DisplayScale.cpp.obj
+[216/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\src\context\Win32ScrollViewContext.cpp.obj
+[217/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\common\app\MenuComposition.cpp.obj
+[218/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\common\app\core\AppComposition.cpp.obj
+[219/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\common\app\core\App.cpp.obj
+[220/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\common\app\core\MenuController.cpp.obj
+[221/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\common\app\core\DialogResultTransport.cpp.obj
+[222/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\common\app\core\SceneManager.cpp.obj
+[223/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\common\app\scene\Node.cpp.obj
+[224/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\common\app\layout\LayoutHeuristics.cpp.obj
+[225/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\common\app\core\Window.cpp.obj
+[226/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\common\app\scene\boundary\detail\NodeBuildTicket.cpp.obj
+[227/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\common\app\scene\boundary\detail\SeatBuildRequest.cpp.obj
+[228/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\common\app\scene\boundary\BoundaryInnerStateOwner.cpp.obj
+[229/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\common\app\scene\boundary\detail\SeatReservation.cpp.obj
+[230/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\common\app\scene\boundary\Boundary.cpp.obj
+[231/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\common\platform\debug\GenericDebugLog.cpp.obj
+[232/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\common\app\scene\projection\PlatformController.cpp.obj
+[233/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\common\app\scene\node\Conditional.cpp.obj
+[234/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\common\core\StateTracker.cpp.obj
+[235/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\common\app\scene\composition\NodeComposition.cpp.obj
+[236/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\common\testing\scene\ScenarioAudit.cpp.obj
+[237/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\tests\scenarios\ScenarioReel.cpp.obj
+[238/528] Building CXX object win32\CMakeFiles\LokaFloppyBirdScenarioWin32.dir\__\tests\scenarios\FloppyBirdScenarios.cpp.obj
+[239/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\tests\scenarios\RectSurfaceScenarioObservation.cpp.obj
+[240/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\tests\scenarios\StartupScenarios.cpp.obj
+[241/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\tests\win32\HelloWorldScenarioLoopMain.cpp.obj
+[242/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\tests\TestingHooks.cpp.obj
+[243/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\src\Win32BuiltInSupport.cpp.obj
+[244/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\src\Win32Bootstrap.cpp.obj
+[245/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\src\Win32App.cpp.obj
+[246/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\src\Win32PlatformContext.cpp.obj
+[247/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\src\Win32BitmapCapture.cpp.obj
+[248/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\src\Win32ScenePlatformController.cpp.obj
+[249/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\src\Win32Window.cpp.obj
+[250/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\src\context\Win32RetirableContext.cpp.obj
+[251/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\src\context\Win32ButtonContext.cpp.obj
+[252/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\src\context\Win32TextContext.cpp.obj
+[253/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\src\context\Win32CellContext.cpp.obj
+[254/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\src\context\Win32OpenFileDialogContext.cpp.obj
+[255/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\src\context\Win32EditTextContext.cpp.obj
+[256/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\src\context\Win32ImageViewContext.cpp.obj
+[257/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\src\platform\Win32DebugLog.cpp.obj
+[258/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\src\context\Win32RectSurfaceContext.cpp.obj
+[259/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\src\platform\Win32DisplayScale.cpp.obj
+[260/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\src\platform\Win32DisplayFont.cpp.obj
+[261/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\src\context\Win32PopupMenuContext.cpp.obj
+[262/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\src\platform\Win32IdlePacer.cpp.obj
+[263/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\src\context\Win32ScrollViewContext.cpp.obj
+[264/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\common\app\MenuComposition.cpp.obj
+[265/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\common\app\core\AppComposition.cpp.obj
+[266/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\common\app\core\App.cpp.obj
+[267/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\common\app\core\DialogResultTransport.cpp.obj
+[268/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\common\app\core\MenuController.cpp.obj
+[269/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\common\app\core\SceneManager.cpp.obj
+[270/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\common\app\layout\LayoutHeuristics.cpp.obj
+[271/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\common\app\core\Window.cpp.obj
+[272/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\common\app\scene\Node.cpp.obj
+[273/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\common\app\scene\boundary\detail\NodeBuildTicket.cpp.obj
+[274/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\common\app\scene\boundary\BoundaryInnerStateOwner.cpp.obj
+[275/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\common\app\scene\boundary\detail\SeatReservation.cpp.obj
+[276/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\common\app\scene\boundary\detail\SeatBuildRequest.cpp.obj
+[277/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\common\app\scene\boundary\Boundary.cpp.obj
+[278/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\common\platform\debug\GenericDebugLog.cpp.obj
+[279/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\common\app\scene\projection\PlatformController.cpp.obj
+[280/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\common\app\scene\node\Conditional.cpp.obj
+[281/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\common\core\StateTracker.cpp.obj
+[282/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\common\app\scene\composition\NodeComposition.cpp.obj
+[283/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\common\testing\scene\ScenarioAudit.cpp.obj
+[284/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\tests\scenarios\ScenarioReel.cpp.obj
+[285/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\example\HelloWorld\src\MainNode.cpp.obj
+[286/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\tests\scenarios\RectSurfaceScenarioObservation.cpp.obj
+[287/528] Building CXX object win32\CMakeFiles\LokaHelloWorldScenarioLoopWin32.dir\__\tests\scenarios\HelloWorldScenarios.cpp.obj
+[288/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\tests\scenarios\StartupScenarios.cpp.obj
+[289/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\tests\win32\MineSweeperScenarioLoopMain.cpp.obj
+[290/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\tests\TestingHooks.cpp.obj
+[291/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\src\Win32Bootstrap.cpp.obj
+[292/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\src\Win32App.cpp.obj
+[293/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\src\Win32BuiltInSupport.cpp.obj
+[294/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\src\Win32BitmapCapture.cpp.obj
+[295/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\src\context\Win32ButtonContext.cpp.obj
+[296/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\src\Win32Window.cpp.obj
+[297/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\src\Win32PlatformContext.cpp.obj
+[298/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\src\Win32ScenePlatformController.cpp.obj
+[299/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\src\context\Win32RetirableContext.cpp.obj
+[300/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\src\context\Win32CellContext.cpp.obj
+[301/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\src\context\Win32TextContext.cpp.obj
+[302/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\src\context\Win32EditTextContext.cpp.obj
+[303/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\src\context\Win32OpenFileDialogContext.cpp.obj
+[304/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\src\platform\Win32DebugLog.cpp.obj
+[305/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\src\context\Win32ImageViewContext.cpp.obj
+[306/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\src\context\Win32PopupMenuContext.cpp.obj
+[307/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\src\context\Win32ScrollViewContext.cpp.obj
+[308/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\src\context\Win32RectSurfaceContext.cpp.obj
+[309/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\src\platform\Win32DisplayScale.cpp.obj
+[310/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\src\platform\Win32IdlePacer.cpp.obj
+[311/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\src\platform\Win32DisplayFont.cpp.obj
+[312/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\common\app\MenuComposition.cpp.obj
+[313/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\common\app\core\MenuController.cpp.obj
+[314/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\common\app\core\AppComposition.cpp.obj
+[315/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\common\app\core\App.cpp.obj
+[316/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\common\app\core\DialogResultTransport.cpp.obj
+[317/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\common\app\scene\Node.cpp.obj
+[318/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\common\app\core\SceneManager.cpp.obj
+[319/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\common\app\layout\LayoutHeuristics.cpp.obj
+[320/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\common\app\scene\boundary\BoundaryInnerStateOwner.cpp.obj
+[321/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\common\app\core\Window.cpp.obj
+[322/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\common\app\scene\boundary\Boundary.cpp.obj
+[323/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\common\app\scene\boundary\detail\NodeBuildTicket.cpp.obj
+[324/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\common\app\scene\boundary\detail\SeatBuildRequest.cpp.obj
+[325/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\common\platform\debug\GenericDebugLog.cpp.obj
+[326/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\common\app\scene\boundary\detail\SeatReservation.cpp.obj
+[327/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\common\app\scene\node\Conditional.cpp.obj
+[328/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\common\core\StateTracker.cpp.obj
+[329/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\common\app\scene\projection\PlatformController.cpp.obj
+[330/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\common\testing\scene\ScenarioAudit.cpp.obj
+[331/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\common\app\scene\composition\NodeComposition.cpp.obj
+[332/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\ReclaimScratchTests.cpp.obj
+[333/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\PartitionReclaimTests.cpp.obj
+[334/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\SeatBuildRequestTests.cpp.obj
+[335/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\NodePartitionTests.cpp.obj
+[336/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\SeatReservationTests.cpp.obj
+[337/528] Building CXX object win32\CMakeFiles\LokaMineSweeperScenarioLoopWin32.dir\__\tests\scenarios\MineSweeperScenarios.cpp.obj
+[338/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\StrictNodeRouteTests.cpp.obj
+[339/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\ObservableListTests.cpp.obj
+[340/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\TestingHooks.cpp.obj
+[341/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\CanvasLayoutTests.cpp.obj
+[342/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\LazyScopeTests.cpp.obj
+[343/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\KeyedGenerationStorageTests.cpp.obj
+[344/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\ApplicationFileTests.cpp.obj
+[345/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\LazyFlexTests.cpp.obj
+[346/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\ExampleAppConfigCompileTests.cpp.obj
+[347/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\platform\null\context\NullButtonContext.cpp.obj
+[348/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\platform\null\context\NullEditTextContext.cpp.obj
+[349/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\platform\null\NullPlatformContext.cpp.obj
+[350/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\platform\null\NullScenePlatformController.cpp.obj
+[351/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\platform\null\context\NullScrollBarContext.cpp.obj
+[352/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\platform\null\context\NullTextContext.cpp.obj
+[353/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\platform\null\context\NullRectSurfaceContext.cpp.obj
+[354/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\RectSurfaceSeatExtentTests.cpp.obj
+[355/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\NullLayoutTests.cpp.obj
+[356/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\WriteSeatTests.cpp.obj
+[357/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\RowWidthConsultationTests.cpp.obj
+[358/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\HelloWorldResponsiveTests.cpp.obj
+[359/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\PropsReconciliationTests.cpp.obj
+[360/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\PaintContractTests.cpp.obj
+[361/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\SimpleViewerResponsiveTests.cpp.obj
+[362/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\SmirkBenchTests.cpp.obj
+[363/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\LazyListTests.cpp.obj
+[364/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\ScrollViewScopeTests.cpp.obj
+[365/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\ToolboxLayoutContractTests.cpp.obj
+[366/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\ToolboxRectSurfaceRepaintPlanTests.cpp.obj
+[367/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\LazyListCapacityTests.cpp.obj
+[368/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\PaintBaselineTests.cpp.obj
+[369/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\ToolboxScenePlatformContractTests.cpp.obj
+[370/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\SmallObjectPoolTests.cpp.obj
+[371/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\NullTextLayoutTests.cpp.obj
+[372/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\StateNotifyTests.cpp.obj
+[373/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\StateTrackerAllocationTests.cpp.obj
+[374/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\OpenFileDialogTransportTests.cpp.obj
+[375/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\LifecycleFactTests.cpp.obj
+[376/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\DerivedStateTests.cpp.obj
+[377/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\NullPlatformContractTests.cpp.obj
+[378/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\StateTrackerCommitTests.cpp.obj
+[379/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\BoundaryObservedStateTrackerTests.cpp.obj
+[380/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\WindowFrameStateTests.cpp.obj
+[381/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\DefinitionCloneTests.cpp.obj
+[382/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\DerivedNodeStateTests.cpp.obj
+[383/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\NativeLifetimeTests.cpp.obj
+[384/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\ValueTests.cpp.obj
+[385/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\SceneOwnershipTests.cpp.obj
+[386/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\LokaAllocTests.cpp.obj
+[387/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\NodeMatchTests.cpp.obj
+[388/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\ScenarioProfileTests.cpp.obj
+[389/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\PhaseGuardTests.cpp.obj
+[390/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\LifecycleDetachTests.cpp.obj
+[391/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\scenarios\ScenarioTypes.cpp.obj
+[392/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\SnapFormatTests.cpp.obj
+[393/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\scenarios\ScenarioProfile.cpp.obj
+[394/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tools\lrpc\LrpkStager.cpp.obj
+[395/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\LrpkStagerTests.cpp.obj
+[396/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\LrpkFormatTests.cpp.obj
+[397/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tools\lrpc\HostFile.cpp.obj
+[398/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tools\lrpc\Utf8Path.cpp.obj
+[399/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tools\lrpc\LrpkWriter.cpp.obj
+[400/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\PackManifestTests.cpp.obj
+[401/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tools\lrpc\PackManifest.cpp.obj
+[402/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tools\lrpc\ResourceHeader.cpp.obj
+[403/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\LrpkGoldenBytesTests.cpp.obj
+[404/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\LrpcPathTests.cpp.obj
+[405/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\ScrapbookPackageTests.cpp.obj
+[406/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\ScrapbookNavigationTests.cpp.obj
+[407/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\HelloWorldScenarioTests.cpp.obj
+[408/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\scenarios\HelloWorldScenarios.cpp.obj
+[409/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\scenarios\ScrapbookScenarios.cpp.obj
+[410/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\ScrapbookScenarioTests.cpp.obj
+[411/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\TutorialScenarioTests.cpp.obj
+[412/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\scenarios\TutorialScenarios.cpp.obj
+[413/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\standalone\MineSweeperStandaloneFlowAppConfig.cpp.obj
+[414/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\FloppyBirdScenarioTests.cpp.obj
+[415/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\MineSweeperScenarioTests.cpp.obj
+[416/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\scenarios\FloppyBirdScenarios.cpp.obj
+[417/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\scenarios\MineSweeperScenarios.cpp.obj
+[418/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\scenarios\RectSurfaceScenarioObservation.cpp.obj
+[419/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\StandalonePerformanceTests.cpp.obj
+[420/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\scenarios\StartupScenarios.cpp.obj
+[421/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\standalone\StandalonePerformance.cpp.obj
+[422/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\standalone\FloppyBirdStandaloneFlowAppConfig.cpp.obj
+[423/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\StartupScenarioTests.cpp.obj
+[424/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\scenarios\ScenarioReel.cpp.obj
+[425/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\ScenarioReelTests.cpp.obj
+[426/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\BlobRangeTests.cpp.obj
+[427/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\standalone\TutorialStandaloneFlowAppConfig.cpp.obj
+[428/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\standalone\HelloWorldStandaloneFlowAppConfig.cpp.obj
+[429/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\ScrapbookUI\src\ScrapbookPackage.cpp.obj
+[430/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\apple\toolbox\src\PictParser.cpp.obj
+[431/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\standalone\ScrapbookStandaloneFlowAppConfig.cpp.obj
+[432/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\PictParserTests.cpp.obj
+[433/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\standalone\StandaloneScenarioSupport.cpp.obj
+[434/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\apple\toolbox\src\ToolboxPlatformLayoutHandlers.cpp.obj
+[435/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\ForTests.cpp.obj
+[436/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\AttrDslTests.cpp.obj
+[437/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\OwnershipDumpTests.cpp.obj
+[438/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\PartialTreePublicationTests.cpp.obj
+[439/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\StartupRedrawTests.cpp.obj
+[440/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\MenuCheckedTests.cpp.obj
+[441/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\ComponentNodeTests.cpp.obj
+[442/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\ToolboxScrollViewContractTests.cpp.obj
+[443/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\BoundaryArenaTests.cpp.obj
+[444/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\src\MainNode.cpp.obj
+[445/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\app\MenuComposition.cpp.obj
+[446/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\FlowDslTestMain.cpp.obj
+[447/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\AttachNodeContractTests.cpp.obj
+[448/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\app\core\AppComposition.cpp.obj
+[449/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\app\core\App.cpp.obj
+[450/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\app\core\DialogResultTransport.cpp.obj
+[451/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\app\core\MenuController.cpp.obj
+[452/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\app\layout\LayoutHeuristics.cpp.obj
+[453/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\app\core\SceneManager.cpp.obj
+[454/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\app\scene\Node.cpp.obj
+[455/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\app\core\Window.cpp.obj
+[456/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\app\scene\boundary\detail\SeatBuildRequest.cpp.obj
+[457/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\app\scene\boundary\Boundary.cpp.obj
+[458/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\app\scene\boundary\detail\SeatReservation.cpp.obj
+[459/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\app\scene\boundary\detail\NodeBuildTicket.cpp.obj
+[460/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\app\scene\boundary\BoundaryInnerStateOwner.cpp.obj
+[461/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\core\LokaAlloc.cpp.obj
+[462/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\core\Profiler.cpp.obj
+[463/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\app\scene\node\Conditional.cpp.obj
+[464/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\app\scene\projection\PlatformController.cpp.obj
+[465/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\core\String.cpp.obj
+[466/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\core\StringBuffer.cpp.obj
+[467/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\app\scene\composition\NodeComposition.cpp.obj
+[468/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\core\StateTracker.cpp.obj
+[469/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\core\diag\LifecycleAudit.cpp.obj
+[470/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\core\resource\lrpk\LrpkReader.cpp.obj
+[471/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\core\Value.cpp.obj
+[472/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\platform\GenericString.cpp.obj
+[473/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\platform\debug\GenericDebugLog.cpp.obj
+[474/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\platform\file\GenericAppLocation.cpp.obj
+[475/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\platform\file\GenericFileIO.cpp.obj
+[476/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\core\resource\lrpk\LrpkStdioByteSource.cpp.obj
+[477/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\platform\StringUTF8.cpp.obj
+[478/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\FlowDslTests.cpp.obj
+[479/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\platform\Win32FileIO.cpp.obj
+[480/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\testing\snap\SnapFormat.cpp.obj
+[481/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\platform\Win32DebugLog.cpp.obj
+[482/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\platform\Win32String.cpp.obj
+[483/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\common\testing\scene\ScenarioAudit.cpp.obj
+[484/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\platform\Win32AppLocation.cpp.obj
+[485/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\platform\Win32Profiler.cpp.obj
+[486/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\platform\Win32DisplayScale.cpp.obj
+[487/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\platform\Win32IdlePacer.cpp.obj
+[488/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\platform\Win32DisplayFont.cpp.obj
+[489/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\Win32BuiltInSupport.cpp.obj
+[490/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\Win32App.cpp.obj
+[491/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\Win32ScenePlatformController.cpp.obj
+[492/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\Win32BitmapCapture.cpp.obj
+[493/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\context\Win32RetirableContext.cpp.obj
+[494/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\Win32Window.cpp.obj
+[495/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\context\Win32ButtonContext.cpp.obj
+[496/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\context\Win32CellContext.cpp.obj
+[497/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\context\Win32TextContext.cpp.obj
+[498/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\context\Win32EditTextContext.cpp.obj
+[499/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\context\Win32OpenFileDialogContext.cpp.obj
+[500/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\context\Win32ImageViewContext.cpp.obj
+[501/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\context\Win32RectSurfaceContext.cpp.obj
+[502/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\context\Win32PopupMenuContext.cpp.obj
+[503/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\Win32ThreadModalScopeTests.cpp.obj
+[504/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\win32\src\context\Win32ScrollViewContext.cpp.obj
+[505/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\Win32NodeHandlerEnsureTests.cpp.obj
+[506/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\Win32LiveResizeTests.cpp.obj
+[507/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\Win32EditTextBridgeTests.cpp.obj
+[508/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\Win32AppLocationTests.cpp.obj
+[509/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\Win32ScrollViewTests.cpp.obj
+[510/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\Win32FilePathTests.cpp.obj
+[511/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\Win32OpenFileDialogTransportTests.cpp.obj
+[512/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\Win32RectSurfacePaintTests.cpp.obj
+[513/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\Win32WideApiTests.cpp.obj
+[514/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\Win32ProfilerTests.cpp.obj
+[515/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\Win32ManifestCompatibilityTests.cpp.obj
+[516/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\Win32IdlePacerTests.cpp.obj
+[517/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\Win32PropsReconciliationTests.cpp.obj
+[518/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\Win32WindowClientSizeTests.cpp.obj
+[519/528] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\Win32RectSurfaceRedrawTests.cpp.obj
+[520/528] Linking CXX executable example\FloppyBird\LokaFloppyBirdScenarioWin32.exe
+[521/528] Linking CXX executable example\MineSweeper\LokaMineSweeperScenarioWin32.exe
+[522/528] Linking CXX executable example\HelloWorld\scenario-loop\LokaHelloWorldScenarioLoopWin32.exe
+[523/528] Linking CXX executable example\HelloWorld\LokaHelloWorldScenarioWin32.exe
+[524/528] Linking CXX executable example\Tutorial\LokaTutorialScenarioWin32.exe
+[525/528] Linking CXX executable example\ScrapbookUI\LokaScrapbookScenarioWin32.exe
+[526/528] Linking CXX executable example\MineSweeper\scenario-loop\LokaMineSweeperScenarioLoopWin32.exe
+[527/528] Linking CXX executable example\HelloWorld\LokaTestsWin32.exe
+-- Selecting Windows SDK version 10.0.26100.0 to target Windows 10.0.26200.
+-- Configuring done (0.0s)
+-- Generating done (0.1s)
+-- Build files have been written to: C:/loka/build/host/lrpc
+MSBuild のバージョン 17.14.51+25f168cee (.NET Framework)
+
+  main.cpp
+  PackManifest.cpp
+C:\loka\common\core\resource\lrpk\LrpkFormat.hpp(1,1): warning C4819: ファイルは、現在のコード ページ (932) で表示できない文字を含んでいます。データの損失を防ぐために、ファイルを Unicode 形式で保存してください。 [C:\loka\build\host\lrpc\lrpc.vcxproj]
+  (ソース ファイル '../../../tools/lrpc/main.cpp' をコンパイルしています)
+  
+C:\loka\common\core\resource\lrpk\LrpkFormat.hpp(1,1): warning C4819: ファイルは、現在のコード ページ (932) で表示できない文字を含んでいます。データの損失を防ぐために、ファイルを Unicode 形式で保存してください。 [C:\loka\build\host\lrpc\lrpc.vcxproj]
+  (ソース ファイル '../../../tools/lrpc/PackManifest.cpp' をコンパイルしています)
+  
+  ResourceHeader.cpp
+C:\loka\common\core\resource\lrpk\LrpkFormat.hpp(1,1): warning C4819: ファイルは、現在のコード ページ (932) で表示できない文字を含んでいます。データの損失を防ぐために、ファイルを Unicode 形式で保存してください。 [C:\loka\build\host\lrpc\lrpc.vcxproj]
+  (ソース ファイル '../../../tools/lrpc/ResourceHeader.cpp' をコンパイルしています)
+  
+  コードを生成中...
+  lrpc.vcxproj -> C:\loka\build\host\lrpc\Debug\lrpc.exe
+BUILD_OK
+===BAKE scrapbook startup===
+stage: build artifact C:\loka\build\win32\Debug\example\ScrapbookUI\LokaScrapbookScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=283d22230d899093b0c74693173a47191003791ed45eac66ca7af9efee402e8d actual_sha256=283d22230d899093b0c74693173a47191003791ed45eac66ca7af9efee402e8d
+stage: capture PID=2420 HWND=0x11037A
+settle frame 1 sha256=ab0973bee2c58cca1dd821ea8bf2357d6c184ea2d27c6aad174b5c093d2cab89
+settle frame 2 sha256=ab0973bee2c58cca1dd821ea8bf2357d6c184ea2d27c6aad174b5c093d2cab89
+Updated Win32 rig golden: C:\loka\build\win32-scenario\golden\loka-win32-rig\scrapbook\startup.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.
+BAKEEXIT scrapbook startup = 0
+===BAKE scrapbook open-first-page-refused===
+stage: build artifact C:\loka\build\win32\Debug\example\ScrapbookUI\LokaScrapbookScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=7ea19f9dc0de978d4def2e3eff84aab45b5efb46ac2dbc3edd8844516125cc47 actual_sha256=7ea19f9dc0de978d4def2e3eff84aab45b5efb46ac2dbc3edd8844516125cc47
+stage: capture PID=4828 HWND=0x230364
+settle frame 1 sha256=ade325a7e385eec133e6f638a2bb76bef710f70c2f5b4af871a2967639f6d3bb
+settle frame 2 sha256=ade325a7e385eec133e6f638a2bb76bef710f70c2f5b4af871a2967639f6d3bb
+Updated Win32 rig golden: C:\loka\build\win32-scenario\golden\loka-win32-rig\scrapbook\open-first-page-refused.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.
+BAKEEXIT scrapbook open-first-page-refused = 0
+===BAKE scrapbook flip-forward-back===
+stage: build artifact C:\loka\build\win32\Debug\example\ScrapbookUI\LokaScrapbookScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=501484a0af0017834eb41061a7517c8ac35e85345910708984e17eb145db4d00 actual_sha256=501484a0af0017834eb41061a7517c8ac35e85345910708984e17eb145db4d00
+stage: capture PID=2496 HWND=0x2C0368
+settle frame 1 sha256=ab0973bee2c58cca1dd821ea8bf2357d6c184ea2d27c6aad174b5c093d2cab89
+settle frame 2 sha256=ab0973bee2c58cca1dd821ea8bf2357d6c184ea2d27c6aad174b5c093d2cab89
+Updated Win32 rig golden: C:\loka\build\win32-scenario\golden\loka-win32-rig\scrapbook\flip-forward-back.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.
+BAKEEXIT scrapbook flip-forward-back = 0
+===BAKE scrapbook refused-flip-keeps-page===
+stage: build artifact C:\loka\build\win32\Debug\example\ScrapbookUI\LokaScrapbookScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=212f098c82cb14f9aef03153291d714bbbcdff445153336147f19d9d880996bf actual_sha256=212f098c82cb14f9aef03153291d714bbbcdff445153336147f19d9d880996bf
+stage: capture PID=10332 HWND=0x150370
+settle frame 1 sha256=e8d337800feca894b281c1000a6ff1eed32e790c1bf55490656e6272b9a2a3ff
+settle frame 2 sha256=e8d337800feca894b281c1000a6ff1eed32e790c1bf55490656e6272b9a2a3ff
+Updated Win32 rig golden: C:\loka\build\win32-scenario\golden\loka-win32-rig\scrapbook\refused-flip-keeps-page.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.
+BAKEEXIT scrapbook refused-flip-keeps-page = 0
+===BAKE scrapbook open-text-page===
+stage: build artifact C:\loka\build\win32\Debug\example\ScrapbookUI\LokaScrapbookScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=6936229877939a2dbcc02e0999298fbf1e79c7c50782f6440f69c1e009c53e40 actual_sha256=6936229877939a2dbcc02e0999298fbf1e79c7c50782f6440f69c1e009c53e40
+stage: capture PID=11420 HWND=0x150244
+settle frame 1 sha256=245ca6657480a93c1d7e4f34369562fe75b4162a1048255f3b3aa4e21bbd19ea
+settle frame 2 sha256=245ca6657480a93c1d7e4f34369562fe75b4162a1048255f3b3aa4e21bbd19ea
+Updated Win32 rig golden: C:\loka\build\win32-scenario\golden\loka-win32-rig\scrapbook\open-text-page.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.
+BAKEEXIT scrapbook open-text-page = 0
+===BAKE scrapbook open-text-page-refused===
+stage: build artifact C:\loka\build\win32\Debug\example\ScrapbookUI\LokaScrapbookScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=e4bd165c5ec602f234df60bbc446ee118ff21f760f13dc032a5753c5d0f9ac55 actual_sha256=e4bd165c5ec602f234df60bbc446ee118ff21f760f13dc032a5753c5d0f9ac55
+stage: capture PID=11588 HWND=0x1D001C
+settle frame 1 sha256=b097ddeacdba47902ab83973959f7931a78851544f5164c5181166448c7d74c2
+settle frame 2 sha256=b097ddeacdba47902ab83973959f7931a78851544f5164c5181166448c7d74c2
+Updated Win32 rig golden: C:\loka\build\win32-scenario\golden\loka-win32-rig\scrapbook\open-text-page-refused.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.
+BAKEEXIT scrapbook open-text-page-refused = 0
+===BAKE helloworld startup===
+stage: build artifact C:\loka\build\win32\Debug\example\HelloWorld\LokaHelloWorldScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=e2308e7c580d74acf5f7405981b351e3e3c42b5a2acc625b46e82abb425d520f actual_sha256=e2308e7c580d74acf5f7405981b351e3e3c42b5a2acc625b46e82abb425d520f
+stage: capture PID=1996 HWND=0x16037A
+settle frame 1 sha256=ca6662e48b88e6fa89f07913df5c07287209c23d87515575cf102671ec1283a9
+settle frame 2 sha256=ca6662e48b88e6fa89f07913df5c07287209c23d87515575cf102671ec1283a9
+Updated Win32 rig golden: C:\loka\build\win32-scenario\golden\loka-win32-rig\helloworld\startup.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.
+BAKEEXIT helloworld startup = 0
+===BAKE helloworld toggle-action-probe===
+stage: build artifact C:\loka\build\win32\Debug\example\HelloWorld\LokaHelloWorldScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=334de8b1fbc4835e7c6d6e8d6b8a78b3868d1eec1b44e35c00e71e8ef42302c7 actual_sha256=334de8b1fbc4835e7c6d6e8d6b8a78b3868d1eec1b44e35c00e71e8ef42302c7
+stage: capture PID=8872 HWND=0x2101BA
+settle frame 1 sha256=74730642ca7d9c2b5008f4a425481326dcadbfe5908d12ac8eee824436ab7bf8
+settle frame 2 sha256=74730642ca7d9c2b5008f4a425481326dcadbfe5908d12ac8eee824436ab7bf8
+Updated Win32 rig golden: C:\loka\build\win32-scenario\golden\loka-win32-rig\helloworld\toggle-action-probe.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.
+BAKEEXIT helloworld toggle-action-probe = 0
+===BAKE helloworld bmi-roundtrip===
+stage: build artifact C:\loka\build\win32\Debug\example\HelloWorld\LokaHelloWorldScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=c819abd72e9a77cc1c9dc7976634b86bbb186b98f5b8b266e53ea7d3eef72c54 actual_sha256=c819abd72e9a77cc1c9dc7976634b86bbb186b98f5b8b266e53ea7d3eef72c54
+stage: capture PID=1160 HWND=0x1503F6
+settle frame 1 sha256=8a7f9a6a9b024cf3c9e16013ba114eca9883d9c8273605becc03f196c8ba1de0
+settle frame 2 sha256=8a7f9a6a9b024cf3c9e16013ba114eca9883d9c8273605becc03f196c8ba1de0
+Updated Win32 rig golden: C:\loka\build\win32-scenario\golden\loka-win32-rig\helloworld\bmi-roundtrip.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.
+BAKEEXIT helloworld bmi-roundtrip = 0
+===BAKE tutorial startup===
+stage: build artifact C:\loka\build\win32\Debug\example\Tutorial\LokaTutorialScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=f834aa6bdd4fb43977de8770f39d76a9eaf1c839b9f31aece412c8cc57857881 actual_sha256=f834aa6bdd4fb43977de8770f39d76a9eaf1c839b9f31aece412c8cc57857881
+stage: capture PID=2764 HWND=0x1403A4
+settle frame 1 sha256=967fb3bc32f82a498db92c91b7a4cb072ad54c3bdbdd68881f750a1ade4285af
+settle frame 2 sha256=967fb3bc32f82a498db92c91b7a4cb072ad54c3bdbdd68881f750a1ade4285af
+Updated Win32 rig golden: C:\loka\build\win32-scenario\golden\loka-win32-rig\tutorial\startup.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.
+BAKEEXIT tutorial startup = 0
+===BAKE tutorial increment-summary-toggle===
+stage: build artifact C:\loka\build\win32\Debug\example\Tutorial\LokaTutorialScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=de03245bc31deb9c2c5146a1b4aecf6e766dc590089a6078d326aead826e88a3 actual_sha256=de03245bc31deb9c2c5146a1b4aecf6e766dc590089a6078d326aead826e88a3
+stage: capture PID=2200 HWND=0x1B0244
+settle frame 1 sha256=e2be1809cf35beca182c212c662a937efe9424093418dca4fd2f58ab46f95575
+settle frame 2 sha256=e2be1809cf35beca182c212c662a937efe9424093418dca4fd2f58ab46f95575
+Updated Win32 rig golden: C:\loka\build\win32-scenario\golden\loka-win32-rig\tutorial\increment-summary-toggle.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.
+BAKEEXIT tutorial increment-summary-toggle = 0
+===BAKE minesweeper startup===
+stage: build artifact C:\loka\build\win32\Debug\example\MineSweeper\LokaMineSweeperScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=0c492d097f12172b301bda76b14df9ef62d975d577da30961c7a5674ea0bd734 actual_sha256=0c492d097f12172b301bda76b14df9ef62d975d577da30961c7a5674ea0bd734
+stage: capture PID=5396 HWND=0x2D033E
+settle frame 1 sha256=d736e72e00eae99f56c0b31b552b42bd95fd0a397cdb58ea63402a432b37304b
+settle frame 2 sha256=d736e72e00eae99f56c0b31b552b42bd95fd0a397cdb58ea63402a432b37304b
+Updated Win32 rig golden: C:\loka\build\win32-scenario\golden\loka-win32-rig\minesweeper\startup.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.
+BAKEEXIT minesweeper startup = 0
+===BAKE minesweeper new-game-twice===
+stage: build artifact C:\loka\build\win32\Debug\example\MineSweeper\LokaMineSweeperScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=bca15b6a4abf2b065f805b6fb00d7460181f0feae005f1ade5ce632b2122fd6d actual_sha256=bca15b6a4abf2b065f805b6fb00d7460181f0feae005f1ade5ce632b2122fd6d
+stage: capture PID=584 HWND=0xC0298
+settle frame 1 sha256=d736e72e00eae99f56c0b31b552b42bd95fd0a397cdb58ea63402a432b37304b
+settle frame 2 sha256=d736e72e00eae99f56c0b31b552b42bd95fd0a397cdb58ea63402a432b37304b
+Updated Win32 rig golden: C:\loka\build\win32-scenario\golden\loka-win32-rig\minesweeper\new-game-twice.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.
+BAKEEXIT minesweeper new-game-twice = 0
+===BAKE minesweeper seeded-reveal===
+stage: build artifact C:\loka\build\win32\Debug\example\MineSweeper\LokaMineSweeperScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=9c8b17365b6996cae856e839ee2fd30d1975b551c3f4f5a4eaace1467d7d0fdc actual_sha256=9c8b17365b6996cae856e839ee2fd30d1975b551c3f4f5a4eaace1467d7d0fdc
+stage: capture PID=9944 HWND=0x503F4
+settle frame 1 sha256=5789f5c4eb87a7dc65f6435bace5f3f6b9ca5c31f5d6c8120a8c9cf511f64e13
+settle frame 2 sha256=5789f5c4eb87a7dc65f6435bace5f3f6b9ca5c31f5d6c8120a8c9cf511f64e13
+Updated Win32 rig golden: C:\loka\build\win32-scenario\golden\loka-win32-rig\minesweeper\seeded-reveal.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.
+BAKEEXIT minesweeper seeded-reveal = 0
+===BAKE floppybird startup===
+stage: build artifact C:\loka\build\win32\Debug\example\FloppyBird\LokaFloppyBirdScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=fab9cfc70eb3bc644ce5b48bb2d37c90ca970750c294aa8673a3e03a0c34b140 actual_sha256=fab9cfc70eb3bc644ce5b48bb2d37c90ca970750c294aa8673a3e03a0c34b140
+stage: capture PID=7952 HWND=0xD03AC
+settle frame 1 sha256=de10ebdec477abbc615c46b2232204159445bdd691ac57c8cf0d80fe900616ba
+settle frame 2 sha256=de10ebdec477abbc615c46b2232204159445bdd691ac57c8cf0d80fe900616ba
+Updated Win32 rig golden: C:\loka\build\win32-scenario\golden\loka-win32-rig\floppybird\startup.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.
+BAKEEXIT floppybird startup = 0
+===BAKE floppybird fixed-step-flaps===
+stage: build artifact C:\loka\build\win32\Debug\example\FloppyBird\LokaFloppyBirdScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=1f9fe4e9e5435aa97bd167c2276a71e17a694f9fdc1d57c4cc3d1eeca4efd81e actual_sha256=1f9fe4e9e5435aa97bd167c2276a71e17a694f9fdc1d57c4cc3d1eeca4efd81e
+stage: capture PID=11416 HWND=0x27024C
+settle frame 1 sha256=c8361ac78cc1bed6c979557d37a1f1c586bca8de57d5285e7f50ca15093c6ddf
+settle frame 2 sha256=c8361ac78cc1bed6c979557d37a1f1c586bca8de57d5285e7f50ca15093c6ddf
+Updated Win32 rig golden: C:\loka\build\win32-scenario\golden\loka-win32-rig\floppybird\fixed-step-flaps.png
+Reminder: attach visual evidence to the PR; the rig-local golden is untracked.
+BAKEEXIT floppybird fixed-step-flaps = 0
+===VERIFY scrapbook startup===
+stage: build artifact C:\loka\build\win32\Debug\example\ScrapbookUI\LokaScrapbookScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=283d22230d899093b0c74693173a47191003791ed45eac66ca7af9efee402e8d actual_sha256=283d22230d899093b0c74693173a47191003791ed45eac66ca7af9efee402e8d
+stage: capture PID=6980 HWND=0x2B022A
+settle frame 1 sha256=ab0973bee2c58cca1dd821ea8bf2357d6c184ea2d27c6aad174b5c093d2cab89
+settle frame 2 sha256=ab0973bee2c58cca1dd821ea8bf2357d6c184ea2d27c6aad174b5c093d2cab89
+Scenario passed: scrapbook/startup
+CELLEXIT scrapbook startup = 0
+===VERIFY scrapbook open-first-page-refused===
+stage: build artifact C:\loka\build\win32\Debug\example\ScrapbookUI\LokaScrapbookScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=7ea19f9dc0de978d4def2e3eff84aab45b5efb46ac2dbc3edd8844516125cc47 actual_sha256=7ea19f9dc0de978d4def2e3eff84aab45b5efb46ac2dbc3edd8844516125cc47
+stage: capture PID=9828 HWND=0x320364
+settle frame 1 sha256=ade325a7e385eec133e6f638a2bb76bef710f70c2f5b4af871a2967639f6d3bb
+settle frame 2 sha256=ade325a7e385eec133e6f638a2bb76bef710f70c2f5b4af871a2967639f6d3bb
+Scenario passed: scrapbook/open-first-page-refused
+CELLEXIT scrapbook open-first-page-refused = 0
+===VERIFY scrapbook flip-forward-back===
+stage: build artifact C:\loka\build\win32\Debug\example\ScrapbookUI\LokaScrapbookScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=501484a0af0017834eb41061a7517c8ac35e85345910708984e17eb145db4d00 actual_sha256=501484a0af0017834eb41061a7517c8ac35e85345910708984e17eb145db4d00
+stage: capture PID=7664 HWND=0x29001C
+settle frame 1 sha256=ab0973bee2c58cca1dd821ea8bf2357d6c184ea2d27c6aad174b5c093d2cab89
+settle frame 2 sha256=ab0973bee2c58cca1dd821ea8bf2357d6c184ea2d27c6aad174b5c093d2cab89
+Scenario passed: scrapbook/flip-forward-back
+CELLEXIT scrapbook flip-forward-back = 0
+===VERIFY scrapbook refused-flip-keeps-page===
+stage: build artifact C:\loka\build\win32\Debug\example\ScrapbookUI\LokaScrapbookScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=212f098c82cb14f9aef03153291d714bbbcdff445153336147f19d9d880996bf actual_sha256=212f098c82cb14f9aef03153291d714bbbcdff445153336147f19d9d880996bf
+stage: capture PID=5820 HWND=0xB03F4
+settle frame 1 sha256=e8d337800feca894b281c1000a6ff1eed32e790c1bf55490656e6272b9a2a3ff
+settle frame 2 sha256=e8d337800feca894b281c1000a6ff1eed32e790c1bf55490656e6272b9a2a3ff
+Scenario passed: scrapbook/refused-flip-keeps-page
+CELLEXIT scrapbook refused-flip-keeps-page = 0
+===VERIFY scrapbook open-text-page===
+stage: build artifact C:\loka\build\win32\Debug\example\ScrapbookUI\LokaScrapbookScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=6936229877939a2dbcc02e0999298fbf1e79c7c50782f6440f69c1e009c53e40 actual_sha256=6936229877939a2dbcc02e0999298fbf1e79c7c50782f6440f69c1e009c53e40
+stage: capture PID=7740 HWND=0x2E024E
+settle frame 1 sha256=245ca6657480a93c1d7e4f34369562fe75b4162a1048255f3b3aa4e21bbd19ea
+settle frame 2 sha256=245ca6657480a93c1d7e4f34369562fe75b4162a1048255f3b3aa4e21bbd19ea
+Scenario passed: scrapbook/open-text-page
+CELLEXIT scrapbook open-text-page = 0
+===VERIFY scrapbook open-text-page-refused===
+stage: build artifact C:\loka\build\win32\Debug\example\ScrapbookUI\LokaScrapbookScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=e4bd165c5ec602f234df60bbc446ee118ff21f760f13dc032a5753c5d0f9ac55 actual_sha256=e4bd165c5ec602f234df60bbc446ee118ff21f760f13dc032a5753c5d0f9ac55
+stage: capture PID=1588 HWND=0x2303A4
+settle frame 1 sha256=b097ddeacdba47902ab83973959f7931a78851544f5164c5181166448c7d74c2
+settle frame 2 sha256=b097ddeacdba47902ab83973959f7931a78851544f5164c5181166448c7d74c2
+Scenario passed: scrapbook/open-text-page-refused
+CELLEXIT scrapbook open-text-page-refused = 0
+===VERIFY helloworld startup===
+stage: build artifact C:\loka\build\win32\Debug\example\HelloWorld\LokaHelloWorldScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=e2308e7c580d74acf5f7405981b351e3e3c42b5a2acc625b46e82abb425d520f actual_sha256=e2308e7c580d74acf5f7405981b351e3e3c42b5a2acc625b46e82abb425d520f
+stage: capture PID=2688 HWND=0x30022A
+settle frame 1 sha256=ca6662e48b88e6fa89f07913df5c07287209c23d87515575cf102671ec1283a9
+settle frame 2 sha256=ca6662e48b88e6fa89f07913df5c07287209c23d87515575cf102671ec1283a9
+Scenario passed: helloworld/startup
+CELLEXIT helloworld startup = 0
+===VERIFY helloworld toggle-action-probe===
+stage: build artifact C:\loka\build\win32\Debug\example\HelloWorld\LokaHelloWorldScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=334de8b1fbc4835e7c6d6e8d6b8a78b3868d1eec1b44e35c00e71e8ef42302c7 actual_sha256=334de8b1fbc4835e7c6d6e8d6b8a78b3868d1eec1b44e35c00e71e8ef42302c7
+stage: capture PID=3384 HWND=0x1F038E
+settle frame 1 sha256=74730642ca7d9c2b5008f4a425481326dcadbfe5908d12ac8eee824436ab7bf8
+settle frame 2 sha256=74730642ca7d9c2b5008f4a425481326dcadbfe5908d12ac8eee824436ab7bf8
+Scenario passed: helloworld/toggle-action-probe
+CELLEXIT helloworld toggle-action-probe = 0
+===VERIFY helloworld bmi-roundtrip===
+stage: build artifact C:\loka\build\win32\Debug\example\HelloWorld\LokaHelloWorldScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=c819abd72e9a77cc1c9dc7976634b86bbb186b98f5b8b266e53ea7d3eef72c54 actual_sha256=c819abd72e9a77cc1c9dc7976634b86bbb186b98f5b8b266e53ea7d3eef72c54
+stage: capture PID=5992 HWND=0x1F037A
+settle frame 1 sha256=8a7f9a6a9b024cf3c9e16013ba114eca9883d9c8273605becc03f196c8ba1de0
+settle frame 2 sha256=8a7f9a6a9b024cf3c9e16013ba114eca9883d9c8273605becc03f196c8ba1de0
+Scenario passed: helloworld/bmi-roundtrip
+CELLEXIT helloworld bmi-roundtrip = 0
+===VERIFY tutorial startup===
+stage: build artifact C:\loka\build\win32\Debug\example\Tutorial\LokaTutorialScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=f834aa6bdd4fb43977de8770f39d76a9eaf1c839b9f31aece412c8cc57857881 actual_sha256=f834aa6bdd4fb43977de8770f39d76a9eaf1c839b9f31aece412c8cc57857881
+stage: capture PID=4204 HWND=0x2A01BA
+settle frame 1 sha256=967fb3bc32f82a498db92c91b7a4cb072ad54c3bdbdd68881f750a1ade4285af
+settle frame 2 sha256=967fb3bc32f82a498db92c91b7a4cb072ad54c3bdbdd68881f750a1ade4285af
+Scenario passed: tutorial/startup
+CELLEXIT tutorial startup = 0
+===VERIFY tutorial increment-summary-toggle===
+stage: build artifact C:\loka\build\win32\Debug\example\Tutorial\LokaTutorialScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=de03245bc31deb9c2c5146a1b4aecf6e766dc590089a6078d326aead826e88a3 actual_sha256=de03245bc31deb9c2c5146a1b4aecf6e766dc590089a6078d326aead826e88a3
+stage: capture PID=5864 HWND=0x34024E
+settle frame 1 sha256=e2be1809cf35beca182c212c662a937efe9424093418dca4fd2f58ab46f95575
+settle frame 2 sha256=e2be1809cf35beca182c212c662a937efe9424093418dca4fd2f58ab46f95575
+Scenario passed: tutorial/increment-summary-toggle
+CELLEXIT tutorial increment-summary-toggle = 0
+===VERIFY minesweeper startup===
+stage: build artifact C:\loka\build\win32\Debug\example\MineSweeper\LokaMineSweeperScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=0c492d097f12172b301bda76b14df9ef62d975d577da30961c7a5674ea0bd734 actual_sha256=0c492d097f12172b301bda76b14df9ef62d975d577da30961c7a5674ea0bd734
+stage: capture PID=3624 HWND=0x32026C
+settle frame 1 sha256=d736e72e00eae99f56c0b31b552b42bd95fd0a397cdb58ea63402a432b37304b
+settle frame 2 sha256=d736e72e00eae99f56c0b31b552b42bd95fd0a397cdb58ea63402a432b37304b
+Scenario passed: minesweeper/startup
+CELLEXIT minesweeper startup = 0
+===VERIFY minesweeper new-game-twice===
+stage: build artifact C:\loka\build\win32\Debug\example\MineSweeper\LokaMineSweeperScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=bca15b6a4abf2b065f805b6fb00d7460181f0feae005f1ade5ce632b2122fd6d actual_sha256=bca15b6a4abf2b065f805b6fb00d7460181f0feae005f1ade5ce632b2122fd6d
+stage: capture PID=10776 HWND=0x200244
+settle frame 1 sha256=d736e72e00eae99f56c0b31b552b42bd95fd0a397cdb58ea63402a432b37304b
+settle frame 2 sha256=d736e72e00eae99f56c0b31b552b42bd95fd0a397cdb58ea63402a432b37304b
+Scenario passed: minesweeper/new-game-twice
+CELLEXIT minesweeper new-game-twice = 0
+===VERIFY minesweeper seeded-reveal===
+stage: build artifact C:\loka\build\win32\Debug\example\MineSweeper\LokaMineSweeperScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=9c8b17365b6996cae856e839ee2fd30d1975b551c3f4f5a4eaace1467d7d0fdc actual_sha256=9c8b17365b6996cae856e839ee2fd30d1975b551c3f4f5a4eaace1467d7d0fdc
+stage: capture PID=9124 HWND=0x120378
+settle frame 1 sha256=5789f5c4eb87a7dc65f6435bace5f3f6b9ca5c31f5d6c8120a8c9cf511f64e13
+settle frame 2 sha256=5789f5c4eb87a7dc65f6435bace5f3f6b9ca5c31f5d6c8120a8c9cf511f64e13
+Scenario passed: minesweeper/seeded-reveal
+CELLEXIT minesweeper seeded-reveal = 0
+===VERIFY floppybird startup===
+stage: build artifact C:\loka\build\win32\Debug\example\FloppyBird\LokaFloppyBirdScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=fab9cfc70eb3bc644ce5b48bb2d37c90ca970750c294aa8673a3e03a0c34b140 actual_sha256=fab9cfc70eb3bc644ce5b48bb2d37c90ca970750c294aa8673a3e03a0c34b140
+stage: capture PID=1348 HWND=0x110298
+settle frame 1 sha256=de10ebdec477abbc615c46b2232204159445bdd691ac57c8cf0d80fe900616ba
+settle frame 2 sha256=de10ebdec477abbc615c46b2232204159445bdd691ac57c8cf0d80fe900616ba
+Scenario passed: floppybird/startup
+CELLEXIT floppybird startup = 0
+===VERIFY floppybird fixed-step-flaps===
+stage: build artifact C:\loka\build\win32\Debug\example\FloppyBird\LokaFloppyBirdScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=1f9fe4e9e5435aa97bd167c2276a71e17a694f9fdc1d57c4cc3d1eeca4efd81e actual_sha256=1f9fe4e9e5435aa97bd167c2276a71e17a694f9fdc1d57c4cc3d1eeca4efd81e
+stage: capture PID=10400 HWND=0x38024C
+settle frame 1 sha256=c8361ac78cc1bed6c979557d37a1f1c586bca8de57d5285e7f50ca15093c6ddf
+settle frame 2 sha256=c8361ac78cc1bed6c979557d37a1f1c586bca8de57d5285e7f50ca15093c6ddf
+Scenario passed: floppybird/fixed-step-flaps
+CELLEXIT floppybird fixed-step-flaps = 0
+ALL_DONE
+[12:29:55] task exit 0
