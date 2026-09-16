@@ -623,7 +623,6 @@ private:
   friend class App;
   /** Rails without deferred dialog delivery carry no transport storage. */
   virtual loka::app::DialogResultDelivery *dialogResultDelivery() { return 0; }
-  typedef loka::app::DialogResultDelivery::Retirement *DialogRetirements;
   virtual void closeDialogResults() {}
   /** App admission polls native visibility before scene work. Rails opt in by
       comparing visibility with their native identity; no pending flag is stored. */

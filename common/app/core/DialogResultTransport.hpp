@@ -24,6 +24,7 @@ namespace loka
 
     private:
       struct Entry;
+      class Invocation; // declared before Registration so its friend names this nested class
       /** Intrusive ownership: entries know their chain and unlink in constant time. */
       struct Chain
       {
@@ -52,6 +53,7 @@ namespace loka
         Entry *entry_;
         friend class DialogResultTransport;
         friend class ReturnPort;
+        friend class Invocation; // reads binding_ when delivering (C++98: nested classes get no access by nesting)
         Registration(const Registration &);
         Registration &operator=(const Registration &);
       };

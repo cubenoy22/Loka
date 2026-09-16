@@ -1,4 +1,5 @@
 #include "MacScrollViewContext.hpp"
+#include "../MacObjCCompat.hpp"
 
 #include <cassert>
 #include <AppKit/AppKit.h>

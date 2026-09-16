@@ -159,19 +159,28 @@ bool App::hasPendingWindowAdmission() const
 /** Borrowed admission rows remain owned by the App group or close queue. */
 struct App::AdmittedWindow
 {
-  AdmittedWindow(Window *value, loka::app::DialogResultDelivery *results)
-      : window(value), scenes(0), delivery(results),
-        dialogRetirements(delivery ? delivery->retirementSnapshot() : 0) {}
+  // The App takes the retirement snapshot itself (it is the friend of the
+  // delivery); a nested struct's members have no such access in C++98, which
+  // GCC 4.0 enforces.
+  AdmittedWindow(Window *value,
+                 loka::app::DialogResultDelivery *results,
+                 loka::app::DialogResultDelivery::Retirement *retirements)
+      : window(value),
+        scenes(0),
+        delivery(results),
+        dialogRetirements(retirements)
+  {
+  }
   Window *window;
   loka::app::scene::Scene *scenes;
   loka::app::DialogResultDelivery *delivery;
-  Window::DialogRetirements dialogRetirements;
+  loka::app::DialogResultDelivery::Retirement *dialogRetirements;
 };
 
 bool App::isWindowClosePending(Window *window) const
 {
-  return std::find(this->pendingWindowClosures_.begin(), this->pendingWindowClosures_.end(), window) !=
-         this->pendingWindowClosures_.end();
+  return std::find(this->pendingWindowClosures_.begin(), this->pendingWindowClosures_.end(), window)
+         != this->pendingWindowClosures_.end();
 }
 
 void App::flushWindowInvalidations()
@@ -195,13 +204,13 @@ void App::flushWindowInvalidations()
     if (win && win->scene() && win->scene()->isRunInProgress())
       continue;
     loka::app::DialogResultDelivery *delivery = win ? win->dialogResultDelivery() : 0;
-    if (win && (win->hasPendingNativeVisibility() ||
-                win->hasPendingSceneInvalidation() || win->hasPendingScenePlatformSync() ||
-                (delivery && delivery->hasRunnableWork())))
+    if (win
+        && (win->hasPendingNativeVisibility() || win->hasPendingSceneInvalidation()
+            || win->hasPendingScenePlatformSync() || (delivery && delivery->hasRunnableWork())))
     {
       if (admitted.empty())
         admitted.reserve(comps.size());
-      admitted.push_back(AdmittedWindow(win, delivery));
+      admitted.push_back(AdmittedWindow(win, delivery, delivery ? delivery->retirementSnapshot() : 0));
     }
   }
   // Snapshot our rows before callbacks can remove a Window from the group.
@@ -250,8 +259,7 @@ void App::windowClosed(Window *window)
     const std::vector<AppComponent *> &comps = group_->getComponents();
     for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
     {
-      assert((!(*it) || (*it)->asWindow() != window) &&
-             "App::windowClosed requires requestWindowClose detach first");
+      assert((!(*it) || (*it)->asWindow() != window) && "App::windowClosed requires requestWindowClose detach first");
     }
   }
   assert(activeWindow_ != window && "A retired Window cannot remain active at reclaim");
