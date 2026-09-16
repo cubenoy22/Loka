@@ -21,6 +21,7 @@ namespace loka
     public:
       class Registration;
       class ReturnPort;
+      class Invocation; // so Registration's friend names the nested class, not a new loka::app::Invocation
 
     private:
       struct Entry;
