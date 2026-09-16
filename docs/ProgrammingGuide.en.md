@@ -655,7 +655,9 @@ parent-provided inputs distinct from the state it owns.
 
 ### SmirkyCard: cards in JavaScript (experimental)
 
-SmirkyCard loads cards from `MAIN.JS` beside the application. Its first card is:
+SmirkyCard loads cards from `MAIN.JS` — beside the application on Windows and
+Classic Mac OS, inside the app bundle at `Contents/Resources/MAIN.JS` on macOS.
+Its first card is:
 
 ```js
 card('first', class {
