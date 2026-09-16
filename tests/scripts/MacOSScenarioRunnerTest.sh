@@ -105,7 +105,7 @@ cp -f "$FAKE_SNAPSHOT" settle-a.png
 cp -f "$FAKE_SNAPSHOT" settle-b.png
 printf '%s\n' \
   'profile_version=2' \
-  'os_build=25G76' \
+  'os_build=25G229' \
   'arch=x86_64' \
   'scale_percent=200' \
   'depth=24' \
