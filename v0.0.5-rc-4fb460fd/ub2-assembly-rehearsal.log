@@ -1,0 +1,414 @@
+start Wed Sep 16 13:39:12 JST 2026
+e6b462af Add the v0.0.5 release-asset allowlists (0.0.4 shape; SmirkyCard 68K + 
+-- The CXX compiler identification is AppleClang 21.0.0.21000101
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- The OBJCXX compiler identification is AppleClang 21.0.0.21000101
+-- Detecting OBJCXX compiler ABI info
+-- Detecting OBJCXX compiler ABI info - done
+-- Check for working OBJCXX compiler: /usr/bin/c++ - skipped
+-- Configuring done (3.4s)
+-- Generating done (0.3s)
+-- Build files have been written to: /private/tmp/loka-release-assembly-worktree/build/macos-ub2/Release
+[0/2] Re-checking globbed directories...
+[1/58] Building OBJCXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/src/MacBootstrap.mm.o
+[2/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/src/MacProfiler.cpp.o
+[3/58] Building OBJCXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/src/context/MacRetirableContext.mm.o
+[4/58] Building OBJCXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/src/MacBuiltInSupport.mm.o
+[5/58] Building OBJCXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/src/platform/MacAppLocation.mm.o
+[6/58] Building OBJCXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/src/MacMenuProjection.mm.o
+[7/58] Building OBJCXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/common/cocoa/src/AppleString.mm.o
+[8/58] Building OBJCXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/src/MacDisplayAppearance.mm.o
+[9/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/app/MenuComposition.cpp.o
+[10/58] Building OBJCXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/src/context/MacRectSurfaceContext.mm.o
+[11/58] Building OBJCXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/src/context/MacScrollViewContext.mm.o
+[12/58] Building OBJCXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/src/context/MacImageViewContext.mm.o
+[13/58] Building OBJCXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/src/context/MacTextContext.mm.o
+[14/58] Building OBJCXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/src/context/MacCellContext.mm.o
+[15/58] Building OBJCXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/src/context/MacButtonContext.mm.o
+[16/58] Building OBJCXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/src/MacPlatformContext.mm.o
+[17/58] Building OBJCXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/src/context/MacEditTextContext.mm.o
+[18/58] Building OBJCXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/src/context/MacPopupMenuContext.mm.o
+[19/58] Building OBJCXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/src/context/MacOpenFileDialogContext.mm.o
+[20/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/app/core/AppComposition.cpp.o
+[21/58] Building OBJCXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/src/MacApp.mm.o
+[22/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/core/LokaAlloc.cpp.o
+[23/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/app/core/App.cpp.o
+[24/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/core/Profiler.cpp.o
+[25/58] Building OBJCXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/src/MacScenePlatformController.mm.o
+[26/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/app/layout/LayoutHeuristics.cpp.o
+[27/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/app/scene/Node.cpp.o
+[28/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/core/diag/LifecycleAudit.cpp.o
+[29/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/app/scene/boundary/detail/NodeBuildTicket.cpp.o
+[30/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/app/core/MenuController.cpp.o
+[31/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/platform/GenericString.cpp.o
+[32/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/app/core/DialogResultTransport.cpp.o
+[33/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/platform/debug/GenericDebugLog.cpp.o
+[34/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/platform/file/GenericAppLocation.cpp.o
+[35/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/core/resource/lrpk/LrpkReader.cpp.o
+[36/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/app/scene/boundary/BoundaryInnerStateOwner.cpp.o
+[37/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/app/scene/boundary/detail/SeatBuildRequest.cpp.o
+[38/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/app/scene/node/Conditional.cpp.o
+[39/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/app/scene/projection/PlatformController.cpp.o
+[40/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/app/scene/boundary/detail/SeatReservation.cpp.o
+[41/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/core/String.cpp.o
+[42/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/core/resource/lrpk/LrpkStdioByteSource.cpp.o
+[43/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/platform/StringUTF8.cpp.o
+[44/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/core/StringBuffer.cpp.o
+[45/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/platform/file/GenericFileIO.cpp.o
+[46/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/core/StateTracker.cpp.o
+[47/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/core/Value.cpp.o
+[48/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/testing/scene/ScenarioAudit.cpp.o
+[49/58] Building OBJCXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/src/MacWindow.mm.o
+[50/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/app/scene/composition/NodeComposition.cpp.o
+[51/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/testing/snap/SnapFormat.cpp.o
+[52/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/app/core/SceneManager.cpp.o
+[53/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/app/core/Window.cpp.o
+[54/58] Building CXX object apple/macos/CMakeFiles/LokaMacOSCore.dir/__/__/common/app/scene/boundary/Boundary.cpp.o
+[55/58] Linking CXX static library apple/macos/libLokaMacOSCore.a
+[56/58] Building OBJCXX object example/SimpleViewer/CMakeFiles/LokaSimpleViewerMacOS.dir/src/MacOSMain.mm.o
+[57/58] Linking CXX executable example/SimpleViewer/LokaSimpleViewerMacOS.app/Contents/MacOS/LokaSimpleViewerMacOS
+-- Configuring done (0.2s)
+-- Generating done (0.2s)
+-- Build files have been written to: /private/tmp/loka-release-assembly-worktree/build/macos-ub2/Release
+[0/2] Re-checking globbed directories...
+[1/65] Copying OS X Content apple/macos/LokaScrapbookStandaloneLoopMacOS.app/Contents/Resources/ASSETS.LRP
+[2/65] Building OBJCXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/src/MacBootstrap.mm.o
+[3/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/src/MacProfiler.cpp.o
+[4/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/tests/scenarios/ScenarioTypes.cpp.o
+[5/65] Building OBJCXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/src/context/MacRetirableContext.mm.o
+[6/65] Building OBJCXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/src/MacBuiltInSupport.mm.o
+[7/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/tests/TestingHooks.cpp.o
+[8/65] Building OBJCXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/src/MacMenuProjection.mm.o
+[9/65] Building OBJCXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/src/platform/MacAppLocation.mm.o
+[10/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/tests/scenarios/ScenarioReel.cpp.o
+[11/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/tests/standalone/StandaloneScenarioSupport.cpp.o
+[12/65] Building OBJCXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/src/MacDisplayAppearance.mm.o
+[13/65] Building OBJCXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/common/cocoa/src/AppleString.mm.o
+[14/65] Building OBJCXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/src/context/MacCellContext.mm.o
+[15/65] Building OBJCXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/src/context/MacButtonContext.mm.o
+[16/65] Building OBJCXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/tests/macos/StandaloneFlowMain.mm.o
+[17/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/app/MenuComposition.cpp.o
+[18/65] Building OBJCXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/src/MacPlatformContext.mm.o
+[19/65] Building OBJCXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/src/context/MacEditTextContext.mm.o
+[20/65] Building OBJCXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/src/context/MacOpenFileDialogContext.mm.o
+[21/65] Building OBJCXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/src/MacApp.mm.o
+[22/65] Building OBJCXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/src/context/MacTextContext.mm.o
+[23/65] Building OBJCXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/src/MacScenePlatformController.mm.o
+[24/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/app/core/App.cpp.o
+[25/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/app/core/AppComposition.cpp.o
+[26/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/app/layout/LayoutHeuristics.cpp.o
+[27/65] Building OBJCXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/src/context/MacImageViewContext.mm.o
+[28/65] Building OBJCXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/src/context/MacScrollViewContext.mm.o
+[29/65] Building OBJCXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/src/context/MacRectSurfaceContext.mm.o
+[30/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/app/scene/Node.cpp.o
+[31/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/core/LokaAlloc.cpp.o
+[32/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/core/Profiler.cpp.o
+[33/65] Building OBJCXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/src/context/MacPopupMenuContext.mm.o
+[34/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/core/diag/LifecycleAudit.cpp.o
+[35/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/app/core/MenuController.cpp.o
+[36/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/app/core/DialogResultTransport.cpp.o
+[37/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/platform/GenericString.cpp.o
+[38/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/detail/NodeBuildTicket.cpp.o
+[39/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/platform/debug/GenericDebugLog.cpp.o
+[40/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/detail/SeatBuildRequest.cpp.o
+[41/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/platform/file/GenericAppLocation.cpp.o
+[42/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/BoundaryInnerStateOwner.cpp.o
+[43/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/core/resource/lrpk/LrpkReader.cpp.o
+[44/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/app/scene/node/Conditional.cpp.o
+[45/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/app/scene/projection/PlatformController.cpp.o
+[46/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/detail/SeatReservation.cpp.o
+[47/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/core/resource/lrpk/LrpkStdioByteSource.cpp.o
+[48/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/core/StringBuffer.cpp.o
+[49/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/platform/StringUTF8.cpp.o
+[50/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/core/String.cpp.o
+[51/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/platform/file/GenericFileIO.cpp.o
+[52/65] Building OBJCXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/src/MacWindow.mm.o
+[53/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/core/Value.cpp.o
+[54/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/core/StateTracker.cpp.o
+[55/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/testing/scene/ScenarioAudit.cpp.o
+[56/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/testing/snap/SnapFormat.cpp.o
+[57/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/app/scene/composition/NodeComposition.cpp.o
+[58/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/app/core/Window.cpp.o
+[59/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/app/core/SceneManager.cpp.o
+[60/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/example/ScrapbookUI/src/ScrapbookPackage.cpp.o
+[61/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/Boundary.cpp.o
+[62/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/tests/standalone/ScrapbookStandaloneFlowAppConfig.cpp.o
+[63/65] Building CXX object apple/macos/CMakeFiles/LokaScrapbookStandaloneLoopMacOS.dir/__/__/tests/scenarios/ScrapbookScenarios.cpp.o
+[64/65] Linking CXX executable apple/macos/LokaScrapbookStandaloneLoopMacOS.app/Contents/MacOS/LokaScrapbookStandaloneLoopMacOS
+-- Configuring done (0.2s)
+-- Generating done (0.2s)
+-- Build files have been written to: /private/tmp/loka-release-assembly-worktree/build/macos-ub2/Release
+[0/2] Re-checking globbed directories...
+[1/64] Building OBJCXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/src/MacBootstrap.mm.o
+[2/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/src/MacProfiler.cpp.o
+[3/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/tests/scenarios/ScenarioTypes.cpp.o
+[4/64] Building OBJCXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/src/context/MacRetirableContext.mm.o
+[5/64] Building OBJCXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/src/MacBuiltInSupport.mm.o
+[6/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/tests/TestingHooks.cpp.o
+[7/64] Building OBJCXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/src/MacMenuProjection.mm.o
+[8/64] Building OBJCXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/src/platform/MacAppLocation.mm.o
+[9/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/tests/scenarios/ScenarioReel.cpp.o
+[10/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/tests/standalone/StandaloneScenarioSupport.cpp.o
+[11/64] Building OBJCXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/src/MacDisplayAppearance.mm.o
+[12/64] Building OBJCXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/common/cocoa/src/AppleString.mm.o
+[13/64] Building OBJCXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/tests/macos/StandaloneFlowMain.mm.o
+[14/64] Building OBJCXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/src/context/MacCellContext.mm.o
+[15/64] Building OBJCXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/src/context/MacButtonContext.mm.o
+[16/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/app/MenuComposition.cpp.o
+[17/64] Building OBJCXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/src/MacPlatformContext.mm.o
+[18/64] Building OBJCXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/src/context/MacEditTextContext.mm.o
+[19/64] Building OBJCXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/src/context/MacOpenFileDialogContext.mm.o
+[20/64] Building OBJCXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/src/MacApp.mm.o
+[21/64] Building OBJCXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/src/context/MacTextContext.mm.o
+[22/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/app/core/App.cpp.o
+[23/64] Building OBJCXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/src/MacScenePlatformController.mm.o
+[24/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/app/core/AppComposition.cpp.o
+[25/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/app/layout/LayoutHeuristics.cpp.o
+[26/64] Building OBJCXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/src/context/MacImageViewContext.mm.o
+[27/64] Building OBJCXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/src/context/MacScrollViewContext.mm.o
+[28/64] Building OBJCXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/src/context/MacRectSurfaceContext.mm.o
+[29/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/app/scene/Node.cpp.o
+[30/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/core/LokaAlloc.cpp.o
+[31/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/core/Profiler.cpp.o
+[32/64] Building OBJCXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/src/context/MacPopupMenuContext.mm.o
+[33/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/app/core/MenuController.cpp.o
+[34/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/core/diag/LifecycleAudit.cpp.o
+[35/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/app/core/DialogResultTransport.cpp.o
+[36/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/platform/GenericString.cpp.o
+[37/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/detail/NodeBuildTicket.cpp.o
+[38/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/platform/debug/GenericDebugLog.cpp.o
+[39/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/platform/file/GenericAppLocation.cpp.o
+[40/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/detail/SeatBuildRequest.cpp.o
+[41/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/core/resource/lrpk/LrpkReader.cpp.o
+[42/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/BoundaryInnerStateOwner.cpp.o
+[43/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/app/scene/node/Conditional.cpp.o
+[44/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/app/scene/projection/PlatformController.cpp.o
+[45/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/core/resource/lrpk/LrpkStdioByteSource.cpp.o
+[46/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/detail/SeatReservation.cpp.o
+[47/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/core/StringBuffer.cpp.o
+[48/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/platform/StringUTF8.cpp.o
+[49/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/core/String.cpp.o
+[50/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/platform/file/GenericFileIO.cpp.o
+[51/64] Building OBJCXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/src/MacWindow.mm.o
+[52/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/core/Value.cpp.o
+[53/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/core/StateTracker.cpp.o
+[54/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/testing/scene/ScenarioAudit.cpp.o
+[55/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/testing/snap/SnapFormat.cpp.o
+[56/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/app/scene/composition/NodeComposition.cpp.o
+[57/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/app/core/SceneManager.cpp.o
+[58/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/app/core/Window.cpp.o
+[59/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/Boundary.cpp.o
+[60/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/tests/standalone/HelloWorldStandaloneFlowAppConfig.cpp.o
+[61/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/example/HelloWorld/src/MainNode.cpp.o
+[62/64] Building CXX object apple/macos/CMakeFiles/LokaHelloWorldStandaloneLoopMacOS.dir/__/__/tests/scenarios/HelloWorldScenarios.cpp.o
+[63/64] Linking CXX executable apple/macos/LokaHelloWorldStandaloneLoopMacOS.app/Contents/MacOS/LokaHelloWorldStandaloneLoopMacOS
+-- Configuring done (0.2s)
+-- Generating done (0.2s)
+-- Build files have been written to: /private/tmp/loka-release-assembly-worktree/build/macos-ub2/Release
+[0/2] Re-checking globbed directories...
+[1/63] Building OBJCXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/src/MacBootstrap.mm.o
+[2/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/src/MacProfiler.cpp.o
+[3/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/tests/scenarios/ScenarioTypes.cpp.o
+[4/63] Building OBJCXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/src/context/MacRetirableContext.mm.o
+[5/63] Building OBJCXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/src/MacBuiltInSupport.mm.o
+[6/63] Building OBJCXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/src/MacMenuProjection.mm.o
+[7/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/tests/TestingHooks.cpp.o
+[8/63] Building OBJCXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/src/platform/MacAppLocation.mm.o
+[9/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/tests/scenarios/ScenarioReel.cpp.o
+[10/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/tests/standalone/StandaloneScenarioSupport.cpp.o
+[11/63] Building OBJCXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/src/MacDisplayAppearance.mm.o
+[12/63] Building OBJCXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/common/cocoa/src/AppleString.mm.o
+[13/63] Building OBJCXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/tests/macos/StandaloneFlowMain.mm.o
+[14/63] Building OBJCXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/src/context/MacCellContext.mm.o
+[15/63] Building OBJCXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/src/context/MacButtonContext.mm.o
+[16/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/app/MenuComposition.cpp.o
+[17/63] Building OBJCXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/src/MacPlatformContext.mm.o
+[18/63] Building OBJCXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/src/context/MacEditTextContext.mm.o
+[19/63] Building OBJCXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/src/context/MacOpenFileDialogContext.mm.o
+[20/63] Building OBJCXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/src/MacApp.mm.o
+[21/63] Building OBJCXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/src/context/MacTextContext.mm.o
+[22/63] Building OBJCXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/src/MacScenePlatformController.mm.o
+[23/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/app/core/App.cpp.o
+[24/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/app/core/AppComposition.cpp.o
+[25/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/app/layout/LayoutHeuristics.cpp.o
+[26/63] Building OBJCXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/src/context/MacImageViewContext.mm.o
+[27/63] Building OBJCXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/src/context/MacScrollViewContext.mm.o
+[28/63] Building OBJCXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/src/context/MacRectSurfaceContext.mm.o
+[29/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/core/Profiler.cpp.o
+[30/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/core/LokaAlloc.cpp.o
+[31/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/app/scene/Node.cpp.o
+[32/63] Building OBJCXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/src/context/MacPopupMenuContext.mm.o
+[33/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/app/core/MenuController.cpp.o
+[34/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/core/diag/LifecycleAudit.cpp.o
+[35/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/app/core/DialogResultTransport.cpp.o
+[36/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/platform/GenericString.cpp.o
+[37/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/detail/NodeBuildTicket.cpp.o
+[38/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/platform/debug/GenericDebugLog.cpp.o
+[39/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/detail/SeatBuildRequest.cpp.o
+[40/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/platform/file/GenericAppLocation.cpp.o
+[41/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/BoundaryInnerStateOwner.cpp.o
+[42/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/core/resource/lrpk/LrpkReader.cpp.o
+[43/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/app/scene/node/Conditional.cpp.o
+[44/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/app/scene/projection/PlatformController.cpp.o
+[45/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/core/resource/lrpk/LrpkStdioByteSource.cpp.o
+[46/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/detail/SeatReservation.cpp.o
+[47/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/platform/StringUTF8.cpp.o
+[48/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/core/StringBuffer.cpp.o
+[49/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/core/String.cpp.o
+[50/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/platform/file/GenericFileIO.cpp.o
+[51/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/core/Value.cpp.o
+[52/63] Building OBJCXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/src/MacWindow.mm.o
+[53/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/core/StateTracker.cpp.o
+[54/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/testing/scene/ScenarioAudit.cpp.o
+[55/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/testing/snap/SnapFormat.cpp.o
+[56/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/app/scene/composition/NodeComposition.cpp.o
+[57/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/app/core/SceneManager.cpp.o
+[58/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/app/core/Window.cpp.o
+[59/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/Boundary.cpp.o
+[60/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/tests/standalone/TutorialStandaloneFlowAppConfig.cpp.o
+[61/63] Building CXX object apple/macos/CMakeFiles/LokaTutorialStandaloneLoopMacOS.dir/__/__/tests/scenarios/TutorialScenarios.cpp.o
+[62/63] Linking CXX executable apple/macos/LokaTutorialStandaloneLoopMacOS.app/Contents/MacOS/LokaTutorialStandaloneLoopMacOS
+-- Configuring done (0.2s)
+-- Generating done (0.2s)
+-- Build files have been written to: /private/tmp/loka-release-assembly-worktree/build/macos-ub2/Release
+[0/2] Re-checking globbed directories...
+[1/63] Building OBJCXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/src/MacBootstrap.mm.o
+[2/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/src/MacProfiler.cpp.o
+[3/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/tests/scenarios/ScenarioTypes.cpp.o
+[4/63] Building OBJCXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/src/context/MacRetirableContext.mm.o
+[5/63] Building OBJCXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/src/MacBuiltInSupport.mm.o
+[6/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/tests/TestingHooks.cpp.o
+[7/63] Building OBJCXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/src/MacMenuProjection.mm.o
+[8/63] Building OBJCXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/src/platform/MacAppLocation.mm.o
+[9/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/tests/scenarios/ScenarioReel.cpp.o
+[10/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/tests/standalone/StandaloneScenarioSupport.cpp.o
+[11/63] Building OBJCXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/src/MacDisplayAppearance.mm.o
+[12/63] Building OBJCXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/common/cocoa/src/AppleString.mm.o
+[13/63] Building OBJCXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/tests/macos/StandaloneFlowMain.mm.o
+[14/63] Building OBJCXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/src/context/MacCellContext.mm.o
+[15/63] Building OBJCXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/src/context/MacButtonContext.mm.o
+[16/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/app/MenuComposition.cpp.o
+[17/63] Building OBJCXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/src/MacPlatformContext.mm.o
+[18/63] Building OBJCXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/src/context/MacEditTextContext.mm.o
+[19/63] Building OBJCXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/src/context/MacOpenFileDialogContext.mm.o
+[20/63] Building OBJCXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/src/MacApp.mm.o
+[21/63] Building OBJCXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/src/context/MacTextContext.mm.o
+[22/63] Building OBJCXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/src/MacScenePlatformController.mm.o
+[23/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/app/core/App.cpp.o
+[24/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/app/core/AppComposition.cpp.o
+[25/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/app/layout/LayoutHeuristics.cpp.o
+[26/63] Building OBJCXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/src/context/MacImageViewContext.mm.o
+[27/63] Building OBJCXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/src/context/MacScrollViewContext.mm.o
+[28/63] Building OBJCXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/src/context/MacRectSurfaceContext.mm.o
+[29/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/app/scene/Node.cpp.o
+[30/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/core/LokaAlloc.cpp.o
+[31/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/core/Profiler.cpp.o
+[32/63] Building OBJCXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/src/context/MacPopupMenuContext.mm.o
+[33/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/core/diag/LifecycleAudit.cpp.o
+[34/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/app/core/MenuController.cpp.o
+[35/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/app/core/DialogResultTransport.cpp.o
+[36/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/platform/GenericString.cpp.o
+[37/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/detail/NodeBuildTicket.cpp.o
+[38/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/platform/debug/GenericDebugLog.cpp.o
+[39/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/platform/file/GenericAppLocation.cpp.o
+[40/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/detail/SeatBuildRequest.cpp.o
+[41/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/BoundaryInnerStateOwner.cpp.o
+[42/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/core/resource/lrpk/LrpkReader.cpp.o
+[43/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/app/scene/node/Conditional.cpp.o
+[44/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/core/resource/lrpk/LrpkStdioByteSource.cpp.o
+[45/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/app/scene/projection/PlatformController.cpp.o
+[46/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/detail/SeatReservation.cpp.o
+[47/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/core/StringBuffer.cpp.o
+[48/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/platform/StringUTF8.cpp.o
+[49/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/core/String.cpp.o
+[50/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/platform/file/GenericFileIO.cpp.o
+[51/63] Building OBJCXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/src/MacWindow.mm.o
+[52/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/core/Value.cpp.o
+[53/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/core/StateTracker.cpp.o
+[54/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/testing/scene/ScenarioAudit.cpp.o
+[55/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/testing/snap/SnapFormat.cpp.o
+[56/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/app/scene/composition/NodeComposition.cpp.o
+[57/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/app/core/SceneManager.cpp.o
+[58/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/app/core/Window.cpp.o
+[59/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/Boundary.cpp.o
+[60/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/tests/standalone/MineSweeperStandaloneFlowAppConfig.cpp.o
+[61/63] Building CXX object apple/macos/CMakeFiles/LokaMineSweeperStandaloneLoopMacOS.dir/__/__/tests/scenarios/MineSweeperScenarios.cpp.o
+[62/63] Linking CXX executable apple/macos/LokaMineSweeperStandaloneLoopMacOS.app/Contents/MacOS/LokaMineSweeperStandaloneLoopMacOS
+-- Configuring done (0.2s)
+-- Generating done (0.2s)
+-- Build files have been written to: /private/tmp/loka-release-assembly-worktree/build/macos-ub2/Release
+[0/2] Re-checking globbed directories...
+[1/64] Building OBJCXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/src/MacBootstrap.mm.o
+[2/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/src/MacProfiler.cpp.o
+[3/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/tests/scenarios/ScenarioTypes.cpp.o
+[4/64] Building OBJCXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/src/context/MacRetirableContext.mm.o
+[5/64] Building OBJCXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/src/MacBuiltInSupport.mm.o
+[6/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/tests/TestingHooks.cpp.o
+[7/64] Building OBJCXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/src/MacMenuProjection.mm.o
+[8/64] Building OBJCXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/src/platform/MacAppLocation.mm.o
+[9/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/tests/scenarios/ScenarioReel.cpp.o
+[10/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/tests/standalone/StandaloneScenarioSupport.cpp.o
+[11/64] Building OBJCXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/src/MacDisplayAppearance.mm.o
+[12/64] Building OBJCXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/common/cocoa/src/AppleString.mm.o
+[13/64] Building OBJCXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/tests/macos/StandaloneFlowMain.mm.o
+[14/64] Building OBJCXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/src/context/MacCellContext.mm.o
+[15/64] Building OBJCXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/src/context/MacButtonContext.mm.o
+[16/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/app/MenuComposition.cpp.o
+[17/64] Building OBJCXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/src/MacPlatformContext.mm.o
+[18/64] Building OBJCXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/src/context/MacEditTextContext.mm.o
+[19/64] Building OBJCXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/src/context/MacOpenFileDialogContext.mm.o
+[20/64] Building OBJCXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/src/MacApp.mm.o
+[21/64] Building OBJCXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/src/context/MacTextContext.mm.o
+[22/64] Building OBJCXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/src/MacScenePlatformController.mm.o
+[23/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/app/core/App.cpp.o
+[24/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/app/core/AppComposition.cpp.o
+[25/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/app/layout/LayoutHeuristics.cpp.o
+[26/64] Building OBJCXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/src/context/MacImageViewContext.mm.o
+[27/64] Building OBJCXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/src/context/MacRectSurfaceContext.mm.o
+[28/64] Building OBJCXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/src/context/MacScrollViewContext.mm.o
+[29/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/core/LokaAlloc.cpp.o
+[30/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/app/scene/Node.cpp.o
+[31/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/core/Profiler.cpp.o
+[32/64] Building OBJCXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/src/context/MacPopupMenuContext.mm.o
+[33/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/core/diag/LifecycleAudit.cpp.o
+[34/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/app/core/MenuController.cpp.o
+[35/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/app/core/DialogResultTransport.cpp.o
+[36/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/platform/GenericString.cpp.o
+[37/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/detail/NodeBuildTicket.cpp.o
+[38/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/platform/debug/GenericDebugLog.cpp.o
+[39/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/platform/file/GenericAppLocation.cpp.o
+[40/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/detail/SeatBuildRequest.cpp.o
+[41/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/core/resource/lrpk/LrpkReader.cpp.o
+[42/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/BoundaryInnerStateOwner.cpp.o
+[43/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/app/scene/node/Conditional.cpp.o
+[44/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/app/scene/projection/PlatformController.cpp.o
+[45/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/core/resource/lrpk/LrpkStdioByteSource.cpp.o
+[46/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/detail/SeatReservation.cpp.o
+[47/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/platform/StringUTF8.cpp.o
+[48/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/core/StringBuffer.cpp.o
+[49/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/core/String.cpp.o
+[50/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/platform/file/GenericFileIO.cpp.o
+[51/64] Building OBJCXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/src/MacWindow.mm.o
+[52/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/core/Value.cpp.o
+[53/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/core/StateTracker.cpp.o
+[54/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/testing/scene/ScenarioAudit.cpp.o
+[55/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/testing/snap/SnapFormat.cpp.o
+[56/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/app/scene/composition/NodeComposition.cpp.o
+[57/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/app/core/SceneManager.cpp.o
+[58/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/app/core/Window.cpp.o
+[59/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/tests/scenarios/RectSurfaceScenarioObservation.cpp.o
+[60/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/common/app/scene/boundary/Boundary.cpp.o
+[61/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/tests/scenarios/FloppyBirdScenarios.cpp.o
+[62/64] Building CXX object apple/macos/CMakeFiles/LokaFloppyBirdStandaloneLoopMacOS.dir/__/__/tests/standalone/FloppyBirdStandaloneFlowAppConfig.cpp.o
+[63/64] Linking CXX executable apple/macos/LokaFloppyBirdStandaloneLoopMacOS.app/Contents/MacOS/LokaFloppyBirdStandaloneLoopMacOS
+Staged five autonomous UB2 loops plus SimpleViewer (arm64;x86_64): /private/tmp/loka-release-assembly-worktree/build/release/macos-ub2
+/private/tmp/Loka-v0.0.5-rehearsal-macos-ub2.zip
+/private/tmp/Loka-v0.0.5-rehearsal-macos-ub2.zip.manifest.txt
+assemble exit=0
+-rw-r--r--  1 lihi-ai  wheel  2931118 Sep 16 13:41 /tmp/Loka-v0.0.5-rehearsal-macos-ub2.zip
+-rw-r--r--  1 lihi-ai  wheel      937 Sep 16 13:41 /tmp/Loka-v0.0.5-rehearsal-macos-ub2.zip.manifest.txt
+done Wed Sep 16 13:41:39 JST 2026
