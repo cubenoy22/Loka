@@ -70,22 +70,31 @@ namespace loka
         PaintRefusalReason reason; // Valid only for REFUSED.
         static PaintAnswer refused(PaintRefusalReason reason)
         {
-          PaintAnswer answer = {};
-          answer.kind = PAINT_ANSWER_REFUSED;
+          PaintAnswer answer = blank(PAINT_ANSWER_REFUSED);
           answer.reason = reason;
           return answer;
         }
         static PaintAnswer nativeScheduled()
         {
-          PaintAnswer answer = {};
-          answer.kind = PAINT_ANSWER_NATIVE_SCHEDULED;
-          return answer;
+          return blank(PAINT_ANSWER_NATIVE_SCHEDULED);
         }
         static PaintAnswer exact(const PaintDamage &damage)
         {
-          PaintAnswer answer = {};
-          answer.kind = PAINT_ANSWER_EXACT;
+          PaintAnswer answer = blank(PAINT_ANSWER_EXACT);
           answer.damage = damage;
+          return answer;
+        }
+
+      private:
+        /* Every member is named: `PaintAnswer answer = {};` is a
+           missing-initializer warning (an error under -Werror) on GCC 4.0,
+           the Mavericks / Xcode 3.2.6 legacy leg. */
+        static PaintAnswer blank(PaintAnswerKind kind)
+        {
+          PaintAnswer answer;
+          answer.kind = kind;
+          answer.damage = PaintDamage();
+          answer.reason = PAINT_REFUSED_UNSUPPORTED_KIND;
           return answer;
         }
       };
