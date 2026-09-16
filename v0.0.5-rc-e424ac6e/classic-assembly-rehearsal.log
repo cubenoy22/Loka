@@ -1,4 +1,4 @@
-start Wed Sep 16 19:43:12 JST 2026
+start Wed Sep 16 21:00:58 JST 2026
 Preset CMake variables:
 
   CMAKE_BUILD_TYPE="Release"
@@ -22,176 +22,176 @@ Preset CMake variables:
 -- Detecting C compile features
 -- Detecting C compile features - done
 -- Found Python3: /usr/bin/python3 (found suitable version "3.12.3", minimum required is "3.9") found components: Interpreter 
--- Configuring done (2.1s)
+-- Configuring done (2.4s)
 -- Generating done (0.0s)
 -- Build files have been written to: /tmp/loka-release-assembly-worktree/build/retro68/68k/Release
 [0/2] Re-checking globbed directories...
 [1/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxProfiler.cpp.obj
-[2/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxByteSource.cpp.obj
+[2/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/PictParser.cpp.obj
 [3/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxString.cpp.obj
 [4/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxBootstrap.cpp.obj
-[5/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/debug/ToolboxSceneDebugStats.cpp.obj
-[6/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/PictParser.cpp.obj
-[7/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxPlatformLayoutHandlers.cpp.obj
-[8/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxWindowContext.cpp.obj
+[5/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxByteSource.cpp.obj
+[6/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/debug/ToolboxSceneDebugStats.cpp.obj
+[7/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxOpenFileDialogContext.cpp.obj
+[8/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxProjectedNodeContext.cpp.obj
 [9/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxNativeImage.cpp.obj
-[10/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxOperatorNew.cpp.obj
-[11/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/platform/ToolboxAppLocation.cpp.obj
-[12/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxCellContext.cpp.obj
-[13/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/platform/ToolboxHfsName.cpp.obj
-[14/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxImageViewContext.cpp.obj
-[15/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/platform/ToolboxFileIO.cpp.obj
-[16/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxRectSurfaceContext.cpp.obj
-[17/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxTextContext.cpp.obj
-[18/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxPopupMenuContext.cpp.obj
-[19/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxNodeDispatch.cpp.obj
-[20/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxBuiltInSupport.cpp.obj
-[21/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxScrollBarContext.cpp.obj
-[22/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxOpenFileDialogContext.cpp.obj
-[23/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxProjectedNodeContext.cpp.obj
-[24/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/MenuComposition.cpp.obj
-[25/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/layout/LayoutHeuristics.cpp.obj
-[26/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxButtonContext.cpp.obj
-[27/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxPlatformContext.cpp.obj
+[10/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxWindowContext.cpp.obj
+[11/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxScrollBarContext.cpp.obj
+[12/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxOperatorNew.cpp.obj
+[13/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxCellContext.cpp.obj
+[14/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxPlatformLayoutHandlers.cpp.obj
+[15/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/platform/ToolboxAppLocation.cpp.obj
+[16/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/platform/ToolboxHfsName.cpp.obj
+[17/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxEditTextContext.cpp.obj
+[18/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxTextContext.cpp.obj
+[19/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxButtonContext.cpp.obj
+[20/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxPopupMenuContext.cpp.obj
+[21/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/platform/ToolboxFileIO.cpp.obj
+[22/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/MenuComposition.cpp.obj
+[23/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/layout/LayoutHeuristics.cpp.obj
+[24/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxNodeDispatch.cpp.obj
+[25/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxBuiltInSupport.cpp.obj
+[26/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxPlatformContext.cpp.obj
+[27/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/MenuController.cpp.obj
 [28/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/Node.cpp.obj
-[29/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/MenuController.cpp.obj
-[30/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/LokaAlloc.cpp.obj
-[31/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/Profiler.cpp.obj
-[32/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/detail/NodeBuildTicket.cpp.obj
-[33/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/node/Conditional.cpp.obj
-[34/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/detail/SeatBuildRequest.cpp.obj
-[35/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/DialogResultTransport.cpp.obj
-[36/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/diag/LifecycleAudit.cpp.obj
-[37/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/detail/SeatReservation.cpp.obj
-[38/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/String.cpp.obj
-[39/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/App.cpp.obj
-[40/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/projection/PlatformController.cpp.obj
-[41/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/resource/lrpk/LrpkReader.cpp.obj
-[42/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/BoundaryInnerStateOwner.cpp.obj
-[43/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/debug/GenericDebugLog.cpp.obj
-[44/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/StateTracker.cpp.obj
-[45/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/StringBuffer.cpp.obj
-[46/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/file/GenericAppLocation.cpp.obj
-[47/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxEditTextContext.cpp.obj
-[48/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/StringUTF8.cpp.obj
-[49/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/resource/lrpk/LrpkStdioByteSource.cpp.obj
-[50/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/GenericString.cpp.obj
-[51/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxByteSource.cpp.obj
+[29/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxRectSurfaceContext.cpp.obj
+[30/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/App.cpp.obj
+[31/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/DialogResultTransport.cpp.obj
+[32/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxImageViewContext.cpp.obj
+[33/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/Profiler.cpp.obj
+[34/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/BoundaryInnerStateOwner.cpp.obj
+[35/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/LokaAlloc.cpp.obj
+[36/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/detail/SeatBuildRequest.cpp.obj
+[37/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/diag/LifecycleAudit.cpp.obj
+[38/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxApp.cpp.obj
+[39/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/detail/NodeBuildTicket.cpp.obj
+[40/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/StringUTF8.cpp.obj
+[41/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/debug/GenericDebugLog.cpp.obj
+[42/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/file/GenericAppLocation.cpp.obj
+[43/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/GenericString.cpp.obj
+[44/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/projection/PlatformController.cpp.obj
+[45/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/resource/lrpk/LrpkReader.cpp.obj
+[46/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/StringBuffer.cpp.obj
+[47/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/file/GenericFileIO.cpp.obj
+[48/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/String.cpp.obj
+[49/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/node/Conditional.cpp.obj
+[50/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/resource/lrpk/LrpkStdioByteSource.cpp.obj
+[51/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxString.cpp.obj
 [52/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxBootstrap.cpp.obj
-[53/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxString.cpp.obj
-[54/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/file/GenericFileIO.cpp.obj
-[55/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxProfiler.cpp.obj
+[53/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/detail/SeatReservation.cpp.obj
+[54/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxProfiler.cpp.obj
+[55/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/StateTracker.cpp.obj
 [56/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/PictParser.cpp.obj
-[57/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/AppComposition.cpp.obj
-[58/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/Value.cpp.obj
-[59/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/debug/ToolboxSceneDebugStats.cpp.obj
-[60/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/testing/snap/SnapFormat.cpp.obj
-[61/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxApp.cpp.obj
-[62/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/testing/scene/ScenarioAudit.cpp.obj
-[63/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxOperatorNew.cpp.obj
-[64/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxBuiltInSupport.cpp.obj
-[65/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxOpenFileDialogContext.cpp.obj
-[66/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxNativeImage.cpp.obj
-[67/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxCellContext.cpp.obj
-[68/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxPopupMenuContext.cpp.obj
-[69/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxButtonContext.cpp.obj
+[57/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxByteSource.cpp.obj
+[58/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/AppComposition.cpp.obj
+[59/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/Value.cpp.obj
+[60/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/debug/ToolboxSceneDebugStats.cpp.obj
+[61/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/testing/scene/ScenarioAudit.cpp.obj
+[62/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxOperatorNew.cpp.obj
+[63/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxProjectedNodeContext.cpp.obj
+[64/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxOpenFileDialogContext.cpp.obj
+[65/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/testing/snap/SnapFormat.cpp.obj
+[66/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxEditTextContext.cpp.obj
+[67/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxBuiltInSupport.cpp.obj
+[68/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxNativeImage.cpp.obj
+[69/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxPopupMenuContext.cpp.obj
 [70/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxWindowContext.cpp.obj
-[71/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxPlatformLayoutHandlers.cpp.obj
-[72/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxProjectedNodeContext.cpp.obj
-[73/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxScenePlatformController.cpp.obj
-[74/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/platform/ToolboxAppLocation.cpp.obj
-[75/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/platform/ToolboxFileIO.cpp.obj
-[76/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxScrollBarContext.cpp.obj
-[77/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/platform/ToolboxHfsName.cpp.obj
-[78/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxEditTextContext.cpp.obj
-[79/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxTextContext.cpp.obj
-[80/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/MenuComposition.cpp.obj
-[81/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxApp.cpp.obj
-[82/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxImageViewContext.cpp.obj
-[83/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxWindow.cpp.obj
-[84/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxRectSurfaceContext.cpp.obj
-[85/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxNodeDispatch.cpp.obj
-[86/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/composition/NodeComposition.cpp.obj
-[87/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/Window.cpp.obj
-[88/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/layout/LayoutHeuristics.cpp.obj
-[89/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/Node.cpp.obj
-[90/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/App.cpp.obj
-[91/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/boundary/detail/SeatBuildRequest.cpp.obj
-[92/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/LokaAlloc.cpp.obj
-[93/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/boundary/detail/NodeBuildTicket.cpp.obj
+[71/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxApp.cpp.obj
+[72/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxCellContext.cpp.obj
+[73/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxImageViewContext.cpp.obj
+[74/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxWindow.cpp.obj
+[75/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxPlatformLayoutHandlers.cpp.obj
+[76/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxTextContext.cpp.obj
+[77/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxScrollBarContext.cpp.obj
+[78/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/platform/ToolboxAppLocation.cpp.obj
+[79/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/Boundary.cpp.obj
+[80/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/SceneManager.cpp.obj
+[81/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/platform/ToolboxHfsName.cpp.obj
+[82/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxButtonContext.cpp.obj
+[83/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/Window.cpp.obj
+[84/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxScenePlatformController.cpp.obj
+[85/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/platform/ToolboxFileIO.cpp.obj
+[86/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxNodeDispatch.cpp.obj
+[87/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxRectSurfaceContext.cpp.obj
+[88/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/MenuController.cpp.obj
+[89/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/composition/NodeComposition.cpp.obj
+[90/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/MenuComposition.cpp.obj
+[91/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/Node.cpp.obj
+[92/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/layout/LayoutHeuristics.cpp.obj
+[93/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/boundary/detail/SeatBuildRequest.cpp.obj
 [94/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/Profiler.cpp.obj
-[95/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxPlatformContext.cpp.obj
-[96/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/node/Conditional.cpp.obj
-[97/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/DialogResultTransport.cpp.obj
-[98/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/diag/LifecycleAudit.cpp.obj
-[99/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/projection/PlatformController.cpp.obj
-[100/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/String.cpp.obj
-[101/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/SceneManager.cpp.obj
-[102/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/StringBuffer.cpp.obj
-[103/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/platform/debug/GenericDebugLog.cpp.obj
-[104/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/platform/file/GenericAppLocation.cpp.obj
-[105/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/MenuController.cpp.obj
-[106/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/resource/lrpk/LrpkReader.cpp.obj
-[107/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/platform/GenericString.cpp.obj
-[108/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/platform/StringUTF8.cpp.obj
-[109/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/resource/lrpk/LrpkStdioByteSource.cpp.obj
-[110/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/platform/file/GenericFileIO.cpp.obj
-[111/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/AppComposition.cpp.obj
-[112/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/StateTracker.cpp.obj
-[113/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/Value.cpp.obj
-[114/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/boundary/detail/SeatReservation.cpp.obj
-[115/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/boundary/BoundaryInnerStateOwner.cpp.obj
-[116/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/Boundary.cpp.obj
-[117/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/testing/snap/SnapFormat.cpp.obj
-[118/249] Linking CXX static library apple/toolbox/libLokaAppleToolboxCore.a
-[119/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/testing/scene/ScenarioAudit.cpp.obj
-[120/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxWindow.cpp.obj
-[121/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/SceneManager.cpp.obj
-[122/249] Building CXX object example/ScrapbookUI/CMakeFiles/ScrapbookUI68K.dir/src/ScrapbookPackage.cpp.obj
-[123/249] Building C object example/SmirkyCard/CMakeFiles/smirkycard_quickjs.dir/smirkycard-quickjs-classic-source/dtoa.c.obj
-[124/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/composition/NodeComposition.cpp.obj
-[125/249] Building C object example/SmirkyCard/CMakeFiles/smirkycard_quickjs.dir/src/ToolboxClock.c.obj
-[126/249] Building C object example/SmirkyCard/CMakeFiles/smirkycard_script.dir/src/ScriptEngine.c.obj
-[127/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxScenePlatformController.cpp.obj
-[128/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/Window.cpp.obj
-[129/249] Building CXX object tests/toolbox/CMakeFiles/LokaToolboxDslNameCollisionProbe.dir/src/DslNameCollisionProbe.cpp.obj
+[95/249] Linking CXX static library apple/toolbox/libLokaAppleToolboxCore.a
+[96/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/DialogResultTransport.cpp.obj
+[97/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/LokaAlloc.cpp.obj
+[98/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxPlatformContext.cpp.obj
+[99/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/diag/LifecycleAudit.cpp.obj
+[100/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/projection/PlatformController.cpp.obj
+[101/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/StringBuffer.cpp.obj
+[102/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/boundary/detail/NodeBuildTicket.cpp.obj
+[103/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/AppComposition.cpp.obj
+[104/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/node/Conditional.cpp.obj
+[105/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/platform/debug/GenericDebugLog.cpp.obj
+[106/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/platform/file/GenericAppLocation.cpp.obj
+[107/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/boundary/BoundaryInnerStateOwner.cpp.obj
+[108/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/platform/GenericString.cpp.obj
+[109/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/String.cpp.obj
+[110/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/StateTracker.cpp.obj
+[111/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/platform/file/GenericFileIO.cpp.obj
+[112/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/platform/StringUTF8.cpp.obj
+[113/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/boundary/detail/SeatReservation.cpp.obj
+[114/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/App.cpp.obj
+[115/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/resource/lrpk/LrpkStdioByteSource.cpp.obj
+[116/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/resource/lrpk/LrpkReader.cpp.obj
+[117/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/Value.cpp.obj
+[118/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/testing/scene/ScenarioAudit.cpp.obj
+[119/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/testing/snap/SnapFormat.cpp.obj
+[120/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/composition/NodeComposition.cpp.obj
+[121/249] Building CXX object example/ScrapbookUI/CMakeFiles/ScrapbookUI68K.dir/src/ScrapbookPackage.cpp.obj
+[122/249] Building C object example/SmirkyCard/CMakeFiles/smirkycard_quickjs.dir/smirkycard-quickjs-classic-source/dtoa.c.obj
+[123/249] Building CXX object tests/toolbox/CMakeFiles/LokaToolboxDslNameCollisionProbe.dir/src/DslNameCollisionProbe.cpp.obj
+[124/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxScenePlatformController.cpp.obj
+[125/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/Window.cpp.obj
+[126/249] Building C object example/SmirkyCard/CMakeFiles/smirkycard_quickjs.dir/src/ToolboxClock.c.obj
+[127/249] Building C object example/SmirkyCard/CMakeFiles/smirkycard_script.dir/src/ScriptEngine.c.obj
+[128/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/boundary/Boundary.cpp.obj
+[129/249] Building C object example/SmirkyCard/CMakeFiles/smirkycard_quickjs.dir/smirkycard-quickjs-classic-source/libregexp.c.obj
 [130/249] Building C object example/SmirkyCard/CMakeFiles/smirkycard_quickjs.dir/smirkycard-quickjs-classic-source/libunicode.c.obj
-[131/249] Building CXX object example/SmirkyCard/CMakeFiles/LokaSmirkyCard68K.dir/src/ScriptRuntime.cpp.obj
-[132/249] Building C object example/SmirkyCard/CMakeFiles/smirkycard_quickjs.dir/smirkycard-quickjs-classic-source/libregexp.c.obj
-[133/249] Building CXX object example/Tutorial/CMakeFiles/LokaTutorial68K.dir/src/main.cpp.obj
-[134/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/boundary/Boundary.cpp.obj
-[135/249] Building CXX object example/SmirkyCard/CMakeFiles/LokaSmirkyCard68K.dir/src/ToolboxMain.cpp.obj
+[131/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/SceneManager.cpp.obj
+[132/249] Building CXX object example/HelloWorld/CMakeFiles/LokaHello68K.dir/src/main.cpp.obj
+[133/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxWindow.cpp.obj
+[134/249] Linking CXX static library apple/toolbox/libLokaAppleToolboxTestCore.a
+[135/249] Building CXX object example/SmirkyCard/CMakeFiles/LokaSmirkyCard68K.dir/src/ScriptRuntime.cpp.obj
 [136/249] Building CXX object example/MineSweeper/CMakeFiles/LokaMine68K.dir/src/main.cpp.obj
-[137/249] Linking CXX static library apple/toolbox/libLokaAppleToolboxTestCore.a
-[138/249] Linking CXX executable example/Tutorial/LokaTutorial68K.code.bin
-[139/249] Generating Size.r.rsrc.bin
-[140/249] Generating LokaTutorial68K.bin, LokaTutorial68K.APPL, LokaTutorial68K.dsk, LokaTutorial68K.ad, %LokaTutorial68K.ad
-[141/249] Building CXX object example/HelloWorld/CMakeFiles/LokaHello68K.dir/src/main.cpp.obj
-[142/249] Linking CXX executable example/MineSweeper/LokaMine68K.code.bin
-[143/249] Generating Size.r.rsrc.bin
-[144/249] Generating LokaMine68K.bin, LokaMine68K.APPL, LokaMine68K.dsk, LokaMine68K.ad, %LokaMine68K.ad
-[145/249] Building CXX object example/SmirkyCard/CMakeFiles/LokaSmirkyCard68K.dir/src/JsCardBindingRegistry.cpp.obj
-[146/249] Building CXX object example/FloppyBird/CMakeFiles/LokaFloppyBird68K.dir/src/main.cpp.obj
-[147/249] Linking CXX executable example/FloppyBird/LokaFloppyBird68K.code.bin
+[137/249] Linking CXX executable example/MineSweeper/LokaMine68K.code.bin
+[138/249] Generating Size.r.rsrc.bin
+[139/249] Building CXX object example/HelloWorld/CMakeFiles/LokaHello68K.dir/src/MainNode.cpp.obj
+[140/249] Generating LokaMine68K.bin, LokaMine68K.APPL, LokaMine68K.dsk, LokaMine68K.ad, %LokaMine68K.ad
+[141/249] Building CXX object example/SmirkyCard/CMakeFiles/LokaSmirkyCard68K.dir/src/ToolboxMain.cpp.obj
+[142/249] Building CXX object example/SmirkBench/CMakeFiles/LokaSmirkBench68K.dir/src/main.cpp.obj
+[143/249] Linking CXX executable example/HelloWorld/LokaHello68K.code.bin
+[144/249] Generating Size.r.rsrc.bin
+[145/249] Building CXX object example/Tutorial/CMakeFiles/LokaTutorial68K.dir/src/main.cpp.obj
+[146/249] Generating LokaHello68K.bin, LokaHello68K.APPL, LokaHello68K.dsk, LokaHello68K.ad, %LokaHello68K.ad
+[147/249] Linking CXX executable example/SmirkBench/LokaSmirkBench68K.code.bin
 [148/249] Generating Size.r.rsrc.bin
-[149/249] Generating LokaFloppyBird68K.bin, LokaFloppyBird68K.APPL, LokaFloppyBird68K.dsk, LokaFloppyBird68K.ad, %LokaFloppyBird68K.ad
-[150/249] Building CXX object example/HelloWorld/CMakeFiles/LokaHello68K.dir/src/MainNode.cpp.obj
-[151/249] Building CXX object example/ScrapbookUI/CMakeFiles/ScrapbookUI68K.dir/src/main.cpp.obj
-[152/249] Linking CXX executable example/HelloWorld/LokaHello68K.code.bin
+[149/249] Generating LokaSmirkBench68K.bin, LokaSmirkBench68K.APPL, LokaSmirkBench68K.dsk, LokaSmirkBench68K.ad, %LokaSmirkBench68K.ad
+[150/249] Building CXX object example/SmirkyCard/CMakeFiles/LokaSmirkyCard68K.dir/src/JsCardBindingRegistry.cpp.obj
+[151/249] Building CXX object example/FloppyBird/CMakeFiles/LokaFloppyBird68K.dir/src/main.cpp.obj
+[152/249] Linking CXX executable example/Tutorial/LokaTutorial68K.code.bin
 [153/249] Generating Size.r.rsrc.bin
-[154/249] Generating LokaHello68K.bin, LokaHello68K.APPL, LokaHello68K.dsk, LokaHello68K.ad, %LokaHello68K.ad
-[155/249] Linking CXX executable example/ScrapbookUI/ScrapbookUI68K.code.bin
+[154/249] Generating LokaTutorial68K.bin, LokaTutorial68K.APPL, LokaTutorial68K.dsk, LokaTutorial68K.ad, %LokaTutorial68K.ad
+[155/249] Linking CXX executable example/FloppyBird/LokaFloppyBird68K.code.bin
 [156/249] Generating Size.r.rsrc.bin
-[157/249] Generating ScrapbookUI68K.bin, ScrapbookUI68K.APPL, ScrapbookUI68K.dsk, ScrapbookUI68K.ad, %ScrapbookUI68K.ad
-[158/249] Building CXX object example/SmirkBench/CMakeFiles/LokaSmirkBench68K.dir/src/main.cpp.obj
-[159/249] Linking CXX executable example/SmirkBench/LokaSmirkBench68K.code.bin
+[157/249] Generating LokaFloppyBird68K.bin, LokaFloppyBird68K.APPL, LokaFloppyBird68K.dsk, LokaFloppyBird68K.ad, %LokaFloppyBird68K.ad
+[158/249] Building CXX object example/ScrapbookUI/CMakeFiles/ScrapbookUI68K.dir/src/main.cpp.obj
+[159/249] Linking CXX executable example/ScrapbookUI/ScrapbookUI68K.code.bin
 [160/249] Generating Size.r.rsrc.bin
-[161/249] Generating LokaSmirkBench68K.bin, LokaSmirkBench68K.APPL, LokaSmirkBench68K.dsk, LokaSmirkBench68K.ad, %LokaSmirkBench68K.ad
+[161/249] Generating ScrapbookUI68K.bin, ScrapbookUI68K.APPL, ScrapbookUI68K.dsk, ScrapbookUI68K.ad, %ScrapbookUI68K.ad
 [162/249] Building CXX object example/LazyList/CMakeFiles/LokaLazyList68K.dir/src/main.cpp.obj
 [163/249] Linking CXX executable example/LazyList/LokaLazyList68K.code.bin
 [164/249] Generating Size.r.rsrc.bin
-[165/249] Generating LokaLazyList68K.bin, LokaLazyList68K.APPL, LokaLazyList68K.dsk, LokaLazyList68K.ad, %LokaLazyList68K.ad
-[166/249] Building CXX object example/SmirkyCard/CMakeFiles/LokaSmirkyCard68K.dir/src/JsCardNode.cpp.obj
+[165/249] Building CXX object example/SmirkyCard/CMakeFiles/LokaSmirkyCard68K.dir/src/JsCardNode.cpp.obj
+[166/249] Generating LokaLazyList68K.bin, LokaLazyList68K.APPL, LokaLazyList68K.dsk, LokaLazyList68K.ad, %LokaLazyList68K.ad
 [167/249] Building CXX object example/SimpleViewer/CMakeFiles/LokaSimpleViewer68K.dir/src/main.cpp.obj
 [168/249] Linking CXX executable example/SimpleViewer/LokaSimpleViewer68K.code.bin
 [169/249] Generating Size.r.rsrc.bin
@@ -204,77 +204,77 @@ Preset CMake variables:
 [176/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolbox68K.dir/__/scenarios/ScenarioTypes.cpp.obj
 [177/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolbox68K.dir/__/scenarios/ScenarioTypes.cpp.obj
 [178/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolbox68K.dir/__/__/common/testing/snap/SnapFormat.cpp.obj
-[179/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolbox68K.dir/src/ScenarioDriverSupport.cpp.obj
-[180/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolbox68K.dir/__/__/example/ScrapbookUI/src/ScrapbookPackage.cpp.obj
-[181/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolbox68K.dir/src/MineSweeperScenarioMain.cpp.obj
-[182/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolbox68K.dir/__/TestingHooks.cpp.obj
-[183/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolbox68K.dir/src/ScenarioDriverSupport.cpp.obj
-[184/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolbox68K.dir/__/TestingHooks.cpp.obj
+[179/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolbox68K.dir/__/TestingHooks.cpp.obj
+[180/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolbox68K.dir/src/ScenarioDriverSupport.cpp.obj
+[181/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolbox68K.dir/__/TestingHooks.cpp.obj
+[182/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolbox68K.dir/src/MineSweeperScenarioMain.cpp.obj
+[183/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolbox68K.dir/__/__/example/ScrapbookUI/src/ScrapbookPackage.cpp.obj
+[184/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolbox68K.dir/__/scenarios/RectSurfaceScenarioObservation.cpp.obj
 [185/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolbox68K.dir/__/scenarios/ScenarioTypes.cpp.obj
-[186/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolbox68K.dir/__/scenarios/RectSurfaceScenarioObservation.cpp.obj
-[187/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolbox68K.dir/__/scenarios/RectSurfaceScenarioObservation.cpp.obj
-[188/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolbox68K.dir/src/ScenarioDriverSupport.cpp.obj
-[189/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolbox68K.dir/src/FloppyBirdScenarioMain.cpp.obj
-[190/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolbox68K.dir/__/scenarios/StartupScenarios.cpp.obj
+[186/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolbox68K.dir/__/scenarios/StartupScenarios.cpp.obj
+[187/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolbox68K.dir/__/scenarios/StartupScenarios.cpp.obj
+[188/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolbox68K.dir/src/FloppyBirdScenarioMain.cpp.obj
+[189/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolbox68K.dir/src/ScenarioDriverSupport.cpp.obj
+[190/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolbox68K.dir/src/ScenarioDriverSupport.cpp.obj
 [191/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolbox68K.dir/__/scenarios/ScrapbookScenarios.cpp.obj
-[192/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolbox68K.dir/__/TestingHooks.cpp.obj
-[193/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolbox68K.dir/__/scenarios/ScenarioTypes.cpp.obj
-[194/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolbox68K.dir/src/ScenarioDriverSupport.cpp.obj
-[195/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolbox68K.dir/src/ScenarioDriverSupport.cpp.obj
+[192/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolbox68K.dir/src/ScenarioDriverSupport.cpp.obj
+[193/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolbox68K.dir/__/TestingHooks.cpp.obj
+[194/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolbox68K.dir/__/scenarios/ScenarioTypes.cpp.obj
+[195/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolbox68K.dir/__/scenarios/RectSurfaceScenarioObservation.cpp.obj
 [196/249] Building CXX object tests/toolbox/CMakeFiles/LokaSmirkBenchTestsToolbox68K.dir/src/SmirkBenchScenarioMain.cpp.obj
-[197/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolbox68K.dir/__/TestingHooks.cpp.obj
-[198/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolbox68K.dir/__/scenarios/StartupScenarios.cpp.obj
-[199/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolbox68K.dir/__/scenarios/RectSurfaceScenarioObservation.cpp.obj
-[200/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolbox68K.dir/__/scenarios/StartupScenarios.cpp.obj
+[197/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolbox68K.dir/__/scenarios/RectSurfaceScenarioObservation.cpp.obj
+[198/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolbox68K.dir/src/ScenarioDriverSupport.cpp.obj
+[199/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolbox68K.dir/__/TestingHooks.cpp.obj
+[200/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolbox68K.dir/__/scenarios/RectSurfaceScenarioObservation.cpp.obj
 [201/249] Building CXX object tests/toolbox/CMakeFiles/LokaSmirkBenchTestsToolbox68K.dir/__/scenarios/ScenarioTypes.cpp.obj
 [202/249] Building CXX object tests/toolbox/CMakeFiles/LokaSimpleViewerTestsToolbox68K.dir/src/SimpleViewerScenarioMain.cpp.obj
-[203/249] Building CXX object tests/toolbox/CMakeFiles/LokaSmirkBenchTestsToolbox68K.dir/src/ScenarioDriverSupport.cpp.obj
-[204/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolbox68K.dir/__/scenarios/RectSurfaceScenarioObservation.cpp.obj
-[205/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolbox68K.dir/__/scenarios/StartupScenarios.cpp.obj
-[206/249] Building CXX object tests/toolbox/CMakeFiles/LokaSmirkBenchTestsToolbox68K.dir/__/scenarios/RectSurfaceScenarioObservation.cpp.obj
-[207/249] Building CXX object tests/toolbox/CMakeFiles/LokaSimpleViewerTestsToolbox68K.dir/__/scenarios/ScenarioTypes.cpp.obj
+[203/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolbox68K.dir/__/scenarios/StartupScenarios.cpp.obj
+[204/249] Building CXX object tests/toolbox/CMakeFiles/LokaSmirkBenchTestsToolbox68K.dir/__/scenarios/RectSurfaceScenarioObservation.cpp.obj
+[205/249] Building CXX object tests/toolbox/CMakeFiles/LokaSmirkBenchTestsToolbox68K.dir/src/ScenarioDriverSupport.cpp.obj
+[206/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolbox68K.dir/__/scenarios/FloppyBirdScenarios.cpp.obj
+[207/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolbox68K.dir/__/scenarios/StartupScenarios.cpp.obj
 [208/249] Building CXX object tests/toolbox/CMakeFiles/LokaSmirkBenchTestsToolbox68K.dir/__/TestingHooks.cpp.obj
-[209/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolbox68K.dir/__/scenarios/FloppyBirdScenarios.cpp.obj
-[210/249] Building CXX object tests/toolbox/CMakeFiles/LokaSimpleViewerTestsToolbox68K.dir/__/TestingHooks.cpp.obj
-[211/249] Building CXX object tests/toolbox/CMakeFiles/LokaSimpleViewerTestsToolbox68K.dir/src/ScenarioDriverSupport.cpp.obj
-[212/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolbox68K.dir/src/HelloWorldScenarioDriver.cpp.obj
+[209/249] Building CXX object tests/toolbox/CMakeFiles/LokaSimpleViewerTestsToolbox68K.dir/__/scenarios/ScenarioTypes.cpp.obj
+[210/249] Building CXX object tests/toolbox/CMakeFiles/LokaSimpleViewerTestsToolbox68K.dir/src/ScenarioDriverSupport.cpp.obj
+[211/249] Building CXX object tests/toolbox/CMakeFiles/LokaSimpleViewerTestsToolbox68K.dir/__/TestingHooks.cpp.obj
+[212/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolbox68K.dir/src/TutorialScenarioDriver.cpp.obj
 [213/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolbox68K.dir/src/ScenarioDriver.cpp.obj
-[214/249] Linking CXX executable tests/toolbox/LokaTestsToolbox68K.code.bin
-[215/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolbox68K.dir/src/MineSweeperScenarioDriver.cpp.obj
-[216/249] Generating Size.r.rsrc.bin
-[217/249] Generating LokaTestsToolbox68K.bin, LokaTestsToolbox68K.APPL, LokaTestsToolbox68K.dsk, LokaTestsToolbox68K.ad, %LokaTestsToolbox68K.ad
-[218/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolbox68K.dir/__/__/example/HelloWorld/src/MainNode.cpp.obj
-[219/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolbox68K.dir/src/FloppyBirdScenarioDriver.cpp.obj
-[220/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolbox68K.dir/__/scenarios/HelloWorldScenarios.cpp.obj
-[221/249] Linking CXX executable tests/toolbox/LokaFloppyBirdTestsToolbox68K.code.bin
-[222/249] Generating FloppyBirdSize.r.rsrc.bin
-[223/249] Generating LokaFloppyBirdTestsToolbox68K.bin, LokaFloppyBirdTestsToolbox68K.APPL, LokaFloppyBirdTestsToolbox68K.dsk, LokaFloppyBirdTestsToolbox68K.ad, %LokaFloppyBirdTestsToolbox68K.ad
-[224/249] Linking CXX executable tests/toolbox/LokaHelloWorldTestsToolbox68K.code.bin
-[225/249] Generating HelloWorldSize.r.rsrc.bin
-[226/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolbox68K.dir/src/TutorialScenarioDriver.cpp.obj
-[227/249] Generating LokaHelloWorldTestsToolbox68K.bin, LokaHelloWorldTestsToolbox68K.APPL, LokaHelloWorldTestsToolbox68K.dsk, LokaHelloWorldTestsToolbox68K.ad, %LokaHelloWorldTestsToolbox68K.ad
-[228/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolbox68K.dir/__/scenarios/TutorialScenarios.cpp.obj
+[214/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolbox68K.dir/src/HelloWorldScenarioDriver.cpp.obj
+[215/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolbox68K.dir/src/FloppyBirdScenarioDriver.cpp.obj
+[216/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolbox68K.dir/src/MineSweeperScenarioDriver.cpp.obj
+[217/249] Linking CXX executable tests/toolbox/LokaTestsToolbox68K.code.bin
+[218/249] Generating Size.r.rsrc.bin
+[219/249] Generating LokaTestsToolbox68K.bin, LokaTestsToolbox68K.APPL, LokaTestsToolbox68K.dsk, LokaTestsToolbox68K.ad, %LokaTestsToolbox68K.ad
+[220/249] Linking CXX executable tests/toolbox/LokaFloppyBirdTestsToolbox68K.code.bin
+[221/249] Generating FloppyBirdSize.r.rsrc.bin
+[222/249] Generating LokaFloppyBirdTestsToolbox68K.bin, LokaFloppyBirdTestsToolbox68K.APPL, LokaFloppyBirdTestsToolbox68K.dsk, LokaFloppyBirdTestsToolbox68K.ad, %LokaFloppyBirdTestsToolbox68K.ad
+[223/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolbox68K.dir/__/scenarios/HelloWorldScenarios.cpp.obj
+[224/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolbox68K.dir/__/__/example/HelloWorld/src/MainNode.cpp.obj
+[225/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolbox68K.dir/__/scenarios/TutorialScenarios.cpp.obj
+[226/249] Linking CXX executable tests/toolbox/LokaHelloWorldTestsToolbox68K.code.bin
+[227/249] Generating HelloWorldSize.r.rsrc.bin
+[228/249] Generating LokaHelloWorldTestsToolbox68K.bin, LokaHelloWorldTestsToolbox68K.APPL, LokaHelloWorldTestsToolbox68K.dsk, LokaHelloWorldTestsToolbox68K.ad, %LokaHelloWorldTestsToolbox68K.ad
 [229/249] Linking CXX executable tests/toolbox/LokaTutorialTestsToolbox68K.code.bin
 [230/249] Generating TutorialSize.r.rsrc.bin
 [231/249] Generating LokaTutorialTestsToolbox68K.bin, LokaTutorialTestsToolbox68K.APPL, LokaTutorialTestsToolbox68K.dsk, LokaTutorialTestsToolbox68K.ad, %LokaTutorialTestsToolbox68K.ad
-[232/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolbox68K.dir/__/scenarios/MineSweeperScenarios.cpp.obj
-[233/249] Building CXX object tests/toolbox/CMakeFiles/LokaSmirkBenchTestsToolbox68K.dir/src/SmirkBenchScenarioDriver.cpp.obj
-[234/249] Linking CXX executable tests/toolbox/LokaMineSweeperTestsToolbox68K.code.bin
-[235/249] Generating MineSweeperScenarioSize.r.rsrc.bin
-[236/249] Generating LokaMineSweeperTestsToolbox68K.bin, LokaMineSweeperTestsToolbox68K.APPL, LokaMineSweeperTestsToolbox68K.dsk, LokaMineSweeperTestsToolbox68K.ad, %LokaMineSweeperTestsToolbox68K.ad
-[237/249] Linking CXX executable tests/toolbox/LokaSmirkBenchTestsToolbox68K.code.bin
-[238/249] Generating SmirkBenchSize.r.rsrc.bin
-[239/249] Generating LokaSmirkBenchTestsToolbox68K.bin, LokaSmirkBenchTestsToolbox68K.APPL, LokaSmirkBenchTestsToolbox68K.dsk, LokaSmirkBenchTestsToolbox68K.ad, %LokaSmirkBenchTestsToolbox68K.ad
-[240/249] Building C object example/SmirkyCard/CMakeFiles/smirkycard_quickjs.dir/smirkycard-quickjs-classic-source/quickjs.c.obj
-[241/249] Linking C static library example/SmirkyCard/libsmirkycard_quickjs.a
-[242/249] Linking C static library example/SmirkyCard/libsmirkycard_script.a
-[243/249] Linking CXX executable example/SmirkyCard/LokaSmirkyCard68K.code.bin
-[244/249] Generating Size.r.rsrc.bin
-[245/249] Generating LokaSmirkyCard68K.bin, LokaSmirkyCard68K.APPL, LokaSmirkyCard68K.dsk, LokaSmirkyCard68K.ad, %LokaSmirkyCard68K.ad
-[246/249] Building CXX object tests/toolbox/CMakeFiles/LokaSimpleViewerTestsToolbox68K.dir/src/SimpleViewerScenarioDriver.cpp.obj
-[247/249] Linking CXX executable tests/toolbox/LokaSimpleViewerTestsToolbox68K.code.bin
-[248/249] Generating SimpleViewerSize.r.rsrc.bin
-[249/249] Generating LokaSimpleViewerTestsToolbox68K.bin, LokaSimpleViewerTestsToolbox68K.APPL, LokaSimpleViewerTestsToolbox68K.dsk, LokaSimpleViewerTestsToolbox68K.ad, %LokaSimpleViewerTestsToolbox68K.ad
+[232/249] Building CXX object tests/toolbox/CMakeFiles/LokaSmirkBenchTestsToolbox68K.dir/src/SmirkBenchScenarioDriver.cpp.obj
+[233/249] Linking CXX executable tests/toolbox/LokaSmirkBenchTestsToolbox68K.code.bin
+[234/249] Generating SmirkBenchSize.r.rsrc.bin
+[235/249] Generating LokaSmirkBenchTestsToolbox68K.bin, LokaSmirkBenchTestsToolbox68K.APPL, LokaSmirkBenchTestsToolbox68K.dsk, LokaSmirkBenchTestsToolbox68K.ad, %LokaSmirkBenchTestsToolbox68K.ad
+[236/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolbox68K.dir/__/scenarios/MineSweeperScenarios.cpp.obj
+[237/249] Linking CXX executable tests/toolbox/LokaMineSweeperTestsToolbox68K.code.bin
+[238/249] Generating MineSweeperScenarioSize.r.rsrc.bin
+[239/249] Generating LokaMineSweeperTestsToolbox68K.bin, LokaMineSweeperTestsToolbox68K.APPL, LokaMineSweeperTestsToolbox68K.dsk, LokaMineSweeperTestsToolbox68K.ad, %LokaMineSweeperTestsToolbox68K.ad
+[240/249] Building CXX object tests/toolbox/CMakeFiles/LokaSimpleViewerTestsToolbox68K.dir/src/SimpleViewerScenarioDriver.cpp.obj
+[241/249] Linking CXX executable tests/toolbox/LokaSimpleViewerTestsToolbox68K.code.bin
+[242/249] Generating SimpleViewerSize.r.rsrc.bin
+[243/249] Generating LokaSimpleViewerTestsToolbox68K.bin, LokaSimpleViewerTestsToolbox68K.APPL, LokaSimpleViewerTestsToolbox68K.dsk, LokaSimpleViewerTestsToolbox68K.ad, %LokaSimpleViewerTestsToolbox68K.ad
+[244/249] Building C object example/SmirkyCard/CMakeFiles/smirkycard_quickjs.dir/smirkycard-quickjs-classic-source/quickjs.c.obj
+[245/249] Linking C static library example/SmirkyCard/libsmirkycard_quickjs.a
+[246/249] Linking C static library example/SmirkyCard/libsmirkycard_script.a
+[247/249] Linking CXX executable example/SmirkyCard/LokaSmirkyCard68K.code.bin
+[248/249] Generating Size.r.rsrc.bin
+[249/249] Generating LokaSmirkyCard68K.bin, LokaSmirkyCard68K.APPL, LokaSmirkyCard68K.dsk, LokaSmirkyCard68K.ad, %LokaSmirkyCard68K.ad
 Preset CMake variables:
 
   CMAKE_BUILD_TYPE="Release"
@@ -292,249 +292,249 @@ Preset CMake variables:
 -- Check for working CXX compiler: /home/cubenoy22/Retro68-build/toolchain/bin/powerpc-apple-macos-g++ - skipped
 -- Detecting CXX compile features
 -- Detecting CXX compile features - done
--- Configuring done (1.8s)
+-- Configuring done (1.5s)
 -- Generating done (0.0s)
 -- Build files have been written to: /tmp/loka-release-assembly-worktree/build/retro68/ppc/Release
 [0/2] Re-checking globbed directories...
 [1/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxProfiler.cpp.obj
-[2/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxByteSource.cpp.obj
-[3/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxString.cpp.obj
-[4/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/PictParser.cpp.obj
+[2/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxString.cpp.obj
+[3/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/PictParser.cpp.obj
+[4/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxByteSource.cpp.obj
 [5/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxBootstrap.cpp.obj
 [6/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/debug/ToolboxSceneDebugStats.cpp.obj
-[7/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxNativeImage.cpp.obj
-[8/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxWindowContext.cpp.obj
-[9/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxBuiltInSupport.cpp.obj
-[10/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxEditTextContext.cpp.obj
-[11/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxButtonContext.cpp.obj
-[12/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxPlatformLayoutHandlers.cpp.obj
-[13/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxProjectedNodeContext.cpp.obj
-[14/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxTextContext.cpp.obj
-[15/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/platform/ToolboxFileIO.cpp.obj
-[16/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxOpenFileDialogContext.cpp.obj
-[17/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/platform/ToolboxHfsName.cpp.obj
-[18/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/platform/ToolboxAppLocation.cpp.obj
-[19/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxScrollBarContext.cpp.obj
-[20/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxOperatorNew.cpp.obj
-[21/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxCellContext.cpp.obj
-[22/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxPlatformContext.cpp.obj
+[7/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxPlatformLayoutHandlers.cpp.obj
+[8/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxProjectedNodeContext.cpp.obj
+[9/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxWindowContext.cpp.obj
+[10/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxCellContext.cpp.obj
+[11/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxOperatorNew.cpp.obj
+[12/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxEditTextContext.cpp.obj
+[13/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxPopupMenuContext.cpp.obj
+[14/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxScrollBarContext.cpp.obj
+[15/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxTextContext.cpp.obj
+[16/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/platform/ToolboxFileIO.cpp.obj
+[17/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxBuiltInSupport.cpp.obj
+[18/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/platform/ToolboxHfsName.cpp.obj
+[19/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/platform/ToolboxAppLocation.cpp.obj
+[20/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxImageViewContext.cpp.obj
+[21/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxRectSurfaceContext.cpp.obj
+[22/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxButtonContext.cpp.obj
 [23/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/MenuComposition.cpp.obj
-[24/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/layout/LayoutHeuristics.cpp.obj
-[25/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/Node.cpp.obj
-[26/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxImageViewContext.cpp.obj
-[27/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxRectSurfaceContext.cpp.obj
-[28/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/DialogResultTransport.cpp.obj
-[29/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxNodeDispatch.cpp.obj
+[24/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxApp.cpp.obj
+[25/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxPlatformContext.cpp.obj
+[26/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/Node.cpp.obj
+[27/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxOpenFileDialogContext.cpp.obj
+[28/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxNativeImage.cpp.obj
+[29/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/detail/SeatBuildRequest.cpp.obj
 [30/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/LokaAlloc.cpp.obj
 [31/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/Profiler.cpp.obj
-[32/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/projection/PlatformController.cpp.obj
-[33/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/MenuController.cpp.obj
-[34/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/detail/SeatBuildRequest.cpp.obj
-[35/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/node/Conditional.cpp.obj
+[32/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/layout/LayoutHeuristics.cpp.obj
+[33/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/DialogResultTransport.cpp.obj
+[34/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/App.cpp.obj
+[35/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/MenuController.cpp.obj
 [36/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/diag/LifecycleAudit.cpp.obj
-[37/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxApp.cpp.obj
-[38/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/context/ToolboxPopupMenuContext.cpp.obj
+[37/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/detail/NodeBuildTicket.cpp.obj
+[38/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/detail/SeatReservation.cpp.obj
 [39/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/String.cpp.obj
-[40/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/resource/lrpk/LrpkReader.cpp.obj
-[41/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/StringUTF8.cpp.obj
-[42/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/file/GenericAppLocation.cpp.obj
-[43/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/debug/GenericDebugLog.cpp.obj
-[44/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/StateTracker.cpp.obj
-[45/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/GenericString.cpp.obj
-[46/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/BoundaryInnerStateOwner.cpp.obj
-[47/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/StringBuffer.cpp.obj
-[48/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/file/GenericFileIO.cpp.obj
-[49/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/resource/lrpk/LrpkStdioByteSource.cpp.obj
-[50/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/detail/SeatReservation.cpp.obj
-[51/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/Value.cpp.obj
-[52/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/detail/NodeBuildTicket.cpp.obj
+[40/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxNodeDispatch.cpp.obj
+[41/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/StringBuffer.cpp.obj
+[42/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/node/Conditional.cpp.obj
+[43/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/file/GenericAppLocation.cpp.obj
+[44/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/debug/GenericDebugLog.cpp.obj
+[45/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/StringUTF8.cpp.obj
+[46/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/AppComposition.cpp.obj
+[47/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/StateTracker.cpp.obj
+[48/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/GenericString.cpp.obj
+[49/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/projection/PlatformController.cpp.obj
+[50/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/BoundaryInnerStateOwner.cpp.obj
+[51/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/resource/lrpk/LrpkStdioByteSource.cpp.obj
+[52/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxBootstrap.cpp.obj
 [53/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxString.cpp.obj
-[54/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxBootstrap.cpp.obj
-[55/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/AppComposition.cpp.obj
-[56/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/testing/scene/ScenarioAudit.cpp.obj
-[57/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxProfiler.cpp.obj
+[54/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/resource/lrpk/LrpkReader.cpp.obj
+[55/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxByteSource.cpp.obj
+[56/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxProfiler.cpp.obj
+[57/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/platform/file/GenericFileIO.cpp.obj
 [58/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/PictParser.cpp.obj
-[59/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxByteSource.cpp.obj
+[59/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/core/Value.cpp.obj
 [60/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/testing/snap/SnapFormat.cpp.obj
-[61/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/App.cpp.obj
-[62/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxProjectedNodeContext.cpp.obj
+[61/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/testing/scene/ScenarioAudit.cpp.obj
+[62/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxNativeImage.cpp.obj
 [63/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxBuiltInSupport.cpp.obj
-[64/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/debug/ToolboxSceneDebugStats.cpp.obj
-[65/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxPopupMenuContext.cpp.obj
-[66/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxNativeImage.cpp.obj
-[67/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxCellContext.cpp.obj
-[68/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/Window.cpp.obj
-[69/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxScrollBarContext.cpp.obj
-[70/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxOpenFileDialogContext.cpp.obj
-[71/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxWindowContext.cpp.obj
-[72/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxTextContext.cpp.obj
-[73/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxEditTextContext.cpp.obj
-[74/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxOperatorNew.cpp.obj
-[75/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/SceneManager.cpp.obj
-[76/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/platform/ToolboxFileIO.cpp.obj
-[77/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxWindow.cpp.obj
+[64/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxCellContext.cpp.obj
+[65/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxOperatorNew.cpp.obj
+[66/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/debug/ToolboxSceneDebugStats.cpp.obj
+[67/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxOpenFileDialogContext.cpp.obj
+[68/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxScrollBarContext.cpp.obj
+[69/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxPlatformLayoutHandlers.cpp.obj
+[70/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxWindowContext.cpp.obj
+[71/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxWindow.cpp.obj
+[72/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxProjectedNodeContext.cpp.obj
+[73/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxTextContext.cpp.obj
+[74/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/platform/ToolboxAppLocation.cpp.obj
+[75/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/platform/ToolboxFileIO.cpp.obj
+[76/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxRectSurfaceContext.cpp.obj
+[77/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxButtonContext.cpp.obj
 [78/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/platform/ToolboxHfsName.cpp.obj
-[79/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxButtonContext.cpp.obj
-[80/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/platform/ToolboxAppLocation.cpp.obj
-[81/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxRectSurfaceContext.cpp.obj
-[82/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxApp.cpp.obj
-[83/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxPlatformLayoutHandlers.cpp.obj
-[84/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxImageViewContext.cpp.obj
-[85/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxNodeDispatch.cpp.obj
-[86/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/Node.cpp.obj
-[87/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/MenuComposition.cpp.obj
+[79/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxPopupMenuContext.cpp.obj
+[80/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/MenuComposition.cpp.obj
+[81/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxPlatformContext.cpp.obj
+[82/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxEditTextContext.cpp.obj
+[83/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/composition/NodeComposition.cpp.obj
+[84/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/MenuController.cpp.obj
+[85/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxApp.cpp.obj
+[86/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/App.cpp.obj
+[87/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/context/ToolboxImageViewContext.cpp.obj
 [88/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/layout/LayoutHeuristics.cpp.obj
-[89/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/boundary/detail/SeatBuildRequest.cpp.obj
-[90/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/boundary/detail/NodeBuildTicket.cpp.obj
-[91/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxPlatformContext.cpp.obj
-[92/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/node/Conditional.cpp.obj
+[89/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/Node.cpp.obj
+[90/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/DialogResultTransport.cpp.obj
+[91/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/boundary/BoundaryInnerStateOwner.cpp.obj
+[92/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/boundary/detail/SeatBuildRequest.cpp.obj
 [93/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/Profiler.cpp.obj
-[94/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/LokaAlloc.cpp.obj
-[95/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/projection/PlatformController.cpp.obj
-[96/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/MenuController.cpp.obj
-[97/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/boundary/BoundaryInnerStateOwner.cpp.obj
-[98/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/boundary/detail/SeatReservation.cpp.obj
-[99/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/composition/NodeComposition.cpp.obj
+[94/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/SceneManager.cpp.obj
+[95/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/LokaAlloc.cpp.obj
+[96/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/boundary/detail/NodeBuildTicket.cpp.obj
+[97/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxNodeDispatch.cpp.obj
+[98/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/projection/PlatformController.cpp.obj
+[99/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxScenePlatformController.cpp.obj
 [100/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/diag/LifecycleAudit.cpp.obj
-[101/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/String.cpp.obj
-[102/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/App.cpp.obj
-[103/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/DialogResultTransport.cpp.obj
+[101/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/node/Conditional.cpp.obj
+[102/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/String.cpp.obj
+[103/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/resource/lrpk/LrpkStdioByteSource.cpp.obj
 [104/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/platform/debug/GenericDebugLog.cpp.obj
 [105/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/platform/file/GenericAppLocation.cpp.obj
-[106/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/StateTracker.cpp.obj
-[107/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/StringBuffer.cpp.obj
-[108/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/resource/lrpk/LrpkStdioByteSource.cpp.obj
-[109/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/src/ToolboxScenePlatformController.cpp.obj
-[110/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/platform/GenericString.cpp.obj
-[111/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/platform/StringUTF8.cpp.obj
-[112/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/AppComposition.cpp.obj
-[113/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/platform/file/GenericFileIO.cpp.obj
+[106/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/platform/GenericString.cpp.obj
+[107/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/boundary/detail/SeatReservation.cpp.obj
+[108/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/AppComposition.cpp.obj
+[109/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/platform/StringUTF8.cpp.obj
+[110/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/StateTracker.cpp.obj
+[111/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/StringBuffer.cpp.obj
+[112/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/platform/file/GenericFileIO.cpp.obj
+[113/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/core/Window.cpp.obj
 [114/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/resource/lrpk/LrpkReader.cpp.obj
-[115/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/testing/scene/ScenarioAudit.cpp.obj
-[116/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/testing/snap/SnapFormat.cpp.obj
+[115/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/Boundary.cpp.obj
+[116/249] Linking CXX static library apple/toolbox/libLokaAppleToolboxCore.a
 [117/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/core/Value.cpp.obj
-[118/249] Building CXX object example/ScrapbookUI/CMakeFiles/ScrapbookUIPPC.dir/src/ScrapbookPackage.cpp.obj
-[119/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxCore.dir/__/__/common/app/scene/boundary/Boundary.cpp.obj
-[120/249] Linking CXX static library apple/toolbox/libLokaAppleToolboxCore.a
-[121/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/composition/NodeComposition.cpp.obj
-[122/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/Window.cpp.obj
-[123/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxScenePlatformController.cpp.obj
-[124/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/boundary/Boundary.cpp.obj
-[125/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxWindow.cpp.obj
+[118/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/testing/scene/ScenarioAudit.cpp.obj
+[119/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/testing/snap/SnapFormat.cpp.obj
+[120/249] Building CXX object example/ScrapbookUI/CMakeFiles/ScrapbookUIPPC.dir/src/ScrapbookPackage.cpp.obj
+[121/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/Window.cpp.obj
+[122/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxWindow.cpp.obj
+[123/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/composition/NodeComposition.cpp.obj
+[124/249] Building CXX object tests/toolbox/CMakeFiles/LokaToolboxDslNameCollisionProbe.dir/src/DslNameCollisionProbe.cpp.obj
+[125/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/src/ToolboxScenePlatformController.cpp.obj
 [126/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/core/SceneManager.cpp.obj
-[127/249] Linking CXX static library apple/toolbox/libLokaAppleToolboxTestCore.a
-[128/249] Building CXX object tests/toolbox/CMakeFiles/LokaToolboxDslNameCollisionProbe.dir/src/DslNameCollisionProbe.cpp.obj
-[129/249] Building CXX object example/FloppyBird/CMakeFiles/LokaFloppyBirdPPC.dir/src/main.cpp.obj
-[130/249] Linking CXX executable example/FloppyBird/LokaFloppyBirdPPC.xcoff
-[131/249] Generating LokaFloppyBirdPPC.pef
-[132/249] Generating Size.r.rsrc.bin
-[133/249] Building CXX object example/Tutorial/CMakeFiles/LokaTutorialPPC.dir/src/main.cpp.obj
-[134/249] Generating LokaFloppyBirdPPC.bin, LokaFloppyBirdPPC.APPL, LokaFloppyBirdPPC.dsk, LokaFloppyBirdPPC.ad, %LokaFloppyBirdPPC.ad
-[135/249] Building CXX object example/HelloWorld/CMakeFiles/LokaHelloPPC.dir/src/MainNode.cpp.obj
-[136/249] Linking CXX executable example/Tutorial/LokaTutorialPPC.xcoff
-[137/249] Generating LokaTutorialPPC.pef
-[138/249] Generating Size.r.rsrc.bin
-[139/249] Generating LokaTutorialPPC.bin, LokaTutorialPPC.APPL, LokaTutorialPPC.dsk, LokaTutorialPPC.ad, %LokaTutorialPPC.ad
-[140/249] Building CXX object example/HelloWorld/CMakeFiles/LokaHelloPPC.dir/src/main.cpp.obj
-[141/249] cd /tmp/loka-release-assembly-worktree/build/retro68/ppc/Release/tests/toolbox && /usr/bin/python3 /tmp/loka-release-assembly-worktree/scripts/rig/toolbox/classic_golden_identity.py emit-build-provenance --output /tmp/loka-release-assembly-worktree/build/retro68/ppc/Release/tests/toolbox/classic-build-provenance.txt --compiler /home/cubenoy22/Retro68-build/toolchain/bin/powerpc-apple-macos-g++ --toolchain-root ""
-[142/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolboxPPC.dir/src/main.cpp.obj
-[143/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolboxPPC.dir/src/HelloWorldScenarioMain.cpp.obj
-[144/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolboxPPC.dir/__/scenarios/ScenarioTypes.cpp.obj
-[145/249] Building CXX object example/SmirkBench/CMakeFiles/LokaSmirkBenchPPC.dir/src/main.cpp.obj
-[146/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolboxPPC.dir/__/scenarios/ScenarioTypes.cpp.obj
-[147/249] Linking CXX executable example/HelloWorld/LokaHelloPPC.xcoff
-[148/249] Generating Size.r.rsrc.bin
-[149/249] Generating LokaHelloPPC.pef
-[150/249] Generating LokaHelloPPC.bin, LokaHelloPPC.APPL, LokaHelloPPC.dsk, LokaHelloPPC.ad, %LokaHelloPPC.ad
-[151/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolboxPPC.dir/src/TutorialScenarioMain.cpp.obj
-[152/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolboxPPC.dir/__/__/common/testing/snap/SnapFormat.cpp.obj
-[153/249] Linking CXX executable example/SmirkBench/LokaSmirkBenchPPC.xcoff
-[154/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolboxPPC.dir/src/ScenarioDriverSupport.cpp.obj
-[155/249] Generating LokaSmirkBenchPPC.pef
-[156/249] Generating Size.r.rsrc.bin
-[157/249] Generating LokaSmirkBenchPPC.bin, LokaSmirkBenchPPC.APPL, LokaSmirkBenchPPC.dsk, LokaSmirkBenchPPC.ad, %LokaSmirkBenchPPC.ad
-[158/249] Building CXX object example/MineSweeper/CMakeFiles/LokaMinePPC.dir/src/main.cpp.obj
-[159/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolboxPPC.dir/__/scenarios/ScenarioTypes.cpp.obj
-[160/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolboxPPC.dir/__/TestingHooks.cpp.obj
-[161/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolboxPPC.dir/__/scenarios/RectSurfaceScenarioObservation.cpp.obj
-[162/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolboxPPC.dir/src/ScenarioDriverSupport.cpp.obj
-[163/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolboxPPC.dir/src/MineSweeperScenarioMain.cpp.obj
-[164/249] Linking CXX executable example/MineSweeper/LokaMinePPC.xcoff
-[165/249] Generating Size.r.rsrc.bin
-[166/249] Generating LokaMinePPC.pef
-[167/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolboxPPC.dir/__/TestingHooks.cpp.obj
-[168/249] Generating LokaMinePPC.bin, LokaMinePPC.APPL, LokaMinePPC.dsk, LokaMinePPC.ad, %LokaMinePPC.ad
-[169/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolboxPPC.dir/src/ScenarioDriverSupport.cpp.obj
-[170/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolboxPPC.dir/__/__/example/ScrapbookUI/src/ScrapbookPackage.cpp.obj
-[171/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolboxPPC.dir/__/scenarios/ScenarioTypes.cpp.obj
-[172/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolboxPPC.dir/__/scenarios/StartupScenarios.cpp.obj
-[173/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolboxPPC.dir/__/scenarios/ScrapbookScenarios.cpp.obj
-[174/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolboxPPC.dir/src/FloppyBirdScenarioMain.cpp.obj
-[175/249] Building CXX object example/ScrapbookUI/CMakeFiles/ScrapbookUIPPC.dir/src/main.cpp.obj
-[176/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolboxPPC.dir/__/scenarios/StartupScenarios.cpp.obj
-[177/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolboxPPC.dir/__/scenarios/RectSurfaceScenarioObservation.cpp.obj
-[178/249] Building CXX object example/LazyList/CMakeFiles/LokaLazyListPPC.dir/src/main.cpp.obj
-[179/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolboxPPC.dir/__/scenarios/RectSurfaceScenarioObservation.cpp.obj
-[180/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolboxPPC.dir/__/TestingHooks.cpp.obj
-[181/249] Linking CXX executable example/ScrapbookUI/ScrapbookUIPPC.xcoff
-[182/249] Generating Size.r.rsrc.bin
-[183/249] Generating ScrapbookUIPPC.pef
+[127/249] Building CXX object apple/toolbox/CMakeFiles/LokaAppleToolboxTestCore.dir/__/__/common/app/scene/boundary/Boundary.cpp.obj
+[128/249] Linking CXX static library apple/toolbox/libLokaAppleToolboxTestCore.a
+[129/249] Building CXX object example/HelloWorld/CMakeFiles/LokaHelloPPC.dir/src/main.cpp.obj
+[130/249] cd /tmp/loka-release-assembly-worktree/build/retro68/ppc/Release/tests/toolbox && /usr/bin/python3 /tmp/loka-release-assembly-worktree/scripts/rig/toolbox/classic_golden_identity.py emit-build-provenance --output /tmp/loka-release-assembly-worktree/build/retro68/ppc/Release/tests/toolbox/classic-build-provenance.txt --compiler /home/cubenoy22/Retro68-build/toolchain/bin/powerpc-apple-macos-g++ --toolchain-root ""
+[131/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolboxPPC.dir/src/main.cpp.obj
+[132/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolboxPPC.dir/src/HelloWorldScenarioMain.cpp.obj
+[133/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolboxPPC.dir/__/scenarios/ScenarioTypes.cpp.obj
+[134/249] Building CXX object example/FloppyBird/CMakeFiles/LokaFloppyBirdPPC.dir/src/main.cpp.obj
+[135/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolboxPPC.dir/__/scenarios/ScenarioTypes.cpp.obj
+[136/249] Building CXX object example/Tutorial/CMakeFiles/LokaTutorialPPC.dir/src/main.cpp.obj
+[137/249] Building CXX object example/MineSweeper/CMakeFiles/LokaMinePPC.dir/src/main.cpp.obj
+[138/249] Linking CXX executable example/FloppyBird/LokaFloppyBirdPPC.xcoff
+[139/249] Generating Size.r.rsrc.bin
+[140/249] Generating LokaFloppyBirdPPC.pef
+[141/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolboxPPC.dir/__/__/common/testing/snap/SnapFormat.cpp.obj
+[142/249] Generating LokaFloppyBirdPPC.bin, LokaFloppyBirdPPC.APPL, LokaFloppyBirdPPC.dsk, LokaFloppyBirdPPC.ad, %LokaFloppyBirdPPC.ad
+[143/249] Linking CXX executable example/Tutorial/LokaTutorialPPC.xcoff
+[144/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolboxPPC.dir/__/TestingHooks.cpp.obj
+[145/249] Generating Size.r.rsrc.bin
+[146/249] Generating LokaTutorialPPC.pef
+[147/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolboxPPC.dir/src/ScenarioDriverSupport.cpp.obj
+[148/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolboxPPC.dir/src/ScenarioDriverSupport.cpp.obj
+[149/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolboxPPC.dir/src/TutorialScenarioMain.cpp.obj
+[150/249] Generating LokaTutorialPPC.bin, LokaTutorialPPC.APPL, LokaTutorialPPC.dsk, LokaTutorialPPC.ad, %LokaTutorialPPC.ad
+[151/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolboxPPC.dir/__/scenarios/StartupScenarios.cpp.obj
+[152/249] Linking CXX executable example/MineSweeper/LokaMinePPC.xcoff
+[153/249] Generating Size.r.rsrc.bin
+[154/249] Generating LokaMinePPC.pef
+[155/249] Generating LokaMinePPC.bin, LokaMinePPC.APPL, LokaMinePPC.dsk, LokaMinePPC.ad, %LokaMinePPC.ad
+[156/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolboxPPC.dir/__/__/example/ScrapbookUI/src/ScrapbookPackage.cpp.obj
+[157/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolboxPPC.dir/__/scenarios/ScenarioTypes.cpp.obj
+[158/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolboxPPC.dir/src/MineSweeperScenarioMain.cpp.obj
+[159/249] Building CXX object example/ScrapbookUI/CMakeFiles/ScrapbookUIPPC.dir/src/main.cpp.obj
+[160/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolboxPPC.dir/__/scenarios/ScrapbookScenarios.cpp.obj
+[161/249] Building CXX object example/LazyList/CMakeFiles/LokaLazyListPPC.dir/src/main.cpp.obj
+[162/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolboxPPC.dir/__/scenarios/RectSurfaceScenarioObservation.cpp.obj
+[163/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolboxPPC.dir/src/ScenarioDriverSupport.cpp.obj
+[164/249] Building CXX object example/HelloWorld/CMakeFiles/LokaHelloPPC.dir/src/MainNode.cpp.obj
+[165/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolboxPPC.dir/__/scenarios/ScenarioTypes.cpp.obj
+[166/249] Building CXX object example/SmirkBench/CMakeFiles/LokaSmirkBenchPPC.dir/src/main.cpp.obj
+[167/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolboxPPC.dir/__/TestingHooks.cpp.obj
+[168/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolboxPPC.dir/__/scenarios/RectSurfaceScenarioObservation.cpp.obj
+[169/249] Linking CXX executable example/LazyList/LokaLazyListPPC.xcoff
+[170/249] Linking CXX executable example/ScrapbookUI/ScrapbookUIPPC.xcoff
+[171/249] Generating Size.r.rsrc.bin
+[172/249] Generating Size.r.rsrc.bin
+[173/249] Generating LokaLazyListPPC.pef
+[174/249] Generating ScrapbookUIPPC.pef
+[175/249] Linking CXX executable example/HelloWorld/LokaHelloPPC.xcoff
+[176/249] Generating Size.r.rsrc.bin
+[177/249] Generating LokaHelloPPC.pef
+[178/249] Generating LokaLazyListPPC.bin, LokaLazyListPPC.APPL, LokaLazyListPPC.dsk, LokaLazyListPPC.ad, %LokaLazyListPPC.ad
+[179/249] Generating ScrapbookUIPPC.bin, ScrapbookUIPPC.APPL, ScrapbookUIPPC.dsk, ScrapbookUIPPC.ad, %ScrapbookUIPPC.ad
+[180/249] Generating LokaHelloPPC.bin, LokaHelloPPC.APPL, LokaHelloPPC.dsk, LokaHelloPPC.ad, %LokaHelloPPC.ad
+[181/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolboxPPC.dir/__/scenarios/StartupScenarios.cpp.obj
+[182/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolboxPPC.dir/src/FloppyBirdScenarioMain.cpp.obj
+[183/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolboxPPC.dir/__/TestingHooks.cpp.obj
 [184/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolboxPPC.dir/src/ScenarioDriverSupport.cpp.obj
 [185/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolboxPPC.dir/__/scenarios/ScenarioTypes.cpp.obj
-[186/249] Generating ScrapbookUIPPC.bin, ScrapbookUIPPC.APPL, ScrapbookUIPPC.dsk, ScrapbookUIPPC.ad, %ScrapbookUIPPC.ad
-[187/249] Building CXX object tests/toolbox/CMakeFiles/LokaSmirkBenchTestsToolboxPPC.dir/src/SmirkBenchScenarioMain.cpp.obj
-[188/249] Linking CXX executable example/LazyList/LokaLazyListPPC.xcoff
-[189/249] Generating Size.r.rsrc.bin
-[190/249] Generating LokaLazyListPPC.pef
-[191/249] Generating LokaLazyListPPC.bin, LokaLazyListPPC.APPL, LokaLazyListPPC.dsk, LokaLazyListPPC.ad, %LokaLazyListPPC.ad
-[192/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolboxPPC.dir/__/scenarios/StartupScenarios.cpp.obj
-[193/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolboxPPC.dir/src/HelloWorldScenarioDriver.cpp.obj
+[186/249] Linking CXX executable example/SmirkBench/LokaSmirkBenchPPC.xcoff
+[187/249] Generating Size.r.rsrc.bin
+[188/249] Generating LokaSmirkBenchPPC.pef
+[189/249] Generating LokaSmirkBenchPPC.bin, LokaSmirkBenchPPC.APPL, LokaSmirkBenchPPC.dsk, LokaSmirkBenchPPC.ad, %LokaSmirkBenchPPC.ad
+[190/249] Building CXX object tests/toolbox/CMakeFiles/LokaSmirkBenchTestsToolboxPPC.dir/src/SmirkBenchScenarioMain.cpp.obj
+[191/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolboxPPC.dir/__/scenarios/RectSurfaceScenarioObservation.cpp.obj
+[192/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolboxPPC.dir/__/TestingHooks.cpp.obj
+[193/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolboxPPC.dir/__/scenarios/RectSurfaceScenarioObservation.cpp.obj
 [194/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolboxPPC.dir/src/ScenarioDriverSupport.cpp.obj
-[195/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolboxPPC.dir/__/TestingHooks.cpp.obj
+[195/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolboxPPC.dir/__/scenarios/StartupScenarios.cpp.obj
 [196/249] Building CXX object tests/toolbox/CMakeFiles/LokaSimpleViewerTestsToolboxPPC.dir/src/SimpleViewerScenarioMain.cpp.obj
-[197/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolboxPPC.dir/__/scenarios/StartupScenarios.cpp.obj
-[198/249] Building CXX object tests/toolbox/CMakeFiles/LokaSmirkBenchTestsToolboxPPC.dir/__/scenarios/ScenarioTypes.cpp.obj
-[199/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolboxPPC.dir/__/scenarios/RectSurfaceScenarioObservation.cpp.obj
-[200/249] Building CXX object tests/toolbox/CMakeFiles/LokaSimpleViewerTestsToolboxPPC.dir/__/scenarios/ScenarioTypes.cpp.obj
-[201/249] Building CXX object tests/toolbox/CMakeFiles/LokaSmirkBenchTestsToolboxPPC.dir/__/scenarios/RectSurfaceScenarioObservation.cpp.obj
-[202/249] Building CXX object example/SimpleViewer/CMakeFiles/LokaSimpleViewerPPC.dir/src/main.cpp.obj
-[203/249] Building CXX object tests/toolbox/CMakeFiles/LokaSmirkBenchTestsToolboxPPC.dir/src/ScenarioDriverSupport.cpp.obj
-[204/249] Building CXX object tests/toolbox/CMakeFiles/LokaSimpleViewerTestsToolboxPPC.dir/__/TestingHooks.cpp.obj
-[205/249] Building CXX object tests/toolbox/CMakeFiles/LokaSmirkBenchTestsToolboxPPC.dir/__/TestingHooks.cpp.obj
-[206/249] Building CXX object tests/toolbox/CMakeFiles/LokaSimpleViewerTestsToolboxPPC.dir/src/ScenarioDriverSupport.cpp.obj
-[207/249] Linking CXX executable example/SimpleViewer/LokaSimpleViewerPPC.xcoff
-[208/249] Generating LokaSimpleViewerPPC.pef
-[209/249] Generating Size.r.rsrc.bin
-[210/249] Generating LokaSimpleViewerPPC.bin, LokaSimpleViewerPPC.APPL, LokaSimpleViewerPPC.dsk, LokaSimpleViewerPPC.ad, %LokaSimpleViewerPPC.ad
-[211/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolboxPPC.dir/__/scenarios/HelloWorldScenarios.cpp.obj
-[212/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolboxPPC.dir/__/__/example/HelloWorld/src/MainNode.cpp.obj
-[213/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolboxPPC.dir/src/ScenarioDriver.cpp.obj
-[214/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolboxPPC.dir/__/scenarios/TutorialScenarios.cpp.obj
-[215/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolboxPPC.dir/__/scenarios/FloppyBirdScenarios.cpp.obj
-[216/249] Linking CXX executable tests/toolbox/LokaTestsToolboxPPC.xcoff
-[217/249] Linking CXX executable tests/toolbox/LokaHelloWorldTestsToolboxPPC.xcoff
-[218/249] Generating LokaTestsToolboxPPC.pef
-[219/249] Generating LokaHelloWorldTestsToolboxPPC.pef
-[220/249] Generating Size.r.rsrc.bin
-[221/249] Generating HelloWorldSize.r.rsrc.bin
-[222/249] Generating LokaTestsToolboxPPC.bin, LokaTestsToolboxPPC.APPL, LokaTestsToolboxPPC.dsk, LokaTestsToolboxPPC.ad, %LokaTestsToolboxPPC.ad
-[223/249] Generating LokaHelloWorldTestsToolboxPPC.bin, LokaHelloWorldTestsToolboxPPC.APPL, LokaHelloWorldTestsToolboxPPC.dsk, LokaHelloWorldTestsToolboxPPC.ad, %LokaHelloWorldTestsToolboxPPC.ad
-[224/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolboxPPC.dir/src/TutorialScenarioDriver.cpp.obj
-[225/249] Linking CXX executable tests/toolbox/LokaTutorialTestsToolboxPPC.xcoff
-[226/249] Generating LokaTutorialTestsToolboxPPC.pef
-[227/249] Generating TutorialSize.r.rsrc.bin
-[228/249] Generating LokaTutorialTestsToolboxPPC.bin, LokaTutorialTestsToolboxPPC.APPL, LokaTutorialTestsToolboxPPC.dsk, LokaTutorialTestsToolboxPPC.ad, %LokaTutorialTestsToolboxPPC.ad
-[229/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolboxPPC.dir/src/MineSweeperScenarioDriver.cpp.obj
-[230/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolboxPPC.dir/src/FloppyBirdScenarioDriver.cpp.obj
-[231/249] Linking CXX executable tests/toolbox/LokaFloppyBirdTestsToolboxPPC.xcoff
-[232/249] Generating LokaFloppyBirdTestsToolboxPPC.pef
-[233/249] Generating FloppyBirdSize.r.rsrc.bin
-[234/249] Generating LokaFloppyBirdTestsToolboxPPC.bin, LokaFloppyBirdTestsToolboxPPC.APPL, LokaFloppyBirdTestsToolboxPPC.dsk, LokaFloppyBirdTestsToolboxPPC.ad, %LokaFloppyBirdTestsToolboxPPC.ad
-[235/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolboxPPC.dir/__/scenarios/MineSweeperScenarios.cpp.obj
-[236/249] Linking CXX executable tests/toolbox/LokaMineSweeperTestsToolboxPPC.xcoff
-[237/249] Generating LokaMineSweeperTestsToolboxPPC.pef
-[238/249] Generating MineSweeperScenarioSize.r.rsrc.bin
-[239/249] Generating LokaMineSweeperTestsToolboxPPC.bin, LokaMineSweeperTestsToolboxPPC.APPL, LokaMineSweeperTestsToolboxPPC.dsk, LokaMineSweeperTestsToolboxPPC.ad, %LokaMineSweeperTestsToolboxPPC.ad
+[197/249] Building CXX object tests/toolbox/CMakeFiles/LokaSmirkBenchTestsToolboxPPC.dir/src/ScenarioDriverSupport.cpp.obj
+[198/249] Building CXX object example/SimpleViewer/CMakeFiles/LokaSimpleViewerPPC.dir/src/main.cpp.obj
+[199/249] Building CXX object tests/toolbox/CMakeFiles/LokaSmirkBenchTestsToolboxPPC.dir/__/scenarios/ScenarioTypes.cpp.obj
+[200/249] Building CXX object tests/toolbox/CMakeFiles/LokaSmirkBenchTestsToolboxPPC.dir/__/TestingHooks.cpp.obj
+[201/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolboxPPC.dir/__/scenarios/StartupScenarios.cpp.obj
+[202/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolboxPPC.dir/src/HelloWorldScenarioDriver.cpp.obj
+[203/249] Linking CXX executable example/SimpleViewer/LokaSimpleViewerPPC.xcoff
+[204/249] Generating Size.r.rsrc.bin
+[205/249] Generating LokaSimpleViewerPPC.pef
+[206/249] Generating LokaSimpleViewerPPC.bin, LokaSimpleViewerPPC.APPL, LokaSimpleViewerPPC.dsk, LokaSimpleViewerPPC.ad, %LokaSimpleViewerPPC.ad
+[207/249] Building CXX object tests/toolbox/CMakeFiles/LokaSimpleViewerTestsToolboxPPC.dir/src/ScenarioDriverSupport.cpp.obj
+[208/249] Building CXX object tests/toolbox/CMakeFiles/LokaSimpleViewerTestsToolboxPPC.dir/__/scenarios/ScenarioTypes.cpp.obj
+[209/249] Building CXX object tests/toolbox/CMakeFiles/LokaSimpleViewerTestsToolboxPPC.dir/__/TestingHooks.cpp.obj
+[210/249] Building CXX object tests/toolbox/CMakeFiles/LokaSmirkBenchTestsToolboxPPC.dir/__/scenarios/RectSurfaceScenarioObservation.cpp.obj
+[211/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolboxPPC.dir/__/scenarios/FloppyBirdScenarios.cpp.obj
+[212/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolboxPPC.dir/__/scenarios/TutorialScenarios.cpp.obj
+[213/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolboxPPC.dir/__/scenarios/HelloWorldScenarios.cpp.obj
+[214/249] Building CXX object tests/toolbox/CMakeFiles/LokaHelloWorldTestsToolboxPPC.dir/__/__/example/HelloWorld/src/MainNode.cpp.obj
+[215/249] Building CXX object tests/toolbox/CMakeFiles/LokaTutorialTestsToolboxPPC.dir/src/TutorialScenarioDriver.cpp.obj
+[216/249] Linking CXX executable tests/toolbox/LokaHelloWorldTestsToolboxPPC.xcoff
+[217/249] Generating LokaHelloWorldTestsToolboxPPC.pef
+[218/249] Generating HelloWorldSize.r.rsrc.bin
+[219/249] Generating LokaHelloWorldTestsToolboxPPC.bin, LokaHelloWorldTestsToolboxPPC.APPL, LokaHelloWorldTestsToolboxPPC.dsk, LokaHelloWorldTestsToolboxPPC.ad, %LokaHelloWorldTestsToolboxPPC.ad
+[220/249] Building CXX object tests/toolbox/CMakeFiles/LokaTestsToolboxPPC.dir/src/ScenarioDriver.cpp.obj
+[221/249] Linking CXX executable tests/toolbox/LokaTutorialTestsToolboxPPC.xcoff
+[222/249] Generating LokaTutorialTestsToolboxPPC.pef
+[223/249] Generating TutorialSize.r.rsrc.bin
+[224/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolboxPPC.dir/src/MineSweeperScenarioDriver.cpp.obj
+[225/249] Generating LokaTutorialTestsToolboxPPC.bin, LokaTutorialTestsToolboxPPC.APPL, LokaTutorialTestsToolboxPPC.dsk, LokaTutorialTestsToolboxPPC.ad, %LokaTutorialTestsToolboxPPC.ad
+[226/249] Linking CXX executable tests/toolbox/LokaTestsToolboxPPC.xcoff
+[227/249] Generating LokaTestsToolboxPPC.pef
+[228/249] Generating Size.r.rsrc.bin
+[229/249] Building CXX object tests/toolbox/CMakeFiles/LokaMineSweeperTestsToolboxPPC.dir/__/scenarios/MineSweeperScenarios.cpp.obj
+[230/249] Generating LokaTestsToolboxPPC.bin, LokaTestsToolboxPPC.APPL, LokaTestsToolboxPPC.dsk, LokaTestsToolboxPPC.ad, %LokaTestsToolboxPPC.ad
+[231/249] Building CXX object tests/toolbox/CMakeFiles/LokaFloppyBirdTestsToolboxPPC.dir/src/FloppyBirdScenarioDriver.cpp.obj
+[232/249] Linking CXX executable tests/toolbox/LokaMineSweeperTestsToolboxPPC.xcoff
+[233/249] Generating LokaMineSweeperTestsToolboxPPC.pef
+[234/249] Generating MineSweeperScenarioSize.r.rsrc.bin
+[235/249] Generating LokaMineSweeperTestsToolboxPPC.bin, LokaMineSweeperTestsToolboxPPC.APPL, LokaMineSweeperTestsToolboxPPC.dsk, LokaMineSweeperTestsToolboxPPC.ad, %LokaMineSweeperTestsToolboxPPC.ad
+[236/249] Linking CXX executable tests/toolbox/LokaFloppyBirdTestsToolboxPPC.xcoff
+[237/249] Generating LokaFloppyBirdTestsToolboxPPC.pef
+[238/249] Generating FloppyBirdSize.r.rsrc.bin
+[239/249] Generating LokaFloppyBirdTestsToolboxPPC.bin, LokaFloppyBirdTestsToolboxPPC.APPL, LokaFloppyBirdTestsToolboxPPC.dsk, LokaFloppyBirdTestsToolboxPPC.ad, %LokaFloppyBirdTestsToolboxPPC.ad
 [240/249] Building CXX object tests/toolbox/CMakeFiles/LokaSmirkBenchTestsToolboxPPC.dir/src/SmirkBenchScenarioDriver.cpp.obj
 [241/249] Linking CXX executable tests/toolbox/LokaSmirkBenchTestsToolboxPPC.xcoff
 [242/249] Generating LokaSmirkBenchTestsToolboxPPC.pef
@@ -545,9 +545,9 @@ Preset CMake variables:
 [247/249] Generating LokaSimpleViewerTestsToolboxPPC.pef
 [248/249] Generating SimpleViewerSize.r.rsrc.bin
 [249/249] Generating LokaSimpleViewerTestsToolboxPPC.bin, LokaSimpleViewerTestsToolboxPPC.APPL, LokaSimpleViewerTestsToolboxPPC.dsk, LokaSimpleViewerTestsToolboxPPC.ad, %LokaSimpleViewerTestsToolboxPPC.ad
-/tmp/Loka-v0.0.5-rehearsal2-classic.zip
-/tmp/Loka-v0.0.5-rehearsal2-classic.zip.manifest.txt
+/tmp/Loka-v0.0.5-rehearsal4-classic.zip
+/tmp/Loka-v0.0.5-rehearsal4-classic.zip.manifest.txt
 assemble exit=0
--rw-r--r-- 1 cubenoy22 cubenoy22 5116675 Sep 16 19:43 /tmp/Loka-v0.0.5-rehearsal2-classic.zip
--rw-r--r-- 1 cubenoy22 cubenoy22    4184 Sep 16 19:43 /tmp/Loka-v0.0.5-rehearsal2-classic.zip.manifest.txt
-done Wed Sep 16 19:43:51 JST 2026
+-rw-r--r-- 1 cubenoy22 cubenoy22 5633275 Sep 16 21:01 /tmp/Loka-v0.0.5-rehearsal4-classic.zip
+-rw-r--r-- 1 cubenoy22 cubenoy22    4402 Sep 16 21:01 /tmp/Loka-v0.0.5-rehearsal4-classic.zip.manifest.txt
+done Wed Sep 16 21:01:32 JST 2026
