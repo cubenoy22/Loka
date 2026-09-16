@@ -13,11 +13,14 @@
 
 > [!IMPORTANT]
 > The current release is
-> [v0.0.4](https://github.com/cubenoy22/Loka/releases/tag/v0.0.4), which
-> hardens the proof machinery — capture-environment declarations, reference
-> identities, and startup-identity guards on every pixel rail — and turns the
-> presentation reels into autonomous standalone applications on Classic,
-> Win32, and macOS (including a macOS UB2 release payload). This
+> [v0.0.5](https://github.com/cubenoy22/Loka/releases/tag/v0.0.5), which
+> makes the update cycle allocation-free (the pool allocator is the main line),
+> lands the paint-damage ledger and the write-seat state family, and puts a
+> runtime on top of that core: SmirkyCard, an experimental HyperCard-style
+> example whose cards are JavaScript loaded from a MAIN.JS beside the
+> application, on every rail down to a 68000 Classic Mac. Release payloads:
+> Classic 68K + PPC, macOS UB2 (arm64 + x86_64) and, for the first time,
+> macOS UB1 (ppc + i386). This
 > framework is still in the proof-of-concept stage: the core is already usable, but broader component
 > coverage, platform support, and some refactoring work are still in progress.
 > Please also see [ROADMAP.md](ROADMAP.md).
@@ -101,7 +104,7 @@ Status terms:
 | Modern Windows / Win32 | `active` | Native Win32 projection path. Windows XP-class compatibility is tracked as a legacy build target. |
 | macOS / Cocoa | `active` | Native macOS projection path. Mac OS X 10.4 Tiger or newer and PowerPC G3 or newer are supported targets. |
 | Classic Mac OS / Toolbox | `active` | Built through Retro68 for System 7 or later on 68k and PowerPC-style Classic targets.<br>Practical mainstream target: 68030-class systems and later (and PPC601 / 603e-class PowerPC Macs). Low-end 68k (68000 / 68020) stays an important constraint and validation path.<br>The 0.0.1-generation examples are all runtime-verified on a 68030 PowerBook 180c (33 MHz, 4 MB RAM) with no 68k-specific optimization pass. The 0.0.5 generation (all examples plus SmirkyCard) was runtime-verified on a PowerBook 180c (68030 / 33 MHz, 8 MB) on 2026-09-16. (The record — candidate, configuration, rig, result, limits — is in the 0.0.5 release notes and its release PR.) LazyList, the windowed-list measurement bench, still feels slow on the 68030 180c; treat it as a benchmark, comfortable from PowerPC-class machines. |
-| Linux / WSL | `headless` | Used today for core and Flow DSL tests. Full native UI projection is planned, not part of `0.0.5`. |
+| Linux / WSL | `headless` | Used today for core and Flow DSL tests. Full native UI projection is planned, not part of `0.0.6`. |
 | iOS / iPadOS, Linux desktop UI, Windows Mobile-class systems, game-oriented backends | `planned` | Future ports should reuse the same Node / Boundary / State / Flow model rather than adding platform-specific application models. |
 
 For exact build and workflow details, see [docs/environments.md](docs/environments.md). Classic Mac OS and Retro68-specific notes are in [docs/retro68.md](docs/retro68.md).
