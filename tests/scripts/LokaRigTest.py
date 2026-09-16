@@ -969,7 +969,7 @@ class CaptureProfileGuardTest(unittest.TestCase):
             declared,
             {
                 "profile_version": "2",
-                "os_build": "25G76",
+                "os_build": "25G229",
                 "arch": "x86_64",
                 "scale_percent": "200",
                 "depth": "24",
