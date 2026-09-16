@@ -52,6 +52,7 @@ namespace loka
         Entry *entry_;
         friend class DialogResultTransport;
         friend class ReturnPort;
+        friend class Invocation; // reads binding_ when delivering (C++98: nested classes get no access by nesting)
         Registration(const Registration &);
         Registration &operator=(const Registration &);
       };
