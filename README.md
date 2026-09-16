@@ -185,6 +185,10 @@ Classic Mac OS the file sits beside the application; on macOS it is inside the
 app bundle at `Contents/Resources/MAIN.JS`. Edit that file and choose
 **Reload MAIN.JS** to re-read it without relaunching the application.
 
+It also runs in a Macintosh Plus configuration (68000, 4 MB, System 7.1) on
+[Infinite Mac](https://infinitemac.org/) — browser emulation, so speed is not
+claimed, but the memory and the OS are what they say.
+
 This experiment has no screen goldens, does not carry state across a reload,
 and provides eight seats per card. Its build is opt-in at configure time; see
 [the SmirkyCard README](example/SmirkyCard/README.md) for build instructions.
