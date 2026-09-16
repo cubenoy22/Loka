@@ -2,8 +2,8 @@
 # shape — Classic APPLs plus the separate macOS UB2 standalone archive, see
 # release-v0.0.5-macos-ub2.txt — plus SmirkyCard as an experimental 68K-only
 # extra beside its MAIN.JS). MacBinary-encoded application binaries per example,
-# ScrapbookUI's tracked package beside its 68K binary. ScrapbookUI has no PPC
-# target (n/a in the matrix). LazyList and SmirkBench are measurement benches
+# ScrapbookUI's tracked package beside each of its binaries (68K and PPC; the
+# PPC target exists since #417 — the 0.0.4 list wrongly said n/a). LazyList and SmirkBench are measurement benches
 # and are not shipped. SmirkyCard has no PPC build and no golden cells (README:
 # Experimental); MAIN.JS is the sample it loads from beside the application.
 git	example/ScrapbookUI/ASSETS.LRP	68K/ScrapbookUI/ASSETS.LRP
@@ -18,5 +18,7 @@ build	build/retro68/ppc/Release/example/Tutorial/LokaTutorialPPC.bin	PPC/Tutoria
 build	build/retro68/ppc/Release/example/MineSweeper/LokaMinePPC.bin	PPC/MineSweeper/LokaMinePPC.bin
 build	build/retro68/ppc/Release/example/SimpleViewer/LokaSimpleViewerPPC.bin	PPC/SimpleViewer/LokaSimpleViewerPPC.bin
 build	build/retro68/ppc/Release/example/FloppyBird/LokaFloppyBirdPPC.bin	PPC/FloppyBird/LokaFloppyBirdPPC.bin
+git	example/ScrapbookUI/ASSETS.LRP	PPC/ScrapbookUI/ASSETS.LRP
+build	build/retro68/ppc/Release/example/ScrapbookUI/ScrapbookUIPPC.bin	PPC/ScrapbookUI/ScrapbookUIPPC.bin
 build	build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin	experimental/SmirkyCard/LokaSmirkyCard68K.bin
 git	example/SmirkyCard/MAIN.JS	experimental/SmirkyCard/MAIN.JS
