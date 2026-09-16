@@ -21,10 +21,10 @@ namespace loka
     public:
       class Registration;
       class ReturnPort;
-      class Invocation; // so Registration's friend names the nested class, not a new loka::app::Invocation
 
     private:
       struct Entry;
+      class Invocation; // declared before Registration so its friend names this nested class
       /** Intrusive ownership: entries know their chain and unlink in constant time. */
       struct Chain
       {
