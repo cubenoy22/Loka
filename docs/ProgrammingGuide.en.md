@@ -665,17 +665,17 @@ card('first', class {
   }
   compose() {
     return VStack(
-      Text('Card One').TEST_ID('SmirkyCard.Title'),
+      Text('Card One'),
       Text('This Scene is defined in JavaScript.'),
-      EditText(this.script).TEST_ID('SmirkyCard.Script'),
+      EditText(this.script),
       Button('Run', () => {
         try { this.result.set(String(eval(this.script.get()))); }
         catch (e) { this.result.set('Error: ' + e); }
-      }).TEST_ID('SmirkyCard.RunScript'),
-      Text(this.result).TEST_ID('SmirkyCard.Result'),
-      Button('Run JavaScript', () => go('second')).TEST_ID('SmirkyCard.Run'),
-      Button('Reload MAIN.JS', () => reload()).TEST_ID('SmirkyCard.Reload'),
-      Text(this.error).TEST_ID('SmirkyCard.Status')
+      }),
+      Text(this.result),
+      Button('Run JavaScript', () => go('second')),
+      Button('Reload MAIN.JS', () => reload()),
+      Text(this.error)
     );
   }
 });
