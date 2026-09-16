@@ -100,7 +100,7 @@ Status terms:
 | --- | --- | --- |
 | Modern Windows / Win32 | `active` | Native Win32 projection path. Windows XP-class compatibility is tracked as a legacy build target. |
 | macOS / Cocoa | `active` | Native macOS projection path. Mac OS X 10.4 Tiger or newer and PowerPC G3 or newer are supported targets. |
-| Classic Mac OS / Toolbox | `active` | Built through Retro68 for System 7 or later on 68k and PowerPC-style Classic targets.<br>Practical mainstream target: 68030-class systems and later (and PPC601 / 603e-class PowerPC Macs). Low-end 68k (68000 / 68020) stays an important constraint and validation path.<br>The 0.0.1-generation examples are all runtime-verified on a 68030 PowerBook 180c (33 MHz, 4 MB RAM) with no 68k-specific optimization pass; later generations carry their Classic evidence in each release's verification matrix (automated MAME registry plus per-release Mac OS 9 hands-on samples). |
+| Classic Mac OS / Toolbox | `active` | Built through Retro68 for System 7 or later on 68k and PowerPC-style Classic targets.<br>Practical mainstream target: 68030-class systems and later (and PPC601 / 603e-class PowerPC Macs). Low-end 68k (68000 / 68020) stays an important constraint and validation path.<br>The 0.0.1-generation examples are all runtime-verified on a 68030 PowerBook 180c (33 MHz, 4 MB RAM) with no 68k-specific optimization pass. The 0.0.5 generation (all examples plus SmirkyCard) was runtime-verified on a PowerBook 180c (68030 / 33 MHz, 8 MB) on 2026-09-16. (The record — candidate, configuration, rig, result, limits — is in the 0.0.5 release notes and its release PR.) LazyList, the windowed-list measurement bench, still feels slow on the 68030 180c; treat it as a benchmark, comfortable from PowerPC-class machines. |
 | Linux / WSL | `headless` | Used today for core and Flow DSL tests. Full native UI projection is planned, not part of `0.0.5`. |
 | iOS / iPadOS, Linux desktop UI, Windows Mobile-class systems, game-oriented backends | `planned` | Future ports should reuse the same Node / Boundary / State / Flow model rather than adding platform-specific application models. |
 
@@ -174,6 +174,28 @@ Development, build, and target environment notes are documented in [docs/environ
 Classic Mac OS and Retro68-specific notes are documented in [docs/retro68.md](docs/retro68.md).
 
 macOS script entry points are documented in [scripts/macos/README.md](scripts/macos/README.md).
+
+## Examples
+
+### SmirkyCard (experimental)
+
+SmirkyCard defines cards in JavaScript using the same names as Loka's C++ node
+DSL. It loads two named cards, Card One and Card Two, from `MAIN.JS`: on Windows and
+Classic Mac OS the file sits beside the application; on macOS it is inside the
+app bundle at `Contents/Resources/MAIN.JS`. Edit that file and choose
+**Reload MAIN.JS** to re-read it without relaunching the application.
+
+It also runs in a Macintosh Plus configuration (68000, 4 MB, System 7.1) on
+[Infinite Mac](https://infinitemac.org/) — browser emulation, so speed is not
+claimed, but the memory and the OS are what they say.
+
+This experiment has no screen goldens, does not carry state across a reload,
+and provides eight seats per card. Its build is opt-in at configure time; see
+[the SmirkyCard README](example/SmirkyCard/README.md) for build instructions.
+
+On Classic Mac OS, `MAIN.JS` must be UTF-8 text. TeachText and SimpleText cannot
+write full-width UTF-8 characters, so use an editor that saves UTF-8. Classic
+Mac OS CR line endings are fine.
 
 ## Release-preflight rigs
 

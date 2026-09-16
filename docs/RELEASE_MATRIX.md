@@ -93,6 +93,11 @@ cross-platform verification, and the missing native ScrollBar arms tracked by
 [#224](https://github.com/cubenoy22/Loka/issues/224) do not make the example
 inapplicable because its shared UI uses Previous/Next buttons.
 
+`SmirkyCard` is experimental — no pixel golden cells. It is opt-in at configure
+time, so its L0 and L1 cells below carry their own reproduction commands: every
+listed L0 configure must add `-DLOKA_BUILD_SMIRKYCARD=ON`, and its L1 cell is a
+manual launch check (no scenario runner) rather than a golden.
+
 ## Grades
 
 | Grade | Meaning | Automation |
@@ -112,6 +117,7 @@ inapplicable because its shared UI uses Previous/Next buttons.
 | `ScrapbookUI` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_ | - [ ] Evidence: _add link_ | 68K: - [ ] Evidence: _add link_<br>PPC: - [ ] Evidence: _add link_ |
 | `SimpleViewer` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_ | - [ ] Evidence: _add link_ | 68K: - [ ] Evidence: _add link_<br>PPC: - [ ] Evidence: _add link_ |
 | `Tutorial` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_ | - [ ] Evidence: _add link_ | 68K: - [ ] Evidence: _add link_<br>PPC: - [ ] Evidence: _add link_ |
+| `SmirkyCard` (experimental, opt-in) | headless test only: `cmake --preset testing -DLOKA_BUILD_SMIRKYCARD=ON && ctest --preset testing -R smirkyCard` — - [ ] Evidence: _add link_ | `cmake --preset win32-debug -DLOKA_BUILD_SMIRKYCARD=ON` — - [ ] Evidence: _add link_ | `cmake --preset macos-debug -DLOKA_BUILD_SMIRKYCARD=ON` — - [ ] Evidence: _add link_ | 68K: `scripts/retro68-cmake.sh --preset retro68-68k-release -DLOKA_BUILD_SMIRKYCARD=ON` then `--target LokaSmirkyCard68K_APPL` — - [ ] Evidence: _add link_<br>PPC: n/a (not built or claimed) |
 
 ## L1 — startup smoke
 
@@ -127,6 +133,7 @@ and the goldens are stored per rig. See *How each rail is run* for the full form
 | `MineSweeper` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_ (`tests/win32/run-scenario.ps1 minesweeper startup`) | - [ ] Evidence: _add link_ (`tests/macos/run-scenario.sh minesweeper startup`) | - [ ] Evidence: _add link_ (`tests/toolbox/run-scenario.sh minesweeper startup`) |
 | `ScrapbookUI` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_ (`tests/win32/run-scenario.ps1 scrapbook startup`) | - [ ] Evidence: _add link_ (`tests/macos/run-scenario.sh scrapbook startup`) | - [ ] Evidence: _add link_ (`tests/toolbox/run-scenario.sh scrapbook startup`) |
 | `SimpleViewer` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** | - [ ] Evidence: _add link_; runner **TBD ([#312](https://github.com/cubenoy22/Loka/issues/312))** |
+| `SmirkyCard` (experimental, manual) | n/a | - [ ] Evidence: _add link_ (launch `LokaSmirkyCardWin32.exe` with `MAIN.JS` beside it: Card One shows, Run evaluates `1+1`, Reload MAIN.JS re-reads an edited file) | - [ ] Evidence: _add link_ (launch `LokaSmirkyCardMacOS.app`, same three checks; `MAIN.JS` is in `Contents/Resources`) | - [ ] Evidence: _add link_ (stage with `scripts/mame-dev-disk.sh <bin> example/SmirkyCard/MAIN.JS`, same three checks) |
 | `Tutorial` | n/a — no Linux GUI application target | - [ ] Evidence: _add link_ (`tests/win32/run-scenario.ps1 tutorial startup`) | - [ ] Evidence: _add link_ (`tests/macos/run-scenario.sh tutorial startup`) | - [ ] Evidence: _add link_ (`tests/toolbox/run-scenario.sh tutorial startup`) |
 
 ## L2 — scenario completion
