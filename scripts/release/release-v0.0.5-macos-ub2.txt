@@ -1,0 +1,8 @@
+# v0.0.5 macOS UB2 standalone release allowlist (adjudicated 2026-09-16: the
+# 0.0.4 shape, unchanged — five autonomous presentation loops plus
+# SimpleViewer, arm64+x86_64, staged by scripts/macos-standalone-release-ub2.sh
+# at the tag and zipped by ditto so the .app bundles enter the archive as one
+# file; assemble.py refuses directories by design). SmirkyCard's macOS bundle
+# is not shipped this release: the stage script does not know the opt-in
+# configure yet (0.0.6).
+build	build/release/Loka-macos-standalone-UB2.zip	macOS/Loka-macos-standalone-UB2.zip
