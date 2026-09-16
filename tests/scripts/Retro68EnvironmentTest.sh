@@ -106,11 +106,23 @@ with open(sys.argv[1], encoding="utf-8") as handle:
     tasks = json.load(handle)["tasks"]
 
 wrapper = "${workspaceFolder}/scripts/retro68-cmake.sh"
+# The picker-driven "Build: Retro68 68K target" task delegates to
+# scripts/mame-dev-disk-app.sh, which must itself go through the wrapper for
+# every build it runs (checked below), so the environment is still loaded.
+delegate = "${workspaceFolder}/scripts/mame-dev-disk-app.sh"
 for task in tasks:
     label = task.get("label", "")
     if label.startswith(("Configure: Retro68", "Build: Retro68")):
-        if task.get("command") != wrapper:
+        command = task.get("command")
+        if command == delegate:
+            continue
+        if command != wrapper:
             raise SystemExit(f"{label} bypasses {wrapper}")
+
+import pathlib
+delegate_text = pathlib.Path(sys.argv[1]).parent.parent.joinpath("scripts", "mame-dev-disk-app.sh").read_text(encoding="utf-8")
+if "retro68-cmake.sh\" --build" not in delegate_text or "cmake --build" in delegate_text:
+    raise SystemExit("scripts/mame-dev-disk-app.sh must build only through retro68-cmake.sh")
 
 for label in ("PMonSprite: Configure ScrapbookUI", "PMonSprite: Build ScrapbookUI"):
     task = next(item for item in tasks if item.get("label") == label)
