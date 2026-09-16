@@ -23,3 +23,15 @@ build/release/macos-tiger-ub1/LokaMineSweeperStandaloneLoopMacOS.app/Contents/Ma
 build/release/macos-tiger-ub1/LokaScrapbookStandaloneLoopMacOS.app/Contents/MacOS/LokaScrapbookStandaloneLoopMacOS: 
 build/release/macos-tiger-ub1/LokaSimpleViewerMacOS.app/Contents/MacOS/LokaSimpleViewerMacOS: 
 build/release/macos-tiger-ub1/LokaTutorialStandaloneLoopMacOS.app/Contents/MacOS/LokaTutorialStandaloneLoopMacOS: 
+LokaFloppyBirdStandaloneLoopMacOS.app/Contents/MacOS/LokaFloppyBirdStandaloneLoopMacOS: 2 architectures
+LokaFloppyBirdStandaloneLoopMacOS.app/Contents/MacOS/LokaFloppyBirdStandaloneLoopMacOS (fo
+LokaFloppyBirdStandaloneLoopMacOS.app/Contents/MacOS/LokaFloppyBirdStandaloneLoopMacOS (fo
+LokaHelloWorldStandaloneLoopMacOS.app/Contents/MacOS/LokaHelloWorldStandaloneLoopMacOS: 2 architectures
+LokaHelloWorldStandaloneLoopMacOS.app/Contents/MacOS/LokaHelloWorldStandaloneLoopMacOS (fo
+LokaHelloWorldStandaloneLoopMacOS.app/Contents/MacOS/LokaHelloWorldStandaloneLoopMacOS (fo
+LokaMineSweeperStandaloneLoopMacOS.app/Contents/MacOS/LokaMineSweeperStandaloneLoopMacOS: 2 architectures
+LokaMineSweeperStandaloneLoopMacOS.app/Contents/MacOS/LokaMineSweeperStandaloneLoopMacOS (
+LokaMineSweeperStandaloneLoopMacOS.app/Contents/MacOS/LokaMineSweeperStandaloneLoopMacOS (
+LokaScrapbookStandaloneLoopMacOS.app/Contents/MacOS/LokaScrapbookStandaloneLoopMacOS: 2 architectures
+LokaScrapbookStandaloneLoopMacOS.app/Contents/MacOS/LokaScrapbookStandaloneLoopMacOS (for 
+LokaScrapbookStandaloneLoopMacOS.app/Contents/MacOS/LokaScrapbookStandaloneLoopMacOS (for 
