@@ -89,6 +89,8 @@ public:
 private:
   /** Capture local data and report whether existing controller rows need refresh. */
   bool captureProps();
+  /** Native title width plus the push-button inset on both sides. */
+  short naturalWidth(const loka::core::String &label) const;
   virtual void retireNativeProjection();
   loka::app::ButtonNode *node_;
   Rect rect_;

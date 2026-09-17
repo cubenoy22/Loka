@@ -34,45 +34,18 @@ namespace
 
   bool DrawStringAt(short x, short y, const loka::core::String &value)
   {
-    std::string utf8;
-    if (!loka::platform::CollectUtf8(value, utf8))
+    Str255 text;
+    if (!ToolboxBuildPascalText(value, text))
     {
       return false;
-    }
-    std::size_t length = utf8.size();
-    if (length > 255)
-    {
-      length = 255;
-    }
-    Str255 text;
-    text[0] = static_cast<unsigned char>(length);
-    if (length > 0)
-    {
-      std::memcpy(text + 1, utf8.data(), length);
     }
     MoveTo(x, y);
     DrawString(text);
     return true;
   }
 
-  void DrawUtf8At(short x, short y, const std::string &utf8)
-  {
-    std::size_t length = utf8.size();
-    if (length > 255)
-    {
-      length = 255;
-    }
-    Str255 text;
-    text[0] = static_cast<unsigned char>(length);
-    if (length > 0)
-    {
-      std::memcpy(text + 1, utf8.data(), length);
-    }
-    MoveTo(x, y);
-    DrawString(text);
-  }
-
-  std::string TruncateWithEllipsis(const loka::core::String &value, short maxWidth)
+  std::string TruncateWithEllipsis(const loka::core::String &value, short maxWidth,
+                                   const ToolboxTextMeasureScope &measure)
   {
     if (maxWidth <= 0)
     {
@@ -83,12 +56,12 @@ namespace
     {
       return std::string();
     }
-    if (ToolboxMeasureTextWidth(value) <= maxWidth)
+    if (measure.measure(value) <= maxWidth)
     {
       return utf8;
     }
 
-    const short ellipsisWidth = ToolboxMeasureTextWidth(loka::core::String::Literal("..."));
+    const short ellipsisWidth = measure.measure(loka::core::String::Literal("..."));
     if (ellipsisWidth >= maxWidth)
     {
       return std::string("...");
@@ -98,7 +71,7 @@ namespace
     while (!prefix.empty())
     {
       std::string candidate = prefix + "...";
-      if (ToolboxMeasureTextWidth(loka::core::String(candidate)) <= maxWidth)
+      if (measure.measure(loka::core::String(candidate)) <= maxWidth)
       {
         return candidate;
       }
@@ -117,7 +90,8 @@ namespace
     return std::string("...");
   }
 
-  short MeasureWrappedTextHeight(const loka::core::String &value, short maxWidth, short lineHeight, bool charWrap)
+  short MeasureWrappedTextHeight(const loka::core::String &value, short maxWidth, short lineHeight,
+                                 bool charWrap, const ToolboxTextMeasureScope &measure)
   {
     if (maxWidth <= 0 || lineHeight <= 0)
     {
@@ -155,7 +129,7 @@ namespace
       if (charWrap || isSpace)
       {
         std::string next = current + cp;
-        if (ToolboxMeasureTextWidth(loka::core::String(next)) > maxWidth && !current.empty())
+        if (measure.measure(loka::core::String(next)) > maxWidth && !current.empty())
         {
           ++lines;
           current = cp;
@@ -178,7 +152,7 @@ namespace
       // word wrap path: keep token together, but force-break long tokens
       std::string nextWord = currentWord + cp;
       std::string candidate = current + cp;
-      if (ToolboxMeasureTextWidth(loka::core::String(candidate)) > maxWidth && !current.empty())
+      if (measure.measure(loka::core::String(candidate)) > maxWidth && !current.empty())
       {
         ++lines;
         current = cp;
@@ -271,7 +245,7 @@ short ToolboxTextContext::visibleWidth() const
   {
     return 0;
   }
-  short width = ToolboxMeasureTextWidth(text_->get());
+  short width = this->controller() ? this->controller()->measureTextWidth(text_->get()) : 0;
   const short maxWidth = static_cast<short>(rect_.right - rect_.left);
   if (maxWidth > 0 && width > maxWidth)
   {
@@ -298,10 +272,13 @@ void ToolboxTextContext::paint(bool erase)
   if (erase)
     EraseRect(&this->paintRect_);
   bool painted = false;
-  if (this->maxWidth_ > 0 && this->truncationMode_ == loka::app::TEXT_TRUNCATION_ELLIPSIS)
+  if (this->maxWidth_ > 0 && this->truncationMode_ == loka::app::TEXT_TRUNCATION_ELLIPSIS
+      && this->controller())
   {
-    const std::string truncated = TruncateWithEllipsis(this->text_->get(), this->maxWidth_);
-    DrawUtf8At(this->textX_, this->textY_, truncated);
+    ToolboxTextMeasureScope measure(*this->controller());
+    const std::string truncated = TruncateWithEllipsis(
+        this->text_->get(), this->maxWidth_, measure);
+    DrawStringAt(this->textX_, this->textY_, loka::core::String(truncated));
     // The legacy truncator cannot report conversion refusal, so it cannot
     // establish a completed value. Keep its answer conservative.
   }
@@ -329,14 +306,18 @@ void ToolboxTextContext::draw(ToolboxScenePlatformController *controller)
 short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controller,
                                  loka::app::scene::LayoutState &state)
 {
-  (void)controller;
+  ToolboxScenePlatformController *toolbox =
+      static_cast<ToolboxScenePlatformController *>(controller);
   this->captureProps();
   if (!node_ || !node_->props.text_)
   {
     return 0;
   }
   const loka::core::String &value = node_->props.text_->get();
-  short measuredWidth = ToolboxMeasureTextWidth(value);
+  if (!toolbox)
+    return 0;
+  ToolboxTextMeasureScope measure(*toolbox);
+  short measuredWidth = measure.measure(value);
   short width = measuredWidth;
   const bool wrapWord = (wrapMode_ == loka::app::TEXT_WRAP_WORD);
   const bool wrapChar = (wrapMode_ == loka::app::TEXT_WRAP_CHAR);
@@ -351,7 +332,8 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
                                    maxWidth_,
                                    state.lineHeight > 0 ? state.lineHeight
                                                         : ToolboxLayoutMetrics::kDefaultLineHeight,
-                                   wrapChar);
+                                   wrapChar,
+                                   measure);
     }
     width = maxWidth_;
   }
