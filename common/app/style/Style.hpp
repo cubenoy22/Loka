@@ -176,12 +176,19 @@ namespace loka
   {
     TextStyle SizeOf(int logicalUnits);
 
-    extern const TextStyle Bold;
-    extern const TextStyle Italic;
-    extern const TextStyle Body;
-    extern const TextStyle Caption;
-    extern const TextStyle Heading;
-    extern const TextStyle Title;
+    /* Named styles are defined per translation unit (internal linkage) so that a
+       namespace-scope style in application code, such as
+       `const TextStyle Warning = Bold + Italic;`, is initialised after them:
+       within one translation unit dynamic initialisation runs in declaration
+       order, and this header precedes any consumer declaration. An extern
+       object defined in Style.cpp would give no such guarantee across
+       translation units. */
+    static const TextStyle Bold = TextStyle().weight(TEXT_WEIGHT_BOLD);
+    static const TextStyle Italic = TextStyle().italic();
+    static const TextStyle Body = FontSize<12>();
+    static const TextStyle Caption = FontSize<9>();
+    static const TextStyle Heading = FontSize<12>() + Bold;
+    static const TextStyle Title = FontSize<18>() + Bold;
   } // namespace app
 } // namespace loka
 

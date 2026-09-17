@@ -7,9 +7,19 @@
 #include "platform/null/context/NullTextContext.hpp"
 #include "support/TestVerify.hpp"
 
+namespace
+{
+  // A namespace-scope style composed from the named styles, the shape an
+  // application would write. It must be initialised after Bold and Italic,
+  // which the header guarantees by defining them per translation unit.
+  const loka::app::TextStyle kWarningStyle = loka::app::Bold + loka::app::Italic;
+}
+
 void testTextStyleMergeAndSizeVocabulary()
 {
   using namespace loka::app;
+  LOKA_VERIFY(kWarningStyle.hasWeight_ && kWarningStyle.weight_ == TEXT_WEIGHT_BOLD);
+  LOKA_VERIFY(kWarningStyle.hasItalic_ && kWarningStyle.italic_);
   const TextStyle boldLarge = Bold + FontSize<24>();
   const TextStyle largeBold = FontSize<24>() + Bold;
   LOKA_VERIFY(boldLarge == largeBold);

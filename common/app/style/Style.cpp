@@ -34,11 +34,5 @@ namespace loka
       return result;
     }
 
-    const TextStyle Bold = TextStyle().weight(TEXT_WEIGHT_BOLD);
-    const TextStyle Italic = TextStyle().italic();
-    const TextStyle Body = FontSize<12>();
-    const TextStyle Caption = FontSize<9>();
-    const TextStyle Heading = FontSize<12>() + Bold;
-    const TextStyle Title = FontSize<18>() + Bold;
   } // namespace app
 } // namespace loka
