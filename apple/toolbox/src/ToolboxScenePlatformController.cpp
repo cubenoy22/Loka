@@ -1778,7 +1778,8 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
         }
         return;
       }
-      short measuredWidth = this->measureTextWidth(text->get());
+      short measuredWidth = hit.context ? hit.context->visibleWidth()
+                                        : this->measureTextWidth(text->get());
       const short maxWidth = static_cast<short>(hit.rect.right - hit.rect.left);
       if (maxWidth > 0 && measuredWidth > maxWidth)
       {

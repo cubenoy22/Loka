@@ -1,6 +1,5 @@
 #include "ToolboxPropsRefresh.hpp"
 #include "context/ToolboxTextContext.hpp"
-#include "ToolboxLayoutMetrics.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
@@ -241,11 +240,12 @@ void ToolboxTextContext::updateRect(const Rect &rect, short textX, short textY)
 
 short ToolboxTextContext::visibleWidth() const
 {
-  if (!text_)
+  if (!this->text_ || !this->node_ || !this->controller())
   {
     return 0;
   }
-  short width = this->controller() ? this->controller()->measureTextWidth(text_->get()) : 0;
+  const ToolboxTextFontDescriptor descriptor(this->node_->props.resolvedTextStyle());
+  short width = this->controller()->measureTextWidth(this->text_->get(), descriptor);
   const short maxWidth = static_cast<short>(rect_.right - rect_.left);
   if (maxWidth > 0 && width > maxWidth)
   {
@@ -256,6 +256,10 @@ short ToolboxTextContext::visibleWidth() const
 
 void ToolboxTextContext::paint(bool erase)
 {
+  if (!this->node_ || !this->controller())
+    return;
+  const ToolboxTextFontDescriptor descriptor(this->node_->props.resolvedTextStyle());
+  ToolboxTextMeasureScope measure(*this->controller(), descriptor);
   ToolboxPaintClip clip(this->paintRect_);
   if (clip.isActive() && !clip.touches(this->paintRect_))
     return;
@@ -272,10 +276,8 @@ void ToolboxTextContext::paint(bool erase)
   if (erase)
     EraseRect(&this->paintRect_);
   bool painted = false;
-  if (this->maxWidth_ > 0 && this->truncationMode_ == loka::app::TEXT_TRUNCATION_ELLIPSIS
-      && this->controller())
+  if (this->maxWidth_ > 0 && this->truncationMode_ == loka::app::TEXT_TRUNCATION_ELLIPSIS)
   {
-    ToolboxTextMeasureScope measure(*this->controller());
     const std::string truncated = TruncateWithEllipsis(
         this->text_->get(), this->maxWidth_, measure);
     DrawStringAt(this->textX_, this->textY_, loka::core::String(truncated));
@@ -316,12 +318,16 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
   const loka::core::String &value = node_->props.text_->get();
   if (!toolbox)
     return 0;
-  ToolboxTextMeasureScope measure(*toolbox);
+  const ToolboxTextFontDescriptor descriptor(this->node_->props.resolvedTextStyle());
+  ToolboxTextMeasureScope measure(*toolbox, descriptor);
+  FontInfo fontInfo;
+  GetFontInfo(&fontInfo);
+  const short lineHeight = static_cast<short>(fontInfo.ascent + fontInfo.descent + fontInfo.leading);
   short measuredWidth = measure.measure(value);
   short width = measuredWidth;
   const bool wrapWord = (wrapMode_ == loka::app::TEXT_WRAP_WORD);
   const bool wrapChar = (wrapMode_ == loka::app::TEXT_WRAP_CHAR);
-  short effectiveLineHeight = state.lineHeight;
+  short effectiveLineHeight = lineHeight;
   if (state.width > 0)
   {
     maxWidth_ = state.width;
@@ -330,8 +336,7 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
       effectiveLineHeight =
           MeasureWrappedTextHeight(value,
                                    maxWidth_,
-                                   state.lineHeight > 0 ? state.lineHeight
-                                                        : ToolboxLayoutMetrics::kDefaultLineHeight,
+                                   lineHeight,
                                    wrapChar,
                                    measure);
     }
@@ -345,10 +350,8 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
   rect.left = state.x;
   rect.top = state.y;
   rect.right = static_cast<short>(state.x + width);
-  rect.bottom = static_cast<short>(state.y + effectiveLineHeight - ToolboxLayoutMetrics::kControlAscentInset
-                                   + ToolboxLayoutMetrics::kControlDescent);
-  updateRect(rect, state.x,
-             static_cast<short>(state.y + effectiveLineHeight - ToolboxLayoutMetrics::kControlAscentInset));
+  rect.bottom = static_cast<short>(state.y + effectiveLineHeight);
+  updateRect(rect, state.x, static_cast<short>(state.y + fontInfo.ascent));
   // Advance by the painted box, as the other rails do: y is the top edge.
   state.y = static_cast<short>(rect.bottom + state.spacing);
   return width;

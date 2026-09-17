@@ -7,6 +7,7 @@
 #include "ToolboxWindow.hpp"
 #include "ToolboxLayoutMetrics.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
+#include "context/ToolboxTextContext.hpp"
 #include "app/core/AppComposition.hpp"
 #include "app/core/AppConfigurable.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
@@ -2091,6 +2092,80 @@ namespace
       }
     }
 
+    void checkTextFonts(ToolboxScenePlatformController &controller, GrafPtr port)
+    {
+      const short portFont = port->txFont;
+      const short portSize = port->txSize;
+      const Style portFace = port->txFace;
+      const loka::app::TextStyle normal = loka::app::TextStyle().weight(TEXT_WEIGHT_NORMAL).italic(false);
+      const loka::app::TextStyle styles[] = {
+          FontSize<9>() + normal, FontSize<12>() + normal,
+          FontSize<18>() + normal, FontSize<24>() + normal,
+          FontSize<12>() + normal + Bold, FontSize<12>() + normal + Italic};
+      const char *restoreNames[] = {
+          "font-9-restores-port", "font-12-restores-port",
+          "font-18-restores-port", "font-24-restores-port",
+          "font-bold-restores-port", "font-italic-restores-port"};
+      const char *selectionNames[] = {
+          "font-9-selects-descriptor", "font-12-selects-descriptor",
+          "font-18-selects-descriptor", "font-24-selects-descriptor",
+          "font-bold-selects-descriptor", "font-italic-selects-descriptor"};
+      const short sizes[] = {9, 12, 18, 24, 12, 12};
+      const Style faces[] = {0, 0, 0, 0, bold, italic};
+      short widths[6];
+      for (int i = 0; i < 6; ++i)
+      {
+        {
+          const ToolboxTextFontDescriptor descriptor(styles[i]);
+          ToolboxTextMeasureScope scope(controller, descriptor);
+          widths[i] = scope.measure(loka::core::String::Literal("MMMMMMMM"));
+          this->recordArm(selectionNames[i], port->txFont == portFont
+                          && port->txSize == sizes[i]
+                          && port->txFace == static_cast<Style>((portFace & ~(bold | italic)) | faces[i]),
+                          TEXT_WIDTH_WRITE);
+        }
+        GrafPtr restored = 0;
+        GetPort(&restored);
+        this->recordArm(restoreNames[i], restored == port && port->txFont == portFont
+                        && port->txSize == portSize && port->txFace == portFace, TEXT_WIDTH_WRITE);
+      }
+      std::fprintf(this->log_, "font-widths 9=%d 12=%d 18=%d 24=%d bold=%d italic=%d\r",
+                   widths[0], widths[1], widths[2], widths[3], widths[4], widths[5]);
+      this->recordArm("font-width-9-lt-12", widths[0] < widths[1], TEXT_WIDTH_WRITE);
+      this->recordArm("font-width-12-lt-18", widths[1] < widths[2], TEXT_WIDTH_WRITE);
+      this->recordArm("font-width-18-lt-24", widths[2] < widths[3], TEXT_WIDTH_WRITE);
+      this->recordArm("font-bold-12-gt-normal", widths[4] > widths[1], TEXT_WIDTH_WRITE);
+      this->recordArm("font-italic-12-ge-normal", widths[5] >= widths[1], TEXT_WIDTH_WRITE);
+
+      loka::app::TextStyle unsnapped;
+      unsnapped.hasFontSize_ = true;
+      unsnapped.fontSize_ = 11;
+      this->recordArm("font-size-tie-snaps-down", ToolboxTextFontDescriptor(unsnapped).size(12) == 10,
+                      TEXT_WIDTH_WRITE);
+      const ToolboxTextFontDescriptor inherited;
+      this->recordArm("font-unset-inherits-port", inherited.font(portFont) == portFont
+                      && inherited.size(17) == 17 && inherited.face(bold | italic) == (bold | italic),
+                      TEXT_WIDTH_WRITE);
+      this->recordArm("font-explicit-face-clears-only-own-bits",
+                      ToolboxTextFontDescriptor(normal).face(bold | italic | underline) == underline,
+                      TEXT_WIDTH_WRITE);
+
+      TextNode small((Text("MMMMMMMM") + FontSize<12>() + normal).props);
+      TextNode large((Text("MMMMMMMM") + FontSize<24>() + normal).props);
+      ToolboxTextContext smallContext(&small, &controller);
+      ToolboxTextContext largeContext(&large, &controller);
+      LayoutState smallState;
+      smallState.lineHeight = 16;
+      LayoutState largeState = smallState;
+      smallContext.layout(&controller, smallState);
+      largeContext.layout(&controller, largeState);
+      std::fprintf(this->log_, "font-layout-height 12=%d 24=%d\r", smallState.y, largeState.y);
+      this->recordArm("font-text-24-taller-than-12", largeState.y > smallState.y, TEXT_WIDTH_WRITE);
+      this->recordArm("font-text-visible-width-matches-descriptor",
+                      smallContext.visibleWidth() == widths[1] && largeContext.visibleWidth() == widths[3],
+                      TEXT_WIDTH_WRITE);
+    }
+
     static void OnTextWidthIdle(Window *window, TextWidthNode *node, PaintDamageConfig *self)
     {
       ToolboxWindow *native = window->asToolboxWindow();
@@ -2127,6 +2202,7 @@ namespace
       const PaintAnswer sibling = secondContext->queryPaintDamage(query);
       if (self->phase_ == TEXT_WIDTH_WRITE)
       {
+        self->checkTextFonts(*controller, reinterpret_cast<GrafPtr>(native->window()));
         const PaintAnswer before = firstContext->queryPaintDamage(query);
         const PaintAnswer sprite = static_cast<NativeNodeContext *>(surface->getContext())->queryPaintDamage(query);
         GrafPtr ambientPort = self->paintWindow_
