@@ -524,17 +524,16 @@ void testLokaAttrDslV1Core()
 {
   printf("\n==== [testLokaAttrDslV1Core] start ====\n");
 
-  // --- v1 attr storage: Text/ImageView should preserve attr on props ---
+  // --- Text style storage and ImageView attr storage ---
   {
-    loka::core::MutableState<int> dynamicFontSize(22);
-    loka::app::TextDefinitionWithAttr text = loka::app::Text("Hello").attr(
-        loka::app::TextAttr().fontSize(&dynamicFontSize).weight(loka::app::TEXT_WEIGHT_BOLD));
-    assert(text.props.hasAttr_);
-    assert(text.props.attr_.fontSizeState_ == &dynamicFontSize);
-    assert(text.props.attr_.hasWeightValue_);
-    assert(text.props.attr_.weightValue_ == loka::app::TEXT_WEIGHT_BOLD);
-    assert(!text.props.attr_.hasWrapValue_);
-    assert(!text.props.attr_.hasTruncationValue_);
+    loka::core::MutableState<loka::app::TextStyle> dynamicTextStyle((loka::app::FontSize<24>()));
+    loka::app::TextDefinitionWithAttr text =
+        (loka::app::Text("Hello") + loka::app::Bold) + &dynamicTextStyle;
+    assert(text.props.textStyleState_ == &dynamicTextStyle);
+    assert(text.props.textStyle_.hasWeight_);
+    assert(text.props.textStyle_.weight_ == loka::app::TEXT_WEIGHT_BOLD);
+    assert(!text.props.blockStyle_.hasWrap_);
+    assert(!text.props.blockStyle_.hasTruncation_);
 
     loka::app::ImageViewDefinitionWithAttr image =
         loka::app::ImageView().attr(loka::app::ImageViewAttr()
@@ -547,20 +546,21 @@ void testLokaAttrDslV1Core()
     assert(image.props.attr_.sizePolicyValue_ == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT);
   }
 
-  // --- Text overflow attr storage ---
+  // --- Text block style storage ---
   {
-    loka::app::TextDefinitionWithAttr text = loka::app::Text("Hello").attr(
-        loka::app::TextAttr().wrap(loka::app::TEXT_WRAP_WORD).truncation(loka::app::TEXT_TRUNCATION_ELLIPSIS));
-    assert(text.props.hasAttr_);
-    assert(text.props.attr_.hasWrapValue_);
-    assert(text.props.attr_.wrapValue_ == loka::app::TEXT_WRAP_WORD);
-    assert(text.props.attr_.hasTruncationValue_);
-    assert(text.props.attr_.truncationValue_ == loka::app::TEXT_TRUNCATION_ELLIPSIS);
+    loka::app::TextDefinitionWithAttr text = loka::app::Text("Hello")
+                                                + loka::app::BlockStyle()
+                                                      .wrap(loka::app::TEXT_WRAP_WORD)
+                                                      .truncation(loka::app::TEXT_TRUNCATION_ELLIPSIS);
+    assert(text.props.blockStyle_.hasWrap_);
+    assert(text.props.blockStyle_.wrap_ == loka::app::TEXT_WRAP_WORD);
+    assert(text.props.blockStyle_.hasTruncation_);
+    assert(text.props.blockStyle_.truncation_ == loka::app::TEXT_TRUNCATION_ELLIPSIS);
 
     loka::app::TextDefinitionWithAttr charWrap =
-        loka::app::Text("Path").attr(loka::app::TextAttr().wrap(loka::app::TEXT_WRAP_CHAR));
-    assert(charWrap.props.attr_.hasWrapValue_);
-    assert(charWrap.props.attr_.wrapValue_ == loka::app::TEXT_WRAP_CHAR);
+        loka::app::Text("Path") + loka::app::BlockStyle().wrap(loka::app::TEXT_WRAP_CHAR);
+    assert(charWrap.props.blockStyle_.hasWrap_);
+    assert(charWrap.props.blockStyle_.wrap_ == loka::app::TEXT_WRAP_CHAR);
   }
 
   // --- Row/Column alignment props storage ---
@@ -625,15 +625,15 @@ void testLokaAttrDslV1Core()
     assert(loka::app::layout::remainingChildHeightForColumn(0, 20, 50) == 0);
   }
 
-  // --- v1 attr copy safety (POD): copy should stay independent ---
+  // --- Style copy safety: copy should stay independent ---
   {
-    loka::app::TextAttr a;
-    loka::app::TextAttr b = a;
-    a.fontSize(14);
+    loka::app::TextStyle a;
+    loka::app::TextStyle b = a;
+    a.weight(loka::app::TEXT_WEIGHT_BOLD);
     (void)b;
-    assert(!b.hasFontSizeValue_);
-    assert(a.hasFontSizeValue_);
-    assert(a.fontSizeValue_ == 14);
+    assert(!b.hasFontSize_);
+    assert(a.hasWeight_);
+    assert(a.weight_ == loka::app::TEXT_WEIGHT_BOLD);
   }
 
   // --- MenuItem attr participates in structure equality ---

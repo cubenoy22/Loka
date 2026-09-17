@@ -133,7 +133,7 @@ These items address recurring bug patterns and structural risks identified durin
 - Conditional policy follow-up: even if a future `DynamicComposition` restores plain `if (...)` authoring, structure diffs alone are not enough. Conditional UI still needs an explicit detached-lifecycle policy marker (`retain detached`, `destroy detached`, future reuse pool, native retention policy) so logical absence and cleanup semantics do not stay implicit.
 - Cond/ShowIf remaining coverage: fill the gaps beyond the current basic branch-switch tests, specifically default/otherwise branches, nested evaluation order, cleanup/destructor behavior on branch replacement, and platform-selection stubs without DSL-side `#if`.
 - Layout alignment tests: validate `VStack` horizontal alignment and `HStack` vertical alignment defaults/overrides with deterministic node bounds.
-- Text overflow tests: validate `TextAttr` wrap/truncation (`none/word/char`, `none/clip/ellipsis`) under constrained width and confirm `isClipped` does not replace text overflow policy.
+- Text overflow tests: validate `BlockStyle` wrap/truncation (`none/word/char`, `none/clip/ellipsis`) under constrained width and confirm `isClipped` does not replace text overflow policy.
 - Toolbox wrapped-text relayout behavior: runtime-verify that content-change triggers relayout correctly (build/test path implemented).
 - Row alignment measure pass currently does a 2-pass scan when vertical alignment is enabled; keep as-is for now, revisit for large-child optimization if profiling shows cost.
 - State scheduler idea: add `NextEventTracker` (next-event-cycle flush, setTimeout(..., 0)-like batching) to coalesce rapid `State::set()` bursts on Main Thread.
@@ -164,7 +164,7 @@ These items address recurring bug patterns and structural risks identified durin
 - ConditionalDefinition/ConditionalNode and `NodeComposition::conditional(..., node)` default false/Empty path implemented.
 - BoundaryNode owns StateTracker; useState auto-registers; Context API removed; RootBoundaryWrapper in Scene; DSL naming cleanup.
 - `VStack/HStack` alignment props are wired into platform layout engines (Win32/macOS/Toolbox), including remaining-height handling for `VStack + ImageView(FILL_PARENT)`.
-- `TextAttr` overflow (`wrap`/`truncation`) is wired into native text contexts (Win32/macOS/Toolbox with low-memory-safe clip fallback).
+- `BlockStyle` overflow (`wrap`/`truncation`) is wired into native text contexts (Win32/macOS/Toolbox with low-memory-safe clip fallback).
 - Boundary memory ownership tranche (#36): `BoundarySection` provides explicit subtree owner scopes, state resolves nearest-section-first, `Held<T>` records named owner slots instead of anonymous app-facing reference counts, detach queues last-drop release on the owning clock, and `OwnershipDump` renders the live owner tree.
 - ProgrammingGuide boundary/state pass: the guide explains the boundary-first model explicitly, including `this->state(...)` as the normal small Node-local owner path, `declareStates()` as a batch/Boundary-scoped path, `currentBoundary()` for owner-side access, `findBoundary()` for direct-parent borrowed access, `BoundaryProps` as parent-to-child input, `Held<T>` for owner-scoped passive resources, and repositories/caches for unrelated long-lived sharing.
 - Scene local diff first pass: retained native contexts now survive local replace/reorder paths across generic/macOS/Win32 tests, retired subtree cleanup has a platform seam, and boundary-local rebuild planning is separated from apply.

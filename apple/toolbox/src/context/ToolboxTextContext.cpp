@@ -372,17 +372,11 @@ bool ToolboxTextContext::captureProps()
   this->updateData(text);
   if (!this->node_)
     return changed;
-  if (node_->props.hasAttr_)
-  {
-    wrapMode_ = node_->props.attr_.hasWrapValue_ ? node_->props.attr_.wrapValue_ : loka::app::TEXT_WRAP_NONE;
-    truncationMode_ =
-        node_->props.attr_.hasTruncationValue_ ? node_->props.attr_.truncationValue_ : loka::app::TEXT_TRUNCATION_NONE;
-  }
-  else
-  {
-    wrapMode_ = loka::app::TEXT_WRAP_NONE;
-    truncationMode_ = loka::app::TEXT_TRUNCATION_NONE;
-  }
+  wrapMode_ =
+      node_->props.blockStyle_.hasWrap_ ? node_->props.blockStyle_.wrap_ : loka::app::TEXT_WRAP_NONE;
+  truncationMode_ = node_->props.blockStyle_.hasTruncation_
+                        ? node_->props.blockStyle_.truncation_
+                        : loka::app::TEXT_TRUNCATION_NONE;
   return changed;
 }
 

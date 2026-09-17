@@ -1,0 +1,21 @@
+{
+  "sizes": [9, 10, 12, 14, 18, 24],
+  "weights": {
+    "NORMAL": 0,
+    "BOLD": 1
+  },
+  "wrap": {
+    "NONE": 0,
+    "WORD": 1,
+    "CHAR": 2
+  },
+  "truncation": {
+    "NONE": 0,
+    "CLIP": 1,
+    "ELLIPSIS": 2
+  },
+  "fields": {
+    "TextStyle": ["fontSize", "weight", "italic"],
+    "BlockStyle": ["wrap", "truncation"]
+  }
+}

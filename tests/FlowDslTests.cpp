@@ -172,6 +172,48 @@ namespace
     int calls;
   };
 
+  struct SetTextStyleStateAction
+  {
+    typedef loka::app::scene::Scene *In;
+    typedef loka::app::scene::Scene *Out;
+
+    SetTextStyleStateAction(loka::core::MutableState<loka::app::TextStyle> *state,
+                            const loka::app::TextStyle &value,
+                            bool flush)
+        : state_(state), value_(value), flush_(flush)
+    {
+    }
+
+    loka::dsl::StepRunStatus
+    run(loka::app::scene::Scene *const &in, loka::app::scene::Scene *&out, loka::dsl::FlowError &error) const
+    {
+      out = in;
+      if (!in || !this->state_)
+      {
+        error.kind = loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO;
+        error.code = loka::dsl::testing::FLOW_ERROR_SCENE_TEST_NULL_SCENE;
+        return loka::dsl::FLOW_STEP_FAILED;
+      }
+      loka::app::scene::BoundaryNode *boundary = loka::dsl::testing::SceneTestAccess::rootBoundary(*in);
+      if (!boundary || !boundary->tracker())
+      {
+        error.kind = loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO;
+        error.code = loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ROOT_UNAVAILABLE;
+        return loka::dsl::FLOW_STEP_FAILED;
+      }
+      {
+        loka::core::StateTrackerGuard guard(boundary->tracker());
+        this->state_->set(this->value_);
+      }
+      return this->flush_ ? loka::dsl::testing::FlushSceneInvalidation().run(out, out, error)
+                          : loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+
+    loka::core::MutableState<loka::app::TextStyle> *state_;
+    loka::app::TextStyle value_;
+    bool flush_;
+  };
+
   struct CountSceneAction
   {
     typedef loka::app::scene::Scene *In;
@@ -3921,7 +3963,7 @@ void testLokaFlowDslV1Core()
 
     NodeComposition composition;
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
-    root << Text(&textState).attr(TextAttr().wrap(TEXT_WRAP_WORD)).testId("WrapText");
+    root << (Text(&textState) + BlockStyle().wrap(TEXT_WRAP_WORD)).testId("WrapText");
 
     NodeDefinitionBase *rootDefinition = composition.root()->clone();
     LOKA_VERIFY(rootDefinition != 0);
@@ -3954,7 +3996,7 @@ void testLokaFlowDslV1Core()
 
     NodeComposition composition;
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
-    root << Text(&textState).attr(TextAttr().wrap(TEXT_WRAP_WORD)).testId("WrapText");
+    root << (Text(&textState) + BlockStyle().wrap(TEXT_WRAP_WORD)).testId("WrapText");
     root << Button("Run").enabled(&enabledState).testId("MainButton");
 
     NodeDefinitionBase *rootDefinition = composition.root()->clone();
@@ -4976,11 +5018,11 @@ void testLokaFlowDslV1Core()
     using namespace loka::app;
     using namespace loka::app::scene;
 
-    loka::core::MutableState<int> fontSizeState(12);
+    loka::core::MutableState<TextStyle> fontSizeState((FontSize<12>()));
 
     NodeComposition composition;
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
-    root << Text("Sized").attr(TextAttr().fontSize(&fontSizeState)).testId("SizedText");
+    root << (Text("Sized") + &fontSizeState).testId("SizedText");
 
     NodeDefinitionBase *rootDefinition = composition.root()->clone();
     LOKA_VERIFY(rootDefinition != 0);
@@ -4994,7 +5036,8 @@ void testLokaFlowDslV1Core()
 
     loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> okChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::SetIntStateAndFlush(&fontSizeState, 20)).input(&scenePtr)
+        | loka::dsl::Step(1, SetTextStyleStateAction(&fontSizeState, FontSize<24>(), true))
+              .input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::CheckText("SizedText", "Sized"))
         | loka::dsl::Step(3, FlowTestPlatformDirtyMaskAdapter("platform-layout-dirty", &platform, 32))
               .onSuccess(&captured)
@@ -5023,11 +5066,11 @@ void testLokaFlowDslV1Core()
     using namespace loka::app;
     using namespace loka::app::scene;
 
-    loka::core::MutableState<int> fontSizeState(12);
+    loka::core::MutableState<TextStyle> fontSizeState((FontSize<12>()));
 
     NodeComposition composition;
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
-    root << Text("Sized").attr(TextAttr().fontSize(&fontSizeState)).testId("SizedText");
+    root << (Text("Sized") + &fontSizeState).testId("SizedText");
 
     NodeDefinitionBase *rootDefinition = composition.root()->clone();
     LOKA_VERIFY(rootDefinition != 0);
@@ -5040,7 +5083,8 @@ void testLokaFlowDslV1Core()
 
     loka::dsl::FlowChain<Scene *, Scene *> chain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::SetIntStateAndFlush(&fontSizeState, 20)).input(&scenePtr)
+        | loka::dsl::Step(1, SetTextStyleStateAction(&fontSizeState, FontSize<24>(), true))
+              .input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::CheckText("SizedText", "Sized"));
 
     LOKA_VERIFY(chain.run());
@@ -5054,11 +5098,11 @@ void testLokaFlowDslV1Core()
     using namespace loka::app::scene;
 
     loka::core::MutableState<loka::core::String> textState(loka::core::String::Literal("Before"));
-    loka::core::MutableState<int> fontSizeState(12);
+    loka::core::MutableState<TextStyle> fontSizeState((FontSize<12>()));
 
     NodeComposition composition;
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
-    root << Text(&textState).attr(TextAttr().fontSize(&fontSizeState)).testId("MixedText");
+    root << (Text(&textState) + &fontSizeState).testId("MixedText");
 
     NodeDefinitionBase *rootDefinition = composition.root()->clone();
     LOKA_VERIFY(rootDefinition != 0);
@@ -5071,7 +5115,7 @@ void testLokaFlowDslV1Core()
 
     loka::dsl::FlowChain<Scene *, Scene *> chain =
         loka::dsl::Flow() | loka::dsl::Step(1, loka::dsl::testing::SetStringState(&textState, "After")).input(&scenePtr)
-        | loka::dsl::Step(2, loka::dsl::testing::SetIntState(&fontSizeState, 18))
+        | loka::dsl::Step(2, SetTextStyleStateAction(&fontSizeState, FontSize<18>(), false))
         | loka::dsl::Step(3, loka::dsl::testing::FlushSceneInvalidation())
         | loka::dsl::Step(4, loka::dsl::testing::CheckText("MixedText", "After"));
 

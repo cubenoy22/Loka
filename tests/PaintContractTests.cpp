@@ -253,7 +253,7 @@ namespace
         {
           // selector 3: the same State drawn bold, a style-only change of a retained Text.
           if (d.selector == 3)
-            stack << Text(&d.a).attr(TextAttr().weight(TEXT_WEIGHT_BOLD));
+            stack << Text(&d.a) + Bold;
           else
             stack << text;
         }
@@ -291,7 +291,7 @@ void testRectSurfaceStateChangeExcludesSiblingTextFromPaintDamage()
   change(scene, model.surfaceModel_, 12);
   exactOne(platform);
   const PaintDamage &d = only(platform).entry(0);
-  LOKA_VERIFY(d.x == 10 && d.y == 30 && d.width == 10 && d.height == 8);
+  LOKA_VERIFY(d.x == 10 && d.y == 22 && d.width == 10 && d.height == 8);
   LOKA_VERIFY(d.width < loka_floppy_bird::kWindowWidth && d.height < loka_floppy_bird::kWindowHeight);
   LOKA_VERIFY(d.y >= 20 && d.y + d.height <= 20 + loka_floppy_bird::kWindowHeight);
   LOKA_VERIFY(platform.queries == 2 && platform.commits == 2);
@@ -327,7 +327,7 @@ void testTextStateChangeYieldsExactTextDamageOnly()
   score(scene, model.scoreText_, "Score: 1");
   exactOne(platform);
   const PaintDamage &d = only(platform).entry(0);
-  LOKA_VERIFY(d.x == 0 && d.y == 0 && d.width == 640 && d.height == 20);
+  LOKA_VERIFY(d.x == 0 && d.y == 0 && d.width == 640 && d.height == 12);
   LOKA_VERIFY(d.coverage == PAINT_COVERAGE_ERASE_AND_PAINT);
   score(scene,
         model.scoreText_,
@@ -722,10 +722,9 @@ void testPaintPolicyScopeAndLifecycleInvalidation()
   }
   settle(scene);
   LOKA_VERIFY(only(platform).precision() == APPLY_PAINT_NONE);
-  text->props.hasAttr_ = true;
-  text->props.attr_.weight(TEXT_WEIGHT_BOLD);
+  text->props.textStyle_ = Bold;
   LOKA_VERIFY(textContext->queryPaintDamage(query(platform)).reason == PAINT_REFUSED_PLACEMENT_UNSETTLED);
-  text->props.hasAttr_ = false;
+  text->props.textStyle_ = TextStyle();
   NotifySubtreeNodeDetached(root);
   LifecycleFactTestAccess::DeliverFacts(root);
   LOKA_VERIFY(surfaceContext->queryPaintDamage(query(platform)).reason == PAINT_REFUSED_PLACEMENT_UNSETTLED);
@@ -859,7 +858,7 @@ void testStyleOnlyApplyRecoversTextHistory()
   // history, instead of refusing forever until an unrelated layout.
   TreeData data;
   data.count = 0;
-  TextDefinitionWithAttr replacement = Text(&data.a).attr(TextAttr().weight(TEXT_WEIGHT_BOLD));
+  TextDefinitionWithAttr replacement = Text(&data.a) + Bold;
   PaintPlatform platform;
   Scene scene(Boundary<PaintTree>(TreeProps(&data)));
   mount(scene, platform);

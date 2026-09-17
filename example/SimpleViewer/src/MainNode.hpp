@@ -266,7 +266,7 @@ namespace simpleviewer
       contents << Button("Open...").onClick(this->props.openDialogEvent())
                << Text("Loka file:")
                << Text(this->chooserMessage_.state())
-                      .attr(TextAttr().wrap(TEXT_WRAP_CHAR).truncation(TEXT_TRUNCATION_NONE))
+                      + BlockStyle().wrap(TEXT_WRAP_CHAR).truncation(TEXT_TRUNCATION_NONE)
                << Button("Fit to Window")
                       .onClick(this->props.fitEvent())
                       .TEST_ID("SimpleViewer.Mode.Fit")

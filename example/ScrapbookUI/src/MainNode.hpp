@@ -204,18 +204,17 @@ namespace scrapbook
                          .image(this->image_.state())
                          .attr(ImageViewAttr().sizePolicy(IMAGE_VIEW_SIZE_FILL_PARENT).fit(IMAGE_FIT_CONTAIN)))
               << (Show(*this->showText_.state())
-                  << Text(this->pageText_.state())
-                         .TEST_ID(scene_ids::PageText())
-                         .attr(TextAttr().fontSize(18).wrap(TEXT_WRAP_WORD).truncation(TEXT_TRUNCATION_NONE))))
+                  << ((Text(this->pageText_.state()).TEST_ID(scene_ids::PageText()) + FontSize<18>())
+                      + BlockStyle().wrap(TEXT_WRAP_WORD).truncation(TEXT_TRUNCATION_NONE))))
           << (HStack().alignVertical(VERTICAL_ALIGNMENT_CENTER)
               << Text(this->caption_.state()).TEST_ID(scene_ids::PageCaption())
-              << Text(this->badge_.state()).attr(TextAttr().weight(TEXT_WEIGHT_BOLD))
+              << Text(this->badge_.state()) + Bold
               << (Show(*this->refusedBadgeVisible_.state())
                   << ImageView()
                          .image(this->refusedBadgeImage_.state())
                          .size(16, 16)
                          .attr(ImageViewAttr().sizePolicy(IMAGE_VIEW_SIZE_INTRINSIC).fit(IMAGE_FIT_CONTAIN))
-                  << Text(this->refusedPageNumber_.state()).attr(TextAttr().weight(TEXT_WEIGHT_BOLD))))
+                  << Text(this->refusedPageNumber_.state()) + Bold))
           << (HStack() << Button("Previous", &this->previousPage_).TEST_ID(scene_ids::PreviousButton())
                        << Button("Next", &this->nextPage_).TEST_ID(scene_ids::NextButton())));
     }

@@ -19,8 +19,8 @@ namespace
     {
       return defaultHeight;
     }
-    if (!text->props.hasAttr_ || !text->props.attr_.hasWrapValue_
-        || text->props.attr_.wrapValue_ == loka::app::TEXT_WRAP_NONE)
+    if (!text->props.blockStyle_.hasWrap_
+        || text->props.blockStyle_.wrap_ == loka::app::TEXT_WRAP_NONE)
     {
       return defaultHeight;
     }
@@ -164,12 +164,12 @@ MacTextContext::MacTextContext(MacScenePlatformController *controller,
   [label setSelectable:NO];
   [label setBezeled:NO];
   [label setDrawsBackground:NO];
-  if (node_ && node_->props.hasAttr_)
+  if (node_)
   {
     NSTextFieldCell *cell = [label cell];
-    const loka::app::TextAttr &attr = node_->props.attr_;
-    const bool wrapWord = attr.hasWrapValue_ && attr.wrapValue_ == loka::app::TEXT_WRAP_WORD;
-    const bool wrapChar = attr.hasWrapValue_ && attr.wrapValue_ == loka::app::TEXT_WRAP_CHAR;
+    const loka::app::BlockStyle &attr = node_->props.blockStyle_;
+    const bool wrapWord = attr.hasWrap_ && attr.wrap_ == loka::app::TEXT_WRAP_WORD;
+    const bool wrapChar = attr.hasWrap_ && attr.wrap_ == loka::app::TEXT_WRAP_CHAR;
     if (wrapWord || wrapChar)
     {
       SetUsesSingleLineModeCompat(label, NO);
@@ -183,13 +183,13 @@ MacTextContext::MacTextContext(MacScenePlatformController *controller,
       [cell setWraps:NO];
       [cell setScrollable:YES];
       NSLineBreakMode mode = NSLineBreakByClipping;
-      if (attr.hasTruncationValue_)
+      if (attr.hasTruncation_)
       {
-        if (attr.truncationValue_ == loka::app::TEXT_TRUNCATION_ELLIPSIS)
+        if (attr.truncation_ == loka::app::TEXT_TRUNCATION_ELLIPSIS)
         {
           mode = NSLineBreakByTruncatingTail;
         }
-        else if (attr.truncationValue_ == loka::app::TEXT_TRUNCATION_CLIP)
+        else if (attr.truncation_ == loka::app::TEXT_TRUNCATION_CLIP)
         {
           mode = NSLineBreakByClipping;
         }
@@ -340,11 +340,11 @@ void MacTextContext::applyText()
 
 void MacTextContext::requestRelayoutIfNeeded()
 {
-  if (!didInitialApply_ || !node_ || !node_->props.hasAttr_ || !node_->props.attr_.hasWrapValue_)
+  if (!didInitialApply_ || !node_ || !node_->props.blockStyle_.hasWrap_)
   {
     return;
   }
-  if (node_->props.attr_.wrapValue_ == loka::app::TEXT_WRAP_NONE)
+  if (node_->props.blockStyle_.wrap_ == loka::app::TEXT_WRAP_NONE)
   {
     return;
   }
