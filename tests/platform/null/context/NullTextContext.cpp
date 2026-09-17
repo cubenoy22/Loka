@@ -9,8 +9,7 @@
 
 namespace
 {
-  const int kFixedAdvance = 4;
-  const int kDefaultLineHeight = 10;
+  const int kDefaultFontSize = 12;
 
   struct LineGeometry
   {
@@ -211,32 +210,40 @@ namespace
     return static_cast<short>(value);
   }
 
-  int WrapCapacityForWidth(short width)
+  int WrapCapacityForWidth(short width, int advance)
   {
     if (width <= 0)
     {
       return 0;
     }
-    const int capacity = width / kFixedAdvance;
+    const int capacity = width / advance;
     return capacity > 0 ? capacity : 1;
   }
 
   loka::app::TextWrap ResolveWrap(const loka::app::TextNode *node)
   {
-    if (!node || !node->props.hasAttr_ || !node->props.attr_.hasWrapValue_)
+    if (!node || !node->props.blockStyle_.hasWrap_)
     {
       return loka::app::TEXT_WRAP_NONE;
     }
-    return node->props.attr_.wrapValue_;
+    return node->props.blockStyle_.wrap_;
   }
 
   loka::app::TextTruncation ResolveTruncation(const loka::app::TextNode *node)
   {
-    if (!node || !node->props.hasAttr_ || !node->props.attr_.hasTruncationValue_)
+    if (!node || !node->props.blockStyle_.hasTruncation_)
     {
       return loka::app::TEXT_TRUNCATION_NONE;
     }
-    return node->props.attr_.truncationValue_;
+    return node->props.blockStyle_.truncation_;
+  }
+
+  int ResolveFontSize(const loka::app::TextNode *node)
+  {
+    if (!node)
+      return kDefaultFontSize;
+    const loka::app::TextStyle style = node->props.resolvedTextStyle();
+    return style.hasFontSize_ ? style.fontSize_ : kDefaultFontSize;
   }
 
   /** materialized (optional) reports whether the String could be rendered at all. A
@@ -247,7 +254,8 @@ namespace
                                   const loka::core::String *rendered = 0,
                                   bool *materialized = 0)
   {
-    const int lineHeight = state.lineHeight > 0 ? state.lineHeight : kDefaultLineHeight;
+    const int lineHeight = ResolveFontSize(node);
+    const int advance = (lineHeight + 2) / 3;
     if (materialized)
       *materialized = true;
     if (!node || !node->props.text_)
@@ -264,7 +272,7 @@ namespace
         *materialized = false;
       return NullTextMeasurement(0, ClampExtentToShort(lineHeight), 1);
     }
-    const int capacity = WrapCapacityForWidth(state.width);
+    const int capacity = WrapCapacityForWidth(state.width, advance);
     const loka::app::TextWrap wrap = ResolveWrap(node);
     LineGeometry lines;
     switch (wrap)
@@ -280,7 +288,7 @@ namespace
       break;
     }
 
-    int measuredWidth = lines.maxColumns * kFixedAdvance;
+    int measuredWidth = lines.maxColumns * advance;
     if (wrap == loka::app::TEXT_WRAP_NONE && state.width > 0 && measuredWidth > state.width)
     {
       const loka::app::TextTruncation truncation = ResolveTruncation(node);
@@ -290,7 +298,7 @@ namespace
       }
       else if (truncation == loka::app::TEXT_TRUNCATION_ELLIPSIS)
       {
-        measuredWidth = capacity * kFixedAdvance;
+        measuredWidth = capacity * advance;
       }
     }
     const int measuredHeight = lines.lineCount * lineHeight;
@@ -414,21 +422,23 @@ void RegisterNullTextNodeHandler(NullScenePlatformController &controller)
 }
 
 NullTextPaintStyle::NullTextPaintStyle(const loka::app::TextProps &props)
-    : fontSize(0),
+    : fontSize(kDefaultFontSize),
       weight(loka::app::TEXT_WEIGHT_NORMAL),
+      italic(false),
       wrap(loka::app::TEXT_WRAP_NONE),
       truncation(loka::app::TEXT_TRUNCATION_NONE)
 {
-  if (!props.hasAttr_)
-    return;
-  const loka::app::TextAttr &attr = props.attr_;
-  fontSize = attr.fontSizeState_ ? attr.fontSizeState_->get() : (attr.hasFontSizeValue_ ? attr.fontSizeValue_ : 0);
-  if (attr.hasWeightValue_)
-    weight = attr.weightValue_;
-  if (attr.hasWrapValue_)
-    wrap = attr.wrapValue_;
-  if (attr.hasTruncationValue_)
-    truncation = attr.truncationValue_;
+  const loka::app::TextStyle textStyle = props.resolvedTextStyle();
+  if (textStyle.hasFontSize_)
+    fontSize = textStyle.fontSize_;
+  if (textStyle.hasWeight_)
+    weight = textStyle.weight_;
+  if (textStyle.hasItalic_)
+    italic = textStyle.italic_;
+  if (props.blockStyle_.hasWrap_)
+    wrap = props.blockStyle_.wrap_;
+  if (props.blockStyle_.hasTruncation_)
+    truncation = props.blockStyle_.truncation_;
 }
 void NullTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact, loka::app::scene::NodeLifecycleFact next)
 {

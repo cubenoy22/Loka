@@ -855,6 +855,42 @@ Use a Boundary when you need:
 - a lifetime boundary
 - a meaningful composition scope
 
+### Text Styles
+
+Add character styling to `Text` with `+`. Named styles and sizes merge by
+field, so their order does not matter when they set different fields. When two
+styles set the same field, the right-hand value wins.
+
+```cpp
+Text("Title") + Bold + FontSize<24>()
+Text("Note") + Italic + Caption
+```
+
+The supported compile-time sizes are 9, 10, 12, 14, 18, and 24 logical units
+(one unit is one pixel on a classic Mac screen; other platforms scale up).
+An unsupported size such as `FontSize<11>()` is rejected by the compiler. Use
+`SizeOf(value)` for a computed size; it selects the nearest supported size and
+chooses the smaller size on a tie.
+
+Wrapping and truncation describe the whole text block and use `BlockStyle`:
+
+```cpp
+Text("A long paragraph")
+    + Body
+    + BlockStyle().wrap(TEXT_WRAP_WORD).truncation(TEXT_TRUNCATION_ELLIPSIS)
+```
+
+For live character styling, pass a borrowed `State<TextStyle>*`. The current
+state value is merged over the constant character style, and a change requests
+layout without rebuilding the node:
+
+```cpp
+Text("Status") + Bold + styleState.state()
+```
+
+Character and block styles are separate families. They can both be applied to
+`Text`, but they cannot be merged with each other or applied to unrelated nodes.
+
 ### `Section()` And Tagged Siblings
 
 [`Section(k)`](../common/app/nodes/nestable/BoundarySection.hpp) groups children

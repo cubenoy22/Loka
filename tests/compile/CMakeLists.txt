@@ -200,3 +200,18 @@ loka_compile_pin(derived-node-needs-mutable-input
   REFUSES pins/refuses_derived_node_derived_dependency.cpp
   ACCEPTS pins/accepts_derived_node_mutable_dependency.cpp
 )
+
+loka_compile_pin(style-size-vocabulary-is-closed
+  REFUSES pins/refuses_style_size_11.cpp
+  ACCEPTS pins/accepts_style_size_12.cpp
+)
+
+loka_compile_pin(text-style-only-applies-to-text
+  REFUSES pins/refuses_canvas_text_style.cpp
+  ACCEPTS pins/accepts_text_text_style.cpp
+)
+
+loka_compile_pin(style-families-do-not-cross-merge
+  REFUSES pins/refuses_cross_family_style_merge.cpp
+  ACCEPTS pins/accepts_same_family_style_merge.cpp
+)

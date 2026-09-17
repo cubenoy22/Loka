@@ -49,8 +49,8 @@ namespace
     {
       return defaultHeight;
     }
-    if (!text->props.hasAttr_ || !text->props.attr_.hasWrapValue_
-        || text->props.attr_.wrapValue_ == loka::app::TEXT_WRAP_NONE)
+    if (!text->props.blockStyle_.hasWrap_
+        || text->props.blockStyle_.wrap_ == loka::app::TEXT_WRAP_NONE)
     {
       return defaultHeight;
     }
@@ -118,13 +118,13 @@ Win32TextContext::Win32TextContext(Win32ScenePlatformController *controller,
       textDelivery_(loka::app::scene::PaintAnswer::refused(loka::app::scene::PAINT_REFUSED_HISTORY_UNKNOWN))
 {
   DWORD style = WS_VISIBLE | WS_CHILD | SS_LEFT;
-  if (node_ && node_->props.hasAttr_)
+  if (node_)
   {
-    const loka::app::TextAttr &attr = node_->props.attr_;
+    const loka::app::BlockStyle &attr = node_->props.blockStyle_;
     const bool wrapEnabled =
-        attr.hasWrapValue_
-        && (attr.wrapValue_ == loka::app::TEXT_WRAP_WORD || attr.wrapValue_ == loka::app::TEXT_WRAP_CHAR);
-    const bool truncEllipsis = attr.hasTruncationValue_ && attr.truncationValue_ == loka::app::TEXT_TRUNCATION_ELLIPSIS;
+        attr.hasWrap_
+        && (attr.wrap_ == loka::app::TEXT_WRAP_WORD || attr.wrap_ == loka::app::TEXT_WRAP_CHAR);
+    const bool truncEllipsis = attr.hasTruncation_ && attr.truncation_ == loka::app::TEXT_TRUNCATION_ELLIPSIS;
     if (!wrapEnabled)
     {
       style |= SS_LEFTNOWORDWRAP;
@@ -344,11 +344,11 @@ void Win32TextContext::applyText()
 
 void Win32TextContext::requestRelayoutIfNeeded()
 {
-  if (!didInitialApply_ || !node_ || !node_->props.hasAttr_ || !node_->props.attr_.hasWrapValue_)
+  if (!didInitialApply_ || !node_ || !node_->props.blockStyle_.hasWrap_)
   {
     return;
   }
-  if (node_->props.attr_.wrapValue_ == loka::app::TEXT_WRAP_NONE)
+  if (node_->props.blockStyle_.wrap_ == loka::app::TEXT_WRAP_NONE)
   {
     return;
   }

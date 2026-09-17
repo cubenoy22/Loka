@@ -35,8 +35,9 @@ private:
 struct NullTextPaintStyle
 {
   NullTextPaintStyle()
-      : fontSize(0),
+      : fontSize(12),
         weight(loka::app::TEXT_WEIGHT_NORMAL),
+        italic(false),
         wrap(loka::app::TEXT_WRAP_NONE),
         truncation(loka::app::TEXT_TRUNCATION_NONE)
   {
@@ -44,10 +45,12 @@ struct NullTextPaintStyle
   explicit NullTextPaintStyle(const loka::app::TextProps &props);
   bool operator==(const NullTextPaintStyle &other) const
   {
-    return fontSize == other.fontSize && weight == other.weight && wrap == other.wrap && truncation == other.truncation;
+    return fontSize == other.fontSize && weight == other.weight && italic == other.italic
+           && wrap == other.wrap && truncation == other.truncation;
   }
   int fontSize;
   loka::app::TextWeight weight;
+  bool italic;
   loka::app::TextWrap wrap;
   loka::app::TextTruncation truncation;
 };
