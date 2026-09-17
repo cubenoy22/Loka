@@ -73,7 +73,7 @@ loka::app::scene::PaintAnswer ToolboxButtonContext::queryPaintDamage(const loka:
     // No presented value is required offscreen, but the laid-out title width
     // still constrains placement. A changed width can move visible siblings.
     if (!this->controller()
-        || this->controller()->measureTextWidth(current.label()) != this->rect_.right - this->rect_.left)
+        || this->naturalWidth(current.label()) != this->rect_.right - this->rect_.left)
       return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
     return ToolboxExactPaint(this->paintRect_, false);
   }
@@ -83,7 +83,7 @@ loka::app::scene::PaintAnswer ToolboxButtonContext::queryPaintDamage(const loka:
   // measured width differs from the presented one moves this button and its
   // Row siblings: that is layout work, not paint, and exact delivery refuses.
   if (!this->controller()
-      || this->controller()->measureTextWidth(current.label()) != this->rect_.right - this->rect_.left)
+      || this->naturalWidth(current.label()) != this->rect_.right - this->rect_.left)
     return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
   return ToolboxExactPaint(this->paintRect_, !(current == this->presented_.value()));
 }
@@ -215,14 +215,13 @@ void ToolboxButtonContext::forgetPresentedControl()
 short ToolboxButtonContext::layout(loka::app::scene::IPlatformController *controller,
                                    loka::app::scene::LayoutState &state)
 {
+  (void)controller;
   if (!node_)
   {
     return 0;
   }
   this->captureProps();
-  ToolboxScenePlatformController *toolbox =
-      static_cast<ToolboxScenePlatformController *>(controller);
-  short width = toolbox ? toolbox->measureTextWidth(this->label_) : 0;
+  const short width = this->naturalWidth(this->label_);
   Rect rect;
   rect.left = state.x;
   rect.top = state.y;
@@ -233,6 +232,14 @@ short ToolboxButtonContext::layout(loka::app::scene::IPlatformController *contro
   // Advance by the painted box, as the other rails do: y is the top edge.
   state.y = static_cast<short>(rect.bottom + state.spacing);
   return width;
+}
+
+short ToolboxButtonContext::naturalWidth(const loka::core::String &label) const
+{
+  if (!this->controller())
+    return 0;
+  return static_cast<short>(this->controller()->measureTextWidth(label)
+                            + 2 * ToolboxLayoutMetrics::kPushButtonTitleInset);
 }
 
 void ToolboxButtonContext::render(loka::app::scene::IPlatformController *controller)

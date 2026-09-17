@@ -10,6 +10,8 @@ struct ToolboxLayoutMetrics
    * baseline nodes draw their text at y + lineHeight - kControlAscentInset. */
   static const short kControlAscentInset = 2;
   static const short kControlDescent = 6;
+  /** Horizontal title inset on each side of a native push button. */
+  static const short kPushButtonTitleInset = 8;
   static const short kEditTextDescent = 8;
 };
 
