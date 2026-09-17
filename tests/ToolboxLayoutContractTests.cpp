@@ -3,6 +3,7 @@
 #include "support/TestVerify.hpp"
 
 #include "../apple/toolbox/src/ToolboxPlatformLayoutHandlers.hpp"
+#include "../apple/toolbox/src/platform/ToolboxMacRoman.hpp"
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/Text.hpp"
@@ -66,6 +67,32 @@ namespace
   }
 
 } // namespace
+
+void testToolboxMacRomanConversionUsesOneDisplayBytePerGlyph()
+{
+  const char utf8[] = "\xC3\xA9";
+  unsigned char bytes[2] = {0, 0};
+  std::size_t length = 0;
+
+  LOKA_VERIFY(loka::toolbox::CopyStringToMacRoman(
+      loka::core::String::Utf8(utf8, 2), bytes, sizeof(bytes), length)
+      == loka::toolbox::TOOLBOX_MAC_ROMAN_COMPLETE);
+  LOKA_VERIFY(length == 1);
+  LOKA_VERIFY(bytes[0] == 0x8E);
+
+  const char fullThenUnrepresentable[] = "ab\xF0\x9F\x8C\xB8";
+  LOKA_VERIFY(loka::toolbox::CopyStringToMacRoman(
+      loka::core::String::Utf8(fullThenUnrepresentable, 6), bytes, sizeof(bytes), length)
+      == loka::toolbox::TOOLBOX_MAC_ROMAN_OUTPUT_FULL);
+  LOKA_VERIFY(length == sizeof(bytes));
+  LOKA_VERIFY(bytes[0] == 'a' && bytes[1] == 'b');
+
+  const char unrepresentable[] = "\xF0\x9F\x8C\xB8";
+  LOKA_VERIFY(loka::toolbox::CopyStringToMacRoman(
+      loka::core::String::Utf8(unrepresentable, 4), bytes, sizeof(bytes), length)
+      == loka::toolbox::TOOLBOX_MAC_ROMAN_INVALID);
+  LOKA_VERIFY(length == 0);
+}
 
 void testToolboxFixedBoxLayoutCommitsDeclaredExtent()
 {

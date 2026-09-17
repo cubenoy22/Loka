@@ -34,22 +34,7 @@ namespace
 
   void BuildPascalString(const loka::core::String &value, Str255 text)
   {
-    std::string utf8;
-    if (!loka::platform::CollectUtf8(value, utf8))
-    {
-      text[0] = 0;
-      return;
-    }
-    std::size_t length = utf8.size();
-    if (length > 255)
-    {
-      length = 255;
-    }
-    text[0] = static_cast<unsigned char>(length);
-    if (length > 0)
-    {
-      std::memcpy(text + 1, utf8.data(), length);
-    }
+    ToolboxBuildPascalText(value, text);
   }
 } // namespace
 
@@ -114,7 +99,8 @@ void ToolboxCellContext::draw(ToolboxScenePlatformController *controller)
   DrawString(text);
 }
 
-short ToolboxCellContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
+short ToolboxCellContext::layout(loka::app::scene::IPlatformController *controller,
+                                 loka::app::scene::LayoutState &state)
 {
   if (!node_)
   {
@@ -123,7 +109,9 @@ short ToolboxCellContext::layout(loka::app::scene::IPlatformController *, loka::
   short width = state.width;
   if (width <= 0 && node_->props.text_)
   {
-    width = ToolboxMeasureTextWidth(node_->props.text_->get());
+    ToolboxScenePlatformController *toolbox =
+        static_cast<ToolboxScenePlatformController *>(controller);
+    width = toolbox ? toolbox->measureTextWidth(node_->props.text_->get()) : 0;
   }
   short height = state.height;
   if (height <= 0)

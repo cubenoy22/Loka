@@ -9,6 +9,7 @@
 #include "ToolboxEnabledChangeDispatch.hpp"
 #include "ToolboxHitLedger.hpp"
 #include "ToolboxScrollBarLedger.hpp"
+#include "context/ToolboxLayoutUtil.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "app/scene/projection/NativeHandlePool.hpp"
 #include "core/State.hpp"
@@ -138,6 +139,10 @@ public:
   void idleTextEdits();
   bool isPointInEdit(const Point &point) const;
   short allocateControlId();
+  /** Measures against this controller's window port and restores ambient QuickDraw state. */
+  short measureTextWidth(
+      const loka::core::String &value,
+      const ToolboxTextFontDescriptor &descriptor = ToolboxTextFontDescriptor()) const;
   void beginClip(const Rect &rect);
   void endClip();
   loka::app::scene::PlatformLayoutHandlerRegistry *layoutHandlerRegistry()
@@ -210,6 +215,7 @@ public:
   void refuseScrollViewShortRange();
 
 private:
+  friend class ToolboxTextMeasureScope;
   template <typename Controller>
   friend void ReconcileToolboxTextSubscription(Controller &,
       loka::core::State<loka::core::String> *, loka::core::State<loka::core::String> *);

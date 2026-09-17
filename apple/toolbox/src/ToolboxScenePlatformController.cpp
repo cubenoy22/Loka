@@ -124,21 +124,10 @@ namespace
 
   void DrawStringAt(short x, short y, const loka::core::String &value)
   {
-    std::string utf8;
-    if (!loka::platform::CollectUtf8(value, utf8))
+    Str255 text;
+    if (!ToolboxBuildPascalText(value, text))
     {
       return;
-    }
-    std::size_t length = utf8.size();
-    if (length > 255)
-    {
-      length = 255;
-    }
-    Str255 text;
-    text[0] = static_cast<unsigned char>(length);
-    if (length > 0)
-    {
-      std::memcpy(text + 1, utf8.data(), length);
     }
     MoveTo(x, y);
     DrawString(text);
@@ -525,6 +514,14 @@ ToolboxScenePlatformController::~ToolboxScenePlatformController()
     DisposeRgn(scrollViewClipRgn_);
     scrollViewClipRgn_ = 0;
   }
+}
+
+short ToolboxScenePlatformController::measureTextWidth(
+    const loka::core::String &value,
+    const ToolboxTextFontDescriptor &descriptor) const
+{
+  ToolboxTextMeasureScope scope(*this, descriptor);
+  return scope.measure(value);
 }
 
 bool ToolboxScenePlatformController::registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler)
@@ -1781,7 +1778,7 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
         }
         return;
       }
-      short measuredWidth = ToolboxMeasureTextWidth(text->get());
+      short measuredWidth = this->measureTextWidth(text->get());
       const short maxWidth = static_cast<short>(hit.rect.right - hit.rect.left);
       if (maxWidth > 0 && measuredWidth > maxWidth)
       {
@@ -2127,7 +2124,7 @@ void ToolboxScenePlatformController::redrawTextHit(TextHit &hit)
     SetPort(previous);
     return;
   }
-  short measuredWidth = hit.text ? ToolboxMeasureTextWidth(hit.text->get()) : 0;
+  short measuredWidth = hit.text ? this->measureTextWidth(hit.text->get()) : 0;
   const short maxWidth = static_cast<short>(hit.rect.right - hit.rect.left);
   if (maxWidth > 0 && measuredWidth > maxWidth)
   {

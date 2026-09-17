@@ -20,6 +20,7 @@ set(LOKA_TOOLBOX_SOURCES
   src/ToolboxBuiltInSupport.cpp
   src/debug/ToolboxSceneDebugStats.cpp
   src/context/ToolboxButtonContext.cpp
+  src/context/ToolboxLayoutUtil.cpp
   src/context/ToolboxProjectedNodeContext.cpp
   src/context/ToolboxCellContext.cpp
   src/context/ToolboxEditTextContext.cpp
@@ -40,6 +41,7 @@ set(LOKA_TOOLBOX_SOURCES
   src/platform/ToolboxAppLocation.cpp
   src/platform/ToolboxFileIO.cpp
   src/platform/ToolboxHfsName.cpp
+  src/platform/ToolboxMacRoman.cpp
 )
 
 # These implementation cells are included by the controller so the Classic

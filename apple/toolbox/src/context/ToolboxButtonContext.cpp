@@ -34,21 +34,10 @@ namespace
 
   void DrawStringAt(short x, short y, const loka::core::String &value)
   {
-    std::string utf8;
-    if (!loka::platform::CollectUtf8(value, utf8))
+    Str255 text;
+    if (!ToolboxBuildPascalText(value, text))
     {
       return;
-    }
-    std::size_t length = utf8.size();
-    if (length > 255)
-    {
-      length = 255;
-    }
-    Str255 text;
-    text[0] = static_cast<unsigned char>(length);
-    if (length > 0)
-    {
-      std::memcpy(text + 1, utf8.data(), length);
     }
     MoveTo(x, y);
     DrawString(text);
@@ -83,7 +72,8 @@ loka::app::scene::PaintAnswer ToolboxButtonContext::queryPaintDamage(const loka:
   {
     // No presented value is required offscreen, but the laid-out title width
     // still constrains placement. A changed width can move visible siblings.
-    if (ToolboxMeasureTextWidth(current.label()) != this->rect_.right - this->rect_.left)
+    if (!this->controller()
+        || this->controller()->measureTextWidth(current.label()) != this->rect_.right - this->rect_.left)
       return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
     return ToolboxExactPaint(this->paintRect_, false);
   }
@@ -92,7 +82,8 @@ loka::app::scene::PaintAnswer ToolboxButtonContext::queryPaintDamage(const loka:
   // The control's width is derived from its title (layout), so a title whose
   // measured width differs from the presented one moves this button and its
   // Row siblings: that is layout work, not paint, and exact delivery refuses.
-  if (ToolboxMeasureTextWidth(current.label()) != ToolboxMeasureTextWidth(this->presented_.value().label()))
+  if (!this->controller()
+      || this->controller()->measureTextWidth(current.label()) != this->rect_.right - this->rect_.left)
     return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
   return ToolboxExactPaint(this->paintRect_, !(current == this->presented_.value()));
 }
@@ -189,11 +180,9 @@ bool ReconcileToolboxButtonControl(ControlRef control, const loka::core::String 
     return false;
   if (installedLabel != labelUtf8)
   {
-    const std::size_t length = labelUtf8.size() > 255 ? 255 : labelUtf8.size();
     Str255 title;
-    title[0] = static_cast<unsigned char>(length);
-    if (length > 0)
-      std::memcpy(title + 1, labelUtf8.data(), length);
+    if (!ToolboxBuildPascalText(label, title))
+      return false;
     SetControlTitle(control, title);
     installedLabel = labelUtf8;
   }
@@ -226,13 +215,14 @@ void ToolboxButtonContext::forgetPresentedControl()
 short ToolboxButtonContext::layout(loka::app::scene::IPlatformController *controller,
                                    loka::app::scene::LayoutState &state)
 {
-  (void)controller;
   if (!node_)
   {
     return 0;
   }
   this->captureProps();
-  short width = ToolboxMeasureTextWidth(this->label_);
+  ToolboxScenePlatformController *toolbox =
+      static_cast<ToolboxScenePlatformController *>(controller);
+  short width = toolbox ? toolbox->measureTextWidth(this->label_) : 0;
   Rect rect;
   rect.left = state.x;
   rect.top = state.y;

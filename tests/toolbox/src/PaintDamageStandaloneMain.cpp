@@ -2129,12 +2129,48 @@ namespace
       {
         const PaintAnswer before = firstContext->queryPaintDamage(query);
         const PaintAnswer sprite = static_cast<NativeNodeContext *>(surface->getContext())->queryPaintDamage(query);
+        GrafPtr ambientPort = self->paintWindow_
+            ? reinterpret_cast<GrafPtr>(self->paintWindow_->asToolboxWindow()->window()) : 0;
+        GrafPtr targetPort = reinterpret_cast<GrafPtr>(native->window());
+        const short targetFont = targetPort->txFont;
+        const short targetSize = targetPort->txSize;
+        const Style targetFace = targetPort->txFace;
+        bool measureScopeRestored = false;
+        short wideWidth = 0;
+        short narrowWidth = 0;
+        if (ambientPort && ambientPort != targetPort)
+        {
+          SetPort(ambientPort);
+          const short ambientFont = ambientPort->txFont;
+          const short ambientSize = ambientPort->txSize;
+          const Style ambientFace = ambientPort->txFace;
+          TextFont(4);
+          TextSize(24);
+          TextFace(bold);
+          wideWidth = controller->measureTextWidth(loka::core::String::Literal("MMMMMMMM"));
+          // Equal byte counts are the mutation control: the deleted
+          // utf8.size() heuristic reports these two strings as equal.
+          narrowWidth = controller->measureTextWidth(loka::core::String::Literal("IIIIIIII"));
+          GrafPtr restoredPort = 0;
+          GetPort(&restoredPort);
+          measureScopeRestored = restoredPort == ambientPort
+              && ambientPort->txFont == 4
+              && ambientPort->txSize == 24
+              && ambientPort->txFace == bold
+              && targetPort->txFont == targetFont
+              && targetPort->txSize == targetSize
+              && targetPort->txFace == targetFace;
+          TextFont(ambientFont);
+          TextSize(ambientSize);
+          TextFace(ambientFace);
+          SetPort(native->window());
+        }
         const bool setup = before.kind == PAINT_ANSWER_EXACT && sibling.kind == PAINT_ANSWER_EXACT
                            && sprite.kind == PAINT_ANSWER_EXACT
                            && GetPixel(sprite.damage.x + 8, sprite.damage.y + 8)
                            && node->captureSibling(sibling.damage)
-                           && ToolboxMeasureTextWidth(loka::core::String::Literal("MMMMMMMM"))
-                              > ToolboxMeasureTextWidth(loka::core::String::Literal("II"));
+                           && measureScopeRestored
+                           && wideWidth > narrowWidth;
         std::fprintf(self->log_, "row-text-seat-setup sibling_x=%d sibling_y=%d\r",
                      sibling.damage.x, sibling.damage.y);
         self->recordArm("row-text-seat-setup", setup, TEXT_WIDTH_CHECK);
