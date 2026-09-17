@@ -14,6 +14,7 @@
     },
     {
       "label": "Build: macOS App",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -29,6 +30,7 @@
     },
     {
       "label": "Build: macOS MineSweeper",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -46,6 +48,7 @@
     },
     {
       "label": "Build: macOS SimpleViewer",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -63,6 +66,7 @@
     },
     {
       "label": "Build: macOS ScrapbookUI",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -80,6 +84,7 @@
     },
     {
       "label": "Build: macOS FloppyBird",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -97,6 +102,7 @@
     },
     {
       "label": "Build: macOS SmirkBench",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -114,6 +120,7 @@
     },
     {
       "label": "Build: macOS LazyList",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -131,6 +138,7 @@
     },
     {
       "label": "Build: macOS Tutorial",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -161,6 +169,7 @@
     },
     {
       "label": "Build: macOS SmirkyCard",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -178,6 +187,7 @@
     },
     {
       "label": "Build: macOS Tests",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -195,6 +205,7 @@
     },
     {
       "label": "Build: macOS HelloWorld Scenario Loop",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -212,6 +223,7 @@
     },
     {
       "label": "Build: macOS MineSweeper Scenario Loop",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -228,13 +240,31 @@
       "problemMatcher": "$gcc"
     },
     {
-      "label": "Standalone: macOS Release Action",
+      "label": "Standalone: macOS Build / Stage / Verify / Release",
+      "detail": "Build/Stage/Verify finite Flows; Release packages five autonomous Loops plus SimpleViewer and their assets.",
       "type": "shell",
       "command": "bash",
       "args": [
         "scripts/macos-standalone-flow.sh",
         "${input:standaloneReleaseAction}"
       ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Build: macOS target",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/vscode-build-target.sh",
+      "args": ["macos", "${input:lokaMacosBuild}"],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Build: macOS loop target",
+      "detail": "Build only: Standalone Loops use Release; Scenario Loops use Debug. All builds both configurations; no release package is staged.",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/vscode-build-target.sh",
+      "args": ["macos", "${input:lokaScenarioLoop}"],
       "group": "build",
       "problemMatcher": "$gcc"
     },
@@ -252,6 +282,7 @@
     },
     {
       "label": "Build: Win32 App",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -264,6 +295,7 @@
     },
     {
       "label": "Build: Win32 MineSweeper",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -278,6 +310,7 @@
     },
     {
       "label": "Build: Win32 SimpleViewer",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -292,6 +325,7 @@
     },
     {
       "label": "Build: Win32 ScrapbookUI",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -306,6 +340,7 @@
     },
     {
       "label": "Build: Win32 FloppyBird",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -320,6 +355,7 @@
     },
     {
       "label": "Build: Win32 SmirkBench",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -334,6 +370,7 @@
     },
     {
       "label": "Build: Win32 LazyList",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -348,6 +385,7 @@
     },
     {
       "label": "Build: Win32 Tutorial",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -375,6 +413,7 @@
     },
     {
       "label": "Build: Win32 SmirkyCard",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -392,6 +431,7 @@
     },
     {
       "label": "Build: Win32 Tests",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -406,6 +446,7 @@
     },
     {
       "label": "Build: Win32 HelloWorld Scenario Loop",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -420,6 +461,7 @@
     },
     {
       "label": "Build: Win32 MineSweeper Scenario Loop",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -433,7 +475,8 @@
       "problemMatcher": "$msCompile"
     },
     {
-      "label": "Standalone: Win32 Release Action",
+      "label": "Standalone: Win32 Build / Stage / Verify / Release",
+      "detail": "Build/Stage/Verify finite Flows; Release packages five autonomous Loops plus SimpleViewer and their assets.",
       "type": "shell",
       "command": "powershell.exe",
       "args": [
@@ -444,6 +487,39 @@
         "scripts/win32-standalone-flow.ps1",
         "-Action",
         "${input:standaloneReleaseAction}"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Build: Win32 target",
+      "type": "shell",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/vscode-build-target.ps1",
+        "win32",
+        "${input:lokaWin32Build}"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Build: Win32 loop target",
+      "detail": "Build only (Debug): Standalone and Scenario Loops. Use Standalone Release to stage a release package.",
+      "type": "shell",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/vscode-build-target.ps1",
+        "win32",
+        "${input:lokaScenarioLoop}"
       ],
       "group": "build",
       "problemMatcher": "$msCompile"
@@ -460,6 +536,7 @@
     },
     {
       "label": "Build: Win32 XP",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -472,6 +549,7 @@
     },
     {
       "label": "Configure: Retro68 68K",
+      "hide": true,
       "type": "shell",
       "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
@@ -483,6 +561,7 @@
     },
     {
       "label": "Configure: Retro68 68K SmirkyCard",
+      "hide": true,
       "type": "shell",
       "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
@@ -496,6 +575,7 @@
     },
     {
       "label": "Build: Retro68 68K",
+      "hide": true,
       "type": "shell",
       "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
@@ -523,6 +603,7 @@
     },
     {
       "label": "Configure: Retro68 PPC",
+      "hide": true,
       "type": "shell",
       "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
@@ -534,6 +615,7 @@
     },
     {
       "label": "Build: Retro68 PPC",
+      "hide": true,
       "type": "shell",
       "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
@@ -560,6 +642,7 @@
     },
     {
       "label": "Build HelloWorld (Native-Debug)",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -575,6 +658,7 @@
     },
     {
       "label": "Config & Build HelloWorld (Native-Debug)",
+      "hide": true,
       "dependsOn": [
         "Configure HelloWorld (Native-Debug)",
         "Build HelloWorld (Native-Debug)"
@@ -595,6 +679,7 @@
     },
     {
       "label": "Build HelloWorld (Native-Release)",
+      "hide": true,
       "type": "shell",
       "command": "cmake",
       "args": [
@@ -610,6 +695,7 @@
     },
     {
       "label": "Config & Build HelloWorld (Native-Release)",
+      "hide": true,
       "dependsOn": [
         "Configure HelloWorld (Native-Release)",
         "Build HelloWorld (Native-Release)"
@@ -630,6 +716,7 @@
     },
     {
       "label": "Build: Retro68 68K HelloWorld",
+      "hide": true,
       "type": "shell",
       "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
@@ -647,6 +734,7 @@
     },
     {
       "label": "Build: Retro68 68K SmirkyCard",
+      "hide": true,
       "type": "shell",
       "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
@@ -664,6 +752,7 @@
     },
     {
       "label": "Build: Retro68 68K MineSweeper",
+      "hide": true,
       "type": "shell",
       "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
@@ -681,6 +770,7 @@
     },
     {
       "label": "Build: Retro68 68K SimpleViewer",
+      "hide": true,
       "type": "shell",
       "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
@@ -698,6 +788,7 @@
     },
     {
       "label": "Build: Retro68 68K FloppyBird",
+      "hide": true,
       "type": "shell",
       "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
@@ -715,6 +806,7 @@
     },
     {
       "label": "Build: Retro68 68K SmirkBench",
+      "hide": true,
       "type": "shell",
       "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
@@ -732,6 +824,7 @@
     },
     {
       "label": "Build: Retro68 68K LazyList",
+      "hide": true,
       "type": "shell",
       "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
@@ -749,6 +842,7 @@
     },
     {
       "label": "Build: Retro68 68K Tutorial",
+      "hide": true,
       "type": "shell",
       "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
@@ -766,6 +860,7 @@
     },
     {
       "label": "Build: Retro68 68K ScrapbookUI",
+      "hide": true,
       "type": "shell",
       "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
@@ -873,6 +968,7 @@
     },
     {
       "label": "Build: Retro68 68K HelloWorld Scenario Loop",
+      "hide": true,
       "type": "shell",
       "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
@@ -890,6 +986,7 @@
     },
     {
       "label": "Build: Retro68 68K MineSweeper Scenario Loop",
+      "hide": true,
       "type": "shell",
       "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
       "args": [
@@ -917,7 +1014,8 @@
       "problemMatcher": "$gcc"
     },
     {
-      "label": "Standalone: Toolbox 68K Release Action",
+      "label": "Standalone: Toolbox 68K Build / Stage / Release",
+      "detail": "Build/Stage the finite Scrapbook Flow; Release packages five autonomous Loops plus SimpleViewer and their assets.",
       "type": "shell",
       "command": "bash",
       "args": [
@@ -928,7 +1026,8 @@
       "problemMatcher": "$gcc"
     },
     {
-      "label": "Standalone: Toolbox PPC Release Action",
+      "label": "Standalone: Toolbox PPC Build / Stage / Release",
+      "detail": "Build/Stage the finite Scrapbook Flow; Release packages five autonomous Loops plus SimpleViewer and their assets.",
       "type": "shell",
       "command": "bash",
       "args": [
@@ -945,7 +1044,7 @@
       "command": "${workspaceFolder}/scripts/mame-dev-disk-app.sh",
       "args": [
         "--build",
-        "${input:lokaScsiApp}"
+        "${input:lokaRetro68Build}"
       ],
       "windows": {
         "command": "powershell.exe",
@@ -955,7 +1054,28 @@
           "Bypass",
           "-File",
           "scripts/mame-dev-disk-app.ps1",
-          "${input:lokaScsiApp}",
+          "${input:lokaRetro68Build}",
+          "-Build"
+        ]
+      },
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Build: Retro68 68K loop target",
+      "detail": "Release configuration: builds selected Flows/Loops. ScrapbookStandaloneFlow also stages its presentation; use Standalone Release for the full release package.",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-dev-disk-app.sh",
+      "args": ["--build", "${input:lokaRetro68LoopBuild}"],
+      "windows": {
+        "command": "powershell.exe",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-dev-disk-app.ps1",
+          "${input:lokaRetro68LoopBuild}",
           "-Build"
         ]
       },
@@ -964,6 +1084,7 @@
     },
     {
       "label": "Prepare SCSI Dev Disk",
+      "hide": true,
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-dev-disk-app.sh",
       "args": [
@@ -984,6 +1105,7 @@
     },
     {
       "label": "Build & Prepare SCSI Dev Disk",
+      "hide": true,
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-dev-disk-app.sh",
       "args": [
@@ -999,6 +1121,30 @@
           "-File",
           "scripts/mame-dev-disk-app.ps1",
           "${input:lokaScsiApp}",
+          "-BuildAndPrepare"
+        ]
+      },
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Build & Prepare SCSI Loop Disk",
+      "hide": true,
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-dev-disk-app.sh",
+      "args": [
+        "--build-and-prepare",
+        "${input:lokaScsiLoop}"
+      ],
+      "windows": {
+        "command": "powershell.exe",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-dev-disk-app.ps1",
+          "${input:lokaScsiLoop}",
           "-BuildAndPrepare"
         ]
       },
@@ -1047,6 +1193,7 @@
     },
     {
       "label": "MAME: Start",
+      "hide": true,
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-run.sh",
       "windows": {
@@ -1076,6 +1223,15 @@
       "problemMatcher": []
     },
     {
+      "label": "Build & Start Loop in MAME via SCSI",
+      "dependsOn": [
+        "Build & Prepare SCSI Loop Disk",
+        "MAME: Start"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
       "label": "Build & Start in MAME via Copied Boot.hd: All Apps",
       "dependsOn": [
         "Build: Retro68 68K",
@@ -1095,84 +1251,51 @@
       ],
       "dependsOrder": "sequence",
       "problemMatcher": []
-    },
-    {
-      "label": "Build: Host lrpc",
-      "type": "shell",
-      "command": "cmake -S tools/lrpc -B build/host/lrpc -DCMAKE_BUILD_TYPE=Release && cmake --build build/host/lrpc",
-      "group": "build",
-      "problemMatcher": "$gcc"
-    },
-    {
-      "label": "PMonSprite: Generate LRP",
-      "type": "shell",
-      "command": "python3",
-      "args": [
-        "example/ScrapbookUI/assets/make_pmonsprite_lrp.py",
-        "--depth",
-        "256"
-      ],
-      "dependsOn": [
-        "Build: Host lrpc"
-      ],
-      "detail": "Generates the default color package under build/pmonsprite-lrp-256; the 1-bit variant remains available via the script's --depth 1 CLI",
-      "problemMatcher": []
-    },
-    {
-      "label": "PMonSprite: Configure ScrapbookUI",
-      "type": "shell",
-      "command": "scripts/retro68-cmake.sh -S . -B build/retro68-pmon -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/Retro68.cmake -DRETRO68_CPU=m68k -DLOKA_WARNINGS_AS_ERRORS=ON -DLOKA_SCRAPBOOK_R_HEADER_DIR=$PWD/build/pmonsprite-lrp-256",
-      "detail": "Compiles against the generated resource header for the default color package; the 1-bit variant remains available via the script's --depth 1 CLI",
-      "problemMatcher": "$gcc",
-      "dependsOn": [
-        "PMonSprite: Generate LRP"
-      ]
-    },
-    {
-      "label": "PMonSprite: Build ScrapbookUI",
-      "type": "shell",
-      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
-      "args": [
-        "--build",
-        "build/retro68-pmon",
-        "--target",
-        "ScrapbookUI68K_APPL"
-      ],
-      "dependsOn": [
-        "PMonSprite: Configure ScrapbookUI"
-      ],
-      "group": "build",
-      "problemMatcher": "$gcc"
-    },
-    {
-      "label": "PMonSprite: Prepare SCSI Dev Disk",
-      "type": "shell",
-      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
-      "args": [
-        "${workspaceFolder}/build/retro68-pmon/example/ScrapbookUI/ScrapbookUI68K.bin",
-        "${workspaceFolder}/build/pmonsprite-lrp-256/ASSETS.LRP"
-      ],
-      "problemMatcher": []
-    },
-    {
-      "label": "PMonSprite: Build & Start in MAME via SCSI",
-      "dependsOn": [
-        "PMonSprite: Generate LRP",
-        "PMonSprite: Build ScrapbookUI",
-        "PMonSprite: Prepare SCSI Dev Disk",
-        "MAME: Start"
-      ],
-      "dependsOrder": "sequence",
-      "problemMatcher": []
     }
   ],
   "inputs": [
+    {
+      "id": "lokaMacosBuild",
+      "type": "pickString",
+      "description": "Select the macOS target to build",
+      "default": "All",
+      "options": ["All", "HelloWorld", "MineSweeper", "SimpleViewer", "ScrapbookUI", "FloppyBird", "SmirkBench", "LazyList", "Tutorial", "SmirkyCard", "Tests"]
+    },
+    {
+      "id": "lokaWin32Build",
+      "type": "pickString",
+      "description": "Select the Win32 target to build",
+      "default": "All",
+      "options": ["All", "HelloWorld", "MineSweeper", "SimpleViewer", "ScrapbookUI", "FloppyBird", "SmirkBench", "LazyList", "Tutorial", "SmirkyCard", "Tests"]
+    },
+    {
+      "id": "lokaScenarioLoop",
+      "type": "pickString",
+      "description": "Select the standalone or scenario loop to build",
+      "default": "AllLoops",
+      "options": [{"label": "All", "value": "AllLoops"}, "ScrapbookStandaloneLoop", "HelloWorldStandaloneLoop", "TutorialStandaloneLoop", "MineSweeperStandaloneLoop", "FloppyBirdStandaloneLoop", "HelloWorldScenarioLoop", "MineSweeperScenarioLoop"]
+    },
+    {
+      "id": "lokaRetro68LoopBuild",
+      "type": "pickString",
+      "description": "Select the Retro68 standalone flow or loop to build",
+      "default": "AllLoops",
+      "options": [{"label": "All", "value": "AllLoops"}, "ScrapbookStandaloneLoop", "HelloWorldStandaloneLoop", "TutorialStandaloneLoop", "MineSweeperStandaloneLoop", "FloppyBirdStandaloneLoop", "ScrapbookStandaloneFlow", "HelloWorldStandaloneFlow", "TutorialStandaloneFlow", "MineSweeperStandaloneFlow", "FloppyBirdStandaloneFlow", "HelloWorldScenarioLoop", "MineSweeperScenarioLoop"]
+    },
+    {
+      "id": "lokaRetro68Build",
+      "type": "pickString",
+      "description": "Select the Retro68 68K target to build",
+      "default": "All",
+      "options": ["All", "HelloWorld", "SmirkyCard", "MineSweeper", "SimpleViewer", "FloppyBird", "SmirkBench", "LazyList", "Tutorial", "ScrapbookUI"]
+    },
     {
       "id": "lokaScsiApp",
       "type": "pickString",
       "description": "Select the application to build and copy to the SCSI development disk",
       "default": "HelloWorld",
       "options": [
+        "All",
         "HelloWorld",
         "SmirkyCard",
         "MineSweeper",
@@ -1181,7 +1304,20 @@
         "SmirkBench",
         "LazyList",
         "Tutorial",
-        "ScrapbookUI",
+        "ScrapbookUI"
+      ]
+    },
+    {
+      "id": "lokaScsiLoop",
+      "type": "pickString",
+      "description": "Select the Retro68 standalone or scenario loop to build and copy to the SCSI development disk",
+      "default": "HelloWorldScenarioLoop",
+      "options": [
+        "ScrapbookStandaloneLoop",
+        "HelloWorldStandaloneLoop",
+        "TutorialStandaloneLoop",
+        "MineSweeperStandaloneLoop",
+        "FloppyBirdStandaloneLoop",
         "ScrapbookStandaloneFlow",
         "HelloWorldStandaloneFlow",
         "TutorialStandaloneFlow",

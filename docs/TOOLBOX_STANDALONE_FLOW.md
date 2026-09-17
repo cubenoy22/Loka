@@ -12,8 +12,8 @@ Run:
 ./scripts/toolbox-standalone-flow.sh Release ppc
 ```
 
-In VS Code, choose Release from **Standalone: Toolbox 68K Release Action** or
-**Standalone: Toolbox PPC Release Action**.
+In VS Code, choose Release from **Standalone: Toolbox 68K Build / Stage / Release** or
+**Standalone: Toolbox PPC Build / Stage / Release**.
 
 The release under `build/release/toolbox-68k` or `build/release/toolbox-ppc`
 contains five autonomous Standalone Loop applications plus the matching

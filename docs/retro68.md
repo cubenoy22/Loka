@@ -281,8 +281,8 @@ Output files:
   - `build/retro68/ppc/Release/example/HelloWorld/LokaHelloPPC.bin`
 
 For transportable autonomous Standalone releases, run the corresponding VS
-Code task **Standalone: Toolbox 68K Release Action** or **Standalone: Toolbox
-PPC Release Action**. Release artifacts are staged under
+Code task **Standalone: Toolbox 68K Build / Stage / Release** or **Standalone: Toolbox
+PPC Build / Stage / Release**. Release artifacts are staged under
 `build/release/toolbox-68k` or `build/release/toolbox-ppc` respectively.
 
 ## Environment variables

@@ -298,8 +298,31 @@ rm -f "$HOME/mounted-disk"
             ["--build-and-prepare", "${input:lokaScsiApp}"],
         )
         self.assertIn(
-            "ScrapbookStandaloneFlow",
+            "ScrapbookUI",
             inputs["lokaScsiApp"]["options"],
+        )
+        self.assertNotIn(
+            "HelloWorldScenarioLoop",
+            inputs["lokaScsiApp"]["options"],
+        )
+        self.assertIn(
+            "HelloWorldScenarioLoop",
+            inputs["lokaScsiLoop"]["options"],
+        )
+        self.assertEqual(
+            tasks["Build & Start Loop in MAME via SCSI"]["dependsOn"],
+            ["Build & Prepare SCSI Loop Disk", "MAME: Start"],
+        )
+        self.assertEqual(
+            [
+                task["label"]
+                for task in tasks_document["tasks"]
+                if "SCSI" in task["label"] and not task.get("hide", False)
+            ],
+            [
+                "Build & Start in MAME via SCSI",
+                "Build & Start Loop in MAME via SCSI",
+            ],
         )
         wrapper = (PROJECT_DIR / "scripts" / "mame-dev-disk-app.sh").read_text()
         self.assertIn('if [ "$key" = "ScrapbookStandaloneFlow" ]; then', wrapper)
@@ -311,7 +334,7 @@ rm -f "$HOME/mounted-disk"
         )
         self.assertIn("build/presentation/toolbox-68k-release/ASSETS.LRP", wrapper)
         self.assertEqual(
-            tasks["Standalone: Toolbox PPC Release Action"]["args"],
+            tasks["Standalone: Toolbox PPC Build / Stage / Release"]["args"],
             [
                 "scripts/toolbox-standalone-flow.sh",
                 "${input:toolboxStandaloneReleaseAction}",

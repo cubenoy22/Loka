@@ -50,6 +50,13 @@ task:
 Stop MAME before rebuilding the SCSI development disk. A fixed SCSI disk is
 not safe to rewrite while the emulator has it open.
 
+Choose `All` in the normal SCSI task to build and copy all nine example apps,
+including SmirkyCard, together with Scrapbook's `ASSETS.LRP` and SmirkyCard's
+`MAIN.JS`. The disk is replaced only after every copy succeeds. The disk-only
+CLI equivalent is `scripts/mame-dev-disk.sh --all` (PowerShell:
+`scripts/mame-dev-disk.ps1 -MacBinaryPath "--all"`); it requires the apps to
+have been built already.
+
 The development-disk scripts keep their original one-argument form and accept
 additional plain data files after the app. For example, ScrapbookUI ships its
 LRPK package beside the application:
@@ -79,7 +86,7 @@ observation; it does not replace the config-required machine-verdict scenarios
 described below.
 
 For a transportable artifact without changing the configured MAME disks, run
-**Standalone: Toolbox 68K Release Action** and choose Stage. It builds the same
+**Standalone: Toolbox 68K Build / Stage / Release** and choose Stage. It builds the same
 target and failure-atomically publishes its MacBinary, `ASSETS.LRP`, instructions, and a
 self-contained HFS `.dsk` under `build/presentation/toolbox-68k-release`. The
 `.dsk` contains both the application and assets and can be transferred to real
@@ -88,7 +95,7 @@ inputs for copying to an existing HFS volume or generating a local MAME SCSI
 development disk. See the staged `README.md` (sourced from
 `docs/TOOLBOX_STANDALONE_FLOW.md`) for both routes.
 
-For PowerPC real hardware, run **Standalone: Toolbox PPC Release Action** and
+For PowerPC real hardware, run **Standalone: Toolbox PPC Build / Stage / Release** and
 choose Release. It stages the five autonomous PPC loops, interactive
 SimpleViewer, MacBinary files, and HFS floppy images under
 `build/release/toolbox-ppc`. The checked-in MAME tasks remain 68K-specific.

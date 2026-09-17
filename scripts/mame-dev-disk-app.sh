@@ -24,6 +24,51 @@ bin=
 data=
 
 case "$key" in
+    AllLoops)
+        [ "$mode" = "--build" ] || usage
+        for loop in ScrapbookStandaloneLoop HelloWorldStandaloneLoop TutorialStandaloneLoop MineSweeperStandaloneLoop FloppyBirdStandaloneLoop ScrapbookStandaloneFlow HelloWorldStandaloneFlow TutorialStandaloneFlow MineSweeperStandaloneFlow FloppyBirdStandaloneFlow HelloWorldScenarioLoop MineSweeperScenarioLoop; do
+            bash "${BASH_SOURCE[0]}" --build "$loop"
+        done
+        exit 0
+        ;;
+    ScrapbookStandaloneLoop)
+        target=LokaScrapbookStandaloneLoop68K_APPL
+        preset=retro68-68k-standalone-release
+        bin=build/retro68/68k/Standalone/Release/tests/toolbox/LokaScrapbookStandaloneLoop68K.bin
+        data=build/retro68/68k/Standalone/Release/tests/toolbox/ASSETS.LRP
+        ;;
+    HelloWorldStandaloneLoop)
+        target=LokaHelloStandaloneLoop68K_APPL
+        preset=retro68-68k-standalone-release
+        bin=build/retro68/68k/Standalone/Release/tests/toolbox/LokaHelloStandaloneLoop68K.bin
+        ;;
+    TutorialStandaloneLoop)
+        target=LokaTutorialStandaloneLoop68K_APPL
+        preset=retro68-68k-standalone-release
+        bin=build/retro68/68k/Standalone/Release/tests/toolbox/LokaTutorialStandaloneLoop68K.bin
+        ;;
+    MineSweeperStandaloneLoop)
+        target=LokaMineStandaloneLoop68K_APPL
+        preset=retro68-68k-standalone-release
+        bin=build/retro68/68k/Standalone/Release/tests/toolbox/LokaMineStandaloneLoop68K.bin
+        ;;
+    FloppyBirdStandaloneLoop)
+        target=LokaFloppyStandaloneLoop68K_APPL
+        preset=retro68-68k-standalone-release
+        bin=build/retro68/68k/Standalone/Release/tests/toolbox/LokaFloppyStandaloneLoop68K.bin
+        ;;
+    All)
+        [ "$mode" != "--target" ] || usage
+        if [ "$mode" = "--build" ]; then
+            "$script_dir/retro68-cmake.sh" --preset "$preset"
+            exec "$script_dir/retro68-cmake.sh" --build --preset "$preset"
+        fi
+        if [ "$mode" = "--build-and-prepare" ]; then
+            "$script_dir/retro68-cmake.sh" --preset "$preset" -DLOKA_BUILD_SMIRKYCARD=ON
+            "$script_dir/retro68-cmake.sh" --build --preset "$preset"
+        fi
+        exec "$script_dir/mame-dev-disk.sh" --all
+        ;;
     HelloWorld)
         target=LokaHello68K_APPL
         bin=build/retro68/68k/Release/example/HelloWorld/LokaHello68K.bin

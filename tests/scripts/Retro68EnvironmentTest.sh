@@ -123,11 +123,6 @@ import pathlib
 delegate_text = pathlib.Path(sys.argv[1]).parent.parent.joinpath("scripts", "mame-dev-disk-app.sh").read_text(encoding="utf-8")
 if "retro68-cmake.sh\" --build" not in delegate_text or "cmake --build" in delegate_text:
     raise SystemExit("scripts/mame-dev-disk-app.sh must build only through retro68-cmake.sh")
-
-for label in ("PMonSprite: Configure ScrapbookUI", "PMonSprite: Build ScrapbookUI"):
-    task = next(item for item in tasks if item.get("label") == label)
-    if "scripts/retro68-cmake.sh" not in task.get("command", ""):
-        raise SystemExit(f"{label} bypasses the Retro68 wrapper")
 PY
 
 echo "Retro68 environment tests passed"

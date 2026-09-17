@@ -83,7 +83,7 @@ This is the environment where binaries are actually built.
   file chooser. `scripts/macos-standalone-flow.sh Stage` prepares the same
   portable directory without launching it; expected and actual audits are kept
   per application, while ScrapbookUI's `ASSETS.LRP` remains owned by its bundle
-  at `Contents/Resources`. **Standalone: macOS Release Action** is the VS Code
+  at `Contents/Resources`. **Standalone: macOS Build / Stage / Verify / Release** is the VS Code
   shortcut; choose Build, Stage, or Verify from its action prompt.
 - To stage the standalone macOS application payload rather than the finite audit
   rail, run `scripts/macos-standalone-flow.sh Release`. The result under
@@ -96,7 +96,7 @@ This is the environment where binaries are actually built.
   architecture. A dedicated legacy build host may select a Release
   architecture explicitly, for example
   `LOKA_STANDALONE_MACOS_ARCH=i386 scripts/macos-standalone-flow.sh Release`.
-  In **Standalone: macOS Release Action**, choose Release for the equivalent
+  In **Standalone: macOS Build / Stage / Verify / Release**, choose Release for the equivalent
   VS Code action.
   macOS bundles now explicitly declare high-resolution capability in the
   project-owned `cmake/macos/MacOSXBundleInfo.plist.in`. The legacy build
@@ -192,7 +192,7 @@ This is the environment where binaries are actually built.
   waits for its exact tracked
   audit, stops the final-scene hold, and stores the five target-local verdicts
   under `actual`. For a VAIO P, build x86 from a VS2017 `x64_x86 Cross Tools`
-  session. **Standalone: Win32 Release Action** is the VS Code shortcut;
+  session. **Standalone: Win32 Build / Stage / Verify / Release** is the VS Code shortcut;
   choose Build, Stage, or Verify from its action prompt.
 
   For the standalone application payload, use `-Action Release` instead of
@@ -207,7 +207,7 @@ This is the environment where binaries are actually built.
   Closing it manually does not relaunch it.
   SimpleViewer remains interactive and is not started by either audit
   verification or Release staging.
-  In **Standalone: Win32 Release Action**, choose Release for the equivalent
+  In **Standalone: Win32 Build / Stage / Verify / Release**, choose Release for the equivalent
   VS Code action;
   launch VS Code from the matching Visual Studio Developer Command Prompt so
   the Task inherits the intended compiler architecture.

@@ -696,10 +696,10 @@ class StandaloneDebugEntryPointTest(unittest.TestCase):
         inputs = {entry["id"]: entry for entry in task_document["inputs"]}
 
         visible_entry_points = {
-            "Standalone: macOS Release Action",
-            "Standalone: Win32 Release Action",
-            "Standalone: Toolbox 68K Release Action",
-            "Standalone: Toolbox PPC Release Action",
+            "Standalone: macOS Build / Stage / Verify / Release",
+            "Standalone: Win32 Build / Stage / Verify / Release",
+            "Standalone: Toolbox 68K Build / Stage / Release",
+            "Standalone: Toolbox PPC Build / Stage / Release",
         }
         self.assertEqual(
             {
@@ -718,21 +718,53 @@ class StandaloneDebugEntryPointTest(unittest.TestCase):
             tasks["Build & Prepare SCSI Dev Disk"]["windows"]["args"][-2:],
             ["${input:lokaScsiApp}", "-BuildAndPrepare"],
         )
+        self.assertEqual(
+            tasks["Build & Start Loop in MAME via SCSI"]["dependsOn"],
+            ["Build & Prepare SCSI Loop Disk", "MAME: Start"],
+        )
+        self.assertEqual(
+            tasks["Build & Prepare SCSI Loop Disk"]["windows"]["args"][-2:],
+            ["${input:lokaScsiLoop}", "-BuildAndPrepare"],
+        )
+        self.assertEqual(
+            {
+                label
+                for label, task in tasks.items()
+                if label.startswith("Build: macOS") and not task.get("hide", False)
+            },
+            {"Build: macOS target", "Build: macOS loop target"},
+        )
+        self.assertEqual(
+            {
+                label
+                for label, task in tasks.items()
+                if label.startswith("Build: Win32") and not task.get("hide", False)
+            },
+            {"Build: Win32 target", "Build: Win32 loop target"},
+        )
+        self.assertEqual(
+            {
+                label
+                for label, task in tasks.items()
+                if label.startswith("Build: Retro68 68K") and not task.get("hide", False)
+            },
+            {"Build: Retro68 68K target", "Build: Retro68 68K loop target"},
+        )
 
         self.assertEqual(
-            tasks["Standalone: macOS Release Action"]["args"],
+            tasks["Standalone: macOS Build / Stage / Verify / Release"]["args"],
             ["scripts/macos-standalone-flow.sh", "${input:standaloneReleaseAction}"],
         )
         self.assertEqual(
-            tasks["Standalone: Win32 Release Action"]["args"][-2:],
+            tasks["Standalone: Win32 Build / Stage / Verify / Release"]["args"][-2:],
             ["-Action", "${input:standaloneReleaseAction}"],
         )
         self.assertEqual(
-            tasks["Standalone: Toolbox 68K Release Action"]["args"],
+            tasks["Standalone: Toolbox 68K Build / Stage / Release"]["args"],
             ["scripts/toolbox-standalone-flow.sh", "${input:toolboxStandaloneReleaseAction}"],
         )
         self.assertEqual(
-            tasks["Standalone: Toolbox PPC Release Action"]["args"],
+            tasks["Standalone: Toolbox PPC Build / Stage / Release"]["args"],
             [
                 "scripts/toolbox-standalone-flow.sh",
                 "${input:toolboxStandaloneReleaseAction}",

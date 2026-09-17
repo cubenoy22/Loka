@@ -12,6 +12,34 @@ $preset = "retro68-68k-release"
 $data = $null
 
 switch ($Key) {
+    "AllLoops" {
+        if (-not $Build -or $Target -or $BuildAndPrepare) {
+            throw "AllLoops is available only with -Build"
+        }
+        foreach ($loop in @("ScrapbookStandaloneLoop", "HelloWorldStandaloneLoop", "TutorialStandaloneLoop", "MineSweeperStandaloneLoop", "FloppyBirdStandaloneLoop", "ScrapbookStandaloneFlow", "HelloWorldStandaloneFlow", "TutorialStandaloneFlow", "MineSweeperStandaloneFlow", "FloppyBirdStandaloneFlow", "HelloWorldScenarioLoop", "MineSweeperScenarioLoop")) {
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath $loop -Build
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        }
+        exit 0
+    }
+    "ScrapbookStandaloneLoop" { $cmakeTarget = "LokaScrapbookStandaloneLoop68K_APPL"; $preset = "retro68-68k-standalone-release"; $bin = "build/retro68/68k/Standalone/Release/tests/toolbox/LokaScrapbookStandaloneLoop68K.bin"; $data = "build/retro68/68k/Standalone/Release/tests/toolbox/ASSETS.LRP" }
+    "HelloWorldStandaloneLoop" { $cmakeTarget = "LokaHelloStandaloneLoop68K_APPL"; $preset = "retro68-68k-standalone-release"; $bin = "build/retro68/68k/Standalone/Release/tests/toolbox/LokaHelloStandaloneLoop68K.bin" }
+    "TutorialStandaloneLoop" { $cmakeTarget = "LokaTutorialStandaloneLoop68K_APPL"; $preset = "retro68-68k-standalone-release"; $bin = "build/retro68/68k/Standalone/Release/tests/toolbox/LokaTutorialStandaloneLoop68K.bin" }
+    "MineSweeperStandaloneLoop" { $cmakeTarget = "LokaMineStandaloneLoop68K_APPL"; $preset = "retro68-68k-standalone-release"; $bin = "build/retro68/68k/Standalone/Release/tests/toolbox/LokaMineStandaloneLoop68K.bin" }
+    "FloppyBirdStandaloneLoop" { $cmakeTarget = "LokaFloppyStandaloneLoop68K_APPL"; $preset = "retro68-68k-standalone-release"; $bin = "build/retro68/68k/Standalone/Release/tests/toolbox/LokaFloppyStandaloneLoop68K.bin" }
+    "All" {
+        if ($Target) { throw "All has no single target" }
+        if ($Build -or $BuildAndPrepare) {
+            $configureArguments = @("--preset", $preset)
+            if ($BuildAndPrepare) { $configureArguments += "-DLOKA_BUILD_SMIRKYCARD=ON" }
+            & bash "$PSScriptRoot/retro68-cmake.sh" @configureArguments
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            & bash "$PSScriptRoot/retro68-cmake.sh" --build --preset $preset
+            if ($LASTEXITCODE -ne 0 -or $Build) { exit $LASTEXITCODE }
+        }
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/mame-dev-disk.ps1" -MacBinaryPath "--all"
+        exit $LASTEXITCODE
+    }
     "HelloWorld" { $cmakeTarget = "LokaHello68K_APPL"; $bin = "build/retro68/68k/Release/example/HelloWorld/LokaHello68K.bin" }
     "SmirkyCard" { $cmakeTarget = "LokaSmirkyCard68K_APPL"; $bin = "build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin"; $data = "example/SmirkyCard/MAIN.JS" }
     "MineSweeper" { $cmakeTarget = "LokaMine68K_APPL"; $bin = "build/retro68/68k/Release/example/MineSweeper/LokaMine68K.bin" }
