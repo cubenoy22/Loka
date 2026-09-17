@@ -1,0 +1,126 @@
+paint-damage BEGIN
+viewport-scroll-replay-setup PASS
+gate=1 invalidate_rects=1 whole_window=0 control_draws=0 sibling_preserved=1
+scrolled_text_preserved=1 old_erased=1 new_painted=1
+viewport-scroll-replay PASS
+delivery=EXACT reason=-1 kind=-1
+viewport-exact PASS
+gate=1 invalidate_rects=1 whole_window=0 control_draws=0 sibling_preserved=1
+delivery=EXACT reason=-1 kind=-1
+plain-exact PASS
+unknown_history_old_pixel_erased=1 whole_window=0 dirty_flushes=1
+unknown-history PASS
+scrollview-first-text-placement PASS
+startup-text-baseline PASS
+zstack_gate=0 broad_requests=0 rect_requests=1 text_ink=1
+contained-text-history PASS
+zstack-overlap-replay PASS
+edit_initially_clipped=1
+edit_replay_preserves_projection=1
+edit-replay PASS
+text_inside_black=1 outside_white=1 clipped_history=1
+text-clipped-to-viewport PASS
+surface_inside_black=1 outside_white=1
+surface-bounds-clip PASS
+cell-replay-setup PASS
+drawer_dirty_replayed=1 pixels_match=1
+cell-replay-clipped PASS
+popup-replay-setup PASS
+drawer_dirty_replayed=1 pixels_match=1
+popup-replay-geometry PASS
+cell-only-dirty-replay PASS
+cell-ink-clipped-to-rect PASS
+image_placeholder_setup=1
+image-overlap-replay-setup PASS
+image_whole_window=0 rect_requests=1 placeholder_ink=1 dirty_replayed=1
+image-overlap-replay PASS
+edittext-exact-setup PASS
+edittext_whole_window=0 rect_requests=2 sprite_preserved=1 text_preserved=1 new_text_visible=1
+edittext-exact PASS
+edittext-presented-empty PASS
+edittext-placement-refuses PASS
+edittext-native-retired-refuses PASS
+edittext_zstack_setup_sprite_black=1 uncovered_white=1 overlaps_te=1 te=(13,26,134,43) sample=(22,34)
+edittext-zstack-order-setup PASS
+edittext_zstack_whole_window=0 rect_requests=2 sprite_black=1 new_text_visible=1 dirty_flushed=1 same_geometry=1
+edittext-zstack-order PASS
+popup-exact-setup PASS
+popup_sibling_whole_window=0 rect_requests=2 frame_row_same=1 label_row_same=1 sprite_preserved=1
+popup-sibling-exact PASS
+popup_selection_whole_window=0 rect_requests=1 frame_row_same=0 label_row_same=0 sprite_preserved=1
+popup-selection-exact PASS
+popup-presented-empty PASS
+popup-placement-refuses PASS
+popup-unreconciled-refuses PASS
+popup-partial-history-refuses PASS
+popup-full-history-restored PASS
+popup-layout-history-refuses PASS
+popup-detached-refuses PASS
+history-setup PASS
+history-first-clipped PASS
+history-survives-clipped-render whole_window=0 rect_requests=2 sprite_preserved=1 new_text_visible=1
+history-survives-clipped-render PASS
+popup-history-setup PASS
+popup-history-first-clipped PASS
+popup-history-survives whole_window=0 rect_requests=1 sprite_preserved=1 new_text_visible=1
+popup-history-survives PASS
+button-enabled-setup PASS
+button-enabled-exact whole_window=0 rect_requests=1 title_ink_removed=49 sprite_preserved=1
+button-enabled-exact PASS
+button-enabled-presented-empty PASS
+button-label-setup PASS
+button-label-exact whole_window=1 rect_requests=0 title_ink_removed=84 sprite_preserved=1
+button-label-exact FAIL
+button-label-presented-empty PASS
+button-placement-refuses PASS
+button-partial-history-refuses PASS
+button-full-history-restored PASS
+button-native-retired-refuses PASS
+row-text-seat-setup sibling_x=110 sibling_y=24
+row-text-seat-setup PASS
+row-text-wider-exact answer=0 reason=0 right=104 sibling_x=110
+row-text-wider-exact PASS
+row-text-sibling-seated whole_window=0 rect_requests=2 sibling_x=110 seated=1
+row-text-sibling-seated PASS
+row-text-relayout-keeps-seat sibling_x=110 seated=1 first_right=12
+row-text-relayout-keeps-seat PASS
+Offscreen.Text answer=0 reason=0
+Offscreen.Text PASS
+offscreen-placement-refuses PASS
+Offscreen.Edit answer=0 reason=0
+Offscreen.Edit PASS
+offscreen-placement-refuses PASS
+Offscreen.Popup answer=0 reason=0
+Offscreen.Popup PASS
+offscreen-placement-refuses PASS
+Offscreen.Button answer=0 reason=0
+Offscreen.Button PASS
+offscreen-placement-refuses PASS
+offscreen-button-width-refuses PASS
+column-local-refusal PASS
+column-local-refusal-cleared PASS
+column_phase=55 delivery=EXACT reason=-1 kind=-1 whole_window=0 rects=2
+column-offscreen-sibling-exact PASS
+column-visible-text-damage PASS
+column_phase=56 delivery=EXACT reason=-1 kind=-1 whole_window=0 rects=2
+column-visible-text-exact PASS
+column_phase=57 delivery=EXACT reason=-1 kind=-1 whole_window=0 rects=0
+column-offscreen-write-empty PASS
+column_phase=58 delivery=FULL reason=-1 kind=-1 whole_window=-3 rects=-3
+column-scroll-reveals-current-text PASS
+column_phase=59 delivery=EXACT reason=-1 kind=-1 whole_window=0 rects=2
+column-revealed-text-exact PASS
+column_phase=60 delivery=EXACT reason=-1 kind=-1 whole_window=0 rects=0
+offscreen-detach-setup PASS
+offscreen-detach-setup PASS
+offscreen-detach-setup PASS
+offscreen-detach-setup PASS
+Offscreen.Text detached_fact=1 answer=2 reason=3
+offscreen-detached-refuses PASS
+Offscreen.Edit detached_fact=1 answer=2 reason=2
+offscreen-detached-refuses PASS
+Offscreen.Popup detached_fact=1 answer=2 reason=2
+offscreen-detached-refuses PASS
+Offscreen.Button detached_fact=1 answer=2 reason=3
+offscreen-detached-refuses PASS
+paint-damage FAIL
