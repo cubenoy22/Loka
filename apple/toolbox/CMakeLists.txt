@@ -41,7 +41,6 @@ set(LOKA_TOOLBOX_SOURCES
   src/platform/ToolboxAppLocation.cpp
   src/platform/ToolboxFileIO.cpp
   src/platform/ToolboxHfsName.cpp
-  src/platform/ToolboxMacRoman.cpp
 )
 
 # These implementation cells are included by the controller so the Classic

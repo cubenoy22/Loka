@@ -2,19 +2,28 @@
 
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindow.hpp"
-#include "platform/ToolboxMacRoman.hpp"
+#include "platform/StringUTF8.hpp"
+#include <cstring>
+#include <string>
 
 bool ToolboxBuildPascalText(const loka::core::String &value, Str255 text)
 {
-  std::size_t length = 0;
-  const loka::toolbox::ToolboxMacRomanResult result =
-      loka::toolbox::CopyStringToMacRoman(value, text + 1, 255, length);
-  if (result == loka::toolbox::TOOLBOX_MAC_ROMAN_INVALID)
+  std::string utf8;
+  if (!loka::platform::CollectUtf8(value, utf8))
   {
     text[0] = 0;
     return false;
   }
+  std::size_t length = utf8.size();
+  if (length > 255)
+  {
+    length = 255;
+  }
   text[0] = static_cast<unsigned char>(length);
+  if (length > 0)
+  {
+    std::memcpy(text + 1, utf8.data(), length);
+  }
   return true;
 }
 

@@ -11,6 +11,5 @@ void testToolboxCenteredRowChildHeightSeats();
 void testToolboxUnalignedRowChildHeightSeats();
 
 void testToolboxCenteredControlOnlyRowPaintedBounds();
-void testToolboxMacRomanConversionUsesOneDisplayBytePerGlyph();
 
 #endif // LOKA_TESTS_TOOLBOX_LAYOUT_CONTRACT_TESTS_HPP
