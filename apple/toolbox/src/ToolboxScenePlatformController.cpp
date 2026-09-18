@@ -862,8 +862,15 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
   }
 
   using namespace loka::app::scene;
-  // Layout/structure and composited work cannot use exact delivery. Keep
-  // their existing fallback walk instead of collecting answers before it.
+  if (info.hasLayoutWork || plan.hasLayoutWork())
+  {
+    // Rectangle replay uses captured placement. Layout work must reach
+    // render() before painting values that depend on the new geometry.
+    this->window_->requestInvalidateWithReason("layout_dirty");
+    return;
+  }
+  // Structure and composited work cannot use exact delivery. Keep their
+  // existing fallback walk instead of collecting answers before it.
   if (info.hasPaintWork() && !info.hasStructureWork && !info.hasLayoutWork
       && !info.hasCompositedPaintWork() && !plan.hasStructureWork() && !plan.hasLayoutWork())
   {
