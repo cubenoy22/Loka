@@ -164,7 +164,7 @@ MacTextContext::MacTextContext(MacScenePlatformController *controller,
   [label setSelectable:NO];
   [label setBezeled:NO];
   [label setDrawsBackground:NO];
-  if (node_)
+  if (node_ && node_->props.hasDeclaredStyle())
   {
     NSTextFieldCell *cell = [label cell];
     const loka::app::BlockStyle &attr = node_->props.blockStyle_;

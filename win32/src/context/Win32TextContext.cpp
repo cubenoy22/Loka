@@ -118,7 +118,7 @@ Win32TextContext::Win32TextContext(Win32ScenePlatformController *controller,
       textDelivery_(loka::app::scene::PaintAnswer::refused(loka::app::scene::PAINT_REFUSED_HISTORY_UNKNOWN))
 {
   DWORD style = WS_VISIBLE | WS_CHILD | SS_LEFT;
-  if (node_)
+  if (node_ && node_->props.hasDeclaredStyle())
   {
     const loka::app::BlockStyle &attr = node_->props.blockStyle_;
     const bool wrapEnabled =
