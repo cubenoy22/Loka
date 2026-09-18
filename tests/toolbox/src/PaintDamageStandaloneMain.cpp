@@ -2484,12 +2484,13 @@ namespace
       const int glyphInk = CountTextStyleInk(glyphBand);
       const int oldInk = CountTextStyleInk(self->textStyleBefore_.oldInkRow());
       const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
-      const int full = stats.windowFullRequestCount - self->initial_.windowFullRequestCount;
+      // begin() resets per-change request counts; totalRenderCalls survives it.
+      // Pair the render delta with new geometry to prove layout completed.
       const int renders = stats.totalRenderCalls - self->initial_.totalRenderCalls;
       std::fprintf(self->log_,
-                   "font-live-style height=%d sibling_dy=%d baseline=%d expected=%d glyph_ink=%d old_ink=%d full=%d renders=%d\r",
+                   "font-live-style height=%d sibling_dy=%d baseline=%d expected=%d glyph_ink=%d old_ink=%d renders=%d\r",
                    textRect.bottom - textRect.top, siblingRect.top - self->textStyleBefore_.sibling().top,
-                   baseline, expectedBaseline, glyphInk, oldInk, full, renders);
+                   baseline, expectedBaseline, glyphInk, oldInk, renders);
       SetPort(previousPort);
       self->recordArm("font-live-style-height-34", textRect.bottom - textRect.top == 34, OFFSCREEN_SHOW);
       self->recordArm("font-live-style-sibling-down-18",
@@ -2503,7 +2504,8 @@ namespace
                       !EmptyRect(&self->textStyleBefore_.oldInkRow())
                       && self->textStyleBefore_.oldInkRow().bottom <= siblingRect.top && oldInk == 0,
                       OFFSCREEN_SHOW);
-      self->recordArm("font-live-style-layout-rendered", full > 0 && renders > 0, OFFSCREEN_SHOW);
+      self->recordArm("font-live-style-layout-rendered",
+                      renders > 0 && textRect.bottom - textRect.top == 34, OFFSCREEN_SHOW);
     }
 
     static void OnButtonIdle(Window *window, ButtonExactNode *node, bool label, PaintDamageConfig *self)
