@@ -1,0 +1,22 @@
+start Fri Sep 18 20:19:42 JST 2026 sha=1c898aab 25G229
+1c898aab Merge main (#815) into #804 PR 3: the block configuration in applyStyle runs only for a declared style, as the restored guard requires
+configure exit=0
+build exit=0
+cell scrapbook startup: golden stage failed: actual pixels differ from /Users/lihi-ai/loka/build/macos-scenario/golden/scrapbook/startup.png
+cell scrapbook open-first-page-refused: Artifacts: /Users/lihi-ai/loka/build/macos-scenario/scrapbook/open-first-page-refused
+cell scrapbook flip-forward-back: golden stage failed: actual pixels differ from /Users/lihi-ai/loka/build/macos-scenario/golden/scrapbook/flip-forward-back.png
+cell scrapbook refused-flip-keeps-page: Artifacts: /Users/lihi-ai/loka/build/macos-scenario/scrapbook/refused-flip-keeps-page
+cell scrapbook open-text-page: golden stage failed: actual pixels differ from /Users/lihi-ai/loka/build/macos-scenario/golden/scrapbook/open-text-page.png
+cell scrapbook open-text-page-refused: Artifacts: /Users/lihi-ai/loka/build/macos-scenario/scrapbook/open-text-page-refused
+cell helloworld startup: pass
+cell helloworld toggle-action-probe: pass
+cell helloworld bmi-roundtrip: pass
+cell tutorial startup: pass
+cell tutorial increment-summary-toggle: pass
+cell minesweeper startup: pass
+cell minesweeper new-game-twice: pass
+cell minesweeper seeded-reveal: pass
+cell floppybird startup: pass
+cell floppybird fixed-step-flaps: pass
+cells pass: 10/16
+matrix done Fri Sep 18 20:21:23 JST 2026
