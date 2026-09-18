@@ -1,6 +1,6 @@
 #include "ToolboxPropsRefresh.hpp"
-#include "context/ToolboxTextContext.hpp"
 #include "ToolboxLayoutMetrics.hpp"
+#include "context/ToolboxTextContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
@@ -172,6 +172,51 @@ namespace
     }
     return static_cast<short>(total);
   }
+
+  /** Completed text geometry; paint consumes the baseline captured by layout. */
+  struct TextGeometry
+  {
+    TextGeometry(short boxHeight, short baseline, short pitch)
+        : height(boxHeight), baselineOffset(baseline), linePitch(pitch) {}
+
+    const short height;
+    const short baselineOffset;
+    const short linePitch;
+  };
+
+  /** Unset size preserves pre-style geometry, including the terminal wrapped
+      baseline. Explicit size uses the selected font's first-line baseline. */
+  TextGeometry ResolveTextGeometry(const loka::app::TextStyle &style,
+                                   const loka::app::scene::LayoutState &state,
+                                   const loka::core::String &value,
+                                   loka::app::TextWrap wrap,
+                                   const ToolboxTextMeasureScope &measure)
+  {
+    const bool wraps = state.width > 0 && wrap != loka::app::TEXT_WRAP_NONE;
+    const bool charWrap = wrap == loka::app::TEXT_WRAP_CHAR;
+    if (!style.hasFontSize_)
+    {
+      const TextGeometry line(
+          static_cast<short>(state.lineHeight - ToolboxLayoutMetrics::kControlAscentInset
+                             + ToolboxLayoutMetrics::kControlDescent),
+          static_cast<short>(state.lineHeight - ToolboxLayoutMetrics::kControlAscentInset),
+          state.lineHeight > 0 ? state.lineHeight : ToolboxLayoutMetrics::kDefaultLineHeight);
+      if (!wraps)
+        return line;
+      const short extra = static_cast<short>(
+          MeasureWrappedTextHeight(value, state.width, line.linePitch, charWrap, measure) - state.lineHeight);
+      return TextGeometry(static_cast<short>(line.height + extra),
+                          static_cast<short>(line.baselineOffset + extra), line.linePitch);
+    }
+    FontInfo fontInfo;
+    GetFontInfo(&fontInfo);
+    const short pitch = static_cast<short>(fontInfo.ascent + fontInfo.descent + fontInfo.leading);
+    const TextGeometry line(pitch, fontInfo.ascent, pitch);
+    if (!wraps)
+      return line;
+    return TextGeometry(MeasureWrappedTextHeight(value, state.width, line.linePitch, charWrap, measure),
+                        line.baselineOffset, line.linePitch);
+  }
 } // namespace
 
 ToolboxTextContext::ToolboxTextContext(loka::app::TextNode *node, ToolboxScenePlatformController *controller)
@@ -241,11 +286,12 @@ void ToolboxTextContext::updateRect(const Rect &rect, short textX, short textY)
 
 short ToolboxTextContext::visibleWidth() const
 {
-  if (!text_)
+  if (!this->text_ || !this->node_ || !this->controller())
   {
     return 0;
   }
-  short width = this->controller() ? this->controller()->measureTextWidth(text_->get()) : 0;
+  const ToolboxTextFontDescriptor descriptor(this->node_->props.resolvedTextStyle());
+  short width = this->controller()->measureTextWidth(this->text_->get(), descriptor);
   const short maxWidth = static_cast<short>(rect_.right - rect_.left);
   if (maxWidth > 0 && width > maxWidth)
   {
@@ -256,6 +302,10 @@ short ToolboxTextContext::visibleWidth() const
 
 void ToolboxTextContext::paint(bool erase)
 {
+  if (!this->node_ || !this->controller())
+    return;
+  const ToolboxTextFontDescriptor descriptor(this->node_->props.resolvedTextStyle());
+  ToolboxTextMeasureScope measure(*this->controller(), descriptor);
   ToolboxPaintClip clip(this->paintRect_);
   if (clip.isActive() && !clip.touches(this->paintRect_))
     return;
@@ -272,10 +322,8 @@ void ToolboxTextContext::paint(bool erase)
   if (erase)
     EraseRect(&this->paintRect_);
   bool painted = false;
-  if (this->maxWidth_ > 0 && this->truncationMode_ == loka::app::TEXT_TRUNCATION_ELLIPSIS
-      && this->controller())
+  if (this->maxWidth_ > 0 && this->truncationMode_ == loka::app::TEXT_TRUNCATION_ELLIPSIS)
   {
-    ToolboxTextMeasureScope measure(*this->controller());
     const std::string truncated = TruncateWithEllipsis(
         this->text_->get(), this->maxWidth_, measure);
     DrawStringAt(this->textX_, this->textY_, loka::core::String(truncated));
@@ -316,39 +364,19 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
   const loka::core::String &value = node_->props.text_->get();
   if (!toolbox)
     return 0;
-  ToolboxTextMeasureScope measure(*toolbox);
-  short measuredWidth = measure.measure(value);
-  short width = measuredWidth;
-  const bool wrapWord = (wrapMode_ == loka::app::TEXT_WRAP_WORD);
-  const bool wrapChar = (wrapMode_ == loka::app::TEXT_WRAP_CHAR);
-  short effectiveLineHeight = state.lineHeight;
-  if (state.width > 0)
-  {
-    maxWidth_ = state.width;
-    if (wrapWord || wrapChar)
-    {
-      effectiveLineHeight =
-          MeasureWrappedTextHeight(value,
-                                   maxWidth_,
-                                   state.lineHeight > 0 ? state.lineHeight
-                                                        : ToolboxLayoutMetrics::kDefaultLineHeight,
-                                   wrapChar,
-                                   measure);
-    }
-    width = maxWidth_;
-  }
-  else
-  {
-    maxWidth_ = 0;
-  }
+  const loka::app::TextStyle style = this->node_->props.resolvedTextStyle();
+  const ToolboxTextFontDescriptor descriptor(style);
+  ToolboxTextMeasureScope measure(*toolbox, descriptor);
+  const TextGeometry geometry = ResolveTextGeometry(style, state, value, this->wrapMode_, measure);
+  const short measuredWidth = measure.measure(value);
+  this->maxWidth_ = state.width > 0 ? state.width : 0;
+  const short width = this->maxWidth_ > 0 ? this->maxWidth_ : measuredWidth;
   Rect rect;
   rect.left = state.x;
   rect.top = state.y;
   rect.right = static_cast<short>(state.x + width);
-  rect.bottom = static_cast<short>(state.y + effectiveLineHeight - ToolboxLayoutMetrics::kControlAscentInset
-                                   + ToolboxLayoutMetrics::kControlDescent);
-  updateRect(rect, state.x,
-             static_cast<short>(state.y + effectiveLineHeight - ToolboxLayoutMetrics::kControlAscentInset));
+  rect.bottom = static_cast<short>(state.y + geometry.height);
+  updateRect(rect, state.x, static_cast<short>(state.y + geometry.baselineOffset));
   // Advance by the painted box, as the other rails do: y is the top edge.
   state.y = static_cast<short>(rect.bottom + state.spacing);
   return width;

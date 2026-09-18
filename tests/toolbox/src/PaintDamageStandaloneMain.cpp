@@ -7,6 +7,7 @@
 #include "ToolboxWindow.hpp"
 #include "ToolboxLayoutMetrics.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
+#include "context/ToolboxTextContext.hpp"
 #include "app/core/AppComposition.hpp"
 #include "app/core/AppConfigurable.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
@@ -32,6 +33,20 @@
 #include "platform/file/AppLocation.hpp"
 #include "platform/file/FileIO.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
+
+namespace loka
+{
+  namespace testing
+  {
+    /** Read native placement without painting, relayout, or dirtying test data. */
+    class ToolboxTextContextAccess
+    {
+    public:
+      static Rect rect(const ToolboxTextContext &context) { return context.rect_; }
+      static short baseline(const ToolboxTextContext &context) { return context.textY_; }
+    };
+  }
+}
 
 namespace
 {
@@ -362,7 +377,7 @@ namespace
         : StdCompositionBoundaryNodeBase<ButtonExactProps>(props)
     {
       this->state(this->enabled_, true);
-      this->state(this->title_, loka::core::String::Literal("MMMMMMMM"));
+      this->state(this->title_, loka::core::String::Literal("MMMMIIII"));
       RectSurfaceModel model;
       model.rectCount = 1;
       model.rects[0] = RectSprite(4, 4, 12, 12);
@@ -380,15 +395,75 @@ namespace
     {
       loka::core::StateTrackerGuard guard(this->tracker());
       if (label)
-        this->title_.set(loka::core::String::Literal("IIIIIIII"));
+        this->title_.set(loka::core::String::Literal("IIIIMMMM"));
       else
         this->enabled_.set(false);
+    }
+    void widenTitle()
+    {
+      loka::core::StateTrackerGuard guard(this->tracker());
+      this->title_.set(loka::core::String::Literal("MMMMMMMM"));
     }
   private:
     NodeState<bool> enabled_;
     NodeState<loka::core::String> title_;
     NodeState<RectSurfaceModel> model_;
   };
+
+  class TextStyleChangeNode;
+  typedef BoundaryPropsFor<TextStyleChangeNode> TextStyleChangeProps;
+  /** The Boundary owns the MutableState; Text borrows its read-only State door. */
+  class TextStyleChangeNode : public StdCompositionBoundaryNodeBase<TextStyleChangeProps>
+  {
+  public:
+    typedef TextStyleChangeProps::TypeTag TypeTag;
+    explicit TextStyleChangeNode(const TextStyleChangeProps &props)
+        : StdCompositionBoundaryNodeBase<TextStyleChangeProps>(props)
+    {
+      this->state<loka::app::TextStyle>(this->style_, FontSize<12>());
+    }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      composition.declare(Column()
+                          << (Text("M") + this->style_.state()).TEST_ID("TextStyleChange.Text")
+                          << (Text("MMMMMMMM") + FontSize<12>()).TEST_ID("TextStyleChange.Sibling"));
+    }
+    void enlarge()
+    {
+      loka::core::StateTrackerGuard guard(this->tracker());
+      this->style_.set(FontSize<24>());
+    }
+  private:
+    NodeState<loka::app::TextStyle> style_;
+  };
+
+  /** Completed pre-change placement and a row of ink that must be erased. */
+  class TextStyleChangeBefore
+  {
+  public:
+    TextStyleChangeBefore() : text_(), sibling_(), oldInkRow_(), baseline_(0) {}
+    TextStyleChangeBefore(const Rect &text, const Rect &sibling, const Rect &oldInkRow, short baseline)
+        : text_(text), sibling_(sibling), oldInkRow_(oldInkRow), baseline_(baseline) {}
+    const Rect &text() const { return this->text_; }
+    const Rect &sibling() const { return this->sibling_; }
+    const Rect &oldInkRow() const { return this->oldInkRow_; }
+    short baseline() const { return this->baseline_; }
+  private:
+    Rect text_;
+    Rect sibling_;
+    Rect oldInkRow_;
+    short baseline_;
+  };
+
+  int CountTextStyleInk(const Rect &rect)
+  {
+    int ink = 0;
+    for (short y = rect.top; y < rect.bottom; ++y)
+      for (short x = rect.left; x < rect.right; ++x)
+        if (GetPixel(x, y))
+          ++ink;
+    return ink;
+  }
 
   class TextWidthNode;
   typedef BoundaryPropsFor<TextWidthNode> TextWidthProps;
@@ -754,7 +829,7 @@ namespace
   public:
     explicit PaintDamageConfig(PlatformContext *context)
         : AppConfigurable(context), app_(0), node_(0), composited_(0), edit_(0), log_(0), phase_(SETTLE), result_(0),
-          initial_(), marker_(), scrollTextMarker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0), cellWindow_(0), popupWindow_(0), overflowWindow_(0), imageWindow_(0), popupRow_(), editExact_(0), editExactWindow_(0), editZStack_(0), editZStackWindow_(0), popupExact_(0), popupExactWindow_(0), popupFaceRows_(), history_(0), historyWindow_(0), popupHistory_(0), popupHistoryWindow_(0), buttonEnabled_(0), buttonEnabledWindow_(0), buttonLabel_(0), buttonLabelWindow_(0), buttonTitlePixels_(), textWidth_(0), textWidthWindow_(0), offscreen_(0), offscreenWindow_(0)
+          initial_(), marker_(), scrollTextMarker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0), cellWindow_(0), popupWindow_(0), overflowWindow_(0), imageWindow_(0), popupRow_(), editExact_(0), editExactWindow_(0), editZStack_(0), editZStackWindow_(0), popupExact_(0), popupExactWindow_(0), popupFaceRows_(), history_(0), historyWindow_(0), popupHistory_(0), popupHistoryWindow_(0), buttonEnabled_(0), buttonEnabledWindow_(0), buttonLabel_(0), buttonLabelWindow_(0), buttonTitlePixels_(), textWidth_(0), textWidthWindow_(0), textStyleChange_(0), textStyleChangeWindow_(0), textStyleBefore_(), offscreen_(0), offscreenWindow_(0)
     {
       if (loka::platform::file::ResolveApplicationSidecar(
               loka::file::File::Application() << loka::file::File("LOG.TXT"), this->file_))
@@ -859,6 +934,11 @@ namespace
                                    TextWidthProps(), &this->textWidth_))
                                .visible(false).idlePolicy(IdlePolicy::everyTick())
                                .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->textWidthWindow_);
+      composition << ObservedWindowDefinition(WindowProps().frame(350, 250, 220, 180).title("Text style layout")
+                               .scene(loka::scenario_tests::ObservedMainDefinition<TextStyleChangeProps, TextStyleChangeNode>(
+                                   TextStyleChangeProps(), &this->textStyleChange_))
+                               .visible(false).idlePolicy(IdlePolicy::everyTick())
+                               .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->textStyleChangeWindow_);
       composition << ObservedWindowDefinition(WindowProps().frame(350, 250, 220, 180).title("Column overflow exact")
                                .scene(loka::scenario_tests::ObservedMainDefinition<OffscreenDamageProps, OffscreenDamageNode>(
                                    OffscreenDamageProps(), &this->offscreen_))
@@ -873,6 +953,7 @@ namespace
                  POPUP_HISTORY_SHOW, POPUP_HISTORY_FIRST, POPUP_HISTORY_SECOND, POPUP_HISTORY_CHECK, BUTTON_ENABLED_SHOW, BUTTON_ENABLED_WRITE, BUTTON_ENABLED_CHECK,
                  BUTTON_LABEL_SHOW, BUTTON_LABEL_WRITE, BUTTON_LABEL_CHECK,
                  TEXT_WIDTH_SHOW, TEXT_WIDTH_WRITE, TEXT_WIDTH_CHECK, TEXT_WIDTH_RELAYOUT,
+                 TEXT_STYLE_SHOW, TEXT_STYLE_WRITE, TEXT_STYLE_CHECK,
                  OFFSCREEN_SHOW, OFFSCREEN_WRITE, OFFSCREEN_SIBLING_CHECK, OFFSCREEN_TEXT_CHECK, OFFSCREEN_HIDDEN_CHECK, OFFSCREEN_REVEAL_CHECK, OFFSCREEN_REVEALED_WRITE_CHECK, OFFSCREEN_DETACH_CHECK, COMPLETE };
     App *app_;
     ViewportDamageNode *node_;
@@ -917,6 +998,9 @@ namespace
     ButtonTitlePixels buttonTitlePixels_;
     TextWidthNode *textWidth_;
     Window *textWidthWindow_;
+    TextStyleChangeNode *textStyleChange_;
+    Window *textStyleChangeWindow_;
+    TextStyleChangeBefore textStyleBefore_;
     OffscreenDamageNode *offscreen_;
     Window *offscreenWindow_;
 
@@ -989,6 +1073,9 @@ namespace
       case TEXT_WIDTH_SHOW: case TEXT_WIDTH_WRITE: case TEXT_WIDTH_CHECK: case TEXT_WIDTH_RELAYOUT:
         target = self->textWidthWindow_;
         break;
+      case TEXT_STYLE_SHOW: case TEXT_STYLE_WRITE: case TEXT_STYLE_CHECK:
+        target = self->textStyleChangeWindow_;
+        break;
       case OFFSCREEN_SHOW: case OFFSCREEN_WRITE: case OFFSCREEN_SIBLING_CHECK:
       case OFFSCREEN_TEXT_CHECK: case OFFSCREEN_HIDDEN_CHECK: case OFFSCREEN_REVEAL_CHECK: case OFFSCREEN_REVEALED_WRITE_CHECK: case OFFSCREEN_DETACH_CHECK:
         target = self->offscreenWindow_;
@@ -1042,6 +1129,8 @@ namespace
         OnButtonIdle(target, self->buttonLabel_, true, self);
       else if (target == self->textWidthWindow_)
         OnTextWidthIdle(target, self->textWidth_, self);
+      else if (target == self->textStyleChangeWindow_)
+        OnTextStyleIdle(target, self->textStyleChange_, self);
       else if (target == self->imageWindow_)
         OnImageIdle(target, self);
       else
@@ -2091,6 +2180,115 @@ namespace
       }
     }
 
+    void checkTextFonts(ToolboxScenePlatformController &controller, GrafPtr port)
+    {
+      const short portFont = port->txFont;
+      const short portSize = port->txSize;
+      const Style portFace = port->txFace;
+      const loka::app::TextStyle normal = loka::app::TextStyle().weight(TEXT_WEIGHT_NORMAL).italic(false);
+      const loka::app::TextStyle styles[] = {
+          FontSize<9>() + normal, FontSize<12>() + normal,
+          FontSize<18>() + normal, FontSize<24>() + normal,
+          FontSize<12>() + normal + Bold, FontSize<12>() + normal + Italic};
+      const char *restoreNames[] = {
+          "font-9-restores-port", "font-12-restores-port",
+          "font-18-restores-port", "font-24-restores-port",
+          "font-bold-restores-port", "font-italic-restores-port"};
+      const char *selectionNames[] = {
+          "font-9-selects-descriptor", "font-12-selects-descriptor",
+          "font-18-selects-descriptor", "font-24-selects-descriptor",
+          "font-bold-selects-descriptor", "font-italic-selects-descriptor"};
+      const short sizes[] = {9, 12, 18, 24, 12, 12};
+      const Style faces[] = {0, 0, 0, 0, bold, italic};
+      short widths[6];
+      for (int i = 0; i < 6; ++i)
+      {
+        {
+          const ToolboxTextFontDescriptor descriptor(styles[i]);
+          ToolboxTextMeasureScope scope(controller, descriptor);
+          widths[i] = scope.measure(loka::core::String::Literal("MMMMMMMM"));
+          this->recordArm(selectionNames[i], port->txFont == portFont
+                          && port->txSize == sizes[i]
+                          && port->txFace == static_cast<Style>((portFace & ~(bold | italic)) | faces[i]),
+                          TEXT_WIDTH_WRITE);
+        }
+        GrafPtr restored = 0;
+        GetPort(&restored);
+        this->recordArm(restoreNames[i], restored == port && port->txFont == portFont
+                        && port->txSize == portSize && port->txFace == portFace, TEXT_WIDTH_WRITE);
+      }
+      std::fprintf(this->log_, "font-widths 9=%d 12=%d 18=%d 24=%d bold=%d italic=%d\r",
+                   widths[0], widths[1], widths[2], widths[3], widths[4], widths[5]);
+      this->recordArm("font-width-9-lt-12", widths[0] < widths[1], TEXT_WIDTH_WRITE);
+      this->recordArm("font-width-12-lt-18", widths[1] < widths[2], TEXT_WIDTH_WRITE);
+      this->recordArm("font-width-18-lt-24", widths[2] < widths[3], TEXT_WIDTH_WRITE);
+      this->recordArm("font-bold-12-gt-normal", widths[4] > widths[1], TEXT_WIDTH_WRITE);
+      this->recordArm("font-italic-12-ge-normal", widths[5] >= widths[1], TEXT_WIDTH_WRITE);
+
+      loka::app::TextStyle unsnapped;
+      unsnapped.hasFontSize_ = true;
+      unsnapped.fontSize_ = 11;
+      this->recordArm("font-size-tie-snaps-down", ToolboxTextFontDescriptor(unsnapped).size(12) == 10,
+                      TEXT_WIDTH_WRITE);
+      const ToolboxTextFontDescriptor inherited;
+      this->recordArm("font-unset-inherits-port", inherited.font(portFont) == portFont
+                      && inherited.size(17) == 17 && inherited.face(bold | italic) == (bold | italic),
+                      TEXT_WIDTH_WRITE);
+      this->recordArm("font-explicit-face-clears-only-own-bits",
+                      ToolboxTextFontDescriptor(normal).face(bold | italic | underline) == underline,
+                      TEXT_WIDTH_WRITE);
+
+      TextNode small((Text("MMMMMMMM") + FontSize<12>() + normal).props);
+      TextNode large((Text("MMMMMMMM") + FontSize<24>() + normal).props);
+      ToolboxTextContext smallContext(&small, &controller);
+      ToolboxTextContext largeContext(&large, &controller);
+      LayoutState smallState;
+      smallState.lineHeight = 16;
+      LayoutState largeState = smallState;
+      smallContext.layout(&controller, smallState);
+      largeContext.layout(&controller, largeState);
+      std::fprintf(this->log_, "font-layout-height 12=%d 24=%d\r", smallState.y, largeState.y);
+      this->recordArm("font-text-24-taller-than-12", largeState.y > smallState.y, TEXT_WIDTH_WRITE);
+      this->recordArm("font-text-visible-width-matches-descriptor",
+                      smallContext.visibleWidth() == widths[1] && largeContext.visibleWidth() == widths[3],
+                      TEXT_WIDTH_WRITE);
+      this->recordArm("font-text-24-height-34", largeState.y == 34, TEXT_WIDTH_WRITE);
+
+      // Pre-PR Chicago 12 contract: unset size uses height 16, baseline 10,
+      // and line pitch 12. Exercise actual layout and paint, not a test getter.
+      // The fixture's Row ends above y=80; this scratch area contains no sibling.
+      Point previousPen;
+      GetPen(&previousPen);
+      TextNode legacy(Text("M").props);
+      ToolboxTextContext legacyContext(&legacy, &controller);
+      LayoutState legacyState;
+      legacyState.x = 12;
+      legacyState.y = 80;
+      legacyState.width = 64;
+      legacyState.lineHeight = 12;
+      LayoutState wrappedState = legacyState;
+      legacyContext.layout(&controller, legacyState);
+      legacyContext.repaint();
+      Point baseline;
+      GetPen(&baseline);
+      std::fprintf(this->log_, "font-unset-geometry height=%d baseline=%d\r",
+                   legacyState.y - 80, baseline.v - 80);
+      this->recordArm("font-unset-height-16", legacyState.y - 80 == 16, TEXT_WIDTH_WRITE);
+      this->recordArm("font-unset-baseline-10", baseline.v - 80 == 10, TEXT_WIDTH_WRITE);
+
+      TextNode wrapped((Text("M\nM") + BlockStyle().wrap(TEXT_WRAP_WORD)).props);
+      ToolboxTextContext wrappedContext(&wrapped, &controller);
+      wrappedContext.layout(&controller, wrappedState);
+      wrappedContext.repaint();
+      GetPen(&baseline);
+      this->recordArm("font-unset-wrap-pitch-12", wrappedState.y - 80 == 28, TEXT_WIDTH_WRITE);
+      this->recordArm("font-unset-wrap-baseline-22", baseline.v - 80 == 22, TEXT_WIDTH_WRITE);
+      Rect scratch;
+      SetRect(&scratch, 12, 80, 76, 148);
+      EraseRect(&scratch);
+      MoveTo(previousPen.h, previousPen.v);
+    }
+
     static void OnTextWidthIdle(Window *window, TextWidthNode *node, PaintDamageConfig *self)
     {
       ToolboxWindow *native = window->asToolboxWindow();
@@ -2127,6 +2325,7 @@ namespace
       const PaintAnswer sibling = secondContext->queryPaintDamage(query);
       if (self->phase_ == TEXT_WIDTH_WRITE)
       {
+        self->checkTextFonts(*controller, reinterpret_cast<GrafPtr>(native->window()));
         const PaintAnswer before = firstContext->queryPaintDamage(query);
         const PaintAnswer sprite = static_cast<NativeNodeContext *>(surface->getContext())->queryPaintDamage(query);
         GrafPtr ambientPort = self->paintWindow_
@@ -2210,7 +2409,103 @@ namespace
       std::fprintf(self->log_, "row-text-relayout-keeps-seat sibling_x=%d seated=%d first_right=%d\r",
                    sibling.damage.x, relaid ? 1 : 0, wider.damage.x + wider.damage.width);
       self->recordArm("row-text-relayout-keeps-seat", relaid && wider.kind == PAINT_ANSWER_EXACT
-                      && wider.damage.x + wider.damage.width <= node->siblingColumn(), OFFSCREEN_SHOW);
+                      && wider.damage.x + wider.damage.width <= node->siblingColumn(), TEXT_STYLE_SHOW);
+    }
+
+    static void OnTextStyleIdle(Window *window, TextStyleChangeNode *node, PaintDamageConfig *self)
+    {
+      ToolboxWindow *native = window->asToolboxWindow();
+      if (self->phase_ == TEXT_STYLE_SHOW)
+      {
+        ShowWindow(native->window());
+        SelectWindow(native->window());
+        native->requestInvalidate();
+        self->phase_ = TEXT_STYLE_WRITE;
+        return;
+      }
+      ToolboxScenePlatformController *controller = window->scene()
+          ? static_cast<ToolboxScenePlatformController *>(
+              loka::dsl::testing::SceneTestAccess::platformController(*window->scene())) : 0;
+      TextNode *text = 0;
+      TextNode *sibling = 0;
+      loka::dsl::FlowError error;
+      loka::dsl::testing::LookupNodeById<TextNode>(window->scene(), "TextStyleChange.Text", text, error);
+      loka::dsl::testing::LookupNodeById<TextNode>(window->scene(), "TextStyleChange.Sibling", sibling, error);
+      if (!controller || !node || !text || !text->getContext() || !sibling || !sibling->getContext())
+      {
+        self->recordArm("font-live-style-setup", false, COMPLETE);
+        self->finish(false);
+        return;
+      }
+      ToolboxTextContext *textContext = static_cast<ToolboxTextContext *>(text->getContext());
+      ToolboxTextContext *siblingContext = static_cast<ToolboxTextContext *>(sibling->getContext());
+      const Rect textRect = loka::testing::ToolboxTextContextAccess::rect(*textContext);
+      const Rect siblingRect = loka::testing::ToolboxTextContextAccess::rect(*siblingContext);
+      const short baseline = loka::testing::ToolboxTextContextAccess::baseline(*textContext);
+      GrafPtr previousPort;
+      GetPort(&previousPort);
+      SetPort(native->window());
+      FontInfo largeFont;
+      short largeWidth;
+      {
+        const ToolboxTextFontDescriptor descriptor((FontSize<24>()));
+        ToolboxTextMeasureScope measure(*controller, descriptor);
+        GetFontInfo(&largeFont);
+        largeWidth = measure.measure(loka::core::String::Literal("M"));
+      }
+      if (self->phase_ == TEXT_STYLE_WRITE)
+      {
+        Rect oldInkRow;
+        SetRect(&oldInkRow, 0, 0, 0, 0);
+        // Outside the wider M's horizontal ink span, old sibling ink must
+        // become background when the sibling moves down. Prove ink exists first.
+        for (short y = siblingRect.top; y < siblingRect.bottom; ++y)
+        {
+          const Rect row = {y, static_cast<short>(textRect.left + largeWidth + 4),
+                            static_cast<short>(y + 1), siblingRect.right};
+          if (CountTextStyleInk(row) > 0)
+            oldInkRow = row;
+        }
+        const bool setup = textRect.bottom - textRect.top == 16
+                           && text->props.textStyleState_
+                           && text->props.resolvedTextStyle().fontSize_ == 12
+                           && !EmptyRect(&oldInkRow) && CountTextStyleInk(textRect) > 0;
+        self->textStyleBefore_ = TextStyleChangeBefore(textRect, siblingRect, oldInkRow, baseline);
+        SetPort(previousPort);
+        self->recordArm("font-live-style-setup", setup, TEXT_STYLE_CHECK);
+        self->initial_ = controller->debugStatsForTesting();
+        node->enlarge();
+        // Only DispatchIdle's normal scene/native flush runs before CHECK.
+        return;
+      }
+      const short expectedBaseline = static_cast<short>(textRect.top + largeFont.ascent);
+      const Rect glyphBand = {static_cast<short>(expectedBaseline - 3), textRect.left,
+                              expectedBaseline, static_cast<short>(textRect.left + largeWidth)};
+      const int glyphInk = CountTextStyleInk(glyphBand);
+      const int oldInk = CountTextStyleInk(self->textStyleBefore_.oldInkRow());
+      const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
+      // begin() resets per-change request counts; totalRenderCalls survives it.
+      // Pair the render delta with new geometry to prove layout completed.
+      const int renders = stats.totalRenderCalls - self->initial_.totalRenderCalls;
+      std::fprintf(self->log_,
+                   "font-live-style height=%d sibling_dy=%d baseline=%d expected=%d glyph_ink=%d old_ink=%d renders=%d\r",
+                   textRect.bottom - textRect.top, siblingRect.top - self->textStyleBefore_.sibling().top,
+                   baseline, expectedBaseline, glyphInk, oldInk, renders);
+      SetPort(previousPort);
+      self->recordArm("font-live-style-height-34", textRect.bottom - textRect.top == 34, OFFSCREEN_SHOW);
+      self->recordArm("font-live-style-sibling-down-18",
+                      siblingRect.top - self->textStyleBefore_.sibling().top == 18, OFFSCREEN_SHOW);
+      self->recordArm("font-live-style-new-baseline-ink",
+                      baseline == expectedBaseline && baseline > self->textStyleBefore_.baseline()
+                      && textRect.top == self->textStyleBefore_.text().top
+                      && glyphBand.top >= textRect.top && glyphBand.bottom <= textRect.bottom && glyphInk > 0,
+                      OFFSCREEN_SHOW);
+      self->recordArm("font-live-style-old-sibling-row-erased",
+                      !EmptyRect(&self->textStyleBefore_.oldInkRow())
+                      && self->textStyleBefore_.oldInkRow().bottom <= siblingRect.top && oldInk == 0,
+                      OFFSCREEN_SHOW);
+      self->recordArm("font-live-style-layout-rendered",
+                      renders > 0 && textRect.bottom - textRect.top == 34, OFFSCREEN_SHOW);
     }
 
     static void OnButtonIdle(Window *window, ButtonExactNode *node, bool label, PaintDamageConfig *self)
@@ -2255,12 +2550,19 @@ namespace
         SetPort(previousPort);
         self->recordArm(label ? "button-label-setup" : "button-enabled-setup", setup,
                         label ? BUTTON_LABEL_CHECK : BUTTON_ENABLED_CHECK);
+        if (label)
+        {
+          const short beforeWidth = controller->measureTextWidth(loka::core::String::Literal("MMMMIIII"));
+          const short afterWidth = controller->measureTextWidth(loka::core::String::Literal("IIIIMMMM"));
+          std::fprintf(self->log_, "button-label-widths before=%d after=%d\r", beforeWidth, afterWidth);
+          self->recordArm("button-label-equal-width", beforeWidth == afterWidth, BUTTON_LABEL_CHECK);
+        }
         self->initial_ = controller->debugStatsForTesting();
         node->advance(label);
         return;
       }
-      // Disabled CDEF text removes alternating black title pixels. Changing
-      // M to I removes title ink too; neither sample includes the button frame.
+      // Disabled CDEF text removes alternating black title pixels. Permuting
+      // M/I preserves width but moves ink; neither sample includes the frame.
       const int erased = self->buttonTitlePixels_.erasedInk(self->editGeometry_.view);
       const bool sprite = GetPixel(self->marker_.h, self->marker_.v) != 0;
       SetPort(previousPort);
@@ -2296,6 +2598,13 @@ namespace
         self->recordArm("button-full-history-restored",
                         context->queryPaintDamage(query).kind == PAINT_ANSWER_EXACT, COMPLETE);
         SetPort(previousPort);
+        node->widenTitle();
+        const PaintAnswer widerTitle = context->queryPaintDamage(query);
+        std::fprintf(self->log_, "button-label-wider answer=%d reason=%d\r",
+                     static_cast<int>(widerTitle.kind), static_cast<int>(widerTitle.reason));
+        self->recordArm("button-label-wider-refuses",
+                        widerTitle.kind == PAINT_ANSWER_REFUSED
+                        && widerTitle.reason == PAINT_REFUSED_PLACEMENT_UNSETTLED, COMPLETE);
         controller->destroyButtonControl(911, NATIVE_HINT_DEFAULT);
         self->recordArm("button-native-retired-refuses",
                         context->queryPaintDamage(query).kind == PAINT_ANSWER_REFUSED, COMPLETE);
