@@ -4,7 +4,70 @@
 #include "app/core/App.hpp"
 #include <vector>
 #include <Menus.h>
+#include <Quickdraw.h>
 #include "ToolboxActivationPhase.hpp"
+class ToolboxApp;
+class ToolboxSceneDebugStats;
+
+/** The app-wide cursor writer. Scopes borrow it only for non-yielding work. */
+class CursorOwner
+{
+public:
+  enum HoverCursor { HOVER_ARROW, HOVER_IBEAM };
+  enum AppliedCursor { UNKNOWN, ARROW, IBEAM, WATCH };
+
+  explicit CursorOwner(ToolboxApp &app);
+  /** Load optional resources once, after Toolbox initialization. */
+  void initialize();
+  void setHover(HoverCursor cursor, bool force = false);
+  void apply(bool force);
+  /** Re-sample the front window after a native writer may have changed cursors. */
+  void reconcile();
+  void assertIdle() const;
+#ifdef TEST_BUILD
+  void copyDiagnostics(ToolboxSceneDebugStats &snapshot) const;
+#endif
+
+private:
+  friend class BusyScope;
+  /** Startup copy survives resource purging without update-cycle allocation. */
+  class CachedCursor
+  {
+  public:
+    CachedCursor() : value_(), available_(false) {}
+    void load(short resourceId);
+    const Cursor *get() const { return this->available_ ? &this->value_ : 0; }
+  private:
+    Cursor value_;
+    bool available_;
+  };
+  CursorOwner(const CursorOwner &);
+  CursorOwner &operator=(const CursorOwner &);
+  void enterBusy();
+  void exitBusy();
+  ToolboxApp &app_;
+  HoverCursor hoverCursor_;
+  short busyDepth_;
+  AppliedCursor lastApplied_;
+  unsigned long nativeApplies_;
+  unsigned long outerEntries_;
+  unsigned long outerExits_;
+  CachedCursor iBeam_;
+  CachedCursor watch_;
+};
+
+/** Synchronous, non-copyable borrow; nested scopes issue no native writes. */
+class BusyScope
+{
+public:
+  explicit BusyScope(CursorOwner &owner) : owner_(owner) { this->owner_.enterBusy(); }
+  ~BusyScope() { this->owner_.exitBusy(); }
+private:
+  BusyScope(const BusyScope &);
+  BusyScope &operator=(const BusyScope &);
+  CursorOwner &owner_;
+};
+
 class ToolboxApp : public App
 {
 protected:
@@ -13,6 +76,7 @@ protected:
   friend class ToolboxPlatformContext;
 
 public:
+  CursorOwner &cursorOwner() { return this->cursorOwner_; }
   virtual void run();
   virtual void quit();
   void handleMenuSelection(short menuId, short item);
@@ -47,6 +111,8 @@ public:
   void noteMenuBarChangedFromBinding();
 
 private:
+  friend class CursorOwner;
+  void sampleHover(bool force);
   struct MenuEntry
   {
     MenuHandle menu;
@@ -66,6 +132,7 @@ private:
   /** The run loop owns this; every step branches on it rather than taking
       per-step booleans (see ToolboxActivationPhase.hpp). */
   ActivationPhase activationPhase_;
+  CursorOwner cursorOwner_;
   /** A background binding changed the menu data; one DrawMenuBar is owed at
       resume. */
   bool menuBarDrawDeferred_;
@@ -76,5 +143,17 @@ private:
   std::vector<MenuHandle> hierarchicalMenus_;
   bool running_;
 };
+
+#ifdef TEST_BUILD
+#include "debug/ToolboxSceneDebugStats.hpp"
+inline void CursorOwner::copyDiagnostics(ToolboxSceneDebugStats &snapshot) const
+{
+  snapshot.cursorNativeApplies = this->nativeApplies_;
+  snapshot.cursorOuterEntries = this->outerEntries_;
+  snapshot.cursorOuterExits = this->outerExits_;
+  snapshot.cursorDepth = this->busyDepth_;
+  snapshot.cursorLastApplied = this->lastApplied_;
+}
+#endif
 
 #endif // LOKA_TOOLBOX_APP_HPP
