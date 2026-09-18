@@ -1,5 +1,6 @@
 LOKA_TEST(testWin32ThreadModalScopeHoldsSiblingsDisabled)
 LOKA_TEST(testWin32NodeHandlerEnsureContract)
+LOKA_TEST(testWin32TextFontTable)
 LOKA_TEST(testWin32LayoutPresentsRootOnceAfterPositioningChildren)
 LOKA_TEST(testWin32ReentrantLayoutSharesOutermostPresentation)
 LOKA_TEST(testWin32PopupRelayoutPreservesNativeItems)

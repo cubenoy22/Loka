@@ -39,11 +39,42 @@ namespace
 
   Win32TextNodeHandler gWin32TextNodeHandler;
 
+  HFONT ResolveTextFont(const loka::app::TextNode *text,
+                        const Win32ScenePlatformController *controller)
+  {
+    if (!text || !controller || !text->props.hasDeclaredStyle())
+      return 0;
+    const loka::app::TextStyle style = text->props.resolvedTextStyle();
+    return style.hasFontSize_ || style.hasWeight_ || style.hasItalic_
+               ? controller->textFont(style) : 0;
+  }
+
+  /** A null selected font preserves the historical unstyled height. */
+  int MinimumTextHeight(HWND hwnd, HFONT font, const Win32ScenePlatformController *controller)
+  {
+    const int fallback = loka::app::layout::FallbackControlMetrics::kTextHeight;
+    if (!hwnd || !font || !controller)
+      return fallback;
+    HDC hdc = GetDC(hwnd);
+    if (!hdc)
+      return fallback;
+    HGDIOBJ previous = SelectObject(hdc, font);
+    TEXTMETRICW metrics;
+    const bool measured = GetTextMetricsW(hdc, &metrics) != FALSE;
+    if (previous)
+      SelectObject(hdc, previous);
+    ReleaseDC(hwnd, hdc);
+    const int height = measured
+        ? controller->displayScale().unprojectLength(metrics.tmHeight + metrics.tmExternalLeading) : fallback;
+    return height > fallback ? height : fallback;
+  }
+
   int MeasureTextHeightForWidth(HWND hwnd,
                                 const Win32ScenePlatformController *controller,
                                 const loka::app::TextNode *text,
                                 int width,
-                                int defaultHeight)
+                                int defaultHeight,
+                                HFONT selectedFont)
   {
     if (!hwnd || !controller || !text || !text->props.text_)
     {
@@ -80,9 +111,9 @@ namespace
     rc.right = controller->displayScale().projectLength(width);
     rc.bottom = 0;
     HGDIOBJ previousFont = 0;
-    if (controller->displayFont())
+    if (selectedFont)
     {
-      previousFont = SelectObject(hdc, controller->displayFont());
+      previousFont = SelectObject(hdc, selectedFont);
     }
     UINT flags = DT_LEFT | DT_NOPREFIX | DT_CALCRECT | DT_WORDBREAK | DT_EDITCONTROL;
     DrawTextW(hdc, wide.c_str(), -1, &rc, flags);
@@ -151,6 +182,7 @@ Win32TextContext::Win32TextContext(Win32ScenePlatformController *controller,
       ReleaseDC(hwnd_, hdc);
     }
   }
+  this->applyStyle();
   bindText();
 }
 
@@ -207,8 +239,27 @@ void Win32TextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previou
   }
 }
 
+bool Win32TextContext::applyStyle()
+{
+  if (!this->hwnd_ || !this->node_ || !this->controller())
+    return false;
+  HFONT font = ResolveTextFont(this->node_, this->controller());
+  if (!font)
+    font = this->controller()->displayFont();
+  // WM_GETFONT is the native truth; no cached handle can outlive a DPI table.
+  if (font && reinterpret_cast<HFONT>(SendMessageW(this->hwnd_, WM_GETFONT, 0, 0)) != font)
+  {
+    SendMessageW(this->hwnd_, WM_SETFONT, reinterpret_cast<WPARAM>(font), FALSE);
+    InvalidateRect(this->hwnd_, NULL, TRUE);
+    return true;
+  }
+  return false;
+}
+
 void Win32TextContext::onPropsApplied()
 {
+  if (this->applyStyle())
+    this->controller()->requestRelayout();
   if (!this->node_)
   {
     return;
@@ -252,12 +303,15 @@ bool Win32TextContext::captureBitmap(loka::core::resource::Image &out) const
 
 short Win32TextContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
+  this->applyStyle();
+  const HFONT font = ResolveTextFont(this->node_, this->controller());
   const int textHeight = MeasureTextHeightForWidth(
       this->hwnd_,
       this->controller(),
       this->node_,
       state.width,
-      loka::app::layout::FallbackControlMetrics::kTextHeight);
+      MinimumTextHeight(this->hwnd_, font, this->controller()),
+      font ? font : this->controller()->displayFont());
   this->relayout(state.x, state.y, state.width, textHeight);
   state.height = static_cast<short>(textHeight);
   return static_cast<short>(state.y + textHeight + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
@@ -352,19 +406,8 @@ void Win32TextContext::requestRelayoutIfNeeded()
   {
     return;
   }
-  HWND parent = GetParent(hwnd_);
-  if (!parent)
-  {
-    return;
-  }
-  RECT rc;
-  if (!GetClientRect(parent, &rc))
-  {
-    return;
-  }
-  const int width = rc.right - rc.left;
-  const int height = rc.bottom - rc.top;
-  PostMessage(parent, WM_SIZE, static_cast<WPARAM>(SIZE_RESTORED), static_cast<LPARAM>(MAKELPARAM(width, height)));
+  if (this->controller())
+    this->controller()->requestRelayout();
 }
 
 void Win32TextContext::TextChangedThunk(void *userData)

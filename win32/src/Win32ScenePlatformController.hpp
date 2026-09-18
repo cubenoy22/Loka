@@ -134,6 +134,12 @@ public:
   {
     return this->displayScale_;
   }
+  HFONT textFont(const loka::app::TextStyle &style) const
+  {
+    return this->displayFont_.find(style);
+  }
+  /** Schedule through the existing WM_SIZE layout path, never reenter layout. */
+  void requestRelayout();
   HFONT displayFont() const
   {
     return this->displayFont_.get();
@@ -374,7 +380,7 @@ private:
                                HMENU menu,
                                HINSTANCE instance,
                                void *createParameter);
-  void applyDisplayFontToNativeSubtree(HFONT font);
+  void applyDisplayFontToNativeSubtree(const loka::win32::Win32DisplayFont &replacement);
   void ensureDisplayFont();
   void clearContexts();
   void clearNodeContexts(loka::app::scene::Node *node);

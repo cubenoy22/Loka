@@ -113,9 +113,18 @@ namespace
   typedef std::map<HWND, Win32ScenePlatformController *> Win32ControllerMap;
   Win32ControllerMap gControllersByRootHwnd;
 
+  struct DisplayFontReplacement
+  {
+    const loka::win32::Win32DisplayFont &previous;
+    const loka::win32::Win32DisplayFont &next;
+  };
+
   BOOL CALLBACK ApplyDisplayFont(HWND hwnd, LPARAM fontValue)
   {
-    SendMessageW(hwnd, WM_SETFONT, static_cast<WPARAM>(fontValue), TRUE);
+    const DisplayFontReplacement &fonts = *reinterpret_cast<const DisplayFontReplacement *>(fontValue);
+    const HFONT previous = reinterpret_cast<HFONT>(SendMessageW(hwnd, WM_GETFONT, 0, 0));
+    SendMessageW(hwnd, WM_SETFONT,
+                 reinterpret_cast<WPARAM>(fonts.previous.replacementFor(previous, fonts.next)), TRUE);
     return TRUE;
   }
 
@@ -847,6 +856,14 @@ void Win32ScenePlatformController::relayoutNativeClientPixels(int clientWidth,
                  this->displayScale_.unprojectLength(clientHeight));
 }
 
+void Win32ScenePlatformController::requestRelayout()
+{
+  RECT client;
+  if (this->rootHwnd_ && GetClientRect(this->rootHwnd_, &client))
+    PostMessageW(this->rootHwnd_, WM_SIZE, static_cast<WPARAM>(SIZE_RESTORED),
+                 static_cast<LPARAM>(MAKELPARAM(client.right - client.left, client.bottom - client.top)));
+}
+
 void Win32ScenePlatformController::updateDisplayScale(
     const loka::win32::Win32DisplayScale &displayScale)
 {
@@ -863,20 +880,20 @@ void Win32ScenePlatformController::ensureDisplayFont()
   loka::win32::Win32DisplayFont replacement;
   if (replacement.create(this->displayScale_))
   {
-    this->applyDisplayFontToNativeSubtree(replacement.get());
+    this->applyDisplayFontToNativeSubtree(replacement);
     this->displayFont_.swap(replacement);
   }
 }
 
-void Win32ScenePlatformController::applyDisplayFontToNativeSubtree(HFONT font)
+void Win32ScenePlatformController::applyDisplayFontToNativeSubtree(
+    const loka::win32::Win32DisplayFont &replacement)
 {
-  if (!this->rootHwnd_ || !font)
+  if (!this->rootHwnd_ || !replacement.get())
   {
     return;
   }
-  EnumChildWindows(this->rootHwnd_,
-                   &ApplyDisplayFont,
-                   reinterpret_cast<LPARAM>(font));
+  const DisplayFontReplacement fonts = {this->displayFont_, replacement};
+  EnumChildWindows(this->rootHwnd_, &ApplyDisplayFont, reinterpret_cast<LPARAM>(&fonts));
 }
 
 void Win32ScenePlatformController::positionNativeWindow(HWND hwnd,
