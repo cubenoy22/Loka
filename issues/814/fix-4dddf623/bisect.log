@@ -1,0 +1,7 @@
+start Fri Sep 18 19:23:21 JST 2026
+34ad116a build=0 helloworld/startup: pass
+4fb460fd build=0 helloworld/startup: pass
+e424ac6e build=0 helloworld/startup: pass
+0f622023 build=0 helloworld/startup: pass
+b1f6af15 build=0 helloworld/startup: first differing pixel (397, 262): (255, 255, 255, 255) != (243, 243, 243, 255); differing pixels: 162
+bisect done Fri Sep 18 19:36:01 JST 2026

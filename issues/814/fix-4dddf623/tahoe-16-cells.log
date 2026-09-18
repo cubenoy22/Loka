@@ -1,0 +1,21 @@
+start Fri Sep 18 19:38:54 JST 2026
+4dddf623 Since #806 the macOS and Win32 
+build exit=0
+cell scrapbook startup: pass
+cell scrapbook open-first-page-refused: pass
+cell scrapbook flip-forward-back: pass
+cell scrapbook refused-flip-keeps-page: pass
+cell scrapbook open-text-page: pass
+cell scrapbook open-text-page-refused: pass
+cell helloworld startup: pass
+cell helloworld toggle-action-probe: pass
+cell helloworld bmi-roundtrip: pass
+cell tutorial startup: pass
+cell tutorial increment-summary-toggle: pass
+cell minesweeper startup: pass
+cell minesweeper new-game-twice: pass
+cell minesweeper seeded-reveal: pass
+cell floppybird startup: pass
+cell floppybird fixed-step-flaps: pass
+cells pass: 16/16
+matrix done Fri Sep 18 19:46:45 JST 2026
