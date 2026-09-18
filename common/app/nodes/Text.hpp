@@ -114,6 +114,13 @@ namespace loka
         return text(loka::core::String::Literal(value));
       }
 
+      /** True when any style field was declared. Rails configure their native
+          label only then; an undeclared Text keeps the platform defaults. */
+      bool hasDeclaredStyle() const
+      {
+        return this->textStyleState_ != 0 || this->textStyle_.hasFontSize_ || this->textStyle_.hasWeight_
+               || this->textStyle_.hasItalic_ || this->blockStyle_.hasWrap_ || this->blockStyle_.hasTruncation_;
+      }
       TextStyle resolvedTextStyle() const
       {
         return this->textStyleState_ ? this->textStyle_ + this->textStyleState_->get() : this->textStyle_;

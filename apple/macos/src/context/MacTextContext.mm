@@ -229,7 +229,10 @@ bool MacTextContext::applyStyle(bool initial)
     mode = wrapChar ? NSLineBreakByCharWrapping : NSLineBreakByWordWrapping;
   else if (attr.hasTruncation_ && attr.truncation_ == loka::app::TEXT_TRUNCATION_ELLIPSIS)
     mode = NSLineBreakByTruncatingTail;
-  if (initial || [cell wraps] != wraps || [cell isScrollable] != !wraps || [cell lineBreakMode] != mode)
+  // An undeclared Text keeps AppKit's defaults (#814); the block configuration
+  // below runs only once a style field was declared.
+  if (this->node_->props.hasDeclaredStyle()
+      && (initial || [cell wraps] != wraps || [cell isScrollable] != !wraps || [cell lineBreakMode] != mode))
   {
     SetUsesSingleLineModeCompat(label, !wraps);
     [cell setWraps:wraps];
