@@ -167,6 +167,12 @@ namespace loka
     bool Win32DisplayScale::spaceFactors(int &numerator, int &denominator) const
     {
       const loka::app::Ratio &space = this->metrics_.spaceScale;
+      if (space.isUnit())
+      {
+        numerator = static_cast<int>(this->dpi_);
+        denominator = static_cast<int>(kDefaultDpi);
+        return true;
+      }
       const bool fits = space.valid()
           && this->dpi_ <= static_cast<UINT>(INT_MAX / space.num)
           && space.den <= INT_MAX / static_cast<int>(kDefaultDpi);
@@ -193,7 +199,81 @@ namespace loka
                     static_cast<int>(kDefaultDpi));
     }
 
-    int Win32DisplayScale::unprojectEdge(int nativeCoordinate) const
+    namespace
+    {
+      // Windows supplies a 64-bit integer even on its C++98 toolchains.
+      // Division truncates toward zero; adjust only a nonzero remainder.
+      int DirectedRatio(int value, int numerator, int denominator, bool up)
+      {
+        const LONGLONG product = static_cast<LONGLONG>(value) * numerator;
+        LONGLONG result = product / denominator;
+        const LONGLONG remainder = product % denominator;
+        if (up && remainder > 0)
+          ++result;
+        if (!up && remainder < 0)
+          --result;
+        const bool fits = result >= INT_MIN && result <= INT_MAX;
+        assert(fits && "projected geometry must fit integer device pixels");
+        return fits ? static_cast<int>(result) : -1;
+      }
+    } // namespace
+
+    int Win32DisplayScale::capacityToLu(int px) const
+    {
+      int numerator = 0, denominator = 0;
+      if (!this->spaceFactors(numerator, denominator))
+        return -1;
+      return DirectedRatio(px, denominator, numerator, false);
+    }
+
+    int Win32DisplayScale::measurementToLu(int px) const
+    {
+      int numerator = 0, denominator = 0;
+      if (!this->spaceFactors(numerator, denominator))
+        return -1;
+      return DirectedRatio(px, denominator, numerator, true);
+    }
+
+    int Win32DisplayScale::clientCapacityToLu(int px) const
+    {
+      const int capacity = this->capacityToLu(px);
+      assert(capacity >= SHRT_MIN && capacity <= SHRT_MAX && "Win32 client capacity must fit short");
+      assert(this->projectEdge(capacity) <= px && "Win32 logical capacity must fit native capacity");
+      return capacity;
+    }
+
+    NativeRect Win32DisplayScale::damageToNative(const loka::core::Frame &lu) const
+    {
+      int numerator = 0, denominator = 0;
+      if (!this->spaceFactors(numerator, denominator))
+      {
+        const RECT empty = {0, 0, 0, 0};
+        return NativeRect(empty);
+      }
+      const RECT r = {DirectedRatio(lu.x, numerator, denominator, false),
+                      DirectedRatio(lu.y, numerator, denominator, false),
+                      DirectedRatio(lu.x + lu.width, numerator, denominator, true),
+                      DirectedRatio(lu.y + lu.height, numerator, denominator, true)};
+      return NativeRect(r);
+    }
+
+    NativeRect Win32DisplayScale::projectDeviceOnly(const loka::core::Frame &pixels) const
+    {
+      // DPI only, no space scale. Keep the existing sprite rounding.
+      return Win32DisplayScale(this->dpi_).projectFrame(pixels);
+    }
+
+    int Win32DisplayScale::fontHeightToNative(int points) const
+    {
+      const loka::app::Ratio &font = this->metrics_.fontScale;
+      if (font.isUnit())
+        return MulDiv(points, static_cast<int>(this->dpi_), 72);
+      const bool fits = font.valid() && this->dpi_ <= static_cast<UINT>(INT_MAX / font.num) && font.den <= INT_MAX / 72;
+      assert(fits && "font projection products must fit in int");
+      return fits ? MulDiv(points, static_cast<int>(this->dpi_) * font.num, 72 * font.den) : -1;
+    }
+
+    int Win32DisplayScale::intrinsicPixelsToLu(int nativeCoordinate) const
     {
       if (!this->metrics_.spaceScale.isUnit())
       {
@@ -208,16 +288,6 @@ namespace loka
                     static_cast<int>(this->dpi_));
     }
 
-    int Win32DisplayScale::projectLength(int logicalLength) const
-    {
-      return this->projectEdge(logicalLength);
-    }
-
-    int Win32DisplayScale::unprojectLength(int nativeLength) const
-    {
-      return this->unprojectEdge(nativeLength);
-    }
-
     int Win32DisplayScale::scaleLengthFrom(
         const Win32DisplayScale &sourceScale,
         int sourceLength) const
@@ -227,13 +297,16 @@ namespace loka
                     static_cast<int>(sourceScale.dpi()));
     }
 
-    void Win32DisplayScale::projectFrame(const loka::core::Frame &logicalFrame,
-                                         RECT &nativeRect) const
+    NativeRect Win32DisplayScale::projectFrame(const loka::core::Frame &lu) const
     {
-      nativeRect.left = this->projectEdge(logicalFrame.x);
-      nativeRect.top = this->projectEdge(logicalFrame.y);
-      nativeRect.right = this->projectEdge(logicalFrame.x + logicalFrame.width);
-      nativeRect.bottom = this->projectEdge(logicalFrame.y + logicalFrame.height);
+      const NativeEdge left = this->nativeEdge(lu.x);
+      const NativeEdge top = this->nativeEdge(lu.y);
+      const NativeEdge right = this->nativeEdge(lu.x + lu.width);
+      const NativeEdge bottom = this->nativeEdge(lu.y + lu.height);
+      const RECT r = {left.px, top.px, right.px, bottom.px};
+      // Integer fields make subpixel output unrepresentable on this rail.
+      assert(r.left == left.px && r.right == right.px);
+      return NativeRect(r);
     }
 
     loka::core::Frame Win32DisplayScale::windowContentFrameFromNative(
@@ -243,8 +316,8 @@ namespace loka
     {
       return loka::core::Frame(nativeWindowRect.left,
                                nativeWindowRect.top,
-                               this->unprojectLength(nativeClientWidth),
-                               this->unprojectLength(nativeClientHeight));
+                               this->clientCapacityToLu(nativeClientWidth),
+                               this->clientCapacityToLu(nativeClientHeight));
     }
 
     bool Win32DisplayScale::adjustWindowRect(RECT &nativeClientRect,

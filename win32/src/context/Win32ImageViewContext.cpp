@@ -142,7 +142,9 @@ namespace
     }
     if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_INTRINSIC && srcWidth > 0)
     {
-      return scale.unprojectLength(srcWidth);
+      // Source rectangles remain decoded pixels (DPI only, no space scale).
+      // Only the intrinsic layout reservation converts to lu here.
+      return scale.intrinsicPixelsToLu(srcWidth);
     }
     if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT)
     {
@@ -188,7 +190,7 @@ namespace
     }
     if (srcHeight > 0)
     {
-      return scale.unprojectLength(srcHeight);
+      return scale.intrinsicPixelsToLu(srcHeight);
     }
     if (fallbackHeight > 0)
     {
@@ -213,7 +215,15 @@ Win32ImageViewContext::Win32ImageViewContext(Win32ScenePlatformController *contr
 {
   EnsureClassRegistered();
   hwnd_ = this->createNativeChildWindow(
-      0, kImageViewClassName, L"", WS_CHILD | WS_VISIBLE, x, y, width, height, parent, 0, GetModuleHandleW(NULL), this);
+      0,
+      kImageViewClassName,
+      L"",
+      WS_CHILD | WS_VISIBLE,
+      this->controller()->displayScale().projectFrame(loka::core::Frame(x, y, width, height)),
+      parent,
+      0,
+      GetModuleHandleW(NULL),
+      this);
   bindImage();
 }
 
@@ -299,7 +309,8 @@ void Win32ImageViewContext::relayout(int x, int y, int width, int height)
   {
     return;
   }
-  this->positionNativeWindow(this->hwnd_, x, y, width, height);
+  this->positionNativeWindow(this->hwnd_,
+                             this->controller()->displayScale().projectFrame(loka::core::Frame(x, y, width, height)));
   Win32ScenePlatformController::requestDirtyRect(hwnd_, NULL, TRUE);
 }
 

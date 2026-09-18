@@ -66,10 +66,7 @@ Win32PopupMenuContext::Win32PopupMenuContext(Win32ScenePlatformController *contr
       L"COMBOBOX",
       L"",
       WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
-      x,
-      y,
-      width,
-      height,
+      this->controller()->displayScale().projectFrame(loka::core::Frame(x, y, width, height)),
       parent,
       0,
       GetModuleHandleW(NULL),
@@ -185,7 +182,8 @@ void Win32PopupMenuContext::relayout(int x, int y, int width, int height)
     this->applyItems();
     this->applySelection();
   }
-  this->positionNativeWindow(this->hwnd_, x, y, width, this->dropHeight());
+  this->positionNativeWindow(
+      this->hwnd_, this->controller()->displayScale().projectFrame(loka::core::Frame(x, y, width, this->dropHeight())));
 }
 
 void Win32PopupMenuContext::bindSelection()
@@ -305,7 +303,7 @@ int Win32PopupMenuContext::dropHeight() const
   }
   else if (this->controller())
   {
-    itemHeight = this->controller()->displayScale().unprojectLength(itemHeight);
+    itemHeight = this->controller()->displayScale().measurementToLu(itemHeight);
   }
   const loka::Vector<loka::core::String> *items = node_ ? node_->props.items_ : 0;
   int visibleItems = items ? static_cast<int>(items->size()) : 0;
@@ -328,13 +326,7 @@ void Win32PopupMenuContext::applyDropGeometry()
     return;
   }
   const loka::win32::Win32DisplayScale &scale = this->controller()->displayScale();
-  SetWindowPos(hwnd_,
-               0,
-               0,
-               0,
-               scale.projectLength(baseWidth_),
-               scale.projectLength(this->dropHeight()),
-               SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+  this->resizeNativeWindow(hwnd_, scale.projectFrame(loka::core::Frame(0, 0, baseWidth_, this->dropHeight())));
 }
 
 void Win32PopupMenuContext::applySelection()

@@ -9,6 +9,49 @@ namespace loka
 {
   namespace win32
   {
+    class Win32DisplayScale;
+
+    /** Completed device-pixel geometry. Only the projection policy can mint it.
+        Integer storage is the Win32 alignment invariant; macOS must instead
+        align points with round(pt * backingScale) / backingScale. */
+    struct NativeRect
+    {
+      const RECT r;
+
+    private:
+      explicit NativeRect(const RECT &value)
+          : r(value)
+      {
+      }
+      friend class Win32DisplayScale;
+    };
+
+    /** Device-pixel length, never implicitly constructible from an int. */
+    struct NativeLength
+    {
+      const int px;
+
+    private:
+      explicit NativeLength(int value)
+          : px(value)
+      {
+      }
+      friend class Win32DisplayScale;
+    };
+
+    /** Device-pixel edge, never implicitly constructible from an int. */
+    struct NativeEdge
+    {
+      const int px;
+
+    private:
+      explicit NativeEdge(int value)
+          : px(value)
+      {
+      }
+      friend class Win32DisplayScale;
+    };
+
     /** Immutable conversion between Loka logical display units and one
         Win32 window's device-pixel coordinate space. */
     class Win32DisplayScale
@@ -29,15 +72,70 @@ namespace loka
         return this->dpi_;
       }
       int percent() const;
+      /** Absolute edge: nearest integer pixel, ties away from zero (MulDiv).
+          Extents must be differences of projected absolute edges. */
       int projectEdge(int logicalCoordinate) const;
-      int unprojectEdge(int nativeCoordinate) const;
-      int projectLength(int logicalLength) const;
-      int unprojectLength(int nativeLength) const;
+      /** Typed edge/extent adapters; endpoints are absolute lu coordinates. */
+      NativeEdge nativeEdge(int lu) const
+      {
+        return NativeEdge(this->projectEdge(lu));
+      }
+      NativeLength nativeLength(int startLu, int endLu) const
+      {
+        return NativeLength(this->projectEdge(endLu) - this->projectEdge(startLu));
+      }
+      /** Client/viewport capacity rounds down; native measurements round up.
+          At unit spaceScale and 144 dpi, a 301 px client admits 200 lu (the
+          old nearest inverse admitted 201). At 96 dpi every integer is exact. */
+      int capacityToLu(int px) const;
+      int measurementToLu(int px) const;
+      /** Client ingress: diagnose short overflow and verify containment. */
+      int clientCapacityToLu(int px) const;
+      NativeRect projectFrame(const loka::core::Frame &lu) const;
+      NativeRect damageToNative(const loka::core::Frame &lu) const;
+      /** SCROLLINFO deliberately stores lu, including its positions. */
+      int scrollOffsetToNative(int lu) const
+      {
+        return lu;
+      }
+      int scrollPositionToLu(int position) const
+      {
+        return position;
+      }
+      /** DPI only, no space scale: decoded sprite geometry. */
+      NativeRect projectDeviceOnly(const loka::core::Frame &pixels) const;
+      /** Already-native damage or desktop/chrome geometry, never lu. */
+      static NativeRect fromDevicePixels(const RECT &pixels)
+      {
+        return NativeRect(pixels);
+      }
+      /** Font points use fontScale and DPI, never spaceScale. */
+      int fontHeightToNative(int points) const;
+      /** Compatibility for pre-policy callers outside the production rail.
+          New callers must choose capacity, measurement, or absolute edges. */
+      int unprojectEdge(int px) const
+      {
+        return this->intrinsicPixelsToLu(px);
+      }
+      int projectLength(int lu) const
+      {
+        return this->projectEdge(lu);
+      }
+      int unprojectLength(int px) const
+      {
+        return this->intrinsicPixelsToLu(px);
+      }
+      /** Nearest reservation of decoded intrinsic pixels in the layout seat.
+          This converts only the reservation; source rectangles remain pixels. */
+      int intrinsicPixelsToLu(int px) const;
       /** Converts a device-space length measured at sourceScale into this
           scale's device space. */
       int scaleLengthFrom(const Win32DisplayScale &sourceScale,
                           int sourceLength) const;
-      void projectFrame(const loka::core::Frame &logicalFrame, RECT &nativeRect) const;
+      void projectFrame(const loka::core::Frame &lu, RECT &out) const
+      {
+        out = this->projectFrame(lu).r;
+      }
       /** Preserves the Win32 virtual-desktop origin while converting the
           content size back to logical display units. */
       loka::core::Frame windowContentFrameFromNative(

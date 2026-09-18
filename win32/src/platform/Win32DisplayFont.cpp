@@ -1,6 +1,5 @@
 #include "Win32DisplayFont.hpp"
 #include <cassert>
-#include <climits>
 
 namespace
 {
@@ -80,15 +79,6 @@ namespace loka
       ZeroMemory(&base, sizeof(base));
       if (!ReadMessageFont(scale, base))
         return false;
-      const loka::app::Ratio &font = scale.railMetrics().fontScale;
-      // Like spaceFactors, check products before multiplication. Fonts use
-      // points (72), while layout projection uses logical display units (96).
-      const bool fits = font.valid() && (font.isUnit()
-          || (scale.dpi() <= static_cast<UINT>(INT_MAX / font.num)
-              && font.den <= INT_MAX / 72));
-      assert(fits && "font projection products must fit in int");
-      if (!fits)
-        return false;
       Win32DisplayFont candidate;
       for (int row = 0; row < kFontRowCount; ++row)
         for (int bold = 0; bold < 2; ++bold)
@@ -98,13 +88,10 @@ namespace loka
             // The shared native message-font row also serves fixed controls.
             if (row != kDefaultSizeRow)
             {
-              if (font.isUnit())
-                descriptor.lfHeight = -MulDiv(loka::app::detail::StyleVocabularySizes[row],
-                                              static_cast<int>(scale.dpi()), 72);
-              else
-                descriptor.lfHeight = -MulDiv(loka::app::detail::StyleVocabularySizes[row],
-                                              static_cast<int>(scale.dpi()) * font.num,
-                                              72 * font.den);
+              const int height = scale.fontHeightToNative(loka::app::detail::StyleVocabularySizes[row]);
+              if (height < 0)
+                return false;
+              descriptor.lfHeight = -height;
             }
             if (bold)
               descriptor.lfWeight = FW_BOLD;
