@@ -363,7 +363,7 @@ namespace
         : StdCompositionBoundaryNodeBase<ButtonExactProps>(props)
     {
       this->state(this->enabled_, true);
-      this->state(this->title_, loka::core::String::Literal("MMMMMMMM"));
+      this->state(this->title_, loka::core::String::Literal("MMMMIIII"));
       RectSurfaceModel model;
       model.rectCount = 1;
       model.rects[0] = RectSprite(4, 4, 12, 12);
@@ -381,9 +381,14 @@ namespace
     {
       loka::core::StateTrackerGuard guard(this->tracker());
       if (label)
-        this->title_.set(loka::core::String::Literal("IIIIIIII"));
+        this->title_.set(loka::core::String::Literal("IIIIMMMM"));
       else
         this->enabled_.set(false);
+    }
+    void widenTitle()
+    {
+      loka::core::StateTrackerGuard guard(this->tracker());
+      this->title_.set(loka::core::String::Literal("MMMMMMMM"));
     }
   private:
     NodeState<bool> enabled_;
@@ -2164,6 +2169,41 @@ namespace
       this->recordArm("font-text-visible-width-matches-descriptor",
                       smallContext.visibleWidth() == widths[1] && largeContext.visibleWidth() == widths[3],
                       TEXT_WIDTH_WRITE);
+      this->recordArm("font-text-24-height-34", largeState.y == 34, TEXT_WIDTH_WRITE);
+
+      // Pre-PR Chicago 12 contract: unset size uses height 16, baseline 10,
+      // and line pitch 12. Exercise actual layout and paint, not a test getter.
+      // The fixture's Row ends above y=80; this scratch area contains no sibling.
+      Point previousPen;
+      GetPen(&previousPen);
+      TextNode legacy(Text("M").props);
+      ToolboxTextContext legacyContext(&legacy, &controller);
+      LayoutState legacyState;
+      legacyState.x = 12;
+      legacyState.y = 80;
+      legacyState.width = 64;
+      legacyState.lineHeight = 12;
+      LayoutState wrappedState = legacyState;
+      legacyContext.layout(&controller, legacyState);
+      legacyContext.repaint();
+      Point baseline;
+      GetPen(&baseline);
+      std::fprintf(this->log_, "font-unset-geometry height=%d baseline=%d\r",
+                   legacyState.y - 80, baseline.v - 80);
+      this->recordArm("font-unset-height-16", legacyState.y - 80 == 16, TEXT_WIDTH_WRITE);
+      this->recordArm("font-unset-baseline-10", baseline.v - 80 == 10, TEXT_WIDTH_WRITE);
+
+      TextNode wrapped((Text("M\nM") + BlockStyle().wrap(TEXT_WRAP_WORD)).props);
+      ToolboxTextContext wrappedContext(&wrapped, &controller);
+      wrappedContext.layout(&controller, wrappedState);
+      wrappedContext.repaint();
+      GetPen(&baseline);
+      this->recordArm("font-unset-wrap-pitch-12", wrappedState.y - 80 == 28, TEXT_WIDTH_WRITE);
+      this->recordArm("font-unset-wrap-baseline-22", baseline.v - 80 == 22, TEXT_WIDTH_WRITE);
+      Rect scratch;
+      SetRect(&scratch, 12, 80, 76, 148);
+      EraseRect(&scratch);
+      MoveTo(previousPen.h, previousPen.v);
     }
 
     static void OnTextWidthIdle(Window *window, TextWidthNode *node, PaintDamageConfig *self)
@@ -2331,12 +2371,19 @@ namespace
         SetPort(previousPort);
         self->recordArm(label ? "button-label-setup" : "button-enabled-setup", setup,
                         label ? BUTTON_LABEL_CHECK : BUTTON_ENABLED_CHECK);
+        if (label)
+        {
+          const short beforeWidth = controller->measureTextWidth(loka::core::String::Literal("MMMMIIII"));
+          const short afterWidth = controller->measureTextWidth(loka::core::String::Literal("IIIIMMMM"));
+          std::fprintf(self->log_, "button-label-widths before=%d after=%d\r", beforeWidth, afterWidth);
+          self->recordArm("button-label-equal-width", beforeWidth == afterWidth, BUTTON_LABEL_CHECK);
+        }
         self->initial_ = controller->debugStatsForTesting();
         node->advance(label);
         return;
       }
-      // Disabled CDEF text removes alternating black title pixels. Changing
-      // M to I removes title ink too; neither sample includes the button frame.
+      // Disabled CDEF text removes alternating black title pixels. Permuting
+      // M/I preserves width but moves ink; neither sample includes the frame.
       const int erased = self->buttonTitlePixels_.erasedInk(self->editGeometry_.view);
       const bool sprite = GetPixel(self->marker_.h, self->marker_.v) != 0;
       SetPort(previousPort);
@@ -2372,6 +2419,13 @@ namespace
         self->recordArm("button-full-history-restored",
                         context->queryPaintDamage(query).kind == PAINT_ANSWER_EXACT, COMPLETE);
         SetPort(previousPort);
+        node->widenTitle();
+        const PaintAnswer widerTitle = context->queryPaintDamage(query);
+        std::fprintf(self->log_, "button-label-wider answer=%d reason=%d\r",
+                     static_cast<int>(widerTitle.kind), static_cast<int>(widerTitle.reason));
+        self->recordArm("button-label-wider-refuses",
+                        widerTitle.kind == PAINT_ANSWER_REFUSED
+                        && widerTitle.reason == PAINT_REFUSED_PLACEMENT_UNSETTLED, COMPLETE);
         controller->destroyButtonControl(911, NATIVE_HINT_DEFAULT);
         self->recordArm("button-native-retired-refuses",
                         context->queryPaintDamage(query).kind == PAINT_ANSWER_REFUSED, COMPLETE);
