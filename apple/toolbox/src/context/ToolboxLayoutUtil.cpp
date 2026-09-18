@@ -3,8 +3,17 @@
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindow.hpp"
 #include "platform/StringUTF8.hpp"
+#include <Fonts.h>
 #include <cstring>
 #include <string>
+
+namespace
+{
+  short ResolvedFontSize(short size)
+  {
+    return size == 0 ? GetDefFontSize() : size;
+  }
+}
 
 bool ToolboxBuildPascalText(const loka::core::String &value, Str255 text)
 {
@@ -31,31 +40,24 @@ ToolboxTextMeasureScope::ToolboxTextMeasureScope(
     const ToolboxScenePlatformController &controller,
     const ToolboxTextFontDescriptor &descriptor)
     : previousPort_(0),
-      measurePort_(0),
-      previousFont_(0),
-      previousSize_(0),
-      previousFace_(0)
+      measurePort_(controller.window_ ? reinterpret_cast<GrafPtr>(controller.window_->window()) : 0),
+      previousFont_(this->measurePort_ ? this->measurePort_->txFont : 0),
+      previousSize_(this->measurePort_ ? this->measurePort_->txSize : 0),
+      previousFace_(this->measurePort_ ? this->measurePort_->txFace : 0),
+      busy_(this->measurePort_
+                && ResolvedFontSize(descriptor.size(this->previousSize_)) != ResolvedFontSize(this->previousSize_)
+            ? controller.cursorOwner() : 0)
 {
   GetPort(&this->previousPort_);
-  ToolboxWindow *window = controller.window_;
-  if (!window || !window->window())
-  {
-    return;
-  }
-
-  SetPort(window->window());
-  GetPort(&this->measurePort_);
   if (!this->measurePort_)
   {
-    SetPort(this->previousPort_);
     return;
   }
 
-  this->previousFont_ = this->measurePort_->txFont;
-  this->previousSize_ = this->measurePort_->txSize;
-  this->previousFace_ = this->measurePort_->txFace;
-  TextFont(descriptor.font(this->previousFont_));
-  TextSize(descriptor.size(this->previousSize_));
+  SetPort(this->measurePort_);
+  const short font = descriptor.font(this->previousFont_);
+  TextFont(font == 0 ? GetSysFont() : font);
+  TextSize(ResolvedFontSize(descriptor.size(this->previousSize_)));
   TextFace(descriptor.face(this->previousFace_));
 }
 
