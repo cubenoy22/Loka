@@ -1,5 +1,6 @@
 #include "context/ToolboxOpenFileDialogContext.hpp"
 #include "ToolboxPlatformContext.hpp"
+#include "ToolboxScenePlatformController.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include <StandardFile.h>
 #include <string>
@@ -50,10 +51,10 @@ namespace
                                                 loka::app::scene::IPlatformController *controller,
                                                 const loka::app::scene::LayoutState &state)
     {
-      (void)controller;
+      ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
       (void)state;
       // Keep the installation ordering at the shared ritual; see RetainedNodeHandler.
-      return new ToolboxOpenFileDialogContext(node);
+      return new ToolboxOpenFileDialogContext(node, toolbox ? toolbox->cursorOwner() : 0);
     }
   };
 
@@ -77,8 +78,8 @@ static loka::core::String displayPathFromSpec(const FSSpec &spec)
   return loka::core::String(std::string(name, capped));
 }
 
-ToolboxOpenFileDialogContext::ToolboxOpenFileDialogContext(loka::app::OpenFileDialogNode *node)
-    : node_(node),
+ToolboxOpenFileDialogContext::ToolboxOpenFileDialogContext(loka::app::OpenFileDialogNode *node, CursorOwner *cursorOwner)
+    : cursorOwner_(cursorOwner), node_(node),
       resultState_(),
       onResult_(0),
       presentation_(),
@@ -153,6 +154,8 @@ void ToolboxOpenFileDialogContext::presentDialog()
 
   StandardFileReply reply;
   StandardGetFile(0, -1, 0, &reply);
+  if (this->cursorOwner_)
+    this->cursorOwner_->reconcile();
   loka::app::FileChooserResult result = loka::app::FileChooserResult::Canceled();
 
   if (reply.sfGood)

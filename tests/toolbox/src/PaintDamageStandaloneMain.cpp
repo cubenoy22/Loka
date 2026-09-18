@@ -5,6 +5,7 @@
 #include "ObservedMainDefinition.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindow.hpp"
+#include "ToolboxApp.hpp"
 #include "ToolboxLayoutMetrics.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
 #include "context/ToolboxTextContext.hpp"
@@ -1137,6 +1138,68 @@ namespace
         OnDrawerIdle(target, self);
     }
 
+    static bool earlyBusyReturn(CursorOwner &owner, ToolboxScenePlatformController &controller)
+    {
+      BusyScope scope(owner);
+      return controller.debugStatsForTesting().cursorDepth == 1
+          && controller.debugStatsForTesting().cursorLastApplied == CursorOwner::WATCH;
+    }
+
+    void checkCursor(ToolboxWindow &window, ToolboxScenePlatformController &controller)
+    {
+      // No mouse-warp fixture exists here. This front fixture has no edit
+      // fields, so its sampled hover is deterministically arrow.
+      WindowPtr previousFront = FrontWindow();
+      SelectWindow(window.window());
+      CursorOwner &owner = window.toolboxApp()->cursorOwner();
+      owner.reconcile();
+      const unsigned long before = controller.debugStatsForTesting().cursorNativeApplies;
+      const unsigned long entries = controller.debugStatsForTesting().cursorOuterEntries;
+      const unsigned long exits = controller.debugStatsForTesting().cursorOuterExits;
+      {
+        BusyScope outer(owner);
+        this->recordArm("cursor-outer-entry",
+            controller.debugStatsForTesting().cursorNativeApplies == before + 1
+            && controller.debugStatsForTesting().cursorLastApplied == CursorOwner::WATCH
+            && controller.debugStatsForTesting().cursorDepth == 1
+            && controller.debugStatsForTesting().cursorOuterEntries == entries + 1, SETTLE);
+        {
+          BusyScope inner(owner);
+          this->recordArm("cursor-nested-entry",
+              controller.debugStatsForTesting().cursorNativeApplies == before + 1
+              && controller.debugStatsForTesting().cursorDepth == 2
+              && controller.debugStatsForTesting().cursorOuterEntries == entries + 1, SETTLE);
+        }
+        this->recordArm("cursor-inner-exit",
+            controller.debugStatsForTesting().cursorNativeApplies == before + 1
+            && controller.debugStatsForTesting().cursorDepth == 1
+            && controller.debugStatsForTesting().cursorOuterExits == exits, SETTLE);
+        // Seed stale hover while busy: exit must sample the front window.
+        owner.setHover(CursorOwner::HOVER_IBEAM);
+      }
+      this->recordArm("cursor-outer-exit-resamples",
+          controller.debugStatsForTesting().cursorNativeApplies == before + 2
+          && controller.debugStatsForTesting().cursorLastApplied == CursorOwner::ARROW
+          && controller.debugStatsForTesting().cursorDepth == 0
+          && controller.debugStatsForTesting().cursorOuterExits == exits + 1, SETTLE);
+      const bool earlyWatch = earlyBusyReturn(owner, controller);
+      this->recordArm("cursor-early-return",
+          earlyWatch && controller.debugStatsForTesting().cursorDepth == 0
+          && controller.debugStatsForTesting().cursorNativeApplies == before + 4
+          && controller.debugStatsForTesting().cursorLastApplied == CursorOwner::ARROW, SETTLE);
+      owner.apply(false);
+      this->recordArm("cursor-unchanged-no-apply",
+          controller.debugStatsForTesting().cursorNativeApplies == before + 4, SETTLE);
+      // Use the production external-writer door, with unchanged effective arrow.
+      owner.reconcile();
+      this->recordArm("cursor-external-reconcile",
+          controller.debugStatsForTesting().cursorNativeApplies == before + 5
+          && controller.debugStatsForTesting().cursorLastApplied == CursorOwner::ARROW, SETTLE);
+      if (previousFront)
+        SelectWindow(previousFront);
+      owner.reconcile();
+    }
+
     void finish(bool pass)
     {
       this->phase_ = COMPLETE;
@@ -1165,9 +1228,13 @@ namespace
       }
       if (self->phase_ == SETTLE)
       {
+        self->checkCursor(*native, *controller);
         self->phase_ = WRITE;
         return;
       }
+      if (self->phase_ == WRITE)
+        self->recordArm("cursor-loop-end-depth",
+            controller->debugStatsForTesting().cursorDepth == 0, WRITE);
       GrafPtr previousPort;
       GetPort(&previousPort);
       SetPort(native->window());

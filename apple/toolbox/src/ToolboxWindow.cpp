@@ -1,4 +1,5 @@
 #include "ToolboxWindow.hpp"
+#include "ToolboxApp.hpp"
 
 #include <cstring>
 #include <string>
@@ -432,6 +433,8 @@ void ToolboxWindow::handleGrow(const Point &globalPoint)
   }
   SetRect(&sizeRect, kMinimumGrowWidth, kMinimumGrowHeight, maxWidth, maxHeight);
   const long grown = GrowWindow(window_, globalPoint, &sizeRect);
+  if (this->app_)
+    this->toolboxApp()->cursorOwner().reconcile();
   if (grown == 0)
   {
     return; // cancelled or unchanged: leave the size alone
@@ -502,31 +505,25 @@ void ToolboxWindow::idleControls(ActivationPhase phase)
   }
 }
 
-void ToolboxWindow::updateCursor()
+ToolboxApp *ToolboxWindow::toolboxApp() const
 {
-  if (!window_ || !scenePlatformController_)
-  {
+  return static_cast<ToolboxApp *>(this->app_);
+}
+
+void ToolboxWindow::updateCursor(bool force)
+{
+  if (!this->window_ || this->window_ != FrontWindow() || !this->app_)
     return;
-  }
   GrafPtr oldPort;
   GetPort(&oldPort);
-  SetPort(window_);
+  SetPort(this->window_);
   Point localPoint;
   GetMouse(&localPoint);
-  bool inEdit = scenePlatformController_->isPointInEdit(localPoint);
+  const bool inEdit = this->scenePlatformController_
+      && this->scenePlatformController_->isPointInEdit(localPoint);
   SetPort(oldPort);
-  if (inEdit)
-  {
-    CursHandle ibeam = GetCursor(iBeamCursor);
-    if (ibeam)
-    {
-      SetCursor(*ibeam);
-    }
-  }
-  else
-  {
-    InitCursor();
-  }
+  this->toolboxApp()->cursorOwner().setHover(
+      inEdit ? CursorOwner::HOVER_IBEAM : CursorOwner::HOVER_ARROW, force);
 }
 
 void ToolboxWindow::drawDirty(const Rect &rect)

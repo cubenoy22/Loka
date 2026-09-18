@@ -7,6 +7,7 @@
 #include <vector>
 
 class App;
+class ToolboxApp;
 class ToolboxScenePlatformController;
 class ToolboxWindowContext;
 
@@ -54,7 +55,9 @@ public:
   bool handleKeyDown(char key);
   void drawDirty(const Rect &rect);
   void idleControls(ActivationPhase phase);
-  void updateCursor();
+  void updateCursor(bool force = false);
+  /** Borrow the app that owns this native window. */
+  ToolboxApp *toolboxApp() const;
   void invalidateWindow();
   void draw();
   /** Preserves the native content position after a menu-bar rebuild without

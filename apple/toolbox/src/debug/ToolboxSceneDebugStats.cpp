@@ -59,7 +59,8 @@ namespace
 } // namespace
 
 ToolboxSceneDebugStats::ToolboxSceneDebugStats()
-    : changeSequence(0),
+    : cursorNativeApplies(0), cursorOuterEntries(0), cursorOuterExits(0),
+      cursorDepth(0), cursorLastApplied(0), changeSequence(0),
       totalChanges(0),
       lastFlags(loka::app::scene::NODE_DIRTY_NONE),
       lastFullRebuild(false),

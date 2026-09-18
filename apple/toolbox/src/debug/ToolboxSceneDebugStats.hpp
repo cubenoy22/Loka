@@ -33,6 +33,13 @@ public:
   bool dumpToTimestampedFile(const char *overrideName = 0) const;
 #endif
 
+  /** Diagnostic copies populated only by the TEST_BUILD snapshot read. */
+  unsigned long cursorNativeApplies;
+  unsigned long cursorOuterEntries;
+  unsigned long cursorOuterExits;
+  short cursorDepth;
+  int cursorLastApplied;
+
   unsigned long changeSequence;
   unsigned long totalChanges;
   loka::app::scene::NodeDirtyFlags lastFlags;

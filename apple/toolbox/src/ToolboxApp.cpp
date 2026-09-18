@@ -2,6 +2,8 @@
 #include "ToolboxWindow.hpp"
 #include "ToolboxScenePlatformController.hpp"
 
+#include <cassert>
+#include <climits>
 #include <Dialogs.h>
 #include <Events.h>
 #include <Fonts.h>
@@ -58,9 +60,108 @@ namespace
   }
 } // namespace
 
+CursorOwner::CursorOwner(ToolboxApp &app)
+    : app_(app), hoverCursor_(HOVER_ARROW), busyDepth_(0), lastApplied_(UNKNOWN),
+      nativeApplies_(0), outerEntries_(0), outerExits_(0), iBeam_(), watch_()
+{
+}
+
+void CursorOwner::CachedCursor::load(short resourceId)
+{
+  CursHandle resource = GetCursor(resourceId);
+  this->available_ = resource && *resource;
+  if (this->available_)
+    this->value_ = **resource;
+}
+
+void CursorOwner::initialize()
+{
+  this->iBeam_.load(iBeamCursor);
+  this->watch_.load(watchCursor);
+}
+
+void CursorOwner::setHover(HoverCursor cursor, bool force)
+{
+  this->hoverCursor_ = cursor;
+  this->apply(force);
+}
+
+void CursorOwner::apply(bool force)
+{
+  if (this->app_.activationPhase_ != ACTIVATION_FOREGROUND)
+  {
+    this->lastApplied_ = UNKNOWN;
+    return;
+  }
+  const AppliedCursor effective = this->busyDepth_ > 0 ? WATCH
+      : (this->hoverCursor_ == HOVER_IBEAM ? IBEAM : ARROW);
+  if (!force && effective == this->lastApplied_)
+    return;
+  const Cursor *cursor = 0;
+  switch (effective)
+  {
+  case ARROW: cursor = &qd.arrow; break;
+  case IBEAM: cursor = this->iBeam_.get(); break;
+  case WATCH: cursor = this->watch_.get(); break;
+  case UNKNOWN: break;
+  }
+  if (!cursor)
+  {
+    // Match the old optional I-beam resource path: leave the native cursor alone.
+    this->lastApplied_ = UNKNOWN;
+    return;
+  }
+  SetCursor(const_cast<Cursor *>(cursor));
+  ++this->nativeApplies_;
+  this->lastApplied_ = effective;
+}
+
+void CursorOwner::reconcile()
+{
+  this->lastApplied_ = UNKNOWN;
+  this->app_.sampleHover(true);
+}
+
+void CursorOwner::enterBusy()
+{
+  assert(this->busyDepth_ < SHRT_MAX);
+  ++this->busyDepth_;
+  if (this->busyDepth_ == 1)
+  {
+    ++this->outerEntries_;
+    this->apply(true);
+  }
+}
+
+void CursorOwner::exitBusy()
+{
+  assert(this->busyDepth_ > 0);
+  --this->busyDepth_;
+  if (this->busyDepth_ == 0)
+  {
+    ++this->outerExits_;
+    this->reconcile();
+  }
+}
+
+void CursorOwner::assertIdle() const
+{
+  assert(this->busyDepth_ == 0);
+}
+
+void ToolboxApp::sampleHover(bool force)
+{
+  ToolboxWindow *front = FindToolboxWindow(this->group_, FrontWindow());
+  if (front)
+    front->updateCursor(force);
+  else
+    this->cursorOwner_.setHover(CursorOwner::HOVER_ARROW, force);
+}
+
 ToolboxApp::ToolboxApp(AppConfigurable *config)
     : App(config),
       activationPhase_(ACTIVATION_FOREGROUND),
+      cursorOwner_(*this),
       menuBarDrawDeferred_(false),
       nextMenuId_(128),
       commands_(),
@@ -84,6 +185,7 @@ void ToolboxApp::run()
   TEInit();
   InitDialogs(0);
   InitCursor();
+  this->cursorOwner_.initialize();
 
   App::run();
   applyMenuBar(0);
@@ -111,6 +213,7 @@ void ToolboxApp::run()
       setActiveWindow(firstWindow);
     }
   }
+  this->cursorOwner_.assertIdle();
   unsigned long lastTick = TickCount();
   activationPhase_ = ACTIVATION_FOREGROUND;
   running_ = true;
@@ -122,6 +225,14 @@ void ToolboxApp::run()
     }
     EventRecord event;
     WaitNextEvent(everyEvent, &event, 1, 0);
+    // Consume the OS foreground fact before idle work or hover can write the
+    // shared cursor on the iteration that delivers a suspend event.
+    if (event.what == osEvt && IsSuspendResumeEvent(event))
+    {
+      this->activationPhase_ =
+          IsResumeEvent(event) ? ACTIVATION_FOREGROUND : ACTIVATION_BACKGROUND;
+      this->cursorOwner_.reconcile();
+    }
     // TODO: Re-enable invalidation once Classic update flow is stable.
     if (group_)
     {
@@ -136,11 +247,8 @@ void ToolboxApp::run()
         }
       }
     }
-    ToolboxWindow *active = activeWindow() ? activeWindow()->asToolboxWindow() : 0;
-    if (activationPhase_ == ACTIVATION_FOREGROUND && active)
-    {
-      active->updateCursor();
-    }
+    if (activationPhase_ == ACTIVATION_FOREGROUND)
+      this->sampleHover(false);
     if (event.what == updateEvt)
     {
       // An OS update event arrives in every phase -- another window exposing
@@ -179,6 +287,7 @@ void ToolboxApp::run()
       if (part == inMenuBar)
       {
         long choice = MenuSelect(event.where);
+        this->cursorOwner_.reconcile();
         if (choice != 0)
         {
           short menuId = static_cast<short>(choice >> 16);
@@ -233,19 +342,8 @@ void ToolboxApp::run()
         {
           if (!clicked->hasPendingInvalidate())
           {
-            bool inEdit = clicked->handleMouseDown(event.where);
-            if (inEdit)
-            {
-              CursHandle ibeam = GetCursor(iBeamCursor);
-              if (ibeam)
-              {
-                SetCursor(*ibeam);
-              }
-            }
-            else
-            {
-              InitCursor();
-            }
+            clicked->handleMouseDown(event.where);
+            this->cursorOwner_.reconcile();
           }
         }
       }
@@ -253,6 +351,7 @@ void ToolboxApp::run()
       {
         Rect bounds = qd.screenBits.bounds;
         DragWindow(target, event.where, &bounds);
+        this->cursorOwner_.reconcile();
         ToolboxWindow *dragged = FindToolboxWindow(group_, target);
         if (dragged)
         {
@@ -291,8 +390,6 @@ void ToolboxApp::run()
     }
     else if (event.what == osEvt && IsSuspendResumeEvent(event))
     {
-      activationPhase_ =
-          IsResumeEvent(event) ? ACTIVATION_FOREGROUND : ACTIVATION_BACKGROUND;
       ToolboxWindow *active = activeWindow() ? activeWindow()->asToolboxWindow() : 0;
       if (active && active->window())
       {
@@ -352,6 +449,7 @@ void ToolboxApp::run()
       this->handleIdle(dispatchElapsedSeconds);
     }
     this->present(activationPhase_);
+    this->cursorOwner_.assertIdle();
     if (event.what == nullEvent && group_)
     {
       const std::vector<AppComponent *> &comps = group_->getComponents();
