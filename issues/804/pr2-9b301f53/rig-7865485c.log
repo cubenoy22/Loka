@@ -1,0 +1,143 @@
+=== head
+7865485c A layout-dirty boundary apply on Toolbox could fall through to rectangle replay and paint a state-driven font change at the old placement; request a full render whenever the apply carries layout work, and pin the State<TextStyle> 12 to 24 route natively (#807 bot P1)
+[52/53] Linking CXX executable tests/toolbox/LokaPaintDamage68K.code.bin
+[53/53] Generating LokaPaintDamage68K.bin, LokaPaintDamage68K.APPL, LokaPaintDamage68K.dsk, LokaPaintDamage68K.ad, %LokaPaintDamage68K.ad
+=== standalone fixed
+Offscreen.Button PASS
+Offscreen.Edit PASS
+Offscreen.Popup PASS
+Offscreen.Text PASS
+button-enabled-exact PASS
+button-enabled-presented-empty PASS
+button-enabled-setup PASS
+button-full-history-restored PASS
+button-label-equal-width PASS
+button-label-exact PASS
+button-label-presented-empty PASS
+button-label-setup PASS
+button-label-wider-refuses PASS
+button-label-widths before=56 after=56
+button-native-retired-refuses PASS
+button-partial-history-refuses PASS
+button-placement-refuses PASS
+cell-ink-clipped-to-rect PASS
+cell-only-dirty-replay PASS
+cell-replay-clipped PASS
+cell-replay-setup PASS
+column-local-refusal PASS
+column-local-refusal-cleared PASS
+column-offscreen-sibling-exact PASS
+column-offscreen-write-empty PASS
+column-revealed-text-exact PASS
+column-scroll-reveals-current-text PASS
+column-visible-text-damage PASS
+column-visible-text-exact PASS
+contained-text-history PASS
+edit-replay PASS
+edittext-exact PASS
+edittext-exact-setup PASS
+edittext-native-retired-refuses PASS
+edittext-placement-refuses PASS
+edittext-presented-empty PASS
+edittext-zstack-order PASS
+edittext-zstack-order-setup PASS
+font-12-restores-port PASS
+font-12-selects-descriptor PASS
+font-18-restores-port PASS
+font-18-selects-descriptor PASS
+font-24-restores-port PASS
+font-24-selects-descriptor PASS
+font-9-restores-port PASS
+font-9-selects-descriptor PASS
+font-bold-12-gt-normal PASS
+font-bold-restores-port PASS
+font-bold-selects-descriptor PASS
+font-explicit-face-clears-only-own-bits PASS
+font-italic-12-ge-normal PASS
+font-italic-restores-port PASS
+font-italic-selects-descriptor PASS
+font-live-style-height-34 PASS
+font-live-style-layout-rendered FAIL
+font-live-style-new-baseline-ink PASS
+font-live-style-old-sibling-row-erased PASS
+font-live-style-setup PASS
+font-live-style-sibling-down-18 PASS
+font-size-tie-snaps-down PASS
+font-text-24-height-34 PASS
+font-text-24-taller-than-12 PASS
+font-text-visible-width-matches-descriptor PASS
+font-unset-baseline-10 PASS
+font-unset-height-16 PASS
+font-unset-inherits-port PASS
+font-unset-wrap-baseline-22 PASS
+font-unset-wrap-pitch-12 PASS
+font-width-12-lt-18 PASS
+font-width-18-lt-24 PASS
+font-width-9-lt-12 PASS
+font-widths 9=64 12=72 18=112 24=152 bold=80 italic=72
+history-first-clipped PASS
+history-setup PASS
+history-survives-clipped-render PASS
+image-overlap-replay PASS
+image-overlap-replay-setup PASS
+offscreen-button-width-refuses PASS
+offscreen-detach-setup PASS
+offscreen-detached-refuses PASS
+offscreen-placement-refuses PASS
+paint-damage FAIL
+plain-exact PASS
+popup-detached-refuses PASS
+popup-exact-setup PASS
+popup-full-history-restored PASS
+popup-history-first-clipped PASS
+popup-history-setup PASS
+popup-history-survives PASS
+popup-layout-history-refuses PASS
+popup-partial-history-refuses PASS
+popup-placement-refuses PASS
+popup-presented-empty PASS
+popup-replay-geometry PASS
+popup-replay-setup PASS
+popup-selection-exact PASS
+popup-sibling-exact PASS
+popup-unreconciled-refuses PASS
+row-text-relayout-keeps-seat PASS
+row-text-seat-setup PASS
+row-text-sibling-seated PASS
+row-text-wider-exact PASS
+scrollview-first-text-placement PASS
+startup-text-baseline PASS
+surface-bounds-clip PASS
+text-clipped-to-viewport PASS
+unknown-history PASS
+viewport-exact PASS
+viewport-scroll-replay PASS
+viewport-scroll-replay-setup PASS
+zstack-overlap-replay PASS
+=== cells
+scrapbook/startup | differs 184 | /home/cubenoy22/loka/build/mame-scenario/scrapbook/startup
+scrapbook/open-first-page-refused | differs 939 | /home/cubenoy22/loka/build/mame-scenario/scrapbook/open-first-page-refused
+scrapbook/flip-forward-back | differs 184 | /home/cubenoy22/loka/build/mame-scenario/scrapbook/flip-forward-back
+scrapbook/refused-flip-keeps-page | differs 194 | /home/cubenoy22/loka/build/mame-scenario/scrapbook/refused-flip-keeps-page
+scrapbook/open-text-page | differs 1909 | /home/cubenoy22/loka/build/mame-scenario/scrapbook/open-text-page
+scrapbook/open-text-page-refused | differs 194 | /home/cubenoy22/loka/build/mame-scenario/scrapbook/open-text-page-refused
+helloworld/startup | pass | /home/cubenoy22/loka/build/mame-scenario/helloworld/startup
+helloworld/toggle-action-probe | pass | /home/cubenoy22/loka/build/mame-scenario/helloworld/toggle-action-probe
+helloworld/bmi-roundtrip | pass | /home/cubenoy22/loka/build/mame-scenario/helloworld/bmi-roundtrip
+tutorial/startup | pass | /home/cubenoy22/loka/build/mame-scenario/tutorial/startup
+tutorial/increment-summary-toggle | pass | /home/cubenoy22/loka/build/mame-scenario/tutorial/increment-summary-toggle
+minesweeper/startup | pass | /home/cubenoy22/loka/build/mame-scenario/minesweeper/startup
+minesweeper/new-game-twice | pass | /home/cubenoy22/loka/build/mame-scenario/minesweeper/new-game-twice
+minesweeper/seeded-reveal | pass | /home/cubenoy22/loka/build/mame-scenario/minesweeper/seeded-reveal
+floppybird/startup | pass | /home/cubenoy22/loka/build/mame-scenario/floppybird/startup
+floppybird/fixed-step-flaps | pass | /home/cubenoy22/loka/build/mame-scenario/floppybird/fixed-step-flaps
+smirkbench/startup | pass | /home/cubenoy22/loka/build/mame-scenario/smirkbench/startup
+smirkbench/surface-ticks | pass | /home/cubenoy22/loka/build/mame-scenario/smirkbench/surface-ticks
+smirkbench/add-face | pass | /home/cubenoy22/loka/build/mame-scenario/smirkbench/add-face
+smirkbench/retained-text-rebind | pass | /home/cubenoy22/loka/build/mame-scenario/smirkbench/retained-text-rebind
+simpleviewer/startup | pass | /home/cubenoy22/loka/build/mame-scenario/simpleviewer/startup
+simpleviewer/open-sun | pass | /home/cubenoy22/loka/build/mame-scenario/simpleviewer/open-sun
+simpleviewer/open-bulb | pass | /home/cubenoy22/loka/build/mame-scenario/simpleviewer/open-bulb
+simpleviewer/churn-replace | pass | /home/cubenoy22/loka/build/mame-scenario/simpleviewer/churn-replace
+bake: possible
+done exit=0
