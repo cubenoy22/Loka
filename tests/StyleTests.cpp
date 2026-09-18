@@ -108,3 +108,22 @@ void testTextStyleDslPreservesDefinitionPolicies()
   LOKA_VERIFY(result.compositionSeatSlot() == 7);
   LOKA_VERIFY(result.nativeLifetimeHint() == scene::NATIVE_HINT_DESIRE_STAY);
 }
+
+void testTextPropsDeclaredStyleGuardsNativeLabelConfiguration()
+{
+  using namespace loka::app;
+  // The rails configure their native label (single-line mode, clipping,
+  // SS_LEFTNOWORDWRAP) only when a style field was declared; an undeclared
+  // Text keeps the platform defaults (#814).
+  LOKA_VERIFY(!TextProps("plain").hasDeclaredStyle());
+  LOKA_VERIFY((Text("x") + Bold).props.hasDeclaredStyle());
+  LOKA_VERIFY((Text("x") + Italic).props.hasDeclaredStyle());
+  LOKA_VERIFY((Text("x") + FontSize<12>()).props.hasDeclaredStyle());
+  LOKA_VERIFY((Text("x") + BlockStyle().wrap(TEXT_WRAP_WORD)).props.hasDeclaredStyle());
+  LOKA_VERIFY((Text("x") + BlockStyle().truncation(TEXT_TRUNCATION_ELLIPSIS)).props.hasDeclaredStyle());
+  loka::core::MutableState<TextStyle> live;
+  LOKA_VERIFY((Text("x") + &live).props.hasDeclaredStyle());
+  // An unset field on a declared style does not undeclare it, and merging an
+  // empty style over nothing declares nothing.
+  LOKA_VERIFY(!(Text("x") + TextStyle()).props.hasDeclaredStyle());
+}

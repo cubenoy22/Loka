@@ -2,6 +2,7 @@
 #define LOKA_TESTS_STYLE_TESTS_HPP
 
 void testTextStyleMergeAndSizeVocabulary();
+void testTextPropsDeclaredStyleGuardsNativeLabelConfiguration();
 void testSizeOfSnapsToNearestVocabularySizeWithTiesDown();
 void testTextPropsItalicParticipatesInDefinitionEquivalence();
 void testNullTextLayoutUsesResolvedFontSize();
