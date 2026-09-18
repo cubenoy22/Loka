@@ -1,0 +1,22 @@
+start Fri Sep 18 19:09:50 JST 2026 sha=7ffbbed9 25G229
+7ffbbed9 The macOS rail draws and measures every Text in AppKit's default font regardless of its resolved TextStyle, and wrapped-height measurement uses a hardcoded system font; give the controller an admission-time descriptor-keyed NSFont table shared by drawing and measurement, and refresh the style on retained apply (#804 PR 3)
+configure exit=0
+build exit=0
+cell scrapbook startup: golden stage failed: actual pixels differ from /Users/lihi-ai/loka/build/macos-scenario/golden/scrapbook/startup.png
+cell scrapbook open-first-page-refused: Artifacts: /Users/lihi-ai/loka/build/macos-scenario/scrapbook/open-first-page-refused
+cell scrapbook flip-forward-back: golden stage failed: actual pixels differ from /Users/lihi-ai/loka/build/macos-scenario/golden/scrapbook/flip-forward-back.png
+cell scrapbook refused-flip-keeps-page: Artifacts: /Users/lihi-ai/loka/build/macos-scenario/scrapbook/refused-flip-keeps-page
+cell scrapbook open-text-page: golden stage failed: actual pixels differ from /Users/lihi-ai/loka/build/macos-scenario/golden/scrapbook/open-text-page.png
+cell scrapbook open-text-page-refused: Artifacts: /Users/lihi-ai/loka/build/macos-scenario/scrapbook/open-text-page-refused
+cell helloworld startup: golden stage failed: actual pixels differ from /Users/lihi-ai/loka/build/macos-scenario/golden/helloworld/startup.png
+cell helloworld toggle-action-probe: pass
+cell helloworld bmi-roundtrip: golden stage failed: actual pixels differ from /Users/lihi-ai/loka/build/macos-scenario/golden/helloworld/bmi-roundtrip.png
+cell tutorial startup: golden stage failed: actual pixels differ from /Users/lihi-ai/loka/build/macos-scenario/golden/tutorial/startup.png
+cell tutorial increment-summary-toggle: pass
+cell minesweeper startup: pass
+cell minesweeper new-game-twice: pass
+cell minesweeper seeded-reveal: pass
+cell floppybird startup: pass
+cell floppybird fixed-step-flaps: pass
+cells pass: 7/16
+matrix done Fri Sep 18 19:14:21 JST 2026

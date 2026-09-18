@@ -1,0 +1,8 @@
+start Fri Sep 18 19:16:44 JST 2026
+2970372a Borrow the Toolbox busy cursor 
+build exit=0
+main cell helloworld startup: first differing pixel (397, 262): (255, 255, 255, 255) != (243, 243, 243, 255); differing pixels: 162
+main cell helloworld bmi-roundtrip: first differing pixel (397, 262): (255, 255, 255, 255) != (243, 243, 243, 255); differing pixels: 162
+main cell tutorial startup: first differing pixel (635, 115): (0, 0, 0, 0) != (0, 0, 0, 19); differing pixels: 1510
+main cell scrapbook startup: pass
+main3 done Fri Sep 18 19:21:30 JST 2026
