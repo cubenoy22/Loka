@@ -1,0 +1,218 @@
+[01:53:10] session 1 user Lihi-AI
+**********************************************************************
+** Visual Studio 2022 Developer Command Prompt v17.14.39
+** Copyright (c) 2025 Microsoft Corporation
+**********************************************************************
+[vcvarsall.bat] Environment initialized for: 'x64'
+From https://github.com/cubenoy22/Loka
+ * branch              feat/818-a2-win32-projection-policy -> FETCH_HEAD
+d9689addbe99bb3555d0e08e4f3c5e29891204bb
+Preset CMake variables:
+
+  CMAKE_BUILD_TYPE="Debug"
+  CMAKE_EXPORT_COMPILE_COMMANDS="ON"
+  LOKA_WARNINGS_AS_ERRORS="ON"
+
+-- Configuring done (0.4s)
+-- Generating done (0.2s)
+-- Build files have been written to: C:/loka/build/win32/Debug
+[0/2] Re-checking globbed directories...
+[1/4] C:\WINDOWS\system32\cmd.exe /C "cd /D C:\loka\build\win32\Debug\tests\toolbox && "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E echo "LokaTestsToolbox requires a Retro68 Toolbox toolchain. No app is built for this platform.""
+LokaTestsToolbox requires a Retro68 Toolbox toolchain. No app is built for this platform.
+[2/4] Building CXX object example\SmirkyCard\CMakeFiles\LokaSmirkyCardWin32.dir\src\ScriptRuntime.cpp.obj
+[3/4] Linking CXX executable example\SmirkyCard\LokaSmirkyCardWin32.exe
+[0/2] Re-checking globbed directories...
+[1/9] Building CXX object example\HelloWorld\CMakeFiles\LokaTestsWin32.dir\__\__\tests\Win32RailMetricsTests.cpp.obj
+[2/9] Linking CXX executable example\HelloWorld\LokaHelloWorldScenarioWin32.exe
+[3/9] Linking CXX executable example\FloppyBird\LokaFloppyBirdScenarioWin32.exe
+[4/9] Linking CXX executable example\Tutorial\LokaTutorialScenarioWin32.exe
+[5/9] Linking CXX executable example\HelloWorld\scenario-loop\LokaHelloWorldScenarioLoopWin32.exe
+[6/9] Linking CXX executable example\MineSweeper\LokaMineSweeperScenarioWin32.exe
+[7/9] Linking CXX executable example\MineSweeper\scenario-loop\LokaMineSweeperScenarioLoopWin32.exe
+[8/9] Linking CXX executable example\HelloWorld\LokaTestsWin32.exe
+-- Selecting Windows SDK version 10.0.26100.0 to target Windows 10.0.26200.
+-- Configuring done (0.0s)
+-- Generating done (0.1s)
+-- Build files have been written to: C:/loka/build/host/lrpc
+MSBuild のバージョン 17.14.51+25f168cee (.NET Framework)
+
+  lrpc.vcxproj -> C:\loka\build\host\lrpc\Debug\lrpc.exe
+BUILD_OK
+===VERIFY scrapbook startup===
+stage: build artifact C:\loka\build\win32\Debug\example\ScrapbookUI\LokaScrapbookScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=283d22230d899093b0c74693173a47191003791ed45eac66ca7af9efee402e8d actual_sha256=283d22230d899093b0c74693173a47191003791ed45eac66ca7af9efee402e8d
+stage: capture PID=5584 HWND=0x390298
+settle frame 1 sha256=fe3fce7926654b38f2290e57663f6e433f700b27a58a4698ce7ad856f8069695
+settle frame 2 sha256=fe3fce7926654b38f2290e57663f6e433f700b27a58a4698ce7ad856f8069695
+Scenario passed: scrapbook/startup
+CELLEXIT scrapbook startup = 0
+===VERIFY scrapbook open-first-page-refused===
+stage: build artifact C:\loka\build\win32\Debug\example\ScrapbookUI\LokaScrapbookScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=7ea19f9dc0de978d4def2e3eff84aab45b5efb46ac2dbc3edd8844516125cc47 actual_sha256=7ea19f9dc0de978d4def2e3eff84aab45b5efb46ac2dbc3edd8844516125cc47
+stage: capture PID=11336 HWND=0x60033E
+settle frame 1 sha256=4a5a347d0c59e4ccd6bdae7c7449e715ef3d1768e138d6deb6ad4a2ac4790e5a
+settle frame 2 sha256=4a5a347d0c59e4ccd6bdae7c7449e715ef3d1768e138d6deb6ad4a2ac4790e5a
+Scenario passed: scrapbook/open-first-page-refused
+CELLEXIT scrapbook open-first-page-refused = 0
+===VERIFY scrapbook flip-forward-back===
+stage: build artifact C:\loka\build\win32\Debug\example\ScrapbookUI\LokaScrapbookScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=501484a0af0017834eb41061a7517c8ac35e85345910708984e17eb145db4d00 actual_sha256=501484a0af0017834eb41061a7517c8ac35e85345910708984e17eb145db4d00
+stage: capture PID=4364 HWND=0x7A024C
+settle frame 1 sha256=fe3fce7926654b38f2290e57663f6e433f700b27a58a4698ce7ad856f8069695
+settle frame 2 sha256=fe3fce7926654b38f2290e57663f6e433f700b27a58a4698ce7ad856f8069695
+Scenario passed: scrapbook/flip-forward-back
+CELLEXIT scrapbook flip-forward-back = 0
+===VERIFY scrapbook refused-flip-keeps-page===
+stage: build artifact C:\loka\build\win32\Debug\example\ScrapbookUI\LokaScrapbookScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=212f098c82cb14f9aef03153291d714bbbcdff445153336147f19d9d880996bf actual_sha256=212f098c82cb14f9aef03153291d714bbbcdff445153336147f19d9d880996bf
+stage: capture PID=1768 HWND=0x4B0366
+settle frame 1 sha256=0bbd927c09d3612d6b874f12e0d4e0c9a90c64005d2badca5d3b2c9584123d26
+settle frame 2 sha256=0bbd927c09d3612d6b874f12e0d4e0c9a90c64005d2badca5d3b2c9584123d26
+Scenario passed: scrapbook/refused-flip-keeps-page
+CELLEXIT scrapbook refused-flip-keeps-page = 0
+===VERIFY scrapbook open-text-page===
+stage: build artifact C:\loka\build\win32\Debug\example\ScrapbookUI\LokaScrapbookScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=6936229877939a2dbcc02e0999298fbf1e79c7c50782f6440f69c1e009c53e40 actual_sha256=6936229877939a2dbcc02e0999298fbf1e79c7c50782f6440f69c1e009c53e40
+stage: capture PID=1968 HWND=0x72027C
+settle frame 1 sha256=6740239d5e1a91311129d1fc086eb9891dd96b07aa1d9846a6088124b81679e7
+settle frame 2 sha256=6740239d5e1a91311129d1fc086eb9891dd96b07aa1d9846a6088124b81679e7
+Scenario passed: scrapbook/open-text-page
+CELLEXIT scrapbook open-text-page = 0
+===VERIFY scrapbook open-text-page-refused===
+stage: build artifact C:\loka\build\win32\Debug\example\ScrapbookUI\LokaScrapbookScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=e4bd165c5ec602f234df60bbc446ee118ff21f760f13dc032a5753c5d0f9ac55 actual_sha256=e4bd165c5ec602f234df60bbc446ee118ff21f760f13dc032a5753c5d0f9ac55
+stage: capture PID=11224 HWND=0x7F0364
+settle frame 1 sha256=fc494710da1414982b7cc2ebaac6d077548b7ec60a0fc74e67394a95b9bba96e
+settle frame 2 sha256=fc494710da1414982b7cc2ebaac6d077548b7ec60a0fc74e67394a95b9bba96e
+Scenario passed: scrapbook/open-text-page-refused
+CELLEXIT scrapbook open-text-page-refused = 0
+===VERIFY helloworld startup===
+stage: build artifact C:\loka\build\win32\Debug\example\HelloWorld\LokaHelloWorldScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=e2308e7c580d74acf5f7405981b351e3e3c42b5a2acc625b46e82abb425d520f actual_sha256=e2308e7c580d74acf5f7405981b351e3e3c42b5a2acc625b46e82abb425d520f
+stage: capture PID=10424 HWND=0x3E0298
+settle frame 1 sha256=ca6662e48b88e6fa89f07913df5c07287209c23d87515575cf102671ec1283a9
+settle frame 2 sha256=ca6662e48b88e6fa89f07913df5c07287209c23d87515575cf102671ec1283a9
+Scenario passed: helloworld/startup
+CELLEXIT helloworld startup = 0
+===VERIFY helloworld toggle-action-probe===
+stage: build artifact C:\loka\build\win32\Debug\example\HelloWorld\LokaHelloWorldScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=334de8b1fbc4835e7c6d6e8d6b8a78b3868d1eec1b44e35c00e71e8ef42302c7 actual_sha256=334de8b1fbc4835e7c6d6e8d6b8a78b3868d1eec1b44e35c00e71e8ef42302c7
+stage: capture PID=7456 HWND=0x55035C
+settle frame 1 sha256=74730642ca7d9c2b5008f4a425481326dcadbfe5908d12ac8eee824436ab7bf8
+settle frame 2 sha256=74730642ca7d9c2b5008f4a425481326dcadbfe5908d12ac8eee824436ab7bf8
+Scenario passed: helloworld/toggle-action-probe
+CELLEXIT helloworld toggle-action-probe = 0
+===VERIFY helloworld bmi-roundtrip===
+stage: build artifact C:\loka\build\win32\Debug\example\HelloWorld\LokaHelloWorldScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=c819abd72e9a77cc1c9dc7976634b86bbb186b98f5b8b266e53ea7d3eef72c54 actual_sha256=c819abd72e9a77cc1c9dc7976634b86bbb186b98f5b8b266e53ea7d3eef72c54
+stage: capture PID=8604 HWND=0x25025A
+settle frame 1 sha256=8a7f9a6a9b024cf3c9e16013ba114eca9883d9c8273605becc03f196c8ba1de0
+settle frame 2 sha256=8a7f9a6a9b024cf3c9e16013ba114eca9883d9c8273605becc03f196c8ba1de0
+Scenario passed: helloworld/bmi-roundtrip
+CELLEXIT helloworld bmi-roundtrip = 0
+===VERIFY tutorial startup===
+stage: build artifact C:\loka\build\win32\Debug\example\Tutorial\LokaTutorialScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=f834aa6bdd4fb43977de8770f39d76a9eaf1c839b9f31aece412c8cc57857881 actual_sha256=f834aa6bdd4fb43977de8770f39d76a9eaf1c839b9f31aece412c8cc57857881
+stage: capture PID=10728 HWND=0x4D022A
+settle frame 1 sha256=967fb3bc32f82a498db92c91b7a4cb072ad54c3bdbdd68881f750a1ade4285af
+settle frame 2 sha256=967fb3bc32f82a498db92c91b7a4cb072ad54c3bdbdd68881f750a1ade4285af
+Scenario passed: tutorial/startup
+CELLEXIT tutorial startup = 0
+===VERIFY tutorial increment-summary-toggle===
+stage: build artifact C:\loka\build\win32\Debug\example\Tutorial\LokaTutorialScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=de03245bc31deb9c2c5146a1b4aecf6e766dc590089a6078d326aead826e88a3 actual_sha256=de03245bc31deb9c2c5146a1b4aecf6e766dc590089a6078d326aead826e88a3
+stage: capture PID=1816 HWND=0x78027C
+settle frame 1 sha256=e2be1809cf35beca182c212c662a937efe9424093418dca4fd2f58ab46f95575
+settle frame 2 sha256=e2be1809cf35beca182c212c662a937efe9424093418dca4fd2f58ab46f95575
+Scenario passed: tutorial/increment-summary-toggle
+CELLEXIT tutorial increment-summary-toggle = 0
+===VERIFY minesweeper startup===
+stage: build artifact C:\loka\build\win32\Debug\example\MineSweeper\LokaMineSweeperScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=0c492d097f12172b301bda76b14df9ef62d975d577da30961c7a5674ea0bd734 actual_sha256=0c492d097f12172b301bda76b14df9ef62d975d577da30961c7a5674ea0bd734
+stage: capture PID=7724 HWND=0x40033C
+settle frame 1 sha256=d736e72e00eae99f56c0b31b552b42bd95fd0a397cdb58ea63402a432b37304b
+settle frame 2 sha256=d736e72e00eae99f56c0b31b552b42bd95fd0a397cdb58ea63402a432b37304b
+Scenario passed: minesweeper/startup
+CELLEXIT minesweeper startup = 0
+===VERIFY minesweeper new-game-twice===
+stage: build artifact C:\loka\build\win32\Debug\example\MineSweeper\LokaMineSweeperScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=bca15b6a4abf2b065f805b6fb00d7460181f0feae005f1ade5ce632b2122fd6d actual_sha256=bca15b6a4abf2b065f805b6fb00d7460181f0feae005f1ade5ce632b2122fd6d
+stage: capture PID=9424 HWND=0x4603AA
+settle frame 1 sha256=d736e72e00eae99f56c0b31b552b42bd95fd0a397cdb58ea63402a432b37304b
+settle frame 2 sha256=d736e72e00eae99f56c0b31b552b42bd95fd0a397cdb58ea63402a432b37304b
+Scenario passed: minesweeper/new-game-twice
+CELLEXIT minesweeper new-game-twice = 0
+===VERIFY minesweeper seeded-reveal===
+stage: build artifact C:\loka\build\win32\Debug\example\MineSweeper\LokaMineSweeperScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=9c8b17365b6996cae856e839ee2fd30d1975b551c3f4f5a4eaace1467d7d0fdc actual_sha256=9c8b17365b6996cae856e839ee2fd30d1975b551c3f4f5a4eaace1467d7d0fdc
+stage: capture PID=2164 HWND=0x47039C
+settle frame 1 sha256=5789f5c4eb87a7dc65f6435bace5f3f6b9ca5c31f5d6c8120a8c9cf511f64e13
+settle frame 2 sha256=5789f5c4eb87a7dc65f6435bace5f3f6b9ca5c31f5d6c8120a8c9cf511f64e13
+Scenario passed: minesweeper/seeded-reveal
+CELLEXIT minesweeper seeded-reveal = 0
+===VERIFY floppybird startup===
+stage: build artifact C:\loka\build\win32\Debug\example\FloppyBird\LokaFloppyBirdScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=fab9cfc70eb3bc644ce5b48bb2d37c90ca970750c294aa8673a3e03a0c34b140 actual_sha256=fab9cfc70eb3bc644ce5b48bb2d37c90ca970750c294aa8673a3e03a0c34b140
+stage: capture PID=4556 HWND=0x4403A2
+settle frame 1 sha256=de10ebdec477abbc615c46b2232204159445bdd691ac57c8cf0d80fe900616ba
+settle frame 2 sha256=de10ebdec477abbc615c46b2232204159445bdd691ac57c8cf0d80fe900616ba
+Scenario passed: floppybird/startup
+CELLEXIT floppybird startup = 0
+===VERIFY floppybird fixed-step-flaps===
+stage: build artifact C:\loka\build\win32\Debug\example\FloppyBird\LokaFloppyBirdScenarioWin32.exe
+stage: native directory (no development disk)
+stage: capture DPI setup ProcessCoordinatesArePhysical
+stage: launch
+audit verdict: byte-identical expected_sha256=1f9fe4e9e5435aa97bd167c2276a71e17a694f9fdc1d57c4cc3d1eeca4efd81e actual_sha256=1f9fe4e9e5435aa97bd167c2276a71e17a694f9fdc1d57c4cc3d1eeca4efd81e
+stage: capture PID=1400 HWND=0x2D0230
+settle frame 1 sha256=c8361ac78cc1bed6c979557d37a1f1c586bca8de57d5285e7f50ca15093c6ddf
+settle frame 2 sha256=c8361ac78cc1bed6c979557d37a1f1c586bca8de57d5285e7f50ca15093c6ddf
+Scenario passed: floppybird/fixed-step-flaps
+CELLEXIT floppybird fixed-step-flaps = 0
+ALL_DONE
+[01:53:56] task exit 0
