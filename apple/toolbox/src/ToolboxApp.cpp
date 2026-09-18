@@ -111,7 +111,7 @@ void CursorOwner::apply(bool force)
     this->lastApplied_ = UNKNOWN;
     return;
   }
-  SetCursor(cursor);
+  SetCursor(const_cast<Cursor *>(cursor));
   ++this->nativeApplies_;
   this->lastApplied_ = effective;
 }
