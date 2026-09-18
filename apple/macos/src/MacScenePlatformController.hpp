@@ -31,6 +31,7 @@ namespace loka
 
   namespace app
   {
+    struct TextStyle;
     class RectSurfaceNode;
     class ScrollViewNode;
 
@@ -99,6 +100,8 @@ public:
 
   void relayout(int clientWidth, int clientHeight);
   void requestRelayout();
+  /** Borrowed NSFont, retained by this controller until destruction. */
+  void *textFont(const loka::app::TextStyle &style) const;
   bool hasPendingRelayout() const
   {
     return relayoutPending_;
@@ -240,6 +243,23 @@ private:
   void *findFocusedEditTextState(loka::app::scene::Node *node) const;
   void *findFieldForFocusedEdit(loka::app::scene::Node *node) const;
 
+  /** Finite admission-time font storage; no lazy update-cycle allocation. */
+  class TextFontTable
+  {
+  public:
+    TextFontTable();
+    ~TextFontTable();
+    void *find(const loka::app::TextStyle &style) const;
+
+  private:
+    enum { kSizeCount = 6, kDefaultSizeRow = kSizeCount, kFontRowCount = kSizeCount + 1 };
+    static const int sizes_[kSizeCount];
+    void *fonts_[kFontRowCount][2][2];
+    TextFontTable(const TextFontTable &);
+    TextFontTable &operator=(const TextFontTable &);
+  };
+
+  TextFontTable textFonts_;
   void *rootView_;
   loka::app::scene::ProjectionParentScopeStack projectionParentScopes_;
   loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlerRegistry_;

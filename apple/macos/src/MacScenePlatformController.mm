@@ -2,6 +2,7 @@
 #include "app/layout/CanvasLayout.hpp"
 #include "MacBuiltInSupport.hpp"
 #include "MacObjCCompat.hpp"
+#include "app/style/Style.hpp"
 #include "app/scene/boundary/Boundary.hpp"
 #include <cassert>
 #include <climits>
@@ -83,6 +84,55 @@ namespace loka
     } // namespace scene
   } // namespace app
 } // namespace loka
+
+const int MacScenePlatformController::TextFontTable::sizes_[kSizeCount] = {9, 10, 12, 14, 18, 24};
+
+MacScenePlatformController::TextFontTable::TextFontTable()
+{
+  NSFontManager *manager = [NSFontManager sharedFontManager];
+  const CGFloat defaultSize = [NSFont systemFontSize];
+  for (int size = 0; size < kFontRowCount; ++size)
+  {
+    // An unset size preserves the rail default, outside the explicit vocabulary.
+    const CGFloat points = size == kDefaultSizeRow ? defaultSize : sizes_[size];
+    for (int bold = 0; bold < 2; ++bold)
+    {
+      // PR 3 projects one logical unit to one point; scale belongs to rally 2.
+      NSFont *base = bold ? [NSFont boldSystemFontOfSize:points]
+                          : [NSFont systemFontOfSize:points];
+      NSFont *italic = base ? [manager convertFont:base toHaveTrait:NSItalicFontMask] : nil;
+      this->fonts_[size][bold][0] = (void *)[base retain];
+      this->fonts_[size][bold][1] = (void *)[(italic ? italic : base) retain];
+    }
+  }
+}
+
+MacScenePlatformController::TextFontTable::~TextFontTable()
+{
+  // Every admission retain has a release, even when conversion reused base.
+  for (int size = 0; size < kFontRowCount; ++size)
+    for (int bold = 0; bold < 2; ++bold)
+      for (int italic = 0; italic < 2; ++italic)
+        [(NSFont *)this->fonts_[size][bold][italic] release];
+}
+
+void *MacScenePlatformController::TextFontTable::find(const loka::app::TextStyle &style) const
+{
+  const int bold = style.hasWeight_ && style.weight_ == loka::app::TEXT_WEIGHT_BOLD ? 1 : 0;
+  const int italic = style.hasItalic_ && style.italic_ ? 1 : 0;
+  if (!style.hasFontSize_)
+    return this->fonts_[kDefaultSizeRow][bold][italic];
+  const int points = loka::app::SizeOf(style.fontSize_).fontSize_;
+  for (int size = 0; size < kSizeCount; ++size)
+    if (sizes_[size] == points)
+      return this->fonts_[size][bold][italic];
+  return 0;
+}
+
+void *MacScenePlatformController::textFont(const loka::app::TextStyle &style) const
+{
+  return this->textFonts_.find(style);
+}
 
 MacScenePlatformController::MacScenePlatformController(void *rootView)
     : rootView_(rootView),

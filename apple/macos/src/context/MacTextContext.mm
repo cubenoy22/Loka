@@ -1,5 +1,6 @@
 #include "MacTextContext.hpp"
 #include <cassert>
+#include <cmath>
 #include "../MacScenePlatformController.hpp"
 #include "../MacObjCCompat.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
@@ -13,7 +14,29 @@
 
 namespace
 {
-  int MeasureTextHeightForWidth(const loka::app::TextNode *text, int width, int defaultHeight)
+  /** Null font preserves the historical unstyled paths. Styled single lines
+      keep height 20 unless ceil(ascender + |descender| + leading) exceeds it. */
+  struct TextGeometry
+  {
+    TextGeometry(NSFont *selectedFont, int height) : font(selectedFont), minimumHeight(height) {}
+    NSFont *const font;
+    const int minimumHeight;
+  };
+
+  TextGeometry ResolveTextGeometry(const loka::app::TextStyle &style,
+                                   MacScenePlatformController *controller)
+  {
+    const int fallback = loka::app::layout::FallbackControlMetrics::kTextHeight;
+    if (!controller || !(style.hasFontSize_ || style.hasWeight_ || style.hasItalic_))
+      return TextGeometry(nil, fallback);
+    NSFont *font = (NSFont *)controller->textFont(style);
+    const int lineHeight = static_cast<int>(std::ceil(
+        [font ascender] + std::fabs([font descender]) + [font leading]));
+    return TextGeometry(font, lineHeight > fallback ? lineHeight : fallback);
+  }
+
+  int MeasureTextHeightForWidth(const loka::app::TextNode *text, int width,
+                                int defaultHeight, NSFont *selectedFont)
   {
     if (!text || !text->props.text_)
     {
@@ -44,7 +67,7 @@ namespace
     {
       return defaultHeight;
     }
-    NSFont *font = [NSFont systemFontOfSize:[NSFont systemFontSize]];
+    NSFont *font = selectedFont ? selectedFont : [NSFont systemFontOfSize:[NSFont systemFontSize]];
     int measured = defaultHeight;
     NSTextFieldCell *cell = [[[NSTextFieldCell alloc] initTextCell:string] autorelease];
     if (cell)
@@ -154,6 +177,7 @@ MacTextContext::MacTextContext(MacScenePlatformController *controller,
       node_(node),
       parentView_(parentView),
       label_(0),
+      originalFont_(0),
       textState_(0),
       textStateBound_(false),
       didInitialApply_(false)
@@ -164,52 +188,66 @@ MacTextContext::MacTextContext(MacScenePlatformController *controller,
   [label setSelectable:NO];
   [label setBezeled:NO];
   [label setDrawsBackground:NO];
-  if (node_)
-  {
-    NSTextFieldCell *cell = [label cell];
-    const loka::app::BlockStyle &attr = node_->props.blockStyle_;
-    const bool wrapWord = attr.hasWrap_ && attr.wrap_ == loka::app::TEXT_WRAP_WORD;
-    const bool wrapChar = attr.hasWrap_ && attr.wrap_ == loka::app::TEXT_WRAP_CHAR;
-    if (wrapWord || wrapChar)
-    {
-      SetUsesSingleLineModeCompat(label, NO);
-      [cell setWraps:YES];
-      [cell setScrollable:NO];
-      [cell setLineBreakMode:wrapChar ? NSLineBreakByCharWrapping : NSLineBreakByWordWrapping];
-    }
-    else
-    {
-      SetUsesSingleLineModeCompat(label, YES);
-      [cell setWraps:NO];
-      [cell setScrollable:YES];
-      NSLineBreakMode mode = NSLineBreakByClipping;
-      if (attr.hasTruncation_)
-      {
-        if (attr.truncation_ == loka::app::TEXT_TRUNCATION_ELLIPSIS)
-        {
-          mode = NSLineBreakByTruncatingTail;
-        }
-        else if (attr.truncation_ == loka::app::TEXT_TRUNCATION_CLIP)
-        {
-          mode = NSLineBreakByClipping;
-        }
-      }
-      [cell setLineBreakMode:mode];
-    }
-  }
+  this->label_ = (void *)label;
+  this->originalFont_ = (void *)[[[label cell] font] retain];
+  this->applyStyle(true);
 
   if (parent)
   {
     [parent addSubview:label];
   }
 
-  label_ = (void *)label;
   bindText();
 }
 
 MacTextContext::~MacTextContext()
 {
   assert(!label_ && "terminal fact delivery must queue the native view before context reclaim");
+  [(NSFont *)this->originalFont_ release];
+}
+
+bool MacTextContext::applyStyle(bool initial)
+{
+  NSTextField *label = (NSTextField *)this->label_;
+  if (!this->node_ || !label)
+    return false;
+  NSTextFieldCell *cell = [label cell];
+  const TextGeometry geometry = ResolveTextGeometry(this->node_->props.resolvedTextStyle(), this->controller());
+  NSFont *font = geometry.font ? geometry.font : (NSFont *)this->originalFont_;
+  bool changed = false;
+  if ([cell font] != font)
+  {
+    [cell setFont:font];
+    changed = true;
+  }
+  const loka::app::BlockStyle &attr = this->node_->props.blockStyle_;
+  const bool wrapWord = attr.hasWrap_ && attr.wrap_ == loka::app::TEXT_WRAP_WORD;
+  const bool wrapChar = attr.hasWrap_ && attr.wrap_ == loka::app::TEXT_WRAP_CHAR;
+  const BOOL wraps = wrapWord || wrapChar ? YES : NO;
+  NSLineBreakMode mode = NSLineBreakByClipping;
+  if (wraps)
+    mode = wrapChar ? NSLineBreakByCharWrapping : NSLineBreakByWordWrapping;
+  else if (attr.hasTruncation_ && attr.truncation_ == loka::app::TEXT_TRUNCATION_ELLIPSIS)
+    mode = NSLineBreakByTruncatingTail;
+  if (initial || [cell wraps] != wraps || [cell isScrollable] != !wraps || [cell lineBreakMode] != mode)
+  {
+    SetUsesSingleLineModeCompat(label, !wraps);
+    [cell setWraps:wraps];
+    [cell setScrollable:!wraps];
+    [cell setLineBreakMode:mode];
+    changed = true;
+  }
+  return changed;
+}
+
+void MacTextContext::onPropsApplied()
+{
+  if (this->applyStyle())
+  {
+    [(NSTextField *)this->label_ setNeedsDisplay:YES];
+    if (this->controller())
+      this->controller()->requestRelayout();
+  }
 }
 
 void MacTextContext::readLifecycleFactOnAttach()
@@ -269,8 +307,12 @@ bool MacTextContext::captureBitmap(loka::core::resource::Image &out) const
 
 short MacTextContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
+  // Live TextStyle is a layout dirty source, not a retained-props callback.
+  this->applyStyle();
+  const TextGeometry geometry = ResolveTextGeometry(
+      this->node_ ? this->node_->props.resolvedTextStyle() : loka::app::TextStyle(), this->controller());
   const int textHeight = MeasureTextHeightForWidth(
-      this->node_, state.width, loka::app::layout::FallbackControlMetrics::kTextHeight);
+      this->node_, state.width, geometry.minimumHeight, geometry.font);
   this->relayout(state.x, state.y, state.width, textHeight);
   state.height = static_cast<short>(textHeight);
   return static_cast<short>(state.y + textHeight + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
