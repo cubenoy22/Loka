@@ -2,5 +2,6 @@
 #define LOKA_TESTS_WIN32_NODE_HANDLER_ENSURE_TESTS_HPP
 
 void testWin32NodeHandlerEnsureContract();
+void testWin32TextFontTable();
 
 #endif // LOKA_TESTS_WIN32_NODE_HANDLER_ENSURE_TESTS_HPP

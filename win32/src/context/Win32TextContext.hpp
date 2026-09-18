@@ -58,6 +58,7 @@ public:
   void relayout(int x, int y, int width, int height);
 
 private:
+  bool applyStyle();
   void applyAttachedPresentation();
   void applyDetachedPresentation();
   void bindText();
