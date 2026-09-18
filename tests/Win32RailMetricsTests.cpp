@@ -176,7 +176,7 @@ namespace
     if (mode)
     {
       // Exercise the actual controller ingress, even without a root node.
-      Win32ScenePlatformController controller(NULL);
+      Win32ScenePlatformController controller(static_cast<HWND>(0), loka::win32::Win32DisplayScale(96));
       controller.relayoutNativeClientPixels(mode[0] == 'o' ? SHRT_MAX + 1 : SHRT_MAX, 1);
       ExitProcess(0);
     }
