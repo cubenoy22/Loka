@@ -14,6 +14,7 @@ public:
   virtual ~MacRetirableContext();
 
 protected:
+  MacScenePlatformController *controller() const { return this->controller_; }
   void retireNativeObjects(void *&primary, void *&auxiliary);
   void retireNativeObject(void *&primary);
 

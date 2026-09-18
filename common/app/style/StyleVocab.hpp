@@ -29,6 +29,7 @@ namespace loka
     template <int N> struct FontSize;
     namespace detail
     {
+      enum { kStyleVocabularySizeCount = 6 };
       extern const int StyleVocabularySizes[];
       extern const int StyleVocabularySizeCount;
     }
