@@ -3,6 +3,7 @@
 
 #include <windows.h>
 #include "core/Frame.hpp"
+#include "app/layout/RailMetrics.hpp"
 
 namespace loka
 {
@@ -13,7 +14,11 @@ namespace loka
     class Win32DisplayScale
     {
     public:
-      explicit Win32DisplayScale(UINT dpi = 96);
+      explicit Win32DisplayScale(UINT dpi = 96,
+                                 const loka::app::RailMetrics &metrics = loka::app::RailMetrics());
+
+      /** Snapshot of the rail facts, independent of actual display DPI. */
+      const loka::app::RailMetrics &railMetrics() const { return this->metrics_; }
 
       static bool queryForWindow(HWND hwnd, Win32DisplayScale &out);
       static Win32DisplayScale forWindow(HWND hwnd);
@@ -46,7 +51,7 @@ namespace loka
 
       bool operator==(const Win32DisplayScale &rhs) const
       {
-        return this->dpi_ == rhs.dpi_;
+        return this->dpi_ == rhs.dpi_ && this->metrics_ == rhs.metrics_;
       }
       bool operator!=(const Win32DisplayScale &rhs) const
       {
@@ -54,7 +59,10 @@ namespace loka
       }
 
     private:
+      bool spaceFactors(int &numerator, int &denominator) const;
+
       UINT dpi_;
+      loka::app::RailMetrics metrics_;
     };
   } // namespace win32
 } // namespace loka

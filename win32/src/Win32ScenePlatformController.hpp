@@ -402,6 +402,7 @@ private:
   loka::app::scene::Node *rootNode_;
   int clientWidth_;
   int clientHeight_;
+  const loka::app::RailMetrics railMetrics_;
   loka::win32::Win32DisplayScale displayScale_;
   loka::win32::Win32DisplayFont displayFont_;
   std::vector<PendingInvalidate> pendingInvalidations_;

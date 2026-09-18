@@ -1,3 +1,4 @@
+#include "RailMetricsTests.hpp"
 #include "BorrowedKeysTests.hpp"
 #include "StrictNodeRouteTests.hpp"
 #include "SeatBuildRequestTests.hpp"
@@ -23,6 +24,7 @@
 #include "BoundaryObservedStateTrackerTests.hpp"
 #include "ApplicationFileTests.hpp"
 #ifdef _WIN32
+#include "Win32RailMetricsTests.hpp"
 #include "Win32PropsReconciliationTests.hpp"
 #include "Win32ThreadModalScopeTests.hpp"
 #include "Win32NodeHandlerEnsureTests.hpp"

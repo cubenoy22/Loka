@@ -51,3 +51,6 @@ LOKA_TEST(testWin32OpenFileDialogRetiredBeforePostedWake)
 LOKA_TEST(testWin32OpenFileDialogOwnerReclaimedBeforePostedWake)
 LOKA_TEST(testWin32OpenFileDialogLiveAdmissionAndLostHwnd)
 LOKA_TEST(testWin32OpenFileDialogMissingHwndUsesAdmission)
+
+LOKA_TEST(testWin32RailMetricsProjection)
+LOKA_TEST(testWin32RailMetricsSurviveDpiChange)
