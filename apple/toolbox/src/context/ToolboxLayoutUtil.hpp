@@ -3,6 +3,7 @@
 
 #include "core/String.hpp"
 #include "app/style/Style.hpp"
+#include "ToolboxApp.hpp"
 #include <Quickdraw.h>
 
 class ToolboxScenePlatformController;
@@ -45,7 +46,9 @@ bool ToolboxBuildPascalText(const loka::core::String &value, Str255 text);
 /** Window-bound text measurement and painting transaction.
 
     The controller supplies the window owner. The scope restores both the
-    window port's font state and whichever GrafPort the caller had selected. */
+    window port's font state and whichever GrafPort the caller had selected.
+    Non-default sizes borrow the app cursor through selection, measurement,
+    drawing and restoration, on every transaction regardless of font family. */
 class ToolboxTextMeasureScope
 {
 public:
@@ -64,6 +67,7 @@ private:
   short previousFont_;
   short previousSize_;
   Style previousFace_;
+  BusyScope busy_;
 };
 
 #endif // LOKA_TOOLBOX_LAYOUT_UTIL_HPP

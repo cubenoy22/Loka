@@ -345,6 +345,11 @@ void ToolboxTextContext::repaint()
 
 void ToolboxTextContext::draw(ToolboxScenePlatformController *controller)
 {
+  if (!this->node_ || !this->controller())
+    return;
+  const ToolboxTextFontDescriptor descriptor(this->node_->props.resolvedTextStyle());
+  // Paint and the hit-width measurement are one non-yielding transaction.
+  ToolboxTextMeasureScope measure(*this->controller(), descriptor);
   this->paint(false);
   if (controller && this->text_)
     controller->recordTextHit(this->rect_, this->textX_, this->textY_, this->text_, this->boundary_,

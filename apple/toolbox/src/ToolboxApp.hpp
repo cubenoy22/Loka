@@ -60,12 +60,22 @@ private:
 class BusyScope
 {
 public:
-  explicit BusyScope(CursorOwner &owner) : owner_(owner) { this->owner_.enterBusy(); }
-  ~BusyScope() { this->owner_.exitBusy(); }
+  explicit BusyScope(CursorOwner &owner) : owner_(&owner) { this->owner_->enterBusy(); }
+  /** A null owner makes a conditional borrow inert, without allocation. */
+  explicit BusyScope(CursorOwner *owner) : owner_(owner)
+  {
+    if (this->owner_)
+      this->owner_->enterBusy();
+  }
+  ~BusyScope()
+  {
+    if (this->owner_)
+      this->owner_->exitBusy();
+  }
 private:
   BusyScope(const BusyScope &);
   BusyScope &operator=(const BusyScope &);
-  CursorOwner &owner_;
+  CursorOwner *owner_;
 };
 
 class ToolboxApp : public App

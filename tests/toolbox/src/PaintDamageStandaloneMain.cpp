@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <cstring>
+#include <Fonts.h>
 
 #include "StandaloneFlowRunner.hpp"
 #include "ObservedMainDefinition.hpp"
@@ -2247,8 +2248,86 @@ namespace
       }
     }
 
+    void checkFontCursor(ToolboxScenePlatformController &controller, GrafPtr port)
+    {
+      // This front fixture contains Text, not EditText: hover resolves to arrow.
+      controller.cursorOwner()->reconcile();
+      const short savedFont = port->txFont;
+      const short savedSize = port->txSize;
+      TextSize(12);
+      TextNode large((Text("MMMMMMMM") + FontSize<24>()).props);
+      ToolboxTextContext largeContext(&large, &controller);
+      LayoutState state;
+      state.x = 12;
+      state.y = 80;
+      state.width = 64;
+      state.lineHeight = 16;
+      const char *names[] = {"font-busy-layout-24", "font-busy-layout-24-again",
+                             "font-busy-layout-24-other-family"};
+      for (int i = 0; i < 3; ++i)
+      {
+        if (i == 2)
+          TextFont(savedFont == 1 ? 0 : 1);
+        const ToolboxSceneDebugStats before = controller.debugStatsForTesting();
+        LayoutState next = state;
+        largeContext.layout(&controller, next);
+        const ToolboxSceneDebugStats after = controller.debugStatsForTesting();
+        this->recordArm(names[i], after.cursorOuterEntries == before.cursorOuterEntries + 1
+                        && after.cursorOuterExits == before.cursorOuterExits + 1
+                        && after.cursorNativeApplies == before.cursorNativeApplies + 2
+                        && after.cursorDepth == 0
+                        && after.cursorLastApplied == CursorOwner::ARROW, TEXT_WIDTH_WRITE);
+      }
+      TextFont(savedFont);
+      TextNode ordinary(Text("M").props);
+      ToolboxTextContext ordinaryContext(&ordinary, &controller);
+      TextNode explicitDefault((Text("M") + FontSize<12>()).props);
+      ToolboxTextContext explicitDefaultContext(&explicitDefault, &controller);
+      const char *defaultNames[] = {"font-busy-default-no-apply", "font-busy-zero-default-no-apply",
+                                    "font-busy-resolved-default-no-apply"};
+      for (int i = 0; i < 3; ++i)
+      {
+        if (i == 1)
+          TextSize(0);
+        const ToolboxSceneDebugStats before = controller.debugStatsForTesting();
+        LayoutState next = state;
+        if (i == 2)
+          explicitDefaultContext.layout(&controller, next);
+        else
+          ordinaryContext.layout(&controller, next);
+        const ToolboxSceneDebugStats after = controller.debugStatsForTesting();
+        this->recordArm(defaultNames[i], after.cursorOuterEntries == before.cursorOuterEntries
+                        && after.cursorOuterExits == before.cursorOuterExits
+                        && after.cursorNativeApplies == before.cursorNativeApplies
+                        && after.cursorDepth == 0, TEXT_WIDTH_WRITE);
+      }
+      TextSize(12);
+      LayoutState next = state;
+      largeContext.layout(&controller, next);
+      Point pen;
+      GetPen(&pen);
+      const ToolboxSceneDebugStats before = controller.debugStatsForTesting();
+      // render includes paint and the hit-width measurement, under one borrow.
+      largeContext.render(&controller);
+      const ToolboxSceneDebugStats after = controller.debugStatsForTesting();
+      this->recordArm("font-busy-paint-24", after.cursorOuterEntries == before.cursorOuterEntries + 1
+                      && after.cursorOuterExits == before.cursorOuterExits + 1
+                      && after.cursorNativeApplies == before.cursorNativeApplies + 2
+                      && after.cursorDepth == 0
+                      && after.cursorLastApplied == CursorOwner::ARROW, TEXT_WIDTH_WRITE);
+      // render registered a hit; retire it before this stack context disappears.
+      largeContext.onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_RETIRED);
+      Rect scratch;
+      SetRect(&scratch, 12, 80, 76, 148);
+      EraseRect(&scratch);
+      MoveTo(pen.h, pen.v);
+      TextFont(savedFont);
+      TextSize(savedSize);
+    }
+
     void checkTextFonts(ToolboxScenePlatformController &controller, GrafPtr port)
     {
+      this->checkFontCursor(controller, port);
       const short portFont = port->txFont;
       const short portSize = port->txSize;
       const Style portFace = port->txFace;
@@ -2274,7 +2353,7 @@ namespace
           const ToolboxTextFontDescriptor descriptor(styles[i]);
           ToolboxTextMeasureScope scope(controller, descriptor);
           widths[i] = scope.measure(loka::core::String::Literal("MMMMMMMM"));
-          this->recordArm(selectionNames[i], port->txFont == portFont
+          this->recordArm(selectionNames[i], port->txFont == (portFont == 0 ? GetSysFont() : portFont)
                           && port->txSize == sizes[i]
                           && port->txFace == static_cast<Style>((portFace & ~(bold | italic)) | faces[i]),
                           TEXT_WIDTH_WRITE);
