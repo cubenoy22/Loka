@@ -85,7 +85,6 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-const int MacScenePlatformController::TextFontTable::sizes_[kSizeCount] = {9, 10, 12, 14, 18, 24};
 
 MacScenePlatformController::TextFontTable::TextFontTable()
 {
@@ -94,7 +93,7 @@ MacScenePlatformController::TextFontTable::TextFontTable()
   for (int size = 0; size < kFontRowCount; ++size)
   {
     // An unset size preserves the rail default, outside the explicit vocabulary.
-    const CGFloat points = size == kDefaultSizeRow ? defaultSize : sizes_[size];
+    const CGFloat points = size == kDefaultSizeRow ? defaultSize : loka::app::detail::StyleVocabularySizes[size];
     for (int bold = 0; bold < 2; ++bold)
     {
       // PR 3 projects one logical unit to one point; scale belongs to rally 2.
@@ -124,7 +123,7 @@ void *MacScenePlatformController::TextFontTable::find(const loka::app::TextStyle
     return this->fonts_[kDefaultSizeRow][bold][italic];
   const int points = loka::app::SizeOf(style.fontSize_).fontSize_;
   for (int size = 0; size < kSizeCount; ++size)
-    if (sizes_[size] == points)
+    if (loka::app::detail::StyleVocabularySizes[size] == points)
       return this->fonts_[size][bold][italic];
   return 0;
 }

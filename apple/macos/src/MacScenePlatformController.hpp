@@ -3,6 +3,7 @@
 
 #include <vector>
 #include "app/RectSurface.hpp"
+#include "app/style/StyleVocab.hpp"
 #include "app/scene/projection/ProjectionParentScope.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
@@ -252,8 +253,14 @@ private:
     void *find(const loka::app::TextStyle &style) const;
 
   private:
-    enum { kSizeCount = 6, kDefaultSizeRow = kSizeCount, kFontRowCount = kSizeCount + 1 };
-    static const int sizes_[kSizeCount];
+    // Sized from the generated vocabulary so a size added through
+    // tools/style-vocab.json cannot fall outside the table.
+    enum
+    {
+      kSizeCount = loka::app::detail::kStyleVocabularySizeCount,
+      kDefaultSizeRow = kSizeCount,
+      kFontRowCount = kSizeCount + 1
+    };
     void *fonts_[kFontRowCount][2][2];
     TextFontTable(const TextFontTable &);
     TextFontTable &operator=(const TextFontTable &);

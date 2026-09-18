@@ -38,6 +38,7 @@ def generate_cpp(vocab):
         "    template <int N> struct FontSize;",
         "    namespace detail",
         "    {",
+        "      enum { kStyleVocabularySizeCount = %d };" % len(vocab["sizes"]),
         "      extern const int StyleVocabularySizes[];",
         "      extern const int StyleVocabularySizeCount;",
         "    }",
