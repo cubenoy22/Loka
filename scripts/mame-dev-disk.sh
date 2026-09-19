@@ -40,12 +40,31 @@ if [ -n "$PRESET_CONTROL_DIR" ]; then
 fi
 
 if [ $# -lt 1 ]; then
-  echo "Usage: $0 <Retro68-MacBinary-file> [plain-data-file ...]" >&2
+  echo "Usage: $0 --all | --all-loops | --all-flows | <Retro68-MacBinary-file> [plain-data-file ...]" >&2
   exit 2
 fi
 
-MACBINARY_PATH="$1"
-shift
+MACBINARY_PATHS=()
+# Keep the batch selection aligned with mame-dev-disk.ps1.
+if [ "$1" = "--all-loops" ] || [ "$1" = "--all-flows" ]; then
+  [ "$#" -eq 1 ] || exit 2
+  family=Loop
+  [ "$1" != "--all-flows" ] || family=Flow
+  batch_root="$PROJECT_DIR/build/retro68/68k/Standalone/Release/tests/toolbox"
+  for app in Scrapbook Hello Tutorial Mine Floppy; do
+    MACBINARY_PATHS+=("$batch_root/Loka${app}Standalone${family}68K.bin")
+  done
+  set -- "$batch_root/ASSETS.LRP"
+elif [ "$1" = "--all" ]; then
+  [ "$#" -eq 1 ] || exit 2
+  for app in HelloWorld/LokaHello MineSweeper/LokaMine SimpleViewer/LokaSimpleViewer FloppyBird/LokaFloppyBird SmirkBench/LokaSmirkBench LazyList/LokaLazyList Tutorial/LokaTutorial ScrapbookUI/ScrapbookUI SmirkyCard/LokaSmirkyCard; do
+    MACBINARY_PATHS+=("$PROJECT_DIR/build/retro68/68k/Release/example/${app}68K.bin")
+  done
+  set -- "$PROJECT_DIR/build/retro68/68k/Release/example/ScrapbookUI/ASSETS.LRP" "$PROJECT_DIR/example/SmirkyCard/MAIN.JS"
+else
+  MACBINARY_PATHS+=("$1")
+  shift
+fi
 MAME_HDA="${MAME_HDA:-}"
 MAME_HOMEPATH="${MAME_HOMEPATH:-$HOME/.mame}"
 MAME_CONTROL_DIR="${MAME_CONTROL_DIR:-$MAME_HOMEPATH/loka}"
@@ -55,10 +74,12 @@ MAME_HOMEPATH="$(normalize_host_path "$MAME_HOMEPATH")"
 MAME_CONTROL_DIR="$(normalize_host_path "$MAME_CONTROL_DIR")"
 MAME_DEV_HDA="$(normalize_host_path "$MAME_DEV_HDA")"
 
-if [ ! -f "$MACBINARY_PATH" ]; then
-  echo "Error: Retro68 MacBinary file not found: $MACBINARY_PATH" >&2
-  exit 1
-fi
+for binary in "${MACBINARY_PATHS[@]}"; do
+  if [ ! -f "$binary" ]; then
+    echo "Error: Retro68 MacBinary file not found: $binary" >&2
+    exit 1
+  fi
+done
 for plain_data_path in "$@"; do
   if [ ! -f "$plain_data_path" ]; then
     echo "Error: plain data file not found: $plain_data_path" >&2
@@ -119,7 +140,9 @@ cleanup() {
 trap cleanup EXIT
 
 HOME="$HFS_HOME" "$HFORMAT" -l LokaDev "$TEMPORARY_DISK" 1
-HOME="$HFS_HOME" "$HCOPY" -m "$MACBINARY_PATH" :
+for binary in "${MACBINARY_PATHS[@]}"; do
+  HOME="$HFS_HOME" "$HCOPY" -m "$binary" :
+done
 for plain_data_path in "$@"; do
   HOME="$HFS_HOME" "$HCOPY" -r "$plain_data_path" :
 done
