@@ -150,13 +150,40 @@ def verify_candidate_recording(
     capture: pathlib.Path,
     example: str,
     scenario: str,
+    update_root: pathlib.Path | None = None,
 ) -> None:
+    """Check this capture against an explicit bake, otherwise live goldens.
+
+    update_root contains cells.txt and <example>/<scenario>.png candidates.
+    Membership is explicit: missing listed candidates never fall back to live.
+    The caller owns the candidate set and keeps it fixed throughout the bake.
+    """
     scenarios, declared = read_contract(registry, declarations)
     if (example, scenario) not in frozenset(scenarios):
         raise GoldenIdentityError(f"scenario is not registered: {example} {scenario}")
     _require_regular_capture(capture, "settled capture")
+    updating = frozenset()
+    if update_root is not None:
+        updating = frozenset(read_cells(update_root / "cells.txt", "update cell"))
+        if not updating.issubset(scenarios):
+            raise GoldenIdentityError("update contains an unregistered cell")
+        if (example, scenario) not in updating:
+            raise GoldenIdentityError("current capture is not listed in update cells")
+        for candidate_example, candidate_scenario in updating:
+            _require_regular_capture(
+                update_root / candidate_example / f"{candidate_scenario}.png",
+                "update candidate",
+            )
+        current = update_root / example / f"{scenario}.png"
+        if not _files_identical(capture, current):
+            raise GoldenIdentityError("current capture differs from its update candidate")
+
+    def partner_path(partner_scenario: str) -> pathlib.Path:
+        root = update_root if (example, partner_scenario) in updating else golden_root
+        return root / example / f"{partner_scenario}.png"
+
     if scenario != STARTUP_SCENARIO:
-        startup = golden_root / example / f"{STARTUP_SCENARIO}.png"
+        startup = partner_path(STARTUP_SCENARIO)
         if not startup.is_file() or startup.is_symlink():
             raise GoldenIdentityError(
                 f"startup golden is unavailable for {example} {scenario}; "
@@ -168,7 +195,7 @@ def verify_candidate_recording(
     for sibling_example, sibling_scenario in scenarios:
         if sibling_example != example or sibling_scenario == STARTUP_SCENARIO:
             continue
-        sibling = golden_root / example / f"{sibling_scenario}.png"
+        sibling = partner_path(sibling_scenario)
         if sibling.exists() or sibling.is_symlink():
             _verify_relationship(example, sibling_scenario, sibling, capture, declared)
 
@@ -198,6 +225,10 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--registry", required=True, type=pathlib.Path)
     parser.add_argument("--declarations", required=True, type=pathlib.Path)
     parser.add_argument("--golden-root", required=True, type=pathlib.Path)
+    parser.add_argument(
+        "--update-root", type=pathlib.Path,
+        help="this bake's cells.txt and <example>/<scenario>.png candidates",
+    )
     parser.add_argument("--capture", required=True, type=pathlib.Path)
     parser.add_argument("--example", required=True)
     parser.add_argument("--scenario", required=True)
@@ -214,6 +245,7 @@ def main(arguments: Sequence[str]) -> int:
             args.capture,
             args.example,
             args.scenario,
+            args.update_root,
         )
     except (GoldenIdentityError, OSError) as error:
         print(f"Golden startup identity refused: {error}", file=sys.stderr)
