@@ -7,4 +7,7 @@ void testAttributedTextDirtySeatsAndEditorPresentation();
 void testAttributedTextInvalidProjectionRefusesAndRecovers();
 void testAttributedTextHandlerCannotBeReplaced();
 
+void testAttributedTextSegmentationIndependentLayout();
+void testAttributedTextWrapUsesJoinedWordsAndRunMetrics();
+
 #endif

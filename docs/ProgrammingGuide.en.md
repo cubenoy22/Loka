@@ -917,7 +917,9 @@ Include `app/nodes/AttributedText.hpp` to display a styled value with
 `AttributedText(value)`, which owns its constant content, or
 `AttributedText(state)`, which borrows a `State<AttributedString>*` and follows
 its changes. Add wrapping or truncation with `+ BlockStyle`, for example
-`AttributedText(value) + BlockStyle().wrap(TEXT_WRAP_WORD)`.
+`AttributedText(value) + BlockStyle().wrap(TEXT_WRAP_WORD)`. Wrapping follows
+the combined text; splitting the same styled content into more segments does
+not change its layout.
 
 Fold character styles into the value before passing it to `AttributedText`;
 the node has no separate character-style input. An invalid value displays as

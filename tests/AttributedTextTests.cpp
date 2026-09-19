@@ -54,8 +54,8 @@ namespace
   {
     typedef Editor NodeType;
     typedef Editor TypeTag;
-    explicit EditorProps(State<AttributedString> *value = 0)
-        : value(value)
+    explicit EditorProps(State<AttributedString> *source = 0)
+        : value(source)
     {
     }
     bool operator<(const PropsBase &rhs) const
@@ -67,8 +67,8 @@ namespace
   class Editor : public StdCompositionBoundaryNodeBase<EditorProps>
   {
   public:
-    explicit Editor(const EditorProps &props)
-        : StdCompositionBoundaryNodeBase<EditorProps>(props)
+    explicit Editor(const EditorProps &input)
+        : StdCompositionBoundaryNodeBase<EditorProps>(input)
     {
     }
     virtual bool flushViewDirtyImmediately(NodeDirtyFlags) const
@@ -93,9 +93,9 @@ namespace
     {
       ++this->commits;
     }
-    virtual void onChange(Node *root, NodeDirtyFlags flags, bool)
+    virtual void onChange(Node *root, NodeDirtyFlags dirtyFlags, bool)
     {
-      this->flags = flags;
+      this->flags = dirtyFlags;
       LayoutState state;
       state.width = 200;
       state.height = 200;
@@ -161,11 +161,11 @@ void testAttributedTextMetrics()
     const BlockStyle wrap = BlockStyle().wrap(static_cast<TextWrap>(mode));
     const NullTextMeasurement wrapped = measured(mixed, 20, wrap);
     LOKA_VERIFY(wrapped.width() == 16);
-    LOKA_VERIFY(wrapped.height() == 36);
+    LOKA_VERIFY(wrapped.height() == 48);
     LOKA_VERIFY(wrapped.lineCount() == 2);
-    // A long run remains whole, even with spaces or a character-wrap request.
-    LOKA_VERIFY(measured(Styled("ab cd", Bold), 8, wrap).width() == 20);
-    LOKA_VERIFY(measured(Styled("ab cd", Bold), 8, wrap).lineCount() == 1);
+    // A single segment participates in the shared word/character wrapping.
+    LOKA_VERIFY(measured(Styled("ab cd", Bold), 8, wrap).width() == 8);
+    LOKA_VERIFY(measured(Styled("ab cd", Bold), 8, wrap).lineCount() == 3);
   }
   LOKA_VERIFY(measured(mixed, 20).lineCount() == 1);
   LOKA_VERIFY(measured(mixed, 21, BlockStyle().truncation(TEXT_TRUNCATION_CLIP)).width() == 21);
@@ -327,4 +327,49 @@ void testAttributedTextHandlerCannotBeReplaced()
   RefusedNodeHandler nativeRefusal(NodeTypeToken<AttributedTextNode>());
   LOKA_VERIFY(nativeRefusal.ensureContext(&node, &controller, state) == 0);
   LOKA_VERIFY(nativeRefusal.refusalCount() == 1);
+}
+
+void testAttributedTextSegmentationIndependentLayout()
+{
+  const AttributedString whole = Styled("abcd", Bold);
+  const AttributedString split = Styled("ab", Bold) + Styled("cd", Bold);
+  LOKA_VERIFY(whole == split);
+  for (int mode = TEXT_WRAP_WORD; mode <= TEXT_WRAP_CHAR; ++mode)
+  {
+    const BlockStyle wrap = BlockStyle().wrap(static_cast<TextWrap>(mode));
+    const NullTextMeasurement joined = measured(whole, 12, wrap);
+    const NullTextMeasurement divided = measured(split, 12, wrap);
+    LOKA_VERIFY(joined.width() == divided.width());
+    LOKA_VERIFY(joined.height() == divided.height());
+    LOKA_VERIFY(joined.lineCount() == divided.lineCount());
+    LOKA_VERIFY(joined.width() == 12 && joined.height() == 24 && joined.lineCount() == 2);
+  }
+  for (int mode = TEXT_TRUNCATION_CLIP; mode <= TEXT_TRUNCATION_ELLIPSIS; ++mode)
+  {
+    const BlockStyle truncate = BlockStyle().truncation(static_cast<TextTruncation>(mode));
+    const NullTextMeasurement joined = measured(whole, 11, truncate);
+    const NullTextMeasurement divided = measured(split, 11, truncate);
+    LOKA_VERIFY(joined.width() == divided.width());
+    LOKA_VERIFY(joined.height() == divided.height());
+    LOKA_VERIFY(joined.lineCount() == divided.lineCount());
+    LOKA_VERIFY(joined.width() == (mode == TEXT_TRUNCATION_CLIP ? 11 : 8));
+  }
+}
+
+void testAttributedTextWrapUsesJoinedWordsAndRunMetrics()
+{
+  // "abcd" fits a complete line. WORD moves it intact, even though its
+  // character metrics change in the middle; CHAR fills the previous line.
+  const AttributedString words = Styled("a ab", FontSize<12>()) + Styled("cd", FontSize<24>());
+  const NullTextMeasurement word = measured(words, 24, BlockStyle().wrap(TEXT_WRAP_WORD));
+  LOKA_VERIFY(word.width() == 24 && word.height() == 36 && word.lineCount() == 2);
+  const NullTextMeasurement character = measured(words, 24, BlockStyle().wrap(TEXT_WRAP_CHAR));
+  LOKA_VERIFY(character.width() == 24 && character.height() == 48 && character.lineCount() == 2);
+  const AttributedString sameStyle = Styled("a ab", Bold) + Styled("cd", Bold);
+  const NullTextMeasurement intact = measured(sameStyle, 16, BlockStyle().wrap(TEXT_WRAP_WORD));
+  LOKA_VERIFY(intact.width() == 16 && intact.height() == 24 && intact.lineCount() == 2);
+  // A size change halfway through a forced word break contributes to both lines.
+  const AttributedString longWord = Styled("ab", FontSize<12>()) + Styled("cd", FontSize<24>());
+  const NullTextMeasurement forced = measured(longWord, 20, BlockStyle().wrap(TEXT_WRAP_WORD));
+  LOKA_VERIFY(forced.width() == 16 && forced.height() == 48 && forced.lineCount() == 2);
 }

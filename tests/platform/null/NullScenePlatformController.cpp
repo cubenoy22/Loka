@@ -295,11 +295,11 @@ public:
         committed = static_cast<NullTextContext *>(context)->commitPresented(value, this->controller_.paintScope());
       }
     }
-    else if (loka::app::AttributedTextNode *text = node->asAttributedTextNode())
+    else if (loka::app::AttributedTextNode *attributedText = node->asAttributedTextNode())
     {
-      if (text->props.text_)
+      if (attributedText->props.text_)
       {
-        const loka::app::AttributedString value = text->props.text_->get();
+        const loka::app::AttributedString value = attributedText->props.text_->get();
         committed = static_cast<NullAttributedTextContext *>(context)->commitPresented(value, this->controller_.paintScope());
       }
     }

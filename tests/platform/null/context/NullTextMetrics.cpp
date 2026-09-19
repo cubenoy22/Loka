@@ -16,207 +16,178 @@ NullTextMetrics::NullTextMetrics(const loka::app::TextStyle &style, const loka::
 
 namespace
 {
-  struct LineGeometry
+  int ClampExtent(int value)
   {
-    LineGeometry()
-        : lineCount(1),
-          maxColumns(0)
-    {
-    }
-
-    int lineCount;
-    int maxColumns;
-  };
-
+    return value > SHRT_MAX ? SHRT_MAX : value;
+  }
   bool IsLineBreak(unsigned int value)
   {
     return value == '\n' || value == '\r';
   }
-
   bool IsWordSpace(unsigned int value)
   {
     return value == ' ' || value == '\t';
   }
 
-  void FinishLine(int columns, LineGeometry &geometry)
+  /** Owns only this measure's line totals; no segment identity enters layout. */
+  class Lines
   {
-    if (columns > geometry.maxColumns)
+  public:
+    Lines(int emptyLineHeight, const loka::app::BlockStyle &block, int availableWidth)
+        : emptyHeight_(emptyLineHeight),
+          block_(block),
+          available_(availableWidth),
+          width_(0),
+          height_(0),
+          maxWidth_(0),
+          totalHeight_(0),
+          count_(0)
     {
-      geometry.maxColumns = columns;
     }
-  }
-
-  void SkipLineFeedAfterCarriageReturn(const loka::core::StringBuffer &text, std::size_t &index)
-  {
-    if (text.characterAt(index) == '\r' && index + 1 < text.length() && text.characterAt(index + 1) == '\n')
+    int width() const
     {
-      ++index;
+      return this->width_;
     }
-  }
-
-  LineGeometry MeasureUnwrapped(const loka::core::StringBuffer &text)
-  {
-    LineGeometry geometry;
-    int columns = 0;
-    for (std::size_t i = 0; i < text.length(); ++i)
+    void append(int advance, int lineHeight)
     {
-      const unsigned int value = text.characterAt(i);
-      if (IsLineBreak(value))
+      this->width_ = ClampExtent(this->width_ + advance);
+      if (lineHeight > this->height_)
+        this->height_ = lineHeight;
+    }
+    void lineBreak(int lineHeight)
+    {
+      this->append(0, lineHeight);
+      this->finishLine();
+      this->emptyHeight_ = lineHeight;
+    }
+    void finishLine()
+    {
+      const int height = this->height_ > 0 ? this->height_ : this->emptyHeight_;
+      int width = this->width_;
+      if ((!this->block_.hasWrap_ || this->block_.wrap_ == loka::app::TEXT_WRAP_NONE) && this->available_ > 0
+          && width > this->available_ && this->block_.hasTruncation_)
       {
-        FinishLine(columns, geometry);
-        ++geometry.lineCount;
-        columns = 0;
-        SkipLineFeedAfterCarriageReturn(text, i);
-      }
-      else
-      {
-        ++columns;
-      }
-    }
-    FinishLine(columns, geometry);
-    return geometry;
-  }
-
-  LineGeometry MeasureCharacterWrapped(const loka::core::StringBuffer &text, int capacity)
-  {
-    if (capacity <= 0)
-    {
-      return MeasureUnwrapped(text);
-    }
-
-    LineGeometry geometry;
-    int columns = 0;
-    for (std::size_t i = 0; i < text.length(); ++i)
-    {
-      const unsigned int value = text.characterAt(i);
-      if (IsLineBreak(value))
-      {
-        FinishLine(columns, geometry);
-        ++geometry.lineCount;
-        columns = 0;
-        SkipLineFeedAfterCarriageReturn(text, i);
-        continue;
-      }
-      if (columns == capacity)
-      {
-        FinishLine(columns, geometry);
-        ++geometry.lineCount;
-        columns = 0;
-      }
-      ++columns;
-    }
-    FinishLine(columns, geometry);
-    return geometry;
-  }
-
-  void PlaceWord(int wordLength, int capacity, int &columns, LineGeometry &geometry)
-  {
-    if (wordLength <= capacity)
-    {
-      if (columns > 0 && columns + wordLength > capacity)
-      {
-        FinishLine(columns, geometry);
-        ++geometry.lineCount;
-        columns = 0;
-      }
-      columns += wordLength;
-      return;
-    }
-    if (columns > 0)
-    {
-      FinishLine(columns, geometry);
-      ++geometry.lineCount;
-      columns = 0;
-    }
-    while (wordLength > capacity)
-    {
-      FinishLine(capacity, geometry);
-      ++geometry.lineCount;
-      wordLength -= capacity;
-    }
-    columns = wordLength;
-  }
-
-  LineGeometry MeasureWordWrapped(const loka::core::StringBuffer &text, int capacity)
-  {
-    if (capacity <= 0)
-    {
-      return MeasureUnwrapped(text);
-    }
-
-    LineGeometry geometry;
-    int columns = 0;
-    std::size_t index = 0;
-    while (index < text.length())
-    {
-      const unsigned int value = text.characterAt(index);
-      if (IsLineBreak(value))
-      {
-        FinishLine(columns, geometry);
-        ++geometry.lineCount;
-        columns = 0;
-        SkipLineFeedAfterCarriageReturn(text, index);
-        ++index;
-        continue;
-      }
-      if (IsWordSpace(value))
-      {
-        if (columns == capacity)
+        switch (this->block_.truncation_)
         {
-          FinishLine(columns, geometry);
-          ++geometry.lineCount;
-          columns = 0;
-        }
-        ++columns;
-        ++index;
-        continue;
-      }
-
-      int wordLength = 0;
-      while (index < text.length())
-      {
-        const unsigned int wordValue = text.characterAt(index);
-        if (IsLineBreak(wordValue) || IsWordSpace(wordValue))
+        case loka::app::TEXT_TRUNCATION_NONE:
+          break;
+        case loka::app::TEXT_TRUNCATION_CLIP:
+          width = this->available_;
+          break;
+        case loka::app::TEXT_TRUNCATION_ELLIPSIS:
         {
+          const NullTextMetrics metrics(loka::app::SizeOf(height), 0);
+          const int capacity = this->available_ / metrics.advance();
+          width = (capacity > 0 ? capacity : 1) * metrics.advance();
           break;
         }
-        ++wordLength;
-        ++index;
+        }
       }
-      PlaceWord(wordLength, capacity, columns, geometry);
+      if (width > this->maxWidth_)
+        this->maxWidth_ = width;
+      this->totalHeight_ = ClampExtent(this->totalHeight_ + height);
+      this->count_ = ClampExtent(this->count_ + 1);
+      this->width_ = 0;
+      this->height_ = 0;
     }
-    FinishLine(columns, geometry);
-    return geometry;
-  }
-
-  short ClampExtentToShort(int value)
-  {
-    if (value <= 0)
+    NullTextMeasurement complete()
     {
-      return 0;
+      this->finishLine();
+      return NullTextMeasurement(static_cast<short>(this->maxWidth_),
+                                 static_cast<short>(this->totalHeight_),
+                                 static_cast<short>(this->count_));
     }
-    if (value > SHRT_MAX)
-    {
-      return SHRT_MAX;
-    }
-    return static_cast<short>(value);
-  }
 
-  int WrapCapacityForWidth(short width, int advance)
-  {
-    if (width <= 0)
-    {
-      return 0;
-    }
-    const int capacity = width / advance;
-    return capacity > 0 ? capacity : 1;
-  }
-
+  private:
+    int emptyHeight_;
+    const loka::app::BlockStyle &block_;
+    int available_, width_, height_, maxWidth_, totalHeight_, count_;
+  };
 } // namespace
 
-/** materialized (optional) reports whether the String could be rendered at all. A
-    platform String that refuses UTF-8 materialization measures as nothing, and that
-    "nothing" must never become a presented value (AGENTS.md failure-degradation). */
+NullTextLayout::NullTextLayout(int emptyLineHeight)
+    : emptyLineHeight_(emptyLineHeight)
+{
+}
+
+bool NullTextLayout::append(const NullTextMetrics &run)
+{
+  if (!run.materialized())
+    return false;
+  for (std::size_t index = 0; index < run.length(); ++index)
+    this->characters_.push_back(run.characterAt(index));
+  return true;
+}
+
+namespace
+{
+  /** Both inputs expose the same character facts. Plain text borrows its decoded
+      buffer; attributed text owns joined rows. Neither exposes segment boundaries. */
+  template <typename Characters>
+  NullTextMeasurement MeasureCharacters(const Characters &characters,
+                                        int emptyLineHeight,
+                                        const loka::app::BlockStyle &block,
+                                        short availableWidth)
+  {
+    const loka::app::TextWrap wrap = block.hasWrap_ && availableWidth > 0 ? block.wrap_ : loka::app::TEXT_WRAP_NONE;
+    Lines lines(emptyLineHeight, block, availableWidth);
+    std::size_t index = 0;
+    while (index < characters.length())
+    {
+      const NullTextCharacter &character = characters.characterAt(index);
+      if (IsLineBreak(character.value))
+      {
+        int breakHeight = character.lineHeight;
+        if (character.value == '\r' && index + 1 < characters.length()
+            && characters.characterAt(index + 1).value == '\n')
+        {
+          ++index;
+          if (characters.characterAt(index).lineHeight > breakHeight)
+            breakHeight = characters.characterAt(index).lineHeight;
+        }
+        lines.lineBreak(breakHeight);
+        ++index;
+        continue;
+      }
+      std::size_t end = index + 1;
+      if (wrap == loka::app::TEXT_WRAP_WORD && !IsWordSpace(character.value))
+      {
+        int wordWidth = character.advance;
+        while (end < characters.length() && !IsWordSpace(characters.characterAt(end).value)
+               && !IsLineBreak(characters.characterAt(end).value))
+        {
+          wordWidth = ClampExtent(wordWidth + characters.characterAt(end).advance);
+          ++end;
+        }
+        if (lines.width() > 0 && lines.width() + wordWidth > availableWidth)
+          lines.finishLine();
+      }
+      // A word too wide for an empty line follows Text's forced-character rule.
+      // Spaces and CHAR wrapping use the same per-code-point capacity check.
+      for (; index < end; ++index)
+      {
+        const NullTextCharacter &next = characters.characterAt(index);
+        if (wrap != loka::app::TEXT_WRAP_NONE && lines.width() > 0 && lines.width() + next.advance > availableWidth)
+          lines.finishLine();
+        lines.append(next.advance, next.lineHeight);
+      }
+    }
+    return lines.complete();
+  }
+} // namespace
+
+NullTextMeasurement NullTextLayout::measure(const loka::app::BlockStyle &block, short availableWidth) const
+{
+  return MeasureCharacters(*this, this->emptyLineHeight_, block, availableWidth);
+}
+
+NullTextMeasurement NullTextMetrics::measure(const loka::app::BlockStyle &block, short availableWidth) const
+{
+  if (!this->materialized())
+    return NullTextMeasurement(0, static_cast<short>(this->lineHeight()), 1);
+  return MeasureCharacters(*this, this->lineHeight(), block, availableWidth);
+}
+
 NullTextMeasurement MeasureNullText(const loka::app::TextStyle &style,
                                     const loka::app::BlockStyle &block,
                                     const loka::core::String *value,
@@ -224,46 +195,9 @@ NullTextMeasurement MeasureNullText(const loka::app::TextStyle &style,
                                     bool *materialized)
 {
   const NullTextMetrics metrics(style, value);
-  const int lineHeight = metrics.lineHeight();
-  const int advance = metrics.advance();
   if (materialized)
     *materialized = metrics.materialized();
-  if (!metrics.materialized())
-    return NullTextMeasurement(0, ClampExtentToShort(lineHeight), 1);
-  const loka::core::StringBuffer &text = metrics.text();
-  const int capacity = WrapCapacityForWidth(state.width, advance);
-  const loka::app::TextWrap wrap = (block.hasWrap_ ? block.wrap_ : loka::app::TEXT_WRAP_NONE);
-  LineGeometry lines;
-  switch (wrap)
-  {
-  case loka::app::TEXT_WRAP_NONE:
-    lines = MeasureUnwrapped(text);
-    break;
-  case loka::app::TEXT_WRAP_WORD:
-    lines = MeasureWordWrapped(text, capacity);
-    break;
-  case loka::app::TEXT_WRAP_CHAR:
-    lines = MeasureCharacterWrapped(text, capacity);
-    break;
-  }
-
-  int measuredWidth = lines.maxColumns * advance;
-  if (wrap == loka::app::TEXT_WRAP_NONE && state.width > 0 && measuredWidth > state.width)
-  {
-    const loka::app::TextTruncation truncation =
-        (block.hasTruncation_ ? block.truncation_ : loka::app::TEXT_TRUNCATION_NONE);
-    if (truncation == loka::app::TEXT_TRUNCATION_CLIP)
-    {
-      measuredWidth = state.width;
-    }
-    else if (truncation == loka::app::TEXT_TRUNCATION_ELLIPSIS)
-    {
-      measuredWidth = capacity * advance;
-    }
-  }
-  const int measuredHeight = lines.lineCount * lineHeight;
-  return NullTextMeasurement(
-      ClampExtentToShort(measuredWidth), ClampExtentToShort(measuredHeight), ClampExtentToShort(lines.lineCount));
+  return metrics.measure(block, state.width);
 }
 
 NullTextMeasurement::NullTextMeasurement()

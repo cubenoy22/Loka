@@ -11,73 +11,6 @@ namespace
     return value > SHRT_MAX ? SHRT_MAX : value;
   }
 
-  /** Stack-local builder for one measure; only finishLine publishes a line. */
-  class Lines
-  {
-  public:
-    Lines(const loka::app::BlockStyle &block, int width)
-        : block_(block),
-          available_(width),
-          width_(0),
-          height_(0),
-          maxWidth_(0),
-          totalHeight_(0),
-          count_(0)
-    {
-    }
-    void append(int width, int height, bool runBoundary)
-    {
-      if (runBoundary && this->block_.hasWrap_ && this->block_.wrap_ != loka::app::TEXT_WRAP_NONE
-          && this->available_ > 0 && this->width_ > 0 && this->width_ + width > this->available_)
-        this->finishLine();
-      if (this->width_ == 0 || height > this->height_)
-        this->height_ = height;
-      this->width_ = extent(this->width_ + width);
-    }
-    void finishLine()
-    {
-      const int height = this->height_ > 0 ? this->height_ : NullTextMetrics(loka::app::TextStyle(), 0).lineHeight();
-      int width = this->width_;
-      if ((!this->block_.hasWrap_ || this->block_.wrap_ == loka::app::TEXT_WRAP_NONE) && this->available_ > 0
-          && width > this->available_ && this->block_.hasTruncation_)
-      {
-        switch (this->block_.truncation_)
-        {
-        case loka::app::TEXT_TRUNCATION_NONE:
-          break;
-        case loka::app::TEXT_TRUNCATION_CLIP:
-          width = this->available_;
-          break;
-        case loka::app::TEXT_TRUNCATION_ELLIPSIS:
-        {
-          // Same deterministic cell rule as Text, using this line's largest font.
-          const NullTextMetrics metrics(loka::app::SizeOf(height), 0);
-          const int capacity = this->available_ / metrics.advance();
-          width = (capacity > 0 ? capacity : 1) * metrics.advance();
-          break;
-        }
-        }
-      }
-      if (width > this->maxWidth_)
-        this->maxWidth_ = width;
-      this->totalHeight_ = extent(this->totalHeight_ + height);
-      this->count_ = extent(this->count_ + 1);
-      this->width_ = 0;
-      this->height_ = 0;
-    }
-    NullTextMeasurement complete()
-    {
-      this->finishLine();
-      return NullTextMeasurement(static_cast<short>(this->maxWidth_),
-                                 static_cast<short>(this->totalHeight_),
-                                 static_cast<short>(this->count_));
-    }
-
-  private:
-    const loka::app::BlockStyle &block_;
-    int available_, width_, height_, maxWidth_, totalHeight_, count_;
-  };
-
   NullTextMeasurement emptyMeasurement()
   {
     const NullTextMetrics metrics(loka::app::TextStyle(), 0);
@@ -92,48 +25,19 @@ namespace
     materialized = value.valid();
     if (!materialized)
       return emptyMeasurement();
-    Lines lines(block, state.width);
-    bool afterCarriageReturn = false;
+    const NullTextMetrics defaults(loka::app::TextStyle(), 0);
+    NullTextLayout layout(defaults.lineHeight());
     for (std::size_t run = 0; run < value.segmentCount(); ++run)
     {
       const loka::app::AttributedString::Segment &segment = value.segment(run);
       const NullTextMetrics metrics(segment.style, &segment.text);
-      if (!metrics.materialized())
+      if (!layout.append(metrics))
       {
         materialized = false;
         return emptyMeasurement();
       }
-      const loka::core::StringBuffer &text = metrics.text();
-      std::size_t index = 0;
-      while (index < text.length())
-      {
-        const unsigned int ch = text.characterAt(index);
-        if (afterCarriageReturn && ch == '\n')
-        {
-          afterCarriageReturn = false;
-          ++index;
-          continue;
-        }
-        afterCarriageReturn = false;
-        if (ch == '\n' || ch == '\r')
-        {
-          lines.append(0, metrics.lineHeight(), false);
-          lines.finishLine();
-          lines.append(0, metrics.lineHeight(), false);
-          afterCarriageReturn = ch == '\r';
-          ++index;
-          continue;
-        }
-        int width = 0;
-        while (index < text.length() && text.characterAt(index) != '\n' && text.characterAt(index) != '\r')
-        {
-          width = extent(width + metrics.advance());
-          ++index;
-        }
-        lines.append(width, metrics.lineHeight(), true);
-      }
     }
-    return lines.complete();
+    return layout.measure(block, state.width);
   }
 
   bool fits(const loka::app::AttributedString &value, const loka::app::BlockStyle &block, const loka::core::Frame &seat)
