@@ -47,7 +47,7 @@ namespace loka
           scrapbook::MainProps().platformContext(this->getPlatformContext()),
           &this->borrowedMainNode_,
           340,
-          250,
+          274,
           kScrapbookStandaloneTitle,
           app::IdlePolicy::interval(0.1),
           &ScrapbookStandaloneFlowAppConfig::OnWindowIdle,

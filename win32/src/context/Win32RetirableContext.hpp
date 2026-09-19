@@ -2,6 +2,7 @@
 #define LOKA_WIN32_RETIRABLE_CONTEXT_HPP
 
 #include <windows.h>
+#include "platform/Win32DisplayScale.hpp"
 #include "app/scene/projection/NativeNodeContext.hpp"
 
 class Win32ScenePlatformController;
@@ -30,15 +31,13 @@ public:
 
 protected:
   void retireWindow(HWND &hwnd);
-  void positionNativeWindow(HWND hwnd, int x, int y, int width, int height);
+  void positionNativeWindow(HWND hwnd, const loka::win32::NativeRect &geometry);
+  void resizeNativeWindow(HWND hwnd, const loka::win32::NativeRect &geometry);
   HWND createNativeChildWindow(DWORD exStyle,
                                LPCWSTR className,
                                LPCWSTR windowName,
                                DWORD style,
-                               int x,
-                               int y,
-                               int width,
-                               int height,
+                               const loka::win32::NativeRect &geometry,
                                HWND parent,
                                HMENU menu,
                                HINSTANCE instance,

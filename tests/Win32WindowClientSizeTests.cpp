@@ -6,6 +6,7 @@
 #include <windows.h>
 #include "Win32App.hpp"
 #include "Win32Window.hpp"
+#include "Win32ScenePlatformController.hpp"
 #include "app/Menu.hpp"
 #include "core/State.hpp"
 #include "core/util/StateTrackerGuard.hpp"
@@ -41,16 +42,25 @@ namespace
     window.frameState().set(frame);
   }
 
+  loka::win32::Win32DisplayScale windowScale(HWND hwnd)
+  {
+    return loka::win32::Win32DisplayScale(
+        loka::win32::Win32DisplayScale::forWindow(hwnd).dpi(),
+        loka::win32::DefaultRailMetrics());
+  }
+
   void assertLogicalClientSize(HWND hwnd, int expectedWidth, int expectedHeight)
   {
     RECT client;
     LOKA_VERIFY(GetClientRect(hwnd, &client));
     const loka::win32::Win32DisplayScale scale =
-        loka::win32::Win32DisplayScale::forWindow(hwnd);
-    const int expectedNativeWidth = scale.projectLength(expectedWidth);
-    const int expectedNativeHeight = scale.projectLength(expectedHeight);
+        windowScale(hwnd);
+    const int expectedNativeWidth = scale.clientLengthToNative(expectedWidth).px;
+    const int expectedNativeHeight = scale.clientLengthToNative(expectedHeight).px;
     const int actualWidth = client.right - client.left;
     const int actualHeight = client.bottom - client.top;
+    LOKA_VERIFY(scale.clientCapacityToLu(actualWidth) == expectedWidth);
+    LOKA_VERIFY(scale.clientCapacityToLu(actualHeight) == expectedHeight);
     printf("  declared=%dx%d client=%dx%d at %d%%\n",
            expectedWidth,
            expectedHeight,
@@ -139,11 +149,11 @@ namespace
   void resizeLogicalClient(HWND hwnd, int width, int height)
   {
     const loka::win32::Win32DisplayScale scale =
-        loka::win32::Win32DisplayScale::forWindow(hwnd);
+        windowScale(hwnd);
     RECT outer = {0,
                   0,
-                  scale.projectLength(width),
-                  scale.projectLength(height)};
+                  scale.clientLengthToNative(width).px,
+                  scale.clientLengthToNative(height).px};
     const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(hwnd, GWL_STYLE));
     const DWORD exStyle = static_cast<DWORD>(GetWindowLongPtrW(hwnd, GWL_EXSTYLE));
     LOKA_VERIFY(scale.adjustWindowRect(
@@ -269,7 +279,7 @@ void testWin32WindowFrameIsClampedToWorkArea()
   LOKA_VERIFY(GetClientRect(oversizedHwnd, &client));
   const loka::core::Frame placed = oversizedWindow.nativeFrame().get();
   const loka::core::Frame actual =
-      loka::win32::Win32DisplayScale::forWindow(oversizedHwnd)
+      windowScale(oversizedHwnd)
           .windowContentFrameFromNative(readWindowRect(oversizedHwnd),
                                         client.right - client.left,
                                         client.bottom - client.top);

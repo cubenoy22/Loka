@@ -55,6 +55,7 @@ set(LOKA_MACOS_CORE_SOURCES
   src/MacProfiler.cpp
   src/MacScenePlatformController.mm
   src/MacWindow.mm
+  src/platform/MacProjection.mm
   src/platform/MacAppLocation.mm
   src/context/MacButtonContext.mm
   src/context/MacRetirableContext.mm
@@ -123,6 +124,7 @@ if(NOT LOKA_MAC_OS_10_4)
     ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/MacDisplayAppearance.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/platform/MacAppLocation.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/platform/MacProjection.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/MacMenuProjection.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/MacBuiltInSupport.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/MacScenePlatformController.mm

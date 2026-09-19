@@ -24,8 +24,17 @@ namespace
   // same binary. Keep the wire value local to the capability-aware rail.
   static const UINT kWindowDpiChangedMessage = 0x02E0;
 
-  bool CalculateOuterSizeForClient(int clientWidth,
-                                   int clientHeight,
+  /** One policy for window geometry and scene admission, including bootstrap
+      before an HWND exists. Native chrome and font queries stay DPI-only. */
+  loka::win32::Win32DisplayScale WindowProjection(HWND hwnd)
+  {
+    return loka::win32::Win32DisplayScale(
+        loka::win32::Win32DisplayScale::forWindow(hwnd).dpi(),
+        loka::win32::DefaultRailMetrics());
+  }
+
+  bool CalculateOuterSizeForClient(const loka::win32::NativeLength &clientWidth,
+                                   const loka::win32::NativeLength &clientHeight,
                                    DWORD style,
                                    DWORD exStyle,
                                    BOOL hasMenu,
@@ -33,10 +42,7 @@ namespace
                                    int &outerWidth,
                                    int &outerHeight)
   {
-    RECT rect = {0,
-                 0,
-                 scale.projectLength(clientWidth),
-                 scale.projectLength(clientHeight)};
+    RECT rect = {0, 0, clientWidth.px, clientHeight.px};
     if (!scale.adjustWindowRect(rect, style, hasMenu, exStyle))
     {
       return false;
@@ -44,6 +50,43 @@ namespace
     outerWidth = rect.right - rect.left;
     outerHeight = rect.bottom - rect.top;
     return true;
+  }
+
+  BOOL MoveNativeWindow(HWND hwnd, const loka::win32::NativeRect &geometry)
+  {
+    return MoveWindow(hwnd,
+                      geometry.r.left,
+                      geometry.r.top,
+                      geometry.r.right - geometry.r.left,
+                      geometry.r.bottom - geometry.r.top,
+                      TRUE);
+  }
+
+  void PositionNativeWindow(HWND hwnd, const loka::win32::NativeRect &geometry)
+  {
+    SetWindowPos(hwnd,
+                 NULL,
+                 geometry.r.left,
+                 geometry.r.top,
+                 geometry.r.right - geometry.r.left,
+                 geometry.r.bottom - geometry.r.top,
+                 SWP_NOZORDER | SWP_NOACTIVATE);
+  }
+
+  HWND CreateNativeWindow(const loka::win32::NativeRect &geometry, void *owner)
+  {
+    return CreateWindowExW(kWindowExStyle,
+                           kWndClassName,
+                           L"",
+                           kWindowStyle,
+                           geometry.r.left,
+                           geometry.r.top,
+                           geometry.r.right - geometry.r.left,
+                           geometry.r.bottom - geometry.r.top,
+                           NULL,
+                           NULL,
+                           GetModuleHandle(NULL),
+                           owner);
   }
 
   // The declared frame is a request (#712): the outer rectangle, chrome
@@ -136,7 +179,7 @@ bool Win32Window::queryNativeContentFrame(loka::core::Frame &out) const
   {
     return false;
   }
-  out = loka::win32::Win32DisplayScale::forWindow(this->hwnd_)
+  out = WindowProjection(this->hwnd_)
             .windowContentFrameFromNative(windowRect,
                                           clientRect.right - clientRect.left,
                                           clientRect.bottom - clientRect.top);
@@ -170,9 +213,9 @@ bool Win32Window::applyNativeContentFrame(const loka::core::Frame &frame)
   const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(this->hwnd_, GWL_STYLE));
   const DWORD exStyle = static_cast<DWORD>(GetWindowLongPtrW(this->hwnd_, GWL_EXSTYLE));
   const loka::win32::Win32DisplayScale scale =
-      loka::win32::Win32DisplayScale::forWindow(this->hwnd_);
-  if (!CalculateOuterSizeForClient(frame.width,
-                                   frame.height,
+      WindowProjection(this->hwnd_);
+  if (!CalculateOuterSizeForClient(scale.clientLengthToNative(frame.width),
+                                   scale.clientLengthToNative(frame.height),
                                    style,
                                    exStyle,
                                    GetMenu(this->hwnd_) ? TRUE : FALSE,
@@ -194,12 +237,7 @@ bool Win32Window::applyNativeContentFrame(const loka::core::Frame &frame)
   {
     return true;
   }
-  return MoveWindow(this->hwnd_,
-                    outer.left,
-                    outer.top,
-                    outer.right - outer.left,
-                    outer.bottom - outer.top,
-                    TRUE) != FALSE;
+  return MoveNativeWindow(this->hwnd_, scale.fromDevicePixels(outer)) != FALSE;
 }
 
 bool Win32Window::detachMenuForTeardown(HMENU expectedMenu)
@@ -216,18 +254,17 @@ bool Win32Window::detachMenuForTeardown(HMENU expectedMenu)
   const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(this->hwnd_, GWL_STYLE));
   const DWORD exStyle = static_cast<DWORD>(GetWindowLongPtrW(this->hwnd_, GWL_EXSTYLE));
   const loka::win32::Win32DisplayScale scale =
-      loka::win32::Win32DisplayScale::forWindow(this->hwnd_);
+      WindowProjection(this->hwnd_);
   int outerWidth = 0;
   int outerHeight = 0;
-  if (!CalculateOuterSizeForClient(
-          contentFrame.width,
-          contentFrame.height,
-          style,
-          exStyle,
-          FALSE,
-          scale,
-          outerWidth,
-          outerHeight))
+  if (!CalculateOuterSizeForClient(scale.clientLengthToNative(contentFrame.width),
+                                   scale.clientLengthToNative(contentFrame.height),
+                                   style,
+                                   exStyle,
+                                   FALSE,
+                                   scale,
+                                   outerWidth,
+                                   outerHeight))
   {
     return false;
   }
@@ -237,12 +274,8 @@ bool Win32Window::detachMenuForTeardown(HMENU expectedMenu)
   const BOOL detached = SetMenu(this->hwnd_, NULL);
   if (detached)
   {
-    MoveWindow(this->hwnd_,
-               contentFrame.x,
-               contentFrame.y,
-               outerWidth,
-               outerHeight,
-               TRUE);
+    const RECT outer = {contentFrame.x, contentFrame.y, contentFrame.x + outerWidth, contentFrame.y + outerHeight};
+    MoveNativeWindow(this->hwnd_, scale.fromDevicePixels(outer));
   }
   SetWindowLongPtrW(this->hwnd_, GWLP_USERDATA, userData);
   return detached != FALSE;
@@ -414,13 +447,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         RECT outer = *suggested;
         if (ClampOuterRectToWorkArea(outer))
         {
-          SetWindowPos(hwnd,
-                       NULL,
-                       outer.left,
-                       outer.top,
-                       outer.right - outer.left,
-                       outer.bottom - outer.top,
-                       SWP_NOZORDER | SWP_NOACTIVATE);
+          PositionNativeWindow(hwnd, nextScale.fromDevicePixels(outer));
         }
       }
       if (self->scenePlatformController_)
@@ -489,34 +516,25 @@ void Win32Window::createNativeWindow()
   const int clientWidth = this->hasSize() ? this->width() : defaultFrame.width;
   const int clientHeight = this->hasSize() ? this->height() : defaultFrame.height;
   const loka::win32::Win32DisplayScale initialScale =
-      loka::win32::Win32DisplayScale::forSystem();
+      WindowProjection(NULL);
   int outerWidth = 0;
   int outerHeight = 0;
-  if (!CalculateOuterSizeForClient(
-          clientWidth,
-          clientHeight,
-          kWindowStyle,
-          kWindowExStyle,
-          FALSE,
-          initialScale,
-          outerWidth,
-          outerHeight))
+  if (!CalculateOuterSizeForClient(initialScale.clientLengthToNative(clientWidth),
+                                   initialScale.clientLengthToNative(clientHeight),
+                                   kWindowStyle,
+                                   kWindowExStyle,
+                                   FALSE,
+                                   initialScale,
+                                   outerWidth,
+                                   outerHeight))
   {
     assert(false && "Win32 client size must convert to an outer window size");
     return;
   }
-  HWND hwnd = CreateWindowExW(kWindowExStyle,
-                              kWndClassName,
-                              L"",
-                              kWindowStyle,
-                              this->hasPosition() ? this->positionX() : defaultFrame.x,
-                              this->hasPosition() ? this->positionY() : defaultFrame.y,
-                              outerWidth,
-                              outerHeight,
-                              NULL,
-                              NULL,
-                              GetModuleHandle(NULL),
-                              this);
+  const int x = this->hasPosition() ? this->positionX() : defaultFrame.x;
+  const int y = this->hasPosition() ? this->positionY() : defaultFrame.y;
+  const RECT outer = {x, y, x + outerWidth, y + outerHeight};
+  HWND hwnd = CreateNativeWindow(initialScale.fromDevicePixels(outer), this);
   if (hwnd)
   {
     this->hwnd_ = hwnd;
@@ -670,7 +688,7 @@ bool Win32Window::mountReplacementScene(loka::app::scene::Scene *next)
     return true;
   if (!this->scenePlatformController_)
     this->scenePlatformController_ = new Win32ScenePlatformController(
-        this->hwnd_, loka::win32::Win32DisplayScale::forWindow(this->hwnd_));
+        this->hwnd_, WindowProjection(this->hwnd_));
   if (!this->scenePlatformController_)
     return false;
   next->mount(this->scenePlatformController_);

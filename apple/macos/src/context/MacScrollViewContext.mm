@@ -1,5 +1,7 @@
 #include "MacScrollViewContext.hpp"
 #include "../MacObjCCompat.hpp"
+#include "../platform/MacNativeGeometry.hpp"
+#include "../MacScenePlatformController.hpp"
 
 #include <cassert>
 #include <AppKit/AppKit.h>
@@ -50,7 +52,9 @@ MacScrollViewContext::MacScrollViewContext(MacScenePlatformController *controlle
       scrollView_(0)
 {
   NSView *parent = (NSView *)parentView;
-  LokaScrollView *scrollView = [[LokaScrollView alloc] initWithFrame:NSMakeRect(x, y, width, height)];
+  const loka::macos::MacRect frame =
+      this->controller()->projection().projectFrame(loka::core::Frame(x, y, width, height));
+  LokaScrollView *scrollView = [[LokaScrollView alloc] initWithFrame:frame.r];
   if (!scrollView)
   {
     return;
@@ -143,7 +147,7 @@ int MacScrollViewContext::contentWidth() const
     return 0;
   }
   const NSSize size = [scrollView contentSize];
-  return size.width > 0 ? static_cast<int>(size.width) : 0;
+  return size.width > 0 ? this->controller()->projection().clientCapacityToLu(size.width) : 0;
 }
 
 void MacScrollViewContext::applyAttachedPresentation()
@@ -171,7 +175,8 @@ void MacScrollViewContext::relayout(int x, int y, int width, int height)
   {
     return;
   }
-  [scrollView setFrame:NSMakeRect(x, y, width, height)];
+  loka::macos::SetMacFrame(scrollView,
+      this->controller()->projection().projectFrame(loka::core::Frame(x, y, width, height)));
   NSView *documentView = [scrollView documentView];
   if (documentView)
   {
@@ -204,8 +209,8 @@ int MacScrollViewContext::setScrollMetrics(int contentHeight, int viewportHeight
   {
     return clamped;
   }
-  [documentView setFrame:NSMakeRect(0, 0, [scrollView contentSize].width, static_cast<CGFloat>(contentHeight))];
-  [documentView scrollPoint:NSMakePoint(0, static_cast<CGFloat>(clamped))];
+  loka::macos::SetMacDocumentHeight(scrollView, this->controller()->projection().projectLength(0, contentHeight));
+  loka::macos::ScrollMacDocument(documentView, this->controller()->projection().scrollOffsetToNative(clamped));
   return clamped;
 }
 
@@ -217,7 +222,7 @@ void MacScrollViewContext::publishClipViewBoundsOrigin()
     return;
   }
   const NSRect bounds = [[scrollView contentView] bounds];
-  int offset = static_cast<int>(bounds.origin.y);
+  int offset = this->controller()->projection().scrollPositionToLu(bounds.origin.y);
   offset = this->clampOffset(offset, this->maximumOffset());
   this->publishOffset(offset);
 }
@@ -245,8 +250,8 @@ int MacScrollViewContext::maximumOffset() const
   }
   const NSRect documentFrame = [documentView frame];
   const NSRect clipBounds = [[scrollView contentView] bounds];
-  const int contentHeight = static_cast<int>(documentFrame.size.height);
-  const int viewportHeight = static_cast<int>(clipBounds.size.height);
+  const int contentHeight = this->controller()->projection().capacityToLu(documentFrame.size.height);
+  const int viewportHeight = this->controller()->projection().clientCapacityToLu(clipBounds.size.height);
   return contentHeight > viewportHeight ? contentHeight - viewportHeight : 0;
 }
 

@@ -20,6 +20,12 @@ class Win32ScrollViewContext;
 
 namespace loka
 {
+  namespace win32
+  {
+    /** Candidate rail values; shared by scene and pre-scene window projection. */
+    app::RailMetrics DefaultRailMetrics();
+  }
+
   namespace core
   {
     namespace scene
@@ -134,6 +140,12 @@ public:
   {
     return this->displayScale_;
   }
+  HFONT textFont(const loka::app::TextStyle &style) const
+  {
+    return this->displayFont_.find(style);
+  }
+  /** Schedule through the existing WM_SIZE layout path, never reenter layout. */
+  void requestRelayout();
   HFONT displayFont() const
   {
     return this->displayFont_.get();
@@ -361,25 +373,23 @@ private:
   void performLayout(int clientWidth, int clientHeight);
   /** Position one projected HWND. A root layout pass suppresses per-child
       repaint and presents the completed native layout once at the pass end. */
-  void positionNativeWindow(HWND hwnd, int x, int y, int width, int height);
+  void positionNativeWindow(HWND hwnd, const loka::win32::NativeRect &geometry);
+  void resizeNativeWindow(HWND hwnd, const loka::win32::NativeRect &geometry);
   HWND createNativeChildWindow(DWORD exStyle,
                                LPCWSTR className,
                                LPCWSTR windowName,
                                DWORD style,
-                               int x,
-                               int y,
-                               int width,
-                               int height,
+                               const loka::win32::NativeRect &geometry,
                                HWND parent,
                                HMENU menu,
                                HINSTANCE instance,
                                void *createParameter);
-  void applyDisplayFontToNativeSubtree(HFONT font);
+  void applyDisplayFontToNativeSubtree(const loka::win32::Win32DisplayFont &replacement);
   void ensureDisplayFont();
   void clearContexts();
   void clearNodeContexts(loka::app::scene::Node *node);
   int measureClientWidth(int requestedWidth) const;
-  void queueDirtyRect(HWND targetHwnd, const RECT *rect, BOOL eraseBackground, bool includeChildren);
+  void queueDirtyRect(HWND targetHwnd, const loka::win32::NativeRect *rect, BOOL eraseBackground, bool includeChildren);
   static UINT pendingInvalidationFlags(const PendingInvalidate &entry);
   /** Flush native damage and replay intersecting later siblings without erasing. */
   void flushPendingInvalidations(bool updateNow);
@@ -396,6 +406,7 @@ private:
   loka::app::scene::Node *rootNode_;
   int clientWidth_;
   int clientHeight_;
+  const loka::app::RailMetrics railMetrics_;
   loka::win32::Win32DisplayScale displayScale_;
   loka::win32::Win32DisplayFont displayFont_;
   std::vector<PendingInvalidate> pendingInvalidations_;

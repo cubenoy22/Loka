@@ -15,10 +15,12 @@ namespace loka
   } // namespace app
 } // namespace loka
 
+class CursorOwner;
+
 class ToolboxOpenFileDialogContext : public loka::app::scene::NativeNodeContext
 {
 public:
-  explicit ToolboxOpenFileDialogContext(loka::app::OpenFileDialogNode *node);
+  ToolboxOpenFileDialogContext(loka::app::OpenFileDialogNode *node, CursorOwner *cursorOwner);
   virtual ~ToolboxOpenFileDialogContext();
   virtual void onPropsApplied();
   /** Attach-time read (late-subscriber rule): presentation from the current
@@ -29,6 +31,8 @@ public:
   void presentIfNeeded();
 
 private:
+  /** Borrowed from the app, which outlives this window context. */
+  CursorOwner *cursorOwner_;
   void captureProps();
   void applyAttachedPresentation();
   void applyDetachedPresentation();

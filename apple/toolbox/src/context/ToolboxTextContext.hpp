@@ -11,6 +11,13 @@
 class ToolboxScenePlatformController;
 namespace loka
 {
+  namespace testing
+  {
+    class ToolboxTextContextAccess;
+  }
+}
+namespace loka
+{
   namespace app
   {
     namespace scene
@@ -68,6 +75,7 @@ public:
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
 
 private:
+  friend class loka::testing::ToolboxTextContextAccess;
   /** Capture local data and report whether existing controller rows need refresh. */
   bool captureProps();
   void paint(bool erase);

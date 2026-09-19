@@ -6,6 +6,7 @@
 
 class App;
 class MacScenePlatformController;
+namespace loka { namespace macos { class MacProjection; } }
 
 namespace loka
 {
@@ -70,6 +71,7 @@ private:
   }
   loka::app::DialogResultTransport dialogResults_;
 
+  loka::macos::MacProjection projection() const;
   void createNativeWindow();
   void destroyNativeWindow();
   virtual bool hasPendingNativeVisibility() const;

@@ -1,5 +1,6 @@
 LOKA_TEST(testWin32ThreadModalScopeHoldsSiblingsDisabled)
 LOKA_TEST(testWin32NodeHandlerEnsureContract)
+LOKA_TEST(testWin32TextFontTable)
 LOKA_TEST(testWin32LayoutPresentsRootOnceAfterPositioningChildren)
 LOKA_TEST(testWin32ReentrantLayoutSharesOutermostPresentation)
 LOKA_TEST(testWin32PopupRelayoutPreservesNativeItems)
@@ -50,3 +51,6 @@ LOKA_TEST(testWin32OpenFileDialogRetiredBeforePostedWake)
 LOKA_TEST(testWin32OpenFileDialogOwnerReclaimedBeforePostedWake)
 LOKA_TEST(testWin32OpenFileDialogLiveAdmissionAndLostHwnd)
 LOKA_TEST(testWin32OpenFileDialogMissingHwndUsesAdmission)
+
+LOKA_TEST(testWin32RailMetricsProjection)
+LOKA_TEST(testWin32RailMetricsSurviveDpiChange)

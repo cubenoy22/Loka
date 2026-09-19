@@ -2,6 +2,7 @@
 #include "app/layout/CanvasLayout.hpp"
 #include "MacBuiltInSupport.hpp"
 #include "MacObjCCompat.hpp"
+#include "app/style/Style.hpp"
 #include "app/scene/boundary/Boundary.hpp"
 #include <cassert>
 #include <climits>
@@ -84,8 +85,70 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-MacScenePlatformController::MacScenePlatformController(void *rootView)
-    : rootView_(rootView),
+
+/** Measured 2026-09-19 (#818): Chicago 12 and the 13 pt system font share
+    a 16-unit line height; fontScale follows their nominal sizes. A standard
+    button is 72x20 lu versus 90x24 pt; "MMMMMMMM" is 72 lu versus 90.3 pt.
+    These are candidate values for visual review, not golden-baked values. */
+loka::app::RailMetrics loka::macos::DefaultRailMetrics()
+{
+  return app::RailMetrics(app::Ratio(13, 12), app::Ratio(5, 4));
+}
+
+MacScenePlatformController::TextFontTable::TextFontTable(const loka::app::Ratio &fontScale)
+{
+  NSFontManager *manager = [NSFontManager sharedFontManager];
+  const CGFloat defaultSize = [NSFont systemFontSize];
+  for (int size = 0; size < kFontRowCount; ++size)
+  {
+    // Unset size means the rail's system default (13 pt), exempt from fontScale.
+    // Explicit lu sizes keep fractional points: 9 lu -> 9.75 pt, no pixel rounding.
+    const CGFloat points = size == kDefaultSizeRow
+                               ? defaultSize
+                               : static_cast<CGFloat>(loka::app::detail::StyleVocabularySizes[size])
+                                     * fontScale.num / fontScale.den;
+    for (int bold = 0; bold < 2; ++bold)
+    {
+      NSFont *base = bold ? [NSFont boldSystemFontOfSize:points]
+                          : [NSFont systemFontOfSize:points];
+      NSFont *italic = base ? [manager convertFont:base toHaveTrait:NSItalicFontMask] : nil;
+      this->fonts_[size][bold][0] = (void *)[base retain];
+      this->fonts_[size][bold][1] = (void *)[(italic ? italic : base) retain];
+    }
+  }
+}
+
+MacScenePlatformController::TextFontTable::~TextFontTable()
+{
+  // Every admission retain has a release, even when conversion reused base.
+  for (int size = 0; size < kFontRowCount; ++size)
+    for (int bold = 0; bold < 2; ++bold)
+      for (int italic = 0; italic < 2; ++italic)
+        [(NSFont *)this->fonts_[size][bold][italic] release];
+}
+
+void *MacScenePlatformController::TextFontTable::find(const loka::app::TextStyle &style) const
+{
+  const int bold = style.hasWeight_ && style.weight_ == loka::app::TEXT_WEIGHT_BOLD ? 1 : 0;
+  const int italic = style.hasItalic_ && style.italic_ ? 1 : 0;
+  if (!style.hasFontSize_)
+    return this->fonts_[kDefaultSizeRow][bold][italic];
+  const int points = loka::app::SizeOf(style.fontSize_).fontSize_;
+  for (int size = 0; size < kSizeCount; ++size)
+    if (loka::app::detail::StyleVocabularySizes[size] == points)
+      return this->fonts_[size][bold][italic];
+  return 0;
+}
+
+void *MacScenePlatformController::textFont(const loka::app::TextStyle &style) const
+{
+  return this->textFonts_.find(style);
+}
+
+MacScenePlatformController::MacScenePlatformController(void *rootView, const loka::app::RailMetrics &metrics)
+    : projection_(rootView, metrics),
+      textFonts_(this->projection_.railMetrics().fontScale),
+      rootView_(rootView),
       projectionParentScopes_(rootView),
       rootNode_(0),
       rectSurfaceExtentLedger_(),
@@ -197,8 +260,8 @@ void MacScenePlatformController::onChange(loka::app::scene::Node *rootNode,
 
   NSView *view = (NSView *)rootView_;
   NSRect bounds = [view bounds];
-  clientWidth_ = static_cast<int>(bounds.size.width);
-  clientHeight_ = static_cast<int>(bounds.size.height);
+  clientWidth_ = this->projection().clientCapacityToLu(bounds.size.width);
+  clientHeight_ = this->projection().clientCapacityToLu(bounds.size.height);
   performLayout(clientWidth_, clientHeight_, fullRebuild);
 }
 
@@ -227,10 +290,8 @@ void MacScenePlatformController::onBoundaryApply(loka::app::scene::Node *rootNod
     return;
   }
 
-  NSRect dirtyRect = NSMakeRect(static_cast<CGFloat>(info.bounds->x),
-                                static_cast<CGFloat>(info.bounds->y),
-                                static_cast<CGFloat>(info.bounds->width),
-                                static_cast<CGFloat>(info.bounds->height));
+  const NSRect dirtyRect = this->projection().damageToNative(
+      loka::core::Frame(info.bounds->x, info.bounds->y, info.bounds->width, info.bounds->height)).r;
   [view setNeedsDisplayInRect:dirtyRect];
 }
 
@@ -295,8 +356,8 @@ void MacScenePlatformController::relayout(int clientWidth, int clientHeight)
     {
       NSView *view = (NSView *)rootView_;
       NSRect bounds = [view bounds];
-      clientWidth = static_cast<int>(bounds.size.width);
-      clientHeight = static_cast<int>(bounds.size.height);
+      clientWidth = this->projection().clientCapacityToLu(bounds.size.width);
+      clientHeight = this->projection().clientCapacityToLu(bounds.size.height);
     }
   }
   clientWidth_ = clientWidth;
@@ -1067,7 +1128,7 @@ int MacScenePlatformController::measureClientWidth(int requestedWidth) const
   {
     NSView *view = (NSView *)rootView_;
     NSRect bounds = [view bounds];
-    return static_cast<int>(bounds.size.width);
+    return this->projection().clientCapacityToLu(bounds.size.width);
   }
   return 260;
 }

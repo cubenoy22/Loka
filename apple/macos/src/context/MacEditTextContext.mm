@@ -1,6 +1,7 @@
 #include "MacEditTextContext.hpp"
 #include <cassert>
 #include "../MacScenePlatformController.hpp"
+#include "../platform/MacNativeGeometry.hpp"
 #include "MacObjCCompat.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/boundary/Boundary.hpp"
@@ -77,7 +78,9 @@ MacEditTextContext::MacEditTextContext(MacScenePlatformController *controller,
       updatingFromControl_(false)
 {
   NSView *parent = (NSView *)parentView;
-  NSTextField *field = [[NSTextField alloc] initWithFrame:NSMakeRect(x, y, width, height)];
+  const loka::macos::MacRect frame =
+      this->controller()->projection().projectFrame(loka::core::Frame(x, y, width, height));
+  NSTextField *field = [[NSTextField alloc] initWithFrame:frame.r];
   [field setEditable:YES];
   [field setSelectable:YES];
   [field setBezeled:YES];
@@ -186,7 +189,8 @@ void MacEditTextContext::relayout(int x, int y, int width, int height)
   {
     return;
   }
-  [field setFrame:NSMakeRect(x, y, width, height)];
+  loka::macos::SetMacFrame(field,
+      this->controller()->projection().projectFrame(loka::core::Frame(x, y, width, height)));
 }
 
 void MacEditTextContext::bindText()

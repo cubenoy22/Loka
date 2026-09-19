@@ -94,6 +94,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32RectSurfacePaintTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32RectSurfaceRedrawTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32WideApiTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32RailMetricsTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32WindowClientSizeTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32ProfilerTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32IdlePacerTests.cpp

@@ -30,6 +30,7 @@ public:
                  int height,
                  loka::app::TextNode *node);
   virtual ~MacTextContext();
+  virtual void onPropsApplied();
   virtual loka::app::scene::ICapturableBitmap *asCapturableBitmap()
   {
     return this;
@@ -53,12 +54,14 @@ private:
   void bindText();
   void unbindText();
   void applyText();
+  bool applyStyle(bool initial = false);
   void requestRelayoutIfNeeded();
   static void TextChangedThunk(void *userData);
 
   loka::app::TextNode *node_;
   void *parentView_;
   void *label_;
+  void *originalFont_;
   loka::core::State<loka::core::String> *textState_;
   bool textStateBound_;
   bool didInitialApply_;

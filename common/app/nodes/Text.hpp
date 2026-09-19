@@ -1,127 +1,15 @@
 #ifndef LOKA_APP2_TEXT_HPP
 #define LOKA_APP2_TEXT_HPP
 
-#include <cassert>
 #include "core/State.hpp"
 #include "app/scene/Node.hpp"
+#include "app/style/Style.hpp"
 #include "core/String.hpp"
 
 namespace loka
 {
   namespace app
   {
-    enum TextWeight
-    {
-      TEXT_WEIGHT_NORMAL = 0,
-      TEXT_WEIGHT_BOLD = 1
-    };
-
-    enum TextWrap
-    {
-      TEXT_WRAP_NONE = 0,
-      TEXT_WRAP_WORD = 1,
-      TEXT_WRAP_CHAR = 2
-    };
-
-    enum TextTruncation
-    {
-      TEXT_TRUNCATION_NONE = 0,
-      TEXT_TRUNCATION_CLIP = 1,
-      TEXT_TRUNCATION_ELLIPSIS = 2
-    };
-
-    struct TextAttr
-    {
-      TextAttr()
-          : hasFontSizeValue_(false),
-            fontSizeValue_(0),
-            fontSizeState_(0),
-            hasWeightValue_(false),
-            weightValue_(TEXT_WEIGHT_NORMAL),
-            hasWrapValue_(false),
-            wrapValue_(TEXT_WRAP_NONE),
-            hasTruncationValue_(false),
-            truncationValue_(TEXT_TRUNCATION_NONE)
-      {
-      }
-
-      TextAttr &fontSize(int value)
-      {
-        this->hasFontSizeValue_ = true;
-        this->fontSizeValue_ = value;
-        this->fontSizeState_ = 0;
-        return *this;
-      }
-
-      TextAttr &fontSize(loka::core::State<int> *state)
-      {
-        this->hasFontSizeValue_ = false;
-        this->fontSizeState_ = state;
-        return *this;
-      }
-
-      TextAttr &weight(TextWeight value)
-      {
-        this->hasWeightValue_ = true;
-        this->weightValue_ = value;
-        return *this;
-      }
-
-      TextAttr &wrap(TextWrap value)
-      {
-        this->hasWrapValue_ = true;
-        this->wrapValue_ = value;
-        return *this;
-      }
-
-      TextAttr &truncation(TextTruncation value)
-      {
-        this->hasTruncationValue_ = true;
-        this->truncationValue_ = value;
-        return *this;
-      }
-
-      bool operator==(const TextAttr &other) const
-      {
-        return this->hasFontSizeValue_ == other.hasFontSizeValue_ && this->fontSizeValue_ == other.fontSizeValue_
-               && this->fontSizeState_ == other.fontSizeState_ && this->hasWeightValue_ == other.hasWeightValue_
-               && this->weightValue_ == other.weightValue_ && this->hasWrapValue_ == other.hasWrapValue_
-               && this->wrapValue_ == other.wrapValue_ && this->hasTruncationValue_ == other.hasTruncationValue_
-               && this->truncationValue_ == other.truncationValue_;
-      }
-
-      bool operator<(const TextAttr &other) const
-      {
-        if (this->hasFontSizeValue_ != other.hasFontSizeValue_)
-          return this->hasFontSizeValue_ < other.hasFontSizeValue_;
-        if (this->fontSizeValue_ != other.fontSizeValue_)
-          return this->fontSizeValue_ < other.fontSizeValue_;
-        if (this->fontSizeState_ != other.fontSizeState_)
-          return this->fontSizeState_ < other.fontSizeState_;
-        if (this->hasWeightValue_ != other.hasWeightValue_)
-          return this->hasWeightValue_ < other.hasWeightValue_;
-        if (this->weightValue_ != other.weightValue_)
-          return this->weightValue_ < other.weightValue_;
-        if (this->hasWrapValue_ != other.hasWrapValue_)
-          return this->hasWrapValue_ < other.hasWrapValue_;
-        if (this->wrapValue_ != other.wrapValue_)
-          return this->wrapValue_ < other.wrapValue_;
-        if (this->hasTruncationValue_ != other.hasTruncationValue_)
-          return this->hasTruncationValue_ < other.hasTruncationValue_;
-        return this->truncationValue_ < other.truncationValue_;
-      }
-
-      bool hasFontSizeValue_;
-      int fontSizeValue_;
-      loka::core::State<int> *fontSizeState_;
-      bool hasWeightValue_;
-      TextWeight weightValue_;
-      bool hasWrapValue_;
-      TextWrap wrapValue_;
-      bool hasTruncationValue_;
-      TextTruncation truncationValue_;
-    };
-
     struct TextTypeTag
     {
     };
@@ -136,30 +24,34 @@ namespace loka
       loka::core::State<loka::core::String> *text_;
       loka::core::MutableState<loka::core::String> ownedText;
       bool ownsText;
-      TextAttr attr_;
-      bool hasAttr_;
+      TextStyle textStyle_;
+      BlockStyle blockStyle_;
+      loka::core::State<TextStyle> *textStyleState_;
       TextProps()
           : text_(0),
             ownedText(),
             ownsText(false),
-            attr_(),
-            hasAttr_(false)
+            textStyle_(),
+            blockStyle_(),
+            textStyleState_(0)
       {
       }
       TextProps(loka::core::State<loka::core::String> *state)
           : text_(state),
             ownedText(),
             ownsText(false),
-            attr_(),
-            hasAttr_(false)
+            textStyle_(),
+            blockStyle_(),
+            textStyleState_(0)
       {
       }
       TextProps(const loka::core::String &value)
           : text_(0),
             ownedText(value),
             ownsText(true),
-            attr_(),
-            hasAttr_(false)
+            textStyle_(),
+            blockStyle_(),
+            textStyleState_(0)
       {
         text_ = &ownedText;
       }
@@ -167,8 +59,9 @@ namespace loka
           : text_(0),
             ownedText(loka::core::String::Literal(value)),
             ownsText(true),
-            attr_(),
-            hasAttr_(false)
+            textStyle_(),
+            blockStyle_(),
+            textStyleState_(0)
       {
         text_ = &ownedText;
       }
@@ -177,8 +70,9 @@ namespace loka
             text_(other.text_),
             ownedText(other.ownedText),
             ownsText(other.ownsText),
-            attr_(other.attr_),
-            hasAttr_(other.hasAttr_)
+            textStyle_(other.textStyle_),
+            blockStyle_(other.blockStyle_),
+            textStyleState_(other.textStyleState_)
       {
         if (ownsText)
         {
@@ -192,8 +86,9 @@ namespace loka
           text_ = other.text_;
           ownedText = other.ownedText;
           ownsText = other.ownsText;
-          attr_ = other.attr_;
-          hasAttr_ = other.hasAttr_;
+          textStyle_ = other.textStyle_;
+          blockStyle_ = other.blockStyle_;
+          textStyleState_ = other.textStyleState_;
           if (ownsText)
           {
             text_ = &ownedText;
@@ -219,12 +114,16 @@ namespace loka
         return text(loka::core::String::Literal(value));
       }
 
-      TextProps &attr(const TextAttr &value)
+      /** True when any style field was declared. Rails configure their native
+          label only then; an undeclared Text keeps the platform defaults. */
+      bool hasDeclaredStyle() const
       {
-        assert(!this->hasAttr_ && "Text.attr() can only be set once per node");
-        this->attr_ = value;
-        this->hasAttr_ = true;
-        return *this;
+        return this->textStyleState_ != 0 || this->textStyle_.hasFontSize_ || this->textStyle_.hasWeight_
+               || this->textStyle_.hasItalic_ || this->blockStyle_.hasWrap_ || this->blockStyle_.hasTruncation_;
+      }
+      TextStyle resolvedTextStyle() const
+      {
+        return this->textStyleState_ ? this->textStyle_ + this->textStyleState_->get() : this->textStyle_;
       }
 
       bool operator<(const scene::PropsBase &rhs) const
@@ -243,9 +142,11 @@ namespace loka
         }
         else if (text_ != other.text_)
           return text_ < other.text_;
-        if (hasAttr_ != other.hasAttr_)
-          return hasAttr_ < other.hasAttr_;
-        return attr_ < other.attr_;
+        if (!(textStyle_ == other.textStyle_))
+          return textStyle_ < other.textStyle_;
+        if (!(blockStyle_ == other.blockStyle_))
+          return blockStyle_ < other.blockStyle_;
+        return textStyleState_ < other.textStyleState_;
       }
     };
 
@@ -291,15 +192,15 @@ namespace loka
         if (this->props.text_ && !this->props.ownsText)
         {
           scene::NodeDirtyFlags textFlags = scene::NODE_DIRTY_PROPS;
-          if (this->props.hasAttr_ && this->props.attr_.hasWrapValue_ && this->props.attr_.wrapValue_ != TEXT_WRAP_NONE)
+          if (this->props.blockStyle_.hasWrap_ && this->props.blockStyle_.wrap_ != TEXT_WRAP_NONE)
           {
             textFlags = static_cast<scene::NodeDirtyFlags>(textFlags | scene::NODE_DIRTY_LAYOUT);
           }
           registrar.markDirtyOnChange(this->props.text_, textFlags);
         }
-        if (this->props.hasAttr_ && this->props.attr_.fontSizeState_)
+        if (this->props.textStyleState_)
         {
-          registrar.markDirtyOnChange(this->props.attr_.fontSizeState_, scene::NODE_DIRTY_LAYOUT);
+          registrar.markDirtyOnChange(this->props.textStyleState_, scene::NODE_DIRTY_LAYOUT);
         }
       }
     };
@@ -327,7 +228,6 @@ namespace loka
           : loka::app::scene::NodeDefinition<TextProps, TextNode>(TextProps(state))
       {
       }
-      TextDefinitionWithAttr attr(const TextAttr &value) const;
     };
 
     struct TextDefinitionWithAttr : public scene::NodeDefinition<TextProps, TextNode>,
@@ -348,12 +248,58 @@ namespace loka
       }
     };
 
-    inline TextDefinitionWithAttr TextDefinition::attr(const TextAttr &value) const
+    inline TextDefinitionWithAttr operator+(const TextDefinition &definition, const TextStyle &style)
     {
-      TextProps p = this->props;
-      p.attr(value);
+      TextProps p = definition.props;
+      p.textStyle_ = p.textStyle_ + style;
       TextDefinitionWithAttr result(p);
-      result.copyTestIdPolicyFrom(*this);
+      result.copyTestIdPolicyFrom(definition);
+      return result;
+    }
+
+    inline TextDefinitionWithAttr operator+(const TextDefinition &definition, const BlockStyle &style)
+    {
+      TextProps p = definition.props;
+      p.blockStyle_ = p.blockStyle_ + style;
+      TextDefinitionWithAttr result(p);
+      result.copyTestIdPolicyFrom(definition);
+      return result;
+    }
+
+    inline TextDefinitionWithAttr operator+(const TextDefinition &definition, loka::core::State<TextStyle> *state)
+    {
+      TextProps p = definition.props;
+      p.textStyleState_ = state;
+      TextDefinitionWithAttr result(p);
+      result.copyTestIdPolicyFrom(definition);
+      return result;
+    }
+
+    inline TextDefinitionWithAttr operator+(const TextDefinitionWithAttr &definition, const TextStyle &style)
+    {
+      TextProps p = definition.props;
+      p.textStyle_ = p.textStyle_ + style;
+      TextDefinitionWithAttr result(p);
+      result.copyTestIdPolicyFrom(definition);
+      return result;
+    }
+
+    inline TextDefinitionWithAttr operator+(const TextDefinitionWithAttr &definition, const BlockStyle &style)
+    {
+      TextProps p = definition.props;
+      p.blockStyle_ = p.blockStyle_ + style;
+      TextDefinitionWithAttr result(p);
+      result.copyTestIdPolicyFrom(definition);
+      return result;
+    }
+
+    inline TextDefinitionWithAttr operator+(const TextDefinitionWithAttr &definition,
+                                             loka::core::State<TextStyle> *state)
+    {
+      TextProps p = definition.props;
+      p.textStyleState_ = state;
+      TextDefinitionWithAttr result(p);
+      result.copyTestIdPolicyFrom(definition);
       return result;
     }
 

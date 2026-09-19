@@ -1,4 +1,5 @@
 #include "Win32ScenePlatformController.hpp"
+#include "context/Win32EditTextBridge.hpp"
 #include "app/layout/CanvasLayout.hpp"
 #include "Win32BuiltInSupport.hpp"
 #include "app/scene/boundary/Boundary.hpp"
@@ -113,9 +114,18 @@ namespace
   typedef std::map<HWND, Win32ScenePlatformController *> Win32ControllerMap;
   Win32ControllerMap gControllersByRootHwnd;
 
+  struct DisplayFontReplacement
+  {
+    const loka::win32::Win32DisplayFont &previous;
+    const loka::win32::Win32DisplayFont &next;
+  };
+
   BOOL CALLBACK ApplyDisplayFont(HWND hwnd, LPARAM fontValue)
   {
-    SendMessageW(hwnd, WM_SETFONT, static_cast<WPARAM>(fontValue), TRUE);
+    const DisplayFontReplacement &fonts = *reinterpret_cast<const DisplayFontReplacement *>(fontValue);
+    const HFONT previous = reinterpret_cast<HFONT>(SendMessageW(hwnd, WM_GETFONT, 0, 0));
+    SendMessageW(hwnd, WM_SETFONT,
+                 reinterpret_cast<WPARAM>(fonts.previous.replacementFor(previous, fonts.next)), TRUE);
     return TRUE;
   }
 
@@ -158,11 +168,9 @@ public:
     }
   }
 
-  void positionNativeWindow(HWND hwnd, int x, int y, int width, int height)
+  void positionNativeWindow(HWND hwnd, const loka::win32::NativeRect &geometry)
   {
-    RECT nativeRect;
-    this->controller_->displayScale_.projectFrame(
-        loka::core::Frame(x, y, width, height), nativeRect);
+    const RECT &nativeRect = geometry.r;
     MoveWindow(hwnd,
                nativeRect.left,
                nativeRect.top,
@@ -226,6 +234,15 @@ namespace loka
   } // namespace app
 } // namespace loka
 
+/** Measured 2026-09-19 (#818): the 9 pt message font is 12 px at 96 dpi,
+    approximately 12 lu. The 75x23 px standard button and native margins
+    motivate the candidate space ratio. Fixed controls keep their native font.
+    These are candidate values for visual review, not golden-baked values. */
+loka::app::RailMetrics loka::win32::DefaultRailMetrics()
+{
+  return app::RailMetrics(app::Ratio(1, 1), app::Ratio(5, 4));
+}
+
 Win32ScenePlatformController::Win32ScenePlatformController(
     HWND rootHwnd,
     const loka::win32::Win32DisplayScale &displayScale)
@@ -236,7 +253,8 @@ Win32ScenePlatformController::Win32ScenePlatformController(
       rootNode_(0),
       clientWidth_(0),
       clientHeight_(0),
-      displayScale_(displayScale),
+      railMetrics_(displayScale.railMetrics()),
+      displayScale_(displayScale.dpi(), this->railMetrics_),
       displayFont_()
 {
   RegisterWin32BuiltInSupport(*this);
@@ -284,7 +302,9 @@ void Win32ScenePlatformController::requestDirtyRect(HWND targetHwnd, const RECT 
   {
     return;
   }
-  it->second->queueDirtyRect(targetHwnd, rect, eraseBackground, false);
+  const RECT empty = {0, 0, 0, 0};
+  const loka::win32::NativeRect native = loka::win32::Win32DisplayScale::fromDevicePixels(rect ? *rect : empty);
+  it->second->queueDirtyRect(targetHwnd, rect ? &native : 0, eraseBackground, false);
 }
 
 bool Win32ScenePlatformController::registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler)
@@ -361,7 +381,9 @@ void Win32ScenePlatformController::requestDirtySubtree(HWND targetHwnd, const RE
   {
     return;
   }
-  it->second->queueDirtyRect(targetHwnd, rect, eraseBackground, true);
+  const RECT empty = {0, 0, 0, 0};
+  const loka::win32::NativeRect native = loka::win32::Win32DisplayScale::fromDevicePixels(rect ? *rect : empty);
+  it->second->queueDirtyRect(targetHwnd, rect ? &native : 0, eraseBackground, true);
 }
 
 void Win32ScenePlatformController::redrawDirtySubtreeNow(HWND targetHwnd, const RECT *rect, BOOL eraseBackground)
@@ -480,8 +502,8 @@ void Win32ScenePlatformController::onChange(loka::app::scene::Node *rootNode,
   RECT rc;
   if (GetClientRect(rootHwnd_, &rc))
   {
-    clientWidth_ = this->displayScale_.unprojectLength(rc.right - rc.left);
-    clientHeight_ = this->displayScale_.unprojectLength(rc.bottom - rc.top);
+    clientWidth_ = this->displayScale_.clientCapacityToLu(rc.right - rc.left);
+    clientHeight_ = this->displayScale_.clientCapacityToLu(rc.bottom - rc.top);
   }
   performLayout(clientWidth_, clientHeight_);
 }
@@ -519,7 +541,8 @@ void Win32ScenePlatformController::onBoundaryApply(loka::app::scene::Node *rootN
       const PaintAnswerRecord &record = answers.entry(i);
       Win32RetirableContext *context = static_cast<Win32RetirableContext *>(record.resident->getContext());
       const PaintDamage &damage = record.damage;
-      const RECT rect = {damage.x, damage.y, damage.x + damage.width, damage.y + damage.height};
+      const RECT pixels = {damage.x, damage.y, damage.x + damage.width, damage.y + damage.height};
+      const loka::win32::NativeRect rect = this->displayScale_.fromDevicePixels(pixels);
       this->queueDirtyRect(
           context->paintHwnd(), &rect, damage.coverage == PAINT_COVERAGE_ERASE_AND_PAINT ? TRUE : FALSE, false);
     }
@@ -559,13 +582,8 @@ void Win32ScenePlatformController::onBoundaryApply(loka::app::scene::Node *rootN
   {
     ++this->redrawStats_.queuedLayoutBoundsInvalidates;
   }
-  RECT rect;
-  this->displayScale_.projectFrame(
-      loka::core::Frame(info.bounds->x,
-                        info.bounds->y,
-                        info.bounds->width,
-                        info.bounds->height),
-      rect);
+  const loka::win32::NativeRect rect = this->displayScale_.damageToNative(
+      loka::core::Frame(info.bounds->x, info.bounds->y, info.bounds->width, info.bounds->height));
   queueDirtyRect(rootHwnd_, &rect, eraseBackground ? TRUE : FALSE, includeChildren);
 }
 
@@ -683,10 +701,11 @@ void Win32ScenePlatformController::releaseNodeContexts(loka::app::scene::Node *n
 }
 
 void Win32ScenePlatformController::queueDirtyRect(HWND targetHwnd,
-                                                  const RECT *rect,
+                                                  const loka::win32::NativeRect *geometry,
                                                   BOOL eraseBackground,
                                                   bool includeChildren)
 {
+  const RECT *rect = geometry ? &geometry->r : 0;
   if (!targetHwnd)
   {
     return;
@@ -831,8 +850,8 @@ void Win32ScenePlatformController::relayout(int clientWidth, int clientHeight)
     RECT rc;
     if (rootHwnd_ && GetClientRect(rootHwnd_, &rc))
     {
-      clientWidth = this->displayScale_.unprojectLength(rc.right - rc.left);
-      clientHeight = this->displayScale_.unprojectLength(rc.bottom - rc.top);
+      clientWidth = this->displayScale_.clientCapacityToLu(rc.right - rc.left);
+      clientHeight = this->displayScale_.clientCapacityToLu(rc.bottom - rc.top);
     }
   }
   clientWidth_ = clientWidth;
@@ -843,14 +862,22 @@ void Win32ScenePlatformController::relayout(int clientWidth, int clientHeight)
 void Win32ScenePlatformController::relayoutNativeClientPixels(int clientWidth,
                                                               int clientHeight)
 {
-  this->relayout(this->displayScale_.unprojectLength(clientWidth),
-                 this->displayScale_.unprojectLength(clientHeight));
+  this->relayout(this->displayScale_.clientCapacityToLu(clientWidth),
+                 this->displayScale_.clientCapacityToLu(clientHeight));
+}
+
+void Win32ScenePlatformController::requestRelayout()
+{
+  RECT client;
+  if (this->rootHwnd_ && GetClientRect(this->rootHwnd_, &client))
+    PostMessageW(this->rootHwnd_, WM_SIZE, static_cast<WPARAM>(SIZE_RESTORED),
+                 static_cast<LPARAM>(MAKELPARAM(client.right - client.left, client.bottom - client.top)));
 }
 
 void Win32ScenePlatformController::updateDisplayScale(
     const loka::win32::Win32DisplayScale &displayScale)
 {
-  this->displayScale_ = displayScale;
+  this->displayScale_ = loka::win32::Win32DisplayScale(displayScale.dpi(), this->railMetrics_);
   this->ensureDisplayFont();
 }
 
@@ -863,27 +890,23 @@ void Win32ScenePlatformController::ensureDisplayFont()
   loka::win32::Win32DisplayFont replacement;
   if (replacement.create(this->displayScale_))
   {
-    this->applyDisplayFontToNativeSubtree(replacement.get());
+    this->applyDisplayFontToNativeSubtree(replacement);
     this->displayFont_.swap(replacement);
   }
 }
 
-void Win32ScenePlatformController::applyDisplayFontToNativeSubtree(HFONT font)
+void Win32ScenePlatformController::applyDisplayFontToNativeSubtree(
+    const loka::win32::Win32DisplayFont &replacement)
 {
-  if (!this->rootHwnd_ || !font)
+  if (!this->rootHwnd_ || !replacement.get())
   {
     return;
   }
-  EnumChildWindows(this->rootHwnd_,
-                   &ApplyDisplayFont,
-                   reinterpret_cast<LPARAM>(font));
+  const DisplayFontReplacement fonts = {this->displayFont_, replacement};
+  EnumChildWindows(this->rootHwnd_, &ApplyDisplayFont, reinterpret_cast<LPARAM>(&fonts));
 }
 
-void Win32ScenePlatformController::positionNativeWindow(HWND hwnd,
-                                                        int x,
-                                                        int y,
-                                                        int width,
-                                                        int height)
+void Win32ScenePlatformController::positionNativeWindow(HWND hwnd, const loka::win32::NativeRect &geometry)
 {
   if (!hwnd)
   {
@@ -891,12 +914,10 @@ void Win32ScenePlatformController::positionNativeWindow(HWND hwnd,
   }
   if (this->activeNativeLayoutPass_)
   {
-    this->activeNativeLayoutPass_->positionNativeWindow(hwnd, x, y, width, height);
+    this->activeNativeLayoutPass_->positionNativeWindow(hwnd, geometry);
     return;
   }
-  RECT nativeRect;
-  this->displayScale_.projectFrame(
-      loka::core::Frame(x, y, width, height), nativeRect);
+  const RECT &nativeRect = geometry.r;
   MoveWindow(hwnd,
              nativeRect.left,
              nativeRect.top,
@@ -905,22 +926,28 @@ void Win32ScenePlatformController::positionNativeWindow(HWND hwnd,
              TRUE);
 }
 
-HWND Win32ScenePlatformController::createNativeChildWindow(DWORD exStyle,
-                                                            LPCWSTR className,
-                                                            LPCWSTR windowName,
-                                                            DWORD style,
-                                                            int x,
-                                                            int y,
-                                                            int width,
-                                                            int height,
-                                                            HWND parent,
-                                                            HMENU menu,
-                                                            HINSTANCE instance,
-                                                            void *createParameter)
+void Win32ScenePlatformController::resizeNativeWindow(HWND hwnd, const loka::win32::NativeRect &geometry)
 {
-  RECT nativeRect;
-  this->displayScale_.projectFrame(
-      loka::core::Frame(x, y, width, height), nativeRect);
+  SetWindowPos(hwnd,
+               0,
+               0,
+               0,
+               geometry.r.right - geometry.r.left,
+               geometry.r.bottom - geometry.r.top,
+               SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+}
+
+HWND Win32ScenePlatformController::createNativeChildWindow(DWORD exStyle,
+                                                           LPCWSTR className,
+                                                           LPCWSTR windowName,
+                                                           DWORD style,
+                                                           const loka::win32::NativeRect &geometry,
+                                                           HWND parent,
+                                                           HMENU menu,
+                                                           HINSTANCE instance,
+                                                           void *createParameter)
+{
+  const RECT &nativeRect = geometry.r;
   HWND hwnd = CreateWindowExW(exStyle,
                               className,
                               windowName,
@@ -1135,8 +1162,7 @@ Win32ScenePlatformController::layoutScrollViewNode(loka::app::ScrollViewNode *sc
       // The visible scrollbar occupies non-client width, so the viewport's
       // client width is smaller than the seat width; children lay out
       // against the client, or they extend underneath the scrollbar.
-      childBase.width = this->displayScale_.unprojectLength(
-          viewportClient.right - viewportClient.left);
+      childBase.width = this->displayScale_.clientCapacityToLu(viewportClient.right - viewportClient.left);
     }
   }
 
@@ -1539,7 +1565,23 @@ int Win32ScenePlatformController::measureClientWidth(int requestedWidth) const
   RECT rc;
   if (rootHwnd_ && GetClientRect(rootHwnd_, &rc))
   {
-    return this->displayScale_.unprojectLength(rc.right - rc.left);
+    return this->displayScale_.clientCapacityToLu(rc.right - rc.left);
   }
   return 260;
+}
+
+HWND loka::win32::CreateEditTextControl(HWND parent, const NativeRect &geometry)
+{
+  return CreateWindowExW(EditTextControlExStyle(),
+                         L"EDIT",
+                         L"",
+                         EditTextControlStyle(),
+                         geometry.r.left,
+                         geometry.r.top,
+                         geometry.r.right - geometry.r.left,
+                         geometry.r.bottom - geometry.r.top,
+                         parent,
+                         NULL,
+                         GetModuleHandleW(NULL),
+                         NULL);
 }

@@ -1,4 +1,6 @@
 #include "NullTextLayoutTests.hpp"
+#include "support/TestVerify.hpp"
+#include "support/RailTextLayoutFixture.hpp"
 
 #include <cassert>
 
@@ -9,13 +11,13 @@
 void testNullTextLayoutWordAndCharacterWrapProduceDifferentGeometry()
 {
   loka::app::TextProps noneProps("aa bbbb cc");
-  noneProps.attr(loka::app::TextAttr().wrap(loka::app::TEXT_WRAP_NONE));
+  noneProps.blockStyle_ = loka::app::BlockStyle().wrap(loka::app::TEXT_WRAP_NONE);
   loka::app::TextNode noneText(noneProps);
   loka::app::TextProps wordProps("aa bbbb cc");
-  wordProps.attr(loka::app::TextAttr().wrap(loka::app::TEXT_WRAP_WORD));
+  wordProps.blockStyle_ = loka::app::BlockStyle().wrap(loka::app::TEXT_WRAP_WORD);
   loka::app::TextNode wordText(wordProps);
   loka::app::TextProps characterProps("aa bbbb cc");
-  characterProps.attr(loka::app::TextAttr().wrap(loka::app::TEXT_WRAP_CHAR));
+  characterProps.blockStyle_ = loka::app::BlockStyle().wrap(loka::app::TEXT_WRAP_CHAR);
   loka::app::TextNode characterText(characterProps);
   loka::app::scene::LayoutState state;
   state.y = 5;
@@ -33,9 +35,9 @@ void testNullTextLayoutWordAndCharacterWrapProduceDifferentGeometry()
   (void)characterResultY;
   assert(noneResultY != characterResultY);
   assert(wordResultY != characterResultY);
-  assert(noneResultY == 15);
-  assert(wordResultY == 35);
-  assert(characterResultY == 25);
+  assert(noneResultY == 17);
+  assert(wordResultY == 41);
+  assert(characterResultY == 29);
 }
 
 namespace
@@ -52,13 +54,13 @@ void testNullTextLayoutTruncationModesProduceDifferentWidths()
 {
   (void)&measurementFor;
   loka::app::TextProps noneProps("abcdefghij");
-  noneProps.attr(loka::app::TextAttr().truncation(loka::app::TEXT_TRUNCATION_NONE));
+  noneProps.blockStyle_ = loka::app::BlockStyle().truncation(loka::app::TEXT_TRUNCATION_NONE);
   loka::app::TextNode noneText(noneProps);
   loka::app::TextProps clipProps("abcdefghij");
-  clipProps.attr(loka::app::TextAttr().truncation(loka::app::TEXT_TRUNCATION_CLIP));
+  clipProps.blockStyle_ = loka::app::BlockStyle().truncation(loka::app::TEXT_TRUNCATION_CLIP);
   loka::app::TextNode clipText(clipProps);
   loka::app::TextProps ellipsisProps("abcdefghij");
-  ellipsisProps.attr(loka::app::TextAttr().truncation(loka::app::TEXT_TRUNCATION_ELLIPSIS));
+  ellipsisProps.blockStyle_ = loka::app::BlockStyle().truncation(loka::app::TEXT_TRUNCATION_ELLIPSIS);
   loka::app::TextNode ellipsisText(ellipsisProps);
   loka::app::scene::LayoutState state;
   state.width = 22;
@@ -76,11 +78,36 @@ void testNullTextLayoutTruncationModesProduceDifferentWidths()
 
 void testNullTextLayoutHonorsExplicitBreaksAndForceBreaksLongWords()
 {
+  // Null has no spaceScale input. It can nevertheless discriminate the
+  // shared Box/Column contract: extra native-equivalent lines inside a fixed
+  // page cannot move the later caption/button rows.
+  for (int lines = 1; lines <= 2; ++lines)
+  {
+    NullScenePlatformController controller;
+    RailTextLayoutFixture fixture(true, lines == 1 ? "First" : "First\nSecond");
+    loka::app::scene::LayoutState frame;
+    frame.x = 20;
+    frame.y = 20;
+    frame.width = 300;
+    frame.height = 210;
+    frame.lineHeight = 20;
+    frame.spacing = 12;
+    const int bottom = controller.projectLayoutForTesting(&fixture.column, frame);
+    const NullTextContext *text = static_cast<const NullTextContext *>(fixture.wrapped->getContext());
+    LOKA_VERIFY(text != 0);
+    LOKA_VERIFY(text->measurement().lineCount() == lines);
+    std::printf("  Null fixed text column: lines=%d resultY=%d\n", lines, bottom);
+    std::fflush(stdout);
+    // Null's deterministic default font is 12 lu, unlike native Text's 20 lu
+    // minimum: 20 + page 170 + caption 12 + gap 12 + button 32 + trailing gap 12.
+    LOKA_VERIFY(bottom == 258);
+  }
+
   loka::app::TextProps breakProps("a\nb");
-  breakProps.attr(loka::app::TextAttr().wrap(loka::app::TEXT_WRAP_WORD));
+  breakProps.blockStyle_ = loka::app::BlockStyle().wrap(loka::app::TEXT_WRAP_WORD);
   loka::app::TextNode breakText(breakProps);
   loka::app::TextProps longWordProps("abcdefgh");
-  longWordProps.attr(loka::app::TextAttr().wrap(loka::app::TEXT_WRAP_WORD));
+  longWordProps.blockStyle_ = loka::app::BlockStyle().wrap(loka::app::TEXT_WRAP_WORD);
   loka::app::TextNode longWordText(longWordProps);
   loka::app::scene::LayoutState state;
   state.width = 16;
@@ -91,11 +118,11 @@ void testNullTextLayoutHonorsExplicitBreaksAndForceBreaksLongWords()
   const int longWordResultY = platform.projectLayoutForTesting(&longWordText, state);
 
   (void)breakResultY;
-  assert(breakResultY == 20);
+  assert(breakResultY == 24);
   assert(measurementFor(breakText).width() == 4);
   assert(measurementFor(breakText).lineCount() == 2);
   (void)longWordResultY;
-  assert(longWordResultY == 20);
+  assert(longWordResultY == 24);
   assert(measurementFor(longWordText).width() == 16);
   assert(measurementFor(longWordText).lineCount() == 2);
 }
@@ -127,17 +154,17 @@ void testNullTextLayoutPreservesNegativeStartY()
   const int resultY = platform.projectLayoutForTesting(&text, state);
 
   (void)resultY;
-  assert(resultY == -10);
-  assert(measurementFor(text).height() == 10);
+  assert(resultY == -8);
+  assert(measurementFor(text).height() == 12);
 }
 
 void testNullTextLayoutWrapsAtPositiveSubGlyphWidth()
 {
   loka::app::TextProps wordProps("ab");
-  wordProps.attr(loka::app::TextAttr().wrap(loka::app::TEXT_WRAP_WORD));
+  wordProps.blockStyle_ = loka::app::BlockStyle().wrap(loka::app::TEXT_WRAP_WORD);
   loka::app::TextNode wordText(wordProps);
   loka::app::TextProps characterProps("ab");
-  characterProps.attr(loka::app::TextAttr().wrap(loka::app::TEXT_WRAP_CHAR));
+  characterProps.blockStyle_ = loka::app::BlockStyle().wrap(loka::app::TEXT_WRAP_CHAR);
   loka::app::TextNode characterText(characterProps);
   loka::app::scene::LayoutState state;
   state.width = 2;
@@ -148,9 +175,9 @@ void testNullTextLayoutWrapsAtPositiveSubGlyphWidth()
   const int characterResultY = platform.projectLayoutForTesting(&characterText, state);
 
   (void)wordResultY;
-  assert(wordResultY == 20);
+  assert(wordResultY == 24);
   (void)characterResultY;
-  assert(characterResultY == 20);
+  assert(characterResultY == 24);
   assert(measurementFor(wordText).width() == 4);
   assert(measurementFor(characterText).width() == 4);
   assert(measurementFor(wordText).lineCount() == 2);
@@ -160,7 +187,7 @@ void testNullTextLayoutWrapsAtPositiveSubGlyphWidth()
 void testNullTextLayoutWordWrapMeasuresStandaloneSpaces()
 {
   loka::app::TextProps props("    ");
-  props.attr(loka::app::TextAttr().wrap(loka::app::TEXT_WRAP_WORD));
+  props.blockStyle_ = loka::app::BlockStyle().wrap(loka::app::TEXT_WRAP_WORD);
   loka::app::TextNode text(props);
   loka::app::scene::LayoutState state;
   state.width = 8;
@@ -170,7 +197,7 @@ void testNullTextLayoutWordWrapMeasuresStandaloneSpaces()
   const int resultY = platform.projectLayoutForTesting(&text, state);
 
   (void)resultY;
-  assert(resultY == 20);
+  assert(resultY == 24);
   assert(measurementFor(text).width() == 8);
   assert(measurementFor(text).lineCount() == 2);
 }

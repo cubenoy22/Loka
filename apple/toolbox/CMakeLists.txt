@@ -20,6 +20,7 @@ set(LOKA_TOOLBOX_SOURCES
   src/ToolboxBuiltInSupport.cpp
   src/debug/ToolboxSceneDebugStats.cpp
   src/context/ToolboxButtonContext.cpp
+  src/context/ToolboxLayoutUtil.cpp
   src/context/ToolboxProjectedNodeContext.cpp
   src/context/ToolboxCellContext.cpp
   src/context/ToolboxEditTextContext.cpp

@@ -16,7 +16,7 @@ Versioning follows a pragmatic pre-1.0 scheme:
 The version in the top-level CMake `project(Loka VERSION ... LANGUAGES CXX)`
 call is the canonical source version, and it names the release **under
 development**: the source tree on `main` always carries the next version
-(currently `0.0.5`), so a build from source never claims to be a published
+(currently `0.0.6`), so a build from source never claims to be a published
 artifact it has drifted from. Cutting a release means bringing the
 documentation and release metadata into agreement with that version and
 freezing it with the annotated tag; immediately after tagging, the source
@@ -30,7 +30,41 @@ created with `git tag -a`, with the release notes recorded in the tag message.
 
 ---
 
-## v0.0.4 (current)
+## v0.0.5 (current)
+
+Core-hardening and runtime milestone — 203 commits since 0.0.4. See the
+[release notes](https://github.com/cubenoy22/Loka/releases/tag/v0.0.5).
+
+Delivered:
+
+* **Allocation-free update cycle**: the pool allocator is the main line; the
+  update path stops calling `operator new` (MineSweeper mount 7.7 s → 0.6 s and
+  LazyList cold 18 s → 1.4 s on the MAME rig); LazyScope seats for windowed
+  lists
+* **Paint-damage ledger**: paint descriptors, exact damage answers, Win32
+  damage translation; the whole-window repaint on a one-node change is now a
+  named defect (#518 rally 3) instead of the default
+* **Write seats**: `WriteSeat<T>` replaces raw `MutableState*` in every control
+  prop; the transaction-owning Boundary is the only writer; derived node state
+* **SmirkyCard (experimental)**: QuickJS-ng on every rail including Classic
+  68K; cards are JavaScript classes using the C++ node DSL names, loaded from
+  `MAIN.JS` beside the application, reloadable in place through engine
+  generations; runs on a PowerBook 180c and in a 4 MB Macintosh Plus
+  configuration
+* **Release payloads**: Classic 68K + PPC (ScrapbookUI with its package beside
+  both binaries), macOS UB2, and the first macOS UB1 (Tiger ppc + i386) archive;
+  three legacy-compiler (GCC 4.0 / C++98) build breaks fixed on the way
+* **Rigs**: macOS reference identity moved to Tahoe 26.7; Hyper-V VM checkpoint
+  restore documented (vTPM caveat); Golden Gate (macOS 27) reference rail
+
+Verification evidence and known issues are recorded on release PR #796.
+Known ships-with defects: #496 (Win32 MineSweeper settle on bare metal, now
+reproduced on two GPUs), #580 (vertical-only ScrollView), #490 (Classic
+standalone loops share LOG.TXT when flattened), dispositioned to 0.0.6.
+
+---
+
+## v0.0.4
 
 Verification-hardening and presentation milestone — 58 commits since 0.0.3. See
 the [release notes](https://github.com/cubenoy22/Loka/releases/tag/v0.0.4).

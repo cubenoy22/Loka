@@ -38,10 +38,7 @@ Win32ScrollViewContext::Win32ScrollViewContext(Win32ScenePlatformController *con
       kScrollViewClassName,
       L"",
       WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_CLIPCHILDREN,
-      x,
-      y,
-      width,
-      height,
+      this->controller()->displayScale().projectFrame(loka::core::Frame(x, y, width, height)),
       parent,
       0,
       GetModuleHandleW(NULL),
@@ -124,7 +121,8 @@ void Win32ScrollViewContext::relayout(int x, int y, int width, int height)
 {
   if (this->hwnd_)
   {
-    this->positionNativeWindow(this->hwnd_, x, y, width, height);
+    this->positionNativeWindow(this->hwnd_,
+                               this->controller()->displayScale().projectFrame(loka::core::Frame(x, y, width, height)));
   }
 }
 
@@ -161,7 +159,7 @@ int Win32ScrollViewContext::setScrollMetrics(int contentHeight,
   info.nMin = 0;
   info.nMax = contentHeight > 0 ? contentHeight - 1 : 0;
   info.nPage = viewportHeight > 0 ? static_cast<UINT>(viewportHeight) : 0;
-  info.nPos = clamped;
+  info.nPos = this->controller()->displayScale().scrollOffsetToNative(clamped);
   SetScrollInfo(this->hwnd_, SB_VERT, &info, TRUE);
   return clamped;
 }
@@ -178,7 +176,7 @@ bool Win32ScrollViewContext::handleVerticalScroll(int command,
   const int maximum = this->maximumOffset(info);
   int next = this->node_ && this->node_->props.offset_.isValid()
                  ? this->node_->props.offset_.state()->get()
-                 : info.nPos;
+                 : this->controller()->displayScale().scrollPositionToLu(info.nPos);
   next = this->clampOffset(next, maximum);
   int page = info.nPage > static_cast<UINT>(maximum)
                  ? maximum
@@ -202,15 +200,16 @@ bool Win32ScrollViewContext::handleVerticalScroll(int command,
     this->publishOffset(next);
     return true;
   case SB_THUMBTRACK:
-    this->setVisualPosition(this->clampOffset(thumbPosition, maximum));
+    this->setVisualPosition(
+        this->clampOffset(this->controller()->displayScale().scrollPositionToLu(thumbPosition), maximum));
     return true;
   case SB_THUMBPOSITION:
-    next = this->clampOffset(thumbPosition, maximum);
+    next = this->clampOffset(this->controller()->displayScale().scrollPositionToLu(thumbPosition), maximum);
     this->setVisualPosition(next);
     this->publishOffset(next);
     return true;
   case SB_ENDSCROLL:
-    this->publishOffset(this->clampOffset(info.nPos, maximum));
+    this->publishOffset(this->clampOffset(this->controller()->displayScale().scrollPositionToLu(info.nPos), maximum));
     return true;
   default:
     return false;
@@ -266,7 +265,7 @@ void Win32ScrollViewContext::setVisualPosition(int value)
   ZeroMemory(&info, sizeof(info));
   info.cbSize = sizeof(info);
   info.fMask = SIF_POS;
-  info.nPos = value;
+  info.nPos = this->controller()->displayScale().scrollOffsetToNative(value);
   SetScrollInfo(this->hwnd_, SB_VERT, &info, TRUE);
 }
 

@@ -1,6 +1,6 @@
 #include "ToolboxPropsRefresh.hpp"
-#include "context/ToolboxTextContext.hpp"
 #include "ToolboxLayoutMetrics.hpp"
+#include "context/ToolboxTextContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
@@ -34,45 +34,18 @@ namespace
 
   bool DrawStringAt(short x, short y, const loka::core::String &value)
   {
-    std::string utf8;
-    if (!loka::platform::CollectUtf8(value, utf8))
+    Str255 text;
+    if (!ToolboxBuildPascalText(value, text))
     {
       return false;
-    }
-    std::size_t length = utf8.size();
-    if (length > 255)
-    {
-      length = 255;
-    }
-    Str255 text;
-    text[0] = static_cast<unsigned char>(length);
-    if (length > 0)
-    {
-      std::memcpy(text + 1, utf8.data(), length);
     }
     MoveTo(x, y);
     DrawString(text);
     return true;
   }
 
-  void DrawUtf8At(short x, short y, const std::string &utf8)
-  {
-    std::size_t length = utf8.size();
-    if (length > 255)
-    {
-      length = 255;
-    }
-    Str255 text;
-    text[0] = static_cast<unsigned char>(length);
-    if (length > 0)
-    {
-      std::memcpy(text + 1, utf8.data(), length);
-    }
-    MoveTo(x, y);
-    DrawString(text);
-  }
-
-  std::string TruncateWithEllipsis(const loka::core::String &value, short maxWidth)
+  std::string TruncateWithEllipsis(const loka::core::String &value, short maxWidth,
+                                   const ToolboxTextMeasureScope &measure)
   {
     if (maxWidth <= 0)
     {
@@ -83,12 +56,12 @@ namespace
     {
       return std::string();
     }
-    if (ToolboxMeasureTextWidth(value) <= maxWidth)
+    if (measure.measure(value) <= maxWidth)
     {
       return utf8;
     }
 
-    const short ellipsisWidth = ToolboxMeasureTextWidth(loka::core::String::Literal("..."));
+    const short ellipsisWidth = measure.measure(loka::core::String::Literal("..."));
     if (ellipsisWidth >= maxWidth)
     {
       return std::string("...");
@@ -98,7 +71,7 @@ namespace
     while (!prefix.empty())
     {
       std::string candidate = prefix + "...";
-      if (ToolboxMeasureTextWidth(loka::core::String(candidate)) <= maxWidth)
+      if (measure.measure(loka::core::String(candidate)) <= maxWidth)
       {
         return candidate;
       }
@@ -117,7 +90,8 @@ namespace
     return std::string("...");
   }
 
-  short MeasureWrappedTextHeight(const loka::core::String &value, short maxWidth, short lineHeight, bool charWrap)
+  short MeasureWrappedTextHeight(const loka::core::String &value, short maxWidth, short lineHeight,
+                                 bool charWrap, const ToolboxTextMeasureScope &measure)
   {
     if (maxWidth <= 0 || lineHeight <= 0)
     {
@@ -155,7 +129,7 @@ namespace
       if (charWrap || isSpace)
       {
         std::string next = current + cp;
-        if (ToolboxMeasureTextWidth(loka::core::String(next)) > maxWidth && !current.empty())
+        if (measure.measure(loka::core::String(next)) > maxWidth && !current.empty())
         {
           ++lines;
           current = cp;
@@ -178,7 +152,7 @@ namespace
       // word wrap path: keep token together, but force-break long tokens
       std::string nextWord = currentWord + cp;
       std::string candidate = current + cp;
-      if (ToolboxMeasureTextWidth(loka::core::String(candidate)) > maxWidth && !current.empty())
+      if (measure.measure(loka::core::String(candidate)) > maxWidth && !current.empty())
       {
         ++lines;
         current = cp;
@@ -197,6 +171,51 @@ namespace
       total = lineHeight;
     }
     return static_cast<short>(total);
+  }
+
+  /** Completed text geometry; paint consumes the baseline captured by layout. */
+  struct TextGeometry
+  {
+    TextGeometry(short boxHeight, short baseline, short pitch)
+        : height(boxHeight), baselineOffset(baseline), linePitch(pitch) {}
+
+    const short height;
+    const short baselineOffset;
+    const short linePitch;
+  };
+
+  /** Unset size preserves pre-style geometry, including the terminal wrapped
+      baseline. Explicit size uses the selected font's first-line baseline. */
+  TextGeometry ResolveTextGeometry(const loka::app::TextStyle &style,
+                                   const loka::app::scene::LayoutState &state,
+                                   const loka::core::String &value,
+                                   loka::app::TextWrap wrap,
+                                   const ToolboxTextMeasureScope &measure)
+  {
+    const bool wraps = state.width > 0 && wrap != loka::app::TEXT_WRAP_NONE;
+    const bool charWrap = wrap == loka::app::TEXT_WRAP_CHAR;
+    if (!style.hasFontSize_)
+    {
+      const TextGeometry line(
+          static_cast<short>(state.lineHeight - ToolboxLayoutMetrics::kControlAscentInset
+                             + ToolboxLayoutMetrics::kControlDescent),
+          static_cast<short>(state.lineHeight - ToolboxLayoutMetrics::kControlAscentInset),
+          state.lineHeight > 0 ? state.lineHeight : ToolboxLayoutMetrics::kDefaultLineHeight);
+      if (!wraps)
+        return line;
+      const short extra = static_cast<short>(
+          MeasureWrappedTextHeight(value, state.width, line.linePitch, charWrap, measure) - state.lineHeight);
+      return TextGeometry(static_cast<short>(line.height + extra),
+                          static_cast<short>(line.baselineOffset + extra), line.linePitch);
+    }
+    FontInfo fontInfo;
+    GetFontInfo(&fontInfo);
+    const short pitch = static_cast<short>(fontInfo.ascent + fontInfo.descent + fontInfo.leading);
+    const TextGeometry line(pitch, fontInfo.ascent, pitch);
+    if (!wraps)
+      return line;
+    return TextGeometry(MeasureWrappedTextHeight(value, state.width, line.linePitch, charWrap, measure),
+                        line.baselineOffset, line.linePitch);
   }
 } // namespace
 
@@ -267,11 +286,12 @@ void ToolboxTextContext::updateRect(const Rect &rect, short textX, short textY)
 
 short ToolboxTextContext::visibleWidth() const
 {
-  if (!text_)
+  if (!this->text_ || !this->node_ || !this->controller())
   {
     return 0;
   }
-  short width = ToolboxMeasureTextWidth(text_->get());
+  const ToolboxTextFontDescriptor descriptor(this->node_->props.resolvedTextStyle());
+  short width = this->controller()->measureTextWidth(this->text_->get(), descriptor);
   const short maxWidth = static_cast<short>(rect_.right - rect_.left);
   if (maxWidth > 0 && width > maxWidth)
   {
@@ -282,6 +302,10 @@ short ToolboxTextContext::visibleWidth() const
 
 void ToolboxTextContext::paint(bool erase)
 {
+  if (!this->node_ || !this->controller())
+    return;
+  const ToolboxTextFontDescriptor descriptor(this->node_->props.resolvedTextStyle());
+  ToolboxTextMeasureScope measure(*this->controller(), descriptor);
   ToolboxPaintClip clip(this->paintRect_);
   if (clip.isActive() && !clip.touches(this->paintRect_))
     return;
@@ -300,8 +324,9 @@ void ToolboxTextContext::paint(bool erase)
   bool painted = false;
   if (this->maxWidth_ > 0 && this->truncationMode_ == loka::app::TEXT_TRUNCATION_ELLIPSIS)
   {
-    const std::string truncated = TruncateWithEllipsis(this->text_->get(), this->maxWidth_);
-    DrawUtf8At(this->textX_, this->textY_, truncated);
+    const std::string truncated = TruncateWithEllipsis(
+        this->text_->get(), this->maxWidth_, measure);
+    DrawStringAt(this->textX_, this->textY_, loka::core::String(truncated));
     // The legacy truncator cannot report conversion refusal, so it cannot
     // establish a completed value. Keep its answer conservative.
   }
@@ -320,6 +345,11 @@ void ToolboxTextContext::repaint()
 
 void ToolboxTextContext::draw(ToolboxScenePlatformController *controller)
 {
+  if (!this->node_ || !this->controller())
+    return;
+  const ToolboxTextFontDescriptor descriptor(this->node_->props.resolvedTextStyle());
+  // Paint and the hit-width measurement are one non-yielding transaction.
+  ToolboxTextMeasureScope measure(*this->controller(), descriptor);
   this->paint(false);
   if (controller && this->text_)
     controller->recordTextHit(this->rect_, this->textX_, this->textY_, this->text_, this->boundary_,
@@ -329,44 +359,29 @@ void ToolboxTextContext::draw(ToolboxScenePlatformController *controller)
 short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controller,
                                  loka::app::scene::LayoutState &state)
 {
-  (void)controller;
+  ToolboxScenePlatformController *toolbox =
+      static_cast<ToolboxScenePlatformController *>(controller);
   this->captureProps();
   if (!node_ || !node_->props.text_)
   {
     return 0;
   }
   const loka::core::String &value = node_->props.text_->get();
-  short measuredWidth = ToolboxMeasureTextWidth(value);
-  short width = measuredWidth;
-  const bool wrapWord = (wrapMode_ == loka::app::TEXT_WRAP_WORD);
-  const bool wrapChar = (wrapMode_ == loka::app::TEXT_WRAP_CHAR);
-  short effectiveLineHeight = state.lineHeight;
-  if (state.width > 0)
-  {
-    maxWidth_ = state.width;
-    if (wrapWord || wrapChar)
-    {
-      effectiveLineHeight =
-          MeasureWrappedTextHeight(value,
-                                   maxWidth_,
-                                   state.lineHeight > 0 ? state.lineHeight
-                                                        : ToolboxLayoutMetrics::kDefaultLineHeight,
-                                   wrapChar);
-    }
-    width = maxWidth_;
-  }
-  else
-  {
-    maxWidth_ = 0;
-  }
+  if (!toolbox)
+    return 0;
+  const loka::app::TextStyle style = this->node_->props.resolvedTextStyle();
+  const ToolboxTextFontDescriptor descriptor(style);
+  ToolboxTextMeasureScope measure(*toolbox, descriptor);
+  const TextGeometry geometry = ResolveTextGeometry(style, state, value, this->wrapMode_, measure);
+  const short measuredWidth = measure.measure(value);
+  this->maxWidth_ = state.width > 0 ? state.width : 0;
+  const short width = this->maxWidth_ > 0 ? this->maxWidth_ : measuredWidth;
   Rect rect;
   rect.left = state.x;
   rect.top = state.y;
   rect.right = static_cast<short>(state.x + width);
-  rect.bottom = static_cast<short>(state.y + effectiveLineHeight - ToolboxLayoutMetrics::kControlAscentInset
-                                   + ToolboxLayoutMetrics::kControlDescent);
-  updateRect(rect, state.x,
-             static_cast<short>(state.y + effectiveLineHeight - ToolboxLayoutMetrics::kControlAscentInset));
+  rect.bottom = static_cast<short>(state.y + geometry.height);
+  updateRect(rect, state.x, static_cast<short>(state.y + geometry.baselineOffset));
   // Advance by the painted box, as the other rails do: y is the top edge.
   state.y = static_cast<short>(rect.bottom + state.spacing);
   return width;
@@ -390,17 +405,11 @@ bool ToolboxTextContext::captureProps()
   this->updateData(text);
   if (!this->node_)
     return changed;
-  if (node_->props.hasAttr_)
-  {
-    wrapMode_ = node_->props.attr_.hasWrapValue_ ? node_->props.attr_.wrapValue_ : loka::app::TEXT_WRAP_NONE;
-    truncationMode_ =
-        node_->props.attr_.hasTruncationValue_ ? node_->props.attr_.truncationValue_ : loka::app::TEXT_TRUNCATION_NONE;
-  }
-  else
-  {
-    wrapMode_ = loka::app::TEXT_WRAP_NONE;
-    truncationMode_ = loka::app::TEXT_TRUNCATION_NONE;
-  }
+  wrapMode_ =
+      node_->props.blockStyle_.hasWrap_ ? node_->props.blockStyle_.wrap_ : loka::app::TEXT_WRAP_NONE;
+  truncationMode_ = node_->props.blockStyle_.hasTruncation_
+                        ? node_->props.blockStyle_.truncation_
+                        : loka::app::TEXT_TRUNCATION_NONE;
   return changed;
 }
 

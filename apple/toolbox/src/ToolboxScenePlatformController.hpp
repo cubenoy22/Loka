@@ -5,10 +5,13 @@
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/ProjectionParentScope.hpp"
 #include "ToolboxControlIdAllocator.hpp"
+#include "ToolboxApp.hpp"
+#include "ToolboxWindow.hpp"
 #include "ToolboxEditControlLedger.hpp"
 #include "ToolboxEnabledChangeDispatch.hpp"
 #include "ToolboxHitLedger.hpp"
 #include "ToolboxScrollBarLedger.hpp"
+#include "context/ToolboxLayoutUtil.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "app/scene/projection/NativeHandlePool.hpp"
 #include "core/State.hpp"
@@ -138,6 +141,10 @@ public:
   void idleTextEdits();
   bool isPointInEdit(const Point &point) const;
   short allocateControlId();
+  /** Measures against this controller's window port and restores ambient QuickDraw state. */
+  short measureTextWidth(
+      const loka::core::String &value,
+      const ToolboxTextFontDescriptor &descriptor = ToolboxTextFontDescriptor()) const;
   void beginClip(const Rect &rect);
   void endClip();
   loka::app::scene::PlatformLayoutHandlerRegistry *layoutHandlerRegistry()
@@ -210,6 +217,7 @@ public:
   void refuseScrollViewShortRange();
 
 private:
+  friend class ToolboxTextMeasureScope;
   template <typename Controller>
   friend void ReconcileToolboxTextSubscription(Controller &,
       loka::core::State<loka::core::String> *, loka::core::State<loka::core::String> *);
@@ -313,7 +321,7 @@ private:
   RgnHandle scrollViewClipRgn_;
   bool hasClip_;
   ToolboxControlIdAllocator controlIds_;
-  ToolboxSceneDebugStats debugStats_;
+  mutable ToolboxSceneDebugStats debugStats_;
   loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlerRegistry_;
   loka::app::scene::PlatformNodeHandlerRegistry nodeHandlerRegistry_;
   loka::app::scene::BoundaryNode *activeLayoutBoundary_;
@@ -396,12 +404,21 @@ private:
   static void TextStateChangedThunk(void *userData);
 
 public:
+  /** Borrow the window's app-wide cursor owner; no controller registry walk. */
+  CursorOwner *cursorOwner() const
+  {
+    ToolboxApp *app = this->window_ ? this->window_->toolboxApp() : 0;
+    return app ? &app->cursorOwner() : 0;
+  }
   void flushRetiredNativeHandles();
   std::string debugStatsSummary() const;
 #ifdef TEST_BUILD
-  /** Borrowed read-only counters for rail-local scenario captures. */
+  /** Borrowed snapshot; cursor fields are diagnostic copies of the app owner. */
   const ToolboxSceneDebugStats &debugStatsForTesting() const
   {
+    CursorOwner *owner = this->cursorOwner();
+    if (owner)
+      owner->copyDiagnostics(this->debugStats_);
     return this->debugStats_;
   }
 

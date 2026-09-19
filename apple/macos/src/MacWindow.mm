@@ -268,7 +268,8 @@ namespace
     return frame;
   }
 
-  static loka::core::Frame NativeContentFrame(NSWindow *window)
+  static loka::core::Frame NativeContentFrame(NSWindow *window,
+                                              const loka::macos::MacProjection &projection)
   {
     if (!window)
     {
@@ -280,12 +281,12 @@ namespace
     {
       screen = [NSScreen mainScreen];
     }
-    // Native fractional coordinates truncate at the integer Frame/relayout seam.
+    // Desktop origin stays native; only client capacity crosses into lu.
     return loka::core::Frame(static_cast<int>(contentRect.origin.x),
                              static_cast<int>(VisibleTopForScreen(screen)
                                               - (contentRect.origin.y + contentRect.size.height)),
-                             static_cast<int>(contentRect.size.width),
-                             static_cast<int>(contentRect.size.height));
+                             projection.clientCapacityToLu(contentRect.size.width),
+                             projection.clientCapacityToLu(contentRect.size.height));
   }
 } // namespace
 
@@ -306,15 +307,16 @@ void MacWindow::FrameChangedThunk(void *userData)
   NSRect currentContent = [window contentRectForFrameRect:currentFrame];
   CGFloat x = frame.x >= 0 ? frame.x : currentContent.origin.x;
   CGFloat y = frame.y >= 0 ? frame.y : currentContent.origin.y;
-  CGFloat width = frame.width > 0 ? frame.width : currentContent.size.width;
-  CGFloat height = frame.height > 0 ? frame.height : currentContent.size.height;
+  const loka::macos::MacRect intent = self->projection().projectClientSize(frame.width, frame.height);
+  CGFloat width = frame.width > 0 ? intent.r.size.width : currentContent.size.width;
+  CGFloat height = frame.height > 0 ? intent.r.size.height : currentContent.size.height;
   NSScreen *screen = [window screen];
   if (!screen)
   {
     screen = [NSScreen mainScreen];
   }
-  const bool sameContentSize = static_cast<int>(currentContent.size.width) == frame.width
-                               && static_cast<int>(currentContent.size.height) == frame.height;
+  const bool sameContentSize = currentContent.size.width == intent.r.size.width
+                               && currentContent.size.height == intent.r.size.height;
   bool samePosition = !frame.hasPosition();
   if (frame.hasPosition())
   {
@@ -344,6 +346,12 @@ void MacWindow::FrameChangedThunk(void *userData)
   [window setFrame:nextFrame display:YES];
 }
 
+loka::macos::MacProjection MacWindow::projection() const
+{
+  return this->scenePlatformController_ ? this->scenePlatformController_->projection()
+                                       : loka::macos::MacProjection(this->contentView_, loka::macos::DefaultRailMetrics());
+}
+
 void MacWindow::createNativeWindow()
 {
   if (window_)
@@ -354,11 +362,14 @@ void MacWindow::createNativeWindow()
   const loka::core::Frame defaultFrame = Window::defaultFrame();
   CGFloat x = this->hasPosition() ? this->positionX() : defaultFrame.x;
   CGFloat y = this->hasPosition() ? this->positionY() : defaultFrame.y;
-  CGFloat width = this->hasSize() ? this->width() : defaultFrame.width;
-  CGFloat height = this->hasSize() ? this->height() : defaultFrame.height;
+  const loka::macos::MacRect content = this->projection().projectClientSize(
+      this->hasSize() ? this->width() : defaultFrame.width,
+      this->hasSize() ? this->height() : defaultFrame.height);
+  const CGFloat width = content.r.size.width;
+  const CGFloat height = content.r.size.height;
   NSUInteger style = LOKA_MAC_WINDOW_STYLE_TITLED | LOKA_MAC_WINDOW_STYLE_CLOSABLE
                      | LOKA_MAC_WINDOW_STYLE_RESIZABLE | LOKA_MAC_WINDOW_STYLE_MINIATURIZABLE;
-  NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0.0, 0.0, width, height)
+  NSWindow *window = [[NSWindow alloc] initWithContentRect:content.r
                                                  styleMask:style
                                                    backing:NSBackingStoreBuffered
                                                      defer:NO];
@@ -378,7 +389,7 @@ void MacWindow::createNativeWindow()
     [window setTitle:@""];
   }
 
-  LokaFlippedView *contentView = [[LokaFlippedView alloc] initWithFrame:NSMakeRect(0, 0, width, height)];
+  LokaFlippedView *contentView = [[LokaFlippedView alloc] initWithFrame:content.r];
   [window setContentView:contentView];
   [contentView setOwner:this];
   [window makeFirstResponder:contentView];
@@ -390,7 +401,7 @@ void MacWindow::createNativeWindow()
   window_ = (void *)window;
   contentView_ = (void *)contentView;
   delegate_ = (void *)delegate;
-  this->storeNativeFrame(NativeContentFrame(window));
+  this->storeNativeFrame(NativeContentFrame(window, this->projection()));
 
   [window makeKeyAndOrderFront:nil];
   this->dialogResults().open(*this);
@@ -594,14 +605,14 @@ void MacWindow::handleWindowDidResize()
   {
     return;
   }
-  this->storeNativeFrame(NativeContentFrame(window));
+  this->storeNativeFrame(NativeContentFrame(window, this->projection()));
   if (!scenePlatformController_ || !contentView_)
   {
     return;
   }
   const NSRect contentBounds = [view bounds];
-  scenePlatformController_->relayout(static_cast<int>(contentBounds.size.width),
-                                     static_cast<int>(contentBounds.size.height));
+  scenePlatformController_->relayout(this->projection().clientCapacityToLu(contentBounds.size.width),
+                                     this->projection().clientCapacityToLu(contentBounds.size.height));
 }
 
 void MacWindow::handleWindowDidMove()
@@ -609,7 +620,7 @@ void MacWindow::handleWindowDidMove()
   NSWindow *window = (NSWindow *)window_;
   if (window)
   {
-    this->storeNativeFrame(NativeContentFrame(window));
+    this->storeNativeFrame(NativeContentFrame(window, this->projection()));
   }
 }
 
@@ -632,7 +643,7 @@ bool MacWindow::mountReplacementScene(loka::app::scene::Scene *next)
   if (!this->window_ || !this->contentView_)
     return true;
   if (!this->scenePlatformController_)
-    this->scenePlatformController_ = new MacScenePlatformController(this->contentView_);
+    this->scenePlatformController_ = new MacScenePlatformController(this->contentView_, loka::macos::DefaultRailMetrics());
   if (!this->scenePlatformController_)
     return false;
   next->mount(this->scenePlatformController_);

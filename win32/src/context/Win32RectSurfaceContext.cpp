@@ -22,7 +22,15 @@ Win32RectSurfaceContext::Win32RectSurfaceContext(Win32ScenePlatformController *c
 {
   EnsureClassRegistered();
   hwnd_ = this->createNativeChildWindow(
-      0, kRectSurfaceClassName, L"", WS_CHILD | WS_VISIBLE, x, y, width, height, parent, 0, GetModuleHandleW(NULL), this);
+      0,
+      kRectSurfaceClassName,
+      L"",
+      WS_CHILD | WS_VISIBLE,
+      this->controller()->displayScale().projectFrame(loka::core::Frame(x, y, width, height)),
+      parent,
+      0,
+      GetModuleHandleW(NULL),
+      this);
   // A context without a native window is discarded by the controller; it
   // must not have bound anything.
   if (hwnd_)
@@ -134,7 +142,8 @@ void Win32RectSurfaceContext::relayout(int x, int y, int width, int height)
     return;
   }
   this->presented_.invalidate();
-  this->positionNativeWindow(this->hwnd_, x, y, width, height);
+  this->positionNativeWindow(this->hwnd_,
+                             this->controller()->displayScale().projectFrame(loka::core::Frame(x, y, width, height)));
   HWND parent = 0;
   RECT rect;
   if (this->queryBoundsInParent(parent, rect))
@@ -306,7 +315,8 @@ void Win32RectSurfaceContext::draw(HDC hdc, const RECT &rect)
                                           model.rects[i].y,
                                           model.rects[i].width,
                                           model.rects[i].height);
-      this->controller()->displayScale().projectFrame(logicalRect, spriteRect);
+      // DPI only, no space scale: these are decoded sprite pixels.
+      spriteRect = this->controller()->displayScale().projectDeviceOnly(logicalRect).r;
       if (!FillRect(target, &spriteRect, blackBrush))
         painted = false;
     }

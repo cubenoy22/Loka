@@ -1,6 +1,7 @@
 #include "MacCellContext.hpp"
 #include <cassert>
 #include "../MacScenePlatformController.hpp"
+#include "../platform/MacNativeGeometry.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "Utf8String.hpp"
@@ -149,7 +150,9 @@ MacCellContext::MacCellContext(MacScenePlatformController *controller,
       textStateBound_(false)
 {
   NSView *parent = (NSView *)parentView;
-  LokaCellView *view = [[LokaCellView alloc] initWithFrame:NSMakeRect(x, y, width, height)];
+  const loka::macos::MacRect frame =
+      this->controller()->projection().projectFrame(loka::core::Frame(x, y, width, height));
+  LokaCellView *view = [[LokaCellView alloc] initWithFrame:frame.r];
   if ([view respondsToSelector:@selector(setWantsLayer:)])
   {
     [view setWantsLayer:YES];
@@ -243,7 +246,8 @@ void MacCellContext::relayout(int x, int y, int width, int height)
   {
     return;
   }
-  [view setFrame:NSMakeRect(x, y, width, height)];
+  loka::macos::SetMacFrame(view,
+      this->controller()->projection().projectFrame(loka::core::Frame(x, y, width, height)));
   [view setNeedsDisplay:YES];
 }
 

@@ -1,0 +1,7 @@
+#ifndef LOKA_WIN32_RAIL_METRICS_TESTS_HPP
+#define LOKA_WIN32_RAIL_METRICS_TESTS_HPP
+
+void testWin32RailMetricsProjection();
+void testWin32RailMetricsSurviveDpiChange();
+
+#endif

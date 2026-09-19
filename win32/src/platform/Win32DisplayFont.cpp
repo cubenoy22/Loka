@@ -55,54 +55,95 @@ namespace loka
   namespace win32
   {
     Win32DisplayFont::Win32DisplayFont()
-        : font_(0),
-          scale_()
+        : scale_()
     {
+      ZeroMemory(this->fonts_, sizeof(this->fonts_));
     }
 
     Win32DisplayFont::~Win32DisplayFont()
     {
-      if (this->font_)
-      {
-        DeleteObject(this->font_);
-        this->font_ = 0;
-      }
+      // Also releases every successful allocation in a refused partial build.
+      for (int row = 0; row < kFontRowCount; ++row)
+        for (int bold = 0; bold < 2; ++bold)
+          for (int italic = 0; italic < 2; ++italic)
+            if (this->fonts_[row][bold][italic])
+              DeleteObject(this->fonts_[row][bold][italic]);
     }
 
     bool Win32DisplayFont::create(const Win32DisplayScale &scale)
     {
-      assert(!this->font_ && "a display font must be created into an empty owner");
-      if (this->font_)
-      {
+      assert(!this->get() && "a display font must be created into an empty owner");
+      if (this->get())
         return false;
-      }
-      LOGFONTW logicalFont;
-      ZeroMemory(&logicalFont, sizeof(logicalFont));
-      if (!ReadMessageFont(scale, logicalFont))
-      {
+      LOGFONTW base;
+      ZeroMemory(&base, sizeof(base));
+      if (!ReadMessageFont(scale, base))
         return false;
-      }
-      HFONT replacement = CreateFontIndirectW(&logicalFont);
-      if (!replacement)
-      {
-        return false;
-      }
-      this->font_ = replacement;
-      this->scale_ = scale;
+      Win32DisplayFont candidate;
+      for (int row = 0; row < kFontRowCount; ++row)
+        for (int bold = 0; bold < 2; ++bold)
+          for (int italic = 0; italic < 2; ++italic)
+          {
+            LOGFONTW descriptor = base;
+            // The shared native message-font row also serves fixed controls.
+            if (row != kDefaultSizeRow)
+            {
+              const int height = scale.fontHeightToNative(loka::app::detail::StyleVocabularySizes[row]);
+              if (height < 0)
+                return false;
+              descriptor.lfHeight = -height;
+            }
+            if (bold)
+              descriptor.lfWeight = FW_BOLD;
+            if (italic)
+              descriptor.lfItalic = TRUE;
+            candidate.fonts_[row][bold][italic] = CreateFontIndirectW(&descriptor);
+            if (!candidate.fonts_[row][bold][italic])
+              return false;
+          }
+      candidate.scale_ = scale;
+      this->swap(candidate);
       return true;
+    }
+
+    HFONT Win32DisplayFont::find(const loka::app::TextStyle &style) const
+    {
+      const int bold = style.hasWeight_ && style.weight_ == loka::app::TEXT_WEIGHT_BOLD ? 1 : 0;
+      const int italic = style.hasItalic_ && style.italic_ ? 1 : 0;
+      if (!style.hasFontSize_)
+        return this->fonts_[kDefaultSizeRow][bold][italic];
+      const int logicalUnits = loka::app::SizeOf(style.fontSize_).fontSize_;
+      for (int row = 0; row < kSizeCount; ++row)
+        if (loka::app::detail::StyleVocabularySizes[row] == logicalUnits)
+          return this->fonts_[row][bold][italic];
+      return 0;
+    }
+
+    HFONT Win32DisplayFont::replacementFor(HFONT font, const Win32DisplayFont &replacement) const
+    {
+      for (int row = 0; row < kFontRowCount; ++row)
+        for (int bold = 0; bold < 2; ++bold)
+          for (int italic = 0; italic < 2; ++italic)
+            if (font && this->fonts_[row][bold][italic] == font)
+              return replacement.fonts_[row][bold][italic];
+      return replacement.get();
     }
 
     bool Win32DisplayFont::matches(const Win32DisplayScale &scale) const
     {
-      return this->font_ && this->scale_ == scale;
+      return this->get() && this->scale_ == scale;
     }
 
     void Win32DisplayFont::swap(Win32DisplayFont &other)
     {
-      HFONT temporary = this->font_;
-      this->font_ = other.font_;
-      other.font_ = temporary;
-
+      for (int row = 0; row < kFontRowCount; ++row)
+        for (int bold = 0; bold < 2; ++bold)
+          for (int italic = 0; italic < 2; ++italic)
+          {
+            HFONT temporary = this->fonts_[row][bold][italic];
+            this->fonts_[row][bold][italic] = other.fonts_[row][bold][italic];
+            other.fonts_[row][bold][italic] = temporary;
+          }
       Win32DisplayScale temporaryScale = this->scale_;
       this->scale_ = other.scale_;
       other.scale_ = temporaryScale;

@@ -2,11 +2,22 @@
 #define LOKA_MAC_SCENE_PLATFORM_CONTROLLER_HPP
 
 #include <vector>
+#include "platform/MacProjection.hpp"
 #include "app/RectSurface.hpp"
+#include "app/style/StyleVocab.hpp"
 #include "app/scene/projection/ProjectionParentScope.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
+
+namespace loka
+{
+  namespace macos
+  {
+    /** Candidate rail values; shared by scene and pre-scene window projection. */
+    app::RailMetrics DefaultRailMetrics();
+  }
+}
 
 namespace loka
 {
@@ -31,6 +42,7 @@ namespace loka
 
   namespace app
   {
+    struct TextStyle;
     class RectSurfaceNode;
     class ScrollViewNode;
 
@@ -77,7 +89,7 @@ public:
     int resultY;
   };
 
-  explicit MacScenePlatformController(void *rootView);
+  MacScenePlatformController(void *rootView, const loka::app::RailMetrics &metrics);
   virtual ~MacScenePlatformController();
 
   virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild);
@@ -97,8 +109,12 @@ public:
   virtual bool prepareProjectedLayout(loka::app::scene::Node *node, loka::app::scene::LayoutState &state);
   virtual bool registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler);
 
+  const loka::macos::MacProjection &projection() const { return this->projection_; }
+
   void relayout(int clientWidth, int clientHeight);
   void requestRelayout();
+  /** Borrowed NSFont, retained by this controller until destruction. */
+  void *textFont(const loka::app::TextStyle &style) const;
   bool hasPendingRelayout() const
   {
     return relayoutPending_;
@@ -240,6 +256,30 @@ private:
   void *findFocusedEditTextState(loka::app::scene::Node *node) const;
   void *findFieldForFocusedEdit(loka::app::scene::Node *node) const;
 
+  /** Finite admission-time font storage; no lazy update-cycle allocation. */
+  class TextFontTable
+  {
+  public:
+    explicit TextFontTable(const loka::app::Ratio &fontScale);
+    ~TextFontTable();
+    void *find(const loka::app::TextStyle &style) const;
+
+  private:
+    // Sized from the generated vocabulary so a size added through
+    // tools/style-vocab.json cannot fall outside the table.
+    enum
+    {
+      kSizeCount = loka::app::detail::kStyleVocabularySizeCount,
+      kDefaultSizeRow = kSizeCount,
+      kFontRowCount = kSizeCount + 1
+    };
+    void *fonts_[kFontRowCount][2][2];
+    TextFontTable(const TextFontTable &);
+    TextFontTable &operator=(const TextFontTable &);
+  };
+
+  const loka::macos::MacProjection projection_;
+  TextFontTable textFonts_;
   void *rootView_;
   loka::app::scene::ProjectionParentScopeStack projectionParentScopes_;
   loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlerRegistry_;
