@@ -1,4 +1,6 @@
 #include "Win32DisplayScale.hpp"
+#include <cassert>
+#include <climits>
 
 namespace
 {
@@ -93,8 +95,8 @@ namespace loka
 {
   namespace win32
   {
-    Win32DisplayScale::Win32DisplayScale(UINT dpi)
-        : dpi_(dpi > 0 ? dpi : kDefaultDpi)
+    Win32DisplayScale::Win32DisplayScale(UINT dpi, const loka::app::RailMetrics &metrics)
+        : dpi_(dpi > 0 ? dpi : kDefaultDpi), metrics_(metrics)
     {
     }
 
@@ -162,8 +164,30 @@ namespace loka
       return MulDiv(static_cast<int>(this->dpi_), 100, static_cast<int>(kDefaultDpi));
     }
 
+    bool Win32DisplayScale::spaceFactors(int &numerator, int &denominator) const
+    {
+      const loka::app::Ratio &space = this->metrics_.spaceScale;
+      const bool fits = space.valid()
+          && this->dpi_ <= static_cast<UINT>(INT_MAX / space.num)
+          && space.den <= INT_MAX / static_cast<int>(kDefaultDpi);
+      assert(fits && "space projection products must fit in int");
+      if (!fits)
+        return false;
+      numerator = static_cast<int>(this->dpi_) * space.num;
+      denominator = static_cast<int>(kDefaultDpi) * space.den;
+      return true;
+    }
+
     int Win32DisplayScale::projectEdge(int logicalCoordinate) const
     {
+      if (!this->metrics_.spaceScale.isUnit())
+      {
+        int numerator = 0;
+        int denominator = 0;
+        if (!this->spaceFactors(numerator, denominator))
+          return -1;
+        return MulDiv(logicalCoordinate, numerator, denominator);
+      }
       return MulDiv(logicalCoordinate,
                     static_cast<int>(this->dpi_),
                     static_cast<int>(kDefaultDpi));
@@ -171,6 +195,14 @@ namespace loka
 
     int Win32DisplayScale::unprojectEdge(int nativeCoordinate) const
     {
+      if (!this->metrics_.spaceScale.isUnit())
+      {
+        int numerator = 0;
+        int denominator = 0;
+        if (!this->spaceFactors(numerator, denominator))
+          return -1;
+        return MulDiv(nativeCoordinate, denominator, numerator);
+      }
       return MulDiv(nativeCoordinate,
                     static_cast<int>(kDefaultDpi),
                     static_cast<int>(this->dpi_));

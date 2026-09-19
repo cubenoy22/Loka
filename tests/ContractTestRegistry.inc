@@ -713,3 +713,5 @@ LOKA_TEST(testPaintAnswerVerdictCountsAndBufferReuse)
 LOKA_TEST(testPaintAnswerFirstWidenReasonSurvivesLaterAnswers)
 
 LOKA_TEST(testUnobservedCommitDoesNotDirtyBoundary)
+
+LOKA_TEST(testRailMetricsValueSemantics)

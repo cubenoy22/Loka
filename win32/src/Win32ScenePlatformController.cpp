@@ -245,7 +245,8 @@ Win32ScenePlatformController::Win32ScenePlatformController(
       rootNode_(0),
       clientWidth_(0),
       clientHeight_(0),
-      displayScale_(displayScale),
+      railMetrics_(displayScale.railMetrics()),
+      displayScale_(displayScale.dpi(), this->railMetrics_),
       displayFont_()
 {
   RegisterWin32BuiltInSupport(*this);
@@ -867,7 +868,7 @@ void Win32ScenePlatformController::requestRelayout()
 void Win32ScenePlatformController::updateDisplayScale(
     const loka::win32::Win32DisplayScale &displayScale)
 {
-  this->displayScale_ = displayScale;
+  this->displayScale_ = loka::win32::Win32DisplayScale(displayScale.dpi(), this->railMetrics_);
   this->ensureDisplayFont();
 }
 
