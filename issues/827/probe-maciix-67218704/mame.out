@@ -1,0 +1,7 @@
+Warning: -video none doesn't make much sense without -seconds_to_run
+LOKA-STANDALONE: booting (90 emulated seconds)
+LOKA-STANDALONE: opening the application (tab count 1)
+LOKA-STANDALONE: running for up to 240 emulated seconds
+LOKA-STANDALONE: snapshot written
+LOKA-STANDALONE: done
+Average speed: 542.86% (338 seconds)
