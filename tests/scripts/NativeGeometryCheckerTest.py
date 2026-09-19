@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Positive and negative controls for the literal Win32 geometry wall."""
+"""Positive and negative controls for the literal native geometry wall."""
 import importlib.util
 from pathlib import Path
 import tempfile
@@ -37,6 +37,43 @@ InvalidateRect(hwnd, &r, TRUE);
 
     def test_header_multiline_and_spliced_calls(self):
         self.assertEqual(list(checker.violations("win32/src/New.hpp", "Move\\\nWindow\n(hwnd);")), [(1, "MoveWindow")])
+
+    def test_macos_calls_and_policy(self):
+        for api, call in (("NSMakeRect", "NSMakeRect(0, 0, x, y)"),
+                          ("setFrame", "[view setFrame:rect]"),
+                          ("setFrameSize", "[view setFrameSize:size]"),
+                          ("setFrameOrigin", "[view setFrameOrigin:point]"),
+                          ("scrollPoint", "[view scrollPoint:point]"),
+                          ("scrollToPoint", "[clip scrollToPoint:point]")):
+            with self.subTest(api=api):
+                self.assertEqual(list(checker.violations("apple/macos/src/New.mm", call)), [(1, api)])
+        self.assertEqual(list(checker.violations("apple/macos/src/platform/MacProjection.mm",
+                                               "NSMakeRect(0, 0, x, y)")), [])
+        self.assertTrue(list(checker.violations("apple/macos/src/platform/MacProjection.mm",
+                                              "[view setFrame:rect]")))
+
+    def test_macos_exact_api_permissions(self):
+        for path, apis in checker.MAC_ALLOWLIST.items():
+            for api in apis:
+                call = "NSMakeRect(0, 0, 1, 1)" if api == "NSMakeRect" else f"[v {api}:r]"
+                self.assertEqual(list(checker.violations(path, call)), [])
+                self.assertTrue(list(checker.violations(path + ".copy.mm", call)))
+        self.assertTrue(list(checker.violations("apple/macos/src/context/MacCellContext.mm",
+                                              "[v setFrame:r]")))
+
+    def test_macos_noncode_multiline_and_tree(self):
+        source = '// [v setFrame:r];\n@"NSMakeRect(0,0,1,1)";\n[v setFrame /* gap */ : r];'
+        self.assertEqual(list(checker.violations("apple/macos/src/New.mm", source)), [(3, "setFrame")])
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in ("apple/macos/src/New.mm", "apple/macos/src/New.hpp",
+                         "apple/toolbox/src/New.mm"):
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("NSMakeRect(0, 0, 1, 1);", encoding="utf-8")
+            files, findings = checker.check_tree(root)
+            self.assertEqual(len(files), 2)
+            self.assertEqual(len(findings), 2)
 
     def test_tree_scope(self):
         with tempfile.TemporaryDirectory() as temporary:

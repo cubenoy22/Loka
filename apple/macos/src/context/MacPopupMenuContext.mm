@@ -1,6 +1,7 @@
 #include "MacPopupMenuContext.hpp"
 #include <cassert>
 #include "../MacScenePlatformController.hpp"
+#include "../platform/MacNativeGeometry.hpp"
 #include "MacObjCCompat.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/boundary/Boundary.hpp"
@@ -77,7 +78,9 @@ MacPopupMenuContext::MacPopupMenuContext(MacScenePlatformController *controller,
       updatingFromControl_(false)
 {
   NSView *parent = (NSView *)parentView;
-  NSPopUpButton *popup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(x, y, width, height) pullsDown:NO];
+  const loka::macos::MacRect frame =
+      this->controller()->projection().projectFrame(loka::core::Frame(x, y, width, height));
+  NSPopUpButton *popup = [[NSPopUpButton alloc] initWithFrame:frame.r pullsDown:NO];
 
   LokaPopupMenuTarget *target = [[LokaPopupMenuTarget alloc] init];
   target.owner = this;
@@ -179,7 +182,8 @@ void MacPopupMenuContext::relayout(int x, int y, int width, int height)
   {
     return;
   }
-  [popup setFrame:NSMakeRect(x, y, width, height)];
+  loka::macos::SetMacFrame(popup,
+      this->controller()->projection().projectFrame(loka::core::Frame(x, y, width, height)));
 }
 
 void MacPopupMenuContext::bindSelection()

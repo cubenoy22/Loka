@@ -2,6 +2,7 @@
 #include <cassert>
 #include "../MacScenePlatformController.hpp"
 #include "../MacObjCCompat.hpp"
+#include "../platform/MacNativeGeometry.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "Utf8String.hpp"
@@ -115,7 +116,9 @@ MacButtonContext::MacButtonContext(MacScenePlatformController *controller,
       enabledState_(0)
 {
   NSView *parent = (NSView *)parentView;
-  NSButton *button = [[NSButton alloc] initWithFrame:NSMakeRect(x, y, width, height)];
+  const loka::macos::MacRect frame =
+      this->controller()->projection().projectFrame(loka::core::Frame(x, y, width, height));
+  NSButton *button = [[NSButton alloc] initWithFrame:frame.r];
   [button setBezelStyle:LOKA_MAC_BUTTON_BEZEL_STYLE];
   [button setButtonType:LOKA_MAC_BUTTON_TYPE_MOMENTARY_PUSH_IN];
 
@@ -222,7 +225,8 @@ void MacButtonContext::relayout(int x, int y, int width, int height)
   {
     return;
   }
-  [button setFrame:NSMakeRect(x, y, width, height)];
+  loka::macos::SetMacFrame(button,
+      this->controller()->projection().projectFrame(loka::core::Frame(x, y, width, height)));
 }
 
 void MacButtonContext::bindText()
