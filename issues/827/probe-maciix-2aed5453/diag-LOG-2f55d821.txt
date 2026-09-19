@@ -1,0 +1,10 @@
+phase=P0-baseline FreeMem=4724 MaxBlock=4714 CompactMem=4716 us=35 ticks=0
+phase=P1-build FreeMem=224 MaxBlock=214 CompactMem=216 us=1419017 ticks=85 heap_bytes=4500 bytes_per_line=45 bytes_per_segment=4 lines=100 segments=1000
+phase=P2-churn FreeMem=224 MaxBlock=214 CompactMem=216 us=18177715 ticks=1094 us_per_keystroke=18177 FreeMem_before=224 FreeMem_after=224 growth=0
+phase=P3-equal-rebuild FreeMem=224 MaxBlock=214 CompactMem=216 us=24420926 ticks=1468 us_per_rebuild=24420 set_us=10700237 set_us_per_rebuild=10700 dirty=1000
+phase=P4-shared-compare FreeMem=224 MaxBlock=214 CompactMem=216 us=13290 ticks=1 us_per_compare=13 matches=1000
+phase=P5-teardown FreeMem=224 MaxBlock=214 CompactMem=216 us=221106 ticks=13 delta_from_P0=4500
+alloc.site.Managed.ControlBlock=60904,974464
+alloc.site.AttributedString.Segments=39900,2629200
+equal_set_marked_dirty=1000
+done
