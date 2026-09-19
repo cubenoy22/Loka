@@ -112,9 +112,9 @@ namespace loka
       const int italic = style.hasItalic_ && style.italic_ ? 1 : 0;
       if (!style.hasFontSize_)
         return this->fonts_[kDefaultSizeRow][bold][italic];
-      const int points = loka::app::SizeOf(style.fontSize_).fontSize_;
+      const int logicalUnits = loka::app::SizeOf(style.fontSize_).fontSize_;
       for (int row = 0; row < kSizeCount; ++row)
-        if (loka::app::detail::StyleVocabularySizes[row] == points)
+        if (loka::app::detail::StyleVocabularySizes[row] == logicalUnits)
           return this->fonts_[row][bold][italic];
       return 0;
     }
