@@ -1,4 +1,5 @@
 #include "ToolboxBuiltInSupport.hpp"
+#include "app/nodes/AttributedText.hpp"
 #include <cassert>
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindow.hpp"
@@ -14,6 +15,8 @@
 
 namespace
 {
+  loka::app::scene::RefusedNodeHandler gRefusedToolboxAttributedText(
+      loka::app::scene::NodeTypeToken<loka::app::AttributedTextNode>());
   loka::app::scene::RefusedNodeHandler gRefusedToolboxButton(
       loka::app::scene::NodeTypeToken<loka::app::ButtonNode>());
   loka::app::scene::RefusedNodeHandler gRefusedToolboxEditText(
@@ -26,7 +29,7 @@ bool RegisterToolboxBuiltInSupport(ToolboxScenePlatformController &controller)
 {
   assert(controller.window_ && controller.window_->context());
   const int capabilities = controller.window_->context()->capabilities();
-  bool ok = true;
+  bool ok = controller.nodeHandlerRegistry_.registerHandler(&gRefusedToolboxAttributedText);
   if ((capabilities & ToolboxWindowContext::CAP_CONTROL_MANAGER) != 0)
   {
     ok = RegisterToolboxButtonNodeHandler(controller.nodeHandlerRegistry_) && ok;

@@ -3,6 +3,7 @@
 
 #include "app/scene/projection/NativeNodeContext.hpp"
 #include "app/nodes/Text.hpp"
+#include "platform/null/context/NullTextMetrics.hpp"
 #include "platform/null/context/NullPaintPlacement.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
 
@@ -13,23 +14,6 @@ namespace loka
     class TextNode;
   }
 } // namespace loka
-
-/** Completed geometry from one deterministic null-platform text measure. */
-class NullTextMeasurement
-{
-public:
-  NullTextMeasurement();
-  NullTextMeasurement(short width, short height, short lineCount);
-
-  short width() const;
-  short height() const;
-  short lineCount() const;
-
-private:
-  short width_;
-  short height_;
-  short lineCount_;
-};
 
 /** Resolved, pointer-free layout inputs; live font state is read when captured. */
 struct NullTextPaintStyle

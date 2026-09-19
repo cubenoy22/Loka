@@ -159,7 +159,7 @@ public:
   virtual void destroy();
   virtual bool prepareProjectedLayout(loka::app::scene::Node *node,
                                       loka::app::scene::LayoutState &state);
-  /** RectSurface and Text handlers cannot be replaced (registerNodeHandler refuses):
+  /** RectSurface, Text and AttributedText handlers cannot be replaced (registerNodeHandler refuses):
       the presenter addresses their contexts by concrete Null type. Every other kind
       may be replaced; the paint walk answers native controls by kind and never
       casts a context it did not install. */

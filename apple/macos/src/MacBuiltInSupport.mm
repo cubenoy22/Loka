@@ -1,4 +1,5 @@
 #include "MacBuiltInSupport.hpp"
+#include "app/nodes/AttributedText.hpp"
 #include "MacScenePlatformController.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/Cell.hpp"
@@ -20,6 +21,8 @@
 
 namespace
 {
+  loka::app::scene::RefusedNodeHandler gRefusedMacAttributedText(
+      loka::app::scene::NodeTypeToken<loka::app::AttributedTextNode>());
   // Mac has no ScrollBar context yet: a known unsupported kind must take the
   // typed-refusal path, not trip the accidental-miss assert. ScrollView is a
   // controller-owned projection-parent arm and does not use this leaf ensure
@@ -54,6 +57,7 @@ void RegisterMacBuiltInSupport(MacScenePlatformController &controller)
       &MacScenePlatformController::DispatchProjectedLayout);
   RegisterMacButtonNodeHandler(controller.nodeHandlerRegistry_);
   RegisterMacTextNodeHandler(controller.nodeHandlerRegistry_);
+  controller.nodeHandlerRegistry_.registerHandler(&gRefusedMacAttributedText);
   RegisterMacImageViewNodeHandler(controller.nodeHandlerRegistry_);
   RegisterMacEditTextNodeHandler(controller.nodeHandlerRegistry_);
   RegisterMacPopupMenuNodeHandler(controller.nodeHandlerRegistry_);

@@ -120,7 +120,8 @@ namespace loka
         NODE_KIND_RECT_SURFACE = 13,
         NODE_KIND_SCROLL_BAR = 14,
         NODE_KIND_SCROLL_VIEW = 15,
-        NODE_KIND_CANVAS = 16
+        NODE_KIND_CANVAS = 16,
+        NODE_KIND_ATTRIBUTED_TEXT = 17
       };
 
       typedef unsigned short NodeTag;
@@ -191,6 +192,7 @@ namespace loka
     class CellNode;
     class StackNode;
     class TextNode;
+    class AttributedTextNode;
     class ButtonNode;
     class EditTextNode;
     class PopupMenuNode;
@@ -551,6 +553,10 @@ namespace loka
           return 0;
         }
         virtual ::loka::app::TextNode *asTextNode()
+        {
+          return 0;
+        }
+        virtual ::loka::app::AttributedTextNode *asAttributedTextNode()
         {
           return 0;
         }

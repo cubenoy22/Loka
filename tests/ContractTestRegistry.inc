@@ -723,3 +723,9 @@ LOKA_TEST(testPaintAnswerFirstWidenReasonSurvivesLaterAnswers)
 LOKA_TEST(testUnobservedCommitDoesNotDirtyBoundary)
 
 LOKA_TEST(testRailMetricsValueSemantics)
+
+LOKA_TEST(testAttributedTextMetrics)
+LOKA_TEST(testAttributedTextPropsIdentity)
+LOKA_TEST(testAttributedTextDirtySeatsAndEditorPresentation)
+LOKA_TEST(testAttributedTextInvalidProjectionRefusesAndRecovers)
+LOKA_TEST(testAttributedTextHandlerCannotBeReplaced)

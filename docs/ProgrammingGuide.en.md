@@ -913,6 +913,17 @@ invalid value. String construction keeps its own allocation contract. A default
 value is valid and empty; an invalid value is also empty, so `empty()` alone
 does not detect failure. Equal rebuilt values do not trigger State changes.
 
+Include `app/nodes/AttributedText.hpp` to display a styled value with
+`AttributedText(value)`, which owns its constant content, or
+`AttributedText(state)`, which borrows a `State<AttributedString>*` and follows
+its changes. Add wrapping or truncation with `+ BlockStyle`, for example
+`AttributedText(value) + BlockStyle().wrap(TEXT_WRAP_WORD)`.
+
+Fold character styles into the value before passing it to `AttributedText`;
+the node has no separate character-style input. An invalid value displays as
+empty and refuses projection. The native rails do not draw it yet; the Null
+rail and the headless suite do.
+
 ### `Section()` And Tagged Siblings
 
 [`Section(k)`](../common/app/nodes/nestable/BoundarySection.hpp) groups children
