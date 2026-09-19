@@ -138,6 +138,8 @@ configure_file(
   ${CMAKE_CURRENT_BINARY_DIR}/AttributedStringProbeSize.r
   COPYONLY
 )
+# HFS file names are at most 31 characters, so the Diag twin keeps its name short
+# enough for hcopy to stage the MacBinary (LokaAttributedStringProbeDiag68K is 32).
 function(loka_add_attributed_string_probe name core_target)
   set(target "${name}${LOKA_CLASSIC_TARGET_SUFFIX}")
   loka_add_toolbox_test_application(
@@ -159,7 +161,7 @@ function(loka_add_attributed_string_probe name core_target)
   set_property(TARGET ${target}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
 endfunction()
 loka_add_attributed_string_probe(LokaAttributedStringProbe LokaAppleToolboxCore)
-loka_add_attributed_string_probe(LokaAttributedStringProbeDiag LokaAppleToolboxTestCore)
+loka_add_attributed_string_probe(LokaAttrStringProbeDiag LokaAppleToolboxTestCore)
 
 set(LOKA_PAINT_DAMAGE_TARGET "LokaPaintDamage${LOKA_CLASSIC_TARGET_SUFFIX}")
 loka_add_toolbox_test_application(
