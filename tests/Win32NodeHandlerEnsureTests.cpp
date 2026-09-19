@@ -1,5 +1,7 @@
 #include "Win32NodeHandlerEnsureTests.hpp"
 #include "support/TestVerify.hpp"
+#include "support/RailTextLayoutFixture.hpp"
+#include "context/Win32TextContext.hpp"
 #include <cassert>
 #include <cstdio>
 #include <windows.h>
@@ -81,6 +83,78 @@ namespace
       LOKA_VERIFY(DestroyWindow(root));
     }
   }
+  // Native-measurement twin of the Mac pin: the shared fixture owns the
+  // composition; this rail independently checks GDI measurements and HWNDs.
+  void verifyTextColumnExtents()
+  {
+    using namespace loka::app;
+    const RailMetrics defaults = loka::win32::DefaultRailMetrics();
+    const RailMetrics metrics[] = {RailMetrics(), defaults};
+    const char *strings[] = {"First", "First\nSecond"};
+    const wchar_t *wideStrings[] = {L"First", L"First\nSecond"};
+    for (int scaleIndex = 0; scaleIndex < 2; ++scaleIndex)
+      for (int boxed = 0; boxed < 2; ++boxed)
+        for (int sample = 0; sample < 2; ++sample)
+        {
+          const loka::win32::Win32DisplayScale scale(96, metrics[scaleIndex]);
+          HWND root = CreateWindowExW(0, L"STATIC", L"text-column", WS_POPUP, 0, 0,
+                                      scale.clientLengthToNative(340).px,
+                                      scale.clientLengthToNative(250).px,
+                                      NULL, NULL, GetModuleHandleW(NULL), NULL);
+          LOKA_VERIFY(root != NULL);
+          {
+            Win32ScenePlatformController controller(root, scale);
+            RailTextLayoutFixture fixture(boxed != 0, strings[sample]);
+            controller.onChange(&fixture.column, loka::app::scene::NODE_DIRTY_NONE, false);
+            controller.relayout(0, 0);
+            RECT client;
+            LOKA_VERIFY(GetClientRect(root, &client));
+            LOKA_VERIFY(scale.clientCapacityToLu(client.bottom) == 250);
+            LOKA_VERIFY(countChildWindows(root) == (boxed ? 5 : 3));
+            Win32TextContext *page = static_cast<Win32TextContext *>(fixture.wrapped->getContext());
+            Win32TextContext *caption = static_cast<Win32TextContext *>(fixture.caption->getContext());
+            Win32ButtonContext *button = static_cast<Win32ButtonContext *>(fixture.button->getContext());
+            LOKA_VERIFY(page && caption && button);
+            HDC dc = GetDC(page->hwnd());
+            LOKA_VERIFY(dc != NULL);
+            HGDIOBJ previous = SelectObject(dc, controller.textFont(FontSize<18>()));
+            TEXTMETRICW font;
+            LOKA_VERIFY(GetTextMetricsW(dc, &font));
+            const UINT flags = DT_LEFT | DT_NOPREFIX | DT_CALCRECT | DT_WORDBREAK | DT_EDITCONTROL;
+            RECT oneLine = {0, 0, scale.nativeLength(0, 300).px, 0};
+            LOKA_VERIFY(DrawTextW(dc, L"First", -1, &oneLine, flags) > 0);
+            RECT measured = {0, 0, scale.nativeLength(0, 300).px, 0};
+            LOKA_VERIFY(DrawTextW(dc, wideStrings[sample], -1, &measured, flags) > 0);
+            SelectObject(dc, previous);
+            ReleaseDC(page->hwnd(), dc);
+            const int nativeHeight = measured.bottom - measured.top;
+            const int singleHeight = oneLine.bottom - oneLine.top;
+            LOKA_VERIFY(nativeHeight == (sample + 1) * singleHeight);
+            const int fontHeight = scale.measurementToLu(font.tmHeight + font.tmExternalLeading);
+            const int minimum = fontHeight > 20 ? fontHeight : 20;
+            const int padded = scale.measurementToLu(nativeHeight) + 8;
+            const int textHeight = padded > minimum ? padded : minimum;
+            const int captionY = boxed ? 190 : 20 + textHeight + 12;
+            const int buttonY = captionY + 20 + 12;
+            const RECT pageFrame = childRectInParent(page->hwnd(), root);
+            const RECT expectedPage = scale.projectFrame(loka::core::Frame(20, 20, 300, textHeight)).r;
+            LOKA_VERIFY(EqualRect(&pageFrame, &expectedPage));
+            LOKA_VERIFY(childRectInParent(caption->hwnd(), root).top == scale.projectEdge(captionY));
+            const RECT buttonFrame = childRectInParent(button->hwnd(), root);
+            LOKA_VERIFY(buttonFrame.top == scale.projectEdge(buttonY));
+            LOKA_VERIFY(buttonFrame.bottom == scale.projectEdge(buttonY + 32));
+            if (boxed)
+              LOKA_VERIFY(buttonY + 32 == 254);
+            std::printf("  Win32 text extent: space=%d/%d boxed=%d lines=%d nativeText=%d "
+                        "textLu=%d buttonLu=%d..%d framePx=%ld..%ld clientPx=%ld\n",
+                        metrics[scaleIndex].spaceScale.num, metrics[scaleIndex].spaceScale.den,
+                        boxed, sample + 1, nativeHeight, textHeight, buttonY, buttonY + 32,
+                        buttonFrame.top, buttonFrame.bottom, client.bottom);
+            controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
+          }
+          LOKA_VERIFY(DestroyWindow(root));
+        }
+  }
 } // namespace
 
 // Characterization for the per-cell ensure contract (#7 R1, moved out of
@@ -96,6 +170,7 @@ void testWin32NodeHandlerEnsureContract()
 {
   printf("\n==== [testWin32NodeHandlerEnsureContract] start ====\n");
   verifyFixedColumnFitsAtBothScales();
+  verifyTextColumnExtents();
   HWND root = CreateWindowExW(
       0, L"STATIC", L"ensure-host", WS_OVERLAPPED, 0, 0, 320, 240, NULL, NULL, GetModuleHandle(NULL), NULL);
   assert(root);

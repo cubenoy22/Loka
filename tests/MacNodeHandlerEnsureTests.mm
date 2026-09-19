@@ -1,5 +1,7 @@
 #include "MacNodeHandlerEnsureTests.hpp"
 #include "support/TestVerify.hpp"
+#include "support/RailTextLayoutFixture.hpp"
+#include <cmath>
 
 #include <AppKit/AppKit.h>
 #include <cstdio>
@@ -55,6 +57,80 @@ namespace
       }
       [root release];
     }
+  }
+
+  void verifyTextColumnExtents()
+  {
+    using namespace loka::app;
+    const RailMetrics defaults = loka::macos::DefaultRailMetrics();
+    // The middle leg isolates fontScale from spaceScale.
+    const RailMetrics metrics[] = {RailMetrics(), RailMetrics(defaults.fontScale, Ratio()), defaults};
+    const char *strings[] = {"First", "First\nSecond"};
+    for (int scaleIndex = 0; scaleIndex < 3; ++scaleIndex)
+      for (int boxed = 0; boxed < 2; ++boxed)
+        for (int sample = 0; sample < 2; ++sample)
+        {
+          const loka::macos::MacProjection allocation(0, metrics[scaleIndex]);
+          NSView *root = [[NSView alloc] initWithFrame:allocation.projectClientSize(340, 250).r];
+          LOKA_VERIFY(root != nil);
+          {
+            MacScenePlatformController controller(root, metrics[scaleIndex]);
+            RailTextLayoutFixture fixture(boxed != 0, strings[sample]);
+            controller.onChange(&fixture.column, loka::app::scene::NODE_DIRTY_NONE, false);
+            controller.relayout(0, 0);
+            const loka::macos::MacProjection &projection = controller.projection();
+            LOKA_VERIFY(projection.clientCapacityToLu([root bounds].size.height) == 250);
+            NSArray *views = [root subviews];
+            LOKA_VERIFY([views count] == static_cast<NSUInteger>(boxed ? 5 : 3));
+            NSView *page = [views objectAtIndex:0];
+            NSView *caption = [views objectAtIndex:1];
+            NSButton *button = (NSButton *)[views objectAtIndex:boxed ? 3 : 2];
+            LOKA_VERIFY([button isKindOfClass:[NSButton class]]);
+
+            // Reference native measurement: pin both the inverse and the lu
+            // padding, not an equality that independent font/space ratios lack.
+            NSFont *font = (NSFont *)controller.textFont(FontSize<18>());
+            NSTextFieldCell *cell = [[NSTextFieldCell alloc] initTextCell:@"First"];
+            [cell setFont:font];
+            [cell setWraps:YES];
+            [cell setScrollable:NO];
+            [cell setLineBreakMode:NSLineBreakByWordWrapping];
+            const NSRect bounds = NSMakeRect(0, 0, projection.projectLength(0, 300).pt, 10000);
+            const CGFloat oneLine = [cell cellSizeForBounds:bounds].height;
+            [cell setStringValue:[NSString stringWithUTF8String:strings[sample]]];
+            const CGFloat nativeHeight = [cell cellSizeForBounds:bounds].height;
+            [cell release];
+            // Short words cannot soft-wrap at 300 lu; the newline is the only
+            // line break. NSCell's fixed padding can keep the ratio below two.
+            const int lines = static_cast<int>(std::floor(nativeHeight / oneLine + 0.5));
+            LOKA_VERIFY(lines == sample + 1);
+            const int fontHeight = projection.measurementToLu(
+                [font ascender] + std::fabs([font descender]) + [font leading]);
+            const int minimum = fontHeight > 20 ? fontHeight : 20;
+            const int measured = projection.measurementToLu(nativeHeight) + 2;
+            const int textHeight = measured > minimum ? measured : minimum;
+            const int captionY = boxed ? 190 : 20 + textHeight + 12;
+            const int buttonY = captionY + 20 + 12;
+            LOKA_VERIFY(NSEqualRects([page frame], projection.projectFrame(
+                loka::core::Frame(20, 20, 300, textHeight)).r));
+            LOKA_VERIFY([caption frame].origin.y == projection.projectEdge(captionY).pt);
+            LOKA_VERIFY(NSMinY([button frame]) == projection.projectEdge(buttonY).pt);
+            LOKA_VERIFY(NSMaxY([button frame]) == projection.projectEdge(buttonY + 32).pt);
+            // The actual Scrapbook fixed Box prevents measured text changes
+            // reaching the caption/buttons, for either one or two native lines.
+            if (boxed)
+              LOKA_VERIFY(buttonY + 32 == 254);
+            std::printf("  Mac text extent: font=%d/%d space=%d/%d boxed=%d lines=%d "
+                        "nativeText=%.2f textLu=%d buttonLu=%d..%d framePt=%.2f..%.2f clientPt=%.2f\n",
+                        metrics[scaleIndex].fontScale.num, metrics[scaleIndex].fontScale.den,
+                        metrics[scaleIndex].spaceScale.num, metrics[scaleIndex].spaceScale.den,
+                        boxed, lines, static_cast<double>(nativeHeight), textHeight, buttonY, buttonY + 32,
+                        static_cast<double>(NSMinY([button frame])), static_cast<double>(NSMaxY([button frame])),
+                        static_cast<double>([root bounds].size.height));
+            controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
+          }
+          [root release];
+        }
   }
 
   int gReentrantCreates = 0;
@@ -142,6 +218,7 @@ void testMacNodeHandlerEnsureContract()
   NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
   [NSApplication sharedApplication];
   verifyFixedColumnFitsAtBothScales();
+  verifyTextColumnExtents();
   NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 240)];
   LOKA_VERIFY(root != nil);
   {
