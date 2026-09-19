@@ -57,7 +57,7 @@ void testWin32RectSurfaceTicksRepaintOnlySurface()
   const LONG_PTR original = SetWindowLongPtrW(root, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&countHostPaint));
   LOKA_VERIFY(original != 0);
   {
-    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
     loka::core::PushStateTracker tracker;
     loka::core::MutableState<loka::app::RectSurfaceModel> model((loka::app::RectSurfaceModel()));
     tracker.addState(&model);
@@ -121,7 +121,7 @@ exercisePaintOnlyChangeUnderScrollView(bool refused, bool clearSurface = true, b
   admission.flush();
   HWND rootHwnd = window.hwnd();
   LOKA_VERIFY(rootHwnd != NULL);
-  Win32ScenePlatformController controller(rootHwnd, loka::win32::Win32DisplayScale(96));
+  Win32ScenePlatformController controller(rootHwnd, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
   RegisterWin32BuiltInSupport(controller);
 
   // RectSurface's palette is white ground and black sprites. Start with two
@@ -281,7 +281,7 @@ void testWin32PaintAnswerContracts()
       0, L"STATIC", L"paint-answer-contracts", WS_OVERLAPPED, 0, 0, 320, 240, NULL, NULL, GetModuleHandleW(NULL), NULL);
   LOKA_VERIFY(root != NULL);
   {
-    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
     loka::core::PushStateTracker tracker;
     loka::core::MutableState<RectSurfaceModel> model((RectSurfaceModel()));
     loka::core::MutableState<loka::core::String> label(loka::core::String::Literal("before"));
@@ -397,7 +397,7 @@ void testWin32EditTextPaintDelivery()
       0, L"STATIC", L"edit-delivery", WS_OVERLAPPED, 0, 0, 320, 240, NULL, NULL, GetModuleHandleW(NULL), NULL);
   LOKA_VERIFY(root != NULL);
   {
-    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
     loka::core::PushStateTracker tracker;
     loka::core::MutableState<loka::core::String> value(loka::core::String::Literal("before"));
     loka::core::MutableState<loka::core::String> replacement(loka::core::String::Literal("foreign"));
@@ -450,7 +450,7 @@ void testWin32PopupMenuPaintDelivery()
       0, L"STATIC", L"popup-delivery", WS_OVERLAPPED, 0, 0, 320, 240, NULL, NULL, GetModuleHandleW(NULL), NULL);
   LOKA_VERIFY(root != NULL);
   {
-    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
     loka::core::PushStateTracker tracker;
     loka::core::MutableState<int> selection(0);
     loka::core::MutableState<int> replacement(1);
@@ -534,7 +534,7 @@ void testWin32ZStackTextShowsSiblingBeneath()
   LOKA_VERIFY(root != NULL);
   ShowWindow(root, SW_HIDE);
   {
-    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
     loka::app::RectSurfaceModel initial;
     initial.rectCount = 1;
     initial.rects[0] = loka::app::RectSprite(0, 40, 160, 40);

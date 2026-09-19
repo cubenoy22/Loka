@@ -6,12 +6,57 @@
 
 #include "MacScenePlatformController.hpp"
 #include "app/nodes/Text.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
+#include "app/layout/FallbackControlMetrics.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/ScrollBar.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 
 namespace
 {
+  void verifyFixedColumnFitsAtBothScales()
+  {
+    using namespace loka::app;
+    const int count = 3;
+    const int height = 40 + count * layout::FallbackControlMetrics::kButtonHeight
+                       + (count - 1) * layout::FallbackControlMetrics::kVerticalSpacing;
+    const RailMetrics metrics[] = {RailMetrics(), loka::macos::DefaultRailMetrics()};
+    for (int scaleIndex = 0; scaleIndex < 2; ++scaleIndex)
+    {
+      const loka::macos::MacProjection allocation(0, metrics[scaleIndex]);
+      NSView *root = [[NSView alloc] initWithFrame:allocation.projectClientSize(257, height).r];
+      LOKA_VERIFY(root != nil);
+      {
+        MacScenePlatformController controller((void *)root, metrics[scaleIndex]);
+        LOKA_VERIFY(controller.projection().clientCapacityToLu([root bounds].size.width) == 257);
+        LOKA_VERIFY(controller.projection().clientCapacityToLu([root bounds].size.height) == height);
+        if (scaleIndex == 1)
+        {
+          LOKA_VERIFY(controller.projection().projectEdge(8).pt == 10);
+          LOKA_VERIFY(controller.projection().capacityToLu(301) == 240);
+        }
+        StackNode column((StackProps(STACK_AXIS_COLUMN)));
+        for (int i = 0; i < count; ++i)
+          column.addChild(new ButtonNode(ButtonProps()));
+        controller.onChange(&column, loka::app::scene::NODE_DIRTY_NONE, false);
+        controller.relayout(0, 0);
+        NSArray *children = [root subviews];
+        LOKA_VERIFY([children count] == static_cast<NSUInteger>(count));
+        CGFloat bottom = 0;
+        for (NSUInteger i = 0; i < [children count]; ++i)
+        {
+          const NSRect frame = [[children objectAtIndex:i] frame];
+          if (NSMaxY(frame) > bottom)
+            bottom = NSMaxY(frame);
+        }
+        LOKA_VERIFY(bottom == controller.projection().projectEdge(height - 20).pt);
+        LOKA_VERIFY(bottom <= [root bounds].size.height);
+        controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
+      }
+      [root release];
+    }
+  }
+
   int gReentrantCreates = 0;
   int gReentrantAttachReads = 0;
   int gReentrantAfterAttaches = 0;
@@ -96,10 +141,11 @@ void testMacNodeHandlerEnsureContract()
   std::printf("\n==== [testMacNodeHandlerEnsureContract] start ====\n");
   NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
   [NSApplication sharedApplication];
+  verifyFixedColumnFitsAtBothScales();
   NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 240)];
   LOKA_VERIFY(root != nil);
   {
-    MacScenePlatformController controller((void *)root);
+    MacScenePlatformController controller((void *)root, loka::app::RailMetrics());
 
     // -- Button: full contract through the root view's child census --
     loka::app::ButtonProps buttonProps;

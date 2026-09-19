@@ -55,6 +55,9 @@ namespace loka
       int measurementToLu(CGFloat pt) const;
       int intrinsicPixelsToLu(int pixels) const;
       MacRect projectFrame(const core::Frame &lu) const;
+      /** Allocate client capacity outward so the floor inverse preserves the
+          declared lu size. Child frames still use nearest absolute edges. */
+      MacRect projectClientSize(int widthLu, int heightLu) const;
       MacRect damageToNative(const core::Frame &lu) const;
       MacEdge scrollOffsetToNative(int lu) const;
       int scrollPositionToLu(CGFloat pt) const;

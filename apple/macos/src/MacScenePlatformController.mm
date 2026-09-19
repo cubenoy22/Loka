@@ -145,8 +145,8 @@ void *MacScenePlatformController::textFont(const loka::app::TextStyle &style) co
   return this->textFonts_.find(style);
 }
 
-MacScenePlatformController::MacScenePlatformController(void *rootView)
-    : projection_(rootView, loka::macos::DefaultRailMetrics()),
+MacScenePlatformController::MacScenePlatformController(void *rootView, const loka::app::RailMetrics &metrics)
+    : projection_(rootView, metrics),
       textFonts_(this->projection_.railMetrics().fontScale),
       rootView_(rootView),
       projectionParentScopes_(rootView),

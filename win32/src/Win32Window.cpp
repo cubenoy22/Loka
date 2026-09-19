@@ -214,8 +214,8 @@ bool Win32Window::applyNativeContentFrame(const loka::core::Frame &frame)
   const DWORD exStyle = static_cast<DWORD>(GetWindowLongPtrW(this->hwnd_, GWL_EXSTYLE));
   const loka::win32::Win32DisplayScale scale =
       WindowProjection(this->hwnd_);
-  if (!CalculateOuterSizeForClient(scale.nativeLength(0, frame.width),
-                                   scale.nativeLength(0, frame.height),
+  if (!CalculateOuterSizeForClient(scale.clientLengthToNative(frame.width),
+                                   scale.clientLengthToNative(frame.height),
                                    style,
                                    exStyle,
                                    GetMenu(this->hwnd_) ? TRUE : FALSE,
@@ -257,8 +257,8 @@ bool Win32Window::detachMenuForTeardown(HMENU expectedMenu)
       WindowProjection(this->hwnd_);
   int outerWidth = 0;
   int outerHeight = 0;
-  if (!CalculateOuterSizeForClient(scale.nativeLength(0, contentFrame.width),
-                                   scale.nativeLength(0, contentFrame.height),
+  if (!CalculateOuterSizeForClient(scale.clientLengthToNative(contentFrame.width),
+                                   scale.clientLengthToNative(contentFrame.height),
                                    style,
                                    exStyle,
                                    FALSE,
@@ -519,8 +519,8 @@ void Win32Window::createNativeWindow()
       WindowProjection(NULL);
   int outerWidth = 0;
   int outerHeight = 0;
-  if (!CalculateOuterSizeForClient(initialScale.nativeLength(0, clientWidth),
-                                   initialScale.nativeLength(0, clientHeight),
+  if (!CalculateOuterSizeForClient(initialScale.clientLengthToNative(clientWidth),
+                                   initialScale.clientLengthToNative(clientHeight),
                                    kWindowStyle,
                                    kWindowExStyle,
                                    FALSE,

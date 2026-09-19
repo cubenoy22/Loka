@@ -28,7 +28,7 @@ void testWin32RailMetricsProjection()
   LOKA_VERIFY(candidate.displayScale().capacityToLu(301) == 240);
   LOGFONTW explicitFont;
   LOKA_VERIFY(GetObjectW(candidate.textFont(FontSize<24>()), sizeof(explicitFont), &explicitFont));
-  LOKA_VERIFY(explicitFont.lfHeight == -MulDiv(24, 96, 72));
+  LOKA_VERIFY(explicitFont.lfHeight == -MulDiv(24, 96, 96));
   // Space scaling must not change the default row used by fixed controls.
   loka::win32::Win32DisplayFont unitFonts;
   LOKA_VERIFY(unitFonts.create(Win32DisplayScale(96)));
@@ -193,7 +193,7 @@ namespace
     if (mode)
     {
       // Exercise the actual controller ingress, even without a root node.
-      Win32ScenePlatformController controller(static_cast<HWND>(0), loka::win32::Win32DisplayScale(96));
+      Win32ScenePlatformController controller(static_cast<HWND>(0), loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
       controller.relayoutNativeClientPixels(mode[0] == 'o' ? SHRT_MAX + 1 : SHRT_MAX, 1);
       ExitProcess(0);
     }

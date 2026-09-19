@@ -226,6 +226,14 @@ namespace loka
       return DirectedRatio(px, denominator, numerator, false);
     }
 
+    NativeLength Win32DisplayScale::clientLengthToNative(int lu) const
+    {
+      int numerator = 0, denominator = 0;
+      if (!this->spaceFactors(numerator, denominator))
+        return NativeLength(-1);
+      return NativeLength(DirectedRatio(lu, numerator, denominator, true));
+    }
+
     int Win32DisplayScale::measurementToLu(int px) const
     {
       int numerator = 0, denominator = 0;

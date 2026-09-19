@@ -89,7 +89,7 @@ public:
     int resultY;
   };
 
-  explicit MacScenePlatformController(void *rootView);
+  MacScenePlatformController(void *rootView, const loka::app::RailMetrics &metrics);
   virtual ~MacScenePlatformController();
 
   virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild);

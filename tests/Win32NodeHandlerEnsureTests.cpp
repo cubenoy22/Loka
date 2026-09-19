@@ -6,6 +6,7 @@
 #include "Win32BuiltInSupport.hpp"
 #include "Win32ScenePlatformController.hpp"
 #include "app/nodes/Text.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
 #include "core/StateTracker.hpp"
 #include "core/util/StateTrackerGuard.hpp"
@@ -39,6 +40,47 @@ namespace
     RECT out = {tl.x, tl.y, br.x, br.y};
     return out;
   }
+  void verifyFixedColumnFitsAtBothScales()
+  {
+    using namespace loka::app;
+    const int count = 3;
+    const int height = 40 + count * layout::FallbackControlMetrics::kButtonHeight
+                       + (count - 1) * layout::FallbackControlMetrics::kVerticalSpacing;
+    const RailMetrics metrics[] = {RailMetrics(), loka::win32::DefaultRailMetrics()};
+    for (int scaleIndex = 0; scaleIndex < 2; ++scaleIndex)
+    {
+      const loka::win32::Win32DisplayScale scale(96, metrics[scaleIndex]);
+      HWND root = CreateWindowExW(0, L"STATIC", L"column-fit", WS_POPUP, 0, 0,
+                                  scale.clientLengthToNative(257).px,
+                                  scale.clientLengthToNative(height).px,
+                                  NULL, NULL, GetModuleHandle(NULL), NULL);
+      LOKA_VERIFY(root != NULL);
+      {
+        Win32ScenePlatformController controller(root, scale);
+        RECT client;
+        LOKA_VERIFY(GetClientRect(root, &client));
+        LOKA_VERIFY(scale.clientCapacityToLu(client.right) == 257);
+        LOKA_VERIFY(scale.clientCapacityToLu(client.bottom) == height);
+        StackNode column((StackProps(STACK_AXIS_COLUMN)));
+        ButtonNode *last = 0;
+        for (int i = 0; i < count; ++i)
+        {
+          last = new ButtonNode(ButtonProps());
+          column.addChild(last);
+        }
+        controller.onChange(&column, loka::app::scene::NODE_DIRTY_NONE, false);
+        controller.relayoutNativeClientPixels(client.right, client.bottom);
+        LOKA_VERIFY(countChildWindows(root) == count);
+        Win32ButtonContext *context = static_cast<Win32ButtonContext *>(last->getContext());
+        LOKA_VERIFY(context != 0);
+        const RECT frame = childRectInParent(context->hwnd(), root);
+        LOKA_VERIFY(frame.bottom == scale.projectEdge(height - 20));
+        LOKA_VERIFY(frame.bottom <= client.bottom);
+        controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
+      }
+      LOKA_VERIFY(DestroyWindow(root));
+    }
+  }
 } // namespace
 
 // Characterization for the per-cell ensure contract (#7 R1, moved out of
@@ -53,11 +95,12 @@ namespace
 void testWin32NodeHandlerEnsureContract()
 {
   printf("\n==== [testWin32NodeHandlerEnsureContract] start ====\n");
+  verifyFixedColumnFitsAtBothScales();
   HWND root = CreateWindowExW(
       0, L"STATIC", L"ensure-host", WS_OVERLAPPED, 0, 0, 320, 240, NULL, NULL, GetModuleHandle(NULL), NULL);
   assert(root);
   {
-    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
     RegisterWin32BuiltInSupport(controller);
 
     // -- Button: full contract via the hwnd accessor --
@@ -87,7 +130,7 @@ void testWin32NodeHandlerEnsureContract()
     state.height = 40;
     LOKA_VERIFY(controller.prepareProjectedLayout(&button, state));
     LOKA_VERIFY(button.getContext() == ctx && "re-ensure must reuse the existing context, not recreate it");
-    assert(countChildWindows(root) == childrenAfterFirstEnsure &&
+    LOKA_VERIFY(countChildWindows(root) == childrenAfterFirstEnsure &&
            "re-ensure must not materialize another native window");
     r = childRectInParent(ctx->hwnd(), root);
     assert(r.left == 40 && r.top == 50 && r.right - r.left == 120 && r.bottom - r.top == 40 &&
@@ -134,7 +177,7 @@ void testWin32NodeHandlerEnsureContract()
     assert(childrenWithText == childrenAfterFirstEnsure + 1);
     LOKA_VERIFY(controller.prepareProjectedLayout(&text, state));
     LOKA_VERIFY(text.getContext() == textCtx);
-    assert(countChildWindows(root) == childrenWithText);
+    LOKA_VERIFY(countChildWindows(root) == childrenWithText);
 
     // -- ScrollBar: Win32 has no native context for it; the registered
     // refusal stub must answer (false, no context) without tripping the
@@ -150,7 +193,7 @@ void testWin32NodeHandlerEnsureContract()
     LOKA_VERIFY(!controller.prepareProjectedLayout(&scrollBar, state) &&
            "an unsupported kind must refuse, not project");
     LOKA_VERIFY(!scrollBar.getContext());
-    assert(countChildWindows(root) == childrenWithText &&
+    LOKA_VERIFY(countChildWindows(root) == childrenWithText &&
            "a refusal must not materialize a native window");
 
     printf("  button ctx=%p reused, children stable at %d; text ctx reused; scrollbar refused\n",
@@ -207,7 +250,7 @@ void testWin32TextFontTable()
                               0, 0, 320, 240, NULL, NULL, GetModuleHandleW(NULL), NULL);
   LOKA_VERIFY(root);
   {
-    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
     RegisterWin32BuiltInSupport(controller);
     TextProps plainProps("Font table sample text with enough words to wrap over several lines.");
     TextNode plain(plainProps);
@@ -299,7 +342,7 @@ void testWin32TextFontTable()
     LOKA_VERIFY(descriptor.lfItalic != 0);
   }
   {
-    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(144));
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(144, loka::app::RailMetrics()));
     RegisterWin32BuiltInSupport(controller);
     TextProps props("Admission at 150 percent");
     props.textStyle_ = FontSize<24>();

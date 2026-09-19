@@ -4,6 +4,7 @@
 #include <AppKit/AppKit.h>
 
 #include "MacWindow.hpp"
+#include "MacScenePlatformController.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "testing/MacWindowTestAccess.hpp"
 
@@ -33,10 +34,12 @@ namespace
       top = screenFrame.origin.y + screenFrame.size.height
             - [[NSStatusBar systemStatusBar] thickness];
     }
+    const loka::macos::MacProjection projection(
+        NativeAccess::contentView(window), loka::macos::DefaultRailMetrics());
     const loka::core::Frame actual(static_cast<int>(content.origin.x),
                                    static_cast<int>(top - (content.origin.y + content.size.height)),
-                                   static_cast<int>(content.size.width),
-                                   static_cast<int>(content.size.height));
+                                   projection.clientCapacityToLu(content.size.width),
+                                   projection.clientCapacityToLu(content.size.height));
     LOKA_VERIFY(window.nativeFrame().get() == actual);
   }
 }
@@ -59,7 +62,10 @@ void testMacWindowDeclaredFrameStaysInsideVisibleFrame()
     // Like the admission sibling's initial seed, construction enters the
     // visibility path and makeKeyAndOrderFront: synchronously.
     MacWindow window(&context, props);
-    verifyPlacedFrame(window, NSMakeSize(257, 163));
+    verifyPlacedFrame(window, loka::macos::MacProjection(
+        NativeAccess::contentView(window), loka::macos::DefaultRailMetrics()).projectClientSize(257, 163).r.size);
+    LOKA_VERIFY(window.nativeFrame().get().width == 257);
+    LOKA_VERIFY(window.nativeFrame().get().height == 163);
 
     const loka::core::Frame first = window.nativeFrame().get();
     {
@@ -69,7 +75,10 @@ void testMacWindowDeclaredFrameStaysInsideVisibleFrame()
       window.frameState().set(loka::core::Frame(
           static_cast<int>(NSMaxX(visible)) + 100, 40, 257, 163));
     }
-    verifyPlacedFrame(window, NSMakeSize(257, 163));
+    verifyPlacedFrame(window, loka::macos::MacProjection(
+        NativeAccess::contentView(window), loka::macos::DefaultRailMetrics()).projectClientSize(257, 163).r.size);
+    LOKA_VERIFY(window.nativeFrame().get().width == 257);
+    LOKA_VERIFY(window.nativeFrame().get().height == 163);
     LOKA_VERIFY(window.nativeFrame().get() != first);
   }
   {

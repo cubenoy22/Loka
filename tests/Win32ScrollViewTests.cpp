@@ -240,7 +240,7 @@ void testWin32ScrollViewParentsAndClipsProjectedChildren()
   HWND root = createHostWindow();
   LOKA_VERIFY(root);
   {
-    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
     RegisterWin32BuiltInSupport(controller);
     // Nodes are declared after the controller so they leave scope first:
     // ~Node is the last retire door, and the controller must still be alive
@@ -330,7 +330,7 @@ void testWin32ScrollViewOffsetIsRelayoutInput()
   HWND root = createHostWindow();
   LOKA_VERIFY(root);
   {
-    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
     RegisterWin32BuiltInSupport(controller);
     // Nodes after the controller: see the parents-and-clips pin.
     OffsetFact offset(0);
@@ -370,7 +370,7 @@ void testWin32ScrollViewMessagePublishesOffsetFact()
   HWND root = createHostWindow();
   LOKA_VERIFY(root);
   {
-    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
     RegisterWin32BuiltInSupport(controller);
     // Nodes after the controller: see the parents-and-clips pin.
     loka::core::EmitterState firstClick;
@@ -452,7 +452,7 @@ void testWin32ScrollViewWheelStepsOffsetThroughLinePath()
   HWND root = window.hwnd();
   LOKA_VERIFY(root);
   {
-    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
     RegisterWin32BuiltInSupport(controller);
     // Nodes after the controller: see the parents-and-clips pin.
     OffsetFact offset(0);
@@ -553,7 +553,7 @@ void testWin32ScrollViewResizeReclampsOffsetOnce()
   HWND root = createHostWindow();
   LOKA_VERIFY(root);
   {
-    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
     RegisterWin32BuiltInSupport(controller);
     // Nodes after the controller: see the parents-and-clips pin.
     OffsetFact offset(100);
@@ -618,7 +618,7 @@ void testWin32NestedScrollViewRefusesWithoutDisturbingOuterScope()
   HWND root = createHostWindow();
   LOKA_VERIFY(root);
   {
-    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96));
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
     RegisterWin32BuiltInSupport(controller);
     // Nodes after the controller: see the parents-and-clips pin.
     OffsetFact outerOffset(5);
