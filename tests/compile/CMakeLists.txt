@@ -215,3 +215,13 @@ loka_compile_pin(style-families-do-not-cross-merge
   REFUSES pins/refuses_cross_family_style_merge.cpp
   ACCEPTS pins/accepts_same_family_style_merge.cpp
 )
+
+loka_compile_pin(attributed-block-style
+  REFUSES pins/refuses_attributed_block_style.cpp
+  ACCEPTS pins/accepts_attributed_block_style.cpp
+)
+
+loka_compile_pin(attributed-string-conversion
+  REFUSES pins/refuses_attributed_string_conversion.cpp
+  ACCEPTS pins/accepts_attributed_string_conversion.cpp
+)
