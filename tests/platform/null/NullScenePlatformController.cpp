@@ -1,4 +1,5 @@
 #include "platform/null/NullScenePlatformController.hpp"
+#include "platform/null/context/NullAttributedTextContext.hpp"
 
 #include <cassert>
 #include "app/scene/projection/PaintEnumeration.hpp"
@@ -132,6 +133,7 @@ NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepth
   RegisterNullEditTextNodeHandler(*this);
   RegisterNullScrollBarNodeHandler(*this);
   RegisterNullTextNodeHandler(*this);
+  RegisterNullAttributedTextNodeHandler(*this);
   RegisterNullRectSurfaceNodeHandler(*this);
   this->refusedProjectedNodeHandlers_.registerWith(*this);
 }
@@ -196,7 +198,7 @@ namespace
   enum NullPaintRole
   {
     NULL_PAINT_SKIP,
-    NULL_PAINT_OWNED_DRAWER,   // RectSurface / Text: contexts the rail itself installs (registration refuses replacement)
+    NULL_PAINT_OWNED_DRAWER,   // RectSurface / Text / AttributedText: contexts the rail itself installs (registration refuses replacement)
     NULL_PAINT_NATIVE_CONTROL, // Button / EditText / ScrollBar: native ownership, answered by kind, context never cast
     NULL_PAINT_FOREIGN,        // ImageView / Cell / PopupMenu: refused by default, any installed context is foreign
     NULL_PAINT_UNSUPPORTED
@@ -208,6 +210,7 @@ namespace
     switch (node->kind())
     {
     case NODE_KIND_RECT_SURFACE:
+    case NODE_KIND_ATTRIBUTED_TEXT:
     case NODE_KIND_TEXT:
       return NULL_PAINT_OWNED_DRAWER;
     case NODE_KIND_BUTTON:
@@ -244,7 +247,7 @@ bool NullScenePlatformController::queryPaintAnswer(loka::app::scene::Node *node,
     return false;
   case NULL_PAINT_OWNED_DRAWER:
     // Safe by the rail's installation contract: registerNodeHandler refuses
-    // foreign handlers for Text and RectSurface. Common never casts contexts.
+    // foreign handlers for Text, AttributedText and RectSurface. Common never casts contexts.
     answer = context ? static_cast<NativeNodeContext *>(context)->queryPaintDamage(query)
                      : PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
     break;
@@ -292,6 +295,14 @@ public:
         committed = static_cast<NullTextContext *>(context)->commitPresented(value, this->controller_.paintScope());
       }
     }
+    else if (loka::app::AttributedTextNode *attributedText = node->asAttributedTextNode())
+    {
+      if (attributedText->props.text_)
+      {
+        const loka::app::AttributedString value = attributedText->props.text_->get();
+        committed = static_cast<NullAttributedTextContext *>(context)->commitPresented(value, this->controller_.paintScope());
+      }
+    }
     if (committed)
       this->controller_.onPaintCommitted();
   }
@@ -309,6 +320,8 @@ public:
       return;
     if (node->asRectSurfaceNode())
       static_cast<NullRectSurfaceContext *>(context)->invalidatePresentation();
+    else if (node->asAttributedTextNode())
+      static_cast<NullAttributedTextContext *>(context)->invalidatePresentation();
     else if (node->asTextNode())
       static_cast<NullTextContext *>(context)->invalidatePresentation();
   }
@@ -416,13 +429,14 @@ bool NullScenePlatformController::prepareProjectedLayout(loka::app::scene::Node 
 
 bool NullScenePlatformController::registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler)
 {
-  // Always-on refusal, not a comment-only contract: RectSurface and Text contexts
+  // Always-on refusal, not a comment-only contract: RectSurface, Text and AttributedText contexts
   // are addressed by their concrete Null type in the presenter's completion and
   // invalidation walks, so no foreign handler may install a different context
   // for those kinds. Every other kind may be replaced; the paint walk never
   // casts a context it did not install (see paintRole).
   if (handler
       && ((handler->nodeTypeKey() == NullTextNodeHandlerKey() && !IsNullTextNodeHandler(handler))
+          || (handler->nodeTypeKey() == NullAttributedTextNodeHandlerKey() && !IsNullAttributedTextNodeHandler(handler))
           || (handler->nodeTypeKey() == NullRectSurfaceNodeHandlerKey() && !IsNullRectSurfaceNodeHandler(handler))))
   {
     return false;

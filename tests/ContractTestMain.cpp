@@ -90,6 +90,7 @@
 #include "NullTextLayoutTests.hpp"
 #include "StyleTests.hpp"
 #include "AttributedStringTests.hpp"
+#include "AttributedTextTests.hpp"
 #include "RectSurfaceSeatExtentTests.hpp"
 #include "NullPlatformContractTests.hpp"
 #include "OpenFileDialogTransportTests.hpp"

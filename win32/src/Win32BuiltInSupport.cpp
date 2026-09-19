@@ -1,4 +1,5 @@
 #include "Win32BuiltInSupport.hpp"
+#include "app/nodes/AttributedText.hpp"
 #include "Win32ScenePlatformController.hpp"
 #include "app/nodes/nestable/Grid.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
@@ -24,6 +25,8 @@
 
 namespace
 {
+  loka::app::scene::RefusedNodeHandler gRefusedWin32AttributedText(
+      loka::app::scene::NodeTypeToken<loka::app::AttributedTextNode>());
   // Win32 has no ScrollBar context yet: a known unsupported kind must take
   // the typed-refusal path, not trip the accidental-miss assert. ScrollView
   // is a controller-owned projection-parent arm and does not use this leaf
@@ -58,6 +61,7 @@ void RegisterWin32BuiltInSupport(Win32ScenePlatformController &controller)
       &Win32ScenePlatformController::DispatchProjectedLayout);
   RegisterWin32ButtonNodeHandler(controller.nodeHandlerRegistry_);
   RegisterWin32TextNodeHandler(controller.nodeHandlerRegistry_);
+  controller.nodeHandlerRegistry_.registerHandler(&gRefusedWin32AttributedText);
   RegisterWin32ImageViewNodeHandler(controller.nodeHandlerRegistry_);
   RegisterWin32EditTextNodeHandler(controller.nodeHandlerRegistry_);
   RegisterWin32PopupMenuNodeHandler(controller.nodeHandlerRegistry_);
