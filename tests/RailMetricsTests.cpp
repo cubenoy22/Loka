@@ -23,7 +23,11 @@ void testRailMetricsValueSemantics()
   LOKA_VERIFY(copy != defaults);
   LOKA_VERIFY(RailMetrics(Ratio(5, 4), Ratio()) != defaults);
   LOKA_VERIFY(RailMetrics(Ratio(), Ratio(3, 2)) != defaults);
-  LOKA_VERIFY(Ratio(3, 2) != Ratio(3, 4));
+  LOKA_VERIFY(Ratio(3, 2) != Ratio(4, 2));
+  // Rails only scale up: a ratio below one is not a valid RailMetrics value.
+  LOKA_VERIFY(!Ratio(3, 4).valid());
+  LOKA_VERIFY(!Ratio(1, 4).valid());
+  LOKA_VERIFY(Ratio(1, 1).valid() && Ratio(5, 4).valid());
   copy = defaults;
   LOKA_VERIFY(copy == defaults);
   LOKA_VERIFY(scaled.spaceScale == Ratio(3, 2));
@@ -43,15 +47,19 @@ void testRailMetricsValueSemantics()
 #ifdef NDEBUG
   LOKA_VERIFY(!Ratio(1, 0).valid());
   LOKA_VERIFY(!Ratio(1, -1).valid());
+  LOKA_VERIFY(RailMetrics(Ratio(), Ratio(3, 4)).spaceScale.isUnit()); // refused to unit in release
 #elif defined(__linux__) && !defined(__SANITIZE_ADDRESS__)
-  const int denominators[] = {0, -1};
-  for (unsigned int i = 0; i < sizeof(denominators) / sizeof(denominators[0]); ++i)
+  // Construction of a Ratio never aborts; RailMetrics refuses an invalid
+  // ratio (den <= 0, or below one) with an assert in debug and the unit
+  // ratio in every build.
+  const Ratio refusedRatios[] = {Ratio(1, 0), Ratio(1, -1), Ratio(3, 4)};
+  for (unsigned int i = 0; i < sizeof(refusedRatios) / sizeof(refusedRatios[0]); ++i)
   {
     const pid_t child = fork();
     LOKA_VERIFY(child >= 0);
     if (child == 0)
     {
-      const Ratio refused(1, denominators[i]);
+      const RailMetrics refused(Ratio(), refusedRatios[i]);
       (void)refused;
       _exit(0);
     }

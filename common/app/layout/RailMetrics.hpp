@@ -7,9 +7,11 @@ namespace loka
 {
   namespace app
   {
-    /** Positive integer ratio. Equality compares the stored pair, without
-        normalization. Invalid construction is a contract violation; valid()
-        also permits validation when assertions are disabled. */
+    /** Integer ratio of at least one: rails only scale logical units up
+        (#818), so num >= den > 0 is the whole contract. Equality compares the
+        stored pair without normalization. Construction does not assert so a
+        refused value can be inspected; RailMetrics refuses invalid ratios by
+        falling back to the unit ratio in every build (assert in debug). */
     struct Ratio
     {
       int num;
@@ -18,10 +20,9 @@ namespace loka
       Ratio(int numerator = 1, int denominator = 1)
           : num(numerator), den(denominator)
       {
-        assert(this->valid());
       }
 
-      bool valid() const { return this->num > 0 && this->den > 0; }
+      bool valid() const { return this->den > 0 && this->num >= this->den; }
       bool isUnit() const { return this->valid() && this->num == this->den; }
       bool operator==(const Ratio &rhs) const
       {
@@ -40,8 +41,9 @@ namespace loka
       Ratio spaceScale;
 
       RailMetrics(const Ratio &font = Ratio(), const Ratio &space = Ratio())
-          : fontScale(font), spaceScale(space)
+          : fontScale(font.valid() ? font : Ratio()), spaceScale(space.valid() ? space : Ratio())
       {
+        assert(font.valid() && space.valid() && "RailMetrics ratios must be >= 1; refused to the unit ratio");
       }
 
       bool operator==(const RailMetrics &rhs) const

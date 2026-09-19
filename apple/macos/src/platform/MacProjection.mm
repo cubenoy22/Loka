@@ -18,7 +18,8 @@ namespace loka
     MacProjection::MacProjection(void *rootView, const app::RailMetrics &metrics)
         : rootView_(rootView), metrics_(metrics)
     {
-      assert(metrics.spaceScale.valid() && metrics.spaceScale.num >= metrics.spaceScale.den);
+      // RailMetrics already refuses ratios below one (falls back to unit).
+      assert(metrics.spaceScale.valid());
     }
 
     double MacProjection::spaceScale() const
