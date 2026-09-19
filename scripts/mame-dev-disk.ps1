@@ -70,6 +70,18 @@ if (-not $env:MAME_HDA -or -not (Test-Path -LiteralPath $env:MAME_HDA)) {
 }
 
 $binaryPaths = @($MacBinaryPath)
+# Keep the batch selection aligned with mame-dev-disk.sh.
+if ($MacBinaryPath -in @("--all-loops", "--all-flows")) {
+    if ($PlainDataPaths.Count) { throw "$MacBinaryPath does not accept additional files" }
+    $family = if ($MacBinaryPath -eq "--all-loops") { "Loop" } else { "Flow" }
+    $batchRoot = Join-Path $ProjectDirectory "build/retro68/68k/Standalone/Release/tests/toolbox"
+    $binaryPaths = @(
+        foreach ($app in @("Scrapbook", "Hello", "Tutorial", "Mine", "Floppy")) {
+            Join-Path $batchRoot "Loka${app}Standalone${family}68K.bin"
+        }
+    )
+    $PlainDataPaths = @((Join-Path $batchRoot "ASSETS.LRP"))
+}
 if ($MacBinaryPath -eq "--all") {
     if ($PlainDataPaths.Count) { throw "--all does not accept additional files" }
     $binaryPaths = @(

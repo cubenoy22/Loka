@@ -1313,6 +1313,8 @@
       "description": "Select the Retro68 standalone or scenario loop to build and copy to the SCSI development disk",
       "default": "HelloWorldScenarioLoop",
       "options": [
+        {"label": "All Loops", "value": "AllStandaloneLoops"},
+        {"label": "All Flows", "value": "AllStandaloneFlows"},
         "ScrapbookStandaloneLoop",
         "HelloWorldStandaloneLoop",
         "TutorialStandaloneLoop",

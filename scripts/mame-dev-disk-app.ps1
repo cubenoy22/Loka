@@ -12,6 +12,25 @@ $preset = "retro68-68k-release"
 $data = $null
 
 switch ($Key) {
+    { $_ -in @("AllStandaloneLoops", "AllStandaloneFlows") } {
+        if ($Target) { throw "$Key has no single application target" }
+        $preset = "retro68-68k-standalone-release"
+        if ($Key -eq "AllStandaloneLoops") {
+            $batchTarget = "LokaStandaloneLoop68KAll"
+            $diskOption = "--all-loops"
+        } else {
+            $batchTarget = "LokaStandaloneFlow68KAll"
+            $diskOption = "--all-flows"
+        }
+        if ($Build -or $BuildAndPrepare) {
+            & bash "$PSScriptRoot/retro68-cmake.sh" --preset $preset
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            & bash "$PSScriptRoot/retro68-cmake.sh" --build --preset $preset --target $batchTarget
+            if ($LASTEXITCODE -ne 0 -or $Build) { exit $LASTEXITCODE }
+        }
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/mame-dev-disk.ps1" -MacBinaryPath $diskOption
+        exit $LASTEXITCODE
+    }
     "AllLoops" {
         if (-not $Build -or $Target -or $BuildAndPrepare) {
             throw "AllLoops is available only with -Build"

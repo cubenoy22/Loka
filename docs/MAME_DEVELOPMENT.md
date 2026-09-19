@@ -50,6 +50,13 @@ task:
 Stop MAME before rebuilding the SCSI development disk. A fixed SCSI disk is
 not safe to rewrite while the emulator has it open.
 
+In **Build & Start Loop in MAME via SCSI**, choose **All Loops** to build and
+copy the five autonomous Standalone Loops, or **All Flows** for the five finite
+Standalone Flows. Each selection creates one development disk containing the
+five applications and Scrapbook's assets, then starts MAME. Scenario Loops
+remain individual choices. The disk-only CLI options are `--all-loops` and
+`--all-flows` (`-MacBinaryPath "--all-loops"` or `"--all-flows"` in PowerShell).
+
 Choose `All` in the normal SCSI task to build and copy all nine example apps,
 including SmirkyCard, together with Scrapbook's `ASSETS.LRP` and SmirkyCard's
 `MAIN.JS`. The disk is replaced only after every copy succeeds. The disk-only

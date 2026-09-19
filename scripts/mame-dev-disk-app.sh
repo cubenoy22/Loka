@@ -24,6 +24,23 @@ bin=
 data=
 
 case "$key" in
+    AllStandaloneLoops|AllStandaloneFlows)
+        [ "$mode" != "--target" ] || usage
+        preset=retro68-68k-standalone-release
+        if [ "$key" = "AllStandaloneLoops" ]; then
+            target=LokaStandaloneLoop68KAll
+            disk_option=--all-loops
+        else
+            target=LokaStandaloneFlow68KAll
+            disk_option=--all-flows
+        fi
+        if [ "$mode" = "--build" ] || [ "$mode" = "--build-and-prepare" ]; then
+            "$script_dir/retro68-cmake.sh" --preset "$preset"
+            "$script_dir/retro68-cmake.sh" --build --preset "$preset" --target "$target"
+        fi
+        [ "$mode" != "--build" ] || exit 0
+        exec "$script_dir/mame-dev-disk.sh" "$disk_option"
+        ;;
     AllLoops)
         [ "$mode" = "--build" ] || usage
         for loop in ScrapbookStandaloneLoop HelloWorldStandaloneLoop TutorialStandaloneLoop MineSweeperStandaloneLoop FloppyBirdStandaloneLoop ScrapbookStandaloneFlow HelloWorldStandaloneFlow TutorialStandaloneFlow MineSweeperStandaloneFlow FloppyBirdStandaloneFlow HelloWorldScenarioLoop MineSweeperScenarioLoop; do
