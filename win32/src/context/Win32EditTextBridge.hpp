@@ -10,6 +10,7 @@
 
 #include "core/String.hpp"
 #include "platform/Win32String.hpp"
+#include "platform/Win32DisplayScale.hpp"
 
 namespace loka
 {
@@ -30,21 +31,13 @@ namespace loka
         bytes back as UTF-8 destroys any out-of-ASCII text (#160). Creation,
         write, and readback all live here so the whole contract is pinned by
         one committed LokaTestsWin32 test. */
+    HWND CreateEditTextControl(HWND parent, const NativeRect &geometry);
+
+    /** Legacy test caller coordinates are already device pixels. */
     inline HWND CreateEditTextControl(HWND parent, int x, int y, int width, int height)
     {
-      return CreateWindowExW(
-          EditTextControlExStyle(),
-          L"EDIT",
-          L"",
-          EditTextControlStyle(),
-          x,
-          y,
-          width,
-          height,
-          parent,
-          NULL,
-          GetModuleHandleW(NULL),
-          NULL);
+      const RECT pixels = {x, y, x + width, y + height};
+      return CreateEditTextControl(parent, Win32DisplayScale::fromDevicePixels(pixels));
     }
 
     inline void ReadEditTextWide(HWND hwnd, std::wstring &out)

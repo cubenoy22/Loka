@@ -2,9 +2,19 @@
 #include "support/TestVerify.hpp"
 #include "Win32ScenePlatformController.hpp"
 #include <climits>
+#include <string>
+#include <vector>
+
+namespace
+{
+  void verifyProjectionPolicy();
+  void verifyClientIngressAssertion();
+} // namespace
 
 void testWin32RailMetricsProjection()
 {
+  verifyClientIngressAssertion();
+  verifyProjectionPolicy();
   using namespace loka::app;
   using loka::win32::Win32DisplayScale;
   const RailMetrics defaults;
@@ -100,3 +110,129 @@ void testWin32RailMetricsSurviveDpiChange()
   LOKA_VERIFY(controller.displayScale().railMetrics() == metrics);
   LOKA_VERIFY(controller.displayScale().projectEdge(8) == 12);
 }
+
+namespace
+{
+  void verifyProjectionPolicy()
+  {
+    using loka::core::Frame;
+    using loka::win32::Win32DisplayScale;
+    const Win32DisplayScale identity(96);
+    const int values[] = {-301, -33, -2, -1, 0, 1, 2, 33, 301};
+    for (unsigned i = 0; i < sizeof(values) / sizeof(values[0]); ++i)
+    {
+      const int value = values[i];
+      LOKA_VERIFY(identity.projectEdge(value) == value);
+      LOKA_VERIFY(identity.nativeEdge(value).px == value);
+      LOKA_VERIFY(identity.nativeLength(0, value).px == value);
+      LOKA_VERIFY(identity.capacityToLu(value) == value);
+      LOKA_VERIFY(identity.measurementToLu(value) == value);
+      LOKA_VERIFY(identity.scrollOffsetToNative(value) == value);
+      LOKA_VERIFY(identity.scrollPositionToLu(value) == value);
+      const loka::win32::NativeRect frame = identity.projectFrame(Frame(value, value, 1, 2));
+      const loka::win32::NativeRect damage = identity.damageToNative(Frame(value, value, 1, 2));
+      LOKA_VERIFY(frame.r.left == value && frame.r.top == value);
+      LOKA_VERIFY(frame.r.right == value + 1 && frame.r.bottom == value + 2);
+      LOKA_VERIFY(EqualRect(&frame.r, &damage.r));
+    }
+    const Win32DisplayScale equivalentUnit(
+        96, loka::app::RailMetrics(loka::app::Ratio(), loka::app::Ratio(INT_MAX, INT_MAX)));
+    LOKA_VERIFY(equivalentUnit.capacityToLu(301) == 301);
+    LOKA_VERIFY(equivalentUnit.measurementToLu(-301) == -301);
+    const Win32DisplayScale scales[] = {
+        Win32DisplayScale(144),
+        Win32DisplayScale(96, loka::app::RailMetrics(loka::app::Ratio(), loka::app::Ratio(3, 2)))};
+    for (unsigned i = 0; i < sizeof(scales) / sizeof(scales[0]); ++i)
+    {
+      const Win32DisplayScale &scale = scales[i];
+      LOKA_VERIFY(scale.capacityToLu(301) == 200);
+      LOKA_VERIFY(scale.clientCapacityToLu(301) == 200);
+      LOKA_VERIFY(scale.projectEdge(200) == 300);
+      LOKA_VERIFY(scale.projectEdge(scale.capacityToLu(301)) <= 301);
+      LOKA_VERIFY(scale.measurementToLu(301) == 201);
+      LOKA_VERIFY(scale.capacityToLu(-301) == -201);
+      LOKA_VERIFY(scale.measurementToLu(-301) == -200);
+      LOKA_VERIFY(scale.projectEdge(1) == 2 && scale.projectEdge(-1) == -2);
+      const loka::win32::NativeRect frame = scale.projectFrame(Frame(1, 1, 1, 1));
+      LOKA_VERIFY(frame.r.right == scale.projectEdge(2));
+      LOKA_VERIFY(frame.r.right == 3 && frame.r.right - frame.r.left == 1);
+      const loka::win32::NativeRect damage = scale.damageToNative(Frame(1, 1, 1, 1));
+      LOKA_VERIFY(damage.r.left == 1 && damage.r.top == 1);
+      LOKA_VERIFY(damage.r.right == 3 && damage.r.bottom == 3);
+      const loka::win32::NativeRect negative = scale.damageToNative(Frame(-1, -1, 2, 2));
+      LOKA_VERIFY(negative.r.left == -2 && negative.r.top == -2);
+      LOKA_VERIFY(negative.r.right == 2 && negative.r.bottom == 2);
+      LOKA_VERIFY(scale.scrollPositionToLu(scale.scrollOffsetToNative(301)) == 301);
+    }
+    // Decoded sprite geometry is DPI only, no space scale.
+    const loka::win32::NativeRect sprite = scales[1].projectDeviceOnly(Frame(1, 1, 1, 1));
+    LOKA_VERIFY(sprite.r.left == 1 && sprite.r.right == 2);
+  }
+
+  void verifyClientIngressAssertion()
+  {
+#ifndef NDEBUG
+    const char *mode = std::getenv("LOKA_WIN32_CAPACITY_PROBE");
+    if (mode)
+    {
+      // Exercise the actual controller ingress, even without a root node.
+      Win32ScenePlatformController controller(static_cast<HWND>(0), loka::win32::Win32DisplayScale(96));
+      controller.relayoutNativeClientPixels(mode[0] == 'o' ? SHRT_MAX + 1 : SHRT_MAX, 1);
+      ExitProcess(0);
+    }
+    wchar_t executable[32768];
+    const DWORD length = GetModuleFileNameW(NULL, executable, 32768);
+    LOKA_VERIFY(length > 0 && length < 32768);
+    for (int overflow = 0; overflow != 2; ++overflow)
+    {
+      SECURITY_ATTRIBUTES security = {sizeof(SECURITY_ATTRIBUTES), NULL, TRUE};
+      HANDLE readPipe = NULL, writePipe = NULL;
+      LOKA_VERIFY(CreatePipe(&readPipe, &writePipe, &security, 0));
+      LOKA_VERIFY(SetHandleInformation(readPipe, HANDLE_FLAG_INHERIT, 0));
+      STARTUPINFOW startup = {};
+      startup.cb = sizeof(startup);
+      startup.dwFlags = STARTF_USESTDHANDLES;
+      startup.hStdError = writePipe;
+      startup.hStdOutput = writePipe;
+      startup.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+      PROCESS_INFORMATION process = {};
+      std::wstring command = L"\"";
+      command += executable;
+      command += L"\" testWin32RailMetricsProjection";
+      std::vector<wchar_t> mutableCommand(command.begin(), command.end());
+      mutableCommand.push_back(0);
+      LOKA_VERIFY(SetEnvironmentVariableW(L"LOKA_WIN32_CAPACITY_PROBE", overflow ? L"overflow" : L"valid"));
+      const BOOL created =
+          CreateProcessW(NULL, &mutableCommand[0], NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &startup, &process);
+      LOKA_VERIFY(SetEnvironmentVariableW(L"LOKA_WIN32_CAPACITY_PROBE", NULL));
+      LOKA_VERIFY(created);
+      CloseHandle(writePipe);
+      const DWORD waited = WaitForSingleObject(process.hProcess, 5000);
+      if (waited != WAIT_OBJECT_0)
+        TerminateProcess(process.hProcess, 1);
+      LOKA_VERIFY(waited == WAIT_OBJECT_0);
+      DWORD code = 0;
+      LOKA_VERIFY(GetExitCodeProcess(process.hProcess, &code));
+      std::string diagnostic;
+      char buffer[1024];
+      DWORD read = 0;
+      while (ReadFile(readPipe, buffer, sizeof(buffer), &read, NULL) && read)
+        diagnostic.append(buffer, read);
+      CloseHandle(readPipe);
+      CloseHandle(process.hThread);
+      CloseHandle(process.hProcess);
+      if (overflow)
+      {
+        LOKA_VERIFY(code != 0);
+        LOKA_VERIFY(diagnostic.find("Win32 client capacity must fit short") != std::string::npos);
+      }
+      else
+      {
+        LOKA_VERIFY(code == 0);
+      }
+    }
+#else
+    std::printf("[skip] Win32 client-capacity assertion pin requires a debug build.\n");
+#endif
+  }
+} // namespace

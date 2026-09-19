@@ -62,10 +62,7 @@ Win32ButtonContext::Win32ButtonContext(Win32ScenePlatformController *controller,
       L"BUTTON",
       L"",
       style,
-      x,
-      y,
-      width,
-      height,
+      this->controller()->displayScale().projectFrame(loka::core::Frame(x, y, width, height)),
       parent,
       reinterpret_cast<HMENU>(static_cast<INT_PTR>(1000)),
       GetModuleHandleW(NULL),
@@ -173,7 +170,8 @@ void Win32ButtonContext::relayout(int x, int y, int width, int height)
   {
     return;
   }
-  this->positionNativeWindow(this->hwnd_, x, y, width, height);
+  this->positionNativeWindow(this->hwnd_,
+                             this->controller()->displayScale().projectFrame(loka::core::Frame(x, y, width, height)));
 }
 
 void Win32ButtonContext::bindText()

@@ -56,7 +56,15 @@ Win32CellContext::Win32CellContext(Win32ScenePlatformController *controller,
 {
   EnsureClassRegistered();
   hwnd_ = this->createNativeChildWindow(
-      0, kCellClassName, L"", WS_CHILD | WS_VISIBLE, x, y, width, height, parent, 0, GetModuleHandleW(NULL), this);
+      0,
+      kCellClassName,
+      L"",
+      WS_CHILD | WS_VISIBLE,
+      this->controller()->displayScale().projectFrame(loka::core::Frame(x, y, width, height)),
+      parent,
+      0,
+      GetModuleHandleW(NULL),
+      this);
   bindText();
 }
 
@@ -145,7 +153,8 @@ void Win32CellContext::relayout(int x, int y, int width, int height)
   {
     return;
   }
-  this->positionNativeWindow(this->hwnd_, x, y, width, height);
+  this->positionNativeWindow(this->hwnd_,
+                             this->controller()->displayScale().projectFrame(loka::core::Frame(x, y, width, height)));
   Win32ScenePlatformController::redrawDirtySubtreeNow(hwnd_, NULL, TRUE);
 }
 

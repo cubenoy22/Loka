@@ -367,15 +367,13 @@ private:
   void performLayout(int clientWidth, int clientHeight);
   /** Position one projected HWND. A root layout pass suppresses per-child
       repaint and presents the completed native layout once at the pass end. */
-  void positionNativeWindow(HWND hwnd, int x, int y, int width, int height);
+  void positionNativeWindow(HWND hwnd, const loka::win32::NativeRect &geometry);
+  void resizeNativeWindow(HWND hwnd, const loka::win32::NativeRect &geometry);
   HWND createNativeChildWindow(DWORD exStyle,
                                LPCWSTR className,
                                LPCWSTR windowName,
                                DWORD style,
-                               int x,
-                               int y,
-                               int width,
-                               int height,
+                               const loka::win32::NativeRect &geometry,
                                HWND parent,
                                HMENU menu,
                                HINSTANCE instance,
@@ -385,7 +383,7 @@ private:
   void clearContexts();
   void clearNodeContexts(loka::app::scene::Node *node);
   int measureClientWidth(int requestedWidth) const;
-  void queueDirtyRect(HWND targetHwnd, const RECT *rect, BOOL eraseBackground, bool includeChildren);
+  void queueDirtyRect(HWND targetHwnd, const loka::win32::NativeRect *rect, BOOL eraseBackground, bool includeChildren);
   static UINT pendingInvalidationFlags(const PendingInvalidate &entry);
   /** Flush native damage and replay intersecting later siblings without erasing. */
   void flushPendingInvalidations(bool updateNow);

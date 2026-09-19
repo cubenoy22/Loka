@@ -64,8 +64,8 @@ namespace
     if (previous)
       SelectObject(hdc, previous);
     ReleaseDC(hwnd, hdc);
-    const int height = measured
-        ? controller->displayScale().unprojectLength(metrics.tmHeight + metrics.tmExternalLeading) : fallback;
+    const int height =
+        measured ? controller->displayScale().measurementToLu(metrics.tmHeight + metrics.tmExternalLeading) : fallback;
     return height > fallback ? height : fallback;
   }
 
@@ -108,7 +108,7 @@ namespace
     RECT rc;
     rc.left = 0;
     rc.top = 0;
-    rc.right = controller->displayScale().projectLength(width);
+    rc.right = controller->displayScale().nativeLength(0, width).px;
     rc.bottom = 0;
     HGDIOBJ previousFont = 0;
     if (selectedFont)
@@ -123,7 +123,7 @@ namespace
     }
     ReleaseDC(hwnd, hdc);
 
-    const int measured = controller->displayScale().unprojectLength(rc.bottom - rc.top);
+    const int measured = controller->displayScale().measurementToLu(rc.bottom - rc.top);
     const int measuredWithPadding = measured + 8;
     if (measuredWithPadding > defaultHeight)
     {
@@ -172,7 +172,15 @@ Win32TextContext::Win32TextContext(Win32ScenePlatformController *controller,
   // Unicode window: keeps WM_SETTEXT/paint in UTF-16 so the displayed text
   // matches what MeasureTextHeightForWidth measures with DrawTextW.
   hwnd_ = this->createNativeChildWindow(
-      0, L"STATIC", L"", style, x, y, width, height, parent, NULL, GetModuleHandleW(NULL), NULL);
+      0,
+      L"STATIC",
+      L"",
+      style,
+      this->controller()->displayScale().projectFrame(loka::core::Frame(x, y, width, height)),
+      parent,
+      NULL,
+      GetModuleHandleW(NULL),
+      NULL);
   if (hwnd_)
   {
     HDC hdc = GetDC(hwnd_);
@@ -323,7 +331,8 @@ void Win32TextContext::relayout(int x, int y, int width, int height)
   {
     return;
   }
-  this->positionNativeWindow(this->hwnd_, x, y, width, height);
+  this->positionNativeWindow(this->hwnd_,
+                             this->controller()->displayScale().projectFrame(loka::core::Frame(x, y, width, height)));
 }
 
 void Win32TextContext::bindText()

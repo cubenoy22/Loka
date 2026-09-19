@@ -11,46 +11,36 @@ Win32RetirableContext::Win32RetirableContext(Win32ScenePlatformController *contr
 
 Win32RetirableContext::~Win32RetirableContext() {}
 
-void Win32RetirableContext::positionNativeWindow(HWND hwnd,
-                                                 int x,
-                                                 int y,
-                                                 int width,
-                                                 int height)
+void Win32RetirableContext::positionNativeWindow(HWND hwnd, const loka::win32::NativeRect &geometry)
 {
   assert(this->controller_ && "a live HWND must have a native layout owner");
   if (this->controller_)
   {
-    this->controller_->positionNativeWindow(hwnd, x, y, width, height);
+    this->controller_->positionNativeWindow(hwnd, geometry);
   }
 }
 
+void Win32RetirableContext::resizeNativeWindow(HWND hwnd, const loka::win32::NativeRect &geometry)
+{
+  assert(this->controller_ && "a live HWND must have a native layout owner");
+  if (this->controller_)
+    this->controller_->resizeNativeWindow(hwnd, geometry);
+}
+
 HWND Win32RetirableContext::createNativeChildWindow(DWORD exStyle,
-                                                     LPCWSTR className,
-                                                     LPCWSTR windowName,
-                                                     DWORD style,
-                                                     int x,
-                                                     int y,
-                                                     int width,
-                                                     int height,
-                                                     HWND parent,
-                                                     HMENU menu,
-                                                     HINSTANCE instance,
-                                                     void *createParameter)
+                                                    LPCWSTR className,
+                                                    LPCWSTR windowName,
+                                                    DWORD style,
+                                                    const loka::win32::NativeRect &geometry,
+                                                    HWND parent,
+                                                    HMENU menu,
+                                                    HINSTANCE instance,
+                                                    void *createParameter)
 {
   assert(this->controller_ && "a native child must have a projection owner");
   return this->controller_
-             ? this->controller_->createNativeChildWindow(exStyle,
-                                                          className,
-                                                          windowName,
-                                                          style,
-                                                          x,
-                                                          y,
-                                                          width,
-                                                          height,
-                                                          parent,
-                                                          menu,
-                                                          instance,
-                                                          createParameter)
+             ? this->controller_->createNativeChildWindow(
+                   exStyle, className, windowName, style, geometry, parent, menu, instance, createParameter)
              : 0;
 }
 
