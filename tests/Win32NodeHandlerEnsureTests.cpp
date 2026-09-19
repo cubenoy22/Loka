@@ -1,7 +1,6 @@
 #include "Win32NodeHandlerEnsureTests.hpp"
 #include "support/TestVerify.hpp"
 #include "support/RailTextLayoutFixture.hpp"
-#include "context/Win32TextContext.hpp"
 #include <cassert>
 #include <cstdio>
 #include <windows.h>
@@ -29,6 +28,14 @@ namespace
     int count = 0;
     EnumChildWindows(root, CountChildThunk, reinterpret_cast<LPARAM>(&count));
     return count;
+  }
+
+  HWND nthChildWindow(HWND parent, int index)
+  {
+    HWND child = GetWindow(parent, GW_CHILD);
+    for (int i = 0; child && i < index; ++i)
+      child = GetWindow(child, GW_HWNDNEXT);
+    return child;
   }
 
   RECT childRectInParent(HWND child, HWND parent)
@@ -111,11 +118,30 @@ namespace
             LOKA_VERIFY(GetClientRect(root, &client));
             LOKA_VERIFY(scale.clientCapacityToLu(client.bottom) == 250);
             LOKA_VERIFY(countChildWindows(root) == (boxed ? 5 : 3));
-            Win32TextContext *page = static_cast<Win32TextContext *>(fixture.wrapped->getContext());
-            Win32TextContext *caption = static_cast<Win32TextContext *>(fixture.caption->getContext());
-            Win32ButtonContext *button = static_cast<Win32ButtonContext *>(fixture.button->getContext());
-            LOKA_VERIFY(page && caption && button);
-            HDC dc = GetDC(page->hwnd());
+            // Text contexts publish no HWND accessor; walk the root's children in
+            // creation order like the Mac twin walks subviews: page, caption,
+            // [badge], button. The Button context does expose its HWND.
+            // GetWindow(GW_CHILD) may list either creation order or z-order
+            // (newest first); the Button's published HWND anchors which one.
+            const int count = boxed ? 5 : 3;
+            const int buttonIndex = boxed ? 3 : 2;
+            Win32ButtonContext *buttonContext = static_cast<Win32ButtonContext *>(fixture.button->getContext());
+            LOKA_VERIFY(buttonContext && buttonContext->hwnd());
+            HWND button = buttonContext->hwnd();
+            HWND page = 0;
+            HWND caption = 0;
+            if (nthChildWindow(root, buttonIndex) == button)
+            {
+              page = nthChildWindow(root, 0);
+              caption = nthChildWindow(root, 1);
+            }
+            else if (nthChildWindow(root, count - 1 - buttonIndex) == button)
+            {
+              page = nthChildWindow(root, count - 1);
+              caption = nthChildWindow(root, count - 2);
+            }
+            LOKA_VERIFY(page && caption && page != caption && caption != button);
+            HDC dc = GetDC(page);
             LOKA_VERIFY(dc != NULL);
             HGDIOBJ previous = SelectObject(dc, controller.textFont(FontSize<18>()));
             TEXTMETRICW font;
@@ -126,7 +152,7 @@ namespace
             RECT measured = {0, 0, scale.nativeLength(0, 300).px, 0};
             LOKA_VERIFY(DrawTextW(dc, wideStrings[sample], -1, &measured, flags) > 0);
             SelectObject(dc, previous);
-            ReleaseDC(page->hwnd(), dc);
+            ReleaseDC(page, dc);
             const int nativeHeight = measured.bottom - measured.top;
             const int singleHeight = oneLine.bottom - oneLine.top;
             LOKA_VERIFY(nativeHeight == (sample + 1) * singleHeight);
@@ -136,11 +162,11 @@ namespace
             const int textHeight = padded > minimum ? padded : minimum;
             const int captionY = boxed ? 190 : 20 + textHeight + 12;
             const int buttonY = captionY + 20 + 12;
-            const RECT pageFrame = childRectInParent(page->hwnd(), root);
+            const RECT pageFrame = childRectInParent(page, root);
             const RECT expectedPage = scale.projectFrame(loka::core::Frame(20, 20, 300, textHeight)).r;
             LOKA_VERIFY(EqualRect(&pageFrame, &expectedPage));
-            LOKA_VERIFY(childRectInParent(caption->hwnd(), root).top == scale.projectEdge(captionY));
-            const RECT buttonFrame = childRectInParent(button->hwnd(), root);
+            LOKA_VERIFY(childRectInParent(caption, root).top == scale.projectEdge(captionY));
+            const RECT buttonFrame = childRectInParent(button, root);
             LOKA_VERIFY(buttonFrame.top == scale.projectEdge(buttonY));
             LOKA_VERIFY(buttonFrame.bottom == scale.projectEdge(buttonY + 32));
             if (boxed)
