@@ -132,6 +132,27 @@ target_compile_definitions(${LOKA_WINDOW_CLAMP_TARGET} PRIVATE TEST_BUILD LOKA_D
 set_property(TARGET ${LOKA_WINDOW_CLAMP_TARGET} PROPERTY EXCLUDE_FROM_ALL TRUE)
 set_property(TARGET ${LOKA_WINDOW_CLAMP_TARGET}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
 
+# Value-only #827 cost probe; same 512K preferred / 384K minimum as AppRecycle.
+set(LOKA_ATTRIBUTED_STRING_PROBE_TARGET "LokaAttributedStringProbe${LOKA_CLASSIC_TARGET_SUFFIX}")
+configure_file(
+  ${CMAKE_SOURCE_DIR}/example/HelloWorld/Size.r
+  ${CMAKE_CURRENT_BINARY_DIR}/AttributedStringProbeSize.r
+  COPYONLY
+)
+loka_add_toolbox_test_application(
+  ${LOKA_ATTRIBUTED_STRING_PROBE_TARGET}
+  LokaAppleToolboxTestCore
+  src/AttributedStringProbeStandaloneMain.cpp
+  ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/AttributedStringProbeSize.r
+)
+target_include_directories(${LOKA_ATTRIBUTED_STRING_PROBE_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/tests/standalone
+)
+target_compile_definitions(${LOKA_ATTRIBUTED_STRING_PROBE_TARGET} PRIVATE TEST_BUILD LOKA_DIAG=1)
+set_property(TARGET ${LOKA_ATTRIBUTED_STRING_PROBE_TARGET} PROPERTY EXCLUDE_FROM_ALL TRUE)
+set_property(TARGET ${LOKA_ATTRIBUTED_STRING_PROBE_TARGET}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
+
 set(LOKA_PAINT_DAMAGE_TARGET "LokaPaintDamage${LOKA_CLASSIC_TARGET_SUFFIX}")
 loka_add_toolbox_test_application(
   ${LOKA_PAINT_DAMAGE_TARGET}
