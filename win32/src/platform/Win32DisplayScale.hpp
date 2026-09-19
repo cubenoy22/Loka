@@ -110,7 +110,7 @@ namespace loka
         return NativeRect(pixels);
       }
       /** Font points use fontScale and DPI, never spaceScale. */
-      int fontHeightToNative(int points) const;
+      int fontHeightToNative(int logicalUnits) const;
       /** Compatibility for pre-policy callers outside the production rail.
           New callers must choose capacity, measurement, or absolute edges. */
       int unprojectEdge(int px) const
