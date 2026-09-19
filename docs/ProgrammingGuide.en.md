@@ -891,6 +891,28 @@ Text("Status") + Bold + styleState.state()
 Character and block styles are separate families. They can both be applied to
 `Text`, but they cannot be merged with each other or applied to unrelated nodes.
 
+### Styled String Values
+
+Include `app/style/AttributedString.hpp` to build immutable `AttributedString`
+values with `Styled("word", Bold)`. Concatenate values with `+`:
+
+```cpp
+Styled("Name: ", Bold) + Styled("Loka", Italic)
+```
+
+Styles always win on the right: `FontSize<24>() + Styled("a", FontSize<12>())`
+keeps size 12, while `Styled("a", FontSize<12>()) + FontSize<24>()` produces
+size 24. The left style supplies defaults; the right style overrides every
+segment. `BlockStyle` and plain `String` cannot be added to an attributed value.
+
+Equality compares styled content, so `Styled("ab", Bold)` equals
+`Styled("a", Bold) + Styled("b", Bold)`. `compare()` orders that content for
+value comparisons. Check `valid()` before publishing a newly built value to
+State: failure to allocate its segment storage or shared ownership returns an
+invalid value. String construction keeps its own allocation contract. A default
+value is valid and empty; an invalid value is also empty, so `empty()` alone
+does not detect failure. Equal rebuilt values do not trigger State changes.
+
 ### `Section()` And Tagged Siblings
 
 [`Section(k)`](../common/app/nodes/nestable/BoundarySection.hpp) groups children

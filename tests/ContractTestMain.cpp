@@ -89,6 +89,7 @@
 #include "ToolboxScrollViewContractTests.hpp"
 #include "NullTextLayoutTests.hpp"
 #include "StyleTests.hpp"
+#include "AttributedStringTests.hpp"
 #include "RectSurfaceSeatExtentTests.hpp"
 #include "NullPlatformContractTests.hpp"
 #include "OpenFileDialogTransportTests.hpp"

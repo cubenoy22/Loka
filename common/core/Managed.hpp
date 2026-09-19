@@ -2,6 +2,7 @@
 #define LOKA_CORE_MANAGED_HPP
 
 #include <cstddef>
+#include "core/LokaAlloc.hpp"
 
 namespace loka
 {
@@ -47,6 +48,21 @@ namespace loka
         return Managed<T>(new ControlBlock(value, releaser, userData));
       }
 
+      /**
+       * Adopts value only on success. On refusal the caller still owns value;
+       * no releaser is invoked. The site's tag strings must outlive the block,
+       * and the allocation backend must remain installed until its release.
+       */
+      static Managed<T> TryWrap(T *value, ReleaserFn releaser, void *userData, const LokaAllocationSite &site)
+      {
+        if (!value)
+          return Managed<T>();
+        void *storage = LokaAllocRaw(sizeof(GatedControlBlock), site);
+        if (!storage)
+          return Managed<T>();
+        return Managed<T>(new (storage) GatedControlBlock(value, releaser, userData, site));
+      }
+
       T *get() const
       {
         return block_ ? block_->value : 0;
@@ -90,14 +106,40 @@ namespace loka
             : value(ptr),
               releaser(rel),
               userData(ud),
-              refCount(1)
+              refCount(1),
+              destroy(&Managed::DeleteControlBlock)
         {
         }
         T *value;
         ReleaserFn releaser;
         void *userData;
         int refCount;
+        void (*destroy)(ControlBlock *);
       };
+
+      struct GatedControlBlock : ControlBlock
+      {
+        GatedControlBlock(T *ptr, ReleaserFn rel, void *ud, const LokaAllocationSite &allocationSite)
+            : ControlBlock(ptr, rel, ud),
+              site(allocationSite)
+        {
+          this->destroy = &Managed::FreeControlBlock;
+        }
+        const LokaAllocationSite site;
+      };
+
+      static void DeleteControlBlock(ControlBlock *block)
+      {
+        delete block;
+      }
+
+      static void FreeControlBlock(ControlBlock *block)
+      {
+        GatedControlBlock *gated = static_cast<GatedControlBlock *>(block);
+        const LokaAllocationSite site = gated->site;
+        gated->~GatedControlBlock();
+        LokaFreeRaw(gated, site);
+      }
 
       explicit Managed(ControlBlock *block)
           : block_(block)
@@ -118,7 +160,7 @@ namespace loka
         {
           if (block_->releaser)
             block_->releaser(block_->value, block_->userData);
-          delete block_;
+          block_->destroy(block_);
         }
         block_ = 0;
       }
