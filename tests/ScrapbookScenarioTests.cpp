@@ -208,7 +208,7 @@ namespace
     loka::scenario_tests::CaptureContentBounds bounds;
     bounds.available = true;
     bounds.right = 340;
-    bounds.bottom = 250;
+    bounds.bottom = 274;
     loka::core::StateTrackerGuard guard(mainNode.tracker());
     return scenario.step(tick, &scene, mainNode, bounds, record);
   }
@@ -504,7 +504,7 @@ void testScrapbookObservedStringAuditMatchesTrackedExpectation()
     loka::scenario_tests::CaptureContentBounds bounds;
     bounds.available = true;
     bounds.right = 340;
-    bounds.bottom = 250;
+    bounds.bottom = 274;
     {
       loka::core::StateTrackerGuard guard(mainNode->tracker());
       LOKA_VERIFY(scenario.step(1, &scene, *mainNode, bounds, record)

@@ -1,6 +1,6 @@
 loka_scenario_audit version=1 scenario=open-text-page
 badge_visible	false
-crop_bottom	250
+crop_bottom	274
 crop_left	0
 crop_right	340
 crop_top	0
