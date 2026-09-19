@@ -329,10 +329,15 @@ resolve_rig_descriptor
 
 if [ "$MODE" = "update" ]; then
   verify_capture_environment
+  update_arguments=()
+  if [ -n "${LOKA_GOLDEN_UPDATE_ROOT:-}" ]; then
+    update_arguments=(--update-root "$LOKA_GOLDEN_UPDATE_ROOT")
+  fi
   if ! "$PYTHON3" "$GOLDEN_IDENTITY_GUARD" \
       --registry "$SCENARIO_REGISTRY" \
       --declarations "$STARTUP_IDENTITY_DECLARATIONS" \
       --golden-root "$PROJECT_DIR/build/macos-scenario/golden" \
+      "${update_arguments[@]}" \
       --capture "$WORK/actual.png" \
       --example "$EXAMPLE" \
       --scenario "$SCENARIO"; then

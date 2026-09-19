@@ -400,6 +400,37 @@ grep -Fq 'stale startup-identity declaration for minesweeper new-game-twice' \
 [ "$(sha256sum "$DECLARED_GOLDEN" | awk '{print $1}')" = "$declared_hash" ] \
   || fail "macOS stale declaration refusal overwrote the prior golden"
 
+# Explicit candidates belong to this bake, not to prior runner work directories.
+BAKE="$SANDBOX/bake"
+mkdir -p "$BAKE/minesweeper"
+printf 'minesweeper startup\nminesweeper new-game-twice\n' >"$BAKE/cells.txt"
+for cell in startup new-game-twice; do
+  cp "$SANDBOX/different-snapshot.png" "$BAKE/minesweeper/$cell.png"
+done
+pair_failures=0
+for order in 'startup new-game-twice' 'new-game-twice startup'; do
+  for cell in startup new-game-twice; do
+    cp "$SANDBOX/snapshot.png" "$SANDBOX/repo/build/macos-scenario/golden/minesweeper/$cell.png"
+  done
+  for cell in $order; do
+    if ! LOKA_GOLDEN_UPDATE_ROOT="$BAKE" run_macos_update minesweeper "$cell" "$SANDBOX/different-snapshot.png" >"$SANDBOX/pair.log" 2>&1; then
+      cat "$SANDBOX/pair.log"
+      echo "pair order [$order], cell $cell refused"
+      pair_failures=$((pair_failures + 1))
+    fi
+  done
+done
+[ "$pair_failures" -eq 0 ] || fail "$pair_failures changed-pair stages refused"
+cp "$SANDBOX/snapshot.png" "$BAKE/minesweeper/new-game-twice.png"
+if LOKA_GOLDEN_UPDATE_ROOT="$BAKE" run_macos_update minesweeper startup "$SANDBOX/different-snapshot.png" >"$SANDBOX/pair-diverged.log" 2>&1; then
+  fail "diverging bake pair passed"
+fi
+grep -Fq 'stale startup-identity declaration' "$SANDBOX/pair-diverged.log" || fail "wrong pair refusal"
+# Excluding the partner must use live truth even if an unlisted candidate exists.
+printf 'minesweeper startup\n' >"$BAKE/cells.txt"
+LOKA_GOLDEN_UPDATE_ROOT="$BAKE" run_macos_update minesweeper startup "$SANDBOX/different-snapshot.png" >"$SANDBOX/pair-single.log" 2>&1 || fail "single-cell update ignored live partner"
+echo "identity bake pins passed: 4 ordered stages, divergence refusal, single-cell fallback"
+
 # A refusal must say how far the app got. #466: a cell timed out with a 0-byte
 # runner.log, and the deadline message alone could not tell "hung before it
 # wrote anything" from "stopped partway". The stall below is not a hang -- the
