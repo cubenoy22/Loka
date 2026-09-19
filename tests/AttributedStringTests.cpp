@@ -197,7 +197,7 @@ void testAttributedStringAllocationFailures()
   }
   const loka::core::LokaAllocationSite sites[] = {
       loka::core::LokaAllocationSite("AttributedString", "Segments"),
-      loka::core::kManagedControlBlockSite,
+      loka::core::ManagedControlBlockSite(),
   };
   for (int site = 0; site < 2; ++site)
   {
@@ -272,7 +272,7 @@ void testManagedTryWrapFailureAndRelease()
   std::printf("[skip] Managed Wrap refusal death pin requires TEST_BUILD Linux without ASan.\n");
 #endif
   AllocationFailures failures;
-  const LokaAllocationSite &site = kManagedControlBlockSite;
+  const LokaAllocationSite site = ManagedControlBlockSite();
   int payload = 7;
   int releases = 0;
   testing::failLokaAllocRaw(site.ownerTag, site.typeTag, 1);

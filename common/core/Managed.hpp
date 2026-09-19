@@ -10,7 +10,17 @@ namespace loka
   namespace core
   {
     /** Allocation identity shared by every Managed control block. */
-    const LokaAllocationSite kManagedControlBlockSite("Managed", "ControlBlock");
+    /**
+     * The one allocation site of every Managed control block. Built at each
+     * use rather than held in a namespace-scope object: a namespace-scope
+     * object has dynamic initialization in C++98, so a Managed constructed
+     * during another translation unit's static initialization could allocate
+     * under zeroed tags and free under the real ones.
+     */
+    inline LokaAllocationSite ManagedControlBlockSite()
+    {
+      return LokaAllocationSite("Managed", "ControlBlock");
+    }
 
     // Managed<T>: Simple intrusive reference-counted handle for platform resources.
     // - Wraps a pointer to T plus an optional releaser callback.
@@ -56,14 +66,14 @@ namespace loka
 
       /**
        * Adopts value only on success. On refusal the caller still owns value;
-       * no releaser is invoked. All blocks use kManagedControlBlockSite;
+       * no releaser is invoked. All blocks use ManagedControlBlockSite();
        * the allocation backend must remain installed until release.
        */
       static Managed<T> TryWrap(T *value, ReleaserFn releaser, void *userData)
       {
         if (!value)
           return Managed<T>();
-        void *storage = LokaAllocRaw(sizeof(ControlBlock), kManagedControlBlockSite);
+        void *storage = LokaAllocRaw(sizeof(ControlBlock), ManagedControlBlockSite());
         if (!storage)
           return Managed<T>();
         return Managed<T>(new (storage) ControlBlock(value, releaser, userData));
@@ -141,7 +151,7 @@ namespace loka
           if (block_->releaser)
             block_->releaser(block_->value, block_->userData);
           block_->~ControlBlock();
-          LokaFreeRaw(block_, kManagedControlBlockSite);
+          LokaFreeRaw(block_, ManagedControlBlockSite());
         }
         block_ = 0;
       }
