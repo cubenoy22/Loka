@@ -1,0 +1,9 @@
+phase=P0-baseline FreeMem=3456 MaxBlock=3434 CompactMem=3436 us=35 ticks=0
+phase=P1-build FreeMem=2024 MaxBlock=2002 CompactMem=2004 us=1145193 ticks=69 heap_bytes=1432 bytes_per_line=14 bytes_per_segment=1 lines=100 segments=1000
+phase=P2-churn FreeMem=2024 MaxBlock=2002 CompactMem=2004 us=15010746 ticks=902 us_per_keystroke=15010 FreeMem_before=2024 FreeMem_after=2024 growth=0
+phase=P3-equal-rebuild FreeMem=2024 MaxBlock=2002 CompactMem=2004 us=20525337 ticks=1234 us_per_rebuild=20525 set_us=9424016 set_us_per_rebuild=9424 dirty=1000
+phase=P4-shared-compare FreeMem=2024 MaxBlock=2002 CompactMem=2004 us=13184 ticks=1 us_per_compare=13 matches=1000
+phase=P5-teardown FreeMem=2024 MaxBlock=2002 CompactMem=2004 us=179092 ticks=11 delta_from_P0=1432
+census=unavailable
+equal_set_marked_dirty=1000
+done

@@ -1,0 +1,10 @@
+phase=P0-baseline FreeMem=4732 MaxBlock=4722 CompactMem=4724 us=34 ticks=0
+phase=P1-build FreeMem=240 MaxBlock=230 CompactMem=232 us=1419027 ticks=85 heap_bytes=4492 bytes_per_line=44 bytes_per_segment=4 lines=100 segments=1000
+phase=P2-churn FreeMem=240 MaxBlock=230 CompactMem=232 us=18177534 ticks=1093 us_per_keystroke=18177 FreeMem_before=240 FreeMem_after=240 growth=0
+phase=P3-equal-rebuild FreeMem=240 MaxBlock=230 CompactMem=232 us=24420988 ticks=1469 us_per_rebuild=24420 set_us=10700878 set_us_per_rebuild=10700 dirty=1000
+phase=P4-shared-compare FreeMem=240 MaxBlock=230 CompactMem=232 us=13237 ticks=1 us_per_compare=13 matches=1000
+phase=P5-teardown FreeMem=240 MaxBlock=230 CompactMem=232 us=221206 ticks=13 delta_from_P0=4492
+alloc.site.Managed.ControlBlock=60904,974464
+alloc.site.AttributedString.Segments=39900,2629200
+ERROR allocation/segment/equality check failed
+done
