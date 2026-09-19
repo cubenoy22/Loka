@@ -35,7 +35,7 @@ protected:
   WindowProps productionWindowProps(const loka::app::scene::NodeDefinitionBase &scene) const
   {
     return WindowProps()
-        .frame(40, 40, 340, 250)
+        .frame(40, 40, 340, 274)
         .scene(scene)
         .title("ScrapbookUI")
         .visible(true);

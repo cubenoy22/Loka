@@ -11,7 +11,7 @@ step id=9 due_tick=75 tick=75 status=succeeded error_kind=0 error_code=0 name=ve
 step id=10 due_tick=75 tick=75 status=succeeded error_kind=0 error_code=0 name=verify-final-text
 step id=11 due_tick=75 tick=75 status=succeeded error_kind=0 error_code=0 name=select-final-capture
 step id=12 due_tick=75 tick=75 status=succeeded error_kind=0 error_code=0 name=capture-final-page
-crop_bottom	250
+crop_bottom	274
 crop_left	0
 crop_right	340
 crop_top	0
