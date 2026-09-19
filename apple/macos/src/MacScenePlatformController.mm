@@ -134,7 +134,8 @@ void *MacScenePlatformController::textFont(const loka::app::TextStyle &style) co
 }
 
 MacScenePlatformController::MacScenePlatformController(void *rootView)
-    : rootView_(rootView),
+    : projection_(rootView),
+      rootView_(rootView),
       projectionParentScopes_(rootView),
       rootNode_(0),
       rectSurfaceExtentLedger_(),
@@ -246,8 +247,8 @@ void MacScenePlatformController::onChange(loka::app::scene::Node *rootNode,
 
   NSView *view = (NSView *)rootView_;
   NSRect bounds = [view bounds];
-  clientWidth_ = static_cast<int>(bounds.size.width);
-  clientHeight_ = static_cast<int>(bounds.size.height);
+  clientWidth_ = this->projection().clientCapacityToLu(bounds.size.width);
+  clientHeight_ = this->projection().clientCapacityToLu(bounds.size.height);
   performLayout(clientWidth_, clientHeight_, fullRebuild);
 }
 
@@ -276,10 +277,8 @@ void MacScenePlatformController::onBoundaryApply(loka::app::scene::Node *rootNod
     return;
   }
 
-  NSRect dirtyRect = NSMakeRect(static_cast<CGFloat>(info.bounds->x),
-                                static_cast<CGFloat>(info.bounds->y),
-                                static_cast<CGFloat>(info.bounds->width),
-                                static_cast<CGFloat>(info.bounds->height));
+  const NSRect dirtyRect = this->projection().damageToNative(
+      loka::core::Frame(info.bounds->x, info.bounds->y, info.bounds->width, info.bounds->height)).r;
   [view setNeedsDisplayInRect:dirtyRect];
 }
 
@@ -344,8 +343,8 @@ void MacScenePlatformController::relayout(int clientWidth, int clientHeight)
     {
       NSView *view = (NSView *)rootView_;
       NSRect bounds = [view bounds];
-      clientWidth = static_cast<int>(bounds.size.width);
-      clientHeight = static_cast<int>(bounds.size.height);
+      clientWidth = this->projection().clientCapacityToLu(bounds.size.width);
+      clientHeight = this->projection().clientCapacityToLu(bounds.size.height);
     }
   }
   clientWidth_ = clientWidth;
@@ -1116,7 +1115,7 @@ int MacScenePlatformController::measureClientWidth(int requestedWidth) const
   {
     NSView *view = (NSView *)rootView_;
     NSRect bounds = [view bounds];
-    return static_cast<int>(bounds.size.width);
+    return this->projection().clientCapacityToLu(bounds.size.width);
   }
   return 260;
 }

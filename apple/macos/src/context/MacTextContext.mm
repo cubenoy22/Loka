@@ -3,6 +3,7 @@
 #include <cmath>
 #include "../MacScenePlatformController.hpp"
 #include "../MacObjCCompat.hpp"
+#include "../platform/MacNativeGeometry.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "Utf8String.hpp"
@@ -30,13 +31,14 @@ namespace
     if (!controller || !(style.hasFontSize_ || style.hasWeight_ || style.hasItalic_))
       return TextGeometry(nil, fallback);
     NSFont *font = (NSFont *)controller->textFont(style);
-    const int lineHeight = static_cast<int>(std::ceil(
-        [font ascender] + std::fabs([font descender]) + [font leading]));
+    const int lineHeight = controller->projection().measurementToLu(
+        [font ascender] + std::fabs([font descender]) + [font leading]);
     return TextGeometry(font, lineHeight > fallback ? lineHeight : fallback);
   }
 
   int MeasureTextHeightForWidth(const loka::app::TextNode *text, int width,
-                                int defaultHeight, NSFont *selectedFont)
+                                int defaultHeight, NSFont *selectedFont,
+                                const loka::macos::MacProjection &projection)
   {
     if (!text || !text->props.text_)
     {
@@ -76,8 +78,8 @@ namespace
       [cell setWraps:YES];
       [cell setScrollable:NO];
       [cell setLineBreakMode:NSLineBreakByWordWrapping];
-      NSSize size = [cell cellSizeForBounds:NSMakeRect(0.0f, 0.0f, static_cast<CGFloat>(width), CGFLOAT_MAX)];
-      measured = static_cast<int>(size.height + 0.5f);
+      NSSize size = [cell cellSizeForBounds:loka::macos::MacMeasurementBounds(projection.projectLength(0, width))];
+      measured = projection.measurementToLu(size.height);
     }
     const int measuredWithPadding = measured + 2;
     if (measuredWithPadding > defaultHeight)
@@ -183,7 +185,9 @@ MacTextContext::MacTextContext(MacScenePlatformController *controller,
       didInitialApply_(false)
 {
   NSView *parent = (NSView *)parentView;
-  NSTextField *label = [[NSTextField alloc] initWithFrame:NSMakeRect(x, y, width, height)];
+  const loka::macos::MacRect frame =
+      this->controller()->projection().projectFrame(loka::core::Frame(x, y, width, height));
+  NSTextField *label = [[NSTextField alloc] initWithFrame:frame.r];
   [label setEditable:NO];
   [label setSelectable:NO];
   [label setBezeled:NO];
@@ -315,7 +319,7 @@ short MacTextContext::layout(loka::app::scene::IPlatformController *, loka::app:
   const TextGeometry geometry = ResolveTextGeometry(
       this->node_ ? this->node_->props.resolvedTextStyle() : loka::app::TextStyle(), this->controller());
   const int textHeight = MeasureTextHeightForWidth(
-      this->node_, state.width, geometry.minimumHeight, geometry.font);
+      this->node_, state.width, geometry.minimumHeight, geometry.font, this->controller()->projection());
   this->relayout(state.x, state.y, state.width, textHeight);
   state.height = static_cast<short>(textHeight);
   return static_cast<short>(state.y + textHeight + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
@@ -328,7 +332,8 @@ void MacTextContext::relayout(int x, int y, int width, int height)
   {
     return;
   }
-  [label setFrame:NSMakeRect(x, y, width, height)];
+  loka::macos::SetMacFrame(label,
+      this->controller()->projection().projectFrame(loka::core::Frame(x, y, width, height)));
   [label setNeedsDisplay:YES];
 }
 

@@ -2,6 +2,7 @@
 #include "../MacScenePlatformController.hpp"
 #include <cassert>
 #include "../MacObjCCompat.hpp"
+#include "../platform/MacNativeGeometry.hpp"
 #include "app/RectSurface.hpp"
 #include <AppKit/AppKit.h>
 
@@ -61,7 +62,9 @@ MacRectSurfaceContext::MacRectSurfaceContext(MacScenePlatformController *control
       view_(0)
 {
   NSView *parent = (NSView *)parentView;
-  LokaRectSurfaceView *view = [[LokaRectSurfaceView alloc] initWithFrame:NSMakeRect(x, y, width, height)];
+  const loka::macos::MacRect frame =
+      this->controller()->projection().projectFrame(loka::core::Frame(x, y, width, height));
+  LokaRectSurfaceView *view = [[LokaRectSurfaceView alloc] initWithFrame:frame.r];
   [view setContext:this];
   if (parent)
   {
@@ -145,7 +148,8 @@ void MacRectSurfaceContext::relayout(int x, int y, int width, int height)
   {
     return;
   }
-  [view setFrame:NSMakeRect(x, y, width, height)];
+  loka::macos::SetMacFrame(view,
+      this->controller()->projection().projectFrame(loka::core::Frame(x, y, width, height)));
   [view setNeedsDisplay:YES];
 }
 
@@ -207,9 +211,8 @@ void MacRectSurfaceContext::draw(void *viewBounds)
   [MacRectSurfaceContentColor() setFill];
   for (short i = 0; i < model.rectCount; ++i)
   {
-    NSRectFill(NSMakeRect((CGFloat)model.rects[i].x,
-                          (CGFloat)model.rects[i].y,
-                          (CGFloat)model.rects[i].width,
-                          (CGFloat)model.rects[i].height));
+    NSRectFill(this->controller()->projection().projectDeviceOnly(
+        loka::core::Frame(model.rects[i].x, model.rects[i].y,
+                          model.rects[i].width, model.rects[i].height)).r);
   }
 }

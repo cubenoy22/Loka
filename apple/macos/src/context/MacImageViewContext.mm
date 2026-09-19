@@ -2,6 +2,7 @@
 #include <cassert>
 #include "../MacScenePlatformController.hpp"
 #include "../MacObjCCompat.hpp"
+#include "../platform/MacNativeGeometry.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include <AppKit/AppKit.h>
@@ -22,7 +23,8 @@ namespace
     return [NSColor colorWithCalibratedWhite:0.94 alpha:1.0];
   }
 
-  int ResolveImageLayoutWidth(const loka::app::ImageViewNode *node, int fallbackWidth)
+  int ResolveImageLayoutWidth(const loka::app::ImageViewNode *node, int fallbackWidth,
+                              const loka::macos::MacProjection &projection)
   {
     if (!node)
     {
@@ -46,7 +48,7 @@ namespace
     }
     if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_INTRINSIC && srcWidth > 0)
     {
-      return srcWidth;
+      return projection.intrinsicPixelsToLu(srcWidth);
     }
     if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT)
     {
@@ -55,7 +57,8 @@ namespace
     return fallbackWidth;
   }
 
-  int ResolveImageLayoutHeight(const loka::app::ImageViewNode *node, int resolvedWidth, int fallbackHeight)
+  int ResolveImageLayoutHeight(const loka::app::ImageViewNode *node, int resolvedWidth, int fallbackHeight,
+                               const loka::macos::MacProjection &projection)
   {
     if (!node)
     {
@@ -83,13 +86,18 @@ namespace
     {
       return fallbackHeight;
     }
+    if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_INTRINSIC
+        && node->props.width_ <= 0 && srcHeight > 0)
+    {
+      return projection.intrinsicPixelsToLu(srcHeight);
+    }
     if (srcWidth > 0 && srcHeight > 0 && resolvedWidth > 0)
     {
       return (resolvedWidth * srcHeight) / srcWidth;
     }
     if (srcHeight > 0)
     {
-      return srcHeight;
+      return projection.intrinsicPixelsToLu(srcHeight);
     }
     if (fallbackHeight > 0)
     {
@@ -254,7 +262,9 @@ MacImageViewContext::MacImageViewContext(MacScenePlatformController *controller,
       image_()
 {
   NSView *parent = (NSView *)parentView;
-  LokaImageView *view = [[LokaImageView alloc] initWithFrame:NSMakeRect(x, y, width, height)];
+  const loka::macos::MacRect frame =
+      this->controller()->projection().projectFrame(loka::core::Frame(x, y, width, height));
+  LokaImageView *view = [[LokaImageView alloc] initWithFrame:frame.r];
   if (parent)
   {
     [parent addSubview:view];
@@ -319,8 +329,8 @@ void MacImageViewContext::applyDetachedPresentation()
 
 short MacImageViewContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
-  const int imageWidth = ResolveImageLayoutWidth(this->node_, state.width);
-  const int imageHeight = ResolveImageLayoutHeight(this->node_, imageWidth, state.height);
+  const int imageWidth = ResolveImageLayoutWidth(this->node_, state.width, this->controller()->projection());
+  const int imageHeight = ResolveImageLayoutHeight(this->node_, imageWidth, state.height, this->controller()->projection());
   this->relayout(state.x, state.y, imageWidth, imageHeight);
   state.width = static_cast<short>(imageWidth);
   state.height = static_cast<short>(imageHeight);
@@ -334,7 +344,8 @@ void MacImageViewContext::relayout(int x, int y, int width, int height)
   {
     return;
   }
-  [view setFrame:NSMakeRect(x, y, width, height)];
+  loka::macos::SetMacFrame(view,
+      this->controller()->projection().projectFrame(loka::core::Frame(x, y, width, height)));
   [view setNeedsDisplay:YES];
 }
 

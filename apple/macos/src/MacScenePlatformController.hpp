@@ -2,6 +2,7 @@
 #define LOKA_MAC_SCENE_PLATFORM_CONTROLLER_HPP
 
 #include <vector>
+#include "platform/MacProjection.hpp"
 #include "app/RectSurface.hpp"
 #include "app/style/StyleVocab.hpp"
 #include "app/scene/projection/ProjectionParentScope.hpp"
@@ -98,6 +99,8 @@ public:
   virtual void releaseNodeContexts(loka::app::scene::Node *node);
   virtual bool prepareProjectedLayout(loka::app::scene::Node *node, loka::app::scene::LayoutState &state);
   virtual bool registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler);
+
+  const loka::macos::MacProjection &projection() const { return this->projection_; }
 
   void relayout(int clientWidth, int clientHeight);
   void requestRelayout();
@@ -266,6 +269,7 @@ private:
     TextFontTable &operator=(const TextFontTable &);
   };
 
+  const loka::macos::MacProjection projection_;
   TextFontTable textFonts_;
   void *rootView_;
   loka::app::scene::ProjectionParentScopeStack projectionParentScopes_;
