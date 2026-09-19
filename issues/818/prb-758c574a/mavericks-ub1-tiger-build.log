@@ -1,0 +1,3 @@
+Architectures in the fat file: /Users/lihi-ai/loka-asm/build/macos-10.4-ub1/universal/.LokaFloppyBirdStandaloneLoopMacOS.4zNolW/LokaFloppyBirdStandaloneLoopMacOS.app/Contents/MacOS/LokaFloppyBirdStandaloneLoopMacOS are: ppc i386 
+Staged five autonomous UB1 loops plus SimpleViewer (ppc;i386): /Users/lihi-ai/loka-asm/build/release/macos-tiger-ub1
+ub1-exit=0

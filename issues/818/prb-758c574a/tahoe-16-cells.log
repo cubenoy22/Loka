@@ -1,0 +1,22 @@
+start Sat Sep 19 11:00:39 JST 2026 sha=758c574a 25G229
+758c574a The macOS rail wrote layout results straight into NSMakeRect/setFrame at 23 sites and read native geometry back at 13 without any conversion seat; give the scene one MacProjection policy (edge nearest with device-pixel alignment, capacity floor, measurement ceil, damage outward, scroll pair), type the native geometry so only the policy constructs it, compare the non-wrapping Text line height in lu, and extend the CI checker to apple/macos (#818 PR b)
+configure exit=0
+build exit=0
+cell scrapbook startup: pass
+cell scrapbook open-first-page-refused: pass
+cell scrapbook flip-forward-back: pass
+cell scrapbook refused-flip-keeps-page: pass
+cell scrapbook open-text-page: pass
+cell scrapbook open-text-page-refused: pass
+cell helloworld startup: pass
+cell helloworld toggle-action-probe: pass
+cell helloworld bmi-roundtrip: pass
+cell tutorial startup: pass
+cell tutorial increment-summary-toggle: pass
+cell minesweeper startup: pass
+cell minesweeper new-game-twice: pass
+cell minesweeper seeded-reveal: pass
+cell floppybird startup: pass
+cell floppybird fixed-step-flaps: pass
+cells pass: 16/16
+matrix done Sat Sep 19 11:02:16 JST 2026
