@@ -11,7 +11,6 @@ namespace loka
     namespace
     {
       const core::LokaAllocationSite kSegmentsSite("AttributedString", "Segments");
-      const core::LokaAllocationSite kControlBlockSite("AttributedString", "ControlBlock");
 
       // A cursor compares joined UTF-8 bytes without concatenating Strings or
       // materializing the whole line. Empty segments contribute no style.
@@ -140,7 +139,7 @@ namespace loka
       Storage *storage = new (memory) Storage(count);
       for (std::size_t i = 0; i < count; ++i)
         new (storage->segments() + i) Segment();
-      result.storage_ = core::Managed<Storage>::TryWrap(storage, &Storage::Release, 0, kControlBlockSite);
+      result.storage_ = core::Managed<Storage>::TryWrap(storage, &Storage::Release, 0);
       if (!result.storage_.isValid())
       {
         Storage::Release(storage, 0);

@@ -2,12 +2,16 @@
 #define LOKA_CORE_MANAGED_HPP
 
 #include <cstddef>
+#include <cstdlib>
 #include "core/LokaAlloc.hpp"
 
 namespace loka
 {
   namespace core
   {
+    /** Allocation identity shared by every Managed control block. */
+    const LokaAllocationSite kManagedControlBlockSite("Managed", "ControlBlock");
+
     // Managed<T>: Simple intrusive reference-counted handle for platform resources.
     // - Wraps a pointer to T plus an optional releaser callback.
     // - Copying increments the refcount, destruction decrements it.
@@ -41,26 +45,28 @@ namespace loka
         release();
       }
 
+      /** Adopts non-null value or aborts on allocation refusal; null stays empty. */
       static Managed<T> Wrap(T *value, ReleaserFn releaser = &Managed::DefaultDelete, void *userData = 0)
       {
-        if (!value)
-          return Managed<T>();
-        return Managed<T>(new ControlBlock(value, releaser, userData));
+        const Managed<T> managed = TryWrap(value, releaser, userData);
+        if (value && !managed.isValid())
+          std::abort();
+        return managed;
       }
 
       /**
        * Adopts value only on success. On refusal the caller still owns value;
-       * no releaser is invoked. The site's tag strings must outlive the block,
-       * and the allocation backend must remain installed until its release.
+       * no releaser is invoked. All blocks use kManagedControlBlockSite;
+       * the allocation backend must remain installed until release.
        */
-      static Managed<T> TryWrap(T *value, ReleaserFn releaser, void *userData, const LokaAllocationSite &site)
+      static Managed<T> TryWrap(T *value, ReleaserFn releaser, void *userData)
       {
         if (!value)
           return Managed<T>();
-        void *storage = LokaAllocRaw(sizeof(GatedControlBlock), site);
+        void *storage = LokaAllocRaw(sizeof(ControlBlock), kManagedControlBlockSite);
         if (!storage)
           return Managed<T>();
-        return Managed<T>(new (storage) GatedControlBlock(value, releaser, userData, site));
+        return Managed<T>(new (storage) ControlBlock(value, releaser, userData));
       }
 
       T *get() const
@@ -106,40 +112,14 @@ namespace loka
             : value(ptr),
               releaser(rel),
               userData(ud),
-              refCount(1),
-              destroy(&Managed::DeleteControlBlock)
+              refCount(1)
         {
         }
         T *value;
         ReleaserFn releaser;
         void *userData;
         int refCount;
-        void (*destroy)(ControlBlock *);
       };
-
-      struct GatedControlBlock : ControlBlock
-      {
-        GatedControlBlock(T *ptr, ReleaserFn rel, void *ud, const LokaAllocationSite &allocationSite)
-            : ControlBlock(ptr, rel, ud),
-              site(allocationSite)
-        {
-          this->destroy = &Managed::FreeControlBlock;
-        }
-        const LokaAllocationSite site;
-      };
-
-      static void DeleteControlBlock(ControlBlock *block)
-      {
-        delete block;
-      }
-
-      static void FreeControlBlock(ControlBlock *block)
-      {
-        GatedControlBlock *gated = static_cast<GatedControlBlock *>(block);
-        const LokaAllocationSite site = gated->site;
-        gated->~GatedControlBlock();
-        LokaFreeRaw(gated, site);
-      }
 
       explicit Managed(ControlBlock *block)
           : block_(block)
@@ -160,7 +140,8 @@ namespace loka
         {
           if (block_->releaser)
             block_->releaser(block_->value, block_->userData);
-          block_->destroy(block_);
+          block_->~ControlBlock();
+          LokaFreeRaw(block_, kManagedControlBlockSite);
         }
         block_ = 0;
       }

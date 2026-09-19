@@ -9,6 +9,7 @@ namespace loka
     namespace testing
     {
       // Install only around allocation-balanced regions, like LokaAllocSetBackend.
+      // Refuse only the count-th matching allocation; zero disables refusal.
       void failLokaAllocRaw(const char *owner, const char *type, int count);
       void allowLokaAllocRaw();
       int lokaAllocRawLive();

@@ -7,6 +7,11 @@
 #include "platform/String.hpp"
 #include "support/LokaAllocFailure.hpp"
 #include "support/TestVerify.hpp"
+#if defined(TEST_BUILD) && defined(__linux__) && !defined(__SANITIZE_ADDRESS__)
+#include <signal.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
 
 namespace
 {
@@ -125,19 +130,21 @@ void testAttributedStringStyleDirections()
 void testAttributedStringEmptyAndInvalid()
 {
   using namespace loka::app;
+  const loka::core::String text("a");
+  const loka::core::String emptyText("");
   AllocationFailures failures;
   const AttributedString empty;
   LOKA_VERIFY(empty.valid());
   LOKA_VERIFY(empty.empty());
   LOKA_VERIFY(empty.segmentCount() == 0);
-  LOKA_VERIFY(Styled("", Bold).empty());
+  LOKA_VERIFY(Styled(emptyText, Bold).empty());
   LOKA_VERIFY(Styled(loka::core::String(), Bold) == empty);
   LOKA_VERIFY((empty + Bold) == empty);
   LOKA_VERIFY((Bold + empty) == empty);
   LOKA_VERIFY((empty + empty) == empty);
-  LOKA_VERIFY(!Styled("a", Bold).empty());
+  LOKA_VERIFY(!Styled(text, Bold).empty());
   loka::core::testing::failLokaAllocRaw("AttributedString", "Segments", 1);
-  const AttributedString invalid = Styled("a", Bold);
+  const AttributedString invalid = Styled(text, Bold);
   LOKA_VERIFY(!invalid.valid());
   LOKA_VERIFY(invalid.empty());
   LOKA_VERIFY(invalid != empty);
@@ -177,8 +184,8 @@ void testAttributedStringAllocationFailures()
 {
   using namespace loka::app;
   using namespace loka::core::testing;
-  AllocationFailures failures;
   const loka::core::String text("a");
+  AllocationFailures failures;
   const AttributedString original = Styled(text, Bold);
   LOKA_VERIFY(lokaAllocRawAttempts() == 2);
   LOKA_VERIFY(lokaAllocRawLive() == 2);
@@ -188,14 +195,23 @@ void testAttributedStringAllocationFailures()
     LOKA_VERIFY(lokaAllocRawLive() == 2);
     LOKA_VERIFY(lokaAllocRawAttempts() == 2);
   }
-  const char *sites[] = {"Segments", "ControlBlock"};
+  const loka::core::LokaAllocationSite sites[] = {
+      loka::core::LokaAllocationSite("AttributedString", "Segments"),
+      loka::core::kManagedControlBlockSite,
+  };
   for (int site = 0; site < 2; ++site)
   {
     for (int operation = 0; operation < 4; ++operation)
     {
-      failLokaAllocRaw("AttributedString", sites[site], 2);
       for (int attempt = 0; attempt < 2; ++attempt)
       {
+        failLokaAllocRaw(sites[site].ownerTag, sites[site].typeTag, site + 1);
+        {
+          // The first Managed allocation succeeds; only the selected nth one refuses.
+          int payload = 7;
+          const loka::core::Managed<int> preceding = loka::core::Managed<int>::Wrap(&payload, 0);
+          LOKA_VERIFY(preceding.isValid());
+        }
         const AttributedString result = operation == 0   ? Styled(text, Italic)
                                         : operation == 1 ? original + original
                                         : operation == 2 ? Italic + original
@@ -203,8 +219,8 @@ void testAttributedStringAllocationFailures()
         LOKA_VERIFY(!result.valid());
         LOKA_VERIFY(result.empty());
         LOKA_VERIFY(lokaAllocRawLive() == 2);
+        LOKA_VERIFY(lokaAllocRawAttempts() == site + 2);
       }
-      LOKA_VERIFY(lokaAllocRawAttempts() == 2 * (site + 1));
       LOKA_VERIFY(original.valid());
       LOKA_VERIFY(original.segment(0).style == Bold);
       LOKA_VERIFY(Styled(text, Bold) == original);
@@ -236,17 +252,36 @@ void testAttributedStringRefusedBuffersAndSharedFastPath()
 void testManagedTryWrapFailureAndRelease()
 {
   using namespace loka::core;
+#if defined(TEST_BUILD) && defined(__linux__) && !defined(__SANITIZE_ADDRESS__)
+  // Like the existing death pins, require SIGABRT rather than any crash.
+  const pid_t child = fork();
+  LOKA_VERIFY(child >= 0);
+  if (child == 0)
+  {
+    int payload = 7;
+    int releases = 0;
+    testing::failLokaAllocRaw("Managed", "ControlBlock", 1);
+    Managed<int>::Wrap(&payload, &releaseInt, &releases);
+    _exit(0);
+  }
+  int status = 0;
+  LOKA_VERIFY(waitpid(child, &status, 0) == child);
+  LOKA_VERIFY(WIFSIGNALED(status));
+  LOKA_VERIFY(WTERMSIG(status) == SIGABRT);
+#else
+  std::printf("[skip] Managed Wrap refusal death pin requires TEST_BUILD Linux without ASan.\n");
+#endif
   AllocationFailures failures;
-  const LokaAllocationSite site("ManagedTest", "ControlBlock");
+  const LokaAllocationSite &site = kManagedControlBlockSite;
   int payload = 7;
   int releases = 0;
   testing::failLokaAllocRaw(site.ownerTag, site.typeTag, 1);
-  Managed<int> refused = Managed<int>::TryWrap(&payload, &releaseInt, &releases, site);
+  Managed<int> refused = Managed<int>::TryWrap(&payload, &releaseInt, &releases);
   LOKA_VERIFY(!refused.isValid());
   LOKA_VERIFY(releases == 0);
   LOKA_VERIFY(testing::lokaAllocRawLive() == 0);
   {
-    Managed<int> owner = Managed<int>::TryWrap(&payload, &releaseInt, &releases, site);
+    Managed<int> owner = Managed<int>::TryWrap(&payload, &releaseInt, &releases);
     LOKA_VERIFY(owner.isValid());
     LOKA_VERIFY(testing::lokaAllocRawLive() == 1);
     Managed<int> copy = owner;
@@ -261,10 +296,18 @@ void testManagedTryWrapFailureAndRelease()
   }
   LOKA_VERIFY(releases == 1);
   LOKA_VERIFY(testing::lokaAllocRawLive() == 0);
-  LOKA_VERIFY(!Managed<int>::TryWrap(0, &releaseInt, &releases, site).isValid());
+  LOKA_VERIFY(!Managed<int>::TryWrap(0, &releaseInt, &releases).isValid());
+  testing::failLokaAllocRaw(site.ownerTag, site.typeTag, 2);
   {
     Managed<int> legacy = Managed<int>::Wrap(&payload, &releaseInt, &releases);
-    LOKA_VERIFY(testing::lokaAllocRawLive() == 0);
+    LOKA_VERIFY(legacy.isValid());
+    LOKA_VERIFY(testing::lokaAllocRawLive() == 1);
   }
   LOKA_VERIFY(releases == 2);
+  LOKA_VERIFY(testing::lokaAllocRawLive() == 0);
+  LOKA_VERIFY(!Managed<int>::TryWrap(&payload, &releaseInt, &releases).isValid());
+  LOKA_VERIFY(releases == 2);
+  testing::failLokaAllocRaw("Managed", "ControlBlock", 1);
+  LOKA_VERIFY(!Managed<int>::Wrap(0).isValid());
+  LOKA_VERIFY(testing::lokaAllocRawAttempts() == 0);
 }

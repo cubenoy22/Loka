@@ -22,13 +22,6 @@ namespace helloworld
 
   namespace
   {
-    static const String kFruitItems[] = {
-        String::Literal("Apple"),
-        String::Literal("Banana"),
-        String::Literal("Cherry"),
-        String::Literal("Grape"),
-    };
-    static const std::size_t kFruitItemCount = sizeof(kFruitItems) / sizeof(kFruitItems[0]);
     // HelloWorld starts at 420px wide, so 400 preserves its golden wide path;
     // SmirkBench's 480px breakpoint is an app-specific choice, not a default.
     static const int kNarrowBreakpoint = 400;
@@ -142,7 +135,13 @@ namespace helloworld
     this->state(this->fruitIndex_, 0);
     this->state(this->axis_, loka::app::STACK_AXIS_ROW);
     this->state(this->scrollOffset_, 0);
-    this->fruits_.assign(kFruitItems, kFruitItemCount);
+    const String fruitItems[] = {
+        String::Literal("Apple"),
+        String::Literal("Banana"),
+        String::Literal("Cherry"),
+        String::Literal("Grape"),
+    };
+    this->fruits_.assign(fruitItems, sizeof(fruitItems) / sizeof(fruitItems[0]));
     this->derived(this->actionSummary_, this->actionEnabled_, this->actionProbeCount_,
                   new (std::nothrow) ActionSummaryEvalFn(this->actionEnabled_, this->actionProbeCount_));
     this->derived(this->fruitMessage_, this->fruitIndex_,
