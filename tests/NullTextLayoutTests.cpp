@@ -1,4 +1,6 @@
 #include "NullTextLayoutTests.hpp"
+#include "support/TestVerify.hpp"
+#include "support/RailTextLayoutFixture.hpp"
 
 #include <cassert>
 
@@ -76,6 +78,31 @@ void testNullTextLayoutTruncationModesProduceDifferentWidths()
 
 void testNullTextLayoutHonorsExplicitBreaksAndForceBreaksLongWords()
 {
+  // Null has no spaceScale input. It can nevertheless discriminate the
+  // shared Box/Column contract: extra native-equivalent lines inside a fixed
+  // page cannot move the later caption/button rows.
+  for (int lines = 1; lines <= 2; ++lines)
+  {
+    NullScenePlatformController controller;
+    RailTextLayoutFixture fixture(true, lines == 1 ? "First" : "First\nSecond");
+    loka::app::scene::LayoutState frame;
+    frame.x = 20;
+    frame.y = 20;
+    frame.width = 300;
+    frame.height = 210;
+    frame.lineHeight = 20;
+    frame.spacing = 12;
+    const int bottom = controller.projectLayoutForTesting(&fixture.column, frame);
+    const NullTextContext *text = static_cast<const NullTextContext *>(fixture.wrapped->getContext());
+    LOKA_VERIFY(text != 0);
+    LOKA_VERIFY(text->measurement().lineCount() == lines);
+    std::printf("  Null fixed text column: lines=%d resultY=%d\n", lines, bottom);
+    std::fflush(stdout);
+    // Null's deterministic default font is 12 lu, unlike native Text's 20 lu
+    // minimum: 20 + page 170 + caption 12 + gap 12 + button 32 + trailing gap 12.
+    LOKA_VERIFY(bottom == 258);
+  }
+
   loka::app::TextProps breakProps("a\nb");
   breakProps.blockStyle_ = loka::app::BlockStyle().wrap(loka::app::TEXT_WRAP_WORD);
   loka::app::TextNode breakText(breakProps);

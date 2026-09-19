@@ -89,6 +89,14 @@ namespace loka
       return MacRect(NSMakeRect(left.pt, top.pt, width.pt, height.pt));
     }
 
+    MacRect MacProjection::projectClientSize(int widthLu, int heightLu) const
+    {
+      // Window allocation is the outward dual of capacityToLu, not a child
+      // edge. Round in whole points as AppKit window sizing does on all SDKs.
+      return MacRect(NSMakeRect(0, 0, std::ceil(widthLu * this->spaceScale()),
+                                std::ceil(heightLu * this->spaceScale())));
+    }
+
     MacRect MacProjection::damageToNative(const core::Frame &lu) const
     {
       const double backing = this->backingScale();

@@ -94,7 +94,7 @@ void testWin32RetainedTextRebindsToNewState()
   Win32Window window(&platform, windowProps);
   show(window);
   assert(window.hwnd());
-  Win32ScenePlatformController controller(window.hwnd(), loka::win32::Win32DisplayScale(96));
+  Win32ScenePlatformController controller(window.hwnd(), loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
   MutableState<String> a(String::Literal("same")), b(String::Literal("same"));
   Text declaration(&a);
   Scene scene((Boundary<Tree<Text> >(Props<Text>(&declaration))));
@@ -167,7 +167,7 @@ void testWin32RetainedRectSurfaceRebindsToNewModel()
   Win32Window window(&platform, windowProps);
   show(window);
   assert(window.hwnd());
-  Win32ScenePlatformController controller(window.hwnd(), loka::win32::Win32DisplayScale(96));
+  Win32ScenePlatformController controller(window.hwnd(), loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
   MutableState<RectSurfaceModel> a(sprite(0)), b(sprite(0));
   RectSurface declaration = RectSurface(&a).size(100, 60);
   Scene scene((Boundary<Tree<RectSurface> >(Props<RectSurface>(&declaration))));

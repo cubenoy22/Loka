@@ -307,8 +307,7 @@ void MacWindow::FrameChangedThunk(void *userData)
   NSRect currentContent = [window contentRectForFrameRect:currentFrame];
   CGFloat x = frame.x >= 0 ? frame.x : currentContent.origin.x;
   CGFloat y = frame.y >= 0 ? frame.y : currentContent.origin.y;
-  const loka::macos::MacRect intent = self->projection().projectFrame(
-      loka::core::Frame(0, 0, frame.width, frame.height));
+  const loka::macos::MacRect intent = self->projection().projectClientSize(frame.width, frame.height);
   CGFloat width = frame.width > 0 ? intent.r.size.width : currentContent.size.width;
   CGFloat height = frame.height > 0 ? intent.r.size.height : currentContent.size.height;
   NSScreen *screen = [window screen];
@@ -350,7 +349,7 @@ void MacWindow::FrameChangedThunk(void *userData)
 loka::macos::MacProjection MacWindow::projection() const
 {
   return this->scenePlatformController_ ? this->scenePlatformController_->projection()
-                                       : loka::macos::MacProjection(this->contentView_);
+                                       : loka::macos::MacProjection(this->contentView_, loka::macos::DefaultRailMetrics());
 }
 
 void MacWindow::createNativeWindow()
@@ -363,9 +362,9 @@ void MacWindow::createNativeWindow()
   const loka::core::Frame defaultFrame = Window::defaultFrame();
   CGFloat x = this->hasPosition() ? this->positionX() : defaultFrame.x;
   CGFloat y = this->hasPosition() ? this->positionY() : defaultFrame.y;
-  const loka::macos::MacRect content = this->projection().projectFrame(loka::core::Frame(
-      0, 0, this->hasSize() ? this->width() : defaultFrame.width,
-      this->hasSize() ? this->height() : defaultFrame.height));
+  const loka::macos::MacRect content = this->projection().projectClientSize(
+      this->hasSize() ? this->width() : defaultFrame.width,
+      this->hasSize() ? this->height() : defaultFrame.height);
   const CGFloat width = content.r.size.width;
   const CGFloat height = content.r.size.height;
   NSUInteger style = LOKA_MAC_WINDOW_STYLE_TITLED | LOKA_MAC_WINDOW_STYLE_CLOSABLE
@@ -644,7 +643,7 @@ bool MacWindow::mountReplacementScene(loka::app::scene::Scene *next)
   if (!this->window_ || !this->contentView_)
     return true;
   if (!this->scenePlatformController_)
-    this->scenePlatformController_ = new MacScenePlatformController(this->contentView_);
+    this->scenePlatformController_ = new MacScenePlatformController(this->contentView_, loka::macos::DefaultRailMetrics());
   if (!this->scenePlatformController_)
     return false;
   next->mount(this->scenePlatformController_);

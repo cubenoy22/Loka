@@ -24,6 +24,15 @@ namespace
   // same binary. Keep the wire value local to the capability-aware rail.
   static const UINT kWindowDpiChangedMessage = 0x02E0;
 
+  /** One policy for window geometry and scene admission, including bootstrap
+      before an HWND exists. Native chrome and font queries stay DPI-only. */
+  loka::win32::Win32DisplayScale WindowProjection(HWND hwnd)
+  {
+    return loka::win32::Win32DisplayScale(
+        loka::win32::Win32DisplayScale::forWindow(hwnd).dpi(),
+        loka::win32::DefaultRailMetrics());
+  }
+
   bool CalculateOuterSizeForClient(const loka::win32::NativeLength &clientWidth,
                                    const loka::win32::NativeLength &clientHeight,
                                    DWORD style,
@@ -170,7 +179,7 @@ bool Win32Window::queryNativeContentFrame(loka::core::Frame &out) const
   {
     return false;
   }
-  out = loka::win32::Win32DisplayScale::forWindow(this->hwnd_)
+  out = WindowProjection(this->hwnd_)
             .windowContentFrameFromNative(windowRect,
                                           clientRect.right - clientRect.left,
                                           clientRect.bottom - clientRect.top);
@@ -204,9 +213,9 @@ bool Win32Window::applyNativeContentFrame(const loka::core::Frame &frame)
   const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(this->hwnd_, GWL_STYLE));
   const DWORD exStyle = static_cast<DWORD>(GetWindowLongPtrW(this->hwnd_, GWL_EXSTYLE));
   const loka::win32::Win32DisplayScale scale =
-      loka::win32::Win32DisplayScale::forWindow(this->hwnd_);
-  if (!CalculateOuterSizeForClient(scale.nativeLength(0, frame.width),
-                                   scale.nativeLength(0, frame.height),
+      WindowProjection(this->hwnd_);
+  if (!CalculateOuterSizeForClient(scale.clientLengthToNative(frame.width),
+                                   scale.clientLengthToNative(frame.height),
                                    style,
                                    exStyle,
                                    GetMenu(this->hwnd_) ? TRUE : FALSE,
@@ -245,11 +254,11 @@ bool Win32Window::detachMenuForTeardown(HMENU expectedMenu)
   const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(this->hwnd_, GWL_STYLE));
   const DWORD exStyle = static_cast<DWORD>(GetWindowLongPtrW(this->hwnd_, GWL_EXSTYLE));
   const loka::win32::Win32DisplayScale scale =
-      loka::win32::Win32DisplayScale::forWindow(this->hwnd_);
+      WindowProjection(this->hwnd_);
   int outerWidth = 0;
   int outerHeight = 0;
-  if (!CalculateOuterSizeForClient(scale.nativeLength(0, contentFrame.width),
-                                   scale.nativeLength(0, contentFrame.height),
+  if (!CalculateOuterSizeForClient(scale.clientLengthToNative(contentFrame.width),
+                                   scale.clientLengthToNative(contentFrame.height),
                                    style,
                                    exStyle,
                                    FALSE,
@@ -507,11 +516,11 @@ void Win32Window::createNativeWindow()
   const int clientWidth = this->hasSize() ? this->width() : defaultFrame.width;
   const int clientHeight = this->hasSize() ? this->height() : defaultFrame.height;
   const loka::win32::Win32DisplayScale initialScale =
-      loka::win32::Win32DisplayScale::forSystem();
+      WindowProjection(NULL);
   int outerWidth = 0;
   int outerHeight = 0;
-  if (!CalculateOuterSizeForClient(initialScale.nativeLength(0, clientWidth),
-                                   initialScale.nativeLength(0, clientHeight),
+  if (!CalculateOuterSizeForClient(initialScale.clientLengthToNative(clientWidth),
+                                   initialScale.clientLengthToNative(clientHeight),
                                    kWindowStyle,
                                    kWindowExStyle,
                                    FALSE,
@@ -679,7 +688,7 @@ bool Win32Window::mountReplacementScene(loka::app::scene::Scene *next)
     return true;
   if (!this->scenePlatformController_)
     this->scenePlatformController_ = new Win32ScenePlatformController(
-        this->hwnd_, loka::win32::Win32DisplayScale::forWindow(this->hwnd_));
+        this->hwnd_, WindowProjection(this->hwnd_));
   if (!this->scenePlatformController_)
     return false;
   next->mount(this->scenePlatformController_);

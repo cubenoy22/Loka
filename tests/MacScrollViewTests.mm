@@ -136,7 +136,7 @@ void testMacScrollViewParentsChildrenToFlippedDocumentView()
   NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 240)];
   LOKA_VERIFY(root != nil);
   {
-    MacScenePlatformController controller((void *)root);
+    MacScenePlatformController controller((void *)root, loka::app::RailMetrics());
     // Nodes are declared after the controller so they leave scope first:
     // ~Node remains the terminal retire door while the native queue owner is
     // alive. Releasing rootNode_ below also prevents clearNodeContexts from
@@ -183,7 +183,7 @@ void testMacScrollViewOffsetIsRelayoutInput()
   NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 240)];
   LOKA_VERIFY(root != nil);
   {
-    MacScenePlatformController controller((void *)root);
+    MacScenePlatformController controller((void *)root, loka::app::RailMetrics());
     OffsetFact offset(0);
     loka::app::ScrollViewNode scrollView((loka::app::ScrollViewProps(offset.state())));
     addButtonColumn(scrollView, 6);
@@ -226,7 +226,7 @@ void testMacScrollViewBoundsObservationPublishesOffsetFact()
   NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 240)];
   LOKA_VERIFY(root != nil);
   {
-    MacScenePlatformController controller((void *)root);
+    MacScenePlatformController controller((void *)root, loka::app::RailMetrics());
     OffsetFact offset(0);
     loka::app::ScrollViewNode scrollView((loka::app::ScrollViewProps(offset.state())));
     addButtonColumn(scrollView, 6);
@@ -263,7 +263,7 @@ void testMacScrollViewResizeReclampsOffsetOnce()
   NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 240)];
   LOKA_VERIFY(root != nil);
   {
-    MacScenePlatformController controller((void *)root);
+    MacScenePlatformController controller((void *)root, loka::app::RailMetrics());
     OffsetFact offset(100);
     loka::app::ScrollViewNode scrollView((loka::app::ScrollViewProps(offset.state())));
     addButtonColumn(scrollView, 6);
@@ -315,7 +315,7 @@ void testMacNestedScrollViewRefusesWithoutDisturbingOuterScope()
   NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 240)];
   LOKA_VERIFY(root != nil);
   {
-    MacScenePlatformController controller((void *)root);
+    MacScenePlatformController controller((void *)root, loka::app::RailMetrics());
     OffsetFact outerOffset(5);
     OffsetFact innerOffset(3);
     loka::app::ScrollViewNode outer((loka::app::ScrollViewProps(outerOffset.state())));
@@ -357,7 +357,7 @@ void testMacScrollViewButtonClickReachesLokaHandler()
   NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 240)];
   LOKA_VERIFY(root != nil);
   {
-    MacScenePlatformController controller((void *)root);
+    MacScenePlatformController controller((void *)root, loka::app::RailMetrics());
     loka::core::EmitterState firstClick;
     OffsetFact offset(0);
     loka::app::ScrollViewNode scrollView((loka::app::ScrollViewProps(offset.state())));

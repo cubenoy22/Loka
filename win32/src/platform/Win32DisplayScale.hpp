@@ -88,6 +88,9 @@ namespace loka
           At unit spaceScale and 144 dpi, a 301 px client admits 200 lu (the
           old nearest inverse admitted 201). At 96 dpi every integer is exact. */
       int capacityToLu(int px) const;
+      /** Outward client allocation, paired with floor capacityToLu. Ordinary
+          child extents remain differences of nearest absolute edges. */
+      NativeLength clientLengthToNative(int lu) const;
       int measurementToLu(int px) const;
       /** Client ingress: diagnose short overflow and verify containment. */
       int clientCapacityToLu(int px) const;
