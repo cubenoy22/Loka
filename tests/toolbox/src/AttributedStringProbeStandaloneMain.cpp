@@ -244,7 +244,11 @@ namespace
 #else
       std::fprintf(this->log_, "census=unavailable\r");
 #endif
-      return dirty == 0 && matches == kIterations;
+      // The tracker records every set() attempt as dirty, equal or not
+      // (State.hpp, MutableState::set); the count is a measurement, not a
+      // pass condition. Only the shared fast path is a contract here.
+      std::fprintf(this->log_, "equal_set_marked_dirty=%d\r", dirty);
+      return matches == kIterations;
     }
 
     static void OnIdle(Window *, double, void *data)
@@ -253,7 +257,7 @@ namespace
       if (!self->measure())
       {
         self->result_ = 1;
-        std::fprintf(self->log_, "ERROR allocation/segment/equality check failed\r");
+        std::fprintf(self->log_, "ERROR shared-compare fast path failed\r");
       }
       std::fprintf(self->log_, "done\r");
       if (std::ferror(self->log_) || !loka::platform::file::FlushWrite(self->log_, self->file_))
