@@ -23,18 +23,18 @@ namespace loka
       {
         const char *g_failureOwner = 0;
         const char *g_failureType = 0;
-        int g_allocationFailures = 0;
+        int g_allocationsUntilFailure = 0;
         int g_allocationLive = 0;
         int g_allocationAttempts = 0;
 
         void *allocateWithFailures(std::size_t size, const LokaAllocationSite &site)
         {
           ++g_allocationAttempts;
-          if (g_allocationFailures > 0 && site.ownerTag && site.typeTag
+          if (g_allocationsUntilFailure > 0 && site.ownerTag && site.typeTag
               && std::strcmp(site.ownerTag, g_failureOwner) == 0 && std::strcmp(site.typeTag, g_failureType) == 0)
           {
-            --g_allocationFailures;
-            return 0;
+            if (--g_allocationsUntilFailure == 0)
+              return 0;
           }
           void *memory = new (std::nothrow) char[size];
           if (memory)
@@ -53,7 +53,7 @@ namespace loka
       {
         g_failureOwner = owner;
         g_failureType = type;
-        g_allocationFailures = count;
+        g_allocationsUntilFailure = count;
         g_allocationAttempts = 0;
         LokaAllocSetBackend(&allocateWithFailures, &freeWithFailures);
       }
@@ -62,7 +62,7 @@ namespace loka
       {
         assert(g_allocationLive == 0);
         LokaAllocSetBackend(0, 0);
-        g_allocationFailures = 0;
+        g_allocationsUntilFailure = 0;
       }
 
       int lokaAllocRawLive()
