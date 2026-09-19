@@ -680,6 +680,76 @@ class GoldenIdentityGuardTest(unittest.TestCase):
         startup.write_bytes(b"settled startup bytes")
         return registry, declarations, goldens
 
+    def test_explicit_bake_candidates(self):
+        # Both desktop rails use this function; no Windows host condition.
+        for order in (("startup", "interaction"), ("interaction", "startup")):
+            with self.subTest(order=order), tempfile.TemporaryDirectory() as directory:
+                root = pathlib.Path(directory)
+                registry, declarations, goldens = self.make_contract(root)
+                declarations.write_text("example interaction returns to startup\n")
+                (goldens / "example/interaction.png").write_bytes(b"settled startup bytes")
+                bake = root / "bake"
+                (bake / "example").mkdir(parents=True)
+                (bake / "cells.txt").write_text("example startup\nexample interaction\n")
+                for cell in order:
+                    (bake / "example" / f"{cell}.png").write_bytes(b"new bytes")
+                for cell in order:
+                    capture = bake / "example" / f"{cell}.png"
+                    golden_identity_guard.verify_candidate_recording(
+                        registry, declarations, goldens, capture, "example", cell, bake)
+                    (goldens / "example" / f"{cell}.png").write_bytes(capture.read_bytes())
+                (bake / "example/interaction.png").write_bytes(b"diverged")
+                with self.assertRaisesRegex(golden_identity_guard.GoldenIdentityError, "stale startup-identity"):
+                    golden_identity_guard.verify_candidate_recording(
+                        registry, declarations, goldens, bake / "example/startup.png",
+                        "example", "startup", bake)
+                (bake / "example/interaction.png").unlink()
+                with self.assertRaisesRegex(golden_identity_guard.GoldenIdentityError, "not a regular file"):
+                    golden_identity_guard.verify_candidate_recording(
+                        registry, declarations, goldens, bake / "example/startup.png",
+                        "example", "startup", bake)
+                (bake / "cells.txt").write_text("example startup\n")
+                golden_identity_guard.verify_candidate_recording(
+                    registry, declarations, goldens, bake / "example/startup.png",
+                    "example", "startup", bake)
+                (goldens / "example/interaction.png").write_bytes(b"old bytes")
+                with self.assertRaisesRegex(golden_identity_guard.GoldenIdentityError, "stale startup-identity"):
+                    golden_identity_guard.verify_candidate_recording(
+                        registry, declarations, goldens, bake / "example/startup.png",
+                        "example", "startup", bake)
+
+    def test_bake_membership_and_current_capture_are_strict(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            registry, declarations, goldens = self.make_contract(root)
+            bake = root / "bake"
+            (bake / "example").mkdir(parents=True)
+            capture = root / "actual.png"
+            capture.write_bytes(b"current")
+            candidate = bake / "example/startup.png"
+            candidate.write_bytes(b"current")
+            manifest = bake / "cells.txt"
+            for cells, message in (
+                ("example absent\n", "unregistered cell"),
+                ("example interaction\n", "not listed"),
+                ("example startup\nexample startup\n", "duplicate"),
+            ):
+                with self.subTest(cells=cells):
+                    manifest.write_text(cells)
+                    with self.assertRaisesRegex(golden_identity_guard.GoldenIdentityError, message):
+                        golden_identity_guard.verify_candidate_recording(
+                            registry, declarations, goldens, capture, "example", "startup", bake)
+            manifest.write_text("example startup\n")
+            candidate.write_bytes(b"stale")
+            with self.assertRaisesRegex(golden_identity_guard.GoldenIdentityError, "differs from its update candidate"):
+                golden_identity_guard.verify_candidate_recording(
+                    registry, declarations, goldens, capture, "example", "startup", bake)
+            candidate.unlink()
+            candidate.symlink_to(capture)
+            with self.assertRaisesRegex(golden_identity_guard.GoldenIdentityError, "not a regular file"):
+                golden_identity_guard.verify_candidate_recording(
+                    registry, declarations, goldens, capture, "example", "startup", bake)
+
     def test_undeclared_identity_refuses_at_record_time(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)

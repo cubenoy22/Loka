@@ -184,20 +184,26 @@ function Invoke-PngDiff([string]$Expected, [string]$Actual, [string]$OutputPath)
 }
 
 function Invoke-GoldenIdentityGuard([string]$Capture) {
+    $UpdateArguments = @()
+    if ($env:LOKA_GOLDEN_UPDATE_ROOT) {
+        $UpdateRoot = $env:LOKA_GOLDEN_UPDATE_ROOT
+        if ($UseWslPython) { $UpdateRoot = Convert-ToWslPath $UpdateRoot }
+        $UpdateArguments = @("--update-root", $UpdateRoot)
+    }
     if ($UseWslPython) {
         & wsl.exe python3 (Convert-ToWslPath $GoldenIdentityGuard) `
             --registry (Convert-ToWslPath $Registry) `
             --declarations (Convert-ToWslPath $StartupIdentityDeclarations) `
             --golden-root (Convert-ToWslPath $GoldenRoot) `
             --capture (Convert-ToWslPath $Capture) `
-            --example $Example --scenario $Scenario
+            --example $Example --scenario $Scenario @UpdateArguments
     } else {
         & $Python $GoldenIdentityGuard `
             --registry $Registry `
             --declarations $StartupIdentityDeclarations `
             --golden-root $GoldenRoot `
             --capture $Capture `
-            --example $Example --scenario $Scenario
+            --example $Example --scenario $Scenario @UpdateArguments
     }
     $script:GoldenIdentityExitCode = $LASTEXITCODE
 }

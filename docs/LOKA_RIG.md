@@ -17,6 +17,39 @@ The public command accepts only facts shared by every adapter: rig ID, ref,
 mode, and an optional local mapping. VM names, SSH transport, MAME paths,
 scenario internals, and test-only controls remain adapter-owned.
 
+## Updating desktop startup-identity pairs
+
+For a macOS or Win32 bake that changes both members of a startup-identity
+pair, collect finalized captures for the intended cells from the same build
+and rig before updating either golden. In a fresh directory under `build/`,
+write `cells.txt` with one `example scenario` per line, and copy each capture
+to `<example>/<scenario>.png`. For example:
+
+```text
+cells.txt:
+  scrapbook startup
+  scrapbook flip-forward-back
+
+scrapbook/startup.png
+scrapbook/flip-forward-back.png
+```
+
+Set `LOKA_GOLDEN_UPDATE_ROOT` to that directory while running each listed
+cell with `--update-golden` (PowerShell: `$env:LOKA_GOLDEN_UPDATE_ROOT`). Use
+an absolute native path; the Win32 runner translates it for WSL Python.
+Keep the candidate set fixed until all listed updates succeed, then unset
+the variable. Each runner still captures and validates its own cell; that
+capture must match its prepared candidate byte-for-byte.
+
+The shared `scripts/rig/golden_identity_guard.py` selects listed partners
+from this candidate set, independent of update order. An unlisted partner
+uses its live golden. Missing or symlinked listed candidates refuse the
+update rather than falling back. With no candidate set, single-cell updates
+retain their live-golden checks. Updates publish one cell at a time; this
+input does not make desktop bundle publication atomic. Prior work-directory
+captures are never discovered automatically. Toolbox keeps its existing
+staged-bundle protocol.
+
 ## Registered adapters
 
 | Adapter | Tracked descriptor | Local mapping example | Runtime mechanism |
