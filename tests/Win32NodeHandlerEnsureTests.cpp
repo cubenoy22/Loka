@@ -217,7 +217,7 @@ void testWin32NodeHandlerEnsureContract()
 
     Win32ButtonContext *ctx = static_cast<Win32ButtonContext *>(button.getContext());
     assert(ctx && "ensure must publish the created context through setContext");
-    assert(ctx->hwnd() && IsWindow(ctx->hwnd()));
+    LOKA_VERIFY(ctx->hwnd() && IsWindow(ctx->hwnd()));
     RECT r = childRectInParent(ctx->hwnd(), root);
     assert(r.left == 10 && r.top == 20 && r.right - r.left == 100 && r.bottom - r.top == 30);
     const int childrenAfterFirstEnsure = countChildWindows(root);
