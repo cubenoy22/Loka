@@ -132,26 +132,34 @@ target_compile_definitions(${LOKA_WINDOW_CLAMP_TARGET} PRIVATE TEST_BUILD LOKA_D
 set_property(TARGET ${LOKA_WINDOW_CLAMP_TARGET} PROPERTY EXCLUDE_FROM_ALL TRUE)
 set_property(TARGET ${LOKA_WINDOW_CLAMP_TARGET}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
 
-# Value-only #827 cost probe; same 512K preferred / 384K minimum as AppRecycle.
-set(LOKA_ATTRIBUTED_STRING_PROBE_TARGET "LokaAttributedStringProbe${LOKA_CLASSIC_TARGET_SUFFIX}")
+# Value-only #827 cost probes; same 512K preferred / 384K minimum as AppRecycle.
 configure_file(
   ${CMAKE_SOURCE_DIR}/example/HelloWorld/Size.r
   ${CMAKE_CURRENT_BINARY_DIR}/AttributedStringProbeSize.r
   COPYONLY
 )
-loka_add_toolbox_test_application(
-  ${LOKA_ATTRIBUTED_STRING_PROBE_TARGET}
-  LokaAppleToolboxTestCore
-  src/AttributedStringProbeStandaloneMain.cpp
-  ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
-  ${CMAKE_CURRENT_BINARY_DIR}/AttributedStringProbeSize.r
-)
-target_include_directories(${LOKA_ATTRIBUTED_STRING_PROBE_TARGET} PRIVATE
-  ${CMAKE_SOURCE_DIR}/tests/standalone
-)
-target_compile_definitions(${LOKA_ATTRIBUTED_STRING_PROBE_TARGET} PRIVATE TEST_BUILD LOKA_DIAG=1)
-set_property(TARGET ${LOKA_ATTRIBUTED_STRING_PROBE_TARGET} PROPERTY EXCLUDE_FROM_ALL TRUE)
-set_property(TARGET ${LOKA_ATTRIBUTED_STRING_PROBE_TARGET}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
+function(loka_add_attributed_string_probe name core_target)
+  set(target "${name}${LOKA_CLASSIC_TARGET_SUFFIX}")
+  loka_add_toolbox_test_application(
+    ${target}
+    ${core_target}
+    src/AttributedStringProbeStandaloneMain.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/AttributedStringProbeSize.r
+  )
+  target_include_directories(${target} PRIVATE
+    ${CMAKE_SOURCE_DIR}/tests/standalone
+  )
+  # Match header definitions to the linked core. Census accounting is only
+  # useful in the diagnostic twin; it must not contaminate the timing build.
+  if(core_target STREQUAL "LokaAppleToolboxTestCore")
+    target_sources(${target} PRIVATE ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp)
+    target_compile_definitions(${target} PRIVATE TEST_BUILD LOKA_DIAG=1)
+  endif()
+  set_property(TARGET ${target} PROPERTY EXCLUDE_FROM_ALL TRUE)
+  set_property(TARGET ${target}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
+endfunction()
+loka_add_attributed_string_probe(LokaAttributedStringProbe LokaAppleToolboxCore)
+loka_add_attributed_string_probe(LokaAttributedStringProbeDiag LokaAppleToolboxTestCore)
 
 set(LOKA_PAINT_DAMAGE_TARGET "LokaPaintDamage${LOKA_CLASSIC_TARGET_SUFFIX}")
 loka_add_toolbox_test_application(

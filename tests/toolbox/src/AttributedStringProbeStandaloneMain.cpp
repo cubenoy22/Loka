@@ -15,8 +15,8 @@
 #include "platform/file/AppLocation.hpp"
 #include "platform/file/FileIO.hpp"
 
-#if !defined(LOKA_RETRO68) || !defined(TEST_BUILD)
-#error Attributed string probe requires a Toolbox test build
+#if !defined(LOKA_RETRO68)
+#error Attributed string probe requires a Toolbox build
 #endif
 
 namespace
