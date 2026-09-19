@@ -20,6 +20,23 @@ void testWin32RailMetricsProjection()
   const RailMetrics defaults;
   LOKA_VERIFY(defaults.fontScale == Ratio(1, 1));
   LOKA_VERIFY(defaults.spaceScale == Ratio(1, 1));
+  const RailMetrics railDefaults = loka::win32::DefaultRailMetrics();
+  LOKA_VERIFY(railDefaults.fontScale == Ratio(1, 1));
+  LOKA_VERIFY(railDefaults.spaceScale == Ratio(5, 4));
+  Win32ScenePlatformController candidate(NULL, Win32DisplayScale(96, railDefaults));
+  LOKA_VERIFY(candidate.displayScale().projectEdge(8) == 10);
+  LOKA_VERIFY(candidate.displayScale().capacityToLu(301) == 240);
+  LOGFONTW explicitFont;
+  LOKA_VERIFY(GetObjectW(candidate.textFont(FontSize<24>()), sizeof(explicitFont), &explicitFont));
+  LOKA_VERIFY(explicitFont.lfHeight == -MulDiv(24, 96, 72));
+  // Space scaling must not change the default row used by fixed controls.
+  loka::win32::Win32DisplayFont unitFonts;
+  LOKA_VERIFY(unitFonts.create(Win32DisplayScale(96)));
+  LOGFONTW defaultFont;
+  LOGFONTW unitFont;
+  LOKA_VERIFY(GetObjectW(candidate.displayFont(), sizeof(defaultFont), &defaultFont));
+  LOKA_VERIFY(GetObjectW(unitFonts.get(), sizeof(unitFont), &unitFont));
+  LOKA_VERIFY(defaultFont.lfHeight == unitFont.lfHeight);
   LOKA_VERIFY(!Ratio(3, 2).isUnit());
   Ratio invalid;
   invalid.den = 0;

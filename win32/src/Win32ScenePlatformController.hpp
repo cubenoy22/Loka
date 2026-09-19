@@ -20,6 +20,12 @@ class Win32ScrollViewContext;
 
 namespace loka
 {
+  namespace win32
+  {
+    /** Candidate rail values; shared by scene and pre-scene window projection. */
+    app::RailMetrics DefaultRailMetrics();
+  }
+
   namespace core
   {
     namespace scene

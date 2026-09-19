@@ -86,17 +86,29 @@ namespace loka
 } // namespace loka
 
 
-MacScenePlatformController::TextFontTable::TextFontTable()
+/** Measured 2026-09-19 (#818): Chicago 12 and the 13 pt system font share
+    a 16-unit line height; fontScale follows their nominal sizes. A standard
+    button is 72x20 lu versus 90x24 pt; "MMMMMMMM" is 72 lu versus 90.3 pt.
+    These are candidate values for visual review, not golden-baked values. */
+loka::app::RailMetrics loka::macos::DefaultRailMetrics()
+{
+  return app::RailMetrics(app::Ratio(13, 12), app::Ratio(5, 4));
+}
+
+MacScenePlatformController::TextFontTable::TextFontTable(const loka::app::Ratio &fontScale)
 {
   NSFontManager *manager = [NSFontManager sharedFontManager];
   const CGFloat defaultSize = [NSFont systemFontSize];
   for (int size = 0; size < kFontRowCount; ++size)
   {
-    // An unset size preserves the rail default, outside the explicit vocabulary.
-    const CGFloat points = size == kDefaultSizeRow ? defaultSize : loka::app::detail::StyleVocabularySizes[size];
+    // Unset size means the rail's system default (13 pt), exempt from fontScale.
+    // Explicit lu sizes keep fractional points: 9 lu -> 9.75 pt, no pixel rounding.
+    const CGFloat points = size == kDefaultSizeRow
+                               ? defaultSize
+                               : static_cast<CGFloat>(loka::app::detail::StyleVocabularySizes[size])
+                                     * fontScale.num / fontScale.den;
     for (int bold = 0; bold < 2; ++bold)
     {
-      // PR 3 projects one logical unit to one point; scale belongs to rally 2.
       NSFont *base = bold ? [NSFont boldSystemFontOfSize:points]
                           : [NSFont systemFontOfSize:points];
       NSFont *italic = base ? [manager convertFont:base toHaveTrait:NSItalicFontMask] : nil;
@@ -134,7 +146,8 @@ void *MacScenePlatformController::textFont(const loka::app::TextStyle &style) co
 }
 
 MacScenePlatformController::MacScenePlatformController(void *rootView)
-    : projection_(rootView),
+    : projection_(rootView, loka::macos::DefaultRailMetrics()),
+      textFonts_(this->projection_.railMetrics().fontScale),
       rootView_(rootView),
       projectionParentScopes_(rootView),
       rootNode_(0),

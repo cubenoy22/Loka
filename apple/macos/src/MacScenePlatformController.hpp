@@ -12,6 +12,15 @@
 
 namespace loka
 {
+  namespace macos
+  {
+    /** Candidate rail values; shared by scene and pre-scene window projection. */
+    app::RailMetrics DefaultRailMetrics();
+  }
+}
+
+namespace loka
+{
   namespace dsl
   {
     namespace testing
@@ -251,7 +260,7 @@ private:
   class TextFontTable
   {
   public:
-    TextFontTable();
+    explicit TextFontTable(const loka::app::Ratio &fontScale);
     ~TextFontTable();
     void *find(const loka::app::TextStyle &style) const;
 

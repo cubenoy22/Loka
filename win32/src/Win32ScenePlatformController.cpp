@@ -234,6 +234,15 @@ namespace loka
   } // namespace app
 } // namespace loka
 
+/** Measured 2026-09-19 (#818): the 9 pt message font is 12 px at 96 dpi,
+    approximately 12 lu. The 75x23 px standard button and native margins
+    motivate the candidate space ratio. Fixed controls keep their native font.
+    These are candidate values for visual review, not golden-baked values. */
+loka::app::RailMetrics loka::win32::DefaultRailMetrics()
+{
+  return app::RailMetrics(app::Ratio(1, 1), app::Ratio(5, 4));
+}
+
 Win32ScenePlatformController::Win32ScenePlatformController(
     HWND rootHwnd,
     const loka::win32::Win32DisplayScale &displayScale)

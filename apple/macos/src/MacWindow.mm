@@ -350,7 +350,7 @@ void MacWindow::FrameChangedThunk(void *userData)
 loka::macos::MacProjection MacWindow::projection() const
 {
   return this->scenePlatformController_ ? this->scenePlatformController_->projection()
-                                       : loka::macos::MacProjection(this->contentView_);
+                                       : loka::macos::MacProjection(this->contentView_, loka::macos::DefaultRailMetrics());
 }
 
 void MacWindow::createNativeWindow()
