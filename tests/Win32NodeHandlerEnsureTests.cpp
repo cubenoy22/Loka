@@ -223,7 +223,7 @@ void testWin32TextFontTable()
     LOGFONTW descriptor;
     HFONT font96 = readFont(largeWindow, descriptor);
     LOKA_VERIFY(font96 != controller.displayFont());
-    LOKA_VERIFY(descriptor.lfHeight == -MulDiv(24, 96, 72));
+    LOKA_VERIFY(descriptor.lfHeight == -MulDiv(24, 96, 96));
     LOKA_VERIFY(layoutFontText(controller, large) > layoutFontText(controller, plain));
 
     TextProps boldProps(plainProps);
@@ -248,7 +248,7 @@ void testWin32TextFontTable()
     controller.updateDisplayScale(loka::win32::Win32DisplayScale(144));
     HFONT font144 = readFont(largeWindow, descriptor);
     LOKA_VERIFY(font144 != font96);
-    LOKA_VERIFY(descriptor.lfHeight == -MulDiv(24, 144, 72));
+    LOKA_VERIFY(descriptor.lfHeight == -MulDiv(24, 144, 96));
     LOKA_VERIFY(GetObjectW(font96, static_cast<int>(sizeof(descriptor)), &descriptor) == 0);
     LOKA_VERIFY(readFont(plainWindow, descriptor) == controller.displayFont());
     controller.updateDisplayScale(loka::win32::Win32DisplayScale(144));
@@ -260,7 +260,7 @@ void testWin32TextFontTable()
     large.props.textStyle_ = FontSize<12>() + Bold + Italic;
     large.getContext()->onPropsApplied();
     LOKA_VERIFY(readFont(largeWindow, descriptor) != font144);
-    LOKA_VERIFY(descriptor.lfHeight == -MulDiv(12, 144, 72));
+    LOKA_VERIFY(descriptor.lfHeight == -MulDiv(12, 144, 96));
     LOKA_VERIFY(descriptor.lfWeight == FW_BOLD && descriptor.lfItalic != 0);
     LOKA_VERIFY(PeekMessageW(&message, root, WM_SIZE, WM_SIZE, PM_REMOVE));
     large.props.textStyle_ = TextStyle();
@@ -288,14 +288,14 @@ void testWin32TextFontTable()
     TextNode liveText(liveProps);
     HWND liveWindow = projectFontText(controller, root, liveText);
     readFont(liveWindow, descriptor);
-    LOKA_VERIFY(descriptor.lfHeight == -MulDiv(12, 96, 72));
+    LOKA_VERIFY(descriptor.lfHeight == -MulDiv(12, 96, 96));
     {
       loka::core::StateTrackerGuard guard(&tracker);
       liveStyle.set(FontSize<24>() + Italic);
     }
     layoutFontText(controller, liveText);
     readFont(liveWindow, descriptor);
-    LOKA_VERIFY(descriptor.lfHeight == -MulDiv(24, 96, 72));
+    LOKA_VERIFY(descriptor.lfHeight == -MulDiv(24, 96, 96));
     LOKA_VERIFY(descriptor.lfItalic != 0);
   }
   {
@@ -307,7 +307,7 @@ void testWin32TextFontTable()
     HWND child = projectFontText(controller, root, text);
     LOGFONTW descriptor;
     readFont(child, descriptor);
-    LOKA_VERIFY(descriptor.lfHeight == -MulDiv(24, 144, 72));
+    LOKA_VERIFY(descriptor.lfHeight == -MulDiv(24, 144, 96));
   }
   DestroyWindow(root);
 }

@@ -263,14 +263,21 @@ namespace loka
       return Win32DisplayScale(this->dpi_).projectFrame(pixels);
     }
 
-    int Win32DisplayScale::fontHeightToNative(int points) const
+    // A font size is a logical unit like every other layout number on this
+    // rail: one lu is one pixel at 96 dpi (the message font's 9 pt is 12 px
+    // = 12 lu). Treating it as a point (dpi/72) made an 18 lu Text 33 % too
+    // large next to the 12 lu body text.
+    int Win32DisplayScale::fontHeightToNative(int logicalUnits) const
     {
       const loka::app::Ratio &font = this->metrics_.fontScale;
       if (font.isUnit())
-        return MulDiv(points, static_cast<int>(this->dpi_), 72);
-      const bool fits = font.valid() && this->dpi_ <= static_cast<UINT>(INT_MAX / font.num) && font.den <= INT_MAX / 72;
+        return MulDiv(logicalUnits, static_cast<int>(this->dpi_), static_cast<int>(kDefaultDpi));
+      const bool fits = font.valid() && this->dpi_ <= static_cast<UINT>(INT_MAX / font.num)
+                        && font.den <= INT_MAX / static_cast<int>(kDefaultDpi);
       assert(fits && "font projection products must fit in int");
-      return fits ? MulDiv(points, static_cast<int>(this->dpi_) * font.num, 72 * font.den) : -1;
+      return fits ? MulDiv(logicalUnits, static_cast<int>(this->dpi_) * font.num,
+                           static_cast<int>(kDefaultDpi) * font.den)
+                  : -1;
     }
 
     int Win32DisplayScale::intrinsicPixelsToLu(int nativeCoordinate) const

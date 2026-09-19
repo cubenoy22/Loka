@@ -106,7 +106,7 @@ void testWin32RailMetricsSurviveDpiChange()
   LOKA_VERIFY(controller.displayScale().railMetrics() == metrics);
   LOGFONTW font;
   LOKA_VERIFY(GetObjectW(controller.textFont(FontSize<24>()), sizeof(font), &font));
-  LOKA_VERIFY(font.lfHeight == -MulDiv(24, 96 * 5, 72 * 4));
+  LOKA_VERIFY(font.lfHeight == -MulDiv(24, 96 * 5, 96 * 4));
   // A font-only change must not compare equal in the font-table cache.
   loka::win32::Win32DisplayFont table;
   LOKA_VERIFY(table.create(Win32DisplayScale(96)));
@@ -122,7 +122,7 @@ void testWin32RailMetricsSurviveDpiChange()
   LOKA_VERIFY(controller.displayScale().railMetrics() == metrics);
   LOKA_VERIFY(controller.displayScale().projectEdge(8) == 18);
   LOKA_VERIFY(GetObjectW(controller.textFont(FontSize<24>()), sizeof(font), &font));
-  LOKA_VERIFY(font.lfHeight == -MulDiv(24, 144 * 5, 72 * 4));
+  LOKA_VERIFY(font.lfHeight == -MulDiv(24, 144 * 5, 96 * 4));
   controller.updateDisplayScale(Win32DisplayScale(96));
   LOKA_VERIFY(controller.displayScale().railMetrics() == metrics);
   LOKA_VERIFY(controller.displayScale().projectEdge(8) == 12);
