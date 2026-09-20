@@ -3,9 +3,13 @@
 #include "platform/null/NullPlatformContext.hpp"
 #include "platform/null/NullWindow.hpp"
 #include "support/TestVerify.hpp"
+#include "ScriptAlignedAlloc.h"
+#include "ScriptEngine.h"
+#include <stdint.h>
 #include "support/WindowAdmissionTestApp.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 #if defined(_WIN32)
@@ -738,8 +742,71 @@ namespace
   }
 } // namespace
 
+namespace
+{
+  // A base allocator that hands out 2-byte-aligned blocks, the Mac Plus
+  // Memory Manager's alignment (#837). Each block is a host malloc shifted by
+  // two bytes so the shift is visible and the raw pointer can be recovered.
+  int oddBlocksLive = 0;
+  void *TwoByteAlignedAllocate(size_t size)
+  {
+    char *raw = static_cast<char *>(std::malloc(size + 2));
+    if (!raw)
+      return 0;
+    ++oddBlocksLive;
+    return raw + 2;
+  }
+  void TwoByteAlignedRelease(void *block)
+  {
+    --oddBlocksLive;
+    std::free(static_cast<char *>(block) - 2);
+  }
+
+  void testScriptAllocatorAlignsTwoByteAlignedBase()
+  {
+    std::printf("[pin] testScriptAllocatorAlignsTwoByteAlignedBase\n");
+    const SmirkyBaseAllocator base = {TwoByteAlignedAllocate, TwoByteAlignedRelease};
+    for (size_t size = 1; size <= 96; size += 7)
+    {
+      void *block = SmirkyAlignedAllocate(&base, size);
+      LOKA_VERIFY(block != 0);
+      // QuickJS tags the low two bits of a context pointer and lays arenas
+      // out with 8-byte members: nothing below 8 is enough.
+      LOKA_VERIFY((reinterpret_cast<uintptr_t>(block) & (SMIRKY_SCRIPT_ALLOC_ALIGN - 1)) == 0);
+      LOKA_VERIFY(SmirkyAlignedUsableSize(block) == size);
+      std::memset(block, 0x5a, size);
+      void *grown = SmirkyAlignedReallocate(&base, block, size + 40);
+      LOKA_VERIFY(grown != 0);
+      LOKA_VERIFY((reinterpret_cast<uintptr_t>(grown) & (SMIRKY_SCRIPT_ALLOC_ALIGN - 1)) == 0);
+      LOKA_VERIFY(SmirkyAlignedUsableSize(grown) == size + 40);
+      LOKA_VERIFY(static_cast<unsigned char *>(grown)[size - 1] == 0x5a);
+      void *shrunk = SmirkyAlignedReallocate(&base, grown, size);
+      LOKA_VERIFY(shrunk == grown && SmirkyAlignedUsableSize(shrunk) == size);
+      SmirkyAlignedRelease(&base, shrunk);
+    }
+    void *fromNull = SmirkyAlignedReallocate(&base, 0, 8);
+    LOKA_VERIFY(fromNull != 0 && (reinterpret_cast<uintptr_t>(fromNull) & 7) == 0);
+    LOKA_VERIFY(SmirkyAlignedReallocate(&base, fromNull, 0) == 0);
+    SmirkyAlignedRelease(&base, 0);
+    LOKA_VERIFY(oddBlocksLive == 0);
+    LOKA_VERIFY(SmirkyAlignedUsableSize(0) == 0);
+  }
+
+  void testScriptContextIsPointerTagAligned()
+  {
+    std::printf("[pin] testScriptContextIsPointerTagAligned\n");
+    SmirkyScript *script = SmirkyScriptCreate();
+    LOKA_VERIFY(script != 0);
+    LOKA_VERIFY((reinterpret_cast<uintptr_t>(SmirkyScriptContext(script)) & 3) == 0);
+    LOKA_VERIFY((reinterpret_cast<uintptr_t>(SmirkyScriptRuntime(script)) & (SMIRKY_SCRIPT_ALLOC_ALIGN - 1)) == 0);
+    SmirkyScriptDestroy(script);
+  }
+} // namespace
+
 int main()
 {
+  testScriptAllocatorAlignsTwoByteAlignedBase();
+  testScriptContextIsPointerTagAligned();
   checkRegistry();
   checkCounterAndRefusals();
   checkEnabledSeat();

@@ -3,6 +3,7 @@
 #include <cassert>
 
 #include "MainNode.hpp"
+#include "SmirkBenchAttributedScenario.hpp"
 #include "ObservedMainDefinition.hpp"
 #include "RectSurfaceScenarioObservation.hpp"
 #include "ScenarioDriverSupport.hpp"
@@ -26,7 +27,7 @@ namespace loka
     {
       bool IsSmirkBenchScenario(const std::string &name)
       {
-        return name == "startup" || name == "surface-ticks" || name == "add-face" || name == "retained-text-rebind";
+        return name == "attributed-editor-line" || name == "startup" || name == "surface-ticks" || name == "add-face" || name == "retained-text-rebind";
       }
 
       dsl::SnapRecord MakeRecord(const char *scenario, long tick, const char *status)
@@ -72,11 +73,20 @@ namespace loka
           // rig's screen is 640x480 and the capture record refuses a window whose
           // structure rectangle leaves the screen, so the scenario window is
           // placed at (1, 41) with a 636-pixel content width (structure 0..638).
-          scenario_tests::ObservedMainDefinition<smirkbench::MainProps, smirkbench::MainNode> mainDefinition(
-              smirkbench::MainProps(&this->model_), 0);
-          composition << WindowDef(WindowProps()
+          WindowProps window;
+          if (this->scenario_ == "attributed-editor-line")
+          {
+            window.scene(scenario_tests::ObservedMainDefinition<scenario_tests::SmirkBenchEditorLineProps,
+                                                               scenario_tests::SmirkBenchEditorLineNode>(
+                scenario_tests::SmirkBenchEditorLineProps(&this->model_), 0));
+          }
+          else
+          {
+            window.scene(scenario_tests::ObservedMainDefinition<smirkbench::MainProps, smirkbench::MainNode>(
+                smirkbench::MainProps(&this->model_), 0));
+          }
+          composition << WindowDef(window
                                        .frame(1, 41, 636, 400)
-                                       .scene(mainDefinition)
                                        .title("LokaSmirkBench")
                                        .visible(true)
                                        .idlePolicy(app::IdlePolicy::everyTick())
@@ -243,6 +253,20 @@ namespace loka
           ++this->tick_;
           if (this->tick_ < 2)
           {
+            return;
+          }
+          if (this->scenario_ == "attributed-editor-line")
+          {
+            dsl::SnapRecord record;
+            if (scenario_tests::AdvanceSmirkBenchEditor(this->tick_, scene, this->audit_, record)
+                == scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY)
+            {
+              std::string status;
+              const bool ok = record.get("status", status) && status == dsl::SnapStatusOk();
+              (void)this->terminal_.emit(ok ? dsl::testing::SCENARIO_AUDIT_SUCCEEDED
+                                           : dsl::testing::SCENARIO_AUDIT_FAILED, record);
+              (void)this->completionPublisher_.publish(window);
+            }
             return;
           }
           const bool addFace = this->scenario_ == "add-face";

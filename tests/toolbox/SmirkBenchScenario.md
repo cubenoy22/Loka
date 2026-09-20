@@ -110,3 +110,50 @@ pane with the Add face button and the surface unchanged. Red side: with
 `ToolboxTextContext::onPropsApplied` emptied, `apply-A` is never recorded and the
 terminal fails. The other five kinds and the "omit the TextHit refresh" mutation
 are not pinned by a cell; #604 tracks that runtime matrix.
+
+## Attributed editor line (#834)
+
+`smirkbench attributed-editor-line` declares the scenario-only
+`SmirkBenchEditorLineNode`, whose distinct Props type prevents retained
+application to an ordinary `MainNode`. Only that scenario node owns the editor
+State. The ordinary `MainNode` leaves the existing declaration tree intact,
+including the surface seat and the full-window capture rectangle used by the
+four earlier cells. The specimen places ordinary Text, the default-size
+`var x = 1;` attributed line, and a 28-by-80 Box containing the mixed-size
+`a ab` / `cd` WORD-wrap fixture beside the existing RectSurface.
+
+The shared checkpoints inspect the initial two-style line at turn 2, change it
+once at turn 3 to bold `var `, unstyled `x = `, and italic `1;`, then settle and
+capture at turn 5. The line keeps its node and projection context. The narrow
+fixture wraps across a style boundary; native fonts determine the exact line
+breaks. No per-rail pixel identity is claimed.
+
+Unlike the historical counter probes above, this cell uses a neutral audit on
+Toolbox, macOS, and Win32. Desktop runners also provide `smirkbench startup`
+as the reference required by the existing golden identity guard; that desktop
+startup audit lives under `tests/scenarios/desktop-expected/`, leaving the
+Toolbox counter audit unchanged. The other SmirkBench scenarios remain
+Toolbox-only. `attributed-editor-line` is not a startup-identity pair.
+
+The headless SmirkBench pin checks ordinary state/subtree absence, incompatible
+retained props application in both directions, actual projected wrap
+extent, retained update, and exact neutral audit. Native screenshots and erase
+behavior still need the owning rigs. To stage the new captures after building
+the scenario targets, run:
+
+```sh
+tests/toolbox/run-scenario.sh smirkbench attributed-editor-line --update-golden
+LOKA_MACOS_RIG=tahoe tests/macos/run-scenario.sh smirkbench startup --update-golden
+LOKA_MACOS_RIG=tahoe tests/macos/run-scenario.sh smirkbench attributed-editor-line --update-golden
+```
+
+On the configured Win32 rig, with `LOKA_WIN32_RIG` selecting its local descriptor:
+
+```powershell
+tests/win32/run-scenario.ps1 smirkbench startup -UpdateGolden
+tests/win32/run-scenario.ps1 smirkbench attributed-editor-line -UpdateGolden
+```
+
+Desktop startup needs recording only when its reference is absent. Toolbox
+still stages the complete registry atomically; recording this cell alone does
+not publish or approve a new bundle.

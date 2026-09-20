@@ -376,7 +376,8 @@
         "LokaTutorialScenarioMacOS",
         "LokaMineSweeperScenarioMacOS",
         "LokaMineSweeperScenarioLoopMacOS",
-        "LokaFloppyBirdScenarioMacOS"
+        "LokaFloppyBirdScenarioMacOS",
+        "LokaSmirkBenchScenarioMacOS"
       ],
       "condition": {
         "type": "equals",
@@ -461,7 +462,8 @@
         "LokaTutorialScenarioWin32",
         "LokaMineSweeperScenarioWin32",
         "LokaMineSweeperScenarioLoopWin32",
-        "LokaFloppyBirdScenarioWin32"
+        "LokaFloppyBirdScenarioWin32",
+        "LokaSmirkBenchScenarioWin32"
       ],
       "condition": {
         "type": "equals",

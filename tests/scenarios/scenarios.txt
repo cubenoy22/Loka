@@ -18,6 +18,7 @@ smirkbench startup
 smirkbench surface-ticks
 smirkbench add-face
 smirkbench retained-text-rebind
+smirkbench attributed-editor-line
 simpleviewer startup
 simpleviewer open-sun
 simpleviewer open-bulb

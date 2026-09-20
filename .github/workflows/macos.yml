@@ -71,6 +71,10 @@ jobs:
         if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: tests/macos/run-scenario.sh floppybird startup --ci-structural
         if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
+      - run: tests/macos/run-scenario.sh smirkbench startup --ci-structural
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
+      - run: tests/macos/run-scenario.sh smirkbench attributed-editor-line --ci-structural
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - name: Upload macOS scenario failure artifacts
         if: ${{ failure() && (github.event_name != 'pull_request' || steps.changes.outputs.run == 'true') }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
