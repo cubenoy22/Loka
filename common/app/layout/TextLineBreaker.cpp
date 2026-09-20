@@ -10,6 +10,10 @@ namespace loka
   {
     namespace
     {
+      int syntheticAdvance(int size)
+      {
+        return (size + 2) / 3;
+      }
       int add(int a, int b)
       {
         return b > SHRT_MAX - a ? SHRT_MAX : a + b;
@@ -149,7 +153,7 @@ namespace loka
     }
     bool SyntheticTextWidthSource::width(std::size_t start, std::size_t end, std::size_t span, int &out) const
     {
-      const int advance = (this->metrics(this->spanStyle(span)).ascent + 2) / 3;
+      const int advance = syntheticAdvance(this->metrics(this->spanStyle(span)).ascent);
       out = advance > 0 && end - start > static_cast<std::size_t>(INT_MAX / advance)
                 ? INT_MAX
                 : static_cast<int>(end - start) * advance;
@@ -167,8 +171,17 @@ namespace loka
     {
       if (!source.valid() || source.length() == (std::numeric_limits<std::size_t>::max)())
         return;
-      if (!this->lines_.allocate(source.length() + 1) || !this->fragments_.allocate(source.length() + 1)
-          || !this->build(source, block, available, emptyStyle))
+      // The same probe loop counts and fills; no character-count upper bound
+      // forces ordinary editor lines out of the inline tables.
+      if (!this->build(source, block, available, emptyStyle) || !this->lines_.allocate(this->lineCount_)
+          || !this->fragments_.allocate(this->fragmentCount_))
+      {
+        this->clear();
+        return;
+      }
+      this->lineCount_ = 0;
+      this->fragmentCount_ = 0;
+      if (!this->build(source, block, available, emptyStyle))
         this->clear();
     }
     void TextLineBreaker::clear()
@@ -257,6 +270,7 @@ namespace loka
                                 short available,
                                 const TextStyle &emptyStyle)
     {
+      const bool filling = this->lines_.valid();
       const TextWrap wrap = block.hasWrap_ && available > 0 ? block.wrap_ : TEXT_WRAP_NONE;
       TextLineMetrics empty;
       bool hasEmptyMetrics = false;
@@ -274,9 +288,14 @@ namespace loka
           if (newline(c.value))
           {
             end = index++;
-            breaks = source.metrics(source.spanStyle(c.span));
+            if (filling)
+              breaks = source.metrics(source.spanStyle(c.span));
             if (c.value == '\r' && index < source.length() && source.character(index).value == '\n')
-              merge(breaks, source.metrics(source.spanStyle(source.character(index++).span)));
+            {
+              if (filling)
+                merge(breaks, source.metrics(source.spanStyle(source.character(index).span)));
+              ++index;
+            }
             explicitBreak = true;
             break;
           }
@@ -316,7 +335,7 @@ namespace loka
           if (full)
             break;
         }
-        TextLineRecord &line = this->lines_[this->lineCount_++];
+        TextLineRecord line;
         line.metrics = breaks;
         line.firstFragment = this->fragmentCount_;
         line.width = width > SHRT_MAX ? SHRT_MAX : width;
@@ -327,17 +346,25 @@ namespace loka
           std::size_t next = cursor + 1;
           while (next < end && source.character(next).span == first.span)
             ++next;
-          TextFragment &fragment = this->fragments_[this->fragmentCount_++];
+          TextFragment fragment;
           fragment.span = first.span;
           fragment.start = first.offset;
           fragment.end = source.character(next - 1).end;
           if (!source.width(fragment.start, fragment.end, fragment.span, fragment.width) || fragment.width < 0)
             return false;
-          merge(line.metrics, source.metrics(source.spanStyle(first.span)));
+          if (filling)
+            merge(line.metrics, source.metrics(source.spanStyle(first.span)));
+          if (this->fragments_.valid())
+          {
+            if (this->fragmentCount_ >= this->fragments_.size())
+              return false;
+            this->fragments_[this->fragmentCount_] = fragment;
+          }
+          ++this->fragmentCount_;
           cursor = next;
         }
         line.fragmentCount = this->fragmentCount_ - line.firstFragment;
-        if (line.metrics.ascent == 0 && line.metrics.descent == 0)
+        if (filling && line.metrics.ascent == 0 && line.metrics.descent == 0)
         {
           if (!hasEmptyMetrics)
           {
@@ -351,11 +378,51 @@ namespace loka
           empty = breaks;
           hasEmptyMetrics = true;
         }
+        if (this->lines_.valid())
+        {
+          if (this->lineCount_ >= this->lines_.size())
+            return false;
+          this->lines_[this->lineCount_] = line;
+        }
+        ++this->lineCount_;
         if (index == source.length() && !explicitBreak)
           break;
         begin = index;
       }
       return true;
+    }
+    core::Frame SyntheticTextExtent(const TextLineBreaker &result, const BlockStyle &block, short availableWidth)
+    {
+      assert(result.valid());
+      int maxWidth = 0;
+      for (std::size_t i = 0; i < result.lineCount(); ++i)
+      {
+        const TextLineRecord &line = result.line(i);
+        int width = line.width;
+        if ((!block.hasWrap_ || block.wrap_ == TEXT_WRAP_NONE) && availableWidth > 0 && width > availableWidth
+            && block.hasTruncation_)
+        {
+          switch (block.truncation_)
+          {
+          case TEXT_TRUNCATION_NONE:
+            break;
+          case TEXT_TRUNCATION_CLIP:
+            width = availableWidth;
+            break;
+          case TEXT_TRUNCATION_ELLIPSIS:
+          {
+            const int size = SizeOf(line.metrics.ascent + line.metrics.descent).fontSize_;
+            const int advance = syntheticAdvance(size);
+            const int capacity = availableWidth / advance;
+            width = (capacity > 0 ? capacity : 1) * advance;
+            break;
+          }
+          }
+        }
+        if (width > maxWidth)
+          maxWidth = width;
+      }
+      return core::Frame(0, 0, maxWidth, result.height());
     }
   } // namespace app
 } // namespace loka
