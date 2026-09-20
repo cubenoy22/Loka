@@ -14,4 +14,6 @@ void testAttributedTextWrapUsesJoinedWordsAndRunMetrics();
 void testTextBreakerRangesAndRefusal();
 void testNullTextShapingDispatch();
 
+void testTextSpanTable();
+
 #endif

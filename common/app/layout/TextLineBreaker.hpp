@@ -60,6 +60,10 @@ namespace loka
         {
           return this->rows_ != 0;
         }
+        std::size_t size() const
+        {
+          return this->count_;
+        }
         T &operator[](std::size_t i)
         {
           assert(i < this->count_);
@@ -96,18 +100,29 @@ namespace loka
       }
     };
 
-    /** One code point in a joined native buffer. offset/end delimit encoded units.
-        segment identifies the input segment; style is its resolved descriptor. */
+    /** One coalesced descriptor span. segment is the first contributing input
+        segment; start/end delimit a half-open range of character indices. Empty
+        input segments contribute neither a span nor a descriptor boundary. */
+    struct TextStyleSpan
+    {
+      std::size_t segment, start, end;
+      TextStyle style;
+    };
+
+    /** One code point in a joined native buffer. offset/end delimit encoded units;
+        span indexes the source's coalesced descriptor table. */
     struct TextBreakCharacter
     {
       unsigned int value;
-      std::size_t offset, end, segment;
-      TextStyle style;
+      std::size_t offset, end, span;
     };
 
     /** Borrowed width provider for one synchronous break. Ranges never split a code
         point, may cross adjacent equal-style segments, and use the source's native
-        units. A refusal invalidates the complete result. Widths must be nonnegative. */
+        units. Sources own ordered, contiguous character spans, coalescing adjacent
+        equal styles before breaking. Each character names its containing span.
+        A refusal invalidates the complete result. Widths must be nonnegative.
+        Keep the source alive when resolving span IDs from its completed result. */
     class TextWidthSource
     {
     public:
@@ -115,7 +130,13 @@ namespace loka
       virtual bool valid() const = 0;
       virtual std::size_t length() const = 0;
       virtual const TextBreakCharacter &character(std::size_t index) const = 0;
-      virtual bool width(std::size_t start, std::size_t end, const TextStyle &style, int &out) const = 0;
+      virtual std::size_t spanCount() const = 0;
+      virtual const TextStyleSpan &span(std::size_t index) const = 0;
+      const TextStyle &spanStyle(std::size_t index) const
+      {
+        return this->span(index).style;
+      }
+      virtual bool width(std::size_t start, std::size_t end, std::size_t span, int &out) const = 0;
       virtual TextLineMetrics metrics(const TextStyle &style) const = 0;
     };
 
@@ -129,11 +150,14 @@ namespace loka
       virtual bool valid() const;
       virtual std::size_t length() const;
       virtual const TextBreakCharacter &character(std::size_t index) const;
-      virtual bool width(std::size_t start, std::size_t end, const TextStyle &style, int &out) const;
+      virtual std::size_t spanCount() const;
+      virtual const TextStyleSpan &span(std::size_t index) const;
+      virtual bool width(std::size_t start, std::size_t end, std::size_t span, int &out) const;
       virtual TextLineMetrics metrics(const TextStyle &style) const;
 
     private:
       detail::TextMeasureTable<TextBreakCharacter> characters_;
+      detail::TextMeasureTable<TextStyleSpan> spans_;
       void append(const core::StringBuffer &, const TextStyle &, std::size_t segment);
       std::size_t length_;
       bool valid_;
@@ -141,12 +165,11 @@ namespace loka
       SyntheticTextWidthSource &operator=(const SyntheticTextWidthSource &);
     };
 
-    /** Fragment in the joined source's native units; segment is the first input
-        segment of a coalesced equal-style span, even when wrapping splits it. */
+    /** Fragment in the joined source's native units. Resolve its descriptor and
+        first input segment through that source's span table, including after wrap. */
     struct TextFragment
     {
-      std::size_t segment, start, end;
-      TextStyle style;
+      std::size_t span, start, end;
       int width;
     };
 
@@ -159,7 +182,8 @@ namespace loka
     };
 
     /** Immutable completed break with owned line/fragment tables. The source is
-        borrowed only during construction. Invalid results expose no partial rows.
+        borrowed only during construction; resolving fragment span IDs still needs
+        the matching source. Invalid results expose no partial rows.
         WORD spans segments; CHAR splits code points, not graphemes. Line height is
         ascent + descent; leading is recorded separately. */
     class TextLineBreaker

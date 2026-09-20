@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <climits>
 #include "app/layout/TextLineBreaker.hpp"
+#include "platform/String.hpp"
 #include "AttributedTextTests.hpp"
 #include "app/nodes/AttributedText.hpp"
 #include "app/nodes/Text.hpp"
@@ -445,7 +446,7 @@ namespace
         : SyntheticTextWidthSource(value)
     {
     }
-    virtual bool width(std::size_t start, std::size_t end, const TextStyle &, int &out) const
+    virtual bool width(std::size_t start, std::size_t end, std::size_t, int &out) const
     {
       out = static_cast<int>(end - start) * 2 + 3;
       return true;
@@ -486,11 +487,30 @@ namespace
           calls_(0)
     {
     }
-    virtual bool width(std::size_t start, std::size_t end, const TextStyle &style, int &out) const
+    virtual bool width(std::size_t start, std::size_t end, std::size_t span, int &out) const
     {
       if (++this->calls_ == 2)
         return false;
-      return RangeSource::width(start, end, style, out);
+      return RangeSource::width(start, end, span, out);
+    }
+
+  private:
+    mutable unsigned calls_;
+  };
+  /** Refuse the fill pass after a preceding segment has already been decoded. */
+  class RefusedSpanString : public loka::platform::String
+  {
+  public:
+    RefusedSpanString()
+        : calls_(0)
+    {
+    }
+    virtual bool appendUtf8(std::string &out) const
+    {
+      if (++this->calls_ == 2)
+        return false;
+      out += "x";
+      return true;
     }
 
   private:
@@ -530,19 +550,19 @@ void testTextBreakerRangesAndRefusal()
   const RangeSource source(split);
   const TextLineBreaker wrapped(source, BlockStyle().wrap(TEXT_WRAP_CHAR), 7);
   LOKA_VERIFY(wrapped.valid() && wrapped.lineCount() == 2);
-  LOKA_VERIFY(wrapped.fragment(wrapped.line(1).firstFragment).segment == 0);
+  LOKA_VERIFY(source.span(wrapped.fragment(wrapped.line(1).firstFragment).span).segment == 0);
   const TextLineBreaker result(source, BlockStyle().wrap(TEXT_WRAP_WORD), 11);
   LOKA_VERIFY(result.valid());
   LOKA_VERIFY(result.width() == 11 && result.height() == 10 && result.lineCount() == 1);
   LOKA_VERIFY(result.line(0).fragmentCount == 1);
   const TextFragment &fragment = result.fragment(0);
-  LOKA_VERIFY(fragment.segment == 0 && fragment.start == 0 && fragment.end == 4 && fragment.width == 11);
+  LOKA_VERIFY(fragment.span == 0 && fragment.start == 0 && fragment.end == 4 && fragment.width == 11);
   const RangeSource mixed(Styled("ab", SizeOf(12)) + Styled("cd", SizeOf(24)));
   const TextLineBreaker lines(mixed, BlockStyle(), 100);
   LOKA_VERIFY(lines.valid() && lines.width() == 14 && lines.height() == 21);
   LOKA_VERIFY(lines.line(0).metrics.ascent == 14 && lines.line(0).metrics.descent == 7
               && lines.line(0).metrics.leading == 3);
-  LOKA_VERIFY(lines.line(0).fragmentCount == 2 && lines.fragment(1).segment == 1);
+  LOKA_VERIFY(lines.line(0).fragmentCount == 2 && mixed.span(lines.fragment(1).span).segment == 1);
   const SyntheticTextWidthSource unicode(Styled("a\xF0\x9F\x98\x80"
                                                 "b",
                                                 TextStyle()));
@@ -604,4 +624,66 @@ void testNullTextShapingDispatch()
   controller.projectLayoutForTesting(&node, state);
   const NullAttributedTextContext *context = static_cast<const NullAttributedTextContext *>(node.getContext());
   LOKA_VERIFY(context != 0 && context->measurement().width() == 16 && context->measurement().height() == 12);
+}
+
+void testTextSpanTable()
+{
+  const AttributedString value = Styled("", Italic) + Styled("ab", Bold) + Styled("", Italic) + Styled("cd", Bold)
+                                 + Styled("e", Italic) + Styled("f", Bold);
+  const SyntheticTextWidthSource source(value);
+  LOKA_VERIFY(source.valid() && source.length() == 6 && source.spanCount() == 3);
+  LOKA_VERIFY(source.span(0).segment == 1 && source.span(0).start == 0 && source.span(0).end == 4);
+  LOKA_VERIFY(source.span(1).segment == 4 && source.span(1).start == 4 && source.span(1).end == 5);
+  LOKA_VERIFY(source.span(2).segment == 5 && source.span(2).start == 5 && source.span(2).end == 6);
+  LOKA_VERIFY(source.spanStyle(0) == Bold && source.spanStyle(1) == Italic && source.spanStyle(2) == Bold);
+  LOKA_VERIFY(&source.spanStyle(0) == &source.span(0).style);
+  for (std::size_t i = 0; i < source.length(); ++i)
+    LOKA_VERIFY(source.character(i).span == (i < 4 ? 0 : i - 3));
+  const TextLineBreaker lines(source, BlockStyle().wrap(TEXT_WRAP_CHAR), 8);
+  LOKA_VERIFY(lines.valid() && lines.lineCount() == 3 && lines.width() == 8 && lines.height() == 36);
+  const TextFragment &continued = lines.fragment(lines.line(1).firstFragment);
+  LOKA_VERIFY(continued.span == 0 && source.span(continued.span).segment == 1);
+  LOKA_VERIFY(source.spanStyle(continued.span) == Bold && continued.start == 2 && continued.end == 4);
+
+  const SyntheticTextWidthSource empty(Styled("", Bold) + Styled("", Italic));
+  const SyntheticTextWidthSource plainEmpty(String(), Bold);
+  LOKA_VERIFY(empty.valid() && empty.length() == 0 && empty.spanCount() == 0);
+  LOKA_VERIFY(plainEmpty.valid() && plainEmpty.length() == 0 && plainEmpty.spanCount() == 0);
+
+  const String refusesFill = String::FromPlatform(Managed<loka::platform::String>::Wrap(new RefusedSpanString()));
+  const SyntheticTextWidthSource partial(Styled("a", Bold) + Styled(refusesFill, Italic));
+  LOKA_VERIFY(!partial.valid() && partial.length() == 0 && partial.spanCount() == 0);
+  const TextLineBreaker refusedPartial(partial, BlockStyle(), 100);
+  LOKA_VERIFY(!refusedPartial.valid() && refusedPartial.lineCount() == 0);
+
+  AttributedString alternating;
+  AttributedString equal;
+  for (int i = 0; i < 40; ++i)
+  {
+    alternating = alternating + Styled("x", i % 2 == 0 ? Bold : Italic);
+    equal = equal + Styled("x", Bold);
+  }
+  const SyntheticTextWidthSource many(alternating);
+  const SyntheticTextWidthSource coalesced(equal);
+  LOKA_VERIFY(many.valid() && many.spanCount() == 40);
+  LOKA_VERIFY(coalesced.valid() && coalesced.spanCount() == 1 && coalesced.span(0).end == 40);
+  for (std::size_t i = 0; i < many.spanCount(); ++i)
+  {
+    LOKA_VERIFY(many.span(i).segment == i && many.span(i).start == i && many.span(i).end == i + 1);
+    LOKA_VERIFY(many.character(i).span == i);
+  }
+  // Both character and span tables exceed inline capacity. Failure of the
+  // second allocation must release the first through the existing table owner.
+  for (int allocation = 1; allocation <= 2; ++allocation)
+  {
+    loka::core::testing::failLokaAllocRaw("TextLineBreaker", "Table", allocation);
+    {
+      const SyntheticTextWidthSource refused(alternating);
+      LOKA_VERIFY(!refused.valid() && refused.length() == 0 && refused.spanCount() == 0);
+      const TextLineBreaker result(refused, BlockStyle(), 100);
+      LOKA_VERIFY(!result.valid() && result.lineCount() == 0);
+    }
+    LOKA_VERIFY(loka::core::testing::lokaAllocRawLive() == 0);
+    loka::core::testing::allowLokaAllocRaw();
+  }
 }
