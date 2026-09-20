@@ -362,13 +362,13 @@ void testWin32TextFontTable()
 
     TextProps largeProps(plainProps);
     largeProps.textStyle_ = FontSize<24>();
-    TextNode large(largeProps);
-    HWND largeWindow = projectFontText(controller, root, large);
+    TextNode largeMetrics(largeProps);
+    HWND largeWindow = projectFontText(controller, root, largeMetrics);
     LOGFONTW descriptor;
     HFONT font96 = readFont(largeWindow, descriptor);
     LOKA_VERIFY(font96 != controller.displayFont());
     LOKA_VERIFY(descriptor.lfHeight == -MulDiv(24, 96, 96));
-    LOKA_VERIFY(layoutFontText(controller, large) > layoutFontText(controller, plain));
+    LOKA_VERIFY(layoutFontText(controller, largeMetrics) > layoutFontText(controller, plain));
 
     TextProps boldProps(plainProps);
     boldProps.textStyle_ = Bold;
@@ -401,19 +401,19 @@ void testWin32TextFontTable()
     // Retained apply changes the existing STATIC and requests the WM_SIZE door.
     MSG message;
     while (PeekMessageW(&message, root, WM_SIZE, WM_SIZE, PM_REMOVE)) {}
-    large.props.textStyle_ = FontSize<12>() + Bold + Italic;
-    large.getContext()->onPropsApplied();
+    largeMetrics.props.textStyle_ = FontSize<12>() + Bold + Italic;
+    largeMetrics.getContext()->onPropsApplied();
     LOKA_VERIFY(readFont(largeWindow, descriptor) != font144);
     LOKA_VERIFY(descriptor.lfHeight == -MulDiv(12, 144, 96));
     LOKA_VERIFY(descriptor.lfWeight == FW_BOLD && descriptor.lfItalic != 0);
     LOKA_VERIFY(PeekMessageW(&message, root, WM_SIZE, WM_SIZE, PM_REMOVE));
-    large.props.textStyle_ = TextStyle();
-    large.getContext()->onPropsApplied();
+    largeMetrics.props.textStyle_ = TextStyle();
+    largeMetrics.getContext()->onPropsApplied();
     LOKA_VERIFY(readFont(largeWindow, descriptor) == controller.displayFont());
 
     // Layout is also the live-style projection path; it must not need props apply.
-    large.props.textStyle_ = FontSize<24>();
-    layoutFontText(controller, large);
+    largeMetrics.props.textStyle_ = FontSize<24>();
+    layoutFontText(controller, largeMetrics);
     LOKA_VERIFY(readFont(largeWindow, descriptor) == font144);
     controller.updateDisplayScale(loka::win32::Win32DisplayScale(96));
     TextProps wrappedProps(plainProps);
@@ -565,17 +565,17 @@ void testWin32AttributedTextPerRunProjection()
     LOKA_VERIFY(table.valid() && table.lines().lineCount() == 2);
     LOKA_VERIFY(table.lines().line(1).fragmentCount == 2);
     const TextLineRecord &mixed = table.lines().line(1);
-    const TextLineMetrics &small = AttributedAccess::metrics(table, 0);
-    const TextLineMetrics &large = AttributedAccess::metrics(table, 1);
-    LOKA_VERIFY(mixed.metrics.ascent == (small.ascent > large.ascent ? small.ascent : large.ascent));
-    LOKA_VERIFY(mixed.metrics.descent == (small.descent > large.descent ? small.descent : large.descent));
+    const TextLineMetrics &smallMetrics = AttributedAccess::metrics(table, 0);
+    const TextLineMetrics &largeMetrics = AttributedAccess::metrics(table, 1);
+    LOKA_VERIFY(mixed.metrics.ascent == (smallMetrics.ascent > largeMetrics.ascent ? smallMetrics.ascent : largeMetrics.ascent));
+    LOKA_VERIFY(mixed.metrics.descent == (smallMetrics.descent > largeMetrics.descent ? smallMetrics.descent : largeMetrics.descent));
     LOKA_VERIFY(mixed.width == wordWidth);
     RECT native = childRectInParent(context->paintHwnd(), root);
     LOKA_VERIFY(native.left == scale.projectEdge(1));
     LOKA_VERIFY(native.right - native.left == scale.nativeLength(1, 1 + width).px);
     LOKA_VERIFY(scale.nativeLength(1, 1 + width).px != scale.projectLength(width));
     const int expectedHeight =
-        scale.measurementToLu(small.ascent + small.descent + small.leading)
+        scale.measurementToLu(smallMetrics.ascent + smallMetrics.descent + smallMetrics.leading)
         + scale.measurementToLu(mixed.metrics.ascent + mixed.metrics.descent + mixed.metrics.leading);
     LOKA_VERIFY(state.height == expectedHeight);
     HWND child = context->paintHwnd();
