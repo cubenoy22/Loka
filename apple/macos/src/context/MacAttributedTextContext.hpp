@@ -16,6 +16,11 @@ public:
                            void *parentView,
                            loka::app::AttributedTextNode *node);
   virtual ~MacAttributedTextContext();
+  /** False when AppKit refused the native label; the handler then refuses the context. */
+  bool hasNativeLabel() const
+  {
+    return this->label_ != 0;
+  }
   void readLifecycleFactOnAttach();
   virtual void onPropsApplied();
   virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous, loka::app::scene::NodeLifecycleFact next);
