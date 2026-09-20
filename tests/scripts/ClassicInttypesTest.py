@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 import shlex
 import subprocess
@@ -65,6 +66,36 @@ class ClassicInttypesTest(unittest.TestCase):
             with self.subTest(definitions=definitions):
                 self.compile_case('#pragma once\n' + definitions,
                     '#ifdef PRId64\n#error Unexpected fallback\n#endif\n')
+
+
+class ClassicWorkflowTest(unittest.TestCase):
+    def test_toolbox_builds_and_checks_both_consumers(self):
+        workflow = (ROOT / ".github/workflows/toolbox.yml").read_text()
+        script = re.search(r"/bin/bash -ceu '(.*?)'", workflow, re.S).group(1)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            for tool in ("cmake", "python3"):
+                stub = path / tool
+                stub.write_text('#!/bin/sh\nprintf "%s" "' + tool + '" >> "$CALL_LOG"\n'
+                                'printf " <%s>" "$@" >> "$CALL_LOG"\n'
+                                'printf "\\n" >> "$CALL_LOG"\n')
+                stub.chmod(0o755)
+            log = path / "calls"
+            env = dict(os.environ, PATH=directory + os.pathsep + os.environ["PATH"],
+                       CALL_LOG=str(log))
+            subprocess.run(["bash", "-ceu", script], env=env, check=True)
+            calls = log.read_text().splitlines()
+            for cpu, suffix in (("68k", "68K"), ("ppc", "PPC")):
+                build = "build/retro68/" + cpu + "/SmirkyCardCI"
+                configure = next((line for line in calls
+                                  if line.startswith("cmake <--preset> <retro68-" + cpu)
+                                  and " <-B> <" + build + ">" in line), "")
+                self.assertIn(" <-DLOKA_BUILD_SMIRKYCARD=ON>", configure)
+                self.assertIn(" <-DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON>", configure)
+                self.assertIn("cmake <--build> <" + build + "> <--target> <LokaSmirkyCard"
+                              + suffix + "_APPL>", calls)
+                self.assertIn("python3 <tests/scripts/ClassicInttypesTest.py> <--build-dir> <"
+                              + build + "> <ClassicQuickjsHeadersTest>", calls)
 
 
 class ClassicQuickjsHeadersTest(unittest.TestCase):
