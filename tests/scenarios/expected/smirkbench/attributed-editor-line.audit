@@ -1,0 +1,17 @@
+loka_scenario_audit version=1 scenario=attributed-editor-line
+step id=2 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=startup
+step id=3 due_tick=3 tick=3 status=succeeded error_kind=0 error_code=0 name=change-editor-line
+step id=5 due_tick=5 tick=5 status=succeeded error_kind=0 error_code=0 name=capture
+format_version	1
+node	SmirkBench.EditorLine
+scenario_version	1
+schema_version	1
+status	ok
+step	attributed-editor-line
+test	SmirkBench
+text.segments	3
+text.value	var x = 1;
+tick	5
+wrap.value	a abcd
+wrap.width	28
+terminal status=succeeded

@@ -15,12 +15,21 @@ $Registry = Join-Path $ProjectDirectory "tests/scenarios/scenarios.txt"
 $StartupIdentityDeclarations = Join-Path $ProjectDirectory "tests/scenarios/startup-golden-identities.txt"
 $FixtureRegistry = Join-Path $ProjectDirectory "tests/scenarios/scrapbook-package-fixtures.txt"
 $ExpectedAudit = Join-Path $ProjectDirectory "tests/scenarios/expected/$Example/$Scenario.audit"
+# SmirkBench's historical startup audit contains Toolbox-only paint counters.
+if ("$Example/$Scenario" -eq "smirkbench/startup") {
+    $ExpectedAudit = Join-Path $ProjectDirectory "tests/scenarios/desktop-expected/smirkbench/startup.audit"
+}
 $Vehicles = @{
+    "smirkbench" = @{ Executable = "LokaSmirkBenchScenarioWin32.exe"; OutputDirectory = "SmirkBench" }
     "scrapbook" = @{ Executable = "LokaScrapbookScenarioWin32.exe"; OutputDirectory = "ScrapbookUI" }
     "helloworld" = @{ Executable = "LokaHelloWorldScenarioWin32.exe"; OutputDirectory = "HelloWorld" }
     "tutorial" = @{ Executable = "LokaTutorialScenarioWin32.exe"; OutputDirectory = "Tutorial" }
     "minesweeper" = @{ Executable = "LokaMineSweeperScenarioWin32.exe"; OutputDirectory = "MineSweeper" }
     "floppybird" = @{ Executable = "LokaFloppyBirdScenarioWin32.exe"; OutputDirectory = "FloppyBird" }
+}
+# The remaining SmirkBench cells are Toolbox counter probes.
+if ($Example -eq "smirkbench" -and $Scenario -notin @("startup", "attributed-editor-line")) {
+    throw "SmirkBench scenario is Toolbox-only: $Scenario"
 }
 $BuiltExecutable = $null
 $Lrpc = Join-Path $ProjectDirectory "build/host/lrpc/lrpc.exe"

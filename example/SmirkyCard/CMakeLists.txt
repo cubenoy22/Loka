@@ -17,7 +17,7 @@ if(NOT smirkycard_embed_main_result EQUAL 0)
 endif()
 
 # A C-only seam keeps quickjs.h's modern macros out of Loka's C++98 code.
-add_library(smirkycard_script STATIC src/ScriptEngine.c)
+add_library(smirkycard_script STATIC src/ScriptEngine.c src/ScriptAlignedAlloc.c)
 target_link_libraries(smirkycard_script PRIVATE smirkycard_quickjs)
 target_include_directories(smirkycard_script PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set_target_properties(smirkycard_script PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED YES)
