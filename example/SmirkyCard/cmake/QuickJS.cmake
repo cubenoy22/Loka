@@ -46,7 +46,13 @@ else()
   target_link_libraries(smirkycard_quickjs PRIVATE m)
 endif()
 if(LOKA_CLASSIC_MAC)
+  # quickjs.h uses INT32_MIN/MAX in C++98 inline functions. GCC's stdint.h
+  # requires this opt-in, which must reach every consumer before any include.
+  target_compile_definitions(smirkycard_quickjs PUBLIC __STDC_LIMIT_MACROS)
   target_compile_definitions(smirkycard_quickjs PRIVATE LOKA_SMIRKYCARD_QUICKJS_68K=1)
+  if(LOKA_TOOLBOX_MULTIVERSAL_INTERFACES)
+    target_compile_definitions(smirkycard_quickjs PRIVATE LOKA_TOOLBOX_MULTIVERSAL_INTERFACES=1)
+  endif()
   target_link_libraries(smirkycard_quickjs PRIVATE LokaClassicNewlibCompat)
   target_compile_options(smirkycard_quickjs PRIVATE -Os -ffunction-sections -fdata-sections)
   target_sources(smirkycard_quickjs PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../src/ToolboxClock.c")
