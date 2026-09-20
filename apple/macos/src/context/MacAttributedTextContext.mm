@@ -64,7 +64,17 @@ namespace
                                             const loka::app::scene::LayoutState &)
     {
       MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      return new (std::nothrow) MacAttributedTextContext(mac, mac->projectionParentView(), node);
+      MacAttributedTextContext *context =
+          new (std::nothrow) MacAttributedTextContext(mac, mac->projectionParentView(), node);
+      // A context whose only native view could not be created would be
+      // installed forever and never retried; refuse it so a later ensure
+      // can build a complete one (AGENTS "Failure-atomicity policy").
+      if (context && !context->hasNativeLabel())
+      {
+        delete context;
+        return 0;
+      }
+      return context;
     }
   };
   MacAttributedTextNodeHandler handler;
