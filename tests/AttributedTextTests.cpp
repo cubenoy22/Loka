@@ -1,3 +1,6 @@
+#include <cstdio>
+#include <climits>
+#include "app/layout/TextLineBreaker.hpp"
 #include "AttributedTextTests.hpp"
 #include "app/nodes/AttributedText.hpp"
 #include "app/nodes/Text.hpp"
@@ -372,4 +375,233 @@ void testAttributedTextWrapUsesJoinedWordsAndRunMetrics()
   const AttributedString longWord = Styled("ab", FontSize<12>()) + Styled("cd", FontSize<24>());
   const NullTextMeasurement forced = measured(longWord, 20, BlockStyle().wrap(TEXT_WRAP_WORD));
   LOKA_VERIFY(forced.width() == 16 && forced.height() == 48 && forced.lineCount() == 2);
+}
+
+void testTextBreakerCharacterization()
+{
+  struct Case
+  {
+    const char *text;
+    TextWrap wrap;
+    short width, height, lines;
+  };
+  const Case cases[] = {{"ab cd", TEXT_WRAP_WORD, 12, 24, 2},
+                        {"ab cd", TEXT_WRAP_CHAR, 12, 24, 2},
+                        {"ab cd", TEXT_WRAP_NONE, 20, 12, 1},
+                        {"a\r\nb", TEXT_WRAP_WORD, 4, 24, 2},
+                        {"abcdefg", TEXT_WRAP_WORD, 12, 36, 3},
+                        {"a\n\nb", TEXT_WRAP_CHAR, 4, 36, 3},
+                        {"", TEXT_WRAP_NONE, 0, 12, 1}};
+  for (std::size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i)
+  {
+    const BlockStyle block = BlockStyle().wrap(cases[i].wrap);
+    const String text = String::Literal(cases[i].text);
+    LayoutState state;
+    state.width = 12;
+    bool valid = false;
+    const NullTextMeasurement plain = MeasureNullText(TextStyle(), block, &text, state, &valid);
+    const NullTextMeasurement attributed = measured(Styled(text, TextStyle()), 12, block);
+    LOKA_VERIFY(valid);
+    LOKA_VERIFY(plain.width() == cases[i].width && plain.height() == cases[i].height
+                && plain.lineCount() == cases[i].lines);
+    LOKA_VERIFY(attributed.width() == cases[i].width && attributed.height() == cases[i].height
+                && attributed.lineCount() == cases[i].lines);
+    std::printf("characterization %lu: %d/%d/%d (Text and AttributedText)\n",
+                static_cast<unsigned long>(i),
+                plain.width(),
+                plain.height(),
+                plain.lineCount());
+  }
+  const NullTextMeasurement mixed =
+      measured(Styled("ab", SizeOf(12)) + Styled("cd", SizeOf(24)), 20, BlockStyle().wrap(TEXT_WRAP_WORD));
+  LOKA_VERIFY(mixed.width() == 16 && mixed.height() == 48 && mixed.lineCount() == 2);
+  const NullTextMeasurement word =
+      measured(Styled("a wo", Bold) + Styled("rd", Italic), 20, BlockStyle().wrap(TEXT_WRAP_WORD));
+  LOKA_VERIFY(word.width() == 16 && word.height() == 24 && word.lineCount() == 2);
+  std::printf("characterization mixed: 16/48/2; word across runs: 16/24/2\n");
+  const String maximum(std::string(8192, 'x'));
+  for (int mode = TEXT_WRAP_WORD; mode <= TEXT_WRAP_CHAR; ++mode)
+  {
+    LayoutState state;
+    state.width = SHRT_MAX;
+    bool valid = false;
+    const BlockStyle wrap = BlockStyle().wrap(static_cast<TextWrap>(mode));
+    const NullTextMeasurement plain = MeasureNullText(TextStyle(), wrap, &maximum, state, &valid);
+    const NullTextMeasurement attributed = measured(Styled(maximum, TextStyle()), SHRT_MAX, wrap);
+    LOKA_VERIFY(valid && plain.width() == 32764 && plain.height() == 24 && plain.lineCount() == 2);
+    LOKA_VERIFY(attributed.width() == 32764 && attributed.height() == 24 && attributed.lineCount() == 2);
+  }
+  std::printf("characterization SHRT_MAX WORD/CHAR: 32764/24/2 (Text and AttributedText)\n");
+}
+
+namespace
+{
+  /** Range-sensitive fake native widths: an equal-style span pays one fixed
+      cost, so splitting it into segment or character widths is observable. */
+  class RangeSource : public SyntheticTextWidthSource
+  {
+  public:
+    explicit RangeSource(const AttributedString &value)
+        : SyntheticTextWidthSource(value)
+    {
+    }
+    virtual bool width(std::size_t start, std::size_t end, const TextStyle &, int &out) const
+    {
+      out = static_cast<int>(end - start) * 2 + 3;
+      return true;
+    }
+    virtual TextLineMetrics metrics(const TextStyle &style) const
+    {
+      return style.hasFontSize_ && style.fontSize_ == 24 ? TextLineMetrics(14, 7, 3) : TextLineMetrics(8, 2, 1);
+    }
+  };
+  /** A UTF-16-shaped source: the middle code point occupies two native units. */
+  class NativeRangeSource : public RangeSource
+  {
+  public:
+    NativeRangeSource()
+        : RangeSource(Styled("a\xF0\x9F\x98\x80"
+                             "b",
+                             TextStyle()))
+    {
+      for (std::size_t i = 0; i < 3; ++i)
+        this->rows_[i] = SyntheticTextWidthSource::character(i);
+      this->rows_[1].end = 3;
+      this->rows_[2].offset = 3;
+      this->rows_[2].end = 4;
+    }
+    virtual const TextBreakCharacter &character(std::size_t index) const
+    {
+      return this->rows_[index];
+    }
+
+  private:
+    TextBreakCharacter rows_[3];
+  };
+  class RefusingRangeSource : public RangeSource
+  {
+  public:
+    explicit RefusingRangeSource(const AttributedString &value)
+        : RangeSource(value),
+          calls_(0)
+    {
+    }
+    virtual bool width(std::size_t start, std::size_t end, const TextStyle &style, int &out) const
+    {
+      if (++this->calls_ == 2)
+        return false;
+      return RangeSource::width(start, end, style, out);
+    }
+
+  private:
+    mutable unsigned calls_;
+  };
+  class ShapingController : public NullScenePlatformController
+  {
+  public:
+    ShapingController(TextShaping shaping, const TextWidthSource &source)
+        : NullScenePlatformController(8, shaping),
+          source_(source),
+          perRun(0),
+          wholeLine(0)
+    {
+    }
+    virtual const TextWidthSource &textWidthSource(TextShaping shaping, const TextWidthSource &synthetic) const
+    {
+      switch (shaping)
+      {
+      case PER_RUN:
+        ++this->perRun;
+        return synthetic;
+      case WHOLE_LINE:
+        ++this->wholeLine;
+        return this->source_;
+      }
+      return synthetic;
+    }
+    const TextWidthSource &source_;
+    mutable unsigned perRun, wholeLine;
+  };
+} // namespace
+
+void testTextBreakerRangesAndRefusal()
+{
+  const AttributedString split = Styled("ab", Bold) + Styled("cd", Bold);
+  const RangeSource source(split);
+  const TextLineBreaker wrapped(source, BlockStyle().wrap(TEXT_WRAP_CHAR), 7);
+  LOKA_VERIFY(wrapped.valid() && wrapped.lineCount() == 2);
+  LOKA_VERIFY(wrapped.fragment(wrapped.line(1).firstFragment).segment == 0);
+  const TextLineBreaker result(source, BlockStyle().wrap(TEXT_WRAP_WORD), 11);
+  LOKA_VERIFY(result.valid());
+  LOKA_VERIFY(result.width() == 11 && result.height() == 10 && result.lineCount() == 1);
+  LOKA_VERIFY(result.line(0).fragmentCount == 1);
+  const TextFragment &fragment = result.fragment(0);
+  LOKA_VERIFY(fragment.segment == 0 && fragment.start == 0 && fragment.end == 4 && fragment.width == 11);
+  const RangeSource mixed(Styled("ab", SizeOf(12)) + Styled("cd", SizeOf(24)));
+  const TextLineBreaker lines(mixed, BlockStyle(), 100);
+  LOKA_VERIFY(lines.valid() && lines.width() == 14 && lines.height() == 21);
+  LOKA_VERIFY(lines.line(0).metrics.ascent == 14 && lines.line(0).metrics.descent == 7
+              && lines.line(0).metrics.leading == 3);
+  LOKA_VERIFY(lines.line(0).fragmentCount == 2 && lines.fragment(1).segment == 1);
+  const SyntheticTextWidthSource unicode(Styled("a\xF0\x9F\x98\x80"
+                                                "b",
+                                                TextStyle()));
+  const TextLineBreaker codePoints(unicode, BlockStyle().wrap(TEXT_WRAP_CHAR), 4);
+  LOKA_VERIFY(codePoints.valid() && codePoints.lineCount() == 3 && codePoints.height() == 36);
+  const NativeRangeSource native;
+  const TextLineBreaker nativeLines(native, BlockStyle().wrap(TEXT_WRAP_CHAR), 7);
+  LOKA_VERIFY(nativeLines.valid() && nativeLines.lineCount() == 3);
+  const TextFragment &surrogate = nativeLines.fragment(nativeLines.line(1).firstFragment);
+  LOKA_VERIFY(surrogate.start == 1 && surrogate.end == 3 && surrogate.width == 7);
+  const RefusingRangeSource refusedWidth(split);
+  const TextLineBreaker failedWidth(refusedWidth, BlockStyle(), 100);
+  LOKA_VERIFY(!failedWidth.valid() && failedWidth.lineCount() == 0);
+  const AttributedString longValue = Styled("abcdefghijklmnopqrstuvwxyz012345abcdefghijklmnopqrstuvwxyz012345", Bold);
+  const RangeSource longSource(longValue);
+  for (int allocation = 1; allocation <= 2; ++allocation)
+  {
+    loka::core::testing::failLokaAllocRaw("TextLineBreaker", "Table", allocation);
+    const TextLineBreaker refused(longSource, BlockStyle(), 100);
+    LOKA_VERIFY(!refused.valid() && refused.lineCount() == 0 && refused.width() == 0);
+    loka::core::testing::allowLokaAllocRaw();
+  }
+  loka::core::testing::failLokaAllocRaw("TextLineBreaker", "Table", 1);
+  const SyntheticTextWidthSource refusedSource(longValue);
+  loka::core::testing::allowLokaAllocRaw();
+  LOKA_VERIFY(!refusedSource.valid());
+  const TextLineBreaker refusedInput(refusedSource, BlockStyle(), 100);
+  LOKA_VERIFY(!refusedInput.valid());
+}
+
+void testNullTextShapingDispatch()
+{
+  const AttributedString value = Styled("ab", Bold) + Styled("cd", Bold);
+  const RangeSource injected(value);
+  for (int kind = 0; kind < 2; ++kind)
+  {
+    const TextShaping shaping = kind == 0 ? PER_RUN : WHOLE_LINE;
+    ShapingController controller(shaping, injected);
+    AttributedTextNode node((AttributedText(value)).props);
+    LayoutState state;
+    state.width = 100;
+    controller.projectLayoutForTesting(&node, state);
+    NullAttributedTextContext *context = static_cast<NullAttributedTextContext *>(node.getContext());
+    LOKA_VERIFY(context != 0);
+    LOKA_VERIFY(controller.textShaping() == shaping);
+    LOKA_VERIFY(context->measurement().width() == (kind == 0 ? 16 : 11));
+    LOKA_VERIFY(context->measurement().height() == (kind == 0 ? 12 : 10));
+    LOKA_VERIFY(context->measurement().lineCount() == 1);
+    LOKA_VERIFY(kind == 0 ? controller.perRun > 0 && controller.wholeLine == 0
+                          : controller.wholeLine > 0 && controller.perRun == 0);
+    const unsigned calls = kind == 0 ? controller.perRun : controller.wholeLine;
+    LOKA_VERIFY(context->commitPresented(value, controller.paintScope()));
+    LOKA_VERIFY((kind == 0 ? controller.perRun : controller.wholeLine) > calls);
+  }
+  NullScenePlatformController controller(8, WHOLE_LINE);
+  AttributedTextNode node((AttributedText(value)).props);
+  LayoutState state;
+  state.width = 100;
+  controller.projectLayoutForTesting(&node, state);
+  const NullAttributedTextContext *context = static_cast<const NullAttributedTextContext *>(node.getContext());
+  LOKA_VERIFY(context != 0 && context->measurement().width() == 16 && context->measurement().height() == 12);
 }

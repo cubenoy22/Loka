@@ -1,98 +1,40 @@
 #ifndef LOKA_TESTS_NULL_TEXT_METRICS_HPP
 #define LOKA_TESTS_NULL_TEXT_METRICS_HPP
-#include "app/style/Style.hpp"
+#include "app/layout/TextLineBreaker.hpp"
 #include "app/scene/Node.hpp"
-#include "core/String.hpp"
-#include "core/StringBuffer.hpp"
-#include <vector>
 
 /** Completed geometry from one deterministic null-platform text measure. */
 class NullTextMeasurement
 {
 public:
-  NullTextMeasurement();
-  NullTextMeasurement(short width, short height, short lineCount);
-
-  short width() const;
-  short height() const;
-  short lineCount() const;
-
-private:
-  short width_;
-  short height_;
-  short lineCount_;
-};
-
-/** One code point and the resolved metrics that contribute to its line. */
-struct NullTextCharacter
-{
-  NullTextCharacter(unsigned int codePoint, int characterAdvance, int characterHeight)
-      : value(codePoint),
-        advance(characterAdvance),
-        lineHeight(characterHeight)
+  NullTextMeasurement(short width = 0, short height = 0, short lineCount = 0)
+      : width_(width),
+        height_(height),
+        lineCount_(lineCount)
   {
   }
-  unsigned int value;
-  int advance;
-  int lineHeight;
-};
-
-/** One resolved run: deterministic metrics and a decoded buffer owned by this measure. */
-class NullTextMetrics
-{
-public:
-  NullTextMetrics(const loka::app::TextStyle &style, const loka::core::String *value);
-  int lineHeight() const
+  short width() const
   {
-    return this->lineHeight_;
+    return this->width_;
   }
-  int advance() const
+  short height() const
   {
-    return (this->lineHeight_ + 2) / 3;
+    return this->height_;
   }
-  bool materialized() const
+  short lineCount() const
   {
-    return this->materialized_;
-  }
-  std::size_t length() const
-  {
-    return this->text_.length();
-  }
-  NullTextCharacter characterAt(std::size_t index) const
-  {
-    return NullTextCharacter(this->text_.characterAt(index), this->advance(), this->lineHeight());
-  }
-  NullTextMeasurement measure(const loka::app::BlockStyle &block, short availableWidth) const;
-
-private:
-  loka::core::StringBuffer text_;
-  int lineHeight_;
-  bool materialized_;
-};
-
-/** Stack-local joined code points. Segments select metrics, never break positions. */
-class NullTextLayout
-{
-public:
-  explicit NullTextLayout(int emptyLineHeight);
-  bool append(const NullTextMetrics &run);
-  NullTextMeasurement measure(const loka::app::BlockStyle &block, short availableWidth) const;
-
-  std::size_t length() const
-  {
-    return this->characters_.size();
-  }
-  const NullTextCharacter &characterAt(std::size_t index) const
-  {
-    return this->characters_[index];
+    return this->lineCount_;
   }
 
 private:
-  std::vector<NullTextCharacter> characters_;
-  int emptyLineHeight_;
+  short width_, height_, lineCount_;
 };
 
-/** Measures plain text using resolved style; no Node or borrowed State is retained. */
+/** Null's synthetic truncation applies to completed common line geometry. */
+NullTextMeasurement MeasureNullTextLines(const loka::app::TextLineBreaker &result,
+                                         const loka::app::BlockStyle &block,
+                                         short availableWidth);
+
 NullTextMeasurement MeasureNullText(const loka::app::TextStyle &style,
                                     const loka::app::BlockStyle &block,
                                     const loka::core::String *value,

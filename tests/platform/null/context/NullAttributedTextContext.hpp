@@ -13,7 +13,7 @@ class NullScenePlatformController;
 class NullAttributedTextContext : public loka::app::scene::NativeNodeContext
 {
 public:
-  explicit NullAttributedTextContext(loka::app::AttributedTextNode *node);
+  NullAttributedTextContext(loka::app::AttributedTextNode *node, NullScenePlatformController &controller);
   void readLifecycleFactOnAttach() {}
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   const NullTextMeasurement &measurement() const
@@ -28,6 +28,7 @@ public:
 
 private:
   loka::app::AttributedTextNode *node_;
+  NullScenePlatformController &controller_;
   loka::app::scene::PaintFact<loka::app::AttributedString> presented_;
   NullPaintPlacement placement_;
   loka::app::BlockStyle placedBlock_;

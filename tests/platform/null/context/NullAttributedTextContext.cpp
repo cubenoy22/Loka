@@ -13,39 +13,44 @@ namespace
 
   NullTextMeasurement emptyMeasurement()
   {
-    const NullTextMetrics metrics(loka::app::TextStyle(), 0);
-    return NullTextMeasurement(0, static_cast<short>(metrics.lineHeight()), 1);
+    return NullTextMeasurement(0, 12, 1);
   }
 
   NullTextMeasurement measure(const loka::app::AttributedString &value,
                               const loka::app::BlockStyle &block,
                               const loka::app::scene::LayoutState &state,
-                              bool &materialized)
+                              bool &materialized,
+                              const NullScenePlatformController &controller)
   {
-    materialized = value.valid();
-    if (!materialized)
-      return emptyMeasurement();
-    const NullTextMetrics defaults(loka::app::TextStyle(), 0);
-    NullTextLayout layout(defaults.lineHeight());
-    for (std::size_t run = 0; run < value.segmentCount(); ++run)
+    const loka::app::SyntheticTextWidthSource synthetic(value);
+    const loka::app::TextWidthSource *source = &synthetic;
     {
-      const loka::app::AttributedString::Segment &segment = value.segment(run);
-      const NullTextMetrics metrics(segment.style, &segment.text);
-      if (!layout.append(metrics))
+      switch (controller.textShaping())
       {
-        materialized = false;
-        return emptyMeasurement();
+      case loka::app::PER_RUN:
+        source = &controller.textWidthSource(loka::app::PER_RUN, synthetic);
+        break;
+      case loka::app::WHOLE_LINE:
+        source = &controller.textWidthSource(loka::app::WHOLE_LINE, synthetic);
+        break;
       }
     }
-    return layout.measure(block, state.width);
+    const loka::app::TextLineBreaker result(*source, block, state.width);
+    materialized = result.valid();
+    if (!materialized)
+      return emptyMeasurement();
+    return MeasureNullTextLines(result, block, state.width);
   }
 
-  bool fits(const loka::app::AttributedString &value, const loka::app::BlockStyle &block, const loka::core::Frame &seat)
+  bool fits(const loka::app::AttributedString &value,
+            const loka::app::BlockStyle &block,
+            const loka::core::Frame &seat,
+            const NullScenePlatformController &controller)
   {
     loka::app::scene::LayoutState state;
     state.width = static_cast<short>(seat.width);
     bool materialized = false;
-    const NullTextMeasurement output = measure(value, block, state, materialized);
+    const NullTextMeasurement output = measure(value, block, state, materialized, controller);
     return materialized && output.width() <= seat.width && output.height() <= seat.height;
   }
 
@@ -59,17 +64,19 @@ namespace
       return node ? node->asAttributedTextNode() : 0;
     }
     static NullAttributedTextContext *create(loka::app::AttributedTextNode *node,
-                                             loka::app::scene::IPlatformController *,
+                                             loka::app::scene::IPlatformController *controller,
                                              const loka::app::scene::LayoutState &)
     {
-      return new NullAttributedTextContext(node);
+      return new NullAttributedTextContext(node, *static_cast<NullScenePlatformController *>(controller));
     }
   };
   NullAttributedTextNodeHandler handler;
 } // namespace
 
-NullAttributedTextContext::NullAttributedTextContext(loka::app::AttributedTextNode *node)
-    : node_(node)
+NullAttributedTextContext::NullAttributedTextContext(loka::app::AttributedTextNode *node,
+                                                     NullScenePlatformController &controller)
+    : node_(node),
+      controller_(controller)
 {
 }
 
@@ -81,7 +88,8 @@ short NullAttributedTextContext::layout(loka::app::scene::IPlatformController *c
   this->measurement_ = measure(this->node_->props.text_ ? this->node_->props.text_->get() : empty,
                                this->node_->props.blockStyle_,
                                state,
-                               materialized);
+                               materialized,
+                               this->controller_);
   state.height = this->measurement_.height();
   this->invalidatePresentation();
   loka::app::scene::PaintScope scope;
@@ -126,7 +134,7 @@ NullAttributedTextContext::queryPaintDamage(const loka::app::scene::PaintQuery &
   PaintDamage damage = {query.scope, seat.x, seat.y, 0, 0, PAINT_COVERAGE_ERASE_AND_PAINT};
   if (current == this->presented_.value())
     return PaintAnswer::exact(damage);
-  if (!fits(current, this->node_->props.blockStyle_, seat))
+  if (!fits(current, this->node_->props.blockStyle_, seat, this->controller_))
     return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
   damage.width = seat.width;
   damage.height = seat.height;
@@ -137,7 +145,7 @@ bool NullAttributedTextContext::commitPresented(const loka::app::AttributedStrin
                                                 const loka::app::scene::PaintScope &scope)
 {
   loka::core::Frame seat;
-  if (!this->placement_.query(scope, seat) || !fits(value, this->node_->props.blockStyle_, seat))
+  if (!this->placement_.query(scope, seat) || !fits(value, this->node_->props.blockStyle_, seat, this->controller_))
   {
     this->presented_.invalidate();
     return false;
