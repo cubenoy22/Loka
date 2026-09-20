@@ -59,7 +59,7 @@ floppy image; that image already contains both required files.
 
 ## MAME SCSI
 
-Stop MAME before rebuilding its development disk, then run **Build & Start in
+Stop MAME before rebuilding its development disk, then run **Build & Start Loop in
 MAME via SCSI** and pick `ScrapbookStandaloneFlow` from the prompt. The task
 derives the local `build/mame-dev/LokaDev.hd` from the boot-disk template
 configured by `MAME_HDA`, copies this stage's `.bin` and `ASSETS.LRP` to it,

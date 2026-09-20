@@ -124,14 +124,14 @@ This is the environment where binaries are actually built.
   user closes it. It reads no `LokaTest.cfg` and publishes no audit or capture
   marker.
 
-  On Classic, run **Build & Start in MAME via SCSI** and pick
+  On Classic, run **Build & Start Loop in MAME via SCSI** and pick
   `HelloWorldScenarioLoop` or `MineSweeperScenarioLoop` from the prompt. The same
   build emits self-contained `.dsk` images for real hardware; see
   [Classic scenario loop reels](MAME_DEVELOPMENT.md#classic-scenario-loop-reels)
   for the exact build, MAME, and SD-SCSI routes.
 
-  On macOS, build the reel with **Build: macOS HelloWorld Scenario Loop** or
-  **Build: macOS MineSweeper Scenario Loop** in VS Code, then open the generated
+  On macOS, run **Build: macOS loop target** in VS Code and pick
+  `HelloWorldScenarioLoop` or `MineSweeperScenarioLoop`, then open the generated
   application. The equivalent Terminal commands from the repository root are:
 
   ```sh
@@ -142,8 +142,8 @@ This is the environment where binaries are actually built.
   ```
 
   The macOS apps stop when the user chooses Quit or presses Command-Q. On
-  Win32, the **Build: Win32 HelloWorld Scenario Loop** and **Build: Win32
-  MineSweeper Scenario Loop** tasks build the Debug reels; start the generated
+  Win32, run **Build: Win32 loop target** and pick `HelloWorldScenarioLoop` or
+  `MineSweeperScenarioLoop` to build the Debug reels; start the generated
   executable directly. For a portable Release reel, use the
   architecture-specific presentation preset; for example, from an ARM64 Native
   Tools prompt:

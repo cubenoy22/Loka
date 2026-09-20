@@ -12,7 +12,7 @@ platform=$1
 key=$2
 [ "$platform" = "macos" ] || usage
 
-preset=macos-debug
+configure_preset=macos-debug
 target=
 configure_args=()
 
@@ -37,15 +37,14 @@ case "$key" in
         configure_args=(-DLOKA_BUILD_SMIRKYCARD=ON)
         ;;
     Tests)
-        preset=macos-tests
         target=LokaTestsMacOS
         ;;
     HelloWorldScenarioLoop) target=LokaHelloWorldScenarioLoopMacOS ;;
-    ScrapbookStandaloneLoop) preset=macos-standalone-release; target=LokaScrapbookStandaloneLoopMacOS ;;
-    HelloWorldStandaloneLoop) preset=macos-standalone-release; target=LokaHelloWorldStandaloneLoopMacOS ;;
-    TutorialStandaloneLoop) preset=macos-standalone-release; target=LokaTutorialStandaloneLoopMacOS ;;
-    MineSweeperStandaloneLoop) preset=macos-standalone-release; target=LokaMineSweeperStandaloneLoopMacOS ;;
-    FloppyBirdStandaloneLoop) preset=macos-standalone-release; target=LokaFloppyBirdStandaloneLoopMacOS ;;
+    ScrapbookStandaloneLoop) configure_preset=macos-standalone-release; target=LokaScrapbookStandaloneLoopMacOS ;;
+    HelloWorldStandaloneLoop) configure_preset=macos-standalone-release; target=LokaHelloWorldStandaloneLoopMacOS ;;
+    TutorialStandaloneLoop) configure_preset=macos-standalone-release; target=LokaTutorialStandaloneLoopMacOS ;;
+    MineSweeperStandaloneLoop) configure_preset=macos-standalone-release; target=LokaMineSweeperStandaloneLoopMacOS ;;
+    FloppyBirdStandaloneLoop) configure_preset=macos-standalone-release; target=LokaFloppyBirdStandaloneLoopMacOS ;;
     MineSweeperScenarioLoop) target=LokaMineSweeperScenarioLoopMacOS ;;
     *)
         echo "unknown macOS build key: $key" >&2
@@ -53,11 +52,16 @@ case "$key" in
         ;;
 esac
 
-cmake --preset "$preset" "${configure_args[@]}"
-if [ "$preset" = "macos-standalone-release" ]; then
-    preset=macos-standalone-loop-release
+build_preset=$configure_preset
+if [ "$key" = "Tests" ]; then
+    build_preset=macos-tests
 fi
+if [ "$configure_preset" = "macos-standalone-release" ]; then
+    build_preset=macos-standalone-loop-release
+fi
+# Bash 3.2 treats an empty array as unset under nounset.
+cmake --preset "$configure_preset" ${configure_args[@]+"${configure_args[@]}"}
 if [ -n "$target" ]; then
-    exec cmake --build --preset "$preset" --target "$target"
+    exec cmake --build --preset "$build_preset" --target "$target"
 fi
-exec cmake --build --preset "$preset"
+exec cmake --build --preset "$build_preset"
