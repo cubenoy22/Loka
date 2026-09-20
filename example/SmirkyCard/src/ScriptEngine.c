@@ -1,7 +1,44 @@
 #include "ScriptEngine.h"
+#include "ScriptAlignedAlloc.h"
 #include "quickjs.h"
 #include <stdlib.h>
 #include <string.h>
+
+/* QuickJS receives 8-byte-aligned blocks on every rail; see ScriptAlignedAlloc.h. */
+static const SmirkyBaseAllocator kScriptBaseAllocator = {malloc, free};
+
+static void *ScriptCalloc(void *opaque, size_t count, size_t size)
+{
+  void *block;
+  (void)opaque;
+  if (count != 0 && size > (size_t)-1 / count)
+    return NULL;
+  block = SmirkyAlignedAllocate(&kScriptBaseAllocator, count * size);
+  if (block)
+    memset(block, 0, count * size);
+  return block;
+}
+
+static void *ScriptMalloc(void *opaque, size_t size)
+{
+  (void)opaque;
+  return SmirkyAlignedAllocate(&kScriptBaseAllocator, size);
+}
+
+static void ScriptFree(void *opaque, void *block)
+{
+  (void)opaque;
+  SmirkyAlignedRelease(&kScriptBaseAllocator, block);
+}
+
+static void *ScriptRealloc(void *opaque, void *block, size_t size)
+{
+  (void)opaque;
+  return SmirkyAlignedReallocate(&kScriptBaseAllocator, block, size);
+}
+
+static const JSMallocFunctions kScriptMallocFunctions = {
+    ScriptCalloc, ScriptMalloc, ScriptFree, ScriptRealloc, SmirkyAlignedUsableSize};
 
 struct SmirkyScript
 {
@@ -56,7 +93,7 @@ SmirkyScript *SmirkyScriptCreate(void)
   SmirkyScript *script = (SmirkyScript *)calloc(1, sizeof(*script));
   if (!script)
     return NULL;
-  script->runtime = JS_NewRuntime();
+  script->runtime = JS_NewRuntime2(&kScriptMallocFunctions, NULL);
   if (!script->runtime)
   {
     free(script);
