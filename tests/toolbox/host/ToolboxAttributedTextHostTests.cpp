@@ -109,6 +109,22 @@ int main(int argc, char **)
     LOKA_VERIFY(toolbox_host::erases == 0);
     toolbox_host::draws.clear();
     Repaint(controller, *context);
+    Pin("ToolboxAttributedTextDrawsUnderCallerClipWhenRegionAllocationFails");
+    {
+      // Classic memory pressure: NewRgn refuses, the clip is inactive, and the
+      // text must still draw under the caller's clip (Text's fallback) while
+      // the presented history stays unknown.
+      const std::size_t before = toolbox_host::draws.size();
+      const int erasesBefore = toolbox_host::erases;
+      toolbox_host::failRegions = 2;
+      context->render(&controller);
+      LOKA_VERIFY(toolbox_host::draws.size() == before + 3);
+      LOKA_VERIFY(!ToolboxAttributedTextContextAccess::known(*context));
+      toolbox_host::failRegions = 0;
+      toolbox_host::draws.clear();
+      Repaint(controller, *context);
+      toolbox_host::erases = erasesBefore;
+    }
     Pin("ToolboxAttributedTextSpanFacesAndBaseline");
     LOKA_VERIFY(toolbox_host::draws.size() == 3);
     LOKA_VERIFY(toolbox_host::draws[0].face == bold);

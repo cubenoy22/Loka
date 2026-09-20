@@ -5,10 +5,12 @@ namespace toolbox_host
 {
   std::vector<Draw> draws;
   int erases = 0, widths = 0, measures = 0, fonts = 0, metrics = 0;
+  int failRegions = 0;
   void reset()
   {
     draws.clear();
     erases = widths = measures = fonts = metrics = 0;
+    failRegions = 0;
   }
 } // namespace toolbox_host
 namespace
@@ -106,6 +108,11 @@ bool EmptyRect(const Rect *r)
 }
 RgnHandle NewRgn()
 {
+  if (toolbox_host::failRegions > 0)
+  {
+    --toolbox_host::failRegions;
+    return 0;
+  }
   RgnHandle r = new Region *;
   *r = new Region;
   (*r)->rgnSize = sizeof(Region);

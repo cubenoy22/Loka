@@ -162,6 +162,8 @@ namespace toolbox_host
   };
   extern std::vector<Draw> draws;
   extern int erases, widths, measures, fonts, metrics;
+  /** Remaining NewRgn calls to refuse with a null handle (Classic memory pressure). */
+  extern int failRegions;
   void reset();
 } // namespace toolbox_host
 #endif

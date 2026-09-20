@@ -127,8 +127,11 @@ void ToolboxAttributedTextContext::render(loka::app::scene::IPlatformController 
   this->presented_.invalidate();
   ToolboxTextMeasureScope port(*this->controller());
   ToolboxPaintClip clip(this->paintRect_);
-  if (!clip.isActive() || !clip.touches(this->paintRect_))
+  if (clip.isActive() && !clip.touches(this->paintRect_))
     return;
+  // Classic low-memory fallback (same as Text): an inactive clip keeps the
+  // caller's clip and still draws; covers() stays false, so history stays
+  // unknown and the next pass repaints in full.
   const bool painted = this->table_.draw(this->rect_.left,
                                          this->rect_.top,
                                          *this->controller(),
