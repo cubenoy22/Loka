@@ -67,6 +67,21 @@ jobs:
               cmake --preset retro68-ppc-release -G "Unix Makefiles" \
                 -DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON
               cmake --build --preset retro68-ppc-release
+
+              # Keep the optional example outside the shipping size inventory.
+              # Check only the real consumer here; Linux CI owns host fixtures.
+              for cpu in 68k ppc; do
+                suffix=68K
+                if [ "$cpu" = ppc ]; then suffix=PPC; fi
+                build_dir="build/retro68/$cpu/SmirkyCardCI"
+                cmake --preset "retro68-$cpu-release" -G "Unix Makefiles" \
+                  -B "$build_dir" -DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON \
+                  -DLOKA_BUILD_SMIRKYCARD=ON
+                cmake --build "$build_dir" --target "LokaSmirkyCard${suffix}_APPL"
+                python3 tests/scripts/ClassicInttypesTest.py --build-dir "$build_dir" \
+                  ClassicQuickjsHeadersTest
+                python3 tests/scripts/ClassicQuickjsStackTest.py --build-dir "$build_dir"
+              done
             '
 
       - name: Build the PR comparison commit

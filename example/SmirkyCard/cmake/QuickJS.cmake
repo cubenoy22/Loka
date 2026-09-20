@@ -13,6 +13,8 @@ FetchContent_MakeAvailable(smirkycard_quickjs)
 set(smirkycard_quickjs_source_dir "${smirkycard_quickjs_SOURCE_DIR}")
 if(LOKA_CLASSIC_MAC)
   find_package(Python3 3.9 REQUIRED COMPONENTS Interpreter)
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_LIST_DIR}/prepare_quickjs68k.py")
   set(smirkycard_quickjs_classic_source
     "${CMAKE_CURRENT_BINARY_DIR}/smirkycard-quickjs-classic-source")
   execute_process(
@@ -46,7 +48,14 @@ else()
   target_link_libraries(smirkycard_quickjs PRIVATE m)
 endif()
 if(LOKA_CLASSIC_MAC)
+  # quickjs.h uses INT32_MIN/MAX in C++98 inline functions. GCC's stdint.h
+  # requires this opt-in, which must reach every consumer before any include.
+  target_compile_definitions(smirkycard_quickjs PUBLIC __STDC_LIMIT_MACROS)
   target_compile_definitions(smirkycard_quickjs PRIVATE LOKA_SMIRKYCARD_QUICKJS_68K=1)
+  target_include_directories(smirkycard_quickjs PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../src")
+  if(LOKA_TOOLBOX_MULTIVERSAL_INTERFACES)
+    target_compile_definitions(smirkycard_quickjs PRIVATE LOKA_TOOLBOX_MULTIVERSAL_INTERFACES=1)
+  endif()
   target_link_libraries(smirkycard_quickjs PRIVATE LokaClassicNewlibCompat)
   target_compile_options(smirkycard_quickjs PRIVATE -Os -ffunction-sections -fdata-sections)
   target_sources(smirkycard_quickjs PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../src/ToolboxClock.c")
