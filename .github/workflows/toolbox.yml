@@ -80,6 +80,7 @@ jobs:
                 cmake --build "$build_dir" --target "LokaSmirkyCard${suffix}_APPL"
                 python3 tests/scripts/ClassicInttypesTest.py --build-dir "$build_dir" \
                   ClassicQuickjsHeadersTest
+                python3 tests/scripts/ClassicQuickjsStackTest.py --build-dir "$build_dir"
               done
             '
 
