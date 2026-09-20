@@ -82,8 +82,9 @@ unsigned NullScenePlatformController::RefusedProjectedNodeHandlers::cellCount() 
   return this->cell_.refusalCount();
 }
 
-NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepthCap)
-    : layoutState_(),
+NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepthCap, loka::app::TextShaping shaping)
+    : textShaping_(shaping),
+      layoutState_(),
       paintScope_(),
       layoutHandlers_(),
       refusedProjectedNodeHandlers_(),
