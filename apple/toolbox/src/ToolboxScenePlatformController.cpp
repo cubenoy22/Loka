@@ -1349,9 +1349,9 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     render();
     return;
   }
-  // AttributedText owns no input hit. Reuse the clipped composition-order
-  // replay below so exposure and mixed-drawer updates cannot omit its pixels.
-  const bool compositionReplay = ToolboxTreeHasKind(rootNode_, loka::app::scene::NODE_KIND_ATTRIBUTED_TEXT);
+  // The context's attach/retire membership supplies this fact without a
+  // projection-tree discovery pass on each dirty delivery.
+  const bool compositionReplay = this->compositionReplay_.required();
   if (!compositionReplay && hitLedger_.textHits_.empty() && hitLedger_.popupHits_.empty() && hitLedger_.cellHits_.empty()
       && buttonControls_.empty() && scrollBarLedger_.scrollBarControls_.empty() && editControls_.empty())
   {

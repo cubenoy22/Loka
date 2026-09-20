@@ -49,25 +49,15 @@ public:
   {
     if (start > end || end > this->table_.bytes_.size())
       return false;
-    this->measure_.select(this->table_.fonts_[span]);
-    out = 0;
-    while (start < end)
-    {
-      const std::size_t next = this->table_.rangeEnd(start, end, span);
-      if (next == start)
-        return false;
-      const short width = TextWidth(&this->table_.bytes_[start], 0, static_cast<short>(next - start));
-      if (width < 0)
-        return false;
-      out = width > INT_MAX - out ? INT_MAX : out + width;
-      start = next;
-    }
+    if (span >= this->spanCount())
+      return false;
+    out = this->table_.advances_[end] - this->table_.advances_[start];
     return true;
   }
   virtual TextLineMetrics metrics(const loka::app::TextStyle &style) const
   {
     for (std::size_t i = 0; i < this->spanCount(); ++i)
-      if (this->span(i).style == style)
+      if (this->measure_.sameFont(this->table_.fonts_[i], ToolboxTextFontDescriptor(style)))
         return this->table_.metrics_[i].line;
     this->measure_.select(ToolboxTextFontDescriptor(style));
     FontInfo info;
@@ -94,6 +84,7 @@ void ToolboxAttributedTextTable::clear()
   this->lines_ = 0;
   this->snapshot_ = AttributedString();
   this->bytes_.clear();
+  this->advances_.clear();
   this->characters_.clear();
   this->spans_.clear();
   this->fonts_.clear();
@@ -120,7 +111,10 @@ bool ToolboxAttributedTextTable::build(const AttributedString &value,
       return false;
     count += bytes.size();
   }
-  if (!this->bytes_.allocate(count) || !this->characters_.allocate(decoded.length())
+  detail::TextMeasureTable<short> positions;
+  if (count == (std::numeric_limits<std::size_t>::max)()
+      || !positions.allocate((count < SHRT_MAX ? count : SHRT_MAX) + 1)
+      || !this->advances_.allocate(count + 1) || !this->bytes_.allocate(count) || !this->characters_.allocate(decoded.length())
       || !this->spans_.allocate(decoded.spanCount()) || !this->fonts_.allocate(decoded.spanCount())
       || !this->metrics_.allocate(decoded.spanCount()))
   {
@@ -161,20 +155,47 @@ bool ToolboxAttributedTextTable::build(const AttributedString &value,
     this->fonts_[i] = ToolboxTextFontDescriptor(decoded.spanStyle(i));
   }
   ToolboxTextMeasureScope measure(controller, decoded.spanCount() ? &this->fonts_[0] : 0, decoded.spanCount());
+  this->advances_[0] = 0;
   for (std::size_t i = 0; i < decoded.spanCount(); ++i)
   {
+    measure.select(this->fonts_[i]);
     std::size_t previous = 0;
-    while (previous < i && this->spans_[previous].style != this->spans_[i].style)
+    while (previous < i && !measure.sameFont(this->fonts_[previous], this->fonts_[i]))
       ++previous;
     if (previous < i)
       this->metrics_[i] = this->metrics_[previous];
     else
     {
-      measure.select(this->fonts_[i]);
       FontInfo info;
       GetFontInfo(&info);
       this->metrics_[i].line = TextLineMetrics(info.ascent, info.descent, info.leading);
       this->metrics_[i].maxAdvance = info.widMax > 0 ? info.widMax : 1;
+    }
+    std::size_t start = this->characters_[this->spans_[i].start].offset;
+    const std::size_t end = this->characters_[this->spans_[i].end - 1].end;
+    while (start < end)
+    {
+      const std::size_t next = this->rangeEnd(start, end, i);
+      if (next == start)
+      {
+        this->clear();
+        return false;
+      }
+      // MeasureText returns signed-short positions including the final edge.
+      // Native batches bound both byte count and pixels; probes use only the
+      // completed wide prefix, so WORD lookahead never re-enters Font Manager.
+      MeasureText(static_cast<short>(next - start), &this->bytes_[start], &positions[0]);
+      const int base = this->advances_[start];
+      for (std::size_t byte = 1; byte <= next - start; ++byte)
+      {
+        if (positions[byte] < 0 || positions[byte] > INT_MAX - base)
+        {
+          this->clear();
+          return false;
+        }
+        this->advances_[start + byte] = base + positions[byte];
+      }
+      start = next;
     }
   }
   const WidthSource source(*this, measure);

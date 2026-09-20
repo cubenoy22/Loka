@@ -43,8 +43,15 @@ ToolboxAttributedTextContext::~ToolboxAttributedTextContext()
   assert(!this->table_.valid() && "retirement must drop derived text before reclaim");
 }
 
+void ToolboxAttributedTextContext::readLifecycleFactOnAttach()
+{
+  if (this->controller())
+    this->controller()->registerCompositionReplay(this->replay_);
+}
+
 void ToolboxAttributedTextContext::retireNativeProjection()
 {
+  this->replay_.clear();
   this->table_.clear();
 }
 

@@ -94,6 +94,14 @@ void ToolboxTextMeasureScope::select(const ToolboxTextFontDescriptor &descriptor
   TextFace(descriptor.face(this->previousFace_));
 }
 
+bool ToolboxTextMeasureScope::sameFont(const ToolboxTextFontDescriptor &a,
+                                       const ToolboxTextFontDescriptor &b) const
+{
+  return a.font(this->previousFont_) == b.font(this->previousFont_)
+         && ResolvedFontSize(a.size(this->previousSize_)) == ResolvedFontSize(b.size(this->previousSize_))
+         && a.face(this->previousFace_) == b.face(this->previousFace_);
+}
+
 namespace
 {
   bool NeedsBusy(GrafPtr port, const ToolboxTextFontDescriptor *descriptors, std::size_t count)
@@ -125,6 +133,5 @@ ToolboxTextMeasureScope::ToolboxTextMeasureScope(
   if (this->measurePort_)
   {
     SetPort(this->measurePort_);
-    this->select(ToolboxTextFontDescriptor());
   }
 }

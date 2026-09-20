@@ -36,6 +36,7 @@ void TextFace(Style);
 short GetDefFontSize();
 short GetSysFont();
 void GetFontInfo(FontInfo *);
+void MeasureText(short, const void *, void *);
 short TextWidth(const void *, short, short);
 short StringWidth(const unsigned char *);
 void DrawText(const void *, short, short);

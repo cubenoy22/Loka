@@ -10,6 +10,7 @@
 #include "ToolboxEditControlLedger.hpp"
 #include "ToolboxEnabledChangeDispatch.hpp"
 #include "ToolboxHitLedger.hpp"
+#include "ToolboxCompositionReplay.hpp"
 #include "ToolboxScrollBarLedger.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
 #include "app/layout/TextShaping.hpp"
@@ -42,6 +43,10 @@ namespace loka
 class ToolboxScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
+  void registerCompositionReplay(ToolboxCompositionReplay::Registration &registration)
+  {
+    registration.attach(this->compositionReplay_);
+  }
   loka::app::TextShaping textShaping() const { return this->textShaping_; }
   explicit ToolboxScenePlatformController(ToolboxWindow *window);
   virtual ~ToolboxScenePlatformController();
@@ -297,6 +302,7 @@ public:
   loka::app::scene::Node *pendingRootNode_;
   loka::app::RectSurfaceExtentLedger rectSurfaceExtentLedger_;
   ToolboxHitLedger hitLedger_;
+  ToolboxCompositionReplay compositionReplay_;
   std::vector<ButtonControlBinding> buttonControls_;
   ToolboxScrollBarLedger scrollBarLedger_;
   ToolboxEditControlLedger<EditTextControlBinding, loka::app::scene::NodeContext> editControls_;

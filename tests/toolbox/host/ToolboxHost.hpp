@@ -15,6 +15,7 @@
 #define LOKA_TOOLBOX_SCROLL_BAR_CONTEXT_HPP
 #define LOKA_TOOLBOX_TEXT_CONTEXT_HPP
 #include "Quickdraw.h"
+#include "ToolboxCompositionReplay.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
 #include "app/scene/projection/NativeNodeContext.hpp"
@@ -91,6 +92,11 @@ public:
 class ToolboxScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
+  ToolboxCompositionReplay compositionReplay;
+  void registerCompositionReplay(ToolboxCompositionReplay::Registration &registration)
+  {
+    registration.attach(this->compositionReplay);
+  }
   ToolboxWindow *window_;
   loka::app::scene::PlatformNodeHandlerRegistry nodeHandlerRegistry_;
   mutable CursorOwner cursor;
@@ -155,7 +161,7 @@ namespace toolbox_host
     std::string bytes;
   };
   extern std::vector<Draw> draws;
-  extern int erases, widths, fonts, metrics;
+  extern int erases, widths, measures, fonts, metrics;
   void reset();
 } // namespace toolbox_host
 #endif

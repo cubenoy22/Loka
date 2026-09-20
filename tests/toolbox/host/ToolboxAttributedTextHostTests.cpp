@@ -79,6 +79,7 @@ int main(int argc, char **)
     LOKA_VERIFY(!refused && !node.getContext());
     NodeContext *installed = handler->ensureContext(&node, &controller, seat);
     LOKA_VERIFY(installed != 0);
+    LOKA_VERIFY(controller.compositionReplay.required());
     ToolboxAttributedTextContext *context = static_cast<ToolboxAttributedTextContext *>(installed);
     controller.renderContext = context;
     loka::core::testing::failLokaAllocRaw("ToolboxAttributedText", "Break", 0);
@@ -93,10 +94,15 @@ int main(int argc, char **)
     Pin("ToolboxAttributedTextLargestSpanBusy");
     LOKA_VERIFY(controller.cursor.entries == 1);
     LOKA_VERIFY(controller.cursor.depth == 0);
-    LOKA_VERIFY(toolbox_host::metrics == 3);
-    std::printf("measure: font selections=%d TextWidth=%d GetFontInfo=%d scope acquisitions=1\n",
+    Pin("ToolboxAttributedTextLinearNativeMeasurement");
+    LOKA_VERIFY(toolbox_host::metrics == 2);
+    LOKA_VERIFY(toolbox_host::fonts == 3);
+    LOKA_VERIFY(toolbox_host::measures == 2);
+    LOKA_VERIFY(toolbox_host::widths == 0);
+    std::printf("measure: font selections=%d TextWidth=%d MeasureText=%d GetFontInfo=%d scope acquisitions=1\n",
                 toolbox_host::fonts,
                 toolbox_host::widths,
+                toolbox_host::measures,
                 toolbox_host::metrics);
     Pin("ToolboxAttributedTextTransparentCompositionAndEraseOnReplay");
     context->render(&controller);
@@ -170,6 +176,7 @@ int main(int argc, char **)
 
     Pin("ToolboxAttributedTextRetainedAndRetired");
     context->onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_DETACHED_RETAINED);
+    LOKA_VERIFY(controller.compositionReplay.required());
     LOKA_VERIFY(table.valid());
     LOKA_VERIFY(!ToolboxAttributedTextContextAccess::known(*context));
     context->onFactChanged(NODE_FACT_DETACHED_RETAINED, NODE_FACT_ATTACHED);
@@ -178,8 +185,12 @@ int main(int argc, char **)
     context->render(&controller);
     LOKA_VERIFY(ToolboxAttributedTextContextAccess::known(*context));
     controller.renderContext = 0;
+    context->onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_RETIRED);
+    LOKA_VERIFY(!controller.compositionReplay.required());
+    LOKA_VERIFY(!table.valid());
     delete &node; // Node retirement must clear the table before the context destructor asserts.
     LOKA_VERIFY(controller.retired.size() == 1);
+    LOKA_VERIFY(!controller.compositionReplay.required());
     controller.retired.clear();
     loka::core::testing::allowLokaAllocRaw();
   }
@@ -237,14 +248,49 @@ int main(int argc, char **)
     LOKA_VERIFY(toolbox_host::draws[1].face == italic);
     LOKA_VERIFY(toolbox_host::draws[1].x == 10);
   }
-  Pin("ToolboxAttributedTextCompositionReplayDetection");
+  Pin("ToolboxAttributedTextDistinctResolvedMetricsAndEmptyLines");
+  loka::core::testing::failLokaAllocRaw("TextLineBreaker", "Table", 0);
   {
-    FragmentNode root((FragmentProps()));
-    LOKA_VERIFY(!ToolboxTreeHasKind(&root, NODE_KIND_ATTRIBUTED_TEXT));
-    root.addChild(new AttributedTextNode(AttributedTextProps(Styled("x", Bold))));
-    LOKA_VERIFY(ToolboxTreeHasKind(&root, NODE_KIND_ATTRIBUTED_TEXT));
-    LOKA_VERIFY(!ToolboxTreeHasKind(&root, NODE_KIND_ZSTACK));
+    ToolboxAttributedTextTable projected;
+    const AttributedString equivalent = Styled("a", TextStyle()) + Styled("b", TextStyle().italic(false));
+    toolbox_host::reset();
+    LOKA_VERIFY(projected.build(equivalent, BlockStyle(), 40, controller));
+    LOKA_VERIFY(toolbox_host::fonts == 3);
+    LOKA_VERIFY(toolbox_host::measures == 2);
+    LOKA_VERIFY(toolbox_host::metrics == 1);
+    toolbox_host::reset();
+    LOKA_VERIFY(projected.build(AttributedString(), BlockStyle(), 40, controller));
+    LOKA_VERIFY(projected.height() == 17);
+    LOKA_VERIFY(toolbox_host::metrics == 1);
+    const AttributedString newline = Styled("x\n", FontSize<24>());
+    LOKA_VERIFY(projected.build(newline, BlockStyle(), 40, controller));
+    LOKA_VERIFY(projected.lines().lineCount() == 2);
+    LOKA_VERIFY(projected.height() == 58);
+    const AttributedString longText = Styled(loka::core::String(std::string(100, 'x')), Bold);
+    LOKA_VERIFY(projected.build(longText, BlockStyle(), 40, controller));
+    loka::core::testing::failLokaAllocRaw("TextLineBreaker", "Table", 3);
+    LOKA_VERIFY(!projected.build(longText, BlockStyle(), 40, controller));
+    LOKA_VERIFY(!projected.valid());
   }
+  loka::core::testing::allowLokaAllocRaw();
+  Pin("ToolboxAttributedTextCompositionReplayMembership");
+  {
+    ToolboxCompositionReplay ledger;
+    ToolboxCompositionReplay::Registration first, second;
+    LOKA_VERIFY(!ledger.required());
+    first.attach(ledger);
+    second.attach(ledger);
+    first.attach(ledger); // Idempotent reattach, no duplicate edge.
+    first.clear(); // Non-head removal must leave the other demand registered.
+    LOKA_VERIFY(ledger.required());
+    second.clear();
+    LOKA_VERIFY(!ledger.required());
+    { ToolboxCompositionReplay::Registration scoped; scoped.attach(ledger); }
+    LOKA_VERIFY(!ledger.required());
+  }
+  std::printf("sizeof table=%lu context=%lu\n",
+              static_cast<unsigned long>(sizeof(ToolboxAttributedTextTable)),
+              static_cast<unsigned long>(sizeof(ToolboxAttributedTextContext)));
   std::puts("Toolbox AttributedText host pins passed (QuickDraw substitute; no native pixel claim)");
   return 0;
 }

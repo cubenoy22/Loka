@@ -50,6 +50,7 @@ private:
   };
   std::size_t rangeEnd(std::size_t start, std::size_t end, std::size_t span) const;
   loka::app::detail::TextMeasureTable<char> bytes_;
+  loka::app::detail::TextMeasureTable<int> advances_;
   loka::app::detail::TextMeasureTable<loka::app::TextBreakCharacter> characters_;
   loka::app::detail::TextMeasureTable<loka::app::TextStyleSpan> spans_;
   loka::app::detail::TextMeasureTable<ToolboxTextFontDescriptor> fonts_;

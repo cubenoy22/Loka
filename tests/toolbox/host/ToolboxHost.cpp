@@ -4,11 +4,11 @@
 namespace toolbox_host
 {
   std::vector<Draw> draws;
-  int erases = 0, widths = 0, fonts = 0, metrics = 0;
+  int erases = 0, widths = 0, measures = 0, fonts = 0, metrics = 0;
   void reset()
   {
     draws.clear();
-    erases = widths = fonts = metrics = 0;
+    erases = widths = measures = fonts = metrics = 0;
   }
 } // namespace toolbox_host
 namespace
@@ -65,6 +65,13 @@ void GetFontInfo(FontInfo *out)
   out->descent = 3;
   out->leading = 2;
   out->widMax = port->txSize / 3 + ((port->txFace & bold) ? 1 : 0);
+}
+void MeasureText(short count, const void *, void *charLocs)
+{
+  ++toolbox_host::measures;
+  short *positions = static_cast<short *>(charLocs);
+  for (int i = 0; i <= count; ++i)
+    positions[i] = static_cast<short>(i * (port->txSize / 3 + ((port->txFace & bold) ? 1 : 0)));
 }
 short TextWidth(const void *, short, short length)
 {

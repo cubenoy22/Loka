@@ -2,6 +2,7 @@
 #define LOKA_TOOLBOX_ATTRIBUTED_TEXT_CONTEXT_HPP
 
 #include "context/ToolboxProjectedNodeContext.hpp"
+#include "ToolboxCompositionReplay.hpp"
 #include "context/ToolboxAttributedTextTable.hpp"
 #include "context/ToolboxPaintSupport.hpp"
 #include "app/nodes/AttributedText.hpp"
@@ -34,6 +35,7 @@ public:
   /** Node owns context deletion; keep its allocation gate paired with delete. */
   static void *operator new(std::size_t size) throw();
   static void operator delete(void *storage) throw();
+  void readLifecycleFactOnAttach();
   virtual void onPropsApplied();
   virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous, loka::app::scene::NodeLifecycleFact next);
   virtual loka::app::scene::PaintAnswer queryPaintDamage(const loka::app::scene::PaintQuery &query) const;
@@ -45,6 +47,7 @@ private:
   virtual void retireNativeProjection();
   loka::app::AttributedTextNode *node_;
   ToolboxAttributedTextTable table_;
+  ToolboxCompositionReplay::Registration replay_;
   Rect rect_;
   Rect paintRect_;
   loka::app::scene::PaintFact<loka::app::AttributedString> presented_;

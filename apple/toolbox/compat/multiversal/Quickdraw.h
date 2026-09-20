@@ -26,4 +26,9 @@ inline void DrawText(const char *text, short offset, short count)
   DrawText(const_cast<char *>(text), offset, count);
 }
 
+inline void MeasureText(short count, const char *text, short *positions)
+{
+  MeasureText(count, const_cast<char *>(text), reinterpret_cast<char *>(positions));
+}
+
 #endif
