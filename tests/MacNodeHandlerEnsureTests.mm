@@ -419,6 +419,9 @@ void testMacAttributedTextRetainedLifecycle()
     AttributedTextProps props(Styled("before", FontSize<12>()));
     props.blockStyle_ = BlockStyle().wrap(TEXT_WRAP_WORD);
     AttributedTextNode node(props);
+    // A node placed directly (not through the definition factory) carries no
+    // props type id; applyPropsToNode's compatibility check needs it.
+    node.setPropsTypeId(AttributedTextProps::staticTypeId());
     VerifyAttributedHeight(node, controller, root, 100);
     scene::NodeContext *context = node.getContext();
     NSTextField *field = AttributedField(root);
