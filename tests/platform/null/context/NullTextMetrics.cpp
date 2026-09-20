@@ -18,35 +18,8 @@ NullTextMeasurement MeasureNullText(const loka::app::TextStyle &style,
 NullTextMeasurement
 MeasureNullTextLines(const loka::app::TextLineBreaker &result, const loka::app::BlockStyle &block, short availableWidth)
 {
-  int maxWidth = 0;
-  for (std::size_t i = 0; i < result.lineCount(); ++i)
-  {
-    const loka::app::TextLineRecord &line = result.line(i);
-    int width = line.width;
-    if ((!block.hasWrap_ || block.wrap_ == loka::app::TEXT_WRAP_NONE) && availableWidth > 0 && width > availableWidth
-        && block.hasTruncation_)
-    {
-      switch (block.truncation_)
-      {
-      case loka::app::TEXT_TRUNCATION_NONE:
-        break;
-      case loka::app::TEXT_TRUNCATION_CLIP:
-        width = availableWidth;
-        break;
-      case loka::app::TEXT_TRUNCATION_ELLIPSIS:
-      {
-        const int size = loka::app::SizeOf(line.metrics.ascent + line.metrics.descent).fontSize_;
-        const int advance = (size + 2) / 3;
-        const int capacity = availableWidth / advance;
-        width = (capacity > 0 ? capacity : 1) * advance;
-        break;
-      }
-      }
-    }
-    if (width > maxWidth)
-      maxWidth = width;
-  }
-  return NullTextMeasurement(static_cast<short>(maxWidth),
-                             result.height(),
+  const loka::core::Frame extent = loka::app::SyntheticTextExtent(result, block, availableWidth);
+  return NullTextMeasurement(static_cast<short>(extent.width),
+                             static_cast<short>(extent.height),
                              static_cast<short>(result.lineCount() > SHRT_MAX ? SHRT_MAX : result.lineCount()));
 }

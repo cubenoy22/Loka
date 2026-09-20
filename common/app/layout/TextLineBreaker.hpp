@@ -122,6 +122,8 @@ namespace loka
         units. Sources own ordered, contiguous character spans, coalescing adjacent
         equal styles before breaking. Each character names its containing span.
         A refusal invalidates the complete result. Widths must be nonnegative.
+        Successful probes must be repeatable during construction: the breaker
+        counts and fills using the same probe sequence.
         Keep the source alive when resolving span IDs from its completed result. */
     class TextWidthSource
     {
@@ -216,6 +218,9 @@ namespace loka
       TextLineBreaker(const TextLineBreaker &);
       TextLineBreaker &operator=(const TextLineBreaker &);
     };
+    /** Synthetic projection of a valid completed break, including Null's
+        truncation rule. Extent origin is (0,0); this is not native rail geometry. */
+    core::Frame SyntheticTextExtent(const TextLineBreaker &result, const BlockStyle &block, short availableWidth);
   } // namespace app
 } // namespace loka
 #endif
