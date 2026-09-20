@@ -83,7 +83,7 @@ This is the environment where binaries are actually built.
   file chooser. `scripts/macos-standalone-flow.sh Stage` prepares the same
   portable directory without launching it; expected and actual audits are kept
   per application, while ScrapbookUI's `ASSETS.LRP` remains owned by its bundle
-  at `Contents/Resources`. **Standalone: macOS Release Action** is the VS Code
+  at `Contents/Resources`. **Standalone: macOS Build / Stage / Verify / Release** is the VS Code
   shortcut; choose Build, Stage, or Verify from its action prompt.
 - To stage the standalone macOS application payload rather than the finite audit
   rail, run `scripts/macos-standalone-flow.sh Release`. The result under
@@ -96,7 +96,7 @@ This is the environment where binaries are actually built.
   architecture. A dedicated legacy build host may select a Release
   architecture explicitly, for example
   `LOKA_STANDALONE_MACOS_ARCH=i386 scripts/macos-standalone-flow.sh Release`.
-  In **Standalone: macOS Release Action**, choose Release for the equivalent
+  In **Standalone: macOS Build / Stage / Verify / Release**, choose Release for the equivalent
   VS Code action.
   macOS bundles now explicitly declare high-resolution capability in the
   project-owned `cmake/macos/MacOSXBundleInfo.plist.in`. The legacy build
@@ -124,14 +124,14 @@ This is the environment where binaries are actually built.
   user closes it. It reads no `LokaTest.cfg` and publishes no audit or capture
   marker.
 
-  On Classic, use **Build & Start in MAME via SCSI: HelloWorld Scenario Loop**
-  or **Build & Start in MAME via SCSI: MineSweeper Scenario Loop**. The same
+  On Classic, run **Build & Start Loop in MAME via SCSI** and pick
+  `HelloWorldScenarioLoop` or `MineSweeperScenarioLoop` from the prompt. The same
   build emits self-contained `.dsk` images for real hardware; see
   [Classic scenario loop reels](MAME_DEVELOPMENT.md#classic-scenario-loop-reels)
   for the exact build, MAME, and SD-SCSI routes.
 
-  On macOS, build the reel with **Build: macOS HelloWorld Scenario Loop** or
-  **Build: macOS MineSweeper Scenario Loop** in VS Code, then open the generated
+  On macOS, run **Build: macOS loop target** in VS Code and pick
+  `HelloWorldScenarioLoop` or `MineSweeperScenarioLoop`, then open the generated
   application. The equivalent Terminal commands from the repository root are:
 
   ```sh
@@ -142,8 +142,8 @@ This is the environment where binaries are actually built.
   ```
 
   The macOS apps stop when the user chooses Quit or presses Command-Q. On
-  Win32, the **Build: Win32 HelloWorld Scenario Loop** and **Build: Win32
-  MineSweeper Scenario Loop** tasks build the Debug reels; start the generated
+  Win32, run **Build: Win32 loop target** and pick `HelloWorldScenarioLoop` or
+  `MineSweeperScenarioLoop` to build the Debug reels; start the generated
   executable directly. For a portable Release reel, use the
   architecture-specific presentation preset; for example, from an ARM64 Native
   Tools prompt:
@@ -192,7 +192,7 @@ This is the environment where binaries are actually built.
   waits for its exact tracked
   audit, stops the final-scene hold, and stores the five target-local verdicts
   under `actual`. For a VAIO P, build x86 from a VS2017 `x64_x86 Cross Tools`
-  session. **Standalone: Win32 Release Action** is the VS Code shortcut;
+  session. **Standalone: Win32 Build / Stage / Verify / Release** is the VS Code shortcut;
   choose Build, Stage, or Verify from its action prompt.
 
   For the standalone application payload, use `-Action Release` instead of
@@ -207,7 +207,7 @@ This is the environment where binaries are actually built.
   Closing it manually does not relaunch it.
   SimpleViewer remains interactive and is not started by either audit
   verification or Release staging.
-  In **Standalone: Win32 Release Action**, choose Release for the equivalent
+  In **Standalone: Win32 Build / Stage / Verify / Release**, choose Release for the equivalent
   VS Code action;
   launch VS Code from the matching Visual Studio Developer Command Prompt so
   the Task inherits the intended compiler architecture.
