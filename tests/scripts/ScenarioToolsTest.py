@@ -193,11 +193,31 @@ class ExpectedAuditPinsTest(unittest.TestCase):
             self.assertIn("scrapbook " + scenario, scenarios)
             self.assertRegex(fixture, r"^corrupt-bag=[0-9]+$")
 
+    def test_smirkbench_attributed_cell_has_desktop_vehicles_and_startup_reference(self):
+        root = pathlib.Path(PROJECT_DIR)
+        presets = json.loads((root / "CMakePresets.json").read_text())
+        for rail, suffix, extension in (("macos", "MacOS", "mm"), ("win32", "Win32", "cpp")):
+            cmake = root / ("apple/macos/CMakeLists.txt" if rail == "macos" else "win32/CMakeLists.txt")
+            target = "LokaSmirkBenchScenario" + suffix
+            self.assertIn(target, cmake.read_text())
+            preset = next(p for p in presets["buildPresets"]
+                          if p["name"] == ("macos-scenarios" if rail == "macos" else "win32-tests"))
+            self.assertIn(target, preset["targets"])
+            self.assertIn("SmirkBenchScenarioDriver." + extension, cmake.read_text())
+            driver = (root / "tests" / rail / ("SmirkBenchScenarioDriver." + extension)).read_text()
+            self.assertIn('settings.scenario == "attributed-editor-line"', driver)
+            self.assertIn('driver_(settings.scenario == "startup"', driver)
+            runner = root / "tests" / rail / ("run-scenario.sh" if rail == "macos" else "run-scenario.ps1")
+            self.assertIn("desktop-expected/smirkbench/startup.audit", runner.read_text())
+        self.assertTrue((root / "tests/scenarios/desktop-expected/smirkbench/startup.audit").is_file())
+        declarations = golden_identity_guard.read_declarations(root / "tests/scenarios/startup-golden-identities.txt")
+        self.assertNotIn(("smirkbench", "attributed-editor-line"), [cell for cell, _ in declarations])
+
     def test_expected_audits_cover_registry_and_pin_app_identity(self):
         registry = os.path.join(PROJECT_DIR, "tests", "scenarios", "scenarios.txt")
         with open(registry, "r", encoding="utf-8") as handle:
             entries = [line.split() for line in handle.read().splitlines()]
-        self.assertEqual(len(entries), 24)
+        self.assertEqual(len(entries), 25)
         self.assertEqual(len(entries), len({tuple(entry) for entry in entries}))
         self.assertEqual(
             [entry for entry in entries if entry[0] == "simpleviewer"],

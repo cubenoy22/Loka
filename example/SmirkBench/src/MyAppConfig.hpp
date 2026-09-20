@@ -36,6 +36,9 @@ public:
                                   << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));
   }
 
+protected:
+  smirkbench::SmirkModel &model() { return this->model_; }
+
 private:
   static void WindowIdleThunk(Window *window, double elapsedSeconds, void *userData)
   {

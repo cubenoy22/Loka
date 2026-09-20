@@ -1,5 +1,8 @@
 #include "SmirkBenchTests.hpp"
 
+#include <fstream>
+#include <iterator>
+
 #include "../example/SmirkBench/src/MainNode.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
 #include "app/nodes/controls/Button.hpp"
@@ -7,8 +10,12 @@
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/scene/Scene.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
+#include "platform/null/context/NullAttributedTextContext.hpp"
 #include "support/TestVerify.hpp"
+#include "scenarios/SmirkBenchAttributedScenario.hpp"
+#include "scenarios/SmirkBenchScenarioPresentation.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
+#include "testing/app/ComposableNodeTestAccess.hpp"
 
 namespace
 {
@@ -52,22 +59,22 @@ namespace
     assert(!scene.hasPendingInvalidation());
   }
 
-  struct SmirkBenchFixture
+  template <class NodeT> struct SmirkBenchFixtureFor
   {
-    explicit SmirkBenchFixture(bool addInitialFace = true)
+    explicit SmirkBenchFixtureFor(bool addInitialFace = true)
         : model(640, 400, addInitialFace),
           platform(),
-          scene(loka::app::scene::Boundary<smirkbench::MainNode>(smirkbench::MainProps(&this->model))),
+          scene(loka::app::scene::Boundary<NodeT>(typename NodeT::PropsType(&this->model))),
           mainNode(0)
     {
       this->scene.mount(&this->platform);
       loka::dsl::testing::SceneTestAccess::updateAttached(this->scene, true);
       this->mainNode =
-          static_cast<smirkbench::MainNode *>(loka::dsl::testing::SceneTestAccess::rootBoundary(this->scene));
+          static_cast<NodeT *>(loka::dsl::testing::SceneTestAccess::rootBoundary(this->scene));
       LOKA_VERIFY(this->mainNode != 0);
     }
 
-    ~SmirkBenchFixture()
+    ~SmirkBenchFixtureFor()
     {
       loka::dsl::testing::SceneTestAccess::unmount(this->scene);
     }
@@ -75,10 +82,14 @@ namespace
     smirkbench::SmirkModel model;
     NullScenePlatformController platform;
     loka::app::scene::Scene scene;
-    smirkbench::MainNode *mainNode;
+    NodeT *mainNode;
   };
 
-  loka::app::RectSurfaceNode *findSurface(SmirkBenchFixture &fixture)
+  typedef SmirkBenchFixtureFor<smirkbench::MainNode> SmirkBenchFixture;
+  typedef SmirkBenchFixtureFor<loka::scenario_tests::SmirkBenchEditorLineNode> SmirkBenchEditorFixture;
+
+  template <class NodeT>
+  loka::app::RectSurfaceNode *findSurface(SmirkBenchFixtureFor<NodeT> &fixture)
   {
     loka::app::scene::Node *node =
         findNodeByTestId(loka::dsl::testing::SceneTestAccess::rootNode(fixture.scene), "SmirkBench.Surface");
@@ -117,6 +128,21 @@ namespace
     LOKA_VERIFY(nav.width() == 200);
     LOKA_VERIFY(nav.isLiveSeat());
     LOKA_VERIFY(content.width() == 296);
+  }
+  void verifySmirkAudit(const char *actualPath, const char *relativeExpected)
+  {
+    const std::string source(__FILE__);
+    const std::string testsDirectory = source.substr(0, source.find_last_of("/\\"));
+    const std::string expectedPath = testsDirectory + relativeExpected;
+    std::ifstream actual(actualPath, std::ios::binary);
+    std::ifstream expected(expectedPath.c_str(), std::ios::binary);
+    LOKA_VERIFY(actual.good() && expected.good());
+    const std::string actualBytes((std::istreambuf_iterator<char>(actual)), std::istreambuf_iterator<char>());
+    const std::string expectedBytes((std::istreambuf_iterator<char>(expected)), std::istreambuf_iterator<char>());
+    LOKA_VERIFY(actualBytes == expectedBytes);
+    actual.close();
+    expected.close();
+    std::remove(actualPath);
   }
 } // namespace
 
@@ -280,4 +306,105 @@ void testSmirkModelReflectsRefusesAndReclamps()
   }
   LOKA_VERIFY(addButton->props.enabled_ != 0);
   LOKA_VERIFY(!addButton->props.enabled_->get());
+}
+
+void testSmirkBenchAttributedEditorLine()
+{
+  using namespace loka;
+  using namespace loka::app;
+  SmirkBenchFixture ordinary;
+  LOKA_VERIFY(findNodeByTestId(dsl::testing::SceneTestAccess::rootNode(ordinary.scene), "SmirkBench.EditorLine") == 0);
+  verifyLandscapeRowSeats(ordinary);
+
+  SmirkBenchEditorFixture fixture;
+  LOKA_VERIFY(scene::ComposableNodeTestAccess::declaredStateCount(*ordinary.mainNode) == 8);
+  LOKA_VERIFY(scene::ComposableNodeTestAccess::declaredStateCount(*fixture.mainNode) == 9);
+  scene::Node *root = dsl::testing::SceneTestAccess::rootNode(fixture.scene);
+  scene::Node *line = findNodeByTestId(root, "SmirkBench.EditorLine");
+  scene::Node *wrap = findNodeByTestId(root, "SmirkBench.WrapFixture");
+  scene::Node *box = findNodeByTestId(root, "SmirkBench.WrapBox");
+  LOKA_VERIFY(line && line->asAttributedTextNode());
+  LOKA_VERIFY(wrap && wrap->asAttributedTextNode());
+  LOKA_VERIFY(box && box->asBoxNode() && box->asBoxNode()->props.effectiveWidth() == 28);
+  LOKA_VERIFY(findNodeByTestId(root, "SmirkBench.PlainText") != 0);
+  LOKA_VERIFY(findSurface(fixture) != 0);
+  const AttributedString initial = Styled("var x = ", Bold) + Styled("1;", Italic);
+  LOKA_VERIFY(line->asAttributedTextNode()->props.text_->get() == initial);
+  LOKA_VERIFY(line->asAttributedTextNode()->props.text_->get().segmentCount() == 2);
+  scene::NodeContext *context = line->getContext();
+  LOKA_VERIFY(context != 0);
+  fixture.platform.projectLayoutForTesting(root, layoutState(636, 400));
+  const NullTextMeasurement &wrapped = static_cast<NullAttributedTextContext *>(wrap->getContext())->measurement();
+  LOKA_VERIFY(wrapped.width() == 24 && wrapped.height() == 36 && wrapped.lineCount() == 2);
+
+  // The very same checkpoint code runs on all native rails.
+  {
+    platform::file::FileHandle auditFile;
+    auditFile.displayPath = core::String::Literal("_loka_smirkbench_attributed.audit");
+    dsl::testing::ScenarioAuditFile audit(auditFile, "attributed-editor-line");
+    dsl::SnapRecord record;
+    LOKA_VERIFY(scenario_tests::AdvanceSmirkBenchEditor(2, &fixture.scene, audit, record)
+                == scenario_tests::SCENARIO_ADVANCE_PENDING);
+    LOKA_VERIFY(scenario_tests::AdvanceSmirkBenchEditor(3, &fixture.scene, audit, record)
+                == scenario_tests::SCENARIO_ADVANCE_PENDING);
+    drainSmirkBench(fixture.scene);
+    LOKA_VERIFY(findNodeByTestId(root, "SmirkBench.EditorLine") == line);
+    LOKA_VERIFY(line->getContext() == context);
+    LOKA_VERIFY(line->asAttributedTextNode()->props.text_->get().segmentCount() == 3);
+    LOKA_VERIFY(line->asAttributedTextNode()->props.text_->get()
+                == Styled("var ", Bold) + Styled("x = ", TextStyle()) + Styled("1;", Italic));
+    LOKA_VERIFY(findNodeByTestId(root, "SmirkBench.WrapFixture") == wrap);
+    LOKA_VERIFY(scenario_tests::AdvanceSmirkBenchEditor(4, &fixture.scene, audit, record)
+                == scenario_tests::SCENARIO_ADVANCE_PENDING);
+    LOKA_VERIFY(scenario_tests::AdvanceSmirkBenchEditor(5, &fixture.scene, audit, record)
+                == scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY);
+    std::string status;
+    LOKA_VERIFY(record.get("status", status) && status == dsl::SnapStatusOk());
+    dsl::testing::scenario_audit_detail::TerminalEmitter terminal(&audit);
+    LOKA_VERIFY(terminal.emit(dsl::testing::SCENARIO_AUDIT_SUCCEEDED, record));
+  }
+  verifySmirkAudit("_loka_smirkbench_attributed.audit", "/scenarios/expected/smirkbench/attributed-editor-line.audit");
+
+  drainSmirkBench(ordinary.scene);
+  {
+    platform::file::FileHandle file;
+    file.displayPath = core::String::Literal("_loka_smirkbench_startup.audit");
+    dsl::testing::ScenarioAuditFile audit(file, "startup");
+    dsl::SnapRecord record;
+    dsl::FlowError error;
+    LOKA_VERIFY(dsl::testing::SnapText("SmirkBench.FaceCount", "SmirkBench", "startup", 2, 1)
+                    .run(&ordinary.scene, record, error)
+                == dsl::FLOW_STEP_SUCCEEDED);
+    scenario_tests::SmirkBenchEditorDriver driver(true, &audit);
+    LOKA_VERIFY(driver.publishVerdict(record));
+  }
+  verifySmirkAudit("_loka_smirkbench_startup.audit", "/scenarios/desktop-expected/smirkbench/startup.audit");
+
+  // Missing opt-in is a hard failed verdict, not a successful empty capture.
+  {
+    dsl::SnapRecord record;
+    std::string status;
+    platform::file::FileHandle absentFile;
+    absentFile.displayPath = core::String::Literal("_loka_smirkbench_absent.audit");
+    dsl::testing::ScenarioAuditFile absentAudit(absentFile, "attributed-editor-line");
+    LOKA_VERIFY(scenario_tests::AdvanceSmirkBenchEditor(2, &ordinary.scene, absentAudit, record)
+                == scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY);
+    LOKA_VERIFY(record.get("status", status) && status == dsl::SnapStatusError());
+  }
+  std::remove("_loka_smirkbench_absent.audit");
+  const scene::BoundaryDefinition<smirkbench::MainProps, smirkbench::MainNode> ordinaryDefinition(
+      smirkbench::MainProps(&ordinary.model));
+  const scene::BoundaryDefinition<scenario_tests::SmirkBenchEditorLineProps, scenario_tests::SmirkBenchEditorLineNode>
+      editorDefinition(scenario_tests::SmirkBenchEditorLineProps(&fixture.model));
+  LOKA_VERIFY(!editorDefinition.isCompatibleWithNode(ordinary.mainNode));
+  LOKA_VERIFY(!ordinaryDefinition.isCompatibleWithNode(fixture.mainNode));
+  LOKA_VERIFY(!editorDefinition.applyPropsToNode(ordinary.mainNode));
+  LOKA_VERIFY(!ordinaryDefinition.applyPropsToNode(fixture.mainNode));
+  LOKA_VERIFY(ordinaryDefinition.applyPropsToNode(ordinary.mainNode));
+  LOKA_VERIFY(editorDefinition.applyPropsToNode(fixture.mainNode));
+  LOKA_VERIFY(scene::ComposableNodeTestAccess::declaredStateCount(*ordinary.mainNode) == 8);
+  LOKA_VERIFY(scene::ComposableNodeTestAccess::declaredStateCount(*fixture.mainNode) == 9);
+  LOKA_VERIFY(findNodeByTestId(dsl::testing::SceneTestAccess::rootNode(ordinary.scene), "SmirkBench.EditorLine") == 0);
+  LOKA_VERIFY(findNodeByTestId(root, "SmirkBench.EditorLine") == line);
+  LOKA_VERIFY(line->getContext() == context);
 }

@@ -59,8 +59,9 @@ namespace smirkbench
 
     bool operator<(const loka::app::scene::PropsBase &rhs) const
     {
-      return rhs.propsTypeId() == this->propsTypeId() &&
-             this->keys_ < static_cast<const MainProps &>(rhs).keys_;
+      if (rhs.propsTypeId() != this->propsTypeId()) return false;
+      const MainProps &other = static_cast<const MainProps &>(rhs);
+      return this->keys_ < other.keys_;
     }
 
   private:
@@ -72,7 +73,8 @@ namespace smirkbench
     loka::app::scene::BorrowedKeys<KEY_COUNT> keys_;
   };
 
-  class MainNode : public loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>
+  /** Shared benchmark behavior; concrete Props types determine retained compatibility. */
+  template <class PropsT> class MainNodeBase : public loka::app::scene::StdCompositionBoundaryNodeBase<PropsT>
   {
     enum
     {
@@ -82,10 +84,10 @@ namespace smirkbench
     };
 
   public:
-    typedef MainTypeTag TypeTag;
+    typedef typename PropsT::TypeTag TypeTag;
 
-    explicit MainNode(const MainProps &props)
-        : loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>(props),
+    explicit MainNodeBase(const PropsT &props)
+        : loka::app::scene::StdCompositionBoundaryNodeBase<PropsT>(props),
           orientation_(),
           navAxis_(),
           panelsAxis_(),
@@ -117,9 +119,9 @@ namespace smirkbench
       // remaining height below it.
       BoxDefinition navSeat = Box().width(this->navWidth_.state());
       navSeat.tag(kNavSeatTag);
-      navSeat << (Stack(this->navAxis_.state()).TEST_ID("SmirkBench.NavPane")
-                  << Button("Add face", &this->addFace_).enabled(this->addEnabled_.state()).TEST_ID("SmirkBench.AddFace")
-                  << Text(this->faceCountText_.state()).TEST_ID("SmirkBench.FaceCount"));
+      StackDefinition navPane = Stack(this->navAxis_.state()).TEST_ID("SmirkBench.NavPane");
+      this->composeNavigation(navPane);
+      navSeat << navPane;
 
       RectSurface surface = RectSurface(this->props.model()->surfaceModel())
                                 .laidOutExtent(this->surfaceExtent_)
@@ -160,6 +162,15 @@ namespace smirkbench
     }
 #endif
 
+  protected:
+    /** Extend the existing nav stack at declaration time without changing its seat. */
+    virtual void composeNavigation(loka::app::StackDefinition &navPane)
+    {
+      using namespace loka::app;
+      navPane << Button("Add face", &this->addFace_).enabled(this->addEnabled_.state()).TEST_ID("SmirkBench.AddFace")
+              << Text(this->faceCountText_.state()).TEST_ID("SmirkBench.FaceCount");
+    }
+
   private:
     static loka::core::String faceCountLabel(int count)
     {
@@ -168,18 +179,18 @@ namespace smirkbench
 
     virtual void declareBindings(loka::app::scene::BindingToken &t)
     {
-      t.action(this->addFace_, this, &MainNode::addFace);
-      t.watch(*this->surfaceExtent_.state(), this, &MainNode::refreshModelBounds);
+      t.action(this->addFace_, this, &MainNodeBase::addFace);
+      t.watch(*this->surfaceExtent_.state(), this, &MainNodeBase::refreshModelBounds);
       ::Window *window = this->windowOrNull();
       if (window)
       {
-        t.watch(window->nativeFrame(), this, &MainNode::refreshOrientation, true);
+        t.watch(window->nativeFrame(), this, &MainNodeBase::refreshOrientation, true);
       }
     }
 
     ::Window *windowOrNull() const
     {
-      const AttachedContext *context = this->attachedContext();
+      const typename MainNodeBase::AttachedContext *context = this->attachedContext();
       return context ? context->window() : 0;
     }
 
@@ -246,6 +257,11 @@ namespace smirkbench
     loka::app::scene::NodeState<loka::core::String> faceCountText_;
     loka::app::scene::NodeState<bool> addEnabled_;
     loka::core::EmitterState addFace_;
+  };
+  class MainNode : public MainNodeBase<MainProps>
+  {
+  public:
+    explicit MainNode(const MainProps &props) : MainNodeBase<MainProps>(props) {}
   };
 } // namespace smirkbench
 
