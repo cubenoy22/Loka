@@ -6,6 +6,7 @@
 #include "SmirkModel.hpp"
 #include "app/core/Window.hpp"
 #include "app/nodes/Text.hpp"
+#include "app/nodes/AttributedText.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/Box.hpp"
@@ -42,7 +43,8 @@ namespace smirkbench
     typedef MainTypeTag TypeTag;
     typedef MainNode NodeType;
 
-    explicit MainProps(SmirkModel *model = 0)
+    explicit MainProps(SmirkModel *model = 0, bool attributedSpecimen = false)
+        : attributedSpecimen_(attributedSpecimen)
     {
       this->keys_.set(KEY_MODEL, model);
     }
@@ -52,6 +54,11 @@ namespace smirkbench
       return static_cast<SmirkModel *>(const_cast<void *>(this->keys_.get(KEY_MODEL)));
     }
 
+    bool attributedSpecimen() const
+    {
+      return this->attributedSpecimen_;
+    }
+
     void assertInitialized() const
     {
       assert(this->keys_.complete());
@@ -59,8 +66,11 @@ namespace smirkbench
 
     bool operator<(const loka::app::scene::PropsBase &rhs) const
     {
-      return rhs.propsTypeId() == this->propsTypeId() &&
-             this->keys_ < static_cast<const MainProps &>(rhs).keys_;
+      if (rhs.propsTypeId() != this->propsTypeId()) return false;
+      const MainProps &other = static_cast<const MainProps &>(rhs);
+      if (this->attributedSpecimen_ != other.attributedSpecimen_)
+        return this->attributedSpecimen_ < other.attributedSpecimen_;
+      return this->keys_ < other.keys_;
     }
 
   private:
@@ -70,6 +80,8 @@ namespace smirkbench
       KEY_COUNT
     };
     loka::app::scene::BorrowedKeys<KEY_COUNT> keys_;
+    /** Mount-time composition choice; the default keeps the benchmark unchanged. */
+    bool attributedSpecimen_;
   };
 
   class MainNode : public loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>
@@ -97,6 +109,11 @@ namespace smirkbench
           addFace_()
     {
       const int initialFaceCount = props.model() ? props.model()->faceCount() : 0;
+      if (props.attributedSpecimen())
+      {
+        using namespace loka::app;
+        this->state(this->editorLine_, Styled("var x = ", Bold) + Styled("1;", Italic));
+      }
       this->state(this->orientation_, ORIENTATION_LANDSCAPE);
       this->state(this->navAxis_, loka::app::STACK_AXIS_COLUMN);
       this->state(this->panelsAxis_, loka::app::STACK_AXIS_ROW);
@@ -117,9 +134,22 @@ namespace smirkbench
       // remaining height below it.
       BoxDefinition navSeat = Box().width(this->navWidth_.state());
       navSeat.tag(kNavSeatTag);
-      navSeat << (Stack(this->navAxis_.state()).TEST_ID("SmirkBench.NavPane")
-                  << Button("Add face", &this->addFace_).enabled(this->addEnabled_.state()).TEST_ID("SmirkBench.AddFace")
-                  << Text(this->faceCountText_.state()).TEST_ID("SmirkBench.FaceCount"));
+      StackDefinition navPane = Stack(this->navAxis_.state()).TEST_ID("SmirkBench.NavPane");
+      navPane << Button("Add face", &this->addFace_).enabled(this->addEnabled_.state()).TEST_ID("SmirkBench.AddFace")
+                  << Text(this->faceCountText_.state()).TEST_ID("SmirkBench.FaceCount");
+
+      if (this->props.attributedSpecimen())
+      {
+        navPane << (Column()
+                    << Text("Editor line").TEST_ID("SmirkBench.PlainText")
+                    << AttributedText(this->editorLine_.state()).TEST_ID("SmirkBench.EditorLine")
+                    << (Box().size(28, 80).TEST_ID("SmirkBench.WrapBox")
+                        << (AttributedText(Styled("a ab", FontSize<12>() + Bold)
+                                            + Styled("cd", FontSize<24>() + Italic))
+                             + BlockStyle().wrap(TEXT_WRAP_WORD)).TEST_ID("SmirkBench.WrapFixture")));
+      }
+
+      navSeat << navPane;
 
       RectSurface surface = RectSurface(this->props.model()->surfaceModel())
                                 .laidOutExtent(this->surfaceExtent_)
@@ -135,6 +165,13 @@ namespace smirkbench
     }
 
 #if defined(TEST_BUILD)
+    /** Scenario action: change styles through the owning Boundary's State. */
+    void changeEditorLineForTesting()
+    {
+      using namespace loka::app;
+      this->editorLine_.set(Styled("var ", Bold) + Styled("x = ", TextStyle()) + Styled("1;", Italic));
+    }
+
     /** Scenario-test door: derives the orientation without requiring a Window. */
     void refreshOrientationForTesting(const loka::core::Frame &frame)
     {
@@ -235,6 +272,7 @@ namespace smirkbench
       this->props.model()->updateBounds(frame.width, frame.height);
     }
 
+    loka::app::scene::NodeState<loka::app::AttributedString> editorLine_;
     loka::app::scene::NodeState<Orientation> orientation_;
     loka::app::scene::NodeState<loka::app::StackAxis> navAxis_;
     loka::app::scene::NodeState<loka::app::StackAxis> panelsAxis_;

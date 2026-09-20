@@ -291,6 +291,13 @@ if(NOT LOKA_MAC_OS_10_4)
     ${PROJECT_SOURCE_DIR}/tests/scenarios/FloppyBirdScenarios.cpp
   )
 
+  loka_add_macos_scenario_bundle(
+    LokaSmirkBenchScenarioMacOS
+    SmirkBenchScenarioDriver.mm
+    com.cubenoy22.loka.smirkbench-scenario
+    example/SmirkBench/src
+  )
+
   # Human-facing loop reels share the presentation and scenario rails, but not
   # the host-controlled ScenarioDriverSupport.mm protocol implementation.
   set(LOKA_MACOS_SCENARIO_LOOP_COMMON_SOURCES

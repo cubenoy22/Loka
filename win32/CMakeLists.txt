@@ -171,6 +171,13 @@ if(LOKA_WIN32_TOP_LEVEL_SOURCE_NORMALIZED STREQUAL
     ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios/FloppyBirdScenarios.cpp
   )
 
+  loka_add_win32_scenario_executable(
+    LokaSmirkBenchScenarioWin32
+    SmirkBenchScenarioDriver.cpp
+    example/SmirkBench/src
+    example/SmirkBench
+  )
+
   # Self-contained loop presentations (#402, Win32 leg). These deliberately
   # omit ScenarioDriverSupport.cpp and ScenarioProfile.cpp: the double-clicked
   # reel has no host settings, audit publication, completion marker, or linger.
@@ -231,13 +238,18 @@ if(LOKA_WIN32_TOP_LEVEL_SOURCE_NORMALIZED STREQUAL
     # Win32 runner has a vehicle for become tests here. Keep this list equal
     # to the $Vehicles table in tests/win32/run-scenario.ps1
     # (ScenarioToolsTest pins the two against each other).
-    set(_LOKA_WIN32_SCENARIO_VEHICLES scrapbook helloworld tutorial minesweeper floppybird)
+    set(_LOKA_WIN32_SCENARIO_VEHICLES scrapbook helloworld tutorial minesweeper floppybird smirkbench)
     foreach(_loka_win32_entry IN LISTS _loka_win32_scenarios)
       string(REGEX REPLACE "^([^ ]+) ([^ ]+)$" "\\1"
         _loka_win32_example "${_loka_win32_entry}")
       string(REGEX REPLACE "^([^ ]+) ([^ ]+)$" "\\2"
         _loka_win32_scenario "${_loka_win32_entry}")
       if(NOT _loka_win32_example IN_LIST _LOKA_WIN32_SCENARIO_VEHICLES)
+        continue()
+      endif()
+      # The other SmirkBench cells still assert Toolbox paint counters.
+      if(_loka_win32_example STREQUAL "smirkbench"
+          AND NOT _loka_win32_scenario MATCHES "^(startup|attributed-editor-line)$")
         continue()
       endif()
       add_test(NAME "win32Scenario-${_loka_win32_example}-${_loka_win32_scenario}"

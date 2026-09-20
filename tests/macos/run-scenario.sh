@@ -25,6 +25,12 @@ if [[ ! "$EXAMPLE" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
   exit 2
 fi
 
+# The remaining SmirkBench cells are Toolbox counter probes.
+if [ "$EXAMPLE" = smirkbench ] && [ "$SCENARIO" != startup ] && [ "$SCENARIO" != attributed-editor-line ]; then
+  usage
+  exit 2
+fi
+
 MODE="verify"
 RUN_MODE="flow"
 if [ $# -eq 3 ]; then
@@ -45,12 +51,17 @@ case "$EXAMPLE" in
   helloworld) TARGET="LokaHelloWorldScenarioMacOS" ;;
   tutorial) TARGET="LokaTutorialScenarioMacOS" ;;
   minesweeper) TARGET="LokaMineSweeperScenarioMacOS" ;;
+  smirkbench) TARGET="LokaSmirkBenchScenarioMacOS" ;;
   floppybird) TARGET="LokaFloppyBirdScenarioMacOS" ;;
   *) usage; exit 2 ;;
 esac
 APP="${LOKA_MACOS_SCENARIO_APP:-$PROJECT_DIR/build/macos/Debug/apple/macos/$TARGET.app}"
 BINARY="$APP/Contents/MacOS/$TARGET"
 EXPECTED="$PROJECT_DIR/tests/scenarios/expected/$EXAMPLE/$SCENARIO.audit"
+# SmirkBench's historical startup audit contains Toolbox-only paint counters.
+if [ "$EXAMPLE/$SCENARIO" = "smirkbench/startup" ]; then
+  EXPECTED="$PROJECT_DIR/tests/scenarios/desktop-expected/smirkbench/startup.audit"
+fi
 PNG_TOOL="$PROJECT_DIR/tests/scenarios/pngtool.py"
 GOLDEN_IDENTITY_GUARD="$PROJECT_DIR/scripts/rig/golden_identity_guard.py"
 PACKAGE_FIXTURE_GUARD="$PROJECT_DIR/scripts/rig/package_fixture_guard.py"

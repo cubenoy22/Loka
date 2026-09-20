@@ -1,0 +1,13 @@
+loka_scenario_audit version=1 scenario=startup
+dirty.flags	NONE
+dirty.mask	0
+format_version	1
+node	SmirkBench.FaceCount
+scenario_version	1
+schema_version	1
+status	ok
+step	startup
+test	SmirkBench
+text.value	Faces: 1
+tick	2
+terminal status=succeeded

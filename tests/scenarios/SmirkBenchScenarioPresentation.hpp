@@ -1,0 +1,47 @@
+#ifndef LOKA_TESTS_SMIRK_BENCH_SCENARIO_PRESENTATION_HPP
+#define LOKA_TESTS_SMIRK_BENCH_SCENARIO_PRESENTATION_HPP
+
+#include "../../example/SmirkBench/src/MyAppConfig.hpp"
+#include "ObservedMainDefinition.hpp"
+
+namespace loka
+{
+  namespace scenario_tests
+  {
+    /** Deterministic desktop presentation: production scene and menu, frozen
+        surface model. Like the Toolbox vehicle, only the driver advances it. */
+    class SmirkBenchScenarioPresentation : public SmirkBenchAppConfig
+    {
+    public:
+      SmirkBenchScenarioPresentation(PlatformContext *context, bool specimen)
+          : SmirkBenchAppConfig(context),
+            specimen_(specimen)
+      {
+      }
+
+      virtual void compose(AppComposition &composition)
+      {
+        ObservedMainDefinition<smirkbench::MainProps, smirkbench::MainNode> main(
+            smirkbench::MainProps(&this->model(), this->specimen_), 0);
+        composition << WindowDef(WindowProps()
+                                     .frame(50, 50, 640, 400)
+                                     .scene(main)
+                                     .title("LokaSmirkBench")
+                                     .visible(true)
+                                     .idlePolicy(app::IdlePolicy::everyTick())
+                                     .onIdle(&SmirkBenchScenarioPresentation::OnIdle, this));
+      }
+
+    protected:
+      virtual void onScenarioIdle(Window *window, double elapsedSeconds) = 0;
+
+    private:
+      static void OnIdle(Window *window, double elapsedSeconds, void *owner)
+      {
+        static_cast<SmirkBenchScenarioPresentation *>(owner)->onScenarioIdle(window, elapsedSeconds);
+      }
+      const bool specimen_;
+    };
+  } // namespace scenario_tests
+} // namespace loka
+#endif
