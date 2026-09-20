@@ -104,3 +104,39 @@ mounted title and deferred Scene retirement, then destroys the final Window.
 
 Upstream: [QuickJS-ng](https://github.com/quickjs-ng/quickjs),
 [macQJS Classic port](https://github.com/mplsllc/macQJS).
+
+## RetroPPC QuickJS stack allocation
+
+RetroPPC GCC 16.1.0 can place fixed locals at frame offset 72 while returning
+an ordinary `alloca` pointer at offset 80 after the dynamic stack adjustment.
+When the requested allocation is a multiple of 16 bytes, its last eight bytes
+overlap those locals. In the second card's compose call, the
+closure-reference array overlapped the QuickJS frame; `get_var_ref` then treated the
+string tag `0xfffffff9` as a pointer and raised a PPC data-access exception.
+The local MAME reproduction used pmac6100, 72 MiB RAM, and J1-8.1.
+
+The Classic source preparation routes QuickJS's five stack allocations through
+`ClassicQuickjsStack.h`. On RetroPPC it reserves one additional 16-byte ABI
+stack unit, and the existing stack-limit check accounts for the same padding.
+The 68K path keeps its original allocation size. Ordinary `alloca` is retained
+because some argument buffers outlive the block allocating them; an aligned
+builtin with block lifetime would not preserve that contract.
+
+Run the compiler-layout pin against the configured PPC build:
+
+```sh
+python3 tests/scripts/ClassicQuickjsStackTest.py --build-dir build/retro68/ppc/Release
+```
+
+The pin uses the actual QuickJS compiler command and an ordinary-alloca
+control. With GCC 16.1.0 the control overlaps by eight bytes; the patched
+payload ends at offset 64, before fixed locals at 72. An unfamiliar assembly
+shape fails for inspection. This compile check does not replace the Classic
+runtime check: evaluate `1+1`, switch to Card Two, evaluate `2+2`, switch back,
+and repeat before checking Reload.
+
+The 2026-09-20 fix was build-verified for PPC and 68K with Retro68 GCC 16.1.0.
+After removing diagnostic logging, it was runtime-verified on MAME 0.289
+pmac6100 (72 MiB, J1-8.1): `1+1` and `2+2` evaluation, ten Card One/Card Two
+round trips (20 navigation calls), and Reload. This evidence does not cover
+physical hardware.

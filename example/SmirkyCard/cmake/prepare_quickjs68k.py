@@ -37,6 +37,15 @@ path.write_text(text)
 
 path = output / "quickjs.c"
 text = path.read_text()
+text = replace_once(text, '#include "dtoa.h"',
+                    '#include "dtoa.h"\n#include "ClassicQuickjsStack.h"')
+# Every current alloca holds JSValues, with pointer refs after the interpreter
+# frame. Refuse source drift so a new allocation's alignment is reviewed.
+if text.count("alloca(") != 5:
+    raise SystemExit("Pinned QuickJS stack allocation sites differ")
+text = text.replace("alloca(", "SMIRKYCARD_JS_ALLOCA(")
+text = replace_once(text, "sp = js_get_stack_pointer() - alloca_size;",
+                    "sp = js_get_stack_pointer() - SMIRKYCARD_JS_STACK_SIZE(alloca_size);")
 for before, after in (
     ("int new_line_num, new_col_num, line_num, col_num, pc, v, ret;",
      "int new_line_num, new_col_num, line_num, col_num, pc, ret;\n    int32_t v;"),
