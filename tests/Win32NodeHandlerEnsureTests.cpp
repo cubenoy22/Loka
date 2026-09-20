@@ -667,7 +667,7 @@ void testWin32AttributedTextAllocationFailure()
   // The backend is installed across the entire allocation-balanced region.
   failLokaAllocRaw("Win32AttributedText", "Context", 1);
   {
-    Win32ScenePlatformController controller(root);
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
     AttributedTextNode node((AttributedTextProps(Styled("sample", Bold))));
     LayoutState state = attributedSeat(100);
     LOKA_VERIFY(!controller.prepareProjectedLayout(&node, state));
