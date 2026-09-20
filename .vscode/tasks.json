@@ -1039,8 +1039,13 @@
       "problemMatcher": "$gcc"
     },
     {
-      "label": "Build: Retro68 68K target",
+      "label": "Build: Retro68 target",
       "type": "shell",
+      "options": {
+        "env": {
+          "LOKA_RETRO68_SELECTED_PRESET": "${command:cmake.activeConfigurePresetName}"
+        }
+      },
       "command": "${workspaceFolder}/scripts/mame-dev-disk-app.sh",
       "args": [
         "--build",
@@ -1062,9 +1067,14 @@
       "problemMatcher": "$gcc"
     },
     {
-      "label": "Build: Retro68 68K loop target",
+      "label": "Build: Retro68 loop target",
       "detail": "Release configuration: builds selected Flows/Loops. ScrapbookStandaloneFlow also stages its presentation; use Standalone Release for the full release package.",
       "type": "shell",
+      "options": {
+        "env": {
+          "LOKA_RETRO68_SELECTED_PRESET": "${command:cmake.activeConfigurePresetName}"
+        }
+      },
       "command": "${workspaceFolder}/scripts/mame-dev-disk-app.sh",
       "args": ["--build", "${input:lokaRetro68LoopBuild}"],
       "windows": {
@@ -1086,6 +1096,11 @@
       "label": "Prepare SCSI Dev Disk",
       "hide": true,
       "type": "shell",
+      "options": {
+        "env": {
+          "LOKA_RETRO68_SELECTED_PRESET": "${command:cmake.activeConfigurePresetName}"
+        }
+      },
       "command": "${workspaceFolder}/scripts/mame-dev-disk-app.sh",
       "args": [
         "${input:lokaScsiApp}"
@@ -1107,6 +1122,11 @@
       "label": "Build & Prepare SCSI Dev Disk",
       "hide": true,
       "type": "shell",
+      "options": {
+        "env": {
+          "LOKA_RETRO68_SELECTED_PRESET": "${command:cmake.activeConfigurePresetName}"
+        }
+      },
       "command": "${workspaceFolder}/scripts/mame-dev-disk-app.sh",
       "args": [
         "--build-and-prepare",
@@ -1131,6 +1151,11 @@
       "label": "Build & Prepare SCSI Loop Disk",
       "hide": true,
       "type": "shell",
+      "options": {
+        "env": {
+          "LOKA_RETRO68_SELECTED_PRESET": "${command:cmake.activeConfigurePresetName}"
+        }
+      },
       "command": "${workspaceFolder}/scripts/mame-dev-disk-app.sh",
       "args": [
         "--build-and-prepare",
@@ -1193,7 +1218,6 @@
     },
     {
       "label": "MAME: Start",
-      "hide": true,
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-run.sh",
       "windows": {

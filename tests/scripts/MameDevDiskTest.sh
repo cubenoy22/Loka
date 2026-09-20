@@ -114,12 +114,16 @@ fi
 cmp "$SANDBOX/all.hd" "$SANDBOX/previous.hd" || fail "failed All replaced the previous disk"
 printf 'ok: All copies nine apps and assets in one disk transaction\n'
 
-batch_root="$SANDBOX/repo/build/retro68/68k/Standalone/Release/tests/toolbox"
+for cpu in 68k ppc; do
+export LOKA_MAME_CPU="$cpu"
+suffix=68K
+[ "$cpu" != ppc ] || suffix=PPC
+batch_root="$SANDBOX/repo/build/retro68/$cpu/Standalone/Release/tests/toolbox"
 mkdir -p "$batch_root"
 touch "$batch_root/ASSETS.LRP"
 for family in Loop Flow; do
   for app in Scrapbook Hello Tutorial Mine Floppy; do
-    touch "$batch_root/Loka${app}Standalone${family}68K.bin"
+    touch "$batch_root/Loka${app}Standalone${family}${suffix}.bin"
   done
 done
 for family in Loop Flow; do
@@ -130,10 +134,11 @@ for family in Loop Flow; do
   [ "$(grep -c '^hformat ' "$SANDBOX/all.log")" -eq 1 ] || fail "$family reformatted more than once"
   [ "$(grep -c '^hcopy <-m>' "$SANDBOX/all.log")" -eq 5 ] || fail "$family must copy five apps"
   for app in Scrapbook Hello Tutorial Mine Floppy; do
-    grep -Fx "hcopy <-m> <$batch_root/Loka${app}Standalone${family}68K.bin> <:>" "$SANDBOX/all.log" >/dev/null ||
+    grep -Fx "hcopy <-m> <$batch_root/Loka${app}Standalone${family}${suffix}.bin> <:>" "$SANDBOX/all.log" >/dev/null ||
       fail "$family omitted $app"
   done
   grep -Fx "hcopy <-r> <$batch_root/ASSETS.LRP> <:>" "$SANDBOX/all.log" >/dev/null ||
     fail "$family omitted Scrapbook assets"
 done
 printf 'ok: All Loops and All Flows each copy five apps and shared assets\n'
+done

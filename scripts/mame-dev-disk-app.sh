@@ -18,20 +18,28 @@ fi
 [ "$#" -eq 1 ] || usage
 key=$1
 
+# The VS Code tasks supply the selected preset; CLI callers default to 68K.
+case "${LOKA_RETRO68_SELECTED_PRESET-retro68-68k-release}" in
+    retro68-68k-*) cpu=68k; suffix=68K ;;
+    retro68-ppc-*) cpu=ppc; suffix=PPC ;;
+    *) echo "Select a Retro68 68K or PPC configure preset in CMake Tools." >&2; exit 2 ;;
+esac
+export LOKA_MAME_CPU="$cpu"
+
 target=
-preset=retro68-68k-release
+preset=retro68-${cpu}-release
 bin=
 data=
 
 case "$key" in
     AllStandaloneLoops|AllStandaloneFlows)
         [ "$mode" != "--target" ] || usage
-        preset=retro68-68k-standalone-release
+        preset=retro68-${cpu}-standalone-release
         if [ "$key" = "AllStandaloneLoops" ]; then
-            target=LokaStandaloneLoop68KAll
+            target=LokaStandaloneLoop${suffix}All
             disk_option=--all-loops
         else
-            target=LokaStandaloneFlow68KAll
+            target=LokaStandaloneFlow${suffix}All
             disk_option=--all-flows
         fi
         if [ "$mode" = "--build" ] || [ "$mode" = "--build-and-prepare" ]; then
@@ -49,30 +57,30 @@ case "$key" in
         exit 0
         ;;
     ScrapbookStandaloneLoop)
-        target=LokaScrapbookStandaloneLoop68K_APPL
-        preset=retro68-68k-standalone-release
-        bin=build/retro68/68k/Standalone/Release/tests/toolbox/LokaScrapbookStandaloneLoop68K.bin
-        data=build/retro68/68k/Standalone/Release/tests/toolbox/ASSETS.LRP
+        target=LokaScrapbookStandaloneLoop${suffix}_APPL
+        preset=retro68-${cpu}-standalone-release
+        bin=build/retro68/${cpu}/Standalone/Release/tests/toolbox/LokaScrapbookStandaloneLoop${suffix}.bin
+        data=build/retro68/${cpu}/Standalone/Release/tests/toolbox/ASSETS.LRP
         ;;
     HelloWorldStandaloneLoop)
-        target=LokaHelloStandaloneLoop68K_APPL
-        preset=retro68-68k-standalone-release
-        bin=build/retro68/68k/Standalone/Release/tests/toolbox/LokaHelloStandaloneLoop68K.bin
+        target=LokaHelloStandaloneLoop${suffix}_APPL
+        preset=retro68-${cpu}-standalone-release
+        bin=build/retro68/${cpu}/Standalone/Release/tests/toolbox/LokaHelloStandaloneLoop${suffix}.bin
         ;;
     TutorialStandaloneLoop)
-        target=LokaTutorialStandaloneLoop68K_APPL
-        preset=retro68-68k-standalone-release
-        bin=build/retro68/68k/Standalone/Release/tests/toolbox/LokaTutorialStandaloneLoop68K.bin
+        target=LokaTutorialStandaloneLoop${suffix}_APPL
+        preset=retro68-${cpu}-standalone-release
+        bin=build/retro68/${cpu}/Standalone/Release/tests/toolbox/LokaTutorialStandaloneLoop${suffix}.bin
         ;;
     MineSweeperStandaloneLoop)
-        target=LokaMineStandaloneLoop68K_APPL
-        preset=retro68-68k-standalone-release
-        bin=build/retro68/68k/Standalone/Release/tests/toolbox/LokaMineStandaloneLoop68K.bin
+        target=LokaMineStandaloneLoop${suffix}_APPL
+        preset=retro68-${cpu}-standalone-release
+        bin=build/retro68/${cpu}/Standalone/Release/tests/toolbox/LokaMineStandaloneLoop${suffix}.bin
         ;;
     FloppyBirdStandaloneLoop)
-        target=LokaFloppyStandaloneLoop68K_APPL
-        preset=retro68-68k-standalone-release
-        bin=build/retro68/68k/Standalone/Release/tests/toolbox/LokaFloppyStandaloneLoop68K.bin
+        target=LokaFloppyStandaloneLoop${suffix}_APPL
+        preset=retro68-${cpu}-standalone-release
+        bin=build/retro68/${cpu}/Standalone/Release/tests/toolbox/LokaFloppyStandaloneLoop${suffix}.bin
         ;;
     All)
         [ "$mode" != "--target" ] || usage
@@ -87,75 +95,75 @@ case "$key" in
         exec "$script_dir/mame-dev-disk.sh" --all
         ;;
     HelloWorld)
-        target=LokaHello68K_APPL
-        bin=build/retro68/68k/Release/example/HelloWorld/LokaHello68K.bin
+        target=LokaHello${suffix}_APPL
+        bin=build/retro68/${cpu}/Release/example/HelloWorld/LokaHello${suffix}.bin
         ;;
     SmirkyCard)
-        target=LokaSmirkyCard68K_APPL
-        bin=build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin
+        target=LokaSmirkyCard${suffix}_APPL
+        bin=build/retro68/${cpu}/Release/example/SmirkyCard/LokaSmirkyCard${suffix}.bin
         data=example/SmirkyCard/MAIN.JS
         ;;
     MineSweeper)
-        target=LokaMine68K_APPL
-        bin=build/retro68/68k/Release/example/MineSweeper/LokaMine68K.bin
+        target=LokaMine${suffix}_APPL
+        bin=build/retro68/${cpu}/Release/example/MineSweeper/LokaMine${suffix}.bin
         ;;
     SimpleViewer)
-        target=LokaSimpleViewer68K_APPL
-        bin=build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.bin
+        target=LokaSimpleViewer${suffix}_APPL
+        bin=build/retro68/${cpu}/Release/example/SimpleViewer/LokaSimpleViewer${suffix}.bin
         ;;
     FloppyBird)
-        target=LokaFloppyBird68K_APPL
-        bin=build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.bin
+        target=LokaFloppyBird${suffix}_APPL
+        bin=build/retro68/${cpu}/Release/example/FloppyBird/LokaFloppyBird${suffix}.bin
         ;;
     SmirkBench)
-        target=LokaSmirkBench68K_APPL
-        bin=build/retro68/68k/Release/example/SmirkBench/LokaSmirkBench68K.bin
+        target=LokaSmirkBench${suffix}_APPL
+        bin=build/retro68/${cpu}/Release/example/SmirkBench/LokaSmirkBench${suffix}.bin
         ;;
     LazyList)
-        target=LokaLazyList68K_APPL
-        bin=build/retro68/68k/Release/example/LazyList/LokaLazyList68K.bin
+        target=LokaLazyList${suffix}_APPL
+        bin=build/retro68/${cpu}/Release/example/LazyList/LokaLazyList${suffix}.bin
         ;;
     Tutorial)
-        target=LokaTutorial68K_APPL
-        bin=build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.bin
+        target=LokaTutorial${suffix}_APPL
+        bin=build/retro68/${cpu}/Release/example/Tutorial/LokaTutorial${suffix}.bin
         ;;
     ScrapbookUI)
-        target=ScrapbookUI68K_APPL
-        bin=build/retro68/68k/Release/example/ScrapbookUI/ScrapbookUI68K.bin
-        data=build/retro68/68k/Release/example/ScrapbookUI/ASSETS.LRP
+        target=ScrapbookUI${suffix}_APPL
+        bin=build/retro68/${cpu}/Release/example/ScrapbookUI/ScrapbookUI${suffix}.bin
+        data=build/retro68/${cpu}/Release/example/ScrapbookUI/ASSETS.LRP
         ;;
     ScrapbookStandaloneFlow)
-        target=LokaScrapbookStandaloneFlow68K_APPL
-        bin=build/presentation/toolbox-68k-release/LokaScrapbookStandaloneFlow68K.bin
-        data=build/presentation/toolbox-68k-release/ASSETS.LRP
+        target=LokaScrapbookStandaloneFlow${suffix}_APPL
+        bin=build/presentation/toolbox-${cpu}-release/LokaScrapbookStandaloneFlow${suffix}.bin
+        data=build/presentation/toolbox-${cpu}-release/ASSETS.LRP
         ;;
     HelloWorldStandaloneFlow)
-        target=LokaHelloStandaloneFlow68K_APPL
-        preset=retro68-68k-standalone-release
-        bin=build/retro68/68k/Standalone/Release/tests/toolbox/LokaHelloStandaloneFlow68K.bin
+        target=LokaHelloStandaloneFlow${suffix}_APPL
+        preset=retro68-${cpu}-standalone-release
+        bin=build/retro68/${cpu}/Standalone/Release/tests/toolbox/LokaHelloStandaloneFlow${suffix}.bin
         ;;
     TutorialStandaloneFlow)
-        target=LokaTutorialStandaloneFlow68K_APPL
-        preset=retro68-68k-standalone-release
-        bin=build/retro68/68k/Standalone/Release/tests/toolbox/LokaTutorialStandaloneFlow68K.bin
+        target=LokaTutorialStandaloneFlow${suffix}_APPL
+        preset=retro68-${cpu}-standalone-release
+        bin=build/retro68/${cpu}/Standalone/Release/tests/toolbox/LokaTutorialStandaloneFlow${suffix}.bin
         ;;
     MineSweeperStandaloneFlow)
-        target=LokaMineStandaloneFlow68K_APPL
-        preset=retro68-68k-standalone-release
-        bin=build/retro68/68k/Standalone/Release/tests/toolbox/LokaMineStandaloneFlow68K.bin
+        target=LokaMineStandaloneFlow${suffix}_APPL
+        preset=retro68-${cpu}-standalone-release
+        bin=build/retro68/${cpu}/Standalone/Release/tests/toolbox/LokaMineStandaloneFlow${suffix}.bin
         ;;
     FloppyBirdStandaloneFlow)
-        target=LokaFloppyStandaloneFlow68K_APPL
-        preset=retro68-68k-standalone-release
-        bin=build/retro68/68k/Standalone/Release/tests/toolbox/LokaFloppyStandaloneFlow68K.bin
+        target=LokaFloppyStandaloneFlow${suffix}_APPL
+        preset=retro68-${cpu}-standalone-release
+        bin=build/retro68/${cpu}/Standalone/Release/tests/toolbox/LokaFloppyStandaloneFlow${suffix}.bin
         ;;
     HelloWorldScenarioLoop)
-        target=LokaHelloScenarioLoop68K_APPL
-        bin=build/retro68/68k/Release/tests/toolbox/LokaHelloScenarioLoop68K.bin
+        target=LokaHelloScenarioLoop${suffix}_APPL
+        bin=build/retro68/${cpu}/Release/tests/toolbox/LokaHelloScenarioLoop${suffix}.bin
         ;;
     MineSweeperScenarioLoop)
-        target=LokaMineScenarioLoop68K_APPL
-        bin=build/retro68/68k/Release/tests/toolbox/LokaMineScenarioLoop68K.bin
+        target=LokaMineScenarioLoop${suffix}_APPL
+        bin=build/retro68/${cpu}/Release/tests/toolbox/LokaMineScenarioLoop${suffix}.bin
         ;;
     *)
         echo "unknown SCSI app key: $key" >&2
@@ -165,7 +173,7 @@ esac
 
 build_app() {
     if [ "$key" = "ScrapbookStandaloneFlow" ]; then
-        "$script_dir/toolbox-standalone-flow.sh" Stage
+        "$script_dir/toolbox-standalone-flow.sh" Stage "$cpu"
         return
     fi
     if [ "$key" = "SmirkyCard" ]; then

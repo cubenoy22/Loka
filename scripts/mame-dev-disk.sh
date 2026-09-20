@@ -44,23 +44,28 @@ if [ $# -lt 1 ]; then
   exit 2
 fi
 
+case "${LOKA_MAME_CPU:-68k}" in
+  68k) cpu=68k; suffix=68K ;;
+  ppc) cpu=ppc; suffix=PPC ;;
+  *) echo "Invalid LOKA_MAME_CPU: expected 68k or ppc" >&2; exit 2 ;;
+esac
 MACBINARY_PATHS=()
 # Keep the batch selection aligned with mame-dev-disk.ps1.
 if [ "$1" = "--all-loops" ] || [ "$1" = "--all-flows" ]; then
   [ "$#" -eq 1 ] || exit 2
   family=Loop
   [ "$1" != "--all-flows" ] || family=Flow
-  batch_root="$PROJECT_DIR/build/retro68/68k/Standalone/Release/tests/toolbox"
+  batch_root="$PROJECT_DIR/build/retro68/${cpu}/Standalone/Release/tests/toolbox"
   for app in Scrapbook Hello Tutorial Mine Floppy; do
-    MACBINARY_PATHS+=("$batch_root/Loka${app}Standalone${family}68K.bin")
+    MACBINARY_PATHS+=("$batch_root/Loka${app}Standalone${family}${suffix}.bin")
   done
   set -- "$batch_root/ASSETS.LRP"
 elif [ "$1" = "--all" ]; then
   [ "$#" -eq 1 ] || exit 2
   for app in HelloWorld/LokaHello MineSweeper/LokaMine SimpleViewer/LokaSimpleViewer FloppyBird/LokaFloppyBird SmirkBench/LokaSmirkBench LazyList/LokaLazyList Tutorial/LokaTutorial ScrapbookUI/ScrapbookUI SmirkyCard/LokaSmirkyCard; do
-    MACBINARY_PATHS+=("$PROJECT_DIR/build/retro68/68k/Release/example/${app}68K.bin")
+    MACBINARY_PATHS+=("$PROJECT_DIR/build/retro68/${cpu}/Release/example/${app}${suffix}.bin")
   done
-  set -- "$PROJECT_DIR/build/retro68/68k/Release/example/ScrapbookUI/ASSETS.LRP" "$PROJECT_DIR/example/SmirkyCard/MAIN.JS"
+  set -- "$PROJECT_DIR/build/retro68/${cpu}/Release/example/ScrapbookUI/ASSETS.LRP" "$PROJECT_DIR/example/SmirkyCard/MAIN.JS"
 else
   MACBINARY_PATHS+=("$1")
   shift

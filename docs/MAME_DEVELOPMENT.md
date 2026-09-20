@@ -36,6 +36,16 @@ settings. Native Windows launchers may still use `RETRO68_TOOLCHAIN_BIN` in
 
 ## SCSI workflow
 
+The normal and Loop SCSI tasks, and **Build: Retro68 target** /
+**Build: Retro68 loop target**, read CMake Tools' active configure preset via
+`${command:cmake.activeConfigurePresetName}`. Select a `retro68-68k-*` or
+`retro68-ppc-*` preset first. The CPU selects the corresponding Release or
+Standalone Release build, target suffix, and disk inputs; other preset details
+(such as diagnostics) are not inherited. Keep the MAME machine in `.env-mame`
+matched to that CPU. Non-Retro68 selections are rejected before building.
+CLI callers can set `LOKA_RETRO68_SELECTED_PRESET`; without it the app helper
+defaults to 68K. Direct batch disk preparation uses `LOKA_MAME_CPU=68k|ppc`.
+
 Run **Build & Start in MAME via SCSI** and pick `<App>` from the prompt. The
 task:
 

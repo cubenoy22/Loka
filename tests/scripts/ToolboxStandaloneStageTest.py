@@ -329,10 +329,10 @@ rm -f "$HOME/mounted-disk"
         self.assertIn('"$script_dir/toolbox-standalone-flow.sh" Stage', wrapper)
         self.assertIn('if [ "$mode" = "--build-and-prepare" ]; then', wrapper)
         self.assertIn(
-            "build/presentation/toolbox-68k-release/LokaScrapbookStandaloneFlow68K.bin",
+            "build/presentation/toolbox-${cpu}-release/LokaScrapbookStandaloneFlow${suffix}.bin",
             wrapper,
         )
-        self.assertIn("build/presentation/toolbox-68k-release/ASSETS.LRP", wrapper)
+        self.assertIn("build/presentation/toolbox-${cpu}-release/ASSETS.LRP", wrapper)
         self.assertEqual(
             tasks["Standalone: Toolbox PPC Build / Stage / Release"]["args"],
             [

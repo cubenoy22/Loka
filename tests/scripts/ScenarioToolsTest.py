@@ -746,9 +746,9 @@ class StandaloneDebugEntryPointTest(unittest.TestCase):
             {
                 label
                 for label, task in tasks.items()
-                if label.startswith("Build: Retro68 68K") and not task.get("hide", False)
+                if label.startswith("Build: Retro68") and not task.get("hide", False)
             },
-            {"Build: Retro68 68K target", "Build: Retro68 68K loop target"},
+            {"Build: Retro68 target", "Build: Retro68 loop target"},
         )
 
         self.assertEqual(

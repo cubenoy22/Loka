@@ -8,18 +8,28 @@ param(
 
 $ErrorActionPreference = "Stop"
 $workspace = Split-Path -Parent $PSScriptRoot
-$preset = "retro68-68k-release"
+# Matches mame-dev-disk-app.sh; a missing selection is invalid in VS Code.
+$selectedPreset = if (Test-Path Env:LOKA_RETRO68_SELECTED_PRESET) { $env:LOKA_RETRO68_SELECTED_PRESET } else { "retro68-68k-release" }
+if ($selectedPreset -like "retro68-68k-*") {
+    $cpu = "68k"; $suffix = "68K"
+} elseif ($selectedPreset -like "retro68-ppc-*") {
+    $cpu = "ppc"; $suffix = "PPC"
+} else {
+    throw "Select a Retro68 68K or PPC configure preset in CMake Tools."
+}
+$env:LOKA_MAME_CPU = $cpu
+$preset = "retro68-${cpu}-release"
 $data = $null
 
 switch ($Key) {
     { $_ -in @("AllStandaloneLoops", "AllStandaloneFlows") } {
         if ($Target) { throw "$Key has no single application target" }
-        $preset = "retro68-68k-standalone-release"
+        $preset = "retro68-${cpu}-standalone-release"
         if ($Key -eq "AllStandaloneLoops") {
-            $batchTarget = "LokaStandaloneLoop68KAll"
+            $batchTarget = "LokaStandaloneLoop${suffix}All"
             $diskOption = "--all-loops"
         } else {
-            $batchTarget = "LokaStandaloneFlow68KAll"
+            $batchTarget = "LokaStandaloneFlow${suffix}All"
             $diskOption = "--all-flows"
         }
         if ($Build -or $BuildAndPrepare) {
@@ -41,11 +51,11 @@ switch ($Key) {
         }
         exit 0
     }
-    "ScrapbookStandaloneLoop" { $cmakeTarget = "LokaScrapbookStandaloneLoop68K_APPL"; $preset = "retro68-68k-standalone-release"; $bin = "build/retro68/68k/Standalone/Release/tests/toolbox/LokaScrapbookStandaloneLoop68K.bin"; $data = "build/retro68/68k/Standalone/Release/tests/toolbox/ASSETS.LRP" }
-    "HelloWorldStandaloneLoop" { $cmakeTarget = "LokaHelloStandaloneLoop68K_APPL"; $preset = "retro68-68k-standalone-release"; $bin = "build/retro68/68k/Standalone/Release/tests/toolbox/LokaHelloStandaloneLoop68K.bin" }
-    "TutorialStandaloneLoop" { $cmakeTarget = "LokaTutorialStandaloneLoop68K_APPL"; $preset = "retro68-68k-standalone-release"; $bin = "build/retro68/68k/Standalone/Release/tests/toolbox/LokaTutorialStandaloneLoop68K.bin" }
-    "MineSweeperStandaloneLoop" { $cmakeTarget = "LokaMineStandaloneLoop68K_APPL"; $preset = "retro68-68k-standalone-release"; $bin = "build/retro68/68k/Standalone/Release/tests/toolbox/LokaMineStandaloneLoop68K.bin" }
-    "FloppyBirdStandaloneLoop" { $cmakeTarget = "LokaFloppyStandaloneLoop68K_APPL"; $preset = "retro68-68k-standalone-release"; $bin = "build/retro68/68k/Standalone/Release/tests/toolbox/LokaFloppyStandaloneLoop68K.bin" }
+    "ScrapbookStandaloneLoop" { $cmakeTarget = "LokaScrapbookStandaloneLoop${suffix}_APPL"; $preset = "retro68-${cpu}-standalone-release"; $bin = "build/retro68/${cpu}/Standalone/Release/tests/toolbox/LokaScrapbookStandaloneLoop${suffix}.bin"; $data = "build/retro68/${cpu}/Standalone/Release/tests/toolbox/ASSETS.LRP" }
+    "HelloWorldStandaloneLoop" { $cmakeTarget = "LokaHelloStandaloneLoop${suffix}_APPL"; $preset = "retro68-${cpu}-standalone-release"; $bin = "build/retro68/${cpu}/Standalone/Release/tests/toolbox/LokaHelloStandaloneLoop${suffix}.bin" }
+    "TutorialStandaloneLoop" { $cmakeTarget = "LokaTutorialStandaloneLoop${suffix}_APPL"; $preset = "retro68-${cpu}-standalone-release"; $bin = "build/retro68/${cpu}/Standalone/Release/tests/toolbox/LokaTutorialStandaloneLoop${suffix}.bin" }
+    "MineSweeperStandaloneLoop" { $cmakeTarget = "LokaMineStandaloneLoop${suffix}_APPL"; $preset = "retro68-${cpu}-standalone-release"; $bin = "build/retro68/${cpu}/Standalone/Release/tests/toolbox/LokaMineStandaloneLoop${suffix}.bin" }
+    "FloppyBirdStandaloneLoop" { $cmakeTarget = "LokaFloppyStandaloneLoop${suffix}_APPL"; $preset = "retro68-${cpu}-standalone-release"; $bin = "build/retro68/${cpu}/Standalone/Release/tests/toolbox/LokaFloppyStandaloneLoop${suffix}.bin" }
     "All" {
         if ($Target) { throw "All has no single target" }
         if ($Build -or $BuildAndPrepare) {
@@ -59,28 +69,28 @@ switch ($Key) {
         & powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/mame-dev-disk.ps1" -MacBinaryPath "--all"
         exit $LASTEXITCODE
     }
-    "HelloWorld" { $cmakeTarget = "LokaHello68K_APPL"; $bin = "build/retro68/68k/Release/example/HelloWorld/LokaHello68K.bin" }
-    "SmirkyCard" { $cmakeTarget = "LokaSmirkyCard68K_APPL"; $bin = "build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin"; $data = "example/SmirkyCard/MAIN.JS" }
-    "MineSweeper" { $cmakeTarget = "LokaMine68K_APPL"; $bin = "build/retro68/68k/Release/example/MineSweeper/LokaMine68K.bin" }
-    "SimpleViewer" { $cmakeTarget = "LokaSimpleViewer68K_APPL"; $bin = "build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.bin" }
-    "FloppyBird" { $cmakeTarget = "LokaFloppyBird68K_APPL"; $bin = "build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.bin" }
-    "SmirkBench" { $cmakeTarget = "LokaSmirkBench68K_APPL"; $bin = "build/retro68/68k/Release/example/SmirkBench/LokaSmirkBench68K.bin" }
-    "LazyList" { $cmakeTarget = "LokaLazyList68K_APPL"; $bin = "build/retro68/68k/Release/example/LazyList/LokaLazyList68K.bin" }
-    "Tutorial" { $cmakeTarget = "LokaTutorial68K_APPL"; $bin = "build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.bin" }
-    "ScrapbookUI" { $cmakeTarget = "ScrapbookUI68K_APPL"; $bin = "build/retro68/68k/Release/example/ScrapbookUI/ScrapbookUI68K.bin"; $data = "build/retro68/68k/Release/example/ScrapbookUI/ASSETS.LRP" }
-    "ScrapbookStandaloneFlow" { $cmakeTarget = "LokaScrapbookStandaloneFlow68K_APPL"; $bin = "build/presentation/toolbox-68k-release/LokaScrapbookStandaloneFlow68K.bin"; $data = "build/presentation/toolbox-68k-release/ASSETS.LRP" }
-    "HelloWorldStandaloneFlow" { $cmakeTarget = "LokaHelloStandaloneFlow68K_APPL"; $preset = "retro68-68k-standalone-release"; $bin = "build/retro68/68k/Standalone/Release/tests/toolbox/LokaHelloStandaloneFlow68K.bin" }
-    "TutorialStandaloneFlow" { $cmakeTarget = "LokaTutorialStandaloneFlow68K_APPL"; $preset = "retro68-68k-standalone-release"; $bin = "build/retro68/68k/Standalone/Release/tests/toolbox/LokaTutorialStandaloneFlow68K.bin" }
-    "MineSweeperStandaloneFlow" { $cmakeTarget = "LokaMineStandaloneFlow68K_APPL"; $preset = "retro68-68k-standalone-release"; $bin = "build/retro68/68k/Standalone/Release/tests/toolbox/LokaMineStandaloneFlow68K.bin" }
-    "FloppyBirdStandaloneFlow" { $cmakeTarget = "LokaFloppyStandaloneFlow68K_APPL"; $preset = "retro68-68k-standalone-release"; $bin = "build/retro68/68k/Standalone/Release/tests/toolbox/LokaFloppyStandaloneFlow68K.bin" }
-    "HelloWorldScenarioLoop" { $cmakeTarget = "LokaHelloScenarioLoop68K_APPL"; $bin = "build/retro68/68k/Release/tests/toolbox/LokaHelloScenarioLoop68K.bin" }
-    "MineSweeperScenarioLoop" { $cmakeTarget = "LokaMineScenarioLoop68K_APPL"; $bin = "build/retro68/68k/Release/tests/toolbox/LokaMineScenarioLoop68K.bin" }
+    "HelloWorld" { $cmakeTarget = "LokaHello${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/HelloWorld/LokaHello${suffix}.bin" }
+    "SmirkyCard" { $cmakeTarget = "LokaSmirkyCard${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/SmirkyCard/LokaSmirkyCard${suffix}.bin"; $data = "example/SmirkyCard/MAIN.JS" }
+    "MineSweeper" { $cmakeTarget = "LokaMine${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/MineSweeper/LokaMine${suffix}.bin" }
+    "SimpleViewer" { $cmakeTarget = "LokaSimpleViewer${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/SimpleViewer/LokaSimpleViewer${suffix}.bin" }
+    "FloppyBird" { $cmakeTarget = "LokaFloppyBird${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/FloppyBird/LokaFloppyBird${suffix}.bin" }
+    "SmirkBench" { $cmakeTarget = "LokaSmirkBench${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/SmirkBench/LokaSmirkBench${suffix}.bin" }
+    "LazyList" { $cmakeTarget = "LokaLazyList${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/LazyList/LokaLazyList${suffix}.bin" }
+    "Tutorial" { $cmakeTarget = "LokaTutorial${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/Tutorial/LokaTutorial${suffix}.bin" }
+    "ScrapbookUI" { $cmakeTarget = "ScrapbookUI${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/ScrapbookUI/ScrapbookUI${suffix}.bin"; $data = "build/retro68/${cpu}/Release/example/ScrapbookUI/ASSETS.LRP" }
+    "ScrapbookStandaloneFlow" { $cmakeTarget = "LokaScrapbookStandaloneFlow${suffix}_APPL"; $bin = "build/presentation/toolbox-${cpu}-release/LokaScrapbookStandaloneFlow${suffix}.bin"; $data = "build/presentation/toolbox-${cpu}-release/ASSETS.LRP" }
+    "HelloWorldStandaloneFlow" { $cmakeTarget = "LokaHelloStandaloneFlow${suffix}_APPL"; $preset = "retro68-${cpu}-standalone-release"; $bin = "build/retro68/${cpu}/Standalone/Release/tests/toolbox/LokaHelloStandaloneFlow${suffix}.bin" }
+    "TutorialStandaloneFlow" { $cmakeTarget = "LokaTutorialStandaloneFlow${suffix}_APPL"; $preset = "retro68-${cpu}-standalone-release"; $bin = "build/retro68/${cpu}/Standalone/Release/tests/toolbox/LokaTutorialStandaloneFlow${suffix}.bin" }
+    "MineSweeperStandaloneFlow" { $cmakeTarget = "LokaMineStandaloneFlow${suffix}_APPL"; $preset = "retro68-${cpu}-standalone-release"; $bin = "build/retro68/${cpu}/Standalone/Release/tests/toolbox/LokaMineStandaloneFlow${suffix}.bin" }
+    "FloppyBirdStandaloneFlow" { $cmakeTarget = "LokaFloppyStandaloneFlow${suffix}_APPL"; $preset = "retro68-${cpu}-standalone-release"; $bin = "build/retro68/${cpu}/Standalone/Release/tests/toolbox/LokaFloppyStandaloneFlow${suffix}.bin" }
+    "HelloWorldScenarioLoop" { $cmakeTarget = "LokaHelloScenarioLoop${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/tests/toolbox/LokaHelloScenarioLoop${suffix}.bin" }
+    "MineSweeperScenarioLoop" { $cmakeTarget = "LokaMineScenarioLoop${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/tests/toolbox/LokaMineScenarioLoop${suffix}.bin" }
     default { throw "unknown SCSI app key: $Key" }
 }
 
 function Build-App {
     if ($Key -eq "ScrapbookStandaloneFlow") {
-        & bash "$PSScriptRoot/toolbox-standalone-flow.sh" Stage
+        & bash "$PSScriptRoot/toolbox-standalone-flow.sh" Stage $cpu
     } else {
         if ($Key -eq "SmirkyCard") {
             & bash "$PSScriptRoot/retro68-cmake.sh" --preset $preset -DLOKA_BUILD_SMIRKYCARD=ON
