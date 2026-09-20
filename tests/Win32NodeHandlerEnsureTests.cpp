@@ -704,6 +704,7 @@ void testWin32AttributedTextLiveDpiChange()
     LOKA_VERIFY(child);
     Win32AttributedTextContext *context = AttributedAccess::fromWindow(child);
     LOKA_VERIFY(context && node.getContext() == context);
+    context->layout(&controller, state);
     const Win32AttributedTextTable &table = AttributedAccess::table(*context);
     LOKA_VERIFY(table.valid());
     const HFONT oldFont = AttributedAccess::font(table, 0);
@@ -714,7 +715,7 @@ void testWin32AttributedTextLiveDpiChange()
     LOKA_VERIFY(!table.valid() && !AttributedAccess::known(*context));
     LOKA_VERIFY(GetObjectW(oldFont, sizeof(descriptor), &descriptor) == 0);
     // The next layout rebuilds against the new generation, never the dead handle.
-    LOKA_VERIFY(controller.prepareProjectedLayout(&node, state));
+    context->layout(&controller, state);
     LOKA_VERIFY(table.valid());
     LOKA_VERIFY(AttributedAccess::font(table, 0) != oldFont);
     LOKA_VERIFY(GetObjectW(AttributedAccess::font(table, 0), sizeof(descriptor), &descriptor));
