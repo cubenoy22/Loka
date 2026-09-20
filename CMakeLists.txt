@@ -436,6 +436,19 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   set_target_properties(LokaToolboxAttributedTextTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
   add_test(NAME LokaToolboxAttributedTextTests COMMAND LokaToolboxAttributedTextTests)
 
+  # Production GDI table with deterministic host calls; native HWND pins remain in LokaTestsWin32.
+  add_executable(LokaWin32AttributedTextHostTests
+    tests/win32/host/Win32AttributedTextHostTests.cpp
+    tests/TestingHooks.cpp
+    win32/src/context/Win32AttributedTextTable.cpp)
+  target_include_directories(LokaWin32AttributedTextHostTests PRIVATE tests/win32/host tests win32/src)
+  target_compile_options(LokaWin32AttributedTextHostTests PRIVATE
+    -include ${PROJECT_SOURCE_DIR}/tests/win32/host/Win32TextHost.hpp)
+  target_link_libraries(LokaWin32AttributedTextHostTests PRIVATE LokaCommonTesting)
+  loka_enable_warnings(LokaWin32AttributedTextHostTests)
+  set_target_properties(LokaWin32AttributedTextHostTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
+  add_test(NAME LokaWin32AttributedTextHostTests COMMAND LokaWin32AttributedTextHostTests)
+
   # Isolated S1 pool simulation: deny Source and count global new during reclaim.
   add_executable(LokaReclaimGaugePins tests/ReclaimGaugeMain.cpp tests/ReclaimScratchTests.cpp)
   loka_enable_warnings(LokaReclaimGaugePins)
