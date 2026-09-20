@@ -54,3 +54,7 @@ LOKA_TEST(testWin32OpenFileDialogMissingHwndUsesAdmission)
 
 LOKA_TEST(testWin32RailMetricsProjection)
 LOKA_TEST(testWin32RailMetricsSurviveDpiChange)
+LOKA_TEST(testWin32AttributedTextPerRunProjection)
+LOKA_TEST(testWin32AttributedTextAllocationFailure)
+LOKA_TEST(testWin32AttributedTextLiveDpiChange)
+LOKA_TEST(testWin32AttributedTextPaintRouting)

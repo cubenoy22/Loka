@@ -2,6 +2,7 @@
 #include "context/Win32EditTextBridge.hpp"
 #include "app/layout/CanvasLayout.hpp"
 #include "Win32BuiltInSupport.hpp"
+#include "app/nodes/AttributedText.hpp"
 #include "app/scene/boundary/Boundary.hpp"
 #include "app/scene/projection/CollectPaintAnswers.hpp"
 #include "app/nodes/Text.hpp"
@@ -51,6 +52,7 @@ namespace
     const void *typeKey;
   };
   const PaintContextKind kPaintContextKinds[] = {
+      {loka::app::scene::NODE_KIND_ATTRIBUTED_TEXT, loka::app::scene::NodeTypeToken<loka::app::AttributedTextNode>()},
       {loka::app::scene::NODE_KIND_RECT_SURFACE, loka::app::scene::NodeTypeToken<loka::app::RectSurfaceNode>()},
       {loka::app::scene::NODE_KIND_TEXT, loka::app::scene::NodeTypeToken<loka::app::TextNode>()},
       {loka::app::scene::NODE_KIND_BUTTON, loka::app::scene::NodeTypeToken<loka::app::ButtonNode>()},
@@ -256,6 +258,7 @@ Win32ScenePlatformController::Win32ScenePlatformController(
       clientWidth_(0),
       clientHeight_(0),
       railMetrics_(displayScale.railMetrics()),
+      textShaping_(loka::app::PER_RUN),
       displayScale_(displayScale.dpi(), this->railMetrics_),
       displayFont_()
 {

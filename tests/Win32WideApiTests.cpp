@@ -12,6 +12,7 @@
 #include "app/nodes/controls/Cell.hpp"
 #include "app/nodes/nestable/ScrollView.hpp"
 #include "context/Win32CellContext.hpp"
+#include "context/Win32AttributedTextContext.hpp"
 #include "context/Win32ImageViewContext.hpp"
 #include "context/Win32RectSurfaceContext.hpp"
 #include "context/Win32ScrollViewContext.hpp"
@@ -85,11 +86,22 @@ void testWin32CustomWindowClassesUseWideApiFamily()
     Win32RectSurfaceContext surface(&controller, root, 0, 100, 80, 60, &surfaceNode);
     verifyWideChildWindow(root, L"LOKA_RECT_SURFACE");
 
+    loka::app::AttributedTextNode attributedNode((loka::app::AttributedTextProps()));
+    Win32AttributedTextContext attributed(&controller, root, 0, 160, 80, 30, &attributedNode);
+    verifyWideChildWindow(root, L"LOKA_ATTRIBUTED_TEXT");
+    // Default handling must preserve UTF-16 too, including a surrogate pair.
+    const wchar_t payload[] = {0xff21, 0xd83d, 0xde00, 0};
+    LOKA_VERIFY(SetWindowTextW(attributed.paintHwnd(), payload));
+    wchar_t roundTrip[8];
+    LOKA_VERIFY(GetWindowTextW(attributed.paintHwnd(), roundTrip, 8) == 3);
+    LOKA_VERIFY(std::wcscmp(roundTrip, payload) == 0);
+
     loka::app::ScrollViewNode scrollViewNode((loka::app::ScrollViewProps()));
     Win32ScrollViewContext scrollView(
         &controller, root, 90, 0, 80, 60, &scrollViewNode);
     verifyWideChildWindow(root, L"LOKA_SCROLL_VIEW");
 
+    attributed.onFactChanged(loka::app::scene::NODE_FACT_ATTACHED, loka::app::scene::NODE_FACT_RETIRED);
     cell.onFactChanged(loka::app::scene::NODE_FACT_ATTACHED, loka::app::scene::NODE_FACT_RETIRED);
     image.onFactChanged(loka::app::scene::NODE_FACT_ATTACHED, loka::app::scene::NODE_FACT_RETIRED);
     surface.onFactChanged(loka::app::scene::NODE_FACT_ATTACHED, loka::app::scene::NODE_FACT_RETIRED);

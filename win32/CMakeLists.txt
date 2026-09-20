@@ -23,6 +23,8 @@ set(SOURCES
   src/context/Win32RetirableContext.cpp
   src/context/Win32CellContext.cpp
   src/context/Win32TextContext.cpp
+  src/context/Win32AttributedTextContext.cpp
+  src/context/Win32AttributedTextTable.cpp
   src/context/Win32EditTextContext.cpp
   src/context/Win32OpenFileDialogContext.cpp
   src/context/Win32PopupMenuContext.cpp
