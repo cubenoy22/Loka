@@ -91,6 +91,8 @@ namespace
       case NODE_KIND_STACK:
       case NODE_KIND_CANVAS:
         return false;
+      case NODE_KIND_ATTRIBUTED_TEXT:
+        break;
       case NODE_KIND_UNKNOWN:
         if (!node->asProjectedLayoutNode())
           return false;

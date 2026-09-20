@@ -1,4 +1,5 @@
 #include "ToolboxBuiltInSupport.hpp"
+#include "context/ToolboxAttributedTextContext.hpp"
 #include <cassert>
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindow.hpp"
@@ -26,7 +27,7 @@ bool RegisterToolboxBuiltInSupport(ToolboxScenePlatformController &controller)
 {
   assert(controller.window_ && controller.window_->context());
   const int capabilities = controller.window_->context()->capabilities();
-  bool ok = true;
+  bool ok = RegisterToolboxAttributedTextNodeHandler(controller.nodeHandlerRegistry_);
   if ((capabilities & ToolboxWindowContext::CAP_CONTROL_MANAGER) != 0)
   {
     ok = RegisterToolboxButtonNodeHandler(controller.nodeHandlerRegistry_) && ok;

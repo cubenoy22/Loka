@@ -1,4 +1,5 @@
 #include "MacBuiltInSupport.hpp"
+#include "app/nodes/AttributedText.hpp"
 #include "MacScenePlatformController.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/Cell.hpp"
@@ -17,6 +18,7 @@
 #include "context/MacOpenFileDialogContext.hpp"
 #include "context/MacPopupMenuContext.hpp"
 #include "context/MacTextContext.hpp"
+#include "context/MacAttributedTextContext.hpp"
 
 namespace
 {
@@ -54,6 +56,7 @@ void RegisterMacBuiltInSupport(MacScenePlatformController &controller)
       &MacScenePlatformController::DispatchProjectedLayout);
   RegisterMacButtonNodeHandler(controller.nodeHandlerRegistry_);
   RegisterMacTextNodeHandler(controller.nodeHandlerRegistry_);
+  RegisterMacAttributedTextNodeHandler(controller.nodeHandlerRegistry_);
   RegisterMacImageViewNodeHandler(controller.nodeHandlerRegistry_);
   RegisterMacEditTextNodeHandler(controller.nodeHandlerRegistry_);
   RegisterMacPopupMenuNodeHandler(controller.nodeHandlerRegistry_);

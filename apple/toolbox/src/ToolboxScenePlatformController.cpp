@@ -1,4 +1,5 @@
 #include "ToolboxPropsRefresh.hpp"
+#include "ToolboxDirtyReplay.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxLayoutMetrics.hpp"
 #include "ToolboxBuiltInSupport.hpp"
@@ -44,6 +45,7 @@
 #include "context/ToolboxImageViewContext.hpp"
 #include "context/ToolboxRectSurfaceContext.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
+#include "context/ToolboxAttributedTextContext.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/boundary/Boundary.hpp"
 #include "app/scene/projection/CollectPaintAnswers.hpp"
@@ -56,7 +58,8 @@ namespace
       type keys, including in release builds, as on the Win32 rail. */
   bool IsToolboxPaintDrawerType(const void *key)
   {
-    return key == loka::app::scene::NodeTypeToken<loka::app::RectSurfaceNode>()
+    return key == loka::app::scene::NodeTypeToken<loka::app::AttributedTextNode>()
+           || key == loka::app::scene::NodeTypeToken<loka::app::RectSurfaceNode>()
            || key == loka::app::scene::NodeTypeToken<loka::app::ButtonNode>()
            || key == loka::app::scene::NodeTypeToken<loka::app::TextNode>()
            || key == loka::app::scene::NodeTypeToken<loka::app::EditTextNode>()
@@ -90,6 +93,8 @@ namespace
       case NODE_KIND_STACK:
       case NODE_KIND_CANVAS:
         return false;
+      case NODE_KIND_ATTRIBUTED_TEXT:
+        break;
       case NODE_KIND_UNKNOWN:
         if (!node->asProjectedLayoutNode())
           return false;
@@ -271,29 +276,6 @@ namespace
     return false;
   }
 
-  bool HasZStackNode(loka::app::scene::Node *node)
-  {
-    if (!node)
-    {
-      return false;
-    }
-    if (node->kind() == loka::app::scene::NODE_KIND_ZSTACK)
-    {
-      return true;
-    }
-    if (loka::app::scene::INestable *nestable = node->asNestable())
-    {
-      loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
-      {
-        if (HasZStackNode(child))
-        {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
 
   void RenderDirtyRectSurfaces(loka::app::scene::Node *node,
                                ToolboxScenePlatformController *controller,
@@ -460,7 +442,8 @@ namespace
 static const std::size_t kNativePoolBucketDepthCap = 8;
 
 ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *window)
-    : window_(window),
+    : textShaping_(loka::app::PER_RUN),
+      window_(window),
       projectionParentScopes_(window && window->window()
                                   ? static_cast<void *>(window->window())
                                   : 0),
@@ -1366,7 +1349,10 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     render();
     return;
   }
-  if (hitLedger_.textHits_.empty() && hitLedger_.popupHits_.empty() && hitLedger_.cellHits_.empty()
+  // The context's attach/retire membership supplies this fact without a
+  // projection-tree discovery pass on each dirty delivery.
+  const bool compositionReplay = this->compositionReplay_.required();
+  if (!compositionReplay && hitLedger_.textHits_.empty() && hitLedger_.popupHits_.empty() && hitLedger_.cellHits_.empty()
       && buttonControls_.empty() && scrollBarLedger_.scrollBarControls_.empty() && editControls_.empty())
   {
     if (HasRectSurfaceNode(rootNode_) || HasImageViewNode(rootNode_))
@@ -1383,7 +1369,7 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
   // Any drawer whose kind order the replay below does not preserve (text-like
   // drawers replay after surfaces and images regardless of composition order)
   // sends a ZStack window through the clipped full render instead.
-  bool dirtyIntersectsText = false;
+  bool dirtyIntersectsText = compositionReplay;
   for (size_t i = 0; i < hitLedger_.textHits_.size() && !dirtyIntersectsText; ++i)
     dirtyIntersectsText = RectsIntersect(rect, hitLedger_.textHits_[i].rect);
   for (size_t i = 0; i < editControls_.size() && !dirtyIntersectsText; ++i)
@@ -1392,34 +1378,9 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     dirtyIntersectsText = RectsIntersect(rect, hitLedger_.cellHits_[i].rect);
   for (size_t i = 0; i < hitLedger_.popupHits_.size() && !dirtyIntersectsText; ++i)
     dirtyIntersectsText = RectsIntersect(rect, hitLedger_.popupHits_[i].rect);
-  if (dirtyIntersectsText && HasZStackNode(rootNode_))
+  if (compositionReplay || (dirtyIntersectsText && ToolboxTreeHasKind(rootNode_, loka::app::scene::NODE_KIND_ZSTACK)))
   {
-    // A ZStack declares shared pixels. Rebuild the registries only before any
-    // replay prefix is frozen (#315), and let the clipped render walk own the
-    // dirty pixels instead of letting one text run erase its siblings.
-    GrafPtr oldPort;
-    GetPort(&oldPort);
-    SetPort(window_->window());
-    // Own the clip save locally: beginClip/endClip share one region and one
-    // flag, and the walk below re-enters them (EditText::draw clips TEUpdate),
-    // so nesting through the shared pair would leave the port clipped to this
-    // dirty rect after the inner endClip consumed the flag. Same shape as
-    // redrawTextHit's save/restore.
-    RgnHandle oldClip = NewRgn();
-    if (oldClip != 0)
-    {
-      GetClip(oldClip);
-      ClipRect(&rect);
-    }
-    EraseRect(&rect);
-    render();
-    if (oldClip != 0)
-    {
-      SetClip(oldClip);
-      DisposeRgn(oldClip);
-    }
-    drawControlsInRect(rect);
-    SetPort(oldPort);
+    ToolboxRenderDirtyInCompositionOrder(*this, rect);
     return;
   }
   if (HasRectSurfaceNode(rootNode_))

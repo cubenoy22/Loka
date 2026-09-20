@@ -3,6 +3,9 @@
 
 #include "app/scene/projection/CollectPaintAnswers.hpp"
 #include <cstddef>
+#include "app/layout/TextShaping.hpp"
+
+namespace loka { namespace app { class TextWidthSource; } }
 #include <vector>
 
 #include "app/RectSurface.hpp"
@@ -128,7 +131,20 @@ public:
     std::size_t depth;
   };
 
-  explicit NullScenePlatformController(std::size_t bucketDepthCap = 8);
+  explicit NullScenePlatformController(std::size_t bucketDepthCap = 8,
+                                       loka::app::TextShaping shaping = loka::app::PER_RUN);
+  loka::app::TextShaping textShaping() const
+  {
+    return this->textShaping_;
+  }
+  /** Select the width provider for a projection kind. Null uses the supplied
+      synthetic table for both; a test rail can supply discriminating widths.
+      The returned source is borrowed only for the synchronous measure. */
+  virtual const loka::app::TextWidthSource &textWidthSource(loka::app::TextShaping,
+                                                            const loka::app::TextWidthSource &synthetic) const
+  {
+    return synthetic;
+  }
   virtual ~NullScenePlatformController();
 
   virtual void onChange(loka::app::scene::Node *rootNode,
@@ -159,7 +175,7 @@ public:
   virtual void destroy();
   virtual bool prepareProjectedLayout(loka::app::scene::Node *node,
                                       loka::app::scene::LayoutState &state);
-  /** RectSurface and Text handlers cannot be replaced (registerNodeHandler refuses):
+  /** RectSurface, Text and AttributedText handlers cannot be replaced (registerNodeHandler refuses):
       the presenter addresses their contexts by concrete Null type. Every other kind
       may be replaced; the paint walk answers native controls by kind and never
       casts a context it did not install. */
@@ -302,6 +318,8 @@ private:
   void disposeHandle(FakeControlHandle *handle);
   void appendEvent(EventKind kind, int handleId);
   void recordWindowDisposed();
+
+  const loka::app::TextShaping textShaping_;
 
   /** Synthetic viewport input, replaced by an explicit fixture projection. */
   loka::app::scene::LayoutState layoutState_;

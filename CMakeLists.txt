@@ -279,6 +279,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullButtonContext.cpp
     ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullEditTextContext.cpp
     ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullScrollBarContext.cpp
+    ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullTextMetrics.cpp
+    ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullAttributedTextContext.cpp
     ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullTextContext.cpp
     ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullRectSurfaceContext.cpp
     ${PROJECT_SOURCE_DIR}/tests/standalone/HelloWorldStandaloneFlowAppConfig.cpp
@@ -311,6 +313,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullButtonContext.cpp
       ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullEditTextContext.cpp
       ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullScrollBarContext.cpp
+      ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullTextMetrics.cpp
+      ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullAttributedTextContext.cpp
       ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullTextContext.cpp
       ${PROJECT_SOURCE_DIR}/tests/platform/null/context/NullRectSurfaceContext.cpp
     )
@@ -412,6 +416,25 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   set_target_properties(LokaToolboxMemorySourceTests PROPERTIES
     CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
   add_test(NAME LokaToolboxMemorySourceTests COMMAND LokaToolboxMemorySourceTests)
+
+  # Production QuickDraw projection against a deterministic host OS fixture.
+  add_executable(LokaToolboxAttributedTextTests
+    tests/toolbox/host/ToolboxAttributedTextHostTests.cpp
+    tests/toolbox/host/ToolboxHost.cpp
+    tests/TestingHooks.cpp
+    apple/toolbox/src/context/ToolboxAttributedTextContext.cpp
+    apple/toolbox/src/context/ToolboxAttributedTextTable.cpp
+    apple/toolbox/src/context/ToolboxLayoutUtil.cpp
+    apple/toolbox/src/context/ToolboxProjectedNodeContext.cpp
+    apple/toolbox/src/ToolboxBuiltInSupport.cpp)
+  target_include_directories(LokaToolboxAttributedTextTests PRIVATE
+    tests/toolbox/host tests apple/toolbox/src)
+  target_compile_options(LokaToolboxAttributedTextTests PRIVATE
+    -include ${PROJECT_SOURCE_DIR}/tests/toolbox/host/ToolboxHost.hpp)
+  target_link_libraries(LokaToolboxAttributedTextTests PRIVATE LokaCommonTesting)
+  loka_enable_warnings(LokaToolboxAttributedTextTests)
+  set_target_properties(LokaToolboxAttributedTextTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
+  add_test(NAME LokaToolboxAttributedTextTests COMMAND LokaToolboxAttributedTextTests)
 
   # Isolated S1 pool simulation: deny Source and count global new during reclaim.
   add_executable(LokaReclaimGaugePins tests/ReclaimGaugeMain.cpp tests/ReclaimScratchTests.cpp)
