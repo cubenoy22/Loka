@@ -455,3 +455,337 @@ void testWin32TextFontTable()
   }
   DestroyWindow(root);
 }
+
+
+#include "context/Win32AttributedTextContext.hpp"
+#include "support/LokaAllocFailure.hpp"
+#include "Win32Window.hpp"
+#include "support/WindowAdmissionTestApp.hpp"
+#include "platform/null/NullPlatformContext.hpp"
+#include <climits>
+
+namespace loka
+{
+  namespace testing
+  {
+    class Win32AttributedTextAccess
+    {
+    public:
+      static const Win32AttributedTextTable &table(const Win32AttributedTextContext &context)
+      {
+        return context.table_;
+      }
+      static bool known(const Win32AttributedTextContext &context)
+      {
+        return context.presented_.isKnown();
+      }
+      static void draw(Win32AttributedTextContext &context, HDC dc, const RECT &rect)
+      {
+        context.draw(dc, rect);
+      }
+      static HFONT font(const Win32AttributedTextTable &table, std::size_t i)
+      {
+        return table.fonts_[i];
+      }
+      static WCHAR unit(const Win32AttributedTextTable &table, std::size_t i)
+      {
+        return table.units_[i];
+      }
+      static std::size_t unitCount(const Win32AttributedTextTable &table)
+      {
+        return table.units_.size();
+      }
+      static const loka::app::TextLineMetrics &metrics(const Win32AttributedTextTable &table, std::size_t i)
+      {
+        return table.metrics_[i];
+      }
+      static Win32AttributedTextContext *fromWindow(HWND hwnd)
+      {
+        return reinterpret_cast<Win32AttributedTextContext *>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+      }
+    };
+  } // namespace testing
+} // namespace loka
+namespace
+{
+  typedef loka::testing::Win32AttributedTextAccess AttributedAccess;
+  loka::app::scene::LayoutState attributedSeat(short width)
+  {
+    loka::app::scene::LayoutState state;
+    state.x = 1;
+    state.y = 3;
+    state.width = width;
+    state.height = 80;
+    return state;
+  }
+  int measureSpan(HWND hwnd, HFONT font, const wchar_t *text, int count)
+  {
+    HDC dc = GetDC(hwnd);
+    LOKA_VERIFY(dc);
+    HGDIOBJ previous = SelectObject(dc, font);
+    SIZE size;
+    LOKA_VERIFY(GetTextExtentExPointW(dc, text, count, INT_MAX, NULL, NULL, &size));
+    SelectObject(dc, previous);
+    ReleaseDC(hwnd, dc);
+    return size.cx;
+  }
+  HWND attributedHost()
+  {
+    HWND root = CreateWindowExW(
+        0, L"STATIC", L"attributed-host", WS_POPUP, 0, 0, 600, 400, NULL, NULL, GetModuleHandleW(NULL), NULL);
+    LOKA_VERIFY(root);
+    return root;
+  }
+} // namespace
+void testWin32AttributedTextPerRunProjection()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  HWND root = attributedHost();
+  {
+    const loka::win32::Win32DisplayScale scale(144, RailMetrics());
+    Win32ScenePlatformController controller(root, scale);
+    LOKA_VERIFY(controller.textShaping() == PER_RUN);
+    RefusedNodeHandler replacement(NodeTypeToken<AttributedTextNode>());
+    LOKA_VERIFY(!controller.registerNodeHandler(&replacement));
+    const AttributedString value = Styled("a ab", FontSize<12>() + Bold) + Styled("cd", FontSize<24>() + Italic);
+    AttributedTextNode node((AttributedText(value) + BlockStyle().wrap(TEXT_WRAP_WORD)).props);
+    const int wordWidth = measureSpan(root, controller.textFont(FontSize<12>() + Bold), L"ab", 2)
+                          + measureSpan(root, controller.textFont(FontSize<24>() + Italic), L"cd", 2);
+    // Choose odd logical width at odd origin: origin-free rounding differs.
+    short width = static_cast<short>(scale.measurementToLu(wordWidth) + 2);
+    if (!(width & 1))
+      ++width;
+    LayoutState state = attributedSeat(width);
+    LOKA_VERIFY(controller.prepareProjectedLayout(&node, state));
+    Win32AttributedTextContext *context = static_cast<Win32AttributedTextContext *>(node.getContext());
+    LOKA_VERIFY(context && context->paintHwnd());
+    context->layout(&controller, state);
+    const Win32AttributedTextTable &table = AttributedAccess::table(*context);
+    LOKA_VERIFY(table.valid() && table.lines().lineCount() == 2);
+    LOKA_VERIFY(table.lines().line(1).fragmentCount == 2);
+    const TextLineRecord &mixed = table.lines().line(1);
+    const TextLineMetrics &small = AttributedAccess::metrics(table, 0);
+    const TextLineMetrics &large = AttributedAccess::metrics(table, 1);
+    LOKA_VERIFY(mixed.metrics.ascent == (small.ascent > large.ascent ? small.ascent : large.ascent));
+    LOKA_VERIFY(mixed.metrics.descent == (small.descent > large.descent ? small.descent : large.descent));
+    LOKA_VERIFY(mixed.width == wordWidth);
+    RECT native = childRectInParent(context->paintHwnd(), root);
+    LOKA_VERIFY(native.left == scale.projectEdge(1));
+    LOKA_VERIFY(native.right - native.left == scale.nativeLength(1, 1 + width).px);
+    LOKA_VERIFY(scale.nativeLength(1, 1 + width).px != scale.projectLength(width));
+    const int expectedHeight =
+        scale.measurementToLu(small.ascent + small.descent + small.leading)
+        + scale.measurementToLu(mixed.metrics.ascent + mixed.metrics.descent + mixed.metrics.leading);
+    LOKA_VERIFY(state.height == expectedHeight);
+    HWND child = context->paintHwnd();
+    state = attributedSeat(width * 3);
+    LOKA_VERIFY(controller.prepareProjectedLayout(&node, state));
+    LOKA_VERIFY(node.getContext() == context && context->paintHwnd() == child);
+    context->layout(&controller, state);
+    LOKA_VERIFY(table.lines().lineCount() == 1);
+
+    // Rendering into a deterministic memory surface discriminates erase,
+    // partial history and saved GDI attributes without requiring a visible host.
+    HDC windowDC = GetDC(root);
+    HDC dc = CreateCompatibleDC(windowDC);
+    HBITMAP bitmap = CreateCompatibleBitmap(windowDC, 400, 200);
+    LOKA_VERIFY(dc && bitmap);
+    HGDIOBJ previous = SelectObject(dc, bitmap);
+    RECT rect = {0, 0, 400, 200};
+    IntersectClipRect(dc, 0, 0, 400, 200);
+    SetTextAlign(dc, TA_RIGHT | TA_TOP);
+    SetBkMode(dc, OPAQUE);
+    AttributedAccess::draw(*context, dc, rect);
+    LOKA_VERIFY(GetTextAlign(dc) == (TA_RIGHT | TA_TOP) && GetBkMode(dc) == OPAQUE);
+    LOKA_VERIFY(AttributedAccess::known(*context));
+    bool ink = false;
+    for (int y = 0; y < 80; ++y)
+      for (int x = 0; x < 200; ++x)
+        if (GetPixel(dc, x, y) != RGB(255, 255, 255))
+          ink = true;
+    LOKA_VERIFY(ink);
+    const PaintQuery query = {Win32RetirableContext::paintScope(), PLACEMENT_ELIGIBLE};
+    LOKA_VERIFY(context->queryPaintDamage(query).kind == PAINT_ANSWER_EXACT);
+    IntersectClipRect(dc, 0, 0, 10, 10);
+    AttributedAccess::draw(*context, dc, rect);
+    LOKA_VERIFY(!AttributedAccess::known(*context));
+    SelectClipRgn(dc, NULL);
+    IntersectClipRect(dc, 0, 0, 400, 200);
+    node.props = AttributedTextProps(AttributedString());
+    context->onPropsApplied();
+    state = attributedSeat(width);
+    context->layout(&controller, state);
+    AttributedAccess::draw(*context, dc, rect);
+    for (int y = 0; y < 80; ++y)
+      for (int x = 0; x < 200; ++x)
+        LOKA_VERIFY(GetPixel(dc, x, y) == RGB(255, 255, 255));
+    SelectObject(dc, previous);
+    DeleteObject(bitmap);
+    DeleteDC(dc);
+    ReleaseDC(root, windowDC);
+
+    node.props = AttributedTextProps(Styled("\xef\xbc\xa1\xf0\x9f\x98\x80", FontSize<12>()));
+    context->onPropsApplied();
+    state = attributedSeat(width);
+    context->layout(&controller, state);
+    LOKA_VERIFY(AttributedAccess::unitCount(table) == 3);
+    LOKA_VERIFY(AttributedAccess::unit(table, 0) == 0xff21);
+    LOKA_VERIFY(AttributedAccess::unit(table, 1) == 0xd83d && AttributedAccess::unit(table, 2) == 0xde00);
+    node.props.blockStyle_.wrap(TEXT_WRAP_CHAR);
+    state = attributedSeat(1);
+    context->layout(&controller, state);
+    LOKA_VERIFY(table.lines().lineCount() == 2);
+    const TextFragment &pair = table.lines().fragment(table.lines().line(1).firstFragment);
+    LOKA_VERIFY(pair.end - pair.start == 2);
+    context->onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_DETACHED_RETAINED);
+    LOKA_VERIFY(table.valid() && IsWindow(child));
+    LOKA_VERIFY(!(GetWindowLongPtrW(child, GWL_STYLE) & WS_VISIBLE));
+    // A hidden update is rebuilt from current props and survives reveal.
+    node.props = AttributedTextProps(value);
+    context->onPropsApplied();
+    state = attributedSeat(width);
+    context->layout(&controller, state);
+    context->onFactChanged(NODE_FACT_DETACHED_RETAINED, NODE_FACT_ATTACHED);
+    LOKA_VERIFY(table.valid() && table.value() == value);
+    LOKA_VERIFY(GetWindowLongPtrW(child, GWL_STYLE) & WS_VISIBLE);
+    context->onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_RETIRED);
+    LOKA_VERIFY(!table.valid() && !context->paintHwnd());
+    LOKA_VERIFY(IsWindow(child));
+    controller.drainNativeRetirements();
+    LOKA_VERIFY(!IsWindow(child));
+  }
+  LOKA_VERIFY(DestroyWindow(root));
+}
+
+void testWin32AttributedTextAllocationFailure()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  using namespace loka::core::testing;
+  HWND root = attributedHost();
+  // The backend is installed across the entire allocation-balanced region.
+  failLokaAllocRaw("Win32AttributedText", "Context", 1);
+  {
+    Win32ScenePlatformController controller(root);
+    AttributedTextNode node((AttributedTextProps(Styled("sample", Bold))));
+    LayoutState state = attributedSeat(100);
+    LOKA_VERIFY(!controller.prepareProjectedLayout(&node, state));
+    LOKA_VERIFY(!node.getContext());
+    LOKA_VERIFY(controller.prepareProjectedLayout(&node, state));
+    Win32AttributedTextContext *context = static_cast<Win32AttributedTextContext *>(node.getContext());
+    context->layout(&controller, state);
+    LOKA_VERIFY(AttributedAccess::table(*context).valid());
+    failLokaAllocRaw("Win32AttributedText", "Break", 1);
+    context->layout(&controller, state);
+    LOKA_VERIFY(!AttributedAccess::table(*context).valid() && !AttributedAccess::known(*context));
+    const PaintQuery query = {Win32RetirableContext::paintScope(), PLACEMENT_ELIGIBLE};
+    LOKA_VERIFY(context->queryPaintDamage(query).kind == PAINT_ANSWER_REFUSED);
+    context->layout(&controller, state);
+    LOKA_VERIFY(AttributedAccess::table(*context).valid());
+  }
+  LOKA_VERIFY(lokaAllocRawLive() == 0);
+  allowLokaAllocRaw();
+  LOKA_VERIFY(DestroyWindow(root));
+}
+
+void testWin32AttributedTextLiveDpiChange()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  NullPlatformContext platform;
+  WindowProps props;
+  props.frame(40, 40, 320, 240).visible(false);
+  props.scene(AttributedText(Styled("var x = ", FontSize<12>() + Bold) + Styled("1;", FontSize<24>() + Italic)));
+  Win32Window window(&platform, props);
+  {
+    loka::core::StateTrackerGuard guard(window.getTracker());
+    window.visibilityState().set(true);
+  }
+  WindowAdmissionTestApp admission(window);
+  admission.flush();
+  HWND child = FindWindowExW(window.hwnd(), NULL, L"LOKA_ATTRIBUTED_TEXT", NULL);
+  LOKA_VERIFY(child);
+  Win32AttributedTextContext *context = AttributedAccess::fromWindow(child);
+  LOKA_VERIFY(context);
+  const Win32AttributedTextTable &table = AttributedAccess::table(*context);
+  LOKA_VERIFY(table.valid());
+  const HFONT oldFont = AttributedAccess::font(table, 0);
+  LOGFONTW oldDescriptor;
+  LOKA_VERIFY(GetObjectW(oldFont, sizeof(oldDescriptor), &oldDescriptor));
+  // Force a different DPI even on a host already running at 150 percent.
+  const loka::win32::Win32DisplayScale scale144(144, loka::win32::DefaultRailMetrics());
+  const UINT dpi = oldDescriptor.lfHeight == -scale144.fontHeightToNative(12) ? 192 : 144;
+  RECT suggested = {40, 40, 680, 520};
+  SendMessageW(window.hwnd(),
+               0x02E0 /* WM_DPICHANGED, absent from XP SDK */,
+               MAKEWPARAM(dpi, dpi),
+               reinterpret_cast<LPARAM>(&suggested));
+  LOKA_VERIFY(AttributedAccess::fromWindow(child) == context && table.valid());
+  LOKA_VERIFY(AttributedAccess::font(table, 0) != oldFont);
+  LOGFONTW descriptor;
+  LOKA_VERIFY(GetObjectW(oldFont, sizeof(descriptor), &descriptor) == 0);
+  LOKA_VERIFY(GetObjectW(AttributedAccess::font(table, 0), sizeof(descriptor), &descriptor));
+  const loka::win32::Win32DisplayScale nextScale(dpi, loka::win32::DefaultRailMetrics());
+  LOKA_VERIFY(descriptor.lfHeight == -nextScale.fontHeightToNative(12));
+  // The actual generation notification must revoke all borrows before paint.
+  SendMessageW(child, WM_SETFONT, 0, FALSE);
+  LOKA_VERIFY(!table.valid() && !AttributedAccess::known(*context));
+}
+
+#include "support/PropsReconciliation.hpp"
+#include "testing/Win32ScenePlatformTestAccess.hpp"
+
+void testWin32AttributedTextPaintRouting()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  using namespace PropsReconciliationSupport;
+  typedef loka::dsl::testing::Win32ScenePlatformTestAccess Access;
+  HWND rootWindow = attributedHost();
+  {
+    Win32ScenePlatformController controller(rootWindow);
+    AttributedText declaration(Styled("var x = ", Bold) + Styled("1;", Italic));
+    Scene scene((Boundary<Tree<AttributedText> >(Props<AttributedText>(&declaration))));
+    scene.mount(&controller);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
+    settle(scene);
+    BoundaryNode *boundary = root(scene);
+    LOKA_VERIFY(boundary);
+    controller.onChange(boundary, NODE_DIRTY_NONE, false);
+    controller.relayout(320, 240);
+    AttributedTextNode *node = boundary->childrenHead()->asAttributedTextNode();
+    LOKA_VERIFY(node && node->getContext());
+    Win32AttributedTextContext *context = static_cast<Win32AttributedTextContext *>(node->getContext());
+    ShowWindow(rootWindow, SW_SHOWNOACTIVATE);
+    Access::flushPendingInvalidations(controller);
+    RedrawWindow(context->paintHwnd(), NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+    LOKA_VERIFY(AttributedAccess::known(*context));
+    BoundaryLocalApplyInfo info;
+    info.paintKind = LOCAL_APPLY_PAINT_GENERIC;
+    PlatformApplyPlan plan;
+    plan.paintKind = PlatformApplyPlan::PAINT_LOCAL;
+    plan.setPrimaryRoot(boundary);
+    Access::resetRedrawStats(controller);
+    controller.onBoundaryApply(boundary, boundary, info, plan);
+    LOKA_VERIFY(Access::onBoundaryApplyCalls(controller) == 1);
+    LOKA_VERIFY(Access::queuedPaintInvalidates(controller) == 0);
+    // Positive control: unknown presentation must take the broad fallback.
+    SendMessageW(context->paintHwnd(), WM_SIZE, 0, 0);
+    controller.onBoundaryApply(boundary, boundary, info, plan);
+    LOKA_VERIFY(Access::queuedPaintInvalidates(controller) == 1);
+    // A props-only update schedules layout; it must not remain an empty cache.
+    MSG message;
+    while (PeekMessageW(&message, rootWindow, WM_SIZE, WM_SIZE, PM_REMOVE))
+    {
+    }
+    node->props = AttributedTextProps(Styled("changed", FontSize<24>()));
+    context->onPropsApplied();
+    LOKA_VERIFY(PeekMessageW(&message, rootWindow, WM_SIZE, WM_SIZE, PM_REMOVE));
+    controller.relayout(320, 240);
+    LOKA_VERIFY(AttributedAccess::table(*context).valid());
+    LOKA_VERIFY(AttributedAccess::table(*context).value() == node->props.text_->get());
+    loka::dsl::testing::SceneTestAccess::unmount(scene);
+  }
+  LOKA_VERIFY(DestroyWindow(rootWindow));
+}

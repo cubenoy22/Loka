@@ -22,11 +22,10 @@
 #include "context/Win32OpenFileDialogContext.hpp"
 #include "context/Win32PopupMenuContext.hpp"
 #include "context/Win32TextContext.hpp"
+#include "context/Win32AttributedTextContext.hpp"
 
 namespace
 {
-  loka::app::scene::RefusedNodeHandler gRefusedWin32AttributedText(
-      loka::app::scene::NodeTypeToken<loka::app::AttributedTextNode>());
   // Win32 has no ScrollBar context yet: a known unsupported kind must take
   // the typed-refusal path, not trip the accidental-miss assert. ScrollView
   // is a controller-owned projection-parent arm and does not use this leaf
@@ -59,9 +58,11 @@ void RegisterWin32BuiltInSupport(Win32ScenePlatformController &controller)
   controller.hostActionHandlerRegistry_.registerHandler(
       loka::app::scene::NodeTypeToken<loka::app::OpenFileDialogNode>(),
       &Win32ScenePlatformController::DispatchProjectedLayout);
+  controller.leafLayoutHandlerRegistry_.registerHandler(loka::app::scene::NodeTypeToken<loka::app::AttributedTextNode>(),
+                                                        &Win32ScenePlatformController::DispatchProjectedLayout);
   RegisterWin32ButtonNodeHandler(controller.nodeHandlerRegistry_);
   RegisterWin32TextNodeHandler(controller.nodeHandlerRegistry_);
-  controller.nodeHandlerRegistry_.registerHandler(&gRefusedWin32AttributedText);
+  RegisterWin32AttributedTextNodeHandler(controller.nodeHandlerRegistry_);
   RegisterWin32ImageViewNodeHandler(controller.nodeHandlerRegistry_);
   RegisterWin32EditTextNodeHandler(controller.nodeHandlerRegistry_);
   RegisterWin32PopupMenuNodeHandler(controller.nodeHandlerRegistry_);

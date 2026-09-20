@@ -2,6 +2,7 @@
 #define LOKA_WIN32_SCENE_PLATFORM_CONTROLLER_HPP
 
 #include <windows.h>
+#include "app/layout/TextShaping.hpp"
 #include <vector>
 #include "app/RectSurface.hpp"
 #include "app/scene/projection/ProjectionParentScope.hpp"
@@ -146,6 +147,7 @@ public:
   }
   /** Schedule through the existing WM_SIZE layout path, never reenter layout. */
   void requestRelayout();
+  loka::app::TextShaping textShaping() const { return this->textShaping_; }
   HFONT displayFont() const
   {
     return this->displayFont_.get();
@@ -407,6 +409,7 @@ private:
   int clientWidth_;
   int clientHeight_;
   const loka::app::RailMetrics railMetrics_;
+  const loka::app::TextShaping textShaping_;
   loka::win32::Win32DisplayScale displayScale_;
   loka::win32::Win32DisplayFont displayFont_;
   std::vector<PendingInvalidate> pendingInvalidations_;
