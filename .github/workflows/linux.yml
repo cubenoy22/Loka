@@ -23,6 +23,7 @@ jobs:
       - run: python3 tools/ci/check_test_asserts.py
       - run: python3 tools/ci/check_style_vocab.py
       - run: python3 tools/ci/check_native_includes.py
+      - run: python3 tests/scripts/ClassicInttypesTest.py
       - run: python3 tests/scripts/NativeGeometryCheckerTest.py
       - run: python3 tools/ci/check_native_geometry.py
       - run: cmake --preset testing -DLOKA_BUILD_SMIRKYCARD=ON
