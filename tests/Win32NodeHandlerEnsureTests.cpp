@@ -459,9 +459,6 @@ void testWin32TextFontTable()
 
 #include "context/Win32AttributedTextContext.hpp"
 #include "support/LokaAllocFailure.hpp"
-#include "Win32Window.hpp"
-#include "support/WindowAdmissionTestApp.hpp"
-#include "platform/null/NullPlatformContext.hpp"
 #include <climits>
 
 namespace loka
@@ -693,44 +690,38 @@ void testWin32AttributedTextLiveDpiChange()
 {
   using namespace loka::app;
   using namespace loka::app::scene;
-  NullPlatformContext platform;
-  WindowProps props;
-  props.frame(40, 40, 320, 240).visible(false);
-  props.scene(AttributedText(Styled("var x = ", FontSize<12>() + Bold) + Styled("1;", FontSize<24>() + Italic)));
-  Win32Window window(&platform, props);
+  // Same shape as the Text DPI pin above: the controller owns the display
+  // scale, updateDisplayScale is the door WM_DPICHANGED reaches (pinned in
+  // Win32WindowClientSizeTests), and the broadcast must revoke every borrowed
+  // HFONT before the old generation is deleted.
+  HWND root = attributedHost();
   {
-    loka::core::StateTrackerGuard guard(window.getTracker());
-    window.visibilityState().set(true);
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, loka::win32::DefaultRailMetrics()));
+    AttributedTextNode node((AttributedTextProps(Styled("var x = ", FontSize<12>() + Bold) + Styled("1;", FontSize<24>() + Italic))));
+    LayoutState state = attributedSeat(200);
+    LOKA_VERIFY(controller.prepareProjectedLayout(&node, state));
+    HWND child = FindWindowExW(root, NULL, L"LOKA_ATTRIBUTED_TEXT", NULL);
+    LOKA_VERIFY(child);
+    Win32AttributedTextContext *context = AttributedAccess::fromWindow(child);
+    LOKA_VERIFY(context && node.getContext() == context);
+    const Win32AttributedTextTable &table = AttributedAccess::table(*context);
+    LOKA_VERIFY(table.valid());
+    const HFONT oldFont = AttributedAccess::font(table, 0);
+    LOGFONTW descriptor;
+    LOKA_VERIFY(GetObjectW(oldFont, sizeof(descriptor), &descriptor));
+    // Generation change: the table is revoked before the old handles die.
+    controller.updateDisplayScale(loka::win32::Win32DisplayScale(144, loka::win32::DefaultRailMetrics()));
+    LOKA_VERIFY(!table.valid() && !AttributedAccess::known(*context));
+    LOKA_VERIFY(GetObjectW(oldFont, sizeof(descriptor), &descriptor) == 0);
+    // The next layout rebuilds against the new generation, never the dead handle.
+    LOKA_VERIFY(controller.prepareProjectedLayout(&node, state));
+    LOKA_VERIFY(table.valid());
+    LOKA_VERIFY(AttributedAccess::font(table, 0) != oldFont);
+    LOKA_VERIFY(GetObjectW(AttributedAccess::font(table, 0), sizeof(descriptor), &descriptor));
+    const loka::win32::Win32DisplayScale scale144(144, loka::win32::DefaultRailMetrics());
+    LOKA_VERIFY(descriptor.lfHeight == -scale144.fontHeightToNative(12));
+    LOKA_VERIFY(AttributedAccess::fromWindow(child) == context);
   }
-  WindowAdmissionTestApp admission(window);
-  admission.flush();
-  HWND child = FindWindowExW(window.hwnd(), NULL, L"LOKA_ATTRIBUTED_TEXT", NULL);
-  LOKA_VERIFY(child);
-  Win32AttributedTextContext *context = AttributedAccess::fromWindow(child);
-  LOKA_VERIFY(context);
-  const Win32AttributedTextTable &table = AttributedAccess::table(*context);
-  LOKA_VERIFY(table.valid());
-  const HFONT oldFont = AttributedAccess::font(table, 0);
-  LOGFONTW oldDescriptor;
-  LOKA_VERIFY(GetObjectW(oldFont, sizeof(oldDescriptor), &oldDescriptor));
-  // Force a different DPI even on a host already running at 150 percent.
-  const loka::win32::Win32DisplayScale scale144(144, loka::win32::DefaultRailMetrics());
-  const UINT dpi = oldDescriptor.lfHeight == -scale144.fontHeightToNative(12) ? 192 : 144;
-  RECT suggested = {40, 40, 680, 520};
-  SendMessageW(window.hwnd(),
-               0x02E0 /* WM_DPICHANGED, absent from XP SDK */,
-               MAKEWPARAM(dpi, dpi),
-               reinterpret_cast<LPARAM>(&suggested));
-  LOKA_VERIFY(AttributedAccess::fromWindow(child) == context && table.valid());
-  LOKA_VERIFY(AttributedAccess::font(table, 0) != oldFont);
-  LOGFONTW descriptor;
-  LOKA_VERIFY(GetObjectW(oldFont, sizeof(descriptor), &descriptor) == 0);
-  LOKA_VERIFY(GetObjectW(AttributedAccess::font(table, 0), sizeof(descriptor), &descriptor));
-  const loka::win32::Win32DisplayScale nextScale(dpi, loka::win32::DefaultRailMetrics());
-  LOKA_VERIFY(descriptor.lfHeight == -nextScale.fontHeightToNative(12));
-  // The actual generation notification must revoke all borrows before paint.
-  SendMessageW(child, WM_SETFONT, 0, FALSE);
-  LOKA_VERIFY(!table.valid() && !AttributedAccess::known(*context));
 }
 
 #include "support/PropsReconciliation.hpp"
