@@ -223,7 +223,7 @@ bool Win32AttributedTextTable::draw(HDC dc, const RECT &clip, const BlockStyle &
     int budget = available;
     if (ellipsis)
     {
-      SIZE dots;
+      SIZE dots = {0, 0};
       painted =
           selection.select(this->fonts_[lastSpan]) && GetTextExtentExPointW(dc, L"...", 3, INT_MAX, NULL, NULL, &dots);
       if (!painted)

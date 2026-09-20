@@ -744,7 +744,7 @@ void testWin32AttributedTextPaintRouting()
   typedef loka::dsl::testing::Win32ScenePlatformTestAccess Access;
   HWND rootWindow = attributedHost();
   {
-    Win32ScenePlatformController controller(rootWindow);
+    Win32ScenePlatformController controller(rootWindow, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
     AttributedText declaration(Styled("var x = ", Bold) + Styled("1;", Italic));
     Scene scene((Boundary<Tree<AttributedText> >(Props<AttributedText>(&declaration))));
     scene.mount(&controller);
