@@ -3,6 +3,7 @@
 
 #include "../../example/SmirkBench/src/MyAppConfig.hpp"
 #include "ObservedMainDefinition.hpp"
+#include "SmirkBenchEditorLineNode.hpp"
 
 namespace loka
 {
@@ -21,11 +22,19 @@ namespace loka
 
       virtual void compose(AppComposition &composition)
       {
-        ObservedMainDefinition<smirkbench::MainProps, smirkbench::MainNode> main(
-            smirkbench::MainProps(&this->model(), this->specimen_), 0);
-        composition << WindowDef(WindowProps()
+        WindowProps window;
+        if (this->specimen_)
+        {
+          window.scene(ObservedMainDefinition<SmirkBenchEditorLineProps, SmirkBenchEditorLineNode>(
+              SmirkBenchEditorLineProps(&this->model()), 0));
+        }
+        else
+        {
+          window.scene(ObservedMainDefinition<smirkbench::MainProps, smirkbench::MainNode>(
+              smirkbench::MainProps(&this->model()), 0));
+        }
+        composition << WindowDef(window
                                      .frame(50, 50, 640, 400)
-                                     .scene(main)
                                      .title("LokaSmirkBench")
                                      .visible(true)
                                      .idlePolicy(app::IdlePolicy::everyTick())

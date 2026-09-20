@@ -113,8 +113,10 @@ are not pinned by a cell; #604 tracks that runtime matrix.
 
 ## Attributed editor line (#834)
 
-`smirkbench attributed-editor-line` opts into a mount-time specimen in the nav
-pane. The default `MainProps` leaves the existing declaration tree intact,
+`smirkbench attributed-editor-line` declares the scenario-only
+`SmirkBenchEditorLineNode`, whose distinct Props type prevents retained
+application to an ordinary `MainNode`. Only that scenario node owns the editor
+State. The ordinary `MainNode` leaves the existing declaration tree intact,
 including the surface seat and the full-window capture rectangle used by the
 four earlier cells. The specimen places ordinary Text, the default-size
 `var x = 1;` attributed line, and a 28-by-80 Box containing the mixed-size
@@ -133,7 +135,8 @@ startup audit lives under `tests/scenarios/desktop-expected/`, leaving the
 Toolbox counter audit unchanged. The other SmirkBench scenarios remain
 Toolbox-only. `attributed-editor-line` is not a startup-identity pair.
 
-The headless SmirkBench pin checks the default absence, actual projected wrap
+The headless SmirkBench pin checks ordinary state/subtree absence, incompatible
+retained props application in both directions, actual projected wrap
 extent, retained update, and exact neutral audit. Native screenshots and erase
 behavior still need the owning rigs. To stage the new captures after building
 the scenario targets, run:

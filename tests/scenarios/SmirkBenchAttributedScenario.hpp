@@ -1,7 +1,7 @@
 #ifndef LOKA_TESTS_SMIRK_BENCH_ATTRIBUTED_SCENARIO_HPP
 #define LOKA_TESTS_SMIRK_BENCH_ATTRIBUTED_SCENARIO_HPP
 
-#include "../../example/SmirkBench/src/MainNode.hpp"
+#include "SmirkBenchEditorLineNode.hpp"
 #include "SceneScenarioDriver.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 
@@ -62,12 +62,11 @@ namespace loka
       }
       if (ok && tick == 3)
       {
-        smirkbench::MainNode *main =
-            static_cast<smirkbench::MainNode *>(dsl::testing::SceneTestAccess::rootBoundary(*scene));
-        if (!main)
+        app::scene::BoundaryNode *main = dsl::testing::SceneTestAccess::rootBoundary(*scene);
+        if (!main || main->propsTypeId() != SmirkBenchEditorLineProps::staticTypeId())
           ok = false;
         else
-          main->changeEditorLineForTesting();
+          static_cast<SmirkBenchEditorLineNode *>(main)->changeEditorLineForTesting();
       }
       if (ok)
       {

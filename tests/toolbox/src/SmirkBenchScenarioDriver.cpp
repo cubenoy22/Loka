@@ -73,11 +73,20 @@ namespace loka
           // rig's screen is 640x480 and the capture record refuses a window whose
           // structure rectangle leaves the screen, so the scenario window is
           // placed at (1, 41) with a 636-pixel content width (structure 0..638).
-          scenario_tests::ObservedMainDefinition<smirkbench::MainProps, smirkbench::MainNode> mainDefinition(
-              smirkbench::MainProps(&this->model_, this->scenario_ == "attributed-editor-line"), 0);
-          composition << WindowDef(WindowProps()
+          WindowProps window;
+          if (this->scenario_ == "attributed-editor-line")
+          {
+            window.scene(scenario_tests::ObservedMainDefinition<scenario_tests::SmirkBenchEditorLineProps,
+                                                               scenario_tests::SmirkBenchEditorLineNode>(
+                scenario_tests::SmirkBenchEditorLineProps(&this->model_), 0));
+          }
+          else
+          {
+            window.scene(scenario_tests::ObservedMainDefinition<smirkbench::MainProps, smirkbench::MainNode>(
+                smirkbench::MainProps(&this->model_), 0));
+          }
+          composition << WindowDef(window
                                        .frame(1, 41, 636, 400)
-                                       .scene(mainDefinition)
                                        .title("LokaSmirkBench")
                                        .visible(true)
                                        .idlePolicy(app::IdlePolicy::everyTick())

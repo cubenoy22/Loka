@@ -15,6 +15,7 @@
 #include "scenarios/SmirkBenchAttributedScenario.hpp"
 #include "scenarios/SmirkBenchScenarioPresentation.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
+#include "testing/app/ComposableNodeTestAccess.hpp"
 
 namespace
 {
@@ -58,22 +59,22 @@ namespace
     assert(!scene.hasPendingInvalidation());
   }
 
-  struct SmirkBenchFixture
+  template <class NodeT> struct SmirkBenchFixtureFor
   {
-    explicit SmirkBenchFixture(bool addInitialFace = true, bool specimen = false)
+    explicit SmirkBenchFixtureFor(bool addInitialFace = true)
         : model(640, 400, addInitialFace),
           platform(),
-          scene(loka::app::scene::Boundary<smirkbench::MainNode>(smirkbench::MainProps(&this->model, specimen))),
+          scene(loka::app::scene::Boundary<NodeT>(typename NodeT::PropsType(&this->model))),
           mainNode(0)
     {
       this->scene.mount(&this->platform);
       loka::dsl::testing::SceneTestAccess::updateAttached(this->scene, true);
       this->mainNode =
-          static_cast<smirkbench::MainNode *>(loka::dsl::testing::SceneTestAccess::rootBoundary(this->scene));
+          static_cast<NodeT *>(loka::dsl::testing::SceneTestAccess::rootBoundary(this->scene));
       LOKA_VERIFY(this->mainNode != 0);
     }
 
-    ~SmirkBenchFixture()
+    ~SmirkBenchFixtureFor()
     {
       loka::dsl::testing::SceneTestAccess::unmount(this->scene);
     }
@@ -81,10 +82,14 @@ namespace
     smirkbench::SmirkModel model;
     NullScenePlatformController platform;
     loka::app::scene::Scene scene;
-    smirkbench::MainNode *mainNode;
+    NodeT *mainNode;
   };
 
-  loka::app::RectSurfaceNode *findSurface(SmirkBenchFixture &fixture)
+  typedef SmirkBenchFixtureFor<smirkbench::MainNode> SmirkBenchFixture;
+  typedef SmirkBenchFixtureFor<loka::scenario_tests::SmirkBenchEditorLineNode> SmirkBenchEditorFixture;
+
+  template <class NodeT>
+  loka::app::RectSurfaceNode *findSurface(SmirkBenchFixtureFor<NodeT> &fixture)
   {
     loka::app::scene::Node *node =
         findNodeByTestId(loka::dsl::testing::SceneTestAccess::rootNode(fixture.scene), "SmirkBench.Surface");
@@ -311,7 +316,9 @@ void testSmirkBenchAttributedEditorLine()
   LOKA_VERIFY(findNodeByTestId(dsl::testing::SceneTestAccess::rootNode(ordinary.scene), "SmirkBench.EditorLine") == 0);
   verifyLandscapeRowSeats(ordinary);
 
-  SmirkBenchFixture fixture(true, true);
+  SmirkBenchEditorFixture fixture;
+  LOKA_VERIFY(scene::ComposableNodeTestAccess::declaredStateCount(*ordinary.mainNode) == 8);
+  LOKA_VERIFY(scene::ComposableNodeTestAccess::declaredStateCount(*fixture.mainNode) == 9);
   scene::Node *root = dsl::testing::SceneTestAccess::rootNode(fixture.scene);
   scene::Node *line = findNodeByTestId(root, "SmirkBench.EditorLine");
   scene::Node *wrap = findNodeByTestId(root, "SmirkBench.WrapFixture");
@@ -385,8 +392,19 @@ void testSmirkBenchAttributedEditorLine()
     LOKA_VERIFY(record.get("status", status) && status == dsl::SnapStatusError());
   }
   std::remove("_loka_smirkbench_absent.audit");
-  const smirkbench::MainProps defaultProps(&fixture.model);
-  const smirkbench::MainProps specimenProps(&fixture.model, true);
-  LOKA_VERIFY(defaultProps < specimenProps);
-  LOKA_VERIFY(!(specimenProps < defaultProps));
+  const scene::BoundaryDefinition<smirkbench::MainProps, smirkbench::MainNode> ordinaryDefinition(
+      smirkbench::MainProps(&ordinary.model));
+  const scene::BoundaryDefinition<scenario_tests::SmirkBenchEditorLineProps, scenario_tests::SmirkBenchEditorLineNode>
+      editorDefinition(scenario_tests::SmirkBenchEditorLineProps(&fixture.model));
+  LOKA_VERIFY(!editorDefinition.isCompatibleWithNode(ordinary.mainNode));
+  LOKA_VERIFY(!ordinaryDefinition.isCompatibleWithNode(fixture.mainNode));
+  LOKA_VERIFY(!editorDefinition.applyPropsToNode(ordinary.mainNode));
+  LOKA_VERIFY(!ordinaryDefinition.applyPropsToNode(fixture.mainNode));
+  LOKA_VERIFY(ordinaryDefinition.applyPropsToNode(ordinary.mainNode));
+  LOKA_VERIFY(editorDefinition.applyPropsToNode(fixture.mainNode));
+  LOKA_VERIFY(scene::ComposableNodeTestAccess::declaredStateCount(*ordinary.mainNode) == 8);
+  LOKA_VERIFY(scene::ComposableNodeTestAccess::declaredStateCount(*fixture.mainNode) == 9);
+  LOKA_VERIFY(findNodeByTestId(dsl::testing::SceneTestAccess::rootNode(ordinary.scene), "SmirkBench.EditorLine") == 0);
+  LOKA_VERIFY(findNodeByTestId(root, "SmirkBench.EditorLine") == line);
+  LOKA_VERIFY(line->getContext() == context);
 }

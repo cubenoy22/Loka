@@ -9,10 +9,15 @@ namespace loka
   {
     namespace scene
     {
-      /** Testing-only census of callbacks owned by one composable node. */
+      /** Testing-only census of callbacks and state declarations owned by one composable node. */
       class ComposableNodeTestAccess
       {
       public:
+        static size_t declaredStateCount(const ComposableNode &node)
+        {
+          return node.nodeStates_.size();
+        }
+
         static size_t uiCallbackCount(const ComposableNode &node)
         {
           return node.callbacks_.size();
