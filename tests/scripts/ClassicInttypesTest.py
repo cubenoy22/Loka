@@ -96,6 +96,8 @@ class ClassicWorkflowTest(unittest.TestCase):
                               + suffix + "_APPL>", calls)
                 self.assertIn("python3 <tests/scripts/ClassicInttypesTest.py> <--build-dir> <"
                               + build + "> <ClassicQuickjsHeadersTest>", calls)
+                self.assertIn("python3 <tests/scripts/ClassicQuickjsStackTest.py> <--build-dir> <"
+                              + build + ">", calls)
 
 
 class ClassicQuickjsHeadersTest(unittest.TestCase):
