@@ -16,4 +16,11 @@ void testNullTextShapingDispatch();
 
 void testTextSpanTable();
 
+void testTextBreakerAllocationCensus();
+
+void testAttributedStringEstimateExtent();
+void testAttributedStringEstimateRefusal();
+
+void testTextBreakerCountingCapacityRefusal();
+
 #endif

@@ -3,6 +3,7 @@
 
 #include "app/style/Style.hpp"
 #include "core/String.hpp"
+#include "core/Frame.hpp"
 
 namespace loka
 {
@@ -27,6 +28,13 @@ namespace loka
       std::size_t segmentCount() const;
       /** Borrows a segment for this value's lifetime; index must be in range. */
       const Segment &segment(std::size_t index) const;
+      /** Rail-free deterministic estimate for future off-window seats, never
+          layoutProjected's rail truth and not intended for the keystroke path.
+          Uses Null's synthetic advance ceil(size/3), line height size, and
+          BlockStyle wrapping/truncation. Nonpositive width is unbounded.
+          On success writes an origin-(0,0) extent; on invalid input or allocation
+          refusal returns false and leaves out unchanged. No state is retained. */
+      bool estimateExtent(short availableWidth, const BlockStyle &block, core::Frame &out) const;
       bool equals(const AttributedString &other) const;
       bool operator==(const AttributedString &other) const;
       bool operator!=(const AttributedString &other) const;

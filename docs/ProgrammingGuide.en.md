@@ -923,8 +923,9 @@ not change its layout.
 
 Fold character styles into the value before passing it to `AttributedText`;
 the node has no separate character-style input. An invalid value displays as
-empty and refuses projection. The native rails do not draw it yet; the Null
-rail and the headless suite do.
+empty and refuses projection. The Toolbox and macOS rails draw it (Toolbox
+run by run, macOS as one attributed line); Win32 does not draw it yet, and the
+Null rail and the headless suite do.
 
 ### `Section()` And Tagged Siblings
 

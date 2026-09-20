@@ -735,3 +735,8 @@ LOKA_TEST(testTextBreakerCharacterization)
 LOKA_TEST(testTextBreakerRangesAndRefusal)
 LOKA_TEST(testNullTextShapingDispatch)
 LOKA_TEST(testTextSpanTable)
+
+LOKA_TEST(testTextBreakerAllocationCensus)
+LOKA_TEST(testAttributedStringEstimateExtent)
+LOKA_TEST(testAttributedStringEstimateRefusal)
+LOKA_TEST(testTextBreakerCountingCapacityRefusal)
