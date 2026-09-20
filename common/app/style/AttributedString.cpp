@@ -1,4 +1,5 @@
 #include "app/style/AttributedString.hpp"
+#include "app/layout/TextLineBreaker.hpp"
 
 #include <cassert>
 #include <functional>
@@ -8,6 +9,16 @@ namespace loka
 {
   namespace app
   {
+    bool AttributedString::estimateExtent(short availableWidth, const BlockStyle &block, core::Frame &out) const
+    {
+      const SyntheticTextWidthSource source(*this);
+      const TextLineBreaker result(source, block, availableWidth);
+      if (!result.valid())
+        return false;
+      out = SyntheticTextExtent(result, block, availableWidth);
+      return true;
+    }
+
     namespace
     {
       const core::LokaAllocationSite kSegmentsSite("AttributedString", "Segments");

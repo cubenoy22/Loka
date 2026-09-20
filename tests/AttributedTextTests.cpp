@@ -482,20 +482,22 @@ namespace
   class RefusingRangeSource : public RangeSource
   {
   public:
-    explicit RefusingRangeSource(const AttributedString &value)
+    explicit RefusingRangeSource(const AttributedString &value, unsigned refuseAt = 2)
         : RangeSource(value),
-          calls_(0)
+          calls_(0),
+          refuseAt_(refuseAt)
     {
     }
     virtual bool width(std::size_t start, std::size_t end, std::size_t span, int &out) const
     {
-      if (++this->calls_ == 2)
+      if (++this->calls_ == this->refuseAt_)
         return false;
       return RangeSource::width(start, end, span, out);
     }
 
   private:
     mutable unsigned calls_;
+    const unsigned refuseAt_;
   };
   /** Refuse the fill pass after a preceding segment has already been decoded. */
   class RefusedSpanString : public loka::platform::String
@@ -515,6 +517,35 @@ namespace
 
   private:
     mutable unsigned calls_;
+  };
+  /** Deliberately violates repeatability after the counting pass to exercise
+      the always-on capacity refusal independently of debug table assertions. */
+  class ChangingRangeSource : public SyntheticTextWidthSource
+  {
+  public:
+    ChangingRangeSource(const AttributedString &value, bool insertBreaks)
+        : SyntheticTextWidthSource(value),
+          calls_(0),
+          insertBreaks_(insertBreaks),
+          newline_()
+    {
+      this->newline_ = SyntheticTextWidthSource::character(0);
+      this->newline_.value = '\n';
+    }
+    virtual const TextBreakCharacter &character(std::size_t index) const
+    {
+      return this->insertBreaks_ && this->calls_ >= 41 ? this->newline_ : SyntheticTextWidthSource::character(index);
+    }
+    virtual bool width(std::size_t start, std::size_t end, std::size_t, int &out) const
+    {
+      out = static_cast<int>(end - start) * (++this->calls_ > 41 ? 4 : 1);
+      return true;
+    }
+
+  private:
+    mutable unsigned calls_;
+    const bool insertBreaks_;
+    TextBreakCharacter newline_;
   };
   class ShapingController : public NullScenePlatformController
   {
@@ -576,12 +607,16 @@ void testTextBreakerRangesAndRefusal()
   const RefusingRangeSource refusedWidth(split);
   const TextLineBreaker failedWidth(refusedWidth, BlockStyle(), 100);
   LOKA_VERIFY(!failedWidth.valid() && failedWidth.lineCount() == 0);
+  // Four growing ranges plus one completed fragment in the counting pass.
+  const RefusingRangeSource refusesFill(split, 6);
+  const TextLineBreaker failedFill(refusesFill, BlockStyle(), 100);
+  LOKA_VERIFY(!failedFill.valid() && failedFill.lineCount() == 0 && failedFill.width() == 0);
   const AttributedString longValue = Styled("abcdefghijklmnopqrstuvwxyz012345abcdefghijklmnopqrstuvwxyz012345", Bold);
   const RangeSource longSource(longValue);
   for (int allocation = 1; allocation <= 2; ++allocation)
   {
     loka::core::testing::failLokaAllocRaw("TextLineBreaker", "Table", allocation);
-    const TextLineBreaker refused(longSource, BlockStyle(), 100);
+    const TextLineBreaker refused(longSource, BlockStyle().wrap(TEXT_WRAP_CHAR), 1);
     LOKA_VERIFY(!refused.valid() && refused.lineCount() == 0 && refused.width() == 0);
     loka::core::testing::allowLokaAllocRaw();
   }
@@ -685,5 +720,134 @@ void testTextSpanTable()
     }
     LOKA_VERIFY(loka::core::testing::lokaAllocRawLive() == 0);
     loka::core::testing::allowLokaAllocRaw();
+  }
+}
+
+namespace
+{
+  void census(const char *name,
+              const AttributedString &value,
+              short width,
+              const BlockStyle &block,
+              int expectedAllocations = 0)
+  {
+    using namespace loka::core::testing;
+    failLokaAllocRaw("TextLineBreaker", "Table", 0);
+    int sourceAllocations = 0, resultAllocations = 0;
+    {
+      const SyntheticTextWidthSource source(value);
+      sourceAllocations = lokaAllocRawAttempts();
+      const TextLineBreaker result(source, block, width);
+      resultAllocations = lokaAllocRawAttempts() - sourceAllocations;
+      LOKA_VERIFY(result.valid());
+      std::printf("census %s: source=%d breaker=%d total=%d extent=%d/%d lines=%lu sizeof=%lu\n",
+                  name,
+                  sourceAllocations,
+                  resultAllocations,
+                  lokaAllocRawAttempts(),
+                  result.width(),
+                  result.height(),
+                  static_cast<unsigned long>(result.lineCount()),
+                  static_cast<unsigned long>(sizeof(result)));
+    }
+    LOKA_VERIFY(lokaAllocRawLive() == 0);
+    allowLokaAllocRaw();
+    LOKA_VERIFY(resultAllocations == expectedAllocations);
+  }
+} // namespace
+
+void testTextBreakerAllocationCensus()
+{
+  const BlockStyle word = BlockStyle().wrap(TEXT_WRAP_WORD);
+  census("WORD", Styled("ab cd", TextStyle()), 12, word);
+  census("CHAR", Styled("ab cd", TextStyle()), 12, BlockStyle().wrap(TEXT_WRAP_CHAR));
+  census("NONE", Styled("ab cd", TextStyle()), 12, BlockStyle().wrap(TEXT_WRAP_NONE));
+  census("CRLF", Styled("a\r", TextStyle()) + Styled("\nb", Bold), 12, word);
+  census("empty-line", Styled("a\n\nb", TextStyle()), 12, word);
+  census("empty", AttributedString(), 12, word);
+  census("long-word", Styled("abcdefg", TextStyle()), 12, word);
+  census("mixed", Styled("ab", SizeOf(12)) + Styled("cd", SizeOf(24)), 20, word);
+  census("across-runs", Styled("a wo", Bold) + Styled("rd", Italic), 20, word);
+  census("lines32", Styled(String(std::string(31, '\n')), Bold), 200, word);
+  census("lines33", Styled(String(std::string(32, '\n')), Bold), 200, word, 1);
+  census("forced40", Styled(String(std::string(40, 'x')), Bold), 4, word, 2);
+  AttributedString spans;
+  for (int i = 0; i < 33; ++i)
+    spans = spans + Styled("x", i % 2 ? Bold : Italic);
+  census("fragments33", spans, 200, word, 1);
+  census("editor40", Styled("01234567890123456789", Bold) + Styled("01234567890123456789", Italic), 200, word);
+}
+
+namespace
+{
+  void
+  verifyEstimate(const AttributedString &value, short available, const BlockStyle &block, short width, short height)
+  {
+    const NullTextMeasurement projection = measured(value, available, block);
+    Frame estimate(7, 8, 9, 10);
+    const bool valid = value.estimateExtent(available, block, estimate);
+    LOKA_VERIFY(valid);
+    LOKA_VERIFY(estimate.x == 0 && estimate.y == 0);
+    LOKA_VERIFY(estimate.width == projection.width() && estimate.height == projection.height());
+    LOKA_VERIFY(estimate.width == width && estimate.height == height);
+  }
+} // namespace
+
+void testAttributedStringEstimateExtent()
+{
+  const AttributedString mixed = Styled("ab", SizeOf(12)) + Styled("cd", SizeOf(24));
+  for (int mode = TEXT_WRAP_WORD; mode <= TEXT_WRAP_CHAR; ++mode)
+  {
+    const BlockStyle block = BlockStyle().wrap(static_cast<TextWrap>(mode));
+    verifyEstimate(mixed, 20, block, 16, 48);
+    verifyEstimate(Styled("ab cd", TextStyle()), 12, block, 12, 24);
+    verifyEstimate(Styled("abcdefg", TextStyle()), 12, block, 12, 36);
+    verifyEstimate(Styled("a\r", TextStyle()) + Styled("\nb", Bold), 12, block, 4, 24);
+    verifyEstimate(Styled("a\n\nb", TextStyle()), 12, block, 4, 36);
+    verifyEstimate(AttributedString(), 12, block, 0, 12);
+  }
+  const BlockStyle word = BlockStyle().wrap(TEXT_WRAP_WORD);
+  verifyEstimate(Styled("a wo", Bold) + Styled("rd", Italic), 20, word, 16, 24);
+  const AttributedString across = Styled("a ab", SizeOf(12)) + Styled("cd", SizeOf(24));
+  verifyEstimate(across, 24, word, 24, 36);
+  verifyEstimate(across, 24, BlockStyle().wrap(TEXT_WRAP_CHAR), 24, 48);
+  verifyEstimate(mixed, 20, BlockStyle().wrap(TEXT_WRAP_NONE), 24, 24);
+  verifyEstimate(Styled("ab cd", TextStyle()), 12, BlockStyle(), 20, 12);
+  verifyEstimate(mixed, 0, word, 24, 24);
+  verifyEstimate(mixed, -1, word, 24, 24);
+  verifyEstimate(Styled("x", SizeOf(10)), 12, BlockStyle(), 4, 10);
+  verifyEstimate(Styled("\n", SizeOf(24)), 12, word, 0, 48);
+  verifyEstimate(mixed, 21, BlockStyle().truncation(TEXT_TRUNCATION_CLIP), 21, 24);
+  verifyEstimate(mixed, 21, BlockStyle().truncation(TEXT_TRUNCATION_ELLIPSIS), 16, 24);
+  verifyEstimate(mixed, 21, BlockStyle().truncation(TEXT_TRUNCATION_NONE), 24, 24);
+}
+
+void testAttributedStringEstimateRefusal()
+{
+  const Frame sentinel(7, 8, 9, 10);
+  Frame out = sentinel;
+  const bool invalid = invalidValue().estimateExtent(100, BlockStyle(), out);
+  LOKA_VERIFY(!invalid && out == sentinel);
+  const AttributedString value = Styled(String(std::string(40, 'x')), Bold);
+  // Character, line and fragment tables each need heap storage at width 4.
+  for (int allocation = 1; allocation <= 3; ++allocation)
+  {
+    loka::core::testing::failLokaAllocRaw("TextLineBreaker", "Table", allocation);
+    const bool accepted = value.estimateExtent(4, BlockStyle().wrap(TEXT_WRAP_CHAR), out);
+    LOKA_VERIFY(!accepted && out == sentinel);
+    LOKA_VERIFY(loka::core::testing::lokaAllocRawLive() == 0);
+    loka::core::testing::allowLokaAllocRaw();
+  }
+  verifyEstimate(value, 4, BlockStyle().wrap(TEXT_WRAP_CHAR), 4, 480);
+}
+
+void testTextBreakerCountingCapacityRefusal()
+{
+  const AttributedString value = Styled(String(std::string(40, 'x')), Bold);
+  for (int mode = 0; mode < 2; ++mode)
+  {
+    const ChangingRangeSource source(value, mode != 0);
+    const TextLineBreaker result(source, BlockStyle().wrap(TEXT_WRAP_CHAR), 40);
+    LOKA_VERIFY(!result.valid() && result.lineCount() == 0 && result.width() == 0 && result.height() == 0);
   }
 }
