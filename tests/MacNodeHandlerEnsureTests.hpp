@@ -3,4 +3,8 @@
 
 void testMacNodeHandlerEnsureContract();
 
+void testMacAttributedTextWholeLineProjection();
+void testMacAttributedTextRetainedLifecycle();
+void testMacAttributedTextRefusalClearsProjection();
+
 #endif // LOKA_TESTS_MAC_NODE_HANDLER_ENSURE_TESTS_HPP

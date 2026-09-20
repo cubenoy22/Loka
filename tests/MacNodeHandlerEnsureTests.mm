@@ -309,3 +309,183 @@ void testMacNodeHandlerEnsureContract()
   [pool drain];
   std::printf("==== [testMacNodeHandlerEnsureContract] PASSED ====\n");
 }
+
+#include "app/nodes/AttributedText.hpp"
+#include "platform/MacNativeGeometry.hpp"
+#include "support/LifecycleFactTestAccess.hpp"
+#include "support/LokaAllocFailure.hpp"
+#include "platform/String.hpp"
+
+namespace
+{
+  NSTextField *AttributedField(NSView *root)
+  {
+    LOKA_VERIFY([[root subviews] count] == 1);
+    return (NSTextField *)[[root subviews] objectAtIndex:0];
+  }
+
+  void VerifyAttributedHeight(loka::app::AttributedTextNode &node, MacScenePlatformController &controller,
+                              NSView *root, short width)
+  {
+    loka::app::scene::LayoutState state;
+    state.x = 3;
+    state.y = 5;
+    state.width = width;
+    node.layoutProjected(&controller, state);
+    NSTextField *field = AttributedField(root);
+    const loka::macos::MacProjection &projection = controller.projection();
+    const NSSize rendered = [[field cell] cellSizeForBounds:loka::macos::MacMeasurementBounds(
+        projection.projectLength(state.x, state.x + width))];
+    LOKA_VERIFY(state.height == projection.measurementToLu(rendered.height));
+    LOKA_VERIFY(NSEqualRects([field frame], projection.projectFrame(
+        loka::core::Frame(3, 5, width, state.height)).r));
+  }
+
+  class MacRefusedAttributedString : public loka::platform::String
+  {
+  public:
+    virtual bool appendUtf8(std::string &) const { return false; }
+  };
+}
+
+void testMacAttributedTextWholeLineProjection()
+{
+  using namespace loka::app;
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  [NSApplication sharedApplication];
+  const RailMetrics metrics[] = {RailMetrics(), RailMetrics(Ratio(13, 12), Ratio(5, 4))};
+  for (int scale = 0; scale < 2; ++scale)
+  {
+    NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 240)];
+    {
+      MacScenePlatformController controller((void *)root, metrics[scale]);
+      LOKA_VERIFY(controller.textShaping() == WHOLE_LINE);
+      const TextStyle small = FontSize<12>();
+      const TextStyle large = FontSize<24>() + Italic;
+      // A supplementary character makes UTF-8 byte offsets and UTF-16 ranges
+      // disagree. Splitting the small run must not create a new styled range.
+      const AttributedString value = Styled("A", small) + Styled("\xF0\x9F\x98\x80 ", small)
+          + Styled("large italic words wrap here", large);
+      AttributedTextProps props(value);
+      props.blockStyle_ = BlockStyle().wrap(TEXT_WRAP_WORD);
+      AttributedTextNode node(props);
+      scene::LayoutState state;
+      state.width = 90;
+      // Pre-fix red: gRefusedMacAttributedText rejects this ensure.
+      LOKA_VERIFY(controller.prepareProjectedLayout(&node, state));
+      LOKA_VERIFY(node.getContext() != 0);
+      VerifyAttributedHeight(node, controller, root, 90);
+      NSTextField *field = AttributedField(root);
+      NSAttributedString *native = [field attributedStringValue];
+      NSRange range;
+      NSFont *first = [native attribute:NSFontAttributeName atIndex:0 effectiveRange:&range];
+      LOKA_VERIFY(first == (NSFont *)controller.textFont(small));
+      LOKA_VERIFY(range.location == 0 && range.length == 4);
+      NSFont *second = [native attribute:NSFontAttributeName atIndex:4 effectiveRange:&range];
+      LOKA_VERIFY(second == (NSFont *)controller.textFont(large));
+      LOKA_VERIFY(range.location == 4 && range.length == [native length] - 4);
+      const CGFloat narrowHeight = [field frame].size.height;
+      VerifyAttributedHeight(node, controller, root, 260);
+      LOKA_VERIFY([field frame].size.height < narrowHeight);
+      scene::NodeContext *context = node.getContext();
+      node.props.blockStyle_ = BlockStyle().wrap(TEXT_WRAP_CHAR);
+      context->onPropsApplied();
+      VerifyAttributedHeight(node, controller, root, 90);
+      LOKA_VERIFY([[field cell] lineBreakMode] == NSLineBreakByCharWrapping);
+      NSParagraphStyle *paragraph = [[field attributedStringValue]
+          attribute:NSParagraphStyleAttributeName atIndex:0 effectiveRange:0];
+      LOKA_VERIFY([paragraph lineBreakMode] == NSLineBreakByCharWrapping);
+      node.props.blockStyle_ = BlockStyle().wrap(TEXT_WRAP_NONE).truncation(TEXT_TRUNCATION_ELLIPSIS);
+      context->onPropsApplied();
+      VerifyAttributedHeight(node, controller, root, 90);
+      LOKA_VERIFY([[field cell] lineBreakMode] == NSLineBreakByTruncatingTail);
+      LOKA_VERIFY(![[field cell] wraps]);
+      LOKA_VERIFY(node.getContext() == context);
+    }
+    LOKA_VERIFY([[root subviews] count] == 0);
+    [root release];
+  }
+  [pool drain];
+}
+
+void testMacAttributedTextRetainedLifecycle()
+{
+  using namespace loka::app;
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  [NSApplication sharedApplication];
+  NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 240)];
+  {
+    MacScenePlatformController controller((void *)root, RailMetrics());
+    AttributedTextProps props(Styled("before", FontSize<12>()));
+    props.blockStyle_ = BlockStyle().wrap(TEXT_WRAP_WORD);
+    AttributedTextNode node(props);
+    VerifyAttributedHeight(node, controller, root, 100);
+    scene::NodeContext *context = node.getContext();
+    NSTextField *field = AttributedField(root);
+    NSAttributedString *before = [[field attributedStringValue] retain];
+    scene::NotifySubtreeNodeDetached(&node);
+    scene::LifecycleFactTestAccess::DeliverFacts(&node);
+    LOKA_VERIFY([field isHidden]);
+    LOKA_VERIFY([[field attributedStringValue] isEqualToAttributedString:before]);
+    scene::NotifySubtreeNodeAttached(&node);
+    scene::LifecycleFactTestAccess::DeliverFacts(&node);
+    LOKA_VERIFY(![field isHidden]);
+    LOKA_VERIFY(node.getContext() == context);
+    LOKA_VERIFY([[field attributedStringValue] isEqualToAttributedString:before]);
+    [before release];
+    scene::NotifySubtreeNodeDetached(&node);
+    scene::LifecycleFactTestAccess::DeliverFacts(&node);
+    AttributedTextProps replacement(Styled("updated while hidden", FontSize<24>() + Italic));
+    replacement.blockStyle_ = BlockStyle().wrap(TEXT_WRAP_WORD);
+    AttributedTextDefinition definition(replacement);
+    LOKA_VERIFY(definition.applyPropsToNode(&node));
+    VerifyAttributedHeight(node, controller, root, 100);
+    LOKA_VERIFY([field isHidden]);
+    scene::NotifySubtreeNodeAttached(&node);
+    scene::LifecycleFactTestAccess::DeliverFacts(&node);
+    LOKA_VERIFY(![field isHidden]);
+    LOKA_VERIFY([[field stringValue] isEqualToString:@"updated while hidden"]);
+    LOKA_VERIFY(node.getContext() == context);
+    scene::LifecycleFactTestAccess::MarkSubtreeRetired(&node);
+    scene::LifecycleFactTestAccess::DeliverFacts(&node);
+    LOKA_VERIFY([[root subviews] count] == 0);
+    LOKA_VERIFY([[field stringValue] length] == 0);
+  }
+  [root release];
+  [pool drain];
+}
+
+void testMacAttributedTextRefusalClearsProjection()
+{
+  using namespace loka::app;
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  [NSApplication sharedApplication];
+  NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 240)];
+  {
+    MacScenePlatformController controller((void *)root, RailMetrics());
+    AttributedTextProps props(Styled("visible", FontSize<12>()));
+    AttributedTextNode node(props);
+    VerifyAttributedHeight(node, controller, root, 100);
+    NSTextField *field = AttributedField(root);
+    const loka::core::String text("allocation refusal");
+    loka::core::testing::failLokaAllocRaw("AttributedString", "Segments", 1);
+    const AttributedString refused = Styled(text, Italic);
+    loka::core::testing::allowLokaAllocRaw();
+    LOKA_VERIFY(!refused.valid());
+    node.props.text(refused);
+    scene::LayoutState state;
+    state.width = 100;
+    node.layoutProjected(&controller, state);
+    LOKA_VERIFY(state.height == 0 && [[field stringValue] length] == 0);
+    node.props.text(Styled("recovered", Italic));
+    VerifyAttributedHeight(node, controller, root, 100);
+    const loka::core::String unreadable(loka::core::Managed<loka::platform::String>::Wrap(new MacRefusedAttributedString()));
+    node.props.text(Styled(unreadable, Italic));
+    node.layoutProjected(&controller, state);
+    LOKA_VERIFY(state.height == 0 && [[field stringValue] length] == 0);
+    node.props.text(Styled("recovered again", Italic));
+    VerifyAttributedHeight(node, controller, root, 100);
+  }
+  [root release];
+  [pool drain];
+}
