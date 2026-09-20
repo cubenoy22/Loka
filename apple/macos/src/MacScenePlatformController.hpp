@@ -2,6 +2,7 @@
 #define LOKA_MAC_SCENE_PLATFORM_CONTROLLER_HPP
 
 #include <vector>
+#include "app/layout/TextShaping.hpp"
 #include "platform/MacProjection.hpp"
 #include "app/RectSurface.hpp"
 #include "app/style/StyleVocab.hpp"
@@ -91,6 +92,7 @@ public:
 
   MacScenePlatformController(void *rootView, const loka::app::RailMetrics &metrics);
   virtual ~MacScenePlatformController();
+  loka::app::TextShaping textShaping() const { return this->textShaping_; }
 
   virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild);
   virtual void onBoundaryApply(loka::app::scene::Node *rootNode,
@@ -279,6 +281,7 @@ private:
   };
 
   const loka::macos::MacProjection projection_;
+  const loka::app::TextShaping textShaping_;
   TextFontTable textFonts_;
   void *rootView_;
   loka::app::scene::ProjectionParentScopeStack projectionParentScopes_;
