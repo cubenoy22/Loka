@@ -69,7 +69,40 @@ if (-not $env:MAME_HDA -or -not (Test-Path -LiteralPath $env:MAME_HDA)) {
     throw "MAME_HDA must point to the boot hard disk template"
 }
 
-$resolvedMacBinary = (Resolve-Path -LiteralPath $MacBinaryPath).Path
+$cpu = if ($env:LOKA_MAME_CPU) { $env:LOKA_MAME_CPU } else { "68k" }
+switch ($cpu) {
+    "68k" { $suffix = "68K" }
+    "ppc" { $suffix = "PPC" }
+    default { throw "Invalid LOKA_MAME_CPU: expected 68k or ppc" }
+}
+$binaryPaths = @($MacBinaryPath)
+# Keep the batch selection aligned with mame-dev-disk.sh.
+if ($MacBinaryPath -in @("--all-loops", "--all-flows")) {
+    if ($PlainDataPaths.Count) { throw "$MacBinaryPath does not accept additional files" }
+    $family = if ($MacBinaryPath -eq "--all-loops") { "Loop" } else { "Flow" }
+    $batchRoot = Join-Path $ProjectDirectory "build/retro68/${cpu}/Standalone/Release/tests/toolbox"
+    $binaryPaths = @(
+        foreach ($app in @("Scrapbook", "Hello", "Tutorial", "Mine", "Floppy")) {
+            Join-Path $batchRoot "Loka${app}Standalone${family}${suffix}.bin"
+        }
+    )
+    $PlainDataPaths = @((Join-Path $batchRoot "ASSETS.LRP"))
+}
+if ($MacBinaryPath -eq "--all") {
+    if ($PlainDataPaths.Count) { throw "--all does not accept additional files" }
+    $binaryPaths = @(
+        foreach ($app in @("HelloWorld/LokaHello", "MineSweeper/LokaMine", "SimpleViewer/LokaSimpleViewer", "FloppyBird/LokaFloppyBird", "SmirkBench/LokaSmirkBench", "LazyList/LokaLazyList", "Tutorial/LokaTutorial", "ScrapbookUI/ScrapbookUI", "SmirkyCard/LokaSmirkyCard")) {
+            Join-Path $ProjectDirectory "build/retro68/${cpu}/Release/example/${app}${suffix}.bin"
+        }
+    )
+    $PlainDataPaths = @(
+        (Join-Path $ProjectDirectory "build/retro68/${cpu}/Release/example/ScrapbookUI/ASSETS.LRP"),
+        (Join-Path $ProjectDirectory "example/SmirkyCard/MAIN.JS")
+    )
+}
+$resolvedMacBinaries = @(
+    foreach ($path in $binaryPaths) { (Resolve-Path -LiteralPath $path).Path }
+)
 $resolvedPlainData = @(
     foreach ($path in $PlainDataPaths) {
         (Resolve-Path -LiteralPath $path).Path
@@ -102,8 +135,10 @@ try {
     $env:HOME = $hfsHome
     & $hformat -l LokaDev $temporaryDisk 1
     if ($LASTEXITCODE) { throw "hformat failed with exit code $LASTEXITCODE" }
-    & $hcopy -m $resolvedMacBinary ":"
-    if ($LASTEXITCODE) { throw "hcopy failed with exit code $LASTEXITCODE" }
+    foreach ($path in $resolvedMacBinaries) {
+        & $hcopy -m $path ":"
+        if ($LASTEXITCODE) { throw "hcopy failed with exit code $LASTEXITCODE" }
+    }
     foreach ($path in $resolvedPlainData) {
         & $hcopy -r $path ":"
         if ($LASTEXITCODE) { throw "hcopy failed with exit code $LASTEXITCODE" }

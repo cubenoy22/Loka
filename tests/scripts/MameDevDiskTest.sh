@@ -80,3 +80,65 @@ grep -Fx "hcopy <-r> <$SANDBOX/second-data> <:>" \
   fail "with-data case made an unexpected number of copies"
 
 printf 'ok: mame-dev-disk supports zero or more plain-data files\n'
+
+# Exercise the real batch writer against a complete, isolated example tree.
+mkdir -p "$SANDBOX/repo/scripts" "$SANDBOX/repo/example/SmirkyCard"
+cp "$SUBJECT" "$SANDBOX/repo/scripts/mame-dev-disk.sh"
+cp "$REPO_DIR/scripts/retro68-env.sh" "$SANDBOX/repo/scripts/"
+cp "$REPO_DIR/scripts/env-file.sh" "$SANDBOX/repo/scripts/"
+for app in HelloWorld/LokaHello MineSweeper/LokaMine SimpleViewer/LokaSimpleViewer FloppyBird/LokaFloppyBird SmirkBench/LokaSmirkBench LazyList/LokaLazyList Tutorial/LokaTutorial ScrapbookUI/ScrapbookUI SmirkyCard/LokaSmirkyCard; do
+  binary="$SANDBOX/repo/build/retro68/68k/Release/example/${app}68K.bin"
+  mkdir -p "$(dirname "$binary")"
+  touch "$binary"
+done
+touch "$SANDBOX/repo/build/retro68/68k/Release/example/ScrapbookUI/ASSETS.LRP"
+touch "$SANDBOX/repo/example/SmirkyCard/MAIN.JS"
+run_all() {
+  MAME_DEV_DISK_TEST_LOG="$SANDBOX/all.log" \
+  MAME_ENV_FILE="$SANDBOX/missing.env" \
+  MAME_HDA="$SANDBOX/boot.hd" \
+  MAME_HOMEPATH="$SANDBOX/home" \
+  MAME_DEV_HDA="$SANDBOX/all.hd" \
+  RETRO68_TOOLCHAIN_BIN="$SANDBOX/bin" \
+    /bin/bash "$SANDBOX/repo/scripts/mame-dev-disk.sh" "${1:---all}" >/dev/null
+}
+run_all
+[ "$(grep -c '^hformat ' "$SANDBOX/all.log")" -eq 1 ] || fail "All reformatted more than once"
+[ "$(grep -c '^hcopy <-m>' "$SANDBOX/all.log")" -eq 9 ] || fail "All must copy nine apps"
+[ "$(grep -c '^hcopy <-r>' "$SANDBOX/all.log")" -eq 2 ] || fail "All must copy both assets"
+cp "$SANDBOX/all.hd" "$SANDBOX/previous.hd"
+mv "$SANDBOX/repo/example/SmirkyCard/MAIN.JS" "$SANDBOX/missing-main.js"
+if run_all 2>/dev/null; then
+  fail "All accepted a missing asset"
+fi
+cmp "$SANDBOX/all.hd" "$SANDBOX/previous.hd" || fail "failed All replaced the previous disk"
+printf 'ok: All copies nine apps and assets in one disk transaction\n'
+
+for cpu in 68k ppc; do
+export LOKA_MAME_CPU="$cpu"
+suffix=68K
+[ "$cpu" != ppc ] || suffix=PPC
+batch_root="$SANDBOX/repo/build/retro68/$cpu/Standalone/Release/tests/toolbox"
+mkdir -p "$batch_root"
+touch "$batch_root/ASSETS.LRP"
+for family in Loop Flow; do
+  for app in Scrapbook Hello Tutorial Mine Floppy; do
+    touch "$batch_root/Loka${app}Standalone${family}${suffix}.bin"
+  done
+done
+for family in Loop Flow; do
+  option=--all-loops
+  [ "$family" != Flow ] || option=--all-flows
+  : > "$SANDBOX/all.log"
+  run_all "$option"
+  [ "$(grep -c '^hformat ' "$SANDBOX/all.log")" -eq 1 ] || fail "$family reformatted more than once"
+  [ "$(grep -c '^hcopy <-m>' "$SANDBOX/all.log")" -eq 5 ] || fail "$family must copy five apps"
+  for app in Scrapbook Hello Tutorial Mine Floppy; do
+    grep -Fx "hcopy <-m> <$batch_root/Loka${app}Standalone${family}${suffix}.bin> <:>" "$SANDBOX/all.log" >/dev/null ||
+      fail "$family omitted $app"
+  done
+  grep -Fx "hcopy <-r> <$batch_root/ASSETS.LRP> <:>" "$SANDBOX/all.log" >/dev/null ||
+    fail "$family omitted Scrapbook assets"
+done
+printf 'ok: All Loops and All Flows each copy five apps and shared assets\n'
+done
