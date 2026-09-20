@@ -258,7 +258,8 @@ namespace loka
                                 const TextStyle &emptyStyle)
     {
       const TextWrap wrap = block.hasWrap_ && available > 0 ? block.wrap_ : TEXT_WRAP_NONE;
-      TextLineMetrics empty = source.metrics(emptyStyle);
+      TextLineMetrics empty;
+      bool hasEmptyMetrics = false;
       std::size_t begin = 0, index = 0, wordEnd = 0;
       while (true)
       {
@@ -337,9 +338,19 @@ namespace loka
         }
         line.fragmentCount = this->fragmentCount_ - line.firstFragment;
         if (line.metrics.ascent == 0 && line.metrics.descent == 0)
+        {
+          if (!hasEmptyMetrics)
+          {
+            empty = source.metrics(emptyStyle);
+            hasEmptyMetrics = true;
+          }
           line.metrics = empty;
+        }
         if (explicitBreak)
+        {
           empty = breaks;
+          hasEmptyMetrics = true;
+        }
         if (index == source.length() && !explicitBreak)
           break;
         begin = index;

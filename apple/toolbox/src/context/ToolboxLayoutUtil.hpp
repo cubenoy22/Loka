@@ -56,7 +56,13 @@ public:
       const ToolboxScenePlatformController &controller,
       const ToolboxTextFontDescriptor &descriptor = ToolboxTextFontDescriptor());
   ~ToolboxTextMeasureScope();
+  ToolboxTextMeasureScope(const ToolboxScenePlatformController &controller,
+                          const ToolboxTextFontDescriptor *descriptors, std::size_t count);
   short measure(const loka::core::String &value) const;
+  /** Select against the original port, never the preceding run. */
+  void select(const ToolboxTextFontDescriptor &descriptor) const;
+  /** Compare the actual font settings inherited from this transaction's port. */
+  bool sameFont(const ToolboxTextFontDescriptor &a, const ToolboxTextFontDescriptor &b) const;
 
 private:
   ToolboxTextMeasureScope(const ToolboxTextMeasureScope &);
