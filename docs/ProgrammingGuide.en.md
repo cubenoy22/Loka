@@ -925,8 +925,11 @@ Fold character styles into the value before passing it to `AttributedText`;
 the node has no separate character-style input. An invalid value displays as
 empty and refuses projection. Every rail draws it: Toolbox and Win32 run by
 run, macOS as one attributed line, and the Null rail deterministically for the
-headless suite. Line breaking follows the combined text on every rail; only
-the measured widths differ.
+headless suite. Every rail wraps the combined text, never one segment at a
+time, but the wrap positions are the rail's: Toolbox, Win32 and Null break at
+ASCII spaces and tabs through the shared breaker, while macOS lets AppKit
+choose its word breaks, so hyphens and non-Latin scripts can wrap differently
+across rails.
 
 ### `Section()` And Tagged Siblings
 
