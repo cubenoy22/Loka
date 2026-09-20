@@ -55,10 +55,7 @@ ToolboxTextMeasureScope::ToolboxTextMeasureScope(
   }
 
   SetPort(this->measurePort_);
-  const short font = descriptor.font(this->previousFont_);
-  TextFont(font == 0 ? GetSysFont() : font);
-  TextSize(ResolvedFontSize(descriptor.size(this->previousSize_)));
-  TextFace(descriptor.face(this->previousFace_));
+  this->select(descriptor);
 }
 
 ToolboxTextMeasureScope::~ToolboxTextMeasureScope()
@@ -85,4 +82,49 @@ short ToolboxTextMeasureScope::measure(const loka::core::String &value) const
     return 0;
   }
   return StringWidth(text);
+}
+
+void ToolboxTextMeasureScope::select(const ToolboxTextFontDescriptor &descriptor) const
+{
+  if (!this->measurePort_)
+    return;
+  const short font = descriptor.font(this->previousFont_);
+  TextFont(font == 0 ? GetSysFont() : font);
+  TextSize(ResolvedFontSize(descriptor.size(this->previousSize_)));
+  TextFace(descriptor.face(this->previousFace_));
+}
+
+namespace
+{
+  bool NeedsBusy(GrafPtr port, const ToolboxTextFontDescriptor *descriptors, std::size_t count)
+  {
+    if (!port)
+      return false;
+    short largest = count ? ResolvedFontSize(descriptors[0].size(port->txSize)) : ResolvedFontSize(port->txSize);
+    for (std::size_t i = 1; i < count; ++i)
+    {
+      const short size = ResolvedFontSize(descriptors[i].size(port->txSize));
+      if (size > largest)
+        largest = size;
+    }
+    return largest != ResolvedFontSize(port->txSize);
+  }
+}
+
+ToolboxTextMeasureScope::ToolboxTextMeasureScope(
+    const ToolboxScenePlatformController &controller,
+    const ToolboxTextFontDescriptor *descriptors, std::size_t count)
+    : previousPort_(0),
+      measurePort_(controller.window_ ? reinterpret_cast<GrafPtr>(controller.window_->window()) : 0),
+      previousFont_(this->measurePort_ ? this->measurePort_->txFont : 0),
+      previousSize_(this->measurePort_ ? this->measurePort_->txSize : 0),
+      previousFace_(this->measurePort_ ? this->measurePort_->txFace : 0),
+      busy_(NeedsBusy(this->measurePort_, descriptors, count) ? controller.cursorOwner() : 0)
+{
+  GetPort(&this->previousPort_);
+  if (this->measurePort_)
+  {
+    SetPort(this->measurePort_);
+    this->select(ToolboxTextFontDescriptor());
+  }
 }
