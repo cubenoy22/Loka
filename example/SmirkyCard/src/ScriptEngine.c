@@ -5,7 +5,19 @@
 #include <string.h>
 
 /* QuickJS receives 8-byte-aligned blocks on every rail; see ScriptAlignedAlloc.h. */
-static const SmirkyBaseAllocator kScriptBaseAllocator = {malloc, free};
+/* Local thunks: MSVC refuses the address of a dllimport CRT function in a
+   static initializer (C4232), and the thunks keep the base pair in one place. */
+static void *ScriptBaseAllocate(size_t size)
+{
+  return malloc(size);
+}
+
+static void ScriptBaseRelease(void *block)
+{
+  free(block);
+}
+
+static const SmirkyBaseAllocator kScriptBaseAllocator = {ScriptBaseAllocate, ScriptBaseRelease};
 
 static void *ScriptCalloc(void *opaque, size_t count, size_t size)
 {
