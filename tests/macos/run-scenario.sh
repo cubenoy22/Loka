@@ -348,7 +348,7 @@ if [ "$MODE" = "update" ]; then
       --registry "$SCENARIO_REGISTRY" \
       --declarations "$STARTUP_IDENTITY_DECLARATIONS" \
       --golden-root "$PROJECT_DIR/build/macos-scenario/golden" \
-      "${update_arguments[@]}" \
+      ${update_arguments[@]+"${update_arguments[@]}"} \
       --capture "$WORK/actual.png" \
       --example "$EXAMPLE" \
       --scenario "$SCENARIO"; then
