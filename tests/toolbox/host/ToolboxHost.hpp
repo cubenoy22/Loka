@@ -15,6 +15,9 @@
 #define LOKA_TOOLBOX_SCROLL_BAR_CONTEXT_HPP
 #define LOKA_TOOLBOX_TEXT_CONTEXT_HPP
 #include "Quickdraw.h"
+#include "TextEdit.h"
+#include "ToolboxEditControlLedger.hpp"
+class ToolboxTextEditorContext;
 #include "ToolboxCompositionReplay.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
@@ -66,7 +69,7 @@ public:
   };
   int capabilities() const
   {
-    return 0;
+    return CAP_TEXT_EDIT;
   }
 };
 class ToolboxWindow
@@ -80,6 +83,7 @@ public:
     port.txSize = 12;
     port.txFace = 0;
   }
+  void requestInvalidateRect(const Rect &) {}
   GrafPtr window()
   {
     return &port;
@@ -92,6 +96,21 @@ public:
 class ToolboxScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
+  struct EditTextControlBinding
+  {
+    loka::app::scene::NodeContext *ownerContext;
+    TEHandle te;
+    void *text;
+    ToolboxTextEditorContext *editor;
+    Rect rect;
+    bool usedThisFrame;
+    loka::app::scene::NativeLifetimeHint lifetimeHint;
+  };
+  ToolboxEditControlLedger<EditTextControlBinding, loka::app::scene::NodeContext> editControls_;
+  std::vector<TEHandle> retiredTE;
+  TEHandle ensureTextEditorControl(ToolboxTextEditorContext *, const Rect &, loka::app::scene::NativeLifetimeHint);
+  void retireTextEditorControl(loka::app::scene::NodeContext *, loka::app::scene::NativeLifetimeHint);
+  void flushTE();
   ToolboxCompositionReplay compositionReplay;
   void registerCompositionReplay(ToolboxCompositionReplay::Registration &registration)
   {

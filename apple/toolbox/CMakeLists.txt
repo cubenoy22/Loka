@@ -23,6 +23,7 @@ set(LOKA_TOOLBOX_SOURCES
   src/context/ToolboxLayoutUtil.cpp
   src/context/ToolboxProjectedNodeContext.cpp
   src/context/ToolboxCellContext.cpp
+  src/context/ToolboxTextEditorContext.cpp
   src/context/ToolboxEditTextContext.cpp
   src/context/ToolboxOpenFileDialogContext.cpp
   src/context/ToolboxPopupMenuContext.cpp
@@ -33,6 +34,7 @@ set(LOKA_TOOLBOX_SOURCES
   src/context/ToolboxImageViewContext.cpp
   src/context/ToolboxRectSurfaceContext.cpp
   src/ToolboxPlatformLayoutHandlers.cpp
+  src/ToolboxTextEditorBinding.cpp
   src/ToolboxHitLedger.cpp
   src/ToolboxNodeDispatch.cpp
   src/ToolboxScrollBarLedger.cpp
@@ -48,6 +50,7 @@ set(LOKA_TOOLBOX_SOURCES
 # These implementation cells are included by the controller so the Classic
 # compiler retains the original translation-unit optimization and code size.
 set_source_files_properties(
+  src/ToolboxTextEditorBinding.cpp
   src/ToolboxHitLedger.cpp
   src/ToolboxScrollBarLedger.cpp
   PROPERTIES HEADER_FILE_ONLY TRUE

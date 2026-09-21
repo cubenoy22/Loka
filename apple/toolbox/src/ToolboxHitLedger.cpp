@@ -25,7 +25,8 @@ bool ToolboxScenePlatformController::handleMouseDown(const Point &point)
     {
       editControls_.focus(i);
       TEActivate(binding.te);
-      TEClick(point, false, binding.te);
+      if (binding.editor) binding.editor->click(point);
+      else TEClick(point, false, binding.te);
       return true;
     }
   }

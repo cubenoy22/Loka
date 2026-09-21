@@ -1,3 +1,4 @@
+#include "context/ToolboxTextEditorContext.hpp"
 #include "ToolboxPropsRefresh.hpp"
 #include "ToolboxDirtyReplay.hpp"
 #include "ToolboxScenePlatformController.hpp"
@@ -62,6 +63,7 @@ namespace
            || key == loka::app::scene::NodeTypeToken<loka::app::RectSurfaceNode>()
            || key == loka::app::scene::NodeTypeToken<loka::app::ButtonNode>()
            || key == loka::app::scene::NodeTypeToken<loka::app::TextNode>()
+           || key == loka::app::scene::NodeTypeToken<loka::app::TextEditorNode>()
            || key == loka::app::scene::NodeTypeToken<loka::app::EditTextNode>()
            || key == loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>();
   }
@@ -1439,13 +1441,14 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     // the outer rect, so the region that has to trigger a redraw is the outer
     // one. Gating on the inner rect would skip a dirty strip covering only the
     // chrome and leave the frame erased.
-    if (!RectsIntersect(rect, binding.ownerContext->chromeRect()))
+    if (!RectsIntersect(rect, (binding.editor ? binding.editor->chromeRect() : static_cast<ToolboxEditTextContext *>(binding.ownerContext)->chromeRect())))
     {
       continue;
     }
     // Replay borrows established TE placement; it never reprojects or changes
     // the registry after the viewport's projection scope has popped.
-    binding.ownerContext->repaint(binding.te);
+    if (binding.editor) binding.editor->repaint(binding.te);
+    else static_cast<ToolboxEditTextContext *>(binding.ownerContext)->repaint(binding.te);
   }
   drawControlsInRect(rect);
 }
@@ -1468,6 +1471,11 @@ bool ToolboxScenePlatformController::handleKeyDown(char key)
   EditTextControlBinding *focusedEdit = editControls_.focused();
   if (focusedEdit && focusedEdit->te)
   {
+    if (focusedEdit->editor)
+    {
+      focusedEdit->editor->key(key);
+      return true;
+    }
     beginBatchUpdate();
     TEKey(key, focusedEdit->te);
     updateStateFromEdit(*focusedEdit);
@@ -2517,6 +2525,8 @@ void ToolboxScenePlatformController::drawFallbackControl(const Rect &rect)
   LineTo(rect.right - 2, rect.top + 2);
 }
 
+#include "ToolboxTextEditorBinding.cpp"
+
 TEHandle ToolboxScenePlatformController::ensureEditTextControl(ToolboxEditTextContext *ownerContext,
                                                                const Rect &rect,
                                                                loka::core::State<loka::core::String> *text,
@@ -2563,6 +2573,7 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(ToolboxEditTextCo
     }
     EditTextControlBinding entry;
     entry.ownerContext = ownerContext;
+    entry.editor = 0;
     entry.text = text;
     entry.textSeat = ownerContext->projectedWriteSeat();
     entry.te = te;
@@ -2608,8 +2619,10 @@ void ToolboxScenePlatformController::retireEditTextBinding(
     EditTextControlBinding &binding,
     loka::app::scene::NativeLifetimeHint lifetimeHint)
 {
-  if (binding.ownerContext)
-    binding.ownerContext->invalidateNativePresentation();
+  if (binding.editor)
+    binding.editor->invalidateNativePresentation();
+  else if (binding.ownerContext)
+    static_cast<ToolboxEditTextContext *>(binding.ownerContext)->invalidateNativePresentation();
   if (binding.te)
   {
     TEDeactivate(binding.te);
@@ -2646,6 +2659,7 @@ void ToolboxScenePlatformController::retireEditTextControl(
 
 void ToolboxScenePlatformController::syncEditTextFromState(EditTextControlBinding &binding)
 {
+  if (binding.editor) return;
   if (!binding.te)
   {
     return;
@@ -2788,6 +2802,7 @@ void ToolboxScenePlatformController::idleTextEdits()
 {
   for (size_t i = 0; i < editControls_.size(); ++i)
   {
+    if (editControls_[i].editor) editControls_[i].editor->retryProjection();
     if (editControls_[i].te)
     {
       TEIdle(editControls_[i].te);
