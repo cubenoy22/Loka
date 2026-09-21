@@ -384,10 +384,10 @@ void testMacAttributedTextWholeLineProjection()
       NSAttributedString *native = [field attributedStringValue];
       NSRange range;
       NSFont *first = [native attribute:NSFontAttributeName atIndex:0 effectiveRange:&range];
-      LOKA_VERIFY(first == (NSFont *)controller.textFont(small));
+      LOKA_VERIFY([first isEqual:(NSFont *)controller.textFont(small)]);
       LOKA_VERIFY(range.location == 0 && range.length == 4);
       NSFont *second = [native attribute:NSFontAttributeName atIndex:4 effectiveRange:&range];
-      LOKA_VERIFY(second == (NSFont *)controller.textFont(large));
+      LOKA_VERIFY([second isEqual:(NSFont *)controller.textFont(large)]);
       LOKA_VERIFY(range.location == 4 && range.length == [native length] - 4);
       const CGFloat narrowHeight = [field frame].size.height;
       VerifyAttributedHeight(node, controller, root, 260);

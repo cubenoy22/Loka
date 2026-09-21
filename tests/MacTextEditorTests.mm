@@ -50,6 +50,13 @@ namespace
   using namespace loka::core;
   typedef loka::testing::MacTextEditorAccess Access;
 
+  void verifyFont(NSFont *actual, NSFont *expected)
+  {
+    LOKA_VERIFY(actual != nil && expected != nil);
+    LOKA_VERIFY([[actual fontName] isEqualToString:[expected fontName]]);
+    LOKA_VERIFY([actual pointSize] == [expected pointSize]);
+  }
+
   struct NativeHost
   {
     NSAutoreleasePool *pool;
@@ -117,7 +124,7 @@ namespace
       this->scroll = (NSScrollView *)[[[this->host.window contentView] subviews] objectAtIndex:0];
       this->view = (NSTextView *)[this->scroll documentView];
       LOKA_VERIFY(![this->view isRichText]);
-      LOKA_VERIFY([this->view font] == (NSFont *)this->controller.textFont(TextStyle(), true));
+      this->verifyPlainFont();
       LOKA_VERIFY(this->context->layout(&this->controller, state) == 105);
       LOKA_VERIFY(state.height == 96);
       LOKA_VERIFY(
@@ -128,6 +135,15 @@ namespace
     {
       LifecycleFactTestAccess::MarkSubtreeRetired(&this->node);
       LifecycleFactTestAccess::DeliverFacts(&this->node);
+    }
+    void verifyPlainFont()
+    {
+      NSFont *font = (NSFont *)this->controller.textFont(TextStyle(), true);
+      verifyFont([this->view font], font);
+      verifyFont([[this->view typingAttributes] objectForKey:NSFontAttributeName], font);
+      NSTextStorage *storage = [this->view textStorage];
+      for (NSUInteger i = 0; i < [storage length]; ++i)
+        verifyFont([storage attribute:NSFontAttributeName atIndex:i effectiveRange:0], font);
     }
     void notify()
     {
@@ -161,6 +177,7 @@ namespace
       LOKA_VERIFY([[this->view string] isEqualToString:expected]);
       LOKA_VERIFY([[this->view string] length] == bytes.size());
       LOKA_VERIFY([this->view isEditable]);
+      this->verifyPlainFont();
     }
   };
   struct Snapshot
@@ -394,6 +411,11 @@ void testMacTextEditorNestedInput()
 
 void testMacTextEditorReplacementFailure()
 {
+  {
+    Fixture empty(1, "");
+    empty.edit(@"\u00e9", 1);
+    empty.restored(1);
+  }
   Fixture f;
   LokaRefusingEditorView *view = [[LokaRefusingEditorView alloc] initWithFrame:[f.view frame]];
   [view setString:[f.view string]];
@@ -447,19 +469,19 @@ void testMacTextEditorHighlightAndLifecycle()
   f.edit(@"abxcd\nabcd\nabcd", 3);
   LOKA_VERIFY(highlighter.calls == 4);
   NSFont *styled = [[f.view textStorage] attribute:NSFontAttributeName atIndex:0 effectiveRange:0];
-  LOKA_VERIFY(styled == (NSFont *)f.controller.textFont(Bold + Italic + FontSize<18>(), true));
+  verifyFont(styled, (NSFont *)f.controller.textFont(Bold + Italic + FontSize<18>(), true));
   highlighter.fail = true;
   f.edit(@"abxycd\nabcd\nabcd", 4);
   LOKA_VERIFY(highlighter.calls == 5 && bytes(f.lines.at(0).value) == "abxycd");
-  LOKA_VERIFY([[f.view textStorage] attribute:NSFontAttributeName atIndex:0 effectiveRange:0]
-              == (NSFont *)f.controller.textFont(TextStyle(), true));
+  verifyFont([[f.view textStorage] attribute:NSFontAttributeName atIndex:0 effectiveRange:0],
+             (NSFont *)f.controller.textFont(TextStyle(), true));
   highlighter.fail = false;
   loka::core::testing::failLokaAllocRaw("AttributedString", "Segments", 1);
   f.edit(@"abxyQcd\nabcd\nabcd", 5);
   loka::core::testing::allowLokaAllocRaw();
   LOKA_VERIFY(highlighter.calls == 6 && bytes(f.lines.at(0).value) == "abxyQcd");
-  LOKA_VERIFY([[f.view textStorage] attribute:NSFontAttributeName atIndex:0 effectiveRange:0]
-              == (NSFont *)f.controller.textFont(TextStyle(), true));
+  verifyFont([[f.view textStorage] attribute:NSFontAttributeName atIndex:0 effectiveRange:0],
+             (NSFont *)f.controller.textFont(TextStyle(), true));
   // Pending restore is invalidated by retained detach, as is the style cache.
   f.edit(@"\u00e9", 1);
   NotifySubtreeNodeDetached(&f.node);

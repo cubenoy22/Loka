@@ -77,6 +77,26 @@ namespace
     return true;
   }
 
+  void InstallEditorFont(NSTextView *view, MacScenePlatformController &controller)
+  {
+    NSFont *font = (NSFont *)controller.textFont(TextStyle(), true);
+    if (!font)
+      return;
+    [view setFont:font];
+    NSTextStorage *storage = [view textStorage];
+    [storage beginEditing];
+    [storage addAttribute:NSFontAttributeName value:font range:NSMakeRange(0, [storage length])];
+    [storage endEditing];
+    [view setTypingAttributes:[NSDictionary dictionaryWithObject:font forKey:NSFontAttributeName]];
+  }
+
+  void ReplaceEditorString(NSTextView *view, NSString *text, MacScenePlatformController &controller)
+  {
+    [view setString:text];
+    // Full replacement resets attributes, including those on line separators.
+    InstallEditorFont(view, controller);
+  }
+
   class MacTextEditorHandler
       : public loka::app::scene::RetainedNodeHandler<MacTextEditorHandler,
                                                      loka::app::TextEditorNode,
@@ -311,7 +331,7 @@ MacTextEditorContext::MacTextEditorContext(MacScenePlatformController *controlle
   }
   [view setRichText:NO];
   [view setAllowsUndo:YES];
-  [view setFont:(NSFont *)controller->textFont(TextStyle(), true)];
+  InstallEditorFont(view, *controller);
   [view setVerticallyResizable:YES];
   [view setMaxSize:NSMakeSize(CGFLOAT_MAX, CGFLOAT_MAX)];
   [scroll setHasVerticalScroller:YES];
@@ -416,7 +436,7 @@ void MacTextEditorContext::syncFromNode(bool force)
   const EditorResult result = this->node_->document.project(p.scratch);
   if (result != EDITOR_OK)
   {
-    [view setString:@""];
+    ReplaceEditorString(view, @"", *this->controller());
     [view setEditable:NO];
     [[view undoManager] removeAllActions];
     p.clear();
@@ -442,7 +462,7 @@ void MacTextEditorContext::syncFromNode(bool force)
   const bool replace = force || ![[view string] isEqualToString:desired];
   if (replace)
   {
-    [view setString:desired];
+    ReplaceEditorString(view, desired, *this->controller());
     [[view undoManager] removeAllActions];
   }
   if ([[view string] length] != p.scratch.size() || ![[view string] isEqualToString:desired])
