@@ -24,6 +24,12 @@ namespace loka
         bool isValid() const { return this->state_ != 0; }
         loka::core::State<T> *state() const { return this->state_; }
 
+        /** Tests transaction compatibility without exposing mutation authority. */
+        bool usesTracker(const loka::core::StateTracker *tracker) const
+        {
+          return tracker && this->tracker_ == tracker;
+        }
+
         void set(const T &value, bool forceUpdate = false) const
         {
           if (!this->state_)

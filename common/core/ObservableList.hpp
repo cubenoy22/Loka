@@ -501,6 +501,15 @@ namespace loka
       {
         return this->items_.find(id, this->size_);
       }
+      /** Reports edit readiness and the borrowed attachment tracker (null when
+          detached). Read-only projections may use the owner during publication;
+          mutations must require EDIT_OK. Never retain it past attachment. */
+      ListEditResult queryMutationTracker(StateTracker *&out) const
+      {
+        const ListEditResult result = this->ready();
+        out = this->tracker_;
+        return result;
+      }
       const State<ListRevision> &revision() const
       {
         return this->revision_;

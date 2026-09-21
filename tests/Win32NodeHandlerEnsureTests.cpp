@@ -1,3 +1,4 @@
+#include "app/nodes/controls/TextEditor.hpp"
 #include "Win32NodeHandlerEnsureTests.hpp"
 #include "support/TestVerify.hpp"
 #include "support/RailTextLayoutFixture.hpp"
@@ -285,6 +286,9 @@ void testWin32NodeHandlerEnsureContract()
     // registry-miss education assert -- a known unsupported kind is a typed
     // refusal, not an accident. Reaching this line in a Debug build IS the
     // no-abort discrimination.
+    loka::app::TextEditorNode editor((loka::app::TextEditorProps()));
+    LOKA_VERIFY(!controller.prepareProjectedLayout(&editor, state));
+    LOKA_VERIFY(!editor.getContext());
     loka::app::ScrollBarProps scrollProps;
     loka::app::ScrollBarNode scrollBar(scrollProps);
     state.x = 5;

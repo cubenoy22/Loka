@@ -94,6 +94,7 @@ namespace
       case NODE_KIND_CANVAS:
         return false;
       case NODE_KIND_ATTRIBUTED_TEXT:
+      case NODE_KIND_TEXT_EDITOR:
         break;
       case NODE_KIND_UNKNOWN:
         if (!node->asProjectedLayoutNode())

@@ -1,3 +1,4 @@
+#include "platform/null/context/NullTextEditorContext.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
 #include "platform/null/context/NullAttributedTextContext.hpp"
 
@@ -132,6 +133,7 @@ NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepth
       this->layoutHandlers_, &rowMetrics, &gridMetrics);
   RegisterNullButtonNodeHandler(*this);
   RegisterNullEditTextNodeHandler(*this);
+  RegisterNullTextEditorNodeHandler(*this);
   RegisterNullScrollBarNodeHandler(*this);
   RegisterNullTextNodeHandler(*this);
   RegisterNullAttributedTextNodeHandler(*this);
@@ -170,12 +172,14 @@ void NullScenePlatformController::onChange(loka::app::scene::Node *rootNode,
 
 namespace
 {
-  void syncScrollBarsInSubtree(loka::app::scene::Node *node)
+  void syncNativeControlsInSubtree(loka::app::scene::Node *node)
   {
     if (!node)
     {
       return;
     }
+    if (node->nodeTypeKey() == loka::app::scene::NodeTypeToken<loka::app::TextEditorNode>() && node->getContext())
+      static_cast<NullTextEditorContext *>(node->getContext())->syncFromNode();
     if (node->kind() == loka::app::scene::NODE_KIND_SCROLL_BAR && node->getContext())
     {
       static_cast<NullScrollBarContext *>(node->getContext())->syncFromNode();
@@ -189,7 +193,7 @@ namespace
         nestable->childrenHead(), nestable->childrenCount());
     for (loka::app::scene::Node *child = it.next(); child; child = it.next())
     {
-      syncScrollBarsInSubtree(child);
+      syncNativeControlsInSubtree(child);
     }
   }
 } // namespace
@@ -200,7 +204,7 @@ namespace
   {
     NULL_PAINT_SKIP,
     NULL_PAINT_OWNED_DRAWER,   // RectSurface / Text / AttributedText: contexts the rail itself installs (registration refuses replacement)
-    NULL_PAINT_NATIVE_CONTROL, // Button / EditText / ScrollBar: native ownership, answered by kind, context never cast
+    NULL_PAINT_NATIVE_CONTROL, // Button / EditText / TextEditor / ScrollBar: native ownership, answered by kind, context never cast
     NULL_PAINT_FOREIGN,        // ImageView / Cell / PopupMenu: refused by default, any installed context is foreign
     NULL_PAINT_UNSUPPORTED
   };
@@ -216,6 +220,7 @@ namespace
       return NULL_PAINT_OWNED_DRAWER;
     case NODE_KIND_BUTTON:
     case NODE_KIND_EDIT_TEXT:
+    case NODE_KIND_TEXT_EDITOR:
     case NODE_KIND_SCROLL_BAR:
       return NULL_PAINT_NATIVE_CONTROL;
     case NODE_KIND_IMAGE_VIEW:
@@ -363,7 +368,7 @@ void NullScenePlatformController::onBoundaryApply(loka::app::scene::Node *rootNo
   {
     return;
   }
-  syncScrollBarsInSubtree(static_cast<loka::app::scene::Node *>(boundary));
+  syncNativeControlsInSubtree(static_cast<loka::app::scene::Node *>(boundary));
   const loka::app::scene::PaintQuery query = {this->paintScope(),
                                               plan.hasStructureWork() || plan.hasLayoutWork()
                                                   ? loka::app::scene::PLACEMENT_PENDING
@@ -430,7 +435,7 @@ bool NullScenePlatformController::prepareProjectedLayout(loka::app::scene::Node 
 
 bool NullScenePlatformController::registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler)
 {
-  // Always-on refusal, not a comment-only contract: RectSurface, Text and AttributedText contexts
+  // Always-on refusal: RectSurface, Text, AttributedText and TextEditor contexts
   // are addressed by their concrete Null type in the presenter's completion and
   // invalidation walks, so no foreign handler may install a different context
   // for those kinds. Every other kind may be replaced; the paint walk never
@@ -438,6 +443,7 @@ bool NullScenePlatformController::registerNodeHandler(loka::app::scene::IPlatfor
   if (handler
       && ((handler->nodeTypeKey() == NullTextNodeHandlerKey() && !IsNullTextNodeHandler(handler))
           || (handler->nodeTypeKey() == NullAttributedTextNodeHandlerKey() && !IsNullAttributedTextNodeHandler(handler))
+          || (handler->nodeTypeKey() == NullTextEditorNodeHandlerKey() && !IsNullTextEditorNodeHandler(handler))
           || (handler->nodeTypeKey() == NullRectSurfaceNodeHandlerKey() && !IsNullRectSurfaceNodeHandler(handler))))
   {
     return false;

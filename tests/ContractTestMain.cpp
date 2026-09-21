@@ -1,3 +1,4 @@
+#include "TextEditorTests.hpp"
 #include "RailMetricsTests.hpp"
 #include "BorrowedKeysTests.hpp"
 #include "StrictNodeRouteTests.hpp"

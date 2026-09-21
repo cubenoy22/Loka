@@ -22,6 +22,7 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/platform/null/NullScenePlatformController.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/platform/null/context/NullButtonContext.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/platform/null/context/NullEditTextContext.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/platform/null/context/NullTextEditorContext.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/platform/null/context/NullScrollBarContext.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/platform/null/context/NullTextMetrics.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/platform/null/context/NullAttributedTextContext.cpp
@@ -44,6 +45,7 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ToolboxRectSurfaceRepaintPlanTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ToolboxScenePlatformContractTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/NullTextLayoutTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/TextEditorTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/AttributedStringTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/AttributedTextTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/StyleTests.cpp
