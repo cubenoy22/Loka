@@ -36,6 +36,7 @@
 #include "core/Profiler.hpp"
 #include "context/Win32ButtonContext.hpp"
 #include "context/Win32EditTextContext.hpp"
+#include "context/Win32TextEditorContext.hpp"
 #include "context/Win32CellContext.hpp"
 #include "context/Win32PopupMenuContext.hpp"
 #include "context/Win32ImageViewContext.hpp"
@@ -96,7 +97,6 @@ namespace
       case NODE_KIND_CANVAS:
         return false;
       case NODE_KIND_ATTRIBUTED_TEXT:
-      case NODE_KIND_TEXT_EDITOR:
         break;
       case NODE_KIND_UNKNOWN:
         if (!node->asProjectedLayoutNode())
@@ -107,6 +107,7 @@ namespace
       case NODE_KIND_TEXT:
       case NODE_KIND_BUTTON:
       case NODE_KIND_EDIT_TEXT:
+      case NODE_KIND_TEXT_EDITOR:
       case NODE_KIND_POPUP_MENU:
       case NODE_KIND_CELL:
       case NODE_KIND_IMAGE_VIEW:
@@ -828,6 +829,9 @@ bool Win32ScenePlatformController::handleCommand(WPARAM wParam, LPARAM lParam)
   }
   if (code == EN_CHANGE)
   {
+    Win32TextEditorContext *editor = Win32TextEditorContext::fromWindow(target);
+    if (editor)
+      return editor->handleCommand(wParam, lParam);
     Win32EditTextContext *edit = reinterpret_cast<Win32EditTextContext *>(GetWindowLongPtr(target, GWLP_USERDATA));
     if (!edit)
     {

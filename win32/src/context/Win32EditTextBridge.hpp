@@ -40,6 +40,45 @@ namespace loka
       return CreateEditTextControl(parent, Win32DisplayScale::fromDevicePixels(pixels));
     }
 
+    /** Deliberate multiline twin of the single-line helpers below. Stage 1
+        accepts ASCII only; CRLF and lone CR/LF each represent one logical CR.
+        Callers reserve bounded cancellation storage before accepting input. */
+    inline bool TextEditorToWide(const std::string &logical, std::wstring &wide)
+    {
+      wide.clear();
+      for (std::size_t i = 0; i < logical.size(); ++i)
+      {
+        const unsigned char value = static_cast<unsigned char>(logical[i]);
+        if (!value || value > 127 || value == '\n')
+        {
+          wide.clear();
+          return false;
+        }
+        wide += static_cast<wchar_t>(value);
+        if (value == '\r')
+          wide += L'\n';
+      }
+      return true;
+    }
+
+    inline bool TextEditorFromWide(const wchar_t *wide, std::size_t length, std::string &logical)
+    {
+      logical.clear();
+      for (std::size_t i = 0; i < length; ++i)
+      {
+        const wchar_t value = wide[i];
+        if (!value || value > 127)
+        {
+          logical.clear();
+          return false;
+        }
+        logical += value == L'\n' ? '\r' : static_cast<char>(value);
+        if (value == L'\r' && i + 1 < length && wide[i + 1] == L'\n')
+          ++i;
+      }
+      return true;
+    }
+
     inline void ReadEditTextWide(HWND hwnd, std::wstring &out)
     {
       out.clear();
