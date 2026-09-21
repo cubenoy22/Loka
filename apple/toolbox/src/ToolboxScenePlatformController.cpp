@@ -2798,17 +2798,6 @@ void ToolboxScenePlatformController::drawControlsInRect(const Rect &rect)
   }
 }
 
-void ToolboxScenePlatformController::idleTextEdits()
-{
-  for (size_t i = 0; i < editControls_.size(); ++i)
-  {
-    if (editControls_[i].editor) editControls_[i].editor->retryProjection();
-    if (editControls_[i].te)
-    {
-      TEIdle(editControls_[i].te);
-    }
-  }
-}
 
 bool ToolboxScenePlatformController::isPointInEdit(const Point &point) const
 {

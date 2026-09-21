@@ -228,6 +228,7 @@ public:
   void refuseScrollViewShortRange();
 
 private:
+  bool handleEditClick(const Point &point);
   friend class ToolboxTextMeasureScope;
   template <typename Controller>
   friend void ReconcileToolboxTextSubscription(Controller &,

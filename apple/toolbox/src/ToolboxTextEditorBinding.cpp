@@ -37,3 +37,39 @@ TEHandle ToolboxScenePlatformController::ensureTextEditorControl(ToolboxTextEdit
   TEAutoView(true, te);
   return te;
 }
+
+/** Shared EditText/TextEditor focus path; native activation follows the focused row. */
+bool ToolboxScenePlatformController::handleEditClick(const Point &point)
+{
+  EditTextControlBinding *focusedEdit = editControls_.focused();
+  if (focusedEdit && focusedEdit->te)
+  {
+    TEDeactivate(focusedEdit->te);
+    editControls_.clearFocus();
+  }
+  for (size_t i = 0; i < editControls_.size(); ++i)
+  {
+    EditTextControlBinding &binding = editControls_[i];
+    if (binding.te && PtInRect(point, &binding.rect))
+    {
+      editControls_.focus(i);
+      TEActivate(binding.te);
+      if (binding.editor) binding.editor->click(point);
+      else TEClick(point, false, binding.te);
+      return true;
+    }
+  }
+  return false;
+}
+
+void ToolboxScenePlatformController::idleTextEdits()
+{
+  for (size_t i = 0; i < editControls_.size(); ++i)
+  {
+    if (editControls_[i].editor) editControls_[i].editor->retryProjection();
+    if (&editControls_[i] == editControls_.focused() && editControls_[i].te)
+    {
+      TEIdle(editControls_[i].te);
+    }
+  }
+}

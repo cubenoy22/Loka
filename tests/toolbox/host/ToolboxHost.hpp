@@ -108,9 +108,11 @@ public:
   };
   ToolboxEditControlLedger<EditTextControlBinding, loka::app::scene::NodeContext> editControls_;
   std::vector<TEHandle> retiredTE;
+  bool handleEditClick(const Point &point);
   TEHandle ensureTextEditorControl(ToolboxTextEditorContext *, const Rect &, loka::app::scene::NativeLifetimeHint);
   void retireTextEditorControl(loka::app::scene::NodeContext *, loka::app::scene::NativeLifetimeHint);
   void flushTE();
+  void idleTextEdits();
   ToolboxCompositionReplay compositionReplay;
   void registerCompositionReplay(ToolboxCompositionReplay::Registration &registration)
   {

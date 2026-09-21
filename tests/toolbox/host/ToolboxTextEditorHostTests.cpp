@@ -135,6 +135,24 @@ namespace
 int main()
 {
   {
+    Fixture f;
+    Point inside = {21, 11}, outside = {0, 0};
+    LOKA_VERIFY(!(**f.te()).active);
+    LOKA_VERIFY(f.controller.handleEditClick(inside));
+    LOKA_VERIFY((**f.te()).active);
+    f.controller.idleTextEdits();
+    LOKA_VERIFY((**f.te()).idleCalls == 1);
+    LOKA_VERIFY(!f.controller.handleEditClick(outside));
+    LOKA_VERIFY(!f.controller.editControls_.focused() && !(**f.te()).active);
+    f.controller.idleTextEdits();
+    LOKA_VERIFY((**f.te()).idleCalls == 1);
+    LOKA_VERIFY(f.controller.handleEditClick(inside));
+    LOKA_VERIFY((**f.te()).active);
+    f.controller.idleTextEdits();
+    LOKA_VERIFY((**f.te()).idleCalls == 2);
+    pin("focus activates; blur deactivates and receives no TEIdle; refocus activates and resumes TEIdle");
+  }
+  {
     GrafPtr previous;
     GetPort(&previous);
     const short font = previous->txFont, size = previous->txSize;

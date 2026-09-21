@@ -179,6 +179,8 @@ TEHandle TENew(const Rect *dest, const Rect *view)
   (**te).teLength = (**te).selStart = (**te).selEnd = 0;
   (**te).data = 0;
   (**te).autoView = false;
+  (**te).active = false;
+  (**te).idleCalls = 0;
   return te;
 }
 void TEDispose(TEHandle te)
@@ -283,4 +285,12 @@ void ToolboxScenePlatformController::flushTE()
   for (std::size_t i = 0; i < this->retiredTE.size(); ++i)
     TEDispose(this->retiredTE[i]);
   this->retiredTE.clear();
+}
+
+void TEActivate(TEHandle te) { (**te).active = true; }
+void TEDeactivate(TEHandle te) { (**te).active = false; }
+void TEIdle(TEHandle te) { ++(**te).idleCalls; }
+bool PtInRect(Point p, const Rect *r)
+{
+  return p.h >= r->left && p.h < r->right && p.v >= r->top && p.v < r->bottom;
 }

@@ -85,6 +85,13 @@ namespace loka
                && testing::ToolboxTextEditorAccess::restores(*context) == 1;
           step = "paste-cap-refused";
         }
+        else
+        {
+          // Capture with no focused TextEdit caret blinking between settle samples.
+          Point outside = {0, 0};
+          (void)controller.handleMouseDown(outside);
+          ok = !(**te).active;
+        }
         if (ok)
           ok = audit.recordStep(dsl::testing::ScenarioStepTerminal(
               static_cast<int>(tick), step, tick, tick, dsl::FLOW_STEP_SUCCEEDED, error));

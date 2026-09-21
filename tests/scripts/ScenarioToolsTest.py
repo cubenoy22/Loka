@@ -230,9 +230,8 @@ class ExpectedAuditPinsTest(unittest.TestCase):
             example, scenario = entry
             audit_path = os.path.join(SCENARIO_DIR, "expected", example, scenario + ".audit")
             # #642 PR 0 is build-only until the delegator measures both partitions.
-            # #853 PR 2 stages the Toolbox editor cell for the maintainer's bake.
-            # Only these named cells may lack an audit; baked audits use all checks below.
-            if entry in (["simpleviewer", "churn-replace"], ["smirkbench", "text-editor-plain"]) and not os.path.exists(audit_path):
+            # Only this named cell may lack an audit; baked audits use all checks below.
+            if entry == ["simpleviewer", "churn-replace"] and not os.path.exists(audit_path):
                 self.assertTrue(os.path.isfile(audit_path + ".pending.md"))
                 continue
             registered_audits.add(os.path.relpath(audit_path, SCENARIO_DIR))
