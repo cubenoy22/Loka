@@ -50,9 +50,10 @@ jobs:
         if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
         run: docker pull "$RETRO68_IMAGE"
 
-      - name: Build Toolbox 68K and PPC
+      - name: Build Toolbox 68K
         if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
         run: |
+          # Deliberate twin of the toolbox-ppc job's container setup; keep in step
           docker run --rm \
             --user "$(id -u):$(id -g)" \
             --env INTERFACES=multiversal \
@@ -64,24 +65,17 @@ jobs:
               cmake --preset retro68-68k-release -G "Unix Makefiles" \
                 -DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON
               cmake --build --preset retro68-68k-release
-              cmake --preset retro68-ppc-release -G "Unix Makefiles" \
-                -DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON
-              cmake --build --preset retro68-ppc-release
 
               # Keep the optional example outside the shipping size inventory.
               # Check only the real consumer here; Linux CI owns host fixtures.
-              for cpu in 68k ppc; do
-                suffix=68K
-                if [ "$cpu" = ppc ]; then suffix=PPC; fi
-                build_dir="build/retro68/$cpu/SmirkyCardCI"
-                cmake --preset "retro68-$cpu-release" -G "Unix Makefiles" \
-                  -B "$build_dir" -DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON \
-                  -DLOKA_BUILD_SMIRKYCARD=ON
-                cmake --build "$build_dir" --target "LokaSmirkyCard${suffix}_APPL"
-                python3 tests/scripts/ClassicInttypesTest.py --build-dir "$build_dir" \
-                  ClassicQuickjsHeadersTest
-                python3 tests/scripts/ClassicQuickjsStackTest.py --build-dir "$build_dir"
-              done
+              build_dir="build/retro68/68k/SmirkyCardCI"
+              cmake --preset retro68-68k-release -G "Unix Makefiles" \
+                -B "$build_dir" -DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON \
+                -DLOKA_BUILD_SMIRKYCARD=ON
+              cmake --build "$build_dir" --target LokaSmirkyCard68K_APPL
+              python3 tests/scripts/ClassicInttypesTest.py --build-dir "$build_dir" \
+                ClassicQuickjsHeadersTest
+              python3 tests/scripts/ClassicQuickjsStackTest.py --build-dir "$build_dir"
             '
 
       - name: Build the PR comparison commit
@@ -182,3 +176,61 @@ jobs:
             } else {
               await github.rest.issues.createComment({ ...params, body });
             }
+
+  toolbox-ppc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      RETRO68_IMAGE: ghcr.io/autc04/retro68@sha256:459dd3ea9856262162615527021be7b64f198631dc59cca8cedbf197b7656019
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      # Deliberate twins across platform workflows; ci_paths.py owns the policy.
+      - name: Classify PR paths
+        id: changes
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        env:
+          BASE: ${{ github.base_ref }}
+        run: |
+          git diff --name-only --no-renames "origin/$BASE...HEAD" -- > "$RUNNER_TEMP/ci-paths.txt"
+          python3 tools/ci/ci_paths.py --job toolbox-ppc --summary "$GITHUB_STEP_SUMMARY" \
+            < "$RUNNER_TEMP/ci-paths.txt" | tee -a "$GITHUB_OUTPUT"
+
+      # Retro68's public image contains both cross-toolchains and defaults to
+      # the redistributable Multiversal Interfaces. Keep the interface choice
+      # explicit so this check cannot silently begin consuming Apple headers.
+      - name: Pull Retro68 toolchain
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
+        run: docker pull "$RETRO68_IMAGE"
+
+      - name: Build Toolbox PPC
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
+        run: |
+          # Deliberate twin of the 68K job's container setup; keep in step
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            --env INTERFACES=multiversal \
+            --env RETRO68_BUILD_DIR=/Retro68-build \
+            --volume "$GITHUB_WORKSPACE:/workspace" \
+            --workdir /workspace \
+            "$RETRO68_IMAGE" \
+            /bin/bash -ceu '
+              cmake --preset retro68-ppc-release -G "Unix Makefiles" \
+                -DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON
+              cmake --build --preset retro68-ppc-release
+
+              # Keep the optional example outside the shipping size inventory.
+              # Check only the real consumer here; Linux CI owns host fixtures.
+              build_dir="build/retro68/ppc/SmirkyCardCI"
+              cmake --preset retro68-ppc-release -G "Unix Makefiles" \
+                -B "$build_dir" -DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON \
+                -DLOKA_BUILD_SMIRKYCARD=ON
+              cmake --build "$build_dir" --target LokaSmirkyCardPPC_APPL
+              python3 tests/scripts/ClassicInttypesTest.py --build-dir "$build_dir" \
+                ClassicQuickjsHeadersTest
+              python3 tests/scripts/ClassicQuickjsStackTest.py --build-dir "$build_dir"
+            '
