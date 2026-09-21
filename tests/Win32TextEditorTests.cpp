@@ -250,6 +250,22 @@ namespace
       LOKA_VERIFY(GetWindowTextLengthW(context->hwnd()) == static_cast<int>(desired.size()));
     }
   };
+  void paste(HWND window, const wchar_t *text)
+  {
+    const std::wstring value(text);
+    HGLOBAL storage = GlobalAlloc(GMEM_MOVEABLE, (value.size() + 1) * sizeof(wchar_t));
+    LOKA_VERIFY(storage);
+    wchar_t *target = static_cast<wchar_t *>(GlobalLock(storage));
+    LOKA_VERIFY(target);
+    for (std::size_t i = 0; i <= value.size(); ++i)
+      target[i] = value.c_str()[i];
+    GlobalUnlock(storage);
+    LOKA_VERIFY(OpenClipboard(window));
+    LOKA_VERIFY(EmptyClipboard());
+    LOKA_VERIFY(SetClipboardData(CF_UNICODETEXT, storage));
+    LOKA_VERIFY(CloseClipboard());
+    SendMessageW(window, WM_PASTE, 0, 0);
+  }
   struct Snapshot
   {
     ListRevision revision;
@@ -361,7 +377,7 @@ void testWin32TextEditorActionsUseLineQueries()
   LOKA_VERIFY(fixture.lines.revision().get().structure == before.structure);
   LOKA_VERIFY(fixture.lines.revision().get().change.kind == LIST_UPDATE);
   LOKA_VERIFY(fixture.lines.at(0).value.equals(String("abxcd")) && fixture.cursor.get() == LineCursor(first, 3));
-  LOKA_VERIFY(probe.lineReads == 1 && probe.textReads == 0);
+  LOKA_VERIFY(probe.lineReads == 0 && probe.textReads == 1);
   fixture.type(L'\r');
   LOKA_VERIFY(observer.notifications == 2 && observer.settled == 2);
   LOKA_VERIFY(fixture.lines.size() == 129 && fixture.lines.at(2).id == second);
@@ -403,6 +419,9 @@ void testWin32TextEditorActionsUseLineQueries()
   LOKA_VERIFY(SendMessageW(fixture.context->hwnd(), EM_CANUNDO, 0, 0));
   LOKA_VERIFY(SendMessageW(fixture.context->hwnd(), EM_UNDO, 0, 0));
   LOKA_VERIFY(fixture.lines.at(0).value.equals(String("abxcd")));
+  LOKA_VERIFY(fixture.lines.at(0).id == first && fixture.lines.size() == 128);
+  LOKA_VERIFY(fixture.lines.at(10).value.equals(String("abcd")));
+  LOKA_VERIFY(EditorAccess::restores(*fixture.context) == 0);
   fixture.matches();
   // Last-line queries must also work for a trailing empty line. EM_LINEINDEX
   // returns the text length for that line, and -1 only beyond the line count.
@@ -421,6 +440,32 @@ void testWin32TextEditorActionsUseLineQueries()
 }
 void testWin32TextEditorRefusalRestoresAndClearsUndo()
 {
+  {
+    Fixture fixture;
+    Observer observer(fixture);
+    const Snapshot before(fixture);
+    paste(fixture.context->hwnd(), L"\r\n");
+    restored(fixture, before, observer);
+    paste(fixture.context->hwnd(), L"Q");
+    LOKA_VERIFY(fixture.lines.at(0).value.equals(String("abQcd")));
+    fixture.matches();
+  }
+  {
+    Fixture fixture;
+    Observer observer(fixture);
+    const Snapshot before(fixture);
+    paste(fixture.context->hwnd(), L"Q\r\nR");
+    restored(fixture, before, observer);
+  }
+  {
+    Fixture fixture;
+    Observer observer(fixture);
+    const Snapshot before(fixture);
+    SendMessageW(fixture.context->hwnd(), EM_SETSEL, 1, 8);
+    SendMessageW(fixture.context->hwnd(), EM_REPLACESEL, TRUE, reinterpret_cast<LPARAM>(L"Q\r\nR"));
+    restored(fixture, before, observer);
+  }
+
   {
     Fixture fixture(256);
     Probe probe(fixture.context->hwnd());
@@ -523,9 +568,23 @@ void testWin32TextEditorRefusalRestoresAndClearsUndo()
   {
     Fixture fixture(1, std::string(8191, 'a'));
     fixture.type(L'x');
-    fixture.matches();
     const Snapshot committed(fixture);
-    LOKA_VERIFY(committed.text.size() == 8192);
+    const int nativeUnits = GetWindowTextLengthW(fixture.context->hwnd());
+    if (committed.text.size() != 8192 || nativeUnits != 8192 || EditorAccess::restores(*fixture.context) != 0
+        || EditorAccess::status(*fixture.context) != EDITOR_OK)
+    {
+      std::printf("[cap failure] committed logical=%lu native UTF-16=%d restores=%u status=%d\n",
+                  static_cast<unsigned long>(committed.text.size()),
+                  nativeUnits,
+                  EditorAccess::restores(*fixture.context),
+                  static_cast<int>(EditorAccess::status(*fixture.context)));
+      std::fflush(stdout);
+    }
+    std::string line;
+    LOKA_VERIFY(loka::platform::CollectUtf8(fixture.lines.at(0).value, line));
+    LOKA_VERIFY(line.size() == 8192 && committed.text.size() == 8192 && nativeUnits == 8192);
+    LOKA_VERIFY(EditorAccess::status(*fixture.context) == EDITOR_OK);
+    fixture.matches();
     LOKA_VERIFY(GetWindowTextLengthW(fixture.context->hwnd()) == static_cast<int>(fixture.committedNative().size()));
     LOKA_VERIFY(EditorAccess::restores(*fixture.context) == 0);
   }

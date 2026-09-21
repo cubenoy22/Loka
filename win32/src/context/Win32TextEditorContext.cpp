@@ -1,5 +1,6 @@
 #include "Win32TextEditorContext.hpp"
 #include "Win32EditTextBridge.hpp"
+#include "Win32TextEditorDiff.hpp"
 #include "../Win32ScenePlatformController.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include <cassert>
@@ -151,7 +152,7 @@ void Win32TextEditorContext::onFactChanged(scene::NodeLifecycleFact, scene::Node
   ShowWindow(this->hwnd_, SW_HIDE);
   SendMessageW(this->hwnd_, EM_SETREADONLY, TRUE, 0);
   this->status_ = EDITOR_UNAVAILABLE;
-  this->phase_ = this->phase_ == INPUT || this->phase_ == COMMIT ? REJECTED : IDLE;
+  this->phase_ = this->phase_ == INPUT || this->phase_ == PASTING || this->phase_ == COMMIT ? REJECTED : IDLE;
   this->delivery_ = scene::PaintAnswer::refused(scene::PAINT_REFUSED_HISTORY_UNKNOWN);
   if (next == scene::NODE_FACT_RETIRED)
   {
@@ -167,8 +168,6 @@ void Win32TextEditorContext::captureSelection()
                EM_GETSEL,
                reinterpret_cast<WPARAM>(&this->selection_.start),
                reinterpret_cast<LPARAM>(&this->selection_.end));
-  this->selection_.firstLine = static_cast<int>(SendMessageW(this->hwnd_, EM_LINEFROMCHAR, this->selection_.start, 0));
-  this->selection_.lastLine = static_cast<int>(SendMessageW(this->hwnd_, EM_LINEFROMCHAR, this->selection_.end, 0));
   this->selection_.firstVisible = static_cast<int>(SendMessageW(this->hwnd_, EM_GETFIRSTVISIBLELINE, 0, 0));
   this->selection_.horizontal = GetScrollPos(this->hwnd_, SB_HORZ);
 }
@@ -268,32 +267,6 @@ void Win32TextEditorContext::syncFromNode()
   }
   this->replaceProjection();
 }
-std::string Win32TextEditorContext::committedLine(int index) const
-{
-  std::size_t start = 0;
-  for (int i = 0; i < index; ++i)
-  {
-    const std::size_t end = this->projection_.text.find('\r', start);
-    if (end == std::string::npos)
-      return std::string();
-    start = end + 1;
-  }
-  const std::size_t end = this->projection_.text.find('\r', start);
-  return this->projection_.text.substr(start, end == std::string::npos ? end : end - start);
-}
-bool Win32TextEditorContext::readLine(int index, std::string &out) const
-{
-  const LRESULT offset = SendMessageW(this->hwnd_, EM_LINEINDEX, index, 0);
-  if (offset < 0)
-    return false;
-  const LRESULT length = SendMessageW(this->hwnd_, EM_LINELENGTH, static_cast<WPARAM>(offset), 0);
-  if (length < 0 || length > TextEditorProps::kMaxBytes)
-    return false;
-  wchar_t line[TextEditorProps::kMaxBytes + 1];
-  line[0] = static_cast<wchar_t>(TextEditorProps::kMaxBytes);
-  const LRESULT copied = SendMessageW(this->hwnd_, EM_GETLINE, index, reinterpret_cast<LPARAM>(line));
-  return copied == length && loka::win32::TextEditorFromWide(line, static_cast<std::size_t>(copied), out);
-}
 LineCursor Win32TextEditorContext::nativeCaret() const
 {
   if (!this->node_ || !this->node_->props.lines_)
@@ -307,18 +280,16 @@ LineCursor Win32TextEditorContext::nativeCaret() const
   return LineCursor(this->node_->props.lines_->at(static_cast<unsigned short>(index)).id,
                     static_cast<int>(end) - offset);
 }
-EditorResult Win32TextEditorContext::applyLines(int first, int oldCount, int newCount)
+EditorResult Win32TextEditorContext::applyLines(int first, int oldCount, int newCount, const std::string &logical)
 {
   loka::core::ObservableList<loka::core::String> &lines = *this->node_->props.lines_;
   if (first < 0 || first >= lines.size() || first + oldCount > lines.size())
     return EDITOR_INVALID_CURSOR;
-  std::string one;
-  if (!this->readLine(first, one))
-    return EDITOR_NON_ASCII;
+  const std::string one = loka::win32::TextEditorLogicalLine(logical, first);
   const loka::core::ItemId id = lines.at(static_cast<unsigned short>(first)).id;
   if (oldCount == 1 && newCount == 1)
   {
-    const std::string old = this->committedLine(first);
+    const std::string old = loka::win32::TextEditorLogicalLine(this->projection_.text, first);
     const LineCursor after = this->nativeCaret();
     if (one.size() > old.size() && after.line == id)
     {
@@ -337,57 +308,46 @@ EditorResult Win32TextEditorContext::applyLines(int first, int oldCount, int new
   }
   if (oldCount == 1 && newCount == 2)
   {
-    std::string two;
-    if (!this->readLine(first + 1, two) || one + two != this->committedLine(first))
+    const std::string two = loka::win32::TextEditorLogicalLine(logical, first + 1);
+    if (one + two != loka::win32::TextEditorLogicalLine(this->projection_.text, first))
       return EDITOR_INVALID_CURSOR;
     return this->node_->document.applySplit(id, static_cast<LineCursor::Column>(one.size()));
   }
-  if (oldCount == 2 && newCount == 1 && one == this->committedLine(first) + this->committedLine(first + 1))
+  if (oldCount == 2 && newCount == 1
+      && one
+             == loka::win32::TextEditorLogicalLine(this->projection_.text, first)
+                    + loka::win32::TextEditorLogicalLine(this->projection_.text, first + 1))
     return this->node_->document.applyJoin(lines.at(static_cast<unsigned short>(first + 1)).id);
   return EDITOR_INVALID_CURSOR;
 }
-EditorResult Win32TextEditorContext::commitNativeChange(bool haveSelection)
+EditorResult Win32TextEditorContext::commitNativeChange(bool allowLineBreak)
 {
   if (!this->node_ || !this->node_->props.lines_)
     return EDITOR_UNAVAILABLE;
   if (!this->projection_.current(*this->node_))
     return EDITOR_STALE_ID;
-  const int oldCount = this->node_->props.lines_->size();
-  const int newCount = static_cast<int>(SendMessageW(this->hwnd_, EM_GETLINECOUNT, 0, 0));
-  if (newCount > TextEditorProps::kMaxLines
-      || GetWindowTextLengthW(this->hwnd_) > TextEditorProps::kMaxBytes + newCount - 1)
+  const int length = GetWindowTextLengthW(this->hwnd_);
+  if (length > TextEditorProps::kMaxBytes + TextEditorProps::kMaxLines - 1)
     return EDITOR_CAPACITY;
-  // Native before/after selection identifies ordinary one-line edits, Enter,
-  // and Backspace at line start without reading the full native document.
-  const LineCursor after = this->nativeCaret();
-  const int afterLine = static_cast<int>(SendMessageW(this->hwnd_, EM_LINEFROMCHAR, static_cast<WPARAM>(-1), 0));
-  if (haveSelection && this->selection_.firstLine == this->selection_.lastLine)
-  {
-    const int first = this->selection_.firstLine;
-    if (newCount == oldCount && afterLine == first && !after.isNone())
-      return this->applyLines(first, 1, 1);
-    if (newCount == oldCount + 1 && afterLine == first + 1)
-      return this->applyLines(first, 1, 2);
-    if (newCount == oldCount - 1 && first > 0 && afterLine == first - 1)
-      return this->applyLines(first - 1, 2, 1);
-  }
-  // Undo and selection replacement may not retain a useful native range.
-  // Compare bounded logical lines against the last committed projection.
-  int prefix = 0;
-  std::string line;
-  while (prefix < oldCount && prefix < newCount && this->readLine(prefix, line) && line == this->committedLine(prefix))
-    ++prefix;
-  int suffix = 0;
-  while (suffix < oldCount - prefix && suffix < newCount - prefix && this->readLine(newCount - suffix - 1, line)
-         && line == this->committedLine(oldCount - suffix - 1))
-    ++suffix;
-  if (prefix == oldCount && prefix == newCount)
-    return this->node_->document.moveCaret(after);
-  // An unchanged prefix can include the first half of a split/join (for
-  // example joining an empty following line). Include its retained identity.
-  if (prefix > 0 && (oldCount == prefix + suffix || newCount == prefix + suffix))
-    --prefix;
-  return this->applyLines(prefix, oldCount - prefix - suffix, newCount - prefix - suffix);
+  std::wstring wide;
+  loka::win32::ReadEditTextWide(this->hwnd_, wide);
+  if (wide.size() != static_cast<std::size_t>(length))
+    return EDITOR_UNAVAILABLE;
+  std::string logical;
+  if (!loka::win32::TextEditorFromWide(wide.data(), wide.size(), logical))
+    return EDITOR_NON_ASCII;
+  if (logical.size() > TextEditorProps::kMaxBytes)
+    return EDITOR_CAPACITY;
+  // Undo can change a line unrelated to either selection. Only text establishes
+  // the affected range. Slice this same snapshot so detection and commit agree.
+  const loka::win32::TextEditorLineDiff diff = loka::win32::DiffTextEditorLines(this->projection_.text, logical);
+  if (diff.before() == 0 && diff.after() == 0)
+    return this->node_->document.moveCaret(this->nativeCaret());
+  if (this->node_->props.lines_->size() - diff.before() + diff.after() > TextEditorProps::kMaxLines)
+    return EDITOR_CAPACITY;
+  if (!allowLineBreak && (diff.before() != 1 || diff.after() != 1))
+    return EDITOR_INVALID_CURSOR;
+  return this->applyLines(diff.first(), diff.before(), diff.after(), logical);
 }
 bool Win32TextEditorContext::handleCommand(WPARAM wParam, LPARAM)
 {
@@ -395,18 +355,20 @@ bool Win32TextEditorContext::handleCommand(WPARAM wParam, LPARAM)
     return false;
   if (this->phase_ == RESTORING)
     return true;
-  if (this->phase_ != INPUT && this->phase_ != IDLE)
+  if (this->phase_ != INPUT && this->phase_ != PASTING && this->phase_ != IDLE)
   {
     if (this->phase_ != RETRY)
       this->phase_ = REJECTED;
     return true;
   }
+  const Phase inputPhase = this->phase_ == PASTING ? PASTING : INPUT;
   const bool outsideInput = this->phase_ == IDLE;
   if (outsideInput)
     this->captureSelection();
   this->phase_ = COMMIT;
   const HWND window = this->hwnd_;
-  const EditorResult result = this->status_ == EDITOR_OK ? this->commitNativeChange(!outsideInput) : this->status_;
+  const EditorResult result =
+      this->status_ == EDITOR_OK ? this->commitNativeChange(inputPhase != PASTING) : this->status_;
   if (fromWindow(window) != this)
     return true;
   if (result == EDITOR_OK && this->node_)
@@ -421,7 +383,7 @@ bool Win32TextEditorContext::handleCommand(WPARAM wParam, LPARAM)
     this->phase_ = REJECTED;
   }
   else
-    this->phase_ = INPUT;
+    this->phase_ = inputPhase;
   if (outsideInput)
   {
     if (this->phase_ == REJECTED)
@@ -433,17 +395,18 @@ bool Win32TextEditorContext::handleCommand(WPARAM wParam, LPARAM)
 }
 void Win32TextEditorContext::syncCaret()
 {
-  if (!this->node_ || this->phase_ != INPUT || this->status_ != EDITOR_OK)
+  if (!this->node_ || (this->phase_ != INPUT && this->phase_ != PASTING) || this->status_ != EDITOR_OK)
     return;
   const LineCursor cursor = this->nativeCaret();
   if (cursor == this->node_->props.cursor_.state()->get())
     return;
+  const Phase inputPhase = this->phase_;
   this->phase_ = COMMIT;
   const HWND window = this->hwnd_;
   const EditorResult result = this->node_->document.moveCaret(cursor);
   if (fromWindow(window) != this)
     return;
-  this->phase_ = result == EDITOR_OK && this->phase_ != REJECTED ? INPUT : REJECTED;
+  this->phase_ = result == EDITOR_OK && this->phase_ != REJECTED ? inputPhase : REJECTED;
 }
 LRESULT CALLBACK Win32TextEditorContext::WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -461,14 +424,14 @@ LRESULT CALLBACK Win32TextEditorContext::WindowProc(HWND window, UINT message, W
     return CallWindowProcW(self->previousProc_, window, message, wParam, lParam);
   if (self->phase_ != IDLE)
   {
-    if (self->phase_ == INPUT || self->phase_ == COMMIT)
+    if (self->phase_ == INPUT || self->phase_ == PASTING || self->phase_ == COMMIT)
       self->phase_ = REJECTED;
     return 0;
   }
   if (!self->node_ || self->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED || self->status_ != EDITOR_OK)
     return 0;
   self->captureSelection();
-  self->phase_ = INPUT;
+  self->phase_ = message == WM_PASTE ? PASTING : INPUT;
   const LRESULT result = CallWindowProcW(self->previousProc_, window, message, wParam, lParam);
   if (fromWindow(window) != self)
     return result;
@@ -501,7 +464,7 @@ scene::PaintAnswer Win32TextEditorContext::queryPaintDamage(const scene::PaintQu
     return scene::PaintAnswer::refused(scene::PAINT_REFUSED_NO_CONTEXT);
   if (query.placement != scene::PLACEMENT_ELIGIBLE)
     return scene::PaintAnswer::refused(scene::PAINT_REFUSED_PLACEMENT_UNSETTLED);
-  if (this->phase_ == INPUT || this->phase_ == COMMIT)
+  if (this->phase_ == INPUT || this->phase_ == PASTING || this->phase_ == COMMIT)
   {
     // The native edit already owns its repaint; synchronous model echoes can
     // precede the committed-cache refresh, just as in EditText::applyText.

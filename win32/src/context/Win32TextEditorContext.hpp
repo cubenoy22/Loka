@@ -49,6 +49,7 @@ private:
   {
     IDLE,
     INPUT,
+    PASTING,
     COMMIT,
     REJECTED,
     RESTORING,
@@ -57,12 +58,10 @@ private:
   struct Selection
   {
     DWORD start, end;
-    int firstLine, lastLine, firstVisible, horizontal;
+    int firstVisible, horizontal;
     Selection()
         : start(0),
           end(0),
-          firstLine(0),
-          lastLine(0),
           firstVisible(0),
           horizontal(0)
     {
@@ -88,10 +87,8 @@ private:
   void deferRestore();
   void syncCaret();
   void restoreSelection();
-  loka::app::EditorResult commitNativeChange(bool haveSelection);
-  loka::app::EditorResult applyLines(int first, int oldCount, int newCount);
-  bool readLine(int index, std::string &out) const;
-  std::string committedLine(int index) const;
+  loka::app::EditorResult commitNativeChange(bool allowLineBreak);
+  loka::app::EditorResult applyLines(int first, int oldCount, int newCount, const std::string &logical);
   loka::app::LineCursor nativeCaret() const;
 
   loka::app::TextEditorNode *node_;

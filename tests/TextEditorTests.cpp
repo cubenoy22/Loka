@@ -1,4 +1,5 @@
 #include "TextEditorTests.hpp"
+#include "../win32/src/context/Win32TextEditorDiff.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
 #include "platform/null/context/NullTextEditorContext.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
@@ -174,6 +175,36 @@ namespace
 } // namespace
 void testTextEditorActions()
 {
+  // Pure Win32 range detection also runs on the Linux host. Selection is not
+  // an input: undo at line zero must remain line zero with a distant caret.
+  const struct DiffCase
+  {
+    const char *before;
+    const char *after;
+    int first, oldCount, newCount;
+  } cases[] = {{"aQcd\rabcd\rabcd", "abxcd\rabcd\rabcd", 0, 1, 1},
+               {"a\rb", "a\rb", 2, 0, 0},
+               {"abcd", "ab\rcd", 0, 1, 2},
+               {"ab\rcd", "abcd", 0, 2, 1},
+               {"abcd", "abcd\r", 0, 1, 2},
+               {"abcd\r", "abcd", 0, 2, 1},
+               {"abcd", "\rabcd", 0, 1, 2},
+               {"\rabcd", "abcd", 0, 2, 1},
+               {"", "\r", 0, 1, 2},
+               {"a\rb\rc", "A\rb\rC", 0, 3, 3},
+               {"a\rb\rc", "a\rB\rC", 1, 2, 2},
+               {"a", "aQ\rR\rS", 0, 1, 3}};
+  for (std::size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i)
+  {
+    const loka::win32::TextEditorLineDiff diff = loka::win32::DiffTextEditorLines(cases[i].before, cases[i].after);
+    LOKA_VERIFY(diff.first() == cases[i].first && diff.before() == cases[i].oldCount
+                && diff.after() == cases[i].newCount);
+  }
+  const std::string atCap = std::string(2, 'a') + 'x' + std::string(8189, 'a');
+  const loka::win32::TextEditorLineDiff capDiff = loka::win32::DiffTextEditorLines(std::string(8191, 'a'), atCap);
+  LOKA_VERIFY(capDiff.first() == 0 && capDiff.before() == 1 && capDiff.after() == 1);
+  LOKA_VERIFY(loka::win32::TextEditorLogicalLine(atCap, 0).size() == 8192);
+
   Fixture f;
   RefusedNodeHandler foreignHandler(NodeTypeToken<TextEditorNode>());
   LOKA_VERIFY(!f.platform.registerNodeHandler(&foreignHandler));
@@ -295,7 +326,10 @@ void testTextEditorRefusals()
     LOKA_VERIFY(Input::buffer(*f.context).empty());
   }
   {
-    Fixture f(1, std::string(8192, 'a'));
+    Fixture f(1, std::string(8191, 'a'));
+    LOKA_VERIFY(Input::type(*f.context, 'x') == EDITOR_OK);
+    LOKA_VERIFY(bytes(f.lines.at(0).value).size() == 8192);
+    LOKA_VERIFY(Input::buffer(*f.context).size() == 8192);
     Observer observer(f);
     Snapshot snapshot(f);
     LOKA_VERIFY(Input::type(*f.context, 'x') == EDITOR_CAPACITY);
