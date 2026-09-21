@@ -422,9 +422,18 @@ LRESULT CALLBACK Win32TextEditorContext::WindowProc(HWND window, UINT message, W
   }
   if (!isInputMessage(message))
     return CallWindowProcW(self->previousProc_, window, message, wParam, lParam);
+  if (self->phase_ == INPUT || self->phase_ == PASTING)
+  {
+    // EDIT can forward input messages while executing one native action. Its
+    // EN_CHANGE belongs to that open action; only the outer call closes it.
+    // Owner callbacks run in COMMIT, where a second action is rejected below.
+    if (message == WM_PASTE)
+      self->phase_ = PASTING;
+    return CallWindowProcW(self->previousProc_, window, message, wParam, lParam);
+  }
   if (self->phase_ != IDLE)
   {
-    if (self->phase_ == INPUT || self->phase_ == PASTING || self->phase_ == COMMIT)
+    if (self->phase_ == COMMIT)
       self->phase_ = REJECTED;
     return 0;
   }

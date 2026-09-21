@@ -522,7 +522,24 @@ void testWin32TextEditorActionsUseLineQueries()
   {
     ChangeObservation undo(fixture.host);
     const LRESULT undone = SendMessageW(fixture.context->hwnd(), EM_UNDO, 0, 0);
-    if (!undone || !fixture.lines.at(0).value.equals(String("abxcd")) || EditorAccess::restores(*fixture.context) != 0
+    // EDIT's single-level undo need not reconstruct the pre-replacement text.
+    // The model must accept the actual native result and its final caret.
+    const std::wstring native = fixture.native(); // Reads back with GetWindowTextW.
+    const std::wstring nativeFirst = native.substr(0, native.find_first_of(L"\r\n"));
+    std::string logicalFirst;
+    const bool converted = loka::win32::TextEditorFromWide(nativeFirst.data(), nativeFirst.size(), logicalFirst);
+    const bool lineMatches =
+        converted && fixture.lines.at(0).value.equals(String::Utf8(logicalFirst.data(), logicalFirst.size()));
+    DWORD caretStart = 0, caretEnd = 0;
+    SendMessageW(
+        fixture.context->hwnd(), EM_GETSEL, reinterpret_cast<WPARAM>(&caretStart), reinterpret_cast<LPARAM>(&caretEnd));
+    const int caretLine = static_cast<int>(SendMessageW(fixture.context->hwnd(), EM_LINEFROMCHAR, caretEnd, 0));
+    const int caretOffset = static_cast<int>(SendMessageW(fixture.context->hwnd(), EM_LINEINDEX, caretLine, 0));
+    const bool caretMatches = caretLine >= 0 && caretLine < fixture.lines.size() && caretOffset >= 0
+                              && fixture.cursor.get()
+                                     == LineCursor(fixture.lines.at(static_cast<unsigned short>(caretLine)).id,
+                                                   static_cast<int>(caretEnd) - caretOffset);
+    if (!undone || !lineMatches || !caretMatches || EditorAccess::restores(*fixture.context) != 0
         || undo.arrivals() == 0)
     {
       const StringBuffer model = fixture.lines.at(0).value.bufferWithEncoding(StringEncodingUtf8);
@@ -535,13 +552,18 @@ void testWin32TextEditorActionsUseLineQueries()
           EditorAccess::restores(*fixture.context),
           static_cast<int>(EditorAccess::status(*fixture.context)),
           static_cast<int>(undo.status()));
-      printUndoText("after EM_UNDO", fixture.native(), beforeUndo);
+      std::printf("[undo failure] native caret line=%d column=%d model cursor matches=%d\n",
+                  caretLine,
+                  static_cast<int>(caretEnd) - caretOffset,
+                  caretMatches ? 1 : 0);
+      printUndoText("after EM_UNDO", native, beforeUndo);
       if (undo.arrivals())
         printUndoText("at EN_CHANGE before dispatch", undo.native(), beforeUndo);
       std::fflush(stdout);
     }
     LOKA_VERIFY(undone);
-    LOKA_VERIFY(fixture.lines.at(0).value.equals(String("abxcd")));
+    LOKA_VERIFY(lineMatches);
+    LOKA_VERIFY(caretMatches);
     LOKA_VERIFY(undo.arrivals() > 0);
   }
   LOKA_VERIFY(fixture.lines.at(0).id == first && fixture.lines.size() == 128);
