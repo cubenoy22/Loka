@@ -5,6 +5,8 @@
 #include "app/style/AttributedString.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "platform/String.hpp"
+#include "core/StringAccess.hpp"
+#include <cstdio>
 #include "support/LokaAllocFailure.hpp"
 #include "support/TestVerify.hpp"
 #if defined(TEST_BUILD) && defined(__linux__) && !defined(__SANITIZE_ADDRESS__)
@@ -49,6 +51,50 @@ namespace
   private:
     int *calls_;
   };
+
+  class CollectedString : public loka::platform::String
+  {
+  public:
+    CollectedString(const std::string &bytes, int *calls)
+        : bytes_(bytes),
+          calls_(calls)
+    {
+    }
+    virtual bool appendUtf8(std::string &out) const
+    {
+      ++*this->calls_;
+      out.append(this->bytes_);
+      return true;
+    }
+
+  protected:
+    const std::string bytes_;
+
+  private:
+    int *calls_;
+  };
+
+  class ViewedString : public CollectedString
+  {
+  public:
+    ViewedString(const std::string &bytes, int *calls)
+        : CollectedString(bytes, calls)
+    {
+    }
+    virtual bool queryUtf8(loka::platform::Utf8View &out) const
+    {
+      out.bytes = this->bytes_.empty() ? 0 : this->bytes_.data();
+      out.length = this->bytes_.size();
+      return true;
+    }
+  };
+
+  loka::core::String countedString(const std::string &bytes, bool view, int &calls)
+  {
+    loka::platform::String *text = view ? new ViewedString(bytes, &calls)
+                                       : new CollectedString(bytes, &calls);
+    return loka::core::String::FromPlatform(loka::core::Managed<loka::platform::String>::Wrap(text));
+  }
 
   void countChange(void *context)
   {
@@ -310,4 +356,81 @@ void testManagedTryWrapFailureAndRelease()
   testing::failLokaAllocRaw("Managed", "ControlBlock", 1);
   LOKA_VERIFY(!Managed<int>::Wrap(0).isValid());
   LOKA_VERIFY(testing::lokaAllocRawAttempts() == 0);
+}
+
+void testAttributedStringUtf8Routes()
+{
+  using namespace loka::app;
+  for (int route = 0; route < 4; ++route)
+  {
+    int calls = 0;
+    const bool leftView = (route & 1) == 0;
+    const bool rightView = (route & 2) == 0;
+    const AttributedString left = Styled(countedString("ab", leftView, calls), Bold)
+                                  + Styled(countedString("c", leftView, calls), Bold);
+    const AttributedString right = Styled(countedString("a", rightView, calls), Bold)
+                                   + Styled(countedString("bc", rightView, calls), Bold);
+    LOKA_VERIFY(left.equals(right));
+    const int expected = (leftView ? 0 : 2) + (rightView ? 0 : 2);
+    std::fprintf(stderr, "UTF-8 route %d: collects=%d expected=%d\n", route, calls, expected);
+    LOKA_VERIFY(calls == expected);
+  }
+}
+
+void testAttributedStringUtf8Edges()
+{
+  using namespace loka::app;
+  using loka::core::String;
+  int calls = 0;
+  const AttributedString split = Styled("a", Bold) + Styled("", Italic)
+                                 + Styled(countedString("", true, calls), Italic)
+                                 + Styled(String(), Italic) + Styled("b", Bold);
+  LOKA_VERIFY(split.equals(Styled("ab", Bold)));
+  const AttributedString mixed = Styled(countedString("a", false, calls), Bold)
+                                 + Styled(countedString("b", true, calls), Bold)
+                                 + Styled(countedString("c", false, calls), Bold);
+  calls = 0;
+  LOKA_VERIFY(mixed.equals(Styled(countedString("abc", true, calls), Bold)));
+  LOKA_VERIFY(calls == 2);
+  LOKA_VERIFY((Styled("a", Bold) + Styled("b", Bold)).compare(Styled("ab", Bold)) == 0);
+  const char bytes[] = {'a', '\0', static_cast<char>(0xff)};
+  const std::string binary(bytes, sizeof(bytes));
+  const AttributedString view = Styled(countedString(binary, true, calls), Bold);
+  const AttributedString collected = Styled(countedString(binary, false, calls), Bold);
+  LOKA_VERIFY(view.compare(collected) == 0);
+  LOKA_VERIFY(collected.compare(view) == 0);
+  const AttributedString lower = Styled(countedString(std::string("a\0\x7f", 3), false, calls), Bold);
+  LOKA_VERIFY(view.compare(lower) > 0);
+  LOKA_VERIFY(collected.compare(lower) > 0);
+  LOKA_VERIFY(lower.compare(view) < 0);
+  // Bytes win over styles at the first differing position, including a boundary.
+  LOKA_VERIFY((Styled("a", Bold) + Styled("b", Italic)).compare(Styled("ac", Bold)) < 0);
+  LOKA_VERIFY((Styled("a", Bold) + Styled("b", Italic)).compare(Styled("ab", Bold)) != 0);
+
+  loka::platform::Utf8View out = {bytes, sizeof(bytes)};
+  CollectedString fallback("abc", &calls);
+  LOKA_VERIFY(!fallback.queryUtf8(out));
+  LOKA_VERIFY(out.bytes == bytes && out.length == sizeof(bytes));
+  const String concat = String("a") + String("b");
+  LOKA_VERIFY(!loka::core::StringAccess::handle(concat)->queryUtf8(out));
+  LOKA_VERIFY(out.bytes == bytes && out.length == sizeof(bytes));
+  const String native("abc");
+#if defined(_WIN32) || defined(__APPLE__)
+  std::printf("[skip] Verbatim UTF-8 factory query requires the Null or Toolbox rail.\n");
+  LOKA_VERIFY(!loka::core::StringAccess::handle(native)->queryUtf8(out));
+  LOKA_VERIFY(out.bytes == bytes && out.length == sizeof(bytes));
+#else
+  std::printf("[skip] Native declining factory query requires Win32 or macOS.\n");
+  LOKA_VERIFY(loka::core::StringAccess::handle(native)->queryUtf8(out));
+  LOKA_VERIFY(out.length == 3 && std::string(out.bytes, out.length) == "abc");
+#endif
+}
+
+void testAttributedStringStyleBoundaries()
+{
+  using namespace loka::app;
+  // check-attributed-string-style-cost.py counts comparisons at entry positions 0, 1, 2.
+  const AttributedString left = Styled("ab", Bold) + Styled("cd", Bold);
+  const AttributedString right = Styled("a", Bold) + Styled("", Italic) + Styled("bcd", Bold);
+  LOKA_VERIFY(left.compare(right) == 0);
 }

@@ -21,6 +21,14 @@ namespace loka
           data_.assign(bytes, length);
       }
 
+      // Deliberately mirrors the other verbatim UTF-8 rail (Generic/Toolbox).
+      virtual bool queryUtf8(Utf8View &out) const
+      {
+        out.bytes = this->data_.data();
+        out.length = this->data_.size();
+        return true;
+      }
+
       virtual bool appendUtf8(std::string &out) const
       {
         out.append(data_);
