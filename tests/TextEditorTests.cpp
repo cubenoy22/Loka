@@ -1,5 +1,6 @@
 #include "TextEditorTests.hpp"
 #include "app/nodes/controls/TextChangeSpan.hpp"
+#include "app/nodes/controls/TextEditorDiff.hpp"
 #include "support/TextEditorContractSnapshot.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
 #include "platform/null/context/NullTextEditorContext.hpp"
@@ -150,21 +151,100 @@ namespace
 void testTextEditorActions()
 {
   // Column diffs are independent of native selection and storage edit unions.
-  struct Case { const char *before; const char *after; unsigned start, oldEnd, newEnd; };
-  const Case cases[] = {
+  struct SpanCase { const char *before; const char *after; unsigned start, oldEnd, newEnd; };
+  const SpanCase spanCases[] = {
       {"abcd", "abxcd", 2, 2, 3}, {"abxcd", "abcd", 2, 3, 2},
       {"abxcd", "abYZQd", 2, 4, 5}, {"abcd", "abXYd", 2, 3, 4},
       {"aaaa", "aaa", 3, 4, 3}, {"", "x", 0, 0, 1},
       {"x", "", 0, 1, 0}, {"abcd", "abcd", 4, 4, 4},
       {"abcd", "Xbcd", 0, 1, 1}, {"abcd", "abcdX", 4, 4, 5}};
-  for (unsigned i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i)
+  for (unsigned i = 0; i < sizeof(spanCases) / sizeof(spanCases[0]); ++i)
   {
-    const std::string before(cases[i].before), after(cases[i].after);
+    const std::string before(spanCases[i].before), after(spanCases[i].after);
     const loka::app::detail::TextChangeSpan span(before, before.size(), after, after.size());
-    LOKA_VERIFY(span.start() == cases[i].start);
-    LOKA_VERIFY(span.beforeEnd() == cases[i].oldEnd);
-    LOKA_VERIFY(span.afterEnd() == cases[i].newEnd);
+    LOKA_VERIFY(span.start() == spanCases[i].start);
+    LOKA_VERIFY(span.beforeEnd() == spanCases[i].oldEnd);
+    LOKA_VERIFY(span.afterEnd() == spanCases[i].newEnd);
   }
+  // Shared range detection runs on Linux; an absent hint preserves text-only detection.
+  const struct DiffCase
+  {
+    const char *before;
+    const char *after;
+    int first, oldCount, newCount;
+  } cases[] = {{"aQcd\rabcd\rabcd", "abxcd\rabcd\rabcd", 0, 1, 1},
+               {"a\rb", "a\rb", 2, 0, 0},
+               {"abcd", "ab\rcd", 0, 1, 2},
+               {"ab\rcd", "abcd", 0, 2, 1},
+               {"abcd", "abcd\r", 0, 1, 2},
+               {"abcd\r", "abcd", 0, 2, 1},
+               {"abcd", "\rabcd", 0, 1, 2},
+               {"\rabcd", "abcd", 0, 2, 1},
+               {"", "\r", 0, 1, 2},
+               {"a\rb\rc", "A\rb\rC", 0, 3, 3},
+               {"a\rb\rc", "a\rB\rC", 1, 2, 2},
+               {"a", "aQ\rR\rS", 0, 1, 3}};
+  for (std::size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i)
+  {
+    const loka::app::TextEditorLineDiff diff = loka::app::DiffTextEditorLines(cases[i].before, cases[i].after);
+    LOKA_VERIFY(diff.first() == cases[i].first && diff.before() == cases[i].oldCount
+                && diff.after() == cases[i].newCount);
+  }
+  const std::string atCap = std::string(2, 'a') + 'x' + std::string(8189, 'a');
+  const loka::app::TextEditorLineDiff capDiff = loka::app::DiffTextEditorLines(std::string(8191, 'a'), atCap);
+  LOKA_VERIFY(capDiff.first() == 0 && capDiff.before() == 1 && capDiff.after() == 1);
+  LOKA_VERIFY(loka::app::TextEditorLogicalLine(atCap, 0).size() == 8192);
+
+  // Identity pins consume the pure diff through the document's split/join doors.
+  for (unsigned short count = 2; count <= 3; ++count)
+  {
+    for (int edge = 0; edge < 2; ++edge)
+    {
+      Fixture split(count, "a");
+      const Snapshot original(split);
+      const std::string before = count == 2 ? "a\ra" : "a\ra\ra";
+      const std::string after = count == 2 ? "a\r\ra" : "a\r\ra\ra";
+      const int line = edge == 0 ? 1 : 0, column = edge == 0 ? 0 : 1;
+      const TextEditorLineDiff diff = DiffTextEditorLines(before, after, line, column);
+      LOKA_VERIFY(diff.first() == line && diff.before() == 1 && diff.after() == 2);
+      LOKA_VERIFY(split.node.document.applySplit(
+                      split.lines.at(static_cast<unsigned short>(diff.first())).id,
+                      static_cast<LineCursor::Column>(TextEditorLogicalLine(after, diff.first()).size()))
+                  == EDITOR_OK);
+      LOKA_VERIFY(split.lines.size() == count + 1);
+      for (unsigned short i = 0; i < count; ++i)
+        LOKA_VERIFY(split.lines.at(i <= line ? i : i + 1).id == original.ids[i]);
+      const ItemId added = split.lines.at(static_cast<unsigned short>(line + 1)).id;
+      for (unsigned short i = 0; i < count; ++i)
+        LOKA_VERIFY(added != original.ids[i]);
+      LOKA_VERIFY(bytes(split.lines.at(static_cast<unsigned short>(line)).value) == (column ? "a" : ""));
+      LOKA_VERIFY(bytes(split.lines.at(static_cast<unsigned short>(line + 1)).value) == (column ? "" : "a"));
+      LOKA_VERIFY(split.cursor.get() == LineCursor(added, 0));
+      std::string projected;
+      LOKA_VERIFY(split.node.document.project(projected) == EDITOR_OK && projected == after);
+    }
+    // Nonempty identical lines, and ambiguous runs of empty identical lines.
+    for (int empty = 0; empty < 2; ++empty)
+    {
+      Fixture join(count, empty ? "" : "a");
+      const Snapshot original(join);
+      const std::string before = empty ? std::string(count - 1, '\r') : (count == 2 ? "a\ra" : "a\ra\ra");
+      const std::string after = empty ? std::string(count - 2, '\r') : (count == 2 ? "aa" : "aa\ra");
+      const TextEditorLineDiff diff = DiffTextEditorLines(before, after, 1, 0);
+      LOKA_VERIFY(diff.first() == 0 && diff.before() == 2 && diff.after() == 1);
+      LOKA_VERIFY(join.node.document.applyJoin(join.lines.at(static_cast<unsigned short>(diff.first() + 1)).id)
+                  == EDITOR_OK);
+      LOKA_VERIFY(join.lines.size() == count - 1 && join.lines.at(0).id == original.ids[0]);
+      LOKA_VERIFY(join.lines.find(original.ids[1]) < 0);
+      if (count == 3)
+        LOKA_VERIFY(join.lines.at(1).id == original.ids[2]);
+      LOKA_VERIFY(join.cursor.get() == LineCursor(original.ids[0], empty ? 0 : 1));
+      std::string projected;
+      LOKA_VERIFY(join.node.document.project(projected) == EDITOR_OK && projected == after);
+    }
+  }
+  const TextEditorLineDiff distant = DiffTextEditorLines("aQcd\rabcd\rabcd", "abxcd\rabcd\rabcd", 2, 0);
+  LOKA_VERIFY(distant.first() == 0 && distant.before() == 1 && distant.after() == 1);
 
   Fixture f;
   RefusedNodeHandler foreignHandler(NodeTypeToken<TextEditorNode>());
@@ -287,7 +367,10 @@ void testTextEditorRefusals()
     LOKA_VERIFY(Input::buffer(*f.context).empty());
   }
   {
-    Fixture f(1, std::string(8192, 'a'));
+    Fixture f(1, std::string(8191, 'a'));
+    LOKA_VERIFY(Input::type(*f.context, 'x') == EDITOR_OK);
+    LOKA_VERIFY(bytes(f.lines.at(0).value).size() == 8192);
+    LOKA_VERIFY(Input::buffer(*f.context).size() == 8192);
     Observer observer(f);
     Snapshot snapshot(f);
     LOKA_VERIFY(Input::type(*f.context, 'x') == EDITOR_CAPACITY);
