@@ -78,16 +78,20 @@ namespace
   }
 
   class MacTextEditorHandler
-      : public scene::RetainedNodeHandler<MacTextEditorHandler, TextEditorNode, MacTextEditorContext>
+      : public loka::app::scene::RetainedNodeHandler<MacTextEditorHandler,
+                                                     loka::app::TextEditorNode,
+                                                     MacTextEditorContext>
   {
   public:
-    static TextEditorNode *cast(scene::Node *node)
+    static loka::app::TextEditorNode *cast(loka::app::scene::Node *node)
     {
-      return node && node->nodeTypeKey() == scene::NodeTypeToken<TextEditorNode>() ? static_cast<TextEditorNode *>(node)
-                                                                                   : 0;
+      return node && node->nodeTypeKey() == loka::app::scene::NodeTypeToken<loka::app::TextEditorNode>()
+                 ? static_cast<loka::app::TextEditorNode *>(node)
+                 : 0;
     }
-    static MacTextEditorContext *
-    create(TextEditorNode *node, scene::IPlatformController *controller, const scene::LayoutState &)
+    static MacTextEditorContext *create(loka::app::TextEditorNode *node,
+                                        loka::app::scene::IPlatformController *controller,
+                                        const loka::app::scene::LayoutState &)
     {
       MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
       MacTextEditorContext *context = new (std::nothrow) MacTextEditorContext(mac, mac->projectionParentView(), node);
@@ -200,7 +204,7 @@ struct MacTextEditorContext::Projection
     for (unsigned short i = 0; i < TextEditorProps::kMaxLines; ++i)
       this->ids[i] = ItemId::none();
   }
-  void style(NSTextView *view, TextEditorNode &node, MacScenePlatformController &controller, bool force)
+  void style(NSTextView *view, loka::app::TextEditorNode &node, MacScenePlatformController &controller, bool force)
   {
     NativeLines lines([view string]);
     if (lines.result != EDITOR_OK)
@@ -284,7 +288,9 @@ struct MacTextEditorContext::Projection
   }
 };
 
-MacTextEditorContext::MacTextEditorContext(MacScenePlatformController *controller, void *parent, TextEditorNode *node)
+MacTextEditorContext::MacTextEditorContext(MacScenePlatformController *controller,
+                                         void *parent,
+                                         loka::app::TextEditorNode *node)
     : MacRetirableContext(controller),
       projection_(new(std::nothrow) Projection()),
       restores_(0),
@@ -328,14 +334,14 @@ bool MacTextEditorContext::hasNativeView() const
 
 void MacTextEditorContext::readLifecycleFactOnAttach()
 {
-  this->onFactChanged(scene::NODE_FACT_DETACHED_RETAINED, this->node_->lifecycleFact());
+  this->onFactChanged(loka::app::scene::NODE_FACT_DETACHED_RETAINED, this->node_->lifecycleFact());
 }
-void MacTextEditorContext::onFactChanged(scene::NodeLifecycleFact, scene::NodeLifecycleFact next)
+void MacTextEditorContext::onFactChanged(loka::app::scene::NodeLifecycleFact, loka::app::scene::NodeLifecycleFact next)
 {
   NSScrollView *scroll = (NSScrollView *)this->scroll_;
   NSTextView *view = (NSTextView *)[scroll documentView];
   LokaTextEditorDelegate *delegate = (LokaTextEditorDelegate *)this->delegate_;
-  if (next == scene::NODE_FACT_ATTACHED)
+  if (next == loka::app::scene::NODE_FACT_ATTACHED)
   {
     [(NSView *)this->parent_ addSubview:scroll];
     [delegate setOwner:this];
@@ -352,7 +358,7 @@ void MacTextEditorContext::onFactChanged(scene::NodeLifecycleFact, scene::NodeLi
     [scroll removeFromSuperview];
     this->projection_->phase = Projection::UNAVAILABLE;
     this->projection_->clear();
-    if (next == scene::NODE_FACT_RETIRED)
+    if (next == loka::app::scene::NODE_FACT_RETIRED)
     {
       this->retireNativeObjects(this->scroll_, this->delegate_);
       this->node_ = 0;
@@ -365,7 +371,7 @@ void MacTextEditorContext::onPropsApplied()
   if (this->projection_->phase == Projection::IDLE || this->projection_->phase == Projection::UNAVAILABLE)
     this->syncFromNode(false);
 }
-short MacTextEditorContext::layout(scene::IPlatformController *, scene::LayoutState &state)
+short MacTextEditorContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
   if (state.height <= 0)
     state.height = 80;
@@ -384,7 +390,7 @@ short MacTextEditorContext::layout(scene::IPlatformController *, scene::LayoutSt
 void MacTextEditorContext::scheduleRestore()
 {
   Projection &p = *this->projection_;
-  if (!this->node_ || this->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED || p.phase == Projection::QUEUED)
+  if (!this->node_ || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED || p.phase == Projection::QUEUED)
     return;
   p.phase = Projection::QUEUED;
   [(NSTextView *)[(NSScrollView *)this->scroll_ documentView] setEditable:NO];
@@ -392,7 +398,7 @@ void MacTextEditorContext::scheduleRestore()
 }
 void MacTextEditorContext::restoreCommittedProjection()
 {
-  if (!this->node_ || this->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED)
+  if (!this->node_ || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
     return;
   ++this->restores_;
   this->syncFromNode(true);
@@ -400,7 +406,7 @@ void MacTextEditorContext::restoreCommittedProjection()
 
 void MacTextEditorContext::syncFromNode(bool force)
 {
-  if (!this->node_ || this->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED)
+  if (!this->node_ || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
     return;
   Projection &p = *this->projection_;
   NSScrollView *scroll = (NSScrollView *)this->scroll_;
@@ -505,7 +511,7 @@ void MacTextEditorContext::handleSelectionDidChange()
   const LineCursor cursor(p.ids[index], static_cast<int>(selection.location - lines.ranges[index].location));
   p.phase = Projection::INPUT;
   const EditorResult result = this->node_->document.moveCaret(cursor);
-  if (!this->node_ || this->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED)
+  if (!this->node_ || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
     return;
   if (result != EDITOR_OK || p.phase == Projection::RECONCILE)
     this->scheduleRestore();
@@ -622,7 +628,7 @@ void MacTextEditorContext::handleTextDidChange()
     return;
   p.phase = Projection::INPUT;
   const EditorResult result = this->applyNativeChange();
-  if (!this->node_ || this->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED)
+  if (!this->node_ || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
     return;
   if (result != EDITOR_OK || p.phase == Projection::RECONCILE)
     this->scheduleRestore();
@@ -630,7 +636,7 @@ void MacTextEditorContext::handleTextDidChange()
     this->syncFromNode(false);
 }
 
-void RegisterMacTextEditorNodeHandler(scene::PlatformNodeHandlerRegistry &registry)
+void RegisterMacTextEditorNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
 {
   registry.registerHandler(&handler);
 }
