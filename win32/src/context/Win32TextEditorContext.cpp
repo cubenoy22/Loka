@@ -1,6 +1,6 @@
 #include "Win32TextEditorContext.hpp"
 #include "Win32EditTextBridge.hpp"
-#include "Win32TextEditorDiff.hpp"
+#include "app/nodes/controls/TextEditorDiff.hpp"
 #include "../Win32ScenePlatformController.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include <cassert>
@@ -285,11 +285,11 @@ EditorResult Win32TextEditorContext::applyLines(int first, int oldCount, int new
   loka::core::ObservableList<loka::core::String> &lines = *this->node_->props.lines_;
   if (first < 0 || first >= lines.size() || first + oldCount > lines.size())
     return EDITOR_INVALID_CURSOR;
-  const std::string one = loka::win32::TextEditorLogicalLine(logical, first);
+  const std::string one = loka::app::TextEditorLogicalLine(logical, first);
   const loka::core::ItemId id = lines.at(static_cast<unsigned short>(first)).id;
   if (oldCount == 1 && newCount == 1)
   {
-    const std::string old = loka::win32::TextEditorLogicalLine(this->projection_.text, first);
+    const std::string old = loka::app::TextEditorLogicalLine(this->projection_.text, first);
     const LineCursor after = this->nativeCaret();
     if (one.size() > old.size() && after.line == id)
     {
@@ -308,15 +308,15 @@ EditorResult Win32TextEditorContext::applyLines(int first, int oldCount, int new
   }
   if (oldCount == 1 && newCount == 2)
   {
-    const std::string two = loka::win32::TextEditorLogicalLine(logical, first + 1);
-    if (one + two != loka::win32::TextEditorLogicalLine(this->projection_.text, first))
+    const std::string two = loka::app::TextEditorLogicalLine(logical, first + 1);
+    if (one + two != loka::app::TextEditorLogicalLine(this->projection_.text, first))
       return EDITOR_INVALID_CURSOR;
     return this->node_->document.applySplit(id, static_cast<LineCursor::Column>(one.size()));
   }
   if (oldCount == 2 && newCount == 1
       && one
-             == loka::win32::TextEditorLogicalLine(this->projection_.text, first)
-                    + loka::win32::TextEditorLogicalLine(this->projection_.text, first + 1))
+             == loka::app::TextEditorLogicalLine(this->projection_.text, first)
+                    + loka::app::TextEditorLogicalLine(this->projection_.text, first + 1))
     return this->node_->document.applyJoin(lines.at(static_cast<unsigned short>(first + 1)).id);
   return EDITOR_INVALID_CURSOR;
 }
@@ -338,9 +338,26 @@ EditorResult Win32TextEditorContext::commitNativeChange(bool allowLineBreak)
     return EDITOR_NON_ASCII;
   if (logical.size() > TextEditorProps::kMaxBytes)
     return EDITOR_CAPACITY;
-  // Undo can change a line unrelated to either selection. Only text establishes
-  // the affected range. Slice this same snapshot so detection and commit agree.
-  const loka::win32::TextEditorLineDiff diff = loka::win32::DiffTextEditorLines(this->projection_.text, logical);
+  // The saved selection belongs to the pre-edit ASCII projection: native CRLF
+  // takes two offsets where the logical separator takes one. Derive the hint
+  // from that snapshot, never from line queries on the already edited control.
+  int caretLine = 0;
+  int caretColumn = static_cast<int>(this->selection_.end);
+  std::size_t start = 0;
+  for (std::size_t end = this->projection_.text.find('\r'); end != std::string::npos;
+       end = this->projection_.text.find('\r', start))
+  {
+    const int nativeLength = static_cast<int>(end - start) + 2;
+    if (caretColumn < nativeLength)
+      break;
+    caretColumn -= nativeLength;
+    ++caretLine;
+    start = end + 1;
+  }
+  // A selection replacement has no single split/join caret. Undo may have a
+  // distant caret; the shared helper accepts the hint only when text agrees.
+  const loka::app::TextEditorLineDiff diff = loka::app::DiffTextEditorLines(
+      this->projection_.text, logical, this->selection_.start == this->selection_.end ? caretLine : -1, caretColumn);
   if (diff.before() == 0 && diff.after() == 0)
     return this->node_->document.moveCaret(this->nativeCaret());
   if (this->node_->props.lines_->size() - diff.before() + diff.after() > TextEditorProps::kMaxLines)

@@ -3,7 +3,7 @@
 #include "support/LokaAllocFailure.hpp"
 #include "context/Win32TextEditorContext.hpp"
 #include "context/Win32EditTextBridge.hpp"
-#include "context/Win32TextEditorDiff.hpp"
+#include "app/nodes/controls/TextEditorDiff.hpp"
 #include "Win32ScenePlatformController.hpp"
 #include "Win32BuiltInSupport.hpp"
 #include "platform/StringUTF8.hpp"
@@ -329,7 +329,7 @@ namespace
       std::printf("[undo failure] %s diff unavailable: non-ASCII/native conversion refused\n", label);
       return;
     }
-    const loka::win32::TextEditorLineDiff diff = loka::win32::DiffTextEditorLines(before, logical);
+    const loka::app::TextEditorLineDiff diff = loka::app::DiffTextEditorLines(before, logical);
     const char *kind = diff.before() == 0 && diff.after() == 0   ? "unchanged"
                        : diff.before() == 1 && diff.after() == 1 ? "single-line"
                        : diff.before() == 1 && diff.after() == 2 ? "split-candidate"
