@@ -217,7 +217,7 @@ class ExpectedAuditPinsTest(unittest.TestCase):
         registry = os.path.join(PROJECT_DIR, "tests", "scenarios", "scenarios.txt")
         with open(registry, "r", encoding="utf-8") as handle:
             entries = [line.split() for line in handle.read().splitlines()]
-        self.assertEqual(len(entries), 25)
+        self.assertEqual(len(entries), 26)
         self.assertEqual(len(entries), len({tuple(entry) for entry in entries}))
         self.assertEqual(
             [entry for entry in entries if entry[0] == "simpleviewer"],
@@ -230,7 +230,7 @@ class ExpectedAuditPinsTest(unittest.TestCase):
             example, scenario = entry
             audit_path = os.path.join(SCENARIO_DIR, "expected", example, scenario + ".audit")
             # #642 PR 0 is build-only until the delegator measures both partitions.
-            # Only this named cell may lack an audit; a baked audit uses all checks below.
+            # Only this named cell may lack an audit; baked audits use all checks below.
             if entry == ["simpleviewer", "churn-replace"] and not os.path.exists(audit_path):
                 self.assertTrue(os.path.isfile(audit_path + ".pending.md"))
                 continue

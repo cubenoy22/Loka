@@ -167,6 +167,27 @@ namespace loka
       }
       return EDITOR_OK;
     }
+    EditorResult TextEditorDocument::project(char *out, std::size_t capacity, std::size_t &length) const
+    {
+      length = 0;
+      std::size_t bytes = 0;
+      EditorResult result = this->measure(bytes);
+      if (result != EDITOR_OK)
+        return result;
+      if (!out || bytes > capacity)
+        return EDITOR_ALLOCATION;
+      for (unsigned short i = 0; i < this->props_.lines_->size(); ++i)
+      {
+        const LineBytes line(this->props_.lines_->at(i).value);
+        if (line.result() != EDITOR_OK)
+          return line.result();
+        if (i)
+          out[length++] = '\r';
+        std::memcpy(out + length, line.data(), line.size());
+        length += line.size();
+      }
+      return EDITOR_OK;
+    }
     EditorResult TextEditorDocument::availability() const
     {
       std::size_t bytes = 0;

@@ -4,6 +4,7 @@
 
 #include "MainNode.hpp"
 #include "SmirkBenchAttributedScenario.hpp"
+#include "SmirkBenchPlainEditorScenario.hpp"
 #include "ObservedMainDefinition.hpp"
 #include "RectSurfaceScenarioObservation.hpp"
 #include "ScenarioDriverSupport.hpp"
@@ -27,7 +28,7 @@ namespace loka
     {
       bool IsSmirkBenchScenario(const std::string &name)
       {
-        return name == "attributed-editor-line" || name == "startup" || name == "surface-ticks" || name == "add-face" || name == "retained-text-rebind";
+        return scenario_tests::SmirkBenchToolboxCells().contains(name);
       }
 
       dsl::SnapRecord MakeRecord(const char *scenario, long tick, const char *status)
@@ -74,7 +75,13 @@ namespace loka
           // structure rectangle leaves the screen, so the scenario window is
           // placed at (1, 41) with a 636-pixel content width (structure 0..638).
           WindowProps window;
-          if (this->scenario_ == "attributed-editor-line")
+          if (this->scenario_ == "text-editor-plain")
+          {
+            window.scene(scenario_tests::ObservedMainDefinition<scenario_tests::SmirkBenchPlainEditorProps,
+                                                               scenario_tests::SmirkBenchPlainEditorNode>(
+                scenario_tests::SmirkBenchPlainEditorProps(&this->model_), 0));
+          }
+          else if (this->scenario_ == "attributed-editor-line")
           {
             window.scene(scenario_tests::ObservedMainDefinition<scenario_tests::SmirkBenchEditorLineProps,
                                                                scenario_tests::SmirkBenchEditorLineNode>(
@@ -255,10 +262,12 @@ namespace loka
           {
             return;
           }
-          if (this->scenario_ == "attributed-editor-line")
+          if (this->scenario_ == "attributed-editor-line" || this->scenario_ == "text-editor-plain")
           {
             dsl::SnapRecord record;
-            if (scenario_tests::AdvanceSmirkBenchEditor(this->tick_, scene, this->audit_, record)
+            if ((this->scenario_ == "text-editor-plain"
+                    ? scenario_tests::AdvanceSmirkBenchPlainEditor(this->tick_, scene, *controller, this->audit_, record)
+                    : scenario_tests::AdvanceSmirkBenchEditor(this->tick_, scene, this->audit_, record))
                 == scenario_tests::SCENARIO_ADVANCE_DRIVER_COMPLETION_READY)
             {
               std::string status;

@@ -23,3 +23,4 @@ simpleviewer startup
 simpleviewer open-sun
 simpleviewer open-bulb
 simpleviewer churn-replace
+smirkbench text-editor-plain
