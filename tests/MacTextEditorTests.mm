@@ -154,7 +154,7 @@ namespace
     void edit(NSString *text, NSUInteger caret)
     {
       this->context->captureSelection();
-      // Replace only the changed span so storage reports the actual edit end.
+      // Model a local native edit rather than a whole-document replacement.
       NSString *before = [this->view string];
       NSUInteger first = 0, oldEnd = [before length], newEnd = [text length];
       while (first < oldEnd && first < newEnd && [before characterAtIndex:first] == [text characterAtIndex:first])
@@ -338,9 +338,10 @@ void testMacTextEditorLineActions()
   const String unchanged = f.lines.at(2).value;
   [f.view insertText:@"x" replacementRange:[f.view selectedRange]];
   const bool firstKeySucceeded = bytes(f.lines.at(0).value) == "abxcd"
-                                 && f.cursor.get() == LineCursor(first, 3) && observer.calls == 1;
+                                 && f.cursor.get() == LineCursor(first, 3) && observer.calls == 1
+                                 && NSEqualRanges([f.view selectedRange], NSMakeRange(3, 0));
   if (!firstKeySucceeded)
-    printEditState(f, "first keystroke failure (see notification trace for commit source)");
+    printEditState(f, "first keystroke failure");
   LOKA_VERIFY(firstKeySucceeded);
   LOKA_VERIFY(observer.calls == 1);
   LOKA_VERIFY(f.lines.revision().get().change.kind == LIST_UPDATE);
@@ -475,7 +476,7 @@ void testMacTextEditorStorageChanges()
   LOKA_VERIFY(observer.calls == 1 && [f.view isEditable]);
   LOKA_VERIFY(Access::restores(*f.context) == 0);
 
-  // A replacement at a different location also gets its caret from storage.
+  // A replacement at a different location gets its caret from the text diff.
   [f.view setDelegate:nil];
   [[f.view textStorage] replaceCharactersInRange:NSMakeRange(2, 2) withString:@"YZQ"];
   [f.view setDelegate:delegate];
@@ -657,6 +658,24 @@ namespace
 } // namespace
 void testMacTextEditorHighlightAndLifecycle()
 {
+  {
+    Highlighter policy;
+    Fixture pending;
+    pending.node.props.highlighter(policy);
+    pending.context->onPropsApplied();
+    id delegate = [pending.view delegate];
+    [pending.view setDelegate:nil];
+    [[pending.view textStorage] replaceCharactersInRange:NSMakeRange(2, 0) withString:@"x"];
+    [pending.view setDelegate:delegate];
+    LOKA_VERIFY(policy.calls == 3);
+    // The owner changes structure before the queued native style pass.
+    LOKA_VERIFY(pending.lines.insert(0, String("owner")) == EDIT_OK);
+    for (int i = 0; i < 20 && Access::restores(*pending.context) == 0; ++i)
+      pending.turn();
+    LOKA_VERIFY(Access::restores(*pending.context) == 1);
+    LOKA_VERIFY([[pending.view string] isEqualToString:@"owner\nabxcd\nabcd\nabcd"]);
+    LOKA_VERIFY(policy.calls == 5);
+  }
   Highlighter highlighter;
   Fixture f;
   f.node.props.highlighter(highlighter);
@@ -680,6 +699,37 @@ void testMacTextEditorHighlightAndLifecycle()
   LOKA_VERIFY(highlighter.calls == 6 && bytes(f.lines.at(0).value) == "abxyQcd");
   verifyFont([[f.view textStorage] attribute:NSFontAttributeName atIndex:0 effectiveRange:0],
              (NSFont *)f.controller.textFont(TextStyle(), true));
+  // Storage-only input queues one style pass and never styles in the delegate.
+  id delegate = [f.view delegate];
+  [f.view setDelegate:nil];
+  NSTextStorage *storage = [f.view textStorage];
+  [storage replaceCharactersInRange:NSMakeRange(2, 0) withString:@"R"];
+  [storage replaceCharactersInRange:NSMakeRange(3, 0) withString:@"S"];
+  [f.view setDelegate:delegate];
+  LOKA_VERIFY(highlighter.calls == 6);
+  LOKA_VERIFY(bytes(f.lines.at(0).value) == "abRSxyQcd");
+  LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 4));
+  f.turn();
+  LOKA_VERIFY(highlighter.calls == 7);
+  verifyFont([storage attribute:NSFontAttributeName atIndex:2 effectiveRange:0],
+             (NSFont *)f.controller.textFont(Bold + Italic + FontSize<18>(), true));
+  LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 4));
+  f.turn();
+  LOKA_VERIFY(highlighter.calls == 7);
+
+  // A queued style pass loses its owner on retained detach.
+  [f.view setDelegate:nil];
+  [storage replaceCharactersInRange:NSMakeRange(2, 2) withString:@""];
+  [f.view setDelegate:delegate];
+  LOKA_VERIFY(highlighter.calls == 7);
+  NotifySubtreeNodeDetached(&f.node);
+  LifecycleFactTestAccess::DeliverFacts(&f.node);
+  f.turn();
+  LOKA_VERIFY(highlighter.calls == 7);
+  NotifySubtreeNodeAttached(&f.node);
+  LifecycleFactTestAccess::DeliverFacts(&f.node);
+  LOKA_VERIFY(highlighter.calls == 10);
+
   // Pending restore is invalidated by retained detach, as is the style cache.
   f.edit(@"\u00e9", 1);
   NotifySubtreeNodeDetached(&f.node);

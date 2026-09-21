@@ -34,13 +34,14 @@ public:
   virtual void onPropsApplied();
   virtual void onFactChanged(loka::app::scene::NodeLifecycleFact, loka::app::scene::NodeLifecycleFact);
   virtual short layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &);
-  /** Native notification origin; each caller supplies its authoritative caret. */
+  /** Native notification origin; only the view supplies a selection offset. */
   enum TextObservation
   {
     VIEW_CHANGE,
     STORAGE_EDIT
   };
   void handleTextDidChange(TextObservation source, std::size_t caretOffset);
+  void applyHighlights();
   void handleSelectionDidChange();
   void captureSelection();
   void restoreCommittedProjection();
@@ -54,9 +55,9 @@ private:
   void *parent_;
   void *scroll_;
   void *delegate_;
-  void syncFromNode(bool force);
+  void syncFromNode(bool force, bool nativeCommit = false);
   void scheduleRestore();
-  loka::app::EditorResult applyNativeChange(std::size_t caretOffset);
+  loka::app::EditorResult applyNativeChange(TextObservation source, std::size_t &caretOffset);
 };
 
 void RegisterMacTextEditorNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &);

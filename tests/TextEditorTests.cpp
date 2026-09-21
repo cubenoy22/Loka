@@ -1,4 +1,5 @@
 #include "TextEditorTests.hpp"
+#include "app/nodes/controls/TextChangeSpan.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
 #include "platform/null/context/NullTextEditorContext.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
@@ -174,6 +175,23 @@ namespace
 } // namespace
 void testTextEditorActions()
 {
+  // Column diffs are independent of native selection and storage edit unions.
+  struct Case { const char *before; const char *after; unsigned start, oldEnd, newEnd; };
+  const Case cases[] = {
+      {"abcd", "abxcd", 2, 2, 3}, {"abxcd", "abcd", 2, 3, 2},
+      {"abxcd", "abYZQd", 2, 4, 5}, {"abcd", "abXYd", 2, 3, 4},
+      {"aaaa", "aaa", 3, 4, 3}, {"", "x", 0, 0, 1},
+      {"x", "", 0, 1, 0}, {"abcd", "abcd", 4, 4, 4},
+      {"abcd", "Xbcd", 0, 1, 1}, {"abcd", "abcdX", 4, 4, 5}};
+  for (unsigned i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i)
+  {
+    const std::string before(cases[i].before), after(cases[i].after);
+    const loka::app::detail::TextChangeSpan span(before, before.size(), after, after.size());
+    LOKA_VERIFY(span.start() == cases[i].start);
+    LOKA_VERIFY(span.beforeEnd() == cases[i].oldEnd);
+    LOKA_VERIFY(span.afterEnd() == cases[i].newEnd);
+  }
+
   Fixture f;
   RefusedNodeHandler foreignHandler(NodeTypeToken<TextEditorNode>());
   LOKA_VERIFY(!f.platform.registerNodeHandler(&foreignHandler));

@@ -1,4 +1,5 @@
 #include "MacTextEditorContext.hpp"
+#include "app/nodes/controls/TextChangeSpan.hpp"
 #include "../MacScenePlatformController.hpp"
 #include "../MacObjCCompat.hpp"
 #include "../platform/MacNativeGeometry.hpp"
@@ -78,6 +79,24 @@ namespace
     return true;
   }
 
+  /** Borrowed indexed characters for the rail-neutral column diff. */
+  class NativeCharacters
+  {
+  public:
+    NativeCharacters(NSString *text, NSUInteger offset)
+        : text_(text),
+          offset_(offset)
+    {
+    }
+    unichar operator[](std::size_t index) const
+    {
+      return [this->text_ characterAtIndex:this->offset_ + index];
+    }
+  private:
+    NSString *text_;
+    NSUInteger offset_;
+  };
+
   void InstallEditorFont(NSTextView *view, MacScenePlatformController &controller)
   {
     NSFont *font = (NSFont *)controller.textFont(TextStyle(), true);
@@ -134,6 +153,7 @@ namespace
 }
 @property(nonatomic, assign) MacTextEditorContext *owner;
 - (void)restoreProjection;
+- (void)applyHighlights;
 @end
 @implementation LokaTextEditorDelegate
 @synthesize owner = owner_;
@@ -148,9 +168,8 @@ namespace
   NSTextStorage *storage = (NSTextStorage *)[notification object];
   if (([storage editedMask] & NSTextStorageEditedCharacters) && [self owner])
   {
-    // Storage processing precedes the view's post-action selection update.
-    const NSRange edited = [storage editedRange];
-    [self owner]->handleTextDidChange(MacTextEditorContext::STORAGE_EDIT, NSMaxRange(edited));
+    // Selection is not final and editedRange includes attribute edits.
+    [self owner]->handleTextDidChange(MacTextEditorContext::STORAGE_EDIT, 0);
   }
 }
 - (void)textViewDidChangeSelection:(NSNotification *)notification
@@ -167,6 +186,11 @@ namespace
   if ([self owner])
     [self owner]->captureSelection();
   return YES;
+}
+- (void)applyHighlights
+{
+  if ([self owner])
+    [self owner]->applyHighlights();
 }
 - (void)restoreProjection
 {
@@ -234,6 +258,23 @@ struct MacTextEditorContext::Projection
     this->clearStyles();
     for (unsigned short i = 0; i < TextEditorProps::kMaxLines; ++i)
       this->ids[i] = ItemId::none();
+  }
+  /** Validate the snapshot before consuming native text or deferred styling. */
+  EditorResult validateDocument(TextEditorNode &node)
+  {
+    const EditorResult available = node.document.project(this->scratch);
+    if (available != EDITOR_OK)
+      return available;
+    if ([this->committed length] != this->scratch.size())
+      return EDITOR_STALE_ID;
+    for (NSUInteger i = 0; i < this->scratch.size(); ++i)
+      if ([this->committed characterAtIndex:i] != (this->scratch[i] == '\r' ? '\n' : this->scratch[i]))
+        return EDITOR_STALE_ID;
+    const ObservableList<String> &committedLines = *node.props.lines_;
+    for (unsigned short i = 0; i < committedLines.size(); ++i)
+      if (this->ids[i] != committedLines.at(i).id)
+        return EDITOR_STALE_ID;
+    return EDITOR_OK;
   }
   void style(NSTextView *view, loka::app::TextEditorNode &node, MacScenePlatformController &controller, bool force)
   {
@@ -437,7 +478,7 @@ void MacTextEditorContext::restoreCommittedProjection()
   this->syncFromNode(true);
 }
 
-void MacTextEditorContext::syncFromNode(bool force)
+void MacTextEditorContext::syncFromNode(bool force, bool nativeCommit)
 {
   if (!this->node_ || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
     return;
@@ -449,6 +490,11 @@ void MacTextEditorContext::syncFromNode(bool force)
   const EditorResult result = this->node_->document.project(p.scratch);
   if (result != EDITOR_OK)
   {
+    if (nativeCommit)
+    {
+      this->scheduleRestore();
+      return;
+    }
     ReplaceEditorString(view, @"", *this->controller());
     [view setEditable:NO];
     [[view undoManager] removeAllActions];
@@ -473,6 +519,13 @@ void MacTextEditorContext::syncFromNode(bool force)
     return;
   }
   const bool replace = force || ![[view string] isEqualToString:desired];
+  if (replace && nativeCommit)
+  {
+    if (!same)
+      [desired release];
+    this->scheduleRestore();
+    return;
+  }
   if (replace)
   {
     ReplaceEditorString(view, desired, *this->controller());
@@ -494,6 +547,12 @@ void MacTextEditorContext::syncFromNode(bool force)
   const ObservableList<String> &lines = *this->node_->props.lines_;
   for (unsigned short i = 0; i < TextEditorProps::kMaxLines; ++i)
     p.ids[i] = i < lines.size() ? lines.at(i).id : ItemId::none();
+  if (nativeCommit)
+  {
+    // Accept the snapshot without writing selection or attributes during input.
+    p.phase = Projection::IDLE;
+    return;
+  }
   NativeLines native(p.committed);
   const LineCursor cursor = this->node_->props.cursor_.state()->get();
   int index = lines.find(cursor.line);
@@ -555,23 +614,14 @@ void MacTextEditorContext::handleSelectionDidChange()
   }
 }
 
-EditorResult MacTextEditorContext::applyNativeChange(std::size_t caretOffset)
+EditorResult MacTextEditorContext::applyNativeChange(TextObservation source, std::size_t &caretOffset)
 {
   Projection &p = *this->projection_;
   NSTextView *view = (NSTextView *)[(NSScrollView *)this->scroll_ documentView];
   NSString *text = [view string];
-  const EditorResult available = this->node_->document.project(p.scratch);
+  const EditorResult available = p.validateDocument(*this->node_);
   if (available != EDITOR_OK)
     return available;
-  if ([p.committed length] != p.scratch.size())
-    return EDITOR_STALE_ID;
-  for (NSUInteger i = 0; i < p.scratch.size(); ++i)
-    if ([p.committed characterAtIndex:i] != (p.scratch[i] == '\r' ? '\n' : p.scratch[i]))
-      return EDITOR_STALE_ID;
-  const ObservableList<String> &committedLines = *this->node_->props.lines_;
-  for (unsigned short i = 0; i < committedLines.size(); ++i)
-    if (p.ids[i] != committedLines.at(i).id)
-      return EDITOR_STALE_ID;
   const NativeLines before(p.committed), after(text);
   if (after.result != EDITOR_OK)
     return after.result;
@@ -588,10 +638,12 @@ EditorResult MacTextEditorContext::applyNativeChange(std::size_t caretOffset)
     --oldEnd;
     --newEnd;
   }
-  const NSUInteger caret = std::min(static_cast<NSUInteger>(caretOffset), [text length]);
-  const unsigned short caretLine = after.lineAt(caret);
   if (first == before.count && first == after.count)
   {
+    if (source == STORAGE_EDIT)
+      return EDITOR_OK;
+    const NSUInteger caret = std::min(static_cast<NSUInteger>(caretOffset), [text length]);
+    const unsigned short caretLine = after.lineAt(caret);
     // A later view notification can carry a new caret over committed text.
     const LineCursor cursor(p.ids[caretLine], static_cast<int>(caret - after.ranges[caretLine].location));
     return cursor == this->node_->props.cursor_.state()->get() ? EDITOR_OK : this->node_->document.moveCaret(cursor);
@@ -635,25 +687,20 @@ EditorResult MacTextEditorContext::applyNativeChange(std::size_t caretOffset)
   if (oldEnd != first + 1 || newEnd != first + 1)
     return EDITOR_INVALID_CURSOR;
   const NSRange oldLine = before.ranges[first], newLine = after.ranges[first];
-  // Infer insertion position from text too: undo need not use the saved
-  // selection. Use the keystroke door only when its resulting caret matches.
-  NSUInteger column = 0;
-  while (column < oldLine.length && column < newLine.length &&
-         [p.committed characterAtIndex:oldLine.location + column] == [text characterAtIndex:newLine.location + column])
-    ++column;
-  if (newLine.length > oldLine.length)
+  const loka::app::detail::TextChangeSpan span(
+      NativeCharacters(p.committed, oldLine.location), oldLine.length,
+      NativeCharacters(text, newLine.location), newLine.length);
+  if (source == STORAGE_EDIT)
+    caretOffset = newLine.location + span.afterEnd();
+  const NSUInteger caret = std::min(static_cast<NSUInteger>(caretOffset), [text length]);
+  const unsigned short caretLine = after.lineAt(caret);
+  if (span.beforeEnd() == span.start() && span.afterEnd() > span.start()
+      && caretLine == first && caret == newLine.location + span.afterEnd())
   {
-    const NSUInteger added = newLine.length - oldLine.length;
-    if (caretLine == first && caret == newLine.location + column + added
-        && EqualLine(p.committed,
-                     NSMakeRange(oldLine.location + column, oldLine.length - column),
-                     text,
-                     NSMakeRange(newLine.location + column + added, oldLine.length - column)))
-    {
-      NSString *insert = [text substringWithRange:NSMakeRange(newLine.location + column, added)];
-      return this->node_->document.applyKeystroke(
-          LineCursor(p.ids[first], static_cast<int>(column)), [insert UTF8String], added);
-    }
+    const NSUInteger added = span.afterEnd() - span.start();
+    NSString *insert = [text substringWithRange:NSMakeRange(newLine.location + span.start(), added)];
+    return this->node_->document.applyKeystroke(
+        LineCursor(p.ids[first], static_cast<int>(span.start())), [insert UTF8String], added);
   }
   NSString *replacement = [text substringWithRange:newLine];
   return this->node_->document.applySingleLine(
@@ -678,23 +725,54 @@ void MacTextEditorContext::handleTextDidChange(TextObservation source, std::size
 #ifndef NDEBUG
   NSTextView *view = (NSTextView *)[(NSScrollView *)this->scroll_ documentView];
   const bool textChanged = ![[view string] isEqualToString:p.committed];
-#else
-  (void)source;
 #endif
-  const EditorResult result = this->applyNativeChange(caretOffset);
+  const EditorResult result = this->applyNativeChange(source, caretOffset);
 #ifndef NDEBUG
   // Scalar-only diagnostics identify the committing callback without user text.
-  fprintf(stderr, "[MacTextEditor %s] text-diff=%d caret-offset=%lu result=%d phase=%d\n",
-          source == STORAGE_EDIT ? "textStorageDidProcessEditing:" : "textDidChange:",
-          static_cast<int>(textChanged), static_cast<unsigned long>(caretOffset),
-          static_cast<int>(result), static_cast<int>(p.phase));
+  if (result != EDITOR_OK || p.phase == Projection::RECONCILE)
+    fprintf(stderr, "[MacTextEditor %s] text-diff=%d caret-offset=%lu result=%d phase=%d\n",
+            source == STORAGE_EDIT ? "textStorageDidProcessEditing:" : "textDidChange:",
+            static_cast<int>(textChanged), static_cast<unsigned long>(caretOffset),
+            static_cast<int>(result), static_cast<int>(p.phase));
 #endif
   if (!this->node_ || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
     return;
   if (result != EDITOR_OK || p.phase == Projection::RECONCILE)
     this->scheduleRestore();
   else
-    this->syncFromNode(false);
+  {
+    this->syncFromNode(false, true);
+    if (p.phase != Projection::IDLE)
+      return;
+    LokaTextEditorDelegate *delegate = (LokaTextEditorDelegate *)this->delegate_;
+    [NSObject cancelPreviousPerformRequestsWithTarget:delegate selector:@selector(applyHighlights) object:nil];
+    if (source == VIEW_CHANGE)
+    {
+      p.selection = [(NSTextView *)[(NSScrollView *)this->scroll_ documentView] selectedRange];
+      this->applyHighlights();
+    }
+    else
+      [delegate performSelector:@selector(applyHighlights) withObject:nil afterDelay:0];
+  }
+}
+
+void MacTextEditorContext::applyHighlights()
+{
+  Projection &p = *this->projection_;
+  if (p.phase != Projection::IDLE || !this->node_
+      || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
+    return;
+  NSTextView *view = (NSTextView *)[(NSScrollView *)this->scroll_ documentView];
+  if (![[view string] isEqualToString:p.committed])
+    return;
+  if (p.validateDocument(*this->node_) != EDITOR_OK)
+  {
+    this->scheduleRestore();
+    return;
+  }
+  p.phase = Projection::APPLYING;
+  p.style(view, *this->node_, *this->controller(), false);
+  p.phase = Projection::IDLE;
 }
 
 void RegisterMacTextEditorNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
