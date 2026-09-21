@@ -13,6 +13,49 @@
 
 #ifdef TEST_BUILD
 
+#ifdef _WIN32
+#include "../win32/src/context/Win32EditTextBridge.hpp"
+namespace loka
+{
+  namespace win32
+  {
+    namespace testing
+    {
+      namespace
+      {
+        TextEditorSetFailure g_textEditorSetFailure = TEXT_EDITOR_SET_REFUSED;
+        unsigned g_textEditorSetFailures = 0;
+      }
+
+      void failTextEditorSets(TextEditorSetFailure failure, unsigned count)
+      {
+        g_textEditorSetFailure = failure;
+        g_textEditorSetFailures = count;
+      }
+
+      bool setTextEditorWide(HWND hwnd, const wchar_t *text)
+      {
+        if (g_textEditorSetFailures)
+        {
+          --g_textEditorSetFailures;
+          switch (g_textEditorSetFailure)
+          {
+          case TEXT_EDITOR_SET_REFUSED:
+            return false;
+          case TEXT_EDITOR_SET_TRUNCATED:
+            return SetWindowTextW(hwnd, L"") != FALSE;
+          case TEXT_EDITOR_SET_FALSE_AFTER_DELIVERY:
+            SetWindowTextW(hwnd, text);
+            return false;
+          }
+        }
+        return SetWindowTextW(hwnd, text) != FALSE;
+      }
+    } // namespace testing
+  } // namespace win32
+} // namespace loka
+#endif
+
 namespace loka
 {
   namespace core

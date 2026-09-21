@@ -16,6 +16,33 @@ namespace loka
 {
   namespace win32
   {
+#ifdef TEST_BUILD
+    namespace testing
+    {
+      enum TextEditorSetFailure
+      {
+        TEXT_EDITOR_SET_REFUSED,
+        TEXT_EDITOR_SET_TRUNCATED,
+        TEXT_EDITOR_SET_FALSE_AFTER_DELIVERY
+      };
+      void failTextEditorSets(TextEditorSetFailure failure, unsigned count);
+      bool setTextEditorWide(HWND hwnd, const wchar_t *text);
+    } // namespace testing
+#endif
+
+    /** Projection/restore only: multiline WM_SETTEXT does not send EN_CHANGE.
+        Input must use EDIT's input messages and parent WM_COMMAND route.
+        Validate UTF-16 CRLF units, not the document's CR-inclusive byte count. */
+    inline bool WriteTextEditorWide(HWND hwnd, const std::wstring &wide)
+    {
+#ifdef TEST_BUILD
+      const bool submitted = testing::setTextEditorWide(hwnd, wide.c_str());
+#else
+      const bool submitted = SetWindowTextW(hwnd, wide.c_str()) != FALSE;
+#endif
+      return submitted && GetWindowTextLengthW(hwnd) == static_cast<int>(wide.size());
+    }
+
     inline DWORD EditTextControlExStyle()
     {
       return WS_EX_CLIENTEDGE;
@@ -38,6 +65,45 @@ namespace loka
     {
       const RECT pixels = {x, y, x + width, y + height};
       return CreateEditTextControl(parent, Win32DisplayScale::fromDevicePixels(pixels));
+    }
+
+    /** Deliberate multiline twin of the single-line helpers below. Stage 1
+        accepts ASCII only; CRLF and lone CR/LF each represent one logical CR.
+        Callers reserve bounded cancellation storage before accepting input. */
+    inline bool TextEditorToWide(const std::string &logical, std::wstring &wide)
+    {
+      wide.clear();
+      for (std::size_t i = 0; i < logical.size(); ++i)
+      {
+        const unsigned char value = static_cast<unsigned char>(logical[i]);
+        if (!value || value > 127 || value == '\n')
+        {
+          wide.clear();
+          return false;
+        }
+        wide += static_cast<wchar_t>(value);
+        if (value == '\r')
+          wide += L'\n';
+      }
+      return true;
+    }
+
+    inline bool TextEditorFromWide(const wchar_t *wide, std::size_t length, std::string &logical)
+    {
+      logical.clear();
+      for (std::size_t i = 0; i < length; ++i)
+      {
+        const wchar_t value = wide[i];
+        if (!value || value > 127)
+        {
+          logical.clear();
+          return false;
+        }
+        logical += value == L'\n' ? '\r' : static_cast<char>(value);
+        if (value == L'\r' && i + 1 < length && wide[i + 1] == L'\n')
+          ++i;
+      }
+      return true;
     }
 
     inline void ReadEditTextWide(HWND hwnd, std::wstring &out)

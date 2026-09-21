@@ -1,0 +1,105 @@
+#ifndef LOKA_WIN32_TEXT_EDITOR_CONTEXT_HPP
+#define LOKA_WIN32_TEXT_EDITOR_CONTEXT_HPP
+#include "Win32RetirableContext.hpp"
+#include "app/nodes/controls/TextEditor.hpp"
+
+namespace loka
+{
+  namespace testing
+  {
+    class Win32TextEditorAccess;
+  }
+  namespace app
+  {
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
+  } // namespace app
+} // namespace loka
+
+/** Plain whole-document EDIT projection. The app owns the lines and cursor;
+    this context owns tentative native input and cancellation, never a draft. */
+class Win32TextEditorContext : public Win32RetirableContext
+{
+public:
+  Win32TextEditorContext(Win32ScenePlatformController *controller,
+                         HWND parent,
+                         const loka::app::scene::LayoutState &state,
+                         loka::app::TextEditorNode *node);
+  virtual ~Win32TextEditorContext();
+  void readLifecycleFactOnAttach();
+  virtual void onPropsApplied();
+  virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous, loka::app::scene::NodeLifecycleFact next);
+  virtual short layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state);
+  virtual loka::app::scene::PaintAnswer queryPaintDamage(const loka::app::scene::PaintQuery &query) const;
+  HWND hwnd() const
+  {
+    return this->hwnd_;
+  }
+  void relayout(const loka::app::scene::LayoutState &state);
+  bool handleCommand(WPARAM wParam, LPARAM lParam);
+  /** Named property separates multiline EDIT notifications from EditText's
+      GWLP_USERDATA without scanning controller-owned rows. */
+  static Win32TextEditorContext *fromWindow(HWND window);
+
+private:
+  friend class loka::testing::Win32TextEditorAccess;
+  enum Phase
+  {
+    IDLE,
+    INPUT,
+    PASTING,
+    COMMIT,
+    REJECTED,
+    RESTORING,
+    RETRY
+  };
+  struct Selection
+  {
+    DWORD start, end;
+    int firstVisible, horizontal;
+    Selection()
+        : start(0),
+          end(0),
+          firstVisible(0),
+          horizontal(0)
+    {
+    }
+  };
+  /** Reserved serialization of a committed owner revision, never native draft
+      text. Native delivery success is recorded separately in status/delivery. */
+  struct Projection
+  {
+    const loka::core::ObservableList<loka::core::String> *owner;
+    loka::core::ListRevision revision;
+    std::string text;
+    std::wstring wide;
+    Projection();
+    bool current(const loka::app::TextEditorNode &node) const;
+    loka::app::EditorResult capture(loka::app::TextEditorNode &node);
+  };
+  static LRESULT CALLBACK WindowProc(HWND, UINT, WPARAM, LPARAM);
+  void captureSelection();
+  void syncFromNode();
+  void restoreCommittedProjection();
+  bool replaceProjection();
+  void deferRestore();
+  void syncCaret();
+  void restoreSelection();
+  loka::app::EditorResult commitNativeChange(bool allowLineBreak);
+  loka::app::EditorResult applyLines(int first, int oldCount, int newCount, const std::string &logical);
+  loka::app::LineCursor nativeCaret() const;
+
+  loka::app::TextEditorNode *node_;
+  HWND hwnd_;
+  WNDPROC previousProc_;
+  Phase phase_;
+  loka::app::EditorResult status_;
+  Selection selection_;
+  Projection projection_;
+  unsigned restores_;
+  loka::app::scene::PaintAnswer delivery_;
+};
+void RegisterWin32TextEditorNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
+#endif

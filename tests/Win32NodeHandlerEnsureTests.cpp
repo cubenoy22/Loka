@@ -15,6 +15,7 @@
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/ScrollBar.hpp"
 #include "context/Win32ButtonContext.hpp"
+#include "context/Win32TextEditorContext.hpp"
 
 namespace
 {
@@ -281,14 +282,25 @@ void testWin32NodeHandlerEnsureContract()
     LOKA_VERIFY(text.getContext() == textCtx);
     LOKA_VERIFY(countChildWindows(root) == childrenWithText);
 
+    // -- TextEditor: a retained Unicode multiline native control --
+    loka::core::PushStateTracker editorTracker;
+    loka::core::ObservableList<loka::core::String> editorLines;
+    loka::core::MutableState<loka::app::LineCursor> editorCursor;
+    editorTracker.addState(&editorCursor);
+    LOKA_VERIFY(editorLines.attach(&editorTracker, 256) == loka::core::ATTACH_OK);
+    LOKA_VERIFY(editorLines.insert(0, loka::core::String("line")) == loka::core::EDIT_OK);
+    loka::app::scene::NodeState<loka::app::LineCursor> editorSeat(&editorCursor, &editorTracker);
+    loka::app::TextEditorNode editor((loka::app::TextEditorProps(editorLines, editorSeat)));
+    LOKA_VERIFY(controller.prepareProjectedLayout(&editor, state));
+    Win32TextEditorContext *editorContext = static_cast<Win32TextEditorContext *>(editor.getContext());
+    LOKA_VERIFY(editorContext && IsWindowUnicode(editorContext->hwnd()));
+    LOKA_VERIFY(controller.prepareProjectedLayout(&editor, state));
+    LOKA_VERIFY(editor.getContext() == editorContext);
     // -- ScrollBar: Win32 has no native context for it; the registered
     // refusal stub must answer (false, no context) without tripping the
     // registry-miss education assert -- a known unsupported kind is a typed
     // refusal, not an accident. Reaching this line in a Debug build IS the
     // no-abort discrimination.
-    loka::app::TextEditorNode editor((loka::app::TextEditorProps()));
-    LOKA_VERIFY(!controller.prepareProjectedLayout(&editor, state));
-    LOKA_VERIFY(!editor.getContext());
     loka::app::ScrollBarProps scrollProps;
     loka::app::ScrollBarNode scrollBar(scrollProps);
     state.x = 5;
@@ -298,7 +310,7 @@ void testWin32NodeHandlerEnsureContract()
     LOKA_VERIFY(!controller.prepareProjectedLayout(&scrollBar, state) &&
            "an unsupported kind must refuse, not project");
     LOKA_VERIFY(!scrollBar.getContext());
-    LOKA_VERIFY(countChildWindows(root) == childrenWithText &&
+    LOKA_VERIFY(countChildWindows(root) == childrenWithText + 1 &&
            "a refusal must not materialize a native window");
 
     printf("  button ctx=%p reused, children stable at %d; text ctx reused; scrollbar refused\n",
