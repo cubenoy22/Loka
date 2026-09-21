@@ -26,6 +26,8 @@ LOKA_TEST(testMacAttributedTextRetainedLifecycle)
 LOKA_TEST(testMacAttributedTextRefusalClearsProjection)
 
 LOKA_TEST(testMacTextEditorLineActions)
+LOKA_TEST(testMacTextEditorUndoLocation)
+LOKA_TEST(testMacTextEditorMultilinePasteRefusal)
 LOKA_TEST(testMacTextEditorRefusals)
 LOKA_TEST(testMacTextEditorNestedInput)
 LOKA_TEST(testMacTextEditorReplacementFailure)

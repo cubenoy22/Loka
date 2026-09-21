@@ -331,6 +331,79 @@ void testMacTextEditorLineActions()
   f.edit(@"abxcd\nad\nabcd", 7);
   LOKA_VERIFY(observer.calls == 5 && bytes(f.lines.at(1).value) == "ad");
   LOKA_VERIFY(Access::restores(*f.context) == 0);
+
+  // Structural notifications also use text, including endpoint splits whose
+  // unchanged source is consumed by the prefix/suffix comparison.
+  NSString *splits[] = {@"\nabcd\nabcd\nabcd", @"abcd\n\nabcd\nabcd", @"ab\ncd\nabcd\nabcd"};
+  for (unsigned i = 0; i < sizeof(splits) / sizeof(splits[0]); ++i)
+  {
+    Fixture structural;
+    [structural.view setSelectedRange:NSMakeRange(10, 0)];
+    structural.edit(splits[i], 0);
+    LOKA_VERIFY(structural.lines.size() == 4);
+    LOKA_VERIFY([[structural.view string] isEqualToString:splits[i]]);
+    [structural.view setSelectedRange:NSMakeRange(11, 0)];
+    structural.edit(@"abcd\nabcd\nabcd", 0);
+    LOKA_VERIFY(structural.lines.size() == 3);
+    for (unsigned short line = 0; line < structural.lines.size(); ++line)
+      LOKA_VERIFY(bytes(structural.lines.at(line).value) == "abcd");
+    LOKA_VERIFY(Access::restores(*structural.context) == 0 && [structural.view isEditable]);
+  }
+}
+
+void testMacTextEditorUndoLocation()
+{
+  Fixture f(12);
+  Observer observer(f);
+  const ItemId first = f.lines.at(0).id, distant = f.lines.at(10).id;
+  [f.view setAllowsUndo:YES];
+  NSUndoManager *undo = [f.view undoManager];
+  LOKA_VERIFY(undo != nil && [undo isUndoRegistrationEnabled]);
+  [undo beginUndoGrouping];
+  [f.view insertText:@"x"];
+  [undo endUndoGrouping];
+  LOKA_VERIFY([undo canUndo]);
+  LOKA_VERIFY(bytes(f.lines.at(0).value) == "abxcd");
+  LOKA_VERIFY(observer.calls == 1);
+  [f.view setSelectedRange:NSMakeRange(51, 0)];
+  LOKA_VERIFY(f.cursor.get() == LineCursor(distant, 0));
+  [undo undo];
+  LOKA_VERIFY(bytes(f.lines.at(0).value) == "abcd");
+  LOKA_VERIFY(observer.calls == 2);
+  LOKA_VERIFY(f.cursor.get() == LineCursor(first, 2));
+  LOKA_VERIFY([f.view selectedRange].location == 2);
+  LOKA_VERIFY(Access::restores(*f.context) == 0 && [f.view isEditable]);
+
+  // Also pin a notification before native selection returns to the edit.
+  [f.view setSelectedRange:NSMakeRange(50, 0)];
+  NSMutableString *text = [[[f.view string] mutableCopy] autorelease];
+  [text insertString:@"x" atIndex:2];
+  f.edit(text, 51);
+  LOKA_VERIFY(bytes(f.lines.at(0).value) == "abxcd");
+  LOKA_VERIFY(f.cursor.get() == LineCursor(distant, 0));
+  LOKA_VERIFY(observer.calls == 3 && [f.view isEditable]);
+  LOKA_VERIFY(Access::restores(*f.context) == 0);
+}
+
+void testMacTextEditorMultilinePasteRefusal()
+{
+  // Refuse both a line-count increase and a same-count multi-line replacement.
+  for (int sameCount = 0; sameCount < 2; ++sameCount)
+  {
+    Fixture f;
+    Observer observer(f);
+    [f.view setSelectedRange:NSMakeRange(1, sameCount ? 12 : 2)];
+    const Snapshot snapshot(f);
+    // Use the native replacement path used by plain-text paste, without
+    // changing the user's global pasteboard.
+    [f.view insertText:@"one\ntwo\nthree"];
+    snapshot.unchanged(f);
+    LOKA_VERIFY(observer.calls == 0 && ![f.view isEditable]);
+    f.restored(1);
+    snapshot.unchanged(f);
+    LOKA_VERIFY(observer.calls == 0 && Access::restores(*f.context) == 1);
+    LOKA_VERIFY(![[f.view undoManager] canUndo]);
+  }
 }
 
 void testMacTextEditorRefusals()

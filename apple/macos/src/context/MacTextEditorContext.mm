@@ -562,6 +562,8 @@ EditorResult MacTextEditorContext::applyNativeChange()
   const NativeLines before(p.committed), after(text);
   if (after.result != EDITOR_OK)
     return after.result;
+  if (after.count > before.count + 1 || before.count > after.count + 1)
+    return EDITOR_INVALID_CURSOR;
   unsigned short first = 0;
   while (first < before.count && first < after.count
          && EqualLine(p.committed, before.ranges[first], text, after.ranges[first]))
@@ -578,45 +580,55 @@ EditorResult MacTextEditorContext::applyNativeChange()
   if (first == before.count && first == after.count)
     return this->node_->document.moveCaret(
         LineCursor(p.ids[caretLine], static_cast<int>(selection.location - after.ranges[caretLine].location)));
-  // Insertion of an empty line can make prefix matching consume the split
-  // source. Anchor structural operations to the pre-edit selection instead.
+  // A split at an endpoint (or its inverse) can leave an empty diff span
+  // on one side. Include an adjacent unchanged line as the structural source.
+  // The concatenation checks below still require a pure split/join.
+  if (before.count != after.count && (oldEnd == first || newEnd == first))
+  {
+    if (first)
+      --first;
+    else
+    {
+      ++oldEnd;
+      ++newEnd;
+    }
+  }
   if (after.count == before.count + 1)
   {
-    const unsigned short line = before.lineAt(p.selection.location);
-    const NSRange source = before.ranges[line];
-    const NSUInteger column = p.selection.location - source.location;
-    if (p.selection.length || column > source.length || after.ranges[line].length != column
-        || after.ranges[line + 1].length != source.length - column)
+    if (oldEnd != first + 1 || newEnd != first + 2)
       return EDITOR_INVALID_CURSOR;
-    if (!EqualLine(p.committed, NSMakeRange(source.location, column), text, after.ranges[line])
-        || !EqualLine(
-            p.committed, NSMakeRange(source.location + column, source.length - column), text, after.ranges[line + 1])
-        || first < line || oldEnd > line + 1)
+    const NSRange source = before.ranges[first];
+    const NSRange left = after.ranges[first], right = after.ranges[first + 1];
+    if (left.length + right.length != source.length
+        || !EqualLine(p.committed, NSMakeRange(source.location, left.length), text, left)
+        || !EqualLine(p.committed, NSMakeRange(source.location + left.length, right.length), text, right))
       return EDITOR_INVALID_CURSOR;
-    return this->node_->document.applySplit(p.ids[line], static_cast<int>(column));
+    return this->node_->document.applySplit(p.ids[first], static_cast<int>(left.length));
   }
   if (before.count == after.count + 1)
   {
-    const unsigned short line = before.lineAt(p.selection.location);
-    if (!line || p.selection.length || p.selection.location != before.ranges[line].location)
+    if (oldEnd != first + 2 || newEnd != first + 1)
       return EDITOR_INVALID_CURSOR;
-    const NSRange left = before.ranges[line - 1], right = before.ranges[line], joined = after.ranges[line - 1];
-    if (joined.length != left.length + right.length || first < line - 1 || oldEnd > line + 1
+    const NSRange left = before.ranges[first], right = before.ranges[first + 1], joined = after.ranges[first];
+    if (joined.length != left.length + right.length
         || !EqualLine(p.committed, left, text, NSMakeRange(joined.location, left.length))
         || !EqualLine(p.committed, right, text, NSMakeRange(joined.location + left.length, right.length)))
       return EDITOR_INVALID_CURSOR;
-    return this->node_->document.applyJoin(p.ids[line]);
+    return this->node_->document.applyJoin(p.ids[first + 1]);
   }
-  if (oldEnd != first + 1 || newEnd != first + 1 || caretLine != first)
+  if (oldEnd != first + 1 || newEnd != first + 1)
     return EDITOR_INVALID_CURSOR;
   const NSRange oldLine = before.ranges[first], newLine = after.ranges[first];
-  // Insertions use the checked seam scratch path; replacements/deletions use
-  // its single UPDATE door. No whole-document String is constructed.
-  const NSUInteger column = p.selection.location >= oldLine.location ? p.selection.location - oldLine.location : 0;
-  if (!p.selection.length && column <= oldLine.length && newLine.length >= oldLine.length)
+  // Infer insertion position from text too: undo need not use the saved
+  // selection. Use the keystroke door only when its resulting caret matches.
+  NSUInteger column = 0;
+  while (column < oldLine.length && column < newLine.length &&
+         [p.committed characterAtIndex:oldLine.location + column] == [text characterAtIndex:newLine.location + column])
+    ++column;
+  if (newLine.length > oldLine.length)
   {
     const NSUInteger added = newLine.length - oldLine.length;
-    if (EqualLine(p.committed, NSMakeRange(oldLine.location, column), text, NSMakeRange(newLine.location, column))
+    if (caretLine == first && selection.location == newLine.location + column + added
         && EqualLine(p.committed,
                      NSMakeRange(oldLine.location + column, oldLine.length - column),
                      text,
@@ -631,7 +643,7 @@ EditorResult MacTextEditorContext::applyNativeChange()
   return this->node_->document.applySingleLine(
       p.ids[first],
       String::Utf8([replacement UTF8String], newLine.length),
-      LineCursor(p.ids[first], static_cast<int>(selection.location - newLine.location)));
+      LineCursor(p.ids[caretLine], static_cast<int>(selection.location - after.ranges[caretLine].location)));
 }
 
 void MacTextEditorContext::handleTextDidChange()
