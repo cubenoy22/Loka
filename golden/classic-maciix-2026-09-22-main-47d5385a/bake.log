@@ -1,0 +1,86 @@
+=== head
+47d5385a Add the Win32 TextEditor rail: plain multi-line EDIT over the whole document with owner-committed edits (#853, PR 3 Win32) (#856)
+[136/136] Generating LokaSimpleViewerTestsToolbox68K.bin, LokaSimpleViewerTestsToolbox68K.APPL, LokaSimpleViewerTestsToolbox68K.dsk, LokaSimpleViewerTestsToolbox68K.ad, %LokaSimpleViewerTestsToolbox68K.ad
+=== stage
+Staged Classic golden scrapbook/startup; 25 registered capture(s) remain before publication
+Staged Classic golden scrapbook/open-first-page-refused; 24 registered capture(s) remain before publication
+Staged Classic golden scrapbook/flip-forward-back; 23 registered capture(s) remain before publication
+Staged Classic golden scrapbook/refused-flip-keeps-page; 22 registered capture(s) remain before publication
+Staged Classic golden scrapbook/open-text-page; 21 registered capture(s) remain before publication
+Staged Classic golden scrapbook/open-text-page-refused; 20 registered capture(s) remain before publication
+Staged Classic golden helloworld/startup; 19 registered capture(s) remain before publication
+Staged Classic golden helloworld/toggle-action-probe; 18 registered capture(s) remain before publication
+Staged Classic golden helloworld/bmi-roundtrip; 17 registered capture(s) remain before publication
+Staged Classic golden tutorial/startup; 16 registered capture(s) remain before publication
+Staged Classic golden tutorial/increment-summary-toggle; 15 registered capture(s) remain before publication
+Staged Classic golden minesweeper/startup; 14 registered capture(s) remain before publication
+Staged Classic golden minesweeper/new-game-twice; 13 registered capture(s) remain before publication
+Staged Classic golden minesweeper/seeded-reveal; 12 registered capture(s) remain before publication
+Staged Classic golden floppybird/startup; 11 registered capture(s) remain before publication
+Staged Classic golden floppybird/fixed-step-flaps; 10 registered capture(s) remain before publication
+Staged Classic golden smirkbench/startup; 9 registered capture(s) remain before publication
+Staged Classic golden smirkbench/surface-ticks; 8 registered capture(s) remain before publication
+Staged Classic golden smirkbench/add-face; 7 registered capture(s) remain before publication
+Staged Classic golden smirkbench/retained-text-rebind; 6 registered capture(s) remain before publication
+Staged Classic golden smirkbench/attributed-editor-line; 5 registered capture(s) remain before publication
+Staged Classic golden simpleviewer/startup; 4 registered capture(s) remain before publication
+Staged Classic golden simpleviewer/open-sun; 3 registered capture(s) remain before publication
+Staged Classic golden simpleviewer/open-bulb; 2 registered capture(s) remain before publication
+Staged Classic golden simpleviewer/churn-replace; 1 registered capture(s) remain before publication
+Published complete Classic golden bundle: /home/cubenoy22/loka/build/mame-scenario/golden
+scrapbook/startup | pass | /home/cubenoy22/loka/build/mame-scenario/scrapbook/startup
+scrapbook/open-first-page-refused | pass | /home/cubenoy22/loka/build/mame-scenario/scrapbook/open-first-page-refused
+scrapbook/flip-forward-back | pass | /home/cubenoy22/loka/build/mame-scenario/scrapbook/flip-forward-back
+scrapbook/refused-flip-keeps-page | pass | /home/cubenoy22/loka/build/mame-scenario/scrapbook/refused-flip-keeps-page
+scrapbook/open-text-page | pass | /home/cubenoy22/loka/build/mame-scenario/scrapbook/open-text-page
+scrapbook/open-text-page-refused | pass | /home/cubenoy22/loka/build/mame-scenario/scrapbook/open-text-page-refused
+helloworld/startup | pass | /home/cubenoy22/loka/build/mame-scenario/helloworld/startup
+helloworld/toggle-action-probe | pass | /home/cubenoy22/loka/build/mame-scenario/helloworld/toggle-action-probe
+helloworld/bmi-roundtrip | pass | /home/cubenoy22/loka/build/mame-scenario/helloworld/bmi-roundtrip
+tutorial/startup | pass | /home/cubenoy22/loka/build/mame-scenario/tutorial/startup
+tutorial/increment-summary-toggle | pass | /home/cubenoy22/loka/build/mame-scenario/tutorial/increment-summary-toggle
+minesweeper/startup | pass | /home/cubenoy22/loka/build/mame-scenario/minesweeper/startup
+minesweeper/new-game-twice | pass | /home/cubenoy22/loka/build/mame-scenario/minesweeper/new-game-twice
+minesweeper/seeded-reveal | pass | /home/cubenoy22/loka/build/mame-scenario/minesweeper/seeded-reveal
+floppybird/startup | pass | /home/cubenoy22/loka/build/mame-scenario/floppybird/startup
+floppybird/fixed-step-flaps | pass | /home/cubenoy22/loka/build/mame-scenario/floppybird/fixed-step-flaps
+smirkbench/startup | pass | /home/cubenoy22/loka/build/mame-scenario/smirkbench/startup
+smirkbench/surface-ticks | pass | /home/cubenoy22/loka/build/mame-scenario/smirkbench/surface-ticks
+smirkbench/add-face | pass | /home/cubenoy22/loka/build/mame-scenario/smirkbench/add-face
+smirkbench/retained-text-rebind | pass | /home/cubenoy22/loka/build/mame-scenario/smirkbench/retained-text-rebind
+smirkbench/attributed-editor-line | pass | /home/cubenoy22/loka/build/mame-scenario/smirkbench/attributed-editor-line
+simpleviewer/startup | pass | /home/cubenoy22/loka/build/mame-scenario/simpleviewer/startup
+simpleviewer/open-sun | pass | /home/cubenoy22/loka/build/mame-scenario/simpleviewer/open-sun
+simpleviewer/open-bulb | pass | /home/cubenoy22/loka/build/mame-scenario/simpleviewer/open-bulb
+simpleviewer/churn-replace | pass | /home/cubenoy22/loka/build/mame-scenario/simpleviewer/churn-replace
+smirkbench/text-editor-plain | pass | /home/cubenoy22/loka/build/mame-scenario/smirkbench/text-editor-plain
+bake: possible
+=== confirm
+scrapbook/startup | pass | /home/cubenoy22/loka/build/mame-scenario/scrapbook/startup
+scrapbook/open-first-page-refused | pass | /home/cubenoy22/loka/build/mame-scenario/scrapbook/open-first-page-refused
+scrapbook/flip-forward-back | pass | /home/cubenoy22/loka/build/mame-scenario/scrapbook/flip-forward-back
+scrapbook/refused-flip-keeps-page | pass | /home/cubenoy22/loka/build/mame-scenario/scrapbook/refused-flip-keeps-page
+scrapbook/open-text-page | pass | /home/cubenoy22/loka/build/mame-scenario/scrapbook/open-text-page
+scrapbook/open-text-page-refused | pass | /home/cubenoy22/loka/build/mame-scenario/scrapbook/open-text-page-refused
+helloworld/startup | pass | /home/cubenoy22/loka/build/mame-scenario/helloworld/startup
+helloworld/toggle-action-probe | pass | /home/cubenoy22/loka/build/mame-scenario/helloworld/toggle-action-probe
+helloworld/bmi-roundtrip | pass | /home/cubenoy22/loka/build/mame-scenario/helloworld/bmi-roundtrip
+tutorial/startup | pass | /home/cubenoy22/loka/build/mame-scenario/tutorial/startup
+tutorial/increment-summary-toggle | pass | /home/cubenoy22/loka/build/mame-scenario/tutorial/increment-summary-toggle
+minesweeper/startup | pass | /home/cubenoy22/loka/build/mame-scenario/minesweeper/startup
+minesweeper/new-game-twice | pass | /home/cubenoy22/loka/build/mame-scenario/minesweeper/new-game-twice
+minesweeper/seeded-reveal | pass | /home/cubenoy22/loka/build/mame-scenario/minesweeper/seeded-reveal
+floppybird/startup | pass | /home/cubenoy22/loka/build/mame-scenario/floppybird/startup
+floppybird/fixed-step-flaps | pass | /home/cubenoy22/loka/build/mame-scenario/floppybird/fixed-step-flaps
+smirkbench/startup | pass | /home/cubenoy22/loka/build/mame-scenario/smirkbench/startup
+smirkbench/surface-ticks | pass | /home/cubenoy22/loka/build/mame-scenario/smirkbench/surface-ticks
+smirkbench/add-face | pass | /home/cubenoy22/loka/build/mame-scenario/smirkbench/add-face
+smirkbench/retained-text-rebind | pass | /home/cubenoy22/loka/build/mame-scenario/smirkbench/retained-text-rebind
+smirkbench/attributed-editor-line | pass | /home/cubenoy22/loka/build/mame-scenario/smirkbench/attributed-editor-line
+simpleviewer/startup | pass | /home/cubenoy22/loka/build/mame-scenario/simpleviewer/startup
+simpleviewer/open-sun | pass | /home/cubenoy22/loka/build/mame-scenario/simpleviewer/open-sun
+simpleviewer/open-bulb | pass | /home/cubenoy22/loka/build/mame-scenario/simpleviewer/open-bulb
+simpleviewer/churn-replace | pass | /home/cubenoy22/loka/build/mame-scenario/simpleviewer/churn-replace
+smirkbench/text-editor-plain | pass | /home/cubenoy22/loka/build/mame-scenario/smirkbench/text-editor-plain
+bake: possible
+done exit=0
