@@ -3,6 +3,7 @@
 #include "support/LokaAllocFailure.hpp"
 #include "context/Win32TextEditorContext.hpp"
 #include "context/Win32EditTextBridge.hpp"
+#include "context/Win32TextEditorDiff.hpp"
 #include "Win32ScenePlatformController.hpp"
 #include "Win32BuiltInSupport.hpp"
 #include "platform/StringUTF8.hpp"
@@ -45,6 +46,59 @@ namespace
   const wchar_t kNotification[] = L"Loka.Editor.TestNotification";
   const wchar_t kProbe[] = L"Loka.Editor.TestProbe";
 
+  const wchar_t kChangeObservation[] = L"Loka.Editor.TestChangeObservation";
+  /** Stack-scoped observation of native text before the controller can restore it. */
+  class ChangeObservation
+  {
+  public:
+    explicit ChangeObservation(HWND host)
+        : host_(host),
+          arrivals_(0),
+          native_(),
+          status_(EDITOR_OK)
+    {
+      LOKA_VERIFY(SetPropW(this->host_, kChangeObservation, this));
+    }
+    ~ChangeObservation()
+    {
+      RemovePropW(this->host_, kChangeObservation);
+    }
+    void arriving(HWND editor)
+    {
+      ++this->arrivals_;
+      const int length = GetWindowTextLengthW(editor);
+      std::vector<wchar_t> text(static_cast<std::size_t>(length) + 1);
+      const int copied = GetWindowTextW(editor, &text[0], length + 1);
+      this->native_.assign(&text[0], static_cast<std::size_t>(copied));
+    }
+    void handled(HWND editor)
+    {
+      Win32TextEditorContext *context = Win32TextEditorContext::fromWindow(editor);
+      LOKA_VERIFY(context);
+      this->status_ = EditorAccess::status(*context);
+    }
+    unsigned arrivals() const
+    {
+      return this->arrivals_;
+    }
+    const std::wstring &native() const
+    {
+      return this->native_;
+    }
+    EditorResult status() const
+    {
+      return this->status_;
+    }
+
+  private:
+    ChangeObservation(const ChangeObservation &);
+    ChangeObservation &operator=(const ChangeObservation &);
+    HWND host_;
+    unsigned arrivals_;
+    std::wstring native_;
+    EditorResult status_;
+  };
+
   LRESULT CALLBACK HostProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
   {
     Win32ScenePlatformController *controller =
@@ -53,7 +107,13 @@ namespace
     {
       HANDLE previousNotification = GetPropW(window, kNotification);
       LOKA_VERIFY(SetPropW(window, kNotification, controller));
+      ChangeObservation *observation =
+          HIWORD(wParam) == EN_CHANGE ? static_cast<ChangeObservation *>(GetPropW(window, kChangeObservation)) : 0;
+      if (observation)
+        observation->arriving(reinterpret_cast<HWND>(lParam));
       const bool handled = controller->handleCommand(wParam, lParam);
+      if (observation)
+        observation->handled(reinterpret_cast<HWND>(lParam));
       if (previousNotification)
         LOKA_VERIFY(SetPropW(window, kNotification, previousNotification));
       else
@@ -250,6 +310,40 @@ namespace
       LOKA_VERIFY(GetWindowTextLengthW(context->hwnd()) == static_cast<int>(desired.size()));
     }
   };
+  void printUndoText(const char *label, const std::wstring &wide, const std::string &before)
+  {
+    // Escape UTF-16 units so non-ASCII and line endings survive console encoding.
+    std::printf("[undo failure] %s UTF-16=", label);
+    for (std::size_t i = 0; i < wide.size(); ++i)
+    {
+      const unsigned unit = static_cast<unsigned>(wide[i]);
+      if (unit >= 32 && unit < 127 && unit != '\\')
+        std::putchar(static_cast<int>(unit));
+      else
+        std::printf("\\u%04x", unit);
+    }
+    std::printf("\n");
+    std::string logical;
+    if (!loka::win32::TextEditorFromWide(wide.data(), wide.size(), logical))
+    {
+      std::printf("[undo failure] %s diff unavailable: non-ASCII/native conversion refused\n", label);
+      return;
+    }
+    const loka::win32::TextEditorLineDiff diff = loka::win32::DiffTextEditorLines(before, logical);
+    const char *kind = diff.before() == 0 && diff.after() == 0   ? "unchanged"
+                       : diff.before() == 1 && diff.after() == 1 ? "single-line"
+                       : diff.before() == 1 && diff.after() == 2 ? "split-candidate"
+                       : diff.before() == 2 && diff.after() == 1 ? "join-candidate"
+                                                                 : "unsupported-range";
+    std::printf("[undo failure] %s diff first=%d last-before=%d last-after=%d before=%d after=%d kind=%s\n",
+                label,
+                diff.first(),
+                diff.before() ? diff.first() + diff.before() - 1 : -1,
+                diff.after() ? diff.first() + diff.after() - 1 : -1,
+                diff.before(),
+                diff.after(),
+                kind);
+  }
   void paste(HWND window, const wchar_t *text)
   {
     const std::wstring value(text);
@@ -410,15 +504,46 @@ void testWin32TextEditorActionsUseLineQueries()
   LOKA_VERIFY(fixture.context->queryPaintDamage(echoQuery).kind == PAINT_ANSWER_EXACT);
   // Isolate this replacement from EDIT's prior typing/deletion undo record.
   SendMessageW(fixture.context->hwnd(), EM_EMPTYUNDOBUFFER, 0, 0);
-  SendMessageW(fixture.context->hwnd(), EM_REPLACESEL, TRUE, reinterpret_cast<LPARAM>(L"Q"));
+  {
+    ChangeObservation replacement(fixture.host);
+    SendMessageW(fixture.context->hwnd(), EM_REPLACESEL, TRUE, reinterpret_cast<LPARAM>(L"Q"));
+    // Positive control: a zero undo count is meaningful only if this route fires.
+    LOKA_VERIFY(replacement.arrivals() > 0);
+    LOKA_VERIFY(replacement.native() == fixture.native());
+  }
   LOKA_VERIFY(fixture.lines.at(0).value.equals(String("aQcd")));
   fixture.matches();
   const LRESULT distant = SendMessageW(fixture.context->hwnd(), EM_LINEINDEX, 10, 0);
   LOKA_VERIFY(distant >= 0);
   SendMessageW(fixture.context->hwnd(), EM_SETSEL, distant, distant);
   LOKA_VERIFY(SendMessageW(fixture.context->hwnd(), EM_CANUNDO, 0, 0));
-  LOKA_VERIFY(SendMessageW(fixture.context->hwnd(), EM_UNDO, 0, 0));
-  LOKA_VERIFY(fixture.lines.at(0).value.equals(String("abxcd")));
+  std::string beforeUndo;
+  LOKA_VERIFY(fixture.node->document.project(beforeUndo) == EDITOR_OK);
+  {
+    ChangeObservation undo(fixture.host);
+    const LRESULT undone = SendMessageW(fixture.context->hwnd(), EM_UNDO, 0, 0);
+    if (!undone || !fixture.lines.at(0).value.equals(String("abxcd")) || EditorAccess::restores(*fixture.context) != 0
+        || undo.arrivals() == 0)
+    {
+      const StringBuffer model = fixture.lines.at(0).value.bufferWithEncoding(StringEncodingUtf8);
+      std::printf(
+          "[undo failure] EM_UNDO=%ld EN_CHANGE=%u model line 0=%.*s restores=%u status=%d notification-status=%d\n",
+          static_cast<long>(undone),
+          undo.arrivals(),
+          static_cast<int>(model.length()),
+          static_cast<const char *>(model.data()),
+          EditorAccess::restores(*fixture.context),
+          static_cast<int>(EditorAccess::status(*fixture.context)),
+          static_cast<int>(undo.status()));
+      printUndoText("after EM_UNDO", fixture.native(), beforeUndo);
+      if (undo.arrivals())
+        printUndoText("at EN_CHANGE before dispatch", undo.native(), beforeUndo);
+      std::fflush(stdout);
+    }
+    LOKA_VERIFY(undone);
+    LOKA_VERIFY(fixture.lines.at(0).value.equals(String("abxcd")));
+    LOKA_VERIFY(undo.arrivals() > 0);
+  }
   LOKA_VERIFY(fixture.lines.at(0).id == first && fixture.lines.size() == 128);
   LOKA_VERIFY(fixture.lines.at(10).value.equals(String("abcd")));
   LOKA_VERIFY(EditorAccess::restores(*fixture.context) == 0);
