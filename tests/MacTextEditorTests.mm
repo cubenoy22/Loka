@@ -154,11 +154,21 @@ namespace
     void edit(NSString *text, NSUInteger caret)
     {
       this->context->captureSelection();
-      // Deliver one completed synthetic edit, including its selection.
-      [[this->view textStorage] beginEditing];
-      [this->view setString:text];
+      // Replace only the changed span so storage reports the actual edit end.
+      NSString *before = [this->view string];
+      NSUInteger first = 0, oldEnd = [before length], newEnd = [text length];
+      while (first < oldEnd && first < newEnd && [before characterAtIndex:first] == [text characterAtIndex:first])
+        ++first;
+      while (oldEnd > first && newEnd > first
+             && [before characterAtIndex:oldEnd - 1] == [text characterAtIndex:newEnd - 1])
+      {
+        --oldEnd;
+        --newEnd;
+      }
+      [[this->view textStorage] replaceCharactersInRange:NSMakeRange(first, oldEnd - first)
+                                            withString:[text substringWithRange:NSMakeRange(first, newEnd - first)]];
+      // The view publishes its final selection after storage processing.
       [this->view setSelectedRange:NSMakeRange(caret, 0)];
-      [[this->view textStorage] endEditing];
       this->notify();
     }
     void turn()
@@ -285,8 +295,21 @@ namespace
     LOKA_VERIFY(loka::platform::CollectUtf8(value, out));
     return out;
   }
+  void printEditState(Fixture &f, const char *stage)
+  {
+    const NSRange selection = [f.view selectedRange];
+    const LineCursor cursor = f.cursor.get();
+    fprintf(stderr,
+            "[MacTextEditor %s] model-line0=\"%s\" selectedRange=(%lu,%lu) "
+            "cursor=(id=%u:%u,line-index=%d,column=%d)\n",
+            stage, bytes(f.lines.at(0).value).c_str(),
+            static_cast<unsigned long>(selection.location), static_cast<unsigned long>(selection.length),
+            static_cast<unsigned>(cursor.line.generation), static_cast<unsigned>(cursor.line.seq),
+            f.lines.find(cursor.line), cursor.column);
+  }
   void printUndoState(Fixture &f, NSUndoManager *undo, const char *stage)
   {
+    printEditState(f, stage);
     NSString *line = [[[f.view string] componentsSeparatedByString:@"\n"] objectAtIndex:0];
     fprintf(stderr,
             "[MacTextEditor undo %s] groupingLevel=%ld canUndo=%d native-line0=\"%s\" "
@@ -313,7 +336,12 @@ void testMacTextEditorLineActions()
   Observer observer(f);
   const ItemId first = f.lines.at(0).id, second = f.lines.at(1).id;
   const String unchanged = f.lines.at(2).value;
-  f.edit(@"abxcd\nabcd\nabcd", 3);
+  [f.view insertText:@"x" replacementRange:[f.view selectedRange]];
+  const bool firstKeySucceeded = bytes(f.lines.at(0).value) == "abxcd"
+                                 && f.cursor.get() == LineCursor(first, 3) && observer.calls == 1;
+  if (!firstKeySucceeded)
+    printEditState(f, "first keystroke failure (see notification trace for commit source)");
+  LOKA_VERIFY(firstKeySucceeded);
   LOKA_VERIFY(observer.calls == 1);
   LOKA_VERIFY(f.lines.revision().get().change.kind == LIST_UPDATE);
   LOKA_VERIFY(f.lines.at(0).id == first && f.lines.at(1).id == second);
@@ -377,7 +405,9 @@ void testMacTextEditorUndoLocation()
   [f.view insertText:@"x" replacementRange:[f.view selectedRange]];
   [undo endUndoGrouping];
   LOKA_VERIFY([undo canUndo]);
-  LOKA_VERIFY(bytes(f.lines.at(0).value) == "abxcd");
+  if (bytes(f.lines.at(0).value) != "abxcd" || f.cursor.get() != LineCursor(first, 3) || observer.calls != 1)
+    printEditState(f, "undo setup keystroke failure");
+  LOKA_VERIFY(bytes(f.lines.at(0).value) == "abxcd" && f.cursor.get() == LineCursor(first, 3));
   LOKA_VERIFY(observer.calls == 1);
   [f.view setSelectedRange:NSMakeRange(51, 0)];
   LOKA_VERIFY(f.cursor.get() == LineCursor(distant, 0));
@@ -423,20 +453,37 @@ void testMacTextEditorStorageChanges()
   [f.view setDelegate:nil];
   [[f.view textStorage] replaceCharactersInRange:NSMakeRange(2, 0) withString:@"x"];
   [f.view setDelegate:delegate];
+  if (bytes(f.lines.at(0).value) != "abxcd" || f.cursor.get() != LineCursor(f.lines.at(0).id, 3))
+    printEditState(f, "storage insertion failure");
+  LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 3));
   LOKA_VERIFY(bytes(f.lines.at(0).value) == "abxcd");
   LOKA_VERIFY([[f.view string] isEqualToString:@"abxcd\nabcd\nabcd"]);
   LOKA_VERIFY(observer.calls == 1 && [f.view isEditable]);
   LOKA_VERIFY(Access::restores(*f.context) == 0);
-  // The later view notification may publish the final caret, but no second edit.
-  [f.view setSelectedRange:NSMakeRange(3, 0)];
+  // Only textDidChange can publish this differing caret: selection callbacks
+  // are disconnected, and the committed text is already identical.
+  [f.view setDelegate:nil];
+  [f.view setSelectedRange:NSMakeRange(1, 0)];
+  [f.view setDelegate:delegate];
   f.notify();
+  LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 1));
   const Snapshot committed(f);
   f.notify();
   f.turn();
   committed.unchanged(f);
-  LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 3));
+  LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 1));
   LOKA_VERIFY(observer.calls == 1 && [f.view isEditable]);
   LOKA_VERIFY(Access::restores(*f.context) == 0);
+
+  // A replacement at a different location also gets its caret from storage.
+  [f.view setDelegate:nil];
+  [[f.view textStorage] replaceCharactersInRange:NSMakeRange(2, 2) withString:@"YZQ"];
+  [f.view setDelegate:delegate];
+  if (bytes(f.lines.at(0).value) != "abYZQd" || f.cursor.get() != LineCursor(f.lines.at(0).id, 5))
+    printEditState(f, "storage replacement failure");
+  LOKA_VERIFY(bytes(f.lines.at(0).value) == "abYZQd");
+  LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 5));
+  LOKA_VERIFY(observer.calls == 2 && Access::restores(*f.context) == 0);
 }
 
 void testMacTextEditorStorageAttributes()

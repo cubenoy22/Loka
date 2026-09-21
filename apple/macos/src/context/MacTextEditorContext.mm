@@ -6,6 +6,7 @@
 #include "platform/StringUTF8.hpp"
 #include <algorithm>
 #include <new>
+#include <cstdio>
 
 using namespace loka::app;
 using namespace loka::core;
@@ -138,15 +139,19 @@ namespace
 @synthesize owner = owner_;
 - (void)textDidChange:(NSNotification *)notification
 {
-  (void)notification;
+  NSTextView *view = (NSTextView *)[notification object];
   if ([self owner])
-    [self owner]->handleTextDidChange();
+    [self owner]->handleTextDidChange(MacTextEditorContext::VIEW_CHANGE, [view selectedRange].location);
 }
 - (void)textStorageDidProcessEditing:(NSNotification *)notification
 {
   NSTextStorage *storage = (NSTextStorage *)[notification object];
   if (([storage editedMask] & NSTextStorageEditedCharacters) && [self owner])
-    [self owner]->handleTextDidChange();
+  {
+    // Storage processing precedes the view's post-action selection update.
+    const NSRange edited = [storage editedRange];
+    [self owner]->handleTextDidChange(MacTextEditorContext::STORAGE_EDIT, NSMaxRange(edited));
+  }
 }
 - (void)textViewDidChangeSelection:(NSNotification *)notification
 {
@@ -550,7 +555,7 @@ void MacTextEditorContext::handleSelectionDidChange()
   }
 }
 
-EditorResult MacTextEditorContext::applyNativeChange()
+EditorResult MacTextEditorContext::applyNativeChange(std::size_t caretOffset)
 {
   Projection &p = *this->projection_;
   NSTextView *view = (NSTextView *)[(NSScrollView *)this->scroll_ documentView];
@@ -583,11 +588,14 @@ EditorResult MacTextEditorContext::applyNativeChange()
     --oldEnd;
     --newEnd;
   }
-  const NSRange selection = [view selectedRange];
-  const unsigned short caretLine = after.lineAt(selection.location);
+  const NSUInteger caret = std::min(static_cast<NSUInteger>(caretOffset), [text length]);
+  const unsigned short caretLine = after.lineAt(caret);
   if (first == before.count && first == after.count)
-    return this->node_->document.moveCaret(
-        LineCursor(p.ids[caretLine], static_cast<int>(selection.location - after.ranges[caretLine].location)));
+  {
+    // A later view notification can carry a new caret over committed text.
+    const LineCursor cursor(p.ids[caretLine], static_cast<int>(caret - after.ranges[caretLine].location));
+    return cursor == this->node_->props.cursor_.state()->get() ? EDITOR_OK : this->node_->document.moveCaret(cursor);
+  }
   // A split at an endpoint (or its inverse) can leave an empty diff span
   // on one side. Include an adjacent unchanged line as the structural source.
   // The concatenation checks below still require a pure split/join.
@@ -636,7 +644,7 @@ EditorResult MacTextEditorContext::applyNativeChange()
   if (newLine.length > oldLine.length)
   {
     const NSUInteger added = newLine.length - oldLine.length;
-    if (caretLine == first && selection.location == newLine.location + column + added
+    if (caretLine == first && caret == newLine.location + column + added
         && EqualLine(p.committed,
                      NSMakeRange(oldLine.location + column, oldLine.length - column),
                      text,
@@ -651,10 +659,10 @@ EditorResult MacTextEditorContext::applyNativeChange()
   return this->node_->document.applySingleLine(
       p.ids[first],
       String::Utf8([replacement UTF8String], newLine.length),
-      LineCursor(p.ids[caretLine], static_cast<int>(selection.location - after.ranges[caretLine].location)));
+      LineCursor(p.ids[caretLine], static_cast<int>(caret - after.ranges[caretLine].location)));
 }
 
-void MacTextEditorContext::handleTextDidChange()
+void MacTextEditorContext::handleTextDidChange(TextObservation source, std::size_t caretOffset)
 {
   Projection &p = *this->projection_;
   if (p.phase == Projection::APPLYING || p.phase == Projection::UNAVAILABLE)
@@ -667,7 +675,20 @@ void MacTextEditorContext::handleTextDidChange()
   if (p.phase == Projection::QUEUED)
     return;
   p.phase = Projection::INPUT;
-  const EditorResult result = this->applyNativeChange();
+#ifndef NDEBUG
+  NSTextView *view = (NSTextView *)[(NSScrollView *)this->scroll_ documentView];
+  const bool textChanged = ![[view string] isEqualToString:p.committed];
+#else
+  (void)source;
+#endif
+  const EditorResult result = this->applyNativeChange(caretOffset);
+#ifndef NDEBUG
+  // Scalar-only diagnostics identify the committing callback without user text.
+  fprintf(stderr, "[MacTextEditor %s] text-diff=%d caret-offset=%lu result=%d phase=%d\n",
+          source == STORAGE_EDIT ? "textStorageDidProcessEditing:" : "textDidChange:",
+          static_cast<int>(textChanged), static_cast<unsigned long>(caretOffset),
+          static_cast<int>(result), static_cast<int>(p.phase));
+#endif
   if (!this->node_ || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
     return;
   if (result != EDITOR_OK || p.phase == Projection::RECONCILE)
