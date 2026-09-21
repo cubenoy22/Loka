@@ -9,6 +9,7 @@
 #include "platform/StringUTF8.hpp"
 #include <vector>
 #include <algorithm>
+#include <cstdio>
 
 namespace loka
 {
@@ -281,6 +282,16 @@ namespace
     LOKA_VERIFY(loka::platform::CollectUtf8(value, out));
     return out;
   }
+  void printUndoState(Fixture &f, NSUndoManager *undo, const char *stage)
+  {
+    NSString *line = [[[f.view string] componentsSeparatedByString:@"\n"] objectAtIndex:0];
+    fprintf(stderr,
+            "[MacTextEditor undo %s] groupingLevel=%ld canUndo=%d native-line0=\"%s\" "
+            "model-line0=\"%s\" restores=%u status(availability)=%d editable=%d\n",
+            stage, static_cast<long>([undo groupingLevel]), static_cast<int>([undo canUndo]),
+            [line UTF8String], bytes(f.lines.at(0).value).c_str(), Access::restores(*f.context),
+            static_cast<int>(f.node.document.availability()), static_cast<int>([f.view isEditable]));
+  }
   void nextKey(Fixture &f)
   {
     const NSRange selection = [f.view selectedRange];
@@ -367,7 +378,26 @@ void testMacTextEditorUndoLocation()
   LOKA_VERIFY(observer.calls == 1);
   [f.view setSelectedRange:NSMakeRange(51, 0)];
   LOKA_VERIFY(f.cursor.get() == LineCursor(distant, 0));
+  printUndoState(f, undo, "before closing groups");
+  // The fixture has not yielded to an event boundary. Close any remaining
+  // group, including the outer group supplied by event grouping.
+  while ([undo groupingLevel] > 0)
+    [undo endUndoGrouping];
+  printUndoState(f, undo, "before undo");
+  LOKA_VERIFY([undo groupingLevel] == 0 && [undo canUndo]);
   [undo undo];
+  printUndoState(f, undo, "after undo");
+  const bool undoSucceeded = bytes(f.lines.at(0).value) == "abcd" && observer.calls == 2
+                            && f.cursor.get() == LineCursor(first, 2) && [f.view selectedRange].location == 2
+                            && Access::restores(*f.context) == 0 && [f.view isEditable];
+  if (!undoSucceeded)
+  {
+    // The debug context trace above reports the actual diff result, or an
+    // entry phase with no result when the notification was refused/skipped.
+    f.turn();
+    printUndoState(f, undo, "failure after restore turn");
+  }
+  LOKA_VERIFY(undoSucceeded);
   LOKA_VERIFY(bytes(f.lines.at(0).value) == "abcd");
   LOKA_VERIFY(observer.calls == 2);
   LOKA_VERIFY(f.cursor.get() == LineCursor(first, 2));
