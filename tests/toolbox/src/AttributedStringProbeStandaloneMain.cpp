@@ -73,7 +73,7 @@ namespace
     }
   };
 
-  AttributedString BuildLine(int index, int version)
+  AttributedString BuildLine(int index, int version, std::size_t capacityHint = 10)
   {
     char name[7];
     char number[7];
@@ -90,10 +90,14 @@ namespace
                              String::Literal("02"),
                              String::Literal("; "),
                              String::Literal("//ok")};
-    return Styled(text[0], Bold) + Styled(text[1], Italic) + Styled(text[2], TextStyle())
-           + Styled(text[3], FontSize<12>()) + Styled(text[4], TextStyle()) + Styled(text[5], Italic)
-           + Styled(text[6], TextStyle()) + Styled(text[7], FontSize<12>()) + Styled(text[8], TextStyle())
-           + Styled(text[9], Bold);
+    const TextStyle styles[10] = {
+        Bold, Italic, TextStyle(), FontSize<12>(), TextStyle(), Italic, TextStyle(), FontSize<12>(), TextStyle(), Bold};
+    AttributedString::Builder builder(capacityHint);
+    for (int i = 0; i < 10; ++i)
+      if (!builder.append(text[i], styles[i]))
+        break;
+    // store()/measure() reject a partial line through segmentCount().
+    return builder.build();
   }
 
   /** App-config-owned fixed states; tracker dies before its registered states. */
@@ -147,9 +151,9 @@ namespace
     MutableState<AttributedString> lines_[kLines];
     PushStateTracker tracker_;
 
-    bool store(int index, int version)
+    bool store(int index, int version, std::size_t capacityHint)
     {
-      const AttributedString value = BuildLine(index, version);
+      const AttributedString value = BuildLine(index, version, capacityHint);
       if (!value.valid() || value.segmentCount() != 10)
         return false;
       {
@@ -160,17 +164,17 @@ namespace
       return this->tracker_.transactionDirty();
     }
 
-    bool measure()
+    bool measure(std::size_t capacityHint)
     {
       const Sample p0((Timer()));
-      p0.write(this->log_, "P0-baseline");
+      p0.write(this->log_, capacityHint == 10 ? "P0-baseline" : "P0-baseline-hint4");
       std::fprintf(this->log_, "\r");
       const Timer build;
       for (int i = 0; i < kLines; ++i)
-        if (!this->store(i, 0))
+        if (!this->store(i, 0, capacityHint))
           return false;
       const Sample p1(build);
-      p1.write(this->log_, "P1-build");
+      p1.write(this->log_, capacityHint == 10 ? "P1-build" : "P1-build-hint4");
       const long bytes = p0.freeBytes - p1.freeBytes;
       std::fprintf(this->log_,
                    " heap_bytes=%ld bytes_per_line=%ld bytes_per_segment=%ld lines=100 segments=1000\r",
@@ -180,10 +184,10 @@ namespace
 
       const Timer churn;
       for (int i = 0; i < kIterations; ++i)
-        if (!this->store(i % kLines, i / kLines + 1))
+        if (!this->store(i % kLines, i / kLines + 1, capacityHint))
           return false;
       const Sample p2(churn);
-      p2.write(this->log_, "P2-churn");
+      p2.write(this->log_, capacityHint == 10 ? "P2-churn" : "P2-churn-hint4");
       std::fprintf(this->log_,
                    " us_per_keystroke=%lu FreeMem_before=%ld FreeMem_after=%ld growth=%ld\r",
                    p2.us / kIterations,
@@ -196,7 +200,7 @@ namespace
       const Timer equal;
       for (int i = 0; i < kIterations; ++i)
       {
-        const AttributedString value = BuildLine(0, 10);
+        const AttributedString value = BuildLine(0, 10, capacityHint);
         if (!value.valid() || value.segmentCount() != 10)
           return false;
         {
@@ -209,7 +213,7 @@ namespace
           ++dirty;
       }
       const Sample p3(equal);
-      p3.write(this->log_, "P3-equal-rebuild");
+      p3.write(this->log_, capacityHint == 10 ? "P3-equal-rebuild" : "P3-equal-rebuild-hint4");
       std::fprintf(this->log_,
                    " us_per_rebuild=%lu set_us=%lu set_us_per_rebuild=%lu dirty=%d\r",
                    p3.us / kIterations,
@@ -227,7 +231,7 @@ namespace
             ++matches;
       }
       const Sample p4(fast);
-      p4.write(this->log_, "P4-shared-compare");
+      p4.write(this->log_, capacityHint == 10 ? "P4-shared-compare" : "P4-shared-compare-hint4");
       std::fprintf(this->log_, " us_per_compare=%lu matches=%d\r", p4.us / kIterations, matches);
 
       const Timer teardown;
@@ -237,7 +241,7 @@ namespace
           this->lines_[i].set(AttributedString());
       }
       const Sample p5(teardown);
-      p5.write(this->log_, "P5-teardown");
+      p5.write(this->log_, capacityHint == 10 ? "P5-teardown" : "P5-teardown-hint4");
       std::fprintf(this->log_, " delta_from_P0=%ld\r", p0.freeBytes - p5.freeBytes);
 #if defined(LOKA_DIAG) || defined(LOKA_RETRO68_DIAGNOSTICS)
       LokaAllocCensusDump(this->log_);
@@ -254,7 +258,7 @@ namespace
     static void OnIdle(Window *, double, void *data)
     {
       ProbeConfig *self = static_cast<ProbeConfig *>(data);
-      if (!self->measure())
+      if (!self->measure(10) || !self->measure(4))
       {
         self->result_ = 1;
         std::fprintf(self->log_, "ERROR shared-compare fast path failed\r");

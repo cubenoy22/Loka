@@ -13,6 +13,8 @@ namespace loka
     class AttributedString
     {
     public:
+      class Builder;
+
       /** One text contribution and its declared character style. */
       struct Segment
       {
@@ -57,6 +59,29 @@ namespace loka
       friend AttributedString operator+(const AttributedString &, const AttributedString &);
       friend AttributedString operator+(const TextStyle &, const AttributedString &);
       friend AttributedString operator+(const AttributedString &, const TextStyle &);
+    };
+
+    /**
+     * Builds one immutable line with growing, privately owned segment storage.
+     * A sufficient capacity hint needs one array and one control block.
+     * Initial allocation refusal leaves an invalid (unusable) builder.
+     */
+    class AttributedString::Builder
+    {
+    public:
+      explicit Builder(std::size_t capacityHint);
+      /** Appends a shared String handle and copied style. Allocation refusal
+          preserves the successful prefix; a consumed builder also refuses. */
+      bool append(const core::String &text, const TextStyle &style);
+      /** Transfers the prefix, including a valid empty prefix, and consumes
+          this builder. An invalid/consumed builder returns an invalid value. */
+      AttributedString build();
+
+    private:
+      core::Managed<Storage> storage_;
+      std::size_t used_;
+      Builder(const Builder &);
+      Builder &operator=(const Builder &);
     };
 
     /**

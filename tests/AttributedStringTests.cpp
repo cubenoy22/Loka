@@ -311,3 +311,170 @@ void testManagedTryWrapFailureAndRelease()
   LOKA_VERIFY(!Managed<int>::Wrap(0).isValid());
   LOKA_VERIFY(testing::lokaAllocRawAttempts() == 0);
 }
+
+void testAttributedStringBuilderAllocations()
+{
+  using namespace loka::app;
+  using namespace loka::core::testing;
+  const loka::core::String text[4] = {
+      loka::core::String("a"), loka::core::String("b"), loka::core::String("c"), loka::core::String("d")};
+  AllocationFailures failures;
+  {
+    AttributedString::Builder builder(4);
+    for (int i = 0; i < 4; ++i)
+      LOKA_VERIFY(builder.append(text[i], Bold));
+    const AttributedString value = builder.build();
+    LOKA_VERIFY(value.valid());
+    LOKA_VERIFY(value.segmentCount() == 4);
+    LOKA_VERIFY(lokaAllocRawAttempts() == 2);
+  }
+  LOKA_VERIFY(lokaAllocRawLive() == 0);
+  failLokaAllocRaw("AttributedString", "Segments", 0);
+  {
+    const AttributedString chain =
+        Styled(text[0], Bold) + Styled(text[1], Bold) + Styled(text[2], Bold) + Styled(text[3], Bold);
+    LOKA_VERIFY(chain.segmentCount() == 4);
+    LOKA_VERIFY(lokaAllocRawAttempts() == 4 * 4 - 2);
+  }
+}
+
+void testAttributedStringBuilderGrowth()
+{
+  using namespace loka::app;
+  using namespace loka::core::testing;
+  loka::core::String text[10];
+  for (int i = 0; i < 10; ++i)
+    text[i] = loka::core::String::FromInt(i);
+  AllocationFailures failures;
+  {
+    AttributedString::Builder builder(1);
+    for (int i = 0; i < 10; ++i)
+      LOKA_VERIFY(builder.append(text[i], i % 2 ? Italic : Bold));
+    const AttributedString value = builder.build();
+    // Capacities 1, 2, 4, 8, 16, each with one array and one control block.
+    LOKA_VERIFY(lokaAllocRawAttempts() == 10);
+    LOKA_VERIFY(lokaAllocRawLive() == 2);
+    LOKA_VERIFY(value.valid());
+    LOKA_VERIFY(value.segmentCount() == 10);
+    for (int i = 0; i < 10; ++i)
+    {
+      LOKA_VERIFY(value.segment(i).text.equals(text[i]));
+      LOKA_VERIFY(value.segment(i).style == (i % 2 ? Italic : Bold));
+    }
+  }
+  LOKA_VERIFY(lokaAllocRawLive() == 0);
+}
+
+void testAttributedStringBuilderRefusal()
+{
+  using namespace loka::app;
+  using namespace loka::core::testing;
+  const loka::core::String first("a");
+  const loka::core::String second("b");
+  AllocationFailures failures;
+  const loka::core::LokaAllocationSite sites[] = {
+      loka::core::LokaAllocationSite("AttributedString", "Segments"),
+      loka::core::ManagedControlBlockSite(),
+  };
+  for (int site = 0; site < 2; ++site)
+  {
+    for (int retry = 0; retry < 2; ++retry)
+    {
+      {
+        AttributedString::Builder builder(1);
+        LOKA_VERIFY(builder.append(first, Bold));
+        failLokaAllocRaw(sites[site].ownerTag, sites[site].typeTag, 1);
+        LOKA_VERIFY(!builder.append(second, Italic));
+        LOKA_VERIFY(lokaAllocRawAttempts() == site + 1);
+        LOKA_VERIFY(lokaAllocRawLive() == 2);
+        if (retry)
+        {
+          // Keep the backend installed while its storage is live; allow() requires zero live.
+          failLokaAllocRaw("AttributedString", "Segments", 0);
+          LOKA_VERIFY(builder.append(second, Italic));
+        }
+        const AttributedString value = builder.build();
+        LOKA_VERIFY(value.valid());
+        LOKA_VERIFY(value.segmentCount() == (retry ? 2u : 1u));
+        LOKA_VERIFY(value.segment(0).text.equals(first));
+        LOKA_VERIFY(value.segment(0).style == Bold);
+        if (retry)
+        {
+          LOKA_VERIFY(value.segment(1).text.equals(second));
+          LOKA_VERIFY(value.segment(1).style == Italic);
+        }
+      }
+      LOKA_VERIFY(lokaAllocRawLive() == 0);
+      allowLokaAllocRaw();
+      failLokaAllocRaw("AttributedString", "Segments", 0);
+    }
+    failLokaAllocRaw(sites[site].ownerTag, sites[site].typeTag, 1);
+    {
+      AttributedString::Builder refused(1);
+      LOKA_VERIFY(!refused.append(first, Bold));
+      LOKA_VERIFY(!refused.build().valid());
+    }
+    LOKA_VERIFY(lokaAllocRawLive() == 0);
+  }
+}
+
+void testAttributedStringBuilderLifetime()
+{
+  using namespace loka::app;
+  using namespace loka::core::testing;
+  const loka::core::String text("a");
+  AllocationFailures failures;
+  {
+    AttributedString value;
+    {
+      AttributedString::Builder builder(4);
+      LOKA_VERIFY(builder.append(text, Bold));
+      value = builder.build();
+      LOKA_VERIFY(!builder.build().valid());
+      LOKA_VERIFY(!builder.append(text, Italic));
+    }
+    LOKA_VERIFY(value.valid());
+    LOKA_VERIFY(value.segmentCount() == 1);
+    LOKA_VERIFY(value.segment(0).text.equals(text));
+    LOKA_VERIFY(value.segment(0).style == Bold);
+  }
+  LOKA_VERIFY(lokaAllocRawLive() == 0);
+  for (int hint = 0; hint < 3; ++hint)
+  {
+    AttributedString::Builder builder(hint);
+    const AttributedString empty = builder.build();
+    LOKA_VERIFY(empty.valid());
+    LOKA_VERIFY(empty.empty());
+    LOKA_VERIFY(empty.segmentCount() == 0);
+    LOKA_VERIFY(empty.equals(AttributedString()));
+    LOKA_VERIFY(!builder.build().valid());
+    LOKA_VERIFY(!builder.append(text, Bold));
+  }
+  {
+    AttributedString::Builder abandoned(4);
+    LOKA_VERIFY(abandoned.append(text, Bold));
+    LOKA_VERIFY(lokaAllocRawLive() == 2);
+  }
+  LOKA_VERIFY(lokaAllocRawLive() == 0);
+  {
+    AttributedString::Builder zeroHint(0);
+    LOKA_VERIFY(zeroHint.append(text, Bold));
+    LOKA_VERIFY(zeroHint.append(text, Italic));
+    LOKA_VERIFY(zeroHint.build().segmentCount() == 2);
+  }
+  LOKA_VERIFY(lokaAllocRawLive() == 0);
+}
+
+void testAttributedStringBuilderEquality()
+{
+  using namespace loka::app;
+  AttributedString::Builder builder(4);
+  LOKA_VERIFY(builder.append(loka::core::String("ab"), Bold));
+  LOKA_VERIFY(builder.append(loka::core::String(), Italic));
+  LOKA_VERIFY(builder.append(loka::core::String("c"), Italic));
+  const AttributedString value = builder.build();
+  const AttributedString chain = Styled("a", Bold) + Styled("b", Bold) + Styled("c", Italic);
+  LOKA_VERIFY(value.equals(chain));
+  LOKA_VERIFY(value.compare(chain) == 0);
+  LOKA_VERIFY(&value.segment(0) != &chain.segment(0));
+}
