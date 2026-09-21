@@ -1,10 +1,8 @@
 #include <cstdio>
-#include <Events.h>
-#include <Memory.h>
 #include <Processes.h>
-#include <Timer.h>
 
 #include "StandaloneFlowRunner.hpp"
+#include "ToolboxProbeTiming.hpp"
 #include "app/core/AppComposition.hpp"
 #include "app/core/AppConfigurable.hpp"
 #include "app/style/AttributedString.hpp"
@@ -26,52 +24,8 @@ namespace
   const int kLines = 100;
   const int kIterations = 1000;
 
-  /** Stack timer: unsigned subtraction handles a low-word wrap (<71 minutes). */
-  struct Timer
-  {
-    const unsigned long ticks;
-    UnsignedWide start;
-    Timer()
-        : ticks(TickCount())
-    {
-      Microseconds(&this->start);
-    }
-    unsigned long elapsed() const
-    {
-      UnsignedWide end;
-      Microseconds(&end);
-      return end.lo - this->start.lo;
-    }
-  };
-
-  /** Heap queries precede compaction and all report I/O, as in AppRecycle. */
-  struct Sample
-  {
-    const unsigned long us;
-    const unsigned long ticks;
-    const long freeBytes;
-    const long maxBlock;
-    const long compactBlock;
-    explicit Sample(const Timer &timer)
-        : us(timer.elapsed()),
-          ticks(TickCount() - timer.ticks),
-          freeBytes(FreeMem()),
-          maxBlock(MaxBlock()),
-          compactBlock(CompactMem(0x7FFFFFFFL))
-    {
-    }
-    void write(std::FILE *log, const char *phase) const
-    {
-      std::fprintf(log,
-                   "phase=%s FreeMem=%ld MaxBlock=%ld CompactMem=%ld us=%lu ticks=%lu",
-                   phase,
-                   this->freeBytes,
-                   this->maxBlock,
-                   this->compactBlock,
-                   this->us,
-                   this->ticks);
-    }
-  };
+  using loka_toolbox_probe::Timer;
+  using loka_toolbox_probe::Sample;
 
   AttributedString BuildLine(int index, int version, std::size_t capacityHint = 10)
   {
@@ -90,8 +44,9 @@ namespace
                              String::Literal("02"),
                              String::Literal("; "),
                              String::Literal("//ok")};
-    const TextStyle styles[10] = {
-        Bold, Italic, TextStyle(), FontSize<12>(), TextStyle(), Italic, TextStyle(), FontSize<12>(), TextStyle(), Bold};
+    const loka::app::TextStyle styles[10] = {
+        Bold, Italic, loka::app::TextStyle(), FontSize<12>(), loka::app::TextStyle(),
+        Italic, loka::app::TextStyle(), FontSize<12>(), loka::app::TextStyle(), Bold};
     AttributedString::Builder builder(capacityHint);
     for (int i = 0; i < 10; ++i)
       if (!builder.append(text[i], styles[i]))

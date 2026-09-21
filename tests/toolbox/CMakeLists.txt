@@ -163,6 +163,29 @@ endfunction()
 loka_add_attributed_string_probe(LokaAttributedStringProbe LokaAppleToolboxCore)
 loka_add_attributed_string_probe(LokaAttrStringProbeDiag LokaAppleToolboxTestCore)
 
+# Deliberate timing-only twin of the attributed-string probe registration above.
+configure_file(
+  ${CMAKE_SOURCE_DIR}/example/HelloWorld/Size.r
+  ${CMAKE_CURRENT_BINARY_DIR}/TEStyleProbeSize.r
+  COPYONLY
+)
+# HFS names stay below 31 characters, including _APPL and .bin (28 total).
+function(loka_add_te_style_probe name core_target)
+  set(target "${name}${LOKA_CLASSIC_TARGET_SUFFIX}")
+  loka_add_toolbox_test_application(
+    ${target}
+    ${core_target}
+    src/TEStyleProbeStandaloneMain.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/TEStyleProbeSize.r
+  )
+  target_include_directories(${target} PRIVATE
+    ${CMAKE_SOURCE_DIR}/tests/standalone
+  )
+  set_property(TARGET ${target} PROPERTY EXCLUDE_FROM_ALL TRUE)
+  set_property(TARGET ${target}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
+endfunction()
+loka_add_te_style_probe(LokaTEStyleProbe LokaAppleToolboxCore)
+
 set(LOKA_PAINT_DAMAGE_TARGET "LokaPaintDamage${LOKA_CLASSIC_TARGET_SUFFIX}")
 loka_add_toolbox_test_application(
   ${LOKA_PAINT_DAMAGE_TARGET}
