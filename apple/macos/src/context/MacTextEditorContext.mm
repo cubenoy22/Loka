@@ -372,7 +372,7 @@ MacTextEditorContext::MacTextEditorContext(MacScenePlatformController *controlle
       delegate_(0)
 {
   NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSZeroRect];
-  NSTextView *view = [[NSTextView alloc] initWithFrame:NSMakeRect(0, 0, 200, 80)];
+  NSTextView *view = [[NSTextView alloc] initWithFrame:NSZeroRect];
   LokaTextEditorDelegate *delegate = [[LokaTextEditorDelegate alloc] init];
   if (!this->projection_ || !scroll || !view || !delegate)
   {
@@ -381,6 +381,7 @@ MacTextEditorContext::MacTextEditorContext(MacScenePlatformController *controlle
     [scroll release];
     return;
   }
+  loka::macos::SetMacFrame(view, controller->projection().projectFrame(loka::core::Frame(0, 0, 200, 80)));
   [view setRichText:NO];
   [view setAllowsUndo:YES];
   InstallEditorFont(view, *controller);
@@ -456,7 +457,9 @@ short MacTextEditorContext::layout(loka::app::scene::IPlatformController *, loka
   NSTextView *view = (NSTextView *)[scroll documentView];
   const NSSize size = [scroll contentSize];
   [view setMinSize:size];
-  [view setFrameSize:NSMakeSize(size.width, std::max(size.height, [view frame].size.height))];
+  const loka::macos::MacProjection &projection = this->controller()->projection();
+  const int documentHeight = projection.measurementToLu(std::max(size.height, [view frame].size.height));
+  loka::macos::SetMacDocumentHeight(scroll, projection.projectLength(0, documentHeight));
   this->onPropsApplied();
   return static_cast<short>(state.y + state.height + state.spacing);
 }
@@ -570,7 +573,8 @@ void MacTextEditorContext::syncFromNode(bool force, bool nativeCommit)
   [view setSelectedRange:selection];
   p.selection = selection;
   p.style(view, *this->node_, *this->controller(), replace);
-  [[scroll contentView] scrollToPoint:visible.origin];
+  const loka::macos::MacProjection &projection = this->controller()->projection();
+  loka::macos::ScrollMacDocument(view, projection.scrollOffsetToNative(projection.scrollPositionToLu(visible.origin.y)));
   [scroll reflectScrolledClipView:[scroll contentView]];
   [view setEditable:YES];
   p.phase = Projection::IDLE;

@@ -721,7 +721,12 @@ void testMacTextEditorHighlightAndLifecycle()
   LOKA_VERIFY(highlighter.calls == 6);
   LOKA_VERIFY(bytes(f.lines.at(0).value) == "abRSxyQcd");
   LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 4));
-  f.turn();
+  // A run-loop slice may service another source before the queued selector.
+  // Both edits coalesce; the line cache skips the two unchanged lines, even
+  // if AppKit also delivers a view notification.
+  NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:2.0];
+  while (highlighter.calls < 7 && [deadline timeIntervalSinceNow] > 0)
+    [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
   LOKA_VERIFY(highlighter.calls == 7);
   verifyFont([storage attribute:NSFontAttributeName atIndex:2 effectiveRange:0],
              (NSFont *)f.controller.textFont(Bold + Italic + FontSize<18>(), true));
