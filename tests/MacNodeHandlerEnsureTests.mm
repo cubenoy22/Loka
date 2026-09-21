@@ -1,3 +1,4 @@
+#include "app/nodes/controls/TextEditor.hpp"
 #include "MacNodeHandlerEnsureTests.hpp"
 #include "support/TestVerify.hpp"
 #include "support/RailTextLayoutFixture.hpp"
@@ -272,6 +273,9 @@ void testMacNodeHandlerEnsureContract()
     LOKA_VERIFY(countChildViews(root) == childrenWithText);
 
     // -- ScrollBar: known unsupported kinds take the typed-refusal path --
+    loka::app::TextEditorNode editor((loka::app::TextEditorProps()));
+    LOKA_VERIFY(!controller.prepareProjectedLayout(&editor, state));
+    LOKA_VERIFY(!editor.getContext());
     loka::app::ScrollBarProps scrollProps;
     loka::app::ScrollBarNode scrollBar(scrollProps);
     state.x = 5;

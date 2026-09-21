@@ -1,3 +1,4 @@
+#include "app/nodes/controls/TextEditor.hpp"
 #include "ToolboxBuiltInSupport.hpp"
 #include "context/ToolboxAttributedTextContext.hpp"
 #include <cassert>
@@ -15,6 +16,8 @@
 
 namespace
 {
+  loka::app::scene::RefusedNodeHandler gRefusedToolboxTextEditor(
+      loka::app::scene::NodeTypeToken<loka::app::TextEditorNode>());
   loka::app::scene::RefusedNodeHandler gRefusedToolboxButton(
       loka::app::scene::NodeTypeToken<loka::app::ButtonNode>());
   loka::app::scene::RefusedNodeHandler gRefusedToolboxEditText(
@@ -57,5 +60,6 @@ bool RegisterToolboxBuiltInSupport(ToolboxScenePlatformController &controller)
     ok = controller.nodeHandlerRegistry_.registerHandler(&gRefusedToolboxScrollBar) && ok;
   }
   ok = RegisterToolboxOpenFileDialogNodeHandler(controller.nodeHandlerRegistry_) && ok;
+  ok = controller.nodeHandlerRegistry_.registerHandler(&gRefusedToolboxTextEditor) && ok;
   return ok;
 }
