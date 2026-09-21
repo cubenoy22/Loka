@@ -152,6 +152,45 @@ int main()
     LOKA_VERIFY((**f.te()).idleCalls == 2);
     pin("focus activates; blur deactivates and receives no TEIdle; refocus activates and resumes TEIdle");
   }
+  for (int stay = 0; stay < 2; ++stay)
+  {
+    const NativeLifetimeHint hint = stay ? NATIVE_HINT_DESIRE_STAY : NATIVE_HINT_DEFAULT;
+    Fixture f;
+    ToolboxEditTextContext ordinary;
+    MutableState<String> text(String("ordinary"));
+    const Rect rect = {20, 10, 40, 210};
+    TEHandle editor = f.te();
+    const int disposals = toolbox_host::disposals;
+    f.controller.retireTextEditorControl(f.context, hint);
+    LOKA_VERIFY(!f.te() && f.controller.editControls_.empty());
+    LOKA_VERIFY(toolbox_host::disposals == disposals);
+    f.controller.flushTE();
+    LOKA_VERIFY(toolbox_host::disposals == disposals + 1);
+    LOKA_VERIFY(f.controller.textEditBucket_.depth() == 0);
+    GrafPtr previous;
+    GetPort(&previous);
+    SetPort(f.window.window());
+    TEHandle edit = f.controller.ensureEditTextControl(&ordinary, rect, &text, hint);
+    SetPort(previous);
+    LOKA_VERIFY(edit && edit != editor);
+    LOKA_VERIFY((**edit).txFont == 3 && (**edit).txSize == 12);
+    LOKA_VERIFY((**edit).lineHeight == 17 && (**edit).fontAscent == 12);
+    f.controller.retireEditTextControl(&ordinary, hint);
+    f.controller.flushTE();
+    LOKA_VERIFY(f.controller.textEditBucket_.depth() == 1);
+    f.context->render(&f.controller);
+    LOKA_VERIFY(f.te() && f.te() != edit && f.te() != editor);
+    LOKA_VERIFY((**f.te()).txFont == 4 && (**f.te()).txSize == 9);
+    LOKA_VERIFY((**f.te()).lineHeight == 14 && (**f.te()).fontAscent == 9);
+    LOKA_VERIFY(f.controller.textEditBucket_.depth() == 1);
+    // The ordinary record remains available only to another ordinary edit.
+    SetPort(f.window.window());
+    LOKA_VERIFY(f.controller.ensureEditTextControl(&ordinary, rect, &text, hint) == edit);
+    SetPort(previous);
+    f.controller.retireEditTextControl(&ordinary, hint);
+    LOKA_VERIFY(f.controller.poolIntakeAuditFailCount_ == 0);
+  }
+  pin("default/desire-stay: editor disposes only at clock drain; cross-kind handles and font metrics stay isolated");
   {
     GrafPtr previous;
     GetPort(&previous);
@@ -254,7 +293,7 @@ int main()
     f.controller.editControls_.focus(0);
     f.context->onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_DETACHED_RETAINED);
     LOKA_VERIFY(f.controller.editControls_.empty() && !f.controller.editControls_.focused());
-    LOKA_VERIFY(!f.te() && f.controller.retiredTE.size() == 1 && toolbox_host::disposals == disposals);
+    LOKA_VERIFY(!f.te() && f.controller.retiredTextEdits_.size() == 1 && toolbox_host::disposals == disposals);
     LOKA_VERIFY(f.context->key('x') == EDITOR_UNAVAILABLE);
     f.controller.flushTE();
     LOKA_VERIFY(toolbox_host::disposals == disposals + 1);

@@ -35,6 +35,8 @@ set(LOKA_TOOLBOX_SOURCES
   src/context/ToolboxRectSurfaceContext.cpp
   src/ToolboxPlatformLayoutHandlers.cpp
   src/ToolboxTextEditorBinding.cpp
+  src/ToolboxEditTextBinding.cpp
+  src/ToolboxNativeRetirement.cpp
   src/ToolboxHitLedger.cpp
   src/ToolboxNodeDispatch.cpp
   src/ToolboxScrollBarLedger.cpp
@@ -51,6 +53,8 @@ set(LOKA_TOOLBOX_SOURCES
 # compiler retains the original translation-unit optimization and code size.
 set_source_files_properties(
   src/ToolboxTextEditorBinding.cpp
+  src/ToolboxEditTextBinding.cpp
+  src/ToolboxNativeRetirement.cpp
   src/ToolboxHitLedger.cpp
   src/ToolboxScrollBarLedger.cpp
   PROPERTIES HEADER_FILE_ONLY TRUE

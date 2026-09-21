@@ -1,4 +1,5 @@
 #include "ToolboxHost.hpp"
+#include "platform/StringUTF8.hpp"
 #include <algorithm>
 #include <cstring>
 namespace toolbox_host
@@ -183,11 +184,25 @@ TEHandle TENew(const Rect *dest, const Rect *view)
   (**te).idleCalls = 0;
   return te;
 }
+namespace
+{
+  // Quarantine fake handle slots until exit so identity pins cannot confuse
+  // allocator address reuse with pool payout; the TERec is destroyed at flush.
+  struct DisposedHandles
+  {
+    std::vector<TEHandle> handles;
+    ~DisposedHandles()
+    {
+      for (std::size_t i = 0; i < handles.size(); ++i) delete handles[i];
+    }
+  } disposedHandles;
+}
 void TEDispose(TEHandle te)
 {
   ++toolbox_host::disposals;
   delete *te;
-  delete te;
+  *te = 0;
+  disposedHandles.handles.push_back(te);
 }
 void TESetText(const void *bytes, long length, TEHandle te)
 {
@@ -270,21 +285,16 @@ void OffsetRect(Rect *r, short x, short y)
 }
 void FrameRect(const Rect *) {}
 #include "ToolboxTextEditorBinding.cpp"
+#include "ToolboxNativeRetirement.cpp"
+#include "ToolboxEditTextBinding.cpp"
 void ToolboxScenePlatformController::retireTextEditorControl(loka::app::scene::NodeContext *context,
-                                                             loka::app::scene::NativeLifetimeHint)
+                                                             loka::app::scene::NativeLifetimeHint hint)
 {
-  std::size_t index = 0;
-  if (!this->editControls_.find(context, index))
-    return;
-  static_cast<ToolboxTextEditorContext *>(context)->invalidateNativePresentation();
-  this->retiredTE.push_back(this->editControls_[index].te);
-  this->editControls_.erase(index);
+  this->retireEditTextControl(context, hint);
 }
 void ToolboxScenePlatformController::flushTE()
 {
-  for (std::size_t i = 0; i < this->retiredTE.size(); ++i)
-    TEDispose(this->retiredTE[i]);
-  this->retiredTE.clear();
+  this->flushRetiredEntriesInto(this->retiredTextEdits_, this->textEditBucket_);
 }
 
 void TEActivate(TEHandle te) { (**te).active = true; }
