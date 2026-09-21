@@ -299,9 +299,7 @@ namespace
       Observer &observer = *static_cast<Observer *>(data);
       ++observer.notifications;
       const PaintQuery query = {Win32RetirableContext::paintScope(), PLACEMENT_ELIGIBLE};
-      PaintAnswer answer;
-      LOKA_VERIFY(
-          observer.fixture.controller.queryPaintAnswer(observer.fixture.node, observer.fixture.context, query, answer));
+      const PaintAnswer answer = observer.fixture.context->queryPaintDamage(query);
       LOKA_VERIFY(answer.kind == PAINT_ANSWER_EXACT);
       observer.fixture.tracker.defer(&flushed, &observer);
       if (observer.nested)
@@ -605,8 +603,7 @@ void testWin32TextEditorLayoutDpiAndRetirement()
   const HFONT nextFont = reinterpret_cast<HFONT>(SendMessageW(child, WM_GETFONT, 0, 0));
   LOKA_VERIFY(nextFont && nextFont != font);
   const PaintQuery query = {Win32RetirableContext::paintScope(), PLACEMENT_ELIGIBLE};
-  PaintAnswer answer;
-  LOKA_VERIFY(fixture.controller.queryPaintAnswer(fixture.node, fixture.context, query, answer));
+  const PaintAnswer answer = fixture.context->queryPaintDamage(query);
   LOKA_VERIFY(answer.kind == PAINT_ANSWER_NATIVE_SCHEDULED);
   {
     Probe probe(child);
