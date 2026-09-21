@@ -1,5 +1,7 @@
 #include "app/style/AttributedString.hpp"
 #include "app/layout/TextLineBreaker.hpp"
+#include "core/StringAccess.hpp"
+#include "platform/String.hpp"
 
 #include <cassert>
 #include <functional>
@@ -38,7 +40,8 @@ namespace loka
             : value_(value),
               segment_(0),
               offset_(0),
-              buffer_()
+              buffer_(),
+              view_()
         {
         }
 
@@ -49,11 +52,17 @@ namespace loka
             const core::String &text = this->value_.segment(this->segment_).text;
             if (this->offset_ == 0)
             {
-              this->buffer_ = text.bufferWithEncoding(core::StringEncodingUtf8);
-              if (!text.empty() && !this->buffer_.platformHandle().isValid())
-                return REFUSED;
+              const core::Managed<platform::String> &handle = core::StringAccess::handle(text);
+              if (!handle.isValid() || !handle->queryUtf8(this->view_))
+              {
+                this->buffer_ = text.bufferWithEncoding(core::StringEncodingUtf8);
+                if (!text.empty() && !this->buffer_.platformHandle().isValid())
+                  return REFUSED;
+                this->view_.bytes = static_cast<const char *>(this->buffer_.data());
+                this->view_.length = this->buffer_.length();
+              }
             }
-            if (this->offset_ < this->buffer_.length())
+            if (this->offset_ < this->view_.length)
               return BYTE;
             ++this->segment_;
             this->offset_ = 0;
@@ -63,11 +72,15 @@ namespace loka
 
         unsigned int byte() const
         {
-          return this->buffer_.characterAt(this->offset_);
+          return static_cast<unsigned char>(this->view_.bytes[this->offset_]);
         }
         const AttributedString::Segment &segment() const
         {
           return this->value_.segment(this->segment_);
+        }
+        bool atSegmentStart() const
+        {
+          return this->offset_ == 0;
         }
         void advance()
         {
@@ -79,6 +92,7 @@ namespace loka
         std::size_t segment_;
         std::size_t offset_;
         core::StringBuffer buffer_;
+        platform::Utf8View view_;
       };
     } // namespace
 
@@ -299,8 +313,11 @@ namespace loka
           return std::less<const Segment *>()(&left.segment(), &right.segment()) ? -1 : 1;
         if (left.byte() != right.byte())
           return left.byte() < right.byte() ? -1 : 1;
-        if (left.segment().style != right.segment().style)
-          return left.segment().style < right.segment().style ? -1 : 1;
+        if (left.atSegmentStart() || right.atSegmentStart())
+        {
+          if (left.segment().style != right.segment().style)
+            return left.segment().style < right.segment().style ? -1 : 1;
+        }
         left.advance();
         right.advance();
       }

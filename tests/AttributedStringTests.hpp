@@ -7,6 +7,9 @@ void testAttributedStringBuilderRefusal();
 void testAttributedStringBuilderLifetime();
 void testAttributedStringBuilderEquality();
 
+void testAttributedStringUtf8Routes();
+void testAttributedStringUtf8Edges();
+void testAttributedStringStyleBoundaries();
 void testAttributedStringContentEquality();
 void testAttributedStringOrdering();
 void testAttributedStringStyleDirections();

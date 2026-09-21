@@ -44,6 +44,7 @@ namespace allocpin
   // Scenario entry point (AllocPinTests.cpp).
   void RunStateLifetimeTokenAllocPin();
   void RunLazyFlexPageFlipAllocPin();
+  void RunAttributedStringEqualsAllocPin();
   void RunZeroAllocPin();
   void RunFloppyBirdSurfaceAllocPin();
   void RunFloppyBirdScoreAllocPin();

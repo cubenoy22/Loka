@@ -20,6 +20,7 @@
 // for the full census table and family breakdown.
 
 #include "support/AllocCensus.hpp"
+#include "app/style/AttributedString.hpp"
 #include "support/TestVerify.hpp"
 
 #include "MainNode.hpp"
@@ -471,4 +472,25 @@ void allocpin::RunStateLifetimeTokenAllocPin()
   LOKA_VERIFY(notified == 0);
   LOKA_VERIFY(guarded == 1);
   LOKA_VERIFY(reguarded == 0);
+}
+
+void allocpin::RunAttributedStringEqualsAllocPin()
+{
+  using namespace loka::app;
+  AttributedString left;
+  AttributedString right;
+  for (int i = 0; i < 10; ++i)
+  {
+    left = left + Styled(loka::core::String("segment"), Bold);
+    right = right + Styled(loka::core::String("segment"), Bold);
+  }
+  LOKA_VERIFY(left.valid() && right.valid());
+  LOKA_VERIFY(left.segmentCount() == 10 && right.segmentCount() == 10);
+  BeginCapture(0);
+  const bool equal = left.equals(right);
+  EndCapture();
+  const unsigned long allocations = CaptureAllocCount(0);
+  std::fprintf(stderr, "AttributedString equal 10-segment values: allocations=%lu\n", allocations);
+  LOKA_VERIFY(equal);
+  LOKA_VERIFY(allocations == 0);
 }
