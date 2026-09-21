@@ -570,16 +570,19 @@ void testWin32TextEditorActionsUseLineQueries()
   LOKA_VERIFY(fixture.lines.at(10).value.equals(String("abcd")));
   LOKA_VERIFY(EditorAccess::restores(*fixture.context) == 0);
   fixture.matches();
-  // Last-line queries must also work for a trailing empty line. EM_LINEINDEX
-  // returns the text length for that line, and -1 only beyond the line count.
+  // A trailing empty logical line must preserve the model, caret and CRLF projection.
+  const unsigned short lineCount = fixture.lines.size();
   const int nativeEnd = GetWindowTextLengthW(fixture.context->hwnd());
   SendMessageW(fixture.context->hwnd(), EM_SETSEL, nativeEnd, nativeEnd);
   fixture.type(L'\r');
+  LOKA_VERIFY(fixture.lines.size() == lineCount + 1);
   const unsigned short last = static_cast<unsigned short>(fixture.lines.size() - 1);
   LOKA_VERIFY(fixture.lines.at(last).value.equals(String("")));
-  LOKA_VERIFY(SendMessageW(fixture.context->hwnd(), EM_LINEINDEX, last, 0)
-              == GetWindowTextLengthW(fixture.context->hwnd()));
-  LOKA_VERIFY(SendMessageW(fixture.context->hwnd(), EM_LINEINDEX, fixture.lines.size(), 0) == -1);
+  LOKA_VERIFY(fixture.cursor.get() == LineCursor(fixture.lines.at(last).id, 0));
+  const std::wstring trailing = fixture.native();
+  LOKA_VERIFY(trailing.size() >= 2 && trailing.compare(trailing.size() - 2, 2, L"\r\n") == 0);
+  LOKA_VERIFY(GetWindowTextLengthW(fixture.context->hwnd()) == static_cast<int>(fixture.committedNative().size()));
+  fixture.matches();
   fixture.type(L'z');
   LOKA_VERIFY(fixture.lines.at(last).value.equals(String("z")));
   LOKA_VERIFY(fixture.cursor.get() == LineCursor(fixture.lines.at(last).id, 1));
