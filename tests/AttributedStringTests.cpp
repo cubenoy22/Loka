@@ -523,6 +523,8 @@ void testAttributedStringBuilderEquality()
   LOKA_VERIFY(value.equals(chain));
   LOKA_VERIFY(value.compare(chain) == 0);
   LOKA_VERIFY(&value.segment(0) != &chain.segment(0));
+}
+
 void testAttributedStringUtf8Routes()
 {
   using namespace loka::app;
