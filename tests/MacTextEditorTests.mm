@@ -332,6 +332,61 @@ namespace
 
 void testMacTextEditorLineActions()
 {
+  // Exercise each committing callback separately. Storage must use the
+  // published cursor even when the native-only selection disagrees with it.
+  for (int storageOnly = 0; storageOnly < 2; ++storageOnly)
+  {
+    for (int join = 0; join < 2; ++join)
+    {
+      Fixture edge(2, "a");
+      const ItemId a = edge.lines.at(0).id, b = edge.lines.at(1).id;
+      id viewDelegate = [edge.view delegate];
+      id storageDelegate = [[edge.view textStorage] delegate];
+      [edge.view setDelegate:nil];
+      [edge.view setSelectedRange:NSMakeRange(2, 0)];
+      [edge.view setDelegate:viewDelegate];
+      if (storageOnly)
+      {
+        edge.context->handleSelectionDidChange();
+        LOKA_VERIFY(edge.cursor.get() == LineCursor(b, 0));
+        [edge.view setDelegate:nil];
+        [edge.view setSelectedRange:NSMakeRange(0, 0)];
+        edge.context->captureSelection();
+      }
+      else
+      {
+        // The view hint must come from native selection, not the older cursor.
+        LOKA_VERIFY(edge.cursor.get() == LineCursor(a, 1));
+        [[edge.view textStorage] setDelegate:nil];
+        edge.context->captureSelection();
+      }
+      [[edge.view textStorage] replaceCharactersInRange:NSMakeRange(join ? 1 : 2, join ? 1 : 0)
+                                            withString:join ? @"" : @"\n"];
+      if (!storageOnly)
+      {
+        [edge.view setSelectedRange:NSMakeRange(join ? 1 : 3, 0)];
+        edge.notify();
+      }
+      [edge.view setDelegate:viewDelegate];
+      [[edge.view textStorage] setDelegate:storageDelegate];
+      LOKA_VERIFY(Access::restores(*edge.context) == 0);
+      LOKA_VERIFY(edge.lines.at(0).id == a);
+      if (join)
+      {
+        LOKA_VERIFY(edge.lines.size() == 1 && bytes(edge.lines.at(0).value) == "aa");
+        LOKA_VERIFY(edge.lines.find(b) == -1);
+        LOKA_VERIFY(edge.cursor.get() == LineCursor(a, 1));
+      }
+      else
+      {
+        LOKA_VERIFY(edge.lines.size() == 3 && bytes(edge.lines.at(0).value) == "a");
+        LOKA_VERIFY(edge.lines.at(1).id == b && bytes(edge.lines.at(1).value).empty());
+        LOKA_VERIFY(edge.lines.at(2).id != a && edge.lines.at(2).id != b);
+        LOKA_VERIFY(bytes(edge.lines.at(2).value) == "a");
+        LOKA_VERIFY(edge.cursor.get() == LineCursor(edge.lines.at(2).id, 0));
+      }
+    }
+  }
   Fixture f;
   Observer observer(f);
   const ItemId first = f.lines.at(0).id, second = f.lines.at(1).id;

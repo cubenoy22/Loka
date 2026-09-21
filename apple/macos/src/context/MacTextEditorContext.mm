@@ -1,5 +1,6 @@
 #include "MacTextEditorContext.hpp"
 #include "app/nodes/controls/TextChangeSpan.hpp"
+#include "app/nodes/controls/TextEditorDiff.hpp"
 #include "../MacScenePlatformController.hpp"
 #include "../MacObjCCompat.hpp"
 #include "../platform/MacNativeGeometry.hpp"
@@ -631,18 +632,36 @@ EditorResult MacTextEditorContext::applyNativeChange(TextObservation source, std
     return after.result;
   if (after.count > before.count + 1 || before.count > after.count + 1)
     return EDITOR_INVALID_CURSOR;
-  unsigned short first = 0;
-  while (first < before.count && first < after.count
-         && EqualLine(p.committed, before.ranges[first], text, after.ranges[first]))
-    ++first;
-  unsigned short oldEnd = before.count, newEnd = after.count;
-  while (oldEnd > first && newEnd > first
-         && EqualLine(p.committed, before.ranges[oldEnd - 1], text, after.ranges[newEnd - 1]))
+  // validateDocument left the committed CR-separated snapshot in scratch.
+  // Normalize through native line ranges so CRLF is also one logical separator.
+  std::string logical;
+  logical.reserve([text length]);
+  for (unsigned short i = 0; i < after.count; ++i)
   {
-    --oldEnd;
-    --newEnd;
+    if (i)
+      logical += '\r';
+    const NSRange range = after.ranges[i];
+    for (NSUInteger column = 0; column < range.length; ++column)
+      logical += static_cast<char>([text characterAtIndex:range.location + column]);
   }
-  if (first == before.count && first == after.count)
+  int hintLine = -1, hintColumn = -1;
+  if (source == STORAGE_EDIT)
+  {
+    // Storage has no trustworthy native selection. Use the caret the context
+    // last published (its committed cursor), not the tentative view selection.
+    const LineCursor cursor = this->node_->props.cursor_.state()->get();
+    hintLine = this->node_->props.lines_->find(cursor.line);
+    hintColumn = cursor.column;
+  }
+  else if (!p.selection.length && p.selection.location <= [p.committed length])
+  {
+    // Like Win32, interpret the captured native selection in the before snapshot.
+    hintLine = before.lineAt(p.selection.location);
+    hintColumn = static_cast<int>(p.selection.location - before.ranges[hintLine].location);
+  }
+  const TextEditorLineDiff diff = DiffTextEditorLines(p.scratch, logical, hintLine, hintColumn);
+  const unsigned short first = static_cast<unsigned short>(diff.first());
+  if (!diff.before() && !diff.after())
   {
     if (source == STORAGE_EDIT)
       return EDITOR_OK;
@@ -652,22 +671,9 @@ EditorResult MacTextEditorContext::applyNativeChange(TextObservation source, std
     const LineCursor cursor(p.ids[caretLine], static_cast<int>(caret - after.ranges[caretLine].location));
     return cursor == this->node_->props.cursor_.state()->get() ? EDITOR_OK : this->node_->document.moveCaret(cursor);
   }
-  // A split at an endpoint (or its inverse) can leave an empty diff span
-  // on one side. Include an adjacent unchanged line as the structural source.
-  // The concatenation checks below still require a pure split/join.
-  if (before.count != after.count && (oldEnd == first || newEnd == first))
-  {
-    if (first)
-      --first;
-    else
-    {
-      ++oldEnd;
-      ++newEnd;
-    }
-  }
   if (after.count == before.count + 1)
   {
-    if (oldEnd != first + 1 || newEnd != first + 2)
+    if (diff.before() != 1 || diff.after() != 2)
       return EDITOR_INVALID_CURSOR;
     const NSRange source = before.ranges[first];
     const NSRange left = after.ranges[first], right = after.ranges[first + 1];
@@ -679,7 +685,7 @@ EditorResult MacTextEditorContext::applyNativeChange(TextObservation source, std
   }
   if (before.count == after.count + 1)
   {
-    if (oldEnd != first + 2 || newEnd != first + 1)
+    if (diff.before() != 2 || diff.after() != 1)
       return EDITOR_INVALID_CURSOR;
     const NSRange left = before.ranges[first], right = before.ranges[first + 1], joined = after.ranges[first];
     if (joined.length != left.length + right.length
@@ -688,7 +694,7 @@ EditorResult MacTextEditorContext::applyNativeChange(TextObservation source, std
       return EDITOR_INVALID_CURSOR;
     return this->node_->document.applyJoin(p.ids[first + 1]);
   }
-  if (oldEnd != first + 1 || newEnd != first + 1)
+  if (diff.before() != 1 || diff.after() != 1)
     return EDITOR_INVALID_CURSOR;
   const NSRange oldLine = before.ranges[first], newLine = after.ranges[first];
   const loka::app::detail::TextChangeSpan span(
