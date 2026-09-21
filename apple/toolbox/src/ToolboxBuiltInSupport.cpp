@@ -1,3 +1,4 @@
+#include "context/ToolboxTextEditorContext.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
 #include "ToolboxBuiltInSupport.hpp"
 #include "context/ToolboxAttributedTextContext.hpp"
@@ -44,10 +45,12 @@ bool RegisterToolboxBuiltInSupport(ToolboxScenePlatformController &controller)
   if ((capabilities & ToolboxWindowContext::CAP_TEXT_EDIT) != 0)
   {
     ok = RegisterToolboxEditTextNodeHandler(controller.nodeHandlerRegistry_) && ok;
+    ok = RegisterToolboxTextEditorNodeHandler(controller.nodeHandlerRegistry_) && ok;
   }
   else
   {
     ok = controller.nodeHandlerRegistry_.registerHandler(&gRefusedToolboxEditText) && ok;
+    ok = controller.nodeHandlerRegistry_.registerHandler(&gRefusedToolboxTextEditor) && ok;
   }
   ok = RegisterToolboxPopupMenuNodeHandler(controller.nodeHandlerRegistry_) && ok;
   ok = RegisterToolboxCellNodeHandler(controller.nodeHandlerRegistry_) && ok;
@@ -60,6 +63,5 @@ bool RegisterToolboxBuiltInSupport(ToolboxScenePlatformController &controller)
     ok = controller.nodeHandlerRegistry_.registerHandler(&gRefusedToolboxScrollBar) && ok;
   }
   ok = RegisterToolboxOpenFileDialogNodeHandler(controller.nodeHandlerRegistry_) && ok;
-  ok = controller.nodeHandlerRegistry_.registerHandler(&gRefusedToolboxTextEditor) && ok;
   return ok;
 }

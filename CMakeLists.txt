@@ -425,6 +425,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     tests/toolbox/host/ToolboxHost.cpp
     apple/toolbox/src/ToolboxString.cpp
     tests/TestingHooks.cpp
+    apple/toolbox/src/context/ToolboxTextEditorContext.cpp
     apple/toolbox/src/context/ToolboxAttributedTextContext.cpp
     apple/toolbox/src/context/ToolboxAttributedTextTable.cpp
     apple/toolbox/src/context/ToolboxLayoutUtil.cpp
@@ -438,6 +439,17 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   loka_enable_warnings(LokaToolboxAttributedTextTests)
   set_target_properties(LokaToolboxAttributedTextTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
   add_test(NAME LokaToolboxAttributedTextTests COMMAND LokaToolboxAttributedTextTests)
+
+  add_executable(LokaToolboxTextEditorTests tests/toolbox/host/ToolboxTextEditorHostTests.cpp)
+  get_target_property(_editor_host_sources LokaToolboxAttributedTextTests SOURCES)
+  list(REMOVE_ITEM _editor_host_sources tests/toolbox/host/ToolboxAttributedTextHostTests.cpp)
+  target_sources(LokaToolboxTextEditorTests PRIVATE ${_editor_host_sources})
+  target_include_directories(LokaToolboxTextEditorTests PRIVATE tests/toolbox/host tests apple/toolbox/src)
+  target_compile_options(LokaToolboxTextEditorTests PRIVATE -include ${PROJECT_SOURCE_DIR}/tests/toolbox/host/ToolboxHost.hpp)
+  target_link_libraries(LokaToolboxTextEditorTests PRIVATE LokaCommonTesting)
+  loka_enable_warnings(LokaToolboxTextEditorTests)
+  set_target_properties(LokaToolboxTextEditorTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
+  add_test(NAME LokaToolboxTextEditorTests COMMAND LokaToolboxTextEditorTests)
 
   # Production GDI table with deterministic host calls; native HWND pins remain in LokaTestsWin32.
   add_executable(LokaWin32AttributedTextHostTests

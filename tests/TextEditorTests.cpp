@@ -1,5 +1,6 @@
 #include "TextEditorTests.hpp"
 #include "app/nodes/controls/TextEditorDiff.hpp"
+#include "support/TextEditorContractSnapshot.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
 #include "platform/null/context/NullTextEditorContext.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
@@ -54,34 +55,7 @@ namespace
       LOKA_VERIFY(this->context);
     }
   };
-  struct Snapshot
-  {
-    std::vector<ItemId> ids;
-    std::vector<String> text;
-    ListRevision revision;
-    LineCursor cursor;
-    explicit Snapshot(const Fixture &f)
-        : revision(f.lines.revision().get()),
-          cursor(f.cursor.get())
-    {
-      for (unsigned short i = 0; i < f.lines.size(); ++i)
-      {
-        ids.push_back(f.lines.at(i).id);
-        text.push_back(f.lines.at(i).value);
-      }
-    }
-    void unchanged(const Fixture &f) const
-    {
-      LOKA_VERIFY(this->ids.size() == f.lines.size());
-      for (unsigned short i = 0; i < f.lines.size(); ++i)
-      {
-        LOKA_VERIFY(this->ids[i] == f.lines.at(i).id);
-        LOKA_VERIFY(this->text[i].equals(f.lines.at(i).value));
-      }
-      LOKA_VERIFY(!(this->revision != f.lines.revision().get()));
-      LOKA_VERIFY(this->cursor == f.cursor.get());
-    }
-  };
+  typedef loka::testing::TextEditorContractSnapshot Snapshot;
   struct Observer
   {
     Fixture &fixture;

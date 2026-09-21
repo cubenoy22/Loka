@@ -70,16 +70,6 @@ int main(int argc, char **)
   ToolboxWindow window;
   ToolboxScenePlatformController controller(&window);
   LOKA_VERIFY(RegisterToolboxBuiltInSupport(controller));
-  {
-    TextEditorNode editor((TextEditorProps()));
-    IPlatformNodeHandler *editorHandler = controller.nodeHandlerRegistry_.find(&editor);
-    LOKA_VERIFY(editorHandler);
-    RefusedNodeHandler *refusal = static_cast<RefusedNodeHandler *>(editorHandler);
-    const unsigned before = refusal->refusalCount();
-    LOKA_VERIFY(!editorHandler->ensureContext(&editor, &controller, Seat(100)));
-    LOKA_VERIFY(!editor.getContext() && refusal->refusalCount() == before + 1);
-    Pin("ToolboxTextEditorExplicitRefusal");
-  }
 
   if (argc == 1)
   {

@@ -15,6 +15,9 @@
 #define LOKA_TOOLBOX_SCROLL_BAR_CONTEXT_HPP
 #define LOKA_TOOLBOX_TEXT_CONTEXT_HPP
 #include "Quickdraw.h"
+#include "TextEdit.h"
+#include "ToolboxEditControlLedger.hpp"
+class ToolboxTextEditorContext;
 #include "ToolboxCompositionReplay.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
@@ -23,6 +26,7 @@
 #include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/controls/ScrollBar.hpp"
 #include "app/layout/TextShaping.hpp"
+#include "app/scene/projection/NativeHandlePool.hpp"
 #include <vector>
 #include <string>
 
@@ -66,7 +70,7 @@ public:
   };
   int capabilities() const
   {
-    return 0;
+    return CAP_TEXT_EDIT;
   }
 };
 class ToolboxWindow
@@ -80,6 +84,7 @@ public:
     port.txSize = 12;
     port.txFace = 0;
   }
+  void requestInvalidateRect(const Rect &) {}
   GrafPtr window()
   {
     return &port;
@@ -89,9 +94,65 @@ public:
     return &context_;
   }
 };
+/** Host neighbor: the production controller only needs the ordinary edit's write seat and invalidation. */
+class ToolboxEditTextContext : public loka::app::scene::NativeNodeContext
+{
+public:
+  loka::app::scene::WriteSeat<loka::core::String> projectedWriteSeat() const
+  { return loka::app::scene::WriteSeat<loka::core::String>(); }
+  void invalidateNativePresentation() {}
+};
 class ToolboxScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
+  struct EditTextControlBinding
+  {
+    loka::app::scene::NodeContext *ownerContext;
+    TEHandle te;
+    loka::core::State<loka::core::String> *text;
+    loka::app::scene::WriteSeat<loka::core::String> textSeat;
+    std::string lastText;
+    ToolboxTextEditorContext *editor;
+    Rect rect;
+    bool usedThisFrame;
+    loka::app::scene::NativeLifetimeHint lifetimeHint;
+  };
+  ToolboxEditControlLedger<EditTextControlBinding, loka::app::scene::NodeContext> editControls_;
+  template <typename T> struct RetiredNativeEntry
+  {
+    T handle;
+    loka::app::scene::NativeLifetimeHint lifetimeHint;
+  };
+  std::vector<RetiredNativeEntry<TEHandle> > retiredTextEdits_;
+  loka::app::scene::ExactMatchHandleBucket<TEHandle> textEditBucket_;
+  unsigned poolIntakeAuditFailCount_;
+  bool inBatchUpdate_;
+  template <typename T> void queueRetiredNativeHandle(std::vector<RetiredNativeEntry<T> > &, T,
+                                                     loka::app::scene::NativeLifetimeHint);
+  template <typename T> void flushRetiredEntriesInto(std::vector<RetiredNativeEntry<T> > &,
+                                                    loka::app::scene::ExactMatchHandleBucket<T> &);
+  void queueRetiredTextEdit(TEHandle, loka::app::scene::NativeLifetimeHint);
+  bool hasLiveBinding(TEHandle) const;
+  void disposeNativeHandle(TEHandle);
+  TEHandle ensureEditTextControl(ToolboxEditTextContext *, const Rect &, loka::core::State<loka::core::String> *,
+                                loka::app::scene::NativeLifetimeHint);
+  void retireEditTextBinding(EditTextControlBinding &, loka::app::scene::NativeLifetimeHint);
+  void retireEditTextControlAt(std::size_t, loka::app::scene::NativeLifetimeHint);
+  void retireEditTextControl(loka::app::scene::NodeContext *, loka::app::scene::NativeLifetimeHint);
+  void syncEditTextFromState(EditTextControlBinding &);
+  void bindTextState(loka::core::State<loka::core::String> *) {}
+  void unbindTextState(loka::core::State<loka::core::String> *) {}
+  bool hasLiveBinding(loka::core::State<loka::core::String> *s) const
+  {
+    for (std::size_t i = 0; i < editControls_.size(); ++i)
+      if (editControls_[i].text == s) return true;
+    return false;
+  }
+  bool handleEditClick(const Point &point);
+  TEHandle ensureTextEditorControl(ToolboxTextEditorContext *, const Rect &, loka::app::scene::NativeLifetimeHint);
+  void retireTextEditorControl(loka::app::scene::NodeContext *, loka::app::scene::NativeLifetimeHint);
+  void flushTE();
+  void idleTextEdits();
   ToolboxCompositionReplay compositionReplay;
   void registerCompositionReplay(ToolboxCompositionReplay::Registration &registration)
   {
@@ -104,10 +165,17 @@ public:
   Rect projectionClip;
   loka::app::scene::NodeContext *renderContext;
   explicit ToolboxScenePlatformController(ToolboxWindow *window)
-      : window_(window),
+      : poolIntakeAuditFailCount_(0),
+        inBatchUpdate_(false),
+        window_(window),
         renderContext(0)
   {
     SetRect(&projectionClip, -30000, -30000, 30000, 30000);
+  }
+  ~ToolboxScenePlatformController()
+  {
+    this->flushTE();
+    this->textEditBucket_.drainWith(TEDispose);
   }
   loka::app::TextShaping textShaping() const
   {

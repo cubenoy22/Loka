@@ -1,0 +1,22 @@
+loka_scenario_audit version=1 scenario=text-editor-plain
+step id=2 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=click-line-2
+step id=3 due_tick=3 tick=3 status=succeeded error_kind=0 error_code=0 name=type-x
+step id=4 due_tick=4 tick=4 status=succeeded error_kind=0 error_code=0 name=split-3-to-4
+step id=5 due_tick=5 tick=5 status=succeeded error_kind=0 error_code=0 name=type-y
+step id=6 due_tick=6 tick=6 status=succeeded error_kind=0 error_code=0 name=left-to-start
+step id=7 due_tick=7 tick=7 status=succeeded error_kind=0 error_code=0 name=join-4-to-3
+step id=8 due_tick=8 tick=8 status=succeeded error_kind=0 error_code=0 name=paste-cap-refused
+step id=9 due_tick=9 tick=9 status=succeeded error_kind=0 error_code=0 name=capture
+cap	refused
+format_version	1
+line2	xysecond
+line_counts	3->4->3
+node	SmirkBench.EditorLine
+restores	1
+scenario_version	1
+schema_version	1
+status	ok
+step	text-editor-plain
+test	SmirkBench
+tick	9
+terminal status=succeeded
