@@ -644,7 +644,7 @@ void testMacTextEditorHighlightAndLifecycle()
   NotifySubtreeNodeAttached(&f.node);
   LifecycleFactTestAccess::DeliverFacts(&f.node);
   LOKA_VERIFY([f.scroll superview] == [f.host.window contentView] && [f.view delegate] != nil);
-  LOKA_VERIFY([[f.view textStorage] delegate] == [f.view delegate]);
+  LOKA_VERIFY((id)[[f.view textStorage] delegate] == (id)[f.view delegate]);
   LOKA_VERIFY([[f.view string] isEqualToString:@"abxyQcd\nabcd\nabcd"]);
   nextKey(f);
   // An external over-cap value makes the editor unavailable, never truncated.
