@@ -1,0 +1,17 @@
+phase=P0-baseline FreeMem=4068 MaxBlock=4058 CompactMem=4060 us=36 ticks=0
+phase=P1-build FreeMem=5708 MaxBlock=5698 CompactMem=5700 us=485486 ticks=29 heap_bytes=-1640 bytes_per_line=-16 bytes_per_segment=-1 lines=100 segments=1000
+phase=P2-churn FreeMem=5708 MaxBlock=5698 CompactMem=5700 us=8587212 ticks=516 us_per_keystroke=8587 FreeMem_before=5708 FreeMem_after=5708 growth=0
+phase=P3-equal-rebuild FreeMem=5708 MaxBlock=5698 CompactMem=5700 us=14288846 ticks=860 us_per_rebuild=14288 set_us=9896665 set_us_per_rebuild=9896 dirty=1000
+phase=P4-shared-compare FreeMem=5708 MaxBlock=5698 CompactMem=5700 us=12806 ticks=1 us_per_compare=12 matches=1000
+phase=P5-teardown FreeMem=5708 MaxBlock=5698 CompactMem=5700 us=179422 ticks=11 delta_from_P0=-1640
+census=unavailable
+equal_set_marked_dirty=1000
+phase=P0-baseline-hint4 FreeMem=5708 MaxBlock=5698 CompactMem=5700 us=34 ticks=0
+phase=P1-build-hint4 FreeMem=228 MaxBlock=218 CompactMem=220 us=622863 ticks=38 heap_bytes=5480 bytes_per_line=54 bytes_per_segment=5 lines=100 segments=1000
+phase=P2-churn-hint4 FreeMem=1252 MaxBlock=962 CompactMem=964 us=10602453 ticks=638 us_per_keystroke=10602 FreeMem_before=228 FreeMem_after=1252 growth=-1024
+phase=P3-equal-rebuild-hint4 FreeMem=1252 MaxBlock=962 CompactMem=964 us=16601579 ticks=998 us_per_rebuild=16601 set_us=9902803 set_us_per_rebuild=9902 dirty=1000
+phase=P4-shared-compare-hint4 FreeMem=1252 MaxBlock=962 CompactMem=964 us=12805 ticks=1 us_per_compare=12 matches=1000
+phase=P5-teardown-hint4 FreeMem=29260 MaxBlock=29250 CompactMem=29252 us=182458 ticks=11 delta_from_P0=-23552
+census=unavailable
+equal_set_marked_dirty=1000
+done
