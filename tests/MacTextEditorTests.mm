@@ -360,7 +360,7 @@ void testMacTextEditorUndoLocation()
   NSUndoManager *undo = [f.view undoManager];
   LOKA_VERIFY(undo != nil && [undo isUndoRegistrationEnabled]);
   [undo beginUndoGrouping];
-  [f.view insertText:@"x"];
+  [f.view insertText:@"x" replacementRange:[f.view selectedRange]];
   [undo endUndoGrouping];
   LOKA_VERIFY([undo canUndo]);
   LOKA_VERIFY(bytes(f.lines.at(0).value) == "abxcd");
@@ -396,7 +396,7 @@ void testMacTextEditorMultilinePasteRefusal()
     const Snapshot snapshot(f);
     // Use the native replacement path used by plain-text paste, without
     // changing the user's global pasteboard.
-    [f.view insertText:@"one\ntwo\nthree"];
+    [f.view insertText:@"one\ntwo\nthree" replacementRange:[f.view selectedRange]];
     snapshot.unchanged(f);
     LOKA_VERIFY(observer.calls == 0 && ![f.view isEditable]);
     f.restored(1);
