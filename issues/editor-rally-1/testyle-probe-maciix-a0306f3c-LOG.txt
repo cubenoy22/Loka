@@ -1,0 +1,13 @@
+phase=P0-baseline FreeMem=1788 MaxBlock=1778 CompactMem=1780 us=35 ticks=0
+phase=P1-settext FreeMem=9496 MaxBlock=9486 CompactMem=9488 us=143018 ticks=9 us_settext=143018 lines=200 bytes=8200
+phase=P2-style-all FreeMem=3864 MaxBlock=3854 CompactMem=3856 us=30852698 ticks=1856 us_total=30852698 us_per_line=154263 runs=2000
+phase=P3-keystroke FreeMem=23280 MaxBlock=21030 CompactMem=21032 us=6208465 ticks=374 us_per_keystroke_fullread=304145 us_per_keystroke_slice=5893 bytes_read=164210 iterations=20
+phase=P4-restyle-line FreeMem=23300 MaxBlock=21050 CompactMem=21052 us=9296925 ticks=559 us_per_line_restyle=464846 iterations=20
+phase=P5-cancel FreeMem=23300 MaxBlock=21050 CompactMem=21052 us=438135193 ticks=26348 us_per_cancel_settext=124579 us_per_cancel_restyle=43687702 styles_survive_settext=0 iterations=10
+phase=P6-teardown FreeMem=46840 MaxBlock=36374 CompactMem=36376 us=637 ticks=0 delta_from_P0=-45052
+phase=P0-baseline-plain FreeMem=46840 MaxBlock=36374 CompactMem=36376 us=35 ticks=0
+phase=P1-settext-plain FreeMem=29864 MaxBlock=28126 CompactMem=28128 us=99650 ticks=6 us_settext=99650 lines=200 bytes=8200
+phase=P3-keystroke-plain FreeMem=29844 MaxBlock=21618 CompactMem=21620 us=487102 ticks=29 us_per_keystroke_fullread=18102 us_per_keystroke_slice=5866 bytes_read=164210 iterations=20
+phase=P5-cancel-plain FreeMem=29864 MaxBlock=21638 CompactMem=21640 us=976631 ticks=58 us_per_cancel_settext=97598
+phase=P6-teardown-plain FreeMem=46840 MaxBlock=30398 CompactMem=30400 us=271 ticks=0 delta_from_P0=0
+done
