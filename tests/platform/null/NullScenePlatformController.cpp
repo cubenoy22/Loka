@@ -204,7 +204,7 @@ namespace
   {
     NULL_PAINT_SKIP,
     NULL_PAINT_OWNED_DRAWER,   // RectSurface / Text / AttributedText: contexts the rail itself installs (registration refuses replacement)
-    NULL_PAINT_NATIVE_CONTROL, // Button / EditText / ScrollBar: native ownership, answered by kind, context never cast
+    NULL_PAINT_NATIVE_CONTROL, // Button / EditText / TextEditor / ScrollBar: native ownership, answered by kind, context never cast
     NULL_PAINT_FOREIGN,        // ImageView / Cell / PopupMenu: refused by default, any installed context is foreign
     NULL_PAINT_UNSUPPORTED
   };
@@ -220,6 +220,7 @@ namespace
       return NULL_PAINT_OWNED_DRAWER;
     case NODE_KIND_BUTTON:
     case NODE_KIND_EDIT_TEXT:
+    case NODE_KIND_TEXT_EDITOR:
     case NODE_KIND_SCROLL_BAR:
       return NULL_PAINT_NATIVE_CONTROL;
     case NODE_KIND_IMAGE_VIEW:

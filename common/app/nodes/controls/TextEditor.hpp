@@ -73,6 +73,10 @@ namespace loka
             document(this->props)
       {
       }
+      virtual scene::NodeKind kind() const
+      {
+        return scene::NODE_KIND_TEXT_EDITOR;
+      }
       virtual const void *nodeTypeKey() const
       {
         return scene::NodeTypeToken<TextEditorNode>();

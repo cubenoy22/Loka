@@ -4,6 +4,7 @@
 #include "platform/null/NullScenePlatformController.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/scene/Scene.hpp"
+#include "app/scene/projection/CollectPaintAnswers.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 #include "platform/StringUTF8.hpp"
 #include "support/LokaAllocFailure.hpp"
@@ -410,6 +411,15 @@ void testTextEditorScene()
   LOKA_VERIFY(node && node->nodeTypeKey() == NodeTypeToken<TextEditorNode>());
   NullTextEditorContext *context = static_cast<NullTextEditorContext *>(node->getContext());
   LOKA_VERIFY(context && Input::buffer(*context) == "hello");
+  const PaintQuery query = {platform.paintScope(), PLACEMENT_ELIGIBLE};
+  PaintAnswerBuffer<> answers;
+  const PaintApplyVerdict verdict = CollectPaintAnswers(*root, query, answers, platform);
+  LOKA_VERIFY(verdict.nativeScheduledCount() == 1);
+  LOKA_VERIFY(!verdict.widened());
+  PaintAnswer answer;
+  LOKA_VERIFY(platform.queryPaintAnswer(node, context, query, answer));
+  LOKA_VERIFY(answer.kind == PAINT_ANSWER_NATIVE_SCHEDULED);
+  std::printf("[pin] TextEditor paint is native scheduled without widening\n");
   LOKA_VERIFY(Input::type(*context, 'x') == EDITOR_OK);
   LOKA_VERIFY(bytes(root->lines.at(0).value) == "hxello" && root->cursor.get().column == 2);
   LOKA_VERIFY(root->lines.update(root->lines.at(0).id, String("external")) == EDIT_OK);

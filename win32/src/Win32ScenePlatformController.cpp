@@ -8,6 +8,7 @@
 #include "app/nodes/Text.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/EditText.hpp"
+#include "app/nodes/controls/TextEditor.hpp"
 #include "app/nodes/controls/Cell.hpp"
 #include "app/nodes/controls/PopupMenu.hpp"
 #include "app/nodes/ImageView.hpp"
@@ -57,6 +58,7 @@ namespace
       {loka::app::scene::NODE_KIND_TEXT, loka::app::scene::NodeTypeToken<loka::app::TextNode>()},
       {loka::app::scene::NODE_KIND_BUTTON, loka::app::scene::NodeTypeToken<loka::app::ButtonNode>()},
       {loka::app::scene::NODE_KIND_EDIT_TEXT, loka::app::scene::NodeTypeToken<loka::app::EditTextNode>()},
+      {loka::app::scene::NODE_KIND_TEXT_EDITOR, loka::app::scene::NodeTypeToken<loka::app::TextEditorNode>()},
       {loka::app::scene::NODE_KIND_POPUP_MENU, loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>()},
       {loka::app::scene::NODE_KIND_CELL, loka::app::scene::NodeTypeToken<loka::app::CellNode>()},
       {loka::app::scene::NODE_KIND_IMAGE_VIEW, loka::app::scene::NodeTypeToken<loka::app::ImageViewNode>()},
@@ -94,6 +96,7 @@ namespace
       case NODE_KIND_CANVAS:
         return false;
       case NODE_KIND_ATTRIBUTED_TEXT:
+      case NODE_KIND_TEXT_EDITOR:
         break;
       case NODE_KIND_UNKNOWN:
         if (!node->asProjectedLayoutNode())

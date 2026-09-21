@@ -121,7 +121,8 @@ namespace loka
         NODE_KIND_SCROLL_BAR = 14,
         NODE_KIND_SCROLL_VIEW = 15,
         NODE_KIND_CANVAS = 16,
-        NODE_KIND_ATTRIBUTED_TEXT = 17
+        NODE_KIND_ATTRIBUTED_TEXT = 17,
+        NODE_KIND_TEXT_EDITOR = 18
       };
 
       typedef unsigned short NodeTag;
