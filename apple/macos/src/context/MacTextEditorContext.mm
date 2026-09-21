@@ -6,9 +6,6 @@
 #include "platform/StringUTF8.hpp"
 #include <algorithm>
 #include <new>
-#ifndef NDEBUG
-#include <cstdio>
-#endif
 
 using namespace loka::app;
 using namespace loka::core;
@@ -129,7 +126,7 @@ namespace
   MacTextEditorHandler handler;
 } // namespace
 
-/** Informal NSTextDelegate/NSTextView delegate selectors also work on ObjC1 SDKs. */
+/** Informal text view/storage delegate selectors also work on ObjC1 SDKs. */
 @interface LokaTextEditorDelegate : NSObject
 {
   MacTextEditorContext *owner_;
@@ -143,6 +140,12 @@ namespace
 {
   (void)notification;
   if ([self owner])
+    [self owner]->handleTextDidChange();
+}
+- (void)textStorageDidProcessEditing:(NSNotification *)notification
+{
+  NSTextStorage *storage = (NSTextStorage *)[notification object];
+  if (([storage editedMask] & NSTextStorageEditedCharacters) && [self owner])
     [self owner]->handleTextDidChange();
 }
 - (void)textViewDidChangeSelection:(NSNotification *)notification
@@ -369,6 +372,7 @@ void MacTextEditorContext::onFactChanged(loka::app::scene::NodeLifecycleFact, lo
     [(NSView *)this->parent_ addSubview:scroll];
     [delegate setOwner:this];
     [view setDelegate:(id)delegate];
+    [[view textStorage] setDelegate:(id)delegate];
     this->projection_->phase = Projection::IDLE;
     this->syncFromNode(true);
   }
@@ -377,6 +381,7 @@ void MacTextEditorContext::onFactChanged(loka::app::scene::NodeLifecycleFact, lo
     [NSObject cancelPreviousPerformRequestsWithTarget:delegate];
     [delegate setOwner:0];
     [view setDelegate:nil];
+    [[view textStorage] setDelegate:nil];
     [view setEditable:NO];
     [scroll removeFromSuperview];
     this->projection_->phase = Projection::UNAVAILABLE;
@@ -652,12 +657,6 @@ EditorResult MacTextEditorContext::applyNativeChange()
 void MacTextEditorContext::handleTextDidChange()
 {
   Projection &p = *this->projection_;
-#ifndef NDEBUG
-  // Rig probe: entry appears even when the phase refuses before diffing.
-  NSTextView *view = (NSTextView *)[(NSScrollView *)this->scroll_ documentView];
-  fprintf(stderr, "[MacTextEditor textDidChange] undoing=%d phase=%d diff=not-run-yet\n",
-          static_cast<int>([[view undoManager] isUndoing]), static_cast<int>(p.phase));
-#endif
   if (p.phase == Projection::APPLYING || p.phase == Projection::UNAVAILABLE)
     return;
   if (p.phase == Projection::INPUT || p.phase == Projection::RECONCILE)
@@ -669,10 +668,6 @@ void MacTextEditorContext::handleTextDidChange()
     return;
   p.phase = Projection::INPUT;
   const EditorResult result = this->applyNativeChange();
-#ifndef NDEBUG
-  fprintf(stderr, "[MacTextEditor textDidChange] diff-result=%d phase-after=%d\n",
-          static_cast<int>(result), static_cast<int>(p.phase));
-#endif
   if (!this->node_ || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
     return;
   if (result != EDITOR_OK || p.phase == Projection::RECONCILE)

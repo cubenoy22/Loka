@@ -154,8 +154,11 @@ namespace
     void edit(NSString *text, NSUInteger caret)
     {
       this->context->captureSelection();
+      // Deliver one completed synthetic edit, including its selection.
+      [[this->view textStorage] beginEditing];
       [this->view setString:text];
       [this->view setSelectedRange:NSMakeRange(caret, 0)];
+      [[this->view textStorage] endEditing];
       this->notify();
     }
     void turn()
@@ -378,22 +381,18 @@ void testMacTextEditorUndoLocation()
   LOKA_VERIFY(observer.calls == 1);
   [f.view setSelectedRange:NSMakeRange(51, 0)];
   LOKA_VERIFY(f.cursor.get() == LineCursor(distant, 0));
-  printUndoState(f, undo, "before closing groups");
   // The fixture has not yielded to an event boundary. Close any remaining
   // group, including the outer group supplied by event grouping.
   while ([undo groupingLevel] > 0)
     [undo endUndoGrouping];
-  printUndoState(f, undo, "before undo");
   LOKA_VERIFY([undo groupingLevel] == 0 && [undo canUndo]);
   [undo undo];
-  printUndoState(f, undo, "after undo");
   const bool undoSucceeded = bytes(f.lines.at(0).value) == "abcd" && observer.calls == 2
                             && f.cursor.get() == LineCursor(first, 2) && [f.view selectedRange].location == 2
                             && Access::restores(*f.context) == 0 && [f.view isEditable];
   if (!undoSucceeded)
   {
-    // The debug context trace above reports the actual diff result, or an
-    // entry phase with no result when the notification was refused/skipped.
+    printUndoState(f, undo, "failure before restore turn");
     f.turn();
     printUndoState(f, undo, "failure after restore turn");
   }
@@ -412,6 +411,53 @@ void testMacTextEditorUndoLocation()
   LOKA_VERIFY(bytes(f.lines.at(0).value) == "abxcd");
   LOKA_VERIFY(f.cursor.get() == LineCursor(distant, 0));
   LOKA_VERIFY(observer.calls == 3 && [f.view isEditable]);
+  LOKA_VERIFY(Access::restores(*f.context) == 0);
+}
+
+void testMacTextEditorStorageChanges()
+{
+  Fixture f;
+  Observer observer(f);
+  // Disable the view delegate: the storage callback alone must commit.
+  id delegate = [f.view delegate];
+  [f.view setDelegate:nil];
+  [[f.view textStorage] replaceCharactersInRange:NSMakeRange(2, 0) withString:@"x"];
+  [f.view setDelegate:delegate];
+  LOKA_VERIFY(bytes(f.lines.at(0).value) == "abxcd");
+  LOKA_VERIFY([[f.view string] isEqualToString:@"abxcd\nabcd\nabcd"]);
+  LOKA_VERIFY(observer.calls == 1 && [f.view isEditable]);
+  LOKA_VERIFY(Access::restores(*f.context) == 0);
+  // The later view notification may publish the final caret, but no second edit.
+  [f.view setSelectedRange:NSMakeRange(3, 0)];
+  f.notify();
+  const Snapshot committed(f);
+  f.notify();
+  f.turn();
+  committed.unchanged(f);
+  LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 3));
+  LOKA_VERIFY(observer.calls == 1 && [f.view isEditable]);
+  LOKA_VERIFY(Access::restores(*f.context) == 0);
+}
+
+void testMacTextEditorStorageAttributes()
+{
+  Fixture f;
+  Observer observer(f);
+  const Snapshot committed(f);
+  // Leave a native-only selection to discriminate ignoring attributes from
+  // incorrectly routing them through even the unchanged-text caret path.
+  id delegate = [f.view delegate];
+  [f.view setDelegate:nil];
+  [f.view setSelectedRange:NSMakeRange(1, 0)];
+  NSTextStorage *storage = [f.view textStorage];
+  [storage beginEditing];
+  [storage addAttribute:NSForegroundColorAttributeName value:[NSColor redColor] range:NSMakeRange(0, 1)];
+  [storage endEditing];
+  [f.view setDelegate:delegate];
+  committed.unchanged(f);
+  f.turn();
+  committed.unchanged(f);
+  LOKA_VERIFY(observer.calls == 0 && [f.view isEditable]);
   LOKA_VERIFY(Access::restores(*f.context) == 0);
 }
 
@@ -524,7 +570,9 @@ void testMacTextEditorReplacementFailure()
   [view setString:[f.view string]];
   [view setSelectedRange:[f.view selectedRange]];
   [view setDelegate:[f.view delegate]];
+  [[view textStorage] setDelegate:[[f.view textStorage] delegate]];
   [f.view setDelegate:nil];
+  [[f.view textStorage] setDelegate:nil];
   [f.scroll setDocumentView:view];
   f.view = view;
   [view release];
@@ -590,11 +638,13 @@ void testMacTextEditorHighlightAndLifecycle()
   NotifySubtreeNodeDetached(&f.node);
   LifecycleFactTestAccess::DeliverFacts(&f.node);
   LOKA_VERIFY([f.scroll superview] == nil && [f.view delegate] == nil);
+  LOKA_VERIFY([[f.view textStorage] delegate] == nil);
   f.turn();
   LOKA_VERIFY(Access::restores(*f.context) == 0);
   NotifySubtreeNodeAttached(&f.node);
   LifecycleFactTestAccess::DeliverFacts(&f.node);
   LOKA_VERIFY([f.scroll superview] == [f.host.window contentView] && [f.view delegate] != nil);
+  LOKA_VERIFY([[f.view textStorage] delegate] == [f.view delegate]);
   LOKA_VERIFY([[f.view string] isEqualToString:@"abxyQcd\nabcd\nabcd"]);
   nextKey(f);
   // An external over-cap value makes the editor unavailable, never truncated.
@@ -607,4 +657,5 @@ void testMacTextEditorHighlightAndLifecycle()
   LifecycleFactTestAccess::MarkSubtreeRetired(&f.node);
   LifecycleFactTestAccess::DeliverFacts(&f.node);
   LOKA_VERIFY([f.scroll superview] == nil && [f.view delegate] == nil);
+  LOKA_VERIFY([[f.view textStorage] delegate] == nil);
 }
