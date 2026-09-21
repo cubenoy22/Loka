@@ -71,7 +71,9 @@ class ClassicInttypesTest(unittest.TestCase):
 class ClassicWorkflowTest(unittest.TestCase):
     def test_toolbox_builds_and_checks_both_consumers(self):
         workflow = (ROOT / ".github/workflows/toolbox.yml").read_text()
-        script = re.search(r"/bin/bash -ceu '(.*?)'", workflow, re.S).group(1)
+        # Every container body in the workflow: the 68K and PPC jobs each own one.
+        scripts = re.findall(r"/bin/bash -ceu '(.*?)'", workflow, re.S)
+        self.assertGreaterEqual(len(scripts), 2)
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)
             for tool in ("cmake", "python3"):
@@ -83,7 +85,8 @@ class ClassicWorkflowTest(unittest.TestCase):
             log = path / "calls"
             env = dict(os.environ, PATH=directory + os.pathsep + os.environ["PATH"],
                        CALL_LOG=str(log))
-            subprocess.run(["bash", "-ceu", script], env=env, check=True)
+            for script in scripts:
+                subprocess.run(["bash", "-ceu", script], env=env, check=True)
             calls = log.read_text().splitlines()
             for cpu, suffix in (("68k", "68K"), ("ppc", "PPC")):
                 build = "build/retro68/" + cpu + "/SmirkyCardCI"

@@ -40,6 +40,10 @@ JOBS = {
 }
 
 
+# Both Toolbox jobs build the same inputs; keep their policy in one place.
+JOBS["toolbox-ppc"] = JOBS["toolbox-build"]
+
+
 SHARED_TEST_SOURCES = Path(__file__).resolve().parents[2] / "cmake" / "LokaTestSources.cmake"
 
 

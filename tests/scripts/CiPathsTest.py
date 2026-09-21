@@ -29,6 +29,8 @@ class CiPathsTest(unittest.TestCase):
                 actual, reason = CI.classify(job, paths)
                 self.assertEqual(actual, run, reason)
                 self.assertTrue(reason)
+                if job == "toolbox-build":
+                    self.assertEqual(CI.classify("toolbox-ppc", paths), (actual, reason))
 
     def test_shared_must_run_paths(self):
         for path in ("common/core/State.hpp", "example/hello/main.cpp",
@@ -129,9 +131,12 @@ class CiPathsTest(unittest.TestCase):
             self.assertNotIn("run=false", bad.stdout)
 
     def test_workflow_guards_preserve_existing_conditions(self):
-        for name, job in zip(WORKFLOWS, JOBS):
+        for name, job in (*zip(WORKFLOWS, JOBS), ("toolbox", "toolbox-ppc")):
             workflow = (ROOT / ".github/workflows" / (name + ".yml")).read_text()
-            steps = re.split(r"^      - ", workflow.split("    steps:\n", 1)[1],
+            job_body = workflow.split("  " + job + ":\n", 1)[1]
+            job_body = re.split(r"^  [a-zA-Z0-9_-]+:\n", job_body, maxsplit=1,
+                                flags=re.MULTILINE)[0]
+            steps = re.split(r"^      - ", job_body.split("    steps:\n", 1)[1],
                              flags=re.MULTILINE)[1:]
             self.assertIn("fetch-depth: 0", steps[0])
             self.assertNotIn("        if:", steps[0])
@@ -150,7 +155,12 @@ class CiPathsTest(unittest.TestCase):
                     self.assertIn(GUARD, step)
             if name == "macos":
                 self.assertIn("failure() && (" + GUARD + ")", steps[-1])
-            if name == "toolbox":
+            if job == "toolbox-ppc":
+                self.assertEqual(len(steps), 4)
+                self.assertNotIn("headroom", job_body)
+                self.assertIn("    permissions:\n      contents: read\n", job_body)
+                self.assertNotIn("pull-requests:", job_body)
+            if job == "toolbox-build":
                 self.assertIn("!cancelled() && github.event_name == 'pull_request'", steps[-2])
                 self.assertIn("--check-headroom 1024", steps[-2])
                 self.assertNotIn(GUARD, steps[-1])
