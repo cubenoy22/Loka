@@ -116,7 +116,7 @@ public:
   void relayout(int clientWidth, int clientHeight);
   void requestRelayout();
   /** Borrowed NSFont, retained by this controller until destruction. */
-  void *textFont(const loka::app::TextStyle &style) const;
+  void *textFont(const loka::app::TextStyle &style, bool fixedPitch = false) const;
   bool hasPendingRelayout() const
   {
     return relayoutPending_;
@@ -264,7 +264,7 @@ private:
   public:
     explicit TextFontTable(const loka::app::Ratio &fontScale);
     ~TextFontTable();
-    void *find(const loka::app::TextStyle &style) const;
+    void *find(const loka::app::TextStyle &style, bool fixedPitch) const;
 
   private:
     // Sized from the generated vocabulary so a size added through
@@ -275,7 +275,7 @@ private:
       kDefaultSizeRow = kSizeCount,
       kFontRowCount = kSizeCount + 1
     };
-    void *fonts_[kFontRowCount][2][2];
+    void *fonts_[kFontRowCount][2][2][2];
     TextFontTable(const TextFontTable &);
     TextFontTable &operator=(const TextFontTable &);
   };

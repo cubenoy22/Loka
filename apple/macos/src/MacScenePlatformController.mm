@@ -107,14 +107,21 @@ MacScenePlatformController::TextFontTable::TextFontTable(const loka::app::Ratio 
                                ? defaultSize
                                : static_cast<CGFloat>(loka::app::detail::StyleVocabularySizes[size])
                                      * fontScale.num / fontScale.den;
-    for (int bold = 0; bold < 2; ++bold)
-    {
-      NSFont *base = bold ? [NSFont boldSystemFontOfSize:points]
-                          : [NSFont systemFontOfSize:points];
-      NSFont *italic = base ? [manager convertFont:base toHaveTrait:NSItalicFontMask] : nil;
-      this->fonts_[size][bold][0] = (void *)[base retain];
-      this->fonts_[size][bold][1] = (void *)[(italic ? italic : base) retain];
-    }
+    for (int fixed = 0; fixed < 2; ++fixed)
+      for (int bold = 0; bold < 2; ++bold)
+      {
+        NSFont *base = fixed ? [NSFont userFixedPitchFontOfSize:points]
+                            : (bold ? [NSFont boldSystemFontOfSize:points] : [NSFont systemFontOfSize:points]);
+        if (fixed && bold && base)
+        {
+          NSFont *converted = [manager convertFont:base toHaveTrait:NSBoldFontMask];
+          if (converted)
+            base = converted;
+        }
+        NSFont *italic = base ? [manager convertFont:base toHaveTrait:NSItalicFontMask] : nil;
+        this->fonts_[size][bold][0][fixed] = (void *)[base retain];
+        this->fonts_[size][bold][1][fixed] = (void *)[(italic ? italic : base) retain];
+      }
   }
 }
 
@@ -124,25 +131,26 @@ MacScenePlatformController::TextFontTable::~TextFontTable()
   for (int size = 0; size < kFontRowCount; ++size)
     for (int bold = 0; bold < 2; ++bold)
       for (int italic = 0; italic < 2; ++italic)
-        [(NSFont *)this->fonts_[size][bold][italic] release];
+        for (int fixed = 0; fixed < 2; ++fixed)
+          [(NSFont *)this->fonts_[size][bold][italic][fixed] release];
 }
 
-void *MacScenePlatformController::TextFontTable::find(const loka::app::TextStyle &style) const
+void *MacScenePlatformController::TextFontTable::find(const loka::app::TextStyle &style, bool fixedPitch) const
 {
   const int bold = style.hasWeight_ && style.weight_ == loka::app::TEXT_WEIGHT_BOLD ? 1 : 0;
   const int italic = style.hasItalic_ && style.italic_ ? 1 : 0;
   if (!style.hasFontSize_)
-    return this->fonts_[kDefaultSizeRow][bold][italic];
+    return this->fonts_[kDefaultSizeRow][bold][italic][fixedPitch ? 1 : 0];
   const int points = loka::app::SizeOf(style.fontSize_).fontSize_;
   for (int size = 0; size < kSizeCount; ++size)
     if (loka::app::detail::StyleVocabularySizes[size] == points)
-      return this->fonts_[size][bold][italic];
+      return this->fonts_[size][bold][italic][fixedPitch ? 1 : 0];
   return 0;
 }
 
-void *MacScenePlatformController::textFont(const loka::app::TextStyle &style) const
+void *MacScenePlatformController::textFont(const loka::app::TextStyle &style, bool fixedPitch) const
 {
-  return this->textFonts_.find(style);
+  return this->textFonts_.find(style, fixedPitch);
 }
 
 MacScenePlatformController::MacScenePlatformController(void *rootView, const loka::app::RailMetrics &metrics)

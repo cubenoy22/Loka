@@ -272,10 +272,11 @@ void testMacNodeHandlerEnsureContract()
     LOKA_VERIFY(text.getContext() == textCtx);
     LOKA_VERIFY(countChildViews(root) == childrenWithText);
 
-    // -- ScrollBar: known unsupported kinds take the typed-refusal path --
+    // -- TextEditor: installs its multiline context even with unavailable props --
     loka::app::TextEditorNode editor((loka::app::TextEditorProps()));
-    LOKA_VERIFY(!controller.prepareProjectedLayout(&editor, state));
-    LOKA_VERIFY(!editor.getContext());
+    LOKA_VERIFY(controller.prepareProjectedLayout(&editor, state));
+    LOKA_VERIFY(editor.getContext());
+    // -- ScrollBar: known unsupported kinds take the typed-refusal path --
     loka::app::ScrollBarProps scrollProps;
     loka::app::ScrollBarNode scrollBar(scrollProps);
     state.x = 5;
@@ -285,7 +286,7 @@ void testMacNodeHandlerEnsureContract()
     LOKA_VERIFY(!controller.prepareProjectedLayout(&scrollBar, state) &&
                 "an unsupported kind must refuse, not project");
     LOKA_VERIFY(!scrollBar.getContext());
-    LOKA_VERIFY(countChildViews(root) == childrenWithText &&
+    LOKA_VERIFY(countChildViews(root) == childrenWithText + 1 &&
                 "a refusal must not materialize a native view");
 
     // -- Re-entrancy: afterAttach replaces the just-published context --
