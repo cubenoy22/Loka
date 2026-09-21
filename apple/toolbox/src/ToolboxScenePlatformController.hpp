@@ -30,6 +30,7 @@ class ToolboxButtonContext;
 class ToolboxPopupMenuContext;
 class ToolboxCellContext;
 class ToolboxEditTextContext;
+class ToolboxTextEditorContext;
 
 namespace loka
 {
@@ -141,6 +142,9 @@ public:
       changed since the last present. */
   void requestStructurePresent();
   void drawFallbackControl(const Rect &rect);
+  TEHandle ensureTextEditorControl(ToolboxTextEditorContext *, const Rect &, loka::app::scene::NativeLifetimeHint);
+  void retireTextEditorControl(loka::app::scene::NodeContext *context, loka::app::scene::NativeLifetimeHint hint)
+  { this->retireEditTextControl(context, hint); }
   TEHandle ensureEditTextControl(ToolboxEditTextContext *ownerContext,
                                  const Rect &rect,
                                  loka::core::State<loka::core::String> *text,
@@ -224,6 +228,7 @@ public:
   void refuseScrollViewShortRange();
 
 private:
+  bool handleEditClick(const Point &point);
   friend class ToolboxTextMeasureScope;
   template <typename Controller>
   friend void ReconcileToolboxTextSubscription(Controller &,
@@ -236,6 +241,7 @@ private:
   friend class ToolboxButtonContext;
   friend class ToolboxPopupMenuContext;
   friend class ToolboxEditTextContext;
+  friend class ToolboxTextEditorContext;
   friend class ToolboxRectSurfaceContext;
 
   typedef ToolboxHitLedger::ButtonHit ButtonHit;
@@ -273,7 +279,8 @@ private:
 
   struct EditTextControlBinding
   {
-    ToolboxEditTextContext *ownerContext;
+    loka::app::scene::NodeContext *ownerContext;
+    ToolboxTextEditorContext *editor;
     loka::core::State<loka::core::String> *text;
     loka::app::scene::WriteSeat<loka::core::String> textSeat;
     TEHandle te;

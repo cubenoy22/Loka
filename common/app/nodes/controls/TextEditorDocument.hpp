@@ -40,6 +40,8 @@ namespace loka
       EditorResult moveCaret(LineCursor after);
       /** Bounded serialization for projections. No publication. */
       EditorResult project(std::string &out) const;
+      /** Serialize into caller-reserved storage; never grow the destination. */
+      EditorResult project(char *out, std::size_t capacity, std::size_t &length) const;
 
     private:
       TextEditorDocument(const TextEditorDocument &);

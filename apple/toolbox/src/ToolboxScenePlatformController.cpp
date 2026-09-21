@@ -1,3 +1,4 @@
+#include "context/ToolboxTextEditorContext.hpp"
 #include "ToolboxPropsRefresh.hpp"
 #include "ToolboxDirtyReplay.hpp"
 #include "ToolboxScenePlatformController.hpp"
@@ -62,6 +63,7 @@ namespace
            || key == loka::app::scene::NodeTypeToken<loka::app::RectSurfaceNode>()
            || key == loka::app::scene::NodeTypeToken<loka::app::ButtonNode>()
            || key == loka::app::scene::NodeTypeToken<loka::app::TextNode>()
+           || key == loka::app::scene::NodeTypeToken<loka::app::TextEditorNode>()
            || key == loka::app::scene::NodeTypeToken<loka::app::EditTextNode>()
            || key == loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>();
   }
@@ -1439,13 +1441,14 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     // the outer rect, so the region that has to trigger a redraw is the outer
     // one. Gating on the inner rect would skip a dirty strip covering only the
     // chrome and leave the frame erased.
-    if (!RectsIntersect(rect, binding.ownerContext->chromeRect()))
+    if (!RectsIntersect(rect, (binding.editor ? binding.editor->chromeRect() : static_cast<ToolboxEditTextContext *>(binding.ownerContext)->chromeRect())))
     {
       continue;
     }
     // Replay borrows established TE placement; it never reprojects or changes
     // the registry after the viewport's projection scope has popped.
-    binding.ownerContext->repaint(binding.te);
+    if (binding.editor) binding.editor->repaint(binding.te);
+    else static_cast<ToolboxEditTextContext *>(binding.ownerContext)->repaint(binding.te);
   }
   drawControlsInRect(rect);
 }
@@ -1468,6 +1471,11 @@ bool ToolboxScenePlatformController::handleKeyDown(char key)
   EditTextControlBinding *focusedEdit = editControls_.focused();
   if (focusedEdit && focusedEdit->te)
   {
+    if (focusedEdit->editor)
+    {
+      focusedEdit->editor->key(key);
+      return true;
+    }
     beginBatchUpdate();
     TEKey(key, focusedEdit->te);
     updateStateFromEdit(*focusedEdit);
@@ -2221,27 +2229,7 @@ void ToolboxScenePlatformController::clearControls()
   editControls_.clear();
 }
 
-template <typename HandleT>
-void ToolboxScenePlatformController::queueRetiredNativeHandle(std::vector<RetiredNativeEntry<HandleT> > &retired,
-                                                              HandleT handle,
-                                                              loka::app::scene::NativeLifetimeHint lifetimeHint)
-{
-  if (!handle)
-  {
-    return;
-  }
-  for (size_t i = 0; i < retired.size(); ++i)
-  {
-    if (retired[i].handle == handle)
-    {
-      return;
-    }
-  }
-  RetiredNativeEntry<HandleT> entry;
-  entry.handle = handle;
-  entry.lifetimeHint = lifetimeHint;
-  retired.push_back(entry);
-}
+#include "ToolboxNativeRetirement.cpp"
 
 void ToolboxScenePlatformController::queueRetiredControl(ControlRef control,
                                                          loka::app::scene::NativeLifetimeHint lifetimeHint)
@@ -2253,12 +2241,6 @@ void ToolboxScenePlatformController::queueRetiredScrollBarControl(ControlRef con
                                                                    loka::app::scene::NativeLifetimeHint lifetimeHint)
 {
   queueRetiredNativeHandle(retiredScrollBarControls_, control, lifetimeHint);
-}
-
-void ToolboxScenePlatformController::queueRetiredTextEdit(TEHandle te,
-                                                          loka::app::scene::NativeLifetimeHint lifetimeHint)
-{
-  queueRetiredNativeHandle(retiredTextEdits_, te, lifetimeHint);
 }
 
 bool ToolboxScenePlatformController::hasLiveBinding(ControlRef control) const
@@ -2280,67 +2262,12 @@ bool ToolboxScenePlatformController::hasLiveBinding(ControlRef control) const
   return false;
 }
 
-bool ToolboxScenePlatformController::hasLiveBinding(TEHandle te) const
-{
-  for (size_t i = 0; i < editControls_.size(); ++i)
-  {
-    if (editControls_[i].te == te)
-    {
-      return true;
-    }
-  }
-  return false;
-}
-
 void ToolboxScenePlatformController::disposeNativeHandle(ControlRef control)
 {
   if (control)
   {
     DisposeControl(control);
   }
-}
-
-void ToolboxScenePlatformController::disposeNativeHandle(TEHandle te)
-{
-  if (te)
-  {
-    TEDispose(te);
-  }
-}
-
-template <typename HandleT>
-void ToolboxScenePlatformController::flushRetiredEntriesInto(
-    std::vector<RetiredNativeEntry<HandleT> > &retired,
-    loka::app::scene::ExactMatchHandleBucket<HandleT> &bucket)
-{
-  for (size_t i = 0; i < retired.size(); ++i)
-  {
-    HandleT handle = retired[i].handle;
-    if (!handle)
-    {
-      continue;
-    }
-    if (retired[i].lifetimeHint == loka::app::scene::NATIVE_HINT_EAGER_RELEASE)
-    {
-      disposeNativeHandle(handle);
-      continue;
-    }
-    // Bag entries must hold zero pointers into Loka; a live binding still
-    // referencing the handle means the retire ritual did not complete.
-    // Leaking the handle (counted) is the safe arm — disposing it would
-    // hand the live binding a dead handle, and pooling it would pay the
-    // same handle out twice.
-    if (hasLiveBinding(handle))
-    {
-      ++poolIntakeAuditFailCount_;
-      continue;
-    }
-    if (!bucket.offer(handle))
-    {
-      disposeNativeHandle(handle);
-    }
-  }
-  retired.clear();
 }
 
 void ToolboxScenePlatformController::flushRetiredNativeHandles()
@@ -2517,150 +2444,9 @@ void ToolboxScenePlatformController::drawFallbackControl(const Rect &rect)
   LineTo(rect.right - 2, rect.top + 2);
 }
 
-TEHandle ToolboxScenePlatformController::ensureEditTextControl(ToolboxEditTextContext *ownerContext,
-                                                               const Rect &rect,
-                                                               loka::core::State<loka::core::String> *text,
-                                                               loka::app::scene::NativeLifetimeHint lifetimeHint)
-{
-  if (!text || !ownerContext)
-  {
-    return 0;
-  }
-  Rect controlRect;
-  if (!this->intersectWithProjectionClip(rect, controlRect))
-  {
-    return 0;
-  }
-  EditTextControlBinding *binding = 0;
-  loka::core::State<loka::core::String> *previousText = 0;
-  size_t bindingIndex = 0;
-  if (editControls_.find(ownerContext, bindingIndex))
-  {
-    binding = &editControls_[bindingIndex];
-    previousText = binding->text;
-    binding->text = text;
-    binding->textSeat = ownerContext->projectedWriteSeat();
-  }
-  if (!binding)
-  {
-    TEHandle te = 0;
-    if (textEditBucket_.tryAcquire(te))
-    {
-      // Restore the fresh-created baseline: pooled records keep their last
-      // text and rects, and the new binding starts from lastText == "".
-      TESetText(static_cast<const void *>(""), 0, te);
-      (**te).destRect = controlRect;
-      (**te).viewRect = controlRect;
-      TECalText(te);
-    }
-    else
-    {
-      te = TENew(&controlRect, &controlRect);
-      if (!te)
-      {
-        return 0;
-      }
-    }
-    EditTextControlBinding entry;
-    entry.ownerContext = ownerContext;
-    entry.text = text;
-    entry.textSeat = ownerContext->projectedWriteSeat();
-    entry.te = te;
-    entry.rect = controlRect;
-    entry.usedThisFrame = true;
-    entry.lastText = "";
-    entry.lifetimeHint = lifetimeHint;
-    editControls_.add(entry);
-    binding = &editControls_.back();
-    syncEditTextFromState(*binding);
-    TEAutoView(true, binding->te);
-  }
-  // A native EditText is a live String projection just like Text and the
-  // fallback EditHit. Register it at the same seam so programmatic writes can
-  // reach TESetText even when no render walk follows the write.
-  bindTextState(text);
-  if (previousText && previousText != text && !this->hasLiveBinding(previousText))
-  {
-    unbindTextState(previousText);
-  }
-  binding->usedThisFrame = true;
-  binding->lifetimeHint = lifetimeHint;
-  if (binding->rect.left != controlRect.left || binding->rect.top != controlRect.top || binding->rect.right != controlRect.right
-      || binding->rect.bottom != controlRect.bottom)
-  {
-    binding->rect = controlRect;
-    if (binding->te)
-    {
-      (**binding->te).destRect = controlRect;
-      (**binding->te).viewRect = controlRect;
-      TECalText(binding->te);
-      TEAutoView(true, binding->te);
-    }
-  }
-  if (!inBatchUpdate_)
-  {
-    syncEditTextFromState(*binding);
-  }
-  return binding ? binding->te : 0;
-}
+#include "ToolboxTextEditorBinding.cpp"
 
-void ToolboxScenePlatformController::retireEditTextBinding(
-    EditTextControlBinding &binding,
-    loka::app::scene::NativeLifetimeHint lifetimeHint)
-{
-  if (binding.ownerContext)
-    binding.ownerContext->invalidateNativePresentation();
-  if (binding.te)
-  {
-    TEDeactivate(binding.te);
-    queueRetiredTextEdit(binding.te, lifetimeHint);
-    binding.te = 0;
-  }
-  binding.textSeat = loka::app::scene::WriteSeat<loka::core::String>();
-}
-
-void ToolboxScenePlatformController::retireEditTextControlAt(
-    std::size_t index,
-    loka::app::scene::NativeLifetimeHint lifetimeHint)
-{
-  EditTextControlBinding &binding = editControls_[index];
-  loka::core::State<loka::core::String> *retiredText = binding.text;
-  this->retireEditTextBinding(binding, lifetimeHint);
-  editControls_.erase(index);
-  if (retiredText && !this->hasLiveBinding(retiredText))
-  {
-    unbindTextState(retiredText);
-  }
-}
-
-void ToolboxScenePlatformController::retireEditTextControl(
-    loka::app::scene::NodeContext *ownerContext,
-    loka::app::scene::NativeLifetimeHint lifetimeHint)
-{
-  std::size_t index = 0;
-  if (editControls_.find(ownerContext, index))
-  {
-    this->retireEditTextControlAt(index, lifetimeHint);
-  }
-}
-
-void ToolboxScenePlatformController::syncEditTextFromState(EditTextControlBinding &binding)
-{
-  if (!binding.te)
-  {
-    return;
-  }
-  std::string utf8;
-  if (binding.text)
-    loka::platform::CollectUtf8(binding.text->get(), utf8);
-  if (binding.lastText == utf8)
-  {
-    return;
-  }
-  TESetText(utf8.c_str(), static_cast<long>(utf8.size()), binding.te);
-  TESetSelect(utf8.size(), utf8.size(), binding.te);
-  binding.lastText = utf8;
-}
+#include "ToolboxEditTextBinding.cpp"
 
 #ifdef TEST_BUILD
 bool ToolboxScenePlatformController::queryEditTextGeometryForTesting(
@@ -2784,16 +2570,6 @@ void ToolboxScenePlatformController::drawControlsInRect(const Rect &rect)
   }
 }
 
-void ToolboxScenePlatformController::idleTextEdits()
-{
-  for (size_t i = 0; i < editControls_.size(); ++i)
-  {
-    if (editControls_[i].te)
-    {
-      TEIdle(editControls_[i].te);
-    }
-  }
-}
 
 bool ToolboxScenePlatformController::isPointInEdit(const Point &point) const
 {

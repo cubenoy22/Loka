@@ -12,23 +12,8 @@ bool ToolboxScenePlatformController::handleMouseDown(const Point &point)
   {
     return false;
   }
-  EditTextControlBinding *focusedEdit = editControls_.focused();
-  if (focusedEdit && focusedEdit->te)
-  {
-    TEDeactivate(focusedEdit->te);
-    editControls_.clearFocus();
-  }
-  for (size_t i = 0; i < editControls_.size(); ++i)
-  {
-    EditTextControlBinding &binding = editControls_[i];
-    if (binding.te && PtInRect(point, &binding.rect))
-    {
-      editControls_.focus(i);
-      TEActivate(binding.te);
-      TEClick(point, false, binding.te);
-      return true;
-    }
-  }
+  if (this->handleEditClick(point))
+    return true;
   for (size_t i = 0; i < hitLedger_.editHits_.size(); ++i)
   {
     EditHit &hit = hitLedger_.editHits_[i];

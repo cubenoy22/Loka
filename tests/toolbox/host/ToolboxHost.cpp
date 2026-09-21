@@ -1,4 +1,5 @@
 #include "ToolboxHost.hpp"
+#include "platform/StringUTF8.hpp"
 #include <algorithm>
 #include <cstring>
 namespace toolbox_host
@@ -152,4 +153,154 @@ void EraseRect(const Rect *)
 void ClipRect(const Rect *rect)
 {
   clip = *rect;
+}
+
+#include "context/ToolboxTextEditorContext.hpp"
+namespace toolbox_host
+{
+  int copied = 0, sets = 0, disposals = 0, failSets = 0, failNew = 0, updates = 0;
+}
+TEHandle TENew(const Rect *dest, const Rect *view)
+{
+  if (toolbox_host::failNew)
+  {
+    --toolbox_host::failNew;
+    return 0;
+  }
+  TEHandle te = new TERec *;
+  *te = new TERec;
+  (**te).txFont = port->txFont;
+  (**te).txSize = port->txSize;
+  FontInfo metrics;
+  GetFontInfo(&metrics);
+  (**te).lineHeight = metrics.ascent + metrics.descent + metrics.leading;
+  (**te).fontAscent = metrics.ascent;
+  (**te).destRect = *dest;
+  (**te).viewRect = *view;
+  (**te).teLength = (**te).selStart = (**te).selEnd = 0;
+  (**te).data = 0;
+  (**te).autoView = false;
+  (**te).active = false;
+  (**te).idleCalls = 0;
+  return te;
+}
+namespace
+{
+  // Quarantine fake handle slots until exit so identity pins cannot confuse
+  // allocator address reuse with pool payout; the TERec is destroyed at flush.
+  struct DisposedHandles
+  {
+    std::vector<TEHandle> handles;
+    ~DisposedHandles()
+    {
+      for (std::size_t i = 0; i < handles.size(); ++i) delete handles[i];
+    }
+  } disposedHandles;
+}
+void TEDispose(TEHandle te)
+{
+  ++toolbox_host::disposals;
+  delete *te;
+  *te = 0;
+  disposedHandles.handles.push_back(te);
+}
+void TESetText(const void *bytes, long length, TEHandle te)
+{
+  ++toolbox_host::sets;
+  if (toolbox_host::failSets)
+  {
+    --toolbox_host::failSets;
+    length = 0;
+  }
+  (**te).text.assign(static_cast<const char *>(bytes), length);
+  (**te).teLength = static_cast<short>(length);
+}
+Handle TEGetText(TEHandle te)
+{
+  (**te).data = const_cast<char *>((**te).text.data());
+  return &(**te).data;
+}
+void TESetSelect(short a, short b, TEHandle te)
+{
+  (**te).selStart = a;
+  (**te).selEnd = b;
+}
+void TEKey(char key, TEHandle te)
+{
+  TERec &t = **te;
+  if (key >= 28 && key <= 31)
+  {
+    t.selStart = std::max(0, std::min(static_cast<int>(t.teLength), t.selStart + (key == 28 ? -1 : 1)));
+    t.selEnd = t.selStart;
+    return;
+  }
+  if (t.selStart != t.selEnd)
+    t.text.erase(t.selStart, t.selEnd - t.selStart);
+  else if (key == '\b' && t.selStart)
+  {
+    --t.selStart;
+    t.text.erase(t.selStart, 1);
+  }
+  if (key != '\b')
+    t.text.insert(t.selStart++, 1, key);
+  t.selEnd = t.selStart;
+  t.teLength = static_cast<short>(t.text.size());
+}
+void TEClick(Point p, bool, TEHandle te)
+{
+  short offset = 0;
+  int row = std::max(0, (p.v - (**te).viewRect.top) / 16);
+  for (; offset < (**te).teLength && row; ++offset)
+    if ((**te).text[offset] == '\r')
+      --row;
+  offset = std::min(static_cast<int>((**te).teLength), offset + std::max(0, (p.h - (**te).viewRect.left) / 6));
+  TESetSelect(offset, offset, te);
+}
+void TEAutoView(bool value, TEHandle te)
+{
+  (**te).autoView = value;
+}
+void TECalText(TEHandle) {}
+void TEUpdate(const Rect *, TEHandle)
+{
+  ++toolbox_host::updates;
+}
+void HLock(Handle) {}
+void HUnlock(Handle) {}
+void BlockMoveData(const void *source, void *dest, long length)
+{
+  toolbox_host::copied += length;
+  std::memmove(dest, source, length);
+}
+bool EqualRect(const Rect *a, const Rect *b)
+{
+  return std::memcmp(a, b, sizeof(Rect)) == 0;
+}
+void OffsetRect(Rect *r, short x, short y)
+{
+  r->left += x;
+  r->right += x;
+  r->top += y;
+  r->bottom += y;
+}
+void FrameRect(const Rect *) {}
+#include "ToolboxTextEditorBinding.cpp"
+#include "ToolboxNativeRetirement.cpp"
+#include "ToolboxEditTextBinding.cpp"
+void ToolboxScenePlatformController::retireTextEditorControl(loka::app::scene::NodeContext *context,
+                                                             loka::app::scene::NativeLifetimeHint hint)
+{
+  this->retireEditTextControl(context, hint);
+}
+void ToolboxScenePlatformController::flushTE()
+{
+  this->flushRetiredEntriesInto(this->retiredTextEdits_, this->textEditBucket_);
+}
+
+void TEActivate(TEHandle te) { (**te).active = true; }
+void TEDeactivate(TEHandle te) { (**te).active = false; }
+void TEIdle(TEHandle te) { ++(**te).idleCalls; }
+bool PtInRect(Point p, const Rect *r)
+{
+  return p.h >= r->left && p.h < r->right && p.v >= r->top && p.v < r->bottom;
 }
