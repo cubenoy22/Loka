@@ -6,6 +6,7 @@
 #include "support/TestVerify.hpp"
 #include "support/LokaAllocFailure.hpp"
 #include <cstdio>
+#include "platform/String.hpp"
 
 namespace loka
 {
@@ -61,6 +62,10 @@ namespace
 
 int main(int argc, char **)
 {
+  const loka::core::Managed<loka::platform::String> utf8 = loka::platform::CreatePlatformStringFromUtf8("a\0\xff", 3);
+  loka::platform::Utf8View view = {0, 0};
+  LOKA_VERIFY(utf8->queryUtf8(view) && view.length == 3 && std::string(view.bytes, view.length) == std::string("a\0\xff", 3));
+
   ToolboxWindow window;
   ToolboxScenePlatformController controller(&window);
   LOKA_VERIFY(RegisterToolboxBuiltInSupport(controller));

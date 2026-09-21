@@ -421,6 +421,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   add_executable(LokaToolboxAttributedTextTests
     tests/toolbox/host/ToolboxAttributedTextHostTests.cpp
     tests/toolbox/host/ToolboxHost.cpp
+    apple/toolbox/src/ToolboxString.cpp
     tests/TestingHooks.cpp
     apple/toolbox/src/context/ToolboxAttributedTextContext.cpp
     apple/toolbox/src/context/ToolboxAttributedTextTable.cpp
