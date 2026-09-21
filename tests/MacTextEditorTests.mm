@@ -1,0 +1,775 @@
+#include "MacTextEditorTests.hpp"
+#include "context/MacTextEditorContext.hpp"
+#include "MacScenePlatformController.hpp"
+#include "MacObjCCompat.hpp"
+#include "platform/MacNativeGeometry.hpp"
+#include "support/TestVerify.hpp"
+#include "support/LifecycleFactTestAccess.hpp"
+#include "support/LokaAllocFailure.hpp"
+#include "platform/StringUTF8.hpp"
+#include <vector>
+#include <algorithm>
+#include <cstdio>
+
+namespace loka
+{
+  namespace testing
+  {
+    class MacTextEditorAccess
+    {
+    public:
+      static unsigned restores(const MacTextEditorContext &context)
+      {
+        return context.restores_;
+      }
+    };
+  } // namespace testing
+} // namespace loka
+
+/** A native setter which refuses once; the production context must detect it. */
+@interface LokaRefusingEditorView : NSTextView
+{
+  BOOL refuse_;
+}
+@property(nonatomic, assign) BOOL refuse;
+@end
+@implementation LokaRefusingEditorView
+@synthesize refuse = refuse_;
+- (void)setString:(NSString *)string
+{
+  if ([self refuse])
+    [self setRefuse:NO];
+  else
+    [super setString:string];
+}
+@end
+
+namespace
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  using namespace loka::core;
+  typedef loka::testing::MacTextEditorAccess Access;
+
+  void verifyFont(NSFont *actual, NSFont *expected)
+  {
+    LOKA_VERIFY(actual != nil && expected != nil);
+    LOKA_VERIFY([[actual fontName] isEqualToString:[expected fontName]]);
+    LOKA_VERIFY([actual pointSize] == [expected pointSize]);
+  }
+
+  struct NativeHost
+  {
+    NSAutoreleasePool *pool;
+    NSWindow *window;
+    NativeHost()
+        : pool([[NSAutoreleasePool alloc] init]),
+          window(nil)
+    {
+      [NSApplication sharedApplication];
+      this->window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 320, 200)
+                                                 styleMask:LOKA_MAC_WINDOW_STYLE_TITLED
+                                                   backing:NSBackingStoreBuffered
+                                                     defer:NO];
+      [this->window setReleasedWhenClosed:NO];
+    }
+    ~NativeHost()
+    {
+      [this->window close];
+      [this->window release];
+      [this->pool drain];
+    }
+  };
+  struct Fixture
+  {
+    NativeHost host;
+    PushStateTracker tracker;
+    ObservableList<String> lines;
+    MutableState<LineCursor> cursor;
+    NodeState<LineCursor> seat;
+    MacScenePlatformController controller;
+    TextEditorNode node;
+    MacTextEditorContext *context;
+    NSScrollView *scroll;
+    NSTextView *view;
+    explicit Fixture(unsigned short count = 3, const std::string &text = "abcd")
+        : host(),
+          tracker(),
+          lines(),
+          cursor(),
+          seat(&cursor, &tracker),
+          controller([host.window contentView], RailMetrics()),
+          node(TextEditorProps(lines, seat)),
+          context(0),
+          scroll(nil),
+          view(nil)
+    {
+      this->tracker.addState(&this->cursor);
+      LOKA_VERIFY(this->lines.attach(&this->tracker, 258) == ATTACH_OK);
+      for (unsigned short i = 0; i < count; ++i)
+        LOKA_VERIFY(this->lines.insert(i, String(text)) == EDIT_OK);
+      if (count)
+      {
+        StateTrackerGuard guard(&this->tracker);
+        this->cursor.set(LineCursor(this->lines.at(0).id, std::min(2, static_cast<int>(text.size()))));
+      }
+      LayoutState state;
+      state.x = 3;
+      state.y = 5;
+      state.width = 240;
+      state.height = 96;
+      state.spacing = 4;
+      LOKA_VERIFY(this->controller.prepareProjectedLayout(&this->node, state));
+      this->context = static_cast<MacTextEditorContext *>(this->node.getContext());
+      LOKA_VERIFY(this->context);
+      this->scroll = (NSScrollView *)[[[this->host.window contentView] subviews] objectAtIndex:0];
+      this->view = (NSTextView *)[this->scroll documentView];
+      LOKA_VERIFY(![this->view isRichText]);
+      this->verifyPlainFont();
+      LOKA_VERIFY(this->context->layout(&this->controller, state) == 105);
+      LOKA_VERIFY(state.height == 96);
+      LOKA_VERIFY(
+          NSEqualRects([this->scroll frame], this->controller.projection().projectFrame(Frame(3, 5, 240, 96)).r));
+      [this->host.window makeFirstResponder:this->view];
+    }
+    ~Fixture()
+    {
+      LifecycleFactTestAccess::MarkSubtreeRetired(&this->node);
+      LifecycleFactTestAccess::DeliverFacts(&this->node);
+    }
+    void verifyPlainFont()
+    {
+      NSFont *font = (NSFont *)this->controller.textFont(TextStyle(), true);
+      verifyFont([this->view font], font);
+      verifyFont([[this->view typingAttributes] objectForKey:NSFontAttributeName], font);
+      NSTextStorage *storage = [this->view textStorage];
+      for (NSUInteger i = 0; i < [storage length]; ++i)
+        verifyFont([storage attribute:NSFontAttributeName atIndex:i effectiveRange:0], font);
+    }
+    void notify()
+    {
+      [[this->view delegate] textDidChange:[NSNotification notificationWithName:NSTextDidChangeNotification
+                                                                         object:this->view]];
+    }
+    void edit(NSString *text, NSUInteger caret)
+    {
+      this->context->captureSelection();
+      // Model a local native edit rather than a whole-document replacement.
+      NSString *before = [this->view string];
+      NSUInteger first = 0, oldEnd = [before length], newEnd = [text length];
+      while (first < oldEnd && first < newEnd && [before characterAtIndex:first] == [text characterAtIndex:first])
+        ++first;
+      while (oldEnd > first && newEnd > first
+             && [before characterAtIndex:oldEnd - 1] == [text characterAtIndex:newEnd - 1])
+      {
+        --oldEnd;
+        --newEnd;
+      }
+      [[this->view textStorage] replaceCharactersInRange:NSMakeRange(first, oldEnd - first)
+                                            withString:[text substringWithRange:NSMakeRange(first, newEnd - first)]];
+      // The view publishes its final selection after storage processing.
+      [this->view setSelectedRange:NSMakeRange(caret, 0)];
+      this->notify();
+    }
+    void turn()
+    {
+      [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+    }
+    void restored(unsigned count)
+    {
+      // This assertion also proves restore did not run inside textDidChange.
+      LOKA_VERIFY(Access::restores(*this->context) == count - 1);
+      for (int i = 0; i < 20 && Access::restores(*this->context) < count; ++i)
+        this->turn();
+      LOKA_VERIFY(Access::restores(*this->context) == count);
+      std::string bytes;
+      LOKA_VERIFY(this->node.document.project(bytes) == EDITOR_OK);
+      std::replace(bytes.begin(), bytes.end(), '\r', '\n');
+      NSString *expected = [[[NSString alloc] initWithBytes:bytes.data()
+                                                     length:bytes.size()
+                                                   encoding:NSASCIIStringEncoding] autorelease];
+      LOKA_VERIFY([[this->view string] isEqualToString:expected]);
+      LOKA_VERIFY([[this->view string] length] == bytes.size());
+      LOKA_VERIFY([this->view isEditable]);
+      this->verifyPlainFont();
+    }
+  };
+  struct Snapshot
+  {
+    std::vector<ItemId> ids;
+    std::vector<String> text;
+    ListRevision revision;
+    LineCursor cursor;
+    explicit Snapshot(const Fixture &f)
+        : revision(f.lines.revision().get()),
+          cursor(f.cursor.get())
+    {
+      for (unsigned short i = 0; i < f.lines.size(); ++i)
+      {
+        this->ids.push_back(f.lines.at(i).id);
+        this->text.push_back(f.lines.at(i).value);
+      }
+    }
+    void unchanged(const Fixture &f) const
+    {
+      LOKA_VERIFY(this->ids.size() == f.lines.size());
+      for (unsigned short i = 0; i < f.lines.size(); ++i)
+      {
+        LOKA_VERIFY(this->ids[i] == f.lines.at(i).id);
+        LOKA_VERIFY(this->text[i].equals(f.lines.at(i).value));
+      }
+      LOKA_VERIFY(!(this->revision != f.lines.revision().get()));
+      LOKA_VERIFY(this->cursor == f.cursor.get());
+    }
+  };
+  struct Observer
+  {
+    Fixture &fixture;
+    unsigned calls;
+    bool nested;
+    bool deferred;
+    Observer(Fixture &f)
+        : fixture(f),
+          calls(0),
+          nested(false),
+          deferred(false)
+    {
+      const_cast<State<ListRevision> &>(f.lines.revision()).bind(&changed, this, false);
+    }
+    ~Observer()
+    {
+      const_cast<State<ListRevision> &>(this->fixture.lines.revision()).unbind(&changed, this);
+    }
+    static void reenter(void *data)
+    {
+      Observer &self = *static_cast<Observer *>(data);
+      self.fixture.edit(@"abxZcd\nabcd\nabcd", 4);
+    }
+    static void changed(void *data)
+    {
+      Observer &self = *static_cast<Observer *>(data);
+      ++self.calls;
+      if (self.nested)
+      {
+        self.nested = false;
+        if (self.deferred)
+          self.fixture.tracker.defer(&reenter, &self);
+        else
+          reenter(&self);
+      }
+    }
+  };
+  struct CaretObserver
+  {
+    Fixture &fixture;
+    bool nested;
+    unsigned calls;
+    explicit CaretObserver(Fixture &f)
+        : fixture(f),
+          nested(true),
+          calls(0)
+    {
+      f.cursor.bind(&changed, this, false);
+    }
+    ~CaretObserver()
+    {
+      this->fixture.cursor.unbind(&changed, this);
+    }
+    static void changed(void *data)
+    {
+      CaretObserver &self = *static_cast<CaretObserver *>(data);
+      ++self.calls;
+      if (self.nested)
+      {
+        self.nested = false;
+        [self.fixture.view setSelectedRange:NSMakeRange(8, 0)];
+        [[self.fixture.view delegate]
+            textViewDidChangeSelection:[NSNotification notificationWithName:NSTextViewDidChangeSelectionNotification
+                                                                     object:self.fixture.view]];
+      }
+    }
+  };
+  std::string bytes(const String &value)
+  {
+    std::string out;
+    LOKA_VERIFY(loka::platform::CollectUtf8(value, out));
+    return out;
+  }
+  void printEditState(Fixture &f, const char *stage)
+  {
+    const NSRange selection = [f.view selectedRange];
+    const LineCursor cursor = f.cursor.get();
+    fprintf(stderr,
+            "[MacTextEditor %s] model-line0=\"%s\" selectedRange=(%lu,%lu) "
+            "cursor=(id=%u:%u,line-index=%d,column=%d)\n",
+            stage, bytes(f.lines.at(0).value).c_str(),
+            static_cast<unsigned long>(selection.location), static_cast<unsigned long>(selection.length),
+            static_cast<unsigned>(cursor.line.generation), static_cast<unsigned>(cursor.line.seq),
+            f.lines.find(cursor.line), cursor.column);
+  }
+  void printUndoState(Fixture &f, NSUndoManager *undo, const char *stage)
+  {
+    printEditState(f, stage);
+    NSString *line = [[[f.view string] componentsSeparatedByString:@"\n"] objectAtIndex:0];
+    fprintf(stderr,
+            "[MacTextEditor undo %s] groupingLevel=%ld canUndo=%d native-line0=\"%s\" "
+            "model-line0=\"%s\" restores=%u status(availability)=%d editable=%d\n",
+            stage, static_cast<long>([undo groupingLevel]), static_cast<int>([undo canUndo]),
+            [line UTF8String], bytes(f.lines.at(0).value).c_str(), Access::restores(*f.context),
+            static_cast<int>(f.node.document.availability()), static_cast<int>([f.view isEditable]));
+  }
+  void nextKey(Fixture &f)
+  {
+    const NSRange selection = [f.view selectedRange];
+    NSMutableString *text = [[[f.view string] mutableCopy] autorelease];
+    [text replaceCharactersInRange:selection withString:@"y"];
+    const ListRevision before = f.lines.revision().get();
+    f.edit(text, selection.location + 1);
+    LOKA_VERIFY(f.lines.revision().get().content == before.content + 1);
+    LOKA_VERIFY([f.view isEditable]);
+  }
+} // namespace
+
+void testMacTextEditorLineActions()
+{
+  Fixture f;
+  Observer observer(f);
+  const ItemId first = f.lines.at(0).id, second = f.lines.at(1).id;
+  const String unchanged = f.lines.at(2).value;
+  [f.view insertText:@"x" replacementRange:[f.view selectedRange]];
+  const bool firstKeySucceeded = bytes(f.lines.at(0).value) == "abxcd"
+                                 && f.cursor.get() == LineCursor(first, 3) && observer.calls == 1
+                                 && NSEqualRanges([f.view selectedRange], NSMakeRange(3, 0));
+  if (!firstKeySucceeded)
+    printEditState(f, "first keystroke failure");
+  LOKA_VERIFY(firstKeySucceeded);
+  LOKA_VERIFY(observer.calls == 1);
+  LOKA_VERIFY(f.lines.revision().get().change.kind == LIST_UPDATE);
+  LOKA_VERIFY(f.lines.at(0).id == first && f.lines.at(1).id == second);
+  LOKA_VERIFY(f.lines.at(2).value.compare(unchanged, false) == StringCompareEqual);
+  LOKA_VERIFY(bytes(f.lines.at(0).value) == "abxcd" && f.cursor.get() == LineCursor(first, 3));
+  f.edit(@"abx\ncd\nabcd\nabcd", 4);
+  LOKA_VERIFY(observer.calls == 2 && f.lines.size() == 4);
+  LOKA_VERIFY(f.lines.revision().get().change.kind == LIST_BATCH);
+  LOKA_VERIFY(f.lines.at(2).id == second && f.cursor.get() == LineCursor(f.lines.at(1).id, 0));
+  f.edit(@"abxcd\nabcd\nabcd", 3);
+  LOKA_VERIFY(observer.calls == 3 && f.lines.size() == 3);
+  LOKA_VERIFY(f.lines.revision().get().change.kind == LIST_BATCH);
+  LOKA_VERIFY(f.lines.at(1).id == second && f.cursor.get() == LineCursor(first, 3));
+  [f.view setSelectedRange:NSMakeRange(7, 0)];
+  [[f.view delegate]
+      textViewDidChangeSelection:[NSNotification notificationWithName:NSTextViewDidChangeSelectionNotification
+                                                               object:f.view]];
+  LOKA_VERIFY(observer.calls == 3 && f.cursor.get() == LineCursor(second, 1));
+  // Native selection replacement and deletion remain a single line UPDATE.
+  [f.view setSelectedRange:NSMakeRange(7, 2)];
+  [[f.view delegate]
+      textViewDidChangeSelection:[NSNotification notificationWithName:NSTextViewDidChangeSelectionNotification
+                                                               object:f.view]];
+  f.context->onPropsApplied();
+  LOKA_VERIFY(NSEqualRanges([f.view selectedRange], NSMakeRange(7, 2)));
+  f.edit(@"abxcd\naQd\nabcd", 8);
+  LOKA_VERIFY(observer.calls == 4 && bytes(f.lines.at(1).value) == "aQd");
+  LOKA_VERIFY(f.lines.revision().get().change.kind == LIST_UPDATE);
+  f.edit(@"abxcd\nad\nabcd", 7);
+  LOKA_VERIFY(observer.calls == 5 && bytes(f.lines.at(1).value) == "ad");
+  LOKA_VERIFY(Access::restores(*f.context) == 0);
+
+  // Structural notifications also use text, including endpoint splits whose
+  // unchanged source is consumed by the prefix/suffix comparison.
+  NSString *splits[] = {@"\nabcd\nabcd\nabcd", @"abcd\n\nabcd\nabcd", @"ab\ncd\nabcd\nabcd"};
+  for (unsigned i = 0; i < sizeof(splits) / sizeof(splits[0]); ++i)
+  {
+    Fixture structural;
+    [structural.view setSelectedRange:NSMakeRange(10, 0)];
+    structural.edit(splits[i], 0);
+    LOKA_VERIFY(structural.lines.size() == 4);
+    LOKA_VERIFY([[structural.view string] isEqualToString:splits[i]]);
+    [structural.view setSelectedRange:NSMakeRange(11, 0)];
+    structural.edit(@"abcd\nabcd\nabcd", 0);
+    LOKA_VERIFY(structural.lines.size() == 3);
+    for (unsigned short line = 0; line < structural.lines.size(); ++line)
+      LOKA_VERIFY(bytes(structural.lines.at(line).value) == "abcd");
+    LOKA_VERIFY(Access::restores(*structural.context) == 0 && [structural.view isEditable]);
+  }
+}
+
+void testMacTextEditorUndoLocation()
+{
+  Fixture f(12);
+  Observer observer(f);
+  const ItemId first = f.lines.at(0).id, distant = f.lines.at(10).id;
+  [f.view setAllowsUndo:YES];
+  NSUndoManager *undo = [f.view undoManager];
+  LOKA_VERIFY(undo != nil && [undo isUndoRegistrationEnabled]);
+  // Manual grouping only: an event group would be closed by the run loop after
+  // the test already closed it, and NSUndoManager raises on the extra end.
+  [undo setGroupsByEvent:NO];
+  [undo beginUndoGrouping];
+  [f.view insertText:@"x" replacementRange:[f.view selectedRange]];
+  [undo endUndoGrouping];
+  LOKA_VERIFY([undo canUndo]);
+  if (bytes(f.lines.at(0).value) != "abxcd" || f.cursor.get() != LineCursor(first, 3) || observer.calls != 1)
+    printEditState(f, "undo setup keystroke failure");
+  LOKA_VERIFY(bytes(f.lines.at(0).value) == "abxcd" && f.cursor.get() == LineCursor(first, 3));
+  LOKA_VERIFY(observer.calls == 1);
+  [f.view setSelectedRange:NSMakeRange(51, 0)];
+  LOKA_VERIFY(f.cursor.get() == LineCursor(distant, 0));
+  // The fixture has not yielded to an event boundary. Close any remaining
+  // group, including the outer group supplied by event grouping.
+  while ([undo groupingLevel] > 0)
+    [undo endUndoGrouping];
+  LOKA_VERIFY([undo groupingLevel] == 0 && [undo canUndo]);
+  [undo undo];
+  // The cursor fact follows the native caret wherever AppKit leaves it after
+  // undo (the ruling makes the caret a reported fact, not a decision here).
+  const NSUInteger undoCaret = [f.view selectedRange].location;
+  NSString *undoPrefix = [[f.view string] substringToIndex:undoCaret];
+  const NSRange lastBreak = [undoPrefix rangeOfString:@"\n" options:NSBackwardsSearch];
+  const NSUInteger undoLine = [[undoPrefix componentsSeparatedByString:@"\n"] count] - 1;
+  const NSUInteger undoColumn = undoCaret - (lastBreak.location == NSNotFound ? 0 : lastBreak.location + 1);
+  const bool undoSucceeded = bytes(f.lines.at(0).value) == "abcd" && observer.calls == 2
+                            && f.cursor.get() == LineCursor(f.lines.at(static_cast<unsigned short>(undoLine)).id,
+                                                            static_cast<int>(undoColumn))
+                            && Access::restores(*f.context) == 0 && [f.view isEditable];
+  if (!undoSucceeded)
+  {
+    printUndoState(f, undo, "failure before restore turn");
+    f.turn();
+    printUndoState(f, undo, "failure after restore turn");
+  }
+  LOKA_VERIFY(undoSucceeded);
+  LOKA_VERIFY(bytes(f.lines.at(0).value) == "abcd");
+  LOKA_VERIFY(observer.calls == 2);
+  LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(static_cast<unsigned short>(undoLine)).id,
+                                           static_cast<int>(undoColumn)));
+  LOKA_VERIFY(Access::restores(*f.context) == 0 && [f.view isEditable]);
+
+  // Also pin a notification before native selection returns to the edit.
+  [f.view setSelectedRange:NSMakeRange(50, 0)];
+  NSMutableString *text = [[[f.view string] mutableCopy] autorelease];
+  [text insertString:@"x" atIndex:2];
+  f.edit(text, 51);
+  LOKA_VERIFY(bytes(f.lines.at(0).value) == "abxcd");
+  LOKA_VERIFY(f.cursor.get() == LineCursor(distant, 0));
+  LOKA_VERIFY(observer.calls == 3 && [f.view isEditable]);
+  LOKA_VERIFY(Access::restores(*f.context) == 0);
+}
+
+void testMacTextEditorStorageChanges()
+{
+  Fixture f;
+  Observer observer(f);
+  // Disable the view delegate: the storage callback alone must commit.
+  id delegate = [f.view delegate];
+  [f.view setDelegate:nil];
+  [[f.view textStorage] replaceCharactersInRange:NSMakeRange(2, 0) withString:@"x"];
+  [f.view setDelegate:delegate];
+  if (bytes(f.lines.at(0).value) != "abxcd" || f.cursor.get() != LineCursor(f.lines.at(0).id, 3))
+    printEditState(f, "storage insertion failure");
+  LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 3));
+  LOKA_VERIFY(bytes(f.lines.at(0).value) == "abxcd");
+  LOKA_VERIFY([[f.view string] isEqualToString:@"abxcd\nabcd\nabcd"]);
+  LOKA_VERIFY(observer.calls == 1 && [f.view isEditable]);
+  LOKA_VERIFY(Access::restores(*f.context) == 0);
+  // Only textDidChange can publish this differing caret: selection callbacks
+  // are disconnected, and the committed text is already identical.
+  [f.view setDelegate:nil];
+  [f.view setSelectedRange:NSMakeRange(1, 0)];
+  [f.view setDelegate:delegate];
+  f.notify();
+  LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 1));
+  const Snapshot committed(f);
+  f.notify();
+  f.turn();
+  committed.unchanged(f);
+  LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 1));
+  LOKA_VERIFY(observer.calls == 1 && [f.view isEditable]);
+  LOKA_VERIFY(Access::restores(*f.context) == 0);
+
+  // A replacement at a different location gets its caret from the text diff.
+  [f.view setDelegate:nil];
+  [[f.view textStorage] replaceCharactersInRange:NSMakeRange(2, 2) withString:@"YZQ"];
+  [f.view setDelegate:delegate];
+  if (bytes(f.lines.at(0).value) != "abYZQd" || f.cursor.get() != LineCursor(f.lines.at(0).id, 5))
+    printEditState(f, "storage replacement failure");
+  LOKA_VERIFY(bytes(f.lines.at(0).value) == "abYZQd");
+  LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 5));
+  LOKA_VERIFY(observer.calls == 2 && Access::restores(*f.context) == 0);
+}
+
+void testMacTextEditorStorageAttributes()
+{
+  Fixture f;
+  Observer observer(f);
+  const Snapshot committed(f);
+  // Leave a native-only selection to discriminate ignoring attributes from
+  // incorrectly routing them through even the unchanged-text caret path.
+  id delegate = [f.view delegate];
+  [f.view setDelegate:nil];
+  [f.view setSelectedRange:NSMakeRange(1, 0)];
+  NSTextStorage *storage = [f.view textStorage];
+  [storage beginEditing];
+  [storage addAttribute:NSForegroundColorAttributeName value:[NSColor redColor] range:NSMakeRange(0, 1)];
+  [storage endEditing];
+  [f.view setDelegate:delegate];
+  committed.unchanged(f);
+  f.turn();
+  committed.unchanged(f);
+  LOKA_VERIFY(observer.calls == 0 && [f.view isEditable]);
+  LOKA_VERIFY(Access::restores(*f.context) == 0);
+}
+
+void testMacTextEditorMultilinePasteRefusal()
+{
+  // Refuse both a line-count increase and a same-count multi-line replacement.
+  for (int sameCount = 0; sameCount < 2; ++sameCount)
+  {
+    Fixture f;
+    Observer observer(f);
+    [f.view setSelectedRange:NSMakeRange(1, sameCount ? 12 : 2)];
+    const Snapshot snapshot(f);
+    // Use the native replacement path used by plain-text paste, without
+    // changing the user's global pasteboard.
+    [f.view insertText:@"one\ntwo\nthree" replacementRange:[f.view selectedRange]];
+    snapshot.unchanged(f);
+    LOKA_VERIFY(observer.calls == 0 && ![f.view isEditable]);
+    f.restored(1);
+    snapshot.unchanged(f);
+    LOKA_VERIFY(observer.calls == 0 && Access::restores(*f.context) == 1);
+    LOKA_VERIFY(![[f.view undoManager] canUndo]);
+  }
+}
+
+void testMacTextEditorRefusals()
+{
+  for (int failure = 0; failure < 5; ++failure)
+  {
+    Fixture f(failure == 0 ? 256 : 3);
+    Observer observer(f);
+    if (failure == 1)
+    {
+      LOKA_VERIFY(f.lines.detach() == EDIT_OK);
+      LOKA_VERIFY(f.lines.attach(&f.tracker, 258) == ATTACH_OK);
+      LOKA_VERIFY(f.lines.insert(0, String("fresh")) == EDIT_OK);
+      observer.calls = 0;
+    }
+    const Snapshot snapshot(f);
+    const NSRange selection = [f.view selectedRange];
+    const NSRect visible = [f.scroll documentVisibleRect];
+    // Positive undo control, before proving that cancellation removes it.
+    NSUndoManager *undo = [f.view undoManager];
+    LOKA_VERIFY(undo != nil);
+    [undo setGroupsByEvent:NO];
+    [undo beginUndoGrouping];
+    [[undo prepareWithInvocationTarget:f.view] setString:@"refused undo payload"];
+    [undo endUndoGrouping];
+    LOKA_VERIFY([undo canUndo]);
+    NSMutableString *tentative = [[[f.view string] mutableCopy] autorelease];
+    [tentative insertString:(failure == 0 || failure == 2 ? @"\n" : @"x") atIndex:selection.location];
+    if (failure == 2)
+      loka::core::testing::failLokaAllocRaw("TextEditor", "Scratch", 1);
+    if (failure == 3)
+      [tentative appendString:[@"x" stringByPaddingToLength:8193 withString:@"x" startingAtIndex:0]];
+    if (failure == 4)
+      [tentative appendString:@"\u00e9"];
+    f.edit(tentative, selection.location + 1);
+    loka::core::testing::allowLokaAllocRaw();
+    snapshot.unchanged(f);
+    LOKA_VERIFY(observer.calls == 0);
+    LOKA_VERIFY(![f.view isEditable]);
+    f.restored(1);
+    snapshot.unchanged(f);
+    LOKA_VERIFY(observer.calls == 0 && ![undo canUndo]);
+    LOKA_VERIFY(NSEqualRanges([f.view selectedRange], selection));
+    LOKA_VERIFY(NSEqualPoints([f.scroll documentVisibleRect].origin, visible.origin));
+    nextKey(f);
+  }
+}
+
+void testMacTextEditorNestedInput()
+{
+  for (int deferred = 0; deferred < 2; ++deferred)
+  {
+    Fixture f;
+    Observer observer(f);
+    observer.nested = true;
+    observer.deferred = deferred != 0;
+    f.edit(@"abxcd\nabcd\nabcd", 3);
+    LOKA_VERIFY(observer.calls == 1 && bytes(f.lines.at(0).value) == "abxcd");
+    LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 3));
+    f.restored(1);
+    LOKA_VERIFY(observer.calls == 1);
+    nextKey(f);
+  }
+  {
+    Fixture f;
+    Observer listObserver(f);
+    CaretObserver observer(f);
+    [f.view setSelectedRange:NSMakeRange(1, 0)];
+    [[f.view delegate]
+        textViewDidChangeSelection:[NSNotification notificationWithName:NSTextViewDidChangeSelectionNotification
+                                                                 object:f.view]];
+    LOKA_VERIFY(observer.calls == 1 && listObserver.calls == 0);
+    LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 1));
+    f.restored(1);
+    LOKA_VERIFY(NSEqualRanges([f.view selectedRange], NSMakeRange(1, 0)));
+    nextKey(f);
+  }
+}
+
+void testMacTextEditorReplacementFailure()
+{
+  {
+    Fixture empty(1, "");
+    empty.edit(@"\u00e9", 1);
+    empty.restored(1);
+  }
+  Fixture f;
+  LokaRefusingEditorView *view = [[LokaRefusingEditorView alloc] initWithFrame:[f.view frame]];
+  [view setString:[f.view string]];
+  [view setSelectedRange:[f.view selectedRange]];
+  [view setDelegate:[f.view delegate]];
+  [[view textStorage] setDelegate:[[f.view textStorage] delegate]];
+  [f.view setDelegate:nil];
+  [[f.view textStorage] setDelegate:nil];
+  [f.scroll setDocumentView:view];
+  f.view = view;
+  [view release];
+  f.edit(@"\u00e9", 1);
+  [view setRefuse:YES];
+  // Invoke the scheduled callback after the notification has unwound, without
+  // spinning the run loop into its retry. The retry must remain deferred.
+  id delegate = [view delegate];
+  [NSObject cancelPreviousPerformRequestsWithTarget:delegate];
+  [delegate performSelector:@selector(restoreProjection)];
+  LOKA_VERIFY(Access::restores(*f.context) == 1);
+  LOKA_VERIFY(![view isEditable] && [[view string] isEqualToString:@"\u00e9"]);
+  f.restored(2);
+  nextKey(f);
+}
+
+namespace
+{
+  class Highlighter : public LineHighlighter
+  {
+  public:
+    mutable unsigned calls;
+    bool fail;
+    Highlighter()
+        : calls(0),
+          fail(false)
+    {
+    }
+    virtual bool highlight(const String &line, AttributedString::Builder &out) const
+    {
+      ++this->calls;
+      return !this->fail && out.append(line, Bold + Italic + FontSize<18>());
+    }
+  };
+} // namespace
+void testMacTextEditorHighlightAndLifecycle()
+{
+  {
+    Highlighter policy;
+    Fixture pending;
+    pending.node.props.highlighter(policy);
+    pending.context->onPropsApplied();
+    id delegate = [pending.view delegate];
+    [pending.view setDelegate:nil];
+    [[pending.view textStorage] replaceCharactersInRange:NSMakeRange(2, 0) withString:@"x"];
+    [pending.view setDelegate:delegate];
+    LOKA_VERIFY(policy.calls == 3);
+    // The owner changes structure before the queued native style pass.
+    LOKA_VERIFY(pending.lines.insert(0, String("owner")) == EDIT_OK);
+    for (int i = 0; i < 20 && Access::restores(*pending.context) == 0; ++i)
+      pending.turn();
+    LOKA_VERIFY(Access::restores(*pending.context) == 1);
+    LOKA_VERIFY([[pending.view string] isEqualToString:@"owner\nabxcd\nabcd\nabcd"]);
+    LOKA_VERIFY(policy.calls == 5);
+  }
+  Highlighter highlighter;
+  Fixture f;
+  f.node.props.highlighter(highlighter);
+  f.context->onPropsApplied();
+  LOKA_VERIFY(highlighter.calls == 3);
+  f.context->onPropsApplied();
+  LOKA_VERIFY(highlighter.calls == 3);
+  f.edit(@"abxcd\nabcd\nabcd", 3);
+  LOKA_VERIFY(highlighter.calls == 4);
+  NSFont *styled = [[f.view textStorage] attribute:NSFontAttributeName atIndex:0 effectiveRange:0];
+  verifyFont(styled, (NSFont *)f.controller.textFont(Bold + Italic + FontSize<18>(), true));
+  highlighter.fail = true;
+  f.edit(@"abxycd\nabcd\nabcd", 4);
+  LOKA_VERIFY(highlighter.calls == 5 && bytes(f.lines.at(0).value) == "abxycd");
+  verifyFont([[f.view textStorage] attribute:NSFontAttributeName atIndex:0 effectiveRange:0],
+             (NSFont *)f.controller.textFont(TextStyle(), true));
+  highlighter.fail = false;
+  loka::core::testing::failLokaAllocRaw("AttributedString", "Segments", 1);
+  f.edit(@"abxyQcd\nabcd\nabcd", 5);
+  loka::core::testing::allowLokaAllocRaw();
+  LOKA_VERIFY(highlighter.calls == 6 && bytes(f.lines.at(0).value) == "abxyQcd");
+  verifyFont([[f.view textStorage] attribute:NSFontAttributeName atIndex:0 effectiveRange:0],
+             (NSFont *)f.controller.textFont(TextStyle(), true));
+  // Storage-only input queues one style pass and never styles in the delegate.
+  id delegate = [f.view delegate];
+  [f.view setDelegate:nil];
+  NSTextStorage *storage = [f.view textStorage];
+  [storage replaceCharactersInRange:NSMakeRange(2, 0) withString:@"R"];
+  [storage replaceCharactersInRange:NSMakeRange(3, 0) withString:@"S"];
+  [f.view setDelegate:delegate];
+  LOKA_VERIFY(highlighter.calls == 6);
+  LOKA_VERIFY(bytes(f.lines.at(0).value) == "abRSxyQcd");
+  LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 4));
+  // A run-loop slice may service another source before the queued selector.
+  // Both edits coalesce; the line cache skips the two unchanged lines, even
+  // if AppKit also delivers a view notification.
+  NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:2.0];
+  while (highlighter.calls < 7 && [deadline timeIntervalSinceNow] > 0)
+    [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+  LOKA_VERIFY(highlighter.calls == 7);
+  verifyFont([storage attribute:NSFontAttributeName atIndex:2 effectiveRange:0],
+             (NSFont *)f.controller.textFont(Bold + Italic + FontSize<18>(), true));
+  LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 4));
+  f.turn();
+  LOKA_VERIFY(highlighter.calls == 7);
+
+  // A queued style pass loses its owner on retained detach.
+  [f.view setDelegate:nil];
+  [storage replaceCharactersInRange:NSMakeRange(2, 2) withString:@""];
+  [f.view setDelegate:delegate];
+  LOKA_VERIFY(highlighter.calls == 7);
+  NotifySubtreeNodeDetached(&f.node);
+  LifecycleFactTestAccess::DeliverFacts(&f.node);
+  f.turn();
+  LOKA_VERIFY(highlighter.calls == 7);
+  NotifySubtreeNodeAttached(&f.node);
+  LifecycleFactTestAccess::DeliverFacts(&f.node);
+  LOKA_VERIFY(highlighter.calls == 10);
+
+  // Pending restore is invalidated by retained detach, as is the style cache.
+  f.edit(@"\u00e9", 1);
+  NotifySubtreeNodeDetached(&f.node);
+  LifecycleFactTestAccess::DeliverFacts(&f.node);
+  LOKA_VERIFY([f.scroll superview] == nil && [f.view delegate] == nil);
+  LOKA_VERIFY([[f.view textStorage] delegate] == nil);
+  f.turn();
+  LOKA_VERIFY(Access::restores(*f.context) == 0);
+  NotifySubtreeNodeAttached(&f.node);
+  LifecycleFactTestAccess::DeliverFacts(&f.node);
+  LOKA_VERIFY([f.scroll superview] == [f.host.window contentView] && [f.view delegate] != nil);
+  LOKA_VERIFY((id)[[f.view textStorage] delegate] == (id)[f.view delegate]);
+  LOKA_VERIFY([[f.view string] isEqualToString:@"abxyQcd\nabcd\nabcd"]);
+  nextKey(f);
+  // An external over-cap value makes the editor unavailable, never truncated.
+  LOKA_VERIFY(f.lines.update(f.lines.at(0).id, String(std::string(8193, 'a'))) == EDIT_OK);
+  f.context->onPropsApplied();
+  LOKA_VERIFY(![f.view isEditable] && [[f.view string] length] == 0);
+  LOKA_VERIFY(f.lines.update(f.lines.at(0).id, String("recovered")) == EDIT_OK);
+  f.context->onPropsApplied();
+  LOKA_VERIFY([f.view isEditable]);
+  LifecycleFactTestAccess::MarkSubtreeRetired(&f.node);
+  LifecycleFactTestAccess::DeliverFacts(&f.node);
+  LOKA_VERIFY([f.scroll superview] == nil && [f.view delegate] == nil);
+  LOKA_VERIFY([[f.view textStorage] delegate] == nil);
+}

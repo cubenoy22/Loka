@@ -272,10 +272,11 @@ void testMacNodeHandlerEnsureContract()
     LOKA_VERIFY(text.getContext() == textCtx);
     LOKA_VERIFY(countChildViews(root) == childrenWithText);
 
-    // -- ScrollBar: known unsupported kinds take the typed-refusal path --
+    // -- TextEditor: installs its multiline context even with unavailable props --
     loka::app::TextEditorNode editor((loka::app::TextEditorProps()));
-    LOKA_VERIFY(!controller.prepareProjectedLayout(&editor, state));
-    LOKA_VERIFY(!editor.getContext());
+    LOKA_VERIFY(controller.prepareProjectedLayout(&editor, state));
+    LOKA_VERIFY(editor.getContext());
+    // -- ScrollBar: known unsupported kinds take the typed-refusal path --
     loka::app::ScrollBarProps scrollProps;
     loka::app::ScrollBarNode scrollBar(scrollProps);
     state.x = 5;
@@ -285,7 +286,7 @@ void testMacNodeHandlerEnsureContract()
     LOKA_VERIFY(!controller.prepareProjectedLayout(&scrollBar, state) &&
                 "an unsupported kind must refuse, not project");
     LOKA_VERIFY(!scrollBar.getContext());
-    LOKA_VERIFY(countChildViews(root) == childrenWithText &&
+    LOKA_VERIFY(countChildViews(root) == childrenWithText + 1 &&
                 "a refusal must not materialize a native view");
 
     // -- Re-entrancy: afterAttach replaces the just-published context --
@@ -373,7 +374,7 @@ void testMacAttributedTextWholeLineProjection()
       AttributedTextProps props(value);
       props.blockStyle_ = BlockStyle().wrap(TEXT_WRAP_WORD);
       AttributedTextNode node(props);
-      scene::LayoutState state;
+      loka::app::scene::LayoutState state;
       state.width = 90;
       // Pre-fix red: gRefusedMacAttributedText rejects this ensure.
       LOKA_VERIFY(controller.prepareProjectedLayout(&node, state));
@@ -383,15 +384,15 @@ void testMacAttributedTextWholeLineProjection()
       NSAttributedString *native = [field attributedStringValue];
       NSRange range;
       NSFont *first = [native attribute:NSFontAttributeName atIndex:0 effectiveRange:&range];
-      LOKA_VERIFY(first == (NSFont *)controller.textFont(small));
+      LOKA_VERIFY([first isEqual:(NSFont *)controller.textFont(small)]);
       LOKA_VERIFY(range.location == 0 && range.length == 4);
       NSFont *second = [native attribute:NSFontAttributeName atIndex:4 effectiveRange:&range];
-      LOKA_VERIFY(second == (NSFont *)controller.textFont(large));
+      LOKA_VERIFY([second isEqual:(NSFont *)controller.textFont(large)]);
       LOKA_VERIFY(range.location == 4 && range.length == [native length] - 4);
       const CGFloat narrowHeight = [field frame].size.height;
       VerifyAttributedHeight(node, controller, root, 260);
       LOKA_VERIFY([field frame].size.height < narrowHeight);
-      scene::NodeContext *context = node.getContext();
+      loka::app::scene::NodeContext *context = node.getContext();
       node.props.blockStyle_ = BlockStyle().wrap(TEXT_WRAP_CHAR);
       context->onPropsApplied();
       VerifyAttributedHeight(node, controller, root, 90);
@@ -427,34 +428,34 @@ void testMacAttributedTextRetainedLifecycle()
     // props type id; applyPropsToNode's compatibility check needs it.
     node.setPropsTypeId(AttributedTextProps::staticTypeId());
     VerifyAttributedHeight(node, controller, root, 100);
-    scene::NodeContext *context = node.getContext();
+    loka::app::scene::NodeContext *context = node.getContext();
     NSTextField *field = AttributedField(root);
     NSAttributedString *before = [[field attributedStringValue] retain];
-    scene::NotifySubtreeNodeDetached(&node);
-    scene::LifecycleFactTestAccess::DeliverFacts(&node);
+    loka::app::scene::NotifySubtreeNodeDetached(&node);
+    loka::app::scene::LifecycleFactTestAccess::DeliverFacts(&node);
     LOKA_VERIFY([field isHidden]);
     LOKA_VERIFY([[field attributedStringValue] isEqualToAttributedString:before]);
-    scene::NotifySubtreeNodeAttached(&node);
-    scene::LifecycleFactTestAccess::DeliverFacts(&node);
+    loka::app::scene::NotifySubtreeNodeAttached(&node);
+    loka::app::scene::LifecycleFactTestAccess::DeliverFacts(&node);
     LOKA_VERIFY(![field isHidden]);
     LOKA_VERIFY(node.getContext() == context);
     LOKA_VERIFY([[field attributedStringValue] isEqualToAttributedString:before]);
     [before release];
-    scene::NotifySubtreeNodeDetached(&node);
-    scene::LifecycleFactTestAccess::DeliverFacts(&node);
+    loka::app::scene::NotifySubtreeNodeDetached(&node);
+    loka::app::scene::LifecycleFactTestAccess::DeliverFacts(&node);
     AttributedTextProps replacement(Styled("updated while hidden", FontSize<24>() + Italic));
     replacement.blockStyle_ = BlockStyle().wrap(TEXT_WRAP_WORD);
     AttributedTextDefinition definition(replacement);
     LOKA_VERIFY(definition.applyPropsToNode(&node));
     VerifyAttributedHeight(node, controller, root, 100);
     LOKA_VERIFY([field isHidden]);
-    scene::NotifySubtreeNodeAttached(&node);
-    scene::LifecycleFactTestAccess::DeliverFacts(&node);
+    loka::app::scene::NotifySubtreeNodeAttached(&node);
+    loka::app::scene::LifecycleFactTestAccess::DeliverFacts(&node);
     LOKA_VERIFY(![field isHidden]);
     LOKA_VERIFY([[field stringValue] isEqualToString:@"updated while hidden"]);
     LOKA_VERIFY(node.getContext() == context);
-    scene::LifecycleFactTestAccess::MarkSubtreeRetired(&node);
-    scene::LifecycleFactTestAccess::DeliverFacts(&node);
+    loka::app::scene::LifecycleFactTestAccess::MarkSubtreeRetired(&node);
+    loka::app::scene::LifecycleFactTestAccess::DeliverFacts(&node);
     LOKA_VERIFY([[root subviews] count] == 0);
     LOKA_VERIFY([[field stringValue] length] == 0);
   }
@@ -480,7 +481,7 @@ void testMacAttributedTextRefusalClearsProjection()
     loka::core::testing::allowLokaAllocRaw();
     LOKA_VERIFY(!refused.valid());
     node.props.text(refused);
-    scene::LayoutState state;
+    loka::app::scene::LayoutState state;
     state.width = 100;
     node.layoutProjected(&controller, state);
     LOKA_VERIFY(state.height == 0 && [[field stringValue] length] == 0);

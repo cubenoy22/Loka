@@ -1,4 +1,5 @@
 #include "TextEditorTests.hpp"
+#include "app/nodes/controls/TextChangeSpan.hpp"
 #include "app/nodes/controls/TextEditorDiff.hpp"
 #include "support/TextEditorContractSnapshot.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
@@ -149,6 +150,22 @@ namespace
 } // namespace
 void testTextEditorActions()
 {
+  // Column diffs are independent of native selection and storage edit unions.
+  struct SpanCase { const char *before; const char *after; unsigned start, oldEnd, newEnd; };
+  const SpanCase spanCases[] = {
+      {"abcd", "abxcd", 2, 2, 3}, {"abxcd", "abcd", 2, 3, 2},
+      {"abxcd", "abYZQd", 2, 4, 5}, {"abcd", "abXYd", 2, 3, 4},
+      {"aaaa", "aaa", 3, 4, 3}, {"", "x", 0, 0, 1},
+      {"x", "", 0, 1, 0}, {"abcd", "abcd", 4, 4, 4},
+      {"abcd", "Xbcd", 0, 1, 1}, {"abcd", "abcdX", 4, 4, 5}};
+  for (unsigned i = 0; i < sizeof(spanCases) / sizeof(spanCases[0]); ++i)
+  {
+    const std::string before(spanCases[i].before), after(spanCases[i].after);
+    const loka::app::detail::TextChangeSpan span(before, before.size(), after, after.size());
+    LOKA_VERIFY(span.start() == spanCases[i].start);
+    LOKA_VERIFY(span.beforeEnd() == spanCases[i].oldEnd);
+    LOKA_VERIFY(span.afterEnd() == spanCases[i].newEnd);
+  }
   // Shared range detection runs on Linux; an absent hint preserves text-only detection.
   const struct DiffCase
   {

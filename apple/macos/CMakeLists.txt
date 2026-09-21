@@ -61,6 +61,7 @@ set(LOKA_MACOS_CORE_SOURCES
   src/context/MacRetirableContext.mm
   src/context/MacCellContext.mm
   src/context/MacEditTextContext.mm
+  src/context/MacTextEditorContext.mm
   src/context/MacOpenFileDialogContext.mm
   src/context/MacTextContext.mm
   src/context/MacAttributedTextContext.mm
@@ -117,6 +118,7 @@ if(NOT LOKA_MAC_OS_10_4)
     ${PROJECT_SOURCE_DIR}/tests/MacAppLocationTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacMenuProjectionTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacNodeHandlerEnsureTests.mm
+    ${PROJECT_SOURCE_DIR}/tests/MacTextEditorTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacScrollViewTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacWindowAdmissionTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacWindowFrameClampTests.mm
@@ -133,6 +135,7 @@ if(NOT LOKA_MAC_OS_10_4)
     ${CMAKE_CURRENT_LIST_DIR}/src/context/MacRetirableContext.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/context/MacCellContext.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/context/MacEditTextContext.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/context/MacTextEditorContext.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/context/MacOpenFileDialogContext.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/context/MacTextContext.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/context/MacAttributedTextContext.mm

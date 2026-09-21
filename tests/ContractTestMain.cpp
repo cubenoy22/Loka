@@ -1,3 +1,6 @@
+#ifdef __APPLE__
+#include "MacTextEditorTests.hpp"
+#endif
 #include "TextEditorTests.hpp"
 #include "RailMetricsTests.hpp"
 #include "BorrowedKeysTests.hpp"
