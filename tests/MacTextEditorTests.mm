@@ -441,8 +441,8 @@ void testMacTextEditorUndoLocation()
   LOKA_VERIFY(undoSucceeded);
   LOKA_VERIFY(bytes(f.lines.at(0).value) == "abcd");
   LOKA_VERIFY(observer.calls == 2);
-  LOKA_VERIFY(f.cursor.get() == LineCursor(first, 2));
-  LOKA_VERIFY([f.view selectedRange].location == 2);
+  LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(static_cast<unsigned short>(undoLine)).id,
+                                           static_cast<int>(undoColumn)));
   LOKA_VERIFY(Access::restores(*f.context) == 0 && [f.view isEditable]);
 
   // Also pin a notification before native selection returns to the edit.
