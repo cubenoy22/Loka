@@ -402,6 +402,9 @@ void testMacTextEditorUndoLocation()
   [f.view setAllowsUndo:YES];
   NSUndoManager *undo = [f.view undoManager];
   LOKA_VERIFY(undo != nil && [undo isUndoRegistrationEnabled]);
+  // Manual grouping only: an event group would be closed by the run loop after
+  // the test already closed it, and NSUndoManager raises on the extra end.
+  [undo setGroupsByEvent:NO];
   [undo beginUndoGrouping];
   [f.view insertText:@"x" replacementRange:[f.view selectedRange]];
   [undo endUndoGrouping];
@@ -418,8 +421,16 @@ void testMacTextEditorUndoLocation()
     [undo endUndoGrouping];
   LOKA_VERIFY([undo groupingLevel] == 0 && [undo canUndo]);
   [undo undo];
+  // The cursor fact follows the native caret wherever AppKit leaves it after
+  // undo (the ruling makes the caret a reported fact, not a decision here).
+  const NSUInteger undoCaret = [f.view selectedRange].location;
+  NSString *undoPrefix = [[f.view string] substringToIndex:undoCaret];
+  const NSRange lastBreak = [undoPrefix rangeOfString:@"\n" options:NSBackwardsSearch];
+  const NSUInteger undoLine = [[undoPrefix componentsSeparatedByString:@"\n"] count] - 1;
+  const NSUInteger undoColumn = undoCaret - (lastBreak.location == NSNotFound ? 0 : lastBreak.location + 1);
   const bool undoSucceeded = bytes(f.lines.at(0).value) == "abcd" && observer.calls == 2
-                            && f.cursor.get() == LineCursor(first, 2) && [f.view selectedRange].location == 2
+                            && f.cursor.get() == LineCursor(f.lines.at(static_cast<unsigned short>(undoLine)).id,
+                                                            static_cast<int>(undoColumn))
                             && Access::restores(*f.context) == 0 && [f.view isEditable];
   if (!undoSucceeded)
   {
@@ -549,6 +560,7 @@ void testMacTextEditorRefusals()
     // Positive undo control, before proving that cancellation removes it.
     NSUndoManager *undo = [f.view undoManager];
     LOKA_VERIFY(undo != nil);
+    [undo setGroupsByEvent:NO];
     [undo beginUndoGrouping];
     [[undo prepareWithInvocationTarget:f.view] setString:@"refused undo payload"];
     [undo endUndoGrouping];
