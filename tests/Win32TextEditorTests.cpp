@@ -85,27 +85,22 @@ namespace
     LOKA_VERIFY(window);
     return window;
   }
-  /** Native message instrumentation, with refusal at the actual setter door.
-      No production allocation or native-setter test hooks are needed. */
+  /** Native message instrumentation; setter failures live in TestingHooks.cpp. */
   struct Probe
   {
     HWND window;
     WNDPROC previous;
     unsigned lineReads, textReads, sets;
-    unsigned failSets;
-    bool truncateSet, echo, restoredInsideNotification, seedUndo, falseAfterDelivery;
+    bool echo, restoredInsideNotification, seedUndo;
     explicit Probe(HWND value)
         : window(value),
           previous(0),
           lineReads(0),
           textReads(0),
           sets(0),
-          failSets(0),
-          truncateSet(false),
           echo(false),
           restoredInsideNotification(false),
-          seedUndo(false),
-          falseAfterDelivery(false)
+          seedUndo(false)
     {
       LOKA_VERIFY(SetPropW(window, kProbe, this));
       previous = reinterpret_cast<WNDPROC>(SetWindowLongPtrW(window, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&proc)));
@@ -134,16 +129,6 @@ namespace
           probe.restoredInsideNotification = true;
         if (probe.echo)
           SendMessageW(GetParent(window), WM_COMMAND, MAKEWPARAM(0, EN_CHANGE), reinterpret_cast<LPARAM>(window));
-        if (probe.failSets)
-        {
-          --probe.failSets;
-          return FALSE;
-        }
-        if (probe.truncateSet)
-        {
-          probe.truncateSet = false;
-          return CallWindowProcW(probe.previous, window, message, wParam, reinterpret_cast<LPARAM>(L""));
-        }
       }
       const LRESULT result = CallWindowProcW(probe.previous, window, message, wParam, lParam);
       if (message == WM_SETTEXT && result && probe.seedUndo)
@@ -161,11 +146,6 @@ namespace
         CallWindowProcW(native, window, EM_SETSEL, 0, 1);
         CallWindowProcW(native, window, EM_REPLACESEL, TRUE, reinterpret_cast<LPARAM>(L""));
         LOKA_VERIFY(SendMessageW(window, EM_CANUNDO, 0, 0));
-      }
-      if (message == WM_SETTEXT && probe.falseAfterDelivery)
-      {
-        probe.falseAfterDelivery = false;
-        return FALSE;
       }
       return result;
     }
@@ -228,6 +208,7 @@ namespace
     }
     ~Fixture()
     {
+      loka::win32::testing::failTextEditorSets(loka::win32::testing::TEXT_EDITOR_SET_REFUSED, 0);
       delete node;
       controller.drainNativeRetirements();
       RemovePropW(host, kHostController);
@@ -235,7 +216,18 @@ namespace
     }
     void type(wchar_t value)
     {
-      SendMessageW(context->hwnd(), WM_CHAR, value, 1);
+      if (value == L'\b')
+      {
+        SendMessageW(context->hwnd(), WM_CHAR, value, 1);
+        return;
+      }
+      DWORD start = 0, end = 0;
+      SendMessageW(context->hwnd(), EM_GETSEL, reinterpret_cast<WPARAM>(&start), reinterpret_cast<LPARAM>(&end));
+      SendMessageW(context->hwnd(), EM_SETSEL, start, end);
+      const wchar_t text[] = {value, 0};
+      // EDIT sends EN_CHANGE to HostProc for replacement; multiline WM_SETTEXT
+      // is a projection operation and deliberately sends no input notification.
+      SendMessageW(context->hwnd(), EM_REPLACESEL, TRUE, reinterpret_cast<LPARAM>(value == L'\r' ? L"\r\n" : text));
     }
     std::wstring native() const
     {
@@ -243,13 +235,19 @@ namespace
       loka::win32::ReadEditTextWide(context->hwnd(), result);
       return result;
     }
-    void matches() const
+    std::wstring committedNative() const
     {
       std::string logical;
       std::wstring desired;
       LOKA_VERIFY(node->document.project(logical) == EDITOR_OK);
       LOKA_VERIFY(loka::win32::TextEditorToWide(logical, desired));
+      return desired;
+    }
+    void matches() const
+    {
+      const std::wstring desired = committedNative();
       LOKA_VERIFY(native() == desired);
+      LOKA_VERIFY(GetWindowTextLengthW(context->hwnd()) == static_cast<int>(desired.size()));
     }
   };
   struct Snapshot
@@ -394,13 +392,31 @@ void testWin32TextEditorActionsUseLineQueries()
   LOKA_VERIFY(selectionStart == 1 && selectionEnd == 3);
   const PaintQuery echoQuery = {Win32RetirableContext::paintScope(), PLACEMENT_ELIGIBLE};
   LOKA_VERIFY(fixture.context->queryPaintDamage(echoQuery).kind == PAINT_ANSWER_EXACT);
+  // Isolate this replacement from EDIT's prior typing/deletion undo record.
+  SendMessageW(fixture.context->hwnd(), EM_EMPTYUNDOBUFFER, 0, 0);
   SendMessageW(fixture.context->hwnd(), EM_REPLACESEL, TRUE, reinterpret_cast<LPARAM>(L"Q"));
   LOKA_VERIFY(fixture.lines.at(0).value.equals(String("aQcd")));
   fixture.matches();
   const LRESULT distant = SendMessageW(fixture.context->hwnd(), EM_LINEINDEX, 10, 0);
+  LOKA_VERIFY(distant >= 0);
   SendMessageW(fixture.context->hwnd(), EM_SETSEL, distant, distant);
-  SendMessageW(fixture.context->hwnd(), WM_UNDO, 0, 0);
+  LOKA_VERIFY(SendMessageW(fixture.context->hwnd(), EM_CANUNDO, 0, 0));
+  LOKA_VERIFY(SendMessageW(fixture.context->hwnd(), EM_UNDO, 0, 0));
   LOKA_VERIFY(fixture.lines.at(0).value.equals(String("abxcd")));
+  fixture.matches();
+  // Last-line queries must also work for a trailing empty line. EM_LINEINDEX
+  // returns the text length for that line, and -1 only beyond the line count.
+  const int nativeEnd = GetWindowTextLengthW(fixture.context->hwnd());
+  SendMessageW(fixture.context->hwnd(), EM_SETSEL, nativeEnd, nativeEnd);
+  fixture.type(L'\r');
+  const unsigned short last = static_cast<unsigned short>(fixture.lines.size() - 1);
+  LOKA_VERIFY(fixture.lines.at(last).value.equals(String("")));
+  LOKA_VERIFY(SendMessageW(fixture.context->hwnd(), EM_LINEINDEX, last, 0)
+              == GetWindowTextLengthW(fixture.context->hwnd()));
+  LOKA_VERIFY(SendMessageW(fixture.context->hwnd(), EM_LINEINDEX, fixture.lines.size(), 0) == -1);
+  fixture.type(L'z');
+  LOKA_VERIFY(fixture.lines.at(last).value.equals(String("z")));
+  LOKA_VERIFY(fixture.cursor.get() == LineCursor(fixture.lines.at(last).id, 1));
   fixture.matches();
 }
 void testWin32TextEditorRefusalRestoresAndClearsUndo()
@@ -466,6 +482,8 @@ void testWin32TextEditorRefusalRestoresAndClearsUndo()
     // An unsolicited notification has no subclass input stack to unwind.
     // Its refusal stays read-only until a separate timer dispatch.
     LOKA_VERIFY(SetWindowTextW(fixture.context->hwnd(), L"bad\xff21"));
+    before.unchanged(fixture);
+    LOKA_VERIFY(observer.notifications == 0 && !EditorAccess::pending(*fixture.context));
     SendMessageW(fixture.host, WM_COMMAND, MAKEWPARAM(0, EN_CHANGE), reinterpret_cast<LPARAM>(fixture.context->hwnd()));
     before.unchanged(fixture);
     LOKA_VERIFY(EditorAccess::pending(*fixture.context) && EditorAccess::restores(*fixture.context) == 0);
@@ -506,8 +524,26 @@ void testWin32TextEditorRefusalRestoresAndClearsUndo()
     Fixture fixture(1, std::string(8191, 'a'));
     fixture.type(L'x');
     fixture.matches();
-    LOKA_VERIFY(GetWindowTextLengthW(fixture.context->hwnd()) == 8192);
+    const Snapshot committed(fixture);
+    LOKA_VERIFY(committed.text.size() == 8192);
+    LOKA_VERIFY(GetWindowTextLengthW(fixture.context->hwnd()) == static_cast<int>(fixture.committedNative().size()));
     LOKA_VERIFY(EditorAccess::restores(*fixture.context) == 0);
+  }
+  {
+    // 8191 logical bytes across two lines; one insertion reaches the cap.
+    Fixture fixture(2, std::string(4095, 'a'));
+    fixture.type(L'x');
+    const Snapshot before(fixture);
+    LOKA_VERIFY(before.text.size() == 8192);
+    LOKA_VERIFY(fixture.committedNative().size() == 8193);
+    fixture.matches();
+    Observer observer(fixture);
+    fixture.type(L'x');
+    before.unchanged(fixture);
+    fixture.matches();
+    LOKA_VERIFY(observer.notifications == 0 && observer.settled == 0);
+    LOKA_VERIFY(EditorAccess::restores(*fixture.context) == 1 && !EditorAccess::pending(*fixture.context));
+    LOKA_VERIFY(!SendMessageW(fixture.context->hwnd(), EM_CANUNDO, 0, 0));
   }
   {
     Fixture fixture(257, "a", 257);
@@ -549,25 +585,27 @@ void testWin32TextEditorFailedReplacementRetries()
   {
     Fixture fixture(256);
     Probe probe(fixture.context->hwnd());
-    probe.failSets = failure == 0 ? 2 : 0;
-    probe.truncateSet = failure == 1;
-    probe.falseAfterDelivery = failure == 2;
+    const loka::win32::testing::TextEditorSetFailure failures[] = {
+        loka::win32::testing::TEXT_EDITOR_SET_REFUSED,
+        loka::win32::testing::TEXT_EDITOR_SET_TRUNCATED,
+        loka::win32::testing::TEXT_EDITOR_SET_FALSE_AFTER_DELIVERY};
+    loka::win32::testing::failTextEditorSets(failures[failure], failure == 0 ? 2 : 1);
     const Snapshot before(fixture);
     fixture.type(L'\r');
     before.unchanged(fixture);
     LOKA_VERIFY(EditorAccess::pending(*fixture.context));
     LOKA_VERIFY(GetWindowLongPtrW(fixture.context->hwnd(), GWL_STYLE) & ES_READONLY);
-    LOKA_VERIFY(probe.sets == 1 && !probe.restoredInsideNotification);
+    LOKA_VERIFY(EditorAccess::restores(*fixture.context) == 1 && !probe.restoredInsideNotification);
     fixture.type(L'x');
     before.unchanged(fixture);
     // Explicitly dispatch each timer turn; no nested pump inside owner apply.
     SendMessageW(fixture.context->hwnd(), WM_TIMER, 853, 0);
-    LOKA_VERIFY(probe.sets == 2);
+    LOKA_VERIFY(EditorAccess::restores(*fixture.context) == 2);
     if (failure == 0)
     {
       LOKA_VERIFY(EditorAccess::pending(*fixture.context));
       SendMessageW(fixture.context->hwnd(), WM_TIMER, 853, 0);
-      LOKA_VERIFY(probe.sets == 3);
+      LOKA_VERIFY(EditorAccess::restores(*fixture.context) == 3);
     }
     LOKA_VERIFY(!EditorAccess::pending(*fixture.context));
     LOKA_VERIFY(!(GetWindowLongPtrW(fixture.context->hwnd(), GWL_STYLE) & ES_READONLY));
@@ -607,7 +645,7 @@ void testWin32TextEditorLayoutDpiAndRetirement()
   LOKA_VERIFY(answer.kind == PAINT_ANSWER_NATIVE_SCHEDULED);
   {
     Probe probe(child);
-    probe.failSets = 1;
+    loka::win32::testing::failTextEditorSets(loka::win32::testing::TEXT_EDITOR_SET_REFUSED, 1);
     fixture.type(static_cast<wchar_t>(0xff21));
     LOKA_VERIFY(EditorAccess::pending(*fixture.context));
     const Snapshot before(fixture);

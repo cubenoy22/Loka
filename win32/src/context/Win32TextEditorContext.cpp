@@ -116,7 +116,8 @@ Win32TextEditorContext::Win32TextEditorContext(Win32ScenePlatformController *con
     }
     // The owner enforces the logical cap. Leave room for an over-cap native
     // action so it is refused atomically instead of accepting a truncated paste.
-    SendMessageW(this->hwnd_, EM_SETLIMITTEXT, 0, 0);
+    // Zero has special multiline semantics; specify the native limit explicitly.
+    SendMessageW(this->hwnd_, EM_SETLIMITTEXT, 0x7ffffffe, 0);
   }
 }
 Win32TextEditorContext::~Win32TextEditorContext()
@@ -189,9 +190,7 @@ bool Win32TextEditorContext::replaceProjection()
   const EditorResult projected = this->projection_.capture(*this->node_);
   const bool available = projected == EDITOR_OK;
   // Deliberately bypass State equality and the ordinary projection cache.
-  const bool submitted = SetWindowTextW(this->hwnd_, this->projection_.wide.c_str()) != FALSE;
-  const bool complete =
-      submitted && GetWindowTextLengthW(this->hwnd_) == static_cast<int>(this->projection_.wide.size());
+  const bool complete = loka::win32::WriteTextEditorWide(this->hwnd_, this->projection_.wide);
   SendMessageW(this->hwnd_, EM_EMPTYUNDOBUFFER, 0, 0);
   if (!complete)
   {

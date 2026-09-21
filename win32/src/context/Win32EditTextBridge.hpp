@@ -16,6 +16,33 @@ namespace loka
 {
   namespace win32
   {
+#ifdef TEST_BUILD
+    namespace testing
+    {
+      enum TextEditorSetFailure
+      {
+        TEXT_EDITOR_SET_REFUSED,
+        TEXT_EDITOR_SET_TRUNCATED,
+        TEXT_EDITOR_SET_FALSE_AFTER_DELIVERY
+      };
+      void failTextEditorSets(TextEditorSetFailure failure, unsigned count);
+      bool setTextEditorWide(HWND hwnd, const wchar_t *text);
+    } // namespace testing
+#endif
+
+    /** Projection/restore only: multiline WM_SETTEXT does not send EN_CHANGE.
+        Input must use EDIT's input messages and parent WM_COMMAND route.
+        Validate UTF-16 CRLF units, not the document's CR-inclusive byte count. */
+    inline bool WriteTextEditorWide(HWND hwnd, const std::wstring &wide)
+    {
+#ifdef TEST_BUILD
+      const bool submitted = testing::setTextEditorWide(hwnd, wide.c_str());
+#else
+      const bool submitted = SetWindowTextW(hwnd, wide.c_str()) != FALSE;
+#endif
+      return submitted && GetWindowTextLengthW(hwnd) == static_cast<int>(wide.size());
+    }
+
     inline DWORD EditTextControlExStyle()
     {
       return WS_EX_CLIENTEDGE;
