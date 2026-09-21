@@ -174,6 +174,57 @@ namespace loka
       return result;
     }
 
+    AttributedString::Builder::Builder(std::size_t capacityHint)
+        : storage_(AttributedString::Allocate(capacityHint ? capacityHint : 1).storage_),
+          used_(0)
+    {
+    }
+
+    bool AttributedString::Builder::append(const core::String &text, const TextStyle &style)
+    {
+      if (!this->storage_.isValid())
+        return false;
+      const std::size_t capacity = this->storage_->header.count;
+      if (this->used_ == capacity)
+      {
+        // Match Allocate's storage-size bound before doubling, which must not wrap.
+        const std::size_t maximum = ((std::numeric_limits<std::size_t>::max)() - sizeof(Storage)) / sizeof(Segment);
+        if (capacity == maximum)
+          return false;
+        const std::size_t next = capacity > maximum / 2 ? maximum : capacity * 2;
+        AttributedString grown = AttributedString::Allocate(next);
+        if (!grown.valid())
+          return false;
+        for (std::size_t i = 0; i < this->used_; ++i)
+          grown.storage_->segments()[i] = this->storage_->segments()[i];
+        // Keep the old owner until the replacement is installed.
+        const core::Managed<Storage> previous = this->storage_;
+        this->storage_ = grown.storage_;
+      }
+      Segment &segment = this->storage_->segments()[this->used_];
+      segment.text = text;
+      segment.style = style;
+      ++this->used_;
+      return true;
+    }
+
+    AttributedString AttributedString::Builder::build()
+    {
+      AttributedString result;
+      if (!this->storage_.isValid())
+      {
+        result.valid_ = false;
+        return result;
+      }
+      // Release only visits header.count: end unused lifetimes before shrinking it.
+      for (std::size_t i = this->storage_->header.count; i > this->used_; --i)
+        this->storage_->segments()[i - 1].~Segment();
+      this->storage_->header.count = this->used_;
+      result.storage_ = this->storage_;
+      this->storage_.reset();
+      return result;
+    }
+
     AttributedString Styled(const core::String &text, const TextStyle &style)
     {
       AttributedString result = AttributedString::Allocate(1);

@@ -900,6 +900,16 @@ values with `Styled("word", Bold)`. Concatenate values with `+`:
 Styled("Name: ", Bold) + Styled("Loka", Italic)
 ```
 
+For building a line from tokenizer output, use `AttributedString::Builder builder(10)`
+then call `builder.append(text, style)` for each contribution and `builder.build()`
+to obtain the immutable value. The hint reserves room; the builder grows if needed.
+A sufficient hint uses one segment allocation and one shared ownership allocation.
+Check every append result: allocation refusal preserves the successful prefix,
+which can still be built or extended after a growth failure. Check the built value's
+`valid()` too, since initial allocation can fail. Building an empty ready builder
+returns a valid empty value. Building consumes the builder; use a new one for the
+next line. Keep `Styled(...) + Styled(...)` for short compositions and style folding.
+
 Styles always win on the right: `FontSize<24>() + Styled("a", FontSize<12>())`
 keeps size 12, while `Styled("a", FontSize<12>()) + FontSize<24>()` produces
 size 24. The left style supplies defaults; the right style overrides every
