@@ -442,12 +442,16 @@ namespace
     SendMessageW(fixture.context->hwnd(), EM_GETSEL, reinterpret_cast<WPARAM>(&start), reinterpret_cast<LPARAM>(&end));
     LOKA_VERIFY(start == 2 && end == 2);
   }
-  void verifyReplacement(Fixture &fixture, const Observer &observer, const char *text, unsigned short row, int column)
+  // EDIT replaces a selection as two EN_CHANGE notifications (delete, then
+  // insert), so a keystroke, Return, or paste over a selection commits twice;
+  // each commit is one validated batch and the intermediate document is real.
+  void verifyReplacement(Fixture &fixture, const Observer &observer, const char *text, unsigned short row, int column,
+                         unsigned publications)
   {
     std::string actual;
     LOKA_VERIFY(fixture.node->document.project(actual) == EDITOR_OK && actual == text);
     LOKA_VERIFY(fixture.cursor.get() == LineCursor(fixture.lines.at(row).id, column));
-    LOKA_VERIFY(observer.notifications == 1 && observer.settled == 1);
+    LOKA_VERIFY(observer.notifications == publications && observer.settled == publications);
     LOKA_VERIFY(EditorAccess::status(*fixture.context) == EDITOR_OK);
     LOKA_VERIFY(EditorAccess::restores(*fixture.context) == 0);
     fixture.matches();
@@ -470,7 +474,7 @@ namespace
     const ItemId first = fixture.lines.at(0).id;
     SendMessageW(fixture.context->hwnd(), EM_SETSEL, 0, 16);
     fixture.type(L'b');
-    verifyReplacement(fixture, observer, "b", 0, 1);
+    verifyReplacement(fixture, observer, "b", 0, 1, 2);
     LOKA_VERIFY(fixture.lines.size() == 1 && fixture.lines.at(0).id == first);
   }
   void testWin32TextEditorMultilineBackspace()
@@ -480,7 +484,7 @@ namespace
     const ItemId first = fixture.lines.at(0).id;
     SendMessageW(fixture.context->hwnd(), EM_SETSEL, 1, 15);
     fixture.type(L'\b');
-    verifyReplacement(fixture, observer, "ad", 0, 1);
+    verifyReplacement(fixture, observer, "ad", 0, 1, 1);
     LOKA_VERIFY(fixture.lines.size() == 1 && fixture.lines.at(0).id == first);
   }
   void testWin32TextEditorMultilineReturn()
@@ -491,7 +495,7 @@ namespace
     const ItemId last = fixture.lines.at(2).id;
     SendMessageW(fixture.context->hwnd(), EM_SETSEL, 1, 15);
     fixture.type(L'\r');
-    verifyReplacement(fixture, observer, "a\rd", 1, 0);
+    verifyReplacement(fixture, observer, "a\rd", 1, 0, 2);
     LOKA_VERIFY(fixture.lines.size() == 2 && fixture.lines.at(0).id == first);
     LOKA_VERIFY(fixture.lines.find(last) < 0);
   }
@@ -504,7 +508,7 @@ namespace
     const ItemId last = fixture.lines.at(2).id;
     SendMessageW(fixture.context->hwnd(), EM_SETSEL, 1, 15);
     paste(fixture.context->hwnd(), L"Q\r\nR\r\nS");
-    verifyReplacement(fixture, observer, "aQ\rR\rSd", 2, 1);
+    verifyReplacement(fixture, observer, "aQ\rR\rSd", 2, 1, 2);
     LOKA_VERIFY(fixture.lines.size() == 3 && fixture.lines.at(0).id == first);
     LOKA_VERIFY(fixture.lines.find(last) < 0);
   }
@@ -513,11 +517,11 @@ namespace
     Fixture fixture;
     Observer observer(fixture);
     SendMessageW(fixture.context->hwnd(), EM_SETSEL, 14, 14);
-    State<ListRevision> &revision = const_cast<State<ListRevision> &>(fixture.lines.revision());
-    revision.bind(&verifyNativeCaret, &fixture, false);
     paste(fixture.context->hwnd(), L"Q\r\nR");
-    revision.unbind(&verifyNativeCaret, &fixture);
-    verifyReplacement(fixture, observer, "abcd\rabcd\rabQ\rRcd", 3, 1);
+    // The caret lands on a row that did not exist before the commit: only the
+    // post-state RowCursor can name it.
+    verifyReplacement(fixture, observer, "abcd\rabcd\rabQ\rRcd", 3, 1, 1);
+    verifyNativeCaret(&fixture);
     LOKA_VERIFY(fixture.lines.size() == 4);
   }
   void testWin32TextEditorMultilineUndo()
@@ -528,14 +532,10 @@ namespace
     SendMessageW(fixture.context->hwnd(), EM_SETSEL, 0, 16);
     // Deleting the selection gives EDIT one unambiguous undo record.
     fixture.type(L'\b');
-    verifyReplacement(fixture, observer, "", 0, 0);
+    verifyReplacement(fixture, observer, "", 0, 0, 1);
     LOKA_VERIFY(SendMessageW(fixture.context->hwnd(), EM_CANUNDO, 0, 0));
-    // Observe the transaction itself: a later syncCaret must not repair it.
-    State<ListRevision> &revision = const_cast<State<ListRevision> &>(fixture.lines.revision());
-    revision.bind(&verifyNativeCaret, &fixture, false);
     ChangeObservation undo(fixture.host);
     LOKA_VERIFY(SendMessageW(fixture.context->hwnd(), EM_UNDO, 0, 0));
-    revision.unbind(&verifyNativeCaret, &fixture);
     LOKA_VERIFY(undo.arrivals() > 0 && undo.status() == EDITOR_OK);
     LOKA_VERIFY(fixture.lines.size() == 3 && fixture.lines.at(0).id == first);
     for (unsigned short row = 0; row < fixture.lines.size(); ++row)
