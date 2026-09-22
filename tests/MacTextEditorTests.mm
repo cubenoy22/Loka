@@ -60,8 +60,19 @@ namespace loka
 @synthesize selectionWriteStack = selectionWriteStack_;
 - (void)setSelectedRange:(NSRange)range
 {
-  [self setSelectionWrites:[self selectionWrites] + 1];
-  [self setSelectionWriteStack:[NSThread callStackSymbols]];
+  // Count only writes the rail or the test itself issued. AppKit's own text
+  // system also calls this setter to fix the selection after a storage edit
+  // (NSTextLayoutManager _fixSelectionAfterChangeInCharacterRange, measured on
+  // hosted CI for #878); that write is not the rail's and must not be pinned.
+  NSArray *stack = [NSThread callStackSymbols];
+  NSString *caller = [stack count] > 1 ? [stack objectAtIndex:1] : @"";
+  const BOOL fromTextSystem =
+      [caller rangeOfString:@"UIFoundation"].location != NSNotFound || [caller rangeOfString:@"AppKit"].location != NSNotFound;
+  if (!fromTextSystem)
+  {
+    [self setSelectionWrites:[self selectionWrites] + 1];
+    [self setSelectionWriteStack:stack];
+  }
   [super setSelectedRange:range];
 }
 - (void)dealloc
