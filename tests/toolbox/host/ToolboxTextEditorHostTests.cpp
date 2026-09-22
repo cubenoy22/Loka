@@ -336,6 +336,20 @@ int main()
     pin("paste refuses stale projected identity, restores current rows, then recovers");
   }
   {
+    // The owner inserts a row above the caret without touching the caret's
+    // line: every cached identity survives, but TE's offsets now name the
+    // wrong rows. Both doors must refuse on the revision, not on the identity.
+    Fixture f;
+    LOKA_VERIFY(f.lines.insert(0, String("above")) == EDIT_OK);
+    Snapshot before(f);
+    LOKA_VERIFY(f.context->key('x') == EDITOR_STALE_ID);
+    before.unchanged(f);
+    LOKA_VERIFY(f.restores() == 1);
+    // The restore reprojects the current rows, so the next input is current again.
+    LOKA_VERIFY(f.context->paste("y", 1) == EDITOR_OK && f.restores() == 1);
+    pin("unprojected owner row insertion above the caret refuses the key on the revision, then recovers");
+  }
+  {
     Fixture f;
     Snapshot before(f);
     (**f.te()).destRect.top -= 32;

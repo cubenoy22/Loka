@@ -183,10 +183,10 @@ void ToolboxTextEditorContext::onPropsApplied()
 }
 bool ToolboxTextEditorContext::hasStaleCaret() const
 {
-  // Native offsets may name different rows after an unprojected owner edit.
-  // Keep the old identity refusal without a model-row lookup on ordinary input.
-  return this->revision_ != this->node_->props.lines_->revision().get()
-         && this->node_->props.lines_->find(this->caret_.line) < 0;
+  // TE still shows the last projected revision. Any unprojected owner edit,
+  // structural or not, makes its native offsets name the wrong rows, so the
+  // whole revision is the wall, not the survival of one cached identity.
+  return this->revision_ != this->node_->props.lines_->revision().get();
 }
 EditorResult ToolboxTextEditorContext::beginInput()
 {
