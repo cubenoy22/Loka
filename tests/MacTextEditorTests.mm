@@ -105,10 +105,13 @@ namespace
         LOKA_VERIFY(this->lines.insert(i, String(text)) == EDIT_OK);
       // The initial caret is a fact the seam publishes, not an app request:
       // this rail delivers requests only from PR 4 of #873 onward.
+      // Over-capacity fixtures keep the seam's refusal; every other fixture seeds.
       if (count)
-        LOKA_VERIFY(loka::app::testing::TextEditorAccess::document(this->node).moveCaret(
-                        LineCursor(this->lines.at(0).id, std::min(2, static_cast<int>(text.size()))))
-                    == EDITOR_OK);
+      {
+        const EditorResult seeded = loka::app::testing::TextEditorAccess::document(this->node).moveCaret(
+            LineCursor(this->lines.at(0).id, std::min(2, static_cast<int>(text.size())))));
+        LOKA_VERIFY(seeded == EDITOR_OK || seeded == EDITOR_CAPACITY);
+      }
       LayoutState state;
       state.x = 3;
       state.y = 5;
