@@ -208,6 +208,38 @@ namespace
       }
     }
   };
+  /** Alternate cursor values so every take produces a report. The bound
+      assertion stops an unbounded consumer before it can exhaust memory. */
+  struct RepostingObserver
+  {
+    Fixture &f;
+    const int repostLimit;
+    unsigned delivered;
+    unsigned reports;
+    RepostingObserver(Fixture &fixture, int limit)
+        : f(fixture), repostLimit(limit), delivered(0), reports(0)
+    {
+      f.cursor.state()->bind(&changed, this, false);
+    }
+    ~RepostingObserver()
+    {
+      f.cursor.state()->unbind(&changed, this);
+    }
+    static void changed(void *value)
+    {
+      RepostingObserver &o = *static_cast<RepostingObserver *>(value);
+      ++o.delivered;
+      LOKA_VERIFY(o.delivered <= 2);
+      ++o.reports;
+      LOKA_VERIFY(o.f.request.get().isNone());
+      if (o.repostLimit < 0 || o.reports <= static_cast<unsigned>(o.repostLimit))
+      {
+        o.f.request.set(LineCursor(o.f.lines.at(1).id, o.f.cursor.state()->get().column == 1 ? 2 : 1));
+        o.f.context->onPropsApplied();
+        LOKA_VERIFY(!o.f.request.get().isNone());
+      }
+    }
+  };
   /** Synchronous app work invalidating a borrowed binding or native offsets. */
   struct RequestAction
   {
@@ -378,6 +410,24 @@ int main(int argc, char **argv)
       LOKA_VERIFY(f.cursor.state()->get() == observer.repost);
       LOKA_VERIFY((**f.te()).selStart == 11);
       LOKA_VERIFY(observer.requests == 4 && observer.reports == 2);
+    }
+    else if (std::strcmp(argv[1], "endless") == 0 || std::strcmp(argv[1], "five-reposts") == 0)
+    {
+      const bool endless = std::strcmp(argv[1], "endless") == 0;
+      pin(endless ? "endless repost yields after two reports per delivery"
+                  : "five reposts drain over three explicit deliveries");
+      RepostingObserver observer(f, endless ? -1 : 5);
+      post(f, LineCursor(f.lines.at(1).id, 1));
+      for (unsigned delivery = 0; delivery < 3; ++delivery)
+      {
+        observer.delivered = 0;
+        f.context->onPropsApplied();
+        LOKA_VERIFY(observer.delivered == 2);
+        LOKA_VERIFY(observer.reports == 2 * (delivery + 1));
+        LOKA_VERIFY(f.request.get().isNone() == (!endless && delivery == 2));
+        LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(1).id, 2));
+        LOKA_VERIFY((**f.te()).selStart == 7);
+      }
     }
     else if (std::strcmp(argv[1], "refuse") == 0)
     {

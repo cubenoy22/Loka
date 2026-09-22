@@ -180,55 +180,56 @@ void ToolboxTextEditorContext::onPropsApplied()
 }
 void ToolboxTextEditorContext::consumePendingRequest()
 {
-  // Platform twin of NullTextEditorContext: take before callbacks can repost,
-  // then re-read the slot at the outer completion, never from a nested apply.
-  if (this->phase_ != IDLE)
-    return;
-  while (this->node_)
+  // Platform twin of Null: one take and one epilogue take. Further reposts
+  // stay dirty in the slot for a later props delivery.
+  if (this->consumeRequest())
+    this->consumeRequest();
+}
+bool ToolboxTextEditorContext::consumeRequest()
+{
+  if (this->phase_ != IDLE || !this->node_)
+    return false;
+  const scene::WriteSeat<LineCursor> request = this->node_->props.moveCaretTo_;
+  if (!request.isValid() || request.state()->get().isNone())
+    return false;
+  this->phase_ = INPUT;
+  const LineCursor pending = request.state()->get();
+  const TextEditorProps binding = this->node_->props;
+  request.set(LineCursor::None());
+  if (this->node_ && this->phase_ == INPUT && this->te_ && this->status_ == EDITOR_OK
+      && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED && this->node_->props.lines_ == binding.lines_
+      && this->node_->props.moveCaretTo_.state() == request.state()
+      && this->node_->document.availability() == EDITOR_OK)
   {
-    const scene::WriteSeat<LineCursor> request = this->node_->props.moveCaretTo_;
-    if (!request.isValid() || request.state()->get().isNone())
-      return;
-    this->phase_ = INPUT;
-    const LineCursor pending = request.state()->get();
-    const TextEditorProps binding = this->node_->props;
-    request.set(LineCursor::None());
-    if (this->node_ && this->phase_ == INPUT && this->te_ && this->status_ == EDITOR_OK
-        && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED && this->node_->props.lines_ == binding.lines_
-        && this->node_->props.moveCaretTo_.state() == request.state()
-        && this->node_->document.availability() == EDITOR_OK)
+    loka::core::StateTracker *owner = 0;
+    if (binding.lines_->queryMutationTracker(owner) == loka::core::EDIT_OK && request.usesTracker(owner)
+        && binding.lines_->find(pending.line) >= 0)
     {
-      loka::core::StateTracker *owner = 0;
-      if (binding.lines_->queryMutationTracker(owner) == loka::core::EDIT_OK && request.usesTracker(owner)
-          && binding.lines_->find(pending.line) >= 0)
+      // Taking may notify an owner edit. Native offsets must name current rows.
+      if (this->source_ != binding.lines_ || this->hasStaleCaret())
       {
-        // Taking may notify an owner edit. Native offsets must name current rows.
-        if (this->source_ != binding.lines_ || this->hasStaleCaret())
-        {
-          this->phase_ = RECONCILE;
-          this->project();
-          this->phase_ = INPUT;
-        }
-        if (this->status_ == EDITOR_OK)
-        {
-          const short offset = this->offsetOf(pending);
-          const LineCursor clamped = this->cursorAt(offset);
-          TESetSelect(offset, offset, this->te_);
-          // The document validates the clamped cursor before publishing the fact.
-          this->node_->document.moveCaret(clamped);
-        }
+        this->phase_ = RECONCILE;
+        this->project();
+        this->phase_ = INPUT;
+      }
+      if (this->status_ == EDITOR_OK)
+      {
+        const short offset = this->offsetOf(pending);
+        const LineCursor clamped = this->cursorAt(offset);
+        TESetSelect(offset, offset, this->te_);
+        // The document validates the clamped cursor before publishing the fact.
+        this->node_->document.moveCaret(clamped);
       }
     }
-    if (this->node_ && this->te_ && this->status_ == EDITOR_OK
-        && (this->phase_ == RECONCILE || this->source_ != this->node_->props.lines_ || this->hasStaleCaret()))
-    {
-      this->phase_ = RECONCILE;
-      this->project();
-    }
-    this->phase_ = IDLE;
-    // None callbacks and report callbacks may have spent their props delivery
-    // while INPUT. Loop over current Props even when the taken request refused.
   }
+  if (this->node_ && this->te_ && this->status_ == EDITOR_OK
+      && (this->phase_ == RECONCILE || this->source_ != this->node_->props.lines_ || this->hasStaleCaret()))
+  {
+    this->phase_ = RECONCILE;
+    this->project();
+  }
+  this->phase_ = IDLE;
+  return true;
 }
 bool ToolboxTextEditorContext::hasStaleCaret() const
 {

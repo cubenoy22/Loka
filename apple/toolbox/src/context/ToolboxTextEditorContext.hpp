@@ -57,6 +57,7 @@ private:
   void restoreCommittedProjection();
   void project();
   void consumePendingRequest();
+  bool consumeRequest();
   loka::app::LineCursor cursorAt(short) const;
   short offsetOf(loka::app::LineCursor) const;
   void updateRect(const Rect &);
