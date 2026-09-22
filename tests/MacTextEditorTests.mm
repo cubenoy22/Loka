@@ -109,7 +109,7 @@ namespace
       if (count)
       {
         const EditorResult seeded = loka::app::testing::TextEditorAccess::document(this->node).moveCaret(
-            LineCursor(this->lines.at(0).id, std::min(2, static_cast<int>(text.size())))));
+            LineCursor(this->lines.at(0).id, std::min(2, static_cast<int>(text.size()))));
         LOKA_VERIFY(seeded == EDITOR_OK || seeded == EDITOR_CAPACITY);
       }
       LayoutState state;
