@@ -87,8 +87,9 @@ private:
   void deferRestore();
   void syncCaret();
   void restoreSelection();
-  loka::app::EditorResult commitNativeChange(bool allowLineBreak);
+  loka::app::EditorResult commitNativeChange();
   loka::app::EditorResult applyLines(int first, int oldCount, int newCount, const std::string &logical);
+  loka::app::RowCursor nativeRowCaret() const;
   loka::app::LineCursor nativeCaret() const;
 
   loka::app::TextEditorNode *node_;
