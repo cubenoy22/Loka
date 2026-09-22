@@ -93,6 +93,9 @@ namespace
       ++self.immediate;
       self.fixture.tracker.defer(&flushed, &self);
       LOKA_VERIFY(self.fixture.node.document.moveCaret(self.fixture.cursor.get()) == EDITOR_REENTRANT);
+      const LineCursor caret(self.fixture.lines.at(0).id, 0);
+      LOKA_VERIFY(self.fixture.node.document.applyReplace(caret, caret, "", 0) == EDITOR_REENTRANT);
+      LOKA_VERIFY(self.fixture.node.document.applyReplace(caret, caret, "", 0, RowCursor::None()) == EDITOR_REENTRANT);
       if (self.reenter)
       {
         self.reenter = false;
@@ -510,4 +513,181 @@ void testTextEditorScene()
   platform.projectLayoutForTesting(root, layout);
   LOKA_VERIFY(Input::status(*context) == EDITOR_OK && Input::type(*context, 'y') == EDITOR_OK);
   loka::dsl::testing::SceneTestAccess::unmount(scene);
+}
+void testTextEditorReplace()
+{
+  {
+    Fixture f(3, "ab", 3);
+    const ItemId a = f.lines.at(0).id, b = f.lines.at(1).id, c = f.lines.at(2).id;
+    LOKA_VERIFY(f.lines.update(b, String("cd")) == EDIT_OK);
+    LOKA_VERIFY(f.lines.update(c, String("ef")) == EDIT_OK);
+    Observer observer(f);
+    LOKA_VERIFY(f.node.document.applyReplace(LineCursor(a, 1), LineCursor(c, 1), "X\rY", 3) == EDITOR_OK);
+    LOKA_VERIFY(f.lines.size() == 2 && f.lines.at(0).id == a);
+    LOKA_VERIFY(bytes(f.lines.at(0).value) == "aX" && bytes(f.lines.at(1).value) == "Yf");
+    const ItemId d = f.lines.at(1).id;
+    LOKA_VERIFY(d != a && d != b && d != c && f.lines.find(b) < 0 && f.lines.find(c) < 0);
+    LOKA_VERIFY(f.cursor.get() == LineCursor(d, 1));
+    LOKA_VERIFY(observer.immediate == 1 && observer.settled == 1 && observer.cursorNotifications == 1);
+    LOKA_VERIFY(f.lines.revision().get().change.kind == LIST_BATCH);
+    // Grow back to the reserved capacity, then refuse a final size that exceeds it.
+    LOKA_VERIFY(f.node.document.applyReplace(LineCursor(a, 1), LineCursor(d, 1), "1\r2\r3", 5) == EDITOR_OK);
+    LOKA_VERIFY(f.lines.size() == 3 && bytes(f.lines.at(2).value) == "3f");
+    Snapshot snapshot(f);
+    LOKA_VERIFY(f.node.document.applyReplace(LineCursor(a, 0), LineCursor(a, 1), "x\ry", 3) == EDITOR_CAPACITY);
+    snapshot.unchanged(f);
+  }
+  // Full capacity with a nonshrinking replacement still needs REMOVE before INSERT.
+  {
+    Fixture f(3, "abcd", 3);
+    const ItemId a = f.lines.at(0).id, c = f.lines.at(2).id;
+    LOKA_VERIFY(f.node.document.applyReplace(LineCursor(a, 1), LineCursor(c, 2), "X\r\nY\nZ", 6) == EDITOR_OK);
+    LOKA_VERIFY(f.lines.size() == 3 && f.lines.at(0).id == a);
+    LOKA_VERIFY(bytes(f.lines.at(0).value) == "aX" && bytes(f.lines.at(1).value) == "Y"
+                && bytes(f.lines.at(2).value) == "Zcd");
+    LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(2).id, 1));
+  }
+  {
+    Fixture f(1);
+    const ItemId a = f.lines.at(0).id;
+    LOKA_VERIFY(f.node.document.applyReplace(LineCursor(a, 2), LineCursor(a, 2), "\r", 1, RowCursor(1, 1))
+                == EDITOR_OK);
+    LOKA_VERIFY(bytes(f.lines.at(0).value) == "ab" && bytes(f.lines.at(1).value) == "cd");
+    LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(1).id, 1));
+    LOKA_VERIFY(f.node.document.applyReplace(LineCursor(a, 0), LineCursor(a, 1), "Z", 1, RowCursor::None())
+                == EDITOR_OK);
+    LOKA_VERIFY(f.cursor.get() == LineCursor::None());
+  }
+  // Post-state rows before, inside, and after the replaced range use different lengths.
+  for (unsigned short row = 0; row < 4; ++row)
+  {
+    Fixture f(4, "abcd");
+    const ItemId first = f.lines.at(1).id, last = f.lines.at(2).id, tail = f.lines.at(3).id;
+    const LineCursor::Column column = row == 1 ? 2 : row == 2 ? 3 : 4;
+    LOKA_VERIFY(
+        f.node.document.applyReplace(LineCursor(first, 1), LineCursor(last, 2), "X\rY", 3, RowCursor(row, column))
+        == EDITOR_OK);
+    LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(row).id, column));
+    LOKA_VERIFY(f.lines.at(3).id == tail);
+  }
+  for (int grow = 0; grow < 2; ++grow)
+  {
+    Fixture f(4, "abcd");
+    const ItemId tail = f.lines.at(3).id;
+    LOKA_VERIFY(f.node.document.applyReplace(LineCursor(f.lines.at(1).id, 0),
+                                             LineCursor(f.lines.at(2).id, 4),
+                                             grow ? "x\ry\rz" : "x",
+                                             grow ? 5 : 1,
+                                             RowCursor(grow ? 4 : 2, 4))
+                == EDITOR_OK);
+    LOKA_VERIFY(f.cursor.get() == LineCursor(tail, 4));
+  }
+  // applySingleLine translates the supplied caret identity, including another row.
+  {
+    Fixture f;
+    const ItemId a = f.lines.at(0).id, c = f.lines.at(2).id;
+    LOKA_VERIFY(f.node.document.applySingleLine(a, String("x"), LineCursor(c, 4)) == EDITOR_OK);
+    LOKA_VERIFY(f.cursor.get() == LineCursor(c, 4));
+    LOKA_VERIFY(f.node.document.applySingleLine(a, String("y"), LineCursor::None()) == EDITOR_OK);
+    LOKA_VERIFY(f.cursor.get().isNone());
+  }
+  {
+    Fixture f;
+    const LineCursor caret(f.lines.at(0).id, 0);
+    Observer observer(f);
+    const Snapshot snapshot(f);
+    LOKA_VERIFY(f.node.document.applyReplace(caret, caret, 0, 0) == EDITOR_OK);
+    snapshot.unchanged(f);
+    LOKA_VERIFY(observer.immediate == 0 && observer.cursorNotifications == 0);
+    LOKA_VERIFY(f.node.document.applyReplace(caret, caret, "", 0, RowCursor(2, 1)) == EDITOR_OK);
+    LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(2).id, 1));
+    LOKA_VERIFY(!(f.lines.revision().get() != snapshot.revision));
+    LOKA_VERIFY(observer.immediate == 0 && observer.cursorNotifications == 1);
+    LOKA_VERIFY(f.node.document.applyReplace(caret, caret, "", 0, RowCursor::None()) == EDITOR_OK);
+    LOKA_VERIFY(f.cursor.get().isNone() && observer.cursorNotifications == 2);
+    LOKA_VERIFY(Input::move(*f.context, caret) == EDITOR_OK);
+    const Snapshot beforeBackspace(f);
+    const unsigned restores = Input::restores(*f.context);
+    LOKA_VERIFY(Input::backspace(*f.context) == EDITOR_OK);
+    beforeBackspace.unchanged(f);
+    LOKA_VERIFY(Input::restores(*f.context) == restores);
+  }
+  std::printf("[pin] TextEditor range replacement, capacity reuse, post-state caret, empty edit\n");
+}
+void testTextEditorReplaceRefusals()
+{
+  Fixture f;
+  const LineCursor a(f.lines.at(0).id, 1), c(f.lines.at(2).id, 1);
+  Observer observer(f);
+  Snapshot snapshot(f);
+  const LineCursor invalid[] = {
+      LineCursor::None(), LineCursor(a.line, -1), LineCursor(a.line, 5), LineCursor(ItemId(123, 456), 0)};
+  for (unsigned i = 0; i < sizeof(invalid) / sizeof(invalid[0]); ++i)
+  {
+    const EditorResult expected = i == 3 ? EDITOR_STALE_ID : EDITOR_INVALID_CURSOR;
+    LOKA_VERIFY(f.node.document.applyReplace(invalid[i], c, "x", 1) == expected);
+    snapshot.unchanged(f);
+    LOKA_VERIFY(f.node.document.applyReplace(a, invalid[i], "x", 1) == expected);
+    snapshot.unchanged(f);
+  }
+  LOKA_VERIFY(f.node.document.applySingleLine(a.line, String("x"), invalid[3]) == EDITOR_STALE_ID);
+  snapshot.unchanged(f);
+  LOKA_VERIFY(f.node.document.applyReplace(c, a, "", 0) == EDITOR_INVALID_CURSOR);
+  LOKA_VERIFY(f.node.document.applyReplace(LineCursor(a.line, 2), a, "", 0) == EDITOR_INVALID_CURSOR);
+  const RowCursor invalidRows[] = {RowCursor(3, 0), RowCursor(0, -1), RowCursor(0, 3), RowCursor(1, 5)};
+  for (unsigned i = 0; i < sizeof(invalidRows) / sizeof(invalidRows[0]); ++i)
+  {
+    LOKA_VERIFY(f.node.document.applyReplace(a, c, "X\rY", 3, invalidRows[i]) == EDITOR_INVALID_CURSOR);
+    snapshot.unchanged(f);
+  }
+  LOKA_VERIFY(f.node.document.applyReplace(a, a, "", 0, RowCursor(3, 0)) == EDITOR_INVALID_CURSOR);
+  LOKA_VERIFY(f.node.document.applyReplace(a, a, "", 0, RowCursor(0, -1)) == EDITOR_INVALID_CURSOR);
+  LOKA_VERIFY(f.node.document.applyReplace(a, a, "", 0, RowCursor(0, 5)) == EDITOR_INVALID_CURSOR);
+  LOKA_VERIFY(f.node.document.applyReplace(a, c, 0, 1) == EDITOR_NON_ASCII);
+  LOKA_VERIFY(f.node.document.applyReplace(a, c, "\0", 1) == EDITOR_NON_ASCII);
+  LOKA_VERIFY(f.node.document.applyReplace(a, c, "\200", 1) == EDITOR_NON_ASCII);
+  const std::string oversized(16385, 'x');
+  LOKA_VERIFY(f.node.document.applyReplace(a, c, oversized.data(), oversized.size()) == EDITOR_CAPACITY);
+  snapshot.unchanged(f);
+  LOKA_VERIFY(observer.immediate == 0 && observer.cursorNotifications == 0);
+  // Validation precedes scratch allocation, even when a later layer also refuses.
+  const std::string oversizedInvalid(16385, '\0');
+  LOKA_VERIFY(f.node.document.applyReplace(a, c, oversizedInvalid.data(), oversizedInvalid.size()) == EDITOR_CAPACITY);
+  loka::core::testing::failLokaAllocRaw("TextEditor", "Scratch", 1);
+  LOKA_VERIFY(f.node.document.applyReplace(a, c, "\200", 1) == EDITOR_NON_ASCII);
+  loka::core::testing::allowLokaAllocRaw();
+  {
+    Fixture tight(3, "abcd", 3);
+    const LineCursor first(tight.lines.at(0).id, 0);
+    const Snapshot before(tight);
+    loka::core::testing::failLokaAllocRaw("TextEditor", "Scratch", 1);
+    LOKA_VERIFY(tight.node.document.applyReplace(first, first, "\r", 1) == EDITOR_CAPACITY);
+    loka::core::testing::allowLokaAllocRaw();
+    before.unchanged(tight);
+  }
+  {
+    Fixture full(256, "", 257);
+    const LineCursor first(full.lines.at(0).id, 0);
+    const Snapshot before(full);
+    LOKA_VERIFY(full.node.document.applyReplace(first, first, "\r", 1) == EDITOR_CAPACITY);
+    before.unchanged(full);
+  }
+  {
+    Fixture full(2, std::string(4095, 'x'));
+    const LineCursor first(full.lines.at(0).id, 0);
+    const Snapshot before(full);
+    LOKA_VERIFY(full.node.document.applyReplace(first, first, "xx", 2) == EDITOR_CAPACITY);
+    before.unchanged(full);
+  }
+  // Removed-byte accounting includes every crossed CR, and subtracts old content.
+  {
+    Fixture full(3, "");
+    const std::string huge(8190, 'x');
+    LOKA_VERIFY(full.lines.update(full.lines.at(1).id, String(huge)) == EDIT_OK);
+    LOKA_VERIFY(full.node.document.applyReplace(
+                    LineCursor(full.lines.at(0).id, 0), LineCursor(full.lines.at(2).id, 0), oversized.data(), 8192)
+                == EDITOR_OK);
+    LOKA_VERIFY(full.lines.size() == 1 && bytes(full.lines.at(0).value).size() == 8192);
+  }
+  std::printf("[pin] TextEditor range refusal atomicity and crossed-CR byte accounting\n");
 }

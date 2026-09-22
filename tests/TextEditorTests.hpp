@@ -4,4 +4,6 @@ void testTextEditorActions();
 void testTextEditorRefusals();
 void testTextEditorHighlight();
 void testTextEditorScene();
+void testTextEditorReplace();
+void testTextEditorReplaceRefusals();
 #endif

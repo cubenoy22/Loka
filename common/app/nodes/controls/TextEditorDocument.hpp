@@ -37,6 +37,13 @@ namespace loka
       EditorResult applyJoin(core::ItemId id);
       /** Insert CR/LF/CRLF-normalized text at a caret in one operation. */
       EditorResult applyKeystroke(LineCursor before, const char *bytes, std::size_t length);
+      /** Replace the text between two cursors (document order) with CR/LF/CRLF-normalized
+          bytes in ONE validated ListOp batch. from.line keeps its identity; the caret
+          lands at the end of the insertion. */
+      EditorResult applyReplace(LineCursor from, LineCursor to, const char *bytes, std::size_t length);
+      /** Same replacement, caret supplied as a POST-state row index and column.
+          RowCursor::None() publishes no caret; the row's ItemId is resolved after commit. */
+      EditorResult applyReplace(LineCursor from, LineCursor to, const char *bytes, std::size_t length, RowCursor after);
       EditorResult moveCaret(LineCursor after);
       /** Bounded serialization for projections. No publication. */
       EditorResult project(std::string &out) const;
@@ -49,7 +56,8 @@ namespace loka
       EditorResult measure(std::size_t &bytes) const;
       EditorResult validateCursor(LineCursor cursor) const;
       EditorResult
-      commit(core::ListOp<core::String> *ops, unsigned short count, LineCursor after, int insertedIndex = -1);
+      replace(LineCursor from, LineCursor to, const char *bytes, std::size_t length, const RowCursor *after);
+      EditorResult commit(core::ListOpCursor<core::String> &ops, RowCursor after);
       const TextEditorProps &props_;
     };
   } // namespace app
