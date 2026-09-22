@@ -174,16 +174,25 @@ void Win32TextEditorContext::deferRestore()
 {
   if (!this->hwnd_ || !this->node_ || this->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED)
     return;
+  const Phase completion = this->phase_;
   this->phase_ = RETRY;
   SendMessageW(this->hwnd_, EM_SETREADONLY, TRUE, 0);
   // A window timer is a later native turn, not the StateTracker drain loop.
   // Failure to arm leaves the explicit read-only state; props application can retry.
-  SetTimer(this->hwnd_, kRestoreTimer, 1, NULL);
+  if (!SetTimer(this->hwnd_, kRestoreTimer, 1, NULL))
+  {
+    this->phase_ = completion == COMMIT ? COMMIT : IDLE;
+    this->status_ = EDITOR_UNAVAILABLE;
+    this->consumePendingRequest();
+    this->phase_ = RETRY;
+  }
 }
 bool Win32TextEditorContext::replaceProjection()
 {
   if (!this->hwnd_ || !this->node_ || this->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED)
     return false;
+  // A repair from the request consumer must keep its exclusion at completion.
+  const Phase completion = this->phase_ == COMMIT ? COMMIT : IDLE;
   this->phase_ = RESTORING;
   const EditorResult projected = this->projection_.capture(*this->node_);
   const bool available = projected == EDITOR_OK;
@@ -194,16 +203,19 @@ bool Win32TextEditorContext::replaceProjection()
   {
     this->status_ = EDITOR_UNAVAILABLE;
     this->delivery_ = scene::PaintAnswer::refused(scene::PAINT_REFUSED_PROPS_UNRECONCILED);
+    this->phase_ = completion;
+    this->consumePendingRequest();
     this->deferRestore();
     return false;
   }
   this->restoreSelection();
   this->status_ = projected;
-  this->phase_ = IDLE;
+  this->phase_ = completion;
   SendMessageW(this->hwnd_, EM_SETREADONLY, available ? FALSE : TRUE, 0);
   this->delivery_ = scene::PaintAnswer::nativeScheduled();
   if (projected == EDITOR_ALLOCATION)
     this->deferRestore();
+  this->consumePendingRequest();
   return true;
 }
 void Win32TextEditorContext::restoreSelection()
@@ -237,7 +249,10 @@ void Win32TextEditorContext::syncFromNode()
   if (this->phase_ != IDLE && this->phase_ != RETRY)
     return;
   if (!this->hwnd_ || !this->node_ || this->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED)
+  {
+    this->consumePendingRequest();
     return;
+  }
   if (this->phase_ == RETRY)
   {
     KillTimer(this->hwnd_, kRestoreTimer);
@@ -247,24 +262,68 @@ void Win32TextEditorContext::syncFromNode()
   this->captureSelection();
   if (this->status_ == EDITOR_OK && this->projection_.current(*this->node_))
   {
-    // A native echo must preserve selection and undo. Only an externally
-    // moved committed cursor collapses the native selection.
-    const LineCursor desired = this->node_->props.cursorState()->get();
-    if (!desired.isNone() && desired != this->nativeCaret())
-    {
-      this->phase_ = RESTORING;
-      this->restoreSelection();
-      this->phase_ = IDLE;
-      this->delivery_ = scene::PaintAnswer::nativeScheduled();
-    }
-    else
-    {
-      const scene::PaintDamage empty = {paintScope(), 0, 0, 0, 0, scene::PAINT_COVERAGE_PAINT_ONLY};
-      this->delivery_ = scene::PaintAnswer::exact(empty);
-    }
-    return;
+    // Reports are facts, never commands to collapse a native selection.
+    const scene::PaintDamage empty = {paintScope(), 0, 0, 0, 0, scene::PAINT_COVERAGE_PAINT_ONLY};
+    this->delivery_ = scene::PaintAnswer::exact(empty);
   }
-  this->replaceProjection();
+  else
+    this->replaceProjection();
+  this->consumePendingRequest();
+}
+void Win32TextEditorContext::consumePendingRequest()
+{
+  // Platform twin of Null/Toolbox: take before apply, then drain finite reposts
+  // at the outer completion. RETRY is deferred, never an idle delivery point.
+  if (this->phase_ != IDLE)
+    return;
+  Phase completion = IDLE;
+  while (this->node_)
+  {
+    const scene::WriteSeat<LineCursor> request = this->node_->props.moveCaretTo_;
+    if (!request.isValid() || request.state()->get().isNone())
+      break;
+    this->phase_ = COMMIT;
+    const LineCursor pending = request.state()->get();
+    const TextEditorProps binding = this->node_->props;
+    request.set(LineCursor::None());
+    if (this->node_ && this->phase_ == COMMIT && this->hwnd_ && this->status_ == EDITOR_OK
+        && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED && this->node_->props.lines_ == binding.lines_
+        && this->node_->props.moveCaretTo_.state() == request.state()
+        && this->node_->document.availability() == EDITOR_OK)
+    {
+      loka::core::StateTracker *owner = 0;
+      if (binding.lines_->queryMutationTracker(owner) == loka::core::EDIT_OK && request.usesTracker(owner)
+          && binding.lines_->find(pending.line) >= 0)
+      {
+        // A take notification can edit the model. Repair before asking EDIT
+        // for offsets, keeping COMMIT across the projection's delivery tail.
+        if (!this->projection_.current(*this->node_))
+          this->replaceProjection();
+        if (this->phase_ == COMMIT && this->status_ == EDITOR_OK)
+        {
+          const int row = binding.lines_->find(pending.line);
+          const int offset = static_cast<int>(SendMessageW(this->hwnd_, EM_LINEINDEX, row, 0));
+          const int length = static_cast<int>(SendMessageW(this->hwnd_, EM_LINELENGTH, offset, 0));
+          const int column = pending.column < 0 ? 0 : (pending.column > length ? length : pending.column);
+          const LineCursor clamped(pending.line, column);
+          SendMessageW(this->hwnd_, EM_SETSEL, offset + column, offset + column);
+          this->delivery_ = scene::PaintAnswer::nativeScheduled();
+          this->node_->document.moveCaret(clamped);
+        }
+      }
+    }
+    if (this->node_ && this->hwnd_ && this->status_ == EDITOR_OK
+        && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED
+        && (this->phase_ == REJECTED || !this->projection_.current(*this->node_)))
+    {
+      this->phase_ = COMMIT;
+      this->replaceProjection();
+    }
+    // A failed repair refuses reposts too, but keeps its admitted native retry.
+    if (this->phase_ == RETRY)
+      completion = RETRY;
+  }
+  this->phase_ = completion;
 }
 RowCursor Win32TextEditorContext::nativeRowCaret() const
 {
@@ -396,6 +455,7 @@ bool Win32TextEditorContext::handleCommand(WPARAM wParam, LPARAM)
       this->deferRestore();
     else
       this->phase_ = IDLE;
+    this->consumePendingRequest();
   }
   return true;
 }
@@ -459,6 +519,7 @@ LRESULT CALLBACK Win32TextEditorContext::WindowProc(HWND window, UINT message, W
   self->phase_ = IDLE;
   if (rejected)
     self->restoreCommittedProjection();
+  self->consumePendingRequest();
   return result;
 }
 short Win32TextEditorContext::layout(scene::IPlatformController *, scene::LayoutState &state)

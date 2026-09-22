@@ -82,6 +82,7 @@ private:
   static LRESULT CALLBACK WindowProc(HWND, UINT, WPARAM, LPARAM);
   void captureSelection();
   void syncFromNode();
+  void consumePendingRequest();
   void restoreCommittedProjection();
   bool replaceProjection();
   void deferRestore();

@@ -153,6 +153,7 @@ namespace
     HWND window;
     WNDPROC previous;
     unsigned lineReads, textReads, sets;
+    std::vector<WPARAM> selections;
     bool echo, restoredInsideNotification, seedUndo;
     explicit Probe(HWND value)
         : window(value),
@@ -180,6 +181,8 @@ namespace
     static LRESULT CALLBACK proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
     {
       Probe &probe = *static_cast<Probe *>(GetPropW(window, kProbe));
+      if (message == EM_SETSEL)
+        probe.selections.push_back(wParam);
       if (message == EM_GETLINE)
         ++probe.lineReads;
       if (message == WM_GETTEXT)
@@ -309,6 +312,83 @@ namespace
       LOKA_VERIFY(GetWindowTextLengthW(context->hwnd()) == static_cast<int>(desired.size()));
     }
   };
+  void expectSelection(const Fixture &fixture, DWORD expected)
+  {
+    DWORD start = 0, end = 0;
+    SendMessageW(fixture.context->hwnd(), EM_GETSEL, reinterpret_cast<WPARAM>(&start), reinterpret_cast<LPARAM>(&end));
+    LOKA_VERIFY(start == expected && end == expected);
+  }
+  /** One finite repost, with a nested props delivery that must not consume it. */
+  class RequestOnReport
+  {
+  public:
+    RequestOnReport(Fixture &fixture, LineCursor next)
+        : fixture_(fixture), next_(next), reports_()
+    {
+      this->fixture_.cursor.state()->bind(&changed, this, false);
+    }
+    ~RequestOnReport()
+    {
+      this->fixture_.cursor.state()->unbind(&changed, this);
+    }
+    const std::vector<LineCursor> &reports() const
+    {
+      return this->reports_;
+    }
+
+  private:
+    static void changed(void *data)
+    {
+      RequestOnReport &self = *static_cast<RequestOnReport *>(data);
+      self.reports_.push_back(self.fixture_.cursor.state()->get());
+      if (self.next_.isNone())
+        return;
+      const LineCursor next = self.next_;
+      self.next_ = LineCursor::None();
+      StateTrackerGuard guard(&self.fixture_.tracker);
+      self.fixture_.request.set(next);
+      self.fixture_.context->onPropsApplied();
+      LOKA_VERIFY(self.fixture_.request.get() == next);
+    }
+    Fixture &fixture_;
+    LineCursor next_;
+    std::vector<LineCursor> reports_;
+  };
+  /** Observe both real publications while posting between delete and insert. */
+  class RequestBetweenChanges
+  {
+  public:
+    explicit RequestBetweenChanges(Fixture &fixture)
+        : fixture_(fixture), publications_()
+    {
+      const_cast<State<ListRevision> &>(this->fixture_.lines.revision()).bind(&changed, this, false);
+    }
+    ~RequestBetweenChanges()
+    {
+      const_cast<State<ListRevision> &>(this->fixture_.lines.revision()).unbind(&changed, this);
+    }
+    const std::vector<std::wstring> &publications() const
+    {
+      return this->publications_;
+    }
+
+  private:
+    static void changed(void *data)
+    {
+      RequestBetweenChanges &self = *static_cast<RequestBetweenChanges *>(data);
+      self.publications_.push_back(self.fixture_.native());
+      const LineCursor next(self.fixture_.lines.at(0).id, 0);
+      if (self.publications_.size() == 1)
+      {
+        StateTrackerGuard guard(&self.fixture_.tracker);
+        self.fixture_.request.set(next);
+      }
+      self.fixture_.context->onPropsApplied();
+      LOKA_VERIFY(self.fixture_.request.get() == next);
+    }
+    Fixture &fixture_;
+    std::vector<std::wstring> publications_;
+  };
   void printUndoText(const char *label, const std::wstring &wide, const std::string &before)
   {
     // Escape UTF-16 units so non-ASCII and line endings survive console encoding.
@@ -431,6 +511,108 @@ namespace
       }
     }
   };
+  void testWin32TextEditorCaretRequests()
+  {
+    {
+      Fixture fixture;
+      LOKA_VERIFY(fixture.request.get().isNone());
+      expectSelection(fixture, 2);
+      const LineCursor requested(fixture.lines.at(1).id, 99);
+      {
+        StateTrackerGuard guard(&fixture.tracker);
+        fixture.request.set(requested);
+      }
+      fixture.context->onPropsApplied();
+      expectSelection(fixture, 10);
+      LOKA_VERIFY(fixture.cursor.state()->get() == LineCursor(requested.line, 4));
+      LOKA_VERIFY(fixture.request.get().isNone());
+      Probe probe(fixture.context->hwnd());
+      fixture.context->onPropsApplied();
+      LOKA_VERIFY(probe.selections.empty());
+    }
+    {
+      Fixture fixture;
+      const LineCursor first(fixture.lines.at(0).id, 1), next(fixture.lines.at(1).id, 3);
+      RequestOnReport repost(fixture, next);
+      {
+        StateTrackerGuard guard(&fixture.tracker);
+        fixture.request.set(first);
+      }
+      fixture.context->onPropsApplied();
+      LOKA_VERIFY(repost.reports().size() == 2);
+      LOKA_VERIFY(repost.reports()[0] == first && repost.reports()[1] == next);
+      LOKA_VERIFY(fixture.request.get().isNone() && fixture.cursor.state()->get() == next);
+      expectSelection(fixture, 9);
+    }
+    {
+      Fixture fixture;
+      const LineCursor next(fixture.lines.at(1).id, 1);
+      RequestOnReport repost(fixture, next);
+      SendMessageW(fixture.context->hwnd(), WM_KEYDOWN, VK_LEFT, 1);
+      LOKA_VERIFY(fixture.request.get().isNone() && fixture.cursor.state()->get() == next);
+      expectSelection(fixture, 7);
+    }
+    {
+      Fixture fixture;
+      const LineCursor next(fixture.lines.at(1).id, 1);
+      {
+        StateTrackerGuard guard(&fixture.tracker);
+        fixture.request.set(next);
+      }
+      LOKA_VERIFY(SetWindowTextW(fixture.context->hwnd(), L"abxcd\r\nabcd\r\nabcd"));
+      SendMessageW(fixture.host, WM_COMMAND, MAKEWPARAM(0, EN_CHANGE), reinterpret_cast<LPARAM>(fixture.context->hwnd()));
+      LOKA_VERIFY(fixture.lines.at(0).value.equals(String("abxcd")));
+      LOKA_VERIFY(fixture.request.get().isNone() && fixture.cursor.state()->get() == next);
+      expectSelection(fixture, 8);
+    }
+    {
+      Fixture fixture;
+      Observer observer(fixture);
+      RequestBetweenChanges between(fixture);
+      SendMessageW(fixture.context->hwnd(), EM_SETSEL, 1, 3);
+      SendMessageW(fixture.context->hwnd(), EM_REPLACESEL, TRUE, reinterpret_cast<LPARAM>(L"Q"));
+      LOKA_VERIFY(between.publications().size() == 2);
+      LOKA_VERIFY(between.publications()[0] == L"ad\r\nabcd\r\nabcd");
+      LOKA_VERIFY(between.publications()[1] == L"aQd\r\nabcd\r\nabcd");
+      LOKA_VERIFY(observer.notifications == 2 && observer.settled == 2);
+      LOKA_VERIFY(fixture.request.get().isNone());
+      LOKA_VERIFY(fixture.cursor.state()->get() == LineCursor(fixture.lines.at(0).id, 0));
+      expectSelection(fixture, 0);
+      LOKA_VERIFY(SendMessageW(fixture.context->hwnd(), EM_CANUNDO, 0, 0));
+      fixture.matches();
+    }
+  }
+  void testWin32TextEditorReverseBoundaryCaret()
+  {
+    Fixture fixture;
+    // Delete inside the second line, then cross its preceding CRLF both ways.
+    SendMessageW(fixture.context->hwnd(), EM_SETSEL, 8, 8);
+    fixture.type(L'\b');
+    LOKA_VERIFY(fixture.lines.at(1).value.equals(String("acd")));
+    expectSelection(fixture, 7);
+    LOKA_VERIFY(fixture.cursor.state()->get() == LineCursor(fixture.lines.at(1).id, 1));
+    Probe probe(fixture.context->hwnd());
+    const UINT keys[] = {VK_LEFT, VK_LEFT, VK_RIGHT, VK_RIGHT};
+    const DWORD offsets[] = {6, 4, 6, 7};
+    const unsigned short rows[] = {1, 0, 1, 1};
+    const int columns[] = {0, 4, 0, 1};
+    for (unsigned i = 0; i < 4; ++i)
+    {
+      SendMessageW(fixture.context->hwnd(), WM_KEYDOWN, keys[i], 1);
+      fixture.context->onPropsApplied();
+      expectSelection(fixture, offsets[i]);
+      LOKA_VERIFY(fixture.cursor.state()->get() == LineCursor(fixture.lines.at(rows[i]).id, columns[i]));
+      LOKA_VERIFY(probe.selections.empty());
+    }
+    // Positive control for the EM_SETSEL instrument, after the report-only run.
+    SendMessageW(fixture.context->hwnd(), EM_SETSEL, 1, 3);
+    LOKA_VERIFY(probe.selections.size() == 1);
+    fixture.context->onPropsApplied();
+    DWORD start = 0, end = 0;
+    SendMessageW(fixture.context->hwnd(), EM_GETSEL, reinterpret_cast<WPARAM>(&start), reinterpret_cast<LPARAM>(&end));
+    LOKA_VERIFY(start == 1 && end == 3 && probe.selections.size() == 1);
+    LOKA_VERIFY(SendMessageW(fixture.context->hwnd(), EM_CANUNDO, 0, 0));
+  }
   void restored(Fixture &fixture, const Snapshot &snapshot, const Observer &observer)
   {
     snapshot.unchanged(fixture);
@@ -564,6 +746,8 @@ void testWin32TextEditorConversion()
 }
 void testWin32TextEditorActionsUseLineQueries()
 {
+  testWin32TextEditorCaretRequests();
+  testWin32TextEditorReverseBoundaryCaret();
   testWin32TextEditorMultilineTyping();
   testWin32TextEditorMultilineBackspace();
   testWin32TextEditorMultilineReturn();
@@ -885,8 +1069,13 @@ void testWin32TextEditorFailedReplacementRetries()
         loka::win32::testing::TEXT_EDITOR_SET_FALSE_AFTER_DELIVERY};
     loka::win32::testing::failTextEditorSets(failures[failure], failure == 0 ? 2 : 1);
     const Snapshot before(fixture);
+    {
+      StateTrackerGuard guard(&fixture.tracker);
+      fixture.request.set(LineCursor(fixture.lines.at(1).id, 1));
+    }
     fixture.type(L'\r');
     before.unchanged(fixture);
+    LOKA_VERIFY(fixture.request.get().isNone());
     LOKA_VERIFY(EditorAccess::pending(*fixture.context));
     LOKA_VERIFY(GetWindowLongPtrW(fixture.context->hwnd(), GWL_STYLE) & ES_READONLY);
     LOKA_VERIFY(EditorAccess::restores(*fixture.context) == 1 && !probe.restoredInsideNotification);
