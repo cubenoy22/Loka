@@ -554,11 +554,18 @@ void testMacTextEditorUndoLocation()
   for (unsigned short i = 0; i < multi.lines.size(); ++i)
     LOKA_VERIFY(bytes(multi.lines.at(i).value) == "abcd");
   LOKA_VERIFY([[multi.view string] isEqualToString:@"abcd\nabcd\nabcd"]);
-  const NSUInteger restoredCaret = [multi.view selectedRange].location;
-  LOKA_VERIFY(restoredCaret <= 14);
-  LOKA_VERIFY(multi.cursor.get() == LineCursor(multi.lines.at(static_cast<unsigned short>(restoredCaret / 5)).id,
-                                             static_cast<int>(restoredCaret % 5)));
+  // Undo reaches the rail through the storage delegate only, and AppKit leaves
+  // a selection outside the restored span where it was (offset 0 here), so no
+  // selection notification follows. The storage path derives the caret from
+  // the change span: the end of the restored text, "abcd\nabcd\nabc|d".
+  LOKA_VERIFY(NSEqualRanges([multi.view selectedRange], NSMakeRange(0, 0)));
+  LOKA_VERIFY(multi.cursor.get() == LineCursor(multi.lines.at(2).id, 3));
   LOKA_VERIFY(multiObserver.calls == 2 && Access::restores(*multi.context) == 0 && [multi.view isEditable]);
+  // The next selection notification reports the native caret over the committed text.
+  [[multi.view delegate]
+      textViewDidChangeSelection:[NSNotification notificationWithName:NSTextViewDidChangeSelectionNotification
+                                                               object:multi.view]];
+  LOKA_VERIFY(multi.cursor.get() == LineCursor(retained, 0) && multiObserver.calls == 2);
 }
 
 void testMacTextEditorStorageChanges()
