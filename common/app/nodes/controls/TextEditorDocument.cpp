@@ -98,6 +98,54 @@ namespace loka
         EditorScratch &operator=(const EditorScratch &);
         char *data_;
       };
+      /** Stack-borrowed replay: live IDs remain stable until apply swaps its buffers.
+          Payload construction is complete before either allocation-free traversal. */
+      class ReplaceOpCursor : public core::ListOpCursor<core::String>
+      {
+      public:
+        ReplaceOpCursor(const core::ObservableList<core::String> &lines,
+                        unsigned short first,
+                        unsigned short last,
+                        const core::String *payloads,
+                        unsigned short breaks)
+            : lines_(lines),
+              first_(first),
+              last_(last),
+              payloads_(payloads),
+              breaks_(breaks),
+              index_(0)
+        {
+        }
+        virtual void rewind()
+        {
+          this->index_ = 0;
+        }
+        virtual bool next(core::ListOp<core::String> &out)
+        {
+          const unsigned short removed = this->last_ - this->first_;
+          if (this->index_ > removed + this->breaks_)
+            return false;
+          if (!this->index_)
+            out = core::ListOp<core::String>(core::UPDATE, this->lines_.at(this->first_).id, 0, this->payloads_[0]);
+          else if (this->index_ <= removed)
+            out = core::ListOp<core::String>(core::REMOVE, this->lines_.at(this->first_ + this->index_).id);
+          else
+          {
+            const unsigned short inserted = this->index_ - removed;
+            out = core::ListOp<core::String>(
+                core::INSERT, core::ItemId(), this->first_ + inserted, this->payloads_[inserted]);
+          }
+          ++this->index_;
+          return true;
+        }
+
+      private:
+        const core::ObservableList<core::String> &lines_;
+        const unsigned short first_, last_;
+        const core::String *const payloads_;
+        const unsigned short breaks_;
+        unsigned short index_;
+      };
       EditorResult resultOf(core::ListEditResult result)
       {
         switch (result)
@@ -206,10 +254,7 @@ namespace loka
       return cursor.column >= 0 && static_cast<std::size_t>(cursor.column) <= line.size() ? EDITOR_OK
                                                                                           : EDITOR_INVALID_CURSOR;
     }
-    EditorResult TextEditorDocument::commit(core::ListOp<core::String> *ops,
-                                            unsigned short count,
-                                            LineCursor after,
-                                            int insertedIndex)
+    EditorResult TextEditorDocument::commit(core::ListOpCursor<core::String> &ops, RowCursor after)
     {
       core::ObservableList<core::String> &lines = *this->props_.lines_;
       const scene::WriteSeat<LineCursor> cursor = this->props_.cursor_;
@@ -218,20 +263,20 @@ namespace loka
       if (ready != core::EDIT_OK)
         return resultOf(ready);
       core::StateTrackerGuard guard(owner);
-      core::ArrayListOpCursor<core::String> batch(ops, count);
-      const core::ListEditResult edited =
-          count == 1 && ops[0].kind == core::UPDATE ? lines.update(ops[0].id, ops[0].after) : lines.apply(batch);
+      // A lone UPDATE (the ordinary keystroke) keeps the in-place update path:
+      // apply() copies the whole list twice, which the 68k keystroke budget cannot spare.
+      core::ListOp<core::String> only, more;
+      ops.rewind();
+      const bool single = ops.next(only) && only.kind == core::UPDATE && !ops.next(more);
+      const core::ListEditResult edited = single ? lines.update(only.id, only.after) : lines.apply(ops);
       if (edited != core::EDIT_OK)
         return resultOf(edited);
-      if (insertedIndex >= 0)
-        after.line = lines.at(static_cast<unsigned short>(insertedIndex)).id;
-      cursor.set(after);
+      cursor.set(after.isNone() ? LineCursor::None() : LineCursor(lines.at(after.row).id, after.column));
       return EDITOR_OK;
     }
     EditorResult TextEditorDocument::applySingleLine(core::ItemId id, const core::String &text, LineCursor after)
     {
-      std::size_t total = 0;
-      EditorResult result = this->measure(total);
+      EditorResult result = this->availability();
       if (result != EDITOR_OK)
         return result;
       const int index = this->props_.lines_->find(id);
@@ -242,29 +287,81 @@ namespace loka
         return replacement.result();
       if (old.result() != EDITOR_OK)
         return old.result();
-      if (total - old.size() + replacement.size() > TextEditorProps::kMaxBytes)
-        return EDITOR_CAPACITY;
-      if (after.line == id)
+      RowCursor row = RowCursor::None();
+      if (!after.isNone())
       {
-        if (after.column < 0 || static_cast<std::size_t>(after.column) > replacement.size())
-          return EDITOR_INVALID_CURSOR;
+        const int afterIndex = this->props_.lines_->find(after.line);
+        if (afterIndex < 0)
+          return EDITOR_STALE_ID;
+        row = RowCursor(static_cast<unsigned short>(afterIndex), after.column);
       }
-      else if ((result = this->validateCursor(after)) != EDITOR_OK)
-        return result;
-      core::ListOp<core::String> op(core::UPDATE, id, 0, text);
-      return this->commit(&op, 1, after);
+      return this->applyReplace(LineCursor(id, 0),
+                                LineCursor(id, static_cast<LineCursor::Column>(old.size())),
+                                replacement.data(),
+                                replacement.size(),
+                                row);
     }
     EditorResult TextEditorDocument::applyKeystroke(LineCursor before, const char *bytes, std::size_t length)
+    {
+      return this->applyReplace(before, before, bytes, length);
+    }
+    EditorResult TextEditorDocument::applySplit(core::ItemId id, LineCursor::Column column)
+    {
+      return this->applyReplace(LineCursor(id, column), LineCursor(id, column), "\r", 1);
+    }
+    EditorResult TextEditorDocument::applyJoin(core::ItemId id)
+    {
+      EditorResult result = this->availability();
+      if (result != EDITOR_OK)
+        return result;
+      const core::ObservableList<core::String> &lines = *this->props_.lines_;
+      const int index = lines.find(id);
+      if (index < 0)
+        return EDITOR_STALE_ID;
+      if (!index)
+        return EDITOR_INVALID_CURSOR;
+      const LineBytes prefix(lines.at(static_cast<unsigned short>(index - 1)).value);
+      if (prefix.result() != EDITOR_OK)
+        return prefix.result();
+      return this->applyReplace(LineCursor(lines.at(static_cast<unsigned short>(index - 1)).id,
+                                           static_cast<LineCursor::Column>(prefix.size())),
+                                LineCursor(id, 0),
+                                "",
+                                0);
+    }
+    EditorResult TextEditorDocument::applyReplace(LineCursor from, LineCursor to, const char *bytes, std::size_t length)
+    {
+      return this->replace(from, to, bytes, length, 0);
+    }
+    EditorResult TextEditorDocument::applyReplace(
+        LineCursor from, LineCursor to, const char *bytes, std::size_t length, RowCursor after)
+    {
+      return this->replace(from, to, bytes, length, &after);
+    }
+    EditorResult TextEditorDocument::replace(
+        LineCursor from, LineCursor to, const char *bytes, std::size_t length, const RowCursor *after)
     {
       std::size_t total = 0;
       EditorResult result = this->measure(total);
       if (result != EDITOR_OK)
         return result;
-      if (before.isNone())
+      if (from.isNone() || to.isNone())
         return EDITOR_INVALID_CURSOR;
-      result = this->validateCursor(before);
+      result = this->validateCursor(from);
       if (result != EDITOR_OK)
         return result;
+      result = this->validateCursor(to);
+      if (result != EDITOR_OK)
+        return result;
+      core::ObservableList<core::String> &lines = *this->props_.lines_;
+      const unsigned short first = static_cast<unsigned short>(lines.find(from.line));
+      const unsigned short last = static_cast<unsigned short>(lines.find(to.line));
+      if (first > last || (first == last && from.column > to.column))
+        return EDITOR_INVALID_CURSOR;
+      core::StateTracker *owner = 0;
+      const core::ListEditResult ready = lines.queryMutationTracker(owner);
+      if (ready != core::EDIT_OK)
+        return resultOf(ready);
       if (length > 2 * TextEditorProps::kMaxBytes)
         return EDITOR_CAPACITY;
       if (!bytes && length)
@@ -287,20 +384,43 @@ namespace loka
         else
           ++lastColumn;
       }
-      core::ObservableList<core::String> &lines = *this->props_.lines_;
-      if (total + normalized > TextEditorProps::kMaxBytes || lines.size() + breaks > TextEditorProps::kMaxLines
-          || lines.size() + breaks > lines.capacity())
+      if (from == to && !length)
+      {
+        if (!after)
+          return EDITOR_OK;
+        if (after->isNone())
+          return this->moveCaret(LineCursor::None());
+        if (after->row >= lines.size())
+          return EDITOR_INVALID_CURSOR;
+        return this->moveCaret(LineCursor(lines.at(after->row).id, after->column));
+      }
+      const LineBytes prefix(lines.at(first).value), suffix(lines.at(last).value);
+      if (prefix.result() != EDITOR_OK)
+        return prefix.result();
+      if (suffix.result() != EDITOR_OK)
+        return suffix.result();
+      std::size_t removed = to.column - from.column;
+      if (first != last)
+      {
+        removed = prefix.size() - from.column + to.column + (last - first);
+        for (unsigned short i = first + 1; i < last; ++i)
+        {
+          const LineBytes middle(lines.at(i).value);
+          if (middle.result() != EDITOR_OK)
+            return middle.result();
+          removed += middle.size();
+        }
+      }
+      const unsigned short finalCount = lines.size() - (last - first) + breaks;
+      if (total - removed + normalized > TextEditorProps::kMaxBytes || finalCount > TextEditorProps::kMaxLines
+          || finalCount > lines.capacity())
         return EDITOR_CAPACITY;
-      const unsigned short index = static_cast<unsigned short>(lines.find(before.line));
-      const LineBytes old(lines.at(index).value);
-      if (old.result() != EDITOR_OK)
-        return old.result();
-      const std::size_t size = old.size() + normalized;
+      const std::size_t size = from.column + normalized + suffix.size() - to.column;
       EditorScratch scratch(size);
       if (!scratch.data())
         return EDITOR_ALLOCATION;
-      std::memcpy(scratch.data(), old.data(), before.column);
-      std::size_t position = static_cast<std::size_t>(before.column);
+      std::memcpy(scratch.data(), prefix.data(), from.column);
+      std::size_t position = static_cast<std::size_t>(from.column);
       for (std::size_t i = 0; i < length; ++i)
       {
         const char c = bytes[i];
@@ -308,58 +428,36 @@ namespace loka
         if (c == '\r' && i + 1 < length && bytes[i + 1] == '\n')
           ++i;
       }
-      std::memcpy(scratch.data() + position, old.data() + before.column, old.size() - before.column);
-      core::ListOp<core::String> ops[TextEditorProps::kMaxLines];
+      std::memcpy(scratch.data() + position, suffix.data() + to.column, suffix.size() - to.column);
+      // 68k sizeof(String[kMaxLines]) = 1,024 B; former ListOp<String> array = 3,584 B.
+      core::String payloads[TextEditorProps::kMaxLines];
       std::size_t start = 0;
       for (unsigned short i = 0; i <= breaks; ++i)
       {
         std::size_t stop = start;
         while (stop < size && scratch.data()[stop] != '\r')
           ++stop;
-        const core::String text = core::String::Utf8(scratch.data() + start, stop - start);
-        ops[i] = core::ListOp<core::String>(i ? core::INSERT : core::UPDATE,
-                                            i ? core::ItemId() : before.line,
-                                            static_cast<unsigned short>(index + i),
-                                            text);
+        payloads[i] = core::String::Utf8(scratch.data() + start, stop - start);
         start = stop + 1;
       }
-      const LineCursor::Column column = breaks ? static_cast<LineCursor::Column>(lastColumn)
-                                               : before.column + static_cast<LineCursor::Column>(normalized);
-      return this->commit(
-          ops, static_cast<unsigned short>(breaks + 1), LineCursor(before.line, column), breaks ? index + breaks : -1);
-    }
-    EditorResult TextEditorDocument::applySplit(core::ItemId id, LineCursor::Column column)
-    {
-      return this->applyKeystroke(LineCursor(id, column), "\r", 1);
-    }
-    EditorResult TextEditorDocument::applyJoin(core::ItemId id)
-    {
-      EditorResult result = this->availability();
-      if (result != EDITOR_OK)
-        return result;
-      core::ObservableList<core::String> &lines = *this->props_.lines_;
-      const int index = lines.find(id);
-      if (index < 0)
-        return EDITOR_STALE_ID;
-      if (!index)
-        return EDITOR_INVALID_CURSOR;
-      const LineBytes prefix(lines.at(static_cast<unsigned short>(index - 1)).value),
-          suffix(lines.at(static_cast<unsigned short>(index)).value);
-      if (prefix.result() != EDITOR_OK)
-        return prefix.result();
-      if (suffix.result() != EDITOR_OK)
-        return suffix.result();
-      const LineCursor after(lines.at(static_cast<unsigned short>(index - 1)).id,
-                             static_cast<LineCursor::Column>(prefix.size()));
-      EditorScratch scratch(prefix.size() + suffix.size());
-      if (!scratch.data())
-        return EDITOR_ALLOCATION;
-      std::memcpy(scratch.data(), prefix.data(), prefix.size());
-      std::memcpy(scratch.data() + prefix.size(), suffix.data(), suffix.size());
-      const core::String text = core::String::Utf8(scratch.data(), prefix.size() + suffix.size());
-      core::ListOp<core::String> ops[2] = {core::ListOp<core::String>(core::UPDATE, after.line, 0, text),
-                                           core::ListOp<core::String>(core::REMOVE, id)};
-      return this->commit(ops, 2, after);
+      const RowCursor caret = after ? *after
+                                    : RowCursor(first + breaks,
+                                                breaks ? static_cast<LineCursor::Column>(lastColumn)
+                                                       : from.column + static_cast<LineCursor::Column>(normalized));
+      if (!caret.isNone())
+      {
+        if (caret.row >= finalCount)
+          return EDITOR_INVALID_CURSOR;
+        const bool inReplacement = caret.row >= first && caret.row <= first + breaks;
+        const unsigned short oldRow = caret.row < first ? caret.row : caret.row + (last - first) - breaks;
+        const LineBytes row(inReplacement ? payloads[caret.row - first] : lines.at(oldRow).value);
+        if (row.result() != EDITOR_OK)
+          return row.result();
+        if (caret.column < 0 || static_cast<std::size_t>(caret.column) > row.size())
+          return EDITOR_INVALID_CURSOR;
+      }
+      ReplaceOpCursor ops(lines, first, last, payloads, breaks);
+      return this->commit(ops, caret);
     }
     EditorResult TextEditorDocument::moveCaret(LineCursor after)
     {
