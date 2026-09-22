@@ -9,23 +9,20 @@ namespace loka
     namespace testing
     {
       /** Fixture storage uses the allocation/adoption path of state declarations. */
-      class TextEditorStateOwner
+      class TextEditorStateOwner : private scene::HeadlessStateOwner
       {
-      private:
-        scene::HeadlessStateOwner owner_;
-
       public:
         core::PushStateTracker &tracker;
         scene::Reported<LineCursor> cursor;
         scene::NodeState<LineCursor> request;
         TextEditorStateOwner()
-            : owner_(),
-              tracker(*owner_.tracker()->asPushTracker()),
+            : scene::HeadlessStateOwner(),
+              tracker(*scene::HeadlessStateOwner::tracker()->asPushTracker()),
               cursor(),
               request()
         {
-          scene::StateBatchBase::CreateImmediateState(&this->owner_, this->cursor, LineCursor::None());
-          scene::StateBatchBase::CreateImmediateState(&this->owner_, this->request, LineCursor::None());
+          scene::StateBatchBase::CreateImmediateState(this, this->cursor, LineCursor::None());
+          scene::StateBatchBase::CreateImmediateState(this, this->request, LineCursor::None());
         }
       };
     } // namespace testing

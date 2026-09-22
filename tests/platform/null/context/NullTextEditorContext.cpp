@@ -174,43 +174,46 @@ void NullTextEditorContext::syncFromNode()
 }
 void NullTextEditorContext::consumePendingRequest()
 {
-  if (this->phase_ != IDLE)
-    return;
-  while (this->node_)
-  {
-    const scene::WriteSeat<LineCursor> request = this->node_->props.moveCaretTo_;
-    if (!request.isValid() || request.state()->get().isNone())
-      return;
-    this->phase_ = INPUT;
-    LineCursor pending = request.state()->get();
-    const TextEditorProps binding = this->node_->props;
-    request.set(LineCursor::None());
-    // Taking can notify app code. Recheck the borrowed binding before using it.
-    if (this->node_ && this->phase_ == INPUT && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED
-        && this->node_->props.lines_ == binding.lines_ && this->node_->props.moveCaretTo_.state() == request.state()
-        && this->node_->document.availability() == EDITOR_OK)
-    {
-      loka::core::StateTracker *owner = 0;
-      if (binding.lines_->queryMutationTracker(owner) == loka::core::EDIT_OK && request.usesTracker(owner))
-      {
-        const int row = binding.lines_->find(pending.line);
-        if (row >= 0)
-        {
-          std::size_t length = 0;
-          if (binding.lines_->at(static_cast<unsigned short>(row))
-                  .value.requiredUnits(loka::core::StringEncodingUtf8, length))
-            pending.column = std::max(0, std::min(pending.column, static_cast<int>(length)));
-        }
-        this->node_->document.moveCaret(pending);
-      }
-    }
-    // Reconcile any nested tentative input before delivering a report-time repost.
-    this->phase_ = IDLE;
-    this->project(this->caret_);
-    // The outer completion is itself a delivery point. Re-read current Props:
-    // report callbacks may have spent their dirty notification while INPUT.
-  }
+  // One take and one epilogue take. Further reposts stay dirty for a later run.
+  if (this->consumeRequest())
+    this->consumeRequest();
 }
+bool NullTextEditorContext::consumeRequest()
+{
+  if (this->phase_ != IDLE || !this->node_)
+    return false;
+  const scene::WriteSeat<LineCursor> request = this->node_->props.moveCaretTo_;
+  if (!request.isValid() || request.state()->get().isNone())
+    return false;
+  this->phase_ = INPUT;
+  LineCursor pending = request.state()->get();
+  const TextEditorProps binding = this->node_->props;
+  request.set(LineCursor::None());
+  // Taking can notify app code. Recheck the borrowed binding before using it.
+  if (this->node_ && this->phase_ == INPUT && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED
+      && this->node_->props.lines_ == binding.lines_ && this->node_->props.moveCaretTo_.state() == request.state()
+      && this->node_->document.availability() == EDITOR_OK)
+  {
+    loka::core::StateTracker *owner = 0;
+    if (binding.lines_->queryMutationTracker(owner) == loka::core::EDIT_OK && request.usesTracker(owner))
+    {
+      const int row = binding.lines_->find(pending.line);
+      if (row >= 0)
+      {
+        std::size_t length = 0;
+        if (binding.lines_->at(static_cast<unsigned short>(row))
+                .value.requiredUnits(loka::core::StringEncodingUtf8, length))
+          pending.column = std::max(0, std::min(pending.column, static_cast<int>(length)));
+      }
+      this->node_->document.moveCaret(pending);
+    }
+  }
+  // Reconcile any nested tentative input before delivering a report-time repost.
+  this->phase_ = IDLE;
+  this->project(this->caret_);
+  return true;
+}
+
 short NullTextEditorContext::layout(scene::IPlatformController *, scene::LayoutState &state)
 {
   this->syncFromNode();

@@ -103,11 +103,12 @@ namespace
       LOKA_VERIFY(this->lines.attach(&this->tracker, 258) == ATTACH_OK);
       for (unsigned short i = 0; i < count; ++i)
         LOKA_VERIFY(this->lines.insert(i, String(text)) == EDIT_OK);
+      // The initial caret is a fact the seam publishes, not an app request:
+      // this rail delivers requests only from PR 4 of #873 onward.
       if (count)
-      {
-        StateTrackerGuard guard(&this->tracker);
-        this->request.set(LineCursor(this->lines.at(0).id, std::min(2, static_cast<int>(text.size()))));
-      }
+        LOKA_VERIFY(loka::app::testing::TextEditorAccess::document(this->node).moveCaret(
+                        LineCursor(this->lines.at(0).id, std::min(2, static_cast<int>(text.size()))))
+                    == EDITOR_OK);
       LayoutState state;
       state.x = 3;
       state.y = 5;
