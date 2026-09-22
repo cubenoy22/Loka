@@ -83,6 +83,7 @@ private:
   void captureSelection();
   void syncFromNode();
   void consumePendingRequest();
+  bool consumeRequest();
   void restoreCommittedProjection();
   bool replaceProjection();
   void deferRestore();

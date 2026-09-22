@@ -272,58 +272,59 @@ void Win32TextEditorContext::syncFromNode()
 }
 void Win32TextEditorContext::consumePendingRequest()
 {
-  // Platform twin of Null/Toolbox: take before apply, then drain finite reposts
-  // at the outer completion. RETRY is deferred, never an idle delivery point.
-  if (this->phase_ != IDLE)
-    return;
-  Phase completion = IDLE;
-  while (this->node_)
+  // Platform twin of Null/Toolbox: one take and one epilogue take. Further
+  // reposts stay dirty for a later props apply; RETRY remains deferred.
+  if (this->consumeRequest())
+    this->consumeRequest();
+}
+bool Win32TextEditorContext::consumeRequest()
+{
+  if (this->phase_ != IDLE || !this->node_)
+    return false;
+  const scene::WriteSeat<LineCursor> request = this->node_->props.moveCaretTo_;
+  if (!request.isValid() || request.state()->get().isNone())
+    return false;
+  this->phase_ = COMMIT;
+  const LineCursor pending = request.state()->get();
+  const TextEditorProps binding = this->node_->props;
+  request.set(LineCursor::None());
+  if (this->node_ && this->phase_ == COMMIT && this->hwnd_ && this->status_ == EDITOR_OK
+      && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED && this->node_->props.lines_ == binding.lines_
+      && this->node_->props.moveCaretTo_.state() == request.state()
+      && this->node_->document.availability() == EDITOR_OK)
   {
-    const scene::WriteSeat<LineCursor> request = this->node_->props.moveCaretTo_;
-    if (!request.isValid() || request.state()->get().isNone())
-      break;
-    this->phase_ = COMMIT;
-    const LineCursor pending = request.state()->get();
-    const TextEditorProps binding = this->node_->props;
-    request.set(LineCursor::None());
-    if (this->node_ && this->phase_ == COMMIT && this->hwnd_ && this->status_ == EDITOR_OK
-        && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED && this->node_->props.lines_ == binding.lines_
-        && this->node_->props.moveCaretTo_.state() == request.state()
-        && this->node_->document.availability() == EDITOR_OK)
+    loka::core::StateTracker *owner = 0;
+    if (binding.lines_->queryMutationTracker(owner) == loka::core::EDIT_OK && request.usesTracker(owner)
+        && binding.lines_->find(pending.line) >= 0)
     {
-      loka::core::StateTracker *owner = 0;
-      if (binding.lines_->queryMutationTracker(owner) == loka::core::EDIT_OK && request.usesTracker(owner)
-          && binding.lines_->find(pending.line) >= 0)
+      // A take notification can edit the model. Repair before asking EDIT
+      // for offsets, keeping COMMIT across the projection's delivery tail.
+      if (!this->projection_.current(*this->node_))
+        this->replaceProjection();
+      if (this->phase_ == COMMIT && this->status_ == EDITOR_OK)
       {
-        // A take notification can edit the model. Repair before asking EDIT
-        // for offsets, keeping COMMIT across the projection's delivery tail.
-        if (!this->projection_.current(*this->node_))
-          this->replaceProjection();
-        if (this->phase_ == COMMIT && this->status_ == EDITOR_OK)
-        {
-          const int row = binding.lines_->find(pending.line);
-          const int offset = static_cast<int>(SendMessageW(this->hwnd_, EM_LINEINDEX, row, 0));
-          const int length = static_cast<int>(SendMessageW(this->hwnd_, EM_LINELENGTH, offset, 0));
-          const int column = pending.column < 0 ? 0 : (pending.column > length ? length : pending.column);
-          const LineCursor clamped(pending.line, column);
-          SendMessageW(this->hwnd_, EM_SETSEL, offset + column, offset + column);
-          this->delivery_ = scene::PaintAnswer::nativeScheduled();
-          this->node_->document.moveCaret(clamped);
-        }
+        const int row = binding.lines_->find(pending.line);
+        const int offset = static_cast<int>(SendMessageW(this->hwnd_, EM_LINEINDEX, row, 0));
+        const int length = static_cast<int>(SendMessageW(this->hwnd_, EM_LINELENGTH, offset, 0));
+        const int column = pending.column < 0 ? 0 : (pending.column > length ? length : pending.column);
+        const LineCursor clamped(pending.line, column);
+        SendMessageW(this->hwnd_, EM_SETSEL, offset + column, offset + column);
+        this->delivery_ = scene::PaintAnswer::nativeScheduled();
+        this->node_->document.moveCaret(clamped);
       }
     }
-    if (this->node_ && this->hwnd_ && this->status_ == EDITOR_OK
-        && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED
-        && (this->phase_ == REJECTED || !this->projection_.current(*this->node_)))
-    {
-      this->phase_ = COMMIT;
-      this->replaceProjection();
-    }
-    // A failed repair refuses reposts too, but keeps its admitted native retry.
-    if (this->phase_ == RETRY)
-      completion = RETRY;
   }
-  this->phase_ = completion;
+  if (this->node_ && this->hwnd_ && this->status_ == EDITOR_OK
+      && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED
+      && (this->phase_ == REJECTED || !this->projection_.current(*this->node_)))
+  {
+    this->phase_ = COMMIT;
+    this->replaceProjection();
+  }
+  // A failed repair keeps its admitted native retry instead of becoming idle.
+  if (this->phase_ != RETRY)
+    this->phase_ = IDLE;
+  return true;
 }
 RowCursor Win32TextEditorContext::nativeRowCaret() const
 {

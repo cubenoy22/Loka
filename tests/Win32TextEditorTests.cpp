@@ -318,12 +318,12 @@ namespace
     SendMessageW(fixture.context->hwnd(), EM_GETSEL, reinterpret_cast<WPARAM>(&start), reinterpret_cast<LPARAM>(&end));
     LOKA_VERIFY(start == expected && end == expected);
   }
-  /** One finite repost, with a nested props delivery that must not consume it. */
+  /** Finite reposts, with nested props deliveries that must not consume them. */
   class RequestOnReport
   {
   public:
-    RequestOnReport(Fixture &fixture, LineCursor next)
-        : fixture_(fixture), next_(next), reports_()
+    RequestOnReport(Fixture &fixture, LineCursor next, LineCursor last = LineCursor::None())
+        : fixture_(fixture), next_(next), last_(last), reports_()
     {
       this->fixture_.cursor.state()->bind(&changed, this, false);
     }
@@ -344,7 +344,8 @@ namespace
       if (self.next_.isNone())
         return;
       const LineCursor next = self.next_;
-      self.next_ = LineCursor::None();
+      self.next_ = self.last_;
+      self.last_ = LineCursor::None();
       StateTrackerGuard guard(&self.fixture_.tracker);
       self.fixture_.request.set(next);
       self.fixture_.context->onPropsApplied();
@@ -352,6 +353,7 @@ namespace
     }
     Fixture &fixture_;
     LineCursor next_;
+    LineCursor last_;
     std::vector<LineCursor> reports_;
   };
   /** Observe both real publications while posting between delete and insert. */
@@ -543,6 +545,25 @@ namespace
       LOKA_VERIFY(repost.reports()[0] == first && repost.reports()[1] == next);
       LOKA_VERIFY(fixture.request.get().isNone() && fixture.cursor.state()->get() == next);
       expectSelection(fixture, 9);
+    }
+    {
+      Fixture fixture;
+      const LineCursor first(fixture.lines.at(0).id, 1), second(fixture.lines.at(1).id, 2),
+          third(fixture.lines.at(2).id, 3);
+      RequestOnReport repost(fixture, second, third);
+      {
+        StateTrackerGuard guard(&fixture.tracker);
+        fixture.request.set(first);
+      }
+      fixture.context->onPropsApplied();
+      // Predicted: the unbounded consumer reports all three in this one site.
+      LOKA_VERIFY(repost.reports().size() == 2 && fixture.request.get() == third);
+      LOKA_VERIFY(fixture.cursor.state()->get() == second);
+      expectSelection(fixture, 8);
+      fixture.context->onPropsApplied();
+      LOKA_VERIFY(repost.reports().size() == 3 && fixture.request.get().isNone());
+      LOKA_VERIFY(fixture.cursor.state()->get() == third);
+      expectSelection(fixture, 15);
     }
     {
       Fixture fixture;
