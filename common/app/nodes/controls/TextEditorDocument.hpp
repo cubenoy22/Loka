@@ -22,7 +22,7 @@ namespace loka
       EDITOR_OWNER_MISMATCH
     };
     /** Node-owned edit initiator, borrowing current Props. The app owns both facts.
-        All commit doors validate before mutation and group cursor and list writes
+        Both applyReplace overloads validate before mutation and group cursor and list writes
         in the list owner's transaction. No callback or platform resource is owned. */
     class TextEditorDocument
     {
@@ -32,11 +32,6 @@ namespace loka
       {
       }
       EditorResult availability() const;
-      EditorResult applySingleLine(core::ItemId id, const core::String &text, LineCursor after);
-      EditorResult applySplit(core::ItemId id, LineCursor::Column column);
-      EditorResult applyJoin(core::ItemId id);
-      /** Insert CR/LF/CRLF-normalized text at a caret in one operation. */
-      EditorResult applyKeystroke(LineCursor before, const char *bytes, std::size_t length);
       /** Replace the text between two cursors (document order) with CR/LF/CRLF-normalized
           bytes in ONE validated ListOp batch. from.line keeps its identity; the caret
           lands at the end of the insertion. */

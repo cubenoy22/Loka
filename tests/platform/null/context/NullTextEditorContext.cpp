@@ -124,12 +124,30 @@ EditorResult NullTextEditorContext::input(const std::string &bytes, bool join, c
     return EDITOR_REENTRANT;
   }
   this->phase_ = INPUT;
-  EditorResult result = move   ? this->node_->document.moveCaret(*move)
-                        : join ? (before.column == 0 ? (this->node_->props.lines_->find(before.line) == 0
-                                                            ? EDITOR_OK
-                                                            : this->node_->document.applyJoin(before.line))
-                                                     : EDITOR_INVALID_CURSOR)
-                               : this->node_->document.applyReplace(before, before, bytes.data(), bytes.size());
+  EditorResult result;
+  if (move)
+    result = this->node_->document.moveCaret(*move);
+  else if (join)
+  {
+    const loka::core::ObservableList<loka::core::String> &lines = *this->node_->props.lines_;
+    const int index = lines.find(before.line);
+    if (before.column != 0)
+      result = EDITOR_INVALID_CURSOR;
+    else if (index < 0)
+      result = EDITOR_STALE_ID;
+    else if (!index)
+      result = EDITOR_OK;
+    else
+    {
+      const unsigned short previous = static_cast<unsigned short>(index - 1);
+      const LineCursor from(lines.at(previous).id,
+                            static_cast<LineCursor::Column>(
+                                lines.at(previous).value.bufferWithEncoding(loka::core::StringEncodingUtf8).length()));
+      result = this->node_->document.applyReplace(from, before, "", 0);
+    }
+  }
+  else
+    result = this->node_->document.applyReplace(before, before, bytes.data(), bytes.size());
   const bool reconcile = result != EDITOR_OK || this->phase_ == RECONCILE;
   this->phase_ = IDLE;
   if (reconcile)
