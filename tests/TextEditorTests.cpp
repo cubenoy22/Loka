@@ -198,7 +198,7 @@ void testTextEditorActions()
   LOKA_VERIFY(capDiff.first() == 0 && capDiff.before() == 1 && capDiff.after() == 1);
   LOKA_VERIFY(loka::app::TextEditorLogicalLine(atCap, 0).size() == 8192);
 
-  // Identity pins consume the pure diff through the document's split/join doors.
+  // Identity pins consume the pure diff through the document's replacement door.
   for (unsigned short count = 2; count <= 3; ++count)
   {
     for (int edge = 0; edge < 2; ++edge)
@@ -210,10 +210,9 @@ void testTextEditorActions()
       const int line = edge == 0 ? 1 : 0, column = edge == 0 ? 0 : 1;
       const TextEditorLineDiff diff = DiffTextEditorLines(before, after, line, column);
       LOKA_VERIFY(diff.first() == line && diff.before() == 1 && diff.after() == 2);
-      LOKA_VERIFY(split.node.document.applySplit(
-                      split.lines.at(static_cast<unsigned short>(diff.first())).id,
-                      static_cast<LineCursor::Column>(TextEditorLogicalLine(after, diff.first()).size()))
-                  == EDITOR_OK);
+      const LineCursor caret(split.lines.at(static_cast<unsigned short>(diff.first())).id,
+                             static_cast<LineCursor::Column>(TextEditorLogicalLine(after, diff.first()).size()));
+      LOKA_VERIFY(split.node.document.applyReplace(caret, caret, "\r", 1) == EDITOR_OK);
       LOKA_VERIFY(split.lines.size() == count + 1);
       for (unsigned short i = 0; i < count; ++i)
         LOKA_VERIFY(split.lines.at(i <= line ? i : i + 1).id == original.ids[i]);
@@ -235,7 +234,10 @@ void testTextEditorActions()
       const std::string after = empty ? std::string(count - 2, '\r') : (count == 2 ? "aa" : "aa\ra");
       const TextEditorLineDiff diff = DiffTextEditorLines(before, after, 1, 0);
       LOKA_VERIFY(diff.first() == 0 && diff.before() == 2 && diff.after() == 1);
-      LOKA_VERIFY(join.node.document.applyJoin(join.lines.at(static_cast<unsigned short>(diff.first() + 1)).id)
+      const LineCursor previous(join.lines.at(static_cast<unsigned short>(diff.first())).id,
+                                static_cast<LineCursor::Column>(TextEditorLogicalLine(before, diff.first()).size()));
+      LOKA_VERIFY(join.node.document.applyReplace(
+                      previous, LineCursor(join.lines.at(static_cast<unsigned short>(diff.first() + 1)).id, 0), "", 0)
                   == EDITOR_OK);
       LOKA_VERIFY(join.lines.size() == count - 1 && join.lines.at(0).id == original.ids[0]);
       LOKA_VERIFY(join.lines.find(original.ids[1]) < 0);
@@ -411,11 +413,15 @@ void testTextEditorRefusals()
     PushStateTracker foreignTracker;
     NodeState<LineCursor> foreign(&f.cursor, &foreignTracker);
     f.node.props.cursor(foreign);
-    LOKA_VERIFY(f.node.document.applySplit(f.lines.at(0).id, 2) == EDITOR_OWNER_MISMATCH);
+    const LineCursor caret(f.lines.at(0).id, 2);
+    LOKA_VERIFY(f.node.document.applyReplace(caret, caret, "\r", 1) == EDITOR_OWNER_MISMATCH);
     snapshot.unchanged(f);
     LOKA_VERIFY(observer.immediate == 0 && observer.cursorNotifications == 0);
     f.node.props.cursor(f.seat);
-    LOKA_VERIFY(f.node.document.applySingleLine(f.lines.at(0).id, String("direct"), LineCursor(f.lines.at(0).id, 6))
+    LOKA_VERIFY(f.node.document.applyReplace(
+                    LineCursor(caret.line, 0),
+                    LineCursor(caret.line, static_cast<LineCursor::Column>(bytes(f.lines.at(0).value).size())),
+                    "direct", 6, RowCursor(0, 6))
                 == EDITOR_OK);
     LOKA_VERIFY(f.lines.revision().get().change.kind == LIST_UPDATE);
   }
@@ -582,13 +588,21 @@ void testTextEditorReplace()
                 == EDITOR_OK);
     LOKA_VERIFY(f.cursor.get() == LineCursor(tail, 4));
   }
-  // applySingleLine translates the supplied caret identity, including another row.
+  // Whole-line replacement accepts a post-state caret on another row or no caret.
   {
     Fixture f;
     const ItemId a = f.lines.at(0).id, c = f.lines.at(2).id;
-    LOKA_VERIFY(f.node.document.applySingleLine(a, String("x"), LineCursor(c, 4)) == EDITOR_OK);
+    LOKA_VERIFY(f.node.document.applyReplace(
+                    LineCursor(a, 0),
+                    LineCursor(a, static_cast<LineCursor::Column>(bytes(f.lines.at(0).value).size())),
+                    "x", 1, RowCursor(static_cast<unsigned short>(f.lines.find(c)), 4))
+                == EDITOR_OK);
     LOKA_VERIFY(f.cursor.get() == LineCursor(c, 4));
-    LOKA_VERIFY(f.node.document.applySingleLine(a, String("y"), LineCursor::None()) == EDITOR_OK);
+    LOKA_VERIFY(f.node.document.applyReplace(
+                    LineCursor(a, 0),
+                    LineCursor(a, static_cast<LineCursor::Column>(bytes(f.lines.at(0).value).size())),
+                    "y", 1, RowCursor::None())
+                == EDITOR_OK);
     LOKA_VERIFY(f.cursor.get().isNone());
   }
   {
@@ -630,8 +644,6 @@ void testTextEditorReplaceRefusals()
     LOKA_VERIFY(f.node.document.applyReplace(a, invalid[i], "x", 1) == expected);
     snapshot.unchanged(f);
   }
-  LOKA_VERIFY(f.node.document.applySingleLine(a.line, String("x"), invalid[3]) == EDITOR_STALE_ID);
-  snapshot.unchanged(f);
   LOKA_VERIFY(f.node.document.applyReplace(c, a, "", 0) == EDITOR_INVALID_CURSOR);
   LOKA_VERIFY(f.node.document.applyReplace(LineCursor(a.line, 2), a, "", 0) == EDITOR_INVALID_CURSOR);
   const RowCursor invalidRows[] = {RowCursor(3, 0), RowCursor(0, -1), RowCursor(0, 3), RowCursor(1, 5)};

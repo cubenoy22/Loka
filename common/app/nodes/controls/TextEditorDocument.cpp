@@ -274,61 +274,6 @@ namespace loka
       cursor.set(after.isNone() ? LineCursor::None() : LineCursor(lines.at(after.row).id, after.column));
       return EDITOR_OK;
     }
-    EditorResult TextEditorDocument::applySingleLine(core::ItemId id, const core::String &text, LineCursor after)
-    {
-      EditorResult result = this->availability();
-      if (result != EDITOR_OK)
-        return result;
-      const int index = this->props_.lines_->find(id);
-      if (index < 0)
-        return EDITOR_STALE_ID;
-      const LineBytes replacement(text), old(this->props_.lines_->at(static_cast<unsigned short>(index)).value);
-      if (replacement.result() != EDITOR_OK)
-        return replacement.result();
-      if (old.result() != EDITOR_OK)
-        return old.result();
-      RowCursor row = RowCursor::None();
-      if (!after.isNone())
-      {
-        const int afterIndex = this->props_.lines_->find(after.line);
-        if (afterIndex < 0)
-          return EDITOR_STALE_ID;
-        row = RowCursor(static_cast<unsigned short>(afterIndex), after.column);
-      }
-      return this->applyReplace(LineCursor(id, 0),
-                                LineCursor(id, static_cast<LineCursor::Column>(old.size())),
-                                replacement.data(),
-                                replacement.size(),
-                                row);
-    }
-    EditorResult TextEditorDocument::applyKeystroke(LineCursor before, const char *bytes, std::size_t length)
-    {
-      return this->applyReplace(before, before, bytes, length);
-    }
-    EditorResult TextEditorDocument::applySplit(core::ItemId id, LineCursor::Column column)
-    {
-      return this->applyReplace(LineCursor(id, column), LineCursor(id, column), "\r", 1);
-    }
-    EditorResult TextEditorDocument::applyJoin(core::ItemId id)
-    {
-      EditorResult result = this->availability();
-      if (result != EDITOR_OK)
-        return result;
-      const core::ObservableList<core::String> &lines = *this->props_.lines_;
-      const int index = lines.find(id);
-      if (index < 0)
-        return EDITOR_STALE_ID;
-      if (!index)
-        return EDITOR_INVALID_CURSOR;
-      const LineBytes prefix(lines.at(static_cast<unsigned short>(index - 1)).value);
-      if (prefix.result() != EDITOR_OK)
-        return prefix.result();
-      return this->applyReplace(LineCursor(lines.at(static_cast<unsigned short>(index - 1)).id,
-                                           static_cast<LineCursor::Column>(prefix.size())),
-                                LineCursor(id, 0),
-                                "",
-                                0);
-    }
     EditorResult TextEditorDocument::applyReplace(LineCursor from, LineCursor to, const char *bytes, std::size_t length)
     {
       return this->replace(from, to, bytes, length, 0);
