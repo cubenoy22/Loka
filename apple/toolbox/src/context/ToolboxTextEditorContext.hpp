@@ -56,6 +56,7 @@ private:
   loka::app::EditorResult finishInput(loka::app::EditorResult, Change);
   void restoreCommittedProjection();
   void project();
+  void consumePendingRequest();
   loka::app::LineCursor cursorAt(short) const;
   short offsetOf(loka::app::LineCursor) const;
   void updateRect(const Rect &);
@@ -65,7 +66,6 @@ private:
   Rect rect_;
   Rect paintRect_;
   const loka::core::ObservableList<loka::core::String> *source_;
-  loka::app::LineCursor caret_;
   loka::core::ListRevision revision_;
   Phase phase_;
   loka::app::EditorResult status_;

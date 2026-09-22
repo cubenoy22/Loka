@@ -31,10 +31,6 @@ namespace
       LOKA_VERIFY(lines.attach(&tracker, capacity) == ATTACH_OK);
       for (unsigned short i = 0; i < count; ++i)
         LOKA_VERIFY(lines.insert(i, String(text)) == EDIT_OK);
-      {
-        StateTrackerGuard guard(&tracker);
-        request.set(LineCursor(lines.at(0).id, std::min(2, static_cast<int>(text.size()))));
-      }
       LOKA_VERIFY(RegisterToolboxBuiltInSupport(controller));
       LayoutState state;
       state.x = 10;
@@ -48,8 +44,7 @@ namespace
       context->layout(&controller, state);
       LOKA_VERIFY(!ToolboxTextEditorAccess::te(*context));
       context->render(&controller);
-      // These pins exercise native editing, independently of PR2's pending
-      // app-request delivery. Seed the native selection through its input seam.
+      // Seed native editing through its input seam; request tests post explicitly.
       if (count && ToolboxTextEditorAccess::status(*context) == EDITOR_OK)
       {
         Point initial = {
@@ -161,6 +156,138 @@ namespace
       o.f.context->onPropsApplied();
     }
   };
+  struct RequestObserver
+  {
+    Fixture &f;
+    LineCursor repost;
+    bool onClear, onReport;
+    unsigned requests, reports;
+    RequestObserver(Fixture &fixture)
+        : f(fixture),
+          repost(),
+          onClear(false),
+          onReport(false),
+          requests(0),
+          reports(0)
+    {
+      f.request.state()->bind(&requestChanged, this, false);
+      f.cursor.state()->bind(&factChanged, this, false);
+    }
+    ~RequestObserver()
+    {
+      f.request.state()->unbind(&requestChanged, this);
+      f.cursor.state()->unbind(&factChanged, this);
+    }
+    static void requestChanged(void *value)
+    {
+      RequestObserver &o = *static_cast<RequestObserver *>(value);
+      ++o.requests;
+      LOKA_VERIFY(o.requests < 20);
+      if (o.onClear && o.f.request.get().isNone())
+      {
+        o.onClear = false;
+        o.f.request.set(o.repost);
+        const int selections = toolbox_host::selections;
+        o.f.context->onPropsApplied();
+        LOKA_VERIFY(toolbox_host::selections == selections);
+      }
+    }
+    static void factChanged(void *value)
+    {
+      RequestObserver &o = *static_cast<RequestObserver *>(value);
+      ++o.reports;
+      if (o.onReport)
+      {
+        LOKA_VERIFY(o.f.request.get().isNone());
+        o.onReport = false;
+        o.f.request.set(o.repost);
+        const int selections = toolbox_host::selections;
+        o.f.context->onPropsApplied();
+        LOKA_VERIFY(toolbox_host::selections == selections);
+        LOKA_VERIFY(o.f.request.get() == o.repost);
+      }
+    }
+  };
+  /** Synchronous app work invalidating a borrowed binding or native offsets. */
+  struct RequestAction
+  {
+    enum Action
+    {
+      EDIT_ON_TAKE,
+      EDIT_ON_REPORT,
+      DETACH_ON_TAKE,
+      REBIND_ON_TAKE,
+      NESTED_ON_TAKE
+    };
+    Fixture &f;
+    const Action action;
+    bool armed;
+    RequestAction(Fixture &fixture, Action value)
+        : f(fixture),
+          action(value),
+          armed(true)
+    {
+      f.request.state()->bind(&taken, this, false);
+      f.cursor.state()->bind(&reported, this, false);
+    }
+    ~RequestAction()
+    {
+      f.request.state()->unbind(&taken, this);
+      f.cursor.state()->unbind(&reported, this);
+    }
+    static void taken(void *value)
+    {
+      RequestAction &o = *static_cast<RequestAction *>(value);
+      if (!o.armed || !o.f.request.get().isNone() || o.action == EDIT_ON_REPORT)
+        return;
+      o.armed = false;
+      switch (o.action)
+      {
+      case EDIT_ON_TAKE:
+        LOKA_VERIFY(o.f.lines.update(o.f.lines.at(0).id, String("longer")) == EDIT_OK);
+        break;
+      case EDIT_ON_REPORT:
+        break;
+      case DETACH_ON_TAKE:
+        NotifySubtreeNodeDetached(&o.f.node);
+        break;
+      case REBIND_ON_TAKE:
+      {
+        const bool applied =
+            NodePropsApplier<TextEditorNode, TextEditorProps>::apply(&o.f.node, TextEditorProps(o.f.lines, o.f.cursor));
+        LOKA_VERIFY(applied);
+        break;
+      }
+      case NESTED_ON_TAKE:
+        LOKA_VERIFY(o.f.context->key('x') == EDITOR_REENTRANT);
+        break;
+      }
+      o.f.context->onPropsApplied();
+    }
+    static void reported(void *value)
+    {
+      RequestAction &o = *static_cast<RequestAction *>(value);
+      if (o.action == EDIT_ON_TAKE)
+      {
+        LOKA_VERIFY(o.f.native() == "longer\rabcd\rabcd");
+        LOKA_VERIFY((**o.f.te()).selStart == 10);
+      }
+      if (!o.armed || o.action != EDIT_ON_REPORT)
+        return;
+      o.armed = false;
+      LOKA_VERIFY(o.f.lines.update(o.f.lines.at(0).id, String("longer")) == EDIT_OK);
+      o.f.context->onPropsApplied();
+    }
+  };
+  void invalidated(void *value)
+  {
+    ++*static_cast<unsigned *>(value);
+  }
+  void post(Fixture &f, LineCursor cursor)
+  {
+    StateTrackerGuard guard(&f.tracker);
+    f.request.set(cursor);
+  }
   void backspaceAtOrigin(void *value)
   {
     Fixture &f = *static_cast<Fixture *>(value);
@@ -177,12 +304,6 @@ int main(int argc, char **argv)
 {
   if (argc == 2 && std::strcmp(argv[1], "request") == 0)
   {
-    const char *enabled = std::getenv("LOKA_EXPECTED_RED");
-    if (!enabled || std::strcmp(enabled, "1") != 0)
-    {
-      std::puts("SKIP expected-red: Toolbox request delivery is #873 PR2 (set LOKA_EXPECTED_RED=1)");
-      return 77;
-    }
     {
       Fixture f;
       pin("PR2 acceptance: app request is consumed and moves native caret after a commit");
@@ -199,6 +320,163 @@ int main(int argc, char **argv)
       LOKA_VERIFY(f.cursor.state()->get() == desired);
       nativeKey(f, 28);
     }
+    return 0;
+  }
+
+  if (argc == 2)
+  {
+    Fixture f;
+    const LineCursor desired(f.lines.at(1).id, 3);
+    if (std::strcmp(argv[1], "report") == 0)
+    {
+      pin("fact publication never echoes to native; delete and arrows cross CR");
+      Point point = {37, 22};
+      LOKA_VERIFY(f.context->click(point) == EDITOR_OK);
+      nativeKey(f, '\b');
+      nativeKey(f, 28);
+      nativeKey(f, 28);
+      nativeKey(f, 29);
+      const short native = (**f.te()).selStart;
+      const int selections = toolbox_host::selections;
+      LOKA_VERIFY(loka::app::testing::TextEditorAccess::document(f.node).moveCaret(desired) == EDITOR_OK);
+      f.context->onPropsApplied();
+      LOKA_VERIFY(toolbox_host::selections == selections);
+      LOKA_VERIFY((**f.te()).selStart == native);
+      LOKA_VERIFY(f.cursor.state()->get() == desired);
+    }
+    else if (std::strcmp(argv[1], "project") == 0)
+    {
+      pin("native creation project tail consumes request");
+      f.controller.retireTextEditorControl(f.context, NATIVE_HINT_DEFAULT);
+      post(f, desired);
+      f.context->render(&f.controller);
+      LOKA_VERIFY(f.request.get().isNone());
+      LOKA_VERIFY((**f.te()).selStart == 8);
+      LOKA_VERIFY(f.cursor.state()->get() == desired);
+    }
+    else if (std::strcmp(argv[1], "input") == 0)
+    {
+      pin("input completion delivers report-time request after cache completion");
+      RequestObserver observer(f);
+      observer.repost = desired;
+      observer.onReport = true;
+      LOKA_VERIFY(f.context->key(29) == EDITOR_OK);
+      LOKA_VERIFY(f.request.get().isNone());
+      LOKA_VERIFY((**f.te()).selStart == 8);
+      LOKA_VERIFY(f.cursor.state()->get() == desired);
+    }
+    else if (std::strcmp(argv[1], "clear") == 0 || std::strcmp(argv[1], "epilogue") == 0)
+    {
+      pin("take precedes apply and finite synchronous repost survives to outer completion");
+      RequestObserver observer(f);
+      observer.repost = LineCursor(f.lines.at(2).id, 1);
+      observer.onClear = std::strcmp(argv[1], "clear") == 0;
+      observer.onReport = !observer.onClear;
+      post(f, desired);
+      f.context->onPropsApplied();
+      LOKA_VERIFY(f.request.get().isNone());
+      LOKA_VERIFY(f.cursor.state()->get() == observer.repost);
+      LOKA_VERIFY((**f.te()).selStart == 11);
+      LOKA_VERIFY(observer.requests == 4 && observer.reports == 2);
+    }
+    else if (std::strcmp(argv[1], "refuse") == 0)
+    {
+      pin("missing native and failed projection take without reporting");
+      const LineCursor before = f.cursor.state()->get();
+      f.controller.retireTextEditorControl(f.context, NATIVE_HINT_DEFAULT);
+      post(f, desired);
+      f.context->onPropsApplied();
+      LOKA_VERIFY(f.request.get().isNone());
+      LOKA_VERIFY(f.cursor.state()->get() == before);
+      toolbox_host::failNew = 1;
+      post(f, desired);
+      f.context->render(&f.controller);
+      LOKA_VERIFY(f.request.get().isNone() && !f.te());
+      LOKA_VERIFY(f.cursor.state()->get() == before);
+      toolbox_host::failSets = 1;
+      post(f, desired);
+      f.context->render(&f.controller);
+      LOKA_VERIFY(f.request.get().isNone());
+      LOKA_VERIFY(f.cursor.state()->get() == before);
+      f.context->retryProjection();
+      LOKA_VERIFY(f.cursor.state()->get() == before);
+    }
+    else if (std::strcmp(argv[1], "take-edit") == 0 || std::strcmp(argv[1], "report-edit") == 0
+             || std::strcmp(argv[1], "detach") == 0 || std::strcmp(argv[1], "rebind") == 0
+             || std::strcmp(argv[1], "nested") == 0)
+    {
+      pin("callback invalidation is reconciled under exclusion before next delivery");
+      const RequestAction::Action action = std::strcmp(argv[1], "take-edit") == 0     ? RequestAction::EDIT_ON_TAKE
+                                           : std::strcmp(argv[1], "report-edit") == 0 ? RequestAction::EDIT_ON_REPORT
+                                           : std::strcmp(argv[1], "detach") == 0      ? RequestAction::DETACH_ON_TAKE
+                                           : std::strcmp(argv[1], "rebind") == 0      ? RequestAction::REBIND_ON_TAKE
+                                                                                      : RequestAction::NESTED_ON_TAKE;
+      RequestAction observer(f, action);
+      const LineCursor before = f.cursor.state()->get();
+      post(f, desired);
+      f.context->onPropsApplied();
+      LOKA_VERIFY(f.request.get().isNone());
+      if (action == RequestAction::EDIT_ON_TAKE)
+      {
+        LOKA_VERIFY(f.native() == "longer\rabcd\rabcd");
+        LOKA_VERIFY((**f.te()).selStart == 10 && f.cursor.state()->get() == desired);
+      }
+      else if (action == RequestAction::EDIT_ON_REPORT)
+      {
+        LOKA_VERIFY(f.native() == "longer\rabcd\rabcd");
+        LOKA_VERIFY((**f.te()).selStart == 10);
+        LOKA_VERIFY(f.cursor.state()->get() == desired);
+      }
+      else
+        LOKA_VERIFY(f.cursor.state()->get() == before);
+    }
+    else if (std::strcmp(argv[1], "retry") == 0)
+    {
+      pin("retry project completion delivers; unavailable input refuses without report");
+      const LineCursor before = f.cursor.state()->get();
+      toolbox_host::failSets = 1;
+      LOKA_VERIFY(f.context->paste(std::string(8193, 'x').data(), 8193) == EDITOR_CAPACITY);
+      post(f, desired);
+      LOKA_VERIFY(f.context->key('x') == EDITOR_UNAVAILABLE);
+      LOKA_VERIFY(f.request.get().isNone() && f.cursor.state()->get() == before);
+      post(f, desired);
+      f.context->retryProjection();
+      LOKA_VERIFY(f.request.get().isNone());
+      LOKA_VERIFY((**f.te()).selStart == 8 && f.cursor.state()->get() == desired);
+    }
+    else if (std::strcmp(argv[1], "clamp") == 0)
+    {
+      pin("request clamps columns, refuses stale identities, and leaves None silent");
+      RequestObserver observer(f);
+      post(f, LineCursor(desired.line, 99));
+      f.context->onPropsApplied();
+      LOKA_VERIFY(f.request.get().isNone());
+      LOKA_VERIFY(f.cursor.state()->get() == LineCursor(desired.line, 4));
+      LOKA_VERIFY((**f.te()).selStart == 9);
+      const unsigned requests = observer.requests, reports = observer.reports;
+      const int selections = toolbox_host::selections;
+      unsigned invalidations = 0;
+      f.tracker.setInvalidateCallback(&invalidated, &invalidations);
+      post(f, LineCursor::None());
+      LOKA_VERIFY(invalidations == 1);
+      invalidations = 0;
+      f.context->onPropsApplied();
+      LOKA_VERIFY(invalidations == 0);
+      f.tracker.setInvalidateCallback(0, 0);
+      LOKA_VERIFY(observer.requests == requests && observer.reports == reports);
+      LOKA_VERIFY(toolbox_host::selections == selections);
+      post(f, LineCursor(desired.line, 99));
+      f.context->onPropsApplied();
+      LOKA_VERIFY(f.request.get().isNone() && observer.requests == requests + 2);
+      LOKA_VERIFY(observer.reports == reports && toolbox_host::selections == selections + 1);
+      const int afterRepeat = toolbox_host::selections;
+      post(f, LineCursor(ItemId(123, 456), 1));
+      f.context->onPropsApplied();
+      LOKA_VERIFY(f.request.get().isNone());
+      LOKA_VERIFY(observer.reports == reports && toolbox_host::selections == afterRepeat);
+    }
+    else
+      LOKA_VERIFY(false && "unknown request test");
     return 0;
   }
 

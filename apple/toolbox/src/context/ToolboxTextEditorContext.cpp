@@ -59,7 +59,6 @@ ToolboxTextEditorContext::ToolboxTextEditorContext(TextEditorNode *n, ToolboxSce
       rect_(),
       paintRect_(),
       source_(0),
-      caret_(),
       revision_(),
       phase_(IDLE),
       status_(EDITOR_UNAVAILABLE),
@@ -124,8 +123,12 @@ LineCursor ToolboxTextEditorContext::cursorAt(short offset) const
 }
 void ToolboxTextEditorContext::project()
 {
-  if (!this->te_ || !this->node_ || this->phase_ != IDLE)
+  if (this->phase_ != IDLE && this->phase_ != RECONCILE)
     return;
+  if (!this->te_ || !this->node_)
+    return;
+  // Repair within the consumer keeps its exclusion through the delivery tail.
+  const Phase completion = this->phase_;
   this->phase_ = PROJECT;
   std::size_t length = 0;
   this->status_ = this->node_->document.project(this->restore_, TextEditorProps::kMaxBytes, length);
@@ -140,21 +143,20 @@ void ToolboxTextEditorContext::project()
       this->status_ = EDITOR_UNAVAILABLE;
     else
     {
-      this->caret_ = this->node_->props.cursorState()->get();
-      if (this->node_->props.lines_->find(this->caret_.line) < 0)
-        this->caret_ = this->node_->props.lines_->size()
-                           ? LineCursor(this->node_->props.lines_->at(0).id, this->caret_.column)
-                           : LineCursor::None();
-      const short offset = this->offsetOf(this->caret_);
+      LineCursor caret = this->node_->props.cursorState()->get();
+      if (this->node_->props.lines_->find(caret.line) < 0)
+        caret = this->node_->props.lines_->size() ? LineCursor(this->node_->props.lines_->at(0).id, caret.column)
+                                                  : LineCursor::None();
+      const short offset = this->offsetOf(caret);
       TESetSelect(offset, offset, this->te_);
-      this->caret_ = this->cursorAt(offset);
       this->source_ = this->node_->props.lines_;
       this->revision_ = this->source_->revision().get();
     }
   }
-  this->phase_ = IDLE;
+  this->phase_ = completion;
   if (this->controller() && this->controller()->window_)
     this->controller()->window_->requestInvalidateRect(this->paintRect_);
+  this->consumePendingRequest();
 }
 void ToolboxTextEditorContext::restoreCommittedProjection()
 {
@@ -170,15 +172,62 @@ void ToolboxTextEditorContext::retryProjection()
 }
 void ToolboxTextEditorContext::onPropsApplied()
 {
-  if (!this->node_ || !this->te_ || this->phase_ != IDLE)
+  if (this->phase_ != IDLE)
     return;
-  if (this->source_ != this->node_->props.lines_ || this->revision_ != this->node_->props.lines_->revision().get())
+  if (this->node_ && this->te_ && (this->source_ != this->node_->props.lines_ || this->hasStaleCaret()))
     this->project();
-  else if (this->status_ == EDITOR_OK && this->caret_ != this->node_->props.cursorState()->get())
+  this->consumePendingRequest();
+}
+void ToolboxTextEditorContext::consumePendingRequest()
+{
+  // Platform twin of NullTextEditorContext: take before callbacks can repost,
+  // then re-read the slot at the outer completion, never from a nested apply.
+  if (this->phase_ != IDLE)
+    return;
+  while (this->node_)
   {
-    const short offset = this->offsetOf(this->node_->props.cursorState()->get());
-    TESetSelect(offset, offset, this->te_);
-    this->caret_ = this->cursorAt(offset);
+    const scene::WriteSeat<LineCursor> request = this->node_->props.moveCaretTo_;
+    if (!request.isValid() || request.state()->get().isNone())
+      return;
+    this->phase_ = INPUT;
+    const LineCursor pending = request.state()->get();
+    const TextEditorProps binding = this->node_->props;
+    request.set(LineCursor::None());
+    if (this->node_ && this->phase_ == INPUT && this->te_ && this->status_ == EDITOR_OK
+        && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED && this->node_->props.lines_ == binding.lines_
+        && this->node_->props.moveCaretTo_.state() == request.state()
+        && this->node_->document.availability() == EDITOR_OK)
+    {
+      loka::core::StateTracker *owner = 0;
+      if (binding.lines_->queryMutationTracker(owner) == loka::core::EDIT_OK && request.usesTracker(owner)
+          && binding.lines_->find(pending.line) >= 0)
+      {
+        // Taking may notify an owner edit. Native offsets must name current rows.
+        if (this->source_ != binding.lines_ || this->hasStaleCaret())
+        {
+          this->phase_ = RECONCILE;
+          this->project();
+          this->phase_ = INPUT;
+        }
+        if (this->status_ == EDITOR_OK)
+        {
+          const short offset = this->offsetOf(pending);
+          const LineCursor clamped = this->cursorAt(offset);
+          TESetSelect(offset, offset, this->te_);
+          // The document validates the clamped cursor before publishing the fact.
+          this->node_->document.moveCaret(clamped);
+        }
+      }
+    }
+    if (this->node_ && this->te_ && this->status_ == EDITOR_OK
+        && (this->phase_ == RECONCILE || this->source_ != this->node_->props.lines_ || this->hasStaleCaret()))
+    {
+      this->phase_ = RECONCILE;
+      this->project();
+    }
+    this->phase_ = IDLE;
+    // None callbacks and report callbacks may have spent their props delivery
+    // while INPUT. Loop over current Props even when the taken request refused.
   }
 }
 bool ToolboxTextEditorContext::hasStaleCaret() const
@@ -197,10 +246,11 @@ EditorResult ToolboxTextEditorContext::beginInput()
     this->phase_ = RECONCILE;
     return EDITOR_REENTRANT;
   }
-  if (!this->node_ || !this->te_)
-    return EDITOR_UNAVAILABLE;
-  if (this->status_ != EDITOR_OK)
-    return this->status_;
+  if (!this->node_ || !this->te_ || this->status_ != EDITOR_OK)
+  {
+    this->consumePendingRequest();
+    return !this->node_ || !this->te_ ? EDITOR_UNAVAILABLE : this->status_;
+  }
   this->phase_ = INPUT;
   return EDITOR_OK;
 }
@@ -209,7 +259,10 @@ EditorResult ToolboxTextEditorContext::finishInput(EditorResult result, Change c
   const bool restore = result != EDITOR_OK || this->phase_ == RECONCILE;
   this->phase_ = IDLE;
   if (!this->te_ || !this->node_)
+  {
+    this->consumePendingRequest();
     return result;
+  }
   if (restore)
     this->restoreCommittedProjection();
   else
@@ -223,11 +276,9 @@ EditorResult ToolboxTextEditorContext::finishInput(EditorResult result, Change c
     if (ownerChanged || this->cursorAt((**this->te_).selStart) != this->node_->props.cursorState()->get())
       this->project();
     else
-    {
-      this->caret_ = this->node_->props.cursorState()->get();
       this->revision_ = after;
-    }
   }
+  this->consumePendingRequest();
   return result;
 }
 EditorResult ToolboxTextEditorContext::key(char key)
@@ -357,6 +408,8 @@ void ToolboxTextEditorContext::render(scene::IPlatformController *)
     this->te_ = te;
     this->project();
   }
+  if (!te)
+    this->consumePendingRequest();
   this->repaint(te);
 }
 bool RegisterToolboxTextEditorNodeHandler(scene::PlatformNodeHandlerRegistry &registry)
