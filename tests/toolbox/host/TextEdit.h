@@ -41,6 +41,6 @@ void OffsetRect(Rect *, short, short);
 void FrameRect(const Rect *);
 namespace toolbox_host
 {
-  extern int copied, sets, disposals, failSets, failNew, updates;
+  extern int copied, sets, disposals, failSets, failNew, updates, selections;
 }
 #endif

@@ -158,7 +158,7 @@ void ClipRect(const Rect *rect)
 #include "context/ToolboxTextEditorContext.hpp"
 namespace toolbox_host
 {
-  int copied = 0, sets = 0, disposals = 0, failSets = 0, failNew = 0, updates = 0;
+  int copied = 0, sets = 0, disposals = 0, failSets = 0, failNew = 0, updates = 0, selections = 0;
 }
 TEHandle TENew(const Rect *dest, const Rect *view)
 {
@@ -222,6 +222,7 @@ Handle TEGetText(TEHandle te)
 }
 void TESetSelect(short a, short b, TEHandle te)
 {
+  ++toolbox_host::selections;
   (**te).selStart = a;
   (**te).selEnd = b;
 }
