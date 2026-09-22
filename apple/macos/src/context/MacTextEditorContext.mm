@@ -606,7 +606,7 @@ bool MacTextEditorContext::consumeRequest()
   Projection &p = *this->projection_;
   if (!this->node_ || (p.phase != Projection::IDLE && p.phase != Projection::UNAVAILABLE))
     return false;
-  const scene::WriteSeat<LineCursor> request = this->node_->props.moveCaretTo_;
+  const loka::app::scene::WriteSeat<LineCursor> request = this->node_->props.moveCaretTo_;
   if (!request.isValid() || request.state()->get().isNone())
     return false;
   const Projection::Phase completion = p.phase;
@@ -615,7 +615,7 @@ bool MacTextEditorContext::consumeRequest()
   const TextEditorProps binding = this->node_->props;
   request.set(LineCursor::None());
   if (completion == Projection::IDLE && this->node_ && p.phase == Projection::INPUT && this->scroll_
-      && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED && this->node_->props.lines_ == binding.lines_
+      && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED && this->node_->props.lines_ == binding.lines_
       && this->node_->props.moveCaretTo_.state() == request.state()
       && this->node_->document.availability() == EDITOR_OK)
   {
@@ -633,7 +633,7 @@ bool MacTextEditorContext::consumeRequest()
           p.phase = Projection::INPUT;
       }
       if (this->node_ && p.phase == Projection::INPUT
-          && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED
+          && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED
           && this->node_->props.lines_ == binding.lines_
           && this->node_->props.moveCaretTo_.state() == request.state())
       {
@@ -647,7 +647,7 @@ bool MacTextEditorContext::consumeRequest()
           p.phase = Projection::APPLYING;
           [view setSelectedRange:NSMakeRange(row.location + column, 0)];
           if (this->node_ && p.phase == Projection::APPLYING
-              && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED)
+              && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
           {
             p.selection = [view selectedRange];
             p.phase = Projection::INPUT;
@@ -659,7 +659,7 @@ bool MacTextEditorContext::consumeRequest()
       }
     }
   }
-  if (!this->node_ || this->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED)
+  if (!this->node_ || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
     return true;
   if (completion == Projection::IDLE && (p.phase == Projection::INPUT || p.phase == Projection::RECONCILE))
   {
