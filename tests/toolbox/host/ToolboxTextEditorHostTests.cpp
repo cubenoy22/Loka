@@ -153,6 +153,12 @@ namespace
       o.f.context->onPropsApplied();
     }
   };
+  void backspaceAtOrigin(void *value)
+  {
+    Fixture &f = *static_cast<Fixture *>(value);
+    // An origin no-op must not enter the seam during an owner publication.
+    LOKA_VERIFY(f.context->key('\b') == EDITOR_OK);
+  }
   void pin(const char *s)
   {
     std::printf("[pin] %s\n", s);
@@ -290,9 +296,9 @@ int main()
     toolbox_host::copied = 0;
     const int sets = toolbox_host::sets, updates = toolbox_host::updates;
     LOKA_VERIFY(f.context->key('x') == EDITOR_OK);
-    LOKA_VERIFY(toolbox_host::copied == 40);
+    LOKA_VERIFY(toolbox_host::copied == 0);
     LOKA_VERIFY(toolbox_host::sets == sets && toolbox_host::updates == updates);
-    pin("line slice: 40 copied bytes for 7999-byte document; no TESetText/TEUpdate on accepted key");
+    pin("range door: zero copied bytes for 7999-byte document; no TESetText/TEUpdate on accepted key");
   }
   for (int kind = 0; kind < 3; ++kind)
   {
@@ -317,6 +323,18 @@ int main()
     LOKA_VERIFY(f.context->key('y') == EDITOR_OK);
   }
   pin("capacity/stale ID/scratch refusal: unchanged facts, native restored once, next key succeeds");
+  {
+    Fixture f;
+    LOKA_VERIFY(f.lines.detach() == EDIT_OK);
+    LOKA_VERIFY(f.lines.attach(&f.tracker, 256) == ATTACH_OK);
+    LOKA_VERIFY(f.lines.insert(0, String("fresh")) == EDIT_OK);
+    Snapshot before(f);
+    LOKA_VERIFY(f.context->paste("x", 1) == EDITOR_STALE_ID);
+    before.unchanged(f);
+    LOKA_VERIFY(f.restores() == 1);
+    LOKA_VERIFY(f.context->paste("y", 1) == EDITOR_OK && f.native() == "fryesh");
+    pin("paste refuses stale projected identity, restores current rows, then recovers");
+  }
   {
     Fixture f;
     Snapshot before(f);
@@ -362,17 +380,73 @@ int main()
     pin("nested input rejected/reconciled; detach drops focus/row and defers disposal");
   }
 
+  for (int action = 0; action < 4; ++action)
+  {
+    Fixture f(3, "abcd", 3);
+    const ItemId first = f.lines.at(0).id;
+    const int sets = toolbox_host::sets;
+    Observer observer(f);
+    TESetSelect(0, 32767, f.te());
+    const EditorResult result = action == 3 ? f.context->paste("Q\r\nR", 4)
+                                            : f.context->key(action == 0   ? 'b'
+                                                             : action == 1 ? '\b'
+                                                                           : '\r');
+    LOKA_VERIFY(result == EDITOR_OK);
+    const std::string expected = action == 0 ? "b" : action == 1 ? "" : action == 2 ? "\r" : "Q\rR";
+    std::string projection;
+    LOKA_VERIFY(f.node.document.project(projection) == EDITOR_OK && projection == expected);
+    LOKA_VERIFY(f.native() == expected && f.lines.size() == (action < 2 ? 1 : 2));
+    LOKA_VERIFY(f.lines.at(0).id == first && observer.count == 1 && f.restores() == 0);
+    LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(action < 2 ? 0 : 1).id, action == 0 || action == 3 ? 1 : 0));
+    LOKA_VERIFY(action == 3 || toolbox_host::sets == sets);
+  }
+  pin("three-line selection: type, Backspace, Return and paste replace at full capacity; keys never rewrite TE");
   {
     Fixture f;
-    Snapshot before(f);
-    TESetSelect(2, 7, f.te());
-    LOKA_VERIFY(f.context->key('x') == EDITOR_INVALID_CURSOR);
-    before.unchanged(f);
+    TESetSelect(1, 12, f.te());
+    const int sets = toolbox_host::sets;
+    LOKA_VERIFY(f.context->key('b') == EDITOR_OK && f.native() == "abcd");
+    LOKA_VERIFY(f.lines.size() == 1 && f.cursor.get() == LineCursor(f.lines.at(0).id, 2));
+    LOKA_VERIFY(toolbox_host::sets == sets);
     TESetSelect(1, 3, f.te());
-    LOKA_VERIFY(f.context->key('\r') == EDITOR_INVALID_CURSOR);
+    LOKA_VERIFY(f.context->key('\r') == EDITOR_OK && f.native() == "a\rd");
+    LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(1).id, 0));
+    LOKA_VERIFY(toolbox_host::sets == sets);
+    pin("partial selection preserves prefix/suffix; selected Return splits at its start");
+  }
+  for (int paste = 0; paste < 2; ++paste)
+  {
+    Fixture f(3, "abcd", 3);
+    Snapshot before(f);
+    TESetSelect(1, 3, f.te());
+    const unsigned restores = f.restores();
+    LOKA_VERIFY((paste ? f.context->paste("Q\rR", 3) : f.context->key('\r')) == EDITOR_CAPACITY);
     before.unchanged(f);
-    LOKA_VERIFY(f.restores() == 2);
-    pin("cross-line selection and selected Enter refuse without corrupting the model");
+    LOKA_VERIFY(f.restores() == restores + 1);
+  }
+  pin("capacity refusal with a selection restores native text once for Return and paste");
+  {
+    Fixture f;
+    const int sets = toolbox_host::sets;
+    TESetSelect(7, 7, f.te());
+    LOKA_VERIFY(f.context->key('\b') == EDITOR_OK && f.native() == "abcd\racd\rabcd");
+    LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(1).id, 1));
+    TESetSelect(5, 5, f.te());
+    LOKA_VERIFY(f.context->key('\b') == EDITOR_OK && f.native() == "abcdacd\rabcd");
+    LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 4));
+    TESetSelect(0, 0, f.te());
+    LOKA_VERIFY(f.context->key(28) == EDITOR_OK);
+    Snapshot before(f);
+    Observer observer(f);
+    LOKA_VERIFY(f.context->key('\b') == EDITOR_OK);
+    before.unchanged(f);
+    LOKA_VERIFY(observer.count == 0 && toolbox_host::sets == sets);
+    State<ListRevision> &revision = const_cast<State<ListRevision> &>(f.lines.revision());
+    revision.bind(&backspaceAtOrigin, &f, false);
+    LOKA_VERIFY(f.lines.update(f.lines.at(0).id, String("abcdacd")) == EDIT_OK);
+    revision.unbind(&backspaceAtOrigin, &f);
+    LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 0));
+    pin("empty-selection Backspace uses native endpoint, joins predecessor, and origin publishes nothing");
   }
   {
     Fixture f;

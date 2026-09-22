@@ -24,7 +24,7 @@ namespace
   };
   Handler handler;
   /** TE visual lineStarts include wrapped rows. Logical lines are CR-delimited.
-      Borrow and lock the handle while scanning; copy only the selected slice. */
+      Borrow and lock the handle while scanning the native CR-delimited bytes. */
   class TextLock
   {
   public:
@@ -181,6 +181,13 @@ void ToolboxTextEditorContext::onPropsApplied()
     this->caret_ = this->cursorAt(offset);
   }
 }
+bool ToolboxTextEditorContext::hasStaleCaret() const
+{
+  // Native offsets may name different rows after an unprojected owner edit.
+  // Keep the old identity refusal without a model-row lookup on ordinary input.
+  return this->revision_ != this->node_->props.lines_->revision().get()
+         && this->node_->props.lines_->find(this->caret_.line) < 0;
+}
 EditorResult ToolboxTextEditorContext::beginInput()
 {
   if (this->phase_ == PROJECT)
@@ -228,56 +235,30 @@ EditorResult ToolboxTextEditorContext::key(char key)
   EditorResult result = this->beginInput();
   if (result != EDITOR_OK)
     return result;
-  const LineCursor before = this->caret_;
-  Change change = LINE_CHANGE;
   const short start = (**this->te_).selStart, end = (**this->te_).selEnd;
-  const short oldLength = (**this->te_).teLength;
   const Rect scroll = (**this->te_).destRect;
-  const bool spansLines = start != end && this->cursorAt(start).line != this->cursorAt(end).line;
+  // One controller call per key: scan this TE's CR prefix for each endpoint,
+  // sharing the scan for an empty selection. No native line copy is needed.
+  LineCursor from = this->cursorAt(start);
+  const LineCursor to = start == end ? from : this->cursorAt(end);
+  if (key == '\b' && start == end && start > 0)
+    from = from.column > 0 ? LineCursor(from.line, from.column - 1) : this->cursorAt(start - 1);
+  Change change = from.line != to.line || key == '\r' ? STRUCTURE_CHANGE : LINE_CHANGE;
   TEKey(key, this->te_);
   if (key >= 28 && key <= 31)
   {
     change = CARET_CHANGE;
     result = this->node_->document.moveCaret(this->cursorAt((**this->te_).selStart));
   }
-  else if (spansLines || (key == '\r' && start != end))
-    result = EDITOR_INVALID_CURSOR; // Conservative refusal: cross-line selection seam is not in PR 1.
-  else if (key == '\r' && start == end)
+  else if (key == '\b' && start == 0 && start == end)
   {
-    change = STRUCTURE_CHANGE;
-    result = this->node_->document.applySplit(before.line, before.column);
+    change = CARET_CHANGE;
+    result = EDITOR_OK;
   }
-  else if (key == '\b' && before.column == 0 && start == end)
-  {
-    change = start ? STRUCTURE_CHANGE : CARET_CHANGE;
-    result = start ? this->node_->document.applyJoin(before.line) : EDITOR_OK;
-  }
+  else if (this->hasStaleCaret())
+    result = EDITOR_STALE_ID;
   else
-  {
-    short first = (**this->te_).selStart, last = first;
-    TextLock text(this->te_);
-    if (!text.bytes())
-      result = EDITOR_UNAVAILABLE;
-    else
-    {
-      while (first > 0 && text.bytes()[first - 1] != '\r')
-        --first;
-      while (last < (**this->te_).teLength && text.bytes()[last] != '\r')
-        ++last;
-      if (last - first > TextEditorProps::kMaxBytes)
-        result = EDITOR_CAPACITY;
-      else
-      {
-        BlockMoveData(text.bytes() + first, this->restore_, last - first);
-        if (key != '\b' && start == end && (**this->te_).teLength == oldLength + 1)
-          result = this->node_->document.applyKeystroke(before, this->restore_ + start - first, 1);
-        else
-          result = this->node_->document.applySingleLine(before.line,
-                                                         loka::core::String::Utf8(this->restore_, last - first),
-                                                         LineCursor(before.line, (**this->te_).selStart - first));
-      }
-    }
-  }
+    result = this->node_->document.applyReplace(from, to, key == '\b' ? "" : &key, key == '\b' ? 0 : 1);
   const bool refused = result != EDITOR_OK || this->phase_ == RECONCILE;
   result = this->finishInput(result, change);
   if (refused && this->te_)
@@ -301,10 +282,15 @@ EditorResult ToolboxTextEditorContext::paste(const char *bytes, std::size_t leng
   // Refuse before TE's signed-short storage can overflow.
   if (length > TextEditorProps::kMaxBytes)
     result = EDITOR_CAPACITY;
-  else if ((**this->te_).selStart != (**this->te_).selEnd)
-    result = EDITOR_INVALID_CURSOR;
+  else if (this->hasStaleCaret())
+    result = EDITOR_STALE_ID;
   else
-    result = this->node_->document.applyKeystroke(this->caret_, bytes, length);
+  {
+    const short start = (**this->te_).selStart, end = (**this->te_).selEnd;
+    const LineCursor from = this->cursorAt(start);
+    const LineCursor to = start == end ? from : this->cursorAt(end);
+    result = this->node_->document.applyReplace(from, to, bytes, length);
+  }
   result = this->finishInput(result, CARET_CHANGE);
   return result;
 }
