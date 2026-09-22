@@ -252,7 +252,7 @@ namespace
       if (count)
       {
         const EditorResult seeded = loka::app::testing::TextEditorAccess::document(*node).moveCaret(
-            LineCursor(lines.at(0).id, text.size() < 2 ? static_cast<int>(text.size()) : 2)));
+            LineCursor(lines.at(0).id, text.size() < 2 ? static_cast<int>(text.size()) : 2));
         LOKA_VERIFY(seeded == EDITOR_OK || seeded == EDITOR_CAPACITY);
       }
       LayoutState bounds;
