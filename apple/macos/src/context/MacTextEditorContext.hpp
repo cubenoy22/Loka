@@ -57,6 +57,7 @@ private:
   void *delegate_;
   void syncFromNode(bool force, bool nativeCommit = false);
   void consumePendingRequest();
+  bool consumeRequest();
   void scheduleRestore();
   loka::app::EditorResult applyNativeChange(TextObservation source, std::size_t &caretOffset);
 };

@@ -596,75 +596,84 @@ void MacTextEditorContext::syncFromNode(bool force, bool nativeCommit)
 
 void MacTextEditorContext::consumePendingRequest()
 {
-  // Platform twin of Null/Toolbox: take before callbacks, then deliver reposts
-  // at the outer completion. UNAVAILABLE takes without native application.
+  // Platform twin of Null/Toolbox: one take and one epilogue take. Further
+  // reposts stay dirty for the next props apply; nested delivery stays closed.
+  if (this->consumeRequest())
+    this->consumeRequest();
+}
+bool MacTextEditorContext::consumeRequest()
+{
   Projection &p = *this->projection_;
-  while (this->node_ && (p.phase == Projection::IDLE || p.phase == Projection::UNAVAILABLE))
+  if (!this->node_ || (p.phase != Projection::IDLE && p.phase != Projection::UNAVAILABLE))
+    return false;
+  const scene::WriteSeat<LineCursor> request = this->node_->props.moveCaretTo_;
+  if (!request.isValid() || request.state()->get().isNone())
+    return false;
+  const Projection::Phase completion = p.phase;
+  p.phase = Projection::INPUT;
+  const LineCursor pending = request.state()->get();
+  const TextEditorProps binding = this->node_->props;
+  request.set(LineCursor::None());
+  if (completion == Projection::IDLE && this->node_ && p.phase == Projection::INPUT && this->scroll_
+      && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED && this->node_->props.lines_ == binding.lines_
+      && this->node_->props.moveCaretTo_.state() == request.state()
+      && this->node_->document.availability() == EDITOR_OK)
   {
-    const scene::WriteSeat<LineCursor> request = this->node_->props.moveCaretTo_;
-    if (!request.isValid() || request.state()->get().isNone())
-      return;
-    const Projection::Phase completion = p.phase;
-    p.phase = Projection::INPUT;
-    const LineCursor pending = request.state()->get();
-    const TextEditorProps binding = this->node_->props;
-    request.set(LineCursor::None());
-    if (completion == Projection::IDLE && this->node_ && p.phase == Projection::INPUT && this->scroll_
-        && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED && this->node_->props.lines_ == binding.lines_
-        && this->node_->props.moveCaretTo_.state() == request.state()
-        && this->node_->document.availability() == EDITOR_OK)
+    StateTracker *owner = 0;
+    if (binding.lines_->queryMutationTracker(owner) == EDIT_OK && request.usesTracker(owner)
+        && binding.lines_->find(pending.line) >= 0)
     {
-      StateTracker *owner = 0;
-      if (binding.lines_->queryMutationTracker(owner) == EDIT_OK && request.usesTracker(owner)
-          && binding.lines_->find(pending.line) >= 0)
+      NSTextView *view = (NSTextView *)[(NSScrollView *)this->scroll_ documentView];
+      // Taking may notify an owner edit. Repair before interpreting offsets.
+      if (p.validateDocument(*this->node_) != EDITOR_OK || ![[view string] isEqualToString:p.committed])
       {
-        NSTextView *view = (NSTextView *)[(NSScrollView *)this->scroll_ documentView];
-        // Taking may notify an owner edit. Repair before interpreting offsets.
-        if (p.validateDocument(*this->node_) != EDITOR_OK || ![[view string] isEqualToString:p.committed])
+        p.phase = Projection::RECONCILE;
+        this->syncFromNode(false);
+        if (p.phase == Projection::RECONCILE)
+          p.phase = Projection::INPUT;
+      }
+      if (this->node_ && p.phase == Projection::INPUT
+          && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED
+          && this->node_->props.lines_ == binding.lines_
+          && this->node_->props.moveCaretTo_.state() == request.state())
+      {
+        const NativeLines native(p.committed);
+        const int index = binding.lines_->find(pending.line);
+        if (native.result == EDITOR_OK && index >= 0 && index < native.count)
         {
-          p.phase = Projection::RECONCILE;
-          this->syncFromNode(false);
-          if (p.phase == Projection::RECONCILE)
-            p.phase = Projection::INPUT;
-        }
-        if (this->node_ && p.phase == Projection::INPUT
-            && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED
-            && this->node_->props.lines_ == binding.lines_
-            && this->node_->props.moveCaretTo_.state() == request.state())
-        {
-          const NativeLines native(p.committed);
-          const int index = binding.lines_->find(pending.line);
-          if (native.result == EDITOR_OK && index >= 0 && index < native.count)
+          const NSRange row = native.ranges[index];
+          const NSUInteger column = std::min(row.length, static_cast<NSUInteger>(std::max(0, pending.column)));
+          const LineCursor clamped(pending.line, static_cast<int>(column));
+          p.phase = Projection::APPLYING;
+          [view setSelectedRange:NSMakeRange(row.location + column, 0)];
+          if (this->node_ && p.phase == Projection::APPLYING
+              && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED)
           {
-            const NSRange row = native.ranges[index];
-            const NSUInteger column = std::min(row.length, static_cast<NSUInteger>(std::max(0, pending.column)));
-            const LineCursor clamped(pending.line, static_cast<int>(column));
-            p.phase = Projection::APPLYING;
-            [view setSelectedRange:NSMakeRange(row.location + column, 0)];
             p.selection = [view selectedRange];
             p.phase = Projection::INPUT;
-            this->node_->document.moveCaret(clamped);
+            if (this->node_->props.lines_ == binding.lines_
+                && this->node_->props.moveCaretTo_.state() == request.state())
+              this->node_->document.moveCaret(clamped);
           }
         }
       }
     }
-    if (!this->node_ || this->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED)
-      return;
-    if (completion == Projection::IDLE && (p.phase == Projection::INPUT || p.phase == Projection::RECONCILE))
-    {
-      NSTextView *view = (NSTextView *)[(NSScrollView *)this->scroll_ documentView];
-      if (p.phase == Projection::RECONCILE || p.validateDocument(*this->node_) != EDITOR_OK
-          || ![[view string] isEqualToString:p.committed])
-      {
-        p.phase = Projection::RECONCILE;
-        this->syncFromNode(false);
-      }
-    }
-    if (p.phase == Projection::INPUT || p.phase == Projection::RECONCILE)
-      p.phase = completion;
-    // Re-read current Props even after refusal: nested notifications may have
-    // already spent their dirty delivery while this procedure held INPUT.
   }
+  if (!this->node_ || this->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED)
+    return true;
+  if (completion == Projection::IDLE && (p.phase == Projection::INPUT || p.phase == Projection::RECONCILE))
+  {
+    NSTextView *view = (NSTextView *)[(NSScrollView *)this->scroll_ documentView];
+    if (p.phase == Projection::RECONCILE || p.validateDocument(*this->node_) != EDITOR_OK
+        || ![[view string] isEqualToString:p.committed])
+    {
+      p.phase = Projection::RECONCILE;
+      this->syncFromNode(false);
+    }
+  }
+  if (p.phase == Projection::INPUT || p.phase == Projection::RECONCILE)
+    p.phase = completion;
+  return true;
 }
 
 void MacTextEditorContext::captureSelection()
