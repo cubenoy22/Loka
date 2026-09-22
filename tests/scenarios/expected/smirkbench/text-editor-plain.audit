@@ -6,11 +6,13 @@ step id=5 due_tick=5 tick=5 status=succeeded error_kind=0 error_code=0 name=type
 step id=6 due_tick=6 tick=6 status=succeeded error_kind=0 error_code=0 name=left-to-start
 step id=7 due_tick=7 tick=7 status=succeeded error_kind=0 error_code=0 name=join-4-to-3
 step id=8 due_tick=8 tick=8 status=succeeded error_kind=0 error_code=0 name=paste-cap-refused
-step id=9 due_tick=9 tick=9 status=succeeded error_kind=0 error_code=0 name=capture
+step id=9 due_tick=9 tick=9 status=succeeded error_kind=0 error_code=0 name=replace-3-to-1
+step id=10 due_tick=10 tick=10 status=succeeded error_kind=0 error_code=0 name=type-c
+step id=11 due_tick=11 tick=11 status=succeeded error_kind=0 error_code=0 name=capture
 cap	refused
 format_version	1
-line2	xysecond
-line_counts	3->4->3
+line1	bc
+line_counts	3->4->3->1
 node	SmirkBench.EditorLine
 restores	1
 scenario_version	1
@@ -18,5 +20,5 @@ schema_version	1
 status	ok
 step	text-editor-plain
 test	SmirkBench
-tick	9
+tick	11
 terminal status=succeeded
