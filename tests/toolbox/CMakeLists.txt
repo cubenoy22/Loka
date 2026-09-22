@@ -186,6 +186,23 @@ function(loka_add_te_style_probe name core_target)
 endfunction()
 loka_add_te_style_probe(LokaTEStyleProbe LokaAppleToolboxCore)
 
+# Interactive editor; production core, no scenario driver or idle callback.
+# LokaTextEditor68K_APPL.bin is 26 characters (HFS limit: 31).
+set(LOKA_TEXT_EDITOR_TARGET "LokaTextEditor${LOKA_CLASSIC_TARGET_SUFFIX}")
+configure_file(
+  ${CMAKE_SOURCE_DIR}/example/HelloWorld/Size.r
+  ${CMAKE_CURRENT_BINARY_DIR}/TextEditorSize.r
+  COPYONLY
+)
+loka_add_toolbox_test_application(
+  ${LOKA_TEXT_EDITOR_TARGET}
+  LokaAppleToolboxCore
+  src/TextEditorStandaloneMain.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/TextEditorSize.r
+)
+set_property(TARGET ${LOKA_TEXT_EDITOR_TARGET} PROPERTY EXCLUDE_FROM_ALL TRUE)
+set_property(TARGET ${LOKA_TEXT_EDITOR_TARGET}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
+
 set(LOKA_PAINT_DAMAGE_TARGET "LokaPaintDamage${LOKA_CLASSIC_TARGET_SUFFIX}")
 loka_add_toolbox_test_application(
   ${LOKA_PAINT_DAMAGE_TARGET}
