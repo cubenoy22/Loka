@@ -50,15 +50,24 @@ namespace loka
 @interface LokaRequestEditorView : NSTextView
 {
   NSUInteger selectionWrites_;
+  NSArray *selectionWriteStack_;
 }
 @property(nonatomic, assign) NSUInteger selectionWrites;
+@property(nonatomic, retain) NSArray *selectionWriteStack;
 @end
 @implementation LokaRequestEditorView
 @synthesize selectionWrites = selectionWrites_;
+@synthesize selectionWriteStack = selectionWriteStack_;
 - (void)setSelectedRange:(NSRange)range
 {
   [self setSelectionWrites:[self selectionWrites] + 1];
+  [self setSelectionWriteStack:[NSThread callStackSymbols]];
   [super setSelectedRange:range];
+}
+- (void)dealloc
+{
+  [self setSelectionWriteStack:nil];
+  [super dealloc];
 }
 @end
 
@@ -349,6 +358,17 @@ namespace
     LOKA_VERIFY([f.view isEditable]);
   }
 
+  void printSelectionWriteMismatch(LokaRequestEditorView *view, NSUInteger expected, const char *stage)
+  {
+    const NSUInteger actual = [view selectionWrites];
+    if (actual == expected)
+      return;
+    const char *stack = [[[view selectionWriteStack] description] UTF8String];
+    fprintf(stderr, "[MacTextEditor %s] selectionWrites expected=%lu actual=%lu; last setSelectedRange: stack:\n%s\n",
+            stage, static_cast<unsigned long>(expected), static_cast<unsigned long>(actual),
+            stack ? stack : "(no captured stack)");
+  }
+
   LokaRequestEditorView *instrumentSelection(Fixture &f)
   {
     LokaRequestEditorView *view = [[LokaRequestEditorView alloc] initWithFrame:[f.view frame]];
@@ -364,7 +384,9 @@ namespace
     [f.host.window makeFirstResponder:view];
     const NSUInteger before = [view selectionWrites];
     [view setSelectedRange:[view selectedRange]];
+    printSelectionWriteMismatch(view, before + 1, "setter positive control");
     LOKA_VERIFY([view selectionWrites] == before + 1); // Positive control.
+    LOKA_VERIFY([[view selectionWriteStack] count] > 0);
     return view;
   }
 
@@ -399,6 +421,7 @@ namespace
         requestCaret(self.fixture, next);
       const NSUInteger before = [self.view selectionWrites];
       self.fixture.context->onPropsApplied();
+      printSelectionWriteMismatch(self.view, before, "report/take observer props completion");
       LOKA_VERIFY([self.view selectionWrites] == before);
     }
   };
@@ -548,9 +571,11 @@ void testMacTextEditorRequests()
     [[view textStorage] replaceCharactersInRange:NSMakeRange(2, 0) withString:@"x"];
     if (storageOnly)
     {
+      printSelectionWriteMismatch(view, before, "storage replace returned");
       LOKA_VERIFY([view selectionWrites] == before);
       LOKA_VERIFY(f.request.get() == LineCursor(f.lines.at(1).id, 1));
       f.context->onPropsApplied();
+      printSelectionWriteMismatch(view, before, "storage-pending props completion");
       LOKA_VERIFY([view selectionWrites] == before);
       LOKA_VERIFY(!f.request.get().isNone());
       // Selection reporting is allowed, but cannot open request delivery yet.
@@ -595,6 +620,7 @@ void testMacTextEditorRequests()
     [delegate performSelector:@selector(applyHighlights)];
     LOKA_VERIFY(f.request.get().isNone());
     LOKA_VERIFY(f.cursor.state()->get() == before);
+    printSelectionWriteMismatch(view, writes, "stale deferred completion");
     LOKA_VERIFY([view selectionWrites] == writes);
     [view setDelegate:delegate];
   }
@@ -625,6 +651,7 @@ void testMacTextEditorRequestReverse()
   LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(0).id, 1));
   const NSUInteger afterDelete = [view selectionWrites];
   f.context->onPropsApplied();
+  printSelectionWriteMismatch(view, afterDelete, "post-delete props completion");
   LOKA_VERIFY([view selectionWrites] == afterDelete);
   for (NSUInteger offset = 2; offset <= 5; ++offset)
   {
@@ -635,6 +662,7 @@ void testMacTextEditorRequestReverse()
     LOKA_VERIFY(f.cursor.state()->get() == expected);
     const NSUInteger afterArrow = [view selectionWrites];
     f.context->onPropsApplied();
+    printSelectionWriteMismatch(view, afterArrow, "post-arrow props completion");
     LOKA_VERIFY([view selectionWrites] == afterArrow);
   }
   LOKA_VERIFY(f.request.get().isNone());
