@@ -8,6 +8,7 @@
 #include "app/scene/context/ComponentContext.hpp"
 #include "app/scene/composition/NodeComposition.hpp"
 #include "app/scene/state/StateBatchBase.hpp"
+#include "app/scene/state/Reported.hpp"
 #include "app/scene/state/StateOwner.hpp"
 #include "core/Profiler.hpp"
 
@@ -327,6 +328,11 @@ namespace loka
         // This does not make ComposableNode a state owner; nodes that need a
         // shorter ownership scope than Boundary should expose an explicit
         // IStateOwner through asStateOwner().
+        template <typename T> void state(Reported<T> &out, const T &initial)
+        {
+          this->state(out.seat_, initial);
+        }
+
         template <typename T> void state(NodeState<T> &out, const T &initial)
         {
           for (size_t i = 0; i < nodeStates_.size(); ++i)
@@ -391,6 +397,11 @@ namespace loka
           ~NodeStateBatch()
           {
             this->releaseBlock();
+          }
+
+          template <typename T> NodeStateBatch &state(Reported<T> &out, const T &initial)
+          {
+            return this->state(out.seat_, initial);
           }
 
           template <typename T> NodeStateBatch &state(NodeState<T> &out, const T &initial)

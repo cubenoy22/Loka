@@ -36,6 +36,7 @@ void NullTextEditorContext::readLifecycleFactOnAttach()
 {
   assert(this->node_ && this->node_->props.lines_);
   this->project(LineCursor::None());
+  this->consumePendingRequest();
 }
 void NullTextEditorContext::project(LineCursor fallback)
 {
@@ -61,7 +62,7 @@ void NullTextEditorContext::project(LineCursor fallback)
     return;
   }
   const loka::core::ObservableList<loka::core::String> &lines = *this->node_->props.lines_;
-  this->caret_ = this->node_->props.cursor_.state()->get();
+  this->caret_ = this->node_->props.cursorState()->get();
   if (lines.find(this->caret_.line) < 0)
   {
     this->caret_ = fallback;
@@ -103,9 +104,15 @@ std::size_t NullTextEditorContext::nativeOffset() const
 EditorResult NullTextEditorContext::input(const std::string &bytes, bool join, const LineCursor *move)
 {
   if (!this->node_ || this->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED)
+  {
+    this->consumePendingRequest();
     return EDITOR_UNAVAILABLE;
+  }
   if (this->status_ != EDITOR_OK)
+  {
+    this->consumePendingRequest();
     return this->status_;
+  }
   const LineCursor before = this->caret_;
   const std::size_t offset = this->nativeOffset();
   // A real native control has already changed before its owner is notified.
@@ -154,12 +161,55 @@ EditorResult NullTextEditorContext::input(const std::string &bytes, bool join, c
     this->restoreCommittedProjection(before);
   else
     this->project(before);
+  this->consumePendingRequest();
   return result;
 }
 void NullTextEditorContext::syncFromNode()
 {
   if (this->phase_ == IDLE)
+  {
     this->project(this->caret_);
+    this->consumePendingRequest();
+  }
+}
+void NullTextEditorContext::consumePendingRequest()
+{
+  if (this->phase_ != IDLE)
+    return;
+  while (this->node_)
+  {
+    const scene::WriteSeat<LineCursor> request = this->node_->props.moveCaretTo_;
+    if (!request.isValid() || request.state()->get().isNone())
+      return;
+    this->phase_ = INPUT;
+    LineCursor pending = request.state()->get();
+    const TextEditorProps binding = this->node_->props;
+    request.set(LineCursor::None());
+    // Taking can notify app code. Recheck the borrowed binding before using it.
+    if (this->node_ && this->phase_ == INPUT && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED
+        && this->node_->props.lines_ == binding.lines_ && this->node_->props.moveCaretTo_.state() == request.state()
+        && this->node_->document.availability() == EDITOR_OK)
+    {
+      loka::core::StateTracker *owner = 0;
+      if (binding.lines_->queryMutationTracker(owner) == loka::core::EDIT_OK && request.usesTracker(owner))
+      {
+        const int row = binding.lines_->find(pending.line);
+        if (row >= 0)
+        {
+          std::size_t length = 0;
+          if (binding.lines_->at(static_cast<unsigned short>(row))
+                  .value.requiredUnits(loka::core::StringEncodingUtf8, length))
+            pending.column = std::max(0, std::min(pending.column, static_cast<int>(length)));
+        }
+        this->node_->document.moveCaret(pending);
+      }
+    }
+    // Reconcile any nested tentative input before delivering a report-time repost.
+    this->phase_ = IDLE;
+    this->project(this->caret_);
+    // The outer completion is itself a delivery point. Re-read current Props:
+    // report callbacks may have spent their dirty notification while INPUT.
+  }
 }
 short NullTextEditorContext::layout(scene::IPlatformController *, scene::LayoutState &state)
 {
@@ -172,6 +222,8 @@ void NullTextEditorContext::onFactChanged(scene::NodeLifecycleFact, scene::NodeL
 {
   if (next != scene::NODE_FACT_ATTACHED)
   {
+    if (this->phase_ != IDLE)
+      this->phase_ = RECONCILE;
     if (next == scene::NODE_FACT_RETIRED)
       this->node_ = 0;
     this->buffer_.clear();

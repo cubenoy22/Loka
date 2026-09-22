@@ -1,3 +1,4 @@
+#include "support/TextEditorStateOwner.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
 #include "Win32NodeHandlerEnsureTests.hpp"
 #include "support/TestVerify.hpp"
@@ -283,14 +284,11 @@ void testWin32NodeHandlerEnsureContract()
     LOKA_VERIFY(countChildWindows(root) == childrenWithText);
 
     // -- TextEditor: a retained Unicode multiline native control --
-    loka::core::PushStateTracker editorTracker;
+    loka::app::testing::TextEditorStateOwner editorState;
     loka::core::ObservableList<loka::core::String> editorLines;
-    loka::core::MutableState<loka::app::LineCursor> editorCursor;
-    editorTracker.addState(&editorCursor);
-    LOKA_VERIFY(editorLines.attach(&editorTracker, 256) == loka::core::ATTACH_OK);
+    LOKA_VERIFY(editorLines.attach(&editorState.tracker, 256) == loka::core::ATTACH_OK);
     LOKA_VERIFY(editorLines.insert(0, loka::core::String("line")) == loka::core::EDIT_OK);
-    loka::app::scene::NodeState<loka::app::LineCursor> editorSeat(&editorCursor, &editorTracker);
-    loka::app::TextEditorNode editor((loka::app::TextEditorProps(editorLines, editorSeat)));
+    loka::app::TextEditorNode editor((loka::app::TextEditorProps(editorLines, editorState.cursor)));
     LOKA_VERIFY(controller.prepareProjectedLayout(&editor, state));
     Win32TextEditorContext *editorContext = static_cast<Win32TextEditorContext *>(editor.getContext());
     LOKA_VERIFY(editorContext && IsWindowUnicode(editorContext->hwnd()));

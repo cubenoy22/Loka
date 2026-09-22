@@ -52,7 +52,9 @@ namespace loka
       explicit SmirkBenchPlainEditorNode(const SmirkBenchPlainEditorProps &props)
           : smirkbench::MainNodeBase<SmirkBenchPlainEditorProps>(props)
       {
-        this->state(this->cursor_, app::LineCursor::None());
+        this->declareStates(2)
+            .state(this->cursor_, app::LineCursor::None())
+            .state(this->request_, app::LineCursor::None());
       }
       virtual void attachNode(app::scene::NodeComposition &)
       {
@@ -65,7 +67,7 @@ namespace loka
         this->lines_.insert(1, core::String("second"));
         this->lines_.insert(2, core::String("third"));
         core::StateTrackerGuard guard(this->tracker());
-        this->cursor_.set(app::LineCursor(this->lines_.at(0).id, 0));
+        this->request_.set(app::LineCursor(this->lines_.at(0).id, 0));
       }
 
     protected:
@@ -74,13 +76,15 @@ namespace loka
         using namespace app;
         smirkbench::MainNodeBase<SmirkBenchPlainEditorProps>::composeNavigation(navPane);
         navPane << (Column() << Text("Plain text editor")
-                             << (Box().size(130, 96)
-                                 << TextEditor(this->lines_, this->cursor_).TEST_ID("SmirkBench.PlainEditor")));
+                             << (Box().size(130, 96) << TextEditor(this->lines_, this->cursor_)
+                                                            .moveCaretTo(this->request_)
+                                                            .TEST_ID("SmirkBench.PlainEditor")));
       }
 
     private:
       core::ObservableList<core::String> lines_;
-      app::scene::NodeState<app::LineCursor> cursor_;
+      app::scene::Reported<app::LineCursor> cursor_;
+      app::scene::NodeState<app::LineCursor> request_;
     };
   } // namespace scenario_tests
 } // namespace loka

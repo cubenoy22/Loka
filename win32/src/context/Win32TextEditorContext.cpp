@@ -55,8 +55,7 @@ bool Win32TextEditorContext::Projection::current(const TextEditorNode &node) con
     return false;
   loka::core::StateTracker *tracker = 0;
   const loka::core::ListEditResult ready = this->owner->queryMutationTracker(tracker);
-  return (ready == loka::core::EDIT_OK || ready == loka::core::EDIT_REENTRANT) && node.props.cursor_.isValid()
-         && node.props.cursor_.usesTracker(tracker);
+  return (ready == loka::core::EDIT_OK || ready == loka::core::EDIT_REENTRANT) && node.props.cursorUsesTracker(tracker);
 }
 EditorResult Win32TextEditorContext::Projection::capture(TextEditorNode &node)
 {
@@ -210,9 +209,9 @@ bool Win32TextEditorContext::replaceProjection()
 void Win32TextEditorContext::restoreSelection()
 {
   DWORD start = this->selection_.start, end = this->selection_.end;
-  if (this->node_->props.lines_ && this->node_->props.cursor_.isValid())
+  if (this->node_->props.lines_ && this->node_->props.cursorState())
   {
-    const LineCursor cursor = this->node_->props.cursor_.state()->get();
+    const LineCursor cursor = this->node_->props.cursorState()->get();
     const int index = this->node_->props.lines_->find(cursor.line);
     if (index >= 0)
     {
@@ -250,7 +249,7 @@ void Win32TextEditorContext::syncFromNode()
   {
     // A native echo must preserve selection and undo. Only an externally
     // moved committed cursor collapses the native selection.
-    const LineCursor desired = this->node_->props.cursor_.state()->get();
+    const LineCursor desired = this->node_->props.cursorState()->get();
     if (!desired.isNone() && desired != this->nativeCaret())
     {
       this->phase_ = RESTORING;
@@ -405,7 +404,7 @@ void Win32TextEditorContext::syncCaret()
   if (!this->node_ || (this->phase_ != INPUT && this->phase_ != PASTING) || this->status_ != EDITOR_OK)
     return;
   const LineCursor cursor = this->nativeCaret();
-  if (cursor == this->node_->props.cursor_.state()->get())
+  if (cursor == this->node_->props.cursorState()->get())
     return;
   const Phase inputPhase = this->phase_;
   this->phase_ = COMMIT;

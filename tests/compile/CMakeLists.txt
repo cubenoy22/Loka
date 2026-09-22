@@ -225,3 +225,38 @@ loka_compile_pin(attributed-string-conversion
   REFUSES pins/refuses_attributed_string_conversion.cpp
   ACCEPTS pins/accepts_attributed_string_conversion.cpp
 )
+
+loka_compile_pin(reported-set
+  REFUSES pins/refuses_reported_set.cpp
+  ACCEPTS pins/accepts_reported_set.cpp
+)
+
+loka_compile_pin(editor-fact-seat
+  REFUSES pins/refuses_editor_fact_seat.cpp
+  ACCEPTS pins/accepts_editor_fact_seat.cpp
+)
+
+loka_compile_pin(editor-document-construction
+  REFUSES pins/refuses_editor_document_construction.cpp
+  ACCEPTS pins/accepts_editor_document_construction.cpp
+)
+
+loka_compile_pin(editor-document-access
+  REFUSES pins/refuses_editor_document_access.cpp
+  ACCEPTS pins/accepts_editor_document_access.cpp
+)
+
+loka_compile_pin(editor-old-cursor-constructor
+  REFUSES pins/refuses_editor_old_cursor_constructor.cpp
+  ACCEPTS pins/accepts_editor_old_cursor_constructor.cpp
+)
+
+loka_compile_pin(reported-mutable-alias
+  REFUSES pins/refuses_reported_mutable_alias.cpp
+  ACCEPTS pins/accepts_reported_mutable_alias.cpp
+)
+
+loka_compile_pin(reported-props-door
+  REFUSES pins/refuses_reported_props_door.cpp
+  ACCEPTS pins/accepts_reported_props_door.cpp
+)

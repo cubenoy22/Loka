@@ -561,7 +561,7 @@ void MacTextEditorContext::syncFromNode(bool force, bool nativeCommit)
     return;
   }
   NativeLines native(p.committed);
-  const LineCursor cursor = this->node_->props.cursor_.state()->get();
+  const LineCursor cursor = this->node_->props.cursorState()->get();
   int index = lines.find(cursor.line);
   NSRange selection = p.selection;
   if (index >= 0)
@@ -674,7 +674,7 @@ EditorResult MacTextEditorContext::applyNativeChange(TextObservation source, std
     const unsigned short caretLine = after.lineAt(caret);
     // A later view notification can carry a new caret over committed text.
     const LineCursor cursor(p.ids[caretLine], static_cast<int>(caret - after.ranges[caretLine].location));
-    return cursor == this->node_->props.cursor_.state()->get() ? EDITOR_OK : this->node_->document.moveCaret(cursor);
+    return cursor == this->node_->props.cursorState()->get() ? EDITOR_OK : this->node_->document.moveCaret(cursor);
   }
   const unsigned short oldEnd = static_cast<unsigned short>(first + diff.before());
   const unsigned short newEnd = static_cast<unsigned short>(first + diff.after());

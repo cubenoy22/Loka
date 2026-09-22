@@ -1,5 +1,6 @@
 #ifndef LOKA_SMIRK_BENCH_PLAIN_EDITOR_SCENARIO_HPP
 #define LOKA_SMIRK_BENCH_PLAIN_EDITOR_SCENARIO_HPP
+#include "../support/TextEditorAccess.hpp"
 #include "SmirkBenchPlainEditorNode.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "SmirkBenchAttributedScenario.hpp"
@@ -50,7 +51,7 @@ namespace loka
           point.h = (**te).viewRect.left + 1;
           point.v = (**te).viewRect.top + (**te).lineHeight + 1;
           ok = controller.handleMouseDown(point)
-               && editor->props.cursor_.state()->get().line == editor->props.lines_->at(1).id;
+               && editor->props.cursorState()->get().line == editor->props.lines_->at(1).id;
           step = "click-line-2";
         }
         else if (tick == 3)
@@ -90,7 +91,8 @@ namespace loka
           TESetSelect(0, 32767, te);
           std::string projection;
           ok = controller.handleKeyDown('b') && editor->props.lines_->size() == 1
-               && editor->document.project(projection) == app::EDITOR_OK && projection == "b";
+               && app::testing::TextEditorAccess::document(*editor).project(projection) == app::EDITOR_OK
+               && projection == "b";
           step = "replace-3-to-1";
         }
         else if (tick == 10)
@@ -113,7 +115,8 @@ namespace loka
         return SCENARIO_ADVANCE_PENDING;
       std::string projection;
       if (ok)
-        ok = editor->document.project(projection) == app::EDITOR_OK && projection == "bc";
+        ok = app::testing::TextEditorAccess::document(*editor).project(projection) == app::EDITOR_OK
+             && projection == "bc";
       out = SmirkBenchEditorRecord("text-editor-plain", tick, ok);
       if (ok)
       {

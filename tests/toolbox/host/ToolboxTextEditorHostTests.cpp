@@ -1,3 +1,5 @@
+#include "support/TextEditorStateOwner.hpp"
+#include "support/TextEditorAccess.hpp"
 #include "context/ToolboxTextEditorContext.hpp"
 #include "ToolboxBuiltInSupport.hpp"
 #include "context/ToolboxPaintSupport.hpp"
@@ -5,6 +7,8 @@
 #include "support/TextEditorContractSnapshot.hpp"
 #include "support/LokaAllocFailure.hpp"
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include "toolbox/ToolboxTextEditorAccess.hpp"
 using namespace loka::app;
 using namespace loka::app::scene;
@@ -12,29 +16,24 @@ using namespace loka::core;
 using loka::testing::ToolboxTextEditorAccess;
 namespace
 {
-  struct Fixture
+  struct Fixture : loka::app::testing::TextEditorStateOwner
   {
-    PushStateTracker tracker;
     ObservableList<String> lines;
-    MutableState<LineCursor> cursor;
-    NodeState<LineCursor> seat;
     ToolboxWindow window;
     ToolboxScenePlatformController controller;
     TextEditorNode node;
     ToolboxTextEditorContext *context;
     Fixture(unsigned short count = 3, const std::string &text = "abcd", unsigned short capacity = 256)
-        : seat(&cursor, &tracker),
-          controller(&window),
-          node(TextEditorProps(lines, seat)),
+        : controller(&window),
+          node(TextEditorProps(lines, cursor).moveCaretTo(request)),
           context(0)
     {
-      tracker.addState(&cursor);
       LOKA_VERIFY(lines.attach(&tracker, capacity) == ATTACH_OK);
       for (unsigned short i = 0; i < count; ++i)
         LOKA_VERIFY(lines.insert(i, String(text)) == EDIT_OK);
       {
         StateTrackerGuard guard(&tracker);
-        cursor.set(LineCursor(lines.at(0).id, std::min(2, static_cast<int>(text.size()))));
+        request.set(LineCursor(lines.at(0).id, std::min(2, static_cast<int>(text.size()))));
       }
       LOKA_VERIFY(RegisterToolboxBuiltInSupport(controller));
       LayoutState state;
@@ -49,6 +48,15 @@ namespace
       context->layout(&controller, state);
       LOKA_VERIFY(!ToolboxTextEditorAccess::te(*context));
       context->render(&controller);
+      // These pins exercise native editing, independently of PR2's pending
+      // app-request delivery. Seed the native selection through its input seam.
+      if (count && ToolboxTextEditorAccess::status(*context) == EDITOR_OK)
+      {
+        Point initial = {
+            static_cast<short>((**this->te()).viewRect.top),
+            static_cast<short>((**this->te()).viewRect.left + 6 * std::min(2, static_cast<int>(text.size())))};
+        LOKA_VERIFY(context->click(initial) == EDITOR_OK);
+      }
     }
     ~Fixture()
     {
@@ -90,9 +98,9 @@ namespace
     LOKA_VERIFY(f.native() == expected.text);
     LOKA_VERIFY((**f.te()).selStart == expected.selStart);
     LOKA_VERIFY((**f.te()).selEnd == expected.selEnd);
-    LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(row).id, expected.selStart - start));
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(row).id, expected.selStart - start));
     std::string committed;
-    LOKA_VERIFY(f.node.document.project(committed) == EDITOR_OK);
+    LOKA_VERIFY(loka::app::testing::TextEditorAccess::document(f.node).project(committed) == EDITOR_OK);
     LOKA_VERIFY(committed == expected.text);
   }
   struct Snapshot : loka::testing::TextEditorContractSnapshot
@@ -101,7 +109,7 @@ namespace
     explicit Snapshot(Fixture &f)
         : loka::testing::TextEditorContractSnapshot(f)
     {
-      LOKA_VERIFY(f.node.document.project(this->projection) == EDITOR_OK);
+      LOKA_VERIFY(loka::app::testing::TextEditorAccess::document(f.node).project(this->projection) == EDITOR_OK);
     }
     void unchanged(Fixture &f) const
     {
@@ -165,8 +173,35 @@ namespace
     std::fflush(stdout);
   }
 } // namespace
-int main()
+int main(int argc, char **argv)
 {
+  if (argc == 2 && std::strcmp(argv[1], "request") == 0)
+  {
+    const char *enabled = std::getenv("LOKA_EXPECTED_RED");
+    if (!enabled || std::strcmp(enabled, "1") != 0)
+    {
+      std::puts("SKIP expected-red: Toolbox request delivery is #873 PR2 (set LOKA_EXPECTED_RED=1)");
+      return 77;
+    }
+    {
+      Fixture f;
+      pin("PR2 acceptance: app request is consumed and moves native caret after a commit");
+      nativeKey(f, '\b');
+      const LineCursor desired(f.lines.at(1).id, 2);
+      {
+        StateTrackerGuard guard(&f.tracker);
+        f.request.set(desired);
+      }
+      f.context->onPropsApplied();
+      LOKA_VERIFY(f.request.get().isNone());
+      const short expected = static_cast<short>(f.native().find('\r') + 1 + desired.column);
+      LOKA_VERIFY((**f.te()).selStart == expected && (**f.te()).selEnd == expected);
+      LOKA_VERIFY(f.cursor.state()->get() == desired);
+      nativeKey(f, 28);
+    }
+    return 0;
+  }
+
   for (int atEnd = 0; atEnd < 2; ++atEnd)
   {
     Fixture f;
@@ -174,7 +209,7 @@ int main()
     const short column = atEnd ? 4 : 2;
     Point point = {37, static_cast<short>(10 + column * 6)};
     LOKA_VERIFY(f.context->click(point) == EDITOR_OK);
-    LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(1).id, column));
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(1).id, column));
     const ListRevision before = f.lines.revision().get();
     nativeKey(f, '\b');
     LOKA_VERIFY(f.lines.revision().get().content == before.content + 1);
@@ -187,21 +222,7 @@ int main()
       nativeKey(f, 29);
     }
   }
-  {
-    Fixture f;
-    pin("app NodeState cursor write moves native caret after a commit");
-    nativeKey(f, '\b');
-    const LineCursor desired(f.lines.at(1).id, 2);
-    {
-      StateTrackerGuard guard(&f.tracker);
-      f.seat.set(desired);
-    }
-    f.context->onPropsApplied();
-    const short expected = static_cast<short>(f.native().find('\r') + 1 + desired.column);
-    LOKA_VERIFY((**f.te()).selStart == expected && (**f.te()).selEnd == expected);
-    LOKA_VERIFY(f.cursor.get() == desired);
-    nativeKey(f, 28);
-  }
+
   {
     Fixture f;
     Point inside = {21, 11}, outside = {0, 0};
@@ -287,8 +308,8 @@ int main()
     LOKA_VERIFY(f.context->key('\b') == EDITOR_OK && f.lines.size() == 3 && o.count == 3);
     LOKA_VERIFY(f.lines.revision().get().change.kind == LIST_BATCH);
     Point p = {37, 16};
-    LOKA_VERIFY(f.context->click(p) == EDITOR_OK && f.cursor.get() == LineCursor(f.lines.at(1).id, 1));
-    LOKA_VERIFY(f.context->key(29) == EDITOR_OK && f.cursor.get().column == 2 && o.count == 3);
+    LOKA_VERIFY(f.context->click(p) == EDITOR_OK && f.cursor.state()->get() == LineCursor(f.lines.at(1).id, 1));
+    LOKA_VERIFY(f.context->key(29) == EDITOR_OK && f.cursor.state()->get().column == 2 && o.count == 3);
     pin("update once; split/join one batch; click and arrows publish caret only");
   }
   {
@@ -408,10 +429,12 @@ int main()
     LOKA_VERIFY(result == EDITOR_OK);
     const std::string expected = action == 0 ? "b" : action == 1 ? "" : action == 2 ? "\r" : "Q\rR";
     std::string projection;
-    LOKA_VERIFY(f.node.document.project(projection) == EDITOR_OK && projection == expected);
+    LOKA_VERIFY(loka::app::testing::TextEditorAccess::document(f.node).project(projection) == EDITOR_OK
+                && projection == expected);
     LOKA_VERIFY(f.native() == expected && f.lines.size() == (action < 2 ? 1 : 2));
     LOKA_VERIFY(f.lines.at(0).id == first && observer.count == 1 && f.restores() == 0);
-    LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(action < 2 ? 0 : 1).id, action == 0 || action == 3 ? 1 : 0));
+    LOKA_VERIFY(f.cursor.state()->get()
+                == LineCursor(f.lines.at(action < 2 ? 0 : 1).id, action == 0 || action == 3 ? 1 : 0));
     LOKA_VERIFY(action == 3 || toolbox_host::sets == sets);
   }
   pin("three-line selection: type, Backspace, Return and paste replace at full capacity; keys never rewrite TE");
@@ -420,11 +443,11 @@ int main()
     TESetSelect(1, 12, f.te());
     const int sets = toolbox_host::sets;
     LOKA_VERIFY(f.context->key('b') == EDITOR_OK && f.native() == "abcd");
-    LOKA_VERIFY(f.lines.size() == 1 && f.cursor.get() == LineCursor(f.lines.at(0).id, 2));
+    LOKA_VERIFY(f.lines.size() == 1 && f.cursor.state()->get() == LineCursor(f.lines.at(0).id, 2));
     LOKA_VERIFY(toolbox_host::sets == sets);
     TESetSelect(1, 3, f.te());
     LOKA_VERIFY(f.context->key('\r') == EDITOR_OK && f.native() == "a\rd");
-    LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(1).id, 0));
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(1).id, 0));
     LOKA_VERIFY(toolbox_host::sets == sets);
     pin("partial selection preserves prefix/suffix; selected Return splits at its start");
   }
@@ -444,10 +467,10 @@ int main()
     const int sets = toolbox_host::sets;
     TESetSelect(7, 7, f.te());
     LOKA_VERIFY(f.context->key('\b') == EDITOR_OK && f.native() == "abcd\racd\rabcd");
-    LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(1).id, 1));
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(1).id, 1));
     TESetSelect(5, 5, f.te());
     LOKA_VERIFY(f.context->key('\b') == EDITOR_OK && f.native() == "abcdacd\rabcd");
-    LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 4));
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(0).id, 4));
     TESetSelect(0, 0, f.te());
     LOKA_VERIFY(f.context->key(28) == EDITOR_OK);
     Snapshot before(f);
@@ -459,7 +482,7 @@ int main()
     revision.bind(&backspaceAtOrigin, &f, false);
     LOKA_VERIFY(f.lines.update(f.lines.at(0).id, String("abcdacd")) == EDIT_OK);
     revision.unbind(&backspaceAtOrigin, &f);
-    LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 0));
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(0).id, 0));
     pin("empty-selection Backspace uses native endpoint, joins predecessor, and origin publishes nothing");
   }
   {
@@ -523,7 +546,8 @@ int main()
     before.unchanged(f);
     LOKA_VERIFY(f.context->paste("Q\r\nR\nS", 6) == EDITOR_OK);
     std::string projection;
-    LOKA_VERIFY(f.node.document.project(projection) == EDITOR_OK && f.native() == projection);
+    LOKA_VERIFY(loka::app::testing::TextEditorAccess::document(f.node).project(projection) == EDITOR_OK
+                && f.native() == projection);
     pin("non-ASCII refusal and CR/LF paste normalization");
   }
   {

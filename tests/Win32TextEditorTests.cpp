@@ -1,3 +1,5 @@
+#include "support/TextEditorStateOwner.hpp"
+#include "support/TextEditorAccess.hpp"
 #include "Win32EditTextBridgeTests.hpp"
 #include "support/TestVerify.hpp"
 #include "support/LokaAllocFailure.hpp"
@@ -224,38 +226,31 @@ namespace
       return out.append(line, Bold);
     }
   };
-  struct Fixture
+  struct Fixture : loka::app::testing::TextEditorStateOwner
   {
     HWND host;
     Win32ScenePlatformController controller;
-    PushStateTracker tracker;
     ObservableList<String> lines;
-    MutableState<LineCursor> cursor;
-    NodeState<LineCursor> seat;
     TextEditorNode *node;
     Win32TextEditorContext *context;
     Fixture(unsigned short count = 3, const std::string &text = "abcd", unsigned short capacity = 256)
         : host(createHost()),
           controller(host, loka::win32::Win32DisplayScale(96, RailMetrics())),
-          tracker(),
           lines(),
-          cursor(),
-          seat(&cursor, &tracker),
           node(0),
           context(0)
     {
       LOKA_VERIFY(SetPropW(host, kHostController, &controller));
       RegisterWin32BuiltInSupport(controller);
-      tracker.addState(&cursor);
       LOKA_VERIFY(lines.attach(&tracker, capacity) == ATTACH_OK);
       for (unsigned short i = 0; i < count; ++i)
         LOKA_VERIFY(lines.insert(i, String(text)) == EDIT_OK);
       if (count)
       {
         StateTrackerGuard guard(&tracker);
-        cursor.set(LineCursor(lines.at(0).id, text.size() < 2 ? static_cast<int>(text.size()) : 2));
+        request.set(LineCursor(lines.at(0).id, text.size() < 2 ? static_cast<int>(text.size()) : 2));
       }
-      node = new TextEditorNode(TextEditorProps(lines, seat));
+      node = new TextEditorNode(TextEditorProps(lines, cursor).moveCaretTo(request));
       LayoutState bounds;
       bounds.x = 10;
       bounds.y = 20;
@@ -299,7 +294,7 @@ namespace
     {
       std::string logical;
       std::wstring desired;
-      LOKA_VERIFY(node->document.project(logical) == EDITOR_OK);
+      LOKA_VERIFY(loka::app::testing::TextEditorAccess::document(*node).project(logical) == EDITOR_OK);
       LOKA_VERIFY(loka::win32::TextEditorToWide(logical, desired));
       return desired;
     }
@@ -368,17 +363,18 @@ namespace
     std::vector<ItemId> ids;
     explicit Snapshot(const Fixture &fixture)
         : revision(fixture.lines.revision().get()),
-          cursor(fixture.cursor.get())
+          cursor(fixture.cursor.state()->get())
     {
-      LOKA_VERIFY(fixture.node->document.project(text) == EDITOR_OK);
+      LOKA_VERIFY(loka::app::testing::TextEditorAccess::document(*fixture.node).project(text) == EDITOR_OK);
       for (unsigned short i = 0; i < fixture.lines.size(); ++i)
         ids.push_back(fixture.lines.at(i).id);
     }
     void unchanged(const Fixture &fixture) const
     {
-      LOKA_VERIFY(!(revision != fixture.lines.revision().get()) && cursor == fixture.cursor.get());
+      LOKA_VERIFY(!(revision != fixture.lines.revision().get()) && cursor == fixture.cursor.state()->get());
       std::string actual;
-      LOKA_VERIFY(fixture.node->document.project(actual) == EDITOR_OK && text == actual);
+      LOKA_VERIFY(loka::app::testing::TextEditorAccess::document(*fixture.node).project(actual) == EDITOR_OK
+                  && text == actual);
       LOKA_VERIFY(ids.size() == fixture.lines.size());
       for (unsigned short i = 0; i < fixture.lines.size(); ++i)
         LOKA_VERIFY(ids[i] == fixture.lines.at(i).id);
@@ -449,8 +445,9 @@ namespace
                          unsigned publications)
   {
     std::string actual;
-    LOKA_VERIFY(fixture.node->document.project(actual) == EDITOR_OK && actual == text);
-    LOKA_VERIFY(fixture.cursor.get() == LineCursor(fixture.lines.at(row).id, column));
+    LOKA_VERIFY(loka::app::testing::TextEditorAccess::document(*fixture.node).project(actual) == EDITOR_OK
+                && actual == text);
+    LOKA_VERIFY(fixture.cursor.state()->get() == LineCursor(fixture.lines.at(row).id, column));
     LOKA_VERIFY(observer.notifications == publications && observer.settled == publications);
     LOKA_VERIFY(EditorAccess::status(*fixture.context) == EDITOR_OK);
     LOKA_VERIFY(EditorAccess::restores(*fixture.context) == 0);
@@ -464,8 +461,8 @@ namespace
     const int row = static_cast<int>(SendMessageW(fixture.context->hwnd(), EM_LINEFROMCHAR, end, 0));
     const int offset = static_cast<int>(SendMessageW(fixture.context->hwnd(), EM_LINEINDEX, row, 0));
     LOKA_VERIFY(row >= 0 && row < fixture.lines.size() && offset >= 0);
-    LOKA_VERIFY(fixture.cursor.get() == LineCursor(fixture.lines.at(static_cast<unsigned short>(row)).id,
-                                                static_cast<int>(end) - offset));
+    LOKA_VERIFY(fixture.cursor.state()->get()
+                == LineCursor(fixture.lines.at(static_cast<unsigned short>(row)).id, static_cast<int>(end) - offset));
   }
   void testWin32TextEditorMultilineTyping()
   {
@@ -579,26 +576,27 @@ void testWin32TextEditorActionsUseLineQueries()
   LOKA_VERIFY(fixture.lines.revision().get().content == before.content + 1);
   LOKA_VERIFY(fixture.lines.revision().get().structure == before.structure);
   LOKA_VERIFY(fixture.lines.revision().get().change.kind == LIST_UPDATE);
-  LOKA_VERIFY(fixture.lines.at(0).value.equals(String("abxcd")) && fixture.cursor.get() == LineCursor(first, 3));
+  LOKA_VERIFY(fixture.lines.at(0).value.equals(String("abxcd"))
+              && fixture.cursor.state()->get() == LineCursor(first, 3));
   LOKA_VERIFY(probe.lineReads == 0 && probe.textReads == 1);
   fixture.type(L'\r');
   LOKA_VERIFY(observer.notifications == 2 && observer.settled == 2);
   LOKA_VERIFY(fixture.lines.size() == 129 && fixture.lines.at(2).id == second);
   LOKA_VERIFY(fixture.lines.at(0).value.equals(String("abx")) && fixture.lines.at(1).value.equals(String("cd")));
-  LOKA_VERIFY(fixture.cursor.get() == LineCursor(fixture.lines.at(1).id, 0));
+  LOKA_VERIFY(fixture.cursor.state()->get() == LineCursor(fixture.lines.at(1).id, 0));
   LOKA_VERIFY(fixture.lines.revision().get().change.kind == LIST_BATCH);
   fixture.type(L'\b');
   LOKA_VERIFY(observer.notifications == 3 && observer.settled == 3);
   LOKA_VERIFY(fixture.lines.size() == 128 && fixture.lines.at(1).id == second);
   LOKA_VERIFY(fixture.lines.revision().get().change.kind == LIST_BATCH);
-  LOKA_VERIFY(fixture.cursor.get() == LineCursor(first, 3));
+  LOKA_VERIFY(fixture.cursor.state()->get() == LineCursor(first, 3));
   fixture.matches();
   const unsigned sets = probe.sets;
   fixture.context->onPropsApplied();
   LOKA_VERIFY(probe.sets == sets && SendMessageW(fixture.context->hwnd(), EM_CANUNDO, 0, 0));
   const ListRevision beforeMove = fixture.lines.revision().get();
   SendMessageW(fixture.context->hwnd(), WM_KEYDOWN, VK_LEFT, 1);
-  LOKA_VERIFY(fixture.cursor.get() == LineCursor(first, 2));
+  LOKA_VERIFY(fixture.cursor.state()->get() == LineCursor(first, 2));
   LOKA_VERIFY(!(fixture.lines.revision().get() != beforeMove));
   SendMessageW(fixture.context->hwnd(), EM_SETSEL, 1, 3);
   SendMessageW(fixture.context->hwnd(), WM_KEYUP, VK_SHIFT, 1);
@@ -627,7 +625,7 @@ void testWin32TextEditorActionsUseLineQueries()
   SendMessageW(fixture.context->hwnd(), EM_SETSEL, distant, distant);
   LOKA_VERIFY(SendMessageW(fixture.context->hwnd(), EM_CANUNDO, 0, 0));
   std::string beforeUndo;
-  LOKA_VERIFY(fixture.node->document.project(beforeUndo) == EDITOR_OK);
+  LOKA_VERIFY(loka::app::testing::TextEditorAccess::document(*fixture.node).project(beforeUndo) == EDITOR_OK);
   {
     ChangeObservation undo(fixture.host);
     const LRESULT undone = SendMessageW(fixture.context->hwnd(), EM_UNDO, 0, 0);
@@ -645,7 +643,7 @@ void testWin32TextEditorActionsUseLineQueries()
     const int caretLine = static_cast<int>(SendMessageW(fixture.context->hwnd(), EM_LINEFROMCHAR, caretEnd, 0));
     const int caretOffset = static_cast<int>(SendMessageW(fixture.context->hwnd(), EM_LINEINDEX, caretLine, 0));
     const bool caretMatches = caretLine >= 0 && caretLine < fixture.lines.size() && caretOffset >= 0
-                              && fixture.cursor.get()
+                              && fixture.cursor.state()->get()
                                      == LineCursor(fixture.lines.at(static_cast<unsigned short>(caretLine)).id,
                                                    static_cast<int>(caretEnd) - caretOffset);
     if (!undone || !lineMatches || !caretMatches || EditorAccess::restores(*fixture.context) != 0
@@ -687,14 +685,14 @@ void testWin32TextEditorActionsUseLineQueries()
   LOKA_VERIFY(fixture.lines.size() == lineCount + 1);
   const unsigned short last = static_cast<unsigned short>(fixture.lines.size() - 1);
   LOKA_VERIFY(fixture.lines.at(last).value.equals(String("")));
-  LOKA_VERIFY(fixture.cursor.get() == LineCursor(fixture.lines.at(last).id, 0));
+  LOKA_VERIFY(fixture.cursor.state()->get() == LineCursor(fixture.lines.at(last).id, 0));
   const std::wstring trailing = fixture.native();
   LOKA_VERIFY(trailing.size() >= 2 && trailing.compare(trailing.size() - 2, 2, L"\r\n") == 0);
   LOKA_VERIFY(GetWindowTextLengthW(fixture.context->hwnd()) == static_cast<int>(fixture.committedNative().size()));
   fixture.matches();
   fixture.type(L'z');
   LOKA_VERIFY(fixture.lines.at(last).value.equals(String("z")));
-  LOKA_VERIFY(fixture.cursor.get() == LineCursor(fixture.lines.at(last).id, 1));
+  LOKA_VERIFY(fixture.cursor.state()->get() == LineCursor(fixture.lines.at(last).id, 1));
   fixture.matches();
 }
 void testWin32TextEditorRefusalRestoresAndClearsUndo()

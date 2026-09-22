@@ -27,10 +27,6 @@ namespace loka
     class TextEditorDocument
     {
     public:
-      explicit TextEditorDocument(const TextEditorProps &props)
-          : props_(props)
-      {
-      }
       EditorResult availability() const;
       /** Replace the text between two cursors (document order) with CR/LF/CRLF-normalized
           bytes in ONE validated ListOp batch. from.line keeps its identity; the caret
@@ -46,6 +42,11 @@ namespace loka
       EditorResult project(char *out, std::size_t capacity, std::size_t &length) const;
 
     private:
+      friend class TextEditorNode;
+      explicit TextEditorDocument(const TextEditorProps &props)
+          : props_(props)
+      {
+      }
       TextEditorDocument(const TextEditorDocument &);
       TextEditorDocument &operator=(const TextEditorDocument &);
       EditorResult measure(std::size_t &bytes) const;
