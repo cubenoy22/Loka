@@ -68,6 +68,33 @@ namespace
       return ToolboxTextEditorAccess::restores(*context);
     }
   };
+  // Run the same key through an isolated fake TE before the rail sees it.
+  // Expectations come from native text/selection, never offsetOf/cursorAt.
+  void nativeKey(Fixture &f, char key)
+  {
+    TERec expected = **f.te();
+    TERec *record = &expected;
+    TEKey(key, &record);
+    unsigned short row = 0;
+    short start = 0;
+    for (short i = 0; i < expected.selStart; ++i)
+      if (expected.text[i] == '\r')
+      {
+        ++row;
+        start = i + 1;
+      }
+    const int selections = toolbox_host::selections;
+    LOKA_VERIFY(f.context->key(key) == EDITOR_OK);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(toolbox_host::selections == selections);
+    LOKA_VERIFY(f.native() == expected.text);
+    LOKA_VERIFY((**f.te()).selStart == expected.selStart);
+    LOKA_VERIFY((**f.te()).selEnd == expected.selEnd);
+    LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(row).id, expected.selStart - start));
+    std::string committed;
+    LOKA_VERIFY(f.node.document.project(committed) == EDITOR_OK);
+    LOKA_VERIFY(committed == expected.text);
+  }
   struct Snapshot : loka::testing::TextEditorContractSnapshot
   {
     std::string projection;
@@ -134,6 +161,41 @@ namespace
 } // namespace
 int main()
 {
+  for (int atEnd = 0; atEnd < 2; ++atEnd)
+  {
+    Fixture f;
+    pin(atEnd ? "delete at line 2 end, then Left" : "delete inside line 2, Left across CR, Right back");
+    const short column = atEnd ? 4 : 2;
+    Point point = {37, static_cast<short>(10 + column * 6)};
+    LOKA_VERIFY(f.context->click(point) == EDITOR_OK);
+    LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(1).id, column));
+    const ListRevision before = f.lines.revision().get();
+    nativeKey(f, '\b');
+    LOKA_VERIFY(f.lines.revision().get().content == before.content + 1);
+    if (atEnd)
+      nativeKey(f, 28);
+    else
+    {
+      for (short i = 0; i < column; ++i)
+        nativeKey(f, 28);
+      nativeKey(f, 29);
+    }
+  }
+  {
+    Fixture f;
+    pin("app NodeState cursor write moves native caret after a commit");
+    nativeKey(f, '\b');
+    const LineCursor desired(f.lines.at(1).id, 2);
+    {
+      StateTrackerGuard guard(&f.tracker);
+      f.seat.set(desired);
+    }
+    f.context->onPropsApplied();
+    const short expected = static_cast<short>(f.native().find('\r') + 1 + desired.column);
+    LOKA_VERIFY((**f.te()).selStart == expected && (**f.te()).selEnd == expected);
+    LOKA_VERIFY(f.cursor.get() == desired);
+    nativeKey(f, 28);
+  }
   {
     Fixture f;
     Point inside = {21, 11}, outside = {0, 0};
