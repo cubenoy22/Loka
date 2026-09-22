@@ -30,7 +30,7 @@ public:
   }
   loka::app::EditorResult key(char);
   loka::app::EditorResult click(const Point &);
-  /** Bounded native insertion door, also used by the scenario's paste action. */
+  /** Bounded selection replacement door, also used by the scenario's paste action. */
   loka::app::EditorResult paste(const char *, std::size_t);
   void retryProjection();
   /** Called by every controller retirement path before queueing TE. */
@@ -45,6 +45,7 @@ private:
     RECONCILE,
     PROJECT
   };
+  bool hasStaleCaret() const;
   loka::app::EditorResult beginInput();
   enum Change
   {
