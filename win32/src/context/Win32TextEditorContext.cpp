@@ -267,60 +267,53 @@ void Win32TextEditorContext::syncFromNode()
   }
   this->replaceProjection();
 }
+RowCursor Win32TextEditorContext::nativeRowCaret() const
+{
+  DWORD start = 0, end = 0;
+  SendMessageW(this->hwnd_, EM_GETSEL, reinterpret_cast<WPARAM>(&start), reinterpret_cast<LPARAM>(&end));
+  const int index = static_cast<int>(SendMessageW(this->hwnd_, EM_LINEFROMCHAR, end, 0));
+  const int offset = static_cast<int>(SendMessageW(this->hwnd_, EM_LINEINDEX, index, 0));
+  return RowCursor(static_cast<unsigned short>(index), static_cast<int>(end) - offset);
+}
 LineCursor Win32TextEditorContext::nativeCaret() const
 {
   if (!this->node_ || !this->node_->props.lines_)
     return LineCursor::None();
-  DWORD start = 0, end = 0;
-  SendMessageW(this->hwnd_, EM_GETSEL, reinterpret_cast<WPARAM>(&start), reinterpret_cast<LPARAM>(&end));
-  const int index = static_cast<int>(SendMessageW(this->hwnd_, EM_LINEFROMCHAR, end, 0));
-  if (index < 0 || index >= this->node_->props.lines_->size())
+  const RowCursor caret = this->nativeRowCaret();
+  if (caret.isNone() || caret.row >= this->node_->props.lines_->size())
     return LineCursor::None();
-  const int offset = static_cast<int>(SendMessageW(this->hwnd_, EM_LINEINDEX, index, 0));
-  return LineCursor(this->node_->props.lines_->at(static_cast<unsigned short>(index)).id,
-                    static_cast<int>(end) - offset);
+  return LineCursor(this->node_->props.lines_->at(caret.row).id, caret.column);
 }
 EditorResult Win32TextEditorContext::applyLines(int first, int oldCount, int newCount, const std::string &logical)
 {
   loka::core::ObservableList<loka::core::String> &lines = *this->node_->props.lines_;
-  if (first < 0 || first >= lines.size() || first + oldCount > lines.size())
+  if (first < 0 || oldCount <= 0 || newCount <= 0 || first + oldCount > lines.size())
     return EDITOR_INVALID_CURSOR;
-  const std::string one = loka::app::TextEditorLogicalLine(logical, first);
-  const loka::core::ItemId id = lines.at(static_cast<unsigned short>(first)).id;
-  if (oldCount == 1 && newCount == 1)
+  const unsigned short last = static_cast<unsigned short>(first + oldCount - 1);
+  const LineCursor from(lines.at(static_cast<unsigned short>(first)).id, 0);
+  const LineCursor to(
+      lines.at(last).id,
+      static_cast<LineCursor::Column>(loka::app::TextEditorLogicalLine(this->projection_.text, last).size()));
+  // Slice the changed logical rows once, retaining only their interior CRs.
+  std::size_t start = 0;
+  for (int row = 0; row < first; ++row)
+    start = logical.find('\r', start) + 1;
+  std::size_t end = start;
+  for (int row = 0; row < newCount; ++row)
   {
-    const std::string old = loka::app::TextEditorLogicalLine(this->projection_.text, first);
-    const LineCursor after = this->nativeCaret();
-    if (one.size() > old.size() && after.line == id)
+    end = logical.find('\r', end);
+    if (end == std::string::npos)
     {
-      const std::size_t added = one.size() - old.size();
-      if (after.column >= 0 && static_cast<std::size_t>(after.column) >= added)
-      {
-        const std::size_t column = static_cast<std::size_t>(after.column) - added;
-        if (column <= old.size() && one.compare(0, column, old, 0, column) == 0
-            && one.compare(column + added, std::string::npos, old, column, std::string::npos) == 0)
-          return this->node_->document.applyKeystroke(
-              LineCursor(id, static_cast<int>(column)), one.data() + column, added);
-      }
+      end = logical.size();
+      break;
     }
-    return this->node_->document.applySingleLine(
-        id, loka::core::String::Utf8(one.data(), one.size()), this->nativeCaret());
+    if (row + 1 < newCount)
+      ++end;
   }
-  if (oldCount == 1 && newCount == 2)
-  {
-    const std::string two = loka::app::TextEditorLogicalLine(logical, first + 1);
-    if (one + two != loka::app::TextEditorLogicalLine(this->projection_.text, first))
-      return EDITOR_INVALID_CURSOR;
-    return this->node_->document.applySplit(id, static_cast<LineCursor::Column>(one.size()));
-  }
-  if (oldCount == 2 && newCount == 1
-      && one
-             == loka::app::TextEditorLogicalLine(this->projection_.text, first)
-                    + loka::app::TextEditorLogicalLine(this->projection_.text, first + 1))
-    return this->node_->document.applyJoin(lines.at(static_cast<unsigned short>(first + 1)).id);
-  return EDITOR_INVALID_CURSOR;
+  // Native rows already describe the post-state, including newly inserted rows.
+  return this->node_->document.applyReplace(from, to, logical.data() + start, end - start, this->nativeRowCaret());
 }
-EditorResult Win32TextEditorContext::commitNativeChange(bool allowLineBreak)
+EditorResult Win32TextEditorContext::commitNativeChange()
 {
   if (!this->node_ || !this->node_->props.lines_)
     return EDITOR_UNAVAILABLE;
@@ -362,8 +355,6 @@ EditorResult Win32TextEditorContext::commitNativeChange(bool allowLineBreak)
     return this->node_->document.moveCaret(this->nativeCaret());
   if (this->node_->props.lines_->size() - diff.before() + diff.after() > TextEditorProps::kMaxLines)
     return EDITOR_CAPACITY;
-  if (!allowLineBreak && (diff.before() != 1 || diff.after() != 1))
-    return EDITOR_INVALID_CURSOR;
   return this->applyLines(diff.first(), diff.before(), diff.after(), logical);
 }
 bool Win32TextEditorContext::handleCommand(WPARAM wParam, LPARAM)
@@ -384,8 +375,7 @@ bool Win32TextEditorContext::handleCommand(WPARAM wParam, LPARAM)
     this->captureSelection();
   this->phase_ = COMMIT;
   const HWND window = this->hwnd_;
-  const EditorResult result =
-      this->status_ == EDITOR_OK ? this->commitNativeChange(inputPhase != PASTING) : this->status_;
+  const EditorResult result = this->status_ == EDITOR_OK ? this->commitNativeChange() : this->status_;
   if (fromWindow(window) != this)
     return true;
   if (result == EDITOR_OK && this->node_)

@@ -334,7 +334,7 @@ namespace
                        : diff.before() == 1 && diff.after() == 1 ? "single-line"
                        : diff.before() == 1 && diff.after() == 2 ? "split-candidate"
                        : diff.before() == 2 && diff.after() == 1 ? "join-candidate"
-                                                                 : "unsupported-range";
+                                                                 : "range";
     std::printf("[undo failure] %s diff first=%d last-before=%d last-after=%d before=%d after=%d kind=%s\n",
                 label,
                 diff.first(),
@@ -442,6 +442,109 @@ namespace
     SendMessageW(fixture.context->hwnd(), EM_GETSEL, reinterpret_cast<WPARAM>(&start), reinterpret_cast<LPARAM>(&end));
     LOKA_VERIFY(start == 2 && end == 2);
   }
+  void verifyReplacement(Fixture &fixture, const Observer &observer, const char *text, unsigned short row, int column)
+  {
+    std::string actual;
+    LOKA_VERIFY(fixture.node->document.project(actual) == EDITOR_OK && actual == text);
+    LOKA_VERIFY(fixture.cursor.get() == LineCursor(fixture.lines.at(row).id, column));
+    LOKA_VERIFY(observer.notifications == 1 && observer.settled == 1);
+    LOKA_VERIFY(EditorAccess::status(*fixture.context) == EDITOR_OK);
+    LOKA_VERIFY(EditorAccess::restores(*fixture.context) == 0);
+    fixture.matches();
+  }
+  void verifyNativeCaret(void *data)
+  {
+    const Fixture &fixture = *static_cast<Fixture *>(data);
+    DWORD start = 0, end = 0;
+    SendMessageW(fixture.context->hwnd(), EM_GETSEL, reinterpret_cast<WPARAM>(&start), reinterpret_cast<LPARAM>(&end));
+    const int row = static_cast<int>(SendMessageW(fixture.context->hwnd(), EM_LINEFROMCHAR, end, 0));
+    const int offset = static_cast<int>(SendMessageW(fixture.context->hwnd(), EM_LINEINDEX, row, 0));
+    LOKA_VERIFY(row >= 0 && row < fixture.lines.size() && offset >= 0);
+    LOKA_VERIFY(fixture.cursor.get() == LineCursor(fixture.lines.at(static_cast<unsigned short>(row)).id,
+                                                static_cast<int>(end) - offset));
+  }
+  void testWin32TextEditorMultilineTyping()
+  {
+    Fixture fixture;
+    Observer observer(fixture);
+    const ItemId first = fixture.lines.at(0).id;
+    SendMessageW(fixture.context->hwnd(), EM_SETSEL, 0, 16);
+    fixture.type(L'b');
+    verifyReplacement(fixture, observer, "b", 0, 1);
+    LOKA_VERIFY(fixture.lines.size() == 1 && fixture.lines.at(0).id == first);
+  }
+  void testWin32TextEditorMultilineBackspace()
+  {
+    Fixture fixture;
+    Observer observer(fixture);
+    const ItemId first = fixture.lines.at(0).id;
+    SendMessageW(fixture.context->hwnd(), EM_SETSEL, 1, 15);
+    fixture.type(L'\b');
+    verifyReplacement(fixture, observer, "ad", 0, 1);
+    LOKA_VERIFY(fixture.lines.size() == 1 && fixture.lines.at(0).id == first);
+  }
+  void testWin32TextEditorMultilineReturn()
+  {
+    Fixture fixture;
+    Observer observer(fixture);
+    const ItemId first = fixture.lines.at(0).id;
+    const ItemId last = fixture.lines.at(2).id;
+    SendMessageW(fixture.context->hwnd(), EM_SETSEL, 1, 15);
+    fixture.type(L'\r');
+    verifyReplacement(fixture, observer, "a\rd", 1, 0);
+    LOKA_VERIFY(fixture.lines.size() == 2 && fixture.lines.at(0).id == first);
+    LOKA_VERIFY(fixture.lines.find(last) < 0);
+  }
+  void testWin32TextEditorMultilinePaste()
+  {
+    // Full capacity: removal must make room before replacement rows are inserted.
+    Fixture fixture(3, "abcd", 3);
+    Observer observer(fixture);
+    const ItemId first = fixture.lines.at(0).id;
+    const ItemId last = fixture.lines.at(2).id;
+    SendMessageW(fixture.context->hwnd(), EM_SETSEL, 1, 15);
+    paste(fixture.context->hwnd(), L"Q\r\nR\r\nS");
+    verifyReplacement(fixture, observer, "aQ\rR\rSd", 2, 1);
+    LOKA_VERIFY(fixture.lines.size() == 3 && fixture.lines.at(0).id == first);
+    LOKA_VERIFY(fixture.lines.find(last) < 0);
+  }
+  void testWin32TextEditorMultilineInsertionPaste()
+  {
+    Fixture fixture;
+    Observer observer(fixture);
+    SendMessageW(fixture.context->hwnd(), EM_SETSEL, 14, 14);
+    State<ListRevision> &revision = const_cast<State<ListRevision> &>(fixture.lines.revision());
+    revision.bind(&verifyNativeCaret, &fixture, false);
+    paste(fixture.context->hwnd(), L"Q\r\nR");
+    revision.unbind(&verifyNativeCaret, &fixture);
+    verifyReplacement(fixture, observer, "abcd\rabcd\rabQ\rRcd", 3, 1);
+    LOKA_VERIFY(fixture.lines.size() == 4);
+  }
+  void testWin32TextEditorMultilineUndo()
+  {
+    Fixture fixture;
+    Observer observer(fixture);
+    const ItemId first = fixture.lines.at(0).id;
+    SendMessageW(fixture.context->hwnd(), EM_SETSEL, 0, 16);
+    // Deleting the selection gives EDIT one unambiguous undo record.
+    fixture.type(L'\b');
+    verifyReplacement(fixture, observer, "", 0, 0);
+    LOKA_VERIFY(SendMessageW(fixture.context->hwnd(), EM_CANUNDO, 0, 0));
+    // Observe the transaction itself: a later syncCaret must not repair it.
+    State<ListRevision> &revision = const_cast<State<ListRevision> &>(fixture.lines.revision());
+    revision.bind(&verifyNativeCaret, &fixture, false);
+    ChangeObservation undo(fixture.host);
+    LOKA_VERIFY(SendMessageW(fixture.context->hwnd(), EM_UNDO, 0, 0));
+    revision.unbind(&verifyNativeCaret, &fixture);
+    LOKA_VERIFY(undo.arrivals() > 0 && undo.status() == EDITOR_OK);
+    LOKA_VERIFY(fixture.lines.size() == 3 && fixture.lines.at(0).id == first);
+    for (unsigned short row = 0; row < fixture.lines.size(); ++row)
+      LOKA_VERIFY(fixture.lines.at(row).value.equals(String("abcd")));
+    verifyNativeCaret(&fixture);
+    LOKA_VERIFY(observer.notifications == 2 && observer.settled == 2);
+    LOKA_VERIFY(EditorAccess::restores(*fixture.context) == 0);
+    fixture.matches();
+  }
 } // namespace
 
 void testWin32TextEditorConversion()
@@ -460,6 +563,12 @@ void testWin32TextEditorConversion()
 }
 void testWin32TextEditorActionsUseLineQueries()
 {
+  testWin32TextEditorMultilineTyping();
+  testWin32TextEditorMultilineBackspace();
+  testWin32TextEditorMultilineReturn();
+  testWin32TextEditorMultilinePaste();
+  testWin32TextEditorMultilineInsertionPaste();
+  testWin32TextEditorMultilineUndo();
   Fixture fixture(128);
   Probe probe(fixture.context->hwnd());
   Observer observer(fixture);
@@ -590,32 +699,6 @@ void testWin32TextEditorActionsUseLineQueries()
 }
 void testWin32TextEditorRefusalRestoresAndClearsUndo()
 {
-  {
-    Fixture fixture;
-    Observer observer(fixture);
-    const Snapshot before(fixture);
-    paste(fixture.context->hwnd(), L"\r\n");
-    restored(fixture, before, observer);
-    paste(fixture.context->hwnd(), L"Q");
-    LOKA_VERIFY(fixture.lines.at(0).value.equals(String("abQcd")));
-    fixture.matches();
-  }
-  {
-    Fixture fixture;
-    Observer observer(fixture);
-    const Snapshot before(fixture);
-    paste(fixture.context->hwnd(), L"Q\r\nR");
-    restored(fixture, before, observer);
-  }
-  {
-    Fixture fixture;
-    Observer observer(fixture);
-    const Snapshot before(fixture);
-    SendMessageW(fixture.context->hwnd(), EM_SETSEL, 1, 8);
-    SendMessageW(fixture.context->hwnd(), EM_REPLACESEL, TRUE, reinterpret_cast<LPARAM>(L"Q\r\nR"));
-    restored(fixture, before, observer);
-  }
-
   {
     Fixture fixture(256);
     Probe probe(fixture.context->hwnd());
