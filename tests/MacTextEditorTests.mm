@@ -530,6 +530,35 @@ void testMacTextEditorUndoLocation()
   LOKA_VERIFY(f.cursor.get() == LineCursor(distant, 0));
   LOKA_VERIFY(observer.calls == 3 && [f.view isEditable]);
   LOKA_VERIFY(Access::restores(*f.context) == 0);
+
+  // Undo restores several removed rows through the storage delegate range door.
+  Fixture multi;
+  Observer multiObserver(multi);
+  const ItemId retained = multi.lines.at(0).id;
+  [multi.view setAllowsUndo:YES];
+  NSUndoManager *multiUndo = [multi.view undoManager];
+  LOKA_VERIFY(multiUndo != nil && [multiUndo isUndoRegistrationEnabled]);
+  [multiUndo setGroupsByEvent:NO];
+  [multi.view setSelectedRange:NSMakeRange(1, 12)];
+  [multiUndo beginUndoGrouping];
+  [multi.view insertText:@"X" replacementRange:[multi.view selectedRange]];
+  [multiUndo endUndoGrouping];
+  LOKA_VERIFY(multi.lines.size() == 1 && bytes(multi.lines.at(0).value) == "aXd");
+  LOKA_VERIFY(multi.cursor.get() == LineCursor(retained, 2) && multiObserver.calls == 1);
+  [multi.view setSelectedRange:NSMakeRange(0, 0)];
+  while ([multiUndo groupingLevel] > 0)
+    [multiUndo endUndoGrouping];
+  LOKA_VERIFY([multiUndo canUndo]);
+  [multiUndo undo];
+  LOKA_VERIFY(multi.lines.size() == 3 && multi.lines.at(0).id == retained);
+  for (unsigned short i = 0; i < multi.lines.size(); ++i)
+    LOKA_VERIFY(bytes(multi.lines.at(i).value) == "abcd");
+  LOKA_VERIFY([[multi.view string] isEqualToString:@"abcd\nabcd\nabcd"]);
+  const NSUInteger restoredCaret = [multi.view selectedRange].location;
+  LOKA_VERIFY(restoredCaret <= 14);
+  LOKA_VERIFY(multi.cursor.get() == LineCursor(multi.lines.at(static_cast<unsigned short>(restoredCaret / 5)).id,
+                                             static_cast<int>(restoredCaret % 5)));
+  LOKA_VERIFY(multiObserver.calls == 2 && Access::restores(*multi.context) == 0 && [multi.view isEditable]);
 }
 
 void testMacTextEditorStorageChanges()
@@ -572,6 +601,30 @@ void testMacTextEditorStorageChanges()
   LOKA_VERIFY(bytes(f.lines.at(0).value) == "abYZQd");
   LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(0).id, 5));
   LOKA_VERIFY(observer.calls == 2 && Access::restores(*f.context) == 0);
+
+  // Storage-only multi-line edits must derive the caret before AppKit updates
+  // selection, including a caret on a newly inserted row.
+  NSString *insertions[] = {@"X", @"", @"\n", @"one\ntwo\nthree"};
+  for (unsigned i = 0; i < sizeof(insertions) / sizeof(insertions[0]); ++i)
+  {
+    Fixture multi;
+    Observer multiObserver(multi);
+    const ItemId first = multi.lines.at(0).id;
+    id viewDelegate = [multi.view delegate];
+    [multi.view setDelegate:nil];
+    [multi.view setSelectedRange:NSMakeRange(0, 0)];
+    [[multi.view textStorage] replaceCharactersInRange:NSMakeRange(1, 12) withString:insertions[i]];
+    [multi.view setDelegate:viewDelegate];
+    LOKA_VERIFY(multi.lines.size() == (i < 2 ? 1 : i == 2 ? 2 : 3));
+    LOKA_VERIFY(multi.lines.at(0).id == first);
+    LOKA_VERIFY(bytes(multi.lines.at(0).value) == (i == 0 ? "aXd" : i == 1 ? "ad" : i == 2 ? "a" : "aone"));
+    if (i >= 2)
+      LOKA_VERIFY(bytes(multi.lines.at(multi.lines.size() - 1).value) == (i == 2 ? "d" : "threed"));
+    LOKA_VERIFY(multi.cursor.get() == LineCursor(multi.lines.at(multi.lines.size() - 1).id,
+                                               i == 0 ? 2 : i == 1 ? 1 : i == 2 ? 0 : 5));
+    LOKA_VERIFY(multiObserver.calls == 1 && Access::restores(*multi.context) == 0);
+    LOKA_VERIFY([multi.view isEditable]);
+  }
 }
 
 void testMacTextEditorStorageAttributes()
@@ -598,23 +651,58 @@ void testMacTextEditorStorageAttributes()
 
 void testMacTextEditorMultilinePasteRefusal()
 {
-  // Refuse both a line-count increase and a same-count multi-line replacement.
+  // Keep the registered entry point; the former refusal cases now accept.
   for (int sameCount = 0; sameCount < 2; ++sameCount)
   {
     Fixture f;
     Observer observer(f);
+    const ItemId first = f.lines.at(0).id, second = f.lines.at(1).id;
     [f.view setSelectedRange:NSMakeRange(1, sameCount ? 12 : 2)];
-    const Snapshot snapshot(f);
     // Use the native replacement path used by plain-text paste, without
     // changing the user's global pasteboard.
     [f.view insertText:@"one\ntwo\nthree" replacementRange:[f.view selectedRange]];
-    snapshot.unchanged(f);
-    LOKA_VERIFY(observer.calls == 0 && ![f.view isEditable]);
-    f.restored(1);
-    snapshot.unchanged(f);
-    LOKA_VERIFY(observer.calls == 0 && Access::restores(*f.context) == 1);
-    LOKA_VERIFY(![[f.view undoManager] canUndo]);
+    LOKA_VERIFY(f.lines.size() == (sameCount ? 3 : 5));
+    LOKA_VERIFY(f.lines.at(0).id == first && bytes(f.lines.at(0).value) == "aone");
+    LOKA_VERIFY(bytes(f.lines.at(1).value) == "two" && bytes(f.lines.at(2).value) == "threed");
+    if (!sameCount)
+      LOKA_VERIFY(f.lines.at(3).id == second && bytes(f.lines.at(4).value) == "abcd");
+    LOKA_VERIFY(f.cursor.get() == LineCursor(f.lines.at(2).id, 5));
+    LOKA_VERIFY(observer.calls == 1 && f.lines.revision().get().change.kind == LIST_BATCH);
+    LOKA_VERIFY([f.view isEditable] && Access::restores(*f.context) == 0);
   }
+  for (int action = 0; action < 3; ++action)
+  {
+    Fixture f;
+    Observer observer(f);
+    const ItemId first = f.lines.at(0).id;
+    [f.view setSelectedRange:NSMakeRange(1, 12)];
+    if (action == 0)
+      [f.view insertText:@"X" replacementRange:[f.view selectedRange]];
+    else if (action == 1)
+      [f.view deleteBackward:nil];
+    else
+      [f.view insertNewline:nil];
+    LOKA_VERIFY(f.lines.size() == (action == 2 ? 2 : 1));
+    LOKA_VERIFY(f.lines.at(0).id == first);
+    LOKA_VERIFY(bytes(f.lines.at(0).value) == (action == 0 ? "aXd" : action == 1 ? "ad" : "a"));
+    if (action == 2)
+      LOKA_VERIFY(bytes(f.lines.at(1).value) == "d");
+    LOKA_VERIFY(f.cursor.get() == (action == 2 ? LineCursor(f.lines.at(1).id, 0)
+                                            : LineCursor(first, action == 0 ? 2 : 1)));
+    LOKA_VERIFY(observer.calls == 1 && f.lines.revision().get().change.kind == LIST_BATCH);
+    LOKA_VERIFY([f.view isEditable] && Access::restores(*f.context) == 0);
+  }
+  // A view-only notification reports its final selection, which deliberately
+  // differs from the diff-derived insertion end on the newly inserted row.
+  Fixture viewOnly;
+  Observer observer(viewOnly);
+  id storageDelegate = [[viewOnly.view textStorage] delegate];
+  [[viewOnly.view textStorage] setDelegate:nil];
+  viewOnly.edit(@"aone\ntwo\nthreed", 0);
+  [[viewOnly.view textStorage] setDelegate:storageDelegate];
+  LOKA_VERIFY(viewOnly.lines.size() == 3 && bytes(viewOnly.lines.at(2).value) == "threed");
+  LOKA_VERIFY(viewOnly.cursor.get() == LineCursor(viewOnly.lines.at(0).id, 0));
+  LOKA_VERIFY(observer.calls == 1 && Access::restores(*viewOnly.context) == 0);
 }
 
 void testMacTextEditorRefusals()
