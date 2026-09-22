@@ -332,8 +332,29 @@ namespace
 
 void testMacTextEditorLineActions()
 {
-  // Exercise each committing callback separately. Storage must use the
-  // published cursor even when the native-only selection disagrees with it.
+  // Programmatic storage edits must preserve identities at the mutation,
+  // even when the published cursor is parked on the other identical line.
+  for (int splitB = 0; splitB < 2; ++splitB)
+  {
+    Fixture edge(2, "a");
+    const ItemId a = edge.lines.at(0).id, b = edge.lines.at(1).id;
+    [edge.view setSelectedRange:NSMakeRange(splitB ? 1 : 2, 0)];
+    edge.context->handleSelectionDidChange();
+    LOKA_VERIFY(edge.cursor.get() == (splitB ? LineCursor(a, 1) : LineCursor(b, 0)));
+    id viewDelegate = [edge.view delegate];
+    [edge.view setDelegate:nil];
+    [[edge.view textStorage] replaceCharactersInRange:NSMakeRange(splitB ? 2 : 1, 0) withString:@"\n"];
+    [edge.view setDelegate:viewDelegate];
+    LOKA_VERIFY(Access::restores(*edge.context) == 0);
+    LOKA_VERIFY(edge.lines.size() == 3);
+    LOKA_VERIFY(edge.lines.at(0).id == a && bytes(edge.lines.at(0).value) == "a");
+    LOKA_VERIFY(bytes(edge.lines.at(1).value).empty());
+    LOKA_VERIFY(bytes(edge.lines.at(2).value) == "a");
+    LOKA_VERIFY(edge.lines.at(splitB ? 1 : 2).id == b);
+    const ItemId created = edge.lines.at(splitB ? 2 : 1).id;
+    LOKA_VERIFY(created != a && created != b);
+  }
+  // Exercise each committing callback separately, with conflicting selections.
   for (int storageOnly = 0; storageOnly < 2; ++storageOnly)
   {
     for (int join = 0; join < 2; ++join)

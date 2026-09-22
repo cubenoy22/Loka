@@ -169,8 +169,11 @@ namespace
   NSTextStorage *storage = (NSTextStorage *)[notification object];
   if (([storage editedMask] & NSTextStorageEditedCharacters) && [self owner])
   {
-    // Selection is not final and editedRange includes attribute edits.
-    [self owner]->handleTextDidChange(MacTextEditorContext::STORAGE_EDIT, 0);
+    // Highlighting is deferred: this context applies no attributes inside
+    // processEditing, so our styling no longer widens this character-edit range.
+    // It still unions all character edits in the pass: evidence of where,
+    // not of how much changed. Selection is not final here.
+    [self owner]->handleTextDidChange(MacTextEditorContext::STORAGE_EDIT, [storage editedRange].location);
   }
 }
 - (void)textViewDidChangeSelection:(NSNotification *)notification
@@ -647,11 +650,15 @@ EditorResult MacTextEditorContext::applyNativeChange(TextObservation source, std
   int hintLine = -1, hintColumn = -1;
   if (source == STORAGE_EDIT)
   {
-    // Storage has no trustworthy native selection. Use the caret the context
-    // last published (its committed cursor), not the tentative view selection.
-    const LineCursor cursor = this->node_->props.cursor_.state()->get();
-    hintLine = this->node_->props.lines_->find(cursor.line);
-    hintColumn = cursor.column;
+    // Interpret mutation evidence in the before snapshot, as for view input.
+    // Missing evidence leaves the hint absent; append-only passes clamp to EOF.
+    if (before.result == EDITOR_OK && before.count && caretOffset != NSNotFound)
+    {
+      const NSUInteger location = std::min(static_cast<NSUInteger>(caretOffset), [p.committed length]);
+      hintLine = before.lineAt(location);
+      const NSRange range = before.ranges[hintLine];
+      hintColumn = static_cast<int>(std::min(location - range.location, range.length));
+    }
   }
   else if (!p.selection.length && p.selection.location <= [p.committed length])
   {
