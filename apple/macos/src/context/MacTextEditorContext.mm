@@ -633,8 +633,6 @@ EditorResult MacTextEditorContext::applyNativeChange(TextObservation source, std
   const NativeLines before(p.committed), after(text);
   if (after.result != EDITOR_OK)
     return after.result;
-  if (after.count > before.count + 1 || before.count > after.count + 1)
-    return EDITOR_INVALID_CURSOR;
   // validateDocument left the committed CR-separated snapshot in scratch.
   // Normalize through native line ranges so CRLF is also one logical separator.
   std::string logical;
@@ -678,52 +676,36 @@ EditorResult MacTextEditorContext::applyNativeChange(TextObservation source, std
     const LineCursor cursor(p.ids[caretLine], static_cast<int>(caret - after.ranges[caretLine].location));
     return cursor == this->node_->props.cursor_.state()->get() ? EDITOR_OK : this->node_->document.moveCaret(cursor);
   }
-  if (after.count == before.count + 1)
-  {
-    if (diff.before() != 1 || diff.after() != 2)
-      return EDITOR_INVALID_CURSOR;
-    const NSRange source = before.ranges[first];
-    const NSRange left = after.ranges[first], right = after.ranges[first + 1];
-    if (left.length + right.length != source.length
-        || !EqualLine(p.committed, NSMakeRange(source.location, left.length), text, left)
-        || !EqualLine(p.committed, NSMakeRange(source.location + left.length, right.length), text, right))
-      return EDITOR_INVALID_CURSOR;
-    return this->node_->document.applySplit(p.ids[first], static_cast<int>(left.length));
-  }
-  if (before.count == after.count + 1)
-  {
-    if (diff.before() != 2 || diff.after() != 1)
-      return EDITOR_INVALID_CURSOR;
-    const NSRange left = before.ranges[first], right = before.ranges[first + 1], joined = after.ranges[first];
-    if (joined.length != left.length + right.length
-        || !EqualLine(p.committed, left, text, NSMakeRange(joined.location, left.length))
-        || !EqualLine(p.committed, right, text, NSMakeRange(joined.location + left.length, right.length)))
-      return EDITOR_INVALID_CURSOR;
-    return this->node_->document.applyJoin(p.ids[first + 1]);
-  }
-  if (diff.before() != 1 || diff.after() != 1)
-    return EDITOR_INVALID_CURSOR;
-  const NSRange oldLine = before.ranges[first], newLine = after.ranges[first];
-  const loka::app::detail::TextChangeSpan span(
-      NativeCharacters(p.committed, oldLine.location), oldLine.length,
-      NativeCharacters(text, newLine.location), newLine.length);
+  const unsigned short oldEnd = static_cast<unsigned short>(first + diff.before());
+  const unsigned short newEnd = static_cast<unsigned short>(first + diff.after());
+  const NSRange oldRange = NSMakeRange(before.ranges[first].location,
+                                     NSMaxRange(before.ranges[oldEnd - 1]) - before.ranges[first].location);
+  const NSRange newRange = NSMakeRange(after.ranges[first].location,
+                                     NSMaxRange(after.ranges[newEnd - 1]) - after.ranges[first].location);
   if (source == STORAGE_EDIT)
-    caretOffset = newLine.location + span.afterEnd();
+  {
+    // Storage announces text before the view's selection is final. Compare the
+    // complete changed span, including separators, to find the insertion end.
+    const loka::app::detail::TextChangeSpan span(
+        NativeCharacters(p.committed, oldRange.location), oldRange.length,
+        NativeCharacters(text, newRange.location), newRange.length);
+    caretOffset = newRange.location + span.afterEnd();
+  }
   const NSUInteger caret = std::min(static_cast<NSUInteger>(caretOffset), [text length]);
   const unsigned short caretLine = after.lineAt(caret);
-  if (span.beforeEnd() == span.start() && span.afterEnd() > span.start()
-      && caretLine == first && caret == newLine.location + span.afterEnd())
+  std::string replacement;
+  for (unsigned short i = first; i < newEnd; ++i)
   {
-    const NSUInteger added = span.afterEnd() - span.start();
-    NSString *insert = [text substringWithRange:NSMakeRange(newLine.location + span.start(), added)];
-    return this->node_->document.applyKeystroke(
-        LineCursor(p.ids[first], static_cast<int>(span.start())), [insert UTF8String], added);
+    if (i != first)
+      replacement += '\r';
+    NSString *line = [text substringWithRange:after.ranges[i]];
+    replacement.append([line UTF8String], [line lengthOfBytesUsingEncoding:NSUTF8StringEncoding]);
   }
-  NSString *replacement = [text substringWithRange:newLine];
-  return this->node_->document.applySingleLine(
-      p.ids[first],
-      String::Utf8([replacement UTF8String], newLine.length),
-      LineCursor(p.ids[caretLine], static_cast<int>(caret - after.ranges[caretLine].location)));
+  return this->node_->document.applyReplace(
+      LineCursor(p.ids[first], 0),
+      LineCursor(p.ids[oldEnd - 1], static_cast<int>(before.ranges[oldEnd - 1].length)),
+      replacement.data(), replacement.size(),
+      RowCursor(caretLine, static_cast<int>(caret - after.ranges[caretLine].location)));
 }
 
 void MacTextEditorContext::handleTextDidChange(TextObservation source, std::size_t caretOffset)
