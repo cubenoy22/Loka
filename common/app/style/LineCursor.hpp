@@ -34,6 +34,25 @@ namespace loka
         return !(*this == other);
       }
     };
+    /** Post-replacement row and ASCII code-unit column; None publishes no caret. */
+    struct RowCursor
+    {
+      unsigned short row;
+      LineCursor::Column column;
+      RowCursor(unsigned short r, LineCursor::Column col)
+          : row(r),
+            column(col)
+      {
+      }
+      static RowCursor None()
+      {
+        return RowCursor(static_cast<unsigned short>(-1), 0);
+      }
+      bool isNone() const
+      {
+        return this->row == static_cast<unsigned short>(-1);
+      }
+    };
   } // namespace app
 } // namespace loka
 #endif

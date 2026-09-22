@@ -1,3 +1,5 @@
+LOKA_TEST(testTextEditorReplace)
+LOKA_TEST(testTextEditorReplaceRefusals)
 LOKA_TEST(testTextEditorActions)
 LOKA_TEST(testTextEditorRefusals)
 LOKA_TEST(testTextEditorHighlight)
