@@ -450,6 +450,26 @@ void testTextEditorHighlight()
 
 namespace
 {
+  struct SceneReposter
+  {
+    NodeState<LineCursor> &request;
+    State<LineCursor> &fact;
+    unsigned reports;
+    SceneReposter(NodeState<LineCursor> &r, State<LineCursor> &f)
+        : request(r),
+          fact(f),
+          reports(0)
+    {
+    }
+    static void changed(void *data)
+    {
+      SceneReposter &self = *static_cast<SceneReposter *>(data);
+      ++self.reports;
+      LineCursor next = self.fact.get();
+      next.column = next.column == 0 ? 1 : 0;
+      self.request.set(next);
+    }
+  };
   class EditorPresenter : public NullScenePlatformController
   {
   public:
@@ -471,6 +491,10 @@ namespace
         : BoundaryNodeFor<EditorSceneRoot>(p)
     {
       this->declareStates(2).state(this->cursor, LineCursor::None()).state(this->request, LineCursor::None());
+    }
+    virtual bool flushViewDirtyImmediately(NodeDirtyFlags) const
+    {
+      return false;
     }
     virtual void attachNode(NodeComposition &)
     {
@@ -520,6 +544,17 @@ void testTextEditorScene()
     LOKA_VERIFY(scene.flushInvalidation());
   LOKA_VERIFY(root->request.get().isNone());
   LOKA_VERIFY(root->cursor.state()->get() == requested && Input::caret(*context) == requested);
+  SceneReposter reposter(root->request, *root->cursor.state());
+  root->cursor.state()->bind(&SceneReposter::changed, &reposter, false);
+  root->request.set(LineCursor(root->lines.at(0).id, 0));
+  LOKA_VERIFY(scene.flushInvalidation());
+  LOKA_VERIFY(reposter.reports > 0 && !root->request.get().isNone());
+  std::printf("[pin] endless repost Scene flush returned after %u reports with pending work\n", reposter.reports);
+  LOKA_VERIFY(scene.hasPendingInvalidation());
+  root->cursor.state()->unbind(&SceneReposter::changed, &reposter);
+  for (int i = 0; scene.hasPendingInvalidation() && i < 12; ++i)
+    LOKA_VERIFY(scene.flushInvalidation());
+  LOKA_VERIFY(root->request.get().isNone());
   LOKA_VERIFY(root->lines.update(root->lines.at(0).id, String("external")) == EDIT_OK);
   for (int i = 0; scene.hasPendingInvalidation() && i < 12; ++i)
     LOKA_VERIFY(scene.flushInvalidation());
@@ -801,6 +836,41 @@ namespace
       }
     }
   };
+  /** Reposts on every report until its test budget is exhausted (-1 never stops). */
+  struct RepostingSubscriber
+  {
+    Fixture &fixture;
+    int remaining;
+    unsigned delivered;
+    RepostingSubscriber(Fixture &f, int count)
+        : fixture(f),
+          remaining(count),
+          delivered(0)
+    {
+      this->fixture.cursor.state()->bind(&changed, this, false);
+    }
+    ~RepostingSubscriber()
+    {
+      this->fixture.cursor.state()->unbind(&changed, this);
+    }
+    static void changed(void *data)
+    {
+      RepostingSubscriber &self = *static_cast<RepostingSubscriber *>(data);
+      ++self.delivered;
+      // Fail immediately on a third take, including in the unbounded mutation.
+      LOKA_VERIFY(self.delivered <= 2);
+      if (self.remaining != 0)
+      {
+        if (self.remaining > 0)
+          --self.remaining;
+        LineCursor next = self.fixture.cursor.state()->get();
+        next.column = next.column == 0 ? 1 : 0;
+        self.fixture.request.set(next);
+        self.fixture.context->onPropsApplied();
+        LOKA_VERIFY(self.fixture.request.get() == next);
+      }
+    }
+  };
   struct PublicationCount
   {
     unsigned count;
@@ -883,6 +953,25 @@ void testTextEditorRequestReposts()
     if (!duringClear)
       LOKA_VERIFY(observer.reports == 2);
   }
+  for (int endless = 0; endless < 2; ++endless)
+  {
+    Fixture f;
+    RepostingSubscriber subscriber(f, endless ? -1 : 5);
+    PublicationCount invalidations;
+    f.tracker.setInvalidateCallback(&PublicationCount::changed, &invalidations);
+    f.request.set(LineCursor(f.lines.at(0).id, 0));
+    for (int delivery = 0; delivery < 3; ++delivery)
+    {
+      subscriber.delivered = 0;
+      invalidations.count = 0;
+      f.context->onPropsApplied();
+      LOKA_VERIFY(subscriber.delivered == 2);
+      LOKA_VERIFY(invalidations.count > 0);
+      LOKA_VERIFY(f.request.get().isNone() == (!endless && delivery == 2));
+    }
+    f.tracker.setInvalidateCallback(0, 0);
+  }
+
 }
 void testTextEditorRequestRefusal()
 {

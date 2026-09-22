@@ -245,12 +245,13 @@ namespace
       LOKA_VERIFY(lines.attach(&tracker, capacity) == ATTACH_OK);
       for (unsigned short i = 0; i < count; ++i)
         LOKA_VERIFY(lines.insert(i, String(text)) == EDIT_OK);
-      if (count)
-      {
-        StateTrackerGuard guard(&tracker);
-        request.set(LineCursor(lines.at(0).id, text.size() < 2 ? static_cast<int>(text.size()) : 2));
-      }
       node = new TextEditorNode(TextEditorProps(lines, cursor).moveCaretTo(request));
+      // The initial caret is a fact the seam publishes, not an app request:
+      // this rail delivers requests only from PR 3 of #873 onward.
+      if (count)
+        LOKA_VERIFY(loka::app::testing::TextEditorAccess::document(*node).moveCaret(
+                        LineCursor(lines.at(0).id, text.size() < 2 ? static_cast<int>(text.size()) : 2))
+                    == EDITOR_OK);
       LayoutState bounds;
       bounds.x = 10;
       bounds.y = 20;

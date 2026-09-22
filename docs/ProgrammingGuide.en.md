@@ -286,7 +286,9 @@ handle conversion. Copies borrow storage and do not extend its lifetime.
 a native selection. The optional `.moveCaretTo(request)` takes a separate,
 app-owned `NodeState<LineCursor>` on the same tracker. One slot has one consumer;
 `None` means no pending request. The consumer clears the request before applying
-and reporting it, then checks for requests posted during those notifications.
+and reporting it. Each Null delivery checks the slot once more and consumes at
+most one repost from those notifications. A further request remains pending
+for a later Props apply; the take already marked the node dirty.
 
 On a list or request-seat replacement, the editor cancels the old pending
 request before assigning Props. A request posted during that cancellation is
