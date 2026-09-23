@@ -496,17 +496,20 @@ public:
     return static_cast<TextEditorNode &>(base).document.moveCaret(applied);
   }
   virtual loka::app::scene::FollowUp finishTake(loka::app::scene::Node &base,
-                                                const loka::app::scene::Reply<LineCursor> &)
+                                                const loka::app::scene::Reply<LineCursor> &reply,
+                                                const loka::app::scene::RequestApplication<LineCursor> &applied)
   {
     MacTextEditorContext &c = context(base);
     Projection &p = *c.projection_;
     loka::app::scene::FollowUp follow = loka::app::scene::FOLLOW_NONE;
     if (base.lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
       return follow;
+    const bool refusedReport =
+        applied.result() == EDITOR_OK && reply.kind() == loka::app::scene::Reply<LineCursor>::REFUSED;
     if (this->completion_ == Projection::IDLE && (p.phase == Projection::INPUT || p.phase == Projection::RECONCILE))
     {
       NSTextView *view = (NSTextView *)[(NSScrollView *)c.scroll_ documentView];
-      if (p.phase == Projection::RECONCILE || p.validateDocument(*c.node_) != EDITOR_OK
+      if (refusedReport || p.phase == Projection::RECONCILE || p.validateDocument(*c.node_) != EDITOR_OK
           || ![[view string] isEqualToString:p.committed])
       {
         p.phase = Projection::RECONCILE;
@@ -515,6 +518,15 @@ public:
           return follow;
         if (follow == loka::app::scene::SCHEDULE_RESTORE)
           c.prepareRestore();
+        else if (refusedReport && p.phase == Projection::RECONCILE)
+        {
+          // Apply wrote the caret but the seam did not commit it. Repair only
+          // selection: unchanged text and its native undo history stay intact.
+          c.restoreSelectionFromFact();
+          if (base.getContext() != &c)
+            return follow;
+          follow = loka::app::scene::REPAINT;
+        }
       }
     }
     if (p.phase == Projection::INPUT || p.phase == Projection::RECONCILE)
@@ -806,25 +818,9 @@ loka::app::scene::FollowUp MacTextEditorContext::syncFromNode(bool force, bool n
   }
   if (replace)
   {
-    // Restoring/replacing text also restores its committed selection. A fact
-    // notification over unchanged text must never move the native caret.
-    NativeLines native(p.committed);
-    const LineCursor cursor = this->node_->props.cursorState()->get();
-    const int index = lines.find(cursor.line);
-    NSRange selection = p.selection;
-    if (index >= 0)
-    {
-      const NSUInteger location =
-          native.ranges[index].location
-          + std::min(native.ranges[index].length, static_cast<NSUInteger>(std::max(0, cursor.column)));
-      selection = NSMakeRange(location, 0);
-    }
-    selection.location = std::min(selection.location, [p.committed length]);
-    selection.length = std::min(selection.length, [p.committed length] - selection.location);
-    [view setSelectedRange:selection];
+    this->restoreSelectionFromFact();
     if (liveNode->getContext() != this || liveNode->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
       return loka::app::scene::FOLLOW_NONE;
-    p.selection = selection;
   }
   p.style(view, *this->node_, *this->controller(), replace);
   if (liveNode->getContext() != this || liveNode->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
@@ -835,6 +831,34 @@ loka::app::scene::FollowUp MacTextEditorContext::syncFromNode(bool force, bool n
   [view setEditable:YES];
   p.phase = completion;
   return loka::app::scene::REPAINT;
+}
+
+void MacTextEditorContext::restoreSelectionFromFact()
+{
+  loka::app::scene::Node *const liveNode = this->node_;
+  Projection &p = *this->projection_;
+  const Projection::Phase completion = p.phase;
+  NSTextView *view = (NSTextView *)[(NSScrollView *)this->scroll_ documentView];
+  const NativeLines native(p.committed);
+  const LineCursor cursor = this->node_->props.cursorState()->get();
+  const int index = this->node_->props.lines_->find(cursor.line);
+  NSRange selection = p.selection;
+  if (index >= 0)
+  {
+    const NSUInteger location =
+        native.ranges[index].location
+        + std::min(native.ranges[index].length, static_cast<NSUInteger>(std::max(0, cursor.column)));
+    selection = NSMakeRange(location, 0);
+  }
+  selection.location = std::min(selection.location, [p.committed length]);
+  selection.length = std::min(selection.length, [p.committed length] - selection.location);
+  p.phase = Projection::APPLYING;
+  [view setSelectedRange:selection];
+  if (liveNode->getContext() != this || liveNode->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
+    return;
+  p.selection = selection;
+  if (p.phase == Projection::APPLYING)
+    p.phase = completion;
 }
 
 void MacTextEditorContext::captureSelection()

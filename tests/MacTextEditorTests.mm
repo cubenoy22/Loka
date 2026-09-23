@@ -9,6 +9,7 @@
 #include "support/LifecycleFactTestAccess.hpp"
 #include "support/LokaAllocFailure.hpp"
 #include "platform/StringUTF8.hpp"
+#include "platform/String.hpp"
 #include <vector>
 #include <algorithm>
 #include <cstdio>
@@ -401,6 +402,39 @@ namespace
     return view;
   }
 
+  /** Refuse one string read after the native request write, so the real seam's
+      report fails allocation after validation and apply have already succeeded.
+      The fixture owns the borrowed view for the entire string lifetime. */
+  class RefusedReportString : public loka::platform::String
+  {
+  public:
+    explicit RefusedReportString(LokaRequestEditorView *view)
+        : view_(view),
+          writesBefore_([view selectionWrites]),
+          refusals_(0)
+    {
+    }
+    virtual bool appendUtf8(std::string &out) const
+    {
+      if (!this->refusals_ && [this->view_ selectionWrites] > this->writesBefore_)
+      {
+        ++this->refusals_;
+        return false;
+      }
+      out += "abcd";
+      return true;
+    }
+    unsigned refusals() const
+    {
+      return this->refusals_;
+    }
+
+  private:
+    LokaRequestEditorView *const view_;
+    const NSUInteger writesBefore_;
+    mutable unsigned refusals_;
+  };
+
   void requestCaret(Fixture &f, LineCursor cursor)
   {
     StateTrackerGuard guard(&f.tracker);
@@ -501,6 +535,37 @@ namespace
 
 void testMacTextEditorRequests()
 {
+  // Refused-report restore: predicted red on the pre-fix macOS rail.
+  {
+    Fixture f;
+    LokaRequestEditorView *view = instrumentSelection(f);
+    RefusedReportString *probe = new RefusedReportString(view);
+    const String text(loka::core::Managed<loka::platform::String>::Wrap(probe));
+    LOKA_VERIFY(f.lines.update(f.lines.at(0).id, text) == EDIT_OK);
+    const LineCursor fact = f.cursor.state()->get();
+    const NSRange selection = [view selectedRange];
+    const NSUInteger writes = [view selectionWrites];
+    NSUndoManager *undo = [view undoManager];
+    LOKA_VERIFY(undo != nil);
+    [undo setGroupsByEvent:NO];
+    [undo beginUndoGrouping];
+    [[undo prepareWithInvocationTarget:view] setString:@"undo control"];
+    [undo endUndoGrouping];
+    LOKA_VERIFY([undo canUndo]);
+    const LineCursor requested(f.lines.at(1).id, 1);
+    requestCaret(f, requested);
+    f.context->onPropsApplied();
+    const loka::app::scene::Reply<LineCursor> reply = f.request.reply().state()->get();
+    LOKA_VERIFY(probe->refusals() == 1); // Positive control: report reached the failing read.
+    LOKA_VERIFY(reply.kind() == loka::app::scene::Reply<LineCursor>::REFUSED);
+    LOKA_VERIFY(reply.reason() == EDITOR_ALLOCATION && reply.requested() == requested);
+    LOKA_VERIFY(f.request.get().isNone() && f.cursor.state()->get() == fact);
+    LOKA_VERIFY([view selectionWrites] == writes + 2); // Apply, then committed selection repair.
+    LOKA_VERIFY(NSEqualRanges([view selectedRange], selection));
+    LOKA_VERIFY(NSEqualRanges(selection, NSMakeRange(2, 0))); // Initial fact's storage offset.
+    LOKA_VERIFY([undo canUndo]);                              // Selection repair must not replace text and clear undo.
+    LOKA_VERIFY([[view string] isEqualToString:@"abcd\nabcd\nabcd"]);
+  }
   // #882: trace/reply reds are predicted until measured on the Tahoe rig.
   {
     Fixture f;

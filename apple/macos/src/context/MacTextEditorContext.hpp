@@ -59,6 +59,8 @@ private:
   /** Project only; return scheduling/paint intent to the owning operation. */
   loka::app::scene::FollowUp syncFromNode(bool force, bool nativeCommit = false);
   void projectHighlights();
+  /** Restore the committed selection without replacing text or clearing undo. */
+  void restoreSelectionFromFact();
   class RailOperation;
   void settle(loka::app::scene::Settlement, RailOperation &);
   loka::app::scene::FollowUp prepareRestore();
