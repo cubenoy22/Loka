@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -79,6 +80,30 @@ class CiPathsTest(unittest.TestCase):
                           ["unknown/README.md"], ["unknown/LICENSE"], [], ["unknown"]):
                 with self.subTest(paths=paths, job=job):
                     self.assertTrue(CI.classify(job, paths)[0])
+
+    def test_tested_documentation_runs_linux_only(self):
+        for path in ("docs/smirkycard/loka-style.d.ts", "docs/environments.md",
+                     "docs/MAME_DEVELOPMENT.md", "docs/TOOLBOX_STANDALONE_FLOW.md"):
+            for job in CI.JOBS:
+                with self.subTest(path=path, job=job):
+                    self.assertEqual(CI.classify(job, [path])[0], job.startswith("linux-"))
+        for job in CI.JOBS:
+            self.assertFalse(CI.classify(job, ["docs/RequestDeliveryDesign.md"])[0])
+
+    def test_documentation_inputs_are_derived_from_scripts(self):
+        scanner = CI.tested_documentation_inputs
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            script = root / "tests/scripts/FixtureTest.py"
+            script.parent.mkdir(parents=True)
+            script.write_text('read("docs/fixture.md")\n'
+                              'names = ("split-fixture.md",)\nROOT / "docs" / name\n')
+            self.assertEqual(scanner(root), {"docs/fixture.md", "docs/split-fixture.md"})
+            with patch.object(CI, "tested_documentation_inputs", lambda: scanner(root)):
+                self.assertTrue(CI.classify("linux-headless", ["docs/fixture.md"])[0])
+                script.write_text('read("docs/replacement.md")\n')
+                self.assertFalse(CI.classify("linux-headless", ["docs/fixture.md"])[0])
+                self.assertTrue(CI.classify("linux-headless", ["docs/replacement.md"])[0])
 
     def test_linux_inputs_and_platform_only_paths(self):
         for job in ("linux-headless", "linux-asan", "linux-release"):
