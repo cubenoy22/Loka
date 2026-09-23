@@ -36,7 +36,9 @@ the last admission's binding: clear the request, check liveness, and publish
 `Refused(requested, EDITOR_UNAVAILABLE)` without resolve/apply/report or a fact
 write. Admission supplies that binding even when it defers. Retirement stops
 the driver; a discarded binding gets no reply. The refusal shares the settle's
-single trace row. Shared helpers never settle. The Null rail is the reference
+single trace row. The driver returns the follow-up result after publication, so
+rails can keep native admission closed until the refusal tail finishes; retired
+operations return FOLLOW_UP_NONE and do not reopen their context. Shared helpers never settle. The Null rail is the reference
 implementation; the native rails move onto it in the #882 PR series.
 
 ## From AGENTS.md

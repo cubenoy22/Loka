@@ -633,6 +633,9 @@ namespace
     // The VM fixture cannot inject SetTimer allocation failure. The FAIL_ARM
     // Null SettlementProbe in testTextEditorSettlementSeam discriminates that
     // common-driver path; the cases below inject native text replacement failure.
+    // Reentrancy variant (also predicted): on None, repost B and call onPropsApplied.
+    // COMMIT must leave B pending until this Refused(A) has been published; no
+    // nested Granted(B), fact write, or extra settlement trace row may occur.
     for (int failRestore = 0; failRestore < 2; ++failRestore)
     {
       Fixture fixture;

@@ -207,18 +207,18 @@ namespace loka
       template <typename T> class RequestSettlement
       {
       public:
-        static void settle(Node *node,
-                           const NodeContext *identity,
-                           RailOperation<T> &op,
-                           Settlement stimulus
+        static FollowUpResult settle(Node *node,
+                                     const NodeContext *identity,
+                                     RailOperation<T> &op,
+                                     Settlement stimulus
 #ifdef TEST_BUILD
-                           ,
-                           const T &before
+                                     ,
+                                     const T &before
 #endif
         )
         {
           if (!alive(node, identity))
-            return;
+            return FOLLOW_UP_NONE;
           FollowUps follow;
           RequestBinding<T> binding;
 #ifdef TEST_BUILD
@@ -237,7 +237,7 @@ namespace loka
                     0
 #endif
                     ))
-            return;
+            return FOLLOW_UP_NONE;
           if (!take(node,
                     identity,
                     op,
@@ -249,10 +249,10 @@ namespace loka
                     1
 #endif
                     ))
-            return;
+            return FOLLOW_UP_NONE;
           const FollowUpResult armed = op.finishSettle(*node, follow);
           if (!alive(node, identity))
-            return;
+            return FOLLOW_UP_NONE;
           switch (armed)
           {
           case FOLLOW_UP_FAILED:
@@ -265,7 +265,7 @@ namespace loka
                                       row
 #endif
                                       ))
-              return;
+              return FOLLOW_UP_NONE;
             break;
           case FOLLOW_UP_ARMED:
           case FOLLOW_UP_NONE:
@@ -275,6 +275,7 @@ namespace loka
           row.after = op.fact(*node);
           loka::app::testing::SettleTrace<T>::instance().append(row);
 #endif
+          return armed;
         }
 
       private:

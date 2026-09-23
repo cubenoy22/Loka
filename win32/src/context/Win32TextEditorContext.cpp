@@ -251,6 +251,9 @@ public:
       if (!SetTimer(c.hwnd_, kRestoreTimer, 1, NULL))
       {
         c.status_ = EDITOR_UNAVAILABLE;
+        // Keep clear/reply subscribers inside the same native exclusion as a take.
+        // settle's returned result releases it after the refusal-only tail.
+        c.phase_ = COMMIT;
         return scene::FOLLOW_UP_FAILED;
       }
       return scene::FOLLOW_UP_ARMED;
@@ -286,15 +289,19 @@ void Win32TextEditorContext::settle(scene::Settlement stimulus)
 }
 void Win32TextEditorContext::settle(scene::Settlement stimulus, RailOperation &op)
 {
-  scene::RequestSettlement<LineCursor>::settle(this->node_,
-                                               this,
-                                               op,
-                                               stimulus
+  scene::Node *const liveNode = this->node_;
+  const scene::FollowUpResult result = scene::RequestSettlement<LineCursor>::settle(liveNode,
+                                                                                    this,
+                                                                                    op,
+                                                                                    stimulus
 #ifdef TEST_BUILD
-                                               ,
-                                               op.before()
+                                                                                    ,
+                                                                                    op.before()
 #endif
   );
+  if (liveNode && liveNode->getContext() == this && result == scene::FOLLOW_UP_FAILED
+      && (this->phase_ == COMMIT || this->phase_ == REJECTED))
+    this->phase_ = liveNode->lifecycleFact() == scene::NODE_FACT_ATTACHED ? RETRY : IDLE;
 }
 void Win32TextEditorContext::readLifecycleFactOnAttach()
 {

@@ -1326,9 +1326,9 @@ namespace
     {
       return static_cast<TextEditorNode &>(base).props.cursorState()->get();
     }
-    void run(Fixture &f)
+    FollowUpResult run(Fixture &f)
     {
-      RequestSettlement<LineCursor>::settle(&f.node, f.context, *this, SETTLE_DEFERRED, this->fact(f.node));
+      return RequestSettlement<LineCursor>::settle(&f.node, f.context, *this, SETTLE_DEFERRED, this->fact(f.node));
     }
   };
 } // namespace
@@ -1424,7 +1424,8 @@ void testTextEditorSettlementSeam()
     failed.request.set(wanted);
     Trace::instance().clear();
     SettlementProbe arm(SettlementProbe::FAIL_ARM);
-    arm.run(failed);
+    const FollowUpResult result = arm.run(failed);
+    LOKA_VERIFY(result == FOLLOW_UP_FAILED);
     LOKA_VERIFY(failed.request.get().isNone());
     const CaretReply refused = failed.request.reply().state()->get();
     LOKA_VERIFY(refused.kind() == CaretReply::REFUSED && refused.reason() == EDITOR_UNAVAILABLE);
@@ -1460,7 +1461,8 @@ void testTextEditorSettlementSeam()
     failed.request.set(subscriber.repost);
     Trace::instance().clear();
     SettlementProbe arm(SettlementProbe::FAIL_ARM);
-    arm.run(failed);
+    const FollowUpResult result = arm.run(failed);
+    LOKA_VERIFY(result == (when == 2 ? FOLLOW_UP_FAILED : FOLLOW_UP_NONE));
     LOKA_VERIFY(subscriber.replies == (when == 1 ? 1u : 0u));
     LOKA_VERIFY(arm.applied == 0 && arm.finished == 0 && arm.epilogues == 1);
     if (when != 2)
