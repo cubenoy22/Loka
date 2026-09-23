@@ -212,6 +212,7 @@ struct MacTextEditorContext::Projection
     IDLE,
     INPUT,
     RECONCILE,
+    STORAGE_PENDING,
     QUEUED,
     APPLYING,
     UNAVAILABLE
@@ -425,7 +426,10 @@ void MacTextEditorContext::onFactChanged(loka::app::scene::NodeLifecycleFact, lo
     [view setDelegate:(id)delegate];
     [[view textStorage] setDelegate:(id)delegate];
     this->projection_->phase = Projection::IDLE;
-    this->syncFromNode(true);
+    const bool retry = this->syncFromNode(true);
+    this->consumePendingRequest();
+    if (retry)
+      this->scheduleRestore();
   }
   else
   {
@@ -448,7 +452,12 @@ void MacTextEditorContext::onFactChanged(loka::app::scene::NodeLifecycleFact, lo
 void MacTextEditorContext::onPropsApplied()
 {
   if (this->projection_->phase == Projection::IDLE || this->projection_->phase == Projection::UNAVAILABLE)
-    this->syncFromNode(false);
+  {
+    const bool retry = this->syncFromNode(false);
+    this->consumePendingRequest();
+    if (retry)
+      this->scheduleRestore();
+  }
 }
 short MacTextEditorContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
@@ -482,17 +491,22 @@ void MacTextEditorContext::restoreCommittedProjection()
   if (!this->node_ || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
     return;
   ++this->restores_;
-  this->syncFromNode(true);
+  const bool retry = this->syncFromNode(true);
+  this->consumePendingRequest();
+  if (retry)
+    this->scheduleRestore();
 }
 
-void MacTextEditorContext::syncFromNode(bool force, bool nativeCommit)
+bool MacTextEditorContext::syncFromNode(bool force, bool nativeCommit)
 {
   if (!this->node_ || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
-    return;
+    return false;
   Projection &p = *this->projection_;
   NSScrollView *scroll = (NSScrollView *)this->scroll_;
   NSTextView *view = (NSTextView *)[scroll documentView];
   const NSRect visible = [scroll documentVisibleRect];
+  // A repair inside the consumer must not reopen request delivery.
+  const Projection::Phase completion = p.phase == Projection::RECONCILE ? Projection::RECONCILE : Projection::IDLE;
   p.phase = Projection::APPLYING;
   const EditorResult result = this->node_->document.project(p.scratch);
   if (result != EDITOR_OK)
@@ -500,16 +514,15 @@ void MacTextEditorContext::syncFromNode(bool force, bool nativeCommit)
     if (nativeCommit)
     {
       this->scheduleRestore();
-      return;
+      return false;
     }
     ReplaceEditorString(view, @"", *this->controller());
     [view setEditable:NO];
     [[view undoManager] removeAllActions];
     p.clear();
     p.phase = Projection::UNAVAILABLE;
-    if (result == EDITOR_ALLOCATION)
-      this->scheduleRestore();
-    return;
+    // The entry refuses pending requests before scheduling an allocation retry.
+    return result == EDITOR_ALLOCATION;
   }
   // NSString uses LF; the owner seam serializes CR. ASCII keeps offsets equal.
   std::replace(p.scratch.begin(), p.scratch.end(), '\r', '\n');
@@ -523,7 +536,7 @@ void MacTextEditorContext::syncFromNode(bool force, bool nativeCommit)
   {
     p.clear();
     this->scheduleRestore();
-    return;
+    return false;
   }
   const bool replace = force || ![[view string] isEqualToString:desired];
   if (replace && nativeCommit)
@@ -531,7 +544,7 @@ void MacTextEditorContext::syncFromNode(bool force, bool nativeCommit)
     if (!same)
       [desired release];
     this->scheduleRestore();
-    return;
+    return false;
   }
   if (replace)
   {
@@ -544,7 +557,7 @@ void MacTextEditorContext::syncFromNode(bool force, bool nativeCommit)
       [desired release];
     p.clearStyles();
     this->scheduleRestore();
-    return;
+    return false;
   }
   if (!same)
   {
@@ -558,35 +571,124 @@ void MacTextEditorContext::syncFromNode(bool force, bool nativeCommit)
   {
     // Accept the snapshot without writing selection or attributes during input.
     p.phase = Projection::IDLE;
-    return;
+    return false;
   }
-  NativeLines native(p.committed);
-  const LineCursor cursor = this->node_->props.cursorState()->get();
-  int index = lines.find(cursor.line);
-  NSRange selection = p.selection;
-  if (index >= 0)
+  if (replace)
   {
-    const NSUInteger location =
-        native.ranges[index].location
-        + std::min(native.ranges[index].length, static_cast<NSUInteger>(std::max(0, cursor.column)));
-    if (replace || selection.location != location)
+    // Restoring/replacing text also restores its committed selection. A fact
+    // notification over unchanged text must never move the native caret.
+    NativeLines native(p.committed);
+    const LineCursor cursor = this->node_->props.cursorState()->get();
+    const int index = lines.find(cursor.line);
+    NSRange selection = p.selection;
+    if (index >= 0)
+    {
+      const NSUInteger location =
+          native.ranges[index].location
+          + std::min(native.ranges[index].length, static_cast<NSUInteger>(std::max(0, cursor.column)));
       selection = NSMakeRange(location, 0);
+    }
+    selection.location = std::min(selection.location, [p.committed length]);
+    selection.length = std::min(selection.length, [p.committed length] - selection.location);
+    [view setSelectedRange:selection];
+    p.selection = selection;
   }
-  selection.location = std::min(selection.location, [p.committed length]);
-  selection.length = std::min(selection.length, [p.committed length] - selection.location);
-  [view setSelectedRange:selection];
-  p.selection = selection;
   p.style(view, *this->node_, *this->controller(), replace);
   const loka::macos::MacProjection &projection = this->controller()->projection();
   loka::macos::ScrollMacDocument(view, projection.scrollOffsetToNative(projection.scrollPositionToLu(visible.origin.y)));
   [scroll reflectScrolledClipView:[scroll contentView]];
   [view setEditable:YES];
-  p.phase = Projection::IDLE;
+  p.phase = completion;
+  return false;
+}
+
+void MacTextEditorContext::consumePendingRequest()
+{
+  // Platform twin of Null/Toolbox: one take and one epilogue take. Further
+  // reposts stay dirty for the next props apply; nested delivery stays closed.
+  if (this->consumeRequest())
+    this->consumeRequest();
+}
+bool MacTextEditorContext::consumeRequest()
+{
+  Projection &p = *this->projection_;
+  if (!this->node_ || (p.phase != Projection::IDLE && p.phase != Projection::UNAVAILABLE))
+    return false;
+  const loka::app::scene::WriteSeat<LineCursor> request = this->node_->props.moveCaretTo_;
+  if (!request.isValid() || request.state()->get().isNone())
+    return false;
+  const Projection::Phase completion = p.phase;
+  p.phase = Projection::INPUT;
+  const LineCursor pending = request.state()->get();
+  const TextEditorProps binding = this->node_->props;
+  request.set(LineCursor::None());
+  if (completion == Projection::IDLE && this->node_ && p.phase == Projection::INPUT && this->scroll_
+      && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED && this->node_->props.lines_ == binding.lines_
+      && this->node_->props.moveCaretTo_.state() == request.state()
+      && this->node_->document.availability() == EDITOR_OK)
+  {
+    StateTracker *owner = 0;
+    if (binding.lines_->queryMutationTracker(owner) == EDIT_OK && request.usesTracker(owner)
+        && binding.lines_->find(pending.line) >= 0)
+    {
+      NSTextView *view = (NSTextView *)[(NSScrollView *)this->scroll_ documentView];
+      // Taking may notify an owner edit. Repair before interpreting offsets.
+      if (p.validateDocument(*this->node_) != EDITOR_OK || ![[view string] isEqualToString:p.committed])
+      {
+        p.phase = Projection::RECONCILE;
+        if (this->syncFromNode(false))
+          this->scheduleRestore();
+        if (p.phase == Projection::RECONCILE)
+          p.phase = Projection::INPUT;
+      }
+      if (this->node_ && p.phase == Projection::INPUT
+          && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED
+          && this->node_->props.lines_ == binding.lines_
+          && this->node_->props.moveCaretTo_.state() == request.state())
+      {
+        const NativeLines native(p.committed);
+        const int index = binding.lines_->find(pending.line);
+        if (native.result == EDITOR_OK && index >= 0 && index < native.count)
+        {
+          const NSRange row = native.ranges[index];
+          const NSUInteger column = std::min(row.length, static_cast<NSUInteger>(std::max(0, pending.column)));
+          const LineCursor clamped(pending.line, static_cast<int>(column));
+          p.phase = Projection::APPLYING;
+          [view setSelectedRange:NSMakeRange(row.location + column, 0)];
+          if (this->node_ && p.phase == Projection::APPLYING
+              && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+          {
+            p.selection = [view selectedRange];
+            p.phase = Projection::INPUT;
+            if (this->node_->props.lines_ == binding.lines_
+                && this->node_->props.moveCaretTo_.state() == request.state())
+              this->node_->document.moveCaret(clamped);
+          }
+        }
+      }
+    }
+  }
+  if (!this->node_ || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
+    return true;
+  if (completion == Projection::IDLE && (p.phase == Projection::INPUT || p.phase == Projection::RECONCILE))
+  {
+    NSTextView *view = (NSTextView *)[(NSScrollView *)this->scroll_ documentView];
+    if (p.phase == Projection::RECONCILE || p.validateDocument(*this->node_) != EDITOR_OK
+        || ![[view string] isEqualToString:p.committed])
+    {
+      p.phase = Projection::RECONCILE;
+      if (this->syncFromNode(false))
+        this->scheduleRestore();
+    }
+  }
+  if (p.phase == Projection::INPUT || p.phase == Projection::RECONCILE)
+    p.phase = completion;
+  return true;
 }
 
 void MacTextEditorContext::captureSelection()
 {
-  if (this->projection_->phase == Projection::IDLE)
+  if (this->projection_->phase == Projection::IDLE || this->projection_->phase == Projection::STORAGE_PENDING)
     this->projection_->selection = [(NSTextView *)[(NSScrollView *)this->scroll_ documentView] selectedRange];
 }
 
@@ -598,7 +700,7 @@ void MacTextEditorContext::handleSelectionDidChange()
     p.phase = Projection::RECONCILE;
     return;
   }
-  if (p.phase != Projection::IDLE || !this->node_)
+  if ((p.phase != Projection::IDLE && p.phase != Projection::STORAGE_PENDING) || !this->node_)
     return;
   NSTextView *view = (NSTextView *)[(NSScrollView *)this->scroll_ documentView];
   // NSTextView can announce selection before textDidChange. Only a selection
@@ -609,6 +711,7 @@ void MacTextEditorContext::handleSelectionDidChange()
   const NSRange selection = [view selectedRange];
   const unsigned short index = lines.lineAt(selection.location);
   const LineCursor cursor(p.ids[index], static_cast<int>(selection.location - lines.ranges[index].location));
+  const Projection::Phase completion = p.phase;
   p.phase = Projection::INPUT;
   const EditorResult result = this->node_->document.moveCaret(cursor);
   if (!this->node_ || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
@@ -618,8 +721,9 @@ void MacTextEditorContext::handleSelectionDidChange()
   else
   {
     p.selection = selection;
-    p.phase = Projection::IDLE;
+    p.phase = completion;
   }
+  this->consumePendingRequest();
 }
 
 EditorResult MacTextEditorContext::applyNativeChange(TextObservation source, std::size_t &caretOffset)
@@ -748,25 +852,37 @@ void MacTextEditorContext::handleTextDidChange(TextObservation source, std::size
     if (source == VIEW_CHANGE)
     {
       p.selection = [(NSTextView *)[(NSScrollView *)this->scroll_ documentView] selectedRange];
-      this->applyHighlights();
+      this->projectHighlights();
+      this->consumePendingRequest();
+      if (p.phase == Projection::UNAVAILABLE)
+        this->scheduleRestore();
     }
     else
+    {
+      p.phase = Projection::STORAGE_PENDING;
       [delegate performSelector:@selector(applyHighlights) withObject:nil afterDelay:0];
+    }
   }
 }
 
 void MacTextEditorContext::applyHighlights()
 {
+  this->projectHighlights();
+  this->consumePendingRequest();
+  if (this->projection_->phase == Projection::UNAVAILABLE)
+    this->scheduleRestore();
+}
+
+void MacTextEditorContext::projectHighlights()
+{
   Projection &p = *this->projection_;
-  if (p.phase != Projection::IDLE || !this->node_
+  if ((p.phase != Projection::IDLE && p.phase != Projection::STORAGE_PENDING) || !this->node_
       || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
     return;
   NSTextView *view = (NSTextView *)[(NSScrollView *)this->scroll_ documentView];
-  if (![[view string] isEqualToString:p.committed])
-    return;
-  if (p.validateDocument(*this->node_) != EDITOR_OK)
+  if (![[view string] isEqualToString:p.committed] || p.validateDocument(*this->node_) != EDITOR_OK)
   {
-    this->scheduleRestore();
+    p.phase = Projection::UNAVAILABLE;
     return;
   }
   p.phase = Projection::APPLYING;
