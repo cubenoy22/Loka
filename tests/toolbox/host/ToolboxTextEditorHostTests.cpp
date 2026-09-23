@@ -1,5 +1,6 @@
 #include "support/LifecycleFactTestAccess.hpp"
 #include "support/TextEditorStateOwner.hpp"
+#include "support/TextEditorReportRefusal.hpp"
 #include "app/scene/state/RequestSettlement.hpp"
 #include "support/TextEditorAccess.hpp"
 #include "context/ToolboxTextEditorContext.hpp"
@@ -362,6 +363,28 @@ namespace
 } // namespace
 int main(int argc, char **argv)
 {
+  if (argc == 2 && std::strcmp(argv[1], "refused-report") == 0)
+  {
+    Fixture f(1);
+    const String text = String::FromPlatform(Managed<loka::platform::String>::Wrap(
+        new loka::app::testing::TextEditorReportRefusal(f.request)));
+    LOKA_VERIFY(f.lines.update(f.lines.at(0).id, text) == EDIT_OK);
+    f.context->onPropsApplied();
+    const LineCursor before = f.cursor.state()->get();
+    const short factOffset = (**f.te()).selStart;
+    LOKA_VERIFY(factOffset == before.column && factOffset != 4);
+    const int selections = toolbox_host::selections, sets = toolbox_host::sets;
+    post(f, LineCursor(before.line, 4));
+    f.context->onPropsApplied();
+    const Reply<LineCursor> reply = f.request.reply().state()->get();
+    LOKA_VERIFY(reply.kind() == Reply<LineCursor>::REFUSED && reply.reason() == EDITOR_ALLOCATION);
+    LOKA_VERIFY(f.cursor.state()->get() == before);
+    LOKA_VERIFY(toolbox_host::selections > selections);
+    LOKA_VERIFY((**f.te()).selStart == factOffset);
+    LOKA_VERIFY((**f.te()).selEnd == factOffset);
+    LOKA_VERIFY(toolbox_host::sets == sets);
+    return 0;
+  }
   if (argc == 2 && (std::strcmp(argv[1], "retire-key") == 0 || std::strcmp(argv[1], "retire-click") == 0
                     || std::strcmp(argv[1], "retire-paste") == 0))
   {

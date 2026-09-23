@@ -256,21 +256,34 @@ public:
   {
     return static_cast<TextEditorNode &>(base).document.moveCaret(applied);
   }
-  virtual scene::FollowUp finishTake(scene::Node &base, const scene::Reply<LineCursor> &)
+  virtual scene::FollowUp finishTake(scene::Node &base,
+                                     const scene::Reply<LineCursor> &reply,
+                                     const scene::RequestApplication<LineCursor> &application)
   {
     ToolboxTextEditorContext &c = context(base);
     scene::FollowUp follow = scene::FOLLOW_NONE;
-    if (c.node_ && c.te_ && c.status_ == EDITOR_OK
-        && (c.phase_ == RECONCILE || c.source_ != c.node_->props.lines_ || c.hasStaleCaret()))
+    if (c.node_ && c.te_ && c.status_ == EDITOR_OK && c.node_->lifecycleFact() == scene::NODE_FACT_ATTACHED)
     {
-      c.phase_ = RECONCILE;
-      follow = c.project();
+      if (c.phase_ == RECONCILE || c.source_ != c.node_->props.lines_ || c.hasStaleCaret())
+      {
+        c.phase_ = RECONCILE;
+        // Project also restores selection from the post-report fact.
+        follow = c.project();
+      }
+      else if (reply.kind() == scene::Reply<LineCursor>::REFUSED && application.result() == EDITOR_OK)
+      {
+        // Native apply succeeded, but the seam did not accept its caret fact.
+        // Platform twin of Win32 finishTake: current text needs selection-only repair.
+        const short offset = c.offsetOf(c.node_->props.cursorState()->get());
+        TESetSelect(offset, offset, c.te_);
+        follow = scene::REPAINT;
+      }
     }
     if (c.phase_ == INPUT || c.phase_ == RECONCILE)
       c.phase_ = IDLE;
     return follow;
   }
-  virtual void finishSettle(scene::Node &base, const scene::FollowUps &follow)
+  virtual scene::FollowUpResult finishSettle(scene::Node &base, const scene::FollowUps &follow)
   {
     ToolboxTextEditorContext &c = context(base);
     if (this->follow_.contains(scene::SCROLL_CLEANUP) && c.te_)
@@ -279,6 +292,7 @@ public:
         && c.controller()->window_)
       c.controller()->window_->requestInvalidateRect(c.paintRect_);
     // No timer arm: foreground idle retries directly from status_/TE presence.
+    return scene::FOLLOW_UP_NONE;
   }
 #ifdef TEST_BUILD
   virtual LineCursor fact(scene::Node &base) const
