@@ -356,3 +356,8 @@ loka_compile_pin(request-wall-immediate-untyped-reply
   REFUSES pins/refuses_request-wall-immediate-untyped-reply.cpp
   ACCEPTS pins/accepts_request-wall-immediate-untyped-reply.cpp
 )
+
+loka_compile_pin(request-binding-sourceless-command
+  REFUSES pins/refuses_request-binding-sourceless-command.cpp
+  ACCEPTS pins/accepts_request-binding-sourceless-command.cpp
+)
