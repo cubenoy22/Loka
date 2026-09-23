@@ -352,6 +352,27 @@ int main(int argc, char **argv)
       LOKA_VERIFY(f.cursor.state()->get() == desired);
       nativeKey(f, 28);
     }
+    {
+      Fixture f;
+      pin("stale projection and endless repost take exactly twice per props entry");
+      RepostingObserver observer(f, -1);
+      {
+        StateTrackerGuard guard(&f.tracker);
+        LOKA_VERIFY(f.lines.update(f.lines.at(0).id, String("longer")) == EDIT_OK);
+        f.request.set(LineCursor(f.lines.at(1).id, 1));
+      }
+      for (unsigned delivery = 0; delivery < 2; ++delivery)
+      {
+        observer.delivered = 0;
+        f.context->onPropsApplied();
+        LOKA_VERIFY(observer.delivered == 2);
+        LOKA_VERIFY(observer.reports == 2 * (delivery + 1));
+        LOKA_VERIFY(!f.request.get().isNone());
+        LOKA_VERIFY(f.native() == "longer\rabcd\rabcd");
+        LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(1).id, 2));
+        LOKA_VERIFY((**f.te()).selStart == 9 && (**f.te()).selEnd == 9);
+      }
+    }
     return 0;
   }
 
@@ -378,7 +399,7 @@ int main(int argc, char **argv)
     }
     else if (std::strcmp(argv[1], "project") == 0)
     {
-      pin("native creation project tail consumes request");
+      pin("native creation entry completion consumes request");
       f.controller.retireTextEditorControl(f.context, NATIVE_HINT_DEFAULT);
       post(f, desired);
       f.context->render(&f.controller);
@@ -482,7 +503,7 @@ int main(int argc, char **argv)
     }
     else if (std::strcmp(argv[1], "retry") == 0)
     {
-      pin("retry project completion delivers; unavailable input refuses without report");
+      pin("retry entry completion delivers; unavailable input refuses without report");
       const LineCursor before = f.cursor.state()->get();
       toolbox_host::failSets = 1;
       LOKA_VERIFY(f.context->paste(std::string(8193, 'x').data(), 8193) == EDITOR_CAPACITY);
