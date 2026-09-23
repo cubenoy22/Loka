@@ -1035,7 +1035,10 @@ void testWin32TextEditorQueuedRequests()
   typedef loka::app::testing::SettleTrace<LineCursor> Trace;
   typedef loka::app::scene::Reply<LineCursor> CaretReply;
   Fixture fixture;
-  LOKA_VERIFY(TextEditor(fixture.lines, fixture.cursor).moveCaretTo(fixture.queue).applyPropsToNode(fixture.node));
+  // Bare fixture: apply through the Props applier (the Definition door compares
+  // Props type identity, which a prebuilt core library does not share on this rail).
+  LOKA_VERIFY((loka::app::scene::NodePropsApplier<TextEditorNode, TextEditorProps>::apply(
+      fixture.node, TextEditor(fixture.lines, fixture.cursor).moveCaretTo(fixture.queue).props)));
   fixture.context->onPropsApplied();
   Trace &trace = Trace::instance();
   const LineCursor first(fixture.lines.at(0).id, 0);
