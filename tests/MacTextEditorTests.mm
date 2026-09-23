@@ -539,6 +539,8 @@ void testMacTextEditorRequests()
   {
     Fixture f;
     LokaRequestEditorView *view = instrumentSelection(f);
+    // The replacement view needs the same undo opt-in as testMacTextEditorUndoLocation.
+    [view setAllowsUndo:YES];
     RefusedReportString *probe = new RefusedReportString(view);
     const String text(loka::core::Managed<loka::platform::String>::Wrap(probe));
     LOKA_VERIFY(f.lines.update(f.lines.at(0).id, text) == EDIT_OK);
@@ -546,7 +548,7 @@ void testMacTextEditorRequests()
     const NSRange selection = [view selectedRange];
     const NSUInteger writes = [view selectionWrites];
     NSUndoManager *undo = [view undoManager];
-    LOKA_VERIFY(undo != nil);
+    LOKA_VERIFY(undo != nil && [undo isUndoRegistrationEnabled]);
     [undo setGroupsByEvent:NO];
     [undo beginUndoGrouping];
     [[undo prepareWithInvocationTarget:view] setString:@"undo control"];
