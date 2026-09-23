@@ -28,7 +28,7 @@ A rail context settles once per admitted operation. Only inside `settle` may it
 take a request; the common `RequestSettlement<T>` owns the order (two unrolled
 takes, admission re-read per take, snapshot and clear, liveness by
 `node->getContext() == identity`, resolve, seam validate, apply, seam report,
-reply built from the seam result, liveness, `finishTake`) and one epilogue that
+reply built from the seam result, liveness, `finishTake(reply, application)`) and one epilogue that
 folds the rail's `FollowUps` (repaint only when something was written or
 repaired). `finishSettle` returns `FOLLOW_UP_ARMED`, `FOLLOW_UP_FAILED`, or
 `FOLLOW_UP_NONE`. A failed arm performs one additional refusal-only take from
@@ -40,6 +40,12 @@ single trace row. The driver returns the follow-up result after publication, so
 rails can keep native admission closed until the refusal tail finishes; retired
 operations return FOLLOW_UP_NONE and do not reopen their context. Shared helpers never settle. The Null rail is the reference
 implementation; the native rails move onto it in the #882 PR series.
+
+When native apply succeeds but the reporting seam refuses, the reply is Refused
+and the fact stays unchanged. `finishTake` receives both the reply and the original
+`RequestApplication`: the rail restores the committed selection/projection from
+the fact before reopening native admission. A refusal before successful native
+apply does not by itself require a native selection write.
 
 ## From AGENTS.md
 

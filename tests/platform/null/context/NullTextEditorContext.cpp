@@ -243,7 +243,8 @@ public:
   {
     return static_cast<TextEditorNode &>(base).document.moveCaret(applied);
   }
-  virtual scene::FollowUp finishTake(scene::Node &base, const scene::Reply<LineCursor> &)
+  virtual scene::FollowUp finishTake(scene::Node &base, const scene::Reply<LineCursor> &,
+                                    const scene::RequestApplication<LineCursor> &)
   {
     NullTextEditorContext &c = context(base);
     c.phase_ = IDLE;

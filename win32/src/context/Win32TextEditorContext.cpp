@@ -219,16 +219,27 @@ public:
   {
     return static_cast<TextEditorNode &>(base).document.moveCaret(applied);
   }
-  virtual scene::FollowUp finishTake(scene::Node &base, const scene::Reply<LineCursor> &)
+  virtual scene::FollowUp finishTake(scene::Node &base,
+                                     const scene::Reply<LineCursor> &reply,
+                                     const scene::RequestApplication<LineCursor> &application)
   {
     Win32TextEditorContext &c = context(base);
     scene::FollowUp follow = scene::FOLLOW_NONE;
-    if (c.node_ && c.hwnd_ && c.status_ == EDITOR_OK && c.node_->lifecycleFact() == scene::NODE_FACT_ATTACHED
-        && (c.phase_ == REJECTED || !c.projection_.current(*c.node_)))
+    if (c.node_ && c.hwnd_ && c.status_ == EDITOR_OK && c.node_->lifecycleFact() == scene::NODE_FACT_ATTACHED)
     {
-      c.phase_ = COMMIT;
-      // replaceProjection also restores selection from the post-report fact.
-      follow = c.replaceProjection();
+      if (c.phase_ == REJECTED || !c.projection_.current(*c.node_))
+      {
+        c.phase_ = COMMIT;
+        // replaceProjection also restores selection from the post-report fact.
+        follow = c.replaceProjection();
+      }
+      else if (reply.kind() == scene::Reply<LineCursor>::REFUSED && application.result() == EDITOR_OK)
+      {
+        // Native apply succeeded, but the seam did not accept its caret fact.
+        // Text is still current; repair selection without discarding native undo.
+        c.restoreSelection();
+        follow = scene::REPAINT;
+      }
     }
     if (c.phase_ == COMMIT || c.phase_ == REJECTED)
       c.phase_ = IDLE;

@@ -1,6 +1,7 @@
 #include "support/LifecycleFactTestAccess.hpp"
 #include "support/TextEditorStateOwner.hpp"
 #include "support/TextEditorAccess.hpp"
+#include "support/TextEditorReportRefusal.hpp"
 #include "Win32EditTextBridgeTests.hpp"
 #include "support/TestVerify.hpp"
 #include "support/LokaAllocFailure.hpp"
@@ -583,6 +584,28 @@ namespace
   void testWin32TextEditorSettlement()
   {
     typedef loka::app::testing::SettleTrace<LineCursor> Trace;
+    {
+      Fixture fixture(1);
+      const String text = String::FromPlatform(Managed<loka::platform::String>::Wrap(
+          new loka::app::testing::TextEditorReportRefusal(fixture.request)));
+      LOKA_VERIFY(fixture.lines.update(fixture.lines.at(0).id, text) == EDIT_OK);
+      fixture.context->onPropsApplied();
+      const LineCursor before = fixture.cursor.state()->get();
+      Probe probe(fixture.context->hwnd());
+      {
+        StateTrackerGuard guard(&fixture.tracker);
+        fixture.request.set(LineCursor(before.line, 4));
+      }
+      fixture.context->onPropsApplied();
+      const Reply<LineCursor> reply = fixture.request.reply().state()->get();
+      LOKA_VERIFY(reply.kind() == Reply<LineCursor>::REFUSED && reply.reason() == EDITOR_ALLOCATION);
+      LOKA_VERIFY(fixture.cursor.state()->get() == before);
+      // Positive native-apply control before checking the repaired final selection.
+      LOKA_VERIFY(!probe.selections.empty() && probe.selections.front() == 4);
+      expectSelection(fixture, static_cast<DWORD>(before.column));
+      // Selection-only repair must preserve EDIT undo/text rather than replace them.
+      LOKA_VERIFY(probe.sets == 0);
+    }
     {
       Fixture fixture;
       Trace &trace = Trace::instance();

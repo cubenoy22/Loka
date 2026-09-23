@@ -108,7 +108,9 @@ namespace loka
         virtual RequestApplication<T> apply(Node &, const T &) = 0;
         virtual EditorResult report(Node &, const T &) = 0;
         virtual bool current(Node &, const RequestBinding<T> &) = 0;
-        virtual FollowUp finishTake(Node &, const Reply<T> &) = 0;
+        /** A refused report can follow a successful native apply. Keep both
+            outcomes so the rail can restore its projection without new state. */
+        virtual FollowUp finishTake(Node &, const Reply<T> &, const RequestApplication<T> &) = 0;
         virtual FollowUpResult finishSettle(Node &, const FollowUps &) = 0;
 #ifdef TEST_BUILD
         virtual T fact(Node &) const = 0;
@@ -362,7 +364,7 @@ namespace loka
           row.takes[row.count] = reply;
           row.seam[row.count++] = result;
 #endif
-          const FollowUp completed = op.finishTake(*node, reply);
+          const FollowUp completed = op.finishTake(*node, reply, applied);
           if (!alive(node, identity))
             return false;
           follow = follow.including(completed);

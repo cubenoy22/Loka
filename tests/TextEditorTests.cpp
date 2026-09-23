@@ -1,6 +1,7 @@
 #include "support/LifecycleFactTestAccess.hpp"
 #include "support/TextEditorStateOwner.hpp"
 #include "support/TextEditorAccess.hpp"
+#include "support/TextEditorReportRefusal.hpp"
 #include "TextEditorTests.hpp"
 #include "app/nodes/controls/TextChangeSpan.hpp"
 #include "app/nodes/controls/TextEditorDiff.hpp"
@@ -1254,10 +1255,12 @@ namespace
       FAIL_ARM,
       FAIL_AFTER_TAKES,
       REFUSE_REPORT,
+      REFUSE_VALIDATE,
       WRITE,
       WRITE_AND_RESTORE
     } mode;
     unsigned admitted, applied, finished, epilogues, repaints, scheduled;
+    RequestApplication<LineCursor> completedApplication;
     explicit SettlementProbe(Mode m)
         : mode(m),
           admitted(0),
@@ -1265,7 +1268,8 @@ namespace
           finished(0),
           epilogues(0),
           repaints(0),
-          scheduled(0)
+          scheduled(0),
+          completedApplication(LineCursor::None(), EDITOR_UNAVAILABLE)
     {
     }
     virtual Admission admit(Node &base, RequestBinding<LineCursor> &binding)
@@ -1284,7 +1288,7 @@ namespace
     virtual EditorResult validate(Node &, const LineCursor &)
     {
       LOKA_VERIFY(this->mode != FAIL_ARM);
-      return EDITOR_OK;
+      return this->mode == REFUSE_VALIDATE ? EDITOR_STALE_ID : EDITOR_OK;
     }
     virtual RequestApplication<LineCursor> apply(Node &, const LineCursor &value)
     {
@@ -1303,8 +1307,9 @@ namespace
     {
       return static_cast<TextEditorNode &>(base).props.moveCaretTo_.same(binding);
     }
-    virtual FollowUp finishTake(Node &, const CaretReply &)
+    virtual FollowUp finishTake(Node &, const CaretReply &, const RequestApplication<LineCursor> &application)
     {
+      this->completedApplication = application;
       ++this->finished;
       return this->mode == WRITE_AND_RESTORE ? SCHEDULE_RESTORE : this->mode == WRITE ? REPAINT : FOLLOW_NONE;
     }
@@ -1418,6 +1423,22 @@ void testTextEditorSettlementAdmission()
 void testTextEditorSettlementSeam()
 {
   {
+    Fixture f(1);
+    const String text = String::FromPlatform(Managed<loka::platform::String>::Wrap(
+        new loka::app::testing::TextEditorReportRefusal(f.request)));
+    LOKA_VERIFY(f.lines.update(f.lines.at(0).id, text) == EDIT_OK);
+    f.context->onPropsApplied();
+    const LineCursor before = f.cursor.state()->get();
+    f.request.set(LineCursor(before.line, 4));
+    f.context->onPropsApplied();
+    const CaretReply reply = f.request.reply().state()->get();
+    LOKA_VERIFY(reply.kind() == CaretReply::REFUSED && reply.reason() == EDITOR_ALLOCATION);
+    LOKA_VERIFY(f.cursor.state()->get() == before);
+    LOKA_VERIFY(Input::caret(*f.context) == before);
+    LOKA_VERIFY(Input::buffer(*f.context) == "abcd");
+  }
+
+  {
     Fixture failed;
     const LineCursor before = failed.cursor.state()->get();
     const LineCursor wanted(failed.lines.at(1).id, 1);
@@ -1470,6 +1491,17 @@ void testTextEditorSettlementSeam()
     else
       LOKA_VERIFY(!(failed.request.reply().state()->get() != previousReply));
   }
+  {
+    Fixture f;
+    const LineCursor before = f.cursor.state()->get();
+    f.request.set(LineCursor(f.lines.at(1).id, 1));
+    SettlementProbe probe(SettlementProbe::REFUSE_VALIDATE);
+    probe.run(f);
+    LOKA_VERIFY(probe.applied == 0 && probe.finished == 1);
+    LOKA_VERIFY(probe.completedApplication.result() == EDITOR_STALE_ID);
+    LOKA_VERIFY(f.request.reply().state()->get().kind() == CaretReply::REFUSED);
+    LOKA_VERIFY(f.cursor.state()->get() == before);
+  }
   Fixture f;
   const LineCursor before = f.cursor.state()->get();
   f.request.set(LineCursor(f.lines.at(1).id, 1));
@@ -1477,6 +1509,8 @@ void testTextEditorSettlementSeam()
   probe.run(f);
   const CaretReply reply = f.request.reply().state()->get();
   LOKA_VERIFY(probe.applied == 1 && probe.finished == 1);
+  LOKA_VERIFY(probe.completedApplication.result() == EDITOR_OK);
+  LOKA_VERIFY(probe.completedApplication.value() == LineCursor(f.lines.at(1).id, 1));
   LOKA_VERIFY(reply.kind() == CaretReply::REFUSED && reply.reason() == EDITOR_REENTRANT);
   LOKA_VERIFY(f.cursor.state()->get() == before);
 }
