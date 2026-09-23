@@ -127,7 +127,7 @@ void ToolboxTextEditorContext::project()
     return;
   if (!this->te_ || !this->node_)
     return;
-  // Repair within the consumer keeps its exclusion through the delivery tail.
+  // Repair within the consumer keeps its exclusion through projection.
   const Phase completion = this->phase_;
   this->phase_ = PROJECT;
   std::size_t length = 0;
@@ -156,7 +156,6 @@ void ToolboxTextEditorContext::project()
   this->phase_ = completion;
   if (this->controller() && this->controller()->window_)
     this->controller()->window_->requestInvalidateRect(this->paintRect_);
-  this->consumePendingRequest();
 }
 void ToolboxTextEditorContext::restoreCommittedProjection()
 {
@@ -168,7 +167,10 @@ void ToolboxTextEditorContext::retryProjection()
 {
   // Called once by the foreground idle pass, outside scheduler drain callbacks.
   if (this->status_ != EDITOR_OK && this->te_)
+  {
     this->project();
+    this->consumePendingRequest();
+  }
 }
 void ToolboxTextEditorContext::onPropsApplied()
 {
@@ -180,8 +182,9 @@ void ToolboxTextEditorContext::onPropsApplied()
 }
 void ToolboxTextEditorContext::consumePendingRequest()
 {
-  // Platform twin of Null: one take and one epilogue take. Further reposts
-  // stay dirty in the slot for a later props delivery.
+  // Platform twin of Null/Win32: only entry completions deliver, never
+  // shared projection helpers. One take and one epilogue take; further
+  // reposts stay dirty in the slot for a later props delivery.
   if (this->consumeRequest())
     this->consumeRequest();
 }
@@ -408,8 +411,9 @@ void ToolboxTextEditorContext::render(scene::IPlatformController *)
   {
     this->te_ = te;
     this->project();
+    this->consumePendingRequest();
   }
-  if (!te)
+  else if (!te)
     this->consumePendingRequest();
   this->repaint(te);
 }
