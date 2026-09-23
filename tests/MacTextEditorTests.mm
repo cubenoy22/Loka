@@ -501,6 +501,80 @@ namespace
 
 void testMacTextEditorRequests()
 {
+  // #882: trace/reply reds are predicted until measured on the Tahoe rig.
+  {
+    Fixture f;
+    LokaRequestEditorView *view = instrumentSelection(f);
+    typedef loka::app::testing::SettleTrace<LineCursor> Trace;
+    typedef loka::app::scene::Reply<LineCursor> CaretReply;
+    Trace &trace = Trace::instance();
+    trace.clear();
+    const NSUInteger writes = [view selectionWrites];
+    const LineCursor initial = f.cursor.state()->get();
+    f.context->onPropsApplied();
+    LOKA_VERIFY(trace.size() == 0);
+    printSelectionWriteMismatch(view, writes, "empty settle");
+    LOKA_VERIFY([view selectionWrites] == writes);
+    LOKA_VERIFY(f.request.reply().state()->get().kind() == CaretReply::NO_REPLY);
+
+    const LineCursor requested(f.lines.at(1).id, 99);
+    const LineCursor clamped(f.lines.at(1).id, 4);
+    requestCaret(f, requested);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(trace.size() == 1 && trace.at(0).count == 1);
+    LOKA_VERIFY(trace.at(0).stimulus == loka::app::scene::SETTLE_PROPS);
+    LOKA_VERIFY(trace.at(0).admission[0] == loka::app::scene::ADMISSION_TAKE);
+    LOKA_VERIFY(trace.at(0).admission[1] == loka::app::scene::ADMISSION_EMPTY);
+    LOKA_VERIFY(trace.at(0).before == initial && trace.at(0).after == clamped);
+    LOKA_VERIFY(trace.at(0).seam[0] == EDITOR_OK);
+    LOKA_VERIFY(trace.at(0).takes[0].kind() == CaretReply::CLAMPED);
+    const CaretReply reply = f.request.reply().state()->get();
+    LOKA_VERIFY(reply.kind() == CaretReply::CLAMPED);
+    LOKA_VERIFY(reply.requested() == requested && reply.applied() == clamped);
+    LOKA_VERIFY(f.cursor.state()->get() == clamped && f.request.get().isNone());
+    LOKA_VERIFY([view selectionWrites] == writes + 1); // Setter positive control.
+
+    trace.clear();
+    const LineCursor stale(ItemId(999, 999), 0);
+    requestCaret(f, stale);
+    f.context->onPropsApplied();
+    const CaretReply refused = f.request.reply().state()->get();
+    LOKA_VERIFY(refused.kind() == CaretReply::REFUSED);
+    LOKA_VERIFY(refused.reason() == EDITOR_STALE_ID && refused.requested() == stale);
+    LOKA_VERIFY(f.cursor.state()->get() == clamped && f.request.get().isNone());
+    LOKA_VERIFY([view selectionWrites] == writes + 1);
+    LOKA_VERIFY(trace.size() == 1 && trace.at(0).count == 1);
+    LOKA_VERIFY(trace.at(0).seam[0] == EDITOR_STALE_ID);
+    LOKA_VERIFY(trace.at(0).before == clamped && trace.at(0).after == clamped);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(trace.size() == 1 && [view selectionWrites] == writes + 1);
+  }
+  {
+    Fixture f;
+    LokaRequestEditorView *view = instrumentSelection(f);
+    RequestObserver observer(f, view, LineCursor(f.lines.at(1).id, 1));
+    typedef loka::app::testing::SettleTrace<LineCursor> Trace;
+    Trace &trace = Trace::instance();
+    trace.clear();
+    id delegate = [view delegate];
+    [view setDelegate:nil];
+    const NSUInteger writes = [view selectionWrites];
+    [[view textStorage] replaceCharactersInRange:NSMakeRange(2, 0) withString:@"x"];
+    LOKA_VERIFY(trace.size() == 0); // No settlement inside processEditing.
+    LOKA_VERIFY(!f.request.get().isNone() && [view selectionWrites] == writes);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(trace.size() == 0 && !f.request.get().isNone());
+    [NSObject cancelPreviousPerformRequestsWithTarget:delegate];
+    [delegate performSelector:@selector(applyHighlights)];
+    LOKA_VERIFY(trace.size() == 1 && trace.at(0).count == 1);
+    LOKA_VERIFY(trace.at(0).stimulus == loka::app::scene::SETTLE_DEFERRED);
+    LOKA_VERIFY(f.request.get().isNone());
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(1).id, 1));
+    LOKA_VERIFY([view selectionWrites] == writes + 1);
+    [delegate performSelector:@selector(applyHighlights)];
+    LOKA_VERIFY(trace.size() == 1 && [view selectionWrites] == writes + 1);
+    [view setDelegate:delegate];
+  }
   // New request-delivery assertions: predicted reds, not run on the macOS rig.
   {
     Fixture f;

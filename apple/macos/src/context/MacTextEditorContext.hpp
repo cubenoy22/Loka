@@ -3,6 +3,7 @@
 
 #include "MacRetirableContext.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
+#include "app/scene/state/RequestSettlement.hpp"
 
 namespace loka
 {
@@ -55,12 +56,12 @@ private:
   void *parent_;
   void *scroll_;
   void *delegate_;
-  /** Project only; true asks the entry to retry after unavailable refusal. */
-  bool syncFromNode(bool force, bool nativeCommit = false);
+  /** Project only; return scheduling/paint intent to the owning operation. */
+  loka::app::scene::FollowUp syncFromNode(bool force, bool nativeCommit = false);
   void projectHighlights();
-  void consumePendingRequest();
-  bool consumeRequest();
-  void scheduleRestore();
+  class RailOperation;
+  void settle(loka::app::scene::Settlement, RailOperation &);
+  loka::app::scene::FollowUp prepareRestore();
   loka::app::EditorResult applyNativeChange(TextObservation source, std::size_t &caretOffset);
 };
 
