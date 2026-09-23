@@ -273,34 +273,56 @@ Use `declareStates(...)` when a Node has many Node-local states and batching the
 declaration makes registration cheaper or clearer. For a small number of local
 states, prefer `this->state(...)`.
 
-### `Reported<T>`
+### Reported facts and requests
 
-`Reported<T>` is an owner-declared fact handle. Declare it with `state()` or
-`declareStates()` just like `NodeState<T>`; both use the same owner storage,
-tracker adoption, and release path. An allocation refusal leaves an invalid
-handle. Read through `.state()`; the handle has no public setter or mutable
-handle conversion. Copies borrow storage and do not extend its lifetime.
+The **reported fact + request** pattern separates what a control has committed
+from what the application wants it to do. A `Reported<T>` is an app-owned fact
+box declared through `state()` or `declareStates()`. Read or observe it through
+`.state()`; only the node's reporting seam writes the fact. It has no `set()`
+method or mutable-handle conversion. Copies borrow the owner's storage without
+extending its lifetime; allocation refusal leaves an invalid handle.
 
-`TextEditor(lines, cursor)` takes a `Reported<LineCursor>` initialized to
-`LineCursor::None()`. It reports the committed logical caret, without promising
-a native selection. The optional `.moveCaretTo(request)` takes a separate,
-app-owned `NodeState<LineCursor>` on the same tracker. One slot has one consumer;
-`None` means no pending request. The consumer clears the request before applying
-and reporting it. Each Null delivery checks the slot once more and consumes at
-most one repost from those notifications. A further request remains pending
-for a later Props apply; the take already marked the node dirty.
+The request box is a separate, ordinary `NodeState<T>` that the app sets and
+the platform rail takes. For the caret, `LineCursor::None()` means no request,
+not a request to remove the caret. Taking clears the slot before applying the
+value, clamping it if needed, and reporting the committed outcome in the fact.
+A refused request is consumed but leaves the fact unchanged. One request slot
+has one consumer; it is a slot, not a queue.
 
-On a list or request-seat replacement, the editor cancels the old pending
-request before assigning Props. A request posted during that cancellation is
-admitted to the new binding; if the seat changes, a residual in the old slot is
-no longer the editor's to consume. Resolve new request ItemIds against the
-current binding. Attachment ending also cancels pending intent synchronously.
-Native rail request delivery is staged separately from the Null implementation.
+For `TextEditor`, declare `Reported<LineCursor> cursor` and
+`NodeState<LineCursor> request` as members of the app's owning Node or Boundary,
+initialize both to `LineCursor::None()` through `this->state(...)`, and keep
+them and `lines` on the same owner tracker, alive for the editor's lifetime:
 
-The ordinary fact writer is private to the editor's document seam. The core
-`StateBase::asMutableState()` and `State<T>` assignment escape hatches remain
-open; using them to mutate a reported fact has the authority of `dangerously*`
-access and bypasses this app-facing contract.
+```cpp
+// In compose, using the app-owned lines, cursor, and request members:
+c << TextEditor(this->lines, this->cursor).moveCaretTo(this->request);
+// In an app action, request a caret on a line in the current list:
+this->request.set(LineCursor(this->lines.at(0).id, 0)); // Requires a nonempty list.
+// Read the committed logical caret (not a promise of native selection):
+const LineCursor actual = this->cursor.state()->get();
+```
+
+A request is delivered at the rail's next completed operation: a props update,
+attachment, an outer input action, or a retry/deferred operation. Each delivery
+handles at most two requests: the pending value, then at most one new value
+posted while it was being consumed or reported. Anything still pending stays
+in the slot for the next update that applies props; delivery does not drain
+requests indefinitely.
+
+Delivery is implemented per rail; the Null, Toolbox, Win32 and macOS rails all
+deliver caret requests. A rail that has no consumer for a request kind (a
+future request type before its rail lands) leaves the request pending and the
+fact unchanged, so an application that must run on such a rail should not
+depend on that request for correctness.
+
+Changing the editor's list or request binding, or detaching the editor,
+discards the old pending request; it is not replayed on attachment. New
+requests must name a line in the current list binding.
+
+Escape hatch: core `State` assignment and `StateBase::asMutableState()` can
+still mutate a reported fact. Treat that as dangerous access that bypasses
+this app-facing contract.
 
 ### `ObservableList` And `MirroredList`
 
