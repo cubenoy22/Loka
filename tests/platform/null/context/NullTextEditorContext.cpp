@@ -16,13 +16,14 @@ namespace
     }
     static NullTextEditorContext *create(TextEditorNode *node, scene::IPlatformController *, const scene::LayoutState &)
     {
-      return new NullTextEditorContext(node);
+      return new NullTextEditorContext(node, seamKey());
     }
   };
   NullTextEditorHandler textEditorHandler;
 } // namespace
-NullTextEditorContext::NullTextEditorContext(TextEditorNode *node)
-    : node_(node),
+NullTextEditorContext::NullTextEditorContext(TextEditorNode *node, const scene::SeamKey<TextEditorNode> &key)
+    : key_(key),
+      node_(node),
       buffer_(),
       caret_(),
       phase_(IDLE),
@@ -49,14 +50,14 @@ void NullTextEditorContext::project(LineCursor fallback)
     this->caret_ = LineCursor::None();
     return;
   }
-  this->status_ = this->node_->document.availability();
+  this->status_ = this->node_->seam(this->key_).availability();
   if (this->status_ != EDITOR_OK)
   {
     this->buffer_.clear();
     this->caret_ = LineCursor::None();
     return;
   }
-  this->status_ = this->node_->document.project(this->buffer_);
+  this->status_ = this->node_->seam(this->key_).project(this->buffer_);
   if (this->status_ != EDITOR_OK)
   {
     this->buffer_.clear();
@@ -142,7 +143,7 @@ EditorResult NullTextEditorContext::input(const std::string &bytes, bool join, c
   this->phase_ = INPUT;
   EditorResult result;
   if (move)
-    result = this->node_->document.moveCaret(*move);
+    result = this->node_->seam(this->key_).moveCaret(*move);
   else if (join)
   {
     const loka::core::ObservableList<loka::core::String> &lines = *this->node_->props.lines_;
@@ -159,11 +160,11 @@ EditorResult NullTextEditorContext::input(const std::string &bytes, bool join, c
       const LineCursor from(lines.at(previous).id,
                             static_cast<LineCursor::Column>(
                                 lines.at(previous).value.bufferWithEncoding(loka::core::StringEncodingUtf8).length()));
-      result = this->node_->document.applyReplace(from, before, "", 0);
+      result = this->node_->seam(this->key_).applyReplace(from, before, "", 0);
     }
   }
   else
-    result = this->node_->document.applyReplace(before, before, bytes.data(), bytes.size());
+    result = this->node_->seam(this->key_).applyReplace(before, before, bytes.data(), bytes.size());
   if (liveNode->getContext() != this)
     return result;
   const bool reconcile = result != EDITOR_OK || this->phase_ == RECONCILE;
@@ -221,7 +222,7 @@ public:
   virtual EditorResult validate(scene::Node &base, const LineCursor &pending)
   {
     TextEditorNode &node = static_cast<TextEditorNode &>(base);
-    const EditorResult ready = node.document.availability();
+    const EditorResult ready = node.seam(context(base).key_).availability();
     if (ready != EDITOR_OK)
       return ready;
     return node.props.lines_->find(pending.line) < 0 ? EDITOR_STALE_ID : EDITOR_OK;
@@ -241,7 +242,7 @@ public:
   }
   virtual EditorResult report(scene::Node &base, const LineCursor &applied)
   {
-    return static_cast<TextEditorNode &>(base).document.moveCaret(applied);
+    return static_cast<TextEditorNode &>(base).seam(context(base).key_).moveCaret(applied);
   }
   virtual scene::FollowUp finishTake(scene::Node &base, const scene::Reply<LineCursor> &,
                                     const scene::RequestApplication<LineCursor> &)

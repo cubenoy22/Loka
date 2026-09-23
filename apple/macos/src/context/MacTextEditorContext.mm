@@ -135,7 +135,7 @@ namespace
                                         const loka::app::scene::LayoutState &)
     {
       MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      MacTextEditorContext *context = new (std::nothrow) MacTextEditorContext(mac, mac->projectionParentView(), node);
+      MacTextEditorContext *context = new (std::nothrow) MacTextEditorContext(mac, mac->projectionParentView(), node, seamKey());
       if (context && !context->hasNativeView())
       {
         delete context;
@@ -265,9 +265,9 @@ struct MacTextEditorContext::Projection
       this->ids[i] = ItemId::none();
   }
   /** Validate the snapshot before consuming native text or deferred styling. */
-  EditorResult validateDocument(TextEditorNode &node)
+  EditorResult validateDocument(TextEditorNode &node, const loka::app::scene::SeamKey<TextEditorNode> &key)
   {
-    const EditorResult available = node.document.project(this->scratch);
+    const EditorResult available = node.seam(key).project(this->scratch);
     if (available != EDITOR_OK)
       return available;
     if ([this->committed length] != this->scratch.size())
@@ -439,7 +439,7 @@ public:
   virtual EditorResult validate(loka::app::scene::Node &base, const LineCursor &pending)
   {
     TextEditorNode &node = static_cast<TextEditorNode &>(base);
-    const EditorResult ready = node.document.availability();
+    const EditorResult ready = node.seam(context(base).key_).availability();
     if (ready != EDITOR_OK)
       return ready;
     return node.props.lines_->find(pending.line) < 0 ? EDITOR_STALE_ID : EDITOR_OK;
@@ -451,7 +451,7 @@ public:
     Projection &p = *c.projection_;
     NSTextView *view = (NSTextView *)[(NSScrollView *)c.scroll_ documentView];
     loka::app::scene::FollowUp follow = loka::app::scene::FOLLOW_NONE;
-    if (p.validateDocument(*c.node_) != EDITOR_OK || ![[view string] isEqualToString:p.committed])
+    if (p.validateDocument(*c.node_, c.key_) != EDITOR_OK || ![[view string] isEqualToString:p.committed])
     {
       p.phase = Projection::RECONCILE;
       follow = c.syncFromNode(false);
@@ -493,7 +493,7 @@ public:
   }
   virtual EditorResult report(loka::app::scene::Node &base, const LineCursor &applied)
   {
-    return static_cast<TextEditorNode &>(base).document.moveCaret(applied);
+    return static_cast<TextEditorNode &>(base).seam(context(base).key_).moveCaret(applied);
   }
   virtual loka::app::scene::FollowUp finishTake(loka::app::scene::Node &base,
                                                 const loka::app::scene::Reply<LineCursor> &reply,
@@ -509,7 +509,7 @@ public:
     if (this->completion_ == Projection::IDLE && (p.phase == Projection::INPUT || p.phase == Projection::RECONCILE))
     {
       NSTextView *view = (NSTextView *)[(NSScrollView *)c.scroll_ documentView];
-      if (refusedReport || p.phase == Projection::RECONCILE || p.validateDocument(*c.node_) != EDITOR_OK
+      if (refusedReport || p.phase == Projection::RECONCILE || p.validateDocument(*c.node_, c.key_) != EDITOR_OK
           || ![[view string] isEqualToString:p.committed])
       {
         p.phase = Projection::RECONCILE;
@@ -601,10 +601,12 @@ void MacTextEditorContext::settle(loka::app::scene::Settlement stimulus, RailOpe
 
 MacTextEditorContext::MacTextEditorContext(MacScenePlatformController *controller,
                                          void *parent,
-                                         loka::app::TextEditorNode *node)
+                                         loka::app::TextEditorNode *node,
+                                         const loka::app::scene::SeamKey<TextEditorNode> &key)
     : MacRetirableContext(controller),
       projection_(new(std::nothrow) Projection()),
       restores_(0),
+      key_(key),
       node_(node),
       parent_(parent),
       scroll_(0),
@@ -751,7 +753,7 @@ loka::app::scene::FollowUp MacTextEditorContext::syncFromNode(bool force, bool n
   // A repair inside the consumer must not reopen request delivery.
   const Projection::Phase completion = p.phase == Projection::RECONCILE ? Projection::RECONCILE : Projection::IDLE;
   p.phase = Projection::APPLYING;
-  const EditorResult result = this->node_->document.project(p.scratch);
+  const EditorResult result = this->node_->seam(this->key_).project(p.scratch);
   if (result != EDITOR_OK)
   {
     if (nativeCommit)
@@ -894,7 +896,7 @@ void MacTextEditorContext::handleSelectionDidChange()
   loka::app::scene::Node *const liveNode = this->node_;
   RailOperation op(this->node_);
   p.phase = Projection::INPUT;
-  const EditorResult result = this->node_->document.moveCaret(cursor);
+  const EditorResult result = this->node_->seam(this->key_).moveCaret(cursor);
   if (liveNode->getContext() != this)
     return;
   if (liveNode->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
@@ -914,7 +916,7 @@ EditorResult MacTextEditorContext::applyNativeChange(TextObservation source, std
   Projection &p = *this->projection_;
   NSTextView *view = (NSTextView *)[(NSScrollView *)this->scroll_ documentView];
   NSString *text = [view string];
-  const EditorResult available = p.validateDocument(*this->node_);
+  const EditorResult available = p.validateDocument(*this->node_, this->key_);
   if (available != EDITOR_OK)
     return available;
   const NativeLines before(p.committed), after(text);
@@ -961,7 +963,7 @@ EditorResult MacTextEditorContext::applyNativeChange(TextObservation source, std
     const unsigned short caretLine = after.lineAt(caret);
     // A later view notification can carry a new caret over committed text.
     const LineCursor cursor(p.ids[caretLine], static_cast<int>(caret - after.ranges[caretLine].location));
-    return cursor == this->node_->props.cursorState()->get() ? EDITOR_OK : this->node_->document.moveCaret(cursor);
+    return cursor == this->node_->props.cursorState()->get() ? EDITOR_OK : this->node_->seam(this->key_).moveCaret(cursor);
   }
   const unsigned short oldEnd = static_cast<unsigned short>(first + diff.before());
   const unsigned short newEnd = static_cast<unsigned short>(first + diff.after());
@@ -988,7 +990,7 @@ EditorResult MacTextEditorContext::applyNativeChange(TextObservation source, std
     NSString *line = [text substringWithRange:after.ranges[i]];
     replacement.append([line UTF8String], [line lengthOfBytesUsingEncoding:NSUTF8StringEncoding]);
   }
-  return this->node_->document.applyReplace(
+  return this->node_->seam(this->key_).applyReplace(
       LineCursor(p.ids[first], 0),
       LineCursor(p.ids[oldEnd - 1], static_cast<int>(before.ranges[oldEnd - 1].length)),
       replacement.data(), replacement.size(),
@@ -1079,7 +1081,7 @@ void MacTextEditorContext::projectHighlights()
       || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
     return;
   NSTextView *view = (NSTextView *)[(NSScrollView *)this->scroll_ documentView];
-  if (![[view string] isEqualToString:p.committed] || p.validateDocument(*this->node_) != EDITOR_OK)
+  if (![[view string] isEqualToString:p.committed] || p.validateDocument(*this->node_, this->key_) != EDITOR_OK)
   {
     p.phase = Projection::UNAVAILABLE;
     return;

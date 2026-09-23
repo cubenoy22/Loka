@@ -22,7 +22,7 @@ namespace
     create(TextEditorNode *node, scene::IPlatformController *controller, const scene::LayoutState &state)
     {
       Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
-      return new Win32TextEditorContext(win32, win32->projectionParentHwnd(), state, node);
+      return new Win32TextEditorContext(win32, win32->projectionParentHwnd(), state, node, seamKey());
     }
     static void refresh(Win32TextEditorContext *context, const scene::LayoutState &state)
     {
@@ -57,12 +57,12 @@ bool Win32TextEditorContext::Projection::current(const TextEditorNode &node) con
   const loka::core::ListEditResult ready = this->owner->queryMutationTracker(tracker);
   return (ready == loka::core::EDIT_OK || ready == loka::core::EDIT_REENTRANT) && node.props.cursorUsesTracker(tracker);
 }
-EditorResult Win32TextEditorContext::Projection::capture(TextEditorNode &node)
+EditorResult Win32TextEditorContext::Projection::capture(TextEditorNode &node, const scene::SeamKey<TextEditorNode> &key)
 {
   if (this->current(node))
     return EDITOR_OK;
   this->owner = 0;
-  const EditorResult result = node.document.project(this->text);
+  const EditorResult result = node.seam(key).project(this->text);
   if (result != EDITOR_OK || !loka::win32::TextEditorToWide(this->text, this->wide))
   {
     this->text.clear();
@@ -77,8 +77,10 @@ EditorResult Win32TextEditorContext::Projection::capture(TextEditorNode &node)
 Win32TextEditorContext::Win32TextEditorContext(Win32ScenePlatformController *controller,
                                                HWND parent,
                                                const scene::LayoutState &state,
-                                               TextEditorNode *node)
+                                               TextEditorNode *node,
+                                               const scene::SeamKey<TextEditorNode> &key)
     : Win32RetirableContext(controller),
+      key_(key),
       node_(node),
       hwnd_(0),
       previousProc_(0),
@@ -194,7 +196,7 @@ public:
   virtual EditorResult validate(scene::Node &base, const LineCursor &pending)
   {
     TextEditorNode &node = static_cast<TextEditorNode &>(base);
-    const EditorResult ready = node.document.availability();
+    const EditorResult ready = node.seam(context(base).key_).availability();
     if (ready != EDITOR_OK)
       return ready;
     return node.props.lines_->find(pending.line) < 0 ? EDITOR_STALE_ID : EDITOR_OK;
@@ -217,7 +219,7 @@ public:
   }
   virtual EditorResult report(scene::Node &base, const LineCursor &applied)
   {
-    return static_cast<TextEditorNode &>(base).document.moveCaret(applied);
+    return static_cast<TextEditorNode &>(base).seam(context(base).key_).moveCaret(applied);
   }
   virtual scene::FollowUp finishTake(scene::Node &base,
                                      const scene::Reply<LineCursor> &reply,
@@ -373,7 +375,7 @@ scene::FollowUp Win32TextEditorContext::replaceProjection()
   // A repair from the request consumer must keep its exclusion at completion.
   const Phase completion = this->phase_ == COMMIT ? COMMIT : IDLE;
   this->phase_ = RESTORING;
-  const EditorResult projected = this->projection_.capture(*this->node_);
+  const EditorResult projected = this->projection_.capture(*this->node_, this->key_);
   const bool available = projected == EDITOR_OK;
   // Deliberately bypass State equality and the ordinary projection cache.
   const bool complete = loka::win32::WriteTextEditorWide(this->hwnd_, this->projection_.wide);
@@ -493,7 +495,7 @@ EditorResult Win32TextEditorContext::applyLines(int first, int oldCount, int new
       ++end;
   }
   // Native rows already describe the post-state, including newly inserted rows.
-  return this->node_->document.applyReplace(from, to, logical.data() + start, end - start, this->nativeRowCaret());
+  return this->node_->seam(this->key_).applyReplace(from, to, logical.data() + start, end - start, this->nativeRowCaret());
 }
 EditorResult Win32TextEditorContext::commitNativeChange()
 {
@@ -534,7 +536,7 @@ EditorResult Win32TextEditorContext::commitNativeChange()
   const loka::app::TextEditorLineDiff diff = loka::app::DiffTextEditorLines(
       this->projection_.text, logical, this->selection_.start == this->selection_.end ? caretLine : -1, caretColumn);
   if (diff.before() == 0 && diff.after() == 0)
-    return this->node_->document.moveCaret(this->nativeCaret());
+    return this->node_->seam(this->key_).moveCaret(this->nativeCaret());
   if (this->node_->props.lines_->size() - diff.before() + diff.after() > TextEditorProps::kMaxLines)
     return EDITOR_CAPACITY;
   return this->applyLines(diff.first(), diff.before(), diff.after(), logical);
@@ -563,7 +565,7 @@ bool Win32TextEditorContext::handleCommand(WPARAM wParam, LPARAM)
     return true;
   if (result == EDITOR_OK && this->node_)
   {
-    this->status_ = this->projection_.capture(*this->node_);
+    this->status_ = this->projection_.capture(*this->node_, this->key_);
     this->delivery_ = scene::PaintAnswer::nativeScheduled();
   }
   if (result != EDITOR_OK || this->status_ != EDITOR_OK || this->phase_ == REJECTED)
@@ -594,7 +596,7 @@ void Win32TextEditorContext::syncCaret()
   const Phase inputPhase = this->phase_;
   this->phase_ = COMMIT;
   scene::Node *const liveNode = this->node_;
-  const EditorResult result = this->node_->document.moveCaret(cursor);
+  const EditorResult result = this->node_->seam(this->key_).moveCaret(cursor);
   if (liveNode->getContext() != this)
     return;
   this->phase_ = result == EDITOR_OK && this->phase_ != REJECTED ? inputPhase : REJECTED;
