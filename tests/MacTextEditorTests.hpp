@@ -11,4 +11,6 @@ void testMacTextEditorRefusals();
 void testMacTextEditorNestedInput();
 void testMacTextEditorReplacementFailure();
 void testMacTextEditorHighlightAndLifecycle();
+void testMacTextEditorQueuedRequests();
+
 #endif

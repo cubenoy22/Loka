@@ -9,6 +9,9 @@ step id=8 due_tick=8 tick=8 status=succeeded error_kind=0 error_code=0 name=past
 step id=9 due_tick=9 tick=9 status=succeeded error_kind=0 error_code=0 name=replace-3-to-1
 step id=10 due_tick=10 tick=10 status=succeeded error_kind=0 error_code=0 name=type-c
 step id=11 due_tick=11 tick=11 status=succeeded error_kind=0 error_code=0 name=capture
+step id=12 due_tick=12 tick=12 status=succeeded error_kind=0 error_code=0 name=queue-two-cursors
+settle.12.0	stimulus=props takes=2 before=1:1:2 after=1:1:2 take0=granted seam=0 reason=0 requested=1:1:0 applied=1:1:0 take1=granted seam=0 reason=0 requested=1:1:2 applied=1:1:2
+step id=13 due_tick=13 tick=13 status=succeeded error_kind=0 error_code=0 name=capture-queued
 cap	refused
 format_version	1
 line1	bc
@@ -20,5 +23,5 @@ schema_version	1
 status	ok
 step	text-editor-plain
 test	SmirkBench
-tick	11
+tick	13
 terminal status=succeeded

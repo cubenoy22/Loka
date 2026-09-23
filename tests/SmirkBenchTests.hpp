@@ -8,4 +8,6 @@ void testSmirkModelReflectsRefusesAndReclamps();
 
 void testSmirkBenchAttributedEditorLine();
 
+void testSmirkBenchPlainEditorQueueAudit();
+
 #endif // LOKA_TESTS_SMIRK_BENCH_TESTS_HPP

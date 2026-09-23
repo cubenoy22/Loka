@@ -13,6 +13,8 @@
 #include "platform/null/context/NullAttributedTextContext.hpp"
 #include "support/TestVerify.hpp"
 #include "scenarios/SmirkBenchAttributedScenario.hpp"
+#include "scenarios/SmirkBenchPlainEditorNode.hpp"
+#include "scenarios/TextEditorSettleAudit.hpp"
 #include "scenarios/SmirkBenchScenarioPresentation.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 #include "testing/app/ComposableNodeTestAccess.hpp"
@@ -407,4 +409,69 @@ void testSmirkBenchAttributedEditorLine()
   LOKA_VERIFY(findNodeByTestId(dsl::testing::SceneTestAccess::rootNode(ordinary.scene), "SmirkBench.EditorLine") == 0);
   LOKA_VERIFY(findNodeByTestId(root, "SmirkBench.EditorLine") == line);
   LOKA_VERIFY(line->getContext() == context);
+}
+
+void testSmirkBenchPlainEditorQueueAudit()
+{
+  using namespace loka;
+  using namespace app;
+  typedef app::testing::SettleTrace<LineCursor> Trace;
+  typedef scene::Reply<LineCursor> Reply;
+  SmirkBenchFixtureFor<scenario_tests::SmirkBenchPlainEditorNode> fixture;
+  drainSmirkBench(fixture.scene);
+  scene::Node *node = findNodeByTestId(dsl::testing::SceneTestAccess::rootNode(fixture.scene), "SmirkBench.PlainEditor");
+  LOKA_VERIFY(node && node->nodeTypeKey() == scene::NodeTypeToken<TextEditorNode>());
+  TextEditorNode *editor = static_cast<TextEditorNode *>(node);
+  const LineCursor first(editor->props.lines_->at(0).id, 0);
+  const LineCursor last(first.line, 2);
+  Trace &trace = Trace::instance();
+  trace.clear();
+  LOKA_VERIFY(fixture.mainNode->queueCaretRoundTripForTesting());
+  drainSmirkBench(fixture.scene);
+  LOKA_VERIFY(trace.size() == 1 && trace.at(0).count == 2);
+  LOKA_VERIFY(trace.at(0).takes[0].requested() == first && trace.at(0).takes[1].requested() == last);
+  LOKA_VERIFY(editor->props.cursorState()->get() == last && editor->props.moveCaretTo_.state()->get().isNone());
+  // The literal audit pins ordering and all serialized fields independently of the formatter.
+  platform::file::FileHandle location;
+  location.displayPath = core::String::Literal("_loka_queue_settle.audit");
+  {
+    dsl::testing::ScenarioAuditFile audit(location, "queue");
+    LOKA_VERIFY(scenario_tests::RecordTextEditorSettleAudit(12, trace, audit));
+    trace.clear();
+    app::testing::SettleTraceRow<LineCursor> empty(scene::SETTLE_PROPS, last);
+    trace.append(empty);
+    LOKA_VERIFY(trace.size() == 0);
+    LOKA_VERIFY(scenario_tests::RecordTextEditorSettleAudit(13, trace, audit));
+    app::testing::SettleTraceRow<LineCursor> refused(scene::SETTLE_INPUT, last);
+    refused.count = 1;
+    refused.takes[0] = Reply::Refused(first, EDITOR_STALE_ID);
+    refused.seam[0] = EDITOR_STALE_ID;
+    trace.append(refused);
+    LOKA_VERIFY(scenario_tests::RecordTextEditorSettleAudit(14, trace, audit));
+    trace.clear();
+    app::testing::SettleTraceRow<LineCursor> delta(scene::SETTLE_ATTACH, first);
+    delta.after = last;
+    trace.append(delta);
+    LOKA_VERIFY(scenario_tests::RecordTextEditorSettleAudit(15, trace, audit));
+  }
+  std::ifstream input("_loka_queue_settle.audit", std::ios::binary);
+  const std::string actual((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+  const std::string expected =
+      "loka_scenario_audit version=1 scenario=queue\n"
+      "settle.12.0\tstimulus=props takes=2 before=1:1:0 after=1:1:2 take0=granted seam=0 reason=0 requested=1:1:0 applied=1:1:0 take1=granted seam=0 reason=0 requested=1:1:2 applied=1:1:2\n"
+      "settle.14.0\tstimulus=input takes=1 before=1:1:2 after=1:1:2 take0=refused seam=2 reason=2 requested=1:1:0 applied=none\n"
+      "settle.15.0\tstimulus=attach takes=0 before=1:1:0 after=1:1:2\n";
+  LOKA_VERIFY(actual == expected);
+  trace.clear();
+  for (unsigned i = 0; i <= Trace::CAPACITY; ++i)
+  {
+    app::testing::SettleTraceRow<LineCursor> delta(scene::SETTLE_ATTACH, first);
+    delta.after = last;
+    trace.append(delta);
+  }
+  {
+    dsl::testing::ScenarioAuditFile audit(location, "overflow");
+    LOKA_VERIFY(!scenario_tests::RecordTextEditorSettleAudit(16, trace, audit));
+  }
+  trace.clear();
 }
