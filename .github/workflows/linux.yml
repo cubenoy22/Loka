@@ -17,18 +17,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      # Deliberate twins across platform workflows; ci_paths.py owns the policy.
+      - name: Classify PR paths
+        id: changes
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        env:
+          BASE: ${{ github.base_ref }}
+        run: |
+          git diff --name-only --no-renames "origin/$BASE...HEAD" -- > "$RUNNER_TEMP/ci-paths.txt"
+          python3 tools/ci/ci_paths.py --job linux-headless --summary "$GITHUB_STEP_SUMMARY" \
+            < "$RUNNER_TEMP/ci-paths.txt" | tee -a "$GITHUB_OUTPUT"
       # No build can catch a reintroduced side-effect assert: it compiles, and
       # under NDEBUG it just makes a test check less than it claims (#264).
       - run: python3 tests/scripts/TestAssertCheckerTest.py
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: python3 tools/ci/check_test_asserts.py
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: python3 tools/ci/check_style_vocab.py
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: python3 tools/ci/check_native_includes.py
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: python3 tests/scripts/ClassicInttypesTest.py
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: python3 tests/scripts/NativeGeometryCheckerTest.py
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: python3 tools/ci/check_native_geometry.py
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: cmake --preset testing -DLOKA_BUILD_SMIRKYCARD=ON
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: cmake --build --preset testing
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: ctest --preset testing --output-on-failure
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
 
   linux-asan:
     runs-on: ubuntu-latest
@@ -36,14 +59,46 @@ jobs:
       ASAN_OPTIONS: detect_leaks=1
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      # Deliberate twins across platform workflows; ci_paths.py owns the policy.
+      - name: Classify PR paths
+        id: changes
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        env:
+          BASE: ${{ github.base_ref }}
+        run: |
+          git diff --name-only --no-renames "origin/$BASE...HEAD" -- > "$RUNNER_TEMP/ci-paths.txt"
+          python3 tools/ci/ci_paths.py --job linux-asan --summary "$GITHUB_STEP_SUMMARY" \
+            < "$RUNNER_TEMP/ci-paths.txt" | tee -a "$GITHUB_OUTPUT"
       - run: cmake --preset testing-asan -DLOKA_BUILD_SMIRKYCARD=ON
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: cmake --build --preset testing-asan
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: ctest --preset testing-asan --output-on-failure
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
 
   linux-release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      # Deliberate twins across platform workflows; ci_paths.py owns the policy.
+      - name: Classify PR paths
+        id: changes
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        env:
+          BASE: ${{ github.base_ref }}
+        run: |
+          git diff --name-only --no-renames "origin/$BASE...HEAD" -- > "$RUNNER_TEMP/ci-paths.txt"
+          python3 tools/ci/ci_paths.py --job linux-release --summary "$GITHUB_STEP_SUMMARY" \
+            < "$RUNNER_TEMP/ci-paths.txt" | tee -a "$GITHUB_OUTPUT"
       - run: cmake --preset testing-release -DLOKA_BUILD_SMIRKYCARD=ON
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: cmake --build --preset testing-release
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: ctest --preset testing-release --output-on-failure
+        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}

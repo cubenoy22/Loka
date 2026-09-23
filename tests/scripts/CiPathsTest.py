@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -64,8 +65,57 @@ class CiPathsTest(unittest.TestCase):
         self.check_paths(["docs/guide.md", "docs/nested/image.png"],
                          (False, False, False))
 
-    def test_plans_only_has_only_toolbox_allowance(self):
-        self.check_paths(["plans/proposal.md"], (False, True, True))
+    def test_plans_only(self):
+        self.check_paths(["plans/proposal.md"], (False, False, False))
+
+    def test_documentation_surfaces_all_jobs(self):
+        for paths in (["DESIGN.md", "PHILOSOPHY.md", "docs/RequestDeliveryDesign.md"],
+                      ["README.md"], ["AGENTS.md"], ["plans/proposal.md"],
+                      [".claude/skills/example/SKILL.md"], ["LICENSE.txt"]):
+            for job in CI.JOBS:
+                with self.subTest(paths=paths, job=job):
+                    self.assertFalse(CI.classify(job, paths)[0])
+        for job in CI.JOBS:
+            for paths in (["AGENTS.md", "common/x.hpp"], ["common/README.md"],
+                          ["unknown/README.md"], ["unknown/LICENSE"], [], ["unknown"]):
+                with self.subTest(paths=paths, job=job):
+                    self.assertTrue(CI.classify(job, paths)[0])
+
+    def test_tested_documentation_runs_linux_only(self):
+        for path in ("docs/smirkycard/loka-style.d.ts", "docs/environments.md",
+                     "docs/MAME_DEVELOPMENT.md", "docs/TOOLBOX_STANDALONE_FLOW.md"):
+            for job in CI.JOBS:
+                with self.subTest(path=path, job=job):
+                    self.assertEqual(CI.classify(job, [path])[0], job.startswith("linux-"))
+        for job in CI.JOBS:
+            self.assertFalse(CI.classify(job, ["docs/RequestDeliveryDesign.md"])[0])
+
+    def test_documentation_inputs_are_derived_from_scripts(self):
+        scanner = CI.tested_documentation_inputs
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            script = root / "tests/scripts/FixtureTest.py"
+            script.parent.mkdir(parents=True)
+            script.write_text('read("docs/fixture.md")\n'
+                              'names = ("split-fixture.md",)\nROOT / "docs" / name\n')
+            self.assertEqual(scanner(root), {"docs/fixture.md", "docs/split-fixture.md"})
+            with patch.object(CI, "tested_documentation_inputs", lambda: scanner(root)):
+                self.assertTrue(CI.classify("linux-headless", ["docs/fixture.md"])[0])
+                script.write_text('read("docs/replacement.md")\n')
+                self.assertFalse(CI.classify("linux-headless", ["docs/fixture.md"])[0])
+                self.assertTrue(CI.classify("linux-headless", ["docs/replacement.md"])[0])
+
+    def test_linux_inputs_and_platform_only_paths(self):
+        for job in ("linux-headless", "linux-asan", "linux-release"):
+            for path in ("common/x.hpp", "tests/x.cpp", "example/x.cpp",
+                         "apple/toolbox/x.cpp", "tools/ci/ci_paths.py", "cmake/x.cmake",
+                         "CMakeLists.txt", "CMakePresets.json", "scripts/x.sh",
+                         ".github/workflows/linux.yml"):
+                with self.subTest(job=job, path=path):
+                    self.assertTrue(CI.classify(job, [path])[0])
+            for path in ("win32/x.cpp", "apple/macos/x.mm"):
+                self.assertFalse(CI.classify(job, [path])[0])
+        self.check_paths(["apple/toolbox/x.cpp"], (True, False, False))
 
     def test_workflow_self_change_overrides_skip(self):
         for index, workflow in enumerate(WORKFLOWS):
@@ -97,7 +147,7 @@ class CiPathsTest(unittest.TestCase):
         self.check_paths([], (True, True, True))
 
     def test_unknown_paths_run(self):
-        for path in ("CMakePresets.json", "README.md", "assets/icon.png",
+        for path in ("CMakePresets.json", "assets/icon.png",
                      "tools/ci/ci_paths.py", "tools/lrpc/main.cpp",
                      "docs-extra/file.md", "", '"docs/quoted\\nname.md"'):
             self.check_paths([path], (True, True, True))
@@ -131,7 +181,8 @@ class CiPathsTest(unittest.TestCase):
             self.assertNotIn("run=false", bad.stdout)
 
     def test_workflow_guards_preserve_existing_conditions(self):
-        for name, job in (*zip(WORKFLOWS, JOBS), ("toolbox", "toolbox-ppc")):
+        for name, job in (*zip(WORKFLOWS, JOBS), ("toolbox", "toolbox-ppc"),
+                          *(("linux", job) for job in CI.JOBS if job.startswith("linux-"))):
             workflow = (ROOT / ".github/workflows" / (name + ".yml")).read_text()
             job_body = workflow.split("  " + job + ":\n", 1)[1]
             job_body = re.split(r"^  [a-zA-Z0-9_-]+:\n", job_body, maxsplit=1,

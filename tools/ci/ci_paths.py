@@ -9,8 +9,13 @@ runs. Git's quoted unusual filenames deliberately fall back to running.
 import argparse
 from fnmatch import fnmatchcase
 import json
+import re
 from pathlib import Path
 import sys
+
+
+# Shared documentation surfaces; slash-free globs apply only at the root.
+DOCS_ONLY = ("*.md", "plans/*", ".claude/*", "LICENSE*")
 
 
 JOBS = {
@@ -18,7 +23,7 @@ JOBS = {
         "workflow": ".github/workflows/toolbox.yml",
         "run": ("common/*", "apple/toolbox/*", "example/*", "tests/*",
                 "tools/ci/retro68_*", "cmake/*", "CMakeLists.txt"),
-        "may_skip": ("docs/*", "plans/*", "win32/*", "apple/macos/*",
+        "may_skip": DOCS_ONLY + ("docs/*", "win32/*", "apple/macos/*",
                      ".github/workflows/*.yml"),
     },
     "macos": {
@@ -27,17 +32,28 @@ JOBS = {
                 "cmake/*", "CMakeLists.txt"),
         # Toolbox-only exceptions to apple/*; other workflows cannot change
         # this job. Shared tests and build inputs still run it (including #698).
-        "may_skip": ("docs/*", "win32/*", "apple/toolbox/*",
+        "may_skip": DOCS_ONLY + ("docs/*", "win32/*", "apple/toolbox/*",
                      "tools/ci/retro68_*", ".github/workflows/*.yml"),
     },
     "win32": {
         "workflow": ".github/workflows/windows.yml",
         "run": ("common/*", "win32/*", "example/*", "tests/*",
                 "cmake/*", "CMakeLists.txt"),
-        "may_skip": ("docs/*", "apple/*", "tools/ci/retro68_*",
+        "may_skip": DOCS_ONLY + ("docs/*", "apple/*", "tools/ci/retro68_*",
                      ".github/workflows/*.yml"),
     },
 }
+
+
+# Linux jobs share their inputs, including host-compiled Toolbox sources.
+JOBS["linux-headless"] = {
+    "workflow": ".github/workflows/linux.yml",
+    "run": ("common/*", "tests/*", "example/*", "apple/toolbox/*", "tools/*",
+            "cmake/*", "CMakeLists.txt", "CMakePresets.json", "scripts/*"),
+    "may_skip": DOCS_ONLY + ("docs/*", "win32/*", "apple/macos/*"),
+}
+JOBS["linux-asan"] = JOBS["linux-headless"]
+JOBS["linux-release"] = JOBS["linux-headless"]
 
 
 # Both Toolbox jobs build the same inputs; keep their policy in one place.
@@ -73,6 +89,26 @@ def shared_test_inputs(cmake_file=SHARED_TEST_SOURCES):
     return inputs
 
 
+def tested_documentation_inputs(root=Path(__file__).resolve().parents[2]):
+    """Derive Linux check inputs from literal docs paths, including split paths.
+
+    For scripts joining "docs" to a filename variable, conservatively include
+    their literal Markdown filenames. The classifier's own tests contain path
+    examples, not documentation reads, and must not create self-dependencies.
+    """
+    inputs = set()
+    for pattern in ("tests/scripts/*.py", "tests/scripts/*.sh", "tools/ci/check_*.py"):
+        for script in root.glob(pattern):
+            if script == root / "tests/scripts/CiPathsTest.py":
+                continue
+            text = script.read_text()
+            inputs.update(re.findall(r"[\"'](docs/[^\"'\\\s]+)[\"']", text))
+            if re.search(r"[\"']docs[\"']\s*/", text):
+                inputs.update("docs/" + name for name in
+                              re.findall(r"[\"']([^/\"'\\\s]+\.md)[\"']", text))
+    return inputs
+
+
 def classify(job, paths, shared=None):
     """Return (run, reason) for a complete diff; never infer safety by suffix."""
     policy = JOBS[job]
@@ -82,12 +118,16 @@ def classify(job, paths, shared=None):
         return True, "own workflow " + policy["workflow"]
     if shared is None:
         shared = shared_test_inputs()
+    tested_docs = tested_documentation_inputs() if job.startswith("linux-") else set()
     skipped = set()
     for path in paths:
+        if path in tested_docs:
+            return True, json.dumps(path, ensure_ascii=True) + " is a tested documentation input"
         if path in shared:
             return True, json.dumps(path, ensure_ascii=True) + " is a shared test source (cmake/LokaTestSources.cmake)"
         match = next((glob for glob in policy["may_skip"]
-                      if fnmatchcase(path, glob)), None)
+                      if ("/" in glob or "/" not in path)
+                      and fnmatchcase(path, glob)), None)
         if match is not None:
             skipped.add(match)
             continue
