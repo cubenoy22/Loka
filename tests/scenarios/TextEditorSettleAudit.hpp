@@ -44,7 +44,7 @@ namespace loka
     inline std::string SettleCursorText(const app::LineCursor &cursor)
     {
       char text[64];
-      std::sprintf(text,
+      std::snprintf(text, sizeof text,
                    "%u:%u:%d",
                    static_cast<unsigned>(cursor.line.generation),
                    static_cast<unsigned>(cursor.line.seq),
@@ -67,12 +67,12 @@ namespace loka
         if (!row.count && row.before == row.after)
           continue;
         char text[128];
-        std::sprintf(text, "stimulus=%s takes=%u before=", SettleStimulusName(row.stimulus), row.count);
+        std::snprintf(text, sizeof text, "stimulus=%s takes=%u before=", SettleStimulusName(row.stimulus), row.count);
         std::string value = text + SettleCursorText(row.before) + " after=" + SettleCursorText(row.after);
         for (unsigned take = 0; take < row.count; ++take)
         {
           const app::scene::Reply<app::LineCursor> &reply = row.takes[take];
-          std::sprintf(text,
+          std::snprintf(text, sizeof text,
                        " take%u=%s seam=%d reason=%d requested=",
                        take,
                        SettleReplyName(reply.kind()),
@@ -83,7 +83,7 @@ namespace loka
           value +=
               reply.kind() == app::scene::Reply<app::LineCursor>::REFUSED ? "none" : SettleCursorText(reply.applied());
         }
-        std::sprintf(text, "settle.%ld.%u", step, i);
+        std::snprintf(text, sizeof text, "settle.%ld.%u", step, i);
         record.set(text, value.c_str());
       }
       return audit.recordVerdict(record);
