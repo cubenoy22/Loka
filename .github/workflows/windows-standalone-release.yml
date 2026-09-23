@@ -1,0 +1,28 @@
+# Advisory, not a merge gate: the PR path no longer runs this stage (#896).
+# Release branches and manual dispatch do.
+name: Windows Standalone Release
+
+on:
+  push:
+    branches: ['release/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  standalone-release:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      # Deliberate checkout/MSVC twins of windows.yml; keep pins and setup aligned.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: x64
+      # Exercise the same clean Release entry point used to prepare portable
+      # device builds: five autonomous loops, SimpleViewer, and their assets.
+      - name: Build and stage Win32 standalone Release set
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/win32-standalone-flow.ps1 -Action Release -Architecture x64
