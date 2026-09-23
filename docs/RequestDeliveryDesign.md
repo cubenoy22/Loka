@@ -24,28 +24,84 @@ nouns (`cursor`, `offset`), requests as verbs (`moveCaretTo`, `scrollTo`).
 
 ## Settle (#882)
 
-A rail context settles once per admitted operation. Only inside `settle` may it
-take a request; the common `RequestSettlement<T>` owns the order (two unrolled
-takes, admission re-read per take, snapshot and clear, liveness by
-`node->getContext() == identity`, resolve, seam validate, apply, seam report,
-reply built from the seam result, liveness, `finishTake(reply, application)`) and one epilogue that
-folds the rail's `FollowUps` (repaint only when something was written or
-repaired). `finishSettle` returns `FOLLOW_UP_ARMED`, `FOLLOW_UP_FAILED`, or
-`FOLLOW_UP_NONE`. A failed arm performs one additional refusal-only take from
-the last admission's binding: clear the request, check liveness, and publish
-`Refused(requested, EDITOR_UNAVAILABLE)` without resolve/apply/report or a fact
-write. Admission supplies that binding even when it defers. Retirement stops
-the driver; a discarded binding gets no reply. The refusal shares the settle's
-single trace row. The driver returns the follow-up result after publication, so
-rails can keep native admission closed until the refusal tail finishes; retired
-operations return FOLLOW_UP_NONE and do not reopen their context. Shared helpers never settle. The Null rail is the reference
-implementation; the native rails move onto it in the #882 PR series.
+The EventCall contract is frozen in [#882](https://github.com/cubenoy22/Loka/issues/882).
+Its implementation series is [#883 (a, common/Null)](https://github.com/cubenoy22/Loka/pull/883),
+[#884 (b, Toolbox)](https://github.com/cubenoy22/Loka/pull/884),
+[#885 (c, Win32)](https://github.com/cubenoy22/Loka/pull/885), and
+[#886 (d, macOS)](https://github.com/cubenoy22/Loka/pull/886).
+The authoritative common sequence is in
+[`RequestSettlement.hpp`](../common/app/scene/state/RequestSettlement.hpp);
+[`Request.hpp`](../common/app/scene/state/Request.hpp) defines the request/reply boxes.
 
-When native apply succeeds but the reporting seam refuses, the reply is Refused
-and the fact stays unchanged. `finishTake` receives both the reply and the original
-`RequestApplication`: the rail restores the committed selection/projection from
-the fact before reopening native admission. A refusal before successful native
-apply does not by itself require a native selection write.
+A rail context settles once per admitted live operation: attach, props apply,
+one input action, restore/retry completion, or one deferred callback. Settle is
+an operation-completion door, the platform counterpart of a tracker commit.
+Nested observations (delegates, selection notifications, `EN_CHANGE`) belong
+to their owner's operation; a deferred callback starts a new operation.
+Cancelled operations never call a retired context. Shared helpers such as
+`project`, `replaceProjection`, and `restoreCommittedProjection` return their
+follow-up decision to the owner; they never settle or take requests themselves.
+
+`RequestSettlement<T>` owns two unrolled ordinary takes and one epilogue.
+The stack `RailOperation<T>` holds no context reference. The driver retains
+`Node*` and a comparison-only context identity, checking
+`node->getContext() == identity` before continuing after notifications.
+This liveness wall is always on: retirement stops the driver without reopening
+the context, running its epilogue, or emitting a trace row.
+
+The eight rail doors occur in this order; failed stages skip dependent work,
+not the completion path of a still-live take:
+
+1. `admit` re-evaluates phase, status, and ownership for each take; eligibility
+   is not a cached input. Supply the binding even when admission defers.
+   Empty/deferred admission skips the take, but still reaches the epilogue.
+   On admission, snapshot the request and clear it to `None`, then check liveness.
+2. `resolve` checks binding currency. Failure is a refusal, not an early return
+   that strands the phase.
+3. `validate` asks the seam whether the requested value is valid.
+4. `apply` performs the native write, clamp, or repair, returning a
+   `RequestApplication` and follow-up decision; check liveness afterward.
+5. `report` asks the seam to commit the applied value, then checks liveness.
+   Build the reply from that seam result, not native apply success alone.
+6. `current` checks the captured binding before publishing the optional reply.
+   Publish once per take with forced update, then check liveness. A discarded
+   binding receives no reply; an overwritten request was never taken and gets none.
+7. `finishTake` receives the reply and original application result, performs
+   post-report repair and conditional phase restoration, and returns a follow-up.
+   Check liveness; the next admission reads the resulting phase afresh.
+8. `finishSettle` runs once after both ordinary take opportunities, folding
+   `FollowUps` from `apply` and `finishTake` into the completion decision.
+
+`Granted` means the seam accepted that take, not that subscribers left the fact
+unchanged afterward. `Clamped` records requested and applied values; `Refused`
+records the reason and leaves the fact unchanged. Replies are not dirty sources.
+If native apply succeeded but report refused, `finishTake` restores the native
+selection/projection from the committed fact before reopening native admission.
+Refusal before a successful native apply does not itself require a native write.
+
+`FollowUps` combines `FOLLOW_NONE`, `RESTORE_QUEUED`, `SCHEDULE_RESTORE`,
+`SCHEDULE_HIGHLIGHTS`, `OWNER_FOLLOWS`, `SCROLL_CLEANUP`, and `REPAINT` decisions.
+Phase transitions stay synchronous in the rail; timer/selector arming belongs
+in the epilogue, while cancellation/coalescing stays in the rail. Win32's
+settle-scoped RETRY + UNAVAILABLE conversion belongs in `finishSettle`.
+Repaint is requested only after a native write or repair; an empty request
+slot alone does not justify it.
+
+`finishSettle` returns `FOLLOW_UP_ARMED`, `FOLLOW_UP_FAILED`, or `FOLLOW_UP_NONE`.
+A failed arm adds at most one refusal-only take from the last admission's still
+current, nonempty binding: snapshot, clear, check liveness/current binding, and
+publish `Refused(requested, EDITOR_UNAVAILABLE)`. It does not resolve, apply,
+report, or write the fact. The driver returns the arm result after this tail,
+so native admission stays closed until refusal publication finishes; retirement
+returns `FOLLOW_UP_NONE`. A binding discarded during clear gets no reply.
+
+Under `TEST_BUILD`, `testing::SettleTrace` stores a fixed-capacity history of
+value rows: stimulus, admissions, take results, seam results, and fact delta.
+Only a settle that took a request or changed a fact contributes a row; an empty
+or deferred settle with neither contributes none. The failed-arm refusal shares
+that settle's row (at most two ordinary takes plus one refusal-only take).
+Golden records are grouped per scenario step under each rail's PNG approval;
+timer/retry counts are not golden expectations.
 
 ## From AGENTS.md
 
@@ -74,6 +130,6 @@ Null: attach, props sync, input completion. Toolbox: `onPropsApplied`,
 `syncFromNode`, outside-input `handleCommand`, the outer `WindowProc` after a
 rejected input is restored, the RETRY timer handler. macOS: ordinary sync
 completion, selection completion, `VIEW_CHANGE` completion, the deferred
-storage-edit completion (`applyHighlights`), `UNAVAILABLE` refusal. The
-open rally on entry completion proposes folding these tails into one owned
-`completeEntry(outcome)` per rail.
+storage-edit completion (`applyHighlights`), `UNAVAILABLE` refusal. These are
+the entry completions governed by the settle contract above; shared projection
+helpers are not additional delivery sites.
