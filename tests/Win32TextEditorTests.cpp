@@ -1,3 +1,4 @@
+#include "support/LifecycleFactTestAccess.hpp"
 #include "support/TextEditorStateOwner.hpp"
 #include "support/TextEditorAccess.hpp"
 #include "Win32EditTextBridgeTests.hpp"
@@ -689,14 +690,28 @@ namespace
     {
       Fixture fixture;
       NotifySubtreeNodeDetached(fixture.node);
+      // Notify only changes logical facts. A mounted Scene delivers their diff
+      // at apply; this bare-node fixture must drive that same delivery walk.
+      LifecycleFactTestAccess::DeliverFacts(fixture.node);
+      LOKA_VERIFY(EditorAccess::status(*fixture.context) == EDITOR_UNAVAILABLE);
+      LOKA_VERIFY(!(GetWindowLongPtrW(fixture.context->hwnd(), GWL_STYLE) & WS_VISIBLE));
       fixture.request.reply().state()->bind(&detachOnReply, &fixture, false);
+      const LineCursor requested(fixture.lines.at(1).id, 1);
+      Trace &trace = Trace::instance();
+      trace.clear();
       {
         StateTrackerGuard guard(&fixture.tracker);
-        fixture.request.set(LineCursor(fixture.lines.at(1).id, 1));
+        fixture.request.set(requested);
       }
       NotifySubtreeNodeAttached(fixture.node);
+      LOKA_VERIFY(fixture.node->lifecycleFact() == NODE_FACT_ATTACHED);
+      LOKA_VERIFY(fixture.request.get() == requested && trace.size() == 0);
+      LifecycleFactTestAccess::DeliverFacts(fixture.node);
       fixture.request.reply().state()->unbind(&detachOnReply, &fixture);
       LOKA_VERIFY(fixture.node->lifecycleFact() == NODE_FACT_DETACHED_RETAINED);
+      LOKA_VERIFY(fixture.request.get().isNone());
+      LOKA_VERIFY(trace.size() == 1 && trace.at(0).stimulus == SETTLE_ATTACH && trace.at(0).count == 1);
+      LOKA_VERIFY(trace.at(0).takes[0].kind() == Reply<LineCursor>::GRANTED);
       // Host visibility is irrelevant: inspect the child's own visible style.
       LOKA_VERIFY(!(GetWindowLongPtrW(fixture.context->hwnd(), GWL_STYLE) & WS_VISIBLE));
     }
