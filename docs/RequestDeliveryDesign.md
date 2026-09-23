@@ -43,14 +43,27 @@ Cancelled operations never call a retired context. Shared helpers such as
 `project`, `replaceProjection`, and `restoreCommittedProjection` return their
 follow-up decision to the owner; they never settle or take requests themselves.
 
-`RequestSettlement<T>` owns two unrolled ordinary takes and one epilogue.
+One settle is one entry operation with one `SettleOwner<Fact>` and seats in a
+fixed order. The owner supplies `finishSettle` once and, under `TEST_BUILD`,
+`fact`; each `SeatOperation<Request, Fact>` supplies the seven take doors below.
+`RailOperation<T>` is the combined single-seat class the rails use, inheriting
+`SeatOperation<T, T>` and `SettleOwner<T>`.
+`RequestSettlement<Fact>` builds `SeatRunner<Request, Fact>` values and their
+pointer array on its own stack and walks them; each runner holds its binding
+by value and, under `TEST_BUILD`, its trace row; `FollowUps` stays local to the
+driver. The existing
+single-seat entry and a two-seat overload share that walk; the command seat
+remains page 2b work.
+Sources: [#898, ruling items 1–3](https://github.com/cubenoy22/Loka/issues/898),
+[#900](https://github.com/cubenoy22/Loka/pull/900).
 The stack `RailOperation<T>` holds no context reference. The driver retains
 `Node*` and a comparison-only context identity, checking
-`node->getContext() == identity` before continuing after notifications.
-This liveness wall is always on: retirement stops the driver without reopening
-the context, running its epilogue, or emitting a trace row.
+`node->getContext() == identity` at each seat entry, after each publication,
+and after `finishSettle` before continuing.
+This liveness wall is always on: retirement at seat k stops seat k+1, the
+epilogue, and the trace without reopening the context.
 
-The eight rail doors occur in this order; failed stages skip dependent work,
+The seven seat doors occur in this order; failed stages skip dependent work,
 not the completion path of a still-live take:
 
 1. `admit` re-evaluates phase, status, and ownership for each take; eligibility
@@ -72,8 +85,18 @@ not the completion path of a still-live take:
 7. `finishTake` receives the reply and original application result, performs
    post-report repair and conditional phase restoration, and returns a follow-up.
    Check liveness; the next admission reads the resulting phase afresh.
-8. `finishSettle` runs once after both ordinary take opportunities, folding
-   `FollowUps` from `apply` and `finishTake` into the completion decision.
+
+The owner's `finishSettle` runs once after both ordinary take opportunities
+for every seat, folding `FollowUps` from `apply` and `finishTake` into the
+completion decision.
+
+The `formReply` overloads deduce their argument types: the same-type overload
+keeps `Granted`/`Clamped`/`Refused` selection; different request and fact types
+yield `Refused(pending, result)` on failure or `Granted(pending)` on success.
+This does not introduce heterogeneous reply or trace shapes; those remain
+page 2b work.
+Sources: [#898, ruling item 5](https://github.com/cubenoy22/Loka/issues/898),
+[#900](https://github.com/cubenoy22/Loka/pull/900).
 
 `Granted` means the seam accepted that take, not that subscribers left the fact
 unchanged afterward. `Clamped` records requested and applied values; `Refused`
@@ -91,8 +114,8 @@ Repaint is requested only after a native write or repair; an empty request
 slot alone does not justify it.
 
 `finishSettle` returns `FOLLOW_UP_ARMED`, `FOLLOW_UP_FAILED`, or `FOLLOW_UP_NONE`.
-A failed arm adds at most one refusal-only take from the last admission's still
-current, nonempty binding: `consume()` (last-wins clear or queue advance),
+A failed arm adds at most one refusal-only take per seat from that seat's last
+admission's still current, nonempty binding: `consume()` (last-wins clear or queue advance),
 check liveness/current binding, and publish `Refused(requested, EDITOR_UNAVAILABLE)`. It does not resolve, apply,
 report, or write the fact. The driver returns the arm result after this tail,
 so native admission stays closed until refusal publication finishes; retirement
@@ -101,11 +124,33 @@ returns `FOLLOW_UP_NONE`. A binding discarded during consumption gets no reply
 
 Under `TEST_BUILD`, `testing::SettleTrace` stores a fixed-capacity history of
 value rows: stimulus, admissions, take results, seam results, and fact delta.
-Only a settle that took a request or changed a fact contributes a row; an empty
-or deferred settle with neither contributes none. The failed-arm refusal shares
-that settle's row (at most two ordinary takes plus one refusal-only take).
+Rows are per seat: only a seat that took a request or changed a fact contributes
+a row; an empty or deferred seat with neither contributes none. The failed-arm
+refusal shares that seat's row (at most two ordinary takes plus one refusal-only
+take). Seat 0's `before` is the caller's pre-entry snapshot, never a fresh sample
+at settle entry; later seats sample their entry fact after the preceding seat's
+publications. `after` finalization and row append happen after the epilogue and
+the failed-arm tail: seat k's `after` is the fact captured at seat k+1's entry,
+and the last seat's `after` is the owner's final fact.
+Sources: [#898, ruling item 4](https://github.com/cubenoy22/Loka/issues/898),
+[#900](https://github.com/cubenoy22/Loka/pull/900).
 Golden records are grouped per scenario step under each rail's PNG approval;
 timer/retry counts are not golden expectations.
+
+The bound is per seat: **two ordinary takes (each may refuse) plus at most one
+failed-arm refusal-only take**. With one seat this is exactly the #892 bound,
+unchanged. For page 2b's future n-seat operation, the aggregate would be at most
+2n ordinary takes plus n failed-arm refusal-only takes; this is not a claim
+that the command seat exists.
+Sources: [#898, ruling item 7](https://github.com/cubenoy22/Loka/issues/898),
+[#900](https://github.com/cubenoy22/Loka/pull/900).
+
+The sourceless `RequestBinding<T>` seat-only constructor, including its default
+reply argument, instantiates `RequestDeclarationWall<T>` and refuses
+non-coalescable or unspecialized types. Queued bindings pass the queue by
+reference alongside the request and reply seats borrowed from that same queue.
+Sources: [#898, PR w](https://github.com/cubenoy22/Loka/issues/898),
+[#899](https://github.com/cubenoy22/Loka/pull/899).
 
 ## Endpoint and queue (#892)
 
@@ -169,11 +214,15 @@ not a claim of Win32/macOS scenario golden coverage.
   deferred completion that is itself the entry. A shared helper that several
   entries call (`project`, `replaceProjection`, `restoreCommittedProjection`)
   never takes a request; it returns an outcome to its caller.
-- **Bound.** Two ordinary takes (each may refuse) plus at most one failed-arm
-  refusal-only take, never another application. Pending work stays in the slot
+- **Bound.** Per seat, two ordinary takes (each may refuse) plus at most one
+  failed-arm refusal-only take, never another application. With one seat this
+  is exactly the #892 bound, unchanged; the future n-seat aggregate for page 2b
+  is stated separately above. Pending work stays in the slot
   or endpoint ring; the consumption publication (last-wins `None` or direct
   queue advance) marks props dirty, so the next props apply delivers it.
-  Source: [#892](https://github.com/cubenoy22/Loka/issues/892).
+  Sources: [#892](https://github.com/cubenoy22/Loka/issues/892),
+  [#898, ruling item 7](https://github.com/cubenoy22/Loka/issues/898),
+  [#900](https://github.com/cubenoy22/Loka/pull/900).
 - **Refusal.** A request that cannot be applied (stale line identity, document
   unavailable, missing native resource) is taken and dropped; the fact stays
   unchanged. A last-wins slot reads `None` unless a subscriber reposted; a
