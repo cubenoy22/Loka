@@ -310,11 +310,11 @@ posted while it was being consumed or reported. Anything still pending stays
 in the slot for the next update that applies props; delivery does not drain
 requests indefinitely.
 
-Delivery is implemented per rail. The Null rail and the Toolbox rail deliver
-caret requests on `main`; the macOS and Win32 rails deliver them once their
-#873 pull requests (PR 4 and PR 3) are merged. On a rail without a consumer the
-request simply stays pending and the caret does not move, so an application
-that must run on such a rail should not depend on the request for correctness.
+Delivery is implemented per rail; the Null, Toolbox, Win32 and macOS rails all
+deliver caret requests. A rail that has no consumer for a request kind (a
+future request type before its rail lands) leaves the request pending and the
+fact unchanged, so an application that must run on such a rail should not
+depend on that request for correctness.
 
 Changing the editor's list or request binding, or detaching the editor,
 discards the old pending request; it is not replayed on attachment. New
