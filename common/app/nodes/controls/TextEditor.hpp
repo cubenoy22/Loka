@@ -69,7 +69,7 @@ namespace loka
       }
       TextEditorProps &moveCaretTo(scene::RequestQueueBase<LineCursor> &value)
       {
-        this->moveCaretTo_ = scene::RequestBinding<LineCursor>(this->requestSeat(value), this->replySeat(value), &value);
+        this->moveCaretTo_ = scene::RequestBinding<LineCursor>(this->requestSeat(value), this->replySeat(value), value);
         return *this;
       }
       /** Committed logical caret; this does not promise a native selection. */
