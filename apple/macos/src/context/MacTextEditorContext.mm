@@ -533,11 +533,12 @@ public:
       p.phase = this->completion_;
     return follow;
   }
-  virtual void finishSettle(loka::app::scene::Node &base, const loka::app::scene::FollowUps &follow)
+  virtual loka::app::scene::FollowUpResult finishSettle(loka::app::scene::Node &base,
+                                                      const loka::app::scene::FollowUps &follow)
   {
     MacTextEditorContext &c = context(base);
     if (base.lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
-      return;
+      return loka::app::scene::FOLLOW_UP_NONE;
     Projection &p = *c.projection_;
     LokaTextEditorDelegate *delegate = (LokaTextEditorDelegate *)c.delegate_;
     const bool highlights = this->follow_.contains(loka::app::scene::SCHEDULE_HIGHLIGHTS);
@@ -550,13 +551,16 @@ public:
       [NSObject cancelPreviousPerformRequestsWithTarget:delegate selector:@selector(restoreProjection) object:nil];
       // NSObject's delayed selector arm is void: there is no observable failed-arm result.
       [delegate performSelector:@selector(restoreProjection) withObject:nil afterDelay:0];
+      return loka::app::scene::FOLLOW_UP_ARMED;
     }
     else if (highlights && p.phase == Projection::STORAGE_PENDING)
     {
       [NSObject cancelPreviousPerformRequestsWithTarget:delegate selector:@selector(applyHighlights) object:nil];
       [delegate performSelector:@selector(applyHighlights) withObject:nil afterDelay:0];
+      return loka::app::scene::FOLLOW_UP_ARMED;
     }
     // AppKit schedules paint for its text/selection writes; no extra repaint sink.
+    return loka::app::scene::FOLLOW_UP_NONE;
   }
 #ifdef TEST_BUILD
   virtual LineCursor fact(loka::app::scene::Node &base) const
@@ -1051,7 +1055,8 @@ void MacTextEditorContext::handleTextDidChange(TextObservation source, std::size
   {
     // processEditing is an observation, never a request-delivery operation.
     // Only arm its continuation here; that deferred entry owns settlement.
-    op.finishSettle(*liveNode, loka::app::scene::FollowUps());
+    // Delayed selector arms have no observable failure result to handle here.
+    (void)op.finishSettle(*liveNode, loka::app::scene::FollowUps());
   }
 }
 
