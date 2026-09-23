@@ -452,10 +452,10 @@ namespace
 {
   struct SceneReposter
   {
-    NodeState<LineCursor> &request;
+    Request<LineCursor> &request;
     State<LineCursor> &fact;
     unsigned reports;
-    SceneReposter(NodeState<LineCursor> &r, State<LineCursor> &f)
+    SceneReposter(Request<LineCursor> &r, State<LineCursor> &f)
         : request(r),
           fact(f),
           reports(0)
@@ -486,11 +486,11 @@ namespace
   public:
     ObservableList<String> lines;
     Reported<LineCursor> cursor;
-    NodeState<LineCursor> request;
+    RequestWithReply<LineCursor> request;
     explicit EditorSceneRoot(const BoundaryPropsFor<EditorSceneRoot> &p)
         : BoundaryNodeFor<EditorSceneRoot>(p)
     {
-      this->declareStates(2).state(this->cursor, LineCursor::None()).state(this->request, LineCursor::None());
+      this->declareStates(3).state(this->cursor, LineCursor::None()).state(this->request, LineCursor::None());
     }
     virtual bool flushViewDirtyImmediately(NodeDirtyFlags) const
     {
@@ -523,6 +523,7 @@ void testTextEditorScene()
   layout.height = 320;
   platform.projectLayoutForTesting(root, layout);
   loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
+  LOKA_VERIFY(root->request.reply().isValid());
   TextEditorNode *node = static_cast<TextEditorNode *>(root->childrenHead());
   LOKA_VERIFY(node && node->nodeTypeKey() == NodeTypeToken<TextEditorNode>());
   NullTextEditorContext *context = static_cast<NullTextEditorContext *>(node->getContext());
@@ -1029,9 +1030,7 @@ void testTextEditorRequestCancellationRepost()
 void testTextEditorRequestSeatReplacement()
 {
   Fixture f;
-  MutableState<LineCursor> nextValue;
-  f.tracker.addState(&nextValue);
-  NodeState<LineCursor> next(&nextValue, &f.tracker);
+  Request<LineCursor> &next = f.otherRequest;
   RequestObserver observer(f);
   observer.onClear = true;
   observer.repost = LineCursor(f.lines.at(2).id, 3);
@@ -1047,7 +1046,6 @@ void testTextEditorRequestSeatReplacement()
   f.context->onPropsApplied();
   LOKA_VERIFY(f.request.get() == observer.repost && f.cursor.state()->get() == fresh);
   applyEditorProps(f, TextEditorProps(f.lines, f.cursor));
-  f.tracker.removeState(&nextValue);
 }
 void testTextEditorRequestDetach()
 {
@@ -1123,7 +1121,8 @@ void testTextEditorReportedStorage()
   const LineCursor wanted(lines.at(0).id, 1);
   {
     TextEditorNode unavailable(TextEditorProps(lines, refused).moveCaretTo(storage.request));
-    NullTextEditorContext context(&unavailable);
+    unavailable.setContext(new NullTextEditorContext(&unavailable));
+    NullTextEditorContext &context = *static_cast<NullTextEditorContext *>(unavailable.getContext());
     storage.request.set(wanted);
     context.readLifecycleFactOnAttach();
     LOKA_VERIFY(storage.request.get().isNone());
@@ -1133,7 +1132,8 @@ void testTextEditorReportedStorage()
   {
     loka::app::testing::TextEditorStateOwner foreign;
     TextEditorNode mismatched(TextEditorProps(lines, storage.cursor).moveCaretTo(foreign.request));
-    NullTextEditorContext context(&mismatched);
+    mismatched.setContext(new NullTextEditorContext(&mismatched));
+    NullTextEditorContext &context = *static_cast<NullTextEditorContext *>(mismatched.getContext());
     foreign.request.set(wanted);
     context.readLifecycleFactOnAttach();
     LOKA_VERIFY(foreign.request.get().isNone());
@@ -1158,4 +1158,289 @@ void testTextEditorReportedStorage()
   }
   LOKA_VERIFY(publications.count == 0);
   storage.request.state()->unbind(&PublicationCount::changed, &publications);
+}
+
+namespace
+{
+  typedef loka::app::testing::SettleTrace<LineCursor> Trace;
+  typedef Reply<LineCursor> CaretReply;
+  struct SettlementSubscriber
+  {
+    Fixture &f;
+    enum Action
+    {
+      COUNT,
+      REPOST,
+      REPOST_ONLY,
+      RETIRE_CLEAR,
+      RETIRE_FACT,
+      RETIRE_REPLY,
+      REBIND_CLEAR,
+      REBIND_FACT
+    } action;
+    unsigned replies;
+    LineCursor repost;
+    SettlementSubscriber(Fixture &fixture, Action value)
+        : f(fixture),
+          action(value),
+          replies(0),
+          repost(fixture.lines.at(1).id, 1)
+    {
+      f.request.state()->bind(&cleared, this, false);
+      f.cursor.state()->bind(&reported, this, false);
+      f.request.reply().state()->bind(&replied, this, false);
+    }
+    ~SettlementSubscriber()
+    {
+      f.request.state()->unbind(&cleared, this);
+      f.cursor.state()->unbind(&reported, this);
+      f.request.reply().state()->unbind(&replied, this);
+    }
+    static void retire(Fixture &f)
+    {
+      LifecycleFactTestAccess::MarkSubtreeRetired(&f.node);
+      f.node.setContext(0);
+    }
+    static void cleared(void *data)
+    {
+      SettlementSubscriber &s = *static_cast<SettlementSubscriber *>(data);
+      if (!s.f.request.get().isNone())
+        return;
+      if (s.action == RETIRE_CLEAR)
+        retire(s.f);
+      if (s.action == REBIND_CLEAR)
+      {
+        s.action = COUNT;
+        applyEditorProps(s.f, TextEditorProps(s.f.lines, s.f.cursor).moveCaretTo(s.f.otherRequest));
+      }
+    }
+    static void reported(void *data)
+    {
+      SettlementSubscriber &s = *static_cast<SettlementSubscriber *>(data);
+      if (s.action == RETIRE_FACT)
+        retire(s.f);
+      if (s.action == REBIND_FACT)
+      {
+        s.action = COUNT;
+        applyEditorProps(s.f, TextEditorProps(s.f.lines, s.f.cursor).moveCaretTo(s.f.otherRequest));
+      }
+    }
+    static void replied(void *data)
+    {
+      SettlementSubscriber &s = *static_cast<SettlementSubscriber *>(data);
+      ++s.replies;
+      LOKA_VERIFY(s.replies <= 2);
+      if (s.action == RETIRE_REPLY)
+        retire(s.f);
+      if (s.action == REPOST || s.action == REPOST_ONLY)
+      {
+        s.f.request.set(s.repost);
+        if (s.action == REPOST)
+          s.f.context->onPropsApplied();
+        LOKA_VERIFY(s.f.request.get() == s.repost);
+      }
+    }
+  };
+  /** Controlled rail for common order that Null's synchronous projection cannot produce:
+      deferred repair, admission closing after take one, and seam refusal after apply. */
+  class SettlementProbe : public RailOperation<LineCursor>
+  {
+  public:
+    enum Mode
+    {
+      OPEN,
+      CLOSE_AFTER_FIRST,
+      DEFER,
+      REFUSE_REPORT,
+      WRITE,
+      WRITE_AND_RESTORE
+    } mode;
+    unsigned admitted, applied, finished, epilogues, repaints, scheduled;
+    explicit SettlementProbe(Mode m)
+        : mode(m),
+          admitted(0),
+          applied(0),
+          finished(0),
+          epilogues(0),
+          repaints(0),
+          scheduled(0)
+    {
+    }
+    virtual Admission admit(Node &base, RequestBinding<LineCursor> &binding)
+    {
+      ++this->admitted;
+      if (this->mode == DEFER || (this->mode == CLOSE_AFTER_FIRST && this->finished))
+        return ADMISSION_DEFERRED;
+      binding = static_cast<TextEditorNode &>(base).props.moveCaretTo_;
+      return binding.state()->get().isNone() ? ADMISSION_EMPTY : ADMISSION_TAKE;
+    }
+    virtual EditorResult resolve(Node &, const RequestBinding<LineCursor> &)
+    {
+      return EDITOR_OK;
+    }
+    virtual EditorResult validate(Node &, const LineCursor &)
+    {
+      return EDITOR_OK;
+    }
+    virtual RequestApplication<LineCursor> apply(Node &, const LineCursor &value)
+    {
+      ++this->applied;
+      return RequestApplication<LineCursor>(
+          value, EDITOR_OK, (this->mode == WRITE || this->mode == WRITE_AND_RESTORE) ? REPAINT : FOLLOW_NONE);
+    }
+    virtual EditorResult report(Node &base, const LineCursor &value)
+    {
+      if (this->mode == REFUSE_REPORT)
+        return EDITOR_REENTRANT;
+      return loka::app::testing::TextEditorAccess::document(static_cast<TextEditorNode &>(base)).moveCaret(value);
+    }
+    virtual bool current(Node &, const RequestBinding<LineCursor> &)
+    {
+      return true;
+    }
+    virtual FollowUp finishTake(Node &, const CaretReply &)
+    {
+      ++this->finished;
+      return this->mode == WRITE_AND_RESTORE ? SCHEDULE_RESTORE : this->mode == WRITE ? REPAINT : FOLLOW_NONE;
+    }
+    virtual void finishSettle(Node &, const FollowUps &follow)
+    {
+      ++this->epilogues;
+      if (follow.contains(REPAINT))
+        ++this->repaints;
+      if (this->mode == DEFER || follow.contains(SCHEDULE_RESTORE))
+        ++this->scheduled;
+    }
+    virtual LineCursor fact(Node &base) const
+    {
+      return static_cast<TextEditorNode &>(base).props.cursorState()->get();
+    }
+    void run(Fixture &f)
+    {
+      RequestSettlement<LineCursor>::settle(&f.node, f.context, *this, SETTLE_DEFERRED, this->fact(f.node));
+    }
+  };
+} // namespace
+void testTextEditorSettlementReplies()
+{
+  loka::app::testing::TextEditorStateOwner owner;
+  LOKA_VERIFY(owner.request.reply().state()->get().kind() == CaretReply::NO_REPLY);
+  Fixture f;
+  SettlementSubscriber s(f, SettlementSubscriber::COUNT);
+  const LineCursor wanted(f.lines.at(1).id, 99), applied(wanted.line, 4);
+  f.request.set(LineCursor(f.lines.at(2).id, 1));
+  f.request.set(wanted);
+  f.context->onPropsApplied();
+  CaretReply reply = f.request.reply().state()->get();
+  LOKA_VERIFY(s.replies == 1);
+  LOKA_VERIFY(reply.kind() == CaretReply::CLAMPED && reply.requested() == wanted && reply.applied() == applied);
+  f.request.set(wanted);
+  f.context->onPropsApplied();
+  LOKA_VERIFY(s.replies == 2);
+  s.replies = 0;
+  const LineCursor stale(ItemId(999, 999), 0);
+  f.request.set(stale);
+  f.context->onPropsApplied();
+  reply = f.request.reply().state()->get();
+  LOKA_VERIFY(reply.kind() == CaretReply::REFUSED && reply.reason() == EDITOR_STALE_ID && reply.requested() == stale);
+  LOKA_VERIFY(f.cursor.state()->get() == applied);
+  s.action = SettlementSubscriber::REPOST;
+  s.replies = 0;
+  f.request.set(s.repost);
+  f.context->onPropsApplied();
+  LOKA_VERIFY(s.replies == 2 && f.request.get() == s.repost);
+  LOKA_VERIFY(f.request.reply().state()->get().kind() == CaretReply::GRANTED);
+  std::printf("[size] Request=%lu RequestWithReply=%lu Reply=%lu\n",
+              static_cast<unsigned long>(sizeof(Request<LineCursor>)),
+              static_cast<unsigned long>(sizeof(RequestWithReply<LineCursor>)),
+              static_cast<unsigned long>(sizeof(CaretReply)));
+}
+void testTextEditorSettlementLifetime()
+{
+  for (int when = 0; when != 3; ++when)
+  {
+    Fixture f;
+    SettlementSubscriber s(f,
+                           when == 0   ? SettlementSubscriber::RETIRE_CLEAR
+                           : when == 1 ? SettlementSubscriber::RETIRE_FACT
+                                       : SettlementSubscriber::RETIRE_REPLY);
+    Trace::instance().clear();
+    f.request.set(s.repost);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(f.node.lifecycleFact() == NODE_FACT_RETIRED && f.node.getContext() == 0);
+    LOKA_VERIFY(s.replies == (when == 2 ? 1u : 0u));
+    LOKA_VERIFY(Trace::instance().size() == 0);
+  }
+}
+void testTextEditorSettlementBinding()
+{
+  for (int afterReport = 0; afterReport != 2; ++afterReport)
+  {
+    Fixture f;
+    SettlementSubscriber s(f, afterReport ? SettlementSubscriber::REBIND_FACT : SettlementSubscriber::REBIND_CLEAR);
+    const LineCursor wanted(f.lines.at(1).id, 1), next(f.lines.at(2).id, 2);
+    f.request.set(wanted);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(s.replies == 0);
+    f.otherRequest.set(next);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(f.otherRequest.get().isNone());
+    LOKA_VERIFY(f.cursor.state()->get() == next);
+  }
+}
+void testTextEditorSettlementAdmission()
+{
+  Fixture f;
+  SettlementSubscriber s(f, SettlementSubscriber::REPOST_ONLY);
+  SettlementProbe probe(SettlementProbe::CLOSE_AFTER_FIRST);
+  f.request.set(s.repost);
+  probe.run(f);
+  LOKA_VERIFY(probe.admitted == 2 && probe.finished == 1);
+  LOKA_VERIFY(s.replies == 1 && f.request.get() == s.repost);
+  s.action = SettlementSubscriber::COUNT;
+  SettlementProbe deferred(SettlementProbe::DEFER);
+  Trace::instance().clear();
+  deferred.run(f);
+  LOKA_VERIFY(deferred.applied == 0 && deferred.epilogues == 1 && deferred.scheduled == 1);
+  LOKA_VERIFY(f.request.get() == s.repost && Trace::instance().size() == 0);
+}
+void testTextEditorSettlementSeam()
+{
+  Fixture f;
+  const LineCursor before = f.cursor.state()->get();
+  f.request.set(LineCursor(f.lines.at(1).id, 1));
+  SettlementProbe probe(SettlementProbe::REFUSE_REPORT);
+  probe.run(f);
+  const CaretReply reply = f.request.reply().state()->get();
+  LOKA_VERIFY(probe.applied == 1 && probe.finished == 1);
+  LOKA_VERIFY(reply.kind() == CaretReply::REFUSED && reply.reason() == EDITOR_REENTRANT);
+  LOKA_VERIFY(f.cursor.state()->get() == before);
+}
+void testTextEditorSettlementTrace()
+{
+  Fixture f;
+  Trace &trace = Trace::instance();
+  trace.clear();
+  f.context->onPropsApplied();
+  LOKA_VERIFY(trace.size() == 0);
+  SettlementProbe empty(SettlementProbe::OPEN);
+  empty.run(f);
+  LOKA_VERIFY(empty.repaints == 0 && empty.finished == 0 && empty.epilogues == 1 && trace.size() == 0);
+  f.request.set(LineCursor(f.lines.at(1).id, 1));
+  f.context->onPropsApplied();
+  LOKA_VERIFY(trace.size() == 1 && trace.at(0).count == 1 && trace.at(0).stimulus == SETTLE_PROPS);
+  LOKA_VERIFY(trace.at(0).takes[0].kind() == CaretReply::GRANTED && trace.at(0).seam[0] == EDITOR_OK);
+  LOKA_VERIFY(trace.at(0).before != trace.at(0).after);
+  trace.clear();
+  LOKA_VERIFY(Input::move(*f.context, LineCursor(f.lines.at(2).id, 2)) == EDITOR_OK);
+  LOKA_VERIFY(trace.size() == 1 && trace.at(0).count == 0 && trace.at(0).stimulus == SETTLE_INPUT);
+  LOKA_VERIFY(trace.at(0).before != trace.at(0).after);
+  f.request.set(LineCursor(f.lines.at(0).id, 1));
+  SettlementProbe write(SettlementProbe::WRITE);
+  write.run(f);
+  LOKA_VERIFY(write.repaints == 1);
+  f.request.set(LineCursor(f.lines.at(1).id, 1));
+  SettlementProbe both(SettlementProbe::WRITE_AND_RESTORE);
+  both.run(f);
+  LOKA_VERIFY(both.repaints == 1 && both.scheduled == 1 && both.epilogues == 1);
 }

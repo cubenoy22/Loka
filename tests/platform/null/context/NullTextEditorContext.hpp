@@ -1,6 +1,7 @@
 #ifndef LOKA_NULL_TEXT_EDITOR_CONTEXT_HPP
 #define LOKA_NULL_TEXT_EDITOR_CONTEXT_HPP
 #include "app/nodes/controls/TextEditor.hpp"
+#include "app/scene/state/RequestSettlement.hpp"
 #include "app/scene/projection/NativeNodeContext.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
 class NullScenePlatformController;
@@ -35,8 +36,12 @@ private:
     RECONCILE
   };
   loka::app::EditorResult input(const std::string &bytes, bool join, const loka::app::LineCursor *move);
-  void consumePendingRequest();
-  bool consumeRequest();
+  class RailOperation;
+  void settle(loka::app::scene::Settlement stimulus
+#ifdef TEST_BUILD
+              , loka::app::LineCursor before
+#endif
+              );
   void restoreCommittedProjection(loka::app::LineCursor snapshot);
   void project(loka::app::LineCursor fallback);
   std::size_t nativeOffset() const;

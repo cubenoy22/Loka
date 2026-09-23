@@ -74,7 +74,7 @@ namespace
   private:
     ObservableList<String> lines_;
     scene::Reported<LineCursor> cursor_;
-    scene::NodeState<LineCursor> request_;
+    scene::Request<LineCursor> request_;
     scene::NodeState<String> status_;
 
     bool hasEditorStates() const

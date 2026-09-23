@@ -36,7 +36,9 @@ void NullTextEditorContext::readLifecycleFactOnAttach()
 {
   assert(this->node_ && this->node_->props.lines_);
   this->project(LineCursor::None());
-  this->consumePendingRequest();
+  this->settle(scene::SETTLE_ATTACH,
+               this->node_ && this->node_->props.cursorState() ? this->node_->props.cursorState()->get()
+                                                               : LineCursor::None());
 }
 void NullTextEditorContext::project(LineCursor fallback)
 {
@@ -105,14 +107,21 @@ EditorResult NullTextEditorContext::input(const std::string &bytes, bool join, c
 {
   if (!this->node_ || this->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED)
   {
-    this->consumePendingRequest();
+    this->settle(scene::SETTLE_INPUT,
+                 this->node_ && this->node_->props.cursorState() ? this->node_->props.cursorState()->get()
+                                                                 : LineCursor::None());
     return EDITOR_UNAVAILABLE;
   }
   if (this->status_ != EDITOR_OK)
   {
-    this->consumePendingRequest();
-    return this->status_;
+    const EditorResult status = this->status_;
+    this->settle(scene::SETTLE_INPUT,
+                 this->node_ && this->node_->props.cursorState() ? this->node_->props.cursorState()->get()
+                                                                 : LineCursor::None());
+    return status;
   }
+  const LineCursor factBefore = this->node_->props.cursorState()->get();
+  scene::Node *const liveNode = this->node_;
   const LineCursor before = this->caret_;
   const std::size_t offset = this->nativeOffset();
   // A real native control has already changed before its owner is notified.
@@ -155,13 +164,15 @@ EditorResult NullTextEditorContext::input(const std::string &bytes, bool join, c
   }
   else
     result = this->node_->document.applyReplace(before, before, bytes.data(), bytes.size());
+  if (liveNode->getContext() != this)
+    return result;
   const bool reconcile = result != EDITOR_OK || this->phase_ == RECONCILE;
   this->phase_ = IDLE;
   if (reconcile)
     this->restoreCommittedProjection(before);
   else
     this->project(before);
-  this->consumePendingRequest();
+  this->settle(scene::SETTLE_INPUT, factBefore);
   return result;
 }
 void NullTextEditorContext::syncFromNode()
@@ -169,49 +180,110 @@ void NullTextEditorContext::syncFromNode()
   if (this->phase_ == IDLE)
   {
     this->project(this->caret_);
-    this->consumePendingRequest();
+    this->settle(scene::SETTLE_PROPS,
+                 this->node_ && this->node_->props.cursorState() ? this->node_->props.cursorState()->get()
+                                                                 : LineCursor::None());
   }
 }
-void NullTextEditorContext::consumePendingRequest()
+/** Stack policy: context lookup occurs only after the driver's lifetime wall. */
+class NullTextEditorContext::RailOperation : public scene::RailOperation<LineCursor>
 {
-  // One take and one epilogue take. Further reposts stay dirty for a later run.
-  if (this->consumeRequest())
-    this->consumeRequest();
-}
-bool NullTextEditorContext::consumeRequest()
-{
-  if (this->phase_ != IDLE || !this->node_)
-    return false;
-  const scene::WriteSeat<LineCursor> request = this->node_->props.moveCaretTo_;
-  if (!request.isValid() || request.state()->get().isNone())
-    return false;
-  this->phase_ = INPUT;
-  LineCursor pending = request.state()->get();
-  const TextEditorProps binding = this->node_->props;
-  request.set(LineCursor::None());
-  // Taking can notify app code. Recheck the borrowed binding before using it.
-  if (this->node_ && this->phase_ == INPUT && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED
-      && this->node_->props.lines_ == binding.lines_ && this->node_->props.moveCaretTo_.state() == request.state()
-      && this->node_->document.availability() == EDITOR_OK)
+public:
+  virtual scene::Admission admit(scene::Node &base, scene::RequestBinding<LineCursor> &request)
   {
-    loka::core::StateTracker *owner = 0;
-    if (binding.lines_->queryMutationTracker(owner) == loka::core::EDIT_OK && request.usesTracker(owner))
-    {
-      const int row = binding.lines_->find(pending.line);
-      if (row >= 0)
-      {
-        std::size_t length = 0;
-        if (binding.lines_->at(static_cast<unsigned short>(row))
-                .value.requiredUnits(loka::core::StringEncodingUtf8, length))
-          pending.column = std::max(0, std::min(pending.column, static_cast<int>(length)));
-      }
-      this->node_->document.moveCaret(pending);
-    }
+    NullTextEditorContext &c = context(base);
+    if (c.phase_ != IDLE || !c.node_)
+      return scene::ADMISSION_DEFERRED;
+    request = c.node_->props.moveCaretTo_;
+    if (!request.isValid() || request.state()->get().isNone())
+      return scene::ADMISSION_EMPTY;
+    this->binding_ = c.node_->props;
+    c.phase_ = INPUT;
+    return scene::ADMISSION_TAKE;
   }
-  // Reconcile any nested tentative input before delivering a report-time repost.
-  this->phase_ = IDLE;
-  this->project(this->caret_);
-  return true;
+  virtual bool current(scene::Node &base, const scene::RequestBinding<LineCursor> &request)
+  {
+    TextEditorNode &node = static_cast<TextEditorNode &>(base);
+    return node.lifecycleFact() == scene::NODE_FACT_ATTACHED && node.props.lines_ == this->binding_.lines_
+           && node.props.cursorState() == this->binding_.cursorState() && node.props.moveCaretTo_.same(request);
+  }
+  virtual EditorResult resolve(scene::Node &base, const scene::RequestBinding<LineCursor> &request)
+  {
+    if (!this->current(base, request))
+      return EDITOR_OWNER_MISMATCH;
+    if (context(base).phase_ != INPUT)
+      return EDITOR_REENTRANT;
+    loka::core::StateTracker *owner = 0;
+    if (!this->binding_.lines_ || this->binding_.lines_->queryMutationTracker(owner) != loka::core::EDIT_OK)
+      return EDITOR_UNAVAILABLE;
+    return request.usesTracker(owner) ? EDITOR_OK : EDITOR_OWNER_MISMATCH;
+  }
+  virtual EditorResult validate(scene::Node &base, const LineCursor &pending)
+  {
+    TextEditorNode &node = static_cast<TextEditorNode &>(base);
+    const EditorResult ready = node.document.availability();
+    if (ready != EDITOR_OK)
+      return ready;
+    return node.props.lines_->find(pending.line) < 0 ? EDITOR_STALE_ID : EDITOR_OK;
+  }
+  virtual scene::RequestApplication<LineCursor> apply(scene::Node &base, const LineCursor &pending)
+  {
+    TextEditorNode &node = static_cast<TextEditorNode &>(base);
+    const int row = node.props.lines_->find(pending.line);
+    std::size_t length = 0;
+    if (row < 0)
+      return scene::RequestApplication<LineCursor>(pending, EDITOR_STALE_ID);
+    if (!node.props.lines_->at(static_cast<unsigned short>(row))
+             .value.requiredUnits(loka::core::StringEncodingUtf8, length))
+      return scene::RequestApplication<LineCursor>(pending, EDITOR_UNAVAILABLE);
+    const LineCursor applied(pending.line, std::max(0, std::min(pending.column, static_cast<int>(length))));
+    return scene::RequestApplication<LineCursor>(applied, EDITOR_OK);
+  }
+  virtual EditorResult report(scene::Node &base, const LineCursor &applied)
+  {
+    return static_cast<TextEditorNode &>(base).document.moveCaret(applied);
+  }
+  virtual scene::FollowUp finishTake(scene::Node &base, const scene::Reply<LineCursor> &)
+  {
+    NullTextEditorContext &c = context(base);
+    c.phase_ = IDLE;
+    c.project(c.caret_);
+    // Null writes its simulated projection here, including refused-take repair.
+    return scene::REPAINT;
+  }
+  // Null controls are native-scheduled paint answers; there is no repaint sink.
+  virtual void finishSettle(scene::Node &, const scene::FollowUps &) {}
+#ifdef TEST_BUILD
+  virtual LineCursor fact(scene::Node &base) const
+  {
+    loka::core::State<LineCursor> *state = static_cast<TextEditorNode &>(base).props.cursorState();
+    return state ? state->get() : LineCursor::None();
+  }
+#endif
+private:
+  static NullTextEditorContext &context(scene::Node &node)
+  {
+    return *static_cast<NullTextEditorContext *>(node.getContext());
+  }
+  TextEditorProps binding_;
+};
+void NullTextEditorContext::settle(scene::Settlement stimulus
+#ifdef TEST_BUILD
+                                   ,
+                                   LineCursor before
+#endif
+)
+{
+  RailOperation op;
+  scene::RequestSettlement<LineCursor>::settle(this->node_,
+                                               this,
+                                               op,
+                                               stimulus
+#ifdef TEST_BUILD
+                                               ,
+                                               before
+#endif
+  );
 }
 
 short NullTextEditorContext::layout(scene::IPlatformController *, scene::LayoutState &state)

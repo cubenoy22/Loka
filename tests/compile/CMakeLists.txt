@@ -260,3 +260,18 @@ loka_compile_pin(reported-props-door
   REFUSES pins/refuses_reported_props_door.cpp
   ACCEPTS pins/accepts_reported_props_door.cpp
 )
+
+loka_compile_pin(request-reply-read-only
+  REFUSES pins/refuses_request-reply-read-only.cpp
+  ACCEPTS pins/accepts_request-reply-read-only.cpp
+)
+
+loka_compile_pin(request-no-node-state
+  REFUSES pins/refuses_request-no-node-state.cpp
+  ACCEPTS pins/accepts_request-no-node-state.cpp
+)
+
+loka_compile_pin(editor-requires-request
+  REFUSES pins/refuses_editor-requires-request.cpp
+  ACCEPTS pins/accepts_editor-requires-request.cpp
+)

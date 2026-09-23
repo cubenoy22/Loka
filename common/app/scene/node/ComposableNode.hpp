@@ -328,6 +328,16 @@ namespace loka
         // This does not make ComposableNode a state owner; nodes that need a
         // shorter ownership scope than Boundary should expose an explicit
         // IStateOwner through asStateOwner().
+        template <typename T> void state(Request<T> &out, const T &initial)
+        {
+          this->state(out.seat_, initial);
+        }
+        template <typename T> void state(RequestWithReply<T> &out, const T &initial)
+        {
+          this->state(static_cast<Request<T> &>(out), initial);
+          this->state(out.reply_, Reply<T>());
+        }
+
         template <typename T> void state(Reported<T> &out, const T &initial)
         {
           this->state(out.seat_, initial);
@@ -397,6 +407,17 @@ namespace loka
           ~NodeStateBatch()
           {
             this->releaseBlock();
+          }
+
+          /** RequestWithReply uses two physical entries in declareStates capacity. */
+          template <typename T> NodeStateBatch &state(Request<T> &out, const T &initial)
+          {
+            return this->state(out.seat_, initial);
+          }
+          template <typename T> NodeStateBatch &state(RequestWithReply<T> &out, const T &initial)
+          {
+            this->state(static_cast<Request<T> &>(out), initial);
+            return this->state(out.reply_, Reply<T>());
           }
 
           template <typename T> NodeStateBatch &state(Reported<T> &out, const T &initial)

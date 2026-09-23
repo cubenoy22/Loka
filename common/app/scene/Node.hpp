@@ -51,6 +51,9 @@ namespace loka
     namespace scene
     {
       template <typename T> class Reported;
+      template <typename T> class Request;
+      template <typename T> class RequestWithReply;
+      template <typename T> class Reply;
       template <typename T> class WriteSeat;
 
       // NodeDirtyFlags: flags for node dirtiness (C++98-friendly)
@@ -814,6 +817,17 @@ namespace loka
         template <typename T> static WriteSeat<T> reportSeat(Reported<T> &fact)
         {
           return fact.seat_.writeSeat();
+        }
+
+        /** Extract a request capability while constructing the borrowing Props. */
+        template <typename T> static WriteSeat<T> requestSeat(Request<T> &request)
+        {
+          return request.seat_.writeSeat();
+        }
+        /** Extract the opt-in reply capability at the typed Props door. */
+        template <typename T> static WriteSeat<Reply<T> > replySeat(RequestWithReply<T> &request)
+        {
+          return reportSeat(request.reply_);
         }
 
       public:

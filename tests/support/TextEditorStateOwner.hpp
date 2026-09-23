@@ -14,7 +14,8 @@ namespace loka
       public:
         core::PushStateTracker &tracker;
         scene::Reported<LineCursor> cursor;
-        scene::NodeState<LineCursor> request;
+        scene::RequestWithReply<LineCursor> request;
+        scene::Request<LineCursor> otherRequest;
         TextEditorStateOwner()
             : scene::HeadlessStateOwner(),
               tracker(*scene::HeadlessStateOwner::tracker()->asPushTracker()),
@@ -23,6 +24,7 @@ namespace loka
         {
           scene::StateBatchBase::CreateImmediateState(this, this->cursor, LineCursor::None());
           scene::StateBatchBase::CreateImmediateState(this, this->request, LineCursor::None());
+          scene::StateBatchBase::CreateImmediateState(this, this->otherRequest, LineCursor::None());
         }
       };
     } // namespace testing
