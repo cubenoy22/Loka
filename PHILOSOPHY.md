@@ -138,6 +138,26 @@ communication contract: a design that cannot be explained with one page of
 boxes and solid lines is not finished, no matter how correct the
 implementation is. Correct but illegible is not finished.
 
+## Rails, Not Bricks
+
+Most programs are bricks with control flashing somewhere inside. Loka lays
+rails: every change travels a named path with a small number of named stops.
+A State publish, a tracker commit, and a settle are places where a reader can
+stand and watch what entered, what was accepted, and what changed.
+
+A path must be inspectable at those stops. A callback fired from a helper's
+tail, or a value that changes without a publish, leaves the reader outside a
+brick. Return that shape for a rail: give the change an owned path and an
+explicit completion point instead of asking the reader to reconstruct control
+flow from incidental calls.
+
+The delivery-site enumeration in [#873](https://github.com/cubenoy22/Loka/issues/873)
+and the [#882 settle contract](docs/RequestDeliveryDesign.md#settle-882) are the
+worked example. Named entry operations meet one common completion sequence,
+and its records expose takes and fact changes. The payoff is that differences
+between OS versions and platform rails become a diff of records instead of a
+stack trace.
+
 ## Joyful, Unambiguous Authoring
 
 Loka should be beautiful to design and pleasant to use. A person writing Loka
