@@ -450,10 +450,11 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   loka_enable_warnings(LokaToolboxTextEditorTests)
   set_target_properties(LokaToolboxTextEditorTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
   add_test(NAME LokaToolboxTextEditorTests COMMAND LokaToolboxTextEditorTests)
-  # #873 PR2 owns native request delivery; PR1 preserves the acceptance pin.
-  add_test(NAME testExpectedRedToolboxEditorRequest COMMAND LokaToolboxTextEditorTests request)
-  set_tests_properties(testExpectedRedToolboxEditorRequest PROPERTIES
-    LABELS "expected-red" SKIP_RETURN_CODE 77)
+  foreach(_editor_request_case request report project input clear epilogue refuse clamp
+      take-edit report-edit detach rebind nested retry endless five-reposts)
+    add_test(NAME testToolboxEditorRequest_${_editor_request_case}
+      COMMAND LokaToolboxTextEditorTests ${_editor_request_case})
+  endforeach()
 
   # Production GDI table with deterministic host calls; native HWND pins remain in LokaTestsWin32.
   add_executable(LokaWin32AttributedTextHostTests
