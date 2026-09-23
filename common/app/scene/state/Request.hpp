@@ -267,11 +267,20 @@ namespace loka
         {
         }
         explicit RequestBinding(const WriteSeat<T> &request,
-                                const WriteSeat<Reply<T> > &reply = WriteSeat<Reply<T> >(),
-                                RequestQueueBase<T> *source = 0)
+                                const WriteSeat<Reply<T> > &reply = WriteSeat<Reply<T> >())
             : request_(request),
               reply_(reply),
-              source_(source)
+              source_(0)
+        {
+          (void)sizeof(typename RequestDeclarationWall<T>::Wall);
+        }
+        /** Props supplies both seats from the same borrowed queue. */
+        explicit RequestBinding(const WriteSeat<T> &request,
+                                const WriteSeat<Reply<T> > &reply,
+                                RequestQueueBase<T> &source)
+            : request_(request),
+              reply_(reply),
+              source_(&source)
         {
         }
         bool isValid() const

@@ -3,6 +3,7 @@
 #include "support/TextEditorAccess.hpp"
 #include "support/TextEditorReportRefusal.hpp"
 #include "TextEditorTests.hpp"
+#include "compile/pins/request_command.hpp"
 #include "app/nodes/controls/TextChangeSpan.hpp"
 #include "app/nodes/controls/TextEditorDiff.hpp"
 #include "support/TextEditorContractSnapshot.hpp"
@@ -1773,6 +1774,10 @@ namespace
   };
   struct QueuePropsAccess : TextEditorProps
   {
+    static RequestBinding<TestCommand> command(RequestQueueBase<TestCommand> &queue)
+    {
+      return RequestBinding<TestCommand>(requestSeat(queue), replySeat(queue), queue);
+    }
     static RequestBinding<LineCursor> withoutSource(RequestQueueBase<LineCursor> &queue)
     {
       return RequestBinding<LineCursor>(requestSeat(queue), replySeat(queue));
@@ -1865,6 +1870,15 @@ void testRequestQueueCancellationCannotEraseRepost()
 }
 void testRequestQueueBindingSourceCannotBeIgnored()
 {
+  // Undeclared queues have identical empty seats, isolating source identity.
+  RequestQueue<TestCommand, 2> first;
+  RequestQueue<TestCommand, 2> second;
+  const RequestBinding<TestCommand> binding = QueuePropsAccess::command(first);
+  const RequestBinding<TestCommand> other = QueuePropsAccess::command(second);
+  LOKA_VERIFY(binding.same(binding));
+  LOKA_VERIFY(!binding.same(other));
+  LOKA_VERIFY(!(binding < binding));
+  LOKA_VERIFY((binding < other) != (other < binding));
   QueueFixture f;
   QueueReplies replies(f.queue);
   LOKA_VERIFY(f.queue.post(f.at(1)) == POST_ACCEPTED);
