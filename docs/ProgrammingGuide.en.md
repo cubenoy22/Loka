@@ -318,8 +318,8 @@ if (this->request.reply()->get().kind() == scene::Reply<LineCursor>::REFUSED) { 
 
 A request is delivered at the rail's next completed operation: a props update,
 attachment, an outer input action, or a retry/deferred operation. Each delivery
-handles at most two requests: the pending value, then at most one new value
-posted while it was being consumed or reported. Anything still pending stays
+has two ordinary take opportunities (each may refuse), plus at most one
+refusal-only take if follow-up arming fails. Anything still pending stays
 in the slot for the next update that applies props; delivery does not drain
 requests indefinitely.
 
@@ -336,6 +336,46 @@ requests must name a line in the current list binding.
 Escape hatch: core `State` assignment and `StateBase::asMutableState()` can
 still mutate a reported fact. Treat that as dangerous access that bypasses
 this app-facing contract.
+
+#### Queued requests
+
+Use `Request<T>` for positional requests whose value determines the end state:
+several caret positions posted before delivery can coalesce to the last one.
+Use `RequestQueue<T, N>` when every accepted request matters, especially when
+its effect accumulates. A command-like type cannot be declared as `Request<T>`;
+its declaration requires a queue. Positional values such as `LineCursor` can
+also use a queue when each intermediate request matters.
+
+A queue is an app-owned endpoint. Declare it through `state(...)` on the same
+owner tracker as the editor's lines and cursor, and keep it alive for the
+editor's lifetime. `N` is the number of waiting values, in addition to the
+published request; `pending()` counts only those waiting values.
+
+```cpp
+// Member of the owning Node or Boundary:
+RequestQueue<LineCursor, 4> queue;
+// In its state declarations:
+this->state(this->queue, LineCursor::None());
+// In compose, using the app-owned lines and cursor:
+c << TextEditor(this->lines, this->cursor).moveCaretTo(this->queue);
+// In an app action (requires a nonempty list):
+if (this->queue.post(LineCursor(this->lines.at(0).id, 0)) == scene::POST_QUEUE_FULL) {
+  // Keep the work with the app and decide when to post it again.
+}
+```
+
+`post()` returns `POST_ACCEPTED`, `POST_QUEUE_FULL` when no waiting space
+remains, or `POST_INVALID` for `None`. A refused post changes nothing.
+Each accepted post is taken once and receives one reply, observed through
+`queue.reply()`, until the editor's binding changes or it detaches. Cancellation
+discards pending work without replies or an exact dropped count, so the
+reply-per-post promise ends there.
+
+Delivery has two ordinary takes per settle, each of which may refuse, plus at
+most one failed-arm refusal-only take. The rest reaches the next props apply
+within the same flush; no queue timer is needed. Requests are consumed on
+refusal too, rather than retried until they succeed. The rail-side contract
+is in [Request delivery](RequestDeliveryDesign.md#endpoint-and-queue-892).
 
 ### `ObservableList` And `MirroredList`
 
