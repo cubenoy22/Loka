@@ -13,12 +13,16 @@ from pathlib import Path
 import sys
 
 
+# Shared documentation surfaces; slash-free globs apply only at the root.
+DOCS_ONLY = ("*.md", "plans/*", ".claude/*", "LICENSE*")
+
+
 JOBS = {
     "toolbox-build": {
         "workflow": ".github/workflows/toolbox.yml",
         "run": ("common/*", "apple/toolbox/*", "example/*", "tests/*",
                 "tools/ci/retro68_*", "cmake/*", "CMakeLists.txt"),
-        "may_skip": ("docs/*", "plans/*", "win32/*", "apple/macos/*",
+        "may_skip": DOCS_ONLY + ("docs/*", "win32/*", "apple/macos/*",
                      ".github/workflows/*.yml"),
     },
     "macos": {
@@ -27,17 +31,28 @@ JOBS = {
                 "cmake/*", "CMakeLists.txt"),
         # Toolbox-only exceptions to apple/*; other workflows cannot change
         # this job. Shared tests and build inputs still run it (including #698).
-        "may_skip": ("docs/*", "win32/*", "apple/toolbox/*",
+        "may_skip": DOCS_ONLY + ("docs/*", "win32/*", "apple/toolbox/*",
                      "tools/ci/retro68_*", ".github/workflows/*.yml"),
     },
     "win32": {
         "workflow": ".github/workflows/windows.yml",
         "run": ("common/*", "win32/*", "example/*", "tests/*",
                 "cmake/*", "CMakeLists.txt"),
-        "may_skip": ("docs/*", "apple/*", "tools/ci/retro68_*",
+        "may_skip": DOCS_ONLY + ("docs/*", "apple/*", "tools/ci/retro68_*",
                      ".github/workflows/*.yml"),
     },
 }
+
+
+# Linux jobs share their inputs, including host-compiled Toolbox sources.
+JOBS["linux-headless"] = {
+    "workflow": ".github/workflows/linux.yml",
+    "run": ("common/*", "tests/*", "example/*", "apple/toolbox/*", "tools/*",
+            "cmake/*", "CMakeLists.txt", "CMakePresets.json", "scripts/*"),
+    "may_skip": DOCS_ONLY + ("docs/*", "win32/*", "apple/macos/*"),
+}
+JOBS["linux-asan"] = JOBS["linux-headless"]
+JOBS["linux-release"] = JOBS["linux-headless"]
 
 
 # Both Toolbox jobs build the same inputs; keep their policy in one place.
@@ -87,7 +102,8 @@ def classify(job, paths, shared=None):
         if path in shared:
             return True, json.dumps(path, ensure_ascii=True) + " is a shared test source (cmake/LokaTestSources.cmake)"
         match = next((glob for glob in policy["may_skip"]
-                      if fnmatchcase(path, glob)), None)
+                      if ("/" in glob or "/" not in path)
+                      and fnmatchcase(path, glob)), None)
         if match is not None:
             skipped.add(match)
             continue
