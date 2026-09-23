@@ -9,6 +9,7 @@
 #include "support/LifecycleFactTestAccess.hpp"
 #include "support/LokaAllocFailure.hpp"
 #include "platform/StringUTF8.hpp"
+#include "platform/String.hpp"
 #include <vector>
 #include <algorithm>
 #include <cstdio>
@@ -401,6 +402,39 @@ namespace
     return view;
   }
 
+  /** Refuse one string read after the native request write, so the real seam's
+      report fails allocation after validation and apply have already succeeded.
+      The fixture owns the borrowed view for the entire string lifetime. */
+  class RefusedReportString : public loka::platform::String
+  {
+  public:
+    explicit RefusedReportString(LokaRequestEditorView *view)
+        : view_(view),
+          writesBefore_([view selectionWrites]),
+          refusals_(0)
+    {
+    }
+    virtual bool appendUtf8(std::string &out) const
+    {
+      if (!this->refusals_ && [this->view_ selectionWrites] > this->writesBefore_)
+      {
+        ++this->refusals_;
+        return false;
+      }
+      out += "abcd";
+      return true;
+    }
+    unsigned refusals() const
+    {
+      return this->refusals_;
+    }
+
+  private:
+    LokaRequestEditorView *const view_;
+    const NSUInteger writesBefore_;
+    mutable unsigned refusals_;
+  };
+
   void requestCaret(Fixture &f, LineCursor cursor)
   {
     StateTrackerGuard guard(&f.tracker);
@@ -501,6 +535,113 @@ namespace
 
 void testMacTextEditorRequests()
 {
+  // Refused-report restore: predicted red on the pre-fix macOS rail.
+  {
+    Fixture f;
+    LokaRequestEditorView *view = instrumentSelection(f);
+    // The replacement view needs the same undo opt-in as testMacTextEditorUndoLocation.
+    [view setAllowsUndo:YES];
+    RefusedReportString *probe = new RefusedReportString(view);
+    const String text(loka::core::Managed<loka::platform::String>::Wrap(probe));
+    LOKA_VERIFY(f.lines.update(f.lines.at(0).id, text) == EDIT_OK);
+    const LineCursor fact = f.cursor.state()->get();
+    const NSRange selection = [view selectedRange];
+    const NSUInteger writes = [view selectionWrites];
+    NSUndoManager *undo = [view undoManager];
+    LOKA_VERIFY(undo != nil && [undo isUndoRegistrationEnabled]);
+    [undo setGroupsByEvent:NO];
+    [undo beginUndoGrouping];
+    [[undo prepareWithInvocationTarget:view] setString:@"undo control"];
+    [undo endUndoGrouping];
+    LOKA_VERIFY([undo canUndo]);
+    const LineCursor requested(f.lines.at(1).id, 1);
+    requestCaret(f, requested);
+    f.context->onPropsApplied();
+    const loka::app::scene::Reply<LineCursor> reply = f.request.reply().state()->get();
+    LOKA_VERIFY(probe->refusals() == 1); // Positive control: report reached the failing read.
+    LOKA_VERIFY(reply.kind() == loka::app::scene::Reply<LineCursor>::REFUSED);
+    LOKA_VERIFY(reply.reason() == EDITOR_ALLOCATION && reply.requested() == requested);
+    LOKA_VERIFY(f.request.get().isNone() && f.cursor.state()->get() == fact);
+    LOKA_VERIFY([view selectionWrites] == writes + 2); // Apply, then committed selection repair.
+    LOKA_VERIFY(NSEqualRanges([view selectedRange], selection));
+    LOKA_VERIFY(NSEqualRanges(selection, NSMakeRange(2, 0))); // Initial fact's storage offset.
+    LOKA_VERIFY([undo canUndo]);                              // Selection repair must not replace text and clear undo.
+    LOKA_VERIFY([[view string] isEqualToString:@"abcd\nabcd\nabcd"]);
+  }
+  // #882: trace/reply reds are predicted until measured on the Tahoe rig.
+  {
+    Fixture f;
+    LokaRequestEditorView *view = instrumentSelection(f);
+    typedef loka::app::testing::SettleTrace<LineCursor> Trace;
+    typedef loka::app::scene::Reply<LineCursor> CaretReply;
+    Trace &trace = Trace::instance();
+    trace.clear();
+    const NSUInteger writes = [view selectionWrites];
+    const LineCursor initial = f.cursor.state()->get();
+    f.context->onPropsApplied();
+    LOKA_VERIFY(trace.size() == 0);
+    printSelectionWriteMismatch(view, writes, "empty settle");
+    LOKA_VERIFY([view selectionWrites] == writes);
+    LOKA_VERIFY(f.request.reply().state()->get().kind() == CaretReply::NO_REPLY);
+
+    const LineCursor requested(f.lines.at(1).id, 99);
+    const LineCursor clamped(f.lines.at(1).id, 4);
+    requestCaret(f, requested);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(trace.size() == 1 && trace.at(0).count == 1);
+    LOKA_VERIFY(trace.at(0).stimulus == loka::app::scene::SETTLE_PROPS);
+    LOKA_VERIFY(trace.at(0).admission[0] == loka::app::scene::ADMISSION_TAKE);
+    LOKA_VERIFY(trace.at(0).admission[1] == loka::app::scene::ADMISSION_EMPTY);
+    LOKA_VERIFY(trace.at(0).before == initial && trace.at(0).after == clamped);
+    LOKA_VERIFY(trace.at(0).seam[0] == EDITOR_OK);
+    LOKA_VERIFY(trace.at(0).takes[0].kind() == CaretReply::CLAMPED);
+    const CaretReply reply = f.request.reply().state()->get();
+    LOKA_VERIFY(reply.kind() == CaretReply::CLAMPED);
+    LOKA_VERIFY(reply.requested() == requested && reply.applied() == clamped);
+    LOKA_VERIFY(f.cursor.state()->get() == clamped && f.request.get().isNone());
+    LOKA_VERIFY([view selectionWrites] == writes + 1); // Setter positive control.
+
+    trace.clear();
+    const LineCursor stale(ItemId(999, 999), 0);
+    requestCaret(f, stale);
+    f.context->onPropsApplied();
+    const CaretReply refused = f.request.reply().state()->get();
+    LOKA_VERIFY(refused.kind() == CaretReply::REFUSED);
+    LOKA_VERIFY(refused.reason() == EDITOR_STALE_ID && refused.requested() == stale);
+    LOKA_VERIFY(f.cursor.state()->get() == clamped && f.request.get().isNone());
+    LOKA_VERIFY([view selectionWrites] == writes + 1);
+    LOKA_VERIFY(trace.size() == 1 && trace.at(0).count == 1);
+    LOKA_VERIFY(trace.at(0).seam[0] == EDITOR_STALE_ID);
+    LOKA_VERIFY(trace.at(0).before == clamped && trace.at(0).after == clamped);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(trace.size() == 1 && [view selectionWrites] == writes + 1);
+  }
+  {
+    Fixture f;
+    LokaRequestEditorView *view = instrumentSelection(f);
+    RequestObserver observer(f, view, LineCursor(f.lines.at(1).id, 1));
+    typedef loka::app::testing::SettleTrace<LineCursor> Trace;
+    Trace &trace = Trace::instance();
+    trace.clear();
+    id delegate = [view delegate];
+    [view setDelegate:nil];
+    const NSUInteger writes = [view selectionWrites];
+    [[view textStorage] replaceCharactersInRange:NSMakeRange(2, 0) withString:@"x"];
+    LOKA_VERIFY(trace.size() == 0); // No settlement inside processEditing.
+    LOKA_VERIFY(!f.request.get().isNone() && [view selectionWrites] == writes);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(trace.size() == 0 && !f.request.get().isNone());
+    [NSObject cancelPreviousPerformRequestsWithTarget:delegate];
+    [delegate performSelector:@selector(applyHighlights)];
+    LOKA_VERIFY(trace.size() == 1 && trace.at(0).count == 1);
+    LOKA_VERIFY(trace.at(0).stimulus == loka::app::scene::SETTLE_DEFERRED);
+    LOKA_VERIFY(f.request.get().isNone());
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(1).id, 1));
+    LOKA_VERIFY([view selectionWrites] == writes + 1);
+    [delegate performSelector:@selector(applyHighlights)];
+    LOKA_VERIFY(trace.size() == 1 && [view selectionWrites] == writes + 1);
+    [view setDelegate:delegate];
+  }
   // New request-delivery assertions: predicted reds, not run on the macOS rig.
   {
     Fixture f;
