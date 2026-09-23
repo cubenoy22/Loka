@@ -13,7 +13,8 @@ ruling from the #879 review (2026-09-23).
 | Box | Type | Writer | Reader |
 |---|---|---|---|
 | fact (`cursor`) | `Reported<LineCursor>` | the node's commit seam only (`TextEditorDocument::moveCaret` / `applyReplace`) | app, through `state()` |
-| request (`moveCaretTo`) | app-owned `Request<LineCursor>` (a private `NodeState<LineCursor>`) | app (`set`), rail (take: snapshot, then `None`) | rail |
+| request (`moveCaretTo`) | app-owned `Request<LineCursor>` (a private `NodeState<LineCursor>`) | app (`set`), rail (last-wins take: snapshot, then `None`) | rail |
+| queue endpoint ([#892](https://github.com/cubenoy22/Loka/issues/892)) | app-owned `RequestQueue<T, N>`: slot + reply + fixed ring | slot: app `post`, binding `consume`/`discard`; reply: rail; ring: endpoint `post`/advance/clear | slot: rail; reply: app; ring: endpoint only (rails never see it) |
 | reply (optional, `RequestWithReply<LineCursor>::reply()`) | `Reported<Reply<LineCursor>>` inside the request handle | rail, once per take, forced publish | app |
 
 `Reported<T>` has no `set` and no conversion to a mutable handle; Props extract
@@ -55,7 +56,9 @@ not the completion path of a still-live take:
 1. `admit` re-evaluates phase, status, and ownership for each take; eligibility
    is not a cached input. Supply the binding even when admission defers.
    Empty/deferred admission skips the take, but still reaches the epilogue.
-   On admission, snapshot the request and clear it to `None`, then check liveness.
+   On admission, `consume()` snapshots the request, then clears a last-wins slot
+   to `None` or advances a queued slot directly to its next value (or `None`
+   when empty); then check liveness ([#893](https://github.com/cubenoy22/Loka/pull/893)).
 2. `resolve` checks binding currency. Failure is a refusal, not an early return
    that strands the phase.
 3. `validate` asks the seam whether the requested value is valid.
@@ -89,11 +92,12 @@ slot alone does not justify it.
 
 `finishSettle` returns `FOLLOW_UP_ARMED`, `FOLLOW_UP_FAILED`, or `FOLLOW_UP_NONE`.
 A failed arm adds at most one refusal-only take from the last admission's still
-current, nonempty binding: snapshot, clear, check liveness/current binding, and
-publish `Refused(requested, EDITOR_UNAVAILABLE)`. It does not resolve, apply,
+current, nonempty binding: `consume()` (last-wins clear or queue advance),
+check liveness/current binding, and publish `Refused(requested, EDITOR_UNAVAILABLE)`. It does not resolve, apply,
 report, or write the fact. The driver returns the arm result after this tail,
 so native admission stays closed until refusal publication finishes; retirement
-returns `FOLLOW_UP_NONE`. A binding discarded during clear gets no reply.
+returns `FOLLOW_UP_NONE`. A binding discarded during consumption gets no reply
+([#893](https://github.com/cubenoy22/Loka/pull/893)).
 
 Under `TEST_BUILD`, `testing::SettleTrace` stores a fixed-capacity history of
 value rows: stimulus, admissions, take results, seam results, and fact delta.
@@ -103,6 +107,61 @@ that settle's row (at most two ordinary takes plus one refusal-only take).
 Golden records are grouped per scenario step under each rail's PNG approval;
 timer/retry counts are not golden expectations.
 
+## Endpoint and queue (#892)
+
+The endpoint ruling is [#892](https://github.com/cubenoy22/Loka/issues/892),
+implemented by [#893](https://github.com/cubenoy22/Loka/pull/893).
+`RequestQueue<T, N>` supplies fixed ring storage to the non-virtual
+`RequestQueueBase<T>`, which owns the slot and reply handles. It is an app-owned
+endpoint with one consumer; the rail receives a `RequestBinding<T>` and never
+sees the ring. `pending()` is ring occupancy, excluding the published slot.
+
+`RequestBinding::consume()` snapshots the slot, commits the ring head/count,
+then publishes the next queued value directly, forcing publication even when
+it equals the taken value. Only an empty ring publishes `None`; a plain
+last-wins binding always clears to `None`. It touches no endpoint storage after
+publication and returns the local snapshot. A synchronous subscriber's post
+therefore follows older queued work. Both settlement sites use this door:
+the ordinary take and the failed-arm refusal-only take. `discard()` empties
+the ring first, unconditionally, then clears a nonempty slot. A cancellation
+subscriber's repost consequently enters the emptied endpoint. The caller is
+`TextEditorNode::discardPendingRequest`, on binding change or detach.
+Sources: [#892](https://github.com/cubenoy22/Loka/issues/892),
+[#893](https://github.com/cubenoy22/Loka/pull/893).
+
+`post()` returns `POST_ACCEPTED`, `POST_QUEUE_FULL`, or `POST_INVALID` (`None`);
+refused posts change neither slot nor ring. `POST_ACCEPTED` promises one take
+and one reply per post until the binding changes or the node detaches.
+Discarded slot and ring entries receive no reply; cancellation loses reply
+correlation and provides no exact dropped count. The bound is **two ordinary
+takes (each may refuse) plus at most one failed-arm refusal-only take**.
+Remaining work is delivered by the next props apply within the same flush,
+using slot publication to mark props dirty, without a queue timer.
+Source: [#892](https://github.com/cubenoy22/Loka/issues/892),
+[#893](https://github.com/cubenoy22/Loka/pull/893).
+
+`RequestTraits<T>::coalescable` has no permissive primary; `LineCursor` opts in.
+`RequestDeclarationWall<T>` refuses command-like or unspecialized types on all
+three plain declaration routes: `StateBatchBase::CreateImmediateState`,
+`ComposableNode::state`, and `NodeStateBatch::state`. This covers both
+`Request<T>` and `RequestWithReply<T>`; queue declarations bypass the wall.
+The check is a negative-array `sizeof` in C++98 and also a `static_assert` in
+C++11+. Cost lines: each plain binding gains one pointer; the settlement driver
+pays one source null check per take. A queued take mutates its endpoint's ring
+and forces publication when advancing to a queued value; discard walks only that endpoint's
+waiting entries on binding change/detach.
+Source: [#892](https://github.com/cubenoy22/Loka/issues/892),
+[#893](https://github.com/cubenoy22/Loka/pull/893).
+
+In [PR #894](https://github.com/cubenoy22/Loka/pull/894), the Toolbox
+`smirkbench/text-editor-plain` cell audit has `settle.<step>.<row>` rows
+**recorded per scenario step** by `tests/scenarios/TextEditorSettleAudit.hpp`.
+Rows carry the stimulus, take outcomes, seam results, and before/after facts;
+only settles with a take or a fact change are recorded. Every input step in
+that cell emits a fact-changed row, including steps with no takes. This is the
+settle-trace golden record; desktop scenario registration remains a follow-up,
+not a claim of Win32/macOS scenario golden coverage.
+
 ## From AGENTS.md
 
 - **Delivery sites.** A delivery site is the completion of an entry operation:
@@ -110,14 +169,16 @@ timer/retry counts are not golden expectations.
   deferred completion that is itself the entry. A shared helper that several
   entries call (`project`, `replaceProjection`, `restoreCommittedProjection`)
   never takes a request; it returns an outcome to its caller.
-- **Bound.** Each delivery performs at most two ordinary takes: take, apply (clamped if
-  needed), report; re-read the slot once; at most one more ordinary take. Failed
-  follow-up arming adds at most one refusal-only take, never another application.
-  A request still pending after those bounded steps stays in the slot; the `None` write already marked
-  the node dirty, so the next props apply delivers it.
+- **Bound.** Two ordinary takes (each may refuse) plus at most one failed-arm
+  refusal-only take, never another application. Pending work stays in the slot
+  or endpoint ring; the consumption publication (last-wins `None` or direct
+  queue advance) marks props dirty, so the next props apply delivers it.
+  Source: [#892](https://github.com/cubenoy22/Loka/issues/892).
 - **Refusal.** A request that cannot be applied (stale line identity, document
-  unavailable, missing native resource) is taken and dropped: the fact stays
-  unchanged and the request reads `None`.
+  unavailable, missing native resource) is taken and dropped; the fact stays
+  unchanged. A last-wins slot reads `None` unless a subscriber reposted; a
+  queued slot advances to the next value, or `None` when the ring is empty.
+  Source: [#892](https://github.com/cubenoy22/Loka/issues/892).
 - **Binding change.** When the node's document binding changes (a different
   list or request seat in new Props, the end of the node's attachment) the
   pending request is discarded before the new binding is installed; there is
