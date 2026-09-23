@@ -1,13 +1,21 @@
 loka_scenario_audit version=1 scenario=text-editor-plain
 step id=2 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=click-line-2
+settle.2.0	stimulus=input takes=0 before=0:0:0 after=1:2:0
 step id=3 due_tick=3 tick=3 status=succeeded error_kind=0 error_code=0 name=type-x
+settle.3.0	stimulus=input takes=0 before=1:2:0 after=1:2:1
 step id=4 due_tick=4 tick=4 status=succeeded error_kind=0 error_code=0 name=split-3-to-4
+settle.4.0	stimulus=input takes=0 before=1:2:1 after=1:4:0
 step id=5 due_tick=5 tick=5 status=succeeded error_kind=0 error_code=0 name=type-y
+settle.5.0	stimulus=input takes=0 before=1:4:0 after=1:4:1
 step id=6 due_tick=6 tick=6 status=succeeded error_kind=0 error_code=0 name=left-to-start
+settle.6.0	stimulus=input takes=0 before=1:4:1 after=1:4:0
 step id=7 due_tick=7 tick=7 status=succeeded error_kind=0 error_code=0 name=join-4-to-3
+settle.7.0	stimulus=input takes=0 before=1:4:0 after=1:2:1
 step id=8 due_tick=8 tick=8 status=succeeded error_kind=0 error_code=0 name=paste-cap-refused
 step id=9 due_tick=9 tick=9 status=succeeded error_kind=0 error_code=0 name=replace-3-to-1
+settle.9.0	stimulus=input takes=0 before=1:2:1 after=1:1:1
 step id=10 due_tick=10 tick=10 status=succeeded error_kind=0 error_code=0 name=type-c
+settle.10.0	stimulus=input takes=0 before=1:1:1 after=1:1:2
 step id=11 due_tick=11 tick=11 status=succeeded error_kind=0 error_code=0 name=capture
 step id=12 due_tick=12 tick=12 status=succeeded error_kind=0 error_code=0 name=queue-two-cursors
 settle.12.0	stimulus=props takes=2 before=1:1:2 after=1:1:2 take0=granted seam=0 reason=0 requested=1:1:0 applied=1:1:0 take1=granted seam=0 reason=0 requested=1:1:2 applied=1:1:2
