@@ -222,14 +222,22 @@ namespace loka
           if (!this->count_)
             return false;
           next = this->ring_[this->head_];
+          // Vacated entries hold None so a payload that owns a resource is not
+          // retained until the position is overwritten.
+          this->ring_[this->head_] = T::None();
           this->head_ = (this->head_ + 1) % this->cap_;
           --this->count_;
           return true;
         }
         void clearRing()
         {
+          while (this->count_)
+          {
+            this->ring_[this->head_] = T::None();
+            this->head_ = (this->head_ + 1) % this->cap_;
+            --this->count_;
+          }
           this->head_ = 0;
-          this->count_ = 0;
         }
         NodeState<T> seat_;
         Reported<Reply<T> > reply_;
