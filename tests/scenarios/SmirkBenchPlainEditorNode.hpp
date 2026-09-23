@@ -52,7 +52,7 @@ namespace loka
       explicit SmirkBenchPlainEditorNode(const SmirkBenchPlainEditorProps &props)
           : smirkbench::MainNodeBase<SmirkBenchPlainEditorProps>(props)
       {
-        this->declareStates(2)
+        this->declareStates(3)
             .state(this->cursor_, app::LineCursor::None())
             .state(this->request_, app::LineCursor::None());
       }
@@ -67,7 +67,17 @@ namespace loka
         this->lines_.insert(1, core::String("second"));
         this->lines_.insert(2, core::String("third"));
         core::StateTrackerGuard guard(this->tracker());
-        this->request_.set(app::LineCursor(this->lines_.at(0).id, 0));
+        (void)this->request_.post(app::LineCursor(this->lines_.at(0).id, 0));
+      }
+
+      /** One action, two posts, ending at the existing final capture's caret. */
+      bool queueCaretRoundTripForTesting()
+      {
+        if (!this->lines_.size())
+          return false;
+        core::StateTrackerGuard guard(this->tracker());
+        return this->request_.post(app::LineCursor(this->lines_.at(0).id, 0)) == app::scene::POST_ACCEPTED
+               && this->request_.post(app::LineCursor(this->lines_.at(0).id, 2)) == app::scene::POST_ACCEPTED;
       }
 
     protected:
@@ -84,7 +94,7 @@ namespace loka
     private:
       core::ObservableList<core::String> lines_;
       app::scene::Reported<app::LineCursor> cursor_;
-      app::scene::Request<app::LineCursor> request_;
+      app::scene::RequestQueue<app::LineCursor, 4> request_;
     };
   } // namespace scenario_tests
 } // namespace loka

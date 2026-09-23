@@ -10,4 +10,6 @@ void testWin32TextEditorNestedInput();
 void testWin32TextEditorFailedReplacementRetries();
 void testWin32TextEditorLayoutDpiAndRetirement();
 
+void testWin32TextEditorQueuedRequests();
+
 #endif // LOKA_WIN32_EDIT_TEXT_BRIDGE_TESTS_HPP
