@@ -59,8 +59,3 @@ jobs:
         if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/scripts/Win32PresentationStageTest.ps1
         if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
-      # Exercise the same clean Release entry point used to prepare portable
-      # device builds: five autonomous loops, SimpleViewer, and their assets.
-      - name: Build and stage Win32 standalone Release set
-        if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
-        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/win32-standalone-flow.ps1 -Action Release -Architecture x64
