@@ -1229,7 +1229,7 @@ namespace
     {
       SettlementSubscriber &s = *static_cast<SettlementSubscriber *>(data);
       ++s.replies;
-      LOKA_VERIFY(s.replies <= 2);
+      LOKA_VERIFY(s.replies <= 3);
       if (s.action == RETIRE_REPLY)
         retire(s.f);
       if (s.action == REPOST || s.action == REPOST_ONLY)
@@ -1251,6 +1251,8 @@ namespace
       OPEN,
       CLOSE_AFTER_FIRST,
       DEFER,
+      FAIL_ARM,
+      FAIL_AFTER_TAKES,
       REFUSE_REPORT,
       WRITE,
       WRITE_AND_RESTORE
@@ -1269,17 +1271,19 @@ namespace
     virtual Admission admit(Node &base, RequestBinding<LineCursor> &binding)
     {
       ++this->admitted;
-      if (this->mode == DEFER || (this->mode == CLOSE_AFTER_FIRST && this->finished))
-        return ADMISSION_DEFERRED;
       binding = static_cast<TextEditorNode &>(base).props.moveCaretTo_;
+      if (this->mode == FAIL_ARM || this->mode == DEFER || (this->mode == CLOSE_AFTER_FIRST && this->finished))
+        return ADMISSION_DEFERRED;
       return binding.state()->get().isNone() ? ADMISSION_EMPTY : ADMISSION_TAKE;
     }
     virtual EditorResult resolve(Node &, const RequestBinding<LineCursor> &)
     {
+      LOKA_VERIFY(this->mode != FAIL_ARM);
       return EDITOR_OK;
     }
     virtual EditorResult validate(Node &, const LineCursor &)
     {
+      LOKA_VERIFY(this->mode != FAIL_ARM);
       return EDITOR_OK;
     }
     virtual RequestApplication<LineCursor> apply(Node &, const LineCursor &value)
@@ -1290,26 +1294,33 @@ namespace
     }
     virtual EditorResult report(Node &base, const LineCursor &value)
     {
+      LOKA_VERIFY(this->mode != FAIL_ARM);
       if (this->mode == REFUSE_REPORT)
         return EDITOR_REENTRANT;
       return loka::app::testing::TextEditorAccess::document(static_cast<TextEditorNode &>(base)).moveCaret(value);
     }
-    virtual bool current(Node &, const RequestBinding<LineCursor> &)
+    virtual bool current(Node &base, const RequestBinding<LineCursor> &binding)
     {
-      return true;
+      return static_cast<TextEditorNode &>(base).props.moveCaretTo_.same(binding);
     }
     virtual FollowUp finishTake(Node &, const CaretReply &)
     {
       ++this->finished;
       return this->mode == WRITE_AND_RESTORE ? SCHEDULE_RESTORE : this->mode == WRITE ? REPAINT : FOLLOW_NONE;
     }
-    virtual void finishSettle(Node &, const FollowUps &follow)
+    virtual FollowUpResult finishSettle(Node &, const FollowUps &follow)
     {
       ++this->epilogues;
       if (follow.contains(REPAINT))
         ++this->repaints;
+      if (this->mode == FAIL_ARM || this->mode == FAIL_AFTER_TAKES)
+        return FOLLOW_UP_FAILED;
       if (this->mode == DEFER || follow.contains(SCHEDULE_RESTORE))
+      {
         ++this->scheduled;
+        return FOLLOW_UP_ARMED;
+      }
+      return FOLLOW_UP_NONE;
     }
     virtual LineCursor fact(Node &base) const
     {
@@ -1406,6 +1417,57 @@ void testTextEditorSettlementAdmission()
 }
 void testTextEditorSettlementSeam()
 {
+  {
+    Fixture failed;
+    const LineCursor before = failed.cursor.state()->get();
+    const LineCursor wanted(failed.lines.at(1).id, 1);
+    failed.request.set(wanted);
+    Trace::instance().clear();
+    SettlementProbe arm(SettlementProbe::FAIL_ARM);
+    arm.run(failed);
+    LOKA_VERIFY(failed.request.get().isNone());
+    const CaretReply refused = failed.request.reply().state()->get();
+    LOKA_VERIFY(refused.kind() == CaretReply::REFUSED && refused.reason() == EDITOR_UNAVAILABLE);
+    LOKA_VERIFY(refused.requested() == wanted && failed.cursor.state()->get() == before);
+    LOKA_VERIFY(arm.admitted == 2 && arm.applied == 0 && arm.finished == 0 && arm.epilogues == 1);
+    LOKA_VERIFY(Trace::instance().size() == 1 && Trace::instance().at(0).count == 1);
+    LOKA_VERIFY(Trace::instance().at(0).takes[0].kind() == CaretReply::REFUSED
+                && Trace::instance().at(0).seam[0] == EDITOR_UNAVAILABLE);
+    LOKA_VERIFY(Trace::instance().at(0).before == before && Trace::instance().at(0).after == before);
+  }
+  {
+    Fixture failed;
+    SettlementSubscriber subscriber(failed, SettlementSubscriber::REPOST_ONLY);
+    failed.request.set(subscriber.repost);
+    Trace::instance().clear();
+    SettlementProbe arm(SettlementProbe::FAIL_AFTER_TAKES);
+    arm.run(failed);
+    LOKA_VERIFY(arm.admitted == 2 && arm.applied == 2 && arm.finished == 2 && arm.epilogues == 1);
+    LOKA_VERIFY(subscriber.replies == 3 && failed.request.get() == subscriber.repost);
+    LOKA_VERIFY(failed.cursor.state()->get() == subscriber.repost);
+    LOKA_VERIFY(Trace::instance().size() == 1 && Trace::instance().at(0).count == 3);
+    LOKA_VERIFY(Trace::instance().at(0).takes[2].kind() == CaretReply::REFUSED
+                && Trace::instance().at(0).takes[2].reason() == EDITOR_UNAVAILABLE);
+  }
+  for (int when = 0; when != 3; ++when)
+  {
+    Fixture failed;
+    const CaretReply previousReply = failed.request.reply().state()->get();
+    SettlementSubscriber subscriber(failed,
+                                    when == 0   ? SettlementSubscriber::RETIRE_CLEAR
+                                    : when == 1 ? SettlementSubscriber::RETIRE_REPLY
+                                                : SettlementSubscriber::REBIND_CLEAR);
+    failed.request.set(subscriber.repost);
+    Trace::instance().clear();
+    SettlementProbe arm(SettlementProbe::FAIL_ARM);
+    arm.run(failed);
+    LOKA_VERIFY(subscriber.replies == (when == 1 ? 1u : 0u));
+    LOKA_VERIFY(arm.applied == 0 && arm.finished == 0 && arm.epilogues == 1);
+    if (when != 2)
+      LOKA_VERIFY(Trace::instance().size() == 0);
+    else
+      LOKA_VERIFY(!(failed.request.reply().state()->get() != previousReply));
+  }
   Fixture f;
   const LineCursor before = f.cursor.state()->get();
   f.request.set(LineCursor(f.lines.at(1).id, 1));

@@ -627,6 +627,12 @@ namespace
       LOKA_VERIFY(trace.size() == 1 && trace.at(0).count == 1 && trace.at(0).before == trace.at(0).after);
       LOKA_VERIFY(trace.at(0).seam[0] == EDITOR_STALE_ID && probe.selections.empty());
     }
+    // Predicted SetTimer-failure pin: an outside-input NON_ASCII rejection with
+    // a queued request must end with request None, Refused(EDITOR_UNAVAILABLE),
+    // unchanged cursor, and one SETTLE_INPUT trace row containing one refusal.
+    // The VM fixture cannot inject SetTimer allocation failure. The FAIL_ARM
+    // Null SettlementProbe in testTextEditorSettlementSeam discriminates that
+    // common-driver path; the cases below inject native text replacement failure.
     for (int failRestore = 0; failRestore < 2; ++failRestore)
     {
       Fixture fixture;
@@ -676,6 +682,20 @@ namespace
       Probe probe(fixture.context->hwnd());
       SendMessageW(fixture.context->hwnd(), WM_TIMER, 853, 0);
       LOKA_VERIFY(probe.sets == 0);
+    }
+    {
+      Fixture fixture;
+      NotifySubtreeNodeDetached(fixture.node);
+      fixture.request.reply().state()->bind(&detachOnReply, &fixture, false);
+      {
+        StateTrackerGuard guard(&fixture.tracker);
+        fixture.request.set(LineCursor(fixture.lines.at(1).id, 1));
+      }
+      NotifySubtreeNodeAttached(fixture.node);
+      fixture.request.reply().state()->unbind(&detachOnReply, &fixture);
+      LOKA_VERIFY(fixture.node->lifecycleFact() == NODE_FACT_DETACHED_RETAINED);
+      // Host visibility is irrelevant: inspect the child's own visible style.
+      LOKA_VERIFY(!(GetWindowLongPtrW(fixture.context->hwnd(), GWL_STYLE) & WS_VISIBLE));
     }
     {
       Fixture fixture;

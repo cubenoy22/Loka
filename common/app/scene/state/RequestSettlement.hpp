@@ -28,6 +28,13 @@ namespace loka
         SCROLL_CLEANUP,
         REPAINT
       };
+      /** Result of arming the settle's follow-up, never retained by the rail. */
+      enum FollowUpResult
+      {
+        FOLLOW_UP_ARMED,
+        FOLLOW_UP_FAILED,
+        FOLLOW_UP_NONE
+      };
       /** Immutable set of returned decisions. Rails resolve scheduling supersession from
           their live phase in finishSettle; independent repaint intent is never lost. */
       class FollowUps
@@ -93,6 +100,8 @@ namespace loka
       {
       public:
         virtual ~RailOperation() {}
+        /** Supply the current binding even when admission defers: a failed
+            follow-up must be able to refuse that slot without native admission. */
         virtual Admission admit(Node &, RequestBinding<T> &) = 0;
         virtual EditorResult resolve(Node &, const RequestBinding<T> &) = 0;
         virtual EditorResult validate(Node &, const T &) = 0;
@@ -100,7 +109,7 @@ namespace loka
         virtual EditorResult report(Node &, const T &) = 0;
         virtual bool current(Node &, const RequestBinding<T> &) = 0;
         virtual FollowUp finishTake(Node &, const Reply<T> &) = 0;
-        virtual void finishSettle(Node &, const FollowUps &) = 0;
+        virtual FollowUpResult finishSettle(Node &, const FollowUps &) = 0;
 #ifdef TEST_BUILD
         virtual T fact(Node &) const = 0;
 #endif
@@ -114,8 +123,9 @@ namespace loka
       {
         scene::Settlement stimulus;
         scene::Admission admission[2];
-        scene::Reply<T> takes[2];
-        EditorResult seam[2];
+        // Two ordinary takes and at most one follow-up-failure refusal.
+        scene::Reply<T> takes[3];
+        EditorResult seam[3];
         unsigned count;
         T before, after;
         SettleTraceRow(scene::Settlement kind, const T &fact)
@@ -125,7 +135,7 @@ namespace loka
               after(fact)
         {
           admission[0] = admission[1] = scene::ADMISSION_EMPTY;
-          seam[0] = seam[1] = EDITOR_OK;
+          seam[0] = seam[1] = seam[2] = EDITOR_OK;
         }
       };
       template <typename T> class SettleTrace
@@ -210,6 +220,7 @@ namespace loka
           if (!alive(node, identity))
             return;
           FollowUps follow;
+          RequestBinding<T> binding;
 #ifdef TEST_BUILD
           loka::app::testing::SettleTraceRow<T> row(stimulus, before);
 #else
@@ -218,7 +229,8 @@ namespace loka
           if (!take(node,
                     identity,
                     op,
-                    follow
+                    follow,
+                    binding
 #ifdef TEST_BUILD
                     ,
                     row,
@@ -229,7 +241,8 @@ namespace loka
           if (!take(node,
                     identity,
                     op,
-                    follow
+                    follow,
+                    binding
 #ifdef TEST_BUILD
                     ,
                     row,
@@ -237,9 +250,27 @@ namespace loka
 #endif
                     ))
             return;
-          op.finishSettle(*node, follow);
+          const FollowUpResult armed = op.finishSettle(*node, follow);
           if (!alive(node, identity))
             return;
+          switch (armed)
+          {
+          case FOLLOW_UP_FAILED:
+            if (!refuseFailedFollowUp(node,
+                                      identity,
+                                      op,
+                                      binding
+#ifdef TEST_BUILD
+                                      ,
+                                      row
+#endif
+                                      ))
+              return;
+            break;
+          case FOLLOW_UP_ARMED:
+          case FOLLOW_UP_NONE:
+            break;
+          }
 #ifdef TEST_BUILD
           row.after = op.fact(*node);
           loka::app::testing::SettleTrace<T>::instance().append(row);
@@ -251,10 +282,41 @@ namespace loka
         {
           return node && node->getContext() == identity;
         }
+        /** The last admission supplied this slot even if it deferred. Do not
+            reopen native admission or run the seam for a failed follow-up. */
+        static bool refuseFailedFollowUp(Node *node,
+                                         const NodeContext *identity,
+                                         RailOperation<T> &op,
+                                         const RequestBinding<T> &binding
+#ifdef TEST_BUILD
+                                         ,
+                                         loka::app::testing::SettleTraceRow<T> &row
+#endif
+        )
+        {
+          if (!binding.isValid() || !op.current(*node, binding) || binding.state()->get().isNone())
+            return true;
+          const T pending = binding.state()->get();
+          binding.request_.set(T::None());
+          if (!alive(node, identity))
+            return false;
+          const Reply<T> reply = Reply<T>::Refused(pending, EDITOR_UNAVAILABLE);
+          // A clear subscriber can discard the binding without retiring the context.
+          if (op.current(*node, binding))
+            binding.reply_.set(reply, true);
+          if (!alive(node, identity))
+            return false;
+#ifdef TEST_BUILD
+          row.takes[row.count] = reply;
+          row.seam[row.count++] = EDITOR_UNAVAILABLE;
+#endif
+          return true;
+        }
         static bool take(Node *node,
                          const NodeContext *identity,
                          RailOperation<T> &op,
-                         FollowUps &follow
+                         FollowUps &follow,
+                         RequestBinding<T> &binding
 #ifdef TEST_BUILD
                          ,
                          loka::app::testing::SettleTraceRow<T> &row,
@@ -262,7 +324,7 @@ namespace loka
 #endif
         )
         {
-          RequestBinding<T> binding;
+          binding = RequestBinding<T>();
           const Admission admission = op.admit(*node, binding);
 #ifdef TEST_BUILD
           row.admission[ordinal] = admission;

@@ -157,15 +157,15 @@ public:
   virtual scene::Admission admit(scene::Node &base, scene::RequestBinding<LineCursor> &request)
   {
     Win32TextEditorContext &c = context(base);
+    request = static_cast<TextEditorNode &>(base).props.moveCaretTo_;
+    this->binding_ = static_cast<TextEditorNode &>(base).props;
     if (!c.node_ || (c.phase_ != IDLE && !(c.phase_ == RETRY && c.status_ == EDITOR_UNAVAILABLE)))
       return scene::ADMISSION_DEFERRED;
-    request = c.node_->props.moveCaretTo_;
     if (!request.isValid() || request.state()->get().isNone())
       return scene::ADMISSION_EMPTY;
     // Preserve the settle-scoped retry while opening COMMIT for refusal delivery.
     if (c.phase_ == RETRY)
       this->include(scene::RESTORE_QUEUED);
-    this->binding_ = c.node_->props;
     c.phase_ = COMMIT;
     return scene::ADMISSION_TAKE;
   }
@@ -234,23 +234,28 @@ public:
       c.phase_ = IDLE;
     return follow;
   }
-  virtual void finishSettle(scene::Node &base, const scene::FollowUps &follow)
+  virtual scene::FollowUpResult finishSettle(scene::Node &base, const scene::FollowUps &follow)
   {
     Win32TextEditorContext &c = context(base);
     // A reply subscriber can detach a retained context without retiring its identity.
     if (!c.hwnd_ || base.lifecycleFact() != scene::NODE_FACT_ATTACHED)
-      return;
+      return scene::FOLLOW_UP_NONE;
     if (this->follow_.contains(scene::RESTORE_QUEUED) && c.phase_ == IDLE)
       c.phase_ = RETRY;
+    if (follow.contains(scene::REPAINT) || this->follow_.contains(scene::REPAINT))
+      c.delivery_ = scene::PaintAnswer::nativeScheduled();
     if (c.phase_ == RETRY
         && (follow.contains(scene::SCHEDULE_RESTORE) || this->follow_.contains(scene::SCHEDULE_RESTORE)))
     {
-      // A native timer is a later turn. Failure stays read-only for a props retry.
+      // A failed arm refuses the deferred request in this same settlement.
       if (!SetTimer(c.hwnd_, kRestoreTimer, 1, NULL))
+      {
         c.status_ = EDITOR_UNAVAILABLE;
+        return scene::FOLLOW_UP_FAILED;
+      }
+      return scene::FOLLOW_UP_ARMED;
     }
-    if (follow.contains(scene::REPAINT) || this->follow_.contains(scene::REPAINT))
-      c.delivery_ = scene::PaintAnswer::nativeScheduled();
+    return scene::FOLLOW_UP_NONE;
   }
 #ifdef TEST_BUILD
   virtual LineCursor fact(scene::Node &base) const
@@ -308,7 +313,7 @@ void Win32TextEditorContext::onFactChanged(scene::NodeLifecycleFact, scene::Node
   {
     scene::Node *const liveNode = this->node_;
     this->syncFromNode(scene::SETTLE_ATTACH);
-    if (liveNode && liveNode->getContext() == this)
+    if (liveNode && liveNode->getContext() == this && liveNode->lifecycleFact() == scene::NODE_FACT_ATTACHED)
       ShowWindow(this->hwnd_, SW_SHOW);
     return;
   }
