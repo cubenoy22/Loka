@@ -539,7 +539,7 @@ void testMacTextEditorQueuedRequests()
   typedef loka::app::testing::SettleTrace<LineCursor> Trace;
   typedef loka::app::scene::Reply<LineCursor> CaretReply;
   Fixture fixture;
-  LOKA_VERIFY(fixture.node.applyProps(TextEditor(fixture.lines, fixture.cursor).moveCaretTo(fixture.queue).props));
+  LOKA_VERIFY(TextEditor(fixture.lines, fixture.cursor).moveCaretTo(fixture.queue).applyPropsToNode(&fixture.node));
   fixture.context->onPropsApplied();
   Trace &trace = Trace::instance();
   const LineCursor first(fixture.lines.at(0).id, 0);
