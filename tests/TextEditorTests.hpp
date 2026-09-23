@@ -30,4 +30,7 @@ void testRequestQueueEqualPostsCannotLoseSceneContinuation();
 void testRequestQueueDirectNextDiscardCannotApplyOldSnapshot();
 void testRequestQueueRefusedPostsCannotMutateEndpoint();
 void testRequestQueueDetachCannotReplayRing();
+void testSettleTwoSeatProbeOrder();
+void testSettleTwoSeatProbeFailedArm();
+void testSettleTwoSeatProbeRetirement();
 #endif

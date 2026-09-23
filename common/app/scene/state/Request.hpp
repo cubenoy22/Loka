@@ -9,7 +9,7 @@ namespace loka
     class TextEditorNode;
     namespace scene
     {
-      template <typename T> class RequestSettlement;
+      template <class Request, class Fact> class SeatRunner;
       template <typename T> class RequestBinding;
       template <typename T> struct RequestTraits;
       template <> struct RequestTraits<LineCursor>
@@ -301,7 +301,7 @@ namespace loka
         }
 
       private:
-        friend class RequestSettlement<T>;
+        template <class Request, class Fact> friend class SeatRunner;
         friend class app::TextEditorNode;
         T consume() const
         {
