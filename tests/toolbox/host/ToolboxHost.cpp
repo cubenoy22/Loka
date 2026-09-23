@@ -6,6 +6,7 @@ namespace toolbox_host
 {
   std::vector<Draw> draws;
   int erases = 0, widths = 0, measures = 0, fonts = 0, metrics = 0;
+  unsigned invalidations = 0;
   int failRegions = 0;
   void reset()
   {

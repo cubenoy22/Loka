@@ -3,6 +3,7 @@
 #include "context/ToolboxProjectedNodeContext.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
 #include <TextEdit.h>
+#include "app/scene/state/RequestSettlement.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
 namespace loka
 {
@@ -53,11 +54,12 @@ private:
     LINE_CHANGE,
     STRUCTURE_CHANGE
   };
-  loka::app::EditorResult finishInput(loka::app::EditorResult, Change);
-  void restoreCommittedProjection();
-  void project();
-  void consumePendingRequest();
-  bool consumeRequest();
+  class RailOperation;
+  loka::app::EditorResult finishInput(loka::app::EditorResult, Change, RailOperation &);
+  loka::app::scene::FollowUp restoreCommittedProjection();
+  loka::app::scene::FollowUp project();
+  void settle(loka::app::scene::Settlement);
+  void settle(loka::app::scene::Settlement, RailOperation &);
   loka::app::LineCursor cursorAt(short) const;
   short offsetOf(loka::app::LineCursor) const;
   void updateRect(const Rect &);

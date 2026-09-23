@@ -1,4 +1,7 @@
+#include "support/LifecycleFactTestAccess.hpp"
 #include "support/TextEditorStateOwner.hpp"
+#include "support/TextEditorReportRefusal.hpp"
+#include "app/scene/state/RequestSettlement.hpp"
 #include "support/TextEditorAccess.hpp"
 #include "context/ToolboxTextEditorContext.hpp"
 #include "ToolboxBuiltInSupport.hpp"
@@ -55,7 +58,8 @@ namespace
     }
     ~Fixture()
     {
-      context->onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_RETIRED);
+      if (context)
+        context->onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_RETIRED);
       controller.flushTE();
     }
     TEHandle te()
@@ -320,6 +324,31 @@ namespace
     StateTrackerGuard guard(&f.tracker);
     f.request.set(cursor);
   }
+  void retireContext(void *value)
+  {
+    Fixture &f = *static_cast<Fixture *>(value);
+    LifecycleFactTestAccess::MarkSubtreeRetired(&f.node);
+    f.node.setContext(0);
+    f.context = 0;
+  }
+  void editOnTake(void *value)
+  {
+    Fixture &f = *static_cast<Fixture *>(value);
+    if (f.request.get().isNone())
+      LOKA_VERIFY(f.lines.update(f.lines.at(0).id, String("longer")) == EDIT_OK);
+  }
+  void editOnReply(void *value)
+  {
+    Fixture &f = *static_cast<Fixture *>(value);
+    LOKA_VERIFY(f.context->key('x') == EDITOR_REENTRANT);
+    LOKA_VERIFY(f.lines.update(f.lines.at(0).id, String("longer")) == EDIT_OK);
+    f.context->onPropsApplied();
+  }
+  void scrollOnReply(void *value)
+  {
+    Fixture &f = *static_cast<Fixture *>(value);
+    OffsetRect(&(**f.te()).destRect, 0, -16);
+  }
   void backspaceAtOrigin(void *value)
   {
     Fixture &f = *static_cast<Fixture *>(value);
@@ -334,6 +363,153 @@ namespace
 } // namespace
 int main(int argc, char **argv)
 {
+  if (argc == 2 && std::strcmp(argv[1], "refused-report") == 0)
+  {
+    Fixture f(1);
+    const String text = String::FromPlatform(Managed<loka::platform::String>::Wrap(
+        new loka::app::testing::TextEditorReportRefusal(f.request)));
+    LOKA_VERIFY(f.lines.update(f.lines.at(0).id, text) == EDIT_OK);
+    f.context->onPropsApplied();
+    const LineCursor before = f.cursor.state()->get();
+    const short factOffset = (**f.te()).selStart;
+    LOKA_VERIFY(factOffset == before.column && factOffset != 4);
+    const int selections = toolbox_host::selections, sets = toolbox_host::sets;
+    post(f, LineCursor(before.line, 4));
+    f.context->onPropsApplied();
+    const Reply<LineCursor> reply = f.request.reply().state()->get();
+    LOKA_VERIFY(reply.kind() == Reply<LineCursor>::REFUSED && reply.reason() == EDITOR_ALLOCATION);
+    LOKA_VERIFY(f.cursor.state()->get() == before);
+    LOKA_VERIFY(toolbox_host::selections > selections);
+    LOKA_VERIFY((**f.te()).selStart == factOffset);
+    LOKA_VERIFY((**f.te()).selEnd == factOffset);
+    LOKA_VERIFY(toolbox_host::sets == sets);
+    return 0;
+  }
+  if (argc == 2 && (std::strcmp(argv[1], "retire-key") == 0 || std::strcmp(argv[1], "retire-click") == 0
+                    || std::strcmp(argv[1], "retire-paste") == 0))
+  {
+    Fixture f;
+    f.cursor.state()->bind(&retireContext, &f, false);
+    if (std::strcmp(argv[1], "retire-key") == 0)
+      LOKA_VERIFY(f.context->key('x') == EDITOR_OK);
+    else if (std::strcmp(argv[1], "retire-click") == 0)
+    {
+      Point point = {37, 28};
+      LOKA_VERIFY(f.context->click(point) == EDITOR_OK);
+    }
+    else
+      LOKA_VERIFY(f.context->paste("x", 1) == EDITOR_OK);
+    f.cursor.state()->unbind(&retireContext, &f);
+    LOKA_VERIFY(!f.node.getContext());
+    return 0;
+  }
+  if (argc == 2 && std::strcmp(argv[1], "retire-render") == 0)
+  {
+    Fixture f;
+    f.controller.retireTextEditorControl(f.context, NATIVE_HINT_DEFAULT);
+    f.request.reply().state()->bind(&retireContext, &f, false);
+    post(f, LineCursor(f.lines.at(1).id, 3));
+    loka::app::testing::SettleTrace<LineCursor>::instance().clear();
+    f.context->render(&f.controller);
+    f.request.reply().state()->unbind(&retireContext, &f);
+    LOKA_VERIFY(!f.node.getContext());
+    LOKA_VERIFY(loka::app::testing::SettleTrace<LineCursor>::instance().size() == 0);
+    return 0;
+  }
+  if (argc == 2 && (std::strcmp(argv[1], "take-refused-edit") == 0
+                    || std::strcmp(argv[1], "reply-edit") == 0 || std::strcmp(argv[1], "scroll-cleanup") == 0))
+  {
+    const bool scroll = std::strcmp(argv[1], "scroll-cleanup") == 0;
+    Fixture f(scroll ? 256 : 3);
+    const LineCursor before = f.cursor.state()->get();
+    if (std::strcmp(argv[1], "take-refused-edit") == 0)
+    {
+      const LineCursor stale(f.lines.at(2).id, 1);
+      LOKA_VERIFY(f.lines.remove(stale.line) == EDIT_OK);
+      f.context->onPropsApplied();
+      f.request.state()->bind(&editOnTake, &f, false);
+      post(f, stale);
+      f.context->onPropsApplied();
+      f.request.state()->unbind(&editOnTake, &f);
+      LOKA_VERIFY(f.native() == "longer\rabcd");
+      LOKA_VERIFY(f.cursor.state()->get() == before);
+    }
+    else
+    {
+      f.request.reply().state()->bind(scroll ? &scrollOnReply : &editOnReply, &f, false);
+      post(f, LineCursor(f.lines.at(1).id, 3));
+      if (scroll)
+      {
+        const Rect beforeScroll = (**f.te()).destRect;
+        LOKA_VERIFY(f.context->key('\r') == EDITOR_CAPACITY);
+        LOKA_VERIFY(f.request.reply().state()->get().kind() == Reply<LineCursor>::GRANTED);
+        LOKA_VERIFY(EqualRect(&beforeScroll, &(**f.te()).destRect));
+      }
+      else
+      {
+        f.context->onPropsApplied();
+        LOKA_VERIFY(f.native() == "longer\rabcd\rabcd");
+        LOKA_VERIFY((**f.te()).selStart == 10);
+      }
+      f.request.reply().state()->unbind(scroll ? &scrollOnReply : &editOnReply, &f);
+    }
+    return 0;
+  }
+  if (argc == 2 && std::strcmp(argv[1], "sizeof") == 0)
+  {
+    std::printf("sizeof(ToolboxTextEditorContext)=%lu\n", static_cast<unsigned long>(sizeof(ToolboxTextEditorContext)));
+    return 0;
+  }
+  if (argc == 2 && (std::strcmp(argv[1], "trace") == 0 || std::strcmp(argv[1], "reply-clamp") == 0
+                    || std::strcmp(argv[1], "reply-stale") == 0 || std::strcmp(argv[1], "empty-settle") == 0))
+  {
+    Fixture f;
+    loka::app::testing::SettleTrace<LineCursor> &trace = loka::app::testing::SettleTrace<LineCursor>::instance();
+    trace.clear();
+    const LineCursor before = f.cursor.state()->get();
+    const LineCursor desired(f.lines.at(1).id, 99);
+    if (std::strcmp(argv[1], "empty-settle") == 0)
+    {
+      const int selections = toolbox_host::selections;
+      const unsigned paints = toolbox_host::invalidations;
+      f.context->onPropsApplied();
+      LOKA_VERIFY(trace.size() == 0);
+      LOKA_VERIFY(toolbox_host::selections == selections);
+      LOKA_VERIFY(toolbox_host::invalidations == paints);
+    }
+    else if (std::strcmp(argv[1], "reply-stale") == 0)
+    {
+      const LineCursor stale(f.lines.at(2).id, 1);
+      LOKA_VERIFY(f.lines.remove(stale.line) == EDIT_OK);
+      post(f, stale);
+      f.context->onPropsApplied();
+      LOKA_VERIFY(f.request.reply().state()->get().kind() == Reply<LineCursor>::REFUSED);
+      LOKA_VERIFY(f.request.reply().state()->get().reason() == EDITOR_STALE_ID);
+      LOKA_VERIFY(f.cursor.state()->get() == before);
+    }
+    else
+    {
+      post(f, desired);
+      f.context->onPropsApplied();
+      if (std::strcmp(argv[1], "trace") == 0)
+      {
+        LOKA_VERIFY(trace.size() == 1);
+        LOKA_VERIFY(trace.at(0).stimulus == SETTLE_PROPS);
+        LOKA_VERIFY(trace.at(0).count == 1);
+        LOKA_VERIFY(trace.at(0).takes[0].kind() == Reply<LineCursor>::CLAMPED);
+        LOKA_VERIFY(trace.at(0).seam[0] == EDITOR_OK);
+        LOKA_VERIFY(trace.at(0).before == before);
+        LOKA_VERIFY(trace.at(0).after == LineCursor(desired.line, 4));
+      }
+      else
+      {
+        LOKA_VERIFY(f.request.reply().state()->get().kind() == Reply<LineCursor>::CLAMPED);
+        LOKA_VERIFY(f.request.reply().state()->get().requested() == desired);
+        LOKA_VERIFY(f.request.reply().state()->get().applied() == LineCursor(desired.line, 4));
+      }
+    }
+    return 0;
+  }
   if (argc == 2 && std::strcmp(argv[1], "request") == 0)
   {
     {
