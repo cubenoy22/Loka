@@ -46,6 +46,42 @@ namespace loka
 }
 @end
 
+/** Counts the exact native door used by the rail, including equal selections. */
+@interface LokaRequestEditorView : NSTextView
+{
+  NSUInteger selectionWrites_;
+  NSArray *selectionWriteStack_;
+}
+@property(nonatomic, assign) NSUInteger selectionWrites;
+@property(nonatomic, retain) NSArray *selectionWriteStack;
+@end
+@implementation LokaRequestEditorView
+@synthesize selectionWrites = selectionWrites_;
+@synthesize selectionWriteStack = selectionWriteStack_;
+- (void)setSelectedRange:(NSRange)range
+{
+  // Count only writes the rail or the test itself issued. AppKit's own text
+  // system also calls this setter to fix the selection after a storage edit
+  // (NSTextLayoutManager _fixSelectionAfterChangeInCharacterRange, measured on
+  // hosted CI for #878); that write is not the rail's and must not be pinned.
+  NSArray *stack = [NSThread callStackSymbols];
+  NSString *caller = [stack count] > 1 ? [stack objectAtIndex:1] : @"";
+  const BOOL fromTextSystem =
+      [caller rangeOfString:@"UIFoundation"].location != NSNotFound || [caller rangeOfString:@"AppKit"].location != NSNotFound;
+  if (!fromTextSystem)
+  {
+    [self setSelectionWrites:[self selectionWrites] + 1];
+    [self setSelectionWriteStack:stack];
+  }
+  [super setSelectedRange:range];
+}
+- (void)dealloc
+{
+  [self setSelectionWriteStack:nil];
+  [super dealloc];
+}
+@end
+
 namespace
 {
   using namespace loka::app;
@@ -332,7 +368,346 @@ namespace
     LOKA_VERIFY(f.lines.revision().get().content == before.content + 1);
     LOKA_VERIFY([f.view isEditable]);
   }
+
+  void printSelectionWriteMismatch(LokaRequestEditorView *view, NSUInteger expected, const char *stage)
+  {
+    const NSUInteger actual = [view selectionWrites];
+    if (actual == expected)
+      return;
+    const char *stack = [[[view selectionWriteStack] description] UTF8String];
+    fprintf(stderr, "[MacTextEditor %s] selectionWrites expected=%lu actual=%lu; last setSelectedRange: stack:\n%s\n",
+            stage, static_cast<unsigned long>(expected), static_cast<unsigned long>(actual),
+            stack ? stack : "(no captured stack)");
+  }
+
+  LokaRequestEditorView *instrumentSelection(Fixture &f)
+  {
+    LokaRequestEditorView *view = [[LokaRequestEditorView alloc] initWithFrame:[f.view frame]];
+    [view setString:[f.view string]];
+    [view setSelectedRange:[f.view selectedRange]];
+    [view setDelegate:[f.view delegate]];
+    [[view textStorage] setDelegate:[[f.view textStorage] delegate]];
+    [f.view setDelegate:nil];
+    [[f.view textStorage] setDelegate:nil];
+    [f.scroll setDocumentView:view];
+    f.view = view;
+    [view release];
+    [f.host.window makeFirstResponder:view];
+    const NSUInteger before = [view selectionWrites];
+    [view setSelectedRange:[view selectedRange]];
+    printSelectionWriteMismatch(view, before + 1, "setter positive control");
+    LOKA_VERIFY([view selectionWrites] == before + 1); // Positive control.
+    LOKA_VERIFY([[view selectionWriteStack] count] > 0);
+    return view;
+  }
+
+  void requestCaret(Fixture &f, LineCursor cursor)
+  {
+    StateTrackerGuard guard(&f.tracker);
+    f.request.set(cursor);
+  }
+
+  /** Model synchronous owner props delivery while the rail reports/takes. */
+  struct RequestObserver
+  {
+    Fixture &fixture;
+    LokaRequestEditorView *view;
+    State<LineCursor> *source;
+    LineCursor repost;
+    explicit RequestObserver(Fixture &f, LokaRequestEditorView *native, LineCursor next, bool onTake = false)
+        : fixture(f), view(native), source(onTake ? f.request.state() : f.cursor.state()), repost(next)
+    {
+      this->source->bind(&changed, this, false);
+    }
+    ~RequestObserver()
+    {
+      this->source->unbind(&changed, this);
+    }
+    static void changed(void *data)
+    {
+      RequestObserver &self = *static_cast<RequestObserver *>(data);
+      const LineCursor next = self.repost;
+      self.repost = LineCursor::None();
+      if (!next.isNone())
+        requestCaret(self.fixture, next);
+      const NSUInteger before = [self.view selectionWrites];
+      self.fixture.context->onPropsApplied();
+      printSelectionWriteMismatch(self.view, before, "report/take observer props completion");
+      LOKA_VERIFY([self.view selectionWrites] == before);
+    }
+  };
+
+  struct RepeatingRequestObserver
+  {
+    Fixture &fixture;
+    unsigned calls;
+    explicit RepeatingRequestObserver(Fixture &f) : fixture(f), calls(0)
+    {
+      f.cursor.state()->bind(&changed, this, false);
+    }
+    ~RepeatingRequestObserver()
+    {
+      this->fixture.cursor.state()->unbind(&changed, this);
+    }
+    static void changed(void *data)
+    {
+      RepeatingRequestObserver &self = *static_cast<RepeatingRequestObserver *>(data);
+      ++self.calls;
+      // Fail promptly if an unbounded epilogue is restored by a mutation.
+      LOKA_VERIFY(self.calls <= 6);
+      requestCaret(self.fixture, LineCursor(self.fixture.lines.at(0).id,
+                                           self.fixture.cursor.state()->get().column == 0 ? 1 : 0));
+      self.fixture.context->onPropsApplied();
+    }
+  };
+
+  struct RepairRequestObserver
+  {
+    Fixture &fixture;
+    LineCursor repost;
+    unsigned reports;
+    explicit RepairRequestObserver(Fixture &f)
+        : fixture(f), repost(f.lines.at(1).id, 3), reports(0)
+    {
+      f.request.state()->bind(&taken, this, false);
+      f.cursor.state()->bind(&reported, this, false);
+    }
+    ~RepairRequestObserver()
+    {
+      this->fixture.request.state()->unbind(&taken, this);
+      this->fixture.cursor.state()->unbind(&reported, this);
+    }
+    static void taken(void *data)
+    {
+      RepairRequestObserver &self = *static_cast<RepairRequestObserver *>(data);
+      if (self.repost.isNone())
+        return;
+      const LineCursor next = self.repost;
+      self.repost = LineCursor::None();
+      LOKA_VERIFY(self.fixture.lines.update(self.fixture.lines.at(0).id, String("abcdefgh")) == EDIT_OK);
+      requestCaret(self.fixture, next);
+      self.fixture.context->onPropsApplied();
+    }
+    static void reported(void *data)
+    {
+      RepairRequestObserver &self = *static_cast<RepairRequestObserver *>(data);
+      ++self.reports;
+      LOKA_VERIFY(self.reports <= 2);
+      LOKA_VERIFY(self.fixture.cursor.state()->get()
+                  == LineCursor(self.fixture.lines.at(1).id, self.reports == 1 ? 1 : 3));
+    }
+  };
 } // namespace
+
+void testMacTextEditorRequests()
+{
+  // New request-delivery assertions: predicted reds, not run on the macOS rig.
+  {
+    Fixture f;
+    // The fixture seeds the fact through the seam; props deliver app requests.
+    LOKA_VERIFY(NSEqualRanges([f.view selectedRange], NSMakeRange(2, 0)));
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(0).id, 2));
+    LOKA_VERIFY(f.request.get().isNone());
+    requestCaret(f, LineCursor(f.lines.at(1).id, 99));
+    f.context->onPropsApplied();
+    LOKA_VERIFY(NSEqualRanges([f.view selectedRange], NSMakeRange(9, 0)));
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(1).id, 4));
+    LOKA_VERIFY(f.request.get().isNone());
+    requestCaret(f, LineCursor(f.lines.at(1).id, -8));
+    f.context->onPropsApplied();
+    LOKA_VERIFY(NSEqualRanges([f.view selectedRange], NSMakeRange(5, 0)));
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(1).id, 0));
+    LOKA_VERIFY(f.request.get().isNone());
+  }
+  // Entry-bound mutations are predicted reds, not measured on macOS here.
+  for (int stale = 0; stale < 2; ++stale)
+  {
+    Fixture f;
+    RepeatingRequestObserver observer(f);
+    {
+      StateTrackerGuard guard(&f.tracker);
+      if (stale)
+        LOKA_VERIFY(f.lines.update(f.lines.at(0).id, String("abcdefgh")) == EDIT_OK);
+      f.request.set(LineCursor(f.lines.at(0).id, 0));
+    }
+    f.context->onPropsApplied();
+    LOKA_VERIFY(observer.calls == 2);
+    LOKA_VERIFY(f.request.get() == LineCursor(f.lines.at(0).id, 0));
+    LOKA_VERIFY(NSEqualRanges([f.view selectedRange], NSMakeRange(1, 0)));
+    f.context->onPropsApplied();
+    LOKA_VERIFY(observer.calls == 4);
+    LOKA_VERIFY(!f.request.get().isNone());
+  }
+  {
+    Fixture f;
+    RepeatingRequestObserver observer(f);
+    id delegate = [f.view delegate];
+    [f.view setDelegate:nil];
+    // Storage commits text and reports its caret together. The subscriber
+    // posts a request during that report, before the deferred entry runs.
+    [[f.view textStorage] replaceCharactersInRange:NSMakeRange(2, 0) withString:@"x"];
+    LOKA_VERIFY(observer.calls == 1);
+    LOKA_VERIFY(!f.request.get().isNone());
+    // Run exactly the deferred entry, without another run-loop source.
+    [NSObject cancelPreviousPerformRequestsWithTarget:delegate];
+    [delegate performSelector:@selector(applyHighlights)];
+    LOKA_VERIFY(observer.calls == 3);
+    LOKA_VERIFY(f.request.get() == LineCursor(f.lines.at(0).id, 0));
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(0).id, 1));
+    LOKA_VERIFY(NSEqualRanges([f.view selectedRange], NSMakeRange(1, 0)));
+    LOKA_VERIFY([[f.view string] isEqualToString:@"abxcd\nabcd\nabcd"]);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(observer.calls == 5);
+    LOKA_VERIFY(f.request.get() == LineCursor(f.lines.at(0).id, 0));
+    [f.view setDelegate:delegate];
+  }
+  for (int onTake = 0; onTake < 2; ++onTake)
+  {
+    Fixture f;
+    requestCaret(f, LineCursor::None());
+    LokaRequestEditorView *view = instrumentSelection(f);
+    requestCaret(f, LineCursor(f.lines.at(0).id, 1));
+    RequestObserver observer(f, view, LineCursor(f.lines.at(1).id, 3), onTake != 0);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(NSEqualRanges([view selectedRange], NSMakeRange(8, 0)));
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(1).id, 3));
+    LOKA_VERIFY(f.request.get().isNone());
+  }
+  {
+    Fixture f;
+    requestCaret(f, LineCursor(f.lines.at(1).id, 1));
+    RepairRequestObserver observer(f);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(observer.reports == 2);
+    LOKA_VERIFY([[f.view string] isEqualToString:@"abcdefgh\nabcd\nabcd"]);
+    LOKA_VERIFY(NSEqualRanges([f.view selectedRange], NSMakeRange(12, 0)));
+    LOKA_VERIFY(f.request.get().isNone());
+  }
+  {
+    Fixture f;
+    requestCaret(f, LineCursor::None());
+    LokaRequestEditorView *view = instrumentSelection(f);
+    RequestObserver observer(f, view, LineCursor(f.lines.at(1).id, 1));
+    // Selection's synchronous report spends props delivery before its tail.
+    [view setSelectedRange:NSMakeRange(0, 0)];
+    f.context->handleSelectionDidChange();
+    LOKA_VERIFY(NSEqualRanges([view selectedRange], NSMakeRange(6, 0)));
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(1).id, 1));
+    LOKA_VERIFY(f.request.get().isNone());
+  }
+  for (int storageOnly = 0; storageOnly < 2; ++storageOnly)
+  {
+    Fixture f;
+    requestCaret(f, LineCursor::None());
+    LokaRequestEditorView *view = instrumentSelection(f);
+    RequestObserver observer(f, view, LineCursor(f.lines.at(1).id, 1));
+    id viewDelegate = [view delegate];
+    id storageDelegate = [[view textStorage] delegate];
+    if (storageOnly)
+      [view setDelegate:nil];
+    else
+      [[view textStorage] setDelegate:nil];
+    f.context->captureSelection();
+    const NSUInteger before = [view selectionWrites];
+    [[view textStorage] replaceCharactersInRange:NSMakeRange(2, 0) withString:@"x"];
+    if (storageOnly)
+    {
+      printSelectionWriteMismatch(view, before, "storage replace returned");
+      LOKA_VERIFY([view selectionWrites] == before);
+      LOKA_VERIFY(f.request.get() == LineCursor(f.lines.at(1).id, 1));
+      f.context->onPropsApplied();
+      printSelectionWriteMismatch(view, before, "storage-pending props completion");
+      LOKA_VERIFY([view selectionWrites] == before);
+      LOKA_VERIFY(!f.request.get().isNone());
+      // Selection reporting is allowed, but cannot open request delivery yet.
+      f.context->handleSelectionDidChange();
+      LOKA_VERIFY(!f.request.get().isNone());
+      for (int i = 0; i < 20 && !f.request.get().isNone(); ++i)
+        f.turn();
+    }
+    else
+    {
+      [view setSelectedRange:NSMakeRange(3, 0)];
+      f.notify();
+    }
+    [view setDelegate:viewDelegate];
+    [[view textStorage] setDelegate:storageDelegate];
+    LOKA_VERIFY(bytes(f.lines.at(0).value) == "abxcd");
+    LOKA_VERIFY(NSEqualRanges([view selectedRange], NSMakeRange(7, 0)));
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(1).id, 1));
+    LOKA_VERIFY(f.request.get().isNone());
+  }
+  for (int staleModel = 0; staleModel < 2; ++staleModel)
+  {
+    Fixture f;
+    LokaRequestEditorView *view = instrumentSelection(f);
+    RequestObserver observer(f, view, LineCursor(f.lines.at(1).id, 1));
+    id delegate = [view delegate];
+    [view setDelegate:nil];
+    [[view textStorage] replaceCharactersInRange:NSMakeRange(2, 0) withString:@"x"];
+    LOKA_VERIFY(!f.request.get().isNone());
+    if (staleModel)
+      LOKA_VERIFY(f.lines.update(f.lines.at(0).id, String(std::string(8193, 'a'))) == EDIT_OK);
+    else
+    {
+      [[view textStorage] setDelegate:nil];
+      [view setString:@"stale native"];
+      [[view textStorage] setDelegate:delegate];
+    }
+    const LineCursor before = f.cursor.state()->get();
+    const NSUInteger writes = [view selectionWrites];
+    // Invoke only the queued completion, before its separately queued repair.
+    [NSObject cancelPreviousPerformRequestsWithTarget:delegate];
+    [delegate performSelector:@selector(applyHighlights)];
+    LOKA_VERIFY(f.request.get().isNone());
+    LOKA_VERIFY(f.cursor.state()->get() == before);
+    printSelectionWriteMismatch(view, writes, "stale deferred completion");
+    LOKA_VERIFY([view selectionWrites] == writes);
+    [view setDelegate:delegate];
+  }
+  {
+    Fixture f;
+    const LineCursor before = f.cursor.state()->get();
+    LOKA_VERIFY(f.lines.update(f.lines.at(0).id, String(std::string(8193, 'a'))) == EDIT_OK);
+    requestCaret(f, LineCursor(f.lines.at(1).id, 1));
+    f.context->onPropsApplied();
+    LOKA_VERIFY(![f.view isEditable]);
+    LOKA_VERIFY(f.request.get().isNone());
+    LOKA_VERIFY(f.cursor.state()->get() == before);
+  }
+}
+
+void testMacTextEditorRequestReverse()
+{
+  // Predicted, not run: setter instrumentation discriminates report echo.
+  Fixture f;
+  requestCaret(f, LineCursor::None());
+  LokaRequestEditorView *view = instrumentSelection(f);
+  [view setSelectedRange:NSMakeRange(2, 0)];
+  f.context->handleSelectionDidChange();
+  RequestObserver observer(f, view, LineCursor::None());
+  [view deleteBackward:nil];
+  LOKA_VERIFY(bytes(f.lines.at(0).value) == "acd");
+  LOKA_VERIFY(NSEqualRanges([view selectedRange], NSMakeRange(1, 0)));
+  LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(0).id, 1));
+  const NSUInteger afterDelete = [view selectionWrites];
+  f.context->onPropsApplied();
+  printSelectionWriteMismatch(view, afterDelete, "post-delete props completion");
+  LOKA_VERIFY([view selectionWrites] == afterDelete);
+  for (NSUInteger offset = 2; offset <= 5; ++offset)
+  {
+    [view moveRight:nil];
+    LOKA_VERIFY(NSEqualRanges([view selectedRange], NSMakeRange(offset, 0)));
+    const LineCursor expected = offset < 4 ? LineCursor(f.lines.at(0).id, static_cast<int>(offset))
+                                          : LineCursor(f.lines.at(1).id, static_cast<int>(offset - 4));
+    LOKA_VERIFY(f.cursor.state()->get() == expected);
+    const NSUInteger afterArrow = [view selectionWrites];
+    f.context->onPropsApplied();
+    printSelectionWriteMismatch(view, afterArrow, "post-arrow props completion");
+    LOKA_VERIFY([view selectionWrites] == afterArrow);
+  }
+  LOKA_VERIFY(f.request.get().isNone());
+}
 
 void testMacTextEditorLineActions()
 {
