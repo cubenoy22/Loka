@@ -19,7 +19,7 @@ namespace
     static ToolboxTextEditorContext *
     create(TextEditorNode *n, scene::IPlatformController *c, const scene::LayoutState &)
     {
-      return new ToolboxTextEditorContext(n, static_cast<ToolboxScenePlatformController *>(c));
+      return new ToolboxTextEditorContext(n, static_cast<ToolboxScenePlatformController *>(c), seamKey());
     }
   };
   Handler handler;
@@ -50,8 +50,10 @@ namespace
     Handle handle_;
   };
 } // namespace
-ToolboxTextEditorContext::ToolboxTextEditorContext(TextEditorNode *n, ToolboxScenePlatformController *c)
+ToolboxTextEditorContext::ToolboxTextEditorContext(TextEditorNode *n, ToolboxScenePlatformController *c,
+                                                 const scene::SeamKey<TextEditorNode> &key)
     : ToolboxProjectedNodeContext(c),
+      key_(key),
       node_(n),
       te_(0),
       restore_(static_cast<char *>(loka::core::LokaAllocRaw(
@@ -131,7 +133,7 @@ scene::FollowUp ToolboxTextEditorContext::project()
   const Phase completion = this->phase_;
   this->phase_ = PROJECT;
   std::size_t length = 0;
-  this->status_ = this->node_->document.project(this->restore_, TextEditorProps::kMaxBytes, length);
+  this->status_ = this->node_->seam(this->key_).project(this->restore_, TextEditorProps::kMaxBytes, length);
   if (this->status_ == EDITOR_OK)
   {
     const Rect dest = (**this->te_).destRect;
@@ -228,7 +230,7 @@ public:
   virtual EditorResult validate(scene::Node &base, const LineCursor &pending)
   {
     TextEditorNode &node = static_cast<TextEditorNode &>(base);
-    const EditorResult ready = node.document.availability();
+    const EditorResult ready = node.seam(context(base).key_).availability();
     if (ready != EDITOR_OK)
       return ready;
     return node.props.lines_->find(pending.line) < 0 ? EDITOR_STALE_ID : EDITOR_OK;
@@ -254,7 +256,7 @@ public:
   }
   virtual EditorResult report(scene::Node &base, const LineCursor &applied)
   {
-    return static_cast<TextEditorNode &>(base).document.moveCaret(applied);
+    return static_cast<TextEditorNode &>(base).seam(context(base).key_).moveCaret(applied);
   }
   virtual scene::FollowUp finishTake(scene::Node &base,
                                      const scene::Reply<LineCursor> &reply,
@@ -426,7 +428,7 @@ EditorResult ToolboxTextEditorContext::key(char key)
   if (key >= 28 && key <= 31)
   {
     change = CARET_CHANGE;
-    result = this->node_->document.moveCaret(this->cursorAt((**this->te_).selStart));
+    result = this->node_->seam(this->key_).moveCaret(this->cursorAt((**this->te_).selStart));
   }
   else if (key == '\b' && start == 0 && start == end)
   {
@@ -436,7 +438,7 @@ EditorResult ToolboxTextEditorContext::key(char key)
   else if (this->hasStaleCaret())
     result = EDITOR_STALE_ID;
   else
-    result = this->node_->document.applyReplace(from, to, key == '\b' ? "" : &key, key == '\b' ? 0 : 1);
+    result = this->node_->seam(this->key_).applyReplace(from, to, key == '\b' ? "" : &key, key == '\b' ? 0 : 1);
   if (liveNode->getContext() != this)
     return result;
   const bool refused = result != EDITOR_OK || this->phase_ == RECONCILE;
@@ -453,7 +455,7 @@ EditorResult ToolboxTextEditorContext::click(const Point &point)
   scene::Node *const liveNode = this->node_;
   RailOperation op(this->node_);
   TEClick(point, false, this->te_);
-  result = this->node_->document.moveCaret(this->cursorAt((**this->te_).selStart));
+  result = this->node_->seam(this->key_).moveCaret(this->cursorAt((**this->te_).selStart));
   if (liveNode->getContext() != this)
     return result;
   return this->finishInput(result, CARET_CHANGE, op);
@@ -476,7 +478,7 @@ EditorResult ToolboxTextEditorContext::paste(const char *bytes, std::size_t leng
     const short start = (**this->te_).selStart, end = (**this->te_).selEnd;
     const LineCursor from = this->cursorAt(start);
     const LineCursor to = start == end ? from : this->cursorAt(end);
-    result = this->node_->document.applyReplace(from, to, bytes, length);
+    result = this->node_->seam(this->key_).applyReplace(from, to, bytes, length);
   }
   if (liveNode->getContext() != this)
     return result;

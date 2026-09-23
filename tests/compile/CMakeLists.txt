@@ -275,3 +275,24 @@ loka_compile_pin(editor-requires-request
   REFUSES pins/refuses_editor-requires-request.cpp
   ACCEPTS pins/accepts_editor-requires-request.cpp
 )
+
+
+loka_compile_pin(editor-seam-key
+  REFUSES pins/refuses_editor_seam_key.cpp
+  ACCEPTS pins/accepts_editor_seam_key.cpp
+)
+
+loka_compile_pin(editor-wrong-seam-key
+  REFUSES pins/refuses_editor_wrong_seam_key.cpp
+  ACCEPTS pins/accepts_editor_wrong_seam_key.cpp
+)
+
+loka_compile_pin(editor-context-friend
+  REFUSES pins/refuses_editor_context_friend.cpp
+  ACCEPTS pins/accepts_editor_context_friend.cpp
+)
+
+loka_compile_pin(handler-wrong-seam-key
+  REFUSES pins/refuses_handler_wrong_seam_key.cpp
+  ACCEPTS pins/accepts_handler_wrong_seam_key.cpp
+)

@@ -2,6 +2,7 @@
 #define LOKA_CORE2_SCENE_PROJECTION_RETAINED_NODE_HANDLER_HPP
 
 #include "app/scene/projection/PlatformNodeHandler.hpp"
+#include "app/scene/projection/SeamKey.hpp"
 
 namespace loka
 {
@@ -18,6 +19,13 @@ namespace loka
       template <typename Derived, typename NodeT, typename CtxT>
       class RetainedNodeHandler : public IPlatformNodeHandler
       {
+      protected:
+        /** Supply only this handler's node-type capability at context creation. */
+        static SeamKey<NodeT> seamKey()
+        {
+          return SeamKey<NodeT>();
+        }
+
       public:
         virtual const void *nodeTypeKey() const
         {

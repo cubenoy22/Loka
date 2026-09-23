@@ -27,7 +27,8 @@ public:
   Win32TextEditorContext(Win32ScenePlatformController *controller,
                          HWND parent,
                          const loka::app::scene::LayoutState &state,
-                         loka::app::TextEditorNode *node);
+                         loka::app::TextEditorNode *node,
+                         const loka::app::scene::SeamKey<loka::app::TextEditorNode> &key);
   virtual ~Win32TextEditorContext();
   void readLifecycleFactOnAttach();
   virtual void onPropsApplied();
@@ -78,7 +79,8 @@ private:
     std::wstring wide;
     Projection();
     bool current(const loka::app::TextEditorNode &node) const;
-    loka::app::EditorResult capture(loka::app::TextEditorNode &node);
+    loka::app::EditorResult capture(loka::app::TextEditorNode &node,
+                                    const loka::app::scene::SeamKey<loka::app::TextEditorNode> &key);
   };
   static LRESULT CALLBACK WindowProc(HWND, UINT, WPARAM, LPARAM);
   void captureSelection();
@@ -96,6 +98,7 @@ private:
   loka::app::RowCursor nativeRowCaret() const;
   loka::app::LineCursor nativeCaret() const;
 
+  const loka::app::scene::SeamKey<loka::app::TextEditorNode> key_;
   loka::app::TextEditorNode *node_;
   HWND hwnd_;
   WNDPROC previousProc_;

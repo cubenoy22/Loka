@@ -17,7 +17,7 @@ namespace loka
 class NullTextEditorContext : public loka::app::scene::NativeNodeContext
 {
 public:
-  explicit NullTextEditorContext(loka::app::TextEditorNode *node);
+  explicit NullTextEditorContext(loka::app::TextEditorNode *node, const loka::app::scene::SeamKey<loka::app::TextEditorNode> &key);
   void readLifecycleFactOnAttach();
   void syncFromNode();
   virtual void onPropsApplied()
@@ -45,6 +45,7 @@ private:
   void restoreCommittedProjection(loka::app::LineCursor snapshot);
   void project(loka::app::LineCursor fallback);
   std::size_t nativeOffset() const;
+  const loka::app::scene::SeamKey<loka::app::TextEditorNode> key_;
   loka::app::TextEditorNode *node_;
   std::string buffer_;
   loka::app::LineCursor caret_;

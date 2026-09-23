@@ -1,15 +1,12 @@
 #ifndef LOKA_APP_TEXT_EDITOR_HPP
 #define LOKA_APP_TEXT_EDITOR_HPP
 #include "app/scene/Node.hpp"
+#include "app/scene/projection/SeamKey.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "app/scene/state/Reported.hpp"
 #include "app/scene/state/Request.hpp"
 #include "app/style/LineHighlighter.hpp"
 #include "app/nodes/controls/TextEditorDocument.hpp"
-class NullTextEditorContext;
-class ToolboxTextEditorContext;
-class Win32TextEditorContext;
-class MacTextEditorContext;
 namespace loka
 {
   namespace app
@@ -105,10 +102,6 @@ namespace loka
       TextEditorProps props;
 
     private:
-      friend class ::NullTextEditorContext;
-      friend class ::ToolboxTextEditorContext;
-      friend class ::Win32TextEditorContext;
-      friend class ::MacTextEditorContext;
       friend class testing::TextEditorAccess;
       friend struct scene::NodePropsApplier<TextEditorNode, TextEditorProps>;
       TextEditorDocument document;
@@ -152,6 +145,11 @@ namespace loka
           : props(p),
             document(this->props)
       {
+      }
+      /** Native projection access; the key grants no lifetime extension. */
+      TextEditorDocument &seam(const scene::SeamKey<TextEditorNode> &)
+      {
+        return this->document;
       }
       virtual scene::NodeKind kind() const
       {
