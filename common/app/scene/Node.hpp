@@ -53,6 +53,7 @@ namespace loka
       template <typename T> class Reported;
       template <typename T> class Request;
       template <typename T> class RequestWithReply;
+      template <typename T> class RequestQueueBase;
       template <typename T> class Reply;
       template <typename T> class WriteSeat;
 
@@ -826,6 +827,15 @@ namespace loka
         }
         /** Extract the opt-in reply capability at the typed Props door. */
         template <typename T> static WriteSeat<Reply<T> > replySeat(RequestWithReply<T> &request)
+        {
+          return reportSeat(request.reply_);
+        }
+
+        template <typename T> static WriteSeat<T> requestSeat(RequestQueueBase<T> &request)
+        {
+          return request.seat_.writeSeat();
+        }
+        template <typename T> static WriteSeat<Reply<T> > replySeat(RequestQueueBase<T> &request)
         {
           return reportSeat(request.reply_);
         }

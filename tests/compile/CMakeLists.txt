@@ -296,3 +296,63 @@ loka_compile_pin(handler-wrong-seam-key
   REFUSES pins/refuses_handler_wrong_seam_key.cpp
   ACCEPTS pins/accepts_handler_wrong_seam_key.cpp
 )
+
+loka_compile_pin(request-wall-direct-command
+  REFUSES pins/refuses_request-wall-direct-command.cpp
+  ACCEPTS pins/accepts_request-wall-direct-command.cpp
+)
+
+loka_compile_pin(request-wall-direct-command-reply
+  REFUSES pins/refuses_request-wall-direct-command-reply.cpp
+  ACCEPTS pins/accepts_request-wall-direct-command-reply.cpp
+)
+
+loka_compile_pin(request-wall-direct-untyped
+  REFUSES pins/refuses_request-wall-direct-untyped.cpp
+  ACCEPTS pins/accepts_request-wall-direct-untyped.cpp
+)
+
+loka_compile_pin(request-wall-direct-untyped-reply
+  REFUSES pins/refuses_request-wall-direct-untyped-reply.cpp
+  ACCEPTS pins/accepts_request-wall-direct-untyped-reply.cpp
+)
+
+loka_compile_pin(request-wall-batch-command
+  REFUSES pins/refuses_request-wall-batch-command.cpp
+  ACCEPTS pins/accepts_request-wall-batch-command.cpp
+)
+
+loka_compile_pin(request-wall-batch-command-reply
+  REFUSES pins/refuses_request-wall-batch-command-reply.cpp
+  ACCEPTS pins/accepts_request-wall-batch-command-reply.cpp
+)
+
+loka_compile_pin(request-wall-batch-untyped
+  REFUSES pins/refuses_request-wall-batch-untyped.cpp
+  ACCEPTS pins/accepts_request-wall-batch-untyped.cpp
+)
+
+loka_compile_pin(request-wall-batch-untyped-reply
+  REFUSES pins/refuses_request-wall-batch-untyped-reply.cpp
+  ACCEPTS pins/accepts_request-wall-batch-untyped-reply.cpp
+)
+
+loka_compile_pin(request-wall-immediate-command
+  REFUSES pins/refuses_request-wall-immediate-command.cpp
+  ACCEPTS pins/accepts_request-wall-immediate-command.cpp
+)
+
+loka_compile_pin(request-wall-immediate-command-reply
+  REFUSES pins/refuses_request-wall-immediate-command-reply.cpp
+  ACCEPTS pins/accepts_request-wall-immediate-command-reply.cpp
+)
+
+loka_compile_pin(request-wall-immediate-untyped
+  REFUSES pins/refuses_request-wall-immediate-untyped.cpp
+  ACCEPTS pins/accepts_request-wall-immediate-untyped.cpp
+)
+
+loka_compile_pin(request-wall-immediate-untyped-reply
+  REFUSES pins/refuses_request-wall-immediate-untyped-reply.cpp
+  ACCEPTS pins/accepts_request-wall-immediate-untyped-reply.cpp
+)

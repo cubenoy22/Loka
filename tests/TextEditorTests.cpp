@@ -1543,3 +1543,270 @@ void testTextEditorSettlementTrace()
   both.run(f);
   LOKA_VERIFY(both.repaints == 1 && both.scheduled == 1 && both.epilogues == 1);
 }
+
+namespace
+{
+  struct QueueFixture : HeadlessStateOwner
+  {
+    PushStateTracker &tracker;
+    RequestQueue<LineCursor, 4> queue;
+    Reported<LineCursor> cursor;
+    ObservableList<String> lines;
+    NullScenePlatformController platform;
+    TextEditorNode node;
+    NullTextEditorContext *context;
+    QueueFixture()
+        : tracker(*HeadlessStateOwner::tracker()->asPushTracker()),
+          node(TextEditorProps(lines, cursor)), context(0)
+    {
+      StateBatchBase::CreateImmediateState(this, this->queue, LineCursor::None());
+      StateBatchBase::CreateImmediateState(this, this->cursor, LineCursor::None());
+      LOKA_VERIFY(this->lines.attach(&this->tracker, 4) == ATTACH_OK);
+      LOKA_VERIFY(this->lines.insert(0, String("abcdef")) == EDIT_OK);
+      this->node.props = TextEditorProps(this->lines, this->cursor).moveCaretTo(this->queue);
+      this->node.setPropsTypeId(TextEditorProps::staticTypeId());
+      LayoutState bounds;
+      bounds.width = 200;
+      bounds.height = 100;
+      this->platform.projectLayoutForTesting(&this->node, bounds);
+      this->context = static_cast<NullTextEditorContext *>(this->node.getContext());
+      LOKA_VERIFY(this->context);
+    }
+    LineCursor at(unsigned column) const { return LineCursor(this->lines.at(0).id, column); }
+    void apply(const TextEditorProps &props)
+    {
+      TextEditorDefinition definition(props);
+      LOKA_VERIFY(definition.applyPropsToNode(&this->node));
+    }
+  };
+  struct QueueReplies
+  {
+    RequestQueueBase<LineCursor> &queue;
+    std::vector<CaretReply> values;
+    explicit QueueReplies(RequestQueueBase<LineCursor> &q) : queue(q)
+    {
+      this->queue.reply().state()->bind(&changed, this, false);
+    }
+    ~QueueReplies() { this->queue.reply().state()->unbind(&changed, this); }
+    static void changed(void *data)
+    {
+      QueueReplies &self = *static_cast<QueueReplies *>(data);
+      self.values.push_back(self.queue.reply().state()->get());
+    }
+  };
+  struct QueueReentry
+  {
+    enum Action { POST_NEXT, CANCEL_REPOST, DISCARD_NEXT };
+    QueueFixture &fixture;
+    Action action;
+    unsigned calls;
+    QueueReentry(QueueFixture &f, Action a) : fixture(f), action(a), calls(0)
+    {
+      f.queue.state()->bind(&changed, this, false);
+    }
+    ~QueueReentry() { this->fixture.queue.state()->unbind(&changed, this); }
+    static void changed(void *data)
+    {
+      QueueReentry &self = *static_cast<QueueReentry *>(data);
+      QueueFixture &f = self.fixture;
+      if (self.calls)
+        return;
+      if (self.action == CANCEL_REPOST ? !f.queue.state()->get().isNone()
+                                      : f.queue.state()->get() != f.at(2))
+        return;
+      ++self.calls;
+      if (self.action == DISCARD_NEXT)
+        f.apply(TextEditorProps(f.lines, f.cursor));
+      else
+      {
+        LOKA_VERIFY(f.queue.post(f.at(4)) == POST_ACCEPTED);
+        if (self.action == CANCEL_REPOST)
+          LOKA_VERIFY(f.queue.post(f.at(5)) == POST_ACCEPTED);
+      }
+    }
+  };
+  struct QueuePropsAccess : TextEditorProps
+  {
+    static RequestBinding<LineCursor> withoutSource(RequestQueueBase<LineCursor> &queue)
+    {
+      return RequestBinding<LineCursor>(requestSeat(queue), replySeat(queue));
+    }
+  };
+  class QueueSceneRoot : public BoundaryNodeFor<QueueSceneRoot>
+  {
+  public:
+    ObservableList<String> lines;
+    Reported<LineCursor> cursor;
+    RequestQueue<LineCursor, 4> queue;
+    explicit QueueSceneRoot(const BoundaryPropsFor<QueueSceneRoot> &p) : BoundaryNodeFor<QueueSceneRoot>(p)
+    {
+      this->declareStates(3).state(this->cursor, LineCursor::None()).state(this->queue, LineCursor::None());
+    }
+    virtual bool flushViewDirtyImmediately(NodeDirtyFlags) const { return false; }
+    virtual void attachNode(NodeComposition &)
+    {
+      StateTracker *owner = 0;
+      if (this->lines.queryMutationTracker(owner) == EDIT_OK)
+        return;
+      LOKA_VERIFY(this->lines.attach(this->tracker()->asPushTracker(), 4) == ATTACH_OK);
+      LOKA_VERIFY(this->lines.insert(0, String("hello")) == EDIT_OK);
+    }
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(TextEditor(TextEditorProps(this->lines, this->cursor).moveCaretTo(this->queue)));
+    }
+  };
+}
+void testRequestQueueFailedArmDoesNotStrandRemainder()
+{
+  QueueFixture f;
+  QueueReplies replies(f.queue);
+  for (unsigned i = 1; i <= 4; ++i)
+    LOKA_VERIFY(f.queue.post(f.at(i)) == POST_ACCEPTED);
+  Trace::instance().clear();
+  SettlementProbe arm(SettlementProbe::FAIL_ARM);
+  LOKA_VERIFY(RequestSettlement<LineCursor>::settle(&f.node, f.context, arm, SETTLE_DEFERRED,
+                                                   f.cursor.state()->get()) == FOLLOW_UP_FAILED);
+  LOKA_VERIFY(f.queue.pending() == 2 && f.queue.state()->get() == f.at(2));
+  LOKA_VERIFY(replies.values.size() == 1 && replies.values[0].requested() == f.at(1));
+  LOKA_VERIFY(replies.values[0].kind() == CaretReply::REFUSED
+              && replies.values[0].reason() == EDITOR_UNAVAILABLE);
+  LOKA_VERIFY(Trace::instance().size() == 1 && Trace::instance().at(0).count == 1);
+  LOKA_VERIFY(Trace::instance().at(0).takes[0].requested() == f.at(1)
+              && Trace::instance().at(0).seam[0] == EDITOR_UNAVAILABLE);
+  f.context->onPropsApplied();
+  LOKA_VERIFY(replies.values.size() == 3 && f.queue.state()->get() == f.at(4));
+  f.context->onPropsApplied();
+  LOKA_VERIFY(replies.values.size() == 4 && f.queue.state()->get().isNone() && f.queue.pending() == 0);
+  for (unsigned i = 1; i < 4; ++i)
+    LOKA_VERIFY(replies.values[i].kind() == CaretReply::GRANTED && replies.values[i].requested() == f.at(i + 1));
+  LOKA_VERIFY(Trace::instance().size() == 3 && Trace::instance().at(1).count == 2
+              && Trace::instance().at(2).count == 1);
+}
+void testRequestQueuePublishRepostCannotOvertakeRing()
+{
+  QueueFixture f;
+  QueueReplies replies(f.queue);
+  for (unsigned i = 1; i <= 3; ++i)
+    LOKA_VERIFY(f.queue.post(f.at(i)) == POST_ACCEPTED);
+  QueueReentry reentry(f, QueueReentry::POST_NEXT);
+  f.context->onPropsApplied();
+  LOKA_VERIFY(reentry.calls == 1 && f.queue.pending() == 1);
+  f.context->onPropsApplied();
+  LOKA_VERIFY(replies.values.size() == 4 && f.queue.state()->get().isNone());
+  for (unsigned i = 0; i < 4; ++i)
+    LOKA_VERIFY(replies.values[i].requested() == f.at(i + 1) && replies.values[i].kind() == CaretReply::GRANTED);
+}
+void testRequestQueueCancellationCannotEraseRepost()
+{
+  QueueFixture f;
+  ObservableList<String> nextLines;
+  LOKA_VERIFY(nextLines.attach(&f.tracker, 4) == ATTACH_OK);
+  LOKA_VERIFY(nextLines.insert(0, String("abcdef")) == EDIT_OK);
+  QueueReplies replies(f.queue);
+  for (unsigned i = 1; i <= 3; ++i)
+    LOKA_VERIFY(f.queue.post(f.at(i)) == POST_ACCEPTED);
+  QueueReentry reentry(f, QueueReentry::CANCEL_REPOST);
+  LOKA_VERIFY((NodePropsApplier<TextEditorNode, TextEditorProps>::apply(
+      &f.node, TextEditorProps(nextLines, f.cursor).moveCaretTo(f.queue))));
+  LOKA_VERIFY(reentry.calls == 1 && f.queue.state()->get() == f.at(4) && f.queue.pending() == 1);
+  LOKA_VERIFY(replies.values.empty());
+  f.context->onPropsApplied();
+  LOKA_VERIFY(replies.values.size() == 2);
+  LOKA_VERIFY(replies.values[0].requested() == f.at(4) && replies.values[1].requested() == f.at(5));
+  LOKA_VERIFY(f.queue.state()->get().isNone() && f.queue.pending() == 0);
+  f.apply(TextEditorProps(f.lines, f.cursor).moveCaretTo(f.queue));
+}
+void testRequestQueueBindingSourceCannotBeIgnored()
+{
+  QueueFixture f;
+  QueueReplies replies(f.queue);
+  LOKA_VERIFY(f.queue.post(f.at(1)) == POST_ACCEPTED);
+  LOKA_VERIFY(f.queue.post(f.at(2)) == POST_ACCEPTED);
+  TextEditorProps next(f.lines, f.cursor);
+  next.moveCaretTo_ = QueuePropsAccess::withoutSource(f.queue);
+  LOKA_VERIFY(!next.moveCaretTo_.same(f.node.props.moveCaretTo_));
+  LOKA_VERIFY((next < f.node.props) != (f.node.props < next));
+  f.apply(next);
+  LOKA_VERIFY(f.queue.state()->get().isNone() && f.queue.pending() == 0 && replies.values.empty());
+}
+void testRequestQueueEqualPostsCannotLoseSceneContinuation()
+{
+  EditorPresenter platform;
+  Scene scene((Boundary<QueueSceneRoot>()));
+  scene.mount(&platform);
+  QueueSceneRoot *root = static_cast<QueueSceneRoot *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+  LOKA_VERIFY(root);
+  LayoutState bounds;
+  bounds.width = 200;
+  bounds.height = 100;
+  platform.projectLayoutForTesting(root, bounds);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
+  for (unsigned i = 0; scene.hasPendingInvalidation() && i < 12; ++i)
+    LOKA_VERIFY(scene.flushInvalidation());
+  QueueReplies replies(root->queue);
+  const LineCursor wanted(root->lines.at(0).id, 2);
+  Trace::instance().clear();
+  {
+    StateTrackerGuard guard(root->tracker());
+    for (unsigned i = 0; i < 3; ++i)
+      LOKA_VERIFY(root->queue.post(wanted) == POST_ACCEPTED);
+  }
+  for (unsigned i = 0; scene.hasPendingInvalidation() && i < 12; ++i)
+    LOKA_VERIFY(scene.flushInvalidation());
+  LOKA_VERIFY(replies.values.size() == 3 && root->queue.state()->get().isNone());
+  for (unsigned i = 0; i < 3; ++i)
+    LOKA_VERIFY(replies.values[i].requested() == wanted && replies.values[i].kind() == CaretReply::GRANTED);
+  LOKA_VERIFY(Trace::instance().size() == 2 && Trace::instance().at(0).count == 2
+              && Trace::instance().at(1).count == 1);
+}
+void testRequestQueueDirectNextDiscardCannotApplyOldSnapshot()
+{
+  QueueFixture f;
+  QueueReplies replies(f.queue);
+  const LineCursor before = f.cursor.state()->get();
+  const LineCursor nativeBefore = Input::caret(*f.context);
+  for (unsigned i = 1; i <= 3; ++i)
+    LOKA_VERIFY(f.queue.post(f.at(i)) == POST_ACCEPTED);
+  QueueReentry reentry(f, QueueReentry::DISCARD_NEXT);
+  f.context->onPropsApplied();
+  LOKA_VERIFY(reentry.calls == 1 && replies.values.empty());
+  LOKA_VERIFY(f.queue.pending() == 0 && f.queue.state()->get().isNone());
+  LOKA_VERIFY(f.cursor.state()->get() == before);
+  LOKA_VERIFY(Input::caret(*f.context) == nativeBefore);
+}
+void testRequestQueueRefusedPostsCannotMutateEndpoint()
+{
+  QueueFixture f;
+  QueueReplies replies(f.queue);
+  const CaretReply before = f.queue.reply().state()->get();
+  // NodeState + Reported + ring pointer/counters + four LineCursors:
+  // 64 bytes on 32-bit ABIs, 96 bytes on the host's 64-bit ABI.
+  LOKA_VERIFY(sizeof(RequestQueue<LineCursor, 4>) <= (sizeof(void *) == 4 ? 64u : 96u));
+  for (unsigned i = 0; i < 5; ++i)
+    LOKA_VERIFY(f.queue.post(f.at(i)) == POST_ACCEPTED);
+  LOKA_VERIFY(f.queue.pending() == 4 && f.queue.state()->get() == f.at(0));
+  LOKA_VERIFY(f.queue.post(f.at(5)) == POST_QUEUE_FULL);
+  LOKA_VERIFY(f.queue.post(LineCursor::None()) == POST_INVALID);
+  LOKA_VERIFY(f.queue.pending() == 4 && f.queue.state()->get() == f.at(0));
+  LOKA_VERIFY(!(f.queue.reply().state()->get() != before) && replies.values.empty());
+  for (unsigned i = 0; i < 3; ++i)
+    f.context->onPropsApplied();
+  LOKA_VERIFY(replies.values.size() == 5);
+  for (unsigned i = 0; i < 5; ++i)
+    LOKA_VERIFY(replies.values[i].requested() == f.at(i));
+}
+void testRequestQueueDetachCannotReplayRing()
+{
+  QueueFixture f;
+  QueueReplies replies(f.queue);
+  LOKA_VERIFY(f.queue.post(f.at(1)) == POST_ACCEPTED);
+  LOKA_VERIFY(f.queue.post(f.at(2)) == POST_ACCEPTED);
+  NotifySubtreeNodeDetached(&f.node);
+  LifecycleFactTestAccess::DeliverFacts(&f.node);
+  LOKA_VERIFY(f.queue.state()->get().isNone() && f.queue.pending() == 0);
+  NotifySubtreeNodeAttached(&f.node);
+  LifecycleFactTestAccess::DeliverFacts(&f.node);
+  f.context->readLifecycleFactOnAttach();
+  LOKA_VERIFY(f.queue.state()->get().isNone() && f.queue.pending() == 0 && replies.values.empty());
+}
