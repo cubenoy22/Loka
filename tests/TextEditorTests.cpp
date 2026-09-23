@@ -1116,13 +1116,14 @@ void testTextEditorReportedStorage()
   StateBatchBase::CreateImmediateState(&owner, refused, LineCursor::None());
   LOKA_VERIFY(!refused.isValid() && !refused.state());
   loka::app::testing::TextEditorStateOwner storage;
+  NullScenePlatformController platform;
   ObservableList<String> lines;
   LOKA_VERIFY(lines.attach(&storage.tracker, 3) == ATTACH_OK);
   LOKA_VERIFY(lines.insert(0, String("abc")) == EDIT_OK);
   const LineCursor wanted(lines.at(0).id, 1);
   {
     TextEditorNode unavailable(TextEditorProps(lines, refused).moveCaretTo(storage.request));
-    unavailable.setContext(new NullTextEditorContext(&unavailable));
+    platform.projectLayoutForTesting(&unavailable, LayoutState());
     NullTextEditorContext &context = *static_cast<NullTextEditorContext *>(unavailable.getContext());
     storage.request.set(wanted);
     context.readLifecycleFactOnAttach();
@@ -1133,7 +1134,7 @@ void testTextEditorReportedStorage()
   {
     loka::app::testing::TextEditorStateOwner foreign;
     TextEditorNode mismatched(TextEditorProps(lines, storage.cursor).moveCaretTo(foreign.request));
-    mismatched.setContext(new NullTextEditorContext(&mismatched));
+    platform.projectLayoutForTesting(&mismatched, LayoutState());
     NullTextEditorContext &context = *static_cast<NullTextEditorContext *>(mismatched.getContext());
     foreign.request.set(wanted);
     context.readLifecycleFactOnAttach();

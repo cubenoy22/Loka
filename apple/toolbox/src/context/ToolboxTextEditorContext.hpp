@@ -17,7 +17,8 @@ namespace loka
 class ToolboxTextEditorContext : public ToolboxProjectedNodeContext
 {
 public:
-  ToolboxTextEditorContext(loka::app::TextEditorNode *, ToolboxScenePlatformController *);
+  ToolboxTextEditorContext(loka::app::TextEditorNode *, ToolboxScenePlatformController *,
+                           const loka::app::scene::SeamKey<loka::app::TextEditorNode> &key);
   virtual ~ToolboxTextEditorContext();
   virtual void onPropsApplied();
   virtual loka::app::scene::PaintAnswer queryPaintDamage(const loka::app::scene::PaintQuery &) const;
@@ -63,6 +64,7 @@ private:
   loka::app::LineCursor cursorAt(short) const;
   short offsetOf(loka::app::LineCursor) const;
   void updateRect(const Rect &);
+  const loka::app::scene::SeamKey<loka::app::TextEditorNode> key_;
   loka::app::TextEditorNode *node_;
   TEHandle te_;
   char *restore_;

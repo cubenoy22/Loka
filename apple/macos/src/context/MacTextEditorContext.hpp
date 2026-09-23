@@ -28,7 +28,8 @@ namespace loka
 class MacTextEditorContext : public MacRetirableContext
 {
 public:
-  MacTextEditorContext(MacScenePlatformController *, void *parent, loka::app::TextEditorNode *);
+  MacTextEditorContext(MacScenePlatformController *, void *parent, loka::app::TextEditorNode *,
+                       const loka::app::scene::SeamKey<loka::app::TextEditorNode> &key);
   virtual ~MacTextEditorContext();
   bool hasNativeView() const;
   void readLifecycleFactOnAttach();
@@ -52,6 +53,7 @@ private:
   struct Projection;
   Projection *projection_;
   unsigned restores_;
+  const loka::app::scene::SeamKey<loka::app::TextEditorNode> key_;
   loka::app::TextEditorNode *node_;
   void *parent_;
   void *scroll_;
