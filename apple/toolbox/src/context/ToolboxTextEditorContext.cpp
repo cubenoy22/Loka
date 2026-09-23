@@ -121,12 +121,12 @@ LineCursor ToolboxTextEditorContext::cursorAt(short offset) const
     return LineCursor::None();
   return LineCursor(this->node_->props.lines_->at(row).id, offset - start);
 }
-void ToolboxTextEditorContext::project()
+scene::FollowUp ToolboxTextEditorContext::project()
 {
   if (this->phase_ != IDLE && this->phase_ != RECONCILE)
-    return;
+    return scene::FOLLOW_NONE;
   if (!this->te_ || !this->node_)
-    return;
+    return scene::FOLLOW_NONE;
   // Repair within the consumer keeps its exclusion through projection.
   const Phase completion = this->phase_;
   this->phase_ = PROJECT;
@@ -154,85 +154,190 @@ void ToolboxTextEditorContext::project()
     }
   }
   this->phase_ = completion;
-  if (this->controller() && this->controller()->window_)
-    this->controller()->window_->requestInvalidateRect(this->paintRect_);
+  return scene::REPAINT;
 }
-void ToolboxTextEditorContext::restoreCommittedProjection()
+scene::FollowUp ToolboxTextEditorContext::restoreCommittedProjection()
 {
   assert(this->phase_ == IDLE);
   ++this->restores_;
-  this->project();
+  return this->project();
+}
+/** Stack policy. Snapshots are values; context lookup follows the driver's lifetime wall. */
+class ToolboxTextEditorContext::RailOperation : public scene::RailOperation<LineCursor>
+{
+public:
+  explicit RailOperation(TextEditorNode *node)
+      : binding_(),
+        follow_(),
+        scroll_()
+#ifdef TEST_BUILD
+        ,
+        before_(node && node->props.cursorState() ? node->props.cursorState()->get() : LineCursor::None())
+#endif
+  {
+    (void)node;
+  }
+  void project(scene::Node &base)
+  {
+    this->follow_ = this->follow_.including(context(base).project());
+  }
+  void restore(scene::Node &base)
+  {
+    this->follow_ = this->follow_.including(context(base).restoreCommittedProjection());
+  }
+  void restoreScroll(const Rect &scroll)
+  {
+    this->scroll_ = scroll;
+    this->follow_ = this->follow_.including(scene::SCROLL_CLEANUP);
+  }
+  virtual scene::Admission admit(scene::Node &base, scene::RequestBinding<LineCursor> &request)
+  {
+    ToolboxTextEditorContext &c = context(base);
+    if (c.phase_ != IDLE || !c.node_)
+      return scene::ADMISSION_DEFERRED;
+    request = c.node_->props.moveCaretTo_;
+    if (!request.isValid() || request.state()->get().isNone())
+      return scene::ADMISSION_EMPTY;
+    // Missing TE/unavailable status still takes, then refuses in resolve.
+    this->binding_ = c.node_->props;
+    c.phase_ = INPUT;
+    return scene::ADMISSION_TAKE;
+  }
+  virtual bool current(scene::Node &base, const scene::RequestBinding<LineCursor> &request)
+  {
+    TextEditorNode &node = static_cast<TextEditorNode &>(base);
+    return node.lifecycleFact() == scene::NODE_FACT_ATTACHED && node.props.lines_ == this->binding_.lines_
+           && node.props.cursorState() == this->binding_.cursorState() && node.props.moveCaretTo_.same(request);
+  }
+  virtual EditorResult resolve(scene::Node &base, const scene::RequestBinding<LineCursor> &request)
+  {
+    ToolboxTextEditorContext &c = context(base);
+    if (!this->current(base, request))
+      return EDITOR_OWNER_MISMATCH;
+    if (c.phase_ != INPUT)
+      return EDITOR_REENTRANT;
+    if (!c.te_)
+      return EDITOR_UNAVAILABLE;
+    if (c.status_ != EDITOR_OK)
+      return c.status_;
+    loka::core::StateTracker *owner = 0;
+    if (!this->binding_.lines_ || this->binding_.lines_->queryMutationTracker(owner) != loka::core::EDIT_OK)
+      return EDITOR_UNAVAILABLE;
+    return request.usesTracker(owner) ? EDITOR_OK : EDITOR_OWNER_MISMATCH;
+  }
+  virtual EditorResult validate(scene::Node &base, const LineCursor &pending)
+  {
+    TextEditorNode &node = static_cast<TextEditorNode &>(base);
+    const EditorResult ready = node.document.availability();
+    if (ready != EDITOR_OK)
+      return ready;
+    return node.props.lines_->find(pending.line) < 0 ? EDITOR_STALE_ID : EDITOR_OK;
+  }
+  virtual scene::RequestApplication<LineCursor> apply(scene::Node &base, const LineCursor &pending)
+  {
+    ToolboxTextEditorContext &c = context(base);
+    scene::FollowUp follow = scene::FOLLOW_NONE;
+    // A take subscriber may edit the owner. Repair offsets under exclusion.
+    if (c.source_ != c.node_->props.lines_ || c.hasStaleCaret())
+    {
+      c.phase_ = RECONCILE;
+      follow = c.project();
+      if (c.phase_ == RECONCILE)
+        c.phase_ = INPUT;
+    }
+    if (c.status_ != EDITOR_OK)
+      return scene::RequestApplication<LineCursor>(pending, c.status_, follow);
+    const short offset = c.offsetOf(pending);
+    const LineCursor clamped = c.cursorAt(offset);
+    TESetSelect(offset, offset, c.te_);
+    return scene::RequestApplication<LineCursor>(clamped, EDITOR_OK, scene::REPAINT);
+  }
+  virtual EditorResult report(scene::Node &base, const LineCursor &applied)
+  {
+    return static_cast<TextEditorNode &>(base).document.moveCaret(applied);
+  }
+  virtual scene::FollowUp finishTake(scene::Node &base, const scene::Reply<LineCursor> &)
+  {
+    ToolboxTextEditorContext &c = context(base);
+    scene::FollowUp follow = scene::FOLLOW_NONE;
+    if (c.node_ && c.te_ && c.status_ == EDITOR_OK
+        && (c.phase_ == RECONCILE || c.source_ != c.node_->props.lines_ || c.hasStaleCaret()))
+    {
+      c.phase_ = RECONCILE;
+      follow = c.project();
+    }
+    if (c.phase_ == INPUT || c.phase_ == RECONCILE)
+      c.phase_ = IDLE;
+    return follow;
+  }
+  virtual void finishSettle(scene::Node &base, const scene::FollowUps &follow)
+  {
+    ToolboxTextEditorContext &c = context(base);
+    if (this->follow_.contains(scene::SCROLL_CLEANUP) && c.te_)
+      (**c.te_).destRect = this->scroll_;
+    if ((follow.contains(scene::REPAINT) || this->follow_.contains(scene::REPAINT)) && c.controller()
+        && c.controller()->window_)
+      c.controller()->window_->requestInvalidateRect(c.paintRect_);
+    // No timer arm: foreground idle retries directly from status_/TE presence.
+  }
+#ifdef TEST_BUILD
+  virtual LineCursor fact(scene::Node &base) const
+  {
+    loka::core::State<LineCursor> *state = static_cast<TextEditorNode &>(base).props.cursorState();
+    return state ? state->get() : LineCursor::None();
+  }
+  LineCursor before() const
+  {
+    return this->before_;
+  }
+#endif
+private:
+  static ToolboxTextEditorContext &context(scene::Node &node)
+  {
+    return *static_cast<ToolboxTextEditorContext *>(node.getContext());
+  }
+  TextEditorProps binding_;
+  scene::FollowUps follow_;
+  Rect scroll_;
+#ifdef TEST_BUILD
+  const LineCursor before_;
+#endif
+};
+void ToolboxTextEditorContext::settle(scene::Settlement stimulus)
+{
+  RailOperation op(this->node_);
+  this->settle(stimulus, op);
+}
+void ToolboxTextEditorContext::settle(scene::Settlement stimulus, RailOperation &op)
+{
+  scene::RequestSettlement<LineCursor>::settle(this->node_,
+                                               this,
+                                               op,
+                                               stimulus
+#ifdef TEST_BUILD
+                                               ,
+                                               op.before()
+#endif
+  );
 }
 void ToolboxTextEditorContext::retryProjection()
 {
   // Called once by the foreground idle pass, outside scheduler drain callbacks.
   if (this->status_ != EDITOR_OK && this->te_)
   {
-    this->project();
-    this->consumePendingRequest();
+    RailOperation op(this->node_);
+    op.project(*this->node_);
+    this->settle(scene::SETTLE_DEFERRED, op);
   }
 }
 void ToolboxTextEditorContext::onPropsApplied()
 {
   if (this->phase_ != IDLE)
     return;
+  RailOperation op(this->node_);
   if (this->node_ && this->te_ && (this->source_ != this->node_->props.lines_ || this->hasStaleCaret()))
-    this->project();
-  this->consumePendingRequest();
-}
-void ToolboxTextEditorContext::consumePendingRequest()
-{
-  // Platform twin of Null/Win32: only entry completions deliver, never
-  // shared projection helpers. One take and one epilogue take; further
-  // reposts stay dirty in the slot for a later props delivery.
-  if (this->consumeRequest())
-    this->consumeRequest();
-}
-bool ToolboxTextEditorContext::consumeRequest()
-{
-  if (this->phase_ != IDLE || !this->node_)
-    return false;
-  const scene::WriteSeat<LineCursor> request = this->node_->props.moveCaretTo_.request_;
-  if (!request.isValid() || request.state()->get().isNone())
-    return false;
-  this->phase_ = INPUT;
-  const LineCursor pending = request.state()->get();
-  const TextEditorProps binding = this->node_->props;
-  request.set(LineCursor::None());
-  if (this->node_ && this->phase_ == INPUT && this->te_ && this->status_ == EDITOR_OK
-      && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED && this->node_->props.lines_ == binding.lines_
-      && this->node_->props.moveCaretTo_.state() == request.state()
-      && this->node_->document.availability() == EDITOR_OK)
-  {
-    loka::core::StateTracker *owner = 0;
-    if (binding.lines_->queryMutationTracker(owner) == loka::core::EDIT_OK && request.usesTracker(owner)
-        && binding.lines_->find(pending.line) >= 0)
-    {
-      // Taking may notify an owner edit. Native offsets must name current rows.
-      if (this->source_ != binding.lines_ || this->hasStaleCaret())
-      {
-        this->phase_ = RECONCILE;
-        this->project();
-        this->phase_ = INPUT;
-      }
-      if (this->status_ == EDITOR_OK)
-      {
-        const short offset = this->offsetOf(pending);
-        const LineCursor clamped = this->cursorAt(offset);
-        TESetSelect(offset, offset, this->te_);
-        // The document validates the clamped cursor before publishing the fact.
-        this->node_->document.moveCaret(clamped);
-      }
-    }
-  }
-  if (this->node_ && this->te_ && this->status_ == EDITOR_OK
-      && (this->phase_ == RECONCILE || this->source_ != this->node_->props.lines_ || this->hasStaleCaret()))
-  {
-    this->phase_ = RECONCILE;
-    this->project();
-  }
-  this->phase_ = IDLE;
-  return true;
+    op.project(*this->node_);
+  this->settle(scene::SETTLE_PROPS, op);
 }
 bool ToolboxTextEditorContext::hasStaleCaret() const
 {
@@ -252,23 +357,24 @@ EditorResult ToolboxTextEditorContext::beginInput()
   }
   if (!this->node_ || !this->te_ || this->status_ != EDITOR_OK)
   {
-    this->consumePendingRequest();
-    return !this->node_ || !this->te_ ? EDITOR_UNAVAILABLE : this->status_;
+    const EditorResult result = !this->node_ || !this->te_ ? EDITOR_UNAVAILABLE : this->status_;
+    this->settle(scene::SETTLE_INPUT);
+    return result;
   }
   this->phase_ = INPUT;
   return EDITOR_OK;
 }
-EditorResult ToolboxTextEditorContext::finishInput(EditorResult result, Change change)
+EditorResult ToolboxTextEditorContext::finishInput(EditorResult result, Change change, RailOperation &op)
 {
   const bool restore = result != EDITOR_OK || this->phase_ == RECONCILE;
   this->phase_ = IDLE;
   if (!this->te_ || !this->node_)
   {
-    this->consumePendingRequest();
+    this->settle(scene::SETTLE_INPUT, op);
     return result;
   }
   if (restore)
-    this->restoreCommittedProjection();
+    op.restore(*this->node_);
   else
   {
     const loka::core::ListRevision after = this->node_->props.lines_->revision().get();
@@ -278,11 +384,11 @@ EditorResult ToolboxTextEditorContext::finishInput(EditorResult result, Change c
                               || after.content != this->revision_.content + (change == CARET_CHANGE ? 0 : 1)
                               || after.structure != this->revision_.structure + (change == STRUCTURE_CHANGE ? 1 : 0);
     if (ownerChanged || this->cursorAt((**this->te_).selStart) != this->node_->props.cursorState()->get())
-      this->project();
+      op.project(*this->node_);
     else
       this->revision_ = after;
   }
-  this->consumePendingRequest();
+  this->settle(scene::SETTLE_INPUT, op);
   return result;
 }
 EditorResult ToolboxTextEditorContext::key(char key)
@@ -290,6 +396,9 @@ EditorResult ToolboxTextEditorContext::key(char key)
   EditorResult result = this->beginInput();
   if (result != EDITOR_OK)
     return result;
+  // As in the Null rail, a fact subscriber can retire this context synchronously.
+  scene::Node *const liveNode = this->node_;
+  RailOperation op(this->node_);
   const short start = (**this->te_).selStart, end = (**this->te_).selEnd;
   const Rect scroll = (**this->te_).destRect;
   // One controller call per key: scan this TE's CR prefix for each endpoint,
@@ -314,26 +423,35 @@ EditorResult ToolboxTextEditorContext::key(char key)
     result = EDITOR_STALE_ID;
   else
     result = this->node_->document.applyReplace(from, to, key == '\b' ? "" : &key, key == '\b' ? 0 : 1);
+  if (liveNode->getContext() != this)
+    return result;
   const bool refused = result != EDITOR_OK || this->phase_ == RECONCILE;
-  result = this->finishInput(result, change);
-  if (refused && this->te_)
-    (**this->te_).destRect = scroll;
-  return result;
+  if (refused)
+    op.restoreScroll(scroll);
+  return this->finishInput(result, change, op);
 }
 EditorResult ToolboxTextEditorContext::click(const Point &point)
 {
   EditorResult result = this->beginInput();
   if (result != EDITOR_OK)
     return result;
+  // As in the Null rail, a fact subscriber can retire this context synchronously.
+  scene::Node *const liveNode = this->node_;
+  RailOperation op(this->node_);
   TEClick(point, false, this->te_);
   result = this->node_->document.moveCaret(this->cursorAt((**this->te_).selStart));
-  return this->finishInput(result, CARET_CHANGE);
+  if (liveNode->getContext() != this)
+    return result;
+  return this->finishInput(result, CARET_CHANGE, op);
 }
 EditorResult ToolboxTextEditorContext::paste(const char *bytes, std::size_t length)
 {
   EditorResult result = this->beginInput();
   if (result != EDITOR_OK)
     return result;
+  // As in the Null rail, a fact subscriber can retire this context synchronously.
+  scene::Node *const liveNode = this->node_;
+  RailOperation op(this->node_);
   // Refuse before TE's signed-short storage can overflow.
   if (length > TextEditorProps::kMaxBytes)
     result = EDITOR_CAPACITY;
@@ -346,7 +464,9 @@ EditorResult ToolboxTextEditorContext::paste(const char *bytes, std::size_t leng
     const LineCursor to = start == end ? from : this->cursorAt(end);
     result = this->node_->document.applyReplace(from, to, bytes, length);
   }
-  result = this->finishInput(result, CARET_CHANGE);
+  if (liveNode->getContext() != this)
+    return result;
+  result = this->finishInput(result, CARET_CHANGE, op);
   return result;
 }
 void ToolboxTextEditorContext::updateRect(const Rect &rect)
@@ -406,16 +526,19 @@ void ToolboxTextEditorContext::render(scene::IPlatformController *)
 {
   if (!this->controller() || !this->node_)
     return;
+  scene::Node *const liveNode = this->node_;
+  RailOperation op(this->node_);
   TEHandle te = this->controller()->ensureTextEditorControl(this, this->rect_, this->lifetimeHint());
   if (te != this->te_)
   {
     this->te_ = te;
-    this->project();
-    this->consumePendingRequest();
+    op.project(*this->node_);
+    this->settle(scene::SETTLE_ATTACH, op);
   }
   else if (!te)
-    this->consumePendingRequest();
-  this->repaint(te);
+    this->settle(scene::SETTLE_ATTACH, op);
+  if (liveNode->getContext() == this)
+    this->repaint(this->te_);
 }
 bool RegisterToolboxTextEditorNodeHandler(scene::PlatformNodeHandlerRegistry &registry)
 {

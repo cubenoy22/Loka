@@ -42,5 +42,6 @@ void FrameRect(const Rect *);
 namespace toolbox_host
 {
   extern int copied, sets, disposals, failSets, failNew, updates, selections;
+  extern unsigned invalidations;
 }
 #endif

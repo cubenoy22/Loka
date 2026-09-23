@@ -84,7 +84,7 @@ public:
     port.txSize = 12;
     port.txFace = 0;
   }
-  void requestInvalidateRect(const Rect &) {}
+  void requestInvalidateRect(const Rect &) { ++toolbox_host::invalidations; }
   GrafPtr window()
   {
     return &port;

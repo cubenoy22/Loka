@@ -2,7 +2,6 @@
 #define LOKA_APP_SCENE_STATE_REQUEST_HPP
 #include "app/scene/state/Reported.hpp"
 #include "app/nodes/controls/TextEditorDocument.hpp"
-class ToolboxTextEditorContext;
 class MacTextEditorContext;
 namespace loka
 {
@@ -200,7 +199,6 @@ namespace loka
         friend class RequestSettlement<T>;
         friend class app::TextEditorNode;
         // provisional bridge for #882 b/c/d; removed when each rail moves to settle()
-        friend class ::ToolboxTextEditorContext;
         friend class ::MacTextEditorContext;
         WriteSeat<T> request_;
         WriteSeat<Reply<T> > reply_;
