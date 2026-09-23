@@ -282,17 +282,28 @@ box declared through `state()` or `declareStates()`. Read or observe it through
 method or mutable-handle conversion. Copies borrow the owner's storage without
 extending its lifetime; allocation refusal leaves an invalid handle.
 
-The request box is a separate, ordinary `NodeState<T>` that the app sets and
-the platform rail takes. For the caret, `LineCursor::None()` means no request,
-not a request to remove the caret. Taking clears the slot before applying the
-value, clamping it if needed, and reporting the committed outcome in the fact.
-A refused request is consumed but leaves the fact unchanged. One request slot
-has one consumer; it is a slot, not a queue.
+The request box is a `Request<T>` that the app sets and the platform rail
+takes. For the caret, `LineCursor::None()` means no request, not a request to
+remove the caret. Taking clears the slot before applying the value, clamping it
+if needed, and reporting the committed outcome in the fact. A refused request
+is consumed but leaves the fact unchanged. One request slot has one consumer;
+it is a slot, not a queue.
+
+When the application needs to know what became of a request, declare a
+`RequestWithReply<T>` instead. It is a `Request<T>` with a read-only reply box:
+`reply()` is a `State<Reply<T>>` whose value is `NO_REPLY` until the rail takes
+the request, then `GRANTED` (applied as asked), `CLAMPED` (applied at the
+nearest valid position, with the requested and applied values) or `REFUSED`
+(with the reason; the fact is unchanged). A reply describes one take: a request
+overwritten before it was taken gets no reply, and a request discarded because
+the editor's list or slot was rebound gets none either. The reply box costs a
+second State; a plain `Request<T>` costs none.
 
 For `TextEditor`, declare `Reported<LineCursor> cursor` and
-`NodeState<LineCursor> request` as members of the app's owning Node or Boundary,
-initialize both to `LineCursor::None()` through `this->state(...)`, and keep
-them and `lines` on the same owner tracker, alive for the editor's lifetime:
+`Request<LineCursor> request` (or `RequestWithReply<LineCursor>`) as members of
+the app's owning Node or Boundary, initialize both to `LineCursor::None()`
+through `this->state(...)`, and keep them and `lines` on the same owner tracker,
+alive for the editor's lifetime:
 
 ```cpp
 // In compose, using the app-owned lines, cursor, and request members:
@@ -301,6 +312,8 @@ c << TextEditor(this->lines, this->cursor).moveCaretTo(this->request);
 this->request.set(LineCursor(this->lines.at(0).id, 0)); // Requires a nonempty list.
 // Read the committed logical caret (not a promise of native selection):
 const LineCursor actual = this->cursor.state()->get();
+// With a RequestWithReply, observe the outcome of the last take:
+if (this->request.reply()->get().kind() == scene::Reply<LineCursor>::REFUSED) { /* ... */ }
 ```
 
 A request is delivered at the rail's next completed operation: a props update,

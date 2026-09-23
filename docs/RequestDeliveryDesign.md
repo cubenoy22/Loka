@@ -13,11 +13,25 @@ ruling from the #879 review (2026-09-23).
 | Box | Type | Writer | Reader |
 |---|---|---|---|
 | fact (`cursor`) | `Reported<LineCursor>` | the node's commit seam only (`TextEditorDocument::moveCaret` / `applyReplace`) | app, through `state()` |
-| request (`moveCaretTo`) | app-owned `NodeState<LineCursor>` | app (`set`), rail (take: snapshot, then `None`) | rail |
+| request (`moveCaretTo`) | app-owned `Request<LineCursor>` (a private `NodeState<LineCursor>`) | app (`set`), rail (take: snapshot, then `None`) | rail |
+| reply (optional, `RequestWithReply<LineCursor>::reply()`) | `Reported<Reply<LineCursor>>` inside the request handle | rail, once per take, forced publish | app |
 
 `Reported<T>` has no `set` and no conversion to a mutable handle; Props extract
-its write seat through `NodePropsBase::reportSeat`. Facts are named as nouns
-(`cursor`, `offset`), requests as verbs (`moveCaretTo`, `scrollTo`).
+its write seat through `NodePropsBase::reportSeat`, and the request and reply
+seats through `NodePropsBase::requestSeat` / `replySeat`; the Props door has one
+overload per handle type and refuses a bare `NodeState`. Facts are named as
+nouns (`cursor`, `offset`), requests as verbs (`moveCaretTo`, `scrollTo`).
+
+## Settle (#882)
+
+A rail context settles once per admitted operation. Only inside `settle` may it
+take a request; the common `RequestSettlement<T>` owns the order (two unrolled
+takes, admission re-read per take, snapshot and clear, liveness by
+`node->getContext() == identity`, resolve, seam validate, apply, seam report,
+reply built from the seam result, liveness, `finishTake`) and one epilogue that
+folds the rail's `FollowUps` (repaint only when something was written or
+repaired). Shared helpers never settle. The Null rail is the reference
+implementation; the native rails move onto it in the #882 PR series.
 
 ## From AGENTS.md
 
