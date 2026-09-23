@@ -55,7 +55,9 @@ private:
   void *parent_;
   void *scroll_;
   void *delegate_;
-  void syncFromNode(bool force, bool nativeCommit = false);
+  /** Project only; true asks the entry to retry after unavailable refusal. */
+  bool syncFromNode(bool force, bool nativeCommit = false);
+  void projectHighlights();
   void consumePendingRequest();
   bool consumeRequest();
   void scheduleRestore();

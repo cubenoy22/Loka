@@ -454,7 +454,7 @@ namespace
       RepeatingRequestObserver &self = *static_cast<RepeatingRequestObserver *>(data);
       ++self.calls;
       // Fail promptly if an unbounded epilogue is restored by a mutation.
-      LOKA_VERIFY(self.calls <= 4);
+      LOKA_VERIFY(self.calls <= 6);
       requestCaret(self.fixture, LineCursor(self.fixture.lines.at(0).id,
                                            self.fixture.cursor.state()->get().column == 0 ? 1 : 0));
       self.fixture.context->onPropsApplied();
@@ -519,10 +519,17 @@ void testMacTextEditorRequests()
     LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(1).id, 0));
     LOKA_VERIFY(f.request.get().isNone());
   }
+  // Entry-bound mutations are predicted reds, not measured on macOS here.
+  for (int stale = 0; stale < 2; ++stale)
   {
     Fixture f;
     RepeatingRequestObserver observer(f);
-    requestCaret(f, LineCursor(f.lines.at(0).id, 0));
+    {
+      StateTrackerGuard guard(&f.tracker);
+      if (stale)
+        LOKA_VERIFY(f.lines.update(f.lines.at(0).id, String("abcdefgh")) == EDIT_OK);
+      f.request.set(LineCursor(f.lines.at(0).id, 0));
+    }
     f.context->onPropsApplied();
     LOKA_VERIFY(observer.calls == 2);
     LOKA_VERIFY(f.request.get() == LineCursor(f.lines.at(0).id, 0));
@@ -530,6 +537,29 @@ void testMacTextEditorRequests()
     f.context->onPropsApplied();
     LOKA_VERIFY(observer.calls == 4);
     LOKA_VERIFY(!f.request.get().isNone());
+  }
+  {
+    Fixture f;
+    RepeatingRequestObserver observer(f);
+    id delegate = [f.view delegate];
+    [f.view setDelegate:nil];
+    // Storage commits text and reports its caret together. The subscriber
+    // posts a request during that report, before the deferred entry runs.
+    [[f.view textStorage] replaceCharactersInRange:NSMakeRange(2, 0) withString:@"x"];
+    LOKA_VERIFY(observer.calls == 1);
+    LOKA_VERIFY(!f.request.get().isNone());
+    // Run exactly the deferred entry, without another run-loop source.
+    [NSObject cancelPreviousPerformRequestsWithTarget:delegate];
+    [delegate performSelector:@selector(applyHighlights)];
+    LOKA_VERIFY(observer.calls == 3);
+    LOKA_VERIFY(f.request.get() == LineCursor(f.lines.at(0).id, 0));
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(0).id, 1));
+    LOKA_VERIFY(NSEqualRanges([f.view selectedRange], NSMakeRange(1, 0)));
+    LOKA_VERIFY([[f.view string] isEqualToString:@"abxcd\nabcd\nabcd"]);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(observer.calls == 5);
+    LOKA_VERIFY(f.request.get() == LineCursor(f.lines.at(0).id, 0));
+    [f.view setDelegate:delegate];
   }
   for (int onTake = 0; onTake < 2; ++onTake)
   {
