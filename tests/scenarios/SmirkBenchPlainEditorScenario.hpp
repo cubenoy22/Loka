@@ -5,6 +5,7 @@
 #include "ToolboxScenePlatformController.hpp"
 #include "SmirkBenchAttributedScenario.hpp"
 #include "ScenarioCellTable.hpp"
+#include "TextEditorSettleAudit.hpp"
 #include "../toolbox/ToolboxTextEditorAccess.hpp"
 namespace loka
 {
@@ -30,6 +31,16 @@ namespace loka
     {
       if (tick < 2)
         return SCENARIO_ADVANCE_PENDING;
+      typedef app::testing::SettleTrace<app::LineCursor> Trace;
+      Trace &trace = Trace::instance();
+      // The driver enters only after pending native/scene work settles. Attribute
+      // completions between ticks to the preceding step before clearing its rows.
+      if (tick > 2 && !RecordTextEditorSettleAudit(tick - 1, trace, audit))
+      {
+        out = SmirkBenchEditorRecord("text-editor-plain", tick, false);
+        return SCENARIO_ADVANCE_DRIVER_COMPLETION_READY;
+      }
+      trace.clear();
       app::scene::Node *node = 0;
       dsl::FlowError error;
       bool ok = scene
@@ -100,18 +111,45 @@ namespace loka
           ok = controller.handleKeyDown('c');
           step = "type-c";
         }
+        else if (tick == 12)
+        {
+          app::scene::BoundaryNode *main = dsl::testing::SceneTestAccess::rootBoundary(*scene);
+          ok = main && main->propsTypeId() == SmirkBenchPlainEditorProps::staticTypeId()
+               && static_cast<SmirkBenchPlainEditorNode *>(main)->queueCaretRoundTripForTesting();
+          if (ok)
+          {
+            context->onPropsApplied();
+            const app::LineCursor first(editor->props.lines_->at(0).id, 0);
+            const app::LineCursor last(editor->props.lines_->at(0).id, 2);
+            ok = trace.size() == 1 && trace.at(0).stimulus == app::scene::SETTLE_PROPS
+                 && trace.at(0).count == 2 && trace.at(0).before == last && trace.at(0).after == last;
+            for (unsigned i = 0; ok && i < 2; ++i)
+            {
+              const app::LineCursor expected = i == 0 ? first : last;
+              ok = trace.at(0).takes[i].kind() == app::scene::Reply<app::LineCursor>::GRANTED
+                   && trace.at(0).takes[i].requested() == expected && trace.at(0).takes[i].applied() == expected
+                   && trace.at(0).seam[i] == app::EDITOR_OK;
+            }
+            ok = ok && editor->props.cursorState()->get() == last
+                 && editor->props.moveCaretTo_.state()->get().isNone();
+          }
+          step = "queue-two-cursors";
+        }
         else
         {
           // Capture with no focused TextEdit caret blinking between settle samples.
           Point outside = {0, 0};
           (void)controller.handleMouseDown(outside);
           ok = !(**te).active;
+          step = tick == 11 ? "capture" : "capture-queued";
         }
         if (ok)
           ok = audit.recordStep(dsl::testing::ScenarioStepTerminal(
               static_cast<int>(tick), step, tick, tick, dsl::FLOW_STEP_SUCCEEDED, error));
       }
-      if (ok && tick < 11)
+      if (ok && tick >= 13)
+        ok = RecordTextEditorSettleAudit(tick, trace, audit);
+      if (ok && tick < 13)
         return SCENARIO_ADVANCE_PENDING;
       std::string projection;
       if (ok)

@@ -1029,6 +1029,66 @@ namespace
   }
 } // namespace
 
+void testWin32TextEditorQueuedRequests()
+{
+  // Deliberate Win32/Mac twin: one ordinary props completion per assertion group.
+  typedef loka::app::testing::SettleTrace<LineCursor> Trace;
+  typedef loka::app::scene::Reply<LineCursor> CaretReply;
+  Fixture fixture;
+  // Bare fixture: apply through the Props applier (the Definition door compares
+  // Props type identity, which a prebuilt core library does not share on this rail).
+  LOKA_VERIFY((loka::app::scene::NodePropsApplier<TextEditorNode, TextEditorProps>::apply(
+      fixture.node, TextEditor(fixture.lines, fixture.cursor).moveCaretTo(fixture.queue).props)));
+  fixture.context->onPropsApplied();
+  Trace &trace = Trace::instance();
+  const LineCursor first(fixture.lines.at(0).id, 0);
+  const LineCursor second(fixture.lines.at(1).id, 1);
+  const LineCursor third(fixture.lines.at(2).id, 3);
+  for (int posts = 2; posts <= 3; ++posts)
+  {
+    const LineCursor before = fixture.cursor.state()->get();
+    trace.clear();
+    {
+      StateTrackerGuard guard(&fixture.tracker);
+      LOKA_VERIFY(fixture.queue.post(first) == POST_ACCEPTED);
+      LOKA_VERIFY(fixture.queue.post(second) == POST_ACCEPTED);
+      if (posts == 3)
+        LOKA_VERIFY(fixture.queue.post(third) == POST_ACCEPTED);
+    }
+    fixture.context->onPropsApplied();
+    LOKA_VERIFY(trace.size() == 1 && trace.overwritten() == 0);
+    LOKA_VERIFY(trace.at(0).stimulus == SETTLE_PROPS && trace.at(0).count == 2);
+    LOKA_VERIFY(trace.at(0).before == before && trace.at(0).after == second);
+    for (unsigned i = 0; i < 2; ++i)
+    {
+      const LineCursor expected = i == 0 ? first : second;
+      LOKA_VERIFY(trace.at(0).takes[i].kind() == CaretReply::GRANTED);
+      LOKA_VERIFY(trace.at(0).takes[i].requested() == expected && trace.at(0).takes[i].applied() == expected);
+      LOKA_VERIFY(trace.at(0).seam[i] == EDITOR_OK);
+    }
+    const CaretReply reply = fixture.queue.reply().state()->get();
+    LOKA_VERIFY(reply.kind() == CaretReply::GRANTED && reply.requested() == second && reply.applied() == second);
+    LOKA_VERIFY(fixture.cursor.state()->get() == second && fixture.queue.pending() == 0);
+    if (posts == 2)
+      LOKA_VERIFY(fixture.queue.state()->get().isNone());
+    else
+    {
+      // pending() counts only the ring: the third request remains in the live slot.
+      LOKA_VERIFY(fixture.queue.state()->get() == third);
+      trace.clear();
+      fixture.context->onPropsApplied();
+      LOKA_VERIFY(trace.size() == 1 && trace.at(0).count == 1 && trace.at(0).stimulus == SETTLE_PROPS);
+      LOKA_VERIFY(trace.at(0).before == second && trace.at(0).after == third);
+      LOKA_VERIFY(trace.at(0).takes[0].kind() == CaretReply::GRANTED && trace.at(0).seam[0] == EDITOR_OK);
+      LOKA_VERIFY(trace.at(0).takes[0].requested() == third && trace.at(0).takes[0].applied() == third);
+      const CaretReply last = fixture.queue.reply().state()->get();
+      LOKA_VERIFY(last.kind() == CaretReply::GRANTED && last.requested() == third && last.applied() == third);
+      LOKA_VERIFY(fixture.cursor.state()->get() == third);
+      LOKA_VERIFY(fixture.queue.pending() == 0 && fixture.queue.state()->get().isNone());
+    }
+  }
+}
+
 void testWin32TextEditorConversion()
 {
   std::wstring wide;

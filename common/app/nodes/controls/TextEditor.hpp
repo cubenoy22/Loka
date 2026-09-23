@@ -220,6 +220,11 @@ namespace loka
         this->props.moveCaretTo(value);
         return *this;
       }
+      TextEditorDefinition &moveCaretTo(scene::RequestQueueBase<LineCursor> &value)
+      {
+        this->props.moveCaretTo(value);
+        return *this;
+      }
       TextEditorDefinition &highlighter(const LineHighlighter &value)
       {
         this->props.highlighter(value);
