@@ -5,6 +5,7 @@
 #include <new>
 #include "app/scene/detail/ArenaMath.hpp"
 #include "app/scene/state/NodeState.hpp"
+#include "app/scene/state/Reported.hpp"
 #include "app/scene/state/StateOwner.hpp"
 #include "core/LokaAlloc.hpp"
 
@@ -137,6 +138,11 @@ namespace loka
           {
             out = NodeState<T>(state, 0, 0);
           }
+        }
+
+        template <typename T> static void CreateImmediateState(IStateOwner *owner, Reported<T> &out, const T &initial)
+        {
+          CreateImmediateState(owner, out.seat_, initial);
         }
 
         /** Reserves one owner-lifetime arena slot for an immediate declaration

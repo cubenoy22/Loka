@@ -6,4 +6,14 @@ void testTextEditorHighlight();
 void testTextEditorScene();
 void testTextEditorReplace();
 void testTextEditorReplaceRefusals();
+void testTextEditorRequestTake();
+void testTextEditorRequestIdle();
+void testTextEditorRequestReposts();
+void testTextEditorRequestRefusal();
+void testTextEditorRequestBinding();
+void testTextEditorRequestCancellationRepost();
+void testTextEditorRequestSeatReplacement();
+void testTextEditorRequestDetach();
+void testTextEditorRequestCompletion();
+void testTextEditorReportedStorage();
 #endif

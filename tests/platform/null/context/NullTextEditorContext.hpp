@@ -35,6 +35,8 @@ private:
     RECONCILE
   };
   loka::app::EditorResult input(const std::string &bytes, bool join, const loka::app::LineCursor *move);
+  void consumePendingRequest();
+  bool consumeRequest();
   void restoreCommittedProjection(loka::app::LineCursor snapshot);
   void project(loka::app::LineCursor fallback);
   std::size_t nativeOffset() const;

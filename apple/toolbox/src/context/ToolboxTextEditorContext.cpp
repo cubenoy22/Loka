@@ -140,7 +140,7 @@ void ToolboxTextEditorContext::project()
       this->status_ = EDITOR_UNAVAILABLE;
     else
     {
-      this->caret_ = this->node_->props.cursor_.state()->get();
+      this->caret_ = this->node_->props.cursorState()->get();
       if (this->node_->props.lines_->find(this->caret_.line) < 0)
         this->caret_ = this->node_->props.lines_->size()
                            ? LineCursor(this->node_->props.lines_->at(0).id, this->caret_.column)
@@ -174,9 +174,9 @@ void ToolboxTextEditorContext::onPropsApplied()
     return;
   if (this->source_ != this->node_->props.lines_ || this->revision_ != this->node_->props.lines_->revision().get())
     this->project();
-  else if (this->status_ == EDITOR_OK && this->caret_ != this->node_->props.cursor_.state()->get())
+  else if (this->status_ == EDITOR_OK && this->caret_ != this->node_->props.cursorState()->get())
   {
-    const short offset = this->offsetOf(this->node_->props.cursor_.state()->get());
+    const short offset = this->offsetOf(this->node_->props.cursorState()->get());
     TESetSelect(offset, offset, this->te_);
     this->caret_ = this->cursorAt(offset);
   }
@@ -220,11 +220,11 @@ EditorResult ToolboxTextEditorContext::finishInput(EditorResult result, Change c
     const bool ownerChanged = this->source_ != this->node_->props.lines_
                               || after.content != this->revision_.content + (change == CARET_CHANGE ? 0 : 1)
                               || after.structure != this->revision_.structure + (change == STRUCTURE_CHANGE ? 1 : 0);
-    if (ownerChanged || this->cursorAt((**this->te_).selStart) != this->node_->props.cursor_.state()->get())
+    if (ownerChanged || this->cursorAt((**this->te_).selStart) != this->node_->props.cursorState()->get())
       this->project();
     else
     {
-      this->caret_ = this->node_->props.cursor_.state()->get();
+      this->caret_ = this->node_->props.cursorState()->get();
       this->revision_ = after;
     }
   }

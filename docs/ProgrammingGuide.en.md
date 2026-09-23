@@ -273,6 +273,35 @@ Use `declareStates(...)` when a Node has many Node-local states and batching the
 declaration makes registration cheaper or clearer. For a small number of local
 states, prefer `this->state(...)`.
 
+### `Reported<T>`
+
+`Reported<T>` is an owner-declared fact handle. Declare it with `state()` or
+`declareStates()` just like `NodeState<T>`; both use the same owner storage,
+tracker adoption, and release path. An allocation refusal leaves an invalid
+handle. Read through `.state()`; the handle has no public setter or mutable
+handle conversion. Copies borrow storage and do not extend its lifetime.
+
+`TextEditor(lines, cursor)` takes a `Reported<LineCursor>` initialized to
+`LineCursor::None()`. It reports the committed logical caret, without promising
+a native selection. The optional `.moveCaretTo(request)` takes a separate,
+app-owned `NodeState<LineCursor>` on the same tracker. One slot has one consumer;
+`None` means no pending request. The consumer clears the request before applying
+and reporting it. Each Null delivery checks the slot once more and consumes at
+most one repost from those notifications. A further request remains pending
+for a later Props apply; the take already marked the node dirty.
+
+On a list or request-seat replacement, the editor cancels the old pending
+request before assigning Props. A request posted during that cancellation is
+admitted to the new binding; if the seat changes, a residual in the old slot is
+no longer the editor's to consume. Resolve new request ItemIds against the
+current binding. Attachment ending also cancels pending intent synchronously.
+Native rail request delivery is staged separately from the Null implementation.
+
+The ordinary fact writer is private to the editor's document seam. The core
+`StateBase::asMutableState()` and `State<T>` assignment escape hatches remain
+open; using them to mutate a reported fact has the authority of `dangerously*`
+access and bypasses this app-facing contract.
+
 ### `ObservableList` And `MirroredList`
 
 [`ObservableList<T>`](../common/core/ObservableList.hpp) is a data-only model:

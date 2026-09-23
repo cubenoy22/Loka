@@ -50,6 +50,9 @@ namespace loka
 
     namespace scene
     {
+      template <typename T> class Reported;
+      template <typename T> class WriteSeat;
+
       // NodeDirtyFlags: flags for node dirtiness (C++98-friendly)
       enum NodeDirtyFlags
       {
@@ -806,6 +809,14 @@ namespace loka
       // --- NodePropsBase (templated common base) ---
       template <class PropsT> struct NodePropsBase : public PropsBase
       {
+      protected:
+        /** Extract a reporting capability while constructing the borrowing Props. */
+        template <typename T> static WriteSeat<T> reportSeat(Reported<T> &fact)
+        {
+          return fact.seat_.writeSeat();
+        }
+
+      public:
         static Node *createNode(const PropsBase &base)
         {
           const PropsT &props = static_cast<const PropsT &>(base);

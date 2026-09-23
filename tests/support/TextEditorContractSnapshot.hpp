@@ -19,7 +19,7 @@ namespace loka
       template <class Fixture>
       explicit TextEditorContractSnapshot(const Fixture &f)
           : revision(f.lines.revision().get()),
-            cursor(f.cursor.get())
+            cursor(f.cursor.state()->get())
       {
         for (unsigned short i = 0; i < f.lines.size(); ++i)
         {
@@ -36,7 +36,7 @@ namespace loka
           LOKA_VERIFY(this->text[i].equals(f.lines.at(i).value));
         }
         LOKA_VERIFY(!(this->revision != f.lines.revision().get()));
-        LOKA_VERIFY(this->cursor == f.cursor.get());
+        LOKA_VERIFY(this->cursor == f.cursor.state()->get());
       }
     };
   } // namespace testing

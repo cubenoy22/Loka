@@ -7,6 +7,7 @@
 #include "app/Menu.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
+#include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "core/util/StateTrackerGuard.hpp"
@@ -20,17 +21,35 @@ namespace
   using namespace loka::app;
   using namespace loka::core;
 
-  /** RunApp destroys every borrowing window before this document owner. */
-  class TextEditorConfig : public AppConfigurable
+  /** The scene Boundary owns all editor boxes and their borrowed list. */
+  class TextEditorContent : public scene::BoundaryNodeFor<TextEditorContent>
   {
   public:
-    explicit TextEditorConfig(PlatformContext *context)
-        : AppConfigurable(context),
-          cursor_(&this->cursorValue_, &this->tracker_)
+    explicit TextEditorContent(const scene::BoundaryPropsFor<TextEditorContent> &props)
+        : scene::BoundaryNodeFor<TextEditorContent>(props)
     {
-      this->tracker_.addState(&this->cursorValue_);
-      this->tracker_.addState(&this->status_);
-      if (this->lines_.attach(&this->tracker_, TextEditorProps::kMaxLines) != ATTACH_OK
+      this->declareStates(3)
+          .state(this->cursor_, LineCursor::None())
+          .state(this->request_, LineCursor::None())
+          .state(this->status_, String());
+    }
+
+    virtual void declareBindings(scene::BindingToken &token)
+    {
+      if (!this->hasEditorStates())
+        return;
+      token.watch(const_cast<State<ListRevision> &>(this->lines_.revision()), this, &TextEditorContent::refreshStatus);
+      token.watch(*this->cursor_.state(), this, &TextEditorContent::refreshStatus);
+    }
+
+    virtual void attachNode(scene::NodeComposition &)
+    {
+      if (!this->hasEditorStates())
+        return;
+      StateTracker *owner = 0;
+      if (this->lines_.queryMutationTracker(owner) == EDIT_OK)
+        return;
+      if (this->lines_.attach(this->tracker()->asPushTracker(), TextEditorProps::kMaxLines) != ATTACH_OK
           || this->lines_.insert(0, String::Literal("first")) != EDIT_OK
           || this->lines_.insert(1, String::Literal("second")) != EDIT_OK
           || this->lines_.insert(2, String::Literal("third")) != EDIT_OK)
@@ -38,75 +57,76 @@ namespace
         this->lines_.detach();
         return;
       }
-      this->cursor_.set(LineCursor(this->lines_.at(0).id, 0));
-      this->refreshStatus();
-      this->lines_.revision().deferBind(&TextEditorConfig::RefreshStatus, this);
-      this->cursor_.state()->deferBind(&TextEditorConfig::RefreshStatus, this);
+      this->request_.set(LineCursor(this->lines_.at(0).id, 0));
     }
 
-    virtual ~TextEditorConfig()
+    virtual void composeNode(scene::NodeComposition &composition)
     {
-      this->lines_.revision().deferUnbind(&TextEditorConfig::RefreshStatus, this);
-      this->cursor_.state()->deferUnbind(&TextEditorConfig::RefreshStatus, this);
-      this->lines_.detach();
-      this->tracker_.removeState(&this->status_);
-      this->tracker_.removeState(&this->cursorValue_);
-    }
-
-    virtual void compose(AppComposition &composition)
-    {
-      Column content = Column() << Text("Type in the box; File > Quit to leave.");
-      if (this->lines_.size())
-        content << (Box().size(560, 300) << TextEditor(this->lines_, this->cursor_))
-                << Text(&this->status_);
+      if (this->hasEditorStates() && this->lines_.size())
+        composition.declare(
+            Column() << Text("Type in the box; File > Quit to leave.")
+                     << (Box().size(560, 300) << TextEditor(this->lines_, this->cursor_).moveCaretTo(this->request_))
+                     << Text(this->status_.state()));
       else
-        content << Text("Editor unavailable: document allocation failed");
-      composition << WindowDef(WindowProps()
-                                   .frame(20, 40, 600, 400)
-                                   .title("Loka TextEditor")
-                                   .visible(true)
-                                   .scene(content));
-    }
-
-    virtual void composeMenu(MenuComposition &composition)
-    {
-      composition.declare(Menu("File") << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));
+        composition.declare(Text("Editor unavailable: document allocation failed"));
     }
 
   private:
-    PushStateTracker tracker_;
     ObservableList<String> lines_;
-    MutableState<LineCursor> cursorValue_;
-    scene::NodeState<LineCursor> cursor_;
-    MutableState<String> status_;
+    scene::Reported<LineCursor> cursor_;
+    scene::NodeState<LineCursor> request_;
+    scene::NodeState<String> status_;
+
+    bool hasEditorStates() const
+    {
+      return this->cursor_.isValid() && this->request_.isValid() && this->status_.isValid();
+    }
 
     void refreshStatus()
     {
+      if (!this->hasEditorStates())
+        return;
       std::size_t bytes = this->lines_.size() ? this->lines_.size() - 1 : 0;
       for (unsigned short i = 0; i < this->lines_.size(); ++i)
       {
         std::size_t units = 0;
         if (!this->lines_.at(i).value.requiredUnits(StringEncodingUtf8, units))
         {
-          StateTrackerGuard transaction(&this->tracker_);
+          StateTrackerGuard transaction(this->tracker());
           this->status_.set(String::Literal("Document byte count unavailable"));
           return;
         }
         bytes += units;
       }
-      const LineCursor cursor = this->cursor_.get();
+      const LineCursor cursor = this->cursor_.state()->get();
       char text[96];
       std::sprintf(text, "Lines: %u  Cursor: %d:%d  Bytes: %lu",
                    static_cast<unsigned>(this->lines_.size()),
                    this->lines_.find(cursor.line), cursor.column,
                    static_cast<unsigned long>(bytes));
-      StateTrackerGuard transaction(&this->tracker_);
+      StateTrackerGuard transaction(this->tracker());
       this->status_.set(String::Literal(text));
     }
+  };
 
-    static void RefreshStatus(void *data)
+  class TextEditorConfig : public AppConfigurable
+  {
+  public:
+    explicit TextEditorConfig(PlatformContext *context)
+        : AppConfigurable(context)
     {
-      static_cast<TextEditorConfig *>(data)->refreshStatus();
+    }
+    virtual void compose(AppComposition &composition)
+    {
+      composition << WindowDef(WindowProps()
+                                   .frame(20, 40, 600, 400)
+                                   .title("Loka TextEditor")
+                                   .visible(true)
+                                   .scene(scene::Boundary<TextEditorContent>()));
+    }
+    virtual void composeMenu(MenuComposition &composition)
+    {
+      composition.declare(Menu("File") << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));
     }
   };
 } // namespace
