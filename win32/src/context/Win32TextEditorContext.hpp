@@ -2,6 +2,7 @@
 #define LOKA_WIN32_TEXT_EDITOR_CONTEXT_HPP
 #include "Win32RetirableContext.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
+#include "app/scene/state/RequestSettlement.hpp"
 
 namespace loka
 {
@@ -81,12 +82,13 @@ private:
   };
   static LRESULT CALLBACK WindowProc(HWND, UINT, WPARAM, LPARAM);
   void captureSelection();
-  void syncFromNode();
-  void consumePendingRequest();
-  bool consumeRequest();
-  void restoreCommittedProjection();
-  bool replaceProjection();
-  void deferRestore();
+  class RailOperation;
+  void syncFromNode(loka::app::scene::Settlement stimulus = loka::app::scene::SETTLE_PROPS);
+  void settle(loka::app::scene::Settlement stimulus);
+  void settle(loka::app::scene::Settlement stimulus, RailOperation &op);
+  loka::app::scene::FollowUp restoreCommittedProjection();
+  loka::app::scene::FollowUp replaceProjection();
+  loka::app::scene::FollowUp deferRestore();
   void syncCaret();
   void restoreSelection();
   loka::app::EditorResult commitNativeChange();

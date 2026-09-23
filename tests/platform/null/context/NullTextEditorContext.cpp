@@ -192,12 +192,12 @@ public:
   virtual scene::Admission admit(scene::Node &base, scene::RequestBinding<LineCursor> &request)
   {
     NullTextEditorContext &c = context(base);
+    request = static_cast<TextEditorNode &>(base).props.moveCaretTo_;
+    this->binding_ = static_cast<TextEditorNode &>(base).props;
     if (c.phase_ != IDLE || !c.node_)
       return scene::ADMISSION_DEFERRED;
-    request = c.node_->props.moveCaretTo_;
     if (!request.isValid() || request.state()->get().isNone())
       return scene::ADMISSION_EMPTY;
-    this->binding_ = c.node_->props;
     c.phase_ = INPUT;
     return scene::ADMISSION_TAKE;
   }
@@ -243,7 +243,8 @@ public:
   {
     return static_cast<TextEditorNode &>(base).document.moveCaret(applied);
   }
-  virtual scene::FollowUp finishTake(scene::Node &base, const scene::Reply<LineCursor> &)
+  virtual scene::FollowUp finishTake(scene::Node &base, const scene::Reply<LineCursor> &,
+                                    const scene::RequestApplication<LineCursor> &)
   {
     NullTextEditorContext &c = context(base);
     c.phase_ = IDLE;
@@ -252,7 +253,10 @@ public:
     return scene::REPAINT;
   }
   // Null controls are native-scheduled paint answers; there is no repaint sink.
-  virtual void finishSettle(scene::Node &, const scene::FollowUps &) {}
+  virtual scene::FollowUpResult finishSettle(scene::Node &, const scene::FollowUps &)
+  {
+    return scene::FOLLOW_UP_NONE;
+  }
 #ifdef TEST_BUILD
   virtual LineCursor fact(scene::Node &base) const
   {

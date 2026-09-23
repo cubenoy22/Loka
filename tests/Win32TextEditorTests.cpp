@@ -1,5 +1,7 @@
+#include "support/LifecycleFactTestAccess.hpp"
 #include "support/TextEditorStateOwner.hpp"
 #include "support/TextEditorAccess.hpp"
+#include "support/TextEditorReportRefusal.hpp"
 #include "Win32EditTextBridgeTests.hpp"
 #include "support/TestVerify.hpp"
 #include "support/LokaAllocFailure.hpp"
@@ -548,6 +550,207 @@ namespace
       }
     }
   };
+  /** Force a post-report repair, including selection from the new committed fact. */
+  class EditOnReply
+  {
+  public:
+    explicit EditOnReply(Fixture &fixture)
+        : fixture_(fixture)
+    {
+      fixture.request.reply().state()->bind(&changed, this, false);
+    }
+    ~EditOnReply()
+    {
+      this->fixture_.request.reply().state()->unbind(&changed, this);
+    }
+
+  private:
+    static void changed(void *data)
+    {
+      Fixture &fixture = static_cast<EditOnReply *>(data)->fixture_;
+      const ItemId line = fixture.lines.at(0).id;
+      StateTrackerGuard guard(&fixture.tracker);
+      LOKA_VERIFY(fixture.lines.update(line, String("changed")) == EDIT_OK);
+      LOKA_VERIFY(loka::app::testing::TextEditorAccess::document(*fixture.node).moveCaret(LineCursor(line, 5))
+                  == EDITOR_OK);
+      fixture.context->onPropsApplied();
+    }
+    Fixture &fixture_;
+  };
+  void detachOnReply(void *data)
+  {
+    NotifySubtreeNodeDetached(static_cast<Fixture *>(data)->node);
+  }
+  void testWin32TextEditorSettlement()
+  {
+    typedef loka::app::testing::SettleTrace<LineCursor> Trace;
+    {
+      Fixture fixture(1);
+      const String text = String::FromPlatform(Managed<loka::platform::String>::Wrap(
+          new loka::app::testing::TextEditorReportRefusal(fixture.request)));
+      LOKA_VERIFY(fixture.lines.update(fixture.lines.at(0).id, text) == EDIT_OK);
+      fixture.context->onPropsApplied();
+      const LineCursor before = fixture.cursor.state()->get();
+      Probe probe(fixture.context->hwnd());
+      {
+        StateTrackerGuard guard(&fixture.tracker);
+        fixture.request.set(LineCursor(before.line, 4));
+      }
+      fixture.context->onPropsApplied();
+      const Reply<LineCursor> reply = fixture.request.reply().state()->get();
+      LOKA_VERIFY(reply.kind() == Reply<LineCursor>::REFUSED && reply.reason() == EDITOR_ALLOCATION);
+      LOKA_VERIFY(fixture.cursor.state()->get() == before);
+      // Positive native-apply control before checking the repaired final selection.
+      LOKA_VERIFY(!probe.selections.empty() && probe.selections.front() == 4);
+      expectSelection(fixture, static_cast<DWORD>(before.column));
+      // Selection-only repair must preserve EDIT undo/text rather than replace them.
+      LOKA_VERIFY(probe.sets == 0);
+    }
+    {
+      Fixture fixture;
+      Trace &trace = Trace::instance();
+      trace.clear();
+      Probe probe(fixture.context->hwnd());
+      const LineCursor requested(fixture.lines.at(1).id, 99);
+      {
+        StateTrackerGuard guard(&fixture.tracker);
+        fixture.request.set(requested);
+      }
+      fixture.context->onPropsApplied();
+      const Reply<LineCursor> reply = fixture.request.reply().state()->get();
+      LOKA_VERIFY(reply.kind() == Reply<LineCursor>::CLAMPED);
+      LOKA_VERIFY(reply.requested() == requested && reply.applied() == LineCursor(requested.line, 4));
+      LOKA_VERIFY(trace.size() == 1);
+      LOKA_VERIFY(trace.at(0).stimulus == SETTLE_PROPS && trace.at(0).count == 1);
+      LOKA_VERIFY(trace.at(0).takes[0].kind() == Reply<LineCursor>::CLAMPED && trace.at(0).seam[0] == EDITOR_OK);
+      LOKA_VERIFY(trace.at(0).before == LineCursor(fixture.lines.at(0).id, 2));
+      LOKA_VERIFY(trace.at(0).after == reply.applied());
+      // Positive control precedes the empty-settle observation.
+      LOKA_VERIFY(!probe.selections.empty());
+      trace.clear();
+      probe.selections.clear();
+      fixture.context->onPropsApplied();
+      LOKA_VERIFY(trace.size() == 0 && probe.selections.empty());
+      const PaintQuery query = {Win32RetirableContext::paintScope(), PLACEMENT_ELIGIBLE};
+      LOKA_VERIFY(fixture.context->queryPaintDamage(query).kind == PAINT_ANSWER_EXACT);
+      // Use a real removed identity, then reconcile before posting it.
+      const LineCursor stale(fixture.lines.at(2).id, 1);
+      LOKA_VERIFY(fixture.lines.remove(stale.line) == EDIT_OK);
+      fixture.context->onPropsApplied();
+      const LineCursor before = fixture.cursor.state()->get();
+      trace.clear();
+      probe.selections.clear();
+      {
+        StateTrackerGuard guard(&fixture.tracker);
+        fixture.request.set(stale);
+      }
+      fixture.context->onPropsApplied();
+      const Reply<LineCursor> refused = fixture.request.reply().state()->get();
+      LOKA_VERIFY(refused.kind() == Reply<LineCursor>::REFUSED && refused.reason() == EDITOR_STALE_ID);
+      LOKA_VERIFY(refused.requested() == stale && fixture.cursor.state()->get() == before);
+      LOKA_VERIFY(trace.size() == 1 && trace.at(0).count == 1 && trace.at(0).before == trace.at(0).after);
+      LOKA_VERIFY(trace.at(0).seam[0] == EDITOR_STALE_ID && probe.selections.empty());
+    }
+    // Predicted SetTimer-failure pin: an outside-input NON_ASCII rejection with
+    // a queued request must end with request None, Refused(EDITOR_UNAVAILABLE),
+    // unchanged cursor, and one SETTLE_INPUT trace row containing one refusal.
+    // The VM fixture cannot inject SetTimer allocation failure. The FAIL_ARM
+    // Null SettlementProbe in testTextEditorSettlementSeam discriminates that
+    // common-driver path; the cases below inject native text replacement failure.
+    // Reentrancy variant (also predicted): on None, repost B and call onPropsApplied.
+    // COMMIT must leave B pending until this Refused(A) has been published; no
+    // nested Granted(B), fact write, or extra settlement trace row may occur.
+    for (int failRestore = 0; failRestore < 2; ++failRestore)
+    {
+      Fixture fixture;
+      Trace &trace = Trace::instance();
+      trace.clear();
+      const LineCursor before = fixture.cursor.state()->get();
+      const LineCursor requested(fixture.lines.at(1).id, 1);
+      if (failRestore)
+        loka::win32::testing::failTextEditorSets(loka::win32::testing::TEXT_EDITOR_SET_REFUSED, 1);
+      {
+        StateTrackerGuard guard(&fixture.tracker);
+        fixture.request.set(requested);
+      }
+      fixture.type(static_cast<wchar_t>(0xff21));
+      LOKA_VERIFY(fixture.request.get().isNone());
+      LOKA_VERIFY(trace.size() == 1 && trace.at(0).stimulus == SETTLE_INPUT && trace.at(0).count == 1);
+      const Reply<LineCursor> reply = fixture.request.reply().state()->get();
+      if (failRestore)
+      {
+        LOKA_VERIFY(reply.kind() == Reply<LineCursor>::REFUSED && reply.reason() == EDITOR_UNAVAILABLE);
+        LOKA_VERIFY(fixture.cursor.state()->get() == before && trace.at(0).before == trace.at(0).after);
+        // finishTake releases COMMIT; only finishSettle restores the retry scope.
+        LOKA_VERIFY(EditorAccess::pending(*fixture.context));
+        SendMessageW(fixture.context->hwnd(), WM_TIMER, 853, 0);
+        LOKA_VERIFY(!EditorAccess::pending(*fixture.context) && EditorAccess::status(*fixture.context) == EDITOR_OK);
+        LOKA_VERIFY(trace.size() == 1);
+      }
+      else
+      {
+        LOKA_VERIFY(reply.kind() == Reply<LineCursor>::GRANTED && reply.applied() == requested);
+        LOKA_VERIFY(fixture.cursor.state()->get() == requested);
+        expectSelection(fixture, 7);
+      }
+    }
+    {
+      Fixture fixture;
+      fixture.request.reply().state()->bind(&detachOnReply, &fixture, false);
+      loka::win32::testing::failTextEditorSets(loka::win32::testing::TEXT_EDITOR_SET_REFUSED, 1);
+      {
+        StateTrackerGuard guard(&fixture.tracker);
+        fixture.request.set(LineCursor(fixture.lines.at(1).id, 1));
+      }
+      fixture.type(static_cast<wchar_t>(0xff21));
+      fixture.request.reply().state()->unbind(&detachOnReply, &fixture);
+      LOKA_VERIFY(fixture.node->lifecycleFact() == NODE_FACT_DETACHED_RETAINED);
+      LOKA_VERIFY(!EditorAccess::pending(*fixture.context));
+      Probe probe(fixture.context->hwnd());
+      SendMessageW(fixture.context->hwnd(), WM_TIMER, 853, 0);
+      LOKA_VERIFY(probe.sets == 0);
+    }
+    {
+      Fixture fixture;
+      NotifySubtreeNodeDetached(fixture.node);
+      // Notify only changes logical facts. A mounted Scene delivers their diff
+      // at apply; this bare-node fixture must drive that same delivery walk.
+      LifecycleFactTestAccess::DeliverFacts(fixture.node);
+      LOKA_VERIFY(EditorAccess::status(*fixture.context) == EDITOR_UNAVAILABLE);
+      LOKA_VERIFY(!(GetWindowLongPtrW(fixture.context->hwnd(), GWL_STYLE) & WS_VISIBLE));
+      fixture.request.reply().state()->bind(&detachOnReply, &fixture, false);
+      const LineCursor requested(fixture.lines.at(1).id, 1);
+      Trace &trace = Trace::instance();
+      trace.clear();
+      {
+        StateTrackerGuard guard(&fixture.tracker);
+        fixture.request.set(requested);
+      }
+      NotifySubtreeNodeAttached(fixture.node);
+      LOKA_VERIFY(fixture.node->lifecycleFact() == NODE_FACT_ATTACHED);
+      LOKA_VERIFY(fixture.request.get() == requested && trace.size() == 0);
+      LifecycleFactTestAccess::DeliverFacts(fixture.node);
+      fixture.request.reply().state()->unbind(&detachOnReply, &fixture);
+      LOKA_VERIFY(fixture.node->lifecycleFact() == NODE_FACT_DETACHED_RETAINED);
+      LOKA_VERIFY(fixture.request.get().isNone());
+      LOKA_VERIFY(trace.size() == 1 && trace.at(0).stimulus == SETTLE_ATTACH && trace.at(0).count == 1);
+      LOKA_VERIFY(trace.at(0).takes[0].kind() == Reply<LineCursor>::GRANTED);
+      // Host visibility is irrelevant: inspect the child's own visible style.
+      LOKA_VERIFY(!(GetWindowLongPtrW(fixture.context->hwnd(), GWL_STYLE) & WS_VISIBLE));
+    }
+    {
+      Fixture fixture;
+      EditOnReply edit(fixture);
+      {
+        StateTrackerGuard guard(&fixture.tracker);
+        fixture.request.set(LineCursor(fixture.lines.at(1).id, 1));
+      }
+      fixture.context->onPropsApplied();
+      fixture.matches();
+      LOKA_VERIFY(fixture.cursor.state()->get() == LineCursor(fixture.lines.at(0).id, 5));
+      expectSelection(fixture, 5);
+    }
+  }
   void testWin32TextEditorCaretRequests()
   {
     {
@@ -843,6 +1046,7 @@ void testWin32TextEditorConversion()
 void testWin32TextEditorActionsUseLineQueries()
 {
   testWin32TextEditorCaretRequests();
+  testWin32TextEditorSettlement();
   testWin32TextEditorReverseBoundaryCaret();
   testWin32TextEditorEntryDeliveryBound();
   testWin32TextEditorMultilineTyping();

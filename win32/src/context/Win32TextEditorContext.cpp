@@ -128,9 +128,195 @@ Win32TextEditorContext *Win32TextEditorContext::fromWindow(HWND window)
 {
   return static_cast<Win32TextEditorContext *>(GetPropW(window, kEditorContext));
 }
+/** Platform twin of Toolbox's stack policy; context access follows the driver's lifetime wall. */
+class Win32TextEditorContext::RailOperation : public scene::RailOperation<LineCursor>
+{
+public:
+  explicit RailOperation(TextEditorNode *node)
+      : binding_(),
+        follow_()
+#ifdef TEST_BUILD
+        ,
+        before_(node && node->props.cursorState() ? node->props.cursorState()->get() : LineCursor::None())
+#endif
+  {
+    (void)node;
+  }
+  void project(scene::Node &base)
+  {
+    this->include(context(base).replaceProjection());
+  }
+  void restore(scene::Node &base)
+  {
+    this->include(context(base).restoreCommittedProjection());
+  }
+  void include(scene::FollowUp follow)
+  {
+    this->follow_ = this->follow_.including(follow);
+  }
+  virtual scene::Admission admit(scene::Node &base, scene::RequestBinding<LineCursor> &request)
+  {
+    Win32TextEditorContext &c = context(base);
+    request = static_cast<TextEditorNode &>(base).props.moveCaretTo_;
+    this->binding_ = static_cast<TextEditorNode &>(base).props;
+    if (!c.node_ || (c.phase_ != IDLE && !(c.phase_ == RETRY && c.status_ == EDITOR_UNAVAILABLE)))
+      return scene::ADMISSION_DEFERRED;
+    if (!request.isValid() || request.state()->get().isNone())
+      return scene::ADMISSION_EMPTY;
+    // Preserve the settle-scoped retry while opening COMMIT for refusal delivery.
+    if (c.phase_ == RETRY)
+      this->include(scene::RESTORE_QUEUED);
+    c.phase_ = COMMIT;
+    return scene::ADMISSION_TAKE;
+  }
+  virtual bool current(scene::Node &base, const scene::RequestBinding<LineCursor> &request)
+  {
+    TextEditorNode &node = static_cast<TextEditorNode &>(base);
+    return node.lifecycleFact() == scene::NODE_FACT_ATTACHED && node.props.lines_ == this->binding_.lines_
+           && node.props.cursorState() == this->binding_.cursorState() && node.props.moveCaretTo_.same(request);
+  }
+  virtual EditorResult resolve(scene::Node &base, const scene::RequestBinding<LineCursor> &request)
+  {
+    Win32TextEditorContext &c = context(base);
+    if (!this->current(base, request))
+      return EDITOR_OWNER_MISMATCH;
+    if (c.phase_ != COMMIT)
+      return EDITOR_REENTRANT;
+    if (!c.hwnd_)
+      return EDITOR_UNAVAILABLE;
+    if (c.status_ != EDITOR_OK)
+      return c.status_;
+    loka::core::StateTracker *owner = 0;
+    if (!this->binding_.lines_ || this->binding_.lines_->queryMutationTracker(owner) != loka::core::EDIT_OK)
+      return EDITOR_UNAVAILABLE;
+    return request.usesTracker(owner) ? EDITOR_OK : EDITOR_OWNER_MISMATCH;
+  }
+  virtual EditorResult validate(scene::Node &base, const LineCursor &pending)
+  {
+    TextEditorNode &node = static_cast<TextEditorNode &>(base);
+    const EditorResult ready = node.document.availability();
+    if (ready != EDITOR_OK)
+      return ready;
+    return node.props.lines_->find(pending.line) < 0 ? EDITOR_STALE_ID : EDITOR_OK;
+  }
+  virtual scene::RequestApplication<LineCursor> apply(scene::Node &base, const LineCursor &pending)
+  {
+    Win32TextEditorContext &c = context(base);
+    scene::FollowUp follow = scene::FOLLOW_NONE;
+    // Taking can notify an owner edit. Repair before asking EDIT for offsets.
+    if (!c.projection_.current(*c.node_))
+      follow = c.replaceProjection();
+    if (c.phase_ != COMMIT || c.status_ != EDITOR_OK)
+      return scene::RequestApplication<LineCursor>(pending, c.status_, follow);
+    const int row = c.node_->props.lines_->find(pending.line);
+    const int offset = static_cast<int>(SendMessageW(c.hwnd_, EM_LINEINDEX, row, 0));
+    const int length = static_cast<int>(SendMessageW(c.hwnd_, EM_LINELENGTH, offset, 0));
+    const int column = pending.column < 0 ? 0 : (pending.column > length ? length : pending.column);
+    SendMessageW(c.hwnd_, EM_SETSEL, offset + column, offset + column);
+    return scene::RequestApplication<LineCursor>(LineCursor(pending.line, column), EDITOR_OK, scene::REPAINT);
+  }
+  virtual EditorResult report(scene::Node &base, const LineCursor &applied)
+  {
+    return static_cast<TextEditorNode &>(base).document.moveCaret(applied);
+  }
+  virtual scene::FollowUp finishTake(scene::Node &base,
+                                     const scene::Reply<LineCursor> &reply,
+                                     const scene::RequestApplication<LineCursor> &application)
+  {
+    Win32TextEditorContext &c = context(base);
+    scene::FollowUp follow = scene::FOLLOW_NONE;
+    if (c.node_ && c.hwnd_ && c.status_ == EDITOR_OK && c.node_->lifecycleFact() == scene::NODE_FACT_ATTACHED)
+    {
+      if (c.phase_ == REJECTED || !c.projection_.current(*c.node_))
+      {
+        c.phase_ = COMMIT;
+        // replaceProjection also restores selection from the post-report fact.
+        follow = c.replaceProjection();
+      }
+      else if (reply.kind() == scene::Reply<LineCursor>::REFUSED && application.result() == EDITOR_OK)
+      {
+        // Native apply succeeded, but the seam did not accept its caret fact.
+        // Text is still current; repair selection without discarding native undo.
+        c.restoreSelection();
+        follow = scene::REPAINT;
+      }
+    }
+    if (c.phase_ == COMMIT || c.phase_ == REJECTED)
+      c.phase_ = IDLE;
+    return follow;
+  }
+  virtual scene::FollowUpResult finishSettle(scene::Node &base, const scene::FollowUps &follow)
+  {
+    Win32TextEditorContext &c = context(base);
+    // A reply subscriber can detach a retained context without retiring its identity.
+    if (!c.hwnd_ || base.lifecycleFact() != scene::NODE_FACT_ATTACHED)
+      return scene::FOLLOW_UP_NONE;
+    if (this->follow_.contains(scene::RESTORE_QUEUED) && c.phase_ == IDLE)
+      c.phase_ = RETRY;
+    if (follow.contains(scene::REPAINT) || this->follow_.contains(scene::REPAINT))
+      c.delivery_ = scene::PaintAnswer::nativeScheduled();
+    if (c.phase_ == RETRY
+        && (follow.contains(scene::SCHEDULE_RESTORE) || this->follow_.contains(scene::SCHEDULE_RESTORE)))
+    {
+      // A failed arm refuses the deferred request in this same settlement.
+      if (!SetTimer(c.hwnd_, kRestoreTimer, 1, NULL))
+      {
+        c.status_ = EDITOR_UNAVAILABLE;
+        // Keep clear/reply subscribers inside the same native exclusion as a take.
+        // settle's returned result releases it after the refusal-only tail.
+        c.phase_ = COMMIT;
+        return scene::FOLLOW_UP_FAILED;
+      }
+      return scene::FOLLOW_UP_ARMED;
+    }
+    return scene::FOLLOW_UP_NONE;
+  }
+#ifdef TEST_BUILD
+  virtual LineCursor fact(scene::Node &base) const
+  {
+    loka::core::State<LineCursor> *state = static_cast<TextEditorNode &>(base).props.cursorState();
+    return state ? state->get() : LineCursor::None();
+  }
+  LineCursor before() const
+  {
+    return this->before_;
+  }
+#endif
+private:
+  static Win32TextEditorContext &context(scene::Node &node)
+  {
+    return *static_cast<Win32TextEditorContext *>(node.getContext());
+  }
+  TextEditorProps binding_;
+  scene::FollowUps follow_;
+#ifdef TEST_BUILD
+  const LineCursor before_;
+#endif
+};
+void Win32TextEditorContext::settle(scene::Settlement stimulus)
+{
+  RailOperation op(this->node_);
+  this->settle(stimulus, op);
+}
+void Win32TextEditorContext::settle(scene::Settlement stimulus, RailOperation &op)
+{
+  scene::Node *const liveNode = this->node_;
+  const scene::FollowUpResult result = scene::RequestSettlement<LineCursor>::settle(liveNode,
+                                                                                    this,
+                                                                                    op,
+                                                                                    stimulus
+#ifdef TEST_BUILD
+                                                                                    ,
+                                                                                    op.before()
+#endif
+  );
+  if (liveNode && liveNode->getContext() == this && result == scene::FOLLOW_UP_FAILED
+      && (this->phase_ == COMMIT || this->phase_ == REJECTED))
+    this->phase_ = liveNode->lifecycleFact() == scene::NODE_FACT_ATTACHED ? RETRY : IDLE;
+}
 void Win32TextEditorContext::readLifecycleFactOnAttach()
 {
-  this->syncFromNode();
+  this->syncFromNode(scene::SETTLE_ATTACH);
 }
 void Win32TextEditorContext::onPropsApplied()
 {
@@ -143,8 +329,10 @@ void Win32TextEditorContext::onFactChanged(scene::NodeLifecycleFact, scene::Node
     return;
   if (next == scene::NODE_FACT_ATTACHED)
   {
-    this->syncFromNode();
-    ShowWindow(this->hwnd_, SW_SHOW);
+    scene::Node *const liveNode = this->node_;
+    this->syncFromNode(scene::SETTLE_ATTACH);
+    if (liveNode && liveNode->getContext() == this && liveNode->lifecycleFact() == scene::NODE_FACT_ATTACHED)
+      ShowWindow(this->hwnd_, SW_SHOW);
     return;
   }
   KillTimer(this->hwnd_, kRestoreTimer);
@@ -170,21 +358,18 @@ void Win32TextEditorContext::captureSelection()
   this->selection_.firstVisible = static_cast<int>(SendMessageW(this->hwnd_, EM_GETFIRSTVISIBLELINE, 0, 0));
   this->selection_.horizontal = GetScrollPos(this->hwnd_, SB_HORZ);
 }
-void Win32TextEditorContext::deferRestore()
+scene::FollowUp Win32TextEditorContext::deferRestore()
 {
   if (!this->hwnd_ || !this->node_ || this->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED)
-    return;
+    return scene::FOLLOW_NONE;
   this->phase_ = RETRY;
   SendMessageW(this->hwnd_, EM_SETREADONLY, TRUE, 0);
-  // A window timer is a later native turn, not the StateTracker drain loop.
-  // Failure to arm leaves the explicit read-only state; props application can retry.
-  if (!SetTimer(this->hwnd_, kRestoreTimer, 1, NULL))
-    this->status_ = EDITOR_UNAVAILABLE;
+  return scene::SCHEDULE_RESTORE;
 }
-bool Win32TextEditorContext::replaceProjection()
+scene::FollowUp Win32TextEditorContext::replaceProjection()
 {
   if (!this->hwnd_ || !this->node_ || this->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED)
-    return false;
+    return scene::FOLLOW_NONE;
   // A repair from the request consumer must keep its exclusion at completion.
   const Phase completion = this->phase_ == COMMIT ? COMMIT : IDLE;
   this->phase_ = RESTORING;
@@ -198,8 +383,7 @@ bool Win32TextEditorContext::replaceProjection()
     this->status_ = EDITOR_UNAVAILABLE;
     this->delivery_ = scene::PaintAnswer::refused(scene::PAINT_REFUSED_PROPS_UNRECONCILED);
     this->phase_ = completion;
-    this->deferRestore();
-    return false;
+    return this->deferRestore();
   }
   this->restoreSelection();
   this->status_ = projected;
@@ -207,8 +391,8 @@ bool Win32TextEditorContext::replaceProjection()
   SendMessageW(this->hwnd_, EM_SETREADONLY, available ? FALSE : TRUE, 0);
   this->delivery_ = scene::PaintAnswer::nativeScheduled();
   if (projected == EDITOR_ALLOCATION)
-    this->deferRestore();
-  return true;
+    return this->deferRestore();
+  return scene::REPAINT;
 }
 void Win32TextEditorContext::restoreSelection()
 {
@@ -230,25 +414,26 @@ void Win32TextEditorContext::restoreSelection()
   SendMessageW(this->hwnd_, EM_LINESCROLL, 0, this->selection_.firstVisible - visible);
   SendMessageW(this->hwnd_, WM_HSCROLL, MAKEWPARAM(SB_THUMBPOSITION, this->selection_.horizontal), 0);
 }
-void Win32TextEditorContext::restoreCommittedProjection()
+scene::FollowUp Win32TextEditorContext::restoreCommittedProjection()
 {
   assert(this->phase_ != COMMIT && this->phase_ != RESTORING);
   ++this->restores_;
-  this->replaceProjection();
+  return this->replaceProjection();
 }
-void Win32TextEditorContext::syncFromNode()
+void Win32TextEditorContext::syncFromNode(scene::Settlement stimulus)
 {
   if (this->phase_ != IDLE && this->phase_ != RETRY)
     return;
+  RailOperation op(this->node_);
   if (!this->hwnd_ || !this->node_ || this->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED)
   {
-    this->consumePendingRequest();
+    this->settle(stimulus, op);
     return;
   }
   if (this->phase_ == RETRY)
   {
     KillTimer(this->hwnd_, kRestoreTimer);
-    this->restoreCommittedProjection();
+    op.restore(*this->node_);
   }
   else
   {
@@ -260,71 +445,9 @@ void Win32TextEditorContext::syncFromNode()
       this->delivery_ = scene::PaintAnswer::exact(empty);
     }
     else
-      this->replaceProjection();
+      op.project(*this->node_);
   }
-  this->consumePendingRequest();
-}
-void Win32TextEditorContext::consumePendingRequest()
-{
-  // Only entry completions deliver: one take and one epilogue take.
-  // Failed restoration/timer admission completes by refusal, while retaining
-  // RETRY for the native repair. An available RETRY remains deferred.
-  const Phase completion = this->phase_;
-  if (completion == RETRY && this->status_ == EDITOR_UNAVAILABLE)
-    this->phase_ = IDLE;
-  if (this->consumeRequest())
-    this->consumeRequest();
-  if (completion == RETRY && this->phase_ == IDLE)
-    this->phase_ = RETRY;
-}
-bool Win32TextEditorContext::consumeRequest()
-{
-  if (this->phase_ != IDLE || !this->node_)
-    return false;
-  const scene::WriteSeat<LineCursor> request = this->node_->props.moveCaretTo_.request_;
-  if (!request.isValid() || request.state()->get().isNone())
-    return false;
-  this->phase_ = COMMIT;
-  const LineCursor pending = request.state()->get();
-  const TextEditorProps binding = this->node_->props;
-  request.set(LineCursor::None());
-  if (this->node_ && this->phase_ == COMMIT && this->hwnd_ && this->status_ == EDITOR_OK
-      && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED && this->node_->props.lines_ == binding.lines_
-      && this->node_->props.moveCaretTo_.state() == request.state()
-      && this->node_->document.availability() == EDITOR_OK)
-  {
-    loka::core::StateTracker *owner = 0;
-    if (binding.lines_->queryMutationTracker(owner) == loka::core::EDIT_OK && request.usesTracker(owner)
-        && binding.lines_->find(pending.line) >= 0)
-    {
-      // A take notification can edit the model. Repair before asking EDIT
-      // for offsets, keeping COMMIT across the projection repair.
-      if (!this->projection_.current(*this->node_))
-        this->replaceProjection();
-      if (this->phase_ == COMMIT && this->status_ == EDITOR_OK)
-      {
-        const int row = binding.lines_->find(pending.line);
-        const int offset = static_cast<int>(SendMessageW(this->hwnd_, EM_LINEINDEX, row, 0));
-        const int length = static_cast<int>(SendMessageW(this->hwnd_, EM_LINELENGTH, offset, 0));
-        const int column = pending.column < 0 ? 0 : (pending.column > length ? length : pending.column);
-        const LineCursor clamped(pending.line, column);
-        SendMessageW(this->hwnd_, EM_SETSEL, offset + column, offset + column);
-        this->delivery_ = scene::PaintAnswer::nativeScheduled();
-        this->node_->document.moveCaret(clamped);
-      }
-    }
-  }
-  if (this->node_ && this->hwnd_ && this->status_ == EDITOR_OK
-      && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED
-      && (this->phase_ == REJECTED || !this->projection_.current(*this->node_)))
-  {
-    this->phase_ = COMMIT;
-    this->replaceProjection();
-  }
-  // A failed repair keeps its admitted native retry instead of becoming idle.
-  if (this->phase_ != RETRY)
-    this->phase_ = IDLE;
-  return true;
+  this->settle(stimulus, op);
 }
 RowCursor Win32TextEditorContext::nativeRowCaret() const
 {
@@ -433,9 +556,10 @@ bool Win32TextEditorContext::handleCommand(WPARAM wParam, LPARAM)
   if (outsideInput)
     this->captureSelection();
   this->phase_ = COMMIT;
-  const HWND window = this->hwnd_;
+  scene::Node *const liveNode = this->node_;
+  RailOperation op(this->node_);
   const EditorResult result = this->status_ == EDITOR_OK ? this->commitNativeChange() : this->status_;
-  if (fromWindow(window) != this)
+  if (!liveNode || liveNode->getContext() != this)
     return true;
   if (result == EDITOR_OK && this->node_)
   {
@@ -453,10 +577,10 @@ bool Win32TextEditorContext::handleCommand(WPARAM wParam, LPARAM)
   if (outsideInput)
   {
     if (this->phase_ == REJECTED)
-      this->deferRestore();
+      op.include(this->deferRestore());
     else
       this->phase_ = IDLE;
-    this->consumePendingRequest();
+    this->settle(scene::SETTLE_INPUT, op);
   }
   return true;
 }
@@ -469,9 +593,9 @@ void Win32TextEditorContext::syncCaret()
     return;
   const Phase inputPhase = this->phase_;
   this->phase_ = COMMIT;
-  const HWND window = this->hwnd_;
+  scene::Node *const liveNode = this->node_;
   const EditorResult result = this->node_->document.moveCaret(cursor);
-  if (fromWindow(window) != this)
+  if (liveNode->getContext() != this)
     return;
   this->phase_ = result == EDITOR_OK && this->phase_ != REJECTED ? inputPhase : REJECTED;
 }
@@ -485,8 +609,10 @@ LRESULT CALLBACK Win32TextEditorContext::WindowProc(HWND window, UINT message, W
     KillTimer(window, kRestoreTimer);
     if (self->phase_ == RETRY)
     {
-      self->restoreCommittedProjection();
-      self->consumePendingRequest();
+      RailOperation op(self->node_);
+      if (self->node_)
+        op.restore(*self->node_);
+      self->settle(scene::SETTLE_DEFERRED, op);
     }
     return 0;
   }
@@ -508,22 +634,27 @@ LRESULT CALLBACK Win32TextEditorContext::WindowProc(HWND window, UINT message, W
     return 0;
   }
   if (!self->node_ || self->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED || self->status_ != EDITOR_OK)
+  {
+    self->settle(scene::SETTLE_INPUT);
     return 0;
+  }
+  scene::Node *const liveNode = self->node_;
+  RailOperation op(self->node_);
   self->captureSelection();
   self->phase_ = message == WM_PASTE ? PASTING : INPUT;
   const LRESULT result = CallWindowProcW(self->previousProc_, window, message, wParam, lParam);
-  if (fromWindow(window) != self)
+  if (liveNode->getContext() != self)
     return result;
   if (!self->hwnd_ || !self->node_)
     return result;
   self->syncCaret();
-  if (fromWindow(window) != self)
+  if (liveNode->getContext() != self)
     return result;
   const bool rejected = self->phase_ == REJECTED;
   self->phase_ = IDLE;
   if (rejected)
-    self->restoreCommittedProjection();
-  self->consumePendingRequest();
+    op.restore(*self->node_);
+  self->settle(scene::SETTLE_INPUT, op);
   return result;
 }
 short Win32TextEditorContext::layout(scene::IPlatformController *, scene::LayoutState &state)

@@ -28,10 +28,24 @@ A rail context settles once per admitted operation. Only inside `settle` may it
 take a request; the common `RequestSettlement<T>` owns the order (two unrolled
 takes, admission re-read per take, snapshot and clear, liveness by
 `node->getContext() == identity`, resolve, seam validate, apply, seam report,
-reply built from the seam result, liveness, `finishTake`) and one epilogue that
+reply built from the seam result, liveness, `finishTake(reply, application)`) and one epilogue that
 folds the rail's `FollowUps` (repaint only when something was written or
-repaired). Shared helpers never settle. The Null rail is the reference
+repaired). `finishSettle` returns `FOLLOW_UP_ARMED`, `FOLLOW_UP_FAILED`, or
+`FOLLOW_UP_NONE`. A failed arm performs one additional refusal-only take from
+the last admission's binding: clear the request, check liveness, and publish
+`Refused(requested, EDITOR_UNAVAILABLE)` without resolve/apply/report or a fact
+write. Admission supplies that binding even when it defers. Retirement stops
+the driver; a discarded binding gets no reply. The refusal shares the settle's
+single trace row. The driver returns the follow-up result after publication, so
+rails can keep native admission closed until the refusal tail finishes; retired
+operations return FOLLOW_UP_NONE and do not reopen their context. Shared helpers never settle. The Null rail is the reference
 implementation; the native rails move onto it in the #882 PR series.
+
+When native apply succeeds but the reporting seam refuses, the reply is Refused
+and the fact stays unchanged. `finishTake` receives both the reply and the original
+`RequestApplication`: the rail restores the committed selection/projection from
+the fact before reopening native admission. A refusal before successful native
+apply does not by itself require a native selection write.
 
 ## From AGENTS.md
 
@@ -40,9 +54,10 @@ implementation; the native rails move onto it in the #882 PR series.
   deferred completion that is itself the entry. A shared helper that several
   entries call (`project`, `replaceProjection`, `restoreCommittedProjection`)
   never takes a request; it returns an outcome to its caller.
-- **Bound.** Each delivery takes at most two requests: take, apply (clamped if
-  needed), report; re-read the slot once; at most one more take. A request
-  still pending after that stays in the slot; the `None` write already marked
+- **Bound.** Each delivery performs at most two ordinary takes: take, apply (clamped if
+  needed), report; re-read the slot once; at most one more ordinary take. Failed
+  follow-up arming adds at most one refusal-only take, never another application.
+  A request still pending after those bounded steps stays in the slot; the `None` write already marked
   the node dirty, so the next props apply delivers it.
 - **Refusal.** A request that cannot be applied (stale line identity, document
   unavailable, missing native resource) is taken and dropped: the fact stays
