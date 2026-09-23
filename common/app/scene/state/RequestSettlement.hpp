@@ -94,28 +94,52 @@ namespace loka
         EditorResult result_;
         FollowUp follow_;
       };
-      /** Stack rail policy. It stores no context borrow; the driver supplies a live Node.
-          validate/report are the seam doors and must return the seam's actual result. */
-      template <typename T> class RailOperation
+      /** Stack seat policy. The driver supplies a live Node; each seat borrows
+          its own request binding. validate/report return the seam's result. */
+      template <class Request, class Fact> class SeatOperation
+      {
+      public:
+        virtual ~SeatOperation() {}
+        /** Supply the binding even when deferring, for failed-arm refusal. */
+        virtual Admission admit(Node &, RequestBinding<Request> &) = 0;
+        virtual EditorResult resolve(Node &, const RequestBinding<Request> &) = 0;
+        virtual EditorResult validate(Node &, const Request &) = 0;
+        virtual RequestApplication<Fact> apply(Node &, const Request &) = 0;
+        virtual EditorResult report(Node &, const Fact &) = 0;
+        virtual bool current(Node &, const RequestBinding<Request> &) = 0;
+        /** Preserve native application and seam outcomes separately for repair. */
+        virtual FollowUp finishTake(Node &, const Reply<Request> &, const RequestApplication<Fact> &) = 0;
+      };
+      /** One completion owner for all seats in an entry operation. */
+      template <class Fact> class SettleOwner
+      {
+      public:
+        virtual ~SettleOwner() {}
+        virtual FollowUpResult finishSettle(Node &, const FollowUps &) = 0;
+#ifdef TEST_BUILD
+        virtual Fact fact(Node &) const = 0;
+#endif
+      };
+      /** Combined single-seat policy retained by the existing rails. */
+      template <typename T> class RailOperation : public SeatOperation<T, T>, public SettleOwner<T>
       {
       public:
         virtual ~RailOperation() {}
-        /** Supply the current binding even when admission defers: a failed
-            follow-up must be able to refuse that slot without native admission. */
-        virtual Admission admit(Node &, RequestBinding<T> &) = 0;
-        virtual EditorResult resolve(Node &, const RequestBinding<T> &) = 0;
-        virtual EditorResult validate(Node &, const T &) = 0;
-        virtual RequestApplication<T> apply(Node &, const T &) = 0;
-        virtual EditorResult report(Node &, const T &) = 0;
-        virtual bool current(Node &, const RequestBinding<T> &) = 0;
-        /** A refused report can follow a successful native apply. Keep both
-            outcomes so the rail can restore its projection without new state. */
-        virtual FollowUp finishTake(Node &, const Reply<T> &, const RequestApplication<T> &) = 0;
-        virtual FollowUpResult finishSettle(Node &, const FollowUps &) = 0;
-#ifdef TEST_BUILD
-        virtual T fact(Node &) const = 0;
-#endif
       };
+
+      /** Different effect types acknowledge the request without a clamped payload. */
+      template <class Request, class Fact>
+      Reply<Request> formReply(const Request &pending, const Fact &, EditorResult result)
+      {
+        return result != EDITOR_OK ? Reply<Request>::Refused(pending, result) : Reply<Request>::Granted(pending);
+      }
+      /** Same-type effects retain the existing Granted/Clamped distinction. */
+      template <class T> Reply<T> formReply(const T &pending, const T &applied, EditorResult result)
+      {
+        return result != EDITOR_OK  ? Reply<T>::Refused(pending, result)
+               : pending != applied ? Reply<T>::Clamped(pending, applied)
+                                    : Reply<T>::Granted(applied);
+      }
     } // namespace scene
 #ifdef TEST_BUILD
     namespace testing
@@ -204,171 +228,255 @@ namespace loka
 #endif
     namespace scene
     {
-      /** Owns two ordinary takes (each may refuse) plus at most one failed-arm
-          refusal-only take. Consume advances the slot to the next queued value,
-          or None. Node reclamation is deferred by its owner clock;
-          context retirement is synchronous. identity is compared, never dereferenced. */
-      template <typename T> class RequestSettlement
+      /** Context identity is only compared; reclamation stays on the owner clock. */
+      inline bool settlementAlive(Node *node, const NodeContext *identity)
+      {
+        return node && node->getContext() == identity;
+      }
+      /** Synchronous driver-stack seat. No runner escapes the settle call. */
+      template <class Fact> class SeatRunnerBase
+      {
+      public:
+        virtual ~SeatRunnerBase() {}
+        virtual bool take(unsigned ordinal) = 0;
+        virtual bool refuseFailed() = 0;
+#ifdef TEST_BUILD
+        /** Close this row and return its entry fact for the preceding row. */
+        virtual Fact finalize(const Fact &after) = 0;
+        virtual void append() const = 0;
+#endif
+      };
+      /** Owns the binding snapshot and diagnostic row for one borrowed seat. */
+      template <class Request, class Fact> class SeatRunner : public SeatRunnerBase<Fact>
+      {
+      public:
+        SeatRunner(Node *node,
+                   const NodeContext *identity,
+                   SeatOperation<Request, Fact> &op,
+                   FollowUps &follow,
+                   Settlement stimulus
+#ifdef TEST_BUILD
+                   ,
+                   const Fact &before,
+                   SettleOwner<Fact> *entryFact = 0
+#endif
+                   )
+            : node_(node),
+              identity_(identity),
+              op_(op),
+              follow_(follow),
+              binding_()
+#ifdef TEST_BUILD
+              ,
+              row_(stimulus, before),
+              entryFact_(entryFact)
+#endif
+        {
+#ifndef TEST_BUILD
+          (void)stimulus;
+#endif
+        }
+        virtual bool take(unsigned ordinal)
+        {
+#ifdef TEST_BUILD
+          // Seat zero keeps the caller's pre-entry snapshot. Later seats sample
+          // only when entered, after the preceding seat's publications.
+          if (ordinal == 0 && this->entryFact_)
+            this->row_.before = this->entryFact_->fact(*this->node_);
+#else
+          (void)ordinal;
+#endif
+          this->binding_ = RequestBinding<Request>();
+          const Admission admission = this->op_.admit(*this->node_, this->binding_);
+#ifdef TEST_BUILD
+          this->row_.admission[ordinal] = admission;
+#endif
+          if (admission != ADMISSION_TAKE)
+            return true;
+          const Request pending = this->binding_.consume();
+          if (!settlementAlive(this->node_, this->identity_))
+            return false;
+          EditorResult result = this->op_.resolve(*this->node_, this->binding_);
+          if (result == EDITOR_OK)
+            result = this->op_.validate(*this->node_, pending);
+          RequestApplication<Fact> applied(pending, result);
+          if (result == EDITOR_OK)
+            applied = this->op_.apply(*this->node_, pending);
+          if (!settlementAlive(this->node_, this->identity_))
+            return false;
+          this->follow_ = this->follow_.including(applied.followUp());
+          result = applied.result();
+          if (result == EDITOR_OK)
+            result = this->op_.report(*this->node_, applied.value());
+          if (!settlementAlive(this->node_, this->identity_))
+            return false;
+          const Reply<Request> reply = formReply(pending, applied.value(), result);
+          // A binding discard is not a reply to a different recipient.
+          if (this->op_.current(*this->node_, this->binding_))
+            this->binding_.reply_.set(reply, true);
+          if (!settlementAlive(this->node_, this->identity_))
+            return false;
+#ifdef TEST_BUILD
+          this->row_.takes[this->row_.count] = reply;
+          this->row_.seam[this->row_.count++] = result;
+#endif
+          const FollowUp completed = this->op_.finishTake(*this->node_, reply, applied);
+          if (!settlementAlive(this->node_, this->identity_))
+            return false;
+          this->follow_ = this->follow_.including(completed);
+          return true;
+        }
+        /** Refuse the last admitted binding without reopening native admission. */
+        virtual bool refuseFailed()
+        {
+          if (!this->binding_.isValid() || !this->op_.current(*this->node_, this->binding_)
+              || this->binding_.state()->get().isNone())
+            return true;
+          const Request pending = this->binding_.consume();
+          if (!settlementAlive(this->node_, this->identity_))
+            return false;
+          const Reply<Request> reply = Reply<Request>::Refused(pending, EDITOR_UNAVAILABLE);
+          // A clear subscriber can discard the binding without retiring the context.
+          if (this->op_.current(*this->node_, this->binding_))
+            this->binding_.reply_.set(reply, true);
+          if (!settlementAlive(this->node_, this->identity_))
+            return false;
+#ifdef TEST_BUILD
+          this->row_.takes[this->row_.count] = reply;
+          this->row_.seam[this->row_.count++] = EDITOR_UNAVAILABLE;
+#endif
+          return true;
+        }
+#ifdef TEST_BUILD
+        virtual Fact finalize(const Fact &after)
+        {
+          this->row_.after = after;
+          return this->row_.before;
+        }
+        virtual void append() const
+        {
+          loka::app::testing::SettleTrace<Request>::instance().append(this->row_);
+        }
+#endif
+      private:
+        Node *const node_;
+        const NodeContext *const identity_;
+        SeatOperation<Request, Fact> &op_;
+        FollowUps &follow_;
+        RequestBinding<Request> binding_;
+#ifdef TEST_BUILD
+        loka::app::testing::SettleTraceRow<Request> row_;
+        SettleOwner<Fact> *const entryFact_;
+#endif
+      };
+      /** One completion owner, two ordinary takes per seat, and at most one
+          refusal-only take per seat on arm failure. Runners and follow-ups are
+          local to the driver; retirement suppresses completion and trace. */
+      template <class Fact> class RequestSettlement
       {
       public:
         static FollowUpResult settle(Node *node,
                                      const NodeContext *identity,
-                                     RailOperation<T> &op,
+                                     RailOperation<Fact> &op,
                                      Settlement stimulus
 #ifdef TEST_BUILD
                                      ,
-                                     const T &before
+                                     const Fact &before
 #endif
         )
         {
-          if (!alive(node, identity))
-            return FOLLOW_UP_NONE;
           FollowUps follow;
-          RequestBinding<T> binding;
+          SeatRunner<Fact, Fact> runner(node,
+                                        identity,
+                                        op,
+                                        follow,
+                                        stimulus
 #ifdef TEST_BUILD
-          loka::app::testing::SettleTraceRow<T> row(stimulus, before);
-#else
-          (void)stimulus;
+                                        ,
+                                        before
 #endif
-          if (!take(node,
-                    identity,
-                    op,
-                    follow,
-                    binding
+          );
+          SeatRunnerBase<Fact> *seats[1] = {&runner};
+          return walk(node, identity, op, follow, seats, 1);
+        }
+        template <class R0, class R1>
+        static FollowUpResult settle(Node *node,
+                                     const NodeContext *identity,
+                                     SettleOwner<Fact> &owner,
+                                     SeatOperation<R0, Fact> &seat0,
+                                     SeatOperation<R1, Fact> &seat1,
+                                     Settlement stimulus
 #ifdef TEST_BUILD
-                    ,
-                    row,
-                    0
+                                     ,
+                                     const Fact &before
 #endif
-                    ))
-            return FOLLOW_UP_NONE;
-          if (!take(node,
-                    identity,
-                    op,
-                    follow,
-                    binding
+        )
+        {
+          FollowUps follow;
+          SeatRunner<R0, Fact> runner0(node,
+                                       identity,
+                                       seat0,
+                                       follow,
+                                       stimulus
 #ifdef TEST_BUILD
-                    ,
-                    row,
-                    1
+                                       ,
+                                       before
 #endif
-                    ))
-            return FOLLOW_UP_NONE;
-          const FollowUpResult armed = op.finishSettle(*node, follow);
-          if (!alive(node, identity))
+          );
+          SeatRunner<R1, Fact> runner1(node,
+                                       identity,
+                                       seat1,
+                                       follow,
+                                       stimulus
+#ifdef TEST_BUILD
+                                       ,
+                                       before,
+                                       &owner
+#endif
+          );
+          SeatRunnerBase<Fact> *seats[2] = {&runner0, &runner1};
+          return walk(node, identity, owner, follow, seats, 2);
+        }
+
+      private:
+        static FollowUpResult walk(Node *node,
+                                   const NodeContext *identity,
+                                   SettleOwner<Fact> &owner,
+                                   FollowUps &follow,
+                                   SeatRunnerBase<Fact> **seats,
+                                   unsigned count)
+        {
+          for (unsigned i = 0; i < count; ++i)
+          {
+            if (!settlementAlive(node, identity))
+              return FOLLOW_UP_NONE;
+            if (!seats[i]->take(0) || !seats[i]->take(1))
+              return FOLLOW_UP_NONE;
+          }
+          const FollowUpResult armed = owner.finishSettle(*node, follow);
+          if (!settlementAlive(node, identity))
             return FOLLOW_UP_NONE;
           switch (armed)
           {
           case FOLLOW_UP_FAILED:
-            if (!refuseFailedFollowUp(node,
-                                      identity,
-                                      op,
-                                      binding
-#ifdef TEST_BUILD
-                                      ,
-                                      row
-#endif
-                                      ))
-              return FOLLOW_UP_NONE;
+            for (unsigned i = 0; i < count; ++i)
+              if (!seats[i]->refuseFailed())
+                return FOLLOW_UP_NONE;
             break;
           case FOLLOW_UP_ARMED:
           case FOLLOW_UP_NONE:
             break;
           }
 #ifdef TEST_BUILD
-          row.after = op.fact(*node);
-          loka::app::testing::SettleTrace<T>::instance().append(row);
+          Fact after = owner.fact(*node);
+          // Close each preceding row at the next seat's captured entry fact.
+          // Finalization and publication both wait for the epilogue and tail.
+          for (unsigned i = count; i != 0; --i)
+            after = seats[i - 1]->finalize(after);
+          for (unsigned i = 0; i < count; ++i)
+            seats[i]->append();
 #endif
           return armed;
-        }
-
-      private:
-        static bool alive(Node *node, const NodeContext *identity)
-        {
-          return node && node->getContext() == identity;
-        }
-        /** The last admission supplied this slot even if it deferred. Do not
-            reopen native admission or run the seam for a failed follow-up. */
-        static bool refuseFailedFollowUp(Node *node,
-                                         const NodeContext *identity,
-                                         RailOperation<T> &op,
-                                         const RequestBinding<T> &binding
-#ifdef TEST_BUILD
-                                         ,
-                                         loka::app::testing::SettleTraceRow<T> &row
-#endif
-        )
-        {
-          if (!binding.isValid() || !op.current(*node, binding) || binding.state()->get().isNone())
-            return true;
-          const T pending = binding.consume();
-          if (!alive(node, identity))
-            return false;
-          const Reply<T> reply = Reply<T>::Refused(pending, EDITOR_UNAVAILABLE);
-          // A clear subscriber can discard the binding without retiring the context.
-          if (op.current(*node, binding))
-            binding.reply_.set(reply, true);
-          if (!alive(node, identity))
-            return false;
-#ifdef TEST_BUILD
-          row.takes[row.count] = reply;
-          row.seam[row.count++] = EDITOR_UNAVAILABLE;
-#endif
-          return true;
-        }
-        static bool take(Node *node,
-                         const NodeContext *identity,
-                         RailOperation<T> &op,
-                         FollowUps &follow,
-                         RequestBinding<T> &binding
-#ifdef TEST_BUILD
-                         ,
-                         loka::app::testing::SettleTraceRow<T> &row,
-                         unsigned ordinal
-#endif
-        )
-        {
-          binding = RequestBinding<T>();
-          const Admission admission = op.admit(*node, binding);
-#ifdef TEST_BUILD
-          row.admission[ordinal] = admission;
-#endif
-          if (admission != ADMISSION_TAKE)
-            return true;
-          const T pending = binding.consume();
-          if (!alive(node, identity))
-            return false;
-          EditorResult result = op.resolve(*node, binding);
-          if (result == EDITOR_OK)
-            result = op.validate(*node, pending);
-          RequestApplication<T> applied(pending, result);
-          if (result == EDITOR_OK)
-            applied = op.apply(*node, pending);
-          if (!alive(node, identity))
-            return false;
-          follow = follow.including(applied.followUp());
-          result = applied.result();
-          if (result == EDITOR_OK)
-            result = op.report(*node, applied.value());
-          if (!alive(node, identity))
-            return false;
-          const Reply<T> reply = result != EDITOR_OK          ? Reply<T>::Refused(pending, result)
-                                 : pending != applied.value() ? Reply<T>::Clamped(pending, applied.value())
-                                                              : Reply<T>::Granted(applied.value());
-          // A binding discard is not a reply to a different recipient.
-          if (op.current(*node, binding))
-            binding.reply_.set(reply, true);
-          if (!alive(node, identity))
-            return false;
-#ifdef TEST_BUILD
-          row.takes[row.count] = reply;
-          row.seam[row.count++] = result;
-#endif
-          const FollowUp completed = op.finishTake(*node, reply, applied);
-          if (!alive(node, identity))
-            return false;
-          follow = follow.including(completed);
-          return true;
         }
       };
     } // namespace scene

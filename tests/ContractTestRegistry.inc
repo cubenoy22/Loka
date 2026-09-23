@@ -1,3 +1,6 @@
+LOKA_TEST(testSettleTwoSeatProbeOrder)
+LOKA_TEST(testSettleTwoSeatProbeFailedArm)
+LOKA_TEST(testSettleTwoSeatProbeRetirement)
 LOKA_TEST(testTextEditorSettlementReplies)
 LOKA_TEST(testTextEditorSettlementLifetime)
 LOKA_TEST(testTextEditorSettlementBinding)

@@ -1547,6 +1547,152 @@ void testTextEditorSettlementTrace()
 
 namespace
 {
+  class EpilogueSettlementProbe : public SettlementProbe
+  {
+  public:
+    explicit EpilogueSettlementProbe(const LineCursor &value)
+        : SettlementProbe(OPEN),
+          value_(value)
+    {
+    }
+    virtual FollowUpResult finishSettle(Node &base, const FollowUps &follow)
+    {
+      LOKA_VERIFY(Trace::instance().size() == 0);
+      LOKA_VERIFY(
+          loka::app::testing::TextEditorAccess::document(static_cast<TextEditorNode &>(base)).moveCaret(this->value_)
+          == EDITOR_OK);
+      return SettlementProbe::finishSettle(base, follow);
+    }
+
+  private:
+    const LineCursor value_;
+  };
+  /** The fixture owns this endpoint; this local seat reads its own borrowed binding. */
+  class OtherSettlementSeat : public SeatOperation<LineCursor, LineCursor>
+  {
+  public:
+    OtherSettlementSeat(Fixture &f, Admission admission)
+        : binding_(TextEditorProps(f.lines, f.cursor).moveCaretTo(f.otherRequest).moveCaretTo_),
+          admission_(admission)
+    {
+    }
+    virtual Admission admit(Node &node, RequestBinding<LineCursor> &binding)
+    {
+      LOKA_VERIFY(node.getContext() != 0);
+      binding = this->binding_;
+      return this->admission_ == ADMISSION_DEFERRED ? ADMISSION_DEFERRED
+             : binding.state()->get().isNone()      ? ADMISSION_EMPTY
+                                                    : ADMISSION_TAKE;
+    }
+    virtual EditorResult resolve(Node &, const RequestBinding<LineCursor> &binding)
+    {
+      return this->binding_.same(binding) ? EDITOR_OK : EDITOR_UNAVAILABLE;
+    }
+    virtual EditorResult validate(Node &, const LineCursor &)
+    {
+      return EDITOR_OK;
+    }
+    virtual RequestApplication<LineCursor> apply(Node &, const LineCursor &value)
+    {
+      return RequestApplication<LineCursor>(value, EDITOR_OK, REPAINT);
+    }
+    virtual EditorResult report(Node &base, const LineCursor &value)
+    {
+      return loka::app::testing::TextEditorAccess::document(static_cast<TextEditorNode &>(base)).moveCaret(value);
+    }
+    virtual bool current(Node &, const RequestBinding<LineCursor> &binding)
+    {
+      return this->binding_.same(binding);
+    }
+    virtual FollowUp finishTake(Node &, const CaretReply &, const RequestApplication<LineCursor> &)
+    {
+      return SCHEDULE_RESTORE;
+    }
+
+  private:
+    RequestBinding<LineCursor> binding_;
+    const Admission admission_;
+  };
+} // namespace
+void testSettleTwoSeatProbeOrder()
+{
+  Fixture f;
+  const LineCursor after(f.lines.at(0).id, 3);
+  EpilogueSettlementProbe first(after);
+  OtherSettlementSeat second(f, ADMISSION_TAKE);
+  const LineCursor before = f.cursor.state()->get();
+  const LineCursor a(f.lines.at(1).id, 1), b(f.lines.at(2).id, 2);
+  f.request.set(a);
+  f.otherRequest.set(b);
+  Trace::instance().clear();
+  LOKA_VERIFY(RequestSettlement<LineCursor>::settle(&f.node, f.context, first, first, second, SETTLE_DEFERRED, before)
+              == FOLLOW_UP_ARMED);
+  LOKA_VERIFY(f.request.get().isNone() && f.otherRequest.get().isNone());
+  LOKA_VERIFY(first.epilogues == 1 && first.repaints == 1 && first.scheduled == 1);
+  LOKA_VERIFY(f.cursor.state()->get() == after);
+  LOKA_VERIFY(Trace::instance().size() == 2);
+  const loka::app::testing::SettleTraceRow<LineCursor> &row0 = Trace::instance().at(0);
+  const loka::app::testing::SettleTraceRow<LineCursor> &row1 = Trace::instance().at(1);
+  LOKA_VERIFY(row0.before == before && row1.before == a);
+  LOKA_VERIFY(row0.after == a && row1.after == after);
+  LOKA_VERIFY(row0.count == 1 && row1.count == 1);
+  LOKA_VERIFY(row0.takes[0].requested() == a && row1.takes[0].requested() == b);
+  LOKA_VERIFY(row0.takes[0].kind() == CaretReply::GRANTED && row1.takes[0].kind() == CaretReply::GRANTED);
+  LOKA_VERIFY(row0.admission[0] == ADMISSION_TAKE && row1.admission[0] == ADMISSION_TAKE);
+  LOKA_VERIFY(row0.admission[1] == ADMISSION_EMPTY && row1.admission[1] == ADMISSION_EMPTY);
+}
+void testSettleTwoSeatProbeFailedArm()
+{
+  Fixture f;
+  SettlementProbe first(SettlementProbe::FAIL_ARM);
+  OtherSettlementSeat second(f, ADMISSION_DEFERRED);
+  const LineCursor before = f.cursor.state()->get();
+  const LineCursor a(f.lines.at(1).id, 1), b(f.lines.at(2).id, 2);
+  f.request.set(a);
+  f.otherRequest.set(b);
+  Trace::instance().clear();
+  LOKA_VERIFY(RequestSettlement<LineCursor>::settle(&f.node, f.context, first, first, second, SETTLE_DEFERRED, before)
+              == FOLLOW_UP_FAILED);
+  LOKA_VERIFY(f.request.get().isNone() && f.otherRequest.get().isNone());
+  LOKA_VERIFY(first.epilogues == 1 && first.finished == 0 && first.applied == 0);
+  LOKA_VERIFY(f.cursor.state()->get() == before);
+  LOKA_VERIFY(Trace::instance().size() == 2);
+  for (unsigned i = 0; i != 2; ++i)
+  {
+    const loka::app::testing::SettleTraceRow<LineCursor> &row = Trace::instance().at(i);
+    LOKA_VERIFY(row.count == 1 && row.takes[0].kind() == CaretReply::REFUSED);
+    LOKA_VERIFY(row.takes[0].requested() == (i == 0 ? a : b));
+    LOKA_VERIFY(row.seam[0] == EDITOR_UNAVAILABLE);
+    LOKA_VERIFY(row.admission[0] == ADMISSION_DEFERRED && row.admission[1] == ADMISSION_DEFERRED);
+    LOKA_VERIFY(row.before == before && row.after == before);
+  }
+}
+void testSettleTwoSeatProbeRetirement()
+{
+  for (unsigned when = 0; when != 3; ++when)
+  {
+    Fixture f;
+    SettlementProbe first(SettlementProbe::OPEN);
+    OtherSettlementSeat second(f, ADMISSION_TAKE);
+    SettlementSubscriber subscriber(f,
+                                    when == 0   ? SettlementSubscriber::RETIRE_CLEAR
+                                    : when == 1 ? SettlementSubscriber::RETIRE_FACT
+                                                : SettlementSubscriber::RETIRE_REPLY);
+    const LineCursor before = f.cursor.state()->get();
+    const LineCursor pending(f.lines.at(2).id, 2);
+    f.request.set(subscriber.repost);
+    f.otherRequest.set(pending);
+    Trace::instance().clear();
+    LOKA_VERIFY(RequestSettlement<LineCursor>::settle(&f.node, f.context, first, first, second, SETTLE_DEFERRED, before)
+                == FOLLOW_UP_NONE);
+    LOKA_VERIFY(f.node.getContext() == 0 && first.epilogues == 0);
+    LOKA_VERIFY(f.otherRequest.get() == pending);
+    LOKA_VERIFY(Trace::instance().size() == 0);
+  }
+}
+
+namespace
+{
   struct QueueFixture : HeadlessStateOwner
   {
     PushStateTracker &tracker;
