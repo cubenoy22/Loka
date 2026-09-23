@@ -143,11 +143,18 @@ namespace loka
 
         template <typename T> static void CreateImmediateState(IStateOwner *owner, Request<T> &out, const T &initial)
         {
+          (void)sizeof(typename RequestDeclarationWall<T>::Wall);
           CreateImmediateState(owner, out.seat_, initial);
         }
         template <typename T> static void CreateImmediateState(IStateOwner *owner, RequestWithReply<T> &out, const T &initial)
         {
           CreateImmediateState(owner, static_cast<Request<T> &>(out), initial);
+          CreateImmediateState(owner, out.reply_, Reply<T>());
+        }
+
+        template <typename T> static void CreateImmediateState(IStateOwner *owner, RequestQueueBase<T> &out, const T &initial)
+        {
+          CreateImmediateState(owner, out.seat_, initial);
           CreateImmediateState(owner, out.reply_, Reply<T>());
         }
 

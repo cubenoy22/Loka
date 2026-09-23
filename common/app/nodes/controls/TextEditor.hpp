@@ -67,6 +67,11 @@ namespace loka
             this->requestSeat(static_cast<scene::Request<LineCursor> &>(value)), this->replySeat(value));
         return *this;
       }
+      TextEditorProps &moveCaretTo(scene::RequestQueueBase<LineCursor> &value)
+      {
+        this->moveCaretTo_ = scene::RequestBinding<LineCursor>(this->requestSeat(value), this->replySeat(value), &value);
+        return *this;
+      }
       /** Committed logical caret; this does not promise a native selection. */
       core::State<LineCursor> *cursorState() const
       {
@@ -108,9 +113,7 @@ namespace loka
 
       void discardPendingRequest()
       {
-        const scene::WriteSeat<LineCursor> request = this->props.moveCaretTo_.request_;
-        if (request.isValid() && !request.state()->get().isNone())
-          request.set(LineCursor::None());
+        this->props.moveCaretTo_.discard();
       }
 
       bool applyProps(const TextEditorProps &next)

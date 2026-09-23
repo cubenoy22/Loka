@@ -22,4 +22,12 @@ void testTextEditorSettlementBinding();
 void testTextEditorSettlementAdmission();
 void testTextEditorSettlementSeam();
 void testTextEditorSettlementTrace();
+void testRequestQueueFailedArmDoesNotStrandRemainder();
+void testRequestQueuePublishRepostCannotOvertakeRing();
+void testRequestQueueCancellationCannotEraseRepost();
+void testRequestQueueBindingSourceCannotBeIgnored();
+void testRequestQueueEqualPostsCannotLoseSceneContinuation();
+void testRequestQueueDirectNextDiscardCannotApplyOldSnapshot();
+void testRequestQueueRefusedPostsCannotMutateEndpoint();
+void testRequestQueueDetachCannotReplayRing();
 #endif

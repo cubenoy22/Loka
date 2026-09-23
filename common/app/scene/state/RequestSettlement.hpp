@@ -204,7 +204,9 @@ namespace loka
 #endif
     namespace scene
     {
-      /** Owns the bounded take protocol. Node reclamation is deferred by its owner clock;
+      /** Owns two ordinary takes (each may refuse) plus at most one failed-arm
+          refusal-only take. Consume advances the slot to the next queued value,
+          or None. Node reclamation is deferred by its owner clock;
           context retirement is synchronous. identity is compared, never dereferenced. */
       template <typename T> class RequestSettlement
       {
@@ -299,8 +301,7 @@ namespace loka
         {
           if (!binding.isValid() || !op.current(*node, binding) || binding.state()->get().isNone())
             return true;
-          const T pending = binding.state()->get();
-          binding.request_.set(T::None());
+          const T pending = binding.consume();
           if (!alive(node, identity))
             return false;
           const Reply<T> reply = Reply<T>::Refused(pending, EDITOR_UNAVAILABLE);
@@ -334,8 +335,7 @@ namespace loka
 #endif
           if (admission != ADMISSION_TAKE)
             return true;
-          const T pending = binding.state()->get();
-          binding.request_.set(T::None());
+          const T pending = binding.consume();
           if (!alive(node, identity))
             return false;
           EditorResult result = op.resolve(*node, binding);

@@ -330,11 +330,18 @@ namespace loka
         // IStateOwner through asStateOwner().
         template <typename T> void state(Request<T> &out, const T &initial)
         {
+          (void)sizeof(typename RequestDeclarationWall<T>::Wall);
           this->state(out.seat_, initial);
         }
         template <typename T> void state(RequestWithReply<T> &out, const T &initial)
         {
           this->state(static_cast<Request<T> &>(out), initial);
+          this->state(out.reply_, Reply<T>());
+        }
+
+        template <typename T> void state(RequestQueueBase<T> &out, const T &initial)
+        {
+          this->state(out.seat_, initial);
           this->state(out.reply_, Reply<T>());
         }
 
@@ -412,11 +419,19 @@ namespace loka
           /** RequestWithReply uses two physical entries in declareStates capacity. */
           template <typename T> NodeStateBatch &state(Request<T> &out, const T &initial)
           {
+            (void)sizeof(typename RequestDeclarationWall<T>::Wall);
             return this->state(out.seat_, initial);
           }
           template <typename T> NodeStateBatch &state(RequestWithReply<T> &out, const T &initial)
           {
             this->state(static_cast<Request<T> &>(out), initial);
+            return this->state(out.reply_, Reply<T>());
+          }
+
+          /** A queue uses two physical entries, like RequestWithReply. */
+          template <typename T> NodeStateBatch &state(RequestQueueBase<T> &out, const T &initial)
+          {
+            this->state(out.seat_, initial);
             return this->state(out.reply_, Reply<T>());
           }
 
