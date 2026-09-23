@@ -356,6 +356,41 @@ namespace
     LineCursor last_;
     std::vector<LineCursor> reports_;
   };
+  /** Repost on every report so a duplicated entry completion is observable. */
+  class RequestOnEveryReport
+  {
+  public:
+    explicit RequestOnEveryReport(Fixture &fixture)
+        : fixture_(fixture), reports_()
+    {
+      this->fixture_.cursor.state()->bind(&changed, this, false);
+    }
+    ~RequestOnEveryReport()
+    {
+      this->fixture_.cursor.state()->unbind(&changed, this);
+    }
+    const std::vector<LineCursor> &reports() const
+    {
+      return this->reports_;
+    }
+
+  private:
+    static void changed(void *data)
+    {
+      RequestOnEveryReport &self = *static_cast<RequestOnEveryReport *>(data);
+      const LineCursor reported = self.fixture_.cursor.state()->get();
+      self.reports_.push_back(reported);
+      // Fail an unbounded mutation promptly instead of exhausting the test host.
+      LOKA_VERIFY(self.reports_.size() <= 4);
+      const LineCursor next(reported.line, reported.column == 0 ? 1 : 0);
+      StateTrackerGuard guard(&self.fixture_.tracker);
+      self.fixture_.request.set(next);
+      self.fixture_.context->onPropsApplied();
+      LOKA_VERIFY(self.fixture_.request.get() == next);
+    }
+    Fixture &fixture_;
+    std::vector<LineCursor> reports_;
+  };
   /** Observe both real publications while posting between delete and insert. */
   class RequestBetweenChanges
   {
@@ -603,6 +638,46 @@ namespace
       fixture.matches();
     }
   }
+  void testWin32TextEditorEntryDeliveryBound()
+  {
+    // Stale props, rejected input, RETRY through props, and RETRY timer are
+    // distinct entries, each with one completion and a two-take budget.
+    for (int entry = 0; entry < 4; ++entry)
+    {
+      Fixture fixture;
+      if (entry >= 2)
+      {
+        loka::win32::testing::failTextEditorSets(loka::win32::testing::TEXT_EDITOR_SET_REFUSED, 1);
+        fixture.type(static_cast<wchar_t>(0xff21));
+        LOKA_VERIFY(EditorAccess::pending(*fixture.context));
+      }
+      RequestOnEveryReport repost(fixture);
+      const ItemId line = fixture.lines.at(0).id;
+      {
+        StateTrackerGuard guard(&fixture.tracker);
+        if (entry == 0)
+          LOKA_VERIFY(fixture.lines.update(line, String("changed")) == EDIT_OK);
+        fixture.request.set(LineCursor(line, 1));
+      }
+      if (entry == 1)
+        fixture.type(static_cast<wchar_t>(0xff21));
+      else if (entry == 3)
+        SendMessageW(fixture.context->hwnd(), WM_TIMER, 853, 0);
+      else
+        fixture.context->onPropsApplied();
+      // Predicted red on #879's base for entries 0/1: the helper and outer
+      // completion each take twice, producing four reports instead of two.
+      LOKA_VERIFY(repost.reports().size() == 2);
+      LOKA_VERIFY(repost.reports()[0] == LineCursor(line, 1));
+      LOKA_VERIFY(repost.reports()[1] == LineCursor(line, 0));
+      LOKA_VERIFY(fixture.request.get() == LineCursor(line, 1));
+      LOKA_VERIFY(fixture.cursor.state()->get() == LineCursor(line, 0));
+      expectSelection(fixture, 0);
+      LOKA_VERIFY(EditorAccess::status(*fixture.context) == EDITOR_OK);
+      LOKA_VERIFY(!EditorAccess::pending(*fixture.context));
+      fixture.matches();
+    }
+  }
   void testWin32TextEditorReverseBoundaryCaret()
   {
     Fixture fixture;
@@ -769,6 +844,7 @@ void testWin32TextEditorActionsUseLineQueries()
 {
   testWin32TextEditorCaretRequests();
   testWin32TextEditorReverseBoundaryCaret();
+  testWin32TextEditorEntryDeliveryBound();
   testWin32TextEditorMultilineTyping();
   testWin32TextEditorMultilineBackspace();
   testWin32TextEditorMultilineReturn();

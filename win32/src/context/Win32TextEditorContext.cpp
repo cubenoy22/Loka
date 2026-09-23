@@ -174,18 +174,12 @@ void Win32TextEditorContext::deferRestore()
 {
   if (!this->hwnd_ || !this->node_ || this->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED)
     return;
-  const Phase completion = this->phase_;
   this->phase_ = RETRY;
   SendMessageW(this->hwnd_, EM_SETREADONLY, TRUE, 0);
   // A window timer is a later native turn, not the StateTracker drain loop.
   // Failure to arm leaves the explicit read-only state; props application can retry.
   if (!SetTimer(this->hwnd_, kRestoreTimer, 1, NULL))
-  {
-    this->phase_ = completion == COMMIT ? COMMIT : IDLE;
     this->status_ = EDITOR_UNAVAILABLE;
-    this->consumePendingRequest();
-    this->phase_ = RETRY;
-  }
 }
 bool Win32TextEditorContext::replaceProjection()
 {
@@ -204,7 +198,6 @@ bool Win32TextEditorContext::replaceProjection()
     this->status_ = EDITOR_UNAVAILABLE;
     this->delivery_ = scene::PaintAnswer::refused(scene::PAINT_REFUSED_PROPS_UNRECONCILED);
     this->phase_ = completion;
-    this->consumePendingRequest();
     this->deferRestore();
     return false;
   }
@@ -215,7 +208,6 @@ bool Win32TextEditorContext::replaceProjection()
   this->delivery_ = scene::PaintAnswer::nativeScheduled();
   if (projected == EDITOR_ALLOCATION)
     this->deferRestore();
-  this->consumePendingRequest();
   return true;
 }
 void Win32TextEditorContext::restoreSelection()
@@ -257,25 +249,33 @@ void Win32TextEditorContext::syncFromNode()
   {
     KillTimer(this->hwnd_, kRestoreTimer);
     this->restoreCommittedProjection();
-    return;
-  }
-  this->captureSelection();
-  if (this->status_ == EDITOR_OK && this->projection_.current(*this->node_))
-  {
-    // Reports are facts, never commands to collapse a native selection.
-    const scene::PaintDamage empty = {paintScope(), 0, 0, 0, 0, scene::PAINT_COVERAGE_PAINT_ONLY};
-    this->delivery_ = scene::PaintAnswer::exact(empty);
   }
   else
-    this->replaceProjection();
+  {
+    this->captureSelection();
+    if (this->status_ == EDITOR_OK && this->projection_.current(*this->node_))
+    {
+      // Reports are facts, never commands to collapse a native selection.
+      const scene::PaintDamage empty = {paintScope(), 0, 0, 0, 0, scene::PAINT_COVERAGE_PAINT_ONLY};
+      this->delivery_ = scene::PaintAnswer::exact(empty);
+    }
+    else
+      this->replaceProjection();
+  }
   this->consumePendingRequest();
 }
 void Win32TextEditorContext::consumePendingRequest()
 {
-  // Platform twin of Null/Toolbox: one take and one epilogue take. Further
-  // reposts stay dirty for a later props apply; RETRY remains deferred.
+  // Only entry completions deliver: one take and one epilogue take.
+  // Failed restoration/timer admission completes by refusal, while retaining
+  // RETRY for the native repair. An available RETRY remains deferred.
+  const Phase completion = this->phase_;
+  if (completion == RETRY && this->status_ == EDITOR_UNAVAILABLE)
+    this->phase_ = IDLE;
   if (this->consumeRequest())
     this->consumeRequest();
+  if (completion == RETRY && this->phase_ == IDLE)
+    this->phase_ = RETRY;
 }
 bool Win32TextEditorContext::consumeRequest()
 {
@@ -298,7 +298,7 @@ bool Win32TextEditorContext::consumeRequest()
         && binding.lines_->find(pending.line) >= 0)
     {
       // A take notification can edit the model. Repair before asking EDIT
-      // for offsets, keeping COMMIT across the projection's delivery tail.
+      // for offsets, keeping COMMIT across the projection repair.
       if (!this->projection_.current(*this->node_))
         this->replaceProjection();
       if (this->phase_ == COMMIT && this->status_ == EDITOR_OK)
@@ -484,7 +484,10 @@ LRESULT CALLBACK Win32TextEditorContext::WindowProc(HWND window, UINT message, W
   {
     KillTimer(window, kRestoreTimer);
     if (self->phase_ == RETRY)
+    {
       self->restoreCommittedProjection();
+      self->consumePendingRequest();
+    }
     return 0;
   }
   if (!isInputMessage(message))
