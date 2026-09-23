@@ -614,7 +614,7 @@ bool MacTextEditorContext::consumeRequest()
   Projection &p = *this->projection_;
   if (!this->node_ || (p.phase != Projection::IDLE && p.phase != Projection::UNAVAILABLE))
     return false;
-  const loka::app::scene::WriteSeat<LineCursor> request = this->node_->props.moveCaretTo_;
+  const loka::app::scene::WriteSeat<LineCursor> request = this->node_->props.moveCaretTo_.request_;
   if (!request.isValid() || request.state()->get().isNone())
     return false;
   const Projection::Phase completion = p.phase;

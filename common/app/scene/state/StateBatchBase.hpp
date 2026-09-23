@@ -6,6 +6,7 @@
 #include "app/scene/detail/ArenaMath.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "app/scene/state/Reported.hpp"
+#include "app/scene/state/Request.hpp"
 #include "app/scene/state/StateOwner.hpp"
 #include "core/LokaAlloc.hpp"
 
@@ -138,6 +139,16 @@ namespace loka
           {
             out = NodeState<T>(state, 0, 0);
           }
+        }
+
+        template <typename T> static void CreateImmediateState(IStateOwner *owner, Request<T> &out, const T &initial)
+        {
+          CreateImmediateState(owner, out.seat_, initial);
+        }
+        template <typename T> static void CreateImmediateState(IStateOwner *owner, RequestWithReply<T> &out, const T &initial)
+        {
+          CreateImmediateState(owner, static_cast<Request<T> &>(out), initial);
+          CreateImmediateState(owner, out.reply_, Reply<T>());
         }
 
         template <typename T> static void CreateImmediateState(IStateOwner *owner, Reported<T> &out, const T &initial)

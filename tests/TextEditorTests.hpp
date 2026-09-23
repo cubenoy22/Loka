@@ -16,4 +16,10 @@ void testTextEditorRequestSeatReplacement();
 void testTextEditorRequestDetach();
 void testTextEditorRequestCompletion();
 void testTextEditorReportedStorage();
+void testTextEditorSettlementReplies();
+void testTextEditorSettlementLifetime();
+void testTextEditorSettlementBinding();
+void testTextEditorSettlementAdmission();
+void testTextEditorSettlementSeam();
+void testTextEditorSettlementTrace();
 #endif

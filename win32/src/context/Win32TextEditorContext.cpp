@@ -281,7 +281,7 @@ bool Win32TextEditorContext::consumeRequest()
 {
   if (this->phase_ != IDLE || !this->node_)
     return false;
-  const scene::WriteSeat<LineCursor> request = this->node_->props.moveCaretTo_;
+  const scene::WriteSeat<LineCursor> request = this->node_->props.moveCaretTo_.request_;
   if (!request.isValid() || request.state()->get().isNone())
     return false;
   this->phase_ = COMMIT;

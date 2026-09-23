@@ -3,6 +3,7 @@
 #include "app/scene/Node.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "app/scene/state/Reported.hpp"
+#include "app/scene/state/Request.hpp"
 #include "app/style/LineHighlighter.hpp"
 #include "app/nodes/controls/TextEditorDocument.hpp"
 class NullTextEditorContext;
@@ -35,7 +36,7 @@ namespace loka
         kMaxBytes = 8192
       };
       core::ObservableList<core::String> *lines_;
-      scene::WriteSeat<LineCursor> moveCaretTo_;
+      scene::RequestBinding<LineCursor> moveCaretTo_;
 
     private:
       friend class TextEditorDocument;
@@ -58,9 +59,15 @@ namespace loka
       {
       }
       /** None is an empty request slot; it cannot request an absent caret. */
-      TextEditorProps &moveCaretTo(const scene::NodeState<LineCursor> &value)
+      TextEditorProps &moveCaretTo(scene::Request<LineCursor> &value)
       {
-        this->moveCaretTo_ = value.writeSeat();
+        this->moveCaretTo_ = scene::RequestBinding<LineCursor>(this->requestSeat(value));
+        return *this;
+      }
+      TextEditorProps &moveCaretTo(scene::RequestWithReply<LineCursor> &value)
+      {
+        this->moveCaretTo_ = scene::RequestBinding<LineCursor>(
+            this->requestSeat(static_cast<scene::Request<LineCursor> &>(value)), this->replySeat(value));
         return *this;
       }
       /** Committed logical caret; this does not promise a native selection. */
@@ -86,8 +93,8 @@ namespace loka
           return this->lines_ < other.lines_;
         if (this->cursor_.state() != other.cursor_.state())
           return this->cursor_.state() < other.cursor_.state();
-        if (this->moveCaretTo_.state() != other.moveCaretTo_.state())
-          return this->moveCaretTo_.state() < other.moveCaretTo_.state();
+        if (!this->moveCaretTo_.same(other.moveCaretTo_))
+          return this->moveCaretTo_ < other.moveCaretTo_;
         return this->highlighter_ < other.highlighter_;
       }
     };
@@ -108,7 +115,7 @@ namespace loka
 
       void discardPendingRequest()
       {
-        const scene::WriteSeat<LineCursor> request = this->props.moveCaretTo_;
+        const scene::WriteSeat<LineCursor> request = this->props.moveCaretTo_.request_;
         if (request.isValid() && !request.state()->get().isNone())
           request.set(LineCursor::None());
       }
@@ -123,7 +130,7 @@ namespace loka
         const TextEditorNode *previous = transitioning;
         transitioning = this;
 #endif
-        if (this->props.lines_ != next.lines_ || this->props.moveCaretTo_.state() != next.moveCaretTo_.state())
+        if (this->props.lines_ != next.lines_ || !this->props.moveCaretTo_.same(next.moveCaretTo_))
           this->discardPendingRequest();
         // A repost from cancellation is admitted to next. Do not clear again.
         this->props = next;
@@ -202,7 +209,12 @@ namespace loka
           : scene::NodeDefinition<TextEditorProps, TextEditorNode>(TextEditorProps(lines, cursor))
       {
       }
-      TextEditorDefinition &moveCaretTo(const scene::NodeState<LineCursor> &value)
+      TextEditorDefinition &moveCaretTo(scene::Request<LineCursor> &value)
+      {
+        this->props.moveCaretTo(value);
+        return *this;
+      }
+      TextEditorDefinition &moveCaretTo(scene::RequestWithReply<LineCursor> &value)
       {
         this->props.moveCaretTo(value);
         return *this;

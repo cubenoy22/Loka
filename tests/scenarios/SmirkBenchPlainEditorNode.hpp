@@ -84,7 +84,7 @@ namespace loka
     private:
       core::ObservableList<core::String> lines_;
       app::scene::Reported<app::LineCursor> cursor_;
-      app::scene::NodeState<app::LineCursor> request_;
+      app::scene::Request<app::LineCursor> request_;
     };
   } // namespace scenario_tests
 } // namespace loka
