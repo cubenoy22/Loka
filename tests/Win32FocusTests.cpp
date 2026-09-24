@@ -25,7 +25,16 @@ namespace
   struct Facts : HeadlessStateOwner
   {
     Reported<Fact> focus;
-    Facts() { StateBatchBase::CreateImmediateState(this, this->focus, Fact::none()); }
+    Reported<LineCursor> cursor;
+    ObservableList<String> lines;
+    Facts()
+    {
+      StateBatchBase::CreateImmediateState(this, this->focus, Fact::none());
+      StateBatchBase::CreateImmediateState(this, this->cursor, LineCursor::None());
+      // TextEditor borrows a non-null app-owned list (TextEditor.hpp).
+      LOKA_VERIFY(this->lines.attach(this->tracker()->asPushTracker(), 4) == ATTACH_OK);
+      LOKA_VERIFY(this->lines.insert(0, String("focus")) == EDIT_OK);
+    }
   };
   Facts *composingFacts = 0;
   class FocusRoot : public BoundaryNodeFor<FocusRoot>
@@ -37,7 +46,8 @@ namespace
       c.declare(Button());
       c.declare(EditText(EditTextProps().focusedAs(composingFacts->focus, static_cast<unsigned short>(1))));
       c.declare(EditText(EditTextProps().focusedAs(composingFacts->focus, static_cast<unsigned short>(2))));
-      c.declare(TextEditor(TextEditorProps().focusedAs(composingFacts->focus, static_cast<unsigned short>(3))));
+      c.declare(TextEditor(TextEditorProps(composingFacts->lines, composingFacts->cursor)
+                               .focusedAs(composingFacts->focus, static_cast<unsigned short>(3))));
     }
   };
   struct Fixture
