@@ -199,9 +199,9 @@ void App::flushWindowInvalidations()
   for (size_t i = 0; i < comps.size(); ++i)
   {
     Window *win = comps[i] ? comps[i]->asWindow() : 0;
-    // Direct Scene::invalidate() can enter a run outside this App guard.
+    // Scene runs and focus publication can enter outside this App guard.
     // Exclude the entire row so neither replacement nor reclaim touches it.
-    if (win && win->scene() && win->scene()->isRunInProgress())
+    if (win && win->scene() && win->scene()->isBusy())
       continue;
     loka::app::DialogResultDelivery *delivery = win ? win->dialogResultDelivery() : 0;
     if (win
@@ -334,7 +334,10 @@ void App::flushPendingWindowClosures()
   flushingWindowWork_ = true;
   for (size_t i = 0; i < pending.size(); ++i)
   {
-    this->windowClosed(pending[i]);
+    if (pending[i]->scene() && pending[i]->scene()->isBusy())
+      this->pendingWindowClosures_.push_back(pending[i]);
+    else
+      this->windowClosed(pending[i]);
   }
   flushingWindowWork_ = false;
 }

@@ -10,6 +10,13 @@ namespace loka
   {
     namespace scene
     {
+      void BoundaryNode::JoinSceneFocus(Scene &scene, Node &node)
+      {
+        if (node.lifecycleFact() == NODE_FACT_RETIRED) return;
+        FocusRow *row = node.asFocusParticipant();
+        if (row) scene.focus().join(*row);
+      }
+
       void BoundaryNode::RetireUnattachedCandidate(Node *root, void *data)
       {
         ComponentContext &context = *static_cast<ComponentContext *>(data);

@@ -76,6 +76,7 @@
 #include "ForTests.hpp"
 #include "ValueTests.hpp"
 #include "SceneOwnershipTests.hpp"
+#include "SceneFocusTests.hpp"
 #include "PhaseGuardTests.hpp"
 #include "LifecycleDetachTests.hpp"
 #include "NativeLifetimeTests.hpp"
