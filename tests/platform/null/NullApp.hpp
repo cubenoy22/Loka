@@ -14,6 +14,12 @@ public:
 
   virtual ~NullApp() {}
 
+  virtual void run()
+  {
+    App::run();
+    this->reconcileFocus();
+  }
+
   virtual void quit()
   {
     this->quitRequested_ = true;

@@ -25,6 +25,19 @@ namespace loka
       class SceneTestAccess
       {
       public:
+        /** Prepare a replacement's logical tree before native projection/install. */
+        static void prepareComposition(::loka::app::scene::Scene &scene)
+        {
+          scene.composeIfNeeded(::loka::app::scene::COMPOSE_EVENT_ATTACH, false);
+        }
+        /** Exercise root admission independently of attachment and rail presence. */
+        static void withoutRoot(::loka::app::scene::Scene &scene, void (*action)(void *), void *data)
+        {
+          ::loka::app::scene::Node *root = scene.rootNode_;
+          scene.rootNode_ = 0;
+          action(data);
+          scene.rootNode_ = root;
+        }
         /** Synchronous fixture setup and sequence probes, outside a Scene run. */
         static void updateAttached(::loka::app::scene::Scene &scene, bool attached)
         {

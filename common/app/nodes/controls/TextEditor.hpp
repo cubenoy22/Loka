@@ -1,6 +1,7 @@
 #ifndef LOKA_APP_TEXT_EDITOR_HPP
 #define LOKA_APP_TEXT_EDITOR_HPP
 #include "app/scene/Node.hpp"
+#include "app/FocusParticipant.hpp"
 #include "app/scene/projection/SeamKey.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "app/scene/state/Reported.hpp"
@@ -27,6 +28,13 @@ namespace loka
     {
       typedef TextEditorTypeTag TypeTag;
       typedef TextEditorNode NodeType;
+      FocusBinding focus_;
+      /** Borrows an ancestor-owned fact; LazyFlex keeps fact/key structurally stable. */
+      template <typename K> TextEditorProps &focusedAs(scene::Reported<Focused<K> > &fact, K key)
+      {
+        this->focus_ = FocusBinding(this->reportSeat(fact), key);
+        return *this;
+      }
       enum
       {
         kMaxLines = 256,
@@ -101,6 +109,8 @@ namespace loka
         if (rhs.propsTypeId() != this->propsTypeId())
           return false;
         const TextEditorProps &other = static_cast<const TextEditorProps &>(rhs);
+        if (!this->focus_.same(other.focus_))
+          return this->focus_ < other.focus_;
         if (this->lines_ != other.lines_)
           return this->lines_ < other.lines_;
         if (this->cursor_.state() != other.cursor_.state())
@@ -116,7 +126,12 @@ namespace loka
     {
     public:
       typedef TextEditorTypeTag TypeTag;
+      virtual scene::FocusRow *asFocusParticipant()
+      {
+        return &this->focusParticipant;
+      }
       TextEditorProps props;
+      FocusParticipant focusParticipant;
 
     private:
       friend class testing::TextEditorAccess;
@@ -153,7 +168,9 @@ namespace loka
                                     this->props.lines_ != next.lines_
                                         || !this->props.moveCaretTo_.same(next.moveCaretTo_));
         // A repost from cancellation is admitted to next. Do not clear again.
+        const FocusBinding oldBinding = this->props.focus_;
         this->props = next;
+        this->focusParticipant.rebind(oldBinding);
 #ifndef NDEBUG
         transitioning = previous;
 #endif
@@ -170,6 +187,7 @@ namespace loka
     public:
       explicit TextEditorNode(const TextEditorProps &p)
           : props(p),
+            focusParticipant(*this, this->props.focus_),
             document(this->props)
       {
       }
@@ -224,6 +242,11 @@ namespace loka
     struct TextEditorDefinition : scene::NodeDefinition<TextEditorProps, TextEditorNode>,
                                   scene::TestIdDslMixin<TextEditorDefinition>
     {
+      template <typename K> TextEditorDefinition &focusedAs(scene::Reported<Focused<K> > &fact, K key)
+      {
+        this->props.focusedAs(fact, key);
+        return *this;
+      }
       TextEditorDefinition()
           : scene::NodeDefinition<TextEditorProps, TextEditorNode>()
       {

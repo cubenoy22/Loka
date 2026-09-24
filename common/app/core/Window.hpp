@@ -639,6 +639,8 @@ private:
 public:
   /** Flushes current Scene/platform work; never admits seat requests or reclaims scenes. */
   bool flushSceneInvalidation();
+  /** Reads focus only after Scene and seat work have completed. */
+  void reconcileFocus();
   bool hasPendingSceneInvalidation() const
   {
     const loka::app::scene::Scene *current = this->scene();

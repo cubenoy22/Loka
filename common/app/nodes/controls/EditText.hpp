@@ -5,6 +5,8 @@
 #include "core/State.hpp"
 #include "core/String.hpp"
 #include "app/scene/Node.hpp"
+#include "app/FocusParticipant.hpp"
+#include "app/scene/state/Reported.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "app/scene/state/WriteSeat.hpp"
 
@@ -22,6 +24,13 @@ namespace loka
     {
       typedef EditTextTypeTag TypeTag;
       typedef EditTextNode NodeType;
+      FocusBinding focus_;
+      /** Borrows an ancestor-owned fact; LazyFlex keeps fact/key structurally stable. */
+      template <typename K> EditTextProps &focusedAs(scene::Reported<Focused<K> > &fact, K key)
+      {
+        this->focus_ = FocusBinding(this->reportSeat(fact), key);
+        return *this;
+      }
       /** Two-way binding: user edits are written back to this state. */
       scene::WriteSeat<loka::core::String> text_;
       int controlTag_;
@@ -60,6 +69,8 @@ namespace loka
         if (rhs.propsTypeId() != propsTypeId())
           return false;
         const EditTextProps &other = static_cast<const EditTextProps &>(rhs);
+        if (!this->focus_.same(other.focus_))
+          return this->focus_ < other.focus_;
         if (controlTag_ != other.controlTag_)
           return controlTag_ < other.controlTag_;
         if (text_.state() != other.text_.state())
@@ -73,9 +84,15 @@ namespace loka
     public:
       typedef EditTextTypeTag TypeTag;
       EditTextProps props;
+      FocusParticipant focusParticipant;
       EditTextNode(const EditTextProps &p)
-          : props(p)
+          : props(p),
+            focusParticipant(*this, this->props.focus_)
       {
+      }
+      virtual scene::FocusRow *asFocusParticipant()
+      {
+        return &this->focusParticipant;
       }
       virtual scene::NodeKind kind() const
       {
@@ -114,9 +131,28 @@ namespace loka
       }
     };
 
+    namespace scene
+    {
+      template <> struct NodePropsApplier<EditTextNode, EditTextProps>
+      {
+        static bool apply(EditTextNode *node, const EditTextProps &props)
+        {
+          const FocusBinding oldBinding = node->props.focus_;
+          node->props = props;
+          node->focusParticipant.rebind(oldBinding);
+          return true;
+        }
+      };
+    }
+
     struct EditTextDefinition : public scene::NodeDefinition<EditTextProps, EditTextNode>,
                                 public scene::TestIdDslMixin<EditTextDefinition>
     {
+      template <typename K> EditTextDefinition &focusedAs(scene::Reported<Focused<K> > &fact, K key)
+      {
+        this->props.focusedAs(fact, key);
+        return *this;
+      }
       EditTextDefinition()
           : loka::app::scene::NodeDefinition<EditTextProps, EditTextNode>()
       {

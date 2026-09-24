@@ -21,6 +21,7 @@ namespace loka
         static void flushWindowInvalidations(App &app)
         {
           app.flushWindowInvalidations();
+          app.reconcileFocus();
         }
       };
     }

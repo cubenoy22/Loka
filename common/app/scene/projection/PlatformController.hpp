@@ -25,6 +25,13 @@ namespace loka
       public:
         virtual ~IPlatformController() {}
 
+        /** False cannot answer; true with null means native focus is absent. */
+        virtual bool readNativeFocus(NodeContext *&out)
+        {
+          (void)out;
+          return false;
+        }
+
         // Project a changed node tree into native UI.
         virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild) = 0;
 

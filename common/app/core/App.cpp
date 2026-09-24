@@ -398,3 +398,21 @@ void App::clearMenuDiff()
 {
   menuController_.clearDiff();
 }
+
+void App::reconcileFocus()
+{
+  if (this->flushingWindowWork_ || !this->group_)
+    return;
+  // Re-read the live group after each observer; callbacks may remove windows.
+  size_t index = 0;
+  while (index < this->group_->getComponents().size())
+  {
+    AppComponent *component = this->group_->getComponents()[index];
+    Window *window = component ? component->asWindow() : 0;
+    if (window && !this->isWindowClosePending(window))
+      window->reconcileFocus();
+    if (index < this->group_->getComponents().size()
+        && this->group_->getComponents()[index] == component)
+      ++index;
+  }
+}
