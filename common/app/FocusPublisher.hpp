@@ -16,6 +16,7 @@ namespace loka
           published by another live Scene, not every borrowed or registered fact. */
       class FocusPublisher
       {
+        static scene::NodeContext *publishedContext(scene::SceneFocus &current);
         static void reconcile(scene::SceneFocus &current, bool answered, scene::NodeContext *target);
         static void leave(FocusParticipant &row);
         static void rebind(FocusParticipant &row, const FocusBinding &previous);

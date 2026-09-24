@@ -1,3 +1,4 @@
+LOKA_TEST(testFocusPublishedContext)
 LOKA_TEST(testFocusAppVisitedSpill)
 LOKA_TEST(testFocusAppReenumeratesMultipleRemovals)
 LOKA_TEST(testFocusForeignRow)

@@ -1,4 +1,5 @@
 #include "Win32EditTextContext.hpp"
+#include "Win32FocusParticipant.hpp"
 #include <cassert>
 #include "../Win32ScenePlatformController.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
@@ -129,6 +130,8 @@ void Win32EditTextContext::applyAttachedPresentation()
 {
   if (hwnd_)
   {
+    // A refused property leaves the native control unmarked; reads report none.
+    Win32FocusParticipant::attach(this->hwnd_, this);
     ShowWindow(hwnd_, SW_SHOW);
   }
 }
@@ -137,6 +140,7 @@ void Win32EditTextContext::applyDetachedPresentation()
 {
   if (hwnd_)
   {
+    Win32FocusParticipant::detach(this->hwnd_);
     ShowWindow(hwnd_, SW_HIDE);
   }
 }
