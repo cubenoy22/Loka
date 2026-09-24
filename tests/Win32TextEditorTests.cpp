@@ -839,42 +839,58 @@ namespace
                    static_cast<unsigned>(fixture.lines.size()));
       LOKA_VERIFY(first > 0 && first <= target && target < first + static_cast<LRESULT>(visible));
       fixture.matches();
+      Capture::clear();
+    }
+    // Geometry edges on a fresh, unscrolled control: EDIT keeps a formatting
+    // frame shorter than scrolled-in text, so these cannot follow a page move.
+    {
+      Fixture fixture(128);
+      const HWND window = fixture.context->hwnd();
+      LOKA_VERIFY((NodePropsApplier<TextEditorNode, TextEditorProps>::apply(
+          fixture.node,
+          TextEditorProps(fixture.lines, fixture.cursor).moveCaretTo(fixture.request).command(fixture.commands))));
+      const LineCursor start = fixture.cursor.state()->get();
+      RECT rect = {0};
+      SendMessageW(window, EM_GETRECT, 0, reinterpret_cast<LPARAM>(&rect));
+      HDC dc = GetDC(window);
+      LOKA_VERIFY(dc);
+      const HGDIOBJ old = SelectObject(dc, reinterpret_cast<HFONT>(SendMessageW(window, WM_GETFONT, 0, 0)));
+      TEXTMETRICW metrics = {0};
+      LOKA_VERIFY(GetTextMetricsW(dc, &metrics));
+      SelectObject(dc, old);
+      ReleaseDC(window, dc);
+      const LONG height = metrics.tmHeight + metrics.tmExternalLeading;
       // A positive-height formatting frame with no complete line declines.
-      // EDIT ignores a formatting rectangle shorter than the scrolled-in
-      // text, so scroll back to the top first and confirm the rectangle took.
-      SendMessageW(window, EM_LINESCROLL, 0, -SendMessageW(window, EM_GETFIRSTVISIBLELINE, 0, 0));
       rect.bottom = rect.top + height - 1;
       SendMessageW(window, EM_SETRECTNP, 0, reinterpret_cast<LPARAM>(&rect));
+      RECT took = {0};
+      SendMessageW(window, EM_GETRECT, 0, reinterpret_cast<LPARAM>(&took));
+      if (took.bottom - took.top >= height)
+        std::fprintf(stderr, "[skip] EDIT kept a %ld px formatting frame; the decline branch is not pinned here\n",
+                     static_cast<long>(took.bottom - took.top));
+      else
       {
-        RECT took = {0};
-        SendMessageW(window, EM_GETRECT, 0, reinterpret_cast<LPARAM>(&took));
-        if (took.bottom - took.top >= height)
+        Capture::clear();
         {
-          std::fprintf(stderr, "[skip] EDIT kept a %ld px formatting frame; the decline branch is not pinned here\n",
-                       static_cast<long>(took.bottom - took.top));
-          Capture::clear();
-          continue;
+          StateTrackerGuard guard(&fixture.tracker);
+          LOKA_VERIFY(fixture.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
         }
+        fixture.context->onPropsApplied();
+        LOKA_VERIFY(fixture.commands.reply().state()->get().kind() == Reply<EditorCommand>::REFUSED);
+        LOKA_VERIFY(fixture.commands.reply().state()->get().reason() == EDITOR_UNAVAILABLE);
+        LOKA_VERIFY(fixture.cursor.state()->get() == start);
       }
-      {
-        StateTrackerGuard guard(&fixture.tracker);
-        LOKA_VERIFY(fixture.commands.post(EditorCommand(EditorCommand::PAGE_UP)) == POST_ACCEPTED);
-      }
-      fixture.context->onPropsApplied();
-      LOKA_VERIFY(fixture.commands.reply().state()->get().kind() == Reply<EditorCommand>::REFUSED);
-      LOKA_VERIFY(fixture.commands.reply().state()->get().reason() == EDITOR_UNAVAILABLE);
-      LOKA_VERIFY(fixture.cursor.state()->get() == LineCursor(fixture.lines.at(target).id, 2));
       // One complete line plus a partial line is a one-line page (step one).
       rect.bottom = rect.top + height + height / 2;
       SendMessageW(window, EM_SETRECTNP, 0, reinterpret_cast<LPARAM>(&rect));
+      Capture::clear();
       {
         StateTrackerGuard guard(&fixture.tracker);
-        LOKA_VERIFY(fixture.commands.post(EditorCommand(EditorCommand::PAGE_UP)) == POST_ACCEPTED);
+        LOKA_VERIFY(fixture.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
       }
       fixture.context->onPropsApplied();
       LOKA_VERIFY(fixture.commands.reply().state()->get().kind() == Reply<EditorCommand>::GRANTED);
-      LOKA_VERIFY(fixture.cursor.state()->get()
-                  == LineCursor(fixture.lines.at(static_cast<unsigned short>(target - 1)).id, 2));
+      LOKA_VERIFY(fixture.cursor.state()->get() == LineCursor(fixture.lines.at(1).id, start.column));
       Capture::clear();
     }
     {
