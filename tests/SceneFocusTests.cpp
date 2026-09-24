@@ -373,6 +373,13 @@ void testSceneFocusOwnerRefusalAndLeafFilter()
   BoundaryNode::composeSubtree(&refusedLeaf, context, COMPOSE_EVENT_ATTACH, boundary);
   LOKA_VERIFY(refusedLeaf.queries == 0);
   LOKA_VERIFY(!Access::owner(refusedLeaf.row));
+  // Born ATTACHED but never joined: retiring it cuts a read source without
+  // running the living publication hook (only members can be published).
+  FocusLink refusedReader;
+  Access::source(refusedReader, refusedLeaf.row);
+  loka::app::scene::LifecycleFactTestAccess::MarkSubtreeRetired(&refusedLeaf);
+  LOKA_VERIFY(!refusedReader.peerRow());
+  LOKA_VERIFY(refusedLeaf.row.leaves == 0);
   RefusingSection section;
   LOKA_VERIFY(section.attachStateOwner(boundary, boundary));
   Participant *child = new Participant(ParticipantProps());

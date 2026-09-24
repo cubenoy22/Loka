@@ -725,8 +725,12 @@ namespace loka
           {
             if (previous == NODE_FACT_ATTACHED)
             {
+              // Any row may be a read source; only a Scene member can be
+              // published, so the living hook skips rows that never joined
+              // (e.g. a leaf whose owner attach was refused).
               focusRow->source_.cut();
-              focusRow->leaveAttached();
+              if (focusRow->owner_)
+                focusRow->leaveAttached();
             }
             if (next == NODE_FACT_RETIRED) focusRow->unlink();
           }
